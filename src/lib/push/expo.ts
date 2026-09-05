@@ -13,6 +13,33 @@ const ENDPOINT = "https://exp.host/--/api/v2/push/send";
 /** Plafonul documentat de Expo pentru un singur apel. */
 export const MAX_PE_LOT = 100;
 
+/**
+ * Termenul pe apelul către `exp.host`.
+ *
+ * DE CE EXISTĂ. `fetch` din Node NU are termen implicit — aceeași cauză
+ * mecanică descrisă pe larg în `src/lib/supabase/fetch-cu-termen.ts`, după
+ * incidentul din 23 august 2026. Chemarea de mai jos era, până la 2026-09-04,
+ * SINGURA ieșire de rețea din tot lanțul de livrare fără niciun termen.
+ *
+ * CE SE ÎNTÂMPLA FĂRĂ EL. `exp.host` acceptă conexiunea și tace ⇒ `trimiteUnLot`
+ * nu se întoarce ⇒ rândurile rămân pe `in_lucru` ⇒ după 10 minute
+ * `push_ia_din_coada` le recuperează și le trimite DIN NOU. Dacă primul apel
+ * ajunsese totuși la Expo, omul primește notificarea de două ori — și tot așa,
+ * la fiecare ciclu. Drumul cel mai scurt către dublarea notificărilor trecea
+ * exact pe aici.
+ *
+ * 15 SECUNDE. Un lot are cel mult 100 de mesaje (`MAX_PE_LOT`), iar `exp.host`
+ * răspunde în mod normal în sub o secundă. Pragul e cu un ordin de mărime peste
+ * și rămâne mult sub `TimeoutStartSec=90` al unității systemd — deci termenul
+ * se atinge ÎNAINTE ca systemd să omoare procesul, iar rândurile apucă să fie
+ * marcate reîncercabile în loc să rămână agățate pe `in_lucru`.
+ *
+ * La expirare, `fetch` respinge cu `TimeoutError`, prins de `catch`-ul de mai
+ * jos: tot lotul devine `{ fel: "eroare" }`, deci `in_asteptare` cu `incercari`
+ * deja incrementat de RPC — mărginit de `MAX_INCERCARI`, nu la nesfârșit.
+ */
+const TERMEN_MS = 15_000;
+
 export type RezultatBilet =
   | { readonly fel: "ok" }
   /** Jetonul nu mai există: aplicația a fost dezinstalată sau reinstalată. */
@@ -52,6 +79,7 @@ async function trimiteUnLot(lot: readonly MesajPush[]): Promise<readonly Rezulta
         "Accept-Encoding": "gzip, deflate",
       },
       body: JSON.stringify(lot),
+      signal: AbortSignal.timeout(TERMEN_MS),
     });
   } catch (eroare) {
     const mesaj = eroare instanceof Error ? eroare.message : "Rețea indisponibilă.";

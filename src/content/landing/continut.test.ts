@@ -42,6 +42,39 @@ const SURSE_MARKETING = [
   ...fisiere("src/app/(marketing)", [".ts", ".tsx"]),
 ];
 
+/**
+ * Sursa proxy-ului, ca text.
+ *
+ * Se citește, nu se importă: `proxy.ts` trage după el clientul Supabase și
+ * `next/server`, iar verificările de aici n-au nevoie de niciunul.
+ */
+const PUBLICE = readFileSync("src/proxy.ts", "utf8");
+
+/**
+ * Lista albă din `proxy.ts`, PARSATĂ, nu căutată ca subșir.
+ *
+ * Ancorat pe `=`, nu pe prima paranteză dreaptă: adnotarea de tip e
+ * `readonly string[]`, deci un `[^[]*` s-ar opri la paranteza DIN TIP și ar
+ * captura un literal gol. Lista goală ar face testul de linkuri să treacă și
+ * pe cel de sitemap să cadă — adică exact invers decât pare.
+ *
+ * Parserul stă la nivel de modul fiindcă e folosit din două `describe`-uri.
+ * Cel de-al doilea (vitrina) se mulțumea cu o potrivire de subșir pe toată
+ * sursa: `"/vitrina"` rămas într-un COMENTARIU, după o reorganizare a listei,
+ * ar fi ținut testul verde în timp ce `estePublica` nu mai potrivea nimic —
+ * proxy-ul ar fi dat 307, iar chenarul de pe pagina de vânzare ar fi afișat
+ * formularul de autentificare.
+ */
+const RUTE_PUBLICE = [
+  ...(PUBLICE.match(/const RUTE_PUBLICE[^=]*=\s*\[([\s\S]*?)\n\]/)?.[1] ?? "").matchAll(
+    /"(\/[^"]*)"/g,
+  ),
+].map((m) => m[1] ?? "");
+
+/** Aceeași regulă ca `estePublica()` din proxy: egalitate sau prefix cu bară. */
+const estePublica = (cale: string): boolean =>
+  cale === "/" || RUTE_PUBLICE.some((r) => cale === r || cale.startsWith(`${r}/`));
+
 describe("landing-ul nu poate minți despre module", () => {
   it("fiecare modul numit pe pagină e o cheie reală din features.ts", () => {
     for (const [limba, text] of LIMBI) {
@@ -392,8 +425,6 @@ describe("legăturile interne duc undeva", () => {
   );
   const existaRuta = (cale: string): boolean => TIPARE_RUTE.some((t) => t.test(cale));
 
-  const PUBLICE = readFileSync("src/proxy.ts", "utf8");
-
   it("fiecare link intern din conținut are o pagină reală", () => {
     for (const [limba, text] of LIMBI) {
       const linkuri = [...JSON.stringify(text).matchAll(/"(\/[^"#]*)(?:#[^"]*)?"/g)]
@@ -405,26 +436,6 @@ describe("legăturile interne duc undeva", () => {
       }
     }
   });
-
-  /**
-   * Lista albă din `proxy.ts`, citită din sursă.
-   *
-   * Se citește ca text, nu se importă: `proxy.ts` trage după el clientul
-   * Supabase și `next/server`, iar testul ăsta n-are nevoie de niciunul.
-   */
-  const RUTE_PUBLICE = [
-    // Ancorat pe `=`, nu pe prima paranteză dreaptă: adnotarea de tip e
-    // `readonly string[]`, deci un `[^[]*` se oprește la paranteza DIN TIP și
-    // captează un literal gol. Lista goală ar face testul să treacă pentru
-    // linkuri și să cadă pentru sitemap — adică exact invers decât pare.
-    ...(PUBLICE.match(/const RUTE_PUBLICE[^=]*=\s*\[([\s\S]*?)\n\]/)?.[1] ?? "").matchAll(
-      /"(\/[^"]*)"/g,
-    ),
-  ].map((m) => m[1] ?? "");
-
-  /** Aceeași regulă ca `estePublica()` din proxy: egalitate sau prefix cu bară. */
-  const estePublica = (cale: string): boolean =>
-    cale === "/" || RUTE_PUBLICE.some((r) => cale === r || cale.startsWith(`${r}/`));
 
   it("fiecare link intern din conținut duce către o rută PUBLICĂ", () => {
     /*
@@ -609,13 +620,21 @@ describe("vitrina", () => {
   /**
    * O rută publică ABSENTĂ din `RUTE_PUBLICE` nu dă 404 și nu dă eroare: dă un
    * 307 către autentificare, pentru vizitator ȘI pentru robotul de indexare.
-   * Poarta se citește din sursa proxy-ului, ca tot restul fișierului — `PUBLICE`
-   * de la `describe("legăturile interne duc undeva", ...)` e local scopului lui,
-   * deci se recitește sursa aici, cu aceeași cale relativă la rădăcina
-   * repo-ului, nu prin `import.meta.url`.
+   * Pe `/module/leave`, chenarul „Ecran real" ar fi afișat atunci formularul de
+   * autentificare — al aplicației, în mijlocul paginii de vânzare.
+   *
+   * ── DE CE NU O POTRIVIRE DE SUBȘIR ────────────────────────────────────────
+   * Testul căuta până acum `/"\/vitrina"/` în TOT textul proxy-ului. Un
+   * `"/vitrina"` rămas într-un comentariu după o reorganizare a listei l-ar fi
+   * ținut verde exact în cazul pe care trebuie să-l prindă. Se refolosește
+   * parserul de la nivelul modulului — cel ancorat pe `=` — și, mai important,
+   * se pune întrebarea reală: ce răspunde `estePublica` pentru adresa pe care o
+   * cere efectiv iframe-ul.
    */
   it("este înregistrată ca rută publică în proxy", () => {
-    const sursa = readFileSync("src/proxy.ts", "utf8");
-    expect(sursa).toMatch(/"\/vitrina"/);
+    expect(RUTE_PUBLICE.length, "nu s-a putut citi RUTE_PUBLICE din proxy.ts").toBeGreaterThan(5);
+    expect(RUTE_PUBLICE).toContain("/vitrina");
+    // Adresa cerută de `<iframe src>` nu e prefixul, ci ruta concretă.
+    expect(estePublica("/vitrina/leave"), "chenarul ar afișa ecranul de autentificare").toBe(true);
   });
 });

@@ -1,0 +1,95 @@
+name: Staging
+
+# DE CE `push` doar pe main, și nu pe orice ramură: runner-ul rulează pe VM și
+# execută ce scrie în workflow, iar workflow-ul vine din repo. Limitarea la main
+# e singurul lucru care stă între un PR dintr-un fork și shell-ul mașinii care
+# servește toate cele zece site-uri.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".claude/**"
+  workflow_dispatch:
+
+# Repo-ul e lucrat în paralel de mai multe sesiuni, care împing des. Fără asta,
+# deploy-urile s-ar aduna la coadă și ar construi versiuni deja depășite.
+concurrency:
+  group: administrativo-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, administrativo]
+    timeout-minutes: 30
+    permissions:
+      contents: write # pentru comentariul pe commit
+
+    steps:
+      # Spațiu de lucru propriu al runner-ului, deci un arbore CURAT la exact
+      # acest sha. Producția, în schimb, se construiește din directorul de lucru
+      # partajat — unde poate exista muncă necomisă a altei sesiuni.
+      - uses: actions/checkout@v4
+
+      # Secretele NU trec prin GitHub. Stau pe VM, în afara repo-ului, și se
+      # copiază la fiecare rulare — spațiul de lucru se rescrie oricum la
+      # checkout, deci fișierul nu persistă.
+      - name: Mediul de staging
+        run: cp ~/.secrete/administrativo/.env.staging .env.staging
+
+      - name: Dependențe
+        run: pnpm install --frozen-lockfile
+
+      # ── Poarta 1 ────────────────────────────────────────────────────────────
+      # `pnpm verify` = typecheck + lint + format:check + teste. NU include
+      # build — ăla vine în pasul de deploy, în `docker build`.
+      - name: Poarta — verify
+        id: verify
+        run: pnpm verify 2>&1 | tee /tmp/verify.log
+
+      # ── Poarta 2 ────────────────────────────────────────────────────────────
+      # Migrările merg pe baza de staging, un proiect Supabase SEPARAT de
+      # producție. Dacă una pică, deploy-ul se oprește aici și eroarea psql
+      # ajunge în rezumat; subdomeniul rămâne pe versiunea anterioară.
+      - name: Poarta — migrări pe baza de staging
+        id: migrari
+        env:
+          ADM_MEDIU: staging
+        run: ./administrativo.sh db:migrate 2>&1 | tee /tmp/migrari.log
+
+      - name: Deploy
+        id: deploy
+        env:
+          ADM_MEDIU: staging
+        run: ./administrativo.sh stack:deploy 2>&1 | tee /tmp/deploy.log
+
+      # `if: always()` de aici în jos: pașii ăștia sunt exact cei care contează
+      # când ceva a picat.
+      - name: Curățenie
+        if: always()
+        run: ./administrativo.sh curata 5
+
+      - name: Starea, pe pagina de stare
+        if: always()
+        run: |
+          ./administrativo.sh stare:scrie \
+            "${{ job.status }}" "${{ github.sha }}" \
+            "${{ steps.verify.outcome }} / ${{ steps.migrari.outcome }} / ${{ steps.deploy.outcome }}"
+
+      - name: Rezumat
+        if: always()
+        env:
+          # Scriptul citește `JOB_STATUS`. GitHub NU îl expune automat ca
+          # variabilă de mediu — `job.status` există doar în context de expresie.
+          JOB_STATUS: ${{ job.status }}
+        run: bash .github/scripts/rezumat-staging.sh >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comentariu pe commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
+            -f body="$(bash .github/scripts/rezumat-staging.sh)"

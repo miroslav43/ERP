@@ -83,3 +83,8 @@ supabase/.branches
 *.iml
 *.swp
 *.swo
+
+# Fișierul de stack al mediilor non-producție, generat la fiecare deploy din
+# docker-stack.yml (vezi `_genereaza_stack` din ops/05-docker.sh). NU se
+# editează de mână: o modificare aici s-ar pierde tăcut la următorul deploy.
+/.stack-*.generat.yml

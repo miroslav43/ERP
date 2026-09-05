@@ -37,6 +37,23 @@ export type MesajPush = {
 };
 
 /**
+ * Caractere de control (U+0000–U+001F și U+007F).
+ *
+ * Scris ca buclă, nu ca expresie regulată: un `[\u0000-\u001f]` ar fi corect,
+ * dar `no-control-regex` din ESLint îl semnalează pe bună dreptate — regula
+ * există tocmai fiindcă un caracter de control într-un regex e, de obicei, un
+ * accident de copiere. Aici e intenționat, iar bucla o spune fără să ceară o
+ * excepție de la regulă.
+ */
+function areCaractereDeControl(s: string): boolean {
+  for (const caracter of s) {
+    const cod = caracter.codePointAt(0) ?? 0;
+    if (cod < 0x20 || cod === 0x7f) return true;
+  }
+  return false;
+}
+
+/**
  * Calea pe care o deschide aplicația la atingerea notificării.
  *
  * DOUĂ PORȚI, ÎN ORDINEA ASTA — și niciuna nu o poate înlocui pe cealaltă.
@@ -77,6 +94,21 @@ export type MesajPush = {
 function caleDeDeschis(link: string | null, context: ContextDestinatar | undefined): string {
   if (link === null) return CALE_IMPLICITA;
   if (!/^\/[^/\\]/.test(link)) return CALE_IMPLICITA;
+  // Caractere de control, în plus față de forma din bază. `^\/[^/\\]` singur
+  // acceptă `/\t/evil.com`: al doilea caracter e TAB, deci nu e `/` și trece —
+  // iar unele parsere de URL elimină tab-ul și newline-ul înainte să
+  // interpreteze, transformând șirul în `//evil.com`, adică exact URL-ul
+  // absolut protocol-relativ pe care prima poartă îl oprea.
+  //
+  // INACCESIBIL AZI: toate valorile `notifications.link` sunt literale în cod
+  // sau derivate dintr-un UUID, niciuna intrare brută de utilizator. Poarta e
+  // aici fiindcă e gratuită și fiindcă ziua în care cineva scrie o notificare
+  // cu o cale venită dintr-un formular nu va semăna cu o zi de securitate.
+  //
+  // Constrângerea din `0001_kernel.sql:381` rămâne forma veche — o migrare
+  // aplicată nu se mai atinge. Straturile nu sunt deci identice, deliberat:
+  // cel de aici e mai strict, iar asta e direcția sigură a asimetriei.
+  if (areCaractereDeControl(link)) return CALE_IMPLICITA;
   return caleaDePortal(link, context) ?? CALE_IMPLICITA;
 }
 

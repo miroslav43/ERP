@@ -199,8 +199,19 @@ cmd_ssl__issue() {
   require_cmd docker
   local email="${CERTBOT_EMAIL:-maleticimiroslavzvonco@gmail.com}"
 
+  # `www.` există în DNS doar pentru domeniul principal. Un
+  # `-d www.staging.administrativo.ro` ar face certbot să pice pe validarea unui
+  # nume fără înregistrare — iar eșecul e pe TOT certificatul, nu doar pe numele
+  # lipsă, deci nici domeniul care există n-ar primi certificat.
+  local domenii=(-d "$ADM_DOMAIN")
+  local eticheta="$ADM_DOMAIN"
+  if [ "$ADM_MEDIU" = "productie" ]; then
+    domenii+=(-d "www.${ADM_DOMAIN}")
+    eticheta="${ADM_DOMAIN} + www"
+  fi
+
   warn "Let's Encrypt limitează eșecurile la 5/oră. Blocul :80 cu ACME trebuie să fie deja activ."
-  confirm "Emit certificat pentru ${ADM_DOMAIN} + www?" || { info "Anulat."; return 0; }
+  confirm "Emit certificat pentru ${eticheta}?" || { info "Anulat."; return 0; }
 
   # `--entrypoint certbot` e OBLIGATORIU: entrypoint-ul serviciului e o buclă
   # `certbot renew; sleep 12h`. Fără suprascriere, argumentele `certonly ...`
@@ -208,7 +219,7 @@ cmd_ssl__issue() {
   docker compose --project-directory "$ADM_STRAWBOSS_ROOT" run --rm \
     --entrypoint certbot certbot \
     certonly --webroot -w /var/www/certbot \
-    -d "$ADM_DOMAIN" -d "www.${ADM_DOMAIN}" \
+    "${domenii[@]}" \
     --agree-tos --no-eff-email --non-interactive -m "$email"
 
   success "Certificat emis. Acum: ./administrativo.sh nginx:reload"

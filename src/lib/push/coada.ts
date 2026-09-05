@@ -27,12 +27,39 @@ export const MAX_INCERCARI = 5;
 
 const PLAFON_IMPLICIT = 100;
 
+/**
+ * După câte zile se șterg rândurile TERMINALE (`trimis`, `abandonat`).
+ *
+ * Până la 2026-09-04 nimic nu curăța `push_livrari`: nici retenție, nici cron —
+ * §8 din spec o spunea explicit. Coada creștea la nesfârșit, iar cu secretul
+ * gol (ruta răspunde 404 la tot) ar fi crescut luni de zile fără ca nimeni să
+ * primească vreo notificare.
+ *
+ * TREIZECI DE ZILE, nu trei: rândul terminal e singura urmă că o notificare a
+ * plecat, cu ce eroare și după câte încercări. La un incident, întrebarea „de
+ * ce n-a primit omul notificarea de luna trecută?" trebuie să aibă un răspuns.
+ * La volumele reale (cea mai mare firmă are 8 angajați) o lună înseamnă zeci de
+ * rânduri, nu zeci de mii.
+ */
+export const RETENTIE_ZILE = 30;
+
 export type RaportLivrare = {
   readonly luate: number;
   readonly trimise: number;
   readonly esuate: number;
   readonly abandonate: number;
   readonly jetoaneRetrase: number;
+  /** Rânduri terminale mai vechi de `RETENTIE_ZILE`, șterse în rularea asta. */
+  readonly curatate: number;
+  /**
+   * Câte rânduri au rămas de trimis DUPĂ rularea asta — adâncimea cozii.
+   * `null` dacă numărătoarea a eșuat; nu blochează livrarea.
+   *
+   * E singurul semnal care distinge „nu e nimic de trimis" (0) de „coada crește
+   * și nu se golește" (număr care urcă de la o rulare la alta). Fără el, un
+   * `{"luate":0}` în `journalctl` arată identic în ambele cazuri.
+   */
+  readonly inCoada: number | null;
 };
 
 type RandCoada = {
@@ -100,6 +127,57 @@ function logEsecScriere(context: string, eroare: { message: string }): void {
   console.error(`[push-coada] ${context}: ${eroare.message}.`);
 }
 
+/**
+ * Șterge rândurile terminale mai vechi decât retenția. Plafonat, ca Pasul 1 din
+ * `push_ia_din_coada`: un DELETE fără limită superioară, pornit dintr-o rută cu
+ * termen, s-ar derula înapoi peste termen și n-ar curăța NIMIC, la fiecare
+ * rulare — aceeași oprire tăcută pe care plafonul o evită și acolo.
+ *
+ * Select-apoi-delete, nu un DELETE cu `lt(...)`: PostgREST n-are `limit` pe
+ * DELETE, iar plafonul e tocmai ce face operația mărginită.
+ *
+ * DELETE, nu `deleted_at`: rândul terminal nu mai are nimic de spus nimănui
+ * după o lună, iar indexul parțial `push_livrari_de_trimis_idx` nu-l vede
+ * oricum. `service_role` are dreptul (privilegii implicite din `0002`), dar un
+ * eșec nu oprește livrarea — se scrie în jurnal și se merge mai departe.
+ */
+async function curataVechi(db: AdminSupabase, plafon: number): Promise<number> {
+  const prag = new Date(Date.now() - RETENTIE_ZILE * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await db
+    .from("push_livrari")
+    .select("id")
+    .in("stare", ["trimis", "abandonat"])
+    .lt("updated_at", prag)
+    .limit(plafon);
+  if (error !== null) {
+    logEsecScriere("selectarea rândurilor de curățat a eșuat", error);
+    return 0;
+  }
+  const ids = (data ?? []).map((r) => r.id);
+  if (ids.length === 0) return 0;
+
+  const { error: eroareStergere } = await db.from("push_livrari").delete().in("id", ids);
+  if (eroareStergere !== null) {
+    logEsecScriere("ștergerea rândurilor vechi a eșuat", eroareStergere);
+    return 0;
+  }
+  return ids.length;
+}
+
+/** Câte rânduri mai așteaptă. `null` dacă numărătoarea a eșuat. */
+async function adancimeaCozii(db: AdminSupabase): Promise<number | null> {
+  const { count, error } = await db
+    .from("push_livrari")
+    .select("id", { count: "exact", head: true })
+    .in("stare", ["in_asteptare", "in_lucru"])
+    .is("deleted_at", null);
+  if (error !== null) {
+    logEsecScriere("numărarea cozii a eșuat", error);
+    return null;
+  }
+  return count ?? 0;
+}
+
 export async function golesteCoada(
   db: AdminSupabase,
   plafon: number = PLAFON_IMPLICIT,
@@ -108,6 +186,11 @@ export async function golesteCoada(
   // utilizator — rulează pentru toți destinatarii deodată, dintr-un timer.
   // `push_livrari` n-are oricum nicio politică: e închisă și pentru
   // `authenticated`. Filtrarea o face funcția SQL, nu o clauză din TypeScript.
+  // Curățenia ÎNAINTEA preluării, și în afara ei: e singura rulare garantată
+  // (timerul bate la un minut chiar și când coada e goală), iar un eșec al ei
+  // nu are voie să atingă livrarea.
+  const curatate = await curataVechi(db, plafon);
+
   const { data, error } = await db.rpc("push_ia_din_coada", {
     p_plafon: plafon,
     p_max_incercari: MAX_INCERCARI,
@@ -119,7 +202,15 @@ export async function golesteCoada(
   // presupune.
   const randuri = (data ?? []) as readonly RandCoada[];
   if (randuri.length === 0) {
-    return { luate: 0, trimise: 0, esuate: 0, abandonate: 0, jetoaneRetrase: 0 };
+    return {
+      luate: 0,
+      trimise: 0,
+      esuate: 0,
+      abandonate: 0,
+      jetoaneRetrase: 0,
+      curatate,
+      inCoada: await adancimeaCozii(db),
+    };
   }
 
   const contexte = await contextePeDispozitiv(db, randuri);
@@ -270,5 +361,15 @@ export async function golesteCoada(
     trimise += 1;
   }
 
-  return { luate: randuri.length, trimise, esuate, abandonate, jetoaneRetrase };
+  return {
+    luate: randuri.length,
+    trimise,
+    esuate,
+    abandonate,
+    jetoaneRetrase,
+    curatate,
+    // Măsurată DUPĂ prelucrare: ce a rămas de trimis. Un număr care urcă de la
+    // o rulare la alta e semnalul că sosesc mai multe decât pleacă.
+    inCoada: await adancimeaCozii(db),
+  };
 }

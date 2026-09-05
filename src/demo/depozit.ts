@@ -15,7 +15,7 @@
 export const CHEIE_CONCEDII = "vitrina.concedii";
 
 /**
- * `esteValid`, opțional: garda de FORMĂ, nu doar de sintaxă JSON.
+ * `esteValid`, OBLIGATORIU: garda de FORMĂ, nu doar de sintaxă JSON.
  *
  * `JSON.parse` reușește pe orice JSON valid — un obiect în locul tabloului
  * așteptat trece la fel de bine ca tabloul însuși. Primul consumator real
@@ -25,17 +25,24 @@ export const CHEIE_CONCEDII = "vitrina.concedii";
  * din devtools — ar arunca `TypeError` direct în randare și ar CĂDEA TOT
  * ECRANUL PUBLIC, fără recuperare. Cu garda, forma greșită se tratează la fel
  * ca JSON-ul stricat: se întoarce implicitul.
+ *
+ * ── DE CE NU E OPȚIONAL ───────────────────────────────────────────────────
+ * A fost, la început. Un parametru opțional lasă defectul reparat să se
+ * întoarcă la primul apelant care îl uită — și îl uită tăcut, fiindcă `tsc` n-are
+ * ce să-i reproșeze. Obligatoriu, întrebarea „ce formă aștept?" se pune la
+ * fiecare apel. Cine chiar nu vrea nicio verificare o spune explicit, cu un
+ * predicat care întoarce `true`, și se vede la review.
  */
 export function citesteDepozit<T>(
   cheie: string,
   implicit: T,
-  esteValid?: (x: unknown) => x is T,
+  esteValid: (x: unknown) => x is T,
 ): T {
   try {
     const brut = sessionStorage.getItem(cheie);
     if (brut === null) return implicit;
     const parsat: unknown = JSON.parse(brut);
-    if (esteValid !== undefined && !esteValid(parsat)) return implicit;
+    if (!esteValid(parsat)) return implicit;
     return parsat as T;
   } catch {
     return implicit;

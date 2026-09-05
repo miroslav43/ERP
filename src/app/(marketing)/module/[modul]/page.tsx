@@ -11,8 +11,9 @@ import { RO } from "@/content/landing/ro";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
-import { arePrinGeam, PrinGeam } from "../../_componente/prin-geam";
+import { PrinGeam } from "../../_componente/prin-geam";
 import { RandRegistru, Registru } from "../../_componente/registru";
+import { arePrinGeam } from "../../_componente/vitrine";
 
 /**
  * Pagina fiecărui modul.
@@ -124,8 +125,13 @@ export default async function PaginaModul({ params }: Proprietati) {
 
       {/*
         Chenarul „prin geam", doar pentru modulele cu vitrină construită
-        (`CU_VITRINA` din `prin-geam.tsx`). Opțional prin construcție, exact ca
-        `fisa` de mai jos: modulele fără vitrină nu randează nimic aici.
+        (catalogul din `vitrine.ts`). Opțional prin construcție, exact ca `fisa`
+        de mai jos: modulele fără vitrină nu randează nimic aici.
+
+        `arePrinGeam` se importă din `vitrine.ts`, NU din `prin-geam.tsx`:
+        fișierul acela e `"use client"`, iar aici suntem în graful de server,
+        unde exporturile lui sunt referințe care aruncă la apel. Vezi
+        `vitrine.test.ts`.
       */}
       {arePrinGeam(cheie) && <PrinGeam cheie={cheie} titlu={modul.titlu} />}
 

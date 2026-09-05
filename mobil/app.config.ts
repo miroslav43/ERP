@@ -40,15 +40,33 @@ const config: ExpoConfig = {
   // trebuie — INTERNET și un FileProvider la `expo-file-system`, FileProvider
   // + intent SEND la `expo-sharing`, nimic la `expo-print`/`expo-device`/
   // `expo-constants`/`expo-status-bar` (manifest gol la toate patru).
-  // `expo-status-bar` are `app.plugin.js`, dar fără opțiuni explicite (nu se
-  // dau aici) rulează ca no-op — verificat în sursă,
-  // `withStatusBar.js:resolveProps`: fără `style`/`hidden` primite, plugin-ul
-  // întoarce config-ul neatins; stilul barei se dă la runtime, din `App.tsx`.
-  // Niciunul dintre cele șase n-are `ios.infoPlist` de scris (nu ating camera
-  // rolă foto, nu cer bibliotecă media), deci n-au ce configura prin
-  // `plugins`. `salveazaPdf` (fisiere.ts) scrie doar în
-  // `FileSystem.cacheDirectory` — director privat al aplicației — nu are
-  // nevoie de READ/WRITE_EXTERNAL_STORAGE.
+  // TREI dintre cele șase AU `app.plugin.js` — `expo-status-bar`,
+  // `expo-file-system` și `expo-sharing` — dar toate trei sunt opt-in: nu fac
+  // nimic cât nu apar în `plugins`. Verificat în sursa instalată, nu în
+  // documentație (corectat la valul de curățenie din 2026-09-04, unde nota
+  // veche spunea că „niciunul n-are `ios.infoPlist` de scris" — fals pentru
+  // două din ele):
+  //
+  //   `expo-status-bar` (`withStatusBar.js:resolveProps`) — fără `style` sau
+  //     `hidden`, întoarce config-ul neatins. Stilul barei se dă la runtime,
+  //     din `App.tsx`.
+  //   `expo-file-system` (`withFileSystem.js`) — NELISTAREA LUI E O DECIZIE,
+  //     nu o omisiune: listat, adaugă NECONDIȚIONAT
+  //     `READ_EXTERNAL_STORAGE` și `WRITE_EXTERNAL_STORAGE` pe Android.
+  //     `salveazaPdf` (fisiere.ts) scrie doar în `FileSystem.cacheDirectory` —
+  //     director privat al aplicației — deci ar fi două permisiuni cerute
+  //     degeaba, exact ce riscă întrebări la revizuirea magazinului. Partea
+  //     de iOS scrie `LSSupportsOpeningDocumentsInPlace` /
+  //     `UIFileSharingEnabled` doar dacă primește opțiunile.
+  //   `expo-sharing` (`withShareExtension.js`) — construiește o EXTENSIE DE
+  //     PARTAJARE iOS, cu target Xcode, entitlements și app group. Deci ARE
+  //     configurare iOS de scris; e doar dezactivată implicit
+  //     (`props?.ios?.enabled ?? false`). Extensia ar face aplicația o
+  //     DESTINAȚIE de partajare din alte aplicații — noi vrem opusul: să
+  //     trimitem un fluturaș AFARĂ. Nelistat, deliberat.
+  //
+  // `expo-print`, `expo-device` și `expo-constants` n-au deloc `app.plugin.js`
+  // (manifest gol la toate trei).
   plugins: [
     // `recordAudioAndroid: false` + `microphonePermission: false`: implicitul
     // pachetului CERE microfon (permisiune RECORD_AUDIO pe Android,

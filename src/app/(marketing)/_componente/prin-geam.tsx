@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 
+import { notaVitrinei } from "./vitrine";
+
 /**
  * Ecranul real, văzut PRIN GEAM.
  *
@@ -25,17 +27,19 @@ import { useRef, useState } from "react";
  * din cel de marketing, iar elementul intră în TOP LAYER — stivuit peste
  * `<dialog>`-ul aplicației din interiorul iframe-ului ar fi al doilea element
  * în top layer. Aici e un `<dialog>` nativ propriu, cu popup-ul lui.
+ *
+ * ── DE CE CATALOGUL VITRINELOR STĂ ÎN `vitrine.ts`, NU AICI ───────────────
+ * `arePrinGeam` e chemat din `module/[modul]/page.tsx`, care e Server
+ * Component. Un export al unui fișier `"use client"` devine, în graful de
+ * server, o referință de client care ARUNCĂ la apel — deci apelul rupea
+ * prerandarea tuturor celor nouăsprezece pagini de modul. Catalogul s-a mutat
+ * într-un modul simplu; aici rămâne doar componenta, care se RANDEAZĂ, nu se
+ * apelează. Motivarea completă e în `vitrine.ts`.
  */
-
-/** Modulele care au vitrină. Restul nu randează banda deloc. */
-const CU_VITRINA: readonly string[] = ["leave"];
-
-export function arePrinGeam(cheie: string): boolean {
-  return CU_VITRINA.includes(cheie);
-}
 
 export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly titlu: string }) {
   const [deschis, setDeschis] = useState(false);
+  const nota = notaVitrinei(cheie);
   const caseta = useRef<HTMLDialogElement | null>(null);
 
   function deschide(): void {
@@ -90,8 +94,18 @@ export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly ti
                 style={{ pointerEvents: "none" }}
               />
             </div>
+            {/*
+              Legenda spune DOUĂ lucruri, și al doilea nu e decorativ: punctele
+              modulului, tipărite pe aceeași pagină, promit unsprezece tipuri de
+              concediu, iar demonstrația are trei. Fără linia asta pagina se
+              contrazice singură sub ochii prospectului. Textul de vânzare e
+              adevărat despre produs — demonstrația e cea care arată mai puțin,
+              deci demonstrația își declară limita. Nota vine din `vitrine.ts`,
+              per modul, nu scrisă aici: a doua vitrină va avea alt subset.
+            */}
             <figcaption className="text-mk-text-slab mt-3 text-[0.8125rem]">
               Date fictive. Nimic din ce faci aici nu se salvează.
+              {nota === undefined ? null : <> {nota}</>}
             </figcaption>
           </figure>
 

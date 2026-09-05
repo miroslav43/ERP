@@ -178,3 +178,49 @@ describe("trimiteLot", () => {
     expect(rezultate[1]?.fel).toBe("ok");
   });
 });
+
+describe("trimiteLot — termenul de rețea", () => {
+  it("trimite un AbortSignal pe fiecare apel", async () => {
+    // `fetch` din Node n-are termen implicit. Fără semnalul ăsta, un `exp.host`
+    // care acceptă conexiunea și tace lăsa rândurile pe `in_lucru`, recuperate
+    // peste 10 minute și RETRIMISE — drumul cel mai scurt spre notificări
+    // duble. Testul nu măsoară durata (ar fi lent și fragil): verifică doar că
+    // semnalul EXISTĂ pe cerere, adică poarta n-a fost scoasă din greșeală.
+    mockFetch([{ data: [{ status: "ok", id: "x" }] }]);
+    await trimiteLot([mesaj("ExponentPushToken[a]")]);
+    expect(apeluri[0]?.init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("un semnal deja anulat face tot lotul reîncercabil, nu aruncă", async () => {
+    // Forma pe care o produce expirarea termenului: `fetch` respinge cu
+    // `TimeoutError`. Rezultatul trebuie să fie o eroare per mesaj — deci
+    // `in_asteptare` cu `incercari` incrementat, mărginit de `MAX_INCERCARI` —
+    // nu o excepție care scoate tot lotul din contractul pozițional.
+    vi.stubGlobal("fetch", () =>
+      Promise.reject(new DOMException("The operation was aborted.", "TimeoutError")),
+    );
+    const rezultate = await trimiteLot([
+      mesaj("ExponentPushToken[a]"),
+      mesaj("ExponentPushToken[b]"),
+    ]);
+    expect(rezultate).toHaveLength(2);
+    expect(rezultate.every((r) => r.fel === "eroare")).toBe(true);
+    // Mesajul ajunge în coloana `eroare` din `push_livrari`, deci trebuie să
+    // spună ceva unui om care citește rândul peste o săptămână.
+    expect(rezultate[0]).toMatchObject({ fel: "eroare", mesaj: "The operation was aborted." });
+  });
+});
+
+describe("construiesteMesaj — câmpurile pe care le citește Expo", () => {
+  it("`sound` și `channelId` ajung pe fiecare mesaj trimis", async () => {
+    // Erau garantate doar de tipul literal. Android IGNORĂ tăcut o notificare
+    // trimisă pe un canal inexistent, iar canalul „implicit" se creează în
+    // aplicație la pornire — deci valoarea asta e un contract cu `mobil/`, nu
+    // un detaliu. Un tip literal nu se vede în corpul HTTP; testul îl vede.
+    mockFetch([{ data: [{ status: "ok", id: "x" }] }]);
+    await trimiteLot([mesaj("ExponentPushToken[a]")]);
+    const corp = JSON.parse(String(apeluri[0]?.init.body)) as readonly MesajPush[];
+    expect(corp[0]?.sound).toBe("default");
+    expect(corp[0]?.channelId).toBe("implicit");
+  });
+});

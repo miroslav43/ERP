@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { arePrinGeam, PrinGeam } from "./prin-geam";
+import { PrinGeam } from "./prin-geam";
 
 /**
  * `<dialog>` nu are `showModal()`/`close()` implementate în happy-dom —
@@ -17,10 +17,9 @@ beforeEach(() => {
 });
 
 describe("banda prin geam", () => {
-  it("știe pentru care module există vitrină", () => {
-    expect(arePrinGeam("leave")).toBe(true);
-    expect(arePrinGeam("courses")).toBe(false);
-  });
+  // Catalogul (`arePrinGeam`) s-a mutat în `vitrine.ts` și e verificat acolo:
+  // e apelat din graful de server, deci nu are voie să locuiască într-un fișier
+  // `"use client"` ca acesta.
 
   it("încadrează vitrina leneș, cu titlu și raport de aspect fix", () => {
     const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
@@ -60,6 +59,21 @@ describe("banda prin geam", () => {
     expect(legenda === null || cuOverflow === null ? false : cuOverflow.contains(legenda)).toBe(
       false,
     );
+  });
+
+  it("legenda spune că demonstrația arată un subset", () => {
+    /*
+     * `ro.ts` promite „Unsprezece tipuri, fiecare cu temeiul legal notat" în
+     * punctele modulului `leave`; `src/demo/lume.ts` are trei. Ambele texte
+     * ajung pe `/module/leave`, deci pagina s-ar contrazice singură. Legenda e
+     * locul unde diferența e recunoscută — fără ea, prospectul numără trei și
+     * pune la îndoială restul paginii.
+     */
+    const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
+    const legenda = container.querySelector("figcaption")?.textContent ?? "";
+
+    expect(legenda).toMatch(/Date fictive/);
+    expect(legenda).toMatch(/subset/i);
   });
 
   it("oferă o cale de deschidere accesibilă cu tastatura", () => {

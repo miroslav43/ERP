@@ -13,6 +13,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 import { caleaDePortal } from "./legaturi";
 import { CONTEXT_GOL, contexteDestinatar } from "./context";
+import { Dispozitive } from "./dispozitive";
 import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = { title: "Notificările mele" };
@@ -69,6 +70,8 @@ export default async function PaginaNotificarileMele() {
             }
           : {})}
       />
+
+      <Dispozitive db={db} userId={user.id} organizationId={tenant.organizationId} />
 
       {notificari.length === 0 ? (
         <StareGoala

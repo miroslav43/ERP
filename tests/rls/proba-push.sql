@@ -297,6 +297,10 @@ begin
     returning id into v_disp_multi;
   exception when others then
     v_disp_multi := null;
+    -- Incrementarea NU e decorativă: fără ea, (9) tipărea „EȘEC" pe ecran și
+    -- proba ieșea totuși cu succes — un eșec care se vede și nu contează e
+    -- mai rău decât o verificare absentă, fiindcă absența se observă.
+    v_esecuri := v_esecuri + 1;
     raise notice '  (9) EȘEC    angajatul multi-firmă nu-și poate înregistra dispozitivul: %', sqlerrm;
   end;
   reset role;

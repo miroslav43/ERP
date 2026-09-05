@@ -144,7 +144,10 @@ services:
       - strawboss-net
 
     deploy:
-      replicas: 2
+      # 2 în producție: rolling update fără fereastră cu zero replici. 1 în
+      # staging, unde o cădere nu costă nimic, iar a doua replică ar dubla
+      # degeaba memoria pe un VM care servește nouă site-uri.
+      replicas: ${ADM_REPLICI:-2}
       update_config:
         # start-first: replica nouă primește trafic abia după ce trece
         # healthcheck-ul, apoi se retrage cea veche. Cu `stop-first` (implicit)
@@ -174,14 +177,27 @@ secrets:
   # Sunt IMUABILE: rotația înseamnă secret nou + update de serviciu. Pentru
   # HR_ENCRYPTION_KEYS asta nu contează — regula 4 din DEPLOY.md spune că oricum
   # nu se rotește; pentru TENANT_COOKIE_SECRET, care se poate roti, e un pas în plus.
+  #
+  # `name:` separă numele LOGIC (calea din /run/secrets/, pe care o citește
+  # deploy/entrypoint.sh) de numele REAL al secretului din Swarm. Fără el, ambele
+  # medii ar cere aceleași secrete globale, iar staging ar monta cheia
+  # `service_role` a PRODUCȚIEI — cea care ocolește complet RLS.
+  #
+  # Prefixul e gol pentru producție, deci numele rămân exact cele de azi și
+  # secretele existente nu trebuie recreate. Probat 2026-09-04:
+  # `staging_proba_cheie -> /run/secrets/proba_cheie`.
   supabase_service_role_key:
     external: true
+    name: ${ADM_SECRET_PREFIX:-}supabase_service_role_key
   hr_encryption_keys:
     external: true
+    name: ${ADM_SECRET_PREFIX:-}hr_encryption_keys
   hr_hash_key:
     external: true
+    name: ${ADM_SECRET_PREFIX:-}hr_hash_key
   tenant_cookie_secret:
     external: true
+    name: ${ADM_SECRET_PREFIX:-}tenant_cookie_secret
 
 networks:
   # Creat de StrawBoss (docker network create --driver overlay --attachable

@@ -96,16 +96,37 @@ async function retrageDispozitivPrinAdmin(
     return null;
   }
 
+  // DOAR `in_asteptare`, NU și `in_lucru` (corectat 2026-09-04).
+  //
+  // `in_lucru` înseamnă că `golesteCoada` a preluat deja rândul, sub
+  // `for update skip locked`, și e în zbor spre `exp.host`. Marcându-l
+  // `abandonat` de aici intram într-o cursă scriere-scriere cu el: ruta de
+  // livrare îl suprascrie apoi cu `trimis`, iar notificarea CHIAR a plecat —
+  // deci „abandonat" ar fi fost, oricum, o minciună în jurnal.
+  //
+  // Lăsat în pace, rândul își primește starea reală de la cel care l-a
+  // trimis. Nu scapă nimic: dispozitivul e deja retras, iar dacă livrarea
+  // eșuează și rândul revine pe `in_asteptare`, Pasul 1 din
+  // `push_ia_din_coada` îl abandonează la următoarea preluare, ca pe orice
+  // rând orfan. Un rând rămas agățat pe `in_lucru` e recuperat după 10 minute
+  // și trece pe același drum.
   const { error: eroareCoada } = await admin
     .from("push_livrari")
     .update({ stare: "abandonat", eroare: motiv })
     .eq("dispozitiv_id", retras.id)
-    .in("stare", ["in_asteptare", "in_lucru"])
+    .eq("stare", "in_asteptare")
     .is("deleted_at", null);
   if (eroareCoada !== null) {
     return "Abandonarea livrărilor din coadă a eșuat.";
   }
 
+  // DOUĂ rânduri de audit pentru aceeași retragere, deliberat neunificate:
+  // ăsta, cu autorul REAL (omul care a preluat telefonul), plus cel scris de
+  // triggerul generic de audit, care sub `service_role` are `actor_id` NULL.
+  // Suprimarea celui generic ar cere o excepție în trigger — adică o gaură în
+  // singura garanție care spune „orice scriere lasă urmă", pentru un dublet
+  // care e, la citire, evident (același `entity_id`, aceeași secundă, unul cu
+  // actor și unul fără). Costul dubletului e mai mic decât al excepției.
   const { error: eroareAudit } = await admin.from("audit_logs").insert({
     organization_id: retras.organization_id,
     actor_id: actorId,
@@ -199,6 +220,24 @@ export async function POST(cerere: Request): Promise<Response> {
         : "Dispozitivul a fost retras: utilizatorul nu mai are acces la organizația rândului.";
     const eroareRetragere = await retrageDispozitivPrinAdmin(admin, jeton, user.id, motiv);
     if (eroareRetragere !== null) {
+      // Mesajul specific în JURNAL, cel generic în răspuns. Până la
+      // 2026-09-04 era calculat cu grijă și apoi ARUNCAT: tipul de retur al
+      // funcției era, practic, un boolean, iar la incident nu se putea ști
+      // care din cele trei scrieri a picat.
+      //
+      // Contează fiindcă secvența NU e o tranzacție și eșecul ei parțial lasă
+      // stări diferite, cu remedii diferite:
+      //   „Retragerea rândului a eșuat"      → nimic nu s-a schimbat; reîncercarea e curată.
+      //   „Abandonarea livrărilor a eșuat"   → dispozitivul E retras, dar livrările lui au
+      //                                        rămas în coadă. Se curăță singure: Pasul 1 din
+      //                                        `push_ia_din_coada` scoate orice rând al unui
+      //                                        dispozitiv retras.
+      //   „Înregistrarea în audit a eșuat"   → retragerea E făcută și coada E curată, dar
+      //                                        jurnalul NU are rândul cu autor real. Rămâne
+      //                                        cel scris de trigger, cu `actor_id` NULL sub
+      //                                        service_role — deci se știe CĂ s-a întâmplat,
+      //                                        nu și CINE a preluat telefonul.
+      console.error(`[api-dispozitive] predare eșuată: ${eroareRetragere}`);
       return eroare("Predarea dispozitivului nu a putut fi procesată.", 500);
     }
   }

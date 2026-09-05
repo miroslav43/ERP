@@ -81,6 +81,54 @@ cmd_docker__build() {
   docker images "${ADM_IMAGE}" --format '  {{.Repository}}:{{.Tag}}  {{.Size}}  ({{.CreatedSince}})' | head -5
 }
 
+# ---------------------------------------------------------------------------
+# Fișierul de stack al mediului.
+#
+# Producția folosește docker-stack.yml direct. Staging-ul are nevoie de o CHEIE
+# de serviciu diferită, fiindcă `docker stack deploy` înregistrează pe rețea un
+# alias egal cu cheia, iar `strawboss-net` e partajată de tot VM-ul: două
+# servicii cu același alias înseamnă că nginx împarte traficul de producție
+# între ele.
+#
+# Cheia NU se poate parametriza. Probat pe 2026-09-04, toate trei:
+#   `${VAR}:` ca nume de serviciu → „Additional property ${…} is not allowed"
+#     (schema Compose se validează ÎNAINTEA interpolării);
+#   `networks.<net>.aliases` → aliasul scurt implicit se ADAUGĂ, nu se
+#     înlocuiește: [administrativo-web-staging administrativo-web];
+#   `extends` → „Support for `extends` is not implemented yet".
+#
+# Rămâne redenumirea printr-o substituție ancorată. Un `sed` care nu potrivește
+# nimic ar produce TĂCUT exact coliziunea pe care o evităm — de aceea cele două
+# gărzi de mai jos nu sunt decorative.
+# ---------------------------------------------------------------------------
+_genereaza_stack() {
+  local sursa="$ADMINISTRATIVO_ROOT/docker-stack.yml"
+
+  if [ "$ADM_MEDIU" = "productie" ]; then
+    echo "$sursa"
+    return 0
+  fi
+
+  local dest="$ADMINISTRATIVO_ROOT/.stack-${ADM_MEDIU}.generat.yml"
+  sed "s|^  administrativo-web:\$|  ${ADM_SERVICE}:|" "$sursa" > "$dest"
+
+  if ! grep -q "^  ${ADM_SERVICE}:\$" "$dest"; then
+    error "Generarea stack-ului a eșuat: cheia ${ADM_SERVICE} nu apare în fișierul generat."
+    error "Cel mai probabil serviciul a fost redenumit în docker-stack.yml."
+    rm -f "$dest"
+    exit 1
+  fi
+
+  if grep -q '^  administrativo-web:$' "$dest"; then
+    error "Generarea stack-ului a eșuat: cheia de producție a rămas în fișierul generat."
+    error "Ar înregistra un alias de rețea în coliziune cu producția."
+    rm -f "$dest"
+    exit 1
+  fi
+
+  echo "$dest"
+}
+
 # @cmd stack:deploy "Build + rolling update health-gated al stack-ului"
 cmd_stack__deploy() {
   header "Deploy stack '${ADM_STACK}'"
@@ -90,12 +138,15 @@ cmd_stack__deploy() {
   _ensure_swarm
   _build_image
 
+  local fisier_stack; fisier_stack="$(_genereaza_stack)"
+  _infol "fișier de stack" "$(basename "$fisier_stack")"
+
   info "Rolling update (start-first, health-gated, rollback automat)..."
   # --resolve-image never: pe un singur nod nu există registry, iar Swarm ar
   # încerca altfel să rezolve tagul într-un digest de la un registru inexistent
   # și ar eșua. _load_env a exportat deja variabilele pentru interpolare.
   IMAGE_TAG="$ADM_IMAGE_TAG" docker stack deploy \
-    -c "$ADMINISTRATIVO_ROOT/docker-stack.yml" \
+    -c "$fisier_stack" \
     --resolve-image never \
     "$ADM_STACK"
 
