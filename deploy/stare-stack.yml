@@ -1,0 +1,47 @@
+# ============================================================================
+# Santinela stării de deploy pentru staging.
+#
+# Deploy:  docker stack deploy -c deploy/stare-stack.yml \
+#            --resolve-image never administrativo-stare
+#
+# DE CE UN STACK SEPARAT, și nu un al doilea serviciu în stack-ul de staging:
+# momentul în care ai nevoie de pagina de stare e exact momentul în care
+# aplicația nu pornește — sau în care deploy-ul nici n-a început, fiindcă
+# `pnpm verify` a picat. O santinelă în același stack ar fi rotită de același
+# rolling update și ar dispărea odată cu ce trebuia să raporteze.
+#
+# Se deployează O SINGURĂ DATĂ. Ciclul de deploy al aplicației n-o atinge
+# niciodată; runner-ul doar scrie fișiere în directorul montat mai jos.
+# ============================================================================
+
+services:
+  stare:
+    image: nginx:alpine
+
+    # Bind mount, nu volum Swarm: runner-ul scrie aici cu un `cat >` obișnuit,
+    # ca utilizatorul `miro`. Un volum ar cere un container efemer la fiecare
+    # scriere, pentru zero câștig pe un singur nod.
+    volumes:
+      - /home/miro/.stare-staging:/usr/share/nginx/html:ro
+
+    # Aliasul `stare` pe overlay e cel spre care trimite `location /_stare` din
+    # 32-staging.administrativo.ro.conf. Numele e liber pe `strawboss-net`
+    # (verificat: niciun alt serviciu de pe VM nu-l folosește).
+    networks:
+      - strawboss-net
+
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+      resources:
+        limits:
+          # nginx:alpine care servește două fișiere statice. 32 MB e generos.
+          memory: 32M
+
+networks:
+  # Creat de StrawBoss. `external: true` => Swarm doar se atașează, nu îi
+  # gestionează ciclul de viață. NU îl șterge: îl folosesc toate site-urile.
+  strawboss-net:
+    external: true

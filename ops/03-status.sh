@@ -168,13 +168,24 @@ cmd_doctor() {
     "_vhost_points_to_app" \
     "./administrativo.sh nginx:vhost"
 
-  # Spațiu pe disc: build-urile Next sunt mari, iar VM-ul e deja la peste 80%.
+  # Spațiu pe disc. Un VM cu Docker rămas fără disc nu doboară doar aplicația
+  # noastră: cade tot ce scrie pe `/`, adică toate cele ~9 site-uri de aici.
+  #
+  # Pragul de avertizare la 80% e adăugat fiindcă între 82% și 90% nu spunea
+  # nimeni nimic, iar fiecare deploy lasă ~125 MB pe care nu-i ștergea nimeni.
+  # `docker image prune -f` de dinainte ștergea doar imaginile fără tag — zero,
+  # măsurat — deci reparația sugerată nu repara nimic. `curata` șterge tagurile
+  # vechi și cache-ul de build, care sunt tot spațiul.
   local use; use=$(df --output=pcent / | tail -1 | tr -dc '0-9')
   printf "  ${ARROW}  %-34s" "spațiu pe disc"
-  if [ "$use" -lt 90 ]; then echo -e "${GREEN}ok${NC} ${DIM}(${use}% folosit)${NC}"
+  if [ "$use" -lt 80 ]; then
+    echo -e "${GREEN}ok${NC} ${DIM}(${use}% folosit)${NC}"
+  elif [ "$use" -lt 90 ]; then
+    echo -e "${YELLOW}atenție${NC} ${DIM}(${use}% folosit)${NC}"
+    echo -e "     ${YELLOW}Recomandat:${NC} ./administrativo.sh curata  ${DIM}(întoarce zeci de GB)${NC}"
   else
     echo -e "${RED}problemă${NC} ${DIM}(${use}% folosit)${NC}"
-    echo -e "     ${YELLOW}Reparație:${NC} docker image prune -f  ${DIM}(StrawBoss are ~155 taguri vechi)${NC}"
+    echo -e "     ${YELLOW}Reparație:${NC} ./administrativo.sh curata"
     issues=$(( issues + 1 ))
   fi
 

@@ -6,19 +6,65 @@
 # ============================================================================
 
 # ---------------------------------------------------------------------------
-# Constante ale proiectului — un singur loc de adevăr pentru nume
+# Mediul — SINGURUL buton. Tot ce urmează se derivă din el.
+#
+# DE CE UN SINGUR BUTON, și nu o variabilă suprascriptibilă per nume: un
+# `ADM_DOMAIN` de staging combinat din greșeală cu un `ADM_STACK` de producție ar
+# instala vhost-ul de probă peste serviciul viu. Cu un singur comutator,
+# combinația aia nu se poate exprima.
+#
+# Implicit „productie", deci fiecare apel existent se comportă EXACT ca înainte
+# de introducerea staging-ului. Poarta care apără asta:
+# `bash scripts/checks/medii.sh`.
 # ---------------------------------------------------------------------------
-readonly ADM_STACK="administrativo"              # numele stack-ului Swarm
-readonly ADM_SERVICE="administrativo-web"        # serviciul din stack
-readonly ADM_IMAGE="administrativo-web"          # numele imaginii
+ADM_MEDIU="${ADM_MEDIU:-productie}"
+
+case "$ADM_MEDIU" in
+  productie)
+    ADM_STACK="administrativo"                   # numele stack-ului Swarm
+    ADM_SERVICE="administrativo-web"             # cheia serviciului din stack
+    ADM_IMAGE="administrativo-web"               # numele imaginii
+    ADM_DOMAIN="administrativo.ro"
+    ADM_VHOST="30-administrativo.ro.conf"
+    ADM_SECRET_PREFIX=""
+    ADM_REPLICI=2
+    ;;
+  staging)
+    # Cheia serviciului DIFERĂ, nu doar numele stack-ului. `docker stack deploy`
+    # înregistrează pe rețea un alias egal cu CHEIA serviciului, iar
+    # `strawboss-net` e partajată de toate site-urile VM-ului: cu aceeași cheie,
+    # nginx ar trimite intermitent trafic de producție în staging — care e legat
+    # la altă bază de date. Verificat empiric cu `docker service inspect` și
+    # `nslookup` pe 2026-09-04.
+    ADM_STACK="administrativo-staging"
+    ADM_SERVICE="administrativo-web-staging"
+    ADM_IMAGE="administrativo-web-staging"
+    ADM_DOMAIN="staging.administrativo.ro"
+    ADM_VHOST="32-staging.administrativo.ro.conf"
+    # Secretele Docker sunt `external: true` cu nume GLOBALE. Fără prefix,
+    # staging ar monta cheia `service_role` a producției — cea care ocolește
+    # complet RLS.
+    ADM_SECRET_PREFIX="staging_"
+    ADM_REPLICI=1
+    ;;
+  *)
+    echo "Mediu necunoscut: ${ADM_MEDIU}. Valori acceptate: productie, staging." >&2
+    exit 1
+    ;;
+esac
+
+readonly ADM_MEDIU ADM_STACK ADM_SERVICE ADM_IMAGE ADM_DOMAIN ADM_VHOST
+readonly ADM_SECRET_PREFIX ADM_REPLICI
+
+# ---------------------------------------------------------------------------
+# Constante comune tuturor mediilor — nu depind de comutator
+# ---------------------------------------------------------------------------
 readonly ADM_PORT=3000
 readonly ADM_OVERLAY="strawboss-net"             # overlay-ul partajat cu nginx
-readonly ADM_DOMAIN="administrativo.ro"
 
 # Edge-ul partajat al VM-ului. Deservește TOATE cele ~9 site-uri de aici.
 readonly ADM_NGINX="strawboss-nginx-1"
 readonly ADM_NGINX_CONFD="/srv/apps/Strawboss/nginx/conf.d"
-readonly ADM_VHOST="30-administrativo.ro.conf"
 readonly ADM_STRAWBOSS_ROOT="/srv/apps/Strawboss"
 
 # ---------------------------------------------------------------------------
@@ -151,13 +197,23 @@ readonly ADM_REQUIRED_ENV=(
   TENANT_COOKIE_SECRET
 )
 
-_env_file() { echo "$ADMINISTRATIVO_ROOT/.env.production"; }
+# Producția își ține mediul în repo (fișier ignorat de git). Staging-ul NU:
+# secretele lui stau în afara arborelui, fiindcă spațiul de lucru al runner-ului
+# se rescrie la fiecare checkout, iar un fișier de secrete în repo ar fi la un
+# `git add` distanță de a ajunge pe GitHub.
+_env_file() {
+  if [ "$ADM_MEDIU" = "productie" ]; then
+    echo "$ADMINISTRATIVO_ROOT/.env.production"
+  else
+    echo "${ADM_SECRETE_DIR:-$HOME/.secrete/administrativo}/.env.${ADM_MEDIU}"
+  fi
+}
 
 _load_env() {
   local f; f="$(_env_file)"
   if [ ! -f "$f" ]; then
-    error "Lipsește .env.production"
-    echo -e "     ${DIM}Pornește de la .env.production.example și completează cheile.${NC}"
+    error "Lipsește $(basename "$f") pentru mediul ${ADM_MEDIU}."
+    echo -e "     ${DIM}Căutat la: ${f}${NC}"
     echo -e "     ${DIM}HR_ENCRYPTION_KEYS și HR_HASH_KEY trebuie să fie EXACT cele din dev.${NC}"
     exit 1
   fi
