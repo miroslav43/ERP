@@ -40,9 +40,7 @@ function caleaEnv() {
   if (mediu === "productie") {
     return new URL("../../.env.local", import.meta.url);
   }
-  const dir =
-    process.env.ADM_SECRETE_DIR ??
-    `${process.env.HOME ?? ""}/.secrete/administrativo`;
+  const dir = process.env.ADM_SECRETE_DIR ?? `${process.env.HOME ?? ""}/.secrete/administrativo`;
   return new URL(`file://${dir}/.env.${mediu}`);
 }
 
@@ -79,7 +77,8 @@ if (!URL_SUPABASE || !CHEIE_SERVICE) {
 // Scriptul scrie cu `service_role`, deci ocolește complet RLS. Singura întrebare
 // care contează înainte de asta e „în ce bază?", iar răspunsul trebuie să fie
 // vizibil fără să-l cauți. Referința de proiect e în URL.
-const REF_PROIECT = /https:\/\/([a-z0-9]{20})\.supabase\.co/.exec(URL_SUPABASE)?.[1] ?? "necunoscut";
+const REF_PROIECT =
+  /https:\/\/([a-z0-9]{20})\.supabase\.co/.exec(URL_SUPABASE)?.[1] ?? "necunoscut";
 console.log(
   `  mediu: ${process.env.ADM_MEDIU ?? "productie"}  ·  proiect Supabase: ${REF_PROIECT}`,
 );
