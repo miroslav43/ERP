@@ -30,6 +30,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { isPostgrestError, mapPostgrestError } from "@/lib/actions/errors";
 import type { ActionError, ActionResult } from "@/lib/actions/types";
 
+import { FELURI_NOTIFICARE } from "./feluri";
+
 const esec = (error: ActionError): ActionResult<never> => ({ ok: false, error });
 
 const schemaId = z.object({ id: z.uuid("Dispozitivul selectat nu este valid.") });
@@ -93,26 +95,6 @@ export async function retrageDispozitivul(rawInput: unknown): Promise<ActionResu
 export async function trimiteRetragereDispozitiv(formData: FormData): Promise<void> {
   await retrageDispozitivul({ id: formData.get("id") });
 }
-
-/**
- * Toate felurile de notificare din `public.notification_kind` (`0001:89-91`).
- *
- * Enumerate explicit, nu citite din bază: `notification_preferences` are un rând
- * PE FEL, iar „oprește notificările pe telefon" înseamnă toate. Dacă cineva
- * adaugă un fel nou în enum și uită lista asta, felul nou rămâne PORNIT — de
- * aceea există `preferinte-feluri.test.ts`, care compară lista cu tipul generat
- * și cade la prima divergență.
- */
-export const FELURI_NOTIFICARE = [
-  "info",
-  "success",
-  "warning",
-  "error",
-  "task",
-  "reminder",
-  "approval",
-  "announcement",
-] as const;
 
 const schemaComutare = z.object({
   pornit: z.boolean(),

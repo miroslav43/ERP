@@ -105,11 +105,13 @@ fi
 # Probele pe module. Fiecare își numără singură eșecurile și încheie cu
 # `raise exception` dacă are vreunul, deci `ON_ERROR_STOP=1` e de-ajuns.
 #
-# `proba-push.sql` a stat scrisă, cu 23 de verificări, fără să fie rulată de
-# nicio poartă — nici aici, nici în CI. O probă pe care n-o rulează nimeni
-# putrezește tăcut: prima migrare care îi rupe premisele n-o supără pe nimeni.
+# La 2026-09-05 erau ZECE fișiere `tests/rls/proba-*.sql` și NICIUNA nu
+# era rulată de vreo poartă — nici aici, nici în CI. O probă pe care n-o
+# rulează nimeni putrezește tăcut: prima migrare care îi rupe premisele n-o
+# supără pe nimeni. Globul, nu o listă: următoarea probă intră singură.
 echo "▶ probele pe module"
-for p in tests/rls/proba-push.sql; do
+shopt -s nullglob
+for p in tests/rls/proba-*.sql; do
   printf "  %-46s" "$(basename "$p")"
   if psql "$URL" -v ON_ERROR_STOP=1 -f "$p" >/tmp/banc.proba 2>&1; then echo "✓"
   else echo "✗"; tail -30 /tmp/banc.proba; exit 2; fi

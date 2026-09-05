@@ -162,13 +162,26 @@ cu **două fișiere diferite**:
 1. **`google-services.json`** — înregistrează aplicația (`ro.administrativo.portal`)
    la Firebase, ca `getExpoPushTokenAsync()` să primească vreun jeton. Se
    descarcă din Firebase Console → Project settings → aplicația Android
-   adăugată acolo. Se pune în `mobil/google-services.json` (fișier local, NU
-   se comite — conține un ID de proiect Firebase; se adaugă la `.gitignore`)
-   și se referă din `app.config.ts`:
-   ```ts
-   android: { googleServicesFile: "./google-services.json", ... }
+   adăugată acolo. Se pune în `mobil/google-services.json`; e deja în
+   `mobil/.gitignore`.
+
+   **Calea NU se scrie literal în `app.config.ts`, se dă prin mediu.** Fișierul
+   fiind gitignorat, EAS Build nu-l primește (încarcă proiectul respectând
+   `.gitignore`, în lipsa unui `.easignore`) — iar o cale fixă ar arăta corect
+   local și ar produce pe EAS ori un build căzut, ori, mai rău, unul reușit
+   care nu primește niciodată jeton. Tiparul suportat de EAS pentru exact
+   cazul ăsta e o variabilă de tip **file**:
+
+   ```bash
+   pnpm dlx eas-cli@latest env:create --name GOOGLE_SERVICES_JSON --type file \
+     --value ./google-services.json --scope project --visibility secret
    ```
-   Fără el, jetonul de push pur și simplu nu se primește — nicio eroare
+
+   `app.config.ts` o citește din `process.env.GOOGLE_SERVICES_JSON`;
+   nesetată, cheia lipsește cu totul din configurare — build-ul trece, doar
+   push-ul nu merge.
+
+   Fără fișier, jetonul de push pur și simplu nu se primește — nicio eroare
    explicită, doar un `getExpoPushTokenAsync()` care nu ajunge niciodată la
    „ok" (documentat oficial: „your app never receives a push token" dacă
    API-ul Firebase e restricționat greșit).

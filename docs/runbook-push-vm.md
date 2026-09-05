@@ -7,17 +7,32 @@ adună în `push_livrari`, și acolo rămân. Nu apare nicio eroare nicăieri.
 
 ## Ce lipsește acum, verificat pe mașină
 
-| Verificare                            | Stare la 2026-09-04 |
-| ------------------------------------- | ------------------- |
-| `PUSH_CRON_SECRET` în `.env.production` | lipsește          |
-| `/etc/administrativo/`                 | nu există          |
-| `push-livrare.timer` instalat          | nu                 |
+| Verificare                               | Stare la 2026-09-04   |
+| ---------------------------------------- | --------------------- |
+| `PUSH_CRON_SECRET` în `.env.production`  | lipsește              |
+| `/etc/administrativo/`                   | nu există             |
+| `push-livrare.timer` instalat            | nu                    |
 | `PUSH_CRON_SECRET` în `docker-stack.yml` | **există** (linia 82) |
-| Migrarea `0122` pe cloud               | **aplicată**       |
+| Migrarea `0122` pe cloud                 | **aplicată**          |
 
 Deci lipsesc exact trei lucruri, iar al patrulea și al cincilea sunt gata.
 
-## Pașii
+## Scurt: un script
+
+```bash
+cd /srv/apps/ERP
+./deploy/instaleaza-timer.sh push
+```
+
+Face toți pașii de mai jos, în ordine, și verifică la final. E **idempotent** —
+se poate rula de câte ori vrei — și, dacă secretul există deja undeva, îl
+REFOLOSEȘTE în loc să genereze altul, fiindcă exact asta ar rupe potrivirea pe
+care o construiește. Întreabă înainte de `stack:deploy`. Nu se rulează cu
+`sudo`: cere el, unde trebuie.
+
+Pentru REGES, același script: `./deploy/instaleaza-timer.sh reges`.
+
+## Pașii, dacă vrei să-i faci de mână
 
 Se rulează de pe VM, din `/srv/apps/ERP`. Comentariile spun de ce, nu doar ce.
 
@@ -87,8 +102,15 @@ coadă pleacă spre telefon în cel mult un minut.
 Răspunsul rutei e un JSON pe care îl scrie `golesteCoada`:
 
 ```json
-{ "luate": 0, "trimise": 0, "esuate": 0, "abandonate": 0,
-  "jetoaneRetrase": 0, "curatate": 0, "inCoada": 0 }
+{
+  "luate": 0,
+  "trimise": 0,
+  "esuate": 0,
+  "abandonate": 0,
+  "jetoaneRetrase": 0,
+  "curatate": 0,
+  "inCoada": 0
+}
 ```
 
 `inCoada` e adâncimea cozii DUPĂ rulare. Un număr care urcă de la un minut la

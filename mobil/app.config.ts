@@ -7,6 +7,34 @@ import type { ExpoConfig } from "expo/config";
  */
 const URL_PORTAL = process.env.URL_PORTAL ?? "https://administrativo.ro/portal";
 
+/**
+ * `google-services.json` — calea vine din MEDIU, nu e scrisă literal.
+ *
+ * Fișierul înregistrează aplicația la Firebase, ca `getExpoPushTokenAsync()` să
+ * primească vreun jeton pe Android. Fără el, jetonul pur și simplu nu se
+ * obține — nicio eroare explicită, doar o cerere care nu ajunge la „ok".
+ *
+ * DE CE PRIN VARIABILĂ DE MEDIU, ȘI NU O CALE FIXĂ
+ * Fișierul e în `mobil/.gitignore`, iar EAS Build încarcă proiectul
+ * RESPECTÂND `.gitignore` (în lipsa unui `.easignore`). O cale scrisă fix ar
+ * arăta corect local și ar produce pe EAS ori un build căzut, ori — mai rău —
+ * un build reușit care nu primește niciodată jeton de push. Tiparul suportat
+ * de EAS pentru exact cazul ăsta e o variabilă de mediu de tip „file": EAS
+ * scrie fișierul pe mașina de build și pune CALEA lui în variabilă.
+ *
+ *   eas env:create --name GOOGLE_SERVICES_JSON --type file \
+ *     --value ./google-services.json --scope project --visibility secret
+ *
+ * Local, pentru un `expo prebuild` de probă:
+ *   GOOGLE_SERVICES_JSON=./google-services.json npx expo prebuild -p android
+ *
+ * NESETATĂ, cheia lipsește cu totul din configurare — build-ul trece, iar
+ * push-ul pe Android nu funcționează. E starea corectă pentru oricine
+ * construiește fără Firebase (iOS, sau doar ca să vadă că se compilează), și
+ * `expo-doctor` o semnalează, deci nu e o tăcere totală.
+ */
+const caleGoogleServices = process.env.GOOGLE_SERVICES_JSON;
+
 const config: ExpoConfig = {
   name: "Administrativo",
   slug: "administrativo",
@@ -29,6 +57,9 @@ const config: ExpoConfig = {
   },
   android: {
     package: "ro.administrativo.portal",
+    ...(caleGoogleServices !== undefined && caleGoogleServices !== ""
+      ? { googleServicesFile: caleGoogleServices }
+      : {}),
     adaptiveIcon: { foregroundImage: "./assets/icon.png", backgroundColor: "#0f1e3d" },
     permissions: ["CAMERA", "USE_BIOMETRIC", "POST_NOTIFICATIONS"],
   },

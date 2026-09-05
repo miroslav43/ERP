@@ -337,7 +337,7 @@ Protocol verificat, de urmat:
 ## 8. Capcane cunoscute din schemă
 
 **Citește direct [`docs/design/ecrane/capcane.md`](design/ecrane/capcane.md)**
-— 38 de capcane concrete, verificate empiric, fiecare cu explicație și fișierul
+— 39 de capcane concrete, verificate empiric, fiecare cu explicație și fișierul
 exact afectat. Cele mai relevante pentru orice modul nou:
 
 - Orice funcție din schema `app` NU e apelabilă cu `.rpc()` din cod client.

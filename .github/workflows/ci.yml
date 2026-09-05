@@ -40,6 +40,16 @@ jobs:
       - name: Verificare tipuri (strict, zero any)
         run: pnpm typecheck
 
+      # Prinde în două secunde ce altfel prinde doar `next build`, la minutul
+      # trei: un fișier `"use server"` care exportă altceva decât funcții
+      # async. Pasul `Build` de mai jos l-ar prinde oricum — dar aici ratarea
+      # are un nume și un număr de linie, nu un jurnal de „Collecting page
+      # data". Lucrăm direct pe main, deci CI vede commit-ul DUPĂ push, iar
+      # build-ul de producție din Docker poate ajunge acolo primul: exact ce
+      # s-a întâmplat pe 2026-09-05.
+      - name: Exporturi din fișiere "use server"
+        run: pnpm check:server
+
       - run: pnpm lint
 
       - name: Verificare formatare
@@ -141,9 +151,11 @@ jobs:
       # singură eșecurile și încheie cu `raise exception`, deci `ON_ERROR_STOP`
       # e de-ajuns ca poartă.
       #
-      # `proba-push.sql` a stat scrisă, cu 23 de verificări, fără s-o ruleze
-      # nimeni — nici CI, nici bancul local. O probă pe care n-o rulează nimeni
-      # putrezește tăcut: prima migrare care îi rupe premisele trece verde.
+      # La 2026-09-05 erau ZECE `tests/rls/proba-*.sql` pe disc și NICIUNA nu
+      # era rulată de vreo poartă — nici aici, nici în bancul local. O probă pe
+      # care n-o rulează nimeni putrezește tăcut: prima migrare care îi rupe
+      # premisele trece verde. Toate zece verificate pe banc înainte de a fi
+      # puse aici, ca poarta să nu intre roșie pe main.
       - name: Probele pe module
         run: |
           if [ ! -d supabase/migrations ] || [ -z "$(ls -A supabase/migrations 2>/dev/null)" ]; then
