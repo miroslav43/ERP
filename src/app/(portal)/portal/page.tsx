@@ -20,6 +20,7 @@ import { formatDate, formatMonthYear, oraInBucharest, todayInBucharest } from "@
 import { citestePerioada, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
+import { stareaLunii } from "@/domain/attendance/luna";
 import { formatOreCuUnitate } from "@/lib/format/ore";
 import { cn } from "@/lib/ui/cn";
 import { anunturiPublicate, idAnunturiCitite } from "@/lib/queries/announcements";
@@ -176,7 +177,17 @@ export default async function PaginaPortal() {
    * dat aici scutește un card care oferă o atingere pe care serverul o va
    * respinge.
    */
-  const lunaDeschisa = perioada !== null && perioada.status === "deschisa";
+  /*
+    Regula e a domeniului, nu a ecranului (`domain/attendance/luna.ts`), și s-a
+    schimbat de DOUĂ ori față de ce scria aici:
+
+    1. luna FĂRĂ rând de perioadă e deschisă (0132) — se naște la prima apăsare,
+       deci butonul din prima zi a lunii nu mai tace;
+    2. `in_aprobare` nu mai ascunde butoanele. Baza nu o refuză niciodată
+       (0013:293 verifică doar `blocata`), deci ecranul spunea „luna nu e
+       deschisă" pentru o lună în care serverul l-ar fi lăsat să ponteze.
+  */
+  const lunaDeschisa = stareaLunii(perioada, an, luna).deschisa;
 
   const oreAzi = ziDeAzi?.ore_lucrate ?? 0;
   const suplimentareAzi = ziDeAzi?.ore_suplimentare ?? 0;

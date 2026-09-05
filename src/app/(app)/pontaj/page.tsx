@@ -2,7 +2,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CalendarClock, Users } from "lucide-react";
+import { Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -30,6 +30,7 @@ import { filtrePontajSchema, type StatusPerioada } from "@/schemas/attendance";
 import type { PermissionScope } from "@/config/permissions";
 import { configZiDin, type ConfigZi } from "@/domain/attendance/calcul-ore";
 import { limiteleFirmei, type LimiteFirmei } from "@/domain/attendance/limite-legale";
+import { stareaLunii } from "@/domain/attendance/luna";
 import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
@@ -388,7 +389,6 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             saptamanaStart={saptamanaStart}
             poateEdita={poateEdita}
             poateAproba={poateAproba}
-            poateDeschide={poateDeschide}
             parametri={parametri}
             azi={azi}
           />
@@ -410,9 +410,17 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     zileLucratoareLuna(tenant.organizationId, an, filtre.luna),
   ]);
 
-  // Chiar depinde de `perioada`: îi ia `data_inceput`. Rămâne al doilea val.
-  const setari =
-    perioada === null ? null : await setariPontaj(tenant.organizationId, perioada.data_inceput);
+  /*
+    Luna FĂRĂ rând de perioadă nu mai e o lună interzisă, ci una în care nu s-a
+    scris încă nimic (0132). `stareaLunii` întoarce atunci intervalul calculat
+    și statusul `deschisa`, deci foaia se randează normal și se poate ponta
+    direct în ea — inclusiv într-o lună viitoare, care e exact cazul din care a
+    pornit schimbarea: concediul aprobat pentru octombrie.
+  */
+  const stare = stareaLunii(perioada, an, filtre.luna);
+
+  // Al doilea val: îi trebuie prima zi a lunii, care acum există și fără rând.
+  const setari = await setariPontaj(tenant.organizationId, stare.dataInceput);
 
   /*
     Parametrii după care se derivă orele dintr-un interval — ACEIAȘI ca la ziua
@@ -425,7 +433,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const config = configZiDin(setari);
   // „Ore așteptate” pentru lună — bază de raportare, NU calculul de salariu
   // (acela rămâne în `salarizare`, care poate citi aceleași cifre mai târziu).
-  const oreAsteptateLuna = perioada === null ? 0 : config.orePeZi * zileLucratoare;
+  const oreAsteptateLuna = config.orePeZi * zileLucratoare;
 
   /*
     Seriile de absențe nemotivate fără decizie de suspendare.
@@ -458,39 +466,27 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
         />
       )}
 
-      {perioada === null ? (
-        <StareGoala
-          fel="initiala"
-          pictograma={CalendarClock}
-          titlu="Luna nu a fost deschisă"
-          descriere="Deschideți perioada din „Perioade” înainte de a înregistra pontaj."
-          {...(poateDeschide
-            ? { actiune: { eticheta: "Mergi la Perioade", href: "/pontaj/perioade" } }
-            : {})}
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={10} />}>
+        <LunaIntreaga
+          organizationId={tenant.organizationId}
+          scope={scope}
+          an={an}
+          filtre={filtre}
+          vizualizare={vizualizare}
+          dataInceput={stare.dataInceput}
+          dataSfarsit={stare.dataSfarsit}
+          statusPerioada={stare.status}
+          blocataLa={stare.blocataLa}
+          utilizatorEticheta={user.fullName ?? user.email}
+          poateEdita={poateEdita}
+          poateAproba={poateAproba}
+          config={config}
+          limite={limiteleFirmei(setari)}
+          oreAsteptateLuna={oreAsteptateLuna}
+          parametri={parametri}
+          azi={azi}
         />
-      ) : (
-        <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={10} />}>
-          <LunaIntreaga
-            organizationId={tenant.organizationId}
-            scope={scope}
-            an={an}
-            filtre={filtre}
-            vizualizare={vizualizare}
-            dataInceput={perioada.data_inceput}
-            dataSfarsit={perioada.data_sfarsit}
-            statusPerioada={perioada.status}
-            blocataLa={perioada.blocata_la}
-            utilizatorEticheta={user.fullName ?? user.email}
-            poateEdita={poateEdita}
-            poateAproba={poateAproba}
-            config={config}
-            limite={limiteleFirmei(setari)}
-            oreAsteptateLuna={oreAsteptateLuna}
-            parametri={parametri}
-            azi={azi}
-          />
-        </Suspense>
-      )}
+      </Suspense>
     </div>
   );
 }
