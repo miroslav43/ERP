@@ -76,6 +76,67 @@ else
 fi
 
 echo ""
+echo "4. Randarea prin CALEA REALĂ de cod (fără variabile puse de mână):"
+# DE CE CONTEAZĂ NUANȚA: prima versiune a verificării rula
+#   ADM_SECRET_PREFIX=staging_ ADM_REPLICI=1 docker stack config …
+# adică punea singură variabilele pe care voia să le vadă. Trecea, dar testa
+# fișierul, nu codul. În realitate `_lib.sh` le declara `readonly` FĂRĂ `export`,
+# iar `docker stack deploy` interpolează din mediul procesului — deci staging a
+# fost deployat cu secretele PRODUCȚIEI și cu 2 replici.
+#
+# Verificarea de acum sursează exact ce sursează `administrativo.sh` și nu
+# setează nimic. Dacă `export` dispare, pică.
+randeaza() { # $1 = mediu
+  ADM_MEDIU="$1" ADMINISTRATIVO_ROOT="$RADACINA" bash -c '
+    source "$ADMINISTRATIVO_ROOT/ops/_lib.sh" >/dev/null 2>&1
+    source "$ADMINISTRATIVO_ROOT/ops/05-docker.sh" >/dev/null 2>&1
+    _load_env >/dev/null 2>&1
+    f=$(_genereaza_stack) || exit 1
+    IMAGE_TAG=proba docker stack config -c "$f" 2>/dev/null
+  '
+}
+
+verifica_randare() { # $1 = mediu, $2 = prefix imagine, $3 = tipar secrete, $4 = replici
+  local out; out="$(randeaza "$1")"
+  if [ -z "$out" ]; then
+    echo "  ⚠ $1: randarea n-a produs nimic (mediu neconfigurat aici) — sar"
+    return
+  fi
+  local img rep sec_gresite
+  img=$(printf '%s' "$out" | sed -n 's/^ *image: \(.*\)$/\1/p' | head -1)
+  rep=$(printf '%s' "$out" | sed -n 's/^ *replicas: \([0-9]*\)$/\1/p' | head -1)
+  # Doar `name:`-urile din secțiunea `secrets:`. `networks:` are și el unul
+  # (`strawboss-net`), iar un sed lacom peste tot fișierul îl număra ca secret
+  # cu nume greșit.
+  sec_gresite=$(printf '%s' "$out" | awk '
+    /^secrets:/        { in_sec = 1; next }
+    /^[a-zA-Z]/        { in_sec = 0 }
+    in_sec && /^ *name:/ { print $2 }
+  ' | grep -Ecv "$3" || true)
+
+  case "$img" in
+    "$2"*) echo "  ✓ $1: imagine $img" ;;
+    *) echo "  ✗ $1: imagine „$img\" (așteptat prefix $2)"; esecuri=$((esecuri + 1)) ;;
+  esac
+  if [ "$rep" = "$4" ]; then
+    echo "  ✓ $1: $rep replici"
+  else
+    echo "  ✗ $1: $rep replici (așteptat $4)"; esecuri=$((esecuri + 1))
+  fi
+  if [ "$sec_gresite" = "0" ]; then
+    echo "  ✓ $1: toate secretele se potrivesc cu «$3»"
+  else
+    echo "  ✗ $1: $sec_gresite secrete NU se potrivesc cu «$3»"; esecuri=$((esecuri + 1))
+  fi
+}
+
+verifica_randare staging   "administrativo-web-staging:" "^staging_" 1
+# Producția: numele EXACTE, nu „orice literă mică" — un tipar larg ar fi acceptat
+# și `staging_supabase_service_role_key`, adică exact scurgerea de verificat.
+verifica_randare productie "administrativo-web:" \
+  "^(supabase_service_role_key|hr_encryption_keys|hr_hash_key|tenant_cookie_secret)$" 2
+
+echo ""
 if [ "$esecuri" -gt 0 ]; then
   echo "$esecuri verificări au picat."
   exit 1

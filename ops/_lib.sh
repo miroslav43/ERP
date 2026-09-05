@@ -56,6 +56,17 @@ esac
 readonly ADM_MEDIU ADM_STACK ADM_SERVICE ADM_IMAGE ADM_DOMAIN ADM_VHOST
 readonly ADM_SECRET_PREFIX ADM_REPLICI
 
+# EXPORT, nu doar `readonly`. `docker stack deploy` interpolează `${VAR}` din
+# docker-stack.yml folosind MEDIUL procesului, nu variabilele shell-ului care îl
+# lansează. O variabilă neexportată se evaluează la implicitul din `${VAR:-…}`.
+#
+# Prima rulare reală (2026-09-05, rularea 33955571598) a deployat staging-ul cu:
+#   secrete: supabase_service_role_key   ← ale PRODUCȚIEI, nu staging_*
+#   replici: 2                            ← implicitul, nu 1
+# Cheia `service_role` ocolește complet RLS. Containerul n-a pornit doar fiindcă
+# imaginea cerută nu exista — noroc, nu proiectare.
+export ADM_IMAGE ADM_SECRET_PREFIX ADM_REPLICI
+
 # ---------------------------------------------------------------------------
 # Constante comune tuturor mediilor — nu depind de comutator
 # ---------------------------------------------------------------------------

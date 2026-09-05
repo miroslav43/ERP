@@ -30,7 +30,12 @@
 
 services:
   administrativo-web:
-    image: administrativo-web:${IMAGE_TAG:-latest}
+    # Numele imaginii vine din mediu, ca și numele stack-ului: `_build_image`
+    # taguiește cu `${ADM_IMAGE}`, deci un nume hardcodat aici ar cere altceva
+    # decât s-a construit. S-a întâmplat: staging a construit
+    # `administrativo-web-staging:89ecea6` și a cerut `administrativo-web:89ecea6`,
+    # care nu există — task-urile au fost respinse cu „No such image".
+    image: ${ADM_IMAGE:-administrativo-web}:${IMAGE_TAG:-latest}
 
     environment:
       - NODE_ENV=production

@@ -26,6 +26,18 @@ jobs:
     permissions:
       contents: write # pentru comentariul pe commit
 
+    # `pipefail` NU e implicit în shell-ul pașilor. Fără el, `comandă | tee log`
+    # întoarce codul lui `tee`, adică mereu 0 — și fiecare poartă de mai jos
+    # devine decorativă.
+    #
+    # S-a întâmplat la prima rulare reală (33955571598): migrările au eșuat cu
+    # „password authentication failed", deploy-ul n-a convers, iar workflow-ul a
+    # raportat verde pe toată linia. Pagina de stare scria „a ajuns pe staging"
+    # în timp ce serviciul era 0/2.
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
+
     steps:
       # Spațiu de lucru propriu al runner-ului, deci un arbore CURAT la exact
       # acest sha. Producția, în schimb, se construiește din directorul de lucru
