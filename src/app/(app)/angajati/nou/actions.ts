@@ -192,6 +192,8 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       permis_valabil_de_la,
       permis_valabil_pana,
       numar_pasaport,
+      componente_salariale,
+      scutiri_fiscale,
       ...fisa
     } = input;
 
@@ -467,6 +469,76 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
           employeeId: angajat.id,
           requestId: ctx.requestId,
           eroare,
+        });
+      }
+    }
+
+    /*
+     * ── PACHETUL SALARIAL ȘI SCUTIRILE ─────────────────────────────────────
+     *
+     * Ambele se negociază la angajare și, până acum, se introduceau abia DUPĂ,
+     * dintr-un al doilea ecran. Cine uita al doilea drum avea un om plătit
+     * greșit din prima lună, iar nimic nu semnala lipsa: un pachet salarial gol
+     * e o stare validă.
+     *
+     * `valabil_de_la` e data de început a CONTRACTULUI, nu ziua înrolării: un
+     * spor negociat azi pentru un contract care începe luni se aplică de luni.
+     *
+     * AVERTISMENT, nu eroare — ca la autorizații și la permisul de muncă mai
+     * sus. Angajatul și contractul există deja; a desface înrolarea fiindcă o
+     * primă n-a intrat ar costa mai mult decât a o adăuga din fișă.
+     */
+    if (componente_salariale.length > 0) {
+      const { error: eroareComponente } = await db.from("salary_components").insert(
+        componente_salariale.map((c) => ({
+          organization_id: ctx.tenant.organizationId,
+          employee_id: angajat.id,
+          contract_id: contract.id,
+          component_type_id: c.component_type_id,
+          kind: c.kind,
+          procent: c.procent,
+          suma: c.suma,
+          moneda,
+          valabil_de_la,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        })),
+      );
+      if (eroareComponente !== null) {
+        avertismente.push(
+          "Sporurile și beneficiile nu au putut fi înregistrate. Adăugați-le din fișa angajatului → Componente salariale.",
+        );
+        console.error("[salarizare] componentele salariale nu au intrat la înrolare", {
+          employeeId: angajat.id,
+          requestId: ctx.requestId,
+          eroare: eroareComponente,
+        });
+      }
+    }
+
+    if (scutiri_fiscale.length > 0) {
+      const { error: eroareScutiri } = await db.from("employee_tax_exemptions").insert(
+        scutiri_fiscale.map((sc) => ({
+          organization_id: ctx.tenant.organizationId,
+          employee_id: angajat.id,
+          contract_id: contract.id,
+          exemption_type: sc.exemption_type,
+          procent_scutire: sc.procent_scutire,
+          plafon_lunar: sc.plafon_lunar,
+          temei_legal: sc.temei_legal,
+          valabil_de_la,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        })),
+      );
+      if (eroareScutiri !== null) {
+        avertismente.push(
+          "Scutirile fiscale nu au putut fi înregistrate. Adăugați-le din fișa angajatului → Scutiri fiscale — până atunci, primul stat de plată reține impozit.",
+        );
+        console.error("[salarizare] scutirile fiscale nu au intrat la înrolare", {
+          employeeId: angajat.id,
+          requestId: ctx.requestId,
+          eroare: eroareScutiri,
         });
       }
     }

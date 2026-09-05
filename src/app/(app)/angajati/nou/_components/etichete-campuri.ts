@@ -97,6 +97,8 @@ export const ETICHETE_CAMPURI: Readonly<Record<keyof InroleazaAngajatInput, stri
 
   // Pasul 5 — bunuri și certificări
   inventory_item_ids: "Bunuri predate la înrolare",
+  componente_salariale: "Sporuri și beneficii",
+  scutiri_fiscale: "Scutiri fiscale",
   examen_data: "Data examenului medical",
   examen_tip: "Tipul examenului medical",
   examen_rezultat: "Rezultatul examenului medical",

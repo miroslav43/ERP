@@ -105,3 +105,63 @@ describe("mesajele de validare ale înrolării", () => {
     expect(inroleazaAngajatSchema.safeParse(BAZA_VALIDA).success).toBe(true);
   });
 });
+
+describe("pachetul salarial declarat la înrolare", () => {
+  const cu = (peste: Record<string, unknown>) =>
+    inroleazaAngajatSchema.safeParse({ ...BAZA_VALIDA, ...peste });
+
+  const componenta = (peste: Record<string, unknown> = {}) => ({
+    component_type_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    kind: "spor_suma",
+    procent: null,
+    suma: 500,
+    ...peste,
+  });
+
+  it("lipsa lor e o stare validă — majoritatea angajaților n-au niciuna", () => {
+    const r = cu({});
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.componente_salariale).toStrictEqual([]);
+      expect(r.data.scutiri_fiscale).toStrictEqual([]);
+    }
+  });
+
+  it("o primă fixă cu sumă trece", () => {
+    expect(cu({ componente_salariale: [componenta()] }).success).toBe(true);
+  });
+
+  it("o primă fixă FĂRĂ sumă e refuzată, cu mesaj despre sumă", () => {
+    const r = cu({ componente_salariale: [componenta({ suma: null })] });
+    if (r.success) throw new Error("componenta fără sumă a trecut");
+    const problema = r.error.issues.find((i) => i.path.includes("suma"));
+    expect(problema?.message).toContain("sumă fixă");
+  });
+
+  it("un spor PROCENTUAL fără procent e refuzat, cu mesaj despre procent", () => {
+    const r = cu({
+      componente_salariale: [componenta({ kind: "spor_procent", suma: null, procent: null })],
+    });
+    if (r.success) throw new Error("sporul fără procent a trecut");
+    const problema = r.error.issues.find((i) => i.path.includes("procent"));
+    expect(problema?.message).toContain("procent");
+  });
+
+  it("scutirea cere un tip din listă, nu un text oarecare", () => {
+    const bun = cu({ scutiri_fiscale: [{ exemption_type: "constructii" }] });
+    expect(bun.success).toBe(true);
+
+    const rau = cu({ scutiri_fiscale: [{ exemption_type: "inventat" }] });
+    if (rau.success) throw new Error("tipul inventat a trecut");
+    expect(rau.error.issues.some((i) => i.message.includes("Alegeți tipul de scutire"))).toBe(true);
+  });
+
+  it("plafonul lunar are interval, iar mesajul îl spune", () => {
+    const r = cu({
+      scutiri_fiscale: [{ exemption_type: "it", plafon_lunar: 9_000_000 }],
+    });
+    if (r.success) throw new Error("plafonul absurd a trecut");
+    const problema = r.error.issues.find((i) => i.path.includes("plafon_lunar"));
+    expect(problema?.message).toContain("1.000.000");
+  });
+});

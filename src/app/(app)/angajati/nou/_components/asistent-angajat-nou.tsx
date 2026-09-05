@@ -16,6 +16,7 @@ import { ProgresAsistent, ETICHETE_PASI } from "./progres-asistent";
 import { Pas1Identitate, CAMPURI_PAS_1 } from "./pas-1-identitate";
 import { Pas2Contact, CAMPURI_PAS_2 } from "./pas-2-contact";
 import { Pas3Contract, CAMPURI_PAS_3 } from "./pas-3-contract";
+import type { SablonSalarial } from "./pachet-salarial";
 import { Pas4FisaPostului, CAMPURI_PAS_4 } from "./pas-4-fisa-postului";
 import { Pas5BunuriCertificari, CAMPURI_PAS_5 } from "./pas-5-bunuri-certificari";
 import { Pas6Confirmare } from "./pas-6-confirmare";
@@ -65,6 +66,8 @@ interface Proprietati {
   readonly obiecteDisponibile: readonly OptiuneInventar[];
   /** Următorul număr liber de contract, doar ca text de ajutor. */
   readonly numarUrmator: string | null;
+  /** Tipurile de componentă salarială ale firmei, pentru pachetul de la pasul 3. */
+  readonly sabloaneSalariale: readonly SablonSalarial[];
 }
 
 interface DocumentEmis {
@@ -91,6 +94,7 @@ export function AsistentAngajatNou({
   zileConcediuImplicit,
   obiecteDisponibile,
   numarUrmator,
+  sabloaneSalariale,
 }: Proprietati) {
   const refFormular = useRef<HTMLFormElement | null>(null);
   const [pasCurent, setPasCurent] = useState(1);
@@ -364,6 +368,7 @@ export function AsistentAngajatNou({
           angajati={angajati}
           puncteLucru={puncteLucru}
           numarUrmator={numarUrmator}
+          sabloaneSalariale={sabloaneSalariale}
         />
       )}
       {pasCurent === 4 && <Pas4FisaPostului formular={formular} />}

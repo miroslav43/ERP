@@ -31,8 +31,15 @@ export default async function PaginaAngajatNou() {
   }
 
   const db = await createServerSupabase();
-  const [departamente, angajati, organizatie, obiecteInventar, puncteLucru, contor] =
-    await Promise.all([
+  const [
+    departamente,
+    angajati,
+    organizatie,
+    obiecteInventar,
+    puncteLucru,
+    contor,
+    sabloaneSalariale,
+  ] = await Promise.all([
       db
         .from("departments")
         .select("id, denumire")
@@ -82,7 +89,29 @@ export default async function PaginaAngajatNou() {
         .eq("document_type", "contract_munca")
         .eq("year", new Date().getFullYear())
         .maybeSingle(),
+      /*
+       * Șabloanele de componentă salarială — sporuri, prime recurente, tichete,
+       * cadouri. `organization_id is null` sunt cele de PLATFORMĂ, comune
+       * tuturor firmelor; RLS le lasă vizibile, deci filtrul nu le exclude.
+       */
+      db
+        .from("salary_component_types")
+        .select("id, denumire, kind")
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .order("ordine")
+        .order("denumire"),
     ]);
+
+  /*
+   * Forma din 0130: numărul poartă DATA alocării, nu doar anul. Textul de
+   * ajutor trebuie să arate ce se va aloca — altfel previzualizarea minte, iar
+   * omul caută în registru un „7/2026" care nu există.
+   */
+  const numarUrmator = `${String(contor.data?.next_number ?? 1)}/${new Intl.DateTimeFormat(
+    "ro-RO",
+    { day: "2-digit", month: "2-digit", year: "numeric" },
+  ).format(new Date())}`;
 
   return (
     <div className={cn(LATIMI.formular, "space-y-6")}>
@@ -101,7 +130,8 @@ export default async function PaginaAngajatNou() {
           organizatie.data?.zile_concediu_anual_implicit ?? ZILE_CONCEDIU_IMPLICIT_FALLBACK
         }
         obiecteDisponibile={obiecteInventar.data ?? []}
-        numarUrmator={`${String(contor.data?.next_number ?? 1)}/${String(new Date().getFullYear())}`}
+        sabloaneSalariale={sabloaneSalariale.data ?? []}
+        numarUrmator={numarUrmator}
       />
     </div>
   );

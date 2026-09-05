@@ -21,6 +21,7 @@ import {
 import { mesajCamp } from "./erori-formular";
 import { CautaCor } from "@/components/cauta-cor";
 import { DepartamentNou } from "./departament-nou";
+import { PachetSalarial, type SablonSalarial } from "./pachet-salarial";
 
 export const CAMPURI_PAS_3 = [
   "department_id",
@@ -49,6 +50,10 @@ export const CAMPURI_PAS_3 = [
   "preaviz_zile",
   "iban",
   "banca",
+  // Pachetul salarial se validează ODATĂ cu restul pasului: o primă fără sumă
+  // nu are voie să treacă la pasul 4 și să se descopere la trimitere.
+  "componente_salariale",
+  "scutiri_fiscale",
 ] as const satisfies readonly (keyof InroleazaAngajatInput)[];
 
 interface Optiune {
@@ -68,6 +73,7 @@ interface Proprietati {
   readonly puncteLucru: readonly Optiune[];
   /** Următorul număr liber, doar ca text de ajutor. Alocarea reală e la salvare. */
   readonly numarUrmator: string | null;
+  readonly sabloaneSalariale: readonly SablonSalarial[];
 }
 
 /** Santinela din `<select>` pentru „locul nu e nici sediul, nici un punct de lucru". */
@@ -79,6 +85,7 @@ export function Pas3Contract({
   angajati,
   puncteLucru,
   numarUrmator,
+  sabloaneSalariale,
 }: Proprietati) {
   const {
     register,
@@ -530,6 +537,11 @@ export function Pas3Contract({
           </Camp>
         </div>
       </fieldset>
+
+      {/* Pachetul salarial stă DUPĂ salariul de bază, nu într-un pas propriu:
+          e aceeași negociere, iar despărțirea ar fi făcut ca „salariul" să pară
+          complet cu o pagină înainte de a fi. */}
+      <PachetSalarial formular={formular} sabloane={sabloaneSalariale} />
     </div>
   );
 }
