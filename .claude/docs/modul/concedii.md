@@ -18,6 +18,9 @@ tabele:
     leave_entitlement_rules,
     approval_tasks,
     notifications,
+    employment_contracts,
+    contract_suspendari,
+    reges_evenimente,
   ]
 permisiuni: [leave:read, leave:create, leave:update, leave:approve]
 feature: leave
@@ -26,8 +29,8 @@ citeste_daca:
   - "cerere care rămâne în aceeași stare → [[date/pontaj]]"
   - "buton de aprobare absent → [[rol/manager]]"
   - "concediu aprobat care nu apare în foaia de prezență → [[modul/pontaj]]"
-scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
-scris_la: 2026-09-04
+scris_pe: b32cfef59471a67b3a39ff3e5d3108cf04c7366c
+scris_la: 2026-09-05
 tags: [modul, hr]
 ---
 
@@ -119,6 +122,15 @@ Cele șase scrieri de configurare și citirile lor: [[modul/concedii/setari]].
   loghează, iar `zilePastrate` întoarce `0` — deci absența avertismentului **nu**
   înseamnă că nu există zile suprapuse. Recuperarea se face din pontaj, cu
   `sincronizeazaConcediile`. — `decideCerere`, în `src/app/(app)/concedii/actions.ts`
+- **Declararea suspendării nu aruncă niciodată.** Un concediu cu
+  `leave_types.suspenda_contract` produce, la aprobare, un rând în `contract_suspendari`
+  și două evenimente REGES: `suspendare` pe `data_inceput` și `reluare_activitate` în ziua
+  de DUPĂ `data_sfarsit`. Orice eșec — fișă fără contract activ, suprapunere respinsă cu
+  `23P01`, termen REGES negăsit — iese ca `motiv` în rezultatul acțiunii, nu ca eroare:
+  aprobarea rămâne dată, iar declarația rămâne de făcut de mână. Termenul e ziua
+  anterioară începerii, iar netransmiterea în termen e contravenție **per salariat**, deci
+  `motiv` se AFIȘEAZĂ de fiecare apelant, ca `zilePastrate`. `revalidate` nu conține
+  nicio cale de REGES. — `src/app/(app)/concedii/suspendare-contract.ts`
 - **Cerința de atașament nu lovește toate tipurile la fel.**
   `internal.leave_requests_pregateste` ridică P0001 la trimiterea unui tip cu
   `necesita_document` doar dacă `atasament_path` e gol **și** `medical_code_id` e null —
@@ -165,6 +177,11 @@ Nucleul upsert-ului concediu → foaie de prezență stă la pontaj, nu aici:
 plus acțiunea în bloc `sincronizeazaConcediile` — `[[modul/pontaj]]`. Concediile îl
 cheamă doar punctual, pe zilele unei singure cereri, în `decideCerere`. Indemnizațiile
 intră în state de plată prin `[[modul/salarizare]]`.
+
+Termenele și evenimentele REGES nu se calculează aici: `genereazaEvenimenteReges` din
+`src/lib/reges/genereaza-evenimente.ts` le scrie în `reges_evenimente`, pe termenele din
+`reges_termene`, iar transmiterea lor e a lui `[[modul/reges]]`. Concediile doar cer
+generarea, prin `declaraSuspendareaContractului`.
 
 Contractul de cale în Storage — bucketul, entitățile permise, limita și tipurile MIME —
 stă în `src/lib/documents/cale.ts`, comun cu `[[modul/angajati]]`. Concediile îl folosesc,
