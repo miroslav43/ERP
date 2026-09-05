@@ -213,6 +213,49 @@ _obiecte_declarate() {
   | awk '{ split($NF, p, "."); print (tolower($2) == "type" ? "tip|" : "tabela|") p[1] "|" p[2] }'
 }
 
+# Compară obiectele declarate de un fișier cu ce există în bază.
+#
+# Prima linie: „<declarate> <lipsă>". Apoi, câte o linie per obiect lipsă.
+# `declarate = 0` înseamnă că fișierul nu creează niciun tip sau tabelă, deci
+# nu se poate spune nimic despre el — nu că n-a rulat.
+#
+# Există ca funcție separată fiindcă o folosesc DOUĂ comenzi: `db:mark`, care
+# marchează una singură la cerere, și `db:migrate`, care sare peste migrările
+# deja aplicate. Două copii ale aceleiași interogări ar diverge la prima
+# corectură, iar divergența ar apărea ca „mark spune că e aplicată, migrate
+# spune că nu" — exact genul de contradicție care costă o oră de diagnostic.
+_stare_obiecte() {
+  local u="$1" f="$2"
+  local valori="" kind ns nm n=0
+  while IFS='|' read -r kind ns nm; do
+    [ -z "${nm:-}" ] && continue
+    valori+="('$kind','$ns','$nm'),"
+    n=$(( n + 1 ))
+  done < <(_obiecte_declarate "$f")
+
+  if [ "$n" -eq 0 ]; then echo "0 0"; return 0; fi
+
+  local lipsa
+  lipsa=$(psql "$u" -tA -c "
+    with asteptat(kind, ns, nm) as (values ${valori%,})
+    select a.kind || ' ' || a.ns || '.' || a.nm
+    from asteptat a
+    where not (case a.kind
+      when 'tip' then exists (
+        select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
+        where n.nspname = a.ns and t.typname = a.nm)
+      else exists (
+        select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = a.ns and c.relname = a.nm and c.relkind = 'r')
+    end);")
+
+  local nl=0
+  [ -n "$lipsa" ] && nl=$(printf '%s\n' "$lipsa" | grep -c .)
+  echo "$n $nl"
+  [ -n "$lipsa" ] && printf '%s\n' "$lipsa"
+  return 0
+}
+
 # @cmd db:mark "Marchează O migrare ca aplicată, după ce verifică în bază că e"
 cmd_db__mark() {
   header "Marchez o migrare ca aplicată"
@@ -248,12 +291,9 @@ cmd_db__mark() {
   # neînregistrată (aplicată prin `aplica-cloud.sh`, care NU scrie în registru),
   # iar `db:baseline` — singura unealtă de marcare de atunci — ar fi marcat în
   # aceeași trecere și 0120, apărută în arbore între timp și neaplicată deloc.
-  local valori="" linie kind ns nm n_obiecte=0
-  while IFS='|' read -r kind ns nm; do
-    [ -z "${nm:-}" ] && continue
-    valori+="('$kind','$ns','$nm'),"
-    n_obiecte=$(( n_obiecte + 1 ))
-  done < <(_obiecte_declarate "$f")
+  local stare n_obiecte n_lipsa
+  stare=$(_stare_obiecte "$u" "$f")
+  read -r n_obiecte n_lipsa <<<"$(printf '%s\n' "$stare" | head -1)"
 
   if [ "$n_obiecte" -eq 0 ]; then
     error "$nume nu creează niciun tip sau tabelă — nu pot verifica dacă a rulat."
@@ -263,23 +303,9 @@ cmd_db__mark() {
     return 1
   fi
 
-  local lipsa
-  lipsa=$(psql "$u" -tA -c "
-    with asteptat(kind, ns, nm) as (values ${valori%,})
-    select a.kind || ' ' || a.ns || '.' || a.nm
-    from asteptat a
-    where not (case a.kind
-      when 'tip' then exists (
-        select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
-        where n.nspname = a.ns and t.typname = a.nm)
-      else exists (
-        select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname = a.ns and c.relname = a.nm and c.relkind = 'r')
-    end);")
-
-  if [ -n "$lipsa" ]; then
+  if [ "$n_lipsa" -gt 0 ]; then
     error "$nume NU e aplicată — lipsesc din bază:"
-    echo "$lipsa" | sed 's/^/      /'
+    printf '%s\n' "$stare" | tail -n +2 | sed 's/^/      /'
     echo -e "     ${DIM}Aplic-o normal: ./administrativo.sh db:migrate${NC}"
     return 1
   fi
@@ -388,6 +414,27 @@ cmd_db__migrate() {
   echo ""
 
   if [ "$uscat" -eq 1 ]; then
+    # Verdictul per fișier, nu doar lista. De când bucla sare peste migrările
+    # deja aplicate, „de aplicat: 5" nu mai descrie ce urmează să se întâmple:
+    # unele dintre cele cinci vor fi doar marcate. O rulare uscată care ascunde
+    # diferența e mai rea decât una care n-o calculează deloc, fiindcă exact aici
+    # se uită omul înainte să scrie „da" pe producție. Nu scrie nimic.
+    local d_stare d_decl d_lipsa
+    for f in "${restante[@]}"; do
+      printf "    %-52s" "$(basename "$f")"
+      d_stare=$(_stare_obiecte "$u" "$f")
+      read -r d_decl d_lipsa <<<"$(printf '%s\n' "$d_stare" | head -1)"
+      if [ "$d_decl" -eq 0 ]; then
+        echo -e "${DIM}se aplică (nu declară tipuri sau tabele — neverificabilă)${NC}"
+      elif [ "$d_lipsa" -eq 0 ]; then
+        echo -e "${YELLOW}se marchează${NC} ${DIM}— cele $d_decl obiecte există deja${NC}"
+      elif [ "$d_lipsa" -lt "$d_decl" ]; then
+        echo -e "${RED}ar OPRI${NC} ${DIM}— parțială: $(( d_decl - d_lipsa )) din $d_decl obiecte există${NC}"
+      else
+        echo -e "${GREEN}se aplică${NC} ${DIM}— niciunul din cele $d_decl obiecte nu există${NC}"
+      fi
+    done
+    echo ""
     info "Rulare uscată — nu s-a scris nimic."
     return 0
   fi
@@ -413,10 +460,62 @@ cmd_db__migrate() {
   local jurnal; jurnal=$(mktemp "${TMPDIR:-/tmp}/adm-mig.XXXXXX.err") || {
     error "Nu pot crea fișierul temporar pentru jurnalul migrărilor."; return 1; }
 
-  local ok=0 t0 t1
+  local ok=0 marcate=0 t0 t1
   for f in "${restante[@]}"; do
     nume=$(basename "$f")
     printf "    %-52s" "$nume"
+
+    # ── Migrarea e deja aplicată, doar neînregistrată? ────────────────────────
+    # Se întâmplă des și nu e o anomalie: arborele e partajat, iar altă sesiune
+    # care rulează `aplica-cloud.sh` aplică fișierul fără să scrie în registru.
+    # De trei ori într-o singură zi (0128, 0129, 0131) `db:migrate` a propus
+    # încrezător o migrare care rulase deja, a re-executat-o și a murit la prima
+    # instrucțiune fără formă idempotentă — `create type`, `create table`,
+    # `add constraint`. Costul de fiecare dată: un eșec pe producție și un
+    # diagnostic de la zero.
+    #
+    # DE CE NU „ÎNGHIT «already exists»". Ăsta e tiparul din StrawBoss
+    # (`scripts/05-db.sh`), care tratează drept succes orice eroare al cărei TEXT
+    # conține expresia. O migrare picată din alt motiv, dar cu „already exists"
+    # undeva în mesaj, ar fi raportată ca aplicată și ar dispărea din registru cu
+    # baza incompletă. Aici nu se citește mesajul de eroare, ci se întreabă baza
+    # ÎNAINTE: obiectele pe care le creează fișierul există sau nu?
+    #
+    # Trei răspunsuri, trei purtări:
+    #   • toate există      → a rulat. Se marchează și se merge mai departe.
+    #   • niciunul nu există → n-a rulat. Se aplică normal.
+    #   • unele da, altele nu → stare PARȚIALĂ. Se oprește, fiindcă înseamnă că o
+    #     migrare cu mai multe tranzacții a murit la mijloc, iar reluarea oarbă
+    #     ar lăsa baza într-o stare pe care n-o descrie nimeni.
+    # Fișierele care nu declară niciun tip sau tabelă (doar
+    # `create or replace function`, politici, date) rămân neverificabile — dar
+    # sunt și idempotente prin construcție, deci se aplică normal.
+    local stare declarate lipsesc
+    stare=$(_stare_obiecte "$u" "$f")
+    read -r declarate lipsesc <<<"$(printf '%s\n' "$stare" | head -1)"
+
+    if [ "$declarate" -gt 0 ] && [ "$lipsesc" -eq 0 ]; then
+      # `durata_ms` NULL, ca la `db:mark`: rândul e MARCAT, nu cronometrat.
+      psql "$u" -q -c "insert into internal.migrari_aplicate (nume, suma)
+                       values ('$nume', '$(_suma "$f")')
+                       on conflict (nume) do nothing;" >/dev/null
+      echo -e "${YELLOW}deja aplicată${NC} ${DIM}— cele $declarate obiecte există; marcată${NC}"
+      marcate=$(( marcate + 1 ))
+      continue
+    fi
+
+    if [ "$declarate" -gt 0 ] && [ "$lipsesc" -lt "$declarate" ]; then
+      echo -e "${RED}PARȚIALĂ${NC}"
+      echo ""
+      error "„$nume” a rulat pe jumătate: $(( declarate - lipsesc )) din $declarate obiecte există deja."
+      printf '%s\n' "$stare" | tail -n +2 | sed 's/^/      lipsește: /'
+      echo -e "     ${DIM}Nu o reaplic singur: un fișier cu mai multe tranzacții a comis o parte${NC}"
+      echo -e "     ${DIM}și a picat pe restul. Verifică ce lipsește, completează cu o migrare${NC}"
+      echo -e "     ${DIM}nouă, apoi marchează: ./administrativo.sh db:mark $nume${NC}"
+      rm -f "$jurnal"
+      return 1
+    fi
+
     t0=$(date +%s%3N)
     # `--single-transaction` NU se folosește: unele migrări au blocuri
     # `begin/commit` proprii, obligatorii pentru `alter type ... add value`
@@ -443,7 +542,13 @@ cmd_db__migrate() {
   rm -f "$jurnal"
 
   echo ""
-  success "$ok migrări aplicate."
+  if [ "$marcate" -gt 0 ]; then
+    success "$ok migrări aplicate, $marcate marcate (rulaseră deja, prin altă cale)."
+    echo -e "     ${DIM}Marcatele au durata NULL în registru. Dacă apar des, cauza e în amonte:${NC}"
+    echo -e "     ${DIM}cine aplică prin aplica-cloud.sh trebuie să scrie și rândul din registru.${NC}"
+  else
+    success "$ok migrări aplicate."
+  fi
   info "Regenerează tipurile: ./administrativo.sh db:types"
 }
 

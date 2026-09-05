@@ -79,7 +79,48 @@ PGPASSWORD="$PAROLA" "$PSQL" \
 COD=$?
 
 if [ "$COD" -eq 0 ]; then
-  echo "aplica-cloud: APLICATĂ. Regenerează tipurile înainte de typecheck."
+  # ── Rândul din registru ──────────────────────────────────────────────────────
+  # Scriptul ăsta a aplicat ani întregi fără să scrie nimic în
+  # `internal.migrari_aplicate`, iar consecința a lovit de patru ori: `0119`
+  # (3 sept), apoi `0128`, `0129` și `0131` (4-5 sept). De fiecare dată următoarea
+  # sesiune rula `db:migrate`, care citește DOAR registrul, primea migrarea în
+  # lista „de aplicat" și o re-executa — până la prima instrucțiune fără formă
+  # idempotentă (`create type`, `create table`, `add constraint`), unde murea pe
+  # producție.
+  #
+  # `db:migrate` știe de acum să verifice în bază înainte de a aplica, deci
+  # defectul e prins și în aval. Rândul de aici îl previne cu totul: e mai bine
+  # ca registrul să fie corect decât ca altcineva să repare după el. Suma se
+  # calculează IDENTIC cu `_suma()` din `ops/04-db.sh` — `sha256sum` trunchiat la
+  # 16 caractere. Dacă cele două formule diverg, garda forward-only ar raporta
+  # fiecare migrare aplicată prin scriptul ăsta drept „modificată pe disc" și ar
+  # bloca livrarea tuturor.
+  #
+  # `durata_ms` rămâne NULL, ca la `db:mark`: rândul spune „a rulat", nu „a fost
+  # cronometrat de db:migrate".
+  SUMA="$(sha256sum "$FISIER" | cut -c1-16)"
+  NUME="$(basename "$FISIER")"
+  if PGPASSWORD="$PAROLA" "$PSQL" \
+       -h "$GAZDA" -p 5432 -U "$UTILIZATOR" -d postgres \
+       -v ON_ERROR_STOP=1 -q -c "
+         create schema if not exists internal;
+         create table if not exists internal.migrari_aplicate (
+           nume        text primary key,
+           suma        text not null,
+           aplicata_la timestamptz not null default now(),
+           durata_ms   integer
+         );
+         insert into internal.migrari_aplicate (nume, suma)
+         values ('$NUME', '$SUMA')
+         on conflict (nume) do nothing;" >/dev/null 2>&1; then
+    echo "aplica-cloud: APLICATĂ și trecută în registru (suma $SUMA)."
+  else
+    # Migrarea E aplicată; doar evidența n-a mers. Se spune tare, cu comanda de
+    # reparat — altfel exact situația asta reapare la următorul `db:migrate`.
+    echo "aplica-cloud: APLICATĂ, dar NU am putut scrie în registru."
+    echo "              Repară acum: ./administrativo.sh db:mark $NUME"
+  fi
+  echo "aplica-cloud: regenerează tipurile înainte de typecheck."
 else
   echo "aplica-cloud: A PICAT (cod $COD). Migrarea e în tranzacție — nimic nu s-a comis."
 fi
