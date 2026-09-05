@@ -32,9 +32,18 @@ cmd_curata() {
     # Ordonate descrescător după data creării; sar peste primele $pastrez.
     # `latest` se exclude explicit: e un alias spre tagul viu, iar ștergerea lui
     # ar lăsa `docker-stack.yml` fără implicitul din `${IMAGE_TAG:-latest}`.
+    # `|| true` nu e neglijență, e obligatoriu: `administrativo.sh` rulează cu
+    # `set -euo pipefail`, iar `grep -v` întoarce 1 când NU selectează nicio
+    # linie — exact ce se întâmplă pentru o imagine care încă nu există
+    # (`administrativo-web-staging` înaintea primului deploy). Fără el,
+    # `pipefail` propagă 1, `set -e` omoară scriptul imediat după antet, iar
+    # pasul de curățenie din workflow pică fără să spună de ce.
+    #
+    # S-a întâmplat: prima rulare reală (2026-09-05, rularea 33954717540) a
+    # ieșit cu cod 1 după antet. Local păruse doar o ieșire trunchiată.
     local vechi
     vechi=$(docker images "$imagine" --format '{{.CreatedAt}}\t{{.Tag}}' 2>/dev/null \
-            | grep -v $'\tlatest$' | sort -r | tail -n "+$((pastrez + 1))" | cut -f2)
+            | grep -v $'\tlatest$' | sort -r | tail -n "+$((pastrez + 1))" | cut -f2) || true
     local tag
     for tag in $vechi; do
       if docker rmi "${imagine}:${tag}" >/dev/null 2>&1; then
