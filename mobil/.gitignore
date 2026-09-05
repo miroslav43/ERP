@@ -50,3 +50,6 @@ yarn-error.*
 # Artefacte ale lui build-local.sh (vezi scriptul).
 .tmp-build/
 .build-local.log
+
+# Arhiva de APK-uri produse de build-local.sh (ultimele 3).
+apk/

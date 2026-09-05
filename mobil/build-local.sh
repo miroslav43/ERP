@@ -127,6 +127,50 @@ else
   atent "primi jeton de push pe Android. Vezi README, secțiunea Firebase."
 fi
 
+# ── Numărul build-ului ─────────────────────────────────────────────────────
+# Contor persistent, nu „câte fișiere sunt în arhivă": arhiva se taie la
+# ULTIMELE 3, deci un număr derivat din ea ar scădea înapoi și ar produce două
+# APK-uri diferite cu același nume.
+ARHIVA="$PWD/apk"
+CONTOR="$ARHIVA/.contor"
+PASTREAZA=3
+
+pas "Numărul build-ului"
+mkdir -p "$ARHIVA"
+NUMAR=$(( $(cat "$CONTOR" 2>/dev/null || echo 0) + 1 ))
+case "$NUMAR" in
+  ''|*[!0-9]*) mor "Contorul din $CONTOR e stricat. Șterge-l și reia." ;;
+esac
+printf '%s\n' "$NUMAR" > "$CONTOR"
+ETICHETA="$(printf '%04d' "$NUMAR")"
+ok "build #$ETICHETA"
+
+# SHA-ul spune din CE cod a ieșit APK-ul. Pe un arbore murdar nu-l descrie —
+# atunci se marchează, ca la tagul de imagine din `ops/05-docker.sh`.
+SHA="$(git -C .. rev-parse --short HEAD 2>/dev/null || echo 'fara-git')"
+if [ -n "$(git -C .. status --porcelain 2>/dev/null)" ]; then
+  SHA="${SHA}-murdar"
+  atent "arbore murdar — SHA-ul nu descrie exact ce se construiește"
+fi
+ok "din $SHA"
+
+# `versionCode` URCĂ la fiecare build. Fără asta, toate APK-urile ar avea
+# `versionCode 1`, iar telefonul n-ar avea cum să știe care e mai nou:
+# instalarea peste o versiune egală merge, dar nu-ți spune nimic, iar dacă
+# ajungi vreodată la Play Store un versionCode repetat e respins. Fișierul e
+# GENERAT de `prebuild` (și gitignorat), deci petecul se reaplică singur la
+# fiecare rulare — inclusiv după un `--curat`, care îl resetează la 1.
+#
+# Consecință de care să ții cont: build-urile devin strict crescătoare, deci
+# telefonul refuză instalarea unuia mai VECHI peste unul mai nou. Dezinstalezi
+# întâi, dacă chiar vrei să te întorci.
+if grep -qE '^[[:space:]]*versionCode [0-9]+' android/app/build.gradle; then
+  sed -i -E "s/^([[:space:]]*)versionCode [0-9]+/\1versionCode ${NUMAR}/" android/app/build.gradle
+  ok "versionCode = $NUMAR"
+else
+  atent "nu găsesc versionCode în android/app/build.gradle — îl las cum e"
+fi
+
 # ── Compilarea ─────────────────────────────────────────────────────────────
 pas "Compilarea ($VARIANTA)"
 SARCINA="assembleRelease"; [ "$VARIANTA" = "debug" ] && SARCINA="assembleDebug"
@@ -141,28 +185,58 @@ else
   mor "Build eșuat. Jurnalul întreg: $JURNAL"
 fi
 
-# ── Rezultatul ─────────────────────────────────────────────────────────────
+# ── Rezultatul, arhivat ────────────────────────────────────────────────────
 pas "APK-ul"
-APK="$(find android/app/build/outputs/apk/$VARIANTA -name '*.apk' -print -quit 2>/dev/null)"
-[ -n "$APK" ] || mor "Build-ul a raportat succes, dar nu găsesc APK-ul. Vezi $JURNAL."
-ok "$PWD/$APK ${DIM}($(du -h "$APK" | cut -f1))${N}"
+BRUT="$(find "android/app/build/outputs/apk/$VARIANTA" -name '*.apk' -print -quit 2>/dev/null)"
+[ -n "$BRUT" ] || mor "Build-ul a raportat succes, dar nu găsesc APK-ul. Vezi $JURNAL."
+
+# Gradle scrie MEREU în același loc (`app-release.apk`) și îl suprascrie. Ca să
+# ai istoric, fiecare build se copiază în arhivă sub un nume propriu.
+NUME="administrativo-${VARIANTA}-${ETICHETA}-${SHA}.apk"
+cp "$BRUT" "$ARHIVA/$NUME" || mor "Nu pot copia APK-ul în $ARHIVA"
+ln -sfn "$NUME" "$ARHIVA/ultimul.apk"
+ok "$ARHIVA/$NUME ${DIM}($(du -h "$ARHIVA/$NUME" | cut -f1))${N}"
+ok "$ARHIVA/ultimul.apk ${DIM}→ $NUME${N}"
 
 BT="$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -1)"
 if [ -n "$BT" ] && [ -x "$BT/aapt2" ]; then
-  "$BT/aapt2" dump badging "$APK" 2>/dev/null | head -1 | sed 's/^/     /'
+  "$BT/aapt2" dump badging "$ARHIVA/$NUME" 2>/dev/null | head -1 | sed 's/^/     /'
 fi
 if [ -n "$BT" ] && [ -x "$BT/apksigner" ]; then
-  semnatar="$("$BT/apksigner" verify --print-certs "$APK" 2>/dev/null | grep -m1 'certificate DN')"
+  semnatar="$("$BT/apksigner" verify --print-certs "$ARHIVA/$NUME" 2>/dev/null | grep -m1 'certificate DN')"
   case "$semnatar" in
     *"Android Debug"*)
       atent "Semnat cu CHEIA DE DEBUG. Se instalează și se testează — nu se publică."
       atent "Vezi antetul scriptului pentru keystore propriu." ;;
-    *) ok "${semnatar#*: }" ;;
+    "") atent "Nu am putut citi semnătura." ;;
+    *)  ok "${semnatar#*: }" ;;
   esac
 fi
+
+# ── Curățenia: ultimele $PASTREAZA ─────────────────────────────────────────
+# Sortarea e pe NUMĂRUL din nume, nu pe data fișierului: `cp` păstrează ordinea
+# reală, dar o copiere manuală sau o restaurare dintr-o arhivă ar încurca
+# datele, iar numărul nu minte niciodată.
+pas "Arhiva"
+# `ls`, nu `find -printf`: acela e GNU-only, iar antetul caută SDK-ul și pe
+# macOS. Sortare NUMERICĂ pe câmpul 3 — lexicografic ar merge azi (numărul e
+# pe patru cifre) și s-ar rupe tăcut la al 10.000-lea build.
+mapfile -t TOATE < <(cd "$ARHIVA" && ls -1 administrativo-*.apk 2>/dev/null | sort -t- -k3,3nr)
+PASTRATE=0
+for f in "${TOATE[@]}"; do
+  PASTRATE=$((PASTRATE + 1))
+  if [ "$PASTRATE" -le "$PASTREAZA" ]; then
+    marcaj="  "; [ "$f" = "$NUME" ] && marcaj="${V}→${N} "
+    echo "  ${marcaj}${f} ${DIM}($(du -h "$ARHIVA/$f" | cut -f1))${N}"
+  else
+    rm -f "$ARHIVA/$f"
+    echo "  ${DIM}× $f — șters (păstrăm ultimele $PASTREAZA)${N}"
+  fi
+done
 
 echo
 echo "  ${DIM}Pe telefon: copiază APK-ul și deschide-l (cere o dată${N}"
 echo "  ${DIM}„instalare din surse necunoscute\").${N}"
+echo "  ${DIM}Prin cablu: adb install -r $ARHIVA/ultimul.apk${N}"
 echo "  ${DIM}Cele patru ABI-uri fac dimensiunea; EAS produce un AAB pe care${N}"
 echo "  ${DIM}Play Store îl împarte per dispozitiv.${N}"

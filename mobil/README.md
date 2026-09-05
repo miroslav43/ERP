@@ -23,9 +23,32 @@ pnpm start
 ### Build local, fără EAS
 
 ```bash
-cd mobil
-./build-local.sh          # APK de release; --curat reface android/ de la zero
+./administrativo.sh mobile-build-local release    # din rădăcina depozitului
+./administrativo.sh mobile-apk                    # ce ai în arhivă
+
+cd mobil && ./build-local.sh                      # sau direct; --curat reface android/
 ```
+
+**Fiecare build primește un număr propriu și rămâne în arhivă.** Gradle scrie
+mereu peste `app-release.apk`; scriptul copiază rezultatul în `mobil/apk/` sub
+un nume propriu — `administrativo-release-0004-68505ee.apk` — și păstrează
+**ultimele 3**, ștergându-le pe cele mai vechi. `mobil/apk/ultimul.apk` e o
+legătură către cel nou, pentru `adb install -r`.
+
+Numărul vine dintr-un contor persistent (`mobil/apk/.contor`), nu din câte
+fișiere sunt în arhivă: arhiva se taie la 3, deci un număr derivat din ea ar
+scădea înapoi și ai avea două APK-uri diferite cu același nume.
+
+Numărul intră și în **`versionCode`** — scriptul petecește
+`android/app/build.gradle` înainte de fiecare compilare. Fără asta toate
+build-urile ar avea `versionCode 1` și telefonul n-ar ști care e mai nou.
+Consecința: build-urile sunt strict crescătoare, deci telefonul REFUZĂ
+instalarea unuia mai vechi peste unul mai nou — dezinstalezi întâi, dacă chiar
+vrei să te întorci. Fișierul e generat de `prebuild` și gitignorat, deci
+petecul se reaplică singur, inclusiv după `--curat`, care îl resetează la 1.
+
+Numele poartă și SHA-ul commit-ului din care a ieșit APK-ul, iar pe un arbore
+murdar primește sufixul `-murdar`: acolo SHA-ul nu descrie ce s-a construit.
 
 **Probat pe VM la 2026-09-05:** `BUILD SUCCESSFUL in 8m 12s`, APK de 92 MB,
 `ro.administrativo.portal`, minSdk 24 / targetSdk 36, patru ABI-uri. VM-ul avea
