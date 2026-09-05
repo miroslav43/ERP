@@ -58,7 +58,7 @@ jobs:
       # build — ăla vine în pasul de deploy, în `docker build`.
       - name: Poarta — verify
         id: verify
-        run: pnpm verify 2>&1 | tee /tmp/verify.log
+        run: pnpm verify 2>&1 | tee ${{ runner.temp }}/verify.log
 
       # ── Poarta 2 ────────────────────────────────────────────────────────────
       # ÎNAINTE de a atinge orice bază: confirmă că baza spre care duce mediul
@@ -80,13 +80,13 @@ jobs:
         id: migrari
         env:
           ADM_MEDIU: staging
-        run: ./administrativo.sh db:migrate 2>&1 | tee /tmp/migrari.log
+        run: ./administrativo.sh db:migrate 2>&1 | tee ${{ runner.temp }}/migrari.log
 
       - name: Deploy
         id: deploy
         env:
           ADM_MEDIU: staging
-        run: ./administrativo.sh stack:deploy 2>&1 | tee /tmp/deploy.log
+        run: ./administrativo.sh stack:deploy 2>&1 | tee ${{ runner.temp }}/deploy.log
 
       # `if: always()` de aici în jos: pașii ăștia sunt exact cei care contează
       # când ceva a picat.
