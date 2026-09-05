@@ -80,6 +80,11 @@ jobs:
         id: migrari
         env:
           ADM_MEDIU: staging
+          # `confirm()` refuză implicit în shell neinteractiv — corect, un deploy
+          # automat nu trebuie să poată aplica migrări din greșeală. Excepția e
+          # limitată prin construcție la mediile non-producție: aceeași variabilă
+          # pusă pe producție NU are niciun efect (vezi ops/_lib.sh).
+          ADM_CONFIRM_AUTO: "1"
         run: ./administrativo.sh db:migrate 2>&1 | tee ${{ runner.temp }}/migrari.log
 
       - name: Deploy

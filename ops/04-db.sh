@@ -392,8 +392,15 @@ cmd_db__migrate() {
     return 0
   fi
 
-  warn "Forward-only, pe baza de PRODUCȚIE. Nu există rollback."
-  warn "Fă întâi un backup din Supabase Dashboard."
+  # Mesajul spunea „pe baza de PRODUCȚIE" necondiționat. Pe staging era o
+  # minciună liniștitoare în sens greșit: te avertiza despre altă bază decât cea
+  # pe care chiar urma să scrie. Numele proiectului e singurul lucru care
+  # răspunde la „unde scriu asta?".
+  local ref_tinta; ref_tinta=$(_ref_din_url "$u")
+  warn "Forward-only, pe ${ADM_MEDIU} (proiect ${ref_tinta}). Nu există rollback."
+  if [ "$ADM_MEDIU" = "productie" ]; then
+    warn "Fă întâi un backup din Supabase Dashboard."
+  fi
   confirm "Aplic cele ${#restante[@]} migrări?" || { info "Anulat."; return 0; }
 
   # Jurnalul de erori se creează cu `mktemp`, NU pe o cale fixă în /tmp.

@@ -130,8 +130,21 @@ require_cmd() {
 # Confirmare explicită pentru operațiuni ireversibile sau care ating alte
 # site-uri. Într-un shell neinteractiv răspunde „nu" — un deploy automat nu
 # trebuie să poată aplica migrări din greșeală.
+#
+# EXCEPȚIA, și limitele ei: un mediu non-producție poate confirma singur, dar
+# numai dacă cere explicit prin `ADM_CONFIRM_AUTO=1`. Workflow-ul de staging
+# rulează neinteractiv și trebuie să poată aplica migrări pe o bază de probă,
+# altfel poarta lui n-ar trece niciodată. PRODUCȚIA nu are voie să folosească
+# scurtătura asta, oricât de automatizat ar fi contextul: acolo confirmarea
+# rămâne umană, fiindcă `db:migrate` e forward-only și nu există rollback.
 confirm() {
   local prompt="$1"
+
+  if [ "${ADM_MEDIU:-productie}" != "productie" ] && [ "${ADM_CONFIRM_AUTO:-}" = "1" ]; then
+    info "Confirmat automat (mediul ${ADM_MEDIU}): ${prompt}"
+    return 0
+  fi
+
   if [ ! -t 0 ]; then
     warn "Neinteractiv — refuz implicit: $prompt"
     return 1
