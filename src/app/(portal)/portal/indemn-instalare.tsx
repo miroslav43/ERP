@@ -63,8 +63,36 @@ let cachePotrivit: boolean | null = null;
 let ascunsAcum = false;
 const abonati = new Set<() => void>();
 
-/** `true` când pagina rulează din aplicația adăugată pe ecranul de start. */
+/**
+ * Marcajul pe care aplicația mobilă îl adaugă la User-Agent.
+ *
+ * Contract cu `mobil/App.tsx` (`applicationNameForUserAgent`). Se schimbă în
+ * amândouă odată — nu există import între ele: `mobil/` are propriul tsconfig,
+ * propriul lockfile și e exclus din lanțul de verificare de la rădăcină.
+ * `indemn-instalare.test.ts`, alături, citește `mobil/App.tsx` de pe disc și
+ * cade dacă cele două diverg.
+ */
+export const MARCAJ_APLICATIE = "AdministrativoApp";
+
+/**
+ * `true` când pagina NU e într-un browser obișnuit — fie e aplicația adăugată
+ * pe ecranul de start, fie e învelișul nativ din `mobil/`.
+ *
+ * ── DE CE ȘI ÎNVELIȘUL NATIV (raportat de pe telefon, 2026-09-05) ──────────
+ * În APK, banda invita omul să „instaleze aplicația" — adică exact aplicația
+ * din care citea mesajul. Nu era doar absurd: linkul duce la instrucțiuni de
+ * adăugare pe ecranul de start, care în WebView nu se pot urma.
+ *
+ * Cele două verificări de mai jos nu-l prind: `display-mode: standalone` e
+ * `browser` într-un WebView, iar `navigator.standalone` e nedefinit pe Android.
+ * De-aia marcajul din User-Agent — singurul semnal pe care învelișul nativ îl
+ * pune deliberat, pe fiecare cerere.
+ *
+ * Varianta PWA rămâne neatinsă: în browser, marcajul lipsește și banda apare
+ * exact ca înainte.
+ */
 function ruleazaInstalat(): boolean {
+  if (window.navigator.userAgent.includes(MARCAJ_APLICATIE)) return true;
   if (window.matchMedia("(display-mode: standalone)").matches) return true;
   // iOS: proprietate nestandardizată pe `navigator`, absentă din tipuri.
   const nav: unknown = window.navigator;

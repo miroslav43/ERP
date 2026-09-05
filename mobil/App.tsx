@@ -2,16 +2,12 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Alert, AppState, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import {
-  Alert,
-  AppState,
-  Linking,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-} from "react-native";
+  SafeAreaProvider,
+  useSafeAreaInsets,
+  type EdgeInsets,
+} from "react-native-safe-area-context";
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
 
 import { cereJeton, scriptDeInregistrare } from "./push";
@@ -312,6 +308,49 @@ function parseazaMesaj(dateBrute: string): MesajDinPagina | null {
     // Mesaj nevalid — îl ignorăm, nu blocăm nimic.
   }
   return null;
+}
+
+/**
+ * Fâșiile de siguranță — de ce există, și de ce NU `SafeAreaView`.
+ *
+ * ── DEFECTUL, RAPORTAT DE PE TELEFON PE 2026-09-05 ────────────────────────
+ * „Arată mega rău, butoanele de jos nu merg deloc." Trei cauze, o singură
+ * rădăcină: aplicația desena SUB barele de sistem ale Android-ului.
+ *
+ *   · `android/app/src/main/res/values/styles.xml` face `statusBarColor` și
+ *     `navigationBarColor` TRANSPARENTE — adică edge-to-edge, conținutul intră
+ *     sub barele de sistem. E implicit în Android 15+ la `targetSdk 35+`, iar
+ *     APK-ul nostru e pe 36.
+ *   · `SafeAreaView` din `react-native` NU compensează: e iOS-only, iar în
+ *     0.86 e și DEPRECAT — chiar mesajul lui spune „Please use
+ *     'react-native-safe-area-context' instead".
+ *   · Deci antetul portalului stătea sub ceas și baterie, iar bara lui de
+ *     navigare — `bara-portal.tsx`, `fixed bottom-0` — stătea sub bara de
+ *     navigare a sistemului, care înghite atingerile. Butoanele erau vizibile
+ *     și moarte, ceea ce arată exact ca un defect de aplicație.
+ *
+ * `pt-[env(safe-area-inset-top)]` din antet și `pb-[…]` din bară nu ajută: în
+ * WebView-ul Android `env()` e 0. Insetul se știe doar nativ, deci aici se
+ * aplică.
+ *
+ * ── CULOAREA ──────────────────────────────────────────────────────────────
+ * `#f2ede1` e `--color-surface` din `src/app/globals.css:32` — exact fundalul
+ * antetului (`antet-portal.tsx:37`) ȘI al barei de jos (`bara-portal.tsx:36`),
+ * amândouă `bg-surface`. Cu el, fâșiile se citesc ca o prelungire a barelor,
+ * nu ca două dungi lipite. Proiectul n-are temă întunecată (zero
+ * `prefers-color-scheme: dark` în `globals.css`), deci nu e nevoie de variantă.
+ */
+const SURFACE = "#f2ede1";
+
+function EcranSigur({ children }: { children: React.ReactNode }) {
+  const margini: EdgeInsets = useSafeAreaInsets();
+  return (
+    <View
+      style={[stiluri.ecran, { paddingTop: margini.top, paddingBottom: margini.bottom }]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export default function App() {
@@ -976,16 +1015,40 @@ export default function App() {
   );
 
   return (
-    <Lacat
-      copil={
-        <SafeAreaView style={stiluri.ecran}>
-          <StatusBar style="light" />
+    <SafeAreaProvider>
+      <Lacat
+        copil={
+          <EcranSigur>
+            {/*
+              `dark`, nu `light`: antetul portalului e crem (`bg-surface`), iar
+              iconițele albe ale barei de status erau invizibile pe el. Se
+              vedea ca „arată prost", nu ca o setare greșită.
+            */}
+            <StatusBar style="dark" />
           <WebView
             ref={webview}
             source={{ uri: URL_PORTAL }}
             // Sesiunea trăiește în cookie jar-ul propriu al aplicației, separat de
             // Safari și Chrome. De aceea login-ul de aici e o sesiune NOUĂ, nu o
             // copie — iar rotația refresh token-ului Supabase o tratează normal.
+            /*
+              MARCAJUL CARE SPUNE PAGINII CĂ RULEAZĂ ÎN APLICAȚIE.
+              `applicationNameForUserAgent` ADAUGĂ la User-Agent-ul implicit al
+              sistemului; `userAgent` l-ar ÎNLOCUI, iar atunci am fi pierdut
+              versiunea de Android și de Chrome — de care depinde orice
+              diagnostic ulterior.
+
+              De ce User-Agent și nu un `window.__nativ = true` injectat: antetul
+              pleacă pe FIECARE cerere, deci îl văd și serverul, și clientul,
+              și supraviețuiește oricărei navigări. Un flag injectat înainte de
+              conținut trăiește doar cât documentul și, pe Android, momentul
+              rulării lui nu e garantat față de scripturile paginii.
+
+              Cine îl citește: `src/app/(portal)/portal/indemn-instalare.tsx` —
+              banda „instalează aplicația" n-are ce căuta ÎN aplicație. Șirul e
+              un contract între cele două fișiere; se schimbă în amândouă odată.
+            */
+            applicationNameForUserAgent="AdministrativoApp/1.0"
             sharedCookiesEnabled
             thirdPartyCookiesEnabled
             // Fără asta, un `history.back()` din portal închide aplicația.
@@ -1159,18 +1222,22 @@ export default function App() {
             mergiLa={mergiLa}
             originePortal={ORIGINEA_PORTALULUI}
           />
-        </SafeAreaView>
-      }
-    />
+          </EcranSigur>
+        }
+      />
+    </SafeAreaProvider>
   );
 }
 
 const stiluri = StyleSheet.create({
-  ecran: { flex: 1, backgroundColor: "#0f1e3d" },
+  ecran: { flex: 1, backgroundColor: SURFACE },
   butonScanner: {
     position: "absolute",
     right: 16,
-    bottom: 24,
+    // 72, nu 24: bara de navigare a portalului (`bara-portal.tsx`) are
+    // `min-h-14` = 56 px, iar butonul stătea PESTE ea și îi acoperea ultimul
+    // element. 56 + 16 îl așază exact deasupra, ca orice buton plutitor.
+    bottom: 72,
     backgroundColor: "#0f1e3d",
     borderColor: "#faf7f0",
     borderWidth: 1,
