@@ -50,15 +50,36 @@ jobs:
       - name: Mediul de staging
         run: cp ~/.secrete/administrativo/.env.staging .env.staging
 
+      # Pagina de stare începe să spună adevărul de ACUM, nu la final: altfel nu
+      # poate răspunde la „mai rulează?" sau „unde a ajuns?". Fiecare pas de mai
+      # jos își anunță începutul, iar pagina se reîmprospătează la 10 secunde cât
+      # timp rularea e în curs.
+      #
+      # Mesajul și autorul commit-ului sunt TEXT SCRIS DE OM: trec prin `env:`,
+      # niciodată interpolate direct în `run:`, altfel un mesaj de commit
+      # meșterit ar executa comenzi pe VM.
+      - name: Starea — pornire
+        env:
+          SHA: ${{ github.sha }}
+          MESAJ: ${{ github.event.head_commit.message }}
+          AUTOR: ${{ github.event.head_commit.author.name }}
+          URL_RULARE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ./administrativo.sh stare:incepe "$SHA" "$(printf '%s' "$MESAJ" | head -1)" "$AUTOR" "$URL_RULARE"
+
       - name: Dependențe
-        run: pnpm install --frozen-lockfile
+        run: |
+          ./administrativo.sh stare:pas "Dependențe"
+          pnpm install --frozen-lockfile
 
       # ── Poarta 1 ────────────────────────────────────────────────────────────
       # `pnpm verify` = typecheck + lint + format:check + teste. NU include
       # build — ăla vine în pasul de deploy, în `docker build`.
       - name: Poarta — verify
         id: verify
-        run: pnpm verify 2>&1 | tee ${{ runner.temp }}/verify.log
+        run: |
+          ./administrativo.sh stare:pas "Verificare (tipuri, lint, 3122 teste)"
+          pnpm verify 2>&1 | tee ${{ runner.temp }}/verify.log
 
       # ── Poarta 2 ────────────────────────────────────────────────────────────
       # ÎNAINTE de a atinge orice bază: confirmă că baza spre care duce mediul
@@ -70,7 +91,9 @@ jobs:
       # fi aplicat DDL pe datele reale ale firmelor-client, automat, la fiecare
       # push în main.
       - name: Poarta — baza țintă e chiar a staging-ului
-        run: bash scripts/checks/tinta-db.sh
+        run: |
+          ./administrativo.sh stare:pas "Baza țintă e a staging-ului"
+          bash scripts/checks/tinta-db.sh
 
       # ── Poarta 3 ────────────────────────────────────────────────────────────
       # Migrările merg pe baza de staging, un proiect Supabase SEPARAT de
@@ -85,13 +108,17 @@ jobs:
           # limitată prin construcție la mediile non-producție: aceeași variabilă
           # pusă pe producție NU are niciun efect (vezi ops/_lib.sh).
           ADM_CONFIRM_AUTO: "1"
-        run: ./administrativo.sh db:migrate 2>&1 | tee ${{ runner.temp }}/migrari.log
+        run: |
+          ./administrativo.sh stare:pas "Migrări pe baza de staging"
+          ./administrativo.sh db:migrate 2>&1 | tee ${{ runner.temp }}/migrari.log
 
       - name: Deploy
         id: deploy
         env:
           ADM_MEDIU: staging
-        run: ./administrativo.sh stack:deploy 2>&1 | tee ${{ runner.temp }}/deploy.log
+        run: |
+          ./administrativo.sh stare:pas "Build imagine + rolling update"
+          ./administrativo.sh stack:deploy 2>&1 | tee ${{ runner.temp }}/deploy.log
 
       # `if: always()` de aici în jos: pașii ăștia sunt exact cei care contează
       # când ceva a picat.
@@ -99,12 +126,18 @@ jobs:
         if: always()
         run: ./administrativo.sh curata 5
 
-      - name: Starea, pe pagina de stare
+      - name: Starea — închidere
         if: always()
+        env:
+          REZULTAT: ${{ job.status }}
         run: |
-          ./administrativo.sh stare:scrie \
-            "${{ job.status }}" "${{ github.sha }}" \
-            "${{ steps.verify.outcome }} / ${{ steps.migrari.outcome }} / ${{ steps.deploy.outcome }}"
+          # Imaginea chiar deployată, citită din Swarm — nu presupusă din sha.
+          # Dacă deploy-ul n-a ajuns să ruleze, comanda dă gol și pasul rămâne
+          # fără linia de imagine, ceea ce e informația corectă.
+          IMAGINE=$(docker service inspect administrativo-staging_administrativo-web-staging \
+                      --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' 2>/dev/null \
+                    | sed 's/@sha256:.*//' || true)
+          ./administrativo.sh stare:termina "$REZULTAT" "$IMAGINE"
 
       - name: Rezumat
         if: always()
