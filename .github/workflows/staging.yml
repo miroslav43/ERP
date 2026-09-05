@@ -49,6 +49,18 @@ jobs:
         run: pnpm verify 2>&1 | tee /tmp/verify.log
 
       # ── Poarta 2 ────────────────────────────────────────────────────────────
+      # ÎNAINTE de a atinge orice bază: confirmă că baza spre care duce mediul
+      # de staging chiar e a staging-ului.
+      #
+      # Nu e paranoia. Pe 2026-09-05, `ADM_MEDIU=staging ./administrativo.sh
+      # db:status` raporta proiectul de PRODUCȚIE: `_load_env_db` încărca
+      # hardcodat `.env.local` și nu se uita la `ADM_MEDIU`. Pasul de mai jos ar
+      # fi aplicat DDL pe datele reale ale firmelor-client, automat, la fiecare
+      # push în main.
+      - name: Poarta — baza țintă e chiar a staging-ului
+        run: bash scripts/checks/tinta-db.sh
+
+      # ── Poarta 3 ────────────────────────────────────────────────────────────
       # Migrările merg pe baza de staging, un proiect Supabase SEPARAT de
       # producție. Dacă una pică, deploy-ul se oprește aici și eroarea psql
       # ajunge în rezumat; subdomeniul rămâne pe versiunea anterioară.

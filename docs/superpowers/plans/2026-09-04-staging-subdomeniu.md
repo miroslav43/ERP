@@ -45,25 +45,55 @@ Toate se aplică fiecărei sarcini, fără a fi repetate acolo.
   `~/.secrete/administrativo/`, cu drepturi `600`.
 - **Migrările** se aplică prin `psql`, byte-exact, forward-only.
 
-## Stare la 2026-09-05, ora 09:05 — șapte sarcini din zece, livrate
+## Stare la 2026-09-05, ora 10:00 — opt sarcini din zece
 
-| Sarcină                    | Stare              | Dovada                                         |
-| -------------------------- | ------------------ | ---------------------------------------------- |
-| 1 · `ADM_MEDIU`            | ✅ `6063618`       | `scripts/checks/medii.sh` — 19/19              |
-| 2 · Stack generat + gărzi  | ✅ `6063618`       | `scripts/checks/stack-generat.sh` — 4/4        |
-| 3 · Secrete + replici      | ✅ `6063618`       | `docker stack config` pe ambele medii          |
-| 4 · Curățenie + prag disc  | ✅ `6063618`       | apare în `help`; rulare în gol OK              |
-| 5 · Vhost staging          | ✅ `6063618`       | `nginx -t` cu ambele vhost-uri                 |
-| 6 · Certificat + instalare | ✅ operațional     | cert până la 2026-12-04; 11/11 site-uri sus    |
-| 7 · Baza de staging        | ⛔ blocată         | credențiale respinse — vezi mai jos            |
-| 8 · Runner systemd         | ⏳                 | cere jeton de înregistrare de la utilizator    |
-| 9 · Workflow               | ✅ scris `6063618` | neprobat — n-are runner pe care să ruleze      |
-| 10 · Santinelă de stare    | ✅ vie             | https://staging.administrativo.ro/_stare → 200 |
+| Sarcină                    | Stare              | Dovada                                            |
+| -------------------------- | ------------------ | ------------------------------------------------- |
+| 1 · `ADM_MEDIU`            | ✅ `6063618`       | `scripts/checks/medii.sh` — 19/19                 |
+| 2 · Stack generat + gărzi  | ✅ `6063618`       | `scripts/checks/stack-generat.sh` — 4/4           |
+| 3 · Secrete + replici      | ✅ `6063618`       | `docker stack config` pe ambele medii             |
+| 4 · Curățenie + prag disc  | ✅ rulată          | 40 → 6 tag-uri; disc 82% → 72%, **+36 GB liberi** |
+| 5 · Vhost staging          | ✅ `6063618`       | `nginx -t` cu ambele vhost-uri                    |
+| 6 · Certificat + instalare | ✅ operațional     | cert până la 2026-12-04; 11/11 site-uri sus       |
+| 7 · Baza de staging        | ⛔ blocată         | credențiale respinse — vezi mai jos               |
+| 8 · Runner                 | ◐ înregistrat      | `administrativo-vm`, oprit — pornirea e a ta      |
+| 9 · Workflow               | ✅ scris `6879de4` | neprobat — n-are runner pe care să ruleze         |
+| 10 · Santinelă de stare    | ✅ vie             | https://staging.administrativo.ro/_stare → 200    |
 
 Starea rețelei, verificată: `staging.administrativo.ro` întoarce 401 fără parolă
 și 502 cu ea — vhost viu, upstream absent, exact ce se aștepta înainte de primul
 deploy al aplicației. Acces: utilizatorul `coleg`, parola în
 `~/.secrete/administrativo/parola-staging.txt`.
+
+Lanțul de verificare pe gazdă e verde: 207 fișiere de test, 3122 de teste,
+typecheck + check:server + lint + format:check. A cerut o reparație de formatare
+pe opt fișiere (`1d0067e`) — main era roșu pe `format:check` independent de
+lucrarea asta, iar prima rulare a colegului ar fi picat pe ceva ce n-a atins el.
+
+### Defectul grav găsit după livrare — `6879de4`
+
+`_load_env_db` din `ops/04-db.sh` încărca **hardcodat** `.env.local`, deci
+comutatorul de mediu nu ajungea niciodată la stratul de bază de date:
+
+```
+$ ADM_MEDIU=staging ./administrativo.sh db:status
+  •  proiect Supabase   nybmhorngsajoqaxjlbr   ← PRODUCȚIA
+  ⚠  de aplicat         3
+```
+
+Pasul „migrări pe baza de staging" ar fi aplicat DDL pe datele reale ale
+firmelor-client, automat, la fiecare push în main. Reparat pe două straturi:
+mediile non-producție citesc `_env_file()` **fără rezervă** pe `.env.local`, iar
+`_verifica_tinta_db` compară referința de proiect din șirul de conexiune cu cea
+din `NEXT_PUBLIC_SUPABASE_URL` al mediului și oprește la nepotrivire — sau când
+nu poate decide. `scripts/checks/tinta-db.sh` ține invarianta, și rulează ca pas
+propriu în workflow înaintea oricărei atingeri de bază.
+
+### De rezolvat separat: producția are 3 migrări neaplicate
+
+`./administrativo.sh db:status` raportează 133 de migrări pe disc, 130 în
+registru. Drift preexistent, descoperit pe drum. **Nu l-am atins:** aplicarea pe
+producție cere confirmarea explicită a utilizatorului.
 
 **Două abateri de la textul planului, ambele necesare:**
 
