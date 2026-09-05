@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Ban, CheckCheck, Clock, Handshake, Layers, Lock, Printer, QrCode } from "lucide-react";
 
 import { AlegereCarduri, type OptiuneCard } from "@/components/ui/alegere-carduri";
 import { Buton, buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
+import { Camp } from "@/components/ui/camp";
 import { IntrareOra } from "@/components/ui/intrare-ora";
 import { intervalulPropus, type ConfigZi } from "@/domain/attendance/calcul-ore";
 import { cePoateFace, type ConfigPontareRapida } from "@/domain/attendance/pontare-rapida";
@@ -14,8 +15,6 @@ import type { AfisPontare } from "@/lib/queries/attendance";
 import { formatOre } from "@/lib/format/ore";
 
 import { salveazaPontareaRapida } from "./actions";
-
-const CAMP = "border-foreground/60 rounded-control border px-3 py-2 text-corp";
 
 /**
  * Cum se pontează de pe telefon.
@@ -42,10 +41,21 @@ export function FormularPontareRapida({
   /** Norma și pauza în vigoare azi — hrănesc intervalul propus. */
   readonly config: ConfigZi;
 }) {
-  const idProgram = useId();
   const [seTrimite, porneste] = useTransition();
   const [mesaj, setMesaj] = useState<string | null>(null);
   const [eroare, setEroare] = useState<string | null>(null);
+  /*
+    Erorile PE CÂMP, nu doar propoziția de sub buton.
+
+    Ecranul ăsta nu e un `<form>` — alegerile sunt carduri, iar salvarea e un
+    `onClick` — deci nu poate folosi `Formular`, care desface `ActionResult`
+    pentru celelalte formulare ale aplicației. Harta se ține de mână, dar
+    mesajele vin din aceeași sursă: `ActionResult.fieldErrors`, construit de
+    `create-action.ts` din `z.flattenError`. Fără ea, refuzul schemei ajungea la
+    om ca „Datele introduse nu sunt valide." — pe un ecran cu o singură casetă,
+    dar fără să spună că despre ea e vorba.
+  */
+  const [erori, setErori] = useState<Readonly<Record<string, readonly string[]>>>({});
 
   const [mod, setMod] = useState<string>(pontare.mod);
   const [verificare, setVerificare] = useState<string>(pontare.verificare);
@@ -126,9 +136,32 @@ export function FormularPontareRapida({
         },
   ];
 
+  /*
+    Verificarea de client vine ÎNAINTEA drumului la server, ca la
+    `/salarizare/setari`: regula „modul care propune un interval cere o oră" e
+    deja scrisă în `setariPontareRapidaSchema` și în `check`-ul din bază, deci
+    aici nu se adaugă o a treia sursă de adevăr — se scutește un dus-întors
+    pentru un refuz pe care îl știm dinainte. Mesajul rămâne al schemei, cuvânt
+    cu cuvânt.
+  */
   function trimite(): void {
     setMesaj(null);
     setEroare(null);
+    setErori({});
+
+    if (cereProgram && programStart === "") {
+      setErori({
+        program_start: [
+          "Completați ora de început a programului: fără ea nu se poate propune un interval.",
+        ],
+      });
+      return;
+    }
+    if (cereProgram && intervalPropus === null) {
+      setErori({ program_start: ["Programul nu încape într-o singură zi calendaristică."] });
+      return;
+    }
+
     porneste(async () => {
       const rezultat = await salveazaPontareaRapida({
         mod_pontare_rapida: mod,
@@ -136,8 +169,15 @@ export function FormularPontareRapida({
         program_start: programStart === "" ? null : programStart,
         necesita_aprobare: necesitaAprobare,
       });
-      if (rezultat.ok) setMesaj("Setările au fost salvate.");
-      else setEroare(rezultat.error.message);
+      if (rezultat.ok) {
+        setMesaj("Setările au fost salvate.");
+        return;
+      }
+      const peCamp = rezultat.error.fieldErrors ?? {};
+      setErori(peCamp);
+      // Propoziția generală apare DOAR dacă nu e deja lângă un câmp — aceeași
+      // regulă ca în `Formular`, ca omul să n-o citească de două ori.
+      setEroare(Object.keys(peCamp).length === 0 ? rezultat.error.message : null);
     });
   }
 
@@ -161,26 +201,18 @@ export function FormularPontareRapida({
 
       {cereProgram ? (
         <section className="space-y-2">
-          <label htmlFor={idProgram} className="text-corp">
-            Ora de început a programului
-          </label>
-          <IntrareOra
-            id={idProgram}
-            valoare={programStart}
-            onSchimba={setProgramStart}
-            className={CAMP}
-          />
-          <p className="text-muted-foreground text-nota">
-            Ora de sfârșit NU se completează: se calculează din normă și din pauză, ca să nu existe
-            două cifre care se pot contrazice.
-          </p>
-          {intervalPropus === null ? (
-            <p className="text-warning text-corp">
-              {programStart === ""
-                ? "Completați ora de început: fără ea, butonul de confirmare nu se poate afișa."
-                : "Programul nu încape într-o singură zi calendaristică."}
-            </p>
-          ) : (
+          <Camp
+            nume="program_start"
+            eticheta="Ora de început a programului"
+            ajutor="Ora de sfârșit NU se completează: se calculează din normă și din pauză, ca să nu existe două cifre care se pot contrazice."
+            erori={erori["program_start"] ?? []}
+            obligatoriu
+          >
+            {(atribute) => (
+              <IntrareOra {...atribute} valoare={programStart} onSchimba={setProgramStart} />
+            )}
+          </Camp>
+          {intervalPropus === null ? null : (
             <p className="text-muted-foreground text-corp">
               Butonul va propune{" "}
               <span className="text-foreground font-medium tabular-nums">
@@ -296,13 +328,7 @@ export function FormularPontareRapida({
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Buton
-          varianta="primar"
-          onClick={trimite}
-          inCurs={seTrimite}
-          textInCurs="Se salvează…"
-          disabled={cereProgram && intervalPropus === null}
-        >
+        <Buton varianta="primar" onClick={trimite} inCurs={seTrimite} textInCurs="Se salvează…">
           Salvează
         </Buton>
         {/* Fără dată de intrare în vigoare: setările astea n-au istoric. */}

@@ -1,10 +1,12 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useState } from "react";
 import type { ChangeEvent } from "react";
 import Link from "next/link";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
 import { formatOre } from "@/lib/format/ore";
 import { oreleZilei } from "@/domain/attendance/calcul-ore";
@@ -12,7 +14,18 @@ import type { SetariPontajComplete } from "@/lib/queries/attendance";
 
 import { salveazaSetariPontaj } from "./actions";
 
-const CAMP = "border-foreground/60 rounded-control border px-3 py-2 text-corp";
+/**
+ * ── DE CE TRECE TOT PRIN `Camp` ────────────────────────────────────────────
+ * Fiindcă `Camp` e singurul loc care nu poate uita. Serverul construia deja
+ * `fieldErrors` la fiecare acțiune, iar ecranul ăsta arunca harta întreagă și
+ * afișa doar `error.message` — care, pentru o eroare de CÂMP, e mesajul de
+ * rezervă „Datele introduse nu sunt valide.". Cincisprezece casete, o
+ * propoziție care nu spune care.
+ *
+ * `Camp` leagă prin construcție eticheta de control, eroarea de
+ * `aria-describedby` și marchează obligativitatea cu `*` plus un „(obligatoriu)"
+ * citit doar de cititorul de ecran.
+ */
 
 /**
  * Fiecare câmp are o descriere sub el, nu doar o etichetă. Sunt parametri de
@@ -29,6 +42,7 @@ function Numeric({
   maxim,
   valoare,
   onSchimba,
+  erori,
 }: {
   readonly nume: string;
   readonly eticheta: string;
@@ -40,34 +54,30 @@ function Numeric({
   /** Când e dată, câmpul devine CONTROLAT — pentru cele care hrănesc exemplul viu. */
   readonly valoare?: string;
   readonly onSchimba?: (v: string) => void;
+  /** Mesajele venite din `ActionResult.fieldErrors`, prin `Formular`. */
+  readonly erori?: readonly string[];
 }) {
-  const id = useId();
   const controlat = valoare !== undefined && onSchimba !== undefined;
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-corp">
-        {eticheta}
-      </label>
-      <input
-        id={id}
-        name={nume}
-        type="number"
-        step={pas}
-        min={minim}
-        max={maxim}
-        {...(controlat
-          ? {
-              value: valoare,
-              onChange: (e: ChangeEvent<HTMLInputElement>) => {
-                onSchimba(e.target.value);
-              },
-            }
-          : { defaultValue: implicit })}
-        required
-        className={CAMP}
-      />
-      <p className="text-muted-foreground text-nota">{descriere}</p>
-    </div>
+    <Camp nume={nume} eticheta={eticheta} ajutor={descriere} erori={erori ?? []} obligatoriu>
+      {(atribute) => (
+        <input
+          {...atribute}
+          type="number"
+          step={pas}
+          min={minim}
+          max={maxim}
+          {...(controlat
+            ? {
+                value: valoare,
+                onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                  onSchimba(e.target.value);
+                },
+              }
+            : { defaultValue: implicit })}
+        />
+      )}
+    </Camp>
   );
 }
 
@@ -87,35 +97,34 @@ function Alegere({
   descriere,
   implicit,
   optiuni,
+  erori,
 }: {
   readonly nume: string;
   readonly eticheta: string;
   readonly descriere: string;
   readonly implicit: number | undefined;
   readonly optiuni: readonly Optiune[];
+  readonly erori?: readonly string[];
 }) {
-  const id = useId();
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-corp">
-        {eticheta}
-      </label>
-      {/*
-        Fără preselecție când nu există nimic salvat. Ar fi fost comod să se
-        deschidă pe „4 luni", dar e aceeași greșeală ca implicitele ascunse de
-        mai jos (`pastreaza`): o valoare juridică pe care n-a ales-o nimeni,
-        salvată ca și cum ar fi fost confirmată.
-      */}
-      <select id={id} name={nume} defaultValue={implicit ?? ""} required className={CAMP}>
-        <option value="">Alegeți…</option>
-        {optiuni.map((optiune) => (
-          <option key={optiune.valoare} value={optiune.valoare}>
-            {optiune.eticheta}
-          </option>
-        ))}
-      </select>
-      <p className="text-muted-foreground text-nota">{descriere}</p>
-    </div>
+    <Camp nume={nume} eticheta={eticheta} ajutor={descriere} erori={erori ?? []} obligatoriu fel="select">
+      {(atribute) => (
+        /*
+          Fără preselecție când nu există nimic salvat. Ar fi fost comod să se
+          deschidă pe „4 luni", dar e aceeași greșeală ca implicitele ascunse de
+          mai jos (`pastreaza`): o valoare juridică pe care n-a ales-o nimeni,
+          salvată ca și cum ar fi fost confirmată.
+        */
+        <select {...atribute} defaultValue={implicit ?? ""}>
+          <option value="">Alegeți…</option>
+          {optiuni.map((optiune) => (
+            <option key={optiune.valoare} value={optiune.valoare}>
+              {optiune.eticheta}
+            </option>
+          ))}
+        </select>
+      )}
+    </Camp>
   );
 }
 
@@ -135,6 +144,7 @@ function Durata({
   exemplu,
   valoare,
   onSchimba,
+  erori,
 }: {
   readonly nume: string;
   readonly eticheta: string;
@@ -150,24 +160,19 @@ function Durata({
   /** Când e dată, câmpul devine CONTROLAT — pentru cele care hrănesc exemplul viu. */
   readonly valoare?: number | null;
   readonly onSchimba?: (ore: number | null) => void;
+  readonly erori?: readonly string[];
 }) {
-  const id = useId();
   const controlat = valoare !== undefined && onSchimba !== undefined;
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-corp">
-        {eticheta}
-      </label>
-      <IntrareDurata
-        id={id}
-        name={nume}
-        required
-        placeholder={exemplu}
-        {...(controlat ? { valoare, onSchimba } : { implicit: implicit ?? null })}
-        className={CAMP}
-      />
-      <p className="text-muted-foreground text-nota">{descriere}</p>
-    </div>
+    <Camp nume={nume} eticheta={eticheta} ajutor={descriere} erori={erori ?? []} obligatoriu>
+      {(atribute) => (
+        <IntrareDurata
+          {...atribute}
+          placeholder={exemplu}
+          {...(controlat ? { valoare, onSchimba } : { implicit: implicit ?? null })}
+        />
+      )}
+    </Camp>
   );
 }
 
@@ -300,14 +305,6 @@ export function FormularSetariPontaj({
 }: {
   readonly setariCurente: SetariPontajComplete | null;
 }) {
-  const idDeLa = useId();
-  const idNoapteStart = useId();
-  const idNoapteSfarsit = useId();
-  const idObservatii = useId();
-  const [seTrimite, porneste] = useTransition();
-  const [mesaj, setMesaj] = useState<string | null>(null);
-  const [eroare, setEroare] = useState<string | null>(null);
-
   // Implicitul `true` pentru o firmă fără setări salvate: ecranul arată tot,
   // ca până acum. Nimic nu dispare fără ca cineva să bifeze deliberat.
   /*
@@ -334,39 +331,43 @@ export function FormularSetariPontaj({
   const [sarbatori, setSarbatori] = useState(setariCurente?.lucreaza_sarbatori ?? true);
   const [suplimentare, setSuplimentare] = useState(setariCurente?.admite_ore_suplimentare ?? true);
 
-  function trimite(formular: FormData): void {
-    setMesaj(null);
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await salveazaSetariPontaj({
-        valabil_de_la: formular.get("valabil_de_la"),
-        ore_pe_zi: orePeZi ?? 0,
-        ore_pe_saptamana: formular.get("ore_pe_saptamana"),
-        ore_maxime_saptamanale: formular.get("ore_maxime_saptamanale"),
-        perioada_referinta_luni: formular.get("perioada_referinta_luni"),
-        repaus_zilnic_minim_ore: formular.get("repaus_zilnic_minim_ore"),
-        repaus_saptamanal_minim_ore: formular.get("repaus_saptamanal_minim_ore"),
-        // Din stare, nu din `FormData`: o casetă nebifată NU apare deloc în
-        // `FormData`, iar `z.coerce.boolean()` ar primi `null` — care e `false`,
-        // dar din alt motiv decât o alegere. Aici starea e sursa.
-        lucreaza_noaptea: noaptea,
-        lucreaza_weekend: weekend,
-        lucreaza_sarbatori: sarbatori,
-        admite_ore_suplimentare: suplimentare,
-        // `spor_*_procent` NU se mai trimit (0082): coloanele au `default 0`,
-        // iar sporurile care plătesc trăiesc în `payroll_settings`.
-        noapte_start: formular.get("noapte_start"),
-        noapte_sfarsit: formular.get("noapte_sfarsit"),
-        prag_ore_noapte: formular.get("prag_ore_noapte"),
-        termen_compensare_suplimentare_zile: formular.get("termen_compensare_suplimentare_zile"),
-        termen_compensare_sarbatoare_zile: formular.get("termen_compensare_sarbatoare_zile"),
-        pauza_masa_minute: pauzaMinute,
-        pauza_masa_inclusa_in_program: pauzaInclusa,
-        pauza_obligatorie_peste_ore: pauzaPrag ?? 0,
-        observatii_juridice: formular.get("observatii_juridice"),
-      });
-      if (rezultat.ok) setMesaj("Versiunea a fost salvată.");
-      else setEroare(rezultat.error.message);
+  /*
+    Întoarce `ActionResult`, nu `void`: `Formular` desface rezultatul o singură
+    dată și predă fiecărui câmp exact erorile lui. Tot el ține valorile deja
+    tastate — cu `<form action={…}>` și câmpuri necontrolate, React 19 RESETEAZĂ
+    formularul după acțiune, deci o cifră greșită într-o casetă ștergea celelalte
+    paisprezece.
+  */
+  async function trimite(formular: FormData) {
+    return salveazaSetariPontaj({
+      valabil_de_la: formular.get("valabil_de_la"),
+      // `orePeZi`, nu `orePeZi ?? 0`: câmpul e CONTROLAT, iar golit ajunge
+      // `null`. Trimis ca 0, ar fi ocolit chiar plasa pusă în schemă — zeroul
+      // arată ca o cifră aleasă, `null` arată ca o casetă necompletată.
+      ore_pe_zi: orePeZi,
+      ore_pe_saptamana: formular.get("ore_pe_saptamana"),
+      ore_maxime_saptamanale: formular.get("ore_maxime_saptamanale"),
+      perioada_referinta_luni: formular.get("perioada_referinta_luni"),
+      repaus_zilnic_minim_ore: formular.get("repaus_zilnic_minim_ore"),
+      repaus_saptamanal_minim_ore: formular.get("repaus_saptamanal_minim_ore"),
+      // Din stare, nu din `FormData`: o casetă nebifată NU apare deloc în
+      // `FormData`, iar `z.coerce.boolean()` ar primi `null` — care e `false`,
+      // dar din alt motiv decât o alegere. Aici starea e sursa.
+      lucreaza_noaptea: noaptea,
+      lucreaza_weekend: weekend,
+      lucreaza_sarbatori: sarbatori,
+      admite_ore_suplimentare: suplimentare,
+      // `spor_*_procent` NU se mai trimit (0082): coloanele au `default 0`,
+      // iar sporurile care plătesc trăiesc în `payroll_settings`.
+      noapte_start: formular.get("noapte_start"),
+      noapte_sfarsit: formular.get("noapte_sfarsit"),
+      prag_ore_noapte: formular.get("prag_ore_noapte"),
+      termen_compensare_suplimentare_zile: formular.get("termen_compensare_suplimentare_zile"),
+      termen_compensare_sarbatoare_zile: formular.get("termen_compensare_sarbatoare_zile"),
+      pauza_masa_minute: pauzaMinute,
+      pauza_masa_inclusa_in_program: pauzaInclusa,
+      pauza_obligatorie_peste_ore: pauzaPrag,
+      observatii_juridice: formular.get("observatii_juridice"),
     });
   }
 
@@ -390,8 +391,14 @@ export function FormularSetariPontaj({
   const pauzaNuSeAplica = numar(pauzaMinute, 0) > 0 && exemplu !== null && exemplu.pauza === 0;
 
   return (
-    <form action={trimite} className="border-border rounded-panou space-y-6 border p-4">
-      {/*
+    <Formular
+      actiune={trimite}
+      mesajReusita="Versiunea a fost salvată."
+      className="border-border rounded-panou gap-6 border p-4"
+    >
+      {(stare) => (
+        <>
+          {/*
         CE ÎNSEAMNĂ CIFRELE DE MAI JOS — recalculat la fiecare tastă, cu aceeași
         funcție (`oreleZilei`) pe care o rulează serverul când cineva își salvează
         ziua. Nu e o ilustrație: dacă panoul ăsta arată 8,50, atunci 8,50 se scrie
@@ -402,153 +409,159 @@ export function FormularSetariPontaj({
         program" + „prag 8 ore" iese o pauză care NU se scade niciodată, iar
         diferența devine oră suplimentară în fiecare zi. Din câmpuri nu se vedea.
       */}
-      <section
-        aria-live="polite"
-        aria-label="Efectul setărilor pe o zi obișnuită"
-        className="bg-surface border-border rounded-panou border p-4"
-      >
-        <h2 className="text-corp mb-2 font-medium">
-          Ce înseamnă asta pentru o zi de {EXEMPLU.inceput}–{EXEMPLU.sfarsit}
-        </h2>
-        {exemplu === null ? (
-          <p className="text-muted-foreground text-corp">
-            Completați norma zilnică și parametrii pauzei ca să vedeți efectul.
-          </p>
-        ) : (
-          <dl className="text-corp space-y-1">
-            <Rand eticheta="Interval" valoare={exemplu.brut} />
-            <Rand
-              eticheta="Pauză de masă"
-              valoare={-exemplu.pauza}
-              nota={
-                exemplu.pauza > 0
-                  ? "se scade"
-                  : pauzaInclusa
-                    ? "inclusă în program, nu se scade"
-                    : "sub pragul de obligativitate"
-              }
-            />
-            <div className="border-border mt-2 border-t pt-2">
-              <Rand eticheta="Ore lucrate" valoare={exemplu.lucrate} accent />
-            </div>
-            <Rand eticheta="Din care suplimentare" valoare={exemplu.suplimentare} />
-          </dl>
-        )}
-
-        {pauzaNuSeAplica ? (
-          <p
-            role="note"
-            className="border-warning/40 bg-warning/8 text-corp rounded-control mt-3 border p-3"
+          <section
+            aria-live="polite"
+            aria-label="Efectul setărilor pe o zi obișnuită"
+            className="bg-surface border-border rounded-panou border p-4"
           >
-            <strong>Pauza configurată nu se scade niciodată.</strong> Ați declarat {pauzaMinute} de
-            minute de pauză, dar{" "}
-            {pauzaInclusa
-              ? "caseta „Pauza de masă e inclusă în programul plătit” e bifătă, deci pauza e timp plătit"
-              : `pragul de obligativitate (${ore(
-                  pauzaPrag ?? 0,
-                )} h) e mai mare decât ziua din exemplu`}
-            . E o configurație validă, dar dacă intenția era ca cele {pauzaMinute} de minute să se
-            SCADĂ din program, debifați caseta și coborâți pragul.
-          </p>
-        ) : null}
-      </section>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idDeLa} className="text-corp">
-          În vigoare de la
-        </label>
-        <input id={idDeLa} name="valabil_de_la" type="date" required className={CAMP} />
-        <p className="text-muted-foreground text-nota">
-          Lunile calculate înainte de această dată rămân pe versiunea anterioară.
-        </p>
-      </div>
+            <h2 className="text-corp mb-2 font-medium">
+              Ce înseamnă asta pentru o zi de {EXEMPLU.inceput}–{EXEMPLU.sfarsit}
+            </h2>
+            {exemplu === null ? (
+              <p className="text-muted-foreground text-corp">
+                Completați norma zilnică și parametrii pauzei ca să vedeți efectul.
+              </p>
+            ) : (
+              <dl className="text-corp space-y-1">
+                <Rand eticheta="Interval" valoare={exemplu.brut} />
+                <Rand
+                  eticheta="Pauză de masă"
+                  valoare={-exemplu.pauza}
+                  nota={
+                    exemplu.pauza > 0
+                      ? "se scade"
+                      : pauzaInclusa
+                        ? "inclusă în program, nu se scade"
+                        : "sub pragul de obligativitate"
+                  }
+                />
+                <div className="border-border mt-2 border-t pt-2">
+                  <Rand eticheta="Ore lucrate" valoare={exemplu.lucrate} accent />
+                </div>
+                <Rand eticheta="Din care suplimentare" valoare={exemplu.suplimentare} />
+              </dl>
+            )}
 
-      <fieldset className="space-y-4">
-        <legend className="text-corp font-medium">Ce feluri de muncă are firma</legend>
-        <p className="text-muted-foreground text-nota">
-          Ce debifați aici dispare din formular și nu vi se mai cere. Comutatoarele descriu
-          PROGRAMUL, nu plata: sporurile pentru ore suplimentare (art. 123), pentru repausul
-          săptămânal (art. 137 alin. 2) și pentru sărbătoarea legală (art. 142 alin. 2) rămân
-          obligatorii dacă munca s-a prestat totuși. Dacă apar ore într-un fel de muncă debifat,
-          salarizarea vă semnalează, nu le ascunde.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Comutator
-            eticheta="Se lucrează în tura de noapte"
-            descriere="Debifat, dispare intervalul nocturn și pragul de ore. Orele de noapte se înregistrează în continuare dacă apar."
-            pornit={noaptea}
-            onSchimba={setNoaptea}
-          />
-          <Comutator
-            eticheta="Se lucrează în repausul săptămânal"
-            descriere="Sâmbăta sau duminica, ca program obișnuit sau ocazional."
-            pornit={weekend}
-            onSchimba={setWeekend}
-          />
-          <Comutator
-            eticheta="Se lucrează de sărbătorile legale"
-            descriere="Producție continuă, gardă, retail — orice program care nu se oprește de 1 Decembrie."
-            pornit={sarbatori}
-            onSchimba={setSarbatori}
-          />
-          <Comutator
-            eticheta="Se admit ore suplimentare"
-            descriere="Peste norma zilnică, cu acordul salariatului."
-            pornit={suplimentare}
-            onSchimba={setSuplimentare}
-          />
-        </div>
-      </fieldset>
+            {pauzaNuSeAplica ? (
+              <p
+                role="note"
+                className="border-warning/40 bg-warning/8 text-corp rounded-control mt-3 border p-3"
+              >
+                <strong>Pauza configurată nu se scade niciodată.</strong> Ați declarat {pauzaMinute}{" "}
+                de minute de pauză, dar{" "}
+                {pauzaInclusa
+                  ? "caseta „Pauza de masă e inclusă în programul plătit” e bifătă, deci pauza e timp plătit"
+                  : `pragul de obligativitate (${ore(
+                      pauzaPrag ?? 0,
+                    )} h) e mai mare decât ziua din exemplu`}
+                . E o configurație validă, dar dacă intenția era ca cele {pauzaMinute} de minute să
+                se SCADĂ din program, debifați caseta și coborâți pragul.
+              </p>
+            ) : null}
+          </section>
+          <Camp
+            nume="valabil_de_la"
+            eticheta="În vigoare de la"
+            ajutor="Lunile calculate înainte de această dată rămân pe versiunea anterioară."
+            erori={stare.erori["valabil_de_la"] ?? []}
+            obligatoriu
+          >
+            {(atribute) => <input {...atribute} type="date" />}
+          </Camp>
 
-      <fieldset className="space-y-4">
-        <legend className="text-corp font-medium">Timp de lucru</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Durata
-            nume="ore_pe_zi"
-            eticheta="Ore pe zi"
-            descriere="Norma zilnică obișnuită."
-            implicit={setariCurente?.ore_pe_zi}
-            valoare={orePeZi}
-            onSchimba={setOrePeZi}
-          />
-          <Durata
-            nume="ore_pe_saptamana"
-            eticheta="Ore pe săptămână"
-            descriere="Norma săptămânală obișnuită."
-            implicit={setariCurente?.ore_pe_saptamana}
-            exemplu="40:00"
-          />
-          <Durata
-            nume="ore_maxime_saptamanale"
-            eticheta="Maxim săptămânal cu ore suplimentare"
-            descriere="Limita legală, inclusiv suplimentarele."
-            implicit={setariCurente?.ore_maxime_saptamanale}
-            exemplu="48:00"
-          />
-          <Alegere
-            nume="perioada_referinta_luni"
-            eticheta="Perioada de referință (luni)"
-            descriere="Intervalul pe care se face media săptămânală."
-            implicit={setariCurente?.perioada_referinta_luni}
-            optiuni={perioadeCu(setariCurente?.perioada_referinta_luni)}
-          />
-          <Durata
-            nume="repaus_zilnic_minim_ore"
-            eticheta="Repaus zilnic minim"
-            descriere="Între sfârșitul unei zile și începutul următoarei."
-            implicit={setariCurente?.repaus_zilnic_minim_ore}
-            exemplu="12:00"
-          />
-          <Durata
-            nume="repaus_saptamanal_minim_ore"
-            eticheta="Repaus săptămânal minim"
-            descriere="Neîntrerupt, în fiecare săptămână."
-            implicit={setariCurente?.repaus_saptamanal_minim_ore}
-            exemplu="48:00"
-          />
-        </div>
-      </fieldset>
+          <fieldset className="space-y-4">
+            <legend className="text-corp font-medium">Ce feluri de muncă are firma</legend>
+            <p className="text-muted-foreground text-nota">
+              Ce debifați aici dispare din formular și nu vi se mai cere. Comutatoarele descriu
+              PROGRAMUL, nu plata: sporurile pentru ore suplimentare (art. 123), pentru repausul
+              săptămânal (art. 137 alin. 2) și pentru sărbătoarea legală (art. 142 alin. 2) rămân
+              obligatorii dacă munca s-a prestat totuși. Dacă apar ore într-un fel de muncă debifat,
+              salarizarea vă semnalează, nu le ascunde.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Comutator
+                eticheta="Se lucrează în tura de noapte"
+                descriere="Debifat, dispare intervalul nocturn și pragul de ore. Orele de noapte se înregistrează în continuare dacă apar."
+                pornit={noaptea}
+                onSchimba={setNoaptea}
+              />
+              <Comutator
+                eticheta="Se lucrează în repausul săptămânal"
+                descriere="Sâmbăta sau duminica, ca program obișnuit sau ocazional."
+                pornit={weekend}
+                onSchimba={setWeekend}
+              />
+              <Comutator
+                eticheta="Se lucrează de sărbătorile legale"
+                descriere="Producție continuă, gardă, retail — orice program care nu se oprește de 1 Decembrie."
+                pornit={sarbatori}
+                onSchimba={setSarbatori}
+              />
+              <Comutator
+                eticheta="Se admit ore suplimentare"
+                descriere="Peste norma zilnică, cu acordul salariatului."
+                pornit={suplimentare}
+                onSchimba={setSuplimentare}
+              />
+            </div>
+          </fieldset>
 
-      {/*
+          <fieldset className="space-y-4">
+            <legend className="text-corp font-medium">Timp de lucru</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Durata
+                nume="ore_pe_zi"
+                erori={stare.erori["ore_pe_zi"] ?? []}
+                eticheta="Ore pe zi"
+                descriere="Norma zilnică obișnuită."
+                implicit={setariCurente?.ore_pe_zi}
+                valoare={orePeZi}
+                onSchimba={setOrePeZi}
+              />
+              <Durata
+                nume="ore_pe_saptamana"
+                erori={stare.erori["ore_pe_saptamana"] ?? []}
+                eticheta="Ore pe săptămână"
+                descriere="Norma săptămânală obișnuită."
+                implicit={setariCurente?.ore_pe_saptamana}
+                exemplu="40:00"
+              />
+              <Durata
+                nume="ore_maxime_saptamanale"
+                erori={stare.erori["ore_maxime_saptamanale"] ?? []}
+                eticheta="Maxim săptămânal cu ore suplimentare"
+                descriere="Limita legală, inclusiv suplimentarele."
+                implicit={setariCurente?.ore_maxime_saptamanale}
+                exemplu="48:00"
+              />
+              <Alegere
+                nume="perioada_referinta_luni"
+                erori={stare.erori["perioada_referinta_luni"] ?? []}
+                eticheta="Perioada de referință (luni)"
+                descriere="Intervalul pe care se face media săptămânală."
+                implicit={setariCurente?.perioada_referinta_luni}
+                optiuni={perioadeCu(setariCurente?.perioada_referinta_luni)}
+              />
+              <Durata
+                nume="repaus_zilnic_minim_ore"
+                erori={stare.erori["repaus_zilnic_minim_ore"] ?? []}
+                eticheta="Repaus zilnic minim"
+                descriere="Între sfârșitul unei zile și începutul următoarei."
+                implicit={setariCurente?.repaus_zilnic_minim_ore}
+                exemplu="12:00"
+              />
+              <Durata
+                nume="repaus_saptamanal_minim_ore"
+                erori={stare.erori["repaus_saptamanal_minim_ore"] ?? []}
+                eticheta="Repaus săptămânal minim"
+                descriere="Neîntrerupt, în fiecare săptămână."
+                implicit={setariCurente?.repaus_saptamanal_minim_ore}
+                exemplu="48:00"
+              />
+            </div>
+          </fieldset>
+
+          {/*
         Sporurile NU se mai setează aici (0082). Erau patru procente duplicate
         din `payroll_settings`, în altă scară (0–300 față de fracție), care nu
         plăteau nimic: alimentau `app.sporuri_pontaj()`, funcție fără apelanți.
@@ -558,134 +571,135 @@ export function FormularSetariPontaj({
         Rămâne un INDICATOR, nu o setare — oamenii le-au căutat aici ani de zile
         și un ecran care tace îi trimite să caute prin tot produsul.
       */}
-      <div
-        role="note"
-        className="border-border rounded-panou text-nota text-muted-foreground border p-3"
-      >
-        <strong className="text-foreground">Sporurile nu se setează aici.</strong> Procentele care
-        intră pe fluturaș — ore suplimentare, noapte, repaus săptămânal, sărbătoare — se
-        configurează într-un singur loc,{" "}
-        <Link href="/salarizare/setari" className="underline underline-offset-2">
-          Salarizare → Setări
-        </Link>
-        . Aici rămân doar parametrii care descriu cum se înregistrează timpul.
-      </div>
-
-      {noaptea ? (
-        <fieldset className="space-y-4">
-          <legend className="text-corp font-medium">Munca de noapte</legend>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="flex flex-col gap-1">
-              <label htmlFor={idNoapteStart} className="text-corp">
-                Începutul intervalului
-              </label>
-              <IntrareOra
-                id={idNoapteStart}
-                name="noapte_start"
-                implicit={setariCurente?.noapte_start}
-                required
-                className={CAMP}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor={idNoapteSfarsit} className="text-corp">
-                Sfârșitul intervalului
-              </label>
-              <IntrareOra
-                id={idNoapteSfarsit}
-                name="noapte_sfarsit"
-                implicit={setariCurente?.noapte_sfarsit}
-                required
-                className={CAMP}
-              />
-            </div>
-            <Durata
-              nume="prag_ore_noapte"
-              eticheta="Prag ore de noapte"
-              descriere="Minimul de ore nocturne dintr-o zi pentru a da drept la spor. Zero = fără prag."
-              implicit={setariCurente?.prag_ore_noapte}
-            />
+          <div
+            role="note"
+            className="border-border rounded-panou text-nota text-muted-foreground border p-3"
+          >
+            <strong className="text-foreground">Sporurile nu se setează aici.</strong> Procentele
+            care intră pe fluturaș — ore suplimentare, noapte, repaus săptămânal, sărbătoare — se
+            configurează într-un singur loc,{" "}
+            <Link href="/salarizare/setari" className="underline underline-offset-2">
+              Salarizare → Setări
+            </Link>
+            . Aici rămân doar parametrii care descriu cum se înregistrează timpul.
           </div>
-        </fieldset>
-      ) : (
-        /*
+
+          {noaptea ? (
+            <fieldset className="space-y-4">
+              <legend className="text-corp font-medium">Munca de noapte</legend>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Camp
+                  nume="noapte_start"
+                  eticheta="Începutul intervalului"
+                  erori={stare.erori["noapte_start"] ?? []}
+                  obligatoriu
+                >
+                  {(atribute) => (
+                    <IntrareOra {...atribute} implicit={setariCurente?.noapte_start} />
+                  )}
+                </Camp>
+                <Camp
+                  nume="noapte_sfarsit"
+                  eticheta="Sfârșitul intervalului"
+                  erori={stare.erori["noapte_sfarsit"] ?? []}
+                  obligatoriu
+                >
+                  {(atribute) => (
+                    <IntrareOra {...atribute} implicit={setariCurente?.noapte_sfarsit} />
+                  )}
+                </Camp>
+                <Durata
+                  nume="prag_ore_noapte"
+                  erori={stare.erori["prag_ore_noapte"] ?? []}
+                  eticheta="Prag ore de noapte"
+                  descriere="Minimul de ore nocturne dintr-o zi pentru a da drept la spor. Zero = fără prag."
+                  implicit={setariCurente?.prag_ore_noapte}
+                />
+              </div>
+            </fieldset>
+          ) : (
+            /*
           Fereastra nocturnă se PĂSTREAZĂ chiar cu tura de noapte oprită: ea e
           definiția legală a intervalului (art. 125), nu o preferință. O oră
           lucrată la 23:00 rămâne oră de noapte și trebuie să se poată recunoaște
           ca atare — altfel debifarea unei căsuțe ar șterge un drept.
         */
-        <>
-          <input
-            type="hidden"
-            name="noapte_start"
-            value={setariCurente?.noapte_start.slice(0, 5) ?? "22:00"}
-          />
-          <input
-            type="hidden"
-            name="noapte_sfarsit"
-            value={setariCurente?.noapte_sfarsit.slice(0, 5) ?? "06:00"}
-          />
-          <input
-            type="hidden"
-            name="prag_ore_noapte"
-            value={pastreaza(setariCurente?.prag_ore_noapte)}
-          />
-        </>
-      )}
+            <>
+              <input
+                type="hidden"
+                name="noapte_start"
+                value={setariCurente?.noapte_start.slice(0, 5) ?? "22:00"}
+              />
+              <input
+                type="hidden"
+                name="noapte_sfarsit"
+                value={setariCurente?.noapte_sfarsit.slice(0, 5) ?? "06:00"}
+              />
+              <input
+                type="hidden"
+                name="prag_ore_noapte"
+                value={pastreaza(setariCurente?.prag_ore_noapte)}
+              />
+            </>
+          )}
 
-      <fieldset className="space-y-4">
-        <legend className="text-corp font-medium">Compensare și pauze</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Numeric
-            nume="termen_compensare_suplimentare_zile"
-            eticheta="Termen compensare ore suplimentare (zile)"
-            descriere="După expirare, orele se plătesc obligatoriu cu spor."
-            implicit={setariCurente?.termen_compensare_suplimentare_zile}
-            pas="1"
-            maxim={365}
-          />
-          <Numeric
-            nume="termen_compensare_sarbatoare_zile"
-            eticheta="Termen acordare zi liberă pentru sărbătoare (zile)"
-            descriere="După expirare se plătește sporul."
-            implicit={setariCurente?.termen_compensare_sarbatoare_zile}
-            pas="1"
-            maxim={365}
-          />
-          <Numeric
-            nume="pauza_masa_minute"
-            eticheta="Pauză de masă (minute)"
-            descriere="Durata pauzei obligatorii."
-            implicit={setariCurente?.pauza_masa_minute}
-            pas="1"
-            maxim={240}
+          <fieldset className="space-y-4">
+            <legend className="text-corp font-medium">Compensare și pauze</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Numeric
+                nume="termen_compensare_suplimentare_zile"
+                erori={stare.erori["termen_compensare_suplimentare_zile"] ?? []}
+                eticheta="Termen compensare ore suplimentare (zile)"
+                descriere="După expirare, orele se plătesc obligatoriu cu spor."
+                implicit={setariCurente?.termen_compensare_suplimentare_zile}
+                pas="1"
+                maxim={365}
+              />
+              <Numeric
+                nume="termen_compensare_sarbatoare_zile"
+                erori={stare.erori["termen_compensare_sarbatoare_zile"] ?? []}
+                eticheta="Termen acordare zi liberă pentru sărbătoare (zile)"
+                descriere="După expirare se plătește sporul."
+                implicit={setariCurente?.termen_compensare_sarbatoare_zile}
+                pas="1"
+                maxim={365}
+              />
+              <Numeric
+                nume="pauza_masa_minute"
+                erori={stare.erori["pauza_masa_minute"] ?? []}
+                eticheta="Pauză de masă (minute)"
+                descriere="Durata pauzei obligatorii."
+                implicit={setariCurente?.pauza_masa_minute}
+                pas="1"
+                maxim={240}
 
-            valoare={pauzaMinute}
-            onSchimba={setPauzaMinute}
-          />
-          <Durata
-            nume="pauza_obligatorie_peste_ore"
-            eticheta="Pauza devine obligatorie peste"
-            descriere="Durata zilei de la care pauza e impusă."
-            implicit={setariCurente?.pauza_obligatorie_peste_ore}
-            valoare={pauzaPrag}
-            onSchimba={setPauzaPrag}
-          />
-        </div>
-        <label className="text-corp flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="pauza_masa_inclusa_in_program"
-            checked={pauzaInclusa}
-            onChange={(e) => {
-              setPauzaInclusa(e.target.checked);
-            }}
-          />
-          Pauza de masă e inclusă în programul plătit
-        </label>
-      </fieldset>
+                valoare={pauzaMinute}
+                onSchimba={setPauzaMinute}
+              />
+              <Durata
+                nume="pauza_obligatorie_peste_ore"
+                erori={stare.erori["pauza_obligatorie_peste_ore"] ?? []}
+                eticheta="Pauza devine obligatorie peste"
+                descriere="Durata zilei de la care pauza e impusă."
+                implicit={setariCurente?.pauza_obligatorie_peste_ore}
+                valoare={pauzaPrag}
+                onSchimba={setPauzaPrag}
+              />
+            </div>
+            <label className="text-corp flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="pauza_masa_inclusa_in_program"
+                checked={pauzaInclusa}
+                onChange={(e) => {
+                  setPauzaInclusa(e.target.checked);
+                }}
+              />
+              Pauza de masă e inclusă în programul plătit
+            </label>
+          </fieldset>
 
-      {/*
+          {/*
         Secțiunea „Pontarea de pe telefon” a plecat de aici în 0115, pe fila
         „Pontarea”. Motivul e chiar forma formularului ăstuia: e o scriere
         VERSIONATĂ, care cere o dată de intrare în vigoare și toți parametrii
@@ -695,29 +709,27 @@ export function FormularSetariPontaj({
         obligatoriu atunci”.
       */}
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idObservatii} className="text-corp">
-          Observații juridice
-        </label>
-        <textarea
-          id={idObservatii}
-          name="observatii_juridice"
-          rows={3}
-          defaultValue={setariCurente?.observatii_juridice ?? ""}
-          className={CAMP}
-        />
-        <p className="text-muted-foreground text-nota">
-          Cine a confirmat valorile și pe ce temei. Peste un an, cifra fără sursă nu mai poate fi
-          apărată.
-        </p>
-      </div>
+          <Camp
+            nume="observatii_juridice"
+            eticheta="Observații juridice"
+            fel="textarea"
+            ajutor="Cine a confirmat valorile și pe ce temei. Peste un an, cifra fără sursă nu mai poate fi apărată."
+            erori={stare.erori["observatii_juridice"] ?? []}
+          >
+            {(atribute) => (
+              <textarea
+                {...atribute}
+                rows={3}
+                defaultValue={setariCurente?.observatii_juridice ?? ""}
+              />
+            )}
+          </Camp>
 
-      <Buton type="submit" varianta="primar" inCurs={seTrimite} textInCurs="Se salvează…">
-        Salvează versiunea
-      </Buton>
-
-      {mesaj !== null ? <p className="text-success text-corp">{mesaj}</p> : null}
-      {eroare !== null ? <p className="text-danger text-corp">{eroare}</p> : null}
-    </form>
+          <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se salvează…">
+            Salvează versiunea
+          </Buton>
+        </>
+      )}
+    </Formular>
   );
 }

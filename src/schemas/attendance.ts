@@ -1,6 +1,6 @@
 // src/schemas/attendance.ts
 import { z } from "zod";
-import { enumOptional, optional, textOptional } from "./comun";
+import { enumOptional, numarObligatoriu, optional, textOptional } from "./comun";
 
 import { todayInBucharest } from "@/lib/format/date";
 
@@ -328,14 +328,73 @@ export type DecideSaptamanaPontaj = z.output<typeof decideSaptamanaPontajSchema>
  * nu erau configurate nicăieri, iar salarizarea cădea tăcut pe cele din
  * `payroll_settings`.
  */
+/*
+ * ── DE CE `numarObligatoriu` ȘI NU `z.coerce.number()` ─────────────────────
+ * Fiindcă `Number("")` e `0`. Șapte dintre câmpurile de mai jos au plafonul de
+ * jos chiar 0 — repausurile, pragul de noapte, cele două termene de compensare
+ * și cele două de pauză — deci o casetă lăsată goală trecea validarea și se
+ * SALVA ca zero, fără niciun mesaj. „Repaus zilnic minim: 0 ore" e o afirmație
+ * juridică pe care n-a făcut-o nimeni, iar `app.verifica_pontaj` o folosește
+ * apoi ca să nu mai avertizeze niciodată.
+ *
+ * Pentru celelalte patru, mesajul exista dar era al lui zod, în engleză („Too
+ * small: expected number to be >0"), și ajungea într-un `fieldErrors` pe care
+ * formularul nu-l citea. Omul citea sub buton „Datele introduse nu sunt
+ * valide." — pe un ecran cu cincisprezece casete.
+ *
+ * `numarObligatoriu` (comun.ts) scoate golul ÎNAINTE de coerciție și cere trei
+ * mesaje distincte: lipsă, „nu e număr", „în afara intervalului". Ajutorul a
+ * fost scris pentru exact același defect pe salariul de bază; ecranul ăsta nu
+ * apucase să treacă pe el. — `schemas/attendance.test.ts`
+ */
 export const setariPontajSchema = z.object({
-  valabil_de_la: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, "Data trebuie să fie AAAA-LL-ZZ."),
-  ore_pe_zi: z.coerce.number().positive("Norma zilnică trebuie să fie pozitivă.").max(24),
-  ore_pe_saptamana: z.coerce.number().positive().max(168),
-  ore_maxime_saptamanale: z.coerce.number().positive().max(168),
-  perioada_referinta_luni: z.coerce.number().int().min(1).max(12),
-  repaus_zilnic_minim_ore: z.coerce.number().min(0).max(24),
-  repaus_saptamanal_minim_ore: z.coerce.number().min(0).max(168),
+  valabil_de_la: z
+    .string("Alegeți data de la care se aplică versiunea.")
+    .min(1, "Alegeți data de la care se aplică versiunea.")
+    .regex(/^\d{4}-\d{2}-\d{2}$/u, "Data trebuie să fie AAAA-LL-ZZ."),
+  ore_pe_zi: numarObligatoriu({
+    min: 0.5,
+    max: 24,
+    lipsa: "Completați norma zilnică.",
+    mesaj: "Norma zilnică se scrie în ore, de exemplu 8:00.",
+    interval: "Norma zilnică e între 0:30 și 24:00.",
+  }),
+  ore_pe_saptamana: numarObligatoriu({
+    min: 0.5,
+    max: 168,
+    lipsa: "Completați norma săptămânală.",
+    mesaj: "Norma săptămânală se scrie în ore, de exemplu 40:00.",
+    interval: "Norma săptămânală e între 0:30 și 168:00.",
+  }),
+  ore_maxime_saptamanale: numarObligatoriu({
+    min: 0.5,
+    max: 168,
+    lipsa: "Completați maximul săptămânal.",
+    mesaj: "Maximul săptămânal se scrie în ore, de exemplu 48:00.",
+    interval: "Maximul săptămânal e între 0:30 și 168:00.",
+  }),
+  perioada_referinta_luni: numarObligatoriu({
+    min: 1,
+    max: 12,
+    intreg: true,
+    lipsa: "Alegeți perioada de referință.",
+    mesaj: "Perioada de referință se măsoară în luni întregi.",
+    interval: "Perioada de referință e între 1 și 12 luni.",
+  }),
+  repaus_zilnic_minim_ore: numarObligatoriu({
+    min: 0,
+    max: 24,
+    lipsa: "Completați repausul zilnic minim.",
+    mesaj: "Repausul zilnic se scrie în ore, de exemplu 12:00.",
+    interval: "Repausul zilnic e între 0:00 și 24:00.",
+  }),
+  repaus_saptamanal_minim_ore: numarObligatoriu({
+    min: 0,
+    max: 168,
+    lipsa: "Completați repausul săptămânal minim.",
+    mesaj: "Repausul săptămânal se scrie în ore, de exemplu 48:00.",
+    interval: "Repausul săptămânal e între 0:00 și 168:00.",
+  }),
   /**
    * Ce feluri de muncă are firma (0080). NU sunt „ce sporuri acord": sporurile
    * din art. 123, 137 alin. (2) și 142 alin. (2) sunt obligatorii CÂND munca
@@ -354,14 +413,53 @@ export const setariPontajSchema = z.object({
   // `payroll_settings.procent_spor_*`, și se citesc din `domain/payroll/calc.ts`.
   // Coloanele au rămas în tabelă, cu `default 0`, deci INSERT-ul de aici merge
   // fără ele — vezi 0082 pentru de ce nu s-au șters.
-  noapte_start: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
-  noapte_sfarsit: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
-  prag_ore_noapte: z.coerce.number().min(0).max(12),
-  termen_compensare_suplimentare_zile: z.coerce.number().int().min(0).max(365),
-  termen_compensare_sarbatoare_zile: z.coerce.number().int().min(0).max(365),
-  pauza_masa_minute: z.coerce.number().int().min(0).max(240),
+  noapte_start: z
+    .string("Completați ora la care începe fereastra de noapte.")
+    .min(1, "Completați ora la care începe fereastra de noapte.")
+    .regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
+  noapte_sfarsit: z
+    .string("Completați ora la care se termină fereastra de noapte.")
+    .min(1, "Completați ora la care se termină fereastra de noapte.")
+    .regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
+  prag_ore_noapte: numarObligatoriu({
+    min: 0,
+    max: 12,
+    lipsa: "Completați pragul de ore de noapte.",
+    mesaj: "Pragul se scrie în ore, de exemplu 3:00.",
+    interval: "Pragul de noapte e între 0:00 și 12:00.",
+  }),
+  termen_compensare_suplimentare_zile: numarObligatoriu({
+    min: 0,
+    max: 365,
+    intreg: true,
+    lipsa: "Completați termenul de compensare a orelor suplimentare.",
+    mesaj: "Termenul se scrie în zile întregi.",
+    interval: "Termenul e între 0 și 365 de zile.",
+  }),
+  termen_compensare_sarbatoare_zile: numarObligatoriu({
+    min: 0,
+    max: 365,
+    intreg: true,
+    lipsa: "Completați termenul de compensare a sărbătorilor lucrate.",
+    mesaj: "Termenul se scrie în zile întregi.",
+    interval: "Termenul e între 0 și 365 de zile.",
+  }),
+  pauza_masa_minute: numarObligatoriu({
+    min: 0,
+    max: 240,
+    intreg: true,
+    lipsa: "Completați durata pauzei de masă.",
+    mesaj: "Pauza se scrie în minute întregi.",
+    interval: "Pauza de masă e între 0 și 240 de minute.",
+  }),
   pauza_masa_inclusa_in_program: z.coerce.boolean(),
-  pauza_obligatorie_peste_ore: z.coerce.number().min(0).max(24),
+  pauza_obligatorie_peste_ore: numarObligatoriu({
+    min: 0,
+    max: 24,
+    lipsa: "Completați durata zilei de la care pauza devine obligatorie.",
+    mesaj: "Durata se scrie în ore, de exemplu 6:00.",
+    interval: "Durata e între 0:00 și 24:00.",
+  }),
   observatii_juridice: z.string().trim().max(2000).nullable().default(null),
 });
 export type IntrareSetariPontaj = z.output<typeof setariPontajSchema>;
