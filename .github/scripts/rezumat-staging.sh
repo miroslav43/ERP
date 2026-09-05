@@ -35,11 +35,23 @@ if [ -f /tmp/verify.log ] && grep -qE '\.tsx?\([0-9]+,[0-9]+\): error' /tmp/veri
   echo ""
 fi
 
-# eslint: calea pe o linie, apoi „  12:5  error  descriere  regula"
+# eslint: calea fișierului pe o linie singură, apoi „  12:5  error  descriere  regulă".
+#
+# NU `grep -B3`: primul lucru pe care l-a produs varianta aia, la proba cu
+# log-uri sintetice, a fost o eroare de `tsc` afișată sub titlul „Erori de
+# lint" — fiindcă cele trei linii dinainte veneau din secțiunea de typecheck.
+# Colegul ar fi căutat o regulă ESLint care nu există. `awk` ține minte ultima
+# cale văzută și o tipărește o singură dată, doar dacă are erori sub ea.
 if [ -f /tmp/verify.log ] && grep -qE '^[[:space:]]+[0-9]+:[0-9]+[[:space:]]+error' /tmp/verify.log; then
   echo "### Erori de lint"
   echo '```'
-  grep -B3 -E '^[[:space:]]+[0-9]+:[0-9]+[[:space:]]+error' /tmp/verify.log | head -15
+  awk '
+    /^\/.*\.(ts|tsx|js|jsx|mjs|cjs)$/ { cale = $0; next }
+    /^[[:space:]]+[0-9]+:[0-9]+[[:space:]]+error/ {
+      if (cale != "") { print cale; cale = "" }
+      print
+    }
+  ' /tmp/verify.log | head -15
   echo '```'
   echo ""
 fi

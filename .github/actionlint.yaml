@@ -1,0 +1,10 @@
+# Configurație actionlint.
+#
+# `administrativo` e eticheta runner-ului self-hosted instalat pe VM-ul
+# 62.171.154.194 (vezi docs/superpowers/plans/2026-09-04-staging-subdomeniu.md,
+# Sarcina 8). actionlint nu are de unde s-o știe și o raportează ca necunoscută;
+# lista de mai jos i-o declară, ca `.github/workflows/staging.yml` să treacă
+# curat.
+self-hosted-runner:
+  labels:
+    - administrativo
