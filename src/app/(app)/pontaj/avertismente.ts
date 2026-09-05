@@ -62,6 +62,13 @@ export interface RezultatCuAvertismente {
   readonly conflictSuspendare: ConflictSuspendare | null;
   /** Reluarea s-a înregistrat, dar ceva de pe drum a rămas de făcut manual. */
   readonly avertismentReluare: string | null;
+  /**
+   * Zilele SĂRITE din planul săptămânal fiindcă aveau concediu aprobat (0133).
+   *
+   * Restul săptămânii s-a salvat. Ecranul trebuie să le spună: tăcerea ar lăsa
+   * omul să creadă că a planificat cinci zile când în plan sunt trei.
+   */
+  readonly zileSarite: readonly string[];
 }
 
 /** Ultima zi a lunii din care face parte `zi`, ca șir ISO. */

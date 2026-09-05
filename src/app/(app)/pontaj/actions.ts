@@ -282,6 +282,7 @@ export const salveazaZiPontaj = createAction({
             id: null,
             avertismente: [],
             avertismentReluare: null,
+            zileSarite: [],
             conflictSuspendare: {
               suspendareId: suspendata.id,
               dataInceput: suspendata.data_inceput,
@@ -399,6 +400,7 @@ export const salveazaZiPontaj = createAction({
         }),
         conflictSuspendare: null,
         avertismentReluare,
+        zileSarite: [],
       };
     }
 
@@ -437,6 +439,8 @@ export const salveazaZiPontaj = createAction({
       }),
       conflictSuspendare: null,
       avertismentReluare,
+      // Ziua individuală REFUZĂ o zi de concediu (v. garda de mai sus), nu o sare.
+      zileSarite: [],
     };
   },
 });

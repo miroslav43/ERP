@@ -107,7 +107,14 @@ function Alegere({
   readonly erori?: readonly string[];
 }) {
   return (
-    <Camp nume={nume} eticheta={eticheta} ajutor={descriere} erori={erori ?? []} obligatoriu fel="select">
+    <Camp
+      nume={nume}
+      eticheta={eticheta}
+      ajutor={descriere}
+      erori={erori ?? []}
+      obligatoriu
+      fel="select"
+    >
       {(atribute) => (
         /*
           Fără preselecție când nu există nimic salvat. Ar fi fost comod să se
