@@ -24,9 +24,7 @@ function campuriObligatorii(): readonly string[] {
   if (rezultat.success) return [];
   return [
     ...new Set(
-      rezultat.error.issues
-        .filter((i) => i.path.length === 1)
-        .map((i) => String(i.path[0])),
+      rezultat.error.issues.filter((i) => i.path.length === 1).map((i) => String(i.path[0])),
     ),
   ].sort();
 }

@@ -40,68 +40,68 @@ export default async function PaginaAngajatNou() {
     contor,
     sabloaneSalariale,
   ] = await Promise.all([
-      db
-        .from("departments")
-        .select("id, denumire")
-        .eq("organization_id", tenant.organizationId)
-        .eq("activ", true)
-        .is("deleted_at", null)
-        .order("denumire"),
-      db
-        .from("employees")
-        .select("id, full_name")
-        .eq("organization_id", tenant.organizationId)
-        .eq("status", "activ")
-        .is("deleted_at", null)
-        .order("full_name"),
-      db
-        .from("organizations")
-        .select("zile_concediu_anual_implicit")
-        .eq("id", tenant.organizationId)
-        .maybeSingle(),
-      // Golul dacă modulul Inventar nu e activat: RLS filtrează tăcut, nu aruncă.
-      db
-        .from("inventory_items")
-        .select("id, denumire, numar_inventar")
-        .eq("organization_id", tenant.organizationId)
-        .eq("status", "in_stoc")
-        .order("denumire"),
-      db
-        .from("puncte_lucru")
-        .select("id, denumire")
-        .eq("organization_id", tenant.organizationId)
-        .eq("activ", true)
-        .is("deleted_at", null)
-        .order("denumire"),
-      /*
-       * Următorul număr de contract, CITIT — nu consumat.
-       *
-       * `public.aloca_numar_contract` avansează contorul, deci nu poate fi
-       * chemată ca să afișeze o previzualizare: fiecare deschidere de formular ar
-       * arde un număr. Aici se citește starea contorului; alocarea reală, atomică,
-       * se face la salvare. Numărul afișat poate fi depășit de o înrolare
-       * simultană — de aceea e text de ajutor, nu valoare precompletată.
-       */
-      db
-        .from("document_sequences")
-        .select("next_number")
-        .eq("organization_id", tenant.organizationId)
-        .eq("document_type", "contract_munca")
-        .eq("year", new Date().getFullYear())
-        .maybeSingle(),
-      /*
-       * Șabloanele de componentă salarială — sporuri, prime recurente, tichete,
-       * cadouri. `organization_id is null` sunt cele de PLATFORMĂ, comune
-       * tuturor firmelor; RLS le lasă vizibile, deci filtrul nu le exclude.
-       */
-      db
-        .from("salary_component_types")
-        .select("id, denumire, kind")
-        .eq("activ", true)
-        .is("deleted_at", null)
-        .order("ordine")
-        .order("denumire"),
-    ]);
+    db
+      .from("departments")
+      .select("id, denumire")
+      .eq("organization_id", tenant.organizationId)
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .order("denumire"),
+    db
+      .from("employees")
+      .select("id, full_name")
+      .eq("organization_id", tenant.organizationId)
+      .eq("status", "activ")
+      .is("deleted_at", null)
+      .order("full_name"),
+    db
+      .from("organizations")
+      .select("zile_concediu_anual_implicit")
+      .eq("id", tenant.organizationId)
+      .maybeSingle(),
+    // Golul dacă modulul Inventar nu e activat: RLS filtrează tăcut, nu aruncă.
+    db
+      .from("inventory_items")
+      .select("id, denumire, numar_inventar")
+      .eq("organization_id", tenant.organizationId)
+      .eq("status", "in_stoc")
+      .order("denumire"),
+    db
+      .from("puncte_lucru")
+      .select("id, denumire")
+      .eq("organization_id", tenant.organizationId)
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .order("denumire"),
+    /*
+     * Următorul număr de contract, CITIT — nu consumat.
+     *
+     * `public.aloca_numar_contract` avansează contorul, deci nu poate fi
+     * chemată ca să afișeze o previzualizare: fiecare deschidere de formular ar
+     * arde un număr. Aici se citește starea contorului; alocarea reală, atomică,
+     * se face la salvare. Numărul afișat poate fi depășit de o înrolare
+     * simultană — de aceea e text de ajutor, nu valoare precompletată.
+     */
+    db
+      .from("document_sequences")
+      .select("next_number")
+      .eq("organization_id", tenant.organizationId)
+      .eq("document_type", "contract_munca")
+      .eq("year", new Date().getFullYear())
+      .maybeSingle(),
+    /*
+     * Șabloanele de componentă salarială — sporuri, prime recurente, tichete,
+     * cadouri. `organization_id is null` sunt cele de PLATFORMĂ, comune
+     * tuturor firmelor; RLS le lasă vizibile, deci filtrul nu le exclude.
+     */
+    db
+      .from("salary_component_types")
+      .select("id, denumire, kind")
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .order("ordine")
+      .order("denumire"),
+  ]);
 
   /*
    * Forma din 0130: numărul poartă DATA alocării, nu doar anul. Textul de

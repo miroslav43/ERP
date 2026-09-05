@@ -164,8 +164,16 @@ describe("contract", () => {
     const m = mapeazaContract(
       contract({
         sporuri: [
-          { referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", valoare: 10.5, esteProcent: true },
-          { referintaTipSpor: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", valoare: 250, esteProcent: false },
+          {
+            referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            valoare: 10.5,
+            esteProcent: true,
+          },
+          {
+            referintaTipSpor: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            valoare: 250,
+            esteProcent: false,
+          },
         ],
       }),
       "sal-1",
@@ -175,8 +183,16 @@ describe("contract", () => {
     expect(m.continut?.salariu).toStrictEqual({
       salariuBaza: 4000,
       sporuri: [
-        { referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", valoare: 10.5, esteProcent: true },
-        { referintaTipSpor: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", valoare: 250, esteProcent: false },
+        {
+          referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          valoare: 10.5,
+          esteProcent: true,
+        },
+        {
+          referintaTipSpor: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          valoare: 250,
+          esteProcent: false,
+        },
       ],
     });
   });
@@ -185,7 +201,11 @@ describe("contract", () => {
     const m = mapeazaContract(
       contract({
         sporuri: [
-          { referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", valoare: 10.500000000000002, esteProcent: true },
+          {
+            referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            valoare: 10.500000000000002,
+            esteProcent: true,
+          },
         ],
       }),
       "sal-1",

@@ -170,9 +170,9 @@ describe("sporuri", () => {
   });
 
   it("oprește mesajul când tipul de spor n-are corespondent în nomenclator", () => {
-    const problema = verificaContract(
-      contract({ sporuri: [spor({ referintaTipSpor: "" })] }),
-    ).find((p) => p.camp === "sporuri[0].referintaTipSpor");
+    const problema = verificaContract(contract({ sporuri: [spor({ referintaTipSpor: "" })] })).find(
+      (p) => p.camp === "sporuri[0].referintaTipSpor",
+    );
     expect(problema?.mesaj).toContain("nomenclatorul REGES");
   });
 
@@ -190,7 +190,9 @@ describe("sporuri", () => {
 
   it("acceptă aceeași cifră ca SUMĂ fixă", () => {
     expect(
-      campuri(verificaContract(contract({ sporuri: [spor({ valoare: 250, esteProcent: false })] }))),
+      campuri(
+        verificaContract(contract({ sporuri: [spor({ valoare: 250, esteProcent: false })] })),
+      ),
     ).not.toContain("sporuri[0].valoare");
   });
 

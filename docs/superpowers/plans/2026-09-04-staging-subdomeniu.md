@@ -47,18 +47,18 @@ Toate se aplică fiecărei sarcini, fără a fi repetate acolo.
 
 ## Stare la 2026-09-05, ora 09:05 — șapte sarcini din zece, livrate
 
-| Sarcină | Stare | Dovada |
-| --- | --- | --- |
-| 1 · `ADM_MEDIU` | ✅ `6063618` | `scripts/checks/medii.sh` — 19/19 |
-| 2 · Stack generat + gărzi | ✅ `6063618` | `scripts/checks/stack-generat.sh` — 4/4 |
-| 3 · Secrete + replici | ✅ `6063618` | `docker stack config` pe ambele medii |
-| 4 · Curățenie + prag disc | ✅ `6063618` | apare în `help`; rulare în gol OK |
-| 5 · Vhost staging | ✅ `6063618` | `nginx -t` cu ambele vhost-uri |
-| 6 · Certificat + instalare | ✅ operațional | cert până la 2026-12-04; 11/11 site-uri sus |
-| 7 · Baza de staging | ⛔ blocată | credențiale respinse — vezi mai jos |
-| 8 · Runner systemd | ⏳ | cere jeton de înregistrare de la utilizator |
-| 9 · Workflow | ✅ scris `6063618` | neprobat — n-are runner pe care să ruleze |
-| 10 · Santinelă de stare | ✅ vie | https://staging.administrativo.ro/_stare → 200 |
+| Sarcină                    | Stare              | Dovada                                         |
+| -------------------------- | ------------------ | ---------------------------------------------- |
+| 1 · `ADM_MEDIU`            | ✅ `6063618`       | `scripts/checks/medii.sh` — 19/19              |
+| 2 · Stack generat + gărzi  | ✅ `6063618`       | `scripts/checks/stack-generat.sh` — 4/4        |
+| 3 · Secrete + replici      | ✅ `6063618`       | `docker stack config` pe ambele medii          |
+| 4 · Curățenie + prag disc  | ✅ `6063618`       | apare în `help`; rulare în gol OK              |
+| 5 · Vhost staging          | ✅ `6063618`       | `nginx -t` cu ambele vhost-uri                 |
+| 6 · Certificat + instalare | ✅ operațional     | cert până la 2026-12-04; 11/11 site-uri sus    |
+| 7 · Baza de staging        | ⛔ blocată         | credențiale respinse — vezi mai jos            |
+| 8 · Runner systemd         | ⏳                 | cere jeton de înregistrare de la utilizator    |
+| 9 · Workflow               | ✅ scris `6063618` | neprobat — n-are runner pe care să ruleze      |
+| 10 · Santinelă de stare    | ✅ vie             | https://staging.administrativo.ro/_stare → 200 |
 
 Starea rețelei, verificată: `staging.administrativo.ro` întoarce 401 fără parolă
 și 502 cu ea — vhost viu, upstream absent, exact ce se aștepta înainte de primul
@@ -90,28 +90,28 @@ deploy al aplicației. Acces: utilizatorul `coleg`, parola în
 `DATABASE_URL` din `.env.staging` are o parolă respinsă de server
 (`FATAL: password authentication failed`), iar proiectul nu e în regiunea
 producției (`tenant/user not found` pe pooler-ul `aws-1-eu-west-1`). Utilizatorul
-trebuie să dea șirul de conexiune din *Connect*, sau o parolă nouă din
-*Settings → Database → Reset database password*. **Sarcinile 1-6 și 8-10 nu
+trebuie să dea șirul de conexiune din _Connect_, sau o parolă nouă din
+_Settings → Database → Reset database password_. **Sarcinile 1-6 și 8-10 nu
 depind de asta.**
 
 ---
 
 ## Structura fișierelor
 
-| Fișier | Răspundere |
-| --- | --- |
-| `ops/_lib.sh` | *modificat* — un singur buton, `ADM_MEDIU`, care derivă toate numele |
-| `ops/05-docker.sh` | *modificat* — generarea fișierului de stack + gărzile |
-| `ops/06-nginx.sh` | *modificat* — vhost și certificat pe domeniul mediului |
-| `ops/08-curatenie.sh` | *nou* — singurul loc care șterge ceva de pe disc |
-| `docker-stack.yml` | *modificat* — `name:` la secrete, replici din variabilă |
-| `scripts/checks/medii.sh` | *nou* — poarta „producția n-a mișcat" |
-| `scripts/checks/stack-generat.sh` | *nou* — poarta „aliasul nu colizionează" |
-| `deploy/nginx/32-staging.administrativo.ro.conf` | *nou* — vhost-ul staging |
-| `deploy/stare-stack.yml` | *nou* — santinela de stare, stack propriu |
-| `deploy/stare/index.html` | *nou* — pagina de stare (șablon) |
-| `ops/09-stare.sh` | *nou* — scrierea stării după fiecare încercare |
-| `.github/workflows/staging.yml` | *nou* — declanșatorul |
+| Fișier                                           | Răspundere                                                           |
+| ------------------------------------------------ | -------------------------------------------------------------------- |
+| `ops/_lib.sh`                                    | _modificat_ — un singur buton, `ADM_MEDIU`, care derivă toate numele |
+| `ops/05-docker.sh`                               | _modificat_ — generarea fișierului de stack + gărzile                |
+| `ops/06-nginx.sh`                                | _modificat_ — vhost și certificat pe domeniul mediului               |
+| `ops/08-curatenie.sh`                            | _nou_ — singurul loc care șterge ceva de pe disc                     |
+| `docker-stack.yml`                               | _modificat_ — `name:` la secrete, replici din variabilă              |
+| `scripts/checks/medii.sh`                        | _nou_ — poarta „producția n-a mișcat"                                |
+| `scripts/checks/stack-generat.sh`                | _nou_ — poarta „aliasul nu colizionează"                             |
+| `deploy/nginx/32-staging.administrativo.ro.conf` | _nou_ — vhost-ul staging                                             |
+| `deploy/stare-stack.yml`                         | _nou_ — santinela de stare, stack propriu                            |
+| `deploy/stare/index.html`                        | _nou_ — pagina de stare (șablon)                                     |
+| `ops/09-stare.sh`                                | _nou_ — scrierea stării după fiecare încercare                       |
+| `.github/workflows/staging.yml`                  | _nou_ — declanșatorul                                                |
 
 Fișierul `.stack-staging.generat.yml` e produs la fiecare deploy și **nu** e
 urmărit de git.
@@ -121,10 +121,12 @@ urmărit de git.
 ## Sarcina 1: Un singur buton — `ADM_MEDIU`
 
 **Fișiere:**
+
 - Modifică: `ops/_lib.sh:11-22` (constantele) și `ops/_lib.sh:154` (`_env_file`)
 - Creează: `scripts/checks/medii.sh`
 
 **Interfețe:**
+
 - Produce: variabilele `ADM_MEDIU`, `ADM_STACK`, `ADM_SERVICE`, `ADM_IMAGE`,
   `ADM_DOMAIN`, `ADM_VHOST`, `ADM_SECRET_PREFIX`, `ADM_REPLICI` — toate
   `readonly` după derivare. Consumate de sarcinile 2, 3, 5, 7.
@@ -340,19 +342,21 @@ git commit --only -m "feat(ops): ADM_MEDIU — un singur buton pentru două medi
 ## Sarcina 2: Fișierul de stack generat, cu gărzi
 
 **Fișiere:**
+
 - Modifică: `ops/05-docker.sh` (adaugă `_genereaza_stack`, folosește-o în
   `cmd_stack__deploy`)
 - Creează: `scripts/checks/stack-generat.sh`
 - Modifică: `.gitignore`
 
 **Interfețe:**
+
 - Consumă: `ADM_MEDIU`, `ADM_SERVICE` din Sarcina 1.
 - Produce: `_genereaza_stack()` → scrie pe stdout calea fișierului de stack de
   folosit. Pentru producție întoarce `docker-stack.yml` neatins.
 
 **De ce generare și nu parametrizare** — probat 2026-09-04, detaliile în specul
 §6: o variabilă pe poziția unei chei YAML e respinsă de schema Compose
-(`Additional property ${…} is not allowed`), un alias explicit se *adaugă* peste
+(`Additional property ${…} is not allowed`), un alias explicit se _adaugă_ peste
 cel implicit (`[administrativo-web-staging administrativo-web]` — coliziunea
 rămâne), iar `extends` nu e implementat în `docker stack deploy`.
 
@@ -546,10 +550,12 @@ git commit --only -m "feat(ops): fișier de stack generat, cu gărzi împotriva 
 ## Sarcina 3: `docker-stack.yml` — secrete prefixate și replici variabile
 
 **Fișiere:**
+
 - Modifică: `docker-stack.yml` (blocul `secrets:` de la linia 171 și
   `deploy.replicas` de la linia 147)
 
 **Interfețe:**
+
 - Consumă: `ADM_SECRET_PREFIX`, `ADM_REPLICI` din Sarcina 1.
 - Produce: un fișier de stack care, cu prefix gol, dă exact secretele de azi.
 
@@ -587,11 +593,11 @@ secrets:
 - [ ] **Pasul 2: Fă numărul de replici variabil**
 
 ```yaml
-    deploy:
-      # 2 în producție (rolling update fără fereastră cu zero replici), 1 în
-      # staging — unde o cădere nu costă nimic, iar a doua replică ar dubla
-      # degeaba memoria pe un VM cu nouă site-uri.
-      replicas: ${ADM_REPLICI:-2}
+deploy:
+  # 2 în producție (rolling update fără fereastră cu zero replici), 1 în
+  # staging — unde o cădere nu costă nimic, iar a doua replică ar dubla
+  # degeaba memoria pe un VM cu nouă site-uri.
+  replicas: ${ADM_REPLICI:-2}
 ```
 
 - [ ] **Pasul 3: Verifică randarea pentru PRODUCȚIE — numele nu trebuie să se schimbe**
@@ -632,9 +638,11 @@ git commit --only -m "feat(deploy): secrete per mediu prin name:, replici din va
 ## Sarcina 4: Curățenia — livrabilă singură, utilă imediat
 
 **Fișiere:**
+
 - Creează: `ops/08-curatenie.sh`
 
 **Interfețe:**
+
 - Consumă: `ADM_IMAGE` din Sarcina 1.
 - Produce: comanda `./administrativo.sh curata [câte_păstrez]`.
 
@@ -768,10 +776,12 @@ git commit --only -m "feat(ops): comanda curata + prag de disc în doctor" \
 ## Sarcina 5: Vhost-ul de staging
 
 **Fișiere:**
+
 - Creează: `deploy/nginx/32-staging.administrativo.ro.conf`
 - Modifică: `ops/06-nginx.sh` — **o singură schimbare**, la `ssl:issue`
 
 **Interfețe:**
+
 - Consumă: `ADM_DOMAIN`, `ADM_VHOST`, `ADM_SERVICE`, `ADM_MEDIU` din Sarcina 1.
 
 **`cmd_nginx__vhost` nu are nevoie de nicio modificare** — verificat: folosește
@@ -916,7 +926,7 @@ ADM_MEDIU=staging ./administrativo.sh ssl:issue
 
 Provocarea HTTP-01 trece prin Cloudflare. Dacă „Always Use HTTPS" o
 redirecționează spre un HTTPS pe care originea încă nu-l poate servi pentru acest
-nume, comută înregistrarea `staging` pe *DNS only* în panoul Cloudflare, reia
+nume, comută înregistrarea `staging` pe _DNS only_ în panoul Cloudflare, reia
 pasul 1, apoi repune proxy-ul. Pe VM există deja 11 certificate Let's Encrypt,
 printre care `analitice.administrativo.ro` — deci calea funcționează.
 
@@ -1098,6 +1108,7 @@ care rulează `docker version && pnpm --version && psql --version`.
 ## Sarcina 9: Workflow-ul
 
 **Fișiere:**
+
 - Creează: `.github/workflows/staging.yml`
 
 - [ ] **Pasul 1: Scrie workflow-ul**
@@ -1128,7 +1139,7 @@ jobs:
     runs-on: [self-hosted, administrativo]
     timeout-minutes: 30
     permissions:
-      contents: write   # pentru comentariul pe commit
+      contents: write # pentru comentariul pe commit
 
     steps:
       - uses: actions/checkout@v4
@@ -1188,7 +1199,7 @@ jobs:
 
 Creează `.github/scripts/rezumat-staging.sh`:
 
-```bash
+````bash
 #!/usr/bin/env bash
 # Transformă log-urile în rezumatul pe care îl citește colegul. Scopul e ca
 # primele cinci rânduri să spună ce s-a stricat și unde — fără derulat 4000 de
@@ -1238,7 +1249,7 @@ if [ -f /tmp/deploy.log ] && grep -qiE 'error|eșuat|failed' /tmp/deploy.log; th
   tail -25 /tmp/deploy.log
   echo '```'
 fi
-```
+````
 
 - [ ] **Pasul 3: Probează pe gol**
 
@@ -1265,6 +1276,7 @@ git commit --only -m "feat(ci): deploy staging din main, cu erorile aduse înapo
 ## Sarcina 10: Santinela de stare
 
 **Fișiere:**
+
 - Creează: `deploy/stare-stack.yml`, `deploy/stare/index.html`, `ops/09-stare.sh`
 
 **De ce un stack separat, nu un serviciu în stack-ul de staging:** momentul în
