@@ -52,9 +52,18 @@ const textOptional = (maxim: number) =>
     .default(null)
     .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare));
 
+/*
+ * `z.string(mesaj)` — mesajul de TIP, nu doar cel de lungime.
+ *
+ * Fără el, un câmp NEATINS (deci `undefined`, nu șir gol) primea mesajul
+ * implicit al lui Zod: „Invalid input: expected string, received undefined" —
+ * în engleză, despre tipuri, către un om care voia să știe ce n-a completat.
+ * Mesajul de lungime de mai jos acoperea doar cazul șirului gol, iar cele două
+ * căi arătau complet diferit pentru aceeași greșeală.
+ */
 const textObligatoriu = (minim: number, maxim: number, camp: string) =>
   z
-    .string()
+    .string(`Câmpul „${camp}” este obligatoriu.`)
     .trim()
     .min(minim, `Câmpul „${camp}” este obligatoriu.`)
     .max(maxim, `Câmpul „${camp}” nu poate depăși ${String(maxim)} de caractere.`);
@@ -71,7 +80,10 @@ const dataOptionala = z
   );
 
 const dataObligatorie = (camp: string) =>
-  z.string().trim().regex(RE_DATA, `Câmpul „${camp}” trebuie completat în formatul AAAA-LL-ZZ.`);
+  z
+    .string(`Câmpul „${camp}” este obligatoriu.`)
+    .trim()
+    .regex(RE_DATA, `Câmpul „${camp}” trebuie completat în formatul AAAA-LL-ZZ.`);
 
 const uuidOptional = z
   .string()
@@ -92,10 +104,16 @@ const cnpOptional = z
   .transform((valoare) =>
     valoare === null || valoare.length === 0 ? null : normalizeazaCnp(valoare),
   )
-  .refine(
-    (valoare) => valoare === null || validateazaCnp(valoare).valid,
-    "CNP-ul introdus nu este valid.",
-  );
+  .superRefine((valoare, ctx) => {
+    if (valoare === null) return;
+    const rezultat = validateazaCnp(valoare);
+    if (!rezultat.valid) {
+      ctx.addIssue({
+        code: "custom",
+        message: rezultat.motiv ?? "CNP-ul introdus nu este valid.",
+      });
+    }
+  });
 
 /**
  * CNP obligatoriu — folosit doar la înrolare.
@@ -105,11 +123,25 @@ const cnpOptional = z
  * pe care o fac `numarObligatoriu` și `numarOptional` din `./comun`.
  */
 const cnpObligatoriu = z
-  .string()
+  .string("Câmpul „CNP” este obligatoriu.")
   .trim()
   .min(1, "Câmpul „CNP” este obligatoriu.")
   .transform((valoare) => normalizeazaCnp(valoare))
-  .refine((valoare) => validateazaCnp(valoare).valid, "CNP-ul introdus nu este valid.");
+  /*
+   * Motivul vine de la `validateazaCnp`, care îl calcula deja și îl arunca:
+   * „exact 13 cifre", „prima cifră nu corespunde niciunui sex/rezidență",
+   * cifra de control. „Nu este valid" e adevărat și inutil — omul se uită la
+   * treisprezece cifre și nu știe pe care s-o caute.
+   */
+  .superRefine((valoare, ctx) => {
+    const rezultat = validateazaCnp(valoare);
+    if (!rezultat.valid) {
+      ctx.addIssue({
+        code: "custom",
+        message: rezultat.motiv ?? "CNP-ul introdus nu este valid.",
+      });
+    }
+  });
 
 const emailOptional = z
   .string()
@@ -130,10 +162,17 @@ const ibanOptional = z
   .transform((valoare) =>
     valoare === null || valoare.length === 0 ? null : normalizeazaIban(valoare),
   )
-  .refine(
-    (valoare) => valoare === null || validateazaIban(valoare).valid,
-    "IBAN-ul introdus nu este valid.",
-  );
+  /* Motivul exact, ca la CNP: `validateazaIban` îl calculează deja. */
+  .superRefine((valoare, ctx) => {
+    if (valoare === null) return;
+    const rezultat = validateazaIban(valoare);
+    if (!rezultat.valid) {
+      ctx.addIssue({
+        code: "custom",
+        message: rezultat.motiv ?? "IBAN-ul introdus nu este valid.",
+      });
+    }
+  });
 
 // ── Filtre de listare (paginare keyset) ───────────────────────────────────────
 
