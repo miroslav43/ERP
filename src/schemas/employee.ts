@@ -1177,3 +1177,23 @@ export const invitaAngajatulSchema = z.object({
 export const stergeAngajatSchema = z.object({
   id: z.uuid("Angajatul selectat nu este valid."),
 });
+
+// ── Ciorna de înrolare ────────────────────────────────────────────────────────
+
+/**
+ * Salvarea unei înrolări neterminate.
+ *
+ * `date` e OBIECT LIBER, nu `inroleazaAngajatSchema.partial()`: o ciornă e
+ * incompletă prin definiție, iar validarea ei la salvare ar fi însemnat că
+ * tocmai starea pe care vrem s-o păstrăm — jumătatea de formular — e cea care
+ * nu se poate salva. Forma se verifică la RELUARE, când datele se toarnă
+ * înapoi în formular.
+ *
+ * Ce se apără aici e MĂRIMEA. Restul apără baza, prin `pg_column_size`.
+ */
+export const salveazaCiornaInrolareSchema = z.object({
+  pas: z.coerce.number().int().min(1).max(6).default(1),
+  eticheta: textOptional(200),
+  date: z.record(z.string(), z.unknown()).default({}),
+});
+export type SalveazaCiornaInrolare = z.output<typeof salveazaCiornaInrolareSchema>;

@@ -5514,6 +5514,59 @@ export type Database = {
           },
         ]
       }
+      inrolare_ciorne: {
+        Row: {
+          autor_id: string
+          created_at: string
+          created_by: string | null
+          date: Json
+          deleted_at: string | null
+          eticheta: string | null
+          expira_la: string
+          id: string
+          organization_id: string
+          pas: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          autor_id: string
+          created_at?: string
+          created_by?: string | null
+          date?: Json
+          deleted_at?: string | null
+          eticheta?: string | null
+          expira_la?: string
+          id?: string
+          organization_id: string
+          pas?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          autor_id?: string
+          created_at?: string
+          created_by?: string | null
+          date?: Json
+          deleted_at?: string | null
+          eticheta?: string | null
+          expira_la?: string
+          id?: string
+          organization_id?: string
+          pas?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inrolare_ciorne_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_allocations: {
         Row: {
           confirmat_de_angajat_la: string | null

@@ -156,9 +156,13 @@ describe("GrilaSaptamana", () => {
   });
 
   it("ziua blocată n-are buton, iar motivul rămâne citibil", () => {
-    randeaza(zile([{ editabila: false, motivBlocare: "luna nu a fost deschisă" }]));
+    // Motivul e „perioada este blocată", nu „luna nu a fost deschisă": a doua
+    // stare nu mai există de la 0132, fiindcă luna se naște deschisă la prima
+    // scriere. Un test care o folosea ca exemplu ținea în viață un text pe care
+    // ecranul nu-l mai poate produce.
+    randeaza(zile([{ editabila: false, motivBlocare: "perioada este blocată" }]));
     expect(screen.getAllByRole("button")).toHaveLength(6);
-    expect(screen.getByText(/luna nu a fost deschisă/u)).toBeDefined();
+    expect(screen.getByText(/perioada este blocată/u)).toBeDefined();
   });
 
   it("tragerea deschide dialogul cu ORA trasă, aliniată la sfert", () => {

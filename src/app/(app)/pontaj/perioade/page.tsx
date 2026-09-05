@@ -14,6 +14,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl } from "@/lib/rute/parametri";
 import { listeazaPerioade, type PerioadaPontaj } from "@/lib/queries/attendance";
+import { stareaLunii } from "@/domain/attendance/luna";
 
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
@@ -94,28 +95,42 @@ async function TabelPerioade({
       cheie: "interval",
       antet: "Interval",
       peTelefon: "meta",
-      celula: (rand) => (
-        <span className="text-muted-foreground">
-          {rand.perioada === null
-            ? "—"
-            : `${formatDate(rand.perioada.data_inceput)} – ${formatDate(rand.perioada.data_sfarsit)}`}
-        </span>
-      ),
+      // Intervalul se CALCULEAZĂ pentru luna fără rând, în loc de „—": luna
+      // există în calendar chiar dacă nu s-a scris încă nimic în ea (0132), iar
+      // o liniuță o făcea să pară inexistentă.
+      celula: (rand) => {
+        const stare = stareaLunii(rand.perioada, an, rand.luna);
+        return (
+          <span className="text-muted-foreground">
+            {formatDate(stare.dataInceput)} – {formatDate(stare.dataSfarsit)}
+          </span>
+        );
+      },
     },
     {
       cheie: "stare",
       antet: "Stare",
       peTelefon: "insigna",
-      celula: (rand) =>
-        rand.perioada === null ? (
-          // „Neschisă” era o greșeală de tastare pentru „Nedeschisă”, afișată pe
-          // fiecare lună neîncepută — adică pe majoritatea celor 12 rânduri.
-          <Badge ton="ciorna">Nedeschisă</Badge>
-        ) : (
-          <Badge ton={TONURI_STATUS_PERIOADA[rand.perioada.status]}>
-            {ETICHETE_STATUS_PERIOADA[rand.perioada.status]}
-          </Badge>
-        ),
+      /*
+        „Nedeschisă" a dispărut odată cu 0132, fiindcă nu mai descrie nimic: o
+        lună fără rând nu e închisă, e doar neîncepută, iar pontajul intră în ea
+        fără să apese nimeni „Deschide". Insigna spune de-acum ce poate face
+        omul cu ea — se scrie sau nu se scrie — iar „încă niciun pontaj" rămâne
+        ca nuanță, ca rândul să nu pară identic cu o lună deja lucrată.
+      */
+      celula: (rand) => {
+        const stare = stareaLunii(rand.perioada, an, rand.luna);
+        return (
+          <span className="flex items-center gap-2">
+            <Badge ton={TONURI_STATUS_PERIOADA[stare.status]}>
+              {ETICHETE_STATUS_PERIOADA[stare.status]}
+            </Badge>
+            {stare.inceputa ? null : (
+              <span className="text-muted-foreground text-nota">încă niciun pontaj</span>
+            )}
+          </span>
+        );
+      },
     },
     {
       cheie: "actiuni",

@@ -1,6 +1,8 @@
 // src/app/(app)/angajati/nou/actions.ts
 "use server";
 
+import { z } from "zod";
+
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule } from "@/lib/actions/errors";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
@@ -9,7 +11,8 @@ import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/i
 import { alegeSablon } from "@/domain/checklist/potrivire-sablon";
 import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
 import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
-import { inroleazaAngajatSchema } from "@/schemas/employee";
+import {
+  salveazaCiornaInrolareSchema, inroleazaAngajatSchema } from "@/schemas/employee";
 import { predaObiect } from "@/app/(app)/inventar/actions";
 import { adaugaAutorizatieNominala, adaugaFisaAptitudine } from "@/app/(app)/ssm/actions";
 
@@ -788,5 +791,119 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       checklistPornit,
       avertismente,
     };
+  },
+});
+
+// ── Ciorna de înrolare ──────────────────────────────────────────────────────
+
+/**
+ * Salvează înrolarea neterminată, ca omul să se poată întoarce la ea.
+ *
+ * O SINGURĂ ciornă per autor și organizație — indexul unic parțial din 0131 o
+ * impune. Consecința lui e că NU se poate folosi `.upsert()`: unicitatea e
+ * `where deleted_at is null`, iar PostgREST nu emite predicatul în
+ * `ON CONFLICT`, deci apelul ar cădea cu 42P10 la FIECARE salvare, nu doar la
+ * conflict (capcana 7). De aceea citește-apoi-scrie.
+ *
+ * Poarta e `employees:create` la scope `all`, aceeași ca înrolarea însăși: o
+ * ciornă e o înrolare începută, nu un obiect de sine stătător.
+ *
+ * `revalidate` e GOL, deliberat. Salvarea se cheamă la fiecare schimbare de
+ * pas, iar o revalidare de rută la fiecare apăsare de „Continuă" ar reîncărca
+ * pagina sub degetele omului, exact în mijlocul completării.
+ */
+export const salveazaCiornaInrolare = createAction({
+  name: "employees.enroll.draft.save",
+  permission: "employees:create",
+  minScope: "all",
+  input: salveazaCiornaInrolareSchema,
+  audit: {
+    action: "update",
+    entityType: "inrolare_ciorna",
+    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    // NUMAI pasul. `date` conține CNP, act de identitate, adresă și IBAN —
+    // jurnalul de audit e citibil de oricine are `audit:read`, iar allow-lista
+    // e mecanismul prin care datele astea nu ajung acolo.
+    allow: ["pas"],
+  },
+  revalidate: [],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = ctx.supabase;
+
+    const { data: existenta, error: eroareCitire } = await db
+      .from("inrolare_ciorne")
+      .select("id")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("autor_id", ctx.user.id)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareCitire !== null) throw eroareCitire;
+
+    const camp = {
+      pas: input.pas,
+      eticheta: input.eticheta,
+      date: input.date as Record<string, never>,
+      // Fereastra se împinge la fiecare salvare: o ciornă atinsă azi nu expiră
+      // fiindcă a fost începută acum 29 de zile.
+      expira_la: new Date(ctx.now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    if (existenta !== null) {
+      const { data, error } = await db
+        .from("inrolare_ciorne")
+        .update(camp)
+        .eq("id", existenta.id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle();
+      if (error !== null) throw error;
+      // Zero rânduri sub politica de UPDATE: altcineva a șters ciorna între
+      // citire și scriere. Nu e o eroare de spus omului — se reia ca inserare.
+      if (data !== null) return { id: data.id };
+    }
+
+    const { data, error } = await db
+      .from("inrolare_ciorne")
+      .insert({
+        organization_id: ctx.tenant.organizationId,
+        autor_id: ctx.user.id,
+        ...camp,
+      })
+      .select("id")
+      .single();
+    if (error !== null) throw error;
+    return { id: data.id };
+  },
+});
+
+/**
+ * Renunță la ciornă.
+ *
+ * Ștergere LOGICĂ, ca peste tot în proiect — dar cu o coadă proprie: rândul
+ * marcat e apoi șters FIZIC de `internal.sterge_ciorne_inrolare()`, din pg_cron.
+ * O ciornă „ștearsă" care păstrează CNP-ul la nesfârșit ar fi fost exact riscul
+ * pe care 0131 îl elimină.
+ */
+export const stergeCiornaInrolare = createAction({
+  name: "employees.enroll.draft.delete",
+  permission: "employees:create",
+  minScope: "all",
+  input: z.object({}),
+  audit: { action: "delete", entityType: "inrolare_ciorna", allow: [] },
+  revalidate: ["/angajati/nou"],
+  handler: async (ctx): Promise<Readonly<{ sters: boolean }>> => {
+    const db = ctx.supabase;
+    const { data, error } = await db
+      .from("inrolare_ciorne")
+      .update({ deleted_at: ctx.now.toISOString() })
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("autor_id", ctx.user.id)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) throw error;
+    // Zero rânduri = nu era nicio ciornă. Cazul normal al unei a doua apăsări,
+    // nu un refuz: nu se aruncă.
+    return { sters: data !== null };
   },
 });

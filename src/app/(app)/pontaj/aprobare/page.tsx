@@ -287,12 +287,19 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
         </form>
       )}
 
+      {/*
+        Rândul de perioadă lipsește = nu s-a scris încă nicio zi în luna asta
+        (0132). Nu mai e un refuz — luna e deschisă, doar goală — iar ecranul nu
+        mai trimite pe nimeni la „Perioade" să deschidă ceva ce se deschide
+        singur. Aprobarea chiar are nevoie de rând: `periodId` e cheia loturilor
+        și a blocării, iar fără nicio zi n-ar avea ce aproba.
+      */}
       {perioada === null ? (
         <StareGoala
           fel="initiala"
           pictograma={CalendarClock}
-          titlu="Luna nu a fost deschisă"
-          descriere="Nu există nimic de aprobat cât timp luna nu a fost deschisă din „Perioade”."
+          titlu="Nicio zi de aprobat în luna aceasta"
+          descriere="Luna e deschisă, dar nu s-a înregistrat încă niciun pontaj în ea."
         />
       ) : (
         <Suspense
