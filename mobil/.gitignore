@@ -46,3 +46,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Artefacte ale lui build-local.sh (vezi scriptul).
+.tmp-build/
+.build-local.log

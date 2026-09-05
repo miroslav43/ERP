@@ -20,6 +20,47 @@ pnpm install
 pnpm start
 ```
 
+### Build local, fără EAS
+
+```bash
+cd mobil
+./build-local.sh          # APK de release; --curat reface android/ de la zero
+```
+
+**Probat pe VM la 2026-09-05:** `BUILD SUCCESSFUL in 8m 12s`, APK de 92 MB,
+`ro.administrativo.portal`, minSdk 24 / targetSdk 36, patru ABI-uri. VM-ul avea
+deja tot ce trebuie: JDK 17, Android SDK cu build-tools 34/35/36, NDK 27,
+licențe acceptate.
+
+Compilarea nu depinde de niciun serviciu. Ce **rămâne** dependent de web:
+
+| | Depinde de |
+| --- | --- |
+| APK Android | nimic — scriptul de mai sus |
+| Jetonul de push | `projectId` emis de expo.dev (`getExpoPushTokenAsync` îl cere). Ieșirea: `getDevicePushTokenAsync()` + FCM HTTP v1 direct din server |
+| iOS | macOS + Xcode. Nu e o limită Expo, e una Apple |
+| Publicare în Play Store | keystore propriu — șablonul semnează *release* cu cheia de DEBUG |
+
+**Semnătura.** `android/app/build.gradle` are `signingConfig signingConfigs.debug`
+și pe `release`. APK-ul se instalează și se testează, dar nu se publică, iar
+identitatea nu e stabilă: o aplicație semnată cu o cheie nu se poate actualiza
+cu alta. Antetul scriptului are comanda de `keytool` și nota că `android/` fiind
+regenerat de `prebuild`, configurarea de semnare trebuie mutată într-un config
+plugin ca să supraviețuiască — până atunci EAS o face mai ieftin.
+
+**Două capcane plătite deja**, ambele codificate în script:
+
+1. `/tmp/metro-cache` e al lui **root** pe VM-ul ăsta (creat de altă unealtă pe
+   17 aug). Metro încearcă să-l golească la pornire și cade cu
+   `EACCES: permission denied, rmdir`, iar Gradle raportează doar
+   `Process 'command 'node'' finished with non-zero exit value 1` — un mesaj
+   care nu spune nimic despre permisiuni. Scriptul folosește un `TMPDIR` propriu.
+2. `expo prebuild` **rescrie scripturile din `package.json`**
+   (`expo start --android` → `expo run:android`), fiindcă un proiect cu director
+   nativ nu mai e un proiect Expo Go. `android/` e gitignorat, `package.json` NU
+   — deci schimbarea ar ajunge într-un commit și ar rupe fluxul Expo Go al
+   celorlalți. Scriptul îl restaurează.
+
 ### Ce NU se poate proba pe un build de dezvoltare
 
 **Scannerul QR e inert dacă `URL_PORTAL` e pe `http://`.** `urlPontareValidat`
