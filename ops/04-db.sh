@@ -32,9 +32,39 @@
 # `.env.local` e fișierul complet al dezvoltatorului — acolo stau parola bazei,
 # cheia de serviciu și cheile de criptare. `.env.production` ține doar ce are
 # nevoie containerul, care NU se conectează direct la Postgres. Deci pentru
-# comenzile de bază de date sursa e `.env.local`, cu `.env.production` ca rezervă.
+# comenzile de bază de date ale PRODUCȚIEI sursa e `.env.local`, cu
+# `.env.production` ca rezervă.
+#
+# PENTRU ORICE ALT MEDIU, lista aia e interzisă. Până pe 2026-09-05 funcția nu se
+# uita deloc la `ADM_MEDIU`, iar rezultatul era mut și grav:
+#
+#   $ ADM_MEDIU=staging ./administrativo.sh db:status
+#     •  proiect Supabase   nybmhorngsajoqaxjlbr   ← PRODUCȚIA
+#     ⚠  de aplicat         3
+#
+# Adică pasul „migrări pe baza de staging" din .github/workflows/staging.yml ar
+# fi aplicat DDL pe datele reale ale firmelor-client, automat, la fiecare push în
+# main. Comutatorul de mediu exista, dar nu ajungea până la stratul ăsta.
 _load_env_db() {
   local f
+
+  if [ "$ADM_MEDIU" != "productie" ]; then
+    # Fără rezervă, intenționat: un fallback tăcut pe `.env.local` e exact
+    # defectul de mai sus. Mai bine se oprește decât să nimerească altă bază.
+    f="$(_env_file)"
+    if [ ! -f "$f" ]; then
+      error "Lipsește $(basename "$f") pentru mediul ${ADM_MEDIU}."
+      echo -e "     ${DIM}Căutat la: ${f}${NC}"
+      echo -e "     ${DIM}Comenzile de bază de date NU cad înapoi pe .env.local — ar fi producția.${NC}"
+      exit 1
+    fi
+    set -a
+    # shellcheck disable=SC1090
+    source "$f"
+    set +a
+    return 0
+  fi
+
   for f in "$ADMINISTRATIVO_ROOT/.env.local" "$ADMINISTRATIVO_ROOT/.env.production"; do
     if [ -f "$f" ]; then
       set -a
@@ -61,12 +91,58 @@ _db_url() {
   printf 'postgresql://postgres.%s:%s@%s:5432/postgres' "$ref" "$SUPABASE_DB_PASSWORD" "$gazda"
 }
 
+# Referința proiectului Supabase, extrasă dintr-un șir de conexiune. Cele două
+# forme în circulație: pooler (`postgres.<ref>@gazdă`) și conexiune directă
+# (`@db.<ref>.supabase.co`). Referințele au exact 20 de litere mici.
+_ref_din_url() {
+  local u="$1" ref
+  ref=$(printf '%s' "$u" | sed -n 's|.*://postgres\.\([a-z0-9]\{20\}\):.*|\1|p')
+  [ -n "$ref" ] || ref=$(printf '%s' "$u" | sed -n 's|.*@db\.\([a-z0-9]\{20\}\)\.supabase\.co.*|\1|p')
+  printf '%s' "$ref"
+}
+
+# ---------------------------------------------------------------------------
+# Poartă POZITIVĂ: baza spre care ne conectăm chiar e a mediului cerut?
+#
+# Proiectul are destule porți care verifică „nimeni nu poate ce n-are voie".
+# Asta verifică opusul, care lipsea: „ce am în mână e chiar ce am cerut". Ea ar
+# fi prins defectul din 2026-09-05 indiferent de cum se rezolva URL-ul —
+# `NEXT_PUBLIC_SUPABASE_URL` și `DATABASE_URL` veneau din fișiere diferite și
+# arătau spre proiecte diferite, ceea ce n-are nicio interpretare validă.
+#
+# Se oprește și când NU poate decide. O migrare aplicată pe o bază necunoscută e
+# mai rea decât o comandă care refuză să pornească.
+# ---------------------------------------------------------------------------
+_verifica_tinta_db() {
+  local u="$1" asteptat real
+  asteptat=$(printf '%s' "${NEXT_PUBLIC_SUPABASE_URL:-}" \
+             | sed -n 's|https://\([a-z0-9]\{20\}\)\.supabase\.co.*|\1|p')
+  real=$(_ref_din_url "$u")
+
+  if [ -z "$asteptat" ]; then
+    error "Nu pot determina proiectul mediului ${ADM_MEDIU}: NEXT_PUBLIC_SUPABASE_URL lipsește sau are altă formă."
+    exit 1
+  fi
+  if [ -z "$real" ]; then
+    error "Nu pot determina proiectul din șirul de conexiune — refuz să rulez orbește."
+    exit 1
+  fi
+  if [ "$real" != "$asteptat" ]; then
+    error "Baza țintă NU e a mediului ${ADM_MEDIU}."
+    echo -e "     ${DIM}mediul cere:      ${asteptat}${NC}" >&2
+    echo -e "     ${DIM}conexiunea duce:  ${real}${NC}" >&2
+    echo -e "     ${DIM}Verifică DATABASE_URL din $(basename "$(_env_file)").${NC}" >&2
+    exit 1
+  fi
+}
+
 _db_url_sau_mori() {
   local u; u=$(_db_url) || {
     error "Nu pot construi șirul de conexiune."
-    echo -e "     ${DIM}Setează DATABASE_URL, sau SUPABASE_DB_PASSWORD în .env.local.${NC}"
+    echo -e "     ${DIM}Setează DATABASE_URL, sau SUPABASE_DB_PASSWORD în $(basename "$(_env_file)").${NC}"
     exit 1
   }
+  _verifica_tinta_db "$u"
   echo "$u"
 }
 
