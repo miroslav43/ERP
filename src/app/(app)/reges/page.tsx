@@ -2,6 +2,7 @@
 import { FileCheck2 } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Callout } from "@/components/ui/callout";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
@@ -19,6 +20,7 @@ import {
   type FiltruStare,
   type RandMesaj,
 } from "@/lib/queries/reges";
+import { citesteRezumatCredentiale } from "@/lib/reges/credentiale";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import {
@@ -82,11 +84,30 @@ export default async function PaginaReges(props: {
   // separat, e ce ține pastila legată de listă — vezi `propuneriDeRaspuns`.
   // Firma cea mai mare din producție are 8 salariați; costul e o interogare în
   // paralel cu celelalte două, nu un rând în plus de latență.
-  const [{ randuri, statistici, azi }, coada, propuneri] = await Promise.all([
+  const [{ randuri, statistici, azi }, coada, propuneri, credentiale] = await Promise.all([
     interogheazaEvenimenteReges(supabase, organizationId, filtre),
     interogheazaMesajeReges(supabase, organizationId),
     interogheazaPropuneriReges(supabase, organizationId),
+    /*
+     * Doar ca să știm DACĂ modulul e legat de Inspecția Muncii — nu ce chei
+     * are. Rezumatul nu întoarce niciun secret; `reges_read_credentiale` e
+     * chiar funcția care există ca să nu treacă cifrul prin aplicație.
+     */
+    citesteRezumatCredentiale(supabase, organizationId),
   ]);
+
+  /*
+   * Fără credențiale, NIMIC nu poate pleca: fiecare drum către API trece prin
+   * `citesteCredentiale` → `jetonValid`, iar amândouă refuză. Starea e sigură —
+   * dar până acum nu era SPUSĂ nicăieri, iar butonul „Transmite acum" arăta la
+   * fel ca într-un modul conectat și eșua abia la apăsare, cu un mesaj tehnic.
+   *
+   * Un modul care se vede, dar nu trimite, e o stare legitimă și utilă: se
+   * poate pregăti registrul, se pot vedea termenele, fără nicio atingere a
+   * registrului oficial. Ce lipsea era ca omul să știe în care dintre cele două
+   * stări se află ÎNAINTE să apese.
+   */
+  const conectat = credentiale !== null;
 
   // Coada de mesaje API — un strat SUB registrul de evenimente, nu în locul lui.
   // Un eveniment legal („angajare") se traduce în unul sau două mesaje REGES, iar
@@ -249,17 +270,35 @@ export default async function PaginaReges(props: {
           <span className="text-muted-foreground text-nota">Nimic de făcut</span>
         ) : (
           <div className="space-y-2">
-            {poatePregati ? <ButonPregateste evenimentId={rand.id} /> : null}
+            {poatePregati && conectat ? <ButonPregateste evenimentId={rand.id} /> : null}
             {poateActualiza ? (
               <ActiuniEveniment evenimentId={rand.id} numeAngajat={rand.angajatNume} azi={azi} />
             ) : null}
             {!poatePregati && !poateActualiza ? (
               <span className="text-muted-foreground text-nota">Fără drept de transmitere</span>
             ) : null}
+            {poatePregati && !conectat ? (
+              <span className="text-muted-foreground text-nota">Neconectat la ITM</span>
+            ) : null}
           </div>
         ),
     },
   ];
+
+  const bannerNeconectat = conectat ? null : (
+    <Callout fel="informativ" titlu="Modulul e pornit, dar NU e conectat la Inspecția Muncii">
+      Registrul se construiește local: evenimentele se înregistrează, termenele se calculează, nimic
+      nu pleacă. Nu există chei API pentru firma aceasta, iar fără ele fiecare încercare de
+      transmitere se oprește înainte de a atinge rețeaua.
+      {poateConfigura ? (
+        <>
+          {" "}
+          Conectarea se face din fila „Chei API”, și cere o alegere explicită între mediul de test
+          și cel de producție.
+        </>
+      ) : null}
+    </Callout>
+  );
 
   return (
     <div className="space-y-6">
@@ -280,6 +319,8 @@ export default async function PaginaReges(props: {
           />
         }
       />
+
+      {bannerNeconectat}
 
       {/*
         Cifrele se numără în bază, pe tot registrul, nu peste rândurile afișate:
