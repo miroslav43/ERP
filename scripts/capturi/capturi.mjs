@@ -159,6 +159,8 @@ for (const [cheie, ruta] of lucru) {
 
 await browser.close();
 if (stricate > 0) {
-  console.error(`\n${String(stricate)} rute n-au produs captură. Fișierele vechi au rămas neatinse.`);
+  console.error(
+    `\n${String(stricate)} rute n-au produs captură. Fișierele vechi au rămas neatinse.`,
+  );
   process.exit(1);
 }
