@@ -24,12 +24,37 @@ import { createClient } from "@supabase/supabase-js";
 
 // ── mediu ───────────────────────────────────────────────────────────────────
 
+/**
+ * Fișierul de mediu al mediului cerut prin `ADM_MEDIU`, exact ca `ops/_lib.sh`.
+ *
+ * Până pe 2026-09-05 scriptul citea hardcodat `.env.local`, adică baza de
+ * PRODUCȚIE, indiferent de intenție. Un `ADM_MEDIU=staging node
+ * scripts/demo/seed-demo.mjs` ar fi creat conturi și organizații de
+ * demonstrație în datele reale ale firmelor-client — aceeași clasă de defect ca
+ * `_load_env_db`, care raporta proiectul de producție cu `ADM_MEDIU=staging`.
+ *
+ * Implicitul rămâne `.env.local`, deci apelul de până acum se comportă identic.
+ */
+function caleaEnv() {
+  const mediu = process.env.ADM_MEDIU ?? "productie";
+  if (mediu === "productie") {
+    return new URL("../../.env.local", import.meta.url);
+  }
+  const dir =
+    process.env.ADM_SECRETE_DIR ??
+    `${process.env.HOME ?? ""}/.secrete/administrativo`;
+  return new URL(`file://${dir}/.env.${mediu}`);
+}
+
 function citesteEnvLocal() {
+  const cale = caleaEnv();
   let brut;
   try {
-    brut = readFileSync(new URL("../../.env.local", import.meta.url), "utf8");
+    brut = readFileSync(cale, "utf8");
   } catch {
-    throw new Error("Lipsește .env.local. Copiază .env.example și completează-l.");
+    throw new Error(
+      `Lipsește ${cale.pathname} pentru mediul ${process.env.ADM_MEDIU ?? "productie"}.`,
+    );
   }
   const env = {};
   for (const linie of brut.split("\n")) {
@@ -46,8 +71,18 @@ const URL_SUPABASE = env.NEXT_PUBLIC_SUPABASE_URL;
 const CHEIE_SERVICE = env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!URL_SUPABASE || !CHEIE_SERVICE) {
-  throw new Error("Lipsesc NEXT_PUBLIC_SUPABASE_URL sau SUPABASE_SERVICE_ROLE_KEY din .env.local.");
+  throw new Error(
+    `Lipsesc NEXT_PUBLIC_SUPABASE_URL sau SUPABASE_SERVICE_ROLE_KEY din ${caleaEnv().pathname}.`,
+  );
 }
+
+// Scriptul scrie cu `service_role`, deci ocolește complet RLS. Singura întrebare
+// care contează înainte de asta e „în ce bază?", iar răspunsul trebuie să fie
+// vizibil fără să-l cauți. Referința de proiect e în URL.
+const REF_PROIECT = /https:\/\/([a-z0-9]{20})\.supabase\.co/.exec(URL_SUPABASE)?.[1] ?? "necunoscut";
+console.log(
+  `  mediu: ${process.env.ADM_MEDIU ?? "productie"}  ·  proiect Supabase: ${REF_PROIECT}`,
+);
 
 /*
  * `supabase-js` construiește un client de realtime în CONSTRUCTOR, iar acela
@@ -477,20 +512,30 @@ async function creeaza() {
   // angajat ar trimite către un rând care încă nu există.
   const idAngajat = {};
   for (const a of toti) {
-    idAngajat[a.marca] = await asigura(
-      "employees",
-      { organization_id: idOrg.demo, marca: a.marca },
-      {
-        first_name: a.first_name,
-        last_name: a.last_name,
-        department_id: idDep[a.dep] ?? null,
-        job_position_id: idPost[a.post] ?? null,
-        user_id: a.user_id ?? null,
-        hired_on: "2024-03-01",
-        status: "activ",
-        deleted_at: null,
-      },
-    );
+    // Cheia de căutare NU poate fi `marca`: baza o REGENEREAZĂ la inserare
+    // (trigger `tg_employees_validari` — rândurile ajung `0001`, `0002`, nu
+    // `DEMO-001`). Căutarea după marca trimisă nu găsea niciodată rândul
+    // existent, deci scriptul insera din nou și lovea indexul PARȚIAL
+    // `employees_org_user_primary_uniq` pe (organization_id, user_id).
+    //
+    // Pe o bază proaspătă, seed-ul murea la al patrulea angajat cu „duplicate
+    // key value" — deși se declară idempotent. Cheia corectă e chiar cea pe care
+    // o apără indexul; `marca` rămâne cheie doar pentru colegii fără cont.
+    const cheie = a.user_id
+      ? { organization_id: idOrg.demo, user_id: a.user_id }
+      : { organization_id: idOrg.demo, marca: a.marca };
+
+    idAngajat[a.marca] = await asigura("employees", cheie, {
+      marca: a.marca,
+      first_name: a.first_name,
+      last_name: a.last_name,
+      department_id: idDep[a.dep] ?? null,
+      job_position_id: idPost[a.post] ?? null,
+      user_id: a.user_id ?? null,
+      hired_on: "2024-03-01",
+      status: "activ",
+      deleted_at: null,
+    });
   }
 
   for (const a of toti.filter((x) => x.seful)) {
