@@ -11,7 +11,10 @@
 // „nu este valid".
 import { describe, expect, it } from "vitest";
 
-import { inroleazaAngajatSchema } from "@/schemas/employee";
+import {
+  inroleazaAngajatSchema,
+  salveazaCiornaInrolareSchema,
+} from "@/schemas/employee";
 
 /** Urmele mesajelor implicite ale lui Zod, toate în engleză. */
 const IMPLICITE_ZOD = [
@@ -163,5 +166,45 @@ describe("pachetul salarial declarat la înrolare", () => {
     if (r.success) throw new Error("plafonul absurd a trecut");
     const problema = r.error.issues.find((i) => i.path.includes("plafon_lunar"));
     expect(problema?.message).toContain("1.000.000");
+  });
+});
+
+describe("ciorna de înrolare", () => {
+  it("acceptă un formular pe jumătate — asta e chiar rostul ei", () => {
+    const r = salveazaCiornaInrolareSchema.safeParse({
+      pas: 3,
+      eticheta: "Ion Popescu",
+      date: { first_name: "Ion", cnp: "" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("merge și complet goală: cineva a deschis formularul și a plecat", () => {
+    const r = salveazaCiornaInrolareSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.pas).toBe(1);
+      expect(r.data.date).toStrictEqual({});
+      expect(r.data.eticheta).toBeNull();
+    }
+  });
+
+  it("pasul stă între 1 și 6 — un pas inventat ar relua într-un ecran inexistent", () => {
+    expect(salveazaCiornaInrolareSchema.safeParse({ pas: 0 }).success).toBe(false);
+    expect(salveazaCiornaInrolareSchema.safeParse({ pas: 7 }).success).toBe(false);
+    expect(salveazaCiornaInrolareSchema.safeParse({ pas: 6 }).success).toBe(true);
+  });
+
+  it("eticheta e plafonată — e un nume, nu un câmp liber", () => {
+    expect(
+      salveazaCiornaInrolareSchema.safeParse({ eticheta: "x".repeat(201) }).success,
+    ).toBe(false);
+  });
+
+  it("NU validează forma datelor: schema completă ar refuza exact ce vrem să salvăm", () => {
+    // Aceleași date ar pica pe `inroleazaAngajatSchema`, care cere 14 câmpuri.
+    const partiale = { first_name: "Ion" };
+    expect(inroleazaAngajatSchema.safeParse(partiale).success).toBe(false);
+    expect(salveazaCiornaInrolareSchema.safeParse({ date: partiale }).success).toBe(true);
   });
 });

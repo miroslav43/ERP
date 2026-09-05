@@ -394,6 +394,15 @@ begin
          (v_beta, (select c.id from public.employment_contracts c where c.organization_id = v_beta limit 1),
           (select val from t_ids where cheie='ang_beta'), current_date - 100, 'Art54');
 
+  -- Ciornele de înrolare (0131). Vizibilitatea lor NU se sprijină pe o
+  -- permisiune, ci pe `autor_id = auth.uid()`: e notița unui om, nu un document
+  -- al firmei. Rândurile de aici demonstrează totuși izolarea între chiriași,
+  -- care rămâne prima barieră — un `org_admin` din Beta nu vede rândul Alfa
+  -- nici dacă ar fi, printr-un accident, același utilizator.
+  insert into public.inrolare_ciorne (organization_id, autor_id, eticheta, pas, date)
+  values (v_alfa, v_admin_alfa, 'Ciornă Alfa', 2, '{"first_name":"Ion"}'::jsonb),
+         (v_beta, v_admin_beta, 'Ciornă Beta', 3, '{"first_name":"Vasile"}'::jsonb);
+
   insert into public.reges_apeluri (organization_id, mesaj_id, metoda, cale, http_status)
   values (v_alfa, (select val from t_ids where cheie='msj_alfa'), 'POST', '/api/Salariat', 200),
          (v_beta, (select val from t_ids where cheie='msj_beta'), 'POST', '/api/Salariat', 200);
