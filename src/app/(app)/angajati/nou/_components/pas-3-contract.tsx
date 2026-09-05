@@ -20,6 +20,8 @@ import {
 } from "../../etichete";
 import { mesajCamp } from "./erori-formular";
 import { CautaCor } from "@/components/cauta-cor";
+import { DepartamentNou } from "./departament-nou";
+import { PachetSalarial, type SablonSalarial } from "./pachet-salarial";
 
 export const CAMPURI_PAS_3 = [
   "department_id",
@@ -48,6 +50,10 @@ export const CAMPURI_PAS_3 = [
   "preaviz_zile",
   "iban",
   "banca",
+  // Pachetul salarial se validează ODATĂ cu restul pasului: o primă fără sumă
+  // nu are voie să treacă la pasul 4 și să se descopere la trimitere.
+  "componente_salariale",
+  "scutiri_fiscale",
 ] as const satisfies readonly (keyof InroleazaAngajatInput)[];
 
 interface Optiune {
@@ -67,6 +73,7 @@ interface Proprietati {
   readonly puncteLucru: readonly Optiune[];
   /** Următorul număr liber, doar ca text de ajutor. Alocarea reală e la salvare. */
   readonly numarUrmator: string | null;
+  readonly sabloaneSalariale: readonly SablonSalarial[];
 }
 
 /** Santinela din `<select>` pentru „locul nu e nici sediul, nici un punct de lucru". */
@@ -78,6 +85,7 @@ export function Pas3Contract({
   angajati,
   puncteLucru,
   numarUrmator,
+  sabloaneSalariale,
 }: Proprietati) {
   const {
     register,
@@ -92,6 +100,16 @@ export function Pas3Contract({
   // „Până la” pentru contractul pe durată determinată și „Locul desfășurării
   // activității” pentru telemuncă — sunt AMBELE obligatorii: nu apăreau
   // niciodată, iar validarea pica apoi pe un câmp invizibil.
+  /*
+   * Departamentele CREATE în timpul înrolării, peste cele venite de pe server.
+   *
+   * Lista din props e un instantaneu de la randarea paginii; unul creat acum
+   * n-ar apărea în ea până la o navigare, adică exact lucrul pe care caseta îl
+   * evită. Se ține local și se concatenează la afișare.
+   */
+  const [departamenteNoi, setDepartamenteNoi] = useState<readonly Optiune[]>([]);
+  const toateDepartamentele = [...departamente, ...departamenteNoi];
+
   const modLucru = useWatch({ control, name: "work_mode" });
   const durataContract = useWatch({ control, name: "contract_duration" });
   const valabilDeLa = useWatch({ control, name: "valabil_de_la" });
@@ -122,24 +140,39 @@ export function Pas3Contract({
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Organizare</legend>
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Camp
+              nume="department_id"
+              eticheta="Departament"
+              fel="select"
+              erori={mesajCamp(errors.department_id)}
+            >
+              {(atribute) => (
+                <select {...atribute} {...register("department_id")}>
+                  <option value="">— Nealocat —</option>
+                  {toateDepartamentele.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.denumire}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Camp>
+            {/* Departamentul apare abia aici. Fără caseta asta, unul care
+                lipsește însemna abandonarea a tot ce s-a completat. */}
+            <DepartamentNou
+              laCreare={(departament) => {
+                setDepartamenteNoi((anterioare) => [...anterioare, departament]);
+                setValue("department_id", departament.id, { shouldDirty: true });
+              }}
+            />
+          </div>
           <Camp
-            nume="department_id"
-            eticheta="Departament"
-            fel="select"
-            erori={mesajCamp(errors.department_id)}
+            nume="functie"
+            eticheta="Funcție"
+            erori={mesajCamp(errors.functie)}
+            ajutor="Apare în contract și în adeverințe. Fără ea, documentele ies cu rubrica goală."
           >
-            {(atribute) => (
-              <select {...atribute} {...register("department_id")}>
-                <option value="">— Nealocat —</option>
-                {departamente.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.denumire}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Camp>
-          <Camp nume="functie" eticheta="Funcție" erori={mesajCamp(errors.functie)}>
             {(atribute) => (
               <input
                 {...atribute}
@@ -160,7 +193,7 @@ export function Pas3Contract({
             nume="cod_cor"
             eticheta="Cod COR"
             erori={mesajCamp(errors.cod_cor)}
-            ajutor="Șase cifre din Clasificarea Ocupațiilor din România."
+            ajutor="Șase cifre din Clasificarea Ocupațiilor din România. Fără el, contractul NU se poate transmite la REGES."
           >
             {(atribute) => (
               <CautaCor
@@ -491,7 +524,12 @@ export function Pas3Contract({
               />
             )}
           </Camp>
-          <Camp nume="iban" eticheta="IBAN" erori={mesajCamp(errors.iban)}>
+          <Camp
+            nume="iban"
+            eticheta="IBAN"
+            erori={mesajCamp(errors.iban)}
+            ajutor="Fără el, salariatul nu intră în fișierul bancar și se plătește manual."
+          >
             {(atribute) => <input {...atribute} {...register("iban")} />}
           </Camp>
           <Camp nume="banca" eticheta="Bancă" erori={mesajCamp(errors.banca)}>
@@ -499,6 +537,11 @@ export function Pas3Contract({
           </Camp>
         </div>
       </fieldset>
+
+      {/* Pachetul salarial stă DUPĂ salariul de bază, nu într-un pas propriu:
+          e aceeași negociere, iar despărțirea ar fi făcut ca „salariul" să pară
+          complet cu o pagină înainte de a fi. */}
+      <PachetSalarial formular={formular} sabloane={sabloaneSalariale} />
     </div>
   );
 }

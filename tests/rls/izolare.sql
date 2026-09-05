@@ -2949,6 +2949,10 @@ begin
     v_numar_1    text;
     v_numar_10   text;
     v_an         text := extract(year from current_date)::text;
+    -- Data alocării, în forma din număr (0130). Se citește prin
+    -- `app.azi_local()`, ca funcția însăși, nu prin `current_date`:
+    -- fusul organizației poate fi peste hotarul de zi față de UTC.
+    v_azi_scris  text;
     v_punct      uuid;
     v_punct_beta uuid;
     v_ang_nou    uuid;
@@ -2977,12 +2981,17 @@ begin
       for i in 2..10 loop
         v_numar_10 := public.aloca_numar_contract(v_alfa);
       end loop;
-      if v_numar_1 <> '1/' || v_an then
+      -- Din 0130 numărul poartă DATA alocării, nu doar anul: „1/05.09.2026".
+      -- Contorul rămâne ANUAL — `document_sequences` are anul în cheie — deci
+      -- proba resetării de mai jos își păstrează înțelesul: ce se verifică e că
+      -- numărul repornește de la 1, nu că data ar reseta ceva.
+      v_azi_scris := to_char(app.azi_local(), 'DD.MM.YYYY');
+      if v_numar_1 <> '1/' || v_azi_scris then
         -- Și proba resetării anuale: contorul lui 57 din anul trecut nu are
         -- voie să se scurgă în anul curent.
-        v_esuate := v_esuate || format(E'\n  aloca_numar_contract: primul număr „%s", se aștepta „1/%s" (resetare anuală)', v_numar_1, v_an);
-      elsif v_numar_10 <> '10/' || v_an then
-        v_esuate := v_esuate || format(E'\n  aloca_numar_contract: al zecelea număr „%s", se aștepta „10/%s" (trunchiere lpad)', v_numar_10, v_an);
+        v_esuate := v_esuate || format(E'\n  aloca_numar_contract: primul număr „%s", se aștepta „1/%s" (resetare anuală)', v_numar_1, v_azi_scris);
+      elsif v_numar_10 <> '10/' || v_azi_scris then
+        v_esuate := v_esuate || format(E'\n  aloca_numar_contract: al zecelea număr „%s", se aștepta „10/%s" (trunchiere lpad)', v_numar_10, v_azi_scris);
       else
         v_reusite := v_reusite || E'\n  hr -> aloca_numar_contract (1…10, fără trunchiere)';
       end if;

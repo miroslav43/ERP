@@ -14,6 +14,7 @@ import { normalizeazaCnp, validateazaCnp } from "@/domain/hr/cnp";
 import { normalizeazaIban, validateazaIban } from "@/domain/hr/iban";
 import { TIPURI_ACT_IDENTITATE } from "@/domain/reges/operatii";
 import { REZULTATE_EXAMEN, TIPURI_EXAMEN } from "@/schemas/ssm";
+import { TIPURI_COMPONENTA_SALARIALA } from "@/schemas/salary-component";
 
 /** Actele de identitate ROMÂNEȘTI, din vocabularul REGES. */
 export const ACTE_ROMANESTI = [
@@ -52,9 +53,18 @@ const textOptional = (maxim: number) =>
     .default(null)
     .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare));
 
+/*
+ * `z.string(mesaj)` — mesajul de TIP, nu doar cel de lungime.
+ *
+ * Fără el, un câmp NEATINS (deci `undefined`, nu șir gol) primea mesajul
+ * implicit al lui Zod: „Invalid input: expected string, received undefined" —
+ * în engleză, despre tipuri, către un om care voia să știe ce n-a completat.
+ * Mesajul de lungime de mai jos acoperea doar cazul șirului gol, iar cele două
+ * căi arătau complet diferit pentru aceeași greșeală.
+ */
 const textObligatoriu = (minim: number, maxim: number, camp: string) =>
   z
-    .string()
+    .string(`Câmpul „${camp}” este obligatoriu.`)
     .trim()
     .min(minim, `Câmpul „${camp}” este obligatoriu.`)
     .max(maxim, `Câmpul „${camp}” nu poate depăși ${String(maxim)} de caractere.`);
@@ -71,7 +81,10 @@ const dataOptionala = z
   );
 
 const dataObligatorie = (camp: string) =>
-  z.string().trim().regex(RE_DATA, `Câmpul „${camp}” trebuie completat în formatul AAAA-LL-ZZ.`);
+  z
+    .string(`Câmpul „${camp}” este obligatoriu.`)
+    .trim()
+    .regex(RE_DATA, `Câmpul „${camp}” trebuie completat în formatul AAAA-LL-ZZ.`);
 
 const uuidOptional = z
   .string()
@@ -92,10 +105,16 @@ const cnpOptional = z
   .transform((valoare) =>
     valoare === null || valoare.length === 0 ? null : normalizeazaCnp(valoare),
   )
-  .refine(
-    (valoare) => valoare === null || validateazaCnp(valoare).valid,
-    "CNP-ul introdus nu este valid.",
-  );
+  .superRefine((valoare, ctx) => {
+    if (valoare === null) return;
+    const rezultat = validateazaCnp(valoare);
+    if (!rezultat.valid) {
+      ctx.addIssue({
+        code: "custom",
+        message: rezultat.motiv ?? "CNP-ul introdus nu este valid.",
+      });
+    }
+  });
 
 /**
  * CNP obligatoriu — folosit doar la înrolare.
@@ -105,11 +124,25 @@ const cnpOptional = z
  * pe care o fac `numarObligatoriu` și `numarOptional` din `./comun`.
  */
 const cnpObligatoriu = z
-  .string()
+  .string("Câmpul „CNP” este obligatoriu.")
   .trim()
   .min(1, "Câmpul „CNP” este obligatoriu.")
   .transform((valoare) => normalizeazaCnp(valoare))
-  .refine((valoare) => validateazaCnp(valoare).valid, "CNP-ul introdus nu este valid.");
+  /*
+   * Motivul vine de la `validateazaCnp`, care îl calcula deja și îl arunca:
+   * „exact 13 cifre", „prima cifră nu corespunde niciunui sex/rezidență",
+   * cifra de control. „Nu este valid" e adevărat și inutil — omul se uită la
+   * treisprezece cifre și nu știe pe care s-o caute.
+   */
+  .superRefine((valoare, ctx) => {
+    const rezultat = validateazaCnp(valoare);
+    if (!rezultat.valid) {
+      ctx.addIssue({
+        code: "custom",
+        message: rezultat.motiv ?? "CNP-ul introdus nu este valid.",
+      });
+    }
+  });
 
 const emailOptional = z
   .string()
@@ -130,10 +163,17 @@ const ibanOptional = z
   .transform((valoare) =>
     valoare === null || valoare.length === 0 ? null : normalizeazaIban(valoare),
   )
-  .refine(
-    (valoare) => valoare === null || validateazaIban(valoare).valid,
-    "IBAN-ul introdus nu este valid.",
-  );
+  /* Motivul exact, ca la CNP: `validateazaIban` îl calculează deja. */
+  .superRefine((valoare, ctx) => {
+    if (valoare === null) return;
+    const rezultat = validateazaIban(valoare);
+    if (!rezultat.valid) {
+      ctx.addIssue({
+        code: "custom",
+        message: rezultat.motiv ?? "IBAN-ul introdus nu este valid.",
+      });
+    }
+  });
 
 // ── Filtre de listare (paginare keyset) ───────────────────────────────────────
 
@@ -636,6 +676,18 @@ export const creeazaContractSchema = corpContractSchema
 // (`internal.urmatoarea_marca`); `employee_id`/`parent_contract_id`/
 // `este_act_aditional` nu au sens la o primă angajare.
 
+// Oglinda enum-ului public.exemption_type din 0004_hr.sql.
+
+export const TIPURI_SCUTIRE = [
+  "it",
+  "constructii",
+  "agricultura",
+  "industrie_alimentara",
+  "persoana_handicap",
+  "cercetare_dezvoltare",
+] as const;
+export type TipScutire = (typeof TIPURI_SCUTIRE)[number];
+
 export const inroleazaAngajatSchema = creeazaAngajatSchema
   .merge(
     corpContractSchema.omit({
@@ -713,6 +765,96 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
     inventory_item_ids: z
       .array(z.uuid("Bunul selectat nu este valid."))
       .max(20, "Cel mult 20 de bunuri la înrolare.")
+      .default([]),
+
+    /*
+     * ── PACHETUL SALARIAL, DECLARAT LA ÎNROLARE ───────────────────────────
+     *
+     * Sporurile, primele recurente (Paște, Crăciun, vacanță), tichetele și
+     * cadourile se negociau la angajare și se introduceau abia DUPĂ, dintr-un
+     * al doilea ecran, pe fișa angajatului. Cine uita al doilea drum avea un
+     * om plătit greșit din prima lună — iar nimic nu semnala lipsa, fiindcă un
+     * pachet salarial gol e o stare validă.
+     *
+     * `valabil_de_la` NU se cere aici: e data de început a contractului. Un
+     * spor negociat la angajare care ar începe altă zi decât contractul e o
+     * excepție, iar excepțiile se fac din ecranul fișei, unde există tot
+     * vocabularul.
+     *
+     * `component_type_id` e un ȘABLON existent (`salary_component_types`), nu
+     * un text liber: componentele se definesc o dată per firmă, cu regimul lor
+     * fiscal (impozabil, baza CAS, baza CASS), iar înrolarea doar le atribuie.
+     */
+    componente_salariale: z
+      .array(
+        z
+          .object({
+            component_type_id: z.uuid("Alegeți o componentă din listă."),
+            kind: z.enum(TIPURI_COMPONENTA_SALARIALA, "Alegeți tipul componentei."),
+            procent: numarOptional({
+              min: 0,
+              max: 300,
+              mesaj: "Procentul trebuie să fie un număr.",
+              interval: "Procentul este între 0 și 300.",
+            }),
+            suma: numarOptional({
+              min: 0,
+              max: 1_000_000,
+              mesaj: "Suma trebuie să fie un număr.",
+              interval: "Suma este între 0 și 1.000.000.",
+            }),
+          })
+          // Aceeași regulă ca în `asociazaComponentaSchema`, unde e detaliată:
+          // procent și sumă se exclud, iar felul componentei decide care.
+          .superRefine((valoare, ctx) => {
+            const cereProcent = valoare.kind === "spor_procent";
+            if (cereProcent && valoare.procent === null) {
+              ctx.addIssue({
+                code: "custom",
+                path: ["procent"],
+                message: "Un spor procentual are nevoie de procent.",
+              });
+            }
+            if (!cereProcent && valoare.suma === null) {
+              ctx.addIssue({
+                code: "custom",
+                path: ["suma"],
+                message: "Această componentă are nevoie de o sumă fixă.",
+              });
+            }
+          }),
+      )
+      .max(20, "Cel mult 20 de componente salariale la înrolare.")
+      .default([]),
+
+    /*
+     * Scutirile fiscale, tot de la înrolare.
+     *
+     * Construcții, IT, agricultură — regimuri în care omul intră din PRIMA zi,
+     * nu de la a doua lună. Declarate târziu, primul stat de plată iese cu
+     * impozit reținut care trebuie apoi restituit, iar D112 depusă se
+     * rectifică.
+     */
+    scutiri_fiscale: z
+      .array(
+        z.object({
+          exemption_type: z.enum(TIPURI_SCUTIRE, "Alegeți tipul de scutire."),
+          procent_scutire: numarOptional({
+            min: 0,
+            max: 100,
+            mesaj: "Procentul de scutire trebuie să fie un număr.",
+            interval: "Procentul de scutire este între 0 și 100.",
+          }),
+          plafon_lunar: numarOptional({
+            min: 0,
+            max: 1_000_000,
+            mesaj: "Plafonul lunar trebuie să fie un număr.",
+            interval: "Plafonul lunar este între 0 și 1.000.000.",
+          }),
+          temei_legal: textOptional(500),
+        }),
+      )
+      .max(6, "Cel mult 6 scutiri fiscale la înrolare.")
       .default([]),
 
     // Fișă de aptitudine (medicina muncii) deja existentă — opțională;
@@ -923,17 +1065,6 @@ export const dezvaluieDateSensibileSchema = z.object({
 });
 
 // ── Scutiri fiscale ────────────────────────────────────────────────────────────
-// Oglinda enum-ului public.exemption_type din 0004_hr.sql.
-
-export const TIPURI_SCUTIRE = [
-  "it",
-  "constructii",
-  "agricultura",
-  "industrie_alimentara",
-  "persoana_handicap",
-  "cercetare_dezvoltare",
-] as const;
-export type TipScutire = (typeof TIPURI_SCUTIRE)[number];
 
 export const creeazaScutireFiscalaSchema = z
   .object({
