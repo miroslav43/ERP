@@ -13,6 +13,7 @@ import { INDICI_WEEKEND, intervalDeTrimis } from "@/domain/attendance/saptamana"
 import { TIPURI_PREZENTA, type TipPrezenta } from "@/schemas/attendance";
 import type { AvertismentPontaj } from "@/domain/attendance/limite-legale";
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
+import { formatDate } from "@/lib/format/date";
 import { ListaAvertismente } from "../lista-avertismente";
 import { trimiteSaptamanaPontaj } from "./actions";
 
@@ -111,6 +112,14 @@ export function FormularSaptamana({
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const [avertismente, setAvertismente] = useState<readonly AvertismentPontaj[]>([]);
+  /**
+   * Zilele SĂRITE din plan fiindcă aveau concediu aprobat (0133).
+   *
+   * Restul săptămânii s-a salvat, deci nu e o eroare — dar nici un detaliu:
+   * fără rândul ăsta, omul crede că a planificat cinci zile când în plan sunt
+   * trei, iar diferența o descoperă abia la aprobare, dacă o descoperă.
+   */
+  const [zileSarite, setZileSarite] = useState<readonly string[]>([]);
   const [zile, setZile] = useState<readonly ZiFormular[]>(zileInitiale);
   const [lucreazaWeekend, setLucreazaWeekend] = useState(lucreazaWeekendInitial);
   const idBaza = useId();
@@ -174,6 +183,7 @@ export function FormularSaptamana({
       // golesc la următoarea trimitere decât prin `setEroare(null)` de mai sus,
       // adică exact când se recalculează.
       setAvertismente(rezultat.data.avertismente);
+      setZileSarite(rezultat.data.zileSarite);
       router.refresh();
     });
   }
@@ -423,6 +433,21 @@ export function FormularSaptamana({
           apasă „Trimite" cu cititorul de ecran trebuie să audă că planul a
           intrat ȘI ce anume depășește regulile firmei.
         */}
+        {zileSarite.length === 0 ? null : (
+          <p
+            role="alert"
+            className="border-warning/40 bg-warning/12 text-foreground rounded-control text-corp border p-3"
+          >
+            {zileSarite.length === 1
+              ? `Ziua de ${formatDate(zileSarite[0] ?? "")} nu a fost planificată: aveți concediu aprobat atunci. Restul săptămânii s-a salvat.`
+              : `${String(zileSarite.length)} zile nu au fost planificate — ${zileSarite
+                  .map((z) => formatDate(z))
+                  .join(
+                    ", ",
+                  )} — fiindcă aveți concediu aprobat atunci. Restul săptămânii s-a salvat.`}
+          </p>
+        )}
+
         <ListaAvertismente avertismente={avertismente} titlu="Planul depășește regulile firmei" />
       </div>
 

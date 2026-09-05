@@ -119,8 +119,24 @@ export const trimiteSaptamanaPontaj = createAction<
     });
     if (error !== null) traduEroare(error);
 
+    /*
+     * Din 0133 funcția întoarce `{ submission_id, zile_sarite }`, nu doar
+     * identificatorul: zilele cu concediu APROBAT se sar, iar cine a planificat
+     * trebuie să afle care — altfel crede că a planificat cinci zile și în plan
+     * sunt trei.
+     *
+     * Citire defensivă: RPC-ul e tipat `Json`, iar o formă neașteptată nu are
+     * voie să arunce peste un plan care S-A SALVAT deja.
+     */
+    const rezultat = (data ?? {}) as { submission_id?: unknown; zile_sarite?: unknown };
+    const idSubmisie = typeof rezultat.submission_id === "string" ? rezultat.submission_id : "";
+    const zileSarite = Array.isArray(rezultat.zile_sarite)
+      ? rezultat.zile_sarite.filter((z): z is string => typeof z === "string")
+      : [];
+
     return {
-      id: data,
+      id: idSubmisie,
+      zileSarite,
       // Planul săptămânal e în VIITOR: nu poate intra în conflict cu o
       // suspendare pentru absențe, care se constată din pontajul realizat.
       conflictSuspendare: null,

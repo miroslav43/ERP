@@ -13006,7 +13006,7 @@ export type Database = {
           p_status: Database["public"]["Enums"]["attendance_week_status"]
           p_zile: Json
         }
-        Returns: string
+        Returns: Json
       }
       urmatoarea_marca: { Args: { p_organization_id: string }; Returns: string }
     }
