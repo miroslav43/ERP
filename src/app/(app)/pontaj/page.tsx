@@ -1,6 +1,8 @@
 // src/app/(app)/pontaj/page.tsx
 import { Suspense } from "react";
 import Link from "next/link";
+
+import { Callout } from "@/components/ui/callout";
 import type { Metadata } from "next";
 import { Users } from "lucide-react";
 
@@ -37,6 +39,7 @@ import { ziIso } from "@/domain/calendar/grila-lunara";
 import { NavPontaj } from "./nav-pontaj";
 import { fileDePontaj } from "./file-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
+import { fisaMea } from "@/lib/queries/portal";
 import { AlertaAbsente } from "./alerta-absente";
 import { FoaieColectiva } from "./foaie-colectiva";
 import { CalendarLuna, type OmZi } from "./calendar-luna";
@@ -444,6 +447,20 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     `employees:update = all`, verificat din nou în acțiune. Un buton care se
     vede și răspunde „nu aveți dreptul" e mai rău decât unul care lipsește.
   */
+  /*
+   * De ce NU apare în foaie cel care se uită la ea.
+   *
+   * `listeazaAngajatiPontaj` filtrează `status in (activ, suspendat, preaviz)`.
+   * Filtrul e corect — un candidat n-are ore de declarat — dar e TĂCUT: cine nu
+   * se regăsește în listă nu primește niciun refuz, pur și simplu nu e acolo.
+   * Un administrator cu fișa creată de 0083 (status `candidat`) cade exact în
+   * gaura asta, și e cazul cel mai frecvent: patronul unei firme mici.
+   *
+   * Se citește DOAR pentru cine se uită la propriul pontaj sau la al firmei —
+   * `fisaMea` e o interogare pe index, iar rezultatul e memoizat pe cerere.
+   */
+  const fisaCelujCareSeUita = await fisaMea(tenant.organizationId, user.id);
+
   const seriiAbsente =
     perioada === null || !poateDeschide
       ? []
@@ -453,6 +470,24 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     <div className="space-y-6">
       {antet}
       {comutator}
+
+      {/* Explicația stă ÎNAINTEA foii: omul se uită acolo tocmai fiindcă nu
+          s-a găsit în ea. Pusă dedesubt, ar fi citită după ce a renunțat. */}
+      {fisaCelujCareSeUita.stare === "fara_fisa" ? (
+        <Callout fel="informativ" titlu="Nu apăreți în foaia de pontaj">
+          Contul dvs. administrează firma, dar nu are fișă de angajat, iar foaia listează doar
+          salariații. Dacă sunteți și angajat, înrolați-vă din „Angajați → Angajat nou”.
+        </Callout>
+      ) : fisaCelujCareSeUita.stare === "ok" && fisaCelujCareSeUita.fisa.status === "candidat" ? (
+        <Callout fel="informativ" titlu="Nu apăreți în foaia de pontaj">
+          Fișa dvs. e „candidat” — administrator fără contract de muncă — iar foaia listează doar
+          salariații. Dacă sunteți și angajat al firmei, adăugați-vă contractul din{" "}
+          <Link className="underline" href={`/angajati/${fisaCelujCareSeUita.fisa.id}`}>
+            fișa dvs.
+          </Link>
+          ; fișa devine activă în aceeași operațiune.
+        </Callout>
+      ) : null}
 
       <AlertaAbsente serii={seriiAbsente} />
 

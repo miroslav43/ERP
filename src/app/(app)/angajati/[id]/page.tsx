@@ -72,6 +72,7 @@ import {
 } from "./dialog-regenereaza-documente";
 import { DateSensibile } from "./date-sensibile";
 import { DialogConcediere } from "./dialog-concediere";
+import { AlegereSuntAngajat } from "./alegere-sunt-angajat";
 import { FormularContractNou } from "./formular-contract-nou";
 import { FormularComponentaSalariala } from "./formular-componenta-salariala";
 import {
@@ -893,6 +894,21 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             ) : null}
           </div>
         )}
+
+        {/*
+          Alegerea „e și angajat", chiar deasupra formularului care o face.
+          Condiția e exact starea creată de 0083: administrator, fără contract.
+          Un salariat obișnuit fără contract e altceva — o înrolare neterminată —
+          și nu are `user_id`, deci nu ajunge aici.
+        */}
+        {contractPrincipal === null && angajat.status === "candidat" && angajat.user_id !== null ? (
+          <div className="mt-4">
+            <AlegereSuntAngajat
+              esteFisaProprie={esteFisaProprie}
+              poateCreaContract={can(permisiuni, "employees:create", "all")}
+            />
+          </div>
+        ) : null}
 
         <div className="mt-4">
           {contractPrincipal === null ? (
