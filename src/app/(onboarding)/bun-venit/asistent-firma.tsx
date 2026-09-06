@@ -12,6 +12,7 @@ import { Pas3Financiar, CAMPURI_PAS_3 } from "@/components/onboarding/pas-3-fina
 import { Pas4Structura, CAMPURI_PAS_4 } from "@/components/onboarding/pas-4-structura";
 import { Pas5Ssm, CAMPURI_PAS_5 } from "@/components/onboarding/pas-5-ssm";
 import { Pas7Confirmare } from "@/components/onboarding/pas-7-confirmare";
+import { AlegerePatronAngajat } from "./alegere-patron-angajat";
 import { Buton } from "@/components/ui/buton";
 import { RUTA_DUPA_AUTENTIFICARE } from "@/config/routes";
 import type { OnboardeazaOrganizatieInput } from "@/schemas/organization";
@@ -79,6 +80,13 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
     if (valid) setPasCurent(urmatorul(pasCurent));
   };
 
+  /**
+   * Răspunsul la „sunteți și angajat?". NU se persistă — vezi antetul
+   * componentei: decide doar unde ajunge omul după „Finalizează", iar starea
+   * reală (are contract sau nu) e oricum în bază.
+   */
+  const [esteAngajat, setEsteAngajat] = useState<boolean | null>(null);
+
   const trimite = handleSubmit(
     async (valori) => {
       setEroareServer(null);
@@ -89,7 +97,16 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
           // firmei memoizat per request, iar fără reîmprospătare următoarea
           // pagină ar vedea tot `pending` și ne-ar trimite înapoi aici.
           router.refresh();
-          router.replace(RUTA_DUPA_AUTENTIFICARE);
+          /*
+           * „Da, sunt și angajat" duce direct în înrolare, nu pe panou.
+           *
+           * Nu se poate face aici mai mult decât o rutare: contractul cere CNP,
+           * act de identitate, adresă și salariu — cele paisprezece câmpuri
+           * obligatorii ale înrolării, pe care un pas de asistent n-are cum să
+           * le strângă fără să dubleze tot formularul. Alegerea îl duce acolo
+           * unde ele se completează, cu numele deja pus.
+           */
+          router.replace(esteAngajat === true ? "/angajati/nou?eu=1" : RUTA_DUPA_AUTENTIFICARE);
           return;
         }
         let primulPas: number | null = null;
@@ -187,7 +204,16 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
         {pasCurent === 3 ? <Pas3Financiar formular={formular} idFormular={idFormular} /> : null}
         {pasCurent === 4 ? <Pas4Structura formular={formular} idFormular={idFormular} /> : null}
         {pasCurent === 5 ? <Pas5Ssm formular={formular} idFormular={idFormular} /> : null}
-        {pasCurent === PAS_CONFIRMARE ? <Pas7Confirmare formular={formular} /> : null}
+        {pasCurent === PAS_CONFIRMARE ? (
+          <>
+            <Pas7Confirmare formular={formular} />
+            {/* Sub recapitulare, nu deasupra: întâi verifici ce ai completat,
+                apoi răspunzi la ultima întrebare. */}
+            <div className="mt-6">
+              <AlegerePatronAngajat valoare={esteAngajat} laSchimbare={setEsteAngajat} />
+            </div>
+          </>
+        ) : null}
 
         <div className="border-border flex items-center justify-between gap-3 border-t pt-4">
           <Buton

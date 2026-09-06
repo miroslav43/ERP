@@ -15,8 +15,24 @@ export const metadata: Metadata = { title: "Angajat nou" };
 
 const ZILE_CONCEDIU_IMPLICIT_FALLBACK = 20;
 
-export default async function PaginaAngajatNou() {
-  const { tenant } = await requireTenant();
+/**
+ * `?eu=1` — înrolarea PROPRIE, pornită din asistentul de configurare a firmei.
+ *
+ * Administratorul care a răspuns „da, sunt și angajat" la finalul lui
+ * `/bun-venit` ajunge direct aici. Numele lui se precompletează din profil: e
+ * singurul lucru pe care aplicația îl știe deja despre el, iar retastarea lui
+ * pe pasul 1 ar fi făcut alegerea de dinainte să pară că n-a contat.
+ *
+ * Restul — CNP, act de identitate, adresă, salariu — rămâne de completat de el.
+ * Nu le avem și n-avem de unde să le luăm; asta e chiar motivul pentru care
+ * înrolarea nu se poate face în locul lui, nici de noi ca furnizor.
+ */
+interface ProprietatiPagina {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function PaginaAngajatNou({ searchParams }: ProprietatiPagina) {
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -123,6 +139,26 @@ export default async function PaginaAngajatNou() {
    * ajutor trebuie să arate ce se va aloca — altfel previzualizarea minte, iar
    * omul caută în registru un „7/2026" care nu există.
    */
+  const parametri = await searchParams;
+  const esteInrolarePropie = parametri["eu"] === "1";
+
+  const { data: profil } = esteInrolarePropie
+    ? await db.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle()
+    : { data: null };
+
+  /*
+   * Despărțirea numelui: ULTIMUL spațiu, nu primul.
+   *
+   * „Ana Maria Popescu" e Ana Maria + Popescu, nu Ana + Maria Popescu. Aceeași
+   * convenție ca în `bun-venit/page.tsx`, unde se face pentru datele
+   * proprietarului — dacă cele două ar diverge, același om ar apărea cu numele
+   * despărțit în două feluri în două ecrane.
+   */
+  const numeIntreg = (profil?.full_name ?? "").trim();
+  const spatiu = numeIntreg.lastIndexOf(" ");
+  const preNume = spatiu === -1 ? numeIntreg : numeIntreg.slice(0, spatiu);
+  const numeFamilie = spatiu === -1 ? "" : numeIntreg.slice(spatiu + 1);
+
   const numarUrmator = `${String(contor.data?.next_number ?? 1)}/${new Intl.DateTimeFormat(
     "ro-RO",
     { day: "2-digit", month: "2-digit", year: "numeric" },
@@ -146,9 +182,18 @@ export default async function PaginaAngajatNou() {
         }
         obiecteDisponibile={obiecteInventar.data ?? []}
         sabloaneSalariale={sabloaneSalariale.data ?? []}
+        /*
+         * Precompletarea din profil se toarnă ca o CIORNĂ, nu ca un prop nou:
+         * asistentul are deja mecanismul de „valori peste implicite" (0131),
+         * iar un al doilea drum către aceleași câmpuri ar fi însemnat două
+         * locuri de ținut sincronizate. O ciornă reală, dacă există, are
+         * prioritate — ea conține ce a scris chiar omul.
+         */
         ciorna={
           ciorna.data === null
-            ? null
+            ? esteInrolarePropie && numeIntreg !== ""
+              ? { pas: 1, date: { first_name: preNume, last_name: numeFamilie } }
+              : null
             : {
                 pas: ciorna.data.pas,
                 date: (ciorna.data.date ?? {}) as Record<string, unknown>,

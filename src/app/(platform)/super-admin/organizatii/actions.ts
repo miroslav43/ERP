@@ -418,6 +418,34 @@ export async function fisaOrganizatiei(orgId: string) {
   );
 
   const idUtilizatori = (membri ?? []).map((membru) => membru.user_id);
+
+  /*
+   * Starea fișei de angajat a fiecărui membru.
+   *
+   * Există ca să se poată răspunde la telefon fără să deschidem baza: „nu mă
+   * pot ponta" are, în practică, două cauze — fișa lipsește, sau e încă
+   * `candidat` (administrator fără contract de muncă, starea creată de 0083).
+   * Ambele arată identic din aplicație, fiindcă foaia de pontaj filtrează
+   * tăcut pe status: omul nu primește un refuz, pur și simplu nu apare.
+   *
+   * NU se citește niciun câmp personal — doar `status`. Consola de platformă
+   * n-are ce căuta în CNP-ul sau adresa angajaților unui client; ce-i trebuie e
+   * să știe dacă fișa există și în ce stare e.
+   */
+  const fisaDupaUtilizator = new Map<string, string>();
+  if (idUtilizatori.length > 0) {
+    const { data: fise } = await admin
+      .from("employees")
+      .select("user_id, status")
+      .eq("organization_id", id)
+      .eq("is_primary", true)
+      .is("deleted_at", null)
+      .in("user_id", idUtilizatori);
+    for (const fisa of fise ?? []) {
+      if (fisa.user_id !== null) fisaDupaUtilizator.set(fisa.user_id, fisa.status);
+    }
+  }
+
   const profileDupaId = new Map<string, { nume: string | null; email: string | null }>();
   if (idUtilizatori.length > 0) {
     const { data: profile } = await admin
@@ -434,6 +462,8 @@ export async function fisaOrganizatiei(orgId: string) {
       ...membru,
       nume: profileDupaId.get(membru.user_id)?.nume ?? null,
       email: profileDupaId.get(membru.user_id)?.email ?? null,
+      /** `null` = niciun rând în `employees`; altfel statusul fișei principale. */
+      statusFisa: fisaDupaUtilizator.get(membru.user_id) ?? null,
     })),
     module: (module ?? []).map((modul) => ({
       cheie: modul.feature_key,

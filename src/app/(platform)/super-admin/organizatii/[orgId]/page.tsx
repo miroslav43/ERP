@@ -253,6 +253,23 @@ export default async function PaginaFisaOrganizatie({
                     <span className="text-muted-foreground text-nota block truncate">
                       {membru.email ?? ""}
                     </span>
+                    {/*
+                      Starea fișei de angajat, pentru cea mai frecventă
+                      reclamație de asistență: „nu mă pot ponta". Foaia de
+                      pontaj listează doar salariați și îi ascunde TĂCUT pe
+                      ceilalți — deci fără linia asta răspunsul cere o
+                      interogare în bază. Nu se arată niciun câmp personal,
+                      doar dacă fișa există și în ce stare e.
+                    */}
+                    {membru.statusFisa === null ? (
+                      <span className="text-nota text-warning block">
+                        Fără fișă de angajat — nu se poate ponta
+                      </span>
+                    ) : membru.statusFisa === "candidat" ? (
+                      <span className="text-nota text-warning block">
+                        Fișă „candidat” — administrator fără contract, nu se poate ponta
+                      </span>
+                    ) : null}
                   </span>
                   <span className="text-muted-foreground text-nota shrink-0">
                     {ETICHETE_ROL[membru.role] ?? membru.role}
