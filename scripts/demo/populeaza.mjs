@@ -219,12 +219,28 @@ async function redenumeste(tabela, coloana, vechi, nou, extra = {}) {
  * Curățenia resturilor de test.
  *
  * Toate rândurile de aici au fost verificate individual înainte de a fi atinse.
- * Cel mai important: fișa „Mihai Demo (administrator platformă)" n-are NICIO
- * dependență — zero pontaje, zero contracte, zero concedii, zero instruiri,
- * zero alocări de inventar. E o fișă suspendată în gol, care apărea în capul
- * fiecărei liste de angajați cu „—" la funcție și „Fără contract". O
- * dezactivez în loc s-o redenumesc: n-are rost să inventez o identitate pentru
- * contul de administrator al platformei.
+ *
+ * ── CE A LIPSIT DIN VERIFICARE, ȘI CE A COSTAT ─────────────────────────────
+ * Fișa „Mihai Demo (administrator platformă)" a fost declarată „fără NICIO
+ * dependență" pe baza a cinci verificări — zero pontaje, contracte, concedii,
+ * instruiri, alocări de inventar. Toate cinci erau adevărate. A șasea n-a fost
+ * făcută: fișa avea `user_id`.
+ *
+ * O fișă legată de un cont NU e un rând gol. E fișa creată de
+ * `0083_fisa_de_angajat_pentru_patron.sql` pentru fiecare `org_admin`, exact ca
+ * patronul să-și poată depune concediu și să-și scrie pontajul — antetul acelei
+ * migrări o spune direct: „un cont care administrează tot produsul, dar n-are
+ * unde să-și scrie propria săptămână, e o fundătură". Ștearsă, patronul nu se
+ * mai poate ponta, iar nimic nu-i spune de ce: nu primește un refuz, pur și
+ * simplu dispare din listă (filtrul de status din `listeazaAngajatiPontaj`).
+ *
+ * S-a întâmplat pe baza reală, pe 5 septembrie 2026. Aplicația avea garda
+ * corectă — `esteFisaProprie`, în pagină ȘI în acțiune — dar ea compară cu
+ * `auth.uid()`, iar scriptul rulează cu cheia de serviciu, unde nu există
+ * „cine". Jurnalul de audit arată `actor_id: null`.
+ *
+ * De aceea filtrul de mai jos cere `user_id is null`. Fișele fără cont rămân
+ * ce erau: resturi de test, curățabile.
  */
 async function curatenie() {
   console.log("── Curățenie");
@@ -259,11 +275,19 @@ async function curatenie() {
     .update({ deleted_at: new Date().toISOString() })
     .eq("organization_id", ORG)
     .like("full_name", "Mihai Demo%")
+    // Vezi antetul: o fișă cu cont e accesul cuiva, nu un rest de test.
+    .is("user_id", null)
     .is("deleted_at", null)
     .select("id");
   verifica("dezactivare fișă fără dependențe", { error });
   if ((fisaGoala ?? []).length > 0) {
     console.log("  · employees: fișa „Mihai Demo” dezactivată (deleted_at)");
+  } else {
+    // Tăcerea ar fi ambiguă: „n-am găsit-o" și „am găsit-o și am sărit-o
+    // fiindcă are cont" sunt lucruri diferite, iar al doilea trebuie știut.
+    console.log(
+      "  · employees: fișa „Mihai Demo” NU s-a atins — e legată de un cont (fișa de patron din 0083).",
+    );
   }
 }
 

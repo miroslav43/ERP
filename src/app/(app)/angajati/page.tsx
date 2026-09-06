@@ -121,12 +121,33 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
       antet: "Nume și prenume",
       sortabil: true,
       peTelefon: "titlu",
+      /*
+       * Fișa proprie se MARCHEAZĂ, iar cea de administrator își spune ce e.
+       *
+       * Fișa creată automat pentru fiecare `org_admin`
+       * (`0083_fisa_de_angajat_pentru_patron.sql`) arată în listă ca un rând
+       * gol: fără funcție, fără contract, cu marca 0001. Un script de curățenie
+       * a datelor demo a și șters-o o dată de pe baza reală, exact fiindcă
+       * părea un rest de test — iar patronul a rămas fără pontaj, fără să afle
+       * de ce.
+       *
+       * Cele două note nu se exclud: fișa proprie POATE fi și cea de
+       * administrator, iar atunci amândouă spun ceva diferit.
+       */
       celula: (r) => (
         <>
           <span className="font-medium">{r.full_name}</span>
+          {r.user_id === userId ? (
+            <span className="text-accent text-nota ml-2">(fișa dvs.)</span>
+          ) : null}
           {r.is_primary ? null : (
             <span className="text-muted-foreground text-nota ml-2">(cumul de funcții)</span>
           )}
+          {r.status === "candidat" && r.user_id !== null ? (
+            <span className="text-muted-foreground text-nota block">
+              Administrator — devine salariat la primul contract de muncă.
+            </span>
+          ) : null}
         </>
       ),
     },

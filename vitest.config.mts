@@ -60,7 +60,12 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
-          include: ["src/**/*.test.ts"],
+          // `scripts/**` intră ca să poată fi apărate SCRIPTURILE care ating
+          // baza reală cu cheia de serviciu. Ele ocolesc RLS și toate gărzile
+          // aplicației, deci singura verificare posibilă e pe forma sursei —
+          // vezi `scripts/demo/populeaza.test.ts`, scris după ce curățenia a
+          // șters de pe producție fișa de angajat a patronului.
+          include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
           // `src/config/env.ts` validează configurația la IMPORT DE MODUL, nu la
           // primul request — o valoare lipsă oprește aplicația imediat, ceea ce
           // e corect în producție și blochează orice test care importă un modul

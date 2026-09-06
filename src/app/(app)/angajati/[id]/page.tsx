@@ -538,9 +538,22 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           <AntetPagina
             className="min-w-0 @2xl:flex-1"
             titlu={angajat.full_name}
-            descriere={`Marca ${angajat.marca}${
+            /*
+             * Fișa proprie și cea de administrator se declară în descriere, nu
+             * într-un banner separat: e o proprietate a fișei, ca marca sau
+             * departamentul, iar un banner ar concura cu avertismentele reale.
+             *
+             * Fișa creată automat pentru un `org_admin` (0083) arată altfel un
+             * rând gol — fără funcție, fără contract — și a fost deja ștearsă o
+             * dată de pe baza reală, tocmai fiindcă părea rest de test.
+             */
+            descriere={`${esteFisaProprie ? "Fișa dvs. · " : ""}Marca ${angajat.marca}${
               angajat.functie !== null ? ` · ${angajat.functie}` : ""
-            }${angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}`}
+            }${angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}${
+              angajat.status === "candidat" && angajat.user_id !== null
+                ? " · Administrator, fără contract de muncă — devine salariat la primul contract"
+                : ""
+            }`}
             /*
               Ștergerea NU mai e aici. Antetul e locul lucrurilor pe care le
               faci des cu fișa deschisă — permisiuni, editare — iar ea era a
