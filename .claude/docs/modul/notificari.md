@@ -14,9 +14,9 @@ cai:
   - "deploy/push-livrare.service"
 tabele: [notifications, notification_preferences, dispozitive_push, push_livrari]
 permisiuni: []
-capcane: [17]
-scris_pe: 7b0743024ed266fcaecc6c1cbeb56ed31bd257df
-scris_la: 2026-09-04
+capcane: [17, 39]
+scris_pe: 449df69a0da9fb008703e1b894f495e351f3d2cf
+scris_la: 2026-09-06
 tags: [modul]
 ---
 
@@ -48,6 +48,14 @@ numele altui utilizator** trebuie să aibă `announcements:create`. De aceea fan
 `trimiteMarcheazaToateCitite`, folosit ca `action` de formular. Nu trec prin cele opt
 straturi fiindcă n-au ce autoriza dincolo de RLS și n-au nimic de auditat: „mi-am citit
 notificarea" nu e un fapt de reținut în jurnal.
+
+`src/app/(portal)/portal/notificarile-mele/actions.ts` ține scrierile din portal —
+`retrageDispozitivul` cu învelișul `trimiteRetragereDispozitiv`, și
+`comutaNotificarilePush` cu `trimiteComutarePush`. Lista felurilor,
+`FELURI_NOTIFICARE`, stă **alături**, în `feluri.ts`, nu în `actions.ts`: un fișier
+`"use server"` nu poate exporta decât funcții async, iar o constantă exportată de acolo
+trece de `typecheck`, `lint` și `test` și cade abia la `next build`, în „Collecting page
+data". Poarta care o prinde acum în două secunde e `pnpm check:server`. — capcana #39
 
 ## Ce refuză baza tăcut
 
@@ -88,6 +96,26 @@ Din `0122_push_dispozitive.sql`. Cinci verigi, fiecare cu propriul fel de a tăc
   `/ticketing/<uuid>` DOAR dacă entitatea îi aparține destinatarului: aceleași legături
   ajung, din triggere, și la HR, aprobatori sau managerul direct, iar ecranele „ale mele"
   cheamă `notFound()`. Fără `ContextDestinatar`, nu se traduce — implicitul e cel sigur.
+- **Caractere de control în link.** Poarta de formă `^/[^/\\]` — aceeași ca `check`-ul de
+  pe `notifications.link`, `0001_kernel.sql:381` — acceptă un tab pe poziția a doua, iar
+  parserele de URL care elimină tab-ul și newline-ul citesc apoi șirul ca URL absolut
+  protocol-relativ. `areCaractereDeControl` din `src/lib/push/mesaj.ts` îl oprește, tăcut,
+  pe `CALE_IMPLICITA`. Stratul din cod e deliberat mai strict decât constrângerea din
+  bază: migrarea aplicată nu se mai atinge, iar asimetria merge în direcția sigură.
+  Astăzi poarta e inaccesibilă — toate valorile `link` sunt literale din cod sau derivate
+  dintr-un UUID, niciuna intrare de utilizator.
+- **Predarea telefonului abandonează doar `in_asteptare`.** Când jetonul înregistrat e al
+  altcuiva, `retrageDispozitivPrinAdmin` (`src/app/api/dispozitive/route.ts`) trece pe
+  `abandonat` numai livrările `in_asteptare`; cele `in_lucru` sunt deja în zbor spre
+  `exp.host` sub `for update skip locked`, iar marcarea lor de aici ar fi o cursă
+  scriere-scriere cu `golesteCoada` — și o minciună în jurnal, fiindcă notificarea chiar a
+  plecat. Nu scapă nimic: Pasul 1 din `app.push_ia_din_coada` abandonează orice rând al
+  unui dispozitiv retras, iar un `in_lucru` agățat e recuperat după zece minute.
+- **Cele trei scrieri ale retragerii nu sunt o tranzacție** — motivul exact al eșecului
+  merge în jurnal (`console.error`), răspunsul rămâne generic, iar remediul diferă după
+  care a picat. Dacă e rândul de audit, retragerea E făcută, dar rămâne doar urma
+  triggerului, cu `actor_id` NULL sub `service_role`: se știe CĂ s-a întâmplat, nu și CINE
+  a preluat telefonul.
 
 ### Două comentarii FALSE în `0122`, care nu se pot repara acolo
 

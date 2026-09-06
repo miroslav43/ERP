@@ -60,3 +60,10 @@ de oricine face un push.
 - module atinse: angajati concedii pontaj reges salarizare
 - straturi atinse: migrări citiri scheme domeniu
 - pagini rescrise: modul/concedii.md modul/pontaj/saptamana.md modul/reges.md
+
+## 2026-09-06
+
+- commit-uri în ultimele 24h: 20
+- module atinse: pontaj
+- straturi atinse: migrări
+- pagini rescrise: modul/notificari.md
