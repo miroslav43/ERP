@@ -10,8 +10,8 @@ tabele: [attendance_week_submissions, attendance_week_submission_days, attendanc
 permisiuni: [attendance:create, attendance:approve]
 feature: attendance
 capcane: [17]
-scris_pe: b32cfef59471a67b3a39ff3e5d3108cf04c7366c
-scris_la: 2026-09-05
+scris_pe: 4cd4a8865b0b4f65648d961680de522d54c5bac9
+scris_la: 2026-09-07
 tags: [modul, hr]
 ---
 
@@ -72,6 +72,15 @@ deasupra: `zileSarite` din `RezultatCuAvertismente`
 `FormularSaptamana`. Rupt oriunde pe drum, omul crede că a planificat cinci zile când în
 plan sunt trei și află abia la aprobare. Rândul stă în formularul PARTAJAT, deci ajunge
 pe amândouă ecranele fără nimic de duplicat.
+
+Lanțul ăsta e însă EFEMER, și e singurul: `zileSarite` e `useState` în
+`FormularSaptamana`, populat doar din răspunsul unei trimiteri reușite. `router.refresh()`
+nu-l atinge, dar reîncărcarea paginii îl pierde, iar navigarea la altă săptămână îl
+golește — amândouă paginile randează formularul cu `key={saptamanaStart}`, deci
+schimbarea săptămânii remontează componenta. Nicio citire de server nu recalculează
+zilele sărite: `citesteSaptamanaPontaj` întoarce zilele care EXISTĂ, iar cea sărită tocmai
+lipsește. Cine închide ecranul fără să citească rândul nu mai are de unde-l afla decât
+retrimițând săptămâna.
 
 Citirea rezultatului în acțiune e defensivă deliberat: RPC-ul e tipat `Json`, iar o formă
 neașteptată n-are voie să arunce peste un plan care S-A SALVAT deja — de aceea `id` cade
