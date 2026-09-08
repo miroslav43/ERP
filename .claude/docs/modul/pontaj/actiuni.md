@@ -7,12 +7,13 @@ cai:
   - "src/lib/queries/attendance.ts"
   - "src/schemas/attendance.ts"
   - "src/domain/attendance/**"
-tabele: [attendance_entries, attendance_periods, attendance_approval_batches]
-permisiuni: [attendance:read, attendance:create, attendance:update, attendance:approve]
+tabele: [attendance_entries, attendance_periods, attendance_approval_batches, contract_suspendari]
+permisiuni:
+  [attendance:read, attendance:create, attendance:update, attendance:approve, employees:update]
 feature: attendance
 capcane: [2, 6, 7, 17]
-scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
-scris_la: 2026-09-04
+scris_pe: 47e18f43940275c35d1c823e1ea001aac548df9e
+scris_la: 2026-09-08
 tags: [modul, hr]
 ---
 
@@ -34,6 +35,7 @@ Toate în `src/app/(app)/pontaj/actions.ts`, cu excepțiile notate.
 | `stergeZiPontaj`                                  | `attendance:create` / own      | `deleted_at` pe zi                      |
 | `aprobaPontajBloc`                                | `attendance:approve` / team    | lotul + liniile lui închise             |
 | `decideZiPontaj`                                  | `attendance:approve` / team    | verdictul pe o zi                       |
+| `emiteSuspendareAbsente`                          | `employees:update` / all       | `contract_suspendari` + eveniment REGES |
 | `blocheazaPerioada`, `redeschidePerioada`         | `attendance:approve` / **all** | statusul perioadei                      |
 | `sincronizeazaConcediile`                         | `attendance:create` / all      | zilele care vin din concedii aprobate   |
 | `trimiteSaptamanaPontaj` (`saptamana/actions.ts`) | `attendance:create` / own      | submisia săptămânii                     |
@@ -60,14 +62,39 @@ rețea. Regula NU se poate scrie ca politică RLS — ar cere un subselect peste
 interval complet le derivă, iar fără oră de sfârșit le pune **zero**. Cifrele venite
 din client sunt păstrate doar de `attendance:create = all`, unde calculul e o sugestie.
 
+Aceeași acțiune, cu ore lucrate pe un contract suspendat pentru absențe nemotivate, NU
+scrie nimic: întoarce `id: null` plus `conflictSuspendare`, iar ecranul întreabă dacă se
+emite decizia de reluare. Retrimiterea aduce `confirma_reluare` (implicit `false`, deci
+cine nu știe de conflict îl primește, nu îl calcă), iar `inchideSuspendareaLaReluare`
+rulează ÎNAINTE de scrierea zilei. Suspendarea se citește cu clientul admin:
+`contract_suspendari_select` cere drepturi pe care responsabilul de pontaj nu le are.
+Forma de retur, `RezultatCuAvertismente` (`avertismente.ts`), e comună cu săptămâna.
+
+`emiteSuspendareAbsente` e capătul de om al aceluiași drum: alerta semnalează seriile de
+la a doua zi consecutivă (`PRAG_ZILE_ALERTA`), decizia o ia cineva, pe un interval ales.
+Poarta e `employees:update = all` — EXACT ce cere `contract_suspendari_insert` — deși
+scrierea merge prin `createAdminSupabase()`, fiindcă drumul trece prin
+`genereazaEvenimenteReges`. Suprapunerea peste altă suspendare vine ca `23P01`
+(`suspendare-absente.ts`) și se traduce în text, nu în eroare.
+
 `trimiteSaptamanaPontaj` citește `p_lucreaza_weekend` din `attendance_settings`, NU din
 formular — câmpul a plecat din `trimiteSaptamanaPontajSchema`. Steagul se salvează pe
 submisie fiindcă aprobatorul trebuie să vadă ce regulă era ATUNCI, dar regula e a firmei:
 venind de la client, o cerere fabricată putea declara „aici se lucrează în weekend" la o
 firmă de birou. Caseta din formular a rămas ce a fost mereu în fapt — alege dacă zilele de
-weekend pleacă cu interval (`intervalDeTrimis`). **Atenție**: `createAction` primește
-`rawInput: unknown`, deci un câmp rămas într-un apelant NU produce eroare de tip; Zod îl
-taie tăcut. Câmpurile scoase din scheme se caută de mână prin apelanți.
+weekend pleacă cu interval (`intervalDeTrimis`). Din 0133 RPC-ul întoarce
+`{ submission_id, zile_sarite }`, nu doar identificatorul: zilele cu concediu aprobat se
+sar, iar acțiunea le duce mai departe ca `zileSarite` — un plan salvat cu trei zile din
+cinci trebuie SPUS. Citirea e defensivă (RPC tipat `Json`), fiindcă planul S-A salvat
+deja. **Atenție**: `createAction` primește `rawInput: unknown`, deci un câmp rămas
+într-un apelant NU produce eroare de tip; Zod îl taie tăcut. Câmpurile scoase din scheme
+se caută de mână prin apelanți.
+
+Câmpurile numerice din `setariPontajSchema` trec prin `numarObligatoriu`
+(`src/schemas/comun.ts`), nu prin `z.coerce.number()`: `Number("")` e `0`, iar șapte au
+plafonul de jos chiar 0 — o casetă goală se SALVA ca zero, fără mesaj. Golul se scoate
+ÎNAINTE de coerciție, cu trei mesaje: lipsă, „nu e număr”, interval.
+— `src/schemas/attendance.test.ts`
 
 ## Citiri
 
@@ -77,7 +104,13 @@ taie tăcut. Câmpurile scoase din scheme se caută de mână prin apelanți.
 `intrariLuna`, `intrariProprii`, `zilePontateAngajat`, `setariPontaj`,
 `setariPontajComplete`, `istoricSetariPontaj`, `loturiPerioadei`, `liniiDeAprobat`,
 `citesteSaptamanaPontaj`, `saptamaniDeAprobat`, `departamente`, `setariPontareRapida`,
-`afiseDePontare`.
+`afiseDePontare`, `absenteNemotivateFaraDecizie`.
+
+`absenteNemotivateFaraDecizie` merge în trei pași, în ordinea asta din motive de cost:
+zilele perioadei, seriile calculate în memorie (`seriiDeAbsente`,
+`src/domain/reges/absente.ts`), apoi suspendările doar ale angajaților rămași. Filtrul pe
+suspendarea activă din `absenta_nemotivata` e ce împiedică alerta să reapară după ce
+decizia a fost emisă.
 
 `zilePontateAngajat` e singura care cere explicit `employee_id` și n-are cursor: aduce
 dintr-un drum reuniunea celor trei ferestre de care are nevoie verificarea limitelor
@@ -106,6 +139,13 @@ normalizează ora) → `page.tsx` + componenta de celulă. Calculul orelor stă 
 poate greși TĂCUT desenând o săptămână), `ceas.ts` (`stareaCeasului`,
 `minuteScurse`, `formatDurata`) și `zi-de-pontat.ts` (`meritaPontata`). Toate sunt pure:
 ora curentă vine de la apelant, fiindcă autoritatea ei e ceasul serverului.
+
+Starea lunii nu se mai deduce din `perioada === null`: `stareaLunii` și `intervalulLunii`
+(`src/domain/attendance/luna.ts`, cu teste) citesc rândul LIPSĂ ca lună **deschisă** —
+perechea în bază e `internal.pontaj_perioada_lunii` (0132), care naște rândul la prima
+scriere din lună. Singura stare care refuză e `blocata`: `in_aprobare` nu blochează
+scrierea nici în bază (0013:293), iar portalul o trata ca refuz. `actions.ts` păstrează
+totuși o copie locală a lui `intervalulLunii`.
 
 `tip_prezenta` a trecut prin exact lanțul ăsta în 0118, plus `plan-si-fapt.ts` și cele
 două ecrane de plan. `TIPURI_PREZENTA` a trebuit MUTAT sus în `src/schemas/attendance.ts`:

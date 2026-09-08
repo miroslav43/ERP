@@ -22,8 +22,8 @@ feature: maintenance
 capcane: [35]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 47e18f43940275c35d1c823e1ea001aac548df9e
+scris_la: 2026-09-08
 tags: [modul]
 ---
 
@@ -37,16 +37,30 @@ jumătate.
 
 ## Rute și cine ajunge
 
-| Rută                                                                                     | Poartă                  |
-| ---------------------------------------------------------------------------------------- | ----------------------- |
-| `/mentenanta`                                                                            | `maintenance:read` own  |
-| `/mentenanta/sesizari`, `/mentenanta/sesizari/noua`, `/mentenanta/sesizari/[id]`         | `maintenance:read` own  |
-| `/mentenanta/echipamente`, `/mentenanta/echipamente/nou`, `/mentenanta/echipamente/[id]` | `maintenance:read` team |
-| `/mentenanta/planuri`                                                                    | `maintenance:read` team |
-| `/mentenanta/interventii`                                                                | `maintenance:read` team |
+| Rută                                                      | Poartă                    |
+| --------------------------------------------------------- | ------------------------- |
+| `/mentenanta`                                             | `maintenance:read` own    |
+| `/mentenanta/sesizari`, `/mentenanta/sesizari/[id]`       | `maintenance:read` own    |
+| `/mentenanta/sesizari/noua`                               | `maintenance:create` own  |
+| `/mentenanta/echipamente`, `/mentenanta/echipamente/[id]` | `maintenance:read` team   |
+| `/mentenanta/echipamente/nou`                             | `maintenance:update` team |
+| `/mentenanta/planuri`                                     | `maintenance:read` team   |
+| `/mentenanta/interventii`                                 | `maintenance:read` team   |
 
 Pragul `own` pe panou și pe sesizări e intenționat: **oricine poate sesiza o defecțiune**.
 Restul modulului — parcul de echipamente, planurile, intervențiile — cere `team`.
+Cele două formulare nu se păzesc pe `read`, ci pe permisiunea pe care o exercită:
+`/mentenanta/sesizari/noua` pe `maintenance:create`, `/mentenanta/echipamente/nou` pe
+`maintenance:update` — aceeași linie de despărțire ca la Server Actions.
+
+Preambulul paginilor cheamă `requireFeature` și `getPermissionMap` într-un `Promise.all`,
+nu înlănțuit: sunt două citiri independente, iar `Promise.all` respinge la prima
+respingere, deci refuzul lui `requireFeature` ajunge tot înaintea oricărui `can()`.
+
+Pe `/mentenanta` poarta se citește de două ori: `maintenance:read` own deschide pagina —
+lipsa ei dă `AccesRestrictionat` —, iar `maintenance:read` team decide dacă se vede panoul
+de organizație sau doar `SesizarileMele`. Cine are doar `own` ajunge acolo prin link
+direct: în meniu itemul cere `team`.
 
 ## `create` NU e poarta pentru echipamente
 

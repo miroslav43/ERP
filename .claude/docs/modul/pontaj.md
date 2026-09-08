@@ -7,6 +7,7 @@ cai:
   - "src/lib/queries/attendance.ts"
   - "src/schemas/attendance.ts"
   - "src/domain/attendance/**"
+  - "src/domain/reges/absente.ts"
 tabele:
   [
     attendance_periods,
@@ -17,15 +18,18 @@ tabele:
     attendance_week_submission_days,
     setari_pontare_rapida,
     puncte_lucru,
+    contract_suspendari,
   ]
-permisiuni: [attendance:read, attendance:create, attendance:update, attendance:approve]
+permisiuni:
+  [attendance:read, attendance:create, attendance:update, attendance:approve, employees:update]
 feature: attendance
 capcane: [2, 6, 7, 9, 17]
 citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
-scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
-scris_la: 2026-09-04
+  - "zi respinsă pentru contract suspendat → [[modul/reges]]"
+scris_pe: 47e18f43940275c35d1c823e1ea001aac548df9e
+scris_la: 2026-09-08
 tags: [modul, hr]
 ---
 
@@ -41,13 +45,12 @@ confirmarea zilei standard, apăsate din portal, scrise tot în `attendance_entr
 
 ## Paginile modulului
 
-Pagina asta e trunchiul: ce e modulul, cine ajunge unde, cum arată cele trei vizualizări
-și ce refuză baza fără să spună. Restul s-a spart pe subarborele de rute, fiindcă trecuse
-de plafonul dur de 12 KB al convenției (`.claude/docs/meta/conventii.md`).
+Pagina asta e trunchiul; restul s-a spart pe subarborele de rute
+(`.claude/docs/meta/conventii.md`).
 
 | Pagină                     | Ce ține                                                                                                              |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [[modul/pontaj/actiuni]]   | cele treisprezece Server Actions, citirile din `queries/attendance.ts`, ce se mișcă împreună la o schimbare de formă |
+| [[modul/pontaj/actiuni]]   | Server Actions, citirile din `queries/attendance.ts`, ce se mișcă împreună la o schimbare de formă a zilei de pontaj |
 | [[modul/pontaj/saptamana]] | planul săptămânal, RPC-ul care face `delete` + reinserare, legătura plan ↔ fapt                                      |
 | [[modul/pontaj/setari]]    | pontarea rapidă (0115), aprobarea ca alegere a firmei (0118), limitele legale                                        |
 
@@ -65,6 +68,11 @@ de plafonul dur de 12 KB al convenției (`.claude/docs/meta/conventii.md`).
 | `/pontaj/setari/reguli` | `attendance:update` all — fila **Regulile de timp**: parametrii juridici versionați                            |
 
 Toate trec întâi prin `requireFeature(tenant.organizationId, "attendance")`.
+
+**Luna se naște deschisă** (`0132_pontaj_luni_deschise_implicit.sql`): rândul din
+`attendance_periods` îl creează `internal.pontaj_perioada_lunii` la prima scriere, deci nu
+mai există „lună nedeschisă" care să refuze pontajul. Rândul lipsă se citește într-un singur
+loc, `stareaLunii` (`src/domain/attendance/luna.ts`); singura stare care refuză e `blocata`.
 
 ## Cele trei vizualizări ale lui `/pontaj`
 
@@ -102,8 +110,6 @@ cheia care lipsește în cealaltă direcție — altfel comutarea ar sări în a
 decât cea de pe ecran.
 
 ## Ce refuză baza tăcut
-
-Secțiunea care justifică pagina. Fiecare rând are artefact.
 
 - **Coloanele calculate de triggere BEFORE nu se trimit din client**:
   `attendance_periods.data_inceput`/`data_sfarsit`/`blocata_la`/`blocata_de`,
