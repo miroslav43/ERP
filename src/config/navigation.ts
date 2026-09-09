@@ -52,7 +52,8 @@ export const NAV_GROUPS: readonly Readonly<{ id: NavGroupId; label: string }>[] 
 ];
 
 /** Contoarele se calculează într-un singur query de dashboard, nu per intrare. */
-export type BadgeSource = "leave_pending" | "ssm_expiring" | "fleet_expiring" | "maintenance_due";
+export type BadgeSource =
+  "leave_pending" | "ssm_expiring" | "fleet_expiring" | "maintenance_due" | "reges_pending";
 
 export type NavLink = Readonly<{
   id: string;
@@ -200,6 +201,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "reges:read",
     minScope: "all",
     order: 41,
+    // Contorul se calculează doar pentru cine are `reges:transmit` (v.
+    // `contoarePanou`): cine poate doar citi ar fi primit un număr care îl
+    // cheamă undeva unde n-are ce apăsa.
+    badge: "reges_pending",
   },
   {
     id: "departamente",

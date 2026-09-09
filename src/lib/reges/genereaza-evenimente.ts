@@ -39,6 +39,17 @@ import {
   type ZiIso,
 } from "@/domain/reges/evenimente";
 
+/**
+ * Rolurile cu `reges:transmit` la scope `all`, din seed-ul lui 0087.
+ *
+ * Scrise aici, nu citite din `role_permissions`: notificarea e un efect
+ * secundar al unei scrieri deja făcute, iar o a doua interogare per lot ar
+ * plăti rețea pentru o listă care nu s-a schimbat de la 0087. Dacă o firmă
+ * strânge cheia dintr-un rând propriu, cel mult primește un anunț în plus —
+ * niciodată unul în minus, și niciodată un drept.
+ */
+const ROLURI_CARE_TRANSMIT = ["org_admin", "hr"] as const;
+
 export interface EvenimentDeGenerat {
   readonly employeeId: string;
   readonly contractId: string | null;
@@ -181,7 +192,88 @@ export async function genereazaEvenimenteReges(input: {
   if (deInserat.length > 0) {
     const { error } = await supabase.from("reges_evenimente").insert(deInserat);
     if (error) throw mapPostgrestError(error, randomUUID());
+    await anuntaDeTransmis(supabase, organizationId, deInserat);
   }
 
   return { create: deInserat.length, sarite, respinse };
+}
+
+/**
+ * Anunță pe cine poate transmite că are ceva de transmis.
+ *
+ * ┌ De ce e nevoie de un ANUNȚ, nu doar de un ecran ─────────────────────────
+ * │ Evenimentele se nasc singure — dintr-o angajare, o modificare de salariu,
+ * │ o suspendare — dar transmiterea rămâne DELIBERAT manuală: nimic nu pleacă
+ * │ la Inspecția Muncii fără ca un om să apese. Consecința e că evenimentul
+ * │ așteaptă tăcut într-un modul pe care nimeni n-are motiv să-l deschidă în
+ * │ ziua în care s-a întâmplat ceva.
+ * │
+ * │ Iar termenul curge: netransmiterea în termen e contravenție, separat
+ * │ pentru FIECARE salariat. Un registru care se umple singur și nu spune
+ * │ nimic e mai periculos decât unul gol.
+ * └──────────────────────────────────────────────────────────────────────────
+ *
+ * ┌ Cine primește ───────────────────────────────────────────────────────────
+ * │ Doar cine poate face ceva: rolurile cu `reges:transmit` (`org_admin` și
+ * │ `hr`, din 0087). Un anunț trimis tuturor ar fi ajuns la angajați care
+ * │ n-au nici modulul în meniu — iar zgomotul ăla golește de sens toate
+ * │ celelalte notificări.
+ * │
+ * │ `super_admin` NU intră: nu e membru al organizației
+ * │ (`organization_members` n-are rândul), iar notificarea are `user_id` legat
+ * │ de organizație.
+ * └──────────────────────────────────────────────────────────────────────────
+ *
+ * NU aruncă. Evenimentul e deja scris când se ajunge aici — pierderea unui
+ * anunț nu are voie să desfacă o înregistrare de registru. Eșecul se loghează.
+ */
+async function anuntaDeTransmis(
+  supabase: ServerSupabase,
+  organizationId: string,
+  evenimente: readonly { readonly event_type: string; readonly termen_transmitere: string }[],
+): Promise<void> {
+  try {
+    const { data: membri, error } = await supabase
+      .from("organization_members")
+      .select("user_id, role")
+      .eq("organization_id", organizationId)
+      .eq("status", "active")
+      .in("role", ROLURI_CARE_TRANSMIT)
+      .is("deleted_at", null);
+    if (error !== null) throw error;
+    if (membri === null || membri.length === 0) return;
+
+    // Cel mai apropiat termen decide urgența mesajului: dintr-un lot de cinci
+    // evenimente, unul cu termen mâine e altceva decât cinci cu termen peste
+    // trei săptămâni.
+    const termene = evenimente.map((e) => e.termen_transmitere).sort();
+    const primulTermen = termene[0] ?? null;
+    const cate = evenimente.length;
+
+    const { error: eroareAnunt } = await supabase.from("notifications").insert(
+      membri.map((m) => ({
+        organization_id: organizationId,
+        user_id: m.user_id,
+        // `task`, nu `info`: e ceva de FĂCUT, cu termen, nu o informare.
+        kind: "task" as const,
+        title:
+          cate === 1
+            ? "Aveți un eveniment de transmis în REGES"
+            : `Aveți ${String(cate)} evenimente de transmis în REGES`,
+        body:
+          primulTermen === null
+            ? "Deschideți REGES-Online și pregătiți transmiterea."
+            : `Cel mai apropiat termen: ${primulTermen}. Netransmiterea în termen este contravenție, separat pentru fiecare salariat.`,
+        link: "/reges",
+        entity_type: "reges_eveniment",
+        entity_id: null,
+      })),
+    );
+    if (eroareAnunt !== null) throw eroareAnunt;
+  } catch (eroare) {
+    console.error("[reges] anunțul de evenimente noi nu a putut fi trimis", {
+      organizationId,
+      eroare,
+    });
+  }
 }

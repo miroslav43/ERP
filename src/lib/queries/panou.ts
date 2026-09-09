@@ -64,6 +64,15 @@ export type CoadaPanou = Readonly<{
    * făcea la fiecare încărcare de panou și rezultatul se arunca.
    */
   anomaliiKm: Contor;
+  /**
+   * Evenimente REGES încă netransmise.
+   *
+   * Nu e o scadență, deși are termen: se golește prin acțiune, ca restul cozii.
+   * Iar termenul contează — netransmiterea la timp e contravenție, separat
+   * pentru fiecare salariat — deci nu are voie să aștepte tăcut într-un modul
+   * pe care nimeni n-are motiv să-l deschidă în ziua în care s-a întâmplat ceva.
+   */
+  regesDeTransmis: Contor;
 }>;
 
 /** Ce are termen. `lipsa` e o treaptă proprie, mai gravă decât „expiră curând”. */
@@ -108,6 +117,30 @@ function peste(zile: number): string {
  * și niciunul pe concedii; badge-ul `leave_pending` din meniu era declarat și
  * nealimentat tocmai fiindcă o numărătoare naivă ar fi fost greșită.
  */
+/**
+ * Evenimentele REGES care încă n-au plecat la Inspecția Muncii.
+ *
+ * `de_pregatit` ȘI `pregatit`: amândouă înseamnă „scris la noi, netrimis la
+ * ei". Un eveniment pregătit — cu mesaje în coadă — e chiar cel mai aproape de
+ * a fi uitat, fiindcă pare rezolvat. `transmis`, `confirmat`, `respins` și
+ * `anulat` ies: primele trei au plecat, al patrulea a fost retras deliberat.
+ *
+ * `count` simplu, nu o derivare din listă: aici starea CHIAR e în coloană, spre
+ * deosebire de `leave_pending`, unde sarcinile rămâneau `in_asteptare` pe cereri
+ * deja rezolvate. Nu există aceeași capcană de repetat din prudență.
+ */
+export async function contorRegesDeTransmis(organizationId: string): Promise<number> {
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("reges_evenimente")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .in("status", ["de_pregatit", "pregatit"])
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return count ?? 0;
+}
+
 export async function contorCereriConcediu(organizationId: string): Promise<number> {
   const db = await createServerSupabase();
   const { count, error } = await db
@@ -431,6 +464,15 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
    */
   const vedeAnomalii = areModul(porti, "fleet") && are(porti, "vehicles:update", "team");
   const vedeContracte = are(porti, "employees:read", "all");
+  /*
+   * REGES: poarta e `reges:transmit`, nu `reges:read`.
+   *
+   * Contorul duce la o listă din care se APASĂ pe transmitere. Cine poate doar
+   * citi registrul ar fi primit un număr care îl cheamă undeva unde n-are ce
+   * face — aceeași regulă ca la anomaliile de kilometraj de mai sus: poarta
+   * contorului e cea a acțiunii, nu a listei.
+   */
+  const vedeReges = areModul(porti, "reges") && are(porti, "reges:transmit", "all");
 
   const [
     cereriConcediu,
@@ -444,6 +486,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     anomalii,
     contracte,
     firma,
+    regesDeTransmis,
   ] = await Promise.all([
     vedeConcedii ? contorCereriConcediu(organizationId) : null,
     vedePontaj ? contorPontajDeAprobat(organizationId) : null,
@@ -463,6 +506,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     vedeAnomalii ? contorAnomaliiKm(organizationId) : null,
     vedeContracte ? contorContracteCareExpira(organizationId, PRAG_PANOU_ZILE) : null,
     stareFirmeiAzi(organizationId),
+    vedeReges ? contorRegesDeTransmis(organizationId) : null,
   ]);
 
   const coada: CoadaPanou = {
@@ -472,6 +516,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     foiParcurs,
     tichete,
     anomaliiKm: anomalii,
+    regesDeTransmis,
   };
 
   return {
@@ -536,7 +581,10 @@ export const contoarePanouPentru = cache(
 export function insigneMeniu(
   contoare: ContoarePanou,
 ): Partial<
-  Record<"leave_pending" | "ssm_expiring" | "fleet_expiring" | "maintenance_due", number>
+  Record<
+    "leave_pending" | "ssm_expiring" | "fleet_expiring" | "maintenance_due" | "reges_pending",
+    number
+  >
 > {
   const insigne: Partial<Record<string, number>> = {};
   const pune = (cheie: string, valoare: Contor): void => {
@@ -546,5 +594,6 @@ export function insigneMeniu(
   pune("ssm_expiring", contoare.scadente.ssm);
   pune("fleet_expiring", contoare.scadente.documenteFlota);
   pune("maintenance_due", contoare.scadente.mentenanta);
+  pune("reges_pending", contoare.coada.regesDeTransmis);
   return insigne;
 }
