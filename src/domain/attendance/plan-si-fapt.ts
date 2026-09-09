@@ -47,6 +47,17 @@ export interface ZiPontataCitita {
   readonly tip_prezenta: TipPrezenta | null;
   readonly ora_inceput: string | null;
   readonly ora_sfarsit: string | null;
+  /**
+   * Cererea de concediu care a produs ziua, dacă e cazul.
+   *
+   * Scrisă de `sincronizeazaZileleDeConcediu` la aprobare. E aceeași coloană pe
+   * care o citesc garda din `salveazaZiPontaj` și cea din
+   * `trimite_saptamana_pontaj` (0133) — o singură dovadă pentru toate trei, ca
+   * ecranul să nu poată spune altceva decât baza.
+   */
+  readonly leave_request_id?: string | null;
+  /** `concediu`, `medical`, `fara_plata`… — pentru textul motivului. */
+  readonly tip_zi?: string | null;
 }
 
 /** Forma cerută de formularul săptămânii — ore `HH:MM`, fără `null`. */
@@ -56,10 +67,38 @@ export interface ZiInitialaPlan {
   readonly ora_inceput: string;
   readonly ora_sfarsit: string;
   readonly observatii: string;
+  /**
+   * Ziua NU se poate edita: are deja concediu aprobat.
+   *
+   * Serverul o sare oricum (0133), dar asta se afla abia DUPĂ trimitere. O
+   * casetă care primește text și îl aruncă în tăcere e mai rea decât una
+   * blocată: omul completează cinci zile, apasă, și află că trei au contat.
+   */
+  readonly blocata: boolean;
+  /** De ce e blocată, în cuvinte — `null` când nu e. */
+  readonly motivBlocare: string | null;
 }
 
 /** Locul de muncă implicit al unei zile despre care nu s-a declarat nimic. */
 export const TIP_PREZENTA_IMPLICIT: TipPrezenta = "birou";
+
+/**
+ * De ce e blocată ziua, pe înțelesul omului.
+ *
+ * Textul pleacă de la `tip_zi`, fiindcă „concediu" și „medical" nu se corectează
+ * în același loc: primul din modulul Concedii, al doilea tot de acolo, dar cu
+ * certificat. Un mesaj generic ar fi trimis pe toată lumea în același loc greșit.
+ */
+function etichetaBlocare(tipZi: string | null): string {
+  switch (tipZi) {
+    case "medical":
+      return "Concediu medical aprobat — se modifică din Concedii.";
+    case "fara_plata":
+      return "Concediu fără plată aprobat — se modifică din Concedii.";
+    default:
+      return "Concediu aprobat — se modifică din Concedii.";
+  }
+}
 
 /** `"08:30:00"` → `"08:30"`; `null` → `""`. */
 function oraFormular(ora: string | null | undefined): string {
@@ -89,11 +128,21 @@ export function ziuaInitialaPlan(
       ? { inceput: pontata.ora_inceput, sfarsit: pontata.ora_sfarsit }
       : null;
 
+  /*
+   * Blocarea se decide din FAPT, nu din plan: `leave_request_id` există doar pe
+   * o zi pe care aprobarea a scris-o deja în pontaj. O zi de concediu CERUT,
+   * dar neaprobat, rămâne editabilă — și trebuie să rămână, fiindcă cererea
+   * poate fi respinsă.
+   */
+  const blocata = pontata?.leave_request_id !== null && pontata?.leave_request_id !== undefined;
+
   return {
     data,
     tip_prezenta: pontata?.tip_prezenta ?? planificata?.tip_prezenta ?? TIP_PREZENTA_IMPLICIT,
     ora_inceput: oraFormular(intervalPontat?.inceput ?? planificata?.ora_inceput),
     ora_sfarsit: oraFormular(intervalPontat?.sfarsit ?? planificata?.ora_sfarsit),
     observatii: planificata?.observatii ?? "",
+    blocata,
+    motivBlocare: blocata ? etichetaBlocare(pontata?.tip_zi ?? null) : null,
   };
 }

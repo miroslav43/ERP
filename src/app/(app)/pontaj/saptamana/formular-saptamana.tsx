@@ -54,6 +54,15 @@ export interface ZiFormular {
   readonly ora_inceput: string;
   readonly ora_sfarsit: string;
   readonly observatii: string;
+  /**
+   * Ziua are concediu APROBAT: nu se poate planifica muncă în ea.
+   *
+   * Serverul o sare oricum (0133), dar asta se afla abia după trimitere. O
+   * casetă care primește text și îl aruncă tăcut e mai rea decât una blocată:
+   * omul completează cinci zile, apasă, și află că trei au contat.
+   */
+  readonly blocata: boolean;
+  readonly motivBlocare: string | null;
 }
 
 interface Proprietati {
@@ -126,7 +135,11 @@ export function FormularSaptamana({
   const idWeekend = useId();
 
   function actualizeazaZi(index: number, campuri: Partial<ZiFormular>): void {
-    setZile((curent) => curent.map((zi, i) => (i === index ? { ...zi, ...campuri } : zi)));
+    setZile((curent) =>
+      // Ziua blocată nu se schimbă nici dacă un control scapă dezactivarea:
+      // controalele sunt patru, iar al cincilea adăugat mâine ar fi uitat.
+      curent.map((zi, i) => (i === index && !zi.blocata ? { ...zi, ...campuri } : zi)),
+    );
   }
 
   /**
@@ -140,6 +153,9 @@ export function FormularSaptamana({
     setZile((curent) =>
       curent.map((zi, i) => {
         if (!lucreazaWeekend && INDICI_WEEKEND.has(i)) return zi;
+        // Ziua cu concediu aprobat rămâne goală: butonul e o comoditate, nu o
+        // portiță pe lângă blocare.
+        if (zi.blocata) return zi;
         if (zi.ora_inceput.length > 0 || zi.ora_sfarsit.length > 0) return zi;
         return { ...zi, ora_inceput: sursa.ora_inceput, ora_sfarsit: sursa.ora_sfarsit };
       }),
@@ -166,14 +182,33 @@ export function FormularSaptamana({
         // Zilele de weekend ascunse pleacă FĂRĂ interval, deci serverul le scrie
         // cu zero ore. Nu se omit din listă: rândul trebuie să existe, ca
         // aprobatorul să vadă săptămâna întreagă.
-        zile: zile.map((zi, i) => ({
-          data: zi.data,
-          tip_prezenta: zi.tip_prezenta,
-          ...intervalDeTrimis(zi, i, lucreazaWeekend),
-          // Rescrisă pe server din interval; trimisă doar fiindcă schema o cere.
-          ore_planificate: 0,
-          observatii: zi.observatii.length === 0 ? null : zi.observatii,
-        })),
+        /*
+         * Zilele blocate NU pleacă deloc.
+         *
+         * Serverul le-ar sări oricum (0133), dar atunci le-ar și RAPORTA ca
+         * sărite — iar mesajul „2 zile nu au fost planificate" ar apărea după
+         * fiecare trimitere, pentru zile pe care omul n-a atins niciodată.
+         * Un avertisment care se repetă fără cauză se învață să fie ignorat,
+         * exact când într-o zi chiar ar conta.
+         *
+         * Rămâne util pe cursă: dacă un concediu se aprobă între încărcarea
+         * paginii și apăsarea butonului, ziua pleacă de aici (n-avea de unde
+         * ști) și serverul o oprește — atunci mesajul are ce spune.
+         */
+        zile: zile
+          // Indexul se PĂSTREAZĂ înainte de filtrare: `intervalDeTrimis` decide
+          // din el dacă ziua e weekend (`INDICI_WEEKEND`). Renumerotat după
+          // filtrare, o sâmbătă ar fi plecat ca zi lucrătoare.
+          .map((zi, index) => ({ zi, index }))
+          .filter(({ zi }) => !zi.blocata)
+          .map(({ zi, index }) => ({
+            data: zi.data,
+            tip_prezenta: zi.tip_prezenta,
+            ...intervalDeTrimis(zi, index, lucreazaWeekend),
+            // Rescrisă pe server din interval; trimisă doar fiindcă schema o cere.
+            ore_planificate: 0,
+            observatii: zi.observatii.length === 0 ? null : zi.observatii,
+          })),
       });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
@@ -247,6 +282,13 @@ export function FormularSaptamana({
               month: "2-digit",
             })}
           </span>
+          {/* Motivul stă pe ZI, nu într-un mesaj de sus: câmpurile moarte fără
+              explicație lângă ele se citesc ca o defecțiune, nu ca o regulă. */}
+          {rand.blocata && rand.motivBlocare !== null ? (
+            <span className="text-muted-foreground text-nota block font-normal">
+              {rand.motivBlocare}
+            </span>
+          ) : null}
         </>
       ),
     },
@@ -258,7 +300,7 @@ export function FormularSaptamana({
         <select
           aria-label={`Mod de prezență — ${ETICHETE_ZI[rand.index]}`}
           value={rand.tip_prezenta}
-          disabled={!poateEdita || inCurs}
+          disabled={!poateEdita || inCurs || rand.blocata}
           onChange={(e) => {
             actualizeazaZi(rand.index, { tip_prezenta: e.target.value as TipPrezenta });
           }}
@@ -289,7 +331,7 @@ export function FormularSaptamana({
           <IntrareOra
             aria-label={`Ora de intrare — ${ETICHETE_ZI[rand.index]}`}
             valoare={rand.ora_inceput}
-            disabled={!poateEdita || inCurs}
+            disabled={!poateEdita || inCurs || rand.blocata}
             onSchimba={(v) => {
               actualizeazaZi(rand.index, { ora_inceput: v });
             }}
@@ -301,7 +343,7 @@ export function FormularSaptamana({
           <IntrareOra
             aria-label={`Ora de ieșire — ${ETICHETE_ZI[rand.index]}`}
             valoare={rand.ora_sfarsit}
-            disabled={!poateEdita || inCurs}
+            disabled={!poateEdita || inCurs || rand.blocata}
             onSchimba={(v) => {
               actualizeazaZi(rand.index, { ora_sfarsit: v });
             }}
@@ -344,7 +386,7 @@ export function FormularSaptamana({
           type="text"
           maxLength={500}
           value={rand.observatii}
-          disabled={!poateEdita || inCurs}
+          disabled={!poateEdita || inCurs || rand.blocata}
           onChange={(e) => {
             actualizeazaZi(rand.index, { observatii: e.target.value });
           }}
