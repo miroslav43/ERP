@@ -7,10 +7,10 @@ cai:
   - "src/lib/queries/panou.ts"
   - "src/lib/navigation/build-navigation.ts"
 tabele: []
-permisiuni: [attendance:approve, leave:approve, per_diem:approve, employees:read]
+permisiuni: [attendance:approve, leave:approve, per_diem:approve, employees:read, reges:transmit]
 capcane: [26]
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 5621e9e8308157d5103f0b52dd696cb318da688c
+scris_la: 2026-09-10
 tags: [modul]
 ---
 
@@ -27,12 +27,27 @@ de poartă din restul aplicației devin vizibile primele.
 cerut fără drept n-ar da eroare — ar întoarce zero, iar utilizatorul ar citi „nimic de
 făcut" în loc de „n-ai acces". De aceea decizia se ia înaintea interogării, nu după.
 
+Poarta unui contor e cea a **acțiunii** către care duce, nu cea a listei. `vedeReges` cere
+`reges:transmit` la `all`, deși intrarea de meniu se deschide pe `reges:read`: cine doar
+citește registrul ar fi primit un număr care îl cheamă undeva unde n-are ce apăsa. Aceeași
+regulă ține `vedeAnomalii` pe `vehicles:update`, nu pe `vehicles:read`.
+
+„Netransmis" înseamnă `de_pregatit` SAU `pregatit` — un eveniment pregătit pare rezolvat și
+tocmai de aceea e cel mai aproape de a fi uitat; `transmis`, `confirmat` și `respins` au
+plecat deja, `anulat` a fost retras deliberat. Stările sunt cele din enumerarea
+`reges_stare_eveniment` (`0086_reges_redenumire.sql:32`, creată ca `revisal_status` în
+`0004_hr.sql:77`). Contorul se citește direct din coloana `status`, nu derivat din listă:
+spre deosebire de concedii, aici starea CHIAR stă în coloana entității numărate.
+
 `resolveTenant` (nu `requireTenant`) plus `redirect`: fără organizație aleasă, pagina
 trimite la selecție, nu afișează un panou gol.
 
 Meniul se construiește din aceeași hartă, prin `buildNavigation` — un modul deblocat care
 nu apare în meniu înseamnă aproape întotdeauna `getPermissionMap` chemat fără `memberId`,
-v. [[rol/manager]].
+v. [[rol/manager]]. Insignele lui (`leave_pending`, `ssm_expiring`, `fleet_expiring`,
+`maintenance_due`, `reges_pending`) vin din `insigneMeniu`, deci din aceiași contori;
+`null` și `0` se omit amândouă, așa că o pastilă absentă nu spune dacă blocul e gol sau
+ascuns.
 
 ## Două praguri, două surse — deliberat
 
@@ -51,8 +66,15 @@ panoului — nu sunt documente de vehicul, e altă scadență.
 - **„Lipsește" e o stare distinctă de „expiră curând".** Un vehicul fără niciun document nu
   are dată de la care să numere, deci nu se aprinde NICIODATĂ singur, oricât ar trece.
   Cazul e real în producție, nu ipotetic, de aceea `faraDocumente` se numără separat.
+- **`regesDeTransmis` intră în cifra din antet, dar n-are rând în coadă.** Contorul e pus în
+  `coada`, iar `totalDeRezolvat` însumează coada întreagă; `coadaDinContoare` din
+  `src/app/(app)/panou/page.tsx` nu construiește nicio intrare pentru el. Cine are
+  `reges:transmit` și evenimente netransmise citește în antet un număr mai mare decât suma
+  rândurilor de dedesubt, fără nicio eroare — semnalul ajunge doar ca pastilă
+  `reges_pending` în meniu. — `5621e9e`
 
 ## Când NU e suficientă pagina asta
 
-- De unde vine fiecare cifră: pagina modulului respectiv.
+- De unde vine fiecare cifră: pagina modulului respectiv — pentru evenimentele netransmise,
+  [[modul/reges]].
 - De ce un card lipsește: [[rol/manager]], [[rol/hr]].
