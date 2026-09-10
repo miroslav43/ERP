@@ -36,7 +36,7 @@ const TIPURI = [
   ["autorizatie_iscir", "Autorizație ISCIR"],
   ["autorizatie_mediu", "Autorizație de mediu"],
   ["document_vehicul", "Document al vehiculului"],
-  ["nota_interna", "Notă internă"],
+  ["decizie_interna", "Decizie internă a conducerii"],
 ] as const;
 
 export function DialogDocumentPrimit() {

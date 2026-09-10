@@ -9,7 +9,6 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { inregistreazaDocumentGenerat } from "@/lib/registru/document-generat";
 import { clientEnv } from "@/config/env";
 
 export const metadata: Metadata = { title: "Afiș de pontare" };
@@ -68,18 +67,6 @@ export default async function PaginaAfisPontare({
   if (error !== null) throw error;
   if (punct === null) notFound();
 
-  // Afișul e un document de uz intern care pleacă pe perete: Ordin 217/1996
-  // art. 8. Se înregistrează o singură dată per punct de lucru — idempotența e
-  // pe entitate, deci retipărirea nu arde un număr nou.
-  const inregistrare = await inregistreazaDocumentGenerat(db, {
-    organizationId: tenant.organizationId,
-    tip: "afis_punct_lucru",
-    rezumat: `Afiș de pontare — ${punct.denumire}`,
-    entitateTip: "puncte_lucru",
-    entitateId: punct.id,
-    punctLucruId: punct.id,
-  });
-
   if (punct.cod_pontaj === null) {
     return (
       <div className="mx-auto max-w-2xl space-y-4 p-4">
@@ -135,13 +122,6 @@ export default async function PaginaAfisPontare({
             Deschideți camera, îndreptați-o spre cod și apăsați linkul care apare.
           </p>
         </div>
-
-        {/* Ordin 217/1996 art. 11: indicativul dosarului și numărul de înregistrare
-            figurează „ca şi pe fiecare document în parte”, nu doar în registru.
-            De aceea rândul ăsta NU e `print:hidden`: pe hârtie e locul lui. */}
-        {inregistrare.ok ? (
-          <p className="text-xs opacity-60">Nr. înregistrare {inregistrare.numarAfisat}</p>
-        ) : null}
       </div>
 
       <div className="text-muted-foreground text-corp space-y-2 print:hidden">

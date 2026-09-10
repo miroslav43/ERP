@@ -25,16 +25,24 @@ import "server-only";
 
 import type { ServerSupabase } from "@/lib/supabase/server";
 
-/** Tipurile pe care `public.inregistreaza_document_generat` le acceptă (0135 §11). */
+/**
+ * Tipurile pe care `public.inregistreaza_document_generat` le acceptă.
+ *
+ * `afis_punct_lucru` și `listare_audit` au fost SCOASE de 0142: afișul cu codul QR
+ * de pontare e o unealtă a aplicației, nu unul dintre afișajele obligatorii, iar
+ * jurnalul de audit e un log tehnic — OMFP 2634/2015 pct. 56 cere listarea
+ * documentelor FINANCIAR-CONTABILE la cererea organelor de control, nu a lui.
+ *
+ * Un tip scos de aici e scos și din `case`-ul funcției: o rută care l-ar mai cere
+ * primește P0001, nu un număr alocat tăcut.
+ */
 export type TipDocumentGenerat =
   | "fluturas"
   | "stat_plata"
   | "d112"
   | "nota_contabila"
   | "ordin_bancar"
-  | "foaie_colectiva_prezenta"
-  | "afis_punct_lucru"
-  | "listare_audit";
+  | "foaie_colectiva_prezenta";
 
 export type CerereInregistrare = Readonly<{
   organizationId: string;

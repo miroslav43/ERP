@@ -12,7 +12,6 @@ import {
   type RandJurnal,
 } from "@/lib/queries/audit";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { inregistreazaDocumentGenerat, numarPentruFisier } from "@/lib/registru/document-generat";
 import { formatDateTime } from "@/lib/format/date";
 export const dynamic = "force-dynamic";
 
@@ -117,28 +116,13 @@ export async function GET(request: Request): Promise<Response> {
 
   const continut = [ANTET.map(celula).join(";"), ...rezultat.randuri.map(linie)].join("\r\n");
 
-  // OMFP 2634/2015 pct. 56: listarea cerută de organele de control e ea însăși un
-  // document, deci primește număr. FĂRĂ `entitateId`, deliberat: fiecare listare
-  // e un document distinct, chiar dacă filtrele se repetă. Idempotența ar face ca
-  // a doua listare, dată altui inspector, să poarte numărul primeia.
-  // `organizationId` e `null` când un administrator de platformă listează peste
-  // toate firmele. Registrul e al FIRMEI — Ordin 217/1996 art. 8 vorbește despre
-  // creatorul de documente — deci o listare fără firmă n-are în ce registru să
-  // intre. Rămâne auditată prin `log_audit_event`, mai jos.
-  let sufixNumar = "";
-  if (autorizare.organizationId !== null) {
-    const inregistrare = await inregistreazaDocumentGenerat(client, {
-      organizationId: autorizare.organizationId,
-      tip: "listare_audit",
-      rezumat: `Listare jurnal de audit — ${String(rezultat.randuri.length)} rânduri`,
-      entitateTip: "audit_logs",
-      entitateId: null,
-    });
-    if (!inregistrare.ok) return raspunsText(inregistrare.mesaj, 409);
-    sufixNumar = `-${numarPentruFisier(inregistrare.numarAfisat)}`;
-  }
-
-  const numeFisier = `jurnal-audit-${new Date().toISOString().slice(0, 10)}${sufixNumar}.csv`;
+  // Exportul NU primește număr de înregistrare. 0136 i-l dădea, invocând OMFP
+  // 2634/2015 pct. 56 — dar punctul acela cere listarea documentelor
+  // FINANCIAR-CONTABILE la cererea organelor de control, iar jurnalul de audit e un
+  // log tehnic al aplicației, nu unul dintre ele. Scos de 0142.
+  //
+  // Exportul rămâne el însuși un eveniment auditabil, prin `log_audit_event` mai jos.
+  const numeFisier = `jurnal-audit-${new Date().toISOString().slice(0, 10)}.csv`;
 
   // Exportul este el însuși un eveniment auditabil (S6).
   const { error } = await client.rpc("log_audit_event", {
