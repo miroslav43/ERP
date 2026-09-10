@@ -43,8 +43,31 @@ const consimtamantMutareManager = z
   .default(false)
   .transform((valoare) => valoare === true || valoare === "on");
 
+/**
+ * Codul departamentului e OPȚIONAL, și asta nu e o scăpare de validare.
+ *
+ * Multe firme nu au nicio nomenclatură internă de departamente: spun
+ * „Contabilitate", nu „CTB". Obligate să inventeze un cod, îl scriau o dată și
+ * apoi îl vedeau, cu font monospațiat, lângă fiecare denumire din listă și din
+ * organigramă — zgomot pentru toată lumea, pentru totdeauna.
+ *
+ * Câmpul gol devine `null`, nu șirul vid. Diferența contează în bază: indexul
+ * unic `departments_org_cod_uniq` e pe `lower(cod)`, iar Postgres consideră
+ * fiecare NULL distinct de oricare altul — deci oricâte departamente fără cod
+ * coexistă. Două șiruri vide, în schimb, s-ar fi ciocnit la al doilea
+ * departament, cu o eroare de unicitate pe un câmp pe care omul l-a lăsat gol
+ * intenționat. Vezi `0139_cod_departament_optional.sql`.
+ */
+const codOptional = z
+  .string()
+  .trim()
+  .max(32, "Codul nu poate depăși 32 de caractere.")
+  .nullable()
+  .default(null)
+  .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare));
+
 export const creeazaDepartamentSchema = z.object({
-  cod: z.string().trim().min(1, "Codul departamentului este obligatoriu.").max(32),
+  cod: codOptional,
   denumire: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(160),
   descriere: textOptional(1000),
   parent_id: uuidOptional,
@@ -53,9 +76,20 @@ export const creeazaDepartamentSchema = z.object({
   muta_managerul_in_departament: consimtamantMutareManager,
 });
 
-export const actualizeazaDepartamentSchema = creeazaDepartamentSchema
-  .omit({ cod: true })
-  .extend({ id: z.uuid("Departamentul selectat nu este valid.") });
+/**
+ * Codul NU mai e omis aici, cum era cât timp a fost obligatoriu la creare.
+ * Cine a creat departamentele fără cod și abia peste un an își face o
+ * nomenclatură trebuie să le poată completa; altfel singura cale ar fi fost să
+ * dezactiveze departamentul și să-l refacă, pierzând istoricul.
+ *
+ * Consecința de reținut: `lower(cod) = 'conducere'` e cheia după care
+ * triggerele din `0107_departamentul_conducere.sql` recunosc conducerea firmei.
+ * Cine schimbă acel cod pierde repartizarea automată — comportament, nu defect,
+ * și același cu cel descris în `panou-departament.tsx`.
+ */
+export const actualizeazaDepartamentSchema = creeazaDepartamentSchema.extend({
+  id: z.uuid("Departamentul selectat nu este valid."),
+});
 
 export const mutaDepartamentSchema = z.object({
   id: z.uuid("Departamentul selectat nu este valid."),

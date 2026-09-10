@@ -50,7 +50,14 @@ function Patrat({
         d.activ ? "" : "hasura"
       }`}
     >
-      <span className="text-muted-foreground text-nota font-mono">{d.cod}</span>
+      {/*
+       * Codul e opțional (0139). Fără el cartonașul începe direct cu denumirea,
+       * iar `gap`-ul coloanei închide golul singur — nu se pune un substitut
+       * („—", denumirea repetată), fiindcă ar arăta ca un cod adevărat.
+       */}
+      {d.cod === null ? null : (
+        <span className="text-muted-foreground text-nota font-mono">{d.cod}</span>
+      )}
 
       <span className="text-corp leading-tight font-medium text-balance">{d.denumire}</span>
 

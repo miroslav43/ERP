@@ -37,7 +37,8 @@ import { citesteTot } from "./citeste-tot";
 export interface RandDepartament {
   readonly id: string;
   readonly parent_id: string | null;
-  readonly cod: string;
+  /** Opțional din `0139`: firmele fără nomenclatură internă folosesc doar denumirea. */
+  readonly cod: string | null;
   readonly denumire: string;
   readonly descriere: string | null;
   readonly activ: boolean;

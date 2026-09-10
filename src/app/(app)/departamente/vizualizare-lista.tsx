@@ -86,7 +86,10 @@ function Card({
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-corp font-medium">{d.denumire}</span>
-            <span className="text-muted-foreground text-nota font-mono">{d.cod}</span>
+            {/* Codul e opțional (0139) — fără el rândul rămâne pe denumire, la fel ca la centrul de cost de mai jos. */}
+            {d.cod === null ? null : (
+              <span className="text-muted-foreground text-nota font-mono">{d.cod}</span>
+            )}
             {d.activ ? null : <Badge ton="neutru">Inactiv</Badge>}
             {d.cost_center === null ? null : (
               <span className="text-muted-foreground text-nota font-mono">{d.cost_center}</span>
@@ -147,6 +150,7 @@ function Card({
           <ActiuniDepartament
             departament={{
               id: d.id,
+              cod: d.cod,
               denumire: d.denumire,
               descriere: d.descriere,
               parent_id: d.parent_id,

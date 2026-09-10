@@ -40,12 +40,13 @@ import {
 interface OptiuneDepartament {
   readonly id: string;
   readonly denumire: string;
-  readonly cod: string;
+  readonly cod: string | null;
 }
 
 interface Proprietati {
   readonly departament: Readonly<{
     id: string;
+    cod: string | null;
     denumire: string;
     descriere: string | null;
     parent_id: string | null;
@@ -82,6 +83,9 @@ export function ActiuniDepartament({
     const manager = String(date.get("manager_employee_id") ?? "");
     return actualizeazaDepartament({
       id: departament.id,
+      // Câmpul gol ajunge `null` prin schemă, nu șir vid — vezi nota de la
+      // `codOptional` din `src/schemas/department.ts`.
+      cod: String(date.get("cod") ?? ""),
       denumire: String(date.get("denumire") ?? ""),
       descriere: String(date.get("descriere") ?? ""),
       parent_id: departament.parent_id,
@@ -132,7 +136,7 @@ export function ActiuniDepartament({
             pictograma: <Pencil aria-hidden="true" className="size-3.5" />,
           }}
           titlu={`Editează „${departament.denumire}”`}
-          descriere="Codul departamentului nu se schimbă de aici; el intră în rapoarte și în export. Pentru a-l muta în structură, folosiți „Mută”."
+          descriere="Codul e opțional și trebuie să fie unic în firmă; lăsat gol, departamentul se identifică doar prin denumire. Pentru a-l muta în structură, folosiți „Mută”."
           marime="mare"
           actiune={trimiteEditare}
           mesajReusita="Departamentul a fost salvat."
@@ -154,6 +158,17 @@ export function ActiuniDepartament({
                     type="text"
                     maxLength={160}
                     defaultValue={stare.valoriTrimise["denumire"] ?? departament.denumire}
+                  />
+                )}
+              </Camp>
+
+              <Camp nume="cod" id={idc("cod")} eticheta="Cod" erori={stare.erori["cod"] ?? []}>
+                {(a) => (
+                  <input
+                    {...a}
+                    type="text"
+                    maxLength={32}
+                    defaultValue={stare.valoriTrimise["cod"] ?? departament.cod ?? ""}
                   />
                 )}
               </Camp>
@@ -240,7 +255,7 @@ export function ActiuniDepartament({
                     .filter((d) => d.id !== departament.id)
                     .map((d) => (
                       <option key={d.id} value={d.id}>
-                        {d.denumire} ({d.cod})
+                        {d.cod === null ? d.denumire : `${d.denumire} (${d.cod})`}
                       </option>
                     ))}
                 </select>

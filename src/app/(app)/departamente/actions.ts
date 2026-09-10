@@ -35,6 +35,10 @@ const CAMPURI_AUDITATE_CREARE = [
 ] as const;
 
 const CAMPURI_AUDITATE_ACTUALIZARE = [
+  // Codul se auditează de când e editabil (0139): schimbat pe departamentul
+  // conducerii, el oprește repartizarea automată din 0107, iar jurnalul e
+  // singurul loc din care se mai poate afla cine l-a schimbat și când.
+  "cod",
   "denumire",
   "descriere",
   "parent_id",

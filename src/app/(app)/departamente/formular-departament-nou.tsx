@@ -37,7 +37,7 @@ import { creeazaDepartament } from "./actions";
 interface OptiuneDepartament {
   readonly id: string;
   readonly denumire: string;
-  readonly cod: string;
+  readonly cod: string | null;
 }
 
 interface Proprietati {
@@ -71,7 +71,7 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
         pictograma: <Plus aria-hidden="true" className="size-4" />,
       }}
       titlu="Departament nou"
-      descriere="Codul e unic în organizație și se folosește în rapoarte. Departamentul superior poate fi schimbat oricând, din structura de mai jos."
+      descriere="Denumirea e de ajuns. Codul e opțional, pentru firmele care au o nomenclatură internă, și trebuie să fie unic. Departamentul superior poate fi schimbat oricând, din structura de mai jos."
       marime="mare"
       actiune={trimite}
       mesajReusita="Departamentul a fost creat."
@@ -80,23 +80,11 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
     >
       {(stare, idc) => (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Camp
-            nume="cod"
-            id={idc("cod")}
-            eticheta="Cod"
-            obligatoriu
-            erori={stare.erori["cod"] ?? []}
-          >
-            {(a) => (
-              <input
-                {...a}
-                type="text"
-                maxLength={32}
-                defaultValue={stare.valoriTrimise["cod"] ?? ""}
-              />
-            )}
-          </Camp>
-
+          {/*
+           * Denumirea e prima fiindcă e singurul câmp obligatoriu al
+           * identității: codul a devenit opțional în `0139`, iar un formular
+           * care începe cu un câmp facultativ îl face să pară cerut.
+           */}
           <Camp
             nume="denumire"
             id={idc("denumire")}
@@ -114,6 +102,17 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
             )}
           </Camp>
 
+          <Camp nume="cod" id={idc("cod")} eticheta="Cod" erori={stare.erori["cod"] ?? []}>
+            {(a) => (
+              <input
+                {...a}
+                type="text"
+                maxLength={32}
+                defaultValue={stare.valoriTrimise["cod"] ?? ""}
+              />
+            )}
+          </Camp>
+
           <Camp
             nume="parent_id"
             id={idc("parent_id")}
@@ -126,7 +125,7 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
                 <option value="">— rădăcină —</option>
                 {departamente.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.denumire} ({d.cod})
+                    {d.cod === null ? d.denumire : `${d.denumire} (${d.cod})`}
                   </option>
                 ))}
               </select>

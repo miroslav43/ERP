@@ -8,7 +8,8 @@ import type { PersoanaPanou } from "./panou-departament";
 export interface DepartamentEcran {
   readonly id: string;
   readonly parent_id: string | null;
-  readonly cod: string;
+  /** Opțional din `0139`: multe firme folosesc doar denumirea. */
+  readonly cod: string | null;
   readonly denumire: string;
   readonly descriere: string | null;
   readonly activ: boolean;
@@ -33,7 +34,7 @@ export type NodDepartament = NodArbore<DepartamentEcran>;
 export interface OptiuneDepartament {
   readonly id: string;
   readonly denumire: string;
-  readonly cod: string;
+  readonly cod: string | null;
   /** Un departament dezactivat nu poate primi oameni — vezi `mutaAngajati`. */
   readonly activ: boolean;
 }

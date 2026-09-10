@@ -3149,7 +3149,7 @@ export type Database = {
       departments: {
         Row: {
           activ: boolean
-          cod: string
+          cod: string | null
           cost_center: string | null
           created_at: string
           created_by: string | null
@@ -3167,7 +3167,7 @@ export type Database = {
         }
         Insert: {
           activ?: boolean
-          cod: string
+          cod?: string | null
           cost_center?: string | null
           created_at?: string
           created_by?: string | null
@@ -3185,7 +3185,7 @@ export type Database = {
         }
         Update: {
           activ?: boolean
-          cod?: string
+          cod?: string | null
           cost_center?: string | null
           created_at?: string
           created_by?: string | null

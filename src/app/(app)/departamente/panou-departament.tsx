@@ -53,7 +53,7 @@ export interface PersoanaPanou {
 export interface OptiuneDepartamentPanou {
   readonly id: string;
   readonly denumire: string;
-  readonly cod: string;
+  readonly cod: string | null;
   readonly activ: boolean;
 }
 
@@ -150,7 +150,14 @@ export function PanouDepartament({
     // iar o opțiune care duce garantat la o eroare e mai rea decât absența ei.
     ...departamente
       .filter((d) => d.id !== departament?.id && d.activ)
-      .map((d) => ({ valoare: d.id, eticheta: d.denumire, secundar: d.cod })),
+      // Cheia lipsește cu totul când nu e cod, nu e pusă pe `undefined`:
+      // `exactOptionalPropertyTypes` respinge a doua formă, iar combobox-ul ar
+      // desena oricum o linie secundară goală pentru un șir vid.
+      .map((d) => ({
+        valoare: d.id,
+        eticheta: d.denumire,
+        ...(d.cod === null ? {} : { secundar: d.cod }),
+      })),
   ];
 
   // Nerepartizații primii: sunt cazul obișnuit, iar dedesubt urmează cei care
@@ -177,14 +184,21 @@ export function PanouDepartament({
    * departamentul în „Board” păstrează nota; una care îi schimbă codul o pierde
    * — și tot atunci pierde și repartizarea automată, deci cele două rămân
    * consecvente între ele.
+   *
+   * Codul fiind opțional din `0139`, un departament fără cod nu e niciodată
+   * conducerea — nici aici, nici în triggerele din `0107`, unde comparația cu
+   * NULL se evaluează la NULL, deci fals în clauza `where`.
    */
-  const esteConducerea = departament !== null && departament.cod.toLowerCase() === "conducere";
+  const esteConducerea =
+    departament !== null &&
+    departament.cod !== null &&
+    departament.cod.toLowerCase() === "conducere";
 
   const titlu = departament === null ? "Persoane nerepartizate" : departament.denumire;
   const descriere =
     departament === null
       ? "Angajați activi care nu au niciun departament alocat."
-      : `${departament.cod} · ${String(persoane.length)} ${persoane.length === 1 ? "persoană" : "persoane"}`;
+      : `${departament.cod === null ? "" : `${departament.cod} · `}${String(persoane.length)} ${persoane.length === 1 ? "persoană" : "persoane"}`;
 
   return (
     <PanouLateral deschis={deschis} laInchidere={inchide} titlu={titlu} descriere={descriere}>
