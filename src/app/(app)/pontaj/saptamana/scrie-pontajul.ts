@@ -33,6 +33,11 @@ import type { Database } from "@/types/database";
 
 type AdminSupabase = SupabaseClient<Database>;
 
+/** `"08:30:00"` din Postgres → `"08:30"`, forma cerută de `minuteDinOra`. */
+function ora(valoare: string | null): string {
+  return (valoare ?? "").slice(0, 5);
+}
+
 export interface RezultatScriere {
   /** Zile scrise efectiv în pontaj. */
   readonly scrise: number;
@@ -122,20 +127,44 @@ export async function scriePontajulSaptamanii(
 
     const randuri = deScris
       .filter((z) => !dejaScrise.has(z.data))
-      .map((z) => {
-        // Orele se DERIVĂ din interval, cu setările firmei — nu se iau din
-        // `ore_planificate`, care e o cifră scrisă de client și rescrisă oricum
-        // pe server la trimitere. O singură aritmetică a pauzei în tot produsul.
-        const derivate = oreleZilei(z.ora_inceput ?? "", z.ora_sfarsit ?? "", config);
+      /*
+       * Orele se DERIVĂ din interval, cu setările firmei — nu se iau din
+       * `ore_planificate`, care e o cifră scrisă de client și rescrisă oricum
+       * pe server la trimitere. O singură aritmetică a pauzei în tot produsul.
+       *
+       * `ora()` NU e cosmetic. Postgres întoarce `time` ca `08:30:00`, iar
+       * `minuteDinOra` cere EXACT `HH:MM` — cu secunde, expresia nu se
+       * potrivește, `oreleZilei` întoarce `null`, iar un `?? 0` ar scrie zero
+       * ore TĂCUT. Exact asta s-a întâmplat la prima rulare pe date reale:
+       * cinci zile intrate în pontaj, toate cu interval corect și zero ore.
+       * Restul codului taie la fel (`oraFormular` din `plan-si-fapt.ts`).
+       */
+      .map((z) => ({
+        z,
+        derivate: oreleZilei(ora(z.ora_inceput), ora(z.ora_sfarsit), config),
+      }))
+      /*
+       * Un interval necitibil NU produce rând.
+       *
+       * `oreleZilei` întoarce `null` pentru un interval invalid sau inversat
+       * (sfârșit înaintea începutului). Scris cu zero ore, ar fi arătat în
+       * calendar ca zi pontată la zero — o afirmație falsă. O zi LIPSĂ se vede
+       * și se poate corecta; una la zero pare deja rezolvată.
+       */
+      .filter(
+        (r): r is { z: (typeof deScris)[number]; derivate: NonNullable<typeof r.derivate> } =>
+          r.derivate !== null,
+      )
+      .map(({ z, derivate }) => {
         return {
           organization_id: organizationId,
           employee_id: employeeId,
           data: z.data,
           ora_inceput: z.ora_inceput,
           ora_sfarsit: z.ora_sfarsit,
-          ore_lucrate: derivate?.lucrate ?? 0,
-          ore_suplimentare: derivate?.suplimentare ?? 0,
-          ore_noapte: derivate?.noapte ?? 0,
+          ore_lucrate: derivate.lucrate,
+          ore_suplimentare: derivate.suplimentare,
+          ore_noapte: derivate.noapte,
           tip_prezenta: z.tip_prezenta,
           observatii: z.observatii,
           tip_zi: tipZiPentru(z.data),
