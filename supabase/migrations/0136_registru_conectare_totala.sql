@@ -276,9 +276,10 @@ $$;
 -- expresia întoarce `null` — deci rândul intră — exact acolo unde coloana lipsește.
 
 create temporary table _registru_backfill (
-  tabela text not null,
-  rand   jsonb not null,
-  cand   timestamptz not null
+  tabela        text not null,
+  rand          jsonb not null,
+  cand          timestamptz not null,
+  data_suspecta boolean not null default false
 ) on commit drop;
 
 do $$
@@ -286,14 +287,30 @@ declare
   v_cfg       record;
   v_an_inceput date := date_trunc('year', now())::date;
   v_data_expr text;
+  v_suspect   text;
   v_filtru    text := '';
 begin
   for v_cfg in select * from internal.registru_config_surse()
   loop
-    -- Data documentului dacă sursa o are, altfel momentul creării rândului.
+    -- Data documentului dacă sursa o are ȘI e plauzibilă, altfel momentul creării
+    -- rândului.
+    --
+    -- ⚠️ Filtrul de plauzibilitate NU e paranoia. La prima aplicare pe producție,
+    -- 10 sept 2026, backfill-ul a picat pe `document_sequences_year_check` cu
+    -- `year = 6`: un document real avea data în ANUL 6, tastată greșit de cineva
+    -- într-un câmp de dată („06” în loc de „2026”). Data aia ajungea în
+    -- `extract(year from …)`, deci în cheia contorului, care cere 2000-2200.
+    --
+    -- Fără filtru, UN rând greșit dintr-o singură firmă oprea backfill-ul pentru
+    -- TOATE. Cu el, rândul intră totuși în registru, dar cu data creării lui —
+    -- singura dată despre care baza garantează că e reală.
     v_data_expr := case
                      when v_cfg.col_data <> ''
-                       then format('coalesce(t.%I::timestamptz, t.created_at)', v_cfg.col_data)
+                       then format(
+                         'case when t.%1$I::timestamptz '
+                         || 'between ''2000-01-01''::timestamptz and now() + interval ''1 day'' '
+                         || 'then t.%1$I::timestamptz else t.created_at end',
+                         v_cfg.col_data)
                      else 't.created_at'
                    end;
 
@@ -309,13 +326,24 @@ begin
       v_filtru := v_filtru || format(' and t.%I is not null', v_cfg.col_obligatoriu);
     end if;
 
+    -- Același prag, ca steag: migrarea trebuie să poată SPUNE câte rânduri a
+    -- salvat filtrul, nu doar să le salveze tăcut.
+    v_suspect := case
+                   when v_cfg.col_data <> ''
+                     then format(
+                       '(t.%1$I is not null and t.%1$I::timestamptz not between '
+                       || '''2000-01-01''::timestamptz and now() + interval ''1 day'')',
+                       v_cfg.col_data)
+                   else 'false'
+                 end;
+
     execute format(
-      'insert into _registru_backfill (tabela, rand, cand) '
-      || 'select %1$L, to_jsonb(t), %2$s from public.%3$I t '
+      'insert into _registru_backfill (tabela, rand, cand, data_suspecta) '
+      || 'select %1$L, to_jsonb(t), %2$s, %6$s from public.%3$I t '
       || 'where t.created_at >= %4$L::date '
       || '  and (to_jsonb(t) ->> ''deleted_at'') is null '
       || '  and t.organization_id is not null %5$s',
-      v_cfg.tabela, v_data_expr, v_cfg.tabela, v_an_inceput, v_filtru);
+      v_cfg.tabela, v_data_expr, v_cfg.tabela, v_an_inceput, v_filtru, v_suspect);
   end loop;
 end;
 $$;
@@ -356,6 +384,17 @@ begin
   end loop;
 
   raise notice 'Registru: % documente aduse retroactiv din sursele nou conectate.', v_total;
+
+  for v_rand in
+    select b.tabela as tabela, count(*) as cate
+    from _registru_backfill b
+    where b.data_suspecta
+    group by b.tabela
+    order by b.tabela
+  loop
+    raise warning 'Registru: % rânduri din „%” au data documentului în afara intervalului 2000-azi și au fost înregistrate cu data creării lor. Verificați-le în sursă: sunt date tastate greșit.',
+                  v_rand.cate, v_rand.tabela;
+  end loop;
 end;
 $$;
 
