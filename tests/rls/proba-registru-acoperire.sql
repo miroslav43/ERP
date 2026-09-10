@@ -25,6 +25,8 @@
 --     (pct. 58 lit. o: numerele nu se fabrică)
 -- (7) înregistrarea manuală: refuzată pentru `hr`, merge pentru `org_admin`
 -- (8) a doua înregistrare a aceleiași entități nu arde un număr
+-- (9) rubrica „numărul şi data documentului date de emitent” — goală la
+--     numărul unei cereri de salariat, dar cu data DEPUNERII, nu a concediului
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-registru-acoperire.sql
@@ -47,6 +49,7 @@ declare
   v_afisat   text;
   v_indicativ text;
   v_rezolvare text;
+  v_data_emit date;
   v_esecuri  int := 0;
   v_a_mers   boolean;
   v_i        int;
@@ -95,9 +98,11 @@ begin
   perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
   set local role authenticated;
   insert into public.leave_requests
-    (organization_id, employee_id, leave_type_id, data_inceput, data_sfarsit, status, created_by)
+    (organization_id, employee_id, leave_type_id, data_inceput, data_sfarsit, status,
+     trimisa_la, created_by)
   values
-    (v_org, v_e_ang, v_tip, current_date + 10, current_date + 12, 'trimisa', v_u_ang)
+    (v_org, v_e_ang, v_tip, current_date + 10, current_date + 12, 'trimisa',
+     now(), v_u_ang)
   returning id into v_cerere;
   reset role;
 
@@ -282,9 +287,38 @@ begin
     raise warning '  ✗ (7b) NIMENI nu poate înregistra o demisie primită pe hârtie — art. 8.';
   end if;
 
+  -- ═══════════════════════════════════════════════════════════════════════════
+  -- (9) „Numărul şi data documentului date de emitent" — art. 9, rubrică DISTINCTĂ
+  --     de numărul de înregistrare.
+  --
+  --     La concediul de odihnă emitentul e SALARIATUL, iar o persoană fizică nu
+  --     ține serii de numerotare: rubrica trebuie să rămână GOALĂ. Data, în schimb,
+  --     există — e când s-a depus cererea (`trimisa_la`), NU când începe concediul.
+  --     0136 lega greșit `data_inceput`, deci registrul arăta un document datat în
+  --     viitor față de propria lui înregistrare. Corectat de 0140.
+  -- ═══════════════════════════════════════════════════════════════════════════
+  select r.numar_document_emitent, r.data_document_emitent
+    into v_rezolvare, v_data_emit
+  from public.registru_documente r
+  where r.organization_id = v_org and r.entitate_id = v_cerere;
+
+  raise notice '  (9a) concediu de odihnă: nr. emitent .... % (aștept gol)',
+    coalesce(v_rezolvare, 'gol');
+  if v_rezolvare is not null then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (9a) s-a inventat un număr de emitent pentru o cerere a unui salariat.';
+  end if;
+
+  raise notice '  (9b) data documentului = data depunerii .. % (aștept %)',
+    coalesce(v_data_emit::text, 'LIPSĂ'), current_date::text;
+  if v_data_emit is distinct from current_date then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (9b) data documentului nu e data depunerii — vezi 0140.';
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri = 0 then
-    raise notice '  ✓ acoperirea registrului: 8/8';
+    raise notice '  ✓ acoperirea registrului: 9/9';
   else
     raise exception '% verificări au căzut din proba de acoperire a registrului.', v_esecuri;
   end if;
