@@ -18,6 +18,7 @@ tabele:
     payroll_prior_income,
     payroll_personal_deduction_brackets,
     salary_component_types,
+    medical_leave_codes,
   ]
 permisiuni: [payroll:read, payroll:create, payroll:update, payroll:approve, payroll:export]
 feature: payroll
@@ -25,8 +26,8 @@ capcane: [2, 17]
 citeste_daca:
   - "perioadă care nu se recalculează → [[date/pontaj]]"
   - "sumă greșită → src/domain/payroll/, nu pagina asta"
-scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
-scris_la: 2026-09-04
+scris_pe: 5621e9e8308157d5103f0b52dd696cb318da688c
+scris_la: 2026-09-10
 tags: [modul, finance]
 ---
 
@@ -58,9 +59,8 @@ baza să îngusteze lista. Poarta compară cu `null` **și** cu `"none"`, fiindc
 `getPermissionMap` scoate scope-ul `none` din hartă după rezolvare
 (`permissions.ts:127`), iar `scopeFor` întoarce `null` pentru o cheie absentă
 (`permissions.ts:142-144`) — o poartă scrisă doar pe `=== "none"` nu se închide
-niciodată. (Preambulul cere `requireFeature` și `getPermissionMap` prin `Promise.all`,
-în toate paginile modulului — două citiri independente; respingerea lui `requireFeature`
-se propagă la fel ca înlănțuită.)
+niciodată. (Preambulul cere `requireFeature` și `getPermissionMap` prin `Promise.all`, în
+toate paginile modulului — două citiri independente, respinse la fel ca înlănțuite.)
 
 ## Server Actions
 
@@ -81,10 +81,9 @@ se propagă la fel ca înlănțuită.)
 Cele trei formulare de adăugare — `FormularSablonComponentaNou`, `FormularPoprireNoua`,
 `FormularIstoricVenit` — se cer dintr-un buton și se deschid în casetă, prin
 `FormularDialog` (`src/components/ui/formular-dialog.tsx`), nu desfăcute sub antet: în
-spatele lor rămâne vizibilă exact lista de citit înainte de a scrie — ce cod intern e
-liber, ce dosare de poprire are deja angajatul, ce luni de venit sunt introduse.
-Închiderea și `router.refresh()` le face componenta, deci ecranele astea nu-și mai țin
-starea `deschis` și nu-și mai memorează `laReusita`. `FormularIstoricVenit` își
+spate rămâne vizibilă lista de citit înainte de a scrie — cod intern liber, dosare de
+poprire, luni de venit deja introduse. Închiderea și `router.refresh()` le face
+componenta, deci ecranele nu mai țin `deschis` și `laReusita`. `FormularIstoricVenit` își
 dezactivează butonul când nu are niciun angajat de ales. `setari/formular-setari.tsx`
 rămâne în pagină — e ecranul însuși, nu o adăugare.
 
@@ -106,8 +105,8 @@ Panoul „Livrabile" de pe `/salarizare/[id]` apare doar când perioada e `aprob
 `src/app/api/export/salarizare/` — se cer prin `ButonDescarcare`
 (`src/components/incarcare/buton-descarcare.tsx`), **nu** prin `<a href>`: rutele refuză
 în `text/plain`, nu în JSON (`d112/route.ts:41`, `bancar/route.ts:30`), iar printr-o
-navigare refuzul înlocuia ecranul de salarizare cu pagina aia de text. Prin `fetch`,
-refuzul ajunge într-o notificare și omul rămâne pe perioadă.
+navigare refuzul înlocuia ecranul cu pagina aia de text; prin `fetch` ajunge într-o
+notificare și omul rămâne pe perioadă.
 
 `d112` cere `payroll:export` all **și** `employees:read` all (`d112/route.ts:65-73`) —
 declarația conține CNP-ul fiecărui asigurat, deci `payroll:export` singur nu ajunge.
@@ -127,9 +126,9 @@ apare azi nicăieri pe ecran.
 - **Agregarea din pontaj se paginează după angajat.** PostgREST trunchiază tăcut peste
   `max_rows`; `pontajAgregatPerioada` citește pe angajați, nu pe rânduri de pontaj. — capcana #2
 - **Traducerea erorilor acoperă șase coduri**, mai multe decât oriunde altundeva:
-  `23505`, `42P10`, `23514`, `22003`, `22012`, `P0001` (`erori.ts`). `22003` și
-  `22012` sunt depășire numerică și împărțire la zero — apar din calcul, nu din
-  autorizare, și un mesaj generic ar trimite investigația în direcția greșită.
+  `23505`, `42P10`, `23514`, `22003`, `22012`, `P0001` (`erori.ts`). `22003` și `22012`
+  sunt depășire numerică și împărțire la zero — vin din calcul, nu din autorizare, unde
+  un mesaj generic ar trimite investigația greșit.
 - **`/salarizare/popriri` deschis nu înseamnă lista întreagă.**
   `payroll_garnishments_select` trece prin `app.poate_accesa_salariul(…, 'read')`
   (`0059_salarizare_popriri.sql:106-111`), deci sub `all` rămân doar dosarele proprii —
@@ -143,6 +142,15 @@ apare azi nicăieri pe ecran.
   populează nimeni, deci embed-ul vechi întorcea `null` — fără eroare — pentru fiecare
   fișă creată după 0110. `COLOANE_FLUTURAS_EMAIL` (`actions.ts:230`) cere azi `functie`,
   la fel ca `api/export/salarizare/fluturas/route.ts:68`.
+- **`zile_fara_plata` e cheie OBLIGATORIE în `payroll_scrie_rezultate`** de la
+  `0126_d112_ore_suspendate.sql`: omisă, lotul cade cu `P0001`. Până atunci se agrega
+  (`0064`) și se pierdea la ieșirea din RPC, iar D112 declara `A_7 = 0` fără eroare;
+  perioadele calculate înainte de 0126 rămân pe zero.
+- **Indemnizația de CM se împarte în trei baze**, după `retine_cas`/`retine_impozit`/
+  `retine_cass` din `medical_leave_codes` (`0127_indemnizatie_cm_retineri.sql`). Înainte,
+  impozitul cădea pe toată indemnizația — inclusiv maternitate (`11`) și risc maternal
+  (`15`), neimpozabile — iar CAS și CASS nu se rețineau deloc: net mai mare, fără eroare.
+  Un cod fără steaguri cade pe implicitele majoritare: CAS și impozit da, CASS nu.
 - **Valorile legale nu sunt adevăr.** Plafoanele și cotele din `payroll_settings` și
   `payroll_personal_deduction_brackets` sunt marcate în `NOTES.md` ca ⚠ de confirmat de
   contabil înainte de orice calcul real.
@@ -172,7 +180,9 @@ NU e pe fundal plin: `Inel` își desenează separatoarele în `var(--color-back
 Migrarea → `src/types/database.ts` → `src/schemas/payroll.ts` →
 `src/lib/queries/payroll.ts` → acțiuni → pagini. **Calculul propriu-zis nu e aici**: stă
 în `src/domain/payroll/`, care e cel mai mare director de domeniu din proiect și e
-acoperit cu teste. O sumă greșită se repară acolo, nu în pagină.
+acoperit cu teste. O sumă greșită se repară acolo, nu în pagină. Concediul medical
+are lanț propriu: `medical_leave_codes` → `certificateMedicaleLuna` →
+`calculeazaIndemnizatieCm` → bazele din `calc.ts`.
 
 Avertismentele calculului își scriu **orele pe ceas**: `calc.ts` trece fiecare durată
 prin `formatOre` (`src/lib/format/ore.ts`) și lipește unitatea `h` — `6:00 h de noapte`,

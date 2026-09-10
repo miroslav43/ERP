@@ -10,8 +10,8 @@ tabele: [attendance_week_submissions, attendance_week_submission_days, attendanc
 permisiuni: [attendance:create, attendance:approve]
 feature: attendance
 capcane: [17]
-scris_pe: 4cd4a8865b0b4f65648d961680de522d54c5bac9
-scris_la: 2026-09-07
+scris_pe: 5621e9e8308157d5103f0b52dd696cb318da688c
+scris_la: 2026-09-10
 tags: [modul, hr]
 ---
 
@@ -31,7 +31,8 @@ singur, `src/app/(app)/pontaj/saptamana/actions.ts`.
 Două ecrane randează același `FormularSaptamana`: `/pontaj/saptamana` și
 `/portal/pontajul-meu/saptamana`. Al doilea a rămas în urmă cel puțin o dată
 (implicitele de weekend), deci orice schimbare se face în AMÂNDOUĂ, iar proprietățile
-noi se declară OBLIGATORII, ca să oblige compilatorul.
+noi se declară OBLIGATORII, ca să oblige compilatorul — `blocata` și `motivBlocare` din
+`ZiFormular` sunt exact asta, fără implicit.
 
 ## Planul se leagă de fapt la CITIRE, niciodată printr-o a doua scriere
 
@@ -47,6 +48,19 @@ cu „Am intrat" și neînchisă are `ora_sfarsit` null. Copiată peste plan, ar
 intervalul planificat — iar `trimite_saptamana_pontaj` face `delete` + reinserare (0084),
 deci următoarea trimitere l-ar fi șters și din bază, fără nicio eroare. Observația NU se
 preia deloc: nota zilei lucrate și nota intenției sunt două texte diferite.
+
+Tot din FAPT se decide și dacă ziua mai poate fi editată: `leave_request_id` completat pe
+rândul din `attendance_entries` înseamnă concediu deja aprobat, deci `ziuaInitialaPlan`
+întoarce `blocata: true` și un `motivBlocare` derivat din `tip_zi` (`etichetaBlocare`).
+Textul se desparte pe fel de concediu fiindcă „concediu", „medical" și „fără plată" nu se
+corectează cu aceleași hârtii; un `tip_zi` necunoscut cade pe mesajul generic, nu pe
+excepție. O zi de concediu doar CERUT n-are rând în pontaj, deci rămâne editabilă —
+cererea poate fi respinsă.
+
+Cele două câmpuri sunt OPȚIONALE în `ZiPontataCitita`, ca o citire care nu le aduce să nu
+blocheze din greșeală. Reversul: le aduce `COLOANE_INTRARE` din `intrariLuna`, iar scoase
+de acolo blocarea dispare TĂCUT — ziua redevine editabilă, fără nicio eroare de tip.
+`plan-si-fapt.test.ts` ține și cazul ăsta.
 
 Citirea e `intrariLuna(org, [fisa], …)`, **nu** `intrariProprii` — a doua nu filtrează pe
 `employee_id` și se bazează pe RLS, care pentru scope `all` nu îngustează nimic.
@@ -66,21 +80,7 @@ completat, **nu** `leave_requests`: aceeași coloană pe care o citește garda d
 diverge.
 
 **Omisiunea e tăcută în bază** — ziua pur și simplu nu apare în
-`attendance_week_submission_days`, fără nicio eroare. Vizibilă o face doar lanțul de
-deasupra: `zileSarite` din `RezultatCuAvertismente`
-(`src/app/(app)/pontaj/avertismente.ts`) și rândul `role="alert"` din
-`FormularSaptamana`. Rupt oriunde pe drum, omul crede că a planificat cinci zile când în
-plan sunt trei și află abia la aprobare. Rândul stă în formularul PARTAJAT, deci ajunge
-pe amândouă ecranele fără nimic de duplicat.
-
-Lanțul ăsta e însă EFEMER, și e singurul: `zileSarite` e `useState` în
-`FormularSaptamana`, populat doar din răspunsul unei trimiteri reușite. `router.refresh()`
-nu-l atinge, dar reîncărcarea paginii îl pierde, iar navigarea la altă săptămână îl
-golește — amândouă paginile randează formularul cu `key={saptamanaStart}`, deci
-schimbarea săptămânii remontează componenta. Nicio citire de server nu recalculează
-zilele sărite: `citesteSaptamanaPontaj` întoarce zilele care EXISTĂ, iar cea sărită tocmai
-lipsește. Cine închide ecranul fără să citească rândul nu mai are de unde-l afla decât
-retrimițând săptămâna.
+`attendance_week_submission_days`, fără nicio eroare.
 
 Citirea rezultatului în acțiune e defensivă deliberat: RPC-ul e tipat `Json`, iar o formă
 neașteptată n-are voie să arunce peste un plan care S-A SALVAT deja — de aceea `id` cade
@@ -92,6 +92,45 @@ de concediu e blocată, ci că restul săptămânii chiar se salvează, că ziua
 raportată, că rândul de concediu din pontaj rămâne neatins și că o săptămână fără
 concediu nu raportează nimic.
 
+## Blocarea stă ÎN formular, nu după trimitere
+
+Garda de server e corectă și tăcută, adică exact combinația greșită pentru cel care
+completează: casetele primeau text, butonul se apăsa, iar omul afla abia din răspuns că
+din cinci zile au contat trei. Deci ziua cu concediu aprobat se blochează în formular:
+`blocata` dezactivează toate cele patru controale ale rândului — modul de prezență, cele
+două `IntrareOra` și observațiile — iar `motivBlocare` se randează pe ZI, lângă câmpurile
+moarte, nu într-un mesaj de sus. `actualizeazaZi` refuză oricum ziua blocată, ca al
+cincilea control adăugat mâine să nu fie o portiță; la fel `copiazaPeSaptamana`, care
+sare peste ea în loc s-o precompleteze.
+
+Zilele blocate NU pleacă deloc spre server. Serverul le-ar sări oricum, dar le-ar și
+RAPORTA, iar avertismentul s-ar aprinde după fiecare trimitere pentru zile pe care nimeni
+nu le-a atins — un avertisment repetat fără cauză se învață să fie ignorat. Filtrarea
+păstrează indexul înainte de a tăia rândurile, fiindcă `intervalDeTrimis` decide din el
+dacă ziua e weekend (`INDICI_WEEKEND`): renumerotat după filtrare, o sâmbătă ar fi plecat
+ca zi lucrătoare.
+
+Efectul lateral e tot tăcut și e de așteptat: o zi care avea deja rând de plan îl PIERDE
+la prima trimitere de după aprobarea concediului — `0133` șterge toate zilele submisiei
+înainte de reinserare, iar ziua filtrată nu se mai reinserează.
+
+Garda de server rămâne pentru CURSĂ, și acolo e singura: un concediu aprobat între
+încărcarea paginii și apăsarea butonului pleacă de pe ecran (n-avea de unde ști), e sărit
+în RPC și raportat. Abia atunci se aprinde lanțul de deasupra — `zileSarite` din
+`RezultatCuAvertismente` (`src/app/(app)/pontaj/avertismente.ts`) și rândul `role="alert"`
+din `FormularSaptamana`. Rândul stă în formularul PARTAJAT, deci ajunge pe amândouă
+ecranele fără nimic de duplicat.
+
+Lanțul ăsta e însă EFEMER, și e singurul: `zileSarite` e `useState` în
+`FormularSaptamana`, populat doar din răspunsul unei trimiteri reușite. `router.refresh()`
+nu-l atinge, dar reîncărcarea paginii îl pierde, iar navigarea la altă săptămână îl
+golește — amândouă paginile randează formularul cu `key={saptamanaStart}`, deci
+schimbarea săptămânii remontează componenta. Nicio citire de server nu recalculează
+zilele sărite: `citesteSaptamanaPontaj` întoarce zilele care EXISTĂ, iar cea sărită tocmai
+lipsește. Cine închide ecranul fără să citească rândul nu mai are de unde-l afla decât
+retrimițând săptămâna.
+
 Ce rămâne descoperit: o cerere aprobată a cărei sincronizare cu pontajul a căzut n-are
-rând în `attendance_entries`, deci n-o vede nici garda asta, nici cea de zi. Recuperarea
+rând în `attendance_entries`, deci n-o vede nici garda de săptămână, nici cea de zi, nici
+blocarea din formular — toate trei citesc aceeași dovadă, deci cad împreună. Recuperarea
 e `sincronizeazaConcediile` — vezi [[modul/concedii]].

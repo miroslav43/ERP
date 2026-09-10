@@ -12,7 +12,8 @@ cai:
 tabele:
   [
     checklist_templates,
-    checklist_template_steps,
+    checklist_template_items,
+    checklist_template_stages,
     checklist_instances,
     checklist_instance_items,
     checklist_completion_records,
@@ -23,8 +24,8 @@ capcane: [12]
 citeste_daca:
   - "„Checklistul este închis” pe un checklist deschis → secțiunea D6"
   - "pas obligatoriu care nu se poate bifa niciodată → secțiunea D4"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 5621e9e8308157d5103f0b52dd696cb318da688c
+scris_la: 2026-09-10
 tags: [modul, hr]
 ---
 
@@ -56,15 +57,15 @@ Toate intră cu `own`. Ce diferă e booleanul de scriere.
 
 `src/app/(app)/onboarding/actions.ts`.
 
-| Grup     | Funcții                                              | Permisiune / minScope       |
-| -------- | ---------------------------------------------------- | --------------------------- |
-| Parcurs  | `pornesteInstanta`                                   | `checklists:create` / all   |
-| Parcurs  | `finalizeazaInstanta`, `anuleazaInstanta`            | `checklists:approve` / team |
-| Pași     | `bifeazaPas`, `confirmaCitire`                       | `checklists:update` / own   |
-| Dovezi   | `pregatesteIncarcareDovada`, `salveazaDovada`        | `checklists:update` / own   |
-| Dovezi   | `linkDovada`                                         | `checklists:read` / own     |
-| Șabloane | `creeazaSablon`, `salveazaSablon`, `adaugaPas`       | `checklists:create` / all   |
-| Șabloane | `actualizeazaSablon`, `actualizeazaPas`, `stergePas` | `checklists:update` / all   |
+| Grup     | Funcții                                                         | Permisiune / minScope       |
+| -------- | --------------------------------------------------------------- | --------------------------- |
+| Parcurs  | `pornesteInstanta`                                              | `checklists:create` / all   |
+| Parcurs  | `finalizeazaInstanta`, `anuleazaInstanta`                       | `checklists:approve` / team |
+| Pași     | `bifeazaPas`, `confirmaCitire`                                  | `checklists:update` / own   |
+| Dovezi   | `pregatesteIncarcareDovada`, `salveazaDovada`                   | `checklists:update` / own   |
+| Dovezi   | `linkDovada`                                                    | `checklists:read` / own     |
+| Șabloane | `creeazaSablon`, `salveazaSablon`, `adaugaPas`                  | `checklists:create` / all   |
+| Șabloane | `actualizeazaSablon`, `actualizeazaPas`, `stergePas`, `mutaPas` | `checklists:update` / all   |
 
 ## D1 — de ce managerul are `checklists:update` la `own`, nu la `team`
 
