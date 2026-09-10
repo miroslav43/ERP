@@ -10,7 +10,7 @@
 // și apărat.
 import { describe, expect, it } from "vitest";
 
-import { ziuaSePoateDeschide } from "./grila-luna";
+import { motivulBlocarii, ziuaSePoateDeschide } from "./grila-luna";
 
 const LIBERA = undefined;
 const PONTATA = { approved_at: null, leave_request_id: null };
@@ -70,5 +70,53 @@ describe("ziuaSePoateDeschide — ziua respinsă", () => {
     expect(
       ziuaSePoateDeschide(true, { approved_at: "2026-09-11T08:00:00Z", leave_request_id: null }),
     ).toBe(false);
+  });
+});
+
+/*
+  Motivul blocării — reclamat pe 11 sept 2026 ca „pe unele zile pot să dau
+  click și pe unele nu".
+
+  `ziuaSePoateDeschide` spunea corect DA sau NU, dar celula neclicabilă se
+  randa mută. Pe un calendar amestecat, un refuz fără motiv arată exact ca un
+  defect. Cele două motive reale sunt aprobarea și concediul; regula lor stă
+  acum lângă cea de clicabilitate, ca să nu se poată despărți.
+*/
+describe("motivulBlocarii", () => {
+  it("ziua aprobată spune că e aprobată", () => {
+    const motiv = motivulBlocarii(true, {
+      approved_at: "2026-09-10T10:00:00Z",
+      leave_request_id: null,
+    });
+    expect(motiv).toContain("aprobată");
+  });
+
+  it("ziua din concediu trimite la modulul de concedii", () => {
+    const motiv = motivulBlocarii(true, { approved_at: null, leave_request_id: "cerere-1" });
+    expect(motiv).toContain("Concediile mele");
+  });
+
+  it("ziua liberă n-are motiv de blocare", () => {
+    expect(motivulBlocarii(true, undefined)).toBeNull();
+  });
+
+  it("ziua pontată și nedecisă n-are motiv de blocare", () => {
+    expect(motivulBlocarii(true, { approved_at: null, leave_request_id: null })).toBeNull();
+  });
+
+  it("fără drept de scriere nu se dă un motiv PER ZI", () => {
+    // Atunci nu ziua e blocată, ci luna toată e doar de citit — un motiv scris
+    // pe fiecare celulă ar muta vina pe zi și ar deruta.
+    expect(motivulBlocarii(false, { approved_at: null, leave_request_id: null })).toBeNull();
+  });
+
+  it("aprobarea bate concediul când sunt amândouă", () => {
+    // O zi de concediu aprobată e blocată din ambele motive; cel care se
+    // afișează trebuie să fie stabil, nu la voia ordinii câmpurilor.
+    const motiv = motivulBlocarii(true, {
+      approved_at: "2026-09-10T10:00:00Z",
+      leave_request_id: "cerere-1",
+    });
+    expect(motiv).toContain("aprobată");
   });
 });

@@ -378,6 +378,19 @@ export const salveazaZiPontaj = createAction({
           ore_suplimentare: oreSuplimentare,
           ore_noapte: oreNoapte,
           tip_zi: tipZi,
+          /*
+            SE SCRIE NECONDIȚIONAT, deci un apelant care nu-l trimite îl șterge.
+            `enumOptional` (schemas/comun.ts) topește `undefined`, `null` și
+            `""` în același `null`, deci acțiunea NU poate deosebi „lasă cum e"
+            de „șterge-l" — iar „șterge-l" trebuie să rămână posibil, fiindcă
+            „nedeclarat" e o stare legitimă.
+
+            Consecința, până pe 11 sept 2026: formularul de zi din portal nu
+            avea deloc câmpul, deci o zi venită din planul săptămânal cu „La
+            birou" își pierdea tăcut locul de muncă la prima corecție. Ambele
+            formulare îl trimit acum; oricare al treilea apelant trebuie s-o
+            facă la fel.
+          */
           tip_prezenta: input.tip_prezenta,
           observatii: input.observatii,
           /*

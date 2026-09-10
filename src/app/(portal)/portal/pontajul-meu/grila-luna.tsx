@@ -79,6 +79,32 @@ export function ziuaSePoateDeschide(
   return intrare.leave_request_id === null;
 }
 
+/**
+ * De ce NU se deschide ziua, în cuvintele omului. `null` = se deschide, sau e
+ * blocată din alt motiv decât ziua în sine (luna toată e doar de citit).
+ *
+ * ── DE CE E NEVOIE DE EA ────────────────────────────────────────────────────
+ * `ziuaSePoateDeschide` întoarce doar da/nu, iar celula neclicabilă se randa ca
+ * un `<td>` mut. Pe un calendar în care unele zile se deschid și altele nu,
+ * asta arată exact ca un defect: reclamat pe 11 sept 2026 ca „pe unele pot să
+ * dau click și pe unele nu". Erau zilele APROBATE și cele venite din concediu —
+ * amândouă blocate cu motiv întemeiat, niciunul spus.
+ */
+export function motivulBlocarii(
+  poateEdita: boolean,
+  intrare:
+    { readonly approved_at: string | null; readonly leave_request_id: string | null } | undefined,
+): string | null {
+  if (!poateEdita || intrare === undefined) return null;
+  if (intrare.approved_at !== null) {
+    return "Zi aprobată — nu se mai poate modifica. Pentru o corectură, cereți responsabilului de pontaj să retragă aprobarea.";
+  }
+  if (intrare.leave_request_id !== null) {
+    return "Zi din concediul aprobat — se modifică din Concediile mele, nu de aici.";
+  }
+  return null;
+}
+
 export function tipuriDinLuna(zile: readonly ZiPontaj[]): readonly string[] {
   const tipuri = new Set(zile.map((z) => z.tip_zi));
   return [...tipuri].sort((a, b) => (ETICHETE[a] ?? a).localeCompare(ETICHETE[b] ?? b, "ro"));
@@ -153,6 +179,7 @@ export function GrilaLuna({ an, luna, zile, poateEdita }: Proprietati) {
                        * nu e blocată de nimic — e chiar cazul obișnuit.
                        */
                       editabila={ziuaSePoateDeschide(poateEdita, intrare)}
+                      motivBlocare={motivulBlocarii(poateEdita, intrare)}
                     />
                   );
                 })}
@@ -203,11 +230,14 @@ function CelulaLunii({
   data,
   intrare,
   editabila,
+  motivBlocare,
 }: {
   readonly zi: number;
   readonly data: string;
   readonly intrare: ZiPontaj | undefined;
   readonly editabila: boolean;
+  /** De ce nu se deschide ziua. `null` când se deschide. */
+  readonly motivBlocare: string | null;
 }) {
   const ore = intrare?.ore_lucrate ?? 0;
   const suplimentare = intrare?.ore_suplimentare ?? 0;
@@ -266,8 +296,23 @@ function CelulaLunii({
 
   if (!editabila) {
     return (
-      <td className={`border-border h-20 border align-top ${fundal}`}>
-        <div className="p-1.5">{corp}</div>
+      <td
+        className={`border-border h-20 border align-top ${fundal}`}
+        {...(motivBlocare === null ? {} : { title: motivBlocare })}
+      >
+        <div className="p-1.5">
+          {corp}
+          {/* Motivul, nu doar absența clicului. Un `title` singur nu ajunge:
+              pe telefon nu există hover, iar exact acolo se pontează cel mai
+              des. Eticheta scurtă se vede, explicația întreagă e în `title`
+              și în textul citit de cititorul de ecran. */}
+          {motivBlocare === null ? null : (
+            <span className="text-muted-foreground text-nota mt-0.5 block">
+              {motivBlocare.startsWith("Zi aprobată") ? "Aprobată" : "Din concediu"}
+              <span className="sr-only"> — {motivBlocare}</span>
+            </span>
+          )}
+        </div>
       </td>
     );
   }

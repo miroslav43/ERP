@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/format/date";
 import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { stareaLunii } from "@/domain/attendance/luna";
+import type { TipPrezenta } from "@/schemas/attendance";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import { rezumatRegulaPontaj } from "@/app/(app)/pontaj/etichete";
 
@@ -183,6 +184,10 @@ export default async function PaginaZiPontaj({
         regulaFirmei={rezumatRegulaPontaj(config, setari !== null)}
         // `time` din Postgres vine ca `"08:30:00"`; `<input type="time">` cere
         // `"HH:MM"`. Fără tăiere, câmpul rămâne gol fără nicio explicație.
+        // Locul de muncă declarat. Trimis explicit ca valoare inițială fiindcă
+        // `salveazaZiPontaj` rescrie coloana la fiecare salvare: un formular
+        // care nu-l cunoaște ar șterge tăcut ce a declarat planul săptămânal.
+        tipPrezentaInitial={(existenta?.tip_prezenta as TipPrezenta | null) ?? ""}
         inceputInitial={existenta?.ora_inceput?.slice(0, 5) ?? ""}
         sfarsitInitial={existenta?.ora_sfarsit?.slice(0, 5) ?? ""}
         oreSalvate={existenta?.ore_lucrate ?? null}

@@ -8,6 +8,8 @@ import { ListaAvertismente } from "@/app/(app)/pontaj/lista-avertismente";
 import { Buton } from "@/components/ui/buton";
 import { IntrareOra } from "@/components/ui/intrare-ora";
 import { formatOre } from "@/lib/format/ore";
+import { ETICHETE_TIP_PREZENTA } from "@/app/(app)/pontaj/etichete";
+import { TIPURI_PREZENTA, type TipPrezenta } from "@/schemas/attendance";
 import { oreleZilei, type ConfigZi } from "@/domain/attendance/calcul-ore";
 import type { AvertismentPontaj } from "@/domain/attendance/limite-legale";
 
@@ -49,6 +51,7 @@ export function FormularZi({
   inceputInitial,
   sfarsitInitial,
   oreSalvate,
+  tipPrezentaInitial,
   observatiiInitiale,
 }: {
   readonly data: string;
@@ -59,11 +62,23 @@ export function FormularZi({
   readonly sfarsitInitial: string;
   /** Orele deja în bază, pentru zilele scrise înainte ca intervalul să existe. */
   readonly oreSalvate: number | null;
+  /**
+   * Locul de muncă declarat, sau șir gol pentru „nedeclarat".
+   *
+   * Câmpul lipsea cu totul din formularul ăsta, deși planul săptămânal îl are
+   * de la 0118 și coloana îl așteaptă. Consecințele erau două, iar a doua e
+   * cea rea: o zi pontată de aici rămânea fără loc de muncă, IAR o zi venită
+   * din planul săptămânal cu „La birou" își pierdea TĂCUT valoarea la prima
+   * corecție din portal — `salveazaZiPontaj` scrie `tip_prezenta` necondiționat,
+   * iar un formular care nu-l trimite îl trimite ca `null`.
+   */
+  readonly tipPrezentaInitial: TipPrezenta | "";
   readonly observatiiInitiale: string;
 }) {
   const router = useRouter();
   const [inceput, setInceput] = useState(inceputInitial);
   const [sfarsit, setSfarsit] = useState(sfarsitInitial);
+  const [tipPrezenta, setTipPrezenta] = useState<TipPrezenta | "">(tipPrezentaInitial);
   const [observatii, setObservatii] = useState(observatiiInitiale);
   const [eroare, setEroare] = useState<string | null>(null);
   const [avertismente, setAvertismente] = useState<readonly AvertismentPontaj[]>([]);
@@ -71,6 +86,7 @@ export function FormularZi({
 
   const idInceput = useId();
   const idSfarsit = useId();
+  const idPrezenta = useId();
   const idObservatii = useId();
   const idRezumat = useId();
 
@@ -94,6 +110,7 @@ export function FormularZi({
         ore_suplimentare: derivate.suplimentare,
         ore_noapte: derivate.noapte,
         tip_zi: null,
+        tip_prezenta: tipPrezenta.length === 0 ? null : tipPrezenta,
         observatii: observatii.length === 0 ? null : observatii,
       });
       if (!rezultat.ok) {
@@ -205,6 +222,30 @@ export function FormularZi({
           {regulaFirmei}
         </p>
       </section>
+
+      <div>
+        <label htmlFor={idPrezenta} className="text-foreground text-corp font-medium">
+          De unde ați lucrat <span className="text-muted-foreground font-normal">(opțional)</span>
+        </label>
+        <select
+          id={idPrezenta}
+          value={tipPrezenta}
+          onChange={(e) => {
+            setTipPrezenta(e.target.value as TipPrezenta | "");
+          }}
+          className={CLASA_CAMP}
+        >
+          {/* „Nedeclarat" e o stare legitimă, nu o completare lipsă: toate
+              zilele de dinainte de 0118 și tot ce scrie pontarea rapidă de pe
+              telefon n-au declarat nimic. */}
+          <option value="">Nedeclarat</option>
+          {TIPURI_PREZENTA.map((tip) => (
+            <option key={tip} value={tip}>
+              {ETICHETE_TIP_PREZENTA[tip]}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div>
         <label htmlFor={idObservatii} className="text-foreground text-corp font-medium">

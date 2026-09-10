@@ -72,6 +72,12 @@ export interface ZiPontaj {
   readonly ore_suplimentare: number | null;
   readonly ore_noapte: number | null;
   readonly tip_zi: string;
+  /**
+   * Locul de muncă declarat: `birou`, `homeoffice`, `deplasare`, `delegatie`.
+   * `null` = nedeclarat, stare legitimă pentru tot ce s-a scris înainte de 0118
+   * și pentru pontarea rapidă de pe telefon.
+   */
+  readonly tip_prezenta: string | null;
   readonly observatii: string | null;
   /**
    * Nenul când ziua a fost pusă automat din concediul aprobat. Ceasul de pontaj
@@ -268,7 +274,7 @@ export async function pontajulMeu(
     .from("attendance_entries")
     .select(
       "id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi, " +
-        "observatii, leave_request_id, approved_at, respins_la, motiv_respingere",
+        "tip_prezenta, observatii, leave_request_id, approved_at, respins_la, motiv_respingere",
     )
     .eq("organization_id", organizationId)
     .eq("employee_id", employeeId)
