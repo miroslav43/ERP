@@ -57,6 +57,28 @@ const ETICHETE: Readonly<Record<string, string | undefined>> = ETICHETE_TIP_ZI;
  * două-trei tipuri, iar o legendă cu șapte rânduri din care patru nu sunt pe
  * ecran e zgomot.
  */
+/**
+ * Ziua se poate deschide pentru pontare.
+ *
+ * Exportată ca să poată fi TESTATĂ: regula asta a fost greșită de la început —
+ * cerea ca ziua să aibă deja un pontaj `lucratoare`, deci o zi goală nu se
+ * putea deschide, iar din portal nu se putea ponta nimic nou. Un predicat
+ * ascuns într-un JSX nu se poate apăra cu un test.
+ */
+export function ziuaSePoateDeschide(
+  poateEdita: boolean,
+  intrare:
+    { readonly approved_at: string | null; readonly leave_request_id: string | null } | undefined,
+): boolean {
+  if (!poateEdita) return false;
+  // Fără rând = zi liberă de scris. Cazul obișnuit, și chiar cel care nu mergea.
+  if (intrare === undefined) return true;
+  // Aprobată: politica de UPDATE o respinge TĂCUT (zero rânduri, fără eroare).
+  if (intrare.approved_at !== null) return false;
+  // Din concediu: `salveazaZiPontaj` o refuză explicit, cu mesajul ei.
+  return intrare.leave_request_id === null;
+}
+
 export function tipuriDinLuna(zile: readonly ZiPontaj[]): readonly string[] {
   const tipuri = new Set(zile.map((z) => z.tip_zi));
   return [...tipuri].sort((a, b) => (ETICHETE[a] ?? a).localeCompare(ETICHETE[b] ?? b, "ro"));
@@ -116,7 +138,21 @@ export function GrilaLuna({ an, luna, zile, poateEdita }: Proprietati) {
                       zi={zi}
                       data={iso}
                       intrare={intrare}
-                      editabila={poateEdita && intrare?.tip_zi === "lucratoare"}
+                      /*
+                       * Condiția era `intrare?.tip_zi === "lucratoare"` — adică
+                       * ziua devenea clicabilă DOAR dacă avea deja un pontaj.
+                       * Pe o zi goală `intrare` e `undefined`, celula se randa
+                       * ca `<div>` în loc de legătură, iar clicul nu făcea
+                       * nimic. Din portal chiar nu se putea ponta o zi nouă:
+                       * ca s-o pontezi, trebuia s-o fi pontat deja.
+                       *
+                       * Ce blochează cu adevărat o zi e altceva, iar ambele
+                       * sunt pe rând de mult: aprobarea (politica de UPDATE o
+                       * respinge TĂCUT, zero rânduri fără eroare) și concediul
+                       * (`salveazaZiPontaj` o refuză explicit). O zi fără rând
+                       * nu e blocată de nimic — e chiar cazul obișnuit.
+                       */
+                      editabila={ziuaSePoateDeschide(poateEdita, intrare)}
                     />
                   );
                 })}

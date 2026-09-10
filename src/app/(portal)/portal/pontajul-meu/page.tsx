@@ -123,16 +123,35 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
     <div className={`${LATIMI.lista} space-y-4 p-4`}>
       <AntetPagina
         titlu="Pontajul meu"
+        /*
+         * DOUĂ acțiuni, fiindcă sunt două lucruri diferite — iar până acum
+         * exista doar a doua, singură, pe un ecran numit „Pontajul meu".
+         *
+         * Cine intra aici ca să se ponteze apăsa singurul buton, ajungea în
+         * fișa săptămânii, o completa, o trimitea, primea aprobare — și nu
+         * apărea nimic în calendar. Nimic nu spunea că a completat altceva.
+         *
+         * „Pontează ziua de azi" e acum prima și e cea PRIMARĂ: ea face ce
+         * spune numele paginii.
+         */
         {...(poatePlanifica
           ? {
               actiuni: (
-                <Link
-                  href="/portal/pontajul-meu/saptamana"
-                  className={buton({ varianta: "secundar" })}
-                >
-                  <CalendarClock aria-hidden="true" className="size-4" />
-                  Planul săptămânii
-                </Link>
+                <>
+                  <Link
+                    href={`/portal/pontajul-meu/zi/${azi}`}
+                    className={buton({ varianta: "primar" })}
+                  >
+                    <CalendarClock aria-hidden="true" className="size-4" />
+                    Pontează ziua de azi
+                  </Link>
+                  <Link
+                    href="/portal/pontajul-meu/saptamana"
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    Completează fișa săptămânii
+                  </Link>
+                </>
               ),
             }
           : {})}
