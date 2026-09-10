@@ -16,6 +16,7 @@ import { anDinUrl } from "@/lib/rute/parametri";
 import { listeazaPerioade, type PerioadaPontaj } from "@/lib/queries/attendance";
 import { stareaLunii } from "@/domain/attendance/luna";
 
+import { ButonSetariPontaj } from "../buton-setari";
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../etichete";
@@ -195,22 +196,30 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
       <AntetPagina
         titlu="Perioade de pontaj"
         descriere={`Deschiderea și blocarea lunilor de pontaj ale anului ${String(an)}.`}
+        // Butonul de setări intră lângă navigarea anului, nu în locul ei:
+        // `AntetPagina` așază tot ce primește în `actiuni` pe un rând care se
+        // rupe singur. Ordinea e cea din citire — întâi contextul paginii
+        // (anul), apoi ieșirea către configurare, ultima la dreapta, unde stă
+        // pe toate celelalte ecrane ale modulului.
         actiuni={
-          <nav aria-label="Anul perioadelor" className="text-corp flex items-center gap-3">
-            <Link
-              href={`/pontaj/perioade?an=${String(an - 1)}`}
-              className="underline underline-offset-2"
-            >
-              {an - 1}
-            </Link>
-            <span className="font-semibold">{an}</span>
-            <Link
-              href={`/pontaj/perioade?an=${String(an + 1)}`}
-              className="underline underline-offset-2"
-            >
-              {an + 1}
-            </Link>
-          </nav>
+          <>
+            <nav aria-label="Anul perioadelor" className="text-corp flex items-center gap-3">
+              <Link
+                href={`/pontaj/perioade?an=${String(an - 1)}`}
+                className="underline underline-offset-2"
+              >
+                {an - 1}
+              </Link>
+              <span className="font-semibold">{an}</span>
+              <Link
+                href={`/pontaj/perioade?an=${String(an + 1)}`}
+                className="underline underline-offset-2"
+              >
+                {an + 1}
+              </Link>
+            </nav>
+            <ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />
+          </>
         }
         file={<NavPontaj {...fileNav} />}
       />

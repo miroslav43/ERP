@@ -15,6 +15,7 @@ import { citesteSaptamanaPontaj, intrariLuna, setariPontaj } from "@/lib/queries
 import { adaugaZile, esteLuni, lunieaUrmatoare } from "@/domain/attendance/saptamana";
 import { ziuaInitialaPlan } from "@/domain/attendance/plan-si-fapt";
 
+import { ButonSetariPontaj } from "../buton-setari";
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
 import { TONURI_STARE_SAPTAMANA, etichetaStareSaptamana, rezumatRegulaPontaj } from "../etichete";
@@ -111,6 +112,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         <AntetPagina
           titlu="Planul săptămânii"
           descriere="Contul dumneavoastră nu are fișă de angajat proprie, deci nu are nici săptămână proprie. Alegeți angajatul pentru care completați."
+          actiuni={<ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />}
           file={<NavPontaj {...fileNav} />}
         />
         <AlegeAngajat angajati={angajati} selectat={null} saptamanaStart={saptamanaStart} />
@@ -191,6 +193,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       <AntetPagina
         titlu="Planul săptămânii"
         descriere={`Declarați, pentru săptămâna care începe ${inceputSaptamanii}, cum veniți la lucru și câte ore planificați — editabil oricând, până la decizia managerului.`}
+        actiuni={<ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />}
         file={<NavPontaj {...fileNav} />}
       />
 

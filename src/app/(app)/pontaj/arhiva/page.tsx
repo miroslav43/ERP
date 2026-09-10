@@ -36,6 +36,7 @@ import { formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { ANI_PASTRARE, listeazaArhivePontaj } from "@/lib/queries/pontaj-arhiva";
 import { etichetaLuna, numeLuna } from "@/lib/excel/foaie-colectiva";
 
+import { ButonSetariPontaj } from "../buton-setari";
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
 
@@ -272,6 +273,7 @@ export default async function PaginaArhivaPontaj() {
       <AntetPagina
         titlu="Arhiva pontajului"
         descriere={`Foile colective de prezență ale ultimilor ${String(ANI_PASTRARE)} ani, înghețate la închiderea fiecărei luni.`}
+        actiuni={<ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />}
         file={<NavPontaj {...fileNav} />}
       />
 

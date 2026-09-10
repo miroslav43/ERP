@@ -36,6 +36,7 @@ import { stareaLunii } from "@/domain/attendance/luna";
 import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
+import { ButonSetariPontaj } from "./buton-setari";
 import { NavPontaj } from "./nav-pontaj";
 import { fileDePontaj } from "./file-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
@@ -359,18 +360,13 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           ? "Săptămâna proprie, pe ore. Trageți peste o zonă dintr-o zi ca să pontați."
           : `Luna ${formatMonthYear(an, filtre.luna)}, pentru toți angajații.`
       }
-      // Setările au acum FILĂ, nu buton de antet — `poateConfigura` se duce
-      // acolo. Butonul de aici era singurul drum spre ele și stătea lângă titlu,
-      // unde nimeni nu caută o navigare. Garda rămâne aceeași
-      // (`attendance:update = all`, ca pagina țintă): un buton care se vede și
-      // răspunde „nu aveți dreptul" e mai rău decât unul care lipsește.
-      file={
-        <NavPontaj
-          poateAproba={poateAproba}
-          poateConfigura={poateConfigura}
-          poateVedeaArhiva={poateVedeaArhiva}
-        />
-      }
+      // Setările s-au întors în antet, ca la concedii: banda de dedesubt e a
+      // vizualizărilor, nu a ecranelor de administrare. Butonul stă acum pe
+      // FIECARE pagină a modulului, deci nu mai dispare la schimbarea filei —
+      // motivul pentru care fusese mutat în bandă. Garda e aceeași
+      // (`attendance:update = all`, ca pagina țintă).
+      actiuni={<ButonSetariPontaj poateConfigura={poateConfigura} />}
+      file={<NavPontaj poateAproba={poateAproba} poateVedeaArhiva={poateVedeaArhiva} />}
     />
   );
 

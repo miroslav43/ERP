@@ -24,6 +24,7 @@ import {
 } from "@/lib/queries/attendance";
 import { filtreAprobareSchema } from "@/schemas/attendance";
 
+import { ButonSetariPontaj } from "../buton-setari";
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
 import { ActiuniPerioada } from "../perioade/actiuni-perioada";
@@ -221,6 +222,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
         <AntetPagina
           titlu="Aprobare pontaj"
           descriere="Firma a stabilit că pontajul nu trece prin aprobare."
+          actiuni={<ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />}
           file={<NavPontaj {...fileNav} />}
         />
         <StareGoala
@@ -258,6 +260,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
       <AntetPagina
         titlu="Aprobare pontaj"
         descriere={`Aprobarea în bloc pentru ${formatMonthYear(an, filtre.luna)}.`}
+        actiuni={<ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />}
         file={<NavPontaj {...fileNav} />}
       />
 
