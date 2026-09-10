@@ -24,6 +24,9 @@
 -- (2) o zi scrisă cu ea intră în pontaj și PRIMEȘTE period_id de la trigger
 -- (3) `tip_zi` trimis explicit se PĂSTREAZĂ — triggerul nu-l rescrie
 -- (4) ziua ajunge în agregarea de salarizare, adică e văzută ca oră lucrată
+-- (5) o zi APROBATĂ cu interval complet trece de constrângerea din 0096 —
+--     zilele scrise dintr-o săptămână aprobată sosesc gata aprobate, ca să nu
+--     ceară o a doua aprobare pentru ce tocmai s-a aprobat
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-saptamana-devine-pontaj.sql
@@ -110,6 +113,23 @@ begin
     raise warning '  ✗ (4) salarizarea vede % ore, se așteptau 7,5 — ziua nu se plătește.', v_ore;
     v_esecuri := v_esecuri + 1;
   end if;
+
+  -- ── (5) ziua sosește APROBATĂ ──
+  -- Firma folosește fișa săptămânală ca metodă de pontaj: managerul aprobă
+  -- săptămâna, iar zilele trebuie să apară aprobate peste tot. Scrise
+  -- neaprobate, reapăreau în „Aprobă în bloc" ca linii de aprobat — exact ce
+  -- tocmai fusese aprobat, cerut a doua oară de același om, iar ecranul de
+  -- aprobare ajungea să spună sus „o săptămână de aprobat" și jos „nimic de
+  -- aprobat".
+  begin
+    update public.attendance_entries
+       set approved_at = now(), approved_by = v_u_ang
+     where organization_id = v_org and employee_id = v_e_ang and data = v_zi;
+    raise notice '  ✓ (5) o zi cu interval complet POATE fi aprobată la scriere';
+  exception when others then
+    raise warning '  ✗ (5) aprobarea la scriere a picat: % (%) — zilele ar cere o a doua aprobare.', sqlerrm, sqlstate;
+    v_esecuri := v_esecuri + 1;
+  end;
 
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri = 0 then

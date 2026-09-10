@@ -70,6 +70,7 @@ async function ContinutAprobare({
   departmentId,
   poateBloca,
   poateSincroniza,
+  numarSaptamaniDeAprobat,
 }: {
   readonly organizationId: string;
   readonly an: number;
@@ -79,6 +80,14 @@ async function ContinutAprobare({
   readonly departmentId: string | null;
   readonly poateBloca: boolean;
   readonly poateSincroniza: boolean;
+  /**
+   * Câte săptămâni așteaptă aprobare, deasupra.
+   *
+   * Starea goală de aici vorbea despre TOATĂ pagina — „Nimic de aprobat" — deși
+   * lista de sus putea avea săptămâni. Ecranul se contrazicea singur. Cifra
+   * asta o face să vorbească despre ce e chiar în ea.
+   */
+  readonly numarSaptamaniDeAprobat: number;
 }) {
   const { linii, trunchiat } = await liniiDeAprobat(organizationId, periodId);
   const idAngajati = [...new Set(linii.map((l) => l.employee_id))];
@@ -164,8 +173,18 @@ async function ContinutAprobare({
           <StareGoala
             fel="initiala"
             pictograma={CheckCircle2}
-            titlu="Nimic de aprobat"
-            descriere="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
+            titlu={
+              numarSaptamaniDeAprobat === 0 ? "Nimic de aprobat" : "Nicio zi de aprobat separat"
+            }
+            descriere={
+              numarSaptamaniDeAprobat === 0
+                ? "Toate zilele de pontaj ale acestei luni au fost deja aprobate."
+                : `Zilele lunii sunt aprobate. ${
+                    numarSaptamaniDeAprobat === 1
+                      ? "Mai există o fișă săptămânală de aprobat"
+                      : `Mai există ${String(numarSaptamaniDeAprobat)} fișe săptămânale de aprobat`
+                  }, în capul paginii — aprobarea ei scrie zilele direct în pontaj, gata aprobate.`
+            }
           />
         }
       />
@@ -315,6 +334,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
             departmentId={filtre.departament}
             poateBloca={poateBloca}
             poateSincroniza={poateSincroniza}
+            numarSaptamaniDeAprobat={sarciniSaptamana.length}
           />
         </Suspense>
       )}

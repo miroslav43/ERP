@@ -83,38 +83,47 @@ export function AprobareBloc({
 
   return (
     <div className="border-border rounded-panou space-y-4 border p-4">
-      <div className="space-y-2">
-        <label htmlFor={idObservatii} className="text-corp block font-medium">
-          Observații lot (opțional)
-        </label>
-        <textarea
-          id={idObservatii}
-          rows={2}
-          maxLength={1000}
-          value={observatii}
-          onChange={(e) => {
-            setObservatii(e.target.value);
-          }}
-          className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
-        />
-        <Buton
-          varianta="primar"
-          onClick={() => {
-            setConfirmareDeschisa(true);
-          }}
-          disabled={numarLiniiNeaprobate === 0}
-          inCurs={inCursAprobare}
-          textInCurs="Se aprobă…"
-        >
-          <CheckCheck aria-hidden="true" className="size-4" />
-          {`Aprobă în bloc (${String(numarLiniiNeaprobate)} linii)`}
-        </Buton>
-        {eroareAprobare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroareAprobare}
-          </p>
-        )}
-      </div>
+      {/*
+        Blocul de aprobare în bloc apare DOAR când are ce aproba.
+        Fără condiția asta, ecranul spunea de trei ori același lucru: butonul
+        dezactivat „(0 linii)", un mesaj ROȘU care arăta ca o defecțiune, și
+        starea goală de la baza paginii. Iar sincronizarea de dedesubt rămâne
+        oricum vizibilă — ea e utilă exact când foaia e goală.
+      */}
+      {numarLiniiNeaprobate === 0 ? null : (
+        <div className="space-y-2">
+          <label htmlFor={idObservatii} className="text-corp block font-medium">
+            Observații lot (opțional)
+          </label>
+          <textarea
+            id={idObservatii}
+            rows={2}
+            maxLength={1000}
+            value={observatii}
+            onChange={(e) => {
+              setObservatii(e.target.value);
+            }}
+            className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
+          />
+          <Buton
+            varianta="primar"
+            onClick={() => {
+              setConfirmareDeschisa(true);
+            }}
+            disabled={numarLiniiNeaprobate === 0}
+            inCurs={inCursAprobare}
+            textInCurs="Se aprobă…"
+          >
+            <CheckCheck aria-hidden="true" className="size-4" />
+            {`Aprobă în bloc (${String(numarLiniiNeaprobate)} linii)`}
+          </Buton>
+          {eroareAprobare === null ? null : (
+            <p role="alert" className="text-danger text-corp">
+              {eroareAprobare}
+            </p>
+          )}
+        </div>
+      )}
 
       <ConfirmareActiune
         deschis={confirmareDeschisa}

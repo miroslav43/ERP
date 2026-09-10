@@ -81,6 +81,24 @@ export async function scriePontajulSaptamanii(
    * bazei nu e o opțiune, ci o scăpare care ar fi scris totul ca `lucratoare`.
    */
   tipZiPentru: (data: string) => Database["public"]["Enums"]["attendance_day_type"],
+  /**
+   * Cine a aprobat săptămâna. Zilele sosesc APROBATE, cu el ca autor.
+   *
+   * ── DE CE, ȘI DE CE E ESENȚIAL ─────────────────────────────────────────
+   * Firma folosește fișa săptămânală ca metodă de pontaj: angajatul o
+   * completează, managerul o aprobă, iar orele trebuie să apară peste tot.
+   * Scrise NEaprobate, ele reapăreau în „Aprobă în bloc" ca linii de aprobat —
+   * exact ce tocmai fusese aprobat, cerut a doua oară, de același om.
+   *
+   * Ecranul de aprobare ajungea atunci să se contrazică singur: sus o
+   * săptămână de aprobat, jos „Nimic de aprobat".
+   *
+   * Aprobarea NU se inventează: momentul e chiar acum, iar autorul e cel care
+   * tocmai a apăsat — `decideSaptamanaPontaj` verifică `attendance:approve`
+   * înainte să ajungă aici.
+   */
+  aprobatDe: string,
+  aprobatLa: string,
   requestId: string,
 ): Promise<RezultatScriere> {
   try {
@@ -169,6 +187,14 @@ export async function scriePontajulSaptamanii(
           observatii: z.observatii,
           tip_zi: tipZiPentru(z.data),
           sursa: "saptamana" as const,
+          /*
+           * `attendance_entries_aprobare_zi_incheiata_ck` (0096) cere ca o zi
+           * aprobată cu oră de început să aibă și oră de sfârșit. Filtrul de
+           * mai sus lasă să treacă doar zilele cu interval COMPLET, deci
+           * constrângerea e satisfăcută prin construcție.
+           */
+          approved_at: aprobatLa,
+          approved_by: aprobatDe,
           /*
            * `period_id` e un identificator INERT: triggerul BEFORE
            * `internal.pontaj_intrare_pregateste` îl suprascrie necondiționat,

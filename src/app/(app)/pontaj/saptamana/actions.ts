@@ -318,6 +318,8 @@ export const decideSaptamanaPontaj = createAction<
           saptamana.employee_id,
           configZiDin(setari),
           (data) => tipZiAutomat(data, sarbatori, recuperare, liber),
+          ctx.user.id,
+          acum,
           ctx.requestId,
         );
       }
