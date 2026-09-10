@@ -11,6 +11,7 @@ import { meetsScope, type MinScope, type PermissionKey } from "@/config/permissi
 import { PRAG_MENTENANTA_AVERTIZARE_ZILE } from "@/domain/maintenance/scadente";
 import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
 import type { PermissionMap } from "@/lib/auth/permissions";
+import { citesteRezumatCredentiale } from "@/lib/reges/credentiale";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import { numarAngajatiActivi } from "./announcements";
@@ -90,12 +91,23 @@ export type FirmaAzi = Readonly<{
   departamente: number;
 }>;
 
+/**
+ * ── DE CE NU EXISTĂ AICI UN `totalDeRezolvat` ─────────────────────────────
+ * A existat, ca `Object.values(coada).reduce(...)`, și s-a rupt exact cum era
+ * de așteptat: `regesDeTransmis` s-a adăugat în `CoadaPanou` fără rândul
+ * corespunzător în `panou/page.tsx`, iar antetul a început să anunțe „5" peste
+ * o listă de două rânduri. Trei obligații numărate și nicăieri de văzut.
+ *
+ * O sumă peste CONTORI nu poate ști ce ajunge pe ecran — un contor poate lipsi
+ * din listă, sau un rând se poate ascunde pentru un motiv local. Cifra se
+ * calculează de aceea din rândurile construite, în `coadaDinContoare`, unde
+ * `NUMARUL_DIN_ANTET` e literalmente suma lor. Adăugarea unui contor fără rând
+ * nu mai poate minți: nu se numără.
+ */
 export type ContoarePanou = Readonly<{
   coada: CoadaPanou;
   scadente: ScadentePanou;
   firma: FirmaAzi;
-  /** Suma cozii, pentru cifra din antet. Ignoră blocurile ascunse. */
-  totalDeRezolvat: number;
 }>;
 
 /** Ziua de azi în București, ca șir ISO. Comparațiile de date se fac pe șiruri. */
@@ -110,14 +122,6 @@ function peste(zile: number): string {
 }
 
 /**
- * Cereri de concediu care așteaptă o decizie, la nivel de organizație.
- *
- * Se numără CERERILE, nu sarcinile de aprobare — vezi comentariul din capul
- * fișierului. În tot `src/lib/queries/` existau opt apeluri `count: "exact"`
- * și niciunul pe concedii; badge-ul `leave_pending` din meniu era declarat și
- * nealimentat tocmai fiindcă o numărătoare naivă ar fi fost greșită.
- */
-/**
  * Evenimentele REGES care încă n-au plecat la Inspecția Muncii.
  *
  * `de_pregatit` ȘI `pregatit`: amândouă înseamnă „scris la noi, netrimis la
@@ -128,9 +132,30 @@ function peste(zile: number): string {
  * `count` simplu, nu o derivare din listă: aici starea CHIAR e în coloană, spre
  * deosebire de `leave_pending`, unde sarcinile rămâneau `in_asteptare` pe cereri
  * deja rezolvate. Nu există aceeași capcană de repetat din prudență.
+ *
+ * ── DE CE ZERO CÂND FIRMA NU E CONECTATĂ ──────────────────────────────────
+ * Coada panoului se numește „De rezolvat", iar fiecare rând din ea promite o
+ * acțiune. Fără credențiale REGES, evenimentele NU pot pleca: `citesteCredentiale`
+ * → `jetonValid` refuză, iar ecranul modulului arată deja bannerul „pornit, dar
+ * NU e conectat" și își ascunde butonul de pregătire.
+ *
+ * Un rând care cere ceva ce nimeni nu poate face nu se golește niciodată — și
+ * un panou care nu se golește nu mai înseamnă nimic (v. principiul din
+ * `panou/page.tsx`). Modulul rămâne vizibil, cu registrul și termenele lui;
+ * doar OBLIGAȚIA dispare din coadă până în ziua în care chiar există un drum
+ * spre Inspecția Muncii.
+ *
+ * Nu e o ascundere: în starea „neconectat" evenimentele nu sunt restanțe ale
+ * omului, ci ale configurării — iar aceea se rezolvă în alt ecran, nu de aici.
  */
 export async function contorRegesDeTransmis(organizationId: string): Promise<number> {
   const db = await createServerSupabase();
+
+  // Întâi conexiunea, apoi numărătoarea. Ordinea contează doar ca economie: o
+  // firmă neconectată nu mai plătește al doilea drum la bază.
+  const credentiale = await citesteRezumatCredentiale(db, organizationId);
+  if (credentiale === null || !credentiale.activ) return 0;
+
   const { count, error } = await db
     .from("reges_evenimente")
     .select("id", { count: "exact", head: true })
@@ -141,6 +166,14 @@ export async function contorRegesDeTransmis(organizationId: string): Promise<num
   return count ?? 0;
 }
 
+/**
+ * Cereri de concediu care așteaptă o decizie, la nivel de organizație.
+ *
+ * Se numără CERERILE, nu sarcinile de aprobare — vezi comentariul din capul
+ * fișierului. În tot `src/lib/queries/` existau opt apeluri `count: "exact"`
+ * și niciunul pe concedii; badge-ul `leave_pending` din meniu era declarat și
+ * nealimentat tocmai fiindcă o numărătoare naivă ar fi fost greșită.
+ */
 export async function contorCereriConcediu(organizationId: string): Promise<number> {
   const db = await createServerSupabase();
   const { count, error } = await db
@@ -529,10 +562,6 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
       contracteDeterminate: contracte,
     },
     firma,
-    // Blocurile ascunse nu intră în total: cifra din antet trebuie să
-    // corespundă cu ce se vede dedesubt, altfel omul caută patru lucruri și
-    // găsește două.
-    totalDeRezolvat: Object.values(coada).reduce<number>((s, v) => s + (v ?? 0), 0),
   };
 }
 

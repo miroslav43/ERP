@@ -13,10 +13,11 @@ import { can } from "@/lib/auth/permissions";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { buildNavigation } from "@/lib/navigation/build-navigation";
-import { contoarePanouPentru, PRAG_PANOU_ZILE, type ContoarePanou } from "@/lib/queries/panou";
+import { contoarePanouPentru, PRAG_PANOU_ZILE } from "@/lib/queries/panou";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 
 import { RandCoada } from "./_components/rand-coada";
+import { coadaDinContoare, numarulDinAntet } from "./coada";
 
 export const metadata: Metadata = { title: "Panou" };
 
@@ -45,103 +46,6 @@ export const metadata: Metadata = { title: "Panou" };
 /** Peste acest efectiv, procentele și tendințele încep să însemne ceva. */
 const PRAG_EFECTIV_PROCENTE = 25;
 
-/** Ordinea din coadă: cine mă așteaptă pe mine, apoi ce are termen, apoi ce e blocat. */
-type IntrareCoada = Readonly<{
-  cheie: string;
-  numar: number;
-  titlu: string;
-  detaliu: string;
-  href: string;
-  actiune: string;
-  urgent?: boolean;
-}>;
-
-function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
-  const { coada } = c;
-  const intrari: IntrareCoada[] = [];
-
-  if (coada.cereriConcediu !== null && coada.cereriConcediu > 0) {
-    /*
-     * Rândul ducea la `/concedii/aprobari`, dar contorul nu numără același
-     * lucru: ecranul acela listează sarcinile atribuite MIE
-     * (`deAprobat` filtrează `approval_tasks.approver_user_id = userId`), în
-     * timp ce cifra numără CERERILE în curs pe care le văd, oricine ar fi
-     * aprobatorul lor. Un `org_admin` care nu e în lanțul de aprobare citea
-     * „5 cereri" și deschidea un ecran gol — contorul nu urma lista, exact
-     * defectul pe care `queries/panou.ts` îl interzice în capul fișierului.
-     * Acum duce la lista filtrată pe aceleași stări, prin aceeași politică
-     * RLS, deci cifra și rândurile nu se mai pot contrazice.
-     */
-    intrari.push({
-      cheie: "concedii",
-      numar: coada.cereriConcediu,
-      titlu: "Cereri de concediu care așteaptă o decizie",
-      detaliu: coada.cereriConcediu === 1 ? "cerere trimisă" : "cereri trimise",
-      href: "/concedii?status=trimisa,in_aprobare",
-      actiune: "Deschide",
-    });
-  }
-  if (coada.saptamaniPontaj !== null && coada.saptamaniPontaj > 0) {
-    intrari.push({
-      cheie: "pontaj",
-      numar: coada.saptamaniPontaj,
-      titlu: "Perioade de pontaj trimise spre aprobare",
-      detaliu: coada.saptamaniPontaj === 1 ? "perioadă" : "perioade",
-      href: "/pontaj/aprobare",
-      actiune: "Aprobă",
-    });
-  }
-  if (coada.deplasari !== null && coada.deplasari > 0) {
-    intrari.push({
-      cheie: "diurna",
-      numar: coada.deplasari,
-      titlu: "Deplasări care așteaptă aprobare",
-      detaliu: coada.deplasari === 1 ? "deplasare" : "deplasări",
-      href: "/diurna/aprobari",
-      actiune: "Aprobă",
-    });
-  }
-  if (coada.foiParcurs !== null && coada.foiParcurs > 0) {
-    intrari.push({
-      cheie: "foi",
-      numar: coada.foiParcurs,
-      titlu: "Foi de parcurs trimise spre aprobare",
-      detaliu: coada.foiParcurs === 1 ? "foaie" : "foi",
-      href: "/flota/aprobari",
-      actiune: "Aprobă",
-    });
-  }
-  if (coada.tichete !== null && coada.tichete > 0) {
-    intrari.push({
-      cheie: "tichete",
-      numar: coada.tichete,
-      titlu: "Tichete care așteaptă decizia ta",
-      detaliu: coada.tichete === 1 ? "tichet" : "tichete",
-      href: "/ticketing/coada",
-      actiune: "Deschide",
-    });
-  }
-  /*
-   * Anomaliile de kilometraj erau citite la fiecare încărcare de panou și
-   * aruncate: `contorAnomaliiKm` intra în `Promise.all`, ajungea în
-   * `scadente.anomaliiKm` și nicio componentă nu-l citea. Un drum la bază pe
-   * fiecare afișare, pentru o cifră care nu apărea nicăieri — și, în același
-   * timp, singurul semnal că cineva a scris un kilometraj imposibil rămânea
-   * invizibil până când intra cineva anume în `/flota/anomalii`.
-   */
-  if (coada.anomaliiKm !== null && coada.anomaliiKm > 0) {
-    intrari.push({
-      cheie: "anomalii",
-      numar: coada.anomaliiKm,
-      titlu: "Anomalii de kilometraj neconfirmate",
-      detaliu: coada.anomaliiKm === 1 ? "citire de contor" : "citiri de contor",
-      href: "/flota/anomalii",
-      actiune: "Verifică",
-    });
-  }
-  return intrari;
-}
-
 export default async function PanouPage() {
   const rezolvare = await resolveTenant();
   if (rezolvare.status === "neautentificat") redirect(RUTA_AUTENTIFICARE);
@@ -166,6 +70,7 @@ export default async function PanouPage() {
   const contoare = await contoarePanouPentru(tenant.organizationId, tenant.role, tenant.memberId);
 
   const coada = coadaDinContoare(contoare);
+  const totalDeRezolvat = numarulDinAntet(coada);
   const { scadente, firma } = contoare;
   const firmaGoala = firma.angajatiActivi === 0;
   const peProcente = firma.angajatiActivi >= PRAG_EFECTIV_PROCENTE;
@@ -358,12 +263,12 @@ export default async function PanouPage() {
           </h2>
           <span
             className={
-              contoare.totalDeRezolvat > 0
+              totalDeRezolvat > 0
                 ? "bg-surface text-foreground text-nota rounded-full px-2.5 py-0.5 font-mono font-semibold tabular-nums"
                 : "text-muted-foreground text-nota font-mono tabular-nums"
             }
           >
-            {contoare.totalDeRezolvat}
+            {totalDeRezolvat}
           </span>
         </header>
 
