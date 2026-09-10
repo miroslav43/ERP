@@ -173,6 +173,19 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Pontajele echipei care așteaptă decizia ta, aprobabile în lot.",
   },
   {
+    id: "pontaj.arhiva",
+    href: "/pontaj/arhiva",
+    eticheta: "Arhiva pontajului",
+    zona: "app",
+    parinte: "pontaj",
+    fila: "Arhiva",
+    featureKey: "attendance",
+    permission: "attendance:export",
+    minScope: "all",
+    descriere:
+      "Foile colective de prezență ale lunilor închise, înghețate și numerotate în registru, cu descărcare în Excel pe lună sau pe un interval întreg — ce se arată la un control ITM.",
+  },
+  {
     id: "pontaj.setari",
     href: "/pontaj/setari",
     eticheta: "Pontarea",

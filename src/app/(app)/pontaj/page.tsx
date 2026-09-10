@@ -298,7 +298,10 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     Citire în plus, un rând, pe index unic. Nu poate intra în valul de mai jos:
     `poateAproba` intră în antet, construit înaintea ramurii de vizualizare.
   */
-  const { poateAproba, poateConfigura } = await fileDePontaj(tenant.organizationId, permisiuni);
+  const { poateAproba, poateConfigura, poateVedeaArhiva } = await fileDePontaj(
+    tenant.organizationId,
+    permisiuni,
+  );
   const poateDeschide = can(permisiuni, "attendance:create", "all");
 
   const azi = todayInBucharest();
@@ -361,7 +364,13 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       // unde nimeni nu caută o navigare. Garda rămâne aceeași
       // (`attendance:update = all`, ca pagina țintă): un buton care se vede și
       // răspunde „nu aveți dreptul" e mai rău decât unul care lipsește.
-      file={<NavPontaj poateAproba={poateAproba} poateConfigura={poateConfigura} />}
+      file={
+        <NavPontaj
+          poateAproba={poateAproba}
+          poateConfigura={poateConfigura}
+          poateVedeaArhiva={poateVedeaArhiva}
+        />
+      }
     />
   );
 

@@ -747,6 +747,18 @@ begin
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'), current_date - 10, 4, current_date + 50),
          (v_beta, (select val from t_ids where cheie='ang_beta'), current_date - 10, 4, current_date + 50);
 
+  -- ── Arhiva lunară a pontajului (migrarea 0134) ────────────────────────────
+  -- Prin MOTORUL REAL, nu prin INSERT direct: aceeași funcție pe care o cheamă
+  -- triggerul de la blocarea lunii. Un INSERT de mână ar fi ocolit exact calea
+  -- pe care verificarea (c) trebuie s-o acopere, și ar fi sărit peste rândul de
+  -- registru pe care arhivarea îl produce.
+  perform internal.pontaj_arhiveaza_luna(
+    v_alfa, extract(year from current_date)::integer, extract(month from current_date)::integer,
+    'blocare'::public.pontaj_arhiva_motiv);
+  perform internal.pontaj_arhiveaza_luna(
+    v_beta, extract(year from current_date)::integer, extract(month from current_date)::integer,
+    'blocare'::public.pontaj_arhiva_motiv);
+
   -- ── Faza 6 (migrarea 0014): checklist de onboarding/offboarding ────────────
   insert into t_ids
   select 'ctpl_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;

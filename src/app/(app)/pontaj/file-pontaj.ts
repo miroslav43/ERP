@@ -35,6 +35,14 @@ export interface FilePontaj {
   readonly poateAproba: boolean;
   readonly poateConfigura: boolean;
   /**
+   * Are drept de EXPORT la scope `all` — aceeași cheie pe care o cere politica
+   * `pontaj_arhive_lunare_select` (0134). Nu `attendance:read`: arhiva e a
+   * întregii firme, iar un manager cu `read = team` care ar deschide-o ar primi
+   * o listă goală, fără nicio eroare, exact refuzul tăcut pe care modulul îl
+   * vânează în rest.
+   */
+  readonly poateVedeaArhiva: boolean;
+  /**
    * Alegerea firmei, SEPARAT de permisiune.
    *
    * `poateAproba` le compune pe amândouă și e bun pentru „ce butoane desenez".
@@ -54,6 +62,7 @@ export async function fileDePontaj(
   return {
     poateAproba: config.necesitaAprobare && can(permisiuni, "attendance:approve", "team"),
     poateConfigura: can(permisiuni, "attendance:update", "all"),
+    poateVedeaArhiva: can(permisiuni, "attendance:export", "all"),
     necesitaAprobare: config.necesitaAprobare,
   };
 }

@@ -65,6 +65,13 @@ export const PERMISSION_KEYS = [
   // fi cerută explicit de o acțiune de EDITARE, nu ca să schimbe vreo politică.
   "attendance:update",
   "attendance:approve",
+  // Seedată din 0002 pentru `org_admin` și `hr` (scope `all`) și nedeclarată aici
+  // până la 0134, care i-a dat primul consumator: arhiva lunară de pontaj, cu
+  // politica ei `pontaj_arhive_lunare_select` și cu cele două rute de export.
+  // Poarta e `export`, nu `read`: arhiva e a ÎNTREGII firme, iar un `manager` cu
+  // `attendance:read = team` care ar fi deschis-o ar fi văzut o listă goală,
+  // fără nicio eroare.
+  "attendance:export",
   "audit:read",
   "branding:create",
   "branding:update",

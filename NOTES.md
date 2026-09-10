@@ -162,6 +162,19 @@ referință · repausul minim între zile și cel săptămânal · termenul de c
 cu ore libere · interdicțiile de ore suplimentare (sub 18 ani, part-time) ·
 pauza obligatorie.
 
+### Arhivarea pontajului · `pontaj_arhive_lunare`
+
+⚠️ **Termenul de păstrare a foilor colective de prezență.** Aplicația desenează
+azi o fereastră de **5 ani** (`ANI_PASTRARE` din `src/lib/queries/pontaj-arhiva.ts`),
+la cererea utilizatorului. Nomenclatorul de dosare din `0135` scrie însă **10 ani**
+pentru rândul „Foi colective de prezență", după anexa nr. 1 la Ordinul 217/1996.
+Cele două trebuie împăcate de jurist: fereastra ecranului e o constantă într-un
+singur loc, iar arhiva nu șterge nimic — deci mărirea ferestrei nu pierde date.
+
+⚠️ De confirmat și denumirea documentului („foaie colectivă de prezență") și dacă
+forma cerută la un control ITM are coloane obligatorii pe care instantaneul nu le
+poartă. Instantaneul NU conține CNP, deliberat.
+
 ### Concedii · `leave_types`, `leave_entitlement_rules`, `medical_leave_codes`
 
 ⚠️ Minimul de zile CO/an și zilele suplimentare pe categorii (condiții deosebite,

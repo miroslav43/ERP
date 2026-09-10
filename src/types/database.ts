@@ -9606,6 +9606,109 @@ export type Database = {
         }
         Relationships: []
       }
+      pontaj_arhive_lunare: {
+        Row: {
+          an: number
+          checksum: string
+          continut: Json
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          generat_de: string | null
+          generat_la: string
+          id: string
+          inlocuita_de: string | null
+          luna: number
+          motiv: Database["public"]["Enums"]["pontaj_arhiva_motiv"]
+          numar_angajati: number
+          organization_id: string
+          period_id: string | null
+          status_perioada:
+            | Database["public"]["Enums"]["attendance_period_status"]
+            | null
+          total_ore: number
+          total_ore_noapte: number
+          total_ore_suplimentare: number
+          updated_at: string
+          updated_by: string | null
+          versiune: number
+        }
+        Insert: {
+          an: number
+          checksum: string
+          continut: Json
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          generat_de?: string | null
+          generat_la?: string
+          id?: string
+          inlocuita_de?: string | null
+          luna: number
+          motiv: Database["public"]["Enums"]["pontaj_arhiva_motiv"]
+          numar_angajati: number
+          organization_id: string
+          period_id?: string | null
+          status_perioada?:
+            | Database["public"]["Enums"]["attendance_period_status"]
+            | null
+          total_ore: number
+          total_ore_noapte: number
+          total_ore_suplimentare: number
+          updated_at?: string
+          updated_by?: string | null
+          versiune?: number
+        }
+        Update: {
+          an?: number
+          checksum?: string
+          continut?: Json
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          generat_de?: string | null
+          generat_la?: string
+          id?: string
+          inlocuita_de?: string | null
+          luna?: number
+          motiv?: Database["public"]["Enums"]["pontaj_arhiva_motiv"]
+          numar_angajati?: number
+          organization_id?: string
+          period_id?: string | null
+          status_perioada?:
+            | Database["public"]["Enums"]["attendance_period_status"]
+            | null
+          total_ore?: number
+          total_ore_noapte?: number
+          total_ore_suplimentare?: number
+          updated_at?: string
+          updated_by?: string | null
+          versiune?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pontaj_arhive_lunare_inlocuita_de_fkey"
+            columns: ["inlocuita_de"]
+            isOneToOne: false
+            referencedRelation: "pontaj_arhive_lunare"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pontaj_arhive_lunare_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pontaj_arhive_lunare_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ppe_issuances: {
         Row: {
           articol: string
@@ -13272,6 +13375,7 @@ export type Database = {
       permission_scope: "none" | "own" | "team" | "all"
       plan_type: "trial" | "starter" | "professional" | "enterprise"
       platforma_mobila: "ios" | "android"
+      pontaj_arhiva_motiv: "blocare" | "matura_lunara"
       reges_directie_propunere: "trimisa" | "primita"
       reges_fel_propunere: "detasare" | "mutare"
       reges_mediu: "test" | "productie"
@@ -13821,6 +13925,7 @@ export const Constants = {
       permission_scope: ["none", "own", "team", "all"],
       plan_type: ["trial", "starter", "professional", "enterprise"],
       platforma_mobila: ["ios", "android"],
+      pontaj_arhiva_motiv: ["blocare", "matura_lunara"],
       reges_directie_propunere: ["trimisa", "primita"],
       reges_fel_propunere: ["detasare", "mutare"],
       reges_mediu: ["test", "productie"],
