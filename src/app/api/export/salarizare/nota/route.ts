@@ -16,6 +16,7 @@ import { construiesteNota } from "@/domain/payroll/contabil/nota";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { inregistreazaDocumentGenerat, numarPentruFisier } from "@/lib/registru/document-generat";
 
 export const dynamic = "force-dynamic";
 
@@ -132,11 +133,20 @@ export async function GET(cerere: Request): Promise<Response> {
   // BOM, ca Excel să deschidă fișierul cu diacriticele corecte.
   const csv = `﻿${linii.join("\r\n")}\r\n`;
 
+  const inregistrare = await inregistreazaDocumentGenerat(db, {
+    organizationId: tenant.organizationId,
+    tip: "nota_contabila",
+    rezumat: `Notă contabilă salarii ${eticheta}`,
+    entitateTip: "payroll_periods_nota",
+    entitateId: perioada.id,
+  });
+  if (!inregistrare.ok) return raspunsText(inregistrare.mesaj, 409);
+
   return new Response(csv, {
     status: 200,
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="nota-salarii-${eticheta}.csv"`,
+      "content-disposition": `attachment; filename="nota-salarii-${eticheta}-${numarPentruFisier(inregistrare.numarAfisat)}.csv"`,
       "cache-control": "no-store",
     },
   });

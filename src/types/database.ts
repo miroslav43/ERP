@@ -7407,6 +7407,172 @@ export type Database = {
         }
         Relationships: []
       }
+      nomenclator_config: {
+        Row: {
+          avizat_la: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          directia_judeteana: string | null
+          id: string
+          numar_aviz: string | null
+          observatii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          avizat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          directia_judeteana?: string | null
+          id?: string
+          numar_aviz?: string | null
+          observatii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          avizat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          directia_judeteana?: string | null
+          id?: string
+          numar_aviz?: string | null
+          observatii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomenclator_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nomenclator_dosare: {
+        Row: {
+          compartiment_cifra: string
+          compartiment_denumire: string
+          continut: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          dosar_cifra: number
+          id: string
+          indicativ: string | null
+          observatii: string | null
+          organization_id: string
+          subdiviziune_denumire: string | null
+          subdiviziune_litera: string | null
+          termen_pastrare: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          compartiment_cifra: string
+          compartiment_denumire: string
+          continut: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          dosar_cifra: number
+          id?: string
+          indicativ?: string | null
+          observatii?: string | null
+          organization_id: string
+          subdiviziune_denumire?: string | null
+          subdiviziune_litera?: string | null
+          termen_pastrare: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          compartiment_cifra?: string
+          compartiment_denumire?: string
+          continut?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          dosar_cifra?: number
+          id?: string
+          indicativ?: string | null
+          observatii?: string | null
+          organization_id?: string
+          subdiviziune_denumire?: string | null
+          subdiviziune_litera?: string | null
+          termen_pastrare?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomenclator_dosare_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nomenclator_tipuri: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          dosar_id: string
+          id: string
+          organization_id: string
+          tip_document: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          dosar_id: string
+          id?: string
+          organization_id: string
+          tip_document: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          dosar_id?: string
+          id?: string
+          organization_id?: string
+          tip_document?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomenclator_tipuri_dosar_id_fkey"
+            columns: ["dosar_id"]
+            isOneToOne: false
+            referencedRelation: "nomenclator_dosare"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nomenclator_tipuri_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           created_at: string
@@ -10786,6 +10952,7 @@ export type Database = {
           entitate_id: string | null
           entitate_tip: string
           id: string
+          indicativ_dosar: string | null
           inregistrat_retroactiv: boolean
           mod_rezolvare: string | null
           motiv_anulare: string | null
@@ -10796,6 +10963,8 @@ export type Database = {
           numar_file: number | null
           organization_id: string
           punct_lucru_id: string | null
+          rezolvat_de: string | null
+          rezolvat_la: string | null
           sens: Database["public"]["Enums"]["registru_sens"]
           tip_document: string
           updated_at: string
@@ -10817,6 +10986,7 @@ export type Database = {
           entitate_id?: string | null
           entitate_tip: string
           id?: string
+          indicativ_dosar?: string | null
           inregistrat_retroactiv?: boolean
           mod_rezolvare?: string | null
           motiv_anulare?: string | null
@@ -10827,6 +10997,8 @@ export type Database = {
           numar_file?: number | null
           organization_id: string
           punct_lucru_id?: string | null
+          rezolvat_de?: string | null
+          rezolvat_la?: string | null
           sens: Database["public"]["Enums"]["registru_sens"]
           tip_document: string
           updated_at?: string
@@ -10848,6 +11020,7 @@ export type Database = {
           entitate_id?: string | null
           entitate_tip?: string
           id?: string
+          indicativ_dosar?: string | null
           inregistrat_retroactiv?: boolean
           mod_rezolvare?: string | null
           motiv_anulare?: string | null
@@ -10858,6 +11031,8 @@ export type Database = {
           numar_file?: number | null
           organization_id?: string
           punct_lucru_id?: string | null
+          rezolvat_de?: string | null
+          rezolvat_la?: string | null
           sens?: Database["public"]["Enums"]["registru_sens"]
           tip_document?: string
           updated_at?: string
@@ -12919,6 +13094,36 @@ export type Database = {
         }
         Returns: string
       }
+      inchide_exercitiu_registru: {
+        Args: { p_an: number; p_organization_id: string }
+        Returns: string
+      }
+      inregistreaza_document_generat: {
+        Args: {
+          p_continut_rezumat: string
+          p_entitate_id?: string | null
+          p_entitate_tip: string
+          p_organization_id: string
+          p_punct_lucru_id?: string | null
+          p_tip_document: string
+        }
+        Returns: string
+      }
+      inregistreaza_document_manual: {
+        Args: {
+          p_continut_rezumat: string
+          p_data_document_emitent?: string | null
+          p_emitent?: string | null
+          p_numar_anexe?: number | null
+          p_numar_document_emitent?: string | null
+          p_numar_file?: number | null
+          p_organization_id: string
+          p_punct_lucru_id?: string | null
+          p_sens: string
+          p_tip_document: string
+        }
+        Returns: string
+      }
       inregistreaza_organizatie: {
         Args: {
           p_cui: string
@@ -13018,6 +13223,10 @@ export type Database = {
           link: string
           titlu: string
         }[]
+      }
+      redeschide_exercitiu_registru: {
+        Args: { p_an: number; p_motiv: string; p_organization_id: string }
+        Returns: undefined
       }
       reges_ia_inchirierea: {
         Args: { p_cheie: string; p_detinator: string; p_secunde?: number }
@@ -13137,6 +13346,7 @@ export type Database = {
         | "import"
         | "sincronizare_concedii"
         | "pontare_rapida"
+        | "saptamana"
       attendance_period_status: "deschisa" | "in_aprobare" | "blocata"
       attendance_presence_kind:
         | "birou"
@@ -13662,6 +13872,7 @@ export const Constants = {
         "import",
         "sincronizare_concedii",
         "pontare_rapida",
+        "saptamana",
       ],
       attendance_period_status: ["deschisa", "in_aprobare", "blocata"],
       attendance_presence_kind: [

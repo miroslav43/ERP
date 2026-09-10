@@ -60,6 +60,9 @@ export type RandRegistru = Readonly<{
   numarFile: number | null;
   numarAnexe: number | null;
   conexatLa: string | null;
+  /** Ordin 217/1996 art. 9 și art. 11 — indicativul dosarului după nomenclator. */
+  indicativDosar: string | null;
+  rezolvatLa: string | null;
   entitateTip: string;
   entitateId: string | null;
   inregistratRetroactiv: boolean;
@@ -103,6 +106,8 @@ type RandBrut = {
   readonly numar_file: number | null;
   readonly numar_anexe: number | null;
   readonly conexat_la: string | null;
+  readonly indicativ_dosar: string | null;
+  readonly rezolvat_la: string | null;
   readonly entitate_tip: string;
   readonly entitate_id: string | null;
   readonly inregistrat_retroactiv: boolean;
@@ -114,7 +119,7 @@ const COLOANE =
   "id, numar, numar_afisat, data_inregistrare, sens, tip_document, continut_rezumat, " +
   "numar_document_emitent, data_document_emitent, emitent, destinatar, compartiment, " +
   "data_expedierii, mod_rezolvare, numar_file, numar_anexe, conexat_la, entitate_tip, " +
-  "entitate_id, inregistrat_retroactiv, anulat_la, motiv_anulare";
+  "entitate_id, inregistrat_retroactiv, anulat_la, motiv_anulare, indicativ_dosar, rezolvat_la";
 
 const spreRand = (b: RandBrut): RandRegistru => ({
   id: b.id,
@@ -134,6 +139,8 @@ const spreRand = (b: RandBrut): RandRegistru => ({
   numarFile: b.numar_file,
   numarAnexe: b.numar_anexe,
   conexatLa: b.conexat_la,
+  indicativDosar: b.indicativ_dosar,
+  rezolvatLa: b.rezolvat_la,
   entitateTip: b.entitate_tip,
   entitateId: b.entitate_id,
   inregistratRetroactiv: b.inregistrat_retroactiv,

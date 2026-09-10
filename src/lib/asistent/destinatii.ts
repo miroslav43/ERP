@@ -1102,6 +1102,19 @@ const INTRARI: readonly Intrare[] = [
       "Numerele de înregistrare ale tuturor documentelor firmei, pe an — ce a intrat, ce a ieșit și ce s-a întocmit pentru uz intern. Aici se caută „al câtelea document” și de aici se listează registrul cerut la un control.",
   },
   {
+    id: "registru.nomenclator",
+    href: "/registru/nomenclator",
+    eticheta: "Nomenclatorul dosarelor",
+    zona: "app",
+    parinte: "registru",
+    fila: null,
+    featureKey: null,
+    permission: "registru:read",
+    minScope: "all",
+    descriere:
+      "Tabelul care spune în ce dosar se clasează fiecare fel de document și cât se păstrează — compartimente, indicative de forma „II.5” și termene. Se predă spre confirmare la Arhivele Naționale; indicativul de aici apare în registru și pe fiecare document.",
+  },
+  {
     id: "setari.audit",
     href: "/setari/audit",
     eticheta: "Jurnal de audit",

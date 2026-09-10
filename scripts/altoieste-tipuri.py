@@ -36,7 +36,19 @@ import sys
 # aici, iar prima regenerare de după a rupt `pontaj/saptamana/actions.ts` fără
 # nicio schimbare de schemă. Cu `--db-url`, lista se citește din catalog.
 RPC_CU_NULL_IMPLICIT = frozenset(
-    {"hr_write_sensitive", "log_audit_event", "submit_demo_request", "trimite_saptamana_pontaj"}
+    {
+        "decide_zi_pontaj",
+        "hr_write_sensitive",
+        "inregistreaza_document_generat",
+        "inregistreaza_document_manual",
+        "inregistreaza_organizatie",
+        "log_audit_event",
+        "org_write_sensitive",
+        "reges_write_credentiale",
+        "seed_leave_balances",
+        "submit_demo_request",
+        "trimite_saptamana_pontaj",
+    }
 )
 
 

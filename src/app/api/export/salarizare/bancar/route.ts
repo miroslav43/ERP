@@ -22,6 +22,7 @@ import { genereazaSepa, type PlataSepa } from "@/domain/payroll/bancar/sepa";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { inregistreazaDocumentGenerat, numarPentruFisier } from "@/lib/registru/document-generat";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -153,11 +154,20 @@ export async function GET(cerere: Request): Promise<Response> {
     );
   }
 
+  const inregistrare = await inregistreazaDocumentGenerat(db, {
+    organizationId: tenant.organizationId,
+    tip: "ordin_bancar",
+    rezumat: `Ordin de plată salarii ${eticheta} — ${String(rezultat.numarPlati)} plăți`,
+    entitateTip: "payroll_periods_bancar",
+    entitateId: perioada.id,
+  });
+  if (!inregistrare.ok) return raspunsText(inregistrare.mesaj, 409);
+
   return new Response(rezultat.xml, {
     status: 200,
     headers: {
       "content-type": "application/xml; charset=utf-8",
-      "content-disposition": `attachment; filename="salarii-${eticheta}.xml"`,
+      "content-disposition": `attachment; filename="salarii-${eticheta}-${numarPentruFisier(inregistrare.numarAfisat)}.xml"`,
       "cache-control": "no-store",
       // Antetele spun ce NU a intrat în fișier, ca omul să afle fără să
       // deschidă XML-ul și să numere.

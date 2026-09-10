@@ -222,6 +222,46 @@ documentele financiar-contabile · pentru documentele de instruire SSM · pentru
 `audit_logs` · termenul de ștergere a IP-ului și user-agent-ului din lead-urile
 respinse (minimizare GDPR).
 
+### Nomenclatorul dosarelor · `nomenclator_dosare`
+
+Ordinul de zi 217/1996 art. 10-11 cere ca fiecare firmă să întocmească un
+nomenclator al dosarelor, după modelul din anexa nr. 1, și să-l supună confirmării
+Arhivelor Naționale sau direcției județene. Indicativul dosarului — cifră romană
+pentru compartiment, literă majusculă pentru subdiviziune, cifră arabă pentru dosar
+— se trece în registrul de intrare-ieșire ȘI pe fiecare document în parte.
+
+Migrarea `0135` livrează un nomenclator IMPLICIT, generat din modulele aplicației:
+șapte compartimente, 38 de dosare, fiecare cu tipurile de document care se clasează
+în el. Firma îl adaptează din `/registru/nomenclator`.
+
+⚠️ **Termenele de păstrare din nomenclatorul implicit sunt un punct de plecare, nu
+un aviz.** Sursele folosite la scriere:
+
+- OMFP 2634/2015 pct. 38-40 — statele de salarii **50 de ani**; registrele și
+  celelalte documente financiar-contabile **10 ani** de la încheierea exercițiului
+  în cursul căruia au fost întocmite; documentele din anexa 4, **5 ani**;
+- HG 1425/2006 — fișa de instruire individuală se păstrează „de la angajare până la
+  încetarea raportului de muncă", trecută în nomenclator ca `CS` (când se schimbă).
+
+De confirmat de contabil sau jurist, ÎNAINTE de a preda nomenclatorul spre avizare:
+termenul pentru contractele individuale de muncă și dosarele de personal (seed-ul
+folosește 75 de ani) · termenul pentru evaluările de riscuri și dosarele de accident
+(seed-ul folosește „permanent") · dacă structura de compartimente corespunde schemei
+de organizare a firmei, fiindcă art. 11 cere ordinea din schema de organizare.
+
+### Registrul de documente · `registru_documente`
+
+⚠️ Cele patru **registre unice de evidență** din HG 1425/2006 art. 141 — accidentați
+în muncă (anexa 15), incidente periculoase (anexa 16), accidente ușoare (anexa 17),
+accidentați cu incapacitate peste 3 zile (anexa 18) — **NU sunt construite**. Sunt o
+obligație distinctă de registrul de intrare-ieșire, cu modele proprii de formular.
+Tabelele sursă există în modulul SSM; registrele în forma cerută, nu.
+
+⚠️ **Fluxul de demisie nu există în aplicație.** Codul muncii art. 81 obligă
+angajatorul s-o înregistreze, iar refuzul dă salariatului dreptul s-o dovedească
+prin orice mijloc de probă. Până se construiește, demisia se înregistrează manual,
+din `/registru`.
+
 ### REVISAL · `revisal_config`
 
 ⚠️ Termenele de transmitere a elementelor CIM și a modificărilor · codurile de

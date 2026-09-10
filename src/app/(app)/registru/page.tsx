@@ -10,7 +10,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookMarked, Printer } from "lucide-react";
+import { BookMarked, FolderTree, Printer } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
@@ -31,6 +31,7 @@ import {
 } from "@/lib/queries/registru";
 
 import { ETICHETE_SENS, eticheteazaTipDocument } from "./etichete";
+import { DialogDocumentPrimit } from "./dialog-document-primit";
 import { FiltreRegistru } from "./filtre-registru";
 
 export const metadata: Metadata = {
@@ -71,6 +72,9 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
   }
 
   const poateLista = can(permisiuni, "registru:export", "all");
+  // Aceeași cheie ca la exercițiu: cine ține registrul poate înregistra un
+  // document primit pe hârtie și poate corecta clasarea în nomenclator.
+  const poateScrie = can(permisiuni, "registru:update", "all");
 
   const brute = await searchParams;
   const filtre = parseazaFiltre(brute);
@@ -105,17 +109,31 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
         titlu="Registrul documentelor"
         descriere={`Numerele de înregistrare ale ${tenant.name}, pe anul ${filtre.an}. Numerotarea începe la 1 ianuarie și se încheie la 31 decembrie.`}
         actiuni={
-          poateLista ? (
-            <Link
-              href={`/registru/listare?${serializeazaFiltre(filtre)}`}
-              target="_blank"
-              rel="noopener"
-              className="border-border text-corp hover:bg-surface-2 inline-flex items-center gap-2 rounded-md border px-3 py-1.5"
-            >
-              <Printer aria-hidden="true" className="size-4" />
-              Listează registrul
-            </Link>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            {poateScrie ? (
+              <>
+                <Link
+                  href="/registru/nomenclator"
+                  className="border-border text-corp hover:bg-surface-2 inline-flex items-center gap-2 rounded-md border px-3 py-1.5"
+                >
+                  <FolderTree aria-hidden="true" className="size-4" />
+                  Nomenclator
+                </Link>
+                <DialogDocumentPrimit />
+              </>
+            ) : null}
+            {poateLista ? (
+              <Link
+                href={`/registru/listare?${serializeazaFiltre(filtre)}`}
+                target="_blank"
+                rel="noopener"
+                className="border-border text-corp hover:bg-surface-2 inline-flex items-center gap-2 rounded-md border px-3 py-1.5"
+              >
+                <Printer aria-hidden="true" className="size-4" />
+                Listează registrul
+              </Link>
+            ) : null}
+          </div>
         }
       />
 
@@ -177,7 +195,9 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
                   <th className="px-3 py-2 font-medium">Tip document</th>
                   <th className="px-3 py-2 font-medium">Conținut</th>
                   <th className="px-3 py-2 font-medium">Nr. document</th>
+                  <th className="px-3 py-2 font-medium">Indicativ</th>
                   <th className="px-3 py-2 font-medium">Destinatar</th>
+                  <th className="px-3 py-2 font-medium">Rezolvare</th>
                 </tr>
               </thead>
               <tbody className="text-corp">
@@ -214,7 +234,28 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
                     <td className="text-muted-foreground px-3 py-2 whitespace-nowrap">
                       {r.numarDocumentEmitent ?? "—"}
                     </td>
+                    {/* Ordin 217/1996 art. 9: indicativul dosarului după nomenclator.
+                        Gol înseamnă „tip neclasat”, nu o eroare — art. 9 spune că se
+                        completează „după rezolvarea documentului”. */}
+                    <td className="text-muted-foreground px-3 py-2 font-mono whitespace-nowrap">
+                      {r.indicativDosar ?? "—"}
+                    </td>
                     <td className="px-3 py-2">{r.destinatar ?? "—"}</td>
+                    {/* Un rând per caz: răspunsul nu ia număr nou, ci închide cererea. */}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {r.modRezolvare === null ? (
+                        <span className="text-muted-foreground">în lucru</span>
+                      ) : (
+                        <>
+                          {r.modRezolvare}
+                          {r.dataExpedierii === null ? null : (
+                            <span className="text-muted-foreground text-nota block">
+                              {formatDate(r.dataExpedierii)}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

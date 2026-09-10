@@ -19,6 +19,7 @@ import { genereazaStatDePlata, numeLuna, type RandStatPlata } from "@/lib/pdf/st
 import { numeFisier } from "@/lib/pdf/document";
 import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
 import { formatDateTime } from "@/lib/format/date";
+import { inregistreazaDocumentGenerat, numarPentruFisier } from "@/lib/registru/document-generat";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -114,7 +115,20 @@ export async function GET(cerere: Request): Promise<Response> {
     generatLa: formatDateTime(new Date().toISOString()),
   });
 
-  const nume = numeFisier(`stat-plata-${numeLuna(perioada.luna)}-${String(perioada.an)}`);
+  // Ordin 217/1996 art. 8: documentul primește număr ÎNAINTE să iasă din firmă.
+  // Idempotent pe perioadă — descărcat de zece ori, un singur număr.
+  const inregistrare = await inregistreazaDocumentGenerat(db, {
+    organizationId: tenant.organizationId,
+    tip: "stat_plata",
+    rezumat: `Stat de plată ${numeLuna(perioada.luna)} ${String(perioada.an)}`,
+    entitateTip: "payroll_periods",
+    entitateId: perioada.id,
+  });
+  if (!inregistrare.ok) return raspunsText(inregistrare.mesaj, 409);
+
+  const nume = numeFisier(
+    `stat-plata-${numeLuna(perioada.luna)}-${String(perioada.an)}-${numarPentruFisier(inregistrare.numarAfisat)}`,
+  );
   return new Response(pdf as BodyInit, {
     status: 200,
     headers: {

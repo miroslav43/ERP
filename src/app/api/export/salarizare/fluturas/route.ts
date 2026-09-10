@@ -19,6 +19,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { genereazaFluturas } from "@/lib/pdf/fluturas";
 import { numeLuna } from "@/lib/pdf/stat-plata";
 import { numeFisier } from "@/lib/pdf/document";
+import { inregistreazaDocumentGenerat, numarPentruFisier } from "@/lib/registru/document-generat";
 import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
 import { castigurileFluturasului, retinerileFluturasului } from "@/lib/pdf/linii-fluturas";
 import { formatDateTime } from "@/lib/format/date";
@@ -128,8 +129,20 @@ export async function GET(cerere: Request): Promise<Response> {
     generatLa: formatDateTime(new Date().toISOString()),
   });
 
+  // Fluturașul e un document per salariat, deci entitatea e RÂNDUL de salariu,
+  // nu perioada: altfel al doilea fluturaș al lunii ar refolosi tăcut numărul
+  // primului, prin idempotență.
+  const inregistrare = await inregistreazaDocumentGenerat(db, {
+    organizationId: tenant.organizationId,
+    tip: "fluturas",
+    rezumat: `Fluturaș ${numeLuna(perioada.luna)} ${String(perioada.an)} — ${rand.angajat?.full_name ?? "—"}`,
+    entitateTip: "payroll_entries",
+    entitateId: rand.id,
+  });
+  if (!inregistrare.ok) return raspunsText(inregistrare.mesaj, 409);
+
   const nume = numeFisier(
-    `fluturas-${numeLuna(perioada.luna)}-${String(perioada.an)}-${rand.angajat?.marca ?? ""}`,
+    `fluturas-${numeLuna(perioada.luna)}-${String(perioada.an)}-${rand.angajat?.marca ?? ""}-${numarPentruFisier(inregistrare.numarAfisat)}`,
   );
   return new Response(pdf as BodyInit, {
     status: 200,

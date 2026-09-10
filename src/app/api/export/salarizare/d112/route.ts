@@ -33,6 +33,7 @@ import {
 } from "@/domain/payroll/d112/coduri";
 import type { AsiguratD112, CreantaD112 } from "@/domain/payroll/d112/structura";
 import { numeFisier } from "@/lib/pdf/document";
+import { inregistreazaDocumentGenerat, numarPentruFisier } from "@/lib/registru/document-generat";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -277,8 +278,19 @@ export async function GET(cerere: Request): Promise<Response> {
   }
 
   const atentionari = rezultat.probleme.filter((p) => !p.blocant);
+  // Rectificativa e alt document decât declarația inițială: intră în entitate,
+  // ca să primească număr propriu în loc să-l refolosească pe al aceleia.
+  const inregistrare = await inregistreazaDocumentGenerat(db, {
+    organizationId: tenant.organizationId,
+    tip: "d112",
+    rezumat: `Declarația 112 pe ${String(perioada.luna).padStart(2, "0")}.${String(perioada.an)}${rectificativa ? " (rectificativă)" : ""}`,
+    entitateTip: rectificativa ? "payroll_periods_d112_rect" : "payroll_periods_d112",
+    entitateId: perioada.id,
+  });
+  if (!inregistrare.ok) return raspunsText(inregistrare.mesaj, 409);
+
   const nume = numeFisier(
-    `d112-${String(perioada.an)}-${String(perioada.luna).padStart(2, "0")}${rectificativa ? "-rectificativa" : ""}`,
+    `d112-${String(perioada.an)}-${String(perioada.luna).padStart(2, "0")}${rectificativa ? "-rectificativa" : ""}-${numarPentruFisier(inregistrare.numarAfisat)}`,
   );
   return new Response(rezultat.xml, {
     status: 200,
