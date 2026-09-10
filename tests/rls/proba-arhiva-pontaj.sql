@@ -26,6 +26,7 @@
 -- (12) nici `org_admin` nu poate insera direct în arhivă (nicio politică INSERT)
 -- (13) instantaneul nu conține CNP
 -- (14) mătura lunară arhivează o lună încheiată rămasă nearhivată
+-- (15) `authenticated` are pe tabelă exact dreptul SELECT
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-arhiva-pontaj.sql
@@ -299,6 +300,26 @@ begin
   if v_vazute <> 1 then
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (14) MĂTURA N-A PRINS LUNA. Firmele care nu blochează rămân fără arhivă.';
+  end if;
+
+  -- ── (15) Granturile, nu doar politicile. ──
+  -- Pe bancul local verificarea trece din oficiu: un Postgres gol n-are
+  -- `alter default privileges ... grant all to authenticated`, pe care Supabase
+  -- îl are. Exact de aceea `0134` a plecat pe producție cu `authenticated`
+  -- purtând DELETE, INSERT, UPDATE pe o tabelă care trebuia să fie doar de
+  -- citit — reparat de `0137`. Verificarea rămâne aici ca următoarea tabelă
+  -- append-only să nu repete drumul: pe cloud e singura care ar cădea.
+  select count(*) into v_vazute
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and table_name   = 'pontaj_arhive_lunare'
+    and grantee      = 'authenticated'
+    and privilege_type <> 'SELECT';
+
+  raise notice '  (15) `authenticated` are doar SELECT ..... % alte drepturi (aștept 0)', v_vazute;
+  if v_vazute <> 0 then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (15) `authenticated` are drepturi de SCRIERE pe arhivă. RLS le refuză, dar a doua barieră lipsește.';
   end if;
 
   raise notice '';
