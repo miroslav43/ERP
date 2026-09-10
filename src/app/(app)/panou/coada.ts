@@ -31,6 +31,22 @@ export type IntrareCoada = Readonly<{
   urgent?: boolean;
 }>;
 
+/**
+ * „3 zile · 1 fișă" — despărțit, fiindcă se aprobă din două blocuri diferite
+ * ale aceluiași ecran, iar omul trebuie să știe ce-l așteaptă înainte să intre.
+ */
+function detaliulPontajului(zile: number, fise: number, luni: number): string {
+  const bucati: string[] = [];
+  if (zile > 0) {
+    const numite = zile === 1 ? "o zi" : `${String(zile)} zile`;
+    // „din 2 luni" e avertismentul că un singur ecran nu le arată pe toate:
+    // `/pontaj/aprobare` lucrează pe o lună, iar linkul duce în prima.
+    bucati.push(luni > 1 ? `${numite} din ${String(luni)} luni` : numite);
+  }
+  if (fise > 0) bucati.push(fise === 1 ? "o fișă săptămânală" : `${String(fise)} fișe săptămânale`);
+  return bucati.join(" · ");
+}
+
 export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
   const { coada } = c;
   const intrari: IntrareCoada[] = [];
@@ -52,17 +68,31 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
       numar: coada.cereriConcediu,
       titlu: "Cereri de concediu care așteaptă o decizie",
       detaliu: coada.cereriConcediu === 1 ? "cerere trimisă" : "cereri trimise",
-      href: "/concedii?status=trimisa,in_aprobare",
+      href: "/concedii/echipa?status=trimisa,in_aprobare",
       actiune: "Deschide",
     });
   }
-  if (coada.saptamaniPontaj !== null && coada.saptamaniPontaj > 0) {
+  /*
+   * Rândul spunea „Perioade de pontaj trimise spre aprobare — 1 perioadă", și
+   * niciun cuvânt nu era adevărat: număra luni în starea `in_aprobare`, în care
+   * luna intră când aprobatorul aprobă primul lot — deci APĂREA DUPĂ ce se
+   * lucrase, nu se golea niciodată aprobând (doar blocarea o scoate de acolo),
+   * și rata restanțele reale, care stăteau în lunile `deschisa`.
+   *
+   * Acum numără ce se aprobă efectiv, în cuvintele ecranului de dincolo: zile
+   * și fișe săptămânale. Linkul poartă luna primei restanțe, fiindcă
+   * `/pontaj/aprobare` lucrează pe o singură lună și se deschide implicit pe cea
+   * curentă — fără ea, cifra ar fi numărat octombrie și ecranul ar fi arătat
+   * septembrie.
+   */
+  if (coada.pontaj !== null) {
+    const { zile, fise, luni, an, luna } = coada.pontaj;
     intrari.push({
       cheie: "pontaj",
-      numar: coada.saptamaniPontaj,
-      titlu: "Perioade de pontaj trimise spre aprobare",
-      detaliu: coada.saptamaniPontaj === 1 ? "perioadă" : "perioade",
-      href: "/pontaj/aprobare",
+      numar: zile + fise,
+      titlu: "Pontaj care așteaptă aprobare",
+      detaliu: detaliulPontajului(zile, fise, luni),
+      href: `/pontaj/aprobare?an=${String(an)}&luna=${String(luna)}`,
       actiune: "Aprobă",
     });
   }

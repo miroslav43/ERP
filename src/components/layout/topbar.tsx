@@ -80,7 +80,12 @@ export async function Topbar() {
   // deschidere e mai rea decât una ascunsă.
   // Aceleași insigne ca în meniul lateral, din aceeași funcție memoizată: două
   // surse pentru același număr ar diverge în prima săptămână.
-  const contoare = await contoarePanouPentru(tenant.organizationId, tenant.role, tenant.memberId);
+  const contoare = await contoarePanouPentru(
+    tenant.organizationId,
+    tenant.role,
+    tenant.memberId,
+    utilizator.id,
+  );
   const navigatie = buildNavigation({
     features: module,
     permissions: permisiuni,

@@ -8,7 +8,7 @@ import { coadaDinContoare, numarulDinAntet } from "./coada";
 /** Contori toți pe `1`, ca fiecare să producă exact un rând de un element. */
 const TOTI_PE_UNU: CoadaPanou = {
   cereriConcediu: 1,
-  saptamaniPontaj: 1,
+  pontaj: { zile: 1, fise: 0, luni: 1, an: 2026, luna: 9 },
   deplasari: 1,
   foiParcurs: 1,
   tichete: 1,
@@ -63,7 +63,7 @@ describe("coadaDinContoare", () => {
   it("coada goală dă zero, nu un rând gol", () => {
     const goala: CoadaPanou = {
       cereriConcediu: 0,
-      saptamaniPontaj: 0,
+      pontaj: null,
       deplasari: 0,
       foiParcurs: 0,
       tichete: 0,
@@ -90,5 +90,63 @@ describe("coadaDinContoare", () => {
     expect(unul.find((i) => i.cheie === "reges")?.detaliu).toBe("eveniment");
     const trei = coadaDinContoare(contoare({ ...TOTI_PE_UNU, regesDeTransmis: 3 }));
     expect(trei.find((i) => i.cheie === "reges")?.detaliu).toBe("evenimente");
+  });
+});
+
+describe("rândul de pontaj", () => {
+  const cu = (pontaj: CoadaPanou["pontaj"]) =>
+    coadaDinContoare(contoare({ ...TOTI_PE_UNU, pontaj })).find((i) => i.cheie === "pontaj");
+
+  /*
+   * Contorul dinainte număra LUNI în starea `in_aprobare` — o stare în care luna
+   * intră când aprobatorul aprobă primul lot, nu când o trimite cineva. Rândul
+   * apărea deci după ce se lucrase, se golea doar prin blocarea lunii, și rata
+   * restanțele reale, care stau în lunile `deschisa`.
+   */
+  it("numără zilele și fișele împreună, fiindcă se aprobă din același ecran", () => {
+    expect(cu({ zile: 8, fise: 2, luni: 2, an: 2026, luna: 10 })?.numar).toBe(10);
+  });
+
+  /*
+   * `/pontaj/aprobare` lucrează pe O lună și se deschide implicit pe cea curentă.
+   * Fără luna în link, panoul ar fi numărat octombrie și ecranul ar fi arătat
+   * septembrie — aceeași contrazicere, mutată cu un clic mai încolo.
+   */
+  it("duce în luna primei restanțe, nu în luna curentă", () => {
+    expect(cu({ zile: 8, fise: 0, luni: 1, an: 2026, luna: 10 })?.href).toBe(
+      "/pontaj/aprobare?an=2026&luna=10",
+    );
+  });
+
+  it("spune despărțit ce anume așteaptă", () => {
+    expect(cu({ zile: 3, fise: 1, luni: 1, an: 2026, luna: 9 })?.detaliu).toBe(
+      "3 zile · o fișă săptămânală",
+    );
+    expect(cu({ zile: 1, fise: 0, luni: 1, an: 2026, luna: 9 })?.detaliu).toBe("o zi");
+    expect(cu({ zile: 0, fise: 2, luni: 0, an: 2026, luna: 9 })?.detaliu).toBe(
+      "2 fișe săptămânale",
+    );
+  });
+
+  it("avertizează când restanțele sunt împrăștiate pe mai multe luni", () => {
+    expect(cu({ zile: 10, fise: 0, luni: 2, an: 2026, luna: 9 })?.detaliu).toBe(
+      "10 zile din 2 luni",
+    );
+  });
+
+  it("nu apare deloc când nu e nimic de aprobat", () => {
+    expect(cu(null)).toBeUndefined();
+  });
+});
+
+describe("rândul de concedii", () => {
+  /*
+   * Ducea la `/concedii`, care e fixat pe `vizualizare="mele"`. Contorul număra
+   * toată firma, ecranul arăta doar cererile proprii: panoul anunța o cerere de
+   * decis, iar „Deschide" ducea la „Nicio cerere de concediu".
+   */
+  it("duce la echipă, singurul ecran unde se decid cererile altora", () => {
+    const rand = coadaDinContoare(contoare(TOTI_PE_UNU)).find((i) => i.cheie === "concedii");
+    expect(rand?.href).toBe("/concedii/echipa?status=trimisa,in_aprobare");
   });
 });

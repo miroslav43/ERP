@@ -50,7 +50,7 @@ export default async function PanouPage() {
   const rezolvare = await resolveTenant();
   if (rezolvare.status === "neautentificat") redirect(RUTA_AUTENTIFICARE);
   if (rezolvare.status !== "ok") redirect(RUTA_ALEGE_ORGANIZATIA);
-  const { tenant } = rezolvare;
+  const { tenant, user } = rezolvare;
 
   // Preambulul canonic, absent până acum de pe singura pagină din `(app)` care
   // n-avea niciunul. Fără el, un `manager` fără `payroll:read` ar fi văzut
@@ -67,7 +67,12 @@ export default async function PanouPage() {
    * unsprezece interogări s-ar fi făcut de două ori pe fiecare încărcare a
    * panoului.
    */
-  const contoare = await contoarePanouPentru(tenant.organizationId, tenant.role, tenant.memberId);
+  const contoare = await contoarePanouPentru(
+    tenant.organizationId,
+    tenant.role,
+    tenant.memberId,
+    user.id,
+  );
 
   const coada = coadaDinContoare(contoare);
   const totalDeRezolvat = numarulDinAntet(coada);

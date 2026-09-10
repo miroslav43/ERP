@@ -40,11 +40,18 @@ export async function MeniuLateral({
   organizationId,
   role,
   memberId,
-}: Readonly<{ organizationId: string; role: AppRole; memberId: string }>): Promise<ReactElement> {
+  userId,
+}: Readonly<{
+  organizationId: string;
+  role: AppRole;
+  memberId: string;
+  /** Contorul de concedii îl cere: își exclude propria fișă, ca lista de dincolo. */
+  userId: string;
+}>): Promise<ReactElement> {
   const [features, permissions, contoare] = await Promise.all([
     getEnabledFeatures(organizationId),
     getPermissionMap(organizationId, role, memberId),
-    contoarePanouPentru(organizationId, role, memberId),
+    contoarePanouPentru(organizationId, role, memberId, userId),
   ]);
 
   const grupuri = buildNavigation({

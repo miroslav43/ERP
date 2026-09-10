@@ -36,6 +36,8 @@ import type { Destinatie } from "../destinatii";
 
 export type ContextUnealta = Readonly<{
   organizationId: string;
+  /** Contul care întreabă. Distinct de `employeeId`: un admin poate n-aibă fișă. */
+  userId: string;
   memberId: string;
   role: AppRole;
   /** Fișa de angajat a celui care întreabă. `null` = cont fără fișă. */

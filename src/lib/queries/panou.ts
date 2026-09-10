@@ -15,6 +15,7 @@ import { citesteRezumatCredentiale } from "@/lib/reges/credentiale";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import { numarAngajatiActivi } from "./announcements";
+import { idFisaProprie } from "./employees";
 import { citesteTot } from "./citeste-tot";
 import { numarScadenteMentenanta } from "./maintenance";
 import { numarScadenteSsm } from "./ssm";
@@ -51,9 +52,57 @@ import { numarScadenteSsm } from "./ssm";
 export type Contor = number | null;
 
 /** Ce așteaptă o decizie. Ordinea din tip e ordinea de pe ecran. */
+/**
+ * Ce așteaptă efectiv o aprobare pe pontaj.
+ *
+ * ── DE CE NU E UN SIMPLU `Contor` ─────────────────────────────────────────
+ * Ecranul `/pontaj/aprobare` lucrează pe O LUNĂ, aleasă din URL, iar implicit
+ * pe cea curentă. Un contor care ar aduna zilele din toate lunile ar trimite
+ * omul într-o lună în care nu e nimic — cifra spune 10, ecranul arată 2, iar
+ * restul de 8 stau în octombrie, unde nu se uită nimeni.
+ *
+ * Rândul poartă de aceea și luna în care se află PRIMA restanță, ca linkul să
+ * ducă exact acolo. Contorul și lista redevin astfel același lucru, ceea ce e
+ * regula din capul fișierului.
+ */
+export type PontajDeAprobat = Readonly<{
+  /** Zile de pontaj neaprobate, în luni încă neblocate. */
+  zile: number;
+  /** Fișe săptămânale trimise și nedecise. */
+  fise: number;
+  /**
+   * În câte luni distincte stau zilele acelea.
+   *
+   * Fără cifra asta rândul ar fi mințit din nou, doar mai subtil: „10 zile",
+   * clic, și ecranul lunii septembrie arată 2. Restul de 8 sunt în octombrie.
+   * Detaliul rândului o spune („10 zile din 2 luni"), deci cifra rămâne
+   * totalul adevărat, iar omul știe dinainte că are de schimbat luna.
+   */
+  luni: number;
+  /** Luna primei restanțe — destinația linkului. */
+  an: number;
+  luna: number;
+}>;
+
 export type CoadaPanou = Readonly<{
   cereriConcediu: Contor;
-  saptamaniPontaj: Contor;
+  /**
+   * `null` = modulul e stins sau rolul n-are dreptul de aprobare.
+   *
+   * A fost `Contor`, și număra `attendance_periods` în starea `in_aprobare`.
+   * Trei lucruri greșite deodată, toate vizibile pe panoul unei firme reale:
+   *
+   * 1. `in_aprobare` NU înseamnă „trimisă spre aprobare". E starea în care
+   *    luna intră când aprobatorul aprobă PRIMUL lot de linii
+   *    (`pontaj/actions.ts`, tranziția `deschisa -> in_aprobare`). Rândul
+   *    apărea deci abia DUPĂ ce se lucrase, nu înainte.
+   * 2. Nimeni n-o poate goli aprobând. Luna rămâne `in_aprobare` până e
+   *    BLOCATĂ, deci rândul stătea pe panou toată luna, mereu „1 perioadă".
+   *    Un contor care nu poate ajunge la zero anulează tot principiul.
+   * 3. Restanțele reale erau invizibile: lunile `deschisa` nu se numărau
+   *    deloc, iar acolo stăteau zilele neaprobate.
+   */
+  pontaj: PontajDeAprobat | null;
   deplasari: Contor;
   foiParcurs: Contor;
   tichete: Contor;
@@ -174,29 +223,119 @@ export async function contorRegesDeTransmis(organizationId: string): Promise<num
  * și niciunul pe concedii; badge-ul `leave_pending` din meniu era declarat și
  * nealimentat tocmai fiindcă o numărătoare naivă ar fi fost greșită.
  */
-export async function contorCereriConcediu(organizationId: string): Promise<number> {
+export async function contorCereriConcediu(
+  organizationId: string,
+  /**
+   * Utilizatorul curent — ca să iasă din numărătoare CERERILE LUI.
+   *
+   * ── DE CE, ȘI DE CE CONTEAZĂ ──────────────────────────────────────────
+   * Rândul duce la `/concedii/echipa`, singurul ecran unde se decid cererile
+   * altora. Ecranul acela filtrează `employee_id <> fișa mea` (`listeazaCereri`,
+   * `vizualizare = "echipa"`), deci o cerere PROPRIE numărată aici n-ar apărea
+   * niciodată în lista de dincolo.
+   *
+   * Nu e teoretic. Rândul ducea înainte la `/concedii`, care e fixat pe
+   * `vizualizare="mele"`: contorul număra toată firma, ecranul arăta doar
+   * cererile mele. Pe o firmă reală, panoul anunța „1 cerere de decis", omul
+   * apăsa „Deschide" și primea „Nicio cerere de concediu" — cererea era a
+   * altcuiva. Cifra și lista trebuie să numere ACELAȘI lucru; aici e locul
+   * unde se face asta.
+   *
+   * Cererea proprie nu se pierde: se vede în „Ale mele" și în portal, iar
+   * `aprobaPeLoc` o rezolvă oricum pe loc pentru cine are `leave:approve = all`.
+   */
+  userId: string,
+): Promise<number> {
   const db = await createServerSupabase();
-  const { count, error } = await db
+
+  // Aceeași funcție pe care o folosesc scope-urile „own"/„team" din tot
+  // proiectul; o a doua definiție a lui „fișa mea" ar diverge în prima lună.
+  const fisaMea = await idFisaProprie(organizationId, userId);
+
+  let interogare = db
     .from("leave_requests")
     .select("id", { count: "exact", head: true })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .in("status", ["trimisa", "in_aprobare"]);
+  // Fără fișă proprie — administrator care nu e angajat — n-ai ce exclude.
+  if (fisaMea !== null) interogare = interogare.neq("employee_id", fisaMea);
+
+  const { count, error } = await interogare;
   if (error !== null) throw error;
   return count ?? 0;
 }
 
-/** Săptămâni de pontaj trimise spre aprobare, la nivel de organizație. */
-export async function contorPontajDeAprobat(organizationId: string): Promise<number> {
+/**
+ * Ce așteaptă efectiv o aprobare pe pontaj: zile neaprobate + fișe săptămânale.
+ *
+ * Amândouă se aprobă de pe `/pontaj/aprobare`, în două blocuri distincte ale
+ * aceluiași ecran — deci un singur rând pe panou, cu detaliul despărțit.
+ *
+ * Lunile BLOCATE ies. O lună blocată nu mai acceptă nicio aprobare: politica
+ * respinge UPDATE-ul, iar linia rămâne neaprobată pe veci, prin construcție.
+ * Numărată, ar fi ținut panoul plin cu o restanță pe care nimeni n-o poate
+ * închide — exact defectul contorului pe care îl înlocuiește.
+ *
+ * `null` doar când nu e nimic; altfel rândul poartă luna primei restanțe.
+ */
+export async function pontajDeAprobat(organizationId: string): Promise<PontajDeAprobat | null> {
   const db = await createServerSupabase();
-  const { count, error } = await db
+
+  // Lunile în care aprobarea mai e posibilă. Fără ele n-am putea nici exclude
+  // blocatele, nici traduce `period_id` în (an, lună) pentru link.
+  const { data: perioade, error: eroarePerioade } = await db
     .from("attendance_periods")
+    .select("id, an, luna")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .neq("status", "blocata")
+    .returns<{ id: string; an: number; luna: number }[]>();
+  if (eroarePerioade !== null) throw eroarePerioade;
+  if (perioade === null || perioade.length === 0) return null;
+
+  const { data: zileNeaprobate, error: eroareZile } = await db
+    .from("attendance_entries")
+    .select("period_id")
+    .eq("organization_id", organizationId)
+    .is("approved_at", null)
+    .is("deleted_at", null)
+    .in(
+      "period_id",
+      perioade.map((p) => p.id),
+    )
+    .returns<{ period_id: string }[]>();
+  if (eroareZile !== null) throw eroareZile;
+
+  const { count: fise, error: eroareFise } = await db
+    .from("attendance_week_submissions")
     .select("id", { count: "exact", head: true })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .eq("status", "in_aprobare");
-  if (error !== null) throw error;
-  return count ?? 0;
+    .eq("status", "trimisa");
+  if (eroareFise !== null) throw eroareFise;
+
+  const zile = zileNeaprobate?.length ?? 0;
+  const numarFise = fise ?? 0;
+  if (zile === 0 && numarFise === 0) return null;
+
+  /*
+   * Luna spre care duce linkul: cea mai VECHE cu zile neaprobate. Restanța cea
+   * mai veche e și cea mai aproape de a bloca salarizarea lunii respective.
+   *
+   * Când nu sunt zile, ci doar fișe săptămânale, luna nu contează — fișele se
+   * arată în capul ecranului, indiferent de lună — deci se ia cea mai veche
+   * perioadă deschisă, ca linkul să fie valid.
+   */
+  const cuZile = new Set(zileNeaprobate?.map((z) => z.period_id) ?? []);
+  const candidate = perioade.filter((p) => cuZile.has(p.id));
+  const ordonate = (candidate.length > 0 ? candidate : [...perioade]).toSorted(
+    (a, b) => a.an - b.an || a.luna - b.luna,
+  );
+  const prima = ordonate[0];
+  if (prima === undefined) return null;
+
+  return { zile, fise: numarFise, luni: candidate.length, an: prima.an, luna: prima.luna };
 }
 
 /** Deplasări care așteaptă aprobare. Azi lista se citește întreagă ca să se afle dacă e ceva. */
@@ -427,6 +566,8 @@ export async function stareFirmeiAzi(organizationId: string): Promise<FirmaAzi> 
 export const PRAG_PANOU_ZILE = 30;
 
 type Porti = Readonly<{
+  /** Utilizatorul curent. Contorul de concedii îl cere ca să-și excludă fișa. */
+  userId: string;
   features: ReadonlySet<FeatureKey>;
   /**
    * Harta întreagă, cum o dă `getPermissionMap`. `scope = "none"` e refuz
@@ -509,7 +650,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
 
   const [
     cereriConcediu,
-    saptamaniPontaj,
+    pontaj,
     deplasari,
     foiParcurs,
     tichete,
@@ -521,8 +662,8 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     firma,
     regesDeTransmis,
   ] = await Promise.all([
-    vedeConcedii ? contorCereriConcediu(organizationId) : null,
-    vedePontaj ? contorPontajDeAprobat(organizationId) : null,
+    vedeConcedii ? contorCereriConcediu(organizationId, porti.userId) : null,
+    vedePontaj ? pontajDeAprobat(organizationId) : null,
     vedeDiurna ? contorDeplasari(organizationId) : null,
     vedeFoi ? contorFoiDeParcurs(organizationId) : null,
     vedeTichete ? contorTichete(organizationId) : null,
@@ -544,7 +685,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
 
   const coada: CoadaPanou = {
     cereriConcediu,
-    saptamaniPontaj,
+    pontaj,
     deplasari,
     foiParcurs,
     tichete,
@@ -591,12 +732,17 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
  * `lib/auth/features.ts:30`; aici e aceeași, cu aceeași dezlegare.
  */
 export const contoarePanouPentru = cache(
-  async (organizationId: string, role: AppRole, memberId: string): Promise<ContoarePanou> => {
+  async (
+    organizationId: string,
+    role: AppRole,
+    memberId: string,
+    userId: string,
+  ): Promise<ContoarePanou> => {
     const [features, permissions] = await Promise.all([
       getEnabledFeatures(organizationId),
       getPermissionMap(organizationId, role, memberId),
     ]);
-    return contoarePanou(organizationId, { features, permissions });
+    return contoarePanou(organizationId, { userId, features, permissions });
   },
 );
 

@@ -108,6 +108,7 @@ export async function POST(cerere: Request): Promise<Response> {
     organizationId: tenant.organizationId,
     memberId: tenant.memberId,
     role: tenant.role,
+    userId: user.id,
     employeeId: await idFisaProprie(tenant.organizationId, user.id),
     numeUtilizator: user.fullName,
     permisiuni,

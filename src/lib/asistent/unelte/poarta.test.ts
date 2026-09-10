@@ -27,6 +27,7 @@ const context = (partial: Partial<ContextUnealta> = {}): ContextUnealta => ({
   organizationId: "org-1",
   memberId: "membru-1",
   role: "employee",
+  userId: "user-1",
   employeeId: "fisa-1",
   numeUtilizator: "Ana Popescu",
   permisiuni: new Map() as PermissionMap,

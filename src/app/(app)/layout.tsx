@@ -39,7 +39,7 @@ async function requireTenant(): Promise<{ user: AuthUser; tenant: Tenant }> {
 }
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { tenant } = await requireTenant();
+  const { user, tenant } = await requireTenant();
 
   // ── Poarta angajatului ──────────────────────────────────────────────────
   // Angajatul nu vede niciodată învelișul de administrare. Redirect tăcut, nu
@@ -147,6 +147,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               organizationId={tenant.organizationId}
               role={tenant.role}
               memberId={tenant.memberId}
+              userId={user.id}
             />
           </Suspense>
         </Sidebar>

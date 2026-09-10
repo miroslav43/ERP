@@ -26,45 +26,69 @@ import type { ContextUnealta, RezultatUnealta, Unealta } from "./tip";
 
 const parametri = z.object({});
 
-/** Ce coadă, cum se numește pe românește și unde se rezolvă. */
+/**
+ * Ce coadă, cum se numește pe românește și unde se rezolvă.
+ *
+ * `numar` e un EXTRACTOR, nu o cheie. A fost `cheie: keyof CoadaPanou`, iar asta
+ * ținea toate cozile obligate la aceeași formă: în ziua în care pontajul a
+ * trebuit să numere două lucruri deodată (zile + fișe săptămânale), tipul s-a
+ * rupt aici. Cu un extractor, fiecare coadă își spune singură cum se numără —
+ * iar `regesDeTransmis`, care lipsea cu totul din listă, a putut intra.
+ */
 const COZI: readonly Readonly<{
   cheie: keyof CoadaPanou;
+  numar: (coada: CoadaPanou) => Contor;
   singular: string;
   plural: string;
   referinta: string;
 }>[] = [
   {
     cheie: "cereriConcediu",
+    numar: (c) => c.cereriConcediu,
     singular: "o cerere de concediu",
     plural: "cereri de concediu",
     referinta: "concedii.aprobari",
   },
   {
-    cheie: "saptamaniPontaj",
-    singular: "o săptămână de pontaj",
-    plural: "săptămâni de pontaj",
+    cheie: "pontaj",
+    // Zile neaprobate + fișe săptămânale trimise: se aprobă din același ecran,
+    // deci se raportează ca un singur număr.
+    numar: (c) => (c.pontaj === null ? null : c.pontaj.zile + c.pontaj.fise),
+    singular: "o zi de pontaj",
+    plural: "zile de pontaj",
     referinta: "pontaj.aprobare",
   },
   {
     cheie: "deplasari",
+    numar: (c) => c.deplasari,
     singular: "o deplasare",
     plural: "deplasări",
     referinta: "diurna.aprobari",
   },
   {
     cheie: "foiParcurs",
+    numar: (c) => c.foiParcurs,
     singular: "o foaie de parcurs",
     plural: "foi de parcurs",
     referinta: "flota.aprobari",
   },
   {
     cheie: "tichete",
+    numar: (c) => c.tichete,
     singular: "un tichet IT",
     plural: "tichete IT",
     referinta: "ticketing.coada",
   },
   {
+    cheie: "regesDeTransmis",
+    numar: (c) => c.regesDeTransmis,
+    singular: "un eveniment de transmis în REGES",
+    plural: "evenimente de transmis în REGES",
+    referinta: "reges",
+  },
+  {
     cheie: "anomaliiKm",
+    numar: (c) => c.anomaliiKm,
     singular: "o anomalie de kilometraj",
     plural: "anomalii de kilometraj",
     referinta: "flota.anomalii",
@@ -75,11 +99,12 @@ const areCifra = (contor: Contor): contor is number => contor !== null && contor
 
 async function executa(context: ContextUnealta): Promise<RezultatUnealta> {
   const contoare = await contoarePanou(context.organizationId, {
+    userId: context.userId,
     features: context.features,
     permissions: context.permisiuni,
   });
 
-  const cuMunca = COZI.filter((coada) => areCifra(contoare.coada[coada.cheie]));
+  const cuMunca = COZI.filter((coada) => areCifra(coada.numar(contoare.coada)));
   if (cuMunca.length === 0) {
     // Nu se spune „nimic de aprobat” la modul absolut: cozile la care omul n-are
     // acces sunt `null` și n-au fost nici numărate. Formularea rămâne despre
@@ -91,7 +116,7 @@ async function executa(context: ContextUnealta): Promise<RezultatUnealta> {
   }
 
   const randuri = cuMunca.map((coada) => {
-    const n = contoare.coada[coada.cheie] as number;
+    const n = coada.numar(contoare.coada) as number;
     return `- ${n} ${n === 1 ? coada.singular : coada.plural}`;
   });
 
