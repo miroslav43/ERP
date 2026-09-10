@@ -2,13 +2,17 @@
 import "server-only";
 
 import { createServerSupabase } from "@/lib/supabase/server";
+import { idFisaProprie } from "@/lib/queries/employees";
 import { todayInBucharest } from "@/lib/format/date";
 import {
+  cereriCareOcupaZile,
   coduriIndemnizatieMedicala,
   soldAnual,
   varianteConcediu,
   zileNelucratoare,
 } from "@/lib/queries/leave";
+
+import { ETICHETE_STATUS_CERERE } from "./etichete";
 
 import type { DateCerereNoua } from "./dialog-cerere-noua";
 
@@ -35,6 +39,7 @@ import type { DateCerereNoua } from "./dialog-cerere-noua";
  */
 export async function dateCerereNoua(
   organizationId: string,
+  userId: string,
   optiuni: Readonly<{
     /** `leave:create = all` — poate depune cererea în numele altcuiva. */
     poateAlegeAngajat: boolean;
@@ -45,40 +50,50 @@ export async function dateCerereNoua(
   const anCurent = Number(todayInBucharest().slice(0, 4));
   const db = await createServerSupabase();
 
-  const [tipuriRes, zile, coduriMedicale, variante, angajatiRes, sold] = await Promise.all([
-    db
-      .from("leave_types")
-      .select("id, key, denumire, culoare, zile_implicite, scade_din_sold, necesita_document")
-      .eq("organization_id", organizationId)
-      .eq("activ", true)
-      .is("deleted_at", null)
-      .order("denumire")
-      .returns<DateCerereNoua["tipuri"][number][]>(),
-    // Anul dinainte și cel de după: o cerere depusă în decembrie se poate
-    // întinde peste Anul Nou, iar sărbătorile din ianuarie schimbă numărătoarea.
-    zileNelucratoare(organizationId, anCurent - 1, anCurent + 1),
-    // Nomenclatorul de coduri de indemnizație, valabil azi. Fără el, o cerere
-    // de concediu medical n-ar avea de unde lua procentul (75/85/100%) și
-    // numărul de zile suportate de firmă — iar indemnizația ar rămâne 0 lei.
-    coduriIndemnizatieMedicala(todayInBucharest()),
-    varianteConcediu(),
-    optiuni.poateAlegeAngajat
-      ? db
-          .from("employees")
-          .select("id, full_name, marca")
-          .eq("organization_id", organizationId)
-          .eq("status", "activ")
-          .is("deleted_at", null)
-          .order("full_name")
-          .returns<{ id: string; full_name: string; marca: string }[]>()
-      : Promise.resolve(null),
-    // Soldul se arată DOAR când cererea e strict pentru mine însumi (fără
-    // selector de angajat): RLS restrânge deja `soldAnual` la rândurile proprii
-    // pentru cine are `leave:create = own`. Pentru cine alege un angajat din
-    // listă, soldul LUI nu se știe fără încă un drum la server — verificarea
-    // exactă se face oricum la trimitere, în acțiune.
-    optiuni.poateAlegeAngajat ? Promise.resolve(null) : soldAnual(organizationId, anCurent),
-  ]);
+  const [tipuriRes, zile, coduriMedicale, variante, angajatiRes, sold, ocupate, employeeIdPropriu] =
+    await Promise.all([
+      db
+        .from("leave_types")
+        .select(
+          "id, key, denumire, culoare, zile_implicite, scade_din_sold, necesita_document, intrerupe_alte_concedii",
+        )
+        .eq("organization_id", organizationId)
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .order("denumire")
+        .returns<DateCerereNoua["tipuri"][number][]>(),
+      // Anul dinainte și cel de după: o cerere depusă în decembrie se poate
+      // întinde peste Anul Nou, iar sărbătorile din ianuarie schimbă numărătoarea.
+      zileNelucratoare(organizationId, anCurent - 1, anCurent + 1),
+      // Nomenclatorul de coduri de indemnizație, valabil azi. Fără el, o cerere
+      // de concediu medical n-ar avea de unde lua procentul (75/85/100%) și
+      // numărul de zile suportate de firmă — iar indemnizația ar rămâne 0 lei.
+      coduriIndemnizatieMedicala(todayInBucharest()),
+      varianteConcediu(),
+      optiuni.poateAlegeAngajat
+        ? db
+            .from("employees")
+            .select("id, full_name, marca")
+            .eq("organization_id", organizationId)
+            .eq("status", "activ")
+            .is("deleted_at", null)
+            .order("full_name")
+            .returns<{ id: string; full_name: string; marca: string }[]>()
+        : Promise.resolve(null),
+      // Soldul se arată DOAR când cererea e strict pentru mine însumi (fără
+      // selector de angajat): RLS restrânge deja `soldAnual` la rândurile proprii
+      // pentru cine are `leave:create = own`. Pentru cine alege un angajat din
+      // listă, soldul LUI nu se știe fără încă un drum la server — verificarea
+      // exactă se face oricum la trimitere, în acțiune.
+      optiuni.poateAlegeAngajat ? Promise.resolve(null) : soldAnual(organizationId, anCurent),
+      // Aceeași fereastră ca sărbătorile: o cerere depusă în decembrie se poate
+      // întinde peste Anul Nou, iar zilele deja ocupate din ianuarie trebuie să
+      // se vadă la fel de bine ca cele din decembrie.
+      cereriCareOcupaZile(organizationId, anCurent - 1, anCurent + 1),
+      // Cine se uită, ca FIȘĂ: fără ea, calendarul n-ar ști despre cine sunt
+      // zilele ocupate atunci când nu există selector de angajat.
+      idFisaProprie(organizationId, userId),
+    ]);
 
   if (tipuriRes.error !== null) throw tipuriRes.error;
   if (angajatiRes !== null && angajatiRes.error !== null) throw angajatiRes.error;
@@ -104,6 +119,15 @@ export async function dateCerereNoua(
     zileRecuperare: zile.organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
     angajati: angajatiRes?.data ?? null,
     soldPropriu,
+    // Eticheta se compune AICI, nu în client: e text de interfață, iar stratul
+    // de citiri n-are voie să importe din arborele de rute.
+    concediiExistente: ocupate.map((c) => ({
+      employeeId: c.employee_id,
+      dataInceput: c.data_inceput,
+      dataSfarsit: c.data_sfarsit,
+      eticheta: `${c.denumire}, ${(ETICHETE_STATUS_CERERE[c.status as keyof typeof ETICHETE_STATUS_CERERE] ?? c.status).toLowerCase()}`,
+    })),
+    employeeIdPropriu,
     poateAprobaPeLoc: optiuni.poateAprobaPeLoc,
   };
 }

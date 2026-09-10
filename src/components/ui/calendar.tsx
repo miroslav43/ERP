@@ -84,6 +84,22 @@ export type PropsCalendar = Readonly<{
   onAlege: (zi: DateString) => void;
   /** Chemat la Escape. Panoul nu se închide singur — părintele decide. */
   onInchide?: (() => void) | undefined;
+  /**
+   * Zile deja prinse în altceva: ISO → explicație („Concediu de odihnă,
+   * aprobată"). Se desenează tăiate, cu explicația în numele accesibil și în
+   * `title`, ca motivul să fie citibil și fără mouse.
+   */
+  zileOcupate?: Readonly<Record<string, string>> | undefined;
+  /**
+   * Zilele ocupate devin și NESELECTABILE.
+   *
+   * Separat de marcaj, fiindcă suprapunerea nu e mereu o greșeală: un concediu
+   * medical peste unul de odihnă îl ÎNTRERUPE, iar constrângerea
+   * `leave_requests_fara_suprapunere` (0009) scoate anume din predicat tipurile
+   * cu `intrerupe_alte_concedii`. Blocat necondiționat, calendarul ar face
+   * imposibil exact cazul pe care baza îl permite.
+   */
+  blocheazaOcupate?: boolean | undefined;
   className?: string | undefined;
 }>;
 
@@ -99,6 +115,8 @@ export function Calendar({
   azi,
   onAlege,
   onInchide,
+  zileOcupate,
+  blocheazaOcupate = false,
   className,
 }: PropsCalendar): ReactElement {
   const ziDeAzi = azi ?? todayInBucharest();
@@ -254,6 +272,8 @@ export function Calendar({
                 const sarbatoare = sarbatori.get(zi);
                 const aleasa = zi === valoare;
                 const inafara = (min !== undefined && zi < min) || (max !== undefined && zi > max);
+                const ocupata = zileOcupate?.[zi];
+                const blocata = inafara || (blocheazaOcupate && ocupata !== undefined);
 
                 return (
                   <td key={zi}>
@@ -261,15 +281,21 @@ export function Calendar({
                       type="button"
                       data-zi={zi}
                       {...(zi === ziDeAzi ? { "data-azi": "true" } : {})}
-                      disabled={inafara}
+                      disabled={blocata}
                       tabIndex={zi === cursor ? 0 : -1}
                       aria-pressed={aleasa}
-                      aria-label={
-                        sarbatoare === undefined
-                          ? `${String(numar)} ${formatMonthYear(an, luna)}`
-                          : `${String(numar)} ${formatMonthYear(an, luna)}, ${sarbatoare}`
-                      }
-                      {...(sarbatoare === undefined ? {} : { title: sarbatoare })}
+                      aria-label={[
+                        `${String(numar)} ${formatMonthYear(an, luna)}`,
+                        sarbatoare,
+                        ocupata,
+                      ]
+                        .filter((parte) => parte !== undefined)
+                        .join(", ")}
+                      {...(sarbatoare === undefined && ocupata === undefined
+                        ? {}
+                        : {
+                            title: [sarbatoare, ocupata].filter((p) => p !== undefined).join(" · "),
+                          })}
                       onClick={() => {
                         setCursor(zi);
                         onAlege(zi);
@@ -286,6 +312,15 @@ export function Calendar({
                         zi === ziDeAzi && !aleasa && "ring-primary/40 ring-1 ring-inset",
                         inafara &&
                           "text-muted-foreground/40 cursor-not-allowed hover:bg-transparent",
+                        // Ocupată: tăiată, ca diferența să se vadă și fără
+                        // percepția culorii (WCAG 1.4.1). Blocată, primește și
+                        // cursorul de refuz; doar marcată, rămâne apăsabilă.
+                        ocupata !== undefined && !inafara && "line-through decoration-2",
+                        ocupata !== undefined &&
+                          !aleasa &&
+                          !inafara &&
+                          "text-muted-foreground decoration-muted-foreground/70",
+                        blocata && !inafara && "cursor-not-allowed hover:bg-transparent",
                       )}
                     >
                       {numar}

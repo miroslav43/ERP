@@ -249,3 +249,48 @@ describe("Calendar — tastatura", () => {
     expect(numele(inTabulare[0] as HTMLElement)).toBe("12 august 2026");
   });
 });
+
+describe("Calendar — zile deja ocupate", () => {
+  const OCUPATE = { "2026-08-12": "Concediu de odihnă, aprobată" } as const;
+
+  it("scrie motivul în numele accesibil, nu doar în tooltip", () => {
+    randeaza({ zileOcupate: OCUPATE });
+    expect(numele(zi(12))).toContain("Concediu de odihnă, aprobată");
+  });
+
+  it("marchează fără să blocheze, când tipul are voie să se suprapună", () => {
+    // Un concediu medical peste unul de odihnă îl ÎNTRERUPE. Constrângerea din
+    // bază îl lasă să treacă, deci nici calendarul n-are voie să-l oprească.
+    const { onAlege } = randeaza({ zileOcupate: OCUPATE, blocheazaOcupate: false });
+    expect(zi(12).disabled).toBe(false);
+    fireEvent.click(zi(12));
+    expect(onAlege).toHaveBeenCalledWith("2026-08-12");
+  });
+
+  it("blochează ziua ocupată când tipul nu are voie să se suprapună", () => {
+    const { onAlege } = randeaza({ zileOcupate: OCUPATE, blocheazaOcupate: true });
+    expect(zi(12).disabled).toBe(true);
+    fireEvent.click(zi(12));
+    expect(onAlege).not.toHaveBeenCalled();
+  });
+
+  it("nu atinge zilele libere din jur", () => {
+    randeaza({ zileOcupate: OCUPATE, blocheazaOcupate: true });
+    expect(zi(11).disabled).toBe(false);
+    expect(zi(13).disabled).toBe(false);
+  });
+
+  it("fără hartă de zile ocupate se poartă exact ca înainte", () => {
+    randeaza({ blocheazaOcupate: true });
+    expect(zi(12).disabled).toBe(false);
+  });
+
+  it("păstrează sărbătoarea în numele accesibil alături de motivul ocupării", () => {
+    // 15 august e Adormirea Maicii Domnului. Ziua poate fi și sărbătoare, și
+    // prinsă într-o cerere; numele accesibil trebuie să le spună pe amândouă.
+    randeaza({ zileOcupate: { "2026-08-15": "Concediu de odihnă, aprobată" } });
+    const nume = numele(zi(15));
+    expect(nume).toContain("Adormirea");
+    expect(nume).toContain("Concediu de odihnă, aprobată");
+  });
+});

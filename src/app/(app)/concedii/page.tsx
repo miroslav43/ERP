@@ -134,7 +134,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       .returns<OptiuneTip[]>(),
     poateAproba ? numarDeAprobat(tenant.organizationId, user.id) : Promise.resolve(0),
     poateCrea
-      ? dateCerereNoua(tenant.organizationId, {
+      ? dateCerereNoua(tenant.organizationId, user.id, {
           poateAlegeAngajat: can(permisiuni, "leave:create", "all"),
           // Aceeași condiție ca `poateAprobaPeLoc` din `actions.ts`. Aici e
           // doar text de buton; acțiunea o verifică din nou, singură, iar

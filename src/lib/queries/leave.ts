@@ -1105,3 +1105,69 @@ export async function varianteConcediu(): Promise<readonly VariantaConcediu[]> {
   if (error !== null) throw error;
   return data ?? [];
 }
+
+// ── Zilele deja prinse în cereri ────────────────────────────────────────────
+
+export interface CerereOcupata {
+  readonly employee_id: string;
+  readonly data_inceput: string;
+  readonly data_sfarsit: string;
+  readonly status: string;
+  readonly denumire: string;
+}
+
+/**
+ * Cererile care ocupă zile, ca INTERVALE, pentru semnalizarea din calendar.
+ *
+ * ── DE CE ACELEAȘI TREI STĂRI ───────────────────────────────────────────────
+ * `trimisa`, `in_aprobare`, `aprobata` — exact predicatul constrângerii
+ * `leave_requests_fara_suprapunere` din `0009_leave.sql` și exact filtrul din
+ * `verificaInainteDeTrimitere`. Dacă cele trei liste se despart, calendarul
+ * începe să mintă într-o direcție sau în alta: ori marchează zile pe care baza
+ * le-ar accepta, ori le lasă libere pe cele pe care le va refuza.
+ *
+ * O ciornă NU ocupă nimic, deliberat: n-a plecat nicăieri și nu intră nici în
+ * constrângere, nici în sold.
+ *
+ * ── CINE VEDE CE ────────────────────────────────────────────────────────────
+ * Fără filtru pe angajat: RLS îngustează singură. Un `employee` cu
+ * `leave:read = own` primește doar cererile lui; un `hr` cu `all` le primește
+ * pe toate, ceea ce e necesar fiindcă el depune cereri în numele altora.
+ * Filtrarea pe persoana aleasă se face în client, cu `zileOcupate`.
+ */
+export async function cereriCareOcupaZile(
+  organizationId: string,
+  anDeLa: number,
+  anPanaLa: number,
+): Promise<readonly CerereOcupata[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("leave_requests")
+    .select(
+      "employee_id, data_inceput, data_sfarsit, status, tip:leave_types!leave_type_id(denumire)",
+    )
+    .eq("organization_id", organizationId)
+    .in("status", ["trimisa", "in_aprobare", "aprobata"])
+    .gte("data_sfarsit", `${String(anDeLa)}-01-01`)
+    .lte("data_inceput", `${String(anPanaLa)}-12-31`)
+    .is("deleted_at", null)
+    .order("data_inceput", { ascending: true })
+    .returns<
+      {
+        employee_id: string;
+        data_inceput: string;
+        data_sfarsit: string;
+        status: string;
+        tip: { denumire: string } | null;
+      }[]
+    >();
+  if (error !== null) throw error;
+
+  return (data ?? []).map((r) => ({
+    employee_id: r.employee_id,
+    data_inceput: r.data_inceput,
+    data_sfarsit: r.data_sfarsit,
+    status: r.status,
+    denumire: r.tip?.denumire ?? "Concediu",
+  }));
+}

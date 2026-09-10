@@ -11,11 +11,14 @@ import { Camp } from "@/components/ui/camp";
 import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 import { IntrareData } from "@/components/ui/intrare-data";
+import { zileOcupate, type IntervalOcupat } from "@/domain/leave/zile-ocupate";
 import { arataToast } from "@/components/ui/toast";
 import type { ActionResult } from "@/lib/actions/types";
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import { tipImplicitConcediu } from "@/domain/leave/tip-implicit";
 import { formatAmount } from "@/lib/format/money";
+import { formatDate } from "@/lib/format/date";
+import { cn } from "@/lib/ui/cn";
 
 import { IncarcareDocumentConcediu } from "./incarcare-document";
 import { creeazaCerereConcediu } from "./actions";
@@ -64,6 +67,13 @@ interface TipConcediu {
   readonly zile_implicite: number;
   readonly scade_din_sold: boolean;
   readonly necesita_document: boolean;
+  /**
+   * Tipurile care ÎNTRERUP alte concedii (medical, maternitate, creșterea
+   * copilului) au voie să se suprapună: constrângerea
+   * `leave_requests_fara_suprapunere` (0009) le scoate anume din predicat.
+   * Pentru ele calendarul doar MARCHEAZĂ zilele ocupate, nu le blochează.
+   */
+  readonly intrerupe_alte_concedii: boolean;
 }
 
 interface VariantaConcediu {
@@ -101,6 +111,14 @@ export interface DateCerereNoua {
   readonly angajati: readonly Angajat[] | null;
   /** Zile rămase pe tip, doar când cererea e strict proprie. */
   readonly soldPropriu: Readonly<Record<string, number>> | null;
+  /**
+   * Cererile care ocupă deja zile, ca intervale, pentru toți angajații pe care
+   * cel care se uită are voie să-i vadă. Desfacerea în zile se face în client,
+   * pentru persoana aleasă — vezi `zileOcupate`.
+   */
+  readonly concediiExistente: readonly IntervalOcupat[];
+  /** Fișa celui care se uită. `null` = n-are fișă de angajat. */
+  readonly employeeIdPropriu: string | null;
   /**
    * Cine se uită are `leave:approve = all`, deci cererea pe care o depune se
    * aprobă pe loc (v. `aprobaPeLoc` din `actions.ts`).
@@ -232,6 +250,8 @@ function FormularCerereNoua({
     zileRecuperare,
     angajati,
     soldPropriu,
+    concediiExistente,
+    employeeIdPropriu,
     poateAprobaPeLoc,
   },
   laInchidere,
@@ -264,6 +284,43 @@ function FormularCerereNoua({
 
   const tip = tipuri.find((t) => t.id === leaveTypeId) ?? null;
   const esteMedical = tip?.key === "medical";
+
+  /*
+    Zilele pe care persoana aleasă le are deja prinse într-o cerere.
+
+    `angajati === null` înseamnă „cerere strict proprie", deci persoana e cel
+    care se uită. Altfel, până alege pe cineva din listă, harta e goală:
+    marcajul spune „ACESTA are concediu atunci", iar fără o persoană aleasă ar
+    fi o afirmație despre nimeni.
+
+    Blocarea urmează regula bazei, nu invers: tipurile care ÎNTRERUP alte
+    concedii au voie să se suprapună (`leave_requests_fara_suprapunere` le
+    scoate din predicat), deci pentru ele zilele se marchează, dar rămân
+    alegibile. Judecătorul rămâne `verificaInainteDeTrimitere`; asta e doar
+    semnalizarea, ca drumul greșit să nu se poată apuca.
+  */
+  const persoanaVizata = angajati === null ? employeeIdPropriu : employeeId || null;
+  const zileDejaOcupate = useMemo(
+    () => zileOcupate(concediiExistente, persoanaVizata),
+    [concediiExistente, persoanaVizata],
+  );
+  const blocheazaOcupate = tip !== null && !tip.intrerupe_alte_concedii;
+
+  /*
+    Zilele ocupate care cad ÎN intervalul ales.
+
+    Calendarul nu poate opri singur cazul ăsta: se alege 10 ca început și 20 ca
+    sfârșit, iar ziua 15, ocupată, intră în interval fără s-o fi apăsat nimeni.
+    Fără avertismentul de aici, omul ar afla abia din refuzul de la trimitere —
+    adică exact ce reclamă reparația asta.
+  */
+  const ocupateInInterval = useMemo(() => {
+    if (dataInceput.length === 0 || dataSfarsit.length === 0) return [];
+    if (dataSfarsit < dataInceput) return [];
+    return Object.keys(zileDejaOcupate)
+      .filter((zi) => zi >= dataInceput && zi <= dataSfarsit)
+      .sort();
+  }, [zileDejaOcupate, dataInceput, dataSfarsit]);
   // Variantele legale ale tipului ales — „paternal 15 zile cu atestat” e o
   // variantă a lui `paternal`, nu un tip separat.
   const varianteTip = variante.filter((v) => v.leave_type_key === tip?.key);
@@ -472,6 +529,8 @@ function FormularCerereNoua({
                 <IntrareData
                   {...a}
                   valoare={dataInceput}
+                  zileOcupate={zileDejaOcupate}
+                  blocheazaOcupate={blocheazaOcupate}
                   onSchimba={(zi) => {
                     setDataInceput(zi);
                     // Un interval de o zi e cazul cel mai des întâlnit.
@@ -493,6 +552,8 @@ function FormularCerereNoua({
                   {...a}
                   valoare={dataSfarsit}
                   {...(dataInceput.length > 0 ? { min: dataInceput } : {})}
+                  zileOcupate={zileDejaOcupate}
+                  blocheazaOcupate={blocheazaOcupate}
                   onSchimba={(zi) => {
                     setDataSfarsit(zi);
                   }}
@@ -646,6 +707,18 @@ function FormularCerereNoua({
             aria-live="polite"
             className="border-border bg-surface rounded-panou text-corp border p-4"
           >
+            {ocupateInInterval.length > 0 ? (
+              <p
+                className={cn(
+                  "text-corp mb-2",
+                  blocheazaOcupate ? "text-danger font-medium" : "text-muted-foreground",
+                )}
+              >
+                {blocheazaOcupate
+                  ? `Perioada aleasă cuprinde ${String(ocupateInInterval.length)} ${ocupateInInterval.length === 1 ? "zi în care aveți deja concediu" : "zile în care aveți deja concediu"} (${formatDate(ocupateInInterval[0] ?? "")}${ocupateInInterval.length > 1 ? ` – ${formatDate(ocupateInInterval[ocupateInInterval.length - 1] ?? "")}` : ""}). Cererea va fi respinsă la trimitere.`
+                  : `Perioada aleasă se suprapune peste ${String(ocupateInInterval.length)} ${ocupateInInterval.length === 1 ? "zi de concediu" : "zile de concediu"}. Tipul ales le întrerupe, deci suprapunerea e permisă.`}
+              </p>
+            ) : null}
             {previzualizare === null ? (
               <p className="text-muted-foreground">
                 Completați ambele date pentru a vedea câte zile lucrătoare consumă cererea.

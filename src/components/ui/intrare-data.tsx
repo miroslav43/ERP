@@ -74,6 +74,13 @@ export type PropsIntrareData = AtributeComune &
     max?: DateString | undefined;
     /** Ziua considerată „azi”. Implicit ceasul României. Se injectează în teste. */
     azi?: DateString | undefined;
+    /**
+     * Zile deja prinse în altceva: ISO → explicație. Doar semnalizare în
+     * calendar; ce se poate trimite rămâne treaba acțiunii de pe server.
+     */
+    zileOcupate?: Readonly<Record<string, string>> | undefined;
+    /** Zilele ocupate devin și neselectabile din calendar. */
+    blocheazaOcupate?: boolean | undefined;
   }>;
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/u;
@@ -99,6 +106,8 @@ export function IntrareData({
   min,
   max,
   azi,
+  zileOcupate,
+  blocheazaOcupate,
   name,
   className,
   disabled,
@@ -245,6 +254,8 @@ export function IntrareData({
             min={min}
             max={max}
             azi={azi}
+            zileOcupate={zileOcupate}
+            blocheazaOcupate={blocheazaOcupate}
             onAlege={alege}
             onInchide={inchide}
           />
