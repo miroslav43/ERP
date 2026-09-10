@@ -12,6 +12,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, oraInBucharest, todayInBucharest } from "@/lib/format/date";
 import { citestePerioada, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
+import { stareaLunii } from "@/domain/attendance/luna";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
@@ -113,15 +114,22 @@ export default async function PaginaPonteazaCod({
     );
   }
 
-  if (perioada === null || perioada.status !== "deschisa") {
+  /*
+    Aceeași regulă ca la pagina zilei: baza refuză EXCLUSIV `blocata`
+    (0013:293), iar din 0132 luna fără rând e neîncepută, nu interzisă.
+    Condiția de dinainte (`status !== "deschisa"`) stingea ceasul pentru toată
+    firma din clipa în care un aprobator trimitea prima lună în `in_aprobare`.
+    Regula unică: `src/domain/attendance/luna.ts`.
+  */
+  if (!stareaLunii(perioada, Number(azi.slice(0, 4)), Number(azi.slice(5, 7))).deschisa) {
     return (
       <div className={`${LATIMI.formular} space-y-4 p-4`}>
         {antet}
         <StareGoala
           fel="restrictionata"
           pictograma={Lock}
-          titlu="Luna nu este deschisă pentru pontaj"
-          descriere="Pontajul se completează doar cât timp luna e deschisă de resursele umane. Anunțați responsabilul de pontaj."
+          titlu="Luna a fost blocată"
+          descriere="Luna e închisă definitiv, iar pontajul ei nu se mai poate modifica. Anunțați responsabilul de pontaj."
         />
       </div>
     );

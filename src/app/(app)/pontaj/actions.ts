@@ -380,6 +380,28 @@ export const salveazaZiPontaj = createAction({
           tip_zi: tipZi,
           tip_prezenta: input.tip_prezenta,
           observatii: input.observatii,
+          /*
+            CORECȚIA ȘTERGE RESPINGEREA.
+
+            Respingerea descria CONȚINUTUL de atunci: „ai trecut 12 ore pe o zi
+            de 8". După ce ziua se rescrie, motivul nu mai descrie nimic, iar
+            ziua e o declarație nouă, nedecisă — exact starea din care pleacă
+            aprobarea.
+
+            Fără ștergere, ziua rămânea marcată „Respinsă" pe veci: angajatul o
+            corecta și vedea aceeași bandă roșie, iar aprobatorul nu putea
+            deosebi zilele reparate de cele încă greșite. Indexul
+            `attendance_entries_respinse_idx` (0067), făcut anume ca să le
+            găsească pe cele care așteaptă corecție, ar fi întors și pe unele,
+            și pe altele.
+
+            Cele trei coloane se sting ÎMPREUNĂ, fiindcă
+            `attendance_entries_respingere_ck` (0067:57) cere ori toate trei
+            nule, ori `respins_la` cu motiv de minimum 5 caractere.
+          */
+          respins_la: null,
+          respins_de: null,
+          motiv_respingere: null,
         })
         .eq("id", existenta.id)
         .eq("organization_id", ctx.tenant.organizationId)

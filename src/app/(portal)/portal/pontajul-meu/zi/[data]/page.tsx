@@ -15,6 +15,7 @@ import { ziDinRuta } from "@/lib/rute/parametri";
 import { formatDate } from "@/lib/format/date";
 import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
+import { stareaLunii } from "@/domain/attendance/luna";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import { rezumatRegulaPontaj } from "@/app/(app)/pontaj/etichete";
 
@@ -71,18 +72,36 @@ export default async function PaginaZiPontaj({
     </p>
   );
 
-  // Luna închisă: refuzul se dă ÎNAINTE de a arăta formularul, nu după drumul la
-  // server. Triggerul `internal.pontaj_intrare_pregateste` ridică oricum P0001,
-  // dar un buton care duce sigur în eroare e un defect de ecran.
-  if (perioada === null || perioada.status !== "deschisa") {
+  /*
+    Luna BLOCATĂ: refuzul se dă ÎNAINTE de a arăta formularul, nu după drumul la
+    server. Triggerul `internal.pontaj_intrare_pregateste` ridică oricum P0001,
+    dar un buton care duce sigur în eroare e un defect de ecran.
+
+    ── DE CE `stareaLunii`, ȘI NU `status !== "deschisa"` ────────────────────
+    Condiția de dinainte refuza și `in_aprobare`, și luna fără rând. Amândouă
+    sunt greșite, și amândouă doar pe ecran: baza verifică EXCLUSIV `blocata`
+    (0013:293), iar din 0132 rândul se naște la prima scriere, deci absența lui
+    înseamnă lună neîncepută, nu lună interzisă.
+
+    Consecința, reclamată pe 11 sept 2026: managerul aprobă un lot, ceea ce mută
+    luna în `in_aprobare` (`aprobaPontajBloc`), iar din clipa aia portalul
+    refuza TUTUROR angajaților orice corecție pe luna curentă — inclusiv exact
+    corecția pe care o zi respinsă tocmai le-o cerea. Fundătură perfectă: ți se
+    cere să repari ceva ce ecranul nu te lasă să atingi.
+
+    Regula stă într-un singur loc, `src/domain/attendance/luna.ts`, care o
+    descrie de la 0132 — portalul pur și simplu nu fusese mutat pe ea.
+  */
+  const stareLuna = stareaLunii(perioada, an, luna);
+  if (!stareLuna.deschisa) {
     return (
       <div className={`${LATIMI.formular} space-y-4 p-4`}>
         {antet}
         <StareGoala
           fel="restrictionata"
           pictograma={Lock}
-          titlu="Luna nu este deschisă pentru pontaj"
-          descriere="Pontajul se completează doar cât timp luna e deschisă de resursele umane. Pentru o corectură, întrebați responsabilul de pontaj."
+          titlu="Luna a fost blocată"
+          descriere="Luna e închisă definitiv, iar pontajul ei nu se mai poate modifica. Pentru o corectură, cereți responsabilului de pontaj să o deblocheze."
         />
         {inapoi}
       </div>
