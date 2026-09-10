@@ -5,7 +5,12 @@ import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { oreleZilei } from "@/domain/attendance/calcul-ore";
 import { esteWeekend } from "@/domain/attendance/limite-legale";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { zileNelucratoare } from "@/lib/queries/leave";
+import { tipZiAutomat } from "../etichete";
 import { setariPontaj } from "@/lib/queries/attendance";
+import { configZiDin } from "@/domain/attendance/calcul-ore";
+import { scriePontajulSaptamanii } from "./scrie-pontajul";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
 import { refuzaCandAprobareaEStinsa } from "../aprobarea-firmei";
 import { avertismenteDupaSaptamana, type RezultatCuAvertismente } from "../avertismente";
@@ -253,6 +258,71 @@ export const decideSaptamanaPontaj = createAction<
       );
     }
 
-    return { id: sarcina.entity_id };
+    /*
+     * ── SĂPTĂMÂNA APROBATĂ DEVINE PONTAJ ───────────────────────────────────
+     *
+     * Până la 0138, aprobarea nu producea nimic: calendarul rămânea gol, iar
+     * salarizarea — care citește `attendance_entries` — număra zero ore pentru
+     * o săptămână întreagă declarată ȘI aprobată.
+     *
+     * Doar pe ramura de APROBARE. O săptămână respinsă nu lasă ore în pontaj,
+     * ceea ce e chiar rostul respingerii: se corectează și se retrimite.
+     *
+     * Best-effort, ca sincronizarea concediilor din `decideCerere`: aprobarea e
+     * deja înregistrată, iar o scriere căzută n-are voie s-o desfacă. Numerele
+     * ies din acțiune și ajung la aprobator — singurul care se uită la ecran.
+     */
+    let pontaj = { scrise: 0, pastrate: 0 };
+    if (input.decizie === "aprobata") {
+      /*
+       * Clientul de serviciu: aprobatorul are `attendance:approve`, nu
+       * `attendance:create` pe fișa altcuiva. Filtrul pe `organization_id` e
+       * explicit pe fiecare interogare de mai jos și în `scriePontajulSaptamanii`.
+       */
+      const admin = createAdminSupabase();
+
+      // Săptămâna se citește ÎNTÂI: din ea vin și angajatul, și data de la care
+      // se iau setările. Intrarea acțiunii poartă doar `taskId`.
+      const { data: saptamana, error: eroareSaptamana } = await admin
+        .from("attendance_week_submissions")
+        .select("employee_id, saptamana_start")
+        .eq("id", sarcina.entity_id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .maybeSingle();
+      if (eroareSaptamana !== null) throw eroareSaptamana;
+
+      if (saptamana !== null) {
+        // Setările de la data SĂPTĂMÂNII, nu de azi: `attendance_settings` are
+        // istoric (`valabil_de_la`), iar o normă schimbată între timp n-are
+        // voie să rescrie orele unei săptămâni trecute.
+        const an = Number(saptamana.saptamana_start.slice(0, 4));
+        const [setari, nelucratoare] = await Promise.all([
+          setariPontaj(ctx.tenant.organizationId, saptamana.saptamana_start),
+          // Calendarul firmei, pentru tipul fiecărei zile. Aceeași sursă ca la
+          // ziua individuală — altfel o sâmbătă lucrată ar intra ca zi
+          // obișnuită și n-ar mai primi sporul de repaus.
+          zileNelucratoare(ctx.tenant.organizationId, an, an),
+        ]);
+        const sarbatori = new Set(nelucratoare.nationale.map((z) => z.data));
+        const recuperare = new Set(
+          nelucratoare.organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
+        );
+        const liber = new Set(
+          nelucratoare.organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
+        );
+
+        pontaj = await scriePontajulSaptamanii(
+          admin,
+          ctx.tenant.organizationId,
+          sarcina.entity_id,
+          saptamana.employee_id,
+          configZiDin(setari),
+          (data) => tipZiAutomat(data, sarbatori, recuperare, liber),
+          ctx.requestId,
+        );
+      }
+    }
+
+    return { id: sarcina.entity_id, ...pontaj };
   },
 });
