@@ -123,9 +123,26 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
           strânge coloanele ca să încapă în container, iar pe telefon ajungeau
           la 19 px. Minimul e pe TABEL, singurul loc pe care algoritmul îl
           respectă necondiționat; containerul de deasupra derulează.
+
+          `w-full` PESTE minim, nu în locul lui, și cele două nu se bat cap în
+          cap: `width: 100%` se aplică doar cât timp e mai mare decât minimul,
+          iar sub el minimul câștigă. Fără `w-full`, tabelul se oprea la lățimea
+          lui firească — 11rem plus 2rem pe zi, adică 1136 px pentru o lună de
+          30 de zile — și lăsa restul chenarului gol: pe un ecran de laptop,
+          aproape 500 px de pânză goală, cu marginea desenată în jurul ei.
+          `table-fixed` decide UNDE se duce lățimea în plus. Cu algoritmul
+          automat se ducea toată în singura coloană fără lățime cerută — cea de
+          nume, care se umfla la peste 500 px lângă zile rămase la 32, adică
+          exact pe dos față de ce folosește. Cu repartiția fixă, coloana de nume
+          ia cele 11rem scrise pe ea, iar restul se împarte EGAL între zile.
+
+          Cele două valori nu se bat cap în cap, se completează: la minim,
+          fiecare zi iese fix 2rem — `(11rem + n·2rem) - 11rem`, împărțit la n —
+          adică pragul de dinainte, iar peste minim zilele cresc împreună.
+          Pastilele de concediu (`w-full` în celulă) cresc odată cu ele.
         */}
         <table
-          className="border-separate border-spacing-0"
+          className="w-full table-fixed border-separate border-spacing-0"
           style={{ minWidth: `calc(11rem + ${String(zile.length)} * 2rem)` }}
         >
           <caption className="sr-only">
@@ -141,7 +158,7 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
               */}
               <th
                 scope="col"
-                className="border-border bg-surface text-muted-foreground text-nota sticky left-0 z-30 min-w-44 border-r border-b px-2 py-1.5 text-left font-medium"
+                className="border-border bg-surface text-muted-foreground text-nota sticky left-0 z-30 w-44 border-r border-b px-2 py-1.5 text-left font-medium"
               >
                 Angajat
               </th>
@@ -151,12 +168,13 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
                   <th
                     key={zi.iso}
                     scope="col"
-                    // `min-w-8`, nu doar `w-8`: fără un MINIM, algoritmul de
-                    // tabel strânge coloanele ca să încapă în container, iar pe
-                    // telefon ele ajungeau la 19 px — cifra zilei se lipea de
-                    // chenar și caseta de culoare devenea un fir. Cu minimul,
-                    // tabelul își păstrează lățimea firească și derulează.
-                    className={`border-border text-nota w-8 min-w-8 border-r border-b px-0 py-1 text-center font-medium ${
+                    // Nicio lățime pe coloana de zi, și nu e o omisiune: sub
+                    // `table-fixed`, coloanele fără lățime cerută împart egal
+                    // ce rămâne după cele 11rem ale numelui. Podeaua de 2rem pe
+                    // zi — sub care cifra se lipea de chenar și caseta de
+                    // culoare devenea un fir, măsurat pe 390 px — o ține acum
+                    // `minWidth`-ul TABELULUI, nu un minim pe fiecare celulă.
+                    className={`border-border text-nota border-r border-b px-0 py-1 text-center font-medium ${
                       esteAzi
                         ? "bg-primary text-primary-foreground"
                         : zi.nelucratoare
