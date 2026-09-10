@@ -977,7 +977,7 @@ export const aprobaPontajBloc = createAction({
     entityType: "attendance_approval_batch",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
     // `observatii` NU intră în audit — vezi comentariul din `deschidePerioada`.
-    allow: ["period_id", "department_id"],
+    allow: ["period_id", "department_id", "employee_ids"],
   },
   revalidate: [...CAI_REVALIDARE],
   handler: async (
@@ -1061,8 +1061,24 @@ export const aprobaPontajBloc = createAction({
       idAngajatiDepartament = new Set((angajatiDepartament ?? []).map((a) => a.id));
     }
 
+    /*
+      Bifele de pe ecran, dacă există.
+
+      Se aplică PESTE filtrul de departament, nu în locul lui: cine filtrează pe
+      un departament și apoi debifează doi oameni vrea exact restul
+      departamentului. Lista goală ar însemna „niciun om", ceea ce n-are ce
+      aproba — de-aia e refuzată explicit mai jos, în loc să treacă drept
+      „toți".
+    */
+    const idAlese = input.employee_ids === null ? null : new Set(input.employee_ids);
+    if (idAlese !== null && idAlese.size === 0) {
+      throw businessRule("Nu ați ales niciun angajat. Bifați cel puțin unul.");
+    }
+
     const inSelectie = liniiVizibile.filter(
-      (l) => idAngajatiDepartament === null || idAngajatiDepartament.has(l.employee_id),
+      (l) =>
+        (idAngajatiDepartament === null || idAngajatiDepartament.has(l.employee_id)) &&
+        (idAlese === null || idAlese.has(l.employee_id)),
     );
 
     /*

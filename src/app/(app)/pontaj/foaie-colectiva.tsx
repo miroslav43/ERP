@@ -7,13 +7,19 @@ import { Callout } from "@/components/ui/callout";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import { avertismenteLuna, type LimiteFirmei } from "@/domain/attendance/limite-legale";
 import {
+  CLASE_STARE_DECIZIE,
   CLASE_TIP_ZI,
   CODURI_TIP_ZI,
   ETICHETE_TIP_PREZENTA,
+  ETICHETE_STARE_DECIZIE,
   ETICHETE_TIP_ZI,
   esteZiLucratoare,
   tipZiAutomat,
 } from "./etichete";
+import { stareaDeciziei } from "@/domain/attendance/stare-decizie";
+
+import { LegendaDecizie } from "./legenda-decizie";
+
 import { CelulaZi } from "./celula-zi";
 // Tipurile au plecat într-un `.ts` simplu: le importă și serverul, și clientul,
 // iar maparea din `attendance_entries` are acolo teste. Vezi `intrare-client.ts`.
@@ -413,12 +419,29 @@ export function FoaieColectiva({
                       de unde ști ce a respins deja și ce nu.
                     */
                     const respinsa = intrare !== null && intrare.respins;
+                    /*
+                      STAREA DECIZIEI CÂȘTIGĂ FUNDALUL CELULEI.
+
+                      Ce cauți când aprobi o lună nu e „care zi e sâmbătă", ci
+                      „ce a rămas nedecis", iar fundalul e cea mai rapidă
+                      informație de scanat pe 31 de coloane. Tipul zilei rămâne
+                      pe fundal doar pe zilele FĂRĂ rând, iar în rest e citibil
+                      din literele S/D din antet, din asteriscul de sărbătoare
+                      și din codurile CO/CM/AN din celulă. Vezi nota de lângă
+                      `CLASE_STARE_DECIZIE` din `etichete.ts`.
+                    */
+                    const stareDecizie = intrare === null ? null : stareaDeciziei(intrare);
                     const motivRespins = respinsa
                       ? `Zi respinsă: ${intrare.motivRespingere ?? "fără motiv înregistrat"}`
                       : null;
 
                     const titlu =
-                      [motivBlocare, motivRespins, locMunca]
+                      [
+                        stareDecizie === null ? null : ETICHETE_STARE_DECIZIE[stareDecizie],
+                        motivBlocare,
+                        motivRespins,
+                        locMunca,
+                      ]
                         .filter((t) => t !== null)
                         .join(" · ") || undefined;
 
@@ -459,11 +482,26 @@ export function FoaieColectiva({
                           {intrare.oreLucrate > 0
                             ? formatOre(intrare.oreLucrate)
                             : CODURI_TIP_ZI[intrare.tipZi]}
+                          {/* Semnul care NU ține de culoare: foaia se tipărește,
+                              iar la tipărire tenta se pierde. Doar pe starea
+                              care CERE ceva — aprobatul e repausul. */}
+                          {stareDecizie === "de_decis" ? (
+                            <span
+                              aria-hidden="true"
+                              className="bg-warning ml-0.5 inline-block size-1 rounded-full align-middle"
+                            />
+                          ) : null}
                           {respinsa ? <span className="sr-only"> (zi respinsă)</span> : null}
+                          {stareDecizie === "de_decis" ? (
+                            <span className="sr-only"> (așteaptă decizia)</span>
+                          ) : null}
                         </span>
                       );
 
-                    const clasaFundal = CLASE_TIP_ZI[tipEfectiv];
+                    const clasaFundal =
+                      stareDecizie === null
+                        ? CLASE_TIP_ZI[tipEfectiv]
+                        : CLASE_STARE_DECIZIE[stareDecizie];
 
                     if (needitabila) {
                       return (
@@ -545,6 +583,8 @@ export function FoaieColectiva({
           </tfoot>
         </table>
       </div>
+
+      <LegendaDecizie />
 
       {/* Legenda se GENEREAZĂ din cele trei hărți, nu se mai scrie de mână:
           scrisă de mână, contrazicea deja tabelul — două intrări aveau aceeași

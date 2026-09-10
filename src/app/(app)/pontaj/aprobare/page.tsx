@@ -8,8 +8,6 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
-import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { formatOre } from "@/lib/format/ore";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -28,35 +26,10 @@ import { ButonSetariPontaj } from "../buton-setari";
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
 import { ActiuniPerioada } from "../perioade/actiuni-perioada";
-import { AprobareBloc } from "./aprobare-bloc";
+import { SelectieAprobare, type RandAprobare } from "./selectie-aprobare";
 import { ListaSaptamaniDeAprobat } from "./lista-saptamani-de-aprobat";
 
 export const metadata: Metadata = { title: "Aprobare pontaj" };
-
-interface RandAprobare {
-  readonly id: string;
-  readonly nume: string;
-  readonly zile: number;
-  readonly ore: number;
-}
-
-const COLOANE_APROBARE: readonly Coloana<RandAprobare>[] = [
-  { cheie: "angajat", antet: "Angajat", peTelefon: "titlu", celula: (r) => r.nume },
-  {
-    cheie: "zile",
-    antet: "Zile neaprobate",
-    numeric: true,
-    peTelefon: "meta",
-    celula: (r) => r.zile,
-  },
-  {
-    cheie: "ore",
-    antet: "Ore lucrate",
-    numeric: true,
-    peTelefon: "meta",
-    celula: (r) => formatOre(r.ore),
-  },
-];
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -139,13 +112,17 @@ async function ContinutAprobare({
         </p>
       ) : null}
 
-      <AprobareBloc
+      {/* Selecția, tabelul și butonul sunt ACUM o singură componentă: butonul
+          trebuie să spună ce aprobă, iar asta cere ca el și lista să împartă
+          aceeași stare. Vezi nota din `selectie-aprobare.tsx`. */}
+      <SelectieAprobare
+        randuri={randuriAprobare}
         periodId={periodId}
         departmentId={departmentId}
-        numarLiniiNeaprobate={liniiFiltrate.length}
         an={an}
         luna={luna}
         poateSincroniza={poateSincroniza}
+        numarSaptamaniDeAprobat={numarSaptamaniDeAprobat}
       />
 
       {poateBloca ? (
@@ -164,31 +141,6 @@ async function ContinutAprobare({
           />
         </div>
       ) : null}
-
-      <Tabel
-        caption="Angajații cu linii de pontaj neaprobate."
-        coloane={COLOANE_APROBARE}
-        randuri={randuriAprobare}
-        cheieRand={(rand) => rand.id}
-        gol={
-          <StareGoala
-            fel="initiala"
-            pictograma={CheckCircle2}
-            titlu={
-              numarSaptamaniDeAprobat === 0 ? "Nimic de aprobat" : "Nicio zi de aprobat separat"
-            }
-            descriere={
-              numarSaptamaniDeAprobat === 0
-                ? "Toate zilele de pontaj ale acestei luni au fost deja aprobate."
-                : `Zilele lunii sunt aprobate. ${
-                    numarSaptamaniDeAprobat === 1
-                      ? "Mai există o fișă săptămânală de aprobat"
-                      : `Mai există ${String(numarSaptamaniDeAprobat)} fișe săptămânale de aprobat`
-                  }, în capul paginii — aprobarea ei scrie zilele direct în pontaj, gata aprobate.`
-            }
-          />
-        }
-      />
     </div>
   );
 }

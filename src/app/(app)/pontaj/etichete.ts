@@ -1,4 +1,5 @@
 // src/app/(app)/pontaj/etichete.ts
+import type { StareDecizie } from "@/domain/attendance/stare-decizie";
 import type { TonStare } from "@/components/ui/badge";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import { formatOre } from "@/lib/format/ore";
@@ -190,3 +191,34 @@ export function tipZiAutomat(
   }
   return isoDow(data) >= 6 ? "weekend" : "sarbatoare";
 }
+
+// ── Starea deciziei, ca aspect ──────────────────────────────────────────────
+//
+// ── DE CE STAREA CÂȘTIGĂ FUNDALUL, ȘI NU TIPUL ZILEI ────────────────────────
+// `CLASE_TIP_ZI` folosea fundalul pentru weekend, sărbătoare și absență
+// nemotivată. Fundalul e însă cea mai rapidă informație de scanat pe o matrice
+// de 31 de coloane, iar ce cauți când aprobi o lună nu e „care zi e sâmbătă",
+// ci „ce a rămas nedecis". Deci starea îl ia.
+//
+// Tipul zilei rămâne citibil din ce avea oricum: literele S și D din antet,
+// asteriscul de sărbătoare cu `title` și nume accesibil, și codurile CO, CM,
+// AN din celulă. `docs/design/stari-de-interactiune.md` (tabelul 1b) spune deja
+// despre patru din cele șase tipuri că le poartă codul, nu culoarea.
+//
+// ── DE CE FIECARE STARE ARE ȘI UN SEMN CARE NU E CULOARE ────────────────────
+// Foaia colectivă se TIPĂREȘTE, iar la tipărire culoarea se pierde; plus WCAG
+// 1.4.1. Respinsul poartă linia tăiată, nedecisul poartă un punct, aprobatul nu
+// poartă nimic — e starea de repaus. Așa se deosebesc și fără culoare.
+
+export const ETICHETE_STARE_DECIZIE: Readonly<Record<StareDecizie, string>> = {
+  aprobata: "Aprobată",
+  de_decis: "Așteaptă decizia",
+  respinsa: "Respinsă",
+};
+
+/** Fundalul celulei. Tente joase: peste ele stă text care trebuie citit. */
+export const CLASE_STARE_DECIZIE: Readonly<Record<StareDecizie, string>> = {
+  aprobata: "bg-success/12",
+  de_decis: "bg-warning/15",
+  respinsa: "bg-danger/12",
+};

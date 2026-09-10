@@ -2,7 +2,17 @@
 import { construiesteSaptamani, ziIso } from "@/domain/calendar/grila-lunara";
 import { formatOre } from "@/lib/format/ore";
 
-import { CLASE_TIP_ZI, CODURI_TIP_ZI, ETICHETE_TIP_ZI } from "./etichete";
+import { stareaDeciziei } from "@/domain/attendance/stare-decizie";
+
+import { LegendaDecizie } from "./legenda-decizie";
+
+import {
+  CLASE_STARE_DECIZIE,
+  CLASE_TIP_ZI,
+  CODURI_TIP_ZI,
+  ETICHETE_STARE_DECIZIE,
+  ETICHETE_TIP_ZI,
+} from "./etichete";
 import type { IntrareZiClient } from "./intrare-client";
 
 /**
@@ -126,6 +136,8 @@ export function CalendarLuna({
         </table>
       </div>
 
+      <LegendaDecizie />
+
       {legenda.length === 0 ? null : (
         <p className="text-muted-foreground text-nota flex flex-wrap gap-x-4 gap-y-1">
           {legenda.map((tip) => (
@@ -181,6 +193,42 @@ function cifraZilei(intrare: IntrareZiClient): string {
   return CODURI_TIP_ZI[intrare.tipZi];
 }
 
+/**
+ * Un om pe o zi din calendar, colorat după starea deciziei.
+ *
+ * Aceleași trei tente ca în foaia colectivă, din același `CLASE_STARE_DECIZIE`:
+ * pe ecranele care arată o lună întreagă, verdele trebuie să însemne același
+ * lucru. Aici tenta stă pe pastila omului, nu pe celula zilei — o zi are mai
+ * mulți oameni, fiecare cu starea lui.
+ *
+ * Semnul care nu ține de culoare: linia tăiată pe respins, punctul pe cel care
+ * așteaptă decizia, nimic pe aprobat.
+ */
+function RandOm({ om }: { readonly om: OmZi }) {
+  const stare = stareaDeciziei(om.intrare);
+  const motiv = om.intrare.respins
+    ? `Zi respinsă: ${om.intrare.motivRespingere ?? "fără motiv înregistrat"}`
+    : ETICHETE_STARE_DECIZIE[stare];
+
+  return (
+    <span
+      title={motiv}
+      className={`text-nota block truncate rounded px-1 ${CLASE_STARE_DECIZIE[stare]} ${
+        stare === "respinsa" ? "text-muted-foreground line-through" : "text-foreground"
+      }`}
+    >
+      <span className="tabular-nums">{cifraZilei(om.intrare)}</span> {numeScurt(om.eticheta)}
+      {stare === "de_decis" ? (
+        <span
+          aria-hidden="true"
+          className="bg-warning ml-0.5 inline-block size-1 rounded-full align-middle"
+        />
+      ) : null}
+      <span className="sr-only"> — {ETICHETE_STARE_DECIZIE[stare]}</span>
+    </span>
+  );
+}
+
 function CelulaLunii({
   zi,
   oameni,
@@ -226,20 +274,7 @@ function CelulaLunii({
             numele accesibil sunt diferența dintre „n-a mers" și „a mers, și
             uite ce mai e de făcut".
           */
-          <span
-            key={om.intrare.id}
-            className={`text-nota block truncate ${
-              om.intrare.respins ? "text-muted-foreground line-through" : "text-foreground"
-            }`}
-            {...(om.intrare.respins
-              ? {
-                  title: `Zi respinsă: ${om.intrare.motivRespingere ?? "fără motiv înregistrat"}`,
-                }
-              : {})}
-          >
-            <span className="tabular-nums">{cifraZilei(om.intrare)}</span> {numeScurt(om.eticheta)}
-            {om.intrare.respins ? <span className="sr-only"> — zi respinsă</span> : null}
-          </span>
+          <RandOm key={om.intrare.id} om={om} />
         ))}
 
         {ascunsi.length === 0 ? null : (

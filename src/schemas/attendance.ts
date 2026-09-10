@@ -181,6 +181,19 @@ export const stergeZiPontajSchema = z.object({ id: z.uuid() });
 export const aprobaPontajBlocSchema = z.object({
   period_id: z.uuid(),
   department_id: z.uuid().nullable().default(null),
+  /**
+   * Angajații aleși cu bifa, sau `null` pentru „toți cei din selecția curentă".
+   *
+   * `null` și lista întreagă NU sunt același lucru, și de-aia e nullable:
+   * `null` înseamnă „ce e pe ecran acum", iar lista înseamnă „exact ăștia".
+   * Între încărcarea ecranului și apăsarea butonului cineva mai poate ponta o
+   * zi; cine a bifat oameni anume nu vrea s-o prindă și pe aia.
+   *
+   * Plafon la 500: peste atât, `aprobaPontajBloc` oricum refuză lotul, iar un
+   * filtru cu zece mii de identificatori ar depăși lungimea maximă a unui URL
+   * PostgREST înainte să ajungă la el.
+   */
+  employee_ids: z.array(z.uuid()).max(500).nullable().default(null),
   observatii: textOptional(1000),
 });
 export type AprobaPontajBloc = z.output<typeof aprobaPontajBlocSchema>;

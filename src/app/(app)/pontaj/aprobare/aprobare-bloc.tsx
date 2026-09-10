@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCheck, RefreshCw } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { formatOre } from "@/lib/format/ore";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 
 import { aprobaPontajBloc, sincronizeazaConcediile } from "../actions";
@@ -12,10 +13,20 @@ import { aprobaPontajBloc, sincronizeazaConcediile } from "../actions";
 interface Proprietati {
   readonly periodId: string;
   readonly departmentId: string | null;
-  readonly numarLiniiNeaprobate: number;
   readonly an: number;
   readonly luna: number;
   readonly poateSincroniza: boolean;
+  /**
+   * Angajații bifați, sau `null` pentru „toți cei de pe ecran".
+   *
+   * Distincția nu e cosmetică: `null` lasă acțiunea să prindă și o zi pontată
+   * între încărcarea ecranului și apăsarea butonului, iar lista o îngheață pe
+   * cea de acum. Vezi nota din `aprobaPontajBlocSchema`.
+   */
+  readonly idAngajatiAlesi: readonly string[] | null;
+  readonly numarAngajati: number;
+  readonly numarZile: number;
+  readonly oreTotale: number;
 }
 
 /**
@@ -27,10 +38,13 @@ interface Proprietati {
 export function AprobareBloc({
   periodId,
   departmentId,
-  numarLiniiNeaprobate,
   an,
   luna,
   poateSincroniza,
+  idAngajatiAlesi,
+  numarAngajati,
+  numarZile,
+  oreTotale,
 }: Proprietati) {
   const router = useRouter();
   const [observatii, setObservatii] = useState("");
@@ -54,6 +68,7 @@ export function AprobareBloc({
       const rezultat = await aprobaPontajBloc({
         period_id: periodId,
         department_id: departmentId,
+        employee_ids: idAngajatiAlesi === null ? null : [...idAngajatiAlesi],
         observatii: observatii.trim().length === 0 ? null : observatii.trim(),
       });
       if (!rezultat.ok) {
@@ -90,8 +105,25 @@ export function AprobareBloc({
         starea goală de la baza paginii. Iar sincronizarea de dedesubt rămâne
         oricum vizibilă — ea e utilă exact când foaia e goală.
       */}
-      {numarLiniiNeaprobate === 0 ? null : (
+      {numarZile === 0 ? null : (
         <div className="space-y-2">
+          {/*
+            CE APROBI, ÎN CUVINTE, DEASUPRA BUTONULUI.
+
+            Butonul scria „Aprobă în bloc (412 linii)" peste o listă pe care
+            n-o descria: „linii" nu spune nici câți oameni, nici câte ore, iar
+            ca să afli trebuia să te întorci în calendar. Acum propoziția e
+            lângă apăsare, se schimbă odată cu bifele, și e aceeași cu cifrele
+            din caseta de confirmare.
+          */}
+          <p className="text-foreground text-corp">
+            Se aprobă <strong className="tabular-nums">{numarZile}</strong>{" "}
+            {numarZile === 1 ? "zi" : "zile"} de pontaj, de la{" "}
+            <strong className="tabular-nums">{numarAngajati}</strong>{" "}
+            {numarAngajati === 1 ? "angajat" : "angajați"}, însumând{" "}
+            <strong className="tabular-nums">{formatOre(oreTotale)}</strong> ore
+            {departmentId === null ? "" : ", din departamentul filtrat acum"}.
+          </p>
           <label htmlFor={idObservatii} className="text-corp block font-medium">
             Observații lot (opțional)
           </label>
@@ -110,12 +142,14 @@ export function AprobareBloc({
             onClick={() => {
               setConfirmareDeschisa(true);
             }}
-            disabled={numarLiniiNeaprobate === 0}
+            disabled={numarZile === 0 || numarAngajati === 0}
             inCurs={inCursAprobare}
             textInCurs="Se aprobă…"
           >
             <CheckCheck aria-hidden="true" className="size-4" />
-            {`Aprobă în bloc (${String(numarLiniiNeaprobate)} linii)`}
+            {numarAngajati === 0
+              ? "Alegeți cel puțin un angajat"
+              : `Aprobă ${String(numarZile)} ${numarZile === 1 ? "zi" : "zile"}`}
           </Buton>
           {eroareAprobare === null ? null : (
             <p role="alert" className="text-danger text-corp">
@@ -138,10 +172,17 @@ export function AprobareBloc({
         }
         cifre={[
           { eticheta: "Perioada", valoare: `${String(luna).padStart(2, "0")}.${String(an)}` },
-          { eticheta: "Linii aprobate", valoare: String(numarLiniiNeaprobate) },
+          { eticheta: "Zile aprobate", valoare: String(numarZile) },
+          { eticheta: "Angajați", valoare: String(numarAngajati) },
+          { eticheta: "Ore", valoare: formatOre(oreTotale) },
           {
             eticheta: "Cuprindere",
-            valoare: departmentId === null ? "toate departamentele" : "un singur departament",
+            valoare:
+              idAngajatiAlesi !== null
+                ? "numai angajații bifați"
+                : departmentId === null
+                  ? "toate departamentele"
+                  : "un singur departament",
           },
         ]}
         etichetaConfirmare="Aprobă lotul"
