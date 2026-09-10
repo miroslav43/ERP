@@ -101,13 +101,23 @@ export default async function PortalLayout({ children }: { children: ReactNode }
           Înainte fiecare pagină își punea propriul `max-w-2xl`; erau 21 de
           copii ale aceleiași valori, iar a 22-a lipsea.
 
-          `max-w-3xl`, nu `2xl`: portalul are acum antete cu acțiuni pe rândul
-          titlului, care la 42rem se rup pe două rânduri.
+          Valoarea a fost `max-w-2xl`, apoi `3xl` (48rem), fiindcă antetele cu
+          acțiuni pe rândul titlului se rupeau la 42rem. Ambele erau alese
+          privind un telefon. Pe laptop plafonul de 48rem lăsa 462 de pixeli
+          morți lângă rail — măsurat pe o fereastră de 1470: rail 240, loc
+          disponibil 1230, conținut 768. Efectul nu era „margini generoase", ci
+          exact reclamația primită: calendarul lunii strâns în 110 pixeli pe zi
+          și tăiat jos, într-o fereastră pe care mai încăpea încă o dată atât.
+
+          `max-w-6xl` (72rem) umple laptopul fără să lase textul să se întindă
+          pe monitoarele mari: la 1470 rămân 78 de pixeli de margine, la 1920
+          rămân 528. Sub prag portalul e neschimbat — plafonul nu se aplică, iar
+          umplutura orizontală vine, ca înainte, de la fiecare pagină (`p-4`).
         */}
         <main
           id="continut"
           data-zona="portal"
-          className="mx-auto w-full max-w-3xl min-w-0 flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0"
+          className="mx-auto w-full max-w-6xl min-w-0 flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0"
         >
           {children}
 
