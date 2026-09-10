@@ -118,7 +118,23 @@ export function Sidebar({
         aria-label="Meniu principal"
         className={cn(
           "bg-primary z-sertar fixed inset-y-0 left-0 flex w-64 flex-col border-r border-white/10",
-          "durata-lent transition-[transform,visibility] md:sticky md:top-0 md:h-dvh md:translate-x-0",
+          /*
+            ── DE CE `md:static md:h-auto`, ȘI NU `md:sticky md:h-dvh` AICI ──────
+            Lipirea a stat pe ELEMENTUL ĂSTA, împreună cu `h-dvh`. Consecința: pe
+            o pagină mai înaltă decât ecranul, coloana navy picta exact o
+            înălțime de fereastră, iar restul documentului rămânea fundal gol în
+            stânga. La derulare obișnuită nu se vedea, fiindcă lipirea ținea
+            bara peste zona goală — dar orice moment în care lipirea nu apucă să
+            se aplice (o captură de pagină întreagă, tipărirea, un strămoș care
+            capătă `overflow` altul decât `visible`) descoperea fâșia.
+
+            Acum aside-ul e TRASEUL: static, întins cât containerul, deci
+            vopsit până jos. Lipirea s-a mutat pe învelișul dinăuntru, care
+            rămâne `h-dvh`. Comportamentul la derulare e identic — verificat
+            măsurând poziția barei derulate la fundul unui document de 2621px,
+            pe desktop și pe telefon.
+          */
+          "durata-lent transition-[transform,visibility] md:static md:h-auto md:translate-x-0",
           /*
             `invisible`, nu doar `-translate-x-full`. Translatat în afara
             ecranului, sertarul rămâne în ordinea de tabulare: pe telefon,
@@ -139,52 +155,59 @@ export function Sidebar({
           colapsat ? "md:w-16" : "md:w-64",
         )}
       >
-        <div className="flex h-14 items-center gap-2 border-b border-white/10 px-3">
-          {/* Auriul e interzis pe crem (2,26:1) și trece confortabil pe navy
+        {/*
+          Învelișul lipit. `h-full` la telefon (aside-ul e `fixed inset-y-0`,
+          deci are înălțime definită), `md:h-dvh` pe laptop. Tot ce era înainte
+          copil direct al aside-ului stă acum aici, fără nicio altă schimbare.
+        */}
+        <div className="flex h-full flex-col md:sticky md:top-0 md:h-dvh">
+          <div className="flex h-14 items-center gap-2 border-b border-white/10 px-3">
+            {/* Auriul e interzis pe crem (2,26:1) și trece confortabil pe navy
               (6,82:1). Aici marchează marca firmei; în listă, pagina activă. */}
-          <Building2 className="text-accent size-5 shrink-0" aria-hidden />
-          <span
-            className={cn(
-              "text-corp min-w-0 flex-1 truncate font-semibold text-white",
-              colapsat ? "md:sr-only" : "",
-            )}
-          >
-            {organizationName}
-          </span>
-          <button
-            type="button"
-            onClick={() => setMobilDeschis(false)}
-            className="rounded-control p-1.5 text-white/70 hover:bg-white/10 hover:text-white md:hidden"
-          >
-            <X className="size-4" aria-hidden />
-            <span className="sr-only">Închide meniul</span>
-          </button>
-        </div>
+            <Building2 className="text-accent size-5 shrink-0" aria-hidden />
+            <span
+              className={cn(
+                "text-corp min-w-0 flex-1 truncate font-semibold text-white",
+                colapsat ? "md:sr-only" : "",
+              )}
+            >
+              {organizationName}
+            </span>
+            <button
+              type="button"
+              onClick={() => setMobilDeschis(false)}
+              className="rounded-control p-1.5 text-white/70 hover:bg-white/10 hover:text-white md:hidden"
+            >
+              <X className="size-4" aria-hidden />
+              <span className="sr-only">Închide meniul</span>
+            </button>
+          </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">{children}</div>
 
-        <div className="hidden border-t border-white/10 p-2 md:block">
-          <button
-            type="button"
-            onClick={comuta}
-            className="rounded-control text-corp flex w-full items-center gap-2 px-2 py-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
-          >
-            {colapsat ? (
-              <PanelLeftOpen className="size-4 shrink-0" aria-hidden />
-            ) : (
-              <PanelLeftClose className="size-4 shrink-0" aria-hidden />
-            )}
-            {/*
+          <div className="hidden border-t border-white/10 p-2 md:block">
+            <button
+              type="button"
+              onClick={comuta}
+              className="rounded-control text-corp flex w-full items-center gap-2 px-2 py-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              {colapsat ? (
+                <PanelLeftOpen className="size-4 shrink-0" aria-hidden />
+              ) : (
+                <PanelLeftClose className="size-4 shrink-0" aria-hidden />
+              )}
+              {/*
               Eticheta urmează starea. Cu `aria-pressed={colapsat}` și un nume
               fix, cititorul de ecran anunța „Restrânge meniul, apăsat" pentru
               un buton care EXTINDE meniul — exact inversul acțiunii. Două nume
               distincte sunt mai clare aici decât o stare apăsată, deci
               `aria-pressed` a fost scos odată cu ambiguitatea.
             */}
-            <span className={colapsat ? "sr-only" : ""}>
-              {colapsat ? "Extinde meniul" : "Restrânge meniul"}
-            </span>
-          </button>
+              <span className={colapsat ? "sr-only" : ""}>
+                {colapsat ? "Extinde meniul" : "Restrânge meniul"}
+              </span>
+            </button>
+          </div>
         </div>
       </aside>
     </>

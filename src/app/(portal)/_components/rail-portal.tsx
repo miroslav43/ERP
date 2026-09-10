@@ -34,54 +34,69 @@ export function RailPortal({
     <nav
       data-tipar="ascunde"
       aria-label="Navigare portal"
-      className="bg-primary sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-white/10 p-3 md:flex"
-    >
-      <div className="flex items-center gap-2 px-2 py-1">
-        <Building2 aria-hidden="true" className="text-accent size-4 shrink-0" />
-        <span className="text-corp min-w-0 truncate font-semibold text-white">
-          {numeOrganizatie}
-        </span>
-      </div>
+      /*
+        ── DE CE TRASEUL ȘI PARTEA LIPITĂ SUNT DOUĂ ELEMENTE ────────────────
+        `sticky top-0 h-dvh` stăteau amândouă pe `<nav>`, deci coloana navy
+        picta exact o înălțime de fereastră, iar sub ea, pe o pagină lungă,
+        rămânea fundalul crem al portalului. La derulare obișnuită nu se
+        vedea — lipirea ținea bara peste zona goală — dar se descoperea la
+        orice captură de pagină întreagă, la tipărire, sau dacă un strămoș ar
+        căpăta `overflow` altul decât `visible`, care rupe lipirea.
 
-      {grupuri.map((grup) => (
-        <div key={grup.id} className="flex flex-col gap-1">
-          <span className="text-eticheta px-2 font-medium tracking-[0.15em] text-white/70 uppercase">
-            {grup.label}
+        Acum `<nav>` e traseul: întins cât containerul, vopsit până jos.
+        Lipirea și derularea proprie a meniului au trecut pe învelișul
+        dinăuntru. Aceeași reparație ca la `components/layout/sidebar.tsx`.
+      */
+      className="bg-primary hidden w-60 shrink-0 border-r border-white/10 md:block"
+    >
+      <div className="sticky top-0 flex h-dvh flex-col gap-6 overflow-y-auto p-3">
+        <div className="flex items-center gap-2 px-2 py-1">
+          <Building2 aria-hidden="true" className="text-accent size-4 shrink-0" />
+          <span className="text-corp min-w-0 truncate font-semibold text-white">
+            {numeOrganizatie}
           </span>
-          <ul className="flex flex-col gap-1">
-            {grup.items.map((intrare) => {
-              const activ = esteActiva(cale, intrare.href, intrare.exact);
-              const Iconita = ICONITE[intrare.id] ?? IconitaImplicita;
-              return (
-                <li key={intrare.id} className="relative">
-                  {/* Singurul auriu din rail: indicatorul de pagină curentă.
+        </div>
+
+        {grupuri.map((grup) => (
+          <div key={grup.id} className="flex flex-col gap-1">
+            <span className="text-eticheta px-2 font-medium tracking-[0.15em] text-white/70 uppercase">
+              {grup.label}
+            </span>
+            <ul className="flex flex-col gap-1">
+              {grup.items.map((intrare) => {
+                const activ = esteActiva(cale, intrare.href, intrare.exact);
+                const Iconita = ICONITE[intrare.id] ?? IconitaImplicita;
+                return (
+                  <li key={intrare.id} className="relative">
+                    {/* Singurul auriu din rail: indicatorul de pagină curentă.
                       Accentul e rar prin definiție — dacă marchează două lucruri,
                       nu mai marchează niciunul. */}
-                  {activ ? (
-                    <span
-                      aria-hidden="true"
-                      className="bg-accent absolute top-1.5 bottom-1.5 -left-3 w-[3px] rounded-r-sm"
-                    />
-                  ) : null}
-                  <Link
-                    href={intrare.href}
-                    aria-current={activ ? "page" : undefined}
-                    className={
-                      "rounded-control text-corp flex min-h-11 items-center gap-2.5 px-2 py-2 font-medium transition-colors " +
-                      (activ
-                        ? "bg-white/10 text-white"
-                        : "text-white/70 hover:bg-white/5 hover:text-white")
-                    }
-                  >
-                    <Iconita aria-hidden="true" className="size-4 shrink-0" />
-                    <span className="min-w-0 truncate">{intrare.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+                    {activ ? (
+                      <span
+                        aria-hidden="true"
+                        className="bg-accent absolute top-1.5 bottom-1.5 -left-3 w-[3px] rounded-r-sm"
+                      />
+                    ) : null}
+                    <Link
+                      href={intrare.href}
+                      aria-current={activ ? "page" : undefined}
+                      className={
+                        "rounded-control text-corp flex min-h-11 items-center gap-2.5 px-2 py-2 font-medium transition-colors " +
+                        (activ
+                          ? "bg-white/10 text-white"
+                          : "text-white/70 hover:bg-white/5 hover:text-white")
+                      }
+                    >
+                      <Iconita aria-hidden="true" className="size-4 shrink-0" />
+                      <span className="min-w-0 truncate">{intrare.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
     </nav>
   );
 }
