@@ -6,6 +6,7 @@ import { Lock } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -131,6 +132,22 @@ export default async function PaginaZiPontaj({
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
       {antet}
+      {/*
+        Motivul respingerii, la locul corecției.
+
+        Notificarea trimite exact aici, iar respingerea CERE o corecție — deci
+        motivul trebuie să stea deasupra formularului pe care omul îl va
+        completa, nu într-un tooltip pe alt ecran. Respingerea nu blochează
+        editarea: politica de UPDATE oprește ziua APROBATĂ, iar
+        `decide_zi_pontaj` tocmai a șters aprobarea, deci ziua e din nou de
+        scris — exact ce se cere.
+      */}
+      {existenta !== null && existenta.respins_la !== null ? (
+        <Callout fel="eroare" titlu="Ziua a fost respinsă">
+          {existenta.motiv_respingere ?? "Nu a fost înregistrat niciun motiv."} Corectați intervalul
+          de mai jos și salvați din nou.
+        </Callout>
+      ) : null}
       {/* Aceeași regulă ca la planul săptămânal: formularul ține orele în
           `useState`, deci o navigare zi → zi ar reutiliza instanța și ar
           păstra valorile zilei precedente. Azi nu există niciun link direct

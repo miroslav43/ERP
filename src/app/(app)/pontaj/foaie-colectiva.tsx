@@ -405,8 +405,22 @@ export function FoaieColectiva({
                         ? null
                         : ETICHETE_TIP_PREZENTA[intrare.tipPrezenta];
 
+                    /*
+                      Respingerea nu șterge ziua — `public.decide_zi_pontaj`
+                      (0067) doar o marchează, fiindcă ziua e declarația
+                      angajatului. Dar foaia nu citea deloc marcajul, deci o zi
+                      respinsă arăta identic cu una normală: aprobatorul nu avea
+                      de unde ști ce a respins deja și ce nu.
+                    */
+                    const respinsa = intrare !== null && intrare.respins;
+                    const motivRespins = respinsa
+                      ? `Zi respinsă: ${intrare.motivRespingere ?? "fără motiv înregistrat"}`
+                      : null;
+
                     const titlu =
-                      [motivBlocare, locMunca].filter((t) => t !== null).join(" · ") || undefined;
+                      [motivBlocare, motivRespins, locMunca]
+                        .filter((t) => t !== null)
+                        .join(" · ") || undefined;
 
                     /*
                      * `ETICHETE_TIP_ZI[tip].slice(0, 3)` tăia eticheta oarbă și
@@ -437,10 +451,15 @@ export function FoaieColectiva({
                           ⧗
                         </span>
                       ) : (
-                        <span className="tabular-nums">
+                        <span
+                          className={`tabular-nums ${
+                            respinsa ? "text-muted-foreground line-through" : ""
+                          }`}
+                        >
                           {intrare.oreLucrate > 0
                             ? formatOre(intrare.oreLucrate)
                             : CODURI_TIP_ZI[intrare.tipZi]}
+                          {respinsa ? <span className="sr-only"> (zi respinsă)</span> : null}
                         </span>
                       );
 

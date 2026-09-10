@@ -48,6 +48,7 @@ import {
 import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
 import { sincronizeazaZileleDeConcediu, type TipZiPontaj } from "./sincronizare-concediu";
+import { anuntaRespingereaZilei } from "./anunta-respingerea";
 
 const CAI_REVALIDARE = [
   "/pontaj",
@@ -1301,7 +1302,7 @@ export const decideZiPontaj = createAction({
     allow: ["entry_id", "aproba"],
   },
   revalidate: [...CAI_REVALIDARE],
-  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ id: string; anuntat: boolean }>> => {
     await refuzaCandAprobareaEStinsa(ctx.tenant.organizationId);
 
     const { data, error } = await ctx.supabase.rpc("decide_zi_pontaj", {
@@ -1314,7 +1315,30 @@ export const decideZiPontaj = createAction({
     if (data === null) {
       throw businessRule("Ziua de pontaj nu a putut fi decisă.");
     }
-    return { id: data };
+
+    /*
+      Respingerea CERE ceva de la angajat: să-și corecteze ziua. Până aici,
+      cererea nu ajungea la el în niciun fel — pontajul emitea notificări doar
+      din cele două joburi `pg_cron` din 0103, iar o zi respinsă nu producea
+      niciuna. Managerul apăsa „Respinge", ziua rămânea în calendar arătând
+      exact ca înainte, iar angajatul nu afla nimic.
+
+      Best-effort, ca sincronizarea concediului din `decideCerere`: decizia e
+      deja scrisă în bază, iar o notificare picată n-are voie s-o dea înapoi.
+      `anuntat` iese în rezultat ca ecranul să poată spune dacă vestea a plecat
+      — un „am respins" care tace despre asta e jumătate de adevăr.
+    */
+    const anuntat =
+      input.aproba || input.motiv === null
+        ? false
+        : await anuntaRespingereaZilei(
+            createAdminSupabase(),
+            ctx.tenant.organizationId,
+            input.entry_id,
+            input.motiv,
+          );
+
+    return { id: data, anuntat };
   },
 });
 

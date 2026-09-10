@@ -17,6 +17,8 @@ import {
   oreSuplimentareDinLucrate,
 } from "@/domain/attendance/calcul-ore";
 import { ETICHETE_TIP_PREZENTA, ETICHETE_TIP_ZI } from "./etichete";
+import { arataToast } from "@/components/ui/toast";
+
 import { decideZiPontaj, salveazaZiPontaj, stergeZiPontaj } from "./actions";
 import type { IntrareZiClient } from "./intrare-client";
 
@@ -274,6 +276,23 @@ export function CelulaZi({
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
+      }
+      /*
+        Respingerea cere o corecție de la angajat, deci contează dacă vestea a
+        ajuns la el. `anuntat` e fals și când fișa n-are cont — cazul obișnuit
+        în firmele care abia încep — iar atunci ziua respinsă nu ajunge nicăieri
+        dacă nu-i spune cineva. Un „am respins" care tace despre asta lasă luna
+        să se blocheze cu ziua tot greșită.
+      */
+      if (!aproba) {
+        arataToast(
+          rezultat.data.anuntat
+            ? { fel: "reusita", text: "Ziua a fost respinsă, iar angajatul a fost anunțat." }
+            : {
+                fel: "eroare",
+                text: "Ziua a fost respinsă, dar angajatul NU a putut fi anunțat — spuneți-i personal să o corecteze.",
+              },
+        );
       }
       onInchide();
       router.refresh();

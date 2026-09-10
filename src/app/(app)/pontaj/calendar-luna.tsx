@@ -212,8 +212,33 @@ function CelulaLunii({
         )}
 
         {vizibili.map((om) => (
-          <span key={om.intrare.id} className="text-nota text-foreground block truncate">
+          /*
+            Ziua respinsă se TAIE, nu dispare.
+
+            Respingerea nu șterge nimic — `public.decide_zi_pontaj` (0067) doar
+            marchează `respins_la` și `motiv_respingere`, fiindcă ziua e
+            declarația angajatului, iar ștergerea ei ar distruge singura dovadă
+            a ce a declarat și a faptului că i s-a cerut o corecție.
+
+            Până acum calendarul nu citea deloc marcajul, deci o zi respinsă
+            arăta EXACT ca una normală: managerul apăsa „Respinge" și nu se
+            schimba nimic pe ecran. Tăietura plus motivul din `title` și din
+            numele accesibil sunt diferența dintre „n-a mers" și „a mers, și
+            uite ce mai e de făcut".
+          */
+          <span
+            key={om.intrare.id}
+            className={`text-nota block truncate ${
+              om.intrare.respins ? "text-muted-foreground line-through" : "text-foreground"
+            }`}
+            {...(om.intrare.respins
+              ? {
+                  title: `Zi respinsă: ${om.intrare.motivRespingere ?? "fără motiv înregistrat"}`,
+                }
+              : {})}
+          >
             <span className="tabular-nums">{cifraZilei(om.intrare)}</span> {numeScurt(om.eticheta)}
+            {om.intrare.respins ? <span className="sr-only"> — zi respinsă</span> : null}
           </span>
         ))}
 

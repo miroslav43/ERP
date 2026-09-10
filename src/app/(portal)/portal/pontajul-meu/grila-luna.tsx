@@ -217,6 +217,17 @@ function CelulaLunii({
   const inCurs =
     intrare !== undefined && intrare.ora_inceput !== null && intrare.ora_sfarsit === null;
 
+  /*
+    Ziua respinsă de aprobator.
+
+    Respingerea nu șterge nimic — ziua rămâne exact cum a declarat-o omul,
+    fiindcă ea E declarația lui. Ce se cere e o CORECȚIE, iar cererea trebuie
+    să ajungă la el: până acum portalul nici nu citea coloanele, deci ziua
+    respinsă arăta aici identic cu una acceptată, iar angajatul afla despre
+    respingere doar dacă îi spunea cineva.
+  */
+  const respinsa = intrare !== undefined && intrare.respins_la !== null;
+
   const corp = (
     <>
       <span className="text-muted-foreground text-nota font-medium">{zi}</span>
@@ -226,11 +237,22 @@ function CelulaLunii({
         ) : inCurs ? (
           <span className="text-warning font-medium">în curs</span>
         ) : (
-          <span className="text-foreground tabular-nums">
+          <span
+            className={`tabular-nums ${respinsa ? "text-danger line-through" : "text-foreground"}`}
+          >
             {ore > 0 ? formatOre(ore) : (CODURI[intrare.tip_zi] ?? intrare.tip_zi)}
           </span>
         )}
       </span>
+      {respinsa ? (
+        <span className="text-danger text-nota mt-0.5 block font-medium">
+          Respinsă
+          <span className="sr-only">
+            {" — "}
+            {intrare?.motiv_respingere ?? "fără motiv înregistrat"}. Corectați ziua.
+          </span>
+        </span>
+      ) : null}
       {suplimentare > 0 ? (
         <span className="text-muted-foreground text-nota block tabular-nums">
           +{formatOre(suplimentare)} supl.

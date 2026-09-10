@@ -85,6 +85,15 @@ export interface ZiPontaj {
    * trebuie s-o știe ÎNAINTE, nu după drumul la server.
    */
   readonly approved_at: string | null;
+  /**
+   * Nenul după ce un aprobator a respins ziua. Respingerea NU șterge nimic
+   * (`public.decide_zi_pontaj`, 0067): ziua rămâne, cu motivul lângă ea,
+   * fiindcă e declarația angajatului și fiindcă el e cel care trebuie s-o
+   * corecteze. Până acum portalul nici nu citea coloanele astea, deci
+   * angajatul n-avea de unde afla că i s-a cerut o corecție.
+   */
+  readonly respins_la: string | null;
+  readonly motiv_respingere: string | null;
 }
 
 export interface DocumentPropriu {
@@ -259,7 +268,7 @@ export async function pontajulMeu(
     .from("attendance_entries")
     .select(
       "id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi, " +
-        "observatii, leave_request_id, approved_at",
+        "observatii, leave_request_id, approved_at, respins_la, motiv_respingere",
     )
     .eq("organization_id", organizationId)
     .eq("employee_id", employeeId)

@@ -51,3 +51,24 @@ describe("ziuaSePoateDeschide", () => {
     expect(ziuaSePoateDeschide(true, weekendLucrat)).toBe(true);
   });
 });
+
+/*
+  O zi RESPINSĂ trebuie să rămână deschisă pentru corecție.
+
+  Respingerea nu e o interdicție, ci o cerere: `public.decide_zi_pontaj` (0067)
+  scrie `respins_la` și ȘTERGE `approved_at`, tocmai ca omul să poată intra din
+  nou peste ea. Dacă regula de clicabilitate ar începe vreodată să se uite și
+  la respingere, ziua ar rămâne blocată exact în starea în care i se cere să
+  fie schimbată — o fundătură perfect tăcută.
+*/
+describe("ziuaSePoateDeschide — ziua respinsă", () => {
+  it("o zi respinsă se poate corecta, fiindcă respingerea a șters aprobarea", () => {
+    expect(ziuaSePoateDeschide(true, { approved_at: null, leave_request_id: null })).toBe(true);
+  });
+
+  it("o zi respinsă și apoi reaprobată nu se mai deschide", () => {
+    expect(
+      ziuaSePoateDeschide(true, { approved_at: "2026-09-11T08:00:00Z", leave_request_id: null }),
+    ).toBe(false);
+  });
+});
