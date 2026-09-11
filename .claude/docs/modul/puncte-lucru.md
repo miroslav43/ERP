@@ -4,7 +4,7 @@ titlu: Puncte de lucru
 aliases: [puncte-lucru, sedii, locatii]
 cai:
   - "src/app/(app)/puncte-lucru/**"
-  - "src/schemas/puncte-lucru.ts"
+  - "src/schemas/punct-lucru.ts"
   - "supabase/migrations/0030_onboarding_companie.sql"
   - "supabase/migrations/0096_pontaj_rapid.sql"
 tabele: [puncte_lucru, attendance_entries]
@@ -13,8 +13,8 @@ capcane: [17]
 citeste_daca:
   - "cod de pontaj care nu mai merge după tipărire → secțiunea „rotește”"
   - "poartă de citire scrisă doar pe „none” → secțiunea „Rute”"
-scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
-scris_la: 2026-09-04
+scris_pe: 4b9c19e23397e5866d68e84547242fa8338cc186
+scris_la: 2026-09-11
 tags: [modul]
 ---
 

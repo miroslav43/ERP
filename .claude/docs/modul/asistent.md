@@ -15,8 +15,8 @@ citeste_daca:
   - "bula nu apare nicăieri → verifică ÎNTÂI cele două comutatoare, secțiunea „Ce refuză baza tăcut”"
   - "bula e în DOM dar nu se vede pe ecran → învelișul flotant s-a strâns la 0×0; același loc"
   - "o pastilă duce în 404 → imposibil prin construcție; citește „Lista închisă”"
-scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
-scris_la: 2026-09-04
+scris_pe: 4b9c19e23397e5866d68e84547242fa8338cc186
+scris_la: 2026-09-11
 tags: [modul, nucleu]
 ---
 
@@ -90,6 +90,11 @@ lucruri: organizația vine din context și nu din parametrii modelului; poarta p
 execuția; iar `executa` întoarce **text, nu rânduri** — deci CNP-ul și IBAN-ul n-au drum
 către contextul modelului, nu doar n-au intenție să ajungă acolo.
 
+`ContextUnealta` poartă două identități distincte: `userId` — contul — și `employeeId`,
+fișa lui de angajat, care poate lipsi. Ce e „al meu” se calculează din cont:
+`contoarePanou` cere `userId` ca să scoată din coada de concedii cererea proprie a celui
+care aprobă.
+
 `cauta_om` întoarce și destinații **efemere** (`fisa.<uuid>`), valabile doar în răspunsul
 curent. Mulțimea rămâne închisă, doar că e închisă prin proveniență: acolo ajung numai
 fișele întoarse de o citire pe care omul chiar avea dreptul să o facă.
@@ -111,6 +116,10 @@ să poată fi greșită.
   și e goală”; `null` înseamnă „coada nu se arată”, fiindcă modulul e stins sau rolul n-are
   permisiunea. Confundate, asistentul ar răspunde liniștitor „nu ai nimic de aprobat”
   cuiva care de fapt nu poate vedea coada. `de-aprobat.ts` raportează doar cozile cu cifră.
+- **Nu orice coadă mai e un `Contor`.** `pontaj` din `CoadaPanou` e un
+  `PontajDeAprobat | null` — zile neaprobate și fișe săptămânale, numărate separat fiindcă
+  ecranul le aprobă în două blocuri. De-aia fiecare rând din `COZI` își spune singur cum se
+  numără, printr-un extractor `numar`: pontajul le adună într-o cifră, `null` rămâne `null`.
 - **Cont fără fișă de angajat.** Un `org_admin` pur nu are sold de concediu. Uneltele
   marcate `cereFisaProprie` refuză cu un motiv scris, nu cu zero rânduri.
 - **Rol fără nicio unealtă permisă.** Secțiunea „UNELTE” lipsește cu totul din prompt: o
@@ -129,6 +138,10 @@ să poată fi greșită.
   destinația fără părinte, iar `destinatii.test.ts` pică.
 - **Arborele de rute** — o pagină nouă în `src/app/(app)/` sau `src/app/(portal)/` pică
   același test până e adăugată în index sau exclusă cu motiv.
+- **`CoadaPanou` și `COZI` din `de-aprobat.ts`** — legătura e de mână și niciun test n-o
+  ține: o coadă adăugată în `CoadaPanou` fără rândul ei în `COZI` nu există pentru
+  asistent, fără nicio eroare. `regesDeTransmis` a stat exact așa. Și `referinta` fiecărei
+  cozi e un identificator din `destinatii.ts` — unul greșit cade tăcut, ca orice marcaj.
 - **`FEATURE_KEYS`** — cheia `asistent` e și în catalogul din bază. Landing-ul
   (`src/content/landing/ro.ts`) enumeră fiecare cheie, iar
   `src/content/landing/continut.test.ts` o cere.
