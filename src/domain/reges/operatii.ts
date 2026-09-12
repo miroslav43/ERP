@@ -134,6 +134,29 @@ export const TIPURI_ACT_IDENTITATE = [
 ] as const;
 export type TipActIdentitate = (typeof TIPURI_ACT_IDENTITATE)[number];
 
+/**
+ * Ce se OFERĂ în formulare. Subset al nomenclatorului de mai sus.
+ *
+ * ── DE CE IESE BULETINUL ──────────────────────────────────────────────────
+ * `BuletinIdentitate` e documentul tip carnet, înlocuit de cartea de identitate
+ * din 1997. Nu se mai emite. Lăsat în listă, era o capcană de tastatură: două
+ * opțiuni vecine, aproape sinonime pentru cine nu știe istoria lor, iar
+ * alegerea greșită pleacă la ITM.
+ *
+ * ── DE CE RĂMÂNE ÎN NOMENCLATOR ───────────────────────────────────────────
+ * Fiindcă nu e lista noastră, e a REGES. O fișă veche poate avea buletin
+ * înscris, iar ea trebuie să rămână lizibilă, validabilă și transmisibilă:
+ * `ETICHETE_ACT_IDENTITATE` îi păstrează eticheta, schemele Zod îl acceptă în
+ * continuare, iar formularul de editare îl adaugă înapoi în listă când chiar e
+ * valoarea curentă a fișei — altfel o salvare l-ar fi rescris tăcut în altceva.
+ *
+ * Același tipar ca `TIPURI_ZI_ALEGERE` din `schemas/attendance.ts`: vocabularul
+ * complet și subsetul ales de om sunt două liste diferite, deliberat.
+ */
+export const TIPURI_ACT_IDENTITATE_ALEGERE = TIPURI_ACT_IDENTITATE.filter(
+  (tip) => tip !== "BuletinIdentitate",
+);
+
 // ── Deduceri din modelul intern ─────────────────────────────────────────────
 
 /**

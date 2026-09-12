@@ -5,7 +5,7 @@ import { useId } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import { Camp, clasaBifa } from "@/components/ui/camp";
-import { TIPURI_ACT_IDENTITATE } from "@/domain/reges/operatii";
+import { TIPURI_ACT_IDENTITATE_ALEGERE } from "@/domain/reges/operatii";
 import { GENURI, STARI_CIVILE, type InroleazaAngajatInput } from "@/schemas/employee";
 import { ETICHETE_ACT_IDENTITATE, ETICHETE_GEN, ETICHETE_STARE_CIVILA } from "../../etichete";
 import { mesajCamp } from "./erori-formular";
@@ -133,7 +133,9 @@ export function Pas1Identitate({ formular }: Proprietati) {
             {(atribute) => (
               <select {...atribute} {...register("reges_tip_act")}>
                 <option value="">— Alegeți —</option>
-                {TIPURI_ACT_IDENTITATE.map((tip) => (
+                {/* Fără buletin: nu se mai emite din 1997 — v. nota din `operatii.ts`.
+                    Aici e o fișă NOUĂ, deci nu există valoare veche de păstrat. */}
+                {TIPURI_ACT_IDENTITATE_ALEGERE.map((tip) => (
                   <option key={tip} value={tip}>
                     {ETICHETE_ACT_IDENTITATE[tip]}
                   </option>

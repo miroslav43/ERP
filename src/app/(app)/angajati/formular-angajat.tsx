@@ -18,7 +18,11 @@ import {
   STARI_CIVILE,
 } from "@/schemas/employee";
 
-import { TIPURI_ACT_IDENTITATE } from "@/domain/reges/operatii";
+import {
+  TIPURI_ACT_IDENTITATE,
+  TIPURI_ACT_IDENTITATE_ALEGERE,
+  type TipActIdentitate,
+} from "@/domain/reges/operatii";
 
 import {
   ETICHETE_ACT_IDENTITATE,
@@ -184,6 +188,24 @@ function valoare(
 function bifa(stare: StareFormular<{ id: string }>, cheie: string, initial: boolean): boolean {
   if (Object.keys(stare.valoriTrimise).length === 0) return initial;
   return stare.valoriTrimise[cheie] === "on";
+}
+
+/**
+ * Opțiunile de act de identitate pentru O FIȘĂ ANUME.
+ *
+ * Subsetul ales de om (`TIPURI_ACT_IDENTITATE_ALEGERE`, fără buletin), PLUS
+ * valoarea pe care fișa o are deja, dacă e una scoasă din ofertă.
+ *
+ * Fără adăugarea din urmă, deschiderea unei fișe vechi cu buletin ar fi găsit
+ * un `<select>` care nu conține valoarea ei: browserul afișează atunci prima
+ * opțiune, iar prima salvare ar fi rescris tăcut actul omului în altceva. O
+ * fișă nu se schimbă fiindcă am schimbat noi o listă.
+ */
+function optiuniActIdentitate(actual: string | null): readonly TipActIdentitate[] {
+  const oferite = TIPURI_ACT_IDENTITATE_ALEGERE;
+  if (actual === null || (oferite as readonly string[]).includes(actual)) return oferite;
+  const cunoscut = (TIPURI_ACT_IDENTITATE as readonly string[]).includes(actual);
+  return cunoscut ? [...oferite, actual as TipActIdentitate] : oferite;
 }
 
 export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) {
@@ -527,7 +549,7 @@ export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) 
                   defaultValue={valoare(stare, "reges_tip_act", angajat.reges_tip_act)}
                 >
                   <option value="">— Nespecificat —</option>
-                  {TIPURI_ACT_IDENTITATE.map((tip) => (
+                  {optiuniActIdentitate(angajat.reges_tip_act).map((tip) => (
                     <option key={tip} value={tip}>
                       {ETICHETE_ACT_IDENTITATE[tip]}
                     </option>

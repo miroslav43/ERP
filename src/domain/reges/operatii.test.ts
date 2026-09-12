@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   OPERATII,
   TIPURI_ACT_IDENTITATE,
+  TIPURI_ACT_IDENTITATE_ALEGERE,
   TIPURI_CONTRACT,
   propuneNormaTimpMunca,
   propuneTipContract,
@@ -127,5 +128,33 @@ describe("propuneTipContract", () => {
     // deducția e o clasificare completă.
     expect(deduse.size).toBe(4);
     expect(TIPURI_CONTRACT.length - deduse.size).toBe(12);
+  });
+});
+
+describe("TIPURI_ACT_IDENTITATE_ALEGERE", () => {
+  /*
+   * Buletinul iese din OFERTĂ, nu din nomenclator. Distincția e tot ce
+   * împiedică o fișă veche să devină invalidă peste noapte: eticheta ei,
+   * validarea Zod și transmiterea la ITM se sprijină pe lista completă.
+   */
+  it("nu oferă buletinul de identitate", () => {
+    expect(TIPURI_ACT_IDENTITATE_ALEGERE).not.toContain("BuletinIdentitate");
+  });
+
+  it("păstrează buletinul în nomenclatorul REGES", () => {
+    expect(TIPURI_ACT_IDENTITATE).toContain("BuletinIdentitate");
+  });
+
+  it("oferă tot restul nomenclatorului, neatins", () => {
+    expect(TIPURI_ACT_IDENTITATE_ALEGERE).toEqual(
+      TIPURI_ACT_IDENTITATE.filter((t) => t !== "BuletinIdentitate"),
+    );
+  });
+
+  it("oferă cartea de identitate și documentele de străin", () => {
+    expect(TIPURI_ACT_IDENTITATE_ALEGERE).toContain("CarteIdentitate");
+    expect(TIPURI_ACT_IDENTITATE_ALEGERE).toContain("CertificatInregistrare");
+    expect(TIPURI_ACT_IDENTITATE_ALEGERE).toContain("PermisDeSedere");
+    expect(TIPURI_ACT_IDENTITATE_ALEGERE).toContain("CarteDeRezidenta");
   });
 });
