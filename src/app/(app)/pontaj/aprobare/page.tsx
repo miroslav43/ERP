@@ -284,6 +284,15 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               Luna
             </label>
             <input
+              /*
+                `key` legat de valoarea din adresă. Controlul e NECONTROLAT,
+                deci `defaultValue` se citește doar la montare: după o navigare
+                client-side — de pildă un link din caseta „Alte luni au zile de
+                aprobat" de mai sus — React păstrează același element, iar
+                câmpul ar fi rămas pe luna veche peste o listă din luna nouă.
+                Un „Filtrează" apăsat după aceea te-ar fi întors tăcut înapoi.
+              */
+              key={filtre.luna}
               id="luna"
               name="luna"
               type="number"
@@ -298,6 +307,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               Departament
             </label>
             <select
+              key={filtre.departament ?? ""}
               id="departament"
               name="departament"
               defaultValue={filtre.departament ?? ""}

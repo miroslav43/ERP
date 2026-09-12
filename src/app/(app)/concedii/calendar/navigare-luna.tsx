@@ -74,6 +74,21 @@ export function NavigareLuna({ an, luna, vedere, lunaAnterioara, lunaUrmatoare }
             Luna afișată
           </label>
           <select
+            /*
+              `key` legat de valoarea din adresă.
+
+              Controalele astea sunt NECONTROLATE: `defaultValue` se citește doar
+              la montare. La „Luna următoare" — o navigare client-side — React
+              reconciliază aceleași elemente și NU le resetează valoarea, deci
+              grila trecea în octombrie iar selectorul rămânea pe septembrie.
+              Cele două spuneau lucruri diferite despre aceeași pagină, iar un
+              „Mergi" apăsat după aceea te întorcea tăcut în luna veche.
+
+              Cheia schimbată forțează un element nou, care își ia `defaultValue`
+              din nou. Același tipar ca în `pontaj/filtre-pontaj.tsx` și
+              `ssm/filtre-*.tsx`.
+            */
+            key={luna}
             id="calendar-luna"
             name="luna"
             defaultValue={String(luna)}
@@ -89,6 +104,7 @@ export function NavigareLuna({ an, luna, vedere, lunaAnterioara, lunaUrmatoare }
             Anul afișat
           </label>
           <input
+            key={an}
             id="calendar-an"
             name="an"
             type="number"
