@@ -116,26 +116,32 @@ export function SelectieAprobare({
     });
   }
 
-  return (
-    <div className="space-y-4">
-      <AprobareBloc
-        periodId={periodId}
-        departmentId={departmentId}
-        an={an}
-        luna={luna}
-        poateSincroniza={poateSincroniza}
-        /*
-         * `null` = „tot ce e pe ecran acum", nu lista întreagă: între încărcare
-         * și apăsare cineva mai poate ponta o zi, iar cine n-a atins bifele o
-         * vrea și pe aia. Vezi nota din `aprobaPontajBlocSchema`.
-         */
-        idZileAlese={toateBifate ? null : zileValide}
-        numarAngajati={totaluri.angajati}
-        numarZile={totaluri.zile}
-        oreTotale={totaluri.ore}
+  /*
+   * Lista intră ÎNĂUNTRUL casetei de aprobare, sub buton.
+   *
+   * Stătea sub casetă, despărțită de buton prin blocul de sincronizare cu
+   * concediile — o acțiune fără legătură cu lotul. „Se aprobă 1 zi de la 1
+   * angajat" și rândul care spune CARE zi ajungeau de o parte și de alta a
+   * altui subiect, iar propoziția părea să nu descrie nimic de pe ecran.
+   */
+  const lista =
+    randuri.length === 0 ? (
+      <StareGoala
+        fel="initiala"
+        pictograma={CheckCircle2}
+        titlu={numarSaptamaniDeAprobat === 0 ? "Nimic de aprobat" : "Nicio zi de aprobat separat"}
+        descriere={
+          numarSaptamaniDeAprobat === 0
+            ? "Toate zilele de pontaj ale acestei luni au fost deja aprobate."
+            : `Zilele lunii sunt aprobate. ${
+                numarSaptamaniDeAprobat === 1
+                  ? "Mai există o fișă săptămânală de aprobat"
+                  : `Mai există ${String(numarSaptamaniDeAprobat)} fișe săptămânale de aprobat`
+              }, în capul paginii — aprobarea ei scrie zilele direct în pontaj, gata aprobate.`
+        }
       />
-
-      {randuri.length === 0 ? null : (
+    ) : (
+      <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -163,24 +169,7 @@ export function SelectieAprobare({
             {toateZilele.length === 1 ? "zi aleasă" : "zile alese"}
           </span>
         </div>
-      )}
 
-      {randuri.length === 0 ? (
-        <StareGoala
-          fel="initiala"
-          pictograma={CheckCircle2}
-          titlu={numarSaptamaniDeAprobat === 0 ? "Nimic de aprobat" : "Nicio zi de aprobat separat"}
-          descriere={
-            numarSaptamaniDeAprobat === 0
-              ? "Toate zilele de pontaj ale acestei luni au fost deja aprobate."
-              : `Zilele lunii sunt aprobate. ${
-                  numarSaptamaniDeAprobat === 1
-                    ? "Mai există o fișă săptămânală de aprobat"
-                    : `Mai există ${String(numarSaptamaniDeAprobat)} fișe săptămânale de aprobat`
-                }, în capul paginii — aprobarea ei scrie zilele direct în pontaj, gata aprobate.`
-          }
-        />
-      ) : (
         <ul className="border-border rounded-panou divide-border divide-y overflow-hidden border">
           {randuri.map((rand) => (
             <GrupAngajat
@@ -195,8 +184,28 @@ export function SelectieAprobare({
             />
           ))}
         </ul>
-      )}
-    </div>
+      </div>
+    );
+
+  return (
+    <AprobareBloc
+      periodId={periodId}
+      departmentId={departmentId}
+      an={an}
+      luna={luna}
+      poateSincroniza={poateSincroniza}
+      /*
+       * `null` = „tot ce e pe ecran acum", nu lista întreagă: între încărcare
+       * și apăsare cineva mai poate ponta o zi, iar cine n-a atins bifele o
+       * vrea și pe aia. Vezi nota din `aprobaPontajBlocSchema`.
+       */
+      idZileAlese={toateBifate ? null : zileValide}
+      numarAngajati={totaluri.angajati}
+      numarZile={totaluri.zile}
+      oreTotale={totaluri.ore}
+      lista={lista}
+      areCeAproba={randuri.length > 0}
+    />
   );
 }
 

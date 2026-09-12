@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCheck, RefreshCw } from "lucide-react";
 
@@ -31,6 +31,31 @@ interface Proprietati {
   readonly numarAngajati: number;
   readonly numarZile: number;
   readonly oreTotale: number;
+  /**
+   * Lista de bifat — angajații cu zilele lor — randată SUB buton, în aceeași
+   * casetă.
+   *
+   * ── DE CE ÎNĂUNTRU, ȘI NU DUPĂ CASETĂ ────────────────────────────────────
+   * Stătea dedesubt, despărțită de buton prin linia de sus a blocului de
+   * sincronizare — o acțiune care n-are nicio legătură cu lotul. Cele două
+   * jumătăți ale aceleiași decizii („cât aprob" și „ce anume") ajungeau astfel
+   * de o parte și de alta a altui subiect, iar propoziția de deasupra
+   * butonului părea să nu descrie nimic de pe ecran.
+   *
+   * Vine ca `ReactNode`, nu construită aici: starea bifelor e a lui
+   * `SelectieAprobare`, iar butonul trebuie s-o citească deja numărată.
+   */
+  readonly lista?: ReactNode;
+  /**
+   * `true` = luna ARE zile neaprobate pe ecran, oricare ar fi bifele.
+   *
+   * Distinct de `numarZile > 0`, care numără doar ce e BIFAT. Cât timp cele
+   * două erau același lucru, debifarea ultimei zile făcea să dispară propoziția
+   * și butonul cu totul — omul rămânea cu o listă și fără nicio cale vizibilă
+   * de a aproba, fără să i se spună de ce. Acum blocul rămâne, iar butonul
+   * dezactivat spune ce lipsește.
+   */
+  readonly areCeAproba: boolean;
 }
 
 /**
@@ -49,6 +74,8 @@ export function AprobareBloc({
   numarAngajati,
   numarZile,
   oreTotale,
+  lista,
+  areCeAproba,
 }: Proprietati) {
   const router = useRouter();
   const [observatii, setObservatii] = useState("");
@@ -107,13 +134,18 @@ export function AprobareBloc({
   return (
     <div className="border-border rounded-panou space-y-4 border p-4">
       {/*
-        Blocul de aprobare în bloc apare DOAR când are ce aproba.
-        Fără condiția asta, ecranul spunea de trei ori același lucru: butonul
-        dezactivat „(0 linii)", un mesaj ROȘU care arăta ca o defecțiune, și
-        starea goală de la baza paginii. Iar sincronizarea de dedesubt rămâne
+        Blocul apare DOAR când luna ARE zile neaprobate — nu când sunt bifate.
+        Fără condiția asta, ecranul spunea de trei ori același lucru pe o lună
+        deja închisă: butonul dezactivat „(0 linii)", un mesaj ROȘU care arăta
+        ca o defecțiune, și starea goală. Iar sincronizarea de dedesubt rămâne
         oricum vizibilă — ea e utilă exact când foaia e goală.
+
+        Condiția era `numarZile === 0`, adică numărul BIFAT, ceea ce confunda
+        două stări diferite: „nu e nimic de aprobat" și „n-ai ales nimic".
+        Debifarea ultimei zile făcea să dispară propoziția și butonul, fără
+        nicio explicație.
       */}
-      {numarZile === 0 ? null : (
+      {!areCeAproba ? null : (
         <div className="space-y-2">
           {/*
             CE APROBI, ÎN CUVINTE, DEASUPRA BUTONULUI.
@@ -124,14 +156,20 @@ export function AprobareBloc({
             lângă apăsare, se schimbă odată cu bifele, și e aceeași cu cifrele
             din caseta de confirmare.
           */}
-          <p className="text-foreground text-corp">
-            Se aprobă <strong className="tabular-nums">{numarZile}</strong>{" "}
-            {numarZile === 1 ? "zi" : "zile"} de pontaj, de la{" "}
-            <strong className="tabular-nums">{numarAngajati}</strong>{" "}
-            {numarAngajati === 1 ? "angajat" : "angajați"}, însumând{" "}
-            <strong className="tabular-nums">{formatOre(oreTotale)}</strong> ore
-            {departmentId === null ? "" : ", din departamentul filtrat acum"}.
-          </p>
+          {numarZile === 0 ? (
+            <p className="text-muted-foreground text-corp">
+              Nicio zi bifată. Alegeți cel puțin una din lista de mai jos.
+            </p>
+          ) : (
+            <p className="text-foreground text-corp">
+              Se aprobă <strong className="tabular-nums">{numarZile}</strong>{" "}
+              {numarZile === 1 ? "zi" : "zile"} de pontaj, de la{" "}
+              <strong className="tabular-nums">{numarAngajati}</strong>{" "}
+              {numarAngajati === 1 ? "angajat" : "angajați"}, însumând{" "}
+              <strong className="tabular-nums">{formatOre(oreTotale)}</strong> ore
+              {departmentId === null ? "" : ", din departamentul filtrat acum"}.
+            </p>
+          )}
           <label htmlFor={idObservatii} className="text-corp block font-medium">
             Observații lot (opțional)
           </label>
@@ -150,13 +188,13 @@ export function AprobareBloc({
             onClick={() => {
               setConfirmareDeschisa(true);
             }}
-            disabled={numarZile === 0 || numarAngajati === 0}
+            disabled={numarZile === 0}
             inCurs={inCursAprobare}
             textInCurs="Se aprobă…"
           >
             <CheckCheck aria-hidden="true" className="size-4" />
-            {numarAngajati === 0
-              ? "Alegeți cel puțin un angajat"
+            {numarZile === 0
+              ? "Alegeți cel puțin o zi"
               : `Aprobă ${String(numarZile)} ${numarZile === 1 ? "zi" : "zile"}`}
           </Buton>
           {eroareAprobare === null ? null : (
@@ -166,6 +204,8 @@ export function AprobareBloc({
           )}
         </div>
       )}
+
+      {lista}
 
       <ConfirmareActiune
         deschis={confirmareDeschisa}
