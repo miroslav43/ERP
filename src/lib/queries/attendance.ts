@@ -503,7 +503,19 @@ const MAXIM_PAGINI_LINII = 20;
  * perechea ordonează complet.
  */
 /*
- * O ZI RESPINSĂ NU MAI E DE APROBAT.
+ * CE NU E DE APROBAT AICI.
+ *
+ * (1) ZILELE DE CONCEDIU. Un rând cu `leave_request_id` nu e o declarație de
+ *     prezență, e PROIECȚIA unei decizii luate deja în modulul de concedii, de
+ *     cineva cu `leave:approve`. Are zero ore, niciun interval, iar
+ *     `salveazaZiPontaj` refuză să-l editeze — nu există nimic de judecat.
+ *
+ *     Mai grav decât inutil: de când ecranul poate și RESPINGE, un aprobator de
+ *     pontaj ar fi putut refuza o zi dintr-un concediu aprobat. Două module ar
+ *     fi spus lucruri contrare despre aceeași zi, fără ca vreunul să afle.
+ *     Cererile de concediu se decid la `/concedii/aprobari`, și numai acolo.
+ *
+ * (2) ZILELE RESPINSE.
  *
  * `respins_la` rămâne pe rând până când angajatul îl corectează —
  * `salveazaZiPontaj` stinge cele trei coloane la prima editare. Până atunci,
@@ -532,7 +544,8 @@ export async function liniiDeAprobat(
       .eq("organization_id", organizationId)
       .eq("period_id", periodId)
       .is("approved_at", null)
-      // Respinsele ies — v. nota de deasupra funcției.
+      // Concediile și respinsele ies — v. nota de deasupra funcției.
+      .is("leave_request_id", null)
       .is("respins_la", null)
       .is("deleted_at", null)
       .order("data", { ascending: true })
@@ -1056,7 +1069,13 @@ export async function pontajDeAprobat(organizationId: string): Promise<PontajDeA
     .select("period_id")
     .eq("organization_id", organizationId)
     .is("approved_at", null)
-    // Aceeași regulă ca în `liniiDeAprobat`: respinsele sunt la angajat.
+    /*
+     * Aceleași două excluderi ca în `liniiDeAprobat`, și obligatoriu aceleași:
+     * contorul de pe panou și lista spre care duce trebuie să numere exact
+     * același lucru. Concediile se decid în modulul lor; respinsele sunt la
+     * angajat, în corectare.
+     */
+    .is("leave_request_id", null)
     .is("respins_la", null)
     .is("deleted_at", null)
     .in(
