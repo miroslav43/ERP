@@ -193,6 +193,20 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
             Denumire
           </label>
           <input
+            /*
+              `key` legat de valoarea din adresă.
+
+              Controlul e NECONTROLAT: `defaultValue` se citește doar la montare.
+              „Șterge filtrele" din starea goală e un `<Link>` (v. `StareGoala`),
+              deci navighează pe CLIENT: React păstrează același element, iar
+              câmpul ar fi rămas cu textul vechi peste o listă nefiltrată — și
+              l-ar fi reaplicat la următoarea apăsare pe „Filtrează".
+
+              Ecranul ăsta își scrie formularul de mână, în loc să folosească
+              `BaraFiltre`; de aceea a scăpat de reparația pe care o au cele
+              unsprezece componente `filtre-*.tsx`.
+            */
+            key={cautaCurent}
             id="cauta"
             name="cauta"
             type="search"
@@ -205,6 +219,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
             Tip
           </label>
           <select
+            key={tipCurent}
             id="tip"
             name="tip"
             defaultValue={tipCurent}
