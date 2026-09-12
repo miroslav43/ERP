@@ -1,27 +1,18 @@
 // src/app/(portal)/portal/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import {
-  CalendarDays,
-  Clock,
-  FileText,
-  Megaphone,
-  Plus,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+import { Bell, Check, ChevronRight, Clock, PartyPopper, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, formatMonthYear, oraInBucharest, todayInBucharest } from "@/lib/format/date";
+import { formatDate, formatDateTime, oraInBucharest, todayInBucharest } from "@/lib/format/date";
 import { citestePerioada, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
 import { stareaLunii } from "@/domain/attendance/luna";
-import { formatOreCuUnitate } from "@/lib/format/ore";
 import { cn } from "@/lib/ui/cn";
 import { anunturiPublicate, idAnunturiCitite } from "@/lib/queries/announcements";
 import { cursurileMele, restanteDinCursuri } from "@/lib/queries/cursuri";
@@ -34,7 +25,11 @@ import {
 } from "@/lib/queries/portal";
 import { citesteFluturasulPropriu, perioadaInregistrarii } from "@/lib/queries/payroll";
 import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
+import { zileNepontate } from "@/domain/attendance/zile-nepontate";
 import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { urmatoareaZiLibera, zilePanaLa } from "@/domain/calendar/urmatoarea-zi-libera";
+import { sarciniPortal } from "@/domain/portal/sarcini";
+import { listeazaNotificarile } from "@/lib/queries/notifications";
 
 import { CardSalariu } from "./card-salariu";
 import { ETICHETE_STATUS_CERERE, ETICHETE_TIP_ZI, TONURI_STATUS_CERERE } from "./etichete";
@@ -87,6 +82,7 @@ export default async function PaginaPortal() {
     setari,
     randPontare,
     fluturas,
+    notificari,
   ] = await Promise.all([
     vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
     vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
@@ -108,6 +104,14 @@ export default async function PaginaPortal() {
     poatePontaZiua ? setariPontaj(tenant.organizationId, azi) : Promise.resolve(null),
     poatePontaZiua ? setariPontareRapida(tenant.organizationId) : Promise.resolve(null),
     vedeSalariu ? citesteFluturasulPropriu(tenant.organizationId, fisa.id) : Promise.resolve(null),
+    /*
+     * Notificările n-au poartă de modul și nici permisiune: politica
+     * `notifications_select` e `user_id = auth.uid()`, deci fiecare om vede
+     * strict ce i s-a trimis. Antetul le numără deja (`numaraNecitite` din
+     * layout); aici se cer titlurile, fiindcă o pastilă cu „16" nu spune ce s-a
+     * întâmplat, iar acasă era singurul loc unde nu ajungea nimic din ele.
+     */
+    listeazaNotificarile(tenant.organizationId, user.id),
   ]);
 
   /*
@@ -215,6 +219,52 @@ export default async function PaginaPortal() {
   const inAsteptare = cereri.filter((c) => IN_ASTEPTARE.has(c.status));
   const necitite = anunturi.filter((a) => !citite.has(a.id));
 
+  /*
+   * ── Cardul „De făcut” ────────────────────────────────────────────────────
+   * Înlocuiește cardul promovat al cursurilor și lista de anunțuri necitite,
+   * care apăreau și dispăreau fiecare pe cont propriu. Un card care dispare nu
+   * poate spune „n-ai nimic de rezolvat" — poate doar lipsi, iar lipsa se
+   * citește la fel ca o pagină care încă se încarcă.
+   *
+   * Zilele nepontate sunt singurul rând care aduce informație NOUĂ pe ecran:
+   * `zile` era citit de la început, dar folosit doar ca să adune orele lunii.
+   * Restanța se vedea numai deschizând calendarul.
+   */
+  const nepontate = vedePontaj
+    ? zileNepontate(
+        an,
+        luna,
+        azi,
+        zile,
+        setari === null
+          ? null
+          : {
+              lucreazaWeekend: setari.lucreaza_weekend,
+              lucreazaSarbatori: setari.lucreaza_sarbatori,
+            },
+      )
+    : [];
+
+  const sarcini = sarciniPortal({
+    cursuriDeFacut: restante.deFacut,
+    termenCursuri: restante.celMaiApropiatTermen,
+    zileNepontate: nepontate.length,
+    anunturiNecitite: necitite.length,
+    azi,
+  });
+
+  /*
+   * Următoarea zi liberă. Calcul pur, zero interogări: sărbătorile vin din
+   * `sarbatoriAnului`, concediile din cererile deja citite. Soldul de deasupra
+   * spune CÂTE zile mai are omul; ăsta spune CÂND urmează prima, care e
+   * întrebarea pusă mai des și la care portalul nu răspundea nicăieri.
+   */
+  const ziLibera = vedeConcedii ? urmatoareaZiLibera(azi, cereri) : urmatoareaZiLibera(azi, []);
+  const panaLaZiLibera = ziLibera === null ? null : zilePanaLa(azi, ziLibera.data);
+
+  /* Ultimele trei, citite sau nu: acasă e un rezumat, nu căsuța de necitite. */
+  const ultimeleNotificari = notificari.slice(0, 3);
+
   return (
     // Ordinea în DOM e aceeași pe ambele ecrane — se schimbă doar așezarea. Așa,
     // ordinea de citire la tastatură și la cititorul de ecran rămâne una singură,
@@ -237,37 +287,6 @@ export default async function PaginaPortal() {
           nimic, deci nu are nevoie de nicio poartă aici.
         */}
         <IndemnInstalare />
-
-        {/*
-          Cardul promovat al cursurilor. DISPARE complet când nu e nimic de
-          făcut — nu devine „0 cursuri". Un contor pe zero e zgomot care învață
-          omul să nu se mai uite.
-        */}
-        {restante.deFacut === 0 ? null : (
-          <section
-            aria-labelledby="cursuri-restante"
-            className="border-primary bg-surface rounded-panou border p-4"
-          >
-            <h2 id="cursuri-restante" className="text-foreground font-semibold">
-              {restante.deFacut === 1
-                ? "Aveți un curs de parcurs"
-                : `Aveți ${String(restante.deFacut)} cursuri de parcurs`}
-            </h2>
-            {restante.celMaiApropiatTermen === null ? null : (
-              <p className="text-muted-foreground text-corp mt-1">
-                {restante.celMaiApropiatTermen < azi
-                  ? `Unul are termenul depășit din ${formatDate(restante.celMaiApropiatTermen)}.`
-                  : `Cel mai apropiat termen: ${formatDate(restante.celMaiApropiatTermen)}.`}
-              </p>
-            )}
-            <Link
-              href="/portal/cursurile-mele"
-              className={cn(buton({ varianta: "primar" }), "mt-3")}
-            >
-              Începeți acum
-            </Link>
-          </section>
-        )}
 
         {soldPrincipal === null ? null : (
           <section
@@ -406,6 +425,67 @@ export default async function PaginaPortal() {
           </section>
         )}
 
+        {/*
+          Cardul „De făcut”. Singurul de pe ecran care NU dispare când e gol —
+          tocmai golul lui e informația. Restul cardurilor rămân ascunse pe zero,
+          fiindcă fiecare vorbește despre un singur lucru; ăsta vorbește despre
+          toate deodată, iar absența lui ar însemna „nu știm", nu „nimic".
+
+          Chenarul devine albastru când chiar e ceva de rezolvat. Culoarea nu e
+          singurul purtător de sens: rândurile scriu în litere ce au de spus.
+        */}
+        <section
+          aria-labelledby="de-facut"
+          className={cn(
+            "bg-surface rounded-panou border p-4",
+            sarcini.length === 0 ? "border-border" : "border-primary",
+          )}
+        >
+          <h2 id="de-facut" className="text-foreground text-corp font-semibold">
+            De făcut
+          </h2>
+
+          {sarcini.length === 0 ? (
+            <p className="text-muted-foreground text-corp mt-2 flex items-start gap-2">
+              <Check aria-hidden="true" className="text-primary mt-0.5 size-4 shrink-0" />
+              <span>Nimic de rezolvat acum. Tot ce vi s-a cerut e la zi.</span>
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-1">
+              {sarcini.map((sarcina) => (
+                <li key={sarcina.id}>
+                  {/* Rândul întreg e ținta de atingere, ca la cererile de mai
+                      jos: pe telefon, un link îngust într-un card se ratează. */}
+                  <Link
+                    href={sarcina.href}
+                    className="hover:bg-background rounded-control -mx-2 flex min-h-11 items-center justify-between gap-3 px-2 py-2 transition-colors"
+                  >
+                    <span className="min-w-0">
+                      <span className="text-foreground text-corp block font-medium">
+                        {sarcina.eticheta}
+                      </span>
+                      {sarcina.detaliu === null ? null : (
+                        <span
+                          className={cn(
+                            "text-nota block",
+                            sarcina.urgenta ? "text-danger" : "text-muted-foreground",
+                          )}
+                        >
+                          {sarcina.detaliu}
+                        </span>
+                      )}
+                    </span>
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="text-muted-foreground size-4 shrink-0"
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         {inAsteptare.length === 0 ? null : (
           <section aria-labelledby="asteapta" className="space-y-2">
             <h2 id="asteapta" className="text-foreground text-corp font-semibold">
@@ -454,119 +534,93 @@ export default async function PaginaPortal() {
       </div>
 
       <div className="space-y-3">
-        {necitite.length === 0 ? null : (
-          <section aria-labelledby="anunturi" className="space-y-2">
+        {/*
+          Următoarea zi liberă. Cardul răspunde la întrebarea pusă cel mai des
+          unui portal de HR, la care ecranul ăsta nu răspundea nicăieri: soldul
+          de alături spune CÂTE zile mai sunt, nu CÂND vine prima.
+
+          Nu dispare niciodată în practică — sărbătorile legale există oricum —
+          dar `null` rămâne tratat, fiindcă o dată scrisă aiurea nu trebuie să
+          doboare pagina.
+        */}
+        {ziLibera === null ? null : (
+          <section
+            aria-labelledby="zi-libera"
+            className="bg-surface border-border rounded-panou border p-4"
+          >
+            <h2
+              id="zi-libera"
+              className="text-muted-foreground text-corp flex items-center gap-2 font-medium"
+            >
+              <PartyPopper aria-hidden="true" className="text-primary size-4 shrink-0" />
+              Următoarea zi liberă
+            </h2>
+            <p className="text-foreground text-titlu mt-1 font-semibold">
+              {formatDate(ziLibera.data)}
+            </p>
+            <p className="text-muted-foreground text-corp mt-1">
+              {ziLibera.denumire}
+              {panaLaZiLibera === null
+                ? null
+                : panaLaZiLibera === 1
+                  ? " · mâine"
+                  : ` · peste ${panaLaZiLibera.toLocaleString("ro-RO")} zile`}
+            </p>
+          </section>
+        )}
+
+        {/*
+          Notificările, ca titluri. Antetul are pastila cu numărul, dar un „16"
+          nu spune ce s-a întâmplat, iar acasă nu ajungea nimic din ele.
+
+          Se arată ultimele trei, CITITE SAU NU: acasă e un rezumat al ce s-a
+          mișcat, nu o a doua căsuță de necitite. Necititul se vede din bulină.
+        */}
+        {ultimeleNotificari.length === 0 ? null : (
+          <section aria-labelledby="notificari" className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h2 id="anunturi" className="text-foreground text-corp font-semibold">
-                {necitite.length.toLocaleString("ro-RO")}{" "}
-                {necitite.length === 1 ? "anunț necitit" : "anunțuri necitite"}
+              <h2
+                id="notificari"
+                className="text-foreground text-corp flex items-center gap-2 font-semibold"
+              >
+                <Bell aria-hidden="true" className="text-primary size-4 shrink-0" />
+                Ce s-a mai întâmplat
               </h2>
               <Link
-                href="/portal/anunturi"
+                href="/portal/notificarile-mele"
                 className="text-primary text-nota underline-offset-2 hover:underline"
               >
                 Toate
               </Link>
             </div>
             <ul className="space-y-2">
-              {necitite.slice(0, 3).map((anunt) => (
-                <li key={anunt.id}>
+              {ultimeleNotificari.map((notificare) => (
+                <li key={notificare.id}>
                   <Link
-                    href={`/portal/anunturi/${anunt.id}`}
-                    className="bg-surface border-border hover:border-ring rounded-panou flex min-h-11 items-center justify-between gap-3 border p-3 transition-colors"
+                    href={notificare.link ?? "/portal/notificarile-mele"}
+                    className="bg-surface border-border hover:border-ring rounded-panou flex min-h-11 items-start justify-between gap-3 border p-3 transition-colors"
                   >
-                    <span className="text-foreground text-corp min-w-0 truncate font-medium">
-                      {anunt.titlu}
+                    <span className="min-w-0">
+                      <span className="text-foreground text-corp block font-medium">
+                        {notificare.title}
+                      </span>
+                      <span className="text-muted-foreground text-nota block">
+                        {formatDateTime(notificare.created_at)}
+                      </span>
                     </span>
-                    <span
-                      aria-label="Necitit"
-                      className="bg-primary size-2 shrink-0 rounded-full"
-                    />
+                    {notificare.read_at === null ? (
+                      <span
+                        aria-label="Necitită"
+                        className="bg-primary mt-1.5 size-2 shrink-0 rounded-full"
+                      />
+                    ) : null}
                   </Link>
                 </li>
               ))}
             </ul>
           </section>
         )}
-
-        <nav
-          aria-label="Scurtături"
-          className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1"
-        >
-          {vedeConcedii ? (
-            <Scurtatura
-              href="/portal/concediile-mele"
-              eticheta="Concediile mele"
-              descriere={`${cereri.length.toLocaleString("ro-RO")} cereri`}
-              Iconita={CalendarDays}
-            />
-          ) : null}
-          {vedePontaj ? (
-            <Scurtatura
-              href="/portal/pontajul-meu"
-              eticheta="Pontajul meu"
-              descriere={`${formatOreCuUnitate(oreLuna)} luna aceasta`}
-              Iconita={Clock}
-            />
-          ) : null}
-          {vedeSalariu ? (
-            <Scurtatura
-              href="/portal/salariul-meu"
-              eticheta="Salariul meu"
-              // Aceeași lună pe care o scrie cardul de mai sus. Două formulări
-              // diferite pentru același fluturaș, pe același ecran, se citesc ca
-              // două lucruri diferite.
-              descriere={
-                lunaFluturas === null
-                  ? "Ultimul fluturaș aprobat"
-                  : `Fluturașul pe ${formatMonthYear(lunaFluturas.an, lunaFluturas.luna)}`
-              }
-              Iconita={Wallet}
-            />
-          ) : null}
-          {vedeAnunturi ? (
-            <Scurtatura
-              href="/portal/anunturi"
-              eticheta="Anunțuri"
-              descriere={`${anunturi.length.toLocaleString("ro-RO")} pe avizier`}
-              Iconita={Megaphone}
-            />
-          ) : null}
-          {moduleActive.has("employee_portal") && can(permisiuni, "employees:read", "own") ? (
-            <Scurtatura
-              href="/portal/documentele-mele"
-              eticheta="Documentele mele"
-              descriere="Adeverințe și fișe"
-              Iconita={FileText}
-            />
-          ) : null}
-        </nav>
       </div>
     </div>
-  );
-}
-
-function Scurtatura({
-  href,
-  eticheta,
-  descriere,
-  Iconita,
-}: {
-  readonly href: string;
-  readonly eticheta: string;
-  readonly descriere: string;
-  readonly Iconita: LucideIcon;
-}) {
-  return (
-    <Link
-      href={href}
-      className="bg-surface border-border hover:border-ring rounded-panou flex min-h-16 items-center gap-3 border p-4 transition-colors"
-    >
-      <Iconita aria-hidden="true" className="text-primary size-5 shrink-0" />
-      <span className="min-w-0">
-        <span className="text-foreground text-corp block font-medium">{eticheta}</span>
-        <span className="text-muted-foreground text-nota block">{descriere}</span>
-      </span>
-    </Link>
   );
 }
