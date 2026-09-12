@@ -1,11 +1,13 @@
 // src/app/(app)/pontaj/aprobare/page.tsx
 import { Suspense } from "react";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { CalendarClock, CheckCircle2 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
@@ -18,6 +20,7 @@ import {
   citestePerioada,
   departamente,
   liniiDeAprobat,
+  pontajDeAprobat,
   saptamaniDeAprobat,
 } from "@/lib/queries/attendance";
 import { filtreAprobareSchema } from "@/schemas/attendance";
@@ -216,11 +219,27 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
 
   // Trei citiri independente, puse una după alta fără motiv: perioada are nevoie
   // de (an, lună), departamentele doar de tenant, sarcinile doar de utilizator.
-  const [perioada, listaDepartamente, sarciniSaptamana] = await Promise.all([
+  const [perioada, listaDepartamente, sarciniSaptamana, deAprobat] = await Promise.all([
     citestePerioada(tenant.organizationId, an, filtre.luna),
     departamente(tenant.organizationId),
     saptamaniDeAprobat(tenant.organizationId, user.id),
+    /*
+     * UNDE MAI E DE LUCRU, ÎN AFARA LUNII AFIȘATE.
+     *
+     * Ecranul lucrează pe o lună și se deschide implicit pe cea curentă. Cine
+     * intră din meniu, nu din panou, nimerea deci septembrie — gol — în timp ce
+     * panoul anunța opt zile de aprobat, aflate în octombrie. Nimic de pe ecran
+     * nu explica diferența, iar concluzia firească era că panoul minte.
+     *
+     * ACEEAȘI funcție care alimentează panoul, ca cele două să nu poată
+     * diverge: un contor se derivă din aceeași logică precum lista spre care
+     * duce (v. capul lui `queries/panou.ts`).
+     */
+    pontajDeAprobat(tenant.organizationId),
   ]);
+
+  /** Lunile cu restanțe, alta decât cea afișată. */
+  const alteLuni = (deAprobat?.luni ?? []).filter((l) => !(l.an === an && l.luna === filtre.luna));
 
   return (
     <div className="space-y-6">
@@ -232,6 +251,28 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
       />
 
       <ListaSaptamaniDeAprobat sarcini={sarciniSaptamana} />
+
+      {alteLuni.length === 0 ? null : (
+        <Callout fel="atentie" titlu="Alte luni au zile de aprobat">
+          <p>
+            Ecranul arată o singură lună. În afara lui {formatMonthYear(an, filtre.luna)} mai
+            așteaptă:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {alteLuni.map((l) => (
+              <li key={`${String(l.an)}-${String(l.luna)}`}>
+                <Link
+                  href={`/pontaj/aprobare?an=${String(l.an)}&luna=${String(l.luna)}`}
+                  className="underline underline-offset-2"
+                >
+                  {formatMonthYear(l.an, l.luna)}
+                </Link>{" "}
+                — <span className="tabular-nums">{l.zile}</span> {l.zile === 1 ? "zi" : "zile"}
+              </li>
+            ))}
+          </ul>
+        </Callout>
+      )}
 
       {listaDepartamente.length === 0 ? null : (
         <form className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4">

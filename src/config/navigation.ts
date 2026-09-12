@@ -53,7 +53,12 @@ export const NAV_GROUPS: readonly Readonly<{ id: NavGroupId; label: string }>[] 
 
 /** Contoarele se calculează într-un singur query de dashboard, nu per intrare. */
 export type BadgeSource =
-  "leave_pending" | "ssm_expiring" | "fleet_expiring" | "maintenance_due" | "reges_pending";
+  | "leave_pending"
+  | "attendance_pending"
+  | "ssm_expiring"
+  | "fleet_expiring"
+  | "maintenance_due"
+  | "reges_pending";
 
 export type NavLink = Readonly<{
   id: string;
@@ -103,6 +108,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "attendance:read",
     minScope: "own",
     order: 20,
+    /*
+      Zilele și fișele care așteaptă aprobare.
+
+      Lipsea, iar asta lăsa singura cale spre ele să fie panoul: cine intra pe
+      „Pontaj" din meniu nimerea luna curentă, o găsea goală, și nu avea de unde
+      ști că restanțele stau în altă lună. Insigna e semnalul dinaintea
+      clicului; `Callout`-ul din `/pontaj/aprobare` e explicația de după el.
+    */
+    badge: "attendance_pending",
   },
   {
     id: "concedii",

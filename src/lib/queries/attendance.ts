@@ -963,3 +963,121 @@ export async function absenteNemotivateFaraDecizie(
       zile: s.zile,
     }));
 }
+
+// ── Ce așteaptă aprobare, la nivel de organizație ────────────────────────────
+
+/**
+ * Ce așteaptă efectiv o aprobare pe pontaj.
+ *
+ * ── DE CE NU E UN SIMPLU `Contor` ─────────────────────────────────────────
+ * Ecranul `/pontaj/aprobare` lucrează pe O LUNĂ, aleasă din URL, iar implicit
+ * pe cea curentă. Un contor care ar aduna zilele din toate lunile ar trimite
+ * omul într-o lună în care nu e nimic — cifra spune 10, ecranul arată 2, iar
+ * restul de 8 stau în octombrie, unde nu se uită nimeni.
+ *
+ * Rezultatul poartă de aceea lunile în care se află restanțele, ca linkul să
+ * ducă exact acolo și ca ecranul de aprobare să le poată numi pe celelalte.
+ * Contorul și lista redevin astfel același lucru.
+ */
+/** O lună cu zile de aprobat. `zile` e numărul din ea, nu totalul. */
+export type LunaCuRestante = Readonly<{
+  an: number;
+  luna: number;
+  zile: number;
+}>;
+
+export type PontajDeAprobat = Readonly<{
+  /** Zile de pontaj neaprobate, în luni încă neblocate. */
+  zile: number;
+  /** Fișe săptămânale trimise și nedecise. */
+  fise: number;
+  /**
+   * Lunile cu zile neaprobate, cronologic. Prima e destinația linkului.
+   *
+   * LISTĂ, nu o cifră, fiindcă are doi consumatori cu nevoi diferite:
+   * panoul folosește lungimea și prima lună („8 zile din 2 luni", link către
+   * prima), iar `/pontaj/aprobare` le numește pe TOATE — el arată o singură
+   * lună odată și trebuie să spună unde e restul.
+   *
+   * Fără asta, ecranul deschis din meniu pe luna curentă arăta gol în timp ce
+   * panoul anunța 8 zile de aprobat, iar nimic de pe ecran nu explica
+   * diferența. Aceeași contrazicere contor↔listă, mutată cu un clic mai încolo.
+   */
+  luni: readonly LunaCuRestante[];
+}>;
+
+/**
+ * Ce așteaptă efectiv o aprobare pe pontaj: zile neaprobate + fișe săptămânale.
+ *
+ * Amândouă se aprobă de pe `/pontaj/aprobare`, în două blocuri distincte ale
+ * aceluiași ecran — deci un singur rând pe panou, cu detaliul despărțit.
+ *
+ * Lunile BLOCATE ies. O lună blocată nu mai acceptă nicio aprobare: politica
+ * respinge UPDATE-ul, iar linia rămâne neaprobată pe veci, prin construcție.
+ * Numărată, ar fi ținut panoul plin cu o restanță pe care nimeni n-o poate
+ * închide — exact defectul contorului pe care îl înlocuiește.
+ *
+ * `null` doar când nu e nimic; altfel rândul poartă luna primei restanțe.
+ */
+export async function pontajDeAprobat(organizationId: string): Promise<PontajDeAprobat | null> {
+  const db = await createServerSupabase();
+
+  // Lunile în care aprobarea mai e posibilă. Fără ele n-am putea nici exclude
+  // blocatele, nici traduce `period_id` în (an, lună) pentru link.
+  const { data: perioade, error: eroarePerioade } = await db
+    .from("attendance_periods")
+    .select("id, an, luna")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .neq("status", "blocata")
+    .returns<{ id: string; an: number; luna: number }[]>();
+  if (eroarePerioade !== null) throw eroarePerioade;
+  if (perioade === null || perioade.length === 0) return null;
+
+  const { data: zileNeaprobate, error: eroareZile } = await db
+    .from("attendance_entries")
+    .select("period_id")
+    .eq("organization_id", organizationId)
+    .is("approved_at", null)
+    .is("deleted_at", null)
+    .in(
+      "period_id",
+      perioade.map((p) => p.id),
+    )
+    .returns<{ period_id: string }[]>();
+  if (eroareZile !== null) throw eroareZile;
+
+  const { count: fise, error: eroareFise } = await db
+    .from("attendance_week_submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .eq("status", "trimisa");
+  if (eroareFise !== null) throw eroareFise;
+
+  const zile = zileNeaprobate?.length ?? 0;
+  const numarFise = fise ?? 0;
+  if (zile === 0 && numarFise === 0) return null;
+
+  /*
+   * Luna spre care duce linkul: cea mai VECHE cu zile neaprobate. Restanța cea
+   * mai veche e și cea mai aproape de a bloca salarizarea lunii respective.
+   *
+   * Când nu sunt zile, ci doar fișe săptămânale, luna nu contează — fișele se
+   * arată în capul ecranului, indiferent de lună — deci se ia cea mai veche
+   * perioadă deschisă, ca linkul să fie valid.
+   */
+  // Câte zile stau în fiecare lună — nu doar în care dintre ele.
+  const pePerioada = new Map<string, number>();
+  for (const z of zileNeaprobate ?? []) {
+    pePerioada.set(z.period_id, (pePerioada.get(z.period_id) ?? 0) + 1);
+  }
+  const luni: readonly LunaCuRestante[] = perioade
+    .filter((p) => pePerioada.has(p.id))
+    .map((p) => ({ an: p.an, luna: p.luna, zile: pePerioada.get(p.id) ?? 0 }))
+    .toSorted((a, b) => a.an - b.an || a.luna - b.luna);
+
+  return { zile, fise: numarFise, luni };
+}
+
+/** Deplasări care așteaptă aprobare. Azi lista se citește întreagă ca să se afle dacă e ceva. */

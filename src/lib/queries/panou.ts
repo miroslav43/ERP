@@ -15,6 +15,7 @@ import { citesteRezumatCredentiale } from "@/lib/reges/credentiale";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import { numarAngajatiActivi } from "./announcements";
+import { pontajDeAprobat, type PontajDeAprobat } from "./attendance";
 import { idFisaProprie } from "./employees";
 import { citesteTot } from "./citeste-tot";
 import { numarScadenteMentenanta } from "./maintenance";
@@ -52,37 +53,7 @@ import { numarScadenteSsm } from "./ssm";
 export type Contor = number | null;
 
 /** Ce așteaptă o decizie. Ordinea din tip e ordinea de pe ecran. */
-/**
- * Ce așteaptă efectiv o aprobare pe pontaj.
- *
- * ── DE CE NU E UN SIMPLU `Contor` ─────────────────────────────────────────
- * Ecranul `/pontaj/aprobare` lucrează pe O LUNĂ, aleasă din URL, iar implicit
- * pe cea curentă. Un contor care ar aduna zilele din toate lunile ar trimite
- * omul într-o lună în care nu e nimic — cifra spune 10, ecranul arată 2, iar
- * restul de 8 stau în octombrie, unde nu se uită nimeni.
- *
- * Rândul poartă de aceea și luna în care se află PRIMA restanță, ca linkul să
- * ducă exact acolo. Contorul și lista redevin astfel același lucru, ceea ce e
- * regula din capul fișierului.
- */
-export type PontajDeAprobat = Readonly<{
-  /** Zile de pontaj neaprobate, în luni încă neblocate. */
-  zile: number;
-  /** Fișe săptămânale trimise și nedecise. */
-  fise: number;
-  /**
-   * În câte luni distincte stau zilele acelea.
-   *
-   * Fără cifra asta rândul ar fi mințit din nou, doar mai subtil: „10 zile",
-   * clic, și ecranul lunii septembrie arată 2. Restul de 8 sunt în octombrie.
-   * Detaliul rândului o spune („10 zile din 2 luni"), deci cifra rămâne
-   * totalul adevărat, iar omul știe dinainte că are de schimbat luna.
-   */
-  luni: number;
-  /** Luna primei restanțe — destinația linkului. */
-  an: number;
-  luna: number;
-}>;
+export type { PontajDeAprobat };
 
 export type CoadaPanou = Readonly<{
   cereriConcediu: Contor;
@@ -266,79 +237,6 @@ export async function contorCereriConcediu(
   return count ?? 0;
 }
 
-/**
- * Ce așteaptă efectiv o aprobare pe pontaj: zile neaprobate + fișe săptămânale.
- *
- * Amândouă se aprobă de pe `/pontaj/aprobare`, în două blocuri distincte ale
- * aceluiași ecran — deci un singur rând pe panou, cu detaliul despărțit.
- *
- * Lunile BLOCATE ies. O lună blocată nu mai acceptă nicio aprobare: politica
- * respinge UPDATE-ul, iar linia rămâne neaprobată pe veci, prin construcție.
- * Numărată, ar fi ținut panoul plin cu o restanță pe care nimeni n-o poate
- * închide — exact defectul contorului pe care îl înlocuiește.
- *
- * `null` doar când nu e nimic; altfel rândul poartă luna primei restanțe.
- */
-export async function pontajDeAprobat(organizationId: string): Promise<PontajDeAprobat | null> {
-  const db = await createServerSupabase();
-
-  // Lunile în care aprobarea mai e posibilă. Fără ele n-am putea nici exclude
-  // blocatele, nici traduce `period_id` în (an, lună) pentru link.
-  const { data: perioade, error: eroarePerioade } = await db
-    .from("attendance_periods")
-    .select("id, an, luna")
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .neq("status", "blocata")
-    .returns<{ id: string; an: number; luna: number }[]>();
-  if (eroarePerioade !== null) throw eroarePerioade;
-  if (perioade === null || perioade.length === 0) return null;
-
-  const { data: zileNeaprobate, error: eroareZile } = await db
-    .from("attendance_entries")
-    .select("period_id")
-    .eq("organization_id", organizationId)
-    .is("approved_at", null)
-    .is("deleted_at", null)
-    .in(
-      "period_id",
-      perioade.map((p) => p.id),
-    )
-    .returns<{ period_id: string }[]>();
-  if (eroareZile !== null) throw eroareZile;
-
-  const { count: fise, error: eroareFise } = await db
-    .from("attendance_week_submissions")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .eq("status", "trimisa");
-  if (eroareFise !== null) throw eroareFise;
-
-  const zile = zileNeaprobate?.length ?? 0;
-  const numarFise = fise ?? 0;
-  if (zile === 0 && numarFise === 0) return null;
-
-  /*
-   * Luna spre care duce linkul: cea mai VECHE cu zile neaprobate. Restanța cea
-   * mai veche e și cea mai aproape de a bloca salarizarea lunii respective.
-   *
-   * Când nu sunt zile, ci doar fișe săptămânale, luna nu contează — fișele se
-   * arată în capul ecranului, indiferent de lună — deci se ia cea mai veche
-   * perioadă deschisă, ca linkul să fie valid.
-   */
-  const cuZile = new Set(zileNeaprobate?.map((z) => z.period_id) ?? []);
-  const candidate = perioade.filter((p) => cuZile.has(p.id));
-  const ordonate = (candidate.length > 0 ? candidate : [...perioade]).toSorted(
-    (a, b) => a.an - b.an || a.luna - b.luna,
-  );
-  const prima = ordonate[0];
-  if (prima === undefined) return null;
-
-  return { zile, fise: numarFise, luni: candidate.length, an: prima.an, luna: prima.luna };
-}
-
-/** Deplasări care așteaptă aprobare. Azi lista se citește întreagă ca să se afle dacă e ceva. */
 export async function contorDeplasari(organizationId: string): Promise<number> {
   const db = await createServerSupabase();
   const { count, error } = await db
@@ -757,7 +655,12 @@ export function insigneMeniu(
   contoare: ContoarePanou,
 ): Partial<
   Record<
-    "leave_pending" | "ssm_expiring" | "fleet_expiring" | "maintenance_due" | "reges_pending",
+    | "leave_pending"
+    | "attendance_pending"
+    | "ssm_expiring"
+    | "fleet_expiring"
+    | "maintenance_due"
+    | "reges_pending",
     number
   >
 > {
@@ -766,6 +669,11 @@ export function insigneMeniu(
     if (valoare !== null && valoare > 0) insigne[cheie] = valoare;
   };
   pune("leave_pending", contoare.coada.cereriConcediu);
+  // Zile + fișe, ca în rândul de pe panou: aceeași cifră în amândouă locurile.
+  pune(
+    "attendance_pending",
+    contoare.coada.pontaj === null ? null : contoare.coada.pontaj.zile + contoare.coada.pontaj.fise,
+  );
   pune("ssm_expiring", contoare.scadente.ssm);
   pune("fleet_expiring", contoare.scadente.documenteFlota);
   pune("maintenance_due", contoare.scadente.mentenanta);

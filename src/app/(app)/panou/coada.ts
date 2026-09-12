@@ -86,13 +86,22 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
    * septembrie.
    */
   if (coada.pontaj !== null) {
-    const { zile, fise, luni, an, luna } = coada.pontaj;
+    const { zile, fise, luni } = coada.pontaj;
+    /*
+     * Linkul duce în prima lună cu restanțe. Când nu sunt zile, ci doar fișe
+     * săptămânale, lista e goală — fișele se arată în capul ecranului,
+     * indiferent de lună — deci se lasă luna implicită.
+     */
+    const prima = luni[0];
     intrari.push({
       cheie: "pontaj",
       numar: zile + fise,
       titlu: "Pontaj care așteaptă aprobare",
-      detaliu: detaliulPontajului(zile, fise, luni),
-      href: `/pontaj/aprobare?an=${String(an)}&luna=${String(luna)}`,
+      detaliu: detaliulPontajului(zile, fise, luni.length),
+      href:
+        prima === undefined
+          ? "/pontaj/aprobare"
+          : `/pontaj/aprobare?an=${String(prima.an)}&luna=${String(prima.luna)}`,
       actiune: "Aprobă",
     });
   }

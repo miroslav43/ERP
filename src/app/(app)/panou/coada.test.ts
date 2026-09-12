@@ -8,7 +8,7 @@ import { coadaDinContoare, numarulDinAntet } from "./coada";
 /** Contori toți pe `1`, ca fiecare să producă exact un rând de un element. */
 const TOTI_PE_UNU: CoadaPanou = {
   cereriConcediu: 1,
-  pontaj: { zile: 1, fise: 0, luni: 1, an: 2026, luna: 9 },
+  pontaj: { zile: 1, fise: 0, luni: [{ an: 2026, luna: 9, zile: 1 }] },
   deplasari: 1,
   foiParcurs: 1,
   tichete: 1,
@@ -104,7 +104,16 @@ describe("rândul de pontaj", () => {
    * restanțele reale, care stau în lunile `deschisa`.
    */
   it("numără zilele și fișele împreună, fiindcă se aprobă din același ecran", () => {
-    expect(cu({ zile: 8, fise: 2, luni: 2, an: 2026, luna: 10 })?.numar).toBe(10);
+    expect(
+      cu({
+        zile: 8,
+        fise: 2,
+        luni: [
+          { an: 2026, luna: 10, zile: 2 },
+          { an: 2026, luna: 11, zile: 8 },
+        ],
+      })?.numar,
+    ).toBe(10);
   });
 
   /*
@@ -113,25 +122,30 @@ describe("rândul de pontaj", () => {
    * septembrie — aceeași contrazicere, mutată cu un clic mai încolo.
    */
   it("duce în luna primei restanțe, nu în luna curentă", () => {
-    expect(cu({ zile: 8, fise: 0, luni: 1, an: 2026, luna: 10 })?.href).toBe(
+    expect(cu({ zile: 8, fise: 0, luni: [{ an: 2026, luna: 10, zile: 8 }] })?.href).toBe(
       "/pontaj/aprobare?an=2026&luna=10",
     );
   });
 
   it("spune despărțit ce anume așteaptă", () => {
-    expect(cu({ zile: 3, fise: 1, luni: 1, an: 2026, luna: 9 })?.detaliu).toBe(
+    expect(cu({ zile: 3, fise: 1, luni: [{ an: 2026, luna: 9, zile: 3 }] })?.detaliu).toBe(
       "3 zile · o fișă săptămânală",
     );
-    expect(cu({ zile: 1, fise: 0, luni: 1, an: 2026, luna: 9 })?.detaliu).toBe("o zi");
-    expect(cu({ zile: 0, fise: 2, luni: 0, an: 2026, luna: 9 })?.detaliu).toBe(
-      "2 fișe săptămânale",
-    );
+    expect(cu({ zile: 1, fise: 0, luni: [{ an: 2026, luna: 9, zile: 1 }] })?.detaliu).toBe("o zi");
+    expect(cu({ zile: 0, fise: 2, luni: [] })?.detaliu).toBe("2 fișe săptămânale");
   });
 
   it("avertizează când restanțele sunt împrăștiate pe mai multe luni", () => {
-    expect(cu({ zile: 10, fise: 0, luni: 2, an: 2026, luna: 9 })?.detaliu).toBe(
-      "10 zile din 2 luni",
-    );
+    expect(
+      cu({
+        zile: 10,
+        fise: 0,
+        luni: [
+          { an: 2026, luna: 9, zile: 2 },
+          { an: 2026, luna: 11, zile: 10 },
+        ],
+      })?.detaliu,
+    ).toBe("10 zile din 2 luni");
   });
 
   it("nu apare deloc când nu e nimic de aprobat", () => {
