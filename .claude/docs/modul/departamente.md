@@ -8,14 +8,16 @@ cai:
   - "src/lib/queries/profile.ts"
   - "src/schemas/department.ts"
   - "supabase/migrations/0004_hr.sql"
+  - "supabase/migrations/0139_cod_departament_optional.sql"
 tabele: [departments, employees, profiles, organization_members]
 permisiuni: [departments:read, departments:create, departments:update, employees:update]
 capcane: [2, 17]
 citeste_daca:
   - "departament care nu se poate dezactiva → secțiunea „ce refuză”"
+  - "departament fără cod, sau cod schimbat → secțiunea „codul”"
   - "cine vede ce după o mutare → [[modul/organigrama]]"
-scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
-scris_la: 2026-09-04
+scris_pe: 90b099aea9f6b9cc51ce16b42bef95bc1e83348e
+scris_la: 2026-09-12
 tags: [modul, hr]
 ---
 
@@ -55,6 +57,42 @@ Booleenii de scriere, toți la scope `all`: `poateCrea` și `poateEdita`
 | `actualizeazaDepartament`, `mutaDepartament`        | `departments:update` |
 | `dezactiveazaDepartament`, `reactiveazaDepartament` | `departments:update` |
 | `mutaAngajati`                                      | `employees:update`   |
+
+## Codul — opțional, editabil, și cheia conducerii
+
+`departments.cod` nu mai e obligatoriu: `0139_cod_departament_optional.sql` scoate
+`not null`-ul pus de `0004_hr.sql`. Obligatorie la creare rămâne doar denumirea, iar ea e
+și primul câmp al formularului — un formular care începe cu un câmp facultativ îl face să
+pară cerut.
+
+Câmpul gol devine `null`, **nu șir vid** — `codOptional` din `src/schemas/department.ts`.
+Diferența e în bază: indexul unic `departments_org_cod_uniq` e pe `lower(cod)` și nu e
+declarat `nulls not distinct`, deci oricâte departamente fără cod coexistă în aceeași
+firmă, iar unicitatea mușcă în continuare pentru cine chiar completează codul. Două șiruri
+vide s-ar fi ciocnit la al doilea departament.
+
+CHECK-ul `departments_cod_len` rămâne neatins și nu trebuie rescris: evaluat pe NULL dă
+NULL, iar Postgres cere „not false", nu „true" — deci lasă NULL să treacă și continuă să
+interzică șirul vid și codurile peste 32 de caractere.
+
+Codul **se poate edita**: `actualizeazaDepartamentSchema` nu-l mai omite din
+`creeazaDepartamentSchema`, fiindcă cine a creat departamente fără cod și își face
+nomenclatura peste un an trebuie să le poată completa fără să dezactiveze și să refacă
+departamentul, pierzând istoricul. De aceea `"cod"` e și în `CAMPURI_AUDITATE_ACTUALIZARE`.
+
+`lower(cod) = 'conducere'` e cheia după care triggerele din
+`0107_departamentul_conducere.sql` recunosc conducerea firmei. Un cod NULL nu se potrivește
+niciodată — comparația se evaluează la NULL, deci fals în `where` — deci un departament
+fără cod nu devine din greșeală conducerea. În schimb, cine **schimbă** codul conducerii
+pierde repartizarea automată: comportament, nu defect, iar jurnalul de audit e singurul loc
+din care se mai află cine l-a schimbat și când. `esteConducerea` din `panou-departament.tsx`
+face aceeași verificare, cu aceeași gardă pe `null`.
+
+Tipul urcă neschimbat prin toate straturile — `RandDepartament.cod`, `DepartamentEcran.cod`
+și `OptiuneDepartament.cod` sunt `string | null`. Interfața **nu pune substitut** pentru
+codul lipsă (nici „—", nici denumirea repetată): ar arăta ca un cod adevărat. În combobox-ul
+de mutare cheia `secundar` lipsește cu totul din opțiune, nu e pusă pe `undefined` —
+`exactOptionalPropertyTypes` o respinge pe a doua formă.
 
 ## `mutaAngajati` — cinci decizii care nu se văd din semnătură
 

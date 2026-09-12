@@ -10,8 +10,8 @@ tabele: [attendance_week_submissions, attendance_week_submission_days, attendanc
 permisiuni: [attendance:create, attendance:approve]
 feature: attendance
 capcane: [17]
-scris_pe: 5621e9e8308157d5103f0b52dd696cb318da688c
-scris_la: 2026-09-10
+scris_pe: 90b099aea9f6b9cc51ce16b42bef95bc1e83348e
+scris_la: 2026-09-12
 tags: [modul, hr]
 ---
 
@@ -33,6 +33,11 @@ Două ecrane randează același `FormularSaptamana`: `/pontaj/saptamana` și
 (implicitele de weekend), deci orice schimbare se face în AMÂNDOUĂ, iar proprietățile
 noi se declară OBLIGATORII, ca să oblige compilatorul — `blocata` și `motivBlocare` din
 `ZiFormular` sunt exact asta, fără implicit.
+
+Simetria se oprește la antet: `ButonSetariPontaj`
+(`src/app/(app)/pontaj/buton-setari.tsx`, componentă a MODULULUI, cu `poateConfigura` din
+`fileDePontaj`) stă pe AMÂNDOUĂ ramurile paginii `/pontaj/saptamana` — cea care cere
+alegerea angajatului și cea cu formularul — dar pe niciuna din portal.
 
 ## Planul se leagă de fapt la CITIRE, niciodată printr-o a doua scriere
 
@@ -134,3 +139,45 @@ Ce rămâne descoperit: o cerere aprobată a cărei sincronizare cu pontajul a c
 rând în `attendance_entries`, deci n-o vede nici garda de săptămână, nici cea de zi, nici
 blocarea din formular — toate trei citesc aceeași dovadă, deci cad împreună. Recuperarea
 e `sincronizeazaConcediile` — vezi [[modul/concedii]].
+
+## Aprobarea transformă planul în PONTAJ, o singură dată
+
+Până la `0138_saptamana_devine_pontaj.sql`, aprobarea nu producea nimic în
+`attendance_entries`: calendarul rămânea gol, iar salarizarea, care de acolo citește,
+număra zero ore pentru o săptămână declarată ȘI aprobată. Migrarea adaugă DOAR eticheta
+(`saptamana`, în `public.attendance_entry_source`); scrierea e cod —
+`scriePontajulSaptamanii` (`src/app/(app)/pontaj/saptamana/scrie-pontajul.ts`), chemată
+din `decideSaptamanaPontaj` **numai** pe ramura `aprobata`, ca o respingere să nu lase ore
+în salarizare. Nimic retroactiv: săptămânile aprobate înainte de `0138` se refac prin
+retrimitere. Zilele sosesc APROBATE (`approved_at`/`approved_by` = momentul și autorul
+deciziei) — scrise neaprobate, reapăreau în „Aprobă în bloc" ca linii de aprobat, exact ce
+tocmai fusese aprobat.
+
+NU se calcă nicio zi care are deja rând neșters în `attendance_entries`, oricare i-ar fi
+sursa, simetric cu `sincronizeazaZileleDeConcediu`; deci **reaprobarea nu rescrie** nimic,
+iar corectura unei zile se face din ziua aceea. Nu devin pontaj nici zilele fără interval
+complet — o zi goală înseamnă „n-am lucrat", iar un rând la zero ore e altă afirmație
+decât un rând lipsă — nici cele pentru care `oreleZilei` întoarce `null`. Orele se derivă
+cu `configZiDin(setari)` la data SĂPTĂMÂNII (`attendance_settings` are istoric pe
+`valabil_de_la`), nu din `ore_planificate`. Clientul e cel ADMIN (`createAdminSupabase`):
+aprobatorul are `attendance:approve`, nu `attendance:create` pe fișa altcuiva, iar filtrul
+pe `organization_id` e explicit pe fiecare interogare.
+
+Două capcane tăcute la scriere. Postgres întoarce `time` ca `08:30:00`, iar `minuteDinOra`
+cere exact `HH:MM`: fără tăierea din `ora()`, `oreleZilei` dă `null` și un `?? 0` ar scrie
+zero ore — s-a și întâmplat la prima rulare pe date reale, cinci zile cu interval corect
+și zero ore (`scrie-pontajul.test.ts`). Iar `tip_zi` se derivă de APELANT, cu
+`tipZiAutomat` + `zileNelucratoare`, fiindcă triggerul BEFORE îl pune doar când vine
+`null` — lăsat bazei, totul ar fi intrat `lucratoare`, fără sporul de repaus.
+
+Eșecul e tăcut deliberat: funcția NU aruncă, aprobarea fiind deja înregistrată (tiparul
+din `decideCerere`); ce n-a mers intră într-un `console.error` cu `requestId`. Numerele
+n-ajung oricum nicăieri — acțiunea e tipată `Readonly<{ id: string }>`, deci
+`scrise`/`pastrate` trec rețeaua fără să existe pentru TypeScript, iar
+`lista-saptamani-de-aprobat.tsx` face doar `router.refresh()`.
+
+Vocabularul de TypeScript a rămas în urmă: `saptamana` e în enum și în
+`src/types/database.ts`, dar NU în `SURSE_INTRARE` (`src/schemas/attendance.ts`) și nici
+în `ETICHETE_SURSA` (`src/app/(app)/pontaj/etichete.ts`); citirile declară
+`sursa: SursaIntrare`, tip care minte despre rândurile scrise aici — regula celor trei
+locuri e în [[modul/pontaj/actiuni]].
