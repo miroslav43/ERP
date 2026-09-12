@@ -459,6 +459,22 @@ export interface LinieDeAprobat {
   readonly employee_id: string;
   readonly data: string;
   readonly ore_lucrate: number;
+  /**
+   * Intervalul, tipul zilei și sursa — ce vede aprobatorul ÎNAINTE să apese.
+   *
+   * Ecranul arăta „1 zi, de la 1 angajat, însumând 8:00 ore": adevărat, și
+   * complet inutil pentru cineva care trebuie să răspundă de ce semnează. Care
+   * zi? La ce oră? Cine a scris-o? Aprobarea e un act cu efect în statul de
+   * plată, iar un rezumat abstract nu e o bază pentru el.
+   *
+   * `ora_sfarsit === null` cu `ora_inceput` pus = zi ÎN CURS. Acțiunea le sare
+   * deliberat (v. `aprobaPontajBloc`), iar ecranul trebuie s-o spună acolo
+   * unde omul se uită, nu după apăsare.
+   */
+  readonly ora_inceput: string | null;
+  readonly ora_sfarsit: string | null;
+  readonly tip_zi: TipZi;
+  readonly sursa: SursaIntrare;
 }
 
 export interface RezultatLiniiDeAprobat {
@@ -497,7 +513,7 @@ export async function liniiDeAprobat(
     const deLa = pagina * PAGINA_LINII;
     const { data, error } = await db
       .from("attendance_entries")
-      .select("id, employee_id, data, ore_lucrate")
+      .select("id, employee_id, data, ore_lucrate, ora_inceput, ora_sfarsit, tip_zi, sursa")
       .eq("organization_id", organizationId)
       .eq("period_id", periodId)
       .is("approved_at", null)

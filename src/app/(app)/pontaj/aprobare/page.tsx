@@ -26,7 +26,7 @@ import { ButonSetariPontaj } from "../buton-setari";
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
 import { ActiuniPerioada } from "../perioade/actiuni-perioada";
-import { SelectieAprobare, type RandAprobare } from "./selectie-aprobare";
+import { SelectieAprobare, type RandAprobare, type ZiDeAprobat } from "./selectie-aprobare";
 import { ListaSaptamaniDeAprobat } from "./lista-saptamani-de-aprobat";
 
 export const metadata: Metadata = { title: "Aprobare pontaj" };
@@ -72,21 +72,30 @@ async function ContinutAprobare({
       ? linii
       : linii.filter((l) => angajati.get(l.employee_id)?.department_id === departmentId);
 
-  const perAngajat = new Map<string, { readonly nume: string; zile: number; ore: number }>();
+  /*
+   * Zilele se duc ÎNTREGI la ecran, grupate pe om — nu doar numărate.
+   *
+   * Rezumatul „1 zi, de la 1 angajat, însumând 8:00 ore" era adevărat și
+   * inutil: aprobatorul semna fără să știe care zi, cu ce interval, scrisă de
+   * cine. Aprobarea intră în statul de plată; ce se aprobă trebuie să se vadă.
+   */
+  const perAngajat = new Map<string, { readonly nume: string; zile: ZiDeAprobat[] }>();
   for (const linie of liniiFiltrate) {
     const angajat = angajati.get(linie.employee_id);
     const nume =
       angajat === undefined ? "Angajat necunoscut" : `${angajat.full_name} (${angajat.marca})`;
+    const zi: ZiDeAprobat = {
+      id: linie.id,
+      data: linie.data,
+      ore: linie.ore_lucrate,
+      oraInceput: linie.ora_inceput,
+      oraSfarsit: linie.ora_sfarsit,
+      tipZi: linie.tip_zi,
+      sursa: linie.sursa,
+    };
     const existent = perAngajat.get(linie.employee_id);
-    if (existent === undefined) {
-      perAngajat.set(linie.employee_id, { nume, zile: 1, ore: linie.ore_lucrate });
-    } else {
-      perAngajat.set(linie.employee_id, {
-        nume: existent.nume,
-        zile: existent.zile + 1,
-        ore: existent.ore + linie.ore_lucrate,
-      });
-    }
+    if (existent === undefined) perAngajat.set(linie.employee_id, { nume, zile: [zi] });
+    else existent.zile.push(zi);
   }
 
   /*
@@ -97,7 +106,13 @@ async function ContinutAprobare({
    * `localeCompare("ro")` fiindcă „Ș” trebuie să stea după „S”, nu la coadă.
    */
   const randuriAprobare: readonly RandAprobare[] = [...perAngajat.entries()]
-    .map(([id, rand]) => ({ id, nume: rand.nume, zile: rand.zile, ore: rand.ore }))
+    .map(([id, rand]) => ({
+      id,
+      nume: rand.nume,
+      // Zilele, cronologic. Omul citește luna de sus în jos, nu în ordinea în
+      // care PostgREST a nimerit să întoarcă rândurile.
+      zile: [...rand.zile].sort((a, b) => a.data.localeCompare(b.data)),
+    }))
     .sort((a, b) => a.nume.localeCompare(b.nume, "ro"));
 
   return (

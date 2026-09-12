@@ -17,13 +17,17 @@ interface Proprietati {
   readonly luna: number;
   readonly poateSincroniza: boolean;
   /**
-   * Angajații bifați, sau `null` pentru „toți cei de pe ecran".
+   * Zilele bifate, sau `null` pentru „tot ce e pe ecran".
    *
-   * Distincția nu e cosmetică: `null` lasă acțiunea să prindă și o zi pontată
-   * între încărcarea ecranului și apăsarea butonului, iar lista o îngheață pe
-   * cea de acum. Vezi nota din `aprobaPontajBlocSchema`.
+   * Era lista de ANGAJAȚI, iar asta făcea alegerea tot-sau-nimic pe fiecare om.
+   * Unitatea reală a deciziei e ziua: „pe astea patru le aprob, pe a cincea
+   * vreau să vorbesc întâi cu el".
+   *
+   * Distincția `null` vs. listă nu e cosmetică: `null` lasă acțiunea să prindă
+   * și o zi pontată între încărcarea ecranului și apăsarea butonului, iar lista
+   * o îngheață pe cea de acum. Vezi nota din `aprobaPontajBlocSchema`.
    */
-  readonly idAngajatiAlesi: readonly string[] | null;
+  readonly idZileAlese: readonly string[] | null;
   readonly numarAngajati: number;
   readonly numarZile: number;
   readonly oreTotale: number;
@@ -41,7 +45,7 @@ export function AprobareBloc({
   an,
   luna,
   poateSincroniza,
-  idAngajatiAlesi,
+  idZileAlese,
   numarAngajati,
   numarZile,
   oreTotale,
@@ -68,7 +72,11 @@ export function AprobareBloc({
       const rezultat = await aprobaPontajBloc({
         period_id: periodId,
         department_id: departmentId,
-        employee_ids: idAngajatiAlesi === null ? null : [...idAngajatiAlesi],
+        // Selecția pleacă pe ZILE. `employee_ids` rămâne `null`: filtrarea pe
+        // om e cuprinsă în cea pe zile, iar două site peste aceeași mulțime
+        // s-ar putea contrazice la prima schimbare a uneia dintre ele.
+        employee_ids: null,
+        entry_ids: idZileAlese === null ? null : [...idZileAlese],
         observatii: observatii.trim().length === 0 ? null : observatii.trim(),
       });
       if (!rezultat.ok) {
@@ -178,8 +186,8 @@ export function AprobareBloc({
           {
             eticheta: "Cuprindere",
             valoare:
-              idAngajatiAlesi !== null
-                ? "numai angajații bifați"
+              idZileAlese !== null
+                ? "numai zilele bifate"
                 : departmentId === null
                   ? "toate departamentele"
                   : "un singur departament",

@@ -109,6 +109,9 @@ export const ETICHETE_SURSA: Readonly<Record<SursaIntrare, string>> = {
   // nu „Pontare rapidă": omul care citește foaia colectivă vrea să știe CINE a
   // scris rândul, nu cum se cheamă funcția care l-a scris.
   pontare_rapida: "De pe telefon",
+  // 0138: ziua venită dintr-o fișă săptămânală aprobată. Aceeași regulă ca mai
+  // sus — numele spune de unde vine rândul, nu ce funcție l-a scris.
+  saptamana: "Din fișa săptămânii",
 };
 
 /**

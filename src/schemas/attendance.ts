@@ -63,6 +63,11 @@ export const SURSE_INTRARE = [
   // scris rândul" trăia doar în `audit_logs`, adică nicăieri unde un raport s-o
   // poată număra.
   "pontare_rapida",
+  // 0138: ziua venită dintr-o fișă săptămânală aprobată. Eticheta a stat în
+  // enumul SQL fără pereche aici de la livrare — oglinda manuală se rupe tăcut,
+  // fiindcă nimic nu leagă cele două liste. Un rând cu `sursa = 'saptamana'`
+  // trecea deci de bază și cădea la validare în aplicație.
+  "saptamana",
 ] as const;
 export type SursaIntrare = (typeof SURSE_INTRARE)[number];
 
@@ -194,6 +199,24 @@ export const aprobaPontajBlocSchema = z.object({
    * PostgREST înainte să ajungă la el.
    */
   employee_ids: z.array(z.uuid()).max(500).nullable().default(null),
+  /**
+   * Zilele bifate una câte una, sau `null` pentru „toate ale angajaților aleși".
+   *
+   * ── DE CE EXISTĂ, PESTE `employee_ids` ────────────────────────────────────
+   * Bifa pe OM aproba luna întreagă a omului. Aprobatorul vedea „1 zi, de la 1
+   * angajat, însumând 8:00 ore" și semna fără să știe CARE zi, la ce oră, sau
+   * cine a scris-o. Pentru un act cu efect în statul de plată, asta nu e o
+   * bază de decizie — iar singura alternativă era „tot sau nimic pe omul ăsta".
+   *
+   * Se aplică PESTE departament și peste `employee_ids`, ca o restrângere, nu
+   * în locul lor: cine debifează două zile dintr-un departament vrea exact
+   * restul departamentului.
+   *
+   * Plafon 2000, nu 500: aici unitatea e ziua, nu omul, iar o lună de 46 de
+   * oameni are peste o mie de zile. Peste plafon, `aprobaPontajBloc` refuză
+   * oricum lotul mai devreme, la citirea paginată.
+   */
+  entry_ids: z.array(z.uuid()).max(2000).nullable().default(null),
   observatii: textOptional(1000),
 });
 export type AprobaPontajBloc = z.output<typeof aprobaPontajBlocSchema>;

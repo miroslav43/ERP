@@ -1075,10 +1075,23 @@ export const aprobaPontajBloc = createAction({
       throw businessRule("Nu ați ales niciun angajat. Bifați cel puțin unul.");
     }
 
+    /*
+      Zilele bifate una câte una.
+
+      A treia sită, peste departament și peste oameni — nu în locul lor. Lista
+      goală înseamnă „nicio zi", ceea ce n-are ce aproba, deci se refuză
+      explicit în loc să treacă drept „toate".
+    */
+    const idZile = input.entry_ids === null ? null : new Set(input.entry_ids);
+    if (idZile !== null && idZile.size === 0) {
+      throw businessRule("Nu ați ales nicio zi. Bifați cel puțin una.");
+    }
+
     const inSelectie = liniiVizibile.filter(
       (l) =>
         (idAngajatiDepartament === null || idAngajatiDepartament.has(l.employee_id)) &&
-        (idAlese === null || idAlese.has(l.employee_id)),
+        (idAlese === null || idAlese.has(l.employee_id)) &&
+        (idZile === null || idZile.has(l.id)),
     );
 
     /*
