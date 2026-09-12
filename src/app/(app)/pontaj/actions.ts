@@ -27,6 +27,7 @@ import {
   aprobaPontajBlocSchema,
   confirmaZiuaStandardSchema,
   decideZiPontajSchema,
+  respingePontajBlocSchema,
   deschidePerioadaSchema,
   idPerioadaSchema,
   pontezaIesireaSchema,
@@ -1403,6 +1404,92 @@ export const decideZiPontaj = createAction({
           );
 
     return { id: data, anuntat };
+  },
+});
+
+/**
+ * Respinge în bloc zilele bifate pe ecranul de aprobare.
+ *
+ * ── DE CE PRIN RPC-UL DE O ZI, ÎN BUCLĂ ──────────────────────────────────
+ * `decide_zi_pontaj` poartă deja toate gărzile deciziei: perioada neblocată,
+ * scope-ul aprobatorului, constrângerea `attendance_entries_respingere_ck` care
+ * cere motiv de cel puțin 5 caractere, și exclusivitatea `approved_at` vs.
+ * `respins_la`. Un al doilea RPC, „în bloc", ar fi trebuit să le repete pe
+ * toate — iar o gardă rescrisă e o gardă care diverge.
+ *
+ * Costul e un dus-întors per zi. Acceptabil aici și numai aici: respingerea e
+ * pe câteva zile, cu un motiv care le descrie pe toate. De aceea plafonul din
+ * schemă e 200, nu 2000 ca la aprobare.
+ *
+ * ── DE CE NU E ATOMICĂ, ȘI CE SE SPUNE ÎN LOC ────────────────────────────
+ * O zi căzută la mijlocul buclei lasă în urmă zile deja respinse. Nu se dă
+ * nimic înapoi — o zi respinsă e o decizie comunicată angajatului, iar
+ * retragerea ei tăcută ar fi mai rea decât un lot parțial. Rezultatul spune
+ * exact câte au trecut și câte nu, ca ecranul să nu raporteze un succes întreg
+ * peste o reușită parțială.
+ */
+export const respingePontajBloc = createAction({
+  name: "attendance.entry.respinge_bloc",
+  feature: "attendance",
+  permission: "attendance:approve",
+  minScope: "team",
+  input: respingePontajBlocSchema,
+  audit: {
+    action: "update",
+    entityType: "attendance_entry",
+    entityId: () => null,
+    // `motiv` NU intră în audit: descrie o problemă a unei persoane anume, iar
+    // jurnalul e citibil de oricine are `audit:read`. Aceeași regulă ca la
+    // `decideZiPontaj`.
+    allow: ["entry_ids"],
+  },
+  revalidate: [...CAI_REVALIDARE],
+  handler: async (
+    ctx,
+    input,
+  ): Promise<Readonly<{ respinse: number; esuate: number; anuntate: number }>> => {
+    await refuzaCandAprobareaEStinsa(ctx.tenant.organizationId);
+
+    const reusite: string[] = [];
+    let esuate = 0;
+    for (const entryId of input.entry_ids) {
+      const { data, error } = await ctx.supabase.rpc("decide_zi_pontaj", {
+        p_organization_id: ctx.tenant.organizationId,
+        p_entry_id: entryId,
+        p_aproba: false,
+        p_motiv: input.motiv,
+      });
+      /*
+       * Eroarea pe O zi NU oprește lotul și NU aruncă: celelalte zile sunt
+       * decizii independente, iar o zi devenită între timp aprobată de altcineva
+       * e un conflict normal, nu o defecțiune. Se numără și se raportează.
+       */
+      if (error !== null || data === null) esuate += 1;
+      else reusite.push(entryId);
+    }
+
+    if (reusite.length === 0) {
+      throw businessRule(
+        "Nicio zi nu a putut fi respinsă. Verificați dacă luna e încă deschisă și dacă zilele nu au fost decise între timp.",
+      );
+    }
+
+    /*
+      Respingerea CERE ceva de la angajat: să-și corecteze ziua. Best-effort, ca
+      la `decideZiPontaj`: deciziile sunt deja scrise, iar o notificare picată
+      n-are voie să le dea înapoi. Numărul iese în rezultat ca ecranul să poată
+      spune dacă vestea a plecat — un „am respins" care tace despre asta e
+      jumătate de adevăr.
+    */
+    const admin = createAdminSupabase();
+    let anuntate = 0;
+    for (const entryId of reusite) {
+      if (await anuntaRespingereaZilei(admin, ctx.tenant.organizationId, entryId, input.motiv)) {
+        anuntate += 1;
+      }
+    }
+
+    return { respinse: reusite.length, esuate, anuntate };
   },
 });
 

@@ -2,13 +2,13 @@
 
 import { useId, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCheck, RefreshCw } from "lucide-react";
+import { CheckCheck, RefreshCw, XCircle } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
 import { formatOre } from "@/lib/format/ore";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 
-import { aprobaPontajBloc, sincronizeazaConcediile } from "../actions";
+import { aprobaPontajBloc, respingePontajBloc, sincronizeazaConcediile } from "../actions";
 
 interface Proprietati {
   readonly periodId: string;
@@ -28,6 +28,15 @@ interface Proprietati {
    * o îngheață pe cea de acum. Vezi nota din `aprobaPontajBlocSchema`.
    */
   readonly idZileAlese: readonly string[] | null;
+  /**
+   * ACELEAȘI zile, dar întotdeauna enumerate — pentru respingere.
+   *
+   * `idZileAlese` e `null` când n-a fost atinsă nicio bifă, iar la APROBARE
+   * asta e un implicit bun: „ia și ziua pontată între timp". La RESPINGERE ar
+   * fi un refuz în alb, dat peste rânduri pe care aprobatorul nu le-a văzut.
+   * Un „da" larg e o comoditate; un „nu" larg e o greșeală.
+   */
+  readonly idZileExplicit: readonly string[];
   readonly numarAngajati: number;
   readonly numarZile: number;
   readonly oreTotale: number;
@@ -71,6 +80,7 @@ export function AprobareBloc({
   luna,
   poateSincroniza,
   idZileAlese,
+  idZileExplicit,
   numarAngajati,
   numarZile,
   oreTotale,
@@ -92,6 +102,43 @@ export function AprobareBloc({
    * rând cu rând.
    */
   const [confirmareDeschisa, setConfirmareDeschisa] = useState(false);
+
+  /* Respingerea: se deschide, se scrie motivul, abia apoi pleacă. */
+  const [respingereDeschisa, setRespingereDeschisa] = useState(false);
+  const [motiv, setMotiv] = useState("");
+  const [rezultatRespingere, setRezultatRespingere] = useState<string | null>(null);
+  const [inCursRespingere, pornesteRespingerea] = useTransition();
+  const idMotiv = useId();
+
+  function respinge(): void {
+    setEroareAprobare(null);
+    setRezultatRespingere(null);
+    pornesteRespingerea(async () => {
+      const rezultat = await respingePontajBloc({
+        entry_ids: [...idZileExplicit],
+        motiv: motiv.trim(),
+      });
+      if (!rezultat.ok) {
+        setEroareAprobare(rezultat.error.message);
+        return;
+      }
+      const { respinse, esuate, anuntate } = rezultat.data;
+      setRezultatRespingere(
+        [
+          `${String(respinse)} ${respinse === 1 ? "zi respinsă" : "zile respinse"}`,
+          esuate === 0 ? null : `${String(esuate)} nedecise`,
+          // Notificarea nu pleacă spre o fișă fără cont. Se spune, fiindcă un
+          // „am respins" care tace despre asta e jumătate de adevăr.
+          anuntate === respinse ? "angajatul a fost anunțat" : `${String(anuntate)} anunțate`,
+        ]
+          .filter((b) => b !== null)
+          .join(" · ") + ".",
+      );
+      setMotiv("");
+      setRespingereDeschisa(false);
+      router.refresh();
+    });
+  }
 
   function aproba(): void {
     setEroareAprobare(null);
@@ -183,23 +230,93 @@ export function AprobareBloc({
             }}
             className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
           />
-          <Buton
-            varianta="primar"
-            onClick={() => {
-              setConfirmareDeschisa(true);
-            }}
-            disabled={numarZile === 0}
-            inCurs={inCursAprobare}
-            textInCurs="Se aprobă…"
-          >
-            <CheckCheck aria-hidden="true" className="size-4" />
-            {numarZile === 0
-              ? "Alegeți cel puțin o zi"
-              : `Aprobă ${String(numarZile)} ${numarZile === 1 ? "zi" : "zile"}`}
-          </Buton>
+          <div className="flex flex-wrap items-center gap-2">
+            <Buton
+              varianta="primar"
+              onClick={() => {
+                setConfirmareDeschisa(true);
+              }}
+              disabled={numarZile === 0}
+              inCurs={inCursAprobare}
+              textInCurs="Se aprobă…"
+            >
+              <CheckCheck aria-hidden="true" className="size-4" />
+              {numarZile === 0
+                ? "Alegeți cel puțin o zi"
+                : `Aprobă ${String(numarZile)} ${numarZile === 1 ? "zi" : "zile"}`}
+            </Buton>
+            {/*
+              CELĂLALT RĂSPUNS AL DECIZIEI.
+
+              Ecranul putea doar aproba. Cine găsea o zi greșită în lotul bifat
+              avea două ieșiri, amândouă proaste: aproba tot, greșeala inclusă,
+              sau nu aproba nimic și mergea s-o caute în calendar, zi cu zi.
+
+              Deschide un câmp, nu execută: respingerea CERE un motiv, iar
+              motivul se scrie înainte de apăsare, nu într-o casetă care
+              confirmă ceva deja hotărât.
+            */}
+            {numarZile === 0 ? null : (
+              <Buton
+                varianta="secundar"
+                onClick={() => {
+                  setRespingereDeschisa((precedent) => !precedent);
+                }}
+                aria-expanded={respingereDeschisa}
+              >
+                <XCircle aria-hidden="true" className="size-4" />
+                Respinge…
+              </Buton>
+            )}
+          </div>
+
+          {respingereDeschisa && numarZile > 0 ? (
+            <div className="border-danger/40 bg-danger/5 rounded-control space-y-2 border p-3">
+              <label htmlFor={idMotiv} className="text-corp block font-medium">
+                Motivul respingerii
+              </label>
+              <p className="text-muted-foreground text-nota">
+                Îl vede angajatul, în notificare. Spuneți ce are de corectat — un refuz fără
+                explicație e o sarcină pe care nu o poate duce la capăt.
+              </p>
+              <textarea
+                id={idMotiv}
+                rows={2}
+                maxLength={500}
+                value={motiv}
+                onChange={(e) => {
+                  setMotiv(e.target.value);
+                }}
+                className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
+              />
+              <Buton
+                varianta="distructiv"
+                onClick={respinge}
+                /* Aceeași limită ca `attendance_entries_respingere_ck` din 0067
+                   și ca schema Zod: butonul nu trimite ce baza oricum refuză. */
+                disabled={motiv.trim().length < 5}
+                inCurs={inCursRespingere}
+                textInCurs="Se resping…"
+              >
+                <XCircle aria-hidden="true" className="size-4" />
+                {`Respinge ${String(numarZile)} ${numarZile === 1 ? "zi" : "zile"}`}
+              </Buton>
+              {motiv.trim().length > 0 && motiv.trim().length < 5 ? (
+                <p className="text-muted-foreground text-nota">
+                  Încă {String(5 - motiv.trim().length)} caractere.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {eroareAprobare === null ? null : (
             <p role="alert" className="text-danger text-corp">
               {eroareAprobare}
+            </p>
+          )}
+          {rezultatRespingere === null ? null : (
+            <p role="status" className="text-corp">
+              {rezultatRespingere}
             </p>
           )}
         </div>

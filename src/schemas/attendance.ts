@@ -222,6 +222,38 @@ export const aprobaPontajBlocSchema = z.object({
 export type AprobaPontajBloc = z.output<typeof aprobaPontajBlocSchema>;
 
 /**
+ * Respingerea acelorași zile pe care ecranul le-ar fi aprobat.
+ *
+ * ── DE CE EXISTĂ ──────────────────────────────────────────────────────────
+ * `/pontaj/aprobare` putea doar aproba. Aprobatorul care găsea o zi greșită în
+ * lotul bifat avea două ieșiri, amândouă proaste: aproba tot, greșeala
+ * inclusă, sau nu aproba nimic și mergea s-o caute în calendar, zi cu zi.
+ * Decizia are două răspunsuri; ecranul deciziei trebuie să le aibă pe amândouă.
+ *
+ * Zilele vin EXPLICIT, niciodată `null`. La aprobare, `null` înseamnă „tot ce e
+ * pe ecran" și e un implicit rezonabil; la respingere ar însemna „respinge tot
+ * ce apare acum", inclusiv ce s-a scris între încărcare și apăsare. Un refuz
+ * nu se dă în alb.
+ *
+ * Plafon 200: respingerea cere un motiv, iar un motiv comun pentru mai mult de
+ * atât nu descrie nicio zi anume. Se face pe departamente.
+ */
+export const respingePontajBlocSchema = z.object({
+  entry_ids: z.array(z.uuid()).min(1, "Alegeți cel puțin o zi de respins.").max(200),
+  /*
+   * Oglinda lui `attendance_entries_respingere_ck` (0067): cel puțin 5
+   * caractere, după tăierea spațiilor. Un refuz fără explicație e o sarcină pe
+   * care angajatul n-o poate duce la capăt — nu știe ce să corecteze.
+   */
+  motiv: z
+    .string()
+    .trim()
+    .min(5, "Motivul respingerii trebuie să aibă cel puțin 5 caractere.")
+    .max(500, "Motivul nu poate depăși 500 de caractere."),
+});
+export type RespingePontajBloc = z.output<typeof respingePontajBlocSchema>;
+
+/**
  * Decizia pe O SINGURĂ zi de pontaj.
  *
  * Până în 0067 exista doar aprobarea în bloc, pe toată luna, și NICIO cale de

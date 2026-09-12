@@ -200,6 +200,8 @@ export function SelectieAprobare({
        * vrea și pe aia. Vezi nota din `aprobaPontajBlocSchema`.
        */
       idZileAlese={toateBifate ? null : zileValide}
+      /* Respingerea cere lista enumerată — v. nota din `AprobareBloc`. */
+      idZileExplicit={zileValide}
       numarAngajati={totaluri.angajati}
       numarZile={totaluri.zile}
       oreTotale={totaluri.ore}

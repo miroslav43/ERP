@@ -502,6 +502,21 @@ const MAXIM_PAGINI_LINII = 20;
  * fiindcă ordinea implicită a Postgres nu e stabilă. `id` e unic, deci
  * perechea ordonează complet.
  */
+/*
+ * O ZI RESPINSĂ NU MAI E DE APROBAT.
+ *
+ * `respins_la` rămâne pe rând până când angajatul îl corectează —
+ * `salveazaZiPontaj` stinge cele trei coloane la prima editare. Până atunci,
+ * mingea e la el, nu la aprobator: `attendance_entries_decizie_ck` (0067)
+ * interzice oricum ca `approved_at` și `respins_la` să fie amândouă puse.
+ *
+ * Filtrul lipsea din amândouă citirile, iar asta trecea neobservat cât timp
+ * respingerea se putea da doar de pe „Prezența", câte una. Cu respingerea în
+ * bloc, o zi refuzată ar fi rămas în lista „de aprobat" ȘI în contorul de pe
+ * panou, la nesfârșit: aprobarea n-o scoate de acolo, iar respingerea a fost
+ * deja dată. Un contor care nu poate ajunge la zero — exact defectul pe care
+ * restul fișierului îl evită.
+ */
 export async function liniiDeAprobat(
   organizationId: string,
   periodId: string,
@@ -517,6 +532,8 @@ export async function liniiDeAprobat(
       .eq("organization_id", organizationId)
       .eq("period_id", periodId)
       .is("approved_at", null)
+      // Respinsele ies — v. nota de deasupra funcției.
+      .is("respins_la", null)
       .is("deleted_at", null)
       .order("data", { ascending: true })
       .order("id", { ascending: true })
@@ -1039,6 +1056,8 @@ export async function pontajDeAprobat(organizationId: string): Promise<PontajDeA
     .select("period_id")
     .eq("organization_id", organizationId)
     .is("approved_at", null)
+    // Aceeași regulă ca în `liniiDeAprobat`: respinsele sunt la angajat.
+    .is("respins_la", null)
     .is("deleted_at", null)
     .in(
       "period_id",
