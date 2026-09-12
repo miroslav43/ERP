@@ -12,9 +12,11 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
+import { formatAmount, formatLei } from "@/lib/format/money";
 import { angajatiDupaId, listeazaDeplasari, type RandDeplasare } from "@/lib/queries/per-diem";
 
 import { NavDiurna } from "../nav-diurna";
+import { ETICHETE_MIJLOC_TRANSPORT } from "../etichete";
 import { DecizieDeplasare } from "./decizie-deplasare";
 
 export const metadata: Metadata = { title: "Deplasări de aprobat" };
@@ -60,6 +62,37 @@ function ListaGrup({
                     {formatDateTime(new Date(r.sosire_la))}
                     {r.localitate === null ? "" : ` · ${r.localitate}`}
                   </p>
+                  {/*
+                    CE SE APROBĂ, ÎN CIFRE.
+
+                    Cardul arăta scopul, omul, datele și localitatea — tot ce
+                    identifică deplasarea, nimic din ce o COSTĂ. Aprobatorul
+                    semna un avans în bani fără să-i vadă suma, iar mijlocul de
+                    transport și kilometrii — care decid dacă se cuvine
+                    indemnizație de kilometraj — trăiau doar în pagina de
+                    detaliu, unde nu ajunge nimeni dintr-o coadă.
+
+                    Toate cifrele sunt deja în `RandDeplasare`: nu costă nicio
+                    interogare în plus, lipseau doar de pe ecran.
+                  */}
+                  <p className="text-muted-foreground text-corp">
+                    {ETICHETE_MIJLOC_TRANSPORT[r.mijloc_transport]}
+                    {r.km_parcursi === null ? "" : ` · ${r.km_parcursi.toLocaleString("ro-RO")} km`}
+                    {r.avans_acordat > 0
+                      ? ` · avans ${
+                          r.moneda_avans === null || r.moneda_avans === "RON"
+                            ? formatLei(r.avans_acordat)
+                            : formatAmount(r.avans_acordat, r.moneda_avans)
+                        }`
+                      : " · fără avans"}
+                  </p>
+                  {r.detasare_transnationala ? (
+                    // Detașarea transnațională schimbă regimul legal al
+                    // deplasării (Directiva 96/71/CE, salariu minim al statului
+                    // gazdă). Nu e un detaliu de dosar, e prima întrebare a
+                    // aprobatorului.
+                    <p className="text-warning text-corp">Detașare transnațională</p>
+                  ) : null}
                 </div>
                 <DecizieDeplasare id={r.id} status={status} />
               </div>

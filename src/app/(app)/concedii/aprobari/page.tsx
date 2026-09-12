@@ -13,12 +13,42 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate, formatDateTime } from "@/lib/format/date";
-import { deAprobat } from "@/lib/queries/leave";
+import { deAprobat, soldAnual } from "@/lib/queries/leave";
 import { oreParaTermen, treaptaTermenDecizie } from "@/domain/leave/termen-aprobare";
 
 import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
 import { DecizieAprobare } from "./decizie-aprobare";
+
+/**
+ * Câte zile îi mai rămân celui care cere — sub perioada cerută.
+ *
+ * `undefined` = nu știm (tipul nu are rând de sold, sau coada se întinde pe alt
+ * an decât cel citit). Atunci NU se afișează nimic: un „0 zile" inventat ar fi
+ * mai rău decât tăcerea, fiindcă ar opri o aprobare legitimă.
+ * `null` = tipul nu scade din sold — concediu medical, paternal, fără plată —
+ * unde un sold n-are înțeles.
+ */
+function SoldulCererii({
+  ramase,
+  cerute,
+}: {
+  readonly ramase: number | null | undefined;
+  readonly cerute: number;
+}) {
+  if (ramase === undefined || ramase === null) return null;
+  const depaseste = cerute > ramase;
+  return (
+    <p
+      className={depaseste ? "text-warning text-corp mt-1" : "text-muted-foreground text-corp mt-1"}
+    >
+      {depaseste ? "Depășește soldul: " : "Sold rămas: "}
+      <strong className="tabular-nums">{formatAmount(ramase)}</strong>{" "}
+      {ramase === 1 ? "zi" : "zile"}
+      {depaseste ? ` pentru ${formatAmount(cerute)} zile cerute.` : "."}
+    </p>
+  );
+}
 
 export const metadata: Metadata = { title: "Aprobări concedii" };
 
@@ -64,6 +94,39 @@ export default async function PaginaAprobariConcedii() {
   const poateConfigura = can(permisiuni, "leave:update", "all");
   const { sarcini, trunchiat } = await deAprobat(tenant.organizationId, user.id);
   const acum = new Date();
+
+  /*
+   * SOLDUL CELUI CARE CERE, LÂNGĂ CERERE.
+   *
+   * Ecranul arăta cine, ce tip și câte zile lucrătoare — dar nu cifra care
+   * SCHIMBĂ decizia: câte zile îi mai rămân omului. Aprobatorul trebuia să
+   * deschidă cererea, de acolo fișa, și să se întoarcă. În practică nu se
+   * întoarce nimeni, deci se aproba pe încredere.
+   *
+   * Nu costă o interogare în plus: `soldAnual` citește oricum soldurile
+   * întregii organizații vizibile prin RLS, e memoizată pe cerere cu `cache()`,
+   * iar argumentele sunt primitive — deci memoizarea chiar prinde. Un singur an
+   * acoperă coada: `LIMITA_COADA_APROBARI` e 100, iar o coadă care se întinde
+   * pe doi ani calendaristici e cazul rar, tratat mai jos cu `undefined`
+   * (soldul pur și simplu nu se afișează, în loc să se afișeze greșit).
+   */
+  const anulCozii = sarcini[0]?.cerere.dataInceput.slice(0, 4);
+  const sold =
+    anulCozii === undefined
+      ? null
+      : await soldAnual(tenant.organizationId, Number.parseInt(anulCozii, 10));
+
+  /** `employee_id|leave_type_id` → zile rămase. `null` = tipul nu scade din sold. */
+  const ramasePentru = new Map<string, number | null>();
+  if (sold !== null) {
+    const scadeDinSold = new Map(sold.tipuri.map((t) => [t.id, t.scade_din_sold]));
+    for (const rand of sold.solduri) {
+      ramasePentru.set(
+        `${rand.employee_id}|${rand.leave_type_id}`,
+        scadeDinSold.get(rand.leave_type_id) === false ? null : rand.ramase,
+      );
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -134,6 +197,14 @@ export default async function PaginaAprobariConcedii() {
                     {formatDate(sarcina.cerere.dataSfarsit)} ·{" "}
                     {formatAmount(sarcina.cerere.zileLucratoare)} zile lucrătoare
                   </p>
+                  <SoldulCererii
+                    ramase={
+                      sarcina.angajat === null || sarcina.tip === null
+                        ? undefined
+                        : ramasePentru.get(`${sarcina.angajat.id}|${sarcina.tip.id}`)
+                    }
+                    cerute={sarcina.cerere.zileLucratoare}
+                  />
                   {sarcina.termenLa === null ? null : (
                     <p className="mt-1.5 flex flex-wrap items-center gap-2">
                       <Scadenta treapta={treaptaTermenDecizie(sarcina.termenLa, acum)}>
