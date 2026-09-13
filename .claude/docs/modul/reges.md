@@ -25,14 +25,15 @@ tabele:
     contract_suspendari,
     salary_component_types,
     salary_components,
+    notifications,
   ]
 permisiuni: [reges:read, reges:create, reges:update, reges:transmit, reges:configure, reges:export]
 feature: reges
 capcane: [17]
 citeste_daca:
   - "meniu care nu arată modulul deși rolul pare potrivit → [[rol/hr]]"
-scris_pe: b32cfef59471a67b3a39ff3e5d3108cf04c7366c
-scris_la: 2026-09-05
+scris_pe: e5b1284cf22200665cb82dfd4cf275baaf869673
+scris_la: 2026-09-13
 tags: [modul, hr]
 ---
 
@@ -111,6 +112,23 @@ Reconcilierea cozii nu e o acțiune, ci ruta `src/app/api/reges/reconciliere/rou
 Comanda care o cheamă nu se reproduce din memorie — sursa de adevăr e
 `deploy/reges-reconciliere.service`, care trece secretul prin `-K -`, nu prin argv.
 
+## Evenimentul nou își anunță singur transmițătorul
+
+`genereazaEvenimenteReges` (`src/lib/reges/genereaza-evenimente.ts`) e chemată de
+[[modul/angajati]], [[modul/concedii]] și [[modul/pontaj]] după ce își scriu ele rândul;
+transmiterea rămâne manuală, deci altfel evenimentul ar aștepta tăcut, cu termenul curgând,
+într-un modul pe care nimeni n-are motiv să-l deschidă în ziua aceea. După INSERT,
+`anuntaDeTransmis` scrie câte un rând în `notifications` — `kind = "task"`, link `/reges`,
+cu numărul evenimentelor și cel mai apropiat termen din lot — pentru membrii activi cu rol
+`org_admin` sau `hr`. Lista (`ROLURI_CARE_TRANSMIT`) e scrisă în cod, nu citită din
+`role_permissions`: o firmă care strânge cheia dintr-un rând propriu primește cel mult un
+anunț în plus, niciodată un drept. `super_admin` nu primește nimic — n-are rând în
+`organization_members`.
+
+Două tăceri: funcția **nu aruncă**, fiindcă evenimentul e deja scris când se ajunge acolo —
+un anunț pierdut se vede doar în log, nu în ecran; iar evenimentele deduplicate (`sarite`)
+nu produc anunț, se anunță doar lotul chiar inserat.
+
 ## Stările unui mesaj
 
 `reges_stare_mesaj` = `de_transmis` → `in_curs` → `asteapta_raspuns` → `reusit` | `esuat`,
@@ -130,6 +148,18 @@ identificatori de domeniu: o traducere ar cere o tabelă de mapare ținută sinc
 sistem pe care nu-l controlăm, iar prima valoare uitată acolo ar produce un mesaj respins
 fără explicație. Regula proiectului „identificatorii de domeniu în română" **nu** se aplică
 aici.
+
+## Nomenclatorul complet ≠ ce se oferă în formular
+
+`TIPURI_ACT_IDENTITATE` rămâne lista REGES întreagă; `TIPURI_ACT_IDENTITATE_ALEGERE`
+(`src/domain/reges/operatii.ts`) e subsetul oferit în formulare, fără `BuletinIdentitate` —
+documentul tip carnet, neemis din 1997, vecin în listă cu `CarteIdentitate` și greu de
+deosebit de el pentru cine nu le știe istoria, iar alegerea greșită pleacă la ITM. Scoaterea
+din ofertă NU e scoatere din nomenclator: eticheta, schemele Zod și transmiterea îl acceptă
+mai departe, iar `optiuniActIdentitate` din
+`src/app/(app)/angajati/formular-angajat.tsx` îl readaugă în `<select>` când e chiar valoarea
+fișei — altfel browserul ar fi afișat prima opțiune, iar prima salvare ar fi rescris tăcut
+actul omului. Același tipar ca `TIPURI_ZI_ALEGERE` din [[modul/pontaj]]. — v. [[modul/angajati]]
 
 ## Nomenclatoarele se referențiază prin UUID, nu prin cod
 
