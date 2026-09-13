@@ -1031,6 +1031,14 @@ export const aprobaPontajBloc = createAction({
         .eq("organization_id", ctx.tenant.organizationId)
         .eq("period_id", input.period_id)
         .is("approved_at", null)
+        // ÎN OGLINDĂ cu `liniiDeAprobat` și `pontajDeAprobat`: zilele de
+        // concediu și cele deja respinse nu sunt de aprobat. Fără filtrul ăsta,
+        // o zi respinsă dispare de pe ecran (citirea de acolo o exclude), dar
+        // rămâne aici — iar cu „toate bifate" clientul trimite `entry_ids:
+        // null`, deci ea ajunge în UPDATE și încalcă
+        // `attendance_entries_decizie_ck` (0067), care cade cu tot lotul.
+        .is("leave_request_id", null)
+        .is("respins_la", null)
         .is("deleted_at", null)
         // Ordine TOTALĂ (`id` e unic): fără ea, `.range()` poate întoarce de
         // două ori același rând și sări peste altul între pagini.
