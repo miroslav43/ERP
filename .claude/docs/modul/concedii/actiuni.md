@@ -22,15 +22,15 @@ tabele:
   ]
 permisiuni: [leave:read, leave:create, leave:update, leave:approve]
 feature: leave
-capcane: [11, 17, 33]
-scris_pe: 47e18f43940275c35d1c823e1ea001aac548df9e
-scris_la: 2026-09-08
+capcane: [2, 11, 17, 33]
+scris_pe: d4cad08eb8649d797db9f1c13ace72d293e2aa1f
+scris_la: 2026-09-15
 tags: [modul, hr]
 ---
 
 # Concedii — acțiuni și citiri
 
-Cele șase scrieri ale cererii și cele unsprezece citiri ale ei. Ce refuză baza tăcut stă în
+Scrierile cererii și citirile ei. Ce refuză baza tăcut stă în
 trunchi, [[modul/concedii]], fiindcă acolo se ajunge dintr-un bug. Configurarea firmei e
 în [[modul/concedii/setari]].
 
@@ -96,9 +96,9 @@ din portal, deci se schimbă pentru amândouă ecranele deodată.
 
 `src/lib/queries/leave.ts`: `listeazaCereri`, `citesteCerere`, `zileleCererii`,
 `lantulAprobarii`, `soldAnual`, `istoricSold`, `numarDeAprobat`, `deAprobat`,
-`calendarLunii`, `angajatiPlanificator`, `zileNelucratoare`. Citirile de configurare —
-`configurareConcedii`, `previzualizeazaDrepturi`, `coduriIndemnizatieMedicala`,
-`varianteConcediu` — sunt în [[modul/concedii/setari]].
+`calendarLunii`, `angajatiPlanificator`, `zileNelucratoare`, `cereriCareOcupaZile`.
+Citirile de configurare — `configurareConcedii`, `previzualizeazaDrepturi`,
+`coduriIndemnizatieMedicala`, `varianteConcediu` — sunt în [[modul/concedii/setari]].
 
 `calendarLunii` își traduce singură angajatul și tipul, prin embed imbricat PostgREST
 (`angajat:employees!employee_id`, `tip:leave_types!leave_requests_leave_type_id_fkey`),
@@ -110,6 +110,23 @@ chei străine au `isOneToOne: false`, deci inferența supabase-js dă tablou aco
 rândul are obiect, iar `RandZiCalendar`, `AngajatEmbedCalendar` și `TipEmbedCalendar` o
 corectează de mână. Din embed au ieșit `id` și `status`-ul cererii, iar din selecția
 exterioară `leave_request_id`; `status`-ul ZILEI rămâne, e altul.
+
+`cereriCareOcupaZile` întoarce INTERVALE, nu zile — capetele sunt sute pe an acolo unde
+zilele sunt zeci de mii — iar desfacerea o face clientul, prin `zileOcupate`
+(`src/domain/leave/zile-ocupate.ts`), care e și locul unde se filtrează pe persoana
+aleasă. Filtrul de status (`trimisa`, `in_aprobare`, `aprobata`) e același cu
+predicatul constrângerii `leave_requests_fara_suprapunere` din `0009_leave.sql` și cu cel
+al verificării de suprapunere din `verificaInainteDeTrimitere`: se schimbă deodată, altfel
+calendarul ori marchează zile pe care baza le-ar accepta, ori le lasă libere pe cele pe
+care le va refuza. O ciornă nu ocupă nimic, deliberat. Nu filtrează pe angajat — RLS
+îngustează singură, iar un `hr` cu `leave:read = all` are nevoie de toate, fiindcă depune
+cereri în numele altora. Embed-ul `tip:leave_types!leave_type_id(denumire)` e to-one fără
+`!inner`, ca la `calendarLunii`: golit de RLS vine NULL, iar denumirea cade pe `"Concediu"`.
+Citirea n-are nici `limit`, nici cursor, pe o fereastră de trei ani — peste `max_rows = 1000`
+PostgREST trunchiază tăcut (capcana #2), și se pierd exact marcajele: cererea tot va fi
+refuzată la trimitere, dar omul n-o vede venind. Eticheta din tooltip se compune pe server,
+în `dateCerereNoua` (`src/app/(app)/concedii/date-cerere-noua.ts`), fiindcă stratul de
+citiri n-are voie să importe din arborele de rute.
 
 `zileNelucratoare` e memoizată pe cerere cu `cache()` din React, ca `resolveTenant` și
 `getPermissionMap` — o pagină care o cheamă din corpul ei și din secțiunea streamată
