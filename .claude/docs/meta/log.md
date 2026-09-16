@@ -109,3 +109,17 @@ de oricine face un push.
 - module atinse: angajati concedii diurna onboarding panou pontaj
 - straturi atinse: citiri scheme domeniu configurație
 - pagini rescrise: modul/panou.md modul/reges.md
+
+## 2026-09-15
+
+- commit-uri în ultimele 24h: 1
+- module atinse: —
+- straturi atinse: migrări
+- pagini rescrise: modul/concedii/actiuni.md
+
+## 2026-09-16
+
+- commit-uri în ultimele 24h: 1
+- module atinse: —
+- straturi atinse: —
+- pagini rescrise: niciuna (agenții au citit diff-ul și n-au găsit contract schimbat)
