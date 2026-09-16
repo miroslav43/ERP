@@ -131,7 +131,63 @@ pentru 20.000 € ar ajunge la seed cu ~47%.
 
 ---
 
-## 4. Pe ce se duc cei 20.000 €
+## 4. SRL sau SA? N-ar fi mai simplu să cedăm acțiuni?
+
+**Pe scurt:** da, **cedarea** e mai simplă la o societate pe acțiuni. Doar că
+pentru 20.000 € nu merită să transformăm firma acum, iar SA-ul are costuri
+permanente pe care SRL-ul nu le are.
+
+> Sumele sunt estimări. Pașii legali exacți ai transformării și regimul fiscal
+> după transformare se confirmă cu un avocat și cu contabilul înainte de orice
+> decizie.
+
+### Ce câștigăm cu SA
+
+|                                                      | SRL                                                                                                    | SA                                                                                    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| **Vânzarea unei părți către cineva din afară**       | Cere acordul asociaților cu 3/4 din capital și modificarea actului constitutiv la Registrul Comerțului | Acțiunile se transferă liber, prin înscriere în registrul acționarilor                |
+| **Majorarea de capital pentru investitorul următor** | Cere votul **tuturor** asociaților, dacă actul constitutiv nu prevede altfel                           | Se votează în adunarea generală extraordinară (AGEA), cu majoritate, fără unanimitate |
+| **Un investitor mic poate bloca runda următoare?**   | Da, dacă nu schimbăm actul constitutiv                                                                 | Practic nu, poate doar să întârzie                                                    |
+| **Opțiuni pe acțiuni pentru angajați**               | Greu și stângaci                                                                                       | Mecanism firesc                                                                       |
+| **Cum arată pentru un fond de investiții**           | Acceptabil la sume mici                                                                                | Mai obișnuit, dar la seed fondurile cer adesea și ele restructurare                   |
+
+Cea mai mare problemă a SRL-ului, cea cu unanimitatea din §2, dispare la SA.
+
+### Ce ne costă SA-ul
+
+1. **Capital social minim de 90.000 lei** (~18.000 €), față de câțiva lei la SRL.
+   Cei 20.000 € ai investitorului l-ar acoperi aproape exact. Capitalul vărsat nu
+   stă blocat, se poate cheltui în firmă, dar trebuie să existe în bilanț.
+2. **Minimum doi acționari.** Investitorul ar fi al doilea, deci intră ca acționar
+   **acum**. Pierdem avantajul împrumutului convertibil din §3, cu care nu fixam
+   încă nicio evaluare.
+3. **Cenzori sau auditor financiar** și adunări generale formale, cu convocări și
+   procese-verbale. Asta înseamnă un cost anual de ordinul câtorva mii de euro.
+   Pentru o firmă fără venituri, e o parte serioasă din cei 20.000 €.
+4. **Transformarea** SRL → SA costă avocat, ONRC și, cel mai probabil, un raport
+   de evaluare: estimativ 1.500–3.000 €. Adică încă ~10% din investiție.
+5. **Acționarii minoritari au drepturi proprii.** De exemplu, de la 5% un acționar
+   poate cere convocarea adunării generale. Nu e grav, dar nu scăpăm complet de
+   el.
+
+### Decizia
+
+- **Rămânem SRL acum și luăm cei 20.000 € prin împrumut convertibil.**
+  Investitorul nu devine asociat, deci nu poate bloca nimic, și nu plătim azi nici
+  transformarea, nici cenzorii.
+- **Transformăm în SA sau într-o structură de holding abia la runda de
+  150.000–300.000 €.** Atunci plătim oricum un avocat pentru rundă, iar costurile
+  anuale devin mici față de bani. Împrumutul se transformă atunci direct în
+  acțiuni ale noii structuri.
+- **Excepția: investitorul refuză împrumutul și vrea neapărat să intre acum.**
+  Atunci SA-ul devine varianta mai curată, iar banii lui acoperă capitalul minim.
+  Chiar și așa, comparăm mai întâi cu varianta mai ieftină: rămânem SRL și trecem
+  în actul constitutiv, la intrarea lui, că hotărârile se iau cu majoritate, nu
+  cu unanimitate.
+
+---
+
+## 5. Pe ce se duc cei 20.000 €
 
 **Principiul:** banii merg doar în ce **deblochează lansarea** și în ce **aduce
 clienți plătitori**. Fără angajări, fără birou, fără salarii.
@@ -160,7 +216,7 @@ clienți plătitori**. Fără angajări, fără birou, fără salarii.
 
 ---
 
-## 5. Deciziile de business, adaptate la buget mic
+## 6. Deciziile de business, adaptate la buget mic
 
 ### Decizia 1: prețul pe angajat, înainte de lansare
 
@@ -200,7 +256,7 @@ cere un client plătitor.
 
 ---
 
-## 6. Etapele pe 12 luni
+## 7. Etapele pe 12 luni
 
 | Lună | Țintă                                                                                                |
 | ---- | ---------------------------------------------------------------------------------------------------- |
@@ -210,7 +266,7 @@ cere un client plătitor.
 | 8    | 20+ clienți plătitori, ~1.000 € MRR, churn cunoscut                                                  |
 | 12   | **30–50 de clienți plătitori, ~2.000 € MRR**, pregătit pentru o rundă de pre-seed                    |
 
-## 7. Ce urmează după: runda adevărată
+## 8. Ce urmează după: runda adevărată
 
 Cu 30–50 de clienți plătitori, o creștere lunară vizibilă și salarizarea gata de
 validat, ridicăm o rundă de **150.000–300.000 €** la o evaluare de 1,5–2,5 mil. €.
@@ -222,7 +278,7 @@ marketingul la scară.
 
 ---
 
-## 8. Rezumat
+## 9. Rezumat
 
 1. **20.000 € e o punte, nu o rundă.** Cumpără timp până la primii clienți
    plătitori, nu o echipă.
@@ -234,5 +290,8 @@ marketingul la scară.
    și vrea condiții grele, căutăm aceeași sumă în altă parte.
 5. **Banii merg în:** juridic, infrastructură, unelte, vânzări prin contabili și
    rezervă. Nu în salarii, nu în angajări, nu în cod nou.
-6. **Prețul pe angajat și nucleul îngust** se decid înainte de lansare, indiferent
+6. **Rămânem SRL până la runda adevărată.** SA-ul face cedarea mai simplă, dar
+   costă capital minim de 90.000 lei, cenzori și transformare. Îl facem când
+   vin 150.000–300.000 €, nu pentru 20.000 €.
+7. **Prețul pe angajat și nucleul îngust** se decid înainte de lansare, indiferent
    dacă vin banii sau nu.
