@@ -138,6 +138,10 @@ export function ActiuniDepartament({
           titlu={`Editează „${departament.denumire}”`}
           descriere="Codul e opțional și trebuie să fie unic în firmă; lăsat gol, departamentul se identifică doar prin denumire. Pentru a-l muta în structură, folosiți „Mută”."
           marime="mare"
+          // Același formular ca „Departament nou", deci același mâner: altfel
+          // caseta care se poate mări ar depinde de butonul pe care ai apăsat,
+          // iar cine tocmai a lărgit-o la creare o găsește strâmtă la editare.
+          redimensionabil
           actiune={trimiteEditare}
           mesajReusita="Departamentul a fost salvat."
           etichetaTrimite="Salvează"

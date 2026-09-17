@@ -78,11 +78,46 @@ describe("Dialog", () => {
       </Dialog>,
     );
     const d = document.querySelector("dialog");
-    act(() => fireEvent.click(d!));
+    // jsdom nu așază nimic: fără cutia asta, `getBoundingClientRect()` întoarce
+    // zerouri, iar orice coordonată ar cădea „pe margine". Caseta e deci pusă
+    // explicit la 100..500 pe amândouă axele.
+    d!.getBoundingClientRect = () =>
+      ({ left: 100, top: 100, right: 500, bottom: 500, width: 400, height: 400 }) as DOMRect;
+
+    // Apăsare în afara cutiei = fundal.
+    act(() => {
+      fireEvent.pointerDown(d!, { clientX: 20, clientY: 20 });
+      fireEvent.click(d!, { clientX: 20, clientY: 20 });
+    });
     expect(inchide).toHaveBeenCalledTimes(1);
 
-    act(() => fireEvent.click(screen.getByText("Conținut.")));
+    act(() => {
+      fireEvent.pointerDown(screen.getByText("Conținut."));
+      fireEvent.click(screen.getByText("Conținut."));
+    });
     expect(inchide).toHaveBeenCalledTimes(1);
+  });
+
+  it("tragerea de mânerul de redimensionare NU închide caseta", () => {
+    /*
+     * Mânerul nativ (`resize`) e desenat de browser în colțul casetei și are
+     * ținta pe `<dialog>` însuși, exact ca fundalul. Măsurat în browser înainte
+     * de reparație: trăgeai de colț și formularul de departament se închidea cu
+     * tot ce scriseseși în el. Ce le separă e UNDE a început apăsarea, nu unde
+     * s-a terminat — de aceea clicul de la capăt e trimis din afara cutiei,
+     * adică din locul în care ajunge degetul după o micșorare.
+     */
+    const inchide = vi.fn();
+    render(<Dialog deschis laInchidere={inchide} titlu="Titlu" redimensionabil />);
+    const d = document.querySelector("dialog");
+    d!.getBoundingClientRect = () =>
+      ({ left: 100, top: 100, right: 500, bottom: 500, width: 400, height: 400 }) as DOMRect;
+
+    act(() => {
+      fireEvent.pointerDown(d!, { clientX: 495, clientY: 495 });
+      fireEvent.click(d!, { clientX: 620, clientY: 640 });
+    });
+    expect(inchide).not.toHaveBeenCalled();
   });
 
   it("butonul de închidere are nume accesibil", () => {

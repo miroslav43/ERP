@@ -55,6 +55,35 @@ export type PropsDialog = Readonly<{
   children?: ReactNode;
   subsol?: ReactNode;
   marime?: keyof typeof LATIME;
+  /**
+   * Caseta capătă mânerul nativ de redimensionare, din colțul de jos-dreapta.
+   *
+   * ── DE CE NU PE TOATE CELE OPT ────────────────────────────────────────────
+   * `resize` nu are NICIUN efect pe `overflow: visible`, deci opțiunea aduce
+   * obligatoriu cu ea `overflow-hidden` pe `<dialog>`. Iar asta taie orice
+   * derulant poziționat absolut care iese din casetă — lista de autocomplete a
+   * codului COR din formularul de angajat e exact așa. Casetele care au un
+   * asemenea derulant nu pot fi redimensionabile fără să fie întâi rescrise, iar
+   * o confirmare de trei rânduri n-are ce să facă cu un mâner. Deci se cere
+   * explicit, per casetă, nu se moștenește.
+   *
+   * ── CE SE SCHIMBĂ ÎN CALCULUL LĂȚIMII ────────────────────────────────────
+   * Implicit, `marime` e un PLAFON (`max-w-*`) peste o lățime de „cât încape"
+   * (`md:w-[calc(100vw-2rem)]`). Un plafon nu se poate depăși trăgând de mâner:
+   * mânerul scrie `width`, iar `max-width` îl retează mai departe — mâna trage
+   * și nu se întâmplă nimic. Redimensionabilă, caseta pornește de la lățimea lui
+   * `marime` și primește ca plafon fereastra, deci treapta devine punctul de
+   * PORNIRE, nu tavanul.
+   *
+   * ── CE RĂMÂNE CUM ERA ────────────────────────────────────────────────────
+   * Numai de la `md` în sus. Sub prag caseta e foaie lipită de marginea de jos,
+   * pe toată lățimea: n-are ce redimensiona, iar mânerul ar fi un ținte de 16 px
+   * peste butoane, la degete.
+   *
+   * Dimensiunea NU se ține minte între deschideri: `FormularDialog` demontează
+   * caseta la închidere, deci a doua deschidere pornește iar de la `marime`.
+   */
+  redimensionabil?: boolean;
 }>;
 
 /**
@@ -70,6 +99,21 @@ const LATIME = {
   lucru: "max-w-5xl",
 } as const;
 
+/**
+ * Aceleași patru trepte, dar ca `width` de pornire, pentru `redimensionabil`.
+ *
+ * Valorile sunt cele din spatele lui `max-w-sm|lg|2xl|5xl` — scrise explicit,
+ * nu prin `md:w-sm`, fiindcă scara de lățimi pe numele containerelor e o
+ * adăugire de Tailwind v4 și un nume greșit n-ar da eroare, ci o clasă care nu
+ * emite nimic: caseta ar rămâne la `w-full` și ar umple fereastra.
+ */
+const LATIME_PORNIRE = {
+  mic: "md:w-[24rem]",
+  mediu: "md:w-[32rem]",
+  mare: "md:w-[42rem]",
+  lucru: "md:w-[64rem]",
+} as const;
+
 export function Dialog({
   deschis,
   laInchidere,
@@ -78,10 +122,35 @@ export function Dialog({
   children,
   subsol,
   marime = "mediu",
+  redimensionabil = false,
 }: PropsDialog): ReactElement {
   const ref = useRef<HTMLDialogElement | null>(null);
   const idTitlu = useId();
   const idDescriere = useId();
+
+  /**
+   * Apăsarea a început pe `::backdrop`, nu pe casetă?
+   *
+   * ── DE CE NU E DE AJUNS `e.target === dialog` PE CLIC ─────────────────────
+   * Verificarea aceea a fost corectă cât timp `<dialog>` n-avea nicio parte
+   * proprie pe care să poți apuca: caseta are `p-0`, deci tot ce se vede
+   * înăuntru e un COPIL, iar orice clic cu ținta pe elementul însuși venea de pe
+   * fundal. Mânerul de redimensionare rupe presupunerea — e desenat de browser
+   * în colțul casetei și ține de ELEMENT, nu de vreun copil. Măsurat în browser:
+   * trăgeai de colț și caseta se închidea, cu tot ce scriseseși în ea.
+   *
+   * ── DE CE LA `pointerdown`, ȘI NU DUPĂ COORDONATELE CLICULUI ─────────────
+   * O verificare geometrică făcută pe `click` n-ar fi ajutat: la capătul unei
+   * trageri, degetul e aproape întotdeauna în AFARA casetei (dacă ai micșorat-o)
+   * sau lângă marginea ei mutată de recentrare. Ce distinge cu adevărat un clic
+   * pe fundal de o tragere de mâner e UNDE A ÎNCEPUT apăsarea. Bonus, aceeași
+   * schimbare repară un defect mai vechi și mai greu de povestit: selectezi text
+   * în casetă, ridici degetul pe fundal — până acum caseta se închidea.
+   *
+   * Tastatura nu trece pe aici: un „clic" venit din Enter pe un buton nu emite
+   * `pointerdown`, deci steagul rămâne stins.
+   */
+  const apasatPeFundal = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -102,9 +171,24 @@ export function Dialog({
         e.preventDefault();
         laInchidere();
       }}
-      onClick={(e) => {
-        // Clic pe `::backdrop`: ținta e chiar `<dialog>`, nu un copil al lui.
-        if (e.target === ref.current) laInchidere();
+      // Începutul apăsării decide, nu sfârșitul ei. Vezi `apasatPeFundal`.
+      onPointerDown={(e) => {
+        const el = ref.current;
+        if (el === null || e.target !== el) {
+          apasatPeFundal.current = false;
+          return;
+        }
+        const cutie = el.getBoundingClientRect();
+        apasatPeFundal.current =
+          e.clientX < cutie.left ||
+          e.clientX > cutie.right ||
+          e.clientY < cutie.top ||
+          e.clientY > cutie.bottom;
+      }}
+      onClick={() => {
+        if (!apasatPeFundal.current) return;
+        apasatPeFundal.current = false;
+        laInchidere();
       }}
       className={cn(
         "bg-background text-foreground shadow-plutitor border-border border p-0",
@@ -158,6 +242,16 @@ export function Dialog({
         // e afișată — adică fix când omul deschide dialogul.
         "md:rounded-panou md:m-auto md:max-h-[calc(100dvh-4rem)] md:w-[calc(100vw-2rem)]",
         LATIME[marime],
+        // ── MÂNERUL DE REDIMENSIONARE ─────────────────────────────────────
+        // Ordinea claselor face toată treaba, iar `cn` (tailwind-merge) o
+        // respectă: `md:w-…` de aici bate `md:w-[calc(100vw-2rem)]` de deasupra
+        // (aceeași proprietate, același prefix — câștigă ultima), în timp ce
+        // `md:max-w-…` nu intră în conflict cu `max-w-2xl` neprefixat, ci îl
+        // depășește la `md` prin ordinea foii de stil. Așa treapta de `marime`
+        // trece din tavan în punct de pornire, fără să rescriu nimic mai sus.
+        redimensionabil
+          ? cn(LATIME_PORNIRE[marime], "md:max-w-[calc(100vw-2rem)] md:resize md:overflow-hidden")
+          : "",
       )}
     >
       <div className="border-border flex shrink-0 items-start justify-between gap-4 border-b p-4">
