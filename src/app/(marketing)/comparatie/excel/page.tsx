@@ -58,10 +58,22 @@ export default function PaginaComparatieExcel() {
               <p className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-3">
                 {p.aspect}
               </p>
+              {/*
+                Eticheta pe celulă, sub `md`: capul de tabel de mai sus e
+                `hidden md:grid`, deci pe telefon — și în textul extras de un
+                motor, care nu vede coloane — rândurile nu spuneau care parte e
+                Excel și care e aplicația.
+              */}
               <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6] md:col-span-4">
+                <span className="font-mk-date mb-1 block text-[0.6875rem] font-medium tracking-[0.14em] uppercase md:hidden">
+                  În Excel
+                </span>
                 {p.excel}
               </p>
               <p className="border-mk-rigla/40 text-[0.9375rem] leading-[1.6] md:col-span-5 md:border-l md:pl-8">
+                <span className="font-mk-date text-mk-text-slab mb-1 block text-[0.6875rem] font-medium tracking-[0.14em] uppercase md:hidden">
+                  În Administrativo
+                </span>
                 {p.aplicatie}
               </p>
             </div>

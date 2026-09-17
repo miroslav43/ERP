@@ -67,7 +67,7 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
           </Link>
 
           <details className="relative lg:hidden">
-            <summary className="border-mk-rigla font-mk-date flex h-10 cursor-pointer list-none items-center rounded border px-3 text-[0.6875rem] tracking-[0.14em] uppercase">
+            <summary className="border-mk-rigla font-mk-date flex h-11 cursor-pointer list-none items-center rounded border px-3 text-[0.6875rem] tracking-[0.14em] uppercase">
               {text.antet.meniu}
             </summary>
             <div className="border-mk-rigla bg-mk-hartie absolute top-12 right-0 z-50 w-64 border p-4 shadow-lg">

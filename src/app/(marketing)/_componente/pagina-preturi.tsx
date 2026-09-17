@@ -45,6 +45,15 @@ export function PaginaPreturi({ text }: { text: ContinutLanding }) {
           <p className="text-mk-text-slab mt-6 max-w-[62ch] text-[1.0625rem] leading-[1.6] text-pretty">
             {text.preturi.lead}
           </p>
+          {/* Pe telefon, butonul din antet e ascuns; fără acesta, primul buton de
+              cont stătea sub primul ecran. Vezi `antet-secundar.tsx`. */}
+          <Link
+            href={text.hero.ctaPrimar.href}
+            data-umami-event="cta-pret-erou"
+            className="bg-mk-cerneala text-mk-text-inv mt-8 inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+          >
+            {text.hero.ctaPrimar.eticheta}
+          </Link>
         </div>
       </section>
 
