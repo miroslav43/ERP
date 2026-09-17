@@ -75,10 +75,12 @@ export type PropsDialog = Readonly<{
    * `marime` și primește ca plafon fereastra, deci treapta devine punctul de
    * PORNIRE, nu tavanul.
    *
-   * ── CE RĂMÂNE CUM ERA ────────────────────────────────────────────────────
-   * Numai de la `md` în sus. Sub prag caseta e foaie lipită de marginea de jos,
-   * pe toată lățimea: n-are ce redimensiona, iar mânerul ar fi un ținte de 16 px
-   * peste butoane, la degete.
+   * ── CINE PRIMEȘTE MÂNERUL ────────────────────────────────────────────────
+   * Cine are indicator FIN — mouse, trackpad, stylus — indiferent de lățimea
+   * ferestrei. Pe atingere nu se schimbă nimic: caseta rămâne foaia lipită de
+   * marginea de jos, iar mânerul ar fi o țintă de 16 px peste butoane, la
+   * degete. Condiția e pe `pointer`, nu pe `md`, fiindcă lățimea ferestrei nu
+   * spune nimic despre ce ai în mână — vezi nota lungă de la clase.
    *
    * Dimensiunea NU se ține minte între deschideri: `FormularDialog` demontează
    * caseta la închidere, deci a doua deschidere pornește iar de la `marime`.
@@ -103,15 +105,15 @@ const LATIME = {
  * Aceleași patru trepte, dar ca `width` de pornire, pentru `redimensionabil`.
  *
  * Valorile sunt cele din spatele lui `max-w-sm|lg|2xl|5xl` — scrise explicit,
- * nu prin `md:w-sm`, fiindcă scara de lățimi pe numele containerelor e o
- * adăugire de Tailwind v4 și un nume greșit n-ar da eroare, ci o clasă care nu
- * emite nimic: caseta ar rămâne la `w-full` și ar umple fereastra.
+ * nu prin `w-sm`, fiindcă scara de lățimi pe numele containerelor e o adăugire
+ * de Tailwind v4 și un nume greșit n-ar da eroare, ci o clasă care nu emite
+ * nimic: caseta ar rămâne la `w-full` și ar umple fereastra.
  */
 const LATIME_PORNIRE = {
-  mic: "md:w-[24rem]",
-  mediu: "md:w-[32rem]",
-  mare: "md:w-[42rem]",
-  lucru: "md:w-[64rem]",
+  mic: "pointer-fine:w-[24rem]",
+  mediu: "pointer-fine:w-[32rem]",
+  mare: "pointer-fine:w-[42rem]",
+  lucru: "pointer-fine:w-[64rem]",
 } as const;
 
 export function Dialog({
@@ -240,18 +242,37 @@ export function Dialog({
         // `dvh`, nu `vh`: pe iOS Safari `100vh` include bara de adrese care se
         // retrage, deci subsolul ar sta sub linia vizibilă exact cât timp bara
         // e afișată — adică fix când omul deschide dialogul.
-        "md:rounded-panou md:m-auto md:max-h-[calc(100dvh-4rem)] md:w-[calc(100vw-2rem)]",
-        LATIME[marime],
+        "md:rounded-panou md:m-auto md:max-h-[calc(100dvh-4rem)]",
         // ── MÂNERUL DE REDIMENSIONARE ─────────────────────────────────────
-        // Ordinea claselor face toată treaba, iar `cn` (tailwind-merge) o
-        // respectă: `md:w-…` de aici bate `md:w-[calc(100vw-2rem)]` de deasupra
-        // (aceeași proprietate, același prefix — câștigă ultima), în timp ce
-        // `md:max-w-…` nu intră în conflict cu `max-w-2xl` neprefixat, ci îl
-        // depășește la `md` prin ordinea foii de stil. Așa treapta de `marime`
-        // trece din tavan în punct de pornire, fără să rescriu nimic mai sus.
+        // Cele două ramuri se EXCLUD, nu se suprascriu una pe alta. Varianta în
+        // care lățimea fixă stătea deasupra și cea redimensionabilă o „bătea"
+        // dedesubt a fost scrisă și aruncată: ar fi pus lățimea să depindă de
+        // ordinea în care Tailwind așază `md:` față de `pointer-fine:` în foaia
+        // de stil — o ordine pe care n-o garantează nimic și care, dacă se
+        // schimbă, nu dă nicio eroare, doar o casetă care refuză să se lărgească.
+        //
+        // ── DE CE `pointer-fine`, ȘI NU `md` ─────────────────────────────
+        // Prima livrare a pus mânerul pe `md:`, adică pe LĂȚIMEA ferestrei, ca
+        // aproximare pentru „are mouse". Aproximarea cade exact la omul care are
+        // cea mai mare nevoie de o casetă mai mare: la zoom 200% pe un ecran de
+        // 1512 px, fereastra CSS are 756 px, adică SUB prag — mânerul dispărea
+        // tăcut, iar caseta redevenea o foaie îngustă. Ce decide dacă o țintă de
+        // 16 px se poate apuca e FELUL indicatorului, nu câți pixeli are
+        // fereastra. Simetricul, `pointer-coarse:`, e deja folosit în depozit.
+        //
+        // De aceea ramura redimensionabilă își rescrie și geometria — `m-auto`
+        // pe amândouă axele și colțurile rotunde — altfel, pe o fereastră
+        // îngustă, mânerul ar fi apărut pe foaia lipită de marginea de jos, unde
+        // nu se poate trage: marginea de sus e singura liberă, iar colțul de
+        // jos-dreapta stă fix în pragul ferestrei.
         redimensionabil
-          ? cn(LATIME_PORNIRE[marime], "md:max-w-[calc(100vw-2rem)] md:resize md:overflow-hidden")
-          : "",
+          ? cn(
+              LATIME_PORNIRE[marime],
+              "pointer-fine:rounded-panou pointer-fine:m-auto pointer-fine:mb-auto",
+              "pointer-fine:max-h-[calc(100dvh-4rem)] pointer-fine:max-w-[calc(100vw-2rem)]",
+              "pointer-fine:resize pointer-fine:overflow-hidden",
+            )
+          : cn("md:w-[calc(100vw-2rem)]", LATIME[marime]),
       )}
     >
       <div className="border-border flex shrink-0 items-start justify-between gap-4 border-b p-4">
