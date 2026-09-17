@@ -243,9 +243,30 @@ export function Dialog({
         // retrage, deci subsolul ar sta sub linia vizibilă exact cât timp bara
         // e afișată — adică fix când omul deschide dialogul.
         "md:rounded-panou md:m-auto md:max-h-[calc(100dvh-4rem)]",
+        // ── PLAFONUL DE LĂȚIME SE EMITE MEREU ─────────────────────────────
+        // Nu se mută în ramuri și nu se scoate din ramura redimensionabilă „ca
+        // să nu se bată cu ea". A fost scos o dată, și rezultatul a ajuns pe
+        // ecranul utilizatorului: fără el, caseta redimensionabilă rămâne cu
+        // `w-full max-w-none` din pătura de telefon, adică o bandă lată de la o
+        // margine a ecranului la alta, peste meniu, cu colțuri drepte. Se
+        // întâmplă ori de câte ori regulile `pointer-fine` LIPSESC din foaia de
+        // stil — iar ele pot lipsi din motive care n-au nimic de-a face cu
+        // codul: o foaie rămasă în urmă cât timp dev-serverul reconstruiește,
+        // un nume de variantă pe care o versiune viitoare de Tailwind nu-l mai
+        // recunoaște. Niciunul dintre cazuri nu dă vreo eroare.
+        //
+        // Cu plafonul aici, cel mai rău caz posibil e o casetă normală, în
+        // mijloc, fără mâner. Degradarea trebuie să ducă la ceva corect, nu la
+        // ceva urât.
+        LATIME[marime],
         // ── MÂNERUL DE REDIMENSIONARE ─────────────────────────────────────
-        // Cele două ramuri se EXCLUD, nu se suprascriu una pe alta. Varianta în
-        // care lățimea fixă stătea deasupra și cea redimensionabilă o „bătea"
+        // Ramura redimensionabilă doar RIDICĂ plafonul de mai sus, la
+        // `pointer-fine`, ca să existe unde crește. Ordinea e verificată în
+        // foaia compilată, nu presupusă: utilitarele neprefixate stau la ~1665,
+        // blocul `md` la ~6124, iar `@media (pointer: fine)` la ~6942 — deci
+        // ultimul câștigă peste amândouă.
+        //
+        // Varianta în care lățimea fixă stătea deasupra și cea redimensionabilă o „bătea"
         // dedesubt a fost scrisă și aruncată: ar fi pus lățimea să depindă de
         // ordinea în care Tailwind așază `md:` față de `pointer-fine:` în foaia
         // de stil — o ordine pe care n-o garantează nimic și care, dacă se
@@ -272,7 +293,7 @@ export function Dialog({
               "pointer-fine:max-h-[calc(100dvh-4rem)] pointer-fine:max-w-[calc(100vw-2rem)]",
               "pointer-fine:resize pointer-fine:overflow-hidden",
             )
-          : cn("md:w-[calc(100vw-2rem)]", LATIME[marime]),
+          : "md:w-[calc(100vw-2rem)]",
       )}
     >
       <div className="border-border flex shrink-0 items-start justify-between gap-4 border-b p-4">

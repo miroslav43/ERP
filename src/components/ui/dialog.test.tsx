@@ -98,6 +98,28 @@ describe("Dialog", () => {
     expect(inchide).toHaveBeenCalledTimes(1);
   });
 
+  it("caseta redimensionabilă păstrează plafonul de lățime, nu doar pe cel din `pointer-fine`", () => {
+    /*
+     * Poarta asta există fiindcă defectul a ajuns pe ecranul utilizatorului.
+     * Plafonul `max-w-*` fusese mutat în ramura NEredimensionabilă, pe motivul
+     * că în cealaltă îl ridică oricum `pointer-fine:max-w-[calc(100vw-2rem)]`.
+     * Ridicarea aceea trăiește însă într-un `@media`: dacă regulile lui lipsesc
+     * din foaia de stil — o foaie rămasă în urmă cât timp dev-serverul
+     * reconstruiește, un nume de variantă pe care Tailwind nu-l mai recunoaște
+     * — caseta rămâne cu `w-full max-w-none` din pătura de telefon și se
+     * întinde de la o margine a ecranului la alta, peste meniu.
+     *
+     * Testul se uită la CLASE, nu la pixeli, fiindcă jsdom nu evaluează
+     * `@media`: exact felul de defect pe care un test de layout nu-l vede.
+     */
+    render(<Dialog deschis laInchidere={() => {}} titlu="Titlu" marime="mare" redimensionabil />);
+    const clase = document.querySelector("dialog")?.className ?? "";
+    // Plafonul necondiționat: fără el nu există nimic care să oprească `w-full`.
+    expect(clase).toContain("max-w-2xl");
+    // Și ridicarea lui, care dă loc de creștere acolo unde chiar e mâner.
+    expect(clase).toContain("pointer-fine:max-w-[calc(100vw-2rem)]");
+  });
+
   it("tragerea de mânerul de redimensionare NU închide caseta", () => {
     /*
      * Mânerul nativ (`resize`) e desenat de browser în colțul casetei și are
