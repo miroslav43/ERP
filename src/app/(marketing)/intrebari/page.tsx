@@ -18,7 +18,7 @@ import { Cadru } from "../_componente/cadru";
 export const metadata: Metadata = {
   title: "Întrebări frecvente despre Administrativo",
   description:
-    "Ce ne întreabă firmele înainte să semneze: cum se face pontajul, cine vede ce, ce se întâmplă cu datele la plecare, de ce nu scrie prețul pe site.",
+    "Ce ne întreabă firmele înainte să semneze: cum se face pontajul, cine vede ce, ce se întâmplă cu datele la plecare și cât costă.",
   alternates: { canonical: "/intrebari" },
 };
 

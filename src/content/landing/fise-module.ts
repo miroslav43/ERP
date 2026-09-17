@@ -708,7 +708,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     nuFace: [
-      "Nu transmite singur, pe fundal, fără ca cineva să apese. Termenele se arată, decizia rămâne a omului.",
+      "Nu trimite pe fundal mesajele care conțin CNP-ul salariatului: acelea pleacă doar când le trimite cineva cu drept de transmitere. Contractele din coadă pleacă singure, în ordinea în care au intrat.",
       "Nu înlocuiește verificarea contabilului. Spune ce lipsește dintr-un mesaj, nu dacă un contract e corect juridic.",
       "Nu recuperează istoricul dinaintea intrării în aplicație. Contractele vechi se aduc la prima încărcare, apoi evidența curge de aici.",
     ],
@@ -1274,7 +1274,7 @@ export const FISE: readonly FisaModul[] = [
     metaDescriere:
       "Ce face asistentul din Administrativo: răspunde la întrebări despre propriile date și duce în ecranul potrivit, fără să vadă mai mult decât vede utilizatorul.",
     intro: [
-      "O aplicație cu douăzeci și două de module are o problemă pe care n-o rezolvă niciun meniu: omul știe ce vrea, dar nu știe unde se face. „Cum cer concediu”, „unde văd cine n-a făcut instruirea”, „de ce nu pot închide luna” — fiecare are un răspuns într-un ecran, iar drumul până la el e cunoscut doar de cine folosește aplicația zilnic.",
+      "O aplicație cu nouăsprezece module are o problemă pe care n-o rezolvă niciun meniu: omul știe ce vrea, dar nu știe unde se face. „Cum cer concediu”, „unde văd cine n-a făcut instruirea”, „de ce nu pot închide luna” — fiecare are un răspuns într-un ecran, iar drumul până la el e cunoscut doar de cine folosește aplicația zilnic.",
       "Asistentul răspunde în română și, când răspunsul e un ecran, duce direct acolo. Nu e un chat separat de aplicație: vede aceleași date, prin aceleași reguli, pentru omul care întreabă.",
       "Partea importantă e ce NU poate. Asistentul nu are permisiuni proprii — niciun rând într-o tabelă de roluri, nicio cheie a lui. Ce poate atinge se calculează din permisiunile celui care întreabă și din modulele pornite pe firmă. Un angajat care întreabă despre salariile colegilor primește același refuz pe care l-ar primi dacă ar deschide ecranul direct, fiindcă e exact același refuz, verificat în același loc. Nu există o cale ocolită prin întrebare.",
       "Modulul se poate opri de tot, pe firmă, dintr-un singur comutator. Cu el stins, nu doar că butonul dispare — cererea către asistent primește „nu există”, deci nici cineva care ar ști adresa nu ajunge la el.",

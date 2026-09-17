@@ -28,7 +28,7 @@ import { Cadru } from "../_componente/cadru";
 export const metadata: Metadata = {
   title: "Module Administrativo: pontaj, concedii, salarizare, SSM",
   description:
-    "Cele șaptesprezece module ale Administrativo și ce face fiecare. Pornești doar ce folosești; restul nu apare nici în meniu, nici pe factură.",
+    "Cele nouăsprezece module ale Administrativo și ce face fiecare. Pornești doar ce folosești; restul nu apare nici în meniu, nici pe factură.",
   alternates: { canonical: "/module" },
 };
 

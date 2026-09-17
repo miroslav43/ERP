@@ -616,6 +616,316 @@ describe("promisiuni contrazise de bază", () => {
   });
 });
 
+/**
+ * Tot textul care ajunge la cititor sau la un motor: conținutul RO și EN (cu
+ * secțiunea de onestitate inclusă), fișele de modul, titlurile și descrierile din
+ * `metadata` ale paginilor de marketing și corpul generat al lui `/llms.txt`.
+ *
+ * ── DE CE TEXT LIVRAT, NU FIȘIERE ─────────────────────────────────────────
+ * O scanare a surselor lovește comentariile — inclusiv cele care explică de ce o
+ * formulare e interzisă — și chiar acest fișier de test. Descrierile construite
+ * din constante (`${PRAG_ANGAJATI}`) se rezolvă înainte de verificare, altfel
+ * regula pragului ar cădea pe o descriere corectă.
+ */
+function valoriText(nod: unknown, colectate: string[] = []): string[] {
+  if (typeof nod === "string") colectate.push(nod);
+  else if (Array.isArray(nod)) for (const x of nod) valoriText(x, colectate);
+  else if (nod !== null && typeof nod === "object")
+    for (const x of Object.values(nod)) valoriText(x, colectate);
+  return colectate;
+}
+
+async function textLivrat(): Promise<readonly (readonly [sursa: string, text: string])[]> {
+  const { FISE } = await import("./fise-module");
+  const { GET: llms } = await import("@/app/llms.txt/route");
+
+  const metadate = fisiere("src/app/(marketing)", ["page.tsx"]).flatMap((f) =>
+    [...readFileSync(f, "utf8").matchAll(/(?:title|description):\s*(?:"([^"]*)"|`([^`]*)`)/g)].map(
+      (m) =>
+        [
+          f,
+          (m[1] ?? m[2] ?? "")
+            .replaceAll("${PRAG_ANGAJATI}", String(PRAG_ANGAJATI))
+            .replace(/\$\{[^}]*\}/g, "X"),
+        ] as const,
+    ),
+  );
+
+  return [
+    ...valoriText(RO).map((t) => ["ro.ts", t] as const),
+    ...valoriText(EN).map((t) => ["en.ts", t] as const),
+    ...valoriText(FISE).map((t) => ["fise-module.ts", t] as const),
+    ...metadate,
+    ["llms.txt", await llms().text()] as const,
+  ];
+}
+
+/** Propozițiile unui text; suficient de fin pentru regulile de mai jos. */
+const propozitii = (text: string): string[] =>
+  text.split(/(?<=[.!?])\s+|\n+/).filter((p) => p.trim() !== "");
+
+describe("un singur adevăr pe tot site-ul", () => {
+  /*
+   * ── DE CE ────────────────────────────────────────────────────────────────
+   * Auditul SEO din 17 sept 2026 a găsit prețul publicat și negat în același
+   * timp: H1-ul de pe /preturi spunea „149 de lei pe lună”, descrierea aceleiași
+   * pagini — fragmentul afișat în Google — „Prețul se dă la cerere”, iar
+   * /intrebari răspundea „De ce nu scrie prețul pe site? — ar fi un preț fals”.
+   * Trei texte scrise în momente diferite, fiecare adevărat când a fost scris.
+   * Un motor generativ le citește pe toate deodată și nu are cum să aleagă.
+   */
+  it("prețul nu e negat nicăieri", async () => {
+    const negari = [
+      /pre[țt] fals/i,
+      /nu scrie pre[țt]ul/i,
+      /false price/i,
+      /no price on the site/i,
+    ];
+    for (const [sursa, text] of await textLivrat()) {
+      for (const tipar of negari) {
+        expect(tipar.test(text), `${sursa}: ${String(tipar)} în „${text.slice(0, 120)}”`).toBe(
+          false,
+        );
+      }
+    }
+  });
+
+  it("„la cerere” / „ofertă” la preț apare doar lângă pragul de angajați", async () => {
+    // Oferta la cerere e legitimă PESTE prag; sub prag, prețul e publicat.
+    const laCerere =
+      /(pre[țt]|price|pricing)[^.]{0,80}(la cerere|ofert|on request|quote)|(la cerere|ofert|on request|quote)[^.]{0,80}(pre[țt]|price|pricing)/i;
+    for (const [sursa, text] of await textLivrat()) {
+      for (const propozitie of propozitii(text)) {
+        if (!laCerere.test(propozitie)) continue;
+        expect(
+          new RegExp(`\\b${PRAG_ANGAJATI}\\b`).test(propozitie),
+          `${sursa}: „${propozitie}” pune prețul la cerere fără pragul de ${PRAG_ANGAJATI}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  /*
+   * ── DE CE ────────────────────────────────────────────────────────────────
+   * Transmiterea prin API-ul REGES merge în producție (confirmat 17 sept 2026).
+   * Până atunci, pagina de modul spunea „direct din ERP, prin API-ul REGES”, iar
+   * ghidul /reges-online, scris înainte ca integrarea să existe, spunea că
+   * transmiterea „rămâne în platforma Inspecției Muncii” și că orice promisiune de
+   * transmitere automată e „tot un export care se încarcă manual” — adică ne
+   * acuza pe noi de ce afirmam două pagini mai încolo.
+   *
+   * Secțiunea de onestitate NU e scoasă din scanare, spre deosebire de lista
+   * interzisă de mai sus: exact acolo stătea „Nu generăm fișierul oficial REVISAL”.
+   */
+  it("REGES: o singură afirmație despre transmitere", async () => {
+    const livrat = await textLivrat();
+    const afirma = livrat.some(([, text]) => /API-ul REGES|REGES API|prin API/i.test(text));
+    expect(afirma, "afirmația despre transmiterea prin API a dispărut").toBe(true);
+
+    const contrazic = [
+      /r[ăa]m[âa]ne [îi]n platforma Inspec[țt]iei Muncii/i,
+      /tot un export care se [îi]ncarc[ăa]/i,
+      /fi[șs]ierul oficial REVISAL/i,
+      /official REVISAL file/i,
+    ];
+    for (const [sursa, text] of livrat) {
+      for (const tipar of contrazic) {
+        expect(tipar.test(text), `${sursa}: ${String(tipar)}`).toBe(false);
+      }
+    }
+  });
+
+  it("publicul e același peste tot: firme cu 5–50 de angajați", async () => {
+    // Titlul, meta, eroul și llms.txt spuneau 5–50; lead-ul paginii de start
+    // spunea „douăzeci până la două sute de oameni”.
+    const altPublic = /dou[ăa] sute de oameni|two hundred people/i;
+    for (const [sursa, text] of await textLivrat()) {
+      expect(altPublic.test(text), `${sursa}: „${text.slice(0, 120)}”`).toBe(false);
+    }
+  });
+
+  it("numărul de module scris în litere e cel din catalog", async () => {
+    /*
+     * Catalogul are FEATURE_KEYS.length module. Meta paginii /module spunea
+     * „șaptesprezece”, H1-ul de pe aceeași pagină „Nouăsprezece”, iar intro-ul
+     * asistentului „douăzeci și două”. Se acceptă doar totalul, nucleul și
+     * diferența dintre ele — singurele trei numere care descriu oferta.
+     */
+    const permise = new Set([
+      FEATURE_KEYS.length,
+      MODULE_NUCLEU.length,
+      FEATURE_KEYS.length - MODULE_NUCLEU.length,
+    ]);
+    const unitatiRo: Readonly<Record<string, number>> = {
+      unu: 1,
+      doi: 2,
+      două: 2,
+      trei: 3,
+      patru: 4,
+      cinci: 5,
+      șase: 6,
+      șapte: 7,
+      opt: 8,
+      nouă: 9,
+    };
+    const numeraleRo: Readonly<Record<string, number>> = {
+      ...unitatiRo,
+      zece: 10,
+      unsprezece: 11,
+      doisprezece: 12,
+      douăsprezece: 12,
+      treisprezece: 13,
+      paisprezece: 14,
+      cincisprezece: 15,
+      șaisprezece: 16,
+      șaptesprezece: 17,
+      optsprezece: 18,
+      nouăsprezece: 19,
+      douăzeci: 20,
+    };
+    const unitatiEn: Readonly<Record<string, number>> = {
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+      seven: 7,
+      eight: 8,
+      nine: 9,
+    };
+    const numeraleEn: Readonly<Record<string, number>> = {
+      ...unitatiEn,
+      ten: 10,
+      eleven: 11,
+      twelve: 12,
+      thirteen: 13,
+      fourteen: 14,
+      fifteen: 15,
+      sixteen: 16,
+      seventeen: 17,
+      eighteen: 18,
+      nineteen: 19,
+      twenty: 20,
+    };
+    const alt = (o: Readonly<Record<string, number>>) => Object.keys(o).join("|");
+    // `\b` e ASCII în JavaScript: nu vede granița după „ă” din „două”.
+    const tiparRo = new RegExp(
+      `(?<!\\p{L})(${alt(numeraleRo)})(?:\\s+și\\s+(${alt(unitatiRo)}))?\\s+(?:de\\s+)?module(?!\\p{L})`,
+      "giu",
+    );
+    const tiparEn = new RegExp(
+      `(?<!\\p{L})(${alt(numeraleEn)})(?:-(${alt(unitatiEn)}))?\\s+modules(?!\\p{L})`,
+      "giu",
+    );
+    const tiparCifre = /(?<!\d)(\d+)\s+(?:de\s+)?modules?(?!\p{L})/giu;
+
+    for (const [sursa, text] of await textLivrat()) {
+      const gasite = [
+        ...[...text.matchAll(tiparRo)].map(
+          (m) => (numeraleRo[(m[1] ?? "").toLowerCase()] ?? 0) + (unitatiRo[m[2] ?? ""] ?? 0),
+        ),
+        ...[...text.matchAll(tiparEn)].map(
+          (m) => (numeraleEn[(m[1] ?? "").toLowerCase()] ?? 0) + (unitatiEn[m[2] ?? ""] ?? 0),
+        ),
+        ...[...text.matchAll(tiparCifre)].map((m) => Number(m[1])),
+      ];
+      for (const numar of gasite) {
+        expect(permise.has(numar), `${sursa}: „${numar} module” nu e în catalog`).toBe(true);
+      }
+    }
+  });
+
+  it("titlul paginii (H1) nu e repetat de banda de sub el (H2)", () => {
+    // Două titluri identice pe aceeași pagină risipesc singurul H2 care putea
+    // acoperi o altă formulare a întrebării.
+    for (const [limba, text] of LIMBI) {
+      expect(text.pagini.intrebari.titlu, `${limba}: /intrebari`).not.toBe(text.intrebari.titlu);
+      expect(text.pagini.incredere.titlu, `${limba}: /incredere`).not.toBe(text.izolare.titlu);
+      expect(text.pagini.domenii.titlu, `${limba}: /domenii`).not.toBe(text.verticale.titlu);
+    }
+  });
+});
+
+describe("furnizorii externi sunt numiți în documentele legale", () => {
+  /*
+   * ── DE CE ────────────────────────────────────────────────────────────────
+   * Anexa de prelucrare din termeni afirma „Nu există un transfer în afara
+   * Spațiului Economic European” și numea doar Supabase și Resend — în timp ce
+   * asistentul trimitea întrebările la OpenRouter, iar notificările plecau prin
+   * Expo. Nimeni n-a mințit: lista a fost corectă la redactare, iar codul a
+   * crescut după. Testul leagă lista de cod: orice host extern apelat dintr-un
+   * literal din `src/` e ori numit în documentul potrivit, ori scutit aici, cu
+   * motivul scris. Un furnizor nou face testul roșu până cineva decide unde se
+   * declară.
+   *
+   * „anexa” = atinge datele Clientului (subîmputernicit, `termeni.ts` A5);
+   * „politica” = doar vizitatori sau furnizori aleși de Client
+   * (`confidentialitate.ts`).
+   */
+  const FURNIZORI: Readonly<Record<string, readonly [nume: string, unde: "anexa" | "politica"]>> = {
+    "openrouter.ai": ["OpenRouter", "anexa"],
+    "exp.host": ["Expo", "anexa"],
+    "api.resend.com": ["Resend", "anexa"],
+    "www.googletagmanager.com": ["Google Analytics", "politica"],
+    "www.youtube.com": ["YouTube", "politica"],
+    "www.youtube-nocookie.com": ["YouTube", "politica"],
+    "vimeo.com": ["Vimeo", "politica"],
+    "player.vimeo.com": ["Vimeo", "politica"],
+    "www.loom.com": ["Loom", "politica"],
+    "webservicesp.anaf.ro": ["ANAF", "politica"],
+    "api.inspectiamuncii.ro": ["Inspecția Muncii", "politica"],
+    "sso.inspectiamuncii.ro": ["Inspecția Muncii", "politica"],
+    "api.dev.inspectiamuncii.org": ["Inspecția Muncii", "politica"],
+    "sso.dev.inspectiamuncii.org": ["Inspecția Muncii", "politica"],
+  };
+  const SCUTITE: Readonly<Record<string, string>> = {
+    "administrativo.ro": "domeniul propriu",
+    "schema.org": "identificatorul vocabularului JSON-LD, nu o cerere de rețea",
+    "fonts.googleapis.com":
+      "fontul imaginii Open Graph, descărcat de server la generare; nu trimite date de vizitator",
+  };
+
+  it("fiecare host extern apelat din cod e numit sau scutit cu motiv", async () => {
+    const { SECTIUNI_ANEXA } = await import("@/content/legal/termeni");
+    const { SECTIUNI_CONFIDENTIALITATE } = await import("@/content/legal/confidentialitate");
+    const documente = {
+      anexa: JSON.stringify(SECTIUNI_ANEXA),
+      politica: JSON.stringify(SECTIUNI_CONFIDENTIALITATE),
+    };
+
+    // Doar literalii de șir: un URL dintr-un comentariu nu e o cerere.
+    const hosturi = new Set(
+      fisiere("src", [".ts", ".tsx"])
+        .filter((f) => !/\.test\.tsx?$/.test(f))
+        .flatMap((f) => [
+          ...readFileSync(f, "utf8").matchAll(/["'`]https:\/\/([a-z0-9.-]+\.[a-z]{2,})/g),
+        ])
+        .map((m) => m[1] ?? ""),
+    );
+    expect(hosturi.size, "scanarea n-a găsit niciun host — s-a rupt tiparul").toBeGreaterThan(5);
+
+    for (const host of hosturi) {
+      if (host in SCUTITE) continue;
+      const furnizor = FURNIZORI[host];
+      expect(
+        furnizor,
+        `${host}: furnizor nou — numește-l în anexa termenilor sau în politica de confidențialitate și adaugă-l aici`,
+      ).toBeDefined();
+      if (furnizor === undefined) continue;
+      const [nume, unde] = furnizor;
+      expect(documente[unde].includes(nume), `${host}: „${nume}” lipsește din ${unde}`).toBe(true);
+    }
+  });
+
+  it("politica de confidențialitate nu mai are marcaje de schelet", async () => {
+    const { AVERTISMENT_CONFIDENTIALITATE, SECTIUNI_CONFIDENTIALITATE } =
+      await import("@/content/legal/confidentialitate");
+    const text = JSON.stringify([AVERTISMENT_CONFIDENTIALITATE, SECTIUNI_CONFIDENTIALITATE]);
+    expect(text).not.toMatch(/DE COMPLETAT|DE CONFIRMAT|DE REDACTAT/);
+  });
+});
+
 describe("vitrina", () => {
   /**
    * O rută publică ABSENTĂ din `RUTE_PUBLICE` nu dă 404 și nu dă eroare: dă un

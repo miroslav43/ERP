@@ -191,8 +191,8 @@ export const REGES: PaginaLege = {
     {
       titlu: "Ce nu ține de noi",
       paragrafe: [
-        "Administrativo ține datele din care se completează registrul — contracte, funcții, timp de muncă, salarii, suspendări, încetări — și le arată la termen, cu istoricul modificărilor. Transmiterea propriu-zisă către REGES-ONLINE rămâne în platforma Inspecției Muncii, cu certificatul și cu persoana împuternicită de firmă.",
-        "E o distincție pe care preferăm s-o facem noi, înainte s-o descoperi tu: cine îți promite „transmitere automată în REGES” descrie de obicei tot un export care se încarcă manual.",
+        "Administrativo ține datele din care se completează registrul — contracte, funcții, timp de muncă, salarii, suspendări, încetări —, le arată la termen și le transmite la REGES-ONLINE prin API, cu accesul firmei. Răspunsul Inspecției Muncii se întoarce în aplicație, lângă mesajul trimis, cu motivul unei respingeri scris pe înțeles.",
+        "Rămân ale firmei: obținerea accesului la API din portalul REGES-ONLINE, persoana împuternicită să transmită și corectitudinea datelor din contracte. Aplicația spune ce lipsește dintr-un mesaj înainte de trimitere; nu decide în locul tău dacă un contract e corect juridic.",
       ],
     },
   ],

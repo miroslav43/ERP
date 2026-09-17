@@ -159,14 +159,15 @@ export default async function PaginaModul({ params }: Proprietati) {
                 Vine în nucleu, împreună cu abonamentul de bază. Nu se cumpără separat și nu se
                 poate stinge.
               </>
-            ) : pret === undefined ? (
-              <>Prețul acestui modul se stabilește la cerere.</>
-            ) : (
+            ) : pret !== undefined ? (
               <>
                 <span className="font-mk-date">{lunar(pret, "ro")}</span>, peste nucleu.{" "}
                 {RO.preturi.mentiuneTva}
               </>
-            )}
+            ) : // Ramură de neatins: testul „fiecare modul are preț sau e în nucleu” o
+            // exclude. A stat aici „Prețul acestui modul se stabilește la cerere” —
+            // o negare a prețului publicat, care aștepta prima cheie fără tarif.
+            null}
           </p>
           <Link
             href="/preturi"

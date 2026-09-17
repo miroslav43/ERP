@@ -29,6 +29,22 @@ import { Cadru } from "./cadru";
  * pagină întreținută de una abandonată — și pentru cititor, și pentru un model
  * care trebuie să aleagă pe care s-o creadă.
  */
+/**
+ * „Astea trei nu stau” era scris de mână în componenta comună, iar
+ * `/evidenta-orelor-de-munca` are doar două întrebări nesigure. Numeralul vine
+ * acum din lungimea listei; peste cinci, cifra.
+ */
+function numeralNesigur(n: number): string {
+  if (n === 1) return "Asta nu stă";
+  const cuvinte: Readonly<Record<number, string>> = {
+    2: "două",
+    3: "trei",
+    4: "patru",
+    5: "cinci",
+  };
+  return `Astea ${cuvinte[n] ?? String(n)} nu stau`;
+}
+
 export function RandarePaginaLege({ text }: { text: PaginaLege }) {
   return (
     <Cadru text={RO}>
@@ -133,7 +149,7 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         inaltime="medie"
         supratitlu="Unde se termină certitudinea"
         titlu="Ce nu putem afirma cu siguranță"
-        lead="Fiecare rând de mai sus stă pe un text de lege citit în forma consolidată. Astea trei nu stau, și preferăm s-o spunem noi."
+        lead={`Fiecare rând de mai sus stă pe un text de lege citit în forma consolidată. ${numeralNesigur(text.nesigur.length)}, și preferăm s-o spunem noi.`}
       >
         <dl className="border-mk-rigla/40 mt-8 border-t">
           {text.nesigur.map((n) => (

@@ -22,7 +22,7 @@ import { Cadru } from "../_componente/cadru";
 export const metadata: Metadata = {
   title: "Ce nu face Administrativo",
   description:
-    "Lista limitelor, scrisă înainte să întrebi: fără raportare la ANAF, fără fișier REVISAL oficial, fără aplicație în magazine. Și de ce e mai ieftin așa.",
+    "Lista limitelor, scrisă înainte să întrebi: fără raportare la ANAF, fără CNP-uri trimise la REGES pe fundal, fără aplicație în magazine. Și de ce e mai ieftin așa.",
   alternates: { canonical: "/de-ce-nu" },
 };
 

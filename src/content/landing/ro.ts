@@ -123,7 +123,7 @@ export const RO: ContinutLanding = {
   realitatea: {
     supratitlu: "Luni dimineața",
     titlu: "Nu-ți lipsesc procedurile. Îți lipsește locul în care stau.",
-    lead: "Firmele de douăzeci până la două sute de oameni au deja reguli. Problema e că regulile trăiesc în trei fișiere, două telefoane și capul unei singure persoane.",
+    lead: "Firmele de cinci până la cincizeci de oameni au deja reguli. Problema e că regulile trăiesc în trei fișiere, două telefoane și capul unei singure persoane.",
     scene: [
       {
         titlu: "Pontajul e într-un fișier care se numește pontaj_final_v3_ok",
@@ -454,10 +454,20 @@ export const RO: ContinutLanding = {
 
   pontaj: {
     supratitlu: "Cum ajung orele în sistem",
-    titlu: "Patru moduri care merg azi. Patru pe care încă nu le avem.",
+    titlu: "Șase moduri care merg azi. Patru pe care încă nu le avem.",
     lead: "Le desenăm diferit ca să nu le confunzi. Ce e plin există și se poate vedea la demonstrație. Ce e hașurat nu există — nici măcar ca o coloană în bază.",
     livrateTitlu: "Merge azi",
     livrate: [
+      {
+        titlu: "Pontare dintr-o atingere, de pe telefon",
+        text: "Din portalul angajatului, în browser: un buton care confirmă ziua obișnuită sau două — „Am intrat” și „Am ieșit”. Ora scrisă e a serverului, nu a telefonului.",
+        detaliu: "Firma alege modul: confirmare, ceas sau amândouă",
+      },
+      {
+        titlu: "Afișul cu cod QR la punctul de lucru",
+        text: "Fiecare punct de lucru are un afiș tipărit din aplicație. Omul scanează codul cu camera telefonului și pontează pe punctul acela; firma poate cere scanarea înainte de pontare.",
+        detaliu: "Codul rămâne același până îl schimbă administratorul",
+      },
       {
         titlu: "Foaia colectivă lunară",
         text: "Grila zi × angajat. Se completează ora de intrare și de ieșire, iar orele se calculează ca sugestie editabilă.",
@@ -501,7 +511,7 @@ export const RO: ContinutLanding = {
       },
     ],
     notaViitoare:
-      "Niciuna dintre cele patru nu există azi, în nicio formă. Dacă una ți-ar schimba decizia, spune-ne — construim în ordinea în care ne-o cer firmele care ne folosesc.",
+      "Niciuna dintre cele patru nu există azi. Afișul QR de mai sus are un cod fix, schimbat de administrator; codul care se schimbă singur, la câteva zeci de secunde, e cel de aici. Dacă una ți-ar schimba decizia, spune-ne — construim în ordinea în care ne-o cer firmele care ne folosesc.",
     buton: { eticheta: "Am nevoie de asta", href: "/cere-demo" },
   },
 
@@ -560,7 +570,7 @@ export const RO: ContinutLanding = {
 
   izolare: {
     supratitlu: "Bariera",
-    titlu: "Datele unei firme nu ajung la alta. Regula stă în Postgres.",
+    titlu: "Cum e construită bariera, strat cu strat",
     lead: "Trei dintre straturile de mai jos sunt confort: ajută omul să nu se lovească de uși închise. Doar al patrulea e barieră — și e singurul de care depinde răspunsul la întrebarea „ce se întâmplă dacă cineva greșește codul?”.",
     straturi: [
       {
@@ -606,7 +616,7 @@ export const RO: ContinutLanding = {
     carduri: [
       {
         titlu: "Sărbătorile legale, calculate",
-        text: "Șaptesprezece zile: cele fixe din Codul muncii și cele mobile, derivate din data Paștelui ortodox. Foaia din capul paginii e alimentată chiar din funcția asta.",
+        text: "Șaptesprezece zile: cele fixe din Codul muncii și cele mobile, derivate din data Paștelui ortodox. Foaia de pontaj de pe pagina de start e alimentată chiar din funcția asta.",
         temei: "Codul muncii, art. 139",
       },
       {
@@ -664,8 +674,8 @@ export const RO: ContinutLanding = {
         text: "Zero linii de cod. Structura de date e pregătită pentru o transmitere viitoare, dar transmiterea nu există.",
       },
       {
-        titlu: "Nu generăm fișierul oficial REVISAL",
-        text: "Ținem evidența evenimentelor și termenele lor, și exportăm datele complete. Formatul aplicației oficiale se validează cu Inspecția Muncii, nu se presupune.",
+        titlu: "Datele cu CNP nu pleacă la REGES fără un om",
+        text: "Transmiterea în REGES-ONLINE se face prin API, din aplicație, cu accesul obținut de firma ta din portalul Inspecției Muncii. Contractele din coadă pleacă singure, în ordine; mesajele care conțin CNP-ul salariatului le trimite doar cineva cu drept de transmitere, iar fiecare citire a CNP-ului lasă urmă în jurnal. Fișier REVISAL nu generăm: REGES-ONLINE l-a înlocuit.",
       },
       {
         titlu: "Asistentul AI îți arată drumul, nu-ți face treaba",
@@ -690,7 +700,7 @@ export const RO: ContinutLanding = {
 
   verticale: {
     supratitlu: "Verticale",
-    titlu: "Aceleași module, altă ordine de importanță",
+    titlu: "Ce contează primul, pe fiecare domeniu",
     lead: "Nu vindem patru produse. Vindem același produs, pornit în ordinea în care doare la tine.",
     domenii: [
       {
@@ -863,7 +873,7 @@ export const RO: ContinutLanding = {
 
   intrebari: {
     supratitlu: "Întrebări frecvente",
-    titlu: "Ce ne întreabă lumea înainte să semneze",
+    titlu: "Răspunsurile, pe scurt",
     lead: "Dacă întrebarea ta nu e aici, sună. Răspundem și la cele incomode.",
     intrebari: [
       {
@@ -876,7 +886,7 @@ export const RO: ContinutLanding = {
       },
       {
         q: "Contabila mea vede salariile tuturor. Managerul poate?",
-        a: "Nu. Managerul are refuz explicit pe salarizare — nu absență de drept, refuz scris. Dacă vrei să i-l dai, se schimbă o linie de configurare pe firma ta, fără o nouă livrare de cod. Tabelul cu cine ce vede e mai sus pe pagină.",
+        a: "Nu. Managerul are refuz explicit pe salarizare — nu absență de drept, refuz scris. Dacă vrei să i-l dai, se schimbă o linie de configurare pe firma ta, fără o nouă livrare de cod. Tabelul cu cine ce vede e pe pagina de module.",
       },
       {
         q: "Ce se întâmplă când pleacă un angajat?",
@@ -911,8 +921,8 @@ export const RO: ContinutLanding = {
         a: "Le iei. Exportăm ce ținem despre tine în format deschis, iar ce rămâne la noi se purjează la termenul convenit. Nu ținem date ca argument de negociere.",
       },
       {
-        q: "De ce nu scrie prețul pe site?",
-        a: "Pentru că ar fi un preț fals. Diferența dintre o firmă de zece oameni cu pontaj și una de o sută cu flotă, SSM și salarizare e prea mare ca o grilă publică să fie onestă. Ceri o ofertă, primești o cifră pe care o putem susține.",
+        q: "Cât costă?",
+        a: "Nucleul — pontaj, concedii, dosare și portalul angajatului — costă 149 de lei pe lună, până la 20 de angajați, iar prima lună e gratuită. Modulele în plus au fiecare prețul lui, afișat pe pagina de prețuri, și sunt sume finale: nu se mai adaugă TVA. Peste 20 de angajați prețul crește în trepte — cere o ofertă și îți spunem cifra pentru câți oameni ai.",
       },
     ],
   },

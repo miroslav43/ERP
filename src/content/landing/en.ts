@@ -103,7 +103,7 @@ export const EN: ContinutLanding = {
   realitatea: {
     supratitlu: "Monday morning",
     titlu: "You are not missing procedures. You are missing the place they live in.",
-    lead: "Companies of twenty to two hundred people already have rules. The trouble is that the rules live in three files, two phones and one person's head.",
+    lead: "Companies of five to fifty people already have rules. The trouble is that the rules live in three files, two phones and one person's head.",
     scene: [
       {
         titlu: "Attendance is a file called timesheet_final_v3_ok",
@@ -437,10 +437,20 @@ export const EN: ContinutLanding = {
 
   pontaj: {
     supratitlu: "How hours reach the system",
-    titlu: "Four ways that work today. Four we do not have yet.",
+    titlu: "Six ways that work today. Four we do not have yet.",
     lead: "We draw them differently so you cannot confuse them. What is solid exists and can be shown in a walkthrough. What is hatched does not exist — not even as a column in the database.",
     livrateTitlu: "Works today",
     livrate: [
+      {
+        titlu: "One-tap clock-in from the phone",
+        text: "From the employee portal, in the browser: one button that confirms the usual day, or two — “I'm in” and “I'm out”. The time recorded is the server's, not the phone's.",
+        detaliu: "The company picks the mode: confirm, clock, or both",
+      },
+      {
+        titlu: "A QR poster at the work point",
+        text: "Each work point has a poster printed from the application. The employee scans the code with the phone's camera and clocks in at that point; the company can require the scan before clocking in.",
+        detaliu: "The code stays the same until an administrator changes it",
+      },
       {
         titlu: "The monthly sheet",
         text: "A day × employee grid. You enter start and end times, and the hours are computed as an editable suggestion.",
@@ -484,7 +494,7 @@ export const EN: ContinutLanding = {
       },
     ],
     notaViitoare:
-      "None of these four exists today, in any form. If one of them would change your decision, tell us — we build in the order the companies using us ask for.",
+      "None of these four exists today. The QR poster above carries a fixed code that an administrator changes; the code that changes on its own every few tens of seconds is the one listed here. If one of them would change your decision, tell us — we build in the order the companies using us ask for.",
     buton: { eticheta: "I need this", href: "/cere-demo" },
   },
 
@@ -543,7 +553,7 @@ export const EN: ContinutLanding = {
 
   izolare: {
     supratitlu: "The barrier",
-    titlu: "One company's data never reaches another. The rule lives in Postgres.",
+    titlu: "How the barrier is built, layer by layer",
     lead: "Three of the layers below are convenience: they help people avoid locked doors. Only the fourth is a barrier — and it is the only one that answers the question “what happens if someone gets the code wrong?”.",
     straturi: [
       {
@@ -589,7 +599,7 @@ export const EN: ContinutLanding = {
     carduri: [
       {
         titlu: "Public holidays, computed",
-        text: "Seventeen days: the fixed ones from the Labour Code and the movable ones derived from Orthodox Easter. The sheet at the top of this page is fed by that very function.",
+        text: "Seventeen days: the fixed ones from the Labour Code and the movable ones derived from Orthodox Easter. The timesheet on the home page is fed by that very function.",
         temei: "Labour Code, art. 139",
       },
       {
@@ -647,8 +657,8 @@ export const EN: ContinutLanding = {
         text: "Zero lines of code. The data structure is ready for a future transmission, but the transmission does not exist.",
       },
       {
-        titlu: "We do not generate the official REVISAL file",
-        text: "We keep the register of employment events and their deadlines, and we export the complete data. The official application's format is validated with the labour inspectorate, not assumed.",
+        titlu: "Data carrying a national ID does not reach REGES without a person",
+        text: "Filing with REGES-ONLINE happens over the API, from the application, using the access your company obtains from the Labour Inspectorate portal. Contracts in the queue go out on their own, in order; messages that carry an employee's national ID number are sent only by someone with the right to file, and every read of that number is logged. We do not generate a REVISAL file: REGES-ONLINE replaced it.",
       },
       {
         titlu: "The AI assistant shows you the way, it does not do the work",
@@ -673,7 +683,7 @@ export const EN: ContinutLanding = {
 
   verticale: {
     supratitlu: "Verticals",
-    titlu: "The same modules, in a different order of urgency",
+    titlu: "What matters first, industry by industry",
     lead: "We do not sell four products. We sell the same product, switched on in the order that hurts most at your company.",
     domenii: [
       {
@@ -846,7 +856,7 @@ export const EN: ContinutLanding = {
 
   intrebari: {
     supratitlu: "Frequently asked",
-    titlu: "What people ask before they sign",
+    titlu: "The answers, in short",
     lead: "If your question is not here, call. We answer the awkward ones too.",
     intrebari: [
       {
@@ -859,7 +869,7 @@ export const EN: ContinutLanding = {
       },
       {
         q: "My accountant sees everyone's salary. Can a manager?",
-        a: "No. Managers carry an explicit refusal on payroll — not a missing right, a written refusal. If you want to grant it, that is one line of configuration for your company, with no new code release. The table showing who sees what is further up this page.",
+        a: "No. Managers carry an explicit refusal on payroll — not a missing right, a written refusal. If you want to grant it, that is one line of configuration for your company, with no new code release. The table showing who sees what is on the modules page.",
       },
       {
         q: "What happens when an employee leaves?",
@@ -894,8 +904,8 @@ export const EN: ContinutLanding = {
         a: "You take it. We export what we hold about you in an open format, and what remains with us is purged at the agreed term. We do not hold data as a negotiating position.",
       },
       {
-        q: "Why is there no price on the site?",
-        a: "Because it would be a false price. The distance between a ten-person company running attendance and a hundred-person one with a fleet, safety and payroll is too wide for a public grid to be honest. Ask for a quote and you get a figure we can stand behind.",
+        q: "How much does it cost?",
+        a: "The core — attendance, leave, personnel files and the employee portal — is 149 RON a month for up to 20 employees, and the first month is free. Each extra module has its own price, listed on the pricing page, and every amount is final: no VAT is added. Above 20 employees the price rises in steps — ask for a quote and we will give you the figure for your headcount.",
       },
     ],
   },

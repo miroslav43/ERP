@@ -24,8 +24,9 @@ import "server-only";
 
 export const BAZE_API = {
   test: "https://api.dev.inspectiamuncii.org",
-  // ⚠ NEVERIFICATĂ. SSO-ul de producție l-am interogat direct și răspunde; baza
-  // API-ului nu. Se confirmă din portalul de producție înainte de go-live.
+  // Confirmată în folosire reală: transmiterea prin API merge în producție cu o
+  // firmă reală (confirmarea lui Miro, 17 sept 2026). Până atunci stătea aici
+  // „⚠ NEVERIFICATĂ” — SSO-ul răspundea la interogare directă, baza API-ului nu.
   productie: "https://api.inspectiamuncii.ro",
 } as const;
 

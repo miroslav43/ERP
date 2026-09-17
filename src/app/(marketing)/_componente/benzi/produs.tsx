@@ -126,7 +126,7 @@ export function BandaEcrane({ text }: ProprietatiBanda) {
   );
 }
 
-/** Cele patru moduri livrate. Pe hârtie: ce există. */
+/** Modurile livrate (șase, din 17 sept 2026). Pe hârtie: ce există. */
 export function BandaPontajLivrat({ text }: ProprietatiBanda) {
   return (
     <Banda
