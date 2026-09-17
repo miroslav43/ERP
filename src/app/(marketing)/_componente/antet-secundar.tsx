@@ -44,7 +44,7 @@ export function AntetSecundar({
 }: {
   text: AntetPagina;
   cta?: Readonly<{ eticheta: string; href: string }> | null;
-  firimituri?: readonly Firimitura[];
+  firimituri?: readonly Firimitura[] | undefined;
 }) {
   return (
     <section className="bg-mk-hartie text-mk-text">

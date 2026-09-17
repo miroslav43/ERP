@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { slugModul } from "@/content/landing/slug-module";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
 import { Banda } from "../banda";
@@ -92,7 +93,7 @@ export function BandaModule({ text }: ProprietatiBanda) {
                 dreapta={
                   <p className="mt-3">
                     <Link
-                      href={`/module/${modul.cheie}`}
+                      href={`/module/${slugModul(modul.cheie)}`}
                       className="text-[0.9375rem] underline underline-offset-4"
                     >
                       Despre {modul.titlu.toLocaleLowerCase("ro-RO")}

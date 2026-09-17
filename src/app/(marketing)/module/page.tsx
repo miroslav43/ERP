@@ -26,7 +26,8 @@ import { Cadru } from "../_componente/cadru";
  * nu rescrise.
  */
 export const metadata: Metadata = {
-  title: "Module Administrativo: pontaj, concedii, salarizare, SSM",
+  // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
+  title: "Module HR: pontaj, concedii, salarizare, SSM",
   description:
     "Cele nouăsprezece module ale Administrativo și ce face fiecare. Pornești doar ce folosești; restul nu apare nici în meniu, nici pe factură.",
   alternates: { canonical: "/module" },

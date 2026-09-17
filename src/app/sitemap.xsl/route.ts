@@ -54,8 +54,8 @@ const XSL = `<?xml version="1.0" encoding="UTF-8"?>
       <xsl:when test="contains($u, '/legal/')">Legal</xsl:when>
       <xsl:when test="contains($u, '/module/')">Module</xsl:when>
       <xsl:when test="contains($u, '/domenii')">Domenii</xsl:when>
-      <xsl:when test="contains($u, '/ghid/') or contains($u, '/reges-online') or contains($u, '/evidenta-orelor')">Obligații legale</xsl:when>
-      <xsl:when test="contains($u, '/unelte/') or contains($u, '/comparatie/')">Unelte și comparații</xsl:when>
+      <xsl:when test="contains($u, '/ghid/') or contains(concat($u, '|'), '/ghid|') or contains($u, '/reges-online') or contains($u, '/evidenta-orelor')">Obligații legale</xsl:when>
+      <xsl:when test="contains($u, '/unelte/') or contains($u, '/comparatie/') or contains(concat($u, '|'), '/unelte|') or contains(concat($u, '|'), '/comparatie|')">Unelte și comparații</xsl:when>
       <xsl:when test="contains($u, '/incredere') or contains($u, '/intrebari') or contains($u, '/de-ce-nu')">Înainte să întrebi</xsl:when>
       <xsl:otherwise>Principale</xsl:otherwise>
     </xsl:choose>

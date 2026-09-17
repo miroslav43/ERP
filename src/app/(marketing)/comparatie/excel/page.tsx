@@ -26,7 +26,7 @@ import { Cadru } from "../../_componente/cadru";
  * atent — exact cel care caută comparații înainte să cumpere — o închide.
  */
 export const metadata: Metadata = {
-  title: "Pontaj în Excel sau în aplicație: când merită schimbarea",
+  title: "Pontaj în Excel sau în aplicație",
   description:
     "Unde se rupe foaia de calcul la pontaj și unde nu se rupe deloc. Comparație pe opt aspecte concrete, plus situațiile în care e în regulă să rămâi la Excel.",
   alternates: { canonical: "/comparatie/excel" },
@@ -35,7 +35,14 @@ export const metadata: Metadata = {
 export default function PaginaComparatieExcel() {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={ANTET_COMPARATIE} />
+      <AntetSecundar
+        text={ANTET_COMPARATIE}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Comparații", href: "/comparatie" },
+          { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
+        ]}
+      />
 
       <Banda inaltime="medie">
         <div className="border-mk-rigla/40 border-t">

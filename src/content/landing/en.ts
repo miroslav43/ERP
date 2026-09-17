@@ -952,6 +952,7 @@ export const EN: ContinutLanding = {
           // citabile în locul textului oficial, care e tot în română.
           { eticheta: "Working-time records", href: "/evidenta-orelor-de-munca" },
           { eticheta: "REGES-ONLINE deadlines", href: "/reges-online" },
+          { eticheta: "All guides", href: "/ghid" },
           { eticheta: "What we don't do", href: "/de-ce-nu" },
           { eticheta: "Frequently asked", href: "/intrebari" },
         ],
@@ -1002,6 +1003,21 @@ export const EN: ContinutLanding = {
       supratitlu: "Clocking in by phone",
       titlu: "Clocking in from the browser, with nothing to install",
       lead: "The person on site opens an address, adds it to the home screen and clocks in. No App Store or Google Play account, no updates to install, no phone that has run out of space.",
+    },
+    ghid: {
+      supratitlu: "Guides",
+      titlu: "What the law requires, with the article next to every claim",
+      lead: "Working-time records, REGES-ONLINE and labour inspections, written for whoever answers for them in a small company. Each page also says what cannot be stated with certainty.",
+    },
+    unelte: {
+      supratitlu: "Tools",
+      titlu: "Free tools, no account",
+      lead: "Things you can use on the spot: no account, no email address handed over, no trial that expires.",
+    },
+    comparatie: {
+      supratitlu: "Comparisons",
+      titlu: "When switching is worth it, and when it is not",
+      lead: "Comparisons with the way work gets done today, including the cases where the right answer is to keep what you have.",
     },
   },
 };

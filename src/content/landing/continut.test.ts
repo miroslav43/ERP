@@ -437,6 +437,35 @@ describe("legăturile interne duc undeva", () => {
     }
   });
 
+  it("legăturile din fișe și din paginile-lege duc spre pagini din sitemap", async () => {
+    /*
+     * Testele de lângă scanează doar `RO` și `EN`. Legăturile din fișele de modul
+     * (`ghiduri`) și din paginile-lege (`legaturaSecundara`, `legaturiConexe`)
+     * stau în alte fișiere. Se compară cu sitemap-ul, nu cu tiparele de rută:
+     * tiparul `/module/[modul]` ar accepta și `/module/attendance`, adresa veche
+     * care acum e redirect.
+     */
+    const { ADRESA_SITE } = await import("./contact");
+    const { intrariSitemap } = await import("./harta");
+    const { FISE } = await import("./fise-module");
+    const dinSitemap = new Set(intrariSitemap().map((i) => i.url.replace(ADRESA_SITE, "") || "/"));
+    const pagini = [
+      (await import("@/content/legal/reges")).REGES,
+      (await import("@/content/legal/evidenta-orelor")).EVIDENTA_ORELOR,
+      (await import("@/content/legal/control-itm")).CONTROL_ITM,
+    ];
+    const linkuri = [
+      ...FISE.flatMap((f) => (f.ghiduri ?? []).map((g) => [`fișa ${f.cheie}`, g.href] as const)),
+      ...pagini.flatMap((p) =>
+        [p.legaturaSecundara, ...(p.legaturiConexe ?? [])].map((l) => [p.cale, l.href] as const),
+      ),
+    ];
+    expect(linkuri.length, "n-am găsit nicio legătură").toBeGreaterThan(5);
+    for (const [sursa, href] of linkuri) {
+      expect(dinSitemap.has(href), `${sursa}: ${href} nu e în sitemap`).toBe(true);
+    }
+  });
+
   it("fiecare link intern din conținut duce către o rută PUBLICĂ", () => {
     /*
      * Testul de dinainte verifica doar că lista albă conține patru rute scrise
@@ -579,14 +608,15 @@ describe("legăturile interne duc undeva", () => {
 
   it("paginile de modul din hărți sunt exact cele din catalog", async () => {
     // Aceeași garanție ca la domenii, pe partea de module: `/module/[modul]`
-    // prerandează cheile din catalog, iar hărțile trebuie să le arate pe toate
-    // și numai pe ele.
+    // prerandează slug-urile cheilor din catalog, iar hărțile trebuie să le
+    // arate pe toate și numai pe ele.
     const { ADRESA_SITE } = await import("./contact");
     const { intrariSitemap: sitemap } = await import("./harta");
     const { PAGINI: LLMS } = await import("@/app/llms.txt/route");
+    const { slugModul } = await import("./slug-module");
 
     const asteptate = new Set(
-      RO.module.grupuri.flatMap((g) => g.module).map((m) => `/module/${m.cheie}`),
+      RO.module.grupuri.flatMap((g) => g.module).map((m) => `/module/${slugModul(m.cheie)}`),
     );
     const dinSitemap = sitemap()
       .map((i) => i.url.replace(ADRESA_SITE, ""))
@@ -598,6 +628,67 @@ describe("legăturile interne duc undeva", () => {
     // llms.txt își generează lista de module din catalog, cu ancore; se compară
     // doar dacă listează pagini de modul ca rânduri proprii.
     if (dinLlms.length > 0) expect([...new Set(dinLlms)].sort()).toEqual([...asteptate].sort());
+  });
+
+  it("harta slug-urilor acoperă exact catalogul, cu adrese unice și ASCII", async () => {
+    /*
+     * `slug-module.ts` nu poate importa `FeatureKey` (îl citește `next.config.ts`,
+     * fără alias și fără `lucide-react`), deci tipul nu mai păzește lista. O
+     * face testul: un modul nou fără slug ar primi adresa cheii engleze, iar un
+     * slug duplicat ar face două module să ceară aceeași pagină.
+     */
+    const { SLUG_MODUL, cheieDinSlug } = await import("./slug-module");
+    expect(Object.keys(SLUG_MODUL).sort()).toEqual([...FEATURE_KEYS].sort());
+
+    const sluguri = Object.values(SLUG_MODUL);
+    expect(new Set(sluguri).size, "slug duplicat").toBe(sluguri.length);
+    for (const [cheie, slug] of Object.entries(SLUG_MODUL)) {
+      expect(slug, cheie).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(cheieDinSlug(slug), slug).toBe(cheie);
+    }
+  });
+
+  it("titlurile randate încap în rezultatul de căutare, cu marca o singură dată", async () => {
+    /*
+     * ── DE CE ──────────────────────────────────────────────────────────────
+     * Șablonul `"%s · Administrativo"` adaugă 17 caractere. Auditul din 17 sept
+     * 2026 a găsit 15 din 19 titluri de modul între 83 și 100 de caractere
+     * randate — motorul le taie pe la 60 — și patru pagini cu marca de două ori
+     * („Ce nu face Administrativo · Administrativo”).
+     */
+    const SUFIX = " · Administrativo";
+    const { FISE } = await import("./fise-module");
+    const { DOMENII } = await import("./domenii");
+    const statice = fisiere("src/app/(marketing)", ["page.tsx"]).flatMap((f) =>
+      [...readFileSync(f, "utf8").matchAll(/\btitle: "([^"]+)"/g)].map(
+        (m) => [f, m[1] ?? ""] as const,
+      ),
+    );
+    const titluri = [
+      ...FISE.map((f) => [`fișa ${f.cheie}`, f.titluPagina] as const),
+      ...DOMENII.map((d) => [`domeniul ${d.slug}`, d.metaTitlu] as const),
+      ...statice,
+    ];
+    expect(titluri.length).toBeGreaterThan(30);
+    for (const [sursa, titlu] of titluri) {
+      expect(`${titlu}${SUFIX}`.length, `${sursa}: „${titlu}”`).toBeLessThanOrEqual(65);
+      expect(titlu, `${sursa}: marca e adăugată de șablon`).not.toMatch(/Administrativo/);
+    }
+  });
+
+  it("descrierile fișelor nu se termină toate în aceeași propoziție", async () => {
+    // 16 din 19 descrieri se terminau în „Cine ce poate face, pe roluri.” — o
+    // propoziție care nu deosebea nicio pagină de alta în rezultatul de căutare.
+    const { FISE } = await import("./fise-module");
+    const finaluri = new Map<string, number>();
+    for (const f of FISE) {
+      const ultima = propozitii(f.metaDescriere).at(-1) ?? "";
+      finaluri.set(ultima, (finaluri.get(ultima) ?? 0) + 1);
+      expect(f.metaDescriere.length, f.cheie).toBeLessThanOrEqual(170);
+    }
+    for (const [propozitie, ori] of finaluri) {
+      expect(ori, `„${propozitie}” încheie ${ori} descrieri`).toBeLessThanOrEqual(2);
+    }
   });
 
   it("fiecare modul are fișă, cu data ultimei schimbări", async () => {

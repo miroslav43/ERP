@@ -7,6 +7,7 @@ import { FEATURES, isFeatureKey, type FeatureKey } from "@/config/features";
 import { type Domeniu, fisaModulului } from "@/content/landing/fise-module";
 import { lunar, MODULE_NUCLEU, PRETURI_MODULE } from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
+import { cheieDinSlug, slugModul } from "@/content/landing/slug-module";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -24,12 +25,15 @@ import { arePrinGeam } from "../../_componente/vitrine";
  * exact ca și cum ar fi scrise una câte una, dar fără nouăsprezece fișiere care
  * să se despartă unul de altul la prima schimbare de format.
  *
- * Cheia din adresă E cheia de modul din `features.ts`. Alegerea nu e comoditate:
- * `/module/attendance` e verificabil față de catalog, iar un slug frumos ca
- * `/module/pontaj` ar fi cerut o a doua hartă slug→cheie, adică încă un loc unde
- * două liste trebuie ținute împreună. Costul: adresele sunt în engleză, deși
- * situl e în română. Compromis asumat, în favoarea faptului că o adresă greșită
- * dă 404 la build, nu în producție.
+ * ── ADRESA E UN SLUG ROMÂNESC, NU CHEIA ───────────────────────────────────
+ * Până la 17 sept 2026 adresa era cheia din `features.ts` (`/module/attendance`),
+ * ca să nu existe o a doua hartă slug→cheie de ținut în pas cu catalogul. Acum
+ * există — `content/landing/slug-module.ts` —, iar riscul pe care îl evita
+ * compromisul e acoperit altfel: `continut.test.ts` cere ca harta să aibă exact
+ * cheile din catalog, `dynamicParams = false` face ca o adresă necunoscută să dea
+ * 404, iar adresele vechi au redirecturi permanente în `next.config.ts`. În
+ * pagină, slug-ul se transformă în cheie la intrare; mai departe totul lucrează
+ * pe cheie.
  *
  * ── FIȘA DETALIATĂ ────────────────────────────────────────────────────────
  * Paginile au pornit cu ~39 de cuvinte proprii — două propoziții și trei puncte
@@ -78,11 +82,18 @@ function gasesteModul(cheie: string) {
 }
 
 export function generateStaticParams(): { modul: string }[] {
-  return RO.module.grupuri.flatMap((grup) => grup.module.map((m) => ({ modul: m.cheie })));
+  return RO.module.grupuri.flatMap((grup) =>
+    grup.module.map((m) => ({ modul: slugModul(m.cheie) })),
+  );
 }
 
+// Doar slug-urile prerandate răspund; orice altceva — inclusiv o cheie veche fără
+// redirect — e 404, nu o pagină randată la cerere.
+export const dynamicParams = false;
+
 export async function generateMetadata({ params }: Proprietati): Promise<Metadata> {
-  const { modul: cheie } = await params;
+  const { modul: slug } = await params;
+  const cheie = cheieDinSlug(slug) ?? "";
   const gasit = gasesteModul(cheie);
   if (gasit === null) return { title: "Modul negăsit" };
 
@@ -93,12 +104,13 @@ export async function generateMetadata({ params }: Proprietati): Promise<Metadat
   return {
     title: fisa?.titluPagina ?? `${gasit.modul.titlu} — modul Administrativo`,
     description: fisa?.metaDescriere ?? gasit.modul.text.slice(0, 155),
-    alternates: { canonical: `/module/${cheie}` },
+    alternates: { canonical: `/module/${slug}` },
   };
 }
 
 export default async function PaginaModul({ params }: Proprietati) {
-  const { modul: cheie } = await params;
+  const { modul: slug } = await params;
+  const cheie = cheieDinSlug(slug) ?? "";
   if (!isFeatureKey(cheie)) notFound();
   const gasit = gasesteModul(cheie);
   if (gasit === null) notFound();
@@ -124,7 +136,7 @@ export default async function PaginaModul({ params }: Proprietati) {
         firimituri={[
           { eticheta: "Acasă", href: "/" },
           { eticheta: "Module", href: "/module" },
-          { eticheta: modul.titlu, href: `/module/${cheie}` },
+          { eticheta: modul.titlu, href: `/module/${slug}` },
         ]}
       />
 
@@ -287,7 +299,7 @@ export default async function PaginaModul({ params }: Proprietati) {
                 >
                   <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
                     <Link
-                      href={`/module/${legatura.catre}`}
+                      href={`/module/${slugModul(legatura.catre)}`}
                       className="underline-offset-4 hover:underline"
                     >
                       {FEATURES[legatura.catre].denumire}
@@ -299,6 +311,22 @@ export default async function PaginaModul({ params }: Proprietati) {
                 </div>
               ))}
             </div>
+            {fisa.ghiduri !== undefined && (
+              <div className="mt-10">
+                <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+                  Pe același subiect
+                </p>
+                <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+                  {fisa.ghiduri.map((g) => (
+                    <li key={g.href}>
+                      <Link href={g.href} className="text-[0.9375rem] underline underline-offset-4">
+                        {g.eticheta}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Banda>
 
           {/*
@@ -333,7 +361,7 @@ export default async function PaginaModul({ params }: Proprietati) {
                 dreapta={
                   <p className="mt-3">
                     <Link
-                      href={`/module/${vecin.cheie}`}
+                      href={`/module/${slugModul(vecin.cheie)}`}
                       className="text-[0.9375rem] underline underline-offset-4"
                     >
                       Vezi modulul

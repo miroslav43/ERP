@@ -5,6 +5,7 @@ import { REGES } from "@/content/legal/reges";
 import { ADRESA_SITE } from "./contact";
 import { fisaModulului } from "./fise-module";
 import { RO } from "./ro";
+import { slugModul } from "./slug-module";
 
 /**
  * Harta paginilor publice — sursa unică pentru `sitemap.xml`.
@@ -66,7 +67,7 @@ export type Pagina = Readonly<{
  */
 const MODULE: readonly Pagina[] = RO.module.grupuri.flatMap((grup) =>
   grup.module.map((modul) => ({
-    cale: `/module/${modul.cheie}`,
+    cale: `/module/${slugModul(modul.cheie)}`,
     // Sub paginile principale, peste cele legale: sunt destinații reale, dar
     // pentru cineva care caută „program de pontaj", pagina de intrare e
     // `/module`, nu fișa unui modul anume.
@@ -144,6 +145,15 @@ export const PAGINI: readonly Pagina[] = [
   // pe un domeniu fără vechime, fiindcă răspund la o întrebare precisă, cu
   // articolul de lege lângă fiecare afirmație.
   {
+    // Hub-ul, primul din secțiune ca rândurile ei să rămână adiacente.
+    cale: "/ghid",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-17",
+    sectiune: "Obligații legale",
+  },
+  {
     cale: "/evidenta-orelor-de-munca",
     prioritate: 0.9,
     limba: "ro",
@@ -210,11 +220,27 @@ export const PAGINI: readonly Pagina[] = [
   },
 
   {
+    cale: "/unelte",
+    prioritate: 0.5,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-17",
+    sectiune: "Unelte și comparații",
+  },
+  {
     cale: "/unelte/foaie-de-pontaj",
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
     actualizat: "2026-09-03",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    cale: "/comparatie",
+    prioritate: 0.5,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-17",
     sectiune: "Unelte și comparații",
   },
   {

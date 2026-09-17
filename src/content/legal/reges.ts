@@ -217,6 +217,10 @@ export const REGES: PaginaLege = {
   ],
 
   legaturaSecundara: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
+  legaturiConexe: [
+    { eticheta: "Cum se transmite din Administrativo", href: "/module/reges" },
+    { eticheta: "Evidența orelor de muncă (art. 119)", href: "/evidenta-orelor-de-munca" },
+  ],
 
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-17",

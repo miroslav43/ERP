@@ -53,7 +53,20 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
       {/* `dateModified` e data verificării textelor de lege — același `actualizatIso`
           care ajunge și în `lastmod` din sitemap. */}
       <JsonLd date={nodArticol(text)} />
-      <AntetSecundar text={text.antet} />
+      <AntetSecundar
+        text={text.antet}
+        // Firimituri doar sub `/ghid/`, singurul părinte real; `/reges-online` și
+        // `/evidenta-orelor-de-munca` stau la rădăcină și n-au ce traseu arăta.
+        firimituri={
+          text.cale.startsWith("/ghid/")
+            ? [
+                { eticheta: "Acasă", href: "/" },
+                { eticheta: "Ghiduri", href: "/ghid" },
+                { eticheta: text.antet.titlu.split(":")[0] ?? text.antet.titlu, href: text.cale },
+              ]
+            : undefined
+        }
+      />
 
       {/* Răspunsul, înaintea oricărei nuanțe. Cine a ajuns aici dintr-o căutare
           are o întrebare, nu curiozitate despre istoricul legislativ. */}
@@ -188,6 +201,22 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
             {text.legaturaSecundara.eticheta}
           </Link>
         </div>
+        {text.legaturiConexe !== undefined && (
+          <div className="mt-10">
+            <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              Pe același subiect
+            </p>
+            <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+              {text.legaturiConexe.map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className="text-[0.9375rem] underline underline-offset-4">
+                    {l.eticheta}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Banda>
     </Cadru>
   );

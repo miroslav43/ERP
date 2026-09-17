@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RO } from "@/content/landing/ro";
+import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -39,7 +40,7 @@ import {
  * nevoie de hidratare.
  */
 export const metadata: Metadata = {
-  title: "Foaie de pontaj lunar, gratuită — cu sărbătorile calculate",
+  title: "Foaie de pontaj lunar gratuită, cu sărbători",
   description:
     "Generează o foaie colectivă de prezență pentru orice lună, cu weekendurile și sărbătorile legale marcate automat. Se tipărește sau se descarcă în Excel. Fără cont.",
   alternates: { canonical: "/unelte/foaie-de-pontaj" },
@@ -78,11 +79,12 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
           foaia, fără antet, formular și subsol. */}
       <div data-tipar="ascunde">
         <AntetSecundar
-          text={{
-            supratitlu: "Unealtă gratuită",
-            titlu: "Foaie de pontaj lunar",
-            lead: "Alege luna și scrie numele. Weekendurile și sărbătorile legale se marchează singure — inclusiv Paștele ortodox și zilele care depind de el. Se tipărește sau se descarcă în Excel, fără cont.",
-          }}
+          text={ANTET_FOAIE_PONTAJ}
+          firimituri={[
+            { eticheta: "Acasă", href: "/" },
+            { eticheta: "Unelte", href: "/unelte" },
+            { eticheta: "Foaie de pontaj", href: "/unelte/foaie-de-pontaj" },
+          ]}
         />
       </div>
 

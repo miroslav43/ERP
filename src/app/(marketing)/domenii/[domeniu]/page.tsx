@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { FEATURES } from "@/config/features";
 import { DOMENII, domeniulDupaSlug } from "@/content/landing/domenii";
 import { RO } from "@/content/landing/ro";
+import { slugModul } from "@/content/landing/slug-module";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -99,7 +100,14 @@ export default async function PaginaDomeniu({ params }: Proprietati) {
               className="border-mk-rigla-inv/40 grid gap-2 border-b py-5 md:grid-cols-12 md:gap-8"
             >
               <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
-                {FEATURES[m.cheie].denumire}
+                {/* Numele modulului era text simplu: pagina de domeniu nu trimitea
+                    nicăieri, deși fiecare modul are pagina lui. */}
+                <Link
+                  href={`/module/${slugModul(m.cheie)}`}
+                  className="underline-offset-4 hover:underline"
+                >
+                  {FEATURES[m.cheie].denumire}
+                </Link>
               </h3>
               <p className="text-mk-text-inv-slab text-[0.9375rem] leading-[1.6] md:col-span-8">
                 {m.deCe}

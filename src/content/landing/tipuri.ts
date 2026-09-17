@@ -330,6 +330,10 @@ export type ContinutLanding = Readonly<{
     intrebari: AntetPagina;
     domenii: AntetPagina;
     pontajTelefon: AntetPagina;
+    /** Hub-urile care dădeau 404 până la 17 sept 2026, deși copiii lor existau. */
+    ghid: AntetPagina;
+    unelte: AntetPagina;
+    comparatie: AntetPagina;
   }>;
 }>;
 

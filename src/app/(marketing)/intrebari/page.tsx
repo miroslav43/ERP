@@ -16,7 +16,8 @@ import { Cadru } from "../_componente/cadru";
  * ei e unitatea pe care un motor o poate cita întreagă, indiferent de marcaj.
  */
 export const metadata: Metadata = {
-  title: "Întrebări frecvente despre Administrativo",
+  // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
+  title: "Întrebări frecvente: preț, date, pontaj",
   description:
     "Ce ne întreabă firmele înainte să semneze: cum se face pontajul, cine vede ce, ce se întâmplă cu datele la plecare și cât costă.",
   alternates: { canonical: "/intrebari" },

@@ -90,6 +90,13 @@ export type PaginaLege = Readonly<{
    * toate trei în același loc, iar două dintre ele ar fi rămas fundături.
    */
   legaturaSecundara: Readonly<{ eticheta: string; href: string }>;
+  /**
+   * Celelalte pagini despre același subiect — modulul care rezolvă obligația,
+   * unealta, comparația. `/reges-online` și `/module/reges` nu se legau în
+   * niciun sens până la 17 sept 2026: ghidul explica obligația, modulul felul în
+   * care o îndeplinește, iar cititorul unuia nu afla de celălalt.
+   */
+  legaturiConexe?: readonly Readonly<{ eticheta: string; href: string }>[];
   /** Luna și anul ultimei verificări a textelor de lege. Se scrie de mână. */
   actualizat: string;
   /** Data ISO a aceleiași verificări, pentru `dateModified`. */

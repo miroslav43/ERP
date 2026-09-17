@@ -971,6 +971,9 @@ export const RO: ContinutLanding = {
           { eticheta: "Producție și fabrici", href: "/domenii/productie" },
           { eticheta: "Transport și logistică", href: "/domenii/transport" },
           { eticheta: "Servicii, birouri și comerț", href: "/domenii/servicii" },
+          // Hub-ul n-avea nicio legătură care să ducă la el până la 17 sept 2026
+          // — exista doar în sitemap și în llms.txt.
+          { eticheta: "Toate domeniile", href: "/domenii" },
         ],
       },
       {
@@ -979,6 +982,7 @@ export const RO: ContinutLanding = {
           { eticheta: "Evidența orelor (art. 119)", href: "/evidenta-orelor-de-munca" },
           { eticheta: "REGES-ONLINE: termene", href: "/reges-online" },
           { eticheta: "Control ITM: ce se cere", href: "/ghid/control-itm" },
+          { eticheta: "Toate ghidurile", href: "/ghid" },
           { eticheta: "Ce nu facem", href: "/de-ce-nu" },
           { eticheta: "Conformitate", href: "/incredere" },
           { eticheta: "Întrebări frecvente", href: "/intrebari" },
@@ -1036,6 +1040,21 @@ export const RO: ContinutLanding = {
       supratitlu: "Pontaj de pe telefon",
       titlu: "Se pontează din browser, fără instalare din magazin",
       lead: "Omul de pe șantier deschide o adresă, o adaugă pe ecranul de start și pontează. Fără cont în App Store sau Google Play, fără actualizări de instalat, fără un telefon care nu mai are loc.",
+    },
+    ghid: {
+      supratitlu: "Ghiduri",
+      titlu: "Ce cere legea, cu articolul lângă fiecare afirmație",
+      lead: "Evidența orelor, REGES-ONLINE și controlul ITM, scrise pentru cine răspunde de ele într-o firmă mică. Fiecare pagină spune și ce nu se poate afirma cu certitudine.",
+    },
+    unelte: {
+      supratitlu: "Unelte",
+      titlu: "Unelte gratuite, fără cont",
+      lead: "Lucruri care se folosesc pe loc: fără cont, fără adresă de e-mail lăsată în schimb și fără o probă care expiră.",
+    },
+    comparatie: {
+      supratitlu: "Comparații",
+      titlu: "Când merită schimbarea și când nu",
+      lead: "Comparații cu felul în care se lucrează azi, inclusiv situațiile în care răspunsul corect e să rămâi la ce ai.",
     },
   },
 };

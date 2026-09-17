@@ -52,7 +52,9 @@ export const DOMENII: readonly Domeniu[] = [
     slug: "constructii",
     eticheta: "Construcții și instalații",
     titlu: "Pontaj și SSM pentru firme de construcții",
-    metaTitlu: "Program de pontaj și SSM pentru construcții",
+    // „Program de pontaj” rămâne titlul paginii modulului de pontaj: scris și
+    // aici, două pagini concurau pe aceeași căutare.
+    metaTitlu: "Pontaj și SSM pentru firme de construcții",
     metaDescriere:
       "Echipe pe șantiere și puncte de lucru, instruiri și echipament care expiră, evidența orelor cerută la control. Pontaj de pe telefon, fără instalare.",
     lead: "Oamenii nu sunt într-o clădire, sunt în cinci locuri. Evidența orelor trebuie ținută la fiecare dintre ele, iar controlul nu sună înainte.",
@@ -107,7 +109,7 @@ export const DOMENII: readonly Domeniu[] = [
     slug: "productie",
     eticheta: "Producție și fabrici",
     titlu: "Pontaj pe schimburi pentru producție",
-    metaTitlu: "Program de pontaj pe schimburi pentru producție",
+    metaTitlu: "Pontaj pe schimburi pentru fabrici",
     metaDescriere:
       "Ture și schimburi, spor de noapte cu interval propriu, revizii pe scadență și pe contor, autorizații nominale cu termen. Evidența orelor, ținută cum o cere legea.",
     lead: "Schimbul de noapte, sporul care i se cuvine și revizia care trebuie făcută la o mie de ore sunt trei evidențe diferite. De obicei se țin în trei fișiere care nu se cunosc.",
@@ -162,7 +164,7 @@ export const DOMENII: readonly Domeniu[] = [
     slug: "transport",
     eticheta: "Transport și logistică",
     titlu: "Parc auto și diurne pentru firme de transport",
-    metaTitlu: "Program pentru parc auto, diurne și pontaj în transport",
+    metaTitlu: "Parc auto, diurne și pontaj în transport",
     metaDescriere:
       "ITP, RCA și rovinietă cu termen, foi de parcurs cu kilometraj verificat, diurne externe pe țări cu ferestre de 24 de ore și plafon neimpozabil.",
     lead: "Un termen ratat la o mașină oprește mașina. O diurnă calculată greșit se descoperă la control, cu dobânzi, la un an după ce a fost plătită.",
@@ -217,7 +219,7 @@ export const DOMENII: readonly Domeniu[] = [
     slug: "servicii",
     eticheta: "Servicii, birouri și comerț",
     titlu: "Concedii și dosare de personal pentru birouri",
-    metaTitlu: "Program de concedii și dosare de personal pentru birouri",
+    metaTitlu: "Concedii și dosare de personal pentru birouri",
     metaDescriere:
       "Cereri de concediu cu aprobare pe linie ierarhică, sold recalculat automat, prag de absenți simultani, evaluări periodice și portal în care omul își găsește singur fluturașul.",
     lead: "Aici nu se pierd ore, se pierd zile de concediu și răspunsuri. Problema nu e evidența, e că fiecare cerere trece prin cineva care trebuie să-și amintească.",

@@ -150,6 +150,11 @@ export const EVIDENTA_ORELOR: PaginaLege = {
   ],
 
   legaturaSecundara: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
+  legaturiConexe: [
+    { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+    { eticheta: "Modulul de pontaj", href: "/module/pontaj" },
+    { eticheta: "Pontaj în Excel sau în aplicație", href: "/comparatie/excel" },
+  ],
 
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-03",

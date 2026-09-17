@@ -20,7 +20,8 @@ import { Cadru } from "../_componente/cadru";
  * limite decât singură.
  */
 export const metadata: Metadata = {
-  title: "Ce nu face Administrativo",
+  // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
+  title: "Ce nu facem: limitele, scrise dinainte",
   description:
     "Lista limitelor, scrisă înainte să întrebi: fără raportare la ANAF, fără CNP-uri trimise la REGES pe fundal, fără aplicație în magazine. Și de ce e mai ieftin așa.",
   alternates: { canonical: "/de-ce-nu" },

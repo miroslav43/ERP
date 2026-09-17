@@ -16,7 +16,7 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
  * noastră, nu un document oficial.
  */
 export const metadata: Metadata = {
-  title: "Control ITM: ce documente se cer și ce se verifică",
+  title: "Control ITM: ce documente se cer",
   description:
     "Lista documentelor cerute la un control de fond în relații de muncă, cele patru locuri unde apar de obicei problemele, și ce s-a schimbat din decembrie 2025.",
   alternates: { canonical: "/ghid/control-itm" },

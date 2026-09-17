@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+// Cale relativă, nu `@/`: aici rezoluția de module e a lui Node, fără alias.
+import { REDIRECTURI_MODULE } from "./src/content/landing/slug-module";
+
 const nextConfig: NextConfig = {
   /**
    * Build de producție containerizat: `standalone` scrie în `.next/standalone`
@@ -74,6 +77,18 @@ const nextConfig: NextConfig = {
       { source: "/en", headers: engleza },
       { source: "/en/:path*", headers: engleza },
     ];
+  },
+
+  /**
+   * Adresele vechi ale paginilor de modul (`/module/attendance`) → slug-urile
+   * românești (`/module/pontaj`). Permanente, fiindcă mutarea e definitivă și
+   * motoarele trebuie să transfere adresa, nu s-o țină pe amândouă. Rulează
+   * înaintea lui `src/proxy.ts`, deci o adresă veche nu plătește verificarea de
+   * sesiune. Lista se generează din `slug-module.ts` și conține doar cheile al
+   * căror slug diferă — altfel ar fi bucle.
+   */
+  redirects() {
+    return [...REDIRECTURI_MODULE];
   },
 
   reactCompiler: true,

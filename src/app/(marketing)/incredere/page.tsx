@@ -17,7 +17,7 @@ import { Cadru } from "../_componente/cadru";
  * poate trimite către o ancoră dintr-o pagină de patru mii de cuvinte.
  */
 export const metadata: Metadata = {
-  title: "Securitatea datelor de personal: izolarea între firme",
+  title: "Securitatea datelor de personal între firme",
   description:
     "Cum ține Administrativo datele fiecărei firme separate: regula e impusă în Postgres, nu în aplicație. Plus termenele de păstrare, pe fiecare fel de dată.",
   alternates: { canonical: "/incredere" },

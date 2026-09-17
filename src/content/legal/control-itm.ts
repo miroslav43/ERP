@@ -171,6 +171,10 @@ export const CONTROL_ITM: PaginaLege = {
     eticheta: "Ce cere art. 119 la evidența orelor",
     href: "/evidenta-orelor-de-munca",
   },
+  legaturiConexe: [
+    { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+    { eticheta: "Modulul SSM: instruiri și termene", href: "/module/ssm" },
+  ],
 
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-04",
