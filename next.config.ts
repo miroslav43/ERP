@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+// Cale relativă, nu `@/`: aici rezoluția de module e a lui Node, fără alias.
+import { REDIRECTURI_MODULE } from "./src/content/landing/slug-module";
+
 const nextConfig: NextConfig = {
   /**
    * Build de producție containerizat: `standalone` scrie în `.next/standalone`
@@ -55,6 +58,37 @@ const nextConfig: NextConfig = {
    */
   experimental: {
     staleTimes: { dynamic: 15 },
+  },
+
+  /**
+   * Limba paginilor engleze, ca antet HTTP.
+   *
+   * `<html lang>` e scris o singură dată, în `src/app/layout.tsx`, ca `ro`: un
+   * `lang` per rută ar cere fie mai multe layout-uri rădăcină (reîncărcare
+   * completă între grupuri și `ZonaIncarcare` ruptă), fie `headers()` în layout,
+   * care ar face dinamice toate paginile statice. Conținutul are deja
+   * `lang="en"` pe învelișul lui (`_componente/cadru.tsx`), iar Google ignoră
+   * oricum atributul și deduce limba din text. Antetul e semnalul ieftin pentru
+   * motoarele care îl citesc (Bing), fără niciun cost de randare.
+   */
+  headers() {
+    const engleza = [{ key: "Content-Language", value: "en" }];
+    return [
+      { source: "/en", headers: engleza },
+      { source: "/en/:path*", headers: engleza },
+    ];
+  },
+
+  /**
+   * Adresele vechi ale paginilor de modul (`/module/attendance`) → slug-urile
+   * românești (`/module/pontaj`). Permanente, fiindcă mutarea e definitivă și
+   * motoarele trebuie să transfere adresa, nu s-o țină pe amândouă. Rulează
+   * înaintea lui `src/proxy.ts`, deci o adresă veche nu plătește verificarea de
+   * sesiune. Lista se generează din `slug-module.ts` și conține doar cheile al
+   * căror slug diferă — altfel ar fi bucle.
+   */
+  redirects() {
+    return [...REDIRECTURI_MODULE];
   },
 
   reactCompiler: true,

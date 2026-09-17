@@ -23,7 +23,8 @@ import { Cadru } from "../_componente/cadru";
  * cele patru te regăsești — și trimite mai departe.
  */
 export const metadata: Metadata = {
-  title: "Administrativo pe domenii: construcții, producție, transport",
+  // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
+  title: "Pe domenii: construcții, producție, transport",
   description:
     "Aceleași module, altă ordine de pornire. Ce se schimbă pentru firmele din construcții, producție, transport și servicii — și ce rămâne la fel.",
   alternates: { canonical: "/domenii" },

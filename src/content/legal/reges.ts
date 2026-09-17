@@ -26,6 +26,7 @@ import type { PaginaLege } from "./tipuri";
  */
 
 export const REGES: PaginaLege = {
+  cale: "/reges-online",
   antet: {
     supratitlu: "Obligație legală",
     titlu: "REGES-ONLINE: termenele de transmitere și amenzile",
@@ -189,10 +190,17 @@ export const REGES: PaginaLege = {
       ],
     },
     {
+      titlu: "Cum intri în REGES-ONLINE",
+      paragrafe: [
+        "Accesul se cere de firmă, din portalul Inspecției Muncii — reges.inspectiamuncii.ro. Portalul are aplicații separate: una pentru angajator, una pentru salariat, de unde omul își scoate singur extrasul din registru, și una pentru autorități.",
+        "Registrul se completează și se transmite pe platforma Inspecției Muncii sau dintr-o aplicație a angajatorului conectată la ea. Administrativo merge pe a doua cale: mesajele pleacă prin API cu credențialele firmei tale, iar răspunsul Inspecției se întoarce lângă mesajul trimis. Termenele fiecărui eveniment rămân aceleași, indiferent de calea aleasă.",
+      ],
+    },
+    {
       titlu: "Ce nu ține de noi",
       paragrafe: [
-        "Administrativo ține datele din care se completează registrul — contracte, funcții, timp de muncă, salarii, suspendări, încetări — și le arată la termen, cu istoricul modificărilor. Transmiterea propriu-zisă către REGES-ONLINE rămâne în platforma Inspecției Muncii, cu certificatul și cu persoana împuternicită de firmă.",
-        "E o distincție pe care preferăm s-o facem noi, înainte s-o descoperi tu: cine îți promite „transmitere automată în REGES” descrie de obicei tot un export care se încarcă manual.",
+        "Administrativo ține datele din care se completează registrul — contracte, funcții, timp de muncă, salarii, suspendări, încetări —, le arată la termen și le transmite la REGES-ONLINE prin API, cu accesul firmei. Răspunsul Inspecției Muncii se întoarce în aplicație, lângă mesajul trimis, cu motivul unei respingeri scris pe înțeles.",
+        "Rămân ale firmei: obținerea accesului la API din portalul REGES-ONLINE, persoana împuternicită să transmită și corectitudinea datelor din contracte. Aplicația spune ce lipsește dintr-un mesaj înainte de trimitere; nu decide în locul tău dacă un contract e corect juridic.",
       ],
     },
   ],
@@ -216,7 +224,26 @@ export const REGES: PaginaLege = {
   ],
 
   legaturaSecundara: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
+  legaturiConexe: [
+    { eticheta: "Cum se transmite din Administrativo", href: "/module/reges" },
+    { eticheta: "Evidența orelor de muncă (art. 119)", href: "/evidenta-orelor-de-munca" },
+  ],
+
+  surse: [
+    {
+      eticheta: "HG 295/2025 (REGES-ONLINE), forma consolidată",
+      href: "https://legislatie.just.ro/Public/DetaliiDocumentAfis/302099",
+    },
+    {
+      eticheta: "Codul muncii, forma consolidată (Portalul Legislativ)",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/128647",
+    },
+    {
+      eticheta: "Portalul REGES-ONLINE al Inspecției Muncii",
+      href: "https://reges.inspectiamuncii.ro",
+    },
+  ],
 
   actualizat: "septembrie 2026",
-  actualizatIso: "2026-09-03",
+  actualizatIso: "2026-09-17",
 };

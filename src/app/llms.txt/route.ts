@@ -1,6 +1,7 @@
 import { ADRESA_FIRMA, ADRESA_SITE, CONTACT, FIRMA } from "@/content/landing/contact";
 import { lunar, PACHETE, PRAG_ANGAJATI, PRET_NUCLEU } from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
+import { slugModul } from "@/content/landing/slug-module";
 
 /**
  * `/llms.txt` — harta sitului pentru modelele de limbaj.
@@ -41,7 +42,10 @@ const FISE_MODULE: readonly (readonly [cale: string, descriere: string])[] =
         // Doar titlul și grupul. Descrierea întreagă stă o singură dată, în
         // secțiunea „Module" de mai jos — repetată și aici, ar fi dublat fișierul
         // fără să adauge un fapt.
-        [`/module/${modul.cheie}`, `Fișa modulului ${modul.titlu} (${grup.titlu}).`] as const,
+        [
+          `/module/${slugModul(modul.cheie)}`,
+          `Fișa modulului ${modul.titlu} (${grup.titlu}).`,
+        ] as const,
     ),
   );
 
@@ -61,6 +65,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   ["/de-ce-nu", "Limitele asumate ale produsului și comparația cu felul de a lucra fără el."],
   ["/intrebari", "Întrebările frecvente, cu răspunsuri."],
+  ["/ghid", "Toate ghidurile pentru angajatori: evidența orelor, REGES-ONLINE, controlul ITM."],
   [
     "/evidenta-orelor-de-munca",
     "Ce cere art. 119 din Codul muncii: ora de începere și de sfârșit, zilnic, la locul de muncă. Amenzile, cu articolul lângă fiecare, și ce nu se poate afirma cu certitudine.",
@@ -73,10 +78,12 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/ghid/control-itm",
     "Ce documente se cer la un control de fond ITM, cele patru locuri unde apar de obicei problemele, și ce se poate sau nu se poate pregăti în ajun.",
   ],
+  ["/unelte", "Uneltele gratuite, fără cont."],
   [
     "/unelte/foaie-de-pontaj",
     "Unealtă gratuită: generează o foaie de pontaj lunară cu sărbătorile legale calculate. Fără cont.",
   ],
+  ["/comparatie", "Comparațiile cu felul în care se lucrează azi."],
   [
     "/comparatie/excel",
     "Pontaj în foaie de calcul față de aplicație: unde se rupe Excel-ul și unde nu.",

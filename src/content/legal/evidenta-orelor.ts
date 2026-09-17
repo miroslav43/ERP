@@ -22,6 +22,7 @@ import type { PaginaLege } from "./tipuri";
  */
 
 export const EVIDENTA_ORELOR: PaginaLege = {
+  cale: "/evidenta-orelor-de-munca",
   antet: {
     supratitlu: "Obligație legală",
     titlu: "Evidența orelor de muncă: ce cere art. 119 din Codul muncii",
@@ -149,6 +150,18 @@ export const EVIDENTA_ORELOR: PaginaLege = {
   ],
 
   legaturaSecundara: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
+  legaturiConexe: [
+    { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+    { eticheta: "Modulul de pontaj", href: "/module/pontaj" },
+    { eticheta: "Pontaj în Excel sau în aplicație", href: "/comparatie/excel" },
+  ],
+
+  surse: [
+    {
+      eticheta: "Codul muncii, forma consolidată (Portalul Legislativ)",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/128647",
+    },
+  ],
 
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-03",

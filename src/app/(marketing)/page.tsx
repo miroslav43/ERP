@@ -9,7 +9,7 @@ import { PaginaLanding } from "./_componente/pagina";
 export const metadata: Metadata = {
   title: { absolute: RO.meta.titlu },
   description: RO.meta.descriere,
-  alternates: { canonical: "/", languages: { ro: "/", en: "/en" } },
+  alternates: { canonical: "/", languages: { ro: "/", en: "/en", "x-default": "/" } },
 };
 
 export default function PaginaPrincipala() {

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { RUTA_AUTENTIFICARE, RUTA_DUPA_AUTENTIFICARE } from "@/config/routes";
+import { RUTA_AUTENTIFICARE, RUTA_DUPA_AUTENTIFICARE, SEGMENTE_APLICATIE } from "@/config/routes";
 import { updateSession } from "@/lib/supabase/middleware";
 
 /**
@@ -14,7 +14,9 @@ import { updateSession } from "@/lib/supabase/middleware";
  *      excepții care ies din funcție ÎNAINTE de `updateSession()`, mai jos:
  *      rutele `/api/` (își verifică singure sesiunea) și prefetch-urile de
  *      `<Link>` (navigarea reală care urmează trece normal prin aici);
- *   2. redirect grosier către autentificare pentru vizitatorii nelogați;
+ *   2. redirect grosier către autentificare pentru vizitatorii nelogați care cer
+ *      o rută a aplicației (`SEGMENTE_APLICATIE`); o cale necunoscută primește
+ *      404 de la Next, nu ecranul de login;
  *   3. duce utilizatorul deja autentificat de pe landing în aplicație.
  *
  * Autorizarea reală se face în trei locuri independente:
@@ -30,13 +32,16 @@ import { updateSession } from "@/lib/supabase/middleware";
  */
 
 /**
- * Rutele accesibile fără sesiune. Restul aplicației e închis implicit.
+ * Rutele accesibile fără sesiune.
  *
- * O pagină publică ABSENTĂ de aici nu dă 404 și nu dă eroare: dă un 307 către
- * autentificare. Vizitatorul venit dintr-o căutare primește un formular de login
- * în locul paginii pe care o căuta, iar robotul primește același lucru și
- * indexează ecranul de autentificare. De aceea `continut.test.ts` verifică lista
- * asta din conținut, nu dintr-o enumerare scrisă de mână.
+ * Până la 17 sept 2026, o pagină publică ABSENTĂ de aici — și orice adresă
+ * inexistentă, `/blog`, `/wp-login.php` — primea 307 către autentificare:
+ * vizitatorul venit dintr-o căutare vedea un formular de login, iar robotul
+ * indexa ecranul de autentificare ca „soft 404”. Acum redirectul se face doar
+ * pentru segmentele aplicației (`SEGMENTE_APLICATIE`); restul trece și primește
+ * răspunsul real al paginii, inclusiv 404. Lista rămâne pentru rutele publice
+ * care au un prefix comun cu aplicația și ca documentație verificată de
+ * `continut.test.ts`.
  */
 const RUTE_PUBLICE: readonly string[] = [
   "/en", // landing-ul în engleză; fără linia asta, /en trimite la autentificare
@@ -135,6 +140,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   if (estePublica(pathname)) return response;
+
+  // Segment ÎNTREG, nu prefix: `pontaj` și `reges` sunt prefixe pentru
+  // `/pontaj-pe-telefon` și `/reges-online`.
+  const segment = pathname.split("/")[1] ?? "";
+  if (!(SEGMENTE_APLICATIE as readonly string[]).includes(segment)) return response;
 
   const url = request.nextUrl.clone();
   url.pathname = RUTA_AUTENTIFICARE;

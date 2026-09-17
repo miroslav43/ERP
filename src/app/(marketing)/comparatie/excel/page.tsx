@@ -26,7 +26,7 @@ import { Cadru } from "../../_componente/cadru";
  * atent — exact cel care caută comparații înainte să cumpere — o închide.
  */
 export const metadata: Metadata = {
-  title: "Pontaj în Excel sau în aplicație: când merită schimbarea",
+  title: "Pontaj în Excel sau în aplicație",
   description:
     "Unde se rupe foaia de calcul la pontaj și unde nu se rupe deloc. Comparație pe opt aspecte concrete, plus situațiile în care e în regulă să rămâi la Excel.",
   alternates: { canonical: "/comparatie/excel" },
@@ -35,7 +35,14 @@ export const metadata: Metadata = {
 export default function PaginaComparatieExcel() {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={ANTET_COMPARATIE} />
+      <AntetSecundar
+        text={ANTET_COMPARATIE}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Comparații", href: "/comparatie" },
+          { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
+        ]}
+      />
 
       <Banda inaltime="medie">
         <div className="border-mk-rigla/40 border-t">
@@ -58,10 +65,22 @@ export default function PaginaComparatieExcel() {
               <p className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-3">
                 {p.aspect}
               </p>
+              {/*
+                Eticheta pe celulă, sub `md`: capul de tabel de mai sus e
+                `hidden md:grid`, deci pe telefon — și în textul extras de un
+                motor, care nu vede coloane — rândurile nu spuneau care parte e
+                Excel și care e aplicația.
+              */}
               <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6] md:col-span-4">
+                <span className="font-mk-date mb-1 block text-[0.6875rem] font-medium tracking-[0.14em] uppercase md:hidden">
+                  În Excel
+                </span>
                 {p.excel}
               </p>
               <p className="border-mk-rigla/40 text-[0.9375rem] leading-[1.6] md:col-span-5 md:border-l md:pl-8">
+                <span className="font-mk-date text-mk-text-slab mb-1 block text-[0.6875rem] font-medium tracking-[0.14em] uppercase md:hidden">
+                  În Administrativo
+                </span>
                 {p.aplicatie}
               </p>
             </div>

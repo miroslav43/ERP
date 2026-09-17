@@ -19,6 +19,7 @@ import type { PaginaLege } from "./tipuri";
  */
 
 export const CONTROL_ITM: PaginaLege = {
+  cale: "/ghid/control-itm",
   antet: {
     supratitlu: "Ghid",
     titlu: "Control ITM: ce se cere și ce se verifică de fapt",
@@ -170,6 +171,21 @@ export const CONTROL_ITM: PaginaLege = {
     eticheta: "Ce cere art. 119 la evidența orelor",
     href: "/evidenta-orelor-de-munca",
   },
+  legaturiConexe: [
+    { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+    { eticheta: "Modulul SSM: instruiri și termene", href: "/module/ssm" },
+  ],
+
+  surse: [
+    {
+      eticheta: "Codul muncii, forma consolidată (Portalul Legislativ)",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/128647",
+    },
+    {
+      eticheta: "HG 295/2025 (REGES-ONLINE), forma consolidată",
+      href: "https://legislatie.just.ro/Public/DetaliiDocumentAfis/302099",
+    },
+  ],
 
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-04",

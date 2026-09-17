@@ -941,6 +941,25 @@ dialog[open]::backdrop {
 }
 
 /*
+ * ── TITLUL ȘI LEAD-UL SUNT DEJA ACOLO ────────────────────────────────────────
+ *
+ * Cu `backwards`, fiecare copil stă la cadrul `from` — invizibil — pe toată
+ * durata întârzierii lui. Lead-ul de sub H1 e elementul LCP al paginii de start,
+ * iar al treilea copil: 120ms de întârziere plus 320ms de intrare înainte să fie
+ * pictat opac. Măsurat pe 17 sept 2026, laborator, emulare mobilă cu CPU ×4,
+ * trei rulări: LCP median 1588ms cu animație, 720ms cu mișcare redusă.
+ *
+ * Titlul și lead-ul apar direct; supratitlul, butoanele și foaia își păstrează
+ * intrarea. Specificitatea (0,1,1 și 0,1,2) bate `.mk-intra > *`; regulile
+ * `nth-child`, mai tari, setează doar `animation-delay`, fără efect fără
+ * animație.
+ */
+.mk-intra > h1,
+.mk-intra > h1 + p {
+  animation: none;
+}
+
+/*
  * Sub mișcare redusă, animația se scoate CU TOTUL — nu se scurtează.
  *
  * Regula globală din capul fișierului taie `animation-duration` la 0,01ms, dar

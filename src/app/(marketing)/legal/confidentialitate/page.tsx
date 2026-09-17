@@ -2,57 +2,34 @@
 import type { Metadata } from "next";
 
 import { RO } from "@/content/landing/ro";
+import {
+  AVERTISMENT_CONFIDENTIALITATE,
+  DATA_CONFIDENTIALITATE,
+  SECTIUNI_CONFIDENTIALITATE,
+} from "@/content/legal/confidentialitate";
 
 import { Cadru } from "../../_componente/cadru";
 
+/**
+ * Politica de confidențialitate.
+ *
+ * Aceeași transformare ca la `legal/termeni`: pagina era un schelet — note „ce
+ * va scrie aici” și „DE COMPLETAT DE JURIST” sub fiecare dintre cele zece
+ * secțiuni, plus o locație a serverelor „DE CONFIRMAT” pe care termenii o
+ * spuneau deja. Bara de consimțământ trimite aici, deci scheletul era exact
+ * documentul pe care îl citea cineva înainte să apese „Accept”.
+ *
+ * Textul vine acum din `content/legal/confidentialitate.ts`, redactat din cod;
+ * stadiul juridic se spune o dată, sus.
+ */
 export const metadata: Metadata = {
   title: "Politica de confidențialitate",
   description:
-    "Ce date colectăm în Administrativo, de ce, și care sunt drepturile tale conform GDPR. Document în curs de validare juridică.",
+    "Ce date prelucrează Administrativo, de ce, cât le păstrează, cine are acces și care sunt drepturile tale conform GDPR. Document în curs de validare juridică.",
   // Vezi nota din `legal/termeni`: canonical da, `languages` nu — nu există
   // varianta engleză.
   alternates: { canonical: "/legal/confidentialitate" },
 };
-
-const SECTIUNI = [
-  {
-    titlu: "1. Operatorul de date",
-    nota: "Denumire completă, CUI, sediu, date de contact și, dacă este cazul, responsabilul cu protecția datelor.",
-  },
-  {
-    titlu: "2. Ce date colectăm",
-    nota: "Date din formularul de demo (nume, firmă, e-mail, telefon, număr de angajați, mesaj), date de cont, date introduse de client în aplicație și date tehnice (adresă IP, agent de navigare) păstrate în jurnalul de audit.",
-  },
-  {
-    titlu: "3. Temeiul și scopul prelucrării",
-    nota: "Interes legitim pentru răspunsul la cererea de demo, executarea contractului pentru datele de cont, obligații legale pentru documentele contabile.",
-  },
-  {
-    titlu: "4. Cine are acces",
-    nota: "Angajații noștri strict pe bază de necesitate, plus împuterniciții: furnizorul de găzduire a bazei de date și furnizorul de e-mail tranzacțional.",
-  },
-  {
-    titlu: "5. Transferuri în afara Spațiului Economic European",
-    nota: "DE CONFIRMAT: locația efectivă a serverelor și garanțiile aplicabile pentru fiecare împuternicit.",
-  },
-  {
-    titlu: "6. Cât timp păstrăm datele",
-    nota: "Cererile de demo, datele de cont după încetarea contractului și jurnalul de audit au termene diferite, configurate prin politicile de retenție.",
-  },
-  {
-    titlu: "7. Drepturile tale",
-    nota: "Acces, rectificare, ștergere, restricționare, portabilitate, opoziție și dreptul de a depune plângere la ANSPDCP.",
-  },
-  {
-    titlu: "8. Cookie-uri",
-    nota: "Cookie-ul de sesiune este strict necesar pentru autentificare și nu cere consimțământ. Pe paginile publice folosim Google Analytics 4, ale cărui cookie-uri sunt refuzate implicit și se activează numai după acceptul din bara de jos; refuzul se ține minte și nu schimbă nimic din felul în care funcționează situl. Rămâne DE REDACTAT juridic: durata fiecărui cookie și lista lor exactă.",
-  },
-  {
-    titlu: "9. Securitate",
-    nota: "Izolarea datelor între organizații la nivel de bază de date, verificarea permisiunilor pe server, jurnal de audit care nu poate fi modificat, criptare în tranzit.",
-  },
-  { titlu: "10. Modificări ale politicii", nota: "Cum anunțăm modificările și de când se aplică." },
-] as const;
 
 export default function PaginaConfidentialitate() {
   return (
@@ -61,21 +38,25 @@ export default function PaginaConfidentialitate() {
         <h1 className="font-mk-display text-[clamp(2rem,4vw,3rem)] leading-[1.04] font-semibold tracking-[-0.02em]">
           Politica de confidențialitate
         </h1>
-        <p className="text-mk-text-slab mt-4 text-base leading-relaxed">
-          Structura de mai jos descrie onest ce date atinge aplicația astăzi. Textul final, cu
-          formulările cerute de GDPR, este în curs de validare juridică.
-        </p>
-        <p className="border-mk-sl bg-mk-sl-hartie text-mk-sl-apasat mt-6 rounded border p-4 text-sm">
-          DE COMPLETAT DE JURIST — până la validare, acest document are rol informativ, nu de
-          politică asumată juridic.
+        <p className="font-mk-date text-mk-text-slab mt-4 text-[0.6875rem] tracking-[0.14em] uppercase">
+          Actualizată la {DATA_CONFIDENTIALITATE}
         </p>
 
-        <div className="mt-10 space-y-8">
-          {SECTIUNI.map((sectiune) => (
+        <p className="border-mk-sl bg-mk-sl-hartie text-mk-sl-apasat mt-6 rounded border p-4 text-[0.875rem] leading-[1.6]">
+          {AVERTISMENT_CONFIDENTIALITATE}
+        </p>
+
+        <div className="mt-10 space-y-9">
+          {SECTIUNI_CONFIDENTIALITATE.map((sectiune) => (
             <section key={sectiune.titlu}>
-              <h2 className="font-mk-display text-[1.125rem] font-semibold">{sectiune.titlu}</h2>
-              <p className="text-mk-text-slab mt-2 text-sm leading-relaxed">{sectiune.nota}</p>
-              <p className="text-mk-sl-apasat mt-2 text-sm font-medium">DE COMPLETAT DE JURIST</p>
+              <h2 className="font-mk-display text-[1.125rem] leading-[1.3] font-semibold">
+                {sectiune.titlu}
+              </h2>
+              {sectiune.paragrafe.map((paragraf) => (
+                <p key={paragraf} className="text-mk-text-slab mt-3 text-[0.9375rem] leading-[1.7]">
+                  {paragraf}
+                </p>
+              ))}
             </section>
           ))}
         </div>

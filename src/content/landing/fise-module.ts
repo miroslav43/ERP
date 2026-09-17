@@ -48,6 +48,13 @@ export type ActiuneModul = Readonly<{
 
 export type FisaModul = Readonly<{
   cheie: FeatureKey;
+  /**
+   * Data ultimei schimbări de conținut a fișei, ISO. Ajunge în `lastmod` din
+   * `sitemap.xml`. Până la 17 sept 2026 toate cele nouăsprezece pagini purtau o
+   * singură dată scrisă în `harta.ts`, anterioară ultimei editări a fișelor — un
+   * `lastmod` care minte e ignorat de motoare. Se schimbă odată cu textul fișei.
+   */
+  actualizat: string;
   /** Titlul paginii, mai lung și mai căutabil decât cel din catalog. */
   titluPagina: string;
   metaDescriere: string;
@@ -57,15 +64,23 @@ export type FisaModul = Readonly<{
   /** Fraza care explică surpriza din tabel. E partea cea mai citată. */
   notaPermisiuni: string;
   legaturi: readonly Readonly<{ catre: FeatureKey; text: string }>[];
+  /**
+   * Ghidurile și uneltele despre același subiect. Până la 17 sept 2026 pagina
+   * `/module/pontaj` pomenea art. 119 și controlul ITM fără să trimită la
+   * paginile care le explică, iar acelea nu trimiteau înapoi la modul — două
+   * jumătăți ale aceleiași întrebări, fără drum între ele.
+   */
+  ghiduri?: readonly Readonly<{ href: string; eticheta: string }>[];
   nuFace: readonly string[];
 }>;
 
 export const FISE: readonly FisaModul[] = [
   {
     cheie: "attendance",
-    titluPagina: "Pontaj: foaia lunară, aprobarea și evidența cerută de lege",
+    actualizat: "2026-09-17",
+    titluPagina: "Program de pontaj: foaie lunară și aprobare",
     metaDescriere:
-      "Cum se ține pontajul în Administrativo: foaia colectivă lunară, pontarea de pe telefon, aprobarea pe echipă și blocarea lunii. Cine ce poate face, pe roluri.",
+      "Cum se ține pontajul în Administrativo: foaia colectivă lunară, pontarea de pe telefon, aprobarea pe echipă și blocarea lunii. Managerul aprobă, nu pontează.",
     intro: [
       "Pontajul e modulul din care iese aproape tot restul: sporurile, statul de plată și dovada la un control. De aceea are cea mai strictă separare de roluri din toată aplicația.",
       "Luna are o stare. Cât e deschisă, zilele se completează și se corectează; când e închisă, nu se mai poate edita nici din greșeală, iar ce s-a schimbat până atunci rămâne în jurnal, cu cine și când. Închiderea nu e o convenție de echipă, e o tranziție pe care baza o refuză dacă nu vine de la cine trebuie.",
@@ -121,6 +136,11 @@ export const FISE: readonly FisaModul[] = [
         text: "Angajatul își vede propriile zile și își pontează ziua de pe telefon, fără să instaleze nimic.",
       },
     ],
+    ghiduri: [
+      { href: "/evidenta-orelor-de-munca", eticheta: "Ce cere art. 119 la evidența orelor" },
+      { href: "/unelte/foaie-de-pontaj", eticheta: "Foaie de pontaj lunar, gratuită" },
+      { href: "/pontaj-pe-telefon", eticheta: "Cum se pontează de pe telefon" },
+    ],
     nuFace: [
       "Nu citește pontaje de la cititoare de cartelă sau de amprentă. Zilele se completează de om, din browser.",
       "Nu urmărește poziția telefonului. Locul de muncă se alege dintr-o listă, nu se deduce din GPS.",
@@ -130,9 +150,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ssm",
-    titluPagina: "SSM și PSI: instruiri, aptitudini și echipament cu scadență",
+    actualizat: "2026-09-17",
+    titluPagina: "SSM și PSI: instruiri, aptitudini, echipament",
     metaDescriere:
-      "Matrice angajat × tip de instruire, cu semafor pe scadențe și „niciodată făcută” ca stare distinctă de „expirată”. Cine ce poate face, pe roluri.",
+      "Matrice angajat × tip de instruire, cu semafor pe scadențe și „niciodată făcută” ca stare distinctă de „expirată”. Pentru HR și responsabilul SSM.",
     intro: [
       "Modulul de SSM e cel de la care pornesc aproape toate firmele de construcții, dintr-un motiv simplu: are cea mai scurtă distanță până la o problemă reală. O instruire expirată se vede la primul control și nu poate fi reparată retroactiv.",
       "Evidența e o matrice: fiecare angajat pe verticală, fiecare tip de instruire pe orizontală, cu starea în celulă. Distincția care contează e că „niciodată făcută” nu se confundă cu „expirată” — a doua înseamnă că cineva s-a ocupat cândva, prima că omul n-a fost instruit niciodată, iar la un control diferența e între o abatere și o problemă.",
@@ -180,6 +201,7 @@ export const FISE: readonly FisaModul[] = [
         text: "Regulamentele și instrucțiunile se trimit cu confirmare de citire, deci se știe cine a văzut, nu se presupune.",
       },
     ],
+    ghiduri: [{ href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" }],
     nuFace: [
       "Nu ține locul serviciului extern de prevenire și protecție. Ține evidența, nu întocmește documentația de securitate.",
       "Nu generează fișele de instruire ca documente semnate legal. Reține că instruirea a avut loc, când și de către cine.",
@@ -189,9 +211,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "payroll",
-    titluPagina: "Salarizare: calcul pas cu pas, cu cotele firmei tale",
+    actualizat: "2026-09-17",
+    titluPagina: "Salarizare: calcul pas cu pas, cu cotele tale",
     metaDescriere:
-      "Calcul salarial cu desfășurător și avertismente, pornit din luna de pontaj închisă. Cotele sunt versionate cu data de la care se aplică. Cine ce poate face, pe roluri.",
+      "Calcul salarial cu desfășurător și avertismente, pornit din luna de pontaj închisă. Cotele sunt versionate cu data de la care se aplică. Managerul nu vede salariile.",
     intro: [
       "Calculul nu e o cutie neagră care scoate o cifră. Merge pas cu pas, cu desfășurător pe fiecare linie și cu avertismente unde ceva arată neobișnuit — un spor care sare, o lună cu mai puține zile decât ar trebui, un om fără contract activ.",
       "Cotele sunt ale firmei tale și sunt versionate cu data de la care se aplică. Niciuna nu e scrisă în cod. Când se schimbă o cotă, se adaugă o versiune nouă cu data ei, iar lunile deja calculate rămân cu cotele care erau valabile atunci — recalcularea trecutului nu se întâmplă din greșeală.",
@@ -265,9 +288,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "fleet",
+    actualizat: "2026-09-17",
     titluPagina: "Parc auto: ITP, RCA, rovinietă și foi de parcurs",
     metaDescriere:
-      "Termenele fiecărei mașini cu semafor înainte de scadență, foi de parcurs cu kilometraj și alimentări. Cine ce poate face, pe roluri.",
+      "Termenele fiecărei mașini cu semafor înainte de scadență, foi de parcurs cu kilometraj și alimentări. Managerul aprobă doar foile echipei.",
     intro: [
       "Un termen ratat la o mașină oprește mașina. ITP, RCA, rovinieta, tahograful și licența de transport au fiecare data lui, pe fiecare vehicul, iar ținute în capul unei singure persoane devin indisponibile exact când acea persoană e în concediu.",
       "Fiecare vehicul poartă termenele lui, cu semafor care se aprinde înainte de scadență, nu la ea. Foile de parcurs rețin kilometrajul și alimentările, iar consumul rezultat se poate compara cu ce arată bonurile — nu e o cifră introdusă de mână care iese mereu bine.",
@@ -357,9 +381,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "per_diem",
-    titluPagina: "Diurne și deplasări: ferestre de 24 de ore, pe țări",
+    actualizat: "2026-09-17",
+    titluPagina: "Diurne și deplasări: calculul pe țări",
     metaDescriere:
-      "Ordine de deplasare, etape pe țări și deconturi, cu ferestre de 24 de ore care curg de la plecare. Cine ce poate face, pe roluri.",
+      "Ordine de deplasare, etape pe țări și deconturi, cu ferestre de 24 de ore care curg de la plecare. Managerul aprobă, nu modifică.",
     intro: [
       "Diurna externă nu se socotește pe zile calendaristice. Se socotește pe ferestre de 24 de ore care curg de la ora plecării, nu de la miezul nopții, iar o deplasare care traversează mai multe țări are etape cu plafoane diferite. Făcut cu mâna, e locul cu cele mai multe greșeli din toată salarizarea.",
       "Fluxul are trei pași: ordinul de deplasare, etapele efective și decontul. Fiecare pas se poate întoarce la cel dinainte fără să se piardă ce era completat.",
@@ -432,9 +457,10 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
-    titluPagina: "Concedii: cererea, aprobarea și soldul de zile care se scade singur",
+    actualizat: "2026-09-17",
+    titluPagina: "Concedii: cerere, aprobare și sold automat",
     metaDescriere:
-      "Cum se cer și se aprobă concediile în Administrativo: soldul pe fiecare tip, aprobarea pe echipă, trecerea automată pe pontaj. Cine ce poate face, pe roluri.",
+      "Cum se cer și se aprobă concediile în Administrativo: soldul pe fiecare tip, aprobarea pe echipă, trecerea automată pe pontaj.",
     intro: [
       "Concediul e locul unde se văd cel mai repede consecințele unei evidențe ținute în fișiere de calcul: două persoane din aceeași echipă plecate în aceeași săptămână, un sold de zile pe care fiecare îl calculează altfel și o cerere aprobată pe e-mail, care nu ajunge niciodată pe pontaj.",
       "Aici cererea are un drum cu stări. Cât e ciornă, o poți schimba sau șterge. După trimitere trece la cine aprobă, iar decizia — da sau nu — rămâne cu numele și ora ei. Soldul se scade la aprobare, nu la cerere, și se pune la loc dacă cererea se anulează. Nimeni nu ține un al doilea calcul pe hârtie.",
@@ -507,9 +533,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "onboarding",
-    titluPagina: "Integrare angajați: lista de pași la angajare, cu dovezi și termene",
+    actualizat: "2026-09-17",
+    titluPagina: "Integrare angajați: pașii de la angajare",
     metaDescriere:
-      "Cum se face integrarea unui angajat nou în Administrativo: șabloane de pași, dovezi încărcate, confirmare de citire, termene urmărite. Cine ce poate face, pe roluri.",
+      "Cum se face integrarea unui angajat nou în Administrativo: șabloane de pași, dovezi încărcate, confirmare de citire, termene urmărite.",
     intro: [
       "Prima săptămână a unui angajat e locul în care se pierd cele mai multe documente. Fișa postului semnată, instruirea introductivă, predarea laptopului, cititul regulamentului intern — fiecare există undeva, la cineva, și nimeni nu are lista completă în ziua în care vine controlul.",
       "Modulul face din lista aia un obiect cu stare. Se pornește un șablon pe angajatul nou, fiecare pas are un responsabil și un termen, iar pașii care cer o dovadă nu se pot bifa fără ea: documentul se încarcă, rămâne atașat pasului și se vede cine l-a pus și când.",
@@ -574,9 +601,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "courses",
-    titluPagina: "Cursuri: materiale, lecții, teste și dovada că omul chiar a parcurs",
+    actualizat: "2026-09-17",
+    titluPagina: "Cursuri interne: lecții, teste și dovezi",
     metaDescriere:
-      "Cum se țin cursurile interne în Administrativo: materiale versionate, lecții cu semnătură, teste cu prag, atribuire pe reguli. Cine ce poate face, pe roluri.",
+      "Cum se țin cursurile interne în Administrativo: materiale versionate, lecții cu semnătură, teste cu prag, atribuire pe reguli.",
     intro: [
       "Un curs intern se termină aproape întotdeauna cu aceeași întrebare la control: cine l-a făcut și cu ce dovadă. Un fișier trimis pe e-mail nu răspunde. O listă de prezență semnată pe hârtie răspunde pe jumătate, până se pierde.",
       "Aici cursul are lecții, iar lecțiile au materiale versionate: când documentul se schimbă, versiunea veche rămâne, cu tot cu cine a parcurs-o. Progresul se raportează pe măsură ce omul citește, iar la final lecția se semnează. Testul, dacă există, are un prag și un rezultat păstrat.",
@@ -633,9 +661,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "reges",
-    titluPagina: "REGES-Online: transmiterea contractelor la inspecția muncii, cu termenele ei",
+    actualizat: "2026-09-17",
+    titluPagina: "REGES-Online: transmiterea contractelor la ITM",
     metaDescriere:
-      "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale urmărite, reconciliere. Cine ce poate face, pe roluri.",
+      "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale urmărite, reconciliere.",
     intro: [
       "REGES-Online a înlocuit Revisal, iar odată cu el s-a schimbat și felul în care greșești: nu mai uiți să exporți un fișier, ci ratezi un termen. Fiecare eveniment din viața unui contract — angajare, modificare de salariu, suspendare, încetare — are propriul lui număr de zile până la care trebuie transmis, iar unele se numără în zile lucrătoare.",
       "Modulul ține termenele astea ca date, nu ca text în documentație. Angajarea se transmite cel târziu în ziua anterioară începerii activității; suspendarea pentru absențe nemotivate are trei zile lucrătoare, fiindcă nu se poate anunța dinainte; reluarea se transmite în ziua în care omul se prezintă. Fiecare termen are temeiul lui legal scris lângă el, iar o firmă care vrea altceva își pune propria regulă, fără să aștepte o versiune nouă.",
@@ -707,17 +736,22 @@ export const FISE: readonly FisaModul[] = [
         text: "Concediile care suspendă contractul își generează singure evenimentul de transmis, cu termenul lui.",
       },
     ],
+    ghiduri: [
+      { href: "/reges-online", eticheta: "REGES-ONLINE: termene și amenzi" },
+      { href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" },
+    ],
     nuFace: [
-      "Nu transmite singur, pe fundal, fără ca cineva să apese. Termenele se arată, decizia rămâne a omului.",
+      "Nu trimite singur, pe fundal. Mesajele se compun din fișa angajatului și stau în coadă până le trimite cineva cu drept de transmitere; termenele se arată, decizia rămâne a omului.",
       "Nu înlocuiește verificarea contabilului. Spune ce lipsește dintr-un mesaj, nu dacă un contract e corect juridic.",
       "Nu recuperează istoricul dinaintea intrării în aplicație. Contractele vechi se aduc la prima încărcare, apoi evidența curge de aici.",
     ],
   },
   {
     cheie: "evaluations",
-    titluPagina: "Evaluări: șabloane de criterii, note pe echipă și istoricul discuției",
+    actualizat: "2026-09-17",
+    titluPagina: "Evaluarea angajaților: criterii și istoric",
     metaDescriere:
-      "Cum se fac evaluările de performanță în Administrativo: șabloane duplicabile, evaluare pe echipă, finalizare cu istoric. Cine ce poate face, pe roluri.",
+      "Cum se fac evaluările de performanță în Administrativo: șabloane duplicabile, evaluare pe echipă, finalizare cu istoric. Evaluarea rămâne în dosarul omului.",
     intro: [
       "Evaluarea anuală ajunge de obicei un formular Word trimis pe e-mail, completat în grabă și salvat pe un desktop. Anul următor nimeni nu mai găsește ce s-a discutat, iar promisiunile făcute atunci n-au unde să fie verificate.",
       "Aici șablonul de evaluare e un obiect al firmei: criterii, ponderi, scală. Se duplică pentru anul următor în loc să fie rescris, iar cel vechi se arhivează fără să dispară — evaluările făcute pe el rămân citibile exact în forma în care au fost completate.",
@@ -774,9 +808,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "kpi",
-    titluPagina: "KPI-uri: seturi de indicatori, ținte pe om și luna care se închide",
+    actualizat: "2026-09-17",
+    titluPagina: "KPI-uri: indicatori și ținte pe angajat",
     metaDescriere:
-      "Cum se urmăresc indicatorii de performanță în Administrativo: seturi de KPI, ținte individuale, luni deschise și închise. Cine ce poate face, pe roluri.",
+      "Cum se urmăresc indicatorii de performanță în Administrativo: seturi de KPI, ținte individuale, luni deschise și închise.",
     intro: [
       "Un indicator de performanță devine inutil în momentul în care nimeni nu mai știe ce valoare avea ținta când a fost stabilită. Foaia de calcul se rescrie peste, iar la discuția de final de an rămâne doar cifra de acum, nu și cea promisă atunci.",
       "Modulul separă cele trei lucruri care se amestecă de obicei: setul de indicatori — ce se măsoară, cu ce unitate și cu ce sens al creșterii; ținta — pentru cine și cât, cu perioada ei; realizarea — valoarea lunii, completată și apoi finalizată.",
@@ -833,9 +868,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "maintenance",
-    titluPagina: "Mentenanță: sesizări de la oricine, planuri pe echipamente și autorizații ISCIR",
+    actualizat: "2026-09-17",
+    titluPagina: "Mentenanță: sesizări, planuri și ISCIR",
     metaDescriere:
-      "Cum se ține mentenanța în Administrativo: sesizări deschise de orice angajat, contoare, planuri periodice, autorizații ISCIR cu scadențe. Cine ce poate face, pe roluri.",
+      "Cum se ține mentenanța în Administrativo: sesizări deschise de orice angajat, contoare, planuri periodice, autorizații ISCIR cu scadențe.",
     intro: [
       "Defectul se vede primul de către omul care lucrează pe utilaj, nu de către cel care răspunde de el. Dacă sesizarea trebuie să treacă prin șeful de tură și printr-un telefon, jumătate din defecte nu ajung niciodată să fie scrise nicăieri.",
       "De aceea aici oricine poate deschide o sesizare, pe orice echipament. Ea se triază, primește un responsabil, iar rezolvarea rămâne cu intervenția ei: ce s-a făcut, când și de către cine. Istoricul echipamentului nu mai e memoria cuiva.",
@@ -892,9 +928,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "inventory",
-    titluPagina: "Inventar: cine are ce obiect al firmei, de când, și cu ce semnătură",
+    actualizat: "2026-09-17",
+    titluPagina: "Inventar: obiectele firmei, pe angajat",
     metaDescriere:
-      "Cum se ține inventarul de obiecte în Administrativo: predare cu confirmare, returnare, casare, obiecte pe fiecare angajat. Cine ce poate face, pe roluri.",
+      "Cum se ține inventarul de obiecte în Administrativo: predare cu confirmare, returnare, casare, obiecte pe fiecare angajat. Angajatul confirmă ce primește.",
     intro: [
       "Laptopul, telefonul, scula, cheia de la depozit — lucrurile firmei aflate la oameni sunt aproape întotdeauna scrise într-un fișier pe care îl ține o singură persoană, și care rămâne în urmă din prima lună. La plecarea unui angajat urmează o discuție incomodă despre ce mai avea la el.",
       "Aici obiectul are un traseu complet: intră în stoc, se predă unei persoane, ea confirmă primirea, se returnează sau se casează. Fiecare pas rămâne cu data lui, iar starea curentă nu e o părere, ci rezultatul pașilor.",
@@ -943,10 +980,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ticketing",
-    titluPagina:
-      "Ticketing intern: cererile către IT sau administrativ, cu o coadă și un responsabil",
+    actualizat: "2026-09-17",
+    titluPagina: "Ticketing intern pentru IT și administrativ",
     metaDescriere:
-      "Cum funcționează tichetele interne în Administrativo: oricine deschide, coada pe echipă, preluare și rezolvare. Cine ce poate face, pe roluri.",
+      "Cum funcționează tichetele interne în Administrativo: oricine deschide, coada pe echipă, preluare și rezolvare.",
     intro: [
       "Cererile interne — „nu merge imprimanta”, „am nevoie de acces la dosarul X”, „îmi trebuie un monitor” — circulă de obicei pe chat și pe hol. Se rezolvă, uneori, dar nimeni nu poate spune la sfârșitul lunii câte au fost și cât au durat.",
       "Un tichet aici are cine l-a deschis, pe cine cade, în ce stare e și ce s-a răspuns. Coada se vede pe echipă, nu pe persoană, deci un coleg poate prelua când altul lipsește, fără ca cererea să se piardă între doi oameni care presupun fiecare că se ocupă celălalt.",
@@ -1010,9 +1047,10 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "announcements",
-    titluPagina: "Anunțuri: comunicarea internă care se poate dovedi că a ajuns",
+    actualizat: "2026-09-17",
+    titluPagina: "Anunțuri interne cu dovadă că au ajuns",
     metaDescriere:
-      "Cum se transmit anunțurile interne în Administrativo: publicare, țintire pe departamente, confirmare de citire. Cine ce poate face, pe roluri.",
+      "Cum se transmit anunțurile interne în Administrativo: publicare, țintire pe departamente, confirmare de citire.",
     intro: [
       "Anunțul intern trimis pe e-mail sau pe un grup de chat are o problemă pe care nimeni n-o observă până nu e nevoie de ea: nu se poate arăta cine l-a citit. Iar unele lucruri — o schimbare de program, o regulă nouă de acces, o notificare cerută de lege — chiar trebuie să poată fi dovedite.",
       "Aici anunțul are o ciornă și o publicare distinctă. Cât e ciornă se scrie și se reformulează; la publicare pleacă spre oamenii vizați și rămâne cu data lui. Citirea se înregistrează pe fiecare persoană, deci lista celor care încă n-au deschis anunțul e o listă reală, nu o presupunere.",
@@ -1069,7 +1107,8 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "employee_portal",
-    titluPagina: "Portal angajat: fiecare om își vede ale lui, de pe telefon, fără cont de Windows",
+    actualizat: "2026-09-17",
+    titluPagina: "Portalul angajatului, de pe telefon",
     metaDescriere:
       "Ce vede un angajat în portalul Administrativo: fluturașul, soldul de concediu, pontajul, cursurile, documentele. Cum e limitat accesul la propriile date.",
     intro: [
@@ -1135,6 +1174,7 @@ export const FISE: readonly FisaModul[] = [
         text: "Cererea depusă din portal ajunge la același aprobator, cu același sold.",
       },
     ],
+    ghiduri: [{ href: "/pontaj-pe-telefon", eticheta: "Cum se pontează de pe telefon" }],
     nuFace: [
       "Nu e o aplicație din magazinul de aplicații. Se deschide în browser și se poate pune pe ecranul principal.",
       "Nu arată CNP-ul sau IBAN-ul, nici măcar propriile. Datele sensibile rămân închise în fișa de birou.",
@@ -1144,7 +1184,8 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "rapoarte",
-    titluPagina: "Rapoarte: cifrele lunii scoase din datele care există deja",
+    actualizat: "2026-09-17",
+    titluPagina: "Rapoarte HR din datele care există deja",
     metaDescriere:
       "Ce rapoarte scoate Administrativo: situații pe salarizare și pe lună, din aceleași date care au fost aprobate. Cine ce poate vedea, pe roluri.",
     intro: [
@@ -1195,9 +1236,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "nucleu",
-    titluPagina: "Organizație, roluri și audit: temelia peste care stau celelalte module",
+    actualizat: "2026-09-17",
+    titluPagina: "Organizație, roluri și jurnal de audit",
     metaDescriere:
-      "Cum se administrează firma în Administrativo: utilizatori, roluri, permisiuni per om, jurnal de audit. Cine ce poate face, pe roluri.",
+      "Cum se administrează firma în Administrativo: utilizatori, roluri, permisiuni per om, jurnal de audit. Regula firmei bate regula globală.",
     intro: [
       "Nucleul nu e un modul care se cumpără, e ce rămâne când le scoți pe toate celelalte: firma, oamenii care intră în aplicație, rolurile lor și urma pe care o lasă fiecare acțiune.",
       "Rolurile sunt cinci, iar permisiunile lor sunt rânduri într-o tabelă, nu cod. Se pot suprascrie pentru un singur om, când realitatea nu încape în rol — un contabil care trebuie să vadă un raport în plus nu cere o versiune nouă a aplicației.",
@@ -1270,11 +1312,12 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "asistent",
-    titluPagina: "Asistent AI: întrebi în română și ajungi direct în ecranul potrivit",
+    actualizat: "2026-09-17",
+    titluPagina: "Asistent AI în română pentru aplicația HR",
     metaDescriere:
       "Ce face asistentul din Administrativo: răspunde la întrebări despre propriile date și duce în ecranul potrivit, fără să vadă mai mult decât vede utilizatorul.",
     intro: [
-      "O aplicație cu douăzeci și două de module are o problemă pe care n-o rezolvă niciun meniu: omul știe ce vrea, dar nu știe unde se face. „Cum cer concediu”, „unde văd cine n-a făcut instruirea”, „de ce nu pot închide luna” — fiecare are un răspuns într-un ecran, iar drumul până la el e cunoscut doar de cine folosește aplicația zilnic.",
+      "O aplicație cu nouăsprezece module are o problemă pe care n-o rezolvă niciun meniu: omul știe ce vrea, dar nu știe unde se face. „Cum cer concediu”, „unde văd cine n-a făcut instruirea”, „de ce nu pot închide luna” — fiecare are un răspuns într-un ecran, iar drumul până la el e cunoscut doar de cine folosește aplicația zilnic.",
       "Asistentul răspunde în română și, când răspunsul e un ecran, duce direct acolo. Nu e un chat separat de aplicație: vede aceleași date, prin aceleași reguli, pentru omul care întreabă.",
       "Partea importantă e ce NU poate. Asistentul nu are permisiuni proprii — niciun rând într-o tabelă de roluri, nicio cheie a lui. Ce poate atinge se calculează din permisiunile celui care întreabă și din modulele pornite pe firmă. Un angajat care întreabă despre salariile colegilor primește același refuz pe care l-ar primi dacă ar deschide ecranul direct, fiindcă e exact același refuz, verificat în același loc. Nu există o cale ocolită prin întrebare.",
       "Modulul se poate opri de tot, pe firmă, dintr-un singur comutator. Cu el stins, nu doar că butonul dispare — cererea către asistent primește „nu există”, deci nici cineva care ar ști adresa nu ajunge la el.",

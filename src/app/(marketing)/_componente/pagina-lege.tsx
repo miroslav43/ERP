@@ -6,6 +6,8 @@ import type { PaginaLege } from "@/content/legal/tipuri";
 import { AntetSecundar } from "./antet-secundar";
 import { Banda } from "./banda";
 import { Cadru } from "./cadru";
+import { JsonLd } from "./json-ld";
+import { nodArticol } from "./noduri-json-ld";
 
 /**
  * Randarea unei pagini care explică o obligație legală.
@@ -29,10 +31,42 @@ import { Cadru } from "./cadru";
  * pagină întreținută de una abandonată — și pentru cititor, și pentru un model
  * care trebuie să aleagă pe care s-o creadă.
  */
+/**
+ * „Astea trei nu stau” era scris de mână în componenta comună, iar
+ * `/evidenta-orelor-de-munca` are doar două întrebări nesigure. Numeralul vine
+ * acum din lungimea listei; peste cinci, cifra.
+ */
+function numeralNesigur(n: number): string {
+  if (n === 1) return "Asta nu stă";
+  const cuvinte: Readonly<Record<number, string>> = {
+    2: "două",
+    3: "trei",
+    4: "patru",
+    5: "cinci",
+  };
+  return `Astea ${cuvinte[n] ?? String(n)} nu stau`;
+}
+
 export function RandarePaginaLege({ text }: { text: PaginaLege }) {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={text.antet} />
+      {/* `dateModified` e data verificării textelor de lege — același `actualizatIso`
+          care ajunge și în `lastmod` din sitemap. */}
+      <JsonLd date={nodArticol(text)} />
+      <AntetSecundar
+        text={text.antet}
+        // Firimituri doar sub `/ghid/`, singurul părinte real; `/reges-online` și
+        // `/evidenta-orelor-de-munca` stau la rădăcină și n-au ce traseu arăta.
+        firimituri={
+          text.cale.startsWith("/ghid/")
+            ? [
+                { eticheta: "Acasă", href: "/" },
+                { eticheta: "Ghiduri", href: "/ghid" },
+                { eticheta: text.antet.titlu.split(":")[0] ?? text.antet.titlu, href: text.cale },
+              ]
+            : undefined
+        }
+      />
 
       {/* Răspunsul, înaintea oricărei nuanțe. Cine a ajuns aici dintr-o căutare
           are o întrebare, nu curiozitate despre istoricul legislativ. */}
@@ -133,7 +167,7 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         inaltime="medie"
         supratitlu="Unde se termină certitudinea"
         titlu="Ce nu putem afirma cu siguranță"
-        lead="Fiecare rând de mai sus stă pe un text de lege citit în forma consolidată. Astea trei nu stau, și preferăm s-o spunem noi."
+        lead={`Fiecare rând de mai sus stă pe un text de lege citit în forma consolidată. ${numeralNesigur(text.nesigur.length)}, și preferăm s-o spunem noi.`}
       >
         <dl className="border-mk-rigla/40 mt-8 border-t">
           {text.nesigur.map((n) => (
@@ -167,6 +201,46 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
             {text.legaturaSecundara.eticheta}
           </Link>
         </div>
+        {text.surse !== undefined && (
+          <div className="mt-10">
+            <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              Textele de lege
+            </p>
+            <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+              {text.surse.map((s) => (
+                <li key={s.href}>
+                  {/* Legături în afară, către sursa primară. `noopener` fiindcă se
+                      deschid în filă nouă: cine verifică un articol nu vrea să
+                      piardă pagina de pe care a plecat. */}
+                  <a
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[0.9375rem] underline underline-offset-4"
+                  >
+                    {s.eticheta}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {text.legaturiConexe !== undefined && (
+          <div className="mt-10">
+            <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              Pe același subiect
+            </p>
+            <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+              {text.legaturiConexe.map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className="text-[0.9375rem] underline underline-offset-4">
+                    {l.eticheta}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Banda>
     </Cadru>
   );

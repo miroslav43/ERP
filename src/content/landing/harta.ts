@@ -1,5 +1,11 @@
+import { CONTROL_ITM } from "@/content/legal/control-itm";
+import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
+import { REGES } from "@/content/legal/reges";
+
 import { ADRESA_SITE } from "./contact";
+import { fisaModulului } from "./fise-module";
 import { RO } from "./ro";
+import { slugModul } from "./slug-module";
 
 /**
  * Harta paginilor publice — sursa unică pentru `sitemap.xml`.
@@ -19,6 +25,11 @@ import { RO } from "./ro";
  * Nu e `new Date()`. O dată de build pusă automat ar pretinde că toate paginile
  * s-au schimbat la fiecare livrare, iar un `lastmod` în care nu se poate avea
  * încredere e ignorat de motoare.
+ *
+ * Unde conținutul are deja o dată a lui, ea se citește de acolo, nu se copiază:
+ * fișele de modul (`FisaModul.actualizat`) și paginile-lege (`actualizatIso`).
+ * Copiată, data rămânea în urmă la prima corectură — cele nouăsprezece module au
+ * purtat până la 17 sept 2026 o singură dată, mai veche decât ultima editare.
  *
  * ── DE CE PERECHEA DE TRADUCERE SE DECLARĂ ────────────────────────────────
  * Generatorul anterior prefixa orb `/en` la fiecare cale și emitea hreflang
@@ -56,14 +67,16 @@ export type Pagina = Readonly<{
  */
 const MODULE: readonly Pagina[] = RO.module.grupuri.flatMap((grup) =>
   grup.module.map((modul) => ({
-    cale: `/module/${modul.cheie}`,
+    cale: `/module/${slugModul(modul.cheie)}`,
     // Sub paginile principale, peste cele legale: sunt destinații reale, dar
     // pentru cineva care caută „program de pontaj", pagina de intrare e
     // `/module`, nu fișa unui modul anume.
     prioritate: 0.6,
     limba: "ro" as const,
     traducere: null,
-    actualizat: "2026-09-04",
+    // Fiecare modul are fișă (test în `continut.test.ts`); rezerva e data
+    // catalogului, pentru un modul adăugat înaintea fișei lui.
+    actualizat: fisaModulului(modul.cheie)?.actualizat ?? "2026-09-04",
     sectiune: "Module",
   })),
 );
@@ -74,7 +87,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 1,
     limba: "ro",
     traducere: "/en",
-    actualizat: "2026-08-31",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -82,7 +95,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.9,
     limba: "en",
     traducere: "/",
-    actualizat: "2026-08-31",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -90,7 +103,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: "/en/preturi",
-    actualizat: "2026-08-22",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -98,7 +111,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "en",
     traducere: "/preturi",
-    actualizat: "2026-08-22",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -106,7 +119,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -114,7 +127,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -132,11 +145,20 @@ export const PAGINI: readonly Pagina[] = [
   // pe un domeniu fără vechime, fiindcă răspund la o întrebare precisă, cu
   // articolul de lege lângă fiecare afirmație.
   {
+    // Hub-ul, primul din secțiune ca rândurile ei să rămână adiacente.
+    cale: "/ghid",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-17",
+    sectiune: "Obligații legale",
+  },
+  {
     cale: "/evidenta-orelor-de-munca",
     prioritate: 0.9,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: EVIDENTA_ORELOR.actualizatIso,
     sectiune: "Obligații legale",
   },
   {
@@ -144,7 +166,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.9,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: REGES.actualizatIso,
     sectiune: "Obligații legale",
   },
   {
@@ -152,7 +174,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: CONTROL_ITM.actualizatIso,
     sectiune: "Obligații legale",
   },
 
@@ -161,7 +183,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
   {
@@ -169,7 +191,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
   {
@@ -177,7 +199,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
   {
@@ -185,7 +207,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
   {
@@ -193,16 +215,32 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
 
+  {
+    cale: "/unelte",
+    prioritate: 0.5,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-17",
+    sectiune: "Unelte și comparații",
+  },
   {
     cale: "/unelte/foaie-de-pontaj",
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    cale: "/comparatie",
+    prioritate: 0.5,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-17",
     sectiune: "Unelte și comparații",
   },
   {
@@ -210,7 +248,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Unelte și comparații",
   },
 
@@ -219,7 +257,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Înainte să întrebi",
   },
   {
@@ -227,7 +265,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Înainte să întrebi",
   },
   {
@@ -235,7 +273,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Înainte să întrebi",
   },
 
@@ -244,7 +282,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.3,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-08-22",
+    actualizat: "2026-09-17",
     sectiune: "Legal",
   },
   {
@@ -252,7 +290,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.3,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-08-22",
+    actualizat: "2026-09-17",
     sectiune: "Legal",
   },
 ];

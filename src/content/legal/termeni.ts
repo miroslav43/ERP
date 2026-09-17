@@ -33,8 +33,11 @@ import { ADRESA_FIRMA, CONTACT, FIRMA } from "@/content/landing/contact";
  * că nu există.
  */
 
-export const VERSIUNE_TERMENI = "1.0";
-export const DATA_TERMENI = "3 septembrie 2026";
+// 1.1: anexa A5 numea doar Supabase și Resend și afirma că nu există transfer
+// în afara SEE, deși asistentul trimite întrebările la OpenRouter. Lista e
+// completată cu furnizorii apelați efectiv din cod.
+export const VERSIUNE_TERMENI = "1.1";
+export const DATA_TERMENI = "17 septembrie 2026";
 
 export const AVERTISMENT =
   "Documentul de mai jos e complet și descrie exact cum funcționează serviciul, dar nu a fost încă verificat de un jurist. Până la verificare, îl publicăm ca angajament comercial asumat, nu ca text cu forță contractuală deplină. Preferăm să spunem asta decât să lăsăm impresia contrară.";
@@ -182,10 +185,13 @@ export const SECTIUNI_TERMENI: readonly SectiuneLegala[] = [
  *
  * Stă în același document, nu într-un fișier separat, fiindcă la un produs de
  * HR e partea pe care o citește un cumpărător atent înaintea prețului.
- * Subîmputerniciții sunt cei reali, verificați în configurația de producție:
- * Supabase pe AWS `aws-1-eu-west-1` (Irlanda), Resend pentru e-mail. Analiza de
+ * Subîmputerniciții sunt cei care ating datele Clientului, luați din hosturile
+ * apelate efectiv din `src/` — testul de conținut cade dacă apare un furnizor
+ * nou nenumit aici. Până la 17 sept 2026 lista avea doar Supabase și Resend și
+ * afirma că nu există transfer în afara SEE: lipseau serverul (Contabo),
+ * Cloudflare, Expo și, pentru asistent, OpenRouter cu modelul Google. Analiza de
  * trafic NU apare aici fiindcă nu atinge datele Clientului — rulează exclusiv pe
- * paginile publice de prezentare.
+ * paginile publice de prezentare; e în politica de confidențialitate.
  */
 export const SECTIUNI_ANEXA: readonly SectiuneLegala[] = [
   {
@@ -224,8 +230,9 @@ export const SECTIUNI_ANEXA: readonly SectiuneLegala[] = [
   {
     titlu: "A5. Subîmputerniciți",
     paragrafe: [
-      "Furnizorul folosește următorii subîmputerniciți: Supabase, pentru găzduirea bazei de date și a fișierelor, pe infrastructura Amazon Web Services din regiunea Irlanda; Resend, pentru transmiterea e-mailurilor tranzacționale.",
-      "Datele Clientului rămân stocate în Uniunea Europeană. Nu există un transfer în afara Spațiului Economic European pentru datele de personal.",
+      "Furnizorul folosește următorii subîmputerniciți: Supabase, pentru găzduirea bazei de date și a fișierelor, pe infrastructura Amazon Web Services din regiunea Irlanda; Contabo GmbH, Germania, pentru serverul pe care rulează aplicația; Cloudflare, prin care trece traficul spre aplicație; Resend, pentru transmiterea e-mailurilor tranzacționale.",
+      "Numai dacă Clientul pornește modulul respectiv: OpenRouter și furnizorul de model Google, pentru răspunsurile asistentului, care primesc întrebarea și, doar când întrebarea o cere, datele din aplicație la care utilizatorul are deja acces; Expo, pentru livrarea notificărilor în aplicația Android, care primește titlul și textul notificării.",
+      "Datele Clientului sunt stocate în Uniunea Europeană. Cloudflare, Resend, Expo, OpenRouter și Google sunt stabiliți sau pot prelucra date în afara Spațiului Economic European; transferul se sprijină pe garanțiile oferite de fiecare, de regulă clauze contractuale standard sau Cadrul de confidențialitate a datelor UE–SUA.",
       "Furnizorul anunță în scris orice schimbare a listei, cu treizeci de zile înainte. Clientul poate obiecta motivat, iar dacă obiecția nu poate fi rezolvată, poate înceta contractul fără penalități.",
     ],
   },

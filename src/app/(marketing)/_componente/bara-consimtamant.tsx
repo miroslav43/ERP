@@ -84,14 +84,14 @@ export function BaraConsimtamant() {
           <button
             type="button"
             onClick={() => raspunde("refuzat")}
-            className="border-mk-rigla-inv hover:border-mk-text-inv inline-flex h-11 items-center rounded border px-5 text-[0.9375rem] font-medium transition-colors"
+            className="border-mk-rigla-inv hover:border-mk-text-inv inline-flex h-12 items-center rounded border px-5 text-[0.9375rem] font-medium transition-colors"
           >
             Refuz
           </button>
           <button
             type="button"
             onClick={() => raspunde("acceptat")}
-            className="bg-mk-hartie text-mk-cerneala inline-flex h-11 items-center rounded px-5 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+            className="bg-mk-hartie text-mk-cerneala inline-flex h-12 items-center rounded px-5 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
           >
             Accept
           </button>

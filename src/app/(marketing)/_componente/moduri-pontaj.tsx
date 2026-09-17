@@ -16,7 +16,7 @@ export function ModuriPontaj({ text }: { text: ContinutLanding["pontaj"] }) {
       <p className="font-mk-date text-mk-text-slab mt-10 text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
         {text.livrateTitlu}
       </p>
-      <ul className="mt-4 grid gap-px sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="mt-4 grid gap-px sm:grid-cols-2 lg:grid-cols-3">
         {text.livrate.map((mod) => (
           <li key={mod.titlu} className="border-mk-rigla flex flex-col border p-5">
             <h3 className="font-mk-display text-[1.125rem] leading-[1.2] font-semibold">

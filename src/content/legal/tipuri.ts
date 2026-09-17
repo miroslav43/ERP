@@ -59,6 +59,12 @@ export type Nesigur = Readonly<{
 }>;
 
 export type PaginaLege = Readonly<{
+  /**
+   * Adresa paginii, fără domeniu. O poartă datele structurate (`Article.url`) —
+   * canonicul stă în `page.tsx`, iar un test verifică că cele două coincid cu o
+   * rută reală din sitemap.
+   */
+  cale: string;
   antet: Readonly<{ supratitlu: string; titlu: string; lead: string }>;
   /**
    * Răspunsul, în 2-3 propoziții, înaintea oricărei nuanțe.
@@ -84,6 +90,23 @@ export type PaginaLege = Readonly<{
    * toate trei în același loc, iar două dintre ele ar fi rămas fundături.
    */
   legaturaSecundara: Readonly<{ eticheta: string; href: string }>;
+  /**
+   * Celelalte pagini despre același subiect — modulul care rezolvă obligația,
+   * unealta, comparația. `/reges-online` și `/module/reges` nu se legau în
+   * niciun sens până la 17 sept 2026: ghidul explica obligația, modulul felul în
+   * care o îndeplinește, iar cititorul unuia nu afla de celălalt.
+   */
+  legaturiConexe?: readonly Readonly<{ eticheta: string; href: string }>[];
+  /**
+   * Textele de lege citate, pe Portalul Legislativ.
+   *
+   * Paginile spuneau „verificate pe Portalul Legislativ” fără nicio legătură
+   * spre el: cititorul avea de căutat singur actul, iar afirmația rămânea
+   * neverificabilă. Se pun DOAR adresele deschise și confirmate una câte una —
+   * Legea 239/2025, de exemplu, nu apare în căutarea portalului, deci nu e aici.
+   * De preferat forma consolidată, nu cea publicată inițial.
+   */
+  surse?: readonly Readonly<{ eticheta: string; href: string }>[];
   /** Luna și anul ultimei verificări a textelor de lege. Se scrie de mână. */
   actualizat: string;
   /** Data ISO a aceleiași verificări, pentru `dateModified`. */

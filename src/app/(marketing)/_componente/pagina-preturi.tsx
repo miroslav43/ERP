@@ -6,6 +6,8 @@ import type { ContinutLanding } from "@/content/landing/tipuri";
 
 import { Banda } from "./banda";
 import { GrilaPachete } from "./benzi/comercial";
+import { JsonLd } from "./json-ld";
+import { nodCatalogPreturi } from "./noduri-json-ld";
 
 /**
  * Pagina de prețuri.
@@ -34,6 +36,9 @@ export function PaginaPreturi({ text }: { text: ContinutLanding }) {
 
   return (
     <>
+      {/* Catalogul pachetelor, legat de aplicația și organizația de pe layout
+          prin `@id`. Sumele vin din `PACHETE`, numele din fișierul de limbă. */}
+      <JsonLd date={nodCatalogPreturi(text)} />
       <section className="bg-mk-hartie text-mk-text">
         <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-12 sm:pt-24">
           <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
@@ -45,6 +50,15 @@ export function PaginaPreturi({ text }: { text: ContinutLanding }) {
           <p className="text-mk-text-slab mt-6 max-w-[62ch] text-[1.0625rem] leading-[1.6] text-pretty">
             {text.preturi.lead}
           </p>
+          {/* Pe telefon, butonul din antet e ascuns; fără acesta, primul buton de
+              cont stătea sub primul ecran. Vezi `antet-secundar.tsx`. */}
+          <Link
+            href={text.hero.ctaPrimar.href}
+            data-umami-event="cta-pret-erou"
+            className="bg-mk-cerneala text-mk-text-inv mt-8 inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+          >
+            {text.hero.ctaPrimar.eticheta}
+          </Link>
         </div>
       </section>
 

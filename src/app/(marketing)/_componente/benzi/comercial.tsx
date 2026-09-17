@@ -30,9 +30,11 @@ export function BandaHero({ text }: ProprietatiBanda) {
   return (
     <section id="sus" className="bg-mk-hartie text-mk-text">
       {/*
-        `mk-intra` animă cei cinci copii direcți ai acestui container —
-        supratitlu, titlu, lead, butoane, foaie — cu 60ms decalaj între ei.
-        Regula stă în `globals.css`; aici e doar declarația că banda o folosește.
+        `mk-intra` animă copiii direcți ai acestui container — supratitlu,
+        butoane, foaie — cu 60ms decalaj între ei. Titlul și lead-ul NU intră:
+        lead-ul e elementul LCP, iar intrarea lui întârzia pictarea cu ~0,9s
+        (măsurat 17 sept 2026). Regula stă în `globals.css`; aici e doar
+        declarația că banda o folosește.
 
         E singura mișcare de intrare de pe sit. Nu există reveal la scroll,
         deliberat: starea de bază a fiecărui element e starea FINALĂ, iar

@@ -9,7 +9,7 @@ import { PaginaLanding } from "../_componente/pagina";
 export const metadata: Metadata = {
   title: { absolute: EN.meta.titlu },
   description: EN.meta.descriere,
-  alternates: { canonical: "/en", languages: { ro: "/", en: "/en" } },
+  alternates: { canonical: "/en", languages: { ro: "/", en: "/en", "x-default": "/" } },
   openGraph: { locale: "en_GB", title: EN.meta.titlu, description: EN.meta.descriere },
 };
 
