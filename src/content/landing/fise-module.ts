@@ -741,7 +741,7 @@ export const FISE: readonly FisaModul[] = [
       { href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" },
     ],
     nuFace: [
-      "Nu trimite pe fundal mesajele care conțin CNP-ul salariatului: acelea pleacă doar când le trimite cineva cu drept de transmitere. Contractele din coadă pleacă singure, în ordinea în care au intrat.",
+      "Nu trimite singur, pe fundal. Mesajele se compun din fișa angajatului și stau în coadă până le trimite cineva cu drept de transmitere; termenele se arată, decizia rămâne a omului.",
       "Nu înlocuiește verificarea contabilului. Spune ce lipsește dintr-un mesaj, nu dacă un contract e corect juridic.",
       "Nu recuperează istoricul dinaintea intrării în aplicație. Contractele vechi se aduc la prima încărcare, apoi evidența curge de aici.",
     ],

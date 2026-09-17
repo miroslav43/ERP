@@ -193,7 +193,7 @@ export const REGES: PaginaLege = {
       titlu: "Cum intri în REGES-ONLINE",
       paragrafe: [
         "Accesul se cere de firmă, din portalul Inspecției Muncii — reges.inspectiamuncii.ro. Portalul are aplicații separate: una pentru angajator, una pentru salariat, de unde omul își scoate singur extrasul din registru, și una pentru autorități.",
-        "Registrul se completează și se transmite pe platforma Inspecției Muncii sau dintr-o aplicație a angajatorului conectată la ea. Administrativo merge pe a doua cale: mesajele pleacă prin API cu credențialele firmei tale, iar răspunsul Inspecției se întoarce lângă mesajul trimis. Termenele fiecărui eveniment sunt cele din tabelul de mai sus, indiferent de calea aleasă.",
+        "Registrul se completează și se transmite pe platforma Inspecției Muncii sau dintr-o aplicație a angajatorului conectată la ea. Administrativo merge pe a doua cale: mesajele pleacă prin API cu credențialele firmei tale, iar răspunsul Inspecției se întoarce lângă mesajul trimis. Termenele fiecărui eveniment rămân aceleași, indiferent de calea aleasă.",
       ],
     },
     {

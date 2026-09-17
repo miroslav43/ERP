@@ -87,7 +87,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 1,
     limba: "ro",
     traducere: "/en",
-    actualizat: "2026-08-31",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -95,7 +95,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.9,
     limba: "en",
     traducere: "/",
-    actualizat: "2026-08-31",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -103,7 +103,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: "/en/preturi",
-    actualizat: "2026-08-22",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -111,7 +111,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "en",
     traducere: "/preturi",
-    actualizat: "2026-08-22",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -119,7 +119,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
@@ -183,7 +183,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
   {
@@ -191,7 +191,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
   {
@@ -199,7 +199,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
   {
@@ -207,7 +207,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
   {
@@ -215,7 +215,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: "2026-09-17",
     sectiune: "Domenii",
   },
 
@@ -232,7 +232,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Unelte și comparații",
   },
   {
@@ -248,7 +248,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Unelte și comparații",
   },
 
@@ -257,7 +257,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Înainte să întrebi",
   },
   {
@@ -265,7 +265,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Înainte să întrebi",
   },
   {
@@ -273,7 +273,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Înainte să întrebi",
   },
 
@@ -282,7 +282,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.3,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-08-22",
+    actualizat: "2026-09-17",
     sectiune: "Legal",
   },
   {
@@ -290,7 +290,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.3,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-08-22",
+    actualizat: "2026-09-17",
     sectiune: "Legal",
   },
 ];

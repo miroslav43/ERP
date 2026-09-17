@@ -658,7 +658,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "Data carrying a national ID does not reach REGES without a person",
-        text: "Filing with REGES-ONLINE happens over the API, from the application, using the access your company obtains from the Labour Inspectorate portal. Contracts in the queue go out on their own, in order; messages that carry an employee's national ID number are sent only by someone with the right to file, and every read of that number is logged. We do not generate a REVISAL file: REGES-ONLINE replaced it.",
+        text: "Filing with REGES-ONLINE happens over the API, from the application, using the access your company obtains from the Labour Inspectorate portal. Messages are prepared from the employee record and wait in a queue until someone with the right to file sends them — nothing leaves in the background, unnoticed, and every read of a national ID number is logged. We do not generate a REVISAL file: REGES-ONLINE replaced it.",
       },
       {
         titlu: "The AI assistant shows you the way, it does not do the work",

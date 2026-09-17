@@ -675,7 +675,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Datele cu CNP nu pleacă la REGES fără un om",
-        text: "Transmiterea în REGES-ONLINE se face prin API, din aplicație, cu accesul obținut de firma ta din portalul Inspecției Muncii. Contractele din coadă pleacă singure, în ordine; mesajele care conțin CNP-ul salariatului le trimite doar cineva cu drept de transmitere, iar fiecare citire a CNP-ului lasă urmă în jurnal. Fișier REVISAL nu generăm: REGES-ONLINE l-a înlocuit.",
+        text: "Transmiterea în REGES-ONLINE se face prin API, din aplicație, cu accesul obținut de firma ta din portalul Inspecției Muncii. Mesajele se pregătesc singure din fișa angajatului și stau în coadă până le trimite cineva cu drept de transmitere — nimic nu pleacă pe fundal, fără știrea nimănui, iar fiecare citire a CNP-ului lasă urmă în jurnal. Fișier REVISAL nu generăm: REGES-ONLINE l-a înlocuit.",
       },
       {
         titlu: "Asistentul AI îți arată drumul, nu-ți face treaba",
@@ -957,8 +957,15 @@ export const RO: ContinutLanding = {
           { eticheta: "Pontaj de pe telefon", href: "/pontaj-pe-telefon" },
           { eticheta: "Foaie de pontaj gratuită", href: "/unelte/foaie-de-pontaj" },
           { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
+          // Hub-urile aveau o singură cale de acces: firimitura din pagina-copil.
+          // Un vizitator care nu deschide copilul nu află niciodată că există.
+          { eticheta: "Toate uneltele", href: "/unelte" },
+          { eticheta: "Toate comparațiile", href: "/comparatie" },
           { eticheta: "Izolarea datelor", href: "/incredere" },
           { eticheta: "Prețuri", href: "/preturi" },
+          // Singura legătură spre cererea de demonstrație era butonul de pe
+          // /pontaj-pe-telefon; restul site-ului trimite la înregistrarea directă.
+          { eticheta: "Cere o demonstrație", href: "/cere-demo" },
         ],
       },
       {
