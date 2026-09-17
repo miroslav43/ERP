@@ -113,7 +113,13 @@ export function Dialog({
         // corpul derulează. Fără `min-h-0` pe corp, un copil mai înalt decât
         // ecranul ar împinge subsolul în afara casetei — implicitul flexbox
         // `min-height: auto` refuză să lase elementul să se micșoreze.
-        "flex flex-col",
+        //
+        // `hidden … open:flex`, NU `flex` simplu — vezi nota din
+        // `command-palette.tsx` și poarta din `dialog-inchis.test.ts`. Un
+        // `display` necondiționat aici bate regula `dialog:not([open]) {
+        // display: none }` a browserului, iar dialogul închis rămâne o cutie
+        // așezată în flux.
+        "hidden flex-col open:flex",
         // ── SUB `md`: FOAIE LIPITĂ DE MARGINEA DE JOS ───────────────────────
         // `mb-0` peste `m-auto`: `<dialog>` se centrează prin marginile
         // automate, iar anulând-o doar pe cea de jos caseta cade la baza
@@ -143,7 +149,10 @@ export function Dialog({
         // pagină obișnuită, iar tot spațiul disponibil ajunge la conținut.
         // Pragul e sub cel la care apare derularea (~220px), deci ecranele
         // normale nu-l ating niciodată.
-        "[@media(max-height:26rem)]:block [@media(max-height:26rem)]:overflow-y-auto",
+        // `open:` și aici, nu doar pe `flex` de sus: fără el, sub 26rem înălțime
+        // de fereastră un dialog ÎNCHIS ar redeveni o cutie în flux — același
+        // defect, doar cu o condiție mai îngustă, adică exact felul care scapă.
+        "[@media(max-height:26rem)]:overflow-y-auto [@media(max-height:26rem)]:open:block",
         // `dvh`, nu `vh`: pe iOS Safari `100vh` include bara de adrese care se
         // retrage, deci subsolul ar sta sub linia vizibilă exact cât timp bara
         // e afișată — adică fix când omul deschide dialogul.
@@ -354,7 +363,23 @@ export function PanouLateral({
       className={cn(
         "bg-background text-foreground shadow-plutitor border-border ms-auto me-0 h-dvh max-h-dvh w-full max-w-xl border-s p-0",
         "backdrop:bg-foreground/50",
-        "flex flex-col",
+        // ── DE CE `hidden … open:flex`, ȘI NU `flex` ───────────────────────
+        // Un `flex` necondiționat bate regula `dialog:not([open]) { display:
+        // none }` a foii de stil a browserului — CSS-ul autorului o bate
+        // ÎNTOTDEAUNA. Panoul închis rămânea atunci o cutie reală: `position:
+        // absolute` (implicitul UA pentru un `<dialog>` nemodal — doar
+        // `dialog:modal` e `fixed`), `h-dvh` înaltă și `max-w-xl` lată,
+        // așezată la poziția ei statică din flux. Invizibilă, dar numărată în
+        // `scrollHeight`: pe `/departamente`, la o fereastră de 1365×969,
+        // documentul ieșea 1575px în vizualizarea listă și 1696px în
+        // organigramă — între 606 și 727 de pixeli de derulare în gol, sub
+        // conținut. Măsurat în browser pe 17 sept 2026; aceeași greșeală era
+        // deja prinsă o dată în `command-palette.tsx`.
+        //
+        // Comutarea lui `display` e și cea pe care o AȘTEAPTĂ `globals.css`:
+        // regula de pe `dialog` animă `display` cu `allow-discrete` plus
+        // `@starting-style`. Cu `flex` fix, nu era nimic de comutat.
+        "hidden flex-col open:flex",
       )}
     >
       <div className="border-border flex shrink-0 items-start justify-between gap-4 border-b p-4">
