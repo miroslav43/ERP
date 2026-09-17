@@ -97,6 +97,16 @@ export type PaginaLege = Readonly<{
    * care o îndeplinește, iar cititorul unuia nu afla de celălalt.
    */
   legaturiConexe?: readonly Readonly<{ eticheta: string; href: string }>[];
+  /**
+   * Textele de lege citate, pe Portalul Legislativ.
+   *
+   * Paginile spuneau „verificate pe Portalul Legislativ” fără nicio legătură
+   * spre el: cititorul avea de căutat singur actul, iar afirmația rămânea
+   * neverificabilă. Se pun DOAR adresele deschise și confirmate una câte una —
+   * Legea 239/2025, de exemplu, nu apare în căutarea portalului, deci nu e aici.
+   * De preferat forma consolidată, nu cea publicată inițial.
+   */
+  surse?: readonly Readonly<{ eticheta: string; href: string }>[];
   /** Luna și anul ultimei verificări a textelor de lege. Se scrie de mână. */
   actualizat: string;
   /** Data ISO a aceleiași verificări, pentru `dateModified`. */

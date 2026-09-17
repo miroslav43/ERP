@@ -156,6 +156,13 @@ export const EVIDENTA_ORELOR: PaginaLege = {
     { eticheta: "Pontaj în Excel sau în aplicație", href: "/comparatie/excel" },
   ],
 
+  surse: [
+    {
+      eticheta: "Codul muncii, forma consolidată (Portalul Legislativ)",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/128647",
+    },
+  ],
+
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-03",
 };

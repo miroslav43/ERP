@@ -201,6 +201,30 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
             {text.legaturaSecundara.eticheta}
           </Link>
         </div>
+        {text.surse !== undefined && (
+          <div className="mt-10">
+            <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              Textele de lege
+            </p>
+            <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+              {text.surse.map((s) => (
+                <li key={s.href}>
+                  {/* Legături în afară, către sursa primară. `noopener` fiindcă se
+                      deschid în filă nouă: cine verifică un articol nu vrea să
+                      piardă pagina de pe care a plecat. */}
+                  <a
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[0.9375rem] underline underline-offset-4"
+                  >
+                    {s.eticheta}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {text.legaturiConexe !== undefined && (
           <div className="mt-10">
             <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">

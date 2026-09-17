@@ -176,6 +176,17 @@ export const CONTROL_ITM: PaginaLege = {
     { eticheta: "Modulul SSM: instruiri și termene", href: "/module/ssm" },
   ],
 
+  surse: [
+    {
+      eticheta: "Codul muncii, forma consolidată (Portalul Legislativ)",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/128647",
+    },
+    {
+      eticheta: "HG 295/2025 (REGES-ONLINE), forma consolidată",
+      href: "https://legislatie.just.ro/Public/DetaliiDocumentAfis/302099",
+    },
+  ],
+
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-04",
 };

@@ -1153,6 +1153,8 @@ describe("furnizorii externi sunt numiți în documentele legale", () => {
     "webservicesp.anaf.ro": ["ANAF", "politica"],
     "api.inspectiamuncii.ro": ["Inspecția Muncii", "politica"],
     "sso.inspectiamuncii.ro": ["Inspecția Muncii", "politica"],
+    // Portalul public, legat din ghidul /reges-online.
+    "reges.inspectiamuncii.ro": ["Inspecția Muncii", "politica"],
     "api.dev.inspectiamuncii.org": ["Inspecția Muncii", "politica"],
     "sso.dev.inspectiamuncii.org": ["Inspecția Muncii", "politica"],
   };
@@ -1161,6 +1163,8 @@ describe("furnizorii externi sunt numiți în documentele legale", () => {
     "schema.org": "identificatorul vocabularului JSON-LD, nu o cerere de rețea",
     "fonts.googleapis.com":
       "fontul imaginii Open Graph, descărcat de server la generare; nu trimite date de vizitator",
+    "legislatie.just.ro":
+      "legătură în afară către textul de lege, pe care o apasă cititorul; nu primește date de la noi",
   };
 
   it("fiecare host extern apelat din cod e numit sau scutit cu motiv", async () => {

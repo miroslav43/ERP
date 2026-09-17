@@ -127,7 +127,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: "2026-09-17",
     sectiune: "Principale",
   },
   {
