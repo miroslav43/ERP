@@ -58,7 +58,14 @@ export default async function PaginaDomeniu({ params }: Proprietati) {
 
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={{ supratitlu: "Domeniu", titlu: d.titlu, lead: d.lead }} />
+      <AntetSecundar
+        text={{ supratitlu: "Domeniu", titlu: d.titlu, lead: d.lead }}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Domenii", href: "/domenii" },
+          { eticheta: d.eticheta, href: `/domenii/${d.slug}` },
+        ]}
+      />
 
       <Banda inaltime="medie" titlu="Ce se rupe de obicei">
         <div className="border-mk-rigla/40 mt-8 border-t">

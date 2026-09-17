@@ -6,6 +6,8 @@ import type { PaginaLege } from "@/content/legal/tipuri";
 import { AntetSecundar } from "./antet-secundar";
 import { Banda } from "./banda";
 import { Cadru } from "./cadru";
+import { JsonLd } from "./json-ld";
+import { nodArticol } from "./noduri-json-ld";
 
 /**
  * Randarea unei pagini care explică o obligație legală.
@@ -48,6 +50,9 @@ function numeralNesigur(n: number): string {
 export function RandarePaginaLege({ text }: { text: PaginaLege }) {
   return (
     <Cadru text={RO}>
+      {/* `dateModified` e data verificării textelor de lege — același `actualizatIso`
+          care ajunge și în `lastmod` din sitemap. */}
+      <JsonLd date={nodArticol(text)} />
       <AntetSecundar text={text.antet} />
 
       {/* Răspunsul, înaintea oricărei nuanțe. Cine a ajuns aici dintr-o căutare

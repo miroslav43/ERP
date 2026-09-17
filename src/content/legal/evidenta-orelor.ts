@@ -22,6 +22,7 @@ import type { PaginaLege } from "./tipuri";
  */
 
 export const EVIDENTA_ORELOR: PaginaLege = {
+  cale: "/evidenta-orelor-de-munca",
   antet: {
     supratitlu: "Obligație legală",
     titlu: "Evidența orelor de muncă: ce cere art. 119 din Codul muncii",

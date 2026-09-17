@@ -3,6 +3,9 @@ import Link from "next/link";
 import { RO } from "@/content/landing/ro";
 import type { AntetPagina } from "@/content/landing/tipuri";
 
+import { JsonLd } from "./json-ld";
+import { type Firimitura, nodFirimituri } from "./noduri-json-ld";
+
 /**
  * Antetul unei pagini publice secundare: supratitlu mono, `<h1>`, lead, buton.
  *
@@ -27,17 +30,49 @@ import type { AntetPagina } from "@/content/landing/tipuri";
  * fiecare pagină secundară fără ca vreuna să-l poată uita; o pagină care nu-l
  * vrea trimite `cta={null}`. Toate apelurile sunt pagini românești, de aceea
  * implicitul e butonul eroului din `RO`.
+ *
+ * ── FIRIMITURILE ──────────────────────────────────────────────────────────
+ * Traseul vizibil și `BreadcrumbList` vin din ACELAȘI tablou: un traseu în
+ * date care nu se vede pe pagină e marcaj care descrie altceva decât ce citește
+ * omul. Se trimit doar când pagina are un părinte real — ultimul element e
+ * pagina însăși și nu e legătură.
  */
 export function AntetSecundar({
   text,
   cta = RO.hero.ctaPrimar,
+  firimituri,
 }: {
   text: AntetPagina;
   cta?: Readonly<{ eticheta: string; href: string }> | null;
+  firimituri?: readonly Firimitura[];
 }) {
   return (
     <section className="bg-mk-hartie text-mk-text">
+      {firimituri !== undefined && <JsonLd date={nodFirimituri(firimituri)} />}
       <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-12 sm:pt-24">
+        {firimituri !== undefined && (
+          <nav aria-label="Firimituri" className="mb-6">
+            <ol className="text-mk-text-slab flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem]">
+              {firimituri.map((f, index) => {
+                const ultima = index === firimituri.length - 1;
+                return (
+                  <li key={f.href} className="flex items-center gap-2">
+                    {ultima ? (
+                      <span aria-current="page">{f.eticheta}</span>
+                    ) : (
+                      <>
+                        <Link href={f.href} className="underline-offset-4 hover:underline">
+                          {f.eticheta}
+                        </Link>
+                        <span aria-hidden="true">/</span>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        )}
         <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
           {text.supratitlu}
         </p>

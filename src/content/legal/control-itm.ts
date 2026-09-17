@@ -19,6 +19,7 @@ import type { PaginaLege } from "./tipuri";
  */
 
 export const CONTROL_ITM: PaginaLege = {
+  cale: "/ghid/control-itm",
   antet: {
     supratitlu: "Ghid",
     titlu: "Control ITM: ce se cere și ce se verifică de fapt",

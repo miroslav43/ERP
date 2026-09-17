@@ -59,6 +59,12 @@ export type Nesigur = Readonly<{
 }>;
 
 export type PaginaLege = Readonly<{
+  /**
+   * Adresa paginii, fără domeniu. O poartă datele structurate (`Article.url`) —
+   * canonicul stă în `page.tsx`, iar un test verifică că cele două coincid cu o
+   * rută reală din sitemap.
+   */
+  cale: string;
   antet: Readonly<{ supratitlu: string; titlu: string; lead: string }>;
   /**
    * Răspunsul, în 2-3 propoziții, înaintea oricărei nuanțe.

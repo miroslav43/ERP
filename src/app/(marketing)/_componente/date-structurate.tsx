@@ -1,5 +1,13 @@
 import { ADRESA_SITE, CONTACT, FIRMA } from "@/content/landing/contact";
 
+import {
+  ID_APLICATIE,
+  ID_ORGANIZATIE,
+  ID_SITE,
+  ofertaAgregata,
+  serializeaza,
+} from "./noduri-json-ld";
+
 /**
  * Datele structurate ale sitului public (JSON-LD).
  *
@@ -29,20 +37,12 @@ import { ADRESA_SITE, CONTACT, FIRMA } from "@/content/landing/contact";
  * ClaudeBot, PerplexityBot, CCBot.
  */
 
-/**
- * Serializare sigură pentru interiorul unui `<script>`.
- *
- * Fără înlocuirea lui `<`, un șir de date care ar conține `</script>` ar închide
- * eticheta mai devreme și restul JSON-ului ar ajunge text vizibil în pagină — sau,
- * mai rău, marcaj executabil. `<` e echivalent în JSON și inert în HTML.
- */
-function serializeaza(date: unknown): string {
-  return JSON.stringify(date).replace(/</g, "\\u003c");
-}
+// `serializeaza` și `@id`-urile stau în `noduri-json-ld.ts`: le folosesc și
+// nodurile paginilor (catalogul de prețuri, articolele, firimiturile).
 
 const ORGANIZATIE = {
   "@type": "Organization",
-  "@id": `${ADRESA_SITE}/#organizatie`,
+  "@id": ID_ORGANIZATIE,
   name: "Administrativo",
   legalName: FIRMA.denumire,
   url: ADRESA_SITE,
@@ -83,7 +83,7 @@ const ORGANIZATIE = {
 
 const SITE = {
   "@type": "WebSite",
-  "@id": `${ADRESA_SITE}/#site`,
+  "@id": ID_SITE,
   url: ADRESA_SITE,
   name: "Administrativo",
   inLanguage: "ro-RO",
@@ -92,17 +92,20 @@ const SITE = {
 
 const APLICATIE = {
   "@type": "SoftwareApplication",
-  "@id": `${ADRESA_SITE}/#aplicatie`,
+  "@id": ID_APLICATIE,
   name: "Administrativo",
   applicationCategory: "BusinessApplication",
   applicationSubCategory: "Human Resources",
-  operatingSystem: "Web, Android, iOS",
+  // A fost „Web, Android, iOS”. Nu există aplicație în magazine (secțiunea de
+  // onestitate o spune), iar Android e un APK instalat manual; pe iOS nu există
+  // nimic. Ce se folosește efectiv e aplicația web, instalabilă pe ecranul de start.
+  operatingSystem: "Web",
   url: ADRESA_SITE,
   inLanguage: ["ro-RO", "en-GB"],
   publisher: { "@id": ORGANIZATIE["@id"] },
-  // `offers` se adaugă odată cu prețurile publice, din tabelul canonic — nu
-  // scris de mână aici. Un preț în două locuri e un preț care ajunge greșit
-  // într-unul din ele.
+  // Intervalul pachetelor, calculat din tabelul canonic — nu scris de mână. Un
+  // preț în două locuri e un preț care ajunge greșit într-unul din ele.
+  offers: ofertaAgregata(),
 } as const;
 
 /** Un singur `@graph`, ca nodurile să se poată referi între ele prin `@id`. */

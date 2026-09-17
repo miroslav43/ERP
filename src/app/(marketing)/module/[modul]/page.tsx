@@ -121,6 +121,11 @@ export default async function PaginaModul({ params }: Proprietati) {
           titlu: modul.titlu,
           lead: modul.text,
         }}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Module", href: "/module" },
+          { eticheta: modul.titlu, href: `/module/${cheie}` },
+        ]}
       />
 
       {/*

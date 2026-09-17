@@ -26,6 +26,7 @@ import type { PaginaLege } from "./tipuri";
  */
 
 export const REGES: PaginaLege = {
+  cale: "/reges-online",
   antet: {
     supratitlu: "Obligație legală",
     titlu: "REGES-ONLINE: termenele de transmitere și amenzile",

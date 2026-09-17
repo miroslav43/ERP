@@ -936,6 +936,103 @@ describe("proxy-ul știe ce e aplicație și ce e public", () => {
   });
 });
 
+describe("datele structurate spun ce spune pagina", () => {
+  /*
+   * ── DE CE ────────────────────────────────────────────────────────────────
+   * Până la 17 sept 2026 site-ul avea un singur bloc JSON-LD, identic pe toate
+   * paginile: `SoftwareApplication` fără `offers` și cu `operatingSystem: "Web,
+   * Android, iOS"`, deși nu există aplicație în magazine. Nodurile pe pagină se
+   * construiesc acum în `noduri-json-ld.ts`, din aceleași constante ca textul
+   * vizibil; testele de mai jos leagă fiecare nod de sursa lui.
+   */
+  it("catalogul de prețuri are exact pachetele din tabelul canonic, în ambele limbi", async () => {
+    const { nodCatalogPreturi } = await import("@/app/(marketing)/_componente/noduri-json-ld");
+    const iduri = new Set<string>();
+    for (const [limba, text] of LIMBI) {
+      const catalog = nodCatalogPreturi(text);
+      iduri.add(catalog["@id"]);
+      expect(
+        catalog.itemListElement.map((o) => o.price),
+        limba,
+      ).toEqual(PACHETE.map((p) => p.pret));
+      for (const oferta of catalog.itemListElement) {
+        expect(oferta.priceCurrency, limba).toBe("RON");
+        expect(oferta.name, `${limba}: nume de plan lipsă`).not.toMatch(
+          /^(nucleu|hr_extins|operational|financiar|tot)$/,
+        );
+        expect(oferta.eligibleQuantity.maxValue, limba).toBe(PRAG_ANGAJATI);
+      }
+    }
+    expect(iduri.size, "RO și EN au nevoie de @id diferit").toBe(LIMBI.length);
+  });
+
+  it("oferta agregată a aplicației e intervalul real al pachetelor", async () => {
+    const { ofertaAgregata } = await import("@/app/(marketing)/_componente/noduri-json-ld");
+    const oferta = ofertaAgregata();
+    expect(oferta.lowPrice).toBe(Math.min(...PACHETE.map((p) => p.pret)));
+    expect(oferta.highPrice).toBe(Math.max(...PACHETE.map((p) => p.pret)));
+    expect(oferta.offerCount).toBe(PACHETE.length);
+  });
+
+  it("articolele legale poartă data verificării și adresa unei pagini din sitemap", async () => {
+    const { nodArticol } = await import("@/app/(marketing)/_componente/noduri-json-ld");
+    const { ADRESA_SITE } = await import("./contact");
+    const { intrariSitemap } = await import("./harta");
+    const dinSitemap = new Set(intrariSitemap().map((i) => i.url));
+    const pagini = [
+      (await import("@/content/legal/reges")).REGES,
+      (await import("@/content/legal/evidenta-orelor")).EVIDENTA_ORELOR,
+      (await import("@/content/legal/control-itm")).CONTROL_ITM,
+    ];
+    for (const pagina of pagini) {
+      const articol = nodArticol(pagina);
+      expect(articol.dateModified, pagina.cale).toBe(pagina.actualizatIso);
+      expect(articol.dateModified, pagina.cale).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(dinSitemap.has(articol.url), `${articol.url} nu e în sitemap`).toBe(true);
+      expect(articol.url.startsWith(ADRESA_SITE)).toBe(true);
+      // Google trunchiază `headline` peste 110 caractere.
+      expect(articol.headline.length, pagina.cale).toBeLessThanOrEqual(110);
+    }
+  });
+
+  it("firimiturile duc doar spre pagini care există", async () => {
+    const { nodFirimituri } = await import("@/app/(marketing)/_componente/noduri-json-ld");
+    const { ADRESA_SITE } = await import("./contact");
+    const { intrariSitemap } = await import("./harta");
+    const dinSitemap = new Set(intrariSitemap().map((i) => i.url.replace(ADRESA_SITE, "") || "/"));
+    // Traseele folosite de paginile care trimit firimituri.
+    const sursa = [
+      readFileSync("src/app/(marketing)/module/[modul]/page.tsx", "utf8"),
+      readFileSync("src/app/(marketing)/domenii/[domeniu]/page.tsx", "utf8"),
+    ].join("\n");
+    const fixe = [...sursa.matchAll(/href: "(\/[^"]*)"/g)].map((m) => m[1] ?? "");
+    expect(fixe.length, "n-am găsit traseele fixe").toBeGreaterThan(0);
+    for (const cale of fixe) {
+      expect(dinSitemap.has(cale), `firimitură spre ${cale}, absentă din sitemap`).toBe(true);
+    }
+
+    const nod = nodFirimituri([
+      { eticheta: "Acasă", href: "/" },
+      { eticheta: "Module", href: "/module" },
+    ]);
+    expect(nod.itemListElement.map((i) => i.position)).toEqual([1, 2]);
+    expect(nod.itemListElement[1]?.item).toBe(`${ADRESA_SITE}/module`);
+  });
+
+  it("serializarea nu poate închide eticheta <script> și nodurile n-au text de umplutură", async () => {
+    const noduri = await import("@/app/(marketing)/_componente/noduri-json-ld");
+    expect(noduri.serializeaza({ x: "</script><b>" })).not.toContain("<");
+
+    const toate = JSON.stringify([
+      noduri.ofertaAgregata(),
+      ...LIMBI.map(([, text]) => noduri.nodCatalogPreturi(text)),
+    ]);
+    expect(toate).not.toMatch(
+      /\[(Business Name|City|Phone|Address|URL|Email)\]|REPLACE|TODO|DE COMPLETAT/,
+    );
+  });
+});
+
 describe("furnizorii externi sunt numiți în documentele legale", () => {
   /*
    * ── DE CE ────────────────────────────────────────────────────────────────
