@@ -57,6 +57,25 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 15 },
   },
 
+  /**
+   * Limba paginilor engleze, ca antet HTTP.
+   *
+   * `<html lang>` e scris o singură dată, în `src/app/layout.tsx`, ca `ro`: un
+   * `lang` per rută ar cere fie mai multe layout-uri rădăcină (reîncărcare
+   * completă între grupuri și `ZonaIncarcare` ruptă), fie `headers()` în layout,
+   * care ar face dinamice toate paginile statice. Conținutul are deja
+   * `lang="en"` pe învelișul lui (`_componente/cadru.tsx`), iar Google ignoră
+   * oricum atributul și deduce limba din text. Antetul e semnalul ieftin pentru
+   * motoarele care îl citesc (Bing), fără niciun cost de randare.
+   */
+  headers() {
+    const engleza = [{ key: "Content-Language", value: "en" }];
+    return [
+      { source: "/en", headers: engleza },
+      { source: "/en/:path*", headers: engleza },
+    ];
+  },
+
   reactCompiler: true,
 
   // Fără cheie `typescript`: build-ul de imagine relaxa verificarea

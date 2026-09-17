@@ -1,4 +1,9 @@
+import { CONTROL_ITM } from "@/content/legal/control-itm";
+import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
+import { REGES } from "@/content/legal/reges";
+
 import { ADRESA_SITE } from "./contact";
+import { fisaModulului } from "./fise-module";
 import { RO } from "./ro";
 
 /**
@@ -19,6 +24,11 @@ import { RO } from "./ro";
  * Nu e `new Date()`. O dată de build pusă automat ar pretinde că toate paginile
  * s-au schimbat la fiecare livrare, iar un `lastmod` în care nu se poate avea
  * încredere e ignorat de motoare.
+ *
+ * Unde conținutul are deja o dată a lui, ea se citește de acolo, nu se copiază:
+ * fișele de modul (`FisaModul.actualizat`) și paginile-lege (`actualizatIso`).
+ * Copiată, data rămânea în urmă la prima corectură — cele nouăsprezece module au
+ * purtat până la 17 sept 2026 o singură dată, mai veche decât ultima editare.
  *
  * ── DE CE PERECHEA DE TRADUCERE SE DECLARĂ ────────────────────────────────
  * Generatorul anterior prefixa orb `/en` la fiecare cale și emitea hreflang
@@ -63,7 +73,9 @@ const MODULE: readonly Pagina[] = RO.module.grupuri.flatMap((grup) =>
     prioritate: 0.6,
     limba: "ro" as const,
     traducere: null,
-    actualizat: "2026-09-04",
+    // Fiecare modul are fișă (test în `continut.test.ts`); rezerva e data
+    // catalogului, pentru un modul adăugat înaintea fișei lui.
+    actualizat: fisaModulului(modul.cheie)?.actualizat ?? "2026-09-04",
     sectiune: "Module",
   })),
 );
@@ -136,7 +148,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.9,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: EVIDENTA_ORELOR.actualizatIso,
     sectiune: "Obligații legale",
   },
   {
@@ -144,7 +156,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.9,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-03",
+    actualizat: REGES.actualizatIso,
     sectiune: "Obligații legale",
   },
   {
@@ -152,7 +164,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-04",
+    actualizat: CONTROL_ITM.actualizatIso,
     sectiune: "Obligații legale",
   },
 

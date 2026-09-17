@@ -11,7 +11,10 @@ import { PaginaPreturi } from "../../_componente/pagina-preturi";
 export const metadata: Metadata = {
   title: "Pricing",
   description: `The Administrativo core costs ${lunar(PRET_NUCLEU, "en")} for up to ${PRAG_ANGAJATI} employees; the first month is free. Packages and the price of every module, final amounts with no VAT added.`,
-  alternates: { canonical: "/en/preturi", languages: { ro: "/preturi", en: "/en/preturi" } },
+  alternates: {
+    canonical: "/en/preturi",
+    languages: { ro: "/preturi", en: "/en/preturi", "x-default": "/preturi" },
+  },
 };
 
 export default function Pricing() {

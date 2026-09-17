@@ -1,48 +1,18 @@
 import type { MetadataRoute } from "next";
 
+import { SEGMENTE_APLICATIE } from "@/config/routes";
 import { ADRESA_SITE } from "@/content/landing/contact";
 
-/**
- * Modulele aplicației autentificate, ca prefixe de nivel unu.
+/*
+ * Modulele aplicației autentificate, ca prefixe de nivel unu, vin din
+ * `SEGMENTE_APLICATIE` — aceeași listă pe care `src/proxy.ts` o folosește ca să
+ * decidă cine primește ecranul de autentificare.
  *
  * Stau la RĂDĂCINĂ, nu sub `/panou` — lista veche bloca doar `/panou`, `/portal`,
  * `/super-admin` și `/setari`, deci cele douăzeci și cinci de module rămâneau
- * `allow`. Nu se indexa conținut (`src/proxy.ts` întoarce 307 spre autentificare),
- * dar se consuma buget de crawl pe redirecturi.
+ * `allow`. Nu se indexa conținut (proxy-ul întoarce 307 spre autentificare), dar
+ * se consuma buget de crawl pe redirecturi.
  */
-const MODULE_INCHISE = [
-  "angajati",
-  "anunturi",
-  "concedii",
-  "cursuri",
-  "departamente",
-  "diurna",
-  "documente",
-  "evaluari",
-  "flota",
-  "inventar",
-  "mentenanta",
-  "notificari",
-  "onboarding",
-  "organigrama",
-  "panou",
-  "pontaj",
-  "profil",
-  "puncte-lucru",
-  "rapoarte",
-  "reges",
-  "registru",
-  "salarizare",
-  "setari",
-  "ssm",
-  "ticketing",
-  // Învelișuri din afara grupului (app), aceeași regulă.
-  "portal",
-  "super-admin",
-  "bun-venit",
-  "firma-in-configurare",
-  "alege-organizatia",
-] as const;
 
 /**
  * `Disallow` se potrivește pe PREFIX, nu pe segment.
@@ -65,7 +35,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       disallow: [
-        ...MODULE_INCHISE.flatMap((modul) => [`/${modul}$`, `/${modul}/`]),
+        ...SEGMENTE_APLICATIE.flatMap((modul) => [`/${modul}$`, `/${modul}/`]),
         "/api/",
         "/auth/",
       ],

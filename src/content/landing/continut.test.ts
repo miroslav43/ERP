@@ -577,6 +577,61 @@ describe("legăturile interne duc undeva", () => {
     expect([...dinLlms].sort()).toEqual([...asteptate].sort());
   });
 
+  it("paginile de modul din hărți sunt exact cele din catalog", async () => {
+    // Aceeași garanție ca la domenii, pe partea de module: `/module/[modul]`
+    // prerandează cheile din catalog, iar hărțile trebuie să le arate pe toate
+    // și numai pe ele.
+    const { ADRESA_SITE } = await import("./contact");
+    const { intrariSitemap: sitemap } = await import("./harta");
+    const { PAGINI: LLMS } = await import("@/app/llms.txt/route");
+
+    const asteptate = new Set(
+      RO.module.grupuri.flatMap((g) => g.module).map((m) => `/module/${m.cheie}`),
+    );
+    const dinSitemap = sitemap()
+      .map((i) => i.url.replace(ADRESA_SITE, ""))
+      .filter((c) => c.startsWith("/module/"));
+    const dinLlms = LLMS.map(([cale]) => cale).filter((c) => c.startsWith("/module/"));
+
+    expect(asteptate.size, "niciun modul în catalog").toBeGreaterThan(0);
+    expect([...new Set(dinSitemap)].sort()).toEqual([...asteptate].sort());
+    // llms.txt își generează lista de module din catalog, cu ancore; se compară
+    // doar dacă listează pagini de modul ca rânduri proprii.
+    if (dinLlms.length > 0) expect([...new Set(dinLlms)].sort()).toEqual([...asteptate].sort());
+  });
+
+  it("fiecare modul are fișă, cu data ultimei schimbări", async () => {
+    // Data ajunge în `lastmod`. Fără fișă, modulul ar lua data de rezervă din
+    // `harta.ts`, adică exact greșeala pe care câmpul a venit s-o repare.
+    const { fisaModulului } = await import("./fise-module");
+    for (const { cheie } of RO.module.grupuri.flatMap((g) => g.module)) {
+      expect(fisaModulului(cheie)?.actualizat, cheie).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+  });
+
+  it("fiecare pagină statică de marketing apare în sitemap", async () => {
+    /*
+     * ── DE CE ──────────────────────────────────────────────────────────────
+     * Modulele și domeniile sunt păzite de testele de mai sus. Paginile scrise
+     * o singură dată — `/pontaj-pe-telefon`, `/incredere` — nu erau: una nouă
+     * putea fi publicată, legată și trecută prin proxy, dar absentă tăcut din
+     * `sitemap.xml` și din `llms.txt`, cu `pnpm verify` verde. Rutele dinamice
+     * (`[param]`) sunt acoperite de verificările de egalitate exactă.
+     */
+    const { ADRESA_SITE } = await import("./contact");
+    const { intrariSitemap: sitemap } = await import("./harta");
+    const dinSitemap = new Set(sitemap().map((i) => i.url.replace(ADRESA_SITE, "") || "/"));
+
+    const statice = fisiere("src/app/(marketing)", ["page.tsx"])
+      .map((f) => f.replace(/^src\/app\/\(marketing\)/, "").replace(/\/page\.tsx$/, "") || "/")
+      .filter((cale) => !cale.includes("["));
+
+    expect(statice.length, "n-am găsit paginile de marketing").toBeGreaterThan(10);
+    for (const cale of statice) {
+      expect(dinSitemap.has(cale), `${cale} are page.tsx dar lipsește din sitemap`).toBe(true);
+    }
+  });
+
   it("rutele de metadate sunt accesibile fără sesiune", () => {
     /*
      * Invarianta: robotul de previzualizare al oricărei aplicații de mesagerie —
@@ -843,6 +898,40 @@ describe("un singur adevăr pe tot site-ul", () => {
       expect(text.pagini.intrebari.titlu, `${limba}: /intrebari`).not.toBe(text.intrebari.titlu);
       expect(text.pagini.incredere.titlu, `${limba}: /incredere`).not.toBe(text.izolare.titlu);
       expect(text.pagini.domenii.titlu, `${limba}: /domenii`).not.toBe(text.verticale.titlu);
+    }
+  });
+});
+
+describe("proxy-ul știe ce e aplicație și ce e public", () => {
+  /*
+   * ── DE CE ────────────────────────────────────────────────────────────────
+   * Proxy-ul trimite la autentificare doar vizitatorul nelogat care cere un
+   * segment din `SEGMENTE_APLICATIE`; orice altă cale primește răspunsul real al
+   * paginii, inclusiv 404. Un modul nou din `(app)`, uitat în listă, ar da 404
+   * celui nelogat în loc de login — și ar pierde `?redirect=`. Testul citește
+   * folderele de pe disc: fiecare segment de nivel unu e fie public, fie al
+   * aplicației, fie o rută tehnică, și niciodată două deodată.
+   */
+  it("fiecare segment de nivel unu are exact o clasă", async () => {
+    const { SEGMENTE_APLICATIE } = await import("@/config/routes");
+    const aplicatie = new Set<string>(SEGMENTE_APLICATIE);
+    const publice = new Set(RUTE_PUBLICE.map((r) => r.split("/")[1] ?? ""));
+    const tehnice = new Set(["api", "healthz", "readyz", "llms.txt", "sitemap.xml", "sitemap.xsl"]);
+
+    const foldere = (cale: string) =>
+      readdirSync(cale, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && !d.name.startsWith("_"))
+        .map((d) => d.name);
+    const segmente = foldere("src/app").flatMap((nume) =>
+      nume.startsWith("(") ? foldere(join("src/app", nume)) : [nume],
+    );
+    expect(segmente.length, "n-am găsit niciun segment — s-a mutat src/app?").toBeGreaterThan(20);
+
+    for (const segment of segmente) {
+      const clase = [aplicatie.has(segment), publice.has(segment), tehnice.has(segment)].filter(
+        Boolean,
+      ).length;
+      expect(clase, `/${segment}: în ${clase} clase (aplicație / public / tehnic)`).toBe(1);
     }
   });
 });

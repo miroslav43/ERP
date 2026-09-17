@@ -48,6 +48,13 @@ export type ActiuneModul = Readonly<{
 
 export type FisaModul = Readonly<{
   cheie: FeatureKey;
+  /**
+   * Data ultimei schimbări de conținut a fișei, ISO. Ajunge în `lastmod` din
+   * `sitemap.xml`. Până la 17 sept 2026 toate cele nouăsprezece pagini purtau o
+   * singură dată scrisă în `harta.ts`, anterioară ultimei editări a fișelor — un
+   * `lastmod` care minte e ignorat de motoare. Se schimbă odată cu textul fișei.
+   */
+  actualizat: string;
   /** Titlul paginii, mai lung și mai căutabil decât cel din catalog. */
   titluPagina: string;
   metaDescriere: string;
@@ -63,6 +70,7 @@ export type FisaModul = Readonly<{
 export const FISE: readonly FisaModul[] = [
   {
     cheie: "attendance",
+    actualizat: "2026-09-04",
     titluPagina: "Pontaj: foaia lunară, aprobarea și evidența cerută de lege",
     metaDescriere:
       "Cum se ține pontajul în Administrativo: foaia colectivă lunară, pontarea de pe telefon, aprobarea pe echipă și blocarea lunii. Cine ce poate face, pe roluri.",
@@ -130,6 +138,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ssm",
+    actualizat: "2026-09-04",
     titluPagina: "SSM și PSI: instruiri, aptitudini și echipament cu scadență",
     metaDescriere:
       "Matrice angajat × tip de instruire, cu semafor pe scadențe și „niciodată făcută” ca stare distinctă de „expirată”. Cine ce poate face, pe roluri.",
@@ -189,6 +198,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "payroll",
+    actualizat: "2026-09-04",
     titluPagina: "Salarizare: calcul pas cu pas, cu cotele firmei tale",
     metaDescriere:
       "Calcul salarial cu desfășurător și avertismente, pornit din luna de pontaj închisă. Cotele sunt versionate cu data de la care se aplică. Cine ce poate face, pe roluri.",
@@ -265,6 +275,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "fleet",
+    actualizat: "2026-09-04",
     titluPagina: "Parc auto: ITP, RCA, rovinietă și foi de parcurs",
     metaDescriere:
       "Termenele fiecărei mașini cu semafor înainte de scadență, foi de parcurs cu kilometraj și alimentări. Cine ce poate face, pe roluri.",
@@ -357,6 +368,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "per_diem",
+    actualizat: "2026-09-05",
     titluPagina: "Diurne și deplasări: ferestre de 24 de ore, pe țări",
     metaDescriere:
       "Ordine de deplasare, etape pe țări și deconturi, cu ferestre de 24 de ore care curg de la plecare. Cine ce poate face, pe roluri.",
@@ -432,6 +444,7 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
+    actualizat: "2026-09-05",
     titluPagina: "Concedii: cererea, aprobarea și soldul de zile care se scade singur",
     metaDescriere:
       "Cum se cer și se aprobă concediile în Administrativo: soldul pe fiecare tip, aprobarea pe echipă, trecerea automată pe pontaj. Cine ce poate face, pe roluri.",
@@ -507,6 +520,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "onboarding",
+    actualizat: "2026-09-05",
     titluPagina: "Integrare angajați: lista de pași la angajare, cu dovezi și termene",
     metaDescriere:
       "Cum se face integrarea unui angajat nou în Administrativo: șabloane de pași, dovezi încărcate, confirmare de citire, termene urmărite. Cine ce poate face, pe roluri.",
@@ -574,6 +588,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "courses",
+    actualizat: "2026-09-05",
     titluPagina: "Cursuri: materiale, lecții, teste și dovada că omul chiar a parcurs",
     metaDescriere:
       "Cum se țin cursurile interne în Administrativo: materiale versionate, lecții cu semnătură, teste cu prag, atribuire pe reguli. Cine ce poate face, pe roluri.",
@@ -633,6 +648,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "reges",
+    actualizat: "2026-09-17",
     titluPagina: "REGES-Online: transmiterea contractelor la inspecția muncii, cu termenele ei",
     metaDescriere:
       "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale urmărite, reconciliere. Cine ce poate face, pe roluri.",
@@ -715,6 +731,7 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "evaluations",
+    actualizat: "2026-09-05",
     titluPagina: "Evaluări: șabloane de criterii, note pe echipă și istoricul discuției",
     metaDescriere:
       "Cum se fac evaluările de performanță în Administrativo: șabloane duplicabile, evaluare pe echipă, finalizare cu istoric. Cine ce poate face, pe roluri.",
@@ -774,6 +791,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "kpi",
+    actualizat: "2026-09-05",
     titluPagina: "KPI-uri: seturi de indicatori, ținte pe om și luna care se închide",
     metaDescriere:
       "Cum se urmăresc indicatorii de performanță în Administrativo: seturi de KPI, ținte individuale, luni deschise și închise. Cine ce poate face, pe roluri.",
@@ -833,6 +851,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "maintenance",
+    actualizat: "2026-09-05",
     titluPagina: "Mentenanță: sesizări de la oricine, planuri pe echipamente și autorizații ISCIR",
     metaDescriere:
       "Cum se ține mentenanța în Administrativo: sesizări deschise de orice angajat, contoare, planuri periodice, autorizații ISCIR cu scadențe. Cine ce poate face, pe roluri.",
@@ -892,6 +911,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "inventory",
+    actualizat: "2026-09-05",
     titluPagina: "Inventar: cine are ce obiect al firmei, de când, și cu ce semnătură",
     metaDescriere:
       "Cum se ține inventarul de obiecte în Administrativo: predare cu confirmare, returnare, casare, obiecte pe fiecare angajat. Cine ce poate face, pe roluri.",
@@ -943,6 +963,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ticketing",
+    actualizat: "2026-09-05",
     titluPagina:
       "Ticketing intern: cererile către IT sau administrativ, cu o coadă și un responsabil",
     metaDescriere:
@@ -1010,6 +1031,7 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "announcements",
+    actualizat: "2026-09-05",
     titluPagina: "Anunțuri: comunicarea internă care se poate dovedi că a ajuns",
     metaDescriere:
       "Cum se transmit anunțurile interne în Administrativo: publicare, țintire pe departamente, confirmare de citire. Cine ce poate face, pe roluri.",
@@ -1069,6 +1091,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "employee_portal",
+    actualizat: "2026-09-05",
     titluPagina: "Portal angajat: fiecare om își vede ale lui, de pe telefon, fără cont de Windows",
     metaDescriere:
       "Ce vede un angajat în portalul Administrativo: fluturașul, soldul de concediu, pontajul, cursurile, documentele. Cum e limitat accesul la propriile date.",
@@ -1144,6 +1167,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "rapoarte",
+    actualizat: "2026-09-05",
     titluPagina: "Rapoarte: cifrele lunii scoase din datele care există deja",
     metaDescriere:
       "Ce rapoarte scoate Administrativo: situații pe salarizare și pe lună, din aceleași date care au fost aprobate. Cine ce poate vedea, pe roluri.",
@@ -1195,6 +1219,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "nucleu",
+    actualizat: "2026-09-05",
     titluPagina: "Organizație, roluri și audit: temelia peste care stau celelalte module",
     metaDescriere:
       "Cum se administrează firma în Administrativo: utilizatori, roluri, permisiuni per om, jurnal de audit. Cine ce poate face, pe roluri.",
@@ -1270,6 +1295,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "asistent",
+    actualizat: "2026-09-17",
     titluPagina: "Asistent AI: întrebi în română și ajungi direct în ecranul potrivit",
     metaDescriere:
       "Ce face asistentul din Administrativo: răspunde la întrebări despre propriile date și duce în ecranul potrivit, fără să vadă mai mult decât vede utilizatorul.",

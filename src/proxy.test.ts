@@ -53,3 +53,40 @@ describe("proxy", () => {
     expect(updateSession).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Vizitatorul nelogat: cine primește ecranul de autentificare și cine nu.
+ *
+ * Până la 17 sept 2026 orice cale nepublică primea 307 spre `/autentificare`,
+ * inclusiv una inexistentă. `/blog` sau un link vechi ajungeau în index ca
+ * pagină de login („soft 404”). Acum redirectul e doar pentru segmentele
+ * aplicației, comparate ca segment ÎNTREG — `pontaj` e prefix pentru
+ * `/pontaj-pe-telefon`.
+ */
+describe("proxy — vizitator nelogat", () => {
+  beforeEach(() => {
+    updateSession.mockReset();
+    updateSession.mockResolvedValue({ response: NextResponse.next(), autentificat: false });
+  });
+
+  const esteRedirectLaLogin = (r: NextResponse): boolean =>
+    r.status === 307 && (r.headers.get("location") ?? "").includes("/autentificare");
+
+  it("trimite la autentificare o rută a aplicației, cu destinația păstrată", async () => {
+    const r = await proxy(cerere("/pontaj/2026-09"));
+    expect(esteRedirectLaLogin(r)).toBe(true);
+    expect(r.headers.get("location")).toContain("redirect=%2Fpontaj%2F2026-09");
+  });
+
+  it("lasă o cale inexistentă să primească 404, nu ecranul de login", async () => {
+    for (const cale of ["/asdkjaslkdjalksjd", "/blog", "/wp-login.php", "/pontajx"]) {
+      expect(esteRedirectLaLogin(await proxy(cerere(cale))), cale).toBe(false);
+    }
+  });
+
+  it("nu confundă o pagină publică cu modulul care îi e prefix", async () => {
+    for (const cale of ["/pontaj-pe-telefon", "/reges-online", "/preturi", "/"]) {
+      expect(esteRedirectLaLogin(await proxy(cerere(cale))), cale).toBe(false);
+    }
+  });
+});

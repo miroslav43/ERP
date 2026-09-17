@@ -13,6 +13,54 @@ export const RUTA_AUTENTIFICARE = "/autentificare";
 export const RUTA_DUPA_AUTENTIFICARE = "/panou";
 export const RUTA_ALEGE_ORGANIZATIA = "/alege-organizatia";
 
+/**
+ * Primul segment al fiecărei rute din aplicația autentificată: cele douăzeci și
+ * cinci de module din `(app)`, plus învelișurile din afara lui.
+ *
+ * O singură listă pentru două consumatoare care trebuie să fie de acord:
+ *   - `src/proxy.ts` trimite la autentificare DOAR cererile nelogate spre un
+ *     segment de aici. Orice altă cale necunoscută trece mai departe și primește
+ *     404 de la Next — înainte primea 307 spre login, iar `/blog` sau un link
+ *     vechi ajungea în index ca ecran de autentificare;
+ *   - `src/app/robots.ts` le interzice robotului.
+ *
+ * `continut.test.ts` compară lista cu folderele de pe disc: un modul nou, uitat
+ * aici, ar da 404 vizitatorului nelogat în loc de ecranul de autentificare.
+ */
+export const SEGMENTE_APLICATIE = [
+  "angajati",
+  "anunturi",
+  "concedii",
+  "cursuri",
+  "departamente",
+  "diurna",
+  "documente",
+  "evaluari",
+  "flota",
+  "inventar",
+  "mentenanta",
+  "notificari",
+  "onboarding",
+  "organigrama",
+  "panou",
+  "pontaj",
+  "profil",
+  "puncte-lucru",
+  "rapoarte",
+  "reges",
+  "registru",
+  "salarizare",
+  "setari",
+  "ssm",
+  "ticketing",
+  // Învelișuri din afara grupului (app), aceeași regulă.
+  "portal",
+  "super-admin",
+  "bun-venit",
+  "firma-in-configurare",
+  "alege-organizatia",
+] as const;
+
 export const RUTA_SUPER_ADMIN = "/super-admin";
 /** Portalul angajatului. `(app)/layout.tsx` redirecționează aici rolul `employee`. */
 export const RUTA_PORTAL = "/portal";

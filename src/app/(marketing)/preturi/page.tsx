@@ -16,7 +16,10 @@ import { PaginaPreturi } from "../_componente/pagina-preturi";
 export const metadata: Metadata = {
   title: "Prețuri",
   description: `Nucleul Administrativo costă ${lunar(PRET_NUCLEU, "ro")}, până la ${PRAG_ANGAJATI} de angajați; prima lună e gratuită. Pachetele și prețul fiecărui modul, sume finale, fără TVA adăugat.`,
-  alternates: { canonical: "/preturi", languages: { ro: "/preturi", en: "/en/preturi" } },
+  alternates: {
+    canonical: "/preturi",
+    languages: { ro: "/preturi", en: "/en/preturi", "x-default": "/preturi" },
+  },
 };
 
 export default function Preturi() {
