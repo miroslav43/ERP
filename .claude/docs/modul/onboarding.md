@@ -24,8 +24,9 @@ capcane: [12]
 citeste_daca:
   - "„Checklistul este închis” pe un checklist deschis → secțiunea D6"
   - "pas obligatoriu care nu se poate bifa niciodată → secțiunea D4"
-scris_pe: 5621e9e8308157d5103f0b52dd696cb318da688c
-scris_la: 2026-09-10
+  - "câmpul de filtru rămâne plin după „Șterge filtrele” → secțiunea Ce se mișcă împreună"
+scris_pe: 50bff5a78999c0d340dbf8625f7d54c822900965
+scris_la: 2026-09-17
 tags: [modul, hr]
 ---
 
@@ -136,6 +137,14 @@ Materialele de citit refolosesc `course_materials` din [[modul/cursuri]] — nu 
 o bibliotecă paralelă. Predarea de echipament trece prin alocările din [[modul/inventar]],
 vizibile aici doar prin politicile îngustate de D9. Fișa și invitația noului angajat sunt
 la [[modul/angajati]].
+
+Lista de instanțe își ia filtrele din `filtre-instante.tsx`, ca restul ecranelor cu
+`filtre-*.tsx`. `/onboarding/sabloane` face **excepție**: își scrie formularul GET de mână,
+în `page.tsx`. Câmpurile lui sunt necontrolate (`defaultValue` se citește doar la montare),
+deci au nevoie de `key` legat de valoarea din adresă — „Șterge filtrele" din `StareGoala` e
+un `<Link>`, care navighează pe client fără să remonteze câmpul; fără `key`, rămânea textul
+vechi peste o listă nefiltrată și se reaplica la următoarea apăsare pe „Filtrează". Orice
+filtru nou pe ecranul ăsta se scrie cu aceeași pereche `key` + `defaultValue`.
 
 Numerotarea sare de la `0090` la `0092` și de la `0093` la `0095`: două coliziuni cu
 sesiunea care livra invitațiile. Convenția e să-ți redenumești **propria** migrare.
