@@ -23,6 +23,32 @@
  *
  * Verificarea se face pe TOATĂ calea, nu doar pe managerul direct: șeful poate
  * atârna de cineva din afară care, la rândul lui, atârnă de un membru.
+ *
+ * ── DE CE UȘA TREBUIE SĂ AIBĂ DOUĂ SENSURI ────────────────────────────────
+ * Legarea se scria, dezlegarea nu — și asta a produs, pe date reale, o
+ * organigramă în care un Project Manager stătea deasupra directorului firmei.
+ * Din jurnalul de audit al unei firme, cu ore cu tot:
+ *
+ *   04 sept 20:36:39  Conducere: manager Maletici → Popescu
+ *   04 sept 20:36:40  ⇒ Maletici (DIRECTOR, membru în Conducere) primește
+ *                       `manager_employee_id = Popescu`
+ *   04 sept 20:36:45  Conducere: manager Popescu → GOL          ⇒ nimic
+ *   17 sept 19:26:09  Conducere: manager GOL → Maletici          ⇒ nimic
+ *
+ * A doua și a treia linie sunt defectul. Odată scrisă, subordonarea nu se mai
+ * desface din ecranul care a scris-o: nici ștergând managerul, nici punând în
+ * locul lui chiar pe cel atârnat greșit. Singura ieșire rămasă era câmpul
+ * „Manager direct" de pe fișa fiecărui om — un drum pe care nimic din ecranul
+ * de departamente nu-l arată.
+ *
+ * De aceea regula primește acum și `sefAnteriorId`, iar planul are o a treia
+ * ramură. Ce NU face, deliberat: nu se atinge de subordonările care merg spre
+ * altcineva decât fostul șef. Singura legătură pe care o desface e exact cea pe
+ * care o poate demonstra că a scris-o ea însăși — `manager direct == fostul
+ * șef` — iar verificarea e pe managerul DIRECT, nu pe toată calea. Un fost șef
+ * aflat mai sus în lanț poate fi acolo pe merit (directorul rămâne deasupra
+ * tuturor), iar o ridicare „pe toată calea" ar rupe ierarhii legitime în numele
+ * unei simetrii.
  */
 
 export interface MembruDepartament {
@@ -40,6 +66,10 @@ export interface IntrareSubordonare {
   readonly caleaSefului: readonly string[];
   /** Șeful departamentului părinte — destinația firească a celui ridicat din lanț. */
   readonly sefulParinte: string | null;
+  /** Cine conducea departamentul înainte. `null` = n-avea șef. */
+  readonly sefAnteriorId: string | null;
+  /** `employees.manager_employee_id` al noului șef, ACUM. */
+  readonly managerDirectAlSefului: string | null;
 }
 
 export type PlanSubordonare = Readonly<{
@@ -53,7 +83,8 @@ export type PlanSubordonare = Readonly<{
 }>;
 
 export function planificaSubordonarea(intrare: IntrareSubordonare): PlanSubordonare {
-  const { sefId, membri, caleaSefului, sefulParinte } = intrare;
+  const { sefId, membri, caleaSefului, sefulParinte, sefAnteriorId, managerDirectAlSefului } =
+    intrare;
 
   const idMembri = new Set(membri.map((m) => m.id));
 
@@ -65,14 +96,71 @@ export function planificaSubordonarea(intrare: IntrareSubordonare): PlanSubordon
     .map((m) => m.id);
 
   const lantulTrecePrinDepartament = caleaSefului.some((id) => id !== sefId && idMembri.has(id));
-  if (!lantulTrecePrinDepartament) return { ridicaSeful: null, deLegat };
+  // A doua cauză, cea care a lăsat directorul sub Project Manager: noul șef
+  // atârnă chiar de fostul șef al aceluiași departament. Legătura a fost scrisă
+  // de mecanismul ăsta, la desemnarea precedentă, deci tot el o desface.
+  const atarnaDeFostulSef = sefAnteriorId !== null && managerDirectAlSefului === sefAnteriorId;
+  if (!lantulTrecePrinDepartament && !atarnaDeFostulSef) return { ridicaSeful: null, deLegat };
 
-  // Ridicarea trebuie să iasă DIN departament, altfel mută ciclul cu un pas mai
-  // încolo în loc să-l rupă. Dacă șeful părinte e tot aici, rămâne fără manager.
-  const nouManager =
-    sefulParinte !== null && sefulParinte !== sefId && !idMembri.has(sefulParinte)
-      ? sefulParinte
-      : null;
+  return {
+    ridicaSeful: { nouManager: destinatiaRidicarii(sefId, sefulParinte, idMembri) },
+    deLegat,
+  };
+}
 
-  return { ridicaSeful: { nouManager }, deLegat };
+/**
+ * Unde ajunge cel ridicat din lanț.
+ *
+ * Ridicarea trebuie să iasă DIN departament, altfel mută ciclul cu un pas mai
+ * încolo în loc să-l rupă. Dacă șeful părinte e tot aici — sau e chiar cel
+ * ridicat — omul rămâne fără manager.
+ */
+function destinatiaRidicarii(
+  cineUrca: string,
+  sefulParinte: string | null,
+  idMembri: ReadonlySet<string>,
+): string | null {
+  return sefulParinte !== null && sefulParinte !== cineUrca && !idMembri.has(sefulParinte)
+    ? sefulParinte
+    : null;
+}
+
+export interface IntrareEliberare {
+  /** Cine conducea departamentul și tocmai a fost șters din dreptul lui. */
+  readonly sefAnteriorId: string;
+  /** Fișele active cu `department_id` = departamentul. */
+  readonly membri: readonly MembruDepartament[];
+  /** Șeful departamentului părinte — unde urcă cei rămași fără șef. */
+  readonly sefulParinte: string | null;
+}
+
+export type PlanEliberare = Readonly<{
+  /** Fișele care ies din subordinea fostului șef. */
+  deEliberat: readonly string[];
+  /** Noul lor manager: șeful părinte, sau nimeni. */
+  nouManager: string | null;
+}>;
+
+/**
+ * Oglinda lui `planificaSubordonarea`, pentru „manager → gol".
+ *
+ * Se eliberează DOAR cei al căror manager direct e chiar fostul șef — adică
+ * exact fișele pe care desemnarea lui le-a scris. Cine atârnă de altcineva n-a
+ * fost legat de mecanismul ăsta și nu se atinge.
+ *
+ * Fostul șef nu se eliberează pe sine: dacă e membru în departament, rămâne cu
+ * managerul pe care îl are. Ștergerea lui din dreptul departamentului nu spune
+ * nimic despre cui raportează EL.
+ */
+export function planificaEliberarea(intrare: IntrareEliberare): PlanEliberare {
+  const { sefAnteriorId, membri, sefulParinte } = intrare;
+
+  const idMembri = new Set(membri.map((m) => m.id));
+  const deEliberat = membri
+    .filter((m) => m.id !== sefAnteriorId && m.managerEmployeeId === sefAnteriorId)
+    .map((m) => m.id);
+
+  // Destinația se calculează o singură dată, pentru tot lotul: sunt oameni din
+  // același departament, deci au toți același loc firesc deasupra.
+  return { deEliberat, nouManager: destinatiaRidicarii(sefAnteriorId, sefulParinte, idMembri) };
 }
