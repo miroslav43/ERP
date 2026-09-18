@@ -5,6 +5,7 @@ import {
   CE_NU_FACE,
   CE_PRIMESTI,
   CONTUL_TAU,
+  INAINTE_SA_RECOMANZI,
   type SectiuneContabili,
 } from "@/content/landing/pentru-contabili";
 import { RO } from "@/content/landing/ro";
@@ -73,6 +74,9 @@ export default function PaginaPentruContabili() {
       <Pasi sectiune={CONTUL_TAU} />
       <Pasi sectiune={CE_PRIMESTI} />
       <Pasi sectiune={CE_NU_FACE} />
+      {/* Ultima, deliberat: obiecția de încredere se pune după ce omul a citit
+          ce face și ce nu face, nu înainte. */}
+      <Pasi sectiune={INAINTE_SA_RECOMANZI} />
     </Cadru>
   );
 }

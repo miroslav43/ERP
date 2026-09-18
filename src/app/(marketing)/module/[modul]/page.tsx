@@ -163,6 +163,12 @@ export default async function PaginaModul({ params }: Proprietati) {
           supratitlu="Ecran real"
           titlu={`${modul.titlu} pe telefonul angajatului`}
           chei={capturiInalteAleModulului(cheie)}
+          // Măsurat cu Lighthouse pe 18 sept 2026: pe șablonul de modul banda
+          // ajunge la ~617px de sus, iar prima imagine DEVINE elementul LCP.
+          // Fără asta, ea rămâne `loading="lazy"` și își întârzie singură
+          // descoperirea. Pe `/pontaj-pe-telefon` banda e sub linia de
+          // plutire, deci acolo parametrul rămâne stins, deliberat.
+          susInPagina
         />
       )}
 

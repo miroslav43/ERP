@@ -113,19 +113,41 @@ export function nodFirimituri(lista: readonly Firimitura[]) {
  * O pagină care explică o obligație legală, ca `Article`.
  *
  * Autorul e organizația, nu o persoană: textele nu au un autor numit, iar un nume
- * inventat ar fi o afirmație falsă despre expertiză. `datePublished` lipsește
- * deliberat — conținutul are doar data ultimei verificări, iar o dată de publicare
- * egală cu ea ar fi scrisă, nu știută.
+ * inventat ar fi o afirmație falsă despre expertiză.
+ *
+ * ── `datePublished`, ADĂUGAT PE 18 SEPT 2026 ──────────────────────────────
+ * Aici scria că lipsește deliberat, fiindcă „o dată de publicare egală cu cea de
+ * verificare ar fi scrisă, nu știută". Argumentul era bun și a picat singur:
+ * data reală se citește din istoricul fișierului de conținut, deci nu mai e
+ * scrisă, e știută. Vezi `PaginaLege.publicatIso` pentru comanda exactă.
+ *
+ * ── DE CE `dateModified` E UN MAXIM, NU O COPIERE ─────────────────────────
+ * `/evidenta-orelor-de-munca` are textele verificate pe 3 septembrie și
+ * publicate pe 4 — fișierul a intrat în depozit a doua zi. Copiate ca atare,
+ * ar fi ieșit un articol modificat ÎNAINTE de a fi publicat, adică o
+ * imposibilitate pe care orice validator o semnalează. Nu falsificăm niciuna
+ * dintre cele două date: emitem cea mai târzie dintre ele ca `dateModified`,
+ * fiindcă o pagină apărută pe 4 a fost, în mod necesar, și atinsă pe 4.
+ *
+ * ── DE CE NU ARE `image` ──────────────────────────────────────────────────
+ * E o proprietate RECOMANDATĂ, nu obligatorie — documentația Google pentru
+ * `Article` spune explicit „There are no required properties". Singura imagine
+ * disponibilă ar fi cea de Open Graph, a cărei adresă poartă un hash de
+ * conținut generat la build și nu se poate scrie într-o funcție pură. Un fișier
+ * inventat doar ca să existe câmpul ar fi decor, nu informație.
  */
 export function nodArticol(pagina: PaginaLege) {
   const url = `${ADRESA_SITE}${pagina.cale}`;
+  const modificat =
+    pagina.actualizatIso < pagina.publicatIso ? pagina.publicatIso : pagina.actualizatIso;
   return {
     "@context": "https://schema.org",
     "@type": "Article",
     "@id": `${url}#articol`,
     headline: pagina.antet.titlu,
     description: pagina.antet.lead,
-    dateModified: pagina.actualizatIso,
+    datePublished: pagina.publicatIso,
+    dateModified: modificat,
     inLanguage: "ro-RO",
     url,
     mainEntityOfPage: url,

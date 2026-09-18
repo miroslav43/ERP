@@ -216,4 +216,5 @@ export const DIURNA: PaginaLege = {
 
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-18",
+  publicatIso: "2026-09-18",
 };

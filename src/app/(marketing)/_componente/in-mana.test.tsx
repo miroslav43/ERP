@@ -85,6 +85,63 @@ describe("banda de capturi înalte", () => {
     expect((poza?.getAttribute("srcset") ?? "").split(",")).toHaveLength(2);
   });
 
+  it("grila are atâtea coloane câte imagini, nu trei mereu", () => {
+    /*
+     * Defect măsurat în browser pe 18 sept 2026, pe `/module/portal-angajat`:
+     * clasa `lg:grid-cols-3`, scrisă pentru banda cu trei imagini, rămăsese și
+     * pe cea cu două. `gridTemplateColumns` calculat era `370,656px × 3` cu
+     * doar două celule — o treime de bandă albă în dreapta.
+     *
+     * Testul se uită la CLASĂ, nu la randare: jsdom n-are layout, deci
+     * `gridTemplateColumns` n-ar spune nimic aici.
+     */
+    const grila = (chei: readonly string[]) => {
+      const { container } = render(<InMana supratitlu="S" titlu="T" chei={chei} />);
+      return container.querySelector("figure")?.parentElement?.className ?? "";
+    };
+
+    expect(grila(["portal-pontare", "portal-scanare"])).not.toContain("lg:grid-cols-3");
+    expect(grila(["portal-pontare", "portal-scanare", "afis-pontare"])).toContain("lg:grid-cols-3");
+    // Două coloane rămân în ambele cazuri: pe tabletă, trei ar fi prea înguste.
+    expect(grila(["portal-pontare", "portal-scanare"])).toContain("sm:grid-cols-2");
+  });
+
+  it("doar prima imagine e prioritară, și numai când banda stă sus", () => {
+    /*
+     * Măsurat cu Lighthouse pe 18 sept 2026: pe `/module/portal-angajat` prima
+     * imagine a benzii E elementul LCP al paginii, și avea `loading="lazy"`
+     * fără `fetchpriority` — își întârzia singură descoperirea.
+     *
+     * Restul rămân leneșe, iar pe paginile unde banda e sub linia de plutire
+     * (`/pontaj-pe-telefon`) rămân leneșe toate: altfel am plăti o descărcare
+     * devreme pentru o imagine pe care nimeni n-o vede.
+     */
+    const poze = (susInPagina: boolean) => {
+      const { container } = render(
+        <InMana
+          supratitlu="S"
+          titlu="T"
+          chei={["portal-pontare", "portal-scanare", "afis-pontare"]}
+          susInPagina={susInPagina}
+        />,
+      );
+      return [...container.querySelectorAll("figure > button img")];
+    };
+
+    const sus = poze(true);
+    expect(sus[0]?.getAttribute("loading")).toBe("eager");
+    expect(sus[0]?.getAttribute("fetchpriority")).toBe("high");
+    for (const poza of sus.slice(1)) {
+      expect(poza.getAttribute("loading")).toBe("lazy");
+      expect(poza.getAttribute("fetchpriority")).toBe("auto");
+    }
+
+    for (const poza of poze(false)) {
+      expect(poza.getAttribute("loading")).toBe("lazy");
+      expect(poza.getAttribute("fetchpriority")).toBe("auto");
+    }
+  });
+
   it("fișierul nu e marcat `use client`", () => {
     /*
      * `/pontaj-pe-telefon` și `/module/portal-angajat` sunt prerandate static.

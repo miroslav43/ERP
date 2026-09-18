@@ -111,4 +111,20 @@ export type PaginaLege = Readonly<{
   actualizat: string;
   /** Data ISO a aceleiași verificări, pentru `dateModified`. */
   actualizatIso: string;
+  /**
+   * Data ISO la care pagina a apărut prima oară, pentru `datePublished`.
+   *
+   * ── DE CE A APĂRUT ABIA PE 18 SEPT 2026 ───────────────────────────────
+   * Câmpul a lipsit deliberat: comentariul din `noduri-json-ld.ts` argumenta că
+   * o dată de publicare egală cu cea de verificare ar fi „scrisă, nu știută".
+   * Argumentul era corect, dar a devenit inutil — data reală se citește din
+   * istoricul fișierului de conținut:
+   *
+   *   git log --diff-filter=A --format=%ad --date=short -- <fișier> | tail -1
+   *
+   * Deci nu se presupune și nu se copiază din `actualizatIso`. Când cele două
+   * coincid, coincid fiindcă pagina chiar a fost scrisă și verificată în
+   * aceeași zi, nu fiindcă una a fost dedusă din cealaltă.
+   */
+  publicatIso: string;
 }>;

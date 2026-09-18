@@ -1160,8 +1160,26 @@ describe("datele structurate spun ce spune pagina", () => {
     ];
     for (const pagina of pagini) {
       const articol = nodArticol(pagina);
-      expect(articol.dateModified, pagina.cale).toBe(pagina.actualizatIso);
-      expect(articol.dateModified, pagina.cale).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(articol.datePublished, pagina.cale).toBe(pagina.publicatIso);
+      for (const data of [articol.datePublished, articol.dateModified]) {
+        expect(data, pagina.cale).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      }
+      /*
+       * Un articol nu poate fi modificat ÎNAINTE de a fi publicat.
+       *
+       * Nu e o ipoteză: `/evidenta-orelor-de-munca` are textele verificate pe
+       * 3 septembrie și fișierul intrat în depozit pe 4. Copiate ca atare, cele
+       * două date produceau exact imposibilitatea asta. `nodArticol` emite cea
+       * mai târzie dintre ele ca `dateModified`, fără să falsifice niciuna.
+       */
+      expect(
+        articol.dateModified >= articol.datePublished,
+        `${pagina.cale}: modificat (${articol.dateModified}) înainte de publicat (${articol.datePublished})`,
+      ).toBe(true);
+      // Când verificarea e ulterioară publicării, ea e cea care se emite.
+      if (pagina.actualizatIso >= pagina.publicatIso) {
+        expect(articol.dateModified, pagina.cale).toBe(pagina.actualizatIso);
+      }
       expect(dinSitemap.has(articol.url), `${articol.url} nu e în sitemap`).toBe(true);
       expect(articol.url.startsWith(ADRESA_SITE)).toBe(true);
       // Google trunchiază `headline` peste 110 caractere.

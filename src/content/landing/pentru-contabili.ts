@@ -88,6 +88,36 @@ export const CE_PRIMESTI: SectiuneContabili = {
   ],
 };
 
+/**
+ * Ultima secțiune, adăugată pe 18 sept 2026 după măsurătoarea de experiență a
+ * căutării.
+ *
+ * ── DE CE ────────────────────────────────────────────────────────────────
+ * Pagina a urcat persona „contabil” de la 41 la 64 din 100, dar rămâne
+ * plafonată de o singură celulă: încrederea, 10 din 25 — cea mai mică din tot
+ * tabelul, pe toate cele patru persoane. Motivul e vizibil și onest: produsul
+ * n-are încă clienți de arătat.
+ *
+ * Fraza care rezolvă exact obiecția asta EXISTĂ deja, dar numai pe pagina de
+ * start. Contabilul care citește aici e cel care riscă cel mai mult — își pune
+ * numele în fața clientului — și tocmai el n-o vedea. Nu e conținut nou, e
+ * același fapt, pus unde e nevoie de el.
+ */
+export const INAINTE_SA_RECOMANZI: SectiuneContabili = {
+  supratitlu: "Înainte să recomanzi",
+  titlu: "Ce riști tu când ne recomanzi unui client",
+  pasi: [
+    {
+      titlu: "Suntem la început, și o spunem aici, nu la a treia discuție",
+      text: "Nu punem testimoniale scrise de noi și nu punem logo-uri de firme care nu ne folosesc. Primii clienți sunt în implementare. Dacă vrei să vorbești cu unul dintre ei înainte să pui o vorbă bună, îți facem legătura la telefon — nu un caz de studiu scris de noi, ci un om care ține aceleași evidențe ca tine. Pentru un contabil asta contează mai mult decât pentru oricine altcineva: clientul îți reproșează ție alegerea, nu nouă, iar noi știm asta.",
+    },
+    {
+      titlu: "Ce se întâmplă cu datele dacă renunță clientul",
+      text: "Contractul se încetează cu un preaviz de treizeci de zile, fără penalități, iar o suspendare pentru o factură neachitată nu șterge datele — scrie în termeni, nu doar aici. Cele cinci fișiere de mai sus se descarcă oricând, nu la ieșire, deci evidența pe care ai lucrat o ai deja la tine lună de lună. Partea pe care o spunem pe față: un buton de export complet al contului, pe care să-l apeși singur, NU există încă; la încetare exportul îl facem noi, în format deschis. Dacă vrei să vezi exact ce iese, cere o demonstrație și descarcă-le înainte să decizi.",
+    },
+  ],
+};
+
 export const CE_NU_FACE: SectiuneContabili = {
   supratitlu: "Limitele",
   titlu: "Ce nu face aplicația, ca să nu afli la al doilea client",
