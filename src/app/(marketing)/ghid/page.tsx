@@ -2,7 +2,9 @@
 import type { Metadata } from "next";
 
 import { RO } from "@/content/landing/ro";
+import { CONCEDIU_ODIHNA } from "@/content/legal/concediu-odihna";
 import { CONTROL_ITM } from "@/content/legal/control-itm";
+import { DIURNA } from "@/content/legal/diurna";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
 import { REGES } from "@/content/legal/reges";
 
@@ -22,11 +24,11 @@ import { ListaHub } from "../_componente/lista-hub";
 export const metadata: Metadata = {
   title: "Ghiduri pentru angajatori: pontaj, REGES, ITM",
   description:
-    "Ce cer Codul muncii și HG 295/2025 de la o firmă mică: evidența orelor, REGES-ONLINE, controlul ITM. Cu articolul lângă fiecare afirmație și ce nu se poate afirma sigur.",
+    "Ce cer Codul muncii și HG 295/2025 de la o firmă mică: evidența orelor, REGES-ONLINE, concediul de odihnă, controlul ITM. Cu articolul de lege lângă fiecare afirmație.",
   alternates: { canonical: "/ghid" },
 };
 
-const PAGINI = [EVIDENTA_ORELOR, REGES, CONTROL_ITM].map((p) => ({
+const PAGINI = [EVIDENTA_ORELOR, REGES, CONCEDIU_ODIHNA, DIURNA, CONTROL_ITM].map((p) => ({
   href: p.cale,
   titlu: p.antet.titlu,
   lead: p.antet.lead,
@@ -53,6 +55,14 @@ const DE_UNDE = [
   {
     titlu: "Ții pontajul în fișiere de calcul",
     text: "Evidența orelor cere ora de începere și ora de sfârșit, zilnic, la locul de muncă. Ghidul spune ce înseamnă asta în practică și cât costă absența ei.",
+  },
+  {
+    titlu: "Cineva ți-a cerut zilele rămase din anul trecut",
+    text: "Ghidul de concediu de odihnă ia termenul de report de 18 luni, decizia ÎCCJ din august 2026 despre zilele rămase după el, și calculul indemnizației pe ultimele trei luni.",
+  },
+  {
+    titlu: "Trimiți oameni în deplasare",
+    text: "Diurna are două plafoane neimpozabile, nu unul, iar al doilea se calculează separat pentru fiecare lună. Ghidul le ia pe rând, cu formula scrisă în lege.",
   },
 ];
 

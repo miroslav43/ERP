@@ -185,6 +185,19 @@ export const CONTROL_ITM: PaginaLege = {
       eticheta: "HG 295/2025 (REGES-ONLINE), forma consolidată",
       href: "https://legislatie.just.ro/Public/DetaliiDocumentAfis/302099",
     },
+    /*
+       Adăugată pe 18 sept 2026: pagina cita art. 19¹ din Legea 108/1999 fără să
+       lege actul, adică exact ce reproșăm altora.
+
+       Adresa e `DetaliiDocument/304537`, consolidarea din 18 decembrie 2025 — NU
+       `DetaliiDocumentAfis/137525`, pe care portalul o servește ca „forma
+       consolidată” și care e mai veche cu un an: n-are art. 19¹ deloc. Capcana
+       e tăcută, fiindcă pagina veche arată identic și se numește la fel.
+    */
+    {
+      eticheta: "Legea 108/1999 (Inspecția Muncii), consolidată la 18 decembrie 2025",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/304537",
+    },
   ],
 
   actualizat: "septembrie 2026",

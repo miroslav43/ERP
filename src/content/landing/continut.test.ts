@@ -515,6 +515,8 @@ describe("legăturile interne duc undeva", () => {
       (await import("@/content/legal/reges")).REGES,
       (await import("@/content/legal/evidenta-orelor")).EVIDENTA_ORELOR,
       (await import("@/content/legal/control-itm")).CONTROL_ITM,
+      (await import("@/content/legal/concediu-odihna")).CONCEDIU_ODIHNA,
+      (await import("@/content/legal/diurna")).DIURNA,
     ];
     const linkuri = [
       ...FISE.flatMap((f) => (f.ghiduri ?? []).map((g) => [`fișa ${f.cheie}`, g.href] as const)),
@@ -1136,6 +1138,8 @@ describe("datele structurate spun ce spune pagina", () => {
       (await import("@/content/legal/reges")).REGES,
       (await import("@/content/legal/evidenta-orelor")).EVIDENTA_ORELOR,
       (await import("@/content/legal/control-itm")).CONTROL_ITM,
+      (await import("@/content/legal/concediu-odihna")).CONCEDIU_ODIHNA,
+      (await import("@/content/legal/diurna")).DIURNA,
     ];
     for (const pagina of pagini) {
       const articol = nodArticol(pagina);

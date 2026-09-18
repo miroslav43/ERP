@@ -473,6 +473,7 @@ export const FISE: readonly FisaModul[] = [
       "Un șofer pleacă marți la 16:00 spre Germania și se întoarce vineri seara. Își deschide singur ordinul de deplasare, fiindcă diurnele sunt modulul în care omul își conduce propriul dosar. Ferestrele de 24 de ore curg de la ora plecării, nu de la miezul nopții, așa că ziua de marți nu se rotunjește: aplicația le numără de la 16:00, iar etapele se completează pe țări, cu ora trecerii. La întoarcere face decontul, iar dacă ceva lipsește se poate întoarce la pasul dinainte fără să piardă ce era completat. Partea neimpozabilă se calculează separat și intră ca atare în salarizare, nu ca o sumă rotundă adăugată la final. Șeful lui aprobă, dar nu poate modifica cifrele: aprobarea și scrierea sunt drepturi diferite.",
     notaPermisiuni:
       "Diurnele sunt singurul modul în care omul care pleacă în deplasare își conduce singur dosarul: cere, completează etapele, face decontul și poate șterge cererea cât timp e a lui. Managerul aprobă echipa, dar nu poate completa în locul nimănui. HR nu are nicio permisiune aici — e un flux între angajat, șeful lui și administrator.",
+    ghiduri: [{ href: "/ghid/diurna", eticheta: "Plafoanele neimpozabile și durata delegării" }],
     legaturi: [
       {
         catre: "payroll",
@@ -552,6 +553,12 @@ export const FISE: readonly FisaModul[] = [
       "Concediul e locul unde separarea rolurilor se simte cel mai des: cine cere, cine aprobă și cine vede soldul altcuiva sunt trei drepturi diferite, impuse în baza de date, nu în interfață.",
     leadLegaturi:
       "O cerere aprobată se vede imediat în altă parte: pe pontaj, unde ziua apare singură, în salarizare, care o plătește, și în REGES, când tipul de concediu suspendă contractul.",
+    ghiduri: [
+      {
+        href: "/ghid/concediu-de-odihna",
+        eticheta: "Ce cere Codul muncii: zile, programare, report",
+      },
+    ],
     notaPermisiuni:
       "Managerul e cazul care surprinde. Vede cererile întregii echipe și le aprobă, dar poate depune și modifica numai pe ale lui: nu poate cere concediu în numele unui subordonat, oricât de bine ar cunoaște situația. Iar HR, care are acces la toate cererile și le poate chiar șterge, are refuz explicit pe aprobare — un „none” scris în tabel, nu o omisiune. Cine ține evidența nu e cine decide, și baza ține minte diferența.",
     legaturi: [
