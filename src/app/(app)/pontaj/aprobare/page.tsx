@@ -192,7 +192,12 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
         <AntetPagina
           titlu="Aprobare pontaj"
           descriere="Firma a stabilit că pontajul nu trece prin aprobare."
-          actiuni={<ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />}
+          actiuni={
+            <ButonSetariPontaj
+              poateConfigura={fileNav.poateConfigura}
+              poateVedeaCoduriQr={fileNav.poateVedeaCoduriQr}
+            />
+          }
           file={<NavPontaj {...fileNav} />}
         />
         <StareGoala
@@ -246,7 +251,12 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
       <AntetPagina
         titlu="Aprobare pontaj"
         descriere={`Aprobarea în bloc pentru ${formatMonthYear(an, filtre.luna)}.`}
-        actiuni={<ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />}
+        actiuni={
+          <ButonSetariPontaj
+            poateConfigura={fileNav.poateConfigura}
+            poateVedeaCoduriQr={fileNav.poateVedeaCoduriQr}
+          />
+        }
         file={<NavPontaj {...fileNav} />}
       />
 

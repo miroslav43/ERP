@@ -218,7 +218,10 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
                 {an + 1}
               </Link>
             </nav>
-            <ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />
+            <ButonSetariPontaj
+              poateConfigura={fileNav.poateConfigura}
+              poateVedeaCoduriQr={fileNav.poateVedeaCoduriQr}
+            />
           </>
         }
         file={<NavPontaj {...fileNav} />}

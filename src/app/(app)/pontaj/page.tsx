@@ -299,7 +299,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     Citire în plus, un rând, pe index unic. Nu poate intra în valul de mai jos:
     `poateAproba` intră în antet, construit înaintea ramurii de vizualizare.
   */
-  const { poateAproba, poateConfigura, poateVedeaArhiva } = await fileDePontaj(
+  const { poateAproba, poateConfigura, poateVedeaArhiva, poateVedeaCoduriQr } = await fileDePontaj(
     tenant.organizationId,
     permisiuni,
   );
@@ -365,7 +365,12 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       // FIECARE pagină a modulului, deci nu mai dispare la schimbarea filei —
       // motivul pentru care fusese mutat în bandă. Garda e aceeași
       // (`attendance:update = all`, ca pagina țintă).
-      actiuni={<ButonSetariPontaj poateConfigura={poateConfigura} />}
+      actiuni={
+        <ButonSetariPontaj
+          poateConfigura={poateConfigura}
+          poateVedeaCoduriQr={poateVedeaCoduriQr}
+        />
+      }
       file={<NavPontaj poateAproba={poateAproba} poateVedeaArhiva={poateVedeaArhiva} />}
     />
   );
