@@ -3,6 +3,101 @@ import type { NextConfig } from "next";
 // Cale relativă, nu `@/`: aici rezoluția de module e a lui Node, fără alias.
 import { REDIRECTURI_MODULE } from "./src/content/landing/slug-module";
 
+/**
+ * Originea unei adrese din mediu, sau `null` dacă lipsește ori e stricată.
+ *
+ * CSP-ul cere ORIGINI, nu adrese complete: `https://x.y/script.js` într-o
+ * directivă e o cale, nu o gazdă, și restrânge politica la exact acel fișier —
+ * o capcană care se vede abia la primul raport de încălcare.
+ */
+function origineDin(valoare: string | undefined): string | null {
+  if (valoare === undefined || valoare.trim() === "") return null;
+  try {
+    return new URL(valoare).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Politica de securitate a conținutului, deocamdată DOAR raportată.
+ *
+ * ── DE CE `Report-Only` ───────────────────────────────────────────────────
+ * Un CSP scris din citirea codului e o ipoteză, nu un inventar: nu prinde
+ * originile pe care o bibliotecă le cere la rulare, nici bucata de HTML dintr-o
+ * previzualizare de e-mail. `Report-Only` nu blochează nimic și livrează exact
+ * lista care lipsește. Se strânge DUPĂ ce rapoartele tac, nu înainte.
+ *
+ * ── DE CE `'unsafe-inline'` LA SCRIPTURI, ȘI DE CE RĂMÂNE ─────────────────
+ * Alternativa e un `nonce` per cerere, iar un nonce cere randare DINAMICĂ:
+ * cele nouăsprezece pagini de modul, plus hub-urile, sunt prerandate static și
+ * ar deveni toate dinamice. Costul e real (fiecare vizitator plătește o
+ * randare), câștigul e teoretic pe un sit fără conținut trimis de utilizatori.
+ * Restul directivelor — `object-src`, `base-uri`, `form-action`,
+ * `frame-ancestors` — fac munca grea și nu costă nimic.
+ *
+ * ── DE CE O SINGURĂ POLITICĂ, NU UNA PE GRUP ─────────────────────────────
+ * În `headers()`, două intrări care potrivesc aceeași cale și declară aceeași
+ * cheie se suprascriu după ordine — un mecanism pe care nu vreau să-l descopăr
+ * în producție cu un CSP pe jumătate aplicat. O politică, destul de largă cât
+ * să acopere ȘI aplicația; strâmtarea pe `(marketing)` vine ca al doilea pas,
+ * cu rapoartele pe masă.
+ */
+function politicaCsp(): string {
+  const umami = origineDin(process.env.NEXT_PUBLIC_UMAMI_SRC);
+  const supabase = origineDin(process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+  const scripturi = ["'self'", "'unsafe-inline'", "https://www.googletagmanager.com", umami];
+  const conexiuni = [
+    "'self'",
+    supabase,
+    supabase === null ? null : supabase.replace(/^https:/, "wss:"),
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://www.googletagmanager.com",
+    umami,
+  ];
+
+  const directive: readonly (readonly [string, readonly (string | null)[]])[] = [
+    ["default-src", ["'self'"]],
+    ["base-uri", ["'self'"]],
+    ["object-src", ["'none'"]],
+    /*
+     * FĂRĂ `frame-ancestors`. Într-o politică `Report-Only` browserele o ignoră
+     * — Chrome scrie chiar un avertisment în consolă la fiecare încărcare de
+     * pagină, pe tot situl. Munca ei o face deja `X-Frame-Options: SAMEORIGIN`
+     * din `deploy/nginx/30-administrativo.ro.conf`. Intră aici în ziua în care
+     * politica devine executorie.
+     */
+    ["form-action", ["'self'"]],
+    ["script-src", scripturi],
+    ["style-src", ["'self'", "'unsafe-inline'"]],
+    // `data:` la imagini: codurile QR și diagramele din PDF-uri se randează așa.
+    ["img-src", ["'self'", "data:", "blob:", "https://www.googletagmanager.com"]],
+    ["font-src", ["'self'", "data:"]],
+    ["connect-src", conexiuni],
+    // Vizualizatorul de lecții încarcă PDF-uri din Storage (`blob:`) și
+    // înglobează video de la cei trei furnizori acceptați de `link-extern.ts`.
+    [
+      "frame-src",
+      [
+        "'self'",
+        "blob:",
+        "https://www.youtube-nocookie.com",
+        "https://player.vimeo.com",
+        "https://www.loom.com",
+      ],
+    ],
+    ["media-src", ["'self'", "blob:", "data:"]],
+    ["worker-src", ["'self'", "blob:"]],
+    ["report-uri", ["/api/csp-report"]],
+  ];
+
+  return directive
+    .map(([nume, surse]) => `${nume} ${surse.filter((s) => s !== null).join(" ")}`)
+    .join("; ");
+}
+
 const nextConfig: NextConfig = {
   /**
    * Build de producție containerizat: `standalone` scrie în `.next/standalone`
@@ -74,10 +169,21 @@ const nextConfig: NextConfig = {
   headers() {
     const engleza = [{ key: "Content-Language", value: "en" }];
     return [
+      {
+        source: "/:cale*",
+        headers: [{ key: "Content-Security-Policy-Report-Only", value: politicaCsp() }],
+      },
       { source: "/en", headers: engleza },
       { source: "/en/:path*", headers: engleza },
     ];
   },
+
+  /**
+   * `X-Powered-By: Next.js` nu apără pe nimeni și spune unui scaner exact ce
+   * familie de vulnerabilități să încerce întâi. Nu e o gaură, e o economie
+   * pentru atacator — și un rând în fiecare răspuns al sitului.
+   */
+  poweredByHeader: false,
 
   /**
    * Adresele vechi ale paginilor de modul (`/module/attendance`) → slug-urile

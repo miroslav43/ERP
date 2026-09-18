@@ -94,7 +94,21 @@ export function GET(): Response {
   return new Response(corp, {
     headers: {
       "content-type": "application/xml; charset=utf-8",
-      "cache-control": "public, max-age=0, must-revalidate",
+      /*
+       * `s-maxage`, nu `max-age`: browserul să reverifice de fiecare dată
+       * (`max-age=0`), marginea să țină o oră.
+       *
+       * Cu `max-age=0, must-revalidate` singur, Cloudflare nu păstra nimic —
+       * `.xml` E printre extensiile pe care le-ar cacheța implicit, deci
+       * singurul lucru care o oprea era antetul nostru. Rezultatul: fiecare
+       * trecere a unui robot cobora până la container pentru un document care
+       * se schimbă de câteva ori pe lună.
+       *
+       * O oră, nu o zi: sitemap-ul e locul din care motoarele află de o pagină
+       * NOUĂ, iar o zi de întârziere la indexare e un cost mai mare decât
+       * câteva cereri în plus.
+       */
+      "cache-control": "public, max-age=0, s-maxage=3600, must-revalidate",
     },
   });
 }
