@@ -901,6 +901,56 @@ export async function afiseDePontare(organizationId: string): Promise<readonly A
   }));
 }
 
+export interface CodQrPontare {
+  readonly id: string;
+  readonly denumire: string;
+  readonly activ: boolean;
+  /** `null` = punctul n-are încă un cod, deci nu se poate ponta prin el. */
+  readonly cod: string | null;
+}
+
+/**
+ * Punctele de lucru CU codul lor, pentru ecranul care chiar îl arată.
+ *
+ * ── DE CE EXISTĂ, DEȘI SORA EI DE MAI SUS JURĂ CĂ NU-L CITEȘTE ────────────
+ * `afiseDePontare` nu selectează `cod_pontaj` fiindcă ecranul ei are nevoie
+ * doar de „are cod / n-are cod", iar un secret care nu traversează granița
+ * server/client nu se poate scurge. Regula aceea rămâne în picioare pentru ea.
+ *
+ * Fila „Coduri QR" are însă altă treabă: desenează chiar codul, ca omul să-l
+ * vadă fără să plece din pontaj. Pentru asta codul TREBUIE citit — dar rămâne
+ * pe server: din el se face un SVG, iar spre client pleacă poza, nu șirul.
+ * Singurul loc în care textul ajunge la client e adresa de sub cod, scrisă
+ * acolo intenționat, ca cineva să poată verifica unde duce înainte de a tipări
+ * cincizeci de foi — aceeași alegere ca pe afiș.
+ *
+ * ── CINE O POATE CHEMA ───────────────────────────────────────────────────
+ * Apelantul verifică `departments:update` la `all` ÎNAINTE, ca afișul
+ * (`puncte-lucru/[id]/afis`). Nu `attendance:update`: cine vede codul poate
+ * ponta de oriunde, deci poarta e a secretului, nu a modulului din care se
+ * întâmplă să fie privit. Politica `puncte_lucru_select` cere doar
+ * `departments:read`, deci baza NU e a doua barieră aici — verificarea din
+ * pagină e singura.
+ */
+export async function coduriQrDePontare(organizationId: string): Promise<readonly CodQrPontare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("puncte_lucru")
+    .select("id, denumire, activ, cod_pontaj")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("sediu_principal", { ascending: false })
+    .order("denumire")
+    .returns<{ id: string; denumire: string; activ: boolean; cod_pontaj: string | null }[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    denumire: p.denumire,
+    activ: p.activ,
+    cod: p.cod_pontaj,
+  }));
+}
+
 // ── Absențe nemotivate care cer o decizie ───────────────────────────────────
 
 export interface SerieAbsenteNemotivate {

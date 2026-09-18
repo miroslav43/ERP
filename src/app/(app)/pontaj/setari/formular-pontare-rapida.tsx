@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Ban, CheckCheck, Clock, Handshake, Layers, Lock, Printer, QrCode } from "lucide-react";
+import { Ban, CheckCheck, Clock, Handshake, Layers, Lock, QrCode } from "lucide-react";
 
 import { AlegereCarduri, type OptiuneCard } from "@/components/ui/alegere-carduri";
-import { Buton, buton } from "@/components/ui/buton";
+import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
 import { IntrareOra } from "@/components/ui/intrare-ora";
@@ -14,8 +13,6 @@ import { intervalulPropus, type ConfigZi } from "@/domain/attendance/calcul-ore"
 import { cePoateFace, type ConfigPontareRapida } from "@/domain/attendance/pontare-rapida";
 import type { AfisPontare } from "@/lib/queries/attendance";
 import { formatOre } from "@/lib/format/ore";
-
-import { rotesteCodPontaj } from "@/app/(app)/puncte-lucru/actions";
 
 import { salveazaPontareaRapida } from "./actions";
 
@@ -38,26 +35,22 @@ export function FormularPontareRapida({
   pontare,
   afise,
   config,
-  poateGeneraCod,
 }: {
   readonly pontare: ConfigPontareRapida;
+  /**
+   * Punctele de lucru și starea afișului lor.
+   *
+   * Nu se mai desenează aici — lista a plecat în fila „Coduri QR" — dar
+   * rămâne NECESARĂ: „Numai prin cod QR" se stinge când firma n-are niciun
+   * afiș, iar starea aia se citește tot din ele. Scoasă odată cu lista,
+   * alegerea ar fi rămas selectabilă și ar fi oprit pontarea pentru toată
+   * firma, tăcut.
+   */
   readonly afise: readonly AfisPontare[];
   /** Norma și pauza în vigoare azi — hrănesc intervalul propus. */
   readonly config: ConfigZi;
-  /** `departments:update` la `all` — cheia lui `puncte_lucru`, nu a pontajului. */
-  readonly poateGeneraCod: boolean;
 }) {
-  const router = useRouter();
   const [seTrimite, porneste] = useTransition();
-  /*
-    Tranziție PROPRIE pentru generarea codului, nu `porneste` de mai sus.
-    Aceeași tranziție ar fi blocat butonul „Salvează" cât timp se face un cod,
-    și invers — două lucruri fără nicio legătură între ele, în două secțiuni
-    diferite ale ecranului. Eroarea, în schimb, se afișează în același loc:
-    ecranul are UN singur rând de eroare, iar un al doilea, identic, la câțiva
-    pixeli distanță, n-ar spune nimic în plus.
-  */
-  const [seGenereaza, pornesteGenerarea] = useTransition();
   const [mesaj, setMesaj] = useState<string | null>(null);
   const [eroare, setEroare] = useState<string | null>(null);
   /*
@@ -267,91 +260,25 @@ export function FormularPontareRapida({
       </section>
 
       {/*
-        Puntea care lipsea. Ecranul cerea o alegere despre codul QR fără să spună
-        dacă firma are vreun punct de lucru, dacă are cod, și fără drum spre
-        afiș — care se generează în alt modul.
-      */}
-      <section className="space-y-2">
-        <h2 className="text-corp font-medium">Afișele de pontare</h2>
-        {afise.length === 0 ? (
-          <p className="text-muted-foreground text-corp">
-            Firma n-are niciun punct de lucru.{" "}
-            <Link href="/puncte-lucru" className="underline underline-offset-2">
-              Adăugați unul
-            </Link>{" "}
-            ca să puteți tipări un afiș.
-          </p>
-        ) : (
-          <ul className="text-corp divide-border divide-y">
-            {afise.map((afis) => (
-              <li key={afis.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <span>
-                  {afis.denumire}
-                  {afis.activ ? null : (
-                    <span className="text-muted-foreground text-nota"> (inactiv)</span>
-                  )}
-                </span>
-                {afis.areCod ? (
-                  <Link
-                    href={`/puncte-lucru/${afis.id}/afis`}
-                    className={buton({ varianta: "tertiar" })}
-                  >
-                    <Printer aria-hidden="true" className="size-3.5" />
-                    Tipărește afișul
-                  </Link>
-                ) : poateGeneraCod ? (
-                  /*
-                    Era un `<Link>` către `/puncte-lucru`, adică un buton care
-                    promitea o acțiune și livra o navigare: ajungeai în listă și
-                    trebuia să găsești singur punctul de lucru și butonul lui.
-                    Aici se cerea „o cale directă din pontaj", iar o cale
-                    directă către altă listă nu e una.
+        ── UNDE S-A MUTAT SECȚIUNEA „AFIȘELE DE PONTARE" ────────────────────
+        Era aici o listă a punctelor de lucru cu starea afișului fiecăruia. A
+        plecat în fila „Coduri QR", și nu ca să facă loc: lista arăta DACĂ
+        există un cod, niciodată codul, iar singurul drum spre el era un link
+        către pagina de tipărit a celuilalt modul. Cine voia doar să se uite la
+        cod trebuia să ceară o tipărire.
 
-                    Acțiunea e a modulului vecin, importată ca atare — tiparul e
-                    deja în depozit (`angajati/nou` cheamă `creeazaDepartament`).
-                    Nu se rescrie aici: `rotesteCodPontaj` verifică permisiunea,
-                    scrie în audit și citește rândul înapoi după UPDATE.
-                  */
-                  <Buton
-                    varianta="tertiar"
-                    inCurs={seGenereaza}
-                    textInCurs="Se generează…"
-                    onClick={() => {
-                      setEroare(null);
-                      pornesteGenerarea(async () => {
-                        const rezultat = await rotesteCodPontaj({ id: afis.id });
-                        if (!rezultat.ok) {
-                          setEroare(rezultat.error.message);
-                          return;
-                        }
-                        // Rândul trece singur pe „Tipărește afișul": `areCod` se
-                        // recitește pe server, nu se ghicește aici.
-                        router.refresh();
-                      });
-                    }}
-                  >
-                    <QrCode aria-hidden="true" className="size-3.5" />
-                    Generează codul QR
-                  </Buton>
-                ) : (
-                  /*
-                    Fără `departments:update`, butonul ar fi apăsat degeaba:
-                    politica `puncte_lucru_update` refuză cu ZERO rânduri și
-                    fără eroare. Se spune deci de ce nu se poate, în loc să se
-                    ofere un gest care tace. — capcana #17
-                  */
-                  <span className="text-muted-foreground text-nota">
-                    fără cod — se generează din{" "}
-                    <Link href="/puncte-lucru" className="underline underline-offset-2">
-                      Puncte de lucru
-                    </Link>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        Aici rămâne trimiterea, fiindcă exact aici se ia decizia care o face
+        necesară: alegerea „Numai prin cod QR" n-are sens fără afișe lipite.
+        Lista întreagă, repetată în două file, ar fi fost al doilea loc în care
+        se schimbă aceeași regulă.
+      */}
+      <p className="text-muted-foreground text-corp">
+        Codurile QR și afișele de tipărit sunt în fila{" "}
+        <Link href="/pontaj/setari/coduri-qr" className="underline underline-offset-2">
+          Coduri QR
+        </Link>
+        , câte unul pentru fiecare punct de lucru.
+      </p>
 
       {/*
         ── APROBAREA, CA ALEGERE A FIRMEI (0118) ─────────────────────────────

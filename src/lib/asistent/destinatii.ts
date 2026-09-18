@@ -210,6 +210,23 @@ const INTRARI: readonly Intrare[] = [
     minScope: "all",
     descriere: "Durata maximă a unei zile de lucru, pauza minimă de repaus și rotunjirile.",
   },
+  {
+    id: "pontaj.setari.coduri-qr",
+    href: "/pontaj/setari/coduri-qr",
+    eticheta: "Coduri QR",
+    zona: "app",
+    parinte: "pontaj",
+    fila: "Setări → Coduri QR",
+    featureKey: "attendance",
+    // `departments:update`, nu `attendance:update` ca filele vecine: pagina
+    // ARATĂ codul, iar cine îl vede poate ponta de oriunde. Poarta e a
+    // secretului, nu a modulului din care se întâmplă să fie privit — la fel ca
+    // afișul din `puncte-lucru/[id]/afis`.
+    permission: "departments:update",
+    minScope: "all",
+    descriere:
+      "Codul QR de pontare al fiecărui punct de lucru, desenat pe ecran, cu adresa lui și cu afișul de tipărit. De aici se face și un cod nou, când cel vechi a ajuns unde nu trebuia.",
+  },
 
   // ── Concedii ───────────────────────────────────────────────────────────────
   {
