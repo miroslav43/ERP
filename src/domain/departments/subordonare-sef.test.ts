@@ -24,7 +24,8 @@ describe("planificaSubordonarea", () => {
       sefId: SEF,
       membri: [membru("e-1"), membru("e-2", "e-alt-manager"), membru(SEF)],
       caleaSefului: [SEF],
-      sefulParinte: null,
+      sefulDeDeasupra: null,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: null,
       managerDirectAlSefului: null,
     });
@@ -39,7 +40,8 @@ describe("planificaSubordonarea", () => {
       sefId: SEF,
       membri: [membru("e-1", SEF), membru("e-2")],
       caleaSefului: [SEF],
-      sefulParinte: null,
+      sefulDeDeasupra: null,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: null,
       managerDirectAlSefului: null,
     });
@@ -52,7 +54,8 @@ describe("planificaSubordonarea", () => {
       sefId: SEF,
       membri: [membru("e-1"), membru(SEF, "e-1")],
       caleaSefului: ["e-1", SEF],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: null,
       managerDirectAlSefului: null,
     });
@@ -67,7 +70,8 @@ describe("planificaSubordonarea", () => {
       sefId: SEF,
       membri: [membru("e-1"), membru(SEF, "e-extern")],
       caleaSefului: ["e-1", "e-extern", SEF],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: null,
       managerDirectAlSefului: null,
     });
@@ -79,7 +83,8 @@ describe("planificaSubordonarea", () => {
       sefId: SEF,
       membri: [membru("e-1"), membru(SEF, "e-1")],
       caleaSefului: ["e-1", SEF],
-      sefulParinte: null,
+      sefulDeDeasupra: null,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: null,
       managerDirectAlSefului: null,
     });
@@ -92,19 +97,69 @@ describe("planificaSubordonarea", () => {
       sefId: SEF,
       membri: [membru("e-1"), membru(PARINTE), membru(SEF, "e-1")],
       caleaSefului: ["e-1", SEF],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: null,
       managerDirectAlSefului: null,
     });
     expect(plan.ridicaSeful).toEqual({ nouManager: null });
   });
 
-  it("nu atinge șeful când lanțul lui nu trece prin departament", () => {
+  /**
+   * Regula pe care o cere structura: șeful unui departament raportează la șeful
+   * de deasupra. Se scrie și peste un manager existent — altfel vârful ramurii
+   * ar fi singurul punct în care structura desenată și cea reală diverg, adică
+   * exact locul din care se citește toată ramura.
+   */
+  it("așază șeful sub cel de deasupra, chiar dacă avea deja alt manager", () => {
     const plan = planificaSubordonarea({
       sefId: SEF,
       membri: [membru("e-1"), membru(SEF, "e-extern")],
       caleaSefului: ["e-extern", SEF],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [PARINTE],
+      sefAnteriorId: null,
+      managerDirectAlSefului: "e-extern",
+    });
+    expect(plan.ridicaSeful).toEqual({ nouManager: PARINTE });
+  });
+
+  it("nu rescrie nimic când șeful e deja sub cel de deasupra", () => {
+    const plan = planificaSubordonarea({
+      sefId: SEF,
+      membri: [membru("e-1"), membru(SEF, PARINTE)],
+      caleaSefului: [PARINTE, SEF],
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [PARINTE],
+      sefAnteriorId: null,
+      managerDirectAlSefului: PARINTE,
+    });
+    expect(plan.ridicaSeful).toBeNull();
+  });
+
+  it("nu atinge șeful când deasupra nu există niciun șef", () => {
+    // Departamentul rădăcină: conducerea n-are deasupra pe cine să raporteze.
+    const plan = planificaSubordonarea({
+      sefId: SEF,
+      membri: [membru("e-1"), membru(SEF, "e-extern")],
+      caleaSefului: ["e-extern", SEF],
+      sefulDeDeasupra: null,
+      caleaSefuluiDeDeasupra: [],
+      sefAnteriorId: null,
+      managerDirectAlSefului: "e-extern",
+    });
+    expect(plan.ridicaSeful).toBeNull();
+  });
+
+  it("nu-l așază sub cineva care atârnă chiar de el", () => {
+    // `tg_employees_manager_path` ar arunca P0001 și ar anula tot lotul, cu un
+    // mesaj despre lanțuri în loc de unul despre ce a apăsat omul.
+    const plan = planificaSubordonarea({
+      sefId: SEF,
+      membri: [membru("e-1")],
+      caleaSefului: [SEF],
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [SEF, PARINTE],
       sefAnteriorId: null,
       managerDirectAlSefului: null,
     });
@@ -125,7 +180,8 @@ describe("planificaSubordonarea", () => {
       sefId: SEF,
       membri: [membru(SEF, "e-fost-sef")],
       caleaSefului: ["e-fost-sef", SEF],
-      sefulParinte: null,
+      sefulDeDeasupra: null,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: "e-fost-sef",
       managerDirectAlSefului: "e-fost-sef",
     });
@@ -139,23 +195,40 @@ describe("planificaSubordonarea", () => {
       sefId: SEF,
       membri: [membru(SEF, "e-sef-direct")],
       caleaSefului: ["e-fost-sef", "e-sef-direct", SEF],
-      sefulParinte: null,
+      sefulDeDeasupra: null,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: "e-fost-sef",
       managerDirectAlSefului: "e-sef-direct",
     });
     expect(plan.ridicaSeful).toBeNull();
   });
 
-  it("întoarce un plan gol pentru un departament fără oameni", () => {
+  it("întoarce un plan gol pentru un departament fără oameni și fără șef deasupra", () => {
     const plan = planificaSubordonarea({
       sefId: SEF,
       membri: [],
       caleaSefului: [SEF],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: null,
+      caleaSefuluiDeDeasupra: [],
       sefAnteriorId: null,
       managerDirectAlSefului: null,
     });
     expect(plan).toEqual({ ridicaSeful: null, deLegat: [] });
+  });
+
+  it("leagă șeful de cel de deasupra chiar dacă departamentul e gol", () => {
+    // Un departament nou, cu șef și fără oameni, intră totuși în arbore: altfel
+    // vârful ar atârna nicăieri până la prima angajare.
+    const plan = planificaSubordonarea({
+      sefId: SEF,
+      membri: [],
+      caleaSefului: [SEF],
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [PARINTE],
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
+    });
+    expect(plan).toEqual({ ridicaSeful: { nouManager: PARINTE }, deLegat: [] });
   });
 });
 
@@ -166,7 +239,8 @@ describe("planificaEliberarea", () => {
     const plan = planificaEliberarea({
       sefAnteriorId: FOST,
       membri: [membru("e-1", FOST), membru("e-2", FOST), membru(FOST)],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [],
     });
     expect(plan.deEliberat).toEqual(["e-1", "e-2"]);
     expect(plan.nouManager).toBe(PARINTE);
@@ -178,7 +252,8 @@ describe("planificaEliberarea", () => {
     const plan = planificaEliberarea({
       sefAnteriorId: FOST,
       membri: [membru("e-1", "e-altcineva"), membru("e-2", null), membru("e-3", FOST)],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [],
     });
     expect(plan.deEliberat).toEqual(["e-3"]);
   });
@@ -189,7 +264,8 @@ describe("planificaEliberarea", () => {
     const plan = planificaEliberarea({
       sefAnteriorId: FOST,
       membri: [membru(FOST, "e-directorul")],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [],
     });
     expect(plan.deEliberat).toEqual([]);
   });
@@ -198,7 +274,8 @@ describe("planificaEliberarea", () => {
     const plan = planificaEliberarea({
       sefAnteriorId: FOST,
       membri: [membru("e-1", FOST)],
-      sefulParinte: null,
+      sefulDeDeasupra: null,
+      caleaSefuluiDeDeasupra: [],
     });
     expect(plan).toEqual({ deEliberat: ["e-1"], nouManager: null });
   });
@@ -207,7 +284,8 @@ describe("planificaEliberarea", () => {
     const plan = planificaEliberarea({
       sefAnteriorId: FOST,
       membri: [membru("e-1", FOST), membru(PARINTE)],
-      sefulParinte: PARINTE,
+      sefulDeDeasupra: PARINTE,
+      caleaSefuluiDeDeasupra: [],
     });
     expect(plan.nouManager).toBeNull();
   });
@@ -216,7 +294,8 @@ describe("planificaEliberarea", () => {
     const plan = planificaEliberarea({
       sefAnteriorId: FOST,
       membri: [membru("e-1", FOST)],
-      sefulParinte: FOST,
+      sefulDeDeasupra: FOST,
+      caleaSefuluiDeDeasupra: [FOST],
     });
     expect(plan.nouManager).toBeNull();
   });

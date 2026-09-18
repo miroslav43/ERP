@@ -64,8 +64,15 @@ export interface IntrareSubordonare {
   readonly membri: readonly MembruDepartament[];
   /** `employees.manager_path` al șefului: de la vârf până la el, inclusiv. */
   readonly caleaSefului: readonly string[];
-  /** Șeful departamentului părinte — destinația firească a celui ridicat din lanț. */
-  readonly sefulParinte: string | null;
+  /**
+   * Șeful primului departament de DEASUPRA care are unul — nu neapărat al
+   * părintelui direct. Un nivel intermediar fără manager se sare, iar omul urcă
+   * până găsește un șef; la capăt e conducerea. Calculul urcă pe
+   * `departments.path` și stă în `@/lib/departamente/sef`.
+   */
+  readonly sefulDeDeasupra: string | null;
+  /** `employees.manager_path` al celui de deasupra — garda împotriva buclei. */
+  readonly caleaSefuluiDeDeasupra: readonly string[];
   /** Cine conducea departamentul înainte. `null` = n-avea șef. */
   readonly sefAnteriorId: string | null;
   /** `employees.manager_employee_id` al noului șef, ACUM. */
@@ -83,8 +90,15 @@ export type PlanSubordonare = Readonly<{
 }>;
 
 export function planificaSubordonarea(intrare: IntrareSubordonare): PlanSubordonare {
-  const { sefId, membri, caleaSefului, sefulParinte, sefAnteriorId, managerDirectAlSefului } =
-    intrare;
+  const {
+    sefId,
+    membri,
+    caleaSefului,
+    sefulDeDeasupra,
+    caleaSefuluiDeDeasupra,
+    sefAnteriorId,
+    managerDirectAlSefului,
+  } = intrare;
 
   const idMembri = new Set(membri.map((m) => m.id));
 
@@ -95,34 +109,66 @@ export function planificaSubordonarea(intrare: IntrareSubordonare): PlanSubordon
     .filter((m) => m.id !== sefId && m.managerEmployeeId !== sefId)
     .map((m) => m.id);
 
+  const destinatia = destinatiaRidicarii(sefId, sefulDeDeasupra, idMembri, caleaSefuluiDeDeasupra);
+
   const lantulTrecePrinDepartament = caleaSefului.some((id) => id !== sefId && idMembri.has(id));
   // A doua cauză, cea care a lăsat directorul sub Project Manager: noul șef
   // atârnă chiar de fostul șef al aceluiași departament. Legătura a fost scrisă
   // de mecanismul ăsta, la desemnarea precedentă, deci tot el o desface.
   const atarnaDeFostulSef = sefAnteriorId !== null && managerDirectAlSefului === sefAnteriorId;
-  if (!lantulTrecePrinDepartament && !atarnaDeFostulSef) return { ridicaSeful: null, deLegat };
 
-  return {
-    ridicaSeful: { nouManager: destinatiaRidicarii(sefId, sefulParinte, idMembri) },
-    deLegat,
-  };
+  // Cele două de mai sus sunt OBLIGATORII: fie s-ar închide un ciclu, fie omul
+  // atârnă de o legătură pe care tot mecanismul ăsta a scris-o. Se scriu chiar
+  // și către `null` — a rămâne fără manager e mai bine decât un lot respins.
+  if (lantulTrecePrinDepartament || atarnaDeFostulSef) {
+    return { ridicaSeful: { nouManager: destinatia }, deLegat };
+  }
+
+  // A treia ramură: ȘEFUL UNUI DEPARTAMENT RAPORTEAZĂ LA ȘEFUL DE DEASUPRA.
+  //
+  // Fără ea, arborele de departamente se cuibărea pe patru niveluri, iar
+  // organigrama rămânea plată: numind pe cineva șef la HR, un sub-departament al
+  // Managmentului, el rămânea atârnat unde era — de obicei direct de conducere.
+  // `aplicaSubordonarea` leagă doar MEMBRII DIRECȚI (`department_id` = chiar
+  // acest departament), nu coboară în sub-departamente, deci nimic nu lega
+  // vârfurile între ele. Pe date reale: șeful Managmentului avea 3 oameni în
+  // subarborele lui managerial, dar 7 în structura pe care o conducea.
+  //
+  // Se scrie chiar dacă omul ARE deja un manager, spre deosebire de eliberare —
+  // și asta e deliberat: `deLegat` suprascrie de când există managerul fiecărui
+  // membru, fără să întrebe. Vârful departamentului ar fi singura excepție, iar
+  // o excepție ar însemna că structura desenată și cea reală diverg tocmai în
+  // punctul din care se citește toată ramura.
+  if (destinatia !== null && managerDirectAlSefului !== destinatia) {
+    return { ridicaSeful: { nouManager: destinatia }, deLegat };
+  }
+
+  return { ridicaSeful: null, deLegat };
 }
 
 /**
- * Unde ajunge cel ridicat din lanț.
+ * Unde ajunge cel ridicat din lanț — sau `null`, dacă nu există un loc bun.
  *
- * Ridicarea trebuie să iasă DIN departament, altfel mută ciclul cu un pas mai
- * încolo în loc să-l rupă. Dacă șeful părinte e tot aici — sau e chiar cel
- * ridicat — omul rămâne fără manager.
+ * Trei refuzuri, fiecare pentru un mod diferit de a strica arborele:
+ *
+ * 1. Destinația e chiar el. N-are cum să-și fie propriul manager.
+ * 2. Destinația e membru în departament. Ridicarea trebuie să IASĂ din
+ *    departament, altfel mută ciclul cu un pas mai încolo în loc să-l rupă.
+ * 3. Destinația atârnă ea însăși de el. `tg_employees_manager_path` ar arunca
+ *    `P0001` și ar anula tot lotul — cu un mesaj despre lanțuri, nu despre ce a
+ *    apăsat omul. Se verifică pe TOATĂ calea destinației, nu doar pe managerul
+ *    ei direct: bucla se poate închide și prin doi intermediari.
  */
 function destinatiaRidicarii(
   cineUrca: string,
-  sefulParinte: string | null,
+  sefulDeDeasupra: string | null,
   idMembri: ReadonlySet<string>,
+  caleaSefuluiDeDeasupra: readonly string[],
 ): string | null {
-  return sefulParinte !== null && sefulParinte !== cineUrca && !idMembri.has(sefulParinte)
-    ? sefulParinte
-    : null;
+  if (sefulDeDeasupra === null || sefulDeDeasupra === cineUrca) return null;
+  if (idMembri.has(sefulDeDeasupra)) return null;
+  if (caleaSefuluiDeDeasupra.includes(cineUrca)) return null;
+  return sefulDeDeasupra;
 }
 
 export interface IntrareEliberare {
@@ -130,8 +176,10 @@ export interface IntrareEliberare {
   readonly sefAnteriorId: string;
   /** Fișele active cu `department_id` = departamentul. */
   readonly membri: readonly MembruDepartament[];
-  /** Șeful departamentului părinte — unde urcă cei rămași fără șef. */
-  readonly sefulParinte: string | null;
+  /** Primul șef de deasupra — unde urcă cei rămași fără șef. */
+  readonly sefulDeDeasupra: string | null;
+  /** `employees.manager_path` al celui de deasupra — aceeași gardă ca la legare. */
+  readonly caleaSefuluiDeDeasupra: readonly string[];
 }
 
 export type PlanEliberare = Readonly<{
@@ -153,7 +201,7 @@ export type PlanEliberare = Readonly<{
  * nimic despre cui raportează EL.
  */
 export function planificaEliberarea(intrare: IntrareEliberare): PlanEliberare {
-  const { sefAnteriorId, membri, sefulParinte } = intrare;
+  const { sefAnteriorId, membri, sefulDeDeasupra, caleaSefuluiDeDeasupra } = intrare;
 
   const idMembri = new Set(membri.map((m) => m.id));
   const deEliberat = membri
@@ -162,5 +210,13 @@ export function planificaEliberarea(intrare: IntrareEliberare): PlanEliberare {
 
   // Destinația se calculează o singură dată, pentru tot lotul: sunt oameni din
   // același departament, deci au toți același loc firesc deasupra.
-  return { deEliberat, nouManager: destinatiaRidicarii(sefAnteriorId, sefulParinte, idMembri) };
+  return {
+    deEliberat,
+    nouManager: destinatiaRidicarii(
+      sefAnteriorId,
+      sefulDeDeasupra,
+      idMembri,
+      caleaSefuluiDeDeasupra,
+    ),
+  };
 }
