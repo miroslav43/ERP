@@ -339,7 +339,7 @@ export const desemneazaSefDepartament = createAction<
     // n-ar mai fi de aflat decât din jurnal.
     const { data: inainte, error: eroareInainte } = await db
       .from("departments")
-      .select("id, parent_id, manager_employee_id")
+      .select("id, parent_id, manager_employee_id, path")
       .eq("id", input.department_id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
@@ -397,7 +397,7 @@ export const desemneazaSefDepartament = createAction<
             departamentId: input.department_id,
             sefId: sefNouId,
             sefAnteriorId,
-            parentId: inainte.parent_id,
+            caleaDepartamentului: inainte.path,
           },
           "Șeful departamentului a fost salvat",
         );
@@ -407,7 +407,7 @@ export const desemneazaSefDepartament = createAction<
           {
             departamentId: input.department_id,
             sefAnteriorId,
-            parentId: inainte.parent_id,
+            caleaDepartamentului: inainte.path,
           },
           "Șeful departamentului a fost salvat",
         );

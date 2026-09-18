@@ -254,7 +254,7 @@ export const actualizeazaDepartament = createAction<
       .eq("id", id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
-      .select("id, activ, parent_id")
+      .select("id, activ, parent_id, path")
       .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
     if (data === null) throw notFound("Departamentul nu a fost găsit.");
@@ -299,13 +299,13 @@ export const actualizeazaDepartament = createAction<
       if (sefNouId !== null) {
         await aplicaSubordonarea(
           contextul,
-          { departamentId: id, sefId: sefNouId, sefAnteriorId, parentId: data.parent_id },
+          { departamentId: id, sefId: sefNouId, sefAnteriorId, caleaDepartamentului: data.path },
           "Departamentul a fost salvat",
         );
       } else if (sefAnteriorId !== null) {
         await elibereazaSubordonarea(
           contextul,
-          { departamentId: id, sefAnteriorId, parentId: data.parent_id },
+          { departamentId: id, sefAnteriorId, caleaDepartamentului: data.path },
           "Departamentul a fost salvat",
         );
       }

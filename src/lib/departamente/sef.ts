@@ -172,13 +172,13 @@ export async function aplicaSubordonarea(
     departamentId: string;
     sefId: string;
     sefAnteriorId: string | null;
-    parentId: string | null;
+    caleaDepartamentului: readonly string[];
   }>,
   ceEsteDejaScris: string,
 ): Promise<void> {
-  const { departamentId, sefId, sefAnteriorId, parentId } = parametri;
+  const { departamentId, sefId, sefAnteriorId, caleaDepartamentului } = parametri;
 
-  const [membri, fisaSefului, parinte] = await Promise.all([
+  const [membri, fisaSefului, deDeasupra] = await Promise.all([
     citesteMembrii(ctx, departamentId),
     ctx.db
       .from("employees")
@@ -187,7 +187,7 @@ export async function aplicaSubordonarea(
       .eq("organization_id", ctx.organizationId)
       .is("deleted_at", null)
       .maybeSingle(),
-    citesteSefulParinte(ctx, parentId),
+    citesteSefulDeDeasupra(ctx, departamentId, caleaDepartamentului),
   ]);
   if (fisaSefului.error !== null) throw mapPostgrestError(fisaSefului.error, ctx.requestId);
 
@@ -195,7 +195,8 @@ export async function aplicaSubordonarea(
     sefId,
     membri,
     caleaSefului: fisaSefului.data?.manager_path ?? [sefId],
-    sefulParinte: parinte,
+    sefulDeDeasupra: deDeasupra.id,
+    caleaSefuluiDeDeasupra: deDeasupra.cale,
     sefAnteriorId,
     managerDirectAlSefului: fisaSefului.data?.manager_employee_id ?? null,
   });
@@ -217,17 +218,26 @@ export async function aplicaSubordonarea(
  */
 export async function elibereazaSubordonarea(
   ctx: ContextSef,
-  parametri: Readonly<{ departamentId: string; sefAnteriorId: string; parentId: string | null }>,
+  parametri: Readonly<{
+    departamentId: string;
+    sefAnteriorId: string;
+    caleaDepartamentului: readonly string[];
+  }>,
   ceEsteDejaScris: string,
 ): Promise<void> {
-  const { departamentId, sefAnteriorId, parentId } = parametri;
+  const { departamentId, sefAnteriorId, caleaDepartamentului } = parametri;
 
-  const [membri, sefulParinte] = await Promise.all([
+  const [membri, deDeasupra] = await Promise.all([
     citesteMembrii(ctx, departamentId),
-    citesteSefulParinte(ctx, parentId),
+    citesteSefulDeDeasupra(ctx, departamentId, caleaDepartamentului),
   ]);
 
-  const plan = planificaEliberarea({ sefAnteriorId, membri, sefulParinte });
+  const plan = planificaEliberarea({
+    sefAnteriorId,
+    membri,
+    sefulDeDeasupra: deDeasupra.id,
+    caleaSefuluiDeDeasupra: deDeasupra.cale,
+  });
   if (plan.deEliberat.length > 0) {
     await scrieManagerul(ctx, plan.deEliberat, plan.nouManager, ceEsteDejaScris);
   }
@@ -248,21 +258,59 @@ async function citesteMembrii(
   return (data ?? []).map((m) => ({ id: m.id, managerEmployeeId: m.manager_employee_id }));
 }
 
-/** Șeful departamentului părinte — destinația celor ridicați din lanț. */
-async function citesteSefulParinte(
+/**
+ * Șeful primului departament de DEASUPRA care are unul, plus lanțul lui.
+ *
+ * Urcă pe `departments.path` — care e ordonat de la rădăcină până la
+ * departamentul însuși, ținut de `tg_departments_path` — și se oprește la primul
+ * strămoș cu manager. Nu la părintele direct: un nivel intermediar fără manager
+ * n-are pe cine să ofere, iar a te opri acolo ar lăsa vârful departamentului
+ * fără șef deși mai sus există unul. La capătul urcării e conducerea.
+ *
+ * Departamentele dezactivate se sar la fel ca cele fără manager: un șef dintr-o
+ * structură închisă nu e un loc în care să pui pe cineva.
+ *
+ * `cale` e `manager_path`-ul celui găsit, singura gardă care poate spune dacă
+ * destinația atârnă ea însăși de cel pe care vrem să-l urcăm.
+ */
+async function citesteSefulDeDeasupra(
   ctx: ContextSef,
-  parentId: string | null,
-): Promise<string | null> {
-  if (parentId === null) return null;
+  departamentId: string,
+  caleaDepartamentului: readonly string[],
+): Promise<{ id: string | null; cale: readonly string[] }> {
+  const stramosi = caleaDepartamentului.filter((id) => id !== departamentId);
+  if (stramosi.length === 0) return { id: null, cale: [] };
+
   const { data, error } = await ctx.db
     .from("departments")
-    .select("manager_employee_id")
-    .eq("id", parentId)
+    .select("id, manager_employee_id")
+    .in("id", stramosi)
+    .eq("organization_id", ctx.organizationId)
+    .eq("activ", true)
+    .is("deleted_at", null);
+  if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+
+  const sefPe = new Map((data ?? []).map((d) => [d.id, d.manager_employee_id]));
+  // De la cel mai apropiat strămoș spre rădăcină: `path` vine de sus în jos.
+  const sefulId =
+    [...stramosi]
+      .reverse()
+      .map((id) => sefPe.get(id) ?? null)
+      .find((s) => s !== null) ?? null;
+  if (sefulId === null) return { id: null, cale: [] };
+
+  const fisa = await ctx.db
+    .from("employees")
+    .select("manager_path")
+    .eq("id", sefulId)
     .eq("organization_id", ctx.organizationId)
     .is("deleted_at", null)
     .maybeSingle();
-  if (error !== null) throw mapPostgrestError(error, ctx.requestId);
-  return data?.manager_employee_id ?? null;
+  if (fisa.error !== null) throw mapPostgrestError(fisa.error, ctx.requestId);
+  // Fișa ștearsă între citire și scriere: un șef inexistent nu e o destinație.
+  if (fisa.data === null) return { id: null, cale: [] };
+
+  return { id: sefulId, cale: fisa.data.manager_path };
 }
 
 async function scrieManagerul(
