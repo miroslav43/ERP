@@ -960,6 +960,7 @@ export const RO: ContinutLanding = {
           // programul în bună parte din cazuri.
           { eticheta: "Pentru contabili", href: "/pentru-contabili" },
           { eticheta: "Foaie de pontaj gratuită", href: "/unelte/foaie-de-pontaj" },
+          { eticheta: "Cerere de concediu", href: "/unelte/cerere-concediu-de-odihna" },
           { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
           // Hub-urile aveau o singură cale de acces: firimitura din pagina-copil.
           // Un vizitator care nu deschide copilul nu află niciodată că există.
