@@ -72,6 +72,14 @@ export default async function PaginaSetariPontare() {
       <FormularPontareRapida
         pontare={configPontareRapida(randPontare)}
         afise={afise}
+        // Generarea codului scrie în `puncte_lucru`, deci cere cheia ACELUI
+        // modul, nu pe a pontajului. Cele două nu se implică una pe alta:
+        // ecranul ăsta se deschide cu `attendance:update`, iar un rol care l-ar
+        // avea fără `departments:update` ar apăsa un buton pe care politica
+        // `puncte_lucru_update` l-ar refuza cu zero rânduri și fără eroare.
+        // Azi cele trei roluri care ajung aici le au pe amândouă la `all`;
+        // booleanul ține adevărul și dacă mâine n-o mai fac. — capcana #17
+        poateGeneraCod={can(permisiuni, "departments:update", "all")}
         // Norma și pauza în vigoare AZI: intervalul propus de butonul de
         // confirmare se derivă din ele, deci ecranul trebuie să arate exact
         // cifra pe care o va scrie serverul.
