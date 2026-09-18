@@ -207,6 +207,16 @@ export default async function PaginaModul({ params }: Proprietati) {
             </div>
           </Banda>
 
+          {/* Scenariul concret: cine apasă, pe ce ecran, ce rămâne în urmă.
+              Partea care deosebește pagina de fișa tehnică de deasupra. */}
+          {fisa.cazDeUtilizare !== undefined && (
+            <Banda inaltime="medie" supratitlu="Într-o zi obișnuită" titlu="Cum arată în practică">
+              <p className="text-mk-text-slab mt-6 max-w-[68ch] text-[0.9375rem] leading-[1.7]">
+                {fisa.cazDeUtilizare}
+              </p>
+            </Banda>
+          )}
+
           {/*
             Matricea de roluri. E partea care nu se poate copia de la altcineva,
             fiindcă descrie chiar produsul ăsta — și e singura pagină din tot
@@ -227,7 +237,13 @@ export default async function PaginaModul({ params }: Proprietati) {
               supratitlu="Roluri"
               titlu="Cine ce poate face"
               aliniereTitlu="larg"
-              lead="Regulile de mai jos sunt impuse în baza de date, nu în interfață. Un rol fără permisiune nu primește un buton dezactivat: cererea lui e refuzată la sursă."
+              // Fraza fixă e rezerva; un modul care țintește o căutare anume își
+              // scrie lead-ul lui în fișă. Identică pe 18 pagini din 19, fraza
+              // asta era una dintre sursele de n-grame comune.
+              lead={
+                fisa.leadRoluri ??
+                "Regulile de mai jos sunt impuse în baza de date, nu în interfață. Un rol fără permisiune nu primește un buton dezactivat: cererea lui e refuzată la sursă."
+              }
             >
               {/* `relative` pe containerul derulabil: fără el, orice conținut
                 poziționat absolut scapă și târăște pagina lateral. */}
@@ -289,7 +305,10 @@ export default async function PaginaModul({ params }: Proprietati) {
           <Banda
             inaltime="medie"
             titlu="Ce se leagă de ce"
-            lead="Modulele nu sunt aplicații separate care se trimit date. E aceeași bază, iar ce se aprobă într-un loc apare în celălalt o singură dată."
+            lead={
+              fisa.leadLegaturi ??
+              "Modulele nu sunt aplicații separate care se trimit date. E aceeași bază, iar ce se aprobă într-un loc apare în celălalt o singură dată."
+            }
           >
             <div className="border-mk-rigla/40 mt-8 border-t">
               {fisa.legaturi.map((legatura) => (
@@ -357,7 +376,12 @@ export default async function PaginaModul({ params }: Proprietati) {
                 key={vecin.cheie}
                 cod={vecin.cheie}
                 titlu={vecin.titlu}
-                text={vecin.text}
+                // FĂRĂ `text`: banda asta retipărea descrierea din catalog a
+                // fiecărui frate. În grupul „Personal" însemna 137–145 de cuvinte
+                // copiate pe fiecare pagină, iar auditul din 17 sept 2026 a măsurat
+                // 34–40% n-grame comune între frați — aproape tot de aici. Relația
+                // dintre module se explică oricum mai sus, în „Ce se leagă de ce",
+                // cu o frază proprie per pereche. Aici rămâne navigație.
                 dreapta={
                   <p className="mt-3">
                     <Link

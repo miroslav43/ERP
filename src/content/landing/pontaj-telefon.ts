@@ -37,23 +37,23 @@ export const CUM_PONTEAZA: SectiunePontajTelefon = {
   pasi: [
     {
       titlu: "1. Primește invitația și își pune parola",
-      text: "Invitația pleacă din aplicație, pe e-mail. Omul o deschide de pe telefon, își alege parola și e înăuntru. Nu are nevoie de cont de Google sau de Apple și nu trebuie să aștepte aprobarea nimănui.",
+      text: "Primul contact al angajatului cu pontajul de pe telefon e o invitație pe e-mail, trimisă din aplicație de cine se ocupă de personal. Omul o deschide direct de pe telefon, își alege parola și e înăuntru. Nu are nevoie de cont de Google sau de Apple, nu instalează nimic dintr-un magazin de aplicații și nu așteaptă aprobarea nimănui — invitația a fost deja aprobarea. Dacă pierde e-mailul, i se poate retrimite; dacă uită parola, o resetează singur, fără să sune pe cineva din birou. Contul lui vede de la început doar ce e al lui: fișa proprie, soldul de concediu și luna curentă de pontaj.",
     },
     {
       titlu: "2. Adaugă adresa pe ecranul de start",
-      text: "Pe iPhone: Safari, butonul de partajare, „Adaugă la ecranul principal”. Pe Android: Chrome, meniul din colț, „Adaugă la ecranul de start”. Rezultatul arată ca o aplicație — pornește pe tot ecranul, fără bara de adrese — dar nu ocupă spațiu ca una și nu cere actualizări.",
+      text: "Pontarea se face din browser, dar nu trebuie căutată adresa de fiecare dată. Pe iPhone: Safari, butonul de partajare, „Adaugă la ecranul principal”. Pe Android: Chrome, meniul din colț, „Adaugă la ecranul de start”. Rezultatul arată ca o aplicație — are pictogramă, pornește pe tot ecranul și n-are bara de adrese — dar nu ocupă spațiul unei aplicații și nu cere actualizări din magazin. Pe un telefon vechi, cu memoria plină, asta e de multe ori diferența dintre „o folosesc” și „n-am avut loc s-o instalez”. Când schimbă telefonul, nu are nimic de mutat: deschide aceeași adresă și o adaugă din nou.",
     },
     {
       titlu: "3. Apasă butonul de pontare",
-      text: "Pe prima pagină a portalului e butonul zilei. Firma alege ce arată: o singură confirmare pentru ziua obișnuită, două butoane — „Am intrat” și „Am ieșit” —, sau amândouă. Ora care se scrie e a serverului, nu a telefonului: un ceas dat înapoi pe telefon nu schimbă nimic.",
+      text: "Pontarea propriu-zisă e un buton pe prima pagină a portalului, nu un formular. Firma alege ce arată: o singură confirmare pentru ziua obișnuită, două butoane — „Am intrat” și „Am ieșit” — sau amândouă, în funcție de cum lucrează oamenii. Ora care se scrie e a serverului, nu a telefonului: un ceas dat înapoi pe telefon nu schimbă nimic în evidență, iar asta contează fiindcă din pontaj ies sporurile și dovada la un control. Ziua apare imediat pe foaia lunii, acolo unde o vede și persoana de la personal, și șeful de echipă care o aprobă — nu într-un jurnal separat, care ar trebui împăcat cu foaia la sfârșit de lună.",
     },
     {
       titlu: "4. Dacă firma cere, scanează întâi afișul",
-      text: "Fiecare punct de lucru poate avea un afiș tipărit din aplicație, cu un cod QR. Omul îl scanează cu camera telefonului — nu are nevoie de un scanner separat — și pontează pe punctul acela. Când firma cere scanarea, butoanele apar doar după ea. E o frână împotriva pontării din pat, nu o dovadă că omul a fost la lucru: codul se poate fotografia, iar administratorul îl poate schimba oricând, caz în care afișele vechi nu mai merg.",
+      text: "Pentru firmele care vor pontarea legată de un loc, fiecare punct de lucru poate avea un afiș tipărit din aplicație, cu un cod QR. Omul îl scanează cu camera telefonului — nu are nevoie de un scanner separat și nici de altă aplicație — și pontează pe punctul acela. Când firma cere scanarea, butoanele de pontare apar doar după ea. Spunem pe față ce este: o frână împotriva pontării din pat, nu o dovadă că omul a fost la lucru. Codul de pe afiș e fix, nu se schimbă la câteva secunde, deci se poate fotografia și trimite mai departe. Administratorul îl poate roti oricând, iar din clipa aia toate afișele tipărite cu el nu mai funcționează și trebuie retipărite.",
     },
     {
       titlu: "5. Vede ce-l privește, tot de acolo",
-      text: "Din același portal își vede luna lui de pontaj, soldul de concediu și cererile depuse, fluturașul și documentele primite. Ce nu e al lui nu apare: regula stă în baza de date, nu în meniu.",
+      text: "Portalul nu e doar un buton de pontare: e locul unde omul își vede propriile lucruri fără să ceară nimănui nimic. Luna lui de pontaj, soldul de concediu pe fiecare tip, cererile depuse și starea lor, fluturașul, cursurile de parcurs și documentele primite. De acolo depune direct o cerere de concediu, care ajunge la același aprobator și scade din același sold ca oricare alta. Ce nu e al lui nu apare deloc — nu apare gri, nu apare blocat, pur și simplu nu există pentru contul lui: regula stă în baza de date, cu domeniul restrâns la „ale mele”, nu într-un meniu care ascunde butoane.",
     },
   ],
 };

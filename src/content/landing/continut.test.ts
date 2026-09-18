@@ -250,6 +250,9 @@ describe("fișele de modul nu promit ce nu există", () => {
       for (const fisa of FISE) {
         const cuvinte = [
           ...fisa.intro,
+          fisa.cazDeUtilizare ?? "",
+          fisa.leadRoluri ?? "",
+          fisa.leadLegaturi ?? "",
           fisa.notaPermisiuni,
           ...fisa.legaturi.map((l) => l.text),
           ...fisa.nuFace,
@@ -260,6 +263,65 @@ describe("fișele de modul nu promit ce nu există", () => {
         expect(cuvinte, `${fisa.cheie}: doar ${cuvinte} cuvinte proprii`).toBeGreaterThan(250);
       }
     });
+  });
+
+  it("pasajele care merită citate sunt destul de lungi ca să stea singure", async () => {
+    /*
+     * ── DE CE ────────────────────────────────────────────────────────────────
+     * Un asistent citează un pasaj, nu o pagină. Auditul de azi a măsurat
+     * răspunsurile din /intrebari la 24–66 de cuvinte și pașii de pe
+     * /pontaj-pe-telefon la 35–95, niciunul în banda de 134–167 pe care o citează
+     * de obicei motoarele generative — și, mai rău, niciunul nu-și spunea
+     * subiectul: „Merge pe telefon?" răspundea fără cuvântul „pontaj" în prima
+     * frază, deci lipit într-un răspuns nu spunea despre ce produs e vorba.
+     *
+     * Nu se umflă tot: vocea sitului e scurtă, iar o pagină de răspunsuri lungi
+     * se citește mai greu. Se apără doar pasajele care decid o vânzare.
+     */
+    const { CUM_PONTEAZA } = await import("./pontaj-telefon");
+    const cuvinte = (s: string) => s.split(/\s+/).filter(Boolean).length;
+
+    const lungi = RO.intrebari.intrebari.filter((i) => cuvinte(i.a) >= 110);
+    expect(
+      lungi.length,
+      `doar ${lungi.length} răspunsuri trec de 110 cuvinte — cele care decid o vânzare trebuie să stea singure`,
+    ).toBeGreaterThanOrEqual(6);
+
+    for (const pas of CUM_PONTEAZA.pasi) {
+      expect(cuvinte(pas.text), `pasul „${pas.titlu}”`).toBeGreaterThanOrEqual(80);
+    }
+  });
+
+  it("frazele fixe din șablon nu se întind peste tot situl", async () => {
+    /*
+     * ── DE CE ────────────────────────────────────────────────────────────────
+     * Auditul din 17 sept 2026 a măsurat 34–40% n-grame comune între paginile de
+     * modul din același grup. Vinovatul n-a fost conținutul propriu, ci șablonul:
+     * banda „Din același grup" retipărea descrierea de catalog a fiecărui frate
+     * (137–145 de cuvinte pe pagină), iar două lead-uri scrise în `page.tsx`
+     * apăreau identic pe 18–19 pagini din 19.
+     *
+     * Textul fraților a fost scos; lead-urile au devenit câmpuri de fișă, cu
+     * rezervă în șablon. Testul ține rezerva mică: dacă mai mult de cinci module
+     * cad pe aceeași frază, ea a redevenit text sitewide și trebuie scrisă per
+     * modul.
+     */
+    const { FISE } = await import("./fise-module");
+    const sursa = readFileSync("src/app/(marketing)/module/[modul]/page.tsx", "utf8");
+
+    expect(
+      sursa.includes("text={vecin.text}"),
+      "banda „Din același grup” retipărește iar descrierea fraților",
+    ).toBe(false);
+
+    const fara = (camp: "leadRoluri" | "leadLegaturi") =>
+      FISE.filter((f) => f[camp] === undefined).length;
+    for (const camp of ["leadRoluri", "leadLegaturi"] as const) {
+      expect(
+        fara(camp),
+        `${camp}: ${fara(camp)} module cad pe fraza din șablon — scrie-le pe cele cu trafic țintit`,
+      ).toBeLessThanOrEqual(15);
+    }
   });
 });
 

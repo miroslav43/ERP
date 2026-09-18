@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 
 import { CONTACT } from "@/content/landing/contact";
+import { lunar, PRAG_ANGAJATI, PRET_NUCLEU } from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
 
 import { Cadru } from "../_componente/cadru";
@@ -26,6 +27,14 @@ const ASTEPTARI = [
   {
     titlu: "Îți spunem și ce nu e gata",
     text: "Lista completă e pe pagina principală, la „Ce nu facem”. Nu o ținem pentru a treia întâlnire.",
+  },
+  {
+    titlu: "Prețul îl știi dinainte",
+    text: `Nucleul costă ${lunar(PRET_NUCLEU, "ro")}, până la ${PRAG_ANGAJATI} de angajați, iar prima lună e gratuită. Discuția nu e despre cifră, ci despre ce pornești.`,
+  },
+  {
+    titlu: "Nu trebuie să ceri o demonstrație ca să începi",
+    text: "Contul se face direct, fără să vorbești cu nimeni. Formularul e pentru cine vrea întâi o discuție.",
   },
 ] as const;
 

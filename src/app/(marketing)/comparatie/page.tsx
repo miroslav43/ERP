@@ -38,6 +38,29 @@ export default function PaginaComparatie() {
       <Banda inaltime="medie" supratitlu="Toate comparațiile" titlu="Față în față">
         <ListaHub pagini={PAGINI} />
       </Banda>
+
+      <Banda
+        inaltime="medie"
+        supratitlu="Când merită citită"
+        titlu="Cui i se adresează comparația"
+        lead="O comparație e utilă doar dacă spune și când răspunsul e „rămâi unde ești”."
+      >
+        <div className="mt-6 max-w-[68ch] space-y-4">
+          <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
+            Foaia de calcul nu e o unealtă proastă. E o unealtă bună, folosită de multe ori dincolo
+            de punctul în care mai poate face față: când pontajul vine de pe trei puncte de lucru,
+            când două persoane editează același fișier în aceeași zi, sau când cineva întreabă cine
+            a schimbat o oră acum trei luni și nimeni nu poate răspunde. Comparația de mai sus ia
+            exact momentele astea, unul câte unul.
+          </p>
+          <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
+            Nu ia problema invers, ca o listă de motive să cumperi. Are și o secțiune despre
+            situațiile în care e în regulă să rămâi la Excel — o firmă de cinci oameni, cu un singur
+            punct de lucru și fără ore suplimentare, n-are ce câștiga dintr-o mutare acum. Dacă te
+            regăsești acolo, ai citit pagina degeaba, iar asta e un rezultat bun.
+          </p>
+        </div>
+      </Banda>
     </Cadru>
   );
 }

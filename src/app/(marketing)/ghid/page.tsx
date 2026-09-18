@@ -30,7 +30,31 @@ const PAGINI = [EVIDENTA_ORELOR, REGES, CONTROL_ITM].map((p) => ({
   href: p.cale,
   titlu: p.antet.titlu,
   lead: p.antet.lead,
+  // Data verificării textelor de lege, per ghid. E singura cifră care spune dacă
+  // pagina e întreținută sau abandonată — conținutul juridic de pe internet e
+  // plin de articole datate anul curent cu cuantumuri de acum trei ani.
+  nota: `Textele verificate în ${p.actualizat}`,
 }));
+
+/**
+ * De unde începe cineva, în funcție de ce îl doare. Text propriu, nu un rezumat
+ * al ghidurilor: regulile și amenzile stau pe paginile lor, iar repetate aici ar
+ * fi exact duplicarea pe care o scoatem din paginile de modul.
+ */
+const DE_UNDE = [
+  {
+    titlu: "Ai primit o înștiințare de control",
+    text: "Începe cu ghidul de control ITM: ce documente se cer, în ce ordine se verifică și ce se poate pregăti în ajun — plus ce nu se mai poate.",
+  },
+  {
+    titlu: "Ai angajat pe cineva săptămâna asta",
+    text: "REGES-ONLINE are termene pe zile lucrătoare, diferite pentru angajare, suspendare și încetare. Ghidul le ia pe rând, cu temeiul lângă fiecare.",
+  },
+  {
+    titlu: "Ții pontajul în fișiere de calcul",
+    text: "Evidența orelor cere ora de începere și ora de sfârșit, zilnic, la locul de muncă. Ghidul spune ce înseamnă asta în practică și cât costă absența ei.",
+  },
+];
 
 export default function PaginaGhid() {
   return (
@@ -44,6 +68,47 @@ export default function PaginaGhid() {
       />
       <Banda inaltime="medie" supratitlu="Toate ghidurile" titlu="Obligațiile, pe rând">
         <ListaHub pagini={PAGINI} />
+      </Banda>
+
+      <Banda
+        inaltime="medie"
+        supratitlu="De unde începi"
+        titlu="Depinde ce te-a adus aici"
+        lead="Ghidurile se citesc și separat, dar ordinea contează când ai un termen pe cap."
+      >
+        <div className="border-mk-rigla/40 mt-8 border-t">
+          {DE_UNDE.map((d) => (
+            <div
+              key={d.titlu}
+              className="border-mk-rigla/40 grid gap-2 border-b py-5 md:grid-cols-12 md:gap-8"
+            >
+              <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
+                {d.titlu}
+              </h3>
+              <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6] md:col-span-8">
+                {d.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Banda>
+
+      <Banda inaltime="scurta" supratitlu="Cum sunt scrise" titlu="Ce găsești în fiecare">
+        <div className="mt-6 max-w-[68ch] space-y-4">
+          <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
+            Fiecare ghid începe cu răspunsul scurt, nu cu istoricul legislativ, și pune articolul de
+            lege lângă fiecare afirmație. Cuantumurile amenzilor sunt cele în vigoare la data
+            verificării, cu temeiul alături, iar textele de lege sunt legate direct spre Portalul
+            Legislativ, în forma consolidată.
+          </p>
+          <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
+            Fiecare are și o secțiune pe care paginile concurente n-o au: ce nu putem afirma cu
+            certitudine. Acolo scriu întrebările la care sursele se contrazic sau la care n-am găsit
+            un text oficial — cu ce am verificat și unde s-a oprit verificarea. O pagină juridică
+            fără margini declarate se citește ca sigură pe tot, iar cine găsește o singură greșeală
+            nu mai crede nimic din rest.
+          </p>
+        </div>
       </Banda>
     </Cadru>
   );

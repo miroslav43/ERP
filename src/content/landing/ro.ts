@@ -878,19 +878,19 @@ export const RO: ContinutLanding = {
     intrebari: [
       {
         q: "Ce fac cu fișierul Excel pe care îl am acum?",
-        a: "Îl încarci. Alegi ce coloană a ta înseamnă ce câmp la noi, iar validarea se face rând cu rând: cele bune intră, cele stricate îți vin înapoi într-un fișier cu motivul fiecărei respingeri. Nu se importă „pe jumătate” și nu se pierde nimic tăcut.",
+        a: "Fișierul de calcul cu angajații se încarcă în Administrativo, nu se retastează. Coloanele se potrivesc singure după antet, oricum ar fi scris: „Data nașterii”, „DATA NASTERII” și „data-nasterii” ajung la același câmp, fără diacritice și fără punctuație. Dacă lipsește o coloană obligatorie, importul îți spune care, pe nume, înainte să scrie ceva. Validarea se face apoi rând cu rând: rândurile bune intră, cele stricate îți vin înapoi într-un fișier cu motivul fiecărei respingeri, scris pe înțeles. Nu se importă „pe jumătate” și nu se pierde nimic tăcut — dacă zece rânduri din o sută au CNP greșit, intră nouăzeci și primești zece înapoi, nu un mesaj de eroare pe tot fișierul.",
       },
       {
         q: "Datele noastre pot ajunge la altă firmă din platformă?",
-        a: "Nu, iar mecanismul nu e un filtru din aplicație. Fiecare interogare trece prin politici pe rând, în Postgres, forțate inclusiv pentru proprietarul tabelei. Apartenența ta la firmă se recalculează la fiecare cerere din date reale, nu dintr-un cookie. Verificarea rulează automat la fiecare livrare de cod.",
+        a: "Datele unei firme nu ajung la alta, iar mecanismul care o garantează nu e un filtru scris în aplicație. Fiecare interogare trece prin politici la nivel de rând, în Postgres, activate obligatoriu pe fiecare tabelă și forțate inclusiv pentru proprietarul ei. O interogare care ar depăși granița firmei nu întoarce rânduri — nu întoarce o eroare pe care cineva ar putea s-o prindă și s-o ignore, ci pur și simplu nimic. Apartenența ta la firmă se recalculează la fiecare cerere, din datele reale, nu dintr-un cookie sau dintr-un identificator trimis de browser. Verificarea rulează automat la fiecare livrare de cod: dacă o politică lipsește de pe o tabelă nouă, livrarea se oprește înainte să ajungă la voi.",
       },
       {
         q: "Contabila mea vede salariile tuturor. Managerul poate?",
-        a: "Nu. Managerul are refuz explicit pe salarizare — nu absență de drept, refuz scris. Dacă vrei să i-l dai, se schimbă o linie de configurare pe firma ta, fără o nouă livrare de cod. Tabelul cu cine ce vede e pe pagina de module.",
+        a: "Nu, managerul de echipă nu vede salariile oamenilor lui. Diferența față de alte aplicații e că nu e vorba de absența unui drept, ci de un refuz scris: pe fiecare acțiune din salarizare, rolul de manager are un „nu” trecut explicit în baza de date. Un drept lipsă se poate acorda din greșeală la o configurare viitoare; un refuz scris trebuie șters de cineva care știe ce face. Contabila, în schimb, vede tot ce ține de salarizare, fiindcă asta e treaba ei. Dacă vrei totuși ca un anumit manager să vadă salariile echipei lui, se schimbă o linie de configurare pe firma ta, fără o versiune nouă a aplicației. Tabelul complet cu cine ce vede, pe fiecare modul, e pe pagina de module.",
       },
       {
         q: "Ce se întâmplă când pleacă un angajat?",
-        a: "Nimic nu se șterge fizic. Fișa se închide, urma rămâne, iar datele se purjează la termenul din politica de retenție a firmei tale. Nu există nicio politică de ștergere în baza de date, nicăieri.",
+        a: "Când pleacă un angajat, fișa lui se închide, dar nimic nu se șterge fizic din baza de date. Documentele, pontajul, concediile și instruirile rămân, fiindcă exact ele se cer la un control pentru perioada în care omul a lucrat la tine. În aplicație, contul lui nu mai intră, iar în REGES-ONLINE încetarea contractului are termenul ei, urmărită ca orice alt eveniment. Datele se purjează abia la termenul din politica de retenție a firmei tale, pe care o stabilești tu împreună cu juristul tău, nu noi. Tehnic, garanția e că nu există nicio politică de ștergere în baza de date, nicăieri: nici măcar administratorul platformei n-are cum să șteargă un rând, doar să-l marcheze ca închis.",
       },
       {
         q: "Înlocuiește contabilul?",
@@ -898,11 +898,11 @@ export const RO: ContinutLanding = {
       },
       {
         q: "Merge pe telefon?",
-        a: "Da, din browser. Portalul angajatului e făcut pentru ecran mic: soldul de concediu, cererile, pontajul, fluturașul, documentele. Nu avem aplicație în magazinele de aplicații.",
+        a: "Da, Administrativo merge pe telefon din browser, fără instalare din magazin. Portalul angajatului e făcut pentru ecran mic: soldul de concediu, cererile depuse, luna lui de pontaj, fluturașul și documentele primite. Adresa se adaugă pe ecranul principal — pe iPhone din Safari, pe Android din Chrome — și de atunci pornește pe tot ecranul, ca o aplicație, fără să ocupe spațiu ca una și fără actualizări de instalat. De acolo omul își poate și ponta ziua, dacă firma a pornit butoanele de pontare rapidă, iar la punctele de lucru se poate cere scanarea codului QR de pe afiș înainte. Ce nu merge: fără internet nu se scrie nimic, fiindcă portalul nu ține date offline. În magazinele de aplicații nu suntem.",
       },
       {
         q: "Ce arăt la un control ITM?",
-        a: "Fișele de instruire cu data și semnătura, evidența medicinei muncii, echipamentul de protecție cu durata lui, foaia de prezență a lunii și jurnalul care arată cine a modificat ce. Toate dintr-un singur loc, cu termenele vizibile înainte să expire.",
+        a: "La un control ITM se cer documentele de personal, iar Administrativo le are pe toate într-un singur loc: fișele de instruire cu data și semnătura, evidența medicinei muncii, echipamentul de protecție dat în primire cu durata lui, foaia de prezență a lunii cerute și jurnalul care arată cine a modificat ce și când. Evidența SSM e o matrice cu oamenii pe verticală și tipurile de instruire pe orizontală, în care „niciodată făcută” e o stare separată de „expirată” — la un control înseamnă două lucruri diferite. Termenele se văd înainte să expire, nu în ziua în care expiră, deci instruirea se poate reprograma. Ce se cere exact și în ce ordine se verifică e scris pe pagina noastră despre controlul ITM, cu articolul de lege lângă fiecare afirmație.",
       },
       {
         q: "Cine are acces la datele noastre din partea voastră?",
