@@ -12,9 +12,10 @@ import { cheieDinSlug, slugModul } from "@/content/landing/slug-module";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { InMana } from "../../_componente/in-mana";
 import { PrinGeam } from "../../_componente/prin-geam";
 import { RandRegistru, Registru } from "../../_componente/registru";
-import { arePrinGeam } from "../../_componente/vitrine";
+import { arePrinGeam, capturiInalteAleModulului } from "../../_componente/vitrine";
 
 /**
  * Pagina fiecărui modul.
@@ -151,6 +152,19 @@ export default async function PaginaModul({ params }: Proprietati) {
         `vitrine.test.ts`.
       */}
       {arePrinGeam(cheie) && <PrinGeam cheie={cheie} titlu={modul.titlu} />}
+
+      {/*
+        Capturile înalte, pentru modulele care se folosesc de pe telefon.
+        Deocamdată doar portalul angajatului: o fereastră de birou de 1440px nu
+        poate arăta un produs despre care pagina spune că se ține în mână.
+      */}
+      {capturiInalteAleModulului(cheie).length > 0 && (
+        <InMana
+          supratitlu="Ecran real"
+          titlu={`${modul.titlu} pe telefonul angajatului`}
+          chei={capturiInalteAleModulului(cheie)}
+        />
+      )}
 
       <Banda inaltime="medie">
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
