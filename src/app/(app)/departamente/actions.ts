@@ -171,7 +171,10 @@ export const creeazaDepartament = createAction<
         created_by: ctx.user.id,
         updated_by: ctx.user.id,
       })
-      .select("id")
+      // `path` vine din RETURNING, deci e cel calculat de `tg_departments_path`
+      // pe rândul tocmai scris — nu cel trimis de client, care e mereu `[]`. E
+      // singura formă în care lanțul de strămoși se află fără o citire în plus.
+      .select("id, path")
       .single();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
 
@@ -190,9 +193,6 @@ export const creeazaDepartament = createAction<
       "Departamentul a fost creat",
     );
 
-    // Rolul, dar NU subordonarea: un departament proaspăt creat n-are pe cine să
-    // pună în subordinea șefului. Singurul om din el e chiar el, dacă tocmai a
-    // fost repartizat mai sus.
     const contextul = contextSef(ctx, db);
     await aplicaRolurile(
       contextul,
@@ -203,6 +203,28 @@ export const creeazaDepartament = createAction<
       }),
       "Departamentul a fost creat",
     );
+
+    // ── DE CE ȘI AICI, DEȘI DEPARTAMENTUL E GOL ───────────────────────────
+    // Locul ăsta a purtat multă vreme nota „rolul, dar NU subordonarea: un
+    // departament proaspăt creat n-are pe cine să pună în subordinea șefului".
+    // Era adevărat despre MEMBRI — singurul om înăuntru e chiar șeful, dacă
+    // tocmai a fost repartizat — dar nu și despre ȘEF: el trebuie așezat sub
+    // șeful primului departament de deasupra, exact ca la o redenumire de
+    // manager. Fără apelul ăsta, orice departament NOU intra în structură cu
+    // vârful atârnat unde se nimerea, iar organigrama rămânea plată tocmai la
+    // ramurile proaspete — adică fix acolo unde nimeni nu se uită după defecte.
+    if (campuri.manager_employee_id !== null) {
+      await aplicaSubordonarea(
+        contextul,
+        {
+          departamentId: data.id,
+          sefId: campuri.manager_employee_id,
+          sefAnteriorId: null,
+          caleaDepartamentului: data.path,
+        },
+        "Departamentul a fost creat",
+      );
+    }
 
     return { id: data.id };
   },
