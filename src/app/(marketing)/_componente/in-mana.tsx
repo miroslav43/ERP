@@ -45,7 +45,12 @@ export function InMana({
           <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
             {supratitlu}
           </p>
-          <h2 className="font-mk-titlu mt-3 text-[clamp(1.5rem,3.4vw,2.125rem)] leading-[1.15] tracking-[-0.01em]">
+          {/* `font-mk-display`, ca în `banda.tsx` și `antet-secundar.tsx`.
+              Scrisesem `font-mk-titlu`, care NU EXISTĂ: în `globals.css` sunt
+              definite doar `--font-mk-display` și `--font-mk-date`. O clasă
+              Tailwind inventată nu dă nicio eroare — nici la build, nici la
+              lint —, se randează pur și simplu cu fontul implicit. */}
+          <h2 className="font-mk-display mt-3 text-[clamp(1.5rem,3.4vw,2.125rem)] leading-[1.15] font-semibold tracking-[-0.01em]">
             {titlu}
           </h2>
 

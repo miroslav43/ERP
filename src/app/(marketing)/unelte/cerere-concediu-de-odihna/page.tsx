@@ -204,7 +204,7 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
                 Către: {angajator === "" ? <Gol latime="16rem" /> : angajator}
               </p>
 
-              <h2 className="font-mk-titlu my-8 text-center text-[1.5rem] tracking-[0.02em]">
+              <h2 className="font-mk-display my-8 text-center text-[1.5rem] font-semibold tracking-[0.02em]">
                 CERERE
               </h2>
 
