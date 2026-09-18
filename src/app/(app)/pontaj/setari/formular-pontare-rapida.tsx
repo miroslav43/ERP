@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Ban, CheckCheck, Clock, Handshake, Layers, Lock, Printer, QrCode } from "lucide-react";
 
@@ -13,6 +14,8 @@ import { intervalulPropus, type ConfigZi } from "@/domain/attendance/calcul-ore"
 import { cePoateFace, type ConfigPontareRapida } from "@/domain/attendance/pontare-rapida";
 import type { AfisPontare } from "@/lib/queries/attendance";
 import { formatOre } from "@/lib/format/ore";
+
+import { rotesteCodPontaj } from "@/app/(app)/puncte-lucru/actions";
 
 import { salveazaPontareaRapida } from "./actions";
 
@@ -35,13 +38,26 @@ export function FormularPontareRapida({
   pontare,
   afise,
   config,
+  poateGeneraCod,
 }: {
   readonly pontare: ConfigPontareRapida;
   readonly afise: readonly AfisPontare[];
   /** Norma și pauza în vigoare azi — hrănesc intervalul propus. */
   readonly config: ConfigZi;
+  /** `departments:update` la `all` — cheia lui `puncte_lucru`, nu a pontajului. */
+  readonly poateGeneraCod: boolean;
 }) {
+  const router = useRouter();
   const [seTrimite, porneste] = useTransition();
+  /*
+    Tranziție PROPRIE pentru generarea codului, nu `porneste` de mai sus.
+    Aceeași tranziție ar fi blocat butonul „Salvează" cât timp se face un cod,
+    și invers — două lucruri fără nicio legătură între ele, în două secțiuni
+    diferite ale ecranului. Eroarea, în schimb, se afișează în același loc:
+    ecranul are UN singur rând de eroare, iar un al doilea, identic, la câțiva
+    pixeli distanță, n-ar spune nimic în plus.
+  */
+  const [seGenereaza, pornesteGenerarea] = useTransition();
   const [mesaj, setMesaj] = useState<string | null>(null);
   const [eroare, setEroare] = useState<string | null>(null);
   /*
@@ -283,11 +299,53 @@ export function FormularPontareRapida({
                     <Printer aria-hidden="true" className="size-3.5" />
                     Tipărește afișul
                   </Link>
-                ) : (
-                  <Link href="/puncte-lucru" className={buton({ varianta: "tertiar" })}>
+                ) : poateGeneraCod ? (
+                  /*
+                    Era un `<Link>` către `/puncte-lucru`, adică un buton care
+                    promitea o acțiune și livra o navigare: ajungeai în listă și
+                    trebuia să găsești singur punctul de lucru și butonul lui.
+                    Aici se cerea „o cale directă din pontaj", iar o cale
+                    directă către altă listă nu e una.
+
+                    Acțiunea e a modulului vecin, importată ca atare — tiparul e
+                    deja în depozit (`angajati/nou` cheamă `creeazaDepartament`).
+                    Nu se rescrie aici: `rotesteCodPontaj` verifică permisiunea,
+                    scrie în audit și citește rândul înapoi după UPDATE.
+                  */
+                  <Buton
+                    varianta="tertiar"
+                    inCurs={seGenereaza}
+                    textInCurs="Se generează…"
+                    onClick={() => {
+                      setEroare(null);
+                      pornesteGenerarea(async () => {
+                        const rezultat = await rotesteCodPontaj({ id: afis.id });
+                        if (!rezultat.ok) {
+                          setEroare(rezultat.error.message);
+                          return;
+                        }
+                        // Rândul trece singur pe „Tipărește afișul": `areCod` se
+                        // recitește pe server, nu se ghicește aici.
+                        router.refresh();
+                      });
+                    }}
+                  >
                     <QrCode aria-hidden="true" className="size-3.5" />
-                    Generează cod
-                  </Link>
+                    Generează codul QR
+                  </Buton>
+                ) : (
+                  /*
+                    Fără `departments:update`, butonul ar fi apăsat degeaba:
+                    politica `puncte_lucru_update` refuză cu ZERO rânduri și
+                    fără eroare. Se spune deci de ce nu se poate, în loc să se
+                    ofere un gest care tace. — capcana #17
+                  */
+                  <span className="text-muted-foreground text-nota">
+                    fără cod — se generează din{" "}
+                    <Link href="/puncte-lucru" className="underline underline-offset-2">
+                      Puncte de lucru
+                    </Link>
+                  </span>
                 )}
               </li>
             ))}
