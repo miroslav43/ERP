@@ -35,6 +35,18 @@ export interface FilePontaj {
   readonly poateAproba: boolean;
   readonly poateConfigura: boolean;
   /**
+   * Poate VEDEA codurile QR de pontare — `departments:update` la `all`.
+   *
+   * Cheia altui modul, și nu din neglijență: codul QR se ține pe punctul de
+   * lucru, iar cine îl vede poate ponta de oriunde. E poarta SECRETULUI, nu a
+   * pontajului — la fel ca afișul din `puncte-lucru/[id]/afis`.
+   *
+   * Separată de `poateConfigura` fiindcă cele două chiar se despart: un rol care
+   * configurează pontajul fără drept pe structură vede „Setări", dar nu și
+   * codurile. Compuse, ar fi apărut un buton care duce la un refuz.
+   */
+  readonly poateVedeaCoduriQr: boolean;
+  /**
    * Are drept de EXPORT la scope `all` — aceeași cheie pe care o cere politica
    * `pontaj_arhive_lunare_select` (0134). Nu `attendance:read`: arhiva e a
    * întregii firme, iar un manager cu `read = team` care ar deschide-o ar primi
@@ -62,6 +74,7 @@ export async function fileDePontaj(
   return {
     poateAproba: config.necesitaAprobare && can(permisiuni, "attendance:approve", "team"),
     poateConfigura: can(permisiuni, "attendance:update", "all"),
+    poateVedeaCoduriQr: can(permisiuni, "departments:update", "all"),
     poateVedeaArhiva: can(permisiuni, "attendance:export", "all"),
     necesitaAprobare: config.necesitaAprobare,
   };

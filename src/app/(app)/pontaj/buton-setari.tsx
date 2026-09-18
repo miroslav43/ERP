@@ -1,6 +1,7 @@
 // src/app/(app)/pontaj/buton-setari.tsx
 import Link from "next/link";
 import type { ReactElement } from "react";
+import { QrCode } from "lucide-react";
 
 import { buton } from "@/components/ui/buton";
 
@@ -22,6 +23,22 @@ import { buton } from "@/components/ui/buton";
  * dispare la schimbarea filei, iar banda rămâne ce spune că e. Pontajul face
  * acum la fel — vezi `concedii/buton-setari.tsx`, geamănul acestui fișier.
  *
+ * ── DE CE ȘI UN AL DOILEA LINK, PENTRU CODURI QR ──────────────────────────
+ * Fila „Coduri QR" a fost adăugată în setări, iar reclamația a venit înapoi
+ * neschimbată: „în pontaj în continuare nu îmi apare nimic de văzut QR-ul".
+ * Avea dreptate. Din `/pontaj`, singurul drum era un buton pe care scrie
+ * „Setări" — cuvânt care nu promite niciun cod QR — și abia înăuntru, a treia
+ * filă. Două clicuri, dintre care primul cere să ghicești.
+ *
+ * Codul QR nu e o setare care se alege o dată: e un obiect la care te uiți, pe
+ * care îl tipărești și pe care îl refaci când a scăpat unde nu trebuia. Merită
+ * deci propriul drum din antet, lângă „Setări", nu sub el.
+ *
+ * Poarta lui e ALTA: `departments:update`, nu `attendance:update`. Cele două
+ * chiar se despart — un rol care configurează pontajul fără drept pe structură
+ * vede „Setări" și nu vede codurile, iar un buton care l-ar duce la un refuz e
+ * mai rău decât niciunul.
+ *
  * ── CE NU E ───────────────────────────────────────────────────────────────
  * `poateConfigura` vine din `fileDePontaj`, adică `attendance:update` pe scope
  * `all` — aceeași cheie pe care o cere pagina țintă. Ascunderea butonului NU e
@@ -31,14 +48,31 @@ import { buton } from "@/components/ui/buton";
  */
 export function ButonSetariPontaj({
   poateConfigura,
+  poateVedeaCoduriQr = false,
 }: {
   readonly poateConfigura: boolean;
+  /** `departments:update` la `all`. Vezi `FilePontaj.poateVedeaCoduriQr`. */
+  readonly poateVedeaCoduriQr?: boolean;
 }): ReactElement | null {
-  if (!poateConfigura) return null;
+  if (!poateConfigura && !poateVedeaCoduriQr) return null;
 
   return (
-    <Link href="/pontaj/setari" className={buton({ varianta: "secundar" })}>
-      Setări
-    </Link>
+    <>
+      {poateVedeaCoduriQr ? (
+        <Link
+          href="/pontaj/setari/coduri-qr"
+          className={buton({ varianta: "tertiar" })}
+          title="Codul pe care angajații îl scanează la intrare, câte unul pentru fiecare punct de lucru."
+        >
+          <QrCode aria-hidden="true" className="size-4" />
+          Coduri QR
+        </Link>
+      ) : null}
+      {poateConfigura ? (
+        <Link href="/pontaj/setari" className={buton({ varianta: "secundar" })}>
+          Setări
+        </Link>
+      ) : null}
+    </>
   );
 }

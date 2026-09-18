@@ -273,7 +273,12 @@ export default async function PaginaArhivaPontaj() {
       <AntetPagina
         titlu="Arhiva pontajului"
         descriere={`Foile colective de prezență ale ultimilor ${String(ANI_PASTRARE)} ani, înghețate la închiderea fiecărei luni.`}
-        actiuni={<ButonSetariPontaj poateConfigura={fileNav.poateConfigura} />}
+        actiuni={
+          <ButonSetariPontaj
+            poateConfigura={fileNav.poateConfigura}
+            poateVedeaCoduriQr={fileNav.poateVedeaCoduriQr}
+          />
+        }
         file={<NavPontaj {...fileNav} />}
       />
 
