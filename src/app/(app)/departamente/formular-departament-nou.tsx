@@ -73,6 +73,13 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
       titlu="Departament nou"
       descriere="Denumirea e de ajuns. Codul e opțional, pentru firmele care au o nomenclatură internă, și trebuie să fie unic. Departamentul superior poate fi schimbat oricând, din structura de mai jos."
       marime="mare"
+      // Cele șase câmpuri plus descrierea de patru rânduri umplu caseta, iar
+      // avertismentul lui `CampManager` mai adaugă un bloc întreg când
+      // managerul ales vine din alt departament. Mânerul e singurul câmp din
+      // formular care nu se putea încăpea altfel: niciunul dintre `select`-uri
+      // nu deschide un derulant poziționat absolut, deci `overflow-hidden` n-are
+      // ce să taie.
+      redimensionabil
       actiune={trimite}
       mesajReusita="Departamentul a fost creat."
       etichetaTrimite="Creează departamentul"

@@ -15,6 +15,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import {
   aplicaRolurile,
   aplicaSubordonarea,
+  elibereazaSubordonarea,
   decideSchimbareaSefului,
   type ContextSef,
 } from "@/lib/departamente/sef";
@@ -386,16 +387,31 @@ export const desemneazaSefDepartament = createAction<
     // Subordonarea NU e condiționată de rolul autorului, spre deosebire de
     // scrierea rolului: `employees_update` cere `employees:update`, pe care `hr`
     // îl are la `all`.
-    if (sefNouId !== null && sefNouId !== sefAnteriorId) {
-      await aplicaSubordonarea(
-        contextul,
-        {
-          departamentId: input.department_id,
-          sefId: sefNouId,
-          parentId: inainte.parent_id,
-        },
-        "Șeful departamentului a fost salvat",
-      );
+    // Ramura `else`: ștergerea șefului desface subordonarea pe care desemnarea
+    // lui a scris-o. Vezi cronologia din `@/domain/departments/subordonare-sef`.
+    if (sefNouId !== sefAnteriorId) {
+      if (sefNouId !== null) {
+        await aplicaSubordonarea(
+          contextul,
+          {
+            departamentId: input.department_id,
+            sefId: sefNouId,
+            sefAnteriorId,
+            parentId: inainte.parent_id,
+          },
+          "Șeful departamentului a fost salvat",
+        );
+      } else if (sefAnteriorId !== null) {
+        await elibereazaSubordonarea(
+          contextul,
+          {
+            departamentId: input.department_id,
+            sefAnteriorId,
+            parentId: inainte.parent_id,
+          },
+          "Șeful departamentului a fost salvat",
+        );
+      }
     }
 
     return { id: data.id, rolAcordat: contextul.autorEsteAdministrator };

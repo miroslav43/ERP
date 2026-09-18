@@ -55,6 +55,37 @@ export type PropsDialog = Readonly<{
   children?: ReactNode;
   subsol?: ReactNode;
   marime?: keyof typeof LATIME;
+  /**
+   * Caseta capătă mânerul nativ de redimensionare, din colțul de jos-dreapta.
+   *
+   * ── DE CE NU PE TOATE CELE OPT ────────────────────────────────────────────
+   * `resize` nu are NICIUN efect pe `overflow: visible`, deci opțiunea aduce
+   * obligatoriu cu ea `overflow-hidden` pe `<dialog>`. Iar asta taie orice
+   * derulant poziționat absolut care iese din casetă — lista de autocomplete a
+   * codului COR din formularul de angajat e exact așa. Casetele care au un
+   * asemenea derulant nu pot fi redimensionabile fără să fie întâi rescrise, iar
+   * o confirmare de trei rânduri n-are ce să facă cu un mâner. Deci se cere
+   * explicit, per casetă, nu se moștenește.
+   *
+   * ── CE SE SCHIMBĂ ÎN CALCULUL LĂȚIMII ────────────────────────────────────
+   * Implicit, `marime` e un PLAFON (`max-w-*`) peste o lățime de „cât încape"
+   * (`md:w-[calc(100vw-2rem)]`). Un plafon nu se poate depăși trăgând de mâner:
+   * mânerul scrie `width`, iar `max-width` îl retează mai departe — mâna trage
+   * și nu se întâmplă nimic. Redimensionabilă, caseta pornește de la lățimea lui
+   * `marime` și primește ca plafon fereastra, deci treapta devine punctul de
+   * PORNIRE, nu tavanul.
+   *
+   * ── CINE PRIMEȘTE MÂNERUL ────────────────────────────────────────────────
+   * Cine are indicator FIN — mouse, trackpad, stylus — indiferent de lățimea
+   * ferestrei. Pe atingere nu se schimbă nimic: caseta rămâne foaia lipită de
+   * marginea de jos, iar mânerul ar fi o țintă de 16 px peste butoane, la
+   * degete. Condiția e pe `pointer`, nu pe `md`, fiindcă lățimea ferestrei nu
+   * spune nimic despre ce ai în mână — vezi nota lungă de la clase.
+   *
+   * Dimensiunea NU se ține minte între deschideri: `FormularDialog` demontează
+   * caseta la închidere, deci a doua deschidere pornește iar de la `marime`.
+   */
+  redimensionabil?: boolean;
 }>;
 
 /**
@@ -70,6 +101,21 @@ const LATIME = {
   lucru: "max-w-5xl",
 } as const;
 
+/**
+ * Aceleași patru trepte, dar ca `width` de pornire, pentru `redimensionabil`.
+ *
+ * Valorile sunt cele din spatele lui `max-w-sm|lg|2xl|5xl` — scrise explicit,
+ * nu prin `w-sm`, fiindcă scara de lățimi pe numele containerelor e o adăugire
+ * de Tailwind v4 și un nume greșit n-ar da eroare, ci o clasă care nu emite
+ * nimic: caseta ar rămâne la `w-full` și ar umple fereastra.
+ */
+const LATIME_PORNIRE = {
+  mic: "pointer-fine:w-[24rem]",
+  mediu: "pointer-fine:w-[32rem]",
+  mare: "pointer-fine:w-[42rem]",
+  lucru: "pointer-fine:w-[64rem]",
+} as const;
+
 export function Dialog({
   deschis,
   laInchidere,
@@ -78,10 +124,35 @@ export function Dialog({
   children,
   subsol,
   marime = "mediu",
+  redimensionabil = false,
 }: PropsDialog): ReactElement {
   const ref = useRef<HTMLDialogElement | null>(null);
   const idTitlu = useId();
   const idDescriere = useId();
+
+  /**
+   * Apăsarea a început pe `::backdrop`, nu pe casetă?
+   *
+   * ── DE CE NU E DE AJUNS `e.target === dialog` PE CLIC ─────────────────────
+   * Verificarea aceea a fost corectă cât timp `<dialog>` n-avea nicio parte
+   * proprie pe care să poți apuca: caseta are `p-0`, deci tot ce se vede
+   * înăuntru e un COPIL, iar orice clic cu ținta pe elementul însuși venea de pe
+   * fundal. Mânerul de redimensionare rupe presupunerea — e desenat de browser
+   * în colțul casetei și ține de ELEMENT, nu de vreun copil. Măsurat în browser:
+   * trăgeai de colț și caseta se închidea, cu tot ce scriseseși în ea.
+   *
+   * ── DE CE LA `pointerdown`, ȘI NU DUPĂ COORDONATELE CLICULUI ─────────────
+   * O verificare geometrică făcută pe `click` n-ar fi ajutat: la capătul unei
+   * trageri, degetul e aproape întotdeauna în AFARA casetei (dacă ai micșorat-o)
+   * sau lângă marginea ei mutată de recentrare. Ce distinge cu adevărat un clic
+   * pe fundal de o tragere de mâner e UNDE A ÎNCEPUT apăsarea. Bonus, aceeași
+   * schimbare repară un defect mai vechi și mai greu de povestit: selectezi text
+   * în casetă, ridici degetul pe fundal — până acum caseta se închidea.
+   *
+   * Tastatura nu trece pe aici: un „clic" venit din Enter pe un buton nu emite
+   * `pointerdown`, deci steagul rămâne stins.
+   */
+  const apasatPeFundal = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -102,9 +173,24 @@ export function Dialog({
         e.preventDefault();
         laInchidere();
       }}
-      onClick={(e) => {
-        // Clic pe `::backdrop`: ținta e chiar `<dialog>`, nu un copil al lui.
-        if (e.target === ref.current) laInchidere();
+      // Începutul apăsării decide, nu sfârșitul ei. Vezi `apasatPeFundal`.
+      onPointerDown={(e) => {
+        const el = ref.current;
+        if (el === null || e.target !== el) {
+          apasatPeFundal.current = false;
+          return;
+        }
+        const cutie = el.getBoundingClientRect();
+        apasatPeFundal.current =
+          e.clientX < cutie.left ||
+          e.clientX > cutie.right ||
+          e.clientY < cutie.top ||
+          e.clientY > cutie.bottom;
+      }}
+      onClick={() => {
+        if (!apasatPeFundal.current) return;
+        apasatPeFundal.current = false;
+        laInchidere();
       }}
       className={cn(
         "bg-background text-foreground shadow-plutitor border-border border p-0",
@@ -113,7 +199,13 @@ export function Dialog({
         // corpul derulează. Fără `min-h-0` pe corp, un copil mai înalt decât
         // ecranul ar împinge subsolul în afara casetei — implicitul flexbox
         // `min-height: auto` refuză să lase elementul să se micșoreze.
-        "flex flex-col",
+        //
+        // `hidden … open:flex`, NU `flex` simplu — vezi nota din
+        // `command-palette.tsx` și poarta din `dialog-inchis.test.ts`. Un
+        // `display` necondiționat aici bate regula `dialog:not([open]) {
+        // display: none }` a browserului, iar dialogul închis rămâne o cutie
+        // așezată în flux.
+        "hidden flex-col open:flex",
         // ── SUB `md`: FOAIE LIPITĂ DE MARGINEA DE JOS ───────────────────────
         // `mb-0` peste `m-auto`: `<dialog>` se centrează prin marginile
         // automate, iar anulând-o doar pe cea de jos caseta cade la baza
@@ -143,12 +235,65 @@ export function Dialog({
         // pagină obișnuită, iar tot spațiul disponibil ajunge la conținut.
         // Pragul e sub cel la care apare derularea (~220px), deci ecranele
         // normale nu-l ating niciodată.
-        "[@media(max-height:26rem)]:block [@media(max-height:26rem)]:overflow-y-auto",
+        // `open:` și aici, nu doar pe `flex` de sus: fără el, sub 26rem înălțime
+        // de fereastră un dialog ÎNCHIS ar redeveni o cutie în flux — același
+        // defect, doar cu o condiție mai îngustă, adică exact felul care scapă.
+        "[@media(max-height:26rem)]:overflow-y-auto [@media(max-height:26rem)]:open:block",
         // `dvh`, nu `vh`: pe iOS Safari `100vh` include bara de adrese care se
         // retrage, deci subsolul ar sta sub linia vizibilă exact cât timp bara
         // e afișată — adică fix când omul deschide dialogul.
-        "md:rounded-panou md:m-auto md:max-h-[calc(100dvh-4rem)] md:w-[calc(100vw-2rem)]",
+        "md:rounded-panou md:m-auto md:max-h-[calc(100dvh-4rem)]",
+        // ── PLAFONUL DE LĂȚIME SE EMITE MEREU ─────────────────────────────
+        // Nu se mută în ramuri și nu se scoate din ramura redimensionabilă „ca
+        // să nu se bată cu ea". A fost scos o dată, și rezultatul a ajuns pe
+        // ecranul utilizatorului: fără el, caseta redimensionabilă rămâne cu
+        // `w-full max-w-none` din pătura de telefon, adică o bandă lată de la o
+        // margine a ecranului la alta, peste meniu, cu colțuri drepte. Se
+        // întâmplă ori de câte ori regulile `pointer-fine` LIPSESC din foaia de
+        // stil — iar ele pot lipsi din motive care n-au nimic de-a face cu
+        // codul: o foaie rămasă în urmă cât timp dev-serverul reconstruiește,
+        // un nume de variantă pe care o versiune viitoare de Tailwind nu-l mai
+        // recunoaște. Niciunul dintre cazuri nu dă vreo eroare.
+        //
+        // Cu plafonul aici, cel mai rău caz posibil e o casetă normală, în
+        // mijloc, fără mâner. Degradarea trebuie să ducă la ceva corect, nu la
+        // ceva urât.
         LATIME[marime],
+        // ── MÂNERUL DE REDIMENSIONARE ─────────────────────────────────────
+        // Ramura redimensionabilă doar RIDICĂ plafonul de mai sus, la
+        // `pointer-fine`, ca să existe unde crește. Ordinea e verificată în
+        // foaia compilată, nu presupusă: utilitarele neprefixate stau la ~1665,
+        // blocul `md` la ~6124, iar `@media (pointer: fine)` la ~6942 — deci
+        // ultimul câștigă peste amândouă.
+        //
+        // Varianta în care lățimea fixă stătea deasupra și cea redimensionabilă o „bătea"
+        // dedesubt a fost scrisă și aruncată: ar fi pus lățimea să depindă de
+        // ordinea în care Tailwind așază `md:` față de `pointer-fine:` în foaia
+        // de stil — o ordine pe care n-o garantează nimic și care, dacă se
+        // schimbă, nu dă nicio eroare, doar o casetă care refuză să se lărgească.
+        //
+        // ── DE CE `pointer-fine`, ȘI NU `md` ─────────────────────────────
+        // Prima livrare a pus mânerul pe `md:`, adică pe LĂȚIMEA ferestrei, ca
+        // aproximare pentru „are mouse". Aproximarea cade exact la omul care are
+        // cea mai mare nevoie de o casetă mai mare: la zoom 200% pe un ecran de
+        // 1512 px, fereastra CSS are 756 px, adică SUB prag — mânerul dispărea
+        // tăcut, iar caseta redevenea o foaie îngustă. Ce decide dacă o țintă de
+        // 16 px se poate apuca e FELUL indicatorului, nu câți pixeli are
+        // fereastra. Simetricul, `pointer-coarse:`, e deja folosit în depozit.
+        //
+        // De aceea ramura redimensionabilă își rescrie și geometria — `m-auto`
+        // pe amândouă axele și colțurile rotunde — altfel, pe o fereastră
+        // îngustă, mânerul ar fi apărut pe foaia lipită de marginea de jos, unde
+        // nu se poate trage: marginea de sus e singura liberă, iar colțul de
+        // jos-dreapta stă fix în pragul ferestrei.
+        redimensionabil
+          ? cn(
+              LATIME_PORNIRE[marime],
+              "pointer-fine:rounded-panou pointer-fine:m-auto pointer-fine:mb-auto",
+              "pointer-fine:max-h-[calc(100dvh-4rem)] pointer-fine:max-w-[calc(100vw-2rem)]",
+              "pointer-fine:resize pointer-fine:overflow-hidden",
+            )
+          : "md:w-[calc(100vw-2rem)]",
       )}
     >
       <div className="border-border flex shrink-0 items-start justify-between gap-4 border-b p-4">
@@ -354,7 +499,23 @@ export function PanouLateral({
       className={cn(
         "bg-background text-foreground shadow-plutitor border-border ms-auto me-0 h-dvh max-h-dvh w-full max-w-xl border-s p-0",
         "backdrop:bg-foreground/50",
-        "flex flex-col",
+        // ── DE CE `hidden … open:flex`, ȘI NU `flex` ───────────────────────
+        // Un `flex` necondiționat bate regula `dialog:not([open]) { display:
+        // none }` a foii de stil a browserului — CSS-ul autorului o bate
+        // ÎNTOTDEAUNA. Panoul închis rămânea atunci o cutie reală: `position:
+        // absolute` (implicitul UA pentru un `<dialog>` nemodal — doar
+        // `dialog:modal` e `fixed`), `h-dvh` înaltă și `max-w-xl` lată,
+        // așezată la poziția ei statică din flux. Invizibilă, dar numărată în
+        // `scrollHeight`: pe `/departamente`, la o fereastră de 1365×969,
+        // documentul ieșea 1575px în vizualizarea listă și 1696px în
+        // organigramă — între 606 și 727 de pixeli de derulare în gol, sub
+        // conținut. Măsurat în browser pe 17 sept 2026; aceeași greșeală era
+        // deja prinsă o dată în `command-palette.tsx`.
+        //
+        // Comutarea lui `display` e și cea pe care o AȘTEAPTĂ `globals.css`:
+        // regula de pe `dialog` animă `display` cu `allow-discrete` plus
+        // `@starting-style`. Cu `flex` fix, nu era nimic de comutat.
+        "hidden flex-col open:flex",
       )}
     >
       <div className="border-border flex shrink-0 items-start justify-between gap-4 border-b p-4">

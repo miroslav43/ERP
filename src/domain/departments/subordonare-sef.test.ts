@@ -1,7 +1,7 @@
 // src/domain/departments/subordonare-sef.test.ts
 import { describe, expect, it } from "vitest";
 
-import { planificaSubordonarea } from "./subordonare-sef";
+import { planificaEliberarea, planificaSubordonarea } from "./subordonare-sef";
 
 /**
  * Ordinea scrierilor NU e un detaliu de implementare, e o condiție de
@@ -25,6 +25,8 @@ describe("planificaSubordonarea", () => {
       membri: [membru("e-1"), membru("e-2", "e-alt-manager"), membru(SEF)],
       caleaSefului: [SEF],
       sefulParinte: null,
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
     });
     expect(plan.deLegat).toEqual(["e-1", "e-2"]);
     expect(plan.ridicaSeful).toBeNull();
@@ -38,6 +40,8 @@ describe("planificaSubordonarea", () => {
       membri: [membru("e-1", SEF), membru("e-2")],
       caleaSefului: [SEF],
       sefulParinte: null,
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
     });
     expect(plan.deLegat).toEqual(["e-2"]);
   });
@@ -49,6 +53,8 @@ describe("planificaSubordonarea", () => {
       membri: [membru("e-1"), membru(SEF, "e-1")],
       caleaSefului: ["e-1", SEF],
       sefulParinte: PARINTE,
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
     });
     expect(plan.ridicaSeful).toEqual({ nouManager: PARINTE });
     expect(plan.deLegat).toEqual(["e-1"]);
@@ -62,6 +68,8 @@ describe("planificaSubordonarea", () => {
       membri: [membru("e-1"), membru(SEF, "e-extern")],
       caleaSefului: ["e-1", "e-extern", SEF],
       sefulParinte: PARINTE,
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
     });
     expect(plan.ridicaSeful).toEqual({ nouManager: PARINTE });
   });
@@ -72,6 +80,8 @@ describe("planificaSubordonarea", () => {
       membri: [membru("e-1"), membru(SEF, "e-1")],
       caleaSefului: ["e-1", SEF],
       sefulParinte: null,
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
     });
     expect(plan.ridicaSeful).toEqual({ nouManager: null });
   });
@@ -83,6 +93,8 @@ describe("planificaSubordonarea", () => {
       membri: [membru("e-1"), membru(PARINTE), membru(SEF, "e-1")],
       caleaSefului: ["e-1", SEF],
       sefulParinte: PARINTE,
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
     });
     expect(plan.ridicaSeful).toEqual({ nouManager: null });
   });
@@ -93,6 +105,43 @@ describe("planificaSubordonarea", () => {
       membri: [membru("e-1"), membru(SEF, "e-extern")],
       caleaSefului: ["e-extern", SEF],
       sefulParinte: PARINTE,
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
+    });
+    expect(plan.ridicaSeful).toBeNull();
+  });
+
+  /**
+   * Cazul care a lăsat un director sub un Project Manager, pe date reale.
+   *
+   * Popescu fusese șeful Conducerii, iar mecanismul îi legase pe membri de el —
+   * printre ei directorul. Când directorul a devenit el însuși șeful
+   * departamentului, nimic nu-l desfăcea: lanțul lui nu mai trecea prin niciun
+   * membru (Popescu plecase în alt departament), deci vechea condiție nu se
+   * aprindea. Rămânea atârnat de fostul șef, iar organigrama arăta fidel asta.
+   */
+  it("ridică noul șef când atârnă chiar de fostul șef al departamentului", () => {
+    const plan = planificaSubordonarea({
+      sefId: SEF,
+      membri: [membru(SEF, "e-fost-sef")],
+      caleaSefului: ["e-fost-sef", SEF],
+      sefulParinte: null,
+      sefAnteriorId: "e-fost-sef",
+      managerDirectAlSefului: "e-fost-sef",
+    });
+    expect(plan.ridicaSeful).toEqual({ nouManager: null });
+  });
+
+  it("nu ridică noul șef când fostul șef e doar mai sus în lanț, nu managerul lui direct", () => {
+    // Directorul rămâne deasupra tuturor pe merit. O ridicare „pe toată calea"
+    // ar rupe ierarhii legitime în numele simetriei.
+    const plan = planificaSubordonarea({
+      sefId: SEF,
+      membri: [membru(SEF, "e-sef-direct")],
+      caleaSefului: ["e-fost-sef", "e-sef-direct", SEF],
+      sefulParinte: null,
+      sefAnteriorId: "e-fost-sef",
+      managerDirectAlSefului: "e-sef-direct",
     });
     expect(plan.ridicaSeful).toBeNull();
   });
@@ -103,7 +152,72 @@ describe("planificaSubordonarea", () => {
       membri: [],
       caleaSefului: [SEF],
       sefulParinte: PARINTE,
+      sefAnteriorId: null,
+      managerDirectAlSefului: null,
     });
     expect(plan).toEqual({ ridicaSeful: null, deLegat: [] });
+  });
+});
+
+describe("planificaEliberarea", () => {
+  const FOST = "e-fost-sef";
+
+  it("scoate din subordinea fostului șef pe cei pe care desemnarea lui i-a legat", () => {
+    const plan = planificaEliberarea({
+      sefAnteriorId: FOST,
+      membri: [membru("e-1", FOST), membru("e-2", FOST), membru(FOST)],
+      sefulParinte: PARINTE,
+    });
+    expect(plan.deEliberat).toEqual(["e-1", "e-2"]);
+    expect(plan.nouManager).toBe(PARINTE);
+  });
+
+  it("nu atinge pe cine atârnă de altcineva", () => {
+    // Legătura aceea n-a fost scrisă de mecanismul ăsta, deci nu e a lui s-o
+    // desfacă. O eliberare „a tuturor" ar fi la fel de tăcută ca defectul.
+    const plan = planificaEliberarea({
+      sefAnteriorId: FOST,
+      membri: [membru("e-1", "e-altcineva"), membru("e-2", null), membru("e-3", FOST)],
+      sefulParinte: PARINTE,
+    });
+    expect(plan.deEliberat).toEqual(["e-3"]);
+  });
+
+  it("nu se atinge de fostul șef însuși", () => {
+    // Ștergerea lui din dreptul departamentului nu spune nimic despre cui
+    // raportează EL.
+    const plan = planificaEliberarea({
+      sefAnteriorId: FOST,
+      membri: [membru(FOST, "e-directorul")],
+      sefulParinte: PARINTE,
+    });
+    expect(plan.deEliberat).toEqual([]);
+  });
+
+  it("îi lasă fără manager când departamentul n-are părinte", () => {
+    const plan = planificaEliberarea({
+      sefAnteriorId: FOST,
+      membri: [membru("e-1", FOST)],
+      sefulParinte: null,
+    });
+    expect(plan).toEqual({ deEliberat: ["e-1"], nouManager: null });
+  });
+
+  it("nu-i mută sub un șef-părinte care e tot în departament", () => {
+    const plan = planificaEliberarea({
+      sefAnteriorId: FOST,
+      membri: [membru("e-1", FOST), membru(PARINTE)],
+      sefulParinte: PARINTE,
+    });
+    expect(plan.nouManager).toBeNull();
+  });
+
+  it("nu-i mută înapoi sub fostul șef, chiar dacă el conduce și părintele", () => {
+    const plan = planificaEliberarea({
+      sefAnteriorId: FOST,
+      membri: [membru("e-1", FOST)],
+      sefulParinte: FOST,
+    });
+    expect(plan.nouManager).toBeNull();
   });
 });

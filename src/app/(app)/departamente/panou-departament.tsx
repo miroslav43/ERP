@@ -62,6 +62,17 @@ export type PropsPanouDepartament = Readonly<{
   laInchidere: () => void;
   /** `null` = panoul nerepartizaților. */
   departament: OptiuneDepartamentPanou | null;
+  /**
+   * Cine CONDUCE departamentul deschis — `departments.manager_employee_id`.
+   *
+   * Nu e decor și nu se poate deduce din `persoane`: din `0143`, cine e scos din
+   * departamentul pe care îl conduce nu-l mai conduce, iar triggerul face asta
+   * în bază, fără să ceară nimic. Panoul trebuie deci să poată spune ÎNAINTE
+   * de apăsare că mutarea asta lasă departamentul fără șef — altfel consecința
+   * apare abia pe card, după reîmprospătare, ca o schimbare pe care nimeni n-a
+   * cerut-o.
+   */
+  managerId: string | null;
   persoane: readonly PersoanaPanou[];
   /** Cine poate fi adus aici: toți ceilalți angajați activi. */
   candidati: readonly PersoanaPanou[];
@@ -75,6 +86,7 @@ export function PanouDepartament({
   deschis,
   laInchidere,
   departament,
+  managerId,
   persoane,
   candidati,
   departamente,
@@ -193,6 +205,16 @@ export function PanouDepartament({
     departament !== null &&
     departament.cod !== null &&
     departament.cod.toLowerCase() === "conducere";
+
+  /*
+   * Șeful departamentului, dar numai când e BIFAT. Avertismentul apare la
+   * gestul care are consecința, nu permanent: o notă care stă pe ecran la
+   * fiecare deschidere de panou e citită o dată și ignorată de atunci.
+   */
+  const sefulSelectat =
+    managerId === null || !selectate.has(managerId)
+      ? null
+      : (persoane.find((p) => p.id === managerId) ?? null);
 
   const titlu = departament === null ? "Persoane nerepartizate" : departament.denumire;
   const descriere =
@@ -328,6 +350,20 @@ export function PanouDepartament({
               );
             })}
           </ul>
+        )}
+
+        {/*
+         * Consecința pe care baza o aplică singură, spusă înainte de apăsare.
+         * `0143`: cine e scos din departamentul pe care îl conduce nu-l mai
+         * conduce. Fără nota asta, mutarea ar părea să atingă doar apartenența,
+         * iar șefia ar dispărea de pe card „de la sine".
+         */}
+        {sefulSelectat === null ? null : (
+          <Callout fel="atentie">
+            <strong>{sefulSelectat.full_name}</strong> conduce acest departament. Mutat de aici, „
+            {departament?.denumire ?? ""}” rămâne fără manager — șefia nu-l urmează în departamentul
+            nou.
+          </Callout>
         )}
 
         {eroare === null ? null : (

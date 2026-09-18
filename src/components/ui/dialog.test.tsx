@@ -78,11 +78,68 @@ describe("Dialog", () => {
       </Dialog>,
     );
     const d = document.querySelector("dialog");
-    act(() => fireEvent.click(d!));
+    // jsdom nu așază nimic: fără cutia asta, `getBoundingClientRect()` întoarce
+    // zerouri, iar orice coordonată ar cădea „pe margine". Caseta e deci pusă
+    // explicit la 100..500 pe amândouă axele.
+    d!.getBoundingClientRect = () =>
+      ({ left: 100, top: 100, right: 500, bottom: 500, width: 400, height: 400 }) as DOMRect;
+
+    // Apăsare în afara cutiei = fundal.
+    act(() => {
+      fireEvent.pointerDown(d!, { clientX: 20, clientY: 20 });
+      fireEvent.click(d!, { clientX: 20, clientY: 20 });
+    });
     expect(inchide).toHaveBeenCalledTimes(1);
 
-    act(() => fireEvent.click(screen.getByText("Conținut.")));
+    act(() => {
+      fireEvent.pointerDown(screen.getByText("Conținut."));
+      fireEvent.click(screen.getByText("Conținut."));
+    });
     expect(inchide).toHaveBeenCalledTimes(1);
+  });
+
+  it("caseta redimensionabilă păstrează plafonul de lățime, nu doar pe cel din `pointer-fine`", () => {
+    /*
+     * Poarta asta există fiindcă defectul a ajuns pe ecranul utilizatorului.
+     * Plafonul `max-w-*` fusese mutat în ramura NEredimensionabilă, pe motivul
+     * că în cealaltă îl ridică oricum `pointer-fine:max-w-[calc(100vw-2rem)]`.
+     * Ridicarea aceea trăiește însă într-un `@media`: dacă regulile lui lipsesc
+     * din foaia de stil — o foaie rămasă în urmă cât timp dev-serverul
+     * reconstruiește, un nume de variantă pe care Tailwind nu-l mai recunoaște
+     * — caseta rămâne cu `w-full max-w-none` din pătura de telefon și se
+     * întinde de la o margine a ecranului la alta, peste meniu.
+     *
+     * Testul se uită la CLASE, nu la pixeli, fiindcă jsdom nu evaluează
+     * `@media`: exact felul de defect pe care un test de layout nu-l vede.
+     */
+    render(<Dialog deschis laInchidere={() => {}} titlu="Titlu" marime="mare" redimensionabil />);
+    const clase = document.querySelector("dialog")?.className ?? "";
+    // Plafonul necondiționat: fără el nu există nimic care să oprească `w-full`.
+    expect(clase).toContain("max-w-2xl");
+    // Și ridicarea lui, care dă loc de creștere acolo unde chiar e mâner.
+    expect(clase).toContain("pointer-fine:max-w-[calc(100vw-2rem)]");
+  });
+
+  it("tragerea de mânerul de redimensionare NU închide caseta", () => {
+    /*
+     * Mânerul nativ (`resize`) e desenat de browser în colțul casetei și are
+     * ținta pe `<dialog>` însuși, exact ca fundalul. Măsurat în browser înainte
+     * de reparație: trăgeai de colț și formularul de departament se închidea cu
+     * tot ce scriseseși în el. Ce le separă e UNDE a început apăsarea, nu unde
+     * s-a terminat — de aceea clicul de la capăt e trimis din afara cutiei,
+     * adică din locul în care ajunge degetul după o micșorare.
+     */
+    const inchide = vi.fn();
+    render(<Dialog deschis laInchidere={inchide} titlu="Titlu" redimensionabil />);
+    const d = document.querySelector("dialog");
+    d!.getBoundingClientRect = () =>
+      ({ left: 100, top: 100, right: 500, bottom: 500, width: 400, height: 400 }) as DOMRect;
+
+    act(() => {
+      fireEvent.pointerDown(d!, { clientX: 495, clientY: 495 });
+      fireEvent.click(d!, { clientX: 620, clientY: 640 });
+    });
+    expect(inchide).not.toHaveBeenCalled();
   });
 
   it("butonul de închidere are nume accesibil", () => {

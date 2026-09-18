@@ -10,6 +10,7 @@ import { decideApartenentaManagerului } from "@/domain/departments/manager-membr
 import {
   aplicaRolurile,
   aplicaSubordonarea,
+  elibereazaSubordonarea,
   decideSchimbareaSefului,
   type ContextSef,
 } from "@/lib/departamente/sef";
@@ -288,12 +289,26 @@ export const actualizeazaDepartament = createAction<
     // scrierea rolului: `employees_update` cere `employees:update`, pe care `hr`
     // îl are la `all`. HR-ul construiește structura chiar dacă drepturile le dă
     // altcineva — organigrama iese corectă, doar rolul rămâne de acordat.
-    if (sefNouId !== null && sefNouId !== sefAnteriorId) {
-      await aplicaSubordonarea(
-        contextul,
-        { departamentId: id, sefId: sefNouId, parentId: data.parent_id },
-        "Departamentul a fost salvat",
-      );
+    //
+    // Ramura `else` NU e simetrie de dragul simetriei: fără ea, ștergerea
+    // managerului lăsa pe loc subordonarea scrisă la desemnarea lui. Pe date
+    // reale asta a ținut un director atârnat sub un Project Manager din 4 până
+    // în 17 septembrie 2026 — cronologia completă e în
+    // `@/domain/departments/subordonare-sef`.
+    if (sefNouId !== sefAnteriorId) {
+      if (sefNouId !== null) {
+        await aplicaSubordonarea(
+          contextul,
+          { departamentId: id, sefId: sefNouId, sefAnteriorId, parentId: data.parent_id },
+          "Departamentul a fost salvat",
+        );
+      } else if (sefAnteriorId !== null) {
+        await elibereazaSubordonarea(
+          contextul,
+          { departamentId: id, sefAnteriorId, parentId: data.parent_id },
+          "Departamentul a fost salvat",
+        );
+      }
     }
 
     return { id };

@@ -11,7 +11,7 @@
 import { businessRule, mapPostgrestError } from "@/lib/actions/errors";
 import type { ServerSupabase } from "@/lib/supabase/server";
 import { decideRolulSefului, type DecizieRolSef, type Sef } from "@/domain/departments/rol-sef";
-import { planificaSubordonarea } from "@/domain/departments/subordonare-sef";
+import { planificaEliberarea, planificaSubordonarea } from "@/domain/departments/subordonare-sef";
 import { schimbaRolul } from "@/lib/membri/schimba-rol";
 
 export type ContextSef = Readonly<{
@@ -168,47 +168,36 @@ export async function aplicaRolurile(
  */
 export async function aplicaSubordonarea(
   ctx: ContextSef,
-  parametri: Readonly<{ departamentId: string; sefId: string; parentId: string | null }>,
+  parametri: Readonly<{
+    departamentId: string;
+    sefId: string;
+    sefAnteriorId: string | null;
+    parentId: string | null;
+  }>,
   ceEsteDejaScris: string,
 ): Promise<void> {
-  const { departamentId, sefId, parentId } = parametri;
+  const { departamentId, sefId, sefAnteriorId, parentId } = parametri;
 
   const [membri, fisaSefului, parinte] = await Promise.all([
+    citesteMembrii(ctx, departamentId),
     ctx.db
       .from("employees")
-      .select("id, manager_employee_id")
-      .eq("organization_id", ctx.organizationId)
-      .eq("department_id", departamentId)
-      .is("deleted_at", null),
-    ctx.db
-      .from("employees")
-      .select("manager_path")
+      .select("manager_path, manager_employee_id")
       .eq("id", sefId)
       .eq("organization_id", ctx.organizationId)
       .is("deleted_at", null)
       .maybeSingle(),
-    parentId === null
-      ? Promise.resolve({ data: null, error: null })
-      : ctx.db
-          .from("departments")
-          .select("manager_employee_id")
-          .eq("id", parentId)
-          .eq("organization_id", ctx.organizationId)
-          .is("deleted_at", null)
-          .maybeSingle(),
+    citesteSefulParinte(ctx, parentId),
   ]);
-  if (membri.error !== null) throw mapPostgrestError(membri.error, ctx.requestId);
   if (fisaSefului.error !== null) throw mapPostgrestError(fisaSefului.error, ctx.requestId);
-  if (parinte.error !== null) throw mapPostgrestError(parinte.error, ctx.requestId);
 
   const plan = planificaSubordonarea({
     sefId,
-    membri: (membri.data ?? []).map((m) => ({
-      id: m.id,
-      managerEmployeeId: m.manager_employee_id,
-    })),
+    membri,
     caleaSefului: fisaSefului.data?.manager_path ?? [sefId],
-    sefulParinte: parinte.data?.manager_employee_id ?? null,
+    sefulParinte: parinte,
+    sefAnteriorId,
+    managerDirectAlSefului: fisaSefului.data?.manager_employee_id ?? null,
   });
 
   if (plan.ridicaSeful !== null) {
@@ -217,6 +206,63 @@ export async function aplicaSubordonarea(
   if (plan.deLegat.length > 0) {
     await scrieManagerul(ctx, plan.deLegat, sefId, ceEsteDejaScris);
   }
+}
+
+/**
+ * Oglinda: departamentul rămâne fără șef, oamenii ies din subordinea lui.
+ *
+ * Fără ea, ștergerea managerului lăsa subordonarea scrisă de desemnarea lui
+ * intactă, iar singurul drum înapoi era câmpul „Manager direct" de pe fișa
+ * fiecărui om — vezi cronologia din `@/domain/departments/subordonare-sef`.
+ */
+export async function elibereazaSubordonarea(
+  ctx: ContextSef,
+  parametri: Readonly<{ departamentId: string; sefAnteriorId: string; parentId: string | null }>,
+  ceEsteDejaScris: string,
+): Promise<void> {
+  const { departamentId, sefAnteriorId, parentId } = parametri;
+
+  const [membri, sefulParinte] = await Promise.all([
+    citesteMembrii(ctx, departamentId),
+    citesteSefulParinte(ctx, parentId),
+  ]);
+
+  const plan = planificaEliberarea({ sefAnteriorId, membri, sefulParinte });
+  if (plan.deEliberat.length > 0) {
+    await scrieManagerul(ctx, plan.deEliberat, plan.nouManager, ceEsteDejaScris);
+  }
+}
+
+/** Fișele active din departament, în forma pe care o cer regulile pure. */
+async function citesteMembrii(
+  ctx: ContextSef,
+  departamentId: string,
+): Promise<readonly { id: string; managerEmployeeId: string | null }[]> {
+  const { data, error } = await ctx.db
+    .from("employees")
+    .select("id, manager_employee_id")
+    .eq("organization_id", ctx.organizationId)
+    .eq("department_id", departamentId)
+    .is("deleted_at", null);
+  if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+  return (data ?? []).map((m) => ({ id: m.id, managerEmployeeId: m.manager_employee_id }));
+}
+
+/** Șeful departamentului părinte — destinația celor ridicați din lanț. */
+async function citesteSefulParinte(
+  ctx: ContextSef,
+  parentId: string | null,
+): Promise<string | null> {
+  if (parentId === null) return null;
+  const { data, error } = await ctx.db
+    .from("departments")
+    .select("manager_employee_id")
+    .eq("id", parentId)
+    .eq("organization_id", ctx.organizationId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+  return data?.manager_employee_id ?? null;
 }
 
 async function scrieManagerul(

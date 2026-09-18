@@ -84,6 +84,14 @@ export type PropsFormularDialog<TData> = Readonly<{
   descriere?: string;
   marime?: PropsDialog["marime"];
   /**
+   * Caseta se poate mări cu mâna, din colțul de jos-dreapta. Vezi `Dialog`.
+   *
+   * Se cere doar unde formularul are câmpuri lungi sau o descriere care mănâncă
+   * antetul, și NUMAI dacă niciun câmp nu deschide un derulant poziționat
+   * absolut — `overflow-hidden`, pe care mânerul îl cere, l-ar tăia.
+   */
+  redimensionabil?: boolean;
+  /**
    * Caseta pornește deschisă. Implicit `false`.
    *
    * Pentru rutele care AU DISPĂRUT în favoarea ei: `/flota?vehicul=nou` trebuie
@@ -178,6 +186,7 @@ export function FormularDialog<TData>({
   titlu,
   descriere,
   marime = "mare",
+  redimensionabil = false,
   deschisInitial = false,
   actiune,
   mesajReusita,
@@ -281,6 +290,7 @@ export function FormularDialog<TData>({
           laInchidere={inchide}
           titlu={titlu}
           marime={marime}
+          redimensionabil={redimensionabil}
           {...(descriere === undefined ? {} : { descriere })}
         >
           <Formular
