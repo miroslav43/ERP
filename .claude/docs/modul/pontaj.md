@@ -4,7 +4,9 @@ titlu: Pontaj
 aliases: [attendance, prezenta]
 cai:
   - "src/app/(app)/pontaj/**"
+  - "src/app/api/export/pontaj/arhiva/**"
   - "src/lib/queries/attendance.ts"
+  - "src/lib/queries/pontaj-arhiva.ts"
   - "src/schemas/attendance.ts"
   - "src/domain/attendance/**"
   - "src/domain/reges/absente.ts"
@@ -28,8 +30,8 @@ citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
   - "zi respinsă pentru contract suspendat → [[modul/reges]]"
-scris_pe: 47e18f43940275c35d1c823e1ea001aac548df9e
-scris_la: 2026-09-08
+scris_pe: 76f17cf9a1901a40cb3ccc7775ee8ebb51ffdb64
+scris_la: 2026-09-18
 tags: [modul, hr]
 ---
 
