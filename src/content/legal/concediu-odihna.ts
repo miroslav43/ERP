@@ -211,6 +211,10 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
   legaturaSecundara: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
 
   legaturiConexe: [
+    {
+      eticheta: "Unealtă: cerere de concediu cu zilele calculate",
+      href: "/unelte/cerere-concediu-de-odihna",
+    },
     { eticheta: "Modulul Concedii: solduri, aprobări, calendar", href: "/module/concedii" },
     { eticheta: "Evidența orelor de muncă: art. 119", href: "/evidenta-orelor-de-munca" },
     {

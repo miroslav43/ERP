@@ -262,6 +262,14 @@ export const PAGINI: readonly Pagina[] = [
     sectiune: "Unelte și comparații",
   },
   {
+    cale: "/unelte/cerere-concediu-de-odihna",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-18",
+    sectiune: "Unelte și comparații",
+  },
+  {
     cale: "/comparatie",
     prioritate: 0.5,
     limba: "ro",

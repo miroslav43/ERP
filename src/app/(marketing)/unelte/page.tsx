@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RO } from "@/content/landing/ro";
-import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
+import { ANTET_CERERE_CONCEDIU, ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
@@ -16,13 +16,13 @@ import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "./foaie-de-pontaj/foaie";
  * Uneltele gratuite, ca hub.
  *
  * `/unelte` dădea 404 până la 17 sept 2026, deși `/unelte/foaie-de-pontaj` exista.
- * O singură unealtă azi; lista se scrie ca listă ca a doua să nu ceară o pagină
- * nouă.
+ * Lista a fost scrisă ca listă tocmai ca a doua unealtă să nu ceară o pagină
+ * nouă — pe 18 sept 2026 a venit, cererea de concediu de odihnă.
  */
 export const metadata: Metadata = {
-  title: "Unelte gratuite pentru HR: foaie de pontaj lunar",
+  title: "Unelte gratuite: pontaj și cerere de concediu",
   description:
-    "Unelte care se folosesc fără cont: foaia de pontaj lunar cu sărbătorile legale calculate, de tipărit sau descărcat în Excel.",
+    "Unelte care se folosesc fără cont: foaia de pontaj lunar cu sărbătorile legale calculate și cererea de concediu de odihnă cu zilele lucrătoare numărate automat.",
   alternates: { canonical: "/unelte" },
 };
 
@@ -32,6 +32,12 @@ const PAGINI = [
     titlu: ANTET_FOAIE_PONTAJ.titlu,
     lead: ANTET_FOAIE_PONTAJ.lead,
     nota: `${AN_MIN}–${AN_MAX} · până la ${MAX_ANGAJATI} de angajați · fără cont`,
+  },
+  {
+    href: "/unelte/cerere-concediu-de-odihna",
+    titlu: ANTET_CERERE_CONCEDIU.titlu,
+    lead: ANTET_CERERE_CONCEDIU.lead,
+    nota: `${AN_MIN}–${AN_MAX} · zilele lucrătoare calculate · fără cont`,
   },
 ];
 
