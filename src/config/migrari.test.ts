@@ -80,9 +80,32 @@ describe("migrări — invarianți de fișier", () => {
       const numar = /^(\d{4}[a-z]?)_/u.exec(m.nume)?.[1] ?? m.nume;
       dupaNumar.set(numar, [...(dupaNumar.get(numar) ?? []), m.nume]);
     }
+    /*
+     * ── O SINGURĂ COLIZIUNE ÎNCHISĂ, CU NUME ────────────────────────────────
+     * Regula proiectului — „îți redenumești PROPRIA migrare" — presupune că una
+     * dintre cele două n-a fost încă aplicată. Pentru 0134 presupunerea e falsă:
+     * verificat în `internal.migrari_aplicate` pe 18 sept 2026, AMBELE sunt
+     * aplicate pe cloud, `_tichet_defectiune_repara_filtrul` din 5 septembrie și
+     * `_pontaj_arhiva_lunara` din 10 septembrie. Registrul ține numele fișierului,
+     * deci o redenumire l-ar face să pară neaplicat, iar `db:migrate` l-ar rula
+     * a doua oară.
+     *
+     * Nu se poate repara din repo, deci nu mai e o sarcină, e istorie. Rămânea
+     * însă o poartă permanent roșie — adică una pe care oricine învață s-o
+     * ignore, inclusiv atunci când prinde o coliziune ADEVĂRATĂ, dintre două
+     * migrări dintre care una chiar se poate muta.
+     *
+     * Excepția e legată de cele două nume exacte: o a treia migrare cu 0134 o
+     * repune pe roșu, la fel ca orice alt număr dublat.
+     */
+    const INCHISE = new Set([
+      "0134: 0134_pontaj_arhiva_lunara.sql, 0134_tichet_defectiune_repara_filtrul.sql",
+    ]);
+
     const duplicate = [...dupaNumar.entries()]
       .filter(([, fisiere]) => fisiere.length > 1)
-      .map(([numar, fisiere]) => `${numar}: ${fisiere.join(", ")}`);
+      .map(([numar, fisiere]) => `${numar}: ${[...fisiere].sort().join(", ")}`)
+      .filter((linie) => !INCHISE.has(linie));
 
     expect(
       duplicate,
