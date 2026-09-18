@@ -2,7 +2,14 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { arePrinGeam, cheiCuCaptura, notaVitrinei } from "./vitrine";
+import {
+  arePrinGeam,
+  capturaInalta,
+  capturiInalteAleModulului,
+  cheiCuCaptura,
+  cheiInalte,
+  notaVitrinei,
+} from "./vitrine";
 
 /**
  * Poarta care ar fi prins defectul livrat în producție.
@@ -44,8 +51,11 @@ describe("catalogul vitrinelor e citibil din graful de server", () => {
   });
 
   it("pagina de modul importă `arePrinGeam` din catalog, nu din componenta de client", () => {
+    // Lista de importuri e deschisă — `capturiInalteAleModulului` a intrat
+    // lângă el pe 18 sept —, deci tiparul cere PREZENȚA numelui în acoladă, nu
+    // o acoladă cu un singur nume.
     expect(SURSA_PAGINA).toMatch(
-      /import \{ arePrinGeam \} from "\.\.\/\.\.\/_componente\/vitrine"/,
+      /import \{[^}]*\barePrinGeam\b[^}]*\} from "\.\.\/\.\.\/_componente\/vitrine"/,
     );
     expect(
       /import \{[^}]*\barePrinGeam\b[^}]*\} from "[^"]*prin-geam"/.test(SURSA_PAGINA),
@@ -117,16 +127,57 @@ describe("catalogul vitrinelor", () => {
     }
   });
 
-  it("nu există capturi orfane pe disc, fără cheie în catalog", () => {
+  it("fiecare captură înaltă are ambele fișiere pe disc, la lățimile ei", () => {
+    /*
+     * Aceeași poartă ca mai sus, pentru al doilea catalog. Lățimile NU sunt
+     * comune: fiecare captură înaltă și le declară singură, iar `capturaInalta`
+     * le derivă ca jumătate și întreg. Testul reface calculul din datele
+     * expuse — `srcset`-ul —, nu din constante scrise a doua oară aici: o
+     * copie ar fi trecut verde exact atunci când catalogul s-ar fi schimbat.
+     */
+    for (const cheie of cheiInalte()) {
+      const captura = capturaInalta(cheie);
+      expect(captura, `cheia ${cheie} nu produce captură`).toBeDefined();
+      const latimi = (captura?.srcset ?? "").match(/(\d+)w/g) ?? [];
+      expect(latimi.length, `${cheie}: srcset cu ${String(latimi.length)} variante`).toBe(2);
+      for (const bucata of latimi) {
+        const cale = `public/capturi/${cheie}-${bucata.replace("w", "")}.webp`;
+        expect(existsSync(cale), `lipsește ${cale}`).toBe(true);
+      }
+    }
+  });
+
+  it("nu există capturi orfane pe disc, fără cheie în vreun catalog", () => {
     // Reversul: fișiere rămase după ce o cheie a fost scoasă. Nu strică nimic
     // vizibil, dar umflă imaginea de deployment și induc în eroare pe cine
     // caută de ce nu se vede o captură care „există".
+    //
+    // Reuniunea celor DOUĂ cataloage: cheile înalte au aceeași formă de fișier
+    // (`<cheie>-<lățime>.webp`), deci ar fi apărut aici ca orfane.
     const peDisc = new Set(
       readdirSync("public/capturi")
         .filter((f) => f.endsWith(".webp"))
         .map((f) => f.replace(/-\d+\.webp$/, "")),
     );
-    expect([...peDisc].sort()).toEqual([...cheiCuCaptura()].sort());
+    expect([...peDisc].sort()).toEqual([...cheiCuCaptura(), ...cheiInalte()].sort());
+  });
+
+  it("capturile înalte ale unui modul există în catalogul înalt", () => {
+    /*
+     * `capturiInalteAleModulului` întoarce chei scrise de mână într-o a doua
+     * hartă. O greșeală de tipar acolo n-ar randa nimic — `InMana` sare peste
+     * cheile necunoscute, deliberat — deci banda ar dispărea tăcut de pe pagina
+     * modulului, fără imagine ruptă și fără eroare.
+     */
+    const inalte = new Set(cheiInalte());
+    for (const cheie of [...cheiCuCaptura(), "employee_portal", "reges"]) {
+      for (const inalta of capturiInalteAleModulului(cheie)) {
+        expect(inalte.has(inalta), `${cheie} cere captura înaltă necunoscută ${inalta}`).toBe(true);
+      }
+    }
+    // Portalul e singurul modul cu bandă înaltă azi. Dacă devin două, rândul
+    // ăsta cade și cere o decizie conștientă, nu o adăugare tăcută.
+    expect(capturiInalteAleModulului("employee_portal").length).toBe(2);
   });
 
   it("captura modulului `leave` își declară limita, ca pagina să nu se contrazică", () => {

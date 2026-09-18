@@ -60,6 +60,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Cum se pontează din browserul telefonului, fără instalare din magazinul de aplicații.",
   ],
   [
+    "/pentru-contabili",
+    "Pentru cine ține mai multe firme: o apartenență per client pe același cont, comutare fără delogare, rolul „Resurse umane” și ce nu vede el. Cele cinci fișiere exportate — nota contabilă, D112, statul de plată, fișierul SEPA, arhiva de pontaj — și faptul că depunerea la ANAF rămâne la contabil.",
+  ],
+  [
     "/incredere",
     "Cum sunt izolate datele între firme-client și ce reguli românești sunt în produs.",
   ],
@@ -77,6 +81,14 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   [
     "/ghid/control-itm",
     "Ce documente se cer la un control de fond ITM, cele patru locuri unde apar de obicei problemele, și ce se poate sau nu se poate pregăti în ajun.",
+  ],
+  [
+    "/ghid/concediu-de-odihna",
+    "Concediul de odihnă în Codul muncii: cele 20 de zile minime, programarea, cele 10 zile neîntrerupte, reportul de 18 luni, calculul indemnizației. Include faptul, verificabil în art. 260, că neacordarea concediului NU e contravenție, și decizia ÎCCJ HP 40/2026.",
+  ],
+  [
+    "/ghid/diurna",
+    "Diurna: plafonul neimpozabil de 2,5 ori nivelul din HG 714/2018 (57,50 lei/zi în țară) și al doilea plafon, de 3 salarii de bază, calculat distinct pe fiecare lună. Plus durata delegării din Codul muncii și de ce pragul de 5 km e o regulă a sectorului public.",
   ],
   ["/unelte", "Uneltele gratuite, fără cont."],
   [

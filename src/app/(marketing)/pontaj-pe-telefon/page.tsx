@@ -13,6 +13,7 @@ import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
 import { BandaPontajLivrat, BandaPontajViitor } from "../_componente/benzi/produs";
 import { Cadru } from "../_componente/cadru";
+import { InMana } from "../_componente/in-mana";
 
 /**
  * Pontajul de pe telefon.
@@ -68,6 +69,17 @@ export default function PaginaPontajPeTelefon() {
       {/* Întâi drumul omului — pagina e căutată de cine vrea butonul, nu de cine
           administrează luna —, apoi ce se configurează, apoi limitele. */}
       <Pasi sectiune={CUM_PONTEAZA} />
+      {/*
+        Imediat după pași, nu la sfârșit: pagina descrie un buton pe care
+        nimeni nu-l poate vedea din text. Ordinea capturilor o urmează pe a
+        pașilor — butonul (3), ecranul de după scanare (4), apoi hârtia care
+        produce scanarea.
+      */}
+      <InMana
+        supratitlu="Ecrane reale"
+        titlu="Cum arată pașii de mai sus"
+        chei={["portal-pontare", "portal-scanare", "afis-pontare"]}
+      />
       <Pasi sectiune={CE_ALEGE_FIRMA} />
       <BandaPontajLivrat text={RO} />
       <BandaPontajViitor text={RO} />

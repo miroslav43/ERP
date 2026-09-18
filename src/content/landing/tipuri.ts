@@ -330,6 +330,8 @@ export type ContinutLanding = Readonly<{
     intrebari: AntetPagina;
     domenii: AntetPagina;
     pontajTelefon: AntetPagina;
+    /** Al doilea cititor al sitului: cine ține mai multe firme deodată. */
+    pentruContabili: AntetPagina;
     /** Hub-urile care dădeau 404 până la 17 sept 2026, deși copiii lor existau. */
     ghid: AntetPagina;
     unelte: AntetPagina;

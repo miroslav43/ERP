@@ -140,3 +140,105 @@ export function notaVitrinei(cheie: string): string | undefined {
   if (!arePrinGeam(cheie)) return undefined;
   return Object.hasOwn(NOTE, cheie) ? NOTE[cheie] : undefined;
 }
+
+/**
+ * ── AL DOILEA CATALOG: CAPTURILE ÎNALTE ───────────────────────────────────
+ *
+ * Cele de mai sus sunt toate 1920×1200, fiindcă vin din același viewport de
+ * birou. Pentru `/pontaj-pe-telefon` asta nu merge: pagina susține că omul
+ * pontează de pe telefonul LUI, iar o captură de 1440px lățime ar arăta exact
+ * ecranul pe care pagina spune că nu-l folosește nimeni. La fel afișul cu cod
+ * QR — o foaie A4, nu o fereastră.
+ *
+ * Deci al doilea catalog, cu dimensiuni PER CHEIE, nu comune. Cheile lui nu se
+ * pot lovi de cele de modul: astea au cratimă, cheile de modul sunt identificatori
+ * de funcționalitate (`per_diem`, `employee_portal`). Poarta din `vitrine.test.ts`
+ * compară reuniunea celor două cataloage cu fișierele de pe disc, deci o cheie
+ * scrisă aici fără fișier — sau un fișier fără cheie — cade la test.
+ *
+ * Lățimile rămân două, din același motiv ca sus, dar sunt jumătatea și întregul
+ * fișierului mare, nu 960/1920: un fișier de 1920px pentru un ecran de telefon
+ * ar fi absurd.
+ */
+export type CapturaInalta = Readonly<{
+  srcset: string;
+  sursa: string;
+  /** Textul alternativ. Aici e propriu fiecărei capturi — nu se poate deduce dintr-un titlu de modul. */
+  alt: string;
+  latime: number;
+  inaltime: number;
+  nota: string | undefined;
+}>;
+
+type FisaInalta = Readonly<{
+  /** Dimensiunile variantei MARI, adică ale fișierului `-<latime>.webp`. */
+  latime: number;
+  inaltime: number;
+  alt: string;
+  nota?: string;
+}>;
+
+/**
+ * Cele trei capturi înalte, cu sursa lor din `scripts/capturi/capturi.mjs`.
+ *
+ * Telefonul e 390×844 la scara 3 (iPhone 14/15, cel mai des întâlnit raport),
+ * redus la 780 și 390. Afișul e 900×1200 la scara 2, redus la 1200 și 600.
+ */
+const INALTE: Readonly<Record<string, FisaInalta>> = {
+  "portal-pontare": {
+    latime: 780,
+    inaltime: 1688,
+    alt: "Cardul de pontare din portalul angajatului, pe telefon, cu butoanele „Am intrat” și „Pontez 08:00–16:30”",
+    nota: "Cardul de pontare, așa cum îl vede angajatul pe telefonul lui. Deasupra lui stau salutul, soldul de concediu și salariul — se ajunge la el derulând.",
+  },
+  "portal-scanare": {
+    latime: 780,
+    inaltime: 1688,
+    alt: "Ecranul de pontare deschis după scanarea codului QR de la intrare",
+    nota: "Ce apare după scanarea afișului. Numele punctului de lucru se confirmă după apăsare, nu înainte — pagina nu-l poate citi.",
+  },
+  "afis-pontare": {
+    latime: 1200,
+    inaltime: 1600,
+    alt: "Afișul cu cod QR al unui punct de lucru, gata de tipărit, deschis în aplicație",
+    nota: "Afișul se tipărește din aplicație, cu Ctrl+P; la tipărire rămâne doar foaia din mijloc. Codul din captură e al firmei demonstrative.",
+  },
+};
+
+/** Datele de randare ale unei capturi înalte, sau `undefined` dacă cheia nu există. */
+export function capturaInalta(cheie: string): CapturaInalta | undefined {
+  if (!Object.hasOwn(INALTE, cheie)) return undefined;
+  const fisa = INALTE[cheie];
+  if (fisa === undefined) return undefined;
+  const latimi = [Math.round(fisa.latime / 2), fisa.latime];
+  return {
+    srcset: latimi.map((w) => `/capturi/${cheie}-${String(w)}.webp ${String(w)}w`).join(", "),
+    sursa: `/capturi/${cheie}-${String(fisa.latime)}.webp`,
+    alt: fisa.alt,
+    latime: fisa.latime,
+    inaltime: fisa.inaltime,
+    nota: fisa.nota,
+  };
+}
+
+/** Cheile capturilor înalte — folosit de poarta care le compară cu fișierele de pe disc. */
+export function cheiInalte(): readonly string[] {
+  return Object.keys(INALTE);
+}
+
+/**
+ * Modulele care primesc și banda de capturi înalte, pe lângă cea lată.
+ *
+ * Harta stă aici, nu ca un `if` pe cheie în `module/[modul]/page.tsx`: pagina
+ * aceea randează nouăsprezece module din același șablon, iar un caz particular
+ * scris în ea e primul pas spre nouăsprezece.
+ */
+const INALTE_PE_MODUL: Readonly<Record<string, readonly string[]>> = {
+  employee_portal: ["portal-pontare", "portal-scanare"],
+};
+
+/** Capturile înalte ale unui modul. Listă goală pentru cele optsprezece fără. */
+export function capturiInalteAleModulului(cheie: string): readonly string[] {
+  if (!Object.hasOwn(INALTE_PE_MODUL, cheie)) return [];
+  return INALTE_PE_MODUL[cheie] ?? [];
+}

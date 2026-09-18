@@ -4752,6 +4752,63 @@ async function diurna() {
   console.log(`  · trip_expenses: ${String(CHELTUIELI.length)} (una încă neaprobată)`);
 }
 
+/**
+ * Punctul de lucru cu cod de pontare, plus setările care aprind butoanele.
+ *
+ * ── DE CE ────────────────────────────────────────────────────────────────────
+ * Fără etapa asta, două ecrane reale nu se pot fotografia deloc: butoanele de
+ * pontare din portal și pagina care se deschide după scanarea afișului. Ambele
+ * arată un gol declarat („Pontarea prin cod nu e activată") când firma n-are
+ * rând în `setari_pontare_rapida` — iar implicit e `oprit`, nu lipsa rândului.
+ *
+ * Codul e FIX aici, nu `randomBytes`: afișul din captură trebuie să ducă la
+ * aceeași adresă la fiecare rulare, altfel captura veche arată spre un cod mort.
+ * În aplicație codul se generează aleator, ca să nu poată fi ghicit; într-o firmă
+ * demo, unde tot ce e înăuntru e inventat, previzibilitatea e un avantaj.
+ */
+async function puncteLucru() {
+  console.log("── Puncte de lucru și pontare rapidă");
+
+  const punct = await asigura(
+    "puncte_lucru",
+    { organization_id: ORG, denumire: "Sediu Mare" },
+    {
+      adresa: "Str. Metalurgiei nr. 2",
+      oras: "Timișoara",
+      judet: "Timiș",
+      sediu_principal: true,
+      activ: true,
+      cod_pontaj: "demo-sediu-mare-cod-de-pontare",
+      created_by: CONT.ionescu,
+      updated_by: CONT.ionescu,
+    },
+  );
+  // Id-ul se tipărește fiindcă `scripts/capturi/capturi.mjs` îl cere prin
+  // `PUNCT_LUCRU=` pentru ruta afișului — e singura valoare din etapa asta care
+  // nu poate fi scrisă fix în cod.
+  console.log(`  · punct de lucru „Sediu Mare”, cu cod de pontare fix · id ${punct}`);
+
+  await asigura(
+    "setari_pontare_rapida",
+    { organization_id: ORG },
+    {
+      // „ambele" arată și confirmarea zilei, și ceasul cu intrare/ieșire — adică
+      // tot ce descrie pagina /pontaj-pe-telefon, într-o singură captură.
+      mod_pontare_rapida: "ambele",
+      // „optional" lasă butoanele vizibile fără scanare, dar pagina codului
+      // funcționează în continuare. Cu `cod_qr`, portalul ar arăta un ecran gol
+      // până la scanare, adică fix ce nu vrem în captură.
+      verificare_pontare: "optional",
+      program_start: "08:00",
+      created_by: CONT.ionescu,
+      updated_by: CONT.ionescu,
+    },
+  );
+  console.log("  · setări de pontare rapidă: ambele butoane, verificare opțională");
+
+  return punct;
+}
+
 // ── rulare ──────────────────────────────────────────────────────────────────
 
 /*
@@ -4760,6 +4817,7 @@ async function diurna() {
  */
 const ETAPE = {
   curatenie,
+  puncteLucru,
   ssm,
   flota,
   inventar,

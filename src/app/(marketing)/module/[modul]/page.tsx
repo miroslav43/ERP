@@ -12,9 +12,10 @@ import { cheieDinSlug, slugModul } from "@/content/landing/slug-module";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { InMana } from "../../_componente/in-mana";
 import { PrinGeam } from "../../_componente/prin-geam";
 import { RandRegistru, Registru } from "../../_componente/registru";
-import { arePrinGeam } from "../../_componente/vitrine";
+import { arePrinGeam, capturiInalteAleModulului } from "../../_componente/vitrine";
 
 /**
  * Pagina fiecărui modul.
@@ -152,6 +153,19 @@ export default async function PaginaModul({ params }: Proprietati) {
       */}
       {arePrinGeam(cheie) && <PrinGeam cheie={cheie} titlu={modul.titlu} />}
 
+      {/*
+        Capturile înalte, pentru modulele care se folosesc de pe telefon.
+        Deocamdată doar portalul angajatului: o fereastră de birou de 1440px nu
+        poate arăta un produs despre care pagina spune că se ține în mână.
+      */}
+      {capturiInalteAleModulului(cheie).length > 0 && (
+        <InMana
+          supratitlu="Ecran real"
+          titlu={`${modul.titlu} pe telefonul angajatului`}
+          chei={capturiInalteAleModulului(cheie)}
+        />
+      )}
+
       <Banda inaltime="medie">
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {modul.puncte.map((punct) => (
@@ -207,6 +221,16 @@ export default async function PaginaModul({ params }: Proprietati) {
             </div>
           </Banda>
 
+          {/* Scenariul concret: cine apasă, pe ce ecran, ce rămâne în urmă.
+              Partea care deosebește pagina de fișa tehnică de deasupra. */}
+          {fisa.cazDeUtilizare !== undefined && (
+            <Banda inaltime="medie" supratitlu="Într-o zi obișnuită" titlu="Cum arată în practică">
+              <p className="text-mk-text-slab mt-6 max-w-[68ch] text-[0.9375rem] leading-[1.7]">
+                {fisa.cazDeUtilizare}
+              </p>
+            </Banda>
+          )}
+
           {/*
             Matricea de roluri. E partea care nu se poate copia de la altcineva,
             fiindcă descrie chiar produsul ăsta — și e singura pagină din tot
@@ -227,7 +251,13 @@ export default async function PaginaModul({ params }: Proprietati) {
               supratitlu="Roluri"
               titlu="Cine ce poate face"
               aliniereTitlu="larg"
-              lead="Regulile de mai jos sunt impuse în baza de date, nu în interfață. Un rol fără permisiune nu primește un buton dezactivat: cererea lui e refuzată la sursă."
+              // Fraza fixă e rezerva; un modul care țintește o căutare anume își
+              // scrie lead-ul lui în fișă. Identică pe 18 pagini din 19, fraza
+              // asta era una dintre sursele de n-grame comune.
+              lead={
+                fisa.leadRoluri ??
+                "Regulile de mai jos sunt impuse în baza de date, nu în interfață. Un rol fără permisiune nu primește un buton dezactivat: cererea lui e refuzată la sursă."
+              }
             >
               {/* `relative` pe containerul derulabil: fără el, orice conținut
                 poziționat absolut scapă și târăște pagina lateral. */}
@@ -289,7 +319,10 @@ export default async function PaginaModul({ params }: Proprietati) {
           <Banda
             inaltime="medie"
             titlu="Ce se leagă de ce"
-            lead="Modulele nu sunt aplicații separate care se trimit date. E aceeași bază, iar ce se aprobă într-un loc apare în celălalt o singură dată."
+            lead={
+              fisa.leadLegaturi ??
+              "Modulele nu sunt aplicații separate care se trimit date. E aceeași bază, iar ce se aprobă într-un loc apare în celălalt o singură dată."
+            }
           >
             <div className="border-mk-rigla/40 mt-8 border-t">
               {fisa.legaturi.map((legatura) => (
@@ -357,7 +390,12 @@ export default async function PaginaModul({ params }: Proprietati) {
                 key={vecin.cheie}
                 cod={vecin.cheie}
                 titlu={vecin.titlu}
-                text={vecin.text}
+                // FĂRĂ `text`: banda asta retipărea descrierea din catalog a
+                // fiecărui frate. În grupul „Personal" însemna 137–145 de cuvinte
+                // copiate pe fiecare pagină, iar auditul din 17 sept 2026 a măsurat
+                // 34–40% n-grame comune între frați — aproape tot de aici. Relația
+                // dintre module se explică oricum mai sus, în „Ce se leagă de ce",
+                // cu o frază proprie per pereche. Aici rămâne navigație.
                 dreapta={
                   <p className="mt-3">
                     <Link

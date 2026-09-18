@@ -63,6 +63,7 @@ const RUTE_PUBLICE: readonly string[] = [
   "/intrebari",
   "/domenii",
   "/pontaj-pe-telefon",
+  "/pentru-contabili",
   "/comparatie",
   "/unelte",
   // Demonstrațiile interactive, încadrate în paginile de modul. Sunt publice

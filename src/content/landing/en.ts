@@ -947,6 +947,7 @@ export const EN: ContinutLanding = {
         legaturi: [
           { eticheta: "All modules", href: "/module" },
           { eticheta: "Clocking in by phone", href: "/pontaj-pe-telefon" },
+          { eticheta: "For accountants", href: "/pentru-contabili" },
           // Paginile de lege rămân doar în română, și e corect așa: sunt despre
           // obligații din dreptul muncii românesc, iar o traducere le-ar face
           // citabile în locul textului oficial, care e tot în română.
@@ -999,6 +1000,11 @@ export const EN: ContinutLanding = {
       titlu: "The same modules, a different order of importance",
       lead: "We do not sell different versions per industry. Only what you switch on first and what lands on the first screen changes, and below is exactly what that means for four kinds of company.",
     },
+    pentruContabili: {
+      supratitlu: "For accountants",
+      titlu: "One account, every company you keep",
+      lead: "An accountant is not one more user of one company, but the same person in ten companies at once. The application is built on memberships, not on separate accounts: you sign in once and switch between clients from a menu.",
+    },
     pontajTelefon: {
       supratitlu: "Clocking in by phone",
       titlu: "Clocking in from the browser, with nothing to install",
@@ -1007,7 +1013,7 @@ export const EN: ContinutLanding = {
     ghid: {
       supratitlu: "Guides",
       titlu: "What the law requires, with the article next to every claim",
-      lead: "Working-time records, REGES-ONLINE and labour inspections, written for whoever answers for them in a small company. Each page also says what cannot be stated with certainty.",
+      lead: "Working-time records, REGES-ONLINE, annual leave, per-diem allowances and labour inspections, written for whoever answers for them in a small company. Each page also says what cannot be stated with certainty.",
     },
     unelte: {
       supratitlu: "Tools",
