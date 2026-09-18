@@ -280,12 +280,38 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
           </Buton>
         )}
 
-        {/* Pontarea prin cod QR (0096). Butonul spune „Rotește", nu
-            „Generează", când codul există deja: cine îl apasă trebuie să știe
-            din eticheta lui că afișele lipite devin inutile. */}
-        <Buton varianta="tertiar" onClick={roteste} disabled={inCurs}>
+        {/* Pontarea prin cod QR (0096).
+
+            ── DE CE NU MAI SCRIE „ROTEȘTE" ────────────────────────────────
+            Eticheta veche era „Rotește codul", aleasă ca să spună din buton că
+            ce exista se anulează. Spunea asta numai cuiva care știe ce
+            înseamnă a roti un secret — adică unui inginer, nu omului de la
+            personal care tocmai a tipărit afișul. Pentru el, „rotește" nu e un
+            avertisment, e un cuvânt fără înțeles, deci protecția presupusă nu
+            exista de fapt.
+
+            Acum eticheta spune ce se întâmplă, în cuvintele lucrului de pe
+            perete: se face un cod QR NOU. Că e nou e tot ce se poate spune
+            într-un buton; că cel vechi moare rămâne netranspus — de aceea
+            `title` duce propoziția întreagă, iar un dialog de confirmare e
+            pasul următor firesc dacă cineva apasă din greșeală.
+
+            `cod QR`, nu „cod de pontare": afișul chiar randează un QR (SVG, din
+            pachetul `qrcode`, în `[id]/afis/page.tsx`), iar ăla e obiectul pe
+            care omul îl recunoaște. */}
+        <Buton
+          varianta="tertiar"
+          onClick={roteste}
+          disabled={inCurs}
+          {...(punct.areCodPontaj
+            ? {
+                title:
+                  "Codul QR de acum se anulează: afișele deja tipărite și lipite nu vor mai funcționa, trebuie retipărite.",
+              }
+            : {})}
+        >
           <QrCode aria-hidden="true" className="size-3.5" />
-          {punct.areCodPontaj ? "Rotește codul" : "Generează cod de pontare"}
+          {punct.areCodPontaj ? "Generează un cod QR nou" : "Generează codul QR"}
         </Buton>
         {punct.areCodPontaj ? (
           <Link
