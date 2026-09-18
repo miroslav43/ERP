@@ -60,6 +60,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Cum se pontează din browserul telefonului, fără instalare din magazinul de aplicații.",
   ],
   [
+    "/pentru-contabili",
+    "Pentru cine ține mai multe firme: o apartenență per client pe același cont, comutare fără delogare, rolul „Resurse umane” și ce nu vede el. Cele cinci fișiere exportate — nota contabilă, D112, statul de plată, fișierul SEPA, arhiva de pontaj — și faptul că depunerea la ANAF rămâne la contabil.",
+  ],
+  [
     "/incredere",
     "Cum sunt izolate datele între firme-client și ce reguli românești sunt în produs.",
   ],

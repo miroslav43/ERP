@@ -22,7 +22,54 @@ describe("next.config", () => {
 
     expect(pentru("/en")).toBe("en");
     expect(pentru("/en/:path*")).toBe("en");
-    expect(reguli.every((r) => r.source.startsWith("/en"))).toBe(true);
+
+    /*
+     * Aici stătea `reguli.every((r) => r.source.startsWith("/en"))` — adevărat
+     * cât timp singurele antete emise erau cele două englezești. Din 18 sept
+     * 2026 se emite și un CSP raportat, pe toate rutele, iar invariantul acela
+     * a devenit fals fără ca nimic să fie în neregulă.
+     *
+     * Ce voia să apere el trăiește mai departe, scris pe ce contează: NICIO
+     * regulă în afara paginilor englezești nu are voie să trimită
+     * `Content-Language`. Un `en` scăpat pe tot situl ar spune motoarelor că
+     * paginile românești sunt în engleză.
+     */
+    const cuLimba = reguli.filter((r) => r.headers.some((h) => h.key === "Content-Language"));
+    expect(cuLimba.length).toBe(2);
+    expect(cuLimba.every((r) => r.source.startsWith("/en"))).toBe(true);
+  });
+
+  it("CSP-ul se emite raportat, pe tot situl, fără directivele pe care browserele le ignoră", async () => {
+    /*
+     * Trei decizii care se pierd ușor la o reformulare, toate plătite:
+     *
+     *  1. `Report-Only`. O politică scrisă din citirea codului e o ipoteză;
+     *     trecută în vigoare, rupe ecrane pe care nu le-am deschis.
+     *  2. O SINGURĂ regulă, pe toate rutele. Două reguli care potrivesc aceeași
+     *     cale și declară aceeași cheie se suprascriu după ordine — un mecanism
+     *     pe care nu vrem să-l descoperim în producție.
+     *  3. FĂRĂ `frame-ancestors`. Browserele o ignoră într-o politică raportată,
+     *     iar Chrome scrie un avertisment în consolă la fiecare încărcare de
+     *     pagină. Munca ei o face `X-Frame-Options`, din nginx.
+     */
+    const reguli = (await nextConfig.headers?.()) ?? [];
+    const cuCsp = reguli.filter((r) =>
+      r.headers.some((h) => h.key === "Content-Security-Policy-Report-Only"),
+    );
+    expect(cuCsp.map((r) => r.source)).toEqual(["/:cale*"]);
+
+    const politica =
+      cuCsp[0]?.headers.find((h) => h.key === "Content-Security-Policy-Report-Only")?.value ?? "";
+    for (const directiva of ["default-src", "object-src 'none'", "form-action", "report-uri"]) {
+      expect(politica, `lipsește ${directiva}`).toContain(directiva);
+    }
+    expect(politica, "frame-ancestors e ignorată în Report-Only").not.toContain("frame-ancestors");
+
+    // Politica executorie ar fi trebuit să fie o decizie, nu o scăpare de tipar.
+    expect(
+      reguli.some((r) => r.headers.some((h) => h.key === "Content-Security-Policy")),
+      "CSP-ul a devenit executoriu — dacă e intenționat, schimbă și testul",
+    ).toBe(false);
   });
 
   it("adresele vechi de modul redirecționează permanent spre slug, fără bucle", async () => {

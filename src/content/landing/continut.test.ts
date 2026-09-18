@@ -290,6 +290,23 @@ describe("fișele de modul nu promit ce nu există", () => {
     for (const pas of CUM_PONTEAZA.pasi) {
       expect(cuvinte(pas.text), `pasul „${pas.titlu}”`).toBeGreaterThanOrEqual(80);
     }
+
+    /*
+     * Aceeași bandă pentru pagina contabilului, cu o excepție declarată:
+     * secțiunea de limite. Acolo scurtimea E mesajul — „nu depune nimic
+     * nicăieri" nu câștigă nimic din încă șaptezeci de cuvinte, iar o limită
+     * explicată pe larg începe să sune a scuză. Se apără doar cele două
+     * secțiuni care decid o vânzare.
+     */
+    const { CONTUL_TAU, CE_PRIMESTI } = await import("./pentru-contabili");
+    for (const sectiune of [CONTUL_TAU, CE_PRIMESTI]) {
+      const lungimi = sectiune.pasi.map((p) => cuvinte(p.text));
+      const subPrag = lungimi.filter((n) => n < 80).length;
+      expect(
+        subPrag,
+        `„${sectiune.titlu}”: ${subPrag} pași sub 80 de cuvinte (${lungimi.join(", ")})`,
+      ).toBeLessThanOrEqual(1);
+    }
   });
 
   it("frazele fixe din șablon nu se întind peste tot situl", async () => {

@@ -955,6 +955,10 @@ export const RO: ContinutLanding = {
         legaturi: [
           { eticheta: "Toate modulele", href: "/module" },
           { eticheta: "Pontaj de pe telefon", href: "/pontaj-pe-telefon" },
+          // Al doilea cititor al sitului, după administratorul firmei. Până pe
+          // 18 sept 2026 nu-i vorbea nicio pagină, deși e cel care alege
+          // programul în bună parte din cazuri.
+          { eticheta: "Pentru contabili", href: "/pentru-contabili" },
           { eticheta: "Foaie de pontaj gratuită", href: "/unelte/foaie-de-pontaj" },
           { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
           // Hub-urile aveau o singură cale de acces: firimitura din pagina-copil.
@@ -1043,6 +1047,11 @@ export const RO: ContinutLanding = {
       titlu: "Aceleași module, altă ordine de importanță",
       lead: "Nu vindem versiuni diferite pe industrii. Se schimbă doar ce pornești întâi și ce ajunge pe primul ecran, iar mai jos scrie exact ce anume, pentru patru feluri de firmă.",
     },
+    pentruContabili: {
+      supratitlu: "Pentru contabili",
+      titlu: "Un cont, toate firmele pe care le ții",
+      lead: "Contabilul nu e un utilizator în plus al unei firme, ci aceeași persoană în zece firme deodată. Aplicația e construită pe apartenențe, nu pe conturi separate: intri o dată și comuți între clienți dintr-un meniu.",
+    },
     pontajTelefon: {
       supratitlu: "Pontaj de pe telefon",
       titlu: "Se pontează din browser, fără instalare din magazin",
@@ -1051,7 +1060,7 @@ export const RO: ContinutLanding = {
     ghid: {
       supratitlu: "Ghiduri",
       titlu: "Ce cere legea, cu articolul lângă fiecare afirmație",
-      lead: "Evidența orelor, REGES-ONLINE și controlul ITM, scrise pentru cine răspunde de ele într-o firmă mică. Fiecare pagină spune și ce nu se poate afirma cu certitudine.",
+      lead: "Evidența orelor, REGES-ONLINE, concediul de odihnă, diurna și controlul ITM, scrise pentru cine răspunde de ele într-o firmă mică. Fiecare pagină spune și ce nu se poate afirma cu certitudine.",
     },
     unelte: {
       supratitlu: "Unelte",

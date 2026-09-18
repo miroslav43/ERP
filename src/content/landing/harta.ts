@@ -133,6 +133,14 @@ export const PAGINI: readonly Pagina[] = [
     sectiune: "Principale",
   },
   {
+    cale: "/pentru-contabili",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-18",
+    sectiune: "Principale",
+  },
+  {
     cale: "/cere-demo",
     prioritate: 0.7,
     limba: "ro",
