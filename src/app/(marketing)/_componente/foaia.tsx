@@ -1,9 +1,7 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
 import { COD_ZI, FOAIA, LEGENDA, NORMA_LUNARA, formateazaOre } from "@/content/landing/foaia-date";
 import type { ContinutLanding } from "@/content/landing/tipuri";
+
+import { FoaiaVie } from "./foaia-vie";
 
 /**
  * FOAIA CARE SE ÎNCHIDE — elementul-semnătură al paginii.
@@ -26,89 +24,26 @@ import type { ContinutLanding } from "@/content/landing/tipuri";
  *
  * 3. MONUMENTUL NU SE MIȘCĂ. Apeși o zi, apeși un om, se aprinde coloana sau
  *    rândul — cifra mare rămâne aceeași. Ăsta e tot argumentul.
+ *
+ * ── DE CE NU MAI E `"use client"` (20 sept 2026) ──────────────────────────
+ * Fișierul a fost marcat `"use client"` până acum, ca să-și poată atașa trei
+ * `onClick`. Prețul nu se vedea în niciun test: React trebuia să hidrateze tot
+ * arborele, cu cele 340 de celule ale lui. Măsurat pe producție, profil mobil
+ * cu procesorul încetinit de 4 ori, pagina de start avea 1920 ms de script față
+ * de 890-1113 ms pe paginile fără foaie, și TBT de 2,0-2,2 s — dublu față de
+ * oricare alta.
+ *
+ * Acum tabelul se randează o dată, pe server, și nu se hidratează niciodată.
+ * Partea vie — butoanele de fereastră, anunțurile, evidențierea — stă în
+ * `foaia-vie.tsx`, o insulă de vreo zece elemente. Decizia 1 de mai sus nu doar
+ * că a rămas în picioare: a devenit literală, fiindcă acum chiar NU există
+ * JavaScript care să randeze celulele.
+ *
+ * Consecința pentru oricine umblă aici: celulele nu mai sunt ale lui React.
+ * Evidențierea și fereastra se pun cu `setAttribute`, din insulă. Un `onClick`
+ * adăugat pe o celulă n-ar face nimic — ar readuce și `"use client"`, tăcut.
  */
 export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
-  const [ziActiva, setZiActiva] = useState<number | null>(null);
-  const [randActiv, setRandActiv] = useState<string | null>(null);
-  const [fereastra, setFereastra] = useState<string | null>(null);
-  const [ferestre, setFerestre] = useState<readonly (typeof FOAIA.jumatati)[number][]>([]);
-  const [anunt, setAnunt] = useState("");
-
-  /**
-   * Fereastra implicită se alege după lățime, o singură dată la montare și apoi
-   * la fiecare schimbare de prag. Până atunci — și pentru cine n-are JS —
-   * decide CSS-ul din `globals.css`, iar `data-fereastra` lipsește din DOM,
-   * ceea ce lasă regulile lui să se aplice.
-   */
-  useEffect(() => {
-    const lat = window.matchMedia("(min-width: 1280px)");
-    const mediu = window.matchMedia("(min-width: 768px)");
-
-    function potriveste() {
-      if (lat.matches) {
-        setFerestre([]);
-        setFereastra(null);
-        return;
-      }
-      const set = mediu.matches ? FOAIA.jumatati : FOAIA.saptamani;
-      setFerestre(set);
-      setFereastra((curenta) =>
-        curenta !== null && set.some((f) => f.cheie === curenta)
-          ? curenta
-          : (set[0]?.cheie ?? null),
-      );
-    }
-
-    potriveste();
-    lat.addEventListener("change", potriveste);
-    mediu.addEventListener("change", potriveste);
-    return () => {
-      lat.removeEventListener("change", potriveste);
-      mediu.removeEventListener("change", potriveste);
-    };
-  }, []);
-
-  /**
-   * Baleierea de completare. Se pornește DUPĂ montare și numai dacă omul n-a
-   * cerut mișcare redusă: starea implicită din HTML e deja starea finală, deci
-   * nu există moment în care conținutul să lipsească.
-   */
-  const [baleiaza, setBaleiaza] = useState(false);
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = window.setTimeout(() => setBaleiaza(true), 120);
-    return () => window.clearTimeout(id);
-  }, []);
-
-  const activa = ferestre.find((f) => f.cheie === fereastra) ?? null;
-  const ascunsa = (zi: number) => activa !== null && (zi < activa.prima || zi > activa.ultima);
-
-  function apasaZiua(zi: number) {
-    const nou = ziActiva === zi ? null : zi;
-    setZiActiva(nou);
-    setRandActiv(null);
-    if (nou === null) return setAnunt("");
-    const ore = FOAIA.totaluriPeZi[zi - 1] ?? 0;
-    const persoane = FOAIA.randuri.filter((r) => (r.celule[zi - 1]?.ore ?? 0) > 0).length;
-    setAnunt(
-      text.anuntColoana
-        .replace("{zi}", String(zi))
-        .replace("{ore}", formateazaOre(ore))
-        .replace("{persoane}", String(persoane)),
-    );
-  }
-
-  function apasaRandul(nume: string, ore: number) {
-    const nou = randActiv === nume ? null : nume;
-    setRandActiv(nou);
-    setZiActiva(null);
-    setAnunt(
-      nou === null
-        ? ""
-        : text.anuntRand.replace("{nume}", nume).replace("{ore}", formateazaOre(ore)),
-    );
-  }
-
   const celulaBaza =
     "border-mk-liniatura border-r px-0.5 py-1.5 text-center align-middle font-mk-date text-[0.8125rem] tabular-nums";
 
@@ -129,10 +64,14 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
   const doarLat = "hidden sm:table-cell";
 
   return (
-    <figure
-      className={`mk-foaie mt-12 ${baleiaza ? "mk-anim" : ""}`}
-      data-fereastra={activa?.cheie}
-    >
+    /*
+      Nici `mk-anim`, nici `data-fereastra` nu se pun aici.
+      `mk-anim` o adaugă insula după montare, dacă nu s-a cerut mișcare redusă;
+      `data-fereastra` apare abia la primul clic pe un buton de fereastră — cât
+      timp lipsește, fereastra implicită o dau regulile `:not([data-fereastra])`
+      din `globals.css`, adică și pentru cine n-are JavaScript.
+    */
+    <figure className="mk-foaie mt-12">
       <figcaption className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <p className="font-mk-date text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
           {text.eticheta} · {LUNA_ETICHETA}
@@ -142,29 +81,8 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
         </p>
       </figcaption>
 
-      {ferestre.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="font-mk-date text-mk-text-slab text-[0.6875rem] tracking-[0.14em] uppercase">
-            {text.ferestreEticheta}
-          </span>
-          {ferestre.map((f) => (
-            <button
-              key={f.cheie}
-              type="button"
-              onClick={() => setFereastra(f.cheie)}
-              aria-pressed={f.cheie === fereastra}
-              aria-label={f.eticheteLunga}
-              className={`font-mk-date min-h-11 rounded border px-3 text-[0.75rem] tracking-[0.06em] transition-colors ${
-                f.cheie === fereastra
-                  ? "border-mk-text bg-mk-cerneala text-mk-text-inv"
-                  : "border-mk-rigla hover:bg-mk-activ-hartie"
-              }`}
-            >
-              {f.eticheta}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Singura bucată care se hidratează. Vezi `foaia-vie.tsx`. */}
+      <FoaiaVie text={text} />
 
       <div className="border-mk-rigla mt-3 overflow-hidden border">
         <table className="w-full table-fixed border-collapse">
@@ -188,7 +106,6 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                   data-zi={zi.zi}
                   data-j1={zi.zi <= 15 ? "1" : undefined}
                   data-s1={zi.zi <= 5 ? "1" : undefined}
-                  hidden={ascunsa(zi.zi)}
                   className={`${celulaBaza} px-0 font-medium ${
                     zi.sarbatoare !== null
                       ? "bg-mk-sl-hartie"
@@ -196,11 +113,10 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                         ? "bg-mk-weekend-hartie"
                         : ""
                   }`}
-                  data-activ={ziActiva === zi.zi ? "" : undefined}
                 >
+                  {/* Fără `onClick`: clicul e prins prin delegare, în insulă. */}
                   <button
                     type="button"
-                    onClick={() => apasaZiua(zi.zi)}
                     title={zi.sarbatoare ?? undefined}
                     className="flex w-full flex-col items-center leading-tight hover:underline focus-visible:-outline-offset-2"
                   >
@@ -233,18 +149,15 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
 
           <tbody>
             {FOAIA.randuri.map((rand) => {
-              const randE = randActiv === rand.nume;
               return (
                 <tr key={rand.nume} className="border-mk-liniatura border-b last:border-b-0">
                   <th
                     scope="row"
                     data-col="nume"
                     className="border-mk-liniatura border-r px-2 py-1.5 text-left text-[0.8125rem] font-normal"
-                    data-activ={randE ? "" : undefined}
                   >
                     <button
                       type="button"
-                      onClick={() => apasaRandul(rand.nume, rand.ore)}
                       className="w-full text-left hover:underline focus-visible:-outline-offset-2"
                     >
                       {rand.nume}
@@ -272,8 +185,6 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                         data-celula=""
                         data-j1={celula.zi <= 15 ? "1" : undefined}
                         data-s1={celula.zi <= 5 ? "1" : undefined}
-                        data-activ={ziActiva === celula.zi || randE ? "" : undefined}
-                        hidden={ascunsa(celula.zi)}
                         style={{ ["--mk-coloana" as string]: index }}
                         className={`${celulaBaza} ${fundal}`}
                       >
@@ -311,7 +222,6 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                   <td
                     data-col="ore"
                     className="border-mk-rigla font-mk-date border-l px-1 py-1.5 text-right text-[0.875rem] font-medium tabular-nums"
-                    data-activ={randE ? "" : undefined}
                   >
                     {formateazaOre(rand.ore)}
                   </td>
@@ -352,10 +262,7 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                     data-zi={zi.zi}
                     data-j1={zi.zi <= 15 ? "1" : undefined}
                     data-s1={zi.zi <= 5 ? "1" : undefined}
-                    hidden={ascunsa(zi.zi)}
-                    className={`font-mk-date px-0.5 py-2 text-center text-[0.75rem] font-medium tabular-nums ${
-                      ziActiva === zi.zi ? "bg-mk-activ-cerneala" : ""
-                    }`}
+                    className="font-mk-date px-0.5 py-2 text-center text-[0.75rem] font-medium tabular-nums"
                   >
                     {ore === 0 ? (
                       <span className="text-mk-text-inv-slab">—</span>
@@ -387,10 +294,6 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
           </tfoot>
         </table>
       </div>
-
-      <p aria-live="polite" className="sr-only">
-        {anunt}
-      </p>
 
       {/* Recapitulația pe săptămâni. Rămâne în DOM la orice lățime și fără JS:
           e proba că, oricum ai tăia luna, totalul e același. */}

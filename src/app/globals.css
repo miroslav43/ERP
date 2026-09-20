@@ -712,6 +712,17 @@ dialog[open]::backdrop {
 }
 
 /*
+ * Rândul de total stă pe cerneală, deci are nevoie de cealaltă nuanță de
+ * evidențiere. Până pe 20 sept 2026 o primea printr-o clasă calculată în React
+ * (`ziActiva === zi.zi ? "bg-mk-activ-cerneala" : ""`); de când tabelul e
+ * randat pe server și marcat cu `data-activ` din afara lui React, distincția
+ * trebuie făcută aici. Specificitatea mai mare bate regula de mai sus.
+ */
+.mk-foaie .mk-cerneala [data-activ] {
+  background-color: var(--color-mk-activ-cerneala);
+}
+
+/*
  * Ferestrele foii, FĂRĂ JavaScript.
  *
  * Pe ecran îngust documentul nu se derulează lateral — se taie. Regulile de mai
