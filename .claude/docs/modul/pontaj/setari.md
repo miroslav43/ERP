@@ -1,17 +1,17 @@
 ---
 tip: modul
 titlu: Pontaj — setările firmei
-aliases: [pontaj-setari, pontare-rapida]
+aliases: [pontaj-setari, pontare-rapida, coduri-qr]
 cai:
   - "src/app/(app)/pontaj/setari/**"
   - "src/domain/attendance/pontare-rapida.ts"
   - "src/domain/attendance/limite-legale.ts"
 tabele: [setari_pontare_rapida, attendance_settings, puncte_lucru]
-permisiuni: [attendance:update, attendance:read]
+permisiuni: [attendance:update, attendance:read, departments:update]
 feature: attendance
 capcane: [17]
-scris_pe: 4cd4a8865b0b4f65648d961680de522d54c5bac9
-scris_la: 2026-09-07
+scris_pe: 9bcef48615294790f0c04bd5416cda7105bee151
+scris_la: 2026-09-19
 tags: [modul, hr]
 ---
 
@@ -47,6 +47,39 @@ mai poate ponta.
 Cine adaugă o setare operațională o pune în tabela asta, nu în `attendance_settings`, și
 o trece prin `configPontareRapida` — cele cinci ecrane nu mai recompun regula fiecare cu
 `?? "oprit"`.
+
+## Fila „Coduri QR": alt secret, altă poartă
+
+`/pontaj/setari/coduri-qr` e a treia filă din `NavSetariPontaj` și singura care nu salvează
+nicio setare — arată codul însuși, din `puncte_lucru`, fără să dubleze nimic în bază. Lista
+„Afișele de pontare" din fila „Pontarea" a plecat aici; acolo a rămas doar trimiterea,
+fiindcă acolo se ia decizia care o face necesară.
+
+**Poarta e `departments:update` la `all`, nu `attendance:update`** — aceeași ca afișul din
+`puncte-lucru/[id]/afis`: păzește SECRETUL, iar cine vede codul poate ponta de oriunde.
+
+- Fila vecină cere `attendance:update = all`. Pe matricea de ROLURI cele două nu se despart;
+  un refuz PER MEMBRU da — `role_permissions.member_id` bate rândul de rol, inclusiv pe
+  valoarea `none` (`0143_seful_iese_din_departament.sql:80`).
+- `NavSetariPontaj` desenează fila NECONDIȚIONAT, deci acel membru o vede și cade pe
+  `AccesRestrictionat`. Din antetul modulului, `ButonSetariPontaj` face invers: ascunde
+  linkul, pe `poateVedeaCoduriQr` (`file-pontaj.ts`), ținut separat de `poateConfigura`.
+- **Baza nu e a doua barieră**: `puncte_lucru_select` cere doar `departments:read`. De asta
+  verificarea stă înaintea citirii, nu după.
+
+`afiseDePontare` NU selectează `cod_pontaj`; sora ei `coduriQrDePontare` îl selectează.
+Șirul tot nu trece granița: din el iese un SVG pe server, iar spre client pleacă poza — și
+adresa de sub cod, scrisă acolo intenționat, ca cineva s-o verifice înainte de a tipări.
+
+`ButonCodQr` importă `rotesteCodPontaj` din `puncte-lucru/actions` în loc s-o rescrie: a
+doua copie ar fi însemnat a doua allow-list de audit goală și al doilea `.select()` după
+`.update()` (capcana 17). Acțiunea revalidează `/puncte-lucru`, **nu ruta asta** — poza nouă
+vine din `router.refresh()`, nu din răspuns, deși răspunsul chiar conține codul; la refuz nu
+se reîmprospătează nimic, ca mesajul să rămână pe ecran.
+
+`afise` rămâne prop al lui `FormularPontareRapida` deși lista a plecat: „Numai prin cod QR"
+se stinge când niciun punct ACTIV n-are cod, altfel alegerea ar fi oprit pontarea pentru
+toată firma, tăcut.
 
 ## Locul de muncă și aprobarea ca alegere a firmei (0118)
 

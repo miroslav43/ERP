@@ -23,15 +23,22 @@ tabele:
     contract_suspendari,
   ]
 permisiuni:
-  [attendance:read, attendance:create, attendance:update, attendance:approve, employees:update]
+  [
+    attendance:read,
+    attendance:create,
+    attendance:update,
+    attendance:approve,
+    departments:update,
+    employees:update,
+  ]
 feature: attendance
 capcane: [2, 6, 7, 9, 17]
 citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
   - "zi respinsă pentru contract suspendat → [[modul/reges]]"
-scris_pe: 76f17cf9a1901a40cb3ccc7775ee8ebb51ffdb64
-scris_la: 2026-09-18
+scris_pe: 9bcef48615294790f0c04bd5416cda7105bee151
+scris_la: 2026-09-19
 tags: [modul, hr]
 ---
 
@@ -58,18 +65,28 @@ Pagina asta e trunchiul; restul s-a spart pe subarborele de rute
 
 ## Rute și cine ajunge
 
-| Rută                    | Poartă                                                                                                         |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `/pontaj`               | `attendance:read` cu scope citit prin `scopeFor`; butoanele cer `create` own/all, `approve` team, `update` all |
-| `/pontaj?vizualizare=…` | aceeași poartă; vezi „Cele trei vizualizări" mai jos                                                           |
-| `/pontaj/aprobare`      | `attendance:approve` team; blocarea cere `all`                                                                 |
-| `/pontaj/perioade`      | `attendance:approve` team/all, `attendance:create` all                                                         |
-| `/pontaj/perioade/[id]` | `attendance:read` team                                                                                         |
-| `/pontaj/saptamana`     | `attendance:create` own; decizia cere `approve` team                                                           |
-| `/pontaj/setari`        | `attendance:update` all — fila **Pontarea**: `mod_pontare_rapida`, `verificare_pontare`, `program_start`       |
-| `/pontaj/setari/reguli` | `attendance:update` all — fila **Regulile de timp**: parametrii juridici versionați                            |
+| Rută                       | Poartă                                                                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `/pontaj`                  | `attendance:read` cu scope citit prin `scopeFor`; butoanele cer `create` own/all, `approve` team, `update` all |
+| `/pontaj?vizualizare=…`    | aceeași poartă; vezi „Cele trei vizualizări" mai jos                                                           |
+| `/pontaj/aprobare`         | `attendance:approve` team; blocarea cere `all`                                                                 |
+| `/pontaj/perioade`         | `attendance:approve` team/all, `attendance:create` all                                                         |
+| `/pontaj/perioade/[id]`    | `attendance:read` team                                                                                         |
+| `/pontaj/saptamana`        | `attendance:create` own; decizia cere `approve` team                                                           |
+| `/pontaj/setari`           | `attendance:update` all — fila **Pontarea**: `mod_pontare_rapida`, `verificare_pontare`, `program_start`       |
+| `/pontaj/setari/reguli`    | `attendance:update` all — fila **Regulile de timp**: parametrii juridici versionați                            |
+| `/pontaj/setari/coduri-qr` | `departments:update` all — fila **Coduri QR**: poarta SECRETULUI, ca afișul din `puncte-lucru`                 |
 
 Toate trec întâi prin `requireFeature(tenant.organizationId, "attendance")`.
+
+**Codurile QR nu se deschid cu cheia pontajului.** Fila `/pontaj/setari/coduri-qr` cere
+`departments:update` la `all`, ca afișul din `puncte-lucru/[id]/afis`: cine vede codul poate
+ponta de oriunde, deci poarta e a SECRETULUI, nu a modulului din care se întâmplă să fie privit.
+Se verifică în pagină, ÎNAINTEA citirii `coduriQrDePontare` — soră cu `afiseDePontare`, care
+rămâne fără `cod_pontaj` fiindcă ecranului ei îi ajunge „are cod / n-are cod". Codul citit nu
+traversează granița: devine SVG pe server. De aceea antetul are două drumuri cu porți DIFERITE
+(`ButonSetariPontaj`, `poateVedeaCoduriQr` din `file-pontaj.ts`) — compuse într-un boolean, un
+rol ar fi căpătat un buton care duce la un refuz.
 
 **Luna se naște deschisă** (`0132_pontaj_luni_deschise_implicit.sql`): rândul din
 `attendance_periods` îl creează `internal.pontaj_perioada_lunii` la prima scriere, deci nu
@@ -178,9 +195,11 @@ Concediile (`[[modul/concedii]]` — pontajul doar le sincronizează prin
 (`[[modul/salarizare]]`), și fișa angajatului (`[[modul/angajati]]`).
 
 Butoanele pontării rapide nu sunt sub `/pontaj`: ecranele stau în
-`src/app/(portal)/portal/`, iar afișul cu cod QR și rotirea lui `cod_pontaj` în
-`src/app/(app)/puncte-lucru/`. Aici sunt doar acțiunile pe care le apelează și setările
-care le pornesc.
+`src/app/(portal)/portal/`, iar afișul de tipărit și acțiunea care rotește `cod_pontaj`
+rămân în `src/app/(app)/puncte-lucru/`. Fila **Coduri QR** doar ARATĂ codul și cheamă
+acțiunea aceea, importată (`ButonCodQr`) — rescrisă aici, ar fi fost a doua implementare a
+aceleiași reguli, adică locul unde cele două se despart tăcut. Aici sunt doar acțiunile pe
+care le apelează și setările care le pornesc.
 
 ## Când NU e suficientă pagina asta
 
