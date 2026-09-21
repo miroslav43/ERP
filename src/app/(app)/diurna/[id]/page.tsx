@@ -211,13 +211,24 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
       : []),
   ];
 
-  // Aceleași cuvinte ca înainte, doar strânse într-un șir: `descriere` e text,
-  // nu JSX. Ordinea și separatorii rămân identici.
-  const descriereDeplasare = `${
-    angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `
-  }${formatDateTime(new Date(deplasare.plecare_la))} – ${formatDateTime(
-    new Date(deplasare.sosire_la),
-  )}${deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`}`;
+  // Sub titlu rămâne doar CINE; unde și când stau în Rezumat, pe primul rând,
+  // unde se văd ca date, nu ca o propoziție lungă.
+  const descriereDeplasare =
+    angajat === undefined ? undefined : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+
+  const plecare = new Date(deplasare.plecare_efectiva_la ?? deplasare.plecare_la);
+  const sosire = new Date(deplasare.sosire_efectiva_la ?? deplasare.sosire_la);
+  const oreTotal = Math.max(0, Math.round((sosire.getTime() - plecare.getTime()) / 3_600_000));
+  const durata =
+    oreTotal < 24
+      ? `${oreTotal} ${oreTotal === 1 ? "oră" : "ore"}`
+      : `${Math.floor(oreTotal / 24)} ${Math.floor(oreTotal / 24) === 1 ? "zi" : "zile"}${
+          oreTotal % 24 === 0 ? "" : ` și ${oreTotal % 24} ${oreTotal % 24 === 1 ? "oră" : "ore"}`
+        }`;
+  const tara =
+    deplasare.country_id === null
+      ? "—"
+      : (hartaTari.get(deplasare.country_id)?.denumire ?? deplasare.country_id);
 
   return (
     <div className="space-y-6">
@@ -262,6 +273,16 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           Rezumat
         </h2>
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Camp eticheta="Țara" valoare={tara} />
+          <Camp eticheta="Localitatea" valoare={deplasare.localitate ?? "—"} />
+          <Camp
+            eticheta={deplasare.plecare_efectiva_la === null ? "Plecarea" : "Plecarea efectivă"}
+            valoare={formatDateTime(plecare)}
+          />
+          <Camp
+            eticheta={deplasare.sosire_efectiva_la === null ? "Sosirea" : "Sosirea efectivă"}
+            valoare={`${formatDateTime(sosire)} · ${durata}`}
+          />
           <Camp
             eticheta="Mijloc de transport"
             valoare={ETICHETE_MIJLOC_TRANSPORT[deplasare.mijloc_transport]}
