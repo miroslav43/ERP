@@ -215,7 +215,32 @@ Capcană găsită la scriere: în expresiile regulate din Postgres `\b` **nu** e
 graniță de cuvânt, ci caracterul BACKSPACE. Prima formă a filtrului de HTML
 folosea `\b` și nu prindea nimic — a trecut de citire și a picat la probă.
 
-### Lotul 5 — rămas
+### Lotul 5 — drepturi, derivate și igienă · `0149` + cod
+
+Partea de COD e deja în producție (comisă separat): importul de angajați era rupt
+din 25.08.2026 (F39 — pasul 1 urca în `{org}/employees/{batch}/`, pasul 2 cerea
+`{org}/import/{batch}/`, deci fiecare import se refuza singur, iar Excel-ul cu
+CNP-uri în clar rămânea în Storage); căile trec acum printr-un `caleInPrefix` care
+respinge `..` (F45); căutările scapă metacaracterele LIKE și se ghilimelează pentru
+gramatica `or=` (F51, F52, F56).
+
+Partea de BAZĂ — `0149_drepturi_si_campuri_derivate.sql`, probată cu
+`tests/rls/proba-drepturi-derivate.sql` (12 verificări, din care 5 POZITIVE),
+**neaplicată pe producție**:
+
+| F03 | `role_permissions_update` verifică scope-ul și pe rândul REZULTAT: o suprascriere nu mai poate fi retintită pe un membru din afara echipei |
+| F34 | `manager_path` e derivat: garda îl restaurează din `old` când managerul nu s-a schimbat, iar cascada își aprinde un steag ca recalculul legitim să treacă |
+| F37 | autorul comentariului de tichet e fișa apelantului, nu ce trimite clientul |
+| F09 | `tickets_insert` pinuiește câmpurile de flux (prioritate manuală, asignare, aprobator, decizie) pe valorile de start |
+| F23 | `log_audit_event` cere organizația, redactează cheile de secrete, ia IP-ul din antet (nu din argument) și plafonează documentul la 16 KB |
+| F18 | `profiles.avatar_path` acceptă doar o cale din bucket; `handle_new_user` nu mai copiază `avatar_url` din metadata OAuth |
+| F49 | `urmatoarea_marca` cere `employees:create = all` — nu mai poate arde numere oricine |
+
+A doua oară când verificarea `(l)` din `izolare.sql` a prins o poartă prea
+strâmtă: prima formă a lui `tickets_insert` cerea `rezultat_obtinut is null`, dar
+pe un tichet `bug_erp` ăla e chiar textul solicitantului.
+
+### Ce rămâne
 
 ### Critic
 
@@ -302,8 +327,17 @@ invitații în așteptare): verificatorii n-au putut reproduce pasul decisiv.
 4. ✅ **Documente cu valoare probatorie** — `0148`, vezi mai sus. F48 rămâne
    (managerul bifează lecția de test a subalternului): ramura e scrisă
    intenționat în `0075`, deci e o decizie de produs, nu o corecție.
-5. **Restul** — câmpuri de conținut și derivate scriibile direct (F03, F09, F10,
-   F19, F29, F30, F33–F37, F39, F49), plus igienă (F40–F45, F51–F56).
+5. ✅/◻ **Restul** — `0149` + comiterea de cod acoperă F03, F09, F18, F23, F34,
+   F37, F39, F40 (parțial), F41, F42, F45, F49, F51, F52, F56. **Rămân
+   nerezolvate:** F10 (`maintenance:create=all` deschide tot catalogul de
+   mentenanță), F19 (legătura cale↔rând pentru documentele de concediu), F22
+   (module neactivate scriibile — ocolire de licențiere), F29 (HR aprobă
+   concedii deși decizia de business spune că nu), F30 (plafonul anual de
+   concediu și editarea după trimitere), F33 (FK-uri care pot trimite în altă
+   firmă), F36 (regulile contractului de muncă), F43 (obiecte orfane în
+   Storage), F44 (MIME-ul declarat, nu verificat), F48 (managerul bifează testul
+   altuia), F53/F55 (igienă de cod), plus F24 și F20, care se rezolvă din
+   tabloul de bord Supabase, respectiv cu o decizie despre analitice.
 
 Fiecare lot se probează pe bancul local înainte, cu **probă pozitivă** obligatorie
 („cine are voie tot poate lucra"), nu doar negativă.
