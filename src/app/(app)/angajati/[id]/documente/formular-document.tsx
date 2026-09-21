@@ -6,8 +6,8 @@ import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 import type { ActionResult } from "@/lib/actions/types";
-import { getBrowserSupabase } from "@/lib/supabase/browser";
-import { BUCKET_DOCUMENTE, verificaDocument } from "@/lib/documents/cale";
+import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
+import { verificaDocument } from "@/lib/documents/cale";
 import {
   linkDescarcareDocument,
   pregatesteIncarcareDocument,
@@ -84,10 +84,8 @@ export function FormularDocument({
     });
     if (!pregatire.ok) return refuzLocal(pregatire.error.message);
 
-    const urcare = await getBrowserSupabase()
-      .storage.from(BUCKET_DOCUMENTE)
-      .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);
-    if (urcare.error !== null) {
+    const urcat = await urcaPeUrlSemnat(pregatire.data.urlSemnat, fisier);
+    if (!urcat) {
       return refuzLocal("Încărcarea a eșuat. Verificați conexiunea.", "fisier");
     }
 

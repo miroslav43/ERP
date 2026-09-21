@@ -1233,7 +1233,7 @@ export const pregatesteIncarcareDocumentConcediu = createAction({
   handler: async (
     ctx: ActionContext,
     input,
-  ): Promise<Readonly<{ cale: string; token: string }>> => {
+  ): Promise<Readonly<{ cale: string; urlSemnat: string }>> => {
     const employeeId = await fisaTinta(ctx, input.employee_id);
     const cale = construiesteCaleDocument({
       organizationId: ctx.tenant.organizationId,
@@ -1248,7 +1248,7 @@ export const pregatesteIncarcareDocumentConcediu = createAction({
     if (error !== null || data === null) {
       throw businessRule("Nu am putut pregăti încărcarea documentului.");
     }
-    return { cale, token: data.token };
+    return { cale, urlSemnat: data.signedUrl };
   },
 });
 

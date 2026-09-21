@@ -86,7 +86,11 @@ ENV SUPABASE_SERVICE_ROLE_KEY="build-placeholder" \
 # Build-ul de imagine rulează verificarea de tipuri ca oricare altul. A existat
 # aici un `ENV DOCKER_BUILD=1` care o dezactiva, ca ocol pentru erori venite din
 # tipuri generate rămase în urma bazei; cauza e reparată, ocolul a fost scos.
-RUN pnpm build
+# `check:bundle` rulează AICI, nu doar în CI: build-ul ăsta e singurul care
+# coace cheia REALĂ (vezi `ARG NEXT_PUBLIC_SUPABASE_ANON_KEY` mai sus), pe când
+# CI construiește cu `ci-placeholder`. Adică build-ul în care poarta contează cel
+# mai mult era exact cel care n-o rula.
+RUN pnpm build && pnpm check:bundle
 
 # ---------------------------------------------------------------------------
 # runner — imaginea finală

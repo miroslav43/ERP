@@ -315,7 +315,7 @@ export const pregatesteIncarcareDovada = createAction({
   handler: async (
     ctx: ActionContext,
     input,
-  ): Promise<Readonly<{ cale: string; token: string }>> => {
+  ): Promise<Readonly<{ cale: string; urlSemnat: string }>> => {
     const pas = await pasulDovezii(ctx, input.id);
     const cale = construiesteCaleDovada({
       organizationId: ctx.tenant.organizationId,
@@ -330,7 +330,7 @@ export const pregatesteIncarcareDovada = createAction({
     if (error !== null || data === null) {
       throw businessRule("Nu am putut pregăti încărcarea dovezii.");
     }
-    return { cale, token: data.token };
+    return { cale, urlSemnat: data.signedUrl };
   },
 });
 

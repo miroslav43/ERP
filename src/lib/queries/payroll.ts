@@ -1,6 +1,8 @@
 // src/lib/queries/payroll.ts
 // Citirile modulului de salarizare.
 
+import "server-only";
+
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import type { TaxExemptionSnapshot } from "@/domain/payroll/calc";
 import { contractEfectiv } from "@/domain/payroll/contract";

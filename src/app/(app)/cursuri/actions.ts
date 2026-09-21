@@ -343,7 +343,7 @@ export const pregatesteIncarcareMaterial = createAction({
     if (error !== null || data === null) {
       throw businessRule("Nu am putut pregăti încărcarea fișierului.");
     }
-    return { cale, token: data.token };
+    return { cale, urlSemnat: data.signedUrl };
   },
 });
 

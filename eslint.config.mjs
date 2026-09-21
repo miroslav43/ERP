@@ -42,6 +42,31 @@ const eslintConfig = defineConfig([
               message:
                 "Clientul admin folosește service_role și ocolește RLS. Importă-l doar în Server Actions, Route Handlers sau scripturi — și explică într-un comentariu de ce e nevoie să ocolești RLS.",
             },
+            {
+              /**
+               * Fabricile de clienți Supabase construiesc un client PostgREST
+               * COMPLET. Într-un fișier care ajunge în browser, clientul ăla
+               * este exact ușa pe care auditul din 21 sept 2026 a închis-o:
+               * cheia publicabilă în bundle plus sesiunea din cookie înseamnă
+               * că orice regulă care trăiește doar în `createAction` (Zod,
+               * tranziții de status, `minScope`, poarta de modul, auditul) se
+               * poate ocoli dintr-o linie de consolă.
+               *
+               * Cele trei locuri care au voie să le cheme sunt enumerate mai
+               * jos, în blocul `administrativo/clienti-supabase`. Restul
+               * proiectului vorbește cu baza prin Server Actions și prin
+               * `src/lib/queries/**`, iar cu Storage prin URL semnat
+               * (`src/lib/storage/urca-semnat.ts`).
+               *
+               * `allowTypeImports` fiindcă `SupabaseClient` și `PostgrestError`
+               * se importă ca TIPURI în vreo zece fișiere de server: tipul se
+               * șterge la compilare și nu poate construi nimic.
+               */
+              group: ["@supabase/ssr", "@supabase/supabase-js"],
+              allowTypeImports: true,
+              message:
+                "Un client Supabase se construiește doar în src/lib/supabase/{server,middleware,admin}.ts. În browser n-are ce căuta niciunul: octeții urcă pe URL semnat (@/lib/storage/urca-semnat), iar restul trece prin Server Actions.",
+            },
           ],
         },
       ],
@@ -87,8 +112,30 @@ const eslintConfig = defineConfig([
       // care să treacă prin RLS. Cheia se compune server-side.
       "src/lib/utils/rate-limit.ts",
       "scripts/**/*.ts",
+      // Scripturile de seed/demo sunt `.mjs`, rulate cu Node, niciodată
+      // bundle-uite: și ele construiesc clienți Supabase, legitim.
+      "scripts/**/*.mjs",
       "tests/**/*.ts",
     ],
+    rules: { "no-restricted-imports": "off" },
+  },
+
+  {
+    /**
+     * Cele trei fabrici de clienți Supabase — și numai ele.
+     *
+     * Lista e completă și scurtă cu intenție, ca și cea de deasupra: fiecare
+     * fișier de aici construiește un client care vorbește direct cu baza.
+     * `server.ts` (sesiunea utilizatorului, sub RLS) și `middleware.ts`
+     * (reîmprospătarea sesiunii în `proxy.ts`) rulează exclusiv pe server;
+     * `admin.ts` e deja în blocul de mai sus, fiindcă el ocolește RLS.
+     *
+     * Un al patrulea fișier care apare aici e semnalul că cineva construiește
+     * un client într-un loc nou — exact întrebarea la care trebuie răspuns la
+     * review: ajunge codul ăsta în browser?
+     */
+    name: "administrativo/clienti-supabase",
+    files: ["src/lib/supabase/server.ts", "src/lib/supabase/middleware.ts"],
     rules: { "no-restricted-imports": "off" },
   },
 

@@ -7,13 +7,8 @@ import { useRouter } from "next/navigation";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
 import { Callout } from "@/components/ui/callout";
 import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
-import {
-  BUCKET_AVATARE,
-  LIMITA_AVATAR_BYTES,
-  MIME_AVATAR_ACCEPTATE,
-  verificaAvatar,
-} from "@/lib/avatar/cale";
-import { getBrowserSupabase } from "@/lib/supabase/browser";
+import { LIMITA_AVATAR_BYTES, MIME_AVATAR_ACCEPTATE, verificaAvatar } from "@/lib/avatar/cale";
+import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import type { ActionResult } from "@/lib/actions/types";
 
 interface ProprietatiIncarcareAvatar {
@@ -24,7 +19,7 @@ interface ProprietatiIncarcareAvatar {
     numeFisier: string;
     dimensiune: number;
     mime: string;
-  }) => Promise<ActionResult<{ cale: string; token: string }>>;
+  }) => Promise<ActionResult<{ cale: string; urlSemnat: string }>>;
   /** Pas 2/2: fișierul e deja în Storage, doar reține calea. */
   readonly salveaza: (input: { cale: string }) => Promise<ActionResult<unknown>>;
 }
@@ -95,10 +90,8 @@ export function IncarcareAvatar({
       return;
     }
 
-    const urcare = await getBrowserSupabase()
-      .storage.from(BUCKET_AVATARE)
-      .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);
-    if (urcare.error !== null) {
+    const urcat = await urcaPeUrlSemnat(pregatire.data.urlSemnat, fisier);
+    if (!urcat) {
       setStare({ tip: "eroare", mesaj: "Încărcarea a eșuat. Verifică conexiunea." });
       return;
     }

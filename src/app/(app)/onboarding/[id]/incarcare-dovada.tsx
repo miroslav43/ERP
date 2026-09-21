@@ -6,8 +6,8 @@ import { Download, Loader2, Paperclip } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
 import { arataToast } from "@/components/ui/toast";
-import { BUCKET_CHECKLISTS, RESTRICTII_DOVADA, verificaDovada } from "@/lib/onboarding/cale";
-import { getBrowserSupabase } from "@/lib/supabase/browser";
+import { RESTRICTII_DOVADA, verificaDovada } from "@/lib/onboarding/cale";
+import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 
 import { linkDovada, pregatesteIncarcareDovada, salveazaDovada } from "../actions";
 import { useSemnalIncarcare } from "@/components/incarcare/use-incarcare";
@@ -73,10 +73,8 @@ export function IncarcareDovada({ pasId, numeFisier, marimeBytes, poateScrie }: 
     }
 
     setStadiu({ tip: "lucru", mesaj: "Se încarcă…" });
-    const urcare = await getBrowserSupabase()
-      .storage.from(BUCKET_CHECKLISTS)
-      .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);
-    if (urcare.error !== null) {
+    const urcat = await urcaPeUrlSemnat(pregatire.data.urlSemnat, fisier);
+    if (!urcat) {
       setStadiu({ tip: "eroare", mesaj: "Încărcarea fișierului nu a reușit." });
       return;
     }

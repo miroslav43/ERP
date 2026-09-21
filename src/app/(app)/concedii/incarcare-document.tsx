@@ -4,13 +4,8 @@
 import { useState, useTransition } from "react";
 
 import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
-import { getBrowserSupabase } from "@/lib/supabase/browser";
-import {
-  BUCKET_DOCUMENTE,
-  LIMITA_DOCUMENT_BYTES,
-  MIME_ACCEPTATE,
-  verificaDocument,
-} from "@/lib/documents/cale";
+import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
+import { LIMITA_DOCUMENT_BYTES, MIME_ACCEPTATE, verificaDocument } from "@/lib/documents/cale";
 import { explicatieOriginalFizic, modDocument } from "@/domain/leave/documente-fizice";
 
 import { pregatesteIncarcareDocumentConcediu } from "./actions";
@@ -94,10 +89,8 @@ export function IncarcareDocumentConcediu({
         return;
       }
 
-      const urcare = await getBrowserSupabase()
-        .storage.from(BUCKET_DOCUMENTE)
-        .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);
-      if (urcare.error !== null) {
+      const urcat = await urcaPeUrlSemnat(pregatire.data.urlSemnat, fisier);
+      if (!urcat) {
         setProblema("Încărcarea documentului nu a reușit. Încercați din nou.");
         return;
       }

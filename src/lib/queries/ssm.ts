@@ -14,6 +14,8 @@
 // NU se citește `ssm_legal_parameters`: e sub resursa `compliance`. Pragul de
 // preaviz e constanta `PRAG_SSM_AVERTIZARE_ZILE` din `@/domain/ssm/scadente`.
 
+import "server-only";
+
 import type { FiltreAngajati } from "@/schemas/employee";
 import { listeazaAngajati, type RandAngajat } from "@/lib/queries/employees";
 import { esteDeAtentionat, stareScadentaSsm } from "@/domain/ssm/scadente";

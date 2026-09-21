@@ -105,12 +105,17 @@ const schemaPregatireAvatar = z.object({
 /**
  * Pas 1/2 al încărcării propriei fotografii: doar pregătește URL-ul semnat.
  * Bytes-urile fișierului urcă direct din browser spre Storage (vezi
- * `getBrowserSupabase().storage...uploadToSignedUrl`), nu trec prin acțiune —
- * la fel ca la documentele de personal, ca să nu treacă imaginea prin server.
+ * `urcaPeUrlSemnat`), nu trec prin acțiune — la fel ca la documentele de
+ * personal, ca să nu treacă imaginea prin server.
+ *
+ * Se întoarce URL-ul semnat ÎNTREG, nu tokenul: cu URL-ul, browserul face un
+ * `PUT` simplu și nu mai are nevoie de niciun client Supabase — deci nici de
+ * cheia publicabilă, nici de sesiunea din cookie. Vezi comentariul din
+ * `src/lib/storage/urca-semnat.ts`.
  */
 export async function pregatesteIncarcareAvatarulPropriu(
   rawInput: unknown,
-): Promise<ActionResult<{ cale: string; token: string }>> {
+): Promise<ActionResult<{ cale: string; urlSemnat: string }>> {
   const requestId = randomUUID();
   const user = await requireUser();
 
@@ -141,7 +146,7 @@ export async function pregatesteIncarcareAvatarulPropriu(
     });
   }
 
-  return { ok: true, data: { cale, token: data.token } };
+  return { ok: true, data: { cale, urlSemnat: data.signedUrl } };
 }
 
 const schemaSalveazaAvatar = z.object({ cale: z.string().min(1).max(400) });

@@ -52,7 +52,7 @@ export const pregatesteIncarcareAvatarAngajat = createAction({
       .createSignedUploadUrl(cale);
     if (error !== null || data === null)
       throw businessRule("Nu am putut pregăti încărcarea fotografiei.");
-    return { cale, token: data.token };
+    return { cale, urlSemnat: data.signedUrl };
   },
 });
 

@@ -73,6 +73,15 @@ jobs:
           TENANT_COOKIE_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
           EMAIL_MODE: test
 
+      # Poarta care ține cheia publicabilă Supabase afară din bundle-ul de
+      # browser: fără ea, un singur import nepotrivit redeschide tăcut ușa
+      # pe care auditul din 21 sept 2026 a închis-o. Rulează DUPĂ build,
+      # fiindcă se uită în fișierele de sub `.next/static`.
+      - name: Cheia Supabase nu e în bundle-ul de browser
+        run: pnpm check:bundle
+        env:
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+
   # ───────────────────────────────────────────────────────────────────────────
   # Migrările trebuie să aplice curat pe o bază GOALĂ, de fiecare dată.
   #

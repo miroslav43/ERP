@@ -55,7 +55,7 @@ export const pregatesteIncarcareaImportului = createAction({
         "Nu am putut pregăti încărcarea fișierului. Încearcă din nou în câteva secunde.",
       );
     }
-    return { batchId, cale, token: data.token };
+    return { batchId, cale, urlSemnat: data.signedUrl };
   },
 });
 

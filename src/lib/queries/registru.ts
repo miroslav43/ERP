@@ -17,6 +17,8 @@
 // registru de 3000 de rânduri ar arăta complet și n-ar fi — exact felul de
 // defect pe care restul stratului îl vânează.
 
+import "server-only";
+
 import { z } from "zod";
 
 import { createServerSupabase } from "@/lib/supabase/server";

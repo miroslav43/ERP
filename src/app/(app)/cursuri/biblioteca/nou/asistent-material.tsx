@@ -39,9 +39,8 @@ import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { ProgresPasi } from "@/components/ui/progres-pasi";
 import { arataToast } from "@/components/ui/toast";
-import { getBrowserSupabase } from "@/lib/supabase/browser";
+import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import {
-  BUCKET_CURSURI,
   LIMITA_PDF_BYTES,
   LIMITA_VIDEO_BYTES,
   MIME_PDF,
@@ -318,10 +317,8 @@ export function AsistentMaterial() {
               ? "Se încarcă filmul. La o conexiune obișnuită durează câteva minute — nu închideți fila."
               : "Se încarcă documentul…",
         });
-        const urcare = await getBrowserSupabase()
-          .storage.from(BUCKET_CURSURI)
-          .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);
-        if (urcare.error !== null) {
+        const urcat = await urcaPeUrlSemnat(pregatire.data.urlSemnat, fisier);
+        if (!urcat) {
           setStadiu({ tip: "eroare", mesaj: "Încărcarea a eșuat. Verificați conexiunea." });
           return;
         }

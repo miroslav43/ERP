@@ -1,8 +1,7 @@
 // src/app/(app)/angajati/import/import-client.tsx
 "use client";
 import { useId, useRef, useState } from "react";
-import { getBrowserSupabase } from "@/lib/supabase/browser";
-import { BUCKET_DOCUMENTE } from "@/lib/documents/cale";
+import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import { LIMITA_FISIER_BYTES, verificaFisierImport } from "@/lib/import/excel";
 import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
@@ -25,7 +24,7 @@ type ColoanaRecunoscuta = { coloana: string; camp: string };
 
 // `createAction` (./actions) nu-și poate infera tipul datelor din corpul
 // handler-ului, așa că fixăm aici, explicit, forma reală întoarsă de fiecare acțiune.
-type Pregatire = { batchId: string; cale: string; token: string };
+type Pregatire = { batchId: string; cale: string; urlSemnat: string };
 type Previzualizare = {
   batchId: string;
   numeFoaie: string;
@@ -93,10 +92,8 @@ export function ImportAngajatiClient() {
       setPas("incarcare");
       return;
     }
-    const urcare = await getBrowserSupabase()
-      .storage.from(BUCKET_DOCUMENTE)
-      .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);
-    if (urcare.error !== null) {
+    const urcat = await urcaPeUrlSemnat(pregatire.data.urlSemnat, fisier);
+    if (!urcat) {
       setEroare("Încărcarea fișierului a eșuat. Verifică conexiunea și încearcă din nou.");
       setPas("incarcare");
       return;

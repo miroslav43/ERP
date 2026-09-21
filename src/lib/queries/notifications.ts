@@ -2,6 +2,8 @@
 // Notificările sunt strict per-utilizator — RLS (`notifications_select`,
 // `user_id = auth.uid()`) e sursa de adevăr, nu un filtru reprodus aici.
 
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 

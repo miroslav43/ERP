@@ -6,6 +6,8 @@
 // listările de aici sunt fie paginate cu cursor keyset, fie plafonate explicit
 // cu un `.limit()` sub prag și cu motivul scris.
 
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
   SORTARI_CURSURI,

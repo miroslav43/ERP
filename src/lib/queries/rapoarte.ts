@@ -4,6 +4,8 @@
 // organizație. `payroll_entries` reține deja aceste cifre pe fiecare
 // perioadă calculată — nu se re-derivă din `leave_balances`/pontaj, se
 // citesc direct de acolo (reutilizare, nu un nou drum de calcul).
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import { citesteTot } from "./citeste-tot";

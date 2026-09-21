@@ -6,6 +6,8 @@
 // filtrează după `employee_id`: politica `leave_requests_select` (și surorile
 // ei) îl rezolvă singură, prin `app.current_employee_id(organization_id)`.
 
+import "server-only";
+
 import { cache } from "react";
 
 import { createServerSupabase } from "@/lib/supabase/server";

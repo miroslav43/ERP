@@ -8,6 +8,8 @@
 // oferă și adaptoarele care leagă rândurile citite de aici cu motorul PUR din
 // `@/domain/per-diem`, portat 1:1 din 0015_per_diem.sql.
 
+import "server-only";
+
 import { calculeazaZileDiurna, type FereastraDiurna } from "@/domain/per-diem/ferestre";
 import type { PunctTara } from "@/domain/per-diem/ore-pe-tara";
 import {
