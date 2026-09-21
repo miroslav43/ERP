@@ -52,12 +52,19 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
           >
             {text.cealaltaLimba.eticheta}
           </Link>
-          <Link
+          {/*
+            `<a>`, nu `<Link>`: intrarea în aplicație trebuie să fie o navigare
+            HARD. Cu una soft, documentul rămâne același, iar `gtag.js` încărcat
+            pe pagina publică continuă să raporteze la Google rutele din
+            interior — `/angajati/<uuid>`, `/salarizare/…`, `?q=<nume>`.
+            Măsurat pe 21 sept 2026; vezi `OpresteAnaliticele`, plasa de sub.
+          */}
+          <a
             href={RUTA_AUTENTIFICARE}
             className="bg-mk-usa text-mk-usa-text hidden h-10 items-center rounded px-4 text-[0.9375rem] font-medium transition-opacity hover:opacity-90 sm:inline-flex"
           >
             {text.antet.autentificare}
-          </Link>
+          </a>
           <Link
             href={text.hero.ctaPrimar.href}
             data-umami-event="cta-antet"
@@ -81,9 +88,9 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
                     </li>
                   ))}
                   <li className="border-mk-rigla/40 border-t pt-3">
-                    <Link href={RUTA_AUTENTIFICARE} className="block text-[0.9375rem] font-medium">
+                    <a href={RUTA_AUTENTIFICARE} className="block text-[0.9375rem] font-medium">
                       {text.antet.autentificare}
-                    </Link>
+                    </a>
                   </li>
                   <li>
                     <Link

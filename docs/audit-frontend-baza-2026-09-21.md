@@ -255,6 +255,24 @@ A treia oară când o poartă prea strâmtă a fost prinsă de probe: prima form
 politicii de sesizare cerea raportor obligatoriu, iar politica de KPI a scos la
 iveală că fixture-ul din `izolare.sql` n-avea modulul activat.
 
+### Lotul 6 — legăturile și contractele · `0151` + `0152`
+
+**Aplicate pe producție**, ca toate cele de mai sus. Probate cu
+`tests/rls/proba-legaturi-firma.sql` (9 verificări, din care 2 POZITIVE).
+
+| F33 | o fișă nu mai poate fi legată de departamentul, funcția sau managerul altei firme; nici un departament nu mai poate avea șef din altă firmă |
+| F36 | contractul încetat nu mai poate fi reactivat sau rescris, iar data încetării nu mai poate fi înaintea începutului. Salariul minim legal NU e în constrângere, deliberat: e o valoare anuală de politică publică, nu o regulă de schemă |
+
+**Și un defect produs chiar de reparație, în producție.** Prima formă (`0151`) a
+scris regula F33 ca CHEIE STRĂINĂ COMPUSĂ. Bancul a trecut, izolarea a trecut,
+proba 9/9 — iar aplicația a căzut în trei minute pe lista de angajați și pe
+pagina de departamente: PostgREST rezolvă embed-urile (`department:departments!department_id(...)`)
+după cheile străine, iar cu cheia compusă nu mai există nicio relație cu setul de
+coloane `{department_id}` → `PGRST200`. `0152` a pus cheile simple la loc și a
+mutat regula într-un trigger. Forma cheilor străine e API public în Supabase, iar
+nicio probă SQL n-o vede — scris ca a 44-a capcană în
+`docs/design/ecrane/capcane.md`.
+
 ### Ce rămâne
 
 ### Critic
