@@ -66,7 +66,8 @@ rolurilor.
 - **`attendance:approve = all`.** Blocarea și deblocarea perioadei o cer; cu `team`
   managerul primește 42501. Butonul se ascunde cu `can(..., "attendance:approve", "all")`,
   nu se lasă să eșueze. — capcana #9
-- **`per_diem:update`.** Are `per_diem:approve = team`, dar `business_trips_update` cere
+- **`per_diem:update = team`.** Din `0154` are `create/update/delete = own` — își face și își
+  modifică propria deplasare — dar nu `team`. Are `per_diem:approve = team`, iar `business_trips_update` cere
   `poate_accesa_deplasare(..., 'update')` pe **ambele** ramuri, inclusiv pe cea de
   aprobare — deci aprobarea unui manager e respinsă cu 42501. — capcana #16
 - **Orice `vehicles:*`.** Are `trip_sheets:approve = team`, deci ajunge pe `/flota/foi` și
