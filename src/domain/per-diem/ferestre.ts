@@ -14,6 +14,8 @@
  *   10.03 08:00 → 13.03 00:00 (64 ore)        ⇒ 1.0 + 1.0 + 0.5
  */
 
+import { momentDinOraRomaniei, toBucharestDateString } from "@/lib/format/date";
+
 import { orePeTara, type PunctTara } from "./ore-pe-tara";
 
 export const REGULI_TRECERE_FRONTIERA = [
@@ -66,7 +68,6 @@ export interface FereastraDiurna {
 }
 
 const ORE_PE_ZI = 24;
-const FUS_ORAR = "Europe/Bucharest";
 const MS_PE_ORA = 3_600_000;
 const MS_PE_ZI = ORE_PE_ZI * MS_PE_ORA;
 
@@ -74,49 +75,19 @@ function laZiIso(data: Date): string {
   return data.toISOString().slice(0, 10);
 }
 
-const formatorBucuresti = new Intl.DateTimeFormat("en-CA", {
-  timeZone: FUS_ORAR,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
-});
-
-/** Cu cât e ceasul României înaintea UTC la un moment dat (2 sau 3 ore). */
-function decalajBucurestiMs(moment: Date): number {
-  const p = Object.fromEntries(
-    formatorBucuresti.formatToParts(moment).map((x) => [x.type, x.value]),
-  );
-  const caSiUtc = Date.UTC(
-    Number(p.year),
-    Number(p.month) - 1,
-    Number(p.day),
-    Number(p.hour),
-    Number(p.minute),
-    Number(p.second),
-  );
-  return caSiUtc - Math.floor(moment.getTime() / 1000) * 1000;
-}
-
 /** Ziua din calendar a României (`AAAA-LL-ZZ`) în care cade un moment. */
 function ziBucuresti(moment: Date): string {
-  return new Date(moment.getTime() + decalajBucurestiMs(moment)).toISOString().slice(0, 10);
+  return toBucharestDateString(moment);
 }
 
 /**
  * Miezul nopții de la începutul zilei `zi`, ora României, ca moment absolut —
- * oglinda lui `zi::timestamp at time zone 'Europe/Bucharest'`. Decalajul se
- * recitește o dată la momentul găsit: în zilele de trecere la ora de vară
- * miezul nopții și prânzul au decalaje diferite.
+ * oglinda lui `zi::timestamp at time zone 'Europe/Bucharest'`.
  */
 function miezulNoptiiBucuresti(zi: string): Date {
-  const [an, luna, ziua] = zi.split("-").map(Number);
-  const utc = Date.UTC(an ?? 0, (luna ?? 1) - 1, ziua ?? 1);
-  const aproape = utc - decalajBucurestiMs(new Date(utc));
-  return new Date(utc - decalajBucurestiMs(new Date(aproape)));
+  const moment = momentDinOraRomaniei(`${zi}T00:00`);
+  if (moment === null) throw new TypeError(`Zi invalidă: ${zi}`);
+  return new Date(moment);
 }
 
 function ziuaUrmatoare(zi: string): string {

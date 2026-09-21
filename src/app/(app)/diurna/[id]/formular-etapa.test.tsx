@@ -28,6 +28,7 @@ function randeaza(pornire: string | null = RO, destinatie: string | null = DE) {
       tari={TARI}
       taraPornireId={pornire}
       taraDestinatieId={destinatie}
+      interval={{ plecare: "2026-09-28T15:00", sosire: "2026-10-01T21:00" }}
     />,
   );
 }
@@ -51,6 +52,23 @@ describe("FormularEtapa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Adaugă etapa" }));
     expect(screen.getByLabelText("Plecarea etapei").getAttribute("aria-invalid")).toBe("true");
     expect(screen.getByText("Completați data și ora sosirii.")).toBeTruthy();
+    expect(adaugaEtapa).not.toHaveBeenCalled();
+  });
+
+  it("etapa din afara deplasării: spune intervalul și înroșește câmpul", () => {
+    randeaza();
+    fireEvent.change(screen.getByLabelText("Plecarea etapei"), {
+      target: { value: "2026-09-27T08:00" },
+    });
+    fireEvent.change(screen.getByLabelText("Sosirea etapei"), {
+      target: { value: "2026-09-29T10:00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Adaugă etapa" }));
+    expect(screen.getByLabelText("Plecarea etapei").getAttribute("aria-invalid")).toBe("true");
+    expect(
+      screen.getByText(/Deplasarea ține de la 28\.09\.2026, 15:00 până la 01\.10\.2026, 21:00/u),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Sosirea etapei").getAttribute("aria-invalid")).toBeNull();
     expect(adaugaEtapa).not.toHaveBeenCalled();
   });
 });

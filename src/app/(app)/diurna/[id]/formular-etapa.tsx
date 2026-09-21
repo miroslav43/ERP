@@ -13,6 +13,13 @@ import { ETICHETE_MIJLOC_TRANSPORT } from "../etichete";
 
 type Erori = Readonly<Record<string, readonly string[]>>;
 
+/** `2026-09-28T15:00` → `28.09.2026, 15:00` — pentru mesaje, fără a trece prin fusuri. */
+function scrieCamp(valoare: string): string {
+  const [zi, ora] = valoare.split("T");
+  const [an, luna, z] = (zi ?? "").split("-");
+  return `${z}.${luna}.${an}, ${ora ?? ""}`;
+}
+
 /**
  * Adaugă o etapă a traseului (`business_trip_legs`). Doar cât deplasarea e
  * editabilă (ciornă/respinsă) — dincolo de asta, RLS respinge inserarea, iar
@@ -33,11 +40,14 @@ export function FormularEtapa({
   tari,
   taraPornireId,
   taraDestinatieId,
+  interval,
 }: {
   readonly tripId: string;
   readonly tari: readonly Tara[];
   readonly taraPornireId: string | null;
   readonly taraDestinatieId: string | null;
+  /** Plecarea și sosirea deplasării, ca valori de câmp (`AAAA-LL-ZZTHH:MM`, ora României). */
+  readonly interval: Readonly<{ plecare: string; sosire: string }>;
 }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
@@ -66,8 +76,14 @@ export function FormularEtapa({
     if (toCountryId.length === 0) gasite.to_country_id = ["Alegeți țara în care se ajunge."];
     if (plecareLa.length === 0) gasite.plecare_la = ["Completați data și ora plecării."];
     if (sosireLa.length === 0) gasite.sosire_la = ["Completați data și ora sosirii."];
-    if (plecareLa.length > 0 && sosireLa.length > 0 && sosireLa < plecareLa) {
-      gasite.sosire_la = ["Sosirea nu poate fi înainte de plecare."];
+    const inAfara = `Deplasarea ține de la ${scrieCamp(interval.plecare)} până la ${scrieCamp(interval.sosire)}; etapa trebuie să fie în acest interval.`;
+    if (plecareLa.length > 0 && (plecareLa < interval.plecare || plecareLa > interval.sosire)) {
+      gasite.plecare_la = [inAfara];
+    }
+    if (sosireLa.length > 0 && (sosireLa < interval.plecare || sosireLa > interval.sosire)) {
+      gasite.sosire_la = [inAfara];
+    } else if (plecareLa.length > 0 && sosireLa.length > 0 && sosireLa < plecareLa) {
+      gasite.sosire_la = ["Sosirea etapei nu poate fi înainte de plecarea ei."];
     }
     return gasite;
   }
@@ -214,6 +230,8 @@ export function FormularEtapa({
             <input
               {...a}
               type="datetime-local"
+              min={interval.plecare}
+              max={interval.sosire}
               value={plecareLa}
               onChange={(e) => {
                 setPlecareLa(e.target.value);
@@ -233,6 +251,8 @@ export function FormularEtapa({
             <input
               {...a}
               type="datetime-local"
+              min={plecareLa.length > 0 ? plecareLa : interval.plecare}
+              max={interval.sosire}
               value={sosireLa}
               onChange={(e) => {
                 setSosireLa(e.target.value);

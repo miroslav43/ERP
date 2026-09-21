@@ -12,7 +12,7 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime, oraRomanieiPentruCamp } from "@/lib/format/date";
 import { formatAmount, formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
 import {
@@ -350,6 +350,10 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
               null
             }
             taraDestinatieId={deplasare.country_id}
+            interval={{
+              plecare: oraRomanieiPentruCamp(deplasare.plecare_la),
+              sosire: oraRomanieiPentruCamp(deplasare.sosire_la),
+            }}
           />
         ) : (
           /* Ramura asta randa un `<p>` GOL când deplasarea era editabilă dar

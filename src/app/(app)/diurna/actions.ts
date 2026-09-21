@@ -297,7 +297,22 @@ export const adaugaEtapa = createAction({
       })
       .select("id")
       .single();
-    if (error !== null) traduEroare(error);
+    if (error !== null) {
+      // Refuzurile triggerului `valideaza_etapa_deplasare` țin de câte un câmp:
+      // se întorc pe câmp, ca să se înroșească acolo, nu sub buton.
+      if (isPostgrestError(error) && error.code === "P0001") {
+        if (error.message.includes("încadreze")) {
+          throw invalidInput(error.message, {
+            plecare_la: [error.message],
+            sosire_la: [error.message],
+          });
+        }
+        if (error.message.includes("țări diferite")) {
+          throw invalidInput(error.message, { to_country_id: [error.message] });
+        }
+      }
+      traduEroare(error);
+    }
 
     return { id: data.id };
   },
