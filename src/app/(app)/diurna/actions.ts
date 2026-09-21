@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule } from "@/lib/actions/errors";
+import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import {
   cheltuialaNouaSchema,
@@ -414,7 +414,19 @@ export const creeazaPolitica = createAction({
       })
       .select("id")
       .single();
-    if (error !== null) traduEroare(error);
+    if (error !== null) {
+      // Ambele refuzuri țin de dată: `per_diem_policies_uk` (o versiune pe zi)
+      // și triggerul valorilor legale (nicio lege încărcată înainte de dată).
+      // Mesajul merge lângă câmp, nu la baza formularului.
+      if (isPostgrestError(error) && error.code === "23505") {
+        const mesaj = "Există deja o versiune care începe la această dată. Alegeți altă zi.";
+        throw invalidInput(mesaj, { valabil_de_la: [mesaj] });
+      }
+      if (isPostgrestError(error) && error.code === "P0001") {
+        throw invalidInput(error.message, { valabil_de_la: [error.message] });
+      }
+      traduEroare(error);
+    }
 
     return { id: data.id };
   },

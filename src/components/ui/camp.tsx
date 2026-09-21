@@ -52,7 +52,9 @@ const controlBaza = cn(
   // Focusul vine EXCLUSIV din regula globală `:focus-visible` din globals.css.
   "disabled:border-border disabled:bg-surface disabled:text-muted-foreground disabled:cursor-not-allowed",
   "read-only:border-border read-only:bg-surface",
-  "aria-invalid:border-danger",
+  // Eroarea se vede și pe fundal, nu doar pe chenar — dar abia colorat: un
+  // câmp greșit trebuie găsit dintr-o privire, nu să strige.
+  "aria-invalid:border-danger aria-invalid:bg-danger/5",
 );
 
 const varianteControl = cva(controlBaza, {

@@ -150,7 +150,12 @@ export default async function PaginaPolitica() {
       />
 
       {poateEdita ? (
-        <FormularPolitica tari={listaTari} valoriLegale={valoriLegale} baremuri={baremuri} />
+        <FormularPolitica
+          tari={listaTari}
+          valoriLegale={valoriLegale}
+          baremuri={baremuri}
+          dateOcupate={politici.map((p) => p.valabil_de_la)}
+        />
       ) : (
         <p className="text-muted-foreground text-corp">
           Politica se configurează de administratorii organizației.

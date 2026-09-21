@@ -76,7 +76,12 @@ function filtreaza(brut: string): string {
 }
 
 function clase(propriu: string | undefined, invalid: boolean): string {
-  return cn(clasaControl({ fel: "input" }), "tabular-nums", invalid && "border-danger", propriu);
+  return cn(
+    clasaControl({ fel: "input" }),
+    "tabular-nums",
+    invalid && "border-danger bg-danger/5",
+    propriu,
+  );
 }
 
 /** Lungimea unei ore complete, `"08:30"` — pragul de la care câmpul e plin. */
