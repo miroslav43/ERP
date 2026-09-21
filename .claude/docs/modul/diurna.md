@@ -8,6 +8,7 @@ cai:
   - "src/schemas/per-diem.ts"
   - "supabase/migrations/0015_per_diem.sql"
   - "supabase/migrations/0060_salarizare_diurna.sql"
+  - "supabase/migrations/0147_diurna_valori_legale.sql"
 tabele:
   [
     business_trips,
@@ -16,6 +17,7 @@ tabele:
     per_diem_calculations,
     per_diem_policies,
     per_diem_country_rates,
+    per_diem_valori_legale,
     countries,
   ]
 permisiuni: [per_diem:read, per_diem:create, per_diem:update, per_diem:delete, per_diem:approve]
@@ -24,8 +26,8 @@ capcane: [16, 17]
 citeste_daca:
   - "aprobare respinsă cu 42501 → [[rol/manager]]"
   - "diurnă care nu apare în statul de plată → [[modul/salarizare]]"
-scris_pe: 15d4ef4edaef4834d88bfbcc49db567d17f5bca4
-scris_la: 2026-09-04
+scris_pe: 5e61f1319db78905cd113ccce7700c8da2fd7d16
+scris_la: 2026-09-21
 tags: [modul, hr]
 ---
 
@@ -73,11 +75,21 @@ acțiune prin `CAI_PORTAL_DIURNA`.
 `creeazaDeplasare` refuză un `employee_id` explicit când scope-ul nu e `all` — o cerere
 pentru altcineva se oprește în acțiune, înainte să atingă baza.
 
+`creeazaPolitica` primește **doar ce decide firma**: `diurna_interna_zi`, opțional suma
+fixă externă (`diurna_externa_zi` + `moneda_diurna_externa`), pragul unic `ore_minime`,
+regula de frontieră, `tarif_km_auto_personal`. Restul le pune acțiunea: `moneda_tarif_km` =
+moneda țării interne, `categorie_barem` = `"II"`, ambele praguri de ore = `ore_minime` (deci
+`fractiune_zi_partiala` rămâne inoperantă), valorile legale = umplutură, v. mai jos.
+
 ## Citiri
 
-`src/lib/queries/per-diem.ts`: `listeazaDeplasari`, `citesteDeplasare`, `deplasarileMele`,
-`etapele`, `cheltuielile`, `calculeSalvate`, `politicaLaData`, `politiciOrganizatie`,
-`tari`, `baremeleTarilor`, `baremTara`, `angajatiDupaId`.
+`src/lib/queries/per-diem.ts` (marcat `import "server-only"`): `listeazaDeplasari`,
+`citesteDeplasare`, `deplasarileMele`, `etapele`, `cheltuielile`, `calculeSalvate`,
+`politicaLaData`, `politiciOrganizatie`, `valoriLegaleDiurna`, `tari`, `baremeleTarilor`,
+`baremTara`, `angajatiDupaId`.
+
+`valoriLegaleDiurna` NU ia `organizationId` — `per_diem_valori_legale` e nomenclator global,
+ca `tari`; o citește `/diurna/politica` ca să arate plafonul pe care firma nu-l alege.
 
 ## Ce refuză baza
 
@@ -97,8 +109,20 @@ pentru altcineva se oprește în acțiune, înainte să atingă baza.
 - **După intrarea în aprobare, datele de bază sunt ale aprobatorului.** Modificarea lui
   `plecare_la`, `sosire_la` sau `employee_id` pe o deplasare care nu mai e `ciorna` ori
   `respinsa` cere drept de aprobare — altfel P0001.
+- **Politica se datează după lege, nu înaintea ei — iar valorile legale nu se aleg.**
+  `internal.aplica_valori_legale_diurna` (`0147_diurna_valori_legale.sql`) caută rândul din
+  `per_diem_valori_legale` valabil la `valabil_de_la`; fără el, P0001 cu data în mesaj. Pe
+  același trigger `before insert or update`, tăcut: `diurna_baza_legala_interna`,
+  `multiplu_plafon_neimpozabil` și `plafon_salarii_baza_luna` trimise din aplicație sunt
+  înlocuite cu rândul de lege, fără eroare. Nomenclatorul îl scrie doar administratorul de
+  platformă (`app.is_platform_admin()` în INSERT și UPDATE).
 - **Vehiculul trebuie să fie al organizației.** P0001, verificat în trigger, nu prin cheie
   străină.
+- **Sumă externă fixă în altă monedă decât baremul → calcul incomplet, nu eroare.**
+  `app.recalculeaza_diurna` (`0147_diurna_valori_legale.sql`) și oglinda ei TS din
+  `src/domain/per-diem/sume.ts` marchează `curs_incomplet` și lasă sumele în lei NULL pe
+  toată deplasarea: există un singur `curs_diurna`, iar plafonul rămâne în moneda baremului
+  țării. Al doilea curs nu se inventează; ecranul arată un calcul fără sume.
 - **Tranzițiile fac `.select()` după `.update()`.** `decideDeplasare` filtrează pe
   `status = "in_aprobare"`, `deconteazaDeplasare` pe `status = "aprobata"`; rezultatul gol
   devine un mesaj de conflict, nu „succes". — capcana #17
@@ -116,11 +140,20 @@ plafonul zilnic; recalculează doar plafonul LUNAR, fiindcă acela se verifică 
 lunii și pe salariul de bază: două deplasări care separat se încadrează pot împreună să
 depășească. — [[modul/salarizare]]
 
+Cât plătește firma și cât e neimpozabil sunt decizii separate: suma în `per_diem_policies`,
+plafonul în `per_diem_valori_legale`. Diurna externă are două regimuri —
+`diurna_externa_zi` completată = sumă fixă a firmei, în `moneda_diurna_externa`; NULL =
+baremul țării × `multiplu_diurna_externa`. Plafonul neimpozabil extern rămâne legat de
+baremul ȚĂRII în ambele cazuri, de aici și calculul incomplet când monedele nu coincid.
+
 Regula de frontieră (`per_diem_border_rule`) e o alegere a firmei, nu o valoare legală
 implicită: `tara_plecare`, `tara_sosire`, `tara_cu_valoare_mai_mare` sau `durata_maxima`.
 Schimbarea ei se face printr-o politică nouă, cu istoric.
 
-`countries` și `per_diem_country_rates` NU sunt multi-tenant — sunt nomenclator global.
+`countries`, `per_diem_country_rates` și `per_diem_valori_legale` NU sunt multi-tenant —
+sunt nomenclatoare globale. Ultimul e versionat prin `valabil_de_la`: o lege nouă înseamnă
+un rând nou acolo, nicio politică de firmă atinsă, iar versiunile deja scrise păstrează
+valorile copiate la momentul lor.
 
 ## Ce NU e aici
 

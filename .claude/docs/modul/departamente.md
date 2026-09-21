@@ -6,18 +6,21 @@ cai:
   - "src/app/(app)/departamente/**"
   - "src/lib/queries/departments.ts"
   - "src/lib/queries/profile.ts"
+  - "src/lib/departamente/sef.ts"
+  - "src/domain/departments/subordonare-sef.ts"
   - "src/schemas/department.ts"
   - "supabase/migrations/0004_hr.sql"
   - "supabase/migrations/0139_cod_departament_optional.sql"
+  - "supabase/migrations/0143_seful_iese_din_departament.sql"
 tabele: [departments, employees, profiles, organization_members]
 permisiuni: [departments:read, departments:create, departments:update, employees:update]
 capcane: [2, 17]
 citeste_daca:
   - "departament care nu se poate dezactiva → secțiunea „ce refuză”"
   - "departament fără cod, sau cod schimbat → secțiunea „codul”"
-  - "cine vede ce după o mutare → [[modul/organigrama]]"
-scris_pe: 90b099aea9f6b9cc51ce16b42bef95bc1e83348e
-scris_la: 2026-09-12
+  - "șef desemnat, șters sau scos din departament → secțiunea „șeful”"
+scris_pe: 5e61f1319db78905cd113ccce7700c8da2fd7d16
+scris_la: 2026-09-21
 tags: [modul, hr]
 ---
 
@@ -27,8 +30,9 @@ Structura organizatorică: un arbore de departamente, fiecare cu un manager, plu
 care mută oameni între ele. Ecranul are două vizualizări — listă și organigramă — peste
 aceleași date.
 
-Lanțul de subordonare **al oamenilor** (`manager_path`) e altceva și stă la
-[[modul/organigrama]]. Aici e arborele de departamente (`departments.path`).
+Lanțul de subordonare **al oamenilor** (`manager_path`) e alt arbore și se citește la
+[[modul/organigrama]] — dar se SCRIE de aici, la fiecare schimbare de șef. Aici e arborele
+de departamente (`departments.path`).
 
 ## Ruta
 
@@ -94,6 +98,27 @@ codul lipsă (nici „—", nici denumirea repetată): ar arăta ca un cod adev�
 de mutare cheia `secundar` lipsește cu totul din opțiune, nu e pusă pe `undefined` —
 `exactOptionalPropertyTypes` o respinge pe a doua formă.
 
+## Șeful — o desemnare scrie și pe `employees`
+
+`creeazaDepartament` și `actualizeazaDepartament` nu se opresc la `departments`: prin
+`src/lib/departamente/sef.ts` scriu și `employees.manager_employee_id` — subordonarea, nu
+doar rolul de manager (acela cere `org_admin`, fiindcă se scrie în `organization_members`).
+Un `hr` iese deci cu structura întreagă: pe `employees` are `employees:update = all`.
+
+`aplicaSubordonarea` ridică șeful sub șeful primului departament de DEASUPRA care are unul
+(nivelurile fără manager și cele dezactivate se sar) și abia apoi leagă membrii de el —
+invers, `tg_employees_manager_path` aruncă P0001 la ciclu și anulează tot lotul, fiindcă
+șeful e adesea subordonat cuiva din propriul departament. Regula pură:
+`src/domain/departments/subordonare-sef.ts`.
+
+Se cheamă **și la creare**, deși departamentul e gol: membri n-are, dar vârf are — fără
+apel, o ramură nouă intra în structură atârnată unde se nimerea. Calea strămoșilor vine din
+`RETURNING` (`.select("id, path")`), calculată de `tg_departments_path`.
+
+Ușa are **două sensuri**: „manager → gol" cheamă `elibereazaSubordonarea`, care desface
+numai fișele al căror manager DIRECT e fostul șef și le urcă la cel de deasupra — exact ce
+scrisese desemnarea. Fără ea, ștergerea managerului lăsa subordonarea pe loc.
+
 ## `mutaAngajati` — cinci decizii care nu se văd din semnătură
 
 Mesajul „mutați-i în altă structură înainte de dezactivare" trimitea până acum la o unealtă
@@ -129,7 +154,8 @@ rulează după succesul complet, inclusiv după scrierea jurnalului.
 de conturi, citirea nu mai depinde de rezultatul celorlalte și încape în același
 `Promise.all` cu ele. Ecranul are astfel un singur val de citiri, nu unul urmat de al
 doilea. `avataturiPeUtilizatori` rămâne pe loc, cu ceilalți apelanți ai ei — nu i s-a
-schimbat semnătura.
+schimbat semnătura. Fișierul e `server-only`: importat dintr-o componentă client, oprește
+build-ul.
 
 `toateAvatarurile` primește `organizationId` și filtrează pe el **explicit**. Filtrul nu e
 redundant și nu se scoate: un profil e vizibil pe CONT, nu pe firma din sesiune, iar
@@ -159,14 +185,23 @@ tuturor descendenților.
 întoarce un mesaj de regulă de business, nu o eroare de bază — de aceea există
 `mutaAngajati`.
 
+**Cine e scos din departamentul pe care îl conduce nu-l mai conduce.**
+`trg_employees_75_sef_departament` (`0143_seful_iese_din_departament.sql`) golește
+`departments.manager_employee_id` la orice UPDATE care schimbă `department_id` sau șterge
+logic fișa — fără eroare, fără să ceară nimic. De aceea panoul primește `managerId` și
+avertizează ÎNAINTE de apăsare că persoana bifată conduce departamentul. Triggerul nu
+atinge nici rolul de aplicație, nici `manager_path`.
+
 ## Ce se mișcă împreună
 
 `creeazaDepartament` și celelalte revalidează `/departamente`, `/angajati` **și**
 `/organigrama`: aceleași date, trei ecrane.
 
-O mutare de departament nu schimbă cine vede ce — asta ține de `manager_path`, nu de
-`departments.path`. Confuzia dintre cele două arbori e cea mai ușoară greșeală din zonă:
-scope-ul `team` NU se uită la departament. — [[modul/organigrama]]
+`mutaDepartament` nu schimbă cine vede ce: scope-ul `team` se calculează din `manager_path`,
+nu din `departments.path`, iar acțiunea nu atinge nicio fișă. **Desemnarea sau ștergerea
+unui șef, în schimb, schimbă exact asta**: scrie `manager_employee_id`, deci rescrie
+subarbori de `manager_path`, și odată cu ei aprobările din concedii, pontaj și diurnă. —
+[[modul/organigrama]]
 
 ## Când NU e suficientă pagina asta
 
