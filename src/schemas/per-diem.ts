@@ -4,8 +4,7 @@
 import { z } from "zod";
 
 import { MODURI_CALCUL_ZILE } from "@/domain/per-diem/ferestre";
-import { momentDinOraRomaniei } from "@/lib/format/date";
-import { enumOptional, numarOptional, optional, textOptional } from "./comun";
+import { dataOraRomania, enumOptional, numarOptional, optional, textOptional } from "./comun";
 
 // ── Enumerări în oglindă cu tipurile din 0015_per_diem.sql ───────────────────
 
@@ -117,31 +116,6 @@ function anInInterval(dataISO: string): boolean {
  * modulul de flotă poate fi dezactivat — pragul de implementare al acestei
  * faze lasă câmpul mereu `null`, coloană nullable care nu blochează nimic.
  */
-/**
- * Data și ora dintr-un `<input type="datetime-local">`, CITITE CA ORA ROMÂNIEI,
- * ieșite ca moment exact (ISO în UTC). Fără conversia asta, șirul fără fus
- * ajungea în Postgres și era citit în fusul sesiunii (UTC): 15:00 tastat se
- * salva 15:00 UTC și se afișa 18:00. Mesajele numesc câmpul — „plecării”,
- * „sosirii” — ca omul să știe ce caseta roșie are de spus.
- */
-function dataOraRomania(ce: string) {
-  return z
-    .string({ error: `Completați data și ora ${ce}.` })
-    .trim()
-    .min(1, `Completați data și ora ${ce}.`)
-    .transform((valoare, ctx) => {
-      const moment = momentDinOraRomaniei(valoare);
-      if (moment === null) {
-        ctx.addIssue({
-          code: "custom",
-          message: `Data și ora ${ce} nu sunt complete sau nu există în calendar (zi, lună, an, oră).`,
-        });
-        return z.NEVER;
-      }
-      return moment;
-    });
-}
-
 export const deplasareNouaSchema = z
   .object({
     employee_id: uuidOptional,

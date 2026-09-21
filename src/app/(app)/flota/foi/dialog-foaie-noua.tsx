@@ -37,10 +37,9 @@ type FoaieCreata = Readonly<{ id: string }>;
  * să meargă pe aceeași cale ca al serverului și să ajungă lângă câmp, nu sub
  * buton.
  *
- * Există doar unde schema Zod n-are mesaj propriu în română: `plecare_la` e
- * `z.iso.datetime({ local: true })`, iar un câmp gol întoarce textul implicit
- * al lui Zod, în engleză. Schema e un contract cu acțiunea și nu se atinge de
- * aici — deci golul se prinde înainte de drumul la server.
+ * Golul pe `plecare_la` se prinde aici, înainte de drumul la server; schema
+ * (`dataOraRomania`) îl refuză și ea, cu același mesaj, și citește ora ca oră
+ * a României.
  */
 function refuzDeClient(
   fieldErrors: Readonly<Record<string, readonly string[]>>,
