@@ -1,66 +1,84 @@
 "use client";
 
-import { useId, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { formatLei } from "@/lib/format/money";
 import { TIPURI_CHELTUIALA } from "@/schemas/per-diem";
 
 import { adaugaCheltuiala } from "../actions";
 import { ETICHETE_TIP_CHELTUIALA } from "../etichete";
 
-const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
+type Erori = Readonly<Record<string, readonly string[]>>;
+
+/** Monedele în care se plătesc de obicei cheltuielile unei deplasări. */
+const MONEDE = ["RON", "EUR", "USD", "GBP", "CHF", "HUF", "PLN", "CZK", "BGN"] as const;
 
 /**
  * Adaugă o cheltuială decontabilă (`trip_expenses`).
  *
  * `curs_valutar` e OBLIGATORIU în bază (NOT NULL, > 0) — se cere explicit
- * aici, nu se deduce. Conversia se afișează live: sumă × curs.
+ * aici, nu se deduce. Conversia se afișează live: sumă × curs. Pe RON cursul e
+ * 1 și câmpul se blochează: n-are ce să ceară.
+ *
+ * Aceleași primitive ca formularul de etapă de deasupra — `Camp`,
+ * `IntrareData` — ca cele două casete să arate și să se poarte la fel, inclusiv
+ * eroarea înroșită pe câmpul vinovat.
  */
 export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
+  const [erori, setErori] = useState<Erori>({});
 
   const [tip, setTip] = useState<(typeof TIPURI_CHELTUIALA)[number]>("cazare");
   const [descriere, setDescriere] = useState("");
   const [dataCheltuielii, setDataCheltuielii] = useState("");
   const [suma, setSuma] = useState("");
-  const [moneda, setMoneda] = useState("RON");
+  const [moneda, setMoneda] = useState<string>("RON");
   const [cursValutar, setCursValutar] = useState("1");
   const [documentNumar, setDocumentNumar] = useState("");
 
-  const id = {
-    tip: useId(),
-    descriere: useId(),
-    data: useId(),
-    suma: useId(),
-    moneda: useId(),
-    curs: useId(),
-    document: useId(),
-  };
-
+  const inLei = moneda === "RON";
   const sumaLei = useMemo(() => {
     const s = Number(suma);
-    const c = Number(cursValutar);
+    const c = inLei ? 1 : Number(cursValutar);
     if (!Number.isFinite(s) || !Number.isFinite(c) || s <= 0 || c <= 0) return null;
     return s * c;
-  }, [suma, cursValutar]);
+  }, [suma, cursValutar, inLei]);
 
-  function trimite(): void {
+  function curata(camp: string): void {
+    setErori((vechi) => {
+      if (!(camp in vechi)) return vechi;
+      const { [camp]: _, ...rest } = vechi;
+      return rest;
+    });
+  }
+
+  function valideaza(): Erori {
+    const gasite: Record<string, string[]> = {};
     if (dataCheltuielii.length === 0) {
-      setEroare("Completați data cheltuielii.");
-      return;
+      gasite.data_cheltuielii = ["Alegeți data cheltuielii (zz.ll.aaaa)."];
     }
     const sumaNum = Number(suma);
-    const cursNum = Number(cursValutar);
-    if (!Number.isFinite(sumaNum) || sumaNum <= 0) {
-      setEroare("Suma trebuie să fie mai mare decât zero.");
-      return;
+    if (suma.trim() === "" || !Number.isFinite(sumaNum) || sumaNum <= 0) {
+      gasite.suma = ["Scrieți suma, mai mare decât zero."];
     }
-    if (!Number.isFinite(cursNum) || cursNum <= 0) {
-      setEroare("Cursul valutar trebuie să fie mai mare decât zero.");
+    const cursNum = Number(cursValutar);
+    if (!inLei && (cursValutar.trim() === "" || !Number.isFinite(cursNum) || cursNum <= 0)) {
+      gasite.curs_valutar = [`Scrieți cursul: câți lei face 1 ${moneda}.`];
+    }
+    return gasite;
+  }
+
+  function trimite(): void {
+    const gasite = valideaza();
+    setErori(gasite);
+    if (Object.keys(gasite).length > 0) {
+      setEroare("Corectați câmpurile marcate.");
       return;
     }
     setEroare(null);
@@ -70,15 +88,20 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
         tip,
         descriere: descriere.length === 0 ? null : descriere,
         data_cheltuielii: dataCheltuielii,
-        suma: sumaNum,
+        suma: Number(suma),
         moneda,
-        curs_valutar: cursNum,
+        curs_valutar: inLei ? 1 : Number(cursValutar),
         document_tip: null,
         document_numar: documentNumar.length === 0 ? null : documentNumar,
         document_cale: null,
       });
       if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
+        setErori(rezultat.error.fieldErrors ?? {});
+        setEroare(
+          rezultat.error.fieldErrors === null
+            ? rezultat.error.message
+            : "Corectați câmpurile marcate.",
+        );
         return;
       }
       setDescriere("");
@@ -90,130 +113,155 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
   }
 
   return (
-    <div className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">Adaugă o cheltuială</p>
+    <div className="border-border rounded-panou space-y-3 border p-4">
+      <p className="text-corp font-medium">Adaugă o cheltuială</p>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.tip} className="text-corp">
-          Tip
-        </label>
-        <select
-          id={id.tip}
-          value={tip}
-          onChange={(e) => {
-            setTip(e.target.value as (typeof TIPURI_CHELTUIALA)[number]);
-          }}
-          className={CLASA_CAMP}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Camp nume="tip" id="cheltuiala-tip" eticheta="Tip" fel="select" erori={erori["tip"] ?? []}>
+          {(a) => (
+            <select
+              {...a}
+              value={tip}
+              onChange={(e) => {
+                setTip(e.target.value as (typeof TIPURI_CHELTUIALA)[number]);
+                curata("tip");
+              }}
+            >
+              {TIPURI_CHELTUIALA.map((t) => (
+                <option key={t} value={t}>
+                  {ETICHETE_TIP_CHELTUIALA[t]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+
+        <Camp
+          nume="data_cheltuielii"
+          id="cheltuiala-data"
+          eticheta="Data cheltuielii"
+          erori={erori["data_cheltuielii"] ?? []}
         >
-          {TIPURI_CHELTUIALA.map((t) => (
-            <option key={t} value={t}>
-              {ETICHETE_TIP_CHELTUIALA[t]}
-            </option>
-          ))}
-        </select>
+          {(a) => (
+            <IntrareData
+              {...a}
+              valoare={dataCheltuielii}
+              onSchimba={(zi) => {
+                setDataCheltuielii(zi);
+                curata("data_cheltuielii");
+              }}
+            />
+          )}
+        </Camp>
+
+        <Camp
+          nume="descriere"
+          id="cheltuiala-descriere"
+          eticheta="Descriere (opțional)"
+          erori={erori["descriere"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="text"
+              maxLength={500}
+              value={descriere}
+              onChange={(e) => {
+                setDescriere(e.target.value);
+                curata("descriere");
+              }}
+            />
+          )}
+        </Camp>
+
+        <Camp nume="suma" id="cheltuiala-suma" eticheta="Suma" erori={erori["suma"] ?? []}>
+          {(a) => (
+            <input
+              {...a}
+              type="number"
+              min="0"
+              step="0.01"
+              value={suma}
+              onChange={(e) => {
+                setSuma(e.target.value);
+                curata("suma");
+              }}
+            />
+          )}
+        </Camp>
+
+        <Camp
+          nume="moneda"
+          id="cheltuiala-moneda"
+          eticheta="Moneda"
+          fel="select"
+          erori={erori["moneda"] ?? []}
+        >
+          {(a) => (
+            <select
+              {...a}
+              value={moneda}
+              onChange={(e) => {
+                setMoneda(e.target.value);
+                if (e.target.value === "RON") setCursValutar("1");
+                curata("moneda");
+                curata("curs_valutar");
+              }}
+            >
+              {MONEDE.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+
+        <Camp
+          nume="curs_valutar"
+          id="cheltuiala-curs"
+          eticheta={`Curs valutar (1 ${moneda} = ? lei)`}
+          {...(sumaLei === null ? {} : { ajutor: `= ${formatLei(sumaLei)}` })}
+          erori={erori["curs_valutar"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="number"
+              min="0"
+              step="0.000001"
+              disabled={inLei}
+              value={inLei ? "1" : cursValutar}
+              onChange={(e) => {
+                setCursValutar(e.target.value);
+                curata("curs_valutar");
+              }}
+            />
+          )}
+        </Camp>
+
+        <Camp
+          nume="document_numar"
+          id="cheltuiala-document"
+          eticheta="Număr document (opțional)"
+          erori={erori["document_numar"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="text"
+              maxLength={60}
+              value={documentNumar}
+              onChange={(e) => {
+                setDocumentNumar(e.target.value);
+                curata("document_numar");
+              }}
+            />
+          )}
+        </Camp>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.data} className="text-corp">
-          Data cheltuielii
-        </label>
-        <input
-          id={id.data}
-          type="date"
-          value={dataCheltuielii}
-          onChange={(e) => {
-            setDataCheltuielii(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.descriere} className="text-corp">
-          Descriere (opțional)
-        </label>
-        <input
-          id={id.descriere}
-          type="text"
-          maxLength={500}
-          value={descriere}
-          onChange={(e) => {
-            setDescriere(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.suma} className="text-corp">
-          Suma
-        </label>
-        <input
-          id={id.suma}
-          type="number"
-          min="0"
-          step="0.01"
-          value={suma}
-          onChange={(e) => {
-            setSuma(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.moneda} className="text-corp">
-          Moneda
-        </label>
-        <input
-          id={id.moneda}
-          type="text"
-          maxLength={3}
-          value={moneda}
-          onChange={(e) => {
-            setMoneda(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.curs} className="text-corp">
-          Curs valutar (1 {moneda || "monedă"} = ? lei)
-        </label>
-        <input
-          id={id.curs}
-          type="number"
-          min="0"
-          step="0.000001"
-          value={cursValutar}
-          onChange={(e) => {
-            setCursValutar(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-        {sumaLei === null ? null : (
-          <p className="text-muted-foreground text-nota">= {formatLei(sumaLei)}</p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.document} className="text-corp">
-          Număr document (opțional)
-        </label>
-        <input
-          id={id.document}
-          type="text"
-          maxLength={60}
-          value={documentNumar}
-          onChange={(e) => {
-            setDocumentNumar(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
           Adaugă cheltuiala
         </Buton>
