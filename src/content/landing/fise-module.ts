@@ -97,7 +97,7 @@ export type FisaModul = Readonly<{
 export const FISE: readonly FisaModul[] = [
   {
     cheie: "attendance",
-    actualizat: "2026-09-17",
+    actualizat: "2026-09-18",
     titluPagina: "Program de pontaj: foaie lunară și aprobare",
     metaDescriere:
       "Cum se ține pontajul în Administrativo: foaia colectivă lunară, pontarea de pe telefon, aprobarea pe echipă și blocarea lunii. Managerul aprobă, nu pontează.",
@@ -176,7 +176,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ssm",
-    actualizat: "2026-09-17",
+    actualizat: "2026-09-18",
     titluPagina: "SSM și PSI: instruiri, aptitudini, echipament",
     metaDescriere:
       "Matrice angajat × tip de instruire, cu semafor pe scadențe și „niciodată făcută” ca stare distinctă de „expirată”. Pentru HR și responsabilul SSM.",
@@ -239,7 +239,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "payroll",
-    actualizat: "2026-09-17",
+    actualizat: "2026-09-18",
     titluPagina: "Salarizare: calcul pas cu pas, cu cotele tale",
     metaDescriere:
       "Calcul salarial cu desfășurător și avertismente, pornit din luna de pontaj închisă. Cotele sunt versionate cu data de la care se aplică. Managerul nu vede salariile.",
@@ -322,7 +322,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "fleet",
-    actualizat: "2026-09-17",
+    actualizat: "2026-09-18",
     titluPagina: "Parc auto: ITP, RCA, rovinietă și foi de parcurs",
     metaDescriere:
       "Termenele fiecărei mașini cu semafor înainte de scadență, foi de parcurs cu kilometraj și alimentări. Managerul aprobă doar foile echipei.",
@@ -417,7 +417,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "per_diem",
-    actualizat: "2026-09-17",
+    actualizat: "2026-09-18",
     titluPagina: "Diurne și deplasări: calculul pe țări",
     metaDescriere:
       "Ordine de deplasare, etape pe țări și deconturi, cu ferestre de 24 de ore care curg de la plecare. Managerul aprobă, nu modifică.",
@@ -496,7 +496,7 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
-    actualizat: "2026-09-17",
+    actualizat: "2026-09-18",
     titluPagina: "Concedii: cerere, aprobare și sold automat",
     metaDescriere:
       "Cum se cer și se aprobă concediile în Administrativo: soldul pe fiecare tip, aprobarea pe echipă, trecerea automată pe pontaj.",
@@ -712,7 +712,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "reges",
-    actualizat: "2026-09-17",
+    actualizat: "2026-09-18",
     titluPagina: "REGES-Online: transmiterea contractelor la ITM",
     metaDescriere:
       "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale urmărite, reconciliere.",
@@ -1164,7 +1164,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "employee_portal",
-    actualizat: "2026-09-17",
+    actualizat: "2026-09-18",
     titluPagina: "Portalul angajatului, de pe telefon",
     metaDescriere:
       "Ce vede un angajat în portalul Administrativo: fluturașul, soldul de concediu, pontajul, cursurile, documentele. Cum e limitat accesul la propriile date.",

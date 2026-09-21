@@ -25,10 +25,29 @@ export function InMana({
   supratitlu,
   titlu,
   chei,
+  susInPagina = false,
 }: {
   readonly supratitlu: string;
   readonly titlu: string;
   readonly chei: readonly string[];
+  /**
+   * Banda stă destul de sus cât PRIMA imagine să fie elementul LCP al paginii.
+   *
+   * ── DE CE E UN PARAMETRU, NU O REGULĂ ─────────────────────────────────
+   * Depinde de pagină, nu de bandă. Măsurat cu Lighthouse pe 18 sept 2026:
+   * pe `/module/portal-angajat` banda vine devreme, imaginea ajunge la 617px
+   * de sus și DEVINE elementul LCP; pe `/pontaj-pe-telefon` aceeași bandă vine
+   * după cinci pași de text, e sub linia de plutire, iar LCP-ul rămâne un
+   * paragraf. O regulă unică ar fi greșit una dintre cele două.
+   *
+   * Când e `true`, prima imagine se încarcă devreme și cu prioritate. Restul
+   * rămân leneșe: ele chiar sunt sub linia de plutire în ambele cazuri.
+   *
+   * Capcana pe care o repară: o imagine care e ELEMENTUL LCP și are în același
+   * timp `loading="lazy"` își întârzie singură descoperirea. Browserul nu știe
+   * că e importantă — noi știm.
+   */
+  readonly susInPagina?: boolean;
 }) {
   const capturi = chei.map((cheie) => ({ cheie, captura: capturaInalta(cheie) }));
   // O cheie scrisă greșit ar randa o bandă cu un gol în ea. Mai bine nimic:
@@ -56,12 +75,29 @@ export function InMana({
 
           {/*
             `items-start`: afișul e 3:4, telefoanele sunt 1:2,16. Fără el, grila
-            ar întinde cele trei celule la aceeași înălțime și ar lăsa hârtia
-            plutind în mijlocul unei coloane goale.
+            ar întinde celulele la aceeași înălțime și ar lăsa hârtia plutind în
+            mijlocul unei coloane goale.
+
+            ── DE CE NUMĂRUL DE COLOANE URMEAZĂ NUMĂRUL DE IMAGINI ──────────
+            Aici a fost `lg:grid-cols-3` fix, scris pentru banda de pe
+            `/pontaj-pe-telefon`, care are trei imagini. Pe `/module/portal-angajat`
+            sunt două, iar a treia coloană rămânea goală: măsurat în browser pe
+            18 sept 2026, `370,656px × 3` cu doar două celule, adică o treime de
+            bandă albă în dreapta și o compoziție trasă spre stânga.
+
+            Clasele se aleg întregi, nu se construiesc din bucăți: Tailwind
+            citește sursa ca text, iar un `lg:grid-cols-${n}` n-ar exista în
+            foaia generată.
           */}
-          <div className="mt-8 grid items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {vizibile.map(({ cheie, captura }) => {
+          <div
+            className={`mt-8 grid items-start gap-6 sm:grid-cols-2 ${
+              vizibile.length > 2 ? "lg:grid-cols-3" : ""
+            }`}
+          >
+            {vizibile.map(({ cheie, captura }, indice) => {
               const idMarit = `inalta-${cheie}`;
+              // Doar PRIMA, și doar când banda stă sus. Vezi `susInPagina`.
+              const prioritara = susInPagina && indice === 0;
               return (
                 <figure key={cheie}>
                   <button
@@ -81,7 +117,8 @@ export function InMana({
                       alt={captura.alt}
                       width={captura.latime}
                       height={captura.inaltime}
-                      loading="lazy"
+                      loading={prioritara ? "eager" : "lazy"}
+                      fetchPriority={prioritara ? "high" : "auto"}
                       decoding="async"
                       className="block h-auto w-full"
                     />

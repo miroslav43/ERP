@@ -165,4 +165,5 @@ export const EVIDENTA_ORELOR: PaginaLege = {
 
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-03",
+  publicatIso: "2026-09-04",
 };
