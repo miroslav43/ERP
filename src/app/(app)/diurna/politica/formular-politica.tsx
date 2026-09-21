@@ -12,6 +12,7 @@ import { REGULI_TRECERE_FRONTIERA } from "@/schemas/per-diem";
 
 import { creeazaPolitica } from "../actions";
 import { ETICHETE_REGULA_TRECERE } from "../etichete";
+import { BaremuriTari, type RandBaremAfisat } from "./baremuri-tari";
 
 const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 const CLASA_AJUTOR = "text-muted-foreground text-nota";
@@ -40,9 +41,11 @@ function legeaLaData(
 export function FormularPolitica({
   tari,
   valoriLegale,
+  baremuri,
 }: {
   readonly tari: readonly Tara[];
   readonly valoriLegale: readonly ValoriLegaleDiurna[];
+  readonly baremuri: readonly RandBaremAfisat[];
 }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
@@ -230,7 +233,11 @@ export function FormularPolitica({
             className={CLASA_CAMP}
           />
           <p id={`${id.diurnaExternaZi}-ajutor`} className={CLASA_AJUTOR}>
-            Lăsați gol ca să se plătească baremul legal al fiecărei țări.
+            Lăsați gol ca să se plătească{" "}
+            <BaremuriTari baremuri={baremuri} multiplu={lege?.multiplu_plafon_neimpozabil ?? null}>
+              baremul legal al fiecărei țări
+            </BaremuriTari>
+            .
           </p>
         </div>
 
@@ -344,8 +351,11 @@ export function FormularPolitica({
               <strong>{formatAmount(plafonIntern ?? 0, "lei")} / zi</strong>.
             </li>
             <li>
-              Neimpozabil în străinătate: {formatAmount(lege.multiplu_plafon_neimpozabil)} × baremul
-              legal al țării.
+              Neimpozabil în străinătate: {formatAmount(lege.multiplu_plafon_neimpozabil)} ×{" "}
+              <BaremuriTari baremuri={baremuri} multiplu={lege.multiplu_plafon_neimpozabil}>
+                baremul legal al țării
+              </BaremuriTari>
+              .
             </li>
             <li>
               Pe lună, partea neimpozabilă nu poate depăși{" "}

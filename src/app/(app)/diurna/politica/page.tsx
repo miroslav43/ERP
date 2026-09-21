@@ -9,12 +9,19 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { formatAmount, formatLei } from "@/lib/format/money";
-import { politiciOrganizatie, tari, valoriLegaleDiurna } from "@/lib/queries/per-diem";
+import { baremLaData } from "@/domain/per-diem/sume";
+import {
+  baremeleTarilor,
+  politiciOrganizatie,
+  tari,
+  valoriLegaleDiurna,
+} from "@/lib/queries/per-diem";
 
 import { ETICHETE_REGULA_TRECERE } from "../etichete";
 import { NavDiurna } from "../nav-diurna";
+import { BaremuriTari, type RandBaremAfisat } from "./baremuri-tari";
 import { FormularPolitica } from "./formular-politica";
 
 export const metadata: Metadata = { title: "Politica de diurnă" };
@@ -43,6 +50,20 @@ export default async function PaginaPolitica() {
     valoriLegaleDiurna(),
   ]);
   const hartaTari = new Map(listaTari.map((t) => [t.id, t.denumire]));
+
+  // Baremul valabil AZI, categoria II — aceeași pe care o scrie acțiunea în
+  // fiecare politică nouă. Țările fără barem nu apar: nu au ce afișa.
+  const azi = todayInBucharest();
+  const toateBaremurile = await baremeleTarilor(listaTari.map((t) => t.id));
+  const baremuri: RandBaremAfisat[] = listaTari.flatMap((t) => {
+    const b = baremLaData(toateBaremurile, t.id, "II", azi);
+    return b === null
+      ? []
+      : [{ tara: t.denumire, valoare: b.valoare, moneda: b.moneda, valabilDeLa: b.valabilDeLa }];
+  });
+  const multiplu =
+    [...valoriLegale].sort((a, b) => b.valabil_de_la.localeCompare(a.valabil_de_la))[0]
+      ?.multiplu_plafon_neimpozabil ?? null;
 
   /**
    * Lista se citește ÎNTREAGĂ — `politiciOrganizatie` n-are cursor, fiindcă o
@@ -85,9 +106,13 @@ export default async function PaginaPolitica() {
       numeric: true,
       peTelefon: "meta",
       celula: (p) =>
-        p.diurna_externa_zi === null || p.moneda_diurna_externa === null
-          ? "baremul țării"
-          : formatAmount(p.diurna_externa_zi, p.moneda_diurna_externa),
+        p.diurna_externa_zi === null || p.moneda_diurna_externa === null ? (
+          <BaremuriTari baremuri={baremuri} multiplu={multiplu}>
+            baremul țării
+          </BaremuriTari>
+        ) : (
+          formatAmount(p.diurna_externa_zi, p.moneda_diurna_externa)
+        ),
     },
     {
       cheie: "trecere",
@@ -125,7 +150,7 @@ export default async function PaginaPolitica() {
       />
 
       {poateEdita ? (
-        <FormularPolitica tari={listaTari} valoriLegale={valoriLegale} />
+        <FormularPolitica tari={listaTari} valoriLegale={valoriLegale} baremuri={baremuri} />
       ) : (
         <p className="text-muted-foreground text-corp">
           Politica se configurează de administratorii organizației.
