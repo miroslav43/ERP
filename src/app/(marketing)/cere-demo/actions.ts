@@ -3,11 +3,19 @@
 
 import { businessRule } from "@/lib/actions/errors";
 import { createPublicAction } from "@/lib/actions/public-action";
+// `submit_demo_request` nu mai e expusă rolului `anon` (0145): funcția scrie un
+// rând pornind de la date nevalidate de nimeni altcineva, iar limitarea ei de
+// rată din bază se uita la IP-ul SERVERULUI nostru, nu al vizitatorului. Acum e
+// apelabilă doar cu `service_role`, iar singura poartă e limitarea de mai jos,
+// pe IP-ul verificat din antetele cererii. ESLint permite importul în
+// `actions.ts` prin lista albă din config.
+import { createAdminSupabase } from "@/lib/supabase/admin";
+
 import { schemaCereDemo } from "./schema";
 
 /**
- * Calea publică NU folosește service_role (S4): trimiterea se face prin funcția
- * SECURITY DEFINER `submit_demo_request`, expusă rolului anon.
+ * Calea publică trece prin funcția SECURITY DEFINER `submit_demo_request`, care
+ * validează ea însăși datele și scrie rândul de audit în aceeași tranzacție.
  * Rate limit persistent pe IP (S5) — mesajul de refuz este identic indiferent
  * dacă adresa a mai trimis sau nu o cerere.
  *
@@ -25,7 +33,7 @@ export const trimiteCerereDemo = createPublicAction({
     const telefon = input.telefon.length > 0 ? input.telefon : null;
     const mesaj = input.mesaj.length > 0 ? input.mesaj : null;
 
-    const { error } = await ctx.supabase.rpc("submit_demo_request", {
+    const { error } = await createAdminSupabase().rpc("submit_demo_request", {
       p_nume: input.nume,
       p_firma: input.firma,
       p_email: input.email,

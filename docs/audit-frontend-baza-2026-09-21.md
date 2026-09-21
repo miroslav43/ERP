@@ -137,12 +137,52 @@ de 60–120 s (`window.open`), fără nicio acreditare în browser.
 
 ---
 
-## 3. Ce rămâne deschis (baza de date)
+## 3. Baza de date: ce s-a reparat, ce rămâne
 
 Cele 55 de constatări confirmate sunt, aproape toate, forma asta: _regula există
 în Server Action, dar nu și în bază_. Cât timp un utilizator își are sesiunea în
 browser, ele rămân exploatabile de el însuși, prin instrumentele de dezvoltare.
 Fiecare cere o migrare — deci și confirmarea explicită a aplicării pe producție.
+
+### Lotul 1 — izolarea între firme · `0144_izolare_intre_firme.sql`
+
+Scris, aplicat pe bancul local, probat cu `tests/rls/proba-izolare-intre-firme.sql`
+(19 verificări, din care 8 POZITIVE), trecut prin revizorul adversarial de tenant.
+**Nu e încă aplicat pe producție.**
+
+| F01 | `avatars_select`/`_update` restrânse la folderul propriu sau la membrii administrați (`users:update = all`), plus `owner = auth.uid()` la UPDATE: enumerarea și mutarea între firme dispar |
+| F12 | `organization_members_insert` ȘTEARSĂ — apartenența se scrie doar prin `accept_invitation` (consimțământ dovedit) sau cu `service_role` |
+| F13 | `app.can_path`: ramura `team` verifică ENTITATEA din cale, nu doar resursa — dar numai pentru `employees` și `leave`, fiindcă la `courses` segmentul 3 e un material, nu o fișă |
+| F38 | `notifications_insert` cere ca destinatarul să fie membru activ al organizației scrise |
+
+Revizia adversarială a prins o regresie pozitivă pe care cele 14 verificări
+inițiale n-o atingeau: prima formă a lui `can_path` tăia managerului TOT modulul
+Cursuri (căile de curs poartă `course_materials.id` în segmentul 3). Proba are
+acum și cele trei verificări care o prind.
+
+Verificat read-only pe producție înainte de aplicare: zero căi de concediu și
+zero căi de document cu altceva decât o fișă în segmentul 3; cinci avatare, toate
+cu `owner` completat; `storage.prefixes` nu există pe proiect (deci enumerarea
+trece doar prin `storage.objects`).
+
+### Lotul 2 — marginea platformei · `0145_marginea_platformei.sql`
+
+Aceeași stare: aplicat pe banc, probat cu `tests/rls/proba-marginea-platformei.sql`
+(7 verificări), **neaplicat pe producție**.
+
+| F02 | `inregistreaza_organizatie` nu mai e apelabilă de `anon` — doar cu `service_role`, din Server Action. Cât era publică, oricine putea crea un cont CONFIRMAT pe adresa altcuiva, fiindcă funcția primește `token_hash` de la apelant |
+| F27 | limitatoarele de rată din bază erau două defecte suprapuse: IP-ul citit era al serverului nostru (o singură găleată pentru toți vizitatorii), iar numărătoarea se derula înapoi la fiecare eșec. Scoase din cele două funcții de scriere; limita reală rămâne cea din `createPublicAction`, pe IP-ul verificat |
+| F21 | `revoke all … from anon` pe tabele și secvențe, `revoke truncate/references/trigger` de la `authenticated`, plus `alter default privileges` ca drepturile să nu se întoarcă la următoarea tabelă |
+| F24 | `config.toml` trece pe `enable_signup = false`; pe producție comutatorul e în tabloul de bord Supabase și rămâne de apăsat cu mâna |
+
+**Defect nou, găsit în timpul reparației** (nu era în cele 55): `internal.rate_limit_hit`
+scrie contorul în aceeași tranzacție din care funcția apelantă apoi aruncă
+excepția, deci Postgres îl derulează înapoi. Măsurat: după un `peek_invitation`
+cu token inexistent, `rate_limits` rămâne gol. Un limitator care numără doar
+reușitele nu apără de ghicit. `peek_invitation` întoarce acum `{"gasit": false}`
+în loc să arunce, iar comportamentul e scris în comentariul funcției.
+
+### Loturile 3-5 — rămase
 
 ### Critic
 
@@ -220,15 +260,10 @@ apărut după verificarea adversarială:
 O singură constatare a fost **respinsă** la verificare (F25, re-cheierea unei
 invitații în așteptare): verificatorii n-au putut reproduce pasul decisiv.
 
-### Loturi propuse
+### Loturi
 
-1. **Izolare între firme** — F01 (avatare enumerabile și mutabile din altă firmă),
-   F12 (atașare de membru fără invitație), F13 (`can_path` tratează `team` ca
-   `all`), F38 (notificări către altă firmă). Astea sunt singurele care ies din
-   firma proprie.
-2. **Poarta de la marginea platformei** — F02 și F27 (funcții `anon` care acceptă
-   `token_hash` și IP de la apelant), F24 (înscrierea deschisă în tabloul de bord
-   Supabase), F21 (granturile `anon` moștenite).
+1. ✅ **Izolare între firme** — `0144`, vezi mai sus.
+2. ✅ **Poarta de la marginea platformei** — `0145`, vezi mai sus.
 3. **Bani și timp** — F05 (sume de salarizare), F06/F07/F47 (ore și compensări),
    F08 (auto-aprobare de diurnă), F28/F46 (auto-aprobare și mutare între luni).
 4. **Documente cu valoare probatorie** — F04 (șabloane și acte emise), F11 (fișa
