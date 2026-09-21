@@ -10,6 +10,7 @@ import { IntrareData } from "@/components/ui/intrare-data";
 import { IntrareDurata } from "@/components/ui/intrare-ora";
 import { formatDate } from "@/lib/format/date";
 import { formatAmount } from "@/lib/format/money";
+import type { ModCalculZile } from "@/domain/per-diem/ferestre";
 import type { Tara, ValoriLegaleDiurna } from "@/lib/queries/per-diem";
 import { REGULI_TRECERE_FRONTIERA } from "@/schemas/per-diem";
 
@@ -70,6 +71,7 @@ export function FormularPolitica({
   const [diurnaInternaZi, setDiurnaInternaZi] = useState("");
   const [diurnaExternaZi, setDiurnaExternaZi] = useState("");
   const [monedaDiurnaExterna, setMonedaDiurnaExterna] = useState("EUR");
+  const [modCalculZile, setModCalculZile] = useState<ModCalculZile>("zile_calendaristice");
   const [oreMinime, setOreMinime] = useState<number | null>(12);
   const [regulaTaraTrecere, setRegulaTaraTrecere] =
     useState<(typeof REGULI_TRECERE_FRONTIERA)[number]>("tara_sosire");
@@ -147,6 +149,7 @@ export function FormularPolitica({
         diurna_interna_zi: Number(diurnaInternaZi),
         diurna_externa_zi: externa,
         moneda_diurna_externa: externa === null ? null : monedaDiurnaExterna,
+        mod_calcul_zile: modCalculZile,
         ore_minime: oreMinime ?? 0,
         acorda_diurna_ziua_trecerii: acordaZiuaTrecerii,
         regula_tara_trecere: regulaTaraTrecere,
@@ -304,9 +307,41 @@ export function FormularPolitica({
         <legend className="text-corp mb-2 font-medium">Reguli</legend>
 
         <Camp
+          nume="mod_calcul_zile"
+          eticheta="Cum se numără zilele"
+          fel="select"
+          ajutor={
+            modCalculZile === "zile_calendaristice"
+              ? "Fiecare zi din calendar în care omul e pe drum — inclusiv ziua plecării și a întoarcerii — se plătește întreagă."
+              : "Câte 24 de ore de la ora plecării. Ce rămâne la final se plătește doar dacă trece de pragul de ore."
+          }
+        >
+          {(a) => (
+            <select
+              {...a}
+              value={modCalculZile}
+              onChange={(e) => {
+                setModCalculZile(e.target.value as ModCalculZile);
+              }}
+            >
+              <option value="zile_calendaristice">Pe zile din calendar</option>
+              <option value="ferestre_24h">Pe câte 24 de ore de la plecare</option>
+            </select>
+          )}
+        </Camp>
+
+        <Camp
           nume="ore_minime"
-          eticheta="Minim ore de deplasare pentru o zi de diurnă"
-          ajutor="Se numără câte 24 de ore de la plecare. Ce rămâne la final: peste acest prag, zi întreagă; sub el, nimic."
+          eticheta={
+            modCalculZile === "zile_calendaristice"
+              ? "Deplasare minimă, în ore"
+              : "Minim ore de deplasare pentru o zi de diurnă"
+          }
+          ajutor={
+            modCalculZile === "zile_calendaristice"
+              ? "O deplasare mai scurtă de atât, în total, nu primește diurnă."
+              : "Se numără câte 24 de ore de la plecare. Ce rămâne la final: peste acest prag, zi întreagă; sub el, nimic."
+          }
           erori={erori["ore_minime"] ?? []}
         >
           {(a) => (

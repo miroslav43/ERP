@@ -52,6 +52,7 @@ export function PrevizualizareDiurna({
 
     const taraFereastra = countryId ?? politica.country_id_intern;
     const ferestre = calculeazaZileDiurna({
+      modCalculZile: politica.mod_calcul_zile,
       plecare,
       sosire,
       pragOreMinim: politica.prag_ore_minim,

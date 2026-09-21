@@ -9576,6 +9576,7 @@ export type Database = {
           diurna_interna_zi: number
           fractiune_zi_partiala: number
           id: string
+          mod_calcul_zile: Database["public"]["Enums"]["per_diem_mod_calcul_zile"]
           moneda_diurna_externa: string | null
           moneda_interna: string
           moneda_tarif_km: string
@@ -9606,6 +9607,7 @@ export type Database = {
           diurna_interna_zi: number
           fractiune_zi_partiala: number
           id?: string
+          mod_calcul_zile?: Database["public"]["Enums"]["per_diem_mod_calcul_zile"]
           moneda_diurna_externa?: string | null
           moneda_interna: string
           moneda_tarif_km: string
@@ -9636,6 +9638,7 @@ export type Database = {
           diurna_interna_zi?: number
           fractiune_zi_partiala?: number
           id?: string
+          mod_calcul_zile?: Database["public"]["Enums"]["per_diem_mod_calcul_zile"]
           moneda_diurna_externa?: string | null
           moneda_interna?: string
           moneda_tarif_km?: string
@@ -13630,6 +13633,7 @@ export type Database = {
         | "tara_sosire"
         | "tara_cu_valoare_mai_mare"
         | "durata_maxima"
+      per_diem_mod_calcul_zile: "ferestre_24h" | "zile_calendaristice"
       permission_scope: "none" | "own" | "team" | "all"
       plan_type: "trial" | "starter" | "professional" | "enterprise"
       platforma_mobila: "ios" | "android"
@@ -14181,6 +14185,7 @@ export const Constants = {
         "tara_cu_valoare_mai_mare",
         "durata_maxima",
       ],
+      per_diem_mod_calcul_zile: ["ferestre_24h", "zile_calendaristice"],
       permission_scope: ["none", "own", "team", "all"],
       plan_type: ["trial", "starter", "professional", "enterprise"],
       platforma_mobila: ["ios", "android"],

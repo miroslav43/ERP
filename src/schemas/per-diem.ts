@@ -2,6 +2,8 @@
 // Validările de intrare pentru modulul de diurnă: deplasări, etape, cheltuieli, filtre.
 
 import { z } from "zod";
+
+import { MODURI_CALCUL_ZILE } from "@/domain/per-diem/ferestre";
 import { enumOptional, numarOptional, optional, textOptional } from "./comun";
 
 // ── Enumerări în oglindă cu tipurile din 0015_per_diem.sql ───────────────────
@@ -302,6 +304,7 @@ export const politicaNouaSchema = z
       .regex(RE_MONEDA, "Moneda diurnei externe trebuie scrisă din 3 litere.")
       .transform((v) => v.toUpperCase())
       .nullable(),
+    mod_calcul_zile: z.enum(MODURI_CALCUL_ZILE, "Alegeți cum se numără zilele de diurnă."),
     ore_minime: z.coerce
       .number()
       .positive("Numărul minim de ore trebuie să fie mai mare decât zero.")

@@ -115,6 +115,13 @@ export default async function PaginaPolitica() {
         ),
     },
     {
+      cheie: "zile",
+      antet: "Zilele se numără",
+      peTelefon: "meta",
+      celula: (p) =>
+        p.mod_calcul_zile === "zile_calendaristice" ? "pe calendar" : "câte 24 de ore",
+    },
+    {
       cheie: "trecere",
       antet: "Trecere frontieră",
       peTelefon: "meta",

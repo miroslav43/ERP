@@ -24,7 +24,18 @@ export const REGULI_TRECERE_FRONTIERA = [
 ] as const;
 export type RegulaTrecereFrontiera = (typeof REGULI_TRECERE_FRONTIERA)[number];
 
+/**
+ * Cum se numără zilele de diurnă (`per_diem_policies.mod_calcul_zile`, 0156):
+ * - `ferestre_24h` — câte 24 de ore de la plecare; restul final e tăiat de praguri;
+ * - `zile_calendaristice` — fiecare zi din calendar (ora României) în care omul
+ *   e pe drum se plătește întreagă, inclusiv ziua plecării și a întoarcerii.
+ */
+export const MODURI_CALCUL_ZILE = ["ferestre_24h", "zile_calendaristice"] as const;
+export type ModCalculZile = (typeof MODURI_CALCUL_ZILE)[number];
+
 export interface ParametriiFerestre {
+  /** Lipsă = `ferestre_24h`, ca valoarea implicită a coloanei. */
+  readonly modCalculZile?: ModCalculZile;
   readonly plecare: Date;
   readonly sosire: Date;
   readonly pragOreMinim: number;
@@ -55,11 +66,63 @@ export interface FereastraDiurna {
 }
 
 const ORE_PE_ZI = 24;
+const FUS_ORAR = "Europe/Bucharest";
 const MS_PE_ORA = 3_600_000;
 const MS_PE_ZI = ORE_PE_ZI * MS_PE_ORA;
 
 function laZiIso(data: Date): string {
   return data.toISOString().slice(0, 10);
+}
+
+const formatorBucuresti = new Intl.DateTimeFormat("en-CA", {
+  timeZone: FUS_ORAR,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Cu cât e ceasul României înaintea UTC la un moment dat (2 sau 3 ore). */
+function decalajBucurestiMs(moment: Date): number {
+  const p = Object.fromEntries(
+    formatorBucuresti.formatToParts(moment).map((x) => [x.type, x.value]),
+  );
+  const caSiUtc = Date.UTC(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    Number(p.hour),
+    Number(p.minute),
+    Number(p.second),
+  );
+  return caSiUtc - Math.floor(moment.getTime() / 1000) * 1000;
+}
+
+/** Ziua din calendar a României (`AAAA-LL-ZZ`) în care cade un moment. */
+function ziBucuresti(moment: Date): string {
+  return new Date(moment.getTime() + decalajBucurestiMs(moment)).toISOString().slice(0, 10);
+}
+
+/**
+ * Miezul nopții de la începutul zilei `zi`, ora României, ca moment absolut —
+ * oglinda lui `zi::timestamp at time zone 'Europe/Bucharest'`. Decalajul se
+ * recitește o dată la momentul găsit: în zilele de trecere la ora de vară
+ * miezul nopții și prânzul au decalaje diferite.
+ */
+function miezulNoptiiBucuresti(zi: string): Date {
+  const [an, luna, ziua] = zi.split("-").map(Number);
+  const utc = Date.UTC(an ?? 0, (luna ?? 1) - 1, ziua ?? 1);
+  const aproape = utc - decalajBucurestiMs(new Date(utc));
+  return new Date(utc - decalajBucurestiMs(new Date(aproape)));
+}
+
+function ziuaUrmatoare(zi: string): string {
+  const d = new Date(`${zi}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 type TaraCuOre = ReturnType<typeof orePeTara>[number];
@@ -113,9 +176,75 @@ function alegeTaraFerestrei(
 }
 
 /**
- * Împarte deplasarea în ferestre consecutive de 24 de ore (începând de la
- * momentul plecării, NU la miezul nopții calendaristic) și atribuie fiecăreia
- * o fracțiune de zi (0 / parțială / 1) și O SINGURĂ țară.
+ * Țara unei ferestre și efectul trecerii frontierei — comune ambelor moduri.
+ * Ziua trecerii se plătește O SINGURĂ dată, unei singure țări.
+ */
+function construiesteFereastra(
+  p: ParametriiFerestre,
+  numarFereastra: number,
+  deLa: Date,
+  panaLa: Date,
+  fractiuneInitiala: number,
+  motivInitial: string,
+): FereastraDiurna {
+  let fractiune = fractiuneInitiala;
+  let motiv = motivInitial;
+  const tariFereastra = orePeTara(p.etape, p.plecare, p.sosire, deLa, panaLa, p.taraImplicitaId);
+  const taraAleasa = alegeTaraFerestrei(
+    tariFereastra,
+    p.regulaTrecere,
+    laZiIso(deLa),
+    p.cautaValoareBarem,
+  );
+
+  if (tariFereastra.length > 1) {
+    if (p.acordaZiuaTrecerii) {
+      motiv = `${motiv}; trecere de frontieră — ziua atribuită unei singure țări (${p.regulaTrecere})`;
+    } else {
+      fractiune = 0;
+      motiv = "trecere de frontieră — politica firmei nu acordă diurnă în această zi";
+    }
+  }
+
+  return {
+    numarFereastra,
+    deLa,
+    panaLa,
+    taraId: taraAleasa ?? p.taraImplicitaId,
+    fractiune,
+    oreFereastra: (panaLa.getTime() - deLa.getTime()) / MS_PE_ORA,
+    motiv,
+  };
+}
+
+/**
+ * Fiecare zi din calendar atinsă de deplasare e o fereastră întreagă —
+ * oglinda lui `app.calculeaza_zile_diurna_calendar` (0156). Pragul minim se
+ * aplică doar duratei TOTALE: o deplasare mai scurtă nu primește nimic.
+ * O zi atinsă doar în clipa de miezul nopții (sosire la 00:00) nu contează.
+ */
+function zileCalendaristice(p: ParametriiFerestre): readonly FereastraDiurna[] {
+  const ferestre: FereastraDiurna[] = [];
+  const ultima = ziBucuresti(p.sosire);
+  let numar = 0;
+  for (let zi = ziBucuresti(p.plecare); zi <= ultima; zi = ziuaUrmatoare(zi)) {
+    const inceput = miezulNoptiiBucuresti(zi);
+    const sfarsit = miezulNoptiiBucuresti(ziuaUrmatoare(zi));
+    const deLa = inceput.getTime() > p.plecare.getTime() ? inceput : p.plecare;
+    const panaLa = sfarsit.getTime() < p.sosire.getTime() ? sfarsit : p.sosire;
+    if (panaLa.getTime() <= deLa.getTime()) continue;
+    numar += 1;
+    ferestre.push(construiesteFereastra(p, numar, deLa, panaLa, 1, "zi din calendar pe drum"));
+  }
+  return ferestre;
+}
+
+/**
+ * Împarte deplasarea în ferestre și atribuie fiecăreia o fracțiune de zi
+ * (0 / parțială / 1) și O SINGURĂ țară. În modul implicit, `ferestre_24h`,
+ * ferestrele sunt consecutive, de câte 24 de ore de la momentul plecării — NU
+ * de la miezul nopții calendaristic; în `zile_calendaristice`, sunt zilele din
+ * calendar.
  *
  * Toate pragurile sunt parametri veniți din `per_diem_policies` — nicio
  * constantă legală nu e scrisă în acest fișier.
@@ -127,6 +256,8 @@ export function calculeazaZileDiurna(p: ParametriiFerestre): readonly FereastraD
 
   // Sub pragul minim nu se acordă nimic: 22:00 → 06:00 (8 ore) ⇒ ZERO zile.
   if (durataOre < p.pragOreMinim) return [];
+
+  if (p.modCalculZile === "zile_calendaristice") return zileCalendaristice(p);
 
   const ferestreIntregi = Math.floor(durataOre / ORE_PE_ZI);
   const rest = durataOre - ferestreIntregi * ORE_PE_ZI;
@@ -155,34 +286,7 @@ export function calculeazaZileDiurna(p: ParametriiFerestre): readonly FereastraD
       motiv = "restul este sub pragul minim";
     }
 
-    const tariFereastra = orePeTara(p.etape, p.plecare, p.sosire, deLa, panaLa, p.taraImplicitaId);
-    const dataFereastra = laZiIso(deLa);
-    const taraAleasa = alegeTaraFerestrei(
-      tariFereastra,
-      p.regulaTrecere,
-      dataFereastra,
-      p.cautaValoareBarem,
-    );
-
-    // Ziua trecerii frontierei se plătește O SINGURĂ dată, unei singure țări.
-    if (tariFereastra.length > 1) {
-      if (p.acordaZiuaTrecerii) {
-        motiv = `${motiv}; trecere de frontieră — ziua atribuită unei singure țări (${p.regulaTrecere})`;
-      } else {
-        fractiune = 0;
-        motiv = "trecere de frontieră — politica firmei nu acordă diurnă în această zi";
-      }
-    }
-
-    ferestre.push({
-      numarFereastra: i,
-      deLa,
-      panaLa,
-      taraId: taraAleasa ?? p.taraImplicitaId,
-      fractiune,
-      oreFereastra: (panaLa.getTime() - deLa.getTime()) / MS_PE_ORA,
-      motiv,
-    });
+    ferestre.push(construiesteFereastra(p, i, deLa, panaLa, fractiune, motiv));
   }
 
   return ferestre;

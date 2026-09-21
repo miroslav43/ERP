@@ -10,7 +10,11 @@
 
 import "server-only";
 
-import { calculeazaZileDiurna, type FereastraDiurna } from "@/domain/per-diem/ferestre";
+import {
+  calculeazaZileDiurna,
+  type FereastraDiurna,
+  type ModCalculZile,
+} from "@/domain/per-diem/ferestre";
 import type { PunctTara } from "@/domain/per-diem/ore-pe-tara";
 import {
   calculeazaSume,
@@ -67,6 +71,7 @@ export interface PoliticaRand {
   readonly plafon_salarii_baza_luna: number;
   readonly diurna_externa_zi: number | null;
   readonly moneda_diurna_externa: string | null;
+  readonly mod_calcul_zile: ModCalculZile;
   readonly valabil_de_la: string;
   readonly valabil_pana: string | null;
 }
@@ -165,6 +170,7 @@ const COLOANE_POLITICA =
   "categorie_barem, prag_ore_minim, prag_ore_zi_intreaga, fractiune_zi_partiala, " +
   "acorda_diurna_ziua_trecerii, regula_tara_trecere, tarif_km_auto_personal, " +
   "moneda_tarif_km, plafon_salarii_baza_luna, diurna_externa_zi, moneda_diurna_externa, " +
+  "mod_calcul_zile, " +
   "valabil_de_la, valabil_pana";
 
 const COLOANE_DEPLASARE =
@@ -647,6 +653,7 @@ export function calculeazaDiurnaDeplasare(
   const durataOre = Math.max(0, (sosire.getTime() - plecare.getTime()) / 3_600_000);
 
   const ferestre = calculeazaZileDiurna({
+    modCalculZile: politicaRand.mod_calcul_zile,
     plecare,
     sosire,
     pragOreMinim: politicaRand.prag_ore_minim,

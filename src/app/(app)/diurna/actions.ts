@@ -368,6 +368,7 @@ export const creeazaPolitica = createAction({
       "diurna_interna_zi",
       "diurna_externa_zi",
       "moneda_diurna_externa",
+      "mod_calcul_zile",
       "ore_minime",
       "valabil_de_la",
     ],
@@ -394,7 +395,9 @@ export const creeazaPolitica = createAction({
         // Fără sumă externă fixă se plătește exact baremul țării.
         multiplu_diurna_externa: 1,
         categorie_barem: "II",
+        mod_calcul_zile: input.mod_calcul_zile,
         // Un singur prag: peste `ore_minime` ore, zi întreagă; sub, nimic.
+        // În `zile_calendaristice` pragul taie doar deplasarea scurtă în total.
         // Aceeași valoare pe ambele praguri face fracțiunea de zi parțială inutilă.
         prag_ore_minim: input.ore_minime,
         prag_ore_zi_intreaga: input.ore_minime,
