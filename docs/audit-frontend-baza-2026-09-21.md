@@ -240,6 +240,21 @@ A doua oară când verificarea `(l)` din `izolare.sql` a prins o poartă prea
 strâmtă: prima formă a lui `tickets_insert` cerea `rezultat_obtinut is null`, dar
 pe un tichet `bug_erp` ăla e chiar textul solicitantului.
 
+### Lotul 5 (continuare) — regulile modulelor · `0150_regulile_modulelor.sql`
+
+Probat cu `tests/rls/proba-regulile-modulelor.sql` (11 verificări, din care 5
+POZITIVE), **neaplicat pe producție**.
+
+| F22 | 22 de politici de scriere (KPI, evaluări, tichete) primesc poarta de modul. Regenerate din definițiile live, cu garda adăugată în față — nu rescrise de mână |
+| F10 | catalogul de mentenanță (echipamente, planuri, intervenții, autorizații ISCIR, contoare) cere `maintenance:update`, nu `maintenance:create`. Sesizarea rămâne pe `create`, dar nu se mai poate depune în numele altcuiva (NULL rămâne permis — sesizarea anonimă e legitimă) |
+| F29 | decizia asupra unei cereri de concediu cere `leave:approve`; `leave:update = all` rămâne pentru înregistrare, cum decisese `0056` |
+| F30 | după trimitere, solicitantul nu mai schimbă perioada, tipul sau porțiunile de zi — poate doar anula |
+| F19 | documentul cererii trebuie să fie sub dosarul fișei din cerere; `..` e respins |
+
+A treia oară când o poartă prea strâmtă a fost prinsă de probe: prima formă a
+politicii de sesizare cerea raportor obligatoriu, iar politica de KPI a scos la
+iveală că fixture-ul din `izolare.sql` n-avea modulul activat.
+
 ### Ce rămâne
 
 ### Critic

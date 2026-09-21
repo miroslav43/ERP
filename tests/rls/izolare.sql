@@ -114,6 +114,12 @@ begin
          -- ca un defect de politică, deși e doar un modul stins în fixture.
          (v_alfa, 'announcements', true), (v_alfa, 'payroll', true),
          (v_alfa, 'employee_portal', true), (v_alfa, 'ticketing', true),
+         -- `kpi` intră în listă de la 0150, care a adăugat poarta de modul în
+         -- politicile de scriere ale KPI-ului (până atunci lipsea, deci o firmă
+         -- fără modul îl putea folosi prin PostgREST). Verificarea (m) creează
+         -- un set KPI ca manager: fără modul, refuzul ar arăta ca un defect de
+         -- politică, deși ar fi doar modulul stins în fixture.
+         (v_alfa, 'kpi', true),
          (v_beta, 'ticketing', true),
          -- Activat pentru AMBELE: dacă Beta ar avea modulul stins, un rând
          -- invizibil pentru Alfa n-ar dovedi izolarea, ci doar că `feature_on`
