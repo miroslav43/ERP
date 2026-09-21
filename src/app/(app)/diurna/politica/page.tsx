@@ -10,8 +10,8 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
-import { formatLei } from "@/lib/format/money";
-import { politiciOrganizatie, tari } from "@/lib/queries/per-diem";
+import { formatAmount, formatLei } from "@/lib/format/money";
+import { politiciOrganizatie, tari, valoriLegaleDiurna } from "@/lib/queries/per-diem";
 
 import { ETICHETE_REGULA_TRECERE } from "../etichete";
 import { NavDiurna } from "../nav-diurna";
@@ -37,9 +37,10 @@ export default async function PaginaPolitica() {
   const poateAproba = can(permisiuni, "per_diem:approve", "team");
   const poateEdita = can(permisiuni, "per_diem:update", "all");
 
-  const [politici, listaTari] = await Promise.all([
+  const [politici, listaTari, valoriLegale] = await Promise.all([
     politiciOrganizatie(tenant.organizationId),
     tari(),
+    valoriLegaleDiurna(),
   ]);
   const hartaTari = new Map(listaTari.map((t) => [t.id, t.denumire]));
 
@@ -79,6 +80,16 @@ export default async function PaginaPolitica() {
       celula: (p) => formatLei(p.diurna_interna_zi),
     },
     {
+      cheie: "diurna_externa",
+      antet: "Diurnă străinătate",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (p) =>
+        p.diurna_externa_zi === null || p.moneda_diurna_externa === null
+          ? "baremul țării"
+          : formatAmount(p.diurna_externa_zi, p.moneda_diurna_externa),
+    },
+    {
       cheie: "trecere",
       antet: "Trecere frontieră",
       peTelefon: "meta",
@@ -114,7 +125,7 @@ export default async function PaginaPolitica() {
       />
 
       {poateEdita ? (
-        <FormularPolitica tari={listaTari} />
+        <FormularPolitica tari={listaTari} valoriLegale={valoriLegale} />
       ) : (
         <p className="text-muted-foreground text-corp">
           Politica se configurează de administratorii organizației.

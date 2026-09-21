@@ -76,6 +76,8 @@ export function PrevizualizareDiurna({
         multiploPlafonNeimpozabil: politica.multiplu_plafon_neimpozabil,
         multiploDiurnaExterna: politica.multiplu_diurna_externa,
         categorieBarem: politica.categorie_barem,
+        diurnaExternaZi: politica.diurna_externa_zi,
+        monedaDiurnaExterna: politica.moneda_diurna_externa,
       },
       baremuri,
       cursDiurna,

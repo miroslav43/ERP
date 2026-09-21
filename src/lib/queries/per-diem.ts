@@ -65,6 +65,8 @@ export interface PoliticaRand {
   readonly tarif_km_auto_personal: number;
   readonly moneda_tarif_km: string;
   readonly plafon_salarii_baza_luna: number;
+  readonly diurna_externa_zi: number | null;
+  readonly moneda_diurna_externa: string | null;
   readonly valabil_de_la: string;
   readonly valabil_pana: string | null;
 }
@@ -162,7 +164,8 @@ const COLOANE_POLITICA =
   "diurna_baza_legala_interna, multiplu_plafon_neimpozabil, multiplu_diurna_externa, " +
   "categorie_barem, prag_ore_minim, prag_ore_zi_intreaga, fractiune_zi_partiala, " +
   "acorda_diurna_ziua_trecerii, regula_tara_trecere, tarif_km_auto_personal, " +
-  "moneda_tarif_km, plafon_salarii_baza_luna, valabil_de_la, valabil_pana";
+  "moneda_tarif_km, plafon_salarii_baza_luna, diurna_externa_zi, moneda_diurna_externa, " +
+  "valabil_de_la, valabil_pana";
 
 const COLOANE_DEPLASARE =
   "id, employee_id, numar_document, scop, country_id, localitate, plecare_la, " +
@@ -340,6 +343,34 @@ export async function politiciOrganizatie(
     .is("deleted_at", null)
     .order("valabil_de_la", { ascending: false })
     .returns<PoliticaRand[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export interface ValoriLegaleDiurna {
+  readonly valabil_de_la: string;
+  readonly diurna_baza_legala_interna: number;
+  readonly multiplu_plafon_neimpozabil: number;
+  readonly plafon_salarii_baza_luna: number;
+  readonly sursa: string;
+}
+
+/**
+ * Valorile LEGALE ale diurnei (nomenclator global, ca `tari()` — fără
+ * `organizationId`). Se afișează în formularul politicii; firma nu le alege,
+ * le copiază triggerul din `0147_diurna_valori_legale.sql` în fiecare versiune.
+ * Câteva rânduri pe deceniu — se citesc toate.
+ */
+export async function valoriLegaleDiurna(): Promise<readonly ValoriLegaleDiurna[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("per_diem_valori_legale")
+    .select(
+      "valabil_de_la, diurna_baza_legala_interna, multiplu_plafon_neimpozabil, plafon_salarii_baza_luna, sursa",
+    )
+    .is("deleted_at", null)
+    .order("valabil_de_la", { ascending: false })
+    .returns<ValoriLegaleDiurna[]>();
   if (error !== null) throw error;
   return data ?? [];
 }
@@ -571,6 +602,8 @@ function politicaDinRand(rand: PoliticaRand): PoliticaDiurna {
     multiploPlafonNeimpozabil: rand.multiplu_plafon_neimpozabil,
     multiploDiurnaExterna: rand.multiplu_diurna_externa,
     categorieBarem: rand.categorie_barem,
+    diurnaExternaZi: rand.diurna_externa_zi,
+    monedaDiurnaExterna: rand.moneda_diurna_externa,
   };
 }
 
