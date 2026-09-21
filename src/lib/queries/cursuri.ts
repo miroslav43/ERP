@@ -35,6 +35,7 @@ import {
   predicatKeyset,
   sortareCeruta,
   type Directie,
+  tiparContine,
 } from "./cursor";
 
 // ── Traducerea cheie din URL → coloană. Explicită OBLIGATORIU: numele intră
@@ -123,7 +124,7 @@ export async function listeazaCursuri(
     if (filtre.doar_publicate === "da") cu = cu.eq("publicat", true);
     if (filtre.cauta !== null) {
       const t = filtre.cauta.replace(/[%,()]/gu, " ");
-      cu = cu.or(`denumire.ilike.%${t}%,cod.ilike.%${t}%`);
+      cu = cu.or(`denumire.ilike.${tiparContine(t)},cod.ilike.${tiparContine(t)}`);
     }
     return cu;
   };
@@ -239,7 +240,7 @@ export async function listeazaMateriale(
     if (filtre.fel !== null) cu = cu.eq("fel", filtre.fel);
     if (filtre.cauta !== null) {
       const t = filtre.cauta.replace(/[%,()]/gu, " ");
-      cu = cu.or(`titlu.ilike.%${t}%,cod.ilike.%${t}%`);
+      cu = cu.or(`titlu.ilike.${tiparContine(t)},cod.ilike.${tiparContine(t)}`);
     }
     return cu;
   };

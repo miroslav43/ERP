@@ -73,6 +73,28 @@ export function ghilimeleaza(valoare: string): string {
 }
 
 /**
+ * Un termen de căutare liber, pregătit pentru `ilike` în interiorul unui `or=`.
+ *
+ * Două lucruri, în ordinea asta:
+ *
+ * 1. METACARACTERELE LIKE se scapă. `%` și `_` din ce a tastat omul sunt
+ *    altfel jokeri: o căutare de „100%" întoarce tot, iar `_` potrivește orice
+ *    literă. `*` nu e metacaracter LIKE, dar PostgREST îl traduce în `%`, deci
+ *    intră în aceeași categorie.
+ * 2. REZULTATUL SE GHILIMELEAZĂ, fiindcă gramatica `or=` desparte condițiile la
+ *    virgulă și le grupează cu paranteze. O căutare cu virgulă („Popescu, Ion")
+ *    arunca PGRST100 și pica pagina; una cu paranteză tăia condiția tăcut.
+ *
+ * Nu e o barieră de securitate — cine are sesiunea poate oricum trimite singur
+ * un `or=` — ci corectitudinea căutării: rezultate greșite, tăcut, pe date
+ * scrise de utilizatori.
+ */
+export function tiparContine(termen: string): string {
+  const curatat = termen.replace(/[*]/gu, " ").replace(/[\\%_]/gu, "\\$&");
+  return ghilimeleaza(`%${curatat}%`);
+}
+
+/**
  * Predicatul de continuare, pentru `.or()`.
  *
  * „Rândurile de după cel pe care l-am terminat": ori valoarea e strict mai

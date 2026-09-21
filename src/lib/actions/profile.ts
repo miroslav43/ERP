@@ -13,6 +13,7 @@ import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/current-user";
 import { BUCKET_AVATARE, caleAvatar, verificaAvatar } from "@/lib/avatar/cale";
+import { caleInPrefix } from "@/lib/documents/cale";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { schemaParolaNoua, schemaProfilPropriu } from "@/schemas/profile";
 import { isPostgrestError, mapPostgrestError } from "./errors";
@@ -157,7 +158,7 @@ export async function salveazaAvatarulPropriu(rawInput: unknown): Promise<Action
   const user = await requireUser();
 
   const parsat = schemaSalveazaAvatar.safeParse(rawInput);
-  if (!parsat.success || !parsat.data.cale.startsWith(`${user.id}/`)) {
+  if (!parsat.success || !caleInPrefix(parsat.data.cale, `${user.id}/`)) {
     return esec({
       code: "VALIDARE",
       message: "Calea fișierului nu este validă.",

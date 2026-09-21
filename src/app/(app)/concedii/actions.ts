@@ -30,6 +30,7 @@ import {
   BUCKET_DOCUMENTE,
   construiesteCaleDocument,
   prefixCaleDocument,
+  caleInPrefix,
 } from "@/lib/documents/cale";
 import {
   sincronizeazaZileleDeConcediu,
@@ -108,7 +109,7 @@ function verificaCaleaDocumentului(
 ): void {
   if (cale === null || cale.trim().length === 0) return;
   const prefix = prefixCaleDocument(organizationId, "leave", employeeId);
-  if (!cale.startsWith(prefix)) {
+  if (!caleInPrefix(cale, prefix)) {
     throw invalidInput("Documentul atașat nu aparține acestei cereri.", {
       atasament_path: ["Cale invalidă."],
     });

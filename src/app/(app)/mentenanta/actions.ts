@@ -23,6 +23,8 @@ import {
 } from "@/schemas/maintenance";
 import { z } from "zod";
 
+import { tiparContine } from "@/lib/queries/cursor";
+
 import { traduEroare } from "./erori";
 
 // ── Sesizări ────────────────────────────────────────────────────────────
@@ -140,7 +142,7 @@ export const cautaEchipament = createAction({
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
       .neq("status", "casat")
-      .or(`cod.ilike.%${curatat}%,denumire.ilike.%${curatat}%`)
+      .or(`cod.ilike.${tiparContine(curatat)},denumire.ilike.${tiparContine(curatat)}`)
       .limit(10)
       .returns<EchipamentCautat[]>();
     if (error !== null) throw error;

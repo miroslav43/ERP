@@ -22,7 +22,15 @@ import { businessRule, invalidInput } from "@/lib/actions/errors";
 import { citesteExcelDinBuffer, LOT_IMPORT, verificaFisierImport } from "@/lib/import/excel";
 import { etichetaCampImport, mapeazaColoane, mapeazaRand } from "@/domain/import/mapare";
 import { schemaLotImport, valideazaRanduri, type AngajatProtejat } from "@/domain/import/validare";
-import { BUCKET_DOCUMENTE, caleLotImport, construiesteCaleDocument } from "@/lib/documents/cale";
+import { tiparContine } from "@/lib/queries/cursor";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import {
+  BUCKET_DOCUMENTE,
+  caleInPrefix,
+  caleLotImport,
+  construiesteCaleDocument,
+  prefixCaleDocument,
+} from "@/lib/documents/cale";
 import type { ActionContext } from "@/lib/actions/types";
 
 const PERMISIUNE = "employees:create";
@@ -66,8 +74,16 @@ export const analizeazaImportAngajati = createAction({
   audit: { entityType: "employees", action: "import", allow: ["batchId", "cale"] },
   input: z.object({ batchId: z.uuid(), cale: z.string().min(1).max(400) }),
   handler: async (ctx: ActionContext, input) => {
-    const prefix = `${ctx.tenant.organizationId}/import/${input.batchId}/`;
-    if (!input.cale.startsWith(prefix)) {
+    /*
+     * Prefixul se CONSTRUIEȘTE cu aceeași funcție ca la încărcare, nu se scrie
+     * de mână. Scris de mână era `{org}/import/{batch}/`, în timp ce pasul 1
+     * urca în `{org}/employees/{batch}/` — de pe 25.08.2026, când segmentul 2 a
+     * devenit o resursă de permisiune reală (vezi comentariul din `cale.ts`).
+     * Rezultatul: importul de angajați refuza FIECARE fișier, după ce îl urca,
+     * iar Excel-ul cu CNP-uri și IBAN-uri în clar rămânea în Storage.
+     */
+    const prefix = prefixCaleDocument(ctx.tenant.organizationId, "employees", input.batchId);
+    if (!caleInPrefix(input.cale, prefix)) {
       const mesaj = "Calea fișierului nu corespunde acestui import.";
       throw invalidInput(mesaj, { cale: [mesaj] });
     }
@@ -76,7 +92,32 @@ export const analizeazaImportAngajati = createAction({
     if (descarcare.error !== null || descarcare.data === null) {
       throw businessRule("Fișierul încărcat nu mai este disponibil. Reia încărcarea.");
     }
-    const citire = await citesteExcelDinBuffer(await descarcare.data.arrayBuffer());
+    const octeti = await descarcare.data.arrayBuffer();
+
+    /*
+     * Excel-ul SURSĂ pleacă imediat ce a fost citit în memorie.
+     *
+     * El conține CNP-uri și IBAN-uri în CLAR — exact ce nu se scrie nicăieri în
+     * produs (vezi criptarea de mai jos). Până acum rămânea în Storage pentru
+     * totdeauna: `storage.objects` n-are politică DELETE, deci nici măcar un
+     * org_admin nu-l putea scoate, iar niciun job nu-l curăța. Ștergerea cere
+     * deci `service_role`, cu calea verificată mai sus că e sub prefixul
+     * organizației din sesiune — niciodată dintr-un argument crezut pe cuvânt.
+     *
+     * Se întâmplă ÎNAINTE de parsare: dacă fișierul e invalid, cu atât mai puțin
+     * are ce căuta acolo. Eșecul ștergerii nu oprește importul — s-ar pierde
+     * munca omului pentru o problemă de curățenie — dar se vede în jurnal.
+     */
+    const sterge = await createAdminSupabase().storage.from(BUCKET_DOCUMENTE).remove([input.cale]);
+    if (sterge.error !== null) {
+      console.warn("[angajati.import.analizeaza] fișierul sursă n-a putut fi șters", {
+        requestId: ctx.requestId,
+        batchId: input.batchId,
+        eroare: sterge.error.message,
+      });
+    }
+
+    const citire = await citesteExcelDinBuffer(octeti);
     if (!citire.ok) throw invalidInput(citire.mesaj, {});
 
     const mapare = mapeazaColoane(citire.foaie.antet);
@@ -153,14 +194,24 @@ async function idDupaCheie(
   tabel: "departments",
   denumire: string,
 ): Promise<string | null> {
-  const { data } = await ctx.supabase
+  const { data, error } = await ctx.supabase
     .from(tabel)
     .select("id")
     .eq("organization_id", ctx.tenant.organizationId)
     .is("deleted_at", null)
-    .or(`cod.ilike.${denumire},denumire.ilike.${denumire}`)
+    /*
+     * Denumirea vine dintr-o celulă de Excel, deci poate conține orice: virgulă
+     * („Resurse Umane, Salarizare") rupea expresia `or=` și arunca PGRST100,
+     * iar `%` sau `_` o transformau în joker care lega angajatul de un
+     * departament arbitrar al firmei. `tiparContine` scapă metacaracterele și
+     * ghilimelează pentru gramatica `or=`.
+     */
+    .or(`cod.ilike.${tiparContine(denumire)},denumire.ilike.${tiparContine(denumire)}`)
     .limit(1)
     .maybeSingle();
+  if (error !== null) {
+    throw businessRule("Nu am putut căuta departamentul din fișier. Încearcă din nou.");
+  }
   return data?.id ?? null;
 }
 

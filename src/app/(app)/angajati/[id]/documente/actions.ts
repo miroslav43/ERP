@@ -9,6 +9,7 @@ import {
   construiesteCaleDocument,
   prefixCaleDocument,
   verificaDocument,
+  caleInPrefix,
 } from "@/lib/documents/cale";
 import { adunaContextInrolare } from "@/lib/documents/context-angajat";
 import { coduriEligibile, genereazaDocumenteInrolare } from "@/lib/documents/inrolare";
@@ -135,7 +136,7 @@ export const salveazaDocument = createAction({
   handler: async (ctx: ActionContext, input) => {
     await verificaAngajatul(ctx, input.employeeId);
     const prefix = prefixCaleDocument(ctx.tenant.organizationId, "employees", input.employeeId);
-    if (!input.cale.startsWith(prefix)) {
+    if (!caleInPrefix(input.cale, prefix)) {
       const mesaj = "Calea fișierului nu corespunde acestui angajat.";
       throw invalidInput(mesaj, { cale: [mesaj] });
     }

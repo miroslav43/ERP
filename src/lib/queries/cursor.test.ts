@@ -8,6 +8,7 @@ import {
   predicatKeyset,
   scrieSortare,
   sortareCeruta,
+  tiparContine,
 } from "./cursor";
 
 /**
@@ -133,5 +134,29 @@ describe("sortareCeruta", () => {
     ] as const) {
       expect(sortareCeruta(scrieSortare(s), permise, implicit)).toEqual(s);
     }
+  });
+});
+
+describe("tiparContine", () => {
+  it("ghilimelează, ca virgula să nu rupă expresia `or=`", () => {
+    /*
+     * Fără ghilimele, „Popescu, Ion" devine DOUĂ condiții în gramatica `or=`:
+     * căutarea arunca PGRST100 și pica pagina de tichete.
+     */
+    expect(tiparContine("Popescu, Ion")).toBe('"%Popescu, Ion%"');
+  });
+
+  it("scapă metacaracterele LIKE din ce a tastat omul", () => {
+    /*
+     * Backslash-ul pus pentru LIKE se dublează la ghilimelare, și e corect:
+     * PostgREST dezescapează o dată valoarea dintre ghilimele, deci pe sârmă
+     * trebuie `\\%` ca LIKE să vadă `\%`.
+     */
+    expect(tiparContine("100%")).toBe('"%100\\\\%%"');
+    expect(tiparContine("a_b")).toBe('"%a\\\\_b%"');
+  });
+
+  it("neutralizează `*`, pe care PostgREST îl traduce în `%`", () => {
+    expect(tiparContine("*")).toBe('"% %"');
   });
 });

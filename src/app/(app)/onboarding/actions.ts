@@ -3,6 +3,7 @@
 import type { Json } from "@/types/database";
 import { createAction } from "@/lib/actions/create-action";
 import type { ActionContext } from "@/lib/actions/types";
+import { caleInPrefix } from "@/lib/documents/cale";
 import { BUCKET_CHECKLISTS, construiesteCaleDovada, prefixCaleDovada } from "@/lib/onboarding/cale";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -354,7 +355,7 @@ export const salveazaDovada = createAction({
     // lega de pasul lui un obiect scris sub folderul altcuiva — poarta de
     // Storage a păzit SCRIEREA, nu referința.
     const prefix = prefixCaleDovada(ctx.tenant.organizationId, pas.employee_id, pas.id);
-    if (!input.cale.startsWith(prefix)) {
+    if (!caleInPrefix(input.cale, prefix)) {
       throw invalidInput("Calea fișierului nu corespunde acestui pas.", {
         cale: ["Cale invalidă."],
       });
