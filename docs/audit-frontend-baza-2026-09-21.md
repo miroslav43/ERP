@@ -198,7 +198,24 @@ prinsă de verificarea `(l)` din `tests/rls/izolare.sql` — singura poartă POZ
 a proiectului: ziua de homeoffice trecută cu norma întreagă, fără ceas, e o
 scriere legitimă a unui `employee`. Plafonul e acum norma, nu zero.
 
-### Loturile 4-5 — rămase
+### Lotul 4 — acte cu valoare probatorie · `0148_acte_cu_valoare_probatorie.sql`
+
+Aplicat pe banc, probat cu `tests/rls/proba-acte-probatorii.sql` (10 verificări,
+din care 4 POZITIVE), **neaplicat pe producție**.
+
+| F04 | HTML executabil (`<script>`, `<iframe>`, `onclick=`, `javascript:`) nu mai intră în șabloane; conținutul, amprenta și identitatea unui act EMIS sunt înghețate — rămâne doar anularea |
+| F11 | `job_descriptions`: UPDATE pe coloane, semnătura (`semnat_la`, `semnat_de_angajat`, `semnatura_ip`) și conținutul ies din grantul clientului |
+| F26 | `inregistreaza_document_generat`: punctul de lucru trebuie să fie al firmei, rezumatul e plafonat la 500 de caractere |
+| F31 | cerința de dovadă (`tip_dovada`), legătura cu șablonul și cu materialul sunt înghețate; cine a bifat și când vin din sesiune |
+| F32 | predicatul tautologic (`ii.employee_id = ii.employee_id`) rescris cu coloanele exterioare calificate |
+| F35 | conținutul înregistrării din registru (rezumat, emitent, destinatar, nr./dată document, file, anexe) înghețat odată cu numerotarea; rezolvarea dosarului rămâne editabilă |
+| F50 | `citit_la` se scrie din server (`now()`), deci confirmarea de lectură nu se mai poate antedata |
+
+Capcană găsită la scriere: în expresiile regulate din Postgres `\b` **nu** e
+graniță de cuvânt, ci caracterul BACKSPACE. Prima formă a filtrului de HTML
+folosea `\b` și nu prindea nimic — a trecut de citire și a picat la probă.
+
+### Lotul 5 — rămas
 
 ### Critic
 
@@ -282,9 +299,9 @@ invitații în așteptare): verificatorii n-au putut reproduce pasul decisiv.
 2. ✅ **Poarta de la marginea platformei** — `0145`, vezi mai sus.
 3. ✅ **Bani și timp** — `0146`, vezi mai sus (inclusiv F46: o zi dintr-o lună
    blocată nu mai poate fi mutată în alta).
-4. **Documente cu valoare probatorie** — F04 (șabloane și acte emise), F11 (fișa
-   postului și semnătura), F26/F35 (registrul legal), F31/F32/F48 (dovezi de
-   instruire și integrare), F50 (confirmarea de citire).
+4. ✅ **Documente cu valoare probatorie** — `0148`, vezi mai sus. F48 rămâne
+   (managerul bifează lecția de test a subalternului): ramura e scrisă
+   intenționat în `0075`, deci e o decizie de produs, nu o corecție.
 5. **Restul** — câmpuri de conținut și derivate scriibile direct (F03, F09, F10,
    F19, F29, F30, F33–F37, F39, F49), plus igienă (F40–F45, F51–F56).
 
