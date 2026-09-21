@@ -377,6 +377,53 @@ Fiecare lot se probează pe bancul local înainte, cu **probă pozitivă** oblig
 
 ---
 
+## 3b. Ce rămâne de făcut cu mâna, din afara codului
+
+Trei lucruri nu se rezolvă dintr-o migrare și nici dintr-un commit. Sunt scrise
+aici ca pași, nu ca recomandări generale.
+
+### (F24) Închide înscrierea publică din Supabase
+
+Aplicația nu cheamă niciodată `signUp`: conturile se creează exclusiv cu
+`admin.createUser` (service_role), din fluxul de invitație. Cu înscrierea
+deschisă, oricine își poate face un cont `authenticated` pe platformă și poate
+OCUPA adresa unui viitor invitat — iar `admin.createUser` eșuează apoi cu „are
+deja cont".
+
+1. Supabase → proiectul `nybmhorngsajoqaxjlbr` → **Authentication** → **Sign In / Providers**.
+2. **Email** → stinge „Allow new users to sign up".
+3. Verificare, din terminal (trebuie să scrie `"disable_signup":true`):
+   `curl -s "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/settings" -H "apikey: $CHEIA_PUBLICABILA" | head -c 200`
+4. Tot acolo: pornește „Leaked password protection" și urcă lungimea minimă a
+   parolei peste 6 (advisorul `auth_leaked_password_protection` o cere de luni).
+
+`supabase/config.toml` e deja pe `enable_signup = false`, dar el configurează
+doar stiva locală.
+
+### Rotirea cheii publicabile
+
+Cheia a stat în fiecare bundle livrat până la 21 sept 2026, deci oricine a
+deschis aplicația o are în cache. Scoaterea ei din bundle (§2.3) o face inutilă
+pentru vizitatorii noi, dar nu o retrage de la cine o are deja. Rotirea e
+opțională — protecția reală rămâne RLS — dar dacă o vrei:
+
+1. Supabase → **Project Settings** → **API Keys** → creează o cheie
+   `publishable` nouă.
+2. Pune valoarea în `NEXT_PUBLIC_SUPABASE_ANON_KEY` pe mediul de rulare și în
+   secretele de build (Docker `ARG`, `ci.yml`).
+3. Construiește și pornește imaginea nouă ÎNAINTE să dezactivezi cheia veche:
+   cele două trebuie să coexiste cât ține deployul.
+4. Dezactivează cheia veche și verifică `pnpm check:bundle` pe imaginea nouă.
+
+### Serverul de dezvoltare vorbește cu PRODUCȚIA (F54)
+
+`.env.local` de pe stația asta are `NEXT_PUBLIC_SUPABASE_URL` și
+`SUPABASE_SERVICE_ROLE_KEY` ale proiectului de producție. Orice `pnpm dev` de
+aici scrie în baza reală — inclusiv probele din sesiunea asta, care au încărcat
+avatarul contului demo. Dacă nu e o alegere deliberată, mediul de dezvoltare ar
+trebui să fie un proiect separat (staging), iar cheia de serviciu a producției
+să nu stea pe stații.
+
 ## 4. Ce nu s-a putut dovedi
 
 - Dacă un străin poate obține azi un JWT de `authenticated` (înscrierea publică

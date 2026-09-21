@@ -4,7 +4,13 @@ import type { Json } from "@/types/database";
 import { createAction } from "@/lib/actions/create-action";
 import type { ActionContext } from "@/lib/actions/types";
 import { caleInPrefix } from "@/lib/documents/cale";
-import { BUCKET_CHECKLISTS, construiesteCaleDovada, prefixCaleDovada } from "@/lib/onboarding/cale";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import {
+  BUCKET_CHECKLISTS,
+  construiesteCaleDovada,
+  prefixCaleDovada,
+  verificaDovada,
+} from "@/lib/onboarding/cale";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
@@ -361,13 +367,24 @@ export const salveazaDovada = createAction({
       });
     }
 
+    // Mărimea și tipul REALE, citite de la Storage: cele din `input` sunt ce a
+    // declarat browserul ÎNAINTE să urce ceva, iar tokenul semnat nu le fixează.
+    const masurat = await masoaraObiectul(ctx.supabase, BUCKET_CHECKLISTS, input.cale);
+    if (masurat === null) {
+      throw businessRule("Fișierul încărcat nu mai este disponibil. Reia încărcarea.");
+    }
+    const problemaFisier = verificaDovada({ size: masurat.octeti, type: masurat.mime });
+    if (problemaFisier !== null) {
+      throw invalidInput(problemaFisier.mesaj, { cale: [problemaFisier.mesaj] });
+    }
+
     const { data, error } = await ctx.supabase
       .from("checklist_instance_items")
       .update({
         dovada_fisier_path: input.cale,
         dovada_fisier_nume: input.nume,
-        dovada_fisier_mime: input.mime,
-        dovada_fisier_marime_bytes: input.marime_bytes,
+        dovada_fisier_mime: masurat.mime,
+        dovada_fisier_marime_bytes: masurat.octeti,
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)

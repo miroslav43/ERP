@@ -12,6 +12,7 @@ import {
   caleInPrefix,
 } from "@/lib/documents/cale";
 import { adunaContextInrolare } from "@/lib/documents/context-angajat";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
 import { coduriEligibile, genereazaDocumenteInrolare } from "@/lib/documents/inrolare";
 import { CODURI_INROLARE } from "@/lib/documents/variabile";
 import type { ActionContext } from "@/lib/actions/types";
@@ -141,6 +142,19 @@ export const salveazaDocument = createAction({
       throw invalidInput(mesaj, { cale: [mesaj] });
     }
 
+    /*
+     * Ce s-a urcat CHIAR, nu ce a declarat browserul înainte să urce.
+     * `mime` și `dimensiune` din `input` sunt valorile pe care clientul le-a
+     * trimis la pasul de pregătire; tokenul semnat nu le fixează, deci după el
+     * se putea urca orice, de orice mărime, iar rândul le scria ca adevăr.
+     */
+    const masurat = await masoaraObiectul(ctx.supabase, BUCKET_DOCUMENTE, input.cale);
+    if (masurat === null) {
+      throw businessRule("Fișierul încărcat nu mai este disponibil. Reia încărcarea.");
+    }
+    const problema = verificaDocument(masurat.mime, masurat.octeti);
+    if (problema !== null) throw invalidInput(problema, { cale: [problema] });
+
     const { data, error } = await ctx.supabase
       .from("employee_documents")
       .insert({
@@ -150,8 +164,8 @@ export const salveazaDocument = createAction({
         titlu: input.titlu,
         fisier_path: input.cale,
         fisier_nume: input.numeFisier,
-        fisier_marime_bytes: input.dimensiune,
-        fisier_mime: input.mime,
+        fisier_marime_bytes: masurat.octeti,
+        fisier_mime: masurat.mime,
         confidential: input.confidential,
         vizibil_angajatului: input.vizibilAngajatului,
         ...(input.numarDocument === undefined ? {} : { numar_document: input.numarDocument }),

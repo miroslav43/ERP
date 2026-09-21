@@ -10,6 +10,7 @@ import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { BUCKET_AVATARE, caleAvatar, verificaAvatar } from "@/lib/avatar/cale";
 import { caleInPrefix } from "@/lib/documents/cale";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
 import type { ActionContext } from "@/lib/actions/types";
 
 const idAngajat = z.object({ employeeId: z.uuid() });
@@ -71,6 +72,13 @@ export const salveazaAvatarAngajat = createAction({
   ],
   handler: async (ctx: ActionContext, input) => {
     const userId = await userIdAngajat(ctx, input.employeeId);
+    const masurat = await masoaraObiectul(ctx.supabase, BUCKET_AVATARE, input.cale);
+    const problemaFisier =
+      masurat === null
+        ? "Fotografia încărcată nu mai este disponibilă. Reluați încărcarea."
+        : verificaAvatar(masurat.mime, masurat.octeti);
+    if (problemaFisier !== null) throw businessRule(problemaFisier);
+
     if (!caleInPrefix(input.cale, `${userId}/`)) {
       throw businessRule("Calea fișierului nu corespunde acestui angajat.");
     }

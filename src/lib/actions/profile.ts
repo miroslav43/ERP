@@ -14,6 +14,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/current-user";
 import { BUCKET_AVATARE, caleAvatar, verificaAvatar } from "@/lib/avatar/cale";
 import { caleInPrefix } from "@/lib/documents/cale";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { schemaParolaNoua, schemaProfilPropriu } from "@/schemas/profile";
 import { isPostgrestError, mapPostgrestError } from "./errors";
@@ -168,6 +169,18 @@ export async function salveazaAvatarulPropriu(rawInput: unknown): Promise<Action
   }
 
   const db = await createServerSupabase();
+
+  // Fotografia REALĂ, nu cea declarată la pasul de pregătire: tokenul semnat nu
+  // fixează nici tipul, nici mărimea, deci după el se putea urca orice.
+  const masurat = await masoaraObiectul(db, BUCKET_AVATARE, parsat.data.cale);
+  const problemaFisier =
+    masurat === null
+      ? "Fotografia încărcată nu mai este disponibilă. Reluați încărcarea."
+      : verificaAvatar(masurat.mime, masurat.octeti);
+  if (problemaFisier !== null) {
+    return esec({ code: "VALIDARE", message: problemaFisier, fieldErrors: null, requestId });
+  }
+
   const { error } = await db
     .from("profiles")
     .update({ avatar_path: parsat.data.cale })
