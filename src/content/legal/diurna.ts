@@ -194,7 +194,7 @@ export const DIURNA: PaginaLege = {
   legaturaSecundara: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
 
   legaturiConexe: [
-    { eticheta: "Modulul Diurne și deplasări", href: "/module/diurna" },
+    { eticheta: "Modulul Deplasări și diurne", href: "/module/diurna" },
     { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
     { eticheta: "Evidența orelor de muncă: art. 119", href: "/evidenta-orelor-de-munca" },
   ],

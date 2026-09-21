@@ -358,7 +358,7 @@ export const RO: ContinutLanding = {
           },
           {
             cheie: "per_diem",
-            titlu: "Diurne și deplasări",
+            titlu: "Deplasări și diurne",
             text: "Ordine de deplasare, etape pe țări și deconturi. Ferestrele de 24 de ore curg de la plecare, nu de la miezul nopții.",
             puncte: [
               "Ziua trecerii de frontieră se plătește o singură dată, unei singure țări",
@@ -716,7 +716,7 @@ export const RO: ContinutLanding = {
       {
         titlu: "Transport și logistică",
         text: "ITP, RCA și rovinietă cu termen, foi de parcurs cu kilometraj verificat, diurne externe pe țări, cu ferestre de 24 de ore și plafon neimpozabil.",
-        module: ["Parc auto", "Diurne și deplasări", "Pontaj", "Mentenanță"],
+        module: ["Parc auto", "Deplasări și diurne", "Pontaj", "Mentenanță"],
       },
       {
         titlu: "Servicii, birouri și comerț",
@@ -817,7 +817,7 @@ export const RO: ContinutLanding = {
       {
         cheie: "financiar",
         nume: "Financiar",
-        pentru: "Peste nucleu: salarizare, diurne și deplasări",
+        pentru: "Peste nucleu: salarizare, deplasări și diurne",
       },
       {
         cheie: "tot",

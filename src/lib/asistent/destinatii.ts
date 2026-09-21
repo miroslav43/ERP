@@ -1030,7 +1030,7 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Rapoartele de personal și salarizare, cu export în Excel.",
   },
 
-  // ── Diurne și deplasări ────────────────────────────────────────────────────
+  // ── Deplasări și diurne ────────────────────────────────────────────────────
   {
     id: "diurna",
     href: "/diurna",

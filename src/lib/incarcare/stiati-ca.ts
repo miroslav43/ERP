@@ -256,31 +256,31 @@ export const MESAJE: readonly MesajIncarcare[] = [
     categorie: "Salarizare",
   },
 
-  // ── Diurne și deplasări ───────────────────────────────────────────────
+  // ── Deplasări și diurne ───────────────────────────────────────────────
   // src/domain/per-diem/ferestre.ts
   {
     text: "Sub pragul minim de ore al politicii, o deplasare nu generează nicio zi de diurnă.",
-    categorie: "Diurne și deplasări",
+    categorie: "Deplasări și diurne",
   },
   // src/domain/per-diem/ferestre.test.ts
   {
     text: "O deplasare de 64 de ore dă 1 + 1 + 0,5 zile, nu trei: fereastra incompletă se plătește fracționat.",
-    categorie: "Diurne și deplasări",
+    categorie: "Deplasări și diurne",
   },
   // src/domain/per-diem/ferestre.ts (REGULI_TRECERE_FRONTIERA)
   {
     text: "Ziua trecerii frontierei se atribuie după regula aleasă în politică, nu după o convenție fixă.",
-    categorie: "Diurne și deplasări",
+    categorie: "Deplasări și diurne",
   },
   // src/app/(app)/diurna/politica/page.tsx, NOTES.md §3
   {
     text: "Baremul pe țări se administrează ca date, în politica firmei, nu scris în cod.",
-    categorie: "Diurne și deplasări",
+    categorie: "Deplasări și diurne",
   },
   // src/app/(app)/diurna/[id]/decont/page.tsx, src/app/globals.css:784
   {
     text: "Decontul de deplasare e o pagină tipăribilă: meniul și antetul se ascund automat la tipărire.",
-    categorie: "Diurne și deplasări",
+    categorie: "Deplasări și diurne",
   },
 
   // ── SSM și PSI ────────────────────────────────────────────────────────

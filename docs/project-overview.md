@@ -131,7 +131,7 @@ documentată în `PROGRESS.md`, unde 8 din 11 module aveau doar schemă).
 | Parc auto                      | `/flota`                         | vehicule, foi de parcurs, verificat kilometraj                                                      |
 | Mentenanță                     | `/mentenanta`                    | echipamente, inclusiv ISCIR                                                                         |
 | Inventar                       | `/inventar`                      | alocare obiecte, predare-primire, „ce am în primire"                                                |
-| Diurne și deplasări            | `/diurna`                        | calcul diurnă intern/extern                                                                         |
+| Deplasări și diurne            | `/diurna`                        | calcul diurnă intern/extern                                                                         |
 | Evaluări                       | `/evaluari`                      | șabloane pe criterii, evaluări create de manageri SAU administratori                                |
 | Anunțuri                       | `/anunturi`                      | fanout automat spre `notifications`, confirmare de citire                                           |
 | Integrare angajați             | `/onboarding`                    | checklist-uri de onboarding                                                                         |

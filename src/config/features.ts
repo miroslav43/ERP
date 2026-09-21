@@ -100,7 +100,7 @@ export const FEATURES: Readonly<Record<FeatureKey, FeatureMeta>> = {
   },
   payroll: { denumire: "Salarizare", icon: Wallet, grup: "finance", isCore: false, sortOrder: 50 },
   per_diem: {
-    denumire: "Diurne și deplasări",
+    denumire: "Deplasări și diurne",
     icon: Plane,
     grup: "finance",
     isCore: false,
