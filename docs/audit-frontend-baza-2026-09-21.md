@@ -182,7 +182,23 @@ cu token inexistent, `rate_limits` rămâne gol. Un limitator care numără doar
 reușitele nu apără de ghicit. `peek_invitation` întoarce acum `{"gasit": false}`
 în loc să arunce, iar comportamentul e scris în comentariul funcției.
 
-### Loturile 3-5 — rămase
+### Lotul 3 — bani și timp · `0146_bani_si_timp.sql`
+
+Aplicat pe banc, probat cu `tests/rls/proba-bani-si-timp.sql` (13 verificări, din
+care 5 POZITIVE), **neaplicat pe producție**.
+
+| F05 | `payroll_entries` primește o poartă: scrierile trec doar prin motorul de calcul (`payroll_scrie_rezultate`), marcat cu un steag local de tranzacție. Un PATCH direct cu `net_de_plata` ales de mână e refuzat cu 42501 |
+| F06 | orele nu mai pot depăși intervalul declarat; fără interval nu pot trece de norma zilnică din contract, iar sporurile (suplimentare, noapte) cer ceasul. Derivarea reală rămâne în `src/domain/attendance` — nu se duplică în SQL |
+| F07, F47 | `overtime_compensation` și `holiday_compensation` nu mai sunt scriibile din client (politici scoase + granturi revocate). Singurul scriitor rămâne triggerul SECURITY DEFINER, exact cum presupunea codul |
+| F08 | tranzițiile de diurnă către `in_aprobare`/`aprobata`/`respinsa`/`decontata` cer `per_diem:approve`. Deținătorul rămâne cu ciorna și trimiterea |
+| F28 | parțial: `approved_by`, `respins_de`, `decis_de` și `decis_la` se scriu din sesiune, nu din cererea clientului. Auto-aprobarea la pontaj RĂMÂNE — e o decizie scrisă în `app.aproba_pontaj_bloc`, nu un accident (managerul care pontează cu echipa) |
+
+Prima formă a gărzii de la F06 interzicea orice oră fără interval și a fost
+prinsă de verificarea `(l)` din `tests/rls/izolare.sql` — singura poartă POZITIVĂ
+a proiectului: ziua de homeoffice trecută cu norma întreagă, fără ceas, e o
+scriere legitimă a unui `employee`. Plafonul e acum norma, nu zero.
+
+### Loturile 4-5 — rămase
 
 ### Critic
 
@@ -264,8 +280,8 @@ invitații în așteptare): verificatorii n-au putut reproduce pasul decisiv.
 
 1. ✅ **Izolare între firme** — `0144`, vezi mai sus.
 2. ✅ **Poarta de la marginea platformei** — `0145`, vezi mai sus.
-3. **Bani și timp** — F05 (sume de salarizare), F06/F07/F47 (ore și compensări),
-   F08 (auto-aprobare de diurnă), F28/F46 (auto-aprobare și mutare între luni).
+3. ✅ **Bani și timp** — `0146`, vezi mai sus (inclusiv F46: o zi dintr-o lună
+   blocată nu mai poate fi mutată în alta).
 4. **Documente cu valoare probatorie** — F04 (șabloane și acte emise), F11 (fișa
    postului și semnătura), F26/F35 (registrul legal), F31/F32/F48 (dovezi de
    instruire și integrare), F50 (confirmarea de citire).
