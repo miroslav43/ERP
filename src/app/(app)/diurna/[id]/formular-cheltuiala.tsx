@@ -21,8 +21,8 @@ const MONEDE = ["RON", "EUR", "USD", "GBP", "CHF", "HUF", "PLN", "CZK", "BGN"] a
  * Adaugă o cheltuială decontabilă (`trip_expenses`).
  *
  * `curs_valutar` e OBLIGATORIU în bază (NOT NULL, > 0) — se cere explicit
- * aici, nu se deduce. Conversia se afișează live: sumă × curs. Pe RON cursul e
- * 1 și câmpul se blochează: n-are ce să ceară.
+ * aici, nu se deduce. Conversia se afișează live: sumă × curs. Pe RON câmpul
+ * nu apare deloc — un leu n-are curs față de lei — și se trimite 1.
  *
  * Aceleași primitive ca formularul de etapă de deasupra — `Camp`,
  * `IntrareData` — ca cele două casete să arate și să se poarte la fel, inclusiv
@@ -69,7 +69,7 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
     }
     const cursNum = Number(cursValutar);
     if (!inLei && (cursValutar.trim() === "" || !Number.isFinite(cursNum) || cursNum <= 0)) {
-      gasite.curs_valutar = [`Scrieți cursul: câți lei face 1 ${moneda}.`];
+      gasite.curs_valutar = [`Scrieți cursul BNR: câți lei face 1 ${moneda}.`];
     }
     return gasite;
   }
@@ -203,7 +203,8 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
               value={moneda}
               onChange={(e) => {
                 setMoneda(e.target.value);
-                if (e.target.value === "RON") setCursValutar("1");
+                // Cursul de 1 al leului nu e un punct de plecare pentru altă monedă.
+                setCursValutar(e.target.value === "RON" ? "1" : "");
                 curata("moneda");
                 curata("curs_valutar");
               }}
@@ -217,28 +218,30 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
           )}
         </Camp>
 
-        <Camp
-          nume="curs_valutar"
-          id="cheltuiala-curs"
-          eticheta={`Curs valutar (1 ${moneda} = ? lei)`}
-          {...(sumaLei === null ? {} : { ajutor: `= ${formatLei(sumaLei)}` })}
-          erori={erori["curs_valutar"] ?? []}
-        >
-          {(a) => (
-            <input
-              {...a}
-              type="number"
-              min="0"
-              step="0.000001"
-              disabled={inLei}
-              value={inLei ? "1" : cursValutar}
-              onChange={(e) => {
-                setCursValutar(e.target.value);
-                curata("curs_valutar");
-              }}
-            />
-          )}
-        </Camp>
+        {inLei ? null : (
+          <Camp
+            nume="curs_valutar"
+            id="cheltuiala-curs"
+            eticheta={`Curs BNR (lei pentru 1 ${moneda})`}
+            {...(sumaLei === null ? {} : { ajutor: `${suma} ${moneda} = ${formatLei(sumaLei)}` })}
+            erori={erori["curs_valutar"] ?? []}
+          >
+            {(a) => (
+              <input
+                {...a}
+                type="number"
+                min="0"
+                step="0.0001"
+                placeholder="ex. 4,9750"
+                value={cursValutar}
+                onChange={(e) => {
+                  setCursValutar(e.target.value);
+                  curata("curs_valutar");
+                }}
+              />
+            )}
+          </Camp>
+        )}
 
         <Camp
           nume="document_numar"
