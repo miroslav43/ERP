@@ -341,7 +341,16 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           poateSterge={poateAdaugaEtapa}
         />
         {poateAdaugaEtapa ? (
-          <FormularEtapa tripId={deplasare.id} tari={listaTari} />
+          <FormularEtapa
+            tripId={deplasare.id}
+            tari={listaTari}
+            taraPornireId={
+              [...etapeTrip].sort((a, b) => b.ordine - a.ordine)[0]?.to_country_id ??
+              politica?.country_id_intern ??
+              null
+            }
+            taraDestinatieId={deplasare.country_id}
+          />
         ) : (
           /* Ramura asta randa un `<p>` GOL când deplasarea era editabilă dar
              cititorul n-avea drept de scriere: un paragraf care ocupa loc și
