@@ -3,10 +3,9 @@
 **Stare: ciornă.** #5 și #6 vin din prima ciornă (23 sept), trecute pe vocea
 paginii; se finalizează — slide-uri, text alternativ, verificarea cifrelor — la
 producția lotului, până pe **vineri 9 oct**, după cifrele primelor postări.
-#7 și #8 se scriu atunci.
+#7 are o ciornă verificată (23 sept, scrisă după skill-ul
+`administrativo-postari`); #8 se scrie atunci.
 
-- **#7 · Ma 20 oct · C** — Control ITM: cele 7 documente cerute la un control de
-  fond și cum se compară între ele (`control-itm.ts`, `raspunsScurt`).
 - **#8 · J 22 oct · I** — Primirea la muncă fără contract: **40.000 lei**
   (`control-itm.ts`, `amenzi`).
 
@@ -14,7 +13,7 @@ producția lotului, până pe **vineri 9 oct**, după cifrele primelor postări.
 
 ## #5 · marți 13 oct · carusel — REGES prin API: ce e incomplet în documentație
 
-**Sursa:** faptele verificate direct pe API la implementare (memoria
+**Pilon:** Culise (pătrat ocru). **Sursa:** faptele verificate direct pe API la implementare (memoria
 `reges-api-fapte-verificate`) + `src/content/legal/reges.ts` → `/reges-online`.
 **Cea mai valoroasă postare din T4:** materialul ăsta nu-l mai are aproape
 nimeni. Scrisă pentru contabili și patroni, nu pentru programatori.
@@ -52,7 +51,7 @@ nimeni. Scrisă pentru contabili și patroni, nu pentru programatori.
 
 ## #6 · joi 15 oct · imagine — Foaia de pontaj care își calculează sărbătorile
 
-**Sursa:** `/unelte/foaie-de-pontaj`.
+**Pilon:** Unelte (pătrat verde). **Sursa:** `/unelte/foaie-de-pontaj`.
 **Imagine:** captură a foii generate pentru o lună cu sărbători (de ex. aprilie
 2027, cu Paștele), cu weekendurile și sărbătorile vizibil marcate.
 
@@ -79,3 +78,55 @@ nimeni. Scrisă pentru contabili și patroni, nu pentru programatori.
 
 **Primul comentariu:** `https://administrativo.ro/unelte/foaie-de-pontaj?utm_source=linkedin&utm_medium=social&utm_campaign=t4-06-foaie`
 **Hashtag-uri:** #pontaj #resurseumane #IMM
+
+---
+
+## #7 · marți 20 oct · carusel (8 slide-uri)
+
+**Pilon:** Legislație (pătrat cerneală). **Sursă:** `src/content/legal/control-itm.ts`
+(`reguli` — 8 intrări, `raspunsScurt`, secțiunile).
+
+Calendarul spunea „7 documente”; `reguli` are 8 (plus extrasul REGES-Online și
+documentele SSM). Sursa câștigă — spec-ul a fost corectat în același commit.
+
+### Textul postării
+
+> Un inspector ITM nu citește documentele unul câte unul. Le compară între ele — și
+> de acolo apar majoritatea problemelor.
+>
+> La un control de fond, pe masă intră 8 documente: registrul unic de control,
+> dosarele de personal, contractele cu actele adiționale, evidența orelor prestate
+> zilnic, foile colective de prezență cu statele de plată, extrasul din
+> REGES-Online, regulamentul intern cu contractul colectiv și documentele de SSM.
+>
+> Separat, fiecare pare în regulă. Comparate, nu: ore care nu se regăsesc în state,
+> salarii nete peste cele declarate, oameni la muncă în perioada în care contractul
+> le e suspendat.
+>
+> Cea mai frecventă neconformitate nu ține de disciplină, ci de forma foii:
+> pontajul trece câte ore a lucrat fiecare, nu și la ce oră a început și la ce oră
+> a terminat — deși art. 119 alin. (1) din Codul muncii cere exact asta.
+>
+> Iar refuzul nejustificat de a prezenta documentele, în cel mult 15 zile de la a
+> doua solicitare, nu e contravenție. E infracțiune — art. 264 alin. (2) și (3) din
+> Codul muncii.
+>
+> Voi știți exact unde stă fiecare dintre cele 8, în seara dinainte de un control?
+
+**Primul comentariu:**
+`Lista completă, cu fiecare temei de lege: https://administrativo.ro/ghid/control-itm?utm_source=linkedin&utm_medium=social&utm_campaign=t4-07-control-itm`
+
+**Hashtag-uri:** #ITM #resurseumane #contabilitate
+
+### Slide-urile
+
+| #   | Șablon  | Conținut                                                                                                                                          | Text alternativ                                                                                       |
+| --- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | Copertă | **8** · „documente cerute la un control de fond” · „Nu se citesc separat. Se compară.” · eticheta „ghid · control ITM”                            | Cifra 8 mare, cu textul „documente cerute la un control de fond. Nu se citesc separat, se compară.”   |
+| 2   | Regulă  | Registrele · **Registrul unic de control și extrasul din REGES-Online.** · temei: Legea 252/2003 · HG 295/2025                                    | Registrele: registrul unic de control și extrasul din REGES-Online.                                   |
+| 3   | Regulă  | 02 · **Dosarele de personal**, câte unul pentru fiecare salariat. · temei: art. 8 HG 295/2025                                                     | Dosarele de personal, câte unul pentru fiecare salariat. Art. 8 din HG 295/2025.                      |
+| 4   | Regulă  | 03 · **Contractele și actele adiționale**, cu o copie la locul de muncă. · temei: art. 16–17 Codul muncii                                         | Contractele și actele adiționale, cu o copie la locul de muncă. Articolele 16 și 17 din Codul muncii. |
+| 5   | Regulă  | 04 · **Evidența orelor, zilnic, cu ora de început și de sfârșit.** De aici pornesc cele mai multe constatări. · temei: art. 119 alin. (1) C.m.    | Evidența zilnică a orelor, cu ora de început și de sfârșit. Articolul 119 din Codul muncii.           |
+| 6   | Regulă  | 05 · **Foile de prezență și statele de plată**, cerute împreună cu evidența orelor, ca să fie comparate. · temei: art. 25 Legea 82/1991           | Foile de prezență și statele de plată, comparate cu evidența orelor. Art. 25 din Legea 82/1991.       |
+| 7   | Regulă  | Regulamentul și SSM · **Regulamentul intern, contractul colectiv, fișele de aptitudini și de instruire.** · temei: art. 243 C.m. · Legea 319/2006 | Regulamentul intern, contractul colectiv și documentele de sănătate și securitate.                    |
+| 8   | Final   | „Nu se citesc separat. Se compară.” · administrativo.ro/ghid/control-itm · „Urmărește pagina”                                                     | Slide final: nu se citesc separat, se compară. Ghidul complet pe administrativo.ro.                   |

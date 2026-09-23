@@ -95,7 +95,7 @@ face o singură dată, în contul de cabinet, nu de două ori.
 | 4   | J 8 oct   | I   | REGES: contractul pleacă în ziua dinainte                  | **20.000 lei**      | `/reges-online`             |
 | 5   | Ma 13 oct | C   | Culise: ce e incomplet în documentația API-ului REGES      | **5 canale, nu 1**  | fapte verificate            |
 | 6   | J 15 oct  | I   | Foaia de pontaj care își calculează sărbătorile            | **17 sărbători**    | `/unelte/foaie-de-pontaj`   |
-| 7   | Ma 20 oct | C   | Control ITM: cele 7 documente și cum se compară            | **7**               | `/ghid/control-itm`         |
+| 7   | Ma 20 oct | C   | Control ITM: cele 8 documente și cum se compară            | **8**               | `/ghid/control-itm`         |
 | 8   | J 22 oct  | I   | Primirea la muncă fără contract                            | **40.000 lei**      | `/ghid/control-itm`         |
 | 9   | Ma 27 oct | C   | Evidența orelor, art. 119, și excepția cu acord scris      | **1.500–3.000 lei** | `/evidenta-orelor-de-munca` |
 | 10  | J 29 oct  | I ★ | Pontaj de pe telefon, captură reală                        | **1 atingere**      | `/pontaj-pe-telefon`        |
