@@ -91,7 +91,7 @@ cmd_prod() {
 
   # Poarta pe site-ul viu: fiecare adresă din sitemap, de 10 ori. `/healthz`
   # rămâne verde și când o replică servește 404 cu noindex paginilor publice
-  # (capcana #44) — asta e singura verificare care vede ce vede Google.
+  # (capcana #45) — asta e singura verificare care vede ce vede Google.
   if ! node "$ADMINISTRATIVO_ROOT/scripts/checks/rute-publice.mjs" "https://${ADM_DOMAIN}" --cereri 10; then
     error "Deploy-ul a trecut, dar paginile publice nu răspund stabil. Vezi mai sus."
     exit 1

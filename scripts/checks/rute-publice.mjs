@@ -9,7 +9,7 @@
 // (`/module/*`, `/domenii/*`) răspunzând 404 + `noindex` la exact jumătate din
 // cereri: o deconectare din aplicație invalidase cache-ul uneia dintre cele
 // două replici, iar rutele cu `dynamicParams = false` nu se mai puteau regenera
-// acolo (capcana #44). Build-ul, testele și `/healthz` erau verzi; defectul
+// acolo (capcana #45). Build-ul, testele și `/healthz` erau verzi; defectul
 // există doar într-un proces viu, după o anumită acțiune.
 //
 // ── DE CE N CERERI, NU UNA ─────────────────────────────────────────────────
@@ -23,19 +23,25 @@
 // `curl -w %{http_code}` naiv) și niciun `noindex` în `<meta name="robots">`
 // sau în antetul `X-Robots-Tag`.
 //
+// Pe staging, `noindex` e CORECT — un mediu de probă nu are ce căuta în Google.
+// Acolo se trece `--fara-indexare`, iar poarta cere doar statusul. Prima rulare
+// pe staging, fără opțiune, a picat pe 48 de pagini „200+noindex": poarta avea
+// dreptate despre pagini și greșea despre mediu.
+//
 // Utilizare:
-//   node scripts/checks/rute-publice.mjs [baza] [--cereri N]
+//   node scripts/checks/rute-publice.mjs [baza] [--cereri N] [--fara-indexare]
 //   baza implicită: https://administrativo.ro
 //   ADM_AUTENTIFICARE_BASIC="utilizator:parola" pentru staging (în spatele
 //   `auth_basic`); nu se afișează niciodată.
 
 const argumente = process.argv.slice(2);
-const baza = (argumente.find((a) => !a.startsWith("--")) ?? "https://administrativo.ro").replace(
-  /\/$/,
-  "",
-);
 const iCereri = argumente.indexOf("--cereri");
 const cereri = iCereri >= 0 ? Number(argumente[iCereri + 1]) : 10;
+const verificaIndexarea = !argumente.includes("--fara-indexare");
+// Baza e singurul argument pozițional; valoarea de după `--cereri` nu e una.
+const baza = (
+  argumente.find((a, i) => !a.startsWith("--") && i !== iCereri + 1) ?? "https://administrativo.ro"
+).replace(/\/$/, "");
 if (!Number.isInteger(cereri) || cereri < 1) {
   console.error("--cereri trebuie să fie un întreg pozitiv.");
   process.exit(2);
@@ -76,7 +82,7 @@ const esecuri = [];
 for (const adresa of adrese) {
   const rezultate = [];
   for (let i = 0; i < cereri; i++) rezultate.push(await cere(adresa));
-  const rele = rezultate.filter((r) => r.status !== 200 || r.noindex);
+  const rele = rezultate.filter((r) => r.status !== 200 || (verificaIndexarea && r.noindex));
   if (rele.length > 0) {
     esecuri.push(
       `${adresa}\n      ${rele.length}/${cereri} rele: ` +
@@ -92,8 +98,11 @@ if (esecuri.length > 0) {
   for (const e of esecuri) console.error(`  · ${e}`);
   console.error(
     "\n  404 cu x-nextjs-cache HIT doar pe o parte din cereri = o replică cu cache-ul invalidat" +
-      "\n  (capcana #44). Restart-ul replicilor îl ascunde, nu îl repară.",
+      "\n  (capcana #45). Restart-ul replicilor îl ascunde, nu îl repară.",
   );
   process.exit(1);
 }
-console.log(`✓ ${adrese.length} adrese × ${cereri} cereri: toate 200 și indexabile (${baza}).`);
+console.log(
+  `✓ ${adrese.length} adrese × ${cereri} cereri: toate 200` +
+    `${verificaIndexarea ? " și indexabile" : " (indexarea nu se cere aici)"} (${baza}).`,
+);

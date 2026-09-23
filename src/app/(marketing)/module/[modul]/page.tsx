@@ -13,6 +13,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { InMana } from "../../_componente/in-mana";
+import { metadatePagina } from "../../_componente/metadate";
 import { PrinGeam } from "../../_componente/prin-geam";
 import { RandRegistru, Registru } from "../../_componente/registru";
 import { arePrinGeam, capturiInalteAleModulului } from "../../_componente/vitrine";
@@ -31,10 +32,18 @@ import { arePrinGeam, capturiInalteAleModulului } from "../../_componente/vitrin
  * ca să nu existe o a doua hartă slug→cheie de ținut în pas cu catalogul. Acum
  * există — `content/landing/slug-module.ts` —, iar riscul pe care îl evita
  * compromisul e acoperit altfel: `continut.test.ts` cere ca harta să aibă exact
- * cheile din catalog, `dynamicParams = false` face ca o adresă necunoscută să dea
+ * cheile din catalog, `notFound()` din pagină face ca o adresă necunoscută să dea
  * 404, iar adresele vechi au redirecturi permanente în `next.config.ts`. În
  * pagină, slug-ul se transformă în cheie la intrare; mai departe totul lucrează
  * pe cheie.
+ *
+ * ── DE CE NU `dynamicParams = false` ──────────────────────────────────────
+ * Până pe 23 sept 2026 garda pentru adrese necunoscute era steagul ăsta. Cu el,
+ * după orice invalidare a cache-ului (o deconectare din aplicație chema
+ * `revalidatePath("/", "layout")`), Next nu mai putea regenera pagina
+ * prerandată și răspundea 404 cu `noindex`, cache-uit pe replica aceea până la
+ * restart — toate cele nouăsprezece module, pe jumătate din cereri. Capcana
+ * #45; poarta: `src/lib/actions/reimprospatare.test.ts`.
  *
  * ── FIȘA DETALIATĂ ────────────────────────────────────────────────────────
  * Paginile au pornit cu ~39 de cuvinte proprii — două propoziții și trei puncte
@@ -88,10 +97,6 @@ export function generateStaticParams(): { modul: string }[] {
   );
 }
 
-// Doar slug-urile prerandate răspund; orice altceva — inclusiv o cheie veche fără
-// redirect — e 404, nu o pagină randată la cerere.
-export const dynamicParams = false;
-
 export async function generateMetadata({ params }: Proprietati): Promise<Metadata> {
   const { modul: slug } = await params;
   const cheie = cheieDinSlug(slug) ?? "";
@@ -102,11 +107,11 @@ export async function generateMetadata({ params }: Proprietati): Promise<Metadat
   // Fără fișă se cade pe catalog: descrierea tăiată la lungimea pe care o
   // afișează motoarele, ca să nu fie al doilea text de întreținut degeaba.
   const fisa = fisaModulului(cheie);
-  return {
-    title: fisa?.titluPagina ?? `${gasit.modul.titlu} — modul Administrativo`,
-    description: fisa?.metaDescriere ?? gasit.modul.text.slice(0, 155),
-    alternates: { canonical: `/module/${slug}` },
-  };
+  return metadatePagina({
+    titlu: fisa?.titluPagina ?? `${gasit.modul.titlu} — modul Administrativo`,
+    descriere: fisa?.metaDescriere ?? gasit.modul.text.slice(0, 155),
+    cale: `/module/${slug}`,
+  });
 }
 
 export default async function PaginaModul({ params }: Proprietati) {

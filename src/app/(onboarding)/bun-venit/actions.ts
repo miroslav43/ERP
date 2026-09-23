@@ -1,8 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { createAction } from "@/lib/actions/create-action";
+import { reimprospateazaAplicatia } from "@/lib/actions/reimprospatare";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { businessRule } from "@/lib/actions/errors";
 import { amprentaSensibila, catreBytea, encrypt, versiuneCaNumar } from "@/lib/crypto/aes-gcm";
@@ -200,7 +199,7 @@ export const completeazaDateleFirmei = createAction({
 
     // Layout-ul aplicației citește starea firmei memoizat, per request; după
     // activare, următoarea navigare trebuie să vadă `active`, nu cache-ul.
-    revalidatePath("/", "layout");
+    reimprospateazaAplicatia();
 
     return { id: actualizata.id, name: actualizata.name };
   },

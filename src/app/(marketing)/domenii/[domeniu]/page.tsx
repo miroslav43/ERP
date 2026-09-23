@@ -11,6 +11,7 @@ import { slugModul } from "@/content/landing/slug-module";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { metadatePagina } from "../../_componente/metadate";
 
 /**
  * Cele patru pagini de domeniu, dintr-un singur fișier.
@@ -21,17 +22,22 @@ import { Cadru } from "../../_componente/cadru";
  * corectate și unul uitat.
  *
  * `generateStaticParams` le pre-randează pe toate la build, deci sunt statice,
- * exact ca patru pagini scrise separat. `dynamicParams = false` face ca orice
- * alt segment să dea 404 în loc să încerce o randare la cerere — un
- * `/domenii/orice` care ar întoarce 200 cu conținut gol e mai rău decât un 404.
+ * exact ca patru pagini scrise separat. Un `/domenii/orice` dă 404 prin
+ * `notFound()` din pagină — un 200 cu conținut gol ar fi mai rău.
+ *
+ * ── DE CE NU `dynamicParams = false` ──────────────────────────────────────
+ * Până pe 23 sept 2026 garda era steagul ăsta. Cu el, orice invalidare a
+ * cache-ului (o deconectare din aplicație chema `revalidatePath("/",
+ * "layout")`) făcea ca pagina prerandată să nu mai poată fi regenerată: Next
+ * răspundea 404 cu `noindex`, cache-uit pe replica aceea până la restart.
+ * `notFound()` dă același 404 pentru adrese necunoscute, fără capcană.
+ * Capcana #45; poarta: `src/lib/actions/reimprospatare.test.ts`.
  *
  * ── DE CE NUMELE MODULELOR VIN DIN `FEATURES` ─────────────────────────────
  * Conținutul poartă chei, nu denumiri. O denumire scrisă de mână aici ar fi
  * rămas în urmă la prima redenumire din catalog; cu cheia, o greșeală nu trece
  * de typecheck.
  */
-
-export const dynamicParams = false;
 
 export function generateStaticParams(): { domeniu: string }[] {
   return DOMENII.map((d) => ({ domeniu: d.slug }));
@@ -43,11 +49,11 @@ export async function generateMetadata({ params }: Proprietati): Promise<Metadat
   const { domeniu } = await params;
   const d = domeniulDupaSlug(domeniu);
   if (d === undefined) return {};
-  return {
-    title: d.metaTitlu,
-    description: d.metaDescriere,
-    alternates: { canonical: `/domenii/${d.slug}` },
-  };
+  return metadatePagina({
+    titlu: d.metaTitlu,
+    descriere: d.metaDescriere,
+    cale: `/domenii/${d.slug}`,
+  });
 }
 
 export default async function PaginaDomeniu({ params }: Proprietati) {

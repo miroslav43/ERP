@@ -2,10 +2,10 @@
 "use server";
 
 import { createHash } from "node:crypto";
-import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { reimprospateazaAplicatia } from "@/lib/actions/reimprospatare";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { signTenantCookie } from "@/lib/tenant/tenant-cookie";
@@ -140,7 +140,7 @@ export async function creeazaContSiAccepta(formData: FormData): Promise<void> {
   // Contul există, e membru, invitația e consumată. Sesiunea se închide ca omul
   // să intre singur — vezi nota de sus.
   await supabase.auth.signOut();
-  revalidatePath("/", "layout");
+  reimprospateazaAplicatia();
   redirect("/autentificare?stare=cont-creat");
 }
 
@@ -187,6 +187,6 @@ export async function acceptaInvitatia(formData: FormData): Promise<void> {
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
-  revalidatePath("/", "layout");
+  reimprospateazaAplicatia();
   redirect(RUTA_DUPA_AUTENTIFICARE);
 }
