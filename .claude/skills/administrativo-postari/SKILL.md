@@ -65,11 +65,13 @@ Ieșirile din `unelte/` (canvas, export, png, livrare, kit) nu intră în git.
 
 ## Greșeli cunoscute
 
-| Greșeala                                | Ce faci                                                                  |
-| --------------------------------------- | ------------------------------------------------------------------------ |
-| Carusel de 10 slide-uri ca să intre tot | Grupezi punctele înrudite pe un slide; maximum 8                         |
-| Cifra din calendar ≠ sursa              | Sursa câștigă; corectezi spec-ul și README-ul                            |
-| Virgula lui ț atinge rândul de dedesubt | Interlinie ≥ 1,12 la titluri, verificată pe PNG                          |
-| Comision exprimat în lei                | Doar procent, din `PILOT`                                                |
-| Pânza citită înapoi ca s-o „verifici”   | Nu: tipul Design interzice asta; verificarea se face pe PNG-urile locale |
-| Link în corpul postării                 | Doar în primul comentariu                                                |
+| Greșeala                                                 | Ce faci                                                                                                   |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Carusel de 10 slide-uri ca să intre tot                  | Grupezi punctele înrudite pe un slide; maximum 8                                                          |
+| Cifra din calendar ≠ sursa                               | Sursa câștigă; corectezi spec-ul și README-ul                                                             |
+| Virgula lui ț atinge rândul de dedesubt                  | Interlinie ≥ 1,12 la titluri, verificată pe PNG                                                           |
+| Comision exprimat în lei                                 | Doar procent, din `PILOT`                                                                                 |
+| Pânza citită înapoi ca s-o „verifici”                    | Nu: tipul Design interzice asta; verificarea se face pe PNG-urile locale                                  |
+| Link în corpul postării                                  | Doar în primul comentariu                                                                                 |
+| Cale-șablon (`lot-NN.md`) într-un `.md` din `.claude/`   | Se scrie `lot-<NN>.md`: `docs.test.ts` verifică orice cale relativă pe disc                               |
+| Commit care atinge `src/`, `.claude/` sau `unelte/*.cjs` | Rulezi `pnpm verify && pnpm check:lastmod` înainte de push; o pagină schimbată cere și data ei de lastmod |
