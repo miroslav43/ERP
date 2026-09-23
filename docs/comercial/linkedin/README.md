@@ -33,6 +33,11 @@ Aici stă doar ce se folosește săptămânal.
   `~/.cache/ms-playwright`) în PNG, iar caruselele sunt legate într-un PDF de
   1080×1350 pe pagină.
 
+## Automatizarea
+
+Ce se poate automatiza, cu surse și cele trei variante (manual, unealtă terță,
+API propriu): [`automatizare.md`](automatizare.md).
+
 ## Pe scurt
 
 - **Vocea:** pagina, la plural. Profilul lui Miro redistribuie cel mult o dată
