@@ -26,10 +26,20 @@ Partea tehnică a sitemap-ului și a robots.txt stă separat, în
 | Pagini indexate               | **13 din 48** | Restul n-au fost citite         |
 | „Descoperită – nu e indexată” | **28**        | Ultima accesare: _niciodată_    |
 
-Cele 28 stau neatinse din **5 septembrie**, linie dreaptă pe grafic. Printre ele
-sunt slug-urile vechi, englezești (`/module/attendance`, `/module/announcements`,
-`/module/employee_portal`), pe care le-am înlocuit pe 17 septembrie — Google nu
-le-a citit nici până acum, deși redirecționează corect cu 308.
+Cele 28 stau neatinse din **5 septembrie**, linie dreaptă pe grafic. Exportul
+(`Coverage-Drilldown-2026-09-20`, citit pe 23 sept) arată că **20 din 28 sunt
+slug-urile vechi, englezești** (`/module/attendance`, `/module/payroll`,
+`/module/employee_portal`…), descoperite din sitemap-ul de atunci și înlocuite pe
+17 septembrie — azi redirecționează corect cu 308, deci nu mai e nimic de indexat
+la adresele alea. Restul de 8: `/comparatie/excel`, cele 4 `/domenii/*`,
+`/evidenta-orelor-de-munca`, `/ghid/control-itm`, `/module`, `/reges-online`.
+Slug-urile românești noi nu apar deloc în export — nu fuseseră încă descoperite.
+
+> **Corecție, 23 sept:** între 21 și 23 sept, `/module/*` și `/domenii/*`
+> răspundeau 404 + `noindex` la jumătate din cereri (capcana #45, reparată la
+> sursă). Defectul NU explică cele 28 de mai sus — coada s-a format pe 5 sept,
+> replicile afectate porniseră pe 21. Sunt două probleme distincte: autoritatea
+> zero și un defect care, cât a durat, scotea activ pagini din index.
 
 ### Interogările care ne scot
 
@@ -196,14 +206,22 @@ adrese.
 
 Mărginită, și nu prima pe listă:
 
-- [ ] **LCP ~6 s pe toate paginile.** TTFB e bun (42–125 ms), deci întârzierea e
-      în ce blochează randarea. Google numește exact: _„Render-blocking requests,
-      ~600 ms”_ și _„146 KiB de JavaScript nefolosit”_. De atacat după deploy-ul
-      curent, ca să măsor pe codul nou.
+- [ ] **LCP ~6 s pe mobil, pe `/`.** Măsurat pe 23 sept (PSI, API): elementul LCP
+      e **paragraful de sub H1** (`section#sus p.text-mk-text-slab`), text, nu
+      imagine; TTFB 6 ms, _element render delay_ 2447 ms. Blochează randarea: trei
+      CSS-uri (cel mare, 22,5 KB, ~1,2 s) și `cloudflare-static/email-decode.min.js`,
+      injectat de Cloudflare pentru „Email Address Obfuscation". NU fonturile:
+      corpul textului e Inter, titlurile Fira — cele 4 preîncărcări sunt toate
+      folosite deasupra pliului (ipoteza din planul din 23 sept, infirmată
+      înainte de a fi aplicată). Pârghii: Email Obfuscation oprit în Cloudflare;
+      `experimental.inlineCss` (global — atinge și aplicația, unde vizitatorii
+      revin zilnic; decizie de arhitectură, nedecisă).
 - [ ] **IndexNow.** Împinge adresele noi direct la Bing și Yandex, instant.
       **Nu ajută la Google**, care nu-l folosește, dar Bing indexează mult mai
       repede un domeniu nou.
-- [ ] **`sameAs`** în `Organization`, imediat ce există pagina de LinkedIn.
+- [ ] **`sameAs`** în `Organization`, imediat ce există pagina de LinkedIn. Codul
+      e gata din 23 sept: adresa se pune în `PROFILURI_PUBLICE`
+      (`src/content/landing/contact.ts`) și apare singură în JSON-LD.
 - [ ] **Reguli Cloudflare** — HTML-ul încă nu se cachează la margine
       (`cf-cache-status: DYNAMIC`). Nu limitează clasamentul acum, fiindcă TTFB-ul
       e bun; contează la scalare.
@@ -267,6 +285,14 @@ tehnic 86 / conținut 84 / schema 88.
   34–40 % n-grame comune).
 - Porți automate care apără ce s-a câștigat: `pnpm check:lastmod`, tokenurile de
   stil, pasajele citabile, datele din `Article`.
+- **Auditul din 23 sept** (raportul: [`audit-seo-2026-09-23.md`](audit-seo-2026-09-23.md)):
+  cele 23 de pagini care dădeau 404 la jumătate din cereri — reparate la sursă,
+  cu poartă pe site-ul viu după fiecare deploy (`pnpm check:rute-vii`); Open
+  Graph propriu pe fiecare pagină (`metadatePagina`), până atunci toate
+  distribuiau titlul homepage-ului; „program de salarizare" în titlul și
+  descrierea `/module/salarizare`, „salarizarea" într-un H2 de pe `/`;
+  `/pentru-contabili` în navigarea principală; poarta `lastmod` reparată (raporta
+  fals-pozitive) și mutată în CI.
 
 **Plafonul a ceea ce se poate câștiga din cod e aproape atins.** De aici încolo,
 secțiunile B, C și D decid mai mult decât orice linie pe care aș mai scrie-o.
