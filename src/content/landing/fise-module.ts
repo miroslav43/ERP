@@ -417,7 +417,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "per_diem",
-    actualizat: "2026-09-18",
+    actualizat: "2026-09-21",
     titluPagina: "Deplasări și diurne: calculul pe țări",
     metaDescriere:
       "Ordine de deplasare, etape pe țări și deconturi, cu ferestre de 24 de ore care curg de la plecare. Managerul aprobă, nu modifică.",
