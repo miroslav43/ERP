@@ -168,6 +168,22 @@ const nextConfig: NextConfig = {
    */
   experimental: {
     staleTimes: { dynamic: 15 },
+    /**
+     * CSS-ul în `<style>` în loc de `<link>`: dispare cererea care blochează
+     * randarea.
+     *
+     * Măsurat pe 23 sept 2026 (PSI mobil, `/`): elementul LCP e paragraful de sub
+     * H1 — text, nu imagine —, TTFB 6 ms și _element render delay_ 2447 ms, din
+     * trei CSS-uri blocante (cel mare de 22,5 KB, ~1,2 s). Fonturile NU erau
+     * cauza: toate patru preîncărcările sunt folosite deasupra pliului.
+     *
+     * Costul, asumat de Miro: e global, deci și aplicația retrimite CSS-ul la
+     * fiecare încărcare COMPLETĂ de pagină (navigările client merg prin RSC și nu
+     * îl mai cer). Se măsoară înainte și după; dacă latența aplicației crește
+     * vizibil, se scoate — e un singur rând. CSP-ul permite deja `'unsafe-inline'`
+     * la `style-src`.
+     */
+    inlineCss: true,
   },
 
   /**
