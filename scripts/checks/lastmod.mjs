@@ -21,7 +21,8 @@
 // (adâncime 1). Acolo `git log -1 -- <fișier>` întoarce același commit pentru
 // orice fișier, deci testul ar raporta TOTUL ca învechit — o poartă care
 // strigă mereu e una pe care oamenii o opresc. Rulează deci ca script separat,
-// ca `docs:lint`, pe o copie completă: local, înainte de livrare.
+// pe o copie completă. Din 23 sept 2026 rulează și în `ci.yml`, cu
+// `fetch-depth: 0` la checkout; pe o copie superficială se sare singur (pasul 0).
 //
 // ── DE CE `git log -L`, NU `git log -- <fișier>` ───────────────────────────
 // Cele nouăsprezece fișe de modul stau în ACELAȘI fișier. Comparate cu data
@@ -63,9 +64,38 @@ function git(argumente) {
 /** Data ultimului commit care a atins fișierul, ca `YYYY-MM-DD`. */
 const dataFisierului = (fisier) => git(["log", "-1", "--format=%cs", "--", fisier]);
 
-/** Data ultimului commit care a atins liniile `[de..pana]` din fișier. */
-const dataLiniilor = (fisier, de, pana) =>
-  git(["log", "-L", `${String(de)},${String(pana)}:${fisier}`, "--format=%cs", "-s", "-1"]);
+/**
+ * Data ultimului commit care a schimbat CONȚINUTUL liniilor `[de..pana]` —
+ * adică sărind peste commit-urile care au atins acolo doar linia `actualizat:`.
+ *
+ * Fără săritura asta poarta nu putea fi trecută niciodată: intervalul unei fișe
+ * include propria ei linie de dată, deci ridicarea datei devenea ea însăși „cea
+ * mai recentă schimbare de conținut". Pe 20 sept 2026, `c6498e6` a ridicat opt
+ * date la 09-18; de atunci poarta raporta acele opt fișe ca schimbate pe 09-20
+ * și cerea o dată pe care orice ridicare o împingea din nou în față.
+ */
+function dataLiniilor(fisier, de, pana) {
+  let iesire;
+  try {
+    iesire = execFileSync(
+      "git",
+      ["log", "-L", `${String(de)},${String(pana)}:${fisier}`, "--format=__COMMIT__ %cs"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 64 * 1024 * 1024 },
+    );
+  } catch {
+    return null;
+  }
+  for (const bloc of iesire.split("__COMMIT__ ").slice(1)) {
+    const data = bloc.slice(0, 10);
+    const schimbate = bloc
+      .split("\n")
+      .filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l))
+      .map((l) => l.slice(1).trim())
+      .filter((l) => l !== "");
+    if (schimbate.some((l) => !/^actualizat: "\d{4}-\d{2}-\d{2}",?$/.test(l))) return data;
+  }
+  return null;
+}
 
 const probleme = [];
 const semnaleaza = (ce, declarat, real, unde) => {

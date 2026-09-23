@@ -120,6 +120,17 @@ jobs:
           ./administrativo.sh stare:pas "Build imagine + rolling update"
           ./administrativo.sh stack:deploy 2>&1 | tee ${{ runner.temp }}/deploy.log
 
+      # ── Poarta 4 ────────────────────────────────────────────────────────────
+      # Paginile publice răspund 200 și indexabil, de 10 ori la rând fiecare.
+      # `/healthz` era verde în timp ce 23 de pagini din sitemap dădeau 404 pe
+      # jumătate din cereri (capcana #44) — sănătatea procesului nu spune nimic
+      # despre ce primește Google.
+      - name: Poarta — paginile publice răspund stabil
+        run: |
+          ./administrativo.sh stare:pas "Paginile publice răspund stabil"
+          ADM_AUTENTIFICARE_BASIC="coleg:$(cat ~/.secrete/administrativo/parola-staging.txt)" \
+            node scripts/checks/rute-publice.mjs https://staging.administrativo.ro --cereri 10
+
       # `if: always()` de aici în jos: pașii ăștia sunt exact cei care contează
       # când ceva a picat.
       - name: Curățenie
