@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { CONTROL_ITM } from "@/content/legal/control-itm";
 
+import { metadatePagina } from "../../_componente/metadate";
 import { RandarePaginaLege } from "../../_componente/pagina-lege";
 
 /**
@@ -15,12 +16,12 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
  * documente vine de la un inspectorat, iar ordonarea problemelor e concluzia
  * noastră, nu un document oficial.
  */
-export const metadata: Metadata = {
-  title: "Control ITM: ce documente se cer",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Control ITM: ce documente se cer",
+  descriere:
     "Lista documentelor cerute la un control de fond în relații de muncă, cele patru locuri unde apar de obicei problemele, și ce s-a schimbat din decembrie 2025.",
-  alternates: { canonical: "/ghid/control-itm" },
-};
+  cale: "/ghid/control-itm",
+});
 
 export default function PaginaControlItm() {
   return <RandarePaginaLege text={CONTROL_ITM} />;

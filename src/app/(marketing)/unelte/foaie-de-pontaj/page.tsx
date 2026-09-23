@@ -8,6 +8,7 @@ import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { metadatePagina } from "../../_componente/metadate";
 import {
   construiesteFoaie,
   LUNI,
@@ -39,12 +40,12 @@ import {
  * tipărire directă din browser, iar exportul e un link, nu un buton care are
  * nevoie de hidratare.
  */
-export const metadata: Metadata = {
-  title: "Foaie de pontaj lunar gratuită, cu sărbători",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Foaie de pontaj lunar gratuită, cu sărbători",
+  descriere:
     "Generează o foaie colectivă de prezență pentru orice lună, cu weekendurile și sărbătorile legale marcate automat. Se tipărește sau se descarcă în Excel. Fără cont.",
-  alternates: { canonical: "/unelte/foaie-de-pontaj" },
-};
+  cale: "/unelte/foaie-de-pontaj",
+});
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;

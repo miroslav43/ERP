@@ -6,6 +6,7 @@ import { RO } from "@/content/landing/ro";
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { BandaConformitate, BandaIzolare } from "../_componente/benzi/incredere";
 import { Cadru } from "../_componente/cadru";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Pagina de încredere: unde stă bariera dintre firme și ce reguli românești sunt
@@ -16,12 +17,12 @@ import { Cadru } from "../_componente/cadru";
  * răspuns când cineva întreabă „unde stau datele noastre?”, iar un link nu se
  * poate trimite către o ancoră dintr-o pagină de patru mii de cuvinte.
  */
-export const metadata: Metadata = {
-  title: "Securitatea datelor de personal între firme",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Securitatea datelor de personal între firme",
+  descriere:
     "Cum ține Administrativo datele fiecărei firme separate: regula e impusă în Postgres, nu în aplicație. Plus termenele de păstrare, pe fiecare fel de dată.",
-  alternates: { canonical: "/incredere" },
-};
+  cale: "/incredere",
+});
 
 export default function PaginaIncredere() {
   return (

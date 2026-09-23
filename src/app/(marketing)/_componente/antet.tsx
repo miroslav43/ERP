@@ -79,16 +79,24 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
             </summary>
             <div className="border-mk-rigla bg-mk-hartie absolute top-12 right-0 z-50 w-64 border p-4 shadow-lg">
               <nav aria-label={text.antet.meniu}>
-                <ul className="space-y-3">
+                {/*
+                  `py-2` pe fiecare legătură, nu `space-y-3` pe listă: spațiul dintre
+                  rânduri nu se poate atinge. Cu el, ținta avea 22,5 px — sub cei
+                  24 ceruți de WCAG 2.5.8 (auditul din 23 sept 2026).
+                */}
+                <ul className="space-y-1">
                   {navigare.map((legatura) => (
                     <li key={legatura.href}>
-                      <a href={legatura.href} className="block text-[0.9375rem]">
+                      <a href={legatura.href} className="block py-2 text-[0.9375rem]">
                         {legatura.eticheta}
                       </a>
                     </li>
                   ))}
-                  <li className="border-mk-rigla/40 border-t pt-3">
-                    <a href={RUTA_AUTENTIFICARE} className="block text-[0.9375rem] font-medium">
+                  <li className="border-mk-rigla/40 border-t pt-2">
+                    <a
+                      href={RUTA_AUTENTIFICARE}
+                      className="block py-2 text-[0.9375rem] font-medium"
+                    >
                       {text.antet.autentificare}
                     </a>
                   </li>
@@ -96,7 +104,7 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
                     <Link
                       href={text.hero.ctaPrimar.href}
                       data-umami-event="cta-antet"
-                      className="block text-[0.9375rem] font-medium"
+                      className="block py-2 text-[0.9375rem] font-medium"
                     >
                       {text.antet.demo}
                     </Link>

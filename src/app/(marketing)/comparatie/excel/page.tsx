@@ -13,6 +13,7 @@ import { RO } from "@/content/landing/ro";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { metadatePagina } from "../../_componente/metadate";
 
 /**
  * Pontaj în Excel sau în aplicație.
@@ -25,12 +26,12 @@ import { Cadru } from "../../_componente/cadru";
  * comparație care pierde de fiecare dată se citește ca reclamă, iar cititorul
  * atent — exact cel care caută comparații înainte să cumpere — o închide.
  */
-export const metadata: Metadata = {
-  title: "Pontaj în Excel sau în aplicație",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Pontaj în Excel sau în aplicație",
+  descriere:
     "Unde se rupe foaia de calcul la pontaj și unde nu se rupe deloc. Comparație pe opt aspecte concrete, plus situațiile în care e în regulă să rămâi la Excel.",
-  alternates: { canonical: "/comparatie/excel" },
-};
+  cale: "/comparatie/excel",
+});
 
 export default function PaginaComparatieExcel() {
   return (

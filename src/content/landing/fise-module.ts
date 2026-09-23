@@ -239,10 +239,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "payroll",
-    actualizat: "2026-09-18",
-    titluPagina: "Salarizare: calcul pas cu pas, cu cotele tale",
+    actualizat: "2026-09-23",
+    titluPagina: "Program de salarizare: calculul pas cu pas",
     metaDescriere:
-      "Calcul salarial cu desfășurător și avertismente, pornit din luna de pontaj închisă. Cotele sunt versionate cu data de la care se aplică. Managerul nu vede salariile.",
+      "Program de salarizare cu desfășurător și avertismente, pornit din pontajul închis. Cotele sunt versionate cu data de la care se aplică. Managerul nu vede salariile.",
     intro: [
       "Calculul nu e o cutie neagră care scoate o cifră. Merge pas cu pas, cu desfășurător pe fiecare linie și cu avertismente unde ceva arată neobișnuit — un spor care sare, o lună cu mai puține zile decât ar trebui, un om fără contract activ.",
       "Cotele sunt ale firmei tale și sunt versionate cu data de la care se aplică. Niciuna nu e scrisă în cod. Când se schimbă o cotă, se adaugă o versiune nouă cu data ei, iar lunile deja calculate rămân cu cotele care erau valabile atunci — recalcularea trecutului nu se întâmplă din greșeală.",

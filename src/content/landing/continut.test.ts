@@ -740,8 +740,10 @@ describe("legăturile interne duc undeva", () => {
     const SUFIX = " · Administrativo";
     const { FISE } = await import("./fise-module");
     const { DOMENII } = await import("./domenii");
+    // `titlu:` e forma din `metadatePagina` (din 23 sept 2026); `title:` rămâne
+    // prins pentru o pagină care ar scrie metadatele de mână.
     const statice = fisiere("src/app/(marketing)", ["page.tsx"]).flatMap((f) =>
-      [...readFileSync(f, "utf8").matchAll(/\btitle: "([^"]+)"/g)].map(
+      [...readFileSync(f, "utf8").matchAll(/\b(?:title|titlu): "([^"]+)"/g)].map(
         (m) => [f, m[1] ?? ""] as const,
       ),
     );
@@ -755,6 +757,23 @@ describe("legăturile interne duc undeva", () => {
       expect(`${titlu}${SUFIX}`.length, `${sursa}: „${titlu}”`).toBeLessThanOrEqual(65);
       expect(titlu, `${sursa}: marca e adăugată de șablon`).not.toMatch(/Administrativo/);
     }
+  });
+
+  it("fiecare pagină își pune Open Graph-ul ei, prin metadatePagina", () => {
+    /*
+     * Next îmbină metadatele superficial: o pagină fără `openGraph` moștenește
+     * titlul și descrierea homepage-ului. Auditul din 23 sept 2026 a găsit
+     * același `og:title` pe toate cele 48 de adrese. `metadatePagina` pune
+     * obiectul complet; o pagină care își scrie metadatele de mână îl uită.
+     */
+    const cuMetadate = fisiere("src/app/(marketing)", ["page.tsx"]).filter((f) =>
+      /export (const metadata|async function generateMetadata)/.test(readFileSync(f, "utf8")),
+    );
+    expect(cuMetadate.length).toBeGreaterThan(25);
+    const faraAjutor = cuMetadate.filter(
+      (f) => !readFileSync(f, "utf8").includes("metadatePagina("),
+    );
+    expect(faraAjutor, "pagini cu metadate scrise de mână, fără og:title propriu").toEqual([]);
   });
 
   it("descrierile fișelor nu se termină toate în aceeași propoziție", async () => {

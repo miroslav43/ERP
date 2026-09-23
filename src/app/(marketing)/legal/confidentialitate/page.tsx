@@ -9,6 +9,7 @@ import {
 } from "@/content/legal/confidentialitate";
 
 import { Cadru } from "../../_componente/cadru";
+import { metadatePagina } from "../../_componente/metadate";
 
 /**
  * Politica de confidențialitate.
@@ -22,14 +23,14 @@ import { Cadru } from "../../_componente/cadru";
  * Textul vine acum din `content/legal/confidentialitate.ts`, redactat din cod;
  * stadiul juridic se spune o dată, sus.
  */
-export const metadata: Metadata = {
-  title: "Politica de confidențialitate",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Politica de confidențialitate",
+  descriere:
     "Ce date prelucrează Administrativo, de ce, cât le păstrează, cine are acces și care sunt drepturile tale conform GDPR. Document în curs de validare juridică.",
   // Vezi nota din `legal/termeni`: canonical da, `languages` nu — nu există
   // varianta engleză.
-  alternates: { canonical: "/legal/confidentialitate" },
-};
+  cale: "/legal/confidentialitate",
+});
 
 export default function PaginaConfidentialitate() {
   return (

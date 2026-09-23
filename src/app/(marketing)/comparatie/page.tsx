@@ -8,18 +8,19 @@ import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
 import { Cadru } from "../_componente/cadru";
 import { ListaHub } from "../_componente/lista-hub";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Comparațiile, ca hub.
  *
  * `/comparatie` dădea 404 până la 17 sept 2026, deși `/comparatie/excel` exista.
  */
-export const metadata: Metadata = {
-  title: "Comparații: pontaj în Excel sau într-o aplicație",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Comparații: pontaj în Excel sau într-o aplicație",
+  descriere:
     "Unde se rupe foaia de calcul la pontaj și unde nu se rupe deloc, inclusiv situațiile în care e mai bine să rămâi la Excel.",
-  alternates: { canonical: "/comparatie" },
-};
+  cale: "/comparatie",
+});
 
 const PAGINI = [
   { href: "/comparatie/excel", titlu: ANTET_COMPARATIE.titlu, lead: ANTET_COMPARATIE.lead },

@@ -12,6 +12,7 @@ import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
 import { Cadru } from "../_componente/cadru";
 import { ListaHub } from "../_componente/lista-hub";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Ghidurile, ca hub.
@@ -21,12 +22,12 @@ import { ListaHub } from "../_componente/lista-hub";
  * încearcă tăind din adresă. Hub-ul adună și cele două pagini-lege de la
  * rădăcină: pentru cine caută „ce cere legea”, sunt același fel de pagină.
  */
-export const metadata: Metadata = {
-  title: "Ghiduri pentru angajatori: pontaj, REGES, ITM",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Ghiduri pentru angajatori: pontaj, REGES, ITM",
+  descriere:
     "Ce cer Codul muncii și HG 295/2025 de la o firmă mică: evidența orelor, REGES-ONLINE, concediul de odihnă, controlul ITM. Cu articolul de lege lângă fiecare afirmație.",
-  alternates: { canonical: "/ghid" },
-};
+  cale: "/ghid",
+});
 
 const PAGINI = [EVIDENTA_ORELOR, REGES, CONCEDIU_ODIHNA, DIURNA, CONTROL_ITM].map((p) => ({
   href: p.cale,

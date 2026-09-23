@@ -52,3 +52,13 @@ export const ADRESA_FIRMA = `${FIRMA.strada}, ${FIRMA.oras}, ${FIRMA.judet}, ${F
  * să nu cadă când variabila lipsește (de exemplu în integrarea continuă).
  */
 export const ADRESA_SITE = process.env.NEXT_PUBLIC_APP_URL ?? "https://administrativo.ro";
+
+/**
+ * Profilurile publice ale FIRMEI (nu ale fondatorului), pentru `sameAs` din
+ * datele structurate: legătura prin care un motor de căutare leagă site-ul de
+ * aceeași entitate de pe alte platforme. Auditul din 23 sept 2026 n-a găsit
+ * niciuna. Cât lista e goală, `sameAs` lipsește din JSON-LD — o adresă
+ * inventată ar fi mai rea decât niciuna. Se adaugă pagina de firmă de pe
+ * LinkedIn în ziua în care există.
+ */
+export const PROFILURI_PUBLICE: readonly string[] = [];

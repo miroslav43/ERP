@@ -1,4 +1,4 @@
-import { ADRESA_SITE, CONTACT, FIRMA } from "@/content/landing/contact";
+import { ADRESA_SITE, CONTACT, FIRMA, PROFILURI_PUBLICE } from "@/content/landing/contact";
 
 import {
   ID_APLICATIE,
@@ -79,6 +79,7 @@ const ORGANIZATIE = {
     availableLanguage: ["ro", "en"],
     areaServed: FIRMA.codTara,
   },
+  ...(PROFILURI_PUBLICE.length > 0 ? { sameAs: [...PROFILURI_PUBLICE] } : {}),
 } as const;
 
 const SITE = {

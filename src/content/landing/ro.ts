@@ -31,6 +31,9 @@ export const RO: ContinutLanding = {
       { eticheta: "Module", href: "/module" },
       { eticheta: "Cum se pontează", href: "/pontaj-pe-telefon" },
       { eticheta: "Prețuri", href: "/preturi" },
+      // Contabilul extern ține zece firme și decide pentru toate zece. Până pe
+      // 23 sept 2026 pagina lui era legată doar din subsol.
+      { eticheta: "Pentru contabili", href: "/pentru-contabili" },
       { eticheta: "Întrebări", href: "/intrebari" },
     ],
     autentificare: "Autentificare",
@@ -142,7 +145,7 @@ export const RO: ContinutLanding = {
 
   platforma: {
     supratitlu: "Cum se leagă",
-    titlu: "Modulele nu sunt aplicații separate puse una lângă alta.",
+    titlu: "Pontajul, concediile și salarizarea nu sunt aplicații separate.",
     lead: "Ce intră o dată nu se mai retastează. Legăturile de mai jos există în cod, cu numele scrise aici — nu sunt o schemă de prezentare.",
     noduri: [
       { cheie: "angajati", eticheta: "Angajați" },

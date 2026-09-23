@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { DIURNA } from "@/content/legal/diurna";
 
+import { metadatePagina } from "../../_componente/metadate";
 import { RandarePaginaLege } from "../../_componente/pagina-lege";
 
 /**
@@ -14,12 +15,12 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
  * Codul muncii crede că diurna e liberă, cine citește doar Codul fiscal crede
  * că plafonul e o obligație de plată.
  */
-export const metadata: Metadata = {
-  title: "Diurna: plafonul neimpozabil și cele 3 salarii",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Diurna: plafonul neimpozabil și cele 3 salarii",
+  descriere:
     "Cele două plafoane ale diurnei — 2,5 ori nivelul din hotărârea de guvern și 3 salarii de bază calculate lunar — plus ce spune Codul muncii despre delegare și cei 60 de zile.",
-  alternates: { canonical: "/ghid/diurna" },
-};
+  cale: "/ghid/diurna",
+});
 
 export default function PaginaDiurna() {
   return <RandarePaginaLege text={DIURNA} />;

@@ -6,6 +6,7 @@ import { RO } from "@/content/landing/ro";
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { BandaComparatie, BandaOnestitate } from "../_componente/benzi/incredere";
 import { Cadru } from "../_componente/cadru";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Ce NU facem.
@@ -19,13 +20,13 @@ import { Cadru } from "../_componente/cadru";
  * e aceeași conversație — ce se schimbă și ce nu — și e mai onestă lângă lista de
  * limite decât singură.
  */
-export const metadata: Metadata = {
+export const metadata: Metadata = metadatePagina({
   // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
-  title: "Ce nu facem: limitele, scrise dinainte",
-  description:
+  titlu: "Ce nu facem: limitele, scrise dinainte",
+  descriere:
     "Lista limitelor, scrisă înainte să întrebi: fără raportare la ANAF, fără CNP-uri trimise la REGES pe fundal, fără aplicație în magazine. Și de ce e mai ieftin așa.",
-  alternates: { canonical: "/de-ce-nu" },
-};
+  cale: "/de-ce-nu",
+});
 
 export default function PaginaDeCeNu() {
   return (

@@ -10,6 +10,7 @@ import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
 import { BandaVerticale } from "../_componente/benzi/incredere";
 import { Cadru } from "../_componente/cadru";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Domeniile, ca hub.
@@ -22,13 +23,13 @@ import { Cadru } from "../_componente/cadru";
  * a rămas rezumatul comparativ — se citește când nu știi încă în care dintre
  * cele patru te regăsești — și trimite mai departe.
  */
-export const metadata: Metadata = {
+export const metadata: Metadata = metadatePagina({
   // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
-  title: "Pe domenii: construcții, producție, transport",
-  description:
+  titlu: "Pe domenii: construcții, producție, transport",
+  descriere:
     "Aceleași module, altă ordine de pornire. Ce se schimbă pentru firmele din construcții, producție, transport și servicii — și ce rămâne la fel.",
-  alternates: { canonical: "/domenii" },
-};
+  cale: "/domenii",
+});
 
 export default function PaginaDomenii() {
   return (

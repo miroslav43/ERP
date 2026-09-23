@@ -13,6 +13,7 @@ import { RO } from "@/content/landing/ro";
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
 import { Cadru } from "../_componente/cadru";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Pagina contabilului.
@@ -25,12 +26,12 @@ import { Cadru } from "../_componente/cadru";
  * Aceeași croială ca `/pontaj-pe-telefon`, din același motiv: sunt pagini de
  * pași, nu de obligații legale, deci nu intră pe tiparul `PaginaLege`.
  */
-export const metadata: Metadata = {
-  title: "Pentru contabili: un cont, toate firmele",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Pentru contabili: un cont, toate firmele",
+  descriere:
     "Cum arată aplicația pentru cine ține zece firme: o apartenență per client, comutare fără delogare, nota contabilă și D112 exportate, iar depunerea rămâne la tine.",
-  alternates: { canonical: "/pentru-contabili" },
-};
+  cale: "/pentru-contabili",
+});
 
 /** Pașii unei secțiuni: titlu scurt și explicația lui, pe un rând. */
 function Pasi({ sectiune }: { sectiune: SectiuneContabili }) {
