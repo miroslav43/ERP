@@ -242,6 +242,10 @@ const eslintConfig = defineConfig([
     // propriul lockfile. Regulile de aici — granița server/client, restricția pe
     // clientul admin — n-au niciun înțeles în React Native.
     "mobil/**",
+    // Uneltele care randează planșele LinkedIn (CommonJS, rulate de mână cu
+    // Node, în afara aplicației). Intrate pe 23 sept 2026 fără linia asta, au
+    // înroșit `pnpm lint` — deci CI și deploy-ul pe staging — pe `require()`.
+    "docs/comercial/linkedin/unelte/**",
   ]),
 ]);
 
