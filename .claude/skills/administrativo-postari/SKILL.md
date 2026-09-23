@@ -23,7 +23,7 @@ Cifra-vedetă din calendar se **reverifică în sursă**. Când diferă (#7 scri
 documente”, `control-itm.ts` are 8 în `reguli`), sursa câștigă, iar spec-ul și
 README-ul se corectează în același commit.
 
-## Ce conține o postare în `lot-NN.md`, în ordinea asta
+## Ce conține o postare în `lot-<NN>.md`, în ordinea asta
 
 1. `## #N · <ziua> <data> · carusel (K slide-uri)` sau `· imagine`, plus ★ dacă trimite la pilot.
 2. **Pilon** și **Sursă**. Pilonul vine din sursă: `src/content/legal/` →
@@ -48,7 +48,7 @@ experiența („cel mai des”, „vedem”) apare doar dacă sursa o spune.
 ## Fluxul unui lot
 
 1. Citești tabelul de rezultate din README și ajustezi lotul după ce a mers.
-2. Scrii `docs/comercial/linkedin/lot-NN.md`, după rețeta de mai sus.
+2. Scrii `docs/comercial/linkedin/lot-<NN>.md`, după rețeta de mai sus.
 3. Cauți cu `grep` fiecare cifră și fiecare articol în `src/content/legal/`.
 4. În `docs/comercial/linkedin/unelte/`:
    - adaugi planșele în `genereaza.py`, cu `coperta()`, `regula()` și `final()`, pe un rând nou de pânză;
