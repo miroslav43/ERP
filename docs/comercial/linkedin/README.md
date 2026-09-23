@@ -8,6 +8,17 @@ regulile de ajustare — e în
 [`docs/superpowers/specs/2026-09-23-linkedin-t4-design.md`](../../superpowers/specs/2026-09-23-linkedin-t4-design.md).
 Aici stă doar ce se folosește săptămânal.
 
+## Unde sunt planșele și kit-ul
+
+- **Pânza Claude Design** (sursa planșelor, 1080×1350):
+  https://claude.ai/artifact/A8wvj3U1WaAqzgsPXYsDFZ
+- **Kit-ul lotului 1** (text de copiat + fișierele de urcat):
+  https://claude.ai/artifact/XjG4YCBbDfufXX7fbDkibr
+- Fișierele exportate NU intră în git. Se regenerează din planșe: HTML-ul
+  fiecărei planșe e randat local cu Playwright (`headless_shell` din
+  `~/.cache/ms-playwright`) în PNG, iar caruselele sunt legate într-un PDF de
+  1080×1350 pe pagină.
+
 ## Pe scurt
 
 - **Vocea:** pagina, la plural. Profilul lui Miro redistribuie cel mult o dată
