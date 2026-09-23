@@ -61,8 +61,47 @@ function git(argumente) {
   }
 }
 
-/** Data ultimului commit care a atins fișierul, ca `YYYY-MM-DD`. */
-const dataFisierului = (fisier) => git(["log", "-1", "--format=%cs", "--", fisier]);
+/**
+ * Commit-urile care au atins fișiere de pagină fără să le schimbe conținutul —
+ * refactorizări, metadate, redenumiri. Același principiu ca
+ * `.git-blame-ignore-revs`: o listă explicită, cu motivul pe fiecare rând.
+ *
+ * Cazul care a cerut-o: pe 23 sept 2026, trecerea tuturor paginilor pe
+ * `metadatePagina` (65e6891) a atins 20 de `page.tsx`; poarta cerea 20 de date
+ * ridicate, adică 20 de semnale către Google despre schimbări de conținut care
+ * nu avuseseră loc. Un `lastmod` care minte în sus e la fel de ignorat ca unul
+ * rămas în urmă.
+ */
+const FARA_CONTINUT = new Set(
+  (existsSync("scripts/checks/lastmod-fara-continut.txt")
+    ? readFileSync("scripts/checks/lastmod-fara-continut.txt", "utf8")
+    : ""
+  )
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "" && !l.startsWith("#"))
+    .map((l) => l.split(/\s+/)[0]),
+);
+const ignorat = (sha) => [...FARA_CONTINUT].some((scurt) => sha.startsWith(scurt));
+
+/** Data ultimului commit care a atins fișierul, ca `YYYY-MM-DD`, fără cele din listă. */
+function dataFisierului(fisier) {
+  let iesire;
+  try {
+    iesire = execFileSync("git", ["log", "--format=%H %cs", "--", fisier], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch {
+    return null;
+  }
+  for (const linie of iesire.split("\n")) {
+    const [sha, data] = linie.split(" ");
+    if (sha && data && !ignorat(sha)) return data;
+  }
+  return null;
+}
 
 /**
  * Data ultimului commit care a schimbat CONȚINUTUL liniilor `[de..pana]` —
@@ -79,14 +118,17 @@ function dataLiniilor(fisier, de, pana) {
   try {
     iesire = execFileSync(
       "git",
-      ["log", "-L", `${String(de)},${String(pana)}:${fisier}`, "--format=__COMMIT__ %cs"],
+      ["log", "-L", `${String(de)},${String(pana)}:${fisier}`, "--format=__COMMIT__ %H %cs"],
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 64 * 1024 * 1024 },
     );
   } catch {
     return null;
   }
   for (const bloc of iesire.split("__COMMIT__ ").slice(1)) {
-    const data = bloc.slice(0, 10);
+    // Lista `FARA_CONTINUT` NU se aplică aici: un commit poate lăsa neatins
+    // textul paginilor și totuși schimba o fișă (65e6891 a schimbat titlul fișei
+    // de salarizare). La fișe decide diff-ul liniilor, nu o declarație.
+    const data = bloc.slice(0, bloc.indexOf("\n")).split(" ")[1] ?? "";
     const schimbate = bloc
       .split("\n")
       .filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l))
