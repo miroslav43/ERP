@@ -58,7 +58,10 @@ export const ADRESA_SITE = process.env.NEXT_PUBLIC_APP_URL ?? "https://administr
  * datele structurate: legătura prin care un motor de căutare leagă site-ul de
  * aceeași entitate de pe alte platforme. Auditul din 23 sept 2026 n-a găsit
  * niciuna. Cât lista e goală, `sameAs` lipsește din JSON-LD — o adresă
- * inventată ar fi mai rea decât niciuna. Se adaugă pagina de firmă de pe
- * LinkedIn în ziua în care există.
+ * inventată ar fi mai rea decât niciuna. Pagina de firmă de pe LinkedIn a
+ * apărut în aceeași zi și e prima intrare.
  */
-export const PROFILURI_PUBLICE: readonly string[] = [];
+export const PROFILURI_PUBLICE: readonly string[] = [
+  // Adresa publică, nu `…/admin/dashboard/` — aceea cere autentificare.
+  "https://www.linkedin.com/company/144846087/",
+];

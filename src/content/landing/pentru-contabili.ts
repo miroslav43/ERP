@@ -145,3 +145,67 @@ export const CE_NU_FACE: SectiuneContabili = {
     },
   ],
 };
+
+/**
+ * Programul pilot pentru contabili, anunțat pe LinkedIn pe 6 oct 2026.
+ *
+ * ── DE CE „GRATUIT PENTRU FIRME”, NU „CONT GRATUIT PENTRU CONTABIL” ───────
+ * Contul contabilului e deja gratuit: aplicația n-are tarif de cabinet (vezi
+ * antetul fișierului), iar plătitorul e mereu firma. Oferta reală e deci
+ * pentru firmele pe care le aduce contabilul, iar contabilul primește un
+ * comision după pilot.
+ *
+ * ── DE UNDE VIN CIFRELE ───────────────────────────────────────────────────
+ * `docs/superpowers/specs/2026-09-23-linkedin-t4-design.md` §1, stabilite cu
+ * Miro. Comisionul e scris ca PROCENT: o sumă în lei calculată de mână ar
+ * cădea la testul tabelului canonic, și pe bună dreptate — s-ar despărți
+ * tăcut de `preturi.ts`.
+ *
+ * ── TERMENUL ──────────────────────────────────────────────────────────────
+ * Datele din text se formează din `PILOT`, deci o prelungire e o singură
+ * modificare. `continut.test.ts` cade la o săptămână după închiderea
+ * înscrierilor: pagina e statică și n-ar observa singură că oferta a expirat.
+ */
+export const PILOT = {
+  locuri: 10,
+  inscrieriPanaLa: "2026-11-15",
+  gratuitPanaLa: "2027-03-31",
+  comisionProcent: 20,
+  comisionLuni: 6,
+} as const;
+
+const FORMAT_DATA = new Intl.DateTimeFormat("ro-RO", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/** „2026-11-15” → „15 noiembrie 2026”. */
+export function dataPilot(iso: string): string {
+  return FORMAT_DATA.format(new Date(`${iso}T00:00:00Z`));
+}
+
+export const PILOT_CONTABILI: SectiuneContabili = {
+  supratitlu: "Program pilot",
+  titlu: `${PILOT.locuri} cabinete, gratuit pentru firmele lor până pe ${dataPilot(PILOT.gratuitPanaLa)}`,
+  lead: `Înscrieri până pe ${dataPilot(PILOT.inscrieriPanaLa)}. Aduci una până la trei firme-client; noi le punem în funcțiune, iar ele nu plătesc nimic până pe ${dataPilot(PILOT.gratuitPanaLa)}.`,
+  pasi: [
+    {
+      titlu: "Ce primești",
+      text: "Firmele pe care le aduci folosesc nucleul — pontaj, concedii, REGES-Online, SSM și portalul angajatului — fără cost până la sfârșitul pilotului. Importul angajaților, setările firmei și conturile analitice pentru nota contabilă le facem noi, împreună cu tine, o singură dată. Salarizarea intră în pilot doar dacă treci tu, înainte de primul calcul real, prin valorile legale implicite: sunt un punct de pornire, nu o sursă de adevăr.",
+    },
+    {
+      titlu: "Ce îți cerem",
+      text: "O discuție de treizeci de minute pe lună despre ce te-a încurcat și ce lipsește, și acordul să descriem, fără nume, cum a mers la una dintre firme: domeniul, județul, numărul de oameni. Nu cerem testimoniale și nu punem logo-uri.",
+    },
+    {
+      titlu: "Ce se întâmplă după",
+      text: `De la prima lună plătită a fiecărei firme aduse, primești ${PILOT.comisionProcent}% din abonamentul ei, timp de ${PILOT.comisionLuni} luni. Prețul pe care îl plătește firma după pilot e cel de pe pagina de prețuri — îl știi de acum, nu se negociază la final. O firmă care nu vrea să continue pleacă cu fișierele ei: se descarcă oricând, nu doar la ieșire.`,
+    },
+    {
+      titlu: "Cum te înscrii",
+      text: "Scrie-ne din formularul de demonstrație că vrei în pilot și câte firme ai în vedere. Urmează o discuție de douăzeci de minute în care alegem împreună firmele potrivite: cu angajați, cu pontaj lunar și cu un administrator care e de acord.",
+    },
+  ],
+};

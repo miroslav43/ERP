@@ -1,11 +1,14 @@
 // src/app/(marketing)/pentru-contabili/page.tsx
 import type { Metadata } from "next";
+import Link from "next/link";
+import type { ReactNode } from "react";
 
 import {
   CE_NU_FACE,
   CE_PRIMESTI,
   CONTUL_TAU,
   INAINTE_SA_RECOMANZI,
+  PILOT_CONTABILI,
   type SectiuneContabili,
 } from "@/content/landing/pentru-contabili";
 import { RO } from "@/content/landing/ro";
@@ -33,8 +36,11 @@ export const metadata: Metadata = metadatePagina({
   cale: "/pentru-contabili",
 });
 
-/** Pașii unei secțiuni: titlu scurt și explicația lui, pe un rând. */
-function Pasi({ sectiune }: { sectiune: SectiuneContabili }) {
+/**
+ * Pașii unei secțiuni: titlu scurt și explicația lui, pe un rând. `dupa` e ce
+ * urmează sub grilă, în aceeași bandă — azi doar îndemnul pilotului.
+ */
+function Pasi({ sectiune, dupa }: { sectiune: SectiuneContabili; dupa?: ReactNode }) {
   return (
     <Banda
       inaltime="medie"
@@ -57,6 +63,7 @@ function Pasi({ sectiune }: { sectiune: SectiuneContabili }) {
           </div>
         ))}
       </div>
+      {dupa}
     </Banda>
   );
 }
@@ -78,6 +85,21 @@ export default function PaginaPentruContabili() {
       {/* Ultima, deliberat: obiecția de încredere se pune după ce omul a citit
           ce face și ce nu face, nu înainte. */}
       <Pasi sectiune={INAINTE_SA_RECOMANZI} />
+      {/* Pilotul, ultimul: oferta vine după ce omul a citit ce riscă. */}
+      <Pasi
+        sectiune={PILOT_CONTABILI}
+        dupa={
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/cere-demo"
+              data-umami-event="cta-pilot-contabili"
+              className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+            >
+              Vreau în pilot
+            </Link>
+          </div>
+        }
+      />
     </Cadru>
   );
 }
