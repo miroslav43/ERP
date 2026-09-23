@@ -481,7 +481,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
   {
     id: "diurna",
-    label: "Diurne și deplasări",
+    label: "Deplasări și diurne",
     href: "/diurna",
     icon: Receipt,
     group: "financiar",

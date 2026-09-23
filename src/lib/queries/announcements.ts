@@ -3,6 +3,8 @@
 // e impusă de RLS (`announcements_select`), nu reprodusă aici — un
 // administrator vede și ciornele, un angajat obișnuit doar ce e publicat.
 
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export interface RandAnunt {

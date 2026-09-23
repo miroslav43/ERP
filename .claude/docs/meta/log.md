@@ -144,3 +144,17 @@ de oricine face un push.
 - module atinse: angajati departamente pontaj puncte-lucru
 - straturi atinse: citiri domeniu configurație
 - pagini rescrise: modul/pontaj.md modul/pontaj/setari.md
+
+## 2026-09-21
+
+- commit-uri în ultimele 24h: 11
+- module atinse: angajati concedii cursuri diurna mentenanta onboarding
+- straturi atinse: migrări citiri scheme domeniu configurație
+- pagini rescrise: modul/concedii/actiuni.md modul/departamente.md modul/diurna.md
+
+## 2026-09-22
+
+- commit-uri în ultimele 24h: 20
+- module atinse: angajati concedii cursuri diurna flota mentenanta onboarding
+- straturi atinse: migrări citiri scheme domeniu configurație
+- pagini rescrise: niciuna (agenții au citit diff-ul și n-au găsit contract schimbat)

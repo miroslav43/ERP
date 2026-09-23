@@ -28,10 +28,8 @@ type DeplasareCreata = Readonly<{ id: string }>;
  * să meargă pe aceeași cale ca al serverului și să ajungă lângă câmp, nu sub
  * buton.
  *
- * Există doar unde schema Zod n-are mesaj propriu în română: `plecare_la` și
- * `sosire_la` sunt `z.iso.datetime({ local: true })`, iar un câmp gol întoarce
- * textul implicit al lui Zod, în engleză. Schema e un contract cu acțiunea și
- * nu se atinge de aici — deci golul se prinde înainte de drumul la server.
+ * Golul pe `plecare_la` / `sosire_la` se prinde aici, înainte de drumul la
+ * server; schema (`dataOraRomania`) îl refuză și ea, cu același fel de mesaj.
  */
 function refuzDeClient(
   fieldErrors: Readonly<Record<string, readonly string[]>>,
@@ -77,8 +75,8 @@ async function trimiteDeplasarea(date: FormData): Promise<ActionResult<Deplasare
   const plecareLa = String(date.get("plecare_la") ?? "").trim();
   const sosireLa = String(date.get("sosire_la") ?? "").trim();
   const lipsa: Record<string, readonly string[]> = {};
-  if (plecareLa.length === 0) lipsa["plecare_la"] = ["Completați data plecării."];
-  if (sosireLa.length === 0) lipsa["sosire_la"] = ["Completați data sosirii."];
+  if (plecareLa.length === 0) lipsa["plecare_la"] = ["Completați data și ora plecării."];
+  if (sosireLa.length === 0) lipsa["sosire_la"] = ["Completați data și ora sosirii."];
   if (Object.keys(lipsa).length > 0) return refuzDeClient(lipsa);
 
   return creeazaDeplasare({

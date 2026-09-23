@@ -3,6 +3,8 @@
 // șabloane. NU se filtrează după scope (own/team/all) în cod: politicile din
 // 0014_checklist.sql restrâng rândurile direct în Postgres.
 
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
   SORTARI_INSTANTE,

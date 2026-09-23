@@ -1,102 +1,169 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
+import { Camp, clasaBifa } from "@/components/ui/camp";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { IntrareDurata } from "@/components/ui/intrare-ora";
-import type { Tara } from "@/lib/queries/per-diem";
+import { formatDate } from "@/lib/format/date";
+import { formatAmount } from "@/lib/format/money";
+import type { ModCalculZile } from "@/domain/per-diem/ferestre";
+import type { Tara, ValoriLegaleDiurna } from "@/lib/queries/per-diem";
 import { REGULI_TRECERE_FRONTIERA } from "@/schemas/per-diem";
 
 import { creeazaPolitica } from "../actions";
 import { ETICHETE_REGULA_TRECERE } from "../etichete";
+import { BaremuriTari, type RandBaremAfisat } from "./baremuri-tari";
 
-const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
+/** Monedele care apar primele în lista diurnei externe; restul vin din țări. */
+const MONEDE_UZUALE = ["EUR", "USD", "GBP", "CHF"] as const;
+
+type Erori = Readonly<Record<string, readonly string[]>>;
+
+/** Rândul de lege valabil la o dată; fără dată, cel mai recent. */
+function legeaLaData(
+  valori: readonly ValoriLegaleDiurna[],
+  data: string,
+): ValoriLegaleDiurna | null {
+  const ordonate = [...valori].sort((a, b) => b.valabil_de_la.localeCompare(a.valabil_de_la));
+  if (data.length === 0) return ordonate[0] ?? null;
+  return ordonate.find((v) => v.valabil_de_la <= data) ?? null;
+}
 
 /**
  * O versiune NOUĂ de politică — niciodată o editare a celei vechi. Politica e
  * versionată prin `valabil_de_la`, exact ca baremul pe țări: deplasările deja
  * calculate rămân legate de regulile de la momentul lor.
+ *
+ * Firma completează doar ce decide ea. Plafonul neimpozabil e lege: se arată,
+ * nu se cere — îl pune în bază triggerul din `0147_diurna_valori_legale.sql`.
+ *
+ * Data poate fi oricât de veche, cât timp există lege încărcată pentru ea și
+ * nu începe deja o altă versiune în aceeași zi. Ambele se spun lângă câmp,
+ * înainte de trimitere; acțiunea le repetă, tot pe câmp, dacă ajung la bază.
  */
-export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
+export function FormularPolitica({
+  tari,
+  valoriLegale,
+  baremuri,
+  dateOcupate,
+}: {
+  readonly tari: readonly Tara[];
+  readonly valoriLegale: readonly ValoriLegaleDiurna[];
+  readonly baremuri: readonly RandBaremAfisat[];
+  /** `valabil_de_la` al versiunilor existente — o singură versiune pe zi. */
+  readonly dateOcupate: readonly string[];
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
+  const [erori, setErori] = useState<Erori>({});
   const [reusit, setReusit] = useState(false);
 
   const [denumire, setDenumire] = useState("");
-  const [countryIdIntern, setCountryIdIntern] = useState(tari[0]?.id ?? "");
-  const [monedaInterna, setMonedaInterna] = useState("RON");
+  const [valabilDeLa, setValabilDeLa] = useState("");
+  const [countryIdIntern, setCountryIdIntern] = useState(
+    tari.find((t) => t.cod_alpha2 === "RO")?.id ?? tari[0]?.id ?? "",
+  );
   const [diurnaInternaZi, setDiurnaInternaZi] = useState("");
-  const [diurnaBazaLegalaInterna, setDiurnaBazaLegalaInterna] = useState("");
-  const [multiploPlafonNeimpozabil, setMultiploPlafonNeimpozabil] = useState("2.5");
-  const [multiploDiurnaExterna, setMultiploDiurnaExterna] = useState("1");
-  const [categorieBarem, setCategorieBarem] = useState<"I" | "II">("II");
-  const [pragOreMinim, setPragOreMinim] = useState<number | null>(12);
-  const [pragOreZiIntreaga, setPragOreZiIntreaga] = useState<number | null>(24);
-  const [fractiuneZiPartiala, setFractiuneZiPartiala] = useState("0.5");
-  const [acordaZiuaTrecerii, setAcordaZiuaTrecerii] = useState(true);
+  const [diurnaExternaZi, setDiurnaExternaZi] = useState("");
+  const [monedaDiurnaExterna, setMonedaDiurnaExterna] = useState("EUR");
+  const [modCalculZile, setModCalculZile] = useState<ModCalculZile>("zile_calendaristice");
+  const [oreMinime, setOreMinime] = useState<number | null>(12);
   const [regulaTaraTrecere, setRegulaTaraTrecere] =
     useState<(typeof REGULI_TRECERE_FRONTIERA)[number]>("tara_sosire");
+  const [acordaZiuaTrecerii, setAcordaZiuaTrecerii] = useState(true);
   const [tarifKmAutoPersonal, setTarifKmAutoPersonal] = useState("");
-  const [monedaTarifKm, setMonedaTarifKm] = useState("RON");
-  const [plafonSalariiBazaLuna, setPlafonSalariiBazaLuna] = useState("3");
-  const [valabilDeLa, setValabilDeLa] = useState("");
 
-  const id = {
-    denumire: useId(),
-    tara: useId(),
-    monedaInterna: useId(),
-    diurnaInternaZi: useId(),
-    diurnaBazaLegalaInterna: useId(),
-    multiploPlafon: useId(),
-    multiploExterna: useId(),
-    categorie: useId(),
-    pragMinim: useId(),
-    pragZiIntreaga: useId(),
-    fractiune: useId(),
-    acordaTrecere: useId(),
-    regulaTrecere: useId(),
-    tarifKm: useId(),
-    monedaTarifKm: useId(),
-    plafonSalarii: useId(),
-    valabilDeLa: useId(),
-  };
+  const monedaInterna = tari.find((t) => t.id === countryIdIntern)?.moneda ?? "RON";
+  const monede = useMemo(() => {
+    const dinTari = [...new Set(tari.map((t) => t.moneda))].sort();
+    return [...new Set<string>([...MONEDE_UZUALE, ...dinTari])];
+  }, [tari]);
+  const primaZiLegala = useMemo(
+    () => [...valoriLegale].map((v) => v.valabil_de_la).sort()[0],
+    [valoriLegale],
+  );
 
-  function trimite(): void {
+  const lege = legeaLaData(valoriLegale, valabilDeLa);
+  const plafonIntern =
+    lege === null ? null : lege.multiplu_plafon_neimpozabil * lege.diurna_baza_legala_interna;
+  const internaNumar = diurnaInternaZi.trim() === "" ? null : Number(diurnaInternaZi);
+  const pestePlafon =
+    plafonIntern !== null && internaNumar !== null && internaNumar > plafonIntern
+      ? internaNumar - plafonIntern
+      : null;
+
+  /** Scoate eroarea unui câmp în clipa în care omul îl atinge din nou. */
+  function curata(camp: string): void {
+    setErori((vechi) => {
+      if (!(camp in vechi)) return vechi;
+      const { [camp]: _, ...rest } = vechi;
+      return rest;
+    });
+  }
+
+  function valideaza(): Erori {
+    const gasite: Record<string, string[]> = {};
     if (denumire.trim().length < 2) {
-      setEroare("Denumirea politicii trebuie să aibă cel puțin 2 caractere.");
-      return;
+      gasite.denumire = ["Scrieți o denumire de cel puțin 2 caractere."];
     }
     if (valabilDeLa.length === 0) {
-      setEroare("Data de la care se aplică politica este obligatorie.");
+      gasite.valabil_de_la = ["Alegeți data de la care se aplică politica (zz.ll.aaaa)."];
+    } else if (primaZiLegala !== undefined && valabilDeLa < primaZiLegala) {
+      gasite.valabil_de_la = [
+        `Valorile legale ale diurnei sunt încărcate de la ${formatDate(primaZiLegala)}. Alegeți o dată de atunci încoace.`,
+      ];
+    } else if (dateOcupate.includes(valabilDeLa)) {
+      gasite.valabil_de_la = [
+        `Există deja o versiune care începe la ${formatDate(valabilDeLa)}. Alegeți altă zi.`,
+      ];
+    }
+    if (diurnaInternaZi.trim() === "") {
+      gasite.diurna_interna_zi = ["Completați suma pe zi pentru deplasările în țară."];
+    }
+    if (oreMinime === null) {
+      gasite.ore_minime = ["Completați numărul minim de ore, ex. 12:00."];
+    }
+    return gasite;
+  }
+
+  function trimite(): void {
+    setReusit(false);
+    const gasite = valideaza();
+    setErori(gasite);
+    if (Object.keys(gasite).length > 0) {
+      setEroare("Corectați câmpurile marcate.");
       return;
     }
     setEroare(null);
-    setReusit(false);
+    const externa = diurnaExternaZi.trim() === "" ? null : Number(diurnaExternaZi);
     porneste(async () => {
       const rezultat = await creeazaPolitica({
         denumire,
         country_id_intern: countryIdIntern,
         moneda_interna: monedaInterna,
         diurna_interna_zi: Number(diurnaInternaZi),
-        diurna_baza_legala_interna: Number(diurnaBazaLegalaInterna),
-        multiplu_plafon_neimpozabil: Number(multiploPlafonNeimpozabil),
-        multiplu_diurna_externa: Number(multiploDiurnaExterna),
-        categorie_barem: categorieBarem,
-        prag_ore_minim: pragOreMinim ?? 0,
-        prag_ore_zi_intreaga: pragOreZiIntreaga ?? 0,
-        fractiune_zi_partiala: Number(fractiuneZiPartiala),
+        diurna_externa_zi: externa,
+        moneda_diurna_externa: externa === null ? null : monedaDiurnaExterna,
+        mod_calcul_zile: modCalculZile,
+        ore_minime: oreMinime ?? 0,
         acorda_diurna_ziua_trecerii: acordaZiuaTrecerii,
         regula_tara_trecere: regulaTaraTrecere,
-        tarif_km_auto_personal: Number(tarifKmAutoPersonal),
-        moneda_tarif_km: monedaTarifKm,
-        plafon_salarii_baza_luna: Number(plafonSalariiBazaLuna),
+        tarif_km_auto_personal: tarifKmAutoPersonal.trim() === "" ? 0 : Number(tarifKmAutoPersonal),
         valabil_de_la: valabilDeLa,
         observatii: null,
       });
       if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
+        setErori(rezultat.error.fieldErrors ?? {});
+        setEroare(
+          rezultat.error.fieldErrors === null
+            ? rezultat.error.message
+            : "Corectați câmpurile marcate.",
+        );
         return;
       }
       setReusit(true);
@@ -105,290 +172,280 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
   }
 
   return (
-    <div className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">
-        O versiune nouă de politică
-      </p>
+    <div className="border-border rounded-panou space-y-5 border p-4">
+      <p className="text-corp font-medium">O versiune nouă de politică</p>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.denumire} className="text-corp">
-          Denumire
-        </label>
-        <input
-          id={id.denumire}
-          type="text"
-          maxLength={200}
-          value={denumire}
-          onChange={(e) => {
-            setDenumire(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
+      <fieldset className="grid gap-3 sm:grid-cols-3">
+        <Camp nume="denumire" eticheta="Denumire" erori={erori["denumire"] ?? []}>
+          {(a) => (
+            <input
+              {...a}
+              type="text"
+              maxLength={200}
+              placeholder="ex. Politica de diurnă 2026"
+              value={denumire}
+              onChange={(e) => {
+                setDenumire(e.target.value);
+                curata("denumire");
+              }}
+            />
+          )}
+        </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.valabilDeLa} className="text-corp">
-          Valabilă de la
-        </label>
-        <input
-          id={id.valabilDeLa}
-          type="date"
-          value={valabilDeLa}
-          onChange={(e) => {
-            setValabilDeLa(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
+        <Camp nume="valabil_de_la" eticheta="Valabilă de la" erori={erori["valabil_de_la"] ?? []}>
+          {(a) => (
+            <IntrareData
+              {...a}
+              valoare={valabilDeLa}
+              min={primaZiLegala}
+              onSchimba={(zi) => {
+                setValabilDeLa(zi);
+                curata("valabil_de_la");
+              }}
+            />
+          )}
+        </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.tara} className="text-corp">
-          Țara internă
-        </label>
-        <select
-          id={id.tara}
-          value={countryIdIntern}
-          onChange={(e) => {
-            setCountryIdIntern(e.target.value);
-          }}
-          className={CLASA_CAMP}
+        <Camp nume="country_id_intern" eticheta="Țara firmei" fel="select">
+          {(a) => (
+            <select
+              {...a}
+              value={countryIdIntern}
+              onChange={(e) => {
+                setCountryIdIntern(e.target.value);
+              }}
+            >
+              {tari.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.denumire}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+      </fieldset>
+
+      <fieldset className="grid gap-3 sm:grid-cols-3">
+        <legend className="text-corp mb-2 font-medium">Cât plătește firma</legend>
+
+        <Camp
+          nume="diurna_interna_zi"
+          eticheta={`Diurnă în țară / zi (${monedaInterna})`}
+          erori={erori["diurna_interna_zi"] ?? []}
         >
-          {tari.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.denumire}
-            </option>
-          ))}
-        </select>
-      </div>
+          {(a) => (
+            <input
+              {...a}
+              type="number"
+              min="0"
+              step="0.01"
+              value={diurnaInternaZi}
+              onChange={(e) => {
+                setDiurnaInternaZi(e.target.value);
+                curata("diurna_interna_zi");
+              }}
+            />
+          )}
+        </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.monedaInterna} className="text-corp">
-          Moneda internă
-        </label>
-        <input
-          id={id.monedaInterna}
-          type="text"
-          maxLength={3}
-          value={monedaInterna}
-          onChange={(e) => {
-            setMonedaInterna(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
+        <div>
+          <Camp
+            nume="diurna_externa_zi"
+            eticheta="Diurnă în străinătate / zi"
+            erori={erori["diurna_externa_zi"] ?? []}
+          >
+            {(a) => (
+              <input
+                {...a}
+                type="number"
+                min="0"
+                step="0.01"
+                value={diurnaExternaZi}
+                onChange={(e) => {
+                  setDiurnaExternaZi(e.target.value);
+                  curata("diurna_externa_zi");
+                }}
+              />
+            )}
+          </Camp>
+          <p className="text-muted-foreground text-nota mt-1">
+            Lăsați gol ca să se plătească{" "}
+            <BaremuriTari baremuri={baremuri} multiplu={lege?.multiplu_plafon_neimpozabil ?? null}>
+              baremul legal al fiecărei țări
+            </BaremuriTari>
+            .
+          </p>
+        </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.diurnaInternaZi} className="text-corp">
-          Diurnă internă / zi
-        </label>
-        <input
-          id={id.diurnaInternaZi}
-          type="number"
-          min="0"
-          step="0.01"
-          value={diurnaInternaZi}
-          onChange={(e) => {
-            setDiurnaInternaZi(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.diurnaBazaLegalaInterna} className="text-corp">
-          Diurnă legală de bază (plafon)
-        </label>
-        <input
-          id={id.diurnaBazaLegalaInterna}
-          type="number"
-          min="0"
-          step="0.01"
-          value={diurnaBazaLegalaInterna}
-          onChange={(e) => {
-            setDiurnaBazaLegalaInterna(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.multiploPlafon} className="text-corp">
-          Multiplu plafon neimpozabil
-        </label>
-        <input
-          id={id.multiploPlafon}
-          type="number"
-          min="1"
-          step="0.1"
-          value={multiploPlafonNeimpozabil}
-          onChange={(e) => {
-            setMultiploPlafonNeimpozabil(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.multiploExterna} className="text-corp">
-          Multiplu diurnă externă
-        </label>
-        <input
-          id={id.multiploExterna}
-          type="number"
-          min="0"
-          step="0.1"
-          value={multiploDiurnaExterna}
-          onChange={(e) => {
-            setMultiploDiurnaExterna(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.categorie} className="text-corp">
-          Categorie barem
-        </label>
-        <select
-          id={id.categorie}
-          value={categorieBarem}
-          onChange={(e) => {
-            setCategorieBarem(e.target.value as "I" | "II");
-          }}
-          className={CLASA_CAMP}
+        <Camp
+          nume="moneda_diurna_externa"
+          eticheta="Moneda diurnei în străinătate"
+          fel="select"
+          erori={erori["moneda_diurna_externa"] ?? []}
         >
-          <option value="II">II — restul personalului</option>
-          <option value="I">I — conducere / demnitari</option>
-        </select>
-      </div>
+          {(a) => (
+            <select
+              {...a}
+              value={monedaDiurnaExterna}
+              disabled={diurnaExternaZi.trim() === ""}
+              onChange={(e) => {
+                setMonedaDiurnaExterna(e.target.value);
+                curata("moneda_diurna_externa");
+              }}
+            >
+              {monede.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+      </fieldset>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.pragMinim} className="text-corp">
-          Prag ore minim
-        </label>
-        <IntrareDurata
-          id={id.pragMinim}
-          valoare={pragOreMinim}
-          onSchimba={setPragOreMinim}
-          className={CLASA_CAMP}
-        />
-      </div>
+      <fieldset className="grid gap-3 sm:grid-cols-3">
+        <legend className="text-corp mb-2 font-medium">Reguli</legend>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.pragZiIntreaga} className="text-corp">
-          Prag ore zi întreagă
-        </label>
-        <IntrareDurata
-          id={id.pragZiIntreaga}
-          valoare={pragOreZiIntreaga}
-          onSchimba={setPragOreZiIntreaga}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.fractiune} className="text-corp">
-          Fracțiune zi parțială
-        </label>
-        <input
-          id={id.fractiune}
-          type="number"
-          min="0"
-          max="1"
-          step="0.1"
-          value={fractiuneZiPartiala}
-          onChange={(e) => {
-            setFractiuneZiPartiala(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.regulaTrecere} className="text-corp">
-          Regula de trecere a frontierei
-        </label>
-        <select
-          id={id.regulaTrecere}
-          value={regulaTaraTrecere}
-          onChange={(e) => {
-            setRegulaTaraTrecere(e.target.value as (typeof REGULI_TRECERE_FRONTIERA)[number]);
-          }}
-          className={CLASA_CAMP}
+        <Camp
+          nume="mod_calcul_zile"
+          eticheta="Cum se numără zilele"
+          fel="select"
+          ajutor={
+            modCalculZile === "zile_calendaristice"
+              ? "Fiecare zi din calendar în care omul e pe drum — inclusiv ziua plecării și a întoarcerii — se plătește întreagă."
+              : "Câte 24 de ore de la ora plecării. Ce rămâne la final se plătește doar dacă trece de pragul de ore."
+          }
         >
-          {REGULI_TRECERE_FRONTIERA.map((r) => (
-            <option key={r} value={r}>
-              {ETICHETE_REGULA_TRECERE[r]}
-            </option>
-          ))}
-        </select>
-      </div>
+          {(a) => (
+            <select
+              {...a}
+              value={modCalculZile}
+              onChange={(e) => {
+                setModCalculZile(e.target.value as ModCalculZile);
+              }}
+            >
+              <option value="zile_calendaristice">Pe zile din calendar</option>
+              <option value="ferestre_24h">Pe câte 24 de ore de la plecare</option>
+            </select>
+          )}
+        </Camp>
 
-      <div className="flex items-center gap-2">
-        <input
-          id={id.acordaTrecere}
-          type="checkbox"
-          checked={acordaZiuaTrecerii}
-          onChange={(e) => {
-            setAcordaZiuaTrecerii(e.target.checked);
-          }}
-        />
-        <label htmlFor={id.acordaTrecere} className="text-corp">
-          Acordă diurnă în ziua trecerii
-        </label>
-      </div>
+        <Camp
+          nume="ore_minime"
+          eticheta={
+            modCalculZile === "zile_calendaristice"
+              ? "Deplasare minimă, în ore"
+              : "Minim ore de deplasare pentru o zi de diurnă"
+          }
+          ajutor={
+            modCalculZile === "zile_calendaristice"
+              ? "O deplasare mai scurtă de atât, în total, nu primește diurnă."
+              : "Se numără câte 24 de ore de la plecare. Ce rămâne la final: peste acest prag, zi întreagă; sub el, nimic."
+          }
+          erori={erori["ore_minime"] ?? []}
+        >
+          {(a) => (
+            <IntrareDurata
+              {...a}
+              placeholder="12:00"
+              valoare={oreMinime}
+              onSchimba={(ore) => {
+                setOreMinime(ore);
+                curata("ore_minime");
+              }}
+            />
+          )}
+        </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.tarifKm} className="text-corp">
-          Tarif km auto personal
-        </label>
-        <input
-          id={id.tarifKm}
-          type="number"
-          min="0"
-          step="0.01"
-          value={tarifKmAutoPersonal}
-          onChange={(e) => {
-            setTarifKmAutoPersonal(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
+        <div>
+          <Camp
+            nume="regula_tara_trecere"
+            eticheta="Ziua în care se trece granița se plătește după"
+            fel="select"
+          >
+            {(a) => (
+              <select
+                {...a}
+                value={regulaTaraTrecere}
+                onChange={(e) => {
+                  setRegulaTaraTrecere(e.target.value as (typeof REGULI_TRECERE_FRONTIERA)[number]);
+                }}
+              >
+                {REGULI_TRECERE_FRONTIERA.map((r) => (
+                  <option key={r} value={r}>
+                    {ETICHETE_REGULA_TRECERE[r]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+          <label className="text-corp mt-2 flex items-center gap-2">
+            <input
+              type="checkbox"
+              className={clasaBifa}
+              checked={acordaZiuaTrecerii}
+              onChange={(e) => {
+                setAcordaZiuaTrecerii(e.target.checked);
+              }}
+            />
+            Se plătește diurnă în ziua trecerii graniței
+          </label>
+        </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.monedaTarifKm} className="text-corp">
-          Moneda tarifului km
-        </label>
-        <input
-          id={id.monedaTarifKm}
-          type="text"
-          maxLength={3}
-          value={monedaTarifKm}
-          onChange={(e) => {
-            setMonedaTarifKm(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
+        <Camp
+          nume="tarif_km_auto_personal"
+          eticheta={`Mașina personală: ${monedaInterna} / km`}
+          ajutor="Lăsați gol dacă firma nu decontează deplasările cu mașina personală."
+          erori={erori["tarif_km_auto_personal"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="number"
+              min="0"
+              step="0.01"
+              value={tarifKmAutoPersonal}
+              onChange={(e) => {
+                setTarifKmAutoPersonal(e.target.value);
+                curata("tarif_km_auto_personal");
+              }}
+            />
+          )}
+        </Camp>
+      </fieldset>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.plafonSalarii} className="text-corp">
-          Plafon salarii bază / lună
-        </label>
-        <input
-          id={id.plafonSalarii}
-          type="number"
-          min="0"
-          step="0.1"
-          value={plafonSalariiBazaLuna}
-          onChange={(e) => {
-            setPlafonSalariiBazaLuna(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
+      {lege === null ? null : (
+        <Callout fel="informativ" titlu="Stabilite de lege — nu se completează">
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              Neimpozabil în țară: {formatAmount(lege.multiplu_plafon_neimpozabil)} ×{" "}
+              {formatAmount(lege.diurna_baza_legala_interna, "lei")} ={" "}
+              <strong>{formatAmount(plafonIntern ?? 0, "lei")} / zi</strong>.
+            </li>
+            <li>
+              Neimpozabil în străinătate: {formatAmount(lege.multiplu_plafon_neimpozabil)} ×{" "}
+              <BaremuriTari baremuri={baremuri} multiplu={lege.multiplu_plafon_neimpozabil}>
+                baremul legal al țării
+              </BaremuriTari>
+              .
+            </li>
+            <li>
+              Pe lună, partea neimpozabilă nu poate depăși{" "}
+              {formatAmount(lege.plafon_salarii_baza_luna)} salarii de bază.
+            </li>
+            <li>Ce trece peste plafon se impozitează ca salariu — programul împarte singur.</li>
+          </ul>
+          <p className="text-nota mt-2">Sursa: {lege.sursa}.</p>
+          {pestePlafon === null ? null : (
+            <p className="mt-2">
+              Din {formatAmount(internaNumar ?? 0, "lei")} pe zi în țară,{" "}
+              <strong>{formatAmount(pestePlafon, "lei")}</strong> se impozitează.
+            </p>
+          )}
+        </Callout>
+      )}
 
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
           Salvează versiunea nouă
         </Buton>
@@ -399,7 +456,8 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
         )}
         {reusit ? (
           <p role="status" className="text-foreground text-corp">
-            Versiune salvată. Deplasările plecate de acum înainte se vor calcula cu ea.
+            Versiune salvată. Deplasările plecate de la {formatDate(valabilDeLa)} încolo se
+            calculează cu ea.
           </p>
         ) : null}
       </div>

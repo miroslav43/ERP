@@ -92,3 +92,35 @@ export function verificaDocument(mime: string, dimensiune: number): string | nul
   if (dimensiune > LIMITA_DOCUMENT_BYTES) return "Fișierul depășește 20 MB.";
   return null;
 }
+
+/**
+ * Prefixul unei căi primite de la client, verificat ca lumea.
+ *
+ * ── DE CE NU AJUNGE `startsWith` ────────────────────────────────────────────
+ * Până la auditul din 21 sept 2026, toate cele șapte salvări de fișier
+ * verificau calea cu `cale.startsWith(prefix)` și atât. Un `startsWith` nu
+ * respinge `..`: `{org}/courses/{id}/../../../{altOrg}/employees/...` trece de
+ * el, fiindcă ÎNCEPE cu prefixul corect. Normalizarea o face abia `fetch` —
+ * adică după ce calea a fost deja scrisă în rând.
+ *
+ * Azi nu produce o scurgere (citirile semnează cu sesiunea utilizatorului, deci
+ * RLS-ul de Storage se aplică pe calea NORMALIZATĂ, iar ștergerile cu
+ * `service_role` compară numele literal), dar e o garanție promisă în
+ * comentarii și neținută de cod. Funcția asta o ține.
+ *
+ * Se resping: orice segment gol, `.` sau `..`, forma lor procent-codificată,
+ * `\\` de Windows și caracterele de control — plus, evident, prefixul greșit.
+ */
+export function caleInPrefix(cale: string, prefix: string): boolean {
+  if (!cale.startsWith(prefix)) return false;
+  if (/[\u0000-\u001f\u007f\\]/u.test(cale)) return false;
+  let decodata: string;
+  try {
+    decodata = decodeURIComponent(cale);
+  } catch {
+    // Procentaj invalid: tratăm calea ca suspectă, nu ca validă.
+    return false;
+  }
+  const segmente = decodata.split("/");
+  return !segmente.some((segment) => segment === "" || segment === "." || segment === "..");
+}

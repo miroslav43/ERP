@@ -3,6 +3,8 @@
 // `createAdminSupabase` aici (excepția acoperă exclusiv `actions.ts`, route
 // handlers și scripturi). Fiecare interogare trece prin RLS.
 
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { RandPontareRapida } from "@/domain/attendance/pontare-rapida";
 import { seriiDeAbsente } from "@/domain/reges/absente";

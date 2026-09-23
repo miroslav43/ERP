@@ -2,6 +2,8 @@
 // Citirea profilului propriu — un singur rând, garantat de `profiles_select`
 // (`id = auth.uid()`), nu de vreun filtru de organizație.
 
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import { citesteTot } from "./citeste-tot";

@@ -131,7 +131,7 @@ documentată în `PROGRESS.md`, unde 8 din 11 module aveau doar schemă).
 | Parc auto                      | `/flota`                         | vehicule, foi de parcurs, verificat kilometraj                                                      |
 | Mentenanță                     | `/mentenanta`                    | echipamente, inclusiv ISCIR                                                                         |
 | Inventar                       | `/inventar`                      | alocare obiecte, predare-primire, „ce am în primire"                                                |
-| Diurne și deplasări            | `/diurna`                        | calcul diurnă intern/extern                                                                         |
+| Deplasări și diurne            | `/diurna`                        | calcul diurnă intern/extern                                                                         |
 | Evaluări                       | `/evaluari`                      | șabloane pe criterii, evaluări create de manageri SAU administratori                                |
 | Anunțuri                       | `/anunturi`                      | fanout automat spre `notifications`, confirmare de citire                                           |
 | Integrare angajați             | `/onboarding`                    | checklist-uri de onboarding                                                                         |
@@ -337,7 +337,7 @@ Protocol verificat, de urmat:
 ## 8. Capcane cunoscute din schemă
 
 **Citește direct [`docs/design/ecrane/capcane.md`](design/ecrane/capcane.md)**
-— 43 de capcane concrete, verificate empiric, fiecare cu explicație și fișierul
+— 44 de capcane concrete, verificate empiric, fiecare cu explicație și fișierul
 exact afectat. Cele mai relevante pentru orice modul nou:
 
 - Orice funcție din schema `app` NU e apelabilă cu `.rpc()` din cod client.

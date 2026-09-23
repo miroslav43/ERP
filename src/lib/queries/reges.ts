@@ -1,4 +1,6 @@
 // src/lib/queries/reges.ts
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 import { mapPostgrestError } from "@/lib/actions/errors";
 import { todayInBucharest } from "@/lib/format/date";

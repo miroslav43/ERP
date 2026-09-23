@@ -23,8 +23,8 @@ tabele:
 permisiuni: [leave:read, leave:create, leave:update, leave:approve]
 feature: leave
 capcane: [2, 11, 17, 33]
-scris_pe: d4cad08eb8649d797db9f1c13ace72d293e2aa1f
-scris_la: 2026-09-15
+scris_pe: 5e61f1319db78905cd113ccce7700c8da2fd7d16
+scris_la: 2026-09-21
 tags: [modul, hr]
 ---
 
@@ -81,12 +81,21 @@ aprobator cu `leave:approve = team` nu-l are. Contractul activ îl caută în
 omului care trebuie să repare.
 
 **Octeții documentului justificativ nu trec prin nicio acțiune.**
-`pregatesteIncarcareDocumentConcediu` întoarce `{ cale, token }`, fișierul urcă din
-browser direct în `org-documents` (`uploadToSignedUrl`), iar calea ajunge în
+`pregatesteIncarcareDocumentConcediu` întoarce `{ cale, urlSemnat }` — adresa semnată
+întreagă (`data.signedUrl`), nu jetonul din ea —, iar octeții urcă din browser direct în
+`org-documents` printr-un `PUT` cu corp binar, `urcaPeUrlSemnat`
+(`src/lib/storage/urca-semnat.ts`), nu prin `uploadToSignedUrl` din SDK: tokenul din
+adresă E autorizația, verificată la semnare sub sesiunea apelantului, deci ecranul nu mai
+are nevoie de un client Supabase în browser. Calea ajunge în
 `creeazaCerereConcediu` printr-un câmp ascuns numit `atasament_path` — exact cheia din
 `creeazaCerereSchema`, ca `fieldErrors` s-o găsească. Fișierul e sus **înainte** ca
 cererea să existe: un abandon lasă un obiect orfan, preferabil unei cereri care trimite
-spre un fișier inexistent. `linkDocumentConcediu` face drumul invers — citește RÂNDUL cu
+spre un fișier inexistent. Calea venită de la client o verifică `verificaCaleaDocumentului`
+prin `caleInPrefix` (`src/lib/documents/cale.ts`), nu prin `startsWith`: pe lângă prefixul
+fișei se cer segmente curate — cad segmentul gol, `.`, `..`, formele lor
+procent-codificate, `\` și caracterele de control, fiindcă normalizarea unei căi se
+întâmplă abia la `fetch`, adică după ce ea a fost deja scrisă în rând.
+`linkDocumentConcediu` face drumul invers — citește RÂNDUL cu
 clientul utilizatorului, ca RLS să decidă cine vede cererea, și abia calea din rândul
 întors se semnează, pentru un minut. Componentele `incarcare-document.tsx` și
 `link-document.tsx` stau în `src/app/(app)/concedii/`; prima e folosită și de formularul
@@ -133,7 +142,9 @@ citiri n-are voie să importe din arborele de rute.
 plătește un singur val. Memoizarea ține doar fiindcă argumentele sunt primitive
 (`organizationId`, doi ani): `cache()` compară prin identitate, deci un argument-obiect
 n-ar nimeri niciodată în cache. E consumată și din afara modulului — `[[modul/pontaj]]`,
-`[[modul/salarizare]]` și portal — deci semnătura ei nu se schimbă local.
+`[[modul/salarizare]]` și portal — deci semnătura ei nu se schimbă local. Consumatorii
+rămân însă exclusiv de server: fișierul începe cu `import "server-only"`, deci o
+componentă client care ar importa din el cade la build, nu tăcut la rulare.
 
 ## Ce se mișcă împreună la o schimbare de formă
 

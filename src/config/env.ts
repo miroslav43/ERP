@@ -9,7 +9,12 @@ import { z } from "zod";
  *
  * Separarea client/server este structurală, nu convențională: `clientEnv` conține
  * exclusiv variabile `NEXT_PUBLIC_*`, iar `serverEnv` este protejat de
- * `server-only` prin fișierul care îl consumă. Next.js înlocuiește literalele
+ * `server-only` prin fișierul care îl consumă.
+ *
+ * Cheia publicabilă Supabase NU e aici, deși numele ei începe cu `NEXT_PUBLIC_`:
+ * `clientEnv` ajunge în bundle-ul de browser, iar Next ar coace valoarea acolo.
+ * Stă în `src/config/cheie-supabase.ts`, marcat `server-only` — motivul întreg e
+ * scris în fișierul acela. Next.js înlocuiește literalele
  * `process.env.NEXT_PUBLIC_*` la build, deci accesul trebuie scris explicit,
  * nu prin indexare dinamică.
  */
@@ -28,7 +33,6 @@ const base64Key = (bytes: number, eticheta: string) =>
 
 const clientSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url("NEXT_PUBLIC_SUPABASE_URL trebuie să fie un URL valid"),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, "NEXT_PUBLIC_SUPABASE_ANON_KEY lipsește"),
   NEXT_PUBLIC_APP_URL: z.url("NEXT_PUBLIC_APP_URL trebuie să fie un URL valid"),
 });
 
@@ -155,7 +159,6 @@ export const clientEnv = parseOrExit(
   clientSchema,
   {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   },
   "client",

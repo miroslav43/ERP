@@ -15,6 +15,7 @@ import { monoCifre } from "@/lib/ui/fonturi";
 import type { AuthUser, Tenant } from "@/lib/tenant/types";
 import { ZonaToast } from "@/components/ui/toast";
 import { ZonaAsistent } from "@/components/asistent/zona-asistent";
+import { OpresteAnaliticele } from "@/components/layout/opreste-analiticele";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +117,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <OpresteAnaliticele />
       <a
         href="#continut"
         className="bg-primary text-primary-foreground rounded-control focus:z-plutitor text-corp sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:px-3 focus:py-2"

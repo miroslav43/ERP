@@ -7,7 +7,7 @@
 // din nginx e deci irelevant — un film de 200 MB nu trece pe acolo.
 //
 //   1. Server Action: validează, construiește calea, semnează încărcarea.
-//   2. Client: `uploadToSignedUrl`.
+//   2. Client: `PUT` pe URL-ul semnat (`urcaPeUrlSemnat`), fără client Supabase.
 //   3. Server Action: verifică semnătura de fișier (magic bytes) și scrie rândul.
 //
 // Pasul 3 e cel care contează: MIME-ul trimis la pasul 1 e cel DECLARAT de
@@ -23,9 +23,8 @@ import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
 import { IncarcareFisier, marimeCitibila } from "@/components/ui/incarcare-fisier";
 import { arataToast } from "@/components/ui/toast";
-import { getBrowserSupabase } from "@/lib/supabase/browser";
+import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import {
-  BUCKET_CURSURI,
   LIMITA_PDF_BYTES,
   LIMITA_VIDEO_BYTES,
   MIME_PDF,
@@ -121,19 +120,17 @@ export function IncarcareVersiune({ materialId, fel, cereDurata }: Proprietati) 
         de 200 MB urcă minute întregi, iar „Se încarcă fișierul…" fără cifră se
         citește ca blocaj.
 
-        O bară de progres REALĂ nu e posibilă aici fără să înlocuim
-        `uploadToSignedUrl` din SDK cu un XHR scris de mână către endpoint-ul
-        semnat — SDK-ul nu expune `onUploadProgress`. E o schimbare care merită
-        propriul ei plan, nu una strecurată aici.
+        O bară de progres REALĂ cere un `XMLHttpRequest` în locul lui `fetch`
+        din `urcaPeUrlSemnat` — `fetch` nu raportează progresul corpului trimis,
+        iar `upload.onprogress` de la XHR îl raportează. E o schimbare care
+        merită propriul ei plan, nu una strecurată aici.
       */
       setStare({
         tip: "lucru",
         mesaj: `Se încarcă fișierul (${marimeCitibila(fisier.size)})…`,
       });
-      const urcare = await getBrowserSupabase()
-        .storage.from(BUCKET_CURSURI)
-        .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);
-      if (urcare.error !== null) {
+      const urcat = await urcaPeUrlSemnat(pregatire.data.urlSemnat, fisier);
+      if (!urcat) {
         setStare({ tip: "eroare", mesaj: "Încărcarea a eșuat. Verificați conexiunea." });
         return;
       }

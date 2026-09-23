@@ -34,6 +34,7 @@ import {
   predicatKeyset,
   sortareCeruta,
   type Directie,
+  tiparContine,
 } from "./cursor";
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
@@ -328,7 +329,7 @@ export async function listeazaEchipamente(
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.cauta !== null) {
       const termen = filtre.cauta.replace(/[,()*"]/gu, "");
-      cu = cu.or(`cod.ilike.%${termen}%,denumire.ilike.%${termen}%`);
+      cu = cu.or(`cod.ilike.${tiparContine(termen)},denumire.ilike.${tiparContine(termen)}`);
     }
     return cu;
   };

@@ -10,6 +10,8 @@
 // pe N rânduri) chiar cade cu 500; pentru liste, ar afișa concediile și
 // pontajul colegilor ca fiind proprii. Reprodus cu `demo_admin` (org_admin,
 // `employees:read = all`) deschizând `/portal`.
+import "server-only";
+
 import { cache } from "react";
 
 import { createServerSupabase } from "@/lib/supabase/server";

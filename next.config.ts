@@ -50,8 +50,18 @@ function politicaCsp(): string {
   const scripturi = ["'self'", "'unsafe-inline'", "https://www.googletagmanager.com", umami];
   const conexiuni = [
     "'self'",
+    /*
+     * Originea Supabase rămâne în `connect-src` pentru UN SINGUR lucru: `PUT`-ul
+     * pe URL-ul semnat prin care urcă fișierele (`src/lib/storage/urca-semnat.ts`).
+     * Nu mai e aici pentru PostgREST — browserul nu mai are cheia publicabilă
+     * (`src/config/cheie-supabase.ts`), deci gateway-ul i-ar refuza cererea
+     * oricum, înainte de orice politică.
+     *
+     * Perechea `wss:` a dispărut odată cu clientul de browser: nu există niciun
+     * abonament Realtime în proiect, iar o directivă care permite ce nimeni nu
+     * folosește e exact genul de permisiune pe care n-o mai revizuiește nimeni.
+     */
     supabase,
-    supabase === null ? null : supabase.replace(/^https:/, "wss:"),
     "https://*.google-analytics.com",
     "https://*.analytics.google.com",
     "https://www.googletagmanager.com",
@@ -72,8 +82,13 @@ function politicaCsp(): string {
     ["form-action", ["'self'"]],
     ["script-src", scripturi],
     ["style-src", ["'self'", "'unsafe-inline'"]],
-    // `data:` la imagini: codurile QR și diagramele din PDF-uri se randează așa.
-    ["img-src", ["'self'", "data:", "blob:", "https://www.googletagmanager.com"]],
+    /*
+     * `data:` la imagini: codurile QR și diagramele din PDF-uri se randează așa.
+     * Originea Supabase e aici fiindcă fotografiile de profil se încarcă direct
+     * din bucket-ul public de avatare (`src/lib/avatar/cale.ts`) — lipsea, deci
+     * în ziua în care politica devenea executorie ar fi dispărut toate pozele.
+     */
+    ["img-src", ["'self'", "data:", "blob:", supabase, "https://www.googletagmanager.com"]],
     ["font-src", ["'self'", "data:"]],
     ["connect-src", conexiuni],
     // Vizualizatorul de lecții încarcă PDF-uri din Storage (`blob:`) și

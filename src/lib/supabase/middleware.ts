@@ -16,6 +16,15 @@ import { OPTIUNI_COOKIE } from "./optiuni-cookie";
  * care Next.js le înlocuiește literal la build.
  */
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+/*
+ * Singurul literal cu cheia rămas în afara lui `src/config/cheie-supabase.ts`,
+ * și e deliberat: fișierul ăsta n-are voie să importe `@/config/env` (validarea
+ * secretelor de server ar intra în bundle-ul de middleware), iar un import de
+ * `server-only` ar rupe middleware-ul. Fișierul rulează exclusiv în proxy, deci
+ * literalul se coace doar în bundle-ul de middleware — nu în cel de browser.
+ * Dacă ajunge vreodată importat dintr-o componentă de client, singurul lucru
+ * care observă e `pnpm check:bundle`.
+ */
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 if (SUPABASE_URL === "" || SUPABASE_ANON_KEY === "") {

@@ -36,6 +36,8 @@ import { z } from "zod";
 
 import { codCorExista } from "@/domain/hr/cor-nomenclator";
 
+import { momentDinOraRomaniei } from "@/lib/format/date";
+
 /**
  * Un câmp opțional venit dintr-un formular sau dintr-un query string.
  *
@@ -251,3 +253,28 @@ export const jsonDinFormData = <T extends z.ZodType>(schema: T) =>
       return z.NEVER;
     }
   }, schema);
+
+/**
+ * Data și ora dintr-un `<input type="datetime-local">`, CITITE CA ORA ROMÂNIEI,
+ * ieșite ca moment exact (ISO în UTC). Fără conversia asta, șirul fără fus
+ * ajungea în Postgres și era citit în fusul sesiunii (UTC): 15:00 tastat se
+ * salva 15:00 UTC și se afișa 18:00. Mesajele numesc câmpul — „plecării”,
+ * „sosirii” — ca omul să știe ce caseta roșie are de spus.
+ */
+export function dataOraRomania(ce: string) {
+  return z
+    .string({ error: `Completați data și ora ${ce}.` })
+    .trim()
+    .min(1, `Completați data și ora ${ce}.`)
+    .transform((valoare, ctx) => {
+      const moment = momentDinOraRomaniei(valoare);
+      if (moment === null) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Data și ora ${ce} nu sunt complete sau nu există în calendar (zi, lună, an, oră).`,
+        });
+        return z.NEVER;
+      }
+      return moment;
+    });
+}

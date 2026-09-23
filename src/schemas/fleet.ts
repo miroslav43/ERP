@@ -1,6 +1,6 @@
 // src/schemas/fleet.ts
 import { z } from "zod";
-import { optional } from "./comun";
+import { dataOraRomania, optional } from "./comun";
 
 /**
  * Valorile enumerate vin din `0012_fleet.sql`. Sunt scrise aici ca uniuni
@@ -220,8 +220,11 @@ export const stergeDocumentSchema = z.object({
 export const foaieNouaSchema = z.object({
   vehicle_id: z.uuid(),
   employee_id: z.uuid(),
-  plecare_la: z.iso.datetime({ local: true }),
-  km_plecare: z.coerce.number().int().min(0),
+  plecare_la: dataOraRomania("plecării"),
+  km_plecare: z.coerce
+    .number("Scrieți kilometrajul la plecare, în km.")
+    .int("Kilometrajul se scrie în km întregi.")
+    .min(0, "Kilometrajul nu poate fi negativ."),
   traseu: z.string().trim().max(500).nullable().default(null),
   scop: z.string().trim().max(500).nullable().default(null),
   observatii: z.string().trim().max(1000).nullable().default(null),
@@ -230,8 +233,11 @@ export type FoaieNoua = z.output<typeof foaieNouaSchema>;
 
 export const trimiteFoaieSchema = z.object({
   id: z.uuid(),
-  sosire_la: z.iso.datetime({ local: true }),
-  km_sosire: z.coerce.number().int().min(0),
+  sosire_la: dataOraRomania("sosirii"),
+  km_sosire: z.coerce
+    .number("Scrieți kilometrajul la sosire, în km.")
+    .int("Kilometrajul se scrie în km întregi.")
+    .min(0, "Kilometrajul nu poate fi negativ."),
 });
 
 export const decizieFoaieSchema = z.object({
@@ -243,11 +249,16 @@ export const decizieFoaieSchema = z.object({
 
 export const alimentareSchema = z.object({
   trip_sheet_id: z.uuid(),
-  litri: z.coerce.number().positive().max(2000),
-  cost: z.coerce.number().min(0),
+  litri: z.coerce
+    .number("Scrieți câți litri s-au alimentat.")
+    .positive("Cantitatea alimentată trebuie să fie mai mare decât zero.")
+    .max(2000, "Cel mult 2.000 de litri la o alimentare."),
+  cost: z.coerce
+    .number("Scrieți costul alimentării, în lei.")
+    .min(0, "Costul nu poate fi negativ."),
   statie: z.string().trim().max(120).nullable().default(null),
   numar_bon: z.string().trim().max(64).nullable().default(null),
-  alimentat_la: z.iso.datetime({ local: true }),
+  alimentat_la: dataOraRomania("alimentării"),
   plin: z.boolean().default(false),
   observatii: z.string().trim().max(500).nullable().default(null),
 });

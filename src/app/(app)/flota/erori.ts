@@ -3,7 +3,7 @@
 // generică din `src/lib/actions/errors.ts`, ca fiecare modul să-și scrie
 // mesajele fără să atingă un fișier comun.
 
-import { businessRule, isPostgrestError } from "@/lib/actions/errors";
+import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/errors";
 
 /**
  * Traduce o eroare Postgres într-un mesaj de business afișabil ca atare.
@@ -38,8 +38,34 @@ export function traduEroare(error: unknown): never {
       );
     }
     if (error.code === "P0001") {
-      throw businessRule(error.message.slice(0, 300));
+      const mesaj = error.message.slice(0, 300);
+      const campuri = campurileMesajului(mesaj);
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      throw businessRule(mesaj);
     }
   }
   throw error;
+}
+
+/**
+ * Câmpul (sau câmpurile) de care ține un refuz al triggerelor de flotă, după
+ * începutul mesajului. Cu el, eroarea ajunge ÎN caseta vinovată, înroșită, nu
+ * într-un banner deasupra formularului. Mesajele din bază (0012/0018) sunt
+ * scrise cu ş/ţ cu sedilă; potrivirea ocolește literele acelea.
+ */
+const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Kilometrajul de sosire/u, ["km_sosire"]],
+  [/^Kilometrajul de plecare/u, ["km_plecare"]],
+  [/^Ora de sosire/u, ["sosire_la"]],
+  [/^Completa.i ora .i kilometrajul de sosire/u, ["sosire_la", "km_sosire"]],
+  [/^Data aliment/u, ["alimentat_la"]],
+  [/^Cantitatea de combustibil/u, ["litri"]],
+  [/^Vehiculul/u, ["vehicle_id"]],
+  [/^.oferul selectat/u, ["employee_id"]],
+];
+
+function campurileMesajului(mesaj: string): readonly string[] {
+  return CAMPURI_DUPA_MESAJ.find(([re]) => re.test(mesaj))?.[1] ?? [];
 }

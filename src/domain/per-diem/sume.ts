@@ -66,6 +66,9 @@ export interface PoliticaDiurna {
   readonly multiploPlafonNeimpozabil: number;
   readonly multiploDiurnaExterna: number;
   readonly categorieBarem: string;
+  /** Suma fixă a firmei pentru străinătate; `null` = baremul țării × multiplu. */
+  readonly diurnaExternaZi: number | null;
+  readonly monedaDiurnaExterna: string | null;
 }
 
 /** Starea unei ferestre după încercarea de a-i calcula suma. */
@@ -154,9 +157,28 @@ export function calculeazaSume(
         });
         continue;
       }
-      valoareZi = barem.valoare * politica.multiploDiurnaExterna;
       plafonZi = barem.valoare * politica.multiploPlafonNeimpozabil;
       moneda = barem.moneda;
+      if (politica.diurnaExternaZi === null) {
+        valoareZi = barem.valoare * politica.multiploDiurnaExterna;
+      } else if (politica.monedaDiurnaExterna === barem.moneda) {
+        valoareZi = politica.diurnaExternaZi;
+      } else {
+        // Suma firmei și plafonul legal sunt în monede diferite, iar deplasarea
+        // are un singur curs — nu se inventează al doilea (ca în SQL).
+        cursIncomplet = true;
+        detalii.push({
+          fereastra,
+          stare: "fara_curs",
+          valoareZi: politica.diurnaExternaZi,
+          plafonZi,
+          moneda: politica.monedaDiurnaExterna,
+          curs: null,
+          lei: null,
+          plafonLei: null,
+        });
+        continue;
+      }
     }
 
     const curs = moneda === politica.monedaInterna ? 1 : cursDiurna;

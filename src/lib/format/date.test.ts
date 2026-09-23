@@ -8,6 +8,8 @@ import {
   todayInBucharest,
   formatMonthShort,
   oraInBucharest,
+  momentDinOraRomaniei,
+  oraRomanieiPentruCamp,
 } from "./date";
 
 describe("formatDate", () => {
@@ -128,5 +130,34 @@ describe("oraInBucharest", () => {
 
   it("aruncă pentru un moment invalid", () => {
     expect(() => oraInBucharest(new Date("nu-e-o-data"))).toThrow(TypeError);
+  });
+});
+
+describe("momentDinOraRomaniei / oraRomanieiPentruCamp", () => {
+  it("15:00 ora României, vara (UTC+3) ⇒ 12:00 UTC", () => {
+    expect(momentDinOraRomaniei("2026-09-28T15:00")).toBe("2026-09-28T12:00:00.000Z");
+  });
+
+  it("iarna (UTC+2) ⇒ două ore în urmă", () => {
+    expect(momentDinOraRomaniei("2026-12-01T08:30")).toBe("2026-12-01T06:30:00.000Z");
+  });
+
+  it("noaptea trecerii la ora de iarnă: 25.10.2026 02:00 local e încă ora de vară", () => {
+    expect(momentDinOraRomaniei("2026-10-25T02:00")).toBe("2026-10-24T23:00:00.000Z");
+    expect(momentDinOraRomaniei("2026-10-25T05:00")).toBe("2026-10-25T03:00:00.000Z");
+  });
+
+  it("respinge ce nu e oră de perete: fus deja scris, zi inexistentă, oră 24", () => {
+    expect(momentDinOraRomaniei("2026-09-28T15:00Z")).toBeNull();
+    expect(momentDinOraRomaniei("2026-02-30T10:00")).toBeNull();
+    expect(momentDinOraRomaniei("2026-09-28T24:00")).toBeNull();
+    expect(momentDinOraRomaniei("")).toBeNull();
+  });
+
+  it("drumul înapoi, spre câmp, dă exact ce s-a tastat", () => {
+    expect(oraRomanieiPentruCamp("2026-09-28T12:00:00+00:00")).toBe("2026-09-28T15:00");
+    expect(oraRomanieiPentruCamp(momentDinOraRomaniei("2026-12-01T08:30") ?? "")).toBe(
+      "2026-12-01T08:30",
+    );
   });
 });

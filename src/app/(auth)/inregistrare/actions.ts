@@ -21,21 +21,29 @@ const ZI_IN_MS = 24 * 60 * 60 * 1000;
 /**
  * Înregistrare self-serve: o firmă își creează singură contul.
  *
- * ── DOUĂ CĂI, DELIBERAT DIFERITE ──────────────────────────────────────────
- * 1. CREAREA trece prin `public.inregistreaza_organizatie` (0121), funcție
- *    SECURITY DEFINER apelabilă de `anon`. Zero `service_role` pe drumul pe care
- *    circulă datele vizitatorului. E regula scrisă în `createPublicAction` și
- *    precedentul lui `submit_demo_request`.
- * 2. E-MAILUL folosește clientul de serviciu, fiindcă `email_log` are INSERT
- *    revocat pentru toată lumea în afară de `service_role` (0001). Momentul
- *    contează: se întâmplă DUPĂ ce baza a acceptat totul, iar singura valoare
- *    care ajunge acolo — adresa — e deja scrisă în rândul de invitație.
+ * ── DE CE `service_role`, DEȘI CALEA E PUBLICĂ ────────────────────────────
+ * Aici scria, până la 21 sept 2026, exact contrariul: „zero `service_role` pe
+ * drumul pe care circulă datele vizitatorului", iar `inregistreaza_organizatie`
+ * era apelabilă de `anon`. Auditul a arătat prețul: funcția primește
+ * `p_token_hash` de la apelant, deci oricine putea trimite, cu un `curl`, hash-ul
+ * unui token pe care ÎL ȘTIE, pentru adresa de e-mail a altcuiva — apoi deschidea
+ * `/invitatie/<token>` și își alegea parola. Contul ieșea CONFIRMAT, pe o adresă
+ * pe care n-o controla. Nu există variantă sigură în care funcția rămâne
+ * apelabilă de `anon` și acceptă hash-ul de la apelant, deci a rămas doar
+ * `service_role` (0145).
+ *
+ * Poarta nu s-a mutat, s-a strâns: limitarea de rată de mai jos (3/oră, pe IP-ul
+ * verificat din antetele cererii) e acum SINGURA cale către funcție, în loc să
+ * fie una dintre două.
+ *
+ * E-MAILUL folosea deja clientul de serviciu, fiindcă `email_log` are INSERT
+ * revocat pentru toată lumea în afară de `service_role` (0001).
  *
  * ── CE VERIFICĂ ADRESA DE E-MAIL ──────────────────────────────────────────
  * Nimic din ce se creează aici nu dă acces. Organizația rămâne în `pending`, iar
- * singura cale înăuntru e tokenul care pleacă prin e-mail și e stocat doar ca
- * hash. Nu există pas separat de confirmare fiindcă nu e nevoie: cine nu
- * primește mesajul nu intră.
+ * singura cale înăuntru e tokenul care pleacă prin e-mail — generat AICI, pe
+ * server, și stocat doar ca hash. Nu există pas separat de confirmare fiindcă nu
+ * e nevoie: cine nu primește mesajul nu intră.
  *
  * ── DE CE EȘECUL E-MAILULUI NU ANULEAZĂ NIMIC ─────────────────────────────
  * Invitația e deja validă în bază. Dacă mesajul nu pleacă, aruncarea unei erori
@@ -54,7 +62,7 @@ export const inregistreazaFirma = createPublicAction({
     const expiraLa = new Date(ctx.now.getTime() + ZILE_EXPIRARE_IMPLICIT * ZI_IN_MS).toISOString();
     const telefon = input.telefon.length > 0 ? input.telefon : null;
 
-    const { data, error } = await ctx.supabase.rpc("inregistreaza_organizatie", {
+    const { data, error } = await createAdminSupabase().rpc("inregistreaza_organizatie", {
       p_firma: input.firma,
       p_cui: input.cui,
       p_nume: input.nume,

@@ -11,6 +11,8 @@
 //
 // Plafonul rămâne totuși explicit, ca trunchierea să nu fie tăcută dacă apare.
 
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 
 /** Peste atât, ecranul spune că lista e trunchiată în loc s-o arate scurtată. */

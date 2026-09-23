@@ -1,6 +1,8 @@
 // src/lib/queries/employees.ts
 // Citirile de personal, cu paginare keyset și restrângere după scope (self / team).
 
+import "server-only";
+
 import type { PermissionScope } from "@/config/permissions";
 import {
   SORTARI_ANGAJATI,

@@ -25,6 +25,7 @@ import { RailPortal } from "./_components/rail-portal";
 import { monoCifre } from "@/lib/ui/fonturi";
 import { ZonaToast } from "@/components/ui/toast";
 import { ZonaAsistent } from "@/components/asistent/zona-asistent";
+import { OpresteAnaliticele } from "@/components/layout/opreste-analiticele";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
   return (
     <div className={`${monoCifre.variable} bg-background flex min-h-dvh flex-col md:flex-row`}>
+      <OpresteAnaliticele />
       <a
         href="#continut"
         className="bg-primary text-primary-foreground focus:rounded-control focus:text-corp sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-2"

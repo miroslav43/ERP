@@ -177,3 +177,51 @@ describe("calculeazaZileDiurna", () => {
     });
   });
 });
+
+describe("calculeazaZileDiurna — zile din calendar", () => {
+  const CALENDAR = { ...PARAMETRI_DE_BAZA, modCalculZile: "zile_calendaristice" } as const;
+
+  it("28.09 15:00 → 01.10 21:00 (ora României) ⇒ 4 zile, și ziua întoarcerii", () => {
+    const ferestre = calculeazaZileDiurna({
+      ...CALENDAR,
+      plecare: new Date("2026-09-28T12:00:00Z"),
+      sosire: new Date("2026-10-01T18:00:00Z"),
+    });
+    expect(ferestre.map((f) => f.fractiune)).toEqual([1, 1, 1, 1]);
+    // Prima fereastră începe la plecare și se termină la miezul nopții local.
+    expect(ferestre[0]?.deLa.toISOString()).toBe("2026-09-28T12:00:00.000Z");
+    expect(ferestre[0]?.panaLa.toISOString()).toBe("2026-09-28T21:00:00.000Z");
+    // Ultima începe la miezul nopții local și se termină la sosire.
+    expect(ferestre[3]?.deLa.toISOString()).toBe("2026-09-30T21:00:00.000Z");
+    expect(ferestre[3]?.oreFereastra).toBe(21);
+  });
+
+  it("ziua trecerii la ora de iarnă (25.10.2026) are 25 de ore, tot o zi", () => {
+    const ferestre = calculeazaZileDiurna({
+      ...CALENDAR,
+      plecare: new Date("2026-10-24T06:00:00Z"),
+      sosire: new Date("2026-10-26T10:00:00Z"),
+    });
+    expect(ferestre).toHaveLength(3);
+    expect(ferestre[1]?.oreFereastra).toBe(25);
+    expect(ferestre[2]?.deLa.toISOString()).toBe("2026-10-25T22:00:00.000Z");
+  });
+
+  it("sosirea fix la miezul nopții nu adaugă o zi", () => {
+    const ferestre = calculeazaZileDiurna({
+      ...CALENDAR,
+      plecare: new Date("2026-03-10T06:00:00Z"),
+      sosire: new Date("2026-03-11T22:00:00Z"), // 12.03 00:00, ora României (UTC+2)
+    });
+    expect(ferestre).toHaveLength(2);
+  });
+
+  it("pragul minim se aplică duratei totale: 22:00 → 06:00 (8 ore) ⇒ nimic", () => {
+    const ferestre = calculeazaZileDiurna({
+      ...CALENDAR,
+      plecare: new Date("2026-03-10T20:00:00Z"),
+      sosire: new Date("2026-03-11T04:00:00Z"),
+    });
+    expect(ferestre).toEqual([]);
+  });
+});

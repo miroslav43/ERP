@@ -19,6 +19,8 @@
 // mult 60 de rânduri, iar `max_rows = 1000` nu are ce trunchia. Un cursor aici
 // ar fi ceremonie peste o listă care încape într-un ecran și jumătate.
 
+import "server-only";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { Enums, Json } from "@/types/database";
 

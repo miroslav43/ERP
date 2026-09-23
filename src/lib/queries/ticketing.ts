@@ -15,7 +15,7 @@ import type { StatusTichet, TipTichet } from "@/domain/ticketing/stari";
 import type { Prioritate } from "@/domain/ticketing/prioritate";
 import type { FiltreTichete } from "@/schemas/ticketing";
 
-import { codificaCursor, decodificaCursor, predicatKeyset } from "./cursor";
+import { codificaCursor, decodificaCursor, predicatKeyset, tiparContine } from "./cursor";
 
 /** Câte rânduri se cer într-o pagină de listă, când nimeni nu cere altfel. */
 export const LIMITA_PAGINA = 25;
@@ -108,7 +108,7 @@ export async function listeazaTichete(
   // deci căutarea îl acoperă alături de titlu.
   const cautare =
     filtre.cauta !== undefined && filtre.cauta !== ""
-      ? `titlu.ilike.%${filtre.cauta}%,numar_afisat.ilike.%${filtre.cauta}%`
+      ? `titlu.ilike.${tiparContine(filtre.cauta)},numar_afisat.ilike.${tiparContine(filtre.cauta)}`
       : null;
 
   /**

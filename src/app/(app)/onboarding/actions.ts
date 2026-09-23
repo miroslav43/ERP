@@ -3,7 +3,14 @@
 import type { Json } from "@/types/database";
 import { createAction } from "@/lib/actions/create-action";
 import type { ActionContext } from "@/lib/actions/types";
-import { BUCKET_CHECKLISTS, construiesteCaleDovada, prefixCaleDovada } from "@/lib/onboarding/cale";
+import { caleInPrefix } from "@/lib/documents/cale";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import {
+  BUCKET_CHECKLISTS,
+  construiesteCaleDovada,
+  prefixCaleDovada,
+  verificaDovada,
+} from "@/lib/onboarding/cale";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
@@ -315,7 +322,7 @@ export const pregatesteIncarcareDovada = createAction({
   handler: async (
     ctx: ActionContext,
     input,
-  ): Promise<Readonly<{ cale: string; token: string }>> => {
+  ): Promise<Readonly<{ cale: string; urlSemnat: string }>> => {
     const pas = await pasulDovezii(ctx, input.id);
     const cale = construiesteCaleDovada({
       organizationId: ctx.tenant.organizationId,
@@ -330,7 +337,7 @@ export const pregatesteIncarcareDovada = createAction({
     if (error !== null || data === null) {
       throw businessRule("Nu am putut pregăti încărcarea dovezii.");
     }
-    return { cale, token: data.token };
+    return { cale, urlSemnat: data.signedUrl };
   },
 });
 
@@ -354,10 +361,21 @@ export const salveazaDovada = createAction({
     // lega de pasul lui un obiect scris sub folderul altcuiva — poarta de
     // Storage a păzit SCRIEREA, nu referința.
     const prefix = prefixCaleDovada(ctx.tenant.organizationId, pas.employee_id, pas.id);
-    if (!input.cale.startsWith(prefix)) {
+    if (!caleInPrefix(input.cale, prefix)) {
       throw invalidInput("Calea fișierului nu corespunde acestui pas.", {
         cale: ["Cale invalidă."],
       });
+    }
+
+    // Mărimea și tipul REALE, citite de la Storage: cele din `input` sunt ce a
+    // declarat browserul ÎNAINTE să urce ceva, iar tokenul semnat nu le fixează.
+    const masurat = await masoaraObiectul(ctx.supabase, BUCKET_CHECKLISTS, input.cale);
+    if (masurat === null) {
+      throw businessRule("Fișierul încărcat nu mai este disponibil. Reia încărcarea.");
+    }
+    const problemaFisier = verificaDovada({ size: masurat.octeti, type: masurat.mime });
+    if (problemaFisier !== null) {
+      throw invalidInput(problemaFisier.mesaj, { cale: [problemaFisier.mesaj] });
     }
 
     const { data, error } = await ctx.supabase
@@ -365,8 +383,8 @@ export const salveazaDovada = createAction({
       .update({
         dovada_fisier_path: input.cale,
         dovada_fisier_nume: input.nume,
-        dovada_fisier_mime: input.mime,
-        dovada_fisier_marime_bytes: input.marime_bytes,
+        dovada_fisier_mime: masurat.mime,
+        dovada_fisier_marime_bytes: masurat.octeti,
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)

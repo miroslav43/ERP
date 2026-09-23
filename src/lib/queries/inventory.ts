@@ -4,6 +4,8 @@
 // aici NU se mai adaugă niciun filtru de scope (own/team/all) în interogări —
 // RLS din 0010/0016/0019 restrânge singură rândurile, direct în Postgres.
 
+import "server-only";
+
 import {
   SORTARI_INVENTAR,
   type FiltreInventar,

@@ -2,7 +2,9 @@
 // Validările de intrare pentru modulul de diurnă: deplasări, etape, cheltuieli, filtre.
 
 import { z } from "zod";
-import { enumOptional, numarOptional, optional, textOptional } from "./comun";
+
+import { MODURI_CALCUL_ZILE } from "@/domain/per-diem/ferestre";
+import { dataOraRomania, enumOptional, numarOptional, optional, textOptional } from "./comun";
 
 // ── Enumerări în oglindă cu tipurile din 0015_per_diem.sql ───────────────────
 
@@ -120,9 +122,9 @@ export const deplasareNouaSchema = z
     scop: z.string().trim().min(3, "Scopul trebuie să aibă cel puțin 3 caractere.").max(500),
     country_id: uuidOptional,
     localitate: textOptional(200),
-    plecare_la: z.iso.datetime({ local: true }),
-    sosire_la: z.iso.datetime({ local: true }),
-    mijloc_transport: z.enum(MIJLOACE_TRANSPORT),
+    plecare_la: dataOraRomania("plecării"),
+    sosire_la: dataOraRomania("sosirii"),
+    mijloc_transport: z.enum(MIJLOACE_TRANSPORT, "Alegeți mijlocul de transport din listă."),
     km_parcursi: numarOptional({
       min: 0,
       max: 1_000_000,
@@ -223,8 +225,8 @@ export const etapaNouaSchema = z
     business_trip_id: z.uuid(),
     from_country_id: z.uuid("Țara de plecare a etapei este obligatorie."),
     to_country_id: z.uuid("Țara de sosire a etapei este obligatorie."),
-    plecare_la: z.iso.datetime({ local: true }),
-    sosire_la: z.iso.datetime({ local: true }),
+    plecare_la: dataOraRomania("plecării etapei"),
+    sosire_la: dataOraRomania("sosirii etapei"),
     mijloc_transport: enumOptional(MIJLOACE_TRANSPORT, "Alegeți mijlocul de transport din listă."),
     localitate_sosire: textOptional(200),
   })
@@ -278,6 +280,13 @@ export type DecizieCheltuiala = z.output<typeof decizieCheltuialaSchema>;
 
 // ── Politica de diurnă (per_diem_policies) ────────────────────────────────
 
+const RE_MONEDA = /^[A-Za-z]{3}$/u;
+
+/**
+ * Doar ce DECIDE firma. Valorile legale (nivelul pentru instituții publice,
+ * multiplul plafonului neimpozabil, plafonul lunar în salarii de bază) nu vin
+ * din formular: le copiază triggerul din `0147_diurna_valori_legale.sql`.
+ */
 export const politicaNouaSchema = z
   .object({
     denumire: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(200),
@@ -285,34 +294,33 @@ export const politicaNouaSchema = z
     moneda_interna: z
       .string()
       .trim()
-      .regex(/^[A-Za-z]{3}$/u, "Moneda trebuie scrisă din 3 litere.")
+      .regex(RE_MONEDA, "Moneda trebuie scrisă din 3 litere.")
       .transform((v) => v.toUpperCase()),
-    diurna_interna_zi: z.coerce.number().min(0),
-    diurna_baza_legala_interna: z.coerce.number().min(0),
-    multiplu_plafon_neimpozabil: z.coerce.number().min(1),
-    multiplu_diurna_externa: z.coerce.number().min(0),
-    categorie_barem: z.enum(["I", "II"]).default("II"),
-    prag_ore_minim: z.coerce.number().positive(),
-    prag_ore_zi_intreaga: z.coerce.number().positive().max(24),
-    fractiune_zi_partiala: z.coerce.number().min(0).max(1),
-    acorda_diurna_ziua_trecerii: z.coerce.boolean().default(true),
-    regula_tara_trecere: z.enum(REGULI_TRECERE_FRONTIERA).default("tara_sosire"),
-    tarif_km_auto_personal: z.coerce.number().min(0),
-    moneda_tarif_km: z
+    diurna_interna_zi: z.coerce.number().min(0, "Diurna internă nu poate fi negativă."),
+    diurna_externa_zi: z.number().min(0, "Diurna externă nu poate fi negativă.").nullable(),
+    moneda_diurna_externa: z
       .string()
       .trim()
-      .regex(/^[A-Za-z]{3}$/u, "Moneda trebuie scrisă din 3 litere.")
-      .transform((v) => v.toUpperCase()),
-    plafon_salarii_baza_luna: z.coerce.number().positive(),
+      .regex(RE_MONEDA, "Moneda diurnei externe trebuie scrisă din 3 litere.")
+      .transform((v) => v.toUpperCase())
+      .nullable(),
+    mod_calcul_zile: z.enum(MODURI_CALCUL_ZILE, "Alegeți cum se numără zilele de diurnă."),
+    ore_minime: z.coerce
+      .number()
+      .positive("Numărul minim de ore trebuie să fie mai mare decât zero.")
+      .max(24, "Numărul minim de ore nu poate depăși 24."),
+    acorda_diurna_ziua_trecerii: z.coerce.boolean().default(true),
+    regula_tara_trecere: z.enum(REGULI_TRECERE_FRONTIERA).default("tara_sosire"),
+    tarif_km_auto_personal: z.coerce.number().min(0, "Tariful pe kilometru nu poate fi negativ."),
     valabil_de_la: z.string().trim().regex(RE_DATA, "Data trebuie scrisă în formatul AAAA-LL-ZZ."),
     observatii: textOptional(2000),
   })
   .superRefine((valoare, ctx) => {
-    if (valoare.prag_ore_minim > valoare.prag_ore_zi_intreaga) {
+    if (valoare.diurna_externa_zi !== null && valoare.moneda_diurna_externa === null) {
       ctx.addIssue({
         code: "custom",
-        path: ["prag_ore_zi_intreaga"],
-        message: "Pragul pentru zi întreagă trebuie să fie cel puțin cât pragul minim.",
+        path: ["moneda_diurna_externa"],
+        message: "Alegeți moneda diurnei externe.",
       });
     }
   });

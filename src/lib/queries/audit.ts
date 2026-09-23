@@ -1,4 +1,6 @@
 // src/lib/queries/audit.ts
+import "server-only";
+
 import { z } from "zod";
 
 import type { ServerSupabase } from "@/lib/supabase/server";

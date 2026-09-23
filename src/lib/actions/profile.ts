@@ -13,6 +13,8 @@ import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/current-user";
 import { BUCKET_AVATARE, caleAvatar, verificaAvatar } from "@/lib/avatar/cale";
+import { caleInPrefix } from "@/lib/documents/cale";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { schemaParolaNoua, schemaProfilPropriu } from "@/schemas/profile";
 import { isPostgrestError, mapPostgrestError } from "./errors";
@@ -105,12 +107,17 @@ const schemaPregatireAvatar = z.object({
 /**
  * Pas 1/2 al încărcării propriei fotografii: doar pregătește URL-ul semnat.
  * Bytes-urile fișierului urcă direct din browser spre Storage (vezi
- * `getBrowserSupabase().storage...uploadToSignedUrl`), nu trec prin acțiune —
- * la fel ca la documentele de personal, ca să nu treacă imaginea prin server.
+ * `urcaPeUrlSemnat`), nu trec prin acțiune — la fel ca la documentele de
+ * personal, ca să nu treacă imaginea prin server.
+ *
+ * Se întoarce URL-ul semnat ÎNTREG, nu tokenul: cu URL-ul, browserul face un
+ * `PUT` simplu și nu mai are nevoie de niciun client Supabase — deci nici de
+ * cheia publicabilă, nici de sesiunea din cookie. Vezi comentariul din
+ * `src/lib/storage/urca-semnat.ts`.
  */
 export async function pregatesteIncarcareAvatarulPropriu(
   rawInput: unknown,
-): Promise<ActionResult<{ cale: string; token: string }>> {
+): Promise<ActionResult<{ cale: string; urlSemnat: string }>> {
   const requestId = randomUUID();
   const user = await requireUser();
 
@@ -141,7 +148,7 @@ export async function pregatesteIncarcareAvatarulPropriu(
     });
   }
 
-  return { ok: true, data: { cale, token: data.token } };
+  return { ok: true, data: { cale, urlSemnat: data.signedUrl } };
 }
 
 const schemaSalveazaAvatar = z.object({ cale: z.string().min(1).max(400) });
@@ -152,7 +159,7 @@ export async function salveazaAvatarulPropriu(rawInput: unknown): Promise<Action
   const user = await requireUser();
 
   const parsat = schemaSalveazaAvatar.safeParse(rawInput);
-  if (!parsat.success || !parsat.data.cale.startsWith(`${user.id}/`)) {
+  if (!parsat.success || !caleInPrefix(parsat.data.cale, `${user.id}/`)) {
     return esec({
       code: "VALIDARE",
       message: "Calea fișierului nu este validă.",
@@ -162,6 +169,18 @@ export async function salveazaAvatarulPropriu(rawInput: unknown): Promise<Action
   }
 
   const db = await createServerSupabase();
+
+  // Fotografia REALĂ, nu cea declarată la pasul de pregătire: tokenul semnat nu
+  // fixează nici tipul, nici mărimea, deci după el se putea urca orice.
+  const masurat = await masoaraObiectul(db, BUCKET_AVATARE, parsat.data.cale);
+  const problemaFisier =
+    masurat === null
+      ? "Fotografia încărcată nu mai este disponibilă. Reluați încărcarea."
+      : verificaAvatar(masurat.mime, masurat.octeti);
+  if (problemaFisier !== null) {
+    return esec({ code: "VALIDARE", message: problemaFisier, fieldErrors: null, requestId });
+  }
+
   const { error } = await db
     .from("profiles")
     .update({ avatar_path: parsat.data.cale })

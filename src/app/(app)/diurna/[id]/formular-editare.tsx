@@ -7,6 +7,7 @@ import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import type { ActionResult } from "@/lib/actions/types";
+import { oraRomanieiPentruCamp } from "@/lib/format/date";
 import type { Deplasare, Tara } from "@/lib/queries/per-diem";
 import { MIJLOACE_TRANSPORT } from "@/schemas/per-diem";
 
@@ -33,18 +34,15 @@ function textSauNull(date: FormData, cheie: string): string | null {
  * totdeauna, deși politica `business_trips_update` din 0015 permite explicit
  * scrierea în „ciorna” și „respinsa”.
  *
- * ── DE CE VALORILE DE TIMP SE TAIE DIN ȘIR, NU SE FORMATEAZĂ ──────────────
- * `plecare_la` e `timestamptz`; PostgREST îl întoarce în fusul SESIUNII, cu
- * decalajul scris în coadă („…T12:30:00+00:00”). Un `<input type="datetime-local">`
- * trimite înapoi un moment FĂRĂ fus, pe care Postgres îl citește în același fus
- * al sesiunii. Primele 16 caractere ale șirului întors sunt deci exact valoarea
- * care, retrimisă neatinsă, reproduce momentul stocat.
+ * ── ORA SE ARATĂ ȘI SE SCRIE ÎN ORA ROMÂNIEI ─────────────────────────────
+ * `plecare_la` e `timestamptz`, întors de PostgREST în UTC. Câmpul primește
+ * `oraRomanieiPentruCamp(...)`, iar schema (`dataOraRomania`) citește ce se
+ * trimite tot ca oră a României. Deschis și salvat neatins, formularul
+ * reproduce exact momentul stocat; ce vede omul e ce scrie pe fișă.
  *
- * Trecerea prin `formatDateTime` (ora României) ar fi rupt asta: pe o sesiune
- * în UTC, o simplă deschidere și salvare a formularului ar fi mutat deplasarea
- * cu trei ore, fără ca nimeni să atingă câmpul. Diferența dintre ora scrisă și
- * ora afișată pe fișă e o problemă reală, dar e a fusului sesiunii, nu a
- * acestui ecran — și nu se repară mutând tăcut datele oamenilor.
+ * Înainte, câmpul primea primele 16 caractere ale șirului UTC, iar serverul
+ * trimitea șirul fără fus direct în Postgres: consecvent cu sine, dar 15:00
+ * tastat devenea 18:00 pe fișă.
  */
 export function FormularEditareDeplasare({
   deplasare,
@@ -159,7 +157,7 @@ export function FormularEditareDeplasare({
                   <input
                     {...a}
                     type="datetime-local"
-                    defaultValue={v("plecare_la", deplasare.plecare_la.slice(0, 16))}
+                    defaultValue={v("plecare_la", oraRomanieiPentruCamp(deplasare.plecare_la))}
                   />
                 )}
               </Camp>
@@ -174,7 +172,7 @@ export function FormularEditareDeplasare({
                   <input
                     {...a}
                     type="datetime-local"
-                    defaultValue={v("sosire_la", deplasare.sosire_la.slice(0, 16))}
+                    defaultValue={v("sosire_la", oraRomanieiPentruCamp(deplasare.sosire_la))}
                   />
                 )}
               </Camp>

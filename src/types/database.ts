@@ -9572,9 +9572,12 @@ export type Database = {
           deleted_at: string | null
           denumire: string
           diurna_baza_legala_interna: number
+          diurna_externa_zi: number | null
           diurna_interna_zi: number
           fractiune_zi_partiala: number
           id: string
+          mod_calcul_zile: Database["public"]["Enums"]["per_diem_mod_calcul_zile"]
+          moneda_diurna_externa: string | null
           moneda_interna: string
           moneda_tarif_km: string
           multiplu_diurna_externa: number
@@ -9600,9 +9603,12 @@ export type Database = {
           deleted_at?: string | null
           denumire: string
           diurna_baza_legala_interna: number
+          diurna_externa_zi?: number | null
           diurna_interna_zi: number
           fractiune_zi_partiala: number
           id?: string
+          mod_calcul_zile?: Database["public"]["Enums"]["per_diem_mod_calcul_zile"]
+          moneda_diurna_externa?: string | null
           moneda_interna: string
           moneda_tarif_km: string
           multiplu_diurna_externa: number
@@ -9628,9 +9634,12 @@ export type Database = {
           deleted_at?: string | null
           denumire?: string
           diurna_baza_legala_interna?: number
+          diurna_externa_zi?: number | null
           diurna_interna_zi?: number
           fractiune_zi_partiala?: number
           id?: string
+          mod_calcul_zile?: Database["public"]["Enums"]["per_diem_mod_calcul_zile"]
+          moneda_diurna_externa?: string | null
           moneda_interna?: string
           moneda_tarif_km?: string
           multiplu_diurna_externa?: number
@@ -9663,6 +9672,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      per_diem_valori_legale: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          diurna_baza_legala_interna: number
+          id: string
+          multiplu_plafon_neimpozabil: number
+          plafon_salarii_baza_luna: number
+          sursa: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          diurna_baza_legala_interna: number
+          id?: string
+          multiplu_plafon_neimpozabil: number
+          plafon_salarii_baza_luna: number
+          sursa: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          diurna_baza_legala_interna?: number
+          id?: string
+          multiplu_plafon_neimpozabil?: number
+          plafon_salarii_baza_luna?: number
+          sursa?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+        }
+        Relationships: []
       }
       personnel_authorizations: {
         Row: {
@@ -13582,6 +13633,7 @@ export type Database = {
         | "tara_sosire"
         | "tara_cu_valoare_mai_mare"
         | "durata_maxima"
+      per_diem_mod_calcul_zile: "ferestre_24h" | "zile_calendaristice"
       permission_scope: "none" | "own" | "team" | "all"
       plan_type: "trial" | "starter" | "professional" | "enterprise"
       platforma_mobila: "ios" | "android"
@@ -14133,6 +14185,7 @@ export const Constants = {
         "tara_cu_valoare_mai_mare",
         "durata_maxima",
       ],
+      per_diem_mod_calcul_zile: ["ferestre_24h", "zile_calendaristice"],
       permission_scope: ["none", "own", "team", "all"],
       plan_type: ["trial", "starter", "professional", "enterprise"],
       platforma_mobila: ["ios", "android"],

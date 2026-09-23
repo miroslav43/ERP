@@ -21,6 +21,7 @@ import {
   verificaMaterial,
   verificaSubtitrare,
 } from "@/lib/media/cale";
+import { caleInPrefix } from "@/lib/documents/cale";
 import { analizeazaLink } from "@/lib/media/link-extern";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
@@ -343,7 +344,7 @@ export const pregatesteIncarcareMaterial = createAction({
     if (error !== null || data === null) {
       throw businessRule("Nu am putut pregăti încărcarea fișierului.");
     }
-    return { cale, token: data.token };
+    return { cale, urlSemnat: data.signedUrl };
   },
 });
 
@@ -378,11 +379,11 @@ export const salveazaVersiuneFisier = createAction({
   handler: async (ctx: ActionContext, input) => {
     // Anti-traversal: calea salvată trebuie să fie chiar cea pe care am semnat-o.
     const prefix = prefixCaleMaterial(ctx.tenant.organizationId, input.material_id);
-    if (!input.cale.startsWith(prefix)) {
+    if (!caleInPrefix(input.cale, prefix)) {
       const mesaj = "Calea fișierului nu corespunde acestui material.";
       throw invalidInput(mesaj, { cale: [mesaj] });
     }
-    if (input.subtitrare_cale !== null && !input.subtitrare_cale.startsWith(prefix)) {
+    if (input.subtitrare_cale !== null && !caleInPrefix(input.subtitrare_cale, prefix)) {
       const mesaj = "Calea subtitrării nu corespunde acestui material.";
       throw invalidInput(mesaj, { subtitrare_cale: [mesaj] });
     }
@@ -484,7 +485,7 @@ export const renuntaLaIncarcare = createAction({
   },
   handler: async (ctx: ActionContext, input) => {
     const prefix = prefixCaleMaterial(ctx.tenant.organizationId, input.material_id);
-    if (!input.cale.startsWith(prefix)) {
+    if (!caleInPrefix(input.cale, prefix)) {
       throw invalidInput("Calea nu corespunde acestui material.", {});
     }
     await createAdminSupabase().storage.from(BUCKET_CURSURI).remove([input.cale]);

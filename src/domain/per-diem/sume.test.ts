@@ -33,6 +33,8 @@ const POLITICA: PoliticaDiurna = {
   multiploPlafonNeimpozabil: 2.5,
   multiploDiurnaExterna: 1,
   categorieBarem: "II",
+  diurnaExternaZi: null,
+  monedaDiurnaExterna: null,
 };
 
 describe("gasesteRandValabil", () => {
@@ -125,6 +127,54 @@ describe("calculeazaSume", () => {
     // plafon_zi = 2.5 * 35 = 87.5 EUR ⇒ 437.5 lei, deci partea de 175 e integral neimpozabilă.
     expect(rezultat.parteNeimpozabilaLei).toBe(175);
     expect(rezultat.parteImpozabilaLei).toBe(0);
+  });
+
+  describe("diurna externă fixă a firmei", () => {
+    const baremDE: readonly BaremTara[] = [
+      {
+        countryId: DE,
+        categorie: "II",
+        valoare: 35,
+        moneda: "EUR",
+        valabilDeLa: "2026-01-01",
+        valabilPana: null,
+      },
+    ];
+
+    it("plătește suma fixă, dar plafonul rămâne 2,5 × baremul țării", () => {
+      const rezultat = calculeazaSume(
+        [fereastra({ taraId: DE, fractiune: 1 })],
+        { ...POLITICA, diurnaExternaZi: 100, monedaDiurnaExterna: "EUR" },
+        baremDE,
+        5,
+      );
+      // 100 EUR × 5 = 500 lei; plafon 87,5 EUR × 5 = 437,5 lei.
+      expect(rezultat.valoareLei).toBe(500);
+      expect(rezultat.parteNeimpozabilaLei).toBe(437.5);
+      expect(rezultat.parteImpozabilaLei).toBe(62.5);
+    });
+
+    it("în altă monedă decât baremul: calcul incomplet, fără curs inventat", () => {
+      const rezultat = calculeazaSume(
+        [fereastra({ taraId: DE, fractiune: 1 })],
+        { ...POLITICA, diurnaExternaZi: 60, monedaDiurnaExterna: "USD" },
+        baremDE,
+        5,
+      );
+      expect(rezultat.cursIncomplet).toBe(true);
+      expect(rezultat.valoareLei).toBeNull();
+      expect(rezultat.detalii[0]?.stare).toBe("fara_curs");
+    });
+
+    it("nu atinge ferestrele din țara internă", () => {
+      const rezultat = calculeazaSume(
+        [fereastra({ taraId: RO, fractiune: 1 })],
+        { ...POLITICA, diurnaExternaZi: 100, monedaDiurnaExterna: "EUR" },
+        [],
+        null,
+      );
+      expect(rezultat.valoareLei).toBe(50);
+    });
   });
 
   it("marchează cursIncomplet și NU inventează curs când lipsește pentru o monedă străină", () => {

@@ -21,17 +21,26 @@ import type { CookieOptions } from "@supabase/ssr";
  * publică, pe care Next o înlocuiește literal la build, deci se poate citi
  * direct.
  *
- * ── DE CE `httpOnly` RĂMÂNE `false` ─────────────────────────────────────────
- * Pare corectură de securitate să-l pui pe `true`. NU este: ar rupe cinci
- * ecrane. Clientul de browser Supabase (`getBrowserSupabase`) citește sesiunea
- * prin `document.cookie`, iar el e folosit de încărcările directe în Storage —
- * material de curs, import de angajați, document de angajat, dovadă de
- * integrare, avatar. Cu `httpOnly: true`, cookie-ul devine invizibil pentru ele
- * și toate cinci încep să încarce ca utilizator anonim, deci sunt respinse de
- * politicile de Storage. O corecție de securitate care sparge funcționalitate e
- * o regresie.
+ * ── DE CE `httpOnly` E `true` (și de ce a fost `false`) ────────────────────
+ * Aici a scris, până la 21 sept 2026, exact contrariul: `httpOnly` trebuia să
+ * rămână `false` fiindcă `true` „ar rupe cinci ecrane" — clientul de browser
+ * Supabase citea sesiunea din `document.cookie` și fără ea încărcările directe
+ * în Storage ar fi plecat ca anonim.
  *
- * `secure`, în schimb, lipsea fără niciun motiv, iar pe HTTPS nu costă nimic.
+ * Premisa era falsă. Încărcarea pe URL semnat nu se uită niciodată la sesiune:
+ * ruta `object/upload/sign/...` din `storage-api` validează DOAR semnătura
+ * tokenului din URL (autorizarea s-a făcut deja pe server, la semnare). Cele
+ * șapte ecrane — nu cinci — urcă azi cu un `fetch` simplu
+ * (`src/lib/storage/urca-semnat.ts`), fără niciun client Supabase în browser.
+ *
+ * Ce cumpără `true`: cookie-ul conține access_token ȘI refresh_token, adică
+ * sesiunea întreagă, 400 de zile. Cât era lizibil din JavaScript, orice XSS
+ * sau script terț de pe aceeași origine îl putea citi și, cu el, vorbi direct
+ * cu PostgREST ca utilizatorul — ocolind toate cele opt straturi din
+ * `createAction`. Reîmprospătarea sesiunii nu suferă: o face `updateSession()`
+ * din `src/proxy.ts`, pe server, pentru fiecare cerere de pagină.
+ *
+ * `secure` lipsea fără niciun motiv, iar pe HTTPS nu costă nimic.
  *
  * ── `maxAge` ────────────────────────────────────────────────────────────────
  * 400 de zile e plafonul pe care browserele îl impun oricum cookie-urilor
@@ -54,7 +63,7 @@ export const OPTIUNI_COOKIE: CookieOptions = {
   path: "/",
   sameSite: "lax",
   secure: PE_HTTPS,
-  // Vezi mai sus: NU se pune `true`.
-  httpOnly: false,
+  // Vezi mai sus: JavaScript-ul paginii nu are ce căuta în sesiune.
+  httpOnly: true,
   maxAge: 400 * ZILE,
 };

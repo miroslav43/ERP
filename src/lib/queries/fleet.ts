@@ -4,6 +4,8 @@
 // în Postgres. Un filtru duplicat aici ar fi cod care pare să apere ceva, dar
 // care poate diverge tăcut de regula reală.
 
+import "server-only";
+
 import type { FiltreFoi, FiltreVehicule, SortareFoi, SortareVehicule } from "@/schemas/fleet";
 import type { CategorieVehicul, Combustibil, StatusFoaie, StatusVehicul } from "@/schemas/fleet";
 import { SORTARI_FOI, SORTARI_VEHICULE } from "@/schemas/fleet";

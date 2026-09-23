@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "docs:lint": "node scripts/docs/lint-vault.mjs",
     "check:server": "node scripts/checks/use-server-exports.mjs",
+    "check:bundle": "node scripts/checks/cheie-in-bundle.mjs",
     "check:lastmod": "node scripts/checks/lastmod.mjs",
     "check:rute-vii": "node scripts/checks/rute-publice.mjs",
     "db:types": "supabase gen types typescript --linked > src/types/database.ts",

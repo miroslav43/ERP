@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule } from "@/lib/actions/errors";
+import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import {
   cheltuialaNouaSchema,
@@ -297,7 +297,22 @@ export const adaugaEtapa = createAction({
       })
       .select("id")
       .single();
-    if (error !== null) traduEroare(error);
+    if (error !== null) {
+      // Refuzurile triggerului `valideaza_etapa_deplasare` țin de câte un câmp:
+      // se întorc pe câmp, ca să se înroșească acolo, nu sub buton.
+      if (isPostgrestError(error) && error.code === "P0001") {
+        if (error.message.includes("încadreze")) {
+          throw invalidInput(error.message, {
+            plecare_la: [error.message],
+            sosire_la: [error.message],
+          });
+        }
+        if (error.message.includes("țări diferite")) {
+          throw invalidInput(error.message, { to_country_id: [error.message] });
+        }
+      }
+      traduEroare(error);
+    }
 
     return { id: data.id };
   },
@@ -366,8 +381,10 @@ export const creeazaPolitica = createAction({
       "country_id_intern",
       "moneda_interna",
       "diurna_interna_zi",
-      "prag_ore_minim",
-      "prag_ore_zi_intreaga",
+      "diurna_externa_zi",
+      "moneda_diurna_externa",
+      "mod_calcul_zile",
+      "ore_minime",
       "valabil_de_la",
     ],
   },
@@ -387,24 +404,47 @@ export const creeazaPolitica = createAction({
         country_id_intern: input.country_id_intern,
         moneda_interna: input.moneda_interna,
         diurna_interna_zi: input.diurna_interna_zi,
-        diurna_baza_legala_interna: input.diurna_baza_legala_interna,
-        multiplu_plafon_neimpozabil: input.multiplu_plafon_neimpozabil,
-        multiplu_diurna_externa: input.multiplu_diurna_externa,
-        categorie_barem: input.categorie_barem,
-        prag_ore_minim: input.prag_ore_minim,
-        prag_ore_zi_intreaga: input.prag_ore_zi_intreaga,
-        fractiune_zi_partiala: input.fractiune_zi_partiala,
+        diurna_externa_zi: input.diurna_externa_zi,
+        moneda_diurna_externa:
+          input.diurna_externa_zi === null ? null : input.moneda_diurna_externa,
+        // Fără sumă externă fixă se plătește exact baremul țării.
+        multiplu_diurna_externa: 1,
+        categorie_barem: "II",
+        mod_calcul_zile: input.mod_calcul_zile,
+        // Un singur prag: peste `ore_minime` ore, zi întreagă; sub, nimic.
+        // În `zile_calendaristice` pragul taie doar deplasarea scurtă în total.
+        // Aceeași valoare pe ambele praguri face fracțiunea de zi parțială inutilă.
+        prag_ore_minim: input.ore_minime,
+        prag_ore_zi_intreaga: input.ore_minime,
+        fractiune_zi_partiala: 1,
         acorda_diurna_ziua_trecerii: input.acorda_diurna_ziua_trecerii,
         regula_tara_trecere: input.regula_tara_trecere,
         tarif_km_auto_personal: input.tarif_km_auto_personal,
-        moneda_tarif_km: input.moneda_tarif_km,
-        plafon_salarii_baza_luna: input.plafon_salarii_baza_luna,
+        moneda_tarif_km: input.moneda_interna,
+        // Valorile legale le suprascrie triggerul `trg_aplica_valori_legale_diurna`
+        // (0147) cu cele valabile la `valabil_de_la`. Ce se trimite aici nu ajunge
+        // în bază; coloanele sunt doar NOT NULL fără valoare implicită.
+        diurna_baza_legala_interna: 0,
+        multiplu_plafon_neimpozabil: 1,
+        plafon_salarii_baza_luna: 1,
         valabil_de_la: input.valabil_de_la,
         observatii: input.observatii,
       })
       .select("id")
       .single();
-    if (error !== null) traduEroare(error);
+    if (error !== null) {
+      // Ambele refuzuri țin de dată: `per_diem_policies_uk` (o versiune pe zi)
+      // și triggerul valorilor legale (nicio lege încărcată înainte de dată).
+      // Mesajul merge lângă câmp, nu la baza formularului.
+      if (isPostgrestError(error) && error.code === "23505") {
+        const mesaj = "Există deja o versiune care începe la această dată. Alegeți altă zi.";
+        throw invalidInput(mesaj, { valabil_de_la: [mesaj] });
+      }
+      if (isPostgrestError(error) && error.code === "P0001") {
+        throw invalidInput(error.message, { valabil_de_la: [error.message] });
+      }
+      traduEroare(error);
+    }
 
     return { id: data.id };
   },

@@ -5,6 +5,7 @@ import { PERMISSION_KEYS } from "@/config/permissions";
 
 import {
   ENTITATI_DOCUMENT,
+  caleInPrefix,
   caleLotImport,
   construiesteCaleDocument,
   prefixCaleDocument,
@@ -95,5 +96,38 @@ describe("verificaDocument", () => {
   it("respinge fișierul gol și pe cel prea mare", () => {
     expect(verificaDocument("application/pdf", 0)).not.toBeNull();
     expect(verificaDocument("application/pdf", 21 * 1024 * 1024)).not.toBeNull();
+  });
+});
+
+describe("caleInPrefix", () => {
+  const prefix = "11111111-1111-1111-1111-111111111111/employees/222/";
+
+  it("acceptă o cale reală, sub prefix", () => {
+    expect(caleInPrefix(`${prefix}33333333-contract.pdf`, prefix)).toBe(true);
+  });
+
+  it("respinge o cale din alt prefix", () => {
+    expect(caleInPrefix("alt-org/employees/222/x.pdf", prefix)).toBe(false);
+  });
+
+  /*
+   * Cazul pentru care există funcția: `startsWith` singur întoarce `true` aici,
+   * fiindcă șirul CHIAR începe cu prefixul. Normalizarea o face abia `fetch`,
+   * adică după ce calea a fost scrisă în rând.
+   */
+  it("respinge traversarea cu `..`, deși șirul începe cu prefixul", () => {
+    const traversare = `${prefix}../../../alta-org/employees/999/secret.pdf`;
+    expect(traversare.startsWith(prefix)).toBe(true);
+    expect(caleInPrefix(traversare, prefix)).toBe(false);
+  });
+
+  it("respinge `..` codificat procentual", () => {
+    expect(caleInPrefix(`${prefix}%2e%2e/%2e%2e/x.pdf`, prefix)).toBe(false);
+  });
+
+  it("respinge segmentul gol, punctul singur și backslash-ul", () => {
+    expect(caleInPrefix(`${prefix}a//b.pdf`, prefix)).toBe(false);
+    expect(caleInPrefix(`${prefix}./b.pdf`, prefix)).toBe(false);
+    expect(caleInPrefix(`${prefix}a\\b.pdf`, prefix)).toBe(false);
   });
 });

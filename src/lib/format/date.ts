@@ -143,6 +143,80 @@ export function oraInBucharest(moment: Date): string {
   return bucharestOraFormatter.format(moment);
 }
 
+const bucharestCeasFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Cu câte milisecunde e ceasul României înaintea UTC la un moment (2 sau 3 ore). */
+function decalajBucurestiMs(moment: Date): number {
+  const p = Object.fromEntries(
+    bucharestCeasFormatter.formatToParts(moment).map((x) => [x.type, x.value]),
+  );
+  const caSiUtc = Date.UTC(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    Number(p.hour),
+    Number(p.minute),
+    Number(p.second),
+  );
+  return caSiUtc - Math.floor(moment.getTime() / 1000) * 1000;
+}
+
+const DATA_ORA_LOCALA = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+/**
+ * Ce scrie un `<input type="datetime-local">` (`"2026-09-28T15:00"`, fără fus)
+ * citit ca ORĂ A ROMÂNIEI → momentul exact, ISO în UTC
+ * (`"2026-09-28T12:00:00.000Z"`). `null` pentru orice altceva, inclusiv un șir
+ * care are deja fus: acela nu e o oră de perete și nu se reinterpretează.
+ *
+ * ── DE CE ───────────────────────────────────────────────────────────────────
+ * Șirul fără fus, trimis ca atare, era citit de Postgres în fusul SESIUNII —
+ * UTC pe Supabase. Un 15:00 tastat se salva 15:00 UTC și se afișa 18:00; iar
+ * previzualizarea din browser, care citea același șir ca oră locală, calcula
+ * pe alt interval decât baza.
+ *
+ * Decalajul se recitește la momentul găsit: în noaptea schimbării orei,
+ * miezul nopții și ora 03:00 au decalaje diferite.
+ */
+export function momentDinOraRomaniei(local: string): string | null {
+  const m = DATA_ORA_LOCALA.exec(local.trim());
+  if (m === null) return null;
+  const [, an, luna, zi, ora, minut, secunda] = m;
+  if (!isRealDate(Number(an), Number(luna), Number(zi))) return null;
+  if (Number(ora) > 23 || Number(minut) > 59 || Number(secunda ?? 0) > 59) return null;
+  const caSiUtc = Date.UTC(
+    Number(an),
+    Number(luna) - 1,
+    Number(zi),
+    Number(ora),
+    Number(minut),
+    Number(secunda ?? 0),
+  );
+  const aproape = caSiUtc - decalajBucurestiMs(new Date(caSiUtc));
+  return new Date(caSiUtc - decalajBucurestiMs(new Date(aproape))).toISOString();
+}
+
+/**
+ * Inversul lui `momentDinOraRomaniei`: un `timestamptz` (în orice fus) → ce se
+ * pune într-un `<input type="datetime-local">`, în ora României.
+ */
+export function oraRomanieiPentruCamp(moment: string | Date): string {
+  const d = typeof moment === "string" ? new Date(moment) : moment;
+  if (Number.isNaN(d.getTime())) {
+    throw new TypeError("Moment invalid");
+  }
+  return new Date(d.getTime() + decalajBucurestiMs(d)).toISOString().slice(0, 16);
+}
+
 /**
  * Formele scurte, pentru axele graficelor și antetele înguste de tabel.
  *

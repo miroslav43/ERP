@@ -11,6 +11,8 @@
 //
 // De aceea aici se citesc AMBELE variante și se păstrează, per `cod`, exact pe
 // cea pe care ar alege-o generatorul.
+import "server-only";
+
 import type { ServerSupabase } from "@/lib/supabase/server";
 
 export type SablonDocument = Readonly<{

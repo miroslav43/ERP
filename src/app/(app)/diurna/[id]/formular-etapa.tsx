@@ -1,55 +1,98 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
 import type { Tara } from "@/lib/queries/per-diem";
 import { MIJLOACE_TRANSPORT } from "@/schemas/per-diem";
 
 import { adaugaEtapa } from "../actions";
 import { ETICHETE_MIJLOC_TRANSPORT } from "../etichete";
 
-const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
+type Erori = Readonly<Record<string, readonly string[]>>;
+
+/** `2026-09-28T15:00` → `28.09.2026, 15:00` — pentru mesaje, fără a trece prin fusuri. */
+function scrieCamp(valoare: string): string {
+  const [zi, ora] = valoare.split("T");
+  const [an, luna, z] = (zi ?? "").split("-");
+  return `${z}.${luna}.${an}, ${ora ?? ""}`;
+}
 
 /**
  * Adaugă o etapă a traseului (`business_trip_legs`). Doar cât deplasarea e
  * editabilă (ciornă/respinsă) — dincolo de asta, RLS respinge inserarea, iar
  * mesajul triggerului ajunge la om prin `traduEroare`.
+ *
+ * O etapă e o TRECERE DE GRANIȚĂ: din ea motorul află în ce țară e omul în
+ * fiecare zi, deci ce barem i se aplică. Două țări identice nu spun nimic —
+ * schema le refuză, iar formularul nu mai lasă să fie alese: „În țara” nu o
+ * conține pe cea de plecare. Mișcarea în interiorul aceleiași țări nu schimbă
+ * diurna și nu se înregistrează ca etapă.
+ *
+ * `taraPornireId` e țara în care a ajuns ultima etapă (sau țara firmei, la
+ * prima): traseul se scrie în lanț, deci plecarea unei etape e sosirea celei
+ * de dinainte.
  */
 export function FormularEtapa({
   tripId,
   tari,
+  taraPornireId,
+  taraDestinatieId,
+  interval,
 }: {
   readonly tripId: string;
   readonly tari: readonly Tara[];
+  readonly taraPornireId: string | null;
+  readonly taraDestinatieId: string | null;
+  /** Plecarea și sosirea deplasării, ca valori de câmp (`AAAA-LL-ZZTHH:MM`, ora României). */
+  readonly interval: Readonly<{ plecare: string; sosire: string }>;
 }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const [fromCountryId, setFromCountryId] = useState("");
-  const [toCountryId, setToCountryId] = useState("");
+  const [erori, setErori] = useState<Erori>({});
+  const [fromCountryId, setFromCountryId] = useState(taraPornireId ?? "");
+  const [toCountryId, setToCountryId] = useState(
+    taraDestinatieId !== null && taraDestinatieId !== taraPornireId ? taraDestinatieId : "",
+  );
   const [plecareLa, setPlecareLa] = useState("");
   const [sosireLa, setSosireLa] = useState("");
   const [mijlocTransport, setMijlocTransport] = useState("");
   const [localitateSosire, setLocalitateSosire] = useState("");
 
-  const id = {
-    from: useId(),
-    to: useId(),
-    plecare: useId(),
-    sosire: useId(),
-    mijloc: useId(),
-    localitate: useId(),
-  };
+  function curata(camp: string): void {
+    setErori((vechi) => {
+      if (!(camp in vechi)) return vechi;
+      const { [camp]: _, ...rest } = vechi;
+      return rest;
+    });
+  }
+
+  function valideaza(): Erori {
+    const gasite: Record<string, string[]> = {};
+    if (fromCountryId.length === 0) gasite.from_country_id = ["Alegeți țara din care se pleacă."];
+    if (toCountryId.length === 0) gasite.to_country_id = ["Alegeți țara în care se ajunge."];
+    if (plecareLa.length === 0) gasite.plecare_la = ["Completați data și ora plecării."];
+    if (sosireLa.length === 0) gasite.sosire_la = ["Completați data și ora sosirii."];
+    const inAfara = `Deplasarea ține de la ${scrieCamp(interval.plecare)} până la ${scrieCamp(interval.sosire)}; etapa trebuie să fie în acest interval.`;
+    if (plecareLa.length > 0 && (plecareLa < interval.plecare || plecareLa > interval.sosire)) {
+      gasite.plecare_la = [inAfara];
+    }
+    if (sosireLa.length > 0 && (sosireLa < interval.plecare || sosireLa > interval.sosire)) {
+      gasite.sosire_la = [inAfara];
+    } else if (plecareLa.length > 0 && sosireLa.length > 0 && sosireLa < plecareLa) {
+      gasite.sosire_la = ["Sosirea etapei nu poate fi înainte de plecarea ei."];
+    }
+    return gasite;
+  }
 
   function trimite(): void {
-    if (fromCountryId.length === 0 || toCountryId.length === 0) {
-      setEroare("Alegeți țara de plecare și țara de sosire ale etapei.");
-      return;
-    }
-    if (plecareLa.length === 0 || sosireLa.length === 0) {
-      setEroare("Completați plecarea și sosirea etapei.");
+    const gasite = valideaza();
+    setErori(gasite);
+    if (Object.keys(gasite).length > 0) {
+      setEroare("Corectați câmpurile marcate.");
       return;
     }
     setEroare(null);
@@ -64,10 +107,16 @@ export function FormularEtapa({
         localitate_sosire: localitateSosire.length === 0 ? null : localitateSosire,
       });
       if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
+        setErori(rezultat.error.fieldErrors ?? {});
+        setEroare(
+          rezultat.error.fieldErrors === null
+            ? rezultat.error.message
+            : "Corectați câmpurile marcate.",
+        );
         return;
       }
-      setFromCountryId("");
+      // Următoarea etapă pleacă de unde a ajuns asta.
+      setFromCountryId(toCountryId);
       setToCountryId("");
       setPlecareLa("");
       setSosireLa("");
@@ -78,121 +127,163 @@ export function FormularEtapa({
   }
 
   return (
-    <div className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">
-        Adaugă o etapă a traseului
-      </p>
+    <div className="border-border rounded-panou space-y-3 border p-4">
+      <div>
+        <p className="text-corp font-medium">Adaugă o etapă a traseului</p>
+        <p className="text-muted-foreground text-nota mt-1">
+          Adăugați o etapă la fiecare trecere a graniței — de exemplu România → Austria, apoi
+          Austria → Germania. Din etape se știe în ce țară ați fost în fiecare zi, deci ce barem se
+          aplică. Fără etape, toată deplasarea se calculează pe țara ei. Drumurile în interiorul
+          aceleiași țări nu se trec aici.
+        </p>
+      </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.from} className="text-corp">
-          Din țara
-        </label>
-        <select
-          id={id.from}
-          value={fromCountryId}
-          onChange={(e) => {
-            setFromCountryId(e.target.value);
-          }}
-          className={CLASA_CAMP}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Camp
+          nume="from_country_id"
+          id="etapa-from"
+          eticheta="Din țara"
+          fel="select"
+          erori={erori["from_country_id"] ?? []}
         >
-          <option value="">Alegeți</option>
-          {tari.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.denumire}
-            </option>
-          ))}
-        </select>
-      </div>
+          {(a) => (
+            <select
+              {...a}
+              value={fromCountryId}
+              onChange={(e) => {
+                setFromCountryId(e.target.value);
+                if (e.target.value === toCountryId) setToCountryId("");
+                curata("from_country_id");
+              }}
+            >
+              <option value="">Alegeți</option>
+              {tari.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.denumire}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.to} className="text-corp">
-          În țara
-        </label>
-        <select
-          id={id.to}
-          value={toCountryId}
-          onChange={(e) => {
-            setToCountryId(e.target.value);
-          }}
-          className={CLASA_CAMP}
+        <Camp
+          nume="to_country_id"
+          id="etapa-to"
+          eticheta="În țara"
+          fel="select"
+          erori={erori["to_country_id"] ?? []}
         >
-          <option value="">Alegeți</option>
-          {tari.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.denumire}
-            </option>
-          ))}
-        </select>
-      </div>
+          {(a) => (
+            <select
+              {...a}
+              value={toCountryId}
+              onChange={(e) => {
+                setToCountryId(e.target.value);
+                curata("to_country_id");
+              }}
+            >
+              <option value="">Alegeți</option>
+              {tari
+                .filter((t) => t.id !== fromCountryId)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.denumire}
+                  </option>
+                ))}
+            </select>
+          )}
+        </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.mijloc} className="text-corp">
-          Mijloc de transport (opțional)
-        </label>
-        <select
-          id={id.mijloc}
-          value={mijlocTransport}
-          onChange={(e) => {
-            setMijlocTransport(e.target.value);
-          }}
-          className={CLASA_CAMP}
+        <Camp
+          nume="mijloc_transport"
+          id="etapa-mijloc"
+          eticheta="Mijloc de transport (opțional)"
+          fel="select"
+          erori={erori["mijloc_transport"] ?? []}
         >
-          <option value="">Nespecificat</option>
-          {MIJLOACE_TRANSPORT.map((m) => (
-            <option key={m} value={m}>
-              {ETICHETE_MIJLOC_TRANSPORT[m]}
-            </option>
-          ))}
-        </select>
+          {(a) => (
+            <select
+              {...a}
+              value={mijlocTransport}
+              onChange={(e) => {
+                setMijlocTransport(e.target.value);
+                curata("mijloc_transport");
+              }}
+            >
+              <option value="">Nespecificat</option>
+              {MIJLOACE_TRANSPORT.map((m) => (
+                <option key={m} value={m}>
+                  {ETICHETE_MIJLOC_TRANSPORT[m]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+
+        <Camp
+          nume="plecare_la"
+          id="etapa-plecare"
+          eticheta="Plecarea etapei"
+          erori={erori["plecare_la"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="datetime-local"
+              min={interval.plecare}
+              max={interval.sosire}
+              value={plecareLa}
+              onChange={(e) => {
+                setPlecareLa(e.target.value);
+                curata("plecare_la");
+              }}
+            />
+          )}
+        </Camp>
+
+        <Camp
+          nume="sosire_la"
+          id="etapa-sosire"
+          eticheta="Sosirea etapei"
+          erori={erori["sosire_la"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="datetime-local"
+              min={plecareLa.length > 0 ? plecareLa : interval.plecare}
+              max={interval.sosire}
+              value={sosireLa}
+              onChange={(e) => {
+                setSosireLa(e.target.value);
+                curata("sosire_la");
+              }}
+            />
+          )}
+        </Camp>
+
+        <Camp
+          nume="localitate_sosire"
+          id="etapa-localitate"
+          eticheta="Localitatea de sosire (opțional)"
+          erori={erori["localitate_sosire"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="text"
+              maxLength={200}
+              value={localitateSosire}
+              onChange={(e) => {
+                setLocalitateSosire(e.target.value);
+                curata("localitate_sosire");
+              }}
+            />
+          )}
+        </Camp>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.plecare} className="text-corp">
-          Plecarea etapei
-        </label>
-        <input
-          id={id.plecare}
-          type="datetime-local"
-          value={plecareLa}
-          onChange={(e) => {
-            setPlecareLa(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.sosire} className="text-corp">
-          Sosirea etapei
-        </label>
-        <input
-          id={id.sosire}
-          type="datetime-local"
-          value={sosireLa}
-          onChange={(e) => {
-            setSosireLa(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.localitate} className="text-corp">
-          Localitatea de sosire (opțional)
-        </label>
-        <input
-          id={id.localitate}
-          type="text"
-          maxLength={200}
-          value={localitateSosire}
-          onChange={(e) => {
-            setLocalitateSosire(e.target.value);
-          }}
-          className={CLASA_CAMP}
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
           Adaugă etapa
         </Buton>

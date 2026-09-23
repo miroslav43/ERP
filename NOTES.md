@@ -204,6 +204,13 @@ raportat la salariile de bază · pragul de ore pentru zi întreagă sau jumăta
 zi (regulament intern) · tariful pe kilometru pentru autoturismul personal ·
 regimul detașării transnaționale.
 
+Din `0147_diurna_valori_legale.sql`, nivelul pentru instituții publice, multiplul
+de plafonare (2,5) și plafonul lunar (3 salarii de bază) NU mai sunt alese de
+firmă: stau în `per_diem_valori_legale` (global, versionat, scris doar de
+platformă) și un trigger le copiază în fiecare versiune de politică. Seed:
+20 lei de la 01.07.2018 (HG 714/2018), 23 lei de la 01.04.2023 (Ordinul
+1235/2023). Când se schimbă legea, se adaugă un rând — nu se editează.
+
 ### SSM / PSI / ISCIR
 
 ⚠️ Periodicitatea instruirii SSM (introductivă, la locul de muncă, periodică) ·
