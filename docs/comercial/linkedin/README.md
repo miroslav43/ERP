@@ -14,6 +14,20 @@ Aici stă doar ce se folosește săptămânal.
   https://claude.ai/artifact/A8wvj3U1WaAqzgsPXYsDFZ
 - **Kit-ul lotului 1** (text de copiat + fișierele de urcat):
   https://claude.ai/artifact/XjG4YCBbDfufXX7fbDkibr
+- Uneltele stau în [`unelte/`](unelte/), iar ieșirile lor sunt ignorate de git:
+
+  ```bash
+  cd docs/comercial/linkedin/unelte
+  python3 genereaza.py      # planșele: canvas/project/*.dc.html + export/*.html
+  node randeaza.cjs         # export/*.html → png/
+  node pdf.cjs              # caruselele în PDF + imaginile, în livrare/
+  python3 kit_genereaza.py  # pagina-kit din lot-NN.md, în kit/
+  ```
+
+  Pentru un lot nou se schimbă planșele din `genereaza.py`, lista din `pdf.cjs`
+  și sursa din `kit_genereaza.py`; pânza și kit-ul se republică pe aceleași
+  adrese.
+
 - Fișierele exportate NU intră în git. Se regenerează din planșe: HTML-ul
   fiecărei planșe e randat local cu Playwright (`headless_shell` din
   `~/.cache/ms-playwright`) în PNG, iar caruselele sunt legate într-un PDF de
