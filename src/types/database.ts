@@ -7975,6 +7975,8 @@ export type Database = {
       }
       organization_branding: {
         Row: {
+          antet_arata_logo: boolean
+          antet_pozitie: Database["public"]["Enums"]["pozitie_antet"]
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -7988,6 +7990,8 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          antet_arata_logo?: boolean
+          antet_pozitie?: Database["public"]["Enums"]["pozitie_antet"]
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -8001,6 +8005,8 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          antet_arata_logo?: boolean
+          antet_pozitie?: Database["public"]["Enums"]["pozitie_antet"]
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -8260,6 +8266,7 @@ export type Database = {
           activated_at: string | null
           adresa: string | null
           capital_social: number | null
+          capital_social_varsat: number | null
           cod_caen: string | null
           cod_caen_secundare: string[]
           cod_postal: string | null
@@ -8284,6 +8291,7 @@ export type Database = {
           reprezentant_legal: string | null
           seats_limit: number
           sector: string | null
+          sistem_dualist: boolean
           slug: string
           ssm_furnizor_extern: string | null
           ssm_persoana_responsabila: string | null
@@ -8304,6 +8312,7 @@ export type Database = {
           activated_at?: string | null
           adresa?: string | null
           capital_social?: number | null
+          capital_social_varsat?: number | null
           cod_caen?: string | null
           cod_caen_secundare?: string[]
           cod_postal?: string | null
@@ -8328,6 +8337,7 @@ export type Database = {
           reprezentant_legal?: string | null
           seats_limit?: number
           sector?: string | null
+          sistem_dualist?: boolean
           slug: string
           ssm_furnizor_extern?: string | null
           ssm_persoana_responsabila?: string | null
@@ -8348,6 +8358,7 @@ export type Database = {
           activated_at?: string | null
           adresa?: string | null
           capital_social?: number | null
+          capital_social_varsat?: number | null
           cod_caen?: string | null
           cod_caen_secundare?: string[]
           cod_postal?: string | null
@@ -8372,6 +8383,7 @@ export type Database = {
           reprezentant_legal?: string | null
           seats_limit?: number
           sector?: string | null
+          sistem_dualist?: boolean
           slug?: string
           ssm_furnizor_extern?: string | null
           ssm_persoana_responsabila?: string | null
@@ -13638,6 +13650,7 @@ export type Database = {
       plan_type: "trial" | "starter" | "professional" | "enterprise"
       platforma_mobila: "ios" | "android"
       pontaj_arhiva_motiv: "blocare" | "matura_lunara"
+      pozitie_antet: "antet" | "subsol"
       reges_directie_propunere: "trimisa" | "primita"
       reges_fel_propunere: "detasare" | "mutare"
       reges_mediu: "test" | "productie"
@@ -14190,6 +14203,7 @@ export const Constants = {
       plan_type: ["trial", "starter", "professional", "enterprise"],
       platforma_mobila: ["ios", "android"],
       pontaj_arhiva_motiv: ["blocare", "matura_lunara"],
+      pozitie_antet: ["antet", "subsol"],
       reges_directie_propunere: ["trimisa", "primita"],
       reges_fel_propunere: ["detasare", "mutare"],
       reges_mediu: ["test", "productie"],

@@ -13,6 +13,8 @@
 // cea pe care ar alege-o generatorul.
 import "server-only";
 
+import type { AntetOrganizatie } from "@/lib/documents/bloc-firma";
+import { BUCKET_BRANDING } from "@/lib/pdf/antet-organizatie";
 import type { ServerSupabase } from "@/lib/supabase/server";
 
 export type SablonDocument = Readonly<{
@@ -79,4 +81,100 @@ export async function citesteSablonDocument(
     .returns<SablonDocument[]>();
   if (error !== null) throw new Error("Șablonul de document nu a putut fi citit.");
   return data[0] ?? null;
+}
+
+/**
+ * Antetul documentelor, pentru ecranul de configurare.
+ *
+ * ── DE CE NU REFOLOSEȘTE `antetOrganizatie()` ──────────────────────────────
+ * Aceea citește sigla ca OCTEȚI, ca s-o încorporeze în PDF. Un ecran are nevoie
+ * de un URL pe care să-l pună în `<img>`, iar bucket-ul `org-branding` e privat:
+ * URL-ul trebuie semnat. Datele textuale sunt aceleași și vin din același loc —
+ * `randuriBlocFirma` le compune identic în ambele capete, deci previzualizarea
+ * din ecran nu poate diverge de hârtie.
+ */
+type RandOrganizatieAntet = {
+  name: string;
+  legal_name: string | null;
+  forma_juridica: string | null;
+  cui: string | null;
+  reg_com: string | null;
+  adresa: string | null;
+  oras: string | null;
+  judet: string | null;
+  capital_social: number | null;
+  capital_social_varsat: number | null;
+  sistem_dualist: boolean;
+  telefon_contact: string | null;
+  email_contact: string | null;
+};
+
+type RandBrandingAntet = {
+  antet_pozitie: "antet" | "subsol";
+  antet_arata_logo: boolean;
+  logo_light_path: string | null;
+};
+
+export type AntetDocumenteConfigurat = Readonly<{
+  antet: AntetOrganizatie;
+  /** URL semnat, valabil o oră. `null` dacă firma n-a încărcat nicio siglă. */
+  urlSigla: string | null;
+}>;
+
+export async function citesteAntetDocumente(
+  supabase: ServerSupabase,
+  organizationId: string,
+  denumireUzuala: string,
+): Promise<AntetDocumenteConfigurat> {
+  const [organizatie, branding] = await Promise.all([
+    supabase
+      .from("organizations")
+      .select(
+        "name, legal_name, forma_juridica, cui, reg_com, adresa, oras, judet, " +
+          "capital_social, capital_social_varsat, sistem_dualist, telefon_contact, email_contact",
+      )
+      .eq("id", organizationId)
+      // Tip explicit: `select` primit ca EXPRESIE (concatenare), nu ca literal,
+      // nu poate fi dedus de PostgREST — vezi același tipar în
+      // `lib/pdf/antet-organizatie.ts`.
+      .maybeSingle<RandOrganizatieAntet>(),
+    supabase
+      .from("organization_branding")
+      .select("antet_pozitie, antet_arata_logo, logo_light_path")
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<RandBrandingAntet>(),
+  ]);
+
+  const o = organizatie.data;
+  const b = branding.data;
+
+  const adresa =
+    o === null
+      ? ""
+      : [o.adresa, o.oras, o.judet]
+          .filter((v): v is string => v !== null && v.trim().length > 0)
+          .join(", ");
+
+  const antet: AntetOrganizatie = {
+    denumire: o === null ? denumireUzuala : (o.legal_name ?? o.name),
+    formaJuridica: o?.forma_juridica ?? null,
+    cui: o?.cui ?? null,
+    regCom: o?.reg_com ?? null,
+    adresa: adresa.length > 0 ? adresa : null,
+    capitalSocial: o?.capital_social ?? null,
+    capitalVarsat: o?.capital_social_varsat ?? null,
+    sistemDualist: o?.sistem_dualist ?? false,
+    telefon: o?.telefon_contact ?? null,
+    email: o?.email_contact ?? null,
+    pozitie: b?.antet_pozitie ?? "antet",
+    // Ecranul nu încorporează nimic: sigla se arată prin `urlSigla`.
+    sigla: null,
+  };
+
+  const cale = b?.antet_arata_logo === true ? (b.logo_light_path ?? null) : null;
+  if (cale === null) return { antet, urlSigla: null };
+
+  const semnat = await supabase.storage.from(BUCKET_BRANDING).createSignedUrl(cale, 3600);
+  return { antet, urlSigla: semnat.data?.signedUrl ?? null };
 }

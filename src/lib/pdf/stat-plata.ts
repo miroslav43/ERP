@@ -14,6 +14,7 @@ import "server-only";
 import {
   Cursor,
   deseneazaAntet,
+  deseneazaSubsolFirma,
   numeroteazaPaginile,
   pornesteDocument,
   ACCENT,
@@ -126,8 +127,9 @@ export async function genereazaStatDePlata(parametri: ParametriStatPlata): Promi
   const context = await pornesteDocument(titlu, parametri.organizatie.denumire);
   const cursor = new Cursor(context, LATIME, LATIME_A4);
 
-  deseneazaAntet(
+  await deseneazaAntet(
     cursor,
+    context,
     parametri.organizatie,
     "STAT DE PLATĂ",
     `Perioada: ${numeLuna(parametri.luna)} ${String(parametri.an)} · ${String(parametri.randuri.length)} salariați`,
@@ -226,6 +228,7 @@ export async function genereazaStatDePlata(parametri: ParametriStatPlata): Promi
     { marime: 7, culoare: GRI },
   );
 
+  await deseneazaSubsolFirma(context, parametri.organizatie);
   numeroteazaPaginile(context, `${titlu} · ${parametri.organizatie.denumire}`);
   return context.doc.save();
 }

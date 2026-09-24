@@ -4,7 +4,12 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { CODURI_INROLARE, DESCRIERI_VARIABILE, VARIABILE_PER_COD } from "./variabile";
+import {
+  CODURI_INROLARE,
+  DESCRIERI_VARIABILE,
+  VALORI_EXEMPLU,
+  VARIABILE_PER_COD,
+} from "./variabile";
 import {
   rezerva,
   valoriActAditionalTelemunca,
@@ -212,6 +217,25 @@ describe("VARIABILE_PER_COD", () => {
     const toate = new Set(CODURI.flatMap((cod) => [...VARIABILE_PER_COD[cod]]));
     const orfane = Object.keys(DESCRIERI_VARIABILE).filter((v) => !toate.has(v));
     expect(orfane, `Descrieri pentru variabile inexistente: ${orfane.join(", ")}`).toEqual([]);
+  });
+
+  it("are o valoare-specimen pentru fiecare variabilă", () => {
+    /*
+     * Previzualizarea PDF folosește exact `genereazaDocument`, care aruncă la
+     * PRIMA variabilă fără valoare. O variabilă nouă, adăugată fără specimen, ar
+     * face butonul „Previzualizează PDF" să răspundă „lipsesc date din fișă" pe
+     * un șablon perfect valid — iar mesajul ar trimite omul să caute defectul în
+     * fișa angajatului, unde nu e.
+     */
+    const toate = [...new Set(CODURI.flatMap((cod) => [...VARIABILE_PER_COD[cod]]))].sort();
+    const fara = toate.filter((v) => VALORI_EXEMPLU[v] === undefined);
+    expect(fara, `Variabile fără valoare-specimen: ${fara.join(", ")}`).toEqual([]);
+  });
+
+  it("nu ține specimene pentru variabile care nu există", () => {
+    const toate = new Set(CODURI.flatMap((cod) => [...VARIABILE_PER_COD[cod]]));
+    const orfane = Object.keys(VALORI_EXEMPLU).filter((v) => !toate.has(v));
+    expect(orfane, `Specimene pentru variabile inexistente: ${orfane.join(", ")}`).toEqual([]);
   });
 });
 

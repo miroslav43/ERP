@@ -12,10 +12,11 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { listeazaSabloaneDocumente } from "@/lib/queries/sabloane-documente";
+import { citesteAntetDocumente, listeazaSabloaneDocumente } from "@/lib/queries/sabloane-documente";
 import { CODURI_INROLARE, ETICHETE_SABLON, esteCodInrolare } from "@/lib/documents/variabile";
 
 import { ButonRestabilesteSablon } from "./buton-restabileste";
+import { CardAntetDocumente } from "./card-antet";
 
 export const metadata: Metadata = { title: "Șabloane de documente" };
 
@@ -40,7 +41,10 @@ export default async function PaginaSabloaneDocumente() {
   }
 
   const supabase = await createServerSupabase();
-  const toate = await listeazaSabloaneDocumente(supabase, tenant.organizationId);
+  const [toate, configurareAntet] = await Promise.all([
+    listeazaSabloaneDocumente(supabase, tenant.organizationId),
+    citesteAntetDocumente(supabase, tenant.organizationId, tenant.legalName ?? tenant.name),
+  ]);
 
   /*
    * Doar cele cinci coduri ale înrolării.
@@ -61,6 +65,23 @@ export default async function PaginaSabloaneDocumente() {
         titlu="Șabloane de documente"
         descriere="Textele din care se generează contractul, fișa postului și anexele. Modificarea se aplică documentelor emise DE ACUM ÎNAINTE — cele deja emise păstrează textul cu care au fost emise."
         firimituri={[{ eticheta: "Angajați", href: "/angajati" }, { eticheta: "Șabloane" }]}
+      />
+
+      {/*
+       * Antetul stă ÎNAINTEA listei de șabloane: e singurul lucru de pe ecran
+       * care se aplică tuturor documentelor deodată, iar datele lui sunt
+       * cerute de lege — spre deosebire de textele de mai jos, care sunt
+       * alegerea firmei.
+       */}
+      <CardAntetDocumente
+        antet={configurareAntet.antet}
+        urlSigla={configurareAntet.urlSigla}
+        // `branding:update` e „all" doar pentru `org_admin` și `super_admin`,
+        // iar politica `organization_branding_update` cere exact asta. Un `hr`
+        // ajunge pe pagină (are `employees:update`), dar scrierea lui ar fi
+        // întoarsă de RLS cu zero rânduri și fără eroare — deci vede cardul, nu
+        // comenzile.
+        poateEdita={can(permisiuni, "branding:update", "all")}
       />
 
       <Callout fel="atentie" titlu="Textele nu sunt avizate juridic">

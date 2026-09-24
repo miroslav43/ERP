@@ -13,6 +13,7 @@ import { arataToast } from "@/components/ui/toast";
 import type { CodInrolare } from "@/lib/documents/variabile";
 
 import { salveazaSablonDocument } from "./actions";
+import { ButonPrevizualizare } from "./buton-previzualizare";
 import { EditorSablon } from "./editor-sablon";
 
 export type PropsFormularSablon = Readonly<{
@@ -100,6 +101,12 @@ export function FormularSablon({
           </div>
 
           <BaraActiuni aliniere="final" separata lipitaPeTelefon>
+            {/*
+             * Butonul stă ÎN formular, deliberat: citește conținutul prin
+             * `FormData` de pe același `<form>`, deci previzualizarea e exact ce
+             * s-ar salva. `type="button"` îl ține departe de trimitere.
+             */}
+            <ButonPrevizualizare cod={cod} inCurs={stare.inCurs} />
             <Buton
               varianta="secundar"
               type="button"

@@ -54,6 +54,14 @@ const schemaOrganizatie = z
     capital_social: z
       .union([z.literal(""), z.coerce.number().min(0, "Capitalul social nu poate fi negativ.")])
       .optional(),
+    // Legea 31/1990 art. 74 alin. (3): societățile pe acțiuni trebuie să arate
+    // pe documente ATÂT capitalul subscris, cât și pe cel vărsat. Pentru SRL
+    // legea cere unul singur, iar formularul nici nu afișează câmpul.
+    capital_social_varsat: z
+      .union([z.literal(""), z.coerce.number().min(0, "Capitalul vărsat nu poate fi negativ.")])
+      .optional(),
+    // Art. 74 alin. (2), pentru SA care au optat pentru sistemul dualist (art. 153).
+    sistem_dualist: z.boolean(),
     cod_caen: z.union([z.literal(""), caenClasaSchema]).optional(),
     cod_caen_secundare: z.array(caenClasaSchema).max(50).default([]),
     sector: textOptional(4),
@@ -75,6 +83,19 @@ const schemaOrganizatie = z
     if (!rezultat.valid) {
       ctx.addIssue({ code: "custom", message: rezultat.eroare, path: ["cod_caen_secundare"] });
     }
+
+    // Oglindește `organizations_capital_varsat_sub_subscris_ck` din 0157.
+    // Fără verificarea de aici, baza ar refuza cu 23514, afișat ca „Datele nu
+    // respectă regulile de validare" — fără să spună care câmp.
+    const subscris = valori.capital_social;
+    const varsat = valori.capital_social_varsat;
+    if (typeof subscris === "number" && typeof varsat === "number" && varsat > subscris) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Capitalul vărsat nu poate depăși capitalul subscris.",
+        path: ["capital_social_varsat"],
+      });
+    }
   });
 
 const CAMPURI_AUDITATE = [
@@ -95,6 +116,8 @@ const CAMPURI_AUDITATE = [
   "reprezentant_legal",
   "functie_reprezentant_legal",
   "capital_social",
+  "capital_social_varsat",
+  "sistem_dualist",
   "cod_caen",
   "cod_caen_secundare",
   "sector",
@@ -142,6 +165,10 @@ export const actualizeazaOrganizatia = createAction<
       input.capital_social === undefined || input.capital_social === ""
         ? null
         : input.capital_social;
+    const capitalVarsat =
+      input.capital_social_varsat === undefined || input.capital_social_varsat === ""
+        ? null
+        : input.capital_social_varsat;
     const codCaen = golSauNull(input.cod_caen);
 
     // S1: organizația vine din tenant, nu din payload-ul clientului.
@@ -165,6 +192,8 @@ export const actualizeazaOrganizatia = createAction<
         reprezentant_legal: golSauNull(input.reprezentant_legal),
         functie_reprezentant_legal: golSauNull(input.functie_reprezentant_legal),
         capital_social: capitalSocial,
+        capital_social_varsat: capitalVarsat,
+        sistem_dualist: input.sistem_dualist,
         cod_caen: codCaen,
         cod_caen_secundare: input.cod_caen_secundare,
         sector: golSauNull(input.sector),

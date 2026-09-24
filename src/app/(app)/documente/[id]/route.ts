@@ -51,6 +51,15 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
   // denumirea uzuală.
   const denumireOrganizatie = rezolvare.tenant.legalName ?? rezolvare.tenant.name;
 
+  // Datele de identificare ale firmei — Legea 31/1990 art. 74 — plus poziția
+  // aleasă de firmă și sigla. Aceeași citire pentru ambele randări de mai jos:
+  // HTML-ul de tipărit și PDF-ul trebuie să arate la fel.
+  const organizatie = await antetOrganizatie(
+    db,
+    rezolvare.tenant.organizationId,
+    denumireOrganizatie,
+  );
+
   /*
    * `?format=pdf` — aceeași citire, aceeași RLS (`hr_issued_select`), altă
    * randare.
@@ -68,7 +77,7 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
       html: generat.html,
       numarAfisat: generat.numarAfisat,
       titlu: document.titlu,
-      organizatie: await antetOrganizatie(db, rezolvare.tenant.organizationId, denumireOrganizatie),
+      organizatie,
       codVerificare: generat.codVerificare,
       amprenta: generat.hash.slice(0, 16),
     });
@@ -87,7 +96,7 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
     });
   }
 
-  return new Response(paginaTiparibila(generat, denumireOrganizatie), {
+  return new Response(paginaTiparibila(generat, organizatie), {
     status: 200,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });

@@ -22,7 +22,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import fontkit from "@pdf-lib/fontkit";
-import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage, type RGB } from "pdf-lib";
+
+import {
+  randuriBlocFirma,
+  type AntetOrganizatie,
+  type SiglaOrganizatie,
+} from "@/lib/documents/bloc-firma";
 
 /** A4 în puncte PostScript (72 dpi): 210 × 297 mm. */
 export const LATIME_A4 = 595.28;
@@ -206,40 +212,169 @@ export class Cursor {
   }
 }
 
-export interface AntetOrganizatie {
-  readonly denumire: string;
-  readonly cui: string | null;
-  readonly regCom: string | null;
-  readonly adresa: string | null;
+// Tipul trăiește lângă regula care îl compune (`randuriBlocFirma`), fiindcă
+// regula e juridică, nu grafică — vezi capul lui `bloc-firma.ts`. Se reexportă
+// de aici ca importurile existente (`din-html`, `fluturas`, `stat-plata`) să
+// rămână neatinse.
+export type { AntetOrganizatie, SiglaOrganizatie } from "@/lib/documents/bloc-firma";
+
+/** Înălțimea maximă a siglei în antet. Lățimea se deduce păstrând proporția. */
+const INALTIME_SIGLA = 34;
+/** În subsol e mai mică: acolo încap trei rânduri de text și numerotarea paginii. */
+const INALTIME_SIGLA_SUBSOL = 20;
+
+/**
+ * Încorporează sigla și întoarce dimensiunile la care se desenează.
+ *
+ * `null` la orice eșec: `pdf-lib` aruncă pe un PNG stricat sau pe un JPEG
+ * progresiv, iar un contract care nu se mai generează din cauza unei imagini
+ * decorative ar fi cel mai prost compromis posibil.
+ */
+async function incorporeazaSigla(
+  context: ContextPdf,
+  sigla: SiglaOrganizatie,
+  inaltimeMaxima: number,
+): Promise<{
+  readonly imagine: PDFImage;
+  readonly latime: number;
+  readonly inaltime: number;
+} | null> {
+  try {
+    const imagine =
+      sigla.tip === "image/png"
+        ? await context.doc.embedPng(sigla.octeti)
+        : await context.doc.embedJpg(sigla.octeti);
+    const scara = inaltimeMaxima / imagine.height;
+    // Sigle foarte late (bannere) ar împinge textul în afara paginii: lățimea se
+    // plafonează la un sfert din lățimea utilă, chiar dacă înălțimea scade.
+    const latimeMaxima = (LATIME_A4 - 2 * MARGINE) / 4;
+    const latime = Math.min(imagine.width * scara, latimeMaxima);
+    return { imagine, latime, inaltime: imagine.height * (latime / imagine.width) };
+  } catch {
+    return null;
+  }
 }
 
-/** Antetul comun tuturor documentelor oficiale: firma emitentă, apoi titlul. */
-export function deseneazaAntet(
+/**
+ * Antetul comun tuturor documentelor oficiale: firma emitentă, apoi titlul.
+ *
+ * Când firma a ales SUBSOLUL, blocul de identificare nu se desenează aici — îl
+ * pune `deseneazaSubsolFirma()` pe fiecare pagină, la final. Titlul rămâne sus
+ * în ambele cazuri: e titlul documentului, nu al firmei.
+ */
+export async function deseneazaAntet(
   cursor: Cursor,
+  context: ContextPdf,
   organizatie: AntetOrganizatie,
   titlu: string,
   subtitlu: string | null,
-): void {
-  cursor.text(organizatie.denumire, { marime: 12, aldin: true, coboaraCu: 13 });
+): Promise<void> {
+  if (organizatie.pozitie === "antet") {
+    const randuri = randuriBlocFirma(organizatie);
+    const sigla =
+      organizatie.sigla === null
+        ? null
+        : await incorporeazaSigla(context, organizatie.sigla, INALTIME_SIGLA);
 
-  const identificare = [
-    organizatie.cui === null ? null : `CUI ${organizatie.cui}`,
-    organizatie.regCom === null ? null : `Reg. com. ${organizatie.regCom}`,
-  ].filter((v): v is string => v !== null);
-  if (identificare.length > 0) {
-    cursor.text(identificare.join(" · "), { marime: 8, culoare: GRI, coboaraCu: 10 });
-  }
-  if (organizatie.adresa !== null) {
-    cursor.text(organizatie.adresa, { marime: 8, culoare: GRI, coboaraCu: 10 });
-  }
+    // Sigla se desenează la stânga, iar textul se retrage cu lățimea ei plus un
+    // spațiu. Fără retragere, un logo pătrat ar sta peste denumirea firmei.
+    const xText = sigla === null ? MARGINE : MARGINE + sigla.latime + 12;
+    if (sigla !== null) {
+      cursor.asiguraSpatiu(sigla.inaltime);
+      cursor.paginaCurenta.drawImage(sigla.imagine, {
+        x: MARGINE,
+        // `yCurent` e linia de bază a primului rând de text; imaginea se agață
+        // de ea și crește în sus, ca să fie aliniată cu denumirea.
+        y: cursor.yCurent - (sigla.inaltime - 12),
+        width: sigla.latime,
+        height: sigla.inaltime,
+      });
+    }
 
-  cursor.coboara(10);
-  cursor.linie({ grosime: 1, culoare: ACCENT });
-  cursor.coboara(18);
+    const [denumire, ...restul] = randuri;
+    cursor.text(denumire ?? organizatie.denumire, {
+      x: xText,
+      marime: 12,
+      aldin: true,
+      coboaraCu: 13,
+    });
+    for (const rand of restul) {
+      cursor.text(rand, { x: xText, marime: 8, culoare: GRI, coboaraCu: 10 });
+    }
+
+    // Sigla poate fi mai înaltă decât rândurile de text; fără corecție, linia de
+    // accent ar tăia logoul.
+    if (sigla !== null) {
+      const inaltimeText = 13 + restul.length * 10;
+      if (sigla.inaltime > inaltimeText) cursor.coboara(sigla.inaltime - inaltimeText);
+    }
+
+    cursor.coboara(10);
+    cursor.linie({ grosime: 1, culoare: ACCENT });
+    cursor.coboara(18);
+  }
 
   cursor.text(titlu, { marime: 14, aldin: true, coboaraCu: subtitlu === null ? 20 : 14 });
   if (subtitlu !== null) {
     cursor.text(subtitlu, { marime: 9, culoare: GRI, coboaraCu: 20 });
+  }
+}
+
+/**
+ * Blocul de identificare tipărit JOS, pe fiecare pagină.
+ *
+ * Se apelează la final, ca `numeroteazaPaginile()` și din același motiv: până
+ * atunci nu se știe câte pagini are documentul. Ordinea contează — blocul ăsta
+ * ocupă banda dintre y = 30 și y = 62, iar numerotarea stă sub el, la
+ * `MARGINE / 2` = 20. Podeaua conținutului rămâne `MARGINE + 30` = 70
+ * (`Cursor.coboara`), deci nimic nu se suprapune.
+ *
+ * Nicio normă nu cere antetul: Legea 31/1990 art. 74 cere ca datele să fie ÎN
+ * document, nu în capul lui. Subsolul e la fel de legal.
+ */
+export async function deseneazaSubsolFirma(
+  context: ContextPdf,
+  organizatie: AntetOrganizatie,
+): Promise<void> {
+  if (organizatie.pozitie !== "subsol") return;
+
+  const randuri = randuriBlocFirma(organizatie);
+  if (randuri.length === 0) return;
+
+  const sigla =
+    organizatie.sigla === null
+      ? null
+      : await incorporeazaSigla(context, organizatie.sigla, INALTIME_SIGLA_SUBSOL);
+  const xText = sigla === null ? MARGINE : MARGINE + sigla.latime + 8;
+
+  for (const pagina of context.doc.getPages()) {
+    pagina.drawLine({
+      start: { x: MARGINE, y: 64 },
+      end: { x: pagina.getWidth() - MARGINE, y: 64 },
+      thickness: 0.5,
+      color: LINIE,
+    });
+
+    if (sigla !== null) {
+      pagina.drawImage(sigla.imagine, {
+        x: MARGINE,
+        y: 62 - sigla.inaltime,
+        width: sigla.latime,
+        height: sigla.inaltime,
+      });
+    }
+
+    // De sus în jos, pornind imediat sub linie.
+    randuri.forEach((rand, index) => {
+      const primul = index === 0;
+      pagina.drawText(rand, {
+        x: xText,
+        y: 54 - index * 9,
+        size: primul ? 8 : 7,
+        font: primul ? context.fonturi.aldin : context.fonturi.normal,
+        color: primul ? NEGRU : GRI,
+      });
+    });
   }
 }
 

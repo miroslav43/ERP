@@ -3,6 +3,7 @@ import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 
 import { curataHtml } from "@/lib/documents/curata-html";
+import type { AntetOrganizatie } from "@/lib/documents/bloc-firma";
 
 import { inSegmente, pdfDinDocument } from "./din-html";
 
@@ -25,11 +26,19 @@ import { inSegmente, pdfDinDocument } from "./din-html";
  *    flux iese pur și simplu din pagină, fără nicio eroare. Un text de trei
  *    pagini trebuie să producă mai multe pagini.
  */
-const ORGANIZATIE = {
+const ORGANIZATIE: AntetOrganizatie = {
   denumire: "Exemplu S.R.L.",
+  formaJuridica: "S.R.L.",
   cui: "RO12345678",
   regCom: "J12/345/2020",
   adresa: "Str. Exemplu 1, Cluj-Napoca, Cluj",
+  capitalSocial: 200,
+  capitalVarsat: null,
+  sistemDualist: false,
+  telefon: null,
+  email: null,
+  pozitie: "antet",
+  sigla: null,
 };
 
 const BAZA = {
@@ -239,5 +248,43 @@ describe("editor → curățare → PDF", () => {
     const curat = curataHtml('<p>bun</p><script>alert(1)</script><img src=x onerror="alert(1)">');
     expect(curat).toBe("<p>bun</p>");
     expect(esteePdf(await pdfDinDocument({ ...BAZA, html: curat }))).toBe(true);
+  });
+});
+
+/**
+ * Blocul de identificare a firmei — Legea 31/1990 art. 74.
+ *
+ * CE scrie blocul e probat în `bloc-firma.test.ts`, pe funcția pură. Aici se
+ * verifică doar că stratul de desen chiar îl pune pe hârtie și că poziția aleasă
+ * de firmă schimbă rezultatul: o previzualizare care arată același PDF pentru
+ * „antet" și pentru „subsol" ar fi un comutator decorativ.
+ */
+describe("blocul de identificare a firmei", () => {
+  const HTML = "<p>Părțile convin asupra clauzelor de mai jos.</p>";
+
+  it("produce un PDF diferit în subsol față de antet", async () => {
+    const sus = await pdfDinDocument({ ...BAZA, html: HTML });
+    const jos = await pdfDinDocument({
+      ...BAZA,
+      html: HTML,
+      organizatie: { ...ORGANIZATIE, pozitie: "subsol" },
+    });
+    expect(esteePdf(jos)).toBe(true);
+    expect(Buffer.from(jos).equals(Buffer.from(sus))).toBe(false);
+  });
+
+  it("nu aruncă pe o siglă stricată — documentul rămâne generabil", async () => {
+    // `pdf-lib` aruncă pe octeți care nu sunt un PNG valid. Un contract care nu
+    // se mai emite din cauza unei imagini decorative ar fi cel mai prost
+    // compromis posibil, deci `incorporeazaSigla` înghite eroarea.
+    const octeti = await pdfDinDocument({
+      ...BAZA,
+      html: HTML,
+      organizatie: {
+        ...ORGANIZATIE,
+        sigla: { octeti: new Uint8Array([1, 2, 3, 4]), tip: "image/png" },
+      },
+    });
+    expect(esteePdf(octeti)).toBe(true);
   });
 });
