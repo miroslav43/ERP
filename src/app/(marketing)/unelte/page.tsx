@@ -10,6 +10,7 @@ import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
 import { Cadru } from "../_componente/cadru";
 import { ListaHub } from "../_componente/lista-hub";
+import { metadatePagina } from "../_componente/metadate";
 import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "./foaie-de-pontaj/foaie";
 
 /**
@@ -19,12 +20,12 @@ import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "./foaie-de-pontaj/foaie";
  * Lista a fost scrisă ca listă tocmai ca a doua unealtă să nu ceară o pagină
  * nouă — pe 18 sept 2026 a venit, cererea de concediu de odihnă.
  */
-export const metadata: Metadata = {
-  title: "Unelte gratuite: pontaj și cerere de concediu",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Unelte gratuite: pontaj și cerere de concediu",
+  descriere:
     "Unelte care se folosesc fără cont: foaia de pontaj lunar cu sărbătorile legale calculate și cererea de concediu de odihnă cu zilele lucrătoare numărate automat.",
-  alternates: { canonical: "/unelte" },
-};
+  cale: "/unelte",
+});
 
 const PAGINI = [
   {

@@ -89,7 +89,9 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 1,
     limba: "ro",
     traducere: "/en",
-    actualizat: "2026-09-17",
+    // 23 sept: H2-ul benzii „Cum se leagă" spune acum salarizarea pe nume (ro.ts);
+    // poarta lastmod nu vede textele din ro.ts, deci data se ridică de mână.
+    actualizat: "2026-09-23",
     sectiune: "Principale",
   },
   {
@@ -137,7 +139,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-18",
+    actualizat: "2026-09-23",
     sectiune: "Principale",
   },
   {

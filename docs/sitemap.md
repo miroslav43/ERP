@@ -250,12 +250,21 @@ intre.
 
 ---
 
-## 8. Ce rămâne de făcut
+## 8. Porțile și ce rămâne
 
-- Cele 19 pagini `/module/<cheie>` nu sunt în sitemap. Sunt descoperibile prin
-  legături interne din `/module`. A fost decizia corectă cât erau subțiri; merită
-  reevaluată acum.
-- Nu există `/ghid` și `/unelte` ca pagini. Cine taie adresa înapoi la părinte
-  primește 404.
-- Verificarea de proprietate nu e făcută încă — nimic nu se poate trimite până
-  atunci.
+Rezolvate de la prima scriere a secțiunii: cele 19 pagini de modul sunt în
+sitemap, `/ghid` și `/unelte` există ca pagini, proprietatea e verificată în
+Search Console (20 sept).
+
+Porțile care țin sitemap-ul cinstit (din 23 sept 2026):
+
+- `pnpm check:lastmod` — o dată din sitemap nu rămâne în urma conținutului pe
+  care îl descrie. Rulează în `ci.yml`, pe istoric complet. Sare peste commit-urile
+  care ating doar linia `actualizat:`; înainte de asta raporta fals-pozitive pe
+  care nicio ridicare de dată nu le putea stinge.
+- `pnpm check:rute-vii [baza] [--cereri N]` — fiecare adresă din sitemap, de N ori,
+  200 + indexabil. Rulează după deploy pe staging și în `./administrativo.sh prod`.
+  N cereri, nu una: cu două replici, un singur `curl` minte jumătate din timp
+  (capcana #45).
+
+Rămâne: IndexNow pentru Bing (vezi `docs/comercial/vizibilitate-organica.md` §5).

@@ -1,0 +1,6 @@
+# Commit-uri care au atins fișiere de pagină FĂRĂ să le schimbe conținutul.
+# Citit de scripts/checks/lastmod.mjs: pentru datele din sitemap comparate cu un
+# `page.tsx`, commit-urile de aici nu contează ca schimbare. NU se aplică fișelor de
+# modul, unde decide diff-ul liniilor. Un rând: <sha> <motiv>. Se adaugă doar ce
+# chiar n-a schimbat textul, legăturile sau datele structurate ale paginii.
+65e6891 metadatePagina pe toate paginile: doar forma metadatelor (og:title propriu), textul paginilor neschimbat

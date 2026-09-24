@@ -19,6 +19,11 @@ docs/
 supabase/
 tests/
 scripts/checks/
+# Excepția: Dockerfile rulează `pnpm check:bundle` după build, ÎN imagine.
+# Din f89c3ff (21 sept 2026) până pe 23 sept, fără linia asta, fiecare build de
+# imagine cădea cu MODULE_NOT_FOUND — staging și producție deopotrivă; producția
+# mergea doar fiindcă rula o imagine mai veche.
+!scripts/checks/cheie-in-bundle.mjs
 # Aplicația mobilă nu intră în imaginea serverului: se construiește la EAS.
 mobil/
 

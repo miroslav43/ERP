@@ -12,6 +12,7 @@ import {
   BandaRoluri,
 } from "../_componente/benzi/produs";
 import { Cadru } from "../_componente/cadru";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Hub-ul de module.
@@ -25,13 +26,13 @@ import { Cadru } from "../_componente/cadru";
  * capăt la altul, și cine ce vede. Sunt aceleași benzi, aceeași ordine — mutate,
  * nu rescrise.
  */
-export const metadata: Metadata = {
+export const metadata: Metadata = metadatePagina({
   // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
-  title: "Module HR: pontaj, concedii, salarizare, SSM",
-  description:
+  titlu: "Module HR: pontaj, concedii, salarizare, SSM",
+  descriere:
     "Cele nouăsprezece module ale Administrativo și ce face fiecare. Pornești doar ce folosești; restul nu apare nici în meniu, nici pe factură.",
-  alternates: { canonical: "/module" },
-};
+  cale: "/module",
+});
 
 export default function PaginaModule() {
   return (

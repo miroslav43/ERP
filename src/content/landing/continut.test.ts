@@ -740,8 +740,10 @@ describe("legăturile interne duc undeva", () => {
     const SUFIX = " · Administrativo";
     const { FISE } = await import("./fise-module");
     const { DOMENII } = await import("./domenii");
+    // `titlu:` e forma din `metadatePagina` (din 23 sept 2026); `title:` rămâne
+    // prins pentru o pagină care ar scrie metadatele de mână.
     const statice = fisiere("src/app/(marketing)", ["page.tsx"]).flatMap((f) =>
-      [...readFileSync(f, "utf8").matchAll(/\btitle: "([^"]+)"/g)].map(
+      [...readFileSync(f, "utf8").matchAll(/\b(?:title|titlu): "([^"]+)"/g)].map(
         (m) => [f, m[1] ?? ""] as const,
       ),
     );
@@ -755,6 +757,23 @@ describe("legăturile interne duc undeva", () => {
       expect(`${titlu}${SUFIX}`.length, `${sursa}: „${titlu}”`).toBeLessThanOrEqual(65);
       expect(titlu, `${sursa}: marca e adăugată de șablon`).not.toMatch(/Administrativo/);
     }
+  });
+
+  it("fiecare pagină își pune Open Graph-ul ei, prin metadatePagina", () => {
+    /*
+     * Next îmbină metadatele superficial: o pagină fără `openGraph` moștenește
+     * titlul și descrierea homepage-ului. Auditul din 23 sept 2026 a găsit
+     * același `og:title` pe toate cele 48 de adrese. `metadatePagina` pune
+     * obiectul complet; o pagină care își scrie metadatele de mână îl uită.
+     */
+    const cuMetadate = fisiere("src/app/(marketing)", ["page.tsx"]).filter((f) =>
+      /export (const metadata|async function generateMetadata)/.test(readFileSync(f, "utf8")),
+    );
+    expect(cuMetadate.length).toBeGreaterThan(25);
+    const faraAjutor = cuMetadate.filter(
+      (f) => !readFileSync(f, "utf8").includes("metadatePagina("),
+    );
+    expect(faraAjutor, "pagini cu metadate scrise de mână, fără og:title propriu").toEqual([]);
   });
 
   it("descrierile fișelor nu se termină toate în aceeași propoziție", async () => {
@@ -1262,6 +1281,8 @@ describe("furnizorii externi sunt numiți în documentele legale", () => {
   const SCUTITE: Readonly<Record<string, string>> = {
     "administrativo.ro": "domeniul propriu",
     "schema.org": "identificatorul vocabularului JSON-LD, nu o cerere de rețea",
+    "www.linkedin.com":
+      "pagina de firmă din `sameAs` (JSON-LD): o adresă citită de crawler, nu o cerere de rețea și nu primește date",
     "fonts.googleapis.com":
       "fontul imaginii Open Graph, descărcat de server la generare; nu trimite date de vizitator",
     "legislatie.just.ro":
@@ -1328,5 +1349,66 @@ describe("vitrina", () => {
     expect(RUTE_PUBLICE).toContain("/vitrina");
     // Adresa cerută de `<iframe src>` nu e prefixul, ci ruta concretă.
     expect(estePublica("/vitrina/leave"), "chenarul ar afișa ecranul de autentificare").toBe(true);
+  });
+});
+
+describe("profilurile publice ale firmei", () => {
+  /*
+   * Pagina de LinkedIn a apărut pe 23 sept 2026, iar adresa venită în
+   * conversație era cea de ADMINISTRARE (`…/admin/dashboard/`). Un `sameAs`
+   * spre o pagină care cere autentificare îi spune crawlerului că entitatea
+   * trăiește acolo unde el nu poate intra.
+   */
+  it("profilurile din sameAs sunt adrese publice, nu de administrare", async () => {
+    const { PROFILURI_PUBLICE } = await import("./contact");
+    expect(PROFILURI_PUBLICE.length, "pagina de LinkedIn există din 23 sept 2026").toBeGreaterThan(
+      0,
+    );
+    for (const adresa of PROFILURI_PUBLICE) {
+      const url = new URL(adresa);
+      expect(url.protocol, adresa).toBe("https:");
+      expect(url.pathname, `${adresa}: pagină de administrare, cere autentificare`).not.toMatch(
+        /\/admin(\/|$)/,
+      );
+    }
+  });
+});
+
+describe("pilotul pentru contabili", () => {
+  it("textul e construit din constante, nu scris de mână", async () => {
+    const { PILOT, PILOT_CONTABILI, dataPilot } = await import("./pentru-contabili");
+    const tot = [
+      PILOT_CONTABILI.titlu,
+      PILOT_CONTABILI.lead ?? "",
+      ...PILOT_CONTABILI.pasi.map((p) => p.text),
+    ].join(" ");
+    expect(tot).toContain(dataPilot(PILOT.inscrieriPanaLa));
+    expect(tot).toContain(dataPilot(PILOT.gratuitPanaLa));
+    expect(tot).toContain(`${PILOT.comisionProcent}%`);
+    expect(tot).toContain(`${PILOT.comisionLuni} luni`);
+    expect(dataPilot("2026-11-15")).toBe("15 noiembrie 2026");
+    expect(PILOT.inscrieriPanaLa < PILOT.gratuitPanaLa).toBe(true);
+  });
+
+  /*
+   * Pagina e statică: o secțiune cu termen trecut rămâne afișată până o scoate
+   * cineva, promițând locuri într-un program închis. Testul cade la o
+   * săptămână după termen — exact punctul de control din săptămâna 8 a
+   * planului, unde se decide prelungirea.
+   */
+  it("un pilot închis nu rămâne anunțat pe site", async () => {
+    const { PILOT } = await import("./pentru-contabili");
+    const toleranta = 7 * 24 * 60 * 60 * 1000;
+    const inchis = Date.now() > Date.parse(`${PILOT.inscrieriPanaLa}T23:59:59Z`) + toleranta;
+    expect(
+      inchis,
+      `înscrierile s-au închis pe ${PILOT.inscrieriPanaLa}: prelungește PILOT.inscrieriPanaLa sau scoate secțiunea de pe /pentru-contabili`,
+    ).toBe(false);
+  });
+
+  it("pagina afișează secțiunea și duce la formular", () => {
+    const sursa = readFileSync("src/app/(marketing)/pentru-contabili/page.tsx", "utf8");
+    expect(sursa).toContain("PILOT_CONTABILI");
+    expect(sursa).toContain('href="/cere-demo"');
   });
 });

@@ -162,6 +162,22 @@ _db_registru() {
 
 _suma() { sha256sum "$1" | cut -c1-16; }
 
+# Reconcilierile declarate: o migrare aplicată pe un mediu și reparată după ce a
+# picat pe altul. Cazul care a cerut-o: 0136, aplicată pe staging la 21:39 pe
+# 10 sept 2026, picată pe producție pe o dată tastată greșit, reparată în loc la
+# 21:46 — de atunci poarta de mai jos a oprit FIECARE deploy pe staging, 12 zile,
+# fără ca cineva să observe. Fără o cale declarată, singura ieșire era un UPDATE
+# de mână în registru, adică exact ocolirea pe care poarta trebuie s-o împiedice.
+#
+# Format (TAB): nume  suma_veche  suma_noua  motiv. Liniile cu `#` se ignoră.
+# Întoarce motivul dacă (nume, veche, nouă) e declarată, altfel nimic.
+_motiv_reconciliere() {
+  local fisier="$ADMINISTRATIVO_ROOT/supabase/reconcilieri-migrari.tsv"
+  [ -f "$fisier" ] || return 0
+  awk -F'\t' -v n="$1" -v v="$2" -v s="$3" \
+    '$0 !~ /^#/ && $1 == n && $2 == v && $3 == s { print $4; exit }' "$fisier"
+}
+
 # @cmd db:status "Migrări aplicate, în așteptare și starea conexiunii"
 cmd_db__status() {
   header "Stare bază de date"
@@ -384,14 +400,19 @@ cmd_db__migrate() {
   [ "${1:-}" = "--dry-run" ] && uscat=1
 
   # Ce e de făcut, ÎNAINTE de orice scriere.
-  local restante=() modificate=() f nume suma inregistrata
+  local restante=() modificate=() reconciliate=() f nume suma inregistrata motiv
   for f in "$ADMINISTRATIVO_ROOT"/supabase/migrations/*.sql; do
     nume=$(basename "$f"); suma=$(_suma "$f")
     inregistrata=$(psql "$u" -tAc "select suma from internal.migrari_aplicate where nume = '$nume';")
     if [ -z "$inregistrata" ]; then
       restante+=("$f")
     elif [ "$inregistrata" != "$suma" ]; then
-      modificate+=("$nume")
+      motiv=$(_motiv_reconciliere "$nume" "$inregistrata" "$suma")
+      if [ -n "$motiv" ]; then
+        reconciliate+=("$nume|$inregistrata|$suma|$motiv")
+      else
+        modificate+=("$nume")
+      fi
     fi
   done
 
@@ -401,8 +422,25 @@ cmd_db__migrate() {
     error "Migrări DEJA APLICATE care s-au modificat pe disc:"
     printf '      %s\n' "${modificate[@]}"
     echo -e "     ${DIM}Forward-only: scrie o migrare nouă, nu o edita pe cea aplicată.${NC}"
+    echo -e "     ${DIM}Excepția (migrare reparată după ce a picat în producție, dar deja aplicată aici):${NC}"
+    echo -e "     ${DIM}o linie în supabase/reconcilieri-migrari.tsv, cu motivul.${NC}"
     return 1
   fi
+
+  # Reconcilierile trec ÎNAINTEA oricărei aplicări, și doar dacă registrul are
+  # exact suma veche declarată — altfel ar fi fost prinse ca „modificate" mai sus.
+  local r r_nume r_veche r_noua r_motiv
+  for r in "${reconciliate[@]}"; do
+    IFS='|' read -r r_nume r_veche r_noua r_motiv <<<"$r"
+    if [ "$uscat" -eq 1 ]; then
+      _infol "$r_nume" "de reconciliat ${r_veche} → ${r_noua}: ${r_motiv}"
+      continue
+    fi
+    psql "$u" -v ON_ERROR_STOP=1 -q -c \
+      "update internal.migrari_aplicate set suma = '$r_noua'
+       where nume = '$r_nume' and suma = '$r_veche';" >/dev/null
+    _ok "$r_nume" "reconciliată ${r_veche} → ${r_noua}: ${r_motiv}"
+  done
 
   if [ "${#restante[@]}" -eq 0 ]; then
     success "Nimic de aplicat — baza e la zi."

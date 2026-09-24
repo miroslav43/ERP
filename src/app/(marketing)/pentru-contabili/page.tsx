@@ -1,11 +1,14 @@
 // src/app/(marketing)/pentru-contabili/page.tsx
 import type { Metadata } from "next";
+import Link from "next/link";
+import type { ReactNode } from "react";
 
 import {
   CE_NU_FACE,
   CE_PRIMESTI,
   CONTUL_TAU,
   INAINTE_SA_RECOMANZI,
+  PILOT_CONTABILI,
   type SectiuneContabili,
 } from "@/content/landing/pentru-contabili";
 import { RO } from "@/content/landing/ro";
@@ -13,6 +16,7 @@ import { RO } from "@/content/landing/ro";
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
 import { Cadru } from "../_componente/cadru";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Pagina contabilului.
@@ -25,15 +29,18 @@ import { Cadru } from "../_componente/cadru";
  * Aceeași croială ca `/pontaj-pe-telefon`, din același motiv: sunt pagini de
  * pași, nu de obligații legale, deci nu intră pe tiparul `PaginaLege`.
  */
-export const metadata: Metadata = {
-  title: "Pentru contabili: un cont, toate firmele",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Pentru contabili: un cont, toate firmele",
+  descriere:
     "Cum arată aplicația pentru cine ține zece firme: o apartenență per client, comutare fără delogare, nota contabilă și D112 exportate, iar depunerea rămâne la tine.",
-  alternates: { canonical: "/pentru-contabili" },
-};
+  cale: "/pentru-contabili",
+});
 
-/** Pașii unei secțiuni: titlu scurt și explicația lui, pe un rând. */
-function Pasi({ sectiune }: { sectiune: SectiuneContabili }) {
+/**
+ * Pașii unei secțiuni: titlu scurt și explicația lui, pe un rând. `dupa` e ce
+ * urmează sub grilă, în aceeași bandă — azi doar îndemnul pilotului.
+ */
+function Pasi({ sectiune, dupa }: { sectiune: SectiuneContabili; dupa?: ReactNode }) {
   return (
     <Banda
       inaltime="medie"
@@ -56,6 +63,7 @@ function Pasi({ sectiune }: { sectiune: SectiuneContabili }) {
           </div>
         ))}
       </div>
+      {dupa}
     </Banda>
   );
 }
@@ -77,6 +85,21 @@ export default function PaginaPentruContabili() {
       {/* Ultima, deliberat: obiecția de încredere se pune după ce omul a citit
           ce face și ce nu face, nu înainte. */}
       <Pasi sectiune={INAINTE_SA_RECOMANZI} />
+      {/* Pilotul, ultimul: oferta vine după ce omul a citit ce riscă. */}
+      <Pasi
+        sectiune={PILOT_CONTABILI}
+        dupa={
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/cere-demo"
+              data-umami-event="cta-pilot-contabili"
+              className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+            >
+              Vreau în pilot
+            </Link>
+          </div>
+        }
+      />
     </Cadru>
   );
 }

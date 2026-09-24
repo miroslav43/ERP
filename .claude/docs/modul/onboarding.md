@@ -5,6 +5,8 @@ aliases: [onboarding, integrare, checklist]
 cai:
   - "src/app/(app)/onboarding/**"
   - "src/lib/queries/checklist.ts"
+  - "src/lib/onboarding/cale.ts"
+  - "src/lib/storage/**"
   - "src/schemas/checklist.ts"
   - "supabase/migrations/0014_checklist.sql"
   - "supabase/migrations/0088_integrare_defecte.sql"
@@ -25,8 +27,8 @@ citeste_daca:
   - "„Checklistul este închis” pe un checklist deschis → secțiunea D6"
   - "pas obligatoriu care nu se poate bifa niciodată → secțiunea D4"
   - "câmpul de filtru rămâne plin după „Șterge filtrele” → secțiunea Ce se mișcă împreună"
-scris_pe: 50bff5a78999c0d340dbf8625f7d54c822900965
-scris_la: 2026-09-17
+scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
+scris_la: 2026-09-24
 tags: [modul, hr]
 ---
 
@@ -121,6 +123,27 @@ document care nu atestă nimic, dar arată exact ca unul care atestă.
 Precedentul reparației era deja în repo — `internal.cursuri_pregateste_inrolarea` refuză
 înrolarea la un curs fără nicio lecție. Modulul de cursuri învățase lecția; integrarea nu.
 
+## Dovada de pas — ce nu se crede de la client
+
+Trei timpi: `pregatesteIncarcareDovada` întoarce `cale` + `urlSemnat`
+(`createSignedUploadUrl`), browserul urcă octeții cu `urcaPeUrlSemnat` — un `PUT`
+obișnuit, nu clientul Supabase din browser —, iar `salveazaDovada` scrie rândul.
+
+- **Calea se re-verifică cu `caleInPrefix`, nu cu `startsWith`.** Prefixul include PASUL,
+  ca poarta de aplicație să nu fie mai laxă decât `app.checklist_poate_dovada`, iar
+  `caleInPrefix` respinge în plus segmentele goale și `.`/`..`, inclusiv
+  procent-codificate — pe care un `startsWith` le lasă să treacă.
+- **`mime` și `marime_bytes` din `input` NU ajung în rând.** Sunt doar ce a declarat
+  browserul înainte să urce ceva, iar tokenul semnat nu le fixează; rămân în allow-list-ul
+  de audit, atât. Rândul se scrie cu ce raportează Storage prin `masoaraObiectul`, trecut
+  din nou prin `verificaDovada` **pe server** — deci un fișier care a trecut de
+  verificarea din browser poate fi respins abia la înregistrare.
+- **Mărimea e măsurată, tipul e doar raportat.** `content_type` e antetul cu care s-a
+  urcat obiectul, nu o citire a primilor octeți: verificarea prin magic bytes rămâne cea
+  a materialelor de curs, din `src/lib/media/cale.ts`.
+- **Obiectul rămâne în bucket când rândul nu se scrie.** Ecranul nu șterge nimic de pe
+  client — curățarea trece prin `service_role`, după audit —, ci cere reluarea încărcării.
+
 ## Ce refuză baza tăcut
 
 - **`checklist_completion_records` nu are `deleted_at`.** Un `.is("deleted_at", null)` pe
@@ -137,6 +160,9 @@ Materialele de citit refolosesc `course_materials` din [[modul/cursuri]] — nu 
 o bibliotecă paralelă. Predarea de echipament trece prin alocările din [[modul/inventar]],
 vizibile aici doar prin politicile îngustate de D9. Fișa și invitația noului angajat sunt
 la [[modul/angajati]].
+
+Citirile din `src/lib/queries/checklist.ts` sunt marcate `server-only`: un import dintr-o
+componentă client cade la build, nu în producție.
 
 Lista de instanțe își ia filtrele din `filtre-instante.tsx`, ca restul ecranelor cu
 `filtre-*.tsx`. `/onboarding/sabloane` face **excepție**: își scrie formularul GET de mână,

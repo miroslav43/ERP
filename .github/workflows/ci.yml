@@ -26,7 +26,13 @@ jobs:
     name: Tipuri, lint, teste, build
     runs-on: ubuntu-latest
     steps:
+      # Istoric complet: cele două porți de mai jos compară cu commit-uri
+      # anterioare. Pe o clonă de adâncime 1, `check:lastmod` ar vedea același
+      # commit pentru orice fișier și ar striga mereu — motivul pentru care a
+      # stat în afara CI până pe 23 sept 2026.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -36,6 +42,17 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # O migrare de pe main editată în loc a oprit în tăcere FIECARE deploy pe
+      # staging 12 zile (0136, 10→22 sept 2026). Baza: SHA-ul dinaintea push-ului
+      # sau baza PR-ului, trecute prin `env`, nu interpolate în comandă.
+      - name: Migrări existente editate fără reconciliere
+        env:
+          BAZA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/checks/migrari-imutabile.mjs "$BAZA"
+
+      - name: Datele lastmod din sitemap țin pasul cu conținutul
+        run: pnpm check:lastmod
 
       - name: Verificare tipuri (strict, zero any)
         run: pnpm typecheck

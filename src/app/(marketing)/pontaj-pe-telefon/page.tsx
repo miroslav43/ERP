@@ -14,6 +14,7 @@ import { Banda } from "../_componente/banda";
 import { BandaPontajLivrat, BandaPontajViitor } from "../_componente/benzi/produs";
 import { Cadru } from "../_componente/cadru";
 import { InMana } from "../_componente/in-mana";
+import { metadatePagina } from "../_componente/metadate";
 
 /**
  * Pontajul de pe telefon.
@@ -27,12 +28,12 @@ import { InMana } from "../_componente/in-mana";
  * cerneala ce e pe foaia de parcurs. Despărțite, fraza-graniță dintre ele —
  * „de aici în jos vorbesc despre ce vreau să construiesc” — rămâne fără obiect.
  */
-export const metadata: Metadata = {
-  title: "Aplicație de pontaj pe telefon, fără instalare",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Aplicație de pontaj pe telefon, fără instalare",
+  descriere:
     "Pontaj de pe telefonul angajatului, direct din browser: se adaugă pe ecranul de start, merge pe Android și iPhone, fără cont în magazinul de aplicații.",
-  alternates: { canonical: "/pontaj-pe-telefon" },
-};
+  cale: "/pontaj-pe-telefon",
+});
 
 /** Pașii unei secțiuni: titlu scurt și explicația lui, pe un rând. */
 function Pasi({ sectiune }: { sectiune: SectiunePontajTelefon }) {

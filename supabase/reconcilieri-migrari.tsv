@@ -1,0 +1,11 @@
+# Reconcilieri declarate de migrări — citite de `db:migrate` (ops/04-db.sh, _motiv_reconciliere).
+#
+# O linie = o migrare APLICATĂ pe un mediu și editată în loc după ce a picat pe altul,
+# unde n-a lăsat nimic în urmă (tranzacție derulată înapoi). `db:migrate` acceptă suma
+# nouă DOAR dacă registrul mediului are exact suma veche. Poarta din CI
+# (scripts/checks/migrari-imutabile.mjs) cere o linie aici pentru orice editare a unei
+# migrări existente pe main.
+#
+# Câmpuri, separate prin TAB: nume  suma_veche  suma_noua  motiv
+# Suma = primele 16 caractere din sha256 al fișierului (ops/04-db.sh, _suma).
+0136_registru_conectare_totala.sql	73526ef7a4bfc793	332b939a1a569e61	be69ac9→b327297: doar backfill-ul unic (filtru de dată plauzibilă + avertisment); aplicată pe staging fără rânduri suspecte, deci starea bazei e identică

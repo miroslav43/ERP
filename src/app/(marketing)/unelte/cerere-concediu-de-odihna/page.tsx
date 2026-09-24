@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/format/date";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { metadatePagina } from "../../_componente/metadate";
 import {
   AN_MAX,
   AN_MIN,
@@ -43,12 +44,12 @@ import {
  * putem cunoaște — sunt ale fiecărei firme. Pagina o spune, în loc să dea un
  * număr care pare exact și nu e.
  */
-export const metadata: Metadata = {
-  title: "Cerere de concediu de odihnă: zilele calculate",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Cerere de concediu de odihnă: zilele calculate",
+  descriere:
     "Completează perioada și primești cererea gata de tipărit, cu numărul de zile lucrătoare calculat — weekendurile și sărbătorile legale scăzute automat. Fără cont.",
-  alternates: { canonical: "/unelte/cerere-concediu-de-odihna" },
-};
+  cale: "/unelte/cerere-concediu-de-odihna",
+});
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;

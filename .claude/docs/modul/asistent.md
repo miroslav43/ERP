@@ -15,8 +15,8 @@ citeste_daca:
   - "bula nu apare nicăieri → verifică ÎNTÂI cele două comutatoare, secțiunea „Ce refuză baza tăcut”"
   - "bula e în DOM dar nu se vede pe ecran → învelișul flotant s-a strâns la 0×0; același loc"
   - "o pastilă duce în 404 → imposibil prin construcție; citește „Lista închisă”"
-scris_pe: 4b9c19e23397e5866d68e84547242fa8338cc186
-scris_la: 2026-09-11
+scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
+scris_la: 2026-09-24
 tags: [modul, nucleu]
 ---
 
@@ -77,6 +77,11 @@ implementare ar fi divergat de meniu la prima ajustare de prag, iar asistentul a
 Ascunderea de aici nu e barieră de securitate — pagina verifică din nou, RLS respinge
 rândul oricum. E o barieră de **utilitate** (nu trimite pe cineva într-un ecran de refuz)
 și de **discreție** (enumerarea rutelor e o hartă a firmei).
+
+`permission`-ul unei intrări e al **ecranului**, nu al modulului sub care stă în meniu.
+Când pagina arată un secret, poarta e a secretului: `pontaj.setari.coduri-qr` are filele
+vecine pe `attendance:update`, dar cere `departments:update` — cine vede codul QR poate
+ponta de oriunde. Se ia poarta reală a rutei, iar la îndoială cea strictă.
 
 ## Uneltele de date
 

@@ -200,6 +200,11 @@ pe „trimis", fiindcă evenimentele `delivered`/`bounced` nu mai ajung niciodat
 
 **Cloudflare** — zona `administrativo.ro` e proxied (188.114.x). Modul SSL/TLS trebuie să fie
 **Full (strict)**; certificatul Let's Encrypt de pe origine îl face valid.
+De făcut (din auditul din 23 sept 2026): o **Redirect Rule** 301
+`infomeditatii.ro/*` → `https://administrativo.ro/$1` — domeniul vechi rezolvă încă
+prin Cloudflare, dar fără vhost dă **526**; și **Scrape Shield → Email Address
+Obfuscation** oprit — injectează `email-decode.min.js`, care blochează randarea
+primei pagini pe mobil.
 
 **Timer systemd pentru golirea cozii de push** — `deploy/push-livrare.{service,timer}`
 golesc `push_livrari` la un minut, prin `POST /api/push/livreaza`. Ruta nu se poate autoporni
@@ -258,6 +263,18 @@ filiației e PRIMUL domeniu dat lui certbot, iar `ssl_certificate` din vhost tre
 ---
 
 ## Probleme cunoscute
+
+**Un deploy care cade pe staging nu anunță pe nimeni (2026-09-23).** Staging n-a
+primit niciun deploy între 10 și 23 sept — întâi `0136` editată după aplicare
+(capcana #46), apoi `.dockerignore` care excludea scriptul rulat de `Dockerfile`
+(capcana #47). Singurul semnal era comentariul de eșec pe commit. Înainte de un
+`./administrativo.sh prod`: `gh run list --workflow=staging.yml --limit 3` — dacă
+ultimele rulări sunt roșii, producția ar cădea la fel.
+
+**După deploy, paginile publice se verifică pe site-ul viu.** `./administrativo.sh prod`
+se încheie cu `scripts/checks/rute-publice.mjs` (fiecare adresă din sitemap, de 10
+ori); staging la fel, în `staging.yml`. `/healthz` verde nu spune nimic despre ce
+primește Google — vezi capcana #45.
 
 **Migrarea `0035` — rezolvată (2026-08-22).** Aplicată pe baza live împreună cu 0037 și 0045;
 `database.ts` regenerat; ocolul `DOCKER_BUILD=1` scos din `next.config.ts` și `Dockerfile`.

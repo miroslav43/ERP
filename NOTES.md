@@ -211,6 +211,28 @@ platformă) și un trigger le copiază în fiecare versiune de politică. Seed:
 20 lei de la 01.07.2018 (HG 714/2018), 23 lei de la 01.04.2023 (Ordinul
 1235/2023). Când se schimbă legea, se adaugă un rând — nu se editează.
 
+⚠️ **De confirmat de contabil, cu prioritate — plafonul lunar al diurnei are două
+citiri în cod** (găsit pe 23 sept 2026, NEreparat, fiindcă decizia e juridică):
+
+- Salarizarea trimite `per_diem_valori_legale.plafon_salarii_baza_luna` (= **3**,
+  un NUMĂR de salarii) în `fractiePlafonLunar` (`src/lib/queries/payroll.ts:1527`
+  → `src/app/(app)/salarizare/actions.ts:537`), iar
+  `src/domain/payroll/etape/diurna-plafoane.ts:316` calculează
+  `plafonLunar = salariuBaza × 3` pentru TOATĂ luna, fără proratare.
+- Tipul și comentariile funcției descriu o FRACȚIE („ex. 0.33") — plafonul comun
+  de 33% din art. 76 alin. (4^1), Legea 72/2022, împărțit între diurnă,
+  telemuncă, abonamente, Pilonul III.
+- Ghidul public (`src/content/legal/diurna.ts:98-100`) citează regula ca 3 salarii
+  de bază **÷ zilele lucrătoare ale lunii × zilele de delegare**, calculată distinct
+  pe lună. După citirea asta, o delegare de 5 zile într-o lună cu 21 de zile
+  lucrătoare are plafonul ≈ 0,71 × salariul, iar codul admite 3 × salariul —
+  diurnă neimpozabilă mai mare decât cea legală, adică impozit și contribuții
+  reținute în minus.
+
+Întrebările pentru contabil: care e textul în vigoare pentru plafonul lunar (3
+salarii proratate pe zilele de delegare, 33% comun, sau amândouă, pe articole
+diferite)? Se prorează? Până la răspuns, calculul rămâne cum e.
+
 ### SSM / PSI / ISCIR
 
 ⚠️ Periodicitatea instruirii SSM (introductivă, la locul de muncă, periodică) ·

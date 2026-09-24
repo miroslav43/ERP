@@ -29,8 +29,8 @@ capcane: [26, 32]
 citeste_daca:
   - "listă goală fără eroare la scadențe → [[rol/hr]]"
   - "instruire periodică respinsă la salvare → 0021, secțiunea de mai jos"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
+scris_la: 2026-09-24
 tags: [modul, hr]
 ---
 
@@ -43,18 +43,35 @@ cele mai multe refuzuri tăcute din proiect.
 
 ## Rute și cine ajunge
 
-| Rută                                                          | Poartă                                               |
-| ------------------------------------------------------------- | ---------------------------------------------------- |
-| `/ssm`                                                        | `ssm:read` own ca să intre; fiecare card cere `team` |
-| `/ssm/instruiri`, `/ssm/instruiri/noua`                       | `ssm:read` / `ssm:create` team                       |
-| `/ssm/medicina-muncii`                                        | `ssm:read` team                                      |
-| `/ssm/accidente`, `/ssm/accidente/[id]`, `/ssm/accidente/nou` | `ssm:read` / `ssm:create` team                       |
-| `/ssm/eip`                                                    | `ssm:read` team                                      |
-| `/ssm/stingatoare`                                            | `ssm:read` team                                      |
-| `/ssm/autorizatii`                                            | `ssm:read` team                                      |
+| Rută                                        | Poartă                                               |
+| ------------------------------------------- | ---------------------------------------------------- |
+| `/ssm`                                      | `ssm:read` own ca să intre; fiecare card cere `team` |
+| `/ssm/instruiri`                            | `ssm:read` team **ȘI** `employees:read` team         |
+| `/ssm/instruiri/noua`                       | `ssm:create` team                                    |
+| `/ssm/medicina-muncii`                      | `ssm:read` team                                      |
+| `/ssm/medicina-muncii/noua`                 | `ssm:create` team                                    |
+| `/ssm/accidente`, `/ssm/accidente/[id]`     | `ssm:read` team                                      |
+| `/ssm/accidente/nou`                        | `ssm:create` team                                    |
+| `/ssm/eip`                                  | `ssm:read` team                                      |
+| `/ssm/stingatoare`, `/ssm/stingatoare/[id]` | `ssm:read` team                                      |
+| `/ssm/stingatoare/nou`                      | `ssm:create` team                                    |
+| `/ssm/stingatoare/[id]/editeaza`            | `ssm:update` team                                    |
+| `/ssm/autorizatii`                          | `ssm:read` team                                      |
 
 Pragul de intrare e `own`, dar tot ce e dincolo de propriul dosar cere `team`. Un
 `employee` ajunge deci pe pagină și o vede aproape goală — starea e corectă, nu un defect.
+
+`/ssm/instruiri` e singura rută din modul cu poartă dublă: matricea are o coloană
+„Angajat", deci fără `employees:read` team nu se poate compune, iar pagina refuză din
+start în loc să afișeze o coloană goală. `/ssm/stingatoare/[id]/editeaza` e singura care
+cere `ssm:update`.
+
+Preambulul paginilor rulează `requireFeature` și `getPermissionMap` în `Promise.all`, nu
+înlănțuite: sunt două citiri independente, pe tabele diferite, iar înlănțuite costau două
+dus-întorsuri seriale spre PostgREST. Ordinea logică a porții nu se schimbă — dacă
+funcționalitatea `ssm` e stinsă, `requireFeature` cheamă `notFound()`, respingerea
+propagă prin `Promise.all` și `can()` nu mai apucă să fie evaluat; singura diferență e că
+harta de permisiuni se citește și atunci degeaba.
 
 ## Server Actions
 
@@ -81,6 +98,10 @@ duplicat în TypeScript ar putea diverge tăcut de regula reală.
 
 Politicile SELECT din `0011` **nu** conțin `deleted_at is null` — fiecare citire îl adaugă
 explicit.
+
+Fișierul începe cu `import "server-only"`: citirile SSM nu pot fi importate dintr-o
+componentă client nici din greșeală. Un astfel de import pică la build, cu numele
+fișierului, nu tăcut la rulare.
 
 ## Ce refuză baza tăcut
 

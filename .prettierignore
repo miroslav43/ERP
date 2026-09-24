@@ -16,3 +16,12 @@ mobil/
 # `prettier --check .` de pe mașina cuiva le vede și raportează 20 de avertismente
 # care nu există în CI. Ignorarea aliniază cele două verdicte.
 .superpowers
+
+# Ieșirile uneltelor LinkedIn (planșe, PNG, PDF, kit) — generate, ignorate de
+# git prin `docs/comercial/linkedin/unelte/.gitignore`, pe care prettier nu-l
+# citește: fără liniile astea, `prettier --check .` pică local după o rulare.
+docs/comercial/linkedin/unelte/canvas
+docs/comercial/linkedin/unelte/export
+docs/comercial/linkedin/unelte/png
+docs/comercial/linkedin/unelte/livrare
+docs/comercial/linkedin/unelte/kit

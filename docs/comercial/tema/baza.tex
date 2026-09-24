@@ -1,0 +1,44 @@
+% =====================================================================
+%  Tema Administrativo — pachetele comune, paleta de brand și tipografia.
+%  Comună tuturor materialelor din docs/comercial/ (Beamer și A4).
+%  Se încarcă imediat după \documentclass; cere xcolor deja încărcat
+%  (beamer îl încarcă singur; un `article` îl încarcă înainte de \input).
+%
+%  ORDINEA CONTEAZĂ: pachetele se încarcă ÎNAINTEA fonturilor. `booktabs`
+%  își fixează distanțele (\aboverulesep = 0,4ex) la încărcare, din fontul
+%  curent; încărcat după TeX Gyre Heros, liniile tabelelor coborau 0,35 pt.
+% =====================================================================
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{romanian}   % despărțire în silabe corectă pentru textul românesc
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usepackage{fontawesome5}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{ragged2e}
+\usetikzlibrary{positioning,calc,arrows.meta,decorations.pathreplacing}
+
+% ---------------------------------------------------------------------
+% 1. Identitate vizuală — paleta de brand
+% ---------------------------------------------------------------------
+\definecolor{brandNavy}{HTML}{0E1B2E}   % fundal închis, coperți
+\definecolor{brandBlue}{HTML}{2563EB}   % primar
+\definecolor{brandTeal}{HTML}{0EA5A4}   % accent
+\definecolor{brandAmber}{HTML}{F59E0B}  % evidențieri
+\definecolor{brandGreen}{HTML}{16A34A}  % disponibil, confirmări
+\definecolor{brandSlate}{HTML}{475569}  % text secundar
+\definecolor{brandMist}{HTML}{F1F5F9}   % fundal cutii
+\definecolor{brandLine}{HTML}{CBD5E1}   % linii, chenare fine
+
+% ---------------------------------------------------------------------
+% 2. Tipografie
+% ---------------------------------------------------------------------
+\defaultfontfeatures{Ligatures=TeX}
+\setsansfont{texgyreheros}[Extension=.otf,UprightFont=*-regular,
+  BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\setmainfont{texgyreheros}[Extension=.otf,UprightFont=*-regular,
+  BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\newfontfamily\titlufont{texgyreadventor}[Extension=.otf,UprightFont=*-regular,
+  BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]

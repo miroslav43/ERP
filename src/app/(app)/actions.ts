@@ -2,10 +2,10 @@
 "use server";
 
 import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { reimprospateazaAplicatia } from "@/lib/actions/reimprospatare";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { listUserOrganizations } from "@/lib/queries/organizations";
 import { setOrganizationCookie, clearOrganizationCookie } from "@/lib/tenant/organization-cookie";
@@ -123,7 +123,7 @@ export async function comutaOrganizatia(
   if (!rezultat.ok) {
     return { eroare: rezultat.eroare };
   }
-  revalidatePath("/", "layout");
+  reimprospateazaAplicatia();
   redirect(
     rutaDupaAutentificare({
       estePlatformAdmin: false,
@@ -141,7 +141,7 @@ export async function comutaOrganizatiaDirect(formData: FormData): Promise<void>
   if (!rezultat.ok) {
     redirect("/alege-organizatia?eroare=acces");
   }
-  revalidatePath("/", "layout");
+  reimprospateazaAplicatia();
   redirect(
     rutaDupaAutentificare({
       estePlatformAdmin: false,
@@ -175,6 +175,6 @@ export async function deconecteaza(): Promise<void> {
     console.error("[auth] Deconectare eșuată", error.message);
   }
   await clearOrganizationCookie();
-  revalidatePath("/", "layout");
+  reimprospateazaAplicatia();
   redirect(RUTA_PUBLICA);
 }

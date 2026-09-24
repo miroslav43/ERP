@@ -6,14 +6,15 @@ import { lunar, PRAG_ANGAJATI, PRET_NUCLEU } from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
 
 import { Cadru } from "../_componente/cadru";
+import { metadatePagina } from "../_componente/metadate";
 import { FormularDemo } from "./formular-demo";
 
-export const metadata: Metadata = {
-  title: "Cere o demonstrație",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "Cere o demonstrație",
+  descriere:
     "Completează formularul și îți arătăm Administrativo pe nevoile reale ale firmei tale. Fără card, fără cont creat automat.",
-  alternates: { canonical: "/cere-demo" },
-};
+  cale: "/cere-demo",
+});
 
 const ASTEPTARI = [
   {

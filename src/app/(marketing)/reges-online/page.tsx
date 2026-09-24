@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { REGES } from "@/content/legal/reges";
 
+import { metadatePagina } from "../_componente/metadate";
 import { RandarePaginaLege } from "../_componente/pagina-lege";
 
 /**
@@ -12,12 +13,12 @@ import { RandarePaginaLege } from "../_componente/pagina-lege";
  * ele trimit la literele din art. 4 alin. (2), deci un singur termen se află
  * sărind între două articole. Puse cap la cap, se citesc dintr-o privire.
  */
-export const metadata: Metadata = {
-  title: "REGES-ONLINE 2026: termene și amenzi",
-  description:
+export const metadata: Metadata = metadatePagina({
+  titlu: "REGES-ONLINE 2026: termene și amenzi",
+  descriere:
     "Toate termenele din HG 295/2025, puse cap la cap, și cele trei amenzi pe care presa le confundă. Ce se transmite în ziua anterioară, ce în 3, 5, 10 sau 20 de zile lucrătoare.",
-  alternates: { canonical: "/reges-online" },
-};
+  cale: "/reges-online",
+});
 
 export default function PaginaReges() {
   return <RandarePaginaLege text={REGES} />;

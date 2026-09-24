@@ -8,6 +8,7 @@ import { RO } from "@/content/landing/ro";
 
 import { Analitice } from "./_componente/analitice";
 import { DateStructurate } from "./_componente/date-structurate";
+import { OG_COMUN } from "./_componente/metadate";
 
 /**
  * Fonturile stratului de marketing.
@@ -44,9 +45,10 @@ export const metadata: Metadata = {
   title: { default: RO.meta.titlu, template: "%s · Administrativo" },
   description: RO.meta.descriere,
   applicationName: "Administrativo",
+  // Rezerva, pentru o pagină care ar uita `metadatePagina` — testul din
+  // `continut.test.ts` n-ar lăsa-o să ajungă pe main.
   openGraph: {
-    type: "website",
-    siteName: "Administrativo",
+    ...OG_COMUN,
     locale: "ro_RO",
     alternateLocale: ["en_GB"],
     title: RO.meta.titlu,
@@ -91,14 +93,19 @@ export default function LayoutMarketing({ children }: { children: ReactNode }) {
         în pagina lor, legate prin `@id` de nodurile de aici.
       */}
       <DateStructurate />
-      {children}
       {/*
         Măsurarea stă în grupul de MARKETING, nu în layoutul rădăcină: montată
         acolo, ar trimite la Google căile din interiorul aplicației — `/angajati`,
         `/salarizare`, `/concedii`. Într-un produs de HR, până și lista rutelor
         vizitate spune ceva despre oamenii unei firme.
+
+        Stă ÎNAINTEA conținutului, deși bara de consimțământ se vede jos
+        (`fixed`): ordinea din DOM e ordinea tastei Tab. După conținut, focusul
+        trecea întâi prin butoanele de sub bară, ascunse de ea, pe telefon
+        (auditul din 23 sept 2026).
       */}
       <Analitice />
+      {children}
     </div>
   );
 }

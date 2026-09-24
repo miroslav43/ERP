@@ -1,0 +1,542 @@
+% =====================================================================
+%  Administrativo — Modulele, unul câte unul (catalog de module)
+%
+%  Compilare:  tectonic -X compile prezentare-module.tex
+%  Motor: XeLaTeX / LuaLaTeX (fontspec). NU compila cu pdflatex.
+%
+%  Sora prezentării comerciale: aceeași temă (`tema/`), fără partea de
+%  abonament și prețuri. Un slide pe fiecare dintre cele nouăsprezece module
+%  din `src/config/features.ts`, cu captura reală din aplicație acolo unde
+%  există una (`capturi/`, generate din `public/capturi/`).
+%
+%  DE UNDE VINE TEXTUL: din fișele de modul ale site-ului
+%  (`src/content/landing/fise-module.ts`), verificate în cod. Unde fișa și
+%  codul se contrazic, câștigă codul — vezi README, „Ce s-a scos din
+%  prezentarea veche".
+% =====================================================================
+\documentclass[aspectratio=169,11pt,t,xcolor={table}]{beamer}
+
+\input{tema/baza}
+\input{tema/beamer}
+
+\hypersetup{
+  pdftitle={Administrativo — modulele, unul câte unul},
+  pdfsubject={Catalogul modulelor Administrativo, ERP administrativ pentru firme din România},
+  pdfauthor={Administrativo},
+  pdfkeywords={ERP, HR, module, pontaj, concedii, salarizare, REGES, SSM,
+    parc auto, mentenanță, inventar, ticketing IT, portal angajat, KPI}}
+
+\begin{document}
+
+% =====================================================================
+%  COPERTĂ
+% =====================================================================
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[brandNavy] (current page.south west) rectangle (current page.north east);
+    \fill[brandBlue,opacity=0.20] ([xshift=-2.4cm,yshift=1.7cm]current page.east) circle (4.6cm);
+    \fill[brandTeal,opacity=0.14] ([xshift=-4.4cm,yshift=-2.9cm]current page.east) circle (3.1cm);
+    \draw[brandTeal,opacity=0.30,line width=0.7pt]
+      ([xshift=-2.4cm,yshift=1.7cm]current page.east) circle (5.7cm);
+    \draw[brandBlue,opacity=0.35,line width=0.7pt]
+      ([xshift=-2.4cm,yshift=1.7cm]current page.east) circle (6.6cm);
+
+    \node[anchor=north west,text=white,font=\titlufont\fontsize{13}{15}\selectfont]
+      at ([xshift=1.5cm,yshift=-1.0cm]current page.north west) {ADMINISTRATIVO};
+
+    \node[anchor=north west,align=left] at ([xshift=1.45cm,yshift=-2.85cm]current page.north west) {%
+      \begin{minipage}{11.6cm}
+        \raggedright
+        {\color{brandTeal}\scriptsize\titlufont\bfseries CATALOGUL MODULELOR \textperiodcentered{} 2026}\par
+        \vspace{10pt}
+        {\titlufont\bfseries\fontsize{26}{30}\selectfont\color{white} Modulele, unul câte unul}\par
+        \vspace{12pt}
+        {\color{white}\large Ce face fiecare modul —\\și ce vede omul pe ecran.}\par
+        \vspace{5pt}
+        {\color{brandLine}\normalsize Capturile sunt din aplicația reală, pe o firmă de demonstrație.}
+      \end{minipage}};
+
+    \node[anchor=south west,align=left] at ([xshift=1.5cm,yshift=0.95cm]current page.south west) {%
+      \begin{minipage}{13.4cm}
+        {\color{brandTeal}\rule{2.2cm}{2pt}}\par
+        \vspace{9pt}
+        {\color{white}\scriptsize
+          \faIcon{th}~~Nucleu + 15 module \quad\textcolor{brandTeal}{\textbullet}\quad
+          \faIcon{toggle-on}~~Pornite separat, pe firmă \quad\textcolor{brandTeal}{\textbullet}\quad
+          \faIcon{mobile-alt}~~Birou și telefon}
+      \end{minipage}};
+  \end{tikzpicture}
+\end{frame}
+
+% =====================================================================
+%  CE ESTE APLICAȚIA
+% =====================================================================
+\begin{frame}{Ce este Administrativo}
+  \vspace{0pt}% NU șterge: fără el, beamer ia grupul {...} de mai jos drept SUBTITLU
+  {\footnotesize
+  Aplicația web în care se \textbf{administrează activitatea internă a unei firme din
+  România}: oamenii, prezența, salariile, echipamentele și actele care le leagă —
+  într-un singur sistem, cu o singură evidență. Un angajat introdus o dată apare în
+  pontaj, în concedii, în salarizare și pe bunurile din primirea lui.}
+  \vspace{5pt}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \begin{card}[brandBlue]{users-cog}{Fiecare rol vede alt ecran}
+        \footnotesize
+        \pct{user-shield}{\textbf{Administratorul} — firma întreagă}\par\vspace{1pt}
+        \pct{user-tie}{\textbf{Personalul} — dosare, pontaj, state}\par\vspace{1pt}
+        \pct{users}{\textbf{Șeful de echipă} — oamenii lui}\par\vspace{1pt}
+        \pct{user}{\textbf{Angajatul} — doar ce îl privește}
+      \end{card}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{card}[brandTeal]{flag}{Construit pe legislația românească}
+        \footnotesize
+        \pct{scroll}{REGES-Online, transmis din aplicație}\par\vspace{2pt}
+        \pct{file-invoice}{D112 în XML și fișier de plată SEPA}\par\vspace{2pt}
+        \pct{gavel}{Popriri în limitele art. 729 CPC}\par\vspace{2pt}
+        \pct{calendar-day}{Pontaj în forma cerută de art. 119 CM}
+      \end{card}
+    \end{column}
+  \end{columns}
+  \vspace{5pt}
+  % Fără `center`: mediul adaugă \topsep deasupra și dedesubt, iar banda de
+  % cifre ieșea cu 7 pt peste subsol.
+  \par\noindent
+  \cifra{19}{module în total}\hfill
+  \cifra{15}{opționale, peste nucleu}\hfill
+  \cifra{4}{roluri, ecrane diferite}\hfill
+  \cifra{0}{servere la client}
+\end{frame}
+
+% =====================================================================
+%  HARTA MODULELOR
+% =====================================================================
+\begin{frame}{Toate modulele, pe o singură pagină}
+  \vspace{0pt}% NU șterge: fără el, beamer ia grupul {...} de mai jos drept SUBTITLU
+  {\scriptsize\color{brandSlate} Nucleul e mereu inclus. Celelalte cincisprezece se
+  pornesc separat, pe fiecare firmă — iar paginile următoare le iau în această ordine.}
+  \vspace{7pt}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.315\textwidth}
+      \begin{cardm}[brandNavy]{cube}{Nucleu — mereu inclus}
+        \celula{id-card}{Nucleu: angajați, documente, registru, structură, roluri}
+        \celula{clock}{Pontaj}
+        \celula{calendar-alt}{Concedii}
+        \celula{mobile-alt}{Portal angajat}
+      \end{cardm}
+      \vspace{4pt}
+      \begin{cardm}[brandBlue]{infinity}{Transversal}
+        \celula{magic}{Asistent AI}
+      \end{cardm}
+    \end{column}
+    \begin{column}{0.315\textwidth}
+      \begin{cardm}[brandTeal]{users}{HR extins}
+        \celula{scroll}{REGES-Online}
+        \celula{user-plus}{Integrare angajați}
+        \celula{graduation-cap}{Cursuri}
+        \celula{hard-hat}{SSM și PSI}
+        \celula{clipboard-check}{Evaluări}
+        \celula{bullseye}{KPI-uri}
+      \end{cardm}
+    \end{column}
+    \begin{column}{0.315\textwidth}
+      \begin{cardm}[brandGreen]{boxes}{Resurse și logistică}
+        \celula{car}{Parc auto}
+        \celula{wrench}{Mentenanță}
+        \celula{box-open}{Inventar}
+        \celula{bullhorn}{Anunțuri}
+        \celula{life-ring}{Ticketing IT}
+      \end{cardm}
+      \vspace{4pt}
+      \begin{cardm}[brandAmber]{wallet}{Financiar}
+        \celula{money-check-alt}{Salarizare}
+        \celula{receipt}{Deplasări și diurne}
+        \celula{chart-bar}{Rapoarte}
+      \end{cardm}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+%  SECURITATE ȘI AUDIT — transversal, nu un modul din catalog
+% =====================================================================
+\modul{Securitate și audit, în fiecare modul}{în toate modulele}{%
+  Cine are voie ce, cine a făcut ce, și cât de separate sunt datele firmei tale de
+  ale altora. Partea pe care n-o vede nimeni cât timp funcționează — și singura
+  care contează când nu mai funcționează.}{%
+  \pct{users-cog}{Permisiuni pe rol, resursă și acțiune}\par\vspace{2pt}
+  \pct{user-edit}{Ajustate pentru un singur om, fără versiune nouă}\par\vspace{2pt}
+  \pct{user-shield}{Vizibilitate: nimic, ale mele, ale echipei, toate}\par\vspace{2pt}
+  \pct{database}{Izolarea între firme, impusă de baza de date}\par\vspace{2pt}
+  \pct{history}{Jurnal de audit: cine, când și ce s-a schimbat}}{%
+  \pctv{check}{\textbf{Datele firmei nu ajung la altă firmă}, nici din greșeală}\par\vspace{4pt}
+  \pctv{check}{\textbf{CNP și IBAN criptate} în bază, închise și în portal}\par\vspace{4pt}
+  \pctv{check}{\textbf{Nimic nu se șterge}: ce iese din uz rămâne în jurnal}\par\vspace{4pt}
+  \pctv{check}{\textbf{Contabilul nu vede dosarele de personal}, dacă așa decideți}}
+
+% =====================================================================
+%  NUCLEU
+% =====================================================================
+\modulcaptura{Nucleu — firma, oamenii și actele lor}{mereu activ}{%
+  Ce primește orice firmă: dosarul fiecărui om, structura firmei și actele ei.
+  Nu se poate opri — celelalte module se aprind peste el.}{%
+  \pct{id-card}{Fișa angajatului: contract, funcție, sporuri}\par\vspace{2pt}
+  \pct{file-excel}{Import din Excel, validat rând cu rând}\par\vspace{2pt}
+  \pct{file-alt}{Șabloane de documente și adeverințe}\par\vspace{2pt}
+  \pct{book}{Registru: orice document primește număr}\par\vspace{2pt}
+  \pct{sitemap}{Departamente, puncte de lucru, organigramă}\par\vspace{2pt}
+  \pct{th-large}{Panou de control}}{%
+  \benef{\textbf{Un dosar per om}, nu șapte fișiere}
+  \benef{\textbf{Fiecare act are număr} de înregistrare și dată}
+  \benef{\textbf{Migrarea} din sistemul vechi, fără retastare}}{%
+  \captura{nucleu}}
+
+% =====================================================================
+%  PONTAJ
+% =====================================================================
+\modulcaptura{Pontaj — foaia lunară, cu ora de început și de sfârșit}{inclus în nucleu}{%
+  Fiecare zi reține ora de început și de sfârșit, cum cere art.~119 din Codul
+  muncii. Luna închisă nu se mai modifică, nici din greșeală.}{%
+  \pct{table}{Foaie colectivă, cu sărbătorile deja marcate}\par\vspace{2pt}
+  \pct{mobile-alt}{Pontare de pe telefon, din portal}\par\vspace{2pt}
+  \pct{qrcode}{Cod QR afișat la punctul de lucru}\par\vspace{2pt}
+  \pct{stamp}{Aprobare pe zile, una câte una sau în bloc}\par\vspace{2pt}
+  \pct{moon}{Ore suplimentare și de noapte, separate}\par\vspace{2pt}
+  \pct{archive}{Arhiva lunară a foilor, pentru control ITM}}{%
+  \benef{\textbf{Concediile aprobate} apar singure pe foaie}
+  \benef{\textbf{Fiecare corectură} are autor și oră}
+  \benef{\textbf{Luna închisă} intră direct în salarizare}}{%
+  \captura{attendance}}
+
+% =====================================================================
+%  CONCEDII
+% =====================================================================
+\modulcaptura{Concedii — cerere, aprobare și sold automat}{inclus în nucleu}{%
+  Cererea are un drum cu stări, iar decizia rămâne cu nume și oră. Soldul scade
+  la aprobare și revine la anulare, fără calcul pe hârtie.}{%
+  \pct{calendar-alt}{Calendarul echipei și planificatorul anual}\par\vspace{2pt}
+  \pct{exclamation-triangle}{Suprapunerile din echipă, la vedere}\par\vspace{2pt}
+  \pct{sliders-h}{Tipuri de concediu configurate pe firmă}\par\vspace{2pt}
+  \pct{paperclip}{Document justificativ, atașat cererii}\par\vspace{2pt}
+  \pct{sync-alt}{Cererea aprobată intră singură în pontaj}\par\vspace{2pt}
+  \pct{file-medical}{Medicalul suspendă contractul, pentru REGES}}{%
+  \benef{\textbf{Cine e plecat} se vede pe calendar}
+  \benef{\textbf{Soldul e corect permanent}, fără recalcul}
+  \benef{\textbf{Cererea se face de pe telefon}}}{%
+  \captura{leave}}
+
+% =====================================================================
+%  PORTAL ANGAJAT
+% =====================================================================
+\modulcaptura{Portal angajat — contul fiecărui om, pe telefon}{inclus în nucleu}{%
+  Fiecare om are ecranele lui: „concediile mele", „salariul meu". Se deschide din
+  browserul telefonului, fără magazin, VPN sau instalare.}{%
+  \pct{clock}{Pontează, pontajul meu, concediile mele}\par\vspace{2pt}
+  \pct{wallet}{Fluturașul, diurna mea, documentele mele}\par\vspace{2pt}
+  \pct{graduation-cap}{Cursurile, instruirile SSM, integrarea mea}\par\vspace{2pt}
+  \pct{box-open}{Ce am în primire, cu confirmare}\par\vspace{2pt}
+  \pct{bullseye}{KPI-ul meu, sesizări și tichete}\par\vspace{2pt}
+  \pct{bell}{Notificări pe telefon}}{%
+  \benef{\textbf{HR-ul nu mai răspunde} la aceleași întrebări}
+  \benef{\textbf{Datele intră de la cine le știe}}
+  \benef{\textbf{Fiecare vede doar ce e al lui}}}{%
+  \includegraphics[height=3.0cm]{capturi/portal-pontare}\hspace{10pt}%
+  \includegraphics[height=3.0cm]{capturi/portal-scanare}}
+
+% =====================================================================
+%  REGES-ONLINE — fără captură
+% =====================================================================
+\modul{REGES-Online — contractele, transmise la ITM din aplicație}{hr extins}{%
+  Fiecare eveniment din viața unui contract — angajare, modificare, suspendare,
+  încetare — are termenul lui legal, iar amenda e \textbf{per salariat}. Mesajul se
+  compune din fișa angajatului și pleacă direct la Inspecția Muncii.}{%
+  \pct{stream}{Evenimente din fișă, concedii și pontaj}\par\vspace{2pt}
+  \pct{calendar-day}{Termenul fiecărui eveniment, cu temeiul legal}\par\vspace{2pt}
+  \pct{check-double}{Verificare înainte de trimitere, pe înțeles}\par\vspace{2pt}
+  \pct{exchange-alt}{Trimis prin interfața REGES, cu răspunsul ITM}\par\vspace{2pt}
+  \pct{percent}{Sporurile firmei, în nomenclatorul REGES}\par\vspace{2pt}
+  \pct{bell}{Alertă pentru evenimentele netransmise}}{%
+  \pctv{check}{\textbf{Termenul legal nu se mai ratează}}\par\vspace{4pt}
+  \pctv{check}{\textbf{Nu se mai completează de două ori}, în două programe}\par\vspace{4pt}
+  \pctv{check}{\textbf{Respingerea vine explicată în română}, nu ca un cod}\par\vspace{4pt}
+  \pctv{check}{\textbf{Fiecare transmisie are dovadă} și răspuns păstrat}}
+
+% =====================================================================
+%  INTEGRARE ANGAJAȚI
+% =====================================================================
+\modulcaptura{Integrare angajați — prima săptămână, fără nimic uitat}{hr extins}{%
+  Lista primei săptămâni devine un obiect cu stare: responsabil și termen pe
+  fiecare pas, iar pașii cu dovadă nu se bifează fără ea.}{%
+  \pct{copy}{Șabloane scrise o dată, refolosite}\par\vspace{2pt}
+  \pct{user-check}{Responsabil și termen pe fiecare pas}\par\vspace{2pt}
+  \pct{file-upload}{Dovada se încarcă și rămâne pe pas}\par\vspace{2pt}
+  \pct{graduation-cap}{Cursul parcurs bifează singur pasul}\par\vspace{2pt}
+  \pct{mobile-alt}{Omul nou își vede pașii în portal}}{%
+  \benef{\textbf{Nimeni nu începe} fără laptop, cont și instruire}
+  \benef{\textbf{Aceeași primire} pentru fiecare om}
+  \benef{\textbf{Dovadă} că pasul obligatoriu s-a făcut}}{%
+  \captura{onboarding}}
+
+% =====================================================================
+%  CURSURI
+% =====================================================================
+\modulcaptura{Cursuri — formarea internă și dovada ei}{hr extins}{%
+  Lecțiile au materiale cu versiuni: versiunea veche rămâne, cu cine a parcurs-o.
+  Cursul ajunge la oameni prin reguli, nu om cu om.}{%
+  \pct{book}{Lecții cu materiale versionate}\par\vspace{2pt}
+  \pct{chart-line}{Progres raportat pe măsură ce omul citește}\par\vspace{2pt}
+  \pct{signature}{Lecția se semnează la final}\par\vspace{2pt}
+  \pct{clipboard-check}{Test cu prag și rezultat păstrat}\par\vspace{2pt}
+  \pct{sitemap}{Atribuire pe departament sau funcție}\par\vspace{2pt}
+  \pct{hourglass-half}{Valabilitate și scadență de reînnoire}}{%
+  \benef{\textbf{Se vede instantaneu} cine e restant}
+  \benef{\textbf{Restanța ajunge la om}, în portal}
+  \benef{\textbf{Dovadă de instruire} pentru control}}{%
+  \captura{courses}}
+
+% =====================================================================
+%  SSM ȘI PSI
+% =====================================================================
+\modulcaptura{SSM și PSI — nimic nu expiră neobservat}{hr extins}{%
+  O matrice: oamenii pe verticală, instruirile pe orizontală. „Niciodată făcută"
+  nu se confundă cu „expirată" — la un control, diferența contează.}{%
+  \pct{chalkboard-teacher}{Instruiri: introductivă, la post, periodică}\par\vspace{2pt}
+  \pct{user-md}{Fișa de aptitudine medicală, cu termen}\par\vspace{2pt}
+  \pct{hard-hat}{Echipament de protecție, predat nominal}\par\vspace{2pt}
+  \pct{id-badge}{Autorizații nominale, cu scadență}\par\vspace{2pt}
+  \pct{fire-extinguisher}{Stingătoare și verificări PSI}\par\vspace{2pt}
+  \pct{ambulance}{Registrul accidentelor de muncă}}{%
+  \benef{\textbf{Semaforul se aprinde} înainte de termen}
+  \benef{\textbf{Dosar gata pentru ITM}, în orice zi}
+  \benef{\textbf{Omul își vede instruirile} pe telefon}}{%
+  \captura{ssm}}
+
+% =====================================================================
+%  EVALUĂRI
+% =====================================================================
+\modulcaptura{Evaluări — discuția anuală, pe criterii, nu pe impresii}{hr extins}{%
+  Șablonul e al firmei: criterii, ponderi, scală. Evaluarea finalizată nu se mai
+  modifică tăcut — redeschiderea lasă urmă.}{%
+  \pct{sliders-h}{Șabloane cu criterii ponderate și scală}\par\vspace{2pt}
+  \pct{copy}{Șablonul se duplică pentru anul următor}\par\vspace{2pt}
+  \pct{star}{Scor calculat din criterii și ponderi}\par\vspace{2pt}
+  \pct{comments}{Observații pe fiecare criteriu}\par\vspace{2pt}
+  \pct{lock}{Finalizare și redeschidere cu urmă}\par\vspace{2pt}
+  \pct{history}{Istoricul evaluărilor, pe angajat}}{%
+  \benef{\textbf{Discuție pe date}, nu pe ultima lună}
+  \benef{\textbf{Istoricul rămâne} când pleacă managerul}
+  \benef{\textbf{Aceleași criterii} pe aceeași funcție}}{%
+  \captura{evaluations}}
+
+% =====================================================================
+%  KPI-URI
+% =====================================================================
+\modulcaptura{KPI-uri — ținte scrise, pentru fiecare om}{hr extins}{%
+  Trei lucruri care de obicei se amestecă, ținute separat: ce se măsoară, ținta
+  fiecărui om și realizarea lunii. O lună închisă nu se mai rescrie.}{%
+  \pct{list-ol}{Seturi de indicatori, cu unitate și sens}\par\vspace{2pt}
+  \pct{bullseye}{Ținta pusă pe funcție, ajustată pe om}\par\vspace{2pt}
+  \pct{calendar-alt}{Luna: deschisă, completată, închisă}\par\vspace{2pt}
+  \pct{tachometer-alt}{Scor pe angajat, din realizări}\par\vspace{2pt}
+  \pct{archive}{Setul vechi se arhivează, nu se șterge}\par\vspace{2pt}
+  \pct{mobile-alt}{Omul își vede luna în lucru, în portal}}{%
+  \benef{\textbf{Omul știe} pe ce e măsurat}
+  \benef{\textbf{Evaluarea nu pornește} de la zero}
+  \benef{\textbf{Ținta de atunci} rămâne scrisă}}{%
+  \captura{kpi}}
+
+% =====================================================================
+%  PARC AUTO
+% =====================================================================
+\modulcaptura{Parc auto — scadențele, foile de parcurs, consumul}{resurse și logistică}{%
+  Fiecare vehicul are termenele lui, cu semafor aprins înainte de scadență.
+  Istoricul rămâne pe mașină, nu pe șofer.}{%
+  \pct{car}{ITP, RCA, rovinietă, tahograf, licență}\par\vspace{2pt}
+  \pct{route}{Foi de parcurs, cu kilometrajul}\par\vspace{2pt}
+  \pct{gas-pump}{Alimentări și consum, comparat cu bonurile}\par\vspace{2pt}
+  \pct{exclamation-triangle}{Anomalii: kilometraj în salt, consum aberant}\par\vspace{2pt}
+  \pct{user-check}{Șeful de echipă aprobă foile oamenilor lui}}{%
+  \benef{\textbf{Nicio scadență} de ITP sau RCA pierdută}
+  \benef{\textbf{Consumul aberant} se vede imediat}
+  \benef{\textbf{Istoricul} nu se rupe la schimbarea șoferului}}{%
+  \captura{fleet}}
+
+% =====================================================================
+%  MENTENANȚĂ
+% =====================================================================
+\modulcaptura{Mentenanță — revizia înainte de defecțiune}{resurse și logistică}{%
+  Oricine deschide o sesizare, pe orice echipament, iar ea primește un
+  responsabil. Reviziile se planifică pe dată sau pe contor.}{%
+  \pct{cogs}{Fișă de echipament, cu autorizații ISCIR}\par\vspace{2pt}
+  \pct{bullhorn}{Sesizări de la oricine, triate și atribuite}\par\vspace{2pt}
+  \pct{calendar-check}{Planuri de revizie pe dată sau pe contor}\par\vspace{2pt}
+  \pct{tachometer-alt}{Citiri de contor, cu scadența calculată}\par\vspace{2pt}
+  \pct{tools}{Intervenții, cu cost de piese și manoperă}}{%
+  \benef{\textbf{Revizia se face} înainte de defecțiune}
+  \benef{\textbf{Sesizarea ajunge în sistem}, nu pe chat}
+  \benef{\textbf{Autorizația ISCIR} nu expiră neobservat}}{%
+  \captura{maintenance}}
+
+% =====================================================================
+%  INVENTAR
+% =====================================================================
+\modulcaptura{Inventar — ce deține firma și cine are fiecare lucru}{resurse și logistică}{%
+  Obiectul intră în stoc, se predă, se returnează sau se casează. Primirea o
+  confirmă angajatul — așa devine lista o dovadă.}{%
+  \pct{boxes}{Fișă per obiect: cod, serie, stare}\par\vspace{2pt}
+  \pct{user-tag}{Predare nominală, cu data ei}\par\vspace{2pt}
+  \pct{file-signature}{Proces-verbal de predare-primire}\par\vspace{2pt}
+  \pct{clipboard-check}{Angajatul confirmă primirea din portal}\par\vspace{2pt}
+  \pct{history}{Istoricul obiectului, până la casare}}{%
+  \benef{\textbf{Nimic nu se pierde} la plecarea unui om}
+  \benef{\textbf{Responsabilitate clară}, confirmată}
+  \benef{\textbf{Inventarul se închide} într-o zi}}{%
+  \captura{inventory}}
+
+% =====================================================================
+%  ANUNȚURI
+% =====================================================================
+\modulcaptura{Anunțuri — comunicarea internă, cu dovadă de citire}{resurse și logistică}{%
+  Nu un e-mail din care nu știi cine l-a deschis: anunțul se publică pentru
+  toată firma, iar citirea se înregistrează pe fiecare om.}{%
+  \pct{pen}{Ciornă, apoi publicare cu data ei}\par\vspace{2pt}
+  \pct{thumbtack}{Anunțurile importante, fixate sus}\par\vspace{2pt}
+  \pct{bell}{În aplicație, în portal și pe telefon}\par\vspace{2pt}
+  \pct{check-double}{Confirmare de citire, per angajat}\par\vspace{2pt}
+  \pct{chart-pie}{Cine a citit și cine nu, pe nume}}{%
+  \benef{\textbf{Dovadă} că informarea a fost citită}
+  \benef{\textbf{Ajunge și la cei} fără e-mail de serviciu}
+  \benef{\textbf{Nu mai există} „nu am știut"}}{%
+  \captura{announcements}}
+
+% =====================================================================
+%  TICKETING IT
+% =====================================================================
+\modulcaptura{Ticketing IT — cererile colegilor, cu număr și răspuns}{resurse și logistică}{%
+  Cererea capătă număr, responsabil și stare. Prioritatea nu se alege: se
+  calculează din tipul cererii și din câți au aceeași problemă.}{%
+  \pct{ticket-alt}{Software, hardware, defecțiuni, erori}\par\vspace{2pt}
+  \pct{sort-amount-up}{Prioritate calculată; manual, doar cu motiv}\par\vspace{2pt}
+  \pct{clone}{Duplicatele se leagă de tichetul inițial}\par\vspace{2pt}
+  \pct{users}{Coada pe echipă, nu pe persoană}\par\vspace{2pt}
+  \pct{comments}{Discuție pe tichet, cu istoricul păstrat}\par\vspace{2pt}
+  \pct{mobile-alt}{Deschis și urmărit din portal}}{%
+  \benef{\textbf{Nicio cerere pierdută}}
+  \benef{\textbf{Nimeni nu mai sună} să întrebe de stare}
+  \benef{\textbf{Se vede ce se strică des}}}{%
+  \captura{ticketing}}
+
+% =====================================================================
+%  SALARIZARE
+% =====================================================================
+\modulcaptura{Salarizare — din pontajul închis, până la bancă}{financiar}{%
+  Calculul pornește din luna de pontaj închisă, cu desfășurător pe fiecare
+  linie. Cotele sunt ale firmei, cu data de la care se aplică.}{%
+  \pct{calculator}{Brut, contribuții, impozit, net, pe linii}\par\vspace{2pt}
+  \pct{percent}{Sporuri, prime, avantaje, scutiri fiscale}\par\vspace{2pt}
+  \pct{exclamation-triangle}{Avertisment lângă cifra neobișnuită}\par\vspace{2pt}
+  \pct{file-code}{D112 în XML, validat înainte de depunere}\par\vspace{2pt}
+  \pct{university}{Fișier de plată SEPA și notă contabilă}\par\vspace{2pt}
+  \pct{gavel}{Popriri în limitele art.~729 CPC}}{%
+  \benef{\textbf{Nimic retastat} din pontaj}
+  \benef{\textbf{Erorile D112} se află înainte}
+  \benef{\textbf{Fluturașul} ajunge în portal}}{%
+  \captura{payroll}}
+
+% =====================================================================
+%  DEPLASĂRI ȘI DIURNE
+% =====================================================================
+\modulcaptura{Deplasări și diurne — de la ordin la decont}{financiar}{%
+  Ordin, etape pe țări, decont. Diurna externă se numără de la ora plecării, iar
+  partea neimpozabilă se calculează separat.}{%
+  \pct{plane}{Deplasări interne și externe, pe etape}\par\vspace{2pt}
+  \pct{globe-europe}{Baremul fiecărei țări, la vedere}\par\vspace{2pt}
+  \pct{clock}{Ferestre de 24 h sau zile calendaristice}\par\vspace{2pt}
+  \pct{balance-scale}{Politica firmei, cu plafonul legal arătat}\par\vspace{2pt}
+  \pct{calculator}{Partea neimpozabilă, separată}\par\vspace{2pt}
+  \pct{user-check}{Șeful aprobă, fără să modifice cifrele}}{%
+  \benef{\textbf{Aceeași regulă} pentru toți}
+  \benef{\textbf{Intră în salarizare} gata separată}
+  \benef{\textbf{Omul își face singur} ordinul}}{%
+  \captura{per_diem}}
+
+% =====================================================================
+%  RAPOARTE
+% =====================================================================
+\modulcaptura{Rapoarte — costul cu personalul, într-un ecran}{financiar}{%
+  Cifrele vin din ce a trecut deja prin aprobare — salarizarea calculată,
+  pontajul închis — nu dintr-o copie în Excel.}{%
+  \pct{chart-bar}{Venit brut și net, pe an și pe lună}\par\vspace{2pt}
+  \pct{coins}{Cost total angajator, lună de lună}\par\vspace{2pt}
+  \pct{chart-pie}{Unde se duce costul: net, taxe, contribuții}\par\vspace{2pt}
+  \pct{utensils}{Tichete de masă acordate}\par\vspace{2pt}
+  \pct{clock}{Ore suplimentare și zile de concediu}\par\vspace{2pt}
+  \pct{user}{Același tabel, pe fiecare angajat}}{%
+  \benef{\textbf{Decizia se ia} pe cifra din sistem}
+  \benef{\textbf{Corectura la sursă} schimbă raportul}
+  \benef{\textbf{Fără export} de prelucrat}}{%
+  \captura{rapoarte}}
+
+% =====================================================================
+%  ASISTENT AI — fără captură
+% =====================================================================
+\modul{Asistent AI — întrebări în română, despre aplicație și date}{transversal}{%
+  O bulă de conversație în colțul ecranului. Omul știe ce vrea, dar nu știe unde
+  se face: asistentul răspunde și, când răspunsul e un ecran, duce direct acolo.
+  Vede exact ce ai voie să vezi tu.}{%
+  \pct{comments}{Întrebare în română, răspuns scris pe loc}\par\vspace{2pt}
+  \pct{compass}{Te duce direct în ecranul căutat}\par\vspace{2pt}
+  \pct{database}{Aceleași date, prin aceleași reguli ca aplicația}\par\vspace{2pt}
+  \pct{shield-alt}{Fără permisiuni proprii: ajunge unde ajunge omul}\par\vspace{2pt}
+  \pct{toggle-off}{Se oprește de tot, pe firmă, dintr-un comutator}}{%
+  \pctv{check}{\textbf{„Câte zile de concediu mai am?"} — răspuns în câteva secunde}\par\vspace{4pt}
+  \pctv{check}{\textbf{Omul nou găsește ecranul} fără să întrerupă un coleg}\par\vspace{4pt}
+  \pctv{check}{\textbf{Nicio cale ocolită}: același refuz ca pe ecran}\par\vspace{4pt}
+  \pctv{check}{\textbf{Nu învață din datele firmei} și nu antrenează nimic pe ele}}
+
+% =====================================================================
+%  FINAL / CONTACT
+% =====================================================================
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[brandNavy] (current page.south west) rectangle (current page.north east);
+    \fill[brandBlue,opacity=0.20] ([xshift=-2.6cm,yshift=-1.8cm]current page.east) circle (4.4cm);
+    \fill[brandTeal,opacity=0.13] ([xshift=-4.6cm,yshift=2.6cm]current page.east) circle (3.0cm);
+    \draw[brandTeal,opacity=0.28,line width=0.7pt]
+      ([xshift=-2.6cm,yshift=-1.8cm]current page.east) circle (5.5cm);
+
+    \node[anchor=north west,align=left] at ([xshift=1.45cm,yshift=-2.3cm]current page.north west) {%
+      \begin{minipage}{13.4cm}
+        \raggedright
+        {\titlufont\bfseries\fontsize{24}{28}\selectfont\color{white} Prima lună e gratuită.}\par
+        \vspace{9pt}
+        {\color{brandLine}\small
+         Fără taxă de înrolare și fără card. Pornim doar modulele de care aveți
+         nevoie, vă importăm datele și vă arătăm cum se lucrează. Celelalte se pot
+         porni oricând, fără reinstalare.}
+        \par\vspace{11pt}
+        {\color{white}\footnotesize
+         \faIcon{building}~~\textbf{WISELEARNING SRL} \quad
+         \faIcon{phone-alt}~~\textbf{(+40) 767 991 625} \quad
+         \faIcon{envelope}~~\textbf{contact@administrativo.ro}}
+        \par\vspace{5pt}
+        {\color{brandLine}\scriptsize
+         \faIcon{globe}~~administrativo.ro \quad\textcolor{brandTeal}{\textbullet}\quad
+         Str. Metalurgiei nr. 2, Timișoara, jud. Timiș \quad\textcolor{brandTeal}{\textbullet}\quad
+         CIF 50321210}
+      \end{minipage}};
+
+    \node[anchor=south west,align=left] at ([xshift=1.5cm,yshift=0.95cm]current page.south west) {%
+      \begin{minipage}{13.2cm}
+        {\color{brandTeal}\rule{2.2cm}{2pt}}\par
+        \vspace{9pt}
+        {\color{white}\scriptsize
+          \faIcon{calendar-check}~~Demonstrație de 30 de minute \quad\textcolor{brandTeal}{\textbullet}\quad
+          \faIcon{infinity}~~Modulele noi, incluse \quad\textcolor{brandTeal}{\textbullet}\quad
+          \faIcon{headset}~~Suport non-stop, inclus}
+      \end{minipage}};
+  \end{tikzpicture}
+\end{frame}
+
+\end{document}
