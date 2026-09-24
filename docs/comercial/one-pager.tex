@@ -1,0 +1,252 @@
+% =====================================================================
+%  Administrativo — pe o pagină (A4 portret)
+%
+%  Compilare:  tectonic -X compile one-pager.tex
+%  Motor: XeLaTeX / LuaLaTeX (fontspec). NU compila cu pdflatex.
+%
+%  Ce facem și ce module avem, pe o singură pagină de tipărit sau de atașat
+%  la un e-mail. Aceeași paletă și aceleași fonturi ca prezentările
+%  (`tema/baza.tex`); fără tema Beamer, fiindcă nu e un slide.
+%
+%  Lista de module urmează `src/config/features.ts` și grupele din
+%  `src/content/landing/preturi.ts` (`PACHETE`). Prețul de pornire e
+%  `PRET_NUCLEU`. Când se schimbă acolo, se schimbă și aici.
+%
+%  Trebuie să rămână O PAGINĂ. După orice modificare de text, recompilează
+%  și verifică numărul de pagini — README, „Verificare".
+% =====================================================================
+\documentclass[10pt]{article}
+\usepackage[table]{xcolor}
+\input{tema/baza}
+\usepackage[a4paper,left=15mm,right=15mm,top=57mm,bottom=24mm]{geometry}
+\usepackage{eso-pic}
+\usepackage{hyperref}
+\hypersetup{
+  hidelinks,
+  pdftitle={Administrativo — pe o pagină},
+  pdfsubject={ERP administrativ pentru firme din România, livrat ca abonament},
+  pdfauthor={Administrativo},
+  pdfkeywords={ERP, HR, SaaS, pontaj, concedii, salarizare, REGES, SSM,
+    parc auto, mentenanță, inventar, ticketing IT, portal angajat}}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\AtBeginDocument{\RaggedRight}
+
+% ---------------------------------------------------------------------
+% Componente locale
+% ---------------------------------------------------------------------
+
+% Titlu de secțiune: literă de titlu + linia de accent, ca pe slide-uri.
+\newcommand{\sectiune}[1]{%
+  \par\vspace{6pt}
+  {\titlufont\bfseries\large\color{brandNavy}#1}\par
+  \vspace{2pt}{\color{brandBlue}\rule{1.4cm}{1.8pt}}\par\vspace{4pt}}
+
+% Rând de modul: iconiță, denumire îngroșată, o frază. Același tipar ca
+% `\randlista` din `tema/beamer.tex` — casetă de lățime fixă pentru
+% iconiță și `\hangindent` egal cu ea, ca a doua linie să cadă sub text.
+\newcommand{\modulrand}[3]{%
+  \par\hangindent=1.65em\hangafter=1\noindent
+  \makebox[1.25em][l]{\textcolor{brandBlue}{\faIcon{#1}}}\hspace{0.4em}%
+  \textbf{#2}\,{\color{brandSlate} — #3}\par\vspace{2.2pt}}
+
+% Card de grupă: bara colorată din stânga poartă culoarea grupei, exact
+% ca pe harta de module din prezentare.
+\newtcolorbox{grupa}[3][brandBlue]{%
+  enhanced, arc=3pt,
+  colback=white, colframe=brandLine, boxrule=0.5pt,
+  borderline west={2.6pt}{0pt}{#1},
+  left=7pt,right=7pt,top=3pt,bottom=3pt,
+  halign=flush left, halign title=flush left,
+  fonttitle=\bfseries\small,
+  title={\textcolor{#1}{\faIcon{#2}}\hspace{5pt}\textcolor{brandNavy}{#3}},
+  colbacktitle=white, coltitle=brandNavy,
+  toptitle=2pt, bottomtitle=1pt}
+
+% Un rol: iconița lângă nume, dedesubt ce vede. Iconița deasupra costa un
+% rând întreg, iar pagina trecea pe a doua cu banda de jos.
+\newcommand{\rol}[3]{%
+  \begin{minipage}[t]{0.24\linewidth}
+    {\small\textcolor{brandBlue}{\faIcon{#1}}\hspace{5pt}\bfseries #2}\par\vspace{1pt}
+    {\footnotesize\color{brandSlate}#3}
+  \end{minipage}}
+
+% O promisiune din banda de jos: iconiță și două rânduri scurte.
+\newcommand{\promisiune}[3]{%
+  \begin{minipage}[t]{0.19\linewidth}
+    \centering
+    {\color{brandTeal}\large\faIcon{#1}}\par\vspace{3pt}
+    {\footnotesize\bfseries\color{brandNavy}#2}\par
+    {\scriptsize\color{brandSlate}#3}
+  \end{minipage}}
+
+\begin{document}
+
+% =====================================================================
+%  ANTET ȘI SUBSOL — desenate în FUNDALUL paginii
+% =====================================================================
+% Prin `eso-pic`, nu ca un tikzpicture în corpul documentului: acolo, chiar
+% `overlay`, deschidea un paragraf gol de ~12 pt înaintea primului titlu —
+% exact cât îi lipsea paginii ca banda de jos să nu treacă pe a doua.
+\AddToShipoutPictureBG*{%
+\begin{tikzpicture}[remember picture,overlay]
+  % Banda de sus
+  \fill[brandNavy] (current page.north west) rectangle ([yshift=-50mm]current page.north east);
+  \begin{scope}
+    \clip (current page.north west) rectangle ([yshift=-50mm]current page.north east);
+    % Culori AMESTECATE cu bleumarinul, nu `opacity`: din fundalul paginii
+    % (eso-pic), xdvipdfmx nu mai scrie resursele de transparență pe pagină,
+    % iar PDF-ul iese cu „cannot find ExtGState resource". Pe fond bleumarin,
+    % amestecul arată la fel.
+    \fill[brandBlue!22!brandNavy] ([xshift=-28mm,yshift=-18mm]current page.north east) circle (46mm);
+    \fill[brandTeal!15!brandNavy] ([xshift=-62mm,yshift=-58mm]current page.north east) circle (30mm);
+    \draw[brandTeal!30!brandNavy,line width=0.7pt]
+      ([xshift=-28mm,yshift=-18mm]current page.north east) circle (57mm);
+  \end{scope}
+  \node[anchor=north west,text=white,font=\titlufont\fontsize{13}{15}\selectfont]
+    at ([xshift=15mm,yshift=-11mm]current page.north west) {ADMINISTRATIVO};
+  \node[anchor=north east,text=brandLine,font=\scriptsize]
+    at ([xshift=-15mm,yshift=-12mm]current page.north east) {Prezentare pe o pagină \textperiodcentered{} 2026};
+  \node[anchor=north west,align=left] at ([xshift=15mm,yshift=-20mm]current page.north west) {%
+    \begin{minipage}{150mm}
+      \raggedright
+      {\color{brandTeal}\scriptsize\titlufont\bfseries ERP ADMINISTRATIV \textperiodcentered{} SOFTWARE CA SERVICIU}\par
+      \vspace{6pt}
+      {\titlufont\bfseries\fontsize{21}{25}\selectfont\color{white}
+        Oamenii, actele, bunurile și banii firmei —\\într-o singură aplicație.}\par
+      \vspace{6pt}
+      {\color{brandLine}\normalsize Plătiți lunar. De restul ne ocupăm noi.}
+    \end{minipage}};
+
+  % Banda de jos: datele de contact
+  \fill[brandNavy] (current page.south west) rectangle ([yshift=19mm]current page.south east);
+  \node[anchor=west,align=left] at ([xshift=15mm,yshift=11.5mm]current page.south west) {%
+    {\color{white}\small
+      \faIcon{building}~~\textbf{WISELEARNING SRL}\quad
+      \faIcon{phone-alt}~~\textbf{(+40) 767 991 625}\quad
+      \faIcon{envelope}~~\textbf{contact@administrativo.ro}\quad
+      \faIcon{globe}~~\textbf{administrativo.ro}}};
+  \node[anchor=west,align=left] at ([xshift=15mm,yshift=6mm]current page.south west) {%
+    {\color{brandLine}\scriptsize
+      Str. Metalurgiei nr. 2, Timișoara, jud. Timiș \quad\textcolor{brandTeal}{\textbullet}\quad
+      CIF 50321210 \quad\textcolor{brandTeal}{\textbullet}\quad J35/2618/2024}};
+\end{tikzpicture}}
+
+% =====================================================================
+%  CE FACEM
+% =====================================================================
+\sectiune{Ce facem}
+{\small
+\textbf{Administrativo} este aplicația web în care o firmă din România își administrează
+activitatea internă: oamenii, prezența, concediile, salariile, echipamentele și actele
+care le leagă. \textbf{O singură evidență} — un angajat introdus o dată apare în pontaj,
+în concedii, în salarizare și pe bunurile din primirea lui. Se lucrează din browser, pe
+calculator sau pe telefon; nu instalați nimic și nu aveți servere de întreținut.}
+
+\vspace{8pt}
+\noindent
+\rol{user-shield}{Administratorul}{firma întreagă și accesele}\hfill
+\rol{user-tie}{Personalul}{dosare, pontaj, concedii, state}\hfill
+\rol{users}{Șeful de echipă}{oamenii lui: aprobări, calendar}\hfill
+\rol{user}{Angajatul}{doar ce îl privește, de pe telefon}
+
+% =====================================================================
+%  MODULELE
+% =====================================================================
+\sectiune{Nouăsprezece module, pe aceeași bază}
+{\footnotesize\color{brandSlate} Nucleul e mereu inclus. Celelalte cincisprezece se
+pornesc separat, pe fiecare firmă — se plătește doar ce se folosește.}
+\par\vspace{6pt}
+
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \vspace{0pt}% aliniere pe SUS: baza unui tcolorbox e marginea lui de jos
+  \begin{grupa}[brandNavy]{cube}{Nucleu — mereu inclus}
+    \footnotesize
+    \modulrand{id-card}{Nucleu}{angajați, documente, registru, organigramă, roluri}
+    \modulrand{clock}{Pontaj}{foaie lunară, telefon, cod QR, aprobare pe zile}
+    \modulrand{calendar-alt}{Concedii}{cerere, aprobare, sold automat, calendar}
+    \modulrand{mobile-alt}{Portal angajat}{contul fiecărui om, de pe telefon}
+  \end{grupa}
+  \vspace{4pt}
+  \begin{grupa}[brandTeal]{users}{HR extins}
+    \footnotesize
+    \modulrand{scroll}{REGES-Online}{contractele, transmise la ITM din aplicație}
+    \modulrand{user-plus}{Integrare angajați}{pașii primei săptămâni, cu dovadă}
+    \modulrand{graduation-cap}{Cursuri}{lecții cu versiuni, teste, dovada parcurgerii}
+    \modulrand{hard-hat}{SSM și PSI}{instruiri, aptitudini, protecție, cu semafor}
+    \modulrand{clipboard-check}{Evaluări}{criterii ponderate, scor și istoric}
+    \modulrand{bullseye}{KPI-uri}{ținte lunare, pe fiecare angajat}
+  \end{grupa}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \vspace{0pt}% aliniere pe SUS: baza unui tcolorbox e marginea lui de jos
+  \begin{grupa}[brandGreen]{boxes}{Resurse și logistică}
+    \footnotesize
+    \modulrand{car}{Parc auto}{scadențe, foi de parcurs, consum}
+    \modulrand{wrench}{Mentenanță}{sesizări, planuri de revizie, ISCIR}
+    \modulrand{box-open}{Inventar}{predare nominală, confirmată de angajat}
+    \modulrand{bullhorn}{Anunțuri}{comunicare internă, cu confirmare de citire}
+    \modulrand{life-ring}{Ticketing IT}{cereri cu număr și prioritate calculată}
+  \end{grupa}
+  \vspace{4pt}
+  \begin{grupa}[brandAmber]{wallet}{Financiar}
+    \footnotesize
+    \modulrand{money-check-alt}{Salarizare}{din pontaj până la D112 și SEPA}
+    \modulrand{receipt}{Deplasări și diurne}{barem pe țări, neimpozabil separat}
+    \modulrand{chart-bar}{Rapoarte}{costul cu personalul, pe lună și pe om}
+  \end{grupa}
+  \vspace{4pt}
+  \begin{grupa}[brandBlue]{infinity}{Transversal}
+    \footnotesize
+    \modulrand{magic}{Asistent AI}{în română, cu permisiunile omului}
+  \end{grupa}
+\end{minipage}
+
+% =====================================================================
+%  LEGISLAȚIE ȘI SECURITATE
+% =====================================================================
+\par\vspace{8pt}
+\noindent
+\begin{minipage}[t]{0.492\linewidth}
+  \vspace{0pt}% aliniere pe SUS: baza unui tcolorbox e marginea lui de jos
+  \begin{grupa}[brandTeal]{flag}{Construit pe legislația românească}
+    \footnotesize
+    \modulrand{scroll}{REGES-Online}{transmis din aplicație, cu termenul legal}
+    \modulrand{file-invoice}{D112 și SEPA}{validate înainte de depunere}
+    \modulrand{gavel}{Popriri}{în limitele art.~729 CPC}
+    \modulrand{calendar-day}{Pontaj}{cu ora de început și de sfârșit, art.~119 CM}
+  \end{grupa}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.492\linewidth}
+  \vspace{0pt}% aliniere pe SUS: baza unui tcolorbox e marginea lui de jos
+  \begin{grupa}[brandNavy]{shield-alt}{Datele firmei, în siguranță}
+    \footnotesize
+    \modulrand{database}{Izolare}{între firme, impusă de baza de date}
+    \modulrand{user-shield}{Permisiuni}{pe rol, ajustabile pentru un singur om}
+    \modulrand{lock}{CNP și IBAN}{criptate în baza de date}
+    \modulrand{history}{Jurnal de audit}{cine, când și ce s-a schimbat}
+  \end{grupa}
+\end{minipage}
+
+% =====================================================================
+%  CE CUMPĂRAȚI
+% =====================================================================
+\par\vspace{9pt}
+\begin{tcolorbox}[enhanced, arc=3pt, colback=brandMist, colframe=brandMist, boxrule=0pt,
+  left=6pt,right=6pt,top=6pt,bottom=6pt]
+  \noindent
+  \promisiune{cloud}{Fără servere}{totul rulează la noi}\hfill
+  \promisiune{headset}{Suport non-stop}{în română, inclus}\hfill
+  \promisiune{sync-alt}{Actualizări incluse}{fără oprire, fără cost}\hfill
+  \promisiune{gift}{Prima lună gratuită}{fără card, fără obligații}\hfill
+  \promisiune{tag}{De la 149 lei / lună}{nucleul, până la 20 de angajați}
+  \par\vspace{5pt}
+  {\centering\scriptsize\color{brandSlate}
+   Sume finale: WISELEARNING SRL nu este plătitoare de TVA. Modulele se adaugă
+   separat sau în pachete; cele noi intră în abonamentul existent.\par}
+\end{tcolorbox}
+
+\end{document}
