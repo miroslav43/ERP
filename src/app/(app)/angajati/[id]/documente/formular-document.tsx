@@ -183,13 +183,30 @@ export function ListaDescarcare({
   numeFisier: string;
 }) {
   const [eroare, setEroare] = useState<string | null>(null);
+  const [seDescarca, setSeDescarca] = useState(false);
   async function descarca(): Promise<void> {
-    const rezultat = await linkDescarcareDocument({ documentId });
-    if (!rezultat.ok) {
-      setEroare(rezultat.error.message);
-      return;
+    if (seDescarca) return;
+    setSeDescarca(true);
+    setEroare(null);
+    try {
+      const rezultat = await linkDescarcareDocument({ documentId });
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+        return;
+      }
+      /*
+       * Navigare în aceeași filă, nu `window.open`.
+       *
+       * `window.open` după un `await` a pierdut gestul utilizatorului, iar
+       * blocarea de ferestre îl oprea TĂCUT: butonul nu făcea nimic, fără
+       * nicio eroare. URL-ul semnat e cerut cu `download`, deci vine cu
+       * `content-disposition: attachment` — browserul salvează fișierul și
+       * pagina rămâne pe loc.
+       */
+      window.location.assign(rezultat.data.url);
+    } finally {
+      setSeDescarca(false);
     }
-    window.open(rezultat.data.url, "_blank", "noopener,noreferrer");
   }
   return (
     <span className="flex items-center gap-2">
@@ -200,6 +217,7 @@ export function ListaDescarcare({
       )}
       <Buton
         varianta="secundar"
+        inCurs={seDescarca}
         onClick={() => {
           void descarca();
         }}

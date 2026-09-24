@@ -1,6 +1,6 @@
 // src/app/(app)/angajati/[id]/documente/page.tsx
 import Link from "next/link";
-import { ArrowLeft, FileText } from "lucide-react";
+import { ArrowLeft, Download, FileText } from "lucide-react";
 import { requireFeature } from "@/lib/auth/features";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -9,6 +9,7 @@ import { formatDate } from "@/lib/format/date";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { cn } from "@/lib/ui/cn";
 import { ButonStergeDocument, FormularDocument, ListaDescarcare } from "./formular-document";
@@ -152,7 +153,7 @@ export default async function PaginaDocumenteAngajat({
           ) : null}
           <ul className="divide-border mt-3 divide-y">
             {(emise.data ?? []).map((document) => (
-              <li key={document.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+              <li key={document.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
                 <Link
                   href={`/documente/${document.id}?format=pdf`}
                   target="_blank"
@@ -166,14 +167,27 @@ export default async function PaginaDocumenteAngajat({
                   {formatDate(document.emis_la)}
                 </span>
                 {document.anulat_la === null ? null : <Badge ton="neutru">Anulat</Badge>}
-                <Link
-                  href={`/documente/${document.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground text-nota ml-auto underline-offset-2 hover:underline"
-                >
-                  Vezi în pagină
-                </Link>
+                <span className="ml-auto flex items-center gap-3">
+                  <Link
+                    href={`/documente/${document.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground text-nota underline-offset-2 hover:underline"
+                  >
+                    Vezi în pagină
+                  </Link>
+                  {/*
+                   * `<a>` simplu, nu `Link`: ținta e un route handler care
+                   * întoarce un fișier, nu o pagină de preîncărcat.
+                   */}
+                  <a
+                    href={`/documente/${document.id}?format=pdf&descarca=1`}
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    <Download aria-hidden="true" className="size-4" />
+                    Descarcă PDF <span className="sr-only">{document.titlu}</span>
+                  </a>
+                </span>
               </li>
             ))}
           </ul>

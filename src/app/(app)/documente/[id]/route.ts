@@ -60,7 +60,8 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
    * cu amprenta SHA-256 care dovedește că textul n-a fost atins. Un PDF compus
    * separat ar fi un al doilea izvor de adevăr pentru același număr.
    */
-  if (new URL(request.url).searchParams.get("format") === "pdf") {
+  const cautare = new URL(request.url).searchParams;
+  if (cautare.get("format") === "pdf") {
     // Antetul se citește prin ajutorul comun, ca fluturașii și statele de
     // plată: un singur loc care știe ce coloane are firma.
     const octeti = await pdfDinDocument({
@@ -76,10 +77,11 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
       status: 200,
       headers: {
         "content-type": "application/pdf",
-        // `inline`, nu `attachment`: cine vrea fișierul îl salvează din
-        // vizualizatorul browserului, iar cine vrea doar să-l vadă nu adună
-        // descărcări pe care nu le-a cerut.
-        "content-disposition": `inline; filename="${numeFisier(`${document.titlu}-${generat.numarAfisat}`)}.pdf"`,
+        // `inline` implicit: cine vrea doar să-l vadă nu adună descărcări pe
+        // care nu le-a cerut. `&descarca=1` — butonul „Descarcă PDF" din
+        // dosarul angajatului — cere `attachment`, fiindcă un buton de
+        // descărcare care deschide doar o filă nu e o descărcare.
+        "content-disposition": `${cautare.get("descarca") === "1" ? "attachment" : "inline"}; filename="${numeFisier(`${document.titlu}-${generat.numarAfisat}`)}.pdf"`,
         "cache-control": "no-store",
       },
     });
