@@ -9,6 +9,7 @@ cai:
   - "supabase/migrations/0015_per_diem.sql"
   - "supabase/migrations/0060_salarizare_diurna.sql"
   - "supabase/migrations/0147_diurna_valori_legale.sql"
+  - "supabase/migrations/0156_diurna_zile_calendaristice.sql"
 tabele:
   [
     business_trips,
@@ -22,12 +23,12 @@ tabele:
   ]
 permisiuni: [per_diem:read, per_diem:create, per_diem:update, per_diem:delete, per_diem:approve]
 feature: per_diem
-capcane: [16, 17]
+capcane: [14, 16, 17]
 citeste_daca:
   - "aprobare respinsă cu 42501 → [[rol/manager]]"
   - "diurnă care nu apare în statul de plată → [[modul/salarizare]]"
-scris_pe: 5e61f1319db78905cd113ccce7700c8da2fd7d16
-scris_la: 2026-09-21
+scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
+scris_la: 2026-09-24
 tags: [modul, hr]
 ---
 
@@ -76,10 +77,24 @@ acțiune prin `CAI_PORTAL_DIURNA`.
 pentru altcineva se oprește în acțiune, înainte să atingă baza.
 
 `creeazaPolitica` primește **doar ce decide firma**: `diurna_interna_zi`, opțional suma
-fixă externă (`diurna_externa_zi` + `moneda_diurna_externa`), pragul unic `ore_minime`,
-regula de frontieră, `tarif_km_auto_personal`. Restul le pune acțiunea: `moneda_tarif_km` =
-moneda țării interne, `categorie_barem` = `"II"`, ambele praguri de ore = `ore_minime` (deci
-`fractiune_zi_partiala` rămâne inoperantă), valorile legale = umplutură, v. mai jos.
+fixă externă (`diurna_externa_zi` + `moneda_diurna_externa`), `mod_calcul_zile`, pragul unic
+`ore_minime`, regula de frontieră, `tarif_km_auto_personal`. Restul le pune acțiunea:
+`moneda_tarif_km` = moneda țării interne, `categorie_barem` = `"II"`, ambele praguri de ore =
+`ore_minime` (deci `fractiune_zi_partiala` rămâne inoperantă), valorile legale = umplutură,
+v. mai jos.
+
+**Ora se citește și se scrie ca ora României.** `plecare_la` și `sosire_la`, la deplasare și
+la etapă, trec prin `dataOraRomania` (`src/schemas/comun.ts`); formularele umplu câmpul
+invers, cu `oraRomanieiPentruCamp` (`src/lib/format/date.ts`), deci deschis și salvat neatins
+reproduce momentul stocat. Înainte, șirul fără fus ajungea neatins în Postgres și era citit
+în fusul sesiunii: 15:00 tastat se scria 15:00 UTC și apărea 18:00 pe fișă.
+
+**Refuzurile bazei se întorc pe câmp, nu sub buton.** `adaugaEtapa` traduce P0001-urile lui
+`internal.valideaza_etapa_deplasare` în `fieldErrors`: „să se încadreze” pe `plecare_la` +
+`sosire_la`, „două țări diferite” pe `to_country_id`. `creeazaPolitica` pune pe
+`valabil_de_la` atât 23505 (`per_diem_policies_uk` — o singură versiune pe zi) cât și P0001-ul
+valorilor legale. Formularele înroșesc câmpul vinovat și lasă sub buton doar „Corectați
+câmpurile marcate”.
 
 ## Citiri
 
@@ -133,6 +148,19 @@ din bază — de aceea `src/app/(app)/diurna/erori.ts` le lasă să treacă pe e
 
 ## Ce se mișcă împreună
 
+**Cum se numără zilele e o alegere a firmei, pe politică** — `mod_calcul_zile`, adăugat de
+`0156_diurna_zile_calendaristice.sql`: `ferestre_24h` (câte 24 de ore de la ora plecării,
+restul final tăiat de praguri) sau `zile_calendaristice` (fiecare zi din calendar, ora
+României, în care omul e pe drum se plătește întreagă, inclusiv ziua plecării și a
+întoarcerii). Implicitul coloanei e `ferestre_24h`, deci nicio politică existentă nu-și
+schimbă calculul; formularul propune `zile_calendaristice`, iar lista de versiuni arată
+alegerea pe coloana „Zilele se numără”. În modul calendaristic `ore_minime` nu mai taie
+ultima fereastră, ci doar deplasarea prea scurtă în TOTAL. Motorul e
+`app.calculeaza_zile_diurna_calendar`, ales de `app.recalculeaza_diurna` după modul
+politicii; oglinda TS e `zileCalendaristice` din `src/domain/per-diem/ferestre.ts`. Cele
+două se schimbă împreună: schema `app` nu se poate chema prin `.rpc()`, deci ecranele
+calculează din portul TS — capcana #14.
+
 Împărțirea impozabil / neimpozabil se calculează **aici**, în `per_diem_calculations`, unde
 se cunosc baremul pe țară și defalcarea zilnică. `0060_salarizare_diurna.sql` o duce în
 `payroll_entries.diurna_neimpozabila` și `diurna_impozabila`. Salarizarea **nu** reface
@@ -145,6 +173,8 @@ plafonul în `per_diem_valori_legale`. Diurna externă are două regimuri —
 `diurna_externa_zi` completată = sumă fixă a firmei, în `moneda_diurna_externa`; NULL =
 baremul țării × `multiplu_diurna_externa`. Plafonul neimpozabil extern rămâne legat de
 baremul ȚĂRII în ambele cazuri, de aici și calculul incomplet când monedele nu coincid.
+`/diurna/politica` arată baremurile valabile azi, categoria II, într-un dialog deschis din
+textul „baremul țării” (`politica/baremuri-tari.tsx`, pe `DialogPortat` din [[modul/ssm]]).
 
 Regula de frontieră (`per_diem_border_rule`) e o alegere a firmei, nu o valoare legală
 implicită: `tara_plecare`, `tara_sosire`, `tara_cu_valoare_mai_mare` sau `durata_maxima`.

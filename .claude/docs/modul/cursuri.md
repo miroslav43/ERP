@@ -7,6 +7,8 @@ cai:
   - "src/lib/queries/cursuri.ts"
   - "src/schemas/cursuri.ts"
   - "src/domain/cursuri/**"
+  - "src/lib/documents/cale.ts"
+  - "src/lib/storage/urca-semnat.ts"
   - "supabase/migrations/0075_cursuri.sql"
   - "supabase/migrations/0077_cursuri_test_grila.sql"
   - "supabase/migrations/0078_cursuri_reguli_atribuire.sql"
@@ -24,8 +26,8 @@ feature: courses
 capcane: [17]
 citeste_daca:
   - "curs care nu acceptă înrolări → secțiunea „ce refuză baza”"
-scris_pe: 15d4ef4edaef4834d88bfbcc49db567d17f5bca4
-scris_la: 2026-09-04
+scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
+scris_la: 2026-09-24
 tags: [modul, hr]
 ---
 
@@ -78,6 +80,32 @@ sunt două citiri independente și costul e rețea, nu bază. Ordinea observabil
 | Înrolări  | `atribuieCurs`, `aplicaRegulile`, `creeazaRegula`; `anuleazaInrolare`, `stergeRegula`                                    | `create` / `update` |
 | Test      | `salveazaTest`                                                                                                           | `courses:update`    |
 | Materiale | `linkPreviewMaterial`                                                                                                    | `courses:read`      |
+
+## Octeții fișierelor nu trec prin server
+
+`pregatesteIncarcareMaterial` întoarce `{ cale, urlSemnat }` — adresa semnată întreagă
+(`data.signedUrl`), nu jetonul din ea —, iar octeții urcă direct în `BUCKET_CURSURI` cu un
+`PUT` binar prin `urcaPeUrlSemnat` (`src/lib/storage/urca-semnat.ts`), nu prin
+`uploadToSignedUrl` din SDK: tokenul din adresă E autorizația, verificată la semnare sub
+sesiunea apelantului, deci `incarcare-versiune.tsx` și `asistent-material.tsx` nu mai țin
+un client Supabase în browser. Funcția întoarce `boolean` — rețea căzută, CORS sau filă
+închisă înseamnă același lucru pentru ecran. MIME-ul declarat de browser rămâne necrezut,
+la fel ca înainte: pasul de salvare verifică primii octeți cu `potrivesteSemnatura`.
+
+Căile venite de la client (`salveazaVersiuneFisier`, inclusiv `subtitrare_cale`, și
+`renuntaLaIncarcare`) trec prin `caleInPrefix` (`src/lib/documents/cale.ts`), nu prin
+`startsWith`: peste prefixul organizației și al materialului se cer segmente curate — cad
+segmentul gol, `.`, `..`, formele lor procent-codificate, `\` și caracterele de control,
+fiindcă o cale se normalizează abia la `fetch`, adică după ce a fost deja scrisă în rând.
+
+## Citiri
+
+`src/lib/queries/cursuri.ts` e `server-only`, deci un import dintr-o componentă client
+pică la build. Căutarea liberă din `listeazaCursuri` și `listeazaMateriale` trece prin
+`tiparContine` (`src/lib/queries/cursor.ts`), nu prin tipar scris de mână: `%`, `_` și `*`
+tastate de om ar fi jokeri, iar virgula și paranteza rup gramatica `or=` — rezultatul nu e
+o eroare, e o listă subtil greșită. `max_rows = 1000` trunchiază tăcut, deci listările sunt
+fie pe cursor keyset, fie cu `.limit()` explicit sub prag.
 
 ## Cheia de răspuns stă în tabelă separată
 
