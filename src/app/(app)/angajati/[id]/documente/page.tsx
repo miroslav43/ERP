@@ -12,7 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { cn } from "@/lib/ui/cn";
-import { ButonStergeDocument, FormularDocument, ListaDescarcare } from "./formular-document";
+import {
+  ButonAnuleazaDocumentEmis,
+  ButonStergeDocument,
+  FormularDocument,
+  ListaDescarcare,
+} from "./formular-document";
 import { ButonEmiteLipsa } from "./buton-emite-lipsa";
 
 export default async function PaginaDocumenteAngajat({
@@ -39,6 +44,8 @@ export default async function PaginaDocumenteAngajat({
   // Emiterea unui document oficial cere același prag ca înrolarea: e actul care
   // consumă un număr din registrul seriei, nu o încărcare de fișier.
   const poateInrola = scopeFor(permisiuni, "employees:create") === "all";
+  // Anularea unui document emis: pragul lui `hr_issued_update`.
+  const poateAnula = scopActualizare === "all";
 
   const supabase = await createServerSupabase();
   const { data: angajat } = await supabase
@@ -92,7 +99,7 @@ export default async function PaginaDocumenteAngajat({
      */
     supabase
       .from("hr_issued_documents")
-      .select("id, titlu, numar_afisat, emis_la, anulat_la")
+      .select("id, titlu, numar_afisat, emis_la, anulat_la, motiv_anulare")
       .eq("employee_id", id)
       .eq("organization_id", tenant.organizationId)
       .is("deleted_at", null)
@@ -110,6 +117,11 @@ export default async function PaginaDocumenteAngajat({
   if (documente.error !== null || tipuri.error !== null || emise.error !== null) {
     throw new Error("Nu am putut încărca dosarul de documente al angajatului.");
   }
+
+  // Anulatele nu stau printre cele valabile: un dosar cu documente emise din
+  // greșeală ar arăta altfel două contracte. Rămân la vedere, strânse dedesubt.
+  const emiseActive = emise.data.filter((document) => document.anulat_la === null);
+  const emiseAnulate = emise.data.filter((document) => document.anulat_la !== null);
 
   return (
     <div className={cn(LATIMI.detaliu, "flex flex-col gap-6")}>
@@ -138,11 +150,11 @@ export default async function PaginaDocumenteAngajat({
        * dădea. Permisiunea de emitere păzește acum doar butonul de emitere,
        * fiindcă EA e cea care consumă un număr din registrul seriei.
        */}
-      {poateInrola || (emise.data ?? []).length > 0 ? (
+      {poateInrola || emise.data.length > 0 ? (
         <section className="border-border rounded-panou border p-4">
           <h2 className="text-foreground text-sectiune font-semibold">Documente generate</h2>
           <p className="text-muted-foreground text-corp mt-1">
-            {(emise.data ?? []).length === 0
+            {emiseActive.length === 0
               ? "Niciun document emis încă. Butonul de mai jos generează contractul, fișa postului, acordul de confidențialitate, anexa de proprietate intelectuală și — la telemuncă — actul adițional."
               : "Emise de aplicație, cu număr propriu și amprentă. Se deschid în PDF."}
           </p>
@@ -152,7 +164,7 @@ export default async function PaginaDocumenteAngajat({
             </div>
           ) : null}
           <ul className="divide-border mt-3 divide-y">
-            {(emise.data ?? []).map((document) => (
+            {emiseActive.map((document) => (
               <li key={document.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
                 <Link
                   href={`/documente/${document.id}?format=pdf`}
@@ -166,7 +178,6 @@ export default async function PaginaDocumenteAngajat({
                 <span className="text-muted-foreground text-nota">
                   {formatDate(document.emis_la)}
                 </span>
-                {document.anulat_la === null ? null : <Badge ton="neutru">Anulat</Badge>}
                 <span className="ml-auto flex items-center gap-3">
                   <Link
                     href={`/documente/${document.id}`}
@@ -187,10 +198,48 @@ export default async function PaginaDocumenteAngajat({
                     <Download aria-hidden="true" className="size-4" />
                     Descarcă PDF <span className="sr-only">{document.titlu}</span>
                   </a>
+                  {poateAnula ? (
+                    <ButonAnuleazaDocumentEmis
+                      documentId={document.id}
+                      titlu={document.titlu}
+                      numarAfisat={document.numar_afisat}
+                    />
+                  ) : null}
                 </span>
               </li>
             ))}
           </ul>
+          {emiseAnulate.length === 0 ? null : (
+            <details className="border-border mt-3 border-t pt-3">
+              <summary className="text-muted-foreground text-corp cursor-pointer">
+                Documente anulate ({emiseAnulate.length})
+              </summary>
+              <ul className="divide-border mt-2 divide-y">
+                {emiseAnulate.map((document) => (
+                  <li
+                    key={document.id}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2"
+                  >
+                    <Link
+                      href={`/documente/${document.id}?format=pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground text-corp underline decoration-1 underline-offset-4"
+                    >
+                      {document.titlu}
+                    </Link>
+                    <span className="text-muted-foreground text-nota">{document.numar_afisat}</span>
+                    <Badge ton="neutru">Anulat</Badge>
+                    {document.motiv_anulare === null ? null : (
+                      <span className="text-muted-foreground text-nota">
+                        {document.motiv_anulare}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
       ) : null}
 

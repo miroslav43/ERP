@@ -266,6 +266,54 @@ export const stergeDocument = createAction({
 });
 
 /**
+ * Anulează un document emis de aplicație — „ștergerea" din dosar.
+ *
+ * Nu e o ștergere: documentul are un număr consumat din registrul seriei, o
+ * amprentă și un cod de verificare, iar `trg_hr_issued_imuabil` (0148) nu lasă
+ * scrisă decât anularea. Rândul rămâne cu `anulat_la` + `motiv_anulare`, iese
+ * din lista activă și nu mai contează ca emis, deci „Emite documentele lipsă"
+ * îl poate emite din nou. Cazul tipic: documente emise din greșeală, când
+ * dosarul avea deja tot ce trebuia.
+ *
+ * Permisiunea e `employees:update = all`, exact ce cere `hr_issued_update`.
+ * Un UPDATE respins de `USING` (sau pe un document deja anulat) afectează zero
+ * rânduri fără eroare, de aici `.select()` și refuzul explicit pe gol.
+ */
+export const anuleazaDocumentEmis = createAction({
+  name: "angajati.documente.anuleaza_emis",
+  permission: "employees:update",
+  minScope: "all",
+  audit: {
+    entityType: "hr_issued_documents",
+    action: "update",
+    allow: ["documentId", "motiv"],
+  },
+  input: z.object({
+    documentId: z.uuid(),
+    motiv: z
+      .string()
+      .trim()
+      .min(3, "Scrie de ce anulezi documentul.")
+      .max(200, "Motivul e prea lung."),
+  }),
+  revalidate: ["/angajati"],
+  handler: async (ctx: ActionContext, input) => {
+    const { data, error } = await ctx.supabase
+      .from("hr_issued_documents")
+      .update({ anulat_la: new Date().toISOString(), motiv_anulare: input.motiv })
+      .eq("id", input.documentId)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .is("anulat_la", null)
+      .select("id, numar_afisat")
+      .maybeSingle();
+    if (error !== null) throw businessRule("Documentul nu a putut fi anulat.");
+    if (data === null) throw notFound("Documentul nu există sau a fost deja anulat.");
+    return { id: data.id, numarAfisat: data.numar_afisat };
+  },
+});
+
+/**
  * Emite documentele care LIPSESC din dosarul unui angajat.
  *
  * ── DE CE EXISTĂ ───────────────────────────────────────────────────────────

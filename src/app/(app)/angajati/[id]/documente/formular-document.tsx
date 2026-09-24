@@ -9,6 +9,7 @@ import type { ActionResult } from "@/lib/actions/types";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import { verificaDocument } from "@/lib/documents/cale";
 import {
+  anuleazaDocumentEmis,
   linkDescarcareDocument,
   pregatesteIncarcareDocument,
   salveazaDocument,
@@ -280,6 +281,62 @@ export function ButonStergeDocument({
               {...a}
               rows={3}
               maxLength={500}
+              defaultValue={stare.valoriTrimise["motiv"] ?? ""}
+            />
+          )}
+        </Camp>
+      )}
+    </FormularDialog>
+  );
+}
+
+/**
+ * Anularea unui document emis de aplicație — „ștergerea" lui din dosar.
+ *
+ * Documentul emis are număr pe serie și amprentă, deci nu dispare: se
+ * anulează, cu motiv, și trece în lista „anulate". Nemaifiind activ, poate fi
+ * emis din nou cu „Emite documentele lipsă".
+ */
+export function ButonAnuleazaDocumentEmis({
+  documentId,
+  titlu,
+  numarAfisat,
+}: {
+  documentId: string;
+  titlu: string;
+  numarAfisat: string;
+}) {
+  async function trimite(date: FormData) {
+    return anuleazaDocumentEmis({ documentId, motiv: String(date.get("motiv") ?? "") });
+  }
+
+  return (
+    <FormularDialog
+      declansator={{ eticheta: "Anulează", varianta: "distructiv" }}
+      titlu={`Anulează ${titlu.toLowerCase()} ${numarAfisat}`}
+      descriere="Documentul iese din dosar și din portalul angajatului ca document valabil. Numărul rămâne consumat în registru, iar documentul se păstrează ca anulat. Dacă e nevoie, îl poți emite din nou cu „Emite documentele lipsă”."
+      marime="mediu"
+      actiune={trimite}
+      mesajReusita="Documentul a fost anulat."
+      etichetaTrimite="Anulează documentul"
+      variantaTrimite="distructiv"
+      textInCurs="Se anulează…"
+    >
+      {(stare, idc) => (
+        <Camp
+          nume="motiv"
+          id={idc("motiv")}
+          eticheta="Motivul anulării"
+          fel="textarea"
+          obligatoriu
+          ajutor="Cel puțin 3 caractere. De exemplu: „emis din greșeală, dosarul era complet”."
+          erori={stare.erori["motiv"] ?? []}
+        >
+          {(a) => (
+            <textarea
+              {...a}
+              rows={3}
+              maxLength={200}
               defaultValue={stare.valoriTrimise["motiv"] ?? ""}
             />
           )}
