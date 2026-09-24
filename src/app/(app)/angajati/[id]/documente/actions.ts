@@ -307,7 +307,13 @@ export const anuleazaDocumentEmis = createAction({
       .is("anulat_la", null)
       .select("id, numar_afisat")
       .maybeSingle();
-    if (error !== null) throw businessRule("Documentul nu a putut fi anulat.");
+    if (error !== null) {
+      // P0001 vine din garda exercițiului închis (0120 §8), prin triggerul care
+      // anulează și rândul din registru (0158). Mesajul bazei spune anul și ce
+      // e de făcut; unul generic l-ar ascunde.
+      if (error.code === "P0001") throw businessRule(error.message.slice(0, 300));
+      throw businessRule("Documentul nu a putut fi anulat.");
+    }
     if (data === null) throw notFound("Documentul nu există sau a fost deja anulat.");
     return { id: data.id, numarAfisat: data.numar_afisat };
   },

@@ -314,7 +314,7 @@ export function ButonAnuleazaDocumentEmis({
     <FormularDialog
       declansator={{ eticheta: "Anulează", varianta: "distructiv" }}
       titlu={`Anulează ${titlu.toLowerCase()} ${numarAfisat}`}
-      descriere="Documentul iese din dosar și din portalul angajatului ca document valabil. Numărul rămâne consumat în registru, iar documentul se păstrează ca anulat. Dacă e nevoie, îl poți emite din nou cu „Emite documentele lipsă”."
+      descriere="Documentul iese din dosar și din portalul angajatului ca document valabil. Numărul rămâne consumat, iar documentul se păstrează ca anulat, și în dosar, și în registrul general. Dacă e nevoie, îl poți emite din nou cu „Emite documentele lipsă”."
       marime="mediu"
       actiune={trimite}
       mesajReusita="Documentul a fost anulat."
