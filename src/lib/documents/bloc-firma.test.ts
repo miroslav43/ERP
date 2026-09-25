@@ -102,9 +102,16 @@ describe("randuriBlocFirma", () => {
   // Art. 74 alin. (2).
   it("adaugă mențiunea dualistă doar când e cerută", () => {
     expect(randuriBlocFirma(SRL)[1]).not.toContain("dualist");
-    expect(randuriBlocFirma({ ...SRL, sistemDualist: true })[1]).toContain(
+    expect(randuriBlocFirma({ ...SRL, formaJuridica: "S.A.", sistemDualist: true })[1]).toContain(
       "societate administrată în sistem dualist",
     );
+  });
+
+  // Sistemul dualist e rezervat societăților pe acțiuni, iar baza permite starea
+  // (S.R.L. + dualist): o conversie S.A.→S.R.L. ascunde checkbox-ul din ecran,
+  // dar lasă valoarea pe `true`. Pe document ar fi o afirmație juridică falsă.
+  it("nu scrie mențiunea dualistă pe un S.R.L., chiar dacă steagul e ridicat", () => {
+    expect(randuriBlocFirma({ ...SRL, sistemDualist: true })[1]).not.toContain("dualist");
   });
 
   it("nu întoarce rânduri goale când firma n-are date de contact", () => {

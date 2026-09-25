@@ -123,7 +123,13 @@ export function randuriBlocFirma(antet: AntetOrganizatie): readonly string[] {
   identificare.push(...capitalul(antet));
   // Mențiunea dualistă stă lângă capital: art. 74 alin. (2) și (3) descriu
   // amândouă societatea pe acțiuni, iar cititorul le caută în același loc.
-  if (antet.sistemDualist) identificare.push("societate administrată în sistem dualist");
+  // Forma juridică se verifică la fel ca în `capitalul()`: sistemul dualist
+  // (directorat + consiliu de supraveghere) e rezervat societăților pe acțiuni,
+  // iar baza permite starea (S.R.L. + dualist) — o conversie S.A.→S.R.L. lasă
+  // steagul pe `true`, fiindcă nimic nu-l resetează.
+  if (antet.sistemDualist && estePeActiuni(antet.formaJuridica)) {
+    identificare.push("societate administrată în sistem dualist");
+  }
   if (identificare.length > 0) randuri.push(identificare.join(" · "));
 
   const contact: string[] = [];
