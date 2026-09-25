@@ -24,8 +24,8 @@ citeste_daca:
   - "vehicul care nu apare în listă → [[rol/manager]]"
   - "42501 la salvarea unui vehicul → capcana #23"
   - "tip de document care lipsește din listă → 0116, cele patru de transport sunt activ=false"
-scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
-scris_la: 2026-09-04
+scris_pe: 9dc2fc52ef1b2f425b7621e0819843e285c90272
+scris_la: 2026-09-25
 tags: [modul, operations]
 ---
 
@@ -84,12 +84,19 @@ pune `internal.vehicles_normalizeaza` din `status` și o golește la întoarcere
 Ștergerea e altceva: e pentru rândul care n-ar fi trebuit să existe, iar
 `internal.vehicles_dupa` scoate atunci scadențele vehiculului din semafor.
 
+**Orele foilor se citesc și se scriu ca ora României.** `plecare_la`, `sosire_la` și
+`alimentat_la` trec prin `dataOraRomania` (`src/schemas/comun.ts`) și ies moment exact în
+UTC; formularele umplu câmpul invers, cu `oraRomanieiPentruCamp` (`src/lib/format/date.ts`),
+de unde își iau și `min`/`max`. Înainte, `z.iso.datetime({ local: true })` lăsa șirul fără
+fus să ajungă neatins în Postgres, citit în fusul sesiunii: 15:00 tastat se scria 15:00 UTC
+și apărea 18:00. Kilometrajul, litrii și costul au acum mesaje proprii în română în schemă.
+
 ## Citiri
 
-`src/lib/queries/fleet.ts`: `listeazaVehicule`, `citesteVehicul`, `scadenteCurente`,
-`documenteleVehiculului`, `tipuriDocument`, `listeazaFoi`, `citesteFoaie`,
-`kmDePlecareSugerat`, `combustibilPeFoi`, `alimentarileFoii`, `anomaliiNeconfirmate`,
-`anomaliiPeFoi`.
+`src/lib/queries/fleet.ts` (marcat `import "server-only"`): `listeazaVehicule`,
+`citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`, `tipuriDocument`,
+`listeazaFoi`, `citesteFoaie`, `kmDePlecareSugerat`, `combustibilPeFoi`,
+`alimentarileFoii`, `anomaliiNeconfirmate`, `anomaliiPeFoi`.
 
 ## Ce refuză baza tăcut
 
@@ -129,6 +136,19 @@ Citește secțiunea asta înainte de orice scriere în modul.
 `src/app/(app)/flota/erori.ts` acoperă `23505`, `22012`, `22003` și `P0001`.
 `22012` (împărțire la zero) apare real: preț pe litru cu cantitate zero.
 
+**P0001 ajunge pe câmp, nu sub buton.** Mesajele triggerelor se propagă neschimbate —
+cifrele din ele se află doar din bază — dar `CAMPURI_DUPA_MESAJ` le potrivește după
+ÎNCEPUTUL mesajului, iar `invalidInput` pune `fieldErrors` pe câmpul vinovat: `km_sosire`,
+`km_plecare`, `sosire_la`, `alimentat_la`, `litri`, `vehicle_id`, `employee_id`; cel despre
+ora ȘI kilometrajul de sosire (`0018_fix_flota.sql:124`) cade pe două deodată. Ce nu se
+potrivește rămâne `businessRule`, mesaj general (foaie aprobată, vehicul ieșit din parc).
+
+Capcana potrivirii: **mesajele din bază sunt scrise cu s și t cu SEDILĂ**
+(`0012_fleet.sql:600`, `0018_fix_flota.sql:98`), nu cu virgula dedesubt folosită în proiect
+— de aceea tiparele ocolesc literele acelea, cu `.` în locul lor. Unul scris cu
+diacriticele corecte nu s-ar potrivi NICIODATĂ, iar eroarea ar cădea tăcut în mesajul
+general. `erori.test.ts` fixează exact asta, mesaj cu mesaj.
+
 ## Ce se mișcă împreună
 
 Migrarea → `src/types/database.ts` → `src/schemas/fleet.ts` →
@@ -142,6 +162,14 @@ capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-docum
 `Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar
 `actualizeazaVehicul` trimite obiectul ÎNTREG — `employee_id` și `department_id` călătoresc
 prin câmpuri ascunse, altfel orice salvare a fișei ar șterge alocarea făcută altundeva.
+
+Închiderea cursei și alimentarea (`foi/[id]/actiuni-foaie.tsx`) trec și ele pe `Camp`, cu
+`noValidate`: bulele browserului dispar, iar regulile pe care baza le refuză oricum — sosire
+după plecare, kilometraj crescător, alimentare în intervalul cursei, litri peste zero — se
+spun în client, în română, pe câmp. Cele două formulare își țin erorile SEPARAT
+(`eroriInchidere` / `eroriAlimentare`), ca la cele două `useTransition`: o eroare la
+alimentare nu mai înroșește caseta de sosire. Sub buton rămâne „Corectați câmpurile
+marcate", iar ce vine cu `fieldErrors === null` se arată acolo întreg.
 
 ## Nomenclatorul de tipuri de document
 

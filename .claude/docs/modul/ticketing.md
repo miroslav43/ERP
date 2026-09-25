@@ -12,11 +12,12 @@ cai:
 tabele: [tickets, ticket_comments, ticket_history, ticket_watchers, ticket_attachments]
 permisiuni: [tickets:read, tickets:create, tickets:update, tickets:approve]
 feature: ticketing
-capcane: [17]
+capcane: [11, 17]
 citeste_daca:
   - "42P17 «infinite recursion» la citirea unui tichet → secțiunea despre 0062"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+  - "căutare liberă în listă care întoarce prea mult sau prea puțin → secțiunea „Citiri”"
+scris_pe: 9dc2fc52ef1b2f425b7621e0819843e285c90272
+scris_la: 2026-09-25
 tags: [modul]
 ---
 
@@ -39,6 +40,12 @@ angajatul `own`, managerul `team`, administratorul `all`.
 `hr` are `tickets` doar la scope **own** (0046): e solicitant în ticketing, nu operator IT
 — deci nu ajunge în coadă. — v. [[rol/hr]]
 
+Preambulul celor patru pagini păstrează ordinea canonică a porților, dar pornește
+`requireFeature` și `getPermissionMap` în același `Promise.all`: sunt două citiri
+independente, pe tabele diferite, iar înlănțuite erau două dus-întorsuri seriale spre
+PostgREST. `can()` rămâne după amândouă, deci verdictul nu se schimbă — nu „îndrepta"
+forma înapoi la două `await` seriale doar fiindcă `anunturi/page.tsx` e scrisă așa.
+
 ## Server Actions
 
 `src/app/(app)/ticketing/actions.ts`.
@@ -54,6 +61,20 @@ angajatul `own`, managerul `team`, administratorul `all`.
 Cele patru pe `all` sunt uneltele IT-ului: prioritate manuală, asignare, marcare de
 duplicat, macro. `schimbaStatusul` rămâne pe `own`, fiindcă și solicitantul închide sau
 redeschide propriul tichet.
+
+## Citiri
+
+`src/lib/queries/ticketing.ts`. `listeazaTichete` caută liber în `titlu` și în
+`numar_afisat` — numărul afișat e ce are omul la îndemână („IT-2026-00042") — și tiparul
+`ilike` trece prin `tiparContine` (`src/lib/queries/cursor.ts`), nu prin text scris de
+mână. `%`, `_` și `*` tastate de om ar fi altfel jokeri, iar virgula și paranteza rup
+gramatica `or=`: rezultatul nu e o eroare, e o listă subtil greșită. Cine adaugă un filtru
+de text nou aici trece prin același ajutor. — capcana #11
+
+Paginarea e keyset pe `created_at desc, id desc` cu cursor opac, iar `total` se numără
+într-o **a doua** interogare, cu aceleași filtre dar fără predicatul de cursor: numărat pe
+interogarea rândurilor, keyset-ul ar fi filtrat și numărătoarea, deci totalul ar fi scăzut
+la fiecare pagină.
 
 ## Prioritatea nu se alege
 

@@ -22,8 +22,8 @@ feature: maintenance
 capcane: [35]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
-scris_pe: 47e18f43940275c35d1c823e1ea001aac548df9e
-scris_la: 2026-09-08
+scris_pe: 9dc2fc52ef1b2f425b7621e0819843e285c90272
+scris_la: 2026-09-25
 tags: [modul]
 ---
 
@@ -103,6 +103,15 @@ raporta trebuie să poată găsi echipamentul, fără să vadă parcul.
 
 Ca la SSM, niciun filtru manual de scope: politicile din bucla lui `0011` restrâng
 rândurile în Postgres.
+
+Căutarea liberă după cod și denumire — `listeazaEchipamente` și acțiunea
+`cautaEchipament` — trece prin `tiparContine` (`src/lib/queries/cursor.ts`), nu prin
+tipar scris de mână: `%` și `_` tastate de om ar fi jokeri (un cod care conține `100%`
+ar întoarce tot parcul), `*` e tradus de PostgREST tot în `%`, iar tiparul se
+ghilimelează fiindcă virgula și paranteza sunt sintaxă în gramatica `or=`. Nu e o
+barieră de securitate, ci corectitudine: fără ea rezultatul nu e o eroare, e o listă
+subtil greșită. Curățarea manuală dinainte rămâne în ambele locuri (`,()*"`, plus `:`
+în acțiune) — `tiparContine` se adaugă peste ea, n-o înlocuiește.
 
 ## Ce refuză baza tăcut
 
