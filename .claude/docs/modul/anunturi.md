@@ -11,8 +11,8 @@ tabele: [announcements, announcement_reads, notifications]
 permisiuni: [announcements:read, announcements:create, announcements:update]
 feature: announcements
 capcane: [17]
-scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
-scris_la: 2026-09-04
+scris_pe: 6ea36c0fa56a1248da248d3e93af7ac1154915ee
+scris_la: 2026-09-26
 tags: [modul]
 ---
 
@@ -62,6 +62,19 @@ fi fost decorativă cât timp pragul de citire e `all` pentru toată lumea.
 
 Ordinea corectă, dacă apare vreodată nevoia: **întâi se schimbă seed-ul de permisiuni**,
 abia apoi tabela. Invers, tabela ar exista fără să restrângă nimic.
+
+## Citiri
+
+`src/lib/queries/announcements.ts` începe cu `import "server-only"`: o componentă client
+sau un test care ar importa fișierul cade la încărcare, nu la prima interogare.
+
+Cele două liste ale modulului filtrează din locuri diferite, intenționat.
+`listeazaAnunturi` (administrare) nu reproduce nimic: ce vede cititorul îl decide
+`announcements_select`, de unde și ciornele vizibile adminului. `anunturiPublicate`
+(portal) scrie filtrul „publicat, neexpirat" **explicit în interogare**, fiindcă „ale
+mele" din portal trebuie să însemne același lucru indiferent de scope-ul celui care
+deschide ecranul — regula e cea din capul lui `queries/portal.ts`. Marca temporală intră
+ca argument `acum`, ca citirea să rămână deterministă la test.
 
 ## Ce refuză baza tăcut
 

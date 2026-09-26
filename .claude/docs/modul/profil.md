@@ -9,8 +9,8 @@ cai:
 tabele: [profiles, organization_members]
 permisiuni: []
 capcane: [2]
-scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
-scris_la: 2026-09-04
+scris_pe: 6ea36c0fa56a1248da248d3e93af7ac1154915ee
+scris_la: 2026-09-26
 tags: [modul]
 ---
 
@@ -45,6 +45,10 @@ schimbă schimbă mai mult decât profilul:
 din `employees.ts` chiar vor filtrul pe id-uri, iar în [[modul/departamente]] el ar fi
 legat citirea avatarurilor de rezultatul listei de angajați, adică ar fi scos-o din
 valul de citiri paralele al paginii.
+
+Fișierul începe cu `import "server-only"`: un import dintr-o componentă client oprește
+build-ul pe loc, în locul unei erori la rulare. `FormularProfil` primește deci valorile
+inițiale ca props de la `page.tsx`, nu le citește el.
 
 Restrângerea se face în **doi pași — membrii activi ai organizației, apoi avatarele
 lor** — fiindcă `profiles` și `organization_members` se întâlnesc pe
