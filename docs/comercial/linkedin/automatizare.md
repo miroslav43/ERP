@@ -49,6 +49,21 @@ poate fi mai nouă decât conținutul.
 la 8:30 și comentariul imediat), fără să depindă de o aprobare incertă. Varianta
 c merită abia dacă vrem statisticile direct în ERP sau crește volumul.
 
+## Variante gratuite (căutare din 1 octombrie 2026)
+
+Căutare făcută după ce s-a cerut explicit o variantă fără cost. Sursele sunt
+centrul de ajutor al fiecărei unelte, plus bloguri. Nimic n-a fost încercat.
+
+| Unealtă                     | Ce oferă gratuit                                                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Metricool Free              | **nu include LinkedIn deloc**; legătura cu LinkedIn cere un plan plătit (help.metricool.com)                                                   |
+| Buffer Free                 | 3 canale, 10 postări în coadă pe canal; **primul comentariu doar pe planurile plătite**; suportul pentru PDF pe planul gratuit e neclar        |
+| Programarea nativă LinkedIn | gratuită, merge pe pagina de firmă; imaginea unică sigur; pentru PDF sursele se contrazic, deci se încearcă o dată; **fără primul comentariu** |
+| API propriu (varianta c)    | licență 0; e-mailul de firmă cerut se poate obține gratuit prin redirecționarea de e-mail din Cloudflare, către o căsuță existentă             |
+
+Concluzie: gratuit se poate face fie cu programarea nativă și comentariul pus de
+mână, fie complet automat prin API-ul propriu, după aprobarea LinkedIn.
+
 ## De verificat la prima folosire
 
 1. Metricool: un carusel PDF de probă pe pagina de firmă, cu primul comentariu programat.
