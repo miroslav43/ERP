@@ -34,6 +34,7 @@ import {
   LATIME_A4,
   MARGINE,
   deseneazaAntet,
+  deseneazaSubsolFirma,
   numeroteazaPaginile,
   pornesteDocument,
   type AntetOrganizatie,
@@ -120,7 +121,13 @@ export async function pdfDinDocument(parametri: ParametriPdfDocument): Promise<U
   const context = await pornesteDocument(parametri.titlu, parametri.organizatie.denumire);
   const cursor = new Cursor(context, LATIME_A4, INALTIME_A4);
 
-  deseneazaAntet(cursor, parametri.organizatie, parametri.titlu, `Nr. ${parametri.numarAfisat}`);
+  await deseneazaAntet(
+    cursor,
+    context,
+    parametri.organizatie,
+    parametri.titlu,
+    `Nr. ${parametri.numarAfisat}`,
+  );
 
   let potrivire: RegExpExecArray | null;
   BLOC.lastIndex = 0;
@@ -168,6 +175,9 @@ export async function pdfDinDocument(parametri: ParametriPdfDocument): Promise<U
     if (brut !== "") paragrafBogat(cursor, [{ text: brut, aldin: false }], { spatiuDupa: 6 });
   }
 
+  // ÎNAINTE de numerotare: blocul firmei ocupă banda y ∈ [30, 62], numărul
+  // paginii stă sub el, la `MARGINE / 2`. Inversate, s-ar suprapune.
+  await deseneazaSubsolFirma(context, parametri.organizatie);
   numeroteazaPaginile(
     context,
     `Cod de verificare: ${parametri.codVerificare} · amprentă ${parametri.amprenta}`,

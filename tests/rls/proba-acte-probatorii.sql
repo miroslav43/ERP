@@ -154,6 +154,55 @@ begin
     raise warning '  ✗ (5) anularea actului nu mai funcționează';
   end if;
 
+  -- ═══ (5b) Anularea se vede și în registru (0158) [POZITIVĂ] ═══════════════
+  -- hr n-are nicio cheie `registru:*`; anularea rândului din registru trebuie
+  -- să treacă totuși, fiindcă dreptul care contează e cel pe document.
+  if exists (
+    select 1 from public.registru_documente
+     where entitate_tip = 'hr_issued_documents' and entitate_id = v_act
+       and anulat_la is not null and motiv_anulare like 'Documentul CIM-1 a fost anulat: Emis din greșeală'
+  ) then
+    raise notice '  ✓ (5b) anularea actului anulează și rândul din registru';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (5b) rândul din registru a rămas valabil după anularea actului';
+  end if;
+
+  -- ═══ (5c) Pe un exercițiu închis, anularea e respinsă de tot ═════════════
+  insert into public.hr_issued_documents
+    (organization_id, employee_id, serie, numar, numar_afisat, titlu,
+     continut_html, continut_checksum)
+  values (v_org, v_e_ang, 'NDA', 1, 'NDA-1', 'Acord de confidențialitate',
+          '<p>NDA</p>', 'amprenta-nda')
+  returning id into v_act;
+  -- Rândul de exercițiu apare abia la închidere (0135), deci se creează aici.
+  insert into public.registru_exercitii (organization_id, an, stare, inchis_la)
+  select v_org, r.an, 'inchis', now()
+    from public.registru_documente r
+   where r.entitate_tip = 'hr_issued_documents' and r.entitate_id = v_act
+  on conflict (organization_id, an) do update set stare = 'inchis', inchis_la = now();
+
+  perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
+  set local role authenticated;
+  begin
+    update public.hr_issued_documents
+       set anulat_la = now(), motiv_anulare = 'Emis din greșeală'
+     where id = v_act;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (5c) actul s-a anulat deși registrul anului e închis';
+  exception when raise_exception then
+    reset role;
+    if exists (select 1 from public.hr_issued_documents where id = v_act and anulat_la is null) then
+      raise notice '  ✓ (5c) pe un an închis, anularea e respinsă și actul rămâne valabil';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (5c) actul a ieșit anulat deși eroarea a fost ridicată';
+    end if;
+  end;
+  update public.registru_exercitii set stare = 'deschis', inchis_la = null
+   where organization_id = v_org;
+
   -- ═══ (6) Semnătura fișei postului ═════════════════════════════════════════
   insert into public.job_descriptions
     (organization_id, employee_id, titlu, continut, valabil_de_la)

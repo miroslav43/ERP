@@ -7,6 +7,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { escapeHtml } from "@/lib/email/templates/layout";
 import { todayInBucharest } from "@/lib/format/date";
 import { businessRule, notFound } from "@/lib/actions/errors";
+import { randuriBlocFirma, type AntetOrganizatie } from "@/lib/documents/bloc-firma";
 import type { ServerSupabase } from "@/lib/supabase/server";
 
 export type ParametriDocument = {
@@ -130,16 +131,56 @@ export async function genereazaDocument(
   );
 }
 
+/**
+ * Blocul de identificare a firmei, ca HTML.
+ *
+ * Aceleași rânduri ca în PDF — `randuriBlocFirma` e singura care decide ce
+ * scrie art. 74 pe document. Sigla se încorporează ca `data:` URI, fiindcă
+ * bucket-ul `org-branding` e privat: un URL semnat ar expira, iar pagina asta
+ * se salvează pe disc și se retipărește peste luni.
+ */
+function blocFirmaHtml(antet: AntetOrganizatie): string {
+  const randuri = randuriBlocFirma(antet);
+  const [denumire, ...restul] = randuri;
+
+  const sigla =
+    antet.sigla === null
+      ? ""
+      : `<img class="sigla" alt="" src="data:${antet.sigla.tip};base64,${Buffer.from(antet.sigla.octeti).toString("base64")}">`;
+
+  return [
+    `<div class="firma">${sigla}<div>`,
+    `<p class="firma-nume">${escapeHtml(denumire ?? antet.denumire)}</p>`,
+    ...restul.map((rand) => `<p class="firma-rand">${escapeHtml(rand)}</p>`),
+    "</div></div>",
+  ].join("");
+}
+
 /** HTML complet, pregătit pentru tipărire din browser (Ctrl+P). Fără resurse externe. */
-export function paginaTiparibila(document: DocumentGenerat, denumireOrganizatie: string): string {
+export function paginaTiparibila(document: DocumentGenerat, antet: AntetOrganizatie): string {
+  const bloc = blocFirmaHtml(antet);
+  const sus = antet.pozitie === "antet" ? bloc : "";
+  const jos = antet.pozitie === "subsol" ? bloc : "";
+
   return [
     '<!doctype html><html lang="ro"><head><meta charset="utf-8">',
     `<title>${escapeHtml(document.numarAfisat)}</title>`,
     "<style>body{font-family:Georgia,serif;max-width:18cm;margin:2cm auto;line-height:1.6;color:#111}",
+    ".firma{display:flex;align-items:flex-start;gap:.6cm}",
+    ".firma img.sigla{max-height:1.6cm;max-width:4cm;object-fit:contain}",
+    ".firma p{margin:0}",
+    ".firma-nume{font-weight:700;font-size:1.05rem}",
+    ".firma-rand{font-size:.78rem;color:#555}",
+    ".regula{border:0;border-top:1px solid #1f59b8;margin:.4cm 0 .8cm}",
+    ".numar{font-size:.8rem;color:#555;margin:0 0 .8cm}",
     "footer{margin-top:3cm;font-size:.8rem;color:#555;border-top:1px solid #ccc;padding-top:.5cm}",
     "@media print{body{margin:0}}</style></head><body>",
-    `<p>${escapeHtml(denumireOrganizatie)} — nr. ${escapeHtml(document.numarAfisat)}</p>`,
+    sus,
+    sus === "" ? "" : '<hr class="regula">',
+    `<p class="numar">Nr. ${escapeHtml(document.numarAfisat)}</p>`,
     document.html,
+    jos === "" ? "" : '<hr class="regula">',
+    jos,
     `<footer>Cod de verificare: ${escapeHtml(document.codVerificare)} · amprentă SHA-256: ${document.hash.slice(0, 16)}…</footer>`,
     "</body></html>",
   ].join("");

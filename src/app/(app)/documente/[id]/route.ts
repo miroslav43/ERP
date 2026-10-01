@@ -51,6 +51,15 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
   // denumirea uzuală.
   const denumireOrganizatie = rezolvare.tenant.legalName ?? rezolvare.tenant.name;
 
+  // Datele de identificare ale firmei — Legea 31/1990 art. 74 — plus poziția
+  // aleasă de firmă și sigla. Aceeași citire pentru ambele randări de mai jos:
+  // HTML-ul de tipărit și PDF-ul trebuie să arate la fel.
+  const organizatie = await antetOrganizatie(
+    db,
+    rezolvare.tenant.organizationId,
+    denumireOrganizatie,
+  );
+
   /*
    * `?format=pdf` — aceeași citire, aceeași RLS (`hr_issued_select`), altă
    * randare.
@@ -60,14 +69,15 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
    * cu amprenta SHA-256 care dovedește că textul n-a fost atins. Un PDF compus
    * separat ar fi un al doilea izvor de adevăr pentru același număr.
    */
-  if (new URL(request.url).searchParams.get("format") === "pdf") {
+  const cautare = new URL(request.url).searchParams;
+  if (cautare.get("format") === "pdf") {
     // Antetul se citește prin ajutorul comun, ca fluturașii și statele de
     // plată: un singur loc care știe ce coloane are firma.
     const octeti = await pdfDinDocument({
       html: generat.html,
       numarAfisat: generat.numarAfisat,
       titlu: document.titlu,
-      organizatie: await antetOrganizatie(db, rezolvare.tenant.organizationId, denumireOrganizatie),
+      organizatie,
       codVerificare: generat.codVerificare,
       amprenta: generat.hash.slice(0, 16),
     });
@@ -76,16 +86,17 @@ export async function GET(request: Request, { params }: ProprietatiRuta): Promis
       status: 200,
       headers: {
         "content-type": "application/pdf",
-        // `inline`, nu `attachment`: cine vrea fișierul îl salvează din
-        // vizualizatorul browserului, iar cine vrea doar să-l vadă nu adună
-        // descărcări pe care nu le-a cerut.
-        "content-disposition": `inline; filename="${numeFisier(`${document.titlu}-${generat.numarAfisat}`)}.pdf"`,
+        // `inline` implicit: cine vrea doar să-l vadă nu adună descărcări pe
+        // care nu le-a cerut. `&descarca=1` — butonul „Descarcă PDF" din
+        // dosarul angajatului — cere `attachment`, fiindcă un buton de
+        // descărcare care deschide doar o filă nu e o descărcare.
+        "content-disposition": `${cautare.get("descarca") === "1" ? "attachment" : "inline"}; filename="${numeFisier(`${document.titlu}-${generat.numarAfisat}`)}.pdf"`,
         "cache-control": "no-store",
       },
     });
   }
 
-  return new Response(paginaTiparibila(generat, denumireOrganizatie), {
+  return new Response(paginaTiparibila(generat, organizatie), {
     status: 200,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });

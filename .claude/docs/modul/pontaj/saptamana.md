@@ -7,11 +7,11 @@ cai:
   - "src/app/(portal)/portal/pontajul-meu/saptamana/**"
   - "src/domain/attendance/plan-si-fapt.ts"
 tabele: [attendance_week_submissions, attendance_week_submission_days, attendance_entries]
-permisiuni: [attendance:create, attendance:approve]
+permisiuni: [attendance:create, attendance:approve, attendance:update, departments:update]
 feature: attendance
 capcane: [17]
-scris_pe: 90b099aea9f6b9cc51ce16b42bef95bc1e83348e
-scris_la: 2026-09-12
+scris_pe: 6ea36c0fa56a1248da248d3e93af7ac1154915ee
+scris_la: 2026-09-26
 tags: [modul, hr]
 ---
 
@@ -35,9 +35,20 @@ noi se declară OBLIGATORII, ca să oblige compilatorul — `blocata` și `motiv
 `ZiFormular` sunt exact asta, fără implicit.
 
 Simetria se oprește la antet: `ButonSetariPontaj`
-(`src/app/(app)/pontaj/buton-setari.tsx`, componentă a MODULULUI, cu `poateConfigura` din
-`fileDePontaj`) stă pe AMÂNDOUĂ ramurile paginii `/pontaj/saptamana` — cea care cere
-alegerea angajatului și cea cu formularul — dar pe niciuna din portal.
+(`src/app/(app)/pontaj/buton-setari.tsx`, componentă a MODULULUI) stă pe AMÂNDOUĂ ramurile
+paginii `/pontaj/saptamana` — cea care cere alegerea angajatului și cea cu formularul —
+dar pe niciuna din portal.
+
+Butonul scoate două linkuri, cu porți DIFERITE, amândouă din `fileDePontaj`:
+`poateConfigura` (`attendance:update` la `all`) pentru „Setări" și `poateVedeaCoduriQr`
+(`departments:update` la `all`) pentru „Coduri QR" — cheia altui modul, fiindcă cine vede
+codul poate ponta de oriunde. Când niciuna nu e adevărată, componenta întoarce `null`.
+
+`poateVedeaCoduriQr` e OPȚIONALĂ, cu implicit `false` — invers față de regula
+`ZiFormular` de mai sus, unde proprietățile noi se declară obligatorii ca să oblige
+compilatorul. Aici o ramură care uită s-o paseze pierde linkul TĂCUT, fără eroare de tip;
+pagina o pasează explicit pe amândouă ramurile. `buton-setari.test.tsx` ține cele patru
+combinații.
 
 ## Planul se leagă de fapt la CITIRE, niciodată printr-o a doua scriere
 

@@ -11,6 +11,8 @@ import {
   SelectorCodCaenPrincipal,
   SelectorCodCaenSecundare,
 } from "@/components/forms/selector-cod-caen";
+import { estePeActiuni } from "@/lib/documents/bloc-firma";
+
 import { actualizeazaOrganizatia } from "./actions";
 
 export type ValoriOrganizatie = Readonly<{
@@ -30,6 +32,8 @@ export type ValoriOrganizatie = Readonly<{
   website: string;
   reprezentant_legal: string;
   capital_social: string;
+  capital_social_varsat: string;
+  sistem_dualist: boolean;
   cod_caen: string;
   cod_caen_secundare: readonly string[];
   sector: string;
@@ -39,7 +43,10 @@ export type ValoriOrganizatie = Readonly<{
   zile_concediu_anual_implicit: string;
 }>;
 
-type CheiText = Exclude<keyof ValoriOrganizatie, "platitor_tva" | "cod_caen_secundare">;
+type CheiText = Exclude<
+  keyof ValoriOrganizatie,
+  "platitor_tva" | "sistem_dualist" | "cod_caen_secundare"
+>;
 
 const ETICHETE: Readonly<Record<CheiText, string>> = {
   name: "Denumire comercială",
@@ -56,7 +63,8 @@ const ETICHETE: Readonly<Record<CheiText, string>> = {
   telefon_contact: "Telefon de contact",
   website: "Site web",
   reprezentant_legal: "Reprezentant legal",
-  capital_social: "Capital social (RON)",
+  capital_social: "Capital social subscris (RON)",
+  capital_social_varsat: "Capital social vărsat (RON)",
   cod_caen: "Cod CAEN",
   sector: "Sector (doar București)",
   functie_reprezentant_legal: "Funcția reprezentantului legal",
@@ -68,8 +76,20 @@ const ETICHETE: Readonly<Record<CheiText, string>> = {
 /** Randate ca `<input type="number">` — restul câmpurilor din `ORDINE` sunt text. */
 const CAMPURI_NUMERICE: ReadonlySet<CheiText> = new Set([
   "capital_social",
+  "capital_social_varsat",
   "zile_concediu_anual_implicit",
 ]);
+
+/**
+ * Câmpurile pe care legea le cere DOAR societăților pe acțiuni.
+ *
+ * Legea 31/1990 art. 74 alin. (3) cere capitalul subscris ȘI cel vărsat pentru
+ * SA și SCA; pentru SRL cere unul singur. Alin. (2) adaugă mențiunea dualistă,
+ * tot doar la SA. Arătate tuturor, ar fi două câmpuri pe care 95% dintre firme
+ * le-ar completa greșit sau deloc — iar constrângerea din 0157 le-ar refuza
+ * combinația fără să spună de ce.
+ */
+const CAMPURI_PE_ACTIUNI: ReadonlySet<CheiText> = new Set(["capital_social_varsat"]);
 
 const ORDINE: readonly CheiText[] = [
   "name",
@@ -80,6 +100,7 @@ const ORDINE: readonly CheiText[] = [
   "reprezentant_legal",
   "functie_reprezentant_legal",
   "capital_social",
+  "capital_social_varsat",
   "adresa",
   "oras",
   "judet",
@@ -157,6 +178,7 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
         {ORDINE.map((cheie) => {
           const id = `org-${cheie}`;
           const erori = stare.erori?.[cheie];
+          if (CAMPURI_PE_ACTIUNI.has(cheie) && !estePeActiuni(valori.forma_juridica)) return null;
           if (cheie === "tara") {
             return (
               <Camp key={cheie} id={id} eticheta={ETICHETE[cheie]} erori={erori}>
@@ -170,7 +192,18 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
             );
           }
           return (
-            <Camp key={cheie} id={id} eticheta={ETICHETE[cheie]} erori={erori}>
+            <Camp
+              key={cheie}
+              id={id}
+              // La SRL legea cere UN capital, deci „subscris" ar fi un cuvânt în
+              // plus care sugerează că mai există un câmp de completat.
+              eticheta={
+                cheie === "capital_social" && !estePeActiuni(valori.forma_juridica)
+                  ? "Capital social (RON)"
+                  : ETICHETE[cheie]
+              }
+              erori={erori}
+            >
               <input
                 id={id}
                 name={cheie}
@@ -234,6 +267,26 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
             Plătitor de TVA
           </label>
         </div>
+
+        {estePeActiuni(valori.forma_juridica) ? (
+          <div className="flex items-center gap-2">
+            <input
+              id="org-sistem-dualist"
+              type="checkbox"
+              checked={valori.sistem_dualist}
+              onChange={(eveniment) =>
+                setValori((precedente) => ({
+                  ...precedente,
+                  sistem_dualist: eveniment.target.checked,
+                }))
+              }
+              className="border-border h-4 w-4 rounded"
+            />
+            <label htmlFor="org-sistem-dualist" className="text-foreground text-corp">
+              Administrată în sistem dualist
+            </label>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-3">

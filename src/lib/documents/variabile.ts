@@ -168,3 +168,55 @@ export const DESCRIERI_VARIABILE: Readonly<Record<string, string>> = {
 export function esteCodInrolare(cod: string): cod is CodInrolare {
   return (CODURI_INROLARE as readonly string[]).includes(cod);
 }
+
+/**
+ * Valori-specimen pentru previzualizarea unui șablon.
+ *
+ * ── DE CE SPECIMEN, ȘI NU UN ANGAJAT REAL ───────────────────────────────────
+ * Previzualizarea trebuie să meargă înainte ca firma să aibă vreun angajat —
+ * momentul în care omul chiar își aranjează șabloanele e prima zi, nu a suta.
+ * În plus, harta asta ajunge în `date_document` la emitere, dar previzualizarea
+ * nu scrie nimic; iar dacă ar folosi fișa cuiva, un `{{cnp_complet}}` tastat
+ * într-un șablon ar deveni un mod de a citi CNP-uri fără audit, exact poarta pe
+ * care `hr_read_sensitive` o păzește.
+ *
+ * ── DE CE TREBUIE SĂ FIE COMPLETĂ ───────────────────────────────────────────
+ * `genereazaDocument` aruncă `businessRule` la PRIMA variabilă fără valoare
+ * (`generator.ts`), iar previzualizarea folosește exact același randare. O
+ * variabilă fără specimen ar face butonul să întoarcă „lipsesc date din fișă”
+ * pe un șablon perfect valid. `variabile.test.ts` compară cheile de mai jos cu
+ * reuniunea lui `VARIABILE_PER_COD`, deci lista nu poate rămâne în urmă.
+ *
+ * Valorile sunt vizibil fictive — „Ion Popescu”, un CNP cu zerouri — ca nimeni
+ * să nu confunde o previzualizare tipărită cu un document emis.
+ */
+export const VALORI_EXEMPLU: Readonly<Record<string, string>> = {
+  act_eliberat_de: "SPCLEP Sector 6",
+  act_eliberat_la: "12.03.2019",
+  angajat_adresa: "Str. Teiului 4, ap. 12, București, Sector 2",
+  angajat_nume: "Ion Popescu",
+  atributii: "Redactează documente; Arhivează dosare; Ține evidența corespondenței",
+  cnp_complet: "1990101000000",
+  competente: "Operare PC; Redactare în limba română; Atenție la detalii",
+  data_angajarii: "01.10.2026",
+  data_contract: "25.09.2026",
+  data_document: "25.09.2026",
+  data_intrare_vigoare: "01.11.2026",
+  departament: "Administrativ",
+  durata_confidentialitate: "2 ani de la încetarea contractului",
+  durata_contract: "nedeterminată",
+  functie: "Referent de specialitate",
+  loc_munca: "Sediul social al angajatorului",
+  loc_telemunca: "Str. Teiului 4, ap. 12, București, Sector 2",
+  mod_lucru: "mixt",
+  norma_ore_saptamana: "40",
+  norma_ore_zi: "8",
+  numar_act: "123456",
+  numar_contract: "000000",
+  organizatie_denumire: "Firma dumneavoastră",
+  reprezentant_legal: "Maria Ionescu",
+  salariu_brut: "5.000,00 lei",
+  serie_act: "RD",
+  subordonare: "Directorului administrativ",
+  zile_concediu_anual: "21",
+};

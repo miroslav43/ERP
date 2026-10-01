@@ -68,7 +68,7 @@ export default async function SetariOrganizatiePage() {
   const { data, error } = await supabase
     .from("organizations")
     .select(
-      "id, name, legal_name, forma_juridica, cui, platitor_tva, reg_com, adresa, judet, oras, cod_postal, tara, email_contact, telefon_contact, website, reprezentant_legal, capital_social, cod_caen, cod_caen_secundare, sector, functie_reprezentant_legal, ssm_furnizor_extern, ssm_persoana_responsabila, zile_concediu_anual_implicit, plan, seats_limit, subscription_status, status, trial_ends_at",
+      "id, name, legal_name, forma_juridica, cui, platitor_tva, reg_com, adresa, judet, oras, cod_postal, tara, email_contact, telefon_contact, website, reprezentant_legal, capital_social, capital_social_varsat, sistem_dualist, cod_caen, cod_caen_secundare, sector, functie_reprezentant_legal, ssm_furnizor_extern, ssm_persoana_responsabila, zile_concediu_anual_implicit, plan, seats_limit, subscription_status, status, trial_ends_at",
     )
     .eq("id", rezolvare.tenant.organizationId)
     .maybeSingle();
@@ -104,6 +104,9 @@ export default async function SetariOrganizatiePage() {
     website: text(data.website),
     reprezentant_legal: text(data.reprezentant_legal),
     capital_social: data.capital_social === null ? "" : String(data.capital_social),
+    capital_social_varsat:
+      data.capital_social_varsat === null ? "" : String(data.capital_social_varsat),
+    sistem_dualist: data.sistem_dualist === true,
     cod_caen: text(data.cod_caen),
     cod_caen_secundare: data.cod_caen_secundare ?? [],
     sector: text(data.sector),

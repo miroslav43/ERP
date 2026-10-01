@@ -2,6 +2,7 @@
 "use server";
 import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
 import {
@@ -231,10 +232,28 @@ export const stergeDocument = createAction({
     motiv: z.string().trim().min(3, "Scrie motivul ștergerii.").max(200),
   }),
   handler: async (ctx: ActionContext, input) => {
-    // Ștergere logică: nu există politici DELETE, iar dosarul de personal trebuie păstrat.
-    const { data, error } = await ctx.supabase
+    /*
+     * Ștergere logică: nu există politici DELETE, iar dosarul de personal
+     * trebuie păstrat.
+     *
+     * DE CE ocolim RLS: prin clientul utilizatorului retragerea NU poate
+     * reuși, pentru niciun rol. Un UPDATE cu WHERE are nevoie și de dreptul de
+     * SELECT, iar Postgres verifică atunci și rândul NOU contra politicii
+     * `employee_documents_select` — care cere `deleted_at is null`. Rândul
+     * retras nu mai trece de ea, deci 42501 „new row violates row-level
+     * security policy", cu sau fără `.select()` după (verificat pe cloud, într-o
+     * tranzacție derulată înapoi, ca `org_admin`). Autorizarea e deja făcută de
+     * `createAction` (`employees:delete = all`), iar filtrul pe organizație e
+     * explicit mai jos. `updated_by` se scrie de mână: sub service_role
+     * `auth.uid()` e NULL și `internal.set_actor` lasă valoarea trimisă.
+     */
+    const { data, error } = await createAdminSupabase()
       .from("employee_documents")
-      .update({ deleted_at: new Date().toISOString(), observatii: input.motiv })
+      .update({
+        deleted_at: new Date().toISOString(),
+        observatii: input.motiv,
+        updated_by: ctx.user.id,
+      })
       .eq("id", input.documentId)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
@@ -243,6 +262,60 @@ export const stergeDocument = createAction({
     if (error !== null) throw businessRule("Documentul nu a putut fi retras din dosar.");
     if (data === null) throw notFound("Documentul nu există sau a fost deja retras.");
     return { id: data.id };
+  },
+});
+
+/**
+ * Anulează un document emis de aplicație — „ștergerea" din dosar.
+ *
+ * Nu e o ștergere: documentul are un număr consumat din registrul seriei, o
+ * amprentă și un cod de verificare, iar `trg_hr_issued_imuabil` (0148) nu lasă
+ * scrisă decât anularea. Rândul rămâne cu `anulat_la` + `motiv_anulare`, iese
+ * din lista activă și nu mai contează ca emis, deci „Emite documentele lipsă"
+ * îl poate emite din nou. Cazul tipic: documente emise din greșeală, când
+ * dosarul avea deja tot ce trebuia.
+ *
+ * Permisiunea e `employees:update = all`, exact ce cere `hr_issued_update`.
+ * Un UPDATE respins de `USING` (sau pe un document deja anulat) afectează zero
+ * rânduri fără eroare, de aici `.select()` și refuzul explicit pe gol.
+ */
+export const anuleazaDocumentEmis = createAction({
+  name: "angajati.documente.anuleaza_emis",
+  permission: "employees:update",
+  minScope: "all",
+  audit: {
+    entityType: "hr_issued_documents",
+    action: "update",
+    allow: ["documentId", "motiv"],
+  },
+  input: z.object({
+    documentId: z.uuid(),
+    motiv: z
+      .string()
+      .trim()
+      .min(3, "Scrie de ce anulezi documentul.")
+      .max(200, "Motivul e prea lung."),
+  }),
+  revalidate: ["/angajati"],
+  handler: async (ctx: ActionContext, input) => {
+    const { data, error } = await ctx.supabase
+      .from("hr_issued_documents")
+      .update({ anulat_la: new Date().toISOString(), motiv_anulare: input.motiv })
+      .eq("id", input.documentId)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .is("anulat_la", null)
+      .select("id, numar_afisat")
+      .maybeSingle();
+    if (error !== null) {
+      // P0001 vine din garda exercițiului închis (0120 §8), prin triggerul care
+      // anulează și rândul din registru (0158). Mesajul bazei spune anul și ce
+      // e de făcut; unul generic l-ar ascunde.
+      if (error.code === "P0001") throw businessRule(error.message.slice(0, 300));
+      throw businessRule("Documentul nu a putut fi anulat.");
+    }
+    if (data === null) throw notFound("Documentul nu există sau a fost deja anulat.");
+    return { id: data.id, numarAfisat: data.numar_afisat };
   },
 });
 

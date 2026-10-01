@@ -13,6 +13,7 @@ import "server-only";
 import {
   Cursor,
   deseneazaAntet,
+  deseneazaSubsolFirma,
   numeroteazaPaginile,
   pornesteDocument,
   ACCENT,
@@ -94,8 +95,9 @@ export async function genereazaFluturas(parametri: ParametriFluturas): Promise<U
   const context = await pornesteDocument(titlu, parametri.organizatie.denumire);
   const cursor = new Cursor(context);
 
-  deseneazaAntet(
+  await deseneazaAntet(
     cursor,
+    context,
     parametri.organizatie,
     "FLUTURAȘ DE SALARIU",
     `${numeLuna(parametri.luna)} ${String(parametri.an)}`,
@@ -164,6 +166,7 @@ export async function genereazaFluturas(parametri: ParametriFluturas): Promise<U
     { marime: 7, culoare: GRI },
   );
 
+  await deseneazaSubsolFirma(context, parametri.organizatie);
   numeroteazaPaginile(context, `Fluturaș ${numeLuna(parametri.luna)} ${String(parametri.an)}`);
   return context.doc.save();
 }
