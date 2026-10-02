@@ -91,7 +91,8 @@ export const PAGINI: readonly Pagina[] = [
     traducere: "/en",
     // 23 sept: H2-ul benzii „Cum se leagă" spune acum salarizarea pe nume (ro.ts);
     // poarta lastmod nu vede textele din ro.ts, deci data se ridică de mână.
-    // 2 oct: nota benzii „Primii pași" trimite acum la fiecare modul pe nume.
+    // 2 oct: nota benzii „Primii pași" trimite acum la fiecare modul pe nume;
+    // banda de prețuri duce spre ofertă peste 20 de angajați (auditul SEO).
     actualizat: "2026-10-02",
     sectiune: "Principale",
   },
@@ -100,7 +101,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.9,
     limba: "en",
     traducere: "/",
-    actualizat: "2026-09-17",
+    // 2 oct: banda de prețuri duce spre ofertă (en.ts — poarta nu vede textele).
+    actualizat: "2026-10-02",
     sectiune: "Principale",
   },
   {
@@ -108,7 +110,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: "/en/preturi",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     sectiune: "Principale",
   },
   {
@@ -116,7 +118,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "en",
     traducere: "/preturi",
-    actualizat: "2026-09-17",
+    // 2 oct: legătura spre ofertă și slug-urile din tabel (en.ts, pagina-preturi.tsx).
+    actualizat: "2026-10-02",
     sectiune: "Principale",
   },
   {
@@ -124,7 +127,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     sectiune: "Principale",
   },
   {
@@ -132,7 +135,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-18",
+    actualizat: "2026-10-02",
     sectiune: "Principale",
   },
   {
@@ -163,7 +166,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-18",
+    actualizat: "2026-10-02",
     sectiune: "Obligații legale",
   },
   {
@@ -220,7 +223,9 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    // 2 oct: „Pe același subiect" din `legaturi.ts` — poarta compară domeniile cu
+    // `domenii.ts`, deci nu vede schimbarea; data se ridică de mână, pe toate patru.
+    actualizat: "2026-10-02",
     sectiune: "Domenii",
   },
   {
@@ -228,7 +233,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     sectiune: "Domenii",
   },
   {
@@ -236,7 +241,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     sectiune: "Domenii",
   },
   {
@@ -244,7 +249,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     sectiune: "Domenii",
   },
 
@@ -261,7 +266,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     sectiune: "Unelte și comparații",
   },
   {
@@ -269,7 +274,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-18",
+    actualizat: "2026-10-02",
     sectiune: "Unelte și comparații",
   },
   {
@@ -285,7 +290,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     sectiune: "Unelte și comparații",
   },
 
@@ -302,7 +307,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     sectiune: "Înainte să întrebi",
   },
   {
