@@ -18,6 +18,11 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
     { eticheta: "Program de concedii: cerere, aprobare și sold", href: "/module/concedii" },
   ],
+  "/unelte/condica-de-prezenta": [
+    { eticheta: "Ce cere art. 119 la evidența orelor", href: "/evidenta-orelor-de-munca" },
+    { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
+    { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+  ],
   "/unelte/foaie-de-pontaj": [
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Pontaj de pe telefon, fără instalare", href: "/pontaj-pe-telefon" },

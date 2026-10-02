@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RO } from "@/content/landing/ro";
-import { ANTET_CERERE_CONCEDIU, ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
+import { ANTET_CERERE_CONCEDIU, ANTET_CONDICA, ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
@@ -33,6 +33,12 @@ const PAGINI = [
     titlu: ANTET_FOAIE_PONTAJ.titlu,
     lead: ANTET_FOAIE_PONTAJ.lead,
     nota: `${AN_MIN}–${AN_MAX} · până la ${MAX_ANGAJATI} de angajați · fără cont`,
+  },
+  {
+    href: "/unelte/condica-de-prezenta",
+    titlu: ANTET_CONDICA.titlu,
+    lead: ANTET_CONDICA.lead,
+    nota: "ora sosirii și a plecării, pe fiecare zi lucrătoare · Word, PDF, Excel",
   },
   {
     href: "/unelte/cerere-concediu-de-odihna",

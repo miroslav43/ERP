@@ -27,3 +27,13 @@ export const ANTET_CERERE_CONCEDIU: AntetPagina = {
   titlu: "Cerere de concediu de odihnă",
   lead: "Completează perioada și primești cererea gata de tipărit, cu zilele lucrătoare calculate: weekendurile și sărbătorile legale se scad singure, iar cele scoase se enumeră, cu motivul lângă fiecare.",
 };
+
+/**
+ * Condica: ce se caută e „model Word” și „este obligatorie”. Pagina răspunde la
+ * a doua întrebare înainte să dea fișierul pentru prima.
+ */
+export const ANTET_CONDICA: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Condica de prezență",
+  lead: "Alege luna și scrie numele: primești condica cu fiecare zi lucrătoare, ora sosirii, ora plecării și semnătura. Sărbătorile legale se scot singure. Descarci în Word, PDF sau Excel, fără cont.",
+};

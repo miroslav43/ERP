@@ -278,6 +278,14 @@ export const PAGINI: readonly Pagina[] = [
     sectiune: "Unelte și comparații",
   },
   {
+    cale: "/unelte/condica-de-prezenta",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-10-02",
+    sectiune: "Unelte și comparații",
+  },
+  {
     cale: "/comparatie",
     prioritate: 0.5,
     limba: "ro",

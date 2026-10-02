@@ -99,6 +99,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/unelte/cerere-concediu-de-odihna",
     "Unealtă gratuită: cerere de concediu de odihnă gata de tipărit, cu zilele lucrătoare calculate — weekendurile și sărbătorile legale se scad, iar cele scoase se enumeră cu motivul. Fără cont.",
   ],
+  [
+    "/unelte/condica-de-prezenta",
+    "Unealtă gratuită: condica de prezență pentru orice lună, cu un rând pe om pe fiecare zi lucrătoare, ora sosirii, ora plecării și semnătura. Word, PDF sau Excel, fără cont. Plus răspunsul la „e obligatorie?” (art. 119 Codul muncii).",
+  ],
   ["/comparatie", "Comparațiile cu felul în care se lucrează azi."],
   [
     "/comparatie/excel",
