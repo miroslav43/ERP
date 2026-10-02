@@ -773,7 +773,10 @@ export const EN: ContinutLanding = {
         legatura: { eticheta: "How we keep data separate", href: "/incredere" },
       },
     ],
-    nota: "The same subscription also carries modules for REGES-ONLINE reporting, payroll, occupational safety, fleet, inventory, per diem, courses and onboarding.",
+    // Fără legături: paginile de modul există doar în română.
+    nota: [
+      "The same subscription also carries modules for REGES-ONLINE reporting, payroll, occupational safety, fleet, inventory, per diem, courses and onboarding.",
+    ],
     legaturaModule: { eticheta: "The full module list", href: "/module" },
   },
 

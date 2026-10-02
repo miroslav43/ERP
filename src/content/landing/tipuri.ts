@@ -225,7 +225,17 @@ export type ContinutLanding = Readonly<{
     titlu: string;
     lead: string;
     blocuri: readonly Readonly<{ titlu: string; text: string; legatura: Legatura }>[];
-    nota: string;
+    /**
+     * Fraza care enumeră restul modulelor, pe bucăți: textul simplu rămâne
+     * șir, numele unui modul devine legătură spre pagina lui.
+     *
+     * Până pe 2 oct 2026 era un singur șir, iar pagina de start nu trimitea la
+     * NICIUNA dintre cele nouăsprezece pagini de modul, doar la lista `/module`.
+     * Search Console arăta atunci patru module „descoperite, neindexate” și
+     * patru necunoscute: o pagină la două clicuri de cea mai puternică pagină a
+     * sitului e, pentru un sit nou, o pagină pe care Google o amână.
+     */
+    nota: readonly (string | Legatura)[];
     legaturaModule: Legatura;
   }>;
 

@@ -172,7 +172,19 @@ export function BandaPornire({ text }: ProprietatiBanda) {
         ))}
       </div>
       <p className="text-mk-text-slab mt-10 max-w-[62ch] text-[0.9375rem] leading-[1.6]">
-        {text.pornire.nota}{" "}
+        {text.pornire.nota.map((bucata) =>
+          typeof bucata === "string" ? (
+            bucata
+          ) : (
+            <Link
+              key={bucata.href}
+              href={bucata.href}
+              className="text-mk-text underline underline-offset-4"
+            >
+              {bucata.eticheta}
+            </Link>
+          ),
+        )}{" "}
         <Link href={text.pornire.legaturaModule.href} className="text-mk-text underline-offset-4">
           {text.pornire.legaturaModule.eticheta}
         </Link>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ADRESA_FIRMA, CONTACT, FIRMA } from "@/content/landing/contact";
+import { slugModul } from "@/content/landing/slug-module";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
 import { Marca } from "./marca";
@@ -68,6 +69,42 @@ export function Subsol({ text }: { text: ContinutLanding }) {
           </div>
         </div>
       </div>
+
+      {/*
+        Cele nouăsprezece module, fiecare cu legătura lui, pe fiecare pagină.
+
+        Până pe 2 oct 2026 singurul drum spre o pagină de modul era lista
+        `/module` (sau un frate din același grup). Search Console arăta atunci opt
+        module neindexate, deși erau toate în sitemap: pentru un sit nou, sitemap-ul
+        spune că pagina EXISTĂ, legăturile interne spun că CONTEAZĂ.
+
+        Doar în română: paginile de modul nu au variantă engleză, iar `/en` nu
+        trimite vizitatorul într-o limbă pe care n-a ales-o. Lista vine din
+        catalog, nu e scrisă a doua oară.
+      */}
+      {text.limba === "ro" && (
+        <nav aria-label="Module" className="border-mk-rigla-inv border-t">
+          <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] py-6">
+            <h2 className="font-mk-date text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              Module
+            </h2>
+            <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2.5">
+              {text.module.grupuri
+                .flatMap((grup) => grup.module)
+                .map((modul) => (
+                  <li key={modul.cheie}>
+                    <Link
+                      href={`/module/${slugModul(modul.cheie)}`}
+                      className="text-mk-text-inv-slab hover:text-mk-text-inv text-[0.875rem] transition-colors"
+                    >
+                      {modul.titlu}
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        </nav>
+      )}
 
       {/*
         Identitatea juridică a furnizorului.

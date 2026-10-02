@@ -57,6 +57,12 @@ export type FisaModul = Readonly<{
   actualizat: string;
   /** Titlul paginii, mai lung și mai căutabil decât cel din catalog. */
   titluPagina: string;
+  /**
+   * H1-ul paginii, când trebuie să numească ce se caută, nu doar modulul.
+   * Lipsă: rămâne titlul din catalog. Firimitura și meniul folosesc oricum
+   * catalogul, ca navigația să rămână scurtă.
+   */
+  titluH1?: string;
   metaDescriere: string;
   /** Proză proprie, care NU repetă textul din catalog. */
   intro: readonly string[];
@@ -176,7 +182,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ssm",
-    actualizat: "2026-09-18",
+    actualizat: "2026-09-23",
     titluPagina: "SSM și PSI: instruiri, aptitudini, echipament",
     metaDescriere:
       "Matrice angajat × tip de instruire, cu semafor pe scadențe și „niciodată făcută” ca stare distinctă de „expirată”. Pentru HR și responsabilul SSM.",
@@ -239,11 +245,17 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "payroll",
-    actualizat: "2026-09-23",
-    titluPagina: "Program de salarizare: calculul pas cu pas",
+    actualizat: "2026-10-02",
+    // Search Console, 4–29 sept 2026: „program salarizare" (40 de afișări) și
+    // „program salarii" (20) erau cele mai căutate interogări ale sitului, dar
+    // Google le trimitea pe pagina de start, pe pozițiile 58–67. Pagina asta,
+    // deși indexată, nu apărea deloc — H1-ul spunea doar „Salarizare".
+    titluPagina: "Program de salarizare: calculul salariilor",
+    titluH1: "Program de salarizare",
     metaDescriere:
-      "Program de salarizare cu desfășurător și avertismente, pornit din pontajul închis. Cotele sunt versionate cu data de la care se aplică. Managerul nu vede salariile.",
+      "Program de salarizare pornit din pontajul închis: calculul salariilor pas cu pas, cu desfășurător și avertismente. Managerul nu vede salariile.",
     intro: [
+      "Programul de salarizare calculează salariile din aceeași bază în care stau pontajul, concediile și diurnele — fără import lunar dintr-un alt program de salarii și fără un fișier trimis între HR și contabil.",
       "Calculul nu e o cutie neagră care scoate o cifră. Merge pas cu pas, cu desfășurător pe fiecare linie și cu avertismente unde ceva arată neobișnuit — un spor care sare, o lună cu mai puține zile decât ar trebui, un om fără contract activ.",
       "Cotele sunt ale firmei tale și sunt versionate cu data de la care se aplică. Niciuna nu e scrisă în cod. Când se schimbă o cotă, se adaugă o versiune nouă cu data ei, iar lunile deja calculate rămân cu cotele care erau valabile atunci — recalcularea trecutului nu se întâmplă din greșeală.",
       "Intrarea e luna de pontaj închisă, cu orele suplimentare și cele de noapte deja separate. Nu se retastează nimic din pontaj în salarizare, fiindcă nu sunt două evidențe.",
@@ -312,6 +324,14 @@ export const FISE: readonly FisaModul[] = [
         text: "Fluturașul ajunge la om în portal, fără să-l ceară pe e-mail în fiecare lună.",
       },
     ],
+    ghiduri: [
+      {
+        href: "/pentru-contabili",
+        eticheta: "Ce primește contabilul: stat de plată, D112, fișier bancar",
+      },
+      { href: "/ghid/diurna", eticheta: "Diurna neimpozabilă: plafoane și calcul" },
+      { href: "/evidenta-orelor-de-munca", eticheta: "Evidența orelor de muncă (art. 119)" },
+    ],
     nuFace: [
       "Nu depune D112 și nu comunică cu ANAF. Produce datele; depunerea rămâne la contabil.",
       "Nu face contabilitate. Nu ține registre contabile, nu emite facturi și nu întocmește bilanțul.",
@@ -322,7 +342,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "fleet",
-    actualizat: "2026-09-18",
+    actualizat: "2026-09-21",
     titluPagina: "Parc auto: ITP, RCA, rovinietă și foi de parcurs",
     metaDescriere:
       "Termenele fiecărei mașini cu semafor înainte de scadență, foi de parcurs cu kilometraj și alimentări. Managerul aprobă doar foile echipei.",

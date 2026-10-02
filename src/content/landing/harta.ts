@@ -91,7 +91,8 @@ export const PAGINI: readonly Pagina[] = [
     traducere: "/en",
     // 23 sept: H2-ul benzii „Cum se leagă" spune acum salarizarea pe nume (ro.ts);
     // poarta lastmod nu vede textele din ro.ts, deci data se ridică de mână.
-    actualizat: "2026-09-23",
+    // 2 oct: nota benzii „Primii pași" trimite acum la fiecare modul pe nume.
+    actualizat: "2026-10-02",
     sectiune: "Principale",
   },
   {

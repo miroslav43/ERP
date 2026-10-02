@@ -136,7 +136,7 @@ export default async function PaginaModul({ params }: Proprietati) {
       <AntetSecundar
         text={{
           supratitlu: grup.titlu,
-          titlu: modul.titlu,
+          titlu: fisa?.titluH1 ?? modul.titlu,
           lead: modul.text,
         }}
         firimituri={[
