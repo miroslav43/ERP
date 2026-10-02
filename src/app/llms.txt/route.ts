@@ -90,6 +90,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/ghid/diurna",
     "Diurna: plafonul neimpozabil de 2,5 ori nivelul din HG 714/2018 (57,50 lei/zi în țară) și al doilea plafon, de 3 salarii de bază, calculat distinct pe fiecare lună. Plus durata delegării din Codul muncii și de ce pragul de 5 km e o regulă a sectorului public.",
   ],
+  [
+    "/ghid/diurna-externa",
+    "Diurna în străinătate pe fiecare țară, din anexa HG 518/1995 (categoria I), cu plafonul neimpozabil de 2,5 ori calculat pentru toate cele 166 de țări — de exemplu Germania 35 €/zi, plafon 87,50 €. Plus numărarea zilelor de la trecerea frontierei și fracțiunile de 50%/100% (art. 7^1).",
+  ],
   ["/unelte", "Uneltele gratuite, fără cont."],
   [
     "/unelte/foaie-de-pontaj",

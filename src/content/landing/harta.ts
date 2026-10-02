@@ -1,6 +1,7 @@
 import { CONCEDIU_ODIHNA } from "@/content/legal/concediu-odihna";
 import { CONTROL_ITM } from "@/content/legal/control-itm";
 import { DIURNA } from "@/content/legal/diurna";
+import { DIURNA_EXTERNA } from "@/content/legal/diurna-externa";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
 import { REGES } from "@/content/legal/reges";
 
@@ -209,6 +210,14 @@ export const PAGINI: readonly Pagina[] = [
     actualizat: DIURNA.actualizatIso,
     sectiune: "Obligații legale",
   },
+  {
+    cale: "/ghid/diurna-externa",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: DIURNA_EXTERNA.actualizatIso,
+    sectiune: "Obligații legale",
+  },
 
   {
     cale: "/domenii",
@@ -258,7 +267,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-18",
+    actualizat: "2026-10-02",
     sectiune: "Unelte și comparații",
   },
   {

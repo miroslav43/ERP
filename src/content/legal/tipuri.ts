@@ -80,6 +80,17 @@ export type PaginaLege = Readonly<{
   amenzi: readonly Amenda[];
   /** Secțiuni de proză, între tabele. */
   sectiuni: readonly Readonly<{ titlu: string; paragrafe: readonly string[] }>[];
+  /**
+   * Un tabel de consultat (diurna pe țări). Opțional: paginile-lege fără așa
+   * ceva nu-l declară și nu se schimbă. Prima coloană dă și ancora rândului
+   * (`#germania`), ca un rând să poată fi legat direct.
+   */
+  tabel?: Readonly<{
+    titlu: string;
+    coloane: readonly string[];
+    randuri: readonly (readonly string[])[];
+    nota: string;
+  }>;
   nesigur: readonly Nesigur[];
   /**
    * A doua acțiune, de la finalul paginii.

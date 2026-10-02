@@ -48,6 +48,16 @@ function numeralNesigur(n: number): string {
   return `Astea ${cuvinte[n] ?? String(n)} nu stau`;
 }
 
+/** „Marea Britanie (Regatul Unit)” → `marea-britanie-regatul-unit`, pentru `#ancora` din adresă. */
+export function ancoraRand(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, "-")
+    .replace(/^-+|-+$/gu, "");
+}
+
 export function RandarePaginaLege({ text }: { text: PaginaLege }) {
   return (
     <Cadru text={RO}>
@@ -157,6 +167,46 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
           </div>
         </Banda>
       ))}
+
+      {text.tabel !== undefined && (
+        <Banda inaltime="medie" titlu={text.tabel.titlu}>
+          {/* `relative` pe containerul derulabil, ca orice tabel lat din sit. */}
+          <div className="relative mt-6 overflow-x-auto">
+            <table className="w-full border-collapse text-left text-[0.9375rem]">
+              <thead>
+                <tr className="border-mk-rigla border-b">
+                  {text.tabel.coloane.map((c) => (
+                    <th key={c} scope="col" className="py-2 pr-4 align-bottom font-medium">
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {text.tabel.randuri.map((r) => (
+                  <tr
+                    key={r[0]}
+                    id={ancoraRand(r[0] ?? "")}
+                    className="border-mk-rigla/40 border-b"
+                  >
+                    {r.map((celula, i) => (
+                      <td
+                        key={`${r[0] ?? ""}-${String(i)}`}
+                        className={`py-2 pr-4 ${i === 0 ? "" : "font-mk-date tabular-nums"}`}
+                      >
+                        {celula}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-mk-text-slab mt-4 max-w-[72ch] text-[0.875rem] leading-[1.6]">
+            {text.tabel.nota}
+          </p>
+        </Banda>
+      )}
 
       {/*
         Secțiunea care lipsește de pe paginile concurente. Nu e modestie: o

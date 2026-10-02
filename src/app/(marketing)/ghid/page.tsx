@@ -7,6 +7,7 @@ import { RO } from "@/content/landing/ro";
 import { CONCEDIU_ODIHNA } from "@/content/legal/concediu-odihna";
 import { CONTROL_ITM } from "@/content/legal/control-itm";
 import { DIURNA } from "@/content/legal/diurna";
+import { DIURNA_EXTERNA } from "@/content/legal/diurna-externa";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
 import { REGES } from "@/content/legal/reges";
 
@@ -31,15 +32,17 @@ export const metadata: Metadata = metadatePagina({
   cale: "/ghid",
 });
 
-const PAGINI = [EVIDENTA_ORELOR, REGES, CONCEDIU_ODIHNA, DIURNA, CONTROL_ITM].map((p) => ({
-  href: p.cale,
-  titlu: p.antet.titlu,
-  lead: p.antet.lead,
-  // Data verificării textelor de lege, per ghid. E singura cifră care spune dacă
-  // pagina e întreținută sau abandonată — conținutul juridic de pe internet e
-  // plin de articole datate anul curent cu cuantumuri de acum trei ani.
-  nota: `Textele verificate în ${p.actualizat}`,
-}));
+const PAGINI = [EVIDENTA_ORELOR, REGES, CONCEDIU_ODIHNA, DIURNA, DIURNA_EXTERNA, CONTROL_ITM].map(
+  (p) => ({
+    href: p.cale,
+    titlu: p.antet.titlu,
+    lead: p.antet.lead,
+    // Data verificării textelor de lege, per ghid. E singura cifră care spune dacă
+    // pagina e întreținută sau abandonată — conținutul juridic de pe internet e
+    // plin de articole datate anul curent cu cuantumuri de acum trei ani.
+    nota: `Textele verificate în ${p.actualizat}`,
+  }),
+);
 
 export default function PaginaGhid() {
   return (
