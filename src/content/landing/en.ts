@@ -816,8 +816,10 @@ export const EN: ContinutLanding = {
     inLocDe: "instead of",
     pesteNucleu: "Everything in the HR core, plus:",
     mentiuneTva: "Final price. We are not registered for VAT, so nothing is added on top.",
-    pestePrag:
-      "Above 20 employees the price rises in steps — ask for a quote and we will give you the figure for your headcount.",
+    pestePrag: {
+      text: "Above 20 employees the price rises in steps.",
+      legatura: { eticheta: "Ask for a quote for your headcount", href: "/cere-demo" },
+    },
     primaLuna:
       "The first month is free, for any configuration. No setup fee and no separately billed implementation.",
     nota: "The three middle packages are parallel axes over the same core, not rungs: you switch on only the axis you need. The struck-through figure is what the same modules would cost bought one by one.",

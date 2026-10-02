@@ -1107,7 +1107,16 @@ describe("proxy-ul știe ce e aplicație și ce e public", () => {
     const { SEGMENTE_APLICATIE } = await import("@/config/routes");
     const aplicatie = new Set<string>(SEGMENTE_APLICATIE);
     const publice = new Set(RUTE_PUBLICE.map((r) => r.split("/")[1] ?? ""));
-    const tehnice = new Set(["api", "healthz", "readyz", "llms.txt", "sitemap.xml", "sitemap.xsl"]);
+    const tehnice = new Set([
+      "api",
+      "healthz",
+      "readyz",
+      "llms.txt",
+      "sitemap.xml",
+      "sitemap.xsl",
+      // Imaginea de distribuire (din 2 oct 2026). `.png` o scoate și din matcher-ul proxy-ului.
+      "imagine-distribuire.png",
+    ]);
 
     const foldere = (cale: string) =>
       readdirSync(cale, { withFileTypes: true })
@@ -1410,5 +1419,30 @@ describe("pilotul pentru contabili", () => {
     const sursa = readFileSync("src/app/(marketing)/pentru-contabili/page.tsx", "utf8");
     expect(sursa).toContain("PILOT_CONTABILI");
     expect(sursa).toContain('href="/cere-demo"');
+  });
+});
+
+describe("reparațiile din auditul SEO din 2 oct 2026", () => {
+  async function adreseDinSitemap(): Promise<Set<string>> {
+    const { ADRESA_SITE } = await import("./contact");
+    const { intrariSitemap } = await import("./harta");
+    return new Set(intrariSitemap().map((i) => i.url.replace(ADRESA_SITE, "") || "/"));
+  }
+
+  it("peste pragul de angajați, pagina de prețuri duce spre o ofertă", async () => {
+    // „Cere o ofertă" era text simplu. Firmele cu 21–50 de angajați — jumătate
+    // din publicul declarat — nu aveau nici preț, nici drum mai departe.
+    const dinSitemap = await adreseDinSitemap();
+    for (const text of [RO, EN]) {
+      expect(dinSitemap.has(text.preturi.pestePrag.legatura.href)).toBe(true);
+    }
+  });
+
+  it("titlul paginii de prețuri spune prețul și pragul", async () => {
+    const { MONEDA, PRAG_ANGAJATI, PRET_NUCLEU } = await import("./preturi");
+    const sursa = readFileSync("src/app/(marketing)/preturi/page.tsx", "utf8");
+    const titlu = /\btitlu: "([^"]+)"/.exec(sursa)?.[1] ?? "";
+    expect(titlu).toContain(`${PRET_NUCLEU} ${MONEDA}`);
+    expect(titlu).toContain(String(PRAG_ANGAJATI));
   });
 });

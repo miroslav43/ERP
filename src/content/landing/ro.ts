@@ -861,8 +861,10 @@ export const RO: ContinutLanding = {
     pesteNucleu: "Tot ce e în Nucleu HR, plus:",
     mentiuneTva:
       "Preț final. Nu suntem înregistrați în scopuri de TVA, deci nu se mai adaugă nimic.",
-    pestePrag:
-      "Peste 20 de angajați prețul crește în trepte — cere o ofertă și îți spunem cifra pentru câți oameni ai.",
+    pestePrag: {
+      text: "Peste 20 de angajați prețul crește în trepte.",
+      legatura: { eticheta: "Cere o ofertă pentru câți oameni ai", href: "/cere-demo" },
+    },
     primaLuna:
       "Prima lună e gratuită, pentru orice configurație. Fără cost de pornire și fără implementare facturată separat.",
     nota: "Cele trei pachete din mijloc sunt axe paralele peste același nucleu, nu trepte: pornești doar axa de care ai nevoie. Suma tăiată e cât ar costa aceleași module cumpărate unul câte unul.",

@@ -27,7 +27,13 @@ export const metadata: Metadata = metadatePagina({
 export default function PaginaIntrebari() {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={RO.pagini.intrebari} />
+      <AntetSecundar
+        text={RO.pagini.intrebari}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Întrebări", href: "/intrebari" },
+        ]}
+      />
       <BandaIntrebari text={RO} />
     </Cadru>
   );

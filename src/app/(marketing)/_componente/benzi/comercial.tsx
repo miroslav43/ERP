@@ -252,7 +252,17 @@ export function BandaPreturi({ text }: ProprietatiBanda) {
         <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6]">
           {text.preturi.mentiuneTva}
         </p>
-        <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6]">{text.preturi.pestePrag}</p>
+        <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6]">
+          {text.preturi.pestePrag.text}{" "}
+          <Link
+            href={text.preturi.pestePrag.legatura.href}
+            data-umami-event="cta-oferta-peste-prag"
+            className="text-mk-text underline underline-offset-4"
+          >
+            {text.preturi.pestePrag.legatura.eticheta}
+          </Link>
+          .
+        </p>
         <p className="text-mk-text-slab text-[0.8125rem] leading-[1.55]">{text.preturi.nota}</p>
       </div>
       <Link

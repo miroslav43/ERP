@@ -267,8 +267,11 @@ export type ContinutLanding = Readonly<{
     pesteNucleu: string;
     /** Mențiunea obligatorie de lângă fiecare cifră: preț final, fără TVA. */
     mentiuneTva: string;
-    /** Ce se întâmplă peste pragul de angajați din `preturi.ts`. */
-    pestePrag: string;
+    /**
+     * Ce se întâmplă peste pragul de angajați din `preturi.ts`, cu drumul spre
+     * ofertă. Până pe 2 oct 2026 era un `string`: „cere o ofertă" fără legătură.
+     */
+    pestePrag: Readonly<{ text: string; legatura: Legatura }>;
     /** Oferta de intrare: prima lună gratuită. */
     primaLuna: string;
     /*

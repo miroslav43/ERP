@@ -37,7 +37,13 @@ export const metadata: Metadata = metadatePagina({
 export default function PaginaModule() {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={RO.pagini.module} />
+      <AntetSecundar
+        text={RO.pagini.module}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Module", href: "/module" },
+        ]}
+      />
       <BandaModule text={RO} />
       <BandaPlatforma text={RO} />
       <BandaEcrane text={RO} />
