@@ -129,28 +129,25 @@ describe("creeazaCurs", () => {
     expect(r.error.fieldErrors).toHaveProperty("cod");
   });
 
-  it.fails(
-    "DEFECT: denumire duplicată (courses_denumire_uk) ⇒ eroarea trebuie pusă pe `denumire`, nu pe `cod`",
-    async () => {
-      // `courses_denumire_uk` (0075:91) e un index unic separat de cel pe cod.
-      // Omul care refolosește o denumire cu un cod NOU primește „alegeți alt
-      // cod" pe câmpul Cod — schimbă codul și primește aceeași eroare.
-      const { server } = configureazaActiunea({ permisiuni: CREARE });
-      server.raspunde("courses", "insert", {
-        error: eroarePostgrest(
-          "23505",
-          'duplicate key value violates unique constraint "courses_denumire_uk"',
-        ),
-      });
+  it("denumire duplicată (courses_denumire_uk) ⇒ eroarea e pusă pe `denumire`, nu pe `cod`", async () => {
+    // `courses_denumire_uk` (0075:91) e un index unic separat de cel pe cod.
+    // Omul care refolosește o denumire cu un cod NOU primește „alegeți alt
+    // cod" pe câmpul Cod — schimbă codul și primește aceeași eroare.
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("courses", "insert", {
+      error: eroarePostgrest(
+        "23505",
+        'duplicate key value violates unique constraint "courses_denumire_uk"',
+      ),
+    });
 
-      const r = await creeazaCurs({ cod: "ssm_nou", denumire: "Instructaj SSM" });
+    const r = await creeazaCurs({ cod: "ssm_nou", denumire: "Instructaj SSM" });
 
-      expect(r.ok).toBe(false);
-      if (r.ok) return;
-      expect(r.error.fieldErrors).toHaveProperty("denumire");
-      expect(r.error.fieldErrors).not.toHaveProperty("cod");
-    },
-  );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.fieldErrors).toHaveProperty("denumire");
+    expect(r.error.fieldErrors).not.toHaveProperty("cod");
+  });
 
   it("valabilitatea peste 120 de luni e refuzată înainte de bază", async () => {
     const { server } = configureazaActiunea({ permisiuni: CREARE });

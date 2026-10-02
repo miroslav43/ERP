@@ -117,8 +117,9 @@ describe("deschidePerioada", () => {
 
   // Din 0132 luna se naște deschisă la prima scriere, deci o deschidere
   // manuală a lunii curente lovește des `attendance_periods_luna_uq`.
-  // `traduEroare` dă pentru ORICE 23505 mesajul zilei de pontaj.
-  it.fails("DEFECT: luna deja existentă (23505) primește mesajul zilei de pontaj", async () => {
+  // `traduEroare` dă pentru ORICE 23505 mesajul zilei de pontaj; deschiderea
+  // lunii își traduce singură conflictul.
+  it("luna deja existentă (23505) ⇒ CONFLICT cu mesajul lunii, nu al zilei", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("attendance_periods", "insert", { error: eroarePostgrest("23505") });
     const r = await deschidePerioada({ an: 2026, luna: 7 });

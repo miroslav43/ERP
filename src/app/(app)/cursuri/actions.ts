@@ -404,7 +404,13 @@ export const salveazaVersiuneFisier = createAction({
       throw invalidInput(mesaj, { durata_secunde: [mesaj] });
     }
 
-    const octeti = await primiiOcteti(ctx, input.cale);
+    // `fel` din BAZĂ, nu din formular: pregătirea a verificat MIME-ul pe `fel`
+    // trimis de client, iar materialul poate fi schimbat între timp — un MP4
+    // putea deveni versiunea curentă a unui material de tip PDF.
+    const felPotrivit =
+      (material.fel === "pdf" || material.fel === "video") &&
+      verificaMaterial(material.fel, input.mime, 1) === null;
+    const octeti = felPotrivit ? await primiiOcteti(ctx, input.cale) : null;
     if (octeti === null || !potrivesteSemnatura(input.mime, octeti)) {
       // Fișierul nu e ce pretinde. Îl scoatem din bucket ca să nu rămână un
       // obiect orfan pe care nimeni nu-l mai revendică.
@@ -447,12 +453,22 @@ export const salveazaVersiuneFisier = createAction({
     if (error !== null) traduEroare(error);
     if (data === null) throw businessRule("Versiunea nu a putut fi salvată.");
 
-    const { error: eroareCurenta } = await ctx.supabase
+    const { data: mutat, error: eroareCurenta } = await ctx.supabase
       .from("course_materials")
       .update({ versiune_curenta_id: data.id })
       .eq("id", input.material_id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareCurenta !== null) traduEroare(eroareCurenta);
+    // Zero rânduri = UPDATE respins de USING (`courses:update` lipsă, cu
+    // `courses:create` păstrat — capcana 17), nu succes: materialul rămânea pe
+    // versiunea veche, iar cea nouă orfană.
+    if (mutat === null) {
+      throw businessRule(
+        "Versiunea a fost salvată, dar nu a putut deveni curentă: nu aveți dreptul de a modifica materialul.",
+      );
+    }
 
     return { id: data.id };
   },
@@ -538,12 +554,22 @@ export const salveazaVersiuneLink = createAction({
     if (error !== null) traduEroare(error);
     if (data === null) throw businessRule("Versiunea nu a putut fi salvată.");
 
-    const { error: eroareCurenta } = await ctx.supabase
+    const { data: mutat, error: eroareCurenta } = await ctx.supabase
       .from("course_materials")
       .update({ versiune_curenta_id: data.id })
       .eq("id", input.material_id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareCurenta !== null) traduEroare(eroareCurenta);
+    // Zero rânduri = UPDATE respins de USING (`courses:update` lipsă, cu
+    // `courses:create` păstrat — capcana 17), nu succes: materialul rămânea pe
+    // versiunea veche, iar cea nouă orfană.
+    if (mutat === null) {
+      throw businessRule(
+        "Versiunea a fost salvată, dar nu a putut deveni curentă: nu aveți dreptul de a modifica materialul.",
+      );
+    }
 
     return { id: data.id };
   },
@@ -1038,6 +1064,11 @@ export const aplicaRegulile = createAction({
     ]);
     if (reguli.error !== null) traduEroare(reguli.error);
     if (angajati.error !== null) traduEroare(angajati.error);
+    // Fără membri, regulile pe rol nu prind pe nimeni: ar ieși „0 atribuiri” fals.
+    if (membri.error !== null) traduEroare(membri.error);
+    // Fără înrolările existente, `deja` e gol și TOȚI ar primi un ciclu nou:
+    // triggerul de pregătire numerotează ciclul, deci baza nu refuză duplicatul.
+    if (existente.error !== null) traduEroare(existente.error);
 
     const rolPeUtilizator = new Map((membri.data ?? []).map((m) => [m.user_id, m.role as string]));
     const deja = new Set((existente.data ?? []).map((e) => e.employee_id));

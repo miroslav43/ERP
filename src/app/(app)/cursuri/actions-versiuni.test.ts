@@ -199,7 +199,7 @@ describe("salveazaVersiuneFisier", () => {
     octetiUrcati(OCTETI_PDF);
     server.raspunde("course_material_versions", "select", { data: null });
     server.raspunde("course_material_versions", "insert", { data: { id: ID_2 } });
-    server.raspunde("course_materials", "update", {});
+    server.raspunde("course_materials", "update", { data: { id: ID_1 } });
 
     await salveazaVersiuneFisier(INTRARE_FISIER);
 
@@ -324,7 +324,7 @@ describe("salveazaVersiuneFisier", () => {
     expect(server.apeluriPe("course_materials", "update")).toHaveLength(0);
   });
 
-  it.fails("DEFECT: un fișier video salvat pe un material de tip PDF trebuie refuzat", async () => {
+  it("un fișier video salvat pe un material de tip PDF e refuzat", async () => {
     // `fel` se citește din material (actions.ts:393) dar nu se compară cu
     // MIME-ul. Pasul de pregătire verifică plafoanele pe `fel` trimis de
     // CLIENT, iar semnătura se verifică pe `mime` trimis tot de client: un
@@ -347,27 +347,24 @@ describe("salveazaVersiuneFisier", () => {
     expect(server.apeluriPe("course_material_versions", "insert")).toHaveLength(0);
   });
 
-  it.fails(
-    "DEFECT: mutarea pe versiunea nouă care atinge zero rânduri trebuie raportată, nu succes",
-    async () => {
-      // actions.ts:450 — UPDATE-ul lui `versiune_curenta_id` n-are `.select()`.
-      // Inserția cere `courses:create`, actualizarea materialului cere
-      // `courses:update` (politica `course_materials_update`): un rol cu
-      // primul fără al doilea primește „succes", iar materialul rămâne pe
-      // versiunea veche (capcana 17).
-      const { server } = configureazaActiunea({ permisiuni: CREARE });
-      programeazaFisier(server);
-      octetiUrcati(OCTETI_PDF);
-      server.raspunde("course_material_versions", "select", { data: null });
-      server.raspunde("course_material_versions", "insert", { data: { id: ID_2 } });
-      server.raspunde("course_materials", "update", { data: null });
+  it("mutarea pe versiunea nouă care atinge zero rânduri e raportată, nu succes", async () => {
+    // actions.ts:450 — UPDATE-ul lui `versiune_curenta_id` n-are `.select()`.
+    // Inserția cere `courses:create`, actualizarea materialului cere
+    // `courses:update` (politica `course_materials_update`): un rol cu
+    // primul fără al doilea primește „succes", iar materialul rămâne pe
+    // versiunea veche (capcana 17).
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    programeazaFisier(server);
+    octetiUrcati(OCTETI_PDF);
+    server.raspunde("course_material_versions", "select", { data: null });
+    server.raspunde("course_material_versions", "insert", { data: { id: ID_2 } });
+    server.raspunde("course_materials", "update", { data: null });
 
-      const r = await salveazaVersiuneFisier(INTRARE_FISIER);
+    const r = await salveazaVersiuneFisier(INTRARE_FISIER);
 
-      expect(server.apeluriPe("course_materials", "update")[0]?.selectDupaScriere).toBeDefined();
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+    expect(server.apeluriPe("course_materials", "update")[0]?.selectDupaScriere).toBeDefined();
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 });
 
 describe("salveazaVersiuneLink", () => {
@@ -375,7 +372,7 @@ describe("salveazaVersiuneLink", () => {
     const { server } = configureazaActiunea({ rol: "manager", permisiuni: CREARE });
     server.raspunde("course_material_versions", "select", { data: { versiune: 2 } });
     server.raspunde("course_material_versions", "insert", { data: { id: ID_2 } });
-    server.raspunde("course_materials", "update", {});
+    server.raspunde("course_materials", "update", { data: { id: ID_1 } });
 
     const r = await salveazaVersiuneLink({
       material_id: ID_1,
@@ -430,7 +427,7 @@ describe("salveazaVersiuneLink", () => {
     const { server } = configureazaActiunea({ permisiuni: CREARE });
     server.raspunde("course_material_versions", "select", { data: null });
     server.raspunde("course_material_versions", "insert", { data: { id: ID_2 } });
-    server.raspunde("course_materials", "update", {});
+    server.raspunde("course_materials", "update", { data: { id: ID_1 } });
 
     const r = await salveazaVersiuneLink({
       material_id: ID_1,
@@ -481,21 +478,18 @@ describe("salveazaVersiuneLink", () => {
     expect(server.apeluriPe("course_materials")).toHaveLength(0);
   });
 
-  it.fails(
-    "DEFECT: mutarea pe versiunea-link nouă care atinge zero rânduri trebuie raportată",
-    async () => {
-      // actions.ts:541 — același UPDATE fără `.select()` ca la fișier.
-      const { server } = configureazaActiunea({ permisiuni: CREARE });
-      server.raspunde("course_material_versions", "select", { data: null });
-      server.raspunde("course_material_versions", "insert", { data: { id: ID_2 } });
-      server.raspunde("course_materials", "update", { data: null });
+  it("mutarea pe versiunea-link nouă care atinge zero rânduri e raportată", async () => {
+    // actions.ts:541 — același UPDATE fără `.select()` ca la fișier.
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("course_material_versions", "select", { data: null });
+    server.raspunde("course_material_versions", "insert", { data: { id: ID_2 } });
+    server.raspunde("course_materials", "update", { data: null });
 
-      const r = await salveazaVersiuneLink({
-        material_id: ID_1,
-        adresa: "https://youtu.be/dQw4w9WgXcQ",
-      });
+    const r = await salveazaVersiuneLink({
+      material_id: ID_1,
+      adresa: "https://youtu.be/dQw4w9WgXcQ",
+    });
 
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 });

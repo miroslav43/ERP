@@ -461,52 +461,46 @@ describe("aplicaImportAngajati", () => {
     ]);
   });
 
-  it.fails(
-    "DEFECT: la marcă atribuită de contor, conflictul 23505 numește marca „undefined”, nu marca alocată",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      programeazaLot(server, [simplu]);
-      server.raspundeRpc("urmatoarea_marca", { data: "0007" });
-      server.raspunde("employees", "insert", { error: eroarePostgrest("23505") });
+  it("la marcă atribuită de contor, conflictul 23505 numește marca alocată, nu „undefined”", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaLot(server, [simplu]);
+    server.raspundeRpc("urmatoarea_marca", { data: "0007" });
+    server.raspunde("employees", "insert", { error: eroarePostgrest("23505") });
 
-      const r = await aplicaImportAngajati({ batchId: BATCH, offset: 0 });
+    const r = await aplicaImportAngajati({ batchId: BATCH, offset: 0 });
 
-      expect(r.ok).toBe(true);
-      if (!r.ok) return;
-      expect(r.data.esuate[0]?.mesaj).toContain("0007");
-    },
-  );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.esuate[0]?.mesaj).toContain("0007");
+  });
 
-  it.fails(
-    "DEFECT: CNP/IBAN se scriu prin INSERT direct în `employee_sensitive_data` (grant revocat în 0005/0010/0016), nu prin `hr_write_sensitive`",
-    async () => {
-      const c = encrypt(CNP);
-      const cnpProtejat = {
-        ciphertext: catreBytea(c.ciphertext),
-        iv: catreBytea(c.iv),
-        tag: catreBytea(c.tag),
-        keyVersion: versiuneCaNumar(c.keyVersion),
-        last4: "0109",
-        hash: "amprenta",
-      };
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      programeazaLot(server, [{ ...simplu, marca: "M1", cnpProtejat }]);
-      server.raspunde("employees", "insert", { data: { id: ID_2 } });
-      server.raspundeRpc("hr_write_sensitive", { data: null });
+  it("CNP/IBAN se scriu prin `hr_write_sensitive`, nu prin INSERT direct în `employee_sensitive_data` (grant revocat în 0005/0010/0016)", async () => {
+    const c = encrypt(CNP);
+    const cnpProtejat = {
+      ciphertext: catreBytea(c.ciphertext),
+      iv: catreBytea(c.iv),
+      tag: catreBytea(c.tag),
+      keyVersion: versiuneCaNumar(c.keyVersion),
+      last4: "0109",
+      hash: "amprenta",
+    };
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaLot(server, [{ ...simplu, marca: "M1", cnpProtejat }]);
+    server.raspunde("employees", "insert", { data: { id: ID_2 } });
+    server.raspundeRpc("hr_write_sensitive", { data: null });
 
-      const r = await aplicaImportAngajati({ batchId: BATCH, offset: 0 });
+    const r = await aplicaImportAngajati({ batchId: BATCH, offset: 0 });
 
-      expect(server.apeluriPe("employee_sensitive_data")).toHaveLength(0);
-      expect(
-        server.apeluriRpc.find((a) => a.nume === "hr_write_sensitive")?.argumente,
-      ).toMatchObject({
+    expect(server.apeluriPe("employee_sensitive_data")).toHaveLength(0);
+    expect(server.apeluriRpc.find((a) => a.nume === "hr_write_sensitive")?.argumente).toMatchObject(
+      {
         p_employee: ID_2,
         p_cnp_ciphertext: cnpProtejat.ciphertext,
         p_cnp_last4: "0109",
-      });
-      expect(r).toMatchObject({ ok: true, data: { reusite: 1 } });
-    },
-  );
+      },
+    );
+    expect(r).toMatchObject({ ok: true, data: { reusite: 1 } });
+  });
 
   it("previzualizarea a expirat (lotul lipsește): CONFLICT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });

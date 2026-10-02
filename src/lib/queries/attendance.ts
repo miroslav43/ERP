@@ -712,9 +712,13 @@ export async function saptamaniDeAprobat(
 
   const idAngajati = [...new Set(submisii.map((s) => s.employee_id))];
   const [angajatiRes, ziRes] = await Promise.all([
+    // Filtrul pe organizație e explicit și aici, ca pe orice citire: id-urile
+    // vin din submisiile firmei, dar un membru în două firme nu trebuie apărat
+    // doar de proveniența lor.
     db
       .from("employees")
       .select("id, full_name, marca")
+      .eq("organization_id", organizationId)
       .in("id", idAngajati.length === 0 ? [""] : idAngajati)
       .returns<{ id: string; full_name: string; marca: string }[]>(),
     db
@@ -722,6 +726,7 @@ export async function saptamaniDeAprobat(
       .select(
         "submission_id, data, tip_prezenta, ora_inceput, ora_sfarsit, ore_planificate, observatii",
       )
+      .eq("organization_id", organizationId)
       .in("submission_id", idSubmisii)
       .order("data", { ascending: true })
       .returns<(ZiSaptamanaPontaj & { submission_id: string })[]>(),
@@ -1114,7 +1119,10 @@ export async function pontajDeAprobat(organizationId: string): Promise<PontajDeA
     .neq("status", "blocata")
     .returns<{ id: string; an: number; luna: number }[]>();
   if (eroarePerioade !== null) throw eroarePerioade;
-  if (perioade === null || perioade.length === 0) return null;
+  // NU `return null` aici: fișele săptămânale nu țin de perioade (0041 nu
+  // atinge `attendance_periods`), deci o firmă fără nicio lună neblocată poate
+  // avea totuși fișe trimise. Panoul nu le arăta, deși lista de aprobare da.
+  const listaPerioade = perioade ?? [];
 
   const { data: zileNeaprobate, error: eroareZile } = await db
     .from("attendance_entries")
@@ -1132,7 +1140,7 @@ export async function pontajDeAprobat(organizationId: string): Promise<PontajDeA
     .is("deleted_at", null)
     .in(
       "period_id",
-      perioade.map((p) => p.id),
+      listaPerioade.map((p) => p.id),
     )
     .returns<{ period_id: string }[]>();
   if (eroareZile !== null) throw eroareZile;
@@ -1162,7 +1170,7 @@ export async function pontajDeAprobat(organizationId: string): Promise<PontajDeA
   for (const z of zileNeaprobate ?? []) {
     pePerioada.set(z.period_id, (pePerioada.get(z.period_id) ?? 0) + 1);
   }
-  const luni: readonly LunaCuRestante[] = perioade
+  const luni: readonly LunaCuRestante[] = listaPerioade
     .filter((p) => pePerioada.has(p.id))
     .map((p) => ({ an: p.an, luna: p.luna, zile: pePerioada.get(p.id) ?? 0 }))
     .toSorted((a, b) => a.an - b.an || a.luna - b.luna);

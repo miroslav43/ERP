@@ -157,22 +157,19 @@ describe("sincronizeazaZileleDeConcediu", () => {
   // UPDATE-ul nu are `.select()`: o zi aprobată între timp, refuzată tăcut de
   // `USING` (zero rânduri, fără eroare), se numără totuși „actualizată”, iar
   // ecranul raportează o sincronizare care nu s-a produs (capcana 17).
-  it.fails(
-    "DEFECT: UPDATE-ul fără `.select()` numără drept actualizată o zi refuzată tăcut",
-    async () => {
-      const fals = clientFals();
-      fals.raspunde("attendance_entries", "select", {
-        data: [{ id: "z1", employee_id: ID_3, data: "2026-07-14", sursa: "sincronizare_concedii" }],
-      });
-      fals.raspunde("attendance_entries", "update", { data: null });
-      // Forma cerută după reparație: sincronizarea se încheie normal și NU
-      // numără ziua refuzată. O reparație care aruncă pe zero rânduri ar opri
-      // tot lotul pentru o singură zi aprobată — nu e cea așteptată aici.
-      await expect(
-        sincronizeazaZileleDeConcediu(fals.client, ORG_ID, [zi("2026-07-14")]),
-      ).resolves.toMatchObject({ actualizate: 0 });
-      const [update] = fals.apeluriPe("attendance_entries", "update");
-      expect(update?.selectDupaScriere).toBeDefined();
-    },
-  );
+  it("o zi refuzată tăcut de USING (zero rânduri) nu se numără actualizată", async () => {
+    const fals = clientFals();
+    fals.raspunde("attendance_entries", "select", {
+      data: [{ id: "z1", employee_id: ID_3, data: "2026-07-14", sursa: "sincronizare_concedii" }],
+    });
+    fals.raspunde("attendance_entries", "update", { data: null });
+    // Forma cerută după reparație: sincronizarea se încheie normal și NU
+    // numără ziua refuzată. O reparație care aruncă pe zero rânduri ar opri
+    // tot lotul pentru o singură zi aprobată — nu e cea așteptată aici.
+    await expect(
+      sincronizeazaZileleDeConcediu(fals.client, ORG_ID, [zi("2026-07-14")]),
+    ).resolves.toMatchObject({ actualizate: 0 });
+    const [update] = fals.apeluriPe("attendance_entries", "update");
+    expect(update?.selectDupaScriere).toBeDefined();
+  });
 });

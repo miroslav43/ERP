@@ -639,6 +639,11 @@ export async function arboreleManagerial(
     }));
   }
 
+  // `team` fără fișă proprie: nu există echipă. RLS ar întoarce oricum zero
+  // rânduri (`manager_path @> array[NULL]` e fals), dar interogarea pleca pe
+  // TOATĂ organizația și se baza doar pe politică. Ca la `listeazaAngajati`.
+  if (scope === "team" && propriaFisaId === null) return [];
+
   let interogare = db
     .from("employees")
     .select(COLOANE_NOD_MANAGERIAL)

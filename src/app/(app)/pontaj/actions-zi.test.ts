@@ -430,23 +430,20 @@ describe("salveazaZiPontaj — contractul suspendat pentru absențe", () => {
   // interval (actions.ts:274 vs :312). Un angajat cu contract suspendat care
   // trimite `ore_lucrate: 0` cu interval 08:00–16:30 sare de verificare, iar
   // serverul scrie apoi 8,5 ore pe contractul suspendat.
-  it.fails(
-    "DEFECT: scope `own` cu ore_lucrate=0 și interval ocolește verificarea suspendării",
-    async () => {
-      const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
-      pregatesteDrumul(server, admin);
-      server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });
-      colaboratori.suspendareaDinAbsente.mockResolvedValue(SUSPENDARE);
+  it("scope `own`: suspendarea se verifică pe orele rederivate din interval, nu pe cele declarate", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    pregatesteDrumul(server, admin);
+    server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });
+    colaboratori.suspendareaDinAbsente.mockResolvedValue(SUSPENDARE);
 
-      const r = await salveazaZiPontaj({ ...ZI, ore_lucrate: 0, ore_suplimentare: 0 });
+    const r = await salveazaZiPontaj({ ...ZI, ore_lucrate: 0, ore_suplimentare: 0 });
 
-      expect(r).toMatchObject({
-        ok: true,
-        data: { id: null, conflictSuspendare: { suspendareId: ID_1 } },
-      });
-      expect(server.apeluriPe("attendance_entries", "insert")).toHaveLength(0);
-    },
-  );
+    expect(r).toMatchObject({
+      ok: true,
+      data: { id: null, conflictSuspendare: { suspendareId: ID_1 } },
+    });
+    expect(server.apeluriPe("attendance_entries", "insert")).toHaveLength(0);
+  });
 });
 
 describe("stergeZiPontaj", () => {

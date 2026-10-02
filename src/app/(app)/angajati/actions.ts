@@ -1064,7 +1064,14 @@ export const stergeAngajat = createAction({
       .is("deleted_at", null)
       .select("id")
       .maybeSingle();
-    if (error !== null) throw businessRule(error.message.slice(0, 300));
+    if (error !== null) {
+      // Doar mesajele triggerelor de regulă (P0001) sunt scrise pentru
+      // utilizator; restul trece prin `mapPostgrestError` din `createAction`
+      // (cod + mesaj fix). Altfel textul brut al bazei — tabele, politici, în
+      // engleză — ajungea pe ecran ca CONFLICT.
+      if (error.code === "P0001") throw businessRule(error.message.slice(0, 300));
+      throw error;
+    }
 
     if (stearsa === null) {
       /*

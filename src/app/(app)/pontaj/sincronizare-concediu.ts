@@ -100,7 +100,7 @@ export async function sincronizeazaZileleDeConcediu(
       continue;
     }
 
-    const { error } = await db
+    const { data: actualizata, error } = await db
       .from("attendance_entries")
       .update({
         tip_zi: zi.tip_zi,
@@ -110,8 +110,14 @@ export async function sincronizeazaZileleDeConcediu(
         leave_request_id: zi.leave_request_id,
       })
       .eq("id", existenta.id)
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) traduEroare(error);
+    // Zero rânduri, fără eroare: ziua a fost aprobată între timp, iar
+    // `attendance_entries_update` (0013:795) o refuză celui fără
+    // `attendance:approve`. Nu s-a actualizat nimic, deci nu se numără.
+    if (actualizata === null) continue;
     actualizate += 1;
   }
 

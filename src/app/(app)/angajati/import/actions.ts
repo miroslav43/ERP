@@ -277,9 +277,11 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
     .single();
 
   if (inserare.error !== null || inserare.data === null) {
+    // `marca`, nu `angajat.marca`: la marca atribuită de contor, cea din fișier
+    // e `undefined`, iar mesajul ieșea „marca „undefined””.
     return inserare.error?.code === "23505"
-      ? `Există deja un angajat cu marca „${angajat.marca}".`
-      : (inserare.error?.message ?? "Fișa nu a putut fi creată.");
+      ? `Există deja un angajat cu marca „${marca}".`
+      : mesajPeRand(inserare.error, "Fișa nu a putut fi creată.");
   }
   const employeeId = inserare.data.id;
 
@@ -336,11 +338,23 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
       return anuleaza(
         contract.error.code === "23505"
           ? `Numărul de contract „${angajat.numar_contract}" este deja folosit.`
-          : contract.error.message,
+          : mesajPeRand(contract.error, "Contractul nu a putut fi creat."),
       );
     }
   }
   return null;
+}
+
+/**
+ * Mesajul unui rând eșuat. Doar P0001 (triggerele de regulă, scrise în română
+ * pentru utilizator) trece ca atare; restul e text tehnic al bazei — nume de
+ * tabele și constrângeri, în engleză — și rămâne pe server.
+ */
+function mesajPeRand(
+  error: { readonly code: string; readonly message: string } | null | undefined,
+  implicit: string,
+): string {
+  return error?.code === "P0001" ? error.message.slice(0, 300) : implicit;
 }
 
 async function salveazaDateSensibile(
@@ -351,35 +365,41 @@ async function salveazaDateSensibile(
   // Valorile sosesc DEJA criptate, din pasul de previzualizare. Aici nu se mai
   // face criptare: dacă am recripta, ar însemna că textul clar a călătorit până
   // aici — adică prin fișierul din Storage, exact ce am eliminat.
-  const { error } = await ctx.supabase.from("employee_sensitive_data").insert({
-    employee_id: employeeId,
-    organization_id: ctx.tenant.organizationId,
+  //
+  // NU un INSERT direct: 0005/0010/0016 au revocat orice grant `authenticated`
+  // pe `employee_sensitive_data` (42501 garantat — orice rând cu CNP sau IBAN
+  // cădea, iar fișa se compensa). Scrierea trece prin RPC-ul SECURITY DEFINER,
+  // ca `salveazaDateSensibile` din `../actions.ts`.
+  const { error } = await ctx.supabase.rpc("hr_write_sensitive", {
+    p_employee: employeeId,
     ...(angajat.cnpProtejat === undefined
       ? {}
       : {
-          cnp_ciphertext: angajat.cnpProtejat.ciphertext,
-          cnp_iv: angajat.cnpProtejat.iv,
-          cnp_tag: angajat.cnpProtejat.tag,
-          cnp_key_version: angajat.cnpProtejat.keyVersion,
-          cnp_last4: angajat.cnpProtejat.last4,
-          cnp_hash: angajat.cnpProtejat.hash,
+          p_cnp_ciphertext: angajat.cnpProtejat.ciphertext,
+          p_cnp_iv: angajat.cnpProtejat.iv,
+          p_cnp_tag: angajat.cnpProtejat.tag,
+          p_cnp_key_version: angajat.cnpProtejat.keyVersion,
+          p_cnp_last4: angajat.cnpProtejat.last4,
+          p_cnp_hash: angajat.cnpProtejat.hash,
         }),
     ...(angajat.ibanProtejat === undefined
       ? {}
       : {
-          iban_ciphertext: angajat.ibanProtejat.ciphertext,
-          iban_iv: angajat.ibanProtejat.iv,
-          iban_tag: angajat.ibanProtejat.tag,
-          iban_key_version: angajat.ibanProtejat.keyVersion,
-          iban_last4: angajat.ibanProtejat.last4,
-          iban_hash: angajat.ibanProtejat.hash,
+          p_iban_ciphertext: angajat.ibanProtejat.ciphertext,
+          p_iban_iv: angajat.ibanProtejat.iv,
+          p_iban_tag: angajat.ibanProtejat.tag,
+          p_iban_key_version: angajat.ibanProtejat.keyVersion,
+          p_iban_last4: angajat.ibanProtejat.last4,
+          p_iban_hash: angajat.ibanProtejat.hash,
         }),
-    ...(angajat.banca === undefined ? {} : { banca: angajat.banca }),
+    ...(angajat.banca === undefined ? {} : { p_banca: angajat.banca }),
   });
   if (error === null) return null;
-  return error.code === "23505"
-    ? "CNP-ul există deja la un alt angajat din organizație."
-    : error.message;
+  if (error.code === "23505") return "CNP-ul există deja la un alt angajat din organizație.";
+  // P0001 din RPC e scris pentru utilizator, în română; restul e text tehnic
+  // al bazei și nu se arată pe rând.
+  if (error.code === "P0001") return error.message.slice(0, 300);
+  return "Datele sensibile (CNP, IBAN) nu au putut fi salvate. Reîncercați importul.";
 }
 
 export const aplicaImportAngajati = createAction({

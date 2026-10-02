@@ -23,6 +23,12 @@ import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/erro
 export function traduEroare(error: unknown): never {
   if (isPostgrestError(error)) {
     if (error.code === "23505") {
+      // `courses_denumire_uk` (0075:91) e un index separat de cel pe cod: fără
+      // ramura asta omul schimba codul și primea aceeași eroare.
+      if (error.message.includes("courses_denumire_uk")) {
+        const mesaj = "Există deja un curs cu această denumire. Alegeți alta.";
+        throw invalidInput(mesaj, { denumire: [mesaj] });
+      }
       /*
        * `invalidInput`, nu `businessRule`: al doilea n-are `fieldErrors`, deci
        * mesajul ateriza ca un Callout în CAPUL formularului, câmpul „Cod" nu

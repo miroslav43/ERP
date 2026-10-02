@@ -29,7 +29,16 @@ export const salveazaSetariPontaj = createAction({
       .insert({ organization_id: ctx.tenant.organizationId, ...input })
       .select("id")
       .single<{ id: string }>();
-    if (error !== null) traduEroare(error);
+    if (error !== null) {
+      // `attendance_settings_valabilitate_uq` (0013:54): există deja o versiune
+      // cu aceeași `valabil_de_la`. Nu e o zi de pontaj.
+      if (error.code === "23505") {
+        throw businessRule(
+          `Există deja o versiune a setărilor de pontaj valabilă de la ${input.valabil_de_la}. Alegeți altă dată de început.`,
+        );
+      }
+      traduEroare(error);
+    }
     return { id: data.id };
   },
 });

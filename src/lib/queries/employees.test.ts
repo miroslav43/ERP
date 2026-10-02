@@ -437,15 +437,12 @@ describe("arboreleManagerial", () => {
     expect(db.apeluri).toHaveLength(2);
   });
 
-  it.fails(
-    "DEFECT: scope `team` fără fișă proprie interoghează TOATĂ organizația (doar RLS mai filtrează), în loc de mulțimea vidă",
-    async () => {
-      db.raspunde("employees", "select", { data: [nod(ID_1, null)] });
-      const r = await arboreleManagerial(ORG_ID, "team", null);
-      expect(r).toEqual([]);
-      expect(db.apeluri).toHaveLength(0);
-    },
-  );
+  it("scope `team` fără fișă proprie întoarce mulțimea vidă fără să interogheze organizația", async () => {
+    db.raspunde("employees", "select", { data: [nod(ID_1, null)] });
+    const r = await arboreleManagerial(ORG_ID, "team", null);
+    expect(r).toEqual([]);
+    expect(db.apeluri).toHaveLength(0);
+  });
 });
 
 describe("citirile simple ale fișei", () => {

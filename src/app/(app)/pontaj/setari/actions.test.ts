@@ -111,16 +111,13 @@ describe("salveazaSetariPontaj", () => {
   // cu aceeași `valabil_de_la`. `traduEroare` al pontajului traduce ORICE 23505
   // în mesajul zilei de pontaj, deci omul de pe ecranul de setări citește
   // despre „o zi de pontaj pentru acest angajat”.
-  it.fails(
-    "DEFECT: versiunea duplicată primește mesajul zilei de pontaj, nu al setărilor",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      server.raspunde("attendance_settings", "insert", { error: eroarePostgrest("23505") });
-      const r = await salveazaSetariPontaj(SETARI_VALIDE);
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-      if (!r.ok) expect(r.error.message).not.toMatch(/zi de pontaj|angajat/u);
-    },
-  );
+  it("versiunea duplicată (23505) ⇒ CONFLICT cu mesajul setărilor, nu al zilei de pontaj", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("attendance_settings", "insert", { error: eroarePostgrest("23505") });
+    const r = await salveazaSetariPontaj(SETARI_VALIDE);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (!r.ok) expect(r.error.message).not.toMatch(/zi de pontaj|angajat/u);
+  });
 });
 
 describe("salveazaPontareaRapida", () => {

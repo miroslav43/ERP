@@ -133,7 +133,14 @@ export const marcheazaAnuntCitit = createAction({
       employee_id: propriaFisaId,
       user_id: ctx.user.id,
     });
-    if (error !== null) throw error;
+    if (error !== null) {
+      // Cursă între două file (sau efectul rulat de două ori): între citirea de
+      // mai sus și INSERT nu e niciun zăvor, iar `announcement_reads_uq` refuză
+      // a doua confirmare. Efectul dorit există deja — reușită, nu eroare;
+      // altfel ecranul spunea „anunțul rămâne necitit”, fals.
+      if (error.code === "23505") return null;
+      throw error;
+    }
     return null;
   },
 });

@@ -340,22 +340,19 @@ describe("stergeAngajat", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
-  it.fails(
-    "DEFECT: textul brut al bazei (42501) ajunge la utilizator la eroarea UPDATE-ului de ștergere",
-    async () => {
-      const ctx = configureazaActiunea({ permisiuni: PERMIS });
-      programeaza(ctx, { contracte: 0, subordonati: 0 });
-      ctx.server.raspunde("employees", "update", {
-        error: eroarePostgrest(
-          "42501",
-          'new row violates row-level security policy for table "employees"',
-        ),
-      });
-      const r = await stergeAngajat({ id: ID_1 });
-      expect(r.ok).toBe(false);
-      if (r.ok) return;
-      // Politica din `errors.ts`: mesajele bazei nu ies din server.
-      expect(r.error.message).not.toContain("row-level security");
-    },
-  );
+  it("textul brut al bazei (42501) NU ajunge la utilizator la eroarea UPDATE-ului de ștergere", async () => {
+    const ctx = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(ctx, { contracte: 0, subordonati: 0 });
+    ctx.server.raspunde("employees", "update", {
+      error: eroarePostgrest(
+        "42501",
+        'new row violates row-level security policy for table "employees"',
+      ),
+    });
+    const r = await stergeAngajat({ id: ID_1 });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    // Politica din `errors.ts`: mesajele bazei nu ies din server.
+    expect(r.error.message).not.toContain("row-level security");
+  });
 });

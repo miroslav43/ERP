@@ -63,11 +63,13 @@ export async function listeazaAnunturi(
     .is("deleted_at", null)
     .order("fixat", { ascending: false })
     .order("publicat_la", { ascending: false, nullsFirst: true })
-    .limit(limita)
+    // Un rând în plus: singurul mod de a deosebi „exact `limita`” de „mai
+    // multe”. Cu `>= limita`, exact 200 de anunțuri afișau „mai sunt și altele”.
+    .limit(limita + 1)
     .returns<RandAnuntCuExtras[]>();
   if (error !== null) throw error;
-  const randuri = data ?? [];
-  return { randuri, trunchiat: randuri.length >= limita };
+  const toate = data ?? [];
+  return { randuri: toate.slice(0, limita), trunchiat: toate.length > limita };
 }
 
 /**

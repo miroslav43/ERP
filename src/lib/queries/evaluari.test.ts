@@ -263,9 +263,9 @@ describe("listeazaSabloane", () => {
     server.raspunde("evaluation_templates", "select", {
       data: [sablon(ID_2, { organization_id: null })],
     });
-    server.raspunde("employee_evaluations", "select", {
-      data: [{ template_id: ID_1 }, { template_id: ID_1 }, { template_id: ID_2 }],
-    });
+    // O numărătoare `count` per șablon, în ordinea listei.
+    server.raspunde("employee_evaluations", "select", { count: 2 });
+    server.raspunde("employee_evaluations", "select", { count: 1 });
 
     const r = await listeazaSabloane(ORG_ID);
 
@@ -284,9 +284,15 @@ describe("listeazaSabloane", () => {
     for (const apel of [aleFirmei, alePlatformei]) {
       expect(apel?.filtre.some((f) => f.metoda === "or")).toBe(false);
     }
-    const [folosire] = server.apeluriPe("employee_evaluations");
-    expect(areFiltru(folosire, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(areFiltru(folosire, "is", "deleted_at", null)).toBe(true);
+    const folosire = server.apeluriPe("employee_evaluations");
+    expect(
+      folosire.map((a) => a.filtre.find((f) => f.argumente[0] === "template_id")?.argumente[1]),
+    ).toEqual([ID_1, ID_2]);
+    for (const apel of folosire) {
+      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+      expect(apel.optiuni).toEqual({ count: "exact", head: true });
+    }
   });
 
   it("fără arhivate, la cerere: șabloanele inactive dispar; un șablon nefolosit are zero evaluări", async () => {
@@ -295,7 +301,8 @@ describe("listeazaSabloane", () => {
       data: [sablon(ID_1), sablon(ID_3, { activ: false })],
     });
     server.raspunde("evaluation_templates", "select", { data: [] });
-    server.raspunde("employee_evaluations", "select", { data: [] });
+    // Doar șablonul activ rămâne în listă, deci doar el se numără.
+    server.raspunde("employee_evaluations", "select", { count: 0 });
 
     const r = await listeazaSabloane(ORG_ID, { includeArhivate: false });
 
@@ -303,15 +310,14 @@ describe("listeazaSabloane", () => {
     expect(r[0]?.nrEvaluari).toBe(0);
   });
 
-  // evaluari.ts:340-345 — utilizarea se numără citind TOATE rândurile
-  // `employee_evaluations` ale firmei, fără limită și fără `count`. Peste
-  // `max_rows = 1000`, PostgREST taie tăcut, iar `nrEvaluari` scade fără nicio
-  // eroare. Remedierea: un `count` per șablon sau o agregare în bază.
-  it.fails("DEFECT: numărarea utilizării nu e o citire nelimitată de rânduri", async () => {
+  // Utilizarea se număra citind TOATE rândurile `employee_evaluations` ale
+  // firmei, fără limită și fără `count`: peste `max_rows = 1000`, PostgREST tăia
+  // tăcut, iar `nrEvaluari` scădea fără nicio eroare. Acum: `count` per șablon.
+  it("numărarea utilizării nu e o citire nelimitată de rânduri", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("evaluation_templates", "select", { data: [sablon(ID_1)] });
     server.raspunde("evaluation_templates", "select", { data: [] });
-    server.raspunde("employee_evaluations", "select", { data: [{ template_id: ID_1 }] });
+    server.raspunde("employee_evaluations", "select", { count: 1500 });
 
     await listeazaSabloane(ORG_ID);
 
@@ -367,7 +373,8 @@ describe("indicatoriEvaluari", () => {
     expect(areFiltru(anul, "gte", "data_evaluarii", "2026-01-01")).toBe(true);
     expect(areFiltru(anul, "lte", "data_evaluarii", "2026-12-31")).toBe(true);
     expect(areFiltru(esantion, "eq", "status", "finalizat")).toBe(true);
-    expect(esantion?.filtre).toContainEqual({ metoda: "limit", argumente: [200] });
+    // 200 + 1: rândul în plus deosebește „exact 200” de „mai multe”.
+    expect(esantion?.filtre).toContainEqual({ metoda: "limit", argumente: [201] });
     // Eșantionul e „cele mai recente 200”, cu departajare stabilă pe id.
     expect(esantion?.filtre).toContainEqual({
       metoda: "order",
@@ -405,12 +412,9 @@ describe("indicatoriEvaluari", () => {
     });
   });
 
-  // evaluari.ts:458 — `esantion.length === 200` nu deosebește „exact 200 de
-  // finalizate” de „mai multe decât 200”: cu `.limit(200)`, baza întoarce 200
-  // în ambele cazuri. Ecranul anunță atunci o medie pe eșantion, deși media e
-  // chiar pe toată mulțimea. Remedierea: `.limit(ESANTION_MEDIE + 1)` și
-  // `length > ESANTION_MEDIE`, sau compararea cu un `count` pe finalizate.
-  it.fails("DEFECT: exact 200 de evaluări finalizate nu e un eșantion trunchiat", async () => {
+  // `esantion.length === 200` nu deosebea „exact 200 de finalizate” de „mai
+  // multe decât 200”. Acum se cere un rând în plus (`limit(201)`).
+  it("exact 200 de evaluări finalizate nu e un eșantion trunchiat", async () => {
     const { server } = configureazaActiunea();
     programeaza(
       server,
@@ -419,6 +423,17 @@ describe("indicatoriEvaluari", () => {
     const r = await indicatoriEvaluari(ORG_ID, 2026);
     expect(r.mediaProcent).toBe(70);
     expect(r.esantionTrunchiat).toBe(false);
+  });
+
+  it("201 de evaluări finalizate: eșantion trunchiat, media pe primele 200", async () => {
+    const { server } = configureazaActiunea();
+    programeaza(server, [
+      ...Array.from({ length: 200 }, () => rand(ID_1)), // 70 %
+      rand(ID_2, { raspunsuri: [{ criteriu_cod: "calitate", scor: 5 }] }), // 100 %, tăiat
+    ]);
+    const r = await indicatoriEvaluari(ORG_ID, 2026);
+    expect(r.esantionTrunchiat).toBe(true);
+    expect(r.mediaProcent).toBe(70);
   });
 
   it("o eroare pe oricare interogare se propagă", async () => {

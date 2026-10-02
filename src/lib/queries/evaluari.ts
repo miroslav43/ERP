@@ -302,8 +302,9 @@ export interface RandSablon {
  * ── DE CE NUMĂRĂTOAREA DE EVALUĂRI E SEPARATĂ ─────────────────────────────
  * Un embed agregat (`evaluations(count)`) ar fi trecut prin RLS-ul evaluărilor,
  * deci un manager ar fi văzut „folosit în 2 evaluări" acolo unde firma are 40 —
- * și ar fi editat un șablon crezând că nu atinge pe nimeni. Numărătoarea se
- * face o singură dată, pe toate evaluările vizibile, și se grupează în TypeScript.
+ * și ar fi editat un șablon crezând că nu atinge pe nimeni. Se numără cu
+ * `count` + `head: true`, câte o cerere pe șablon (firma are câteva, nu sute):
+ * citite rând cu rând, peste `max_rows = 1000` numărătoarea scădea tăcut.
  */
 export async function listeazaSabloane(
   organizationId: string,
@@ -322,7 +323,7 @@ export async function listeazaSabloane(
     readonly organization_id: string | null;
   }
 
-  const [aleFirmei, alePlatformei, folosire] = await Promise.all([
+  const [aleFirmei, alePlatformei] = await Promise.all([
     db
       .from("evaluation_templates")
       .select(coloane)
@@ -337,37 +338,43 @@ export async function listeazaSabloane(
       .is("deleted_at", null)
       .order("denumire")
       .returns<SablonBrut[]>(),
-    db
-      .from("employee_evaluations")
-      .select("template_id")
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .returns<{ template_id: string }[]>(),
   ]);
   if (aleFirmei.error !== null) throw aleFirmei.error;
   if (alePlatformei.error !== null) throw alePlatformei.error;
-  if (folosire.error !== null) throw folosire.error;
-
-  const peSablon = new Map<string, number>();
-  for (const e of folosire.data ?? []) {
-    peSablon.set(e.template_id, (peSablon.get(e.template_id) ?? 0) + 1);
-  }
 
   // Șabloanele de platformă la urmă: ale firmei sunt cele pe care omul le
   // folosește zilnic, iar cel generic e punctul de plecare, nu destinația.
-  const brute = [...(aleFirmei.data ?? []), ...(alePlatformei.data ?? [])];
-  return brute
-    .filter((s) => optiuni.includeArhivate || s.activ)
-    .map((s) => ({
-      id: s.id,
-      denumire: s.denumire,
-      descriere: s.descriere,
-      criterii: normalizeazaCriterii(s.criterii),
-      versiune: s.versiune,
-      activ: s.activ,
-      dePlatforma: s.organization_id === null,
-      nrEvaluari: peSablon.get(s.id) ?? 0,
-    }));
+  const brute = [...(aleFirmei.data ?? []), ...(alePlatformei.data ?? [])].filter(
+    (s) => optiuni.includeArhivate || s.activ,
+  );
+
+  const contoare = await Promise.all(
+    brute.map((s) =>
+      db
+        .from("employee_evaluations")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("template_id", s.id)
+        .is("deleted_at", null),
+    ),
+  );
+  const peSablon = new Map<string, number>();
+  for (const [i, r] of contoare.entries()) {
+    if (r.error !== null) throw r.error;
+    const s = brute[i];
+    if (s !== undefined) peSablon.set(s.id, r.count ?? 0);
+  }
+
+  return brute.map((s) => ({
+    id: s.id,
+    denumire: s.denumire,
+    descriere: s.descriere,
+    criterii: normalizeazaCriterii(s.criterii),
+    versiune: s.versiune,
+    activ: s.activ,
+    dePlatforma: s.organization_id === null,
+    nrEvaluari: peSablon.get(s.id) ?? 0,
+  }));
 }
 
 // ── Indicatori ────────────────────────────────────────────────────────────────
@@ -428,7 +435,8 @@ export async function indicatoriEvaluari(
       .is("deleted_at", null)
       .order("data_evaluarii", { ascending: false })
       .order("id", { ascending: false })
-      .limit(ESANTION_MEDIE)
+      // Un rând în plus, ca „exact 200” să nu se raporteze drept eșantion tăiat.
+      .limit(ESANTION_MEDIE + 1)
       .returns<{ employee_id: string; criterii_sablon: unknown; raspunsuri: unknown }[]>(),
     db
       .from("employees")
@@ -441,7 +449,8 @@ export async function indicatoriEvaluari(
     if (r.error !== null) throw r.error;
   }
 
-  const esantion = finalizate.data ?? [];
+  const citite = finalizate.data ?? [];
+  const esantion = citite.slice(0, ESANTION_MEDIE);
   return {
     total: total.count ?? 0,
     ciorne: ciorne.count ?? 0,
@@ -455,7 +464,7 @@ export async function indicatoriEvaluari(
             .procent,
       ),
     ),
-    esantionTrunchiat: esantion.length === ESANTION_MEDIE,
+    esantionTrunchiat: citite.length > ESANTION_MEDIE,
   };
 }
 

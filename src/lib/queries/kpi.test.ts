@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase/server", async () =>
 
 import { configureazaActiunea, ID_1, ID_2, ID_3, ORG_ID } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
-import { decodificaCursor } from "./cursor";
+import { codificaCursor, decodificaCursor } from "./cursor";
 import {
   angajatiPentruKpi,
   citesteLunaKpi,
@@ -360,23 +360,56 @@ describe("listeazaLuniKpi", () => {
     expect(decodificaCursor(r.urmatorulCursor ?? "")).toEqual({ valoare: "87.5", id: ID_1 });
   });
 
-  it.fails(
-    "DEFECT: sortat după scor, o pagină care se termină pe o lună fără scor trebuie să permită „mai departe”",
-    async () => {
-      // `scor_procent` e NULL pe orice lună abia deschisă. Cu `nullsFirst:
-      // false` ele vin la coadă, iar `valoareCursor === null` anulează cursorul:
-      // restul lunilor fără scor nu mai pot fi aduse niciodată.
-      const { server } = configureazaActiunea();
-      server.raspunde("kpi_evaluari_lunare", "select", {
-        data: [randLista(ID_1, { scor_procent: null }), randLista(ID_2, { scor_procent: null })],
-      });
-      server.raspunde("kpi_evaluari_lunare", "select", { count: 2 });
+  it("sortat după scor, o pagină care se termină pe o lună fără scor permite „mai departe”", async () => {
+    // `scor_procent` e NULL pe orice lună abia deschisă. Cu `nullsFirst:
+    // false` ele vin la coadă; `valoareCursor === null` anula cursorul, iar
+    // restul lunilor fără scor nu mai puteau fi aduse niciodată.
+    const { server } = configureazaActiunea();
+    server.raspunde("kpi_evaluari_lunare", "select", {
+      data: [randLista(ID_1, { scor_procent: null }), randLista(ID_2, { scor_procent: null })],
+    });
+    server.raspunde("kpi_evaluari_lunare", "select", { count: 2 });
 
-      const r = await listeazaLuniKpi(ORG_ID, { ...FILTRE, sort: "-scor", limita: 1 });
+    const r = await listeazaLuniKpi(ORG_ID, { ...FILTRE, sort: "-scor", limita: 1 });
 
-      expect(r.urmatorulCursor).not.toBeNull();
-    },
-  );
+    expect(r.urmatorulCursor).not.toBeNull();
+    expect(decodificaCursor(r.urmatorulCursor ?? "")).toEqual({ valoare: "", id: ID_1 });
+  });
+
+  it("pagina a doua după un scor: cere și lunile fără scor (NULL nu potrivește `lt`)", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("kpi_evaluari_lunare", "select", { data: [] });
+    server.raspunde("kpi_evaluari_lunare", "select", { count: 0 });
+
+    await listeazaLuniKpi(ORG_ID, {
+      ...FILTRE,
+      sort: "-scor",
+      cursor: codificaCursor({ valoare: "87.5", id: ID_1 }),
+    });
+
+    const [pagina] = server.apeluriPe("kpi_evaluari_lunare");
+    const sau = pagina?.filtre.find((f) => f.metoda === "or")?.argumente[0];
+    expect(sau).toContain("scor_procent.lt.");
+    expect(sau).toMatch(/,scor_procent\.is\.null$/u);
+  });
+
+  it("pagina a doua după o lună fără scor: doar lunile fără scor, după id", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("kpi_evaluari_lunare", "select", { data: [] });
+    server.raspunde("kpi_evaluari_lunare", "select", { count: 0 });
+
+    await listeazaLuniKpi(ORG_ID, {
+      ...FILTRE,
+      sort: "-scor",
+      cursor: codificaCursor({ valoare: "", id: ID_1 }),
+    });
+
+    const [pagina] = server.apeluriPe("kpi_evaluari_lunare");
+    expect(pagina?.filtre).toContainEqual({
+      metoda: "or",
+      argumente: [`and(scor_procent.is.null,id.lt."${ID_1}")`],
+    });
+  });
 
   it("eroarea numărătorii se propagă", async () => {
     const { server } = configureazaActiunea();

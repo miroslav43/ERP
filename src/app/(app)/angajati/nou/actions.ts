@@ -394,7 +394,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     // predată pe jumătate, fără să se vadă unde s-a rupt.
     for (const itemId of inventory_item_ids) {
       try {
-        await predaObiect({
+        const predare = await predaObiect({
           item_id: itemId,
           employee_id: angajat.id,
           predat_la: null,
@@ -402,6 +402,10 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
           observatii: null,
           pv_document_path: null,
         });
+        // O acțiune `createAction` ÎNTOARCE refuzul (`ok: false`), nu-l aruncă:
+        // fără verificarea asta, try/catch-ul n-avea ce prinde, iar bunul
+        // rămânea nepredat fără avertismentul de mai jos.
+        if (!predare.ok) throw predare.error;
       } catch (eroare) {
         avertismente.push(
           "Un bun de inventar nu a putut fi predat. Predați-l manual din fișa angajatului — poate fi nevoie de dreptul „inventar: modificare”.",
@@ -417,7 +421,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
 
     if (examen_data !== null) {
       try {
-        await adaugaFisaAptitudine({
+        const fisaMedicala = await adaugaFisaAptitudine({
           employee_id: angajat.id,
           tip: examen_tip,
           data_examinarii: examen_data,
@@ -428,6 +432,8 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
           numar_fisa: examen_numar_fisa,
           cost: null,
         });
+        // `createAction` ÎNTOARCE refuzul, nu-l aruncă (vezi predarea bunurilor).
+        if (!fisaMedicala.ok) throw fisaMedicala.error;
       } catch (eroare) {
         avertismente.push(
           "Fișa de aptitudine (medicina muncii) nu a putut fi înregistrată. Adăugați-o din SSM → Medicina muncii.",
@@ -547,7 +553,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
 
     for (const autorizatie of autorizatii) {
       try {
-        await adaugaAutorizatieNominala({
+        const inregistrare = await adaugaAutorizatieNominala({
           employee_id: angajat.id,
           tip: autorizatie.tip,
           grupa: null,
@@ -558,6 +564,8 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
           suspendata_la: null,
           observatii: null,
         });
+        // `createAction` ÎNTOARCE refuzul, nu-l aruncă (vezi predarea bunurilor).
+        if (!inregistrare.ok) throw inregistrare.error;
       } catch (eroare) {
         avertismente.push(
           `Autorizația „${autorizatie.tip}" nu a putut fi înregistrată. Adăugați-o din SSM → Autorizații.`,

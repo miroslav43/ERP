@@ -415,34 +415,28 @@ describe("saptamaniDeAprobat", () => {
     expect(areFiltru(submisii, "eq", "status", "trimisa")).toBe(true);
   });
 
-  // attendance.ts:714-725 — `employees` și `attendance_week_submission_days`
-  // se citesc doar după id-uri, fără `.eq("organization_id")`, contrar
-  // convenției citirilor (filtru explicit pe organizație pe FIECARE interogare).
-  // Id-urile vin deja din sarcinile firmei, deci azi nu iese nimic străin; dar
-  // un utilizator membru în două firme rămâne apărat doar de proveniența lor.
-  it.fails(
-    "DEFECT: citirile secundare (angajați, zile) nu se mărginesc explicit la organizație",
-    async () => {
-      const { server } = configureazaActiunea();
-      server.raspunde("approval_tasks", "select", {
-        data: [{ id: "t1", entity_id: ID_1, termen_la: null, created_at: "c1" }],
-      });
-      server.raspunde("attendance_week_submissions", "select", {
-        data: [
-          { id: ID_1, employee_id: ANGAJAT, saptamana_start: "2026-07-13", status: "trimisa" },
-        ],
-      });
-      server.raspunde("employees", "select", { data: [] });
-      server.raspunde("attendance_week_submission_days", "select", { data: [] });
+  // `employees` și `attendance_week_submission_days` se citeau doar după
+  // id-uri, contrar convenției citirilor (filtru explicit pe organizație pe
+  // FIECARE interogare). Nu ieșea nimic străin, dar un membru în două firme
+  // rămânea apărat doar de proveniența id-urilor.
+  it("citirile secundare (angajați, zile) se mărginesc explicit la organizație", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("approval_tasks", "select", {
+      data: [{ id: "t1", entity_id: ID_1, termen_la: null, created_at: "c1" }],
+    });
+    server.raspunde("attendance_week_submissions", "select", {
+      data: [{ id: ID_1, employee_id: ANGAJAT, saptamana_start: "2026-07-13", status: "trimisa" }],
+    });
+    server.raspunde("employees", "select", { data: [] });
+    server.raspunde("attendance_week_submission_days", "select", { data: [] });
 
-      await saptamaniDeAprobat(ORG_ID, USER_ID);
+    await saptamaniDeAprobat(ORG_ID, USER_ID);
 
-      const [angajati] = server.apeluriPe("employees");
-      const [zile] = server.apeluriPe("attendance_week_submission_days");
-      expect(areFiltru(angajati, "eq", "organization_id", ORG_ID)).toBe(true);
-      expect(areFiltru(zile, "eq", "organization_id", ORG_ID)).toBe(true);
-    },
-  );
+    const [angajati] = server.apeluriPe("employees");
+    const [zile] = server.apeluriPe("attendance_week_submission_days");
+    expect(areFiltru(angajati, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(zile, "eq", "organization_id", ORG_ID)).toBe(true);
+  });
 });
 
 describe("afiseDePontare / coduriQrDePontare", () => {
@@ -577,11 +571,9 @@ describe("pontajDeAprobat — contorul care urmează lista", () => {
   // săptămânale nu creează perioade (0132 le naște doar la scrierea zilelor),
   // deci o firmă nouă — sau una cu toate lunile blocate — cu o fișă trimisă
   // primește `null`: panoul tace despre o aprobare care chiar așteaptă.
-  it.fails("DEFECT: fișele trimise se pierd când nu există nicio lună neblocată", async () => {
+  it("fișele trimise se numără și când nu există nicio lună neblocată", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("attendance_periods", "select", { data: [] });
-    // Programat ca reparația firească (fără `return null`, cu `.in("period_id",
-    // [])`) să nu pice din alt motiv: testul cade DOAR din cauza lui `null`.
     server.raspunde("attendance_entries", "select", { data: [] });
     server.raspunde("attendance_week_submissions", "select", { count: 1 });
     expect(await pontajDeAprobat(ORG_ID)).toMatchObject({ zile: 0, fise: 1 });

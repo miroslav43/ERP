@@ -631,62 +631,53 @@ describe("inroleazaAngajat", () => {
     );
   });
 
-  it.fails(
-    "DEFECT: autorizația refuzată (adaugaAutorizatieNominala întoarce `ok: false`, nu aruncă) nu produce avertismentul promis",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      programeazaInrolarea(server);
-      f.autorizatie.mockResolvedValue({ ok: false, error: { code: "INTERZIS", message: "x" } });
+  it("autorizația refuzată (adaugaAutorizatieNominala întoarce `ok: false`, nu aruncă) produce avertismentul promis", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    f.autorizatie.mockResolvedValue({ ok: false, error: { code: "INTERZIS", message: "x" } });
 
-      const r = await inroleazaAngajat({
-        ...INTRARE,
-        autorizatii: [{ tip: "ISCIR", numar: "A-1", emitent: "ISCIR", valabil_pana: "2028-01-01" }],
-      });
+    const r = await inroleazaAngajat({
+      ...INTRARE,
+      autorizatii: [{ tip: "ISCIR", numar: "A-1", emitent: "ISCIR", valabil_pana: "2028-01-01" }],
+    });
 
-      expect(f.autorizatie).toHaveBeenCalledTimes(1);
-      expect(r).toMatchObject({ ok: true });
-      if (!r.ok) return;
-      expect(r.data.avertismente).toEqual(
-        expect.arrayContaining([expect.stringContaining("Autorizația")]),
-      );
-    },
-  );
+    expect(f.autorizatie).toHaveBeenCalledTimes(1);
+    expect(r).toMatchObject({ ok: true });
+    if (!r.ok) return;
+    expect(r.data.avertismente).toEqual(
+      expect.arrayContaining([expect.stringContaining("Autorizația")]),
+    );
+  });
 
-  it.fails(
-    "DEFECT: bunul de inventar refuzat (predaObiect întoarce `ok: false`, nu aruncă) nu produce avertismentul promis",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      programeazaInrolarea(server);
-      f.predaObiect.mockResolvedValue({ ok: false, error: { code: "INTERZIS", message: "x" } });
+  it("bunul de inventar refuzat (predaObiect întoarce `ok: false`, nu aruncă) produce avertismentul promis", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    f.predaObiect.mockResolvedValue({ ok: false, error: { code: "INTERZIS", message: "x" } });
 
-      const r = await inroleazaAngajat({ ...INTRARE, inventory_item_ids: [ID_3] });
+    const r = await inroleazaAngajat({ ...INTRARE, inventory_item_ids: [ID_3] });
 
-      expect(f.predaObiect).toHaveBeenCalledTimes(1);
-      expect(r).toMatchObject({ ok: true });
-      if (!r.ok) return;
-      expect(r.data.avertismente).toEqual(
-        expect.arrayContaining([expect.stringContaining("bun de inventar")]),
-      );
-    },
-  );
+    expect(f.predaObiect).toHaveBeenCalledTimes(1);
+    expect(r).toMatchObject({ ok: true });
+    if (!r.ok) return;
+    expect(r.data.avertismente).toEqual(
+      expect.arrayContaining([expect.stringContaining("bun de inventar")]),
+    );
+  });
 
-  it.fails(
-    "DEFECT: fișa de aptitudine refuzată (adaugaFisaAptitudine întoarce `ok: false`) nu produce avertismentul promis",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      programeazaInrolarea(server);
-      f.fisaAptitudine.mockResolvedValue({ ok: false, error: { code: "INTERZIS", message: "x" } });
+  it("fișa de aptitudine refuzată (adaugaFisaAptitudine întoarce `ok: false`) produce avertismentul promis", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    f.fisaAptitudine.mockResolvedValue({ ok: false, error: { code: "INTERZIS", message: "x" } });
 
-      const r = await inroleazaAngajat({ ...INTRARE, examen_data: "2026-09-20" });
+    const r = await inroleazaAngajat({ ...INTRARE, examen_data: "2026-09-20" });
 
-      expect(f.fisaAptitudine).toHaveBeenCalledTimes(1);
-      expect(r).toMatchObject({ ok: true });
-      if (!r.ok) return;
-      expect(r.data.avertismente).toEqual(
-        expect.arrayContaining([expect.stringContaining("aptitudine")]),
-      );
-    },
-  );
+    expect(f.fisaAptitudine).toHaveBeenCalledTimes(1);
+    expect(r).toMatchObject({ ok: true });
+    if (!r.ok) return;
+    expect(r.data.avertismente).toEqual(
+      expect.arrayContaining([expect.stringContaining("aptitudine")]),
+    );
+  });
 });
 
 // ── Ciorna ───────────────────────────────────────────────────────────────────

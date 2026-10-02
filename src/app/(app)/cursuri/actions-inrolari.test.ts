@@ -613,38 +613,32 @@ describe("aplicaRegulile", () => {
     },
   );
 
-  it.fails(
-    "DEFECT: eroarea la citirea membrilor nu poate fi raportată ca „0 atribuiri”",
-    async () => {
-      // actions.ts:1039–1043 verifică `reguli.error` și `angajati.error`, dar
-      // nu și `membri.error` / `existente.error`. Cu membrii necitiți, o regulă
-      // pe rol nu prinde pe nimeni și acțiunea întoarce succes cu zero —
-      // omul crede că nu există cine să primească cursul.
-      const { server } = configureazaActiunea({ permisiuni: CREARE });
-      server.raspunde("organization_members", "select", { error: eroarePostgrest("57014") });
-      programeaza(server, [{ criteriu: "rol", rol: "manager" }], [{ id: ID_1, user_id: U1 }]);
+  it("eroarea la citirea membrilor nu e raportată ca „0 atribuiri”", async () => {
+    // actions.ts:1039–1043 verifică `reguli.error` și `angajati.error`, dar
+    // nu și `membri.error` / `existente.error`. Cu membrii necitiți, o regulă
+    // pe rol nu prinde pe nimeni și acțiunea întoarce succes cu zero —
+    // omul crede că nu există cine să primească cursul.
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("organization_members", "select", { error: eroarePostgrest("57014") });
+    programeaza(server, [{ criteriu: "rol", rol: "manager" }], [{ id: ID_1, user_id: U1 }]);
 
-      const r = await aplicaRegulile({ course_id: CURS });
+    const r = await aplicaRegulile({ course_id: CURS });
 
-      expect(r.ok).toBe(false);
-    },
-  );
+    expect(r.ok).toBe(false);
+  });
 
-  it.fails(
-    "DEFECT: eroarea la citirea înrolărilor existente nu poate duce la înrolări noi",
-    async () => {
-      // actions.ts:1039–1043 nu verifică nici `existente.error`. Cu înrolările
-      // necitite, setul `deja` e gol: acțiunea încearcă să înroleze din nou pe
-      // toată lumea și raportează succes în loc să spună că n-a putut citi.
-      const { server } = configureazaActiunea({ permisiuni: CREARE });
-      server.raspunde("course_enrollments", "select", { error: eroarePostgrest("57014") });
-      programeaza(server, [{ criteriu: "toti" }], [{ id: ID_1 }], [], [ID_1]);
-      server.raspunde("course_enrollments", "insert", {});
+  it("eroarea la citirea înrolărilor existente nu duce la înrolări noi", async () => {
+    // actions.ts:1039–1043 nu verifică nici `existente.error`. Cu înrolările
+    // necitite, setul `deja` e gol: acțiunea încearcă să înroleze din nou pe
+    // toată lumea și raportează succes în loc să spună că n-a putut citi.
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("course_enrollments", "select", { error: eroarePostgrest("57014") });
+    programeaza(server, [{ criteriu: "toti" }], [{ id: ID_1 }], [], [ID_1]);
+    server.raspunde("course_enrollments", "insert", {});
 
-      const r = await aplicaRegulile({ course_id: CURS });
+    const r = await aplicaRegulile({ course_id: CURS });
 
-      expect(r.ok).toBe(false);
-      expect(server.apeluriPe("course_enrollments", "insert")).toHaveLength(0);
-    },
-  );
+    expect(r.ok).toBe(false);
+    expect(server.apeluriPe("course_enrollments", "insert")).toHaveLength(0);
+  });
 });

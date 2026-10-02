@@ -296,23 +296,20 @@ describe("marcheazaAnuntCitit", () => {
     expect(server.apeluriPe("announcement_reads")).toHaveLength(0);
   });
 
-  it.fails(
-    "DEFECT: confirmarea dublă din cursă (23505 pe indexul unic) trebuie tratată ca reușită",
-    async () => {
-      // Pagina de vault promite: „O a doua confirmare cade cu 23505; acțiunea o
-      // tratează ca reușită". Handlerul aruncă eroarea mai departe, iar două
-      // file deschise pe același anunț dau „Există deja o înregistrare".
-      const { server } = configureazaActiunea({
-        rol: "employee",
-        permisiuni: { "announcements:read": "own" },
-      });
-      server.raspunde("employees", "select", { data: { id: FISA } });
-      server.raspunde("announcement_reads", "select", { data: null });
-      server.raspunde("announcement_reads", "insert", { error: eroarePostgrest("23505") });
+  it("confirmarea dublă din cursă (23505 pe indexul unic) e tratată ca reușită", async () => {
+    // Pagina de vault promite: „O a doua confirmare cade cu 23505; acțiunea o
+    // tratează ca reușită". Handlerul arunca eroarea mai departe, iar două
+    // file deschise pe același anunț dădeau „Există deja o înregistrare".
+    const { server } = configureazaActiunea({
+      rol: "employee",
+      permisiuni: { "announcements:read": "own" },
+    });
+    server.raspunde("employees", "select", { data: { id: FISA } });
+    server.raspunde("announcement_reads", "select", { data: null });
+    server.raspunde("announcement_reads", "insert", { error: eroarePostgrest("23505") });
 
-      const r = await marcheazaAnuntCitit({ id: ID_1 });
+    const r = await marcheazaAnuntCitit({ id: ID_1 });
 
-      expect(r).toEqual({ ok: true, data: null });
-    },
-  );
+    expect(r).toEqual({ ok: true, data: null });
+  });
 });

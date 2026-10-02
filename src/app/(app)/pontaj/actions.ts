@@ -174,7 +174,17 @@ export const deschidePerioada = createAction({
       })
       .select("id")
       .single();
-    if (error !== null) traduEroare(error);
+    if (error !== null) {
+      // `attendance_periods_luna_uq` (0013:99): luna există deja, de regulă
+      // deschisă automat (0132). NU e ziua unui angajat, deci nu trece prin
+      // traducerea generică a lui 23505 din `traduEroare`.
+      if (error.code === "23505") {
+        throw businessRule(
+          `Perioada de pontaj ${String(input.luna).padStart(2, "0")}.${String(input.an)} există deja.`,
+        );
+      }
+      traduEroare(error);
+    }
 
     return { id: data.id };
   },
@@ -253,6 +263,41 @@ export const salveazaZiPontaj = createAction({
     // degeaba la fiecare zi salvată.
     const setari = await setariPontaj(ctx.tenant.organizationId, input.data);
 
+    if (ctx.scope !== "all") {
+      if (input.ora_inceput !== null && input.ora_sfarsit !== null) {
+        const derivate = oreleZilei(input.ora_inceput, input.ora_sfarsit, configZiDin(setari));
+        if (derivate === null) {
+          throw businessRule(
+            "Ora de ieșire trebuie să fie după ora de intrare, în aceeași zi. Tura care trece de miezul nopții se înregistrează de responsabilul de pontaj.",
+          );
+        }
+        oreLucrate = derivate.lucrate;
+        oreSuplimentare = derivate.suplimentare;
+        oreNoapte = derivate.noapte;
+      } else {
+        /*
+         * GAURA DE ÎNCREDERE, închisă.
+         *
+         * Rederivarea de mai sus se făcea DOAR când ambele ore erau prezente.
+         * Cu ora de ieșire lipsă, cifrele venite de la client se scriau ca
+         * atare — inclusiv pentru scope `own`. Cât timp formularul angajatului
+         * cerea obligatoriu ambele ore, combinația nu se producea niciodată și
+         * defectul dormea.
+         *
+         * Pontarea în doi timpi (0096) o face LEGITIMĂ: o zi deschisă cu ceasul
+         * are exact forma asta. Fără ramura de aici, o cerere fabricată ar scrie
+         * orice număr de ore suplimentare, cu spor, pe propria fișă.
+         *
+         * ZERO explicit, nu `null`: `ore_lucrate` e `not null default 0`
+         * (0013:141), iar tipul generat o marchează opțională, nu nullabilă —
+         * un `null` ar trece de `tsc` și ar cădea cu 23502 abia la runtime.
+         */
+        oreLucrate = 0;
+        oreSuplimentare = 0;
+        oreNoapte = 0;
+      }
+    }
+
     /*
      * ── Contractul suspendat pentru absențe nemotivate ─────────────────────
      *
@@ -260,6 +305,11 @@ export const salveazaZiPontaj = createAction({
      * de tastare: ori omul s-a întors — și atunci suspendarea trebuie închisă,
      * iar reluarea transmisă la ITM — ori ziua e greșită. Aplicația nu poate
      * alege singură, deci se oprește și întreabă.
+     *
+     * Garda stă DUPĂ rederivarea orelor de mai sus: judecă orele care se vor
+     * scrie, nu pe cele declarate de client. Înainte, o cerere `own` cu
+     * `ore_lucrate: 0` și un interval trecea de gardă, iar serverul scria apoi
+     * orele rederivate pe un contract suspendat.
      *
      * Verificarea se face cu clientul ADMIN: `contract_suspendari_select` cere
      * drepturi pe care nici angajatul care se pontează, nici responsabilul de
@@ -306,41 +356,6 @@ export const salveazaZiPontaj = createAction({
           ctx.user.id,
           ctx.requestId,
         );
-      }
-    }
-
-    if (ctx.scope !== "all") {
-      if (input.ora_inceput !== null && input.ora_sfarsit !== null) {
-        const derivate = oreleZilei(input.ora_inceput, input.ora_sfarsit, configZiDin(setari));
-        if (derivate === null) {
-          throw businessRule(
-            "Ora de ieșire trebuie să fie după ora de intrare, în aceeași zi. Tura care trece de miezul nopții se înregistrează de responsabilul de pontaj.",
-          );
-        }
-        oreLucrate = derivate.lucrate;
-        oreSuplimentare = derivate.suplimentare;
-        oreNoapte = derivate.noapte;
-      } else {
-        /*
-         * GAURA DE ÎNCREDERE, închisă.
-         *
-         * Rederivarea de mai sus se făcea DOAR când ambele ore erau prezente.
-         * Cu ora de ieșire lipsă, cifrele venite de la client se scriau ca
-         * atare — inclusiv pentru scope `own`. Cât timp formularul angajatului
-         * cerea obligatoriu ambele ore, combinația nu se producea niciodată și
-         * defectul dormea.
-         *
-         * Pontarea în doi timpi (0096) o face LEGITIMĂ: o zi deschisă cu ceasul
-         * are exact forma asta. Fără ramura de aici, o cerere fabricată ar scrie
-         * orice număr de ore suplimentare, cu spor, pe propria fișă.
-         *
-         * ZERO explicit, nu `null`: `ore_lucrate` e `not null default 0`
-         * (0013:141), iar tipul generat o marchează opțională, nu nullabilă —
-         * un `null` ar trece de `tsc` și ar cădea cu 23502 abia la runtime.
-         */
-        oreLucrate = 0;
-        oreSuplimentare = 0;
-        oreNoapte = 0;
       }
     }
 

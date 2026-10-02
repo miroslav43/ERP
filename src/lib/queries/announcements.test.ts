@@ -49,7 +49,8 @@ describe("listeazaAnunturi", () => {
       expect.arrayContaining([
         { metoda: "order", argumente: ["fixat", { ascending: false }] },
         { metoda: "order", argumente: ["publicat_la", { ascending: false, nullsFirst: true }] },
-        { metoda: "limit", argumente: [LIMITA_ANUNTURI] },
+        // Un rând în plus, ca „exact limita” să nu se citească drept trunchiat.
+        { metoda: "limit", argumente: [LIMITA_ANUNTURI + 1] },
       ]),
     );
   });
@@ -60,24 +61,22 @@ describe("listeazaAnunturi", () => {
       data: [anunt(ID_1), anunt(ID_2), anunt(ID_3)],
     });
     const r = await listeazaAnunturi(ORG_ID, 2);
-    // Baza n-ar întoarce peste limită; dacă o face, lista rămâne marcată.
+    // Se cere un rând în plus; când vine, lista e trunchiată și se arată doar limita.
     expect(r.trunchiat).toBe(true);
+    expect(r.randuri).toHaveLength(2);
     const [apel] = server.apeluriPe("announcements");
-    expect(apel?.filtre).toContainEqual({ metoda: "limit", argumente: [2] });
+    expect(apel?.filtre).toContainEqual({ metoda: "limit", argumente: [3] });
   });
 
-  it.fails(
-    "DEFECT: exact `limita` anunțuri pe disc nu înseamnă că lista e trunchiată",
-    async () => {
-      // `trunchiat: randuri.length >= limita` fără să ceară `limita + 1`: cu
-      // exact 2 anunțuri și limita 2, ecranul spune că mai sunt anunțuri
-      // neafișate, deși nu mai e niciunul.
-      const { server } = configureazaActiunea();
-      server.raspunde("announcements", "select", { data: [anunt(ID_1), anunt(ID_2)] });
-      const r = await listeazaAnunturi(ORG_ID, 2);
-      expect(r.trunchiat).toBe(false);
-    },
-  );
+  it("exact `limita` anunțuri pe disc nu înseamnă că lista e trunchiată", async () => {
+    // Cu `trunchiat: randuri.length >= limita`, exact 2 anunțuri la limita 2
+    // afișau „mai sunt și altele”, deși nu mai era niciunul.
+    const { server } = configureazaActiunea();
+    server.raspunde("announcements", "select", { data: [anunt(ID_1), anunt(ID_2)] });
+    const r = await listeazaAnunturi(ORG_ID, 2);
+    expect(r.trunchiat).toBe(false);
+    expect(r.randuri).toHaveLength(2);
+  });
 
   it("fără anunțuri: listă goală, netrunchiată", async () => {
     const { server } = configureazaActiunea();
