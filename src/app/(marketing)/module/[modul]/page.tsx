@@ -14,6 +14,7 @@ import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { InMana } from "../../_componente/in-mana";
 import { metadatePagina } from "../../_componente/metadate";
+import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { PrinGeam } from "../../_componente/prin-geam";
 import { RandRegistru, Registru } from "../../_componente/registru";
 import { arePrinGeam, capturiInalteAleModulului } from "../../_componente/vitrine";
@@ -352,22 +353,7 @@ export default async function PaginaModul({ params }: Proprietati) {
                 </div>
               ))}
             </div>
-            {fisa.ghiduri !== undefined && (
-              <div className="mt-10">
-                <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
-                  Pe același subiect
-                </p>
-                <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
-                  {fisa.ghiduri.map((g) => (
-                    <li key={g.href}>
-                      <Link href={g.href} className="text-[0.9375rem] underline underline-offset-4">
-                        {g.eticheta}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <PeAcelasiSubiect legaturi={fisa.ghiduri} />
           </Banda>
 
           {/*

@@ -587,6 +587,10 @@ export const FISE: readonly FisaModul[] = [
         href: "/ghid/concediu-de-odihna",
         eticheta: "Ce cere Codul muncii: zile, programare, report",
       },
+      {
+        href: "/unelte/cerere-concediu-de-odihna",
+        eticheta: "Cerere de concediu cu zilele calculate",
+      },
     ],
     notaPermisiuni:
       "Managerul e cazul care surprinde. Vede cererile întregii echipe și le aprobă, dar poate depune și modifica numai pe ale lui: nu poate cere concediu în numele unui subordonat, oricât de bine ar cunoaște situația. Iar HR, care are acces la toate cererile și le poate chiar șterge, are refuz explicit pe aprobare — un „none” scris în tabel, nu o omisiune. Cine ține evidența nu e cine decide, și baza ține minte diferența.",

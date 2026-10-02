@@ -7,6 +7,7 @@ import {
   CUM_PONTEAZA,
   type SectiunePontajTelefon,
 } from "@/content/landing/pontaj-telefon";
+import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 
 import { AntetSecundar } from "../_componente/antet-secundar";
@@ -15,6 +16,7 @@ import { BandaPontajLivrat, BandaPontajViitor } from "../_componente/benzi/produ
 import { Cadru } from "../_componente/cadru";
 import { InMana } from "../_componente/in-mana";
 import { metadatePagina } from "../_componente/metadate";
+import { PeAcelasiSubiect } from "../_componente/pe-acelasi-subiect";
 
 /**
  * Pontajul de pe telefon.
@@ -85,6 +87,9 @@ export default function PaginaPontajPeTelefon() {
       <BandaPontajLivrat text={RO} />
       <BandaPontajViitor text={RO} />
       <Pasi sectiune={CE_NU_MERGE} />
+      <Banda inaltime="scurta">
+        <PeAcelasiSubiect legaturi={LEGATURI_CONEXE["/pontaj-pe-telefon"]} />
+      </Banda>
     </Cadru>
   );
 }

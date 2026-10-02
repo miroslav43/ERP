@@ -197,6 +197,8 @@ export const DIURNA: PaginaLege = {
     { eticheta: "Modulul Deplasări și diurne", href: "/module/diurna" },
     { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
     { eticheta: "Evidența orelor de muncă: art. 119", href: "/evidenta-orelor-de-munca" },
+    { eticheta: "Program de salarizare", href: "/module/salarizare" },
+    { eticheta: "Pentru contabili: aceleași date, fără exporturi", href: "/pentru-contabili" },
   ],
 
   surse: [

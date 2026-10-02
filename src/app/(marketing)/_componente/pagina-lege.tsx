@@ -8,6 +8,7 @@ import { Banda } from "./banda";
 import { Cadru } from "./cadru";
 import { JsonLd } from "./json-ld";
 import { nodArticol } from "./noduri-json-ld";
+import { PeAcelasiSubiect } from "./pe-acelasi-subiect";
 
 /**
  * Randarea unei pagini care explică o obligație legală.
@@ -225,22 +226,7 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
             </ul>
           </div>
         )}
-        {text.legaturiConexe !== undefined && (
-          <div className="mt-10">
-            <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
-              Pe același subiect
-            </p>
-            <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
-              {text.legaturiConexe.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="text-[0.9375rem] underline underline-offset-4">
-                    {l.eticheta}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <PeAcelasiSubiect legaturi={text.legaturiConexe} />
       </Banda>
     </Cadru>
   );

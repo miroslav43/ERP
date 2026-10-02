@@ -174,6 +174,8 @@ export const CONTROL_ITM: PaginaLege = {
   legaturiConexe: [
     { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
     { eticheta: "Modulul SSM: instruiri și termene", href: "/module/ssm" },
+    { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
+    { eticheta: "Transmiterea în REGES-Online, din aplicație", href: "/module/reges" },
   ],
 
   surse: [

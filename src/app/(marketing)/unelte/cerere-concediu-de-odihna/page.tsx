@@ -1,6 +1,7 @@
 // src/app/(marketing)/unelte/cerere-concediu-de-odihna/page.tsx
 import type { Metadata } from "next";
 
+import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { ANTET_CERERE_CONCEDIU } from "@/content/landing/unelte";
 import { formatDate } from "@/lib/format/date";
@@ -9,6 +10,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { metadatePagina } from "../../_componente/metadate";
+import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import {
   AN_MAX,
   AN_MIN,
@@ -311,6 +313,7 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
               </div>
             ))}
           </div>
+          <PeAcelasiSubiect legaturi={LEGATURI_CONEXE["/unelte/cerere-concediu-de-odihna"]} />
         </Banda>
       </div>
     </Cadru>

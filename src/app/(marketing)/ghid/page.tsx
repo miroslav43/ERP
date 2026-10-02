@@ -1,6 +1,8 @@
 // src/app/(marketing)/ghid/page.tsx
 import type { Metadata } from "next";
+import Link from "next/link";
 
+import { DE_UNDE_GHID } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { CONCEDIU_ODIHNA } from "@/content/legal/concediu-odihna";
 import { CONTROL_ITM } from "@/content/legal/control-itm";
@@ -39,34 +41,6 @@ const PAGINI = [EVIDENTA_ORELOR, REGES, CONCEDIU_ODIHNA, DIURNA, CONTROL_ITM].ma
   nota: `Textele verificate în ${p.actualizat}`,
 }));
 
-/**
- * De unde începe cineva, în funcție de ce îl doare. Text propriu, nu un rezumat
- * al ghidurilor: regulile și amenzile stau pe paginile lor, iar repetate aici ar
- * fi exact duplicarea pe care o scoatem din paginile de modul.
- */
-const DE_UNDE = [
-  {
-    titlu: "Ai primit o înștiințare de control",
-    text: "Începe cu ghidul de control ITM: ce documente se cer, în ce ordine se verifică și ce se poate pregăti în ajun — plus ce nu se mai poate.",
-  },
-  {
-    titlu: "Ai angajat pe cineva săptămâna asta",
-    text: "REGES-ONLINE are termene pe zile lucrătoare, diferite pentru angajare, suspendare și încetare. Ghidul le ia pe rând, cu temeiul lângă fiecare.",
-  },
-  {
-    titlu: "Ții pontajul în fișiere de calcul",
-    text: "Evidența orelor cere ora de începere și ora de sfârșit, zilnic, la locul de muncă. Ghidul spune ce înseamnă asta în practică și cât costă absența ei.",
-  },
-  {
-    titlu: "Cineva ți-a cerut zilele rămase din anul trecut",
-    text: "Ghidul de concediu de odihnă ia termenul de report de 18 luni, decizia ÎCCJ din august 2026 despre zilele rămase după el, și calculul indemnizației pe ultimele trei luni.",
-  },
-  {
-    titlu: "Trimiți oameni în deplasare",
-    text: "Diurna are două plafoane neimpozabile, nu unul, iar al doilea se calculează separat pentru fiecare lună. Ghidul le ia pe rând, cu formula scrisă în lege.",
-  },
-];
-
 export default function PaginaGhid() {
   return (
     <Cadru text={RO}>
@@ -88,13 +62,18 @@ export default function PaginaGhid() {
         lead="Ghidurile se citesc și separat, dar ordinea contează când ai un termen pe cap."
       >
         <div className="border-mk-rigla/40 mt-8 border-t">
-          {DE_UNDE.map((d) => (
+          {/* De unde începe cineva, în funcție de ce îl doare: text propriu, nu un
+              rezumat al ghidurilor. Din 2 oct 2026 fiecare card duce la ghidul lui —
+              până atunci nu ducea nicăieri. */}
+          {DE_UNDE_GHID.map((d) => (
             <div
               key={d.titlu}
               className="border-mk-rigla/40 grid gap-2 border-b py-5 md:grid-cols-12 md:gap-8"
             >
               <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
-                {d.titlu}
+                <Link href={d.href} className="underline underline-offset-4">
+                  {d.titlu}
+                </Link>
               </h3>
               <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6] md:col-span-8">
                 {d.text}

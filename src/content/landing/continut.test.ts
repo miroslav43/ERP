@@ -1478,4 +1478,28 @@ describe("reparațiile din auditul SEO din 2 oct 2026", () => {
     expect(fisaModulului("reges")?.titluPagina).toMatch(/^Program REGES/);
     expect(fisaModulului("per_diem")?.titluPagina).not.toMatch(/calcul/i);
   });
+
+  it("legăturile conexe ale paginilor duc spre pagini din sitemap, nu spre ele însele", async () => {
+    // Unelte cu doar firimituri, `/pontaj-pe-telefon` fără nicio legătură în text,
+    // cardurile „De unde începi" de pe `/ghid` fără legătură deloc.
+    const dinSitemap = await adreseDinSitemap();
+    const { DOMENII } = await import("./domenii");
+    const { DE_UNDE_GHID, LEGATURI_CONEXE } = await import("./legaturi");
+    for (const [cale, legaturi] of Object.entries(LEGATURI_CONEXE)) {
+      expect(dinSitemap.has(cale), `${cale} nu e în sitemap`).toBe(true);
+      expect(legaturi.length, cale).toBeGreaterThanOrEqual(2);
+      for (const l of legaturi) {
+        expect(dinSitemap.has(l.href), `${cale}: ${l.href}`).toBe(true);
+        expect(l.href, cale).not.toBe(cale);
+      }
+      // Tabelul nu ține loc de randare: pagina trebuie să-și ceară rândul.
+      if (!cale.startsWith("/domenii/")) {
+        const pagina = readFileSync(`src/app/(marketing)${cale}/page.tsx`, "utf8");
+        expect(pagina, cale).toContain(`LEGATURI_CONEXE["${cale}"]`);
+      }
+    }
+    for (const d of DOMENII) expect(LEGATURI_CONEXE[`/domenii/${d.slug}`], d.slug).toBeDefined();
+    expect(DE_UNDE_GHID.length).toBe(5);
+    for (const d of DE_UNDE_GHID) expect(dinSitemap.has(d.href), d.titlu).toBe(true);
+  });
 });

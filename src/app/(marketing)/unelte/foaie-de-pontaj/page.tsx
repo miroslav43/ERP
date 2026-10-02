@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 
@@ -9,6 +10,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { metadatePagina } from "../../_componente/metadate";
+import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import {
   construiesteFoaie,
   LUNI,
@@ -314,6 +316,9 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
           >
             Excel sau aplicație
           </Link>
+        </div>
+        <div data-tipar="ascunde">
+          <PeAcelasiSubiect legaturi={LEGATURI_CONEXE["/unelte/foaie-de-pontaj"]} />
         </div>
       </Banda>
     </Cadru>

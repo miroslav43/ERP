@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { FEATURES } from "@/config/features";
 import { DOMENII, domeniulDupaSlug } from "@/content/landing/domenii";
+import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { slugModul } from "@/content/landing/slug-module";
 
@@ -12,6 +13,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { metadatePagina } from "../../_componente/metadate";
+import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 
 /**
  * Cele patru pagini de domeniu, dintr-un singur fișier.
@@ -146,6 +148,7 @@ export default async function PaginaDomeniu({ params }: Proprietati) {
             Ce cere legea la evidența orelor
           </Link>
         </div>
+        <PeAcelasiSubiect legaturi={LEGATURI_CONEXE[`/domenii/${d.slug}`]} />
       </Banda>
 
       {/* Legătura între cele patru: fără ea, fiecare pagină e o fundătură, iar

@@ -8,12 +8,14 @@ import {
   CE_SE_PASTREAZA,
   PERECHI,
 } from "@/content/legal/comparatie-excel";
+import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { metadatePagina } from "../../_componente/metadate";
+import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 
 /**
  * Pontaj în Excel sau în aplicație.
@@ -126,6 +128,7 @@ export default function PaginaComparatieExcel() {
             Cum se pontează
           </Link>
         </div>
+        <PeAcelasiSubiect legaturi={LEGATURI_CONEXE["/comparatie/excel"]} />
       </Banda>
     </Cadru>
   );
