@@ -7,6 +7,7 @@ import { RO } from "@/content/landing/ro";
 import {
   ANTET_CERERE_CONCEDIU,
   ANTET_CONDICA,
+  ANTET_FISA_EVALUARE,
   ANTET_FISA_SSM,
   ANTET_FOAIE_PARCURS,
   ANTET_FOAIE_PONTAJ,
@@ -29,7 +30,7 @@ import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "./foaie-de-pontaj/foaie";
 export const metadata: Metadata = metadatePagina({
   titlu: "Unelte gratuite: pontaj și cerere de concediu",
   descriere:
-    "Unelte care se folosesc fără cont: foaia de pontaj lunar cu sărbătorile legale calculate și cererea de concediu de odihnă cu zilele lucrătoare numărate automat.",
+    "Unelte gratuite, fără cont: foaia de pontaj și condica de prezență cu sărbătorile calculate, cererea de concediu, foaia de parcurs, fișa de instruire SSM și fișa de evaluare. Word, PDF sau Excel.",
   cale: "/unelte",
 });
 
@@ -63,6 +64,12 @@ const PAGINI = [
     titlu: ANTET_FISA_SSM.titlu,
     lead: ANTET_FISA_SSM.lead,
     nota: "după anexa 11 la HG 1425/2006 · Word, PDF",
+  },
+  {
+    href: "/unelte/fisa-evaluare",
+    titlu: ANTET_FISA_EVALUARE.titlu,
+    lead: ANTET_FISA_EVALUARE.lead,
+    nota: "criteriile firmei, pondere și notă · Word, PDF, Excel",
   },
 ];
 

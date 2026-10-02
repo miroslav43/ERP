@@ -111,6 +111,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/unelte/fisa-instruire-ssm",
     "Unealtă gratuită: fișa individuală de instruire SSM după anexa 11 la normele HG 1425/2006 — instruirea introductiv-generală, la locul de muncă, periodică și suplimentară, cu cele trei semnături. Plus regulile: minimum 8 ore la introductiv-generală (art. 87), periodica la cel mult 6 luni sau 12 pentru TESA (art. 96), suplimentara după 30 de zile lucrătoare de absență (art. 98). Word sau PDF.",
   ],
+  [
+    "/unelte/fisa-evaluare",
+    "Unealtă gratuită: fișa de evaluare a performanțelor profesionale, cu criteriile firmei (cel mult 15), pondere și notă pe fiecare. Plus ce spune Codul muncii: angajatorul stabilește obiectivele și criteriile (art. 40 alin. (1) lit. f)) și le comunică salariatului (art. 17 alin. (3) lit. e)). Word, PDF sau Excel.",
+  ],
   ["/comparatie", "Comparațiile cu felul în care se lucrează azi."],
   [
     "/comparatie/excel",

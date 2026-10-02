@@ -31,6 +31,10 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     { eticheta: "Program SSM: instruiri, aptitudini, echipament", href: "/module/ssm" },
     { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
   ],
+  "/unelte/fisa-evaluare": [
+    { eticheta: "Program de evaluare a angajaților, cu istoric", href: "/module/evaluari" },
+    { eticheta: "KPI-uri: indicatori și ținte pe angajat", href: "/module/kpi" },
+  ],
   "/unelte/foaie-de-pontaj": [
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Pontaj de pe telefon, fără instalare", href: "/pontaj-pe-telefon" },

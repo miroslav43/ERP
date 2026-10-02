@@ -51,3 +51,10 @@ export const ANTET_FISA_SSM: AntetPagina = {
   titlu: "Fișa de instruire SSM",
   lead: "Fișa individuală de instruire după anexa 11 la HG 1425/2006, cu datele lucrătorului completate: instruirea la angajare, periodică și suplimentară, cu cele trei semnături. Descarci în Word sau PDF, fără cont.",
 };
+
+/** Fișa de evaluare: criteriile se pot înlocui cu ale firmei (art. 40 alin. (1) lit. f) Codul muncii). */
+export const ANTET_FISA_EVALUARE: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Fișa de evaluare a angajaților",
+  lead: "Fișa de evaluare a performanțelor profesionale, cu criteriile firmei, pondere și notă pe fiecare, plus semnăturile evaluatorului și ale angajatului. Descarci în Word, PDF sau Excel, fără cont.",
+};
