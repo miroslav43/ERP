@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { EroareIntrare } from "@/lib/unelte/document-tabelar";
+
 import { construiesteCerere } from "./cerere";
-import { cerereCaDocument, cerereDinParametri, normalizeazaTip } from "./cerere-document";
+import {
+  cerereCaDocument,
+  cerereDinParametri,
+  normalizeazaTip,
+  problemaCerere,
+} from "./cerere-document";
 
 const BAZA = {
   salariat: "Ilie Maria",
@@ -59,5 +66,20 @@ describe("cererea de concediu ca document", () => {
     expect(d.paragrafe.join(" ")).toContain("02.11.2026");
     expect(d.subtitlu).toBe("Către: Firma X");
     expect(d.numeFisier).toBe("cerere-fara-plata-2026-11-02");
+  });
+});
+
+describe("intervalul invalid", () => {
+  it("nu produce un document de semnat, pentru niciuna dintre variante", () => {
+    // Revizuirea finală: „20.12 – 10.12, reprezentând 0 zile lucrătoare”, gata de semnat.
+    for (const tip of ["odihna", "fara-plata", "eveniment"]) {
+      const q = new URLSearchParams({ tip, de_la: "2026-12-20", pana_la: "2026-12-10" });
+      expect(() => cerereDinParametri(q), tip).toThrow(EroareIntrare);
+    }
+  });
+
+  it("problemaCerere spune ce e greșit, iar pentru un interval bun întoarce null", () => {
+    expect(problemaCerere("2026-12-20", "2026-12-10")).not.toBeNull();
+    expect(problemaCerere("2026-12-21", "2026-12-31")).toBeNull();
   });
 });

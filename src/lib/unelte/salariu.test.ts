@@ -3,12 +3,28 @@ import { describe, expect, it } from "vitest";
 import { dinBrut, dinNet } from "./salariu";
 
 describe("calculul public de salariu", () => {
-  it("netul crește cu brutul (monoton), pe tot intervalul uzual", () => {
-    let anterior = -1;
-    for (let brut = 4000; brut <= 20000; brut += 250) {
+  it("netul NU e strict monoton: la fiecare prag de 50 de lei scade cu cel mult 3 lei", () => {
+    // Revizuirea finală: deducerea personală scade în trepte de 0,5% din minim
+    // (~21,6 lei) la fiecare 50 de lei, deci netul coboară puțin la prag —
+    // brut 4.375 → 2.643,71, brut 4.376 → 2.642,13. Testul vechi mergea din 250
+    // în 250 de lei și nu vedea treptele.
+    let anterior = dinBrut(4300, 0, true).net;
+    let celMaiMareRecul = 0;
+    for (let brut = 4301; brut <= 6400; brut += 1) {
       const { net } = dinBrut(brut, 0, true);
-      expect(net, String(brut)).toBeGreaterThan(anterior);
+      celMaiMareRecul = Math.max(celMaiMareRecul, anterior - net);
       anterior = net;
+    }
+    expect(celMaiMareRecul).toBeGreaterThan(0);
+    expect(celMaiMareRecul).toBeLessThanOrEqual(3);
+  });
+
+  it("dinNet întoarce CEL MAI MIC brut care atinge netul cerut, și lângă praguri", () => {
+    const bruturi = Array.from({ length: 1201 }, (_, i) => 3500 + i);
+    const neturi = bruturi.map((b) => dinBrut(b, 0, true).net);
+    for (const tinta of [2600, 2642.13, 2643, 2650, 2700]) {
+      const minim = bruturi.find((_, i) => (neturi[i] ?? 0) >= tinta);
+      expect(dinNet(tinta, 0, true).brut, String(tinta)).toBe(minim);
     }
   });
 

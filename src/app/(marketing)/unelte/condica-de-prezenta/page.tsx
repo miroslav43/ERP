@@ -146,14 +146,12 @@ export default async function PaginaCondica({ searchParams }: Proprietati) {
               className={CLASA_CAMP}
             />
           </label>
-        </form>
-        <div className="mt-6">
           <Descarcari
+            actiune="/api/unelte/condica-de-prezenta"
             eveniment="condica"
             formate={["docx", "pdf", "xlsx"]}
-            href={(format) => `/api/unelte/condica-de-prezenta?${q.toString()}&format=${format}`}
           />
-        </div>
+        </form>
       </Banda>
 
       <Banda inaltime="scurta">

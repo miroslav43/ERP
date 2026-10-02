@@ -1,5 +1,5 @@
 import { formatDate } from "@/lib/format/date";
-import { LINIE_GOALA, type DocumentTabelar } from "@/lib/unelte/document-tabelar";
+import { EroareIntrare, LINIE_GOALA, type DocumentTabelar } from "@/lib/unelte/document-tabelar";
 
 import { aziIso, construiesteCerere, normalizeazaData, normalizeazaText, plusZile } from "./cerere";
 
@@ -93,18 +93,34 @@ export function cerereCaDocument(o: OptiuniCerere): DocumentTabelar {
   };
 }
 
-/** Aceiași parametri ca formularul paginii: `de_la`, `pana_la`, `salariat`… */
+/**
+ * Ce e greșit în interval, sau `null`. Aceeași verificare pentru toate cele
+ * trei variante: și o cerere fără plată cu sfârșitul înaintea începutului e
+ * un document fals, chiar dacă nu numără zile lucrătoare.
+ */
+export function problemaCerere(deLa: string, panaLa: string): string | null {
+  return construiesteCerere(deLa, panaLa).problema;
+}
+
+/**
+ * Aceiași parametri ca formularul paginii: `de_la`, `pana_la`, `salariat`…
+ * Un interval invalid aruncă `EroareIntrare` — ruta răspunde 400 cu motivul.
+ */
 export function cerereDinParametri(q: URLSearchParams): DocumentTabelar {
   const azi = aziIso();
   const val = (cheie: string) => q.get(cheie) ?? undefined;
+  const deLa = normalizeazaData(val("de_la"), plusZile(azi, 30));
+  const panaLa = normalizeazaData(val("pana_la"), plusZile(azi, 36));
+  const problema = problemaCerere(deLa, panaLa);
+  if (problema !== null) throw new EroareIntrare(problema);
   return cerereCaDocument({
     tip: normalizeazaTip(q.get("tip")),
     salariat: normalizeazaText(val("salariat")),
     functie: normalizeazaText(val("functie"), 80),
     angajator: normalizeazaText(val("angajator")),
     localitate: normalizeazaText(val("localitate"), 60),
-    deLa: normalizeazaData(val("de_la"), plusZile(azi, 30)),
-    panaLa: normalizeazaData(val("pana_la"), plusZile(azi, 36)),
+    deLa,
+    panaLa,
     dataCererii: normalizeazaData(val("data"), azi),
     motiv: normalizeazaText(val("motiv"), 80),
   });

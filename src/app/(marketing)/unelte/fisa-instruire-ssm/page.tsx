@@ -13,15 +13,14 @@ import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { PrevizualizareDocument } from "../../_componente/previzualizare-document";
-import { construiesteFisaSsm, parametriFisaSsm } from "./model";
+import { construiesteFisaSsm, INSTRUIRI_SSM, parametriFisaSsm } from "./model";
 
 /**
  * Fișa individuală de instruire SSM, gratuită.
  *
  * Fiecare rând din banda „Când se face fiecare instruire” are articolul lui din
  * normele aprobate prin HG 1425/2006, citite pe 2 oct 2026 în Portalul
- * Legislativ (doc. 134138). Instruirea la locul de muncă nu are durată sau
- * interval scris aici: normele le lasă în instrucțiunile proprii ale firmei.
+ * Legislativ (doc. 134138). Lista stă în `model.ts`, unde o păzește un test.
  */
 export const metadata: Metadata = metadatePagina({
   titlu: "Fișa de instruire SSM: model completabil",
@@ -45,38 +44,6 @@ const CAMPURI = [
   { nume: "functie", eticheta: "Funcția", exemplu: "Electrician" },
   { nume: "loc", eticheta: "Locul de muncă", exemplu: "Atelier întreținere" },
   { nume: "firma", eticheta: "Întreprinderea/unitatea", exemplu: "" },
-] as const;
-
-const INSTRUIRI = [
-  {
-    tip: "Cele trei faze",
-    regula: "Instruirea SSM are trei faze: introductiv-generală, la locul de muncă și periodică.",
-    temei: "art. 77",
-  },
-  {
-    tip: "Introductiv-generală",
-    regula:
-      "La angajare, cu o durată stabilită prin instrucțiuni proprii, dar nu mai mică de 8 ore.",
-    temei: "art. 87 alin. (2)",
-  },
-  {
-    tip: "Periodică",
-    regula:
-      "Intervalul dintre două instruiri periodice nu va fi mai mare de 6 luni; pentru personalul tehnico-administrativ, de cel mult 12 luni.",
-    temei: "art. 96 alin. (2¹) și (3)",
-  },
-  {
-    tip: "Suplimentară",
-    regula:
-      "În plus față de cea programată: când lucrătorul a lipsit peste 30 de zile lucrătoare, la reluarea activității după un accident de muncă, la schimbarea echipamentului, a tehnologiei sau a procedurilor de lucru, la lucrări speciale.",
-    temei: "art. 98",
-  },
-  {
-    tip: "Consemnarea",
-    regula:
-      "Obligatoriu în fișa individuală, cu materialul predat, durata și data; fișa se păstrează de la angajare până la încetarea raporturilor de muncă.",
-    temei: "art. 81",
-  },
 ] as const;
 
 export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
@@ -116,7 +83,7 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
           lead="Articolele sunt din normele metodologice aprobate prin HG 1425/2006."
         >
           <dl className="border-mk-rigla/40 mt-6 border-t">
-            {INSTRUIRI.map((r) => (
+            {INSTRUIRI_SSM.map((r) => (
               <div
                 key={r.tip}
                 className="border-mk-rigla/40 grid gap-1 border-b py-4 md:grid-cols-12 md:gap-8"
@@ -162,14 +129,12 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
               Completează fișa
             </button>
           </div>
-        </form>
-        <div className="mt-6">
           <Descarcari
+            actiune="/api/unelte/fisa-instruire-ssm"
             eveniment="ssm"
             formate={["docx", "pdf"]}
-            href={(format) => `/api/unelte/fisa-instruire-ssm?${q.toString()}&format=${format}`}
           />
-        </div>
+        </form>
       </Banda>
 
       <Banda inaltime="scurta">

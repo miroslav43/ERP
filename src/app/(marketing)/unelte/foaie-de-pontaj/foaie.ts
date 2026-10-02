@@ -58,6 +58,7 @@ export type Foaie = Readonly<{
 export const AN_MIN = 2020;
 export const AN_MAX = 2035;
 export const MAX_ANGAJATI = 60;
+export const MAX_LUNGIME_NUME = 80;
 
 export function normalizeazaAn(brut: string | undefined, implicit: number): number {
   const n = Number.parseInt(brut ?? "", 10);
@@ -84,7 +85,9 @@ export function normalizeazaOre(brut: string | undefined): number {
 export function normalizeazaAngajati(brut: string | undefined): readonly string[] {
   const linii = (brut ?? "")
     .split(/[\n,;]/)
-    .map((x) => x.trim())
+    // Plafon și pe lungimea unui nume, nu doar pe numărul lor: un „nume” de mii de
+    // caractere (un rând de Excel lipit cu tab-uri) costa secunde de CPU la PDF.
+    .map((x) => x.trim().slice(0, MAX_LUNGIME_NUME))
     .filter((x) => x.length > 0)
     .slice(0, MAX_ANGAJATI);
   if (linii.length > 0) return linii;

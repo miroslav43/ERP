@@ -67,9 +67,17 @@ export function dinBrut(brut: number, persoane: number, functieDeBaza: boolean):
   };
 }
 
+/** Cât poate coborî înapoi căutarea: o treaptă a grilei de deducere (50 de lei), cu rezervă. */
+const RECUL_MAXIM_LEI = 60;
+
 /**
- * Bisecție pe brut. Netul e monoton în brut pe intervalul uzual (testul o cere),
- * deci căutarea converge; la capete, rezultatul rămâne mărginit, nu aruncă.
+ * Net → brut: cel mai mic brut întreg care atinge netul cerut.
+ *
+ * Netul NU e strict monoton în brut: la fiecare prag de 50 de lei, deducerea
+ * personală scade cu 0,5% din salariul minim, iar netul coboară cu până la ~2
+ * lei înainte să urce iar. Bisecția găsește un brut bun, dar nu neapărat pe cel
+ * mai mic — de aceea se caută înapoi, leu cu leu, o treaptă întreagă. Un brut cu
+ * câțiva lei prea mare ar fi bani în plus pentru angajator.
  */
 export function dinNet(net: number, persoane: number, functieDeBaza: boolean): RezultatSalariu {
   const tinta = margineste(net, BRUT_MIN, BRUT_MAX);
@@ -80,5 +88,14 @@ export function dinNet(net: number, persoane: number, functieDeBaza: boolean): R
     if (dinBrut(mijloc, persoane, functieDeBaza).net < tinta) jos = mijloc;
     else sus = mijloc;
   }
-  return dinBrut(Math.ceil(sus), persoane, functieDeBaza);
+  let ales = dinBrut(Math.ceil(sus), persoane, functieDeBaza);
+  for (
+    let b = Math.ceil(sus) - 1;
+    b >= Math.max(BRUT_MIN, Math.ceil(sus) - RECUL_MAXIM_LEI);
+    b -= 1
+  ) {
+    const r = dinBrut(b, persoane, functieDeBaza);
+    if (r.net >= tinta) ales = r;
+  }
+  return ales;
 }

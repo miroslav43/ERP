@@ -147,14 +147,12 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
               Generează
             </button>
           </div>
-        </form>
-        <div className="mt-6">
           <Descarcari
+            actiune="/api/unelte/foaie-de-parcurs"
             eveniment="parcurs"
             formate={["docx", "pdf", "xlsx"]}
-            href={(format) => `/api/unelte/foaie-de-parcurs?${q.toString()}&format=${format}`}
           />
-        </div>
+        </form>
       </Banda>
 
       <Banda inaltime="scurta">

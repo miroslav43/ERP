@@ -139,14 +139,12 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
               Completează fișa
             </button>
           </div>
-        </form>
-        <div className="mt-6">
           <Descarcari
+            actiune="/api/unelte/fisa-evaluare"
             eveniment="evaluare"
             formate={["docx", "pdf", "xlsx"]}
-            href={(format) => `/api/unelte/fisa-evaluare?${q.toString()}&format=${format}`}
           />
-        </div>
+        </form>
       </Banda>
 
       <Banda inaltime="scurta">

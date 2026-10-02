@@ -61,6 +61,20 @@ describe("PDF", () => {
     expect(imparte("x".repeat(60), 100, masoara)).toHaveLength(1);
   });
 
+  it("taie e logaritmică: un nume de 8.000 de caractere nu cere mii de măsurători", () => {
+    // Revizuirea finală: `taie` scotea câte un caracter și remăsura tot — un nume
+    // de 300 de caractere ținea generarea condicii 5,7 s (măsurat).
+    let apeluri = 0;
+    const masoara = (t: string) => {
+      apeluri += 1;
+      return t.length * 5;
+    };
+    const rezultat = taie("a".repeat(8000), 160, masoara);
+    expect(masoara(rezultat)).toBeLessThanOrEqual(160 + 5);
+    expect(rezultat.endsWith("…")).toBe(true);
+    expect(apeluri).toBeLessThan(40);
+  });
+
   it("taie respectă lățimea și pune „…” doar când trebuie", () => {
     const masoara = (t: string) => t.length * 5;
     expect(taie("scurt", 100, masoara)).toBe("scurt");

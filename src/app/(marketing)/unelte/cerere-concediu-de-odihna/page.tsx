@@ -22,7 +22,7 @@ import {
   normalizeazaText,
   plusZile,
 } from "./cerere";
-import { cerereDinParametri, normalizeazaTip } from "./cerere-document";
+import { cerereCaDocument, normalizeazaTip } from "./cerere-document";
 
 /**
  * Cerere de concediu de odihnă, gratuită, fără cont.
@@ -93,19 +93,22 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
   const cerere = construiesteCerere(deLa, panaLa);
   const tip = normalizeazaTip(unul(p.tip) ?? null);
   const motiv = normalizeazaText(unul(p.motiv), 80);
-  // Aceiași parametri pentru descărcări și pentru varianta randată din model.
-  const parametri = new URLSearchParams({
-    tip,
-    salariat,
-    functie,
-    angajator,
-    localitate,
-    de_la: deLa,
-    pana_la: panaLa,
-    data: dataCererii,
-    motiv,
-  });
-  const documentVarianta = cerereDinParametri(parametri);
+  // Variantele fără plată și eveniment se randează din modelul comun, ca
+  // fișierele — dar numai pe un interval valid: altfel ar fi un document fals.
+  const documentVarianta =
+    tip !== "odihna" && cerere.problema === null
+      ? cerereCaDocument({
+          tip,
+          salariat,
+          functie,
+          angajator,
+          localitate,
+          deLa,
+          panaLa,
+          dataCererii,
+          motiv,
+        })
+      : null;
 
   return (
     <Cadru text={RO}>
@@ -226,27 +229,23 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
               Recalculează
             </button>
           </div>
-        </form>
-        <div className="mt-6">
           <Descarcari
+            actiune="/api/unelte/cerere-concediu"
             eveniment="cerere"
             formate={["docx", "pdf"]}
-            href={(format) =>
-              `/api/unelte/cerere-concediu?${parametri.toString()}&format=${format}`
-            }
           />
-        </div>
+        </form>
       </Banda>
 
       <Banda inaltime="scurta">
-        {tip !== "odihna" ? (
-          // Variantele fără plată și eveniment nu au calculul de zile al cererii
-          // de odihnă; se randează direct din modelul comun, ca fișierele.
-          <PrevizualizareDocument document={documentVarianta} />
-        ) : cerere.problema !== null ? (
+        {cerere.problema !== null ? (
+          // Pentru toate trei variantele: un interval inversat nu e o cerere.
+          // Ruta de descărcare refuză același interval cu 400.
           <p className="border-mk-rigla text-mk-text border p-4 text-[0.9375rem]">
             {cerere.problema} Alegeți un interval în care data de sfârșit vine după cea de început.
           </p>
+        ) : documentVarianta !== null ? (
+          <PrevizualizareDocument document={documentVarianta} />
         ) : (
           <>
             {/* Documentul propriu-zis. Singurul lucru care rămâne la tipărire. */}

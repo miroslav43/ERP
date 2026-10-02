@@ -87,3 +87,46 @@ export function parametriFisaSsm(q: URLSearchParams): ParametriFisaSsm {
 export function fisaSsmDinParametri(q: URLSearchParams): DocumentTabelar {
   return construiesteFisaSsm(parametriFisaSsm(q));
 }
+
+/**
+ * Regulile din banda „Când se face fiecare instruire”, cu articolul din normele
+ * aprobate prin HG 1425/2006. Minimul de 8 ore apare la toate trei instruirile
+ * care îl au în norme — prima variantă îl dădea doar la cea introductiv-generală.
+ */
+export const INSTRUIRI_SSM = [
+  {
+    tip: "Cele trei faze",
+    regula: "Instruirea SSM are trei faze: introductiv-generală, la locul de muncă și periodică.",
+    temei: "art. 77",
+  },
+  {
+    tip: "Introductiv-generală",
+    regula:
+      "La angajare, cu o durată stabilită prin instrucțiuni proprii, dar nu mai mică de 8 ore.",
+    temei: "art. 87 alin. (2)",
+  },
+  {
+    tip: "La locul de muncă",
+    regula:
+      "După cea introductiv-generală, la postul de lucru, cu o durată stabilită prin instrucțiuni proprii de conducătorul locului de muncă, dar nu mai mică de 8 ore.",
+    temei: "art. 92 alin. (2)",
+  },
+  {
+    tip: "Periodică",
+    regula:
+      "Intervalul dintre două instruiri periodice nu va fi mai mare de 6 luni; pentru personalul tehnico-administrativ, de cel mult 12 luni.",
+    temei: "art. 96 alin. (2¹) și (3)",
+  },
+  {
+    tip: "Suplimentară",
+    regula:
+      "În plus față de cea programată, de cel puțin 8 ore: când lucrătorul a lipsit peste 30 de zile lucrătoare, la reluarea activității după un accident de muncă, la schimbarea echipamentului, a tehnologiei sau a procedurilor de lucru, la lucrări speciale.",
+    temei: "art. 98 și 99",
+  },
+  {
+    tip: "Consemnarea",
+    regula:
+      "Obligatoriu în fișa individuală, cu materialul predat, durata și data; fișa se păstrează de la angajare până la încetarea raporturilor de muncă.",
+    temei: "art. 81",
+  },
+] as const;

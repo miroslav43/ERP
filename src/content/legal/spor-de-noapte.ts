@@ -18,7 +18,8 @@ import type { PaginaLege } from "./tipuri";
  *
  * ── DE UNDE VIN CIFRELE ───────────────────────────────────────────────────
  * Codul muncii, forma consolidată (doc. 128647, cu modificări până în aprilie
- * 2026), art. 125–128 și art. 260, citite cu `curl` pe 2 oct 2026.
+ * 2026), art. 125–128 și art. 260 alin. (1) lit. l), citite cu `curl` pe 2 oct 2026.
+ * Prima variantă scria „nicio amendă anume”; revizuirea finală a găsit lit. l).
  */
 export const SPOR_DE_NOAPTE: PaginaLege = {
   cale: "/ghid/spor-de-noapte",
@@ -82,11 +83,11 @@ export const SPOR_DE_NOAPTE: PaginaLege = {
 
   amenzi: [
     {
-      fapta: "Neacordarea sporului de noapte sau a programului redus",
-      suma: "nicio amendă anume",
+      fapta: "Încălcarea prevederilor legale referitoare la munca de noapte",
+      suma: "1.500 – 3.000 lei",
       aplicare:
-        "Art. 260 alin. (1) din Codul muncii, căutat după art. 125–128 și după munca de noapte, nu conține o faptă distinctă. Sporul neplătit rămâne un drept salarial, care se recuperează, la nevoie, în instanță.",
-      temei: "art. 260 alin. (1) Codul muncii",
+        "Acoperă, între altele, neacordarea sporului sau a programului redus din art. 126 și munca de noapte a celor care nu au voie să o presteze (art. 128).",
+      temei: "art. 260 alin. (1) lit. l) Codul muncii",
     },
   ],
 
@@ -94,7 +95,7 @@ export const SPOR_DE_NOAPTE: PaginaLege = {
     {
       titlu: "Cum se calculează sporul",
       paragrafe: [
-        "Sporul e 25% din salariul de bază corespunzător orelor lucrate noaptea. Un exemplu: salariu de bază de 5.000 de lei, normă de 168 de ore în lună, 40 de ore lucrate între 22:00 și 6:00. Ora de bază valorează 5.000 / 168 = 29,76 lei, iar sporul e 29,76 × 40 × 25% = 297,62 lei pe luna aceea.",
+        "Sporul e 25% din salariul de bază corespunzător orelor lucrate noaptea. Un exemplu: salariu de bază de 5.000 de lei, normă de 168 de ore în lună, 40 de ore lucrate între 22:00 și 6:00. Sporul e 5.000 / 168 × 40 × 25% = 297,62 lei pe luna aceea; ora de bază, nerotunjită, valorează 29,7619 lei.",
         "Sporul se datorează doar pentru zilele în care munca de noapte e de cel puțin 3 ore din timpul normal de lucru. O tură care se termină la 23:00 are o singură oră de noapte, deci nu intră.",
       ],
     },

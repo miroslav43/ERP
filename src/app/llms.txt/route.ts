@@ -100,7 +100,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/ghid/spor-de-noapte",
-    "Sporul de noapte în Codul muncii: munca între 22:00 și 6:00 (art. 125), salariatul de noapte primește fie program redus cu o oră, fie spor de 25% din salariul de bază — „25%”, nu „cel puțin 25%” — dacă lucrează noaptea cel puțin 3 ore (art. 126). Cu exemplu numeric de calcul.",
+    "Sporul de noapte în Codul muncii: munca între 22:00 și 6:00 (art. 125), salariatul de noapte primește fie program redus cu o oră, fie spor de 25% din salariul de bază — „25%”, nu „cel puțin 25%” — dacă lucrează noaptea cel puțin 3 ore (art. 126). Amenda: 1.500–3.000 lei (art. 260 alin. (1) lit. l)). Cu exemplu numeric de calcul.",
   ],
   ["/unelte", "Uneltele gratuite, fără cont."],
   [

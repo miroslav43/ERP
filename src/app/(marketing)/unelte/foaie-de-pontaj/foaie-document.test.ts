@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { construiesteFoaie } from "./foaie";
+import { construiesteFoaie, normalizeazaAngajati } from "./foaie";
 import { foaieCaDocument } from "./foaie-document";
 
 describe("foaia de pontaj ca document", () => {
@@ -19,5 +19,12 @@ describe("foaia de pontaj ca document", () => {
     expect(d.orientare).toBe("peisaj");
     expect(d.numeFisier).toBe("pontaj-2026-12");
     expect(d.note.join(" ")).toMatch(/Crăciun/u);
+  });
+});
+
+describe("numele angajaților", () => {
+  it("sunt tăiate la 80 de caractere, ca HTML-ul și fișierele să rămână identice și ieftine", () => {
+    const nume = normalizeazaAngajati("a".repeat(8000));
+    expect(nume[0]).toHaveLength(80);
   });
 });

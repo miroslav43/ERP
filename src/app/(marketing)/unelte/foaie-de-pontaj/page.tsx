@@ -70,13 +70,6 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
   const angajati = normalizeazaAngajati(brutAngajati);
   const foaie = construiesteFoaie(an, luna, angajati, oreZi);
 
-  const parametri = new URLSearchParams({
-    an: String(an),
-    luna: String(luna),
-    ore: String(oreZi),
-    ...(brutAngajati === "" ? {} : { angajati: brutAngajati }),
-  });
-
   return (
     <Cadru text={RO}>
       {/* `data-tipar="ascunde"` e convenția proiectului: la tipărire rămâne doar
@@ -153,6 +146,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
               className={CLASA_CAMP}
             />
           </label>
+          <Descarcari actiune="/api/unelte/foaie-de-pontaj" eveniment="foaie" />
         </form>
 
         <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-2" data-tipar="ascunde">
@@ -161,12 +155,6 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
             lucrătoare · <span className="font-mk-date text-mk-text">{foaie.normaLunara}</span> ore
             normă
           </p>
-          <Descarcari
-            eveniment="foaie"
-            href={(format) =>
-              `/api/unelte/foaie-de-pontaj?${parametri.toString()}&format=${format}`
-            }
-          />
         </div>
       </Banda>
 

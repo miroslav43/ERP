@@ -15,3 +15,20 @@ describe("ghidul sporului de noapte", () => {
     expect(tot).not.toMatch(/cel puțin 25/u);
   });
 });
+
+describe("amenda pentru munca de noapte", () => {
+  it("e cea din art. 260 alin. (1) lit. l), 1.500 – 3.000 lei", () => {
+    // Revizuirea finală: pagina spunea „nicio amendă anume” — textul consolidat
+    // are lit. l), „încălcarea prevederilor legale referitoare la munca de noapte”.
+    const amenda = SPOR_DE_NOAPTE.amenzi[0];
+    expect(amenda?.suma).toBe("1.500 – 3.000 lei");
+    expect(amenda?.temei).toBe("art. 260 alin. (1) lit. l) Codul muncii");
+    expect(JSON.stringify(SPOR_DE_NOAPTE)).not.toMatch(/nicio amendă/u);
+  });
+
+  it("exemplul numeric se închide pe operanzii afișați", () => {
+    const exemplu = SPOR_DE_NOAPTE.sectiuni.find((s) => s.titlu === "Cum se calculează sporul");
+    expect(exemplu?.paragrafe.join(" ")).toContain("5.000 / 168 × 40 × 25% = 297,62 lei");
+    expect(exemplu?.paragrafe.join(" ")).not.toContain("29,76 × 40");
+  });
+});

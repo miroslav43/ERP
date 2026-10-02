@@ -171,7 +171,7 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
       titlu: "Zile în plus în funcție de vechime",
       paragrafe: [
         "Codul muncii nu acordă zile suplimentare pentru vechime. Zile în plus dă legea doar pentru condiții grele, periculoase sau vătămătoare, nevăzători, alte persoane cu handicap și tinerii sub 18 ani — cel puțin 3 zile lucrătoare, art. 147.",
-        "Grilele „20 de zile până la 5 ani vechime, 21 după…” care circulă vin din contracte colective sau din reglementările sectorului bugetar. Într-o firmă privată se aplică doar dacă le prevede contractul colectiv aplicabil, regulamentul intern sau contractul individual — art. 145 alin. (2).",
+        "Grilele „20 de zile până la 5 ani vechime, 21 după…” care circulă vin din contracte colective sau din reglementările sectorului bugetar. Într-o firmă privată se aplică doar dacă le prevede contractul individual sau contractul colectiv aplicabil — art. 145 alin. (2), care fixează durata efectivă în contractul individual, cu respectarea legii și a contractelor colective.",
       ],
     },
     {
@@ -183,7 +183,7 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
     {
       titlu: "Concediul în perioada de preaviz",
       paragrafe: [
-        "Art. 75 alin. (3) suspendă preavizul doar dacă în acest timp contractul e suspendat — iar concediul de odihnă nu e un caz de suspendare a contractului. Concediul luat în preaviz nu prelungește deci preavizul. Zilele care rămân neefectuate la încetare se compensează în bani, după art. 146 alin. (3).",
+        "Preavizul se suspendă doar dacă în acest timp contractul e suspendat — la concediere, art. 75 alin. (3); la demisie, art. 81 alin. (6), cu același efect. Concediul de odihnă nu e un caz de suspendare a contractului. Concediul luat în preaviz nu prelungește deci preavizul. Zilele care rămân neefectuate la încetare se compensează în bani, după art. 146 alin. (3).",
       ],
     },
     {

@@ -6,29 +6,35 @@ const ETICHETE: Readonly<Record<Format, string>> = {
   xlsx: "Descarcă Excel",
 };
 
-/** Descărcările, ca `<a>` simple: merg fără JavaScript și se pot salva la favorite. */
+/**
+ * Descărcările unei unelte: butoane de trimitere, puse ÎN formularul ei.
+ *
+ * `formAction` trimite formularul (GET) spre ruta de API, cu `format=<x>` din
+ * butonul apăsat, deci fișierul primește mereu valorile din câmpuri — și cele
+ * completate fără „Generează”. Varianta dinainte, `<a href>` construit pe
+ * server, dădea starea ultimului submit: cine completa și apăsa direct
+ * „Descarcă” primea documentul gol. Merge tot fără JavaScript.
+ */
 export function Descarcari({
-  href,
+  actiune,
   eveniment,
   formate = ["pdf", "docx", "xlsx"],
-}: Readonly<{
-  href: (format: Format) => string;
-  eveniment: string;
-  formate?: readonly Format[];
-}>) {
+}: Readonly<{ actiune: string; eveniment: string; formate?: readonly Format[] }>) {
   return (
-    <ul className="flex flex-wrap gap-x-8 gap-y-2" data-tipar="ascunde">
+    <div className="col-span-full flex flex-wrap gap-x-8 gap-y-2" data-tipar="ascunde">
       {formate.map((f) => (
-        <li key={f}>
-          <a
-            href={href(f)}
-            data-umami-event={`${eveniment}-${f}`}
-            className="text-[0.9375rem] underline underline-offset-4"
-          >
-            {ETICHETE[f]}
-          </a>
-        </li>
+        <button
+          key={f}
+          type="submit"
+          formAction={actiune}
+          name="format"
+          value={f}
+          data-umami-event={`${eveniment}-${f}`}
+          className="cursor-pointer text-[0.9375rem] underline underline-offset-4"
+        >
+          {ETICHETE[f]}
+        </button>
       ))}
-    </ul>
+    </div>
   );
 }

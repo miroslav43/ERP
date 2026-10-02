@@ -28,12 +28,23 @@ const INALT_RAND = 16;
 /** Spațiul păstrat sub ultimul rând pentru mențiunea din subsol. */
 const REZERVA_SUBSOL = 20;
 
-/** Taie textul la lățimea dată, cu „…” la final. `masoara` e injectat ca să fie testabil. */
+/**
+ * Taie textul la lățimea dată, cu „…” la final. `masoara` e injectat ca să fie testabil.
+ *
+ * Căutare binară pe lungimea prefixului: fiecare măsurătoare a fontului
+ * încorporat e o așezare OpenType completă, iar varianta liniară (un caracter
+ * scos pe pas) ținea condica cu un nume de 300 de caractere 5,7 s pe proces.
+ */
 export function taie(text: string, latime: number, masoara: (t: string) => number): string {
   if (masoara(text) <= latime) return text;
-  let t = text;
-  while (t.length > 0 && masoara(`${t}…`) > latime) t = t.slice(0, -1);
-  return `${t}…`;
+  let jos = 0;
+  let sus = text.length;
+  while (jos < sus) {
+    const mijloc = Math.ceil((jos + sus) / 2);
+    if (masoara(`${text.slice(0, mijloc)}…`) <= latime) jos = mijloc;
+    else sus = mijloc - 1;
+  }
+  return `${text.slice(0, jos)}…`;
 }
 
 /**
@@ -67,8 +78,19 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   let pagina = doc.addPage([latime, inaltime]);
   let y = inaltime - MARGINE;
 
-  const masoara = (font: PDFFont, marime: number) => (t: string) =>
-    font.widthOfTextAtSize(t, marime);
+  // Memorizat pe randare: la condică același nume apare pe fiecare zi lucrătoare,
+  // iar fiecare măsurătoare e o așezare OpenType completă. Fără cache, 60 de nume
+  // × 21 de zile costau ~2,4 s; cheile sunt mărginite de document.
+  const masurate = new Map<string, number>();
+  const masoara = (font: PDFFont, marime: number) => (t: string) => {
+    const cheie = `${font === fonturi.aldin ? "a" : "n"}${String(marime)}|${t}`;
+    let latimeText = masurate.get(cheie);
+    if (latimeText === undefined) {
+      latimeText = font.widthOfTextAtSize(t, marime);
+      masurate.set(cheie, latimeText);
+    }
+    return latimeText;
+  };
   const paginaNoua = () => {
     pagina = doc.addPage([latime, inaltime]);
     y = inaltime - MARGINE;

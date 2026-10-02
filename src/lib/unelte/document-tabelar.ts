@@ -62,3 +62,12 @@ export function numeFisierSigur(baza: string): string {
     .toLowerCase();
   return curat === "" ? "document" : curat;
 }
+
+/**
+ * Intrare pe care o unealtă refuză s-o transforme în document (un interval de
+ * concediu inversat, de exemplu). Ruta o traduce în 400 cu mesajul, nu în 500
+ * și nici într-un fișier gata de semnat cu conținut fals.
+ */
+export class EroareIntrare extends Error {
+  override readonly name = "EroareIntrare";
+}
