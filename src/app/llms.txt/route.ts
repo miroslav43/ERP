@@ -84,7 +84,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/ghid/concediu-de-odihna",
-    "Concediul de odihnă în Codul muncii: cele 20 de zile minime, programarea, cele 10 zile neîntrerupte, reportul de 18 luni, calculul indemnizației. Include faptul, verificabil în art. 260, că neacordarea concediului NU e contravenție, și decizia ÎCCJ HP 40/2026.",
+    "Concediul de odihnă în Codul muncii: cele 20 de zile minime, programarea, cele 10 zile neîntrerupte, reportul de 18 luni, calculul indemnizației. Câte zile pe an și pe lună (1,67 în medie, ca practică, nu ca articol), de ce vechimea nu dă zile în plus din Codul muncii, compensarea doar la încetare (art. 146 alin. (3)) și concediul în preaviz. Include faptul, verificabil în art. 260, că neacordarea concediului NU e contravenție, și decizia ÎCCJ HP 40/2026.",
   ],
   [
     "/ghid/diurna",

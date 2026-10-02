@@ -159,6 +159,34 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
 
   sectiuni: [
     {
+      // Search Console, sept 2026: „câte zile de concediu ai pe lună” aduce pagina
+      // pe poziția 5,8 — întrebarea primește răspunsul în primul titlu al prozei.
+      titlu: "Câte zile de concediu ai pe an și pe lună",
+      paragrafe: [
+        "Pe an, cel puțin 20 de zile lucrătoare — art. 145 alin. (1). Durata efectivă e cea din contractul individual, care poate da mai mult, nu mai puțin. Sărbătorile legale în care nu se lucrează nu se scad din aceste zile — art. 145 alin. (3).",
+        "Pe lună, Codul muncii nu dă o cifră: dreptul e anual. Împărțit la 12, minimul de 20 de zile înseamnă în medie 1,67 zile pe lună lucrată, iar socoteala asta e cea folosită de obicei pentru un an lucrat parțial. Ea vine însă din contracte și din practică, nu dintr-un articol — vezi mai jos, la întrebările fără răspuns sigur.",
+      ],
+    },
+    {
+      titlu: "Zile în plus în funcție de vechime",
+      paragrafe: [
+        "Codul muncii nu acordă zile suplimentare pentru vechime. Zile în plus dă legea doar pentru condiții grele, periculoase sau vătămătoare, nevăzători, alte persoane cu handicap și tinerii sub 18 ani — cel puțin 3 zile lucrătoare, art. 147.",
+        "Grilele „20 de zile până la 5 ani vechime, 21 după…” care circulă vin din contracte colective sau din reglementările sectorului bugetar. Într-o firmă privată se aplică doar dacă le prevede contractul colectiv aplicabil, regulamentul intern sau contractul individual — art. 145 alin. (2).",
+      ],
+    },
+    {
+      titlu: "Concediul neefectuat la plecarea din firmă",
+      paragrafe: [
+        "Compensarea în bani a concediului neefectuat e permisă numai la încetarea contractului individual de muncă — art. 146 alin. (3). La plecare, zilele rămase se plătesc; cât timp contractul durează, se iau în natură.",
+      ],
+    },
+    {
+      titlu: "Concediul în perioada de preaviz",
+      paragrafe: [
+        "Art. 75 alin. (3) suspendă preavizul doar dacă în acest timp contractul e suspendat — iar concediul de odihnă nu e un caz de suspendare a contractului. Concediul luat în preaviz nu prelungește deci preavizul. Zilele care rămân neefectuate la încetare se compensează în bani, după art. 146 alin. (3).",
+      ],
+    },
+    {
       titlu: "Cele 18 luni, și ce s-a schimbat în august 2026",
       paragrafe: [
         "Termenul de report e cel mai prost înțeles lucru de pe pagina asta. Art. 146 alin. (2) nu spune că zilele „expiră” după 18 luni; spune că angajatorul e OBLIGAT să le acorde în acest interval, calculat de la 1 ianuarie al anului următor celui în care s-a născut dreptul. Pentru zilele cuvenite pe 2026, termenul curge deci până la 30 iunie 2028.",
@@ -186,6 +214,11 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
   ],
 
   nesigur: [
+    {
+      intrebare: "Poate angajatorul impune concediul în perioada de preaviz?",
+      raspuns:
+        "Codul muncii nu tratează explicit situația. Programarea concediului rămâne a angajatorului (art. 148), dar o programare făcută anume ca să consume preavizul poate fi contestată. Nu dăm un răspuns general.",
+    },
     {
       intrebare: "Câte zile i se cuvin cuiva angajat în iulie?",
       raspuns:
@@ -234,7 +267,7 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
     },
   ],
 
-  actualizat: "septembrie 2026",
-  actualizatIso: "2026-09-18",
+  actualizat: "octombrie 2026",
+  actualizatIso: "2026-10-02",
   publicatIso: "2026-09-18",
 };
