@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { normalizeazaFormat, numeFisierSigur, type DocumentTabelar } from "./document-tabelar";
 import { randeazaDocx } from "./docx";
-import { randeazaPdf, taie } from "./pdf";
+import { imparte, randeazaPdf, taie } from "./pdf";
 import { raspunsDocument } from "./raspuns";
 import { randeazaXlsx } from "./xlsx";
 
@@ -47,6 +47,18 @@ describe("PDF", () => {
     expect(citit.getPageCount()).toBeGreaterThan(1);
     const pagina = citit.getPage(0);
     expect(pagina.getWidth()).toBeGreaterThan(pagina.getHeight()); // peisaj
+  });
+
+  it("imparte rupe proza pe cuvinte, fără să piardă nimic și fără rând peste lățime", () => {
+    // Cererea de concediu se tăia într-un singur rând cu „…” — văzut în PDF-ul randat.
+    const masoara = (t: string) => t.length * 5;
+    const text = "Subsemnatul Popa Ion vă rog să binevoiți a aproba concediul de odihnă";
+    const randuri = imparte(text, 100, masoara);
+    expect(randuri.length).toBeGreaterThan(1);
+    expect(randuri.join(" ")).toBe(text);
+    for (const r of randuri) expect(masoara(r)).toBeLessThanOrEqual(100);
+    // Un cuvânt mai lung decât rândul se taie cu „…”, nu rupe bucla.
+    expect(imparte("x".repeat(60), 100, masoara)).toHaveLength(1);
   });
 
   it("taie respectă lățimea și pune „…” doar când trebuie", () => {

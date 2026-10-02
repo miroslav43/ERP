@@ -9,8 +9,10 @@ import { formatDate } from "@/lib/format/date";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
+import { PrevizualizareDocument } from "../../_componente/previzualizare-document";
 import {
   AN_MAX,
   AN_MIN,
@@ -20,6 +22,7 @@ import {
   normalizeazaText,
   plusZile,
 } from "./cerere";
+import { cerereDinParametri, normalizeazaTip } from "./cerere-document";
 
 /**
  * Cerere de concediu de odihnă, gratuită, fără cont.
@@ -47,9 +50,9 @@ import {
  * număr care pare exact și nu e.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Cerere de concediu de odihnă: zilele calculate",
+  titlu: "Cerere concediu de odihnă: model Word, PDF",
   descriere:
-    "Completează perioada și primești cererea gata de tipărit, cu numărul de zile lucrătoare calculat — weekendurile și sărbătorile legale scăzute automat. Fără cont.",
+    "Cerere de concediu de odihnă cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale. Model gratuit în Word sau PDF, fără cont.",
   cale: "/unelte/cerere-concediu-de-odihna",
 });
 
@@ -88,6 +91,21 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
   const dataCererii = normalizeazaData(unul(p.data), azi);
 
   const cerere = construiesteCerere(deLa, panaLa);
+  const tip = normalizeazaTip(unul(p.tip) ?? null);
+  const motiv = normalizeazaText(unul(p.motiv), 80);
+  // Aceiași parametri pentru descărcări și pentru varianta randată din model.
+  const parametri = new URLSearchParams({
+    tip,
+    salariat,
+    functie,
+    angajator,
+    localitate,
+    de_la: deLa,
+    pana_la: panaLa,
+    data: dataCererii,
+    motiv,
+  });
+  const documentVarianta = cerereDinParametri(parametri);
 
   return (
     <Cadru text={RO}>
@@ -169,6 +187,27 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
             />
           </label>
           <label className="flex flex-col gap-1.5">
+            <span className="text-[0.875rem] font-medium">Tipul cererii</span>
+            <select name="tip" defaultValue={tip} className={CLASA_CAMP}>
+              <option value="odihna">Concediu de odihnă</option>
+              <option value="fara-plata">Concediu fără plată</option>
+              <option value="eveniment">Zile libere pentru un eveniment familial</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[0.875rem] font-medium">
+              Evenimentul (doar pentru zile libere)
+            </span>
+            <input
+              type="text"
+              name="motiv"
+              maxLength={80}
+              defaultValue={motiv}
+              placeholder="căsătoria mea"
+              className={CLASA_CAMP}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
             <span className="text-[0.875rem] font-medium">Data cererii</span>
             <input
               type="date"
@@ -188,10 +227,23 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
             </button>
           </div>
         </form>
+        <div className="mt-6">
+          <Descarcari
+            eveniment="cerere"
+            formate={["docx", "pdf"]}
+            href={(format) =>
+              `/api/unelte/cerere-concediu?${parametri.toString()}&format=${format}`
+            }
+          />
+        </div>
       </Banda>
 
       <Banda inaltime="scurta">
-        {cerere.problema !== null ? (
+        {tip !== "odihna" ? (
+          // Variantele fără plată și eveniment nu au calculul de zile al cererii
+          // de odihnă; se randează direct din modelul comun, ca fișierele.
+          <PrevizualizareDocument document={documentVarianta} />
+        ) : cerere.problema !== null ? (
           <p className="border-mk-rigla text-mk-text border p-4 text-[0.9375rem]">
             {cerere.problema} Alegeți un interval în care data de sfârșit vine după cea de început.
           </p>

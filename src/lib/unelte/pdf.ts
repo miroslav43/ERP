@@ -36,6 +36,26 @@ export function taie(text: string, latime: number, masoara: (t: string) => numbe
   return `${t}…`;
 }
 
+/**
+ * Rupe proza pe cuvinte, în rânduri care încap în lățime. Un cuvânt mai lung
+ * decât rândul întreg se taie cu `taie`, ca bucla să nu se blocheze pe el.
+ */
+export function imparte(text: string, latime: number, masoara: (t: string) => number): string[] {
+  const randuri: string[] = [];
+  let curent = "";
+  for (const cuvant of text.split(/\s+/u).filter((c) => c !== "")) {
+    const incercare = curent === "" ? cuvant : `${curent} ${cuvant}`;
+    if (masoara(incercare) <= latime) {
+      curent = incercare;
+      continue;
+    }
+    if (curent !== "") randuri.push(curent);
+    curent = masoara(cuvant) <= latime ? cuvant : taie(cuvant, latime, masoara);
+  }
+  if (curent !== "") randuri.push(curent);
+  return randuri.length > 0 ? randuri : [""];
+}
+
 export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   const { doc, fonturi } = await pornesteDocument(d.titlu, "Administrativo");
   const [latime, inaltime] =
@@ -56,16 +76,14 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   const asiguraLoc = (necesar: number) => {
     if (y - necesar < MARGINE + REZERVA_SUBSOL) paginaNoua();
   };
+  /** Proză pe mai multe rânduri; doar celulele de tabel se taie cu „…”. */
   const scrie = (text: string, marime: number, font: PDFFont, culoare = NEGRU) => {
-    asiguraLoc(marime + 6);
-    pagina.drawText(taie(text, util, masoara(font, marime)), {
-      x: MARGINE,
-      y: y - marime,
-      size: marime,
-      font,
-      color: culoare,
+    const randuri = imparte(text, util, masoara(font, marime));
+    randuri.forEach((rand, k) => {
+      asiguraLoc(marime + 6);
+      pagina.drawText(rand, { x: MARGINE, y: y - marime, size: marime, font, color: culoare });
+      y -= k === randuri.length - 1 ? marime + 6 : marime + 3;
     });
-    y -= marime + 6;
   };
 
   scrie(d.titlu, 14, fonturi.aldin);
