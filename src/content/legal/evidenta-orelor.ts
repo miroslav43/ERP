@@ -153,6 +153,7 @@ export const EVIDENTA_ORELOR: PaginaLege = {
   legaturiConexe: [
     { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
     { eticheta: "Modulul de pontaj", href: "/module/pontaj" },
+    { eticheta: "Ore suplimentare: limita și plata", href: "/ghid/ore-suplimentare" },
     { eticheta: "Pontaj în Excel sau în aplicație", href: "/comparatie/excel" },
   ],
 

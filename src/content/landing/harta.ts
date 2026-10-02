@@ -2,6 +2,8 @@ import { CONCEDIU_ODIHNA } from "@/content/legal/concediu-odihna";
 import { CONTROL_ITM } from "@/content/legal/control-itm";
 import { DIURNA } from "@/content/legal/diurna";
 import { DIURNA_EXTERNA } from "@/content/legal/diurna-externa";
+import { SPOR_DE_NOAPTE } from "@/content/legal/spor-de-noapte";
+import { ORE_SUPLIMENTARE } from "@/content/legal/ore-suplimentare";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
 import { REGES } from "@/content/legal/reges";
 
@@ -216,6 +218,22 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     actualizat: DIURNA_EXTERNA.actualizatIso,
+    sectiune: "Obligații legale",
+  },
+  {
+    cale: "/ghid/ore-suplimentare",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: ORE_SUPLIMENTARE.actualizatIso,
+    sectiune: "Obligații legale",
+  },
+  {
+    cale: "/ghid/spor-de-noapte",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: SPOR_DE_NOAPTE.actualizatIso,
     sectiune: "Obligații legale",
   },
 

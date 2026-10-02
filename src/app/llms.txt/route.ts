@@ -94,6 +94,14 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/ghid/diurna-externa",
     "Diurna în străinătate pe fiecare țară, din anexa HG 518/1995 (categoria I), cu plafonul neimpozabil de 2,5 ori calculat pentru toate cele 166 de țări — de exemplu Germania 35 €/zi, plafon 87,50 €. Plus numărarea zilelor de la trecerea frontierei și fracțiunile de 50%/100% (art. 7^1).",
   ],
+  [
+    "/ghid/ore-suplimentare",
+    "Orele suplimentare în Codul muncii: limita e de 48 de ore pe săptămână cu tot cu suplimentarele, media pe 4 luni (art. 114), nu există limită lunară; compensare cu ore libere plătite în 90 de zile (art. 122, din OUG 117/2021), altfel spor de minimum 75% (art. 123); amendă 1.500–3.000 lei pe persoană (art. 260 lit. i)).",
+  ],
+  [
+    "/ghid/spor-de-noapte",
+    "Sporul de noapte în Codul muncii: munca între 22:00 și 6:00 (art. 125), salariatul de noapte primește fie program redus cu o oră, fie spor de 25% din salariul de bază — „25%”, nu „cel puțin 25%” — dacă lucrează noaptea cel puțin 3 ore (art. 126). Cu exemplu numeric de calcul.",
+  ],
   ["/unelte", "Uneltele gratuite, fără cont."],
   [
     "/unelte/foaie-de-pontaj",
