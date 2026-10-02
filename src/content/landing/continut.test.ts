@@ -1456,4 +1456,26 @@ describe("reparațiile din auditul SEO din 2 oct 2026", () => {
     );
     expect(afisari).toEqual([]);
   });
+
+  it("fiecare modul are un H1 al lui, mai mult decât numele din meniu", async () => {
+    // „Pontaj", „Anunțuri", „Ticketing IT" — un cuvânt nu spune ce oferă pagina.
+    const { FISE } = await import("./fise-module");
+    const titluri = new Map<string, string>(
+      RO.module.grupuri.flatMap((g) => g.module).map((m) => [m.cheie, m.titlu]),
+    );
+    for (const f of FISE) {
+      expect(f.titluH1.length, f.cheie).toBeLessThanOrEqual(40);
+      expect(f.titluH1, f.cheie).not.toBe(titluri.get(f.cheie));
+    }
+    expect(new Set(FISE.map((f) => f.titluH1)).size).toBe(FISE.length);
+  });
+
+  it("titlurile de modul nu concurează cu unealta și cu ghidul vecin", async () => {
+    // SERP: „foaie de pontaj" aparține uneltei; „REGES-Online: …" aparține ghidului;
+    // „calculul pe țări" e intenția unui calculator, nu a unui program.
+    const { fisaModulului } = await import("./fise-module");
+    expect(fisaModulului("attendance")?.titluPagina).not.toMatch(/foaie/i);
+    expect(fisaModulului("reges")?.titluPagina).toMatch(/^Program REGES/);
+    expect(fisaModulului("per_diem")?.titluPagina).not.toMatch(/calcul/i);
+  });
 });

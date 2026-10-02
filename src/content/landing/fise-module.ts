@@ -58,11 +58,12 @@ export type FisaModul = Readonly<{
   /** Titlul paginii, mai lung și mai căutabil decât cel din catalog. */
   titluPagina: string;
   /**
-   * H1-ul paginii, când trebuie să numească ce se caută, nu doar modulul.
-   * Lipsă: rămâne titlul din catalog. Firimitura și meniul folosesc oricum
-   * catalogul, ca navigația să rămână scurtă.
+   * H1-ul paginii: numește ce se caută, nu doar modulul. Firimitura și meniul
+   * folosesc catalogul, ca navigația să rămână scurtă. Obligatoriu din 2 oct
+   * 2026 — numele din meniu e un cuvânt („Pontaj", „Anunțuri"), iar auditul de
+   * atunci l-a găsit drept H1 pe 18 din 19 pagini.
    */
-  titluH1?: string;
+  titluH1: string;
   metaDescriere: string;
   /** Proză proprie, care NU repetă textul din catalog. */
   intro: readonly string[];
@@ -103,8 +104,11 @@ export type FisaModul = Readonly<{
 export const FISE: readonly FisaModul[] = [
   {
     cheie: "attendance",
-    actualizat: "2026-09-18",
-    titluPagina: "Program de pontaj: foaie lunară și aprobare",
+    actualizat: "2026-10-02",
+    // Fără „foaie lunară" din 2 oct 2026: interogarea „foaie de pontaj" o ține
+    // `/unelte/foaie-de-pontaj`; două pagini pe același termen se împart.
+    titluPagina: "Program de pontaj pentru angajați, cu aprobare",
+    titluH1: "Program de pontaj",
     metaDescriere:
       "Cum se ține pontajul în Administrativo: foaia colectivă lunară, pontarea de pe telefon, aprobarea pe echipă și blocarea lunii. Managerul aprobă, nu pontează.",
     intro: [
@@ -182,8 +186,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ssm",
-    actualizat: "2026-09-23",
+    actualizat: "2026-10-02",
     titluPagina: "SSM și PSI: instruiri, aptitudini, echipament",
+    titluH1: "Evidența SSM și PSI",
     metaDescriere:
       "Matrice angajat × tip de instruire, cu semafor pe scadențe și „niciodată făcută” ca stare distinctă de „expirată”. Pentru HR și responsabilul SSM.",
     intro: [
@@ -342,8 +347,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "fleet",
-    actualizat: "2026-09-21",
+    actualizat: "2026-10-02",
     titluPagina: "Parc auto: ITP, RCA, rovinietă și foi de parcurs",
+    titluH1: "Evidența parcului auto",
     metaDescriere:
       "Termenele fiecărei mașini cu semafor înainte de scadență, foi de parcurs cu kilometraj și alimentări. Managerul aprobă doar foile echipei.",
     intro: [
@@ -437,8 +443,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "per_diem",
-    actualizat: "2026-09-21",
-    titluPagina: "Deplasări și diurne: calculul pe țări",
+    actualizat: "2026-10-02",
+    // „calculul pe țări" e intenția unui calculator; pagina e un program (2 oct 2026).
+    titluPagina: "Program de diurne: deplasări, etape și decont",
+    titluH1: "Deplasări și diurne, până la decont",
     metaDescriere:
       "Ordine de deplasare, etape pe țări și deconturi, cu ferestre de 24 de ore care curg de la plecare. Managerul aprobă, nu modifică.",
     intro: [
@@ -516,8 +524,9 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
-    actualizat: "2026-09-18",
+    actualizat: "2026-10-02",
     titluPagina: "Concedii: cerere, aprobare și sold automat",
+    titluH1: "Program de concedii",
     metaDescriere:
       "Cum se cer și se aprobă concediile în Administrativo: soldul pe fiecare tip, aprobarea pe echipă, trecerea automată pe pontaj.",
     intro: [
@@ -604,8 +613,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "onboarding",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Integrare angajați: pașii de la angajare",
+    titluH1: "Integrarea angajaților noi",
     metaDescriere:
       "Cum se face integrarea unui angajat nou în Administrativo: șabloane de pași, dovezi încărcate, confirmare de citire, termene urmărite.",
     intro: [
@@ -672,8 +682,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "courses",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Cursuri interne: lecții, teste și dovezi",
+    titluH1: "Cursuri interne pentru angajați",
     metaDescriere:
       "Cum se țin cursurile interne în Administrativo: materiale versionate, lecții cu semnătură, teste cu prag, atribuire pe reguli.",
     intro: [
@@ -732,8 +743,11 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "reges",
-    actualizat: "2026-09-18",
-    titluPagina: "REGES-Online: transmiterea contractelor la ITM",
+    actualizat: "2026-10-02",
+    // „REGES-Online: …" e începutul titlului de pe `/reges-online` (ghidul de
+    // termene); modulul ține intenția comercială (2 oct 2026).
+    titluPagina: "Program REGES-Online: transmitere automată",
+    titluH1: "Transmitere în REGES-Online",
     metaDescriere:
       "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale urmărite, reconciliere.",
     intro: [
@@ -825,8 +839,9 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "evaluations",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Evaluarea angajaților: criterii și istoric",
+    titluH1: "Evaluarea angajaților",
     metaDescriere:
       "Cum se fac evaluările de performanță în Administrativo: șabloane duplicabile, evaluare pe echipă, finalizare cu istoric. Evaluarea rămâne în dosarul omului.",
     intro: [
@@ -885,8 +900,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "kpi",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "KPI-uri: indicatori și ținte pe angajat",
+    titluH1: "KPI-uri pe angajat",
     metaDescriere:
       "Cum se urmăresc indicatorii de performanță în Administrativo: seturi de KPI, ținte individuale, luni deschise și închise.",
     intro: [
@@ -945,8 +961,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "maintenance",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Mentenanță: sesizări, planuri și ISCIR",
+    titluH1: "Mentenanță și sesizări",
     metaDescriere:
       "Cum se ține mentenanța în Administrativo: sesizări deschise de orice angajat, contoare, planuri periodice, autorizații ISCIR cu scadențe.",
     intro: [
@@ -1005,8 +1022,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "inventory",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Inventar: obiectele firmei, pe angajat",
+    titluH1: "Inventarul firmei, pe angajat",
     metaDescriere:
       "Cum se ține inventarul de obiecte în Administrativo: predare cu confirmare, returnare, casare, obiecte pe fiecare angajat. Angajatul confirmă ce primește.",
     intro: [
@@ -1057,8 +1075,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ticketing",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Ticketing intern pentru IT și administrativ",
+    titluH1: "Ticketing intern",
     metaDescriere:
       "Cum funcționează tichetele interne în Administrativo: oricine deschide, coada pe echipă, preluare și rezolvare.",
     intro: [
@@ -1124,8 +1143,9 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "announcements",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Anunțuri interne cu dovadă că au ajuns",
+    titluH1: "Anunțuri interne cu confirmare",
     metaDescriere:
       "Cum se transmit anunțurile interne în Administrativo: publicare, țintire pe departamente, confirmare de citire.",
     intro: [
@@ -1184,8 +1204,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "employee_portal",
-    actualizat: "2026-09-18",
+    actualizat: "2026-10-02",
     titluPagina: "Portalul angajatului, de pe telefon",
+    titluH1: "Portalul angajatului",
     metaDescriere:
       "Ce vede un angajat în portalul Administrativo: fluturașul, soldul de concediu, pontajul, cursurile, documentele. Cum e limitat accesul la propriile date.",
     intro: [
@@ -1263,8 +1284,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "rapoarte",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Rapoarte HR din datele care există deja",
+    titluH1: "Rapoarte HR",
     metaDescriere:
       "Ce rapoarte scoate Administrativo: situații pe salarizare și pe lună, din aceleași date care au fost aprobate. Cine ce poate vedea, pe roluri.",
     intro: [
@@ -1315,8 +1337,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "nucleu",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Organizație, roluri și jurnal de audit",
+    titluH1: "Organizație, roluri și jurnal de audit",
     metaDescriere:
       "Cum se administrează firma în Administrativo: utilizatori, roluri, permisiuni per om, jurnal de audit. Regula firmei bate regula globală.",
     intro: [
@@ -1391,8 +1414,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "asistent",
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-02",
     titluPagina: "Asistent AI în română pentru aplicația HR",
+    titluH1: "Asistent AI pentru HR",
     metaDescriere:
       "Ce face asistentul din Administrativo: răspunde la întrebări despre propriile date și duce în ecranul potrivit, fără să vadă mai mult decât vede utilizatorul.",
     intro: [
