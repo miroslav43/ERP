@@ -46,9 +46,6 @@ export function MatriceRoluri({ text }: { text: ContinutLanding["roluri"] }) {
                   className="border-mk-liniatura border-l px-3 py-2 text-right"
                 >
                   <span className="block text-[0.9375rem] font-semibold">{rol.eticheta}</span>
-                  <span className="font-mk-date text-mk-text-slab block text-[0.6875rem] tracking-[0.06em]">
-                    {rol.cheie}
-                  </span>
                 </th>
               ))}
             </tr>
@@ -58,9 +55,6 @@ export function MatriceRoluri({ text }: { text: ContinutLanding["roluri"] }) {
               <tr key={rand.resursa} className="border-mk-liniatura border-b last:border-b-0">
                 <th scope="row" className="px-3 py-2.5 text-[0.9375rem] font-normal">
                   {rand.eticheta}
-                  <span className="font-mk-date text-mk-text-slab ml-2 text-[0.6875rem]">
-                    {rand.resursa}:read
-                  </span>
                 </th>
                 {ROLURI_MATRICE.map((rol) => {
                   const domeniu = rand.domenii[rol.cheie];

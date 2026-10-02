@@ -1451,7 +1451,9 @@ describe("reparațiile din auditul SEO din 2 oct 2026", () => {
     // Cheia rămâne în date; pe ecran merge slug-ul românesc, care e și adresa.
     const afisari = fisiere("src/app/(marketing)", [".tsx"]).flatMap((f) =>
       [
-        ...readFileSync(f, "utf8").matchAll(/(?:>\s*\{|cod=\{)(?:modul|actiune|vecin)\.cheie\}/g),
+        // Orice `{x.cheie}` sau `{x.resursa}` randat ca text — nu doar variabilele
+        // reparate atunci: matricea de pe `/module` a scăpat unei liste explicite.
+        ...readFileSync(f, "utf8").matchAll(/(?:>\s*\{|cod=\{)\w+\.(?:cheie|resursa)\}/g),
       ].map((m) => `${f}: ${m[0]}`),
     );
     expect(afisari).toEqual([]);
