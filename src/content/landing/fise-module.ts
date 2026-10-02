@@ -176,6 +176,9 @@ export const FISE: readonly FisaModul[] = [
       { href: "/evidenta-orelor-de-munca", eticheta: "Ce cere art. 119 la evidența orelor" },
       { href: "/unelte/foaie-de-pontaj", eticheta: "Foaie de pontaj lunar, gratuită" },
       { href: "/pontaj-pe-telefon", eticheta: "Cum se pontează de pe telefon" },
+      { href: "/unelte/condica-de-prezenta", eticheta: "Condica de prezență: model gratuit" },
+      { href: "/ghid/ore-suplimentare", eticheta: "Ore suplimentare: limita și plata" },
+      { href: "/ghid/spor-de-noapte", eticheta: "Sporul de noapte: 25% și cele 3 ore" },
     ],
     nuFace: [
       "Nu citește pontaje de la cititoare de cartelă sau de amprentă. Zilele se completează de om, din browser.",
@@ -240,7 +243,10 @@ export const FISE: readonly FisaModul[] = [
         text: "Regulamentele și instrucțiunile se trimit cu confirmare de citire, deci se știe cine a văzut, nu se presupune.",
       },
     ],
-    ghiduri: [{ href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" }],
+    ghiduri: [
+      { href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" },
+      { href: "/unelte/fisa-instruire-ssm", eticheta: "Fișa de instruire SSM: model" },
+    ],
     nuFace: [
       "Nu ține locul serviciului extern de prevenire și protecție. Ține evidența, nu întocmește documentația de securitate.",
       "Nu generează fișele de instruire ca documente semnate legal. Reține că instruirea a avut loc, când și de către cine.",
@@ -434,6 +440,7 @@ export const FISE: readonly FisaModul[] = [
         text: "Ce e dat în primire cu mașina — trusă, lanțuri, aparat — se urmărește din inventar.",
       },
     ],
+    ghiduri: [{ href: "/unelte/foaie-de-parcurs", eticheta: "Foaie de parcurs: model gratuit" }],
     nuFace: [
       "Nu urmărește mașinile prin GPS și nu se leagă la niciun sistem de telemetrie.",
       "Nu citește cardurile de tahograf și nu calculează timpii de conducere și odihnă.",
@@ -501,7 +508,10 @@ export const FISE: readonly FisaModul[] = [
       "Un șofer pleacă marți la 16:00 spre Germania și se întoarce vineri seara. Își deschide singur ordinul de deplasare, fiindcă diurnele sunt modulul în care omul își conduce propriul dosar. Ferestrele de 24 de ore curg de la ora plecării, nu de la miezul nopții, așa că ziua de marți nu se rotunjește: aplicația le numără de la 16:00, iar etapele se completează pe țări, cu ora trecerii. La întoarcere face decontul, iar dacă ceva lipsește se poate întoarce la pasul dinainte fără să piardă ce era completat. Partea neimpozabilă se calculează separat și intră ca atare în salarizare, nu ca o sumă rotundă adăugată la final. Șeful lui aprobă, dar nu poate modifica cifrele: aprobarea și scrierea sunt drepturi diferite.",
     notaPermisiuni:
       "Diurnele sunt singurul modul în care omul care pleacă în deplasare își conduce singur dosarul: cere, completează etapele, face decontul și poate șterge cererea cât timp e a lui. Managerul aprobă echipa, dar nu poate completa în locul nimănui. HR nu are nicio permisiune aici — e un flux între angajat, șeful lui și administrator.",
-    ghiduri: [{ href: "/ghid/diurna", eticheta: "Plafoanele neimpozabile și durata delegării" }],
+    ghiduri: [
+      { href: "/ghid/diurna", eticheta: "Plafoanele neimpozabile și durata delegării" },
+      { href: "/ghid/diurna-externa", eticheta: "Diurna externă pe țări" },
+    ],
     legaturi: [
       {
         catre: "payroll",
@@ -895,6 +905,7 @@ export const FISE: readonly FisaModul[] = [
         text: "Ce iese ca nevoie de instruire dintr-o evaluare se poate transforma într-un curs atribuit.",
       },
     ],
+    ghiduri: [{ href: "/unelte/fisa-evaluare", eticheta: "Fișa de evaluare: model" }],
     nuFace: [
       "Nu are evaluare la 360 de grade. Nu se cer păreri de la colegi sau de la subordonați.",
       "Nu calculează singură un bonus din nota finală. Legătura cu salarizarea o face un om.",

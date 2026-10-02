@@ -993,6 +993,7 @@ export const RO: ContinutLanding = {
           // programul în bună parte din cazuri.
           { eticheta: "Pentru contabili", href: "/pentru-contabili" },
           { eticheta: "Foaie de pontaj gratuită", href: "/unelte/foaie-de-pontaj" },
+          { eticheta: "Condica de prezență", href: "/unelte/condica-de-prezenta" },
           { eticheta: "Cerere de concediu", href: "/unelte/cerere-concediu-de-odihna" },
           { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
           // Hub-urile aveau o singură cale de acces: firimitura din pagina-copil.
@@ -1026,6 +1027,7 @@ export const RO: ContinutLanding = {
         legaturi: [
           { eticheta: "Evidența orelor (art. 119)", href: "/evidenta-orelor-de-munca" },
           { eticheta: "REGES-ONLINE: termene", href: "/reges-online" },
+          { eticheta: "Diurna externă pe țări", href: "/ghid/diurna-externa" },
           { eticheta: "Control ITM: ce se cere", href: "/ghid/control-itm" },
           { eticheta: "Toate ghidurile", href: "/ghid" },
           { eticheta: "Ce nu facem", href: "/de-ce-nu" },
