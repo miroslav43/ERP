@@ -19,11 +19,31 @@
  */
 import { mkdirSync } from "node:fs";
 
-import { chromium, type FullConfig } from "@playwright/test";
+import { chromium, type FullConfig, type Page } from "@playwright/test";
 
 import { CONTURI, ROLURI, caleStare, type Rol } from "./conturi";
 
 const PAROLA = process.env["E2E_PAROLA"] ?? "12345678";
+
+/**
+ * `page.goto` răbdător, doar pentru pregătire (nicio scriere, deci reîncercarea
+ * e sigură). În CI, poarta rulează imediat după rolling update: prima cerere
+ * autentificată spre containerul abia pornit a depășit 30 s (rularea
+ * 37019694204, 2 oct 2026), deși aceeași suită, rulată după câteva minute, a
+ * trecut 110/110. Trei încercări de câte 60 s, cu pauză între ele.
+ */
+async function deschideRabdator(pagina: Page, cale: string): Promise<void> {
+  const INCERCARI = 3;
+  for (let incercare = 1; ; incercare += 1) {
+    try {
+      await pagina.goto(cale, { waitUntil: "domcontentloaded", timeout: 60_000 });
+      return;
+    } catch (eroare) {
+      if (incercare >= INCERCARI) throw eroare;
+      await pagina.waitForTimeout(5_000 * incercare);
+    }
+  }
+}
 
 export default async function globalSetup(config: FullConfig): Promise<void> {
   const use = config.projects[0]?.use;
@@ -59,7 +79,7 @@ async function asiguraSesiune(
   try {
     const context = await browser.newContext({ ...optiuni, storageState: cale });
     const pagina = await context.newPage();
-    await pagina.goto(cont.acasa, { waitUntil: "domcontentloaded" });
+    await deschideRabdator(pagina, cont.acasa);
     const valabila = !new URL(pagina.url()).pathname.startsWith("/autentificare");
     if (valabila) await context.storageState({ path: cale });
     await context.close();
@@ -70,7 +90,7 @@ async function asiguraSesiune(
 
   const context = await browser.newContext(optiuni);
   const pagina = await context.newPage();
-  await pagina.goto("/autentificare", { waitUntil: "domcontentloaded" });
+  await deschideRabdator(pagina, "/autentificare");
   await pagina.fill("#email", cont.email);
   await pagina.fill("#parola", PAROLA);
   await Promise.all([
@@ -97,7 +117,7 @@ async function asiguraSesiune(
   // Acțiunea redirectează întâi spre `/` (câmpul ascuns `redirect`), iar abia
   // de acolo aplicația alege ecranul de start al rolului. Verificăm ȚINTA
   // rolului direct, nu prima adresă de după formular.
-  await pagina.goto(cont.acasa, { waitUntil: "domcontentloaded" });
+  await deschideRabdator(pagina, cont.acasa);
   const ajuns = new URL(pagina.url()).pathname;
   if (!ajuns.startsWith(cont.acasa)) {
     await context.close();
