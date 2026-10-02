@@ -97,6 +97,11 @@ cmd_prod() {
     exit 1
   fi
 
+  # IndexNow: Bing și Yandex află de pagini fără să le aștepte crawler-ul. O
+  # notificare, nu o poartă — un eșec aici nu face deploy-ul invalid.
+  node "$ADMINISTRATIVO_ROOT/scripts/indexnow.mjs" "https://${ADM_DOMAIN}" \
+    || warn "IndexNow n-a primit lista de adrese; deploy-ul rămâne valid."
+
   echo ""
   success "Producția e activă la ${BOLD}https://${ADM_DOMAIN}${NC}"
   info "Verifică rollout-ul: ${BOLD}./administrativo.sh stack:status${NC}"
