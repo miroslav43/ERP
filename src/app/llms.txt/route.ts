@@ -107,6 +107,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/unelte/foaie-de-parcurs",
     "Unealtă gratuită: foaie de parcurs lunară pentru o mașină de serviciu — fiecare zi, traseul, scopul deplasării, kilometrii la plecare și la sosire. Word, PDF sau Excel, fără cont. Cu limita de 50% din art. 25 alin. (3) lit. l) Cod fiscal pentru mașinile folosite și personal.",
   ],
+  [
+    "/unelte/fisa-instruire-ssm",
+    "Unealtă gratuită: fișa individuală de instruire SSM după anexa 11 la normele HG 1425/2006 — instruirea introductiv-generală, la locul de muncă, periodică și suplimentară, cu cele trei semnături. Plus regulile: minimum 8 ore la introductiv-generală (art. 87), periodica la cel mult 6 luni sau 12 pentru TESA (art. 96), suplimentara după 30 de zile lucrătoare de absență (art. 98). Word sau PDF.",
+  ],
   ["/comparatie", "Comparațiile cu felul în care se lucrează azi."],
   [
     "/comparatie/excel",

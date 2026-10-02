@@ -44,3 +44,10 @@ export const ANTET_FOAIE_PARCURS: AntetPagina = {
   titlu: "Foaie de parcurs",
   lead: "Scrie mașina, șoferul și luna: primești foaia de parcurs cu fiecare zi, traseul, scopul deplasării și kilometrii la plecare și la sosire. Descarci în Word, PDF sau Excel, fără cont.",
 };
+
+/** Fișa individuală de instruire SSM, după anexa 11 la HG 1425/2006. */
+export const ANTET_FISA_SSM: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Fișa de instruire SSM",
+  lead: "Fișa individuală de instruire după anexa 11 la HG 1425/2006, cu datele lucrătorului completate: instruirea la angajare, periodică și suplimentară, cu cele trei semnături. Descarci în Word sau PDF, fără cont.",
+};

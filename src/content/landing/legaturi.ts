@@ -27,6 +27,10 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     { eticheta: "Program de parc auto: ITP, RCA, rovinietă", href: "/module/flota" },
     { eticheta: "Diurna: cele două plafoane neimpozabile", href: "/ghid/diurna" },
   ],
+  "/unelte/fisa-instruire-ssm": [
+    { eticheta: "Program SSM: instruiri, aptitudini, echipament", href: "/module/ssm" },
+    { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
+  ],
   "/unelte/foaie-de-pontaj": [
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Pontaj de pe telefon, fără instalare", href: "/pontaj-pe-telefon" },

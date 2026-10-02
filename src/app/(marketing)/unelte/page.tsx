@@ -7,6 +7,7 @@ import { RO } from "@/content/landing/ro";
 import {
   ANTET_CERERE_CONCEDIU,
   ANTET_CONDICA,
+  ANTET_FISA_SSM,
   ANTET_FOAIE_PARCURS,
   ANTET_FOAIE_PONTAJ,
 } from "@/content/landing/unelte";
@@ -56,6 +57,12 @@ const PAGINI = [
     titlu: ANTET_FOAIE_PARCURS.titlu,
     lead: ANTET_FOAIE_PARCURS.lead,
     nota: "fiecare zi a lunii, traseu și kilometri · Word, PDF, Excel",
+  },
+  {
+    href: "/unelte/fisa-instruire-ssm",
+    titlu: ANTET_FISA_SSM.titlu,
+    lead: ANTET_FISA_SSM.lead,
+    nota: "după anexa 11 la HG 1425/2006 · Word, PDF",
   },
 ];
 
