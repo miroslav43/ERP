@@ -118,7 +118,8 @@ aritmetică, nu o problemă de titluri sau de descrieri.
 
 Termenii comerciali nu se câștigă fără autoritate. Interogările de nișă se pot
 câștiga **acum**, fiindcă acolo concurența e formată din bloguri vechi și fișiere
-Word. Paginile există deja:
+Word. Cererea măsurată pe familii de termeni, cu paginile care lipsesc, e în
+[`cuvinte-cheie.md`](cuvinte-cheie.md) (2 oct 2026). Paginile există deja:
 
 | Interogare țintă                   | Pagina care o servește              | Stare                  |
 | ---------------------------------- | ----------------------------------- | ---------------------- |
