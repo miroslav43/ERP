@@ -25,6 +25,8 @@ export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
   if (d.coloane.length > 0) {
     const antet = fila.addRow(d.coloane.map((c) => c.eticheta));
     antet.font = { bold: true };
+    // Etichetele cu `\n` (ziua deasupra literei) se afișează pe două rânduri.
+    antet.alignment = { wrapText: true, vertical: "top" };
     fila.views = [{ state: "frozen", ySplit: antet.number }];
     for (const r of d.randuri) {
       const rand = fila.addRow([...r]);

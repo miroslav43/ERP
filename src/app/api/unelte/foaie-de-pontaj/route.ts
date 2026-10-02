@@ -8,6 +8,9 @@ import {
   normalizeazaLuna,
   normalizeazaOre,
 } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie";
+import { foaieCaDocument } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie-document";
+import type { Format } from "@/lib/unelte/document-tabelar";
+import { raspunsDocument } from "@/lib/unelte/raspuns";
 
 /**
  * Exportul în format de calcul al foii de pontaj gratuite.
@@ -35,6 +38,15 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * `?format=pdf|docx` trece prin modelul comun (`src/lib/unelte/`). Excel rămâne
+ * implicitul aici, nu PDF-ul ca în restul uneltelor: linkurile vechi, fără
+ * `format`, trebuie să dea tot fișierul cu formule pe care îl dădeau.
+ */
+function normalizeazaFormatFoaie(brut: string | null): Format {
+  return brut === "pdf" || brut === "docx" ? brut : "xlsx";
+}
+
 /** Lățimile în „caractere" ale ExcelJS, alese ca foaia să încapă pe A4 lat. */
 const LATIME_NUME = 24;
 const LATIME_ZI = 3.4;
@@ -48,6 +60,9 @@ export async function GET(cerere: NextRequest): Promise<Response> {
   const oreZi = normalizeazaOre(q.get("ore") ?? undefined);
   const angajati = normalizeazaAngajati(q.get("angajati") ?? undefined);
   const foaie = construiesteFoaie(an, luna, angajati, oreZi);
+
+  const format = normalizeazaFormatFoaie(q.get("format"));
+  if (format !== "xlsx") return raspunsDocument(foaieCaDocument(foaie), format);
 
   const registru = new ExcelJS.Workbook();
   registru.creator = "Administrativo";

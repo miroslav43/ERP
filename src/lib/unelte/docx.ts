@@ -26,7 +26,17 @@ export async function randeazaDocx(d: DocumentTabelar): Promise<Uint8Array> {
       ...(d.umbrite.includes(i)
         ? { shading: { type: ShadingType.CLEAR, color: "auto", fill: "E6E9E6" } }
         : {}),
-      children: [new Paragraph({ children: [new TextRun({ text, bold: aldin, size: 16 })] })],
+      children: [
+        new Paragraph({
+          // `\n` din etichetă devine rând nou în celulă (antetul foii de pontaj).
+          children: text
+            .split("\n")
+            .map(
+              (linie, k) =>
+                new TextRun({ text: linie, bold: aldin, size: 16, ...(k > 0 ? { break: 1 } : {}) }),
+            ),
+        }),
+      ],
     });
 
   const paragraf = (

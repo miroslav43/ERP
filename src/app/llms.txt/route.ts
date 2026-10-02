@@ -93,7 +93,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ["/unelte", "Uneltele gratuite, fără cont."],
   [
     "/unelte/foaie-de-pontaj",
-    "Unealtă gratuită: generează o foaie de pontaj lunară cu sărbătorile legale calculate. Fără cont.",
+    "Unealtă gratuită: generează o foaie de pontaj lunară cu sărbătorile legale calculate, descărcabilă în PDF, Word sau Excel. Fără cont.",
   ],
   [
     "/unelte/cerere-concediu-de-odihna",

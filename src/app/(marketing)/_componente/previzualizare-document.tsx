@@ -39,7 +39,7 @@ export function PrevizualizareDocument({ document: d }: { document: DocumentTabe
                   <th
                     key={`${String(j)}-${c.eticheta}`}
                     scope="col"
-                    className="px-2 py-1.5 font-medium whitespace-nowrap"
+                    className="px-2 py-1.5 font-medium whitespace-pre-line"
                   >
                     {c.eticheta}
                   </th>

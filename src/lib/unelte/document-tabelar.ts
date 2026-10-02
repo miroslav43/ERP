@@ -18,6 +18,7 @@ export function normalizeazaFormat(brut: string | null): Format {
 }
 
 export type Coloana = Readonly<{
+  /** Poate conține `\n`: toate randările îl afișează ca rând nou în antet. */
   eticheta: string;
   /** Lățime RELATIVĂ; randările o transformă în procente din lățimea utilă. */
   latime: number;

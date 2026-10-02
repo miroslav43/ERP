@@ -77,36 +77,46 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   y -= 4;
   for (const p of d.paragrafe) scrie(p, 10, fonturi.normal);
 
+  /**
+   * Un rând de tabel. Etichetele pot avea `\n` (antetul foii de pontaj pune
+   * ziua deasupra literei): rândul crește cu numărul de linii, iar fiecare linie
+   * se taie separat la lățimea coloanei.
+   */
   const rand = (celule: readonly string[], aldin: boolean) => {
     const font = aldin ? fonturi.aldin : fonturi.normal;
+    const linii = celule.map((c) => c.split("\n"));
+    const nrLinii = Math.max(1, ...linii.map((l) => l.length));
+    const inalt = INALT_RAND + (nrLinii - 1) * (MARIME + 2);
     let x = MARGINE;
     latimi.forEach((w, i) => {
       if (d.umbrite.includes(i)) {
-        pagina.drawRectangle({ x, y: y - INALT_RAND, width: w, height: INALT_RAND, color: UMBRA });
+        pagina.drawRectangle({ x, y: y - inalt, width: w, height: inalt, color: UMBRA });
       }
       pagina.drawRectangle({
         x,
-        y: y - INALT_RAND,
+        y: y - inalt,
         width: w,
-        height: INALT_RAND,
+        height: inalt,
         borderColor: LINIE,
         borderWidth: 0.5,
       });
-      pagina.drawText(taie(celule[i] ?? "", w - 4, masoara(font, MARIME)), {
-        x: x + 2,
-        y: y - INALT_RAND + 5,
-        size: MARIME,
-        font,
-        color: NEGRU,
+      (linii[i] ?? [""]).forEach((linie, k) => {
+        pagina.drawText(taie(linie, w - 4, masoara(font, MARIME)), {
+          x: x + 2,
+          y: y - 11 - k * (MARIME + 2),
+          size: MARIME,
+          font,
+          color: NEGRU,
+        });
       });
       x += w;
     });
-    y -= INALT_RAND;
+    y -= inalt;
   };
 
   if (d.coloane.length > 0) {
     const antet = d.coloane.map((c) => c.eticheta);
-    asiguraLoc(INALT_RAND * 2);
+    asiguraLoc(INALT_RAND * 3);
     rand(antet, true);
     for (const r of d.randuri) {
       if (y - INALT_RAND < MARGINE + REZERVA_SUBSOL) {

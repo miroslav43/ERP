@@ -9,6 +9,7 @@ import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import {
@@ -43,9 +44,9 @@ import {
  * nevoie de hidratare.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Foaie de pontaj lunar gratuită, cu sărbători",
+  titlu: "Foaie de pontaj lunar: PDF, Word și Excel",
   descriere:
-    "Generează o foaie colectivă de prezență pentru orice lună, cu weekendurile și sărbătorile legale marcate automat. Se tipărește sau se descarcă în Excel. Fără cont.",
+    "Foaie colectivă de pontaj pentru orice lună, cu weekendurile și sărbătorile legale marcate automat. Descarci în PDF, Word sau Excel, fără cont.",
   cale: "/unelte/foaie-de-pontaj",
 });
 
@@ -160,13 +161,12 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
             lucrătoare · <span className="font-mk-date text-mk-text">{foaie.normaLunara}</span> ore
             normă
           </p>
-          <a
-            href={`/api/unelte/foaie-de-pontaj?${parametri.toString()}`}
-            data-umami-event="foaie-excel"
-            className="text-[0.9375rem] underline underline-offset-4"
-          >
-            Descarcă în Excel
-          </a>
+          <Descarcari
+            eveniment="foaie"
+            href={(format) =>
+              `/api/unelte/foaie-de-pontaj?${parametri.toString()}&format=${format}`
+            }
+          />
         </div>
       </Banda>
 
