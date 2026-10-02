@@ -18,7 +18,7 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
 export const metadata: Metadata = metadatePagina({
   titlu: "Diurna: plafonul neimpozabil și cele 3 salarii",
   descriere:
-    "Cele două plafoane ale diurnei — 2,5 ori nivelul din hotărârea de guvern și 3 salarii de bază calculate lunar — plus ce spune Codul muncii despre delegare și cei 60 de zile.",
+    "Cele două plafoane ale diurnei — 2,5 ori nivelul din hotărârea de guvern și 3 salarii de bază calculate lunar — plus ce spune Codul muncii despre delegare și cele 60 de zile.",
   cale: "/ghid/diurna",
 });
 

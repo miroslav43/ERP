@@ -72,26 +72,29 @@ export function BaraConsimtamant() {
       aria-label="Cookie-uri de analiză"
       className="mk-cerneala bg-mk-cerneala text-mk-text-inv fixed inset-x-0 bottom-0 z-50 border-t border-(--color-mk-rigla-inv)"
     >
-      <div className="max-w-mk mx-auto flex w-full flex-wrap items-center gap-x-8 gap-y-3 px-[clamp(1rem,4vw,2.5rem)] py-4">
-        <p className="text-mk-text-inv-slab min-w-[18rem] flex-1 text-[0.875rem] leading-[1.55]">
-          Folosim cookie-uri de analiză ca să știm ce pagini sunt citite. Nu sunt necesare ca situl
-          să funcționeze, iar dacă refuzi nu se schimbă nimic pentru tine.{" "}
+      {/* Pe telefon, bara ocupa 180 px din 844 (21%) și acoperea captura de sub
+          erou (auditul din 2 oct 2026). Sub `sm`: text mai mic, spații mai mici,
+          butoane de 44 px — pragul de țintă tactilă, sub care nu se coboară. */}
+      <div className="max-w-mk mx-auto flex w-full flex-wrap items-center gap-x-8 gap-y-2 px-[clamp(1rem,4vw,2.5rem)] py-3 sm:gap-y-3 sm:py-4">
+        <p className="text-mk-text-inv-slab min-w-[18rem] flex-1 text-[0.8125rem] leading-[1.5] sm:text-[0.875rem] sm:leading-[1.55]">
+          Folosim cookie-uri de analiză ca să știm ce pagini sunt citite. Nu sunt necesare, iar dacă
+          refuzi nu se schimbă nimic pentru tine.{" "}
           <Link href="/legal/confidentialitate" className="text-mk-text-inv underline-offset-4">
             Politica de confidențialitate
           </Link>
         </p>
-        <div className="flex gap-3">
+        <div className="flex w-full gap-3 sm:w-auto">
           <button
             type="button"
             onClick={() => raspunde("refuzat")}
-            className="border-mk-rigla-inv hover:border-mk-text-inv inline-flex h-12 items-center rounded border px-5 text-[0.9375rem] font-medium transition-colors"
+            className="border-mk-rigla-inv hover:border-mk-text-inv inline-flex h-11 flex-1 items-center justify-center rounded border px-5 text-[0.9375rem] font-medium transition-colors sm:h-12 sm:flex-none"
           >
             Refuz
           </button>
           <button
             type="button"
             onClick={() => raspunde("acceptat")}
-            className="bg-mk-hartie text-mk-cerneala inline-flex h-12 items-center rounded px-5 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+            className="bg-mk-hartie text-mk-cerneala inline-flex h-11 flex-1 items-center justify-center rounded px-5 text-[0.9375rem] font-medium transition-opacity hover:opacity-90 sm:h-12 sm:flex-none"
           >
             Accept
           </button>
