@@ -2,6 +2,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { OpresteAnaliticele } from "@/components/layout/opreste-analiticele";
+
 /**
  * Zona de înrolare e vizibilă doar cu sesiune validă și nu are conținut public.
  * `noindex` din același motiv ca în `(auth)`, și pe layout din același motiv:
@@ -41,10 +43,19 @@ export const metadata: Metadata = {
  * fișierul din clipa în care variabila e pusă pe un element. Un font nefolosit
  * pe primul ecran văzut vreodată de un client nou e exact costul care nu
  * trebuie plătit. Când apare primul `font-mono` aici, se adaugă atunci.
+ *
+ * ── DE CE ȘI AICI `OpresteAnaliticele` ────────────────────────────────────
+ * Plasa din `(app)` nu acoperă zona asta: `(app)/layout.tsx` trimite contul
+ * fără firmă configurată spre `/bun-venit` printr-un `redirect()` de server,
+ * ÎNAINTE să-și randeze propriul `<OpresteAnaliticele />`. Dacă `gtag.js` a
+ * supraviețuit unei navigări soft dinspre pagina publică, raportează mai
+ * departe. Văzut în GA4, nu presupus: `/bun-venit` apare pe 30 sept 2026, la
+ * șase zile după ce reparația din `7f087c9` ajunsese în producție.
  */
 export default function LayoutInrolare({ children }: { children: ReactNode }) {
   return (
     <div data-zona="inrolare" className="flex min-h-dvh flex-col">
+      <OpresteAnaliticele />
       {/* Aceeași formă ca în `(app)`, `(portal)` și `(auth)`: o singură variantă
           a scurtăturii în tot produsul. */}
       <a
