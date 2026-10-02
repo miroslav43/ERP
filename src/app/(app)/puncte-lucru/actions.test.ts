@@ -128,18 +128,15 @@ describe("creeazaPunctLucru", () => {
   });
 
   // `throw mapPostgrestError(...)` aruncă un `ActionError` SIMPLU (fără
-  // `details`), pe care `createAction` nu-l recunoaște nici ca `ActionDenied`,
-  // nici ca eroare PostgREST — deci orice cod al bazei devine EROARE_INTERNA.
-  it.fails(
-    "DEFECT: denumire duplicată (23505) iese EROARE_INTERNA în loc de CONFLICT",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: CREARE });
-      server.raspunde("puncte_lucru", "insert", { error: eroarePostgrest("23505") });
-      const r = await creeazaPunctLucru({ denumire: "depozit" });
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-      expect(caiRevalidate()).toEqual([]);
-    },
-  );
+  // `details`); `createAction` îl recunoaște (`esteActionError`) și îi păstrează
+  // codul. Până la 2 oct 2026 orice cod al bazei devenea aici EROARE_INTERNA.
+  it("denumire duplicată (23505) iese CONFLICT, nu EROARE_INTERNA", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("puncte_lucru", "insert", { error: eroarePostgrest("23505") });
+    const r = await creeazaPunctLucru({ denumire: "depozit" });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(caiRevalidate()).toEqual([]);
+  });
 
   it("auditul de succes poartă id-ul creat și doar câmpurile permise", async () => {
     const { server } = configureazaActiunea({ permisiuni: CREARE });
@@ -279,7 +276,7 @@ describe("rotesteCodPontaj", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
-  it.fails("DEFECT: 42501 de la bază iese EROARE_INTERNA în loc de INTERZIS", async () => {
+  it("42501 de la bază iese INTERZIS, nu EROARE_INTERNA", async () => {
     const { server } = configureazaActiunea({ permisiuni: MODIFICARE });
     server.raspunde("puncte_lucru", "update", { error: eroarePostgrest("42501") });
     const r = await rotesteCodPontaj({ id: ID_1 });

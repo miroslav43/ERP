@@ -39,11 +39,11 @@ describe("verificaSalariat — cifra de control a CNP-ului", () => {
     expect(verificaSalariat(salariat("190010107001")).map((p) => p.camp)).toEqual(["cnp"]);
   });
 
-  // Antetul `validare.ts`: un mesaj cu conținut greșit „primește recipisă și e
-  // refuzat abia ASINCRON”, cu termenul legal curgând — de aceea se verifică
-  // local tot ce e verificabil fără regulile de fond ale ITM. Cifra de control
-  // e un astfel de format; `verificaSalariat` se oprește la tipar.
-  it.fails("DEFECT: un CNP cu cifra de control greșită e oprit înainte să plece", () => {
-    expect(verificaSalariat(salariat("1900101070016")).map((p) => p.camp)).toEqual(["cnp"]);
+  // Cifra de control NU se verifică aici, deliberat: toate căile care scriu un
+  // CNP o verifică deja (schemas/employee.ts prin `validateazaCnp`, importul
+  // Excel prin `areCnpCifraControlValida`), deci un CNP invalid nu ajunge în
+  // `employee_sensitive_data`. `verificaSalariat` verifică doar tiparul din XSD.
+  it("un CNP cu tipar valid trece, oricare i-ar fi cifra de control (verificată la scriere)", () => {
+    expect(verificaSalariat(salariat("1900101070016"))).toEqual([]);
   });
 });

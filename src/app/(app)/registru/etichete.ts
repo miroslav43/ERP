@@ -42,5 +42,7 @@ function dinCod(cod: string): string {
 }
 
 export function eticheteazaTipDocument(cod: string): string {
-  return DENUMIRI[cod] ?? dinCod(cod);
+  // `Object.hasOwn`: „constructor” e un cod valid de tip, dar și o cheie din
+  // prototip — citit direct, întorcea funcția `Object`, nu un text.
+  return (Object.hasOwn(DENUMIRI, cod) ? DENUMIRI[cod] : undefined) ?? dinCod(cod);
 }

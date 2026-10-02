@@ -265,7 +265,8 @@ describe("calculatePayrollEntry — scutiri fiscale (ex. cod CAEN IT)", () => {
       deductions: [],
     });
     expect(rezultat.scutireFiscala).toBeCloseTo(5000 * 0.1, 2);
-    expect(rezultat.bazaImpozit).toBeCloseTo(5000 - 1250 - 500 - 500, 2);
+    // Scutirea brută (500) se scade la valoarea ei netă de CAS și CASS.
+    expect(rezultat.bazaImpozit).toBeCloseTo(5000 - 1250 - 500 - 500 * (1 - 0.25 - 0.1), 2);
     expect(rezultat.warnings.map((w) => w.cod)).not.toContain("SCUTIRI_FISCALE_MULTIPLE");
   });
 

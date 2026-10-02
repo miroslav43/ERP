@@ -159,21 +159,18 @@ describe("creeazaSablonEvaluare", () => {
     expect(caiRevalidate()).toEqual(CAI);
   });
 
-  it.fails(
-    "DEFECT: o eroare Postgres (23505) trebuie să iasă CONFLICT, nu EROARE_INTERNA",
-    async () => {
-      // `throw mapPostgrestError(...)` aruncă un `ActionError` simplu, care nu e
-      // nici `ActionDenied`, nici PostgrestError (n-are `details`) — deci
-      // `createAction` îl coboară la EROARE_INTERNA și mesajul tradus se pierde.
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      server.raspunde("evaluation_templates", "insert", { error: eroarePostgrest("23505") });
-      const r = await creeazaSablonEvaluare({
-        denumire: "Anual",
-        criterii: [{ denumire: "Calitate" }],
-      });
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+  it("o eroare Postgres (23505) iese CONFLICT, nu EROARE_INTERNA", async () => {
+    // `throw mapPostgrestError(...)` aruncă un `ActionError` simplu, care nu e
+    // nici `ActionDenied`, nici PostgrestError (n-are `details`) — deci
+    // `createAction` îl coboară la EROARE_INTERNA și mesajul tradus se pierde.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("evaluation_templates", "insert", { error: eroarePostgrest("23505") });
+    const r = await creeazaSablonEvaluare({
+      denumire: "Anual",
+      criterii: [{ denumire: "Calitate" }],
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 });
 
 describe("actualizeazaSablonEvaluare", () => {

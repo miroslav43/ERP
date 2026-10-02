@@ -43,7 +43,7 @@ describe("eticheteazaTipDocument", () => {
 
   // `constructor` trece de regex-ul din `inregistrareManualaSchema`
   // (`^[a-z][a-z0-9_]{1,63}$`), deci poate ajunge în `tip_document`.
-  it.fails("DEFECT: codul „constructor” întoarce funcția din prototip, nu un text", () => {
+  it("codul „constructor” întoarce un text, nu funcția din prototip", () => {
     const eticheta: unknown = eticheteazaTipDocument("constructor");
     expect(typeof eticheta).toBe("string");
     expect(eticheta).toBe("Constructor");

@@ -285,6 +285,8 @@ describe("salveazaSetari", () => {
     server.raspunde("payroll_personal_deduction_brackets", "insert", {
       error: eroarePostgrest("23514"),
     });
+    // Anularea logică a versiunii fără praguri (compensarea).
+    server.raspunde("payroll_settings", "update", { data: null });
 
     const r = await salveazaSetari(INTRARE);
 
@@ -294,10 +296,9 @@ describe("salveazaSetari", () => {
     });
   });
 
-  // Zod nu verifică `max >= min` pe un prag; `ppdb_persoane_ck` (0026:96) da.
-  // Versiunea de setări e deja inserată când pragurile cad, deci rămâne în bază
-  // FĂRĂ praguri: calculul lunii ia deducere personală zero, tăcut, iar o nouă
-  // salvare la aceeași dată cade pe `payroll_settings_valabil_uq`.
+  // Versiunea de setări e deja inserată când pragurile cad. Fără compensare
+  // rămânea în bază FĂRĂ praguri: calculul lunii lua deducere personală zero,
+  // tăcut, iar o nouă salvare la aceeași dată cădea pe `payroll_settings_valabil_uq`.
   const PRAG_INVERSAT = [
     {
       nr_persoane_intretinere_min: 2,
@@ -320,40 +321,33 @@ describe("salveazaSetari", () => {
     return server;
   }
 
-  it.fails(
-    "DEFECT: pragurile respinse lasă în bază o versiune de setări fără praguri",
-    async () => {
-      const server = programeazaPragRespins();
-
-      const r = await salveazaSetari({ ...INTRARE, praguri: PRAG_INVERSAT });
-
-      expect(r.ok).toBe(false);
-      // Fiecare versiune inserată trebuie anulată (sau scrierea să fie atomică).
-      const inserate = server.apeluriPe("payroll_settings", "insert").length;
-      const anulate =
-        server.apeluriPe("payroll_settings", "update").length +
-        server.apeluriPe("payroll_settings", "delete").length;
-      expect(inserate - anulate).toBe(0);
-    },
-  );
-
-  // Perechea defectului de mai sus: fixează comportamentul ACTUAL, exact. Un
-  // `it.fails` trece la orice excepție — inclusiv la un apel neprogramat al
-  // falsului, cum ar face o reparație printr-un RPC atomic. Testul ăsta se
-  // înroșește la ORICE reparație; atunci se șterge, iar `it.fails` devine `it`.
-  it("DEFECT documentat: azi se face o singură inserare de setări, fără nicio anulare", async () => {
-    const server = programeazaPragRespins();
+  it("prag cu maximul sub minim: VALIDARE din formular, nimic scris", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
 
     const r = await salveazaSetari({ ...INTRARE, praguri: PRAG_INVERSAT });
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("pragurile respinse de bază: versiunea de setări abia inserată se anulează logic", async () => {
+    const server = programeazaPragRespins();
+
+    // Un prag valid pentru Zod, respins totuși de bază (aici: 23514 forțat).
+    const r = await salveazaSetari(INTRARE);
 
     expect(r).toMatchObject({
       ok: false,
       error: { code: "CONFLICT", message: expect.stringContaining("valori imposibile") },
     });
     expect(server.apeluriPe("payroll_settings", "insert")).toHaveLength(1);
-    expect(server.apeluriPe("payroll_settings", "update")).toHaveLength(0);
-    expect(server.apeluriPe("payroll_settings", "delete")).toHaveLength(0);
-    expect(server.apeluriRpc.filter((a) => a.nume !== "log_audit_event")).toHaveLength(0);
+    const [anulare, ...altele] = server.apeluriPe("payroll_settings", "update");
+    expect(altele).toHaveLength(0);
+    expect(Object.keys(anulare?.payload as object)).toEqual(["deleted_at"]);
+    expect(areFiltru(anulare, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(anulare, "eq", "organization_id", ORG_ID)).toBe(true);
   });
 });
 

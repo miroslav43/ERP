@@ -708,7 +708,8 @@ describe("calculeazaPerioada — intrările lunii ajung în statul de plată", (
         [
           ANGAJAT_A,
           {
-            zile: [{ data: "2026-08-10", sumaAcordata: 400, baremLegalZi: 100, deplasareId: "t1" }],
+            // Citirea dă plafonul DEPLASĂRII (deja × 2,5) — vezi `diurnaLunaPerAngajat`.
+            zile: [{ data: "2026-08-10", sumaAcordata: 400, baremLegalZi: 250, deplasareId: "t1" }],
             neimpozabilaCalculata: 250,
             impozabilaCalculata: 150,
             cursIncomplet: false,
@@ -719,7 +720,9 @@ describe("calculeazaPerioada — intrările lunii ajung în statul de plată", (
 
     await calculeazaPerioada({ id: ID_1 });
 
-    // Plafonul zilnic: 2,5 × 100 = 250 lei neimpozabili; restul de 150, impozabil.
+    // Plafonul deplasării, 250 lei, rămâne neimpozabil exact (250 / 2,5 × 2,5);
+    // restul de 150, impozabil. Până la 2 oct 2026 multiplicatorul se aplica de
+    // DOUĂ ori: un test cu „baremul” 250 dădea 400 neimpozabili.
     expect(camp(server, ANGAJAT_A, "diurna_neimpozabila")).toBe(250);
     expect(camp(server, ANGAJAT_A, "diurna_impozabila")).toBe(150);
     expect(camp(server, ANGAJAT_B, "diurna_neimpozabila")).toBe(0);

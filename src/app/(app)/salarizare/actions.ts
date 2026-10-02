@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
+import type { ActionContext } from "@/lib/actions/types";
 import {
   angajatiActiviCuContract,
   certificateMedicaleLuna,
@@ -135,7 +136,19 @@ export const salveazaSetari = createAction({
           ordine: index,
         })),
       );
-    if (eroarePraguri !== null) traduEroare(eroarePraguri);
+    if (eroarePraguri !== null) {
+      // Compensare: fără tranzacție, versiunea de setări rămânea scrisă fără
+      // praguri — și devenea cea în vigoare. Calculul dădea atunci deducere
+      // personală ZERO, tăcut (`cautaPragDeducere`), iar data rămânea blocată de
+      // `payroll_settings_valabil_uq`. Se anulează logic (indexul e parțial pe
+      // `deleted_at is null`); eroarea anulării nu o ascunde pe cea originală.
+      await ctx.supabase
+        .from("payroll_settings")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", setari.id)
+        .eq("organization_id", ctx.tenant.organizationId);
+      traduEroare(eroarePraguri);
+    }
 
     return { id: setari.id };
   },
@@ -532,7 +545,16 @@ export const calculeazaPerioada = createAction({
           ? {}
           : {
               diurna: {
-                zile: diurna.get(angajat.employee_id)?.zile ?? [],
+                // `baremLegalZi` vine din citire ca plafonul DEPLASĂRII (deja ×
+                // multiplu). Împărțit la multiplicator, etapa îl reaplică exact
+                // și obține plafonul calculat în modulul de deplasări.
+                zile: (diurna.get(angajat.employee_id)?.zile ?? []).map((zi) => ({
+                  ...zi,
+                  baremLegalZi:
+                    plafoaneDiurna.multiplicatorPlafonZilnic > 0
+                      ? zi.baremLegalZi / plafoaneDiurna.multiplicatorPlafonZilnic
+                      : 0,
+                })),
                 multiplicatorPlafonZilnic: plafoaneDiurna.multiplicatorPlafonZilnic,
                 fractiePlafonLunar: plafoaneDiurna.fractiePlafonLunar,
               },
@@ -1015,6 +1037,35 @@ export const stergeRetinere = createAction({
   },
 });
 
+/**
+ * Precitirea stării perioadei înaintea unei adăugări. `payroll_bonuses_insert`
+ * și `payroll_deductions_insert` cer perioada în `draft` (0026:570, 604), iar
+ * respingerea din WITH CHECK iese ca 42501 — adică „nu aveți dreptul”, deși
+ * dreptul există și doar luna nu mai e în ciornă. Ștergerile o fac deja.
+ */
+async function cerePerioadaInCiorna(
+  ctx: ActionContext,
+  periodId: string,
+  ce: "prime" | "rețineri",
+): Promise<void> {
+  const { data: perioada, error } = await ctx.supabase
+    .from("payroll_periods")
+    .select("id, status")
+    .eq("id", periodId)
+    .eq("organization_id", ctx.tenant.organizationId)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string; status: string }>();
+  if (error !== null) traduEroare(error);
+  if (perioada === null) {
+    throw notFound("Perioada de salarizare nu a fost găsită. Poate a fost ștearsă între timp.");
+  }
+  if (perioada.status !== "draft") {
+    throw businessRule(
+      `Perioada nu mai e în ciornă, deci nu i se mai pot adăuga ${ce}. Redeschideți perioada pentru corecții, apoi reîncercați.`,
+    );
+  }
+}
+
 export const adaugaPrima = createAction({
   name: "payroll.bonus.add",
   feature: "payroll",
@@ -1028,6 +1079,7 @@ export const adaugaPrima = createAction({
   },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
+    await cerePerioadaInCiorna(ctx, input.period_id, "prime");
     const { error } = await ctx.supabase.from("payroll_bonuses").insert({
       organization_id: ctx.tenant.organizationId,
       period_id: input.period_id,
@@ -1056,6 +1108,7 @@ export const adaugaRetinere = createAction({
   },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
+    await cerePerioadaInCiorna(ctx, input.period_id, "rețineri");
     const { error } = await ctx.supabase.from("payroll_deductions").insert({
       organization_id: ctx.tenant.organizationId,
       period_id: input.period_id,

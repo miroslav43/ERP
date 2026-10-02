@@ -256,15 +256,12 @@ describe("asociazaComponenta", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it.fails(
-    "DEFECT: 23505 tradus cu `mapPostgrestError` și aruncat ca obiect simplu iese EROARE_INTERNA, nu CONFLICT",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      server.raspunde("salary_components", "insert", { error: eroarePostgrest("23505") });
-      const r = await asociazaComponenta(intrare);
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+  it("23505 tradus cu `mapPostgrestError` și aruncat ca valoare iese CONFLICT, nu EROARE_INTERNA", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("salary_components", "insert", { error: eroarePostgrest("23505") });
+    const r = await asociazaComponenta(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 });
 
 describe("incheieComponentaAngajat", () => {
@@ -364,15 +361,12 @@ describe("adaugaPersoanaIntretinere", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it.fails(
-    "DEFECT: 23505 tradus cu `mapPostgrestError` și aruncat ca obiect simplu iese EROARE_INTERNA, nu CONFLICT",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      server.raspunde("employee_dependents", "insert", { error: eroarePostgrest("23505") });
-      const r = await adaugaPersoanaIntretinere(intrare);
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+  it("23505 tradus cu `mapPostgrestError` și aruncat ca valoare iese CONFLICT, nu EROARE_INTERNA", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("employee_dependents", "insert", { error: eroarePostgrest("23505") });
+    const r = await adaugaPersoanaIntretinere(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 });
 
 describe("stergePersoanaIntretinere", () => {
@@ -474,13 +468,10 @@ describe("adaugaScutireFiscala", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
   });
 
-  it.fails(
-    "DEFECT: 42501 tradus cu `mapPostgrestError` și aruncat ca obiect simplu iese EROARE_INTERNA, nu INTERZIS",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      server.raspunde("employee_tax_exemptions", "insert", { error: eroarePostgrest("42501") });
-      const r = await adaugaScutireFiscala(intrare);
-      expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
-    },
-  );
+  it("42501 tradus cu `mapPostgrestError` și aruncat ca valoare iese INTERZIS, nu EROARE_INTERNA", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("employee_tax_exemptions", "insert", { error: eroarePostgrest("42501") });
+    const r = await adaugaScutireFiscala(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+  });
 });

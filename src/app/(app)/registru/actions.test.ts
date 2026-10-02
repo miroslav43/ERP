@@ -362,32 +362,17 @@ describe("actualizeazaAvizNomenclator", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
-  // `traduEroare` dă la ORICE 42501 textul scris pentru INSERT-ul direct în
-  // `registru_documente`. Pe un upsert în `nomenclator_config` el îl trimite pe
-  // utilizator spre „înregistrarea manuală”, care n-are nicio legătură cu avizul.
-  it.fails(
-    "DEFECT: 42501 pe nomenclator primește mesajul despre numerele de registru",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: SCRIERE });
-      server.raspunde("nomenclator_config", "upsert", { error: eroarePostgrest("42501") });
-      const r = await actualizeazaAvizNomenclator(intrare);
-      expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
-      if (r.ok) return;
-      expect(r.error.message).not.toContain("Numerele de înregistrare");
-    },
-  );
-
-  it("stare actuală (DEFECT de mai sus): 42501 pe nomenclator iese CONFLICT cu textul registrului", async () => {
+  // `traduEroare` dădea la ORICE 42501 textul scris pentru INSERT-ul direct în
+  // `registru_documente`. Pe un upsert în `nomenclator_config` îl trimitea pe
+  // utilizator spre „înregistrarea manuală”, fără legătură cu avizul.
+  it("42501 pe nomenclator iese INTERZIS, fără mesajul despre numerele de registru", async () => {
     const { server } = configureazaActiunea({ permisiuni: SCRIERE });
-    server.raspunde("nomenclator_config", "upsert", { error: eroarePostgrest("42501") });
-    const r = await actualizeazaAvizNomenclator(intrare);
-    expect(r).toMatchObject({
-      ok: false,
-      error: {
-        code: "CONFLICT",
-        message:
-          "Numerele de înregistrare nu se pot scrie direct în registru. Folosiți înregistrarea manuală.",
-      },
+    server.raspunde("nomenclator_config", "upsert", {
+      error: eroarePostgrest("42501", "permission denied for table nomenclator_config"),
     });
+    const r = await actualizeazaAvizNomenclator(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    if (r.ok) return;
+    expect(r.error.message).not.toContain("Numerele de înregistrare");
   });
 });

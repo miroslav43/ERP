@@ -7,6 +7,7 @@ import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import type { TaxExemptionSnapshot } from "@/domain/payroll/calc";
 import { contractEfectiv } from "@/domain/payroll/contract";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { citesteTot } from "@/lib/queries/citeste-tot";
 import { zileNelucratoare } from "@/lib/queries/leave";
 
 export interface PragDeducere {
@@ -990,21 +991,34 @@ export async function istoricVenitPerAngajat(
   const ceaMaiVeche = luni[luni.length - 1] as { an: number; luna: number };
 
   interface RandCalculat {
+    readonly id: string;
     readonly employee_id: string;
     readonly brut: number;
     readonly prime_total: number;
     readonly zile_lucrate: number;
     readonly perioada: { an: number; luna: number } | null;
   }
-  const { data: calculate, error: eroareCalculate } = await db
-    .from("payroll_entries")
-    .select(
-      "employee_id, brut, prime_total, zile_lucrate, perioada:payroll_periods!period_id(an, luna)",
-    )
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .returns<RandCalculat[]>();
-  if (eroareCalculate !== null) throw eroareCalculate;
+  // Paginat: fără fereastră în bază, rândurile cresc cu fiecare lună calculată,
+  // iar PostgREST taie tăcut la max_rows = 1000 (capcana 2). Fără ORDER, cădeau
+  // tocmai lunile cele mai noi — cele din fereastră — și media pentru
+  // indemnizațiile CO/CM scădea fără nicio eroare.
+  const calculate = await citesteTot<RandCalculat>(
+    (dupa, pas) => {
+      let q = db
+        .from("payroll_entries")
+        .select(
+          "id, employee_id, brut, prime_total, zile_lucrate, perioada:payroll_periods!period_id(an, luna)",
+        )
+        .eq("organization_id", organizationId)
+        .is("deleted_at", null)
+        .order("id", { ascending: true })
+        .limit(pas);
+      if (dupa !== null) q = q.gt("id", dupa);
+      return q.returns<RandCalculat[]>();
+    },
+    (r) => r.id,
+    { nume: "istoricul de venit" },
+  );
 
   interface RandImportat {
     readonly employee_id: string;
@@ -1046,7 +1060,7 @@ export async function istoricVenitPerAngajat(
       false,
     );
   }
-  for (const rand of calculate ?? []) {
+  for (const rand of calculate) {
     if (rand.perioada === null) continue;
     pune(
       rand.employee_id,
@@ -1445,17 +1459,28 @@ export async function diurnaLunaPerAngajat(
       sosire_la: string;
     } | null;
   }
-  const { data, error } = await db
-    .from("per_diem_calculations")
-    .select(
-      "business_trip_id, zile_total, valoare_lei, plafon_neimpozabil_lei, parte_neimpozabila_lei, parte_impozabila_lei, curs_incomplet, deplasare:business_trips!business_trip_id(employee_id, status, sosire_la)",
-    )
-    .eq("organization_id", organizationId)
-    .returns<Brut[]>();
-  if (error !== null) throw error;
+  // Paginat după `business_trip_id` (unic, 0015:306): calculele se acumulează pe
+  // toată viața firmei, iar PostgREST taie tăcut la max_rows = 1000 (capcana 2).
+  // Netaiat, diurna unor deplasări din luna curentă putea lipsi de pe stat.
+  const data = await citesteTot<Brut>(
+    (dupa, pas) => {
+      let q = db
+        .from("per_diem_calculations")
+        .select(
+          "business_trip_id, zile_total, valoare_lei, plafon_neimpozabil_lei, parte_neimpozabila_lei, parte_impozabila_lei, curs_incomplet, deplasare:business_trips!business_trip_id(employee_id, status, sosire_la)",
+        )
+        .eq("organization_id", organizationId)
+        .order("business_trip_id", { ascending: true })
+        .limit(pas);
+      if (dupa !== null) q = q.gt("business_trip_id", dupa);
+      return q.returns<Brut[]>();
+    },
+    (r) => r.business_trip_id,
+    { nume: "calculele de diurnă" },
+  );
 
   const rezultat = new Map<string, DiurnaAngajat>();
-  for (const rand of data ?? []) {
+  for (const rand of data) {
     const deplasare = rand.deplasare;
     if (deplasare === null) continue;
     if (deplasare.status !== "incheiata" && deplasare.status !== "decontata") continue;
@@ -1474,10 +1499,15 @@ export async function diurnaLunaPerAngajat(
         {
           data: zi,
           sumaAcordata: rand.valoare_lei,
-          // Baremul mediu pe zi, reconstituit din plafonul deja calculat. Nu se
-          // reaplică plafonul zilnic — el a fost aplicat în modulul de
-          // deplasări; aici contează doar cumulul lunar.
-          baremLegalZi: rand.zile_total > 0 ? rand.plafon_neimpozabil_lei / rand.zile_total : 0,
+          // ATENȚIE: aici e plafonul ÎNTREGII deplasări, deja × multiplu (cum l-a
+          // calculat `app.recalculeaza_diurna`), nu baremul legal. „Ziua” e
+          // sintetică și poartă toată deplasarea, deci apelantul (`salarizare/
+          // actions.ts`) îl împarte la multiplicatorul etapei, ca etapa să-l
+          // reaplice exact. Până la 2 oct 2026 se trimitea plafonul pe zi (deja
+          // × 2,5), pe care etapa îl mai înmulțea o dată și îl compara cu suma
+          // TOTALĂ: o deplasare de o zi ieșea neimpozitată, una lungă impozitată
+          // fără temei.
+          baremLegalZi: rand.plafon_neimpozabil_lei,
           deplasareId: rand.business_trip_id,
         },
       ],

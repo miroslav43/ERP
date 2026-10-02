@@ -92,6 +92,37 @@ export function mapPostgrestError(error: PostgrestError, requestId: string): Act
   };
 }
 
+const CODURI_ACTIUNE: ReadonlySet<string> = new Set<ActionErrorCode>([
+  "NEAUTENTIFICAT",
+  "FARA_ORGANIZATIE",
+  "MODUL_DEZACTIVAT",
+  "INTERZIS",
+  "VALIDARE",
+  "CONFLICT",
+  "NEGASIT",
+  "LIMITA_DEPASITA",
+  "EROARE_INTERNA",
+]);
+
+/**
+ * Un `ActionError` deja tradus, ARUNCAT ca valoare — tiparul
+ * `throw mapPostgrestError(error, ctx.requestId)` din zeci de handlere. Nu e
+ * `ActionDenied` și n-are `details`, deci fără recunoașterea asta `createAction`
+ * îl transforma în EROARE_INTERNA: un 23505 tradus în CONFLICT ajungea la
+ * utilizator drept „eroare neașteptată”.
+ */
+export function esteActionError(value: unknown): value is ActionError {
+  if (typeof value !== "object" || value === null) return false;
+  const candidat = value as { code?: unknown; message?: unknown };
+  return (
+    typeof candidat.code === "string" &&
+    CODURI_ACTIUNE.has(candidat.code) &&
+    typeof candidat.message === "string" &&
+    "fieldErrors" in value &&
+    !("details" in value)
+  );
+}
+
 export function isPostgrestError(value: unknown): value is PostgrestError {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as { code?: unknown; message?: unknown };

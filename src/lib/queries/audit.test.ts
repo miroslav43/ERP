@@ -209,35 +209,26 @@ describe("interogheazaJurnal — intervalul de zile pe fusul București", () => 
     },
   );
 
-  // `decalajOrar` citește decalajul la 12:00 UTC al zilei, nu la miezul nopții.
-  // În ziua schimbării orei cele două diferă, iar intervalul alunecă o oră.
-  it.fails(
-    "DEFECT: `de_la` în ziua trecerii la ora de vară (29.03.2026) începe cu o oră prea devreme",
-    async () => {
-      const apel = await apelJurnal(filtreDe({ deLa: "2026-03-29" }));
-      // Miezul nopții la București era încă UTC+2.
-      expect(momentDin(filtruPe(apel, "gte", "created_at"))).toBe("2026-03-28T22:00:00.000Z");
-    },
-  );
+  // `decalajOrar` citea decalajul la 12:00 UTC al zilei, nu la miezul nopții.
+  // În ziua schimbării orei cele două diferă, iar intervalul aluneca o oră.
+  it("`de_la` în ziua trecerii la ora de vară (29.03.2026) începe la miezul nopții local", async () => {
+    const apel = await apelJurnal(filtreDe({ deLa: "2026-03-29" }));
+    // Miezul nopții la București era încă UTC+2.
+    expect(momentDin(filtruPe(apel, "gte", "created_at"))).toBe("2026-03-28T22:00:00.000Z");
+  });
 
-  it.fails(
-    "DEFECT: `de_la` în ziua trecerii la ora de iarnă (25.10.2026) pierde prima oră a zilei",
-    async () => {
-      const apel = await apelJurnal(filtreDe({ deLa: "2026-10-25" }));
-      // Miezul nopții la București era încă UTC+3.
-      expect(momentDin(filtruPe(apel, "gte", "created_at"))).toBe("2026-10-24T21:00:00.000Z");
-    },
-  );
+  it("`de_la` în ziua trecerii la ora de iarnă (25.10.2026) păstrează prima oră a zilei", async () => {
+    const apel = await apelJurnal(filtreDe({ deLa: "2026-10-25" }));
+    // Miezul nopții la București era încă UTC+3.
+    expect(momentDin(filtruPe(apel, "gte", "created_at"))).toBe("2026-10-24T21:00:00.000Z");
+  });
 
-  it.fails(
-    "DEFECT: `pana_la` 28.03.2026 pierde ultima oră a zilei (limita vine din 29.03)",
-    async () => {
-      const apel = await apelJurnal(filtreDe({ panaLa: "2026-03-28" }));
-      expect(momentDin(filtruPe(apel, "lt", "created_at"))).toBe("2026-03-28T22:00:00.000Z");
-    },
-  );
+  it("`pana_la` 28.03.2026 include ultima oră a zilei (limita vine din 29.03)", async () => {
+    const apel = await apelJurnal(filtreDe({ panaLa: "2026-03-28" }));
+    expect(momentDin(filtruPe(apel, "lt", "created_at"))).toBe("2026-03-28T22:00:00.000Z");
+  });
 
-  it.fails("DEFECT: `pana_la` 24.10.2026 include prima oră din 25.10", async () => {
+  it("`pana_la` 24.10.2026 nu include prima oră din 25.10", async () => {
     const apel = await apelJurnal(filtreDe({ panaLa: "2026-10-24" }));
     expect(momentDin(filtruPe(apel, "lt", "created_at"))).toBe("2026-10-24T21:00:00.000Z");
   });

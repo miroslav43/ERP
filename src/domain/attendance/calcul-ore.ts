@@ -170,10 +170,16 @@ export function oreleZilei(
   if (brut === null) return null;
 
   const seScade = !config.pauzaInclusaInProgram && brut > config.pauzaObligatoriePesteOre;
+  // Scăderea se face în MINUTE, rotunjite o singură dată la final: două valori
+  // deja rotunjite la sutimi dădeau 8,13 − 0,12 = 8,01 în loc de 481 min =
+  // 8,02 h. `brut` are eroare ≤ 0,3 min, deci `round(brut × 60)` recuperează
+  // minutele exacte.
+  const minuteBrut = Math.round(brut * 60);
   // Pauza nu poate scoate ziua sub zero: o pauză configurată mai lungă decât
   // tura ar produce ore negative, respinse de `ore_lucrate >= 0`.
-  const pauza = seScade ? Math.min(Math.round((config.pauzaMinute / 60) * 100) / 100, brut) : 0;
-  const lucrate = Math.round((brut - pauza) * 100) / 100;
+  const minutePauza = seScade ? Math.min(config.pauzaMinute, minuteBrut) : 0;
+  const pauza = Math.round((minutePauza / 60) * 100) / 100;
+  const lucrate = Math.round(((minuteBrut - minutePauza) / 60) * 100) / 100;
 
   const noapteBruta =
     oreNoapteDinInterval(oraInceput, oraSfarsit, config.noapteStart, config.noapteSfarsit) ?? 0;

@@ -46,15 +46,15 @@ function baremDe(valoare: number, valabilDeLa: string, valabilPana: string | nul
 describe("calculeazaSume — rotunjirea la ban", () => {
   // Antetul `src/domain/bani.ts` cere o SINGURĂ regulă de rotunjire în aplicație,
   // iar ROUND-ul numeric din SQL-ul portat (0015/0147) duce jumătatea departe de
-  // zero. `rotunjeste` din sume.ts are o a treia formulă, cu epsilon ABSOLUT, care pe 8,575
-  // dă 8,57. Valorile de mai jos sunt jumătăți de ban exacte în zecimal.
-  it.fails.each([
+  // zero. `rotunjeste` din sume.ts avea o a treia formulă, cu epsilon ABSOLUT, care pe 8,575
+  // dădea 8,57. Valorile de mai jos sunt jumătăți de ban exacte în zecimal.
+  it.each([
     { valoareZi: 17.15, asteptat: 8.58 },
     { valoareZi: 4.27, asteptat: 2.14 },
     { valoareZi: 8.53, asteptat: 4.27 },
     { valoareZi: 20.15, asteptat: 10.08 },
   ])(
-    "DEFECT: jumătatea de zi din $valoareZi lei se rotunjește la $asteptat, ca în bani.ts și SQL",
+    "jumătatea de zi din $valoareZi lei se rotunjește la $asteptat, ca în bani.ts și SQL",
     ({ valoareZi, asteptat }) => {
       const r = calculeazaSume(
         [fereastra({ taraId: RO, fractiune: 0.5 })],
@@ -103,16 +103,16 @@ describe("calculeazaSume — o zi internă sub plafon și o zi externă peste pl
     expect(r.valoareLei).toBe(565);
   });
 
-  // Antetul `payroll/etape/diurna-plafoane.ts`: plafonul neimpozabil e de 2,5 ori
-  // baremul „pe zi și PE ȚARĂ” (Codul fiscal art. 76). `calculeazaSume` compară
-  // totalul deplasării cu suma plafoanelor, deci plafonul nefolosit de ziua din
-  // țară acoperă depășirea din ziua externă. Etapa din salarizare face pe zi, deci
-  // ecranul de diurnă și fluturașul arată sume impozabile diferite.
-  it.fails("DEFECT: plafonul nefolosit al unei zile nu acoperă depășirea altei zile", () => {
+  // `calculeazaSume` compară TOTALUL deplasării cu suma plafoanelor, exact ca
+  // `app.recalculeaza_diurna` (0156: least/greatest pe total), deci ecranul
+  // arată ce e stocat. Dacă plafonul trebuie aplicat pe zi și pe țară (Codul
+  // fiscal art. 76) e o chestiune de interpretare ⚠, de schimbat în AMBELE
+  // locuri deodată. Testul fixează paritatea de azi.
+  it("plafonul se compară pe totalul deplasării, ca în SQL", () => {
     const r = calculeazaSume(FERESTRE, POLITICA, BAREME, 5);
-    // Pe zi: RO impozabil 0, DE impozabil 525 − 437,5 = 87,5.
-    expect(r.parteImpozabilaLei).toBe(87.5);
-    expect(r.parteNeimpozabilaLei).toBe(477.5);
+    // Total 565, plafoane 57,5 + 437,5 = 495 ⇒ impozabil 70, neimpozabil 495.
+    expect(r.parteImpozabilaLei).toBe(70);
+    expect(r.parteNeimpozabilaLei).toBe(495);
   });
 });
 

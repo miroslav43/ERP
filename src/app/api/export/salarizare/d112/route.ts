@@ -152,7 +152,6 @@ export async function GET(cerere: Request): Promise<Response> {
 
   const asigurati: AsiguratD112[] = [];
   const faraCnp: string[] = [];
-  const zileLuna = new Date(Date.UTC(perioada.an, perioada.luna, 0)).getUTCDate();
 
   for (const rand of randuri ?? []) {
     const { data: sensibile } = await db.rpc("hr_read_sensitive", {
@@ -179,8 +178,10 @@ export async function GET(cerere: Request): Promise<Response> {
     });
 
     const norma = normaZilnicaD112(normaPerAngajat.get(rand.employee_id) ?? 8);
-    // Ore efective pe zi, pentru clasificarea normă întreagă / timp parțial.
-    const orePeZi = zileLuna > 0 ? rand.ore_lucrate / Math.max(1, zileLuna * (5 / 7)) : norma;
+    // Tipul contractului vine din norma CONTRACTULUI, nu din orele lucrate în
+    // lună: derivate din pontaj, un CO sau un CM făceau dintr-un contract cu
+    // normă întreagă unul „P5”–„P7” în A_3.
+    const orePeZi = normaPerAngajat.get(rand.employee_id) ?? 8;
 
     asigurati.push({
       cnp,

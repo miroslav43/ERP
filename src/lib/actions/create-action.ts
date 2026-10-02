@@ -10,7 +10,7 @@ import { getPermissionMap } from "@/lib/auth/permissions";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { readRequestMeta, redactPayload, writeAuditLog } from "./audit";
-import { ActionDenied, isPostgrestError, mapPostgrestError } from "./errors";
+import { ActionDenied, esteActionError, isPostgrestError, mapPostgrestError } from "./errors";
 import type {
   ActionContext,
   ActionDefinition,
@@ -206,14 +206,17 @@ export function createAction<TSchema extends z.ZodType, TData>(
       const error: ActionError =
         err instanceof ActionDenied
           ? { code: err.code, message: err.message, fieldErrors: err.fieldErrors, requestId }
-          : isPostgrestError(err)
-            ? mapPostgrestError(err, requestId)
-            : {
-                code: "EROARE_INTERNA",
-                message: `A apărut o eroare neașteptată. Cod de referință: ${requestId}`,
-                fieldErrors: null,
-                requestId,
-              };
+          : esteActionError(err)
+            ? // `throw mapPostgrestError(...)`: deja tradus, se păstrează codul.
+              { ...err, requestId }
+            : isPostgrestError(err)
+              ? mapPostgrestError(err, requestId)
+              : {
+                  code: "EROARE_INTERNA",
+                  message: `A apărut o eroare neașteptată. Cod de referință: ${requestId}`,
+                  fieldErrors: null,
+                  requestId,
+                };
 
       // Stiva și mesajul brut rămân pe server. Clientul primește doar requestId.
       if (error.code === "EROARE_INTERNA") {

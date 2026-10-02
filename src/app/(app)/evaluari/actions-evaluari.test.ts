@@ -427,15 +427,12 @@ describe("redeschideEvaluare", () => {
     expect(caiRevalidate()).toEqual(CAI);
   });
 
-  it.fails(
-    "DEFECT: refuzul RLS la scriere (42501) trebuie să iasă INTERZIS, nu EROARE_INTERNA",
-    async () => {
-      // Același mecanism ca la șabloane: `throw mapPostgrestError(...)` aruncă un
-      // obiect pe care `createAction` nu-l recunoaște ca eroare tradusă.
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      server.raspunde("employee_evaluations", "update", { error: eroarePostgrest("42501") });
-      const r = await redeschideEvaluare({ id: ID_1 });
-      expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
-    },
-  );
+  it("refuzul RLS la scriere (42501) iese INTERZIS, nu EROARE_INTERNA", async () => {
+    // Același mecanism ca la șabloane: `throw mapPostgrestError(...)` aruncă un
+    // obiect pe care `createAction` nu-l recunoaște ca eroare tradusă.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("employee_evaluations", "update", { error: eroarePostgrest("42501") });
+    const r = await redeschideEvaluare({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+  });
 });

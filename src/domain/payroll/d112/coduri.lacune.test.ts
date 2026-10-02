@@ -32,7 +32,7 @@ describe("tipContractD112 — normă întreagă sau timp parțial", () => {
   // ore LUCRATE / (zile calendaristice × 5/7): un angajat cu normă întreagă care
   // are CO sau CM în lună iese declarat part-time. Tipul ar trebui luat din
   // norma contractului, nu din orele lunii.
-  it.fails("DEFECT: un contract de 7,5 h pe zi, la norma de 8, e timp parțial", () => {
+  it("un contract de 7,5 h pe zi, la norma de 8, e timp parțial", () => {
     expect(tipContractD112(7.5, 8)).toBe("P7");
   });
 });

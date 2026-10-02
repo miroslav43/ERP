@@ -393,17 +393,14 @@ describe("arhiveazaSetKpi", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
-  it.fails(
-    "DEFECT: refuzul RLS la scriere (42501) trebuie să iasă INTERZIS, nu EROARE_INTERNA",
-    async () => {
-      // `throw mapPostgrestError(...)` aruncă un `ActionError` simplu, pe care
-      // `createAction` nu-l recunoaște (nu e `ActionDenied`, n-are `details`).
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      server.raspunde("kpi_seturi", "update", { error: eroarePostgrest("42501") });
-      const r = await arhiveazaSetKpi({ id: ID_1 });
-      expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
-    },
-  );
+  it("refuzul RLS la scriere (42501) iese INTERZIS, nu EROARE_INTERNA", async () => {
+    // `throw mapPostgrestError(...)` aruncă un `ActionError` simplu, pe care
+    // `createAction` nu-l recunoaște (nu e `ActionDenied`, n-are `details`).
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("kpi_seturi", "update", { error: eroarePostgrest("42501") });
+    const r = await arhiveazaSetKpi({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+  });
 });
 
 describe("seteazaTintaKpi", () => {

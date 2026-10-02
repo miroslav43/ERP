@@ -77,28 +77,22 @@ describe("calculatePayrollEntry — indemnizația de concediu de odihnă, prin e
   // de concediu stau în `bazaSalariu` și poartă CAS, CASS și impozit. Etapa le
   // scoate din `bazaSalariu` ca să nu fie plătite de două ori (`zilePlatite`),
   // dar `bazaComuna` nu adaugă `indemnizatieCo` la loc.
-  it.fails(
-    "DEFECT: indemnizația de CO intră în bazele CAS, CASS și impozit, ca salariul pe care îl înlocuiește",
-    () => {
-      const r = calculeaza(CU_CO);
-      expect(r.bazaCas).toBeCloseTo(5000, 2);
-      expect(r.bazaCass).toBeCloseTo(5000, 2);
-      expect(r.cas).toBeCloseTo(1250, 2);
-      expect(r.cass).toBeCloseTo(500, 2);
-      expect(r.bazaImpozit).toBeCloseTo(3250, 2);
-      expect(r.impozit).toBeCloseTo(325, 2);
-      expect(r.net).toBeCloseTo(2925, 2);
-    },
-  );
+  it("indemnizația de CO intră în bazele CAS, CASS și impozit, ca salariul pe care îl înlocuiește", () => {
+    const r = calculeaza(CU_CO);
+    expect(r.bazaCas).toBeCloseTo(5000, 2);
+    expect(r.bazaCass).toBeCloseTo(5000, 2);
+    expect(r.cas).toBeCloseTo(1250, 2);
+    expect(r.cass).toBeCloseTo(500, 2);
+    expect(r.bazaImpozit).toBeCloseTo(3250, 2);
+    expect(r.impozit).toBeCloseTo(325, 2);
+    expect(r.net).toBeCloseTo(2925, 2);
+  });
 
-  it.fails(
-    "DEFECT: același concediu dă același net cu și fără etapa de indemnizație, la modul „baza”",
-    () => {
-      const faraEtapa = calculeaza({ attendance: CU_CO.attendance });
-      const cuEtapa = calculeaza(CU_CO);
-      expect(cuEtapa.net).toBeCloseTo(faraEtapa.net, 2);
-    },
-  );
+  it("același concediu dă același net cu și fără etapa de indemnizație, la modul „baza”", () => {
+    const faraEtapa = calculeaza({ attendance: CU_CO.attendance });
+    const cuEtapa = calculeaza(CU_CO);
+    expect(cuEtapa.net).toBeCloseTo(faraEtapa.net, 2);
+  });
 });
 
 // ── Diurna impozabilă ──────────────────────────────────────────────────────
@@ -118,12 +112,21 @@ describe("calculatePayrollEntry — diurna peste plafonul zilnic", () => {
     expect(r.diurnaNeimpozabila).toBeCloseTo(57.5, 2);
     expect(r.diurnaImpozabila).toBeCloseTo(42.5, 2);
     expect(r.brut).toBeCloseTo(5042.5, 2);
+    // Partea neimpozabilă nu trece prin brut, deci ajunge la plată PESTE netul
+    // de plată: fără rețineri și fără avantaje în natură, diferența dintre
+    // restul de plată și net e exact plafonul de 57,5. Aserțiunea nu depinde de
+    // defectul de mai jos (CAS/CASS pe partea impozabilă), care schimbă netul,
+    // nu și diferența.
+    expect(r.retineriTotal).toBe(0);
+    expect(r.avantajeNatura).toBe(0);
+    expect(r.restDePlata - r.netDePlata).toBeCloseTo(57.5, 2);
+    expect(r.restDePlata).toBeGreaterThan(r.net);
   });
 
   // Antetul `etape/diurna-plafoane.ts` și comentariul de la diurnă din calc.ts:
   // partea de peste plafon „devine venit asimilat salariului: intră în brut și
   // trece prin CAS + CASS + impozit”. `bazaCas` și `bazaCass` n-o adună.
-  it.fails("DEFECT: diurna impozabilă trece prin CAS, CASS și impozit", () => {
+  it("diurna impozabilă trece prin CAS, CASS și impozit", () => {
     const r = calculeaza(CU_DIURNA);
     expect(r.bazaCas).toBeCloseTo(5042.5, 2);
     expect(r.bazaCass).toBeCloseTo(5042.5, 2);
@@ -153,7 +156,7 @@ describe("calculatePayrollEntry — componentă în CASS, nu în CAS, dar impoza
   // `bazaImpozit` pornește de la `bazaCasFinala` și adaugă numai
   // primele cu `impozabil && !supusContributii`. Componenta de mai sus are
   // `impozabil: true`, deci e venit impozabil — dar nu ajunge în nicio bază.
-  it.fails("DEFECT: un venit impozabil intră în baza de impozit oricare i-ar fi baza CAS", () => {
+  it("un venit impozabil intră în baza de impozit oricare i-ar fi baza CAS", () => {
     const r = calculeaza(COMPONENTA);
     // 5400 − 1250 − 540 = 3610
     expect(r.bazaImpozit).toBeCloseTo(3610, 2);
@@ -200,7 +203,7 @@ describe("calculatePayrollEntry — munca în sărbătoare, compensată sau plă
   // Antetul `etape/compensare-ore.ts`: „Cele două forme se exclud: dacă ziua
   // liberă a fost efectiv ACORDATĂ, sporul nu se mai datorează.” Etapa întoarce
   // `oreSarbatoareCompensate`, dar `sporSarbatoare` plătește tot `oreNormaleSarbatoare`.
-  it.fails("DEFECT: ziua liberă acordată stinge plata orelor de sărbătoare", () => {
+  it("ziua liberă acordată stinge plata orelor de sărbătoare", () => {
     const r = cuSarbatoare("zi_libera", true);
     expect(r.sporSarbatoare).toBe(0);
     expect(r.brut).toBeCloseTo(5000, 2);
@@ -231,7 +234,7 @@ describe("calculatePayrollEntry — scutire de impozit cu plafon lunar, brut pes
   // Cu contribuțiile aferente acelei părți: 5000 − 1250 − 500 = 3250, impozit
   // 325 — formula exactă e de confirmat (NOTES.md §3 Fiscal, facilitățile
   // sectoriale), dar orice formulă impozitează partea de peste plafon.
-  it.fails("DEFECT: partea de venit de peste plafonul scutirii se impozitează", () => {
+  it("partea de venit de peste plafonul scutirii se impozitează", () => {
     const r = calculeaza(PESTE_PLAFON);
     expect(r.bazaImpozit).toBeGreaterThan(0);
     expect(r.bazaImpozit).toBeLessThanOrEqual(15000 - 10000);
@@ -270,13 +273,13 @@ describe("calculatePayrollEntry — netul afișat închide cu coloanele afișate
   // Antetul `src/domain/bani.ts`: „la final suma coloanelor per angajat nu mai
   // închide cu totalul” e exact ce verifică un contabil primul. calc.ts lucrează
   // în virgulă mobilă și rotunjește fiecare câmp separat la final.
-  it.fails("DEFECT: net = brut − CAS − CASS − impozit, pe valorile rotunjite la ban", () => {
+  it("net = brut − CAS − CASS − impozit, pe valorile rotunjite la ban", () => {
     const r = calculeaza({ contract: { salariuBaza: 4000.04, nrPersoaneIntretinere: 0 } });
     // Azi: 4000,04 − 1000,01 − 400,00 − 260,00 = 2340,03, dar netul e 2340,02.
     expect(r.net).toBeCloseTo(r.brut - r.cas - r.cass - r.impozit, 2);
   });
 
-  it.fails("DEFECT: cu rotunjire la leu, netul întreg închide cu coloanele întregi", () => {
+  it("cu rotunjire la leu, netul întreg închide cu coloanele întregi", () => {
     const r = calculeaza({
       settings: { ...SETARI, rotunjireLei: true },
       contract: { salariuBaza: 4004, nrPersoaneIntretinere: 0 },

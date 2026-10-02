@@ -427,39 +427,24 @@ describe("listeazaAni", () => {
     expect(await listeazaAni(ORG_ID)).toEqual([2026]);
   });
 
-  // Interogarea aduce câte un rând PER DOCUMENT, ordonat descrescător pe an și
-  // tăiat la 1000: o firmă cu peste 1000 de înregistrări în anul curent pierde
-  // tăcut toți anii anteriori din selector (capcana #2).
-  it.fails(
-    "DEFECT: peste 1000 de documente în anul curent, anii vechi dispar din listă",
-    async () => {
-      vi.useFakeTimers({ toFake: ["Date"] });
-      vi.setSystemTime(new Date("2026-05-01T09:00:00Z"));
-      const { server } = configureazaActiunea();
-      server.raspunde("registru_documente", "select", {
-        data: Array.from({ length: 1000 }, () => ({ an: 2026 })),
-      });
-      // Ce ar fi întors baza dincolo de plafon, dacă funcția ar mai fi cerut.
-      server.raspunde("registru_documente", "select", { data: [{ an: 2025 }] });
-
-      expect(await listeazaAni(ORG_ID)).toEqual([2026, 2025]);
-    },
-  );
-
-  // Fixează forma de AZI a defectului: o reparație (de exemplu un RPC cu
-  // DISTINCT) înroșește testul ăsta, deci `it.fails` de mai sus nu poate rămâne
-  // verde doar fiindcă falsul n-are programată noua interogare.
-  it("stare actuală (DEFECT de mai sus): o singură citire, anii vechi lipsesc", async () => {
+  // Interogarea aduce câte un rând PER DOCUMENT: tăiată la 1000, o firmă cu
+  // peste 1000 de înregistrări în anul curent pierdea tăcut toți anii anteriori
+  // (capcana #2). A doua pagină sare peste anul deja văzut (`lt`).
+  it("peste 1000 de documente în anul curent: a doua pagină sare la anii vechi", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-05-01T09:00:00Z"));
     const { server } = configureazaActiunea();
     server.raspunde("registru_documente", "select", {
       data: Array.from({ length: 1000 }, () => ({ an: 2026 })),
     });
+    server.raspunde("registru_documente", "select", { data: [{ an: 2025 }] });
 
-    expect(await listeazaAni(ORG_ID)).toEqual([2026]);
-    expect(server.apeluri).toHaveLength(1);
-    expect(server.neconsumate()).toEqual([]);
+    expect(await listeazaAni(ORG_ID)).toEqual([2026, 2025]);
+    const apeluri = server.apeluriPe("registru_documente");
+    expect(apeluri).toHaveLength(2);
+    expect(areFiltru(apeluri[0], "lt", "an")).toBe(false);
+    expect(areFiltru(apeluri[1], "lt", "an", 2026)).toBe(true);
+    for (const apel of apeluri) expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
   });
 
   it("eroarea se propagă", async () => {
@@ -482,30 +467,25 @@ describe("listeazaTipuriDocument", () => {
     expect(areFiltru(apel, "eq", "an", 2026)).toBe(true);
   });
 
-  // Același tipar ca la ani: 1000 de rânduri-document, fără ordonare, deci un
-  // tip care apare doar dincolo de plafon lipsește tăcut din filtru.
-  it.fails(
-    "DEFECT: un tip aflat dincolo de primele 1000 de documente lipsește din filtru",
-    async () => {
-      const { server } = configureazaActiunea();
-      server.raspunde("registru_documente", "select", {
-        data: Array.from({ length: 1000 }, () => ({ tip_document: "fluturas" })),
-      });
-      server.raspunde("registru_documente", "select", { data: [{ tip_document: "demisie" }] });
-
-      expect(await listeazaTipuriDocument(ORG_ID, 2026)).toEqual(["demisie", "fluturas"]);
-    },
-  );
-
-  it("stare actuală (DEFECT de mai sus): o singură citire, tipul de dincolo de plafon lipsește", async () => {
+  // Același tipar ca la ani: 1000 de rânduri-document, deci un tip aflat doar
+  // dincolo de plafon lipsea tăcut din filtru. A doua pagină sare peste tipul
+  // deja văzut (`gt`, ordonat crescător).
+  it("un tip aflat dincolo de primele 1000 de documente apare în filtru", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("registru_documente", "select", {
-      data: Array.from({ length: 1000 }, () => ({ tip_document: "fluturas" })),
+      data: Array.from({ length: 1000 }, () => ({ tip_document: "demisie" })),
     });
+    server.raspunde("registru_documente", "select", { data: [{ tip_document: "fluturas" }] });
 
-    expect(await listeazaTipuriDocument(ORG_ID, 2026)).toEqual(["fluturas"]);
-    expect(server.apeluri).toHaveLength(1);
-    expect(server.neconsumate()).toEqual([]);
+    expect(await listeazaTipuriDocument(ORG_ID, 2026)).toEqual(["demisie", "fluturas"]);
+    const apeluri = server.apeluriPe("registru_documente");
+    expect(apeluri).toHaveLength(2);
+    expect(areFiltru(apeluri[1], "gt", "tip_document", "demisie")).toBe(true);
+    for (const apel of apeluri) {
+      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(apel, "eq", "an", 2026)).toBe(true);
+      expect(areFiltru(apel, "order", "tip_document")).toBe(true);
+    }
   });
 
   it("eroarea se propagă", async () => {

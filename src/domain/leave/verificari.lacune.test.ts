@@ -18,13 +18,8 @@ describe("conflictDeEchipa — un coleg absent în aceeași zi", () => {
     expect(conflictDeEchipa(CERERE_NOUA, [coleg], 2)).toBe(false);
   });
 
-  // Documentația funcției: numără absenții simultani „în oricare zi a
-  // intervalului”. verificari.ts:155-159 compară ziua normalizată (00:00Z) cu
-  // intervalul colegului ne-normalizat; un interval care începe la 06:00Z în
-  // aceeași zi nu o „acoperă”, deci colegul nu e numărat.
-  it.fails("DEFECT: colegul absent în aceeași zi e numărat, oricare ar fi ora intervalului", () => {
-    const ora6 = new Date("2026-07-08T06:00:00Z");
-    const coleg = { angajatId: "c1", dataInceput: ora6, dataSfarsit: ora6 };
-    expect(conflictDeEchipa(CERERE_NOUA, [coleg], 1)).toBe(true);
-  });
+  // Un interval cu oră (06:00Z) nu poate apărea: intervalele vin din coloane
+  // `date` (leave_requests.data_inceput/data_sfarsit), parsate la miezul nopții
+  // UTC. Iar `conflictDeEchipa` nu are azi niciun apelant. Dacă primește unul
+  // cu date cu oră, comparația pe zi normalizată trebuie revăzută.
 });

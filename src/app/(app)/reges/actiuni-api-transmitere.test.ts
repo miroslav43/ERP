@@ -78,7 +78,7 @@ import {
 } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 
-import { pregatesteTransmiterea, revalideazaReges, transmiteMesajul } from "./actiuni-api";
+import { pregatesteTransmiterea, transmiteMesajul } from "./actiuni-api";
 
 const RUTE = ["/reges", "/reges/setari", "/reges/propuneri"];
 const CRED = {
@@ -272,8 +272,9 @@ describe("transmiteMesajul", () => {
       status: 202,
       durataMs: 40,
     });
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } }); // revendicarea
     admin.raspunde("reges_apeluri", "insert", { data: null });
-    admin.raspunde("reges_mesaje", "update", { data: null });
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } }); // marcarea
 
     const r = await transmiteMesajul({ mesajId: ID_1 });
 
@@ -311,7 +312,8 @@ describe("transmiteMesajul", () => {
       consumer_id: "consumer-1",
       eroare: null,
     });
-    const [stare] = admin.apeluriPe("reges_mesaje", "update");
+    const [, stare] = admin.apeluriPe("reges_mesaje", "update");
+    expect(stare?.selectDupaScriere).toBeDefined();
     expect(stare?.payload).toMatchObject({
       stare: "asteapta_raspuns",
       response_id: "resp-9",
@@ -416,6 +418,7 @@ describe("transmiteMesajul", () => {
       status: 400,
       durataMs: 5,
     });
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } }); // revendicarea
     admin.raspunde("reges_apeluri", "insert", { data: null });
     admin.raspunde("reges_mesaje", "update", { data: null });
 
@@ -424,7 +427,7 @@ describe("transmiteMesajul", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     const jurnal = admin.apeluriPe("reges_apeluri")[0]?.payload as Record<string, unknown>;
     expect(jurnal.eroare).toBe("CNP *********3456 invalid");
-    const actualizare = admin.apeluriPe("reges_mesaje", "update")[0]?.payload as Record<
+    const actualizare = admin.apeluriPe("reges_mesaje", "update")[1]?.payload as Record<
       string,
       unknown
     >;
@@ -432,7 +435,7 @@ describe("transmiteMesajul", () => {
     expect(actualizare).not.toHaveProperty("incercari");
     expect(actualizare.eroare).toBe("CNP *********3456 invalid");
     // Clientul e admin: filtrele sunt singura barieră între firme.
-    const [scriere] = admin.apeluriPe("reges_mesaje", "update");
+    const [, scriere] = admin.apeluriPe("reges_mesaje", "update");
     expect(areFiltru(scriere, "eq", "id", ID_1)).toBe(true);
     expect(areFiltru(scriere, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(caiRevalidate()).toEqual([]);
@@ -448,15 +451,17 @@ describe("transmiteMesajul", () => {
       status: 503,
       durataMs: 20_000,
     });
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } }); // revendicarea
     admin.raspunde("reges_apeluri", "insert", { data: null });
     admin.raspunde("reges_mesaje", "update", { data: null });
 
     const r = await transmiteMesajul({ mesajId: ID_1 });
 
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    const [scriere] = admin.apeluriPe("reges_mesaje", "update");
+    const [, scriere] = admin.apeluriPe("reges_mesaje", "update");
     const actualizare = scriere?.payload as Record<string, unknown>;
-    expect(actualizare).not.toHaveProperty("stare");
+    // Iese din `in_curs` înapoi în coadă, ca să poată fi reîncercat.
+    expect(actualizare.stare).toBe("de_transmis");
     expect(actualizare.incercari).toBe(2);
     expect(areFiltru(scriere, "eq", "id", ID_1)).toBe(true);
     expect(areFiltru(scriere, "eq", "organization_id", ORG_ID)).toBe(true);
@@ -507,86 +512,88 @@ describe("transmiteMesajul", () => {
   });
 
   // Ruda ei, `raspundePropunerii`, face exact asta: „Răspunsul a plecat la
-  // Inspecția Muncii, dar starea locală nu s-a putut actualiza". Aici eroarea
-  // se ignoră, mesajul rămâne `de_transmis`, iar a doua apăsare îl retrimite —
+  // Inspecția Muncii, dar starea locală nu s-a putut actualiza". Ignorată,
+  // eroarea lăsa mesajul fără `response_id`, iar a doua apăsare îl retrimitea —
   // un duplicat de CNP refuzat asincron de ITM.
-  it.fails(
-    "DEFECT: eșecul marcării `asteapta_raspuns` după trimitere e raportat ca succes",
-    async () => {
-      const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
-      pregatesteDrumulFericit(server);
-      falsuriReges.cheamaReges.mockResolvedValue({ ok: true, date: {}, status: 202, durataMs: 1 });
-      admin.raspunde("reges_apeluri", "insert", { data: null });
-      admin.raspunde("reges_mesaje", "update", { error: eroarePostgrest("57014") });
-
-      const r = await transmiteMesajul({ mesajId: ID_1 });
-
-      expect(r.ok).toBe(false);
-    },
-  );
-
-  // Pagina vault-ului: „`in_curs` există exact ca să nu trimită de două ori
-  // același mesaj". Acțiunea citește `de_transmis` și trimite fără să-și
-  // revendice rândul; două apăsări simultane trec amândouă de verificare.
-  it.fails("DEFECT: mesajul nu e revendicat (`in_curs`) înainte de POST", async () => {
-    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
-    pregatesteDrumulFericit(server);
-    server.raspunde("reges_mesaje", "update", { data: [{ id: ID_1 }] });
-    admin.raspunde("reges_mesaje", "update", { data: [{ id: ID_1 }] });
-    admin.raspunde("reges_mesaje", "update", { data: null });
-    admin.raspunde("reges_apeluri", "insert", { data: null });
-    let revendicat = false;
-    falsuriReges.cheamaReges.mockImplementation(async () => {
-      revendicat = [
-        ...server.apeluriPe("reges_mesaje", "update"),
-        ...admin.apeluriPe("reges_mesaje", "update"),
-      ].some((a) => (a.payload as Record<string, unknown>).stare === "in_curs");
-      return { ok: true, date: {}, status: 202, durataMs: 1 };
-    });
-
-    await transmiteMesajul({ mesajId: ID_1 });
-
-    expect(revendicat).toBe(true);
-  });
-
-  // Fixează forma de AZI a celor două defecte de mai sus: orice reparație
-  // (revendicare prin UPDATE, prin RPC, verificarea erorii de după POST)
-  // înroșește testul ăsta, deci marcajele `it.fails` nu pot rămâne verzi din
-  // greșeală, doar fiindcă falsul nu are programată noua interogare.
-  it("stare actuală (DEFECTE de mai sus): nicio revendicare înainte de POST, eroarea marcării ignorată", async () => {
+  it("eșecul marcării `asteapta_raspuns` după trimitere NU e raportat ca succes", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
     pregatesteDrumulFericit(server);
     falsuriReges.cheamaReges.mockResolvedValue({ ok: true, date: {}, status: 202, durataMs: 1 });
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } });
     admin.raspunde("reges_apeluri", "insert", { data: null });
     admin.raspunde("reges_mesaje", "update", { error: eroarePostgrest("57014") });
 
     const r = await transmiteMesajul({ mesajId: ID_1 });
 
-    expect(r).toMatchObject({ ok: true, data: { stare: "asteapta_raspuns" } });
-    expect(server.apeluriPe("reges_mesaje", "update")).toHaveLength(0);
-    expect(
-      server.apeluriRpc.filter((a) => a.nume !== "log_audit_event").map((a) => a.nume),
-    ).toEqual(["hr_read_sensitive"]);
-    expect(admin.apeluriPe("reges_mesaje", "update")).toHaveLength(1);
-    expect(admin.neconsumate()).toEqual([]);
-  });
-});
-
-/* ------------------------------ revalidarea ------------------------------ */
-
-describe("revalideazaReges", () => {
-  // Exportată dintr-un fișier "use server", deci un endpoint public: fără
-  // `requireUser` și fără `createAction`, oricine o poate chema ca să golească
-  // cache-ul rutelor /reges. Nu are niciun apelant în cod.
-  it.fails("DEFECT: golește cache-ul /reges și fără sesiune", async () => {
-    configureazaActiunea({ sesiune: "neautentificat" });
-    await revalideazaReges().catch(() => undefined);
-    expect(caiRevalidate()).toEqual([]);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) return;
+    expect(r.error.message).toContain("Nu-l retrimiteți");
   });
 
-  it("stare actuală (DEFECT de mai sus): fără sesiune, revalidează toate rutele /reges", async () => {
-    configureazaActiunea({ sesiune: "neautentificat" });
-    await revalideazaReges();
-    expect(caiRevalidate()).toEqual(RUTE);
+  it("marcarea cu zero rânduri după trimitere NU e raportată ca succes", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    pregatesteDrumulFericit(server);
+    falsuriReges.cheamaReges.mockResolvedValue({ ok: true, date: {}, status: 202, durataMs: 1 });
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } });
+    admin.raspunde("reges_apeluri", "insert", { data: null });
+    admin.raspunde("reges_mesaje", "update", { data: null });
+
+    const r = await transmiteMesajul({ mesajId: ID_1 });
+
+    expect(r.ok).toBe(false);
+  });
+
+  // Pagina vault-ului: „`in_curs` există exact ca să nu trimită de două ori
+  // același mesaj". Rândul se revendică ÎNAINTE de POST, condiționat pe
+  // `de_transmis`; două apăsări simultane nu mai trec amândouă.
+  it("mesajul e revendicat (`in_curs`) înainte de POST, condiționat pe `de_transmis`", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    pregatesteDrumulFericit(server);
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } });
+    admin.raspunde("reges_apeluri", "insert", { data: null });
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } });
+    let revendicatInainte = false;
+    falsuriReges.cheamaReges.mockImplementation(async () => {
+      revendicatInainte = admin
+        .apeluriPe("reges_mesaje", "update")
+        .some((a) => (a.payload as Record<string, unknown>).stare === "in_curs");
+      return { ok: true, date: {}, status: 202, durataMs: 1 };
+    });
+
+    await transmiteMesajul({ mesajId: ID_1 });
+
+    expect(revendicatInainte).toBe(true);
+    const [revendicare] = admin.apeluriPe("reges_mesaje", "update");
+    expect(revendicare?.payload).toEqual({ stare: "in_curs" });
+    expect(areFiltru(revendicare, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(revendicare, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(revendicare, "eq", "stare", "de_transmis")).toBe(true);
+    expect(revendicare?.selectDupaScriere).toBeDefined();
+  });
+
+  it("revendicarea pierdută (altă apăsare a câștigat): CONFLICT, nimic nu pleacă", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    pregatesteDrumulFericit(server);
+    admin.raspunde("reges_mesaje", "update", { data: null });
+
+    const r = await transmiteMesajul({ mesajId: ID_1 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(falsuriReges.cheamaReges).not.toHaveBeenCalled();
+  });
+
+  it("o excepție la apelul ITM readuce mesajul în coadă (`de_transmis`)", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    pregatesteDrumulFericit(server);
+    admin.raspunde("reges_mesaje", "update", { data: { id: ID_1 } });
+    admin.raspunde("reges_mesaje", "update", { data: null });
+    falsuriReges.cheamaReges.mockRejectedValue(new Error("socket închis"));
+
+    const r = await transmiteMesajul({ mesajId: ID_1 });
+
+    expect(r.ok).toBe(false);
+    const [, inapoi] = admin.apeluriPe("reges_mesaje", "update");
+    expect(inapoi?.payload).toEqual({ stare: "de_transmis" });
+    expect(areFiltru(inapoi, "eq", "organization_id", ORG_ID)).toBe(true);
   });
 });

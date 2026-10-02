@@ -11,6 +11,7 @@
  * (politica valabilă la data plecării + baremul pe țări).
  */
 
+import { rotunjesteLaBani } from "../bani";
 import type { FereastraDiurna } from "./ferestre";
 
 export interface RandDatat {
@@ -99,10 +100,12 @@ export interface RezultatDiurna {
   readonly baremLipsa: boolean;
 }
 
-/** Rotunjire aritmetică la doi zecimali (evită artefactele de virgulă mobilă). */
-function rotunjeste(valoare: number): number {
-  return Math.round((valoare + Number.EPSILON) * 100) / 100;
-}
+/**
+ * Regula unică a aplicației (`domain/bani.ts`), aceeași cu `round(numeric, 2)`
+ * din `app.recalculeaza_diurna`. `Number.EPSILON` absolut nu ajungea la valori
+ * de ordinul 8,575 (sub ULP): ecranul arăta 8,57, baza stoca 8,58.
+ */
+const rotunjeste = rotunjesteLaBani;
 
 function laZiIso(data: Date): string {
   return data.toISOString().slice(0, 10);

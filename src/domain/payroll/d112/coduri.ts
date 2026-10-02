@@ -72,9 +72,10 @@ export const TIP_ASIGURAT_SALARIAT = 1;
  * Specificația acceptă `P1`…`P7`.
  */
 export function tipContractD112(oreEfectivePeZi: number, normaZilnica: number): string {
-  const ore = Math.round(oreEfectivePeZi);
-  if (ore >= normaZilnica) return "N";
-  const limitat = Math.min(7, Math.max(1, ore));
+  // Comparația pe valoarea EXACTĂ: rotunjită întâi, 7,5 h la norma de 8 ieșea
+  // „N” (normă întreagă) în loc de timp parțial.
+  if (oreEfectivePeZi >= normaZilnica) return "N";
+  const limitat = Math.min(7, Math.max(1, Math.floor(oreEfectivePeZi)));
   return `P${String(limitat)}`;
 }
 

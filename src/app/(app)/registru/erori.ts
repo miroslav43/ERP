@@ -35,7 +35,10 @@ export function traduEroare(error: unknown): never {
       }
       throw businessRule("Există deja o înregistrare cu aceste date.");
     }
-    if (error.code === "42501") {
+    // Doar 42501 pe `registru_documente` (grant revocat în 0135 §14) are sensul
+    // ăsta. Un 42501 de politică pe nomenclator cade mai jos, în `throw error`,
+    // iar createAction îl mapează la INTERZIS.
+    if (error.code === "42501" && error.message.includes("registru_documente")) {
       throw businessRule(
         "Numerele de înregistrare nu se pot scrie direct în registru. Folosiți înregistrarea manuală.",
       );

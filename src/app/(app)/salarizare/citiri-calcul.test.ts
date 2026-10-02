@@ -264,52 +264,46 @@ describe("istoricVenitPerAngajat", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  // `payroll_entries` se citește fără fereastră și fără paginare: TOATE lunile
-  // calculate vreodată în firmă. La `max_rows = 1000`, PostgREST taie tăcut
-  // (capcana 2), iar lunile pierdute scad media de concediu medical/odihnă.
-  it.fails(
-    "DEFECT: peste 1000 de intrări calculate, citirea nu cere pagina următoare",
-    async () => {
-      const vechi = {
-        employee_id: "a",
-        brut: 1,
-        prime_total: 0,
-        zile_lucrate: 1,
-        perioada: { an: 2019, luna: 1 },
-      };
-      server.raspunde("payroll_entries", "select", {
-        data: Array.from({ length: 1000 }, () => vechi),
-      });
-      server.raspunde("payroll_entries", "select", { data: [] });
-      server.raspunde("payroll_prior_income", "select", { data: [] });
-
-      await istoricVenitPerAngajat(ORG_ID, 2026, 3, 6);
-
-      expect(server.apeluriPe("payroll_entries").length).toBeGreaterThan(1);
-    },
-  );
-
-  // Perechea defectului: un `it.fails` trece la ORICE excepție, inclusiv la un
-  // apel neprogramat al falsului — o reparație pe altă cale (fereastră prin
-  // `payroll_periods`, `.in("period_id", …)`) ar rămâne „expected fail”. Testul
-  // ăsta fixează cererea de AZI, exact: se înroșește la orice reparație; atunci
-  // se șterge, iar `it.fails` de mai sus devine `it`.
-  it("DEFECT documentat: azi, o singură cerere pe `payroll_entries`, fără fereastră și fără paginare", async () => {
-    server.raspunde("payroll_entries", "select", { data: [] });
+  // `payroll_entries` nu are fereastră în bază: TOATE lunile calculate vreodată.
+  // La `max_rows = 1000`, PostgREST taie tăcut (capcana 2), iar lunile pierdute
+  // scădeau media de concediu medical/odihnă. Citirea e acum paginată keyset.
+  it("peste 1000 de intrări calculate, citirea cere pagina următoare după ultimul id", async () => {
+    const pagina1 = Array.from({ length: 1000 }, (_, i) => ({
+      id: `e${String(i).padStart(4, "0")}`,
+      employee_id: "a",
+      brut: 1,
+      prime_total: 0,
+      zile_lucrate: 1,
+      perioada: { an: 2019, luna: 1 },
+    }));
+    server.raspunde("payroll_entries", "select", { data: pagina1 });
+    server.raspunde("payroll_entries", "select", {
+      data: [
+        {
+          id: "e1000",
+          employee_id: "a",
+          brut: 4000,
+          prime_total: 0,
+          zile_lucrate: 21,
+          perioada: { an: 2026, luna: 2 },
+        },
+      ],
+    });
     server.raspunde("payroll_prior_income", "select", { data: [] });
 
-    await istoricVenitPerAngajat(ORG_ID, 2026, 3, 6);
+    const r = await istoricVenitPerAngajat(ORG_ID, 2026, 3, 6);
 
     const apeluri = server.apeluriPe("payroll_entries");
-    expect(apeluri).toHaveLength(1);
-    expect(apeluri[0]?.filtre).toEqual([
-      { metoda: "eq", argumente: ["organization_id", ORG_ID] },
-      { metoda: "is", argumente: ["deleted_at", null] },
-    ]);
-    expect(server.apeluri.map((a) => a.tabela)).toEqual([
-      "payroll_entries",
-      "payroll_prior_income",
-    ]);
+    expect(apeluri).toHaveLength(2);
+    expect(areFiltru(apeluri[0], "gt", "id")).toBe(false);
+    expect(areFiltru(apeluri[1], "gt", "id", "e0999")).toBe(true);
+    for (const apel of apeluri) {
+      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+      expect(areFiltru(apel, "order", "id")).toBe(true);
+    }
+    // Luna din a doua pagină — cea din fereastră — ajunge în istoric.
+    expect(r.get("a")?.some((l) => l.an === 2026 && l.luna === 2)).toBe(true);
   });
 });
 
@@ -497,8 +491,10 @@ describe("diurna", () => {
     expect([...r.keys()]).toEqual(["a"]);
     expect(r.get("a")).toEqual({
       zile: [
-        { data: "2026-03-10", sumaAcordata: 300, baremLegalZi: 100, deplasareId: "t1" },
-        { data: "2026-03-31", sumaAcordata: 50, baremLegalZi: 0, deplasareId: "t2" },
+        // `baremLegalZi` poartă plafonul ÎNTREGII deplasări (plafon_neimpozabil_lei),
+        // nu plafonul pe zi — apelantul îl împarte la multiplicator.
+        { data: "2026-03-10", sumaAcordata: 300, baremLegalZi: 200, deplasareId: "t1" },
+        { data: "2026-03-31", sumaAcordata: 50, baremLegalZi: 200, deplasareId: "t2" },
       ],
       neimpozabilaCalculata: 220,
       impozabilaCalculata: 130,
@@ -510,40 +506,37 @@ describe("diurna", () => {
   });
 
   // Se citesc TOATE calculele de diurnă ale firmei, din toți anii, filtrate pe
-  // lună abia în memorie, fără paginare: după 1000 de deplasări PostgREST taie
-  // tăcut, iar diurna lunii poate lipsi de pe statul de plată.
-  it.fails(
-    "DEFECT: peste 1000 de calcule de diurnă, citirea nu cere pagina următoare",
-    async () => {
-      const vechi = calculDiurna("v", {
+  // lună abia în memorie: după 1000 de deplasări PostgREST taie tăcut, iar
+  // diurna lunii putea lipsi de pe stat. Citirea e acum paginată keyset.
+  it("peste 1000 de calcule de diurnă, citirea cere pagina următoare și găsește luna", async () => {
+    const pagina1 = Array.from({ length: 1000 }, (_, i) =>
+      calculDiurna(`v${String(i).padStart(4, "0")}`, {
         employee_id: "a",
         status: "incheiata",
         sosire_la: "2019-01-10T10:00:00Z",
-      });
-      server.raspunde("per_diem_calculations", "select", {
-        data: Array.from({ length: 1000 }, () => vechi),
-      });
-      server.raspunde("per_diem_calculations", "select", { data: [] });
+      }),
+    );
+    server.raspunde("per_diem_calculations", "select", { data: pagina1 });
+    server.raspunde("per_diem_calculations", "select", {
+      data: [
+        calculDiurna("w0001", {
+          employee_id: "a",
+          status: "incheiata",
+          sosire_la: "2026-03-10T10:00:00Z",
+        }),
+      ],
+    });
 
-      await diurnaLunaPerAngajat(ORG_ID, 2026, 3);
+    const r = await diurnaLunaPerAngajat(ORG_ID, 2026, 3);
 
-      expect(server.apeluriPe("per_diem_calculations").length).toBeGreaterThan(1);
-    },
-  );
-
-  // Perechea defectului: fixează cererea de AZI (o singură cerere, filtrată doar
-  // pe organizație). Se înroșește la orice reparație — paginare, filtru pe dată
-  // sau RPC; atunci se șterge, iar `it.fails` de mai sus devine `it`.
-  it("DEFECT documentat: azi, o singură cerere pe `per_diem_calculations`, filtrată doar pe organizație", async () => {
-    server.raspunde("per_diem_calculations", "select", { data: [] });
-
-    await diurnaLunaPerAngajat(ORG_ID, 2026, 3);
-
-    expect(server.apeluri.map((a) => a.tabela)).toEqual(["per_diem_calculations"]);
-    expect(server.apeluri[0]?.filtre).toEqual([
-      { metoda: "eq", argumente: ["organization_id", ORG_ID] },
-    ]);
-    expect(server.apeluriRpc).toHaveLength(0);
+    const apeluri = server.apeluriPe("per_diem_calculations");
+    expect(apeluri).toHaveLength(2);
+    expect(areFiltru(apeluri[1], "gt", "business_trip_id", "v0999")).toBe(true);
+    for (const apel of apeluri) {
+      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(apel, "order", "business_trip_id")).toBe(true);
+    }
+    expect(r.get("a")?.zile.map((z) => z.deplasareId)).toEqual(["w0001"]);
   });
 
   it("plafoaneDiurnaLuna: politica în vigoare la sfârșitul lunii; fără politică ⇒ null", async () => {

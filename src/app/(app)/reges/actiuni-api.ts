@@ -17,8 +17,6 @@
  * doar contracte și acțiuni, care nu conțin date personale.
  */
 
-import { revalidatePath } from "next/cache";
-
 import { compuneSalariat } from "@/lib/reges/compune";
 import { mascheazaText } from "@/domain/reges/mascare";
 import { idNomenclatorDinRaspuns } from "@/domain/reges/nomenclator-raspuns";
@@ -30,7 +28,7 @@ import {
 } from "@/lib/reges/credentiale";
 import { jetonValid } from "@/lib/reges/jeton";
 import { sincronizeazaNomenclatoare } from "@/lib/reges/nomenclatoare";
-import { cheamaReges, type Mediu } from "@/lib/reges/client";
+import { cheamaReges, type Mediu, type RaspunsReges } from "@/lib/reges/client";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import type { ActionResult } from "@/lib/actions/types";
@@ -230,13 +228,41 @@ const actiuneTransmite = createAction<typeof transmiteSchema, { stare: string; m
       );
     }
 
-    const raspuns = await cheamaReges<{ responseId?: string }>({
-      mediu: cred.mediu as Mediu,
-      cale: "/api/Salariat",
-      metoda: "POST",
-      jeton: jeton.jeton,
-      corp: compus.mesaj,
-    });
+    // Revendicarea (`in_curs`, starea făcută exact pentru asta — 0087): două
+    // apăsări simultane trec amândouă de verificarea `de_transmis` de mai sus;
+    // fără UPDATE-ul condiționat, fișa cu CNP pleca de două ori la ITM, iar al
+    // doilea răspuns suprascria `response_id`-ul primului.
+    const { data: revendicat, error: eroareRevendicare } = await admin
+      .from("reges_mesaje")
+      .update({ stare: "in_curs" })
+      .eq("id", mesaj.id)
+      .eq("organization_id", organizationId)
+      .eq("stare", "de_transmis")
+      .select("id")
+      .maybeSingle();
+    if (eroareRevendicare !== null) throw eroareRevendicare;
+    if (revendicat === null) {
+      throw businessRule("Mesajul a plecat deja sau a fost anulat. Reîncărcați pagina.");
+    }
+
+    let raspuns: RaspunsReges<{ responseId?: string }>;
+    try {
+      raspuns = await cheamaReges<{ responseId?: string }>({
+        mediu: cred.mediu as Mediu,
+        cale: "/api/Salariat",
+        metoda: "POST",
+        jeton: jeton.jeton,
+        corp: compus.mesaj,
+      });
+    } catch (eroare) {
+      // O excepție neprevăzută nu lasă mesajul blocat în `in_curs`.
+      await admin
+        .from("reges_mesaje")
+        .update({ stare: "de_transmis" })
+        .eq("id", mesaj.id)
+        .eq("organization_id", organizationId);
+      throw eroare;
+    }
 
     await admin.from("reges_apeluri").insert({
       organization_id: organizationId,
@@ -256,7 +282,8 @@ const actiuneTransmite = createAction<typeof transmiteSchema, { stare: string; m
           // Un 400 nu se mai reîncearcă: același mesaj primește același refuz.
           ...(raspuns.motiv === "validare"
             ? { stare: "esuat" as const, trimis_la: new Date().toISOString() }
-            : { incercari: mesaj.incercari + 1 }),
+            : // Reîncercabil: iese din `in_curs` înapoi în coadă.
+              { stare: "de_transmis" as const, incercari: mesaj.incercari + 1 }),
           eroare: mascheazaText(raspuns.mesaj),
           http_status: raspuns.status,
         })
@@ -265,7 +292,7 @@ const actiuneTransmite = createAction<typeof transmiteSchema, { stare: string; m
       throw businessRule(`Inspecția Muncii a respins mesajul: ${raspuns.mesaj}`);
     }
 
-    await admin
+    const { data: marcat, error: eroareMarcare } = await admin
       .from("reges_mesaje")
       .update({
         stare: "asteapta_raspuns",
@@ -277,7 +304,17 @@ const actiuneTransmite = createAction<typeof transmiteSchema, { stare: string; m
         eroare: null,
       })
       .eq("id", mesaj.id)
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      // `.select()` după `.update()`: zero rânduri nu dau eroare (capcana 17).
+      .select("id")
+      .maybeSingle();
+    if (eroareMarcare !== null || marcat === null) {
+      // Mesajul A PLECAT. Raportat ca succes, rândul rămânea fără `response_id`,
+      // reconcilierea nu-l mai putea lega, iar o a doua apăsare retrimitea fișa.
+      throw businessRule(
+        "Mesajul a plecat la Inspecția Muncii, dar starea locală nu s-a putut actualiza. Nu-l retrimiteți: reîncărcați pagina și apăsați „Verifică răspunsurile”.",
+      );
+    }
 
     return {
       stare: "asteapta_raspuns",
@@ -972,8 +1009,4 @@ export async function creeazaSporAngajator(
   input: SporAngajatorInput,
 ): Promise<ActionResult<{ regesId: string }>> {
   return actiuneSporAngajator(input);
-}
-
-export async function revalideazaReges(): Promise<void> {
-  for (const ruta of RUTE) revalidatePath(ruta);
 }

@@ -40,7 +40,7 @@ import {
   ORG_ID,
 } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest, type ClientFals } from "@/lib/teste/supabase-fals";
-import { aprobaPerioada, creeazaPerioada, redeschidePerioada } from "./actions";
+import { aprobaPerioada, creeazaPerioada, inchidePerioada, redeschidePerioada } from "./actions";
 
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -353,6 +353,69 @@ describe("redeschidePerioada", () => {
 
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     if (!r.ok) expect(r.error.message).toContain("nu a putut fi redeschisă");
+    expect(caiRevalidate()).toEqual([]);
+  });
+});
+
+// ── inchidePerioada ──────────────────────────────────────────────────────────
+
+describe("inchidePerioada", () => {
+  const PERMIS = { "payroll:approve": "all" } as const;
+
+  it("scope `team` sub pragul `all`: INTERZIS, fără nicio interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "payroll:approve": "team" } });
+    const r = await inchidePerioada({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("dreptul de actualizare nu ajunge pentru închidere: cere `payroll:approve`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "payroll:update": "all" } });
+    const r = await inchidePerioada({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  // Capcana 17: fără `.select()` după UPDATE, un rând respins de USING trece
+  // drept succes. Aserțiunile pe `selectDupaScriere` și pe `terminal` cad dacă
+  // lanțul se încheie cu `await` direct pe `.update()`.
+  it("succes: trece perioada în `inchis` pe id + organizație, cu `.select().maybeSingle()` după UPDATE", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_periods", "update", { data: { id: ID_1, status: "inchis" } });
+
+    const r = await inchidePerioada({ id: ID_1 });
+
+    expect(r).toEqual({ ok: true, data: null });
+    const [update, ...altele] = server.apeluriPe("payroll_periods");
+    expect(altele).toHaveLength(0);
+    expect(update?.operatie).toBe("update");
+    expect(update?.payload).toEqual({ status: "inchis" });
+    expect(areFiltru(update, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(update, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(update?.selectDupaScriere).toBe("id, status");
+    expect(update?.terminal).toBe("maybeSingle");
+    expect(caiRevalidate()).toEqual(["/salarizare", "/panou"]);
+  });
+
+  it("zero rânduri afectate (nu mai e `aprobat` sau USING a respins): CONFLICT și nicio revalidare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_periods", "update", { data: null });
+
+    const r = await inchidePerioada({ id: ID_1 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (!r.ok) expect(r.error.message).toContain("nu a putut fi închisă");
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("P0001 din triggerul de tranziție: mesajul triggerului ajunge la utilizator", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const mesaj = "Tranziție nepermisă: calculat → inchis.";
+    server.raspunde("payroll_periods", "update", { error: eroarePostgrest("P0001", mesaj) });
+
+    const r = await inchidePerioada({ id: ID_1 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });
     expect(caiRevalidate()).toEqual([]);
   });
 });

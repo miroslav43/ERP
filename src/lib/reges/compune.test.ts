@@ -108,10 +108,10 @@ describe("sporurileContractului", () => {
   });
 
   // Comentariul funcției: „ACTIVE LA O DATĂ, nu «toate cele scrise vreodată»:
-  // un spor expirat rămâne în tabelă ca istoric". Interogarea filtrează doar
-  // `valabil_de_la <= laData`; `valabil_pana` nu e consultat, deci un spor
-  // încheiat pleacă la ITM ca pachet salarial actual.
-  it.fails("DEFECT: sporul expirat (`valabil_pana` trecut) nu e exclus din mesaj", async () => {
+  // un spor expirat rămâne în tabelă ca istoric". Până la 2 oct 2026 interogarea
+  // filtra doar `valabil_de_la <= laData`, deci un spor încheiat pleca la ITM ca
+  // pachet salarial actual.
+  it("sporul expirat (`valabil_pana` trecut) e exclus din mesaj", async () => {
     const fals = clientFals();
     fals.raspunde("salary_components", "select", { data: [] });
 

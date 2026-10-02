@@ -9,12 +9,24 @@ const cota = (eticheta: string) =>
     .min(0, `${eticheta} nu poate fi negativă.`)
     .max(1, `${eticheta} se exprimă ca fracție (0,25 pentru 25%), nu ca procent.`);
 
-export const pragDeducereSchema = z.object({
-  nr_persoane_intretinere_min: z.coerce.number().int().min(0).max(20),
-  nr_persoane_intretinere_max: z.coerce.number().int().min(0).max(20).nullable(),
-  venit_brut_max: z.coerce.number().positive("Venitul brut maxim trebuie să fie pozitiv."),
-  valoare: z.coerce.number().min(0, "Valoarea deducerii nu poate fi negativă."),
-});
+export const pragDeducereSchema = z
+  .object({
+    nr_persoane_intretinere_min: z.coerce.number().int().min(0).max(20),
+    nr_persoane_intretinere_max: z.coerce.number().int().min(0).max(20).nullable(),
+    venit_brut_max: z.coerce.number().positive("Venitul brut maxim trebuie să fie pozitiv."),
+    valoare: z.coerce.number().min(0, "Valoarea deducerii nu poate fi negativă."),
+  })
+  // Oglinda lui `ppdb_persoane_ck` (0026:96): prinsă aici, nu mai ajunge la
+  // bază cu un mesaj generic de „valori imposibile”.
+  .refine(
+    (p) =>
+      p.nr_persoane_intretinere_max === null ||
+      p.nr_persoane_intretinere_max >= p.nr_persoane_intretinere_min,
+    {
+      message: "Numărul maxim de persoane trebuie să fie cel puțin egal cu minimul.",
+      path: ["nr_persoane_intretinere_max"],
+    },
+  );
 export type IntrarePragDeducere = z.output<typeof pragDeducereSchema>;
 
 export const setariSalarizareSchema = z.object({

@@ -54,9 +54,69 @@ describe("calculeazaRetinerile — două popriri obișnuite concurente", () => {
     );
     expect(r.plafonAplicat).toBe(3000);
     expect(r.aplicate.map((a) => a.aplicata)).toEqual([2500, 500]);
+    // Sumele singure nu spun CINE a luat 2500: cu ordinea inversată lista ar fi
+    // tot [2500, 500]. Id-ul fixează că dosarul cu prioritatea 1 trece primul.
+    expect(r.aplicate.map((a) => [a.id, a.aplicata])).toEqual([
+      ["A", 2500],
+      ["B", 500],
+    ]);
     // Primul dosar trece azi de o treime din net: 2500 > 2000.
     expect(r.aplicate[0]?.aplicata).toBeGreaterThan(6000 * O_TREIME);
     expect(r.totalRetinut + r.netRamas).toBe(6000);
+  });
+});
+
+describe("calculeazaRetinerile — ordinea în care dosarele consumă plafonul", () => {
+  // `comparaPopriri`: întâi întreținerea, apoi prioritatea CRESCĂTOR, abia apoi
+  // id-ul. Pe un plafon care nu le acoperă pe amândouă, ordinea decide cine
+  // încasează tot și cine rămâne cu restul — deci testele leagă suma de id.
+
+  it("prioritatea mică trece prima, chiar când id-ul ei vine al doilea alfabetic", () => {
+    // Id-urile sunt alese CONTRA priorității: dacă ordinea s-ar decide pe id,
+    // „A" ar trece primul. Intrarea vine și ea în ordinea greșită.
+    const r = calculeazaRetinerile(
+      intrare({
+        net: 6000,
+        popriri: [
+          poprire({ id: "A", dosar: "1/2026", prioritate: 2, sumaLunara: 2500 }),
+          poprire({ id: "Z", dosar: "2/2026", prioritate: 1, sumaLunara: 2500 }),
+        ],
+      }),
+    );
+    expect(r.plafonAplicat).toBe(3000);
+    expect(r.aplicate.map((a) => [a.id, a.aplicata])).toEqual([
+      ["Z", 2500],
+      ["A", 500],
+    ]);
+    expect(r.aplicate.find((a) => a.id === "Z")?.soldDupa).toBe(6500);
+    expect(r.aplicate.find((a) => a.id === "A")?.soldDupa).toBe(8500);
+  });
+
+  it("întreținerea trece înaintea unei popriri obișnuite, oricare i-ar fi prioritatea", () => {
+    // Întreținerea are prioritatea 5 (cea mai slabă) și id-ul „Z" (ultimul):
+    // singurul motiv pentru care trece prima e `esteIntretinere`.
+    const r = calculeazaRetinerile(
+      intrare({
+        net: 6000,
+        popriri: [
+          poprire({ id: "A", dosar: "1/2026", prioritate: 1, sumaLunara: 2500 }),
+          poprire({
+            id: "Z",
+            dosar: "2/2026",
+            prioritate: 5,
+            sumaLunara: 2500,
+            esteIntretinere: true,
+          }),
+        ],
+      }),
+    );
+    expect(r.plafonAplicat).toBe(3000);
+    expect(r.aplicate.map((a) => [a.id, a.aplicata])).toEqual([
+      ["Z", 2500],
+      ["A", 500],
+    ]);
+    expect(r.totalRetinut).toBe(3000);
+    expect(r.netRamas).toBe(3000);
   });
 });
 

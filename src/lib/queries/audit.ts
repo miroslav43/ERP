@@ -226,14 +226,21 @@ export const decodificaCursor = (brut: string | null): Cursor | null => {
 
 /* -------------------------- interval de date ---------------------------- */
 
-const decalajOrar = (zi: string): string => {
+const decalajLa = (moment: Date): string => {
   const parti = new Intl.DateTimeFormat("en-US", {
     timeZone: FUS,
     timeZoneName: "longOffset",
-  }).formatToParts(new Date(`${zi}T12:00:00Z`));
+  }).formatToParts(moment);
   const nume = parti.find((parte) => parte.type === "timeZoneName")?.value ?? "GMT+00:00";
   return /GMT([+-]\d{2}:\d{2})/.exec(nume)?.[1] ?? "+00:00";
 };
+
+// Decalajul de la MIEZUL NOPȚII local, nu de la prânz: în zilele în care se
+// schimbă ora (ultima duminică din martie și din octombrie) cele două diferă, iar
+// intervalul prindea o oră din ziua vecină sau pierdea prima oră. Primul pas
+// aproximează momentul, al doilea citește decalajul exact în el.
+const decalajOrar = (zi: string): string =>
+  decalajLa(new Date(`${zi}T00:00:00${decalajLa(new Date(`${zi}T00:00:00Z`))}`));
 
 const inceputZi = (zi: string): string => `${zi}T00:00:00${decalajOrar(zi)}`;
 

@@ -187,25 +187,22 @@ describe("marcheazaTransmis", () => {
   });
 
   // `throw mapPostgrestError(...)` aruncă un `ActionError` SIMPLU — nici
-  // `ActionDenied`, nici eroare PostgREST (n-are `details`) — deci `createAction`
-  // îl tratează ca excepție necunoscută: EROARE_INTERNA, cu codul bazei pierdut.
-  it.fails("DEFECT: 42501 la citire devine EROARE_INTERNA în loc de INTERZIS", async () => {
+  // `ActionDenied`, nici eroare PostgREST (n-are `details`). `createAction` îl
+  // recunoaște acum (`esteActionError`) și îi păstrează codul.
+  it("un cod de bază tradus cu `mapPostgrestError` (42501) iese INTERZIS, nu EROARE_INTERNA", async () => {
     const { server } = configureazaActiunea({ permisiuni: ACTUALIZARE });
     server.raspunde("reges_evenimente", "select", { error: eroarePostgrest("42501") });
     const r = await marcheazaTransmis(intrare);
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
   });
 
-  it.fails(
-    "DEFECT: P0001 din triggerul de tranziție devine EROARE_INTERNA în loc de CONFLICT",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: ACTUALIZARE });
-      server.raspunde("reges_evenimente", "select", { data: { id: ID_1, status: "pregatit" } });
-      server.raspunde("reges_evenimente", "update", { error: eroarePostgrest("P0001") });
-      const r = await marcheazaTransmis(intrare);
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+  it("un P0001 la UPDATE, tradus cu `mapPostgrestError`, iese CONFLICT, nu EROARE_INTERNA", async () => {
+    const { server } = configureazaActiunea({ permisiuni: ACTUALIZARE });
+    server.raspunde("reges_evenimente", "select", { data: { id: ID_1, status: "pregatit" } });
+    server.raspunde("reges_evenimente", "update", { error: eroarePostgrest("P0001") });
+    const r = await marcheazaTransmis(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 
   it("numărul de înregistrare gol e respins de schemă", async () => {
     const { server } = configureazaActiunea({ permisiuni: ACTUALIZARE });
@@ -405,20 +402,17 @@ describe("exportaEvenimente", () => {
     expect(r.ok).toBe(false);
   });
 
-  it.fails(
-    "DEFECT: 42501 pe o citire secundară devine EROARE_INTERNA în loc de INTERZIS",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: EXPORT });
-      server.raspunde("reges_evenimente", "select", { data: [eveniment(ID_1, ID_2, null)] });
-      server.raspunde("employees", "select", { data: [] });
-      server.raspunde("employee_sensitive_data", "select", { error: eroarePostgrest("42501") });
-      server.raspunde("organizations", "select", {
-        data: { id: ORG_ID, name: "F", cui: "1", reg_com: null },
-      });
-      const r = await exportaEvenimente({ doarNetransmise: true });
-      expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
-    },
-  );
+  it("un cod de bază (42501) pe o citire secundară iese INTERZIS, nu EROARE_INTERNA", async () => {
+    const { server } = configureazaActiunea({ permisiuni: EXPORT });
+    server.raspunde("reges_evenimente", "select", { data: [eveniment(ID_1, ID_2, null)] });
+    server.raspunde("employees", "select", { data: [] });
+    server.raspunde("employee_sensitive_data", "select", { error: eroarePostgrest("42501") });
+    server.raspunde("organizations", "select", {
+      data: { id: ORG_ID, name: "F", cui: "1", reg_com: null },
+    });
+    const r = await exportaEvenimente({ doarNetransmise: true });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+  });
 
   it("exportul nu revalidează nimic (nu schimbă starea)", async () => {
     const { server } = configureazaActiunea({ permisiuni: EXPORT });

@@ -364,18 +364,25 @@ export async function citesteExercitiu(
  */
 export async function listeazaAni(organizationId: string): Promise<readonly number[]> {
   const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("registru_documente")
-    .select("an")
-    .eq("organization_id", organizationId)
-    .order("an", { ascending: false })
-    .limit(1000)
-    .returns<{ readonly an: number }[]>();
-
-  if (error !== null) throw error;
-
-  const ani = new Set<number>((data ?? []).map((r) => r.an));
-  ani.add(anulCurent());
+  const ani = new Set<number>([anulCurent()]);
+  // Pagini de 1000 (max_rows, capcana #2), cu SALT peste anul deja văzut: un rând
+  // per document, deci o firmă cu peste 1000 de înregistrări în anul curent nu
+  // mai vedea deloc anii vechi în selector.
+  let subAnul: number | null = null;
+  for (;;) {
+    let cerere = db.from("registru_documente").select("an").eq("organization_id", organizationId);
+    if (subAnul !== null) cerere = cerere.lt("an", subAnul);
+    const { data, error } = await cerere
+      .order("an", { ascending: false })
+      .limit(1000)
+      .returns<{ readonly an: number }[]>();
+    if (error !== null) throw error;
+    const pagina = data ?? [];
+    for (const r of pagina) ani.add(r.an);
+    const ultim = pagina.at(-1);
+    if (pagina.length < 1000 || ultim === undefined) break;
+    subAnul = ultim.an;
+  }
   return [...ani].sort((a, b) => b - a);
 }
 
@@ -385,14 +392,28 @@ export async function listeazaTipuriDocument(
   an: number,
 ): Promise<readonly string[]> {
   const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("registru_documente")
-    .select("tip_document")
-    .eq("organization_id", organizationId)
-    .eq("an", an)
-    .limit(1000)
-    .returns<{ readonly tip_document: string }[]>();
-
-  if (error !== null) throw error;
-  return [...new Set((data ?? []).map((r) => r.tip_document))].sort((a, b) => a.localeCompare(b));
+  const tipuri = new Set<string>();
+  // Pagini de 1000 (max_rows, capcana #2), cu SALT peste tipul deja văzut: un
+  // tip rar (o demisie printre sute de fluturași) aflat dincolo de primele 1000
+  // de rânduri lipsea tăcut din filtru.
+  let dupaTipul: string | null = null;
+  for (;;) {
+    let cerere = db
+      .from("registru_documente")
+      .select("tip_document")
+      .eq("organization_id", organizationId)
+      .eq("an", an);
+    if (dupaTipul !== null) cerere = cerere.gt("tip_document", dupaTipul);
+    const { data, error } = await cerere
+      .order("tip_document", { ascending: true })
+      .limit(1000)
+      .returns<{ readonly tip_document: string }[]>();
+    if (error !== null) throw error;
+    const pagina = data ?? [];
+    for (const r of pagina) tipuri.add(r.tip_document);
+    const ultim = pagina.at(-1);
+    if (pagina.length < 1000 || ultim === undefined) break;
+    dupaTipul = ultim.tip_document;
+  }
+  return [...tipuri].sort((a, b) => a.localeCompare(b));
 }

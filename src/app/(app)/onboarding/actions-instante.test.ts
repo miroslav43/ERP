@@ -350,6 +350,7 @@ describe("bifeazaPas", () => {
   it.each([
     ["absentă", undefined],
     ["doar spații", "   "],
+    ["doar tab-uri și rânduri noi", "\t\n \r\n"],
   ])("pas cu semnătură, semnătura %s: VALIDARE pe `dovada`", async (_caz, dovada) => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("checklist_instance_items", "select", pasCurent({ tip_dovada: "semnatura" }));
@@ -372,6 +373,36 @@ describe("bifeazaPas", () => {
     expect(server.apeluriPe("checklist_instance_items", "update")[0]?.payload).toMatchObject({
       dovada: "Popescu Ion",
     });
+  });
+
+  // `.trim()` din pre-verificarea handlerului e redundant cât timp schema
+  // (`textOptional` din src/schemas/comun.ts) taie spațiile și face din ""
+  // un null — mutantul care-l scoate e ECHIVALENT. Testul ăsta fixează
+  // premisa echivalenței: dacă schema încetează să taie, semnătura ajunge
+  // în bază cu spațiile pe margini și testul pică, semnalând că `.trim()`
+  // din handler a devenit singura barieră pentru „doar spații”.
+  it("pas cu semnătură cu spații pe margini: semnătura ajunge în payload TĂIATĂ", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("checklist_instance_items", "select", pasCurent({ tip_dovada: "semnatura" }));
+    server.raspunde("checklist_instance_items", "update", {
+      data: { id: ID_1, instance_id: ID_2 },
+    });
+    const r = await bifeazaPas({ id: ID_1, status: "bifat", dovada: "  Popescu Ion \n" });
+    expect(r.ok).toBe(true);
+    const [apel] = server.apeluriPe("checklist_instance_items", "update");
+    expect(apel?.payload).toMatchObject({ dovada: "Popescu Ion" });
+  });
+
+  it("pas fără semnătură cerută („bifa”): dovada goală nu blochează, ajunge null", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("checklist_instance_items", "select", pasCurent({ tip_dovada: "bifa" }));
+    server.raspunde("checklist_instance_items", "update", {
+      data: { id: ID_1, instance_id: ID_2 },
+    });
+    const r = await bifeazaPas({ id: ID_1, status: "bifat", dovada: "   " });
+    expect(r.ok).toBe(true);
+    const [apel] = server.apeluriPe("checklist_instance_items", "update");
+    expect(apel?.payload).toMatchObject({ dovada: null });
   });
 
   it("UPDATE respins tăcut de RLS (zero rânduri): CONFLICT și nicio revalidare", async () => {

@@ -18,13 +18,15 @@ describe("propuneTipNorma și propuneNormaTimpMunca — propuneri coerente", () 
     expect(propuneNormaTimpMunca(4, 20)).toBe("TimpPartial");
   });
 
-  // Documentația lui `propuneNormaTimpMunca`: `NormaIntreaga630` acoperă
-  // „normele reduse legale (6 ore/zi, 30/săptămână)” — o normă ÎNTREAGĂ, redusă.
-  // `propuneTipNorma(30)` (operatii.ts:171) spune însă „TimpPartial”, iar
-  // formularul primește amândouă valorile odată.
-  it.fails("DEFECT: o normă întreagă redusă 6/30 are tipul de normă „NormaIntreaga”", () => {
+  // Cele două propuneri NU sunt consecvente pentru 6/30, iar asta e o decizie de
+  // produs ⚠, nu un defect: 30 h/săptămână e implicit TIMP PARȚIAL; norma
+  // întreagă redusă există doar pentru minori sau condiții speciale. Ambele sunt
+  // PROPUNERI afișate (reges/[id]/page.tsx) și suprascrise de coloanele reges_*.
+  // A le alinia pe „NormaIntreaga” ar declara la ITM part-timerii drept normă
+  // întreagă. Testul fixează starea de azi.
+  it("6/30: norma propusă e cea redusă, tipul propus e timp parțial (decizie ⚠ deschisă)", () => {
     expect(propuneNormaTimpMunca(6, 30)).toBe("NormaIntreaga630");
-    expect(propuneTipNorma(30)).toBe("NormaIntreaga");
+    expect(propuneTipNorma(30)).toBe("TimpPartial");
   });
 
   // Valoare de confirmat: NOTES.md §3 REVISAL. Comentariul descrie norma redusă

@@ -49,6 +49,16 @@ beforeEach(() => {
 const PERMIS_CREARE = { "payroll:create": "all" } as const;
 const PERMIS_MODIFICARE = { "payroll:update": "all" } as const;
 
+/**
+ * Drept de creare + perioada încă în ciornă: adăugările precitesc starea
+ * perioadei (`cerePerioadaInCiorna`) înainte de INSERT.
+ */
+function cuPerioadaInCiorna() {
+  const c = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+  c.server.raspunde("payroll_periods", "select", { data: { id: ID_1, status: "draft" } });
+  return c;
+}
+
 // ── Ștergerile: aceeași formă pentru prime și rețineri ──────────────────────
 
 describe.each([
@@ -192,7 +202,7 @@ describe("adaugaPrima", () => {
   });
 
   it("succes: inserează prima în organizația curentă, cu implicitele fiscale „impozabil” și „supus contribuțiilor”", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    const { server } = cuPerioadaInCiorna();
     server.raspunde("payroll_bonuses", "insert", {});
 
     const r = await adaugaPrima(INTRARE);
@@ -213,7 +223,7 @@ describe("adaugaPrima", () => {
   });
 
   it("auditul reține perioada, angajatul și tipul — nu suma și nici motivul", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    const { server } = cuPerioadaInCiorna();
     server.raspunde("payroll_bonuses", "insert", {});
 
     await adaugaPrima(INTRARE);
@@ -240,17 +250,14 @@ describe("adaugaPrima", () => {
     },
   );
 
-  // `actions.ts` (comentariul din `stergePrima`) numește singur problema: o
-  // respingere din `with check` iese ca 42501, adică „nu aveți dreptul” — deși
-  // dreptul există și doar luna s-a închis. Ștergerile au primit precitirea
-  // stării perioadei; `adaugaPrima` și `adaugaRetinere` nu.
-  it.fails(
-    "DEFECT: perioadă care nu mai e în ciornă ⇒ trebuie CONFLICT „Redeschideți perioada”, nu INTERZIS",
-    async () => {
+  // O respingere din `with check` ieșea ca 42501, adică „nu aveți dreptul” —
+  // deși dreptul există și doar luna nu mai e în ciornă. Adăugările precitesc
+  // acum starea perioadei, ca ștergerile.
+  it.each(["calculat", "aprobat", "inchis"])(
+    "perioadă în starea %s: CONFLICT „Redeschideți perioada”, nu INTERZIS, fără INSERT",
+    async (status) => {
       const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
-      // Precitirea pe care o face reparația (ca la `stergePrima`); azi rămâne neconsumată.
-      server.raspunde("payroll_periods", "select", { data: { id: ID_1, status: "calculat" } });
-      server.raspunde("payroll_bonuses", "insert", { error: eroarePostgrest("42501") });
+      server.raspunde("payroll_periods", "select", { data: { id: ID_1, status } });
 
       const r = await adaugaPrima(INTRARE);
 
@@ -258,20 +265,23 @@ describe("adaugaPrima", () => {
         ok: false,
         error: { code: "CONFLICT", message: expect.stringContaining("Redeschideți perioada") },
       });
+      const [citire] = server.apeluriPe("payroll_periods", "select");
+      expect(areFiltru(citire, "eq", "id", ID_1)).toBe(true);
+      expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
+      expect(server.apeluriPe("payroll_bonuses")).toHaveLength(0);
+      expect(caiRevalidate()).toEqual([]);
     },
   );
 
-  // Perechea defectului: fixează comportamentul ACTUAL. Se înroșește la reparare
-  // (atunci se șterge, iar `it.fails` de mai sus devine `it`).
-  it("DEFECT documentat: azi, 42501 din `with check` iese ca INTERZIS, fără precitirea perioadei", async () => {
+  it("perioadă inexistentă (ștearsă între timp): NEGASIT, fără INSERT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
-    server.raspunde("payroll_bonuses", "insert", { error: eroarePostgrest("42501") });
+    server.raspunde("payroll_periods", "select", { data: null });
 
     const r = await adaugaPrima(INTRARE);
 
-    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
-    expect(server.apeluriPe("payroll_periods")).toHaveLength(0);
-    expect(caiRevalidate()).toEqual([]);
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("payroll_bonuses")).toHaveLength(0);
   });
 });
 
@@ -294,7 +304,7 @@ describe("adaugaRetinere", () => {
   });
 
   it("succes: inserează reținerea, fără plafon procentual când nu e cerut", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    const { server } = cuPerioadaInCiorna();
     server.raspunde("payroll_deductions", "insert", {});
 
     const r = await adaugaRetinere(INTRARE);
@@ -314,7 +324,7 @@ describe("adaugaRetinere", () => {
   });
 
   it("plafonul procentual se transmite ca fracție", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    const { server } = cuPerioadaInCiorna();
     server.raspunde("payroll_deductions", "insert", {});
 
     await adaugaRetinere({ ...INTRARE, procent_maxim_din_net: "0.3" });
@@ -333,35 +343,35 @@ describe("adaugaRetinere", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it.fails(
-    "DEFECT: perioadă care nu mai e în ciornă ⇒ trebuie CONFLICT „Redeschideți perioada”, nu INTERZIS",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
-      server.raspunde("payroll_periods", "select", { data: { id: ID_1, status: "calculat" } });
-      server.raspunde("payroll_deductions", "insert", { error: eroarePostgrest("42501") });
-
-      const r = await adaugaRetinere(INTRARE);
-
-      expect(r).toMatchObject({
-        ok: false,
-        error: { code: "CONFLICT", message: expect.stringContaining("Redeschideți perioada") },
-      });
-    },
-  );
-
-  it("DEFECT documentat: azi, 42501 din `with check` iese ca INTERZIS, fără precitirea perioadei", async () => {
+  it("perioadă care nu mai e în ciornă: CONFLICT „Redeschideți perioada”, nu INTERZIS, fără INSERT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
-    server.raspunde("payroll_deductions", "insert", { error: eroarePostgrest("42501") });
+    server.raspunde("payroll_periods", "select", { data: { id: ID_1, status: "calculat" } });
 
     const r = await adaugaRetinere(INTRARE);
 
-    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
-    expect(server.apeluriPe("payroll_periods")).toHaveLength(0);
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("Redeschideți perioada") },
+    });
+    const [citire] = server.apeluriPe("payroll_periods", "select");
+    expect(areFiltru(citire, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(server.apeluriPe("payroll_deductions")).toHaveLength(0);
     expect(caiRevalidate()).toEqual([]);
   });
 
-  it("depășire numerică (22003): mesajul modulului despre fracții, nu cel generic", async () => {
+  it("perioadă inexistentă (ștearsă între timp): NEGASIT, fără INSERT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    server.raspunde("payroll_periods", "select", { data: null });
+
+    const r = await adaugaRetinere(INTRARE);
+
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("payroll_deductions")).toHaveLength(0);
+  });
+
+  it("depășire numerică (22003): mesajul modulului despre fracții, nu cel generic", async () => {
+    const { server } = cuPerioadaInCiorna();
     server.raspunde("payroll_deductions", "insert", { error: eroarePostgrest("22003") });
 
     const r = await adaugaRetinere(INTRARE);

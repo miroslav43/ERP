@@ -22,8 +22,9 @@
 //     salariului de bază, NU la media ultimelor 3 luni;
 //   - un singur procent per axă de spor, fără trepte în interiorul zilei
 //     („primele 8 ore" vs restul);
-//   - diurna nu intră încă în calcul, deși modulul ei calculează deja partea
-//     impozabilă și pe cea neimpozabilă.
+//   - diurna intră în calcul doar când i se dă etapa (`input.diurna`): partea
+//     neimpozabilă direct în rest de plată, cea de peste plafon în brut și în
+//     bazele CAS/CASS/impozit.
 //
 // NIMIC din modulul ăsta nu e certificat. Fiecare cotă vine din
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
@@ -388,10 +389,12 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   // pontajul spune ce s-a lucrat, compensările spun ce s-a stins deja altfel.
   let oreSuplDePlata = attendance.oreSuplimentare;
   let oreSuplCompensate = 0;
+  let oreSarbatoareCompensate = 0;
   if (input.compensari !== undefined) {
     const comp = calculeazaCompensarea(input.compensari);
     oreSuplDePlata = comp.oreDePlata;
     oreSuplCompensate = comp.oreCompensate;
+    oreSarbatoareCompensate = comp.oreSarbatoareCompensate;
     for (const pb of comp.probleme) {
       const completa = problemaDinEtapa(pb.cod, pb.detalii);
       warnings.push({ cod: completa.cod, mesaj: descriereCompleta(completa) });
@@ -425,8 +428,16 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
 
   const oreNormaleRepaus = attendance.oreNormaleRepaus ?? 0;
   const oreSuplRepaus = attendance.oreSuplimentareRepaus ?? 0;
-  const oreNormaleSarbatoare = attendance.oreNormaleSarbatoare ?? 0;
-  const oreSuplSarbatoare = attendance.oreSuplimentareSarbatoare ?? 0;
+  // Ziua liberă ACORDATĂ stinge plata orelor de sărbătoare: cele două forme se
+  // exclud (antetul `etape/compensare-ore.ts`). Fără scăderea asta, omul primea
+  // și ziua liberă, și orele plătite cu spor. Se sting întâi orele normale.
+  const oreNormaleSarbatoarePontaj = attendance.oreNormaleSarbatoare ?? 0;
+  const oreNormaleSarbatoare = Math.max(0, oreNormaleSarbatoarePontaj - oreSarbatoareCompensate);
+  const oreSuplSarbatoare = Math.max(
+    0,
+    (attendance.oreSuplimentareSarbatoare ?? 0) -
+      Math.max(0, oreSarbatoareCompensate - oreNormaleSarbatoarePontaj),
+  );
 
   // NU trec prin `inregistreaza`: `breakdown` e o listă de SUME în lei, iar
   // fluturașul o formatează integral cu `formatLei`. Un număr de ore strecurat
@@ -562,8 +573,11 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   const primeInBazaCass = bonuses
     .filter((b) => b.intraInBazaCass ?? b.supusContributii)
     .reduce((s, b) => s + b.suma, 0);
+  // Tot ce e impozabil și NU e deja în baza CAS, din care pornește
+  // `bazaImpozit` — inclusiv o componentă supusă doar contribuției de sănătate.
+  // Filtrul pe `!supusContributii` lăsa o asemenea componentă neimpozitată.
   const primeImpozabileFaraContributii = bonuses
-    .filter((b) => b.impozabil && !b.supusContributii)
+    .filter((b) => b.impozabil && !(b.intraInBazaCas ?? b.supusContributii))
     .reduce((s, b) => s + b.suma, 0);
 
   // Diurna: partea peste plafon devine venit asimilat salariului și trece prin
@@ -605,7 +619,20 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   const valoareTichete = inregistreaza("valoareTichete", nrTichete * settings.valoareTichetMasa);
 
   // Baza comună a celor două contribuții — drepturile din muncă propriu-zise.
-  const bazaComuna = bazaSalariu + sumaOreSuplimentare + sporNoapte + sporRepaus + sporSarbatoare;
+  //
+  // Indemnizația de CO înlocuiește salariul zilelor de concediu (scoase din
+  // `bazaSalariu` când etapa CO e dată), deci poartă aceleași contribuții și
+  // impozit. Diurna de peste plafon e venit asimilat salariului (vezi mai sus).
+  // Amândouă intrau în `brut`, dar nu și aici: CAS, CASS și impozitul ieșeau
+  // mai mici decât datorate, iar netul mai mare.
+  const bazaComuna =
+    bazaSalariu +
+    indemnizatieCo +
+    sumaOreSuplimentare +
+    sporNoapte +
+    sporRepaus +
+    sporSarbatoare +
+    diurnaImpozabila;
 
   // Tichetele de masă NU intră în baza de pensie. În cea de sănătate intră sau
   // nu, după regimul fiscal în vigoare — de aceea e o setare, nu o constantă.
@@ -688,14 +715,26 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
         deducerePersonala +
         primeImpozabileFaraContributii +
         (settings.ticheteImpozabile ? valoareTichete : 0) -
-        scutireFiscala,
+        // Scutirea e o mărime BRUTĂ (procent din brutul plafonat), iar baza e
+        // deja netă de CAS și CASS: se scade partea ei netă. Scăzută întreagă,
+        // venitul de peste plafon ieșea neimpozitat (brut 15000, plafon 10000,
+        // 100% ⇒ impozit 0). Formula rămâne ⚠ de confirmat (NOTES.md §3).
+        scutireFiscala * (1 - settings.cotaCas - settings.cotaCass),
     ),
   );
   const impozit = inregistreaza("impozit", bazaImpozit * settings.cotaImpozit);
 
   const camAngajator = inregistreaza("camAngajator", brut * settings.cotaCamAngajator);
 
-  const net = inregistreaza("net", brut - cas - cass - impozit);
+  // Netul se închide pe coloanele AFIȘATE: fiecare termen se rotunjește întâi
+  // (la ban sau la leu), ca fluturașul să se verifice cu creionul
+  // (`domain/bani.ts`). Calculat pe valorile brute, ieșea cu un ban/leu diferit
+  // de brut − CAS − CASS − impozit tipărite pe aceeași foaie.
+  const rl = settings.rotunjireLei;
+  const net = inregistreaza(
+    "net",
+    rotundLeu(brut, rl) - rotundLeu(cas, rl) - rotundLeu(cass, rl) - rotundLeu(impozit, rl),
+  );
 
   let netRamas = net;
   let retineriTotal = 0;

@@ -498,6 +498,19 @@ describe("aplicaRegulile", () => {
       [ID_1],
     ],
     [
+      // 0110 lasă `course_assignment_rules.cod_cor` nullable, iar backfill-ul din
+      // job_positions poate scrie null. Fără garda `angajat.cod_cor !== null`,
+      // null === null ar înrola tăcut fiecare fișă fără ocupație declarată.
+      "funcție cu regula FĂRĂ cod COR: nu prinde nici fișele fără cod",
+      { criteriu: "functie", cod_cor: null },
+      [
+        { id: ID_1, cod_cor: null },
+        { id: ID_2, cod_cor: "251401" },
+        { id: ID_3, cod_cor: null },
+      ],
+      [],
+    ],
+    [
       "angajat anume",
       { criteriu: "angajat", employee_id: ID_2 },
       [{ id: ID_1 }, { id: ID_2 }],

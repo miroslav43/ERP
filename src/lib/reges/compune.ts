@@ -150,6 +150,10 @@ export async function sporurileContractului(
     .eq("contract_id", contractId)
     .in("kind", ["spor_procent", "spor_suma"])
     .lte("valabil_de_la", laData)
+    // Sporul încheiat rămâne în tabelă ca istoric; la ITM pleacă doar cel valabil
+    // la `laData` (forma din `queries/payroll.ts`). Fără filtru, un spor încheiat
+    // de `incheieComponentaAngajat` se declara în continuare la Inspecția Muncii.
+    .or(`valabil_pana.is.null,valabil_pana.gte.${laData}`)
     .is("deleted_at", null)
     .returns<
       {

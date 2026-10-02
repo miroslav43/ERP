@@ -29,13 +29,13 @@ describe("oreleZilei — pauza scade minute, nu sutimi deja rotunjite", () => {
 
   // În `oreleZilei`, lucrate = round2(brut) − round2(pauză). Pentru
   // 08:00–16:08 cu 7 minute de pauză, timpul lucrat e 481 min = 8,0167 h, adică
-  // 8,02 h și 0,02 h suplimentare. Codul scade 0,12 din 8,13 și dă 8,01 / 0,01.
-  // „Ce se scrie în ore_lucrate” (OreleZilei.lucrate) pierde o sutime de oră.
-  it.fails.each([
+  // 8,02 h și 0,02 h suplimentare. Codul scădea 0,12 din 8,13 și dădea 8,01 /
+  // 0,01; acum scade în minute și rotunjește o singură dată.
+  it.each([
     { inceput: "08:00", sfarsit: "16:08", pauzaMinute: 7 },
     { inceput: "08:00", sfarsit: "16:41", pauzaMinute: 40 },
   ])(
-    "DEFECT: $inceput–$sfarsit cu $pauzaMinute min de pauză dă 481 min lucrate, adică 8,02 h",
+    "$inceput–$sfarsit cu $pauzaMinute min de pauză dă 481 min lucrate, adică 8,02 h",
     ({ inceput, sfarsit, pauzaMinute }) => {
       const zi = oreleZilei(inceput, sfarsit, { ...CONFIG, pauzaMinute });
       expect(zi?.lucrate).toBe(8.02);

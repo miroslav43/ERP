@@ -293,40 +293,43 @@ describe("interogheazaMesajeReges", () => {
     expect(db.apeluri).toHaveLength(1);
   });
 
-  // Fișierul însuși a reparat exact asta pentru evenimente (`numaraStatistici`):
-  // cifrele numărate peste pagina tăiată la `limita` sunt mai mici decât
-  // realitatea, fără nicio eroare. La mesaje, statisticile vin încă din pagină.
-  it.fails(
-    "DEFECT: statisticile cozii se numără din pagina tăiată la `limita`, nu din bază",
-    async () => {
-      const db = clientFals();
-      db.raspunde("reges_mesaje", "select", { data: [mesaj("a"), mesaj("b")] });
-      db.raspunde("employees", "select", { data: [] });
-      db.raspunde("employment_contracts", "select", { data: [] });
-      // Ce ar fi numărat baza pe toată coada, dacă funcția ar fi întrebat.
-      for (let i = 0; i < 4; i += 1)
-        db.raspunde("reges_mesaje", "select", { count: 9, data: null });
+  // Cifrele numărate peste pagina tăiată la `limita` erau mai mici decât
+  // realitatea, fără nicio eroare. O pagină PLINĂ cere acum numărătorile din bază,
+  // ca la evenimente (`numaraStatistici`).
+  it("pagină plină: statisticile cozii se numără în bază, pe fiecare stare", async () => {
+    const db = clientFals();
+    db.raspunde("reges_mesaje", "select", { data: [mesaj("a"), mesaj("b")] });
+    db.raspunde("employees", "select", { data: [] });
+    db.raspunde("employment_contracts", "select", { data: [] });
+    db.raspunde("reges_mesaje", "select", { count: 9, data: null });
+    db.raspunde("reges_mesaje", "select", { count: 3, data: null });
+    db.raspunde("reges_mesaje", "select", { count: 1, data: null });
+    db.raspunde("reges_mesaje", "select", { count: 40, data: null });
 
-      const r = await interogheazaMesajeReges(db.client, ORG, 2);
+    const r = await interogheazaMesajeReges(db.client, ORG, 2);
 
-      expect(r.statistici.deTransmis).toBe(9);
-    },
-  );
+    expect(r.statistici).toEqual({ deTransmis: 9, asteapta: 3, esuate: 1, reusite: 40 });
+    const numaratori = db.apeluriPe("reges_mesaje").slice(1);
+    expect(
+      numaratori.map((a) => a.filtre.find((f) => f.argumente[0] === "stare")?.argumente[1]),
+    ).toEqual(["de_transmis", "asteapta_raspuns", "esuat", "reusit"]);
+    for (const apel of numaratori) {
+      expect(apel.optiuni).toEqual({ count: "exact", head: true });
+      expect(areFiltru(apel, "eq", "organization_id", ORG)).toBe(true);
+      expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    }
+  });
 
-  // Fixează forma de AZI a defectului: o reparație (oricum ar arăta interogarea)
-  // înroșește testul ăsta, deci marcajul `it.fails` de mai sus nu poate rămâne
-  // verde din greșeală.
-  it("stare actuală (DEFECT de mai sus): statisticile = rândurile din pagină", async () => {
+  it("pagină incompletă: ea ESTE coada, statisticile vin din ea fără alte citiri", async () => {
     const db = clientFals();
     db.raspunde("reges_mesaje", "select", { data: [mesaj("a"), mesaj("b")] });
     db.raspunde("employees", "select", { data: [] });
     db.raspunde("employment_contracts", "select", { data: [] });
 
-    const r = await interogheazaMesajeReges(db.client, ORG, 2);
+    const r = await interogheazaMesajeReges(db.client, ORG, 3);
 
     expect(r.statistici.deTransmis).toBe(2);
     expect(db.apeluriPe("reges_mesaje")).toHaveLength(1);
-    expect(db.neconsumate()).toEqual([]);
   });
 
   it("eroarea se propagă", async () => {

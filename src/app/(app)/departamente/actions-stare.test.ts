@@ -120,17 +120,14 @@ describe("mutaDepartament", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
-  it.fails(
-    "DEFECT: ciclul refuzat de `tg_departments_path` (P0001) ajunge CONFLICT, nu „eroare neașteptată”",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: EDITARE });
-      server.raspunde("departments", "update", {
-        error: eroarePostgrest("P0001", "Structura ar deveni circulară."),
-      });
-      const r = await mutaDepartament({ id: DEP, parent_id: PARINTE });
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+  it("ciclul refuzat de `tg_departments_path` (P0001) ajunge CONFLICT, nu „eroare neașteptată”", async () => {
+    const { server } = configureazaActiunea({ permisiuni: EDITARE });
+    server.raspunde("departments", "update", {
+      error: eroarePostgrest("P0001", "Structura ar deveni circulară."),
+    });
+    const r = await mutaDepartament({ id: DEP, parent_id: PARINTE });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 });
 
 // ── dezactiveazaDepartament ────────────────────────────────────────────────

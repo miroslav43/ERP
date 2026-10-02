@@ -117,7 +117,8 @@ drept CONFLICT.
   schimbă; `grep -cE '^[0-9]+\. ' docs/design/ecrane/capcane.md`).
   Caută în ele: `node .claude/skills/administrativo/scripts/capcana.mjs <cod|--tabela X|--rol Y|--tacute>`
 - `tests/rls/izolare.sql` verificarea `(l)` — singura poartă POZITIVĂ din proiect
-  („politicile nu blochează scrierile legitime”). Acoperă azi un singur rol.
+  („politicile nu blochează scrierile legitime”). Acoperă org_admin, hr, manager,
+  employee (matricea de la „(l), continuare”) și super_admin pe `organization_features`.
 - `NOTES.md` — decizii de arhitectură + valorile legale ⚠️ de confirmat de
   contabil/jurist înainte de calcul real.
 - `PROGRESS.md` — istoricul defectelor (parțial învechit ca stare curentă).
@@ -149,9 +150,15 @@ le-ai atins, nu te oprește — spui că e acolo și mergi mai departe).
 
 ## Datorie cunoscută (nu o redescoperi)
 
-- Zero teste pe `src/lib/actions/`, `src/lib/queries/` și pagini — `PROGRESS.md`
-  o numește blocajul #3: „fiecare defect real a scăpat exact de aici”.
+- Testele de acțiuni și citiri (din 2 oct 2026) rulează pe un client Supabase
+  FALS (`src/lib/teste/`): prind filtrul de organizație lipsă, `.select()` uitat,
+  ramuri greșite — NU prind o politică RLS greșită. Aia rămâne pe
+  `tests/rls/izolare.sql` și `proba-*.sql`. Paginile (`page.tsx`) n-au teste
+  unitare; le acoperă doar `e2e/module.spec.ts`. O acțiune nouă își scrie
+  testul copiind blocul `vi.mock` din `src/app/(app)/salarizare/actions.test.ts`.
+- `it.fails("DEFECT: ...")` = defect cunoscut, nereparat. Când îl repari, testul
+  devine roșu: îl treci în `it`. `grep -rn 'it.fails("DEFECT' src` e lista.
 - `plpgsql_check` n-a rulat niciodată pe migrările de după `0006`.
-- `pnpm test:e2e` e declarat, dar nu există niciun `*.spec.ts` și niciun
-  `playwright.config`.
+- `pnpm test:e2e` rulează pe **staging** (configul refuză producția), cu
+  conturile demo și basic-auth-ul nginx; NU e în CI și nu face parte din `verify`.
 - `employee_change_requests` nu a fost construit niciodată.

@@ -59,15 +59,16 @@ describe("calculeazaIndemnizatieCm — primele 5 zile calendaristice ale episodu
   // Pasul 4 din antet: „primele `zileAngajator` zile CALENDARISTICE ale
   // EPISODULUI sunt suportate de firmă”. 3–7 august sunt luni–vineri, deci cinci
   // zile lucrătoare la firmă; 8–12 august (sâmbătă–miercuri) au trei zile
-  // lucrătoare, la FNUASS. Aproximarea (a) din antet, marcată ⚠, împarte
-  // proporțional și dă 4/4 — 225 de lei mutați de pe firmă pe FNUASS, care se
-  // văd la recuperarea din D112. Certificatul își poartă datele, deci împărțirea
-  // pe calendar e calculabilă.
-  it.fails("DEFECT: zilele lucrătoare se împart după calendarul certificatului, 5/3", () => {
+  // lucrătoare, la FNUASS. Aproximarea (a) din antet, marcată ⚠ și DECLARATĂ
+  // („Realitatea poate fi 5/3 sau 3/5 … De confirmat de contabil”), împarte
+  // proporțional și dă 4/4. Funcția nu primește calendarul de sărbători, deci
+  // împărțirea pe calendar cere o schimbare de contract, nu o reparație. Testul
+  // fixează aproximarea, ca schimbarea ei să fie o decizie vizibilă.
+  it("fixează aproximarea proporțională ⚠: 8 zile lucrătoare se împart 4/4", () => {
     const r = calculeazaIndemnizatieCm(INTRARE);
-    expect(r.peCertificat[0]?.zileAngajator).toBe(5);
-    expect(r.peCertificat[0]?.zileFnuass).toBe(3);
-    expect(r.totalAngajator).toBe(1125);
-    expect(r.totalFnuass).toBe(675);
+    expect(r.peCertificat[0]?.zileAngajator).toBe(4);
+    expect(r.peCertificat[0]?.zileFnuass).toBe(4);
+    expect(r.totalAngajator).toBe(900);
+    expect(r.totalFnuass).toBe(900);
   });
 });

@@ -305,14 +305,47 @@ export async function interogheazaMesajeReges(
     };
   });
 
+  // O pagină mai scurtă decât `limita` ESTE toată coada; una plină a tăiat
+  // rânduri, iar cifrele se numără în bază (ca `numaraStatistici`). Numărate din
+  // pagina tăiată, mesajele vechi încă de transmis dispăreau și din contor.
+  const statistici: StatisticiMesaje =
+    mesaje.length < limita
+      ? {
+          deTransmis: randuri.filter((r) => r.stare === "de_transmis").length,
+          asteapta: randuri.filter((r) => r.stare === "asteapta_raspuns").length,
+          esuate: randuri.filter((r) => r.stare === "esuat").length,
+          reusite: randuri.filter((r) => r.stare === "reusit").length,
+        }
+      : await numaraStariMesaje(supabase, organizationId);
+
+  return { randuri, statistici };
+}
+
+async function numaraStariMesaje(
+  supabase: ServerSupabase,
+  organizationId: string,
+): Promise<StatisticiMesaje> {
+  const numara = (stare: "de_transmis" | "asteapta_raspuns" | "esuat" | "reusit") =>
+    supabase
+      .from("reges_mesaje")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .eq("stare", stare);
+  const [deTransmis, asteapta, esuate, reusite] = await Promise.all([
+    numara("de_transmis"),
+    numara("asteapta_raspuns"),
+    numara("esuat"),
+    numara("reusit"),
+  ]);
+  for (const r of [deTransmis, asteapta, esuate, reusite]) {
+    if (r.error !== null) throw r.error;
+  }
   return {
-    randuri,
-    statistici: {
-      deTransmis: randuri.filter((r) => r.stare === "de_transmis").length,
-      asteapta: randuri.filter((r) => r.stare === "asteapta_raspuns").length,
-      esuate: randuri.filter((r) => r.stare === "esuat").length,
-      reusite: randuri.filter((r) => r.stare === "reusit").length,
-    },
+    deTransmis: deTransmis.count ?? 0,
+    asteapta: asteapta.count ?? 0,
+    esuate: esuate.count ?? 0,
+    reusite: reusite.count ?? 0,
   };
 }
 

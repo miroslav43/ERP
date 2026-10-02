@@ -299,16 +299,13 @@ describe("actualizeazaIncadrarea", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
-  it.fails(
-    "DEFECT: P0001 din `tg_employees_manager_path` (lanț peste 12 niveluri), tradus cu `mapPostgrestError` și aruncat ca obiect simplu, iese EROARE_INTERNA, nu CONFLICT",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      programeazaVerificari(server);
-      server.raspunde("employees", "update", { error: eroarePostgrest("P0001") });
-      const r = await actualizeazaIncadrarea(intrare);
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+  it("P0001 din `tg_employees_manager_path` (lanț peste 12 niveluri), tradus cu `mapPostgrestError` și aruncat ca valoare, iese CONFLICT, nu EROARE_INTERNA", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaVerificari(server);
+    server.raspunde("employees", "update", { error: eroarePostgrest("P0001") });
+    const r = await actualizeazaIncadrarea(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 });
 
 // ── desemneazaSefDepartament ─────────────────────────────────────────────────

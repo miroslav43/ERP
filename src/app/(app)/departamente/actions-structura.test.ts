@@ -273,20 +273,17 @@ describe("creeazaDepartament", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it.fails(
-    "DEFECT: codul duplicat (23505) se raportează CONFLICT, nu „eroare neașteptată”",
-    async () => {
-      // `throw mapPostgrestError(...)` aruncă un obiect `ActionError` simplu —
-      // nici `ActionDenied`, nici eroare PostgREST (n-are `details`) — deci
-      // `createAction` îl transformă în EROARE_INTERNA.
-      const { server } = configureazaActiunea({ rol: "hr", permisiuni: CREARE });
-      server.raspunde("departments", "insert", {
-        error: eroarePostgrest("23505", "dup", "departments_org_cod_uniq"),
-      });
-      const r = await creeazaDepartament({ cod: "PRD", denumire: "Producție" });
-      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    },
-  );
+  it("codul duplicat (23505) se raportează CONFLICT, nu „eroare neașteptată”", async () => {
+    // `throw mapPostgrestError(...)` aruncă un obiect `ActionError` simplu —
+    // nici `ActionDenied`, nici eroare PostgREST (n-are `details`) — deci
+    // `createAction` îl transformă în EROARE_INTERNA.
+    const { server } = configureazaActiunea({ rol: "hr", permisiuni: CREARE });
+    server.raspunde("departments", "insert", {
+      error: eroarePostgrest("23505", "dup", "departments_org_cod_uniq"),
+    });
+    const r = await creeazaDepartament({ cod: "PRD", denumire: "Producție" });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
 });
 
 // ── actualizeazaDepartament ────────────────────────────────────────────────
