@@ -555,12 +555,15 @@ export const confirmaAnomalie = createAction({
       .update({ confirmat_la: new Date().toISOString(), nota: input.nota })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
+      // Doar o anomalie încă neconfirmată: altfel al doilea manager (alt tab)
+      // rescria momentul și nota primului, iar rândul rămânea semnat de primul.
+      .is("confirmat_la", null)
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     if (anomalieConfirmata === null) {
       throw businessRule(
-        "Confirmarea nu a fost înregistrată: anomalia a fost ștearsă între timp sau nu aveți dreptul de a opera vehiculele acestei echipe. Reîncărcați lista de anomalii.",
+        "Confirmarea nu a fost înregistrată: anomalia a fost deja confirmată de altcineva, a fost ștearsă între timp sau nu aveți dreptul de a opera vehiculele acestei echipe. Reîncărcați lista de anomalii.",
       );
     }
 

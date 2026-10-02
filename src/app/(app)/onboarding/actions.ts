@@ -105,7 +105,7 @@ export const bifeazaPas = createAction({
 
     const { data: pasCurent, error: eroareCurent } = await db
       .from("checklist_instance_items")
-      .select("id, verificare_automata, tip_dovada")
+      .select("id, verificare_automata, tip_dovada, dovada_fisier_path")
       .eq("id", input.id)
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
@@ -122,7 +122,14 @@ export const bifeazaPas = createAction({
       );
     }
     if (input.status === "bifat") {
-      if (pasCurent.tip_dovada === "document" && input.dovada_document_id === null) {
+      // Oglinda triggerului din 0092 și a ecranului: un fișier urcat în pas
+      // (`dovada_fisier_path`) satisface cerința. Fără el, angajatul urca
+      // fișierul, iar bifarea era refuzată — pasul rămânea nebifabil.
+      if (
+        pasCurent.tip_dovada === "document" &&
+        input.dovada_document_id === null &&
+        pasCurent.dovada_fisier_path === null
+      ) {
         throw invalidInput("Acest pas cere un document justificativ.", {
           dovada_document_id: ["Introduceți identificatorul documentului justificativ."],
         });
@@ -615,7 +622,15 @@ export const adaugaPas = createAction({
     action: "create",
     entityType: "checklist_template_item",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["template_id", "titlu", "obligatoriu", "tip_dovada", "verificare_automata", "curs_id"],
+    allow: [
+      "template_id",
+      "titlu",
+      "obligatoriu",
+      "tip_dovada",
+      "verificare_automata",
+      "curs_id",
+      "material_id",
+    ],
   },
   revalidate: (input) => [`/onboarding/sabloane/${input.template_id}`],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
@@ -656,6 +671,9 @@ export const adaugaPas = createAction({
         tip_dovada: input.tip_dovada,
         verificare_automata: input.verificare_automata,
         curs_id: input.curs_id,
+        // Validat de schemă (perechea cu `tip_dovada`), dar nu ajungea în rând:
+        // acțiunea raporta succes cu un pas fără materialul de citit.
+        material_id: input.material_id,
       })
       .select("id")
       .single();
@@ -675,7 +693,15 @@ export const actualizeazaPas = createAction({
     action: "update",
     entityType: "checklist_template_item",
     entityId: (input) => input.id,
-    allow: ["id", "titlu", "obligatoriu", "tip_dovada", "verificare_automata", "curs_id"],
+    allow: [
+      "id",
+      "titlu",
+      "obligatoriu",
+      "tip_dovada",
+      "verificare_automata",
+      "curs_id",
+      "material_id",
+    ],
   },
   revalidate: (_input, data: Readonly<{ id: string; template_id: string }>) => [
     `/onboarding/sabloane/${data.template_id}`,
@@ -697,6 +723,7 @@ export const actualizeazaPas = createAction({
         tip_dovada: input.tip_dovada,
         verificare_automata: input.verificare_automata,
         curs_id: input.curs_id,
+        material_id: input.material_id,
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)

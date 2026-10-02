@@ -400,7 +400,7 @@ describe("stingatoare", () => {
     }
   });
 
-  it.fails("DEFECT: `%` și `_` din căutarea după cod sunt jokeri, nu text", async () => {
+  it("`%` și `_` din căutarea după cod sunt text, nu jokeri", async () => {
     // `listeazaEchipamente` folosește `tiparContine`, care le scapă; aici
     // „ST_1” potrivește și „STX1”, iar „100%” întoarce tot ce începe cu 100.
     const { server } = configureazaActiunea();

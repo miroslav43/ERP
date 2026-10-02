@@ -882,7 +882,9 @@ export async function angajatiAutorizati(
   tipAutorizare: string,
 ): Promise<readonly AngajatAutorizat[]> {
   const db = await createServerSupabase();
-  const azi = new Date().toISOString().slice(0, 10);
+  // Ziua României, nu cea UTC: între 00:00 și 03:00 ora României, ziua UTC e
+  // încă ieri, iar o autorizație expirată ieri apărea valabilă.
+  const azi = todayInBucharest();
   const { data, error } = await db
     .from("personnel_authorizations")
     .select("employee_id, tip, numar, valabil_pana")

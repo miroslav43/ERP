@@ -95,22 +95,19 @@ describe("formatPeriodicitate", () => {
     expect(text).toMatch(/^La 7 /u);
   });
 
-  it.fails(
-    "DEFECT: zilele nu urmează regula de numărare a modulului („La 1 zile”, „La 30 zile”)",
-    () => {
-      // `textNumarat`, din același fișier, există tocmai pentru „1 planuri” și
-      // „3 de planuri”; periodicitatea lipește „zile” fix, oricare ar fi cifra.
-      const doar = (zile: number) =>
-        formatPeriodicitate({
-          periodicitate_zile: zile,
-          periodicitate_contor: null,
-          tip_contor: null,
-        });
-      expect(doar(1)).toBe("La 1 zi");
-      expect(doar(30)).toBe("La 30 de zile");
-      expect(doar(14)).toBe("La 14 zile");
-    },
-  );
+  it("zilele urmează regula de numărare a modulului („La 1 zi”, „La 30 de zile”)", () => {
+    // `textNumarat`, din același fișier, există tocmai pentru „1 planuri” și
+    // „3 de planuri”; periodicitatea lipește „zile” fix, oricare ar fi cifra.
+    const doar = (zile: number) =>
+      formatPeriodicitate({
+        periodicitate_zile: zile,
+        periodicitate_contor: null,
+        tip_contor: null,
+      });
+    expect(doar(1)).toBe("La 1 zi");
+    expect(doar(30)).toBe("La 30 de zile");
+    expect(doar(14)).toBe("La 14 zile");
+  });
 });
 
 describe("textNumarat", () => {

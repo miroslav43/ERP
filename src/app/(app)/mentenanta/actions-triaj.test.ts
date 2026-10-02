@@ -151,24 +151,21 @@ describe("trieazaSesizare", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });
   });
 
-  it.fails(
-    "DEFECT: triajul redeschide o sesizare deja rezolvată, lăsând `rezolvat_la` și `intervention_id` agățate",
-    async () => {
-      // Interfața ascunde butoanele pe stări terminale, dar acțiunea e chemabilă
-      // direct; `rezolvaSesizare` verifică pe server statusul, triajul nu.
-      const { server } = configureazaActiunea({ permisiuni: UPDATE });
-      server.raspunde("fault_reports", "select", {
-        data: { id: ID_1, equipment_id: ID_2, status: "rezolvat" },
-      });
-      server.raspunde("fault_reports", "update", { data: { id: ID_1 } });
+  it("triajul NU redeschide o sesizare deja rezolvată (rezolvat_la și intervention_id ar rămâne agățate)", async () => {
+    // Interfața ascunde butoanele pe stări terminale, dar acțiunea e chemabilă
+    // direct; `rezolvaSesizare` verifică pe server statusul, triajul nu.
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("fault_reports", "select", {
+      data: { id: ID_1, equipment_id: ID_2, status: "rezolvat" },
+    });
+    server.raspunde("fault_reports", "update", { data: { id: ID_1 } });
 
-      const r = await trieazaSesizare({ id: ID_1, status: "in_lucru" });
+    const r = await trieazaSesizare({ id: ID_1, status: "in_lucru" });
 
-      const [actualizare] = server.apeluriPe("fault_reports", "update");
-      const pazitaInBaza = actualizare?.filtre.some((f) => f.argumente[0] === "status") ?? false;
-      expect(r.ok === false || pazitaInBaza).toBe(true);
-    },
-  );
+    const [actualizare] = server.apeluriPe("fault_reports", "update");
+    const pazitaInBaza = actualizare?.filtre.some((f) => f.argumente[0] === "status") ?? false;
+    expect(r.ok === false || pazitaInBaza).toBe(true);
+  });
 });
 
 describe("rezolvaSesizare", () => {

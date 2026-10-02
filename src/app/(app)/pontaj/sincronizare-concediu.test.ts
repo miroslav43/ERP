@@ -90,8 +90,7 @@ describe("sincronizeazaZileleDeConcediu", () => {
     fals.raspunde("attendance_entries", "select", {
       data: [{ id: "z1", employee_id: ID_3, data: "2026-07-14", sursa: "sincronizare_concedii" }],
     });
-    // Rândul chiar scris: testul nu consfințește numărarea zilelor refuzate
-    // tăcut (vezi `it.fails` de mai jos).
+    // Rândul chiar scris: o zi refuzată tăcut nu se numără (testul de mai jos).
     fals.raspunde("attendance_entries", "update", { data: { id: "z1" } });
 
     const r = await sincronizeazaZileleDeConcediu(fals.client, ORG_ID, [

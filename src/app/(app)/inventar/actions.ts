@@ -256,6 +256,10 @@ export const returneazaObiect = createAction({
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
+      // Garda din UPDATE, nu doar din citirea de mai sus: între ele, un al
+      // doilea operator (sau un dublu clic) putea rescrie data și starea primei
+      // returnări. Ca la `confirmaPrimirea`.
+      .is("returnat_la", null)
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroare(error);

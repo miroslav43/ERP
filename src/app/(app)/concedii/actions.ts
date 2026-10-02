@@ -1282,7 +1282,9 @@ export const linkDocumentConcediu = createAction({
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
       .maybeSingle<{ atasament_path: string | null }>();
-    if (error !== null) traduEroare(error);
+    // `throw`: `traduEroare` din modulul ăsta ÎNTOARCE eroarea, nu o aruncă.
+    // Fără el, o eroare de citire ajungea mai jos ca „document lipsă”.
+    if (error !== null) throw traduEroare(error);
     // Zero rânduri sub o politică SELECT nu se deosebește de „nu există”, iar
     // ecranul n-are voie să spună care dintre ele e.
     if (data === null || data.atasament_path === null) {

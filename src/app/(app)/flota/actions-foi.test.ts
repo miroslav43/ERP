@@ -392,17 +392,13 @@ describe("confirmaAnomalie", () => {
   // rescrise. Fără gardă pe `confirmat_la`, al doilea manager care confirmă
   // aceeași anomalie (două file, doi oameni) suprascrie data și nota primului,
   // iar rândul rămâne semnat de primul cu explicația celui de-al doilea.
-  it.fails(
-    "DEFECT: confirmarea nu suprascrie o anomalie deja confirmată (lipsește `.is(confirmat_la, null)`)",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "team" } });
-      server.raspunde("odometer_anomalies", "update", { data: { id: ID_1 } });
-      const r = await confirmaAnomalie({ id: ID_1, nota: "A doua explicație" });
-      const [apel] = server.apeluriPe("odometer_anomalies");
-      // Precondiție: dacă acțiunea nu mai ajunge la UPDATE, testul TRECE, deci
-      // `it.fails` devine roșu — nu documentează în gol un defect pe o cale moartă.
-      if (!r.ok || apel === undefined) return;
-      expect(areFiltru(apel, "is", "confirmat_la", null)).toBe(true);
-    },
-  );
+  it("confirmarea nu suprascrie o anomalie deja confirmată (`.is(confirmat_la, null)`)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "team" } });
+    server.raspunde("odometer_anomalies", "update", { data: { id: ID_1 } });
+    const r = await confirmaAnomalie({ id: ID_1, nota: "A doua explicație" });
+    const [apel] = server.apeluriPe("odometer_anomalies");
+    expect(r.ok).toBe(true);
+    expect(apel).toBeDefined();
+    expect(areFiltru(apel, "is", "confirmat_la", null)).toBe(true);
+  });
 });

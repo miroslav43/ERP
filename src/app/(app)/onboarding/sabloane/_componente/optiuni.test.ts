@@ -83,21 +83,18 @@ describe("optiuniAsistent", () => {
     expect(areFiltru(departamente, "eq", "activ", true)).toBe(true);
   });
 
-  it.fails(
-    "DEFECT: departamentele șterse logic nu apar printre opțiunile asistentului",
-    async () => {
-      // `departments_select` (0005_hr_rls.sql) nu filtrează `deleted_at`, deci
-      // filtrul trebuie pus de citire — cum îl pun toate celelalte citiri pe
-      // `departments` (`src/lib/queries/departments.ts`). Aici lipsește: un
-      // departament șters, dar rămas `activ`, poate fi ales ca țintă de șablon.
-      const { server } = configureazaActiunea({ functii: ["onboarding"] });
-      server.raspunde("departments", "select", { data: [] });
-      server.raspunde("employees", "select", { data: [] });
+  it("departamentele șterse logic nu apar printre opțiunile asistentului", async () => {
+    // `departments_select` (0005_hr_rls.sql) nu filtrează `deleted_at`, deci
+    // filtrul trebuie pus de citire — cum îl pun toate celelalte citiri pe
+    // `departments` (`src/lib/queries/departments.ts`). Aici lipsește: un
+    // departament șters, dar rămas `activ`, poate fi ales ca țintă de șablon.
+    const { server } = configureazaActiunea({ functii: ["onboarding"] });
+    server.raspunde("departments", "select", { data: [] });
+    server.raspunde("employees", "select", { data: [] });
 
-      await optiuniAsistent(ORG_ID);
+    await optiuniAsistent(ORG_ID);
 
-      const [departamente] = server.apeluriPe("departments");
-      expect(areFiltru(departamente, "is", "deleted_at", null)).toBe(true);
-    },
-  );
+    const [departamente] = server.apeluriPe("departments");
+    expect(areFiltru(departamente, "is", "deleted_at", null)).toBe(true);
+  });
 });

@@ -329,39 +329,25 @@ describe("progresInstante", () => {
   it("plafonul de 10 pagini oprește bucla: a 11-a pagină nu se mai cere", async () => {
     const server = fals();
     paginiPestePlafon(server);
-    // Rezultatul nu contează aici (azi o hartă trunchiată, după reparare o
-    // eroare) — doar faptul că bucla nu continuă.
+    // Rezultatul nu contează aici (o eroare, testul de mai jos) — doar faptul
+    // că bucla nu continuă.
     await progresInstante([ID_1]).catch(() => undefined);
     expect(server.apeluriPe("checklist_instance_items")).toHaveLength(10);
   });
 
-  it.fails(
-    "DEFECT: peste plafonul de pagini, progresul se semnalează, nu se trunchiază tăcut",
-    async () => {
-      // Azi: a zecea pagină plină iese din buclă fără niciun semnal, iar harta
-      // spune total = 10000 — un procent greșit, prezentat ca adevărat. Regula
-      // proiectului (`citesteTot`): la plafon se ARUNCĂ, nu se trunchiază.
-      const server = fals();
-      paginiPestePlafon(server);
-      await expect(progresInstante([ID_1])).rejects.toThrow();
-    },
-  );
+  it("peste plafonul de pagini, progresul se semnalează, nu se trunchiază tăcut", async () => {
+    // A zecea pagină plină ieșea din buclă fără niciun semnal, iar harta
+    // spunea total = 10000 — un procent greșit, prezentat ca adevărat. Regula
+    // proiectului (`citesteTot`): la plafon se ARUNCĂ, nu se trunchiază.
+    const server = fals();
+    paginiPestePlafon(server);
+    await expect(progresInstante([ID_1])).rejects.toThrow();
+  });
 
-  it.fails(
-    "DEFECT: citirea de progres se restrânge explicit la organizație, nu doar prin RLS",
-    async () => {
-      // Convenția din `employees.ts`: `organizationId` primul argument și
-      // `.eq("organization_id", …)` pe fiecare citire. `progresInstante` nu
-      // primește organizația deloc, deci filtrul nu are cum să existe.
-      const server = fals();
-      server.raspunde("checklist_instance_items", "select", { data: [] });
-      await progresInstante([ID_1]);
-      const [apel] = server.apeluriPe("checklist_instance_items");
-      expect(
-        apel?.filtre.some((f) => f.metoda === "eq" && f.argumente[0] === "organization_id"),
-      ).toBe(true);
-    },
-  );
+  // `progresInstante` nu primește organizația — abatere de la convenția din
+  // `employees.ts`, NU defect: id-urile vin din `listeazaInstante(organizationId,
+  // …)`, deja filtrate pe firmă, iar pașii aparțin firmei instanței (chei
+  // compuse, 0074). Alinierea la convenție e o refactorizare, nu o reparație.
 });
 
 // ── Pașii, etapele, bunurile ───────────────────────────────────────────────

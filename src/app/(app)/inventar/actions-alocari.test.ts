@@ -288,22 +288,18 @@ describe("returneazaObiect", () => {
   // `returnat_la is null` — deci al doilea UPDATE trece și rescrie data și
   // starea primei returnări. Mesajul de pe ramura `null` („închisă de altcineva
   // între timp”) promite exact garda care lipsește din filtru.
-  it.fails(
-    "DEFECT: UPDATE-ul de returnare cere ca predarea să fie încă deschisă (`.is(returnat_la, null)`)",
-    async () => {
-      const { server } = configureazaActiunea({ permisiuni: SCRIERE });
-      server.raspunde("inventory_allocations", "select", {
-        data: { id: ID_3, item_id: ID_1, returnat_la: null },
-      });
-      server.raspunde("inventory_allocations", "update", { data: { id: ID_3 } });
-      const r = await returneazaObiect(returnare);
-      const [scriere] = server.apeluriPe("inventory_allocations", "update");
-      // Precondiție: dacă acțiunea nu mai ajunge la UPDATE, testul TRECE, deci
-      // `it.fails` devine roșu — nu documentează în gol un defect pe o cale moartă.
-      if (!r.ok || scriere === undefined) return;
-      expect(areFiltru(scriere, "is", "returnat_la", null)).toBe(true);
-    },
-  );
+  it("UPDATE-ul de returnare cere ca predarea să fie încă deschisă (`.is(returnat_la, null)`)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: SCRIERE });
+    server.raspunde("inventory_allocations", "select", {
+      data: { id: ID_3, item_id: ID_1, returnat_la: null },
+    });
+    server.raspunde("inventory_allocations", "update", { data: { id: ID_3 } });
+    const r = await returneazaObiect(returnare);
+    const [scriere] = server.apeluriPe("inventory_allocations", "update");
+    expect(r.ok).toBe(true);
+    expect(scriere).toBeDefined();
+    expect(areFiltru(scriere, "is", "returnat_la", null)).toBe(true);
+  });
 });
 
 describe("confirmaPrimirea", () => {

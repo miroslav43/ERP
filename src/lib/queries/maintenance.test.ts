@@ -407,20 +407,17 @@ describe("autorizații ISCIR și angajați autorizați", () => {
     expect(areFiltru(apel, "gte", "valabil_pana", "2026-10-02")).toBe(true);
   });
 
-  it.fails(
-    "DEFECT: „azi” e ziua UTC, nu a României — după miezul nopții o autorizație expirată ieri încă apare valabilă",
-    async () => {
-      // 01:30 ora României, 3 octombrie = 22:30 UTC, 2 octombrie. O autorizație
-      // cu `valabil_pana = 2026-10-02` a expirat, dar `gte(..., "2026-10-02")`
-      // o lasă în selectorul de responsabil ISCIR până la 03:00.
-      vi.setSystemTime(new Date("2026-10-02T22:30:00Z"));
-      const { server } = configureazaActiunea();
-      server.raspunde("personnel_authorizations", "select", { data: [] });
-      await angajatiAutorizati(ORG_ID, "RSVTI");
-      const [apel] = server.apeluriPe("personnel_authorizations");
-      expect(areFiltru(apel, "gte", "valabil_pana", "2026-10-03")).toBe(true);
-    },
-  );
+  it("„azi” e ziua României, nu UTC — după miezul nopții o autorizație expirată ieri nu mai apare valabilă", async () => {
+    // 01:30 ora României, 3 octombrie = 22:30 UTC, 2 octombrie. O autorizație
+    // cu `valabil_pana = 2026-10-02` a expirat, dar `gte(..., "2026-10-02")`
+    // o lasă în selectorul de responsabil ISCIR până la 03:00.
+    vi.setSystemTime(new Date("2026-10-02T22:30:00Z"));
+    const { server } = configureazaActiunea();
+    server.raspunde("personnel_authorizations", "select", { data: [] });
+    await angajatiAutorizati(ORG_ID, "RSVTI");
+    const [apel] = server.apeluriPe("personnel_authorizations");
+    expect(areFiltru(apel, "gte", "valabil_pana", "2026-10-03")).toBe(true);
+  });
 });
 
 describe("numarScadenteMentenanta", () => {

@@ -74,7 +74,10 @@ export function formatPeriodicitate(plan: {
   readonly tip_contor: TipContor | null;
 }): string {
   const bucati: string[] = [];
-  if (plan.periodicitate_zile !== null) bucati.push(`La ${String(plan.periodicitate_zile)} zile`);
+  if (plan.periodicitate_zile !== null) {
+    // Regula de numărare a modulului: „La 1 zi”, „La 30 de zile”.
+    bucati.push(`La ${textNumarat(plan.periodicitate_zile, "zi", "zile")}`);
+  }
   if (plan.periodicitate_contor !== null && plan.tip_contor !== null) {
     bucati.push(`La ${formatContor(plan.periodicitate_contor, plan.tip_contor)}`);
   }

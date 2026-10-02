@@ -740,7 +740,13 @@ export async function stingatoare(
     // restanțe e o cifră greșită fără nicio eroare.
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     else cu = cu.neq("status", "casat");
-    if (filtre.cauta !== null) cu = cu.ilike("cod", `%${filtre.cauta}%`);
+    if (filtre.cauta !== null) {
+      // `%` și `_` tastate de om sunt altfel jokeri LIKE, iar `*` e tradus de
+      // PostgREST în `%`. Nu `tiparContine`: ghilimelele lui au sens doar în
+      // gramatica `or=`, într-un `.ilike()` simplu ar fi literale.
+      const curatat = filtre.cauta.replace(/[*]/gu, " ").replace(/[\\%_]/gu, "\\$&");
+      cu = cu.ilike("cod", `%${curatat}%`);
+    }
     return cu;
   };
 

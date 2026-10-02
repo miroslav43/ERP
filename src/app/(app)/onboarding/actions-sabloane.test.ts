@@ -376,22 +376,19 @@ describe("adaugaPas", () => {
     expect(r.ok ? "" : r.error.message).toContain("aceeași poziție");
   });
 
-  it.fails(
-    "DEFECT: materialul de citit acceptat și validat de schemă ajunge în rândul inserat",
-    async () => {
-      // `adaugaPasSchema` primește `material_id` și îi verifică combinația
-      // (`_material_ck`), dar handlerul nu-l trimite: pasul se creează fără
-      // material, iar acțiunea raportează succes.
-      const { server } = configureazaActiunea({ permisiuni: CREARE });
-      server.raspunde("checklist_template_items", "select", { data: { ordine: 1 } });
-      server.raspunde("checklist_template_items", "insert", { data: { id: ID_2 } });
-      const r = await adaugaPas({ ...intrare, material_id: MATERIAL });
-      expect(r.ok).toBe(true);
-      expect(server.apeluriPe("checklist_template_items", "insert")[0]?.payload).toMatchObject({
-        material_id: MATERIAL,
-      });
-    },
-  );
+  it("materialul de citit acceptat și validat de schemă ajunge în rândul inserat", async () => {
+    // `adaugaPasSchema` primește `material_id` și îi verifică combinația
+    // (`_material_ck`), dar handlerul nu-l trimite: pasul se creează fără
+    // material, iar acțiunea raportează succes.
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("checklist_template_items", "select", { data: { ordine: 1 } });
+    server.raspunde("checklist_template_items", "insert", { data: { id: ID_2 } });
+    const r = await adaugaPas({ ...intrare, material_id: MATERIAL });
+    expect(r.ok).toBe(true);
+    expect(server.apeluriPe("checklist_template_items", "insert")[0]?.payload).toMatchObject({
+      material_id: MATERIAL,
+    });
+  });
 });
 
 // ── actualizeazaPas ────────────────────────────────────────────────────────

@@ -218,8 +218,10 @@ export async function citesteInstanta(
  *
  * `max_rows = 1000` în `supabase/config.toml`: PostgREST trunchiază tăcut
  * peste 1000 de rânduri. Se citește în buclă, cu `.range()`, cât timp vine
- * exact o pagină plină, plafonat la 10 iterații (10 000 de pași — suficient
- * pentru orice grup de instanțe afișat pe o pagină).
+ * exact o pagină plină, plafonat la 10 iterații (10 000 de pași). Plafonul NU
+ * acoperă teoretic orice pagină (51 de instanțe × 500 de pași = 25 500), deci
+ * la atingerea lui se aruncă — regula din `citeste-tot.ts` — în loc să se
+ * calculeze procente greșite din rânduri tăiate aleator.
  */
 export interface ProgresInstanta {
   readonly total: number;
@@ -245,6 +247,7 @@ export async function progresInstante(
   const db = await createServerSupabase();
   const randuri: RandProgresBrut[] = [];
 
+  let complet = false;
   for (let iteratie = 0; iteratie < MAX_ITERATII_PROGRES; iteratie += 1) {
     const start = iteratie * MARIME_PAGINA_PROGRES;
     const { data, error } = await db
@@ -259,7 +262,15 @@ export async function progresInstante(
 
     const pagina = data ?? [];
     randuri.push(...pagina);
-    if (pagina.length < MARIME_PAGINA_PROGRES) break;
+    if (pagina.length < MARIME_PAGINA_PROGRES) {
+      complet = true;
+      break;
+    }
+  }
+  if (!complet) {
+    throw new Error(
+      `Progresul integrării depășește ${String(MAX_ITERATII_PROGRES * MARIME_PAGINA_PROGRES)} de pași în grup; procentele ar fi trunchiate. Restrângeți lista.`,
+    );
   }
 
   const acumulator = new Map<string, { total: number; gata: number }>();

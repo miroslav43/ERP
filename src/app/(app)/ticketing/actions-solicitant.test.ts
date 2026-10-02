@@ -256,38 +256,32 @@ describe("creeazaTichet", () => {
   // filtrat doar pe `id`. CLAUDE.md cere, la orice ocolire a RLS, filtru
   // explicit pe `organization_id`. Fișa vine dintr-o interogare deja filtrată
   // pe organizație, deci azi nu se scurge nimic — dar a doua plasă lipsește.
-  it.fails(
-    "DEFECT: departamentul fișei se citește cu clientul admin fără filtru pe organizație",
-    async () => {
-      const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PERMIS });
-      pregatire(server, admin);
-      await creeazaTichet({ tip: "software", ...comun, aplicatie: "Figma", numar_licente: 1 });
-      const departament = admin.apeluriPe("employees", "select")[1];
-      expect(areFiltru(departament, "eq", "organization_id", ORG_ID)).toBe(true);
-    },
-  );
+  it("departamentul fișei se citește cu clientul admin, filtrat explicit pe organizație", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PERMIS });
+    pregatire(server, admin);
+    await creeazaTichet({ tip: "software", ...comun, aplicatie: "Figma", numar_licente: 1 });
+    const departament = admin.apeluriPe("employees", "select")[1];
+    expect(areFiltru(departament, "eq", "organization_id", ORG_ID)).toBe(true);
+  });
 
   // Tot acolo, `error` nu se citește deloc: o eroare la citirea departamentului
   // scrie tichetul fără `department_id`, fără nicio urmă — iar rutarea și
   // rapoartele pe departament îl pierd.
-  it.fails(
-    "DEFECT: o eroare la citirea departamentului e înghițită, iar tichetul se scrie fără el",
-    async () => {
-      const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PERMIS });
-      admin.raspunde("employees", "select", { data: { id: FISA } });
-      server.raspundeRpc("aloca_numar_tichet", { data: NUMAR });
-      admin.raspunde("employees", "select", { error: eroarePostgrest("57014") });
-      server.raspunde("tickets", "insert", { data: { id: TICHET, numar_afisat: NUMAR } });
-      const r = await creeazaTichet({
-        tip: "software",
-        ...comun,
-        aplicatie: "Figma",
-        numar_licente: 1,
-      });
-      expect(r).toMatchObject({ ok: false, error: { code: "EROARE_INTERNA" } });
-      expect(server.apeluriPe("tickets", "insert")).toHaveLength(0);
-    },
-  );
+  it("o eroare la citirea departamentului NU e înghițită: tichetul nu se scrie fără el", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PERMIS });
+    admin.raspunde("employees", "select", { data: { id: FISA } });
+    server.raspundeRpc("aloca_numar_tichet", { data: NUMAR });
+    admin.raspunde("employees", "select", { error: eroarePostgrest("57014") });
+    server.raspunde("tickets", "insert", { data: { id: TICHET, numar_afisat: NUMAR } });
+    const r = await creeazaTichet({
+      tip: "software",
+      ...comun,
+      aplicatie: "Figma",
+      numar_licente: 1,
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "EROARE_INTERNA" } });
+    expect(server.apeluriPe("tickets", "insert")).toHaveLength(0);
+  });
 
   it("rezervarea numărului eșuează: eroarea se propagă, tichetul nu se inserează", async () => {
     const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PERMIS });

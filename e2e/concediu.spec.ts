@@ -228,24 +228,16 @@ test("concediu de odihnă: angajatul cere, managerul aprobă, angajatul vede apr
 });
 
 /*
- * DEFECT: cardul „Ce s-a mai întâmplat" din tabloul portalului
- * (`src/app/(portal)/portal/page.tsx:600`) randează `notificare.link` BRUT —
- * `/concedii/<uuid>`, ruta aplicației mari scrisă de trigger. Pentru angajat,
- * poarta din `src/app/(app)/layout.tsx` o redirectează în `/portal`, deci un
- * clic pe „Cererea de concediu a fost aprobată" îl aduce înapoi pe același
- * tablou, nu la cererea lui. Ecranul „Notificările mele" trece aceleași
- * legături prin `caleaDePortal` (`notificarile-mele/legaturi.ts`) și ajunge
- * corect la `/portal/concediile-mele/<uuid>`; tabloul a rămas fără traducere.
- *
- * Testul descrie comportamentul CORECT și e marcat `test.fail()`: când
- * defectul se repară, Playwright raportează „passed unexpectedly", iar
- * marcajul se scoate. Rulează după fluxul de mai sus, care garantează cel
- * puțin o notificare de aprobare în contul angajatului.
+ * Cardul „Ce s-a mai întâmplat" din tabloul portalului randa `notificare.link`
+ * BRUT — `/concedii/<uuid>`, ruta aplicației mari scrisă de trigger. Pentru
+ * angajat, poarta din `src/app/(app)/layout.tsx` o redirecționează în
+ * `/portal`, deci clicul îl aducea înapoi pe același tablou. Reparat (2 oct
+ * 2026) prin `caleaDePortal`, ca în „Notificările mele". Rulează după fluxul de
+ * mai sus, care garantează cel puțin o notificare de aprobare.
  */
 test("notificarea de aprobare din tabloul portalului duce la cererea angajatului", async ({
   browser,
 }) => {
-  test.fail(true, "DEFECT: portal/page.tsx:600 nu trece legătura prin caleaDePortal");
   const angajat = await pagina(browser, "employee");
   try {
     await navigheaza(angajat, "/portal");

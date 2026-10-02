@@ -568,11 +568,18 @@ export const trieazaSesizare = createAction({
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
+      // Rezolvat și respins sunt terminale (ca în pagina sesizării): garda din
+      // bază nu oprește ieșirea din ele, iar o redeschidere dintr-un tab vechi
+      // lăsa `rezolvat_la` și `intervention_id` agățate. Filtrul stă în UPDATE,
+      // nu într-o citire prealabilă, ca să țină și la cursă.
+      .in("status", ["nou", "in_analiza", "in_lucru"])
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     if (data === null) {
-      throw notFound("Sesizarea nu a fost găsită sau nu vă este accesibilă.");
+      throw notFound(
+        "Sesizarea nu a fost găsită, nu vă este accesibilă sau a fost deja închisă (rezolvată ori respinsă).",
+      );
     }
 
     return { id: data.id };

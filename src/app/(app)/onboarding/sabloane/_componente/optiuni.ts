@@ -49,6 +49,10 @@ export async function optiuniAsistent(organizationId: string): Promise<OptiuniAs
       .select("id, denumire")
       .eq("organization_id", organizationId)
       .eq("activ", true)
+      // Ca orice citire: rândurile șterse logic nu sunt opțiuni, oricare le-ar
+      // fi `activ` (aplicația scoate departamentele din uz prin `activ`, dar
+      // filtrul nu trebuie să depindă de asta).
+      .is("deleted_at", null)
       .order("denumire")
       .limit(200)
       .returns<OptiuneDenumita[]>(),

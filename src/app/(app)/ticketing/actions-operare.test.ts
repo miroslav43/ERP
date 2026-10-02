@@ -164,16 +164,13 @@ describe("suprascriePrioritatea", () => {
   // să citească `error`: dacă scrierea istoricului cade, acțiunea raportă
   // succes, prioritatea e schimbată, iar justificarea — singurul motiv pentru
   // care istoricul se scrie de mână aici — se pierde fără urmă.
-  it.fails(
-    "DEFECT: eșecul scrierii justificării în istoric e înghițit, iar acțiunea raportă succes",
-    async () => {
-      const { server, admin } = configureazaActiunea({ permisiuni: OPERARE });
-      server.raspunde("tickets", "update", { data: { id: TICHET } });
-      admin.raspunde("ticket_history", "insert", { error: eroarePostgrest("23514") });
-      const r = await suprascriePrioritatea(intrare);
-      expect(r.ok).toBe(false);
-    },
-  );
+  it("eșecul scrierii justificării în istoric NU e înghițit: acțiunea raportează eșec", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: OPERARE });
+    server.raspunde("tickets", "update", { data: { id: TICHET } });
+    admin.raspunde("ticket_history", "insert", { error: eroarePostgrest("23514") });
+    const r = await suprascriePrioritatea(intrare);
+    expect(r.ok).toBe(false);
+  });
 });
 
 // ── asigneaza ─────────────────────────────────────────────────────────────────

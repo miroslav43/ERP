@@ -132,13 +132,18 @@ export const creeazaTichet = createAction({
     if (eroareNumar !== null) throw eroareNumar;
 
     // `department_id` se completează din fișa angajatului, nu din formular:
-    // e o proprietate a lui, nu o alegere.
+    // e o proprietate a lui, nu o alegere. Clientul admin, ca în `fisaMea`:
+    // citirea nu trebuie să depindă de scope-ul `employees:read` al rolului;
+    // filtrul pe organizație e plasa cerută la orice ocolire a RLS. Eroarea se
+    // aruncă: înghițită, tichetul se scria fără departament, definitiv.
     const admin = createAdminSupabase();
-    const { data: fisa } = await admin
+    const { data: fisa, error: eroareFisa } = await admin
       .from("employees")
       .select("department_id")
       .eq("id", solicitantId)
+      .eq("organization_id", ctx.tenant.organizationId)
       .maybeSingle();
+    if (eroareFisa !== null) throw eroareFisa;
 
     const { data, error } = await db
       .from("tickets")
@@ -332,7 +337,7 @@ export const suprascriePrioritatea = createAction({
     // Justificarea rămâne în istoricul tichetului, nu doar în `audit_logs`:
     // e informație de care are nevoie cine deschide fișa, nu un auditor.
     const admin = createAdminSupabase();
-    await admin.from("ticket_history").insert({
+    const { error: eroareIstoric } = await admin.from("ticket_history").insert({
       organization_id: ctx.tenant.organizationId,
       ticket_id: input.ticket_id,
       actor_user_id: ctx.user.id,
@@ -340,6 +345,10 @@ export const suprascriePrioritatea = createAction({
       valoare_noua: input.prioritate,
       motiv: input.motiv,
     });
+    // Înghițit, eșecul pierdea rândul din istoricul afișat pe tichet, iar
+    // acțiunea raporta succes. Prioritatea e deja schimbată; o reîncercare e
+    // inofensivă.
+    if (eroareIstoric !== null) throw eroareIstoric;
 
     return { prioritate: input.prioritate };
   },

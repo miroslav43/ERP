@@ -30,12 +30,15 @@ import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 import { urmatoareaZiLibera, zilePanaLa } from "@/domain/calendar/urmatoarea-zi-libera";
 import { sarciniPortal } from "@/domain/portal/sarcini";
 import { listeazaNotificarile } from "@/lib/queries/notifications";
+import { createServerSupabase } from "@/lib/supabase/server";
 
 import { CardSalariu } from "./card-salariu";
 import { ETICHETE_STATUS_CERERE, ETICHETE_TIP_ZI, TONURI_STATUS_CERERE } from "./etichete";
 import { FaraFisa } from "./fara-fisa";
 import { IndemnInstalare } from "./indemn-instalare";
 import { PontareRapida } from "./pontare-rapida";
+import { CONTEXT_GOL, contexteDestinatar } from "./notificarile-mele/context";
+import { caleaDePortal } from "./notificarile-mele/legaturi";
 
 export const metadata: Metadata = { title: "Portalul meu" };
 
@@ -264,6 +267,21 @@ export default async function PaginaPortal() {
 
   /* Ultimele trei, citite sau nu: acasă e un rezumat, nu căsuța de necitite. */
   const ultimeleNotificari = notificari.slice(0, 3);
+
+  /*
+   * Linkurile din `notifications` sunt rute ale aplicației mari, scrise de
+   * triggere (`/concedii/<uuid>`); pentru angajat, `(app)/layout.tsx` le
+   * redirecționează înapoi aici, deci un clic pe „Cererea a fost aprobată” îl
+   * aducea pe același tablou. Se traduc ca în „Notificările mele”;
+   * `contexteDestinatar` nu face niciun drum la bază când lotul n-are
+   * `/concedii/<uuid>` sau `/ticketing/<uuid>`.
+   */
+  const contexteNotificari = await contexteDestinatar(
+    await createServerSupabase(),
+    [tenant.organizationId],
+    ultimeleNotificari.map((n) => n.link),
+  );
+  const contextNotificari = contexteNotificari.get(user.id) ?? CONTEXT_GOL;
 
   return (
     // Ordinea în DOM e aceeași pe ambele ecrane — se schimbă doar așezarea. Așa,
@@ -597,7 +615,12 @@ export default async function PaginaPortal() {
               {ultimeleNotificari.map((notificare) => (
                 <li key={notificare.id}>
                   <Link
-                    href={notificare.link ?? "/portal/notificarile-mele"}
+                    href={
+                      // Netraductibil ⇒ cutia poștală, ca la link null: nici 404,
+                      // nici înapoi pe tablou.
+                      caleaDePortal(notificare.link, contextNotificari) ??
+                      "/portal/notificarile-mele"
+                    }
                     className="bg-surface border-border hover:border-ring rounded-panou flex min-h-11 items-start justify-between gap-3 border p-3 transition-colors"
                   >
                     <span className="min-w-0">

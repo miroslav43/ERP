@@ -197,7 +197,13 @@ describe("bifeazaPas", () => {
     }> = {},
   ) {
     return {
-      data: { id: ID_1, verificare_automata: null, tip_dovada: "bifa", ...camp },
+      data: {
+        id: ID_1,
+        verificare_automata: null,
+        tip_dovada: "bifa",
+        dovada_fisier_path: null,
+        ...camp,
+      },
     };
   }
 
@@ -323,29 +329,26 @@ describe("bifeazaPas", () => {
     });
   });
 
-  it.fails(
-    "DEFECT: un fișier încărcat în pas (0092) satisface dovada „document”, ca în trigger și pe ecran",
-    async () => {
-      // Triggerul din 0092 (`dovada_document_id is null and dovada_fisier_path
-      // is null`) și `dovadaLipseste` din `pas-checklist.tsx` acceptă fișierul
-      // urcat în pas. Pre-verificarea din handler citește doar `tip_dovada` și
-      // refuză cu VALIDARE — deci după încărcare caseta nu se mai poate bifa.
-      const { server } = configureazaActiunea({ permisiuni: PERMIS });
-      server.raspunde(
-        "checklist_instance_items",
-        "select",
-        pasCurent({
-          tip_dovada: "document",
-          dovada_fisier_path: `${ORG_ID}/checklists/${ID_2}/${ID_1}/x-contract.pdf`,
-        }),
-      );
-      server.raspunde("checklist_instance_items", "update", {
-        data: { id: ID_1, instance_id: ID_2 },
-      });
-      const r = await bifeazaPas({ id: ID_1, status: "bifat" });
-      expect(r).toEqual({ ok: true, data: { id: ID_1, instance_id: ID_2 } });
-    },
-  );
+  it("un fișier încărcat în pas (0092) satisface dovada „document”, ca în trigger și pe ecran", async () => {
+    // Triggerul din 0092 (`dovada_document_id is null and dovada_fisier_path
+    // is null`) și `dovadaLipseste` din `pas-checklist.tsx` acceptă fișierul
+    // urcat în pas. Pre-verificarea din handler citește doar `tip_dovada` și
+    // refuză cu VALIDARE — deci după încărcare caseta nu se mai poate bifa.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde(
+      "checklist_instance_items",
+      "select",
+      pasCurent({
+        tip_dovada: "document",
+        dovada_fisier_path: `${ORG_ID}/checklists/${ID_2}/${ID_1}/x-contract.pdf`,
+      }),
+    );
+    server.raspunde("checklist_instance_items", "update", {
+      data: { id: ID_1, instance_id: ID_2 },
+    });
+    const r = await bifeazaPas({ id: ID_1, status: "bifat" });
+    expect(r).toEqual({ ok: true, data: { id: ID_1, instance_id: ID_2 } });
+  });
 
   it.each([
     ["absentă", undefined],

@@ -233,13 +233,10 @@ describe("linkDocumentConcediu", () => {
   // ei e ignorat (`if (error !== null) traduEroare(error);`, fără `throw`), deci
   // o eroare de bază e raportată ca „Cererea nu are un document atașat.” —
   // un expirat de interogare devine, pe ecran, un document lipsă.
-  it.fails(
-    "DEFECT: o eroare de citire a cererii e raportată drept „document lipsă” (NEGASIT), nu propagată",
-    async () => {
-      const { server } = configureazaActiunea({ rol: "employee", permisiuni: CITIRE });
-      server.raspunde("leave_requests", "select", { error: eroarePostgrest("57014") });
-      const r = await linkDocumentConcediu({ id: CERERE });
-      expect(r).toMatchObject({ ok: false, error: { code: "EROARE_INTERNA" } });
-    },
-  );
+  it("o eroare de citire a cererii e propagată, nu raportată drept „document lipsă” (NEGASIT)", async () => {
+    const { server } = configureazaActiunea({ rol: "employee", permisiuni: CITIRE });
+    server.raspunde("leave_requests", "select", { error: eroarePostgrest("57014") });
+    const r = await linkDocumentConcediu({ id: CERERE });
+    expect(r).toMatchObject({ ok: false, error: { code: "EROARE_INTERNA" } });
+  });
 });
