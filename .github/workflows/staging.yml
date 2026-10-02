@@ -132,6 +132,20 @@ jobs:
           ADM_AUTENTIFICARE_BASIC="coleg:$(cat ~/.secrete/administrativo/parola-staging.txt)" \
             node scripts/checks/rute-publice.mjs https://staging.administrativo.ro --cereri 10 --fara-indexare
 
+      # ── Poarta 5 ────────────────────────────────────────────────────────────
+      # E2E pe versiunea abia deployată: fiecare rol × fiecare modul (pagina sau
+      # „Acces restricționat”, conform permisiunilor reale) și fluxul concediu
+      # cerut → aprobat → văzut în portal. Rulează DOAR pe staging — configul
+      # refuză domeniul de producție. Chromium vine din cache-ul VM-ului
+      # (`~/.cache/ms-playwright`), basic-auth-ul din același fișier ca mai sus.
+      # Logările: câte una per cont demo și rulare; limita e 5/15 min per email,
+      # iar `concurrency` de sus nu lasă două deploy-uri să se suprapună.
+      - name: Poarta — e2e pe staging
+        run: |
+          ./administrativo.sh stare:pas "E2E pe staging"
+          E2E_AUTENTIFICARE_BASIC="coleg:$(cat ~/.secrete/administrativo/parola-staging.txt)" \
+            pnpm exec playwright test --reporter=list
+
       # `if: always()` de aici în jos: pașii ăștia sunt exact cei care contează
       # când ceva a picat.
       - name: Curățenie

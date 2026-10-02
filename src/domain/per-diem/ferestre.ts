@@ -71,10 +71,6 @@ const ORE_PE_ZI = 24;
 const MS_PE_ORA = 3_600_000;
 const MS_PE_ZI = ORE_PE_ZI * MS_PE_ORA;
 
-function laZiIso(data: Date): string {
-  return data.toISOString().slice(0, 10);
-}
-
 /** Ziua din calendar a României (`AAAA-LL-ZZ`) în care cade un moment. */
 function ziBucuresti(moment: Date): string {
   return toBucharestDateString(moment);
@@ -164,7 +160,10 @@ function construiesteFereastra(
   const taraAleasa = alegeTaraFerestrei(
     tariFereastra,
     p.regulaTrecere,
-    laZiIso(deLa),
+    // Ziua României, ca în SQL după 0159: `(v_de_la at time zone
+    // 'Europe/Bucharest')::date`. Ziua UTC căuta baremul cu o zi mai devreme
+    // pentru ferestrele care încep la miezul nopții de la București.
+    ziBucuresti(deLa),
     p.cautaValoareBarem,
   );
 

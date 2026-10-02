@@ -121,7 +121,8 @@ describe("calculeazaSume — o zi internă sub plafon și o zi externă peste pl
 describe("calculeazaSume — baremul se caută în ziua României a ferestrei", () => {
   // O fereastră din modul `zile_calendaristice` începe la miezul nopții de la
   // București: 01.10.2026 00:00 ora României = 2026-09-30T21:00:00Z. `laZiIso`
-  // din sume.ts ia data în UTC și caută baremul din 30 septembrie.
+  // lua data în UTC și căuta baremul din 30 septembrie; acum, ca SQL-ul după
+  // 0159, ia ziua României.
   const FEREASTRA_1_OCT = fereastra({
     taraId: DE,
     fractiune: 1,
@@ -149,7 +150,7 @@ describe("calculeazaSume — baremul se caută în ziua României a ferestrei", 
     expect(r.valoareLei).toBe(200);
   });
 
-  it.fails("DEFECT: ziua de 1 octombrie se plătește cu baremul de la 1 octombrie", () => {
+  it("ziua de 1 octombrie se plătește cu baremul de la 1 octombrie", () => {
     const r = calculeazaSume([FEREASTRA_1_OCT], POLITICA_1X, BAREME, 5);
     expect(r.detalii[0]?.valoareZi).toBe(40);
     expect(r.valoareLei).toBe(200);

@@ -624,8 +624,8 @@ export const rezolvaSesizare = createAction({
     if (sesizare === null) {
       throw notFound("Sesizarea nu a fost găsită sau nu vă este accesibilă.");
     }
-    if (sesizare.status === "rezolvat") {
-      throw businessRule("Această sesizare a fost deja rezolvată.");
+    if (sesizare.status === "rezolvat" || sesizare.status === "respins") {
+      throw businessRule("Această sesizare a fost deja închisă (rezolvată sau respinsă).");
     }
 
     const { id: sesizareId, ...campuriInterventie } = input;
@@ -643,16 +643,34 @@ export const rezolvaSesizare = createAction({
     if (eroareInterventie !== null) traduEroare(eroareInterventie);
 
     // `rezolvat_la` NU se trimite: `fault_reports_guard` îl completează singur.
+    //
+    // UPDATE-ul e CONDIȚIONAT pe starea deschisă: doi operatori care rezolvă
+    // simultan aceeași sesizare treceau amândoi de citirea de mai sus, inserau
+    // câte o intervenție (cu costuri), iar ultimul câștiga `intervention_id`,
+    // fără nicio eroare. Acum doar unul câștigă; celălalt primește zero rânduri.
     const { data, error } = await db
       .from("fault_reports")
       .update({ status: "rezolvat", intervention_id: interventie.id })
       .eq("id", sesizareId)
       .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .in("status", ["nou", "in_analiza", "in_lucru"])
       .select("id")
       .maybeSingle();
-    if (error !== null) traduEroare(error);
-    if (data === null) {
-      throw notFound("Sesizarea nu a fost găsită sau nu vă este accesibilă.");
+    if (error !== null || data === null) {
+      // Compensare: intervenția abia inserată nu rezolvă nimic, deci se anulează
+      // logic (DELETE e revocat pe tabelă; `maintenance_interventions_apply`
+      // ignoră rândurile cu `deleted_at`). Eroarea anulării nu o ascunde pe cea
+      // originală.
+      await db
+        .from("maintenance_interventions")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", interventie.id)
+        .eq("organization_id", ctx.tenant.organizationId);
+      if (error !== null) traduEroare(error);
+      throw businessRule(
+        "Sesizarea a fost închisă între timp de altcineva (sau nu mai e accesibilă). Intervenția nu a fost înregistrată. Reîncărcați pagina.",
+      );
     }
 
     return { id: data.id, interventionId: interventie.id };

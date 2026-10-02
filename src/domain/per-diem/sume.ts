@@ -11,6 +11,7 @@
  * (politica valabilă la data plecării + baremul pe țări).
  */
 
+import { toBucharestDateString } from "@/lib/format/date";
 import { rotunjesteLaBani } from "../bani";
 import type { FereastraDiurna } from "./ferestre";
 
@@ -107,8 +108,13 @@ export interface RezultatDiurna {
  */
 const rotunjeste = rotunjesteLaBani;
 
+/**
+ * Ziua din calendarul României, oglinda `(de_la at time zone
+ * 'Europe/Bucharest')::date` din `app.recalculeaza_diurna` (0159). Ziua UTC
+ * plătea ziua de 1 a lunii cu baremul zilei precedente.
+ */
 function laZiIso(data: Date): string {
-  return data.toISOString().slice(0, 10);
+  return toBucharestDateString(data);
 }
 
 /**

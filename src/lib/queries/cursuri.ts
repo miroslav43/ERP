@@ -8,6 +8,7 @@
 
 import "server-only";
 
+import { todayInBucharest } from "@/lib/format/date";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
   SORTARI_CURSURI,
@@ -33,9 +34,11 @@ import {
   codificaCursor,
   decodificaCursor,
   predicatKeyset,
+  predicatKeysetNulabil,
   sortareCeruta,
   type Directie,
   tiparContine,
+  VALOARE_NULA,
 } from "./cursor";
 
 // ── Traducerea cheie din URL → coloană. Explicită OBLIGATORIU: numele intră
@@ -484,7 +487,9 @@ export async function listeazaInrolari(
   const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_INROLARI, SORTARE_IMPLICITA_INROLARI);
   const coloana = COLOANA_SORTARE_INROLARE[sortare.cheie];
   const crescator = sortare.directie === "asc";
-  const azi = new Date().toISOString().slice(0, 10);
+  // Ziua României, nu cea UTC: între 00:00 și 03:00 ziua UTC e încă ieri, iar
+  // o înrolare cu termenul ieri nu apărea restantă.
+  const azi = todayInBucharest();
 
   const filtreaza = <
     Q extends {
@@ -512,8 +517,15 @@ export async function listeazaInrolari(
     .limit(filtre.limita + 1);
 
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  // `termen` poate fi NULL (din 0085): pe sortarea după termen, o pagină care
+  // se termina pe o înrolare fără termen n-avea continuare, iar după o valoare
+  // NULL-urile nu mai apăreau deloc.
   if (cursor !== null)
-    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
+    interogare = interogare.or(
+      sortare.cheie === "termen"
+        ? predicatKeysetNulabil(coloana, cursor, sortare.directie)
+        : predicatKeyset(coloana, cursor, sortare.directie),
+    );
 
   const [rezultat, numarare] = await Promise.all([
     interogare.returns<RandInrolare[]>(),
@@ -533,7 +545,7 @@ export async function listeazaInrolari(
         ? ultim.status
         : sortare.cheie === "angajat"
           ? ultim.employee_id
-          : ultim.termen;
+          : (ultim.termen ?? VALOARE_NULA);
 
   return {
     randuri,

@@ -229,18 +229,24 @@ describe("rezolvaSesizare", () => {
     expect(server.apeluriPe("fault_reports", "update")).toHaveLength(0);
   });
 
-  it("sesizare deja rezolvată: CONFLICT, nicio intervenție dublă", async () => {
-    const { server } = configureazaActiunea({ permisiuni: UPDATE });
-    server.raspunde("fault_reports", "select", {
-      data: { id: ID_1, equipment_id: ID_2, status: "rezolvat" },
-    });
-    const r = await rezolvaSesizare(rezolvare);
-    expect(r).toMatchObject({
-      ok: false,
-      error: { code: "CONFLICT", message: "Această sesizare a fost deja rezolvată." },
-    });
-    expect(server.apeluriPe("maintenance_interventions")).toHaveLength(0);
-  });
+  it.each(["rezolvat", "respins"])(
+    "sesizare deja închisă (%s): CONFLICT, nicio intervenție dublă",
+    async (status) => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("fault_reports", "select", {
+        data: { id: ID_1, equipment_id: ID_2, status },
+      });
+      const r = await rezolvaSesizare(rezolvare);
+      expect(r).toMatchObject({
+        ok: false,
+        error: {
+          code: "CONFLICT",
+          message: "Această sesizare a fost deja închisă (rezolvată sau respinsă).",
+        },
+      });
+      expect(server.apeluriPe("maintenance_interventions")).toHaveLength(0);
+    },
+  );
 
   it("intervenția respinsă de bază: sesizarea nu se mai atinge", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
@@ -264,42 +270,52 @@ describe("rezolvaSesizare", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it("zero rânduri la marcarea sesizării: NEGASIT", async () => {
+  it("UPDATE-ul pe sesizare e condiționat pe starea deschisă (cursa a doi operatori)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("fault_reports", "select", {
+      data: { id: ID_1, equipment_id: ID_2, status: "in_lucru" },
+    });
+    server.raspunde("maintenance_interventions", "insert", { data: { id: ID_3 } });
+    server.raspunde("fault_reports", "update", { data: { id: ID_1 } });
+    await rezolvaSesizare(rezolvare);
+    const [actualizare] = server.apeluriPe("fault_reports", "update");
+    expect(areFiltru(actualizare, "in", "status", ["nou", "in_analiza", "in_lucru"])).toBe(true);
+    expect(areFiltru(actualizare, "is", "deleted_at", null)).toBe(true);
+  });
+
+  it("cursa pierdută (zero rânduri): CONFLICT, iar intervenția inserată se anulează logic", async () => {
+    // Cele două scrieri nu sunt atomice: fără compensare, intervenția rămânea în
+    // registru, cu costuri, fără nicio sesizare legată.
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
     server.raspunde("fault_reports", "select", {
       data: { id: ID_1, equipment_id: ID_2, status: "in_lucru" },
     });
     server.raspunde("maintenance_interventions", "insert", { data: { id: ID_3 } });
     server.raspunde("fault_reports", "update", { data: null });
+    server.raspunde("maintenance_interventions", "update", { data: null });
+
     const r = await rezolvaSesizare(rezolvare);
-    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    const [anulare] = server.apeluriPe("maintenance_interventions", "update");
+    expect(Object.keys(anulare?.payload as object)).toEqual(["deleted_at"]);
+    expect(areFiltru(anulare, "eq", "id", ID_3)).toBe(true);
+    expect(areFiltru(anulare, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(caiRevalidate()).toEqual([]);
   });
 
-  it.fails(
-    "DEFECT: o rezolvare care eșuează după inserarea intervenției lasă intervenția orfană",
-    async () => {
-      // Cele două scrieri nu sunt atomice: dacă UPDATE-ul pe sesizare afectează
-      // zero rânduri (ștearsă între timp, rezolvată concurent) sau e respins,
-      // intervenția rămâne în registru, cu costuri, fără nicio sesizare legată.
-      const { server } = configureazaActiunea({ permisiuni: UPDATE });
-      server.raspunde("fault_reports", "select", {
-        data: { id: ID_1, equipment_id: ID_2, status: "in_lucru" },
-      });
-      server.raspunde("maintenance_interventions", "insert", { data: { id: ID_3 } });
-      server.raspunde("fault_reports", "update", { data: null });
-      server.raspunde("maintenance_interventions", "update", { data: { id: ID_3 } });
-      server.raspunde("maintenance_interventions", "delete", { data: { id: ID_3 } });
+  it("eroare la marcarea sesizării: intervenția se anulează, iar eroarea se traduce", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("fault_reports", "select", {
+      data: { id: ID_1, equipment_id: ID_2, status: "in_lucru" },
+    });
+    server.raspunde("maintenance_interventions", "insert", { data: { id: ID_3 } });
+    server.raspunde("fault_reports", "update", { error: eroarePostgrest("42501") });
+    server.raspunde("maintenance_interventions", "update", { data: null });
 
-      const r = await rezolvaSesizare(rezolvare);
+    const r = await rezolvaSesizare(rezolvare);
 
-      expect(r.ok).toBe(false);
-      const scrieri = server.apeluriPe("maintenance_interventions");
-      const inserata = scrieri.some((a) => a.operatie === "insert");
-      const compensata = scrieri.some(
-        (a) =>
-          (a.operatie === "delete" || a.operatie === "update") && areFiltru(a, "eq", "id", ID_3),
-      );
-      expect(!inserata || compensata).toBe(true);
-    },
-  );
+    expect(r.ok).toBe(false);
+    expect(server.apeluriPe("maintenance_interventions", "update")).toHaveLength(1);
+  });
 });

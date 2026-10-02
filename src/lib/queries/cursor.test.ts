@@ -6,10 +6,34 @@ import {
   decodificaCursor,
   ghilimeleaza,
   predicatKeyset,
+  predicatKeysetNulabil,
   scrieSortare,
   sortareCeruta,
   tiparContine,
+  VALOARE_NULA,
 } from "./cursor";
+
+describe("predicatKeysetNulabil", () => {
+  it("după o valoare: keyset-ul obișnuit, plus toate NULL-urile de la coadă", () => {
+    expect(predicatKeysetNulabil("termen", { valoare: "2026-10-05", id: "a" }, "asc")).toBe(
+      'termen.gt."2026-10-05",and(termen.eq."2026-10-05",id.gt."a"),termen.is.null',
+    );
+  });
+
+  it("după un NULL: doar NULL-urile, după id, în direcția sortării", () => {
+    expect(predicatKeysetNulabil("termen", { valoare: VALOARE_NULA, id: "a" }, "asc")).toBe(
+      'and(termen.is.null,id.gt."a")',
+    );
+    expect(predicatKeysetNulabil("termen", { valoare: VALOARE_NULA, id: "a" }, "desc")).toBe(
+      'and(termen.is.null,id.lt."a")',
+    );
+  });
+
+  it("marcajul NULL supraviețuiește drumului dus-întors prin cursor", () => {
+    const c = decodificaCursor(codificaCursor({ valoare: VALOARE_NULA, id: "x" }));
+    expect(c).toEqual({ valoare: VALOARE_NULA, id: "x" });
+  });
+});
 
 /**
  * Cursorul e singura bucată din paginare pe care o poate strica un text venit

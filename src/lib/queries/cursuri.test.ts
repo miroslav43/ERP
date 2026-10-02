@@ -237,31 +237,49 @@ describe("listeazaInrolari", () => {
     ]);
   });
 
-  it.fails(
-    "DEFECT: pagina care se termină pe o înrolare FĂRĂ termen trebuie să aibă continuare",
-    async () => {
-      // cursuri.ts:536–543 — cu sortarea implicită după `termen`, valoarea
-      // cursorului e `ultim.termen`; de la 0085 termenul poate fi NULL, iar
-      // `valoare !== null` anulează cursorul. Rândurile de după nu se mai pot
-      // vedea, deși `total` le numără.
-      server.raspunde("course_enrollments", "select", {
-        data: [
-          inrolare(ID_1, "2026-10-01"),
-          inrolare(ID_2, "2026-10-05"),
-          inrolare(ID_3, null),
-          inrolare("x4", null),
-          inrolare("x5", null),
-          inrolare("x6", null),
-        ],
-      });
-      server.raspunde("course_enrollments", "select", { count: 9 });
+  it("pagina care se termină pe o înrolare FĂRĂ termen are continuare", async () => {
+    // De la 0085 termenul poate fi NULL; cursorul pe `ultim.termen` se anula,
+    // iar rândurile de după nu se mai puteau vedea, deși `total` le număra.
+    server.raspunde("course_enrollments", "select", {
+      data: [
+        inrolare(ID_1, "2026-10-01"),
+        inrolare(ID_2, "2026-10-05"),
+        inrolare(ID_3, null),
+        inrolare("x4", null),
+        inrolare("x5", null),
+        inrolare("x6", null),
+      ],
+    });
+    server.raspunde("course_enrollments", "select", { count: 9 });
 
-      const r = await listeazaInrolari(ORG_ID, filtreInrolariSchema.parse({ limita: 5 }));
+    const r = await listeazaInrolari(ORG_ID, filtreInrolariSchema.parse({ limita: 5 }));
 
-      expect(r.randuri).toHaveLength(5);
-      expect(r.urmatorulCursor).not.toBeNull();
-    },
-  );
+    expect(r.randuri).toHaveLength(5);
+    expect(r.urmatorulCursor).not.toBeNull();
+    expect(decodificaCursor(r.urmatorulCursor ?? "")).toEqual({ valoare: "", id: "x5" });
+  });
+
+  it("după o înrolare fără termen: pagina următoare cere doar termenele NULL, după id", async () => {
+    server.raspunde("course_enrollments", "select", { data: [] });
+    server.raspunde("course_enrollments", "select", { count: 0 });
+    await listeazaInrolari(
+      ORG_ID,
+      filtreInrolariSchema.parse({ cursor: codificaCursor({ valoare: "", id: ID_3 }) }),
+    );
+    const [lista] = server.apeluriPe("course_enrollments");
+    expect(argumente(lista, "or")?.[0]).toEqual([`and(termen.is.null,id.gt."${ID_3}")`]);
+  });
+
+  it("după o înrolare cu termen: pagina următoare cere și termenele NULL de la coadă", async () => {
+    server.raspunde("course_enrollments", "select", { data: [] });
+    server.raspunde("course_enrollments", "select", { count: 0 });
+    await listeazaInrolari(
+      ORG_ID,
+      filtreInrolariSchema.parse({ cursor: codificaCursor({ valoare: "2026-10-05", id: ID_2 }) }),
+    );
+    const [lista] = server.apeluriPe("course_enrollments");
+    expect(String(argumente(lista, "or")?.[0]?.[0])).toMatch(/,termen\.is\.null$/u);
+  });
 });
 
 describe("citirile unui singur rând", () => {

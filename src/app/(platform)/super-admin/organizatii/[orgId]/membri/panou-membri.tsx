@@ -4,7 +4,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { AlertCircle, Check, Copy, Send } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
@@ -163,14 +163,16 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
     register,
     handleSubmit,
     reset,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<DateInvitatie>({
     resolver: zodResolver(schemaInvitatie),
     defaultValues: valoriInitiale,
   });
 
-  const rolAles = watch("role");
+  // `useWatch`, nu `watch()`: funcția întoarsă de `useForm` nu poate fi
+  // memoizată de React Compiler, care sărea atunci peste toată componenta.
+  const rolAles = useWatch({ control, name: "role" });
 
   const trimite = handleSubmit(async (valori) => {
     setEroare(null);

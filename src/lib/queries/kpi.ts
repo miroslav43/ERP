@@ -33,27 +33,12 @@ import type { StatusEvaluare } from "@/schemas/evaluation";
 import {
   codificaCursor as codificaKeyset,
   decodificaCursor as decodificaKeyset,
-  ghilimeleaza,
   predicatKeyset,
+  predicatKeysetNulabil,
   sortareCeruta,
-  type Cursor,
+  VALOARE_NULA,
   type Directie,
 } from "./cursor";
-
-/**
- * `scor_procent` e NULL pe orice lună abia deschisă (scorul se scrie la
- * salvarea valorilor), iar `nullsFirst: false` pune NULL-urile la coadă în
- * AMBELE direcții. `gt`/`lt` nu potrivesc niciodată NULL, deci keyset-ul simplu
- * pierdea tăcut lunile fără scor: după o valoare urmează și toate NULL-urile;
- * după un NULL (cursor cu `SCOR_NUL`), doar NULL-urile cu id-ul mai departe.
- */
-const SCOR_NUL = "";
-function predicatScor(cursor: Cursor, directie: Directie): string {
-  const op = directie === "asc" ? "gt" : "lt";
-  return cursor.valoare === SCOR_NUL
-    ? `and(scor_procent.is.null,id.${op}.${ghilimeleaza(cursor.id)})`
-    : `${predicatKeyset("scor_procent", cursor, directie)},scor_procent.is.null`;
-}
 
 export const SORTARI_KPI = ["perioada", "angajat", "scor", "status"] as const;
 export type SortareKpi = (typeof SORTARI_KPI)[number];
@@ -436,9 +421,11 @@ export async function listeazaLuniKpi(
 
   const cursor = filtre.cursor === null ? null : decodificaKeyset(filtre.cursor);
   if (cursor !== null) {
+    // `scor_procent` e NULL pe orice lună abia deschisă (scorul se scrie la
+    // salvarea valorilor): keyset-ul simplu pierdea tăcut lunile fără scor.
     interogare = interogare.or(
       sortare.cheie === "scor"
-        ? predicatScor(cursor, sortare.directie)
+        ? predicatKeysetNulabil(coloana, cursor, sortare.directie)
         : predicatKeyset(coloana, cursor, sortare.directie),
     );
   }
@@ -482,7 +469,7 @@ export async function listeazaLuniKpi(
         : sortare.cheie === "angajat"
           ? ultimul.employee_id
           : sortare.cheie === "scor"
-            ? (ultimul.scor_procent?.toString() ?? SCOR_NUL)
+            ? (ultimul.scor_procent?.toString() ?? VALOARE_NULA)
             : ultimul.status;
 
   return {

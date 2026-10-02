@@ -109,6 +109,28 @@ export function predicatKeyset(coloana: string, cursor: Cursor, directie: Direct
 }
 
 /**
+ * Marcajul de cursor pentru „ultimul rând avea valoarea NULL”. Șirul gol nu
+ * poate fi o valoare reală a coloanelor care-l folosesc (date, numere).
+ */
+export const VALOARE_NULA = "";
+
+/**
+ * `predicatKeyset` pentru o coloană care poate fi NULL, sortată cu
+ * `nullsFirst: false` — adică NULL-urile la coadă, în AMBELE direcții.
+ *
+ * `gt`/`lt` nu potrivesc niciodată NULL, deci keyset-ul simplu pierdea tăcut
+ * rândurile fără valoare: după o valoare urmează și toate NULL-urile; după un
+ * NULL (cursor cu `VALOARE_NULA`), doar NULL-urile cu id-ul mai departe.
+ * Cursorul paginii se construiește cu `valoare ?? VALOARE_NULA`.
+ */
+export function predicatKeysetNulabil(coloana: string, cursor: Cursor, directie: Directie): string {
+  const op = directie === "asc" ? "gt" : "lt";
+  return cursor.valoare === VALOARE_NULA
+    ? `and(${coloana}.is.null,id.${op}.${ghilimeleaza(cursor.id)})`
+    : `${predicatKeyset(coloana, cursor, directie)},${coloana}.is.null`;
+}
+
+/**
  * Sortarea cerută din URL, îngustată la coloanele PERMISE.
  *
  * Numele coloanei ajunge într-un `.order()` și într-un predicat construit ca

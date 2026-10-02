@@ -68,7 +68,12 @@ export default defineConfig({
   // modul face zeci de interogări. Mai mult paralelism măsoară coada, nu
   // aplicația.
   workers: 2,
-  retries: 0,
+  // O singură reîncercare: pe VM, Chromium anulează rar o navigare cu
+  // `ERR_NETWORK_CHANGED` (vezi `e2e/navigare.ts`) — 1 cădere în ~440 de teste
+  // rulate pe 2 oct 2026, nereprodusă în 4 rulări repetate. Playwright raportează
+  // testul trecut abia la a doua încercare drept „flaky”, deci nu se ascunde: un
+  // test care pică de două ori rămâne roșu.
+  retries: 1,
   fullyParallel: true,
   forbidOnly: process.env["CI"] !== undefined,
   timeout: 90_000,

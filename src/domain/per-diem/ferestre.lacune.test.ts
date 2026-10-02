@@ -45,11 +45,10 @@ describe("calculeazaZileDiurna — zile calendaristice, trecere de frontieră", 
     expect(ferestre[1]?.deLa.toISOString()).toBe("2026-10-01T21:00:00.000Z");
   });
 
-  // `construiesteFereastra` trimite `laZiIso(deLa)`, adică data UTC. Pentru fereastra
-  // zilei de 2 octombrie, care începe la 2026-10-01T21:00Z, baremul se caută la
-  // 1 octombrie — o zi mai devreme. La o schimbare de barem pe 1 ale lunii,
-  // departajarea folosește baremul vechi.
-  it.fails("DEFECT: baremul pentru departajare se caută la data României a ferestrei", () => {
+  // `construiesteFereastra` trimitea data UTC: pentru fereastra zilei de 2
+  // octombrie, care începe la 2026-10-01T21:00Z, baremul se căuta la 1
+  // octombrie — o zi mai devreme. Acum trimite ziua României (oglinda 0159).
+  it("baremul pentru departajare se caută la data României a ferestrei", () => {
     const dateCerute: string[] = [];
     calculeazaZileDiurna(
       parametri((_tara, data) => {
