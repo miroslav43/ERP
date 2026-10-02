@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CONTACT } from "@/content/landing/contact";
 import { MODULE_NUCLEU, moduleleDin, PACHETE, PRETURI_MODULE } from "@/content/landing/preturi";
+import { slugModul } from "@/content/landing/slug-module";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
 import { Banda } from "./banda";
@@ -125,7 +126,7 @@ export function PaginaPreturi({ text }: { text: ContinutLanding }) {
                     <th scope="row" className="px-3 py-2.5 text-[0.9375rem] font-normal">
                       {modul.titlu}
                       <span className="font-mk-date text-mk-text-slab ml-2 text-[0.6875rem]">
-                        {modul.cheie}
+                        {slugModul(modul.cheie)}
                       </span>
                     </th>
                     <td className="font-mk-date border-mk-liniatura border-l px-3 py-2.5 text-right text-[0.875rem] tabular-nums">

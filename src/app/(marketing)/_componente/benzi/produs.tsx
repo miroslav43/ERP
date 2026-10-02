@@ -81,7 +81,7 @@ export function BandaModule({ text }: ProprietatiBanda) {
             {grup.module.map((modul) => (
               <RandRegistru
                 key={modul.cheie}
-                cod={modul.cheie}
+                cod={slugModul(modul.cheie)}
                 titlu={modul.titlu}
                 text={modul.text}
                 puncte={modul.puncte}

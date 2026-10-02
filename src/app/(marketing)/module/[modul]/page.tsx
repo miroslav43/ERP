@@ -301,9 +301,6 @@ export default async function PaginaModul({ params }: Proprietati) {
                           className="py-2.5 pr-4 text-[0.9375rem] leading-[1.4] font-normal"
                         >
                           {actiune.ce}
-                          <span className="font-mk-date text-mk-text-inv-slab ml-2 text-[0.6875rem] tracking-[0.04em] whitespace-nowrap">
-                            {actiune.cheie}
-                          </span>
                         </th>
                         {[actiune.orgAdmin, actiune.hr, actiune.manager, actiune.angajat].map(
                           (domeniu, i) => (
@@ -399,7 +396,7 @@ export default async function PaginaModul({ params }: Proprietati) {
             {vecini.map((vecin) => (
               <RandRegistru
                 key={vecin.cheie}
-                cod={vecin.cheie}
+                cod={slugModul(vecin.cheie)}
                 titlu={vecin.titlu}
                 // FĂRĂ `text`: banda asta retipărea descrierea din catalog a
                 // fiecărui frate. În grupul „Personal" însemna 137–145 de cuvinte

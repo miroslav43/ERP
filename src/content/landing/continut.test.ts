@@ -1445,4 +1445,15 @@ describe("reparațiile din auditul SEO din 2 oct 2026", () => {
     expect(titlu).toContain(`${PRET_NUCLEU} ${MONEDA}`);
     expect(titlu).toContain(String(PRAG_ANGAJATI));
   });
+
+  it("paginile publice nu afișează chei interne de modul sau de permisiune", () => {
+    // `evaluations:read` și `payroll` pe pagini citite de un patron de firmă mică.
+    // Cheia rămâne în date; pe ecran merge slug-ul românesc, care e și adresa.
+    const afisari = fisiere("src/app/(marketing)", [".tsx"]).flatMap((f) =>
+      [
+        ...readFileSync(f, "utf8").matchAll(/(?:>\s*\{|cod=\{)(?:modul|actiune|vecin)\.cheie\}/g),
+      ].map((m) => `${f}: ${m[0]}`),
+    );
+    expect(afisari).toEqual([]);
+  });
 });
