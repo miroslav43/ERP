@@ -1,11 +1,15 @@
+// src/app/(marketing)/_componente/imagine-distribuire.tsx
 import { ImageResponse } from "next/og";
 
-export const alt = "Administrativo — pontaj, concedii și salarizare pentru firme din România";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+import { IMAGINE_DISTRIBUIRE } from "./metadate";
+
+const size = { width: IMAGINE_DISTRIBUIRE.width, height: IMAGINE_DISTRIBUIRE.height };
 
 /**
- * Imaginea de distribuire.
+ * Imaginea de distribuire, servită de `imagine-distribuire.png/route.ts`.
+ *
+ * Până pe 2 oct 2026 stătea în `opengraph-image.tsx`; de ce s-a mutat, în
+ * comentariul lui `IMAGINE_DISTRIBUIRE` din `metadate.ts`.
  *
  * Fontul se aduce explicit, nu se lasă pe seama celui implicit al generatorului:
  * textul conține ș și ț cu virgulă dedesubt, iar dacă familia de rezervă nu le
@@ -38,7 +42,7 @@ const HARTIE = "#ECEFEC";
 const CERNEALA = "#0E1C21";
 const SLAB = "#4A5A5E";
 
-export default async function Imagine() {
+export async function deseneazaImagineDistribuire(): Promise<ImageResponse> {
   const font = await adaFira();
 
   return new ImageResponse(

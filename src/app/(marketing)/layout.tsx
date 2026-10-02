@@ -8,7 +8,7 @@ import { RO } from "@/content/landing/ro";
 
 import { Analitice } from "./_componente/analitice";
 import { DateStructurate } from "./_componente/date-structurate";
-import { OG_COMUN } from "./_componente/metadate";
+import { IMAGINE_DISTRIBUIRE, OG_COMUN } from "./_componente/metadate";
 
 /**
  * Fonturile stratului de marketing.
@@ -53,8 +53,9 @@ export const metadata: Metadata = {
     alternateLocale: ["en_GB"],
     title: RO.meta.titlu,
     description: RO.meta.descriere,
+    images: [IMAGINE_DISTRIBUIRE],
   },
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", images: [IMAGINE_DISTRIBUIRE.url] },
   /*
    * Dovada de proprietate pentru Search Console și Bing.
    *

@@ -17,14 +17,32 @@ import type { Metadata } from "next";
  * De aici: câmpurile comune stau într-un singur loc (`OG_COMUN`, folosit și de
  * layout), iar fiecare pagină primește obiectul complet.
  *
- * Imaginea nu intră aici: `opengraph-image.tsx` e metadată pe fișier și are
- * prioritate peste cea din configurare, pe tot segmentul.
+ * Imaginea INTRĂ aici. Până pe 2 oct 2026, comentariul de aici spunea că
+ * `opengraph-image.tsx` „are prioritate pe tot segmentul". Situl viu arăta
+ * contrariul: 47 din 48 de adrese fără `og:image`. Obiectul `openGraph` al
+ * paginii îl înlocuiește pe cel moștenit cu totul, imaginea de pe fișier
+ * inclusă — același mecanism descris în primul paragraf, a doua oară.
  */
 
 const MARCA = "Administrativo";
 const SUFIX = ` · ${MARCA}`;
 
 export const OG_COMUN = { type: "website", siteName: MARCA } as const;
+
+/**
+ * Imaginea de distribuire, la o adresă FIXĂ.
+ *
+ * Nu pe convenția `opengraph-image.tsx`: într-un grup de rute, Next îi pune
+ * adresei un hash (`/opengraph-image-pwu6ef`), pe care nicio pagină nu-l poate
+ * referi. Ruta e `imagine-distribuire.png/route.ts`; extensia o scoate și din
+ * `proxy.ts` (matcher-ul sare peste `.png`).
+ */
+export const IMAGINE_DISTRIBUIRE = {
+  url: "/imagine-distribuire.png",
+  width: 1200,
+  height: 630,
+  alt: "Administrativo — pontaj, concedii și salarizare pentru firme din România",
+} as const;
 
 const LOCALE = {
   ro: { locale: "ro_RO", alternateLocale: "en_GB" },
@@ -62,6 +80,8 @@ export function metadatePagina({
       title: titluAbsolut ? titlu : `${titlu}${SUFIX}`,
       description: descriere,
       url: cale,
+      images: [IMAGINE_DISTRIBUIRE],
     },
+    twitter: { card: "summary_large_image", images: [IMAGINE_DISTRIBUIRE.url] },
   };
 }

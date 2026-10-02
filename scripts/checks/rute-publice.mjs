@@ -23,6 +23,11 @@
 // `curl -w %{http_code}` naiv) și niciun `noindex` în `<meta name="robots">`
 // sau în antetul `X-Robots-Tag`.
 //
+// Din 2 oct 2026, și un `<meta property="og:image">` pe fiecare adresă, plus
+// imaginea însăși (200, `image/png`). Auditul din ziua aceea a găsit 47 din 48
+// de pagini fără imagine de distribuire — o regresie pe care niciun test de
+// unitate n-o vedea, fiindcă vedeau ce DECLARĂ paginile, nu ce ajunge în HTML.
+//
 // Pe staging, `noindex` e CORECT — un mediu de probă nu are ce căuta în Google.
 // Acolo se trece `--fara-indexare`, iar poarta cere doar statusul. Prima rulare
 // pe staging, fără opțiune, a picat pe 48 de pagini „200+noindex": poarta avea
@@ -60,6 +65,7 @@ async function cere(url) {
   return {
     status: r.status,
     noindex: /noindex/i.test(robotsMeta) || /noindex/i.test(robotsAntet),
+    faraImagine: !/<meta[^>]+property="og:image"[^>]+content="[^"]+"/i.test(corp),
     cache: r.headers.get("x-nextjs-cache") ?? "-",
   };
 }
@@ -78,22 +84,38 @@ if (adrese.length === 0) {
   process.exit(1);
 }
 
+const imagine = await fetch(`${baza}/imagine-distribuire.png`, { headers: antete });
+if (!imagine.ok || !(imagine.headers.get("content-type") ?? "").startsWith("image/png")) {
+  console.error(
+    `✗ ${baza}/imagine-distribuire.png a răspuns ${imagine.status} ` +
+      `(${imagine.headers.get("content-type") ?? "fără content-type"}).`,
+  );
+  process.exit(1);
+}
+
 const esecuri = [];
 for (const adresa of adrese) {
   const rezultate = [];
   for (let i = 0; i < cereri; i++) rezultate.push(await cere(adresa));
-  const rele = rezultate.filter((r) => r.status !== 200 || (verificaIndexarea && r.noindex));
+  const rele = rezultate.filter(
+    (r) => r.status !== 200 || (verificaIndexarea && r.noindex) || r.faraImagine,
+  );
   if (rele.length > 0) {
     esecuri.push(
       `${adresa}\n      ${rele.length}/${cereri} rele: ` +
-        rele.map((r) => `${r.status}${r.noindex ? "+noindex" : ""}(${r.cache})`).join(" "),
+        rele
+          .map(
+            (r) =>
+              `${r.status}${r.noindex ? "+noindex" : ""}${r.faraImagine ? "+fara-og-image" : ""}(${r.cache})`,
+          )
+          .join(" "),
     );
   }
 }
 
 if (esecuri.length > 0) {
   console.error(
-    `✗ ${esecuri.length} din ${adrese.length} adrese nu răspund stabil 200 + indexabil:`,
+    `✗ ${esecuri.length} din ${adrese.length} adrese nu răspund stabil 200 + indexabil + og:image:`,
   );
   for (const e of esecuri) console.error(`  · ${e}`);
   console.error(
@@ -103,6 +125,6 @@ if (esecuri.length > 0) {
   process.exit(1);
 }
 console.log(
-  `✓ ${adrese.length} adrese × ${cereri} cereri: toate 200` +
+  `✓ ${adrese.length} adrese × ${cereri} cereri: toate 200, cu og:image` +
     `${verificaIndexarea ? " și indexabile" : " (indexarea nu se cere aici)"} (${baza}).`,
 );
