@@ -15,8 +15,8 @@ cai:
 tabele: [notifications, notification_preferences, dispozitive_push, push_livrari]
 permisiuni: []
 capcane: [17, 39]
-scris_pe: 449df69a0da9fb008703e1b894f495e351f3d2cf
-scris_la: 2026-09-06
+scris_pe: 074209a31c682afb49b59c9e6b9989693e9f179e
+scris_la: 2026-10-02
 tags: [modul]
 ---
 
@@ -49,6 +49,17 @@ numele altui utilizator** trebuie să aibă `announcements:create`. De aceea fan
 straturi fiindcă n-au ce autoriza dincolo de RLS și n-au nimic de auditat: „mi-am citit
 notificarea" nu e un fapt de reținut în jurnal.
 
+Ce pun totuși — și ce ține acum pe loc `actions.test.ts`: `requireUser` ÎNAINTE de orice
+(fără sesiune, baza nu e atinsă deloc), Zod `z.uuid` ⇒ `VALIDARE` cu `fieldErrors.id` și
+zero scrieri, filtru explicit pe `user_id` peste cel al politicii, `.is("read_at", null)`,
+erorile prin `mapPostgrestError` (42501 ⇒ `INTERZIS`; necunoscutul ⇒ `EROARE_INTERNA` cu
+`requestId` în mesaj), iar revalidarea **doar** după succes.
+
+`reimprospateazaCutiaPostala` atinge trei căi — `/notificari`,
+`/portal/notificarile-mele` și `/portal`, fiindcă pastila de necitite trăiește în antetul
+portalului. Fără a treia, omul marchează citit și vede tot nemarcat: nu e o eroare, e
+cache-ul de Router.
+
 `src/app/(portal)/portal/notificarile-mele/actions.ts` ține scrierile din portal —
 `retrageDispozitivul` cu învelișul `trimiteRetragereDispozitiv`, și
 `comutaNotificarilePush` cu `trimiteComutarePush`. Lista felurilor,
@@ -57,11 +68,23 @@ notificarea" nu e un fapt de reținut în jurnal.
 trece de `typecheck`, `lint` și `test` și cade abia la `next build`, în „Collecting page
 data". Poarta care o prinde acum în două secunde e `pnpm check:server`. — capcana #39
 
+## Citiri
+
+`src/lib/queries/notifications.ts`, marcat `import "server-only"` — un import dinspre
+client cade la build, nu în producție. `numaraNecitite` înghite eroarea și întoarce `0`:
+pastila e ornament, iar o excepție acolo ar doborî antetul, deci navigarea.
+`listeazaNotificarile` aruncă, și taie la `LIMITA_LISTA_NOTIFICARI` — exportată tocmai ca
+ecranul să ȘTIE unde s-a oprit, altfel lungimea listei trece drept total.
+
 ## Ce refuză baza tăcut
 
 - **Marcarea ca citită a unei notificări care nu e a ta atinge zero rânduri, fără eroare.**
-  Politica filtrează prin `USING`; ecranul nu trebuie să raporteze succes pe baza absenței
-  unei erori. — capcana #17
+  Politica filtrează prin `USING`. Aici însă golul e singurul loc din proiect care NU se
+  tratează drept conflict: `marcheazaNotificareaCitita` e deliberat **fără** `.select()`,
+  fiindcă `.is("read_at", null)` face al doilea clic să atingă zero rânduri, iar celelalte
+  două căi spre gol — notificare ștearsă sau a altcuiva — n-au nimic de comunicat celui
+  care își golește cutia. Un `throw` pe rezultat gol ar face din dublul clic o eroare.
+  Excepția e fixată de `actions.test.ts`; nu o „repara" după capcana #17.
 - **Notificarea e un plus, nu poarta.** Acolo unde o acțiune scrie și o notificare — decizia
   pe o cerere de concediu, de exemplu — INSERT-ul eșuat se loghează, iar acțiunea principală
   rămâne dată. Un flux care depinde de sosirea notificării ca să fie corect e proiectat
