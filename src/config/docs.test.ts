@@ -75,8 +75,16 @@ describe("niciun fișier text urmărit nu conține octeți NUL", () => {
         // livrabile binare, urmărite deliberat, și au înroșit testul ăsta din
         // clipa primului commit de ofertă: un PDF conține octeți NUL prin
         // construcție, iar asta nu spune nimic despre capcana #11.
+        //
+        // `.jpg` (și rudele lui raster) s-au adăugat odată cu capturile de ecran
+        // din `docs/comercial/capturi/`: 18 JPEG-uri au înroșit testul la fel ca
+        // PDF-ul de mai sus — un format raster are NUL prin construcție.
         ":!:*.ico",
         ":!:*.png",
+        ":!:*.jpg",
+        ":!:*.jpeg",
+        ":!:*.webp",
+        ":!:*.gif",
         ":!:*.woff*",
         ":!:*.ttf",
         ":!:*.pdf",
