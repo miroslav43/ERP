@@ -23,6 +23,10 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
   ],
+  "/unelte/foaie-de-parcurs": [
+    { eticheta: "Program de parc auto: ITP, RCA, rovinietă", href: "/module/flota" },
+    { eticheta: "Diurna: cele două plafoane neimpozabile", href: "/ghid/diurna" },
+  ],
   "/unelte/foaie-de-pontaj": [
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Pontaj de pe telefon, fără instalare", href: "/pontaj-pe-telefon" },

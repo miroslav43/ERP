@@ -103,6 +103,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/unelte/condica-de-prezenta",
     "Unealtă gratuită: condica de prezență pentru orice lună, cu un rând pe om pe fiecare zi lucrătoare, ora sosirii, ora plecării și semnătura. Word, PDF sau Excel, fără cont. Plus răspunsul la „e obligatorie?” (art. 119 Codul muncii).",
   ],
+  [
+    "/unelte/foaie-de-parcurs",
+    "Unealtă gratuită: foaie de parcurs lunară pentru o mașină de serviciu — fiecare zi, traseul, scopul deplasării, kilometrii la plecare și la sosire. Word, PDF sau Excel, fără cont. Cu limita de 50% din art. 25 alin. (3) lit. l) Cod fiscal pentru mașinile folosite și personal.",
+  ],
   ["/comparatie", "Comparațiile cu felul în care se lucrează azi."],
   [
     "/comparatie/excel",

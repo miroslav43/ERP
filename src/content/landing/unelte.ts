@@ -37,3 +37,10 @@ export const ANTET_CONDICA: AntetPagina = {
   titlu: "Condica de prezență",
   lead: "Alege luna și scrie numele: primești condica cu fiecare zi lucrătoare, ora sosirii, ora plecării și semnătura. Sărbătorile legale se scot singure. Descarci în Word, PDF sau Excel, fără cont.",
 };
+
+/** Foaia de parcurs: „model”, „word”, „pdf” și „excel” sunt formele căutate (Keyword Planner, 2 oct 2026). */
+export const ANTET_FOAIE_PARCURS: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Foaie de parcurs",
+  lead: "Scrie mașina, șoferul și luna: primești foaia de parcurs cu fiecare zi, traseul, scopul deplasării și kilometrii la plecare și la sosire. Descarci în Word, PDF sau Excel, fără cont.",
+};

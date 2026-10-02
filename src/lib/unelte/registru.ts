@@ -1,5 +1,6 @@
 import { cerereDinParametri } from "@/app/(marketing)/unelte/cerere-concediu-de-odihna/cerere-document";
 import { condicaDinParametri } from "@/app/(marketing)/unelte/condica-de-prezenta/model";
+import { foaieParcursDinParametri } from "@/app/(marketing)/unelte/foaie-de-parcurs/model";
 
 import type { DocumentTabelar } from "./document-tabelar";
 
@@ -10,6 +11,7 @@ export type Constructor = (q: URLSearchParams) => DocumentTabelar;
  * ruta ei statică, cu Excel pe formule, iar ruta statică are prioritate.
  */
 export const UNELTE: Readonly<Record<string, Constructor>> = {
+  "foaie-de-parcurs": foaieParcursDinParametri,
   "cerere-concediu": cerereDinParametri,
   "condica-de-prezenta": condicaDinParametri,
 };
