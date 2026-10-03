@@ -11,10 +11,10 @@ tabele: [puncte_lucru, attendance_entries]
 permisiuni: [departments:read, departments:create, departments:update]
 capcane: [17]
 citeste_daca:
-  - "cod de pontaj care nu mai merge după tipărire → secțiunea „rotește”"
+  - "cod de pontaj care nu mai merge după tipărire, sau eticheta butonului → secțiunea „Rotește” în cod"
   - "poartă de citire scrisă doar pe „none” → secțiunea „Rute”"
-scris_pe: 4b9c19e23397e5866d68e84547242fa8338cc186
-scris_la: 2026-09-11
+scris_pe: 592cbf5b63e99ecbd46a87285dc6b2968523809e
+scris_la: 2026-10-03
 tags: [modul]
 ---
 
@@ -54,7 +54,10 @@ nu ordinea deciziilor — respingerea lui `requireFeature` se propagă la fel ca
 
 ## Server Actions
 
-`src/app/(app)/puncte-lucru/actions.ts` — toate pe `minScope: "all"`.
+`src/app/(app)/puncte-lucru/actions.ts` — toate pe `minScope: "all"`, deci un scope `team`
+e refuzat cu `INTERZIS` înainte de orice interogare. Contractul lor (poartă, payload,
+filtre, coduri de eroare) e fixat de `src/app/(app)/puncte-lucru/actions.test.ts`, pe
+clientul Supabase fals — care prinde un filtru de organizație lipsă, nu o politică greșită.
 
 | Funcție                                                                     | Permisiune           |
 | --------------------------------------------------------------------------- | -------------------- |
@@ -62,16 +65,31 @@ nu ordinea deciziilor — respingerea lui `requireFeature` se propagă la fel ca
 | `actualizeazaPunctLucru`, `dezactiveazaPunctLucru`, `reactiveazaPunctLucru` | `departments:update` |
 | `rotesteCodPontaj`                                                          | `departments:update` |
 
-## „Rotește", nu „generează"
+## „Rotește" în cod, „cod QR nou" pe buton
 
-`rotesteCodPontaj` scrie un secret nou de 24 de octeți. Numele e ales cu grijă: **codul
-vechi se anulează**, deci toate afișele deja lipite la punctul de lucru devin inutile în
-clipa apăsării. Cine apasă trebuie să știe asta înainte, nu după.
+`rotesteCodPontaj` scrie un secret nou de 24 de octeți (`base64url`, 32 de caractere).
+**Codul vechi se anulează**, deci toate afișele deja lipite la punctul de lucru devin
+inutile în clipa apăsării. Cine apasă trebuie să știe asta înainte, nu după.
+
+**Vocabularul e însă rupt în două, intenționat.** Acțiunea rămâne `rotesteCodPontaj` —
+„rotirea unui secret" e limbaj de inginer. Butonul din `actiuni-punct-lucru.tsx` **nu**
+mai spune asta: afișează `Generează un cod QR nou` când codul există deja și
+`Generează codul QR` când nu, fiindcă „rotește" nu era un avertisment pentru omul de la
+personal, era un cuvânt fără înțeles. Propoziția întreagă („afișele tipărite nu vor mai
+funcționa") călătorește în atributul `title`, pus **doar** când `areCodPontaj`. Nu
+redenumi butonul înapoi; motivul e scris lângă el. Nu există dialog de confirmare —
+`title` e singura frână, iar un dialog rămâne pasul următor firesc.
+
+„Cod QR", nu „cod de pontare", fiindcă afișul randează chiar un QR: SVG din pachetul
+`qrcode`, cu corecție `H`, peste un URL absolut construit din `NEXT_PUBLIC_APP_URL` —
+care se coace la **build**, deci un afiș tipărit după o mutare de domeniu fără rebuild
+trimite oamenii la vechea adresă.
 
 Două decizii în jurul lui:
 
 - **Codul NU intră în audit.** `allow: []` — jurnalul de audit e citibil de oricine are
-  `audit:read`, iar codul e un secret. Faptul că a fost rotit e tot ce se consemnează.
+  `audit:read`, iar codul e un secret. Faptul că a fost rotit e tot ce se consemnează;
+  `actions.test.ts` verifică asta serializând tot auditul și căutând codul în el.
 - **`.select()` după `.update()`.** Politica de UPDATE cere `departments:update = all` în
   `USING`, iar un refuz atinge zero rânduri **fără eroare**. Fără verificare, ecranul ar
   afișa un cod nou care nu s-a scris nicăieri — iar afișul tipărit după el n-ar funcționa
@@ -85,6 +103,15 @@ Două decizii în jurul lui:
   numelui.
 - **Indexul e parțial**, deci un `.upsert()` pe el cade cu 42P10 — PostgREST nu emite
   predicatul în `ON CONFLICT`. Se face citire-apoi-INSERT-sau-UPDATE.
+- **Zero rânduri la UPDATE nu înseamnă niciodată „era deja așa".** `activ` nu apare în
+  `USING`-ul politicii, deci a doua apăsare atinge din nou același rând: golul e rând
+  șters logic sau lipsa lui `departments:update = all`. Codurile diferă și sunt fixate în
+  `actions.test.ts`: `actualizeazaPunctLucru` (singura care filtrează `deleted_at is null`)
+  dă `NEGASIT`, iar `dezactiveazaPunctLucru`, `reactiveazaPunctLucru` și `rotesteCodPontaj`
+  dau `CONFLICT`, cu mesaj care cere reîncărcarea paginii. — capcana #17
+- **Codul bazei nu se înghite.** Fiecare scriere trece eroarea prin `mapPostgrestError`,
+  deci 23505 iese `CONFLICT` și 42501 iese `INTERZIS`, nu `EROARE_INTERNA` — regresia e
+  prinsă de `actions.test.ts`.
 
 ## Ce se mișcă împreună
 
