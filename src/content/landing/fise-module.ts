@@ -256,7 +256,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "payroll",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-03",
     // Search Console, 4–29 sept 2026: „program salarizare" (40 de afișări) și
     // „program salarii" (20) erau cele mai căutate interogări ale sitului, dar
     // Google le trimitea pe pagina de start, pe pozițiile 58–67. Pagina asta,
@@ -336,6 +336,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     ghiduri: [
+      { href: "/unelte/calculator-salariu", eticheta: "Calculator salariu net și brut" },
       {
         href: "/pentru-contabili",
         eticheta: "Ce primește contabilul: stat de plată, D112, fișier bancar",

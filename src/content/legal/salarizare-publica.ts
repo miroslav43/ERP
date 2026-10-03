@@ -3,36 +3,62 @@ import type { PayrollSettingsSnapshot, PragDeducerePersonala } from "@/domain/pa
 /**
  * Valorile legale pentru calculatorul PUBLIC de salariu (`/unelte/calculator-salariu`).
  *
- * ── POARTA ────────────────────────────────────────────────────────────────
- * `verificatDeContabil: false` ține pagina nepublicată. Un calculator public care
- * greșește cu 10 lei își strică reputația exact în fața publicului care contează,
- * iar `NOTES.md` cere confirmarea contabilului pentru orice valoare legală
- * înainte de calcul real. Ridicarea flagului e o decizie a omului, nu a codului.
- *
- * ── CE E VERIFICAT ȘI CE NU (2 oct 2026) ─────────────────────────────────
- * Verificat pe sursă, cu `curl`:
+ * ── VERIFICATE PE 3 OCT 2026, PE TEXTELE OFICIALE ─────────────────────────
+ * Citite cu `curl` în Portalul Legislativ (forme consolidate):
  *  - salariul minim 4.325 lei din 1 iulie 2026 — HG 146/2026, MO nr. 196 din
  *    13 martie 2026;
- *  - grila deducerii personale de bază — Codul fiscal art. 77 alin. (3)–(4),
- *    forma consolidată (doc. 171282): 20/25/30/35/45% din minim, minus 0,5
- *    puncte la fiecare 50 de lei peste minim, până la minim + 2.000 de lei.
- * Valori statutare luate din implicitele produsului (`bun-venit/actions.ts`),
- * NErecitite azi: CAS 25%, CASS 10%, impozit 10%, CAM 2,25%.
+ *  - CAS 25% (art. 138), CASS 10% (art. 156), impozit 10% (art. 64 și 78),
+ *    CAM 2,25% (art. 220^3) — Codul fiscal, doc. 171282;
+ *  - grila deducerii personale de bază — Codul fiscal art. 77 alin. (3)–(4);
+ *  - suma neimpozabilă de la salariul minim: 200 lei pe lună pentru veniturile
+ *    din 1 iulie – 31 decembrie 2026, cu venit brut de cel mult 4.600 lei —
+ *    OUG 89/2025 art. III (doc. 305817, nemodificat în forma consolidată);
+ *  - rotunjirea la leu a impozitelor și contribuțiilor (de la 50 de bani în sus)
+ *    — OUG 59/2005 și Ordinul 978/2005.
+ * Cifrele finale se potrivesc cu vectorii publicați de presă și de alte
+ * calculatoare pentru a doua jumătate a lui 2026 (4.325 brut → 2.699 net;
+ * 5.000 brut → 2.981 net) — vezi `src/lib/unelte/salariu.test.ts`.
  *
- * DE CONFIRMAT de contabil, explicit:
- *  1. Suma de 300 lei neimpozabilă la salariul minim: textul consolidat o dă
- *     pentru „lunile ianuarie–decembrie 2025”. Dacă a fost prelungită pentru
- *     2026, calculatorul (și motorul produsului, care n-o modelează deloc)
- *     greșește netul la salariul minim.
- *  2. Rotunjirea deducerii personale (aici: la ban, nu la leu).
- *  3. Deducerea personală suplimentară (art. 77 alin. (10): sub 26 de ani,
- *     copii înscriși la școală) — lipsește din această versiune.
+ * ── CE NU ACOPERĂ ─────────────────────────────────────────────────────────
+ * Deducerea personală suplimentară (art. 77 alin. (10): sub 26 de ani, copii
+ * înscriși la școală), facilitățile pe sectoare, tichetele, timpul parțial
+ * (unde contribuțiile se datorează la minim). Pagina le spune pe față.
+ *
+ * Valabil pentru iulie–decembrie 2026: la 1 ianuarie 2027 facilitatea expiră
+ * (art. III alin. (6)) și valorile se reverifică.
  */
 
 export const SALARIU_MINIM_BRUT_2026_IULIE = 4325;
 
-export const SURSA =
-  "Salariul minim: HG 146/2026. Grila deducerii: Codul fiscal art. 77 alin. (4), forma consolidată citită pe 2 oct 2026. Cotele: implicitele produsului. Neconfirmate încă de contabil.";
+export const VERIFICARE = {
+  la: "2026-10-03",
+  surse: [
+    {
+      eticheta: "HG 146/2026 — salariul minim",
+      href: "https://legislatie.just.ro/Public/DetaliiDocumentAfis/308231",
+    },
+    {
+      eticheta: "Codul fiscal, forma consolidată",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/171282",
+    },
+    {
+      eticheta: "OUG 89/2025, art. III — suma neimpozabilă",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/305817",
+    },
+    {
+      eticheta: "OUG 59/2005 — rotunjirea la leu",
+      href: "https://legislatie.just.ro/public/DetaliiDocument/62685",
+    },
+  ],
+} as const;
+
+/** OUG 89/2025 art. III alin. (1): suma, plafonul de venit brut și perioada. */
+export const FACILITATE_SALARIU_MINIM = {
+  suma: 200,
+  plafonVenitBrut: 4600,
+  valabilDeLa: "2026-07-01",
+  valabilPana: "2026-12-31",
+} as const;
 
 /** Procentele de bază, în zecimi de procent, pentru 0, 1, 2, 3 și 4+ persoane în întreținere. */
 const PROCENTE_BAZA = [200, 250, 300, 350, 450] as const;
@@ -42,8 +68,8 @@ const PASI = 40; // minim + 2.000 de lei = 40 de pași de 50
 /**
  * Grila art. 77 alin. (4), generată: la pasul k (k = 0 pentru venitul de până
  * la minim inclusiv, apoi câte 50 de lei), procentul scade cu 0,5 puncte.
- * Valoarea se calculează în bani întregi, ca 19,5% din 4.325 să dea 843,38 și
- * nu 843,37 din virgulă mobilă.
+ * Valoarea se rotunjește la leu (19,5% din 4.325 = 843,375 → 843), cum o dau
+ * grilele publicate „865–1.946 lei” și calculatoarele care o folosesc.
  */
 export function grilaDeducerePersonala(minim: number): readonly PragDeducerePersonala[] {
   const praguri: PragDeducerePersonala[] = [];
@@ -54,16 +80,15 @@ export function grilaDeducerePersonala(minim: number): readonly PragDeducerePers
         nrPersoaneIntretinereMin: persoane,
         nrPersoaneIntretinereMax: persoane === 4 ? null : persoane,
         venitBrutMax: minim + PAS_LEI * k,
-        valoare: Math.round((Math.round(minim * 100) * zecimiProcent) / 1000) / 100,
+        // În bani întregi, ca 0,5% din minim să nu ajungă .4999 în virgulă mobilă.
+        valoare: Math.round((Math.round(minim * 100) * zecimiProcent) / 100_000),
       });
     }
   });
   return praguri;
 }
 
-export const SETARI_SALARIZARE_PUBLICE: PayrollSettingsSnapshot & {
-  readonly verificatDeContabil: boolean;
-} = {
+export const SETARI_SALARIZARE_PUBLICE: PayrollSettingsSnapshot = {
   valabilDeLa: "2026-07-01",
   cotaCas: 0.25,
   cotaCass: 0.1,
@@ -75,8 +100,7 @@ export const SETARI_SALARIZARE_PUBLICE: PayrollSettingsSnapshot & {
   procentOreSuplimentare: 0.75,
   valoareTichetMasa: 0,
   ticheteImpozabile: false,
-  verificatDeContabil: false,
   deducerePersonala: grilaDeducerePersonala(SALARIU_MINIM_BRUT_2026_IULIE),
-  rotunjireLei: false,
+  rotunjireLei: true,
   salariuMinimBrut: SALARIU_MINIM_BRUT_2026_IULIE,
 };

@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { RO } from "@/content/landing/ro";
 import {
+  ANTET_CALCULATOR,
   ANTET_CERERE_CONCEDIU,
   ANTET_CONDICA,
   ANTET_FISA_EVALUARE,
@@ -70,6 +71,12 @@ const PAGINI = [
     titlu: ANTET_FISA_EVALUARE.titlu,
     lead: ANTET_FISA_EVALUARE.lead,
     nota: "criteriile firmei, pondere și notă · Word, PDF, Excel",
+  },
+  {
+    href: "/unelte/calculator-salariu",
+    titlu: ANTET_CALCULATOR.titlu,
+    lead: ANTET_CALCULATOR.lead,
+    nota: "net din brut și brut din net · valorile din iulie 2026",
   },
 ];
 

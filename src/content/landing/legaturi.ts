@@ -35,6 +35,10 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     { eticheta: "Program de evaluare a angajaților, cu istoric", href: "/module/evaluari" },
     { eticheta: "KPI-uri: indicatori și ținte pe angajat", href: "/module/kpi" },
   ],
+  "/unelte/calculator-salariu": [
+    { eticheta: "Program de salarizare: calculul salariilor", href: "/module/salarizare" },
+    { eticheta: "Diurna: cele două plafoane neimpozabile", href: "/ghid/diurna" },
+  ],
   "/unelte/foaie-de-pontaj": [
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Pontaj de pe telefon, fără instalare", href: "/pontaj-pe-telefon" },

@@ -1,4 +1,8 @@
-import { SETARI_SALARIZARE_PUBLICE } from "@/content/legal/salarizare-publica";
+import {
+  FACILITATE_SALARIU_MINIM,
+  SALARIU_MINIM_BRUT_2026_IULIE,
+  SETARI_SALARIZARE_PUBLICE,
+} from "@/content/legal/salarizare-publica";
 import { calculatePayrollEntry, type PayrollCalcInput } from "@/domain/payroll/calc";
 
 /**
@@ -6,8 +10,12 @@ import { calculatePayrollEntry, type PayrollCalcInput } from "@/domain/payroll/c
  * modulul de salarizare (`calculatePayrollEntry`). Un calculator public care ar
  * socoti altfel decât produsul ar arăta, pe aceeași cifră, două neturi diferite.
  *
- * Întrebarea e „cât iese net din brutul ăsta”: o lună întreagă lucrată, fără
- * absențe, sporuri, tichete sau rețineri.
+ * Întrebarea e „cât iese net din brutul ăsta”: o lună întreagă lucrată, cu
+ * normă întreagă, fără absențe, sporuri, tichete sau rețineri.
+ *
+ * Singurul lucru pe care motorul nu-l știe e suma neimpozabilă de la salariul
+ * minim (OUG 89/2025 art. III): 200 de lei pe lună în iulie–decembrie 2026,
+ * scoși din baza de impozit, CAS, CASS și CAM. Se aplică aici, peste motor.
  */
 
 export type RezultatSalariu = Readonly<{
@@ -16,6 +24,8 @@ export type RezultatSalariu = Readonly<{
   cass: number;
   deducerePersonala: number;
   impozit: number;
+  /** Suma scoasă din baza de impozit și contribuții (OUG 89/2025 art. III); 0 când nu se aplică. */
+  sumaNeimpozabila: number;
   net: number;
   cam: number;
   costTotal: number;
@@ -51,19 +61,36 @@ function intrare(brut: number, persoane: number, functieDeBaza: boolean): Payrol
   };
 }
 
+/**
+ * Condițiile art. III alin. (1): funcția de bază, normă întreagă (presupusă de
+ * calculator), salariul de bază egal cu minimul, venit brut de cel mult 4.600
+ * de lei. Fără sporuri, brutul calculatorului ESTE salariul de bază.
+ */
+function sumaNeimpozabila(brut: number, functieDeBaza: boolean): number {
+  return functieDeBaza &&
+    brut === SALARIU_MINIM_BRUT_2026_IULIE &&
+    brut <= FACILITATE_SALARIU_MINIM.plafonVenitBrut
+    ? FACILITATE_SALARIU_MINIM.suma
+    : 0;
+}
+
 export function dinBrut(brut: number, persoane: number, functieDeBaza: boolean): RezultatSalariu {
   const b = Math.round(margineste(brut, BRUT_MIN, BRUT_MAX) * 100) / 100;
   const p = Math.round(margineste(persoane, 0, 10));
-  const r = calculatePayrollEntry(intrare(b, p, functieDeBaza));
+  const scutit = sumaNeimpozabila(b, functieDeBaza);
+  // Motorul calculează impozitul și contribuțiile pe brutul FĂRĂ suma scutită;
+  // omul primește însă tot brutul, deci suma scutită se adaugă înapoi la net.
+  const r = calculatePayrollEntry(intrare(b - scutit, p, functieDeBaza));
   return {
-    brut: r.brut,
+    brut: b,
     cas: r.cas,
     cass: r.cass,
     deducerePersonala: r.deducerePersonala,
     impozit: r.impozit,
-    net: r.net,
+    sumaNeimpozabila: scutit,
+    net: r.net + scutit,
     cam: r.camAngajator,
-    costTotal: r.costTotalAngajator,
+    costTotal: b + r.camAngajator,
   };
 }
 
@@ -89,13 +116,17 @@ export function dinNet(net: number, persoane: number, functieDeBaza: boolean): R
     else sus = mijloc;
   }
   let ales = dinBrut(Math.ceil(sus), persoane, functieDeBaza);
+  // La salariul minim, suma neimpozabilă face netul să sară în sus, iar brutul
+  // de imediat deasupra are un net MAI MIC. Minimul se încearcă explicit.
+  const laMinim = dinBrut(SALARIU_MINIM_BRUT_2026_IULIE, persoane, functieDeBaza);
+  if (laMinim.net >= tinta && laMinim.brut < ales.brut) ales = laMinim;
   for (
     let b = Math.ceil(sus) - 1;
     b >= Math.max(BRUT_MIN, Math.ceil(sus) - RECUL_MAXIM_LEI);
     b -= 1
   ) {
     const r = dinBrut(b, persoane, functieDeBaza);
-    if (r.net >= tinta) ales = r;
+    if (r.net >= tinta && r.brut < ales.brut) ales = r;
   }
   return ales;
 }

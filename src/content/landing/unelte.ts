@@ -58,3 +58,10 @@ export const ANTET_FISA_EVALUARE: AntetPagina = {
   titlu: "Fișa de evaluare a angajaților",
   lead: "Fișa de evaluare a performanțelor profesionale, cu criteriile firmei, pondere și notă pe fiecare, plus semnăturile evaluatorului și ale angajatului. Descarci în Word, PDF sau Excel, fără cont.",
 };
+
+/** Calculatorul de salariu: cea mai mare cerere din cercetare (10.000–100.000 de căutări pe lună, Keyword Planner, 2 oct 2026). */
+export const ANTET_CALCULATOR: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Calculator salariu net și brut",
+  lead: "Scrie brutul și afli netul, sau invers — cu salariul minim de 4.325 de lei, deducerea personală, CAS, CASS, impozitul și costul total pentru angajator, la valorile din iulie 2026.",
+};

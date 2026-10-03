@@ -127,6 +127,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/unelte/fisa-evaluare",
     "Unealtă gratuită: fișa de evaluare a performanțelor profesionale, cu criteriile firmei (cel mult 15), pondere și notă pe fiecare. Plus ce spune Codul muncii: angajatorul stabilește obiectivele și criteriile (art. 40 alin. (1) lit. f)) și le comunică salariatului (art. 17 alin. (3) lit. e)). Word, PDF sau Excel.",
   ],
+  [
+    "/unelte/calculator-salariu",
+    "Unealtă gratuită: calculator de salariu net din brut și brut din net, la valorile din iulie–decembrie 2026 — salariul minim de 4.325 lei (HG 146/2026), cei 200 de lei neimpozabili la salariul minim (OUG 89/2025 art. III), deducerea personală din art. 77, CAS 25%, CASS 10%, impozit 10%, CAM 2,25%, sume rotunjite la leu. Exemple: 4.325 brut → 2.699 net; 5.000 brut → 2.981 net.",
+  ],
   ["/comparatie", "Comparațiile cu felul în care se lucrează azi."],
   [
     "/comparatie/excel",

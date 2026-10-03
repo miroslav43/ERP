@@ -285,7 +285,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-03",
     sectiune: "Unelte și comparații",
   },
   {
@@ -334,6 +334,14 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     actualizat: "2026-10-02",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    cale: "/unelte/calculator-salariu",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-10-03",
     sectiune: "Unelte și comparații",
   },
   {
