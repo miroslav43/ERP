@@ -24,13 +24,13 @@ tabele:
   ]
 permisiuni: [leave:read, leave:create, leave:update, leave:approve]
 feature: leave
-capcane: [2, 11, 17, 33]
+capcane: [2, 3, 11, 17, 33]
 citeste_daca:
   - "cerere care rămâne în aceeași stare → [[date/pontaj]]"
   - "buton de aprobare absent → [[rol/manager]]"
   - "concediu aprobat care nu apare în foaia de prezență → [[modul/pontaj]]"
-scris_pe: 074209a31c682afb49b59c9e6b9989693e9f179e
-scris_la: 2026-10-02
+scris_pe: 07a81ec335333f513aeef4d6358cf32025557e01
+scris_la: 2026-10-04
 tags: [modul, hr]
 ---
 
@@ -146,6 +146,10 @@ Cele șase scrieri de configurare și citirile lor: [[modul/concedii/setari]].
   citire, zero rânduri sub politica de SELECT nu se deosebesc de „nu există": ambele ies
   ca același `notFound`. — `verificaCaleaDocumentului` și `linkDocumentConcediu`, în
   `src/app/(app)/concedii/actions.ts`
+- **`traduEroare` ÎNTOARCE eroarea, nu o aruncă** (invers față de rudele din alte module):
+  fiecare apel se scrie `throw traduEroare(e)`. Fără `throw`, o eroare de citire a cererii
+  ieșea pe ecran ca document lipsă, prin `notFound`-ul de mai sus.
+  — `src/app/(app)/concedii/erori.ts`, capcana #3
 - **Marcajul zilelor deja ocupate e semnalizare, nu poartă.** Caseta de cerere nouă
   colorează zilele prinse de o cerere `trimisa`/`in_aprobare`/`aprobata`, dar le blochează
   doar pentru tipurile fără `intrerupe_alte_concedii` — celelalte au voie să se suprapună.

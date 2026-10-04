@@ -193,3 +193,10 @@ de oricine face un push.
 - module atinse: angajati anunturi concedii cursuri departamente evaluari flota inventar mentenanta onboarding pontaj puncte-lucru reges registru salarizare ticketing
 - straturi atinse: migrări citiri scheme domeniu
 - pagini rescrise: modul/cursuri.md modul/evaluari.md modul/mentenanta.md modul/puncte-lucru.md
+
+## 2026-10-04
+
+- commit-uri în ultimele 24h: 1
+- module atinse: —
+- straturi atinse: —
+- pagini rescrise: modul/concedii.md
