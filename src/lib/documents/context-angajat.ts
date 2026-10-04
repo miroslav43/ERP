@@ -2,7 +2,7 @@
 // Adună din bază tot ce cer cele cinci documente ale înrolării.
 //
 // ── DE CE E SCOS DIN ACȚIUNE ────────────────────────────────────────────────
-// Bucata asta a trăit în `emiteDocumenteLipsa` — 115 linii de citit angajatul,
+// Bucata asta a trăit în acțiunea de emitere a documentelor lipsă — 115 linii de citit angajatul,
 // contractul de bază activ, funcția, departamentul și fișa postului, plus
 // traducerea lor în forma cerută de `genereazaDocumenteInrolare`. Regenerarea
 // are nevoie de EXACT aceleași date. Copiată, a doua oară, ar fi însemnat că un

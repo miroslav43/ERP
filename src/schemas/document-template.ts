@@ -24,11 +24,6 @@ export const codSablonDocument = z
     message: "Tipul de document nu este cunoscut.",
   });
 
-/** Codul unui document creat de firmă — singurele care se emit „la cerere”. */
-export const codSablonPersonalizat = z
-  .string()
-  .refine(esteCodPersonalizat, { message: "Tipul de document nu este cunoscut." });
-
 const denumireSablon = z
   .string()
   .trim()
@@ -79,9 +74,19 @@ export const creeazaSablonPersonalizatSchema = z.object({
   continut_html: continutSablon,
 });
 
-export const emiteDocumentPersonalizatSchema = z.object({
+/**
+ * Emiterea din caseta „Emite documente”: orice combinație de documente ale
+ * angajării și documente ale firmei, alese prin bife.
+ */
+export const emiteDocumenteSchema = z.object({
   employeeId: z.uuid(),
-  cod: codSablonPersonalizat,
+  coduri: z
+    .array(codSablonDocument)
+    .min(1, "Alege cel puțin un document.")
+    .max(50, "Prea multe documente deodată.")
+    .refine((coduri) => new Set(coduri).size === coduri.length, {
+      message: "Un document apare de două ori.",
+    }),
 });
 
 export type CreeazaSablonPersonalizat = z.infer<typeof creeazaSablonPersonalizatSchema>;

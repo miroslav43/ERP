@@ -55,8 +55,7 @@ import {
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import {
   anuleazaDocumentEmis,
-  emiteDocumentPersonalizat,
-  emiteDocumenteLipsa,
+  emiteDocumente,
   linkDescarcareDocument,
   pregatesteIncarcareDocument,
   regenereazaDocumente,
@@ -452,64 +451,6 @@ function emis(cod: string, id: string) {
   return { cod, denumire: cod, id, numarAfisat: `${cod}-nou` };
 }
 
-describe("emiteDocumenteLipsa", () => {
-  const PERMIS = { "employees:create": "all" } as const;
-
-  it("employees:create sub `all` (team): INTERZIS", async () => {
-    const { server } = configureazaActiunea({ permisiuni: { "employees:create": "team" } });
-    const r = await emiteDocumenteLipsa({ employeeId: ID_1 });
-    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
-    expect(server.apeluri).toHaveLength(0);
-    expect(doc.aduna).not.toHaveBeenCalled();
-  });
-
-  it("emite DOAR codurile eligibile care nu au deja un document activ", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    doc.aduna.mockResolvedValue(CONTEXT);
-    server.raspunde("hr_issued_documents", "select", {
-      data: [{ id: ID_2, numar_afisat: "CIM 1", hr_document_templates: { cod: "contract_munca" } }],
-    });
-    doc.genereaza.mockResolvedValue({ documente: [emis("nda", ID_3)], avertismente: ["a"] });
-
-    const r = await emiteDocumenteLipsa({ employeeId: ID_1 });
-
-    expect(r).toEqual({
-      ok: true,
-      data: { documente: [emis("nda", ID_3)], avertismente: ["a"] },
-    });
-    expect(doc.aduna.mock.calls[0]?.[1]).toMatchObject({
-      organizationId: ORG_ID,
-      employeeId: ID_1,
-    });
-    const [active] = server.apeluriPe("hr_issued_documents");
-    expect(areFiltru(active, "eq", "employee_id", ID_1)).toBe(true);
-    expect(areFiltru(active, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(areFiltru(active, "is", "anulat_la", null)).toBe(true);
-    expect(areFiltru(active, "is", "deleted_at", null)).toBe(true);
-    // Sediu, fără fișa postului: nici fișa postului, nici actul de telemuncă.
-    expect(doc.genereaza.mock.calls[0]?.[1]).toMatchObject({
-      emisDe: USER_ID,
-      doarCodurile: ["nda", "anexa_proprietate_intelectuala"],
-    });
-    expect(caiRevalidate()).toEqual(["/angajati"]);
-  });
-
-  it("totul e deja emis: CONFLICT și generatorul nu se cheamă (fiecare emitere consumă un număr)", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    doc.aduna.mockResolvedValue(CONTEXT);
-    server.raspunde("hr_issued_documents", "select", {
-      data: ["contract_munca", "nda", "anexa_proprietate_intelectuala"].map((cod, i) => ({
-        id: `${i}`,
-        numar_afisat: cod,
-        hr_document_templates: { cod },
-      })),
-    });
-    const r = await emiteDocumenteLipsa({ employeeId: ID_1 });
-    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    expect(doc.genereaza).not.toHaveBeenCalled();
-  });
-});
-
 describe("regenereazaDocumente", () => {
   const PERMIS = { "employees:create": "all" } as const;
   const intrare = { employeeId: ID_1, coduri: ["contract_munca"], motiv: "Salariu corectat" };
@@ -620,49 +561,54 @@ describe("regenereazaDocumente", () => {
   });
 });
 
-describe("emiteDocumentPersonalizat", () => {
+describe("emiteDocumente", () => {
   const PERMIS = { "employees:create": "all" } as const;
+  const fara = { data: [] };
 
   it("employees:create sub `all`: INTERZIS — `hr_issued_insert` cere exact atât", async () => {
     const { server } = configureazaActiunea({
       permisiuni: { "employees:create": "team", "employees:update": "all" },
     });
-    const r = await emiteDocumentPersonalizat({ employeeId: ID_1, cod: "doc_cerere" });
+    const r = await emiteDocumente({ employeeId: ID_1, coduri: ["nda"] });
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
     expect(server.apeluri).toHaveLength(0);
-    expect(doc.personalizat).not.toHaveBeenCalled();
+    expect(doc.aduna).not.toHaveBeenCalled();
   });
 
-  it.each(["contract_munca", "adeverinta_venit", ""])(
-    "codul %j nu e al unui document al firmei: VALIDARE, nimic emis",
-    async (cod) => {
+  it.each([[[]], [["adeverinta_venit"]], [["nda", "nda"]]])(
+    "coduri %j: VALIDARE, nimic emis",
+    async (coduri) => {
       configureazaActiunea({ permisiuni: PERMIS });
-      const r = await emiteDocumentPersonalizat({ employeeId: ID_1, cod });
+      const r = await emiteDocumente({ employeeId: ID_1, coduri });
       expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
       expect(doc.aduna).not.toHaveBeenCalled();
-      expect(doc.personalizat).not.toHaveBeenCalled();
     },
   );
 
-  it("emite cu contextul angajatului din organizația curentă și întoarce numărul", async () => {
-    configureazaActiunea({ permisiuni: PERMIS });
+  it("documentele angajării alese pleacă într-un singur apel, cele ale firmei pe rând", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
     doc.aduna.mockResolvedValue(CONTEXT);
-    doc.personalizat.mockResolvedValue({
-      cod: "doc_cerere",
-      denumire: "Cerere",
-      id: ID_2,
-      numarAfisat: "CER 2026/000001",
-    });
+    server.raspunde("hr_issued_documents", "select", fara);
+    doc.genereaza.mockResolvedValue({ documente: [emis("nda", ID_2)], avertismente: [] });
+    doc.personalizat.mockResolvedValue(emis("doc_cerere", ID_3));
 
-    const r = await emiteDocumentPersonalizat({ employeeId: ID_1, cod: "doc_cerere" });
+    const r = await emiteDocumente({ employeeId: ID_1, coduri: ["nda", "doc_cerere"] });
 
     expect(r).toEqual({
       ok: true,
-      data: { id: ID_2, numarAfisat: "CER 2026/000001", denumire: "Cerere" },
+      data: { documente: [emis("nda", ID_2), emis("doc_cerere", ID_3)], avertismente: [] },
     });
     expect(doc.aduna.mock.calls[0]?.[1]).toMatchObject({
       organizationId: ORG_ID,
       employeeId: ID_1,
+    });
+    const [active] = server.apeluriPe("hr_issued_documents");
+    expect(areFiltru(active, "eq", "employee_id", ID_1)).toBe(true);
+    expect(areFiltru(active, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(active, "is", "anulat_la", null)).toBe(true);
+    expect(doc.genereaza.mock.calls[0]?.[1]).toMatchObject({
+      emisDe: USER_ID,
+      doarCodurile: ["nda"],
     });
     expect(doc.personalizat.mock.calls[0]?.[1]).toEqual({
       context: CONTEXT,
@@ -670,5 +616,59 @@ describe("emiteDocumentPersonalizat", () => {
       emisDe: USER_ID,
     });
     expect(caiRevalidate()).toEqual(["/angajati"]);
+  });
+
+  it("un document al angajării DEJA emis nu se emite a doua oară: avertisment, restul pleacă", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    doc.aduna.mockResolvedValue(CONTEXT);
+    server.raspunde("hr_issued_documents", "select", {
+      data: [
+        {
+          id: ID_2,
+          numar_afisat: "CIM 2026/000003",
+          hr_document_templates: { cod: "contract_munca" },
+        },
+      ],
+    });
+    doc.personalizat.mockResolvedValue(emis("doc_cerere", ID_3));
+
+    const r = await emiteDocumente({ employeeId: ID_1, coduri: ["contract_munca", "doc_cerere"] });
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(doc.genereaza).not.toHaveBeenCalled();
+    expect(r.data.avertismente[0]).toContain("CIM 2026/000003");
+    expect(r.data.avertismente[0]).toContain("Regenerează");
+  });
+
+  it("documentul care nu se aplică (fișa postului lipsă) nu ajunge la generator", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    doc.aduna.mockResolvedValue(CONTEXT); // `fisaPostului: null`, sediu
+    server.raspunde("hr_issued_documents", "select", fara);
+    const r = await emiteDocumente({
+      employeeId: ID_1,
+      coduri: ["fisa_postului", "act_aditional_telemunca"],
+    });
+    // Nimic de emis: refuzul spune de ce, cu numele documentelor.
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) return;
+    expect(r.error.message).toContain("Fișa postului");
+    expect(doc.genereaza).not.toHaveBeenCalled();
+  });
+
+  it("un document al firmei care eșuează devine avertisment; celelalte rămân emise", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    doc.aduna.mockResolvedValue(CONTEXT);
+    server.raspunde("hr_issued_documents", "select", fara);
+    doc.personalizat
+      .mockRejectedValueOnce(Object.assign(new Error("x"), { name: "Error" }))
+      .mockResolvedValueOnce(emis("doc_b", ID_3));
+
+    const r = await emiteDocumente({ employeeId: ID_1, coduri: ["doc_a", "doc_b"] });
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.documente).toEqual([emis("doc_b", ID_3)]);
+    expect(r.data.avertismente).toHaveLength(1);
   });
 });

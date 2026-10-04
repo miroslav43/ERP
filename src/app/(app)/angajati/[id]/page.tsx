@@ -53,7 +53,8 @@ import { CODURI_INROLARE } from "@/lib/documents/variabile";
 import { listeazaSabloanePersonalizate } from "@/lib/queries/sabloane-documente";
 
 import { DialogIncadrare } from "./dialog-incadrare";
-import { DialogEmiteDocument } from "./dialog-emite-document";
+import { DialogEmiteDocumente } from "./dialog-emite-documente";
+import { optiuniEmitere } from "./documente/optiuni-emitere";
 import { ComutatorSefDepartament } from "./comutator-sef-departament";
 
 import {
@@ -1192,8 +1193,22 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             {poateRegenera && contractPrincipal !== null ? (
               <DialogRegenereazaDocumente employeeId={angajat.id} documente={documenteRegenerare} />
             ) : null}
-            {poateRegenera && contractPrincipal !== null && documenteFirma.length > 0 ? (
-              <DialogEmiteDocument employeeId={angajat.id} documente={documenteFirma} />
+            {poateRegenera ? (
+              <DialogEmiteDocumente
+                employeeId={angajat.id}
+                optiuni={optiuniEmitere({
+                  codModLucru: contractPrincipal?.work_mode ?? null,
+                  areFisaPostului,
+                  activePeCod: new Map(
+                    documenteEmise.flatMap((d) =>
+                      d.anulat_la === null && typeof d.hr_document_templates?.cod === "string"
+                        ? [[d.hr_document_templates.cod, d.numar_afisat] as const]
+                        : [],
+                    ),
+                  ),
+                  documenteFirma,
+                })}
+              />
             ) : null}
             {poateEditaAngajat ? (
               <Link href="/angajati/sabloane-documente" className={buton({ varianta: "tertiar" })}>

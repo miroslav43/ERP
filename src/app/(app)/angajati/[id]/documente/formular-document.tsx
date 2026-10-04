@@ -295,7 +295,7 @@ export function ButonStergeDocument({
  *
  * Documentul emis are număr pe serie și amprentă, deci nu dispare: se
  * anulează, cu motiv, și trece în lista „anulate". Nemaifiind activ, poate fi
- * emis din nou cu „Emite documentele lipsă".
+ * emis din nou din „Emite documente".
  */
 export function ButonAnuleazaDocumentEmis({
   documentId,
@@ -314,7 +314,7 @@ export function ButonAnuleazaDocumentEmis({
     <FormularDialog
       declansator={{ eticheta: "Anulează", varianta: "distructiv" }}
       titlu={`Anulează ${titlu.toLowerCase()} ${numarAfisat}`}
-      descriere="Documentul iese din dosar și din portalul angajatului ca document valabil. Numărul rămâne consumat, iar documentul se păstrează ca anulat, și în dosar, și în registrul general. Dacă e nevoie, îl poți emite din nou cu „Emite documentele lipsă”."
+      descriere="Documentul iese din dosar și din portalul angajatului ca document valabil. Numărul rămâne consumat, iar documentul se păstrează ca anulat, și în dosar, și în registrul general. Dacă e nevoie, îl poți emite din nou din „Emite documente”."
       marime="mediu"
       actiune={trimite}
       mesajReusita="Documentul a fost anulat."

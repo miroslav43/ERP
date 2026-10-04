@@ -18,7 +18,9 @@ import {
   FormularDocument,
   ListaDescarcare,
 } from "./formular-document";
-import { ButonEmiteLipsa } from "./buton-emite-lipsa";
+import { listeazaSabloanePersonalizate } from "@/lib/queries/sabloane-documente";
+import { DialogEmiteDocumente } from "../dialog-emite-documente";
+import { optiuniEmitere } from "./optiuni-emitere";
 
 export default async function PaginaDocumenteAngajat({
   params,
@@ -69,42 +71,74 @@ export default async function PaginaDocumenteAngajat({
     );
   }
 
-  const [documente, tipuri, emise] = await Promise.all([
-    supabase
-      .from("employee_documents")
-      .select(
-        "id, titlu, numar_document, data_document, valabil_pana, confidential, fisier_nume, employee_document_types(denumire)",
-      )
-      .eq("employee_id", id)
-      .is("deleted_at", null)
-      .order("data_document", { ascending: false, nullsFirst: false }),
-    supabase
-      .from("employee_document_types")
-      .select(
-        "id, denumire, cere_valabilitate, confidential_implicit, vizibil_angajatului_implicit",
-      )
-      .or(`organization_id.eq.${tenant.organizationId},organization_id.is.null`)
-      .eq("activ", true)
-      .is("deleted_at", null)
-      .order("ordine"),
-    /*
-     * Documentele GENERATE — contractul, fișa postului, NDA, anexa de
-     * proprietate intelectuală, actul adițional de telemuncă.
-     *
-     * Stau în altă tabelă decât fișierele încărcate (`hr_issued_documents` vs
-     * `employee_documents`), au numerotare proprie pe serie și o amprentă
-     * SHA-256. Până acum nu erau vizibile NICĂIERI în aplicație: HR-ul le vedea
-     * o dată, în ecranul de confirmare al înrolării, și nu le mai găsea
-     * niciodată. Portalul angajatului le arăta; ecranul administratorului, nu.
-     */
-    supabase
-      .from("hr_issued_documents")
-      .select("id, titlu, numar_afisat, emis_la, anulat_la, motiv_anulare")
-      .eq("employee_id", id)
-      .eq("organization_id", tenant.organizationId)
-      .is("deleted_at", null)
-      .order("emis_la", { ascending: false }),
-  ]);
+  const [documente, tipuri, emise, contractBaza, areFisaPostului, documenteFirma] =
+    await Promise.all([
+      supabase
+        .from("employee_documents")
+        .select(
+          "id, titlu, numar_document, data_document, valabil_pana, confidential, fisier_nume, employee_document_types(denumire)",
+        )
+        .eq("employee_id", id)
+        .is("deleted_at", null)
+        .order("data_document", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("employee_document_types")
+        .select(
+          "id, denumire, cere_valabilitate, confidential_implicit, vizibil_angajatului_implicit",
+        )
+        .or(`organization_id.eq.${tenant.organizationId},organization_id.is.null`)
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .order("ordine"),
+      /*
+       * Documentele GENERATE — contractul, fișa postului, NDA, anexa de
+       * proprietate intelectuală, actul adițional de telemuncă.
+       *
+       * Stau în altă tabelă decât fișierele încărcate (`hr_issued_documents` vs
+       * `employee_documents`), au numerotare proprie pe serie și o amprentă
+       * SHA-256. Până acum nu erau vizibile NICĂIERI în aplicație: HR-ul le vedea
+       * o dată, în ecranul de confirmare al înrolării, și nu le mai găsea
+       * niciodată. Portalul angajatului le arăta; ecranul administratorului, nu.
+       */
+      supabase
+        .from("hr_issued_documents")
+        .select(
+          "id, titlu, numar_afisat, emis_la, anulat_la, motiv_anulare, hr_document_templates(cod)",
+        )
+        .eq("employee_id", id)
+        .eq("organization_id", tenant.organizationId)
+        .is("deleted_at", null)
+        .order("emis_la", { ascending: false }),
+      /*
+       * Cele trei citiri de mai jos hrănesc DOAR caseta „Emite documente", deci
+       * pleacă doar pentru cine o vede. Contractul de bază e ales exact ca în
+       * `adunaContextInrolare`, ca lista să spună ce va face emiterea.
+       */
+      poateInrola
+        ? supabase
+            .from("employment_contracts")
+            .select("work_mode")
+            .eq("employee_id", id)
+            .eq("organization_id", tenant.organizationId)
+            .eq("este_act_aditional", false)
+            .is("deleted_at", null)
+            .order("valabil_de_la", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }) => data)
+        : null,
+      poateInrola
+        ? supabase
+            .from("job_descriptions")
+            .select("id")
+            .eq("employee_id", id)
+            .is("deleted_at", null)
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }) => data !== null)
+        : false,
+      poateInrola ? listeazaSabloanePersonalizate(supabase, tenant.organizationId) : [],
+    ]);
 
   // Se ARUNCĂ, nu se randează un panou de eroare în pagină. Pagina e Server
   // Component, deci nu poate primi o funcție de reîncercare — vechiul cod
@@ -122,6 +156,21 @@ export default async function PaginaDocumenteAngajat({
   // greșeală ar arăta altfel două contracte. Rămân la vedere, strânse dedesubt.
   const emiseActive = emise.data.filter((document) => document.anulat_la === null);
   const emiseAnulate = emise.data.filter((document) => document.anulat_la !== null);
+
+  const optiuni = poateInrola
+    ? optiuniEmitere({
+        codModLucru: contractBaza?.work_mode ?? null,
+        areFisaPostului,
+        activePeCod: new Map(
+          emiseActive.flatMap((d) =>
+            typeof d.hr_document_templates?.cod === "string"
+              ? [[d.hr_document_templates.cod, d.numar_afisat] as const]
+              : [],
+          ),
+        ),
+        documenteFirma,
+      })
+    : [];
 
   return (
     <div className={cn(LATIMI.detaliu, "flex flex-col gap-6")}>
@@ -155,12 +204,12 @@ export default async function PaginaDocumenteAngajat({
           <h2 className="text-foreground text-sectiune font-semibold">Documente generate</h2>
           <p className="text-muted-foreground text-corp mt-1">
             {emiseActive.length === 0
-              ? "Niciun document emis încă. Butonul de mai jos generează contractul, fișa postului, acordul de confidențialitate, anexa de proprietate intelectuală și — la telemuncă — actul adițional."
+              ? "Niciun document emis încă. Din „Emite documente” alegeți ce se generează: documentele angajării și documentele proprii ale firmei."
               : "Emise de aplicație, cu număr propriu și amprentă. Se deschid în PDF."}
           </p>
           {poateInrola ? (
             <div className="mt-3">
-              <ButonEmiteLipsa employeeId={angajat.id} />
+              <DialogEmiteDocumente employeeId={angajat.id} optiuni={optiuni} />
             </div>
           ) : null}
           <ul className="divide-border mt-3 divide-y">
