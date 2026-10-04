@@ -14,6 +14,11 @@ import {
   type AntetOrganizatie,
   type PozitieAntet,
 } from "@/lib/documents/bloc-firma";
+import {
+  pregatesteSiglaDeUrcat,
+  SiglaNecitibila,
+  SIGLA_MIME_INTRARE,
+} from "@/lib/documents/sigla-redimensionare";
 import { SIGLA_MIME_ACCEPTAT, SIGLA_OCTETI_MAXIM } from "@/schemas/document-template";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import { cn } from "@/lib/ui/cn";
@@ -84,12 +89,30 @@ export function CardAntetDocumente({
     [pozitie, urlSigla],
   );
 
-  const incarcaSigla = useCallback((fisier: File) => {
+  const incarcaSigla = useCallback((ales: File) => {
     setSeIncarca(true);
     startTransition(async () => {
       try {
+        // Micșorarea vine ÎNAINTEA verificărilor: plafonul de 512 KB se aplică
+        // fișierului care pleacă, nu exportului de 4000 px ales de om.
+        let fisier: File;
+        try {
+          fisier = await pregatesteSiglaDeUrcat(ales);
+        } catch (eroare) {
+          arataToast({
+            fel: "eroare",
+            text:
+              eroare instanceof SiglaNecitibila
+                ? eroare.message
+                : "Sigla nu a putut fi pregătită. Încearcă din nou.",
+          });
+          return;
+        }
         if (fisier.size > SIGLA_OCTETI_MAXIM) {
-          arataToast({ fel: "eroare", text: "Sigla nu poate depăși 512 KB." });
+          arataToast({
+            fel: "eroare",
+            text: "Sigla depășește 512 KB și după micșorare. Încearcă o variantă mai simplă a imaginii.",
+          });
           return;
         }
         if (!(SIGLA_MIME_ACCEPTAT as readonly string[]).includes(fisier.type)) {
@@ -213,7 +236,8 @@ export function CardAntetDocumente({
           <div className="space-y-2">
             <p className="text-eticheta text-muted-foreground uppercase">Sigla firmei</p>
             <p id={idRestrictiiSigla} className="text-muted-foreground text-nota">
-              Opțională — nicio normă nu o cere. PNG sau JPEG, cel mult 512 KB.
+              Opțională — nicio normă nu o cere. PNG, JPEG, WebP sau SVG; imaginea se micșorează
+              automat la mărimea la care se tipărește.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               {/* Inputul nativ afișa „Choose file No file chosen”, în engleză și
@@ -243,7 +267,7 @@ export function CardAntetDocumente({
                 <input
                   ref={fisierRef}
                   type="file"
-                  accept={SIGLA_MIME_ACCEPTAT.join(",")}
+                  accept={SIGLA_MIME_INTRARE.join(",")}
                   disabled={inCurs || seIncarca}
                   aria-describedby={idRestrictiiSigla}
                   className="sr-only"
