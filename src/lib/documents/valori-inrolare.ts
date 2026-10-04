@@ -161,6 +161,28 @@ export function valoriActAditionalTelemunca(ctx: ContextDocumente): ReadonlyMap<
   ]);
 }
 
+/**
+ * Toate variabilele deodată — pentru documentele create de firmă.
+ *
+ * Un șablon al firmei poate folosi orice variabilă din `VARIABILE_TOATE`, deci
+ * harta trebuie să le aibă pe toate. Se compune din cele cinci hărți de mai sus,
+ * nu se scrie a treia oară: aceeași cheie (`functie`, `angajat_nume`) dă aceeași
+ * valoare în toate, iar un câmp nou intră aici automat.
+ */
+export function valoriToate(
+  ctx: ContextDocumente,
+  fisa: Parameters<typeof valoriFisaPostului>[1],
+  durataConfidentialitate: string,
+): ReadonlyMap<string, string> {
+  return new Map([
+    ...valoriContractMunca(ctx),
+    ...valoriFisaPostului(ctx, fisa),
+    ...valoriNda(ctx, durataConfidentialitate),
+    ...valoriAnexaPi(ctx),
+    ...valoriActAditionalTelemunca(ctx),
+  ]);
+}
+
 /** Fișa postului. Șablon `fisa_postului`, serie FP. */
 export function valoriFisaPostului(
   ctx: ContextDocumente,

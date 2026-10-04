@@ -15,8 +15,10 @@ import {
 import { adunaContextInrolare } from "@/lib/documents/context-angajat";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
 import { coduriEligibile, genereazaDocumenteInrolare } from "@/lib/documents/inrolare";
+import { genereazaDocumentPersonalizat } from "@/lib/documents/personalizate";
 import { CODURI_INROLARE } from "@/lib/documents/variabile";
 import type { ActionContext } from "@/lib/actions/types";
+import { emiteDocumentPersonalizatSchema } from "@/schemas/document-template";
 
 import { ETICHETE_MOD_LUCRU } from "../../etichete";
 
@@ -468,5 +470,43 @@ export const regenereazaDocumente = createAction({
     }
 
     return { documente: rezultat.documente, anulate, avertismente };
+  },
+});
+
+/**
+ * Emite un document creat de firmă (`doc_…`) pentru un angajat.
+ *
+ * ── DE CE FĂRĂ „LIPSĂ" ȘI FĂRĂ ANULARE ─────────────────────────────────────
+ * Documentele înrolării sunt unul de fiecare fel per angajat, deci emiterea
+ * lor verifică ce lipsește, iar regenerarea anulează predecesorul. Un document
+ * al firmei — o cerere, o notificare — se poate emite de câte ori e nevoie:
+ * fiecare emitere e un act nou, cu numărul ei din serie și rândul ei în
+ * registrul general. Unul emis din greșeală se anulează din dosar.
+ *
+ * ── PERMISIUNEA ────────────────────────────────────────────────────────────
+ * `employees:create = all`, ca emiterea documentelor de înrolare:
+ * `hr_issued_insert` (0005_hr_rls.sql) cere exact atât.
+ */
+export const emiteDocumentPersonalizat = createAction({
+  name: "angajati.documente.emite_personalizat",
+  permission: "employees:create",
+  minScope: "all",
+  audit: { entityType: "hr_issued_documents", action: "create", allow: ["employeeId", "cod"] },
+  input: emiteDocumentPersonalizatSchema,
+  revalidate: ["/angajati"],
+  handler: async (ctx: ActionContext, input) => {
+    const context = await adunaContextInrolare(ctx.supabase, {
+      organizationId: ctx.tenant.organizationId,
+      employeeId: input.employeeId,
+      etichetaModLucru: ETICHETE_MOD_LUCRU,
+    });
+
+    const emis = await genereazaDocumentPersonalizat(ctx.supabase, {
+      context,
+      cod: input.cod,
+      emisDe: ctx.user.id,
+    });
+
+    return { id: emis.id, numarAfisat: emis.numarAfisat, denumire: emis.denumire };
   },
 });

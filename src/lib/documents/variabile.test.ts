@@ -12,9 +12,14 @@ import {
   CODURI_INROLARE,
   DESCRIERI_VARIABILE,
   ETICHETE_SABLON,
+  codDinDenumire,
   esteCodInrolare,
+  esteCodPersonalizat,
+  SERII_REZERVATE,
   VALORI_EXEMPLU,
   VARIABILE_PER_COD,
+  VARIABILE_TOATE,
+  variabilePentruCod,
   type CodInrolare,
 } from "./variabile";
 import {
@@ -23,6 +28,7 @@ import {
   valoriContractMunca,
   valoriFisaPostului,
   valoriNda,
+  valoriToate,
   type ContextDocumente,
 } from "./valori-inrolare";
 
@@ -124,5 +130,76 @@ describe("CODURI_INROLARE / ETICHETE_SABLON / esteCodInrolare", () => {
     ["CONTRACT_MUNCA", false],
   ])("%j ⇒ %s", (cod, asteptat) => {
     expect(esteCodInrolare(cod)).toBe(asteptat);
+  });
+});
+
+describe("documentele firmei: VARIABILE_TOATE / valoriToate", () => {
+  const toate = valoriToate(ctx, { subordonare: null, atributii: [], competente: [] }, "2 ani");
+
+  it("lista e reuniunea celor cinci, sortată", () => {
+    expect(VARIABILE_TOATE).toEqual(reuniune);
+  });
+
+  it("harta completă are EXACT variabilele permise (emiterea nu cade pe niciuna)", () => {
+    expect([...toate.keys()].sort()).toEqual([...VARIABILE_TOATE]);
+  });
+
+  it("cu fișa goală, nicio valoare nu iese goală", () => {
+    for (const [cheie, valoare] of toate) {
+      expect({ cheie, gol: valoare.trim() === "" }).toEqual({ cheie, gol: false });
+    }
+  });
+
+  it("aceeași cheie dă aceeași valoare ca în harta documentului de înrolare", () => {
+    for (const cod of CODURI_INROLARE) {
+      for (const [cheie, valoare] of harti[cod]) {
+        // `durata_confidentialitate` e singura care primește argument; e același aici.
+        expect({ cod, cheie, valoare: toate.get(cheie) }).toEqual({ cod, cheie, valoare });
+      }
+    }
+  });
+});
+
+describe("esteCodPersonalizat / codDinDenumire / variabilePentruCod", () => {
+  it.each([
+    ["doc_cerere", true],
+    ["doc_cerere_2", true],
+    ["doc_", false],
+    ["doc__x", false],
+    ["contract_munca", false],
+    ["DOC_CERERE", false],
+    ["doc_" + "a".repeat(36), true],
+    ["doc_" + "a".repeat(37), false],
+  ])("%j ⇒ %s", (cod, asteptat) => {
+    expect(esteCodPersonalizat(cod)).toBe(asteptat);
+  });
+
+  it.each([
+    ["Cerere de concediu fără plată", "doc_cerere_de_concediu_fara_plata"],
+    ["  Notificare — încetare  ", "doc_notificare_incetare"],
+    ["Ștat de funcții (2026)", "doc_stat_de_functii_2026"],
+    ["!!!", "doc_document"],
+  ])("%j ⇒ %s", (denumire, asteptat) => {
+    expect(codDinDenumire(denumire)).toBe(asteptat);
+  });
+
+  it("codul dedus e mereu valid, oricât de lungă e denumirea, și lasă loc pentru sufix", () => {
+    const cod = codDinDenumire("Decizie privind ".repeat(10));
+    expect(esteCodPersonalizat(cod)).toBe(true);
+    expect(esteCodPersonalizat(`${cod}_99`)).toBe(true);
+    // `hr_templates_cod_len` din 0004: cel mult 40 de caractere.
+    expect(`${cod}_99`.length).toBeLessThanOrEqual(40);
+    // `tip_document` din registru (0120).
+    expect(`${cod}_99`).toMatch(/^[a-z][a-z0-9_]{1,63}$/);
+  });
+
+  it("documentul firmei are toate variabilele; înrolarea pe ale ei; necunoscutul, nimic", () => {
+    expect(variabilePentruCod("doc_cerere")).toBe(VARIABILE_TOATE);
+    expect(variabilePentruCod("nda")).toBe(VARIABILE_PER_COD.nda);
+    expect(variabilePentruCod("adeverinta_venit")).toBeNull();
+  });
+
+  it("seriile rezervate sunt chiar seriile documentelor livrate", () => {
+    expect([...SERII_REZERVATE].sort()).toEqual(["AAT", "ADEV", "API", "CIM", "FP", "NDA"]);
   });
 });

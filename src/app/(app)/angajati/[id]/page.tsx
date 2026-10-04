@@ -50,8 +50,10 @@ import {
 import { departamente } from "@/lib/queries/attendance";
 import { coduriEligibile } from "@/lib/documents/inrolare";
 import { CODURI_INROLARE } from "@/lib/documents/variabile";
+import { listeazaSabloanePersonalizate } from "@/lib/queries/sabloane-documente";
 
 import { DialogIncadrare } from "./dialog-incadrare";
+import { DialogEmiteDocument } from "./dialog-emite-document";
 import { ComutatorSefDepartament } from "./comutator-sef-departament";
 
 import {
@@ -220,6 +222,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     optiuniColegi,
     sefulDepartamentului,
     areFisaPostului,
+    documenteFirma,
   ] = await Promise.all([
     // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
     scope === "all" ? citesteRezumatDateSensibile(tenant.organizationId, id) : null,
@@ -338,6 +341,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           .maybeSingle()
           .then(({ data }) => data !== null)
       : false,
+    // Documentele create de firmă, pentru caseta „Emite document". Aceeași
+    // poartă ca regenerarea: emiterea cere `employees:create = all`.
+    poateRegenera ? listeazaSabloanePersonalizate(dbFisa, tenant.organizationId) : [],
   ]);
 
   // Aruncat, nu înghițit cu `?? []`: o listă goală din cauza unei erori arată
@@ -1185,6 +1191,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           <div className="flex flex-wrap items-center gap-2">
             {poateRegenera && contractPrincipal !== null ? (
               <DialogRegenereazaDocumente employeeId={angajat.id} documente={documenteRegenerare} />
+            ) : null}
+            {poateRegenera && contractPrincipal !== null && documenteFirma.length > 0 ? (
+              <DialogEmiteDocument employeeId={angajat.id} documente={documenteFirma} />
             ) : null}
             {poateEditaAngajat ? (
               <Link href="/angajati/sabloane-documente" className={buton({ varianta: "tertiar" })}>

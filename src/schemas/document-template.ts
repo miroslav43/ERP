@@ -6,38 +6,85 @@
 // scriere, iar rezultatul ei e cel care se verifică. Zod păzește doar forma.
 import { z } from "zod";
 
-import { CODURI_INROLARE } from "@/lib/documents/variabile";
+import { SERII_REZERVATE, esteCodInrolare, esteCodPersonalizat } from "@/lib/documents/variabile";
 
 /**
- * Codul șablonului.
+ * Codul șablonului: unul dintre cele cinci ale înrolării, sau un document creat
+ * de firmă (`doc_…`).
  *
- * Doar cele cinci coduri ale înrolării. Tabela mai conține trei adeverințe, dar
- * `genereazaAdeverinta` n-are niciun apelant în `src/app/`, iar variabilele lor
- * nu sunt acoperite de `VARIABILE_PER_COD` — un editor peste ele ar accepta
- * variabile pe care nimic nu le poate verifica, adică exact capcana pe care
- * validarea o închide pentru celelalte.
+ * Tabela mai conține trei adeverințe, dar `genereazaAdeverinta` n-are niciun
+ * apelant în `src/app/`, iar variabilele lor nu sunt acoperite de
+ * `VARIABILE_PER_COD` — un editor peste ele ar accepta variabile pe care nimic
+ * nu le poate verifica, adică exact capcana pe care validarea o închide pentru
+ * celelalte.
  */
-export const codSablonDocument = z.enum(CODURI_INROLARE);
+export const codSablonDocument = z
+  .string()
+  .refine((cod) => esteCodInrolare(cod) || esteCodPersonalizat(cod), {
+    message: "Tipul de document nu este cunoscut.",
+  });
+
+/** Codul unui document creat de firmă — singurele care se emit „la cerere”. */
+export const codSablonPersonalizat = z
+  .string()
+  .refine(esteCodPersonalizat, { message: "Tipul de document nu este cunoscut." });
+
+const denumireSablon = z
+  .string()
+  .trim()
+  .min(3, "Scrie denumirea documentului.")
+  .max(120, "Denumirea e prea lungă.");
+
+/**
+ * Plafon generos, dar prezent: `continut_html` e `text`, deci baza n-ar refuza
+ * nimic, iar HTML-ul lipit dintr-un editor de birou poate aduce sute de
+ * kiloocteți de marcaj care oricum se aruncă la curățare.
+ */
+const continutSablon = z
+  .string()
+  .min(1, "Documentul nu poate fi gol.")
+  .max(200_000, "Documentul e prea lung.");
 
 export const salveazaSablonDocumentSchema = z.object({
   cod: codSablonDocument,
-  denumire: z
-    .string()
-    .trim()
-    .min(3, "Scrie denumirea documentului.")
-    .max(120, "Denumirea e prea lungă."),
-  /**
-   * Plafon generos, dar prezent: `continut_html` e `text`, deci baza n-ar
-   * refuza nimic, iar HTML-ul lipit dintr-un editor de birou poate aduce sute
-   * de kiloocteți de marcaj care oricum se aruncă la curățare.
-   */
-  continut_html: z
-    .string()
-    .min(1, "Documentul nu poate fi gol.")
-    .max(200_000, "Documentul e prea lung."),
+  denumire: denumireSablon,
+  continut_html: continutSablon,
 });
 
 export const restabilesteSablonDocumentSchema = z.object({ cod: codSablonDocument });
+
+/**
+ * Seria de numerotare a unui document al firmei: „CER 2026/000001”.
+ *
+ * Doar majuscule, ca seriile livrate (CIM, FP, NDA). Seriile acelora sunt
+ * refuzate: numerotarea e pe `(organization_id, serie)`, deci o cerere pe seria
+ * CIM ar lua numere din registrul contractelor de muncă.
+ */
+export const serieSablon = z
+  .string()
+  .trim()
+  .transform((serie) => serie.toUpperCase())
+  .pipe(
+    z
+      .string()
+      .regex(/^[A-Z]{2,8}$/, "Seria are între 2 și 8 litere, fără cifre sau spații.")
+      .refine((serie) => !(SERII_REZERVATE as readonly string[]).includes(serie), {
+        message: `Seriile ${SERII_REZERVATE.join(", ")} sunt ale documentelor livrate cu aplicația. Alege alta.`,
+      }),
+  );
+
+export const creeazaSablonPersonalizatSchema = z.object({
+  denumire: denumireSablon,
+  serie: serieSablon,
+  continut_html: continutSablon,
+});
+
+export const emiteDocumentPersonalizatSchema = z.object({
+  employeeId: z.uuid(),
+  cod: codSablonPersonalizat,
+});
+
+export type CreeazaSablonPersonalizat = z.infer<typeof creeazaSablonPersonalizatSchema>;
 
 export type SalveazaSablonDocument = z.infer<typeof salveazaSablonDocumentSchema>;
 

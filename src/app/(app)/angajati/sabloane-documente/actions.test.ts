@@ -39,6 +39,7 @@ import {
 } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import {
+  creeazaSablonPersonalizat,
   pregatesteSigla,
   restabilesteSablonPlatforma,
   salveazaAntetDocumente,
@@ -211,6 +212,173 @@ describe("salveazaSablonDocument", () => {
     server.raspunde("hr_document_templates", "insert", { error: eroarePostgrest("23505") });
     const r = await salveazaSablonDocument(intrare);
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
+});
+
+describe("creeazaSablonPersonalizat", () => {
+  const PERMIS = { "employees:create": "all" } as const;
+  const intrare = {
+    denumire: "Cerere de concediu fără plată",
+    serie: "cer",
+    continut_html:
+      "<p>Subsemnatul {{angajat_nume}}, CNP {{cnp_complet}}, cu salariul {{salariu_brut}}.</p>",
+  };
+
+  it("employees:create sub `all`: INTERZIS — inserarea cere exact ce cere `hr_templates_insert`", async () => {
+    const { server } = configureazaActiunea({
+      permisiuni: { "employees:create": "team", "employees:update": "all" },
+    });
+    const r = await creeazaSablonPersonalizat(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("inserează rândul FIRMEI, cu codul dedus din denumire și seria cu majuscule", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("hr_document_templates", "select", { data: [] });
+    server.raspunde("hr_document_templates", "insert", {
+      data: { id: ID_1, cod: "doc_cerere_de_concediu_fara_plata" },
+    });
+
+    const r = await creeazaSablonPersonalizat(intrare);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1, cod: "doc_cerere_de_concediu_fara_plata" } });
+    const [cautare] = server.apeluriPe("hr_document_templates", "select");
+    expect(areFiltru(cautare, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(cautare, "is", "deleted_at", null)).toBe(true);
+    const [insert] = server.apeluriPe("hr_document_templates", "insert");
+    expect(insert?.payload).toEqual({
+      organization_id: ORG_ID,
+      cod: "doc_cerere_de_concediu_fara_plata",
+      denumire: "Cerere de concediu fără plată",
+      descriere: null,
+      continut_html: intrare.continut_html,
+      serie: "CER",
+      variabile: ["angajat_nume", "cnp_complet", "salariu_brut"],
+      activ: true,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
+    expect(caiRevalidate()).toEqual(CAI);
+  });
+
+  it("variabile din documente DIFERITE trec împreună: documentul firmei le are pe toate", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("hr_document_templates", "select", { data: [] });
+    server.raspunde("hr_document_templates", "insert", { data: { id: ID_1, cod: "doc_x" } });
+    const r = await creeazaSablonPersonalizat({
+      ...intrare,
+      continut_html: "<p>{{durata_confidentialitate}} {{atributii}} {{loc_telemunca}}</p>",
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("cod ocupat: ia primul sufix liber", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("hr_document_templates", "select", {
+      data: [
+        { cod: "doc_cerere_de_concediu_fara_plata" },
+        { cod: "doc_cerere_de_concediu_fara_plata_2" },
+      ],
+    });
+    server.raspunde("hr_document_templates", "insert", {
+      data: { id: ID_2, cod: "doc_cerere_de_concediu_fara_plata_3" },
+    });
+
+    const r = await creeazaSablonPersonalizat(intrare);
+
+    expect(r.ok).toBe(true);
+    const [insert] = server.apeluriPe("hr_document_templates", "insert");
+    expect(insert?.payload).toMatchObject({ cod: "doc_cerere_de_concediu_fara_plata_3" });
+  });
+
+  it("coliziune la inserare (23505, altă sesiune): reîncearcă pe sufixul următor", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("hr_document_templates", "select", { data: [] });
+    server.raspunde("hr_document_templates", "insert", { error: eroarePostgrest("23505") });
+    server.raspunde("hr_document_templates", "insert", {
+      data: { id: ID_2, cod: "doc_cerere_de_concediu_fara_plata_2" },
+    });
+
+    const r = await creeazaSablonPersonalizat(intrare);
+
+    expect(r.ok).toBe(true);
+    const inserari = server.apeluriPe("hr_document_templates", "insert");
+    expect(inserari.map((a) => (a.payload as { cod: string }).cod)).toEqual([
+      "doc_cerere_de_concediu_fara_plata",
+      "doc_cerere_de_concediu_fara_plata_2",
+    ]);
+  });
+
+  it("variabilă inexistentă: CONFLICT care o numește, fără nicio interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const r = await creeazaSablonPersonalizat({
+      ...intrare,
+      continut_html: "<p>{{salariu_net}}</p>",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) return;
+    expect(r.error.message).toContain("{{salariu_net}}");
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it.each(["CIM", "nda", "C1", "X", "SERIEPREALUNGA"])(
+    "seria %j: VALIDARE, fără nicio interogare",
+    async (serie) => {
+      const { server } = configureazaActiunea({ permisiuni: PERMIS });
+      const r = await creeazaSablonPersonalizat({ ...intrare, serie });
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      expect(server.apeluri).toHaveLength(0);
+    },
+  );
+
+  it("altă eroare la inserare: CONFLICT, fără reîncercare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("hr_document_templates", "select", { data: [] });
+    server.raspunde("hr_document_templates", "insert", { error: eroarePostgrest("42501") });
+    const r = await creeazaSablonPersonalizat(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("hr_document_templates", "insert")).toHaveLength(1);
+  });
+});
+
+describe("salveazaSablonDocument pe un document al firmei", () => {
+  const PERMIS = { "employees:update": "all" } as const;
+
+  it("acceptă orice variabilă și actualizează rândul firmei", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("hr_document_templates", "select", { data: { id: ID_1 } });
+    server.raspunde("hr_document_templates", "update", { data: { id: ID_1 } });
+    const r = await salveazaSablonDocument({
+      cod: "doc_cerere",
+      denumire: "Cerere",
+      continut_html: "<p>{{durata_confidentialitate}} {{salariu_brut}}</p>",
+    });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+  });
+
+  it("rândul firmei a dispărut: NEGASIT, NU se caută seed și nu se inserează nimic", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("hr_document_templates", "select", { data: null });
+    const r = await salveazaSablonDocument({
+      cod: "doc_cerere",
+      denumire: "Cerere",
+      continut_html: "<p>{{angajat_nume}}</p>",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("hr_document_templates", "select")).toHaveLength(1);
+    expect(server.apeluriPe("hr_document_templates", "insert")).toHaveLength(0);
+  });
+
+  it("un cod care nu e nici de înrolare, nici al firmei: VALIDARE", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const r = await salveazaSablonDocument({
+      cod: "adeverinta_venit",
+      denumire: "Adeverință",
+      continut_html: "<p>x</p>",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(server.apeluri).toHaveLength(0);
   });
 });
 

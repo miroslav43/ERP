@@ -169,6 +169,82 @@ export function esteCodInrolare(cod: string): cod is CodInrolare {
   return (CODURI_INROLARE as readonly string[]).includes(cod);
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// DOCUMENTELE PROPRII ALE FIRMEI — șabloane create de la zero
+// ────────────────────────────────────────────────────────────────────────────
+//
+// ── DE CE UN PREFIX, ȘI NU O COLOANĂ NOUĂ ───────────────────────────────────
+// `hr_document_templates` primea deja rânduri de firmă cu orice `cod` (indexul
+// `hr_templates_org_uniq` e pe `(organization_id, lower(cod))`), iar registrul
+// general ia `tip_document` din `cod` (0120, `^[a-z][a-z0-9_]{1,63}$`). Prefixul
+// `doc_` deosebește un document creat de firmă de un cod de platformă fără
+// migrare, și nu se poate ciocni cu niciun cod de platformă — niciunul nu
+// începe așa.
+
+/** Prefixul codului unui șablon creat de firmă. */
+export const PREFIX_COD_PERSONALIZAT = "doc_";
+
+/**
+ * Plafonul lui `hr_templates_cod_len` (0004_hr.sql) e 40. Partea după prefix ia
+ * cel mult 32, ca să rămână loc pentru sufixul de unicitate (`_2`, `_99`).
+ */
+const LUNGIME_MAXIMA_RADACINA = 32;
+
+const RE_COD_PERSONALIZAT = /^doc_[a-z0-9][a-z0-9_]{0,35}$/;
+
+/** `true` dacă `cod` e al unui șablon creat de firmă. */
+export function esteCodPersonalizat(cod: string): boolean {
+  return RE_COD_PERSONALIZAT.test(cod);
+}
+
+/**
+ * Codul unui șablon nou, din denumirea lui: „Cerere de concediu fără plată” →
+ * `doc_cerere_de_concediu_fara_plata`.
+ *
+ * Diacriticele cad (`ș` → `s`), restul caracterelor devin `_`. Unicitatea pe
+ * firmă o asigură acțiunea, cu sufix numeric — funcția e pură.
+ */
+export function codDinDenumire(denumire: string): string {
+  const radacina = denumire
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, LUNGIME_MAXIMA_RADACINA)
+    .replace(/_+$/g, "");
+  return `${PREFIX_COD_PERSONALIZAT}${radacina === "" ? "document" : radacina}`;
+}
+
+/**
+ * Seriile documentelor livrate cu aplicația. Un document al firmei nu le poate
+ * lua: numerotarea e pe `(organization_id, serie)`, deci o „Cerere” pe seria
+ * CIM ar consuma numere din registrul contractelor de muncă.
+ */
+export const SERII_REZERVATE = ["CIM", "FP", "NDA", "API", "AAT", "ADEV"] as const;
+
+/**
+ * Toate variabilele pe care le știe aplicația — reuniunea celor cinci liste.
+ *
+ * Un document al firmei nu are o listă proprie: la emitere se completează
+ * TOATE hărțile din `valori-inrolare.ts` (`valoriToate`), deci oricare dintre
+ * variabilele de mai jos are valoare. `variabile.test.ts` leagă lista de harta
+ * reală.
+ */
+export const VARIABILE_TOATE: readonly string[] = [
+  ...new Set(Object.values(VARIABILE_PER_COD).flat()),
+].sort();
+
+/**
+ * Variabilele permise pentru un cod: lista documentului de înrolare, toate
+ * pentru un document al firmei, `null` pentru un cod necunoscut.
+ */
+export function variabilePentruCod(cod: string): readonly string[] | null {
+  if (esteCodInrolare(cod)) return VARIABILE_PER_COD[cod];
+  if (esteCodPersonalizat(cod)) return VARIABILE_TOATE;
+  return null;
+}
+
 /**
  * Valori-specimen pentru previzualizarea unui șablon.
  *

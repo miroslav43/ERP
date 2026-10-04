@@ -33,11 +33,14 @@ vi.mock("@/lib/auth/permissions", async (orig) =>
 // Contextul și generatorul au propriile interogări și propria criptografie; aici
 // contează ce coduri cere acțiunea și ce face cu rezultatul. `coduriEligibile`
 // rămâne REAL: e regula care decide ce lipsește.
-const doc = vi.hoisted(() => ({ aduna: vi.fn(), genereaza: vi.fn() }));
+const doc = vi.hoisted(() => ({ aduna: vi.fn(), genereaza: vi.fn(), personalizat: vi.fn() }));
 vi.mock("@/lib/documents/context-angajat", () => ({ adunaContextInrolare: doc.aduna }));
 vi.mock("@/lib/documents/inrolare", async (orig) => ({
   ...(await orig<typeof import("@/lib/documents/inrolare")>()),
   genereazaDocumenteInrolare: doc.genereaza,
+}));
+vi.mock("@/lib/documents/personalizate", () => ({
+  genereazaDocumentPersonalizat: doc.personalizat,
 }));
 
 import {
@@ -52,6 +55,7 @@ import {
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import {
   anuleazaDocumentEmis,
+  emiteDocumentPersonalizat,
   emiteDocumenteLipsa,
   linkDescarcareDocument,
   pregatesteIncarcareDocument,
@@ -68,6 +72,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   doc.aduna.mockReset();
   doc.genereaza.mockReset();
+  doc.personalizat.mockReset();
 });
 
 type Fals = ReturnType<typeof configureazaActiunea>["server"];
@@ -612,5 +617,58 @@ describe("regenereazaDocumente", () => {
     const gol = await regenereazaDocumente({ ...intrare, coduri: [] });
     expect(necunoscut).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
     expect(gol).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+  });
+});
+
+describe("emiteDocumentPersonalizat", () => {
+  const PERMIS = { "employees:create": "all" } as const;
+
+  it("employees:create sub `all`: INTERZIS — `hr_issued_insert` cere exact atât", async () => {
+    const { server } = configureazaActiunea({
+      permisiuni: { "employees:create": "team", "employees:update": "all" },
+    });
+    const r = await emiteDocumentPersonalizat({ employeeId: ID_1, cod: "doc_cerere" });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+    expect(doc.personalizat).not.toHaveBeenCalled();
+  });
+
+  it.each(["contract_munca", "adeverinta_venit", ""])(
+    "codul %j nu e al unui document al firmei: VALIDARE, nimic emis",
+    async (cod) => {
+      configureazaActiunea({ permisiuni: PERMIS });
+      const r = await emiteDocumentPersonalizat({ employeeId: ID_1, cod });
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      expect(doc.aduna).not.toHaveBeenCalled();
+      expect(doc.personalizat).not.toHaveBeenCalled();
+    },
+  );
+
+  it("emite cu contextul angajatului din organizația curentă și întoarce numărul", async () => {
+    configureazaActiunea({ permisiuni: PERMIS });
+    doc.aduna.mockResolvedValue(CONTEXT);
+    doc.personalizat.mockResolvedValue({
+      cod: "doc_cerere",
+      denumire: "Cerere",
+      id: ID_2,
+      numarAfisat: "CER 2026/000001",
+    });
+
+    const r = await emiteDocumentPersonalizat({ employeeId: ID_1, cod: "doc_cerere" });
+
+    expect(r).toEqual({
+      ok: true,
+      data: { id: ID_2, numarAfisat: "CER 2026/000001", denumire: "Cerere" },
+    });
+    expect(doc.aduna.mock.calls[0]?.[1]).toMatchObject({
+      organizationId: ORG_ID,
+      employeeId: ID_1,
+    });
+    expect(doc.personalizat.mock.calls[0]?.[1]).toEqual({
+      context: CONTEXT,
+      cod: "doc_cerere",
+      emisDe: USER_ID,
+    });
+    expect(caiRevalidate()).toEqual(["/angajati"]);
   });
 });

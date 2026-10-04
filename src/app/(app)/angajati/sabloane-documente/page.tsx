@@ -1,7 +1,7 @@
 // src/app/(app)/angajati/sabloane-documente/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { FileText } from "lucide-react";
+import { FilePlus2, FileText } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
@@ -13,7 +13,12 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { citesteAntetDocumente, listeazaSabloaneDocumente } from "@/lib/queries/sabloane-documente";
-import { CODURI_INROLARE, ETICHETE_SABLON, esteCodInrolare } from "@/lib/documents/variabile";
+import {
+  CODURI_INROLARE,
+  ETICHETE_SABLON,
+  esteCodInrolare,
+  esteCodPersonalizat,
+} from "@/lib/documents/variabile";
 
 import { ButonRestabilesteSablon } from "./buton-restabileste";
 import { CardAntetDocumente } from "./card-antet";
@@ -58,6 +63,14 @@ export default async function PaginaSabloaneDocumente() {
   );
 
   const aleFirmei = sabloane.filter((s) => s.organization_id !== null).length;
+
+  // Documentele create de firmă: doar rânduri ale firmei, cu cod `doc_…`.
+  const proprii = toate
+    .filter((s) => s.organization_id !== null && esteCodPersonalizat(s.cod))
+    .sort((a, b) => a.denumire.localeCompare(b.denumire, "ro"));
+
+  // Crearea e o inserare: `hr_templates_insert` cere `employees:create = all`.
+  const poateCrea = can(permisiuni, "employees:create", "all");
 
   return (
     <div className={`${LATIMI.detaliu} space-y-6`}>
@@ -134,6 +147,62 @@ export default async function PaginaSabloaneDocumente() {
           platformă, pe care o puteți modifica oricând.
         </p>
       ) : null}
+
+      {/*
+       * Documentele create de firmă stau SEPARAT de cele cinci de mai sus:
+       * acelea se emit singure la înrolare, unul de fiecare fel; acestea se
+       * emit la cerere, din fișa angajatului, de câte ori e nevoie.
+       */}
+      <section aria-labelledby="titlu-documente-proprii" className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="titlu-documente-proprii" className="text-sectiune font-medium">
+              Documentele firmei
+            </h2>
+            <p className="text-muted-foreground text-nota mt-1">
+              Documente create de dumneavoastră — cereri, notificări, decizii. Se emit din fișa
+              angajatului, secțiunea Documente, cu datele lui completate automat.
+            </p>
+          </div>
+          {poateCrea ? (
+            <Link href="/angajati/sabloane-documente/nou" className={buton({ varianta: "primar" })}>
+              <FilePlus2 aria-hidden="true" className="size-4" />
+              Șablon nou
+            </Link>
+          ) : null}
+        </div>
+
+        {proprii.length === 0 ? (
+          <p className="text-muted-foreground text-nota border-border rounded-panou border border-dashed p-4">
+            Firma nu a creat încă niciun document propriu.
+          </p>
+        ) : (
+          <ul className="divide-border border-border rounded-panou divide-y border">
+            {proprii.map((sablon) => (
+              <li
+                key={sablon.cod}
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 p-4"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium">{sablon.denumire}</p>
+                  <p className="text-muted-foreground text-nota mt-1">
+                    Seria {sablon.serie} · {String(sablon.continut_html.length)} de caractere
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <ButonRestabilesteSablon cod={sablon.cod} denumire={sablon.denumire} />
+                  <Link
+                    href={`/angajati/sabloane-documente/${sablon.cod}`}
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    Editează
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

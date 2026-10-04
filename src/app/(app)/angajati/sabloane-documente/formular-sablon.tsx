@@ -10,19 +10,20 @@ import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import { arataToast } from "@/components/ui/toast";
-import type { CodInrolare } from "@/lib/documents/variabile";
-
-import { salveazaSablonDocument } from "./actions";
+import { creeazaSablonPersonalizat, salveazaSablonDocument } from "./actions";
 import { ButonPrevizualizare } from "./buton-previzualizare";
 import { EditorSablon } from "./editor-sablon";
 
 export type PropsFormularSablon = Readonly<{
   /**
-   * Deja îngustat de pagină, care face `notFound()` pentru orice altceva. Tipul
-   * ăsta e motivul pentru care `trimite` nu mai are nevoie de o gardă proprie:
-   * `cod` nu vine din `FormData`, ci din închiderea peste prop.
+   * Codul șablonului editat — deja verificat de pagină, care face `notFound()`
+   * pentru orice cod necunoscut. `cod` nu vine din `FormData`, ci din
+   * închiderea peste prop.
+   *
+   * `null` = document NOU al firmei: formularul cere și seria de numerotare,
+   * iar codul îl deduce acțiunea din denumire.
    */
-  cod: CodInrolare;
+  cod: string | null;
   denumire: string;
   continutInitial: string;
   variabile: readonly string[];
@@ -39,13 +40,21 @@ export function FormularSablon({
 }: PropsFormularSablon): React.ReactElement {
   const router = useRouter();
 
+  const esteNou = cod === null;
+
   const trimite = useCallback(
     async (fd: FormData) =>
-      salveazaSablonDocument({
-        cod,
-        denumire: String(fd.get("denumire") ?? ""),
-        continut_html: String(fd.get("continut_html") ?? ""),
-      }),
+      cod === null
+        ? creeazaSablonPersonalizat({
+            denumire: String(fd.get("denumire") ?? ""),
+            serie: String(fd.get("serie") ?? ""),
+            continut_html: String(fd.get("continut_html") ?? ""),
+          })
+        : salveazaSablonDocument({
+            cod,
+            denumire: String(fd.get("denumire") ?? ""),
+            continut_html: String(fd.get("continut_html") ?? ""),
+          }),
     [cod],
   );
 
@@ -53,7 +62,12 @@ export function FormularSablon({
     <Formular
       actiune={trimite}
       laReusita={() => {
-        arataToast({ fel: "reusita", text: "Șablonul a fost salvat." });
+        arataToast({
+          fel: "reusita",
+          text: esteNou
+            ? "Documentul a fost creat. Îl puteți emite din fișa oricărui angajat, secțiunea Documente."
+            : "Șablonul a fost salvat.",
+        });
         router.push("/angajati/sabloane-documente");
         router.refresh();
       }}
@@ -84,6 +98,27 @@ export function FormularSablon({
               <input {...atribute} defaultValue={stare.valoriTrimise["denumire"] ?? denumire} />
             )}
           </Camp>
+
+          {esteNou ? (
+            <Camp
+              nume="serie"
+              eticheta="Seria de numerotare"
+              obligatoriu
+              ajutor="Între 2 și 8 litere. Documentele se numerotează pe serie: „CER 2026/000001”. Seria nu se mai poate schimba după creare."
+              erori={stare.erori["serie"] ?? []}
+            >
+              {(atribute) => (
+                <input
+                  {...atribute}
+                  maxLength={8}
+                  autoCapitalize="characters"
+                  className={`${atribute.className} uppercase`}
+                  defaultValue={stare.valoriTrimise["serie"] ?? ""}
+                  placeholder="CER"
+                />
+              )}
+            </Camp>
+          ) : null}
 
           <div className="space-y-2">
             <p className="text-eticheta text-muted-foreground uppercase">Conținutul documentului</p>
@@ -118,7 +153,7 @@ export function FormularSablon({
               Renunță
             </Buton>
             <Buton varianta="primar" type="submit" inCurs={stare.inCurs} textInCurs="Se salvează…">
-              Salvează șablonul
+              {esteNou ? "Creează documentul" : "Salvează șablonul"}
             </Buton>
           </BaraActiuni>
         </div>

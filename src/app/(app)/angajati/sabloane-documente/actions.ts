@@ -8,10 +8,16 @@ import { createAction } from "@/lib/actions/create-action";
 import { BUCKET_BRANDING } from "@/lib/pdf/antet-organizatie";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
 import { curataHtml, variabileFolosite } from "@/lib/documents/curata-html";
-import { VARIABILE_PER_COD } from "@/lib/documents/variabile";
+import {
+  VARIABILE_TOATE,
+  codDinDenumire,
+  esteCodPersonalizat,
+  variabilePentruCod,
+} from "@/lib/documents/variabile";
 import {
   SIGLA_MIME_ACCEPTAT,
   SIGLA_OCTETI_MAXIM,
+  creeazaSablonPersonalizatSchema,
   pregatesteSiglaSchema,
   restabilesteSablonDocumentSchema,
   salveazaAntetDocumenteSchema,
@@ -24,6 +30,36 @@ import type { ActionContext } from "@/lib/actions/types";
 type SablonIdentificat = Readonly<{ id: string }>;
 
 const CAI_REVALIDARE = ["/angajati/sabloane-documente", "/angajati"] as const;
+
+/** HTML-ul curățat, sau refuz dacă n-a rămas nimic. Vezi nota din `salveazaSablonDocument`. */
+function curataSauRefuza(brut: string): string {
+  const curat = curataHtml(brut);
+  if (curat === "") {
+    throw businessRule(
+      "După curățare nu a rămas niciun text. Verifică dacă documentul are conținut, nu doar formatare.",
+    );
+  }
+  return curat;
+}
+
+/**
+ * Poarta care apără emiterea.
+ *
+ * `genereazaDocument` aruncă `businessRule` la PRIMA variabilă fără valoare
+ * (`generator.ts:84-88`). O variabilă inventată aici n-ar strica o emitere, ci
+ * pe TOATE emiterile viitoare ale acestui document, pentru toți angajații
+ * firmei — iar defectul s-ar vedea abia la următoarea emitere, ca „documentul nu
+ * a putut fi generat".
+ */
+function verificaVariabilele(curat: string, cunoscute: readonly string[]): void {
+  const necunoscute = variabileFolosite(curat).filter((v) => !cunoscute.includes(v));
+  if (necunoscute.length > 0) {
+    throw businessRule(
+      `Documentul folosește variabile care nu există: ${necunoscute.map((v) => `{{${v}}}`).join(", ")}. ` +
+        `Disponibile pentru acest document: ${cunoscute.map((v) => `{{${v}}}`).join(", ")}.`,
+    );
+  }
+}
 
 /**
  * Salvează șablonul firmei, clonându-l din cel de platformă la prima editare.
@@ -67,30 +103,8 @@ export const salveazaSablonDocument = createAction<
      * care curățarea îl aruncă nu e o variabilă, iar respingerea ei ar fi un
      * mesaj despre un text care oricum nu se salvează.
      */
-    const curat = curataHtml(input.continut_html);
-    if (curat === "") {
-      throw businessRule(
-        "După curățare nu a rămas niciun text. Verifică dacă documentul are conținut, nu doar formatare.",
-      );
-    }
-
-    /*
-     * Poarta care apără emiterea.
-     *
-     * `genereazaDocument` aruncă `businessRule` la PRIMA variabilă fără valoare
-     * (`generator.ts:84-88`). O variabilă inventată aici n-ar strica o emitere,
-     * ci pe TOATE emiterile viitoare ale acestui document, pentru toți
-     * angajații firmei — iar defectul s-ar vedea abia la următoarea înrolare,
-     * ca „documentul nu a putut fi generat".
-     */
-    const cunoscute = VARIABILE_PER_COD[input.cod];
-    const necunoscute = variabileFolosite(curat).filter((v) => !cunoscute.includes(v));
-    if (necunoscute.length > 0) {
-      throw businessRule(
-        `Documentul folosește variabile care nu există: ${necunoscute.map((v) => `{{${v}}}`).join(", ")}. ` +
-          `Disponibile pentru acest document: ${cunoscute.map((v) => `{{${v}}}`).join(", ")}.`,
-      );
-    }
+    const curat = curataSauRefuza(input.continut_html);
+    verificaVariabilele(curat, variabilePentruCod(input.cod) ?? []);
 
     const { data: alFirmei } = await ctx.supabase
       .from("hr_document_templates")
@@ -118,6 +132,13 @@ export const salveazaSablonDocument = createAction<
       // Un UPDATE respins de `USING` afectează zero rânduri, fără eroare.
       if (data === null) throw notFound("Șablonul nu mai există sau nu îți este accesibil.");
       return { id: data.id };
+    }
+
+    // Un document creat de firmă nu are seed: dacă rândul firmei lipsește, a
+    // fost șters între deschiderea editorului și salvare. Nu se recreează din
+    // senin, cu o serie pe care nimeni n-a ales-o.
+    if (esteCodPersonalizat(input.cod)) {
+      throw notFound("Șablonul nu mai există. A fost șters între timp?");
     }
 
     // Prima editare: seria și descrierea se moștenesc de la seed, ca numerotarea
@@ -151,6 +172,84 @@ export const salveazaSablonDocument = createAction<
       .single();
     if (error !== null) throw businessRule("Șablonul nu a putut fi salvat.");
     return { id: data.id };
+  },
+});
+
+/** Câte sufixe numerice se încearcă pentru un cod ocupat (`doc_cerere_2` …). */
+const INCERCARI_COD = 50;
+
+/**
+ * Creează un document NOU al firmei — unul care nu există în catalogul
+ * platformei (o cerere, o decizie internă, o notificare).
+ *
+ * ── CODUL SE DEDUCE, NU SE CERE ────────────────────────────────────────────
+ * Omul scrie o denumire; codul (`doc_cerere_de_concediu`) e cheia tehnică după
+ * care îl găsesc emiterea și registrul. Dacă e ocupat — două documente cu
+ * aceeași denumire, sau unul șters cu același nume — se adaugă un sufix. Indexul
+ * `hr_templates_org_uniq` e PARȚIAL, deci un rând șters nu ocupă codul; o
+ * coliziune la inserare (23505, altă sesiune a luat codul între citire și
+ * scriere) se reia cu următorul sufix.
+ *
+ * ── DE CE `employees:create` ───────────────────────────────────────────────
+ * E o inserare, iar `hr_templates_insert` (0005_hr_rls.sql:846) cere
+ * `employees:create = all`. Poarta acțiunii e aceeași cu a bazei: altfel un rol
+ * cu `update` dar fără `create` ar fi trecut de acțiune și ar fi lovit RLS-ul.
+ */
+export const creeazaSablonPersonalizat = createAction<
+  typeof creeazaSablonPersonalizatSchema,
+  SablonIdentificat & Readonly<{ cod: string }>
+>({
+  name: "hr_document_templates.create",
+  permission: "employees:create",
+  minScope: "all",
+  input: creeazaSablonPersonalizatSchema,
+  audit: {
+    action: "create",
+    entityType: "hr_document_templates",
+    entityId: (_input, data) => data.id,
+    allow: ["denumire", "serie"],
+  },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx: ActionContext, input) => {
+    const curat = curataSauRefuza(input.continut_html);
+    verificaVariabilele(curat, VARIABILE_TOATE);
+
+    const radacina = codDinDenumire(input.denumire);
+    const { data: ocupate, error: eroareCitire } = await ctx.supabase
+      .from("hr_document_templates")
+      .select("cod")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .like("cod", `${radacina}%`)
+      .is("deleted_at", null);
+    if (eroareCitire !== null) throw businessRule("Șablonul nu a putut fi creat.");
+    const folosite = new Set((ocupate ?? []).map((r) => r.cod));
+
+    for (let i = 1; i <= INCERCARI_COD; i += 1) {
+      const cod = i === 1 ? radacina : `${radacina}_${String(i)}`;
+      if (folosite.has(cod)) continue;
+
+      const { data, error } = await ctx.supabase
+        .from("hr_document_templates")
+        .insert({
+          organization_id: ctx.tenant.organizationId,
+          cod,
+          denumire: input.denumire,
+          descriere: null,
+          continut_html: curat,
+          serie: input.serie,
+          variabile: [...variabileFolosite(curat)],
+          activ: true,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        })
+        .select("id, cod")
+        .single();
+
+      if (error === null) return { id: data.id, cod: data.cod };
+      if (error.code !== "23505") throw businessRule("Șablonul nu a putut fi creat.");
+      folosite.add(cod);
+    }
+    throw businessRule("Există deja prea multe documente cu această denumire. Alege alta.");
   },
 });
 

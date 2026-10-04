@@ -10,7 +10,12 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { citesteSablonDocument } from "@/lib/queries/sabloane-documente";
-import { ETICHETE_SABLON, VARIABILE_PER_COD, esteCodInrolare } from "@/lib/documents/variabile";
+import {
+  ETICHETE_SABLON,
+  esteCodInrolare,
+  esteCodPersonalizat,
+  variabilePentruCod,
+} from "@/lib/documents/variabile";
 
 import { FormularSablon } from "../formular-sablon";
 
@@ -37,27 +42,38 @@ export default async function PaginaEditareSablon({
   }
 
   // Ruta e deschisă pentru orice text: fără garda asta, un `cod` inventat ar
-  // ajunge la `VARIABILE_PER_COD[cod]` și ar da o paletă goală, adică un editor
-  // în care nicio variabilă nu e permisă — un ecran fără nicio explicație.
-  if (!esteCodInrolare(cod)) notFound();
+  // da o paletă goală, adică un editor în care nicio variabilă nu e permisă —
+  // un ecran fără nicio explicație.
+  const variabile = variabilePentruCod(cod);
+  if (variabile === null) notFound();
 
   const supabase = await createServerSupabase();
   const sablon = await citesteSablonDocument(supabase, tenant.organizationId, cod);
   if (sablon === null) notFound();
 
   const esteClona = sablon.organization_id === null;
+  // Un document al firmei are denumirea pe care i-a dat-o firma; cele cinci ale
+  // înrolării au eticheta lor fixă.
+  const titlu = esteCodInrolare(cod) ? ETICHETE_SABLON[cod] : sablon.denumire;
 
   return (
     <div className={`${LATIMI.detaliu} space-y-6`}>
       <AntetPagina
-        titlu={ETICHETE_SABLON[cod]}
+        titlu={titlu}
         descriere="Modificarea se aplică documentelor emise de acum înainte. Documentele deja emise păstrează textul cu care au fost emise."
         firimituri={[
           { eticheta: "Angajați", href: "/angajati" },
           { eticheta: "Șabloane", href: "/angajati/sabloane-documente" },
-          { eticheta: ETICHETE_SABLON[cod] },
+          { eticheta: titlu },
         ]}
       />
+
+      {esteCodPersonalizat(cod) ? (
+        <Callout fel="informativ" titlu={`Seria ${sablon.serie}`}>
+          Documentul se emite din fișa angajatului, secțiunea Documente. Variabilele de mai jos se
+          completează cu datele angajatului și ale contractului lui de bază.
+        </Callout>
+      ) : null}
 
       <Callout fel="atentie" titlu="Textul nu este avizat juridic">
         Verificați cu un jurist orice modificare pe care o faceți aici înainte de a o folosi la
@@ -69,7 +85,7 @@ export default async function PaginaEditareSablon({
         cod={cod}
         denumire={sablon.denumire}
         continutInitial={sablon.continut_html}
-        variabile={VARIABILE_PER_COD[cod]}
+        variabile={variabile}
         esteClona={esteClona}
       />
     </div>
