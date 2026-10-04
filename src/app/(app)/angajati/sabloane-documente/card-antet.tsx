@@ -2,9 +2,10 @@
 "use client";
 
 import Image from "next/image";
+import { Loader2, Upload } from "lucide-react";
 import { useCallback, useId, useRef, useState, useTransition } from "react";
 
-import { Buton } from "@/components/ui/buton";
+import { buton, Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { arataToast } from "@/components/ui/toast";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/lib/documents/bloc-firma";
 import { SIGLA_MIME_ACCEPTAT, SIGLA_OCTETI_MAXIM } from "@/schemas/document-template";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
+import { cn } from "@/lib/ui/cn";
 
 import { pregatesteSigla, salveazaAntetDocumente, salveazaSigla, stergeSigla } from "./actions";
 
@@ -54,6 +56,7 @@ export function CardAntetDocumente({
   const [inCurs, startTransition] = useTransition();
   const [seIncarca, setSeIncarca] = useState(false);
   const idPozitie = useId();
+  const idRestrictiiSigla = useId();
   const fisierRef = useRef<HTMLInputElement>(null);
 
   const randuri = randuriBlocFirma({ ...antet, pozitie });
@@ -209,21 +212,47 @@ export function CardAntetDocumente({
 
           <div className="space-y-2">
             <p className="text-eticheta text-muted-foreground uppercase">Sigla firmei</p>
-            <p className="text-muted-foreground text-nota">
+            <p id={idRestrictiiSigla} className="text-muted-foreground text-nota">
               Opțională — nicio normă nu o cere. PNG sau JPEG, cel mult 512 KB.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <input
-                ref={fisierRef}
-                type="file"
-                accept={SIGLA_MIME_ACCEPTAT.join(",")}
-                disabled={inCurs || seIncarca}
-                className="text-nota"
-                onChange={(eveniment) => {
-                  const fisier = eveniment.target.files?.[0];
-                  if (fisier !== undefined) incarcaSigla(fisier);
-                }}
-              />
+              {/* Inputul nativ afișa „Choose file No file chosen”, în engleză și
+                  fără înfățișare de buton. Aceeași tehnică ca `IncarcareFisier`:
+                  eticheta poartă stilul butonului, inputul rămâne `sr-only`, deci
+                  focusabil și deschis de eticheta însăși, fără `.click()`.
+                  Componenta comună nu se potrivește aici: ea așteaptă trimiterea
+                  formularului, pe când sigla urcă imediat la alegere. */}
+              <label
+                className={cn(
+                  buton({ varianta: "secundar" }),
+                  "cursor-pointer",
+                  "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
+                  "has-[:disabled]:border-border has-[:disabled]:bg-surface has-[:disabled]:text-muted-foreground has-[:disabled]:cursor-not-allowed",
+                )}
+              >
+                {seIncarca ? (
+                  <Loader2 aria-hidden="true" className="size-4 shrink-0 animate-spin" />
+                ) : (
+                  <Upload aria-hidden="true" className="size-4 shrink-0" />
+                )}
+                {seIncarca
+                  ? "Se încarcă sigla…"
+                  : urlSigla === null
+                    ? "Alege sigla"
+                    : "Înlocuiește sigla"}
+                <input
+                  ref={fisierRef}
+                  type="file"
+                  accept={SIGLA_MIME_ACCEPTAT.join(",")}
+                  disabled={inCurs || seIncarca}
+                  aria-describedby={idRestrictiiSigla}
+                  className="sr-only"
+                  onChange={(eveniment) => {
+                    const fisier = eveniment.target.files?.[0];
+                    if (fisier !== undefined) incarcaSigla(fisier);
+                  }}
+                />
+              </label>
               {urlSigla === null ? null : (
                 <Buton
                   varianta="secundar"
