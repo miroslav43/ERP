@@ -38,6 +38,11 @@ vi.mock("@/lib/reges/genereaza-evenimente", async (orig) => ({
   genereazaEvenimenteReges: genereazaEvenimenteFals,
 }));
 
+// Documentul actului are propriile citiri (fișa, firma, șablonul); aici contează
+// că se cere cu datele corecte și că un eșec al lui nu anulează actul.
+const { actFals } = vi.hoisted(() => ({ actFals: vi.fn() }));
+vi.mock("@/lib/documents/act-aditional", () => ({ genereazaActAditionalSalariu: actFals }));
+
 import {
   asteaptaDupa,
   caiRevalidate,
@@ -62,6 +67,8 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   genereazaEvenimenteFals.mockReset();
   genereazaEvenimenteFals.mockResolvedValue({ create: 1, respinse: [] });
+  actFals.mockReset();
+  actFals.mockResolvedValue({ id: "doc", numarAfisat: "AAS 2026/000001" });
 });
 
 type Fals = ReturnType<typeof configureazaActiunea>["server"];
@@ -152,6 +159,18 @@ describe("creeazaContract", () => {
       }),
     ]);
     expect(caiRevalidate()).toEqual([`/angajati/${ID_1}`, "/reges"]);
+  });
+
+  it("act adițional: NU cere evenimentul de angajare (ar fi un al doilea AdaugareContract)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server, { actAditional: true });
+    const r = await creeazaContract({
+      ...intrare,
+      este_act_aditional: true,
+      parent_contract_id: ID_3,
+    });
+    expect(r.ok).toBe(true);
+    expect(genereazaEvenimenteFals).not.toHaveBeenCalled();
   });
 
   it("act adițional: nu schimbă starea fișei și nu seamănă soldul", async () => {
@@ -395,78 +414,286 @@ describe("inceteazaContract", () => {
 
 // ── modificaSalariulContractului ─────────────────────────────────────────────
 
-describe("modificaSalariulContractului", () => {
-  const PERMIS = { "employees:update": "all" } as const;
-  const contract = { id: ID_2, employee_id: ID_1, status: "activ", este_act_aditional: false };
+describe("modificaSalariulContractului — act adițional", () => {
+  const PERMIS = { "employees:create": "all", "employees:update": "all" } as const;
+  const contract = {
+    id: ID_2,
+    employee_id: ID_1,
+    status: "activ",
+    este_act_aditional: false,
+    numar: "42/2026",
+    data_contract: "2026-01-10",
+    salariu_baza: 5000,
+    valabil_de_la: "2026-01-15",
+    valabil_pana: null,
+    contract_duration: "nedeterminat",
+    motiv_determinat: null,
+    norma_ore_saptamana: 40,
+    norma_ore_zi: 8,
+    work_mode: "sediu",
+    special_regime: null,
+    loc_telemunca: null,
+    loc_munca: "Sediu",
+    punct_lucru_id: null,
+    department_id: ID_3,
+    functie: "Contabil",
+    cod_cor: "241103",
+    conditii_munca: "normale",
+    moneda: "RON",
+    zile_concediu_anual: 21,
+    preaviz_zile: 20,
+    nivel_incadrare: null,
+    cost_center: null,
+    reges_tip_contract: "ContractIndividualMunca",
+    reges_tip_norma: null,
+    reges_norma_timp: null,
+    reges_repartizare: null,
+  };
+  const intrare = {
+    contract_id: ID_2,
+    salariu_baza: 6000,
+    valabil_de_la: "2026-11-01",
+    data_act: "2026-10-20",
+  };
+  const ACT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
-  it("employees:update sub `all` (team): INTERZIS", async () => {
-    const { server } = configureazaActiunea({ permisiuni: { "employees:update": "team" } });
-    const r = await modificaSalariulContractului({ contract_id: ID_2, salariu_baza: 6000 });
+  function programeaza(server: Fals, acte: readonly object[] = []) {
+    server.raspunde("employment_contracts", "select", { data: contract });
+    server.raspunde("employment_contracts", "select", { data: acte });
+  }
+
+  it("fără employees:create la `all`: INTERZIS — inserarea trece prin `contracts_insert`", async () => {
+    const { server } = configureazaActiunea({
+      permisiuni: { "employees:create": "team", "employees:update": "all" },
+    });
+    const r = await modificaSalariulContractului(intrare);
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it("succes: scrie doar salariul pe contractul activ, cu `.select()` după", async () => {
+  it("creează actul ca rând NOU, copie a contractului cu salariul nou; contractul de bază nu se atinge", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("employment_contracts", "select", { data: contract });
-    server.raspunde("employment_contracts", "update", { data: { id: ID_2 } });
+    programeaza(server);
+    server.raspunde("employment_contracts", "insert", {
+      data: { id: ACT_ID, numar: "42/2026-AA1" },
+    });
+    server.raspunde("employment_contracts", "update", { data: { id: ACT_ID } });
 
-    const r = await modificaSalariulContractului({ contract_id: ID_2, salariu_baza: 6000 });
+    const r = await modificaSalariulContractului(intrare);
 
-    expect(r).toEqual({ ok: true, data: { id: ID_2, employee_id: ID_1 } });
-    const [citire] = server.apeluriPe("employment_contracts", "select");
-    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
-    const [update] = server.apeluriPe("employment_contracts", "update");
-    expect(update?.payload).toEqual({ salariu_baza: 6000, updated_by: USER_ID });
-    expect(areFiltru(update, "eq", "id", ID_2)).toBe(true);
-    expect(areFiltru(update, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(update?.selectDupaScriere).toBeDefined();
-    expect(caiRevalidate()).toEqual(["/angajati", `/angajati/${ID_1}`]);
+    expect(r).toEqual({
+      ok: true,
+      data: {
+        id: ACT_ID,
+        employee_id: ID_1,
+        numar: "42/2026-AA1",
+        document: "AAS 2026/000001",
+        avertismente: [],
+      },
+    });
+    const [insert] = server.apeluriPe("employment_contracts", "insert");
+    expect(insert?.payload).toMatchObject({
+      organization_id: ORG_ID,
+      employee_id: ID_1,
+      parent_contract_id: ID_2,
+      este_act_aditional: true,
+      numar: "42/2026-AA1",
+      data_contract: "2026-10-20",
+      valabil_de_la: "2026-11-01",
+      salariu_baza: 6000,
+      // Restul termenilor vin neschimbați de pe contract.
+      norma_ore_saptamana: 40,
+      functie: "Contabil",
+      cod_cor: "241103",
+      reges_tip_contract: "ContractIndividualMunca",
+      status: "proiect",
+      created_by: USER_ID,
+    });
+    // Un singur UPDATE: activarea ACTULUI. Contractul de bază rămâne cum a fost semnat.
+    const updateuri = server.apeluriPe("employment_contracts", "update");
+    expect(updateuri).toHaveLength(1);
+    expect(updateuri[0]?.payload).toEqual({ status: "activ", updated_by: USER_ID });
+    expect(areFiltru(updateuri[0], "eq", "id", ACT_ID)).toBe(true);
+    expect(updateuri[0]?.selectDupaScriere).toBeDefined();
+    expect(caiRevalidate()).toEqual(["/angajati", `/angajati/${ID_1}`, "/reges"]);
+  });
+
+  it("emite documentul cu salariul VECHI și cel nou, și pune `modificare_salariu` pe rândul actului", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server);
+    server.raspunde("employment_contracts", "insert", {
+      data: { id: ACT_ID, numar: "42/2026-AA1" },
+    });
+    server.raspunde("employment_contracts", "update", { data: { id: ACT_ID } });
+
+    await modificaSalariulContractului(intrare);
+
+    expect(actFals.mock.calls[0]?.[1]).toEqual({
+      organizationId: ORG_ID,
+      employeeId: ID_1,
+      actId: ACT_ID,
+      emisDe: USER_ID,
+      contractNumar: "42/2026",
+      contractData: "2026-01-10",
+      numarAct: "42/2026-AA1",
+      dataAct: "2026-10-20",
+      salariuVechi: 5000,
+      salariuNou: 6000,
+      dataAplicarii: "2026-11-01",
+    });
+    const [eveniment] = genereazaEvenimenteFals.mock.calls[0]?.[0].evenimente ?? [];
+    expect(eveniment).toMatchObject({
+      employeeId: ID_1,
+      contractId: ACT_ID,
+      tip: "modificare_salariu",
+      dataEvenimentului: "2026-11-01",
+      valabilDeLa: "2026-11-01",
+      dataContract: "2026-10-20",
+    });
+  });
+
+  it("după un act anterior: salariul vechi e al actului în vigoare, numărul e AA2", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server, [
+      {
+        id: ID_3,
+        este_act_aditional: true,
+        parent_contract_id: ID_2,
+        status: "activ",
+        valabil_de_la: "2026-06-01",
+        valabil_pana: null,
+        data_contract: "2026-05-20",
+        salariu_baza: 5500,
+        norma_ore_zi: 8,
+        norma_ore_saptamana: 40,
+      },
+    ]);
+    server.raspunde("employment_contracts", "insert", {
+      data: { id: ACT_ID, numar: "42/2026-AA2" },
+    });
+    server.raspunde("employment_contracts", "update", { data: { id: ACT_ID } });
+
+    await modificaSalariulContractului(intrare);
+
+    expect(server.apeluriPe("employment_contracts", "insert")[0]?.payload).toMatchObject({
+      numar: "42/2026-AA2",
+    });
+    expect(actFals.mock.calls[0]?.[1]).toMatchObject({ salariuVechi: 5500, salariuNou: 6000 });
+  });
+
+  it("număr ocupat (23505): ia sufixul următor", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server);
+    server.raspunde("employment_contracts", "insert", { error: eroarePostgrest("23505") });
+    server.raspunde("employment_contracts", "insert", {
+      data: { id: ACT_ID, numar: "42/2026-AA2" },
+    });
+    server.raspunde("employment_contracts", "update", { data: { id: ACT_ID } });
+
+    const r = await modificaSalariulContractului(intrare);
+
+    expect(r.ok).toBe(true);
+    expect(
+      server
+        .apeluriPe("employment_contracts", "insert")
+        .map((a) => (a.payload as { numar: string }).numar),
+    ).toEqual(["42/2026-AA1", "42/2026-AA2"]);
+  });
+
+  it("activarea respinsă de RLS (zero rânduri): CONFLICT care spune că salariul NU s-a modificat", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server);
+    server.raspunde("employment_contracts", "insert", {
+      data: { id: ACT_ID, numar: "42/2026-AA1" },
+    });
+    server.raspunde("employment_contracts", "update", { data: null });
+    const r = await modificaSalariulContractului(intrare);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) return;
+    expect(r.error.message).toContain("NU");
+    expect(actFals).not.toHaveBeenCalled();
+    expect(genereazaEvenimenteFals).not.toHaveBeenCalled();
+  });
+
+  it("documentul și REGES eșuează: actul rămâne, iar omul primește avertismente", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server);
+    server.raspunde("employment_contracts", "insert", {
+      data: { id: ACT_ID, numar: "42/2026-AA1" },
+    });
+    server.raspunde("employment_contracts", "update", { data: { id: ACT_ID } });
+    actFals.mockRejectedValue(new Error("șablon"));
+    genereazaEvenimenteFals.mockRejectedValue(new Error("reges"));
+
+    const r = await modificaSalariulContractului(intrare);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.document).toBeNull();
+    expect(r.data.avertismente).toHaveLength(2);
+    expect(r.data.avertismente[1]).toContain("REGES");
   });
 
   it("suma salarială nu intră în jurnalul de audit", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("employment_contracts", "select", { data: contract });
-    server.raspunde("employment_contracts", "update", { data: { id: ID_2 } });
-    await modificaSalariulContractului({ contract_id: ID_2, salariu_baza: 6123 });
+    programeaza(server);
+    server.raspunde("employment_contracts", "insert", {
+      data: { id: ACT_ID, numar: "42/2026-AA1" },
+    });
+    server.raspunde("employment_contracts", "update", { data: { id: ACT_ID } });
+    await modificaSalariulContractului({ ...intrare, salariu_baza: 6123 });
     await asteaptaDupa();
     const [succes] = server.audituri().filter((a) => a["p_status"] === "success");
-    expect(succes?.["p_after"]).toEqual({ contract_id: ID_2 });
+    expect(succes?.["p_after"]).toEqual({
+      contract_id: ID_2,
+      valabil_de_la: "2026-11-01",
+      data_act: "2026-10-20",
+    });
   });
 
   it.each([
     ["încetat", { status: "incetat" }],
     ["act adițional", { este_act_aditional: true }],
-  ])("contract %s: CONFLICT, salariul nu se scrie", async (_n, modificare) => {
+  ])("contract %s: CONFLICT, nimic scris", async (_n, modificare) => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("employment_contracts", "select", { data: { ...contract, ...modificare } });
-    const r = await modificaSalariulContractului({ contract_id: ID_2, salariu_baza: 6000 });
+    const r = await modificaSalariulContractului(intrare);
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    expect(server.apeluriPe("employment_contracts", "update")).toHaveLength(0);
+    expect(server.apeluriPe("employment_contracts", "insert")).toHaveLength(0);
+  });
+
+  it("aplicare înainte de începutul contractului: CONFLICT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("employment_contracts", "select", { data: contract });
+    const r = await modificaSalariulContractului({
+      ...intrare,
+      valabil_de_la: "2026-01-01",
+      data_act: "2025-12-20",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("employment_contracts", "insert")).toHaveLength(0);
+  });
+
+  it("același salariu ca cel în vigoare: VALIDARE pe câmp, nimic scris", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server);
+    const r = await modificaSalariulContractului({ ...intrare, salariu_baza: 5000 });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(server.apeluriPe("employment_contracts", "insert")).toHaveLength(0);
+  });
+
+  it("actul semnat DUPĂ data aplicării: VALIDARE, fără interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const r = await modificaSalariulContractului({ ...intrare, data_act: "2026-11-05" });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(server.apeluri).toHaveLength(0);
   });
 
   it("contract inexistent: NEGASIT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("employment_contracts", "select", { data: null });
-    const r = await modificaSalariulContractului({ contract_id: ID_2, salariu_baza: 6000 });
+    const r = await modificaSalariulContractului(intrare);
     expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
-  });
-
-  it("zero rânduri (încetat între citire și scriere): CONFLICT, nu „salvat”", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("employment_contracts", "select", { data: contract });
-    server.raspunde("employment_contracts", "update", { data: null });
-    const r = await modificaSalariulContractului({ contract_id: ID_2, salariu_baza: 6000 });
-    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
-    expect(caiRevalidate()).toEqual([]);
-  });
-
-  it("salariu negativ: VALIDARE, fără interogare", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    const r = await modificaSalariulContractului({ contract_id: ID_2, salariu_baza: -1 });
-    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
-    expect(server.apeluri).toHaveLength(0);
   });
 });
 

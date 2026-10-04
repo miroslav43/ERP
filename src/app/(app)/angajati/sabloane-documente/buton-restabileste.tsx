@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 import { arataToast } from "@/components/ui/toast";
-import { ETICHETE_SABLON, esteCodInrolare } from "@/lib/documents/variabile";
+import { ETICHETE_SABLON, esteCodPlatforma } from "@/lib/documents/variabile";
 
 import { restabilesteSablonPlatforma } from "./actions";
 
@@ -71,7 +71,7 @@ export function ButonRestabilesteSablon({
         consecinta={
           personalizat
             ? `„${denumire}” nu se va mai putea emite. Documentele DEJA emise rămân în dosarele angajaților și în registru, neschimbate.`
-            : `Textul scris de firmă pentru „${esteCodInrolare(cod) ? ETICHETE_SABLON[cod] : cod}” se retrage, iar emiterile următoare vor folosi din nou varianta livrată cu aplicația. Documentele DEJA emise nu se modifică: fiecare păstrează textul cu care a fost emis.`
+            : `Textul scris de firmă pentru „${esteCodPlatforma(cod) ? ETICHETE_SABLON[cod] : cod}” se retrage, iar emiterile următoare vor folosi din nou varianta livrată cu aplicația. Documentele DEJA emise nu se modifică: fiecare păstrează textul cu care a fost emis.`
         }
         etichetaConfirmare={personalizat ? "Șterge documentul" : "Revino la platformă"}
         distructiv

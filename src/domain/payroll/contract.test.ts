@@ -1,7 +1,7 @@
 // src/domain/payroll/contract.test.ts
 import { describe, expect, it } from "vitest";
 
-import { contractEfectiv, type ContractCandidat } from "./contract";
+import { contractEfectiv, contractInVigoareLa, type ContractCandidat } from "./contract";
 
 const PRIMA = "2026-08-01";
 const ULTIMA = "2026-08-31";
@@ -229,5 +229,53 @@ describe("contractEfectiv — izolare și determinism", () => {
     const copie = [...lista];
     contractEfectiv(lista, PRIMA, ULTIMA);
     expect(lista).toEqual(copie);
+  });
+});
+
+describe("contractInVigoareLa — salariul „de acum” pentru ecrane și documente", () => {
+  const MARIRE = act({
+    id: "aa1",
+    valabilDeLa: "2026-09-01",
+    dataContract: "2026-08-20",
+    salariuBaza: 6000,
+  });
+
+  it("după data actului: actul", () => {
+    expect(contractInVigoareLa([BAZA, MARIRE], "2026-10-05")?.id).toBe("aa1");
+  });
+
+  it("înaintea datei actului (mărire programată): tot contractul de bază", () => {
+    expect(contractInVigoareLa([BAZA, MARIRE], "2026-08-25")?.id).toBe("baza");
+  });
+
+  it("două acte: cel mai recent intrat în vigoare", () => {
+    const a2 = act({
+      id: "aa2",
+      valabilDeLa: "2026-10-01",
+      dataContract: "2026-09-20",
+      salariuBaza: 7000,
+    });
+    expect(contractInVigoareLa([BAZA, a2, MARIRE], "2026-10-05")?.salariuBaza).toBe(7000);
+  });
+
+  it("un act al ALTUI contract nu contează", () => {
+    const strain = act({
+      id: "x",
+      parentContractId: "alt",
+      valabilDeLa: "2026-09-01",
+      salariuBaza: 9999,
+    });
+    expect(contractInVigoareLa([BAZA, strain], "2026-10-05")?.id).toBe("baza");
+  });
+
+  it("angajare cu dată viitoare: contractul de bază, nu null", () => {
+    const viitor = contract({ id: "v", valabilDeLa: "2026-11-01" });
+    expect(contractInVigoareLa([viitor], "2026-10-05")?.id).toBe("v");
+  });
+
+  it("fără contract de bază activ: null", () => {
+    expect(
+      contractInVigoareLa([contract({ id: "b", status: "incetat" })], "2026-10-05"),
+    ).toBeNull();
   });
 });

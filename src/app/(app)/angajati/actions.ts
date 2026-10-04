@@ -9,7 +9,7 @@ import { creeazaInvitatie, ZILE_VALABILITATE } from "@/lib/invitatii/creeaza";
 import { alegeAdresaDeInvitatie, type FelAdresa } from "@/lib/invitatii/adresa";
 
 import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
-import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
+import { businessRule, invalidInput, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
@@ -35,6 +35,9 @@ import {
 import { ultimeleCifreCnp } from "@/domain/hr/cnp";
 import { ultimeleCifreIban } from "@/domain/hr/iban";
 import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
+import { genereazaActAditionalSalariu } from "@/lib/documents/act-aditional";
+import { contractInVigoareLa, type ContractCandidat } from "@/domain/payroll/contract";
+import type { Database } from "@/types/database";
 import {
   actualizeazaAngajatSchema,
   creeazaContractSchema,
@@ -552,30 +555,36 @@ export const creeazaContract = createAction({
     // Generarea nu aruncă: un contract creat cu succes nu trebuie anulat pentru
     // că evidența REVISAL a eșuat. Eșecul se vede în jurnal și evenimentul poate
     // fi regenerat, pentru că `genereazaEvenimenteReges` este idempotentă.
-    try {
-      await genereazaEvenimenteReges({
-        supabase: db,
-        organizationId: ctx.tenant.organizationId,
-        userId: ctx.user.id,
-        evenimente: [
-          {
-            employeeId: input.employee_id,
-            contractId: data.id,
-            tip: "angajare",
-            dataEvenimentului: input.valabil_de_la,
-            valabilDeLa: input.valabil_de_la,
-            dataContract: input.data_contract,
-            payload: { numar: input.numar, salariu_baza: input.salariu_baza },
-          },
-        ],
-      });
-    } catch (eroare) {
-      console.error("[revisal] evenimentul de angajare nu a putut fi generat", {
-        contractId: data.id,
-        requestId: ctx.requestId,
-        eroare,
-      });
-    }
+    //
+    // Doar pentru contractul de BAZĂ. Un act adițional nu e o angajare: trimis
+    // ca „angajare”, ar fi încercat un `AdaugareContract` al doilea pentru
+    // același om. Modificarea salariului își generează evenimentul propriu
+    // (`modificaSalariulContractului`).
+    if (!input.este_act_aditional)
+      try {
+        await genereazaEvenimenteReges({
+          supabase: db,
+          organizationId: ctx.tenant.organizationId,
+          userId: ctx.user.id,
+          evenimente: [
+            {
+              employeeId: input.employee_id,
+              contractId: data.id,
+              tip: "angajare",
+              dataEvenimentului: input.valabil_de_la,
+              valabilDeLa: input.valabil_de_la,
+              dataContract: input.data_contract,
+              payload: { numar: input.numar, salariu_baza: input.salariu_baza },
+            },
+          ],
+        });
+      } catch (eroare) {
+        console.error("[revisal] evenimentul de angajare nu a putut fi generat", {
+          contractId: data.id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
 
     revalidatePath(`/angajati/${input.employee_id}`);
     revalidatePath("/reges");
@@ -705,57 +714,310 @@ export const inceteazaContract = createAction({
   },
 });
 
+type ActAditionalIncheiat = Readonly<{
+  id: string;
+  employee_id: string;
+  numar: string;
+  /** Numărul documentului emis („AAS 2026/000001”), sau `null` dacă emiterea a eșuat. */
+  document: string | null;
+  avertismente: readonly string[];
+}>;
+
+/** Câte sufixe `-AA<n>` se încearcă pentru numărul unui act adițional. */
+const INCERCARI_NUMAR_ACT = 20;
+
+/** Coloanele contractului de bază pe care actul adițional le preia neschimbate. */
+type ContractDeCopiat = Readonly<{
+  id: string;
+  salariu_baza: number;
+  employee_id: string;
+  status: string;
+  este_act_aditional: boolean;
+  numar: string;
+  data_contract: string;
+  valabil_de_la: string;
+  valabil_pana: string | null;
+  contract_duration: Database["public"]["Enums"]["contract_duration"];
+  motiv_determinat: string | null;
+  norma_ore_saptamana: number;
+  norma_ore_zi: number;
+  work_mode: Database["public"]["Enums"]["work_mode"];
+  special_regime: Database["public"]["Enums"]["special_regime"] | null;
+  loc_telemunca: string | null;
+  loc_munca: string | null;
+  punct_lucru_id: string | null;
+  department_id: string | null;
+  functie: string | null;
+  cod_cor: string | null;
+  conditii_munca: Database["public"]["Enums"]["conditii_munca"];
+  moneda: string;
+  zile_concediu_anual: number;
+  preaviz_zile: number | null;
+  nivel_incadrare: string | null;
+  cost_center: string | null;
+  reges_tip_contract: string | null;
+  reges_tip_norma: string | null;
+  reges_norma_timp: string | null;
+  reges_repartizare: string | null;
+}>;
+
+/**
+ * Modifică salariul printr-un ACT ADIȚIONAL la contract.
+ *
+ * ── CE FĂCEA ÎNAINTE ───────────────────────────────────────────────────────
+ * Rescria `salariu_baza` pe contractul de bază: niciun act, nicio dată de
+ * aplicare, niciun eveniment REGES. Contractul arăta ca și cum ar fi fost
+ * semnat de la început cu salariul nou, iar suma veche dispărea.
+ *
+ * ── CE FACE ACUM ───────────────────────────────────────────────────────────
+ * 1. Creează actul ca rând NOU în `employment_contracts` — o copie a
+ *    contractului de bază cu salariul nou, `este_act_aditional = true`,
+ *    `parent_contract_id` = contractul, `valabil_de_la` = data aplicării.
+ *    Contractul de bază NU se atinge: salarizarea alege singură rândul în
+ *    vigoare în fiecare lună (`contractEfectiv`, `domain/payroll/contract.ts`),
+ *    deci o mărire programată pentru luna viitoare nu schimbă luna curentă.
+ * 2. Emite documentul actului (seria AAS), din șablonul firmei sau al platformei.
+ * 3. Pune în coada REGES evenimentul `modificare_salariu`, pe rândul actului;
+ *    la transmitere pleacă pe identificatorul contractului de bază
+ *    (`referintaContractReges`).
+ *
+ * Pașii 2 și 3 sunt best-effort, ca la crearea contractului: actul e deja
+ * încheiat, iar un document negenerat se emite din nou din dosar, cu
+ * avertisment — nu se anulează mărirea.
+ *
+ * ── PERMISIUNEA ────────────────────────────────────────────────────────────
+ * `employees:create = all`: inserarea trece prin `contracts_insert` și
+ * `hr_issued_insert`, care cer exact atât. Activarea (UPDATE) cere în plus
+ * `employees:update = all` — `org_admin` și `hr` le au pe amândouă.
+ */
 export const modificaSalariulContractului = createAction({
   name: "employees.contract.update_salary",
-  permission: "employees:update",
+  permission: "employees:create",
   minScope: "all",
   input: modificaSalariuContractSchema,
   audit: {
-    action: "update",
+    action: "create",
     entityType: "employment_contract",
-    entityId: (input) => input.contract_id,
+    entityId: (_input, data: ActAditionalIncheiat) => data.id,
     // `salariu_baza` deliberat lipsă din allow-list — la fel ca la `creeazaContract`,
     // suma salarială nu intră în jurnalul de audit în clar.
-    allow: ["contract_id"],
+    allow: ["contract_id", "valabil_de_la", "data_act"],
   },
-  handler: async (ctx, input): Promise<Readonly<{ id: string; employee_id: string }>> => {
-    const db = await createServerSupabase();
+  revalidate: (_input, data) => ["/angajati", `/angajati/${data.employee_id}`, "/reges"],
+  handler: async (ctx, input): Promise<ActAditionalIncheiat> => {
+    const db = ctx.supabase;
     const { data: contract, error: eroareCitire } = await db
       .from("employment_contracts")
-      .select("id, employee_id, status, este_act_aditional")
+      .select(
+        "id, employee_id, status, este_act_aditional, numar, data_contract, salariu_baza, valabil_de_la, valabil_pana, contract_duration, motiv_determinat, norma_ore_saptamana, norma_ore_zi, work_mode, special_regime, loc_telemunca, loc_munca, punct_lucru_id, department_id, functie, cod_cor, conditii_munca, moneda, zile_concediu_anual, preaviz_zile, nivel_incadrare, cost_center, reges_tip_contract, reges_tip_norma, reges_norma_timp, reges_repartizare",
+      )
       .eq("id", input.contract_id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
-      .maybeSingle();
+      .maybeSingle<ContractDeCopiat>();
     if (eroareCitire !== null) throw eroareCitire;
     if (contract === null) throw notFound("Contractul selectat nu a fost găsit.");
     if (contract.status !== "activ" || contract.este_act_aditional) {
       throw businessRule("Salariul se modifică doar pe contractul principal activ.");
     }
+    if (input.valabil_de_la < contract.valabil_de_la) {
+      throw businessRule("Salariul nou nu se poate aplica înainte de începutul contractului.");
+    }
+    if (contract.valabil_pana !== null && input.valabil_de_la > contract.valabil_pana) {
+      throw businessRule("Salariul nou nu se poate aplica după încheierea contractului.");
+    }
 
-    // Zero rânduri afectate = clauza USING a politicii `contracts_update` a
-    // respins tranziția, fără nicio eroare (capcana 17) — între citirea de mai
-    // sus și scrierea asta, contractul poate fi încetat sau șters logic de
-    // altcineva. Aici tăcerea e cea mai scumpă din modul: contractul e document
-    // cu efect legal, iar un salariu raportat ca modificat și nescris intră în
-    // statul de plată și în REVISAL cu suma veche, fără ca cineva să afle.
-    const { data: contractModificat, error } = await db
+    // Lanțul contractului: baza + actele ei. Din el ies salariul VECHI (cel în
+    // vigoare în ziua de dinaintea aplicării) și numărul următorului act.
+    const { data: acte, error: eroareActe } = await db
       .from("employment_contracts")
-      .update({ salariu_baza: input.salariu_baza, updated_by: ctx.user.id })
-      .eq("id", contract.id)
+      .select(
+        "id, este_act_aditional, parent_contract_id, status, valabil_de_la, valabil_pana, data_contract, salariu_baza, norma_ore_zi, norma_ore_saptamana",
+      )
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("parent_contract_id", contract.id)
+      .is("deleted_at", null);
+    if (eroareActe !== null) throw eroareActe;
+
+    const lant: ContractCandidat[] = [
+      {
+        id: contract.id,
+        esteActAditional: false,
+        parentContractId: null,
+        status: contract.status,
+        valabilDeLa: contract.valabil_de_la,
+        valabilPana: contract.valabil_pana,
+        dataContract: contract.data_contract,
+        salariuBaza: Number(contract.salariu_baza),
+        normaOreZi: Number(contract.norma_ore_zi),
+        normaOreSaptamana: Number(contract.norma_ore_saptamana),
+      },
+      ...acte.map((a) => ({
+        id: a.id,
+        esteActAditional: a.este_act_aditional,
+        parentContractId: a.parent_contract_id,
+        status: a.status,
+        valabilDeLa: a.valabil_de_la,
+        valabilPana: a.valabil_pana,
+        dataContract: a.data_contract,
+        salariuBaza: Number(a.salariu_baza),
+        normaOreZi: Number(a.norma_ore_zi),
+        normaOreSaptamana: Number(a.norma_ore_saptamana),
+      })),
+    ];
+    const salariuVechi =
+      contractInVigoareLa(lant, input.valabil_de_la)?.salariuBaza ?? lant[0]?.salariuBaza ?? 0;
+    if (salariuVechi === input.salariu_baza) {
+      throw invalidInput("Salariul nou e același cu cel în vigoare la data aleasă.", {
+        salariu_baza: ["Salariul nou e același cu cel în vigoare la data aleasă."],
+      });
+    }
+
+    // ── 1. Actul adițional ──
+    // Numărul e unic în firmă (`contracts_org_numar_uniq`), ca al oricărui
+    // contract: „42/2026-AA1”, „42/2026-AA2”. Coliziunea (23505) — un act
+    // șters cu același număr nu contează, indexul e parțial — ia sufixul următor.
+    const randul = {
+      organization_id: ctx.tenant.organizationId,
+      employee_id: contract.employee_id,
+      parent_contract_id: contract.id,
+      este_act_aditional: true,
+      data_contract: input.data_act,
+      valabil_de_la: input.valabil_de_la,
+      valabil_pana: contract.valabil_pana,
+      contract_duration: contract.contract_duration,
+      motiv_determinat: contract.motiv_determinat,
+      norma_ore_saptamana: contract.norma_ore_saptamana,
+      norma_ore_zi: contract.norma_ore_zi,
+      work_mode: contract.work_mode,
+      special_regime: contract.special_regime,
+      loc_telemunca: contract.loc_telemunca,
+      loc_munca: contract.loc_munca,
+      punct_lucru_id: contract.punct_lucru_id,
+      department_id: contract.department_id,
+      functie: contract.functie,
+      cod_cor: contract.cod_cor,
+      conditii_munca: contract.conditii_munca,
+      salariu_baza: input.salariu_baza,
+      moneda: contract.moneda,
+      zile_concediu_anual: contract.zile_concediu_anual,
+      preaviz_zile: contract.preaviz_zile,
+      nivel_incadrare: contract.nivel_incadrare,
+      cost_center: contract.cost_center,
+      reges_tip_contract: contract.reges_tip_contract,
+      reges_tip_norma: contract.reges_tip_norma,
+      reges_norma_timp: contract.reges_norma_timp,
+      reges_repartizare: contract.reges_repartizare,
+      // RLS (`contracts_insert`) forțează `proiect`; activarea e pasul următor.
+      status: "proiect" as const,
+      cod_revisal: null,
+      incetat_la: null,
+      motiv_incetare: null,
+      created_by: ctx.user.id,
+      updated_by: ctx.user.id,
+    };
+
+    let act: Readonly<{ id: string; numar: string }> | null = null;
+    for (let n = acte.length + 1; n <= acte.length + INCERCARI_NUMAR_ACT; n += 1) {
+      const numar = `${contract.numar}-AA${String(n)}`.slice(0, 40);
+      const { data, error } = await db
+        .from("employment_contracts")
+        .insert({ ...randul, numar })
+        .select("id, numar")
+        .single();
+      if (error === null) {
+        act = data;
+        break;
+      }
+      if (error.code !== "23505") throw error;
+    }
+    if (act === null) {
+      throw businessRule("Nu s-a putut aloca un număr pentru actul adițional. Încearcă din nou.");
+    }
+
+    const { data: activat, error: eroareActivare } = await db
+      .from("employment_contracts")
+      .update({ status: "activ", updated_by: ctx.user.id })
+      .eq("id", act.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .select("id")
       .maybeSingle();
-    if (error !== null) throw error;
-    if (contractModificat === null) {
+    if (eroareActivare !== null) throw eroareActivare;
+    // Zero rânduri = `contracts_update` a respins activarea, fără eroare
+    // (capcana 17). Un act rămas „proiect” nu intră în salarizare: salariul
+    // NU s-a modificat, iar omul trebuie să afle.
+    if (activat === null) {
       throw businessRule(
-        "Salariul NU a fost modificat: contractul a fost încetat sau modificat de altcineva între timp, ori nu aveți dreptul asupra lui. Reîncărcați fișa angajatului și verificați suma aflată acum în contract.",
+        "Actul adițional a fost înregistrat, dar nu a putut fi activat, deci salariul NU se modifică. Verificați dreptul de modificare a angajaților.",
       );
     }
 
-    revalidatePath("/angajati");
-    revalidatePath(`/angajati/${contract.employee_id}`);
-    return { id: contract.id, employee_id: contract.employee_id };
+    const avertismente: string[] = [];
+
+    // ── 2. Documentul actului ──
+    let document: string | null = null;
+    try {
+      const emis = await genereazaActAditionalSalariu(db, {
+        organizationId: ctx.tenant.organizationId,
+        employeeId: contract.employee_id,
+        actId: act.id,
+        emisDe: ctx.user.id,
+        contractNumar: contract.numar,
+        contractData: contract.data_contract,
+        numarAct: act.numar,
+        dataAct: input.data_act,
+        salariuVechi,
+        salariuNou: input.salariu_baza,
+        dataAplicarii: input.valabil_de_la,
+      });
+      document = emis.numarAfisat;
+    } catch (eroare) {
+      avertismente.push(
+        "Actul adițional e înregistrat, dar documentul lui nu a putut fi generat. Verificați șablonul „Act adițional — modificarea salariului”.",
+      );
+      console.error("[documente] actul adițional nu a putut fi generat", {
+        actId: act.id,
+        requestId: ctx.requestId,
+        eroare,
+      });
+    }
+
+    // ── 3. REGES-Online ──
+    try {
+      await genereazaEvenimenteReges({
+        supabase: db,
+        organizationId: ctx.tenant.organizationId,
+        userId: ctx.user.id,
+        evenimente: [
+          {
+            employeeId: contract.employee_id,
+            contractId: act.id,
+            tip: "modificare_salariu",
+            dataEvenimentului: input.valabil_de_la,
+            valabilDeLa: input.valabil_de_la,
+            dataContract: input.data_act,
+            payload: { numar: act.numar, contract_baza: contract.numar },
+          },
+        ],
+      });
+    } catch (eroare) {
+      avertismente.push(
+        "Modificarea nu a putut fi pusă în coada REGES-Online. Adăugați-o manual din pagina REGES — are termen legal de transmitere.",
+      );
+      console.error("[reges] evenimentul de modificare a salariului nu a putut fi generat", {
+        actId: act.id,
+        requestId: ctx.requestId,
+        eroare,
+      });
+    }
+
+    return {
+      id: act.id,
+      employee_id: contract.employee_id,
+      numar: act.numar,
+      document,
+      avertismente,
+    };
   },
 });
 

@@ -85,6 +85,9 @@ export interface ContractAngajat {
   readonly work_mode: string;
   readonly status: string;
   readonly este_act_aditional: boolean;
+  /** Contractul de bază al unui act adițional; `null` pe contractul de bază. */
+  readonly parent_contract_id: string | null;
+  readonly norma_ore_zi: number;
   readonly incetat_la: string | null;
   readonly motiv_incetare: string | null;
 }
@@ -344,8 +347,8 @@ export async function citesteAngajat(
        observatii, manager_path, user_id,
        ${EMBED_DEPARTAMENT}, ${COLOANE_FUNCTIE},
        contracts:employment_contracts!employee_id(id, numar, data_contract, valabil_de_la, valabil_pana,
-         contract_duration, norma_ore_saptamana, salariu_baza, moneda, work_mode, status, este_act_aditional,
-         incetat_la, motiv_incetare),
+         contract_duration, norma_ore_saptamana, norma_ore_zi, salariu_baza, moneda, work_mode, status,
+         este_act_aditional, parent_contract_id, incetat_la, motiv_incetare),
        documents:employee_documents!employee_id(id, titlu, data_document, valabil_pana, confidential)`,
     )
     .eq("organization_id", organizationId)

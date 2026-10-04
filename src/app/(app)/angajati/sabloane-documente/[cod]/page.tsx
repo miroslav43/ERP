@@ -12,7 +12,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { citesteSablonDocument } from "@/lib/queries/sabloane-documente";
 import {
   ETICHETE_SABLON,
-  esteCodInrolare,
+  esteCodPlatforma,
   esteCodPersonalizat,
   variabilePentruCod,
 } from "@/lib/documents/variabile";
@@ -54,7 +54,7 @@ export default async function PaginaEditareSablon({
   const esteClona = sablon.organization_id === null;
   // Un document al firmei are denumirea pe care i-a dat-o firma; cele cinci ale
   // înrolării au eticheta lor fixă.
-  const titlu = esteCodInrolare(cod) ? ETICHETE_SABLON[cod] : sablon.denumire;
+  const titlu = esteCodPlatforma(cod) ? ETICHETE_SABLON[cod] : sablon.denumire;
 
   return (
     <div className={`${LATIMI.detaliu} space-y-6`}>

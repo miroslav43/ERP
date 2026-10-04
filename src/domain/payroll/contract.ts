@@ -119,3 +119,26 @@ export function contractEfectiv(
     schimbatInLuna: laInceput !== null && laInceput.id !== laSfarsit.id,
   };
 }
+
+/**
+ * Rândul în vigoare la o zi anume — contractul de bază sau ultimul act
+ * adițional aplicabil din lanțul lui.
+ *
+ * Pentru ecranele și documentele care afișează „salariul de acum": după un act
+ * adițional, contractul de bază rămâne neschimbat (e actul semnat inițial), iar
+ * termenii noi stau pe rândul actului. Cine citește doar contractul de bază
+ * arată salariul de la angajare.
+ *
+ * Înainte de începutul contractului (o angajare cu dată viitoare) întoarce tot
+ * contractul de bază: e singurul rând care descrie ce urmează.
+ */
+export function contractInVigoareLa(
+  contracte: readonly ContractCandidat[],
+  zi: ZiIso,
+): ContractCandidat | null {
+  const active = contracte.filter(esteActiv);
+  const baza = active.find((c) => !c.esteActAditional);
+  if (baza === undefined) return null;
+  const lant = active.filter((c) => !c.esteActAditional || c.parentContractId === baza.id);
+  return alegeLa(lant, zi) ?? baza;
+}

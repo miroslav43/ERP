@@ -6,7 +6,7 @@
 // scriere, iar rezultatul ei e cel care se verifică. Zod păzește doar forma.
 import { z } from "zod";
 
-import { SERII_REZERVATE, esteCodInrolare, esteCodPersonalizat } from "@/lib/documents/variabile";
+import { SERII_REZERVATE, esteCodPersonalizat, esteCodPlatforma } from "@/lib/documents/variabile";
 
 /**
  * Codul șablonului: unul dintre cele cinci ale înrolării, sau un document creat
@@ -20,7 +20,7 @@ import { SERII_REZERVATE, esteCodInrolare, esteCodPersonalizat } from "@/lib/doc
  */
 export const codSablonDocument = z
   .string()
-  .refine((cod) => esteCodInrolare(cod) || esteCodPersonalizat(cod), {
+  .refine((cod) => esteCodPlatforma(cod) || esteCodPersonalizat(cod), {
     message: "Tipul de document nu este cunoscut.",
   });
 

@@ -38,6 +38,7 @@ import type { AdminSupabase } from "@/lib/supabase/admin";
 import { cheamaReges, type Mediu } from "./client";
 import {
   compuneContract,
+  referintaContractReges,
   compuneIncetare,
   compuneReactivare,
   compuneSuspendare,
@@ -174,7 +175,7 @@ async function trimiteUnul(
     .from("employment_contracts")
     // prettier-ignore
     .select(
-      "numar, data_contract, valabil_de_la, valabil_pana, contract_duration, norma_ore_saptamana, norma_ore_zi, salariu_baza, moneda, work_mode, special_regime, reges_contract_id, reges_tip_contract, reges_tip_norma, reges_norma_timp, reges_repartizare, temei_incetare, reges_temei_incetare, incetat_la, functie, cod_cor",
+      "numar, data_contract, valabil_de_la, valabil_pana, contract_duration, norma_ore_saptamana, norma_ore_zi, salariu_baza, moneda, work_mode, special_regime, reges_contract_id, reges_tip_contract, reges_tip_norma, reges_norma_timp, reges_repartizare, temei_incetare, reges_temei_incetare, incetat_la, functie, cod_cor, este_act_aditional, parent_contract_id",
     )
     .eq("id", mesaj.contract_id)
     .eq("organization_id", mesaj.organization_id)
@@ -187,7 +188,20 @@ async function trimiteUnul(
 
   const ctx = { messageId: mesaj.message_id, ...contextAntet };
   // `cod_cor` e deja pe rând: nu se mai împrumută din nomenclator prin embed.
-  const rand = contract;
+  // Un act adițional n-are identificator REGES propriu: se transmite pe cel al
+  // contractului de bază (`referintaContractReges`), cu termenii de pe rândul
+  // actului — salariul nou, data de la care se aplică.
+  const rand =
+    contract.reges_contract_id === null
+      ? {
+          ...contract,
+          reges_contract_id: await referintaContractReges(
+            db,
+            mesaj.organization_id,
+            mesaj.contract_id,
+          ),
+        }
+      : contract;
 
   let corp: unknown;
   if (mesaj.operatie === "AdaugareContract" || mesaj.operatie === "ModificareContract") {
@@ -196,10 +210,15 @@ async function trimiteUnul(
     // atinge oglinda locală, nu ITM.
     const regesCorId = await idCor(db, rand.cod_cor);
     // Sporurile ACTIVE la data trimiterii, nu toate cele scrise vreodată.
+    // `salary_components` sunt legate de contractul de BAZĂ: pentru un act
+    // adițional se citesc de acolo, altfel modificarea ar pleca fără sporuri,
+    // adică ar declara la ITM un pachet salarial mai mic decât cel real.
     const sporuri = await sporurileContractului(
       db,
       mesaj.organization_id,
-      mesaj.contract_id,
+      contract.este_act_aditional && contract.parent_contract_id !== null
+        ? contract.parent_contract_id
+        : mesaj.contract_id,
       new Date().toISOString().slice(0, 10),
     );
     const compus = compuneContract(rand, regesSalariatId, regesCorId, sporuri, {

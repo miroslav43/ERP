@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CODURI_INROLARE,
+  CODURI_PLATFORMA,
   DESCRIERI_VARIABILE,
   ETICHETE_SABLON,
   codDinDenumire,
@@ -118,8 +119,8 @@ describe("CODURI_INROLARE / ETICHETE_SABLON / esteCodInrolare", () => {
     ]);
   });
 
-  it("fiecare cod are etichetă", () => {
-    expect(Object.keys(ETICHETE_SABLON).sort()).toEqual([...CODURI_INROLARE].sort());
+  it("fiecare șablon livrat are etichetă — și cele de înrolare, și actul adițional", () => {
+    expect(Object.keys(ETICHETE_SABLON).sort()).toEqual([...CODURI_PLATFORMA].sort());
   });
 
   it.each([
@@ -136,8 +137,15 @@ describe("CODURI_INROLARE / ETICHETE_SABLON / esteCodInrolare", () => {
 describe("documentele firmei: VARIABILE_TOATE / valoriToate", () => {
   const toate = valoriToate(ctx, { subordonare: null, atributii: [], competente: [] }, "2 ani");
 
-  it("lista e reuniunea celor cinci, sortată", () => {
-    expect(VARIABILE_TOATE).toEqual(reuniune);
+  it("lista e reuniunea celor cinci ale înrolării, sortată", () => {
+    const inrolare = [...new Set(CODURI_INROLARE.flatMap((cod) => VARIABILE_PER_COD[cod]))].sort();
+    expect(VARIABILE_TOATE).toEqual(inrolare);
+  });
+
+  it("variabilele actului adițional NU sunt ale documentelor firmei (nu există în fișă)", () => {
+    for (const v of ["salariu_vechi", "salariu_nou", "numar_act_aditional", "data_aplicarii"]) {
+      expect(VARIABILE_TOATE).not.toContain(v);
+    }
   });
 
   it("harta completă are EXACT variabilele permise (emiterea nu cade pe niciuna)", () => {
@@ -196,6 +204,9 @@ describe("esteCodPersonalizat / codDinDenumire / variabilePentruCod", () => {
   it("documentul firmei are toate variabilele; înrolarea pe ale ei; necunoscutul, nimic", () => {
     expect(variabilePentruCod("doc_cerere")).toBe(VARIABILE_TOATE);
     expect(variabilePentruCod("nda")).toBe(VARIABILE_PER_COD.nda);
+    expect(variabilePentruCod("act_aditional_salariu")).toBe(
+      VARIABILE_PER_COD.act_aditional_salariu,
+    );
     expect(variabilePentruCod("adeverinta_venit")).toBeNull();
   });
 

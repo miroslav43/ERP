@@ -14,9 +14,9 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { citesteAntetDocumente, listeazaSabloaneDocumente } from "@/lib/queries/sabloane-documente";
 import {
-  CODURI_INROLARE,
+  CODURI_PLATFORMA,
   ETICHETE_SABLON,
-  esteCodInrolare,
+  esteCodPlatforma,
   esteCodPersonalizat,
 } from "@/lib/documents/variabile";
 
@@ -52,14 +52,15 @@ export default async function PaginaSabloaneDocumente() {
   ]);
 
   /*
-   * Doar cele cinci coduri ale înrolării.
+   * Doar șabloanele livrate pe care le folosește aplicația.
    *
    * Tabela mai conține trei adeverințe, dar `genereazaAdeverinta` n-are niciun
    * apelant în `src/app/` — un editor peste ele ar fi configurare pentru un
-   * ecran care nu există. Ordinea e cea de emitere, din `CODURI_INROLARE`.
+   * ecran care nu există. Ordinea e cea de emitere, din `CODURI_PLATFORMA`:
+   * cele cinci ale înrolării, apoi actul adițional de modificare a salariului.
    */
-  const sabloane = CODURI_INROLARE.map((cod) => toate.find((s) => s.cod === cod)).filter(
-    (s): s is NonNullable<typeof s> => s !== undefined && esteCodInrolare(s.cod),
+  const sabloane = CODURI_PLATFORMA.map((cod) => toate.find((s) => s.cod === cod)).filter(
+    (s): s is NonNullable<typeof s> => s !== undefined && esteCodPlatforma(s.cod),
   );
 
   const aleFirmei = sabloane.filter((s) => s.organization_id !== null).length;
@@ -76,7 +77,7 @@ export default async function PaginaSabloaneDocumente() {
     <div className={`${LATIMI.detaliu} space-y-6`}>
       <AntetPagina
         titlu="Șabloane de documente"
-        descriere="Textele din care se generează contractul, fișa postului și anexele. Modificarea se aplică documentelor emise DE ACUM ÎNAINTE — cele deja emise păstrează textul cu care au fost emise."
+        descriere="Textele din care se generează contractul, fișa postului, anexele și actele adiționale. Modificarea se aplică documentelor emise DE ACUM ÎNAINTE — cele deja emise păstrează textul cu care au fost emise."
         firimituri={[{ eticheta: "Angajați", href: "/angajati" }, { eticheta: "Șabloane" }]}
       />
 
@@ -114,7 +115,7 @@ export default async function PaginaSabloaneDocumente() {
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">
-                    {ETICHETE_SABLON[sablon.cod as (typeof CODURI_INROLARE)[number]]}
+                    {ETICHETE_SABLON[sablon.cod as (typeof CODURI_PLATFORMA)[number]]}
                   </span>
                   <Badge ton={alFirmei ? "succes" : "neutru"}>
                     {alFirmei ? "Șablonul firmei" : "Șablon de platformă"}
