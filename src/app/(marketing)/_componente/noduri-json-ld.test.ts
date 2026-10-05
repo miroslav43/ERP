@@ -4,7 +4,25 @@ import { describe, expect, it } from "vitest";
 import { ADRESA_SITE } from "@/content/landing/contact";
 import { PAGINI_LEGE } from "@/content/legal/pagini";
 
-import { nodArticol } from "./noduri-json-ld";
+import { nodArticol, nodUnealta } from "./noduri-json-ld";
+
+describe("nodUnealta", () => {
+  it("e o aplicație web gratuită, cu data din sitemap", async () => {
+    const { dataPaginii } = await import("@/content/landing/harta");
+    const nod = nodUnealta({
+      cale: "/unelte/calculator-salariu",
+      nume: "Calculator salariu net și brut",
+      descriere: "Descriere.",
+    });
+    expect(nod).toMatchObject({
+      "@type": "WebApplication",
+      "@id": `${ADRESA_SITE}/unelte/calculator-salariu#unealta`,
+      isAccessibleForFree: true,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "RON" },
+      dateModified: dataPaginii("/unelte/calculator-salariu"),
+    });
+  });
+});
 
 describe("nodArticol", () => {
   it("citează textele de lege din `surse`", () => {

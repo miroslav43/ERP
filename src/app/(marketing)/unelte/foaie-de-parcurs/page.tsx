@@ -9,6 +9,8 @@ import { ANTET_FOAIE_PARCURS } from "@/content/landing/unelte";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { JsonLd } from "../../_componente/json-ld";
+import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
@@ -69,6 +71,13 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
 
   return (
     <Cadru text={RO}>
+      <JsonLd
+        date={nodUnealta({
+          cale: "/unelte/foaie-de-parcurs",
+          nume: ANTET_FOAIE_PARCURS.titlu,
+          descriere: ANTET_FOAIE_PARCURS.lead,
+        })}
+      />
       <div data-tipar="ascunde">
         <AntetSecundar
           text={ANTET_FOAIE_PARCURS}

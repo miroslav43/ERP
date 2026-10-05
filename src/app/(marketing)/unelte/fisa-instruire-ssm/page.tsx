@@ -9,6 +9,8 @@ import { ANTET_FISA_SSM } from "@/content/landing/unelte";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { JsonLd } from "../../_componente/json-ld";
+import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
@@ -64,6 +66,13 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
 
   return (
     <Cadru text={RO}>
+      <JsonLd
+        date={nodUnealta({
+          cale: "/unelte/fisa-instruire-ssm",
+          nume: ANTET_FISA_SSM.titlu,
+          descriere: ANTET_FISA_SSM.lead,
+        })}
+      />
       <div data-tipar="ascunde">
         <AntetSecundar
           text={ANTET_FISA_SSM}

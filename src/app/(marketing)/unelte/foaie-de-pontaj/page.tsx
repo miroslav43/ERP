@@ -9,6 +9,8 @@ import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { JsonLd } from "../../_componente/json-ld";
+import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
@@ -72,6 +74,13 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
 
   return (
     <Cadru text={RO}>
+      <JsonLd
+        date={nodUnealta({
+          cale: "/unelte/foaie-de-pontaj",
+          nume: ANTET_FOAIE_PONTAJ.titlu,
+          descriere: ANTET_FOAIE_PONTAJ.lead,
+        })}
+      />
       {/* `data-tipar="ascunde"` e convenția proiectului: la tipărire rămâne doar
           foaia, fără antet, formular și subsol. */}
       <div data-tipar="ascunde">

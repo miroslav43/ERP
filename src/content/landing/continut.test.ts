@@ -1505,3 +1505,19 @@ describe("reparațiile din auditul SEO din 2 oct 2026", () => {
     for (const d of DE_UNDE_GHID) expect(dinSitemap.has(d.href), d.titlu).toBe(true);
   });
 });
+
+describe("căutarea AI — auditul din 5 oct 2026", () => {
+  it("fiecare unealtă își declară nodul WebApplication", () => {
+    const pagini = fisiere("src/app/(marketing)/unelte", ["page.tsx"]).filter(
+      (f) => f !== "src/app/(marketing)/unelte/page.tsx",
+    );
+    expect(pagini.length).toBeGreaterThanOrEqual(7);
+    for (const f of pagini) expect(readFileSync(f, "utf8"), f).toContain("nodUnealta(");
+  });
+
+  it("calculatorul de salariu spune că e informativ", () => {
+    const sursa = readFileSync("src/app/(marketing)/unelte/calculator-salariu/page.tsx", "utf8");
+    expect(sursa).toMatch(/informativ/i);
+    expect(sursa).toMatch(/contabil/i);
+  });
+});

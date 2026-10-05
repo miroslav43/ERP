@@ -1,4 +1,5 @@
 import { ADRESA_SITE } from "@/content/landing/contact";
+import { dataPaginii } from "@/content/landing/harta";
 import { PACHETE, PRAG_ANGAJATI } from "@/content/landing/preturi";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 import type { PaginaLege } from "@/content/legal/tipuri";
@@ -177,5 +178,31 @@ export function nodArticol(pagina: PaginaLege) {
             caption: captura.alt,
           },
         }),
+  };
+}
+
+/**
+ * O unealtă gratuită, ca `WebApplication` — nu `SoftwareApplication`, care e
+ * produsul cu abonament (`#aplicatie`). `dateModified` e data din sitemap, ca
+ * cele două să nu poată spune lucruri diferite. Fără `aggregateRating`: nu avem
+ * recenzii, iar unele inventate ar fi o afirmație falsă.
+ */
+export function nodUnealta(u: Readonly<{ cale: string; nume: string; descriere: string }>) {
+  const url = `${ADRESA_SITE}${u.cale}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "@id": `${url}#unealta`,
+    name: u.nume,
+    description: u.descriere,
+    url,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    inLanguage: "ro-RO",
+    isAccessibleForFree: true,
+    dateModified: dataPaginii(u.cale),
+    offers: { "@type": "Offer", price: "0", priceCurrency: "RON" },
+    provider: { "@id": ID_ORGANIZATIE },
+    isPartOf: { "@id": ID_SITE },
   };
 }

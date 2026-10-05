@@ -288,12 +288,15 @@ export const PAGINI: readonly Pagina[] = [
     actualizat: "2026-10-03",
     sectiune: "Unelte și comparații",
   },
+  // 5 oct 2026: toate uneltele primesc nodul `WebApplication`, a cărui
+  // `dateModified` e chiar data de aici (`dataPaginii`); calculatorul, și nota
+  // „informativ". Data se mută în același commit cu schimbarea paginii.
   {
     cale: "/unelte/foaie-de-pontaj",
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-05",
     sectiune: "Unelte și comparații",
   },
   {
@@ -301,7 +304,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-05",
     sectiune: "Unelte și comparații",
   },
   {
@@ -309,7 +312,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-05",
     sectiune: "Unelte și comparații",
   },
   {
@@ -317,7 +320,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-05",
     sectiune: "Unelte și comparații",
   },
   {
@@ -325,7 +328,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-05",
     sectiune: "Unelte și comparații",
   },
   {
@@ -333,7 +336,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-05",
     sectiune: "Unelte și comparații",
   },
   {
@@ -341,7 +344,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-03",
+    actualizat: "2026-10-05",
     sectiune: "Unelte și comparații",
   },
   {
@@ -403,6 +406,13 @@ export const PAGINI: readonly Pagina[] = [
     sectiune: "Legal",
   },
 ];
+
+/** Data `lastmod` a unei pagini din sitemap — aceeași cifră și în datele structurate. */
+export function dataPaginii(cale: string): string {
+  const pagina = PAGINI.find((p) => p.cale === cale);
+  if (pagina === undefined) throw new Error(`Pagina ${cale} nu e în sitemap.`);
+  return pagina.actualizat;
+}
 
 export type IntrareSitemap = Readonly<{
   url: string;

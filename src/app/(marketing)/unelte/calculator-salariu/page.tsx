@@ -16,6 +16,8 @@ import { dinBrut, type RezultatSalariu } from "@/lib/unelte/salariu";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { JsonLd } from "../../_componente/json-ld";
+import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { calculeazaDinParametri } from "./parametri";
@@ -102,6 +104,13 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
 
   return (
     <Cadru text={RO}>
+      <JsonLd
+        date={nodUnealta({
+          cale: "/unelte/calculator-salariu",
+          nume: ANTET_CALCULATOR.titlu,
+          descriere: ANTET_CALCULATOR.lead,
+        })}
+      />
       <AntetSecundar
         text={ANTET_CALCULATOR}
         firimituri={[
@@ -235,6 +244,14 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             </li>
           ))}
         </ul>
+        {/* Nota pe care o au toate ghidurile și care lipsea tocmai aici, pe pagina cu
+            cifre de salariu (reauditul din 5 oct 2026). Fereastra de valabilitate
+            vine din `VERIFICARE`: facilitatea expiră la 1 ianuarie 2027. */}
+        <p className="border-mk-cerneala text-mk-text mt-8 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.6]">
+          Calculul e informativ, pentru un contract cu normă întreagă, fără sporuri și fără
+          facilitățile de mai sus. Valorile sunt cele din iulie–decembrie 2026; pentru statul de
+          plată, confirmă cu contabilul firmei.
+        </p>
         <p className="text-mk-text-slab mt-8 text-[0.875rem]">
           Valorile verificate pe {formatDate(VERIFICARE.la)}, pe textele oficiale:{" "}
           {VERIFICARE.surse.map((s, i) => (

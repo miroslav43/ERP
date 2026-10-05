@@ -9,6 +9,8 @@ import { formatDate } from "@/lib/format/date";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { JsonLd } from "../../_componente/json-ld";
+import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
@@ -112,6 +114,13 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
 
   return (
     <Cadru text={RO}>
+      <JsonLd
+        date={nodUnealta({
+          cale: "/unelte/cerere-concediu-de-odihna",
+          nume: ANTET_CERERE_CONCEDIU.titlu,
+          descriere: ANTET_CERERE_CONCEDIU.lead,
+        })}
+      />
       {/* `data-tipar="ascunde"` e convenția proiectului: la tipărire rămâne doar
           cererea, fără antet, formular și subsol. */}
       <div data-tipar="ascunde">
