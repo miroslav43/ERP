@@ -33,7 +33,7 @@ export const CONTROL_ITM: PaginaLege = {
   ],
 
   titluReguli: "Ce documente cere inspectorul ITM la un control?",
-  titluAmenzi: "Ce amenzi se dau cel mai des la un control ITM?",
+  titluAmenzi: "Ce amenzi se pot da la un control ITM?",
   captura: {
     cheie: "ssm",
     alt: "Matricea de instruiri SSM din Administrativo: pe fiecare angajat, instruirea introductiv-generală, la locul de muncă, periodică și suplimentară, cu data și starea fiecăreia, inclusiv cele care expiră în curând.",

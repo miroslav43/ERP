@@ -37,12 +37,6 @@ export const DIURNA_EXTERNA: PaginaLege = {
 
   titluReguli: "Cum se acordă diurna externă și cât e neimpozabil?",
   titluAmenzi: "Ce riscă firma dacă diurna externă e sub cuantumul din anexă?",
-  captura: {
-    cheie: "per_diem",
-    alt: "Lista deplasărilor din Administrativo, inclusiv deplasări în Austria, Germania și Ungaria: perioada cu ora de plecare și de sosire, starea aprobării și diurna estimată.",
-    legenda:
-      "Deplasările interne și externe în aceeași listă, cu diurna estimată. Date fictive, din contul demonstrativ.",
-  },
 
   reguli: [
     {

@@ -37,12 +37,6 @@ export const EVIDENTA_ORELOR: PaginaLege = {
 
   titluReguli: "Ce trebuie să conțină evidența orelor, după art. 119?",
   titluAmenzi: "Ce amendă riscă angajatorul fără evidența orelor?",
-  captura: {
-    cheie: "attendance",
-    alt: "Foaia lunară de pontaj din Administrativo pentru august 2026: pe fiecare zi lucrătoare, ora de începere a fiecărui angajat; 15 august, sărbătoare legală, marcată separat.",
-    legenda:
-      "Pontajul lunar în aplicație: ora de începere pe fiecare zi, sărbătoarea legală scoasă din calcul. Date fictive, din contul demonstrativ.",
-  },
 
   reguli: [
     {

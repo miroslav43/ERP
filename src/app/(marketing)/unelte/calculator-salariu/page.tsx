@@ -248,9 +248,10 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             cifre de salariu (reauditul din 5 oct 2026). Fereastra de valabilitate
             vine din `VERIFICARE`: facilitatea expiră la 1 ianuarie 2027. */}
         <p className="border-mk-cerneala text-mk-text mt-8 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.6]">
-          Calculul e informativ, pentru un contract cu normă întreagă, fără sporuri și fără
-          facilitățile de mai sus. Valorile sunt cele din iulie–decembrie 2026; pentru statul de
-          plată, confirmă cu contabilul firmei.
+          Calculul e informativ, pentru un contract cu normă întreagă, fără sporuri și fără cazurile
+          din lista de mai sus; suma neimpozabilă de la salariul minim (OUG 89/2025) e inclusă.
+          Valorile sunt cele din iulie–decembrie 2026; pentru statul de plată, confirmă cu
+          contabilul firmei.
         </p>
         <p className="text-mk-text-slab mt-8 text-[0.875rem]">
           Valorile verificate pe {formatDate(VERIFICARE.la)}, pe textele oficiale:{" "}

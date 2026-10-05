@@ -1519,6 +1519,9 @@ describe("căutarea AI — auditul din 5 oct 2026", () => {
     const sursa = readFileSync("src/app/(marketing)/unelte/calculator-salariu/page.tsx", "utf8");
     expect(sursa).toMatch(/informativ/i);
     expect(sursa).toMatch(/contabil/i);
+    // Nota nu are voie să lase impresia că scutirea de la salariul minim lipsește
+    // din calcul: `dinBrut` o aplică (`src/lib/unelte/salariu.ts`, `sumaNeimpozabila`).
+    expect(sursa).toMatch(/suma neimpozabilă de la salariul minim[^.]*e inclusă/i);
   });
 
   it("paginile nedescoperite pe 5 oct au legături din subsol și din ghiduri", async () => {
