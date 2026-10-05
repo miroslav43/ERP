@@ -30,8 +30,8 @@ citeste_daca:
   - "index fără `where deleted_at is null` care pare o scăpare → secțiunea „fără ștergere logică”"
   - "„Registrul pe anul X este închis” → secțiunea exercițiului"
   - "42501 pe un `.insert()` în `registru_documente` → secțiunea celor trei drumuri"
-scris_pe: 90b099aea9f6b9cc51ce16b42bef95bc1e83348e
-scris_la: 2026-09-12
+scris_pe: 9d5b6a4bd8cfd34399ecbf06fa5edd27286eaabd
+scris_la: 2026-10-05
 tags: [modul]
 ---
 
@@ -111,6 +111,10 @@ acțiunile există, ecranul care le cheamă nu.
 `traduEroare` (`registru/erori.ts`, tiparul din `ssm/erori.ts`) propagă P0001 cu mesajul
 bazei, trunchiat la 300 de caractere. Fără el, `mapPostgrestError` ar înlocui „Registrul pe
 anul X este închis." cu un mesaj generic, iar cine ține registrul n-ar afla ce să corecteze.
+Pe 42501 cere ca mesajul bazei să conțină **`registru_documente`**; altfel îl lasă mai
+departe, deci un 42501 de politică pe nomenclator iese INTERZIS, nu cu îndemnul la
+înregistrarea manuală. Acțiunile, traducerea și etichetele au teste pe clientul Supabase
+fals; citirile, în `src/lib/queries/registru.test.ts`.
 
 ## Registrul NU are `deleted_at`
 
@@ -187,7 +191,12 @@ triggerele care cheamă cu argumente numite cad la execuție — capcana #41, pl
 
 - **`max_rows = 1000` trunchiază tăcut**, iar exportul are propriul plafon,
   `MAX_RANDURI_EXPORT`. Listarea folosește cursor pe numărul de înregistrare
-  (`codificaCursor` / `decodificaCursor`), nu `.range()`. — capcana #2
+  (`codificaCursor` / `decodificaCursor`), nu `.range()`, iar `listeazaAni` și
+  `listeazaTipuriDocument` citesc în buclă, cu salt peste ultima valoare văzută: e un rând
+  per document, deci un an vechi dispărea din selector și un tip rar din filtru. — capcana #2
+- **Eticheta tipului se citește cu `Object.hasOwn`** (`eticheteazaTipDocument`):
+  `tip_document` e text liber, deci `constructor` e cod valid ȘI cheie de prototip — citit
+  direct, dădea o funcție în loc de etichetă.
 - **Nomenclatorul NU e paginat**, deliberat: se citește întreg, ca formularul din anexa
   nr. 1. Plafonul rămâne explicit — `MAX_DOSARE` — ca trunchierea să nu fie tăcută.
   Ordonarea pe `compartiment_cifra` e alfabetică: corectă până la „VIII", greșită de la
@@ -200,7 +209,7 @@ triggerele care cheamă cu argumente numite cad la execuție — capcana #41, pl
 
 ## Când NU e suficientă pagina asta
 
-- Textul actelor și decizia completă: specificațiile din `docs/superpowers/specs/`.
+- Textul actelor și decizia completă: specificațiile numite mai sus.
 - Ce e conectat azi și cu ce coloane: `select * from internal.registru_config_surse()`.
 - Documentele de personal care produc intrări: [[modul/angajati]].
 - ⚠️ Termenele de păstrare din nomenclatorul implicit sunt un punct de plecare, nu un
