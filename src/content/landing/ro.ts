@@ -995,6 +995,10 @@ export const RO: ContinutLanding = {
           { eticheta: "Foaie de pontaj gratuită", href: "/unelte/foaie-de-pontaj" },
           { eticheta: "Condica de prezență", href: "/unelte/condica-de-prezenta" },
           { eticheta: "Cerere de concediu", href: "/unelte/cerere-concediu-de-odihna" },
+          // 5 oct 2026: calculatorul — cea mai căutată unealtă — avea două legături
+          // interne, iar Google nu găsise încă fișa de evaluare.
+          { eticheta: "Calculator salariu net", href: "/unelte/calculator-salariu" },
+          { eticheta: "Fișă de evaluare", href: "/unelte/fisa-evaluare" },
           { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
           // Hub-urile aveau o singură cale de acces: firimitura din pagina-copil.
           // Un vizitator care nu deschide copilul nu află niciodată că există.
@@ -1028,6 +1032,8 @@ export const RO: ContinutLanding = {
           { eticheta: "Evidența orelor (art. 119)", href: "/evidenta-orelor-de-munca" },
           { eticheta: "REGES-ONLINE: termene", href: "/reges-online" },
           { eticheta: "Diurna externă pe țări", href: "/ghid/diurna-externa" },
+          // Necunoscut lui Google pe 5 oct 2026; ghidul leagă mai departe sporul de noapte.
+          { eticheta: "Ore suplimentare și spor de noapte", href: "/ghid/ore-suplimentare" },
           { eticheta: "Control ITM: ce se cere", href: "/ghid/control-itm" },
           { eticheta: "Toate ghidurile", href: "/ghid" },
           { eticheta: "Ce nu facem", href: "/de-ce-nu" },

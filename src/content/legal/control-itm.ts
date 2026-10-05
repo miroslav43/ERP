@@ -183,6 +183,7 @@ export const CONTROL_ITM: PaginaLege = {
     { eticheta: "Modulul SSM: instruiri și termene", href: "/module/ssm" },
     { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
     { eticheta: "Transmiterea în REGES-Online, din aplicație", href: "/module/reges" },
+    { eticheta: "Fișa de instruire SSM, gata de completat", href: "/unelte/fisa-instruire-ssm" },
   ],
 
   surse: [

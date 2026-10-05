@@ -143,6 +143,7 @@ export const ORE_SUPLIMENTARE: PaginaLege = {
     { eticheta: "Evidența orelor de muncă: art. 119", href: "/evidenta-orelor-de-munca" },
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+    { eticheta: "Calculator salariu net și brut", href: "/unelte/calculator-salariu" },
   ],
 
   surse: [

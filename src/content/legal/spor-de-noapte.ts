@@ -130,6 +130,7 @@ export const SPOR_DE_NOAPTE: PaginaLege = {
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Program de salarizare", href: "/module/salarizare" },
     { eticheta: "Ore suplimentare: limita și plata", href: "/ghid/ore-suplimentare" },
+    { eticheta: "Calculator salariu net și brut", href: "/unelte/calculator-salariu" },
   ],
 
   surse: [

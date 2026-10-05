@@ -207,6 +207,7 @@ export const DIURNA: PaginaLege = {
     { eticheta: "Evidența orelor de muncă: art. 119", href: "/evidenta-orelor-de-munca" },
     { eticheta: "Program de salarizare", href: "/module/salarizare" },
     { eticheta: "Pentru contabili: aceleași date, fără exporturi", href: "/pentru-contabili" },
+    { eticheta: "Calculator salariu net și brut", href: "/unelte/calculator-salariu" },
   ],
 
   surse: [

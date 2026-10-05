@@ -1520,4 +1520,24 @@ describe("căutarea AI — auditul din 5 oct 2026", () => {
     expect(sursa).toMatch(/informativ/i);
     expect(sursa).toMatch(/contabil/i);
   });
+
+  it("paginile nedescoperite pe 5 oct au legături din subsol și din ghiduri", async () => {
+    // GSC, 5 oct 2026: „URL is unknown to Google" pe ore-suplimentare, spor-de-noapte
+    // și fisa-evaluare — paginile noi cu cele mai puține legături interne.
+    const subsol = RO.subsol.coloane.flatMap((c) => c.legaturi.map((l) => l.href));
+    for (const href of [
+      "/unelte/calculator-salariu",
+      "/ghid/ore-suplimentare",
+      "/unelte/fisa-evaluare",
+    ]) {
+      expect(subsol, href).toContain(href);
+    }
+    const { PAGINI_LEGE } = await import("@/content/legal/pagini");
+    const conexe = (cale: string) =>
+      (PAGINI_LEGE.find((p) => p.cale === cale)?.legaturiConexe ?? []).map((l) => l.href);
+    for (const cale of ["/ghid/ore-suplimentare", "/ghid/spor-de-noapte", "/ghid/diurna"]) {
+      expect(conexe(cale), cale).toContain("/unelte/calculator-salariu");
+    }
+    expect(conexe("/ghid/control-itm")).toContain("/unelte/fisa-instruire-ssm");
+  });
 });
