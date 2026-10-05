@@ -23,4 +23,15 @@ describe("paginile-lege", () => {
     for (const t of titluri) expect(t, t).toMatch(/\?$/);
     expect(new Set(titluri).size).toBe(titluri.length);
   });
+
+  it("capturile din ghiduri există pe disc și au text alternativ descriptiv", async () => {
+    const { arePrinGeam } = await import("@/app/(marketing)/_componente/vitrine");
+    const cuCaptura = PAGINI_LEGE.filter((p) => p.captura !== undefined);
+    expect(cuCaptura.length).toBeGreaterThanOrEqual(5);
+    for (const p of cuCaptura) {
+      expect(arePrinGeam(p.captura?.cheie ?? ""), p.cale).toBe(true);
+      expect(p.captura?.alt.length ?? 0, p.cale).toBeGreaterThanOrEqual(60);
+      expect(p.captura?.legenda, p.cale).toMatch(/date fictive/i);
+    }
+  });
 });

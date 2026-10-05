@@ -3,6 +3,8 @@ import { PACHETE, PRAG_ANGAJATI } from "@/content/landing/preturi";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 import type { PaginaLege } from "@/content/legal/tipuri";
 
+import { INALTIME_CAPTURA, LATIME_CAPTURA } from "./vitrine";
+
 /**
  * Nodurile JSON-LD, ca funcții pure.
  *
@@ -129,17 +131,21 @@ export function nodFirimituri(lista: readonly Firimitura[]) {
  * dintre cele două date: emitem cea mai târzie dintre ele ca `dateModified`,
  * fiindcă o pagină apărută pe 4 a fost, în mod necesar, și atinsă pe 4.
  *
- * ── DE CE NU ARE `image` ──────────────────────────────────────────────────
- * E o proprietate RECOMANDATĂ, nu obligatorie — documentația Google pentru
- * `Article` spune explicit „There are no required properties". Singura imagine
- * disponibilă ar fi cea de Open Graph, a cărei adresă poartă un hash de
- * conținut generat la build și nu se poate scrie într-o funcție pură. Un fișier
- * inventat doar ca să existe câmpul ar fi decor, nu informație.
+ * ── `image`, DIN 5 OCT 2026 ───────────────────────────────────────────────
+ * Lipsea fiindcă singura imagine disponibilă era cea de Open Graph, cu hash în
+ * adresă. Acum un ghid poate avea o captură din aplicație care arată chiar
+ * obligația ținută la zi — informație, nu decor. Fără captură, fără `image`:
+ * nu se pune imaginea generică de distribuire doar ca să existe câmpul.
+ *
+ * ── `citation` ────────────────────────────────────────────────────────────
+ * Textele de lege din `surse`, aceleași legături de pe pagină. Leagă
+ * afirmațiile de sursa primară și în datele citite de motoare, nu doar în HTML.
  */
 export function nodArticol(pagina: PaginaLege) {
   const url = `${ADRESA_SITE}${pagina.cale}`;
   const modificat =
     pagina.actualizatIso < pagina.publicatIso ? pagina.publicatIso : pagina.actualizatIso;
+  const captura = pagina.captura;
   return {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -154,5 +160,22 @@ export function nodArticol(pagina: PaginaLege) {
     author: { "@id": ID_ORGANIZATIE },
     publisher: { "@id": ID_ORGANIZATIE },
     isPartOf: { "@id": ID_SITE },
+    citation: (pagina.surse ?? []).map((s) => ({
+      "@type": "CreativeWork",
+      name: s.eticheta,
+      url: s.href,
+    })),
+    // Spread condiționat, nu `image: undefined`: fără captură, cheia lipsește.
+    ...(captura === undefined
+      ? {}
+      : {
+          image: {
+            "@type": "ImageObject",
+            url: `${ADRESA_SITE}/capturi/${captura.cheie}-${String(LATIME_CAPTURA)}.webp`,
+            width: LATIME_CAPTURA,
+            height: INALTIME_CAPTURA,
+            caption: captura.alt,
+          },
+        }),
   };
 }

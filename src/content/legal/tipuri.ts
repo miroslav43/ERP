@@ -97,6 +97,15 @@ export type PaginaLege = Readonly<{
     randuri: readonly (readonly string[])[];
     nota: string;
   }>;
+  /**
+   * O captură din aplicație care arată obligația ținută la zi — din catalogul
+   * `vitrine.ts`, după cheia modulului. Opțională: unde nu există o captură care
+   * să arate exact subiectul paginii, nu se pune una aproximativă.
+   *
+   * `alt` descrie ce se VEDE (e și `caption` în `Article.image`); `legenda` spune
+   * de ce contează și că datele sunt fictive, din contul demonstrativ.
+   */
+  captura?: Readonly<{ cheie: string; alt: string; legenda: string }>;
   nesigur: readonly Nesigur[];
   /**
    * A doua acțiune, de la finalul paginii.

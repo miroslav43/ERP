@@ -51,6 +51,12 @@ export const DIURNA: PaginaLege = {
 
   titluReguli: "Cât e diurna neimpozabilă în 2026 și când se acordă?",
   titluAmenzi: "Se amendează o diurnă neacordată sau calculată greșit?",
+  captura: {
+    cheie: "per_diem",
+    alt: "Lista deplasărilor din Administrativo: scopul, angajatul, perioada cu ora de plecare și de sosire, starea aprobării și diurna estimată în zile și lei.",
+    legenda:
+      "Deplasările firmei, cu perioada exactă și diurna estimată pentru fiecare. Date fictive, din contul demonstrativ.",
+  },
 
   reguli: [
     {

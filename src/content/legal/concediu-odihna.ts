@@ -49,6 +49,12 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
 
   titluReguli: "Ce reguli are concediul de odihnă în Codul muncii?",
   titluAmenzi: "Se amendează neacordarea concediului de odihnă?",
+  captura: {
+    cheie: "leave",
+    alt: "Calendarul de concedii din Administrativo pe septembrie 2026: un rând pe angajat, o coloană pe zi, weekendurile marcate și un concediu de odihnă de cinci zile lucrătoare.",
+    legenda:
+      "Cine e în concediu și când, pe o singură lună, pentru toată echipa. Date fictive, din contul demonstrativ.",
+  },
 
   reguli: [
     {

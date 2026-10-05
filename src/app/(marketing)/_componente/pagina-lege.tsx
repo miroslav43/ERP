@@ -9,6 +9,7 @@ import { Cadru } from "./cadru";
 import { JsonLd } from "./json-ld";
 import { nodArticol } from "./noduri-json-ld";
 import { PeAcelasiSubiect } from "./pe-acelasi-subiect";
+import { capturaModulului, INALTIME_CAPTURA, LATIME_CAPTURA } from "./vitrine";
 
 /**
  * Randarea unei pagini care explică o obligație legală.
@@ -59,6 +60,7 @@ export function ancoraRand(text: string): string {
 }
 
 export function RandarePaginaLege({ text }: { text: PaginaLege }) {
+  const captura = text.captura === undefined ? undefined : capturaModulului(text.captura.cheie);
   return (
     <Cadru text={RO}>
       {/* `dateModified` e data verificării textelor de lege — același `actualizatIso`
@@ -134,6 +136,32 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
           ))}
         </dl>
       </Banda>
+
+      {/* Captura din aplicație, unde există una care arată exact subiectul. Fără
+          ea, banda lipsește cu totul — nu se pune o imagine aproximativă. */}
+      {captura !== undefined && text.captura !== undefined && (
+        <Banda inaltime="scurta">
+          <figure className="max-w-[72rem]">
+            {/* eslint-disable-next-line @next/next/no-img-element --
+                Aceleași fișiere WebP, deja la două lățimi, ca în `prin-geam.tsx`:
+                optimizatorul lui Next ar fi cost de server pentru zero câștig. */}
+            <img
+              src={captura.sursa}
+              srcSet={captura.srcset}
+              sizes="(min-width: 1240px) 1180px, 92vw"
+              alt={text.captura.alt}
+              width={LATIME_CAPTURA}
+              height={INALTIME_CAPTURA}
+              loading="lazy"
+              decoding="async"
+              className="border-mk-rigla block h-auto w-full rounded border"
+            />
+            <figcaption className="text-mk-text-slab mt-3 text-[0.8125rem] leading-[1.5]">
+              {text.captura.legenda}
+            </figcaption>
+          </figure>
+        </Banda>
+      )}
 
       <Banda fundal="cerneala" inaltime="medie" titlu={text.titluAmenzi} aliniereTitlu="larg">
         <dl className="border-mk-rigla-inv/40 mt-8 border-t">
