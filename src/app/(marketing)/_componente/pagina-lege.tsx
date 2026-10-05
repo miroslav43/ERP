@@ -66,6 +66,8 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
       <JsonLd date={nodArticol(text)} />
       <AntetSecundar
         text={text.antet}
+        // Butonul vine după răspunsul scurt, mai jos — vezi comentariul de acolo.
+        cta={null}
         // Firimituri doar sub `/ghid/`, singurul părinte real; `/reges-online` și
         // `/evidenta-orelor-de-munca` stau la rădăcină și n-au ce traseu arăta.
         firimituri={
@@ -97,6 +99,16 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         <p className="font-mk-date text-mk-text-slab mt-6 text-[0.75rem] tracking-[0.08em] uppercase">
           Textele verificate în {text.actualizat}
         </p>
+        {/* Butonul stă aici, nu în antet: acolo rupea pasajul pe care îl citează
+            motoarele generative (lead + răspuns). Rămâne aproape de pliu pe
+            telefon — răspunsul are 100–150 de cuvinte. */}
+        <Link
+          href={RO.hero.ctaPrimar.href}
+          data-umami-event="cta-dupa-raspuns"
+          className="bg-mk-cerneala text-mk-text-inv mt-6 inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+        >
+          {RO.hero.ctaPrimar.eticheta}
+        </Link>
       </Banda>
 
       <Banda inaltime="medie" titlu={text.titluReguli}>
