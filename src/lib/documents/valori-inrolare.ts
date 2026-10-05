@@ -60,7 +60,14 @@ export type DateContract = Readonly<{
   modLucru: string;
   locMunca: string | null;
   locTelemunca: string | null;
+  /** Salariul din contractul de BAZĂ — cel semnat la angajare, tipărit pe CIM. */
   salariuBrut: number;
+  /**
+   * Salariul în vigoare azi, dacă un act adițional l-a schimbat. Îl folosesc
+   * documentele firmei (`valoriToate`): o adeverință scrisă azi spune salariul
+   * de azi. Contractul de muncă rămâne cu cel semnat.
+   */
+  salariuInVigoare?: number;
   zileConcediuAnual: number;
 }>;
 
@@ -161,6 +168,29 @@ export function valoriActAditionalTelemunca(ctx: ContextDocumente): ReadonlyMap<
   ]);
 }
 
+/**
+ * Toate variabilele deodată — pentru documentele create de firmă.
+ *
+ * Un șablon al firmei poate folosi orice variabilă din `VARIABILE_TOATE`, deci
+ * harta trebuie să le aibă pe toate. Se compune din cele cinci hărți de mai sus,
+ * nu se scrie a treia oară: aceeași cheie (`functie`, `angajat_nume`) dă aceeași
+ * valoare în toate, iar un câmp nou intră aici automat.
+ */
+export function valoriToate(
+  ctx: ContextDocumente,
+  fisa: Parameters<typeof valoriFisaPostului>[1],
+  durataConfidentialitate: string,
+): ReadonlyMap<string, string> {
+  return new Map([
+    ...valoriContractMunca(ctx),
+    ...valoriFisaPostului(ctx, fisa),
+    ...valoriNda(ctx, durataConfidentialitate),
+    ...valoriAnexaPi(ctx),
+    ...valoriActAditionalTelemunca(ctx),
+    ["salariu_brut", formatLei(ctx.contract.salariuInVigoare ?? ctx.contract.salariuBrut)],
+  ]);
+}
+
 /** Fișa postului. Șablon `fisa_postului`, serie FP. */
 export function valoriFisaPostului(
   ctx: ContextDocumente,
@@ -180,5 +210,41 @@ export function valoriFisaPostului(
     // `<li>`-uri: lista devine text separat prin `;`, ca la varianta veche.
     ["atributii", rezerva(fisa.atributii.join("; "), "—")],
     ["competente", rezerva(fisa.competente.join("; "), "—")],
+  ]);
+}
+
+export type DateActAditionalSalariu = Readonly<{
+  organizatie: DateOrganizatie;
+  angajatNume: string;
+  functie: string | null;
+  /** Contractul de BAZĂ — actul adițional se încheie „la contractul nr. … din …”. */
+  contractNumar: string;
+  contractData: string;
+  numarAct: string;
+  dataAct: string;
+  salariuVechi: number;
+  salariuNou: number;
+  dataAplicarii: string;
+}>;
+
+/**
+ * Actul adițional de modificare a salariului. Șablon `act_aditional_salariu`, serie AAS.
+ *
+ * Nu primește `ContextDocumente`: salariul vechi și cel nou, numărul și data
+ * actului nu stau în fișă, ci vin din acțiunea care îl produce.
+ */
+export function valoriActAditionalSalariu(d: DateActAditionalSalariu): ReadonlyMap<string, string> {
+  return new Map([
+    ["numar_act_aditional", d.numarAct],
+    ["data_act_aditional", formatDate(d.dataAct)],
+    ["numar_contract", d.contractNumar],
+    ["data_contract", formatDate(d.contractData)],
+    ["organizatie_denumire", d.organizatie.denumire],
+    ["reprezentant_legal", rezerva(d.organizatie.reprezentantLegal, "reprezentantul legal")],
+    ["angajat_nume", d.angajatNume],
+    ["functie", rezerva(d.functie, "nespecificată")],
+    ["salariu_vechi", formatLei(d.salariuVechi)],
+    ["salariu_nou", formatLei(d.salariuNou)],
+    ["data_aplicarii", formatDate(d.dataAplicarii)],
   ]);
 }

@@ -14,6 +14,7 @@
 import "server-only";
 
 import type { AntetOrganizatie } from "@/lib/documents/bloc-firma";
+import { PREFIX_COD_PERSONALIZAT, esteCodPersonalizat } from "@/lib/documents/variabile";
 import { BUCKET_BRANDING } from "@/lib/pdf/antet-organizatie";
 import type { ServerSupabase } from "@/lib/supabase/server";
 
@@ -81,6 +82,32 @@ export async function citesteSablonDocument(
     .returns<SablonDocument[]>();
   if (error !== null) throw new Error("Șablonul de document nu a putut fi citit.");
   return data[0] ?? null;
+}
+
+export type SablonPersonalizat = Readonly<{ cod: string; denumire: string; serie: string }>;
+
+/**
+ * Documentele create de firmă (`doc_…`), pentru caseta de emitere din fișa
+ * angajatului. Fără `continut_html`: caseta arată doar denumirea.
+ *
+ * `like` cu `_` ar potrivi orice caracter pe poziția aceea, deci rezultatul se
+ * mai trece o dată prin `esteCodPersonalizat` — filtrul din bază doar îngustează.
+ */
+export async function listeazaSabloanePersonalizate(
+  supabase: ServerSupabase,
+  organizationId: string,
+): Promise<readonly SablonPersonalizat[]> {
+  const { data, error } = await supabase
+    .from("hr_document_templates")
+    .select("cod, denumire, serie")
+    .eq("organization_id", organizationId)
+    .eq("activ", true)
+    .like("cod", `${PREFIX_COD_PERSONALIZAT}%`)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .returns<SablonPersonalizat[]>();
+  if (error !== null) throw new Error("Documentele firmei nu au putut fi citite.");
+  return data.filter((s) => esteCodPersonalizat(s.cod));
 }
 
 /**

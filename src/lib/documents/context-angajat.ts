@@ -2,7 +2,7 @@
 // Adună din bază tot ce cer cele cinci documente ale înrolării.
 //
 // ── DE CE E SCOS DIN ACȚIUNE ────────────────────────────────────────────────
-// Bucata asta a trăit în `emiteDocumenteLipsa` — 115 linii de citit angajatul,
+// Bucata asta a trăit în acțiunea de emitere a documentelor lipsă — 115 linii de citit angajatul,
 // contractul de bază activ, funcția, departamentul și fișa postului, plus
 // traducerea lor în forma cerută de `genereazaDocumenteInrolare`. Regenerarea
 // are nevoie de EXACT aceleași date. Copiată, a doua oară, ar fi însemnat că un
@@ -67,8 +67,10 @@ export async function adunaContextInrolare(
     throw businessRule("Angajatul nu are contract, deci nu se poate emite niciun document.");
   }
 
-  // Funcția NU mai cere o interogare: după 0110 e text pe fișă. Rămân două.
-  const [departament, fisaPost] = await Promise.all([
+  const azi = todayInBucharest();
+
+  // Funcția NU mai cere o interogare: după 0110 e text pe fișă. Rămân trei.
+  const [departament, fisaPost, actInVigoare] = await Promise.all([
     angajat.department_id === null
       ? Promise.resolve(null)
       : supabase
@@ -84,13 +86,29 @@ export async function adunaContextInrolare(
       .order("valabil_de_la", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Ultimul act adițional intrat în vigoare — salariul de azi, dacă s-a
+    // modificat. Aceeași ordine ca `contractInVigoareLa`: data aplicării, apoi
+    // data semnării.
+    supabase
+      .from("employment_contracts")
+      .select("salariu_baza")
+      .eq("organization_id", organizationId)
+      .eq("parent_contract_id", contract.id)
+      .eq("este_act_aditional", true)
+      .eq("status", "activ")
+      .lte("valabil_de_la", azi)
+      .is("deleted_at", null)
+      .order("valabil_de_la", { ascending: false })
+      .order("data_contract", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   return {
     organizationId,
     employeeId: angajat.id,
     contractId: contract.id,
-    azi: todayInBucharest(),
+    azi,
     angajat: {
       nume: angajat.full_name ?? "",
       adresa: [angajat.adresa_strada, angajat.adresa_oras, angajat.adresa_judet]
@@ -117,6 +135,9 @@ export async function adunaContextInrolare(
       locMunca: contract.loc_munca,
       locTelemunca: contract.loc_telemunca,
       salariuBrut: Number(contract.salariu_baza),
+      ...(actInVigoare.data === null
+        ? {}
+        : { salariuInVigoare: Number(actInVigoare.data.salariu_baza) }),
       zileConcediuAnual: contract.zile_concediu_anual,
     },
     codModLucru: contract.work_mode,

@@ -22,12 +22,13 @@ tabele:
   ]
 permisiuni: [evaluations:read, evaluations:create, evaluations:update]
 feature: [evaluations, kpi]
-capcane: [17]
+capcane: [2, 17]
 citeste_daca:
   - "manager care nu poate salva KPI deși vede echipa → secțiunea „managerul direct”"
   - "ecran KPI care dă 404 deși evaluările merg → secțiunea „Rute și cine ajunge”"
-scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
-scris_la: 2026-09-04
+  - "cifră de sus care pare prea mică sau listă KPI care pierde rânduri → secțiunea „Citiri”"
+scris_pe: 592cbf5b63e99ecbd46a87285dc6b2968523809e
+scris_la: 2026-10-03
 tags: [modul, hr]
 ---
 
@@ -109,6 +110,27 @@ Consecința practică: un director care vede KPI-ul întregii divizii **nu-l poa
 iar refuzul vine din bază, nu din buton. **Citirea** rămâne pe subarbore, deliberat: tăiată
 la managerul direct, ar fi ascuns KPI-ul echipei de cine răspunde de ea.
 
+## Citiri
+
+`src/lib/queries/evaluari.ts` și `src/lib/queries/kpi.ts` — funcții libere, `organizationId`
+primul argument. Trei locuri unde varianta „simplă" scade tăcut, fără nicio eroare:
+
+- **„Folosit în N evaluări", la șabloane.** `listeazaSabloane` cere `count` cu
+  `head: true`, câte o interogare pe șablon. Un embed agregat ar fi trecut prin RLS-ul
+  evaluărilor — managerul ar fi văzut mai puțin decât are firma și ar fi editat un șablon
+  crezând că nu atinge pe nimeni; iar numărarea pe rânduri citite scade peste
+  `max_rows = 1000`. — capcana #2
+- **Cifrele din capul paginii.** `indicatoriEvaluari` ține contoarele pe `count` +
+  `head: true`, iar media pe cele mai recente `ESANTION_MEDIE` evaluări finalizate — citite
+  cu un rând în plus, ca un eșantion exact plin să nu se raporteze drept tăiat.
+  `esantionTrunchiat` e singurul lucru care spune ecranului că media nu e pe toate; pe
+  același eșantion se numără și `angajatiEvaluati`, iar acolo nimic nu se declară. — capcana #2
+- **Sortarea lunilor KPI după scor.** `scor_procent` e NULL pe orice lună abia deschisă
+  (scorul se scrie la salvarea valorilor), iar `gt`/`lt` nu potrivesc niciodată NULL: de
+  aceea `listeazaLuniKpi` trece pe `predicatKeysetNulabil` și `VALOARE_NULA` din
+  `src/lib/queries/cursor.ts` când cheia de sortare e scorul. Cu keyset-ul simplu,
+  „mai departe" pierdea exact lunile fără scor.
+
 ## Ce refuză baza tăcut
 
 - **Luna finalizată nu se redeschide, din nicio cale de cod.** Politica de UPDATE a lui
@@ -140,6 +162,11 @@ jumătate din indicatorii reali se calculează exact invers, și nimic nu semnal
 Un set KPI activ per **funcție**, ținută ca text, nu ca cheie către `job_positions`
 (desființate de 0110). Consecința asumată: doi manageri cu subordonați pe aceeași funcție
 împart setul, iar divergențele se rezolvă din `kpi_tinte_angajat`, nu prin seturi paralele.
+
+Fiecare acțiune are test pe clientul Supabase fals, lângă acțiunea verificată
+(`src/app/(app)/evaluari/actions-sabloane.test.ts` și perechile din
+`src/app/(app)/evaluari/kpi/`): acolo sunt fixate verbatim payload-ul fiecărei scrieri și
+căile de `revalidate`. O politică RLS greșită rămâne însă pe `tests/rls/izolare.sql`.
 
 Seria lunară e valoarea modulului, de aceea KPI-ul are tabele proprii în loc de `jsonb`:
 „media pe indicator pe ultimele trei luni" și graficul din portal ar fi devenit altfel

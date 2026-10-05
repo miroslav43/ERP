@@ -57,6 +57,42 @@ type OriceSupabase = AdminSupabase | Awaited<ReturnType<typeof createServerSupab
 export type RezultatCompunere<T> =
   Readonly<{ ok: true; mesaj: T }> | Readonly<{ ok: false; probleme: readonly Problema[] }>;
 
+/**
+ * Identificatorul REGES al contractului la care se referă un rând.
+ *
+ * ── DE CE NU E DOAR `reges_contract_id` ─────────────────────────────────────
+ * La REGES-Online un contract are UN identificator, primit la
+ * `AdaugareContract` și scris pe contractul de bază. Un act adițional e la noi
+ * un rând separat (`este_act_aditional = true`) care poartă termenii noi, dar
+ * la ITM nu e un contract nou: se transmite ca `ModificareContract` pe
+ * identificatorul contractului de bază. Rândul actului n-are identificator
+ * propriu — și nici nu poate avea unul copiat la creare, fiindcă baza poate
+ * primi identificatorul abia după ce actul a fost înregistrat.
+ */
+export async function referintaContractReges(
+  db: OriceSupabase,
+  organizationId: string,
+  contractId: string,
+): Promise<string | null> {
+  const { data } = await db
+    .from("employment_contracts")
+    .select("reges_contract_id, este_act_aditional, parent_contract_id")
+    .eq("id", contractId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (data === null) return null;
+  if (data.reges_contract_id !== null || !data.este_act_aditional) return data.reges_contract_id;
+  if (data.parent_contract_id === null) return null;
+
+  const { data: baza } = await db
+    .from("employment_contracts")
+    .select("reges_contract_id")
+    .eq("id", data.parent_contract_id)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  return baza?.reges_contract_id ?? null;
+}
+
 /** Codul ISO2 al țării → numele cerut de nomenclatorul REGES. */
 const TARI: Readonly<Record<string, string>> = {
   RO: "România",

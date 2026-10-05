@@ -2,9 +2,10 @@
 "use client";
 
 import Image from "next/image";
+import { Loader2, Upload } from "lucide-react";
 import { useCallback, useId, useRef, useState, useTransition } from "react";
 
-import { Buton } from "@/components/ui/buton";
+import { buton, Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { arataToast } from "@/components/ui/toast";
 import {
@@ -13,8 +14,14 @@ import {
   type AntetOrganizatie,
   type PozitieAntet,
 } from "@/lib/documents/bloc-firma";
+import {
+  pregatesteSiglaDeUrcat,
+  SiglaNecitibila,
+  SIGLA_MIME_INTRARE,
+} from "@/lib/documents/sigla-redimensionare";
 import { SIGLA_MIME_ACCEPTAT, SIGLA_OCTETI_MAXIM } from "@/schemas/document-template";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
+import { cn } from "@/lib/ui/cn";
 
 import { pregatesteSigla, salveazaAntetDocumente, salveazaSigla, stergeSigla } from "./actions";
 
@@ -54,6 +61,7 @@ export function CardAntetDocumente({
   const [inCurs, startTransition] = useTransition();
   const [seIncarca, setSeIncarca] = useState(false);
   const idPozitie = useId();
+  const idRestrictiiSigla = useId();
   const fisierRef = useRef<HTMLInputElement>(null);
 
   const randuri = randuriBlocFirma({ ...antet, pozitie });
@@ -81,12 +89,30 @@ export function CardAntetDocumente({
     [pozitie, urlSigla],
   );
 
-  const incarcaSigla = useCallback((fisier: File) => {
+  const incarcaSigla = useCallback((ales: File) => {
     setSeIncarca(true);
     startTransition(async () => {
       try {
+        // Micșorarea vine ÎNAINTEA verificărilor: plafonul de 512 KB se aplică
+        // fișierului care pleacă, nu exportului de 4000 px ales de om.
+        let fisier: File;
+        try {
+          fisier = await pregatesteSiglaDeUrcat(ales);
+        } catch (eroare) {
+          arataToast({
+            fel: "eroare",
+            text:
+              eroare instanceof SiglaNecitibila
+                ? eroare.message
+                : "Sigla nu a putut fi pregătită. Încearcă din nou.",
+          });
+          return;
+        }
         if (fisier.size > SIGLA_OCTETI_MAXIM) {
-          arataToast({ fel: "eroare", text: "Sigla nu poate depăși 512 KB." });
+          arataToast({
+            fel: "eroare",
+            text: "Sigla depășește 512 KB și după micșorare. Încearcă o variantă mai simplă a imaginii.",
+          });
           return;
         }
         if (!(SIGLA_MIME_ACCEPTAT as readonly string[]).includes(fisier.type)) {
@@ -209,21 +235,48 @@ export function CardAntetDocumente({
 
           <div className="space-y-2">
             <p className="text-eticheta text-muted-foreground uppercase">Sigla firmei</p>
-            <p className="text-muted-foreground text-nota">
-              Opțională — nicio normă nu o cere. PNG sau JPEG, cel mult 512 KB.
+            <p id={idRestrictiiSigla} className="text-muted-foreground text-nota">
+              Opțională — nicio normă nu o cere. PNG, JPEG, WebP sau SVG; imaginea se micșorează
+              automat la mărimea la care se tipărește.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <input
-                ref={fisierRef}
-                type="file"
-                accept={SIGLA_MIME_ACCEPTAT.join(",")}
-                disabled={inCurs || seIncarca}
-                className="text-nota"
-                onChange={(eveniment) => {
-                  const fisier = eveniment.target.files?.[0];
-                  if (fisier !== undefined) incarcaSigla(fisier);
-                }}
-              />
+              {/* Inputul nativ afișa „Choose file No file chosen”, în engleză și
+                  fără înfățișare de buton. Aceeași tehnică ca `IncarcareFisier`:
+                  eticheta poartă stilul butonului, inputul rămâne `sr-only`, deci
+                  focusabil și deschis de eticheta însăși, fără `.click()`.
+                  Componenta comună nu se potrivește aici: ea așteaptă trimiterea
+                  formularului, pe când sigla urcă imediat la alegere. */}
+              <label
+                className={cn(
+                  buton({ varianta: "secundar" }),
+                  "cursor-pointer",
+                  "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
+                  "has-[:disabled]:border-border has-[:disabled]:bg-surface has-[:disabled]:text-muted-foreground has-[:disabled]:cursor-not-allowed",
+                )}
+              >
+                {seIncarca ? (
+                  <Loader2 aria-hidden="true" className="size-4 shrink-0 animate-spin" />
+                ) : (
+                  <Upload aria-hidden="true" className="size-4 shrink-0" />
+                )}
+                {seIncarca
+                  ? "Se încarcă sigla…"
+                  : urlSigla === null
+                    ? "Alege sigla"
+                    : "Înlocuiește sigla"}
+                <input
+                  ref={fisierRef}
+                  type="file"
+                  accept={SIGLA_MIME_INTRARE.join(",")}
+                  disabled={inCurs || seIncarca}
+                  aria-describedby={idRestrictiiSigla}
+                  className="sr-only"
+                  onChange={(eveniment) => {
+                    const fisier = eveniment.target.files?.[0];
+                    if (fisier !== undefined) incarcaSigla(fisier);
+                  }}
+                />
+              </label>
               {urlSigla === null ? null : (
                 <Buton
                   varianta="secundar"

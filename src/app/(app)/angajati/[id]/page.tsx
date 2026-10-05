@@ -29,7 +29,8 @@ import {
   TONURI_STATUS_EVALUARE,
   tonPunctaj,
 } from "../../evaluari/etichete";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { contractInVigoareLa } from "@/domain/payroll/contract";
 import { formatLei } from "@/lib/format/money";
 import { Nivel } from "@/components/ui/nivel";
 import { cn } from "@/lib/ui/cn";
@@ -50,8 +51,11 @@ import {
 import { departamente } from "@/lib/queries/attendance";
 import { coduriEligibile } from "@/lib/documents/inrolare";
 import { CODURI_INROLARE } from "@/lib/documents/variabile";
+import { listeazaSabloanePersonalizate } from "@/lib/queries/sabloane-documente";
 
 import { DialogIncadrare } from "./dialog-incadrare";
+import { DialogEmiteDocumente } from "./dialog-emite-documente";
+import { optiuniEmitere } from "./documente/optiuni-emitere";
 import { ComutatorSefDepartament } from "./comutator-sef-departament";
 
 import {
@@ -220,6 +224,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     optiuniColegi,
     sefulDepartamentului,
     areFisaPostului,
+    documenteFirma,
   ] = await Promise.all([
     // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
     scope === "all" ? citesteRezumatDateSensibile(tenant.organizationId, id) : null,
@@ -338,6 +343,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           .maybeSingle()
           .then(({ data }) => data !== null)
       : false,
+    // Documentele create de firmă, pentru caseta „Emite document". Aceeași
+    // poartă ca regenerarea: emiterea cere `employees:create = all`.
+    poateRegenera ? listeazaSabloanePersonalizate(dbFisa, tenant.organizationId) : [],
   ]);
 
   // Aruncat, nu înghițit cu `?? []`: o listă goală din cauza unei erori arată
@@ -372,6 +380,33 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const contractPrincipal =
     contracteActive.find((c) => !c.este_act_aditional) ?? contracteActive[0] ?? null;
   const contracteIstoric = angajat.contracts.filter((c) => c.status !== "activ");
+
+  /*
+   * Salariul ÎN VIGOARE azi. După un act adițional, contractul de bază rămâne
+   * cum a fost semnat, iar salariul nou stă pe rândul actului — deci
+   * `contractPrincipal.salariu_baza` ar arăta salariul de la angajare.
+   */
+  const azi = todayInBucharest();
+  const contractInVigoare = contractInVigoareLa(
+    angajat.contracts.map((c) => ({
+      id: c.id,
+      esteActAditional: c.este_act_aditional,
+      parentContractId: c.parent_contract_id,
+      status: c.status,
+      valabilDeLa: c.valabil_de_la,
+      valabilPana: c.valabil_pana,
+      dataContract: c.data_contract,
+      salariuBaza: Number(c.salariu_baza),
+      normaOreZi: Number(c.norma_ore_zi),
+      normaOreSaptamana: Number(c.norma_ore_saptamana),
+    })),
+    azi,
+  );
+  const [anAzi = 0, lunaAzi = 1] = azi.split("-").map(Number);
+  const primaZiLunaUrmatoare =
+    lunaAzi === 12
+      ? `${String(anAzi + 1)}-01-01`
+      : `${String(anAzi)}-${String(lunaAzi + 1).padStart(2, "0")}-01`;
 
   /*
    * Ce țintește concedierea de la finalul paginii: primul contract de BAZĂ
@@ -802,7 +837,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                   className="border-primary/25 bg-primary/5 rounded-control border p-3"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">Contract nr. {contract.numar}</span>
+                    <span className="font-medium">
+                      {contract.este_act_aditional ? "Act adițional" : "Contract"} nr.{" "}
+                      {contract.numar}
+                    </span>
                     <span className="bg-success/12 text-success text-nota rounded-full px-2 py-0.5 font-medium">
                       {ETICHETE_CONTRACT[contract.status] ?? contract.status}
                     </span>
@@ -827,7 +865,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                       valoare={ETICHETE_MOD_LUCRU[contract.work_mode] ?? contract.work_mode}
                     />
                   </dl>
-                  {poateEditaAngajat ? (
+                  {/* Un act adițional nu se încetează separat: încetează odată cu
+                      contractul lui. Butonul pe card ar fi încetat doar rândul
+                      actului, iar salarizarea ar fi revenit tăcut la salariul vechi. */}
+                  {poateEditaAngajat && !contract.este_act_aditional ? (
                     <div className="mt-3">
                       <FormularInceteazaContract contractId={contract.id} />
                     </div>
@@ -918,7 +959,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           ) : poateEditaAngajat ? (
             <FormularModificaSalariu
               contractId={contractPrincipal.id}
-              salariuActual={contractPrincipal.salariu_baza}
+              salariuActual={contractInVigoare?.salariuBaza ?? contractPrincipal.salariu_baza}
+              azi={azi}
+              primaZiLunaUrmatoare={primaZiLunaUrmatoare}
             />
           ) : null}
         </div>
@@ -1185,6 +1228,23 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           <div className="flex flex-wrap items-center gap-2">
             {poateRegenera && contractPrincipal !== null ? (
               <DialogRegenereazaDocumente employeeId={angajat.id} documente={documenteRegenerare} />
+            ) : null}
+            {poateRegenera ? (
+              <DialogEmiteDocumente
+                employeeId={angajat.id}
+                optiuni={optiuniEmitere({
+                  codModLucru: contractPrincipal?.work_mode ?? null,
+                  areFisaPostului,
+                  activePeCod: new Map(
+                    documenteEmise.flatMap((d) =>
+                      d.anulat_la === null && typeof d.hr_document_templates?.cod === "string"
+                        ? [[d.hr_document_templates.cod, d.numar_afisat] as const]
+                        : [],
+                    ),
+                  ),
+                  documenteFirma,
+                })}
+              />
             ) : null}
             {poateEditaAngajat ? (
               <Link href="/angajati/sabloane-documente" className={buton({ varianta: "tertiar" })}>

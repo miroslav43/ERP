@@ -5,19 +5,21 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  CODURI_INROLARE,
+  CODURI_PLATFORMA,
   DESCRIERI_VARIABILE,
   VALORI_EXEMPLU,
   VARIABILE_PER_COD,
 } from "./variabile";
 import {
   rezerva,
+  valoriActAditionalSalariu,
   valoriActAditionalTelemunca,
   valoriAnexaPi,
   valoriContractMunca,
   valoriFisaPostului,
   valoriNda,
   type ContextDocumente,
+  type DateActAditionalSalariu,
 } from "./valori-inrolare";
 
 /**
@@ -35,7 +37,24 @@ import {
  */
 const MIGRARI = join(process.cwd(), "supabase/migrations");
 
-const CODURI = CODURI_INROLARE;
+// Toate șabloanele livrate: cele cinci ale înrolării și actul adițional de salariu.
+const CODURI = CODURI_PLATFORMA;
+
+function actSalariu(organizatie: ContextDocumente["organizatie"], functie: string | null) {
+  const d: DateActAditionalSalariu = {
+    organizatie,
+    angajatNume: "Popescu Ion",
+    functie,
+    contractNumar: "42/2026",
+    contractData: "2026-08-28",
+    numarAct: "42/2026-AA1",
+    dataAct: "2026-10-20",
+    salariuVechi: 5000,
+    salariuNou: 5500,
+    dataAplicarii: "2026-11-01",
+  };
+  return valoriActAditionalSalariu(d);
+}
 
 /**
  * Variabilele declarate în migrări, per cod de șablon.
@@ -124,6 +143,7 @@ const HARTI: Readonly<Record<(typeof CODURI)[number], ReadonlyMap<string, string
   nda: valoriNda(CONTEXT, "doi ani"),
   anexa_proprietate_intelectuala: valoriAnexaPi(CONTEXT),
   act_aditional_telemunca: valoriActAditionalTelemunca(CONTEXT),
+  act_aditional_salariu: actSalariu(CONTEXT.organizatie, CONTEXT.angajat.functie),
 };
 
 describe("acoperirea variabilelor de șablon", () => {
@@ -182,6 +202,7 @@ describe("acoperirea variabilelor de șablon", () => {
       nda: valoriNda(gol, "doi ani"),
       anexa_proprietate_intelectuala: valoriAnexaPi(gol),
       act_aditional_telemunca: valoriActAditionalTelemunca(gol),
+      act_aditional_salariu: actSalariu(gol.organizatie, gol.angajat.functie),
     };
     const goale = [...harta[cod].entries()]
       .filter(([, valoare]) => valoare.trim() === "")

@@ -8,6 +8,7 @@ cai:
   - "src/schemas/cursuri.ts"
   - "src/domain/cursuri/**"
   - "src/lib/documents/cale.ts"
+  - "src/lib/media/cale.ts"
   - "src/lib/storage/urca-semnat.ts"
   - "supabase/migrations/0075_cursuri.sql"
   - "supabase/migrations/0077_cursuri_test_grila.sql"
@@ -16,9 +17,10 @@ tabele:
   [
     courses,
     course_materials,
-    course_lessons,
+    course_material_versions,
+    course_items,
     course_enrollments,
-    course_quiz_questions,
+    course_answer_keys,
     course_assignment_rules,
   ]
 permisiuni: [courses:read, courses:create, courses:update, courses:export]
@@ -26,8 +28,8 @@ feature: courses
 capcane: [17]
 citeste_daca:
   - "curs care nu acceptă înrolări → secțiunea „ce refuză baza”"
-scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
-scris_la: 2026-09-24
+scris_pe: 592cbf5b63e99ecbd46a87285dc6b2968523809e
+scris_la: 2026-10-03
 tags: [modul, hr]
 ---
 
@@ -89,8 +91,15 @@ sunt două citiri independente și costul e rețea, nu bază. Ordinea observabil
 `uploadToSignedUrl` din SDK: tokenul din adresă E autorizația, verificată la semnare sub
 sesiunea apelantului, deci `incarcare-versiune.tsx` și `asistent-material.tsx` nu mai țin
 un client Supabase în browser. Funcția întoarce `boolean` — rețea căzută, CORS sau filă
-închisă înseamnă același lucru pentru ecran. MIME-ul declarat de browser rămâne necrezut,
-la fel ca înainte: pasul de salvare verifică primii octeți cu `potrivesteSemnatura`.
+închisă înseamnă același lucru pentru ecran.
+
+Nici MIME-ul declarat de browser, nici `fel`-ul din formular nu sunt crezute la salvare:
+`salveazaVersiuneFisier` ia `fel` din RÂNDUL materialului și îl trece prin
+`verificaMaterial` (`src/lib/media/cale.ts`) înainte de a atinge obiectul, abia apoi
+verifică primii octeți urcați cu `potrivesteSemnatura`. Pregătirea validase plafoanele pe
+`fel`-ul venit de la client, iar materialul se putea schimba între timp — altfel un film
+devenea versiunea curentă a unui material „document". Ce nu trece se șterge din bucket
+prin clientul admin, ca să nu rămână obiect orfan. — `actions-versiuni.test.ts`
 
 Căile venite de la client (`salveazaVersiuneFisier`, inclusiv `subtitrare_cale`, și
 `renuntaLaIncarcare`) trec prin `caleInPrefix` (`src/lib/documents/cale.ts`), nu prin
@@ -106,6 +115,13 @@ pică la build. Căutarea liberă din `listeazaCursuri` și `listeazaMateriale` 
 tastate de om ar fi jokeri, iar virgula și paranteza rup gramatica `or=` — rezultatul nu e
 o eroare, e o listă subtil greșită. `max_rows = 1000` trunchiază tăcut, deci listările sunt
 fie pe cursor keyset, fie cu `.limit()` explicit sub prag.
+
+`listeazaInrolari` are două particularități care vin din termenul opțional: restanțele se
+taie față de ziua României (`todayInBucharest`), nu de cea UTC — între miezul nopții și
+ora 3 ziua UTC e încă ieri —, iar pe sortarea după `termen` paginarea trece prin
+`predicatKeysetNulabil`, cu `VALOARE_NULA` în cursor. `gt`/`lt` nu potrivesc niciodată
+NULL: cu keyset-ul simplu, o pagină terminată pe o înrolare fără scadență n-avea
+continuare, iar după o valoare NULL-urile nu mai apăreau deloc.
 
 ## Cheia de răspuns stă în tabelă separată
 
@@ -128,6 +144,21 @@ testului trece prin Server Action cu client admin, nu prin clientul utilizatorul
 - **Termenul e opțional** (`0085_cursuri_termen_optional.sql`, redenumită din `0079` după o
   coliziune amonte). Un curs fără termen nu e un curs „expirat imediat": ecranele și
   rapoartele de conformitate trebuie să trateze NULL ca „fără scadență".
+- **Mutarea materialului pe versiunea nouă e un UPDATE separat, cu altă permisiune.**
+  Inserția versiunii cere `courses:create`, dar `versiune_curenta_id` se scrie pe
+  `course_materials`, adică sub `courses:update`. Fără `.select()` după, zero rânduri
+  treceau drept succes: versiunea rămânea orfană, materialul pe cea veche. Ambele căi —
+  fișier și link — raportează acum CONFLICT. — capcana #17, `actions-versiuni.test.ts`
+- **`aplicaRegulile` verifică eroarea pe FIECARE citire paralelă**, nu doar pe reguli și
+  fișe. Rolurile vin din `organization_members`, iar cine e deja înrolat din
+  `course_enrollments`; o citire picată acolo nu dă eroare, dă listă goală — adică
+  „0 atribuiri" pe o regulă pe rol, sau un ciclu nou pentru toată lumea, fiindcă triggerul
+  de pregătire numerotează ciclul și baza nu refuză „duplicatul".
+  — `actions-inrolari.test.ts`
+- **Codul și denumirea cursului au indexuri unice separate** (`courses_cod_uk`,
+  `courses_denumire_uk`). `traduEroare` le desparte: 23505 pe denumire aterizează pe câmpul
+  `denumire`, nu pe `cod` — altfel omul schimba codul și primea aceeași eroare.
+  — `erori.test.ts`
 
 ## Ce se mișcă împreună
 

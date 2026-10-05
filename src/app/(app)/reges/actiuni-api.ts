@@ -17,7 +17,7 @@
  * doar contracte și acțiuni, care nu conțin date personale.
  */
 
-import { compuneSalariat } from "@/lib/reges/compune";
+import { compuneSalariat, referintaContractReges } from "@/lib/reges/compune";
 import { mascheazaText } from "@/domain/reges/mascare";
 import { idNomenclatorDinRaspuns } from "@/domain/reges/nomenclator-raspuns";
 import { pregatesteMesaje } from "@/lib/reges/coada";
@@ -89,21 +89,18 @@ const actiunePregateste = createAction<typeof pregatesteSchema, { mesaje: number
     if (error !== null) throw error;
     if (eveniment === null) throw notFound("Evenimentul REGES nu a fost găsit.");
 
-    const [{ data: angajat }, { data: contract }] = await Promise.all([
+    const [{ data: angajat }, regesContractId] = await Promise.all([
       ctx.supabase
         .from("employees")
         .select("reges_salariat_id")
         .eq("id", eveniment.employee_id)
         .eq("organization_id", organizationId)
         .maybeSingle(),
+      // Pentru un act adițional, identificatorul contractului de BAZĂ — vezi
+      // `referintaContractReges`.
       eveniment.contract_id === null
-        ? Promise.resolve({ data: null })
-        : ctx.supabase
-            .from("employment_contracts")
-            .select("reges_contract_id")
-            .eq("id", eveniment.contract_id)
-            .eq("organization_id", organizationId)
-            .maybeSingle(),
+        ? Promise.resolve(null)
+        : referintaContractReges(ctx.supabase, organizationId, eveniment.contract_id),
     ]);
 
     const rezultat = await pregatesteMesaje(ctx.supabase, {
@@ -113,7 +110,7 @@ const actiunePregateste = createAction<typeof pregatesteSchema, { mesaje: number
       contractId: eveniment.contract_id,
       tipEveniment: eveniment.event_type,
       regesSalariatId: angajat?.reges_salariat_id ?? null,
-      regesContractId: contract?.reges_contract_id ?? null,
+      regesContractId,
     });
     if (!rezultat.ok) throw businessRule(rezultat.motiv);
 

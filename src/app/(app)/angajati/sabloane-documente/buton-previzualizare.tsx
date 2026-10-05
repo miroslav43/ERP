@@ -7,7 +7,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Dialog } from "@/components/ui/dialog";
-import type { CodInrolare } from "@/lib/documents/variabile";
 
 /**
  * „Previzualizează PDF" — documentul așa cum ar ieși la export, din textul aflat
@@ -32,7 +31,11 @@ import type { CodInrolare } from "@/lib/documents/variabile";
 export function ButonPrevizualizare({
   cod,
   inCurs,
-}: Readonly<{ cod: CodInrolare; inCurs: boolean }>): React.ReactElement {
+}: Readonly<{
+  /** `null` = document nou al firmei, încă nesalvat: se verifică pe toate variabilele. */
+  cod: string | null;
+  inCurs: boolean;
+}>): React.ReactElement {
   const [adresa, setAdresa] = useState<string | null>(null);
   const [eroare, setEroare] = useState<string | null>(null);
   const [seIncarca, setSeIncarca] = useState(false);

@@ -30,7 +30,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { curataHtml, variabileFolosite } from "@/lib/documents/curata-html";
-import { VALORI_EXEMPLU, VARIABILE_PER_COD, esteCodInrolare } from "@/lib/documents/variabile";
+import { VALORI_EXEMPLU, VARIABILE_TOATE, variabilePentruCod } from "@/lib/documents/variabile";
 import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
 import { numeFisier } from "@/lib/pdf/document";
 import { pdfDinDocument } from "@/lib/pdf/din-html";
@@ -74,7 +74,11 @@ export async function POST(request: Request): Promise<Response> {
   }
   const { cod, continut_html: brut, denumire } = (corp ?? {}) as Record<string, unknown>;
 
-  if (typeof cod !== "string" || !esteCodInrolare(cod)) {
+  // `cod: null` = document NOU al firmei, încă nesalvat, deci fără cod: poate
+  // folosi orice variabilă, ca la creare (`creeazaSablonPersonalizat`).
+  const cunoscute =
+    cod === null ? VARIABILE_TOATE : typeof cod === "string" ? variabilePentruCod(cod) : null;
+  if (cunoscute === null) {
     return raspunsText("Tipul de document nu este cunoscut.", 400);
   }
   if (typeof brut !== "string" || brut.length === 0) {
@@ -95,7 +99,6 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const cunoscute = VARIABILE_PER_COD[cod];
   const necunoscute = variabileFolosite(curat).filter((v) => !cunoscute.includes(v));
   if (necunoscute.length > 0) {
     return raspunsText(
@@ -138,7 +141,7 @@ export async function POST(request: Request): Promise<Response> {
     status: 200,
     headers: {
       "content-type": "application/pdf",
-      "content-disposition": `inline; filename="${numeFisier(`previzualizare-${cod}`)}.pdf"`,
+      "content-disposition": `inline; filename="${numeFisier(`previzualizare-${typeof cod === "string" ? cod : "document-nou"}`)}.pdf"`,
       "cache-control": "no-store",
     },
   });

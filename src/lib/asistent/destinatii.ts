@@ -354,6 +354,20 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Textele din care se generează adeverințe, decizii și acte adiționale.",
   },
   {
+    id: "angajati.sabloane.nou",
+    href: "/angajati/sabloane-documente/nou",
+    eticheta: "Șablon nou de document",
+    zona: "app",
+    parinte: "angajati",
+    fila: null,
+    featureKey: null,
+    // Crearea e o inserare: `hr_templates_insert` cere `employees:create = all`.
+    permission: "employees:create",
+    minScope: "all",
+    descriere:
+      "Crearea unui document propriu al firmei — cerere, notificare, decizie — care se emite apoi din fișa oricărui angajat.",
+  },
+  {
     id: "organigrama",
     href: "/organigrama",
     eticheta: "Organigramă",

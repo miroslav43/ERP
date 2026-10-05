@@ -19,11 +19,12 @@ tabele:
   ]
 permisiuni: [maintenance:read, maintenance:create, maintenance:update]
 feature: maintenance
-capcane: [35]
+capcane: [17, 35]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
-scris_pe: 9dc2fc52ef1b2f425b7621e0819843e285c90272
-scris_la: 2026-09-25
+  - "sesizare care nu se mai mișcă, ori intervenție fără sesizare → „Ce refuză baza tăcut”"
+scris_pe: 592cbf5b63e99ecbd46a87285dc6b2968523809e
+scris_la: 2026-10-03
 tags: [modul]
 ---
 
@@ -93,6 +94,11 @@ politică îngustă ar fi tăiat și sesizarea.
 `cautaEchipament` e pe `create` / own fiindcă servește formularul de sesizare: cine poate
 raporta trebuie să poată găsi echipamentul, fără să vadă parcul.
 
+`rezolvaSesizare` e singura acțiune cu **două scrieri**, în ordine obligatorie: întâi
+intervenția, apoi sesizarea cu `intervention_id`-ul ei — `internal.ssm_fault_guard`
+refuză `status = 'rezolvat'` fără intervenție. Ordinea și compensarea sunt în „Ce refuză
+baza tăcut”.
+
 ## Citiri
 
 `src/lib/queries/maintenance.ts`: `listeazaEchipamente`, `citesteEchipament`,
@@ -103,6 +109,12 @@ raporta trebuie să poată găsi echipamentul, fără să vadă parcul.
 
 Ca la SSM, niciun filtru manual de scope: politicile din bucla lui `0011` restrâng
 rândurile în Postgres.
+
+Ziua de business vine din `todayInBucharest()` (`src/lib/format/date.ts`), nu din
+`new Date()`: `angajatiAutorizati` compară `valabil_pana` cu ea, iar
+`numarScadenteMentenanta` o dă mai departe. Pe ziua UTC, între miezul nopții și ora 3
+dimineața ora României, o autorizație expirată ieri trecea drept valabilă și alimenta
+selectorul de responsabil ISCIR — fără nicio eroare.
 
 Căutarea liberă după cod și denumire — `listeazaEchipamente` și acțiunea
 `cautaEchipament` — trece prin `tiparContine` (`src/lib/queries/cursor.ts`), nu prin
@@ -127,6 +139,20 @@ subtil greșită. Curățarea manuală dinainte rămâne în ambele locuri (`,()
   tabelele sursă. — v. [[modul/ssm]], capcana #26 acolo
 - **Ștergerea e logică.** Tabelele modulului primesc grant pe `select`, `insert` și
   `update`, cu `revoke delete` explicit în aceeași buclă.
+- **`rezolvat` și `respins` sunt terminale, dar baza nu păzește ieșirea din ele.**
+  `internal.ssm_fault_guard` cere intervenție la `rezolvat` și motiv la `respins`; nu
+  refuză însă mutarea unei sesizări deja închise înapoi în lucru, caz în care
+  `rezolvat_la` și `intervention_id` rămân agățate. Condiția stă în aplicație, în
+  `.in("status", ...)` pus **pe UPDATE** — și la `trieazaSesizare`, și la
+  `rezolvaSesizare` —, nu într-o citire prealabilă: numai în UPDATE ține și la doi
+  operatori simultani. Zero rânduri înseamnă „deja închisă”, nu eroare. — capcana #17,
+  `592cbf5`
+- **Rezolvarea nu e atomică, deci se compensează.** Dacă UPDATE-ul condiționat al
+  sesizării întoarce zero rânduri (cursă pierdută) sau eroare, intervenția abia inserată
+  se anulează logic cu `deleted_at` și acțiunea întoarce CONFLICT; altfel rămânea în
+  registru o intervenție cu costuri, fără sesizare, iar utilizatorul vedea „succes”.
+  `internal.ssm_intervention_apply` iese din prima linie pe `deleted_at`, deci planul nu
+  e atins de rândul anulat. — `592cbf5`
 
 ## Ce NU e aici
 
@@ -138,3 +164,7 @@ are politici și scadențe proprii. Instruirile, EIP-ul și accidentele sunt la
 
 - Calculul scadenței unui plan: `src/domain/maintenance/`.
 - De ce un manager poate sesiza dar nu poate administra: [[rol/manager]].
+- Contractul exact al unei acțiuni (payload, filtre, căi revalidate, câmpuri ținute în
+  afara auditului): `src/app/(app)/mentenanta/actions-*.test.ts`, pe client Supabase fals.
+  `actions-modul.test.ts` verifică cheia `feature` a tuturor exporturilor din `actions.ts`;
+  mesajele traduse sunt în `erori.test.ts`, formatările în `etichete.test.ts`.

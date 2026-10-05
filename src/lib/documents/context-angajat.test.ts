@@ -68,6 +68,7 @@ describe("adunaContextInrolare", () => {
       data: { subordonare: "Director", atributii: ["Plăți", "Facturi"], competente: null },
     });
 
+    db.raspunde("employment_contracts", "select", { data: null }); // niciun act adițional
     const r = await adunaContextInrolare(db.client, {
       organizationId: ORG,
       employeeId: ANGAJAT,
@@ -136,6 +137,7 @@ describe("adunaContextInrolare", () => {
     });
     db.raspunde("job_descriptions", "select", { data: null });
 
+    db.raspunde("employment_contracts", "select", { data: null }); // niciun act adițional
     const r = await adunaContextInrolare(db.client, {
       organizationId: ORG,
       employeeId: ANGAJAT,
@@ -163,6 +165,7 @@ describe("adunaContextInrolare", () => {
     });
     db.raspunde("employment_contracts", "select", { data: contract() });
     db.raspunde("job_descriptions", "select", { data: null });
+    db.raspunde("employment_contracts", "select", { data: null }); // niciun act adițional
     const r = await adunaContextInrolare(db.client, {
       organizationId: ORG,
       employeeId: ANGAJAT,
@@ -175,6 +178,7 @@ describe("adunaContextInrolare", () => {
   it("fișa inexistentă sau a altei firme: NEGASIT, nimic altceva citit", async () => {
     const db = clientFals();
     db.raspunde("employees", "select", { data: null });
+    db.raspunde("employment_contracts", "select", { data: null }); // niciun act adițional
     await expect(
       adunaContextInrolare(db.client, {
         organizationId: ORG,
@@ -189,6 +193,7 @@ describe("adunaContextInrolare", () => {
     const db = clientFals();
     db.raspunde("employees", "select", { data: angajat() });
     db.raspunde("employment_contracts", "select", { data: null });
+    db.raspunde("employment_contracts", "select", { data: null }); // niciun act adițional
     await expect(
       adunaContextInrolare(db.client, {
         organizationId: ORG,
@@ -199,5 +204,29 @@ describe("adunaContextInrolare", () => {
       code: "CONFLICT",
       message: "Angajatul nu are contract, deci nu se poate emite niciun document.",
     });
+  });
+  it("după un act adițional: salariul în vigoare separat, contractul de bază neatins", async () => {
+    const db = clientFals();
+    db.raspunde("employees", "select", { data: angajat() });
+    db.raspunde("employment_contracts", "select", { data: contract() });
+    db.raspunde("departments", "select", { data: { denumire: "Financiar" } });
+    db.raspunde("job_descriptions", "select", { data: null });
+    db.raspunde("employment_contracts", "select", { data: { salariu_baza: "6200.00" } });
+
+    const r = await adunaContextInrolare(db.client, {
+      organizationId: ORG,
+      employeeId: ANGAJAT,
+      etichetaModLucru: ETICHETE,
+    });
+
+    // CIM-ul rămâne cu salariul semnat; documentele firmei primesc pe cel de azi.
+    expect(r.contract.salariuBrut).toBe(5000.5);
+    expect(r.contract.salariuInVigoare).toBe(6200);
+    const act = db.apeluriPe("employment_contracts")[1];
+    expect(areFiltru(act, "eq", "parent_contract_id", "c1")).toBe(true);
+    expect(areFiltru(act, "eq", "organization_id", ORG)).toBe(true);
+    expect(areFiltru(act, "eq", "status", "activ")).toBe(true);
+    expect(areFiltru(act, "lte", "valabil_de_la", "2026-09-15")).toBe(true);
+    expect(areFiltru(act, "is", "deleted_at", null)).toBe(true);
   });
 });

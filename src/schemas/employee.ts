@@ -1045,16 +1045,32 @@ export const incetareContractSchema = z.object({
   arhiveaza_fisa: z.coerce.boolean().default(false),
 });
 
-export const modificaSalariuContractSchema = z.object({
-  contract_id: z.uuid("Contractul selectat nu este valid."),
-  salariu_baza: numarObligatoriu({
-    min: 0,
-    max: 100_000_000,
-    lipsa: "Salariul de bază este obligatoriu.",
-    mesaj: "Salariul de bază trebuie să fie un număr.",
-    interval: "Salariul de bază este între 0 și 100.000.000.",
-  }),
-});
+/**
+ * Modificarea salariului = un act adițional la contract.
+ *
+ * `valabil_de_la` e data de la care se aplică salariul nou, `data_act` data
+ * semnării actului. Actul se încheie ÎNAINTE să producă efecte (art. 17 alin.
+ * (5) din Codul muncii cere informarea prealabilă) — deci nu după data
+ * aplicării. Ordinea față de începutul contractului o verifică acțiunea, care
+ * are contractul.
+ */
+export const modificaSalariuContractSchema = z
+  .object({
+    contract_id: z.uuid("Contractul selectat nu este valid."),
+    salariu_baza: numarObligatoriu({
+      min: 0,
+      max: 100_000_000,
+      lipsa: "Salariul de bază este obligatoriu.",
+      mesaj: "Salariul de bază trebuie să fie un număr.",
+      interval: "Salariul de bază este între 0 și 100.000.000.",
+    }),
+    valabil_de_la: dataObligatorie("Se aplică de la"),
+    data_act: dataObligatorie("Data actului adițional"),
+  })
+  .refine((v) => v.data_act <= v.valabil_de_la, {
+    path: ["data_act"],
+    message: "Actul adițional se semnează cel târziu în ziua de la care se aplică salariul nou.",
+  });
 
 // ── Dezvăluirea datelor sensibile ─────────────────────────────────────────────
 

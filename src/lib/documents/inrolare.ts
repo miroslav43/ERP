@@ -27,6 +27,7 @@ import {
   type ContextDocumente,
   type DateAngajat,
   type DateContract,
+  type DateOrganizatie,
 } from "./valori-inrolare";
 
 /**
@@ -36,7 +37,7 @@ import {
  * confidențialitate, dar nu-i fixează durata — se negociază. Doi ani e uzanța
  * cea mai frecventă. De confirmat de jurist, ca tot restul textelor din 0100.
  */
-const DURATA_CONFIDENTIALITATE = "doi ani";
+export const DURATA_CONFIDENTIALITATE = "doi ani";
 
 /** Modurile de lucru care cer act adițional de telemuncă. */
 const CERE_ACT_TELEMUNCA: readonly string[] = ["telemunca", "domiciliu", "mixt"];
@@ -112,7 +113,7 @@ export type RezultatDocumente = Readonly<{
  * decriptează prin `hr_read_sensitive`, RPC-ul deja folosit de
  * `dezvaluieDateSensibile`, care scrie și rândul de audit al consultării.
  */
-async function cnpComplet(supabase: ServerSupabase, employeeId: string): Promise<string> {
+export async function cnpComplet(supabase: ServerSupabase, employeeId: string): Promise<string> {
   const { data } = await supabase.rpc("hr_read_sensitive", { p_employee: employeeId });
   const rand = data?.[0];
   if (
@@ -132,24 +133,31 @@ async function cnpComplet(supabase: ServerSupabase, employeeId: string): Promise
   });
 }
 
+/** Firma, în forma în care apare pe documente. */
+export async function organizatiaPentruDocumente(
+  supabase: ServerSupabase,
+  organizationId: string,
+): Promise<DateOrganizatie> {
+  const { data: organizatie } = await supabase
+    .from("organizations")
+    .select("name, legal_name, reprezentant_legal")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (organizatie === null) throw notFound("Organizația nu a putut fi citită.");
+  return {
+    // Documentul e oficial: forma juridică completă dacă a fost completată,
+    // altfel denumirea uzuală — niciodată nesetat.
+    denumire: organizatie.legal_name ?? organizatie.name,
+    reprezentantLegal: organizatie.reprezentant_legal,
+  };
+}
+
 export async function genereazaDocumenteInrolare(
   supabase: ServerSupabase,
   parametri: ParametriDocumenteInrolare,
 ): Promise<RezultatDocumente> {
-  const { data: organizatie } = await supabase
-    .from("organizations")
-    .select("name, legal_name, reprezentant_legal")
-    .eq("id", parametri.organizationId)
-    .maybeSingle();
-  if (organizatie === null) throw notFound("Organizația nu a putut fi citită.");
-
   const context: ContextDocumente = {
-    organizatie: {
-      // Documentul e oficial: forma juridică completă dacă a fost completată,
-      // altfel denumirea uzuală — niciodată nesetat.
-      denumire: organizatie.legal_name ?? organizatie.name,
-      reprezentantLegal: organizatie.reprezentant_legal,
-    },
+    organizatie: await organizatiaPentruDocumente(supabase, parametri.organizationId),
     angajat: {
       ...parametri.angajat,
       cnpComplet: await cnpComplet(supabase, parametri.employeeId),

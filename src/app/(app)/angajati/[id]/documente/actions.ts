@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
+import { ActionDenied, businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
 import {
   BUCKET_DOCUMENTE,
@@ -14,9 +14,21 @@ import {
 } from "@/lib/documents/cale";
 import { adunaContextInrolare } from "@/lib/documents/context-angajat";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
-import { coduriEligibile, genereazaDocumenteInrolare } from "@/lib/documents/inrolare";
-import { CODURI_INROLARE } from "@/lib/documents/variabile";
+import {
+  coduriEligibile,
+  genereazaDocumenteInrolare,
+  type DocumentEmis,
+} from "@/lib/documents/inrolare";
+import { genereazaDocumentPersonalizat } from "@/lib/documents/personalizate";
+import {
+  CODURI_INROLARE,
+  ETICHETE_SABLON,
+  esteCodInrolare,
+  esteCodPersonalizat,
+  type CodInrolare,
+} from "@/lib/documents/variabile";
 import type { ActionContext } from "@/lib/actions/types";
+import { emiteDocumenteSchema } from "@/schemas/document-template";
 
 import { ETICHETE_MOD_LUCRU } from "../../etichete";
 
@@ -271,7 +283,7 @@ export const stergeDocument = createAction({
  * Nu e o ștergere: documentul are un număr consumat din registrul seriei, o
  * amprentă și un cod de verificare, iar `trg_hr_issued_imuabil` (0148) nu lasă
  * scrisă decât anularea. Rândul rămâne cu `anulat_la` + `motiv_anulare`, iese
- * din lista activă și nu mai contează ca emis, deci „Emite documentele lipsă"
+ * din lista activă și nu mai contează ca emis, deci „Emite documente"
  * îl poate emite din nou. Cazul tipic: documente emise din greșeală, când
  * dosarul avea deja tot ce trebuia.
  *
@@ -316,53 +328,6 @@ export const anuleazaDocumentEmis = createAction({
     }
     if (data === null) throw notFound("Documentul nu există sau a fost deja anulat.");
     return { id: data.id, numarAfisat: data.numar_afisat };
-  },
-});
-
-/**
- * Emite documentele care LIPSESC din dosarul unui angajat.
- *
- * ── DE CE EXISTĂ ───────────────────────────────────────────────────────────
- * Fiecare avertisment al înrolării spunea „Îl puteți emite din fișa
- * angajatului, secțiunea Documente" — o cale care NU exista: singurul apelant
- * al generatorului era acțiunea de înrolare. Textul trimitea omul către un
- * buton imaginar, exact în situația în care avea nevoie de el.
- *
- * ── DE CE „LIPSĂ", NU „DIN NOU" ────────────────────────────────────────────
- * Fiecare emitere consumă un număr din registrul seriei, iar
- * `hr_issued_documents` nu are politică DELETE: un al doilea contract de muncă
- * pentru același om nu se poate șterge din interfață, doar anula. Acțiunea
- * calculează deci ce lipsește și emite exact atât. Rulată de două ori la rând,
- * a doua oară nu face nimic.
- */
-export const emiteDocumenteLipsa = createAction({
-  name: "angajati.documente.emite_lipsa",
-  permission: "employees:create",
-  minScope: "all",
-  audit: { entityType: "hr_issued_documents", action: "create", allow: ["employeeId"] },
-  input: idAngajat,
-  revalidate: ["/angajati"],
-  handler: async (ctx: ActionContext, input) => {
-    const context = await adunaContextInrolare(ctx.supabase, {
-      organizationId: ctx.tenant.organizationId,
-      employeeId: input.employeeId,
-      etichetaModLucru: ETICHETE_MOD_LUCRU,
-    });
-
-    const active = await documenteActive(ctx, input.employeeId);
-    const eligibile = coduriEligibile(context.codModLucru, context.fisaPostului !== null);
-    const lipsa = eligibile.filter((cod) => !active.has(cod));
-    if (lipsa.length === 0) {
-      throw businessRule("Toate documentele au fost deja emise pentru acest angajat.");
-    }
-
-    const rezultat = await genereazaDocumenteInrolare(ctx.supabase, {
-      ...context,
-      emisDe: ctx.user.id,
-      doarCodurile: lipsa,
-    });
-
-    return { documente: rezultat.documente, avertismente: rezultat.avertismente };
   },
 });
 
@@ -468,5 +433,103 @@ export const regenereazaDocumente = createAction({
     }
 
     return { documente: rezultat.documente, anulate, avertismente };
+  },
+});
+
+/**
+ * Emite documentele alese în caseta „Emite documente": oricare dintre cele
+ * cinci ale angajării care mai lipsesc, plus oricâte documente ale firmei.
+ *
+ * ── DE CE O SINGURĂ ACȚIUNE, NU UNA PE FEL ────────────────────────────────
+ * Caseta arată tot ce poate genera aplicația pentru angajat, într-o listă.
+ * Contextul (fișa, contractul, fișa postului) se adună O DATĂ, iar documentele
+ * angajării pleacă într-un singur apel — `genereazaDocumenteInrolare`
+ * decriptează CNP-ul o dată, iar decriptarea scrie un rând de audit.
+ *
+ * ── CE SE REFUZĂ ───────────────────────────────────────────────────────────
+ * Un document al angajării deja emis NU se emite a doua oară: fiecare emitere
+ * consumă un număr din serie, iar un al doilea contract activ nu se poate
+ * șterge, doar anula. Varianta nouă trece prin `regenereazaDocumente`, care îl
+ * anulează pe cel vechi. Caseta dezactivează bifele astea; aici e plasa pentru
+ * o cerere trimisă pe lângă ea (o filă rămasă deschisă, un clic dublu).
+ *
+ * Documentele firmei se pot emite de câte ori e nevoie: fiecare e un act nou.
+ *
+ * ── FIECARE DOCUMENT EȘUEAZĂ SINGUR ───────────────────────────────────────
+ * Un eșec (un șablon șters între timp) devine avertisment, nu oprește restul —
+ * același tipar ca înrolarea.
+ *
+ * Permisiunea: `employees:create = all`, cerută de `hr_issued_insert`.
+ */
+export const emiteDocumente = createAction({
+  name: "angajati.documente.emite",
+  permission: "employees:create",
+  minScope: "all",
+  audit: { entityType: "hr_issued_documents", action: "create", allow: ["employeeId", "coduri"] },
+  input: emiteDocumenteSchema,
+  revalidate: ["/angajati"],
+  handler: async (ctx: ActionContext, input) => {
+    const context = await adunaContextInrolare(ctx.supabase, {
+      organizationId: ctx.tenant.organizationId,
+      employeeId: input.employeeId,
+      etichetaModLucru: ETICHETE_MOD_LUCRU,
+    });
+
+    const avertismente: string[] = [];
+
+    // ── Documentele angajării ──
+    const eligibile = coduriEligibile(context.codModLucru, context.fisaPostului !== null);
+    const active = await documenteActive(ctx, input.employeeId);
+    const deAngajare: CodInrolare[] = [];
+    for (const cod of input.coduri.filter(esteCodInrolare)) {
+      const activ = active.get(cod);
+      if (activ !== undefined) {
+        avertismente.push(
+          `${ETICHETE_SABLON[cod]} a fost deja emis (${activ.numarAfisat}). Pentru o variantă nouă, folosește „Regenerează documente” din fișa angajatului.`,
+        );
+      } else if (!eligibile.includes(cod)) {
+        avertismente.push(`${ETICHETE_SABLON[cod]} nu se poate emite pentru acest angajat.`);
+      } else {
+        deAngajare.push(cod);
+      }
+    }
+
+    const documente: DocumentEmis[] = [];
+    if (deAngajare.length > 0) {
+      const rezultat = await genereazaDocumenteInrolare(ctx.supabase, {
+        ...context,
+        emisDe: ctx.user.id,
+        doarCodurile: deAngajare,
+      });
+      documente.push(...rezultat.documente);
+      avertismente.push(...rezultat.avertismente);
+    }
+
+    // ── Documentele firmei ──
+    for (const cod of input.coduri.filter(esteCodPersonalizat)) {
+      try {
+        documente.push(
+          await genereazaDocumentPersonalizat(ctx.supabase, {
+            context,
+            cod,
+            emisDe: ctx.user.id,
+          }),
+        );
+      } catch (eroare) {
+        avertismente.push(
+          eroare instanceof ActionDenied
+            ? eroare.message
+            : "Un document al firmei nu a putut fi emis. Încearcă din nou.",
+        );
+        console.error("[documente] emitere document al firmei eșuată", { cod, eroare });
+      }
+    }
+
+    if (documente.length === 0) {
+      throw businessRule(
+        avertismente.length > 0 ? avertismente.join(" ") : "Niciun document nu a putut fi emis.",
+      );
+    }
+    return { documente, avertismente };
   },
 });

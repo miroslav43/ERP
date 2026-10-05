@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 import { arataToast } from "@/components/ui/toast";
-import { ETICHETE_SABLON, type CodInrolare } from "@/lib/documents/variabile";
+import { ETICHETE_SABLON, esteCodPlatforma } from "@/lib/documents/variabile";
 
 import { restabilesteSablonPlatforma } from "./actions";
 
@@ -19,23 +19,38 @@ import { restabilesteSablonPlatforma } from "./actions";
  * a fost emis, tocmai ca amprenta lui SHA-256 să însemne ceva. Fără propoziția
  * asta, cineva ar putea apăsa crezând că retrage și contractele semnate.
  */
-export function ButonRestabilesteSablon({ cod }: Readonly<{ cod: string }>): React.ReactElement {
+export function ButonRestabilesteSablon({
+  cod,
+  denumire,
+}: Readonly<{
+  cod: string;
+  /**
+   * Dată doar pentru un document creat de firmă (`doc_…`). Acela nu are
+   * variantă de platformă la care să se revină: retragerea lui e o ștergere,
+   * iar butonul și confirmarea o spun ca atare.
+   */
+  denumire?: string;
+}>): React.ReactElement {
+  const personalizat = denumire !== undefined;
   const [deschis, setDeschis] = useState(false);
   const [inCurs, porneste] = useTransition();
   const router = useRouter();
 
   const confirma = useCallback(() => {
     porneste(async () => {
-      const rezultat = await restabilesteSablonPlatforma({ cod: cod as CodInrolare });
+      const rezultat = await restabilesteSablonPlatforma({ cod });
       if (!rezultat.ok) {
         arataToast({ fel: "eroare", text: rezultat.error.message });
         return;
       }
       setDeschis(false);
-      arataToast({ fel: "reusita", text: "S-a revenit la șablonul de platformă." });
+      arataToast({
+        fel: "reusita",
+        text: personalizat ? "Documentul a fost șters." : "S-a revenit la șablonul de platformă.",
+      });
       router.refresh();
     });
-  }, [cod, router]);
+  }, [cod, personalizat, router]);
 
   return (
     <>
@@ -45,16 +60,20 @@ export function ButonRestabilesteSablon({ cod }: Readonly<{ cod: string }>): Rea
           setDeschis(true);
         }}
       >
-        Revino la varianta de platformă
+        {personalizat ? "Șterge" : "Revino la varianta de platformă"}
       </Buton>
       <ConfirmareActiune
         deschis={deschis}
         laInchidere={() => {
           setDeschis(false);
         }}
-        titlu="Revenire la șablonul de platformă"
-        consecinta={`Textul scris de firmă pentru „${ETICHETE_SABLON[cod as CodInrolare] ?? cod}” se retrage, iar emiterile următoare vor folosi din nou varianta livrată cu aplicația. Documentele DEJA emise nu se modifică: fiecare păstrează textul cu care a fost emis.`}
-        etichetaConfirmare="Revino la platformă"
+        titlu={personalizat ? "Ștergerea documentului" : "Revenire la șablonul de platformă"}
+        consecinta={
+          personalizat
+            ? `„${denumire}” nu se va mai putea emite. Documentele DEJA emise rămân în dosarele angajaților și în registru, neschimbate.`
+            : `Textul scris de firmă pentru „${esteCodPlatforma(cod) ? ETICHETE_SABLON[cod] : cod}” se retrage, iar emiterile următoare vor folosi din nou varianta livrată cu aplicația. Documentele DEJA emise nu se modifică: fiecare păstrează textul cu care a fost emis.`
+        }
+        etichetaConfirmare={personalizat ? "Șterge documentul" : "Revino la platformă"}
         distructiv
         inCurs={inCurs}
         laConfirmare={confirma}
