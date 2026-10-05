@@ -123,7 +123,7 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         </dl>
       </Banda>
 
-      <Banda fundal="cerneala" inaltime="medie" titlu="Amenzile" aliniereTitlu="larg">
+      <Banda fundal="cerneala" inaltime="medie" titlu={text.titluAmenzi} aliniereTitlu="larg">
         <dl className="border-mk-rigla-inv/40 mt-8 border-t">
           {text.amenzi.map((a) => (
             <div key={a.fapta} className="border-mk-rigla-inv/40 border-b py-5">

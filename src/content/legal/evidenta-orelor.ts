@@ -35,7 +35,8 @@ export const EVIDENTA_ORELOR: PaginaLege = {
     "Pentru salariații mobili, cei care lucrează la domiciliu și cei din microîntreprinderi, evidența se ține în condițiile stabilite prin acord scris cu salariatul — art. 119 alin. (2). Fără acordul scris, excepția nu se poate invoca.",
   ],
 
-  titluReguli: "Ce cere textul, punct cu punct",
+  titluReguli: "Ce trebuie să conțină evidența orelor, după art. 119?",
+  titluAmenzi: "Ce amendă riscă angajatorul fără evidența orelor?",
 
   reguli: [
     {

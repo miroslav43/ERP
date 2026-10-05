@@ -47,7 +47,8 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
     "Concediul se efectuează în natură, în anul pentru care se cuvine. Compensarea în bani e permisă NUMAI la încetarea contractului — art. 146 alin. (3). Zilele neefectuate din motive justificate se acordă într-un termen de 18 luni începând cu anul următor.",
   ],
 
-  titluReguli: "Regulile, cu articolul lângă fiecare",
+  titluReguli: "Ce reguli are concediul de odihnă în Codul muncii?",
+  titluAmenzi: "Se amendează neacordarea concediului de odihnă?",
 
   reguli: [
     {

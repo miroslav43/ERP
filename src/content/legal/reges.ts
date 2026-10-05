@@ -39,7 +39,8 @@ export const REGES: PaginaLege = {
     "Termenele exprimate în zile sunt întotdeauna zile lucrătoare. Sintagma „zile calendaristice” nu apare nicăieri în hotărâre.",
   ],
 
-  titluReguli: "Termenele de transmitere, complet",
+  titluReguli: "Care sunt termenele de transmitere în REGES-ONLINE?",
+  titluAmenzi: "Ce amenzi se dau pentru REGES-ONLINE?",
 
   reguli: [
     {

@@ -35,7 +35,8 @@ export const SPOR_DE_NOAPTE: PaginaLege = {
     "Înainte de a începe munca de noapte și apoi periodic, salariatul face un examen medical gratuit — art. 127. Tinerii sub 18 ani nu pot lucra noaptea — art. 128.",
   ],
 
-  titluReguli: "Regulile, cu articolul lângă fiecare",
+  titluReguli: "Ce reguli are munca de noapte în Codul muncii?",
+  titluAmenzi: "Ce amendă se dă pentru încălcarea regulilor muncii de noapte?",
 
   reguli: [
     {

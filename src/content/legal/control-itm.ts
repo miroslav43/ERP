@@ -32,7 +32,8 @@ export const CONTROL_ITM: PaginaLege = {
     "Refuzul nejustificat de a prezenta documentele, în cel mult 15 zile de la a doua solicitare, și împiedicarea accesului inspectorilor nu sunt contravenții, sunt infracțiuni — art. 264 alin. (2) și (3) din Codul muncii.",
   ],
 
-  titluReguli: "Ce se pune pe masă",
+  titluReguli: "Ce documente cere inspectorul ITM la un control?",
+  titluAmenzi: "Ce amenzi se dau cel mai des la un control ITM?",
 
   reguli: [
     {

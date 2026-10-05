@@ -75,8 +75,14 @@ export type PaginaLege = Readonly<{
    */
   raspunsScurt: readonly string[];
   reguli: readonly Regula[];
-  /** Titlul tabelei de reguli — diferă de la o pagină la alta. */
+  /** Titlul tabelei de reguli, ca întrebare — diferă de la o pagină la alta. */
   titluReguli: string;
+  /**
+   * Titlul secțiunii de amenzi, ca întrebare. A fost „Amenzile", fix pe toate
+   * paginile, până pe 5 oct 2026; motoarele generative potrivesc pasajul după
+   * întrebarea căutată, iar un titlu identic pe opt pagini nu potrivește nimic.
+   */
+  titluAmenzi: string;
   amenzi: readonly Amenda[];
   /** Secțiuni de proză, între tabele. */
   sectiuni: readonly Readonly<{ titlu: string; paragrafe: readonly string[] }>[];

@@ -33,7 +33,8 @@ export const ORE_SUPLIMENTARE: PaginaLege = {
     "Nu se pot cere fără acordul salariatului, în afara forței majore și a lucrărilor urgente — art. 120 alin. (2). Tinerii sub 18 ani nu pot face ore suplimentare — art. 124. Încălcarea regulilor se amendează cu 1.500–3.000 de lei pentru fiecare persoană — art. 260 alin. (1) lit. i).",
   ],
 
-  titluReguli: "Regulile, cu articolul lângă fiecare",
+  titluReguli: "Ce reguli au orele suplimentare în Codul muncii?",
+  titluAmenzi: "Ce amendă se dă pentru ore suplimentare nelegale?",
 
   reguli: [
     {

@@ -49,7 +49,8 @@ export const DIURNA: PaginaLege = {
     "Decontarea transportului și a cazării nu intră în niciunul dintre plafoane: textul le exclude expres. Iar Codul muncii nu condiționează delegarea de nicio distanță — pragul de 5 km circulă din hotărârea care se aplică sectorului public.",
   ],
 
-  titluReguli: "Regulile, cu articolul lângă fiecare",
+  titluReguli: "Cât e diurna neimpozabilă în 2026 și când se acordă?",
+  titluAmenzi: "Se amendează o diurnă neacordată sau calculată greșit?",
 
   reguli: [
     {

@@ -35,7 +35,8 @@ export const DIURNA_EXTERNA: PaginaLege = {
     "Zilele se numără de la trecerea frontierei (decolare sau aterizare, pentru avion). Fracțiunea de zi sub 12 ore primește 50% din diurnă, peste 12 ore 100% — art. 7^1 din hotărâre.",
   ],
 
-  titluReguli: "Regulile, cu articolul lângă fiecare",
+  titluReguli: "Cum se acordă diurna externă și cât e neimpozabil?",
+  titluAmenzi: "Ce riscă firma dacă diurna externă e sub cuantumul din anexă?",
 
   reguli: [
     {
