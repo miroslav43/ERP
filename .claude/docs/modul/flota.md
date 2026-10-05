@@ -24,8 +24,8 @@ citeste_daca:
   - "vehicul care nu apare în listă → [[rol/manager]]"
   - "42501 la salvarea unui vehicul → capcana #23"
   - "tip de document care lipsește din listă → 0116, cele patru de transport sunt activ=false"
-scris_pe: 9dc2fc52ef1b2f425b7621e0819843e285c90272
-scris_la: 2026-09-25
+scris_pe: 9d5b6a4bd8cfd34399ecbf06fa5edd27286eaabd
+scris_la: 2026-10-05
 tags: [modul, operations]
 ---
 
@@ -33,7 +33,7 @@ tags: [modul, operations]
 
 Vehicule, documentele lor cu scadențe, foi de parcurs cu alimentări, și anomalii de
 kilometraj. **Modulul cu cea mai densă concentrație de refuzuri tăcute din proiect** —
-patru din cele cinci capcane de mai jos nu produc nicio eroare.
+majoritatea refuzurilor de mai jos nu produc nicio eroare.
 
 ## Rute și cine ajunge
 
@@ -43,17 +43,19 @@ patru din cele cinci capcane de mai jos nu produc nicio eroare.
 | `/flota/foi`, `/flota/foi/[id]`      | `trip_sheets:read`/`update` own                                     |
 | `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
 
-**Fișa vehiculului nu mai e doar de citit.** Modificarea și ștergerea stau amândouă în
-spatele lui `vehicles:update` all — `poateAdministra` din `[id]/page.tsx`, exact poarta
-pe care o cere `vehicule_update` în bază. Sub ea intră și coloana „Acțiuni" a tabelului
-de documente: pentru cine n-o poate folosi lipsește cu totul, nu apare goală.
+**Fișa vehiculului nu e doar de citit.** Modificarea și ștergerea stau amândouă în spatele
+lui `vehicles:update` all — `poateAdministra` din `[id]/page.tsx`, poarta cerută de
+`vehicule_update` în bază. Sub ea intră și coloana „Acțiuni" a documentelor: pentru cine
+n-o poate folosi lipsește cu totul, nu apare goală.
 
 **Vehiculul nou și foaia nouă NU mai au rută.** `/flota/nou` și `/flota/foi/noua` au
 dispărut, fără redirect, în favoarea unor casete pe listă — tiparul din `[[modul/concedii]]`.
-Se deschid prin parametru: `/flota?vehicul=nou` și `/flota/foi?foaie=noua`, cu
-`deschisInitial` + `key` pe componentă (o navigare pe ACEEAȘI rută nu remontează, deci
-fără `key` caseta nu s-ar mai deschide a doua oară). Citirile fostei pagini de foaie stau
-în `foi/date-foaie-noua.ts`, `server-only`, chemat doar pentru cine are `trip_sheets:create`.
+Se deschid prin parametru (`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu
+`deschisInitial` + `key` pe componentă: o navigare pe ACEEAȘI rută nu remontează, deci fără
+`key` caseta nu s-ar redeschide. Citirile fostei pagini de foaie stau în
+`foi/date-foaie-noua.ts`, `server-only`, chemat doar pentru cine are `trip_sheets:create`;
+cere vehiculele cu `status: "activ"`, fiindcă `internal.foi_parcurs_inainte` refuză cu
+P0001 o foaie pe un vehicul vândut sau casat.
 
 ## Server Actions
 
@@ -69,12 +71,14 @@ fără `key` caseta nu s-ar mai deschide a doua oară). Citirile fostei pagini d
 | `decideFoaie`                            | `trip_sheets:approve` / team |
 | `confirmaAnomalie`                       | `vehicles:update` / team     |
 
-Cele patru scrieri noi sunt toate `minScope: "all"`, fiindcă politicile cer literal
-`has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși seed-ul din
-`0002_authz.sql:1153` îl acordă lui `super_admin` și `org_admin`: politicile flotei se
-uită numai la `vehicles:update`, deci cheia rămâne inertă — poarta care contează e a bazei,
-nu a acțiunii. Ștergerea e logică, prin `deleted_at`: cele șase tabele ale flotei primesc
-grant doar pe `select`, `insert` și `update` (`0012_fleet.sql:1080`).
+Scrierile pe vehicule și documente sunt toate `minScope: "all"`, fiindcă politicile cer
+literal `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși
+`0002_authz.sql:1153` îl acordă lui `super_admin` și `org_admin`: politicile se uită numai
+la `vehicles:update`, deci cheia rămâne inertă — poarta care contează e a bazei. Ștergerea
+e logică, prin `deleted_at`: tabelele flotei primesc grant doar pe `select`, `insert` și
+`update` (`0012_fleet.sql:1080`). Contractele scrierilor, ale traducerii de erori și ale
+casetei „Foaie nouă" sunt fixate pe clientul fals: `actions-vehicule.test.ts`,
+`actions-foi.test.ts`, `erori-etichete.test.ts`, `foi/date-foaie-noua.test.ts`.
 
 **Ieșirea din parc trece obligatoriu prin `actualizeazaVehicul`.** `vehicule_insert` cere
 literal `status = 'activ'`, deci `vehiculNouSchema` nici n-are câmpul: `status` și
@@ -87,9 +91,9 @@ pune `internal.vehicles_normalizeaza` din `status` și o golește la întoarcere
 **Orele foilor se citesc și se scriu ca ora României.** `plecare_la`, `sosire_la` și
 `alimentat_la` trec prin `dataOraRomania` (`src/schemas/comun.ts`) și ies moment exact în
 UTC; formularele umplu câmpul invers, cu `oraRomanieiPentruCamp` (`src/lib/format/date.ts`),
-de unde își iau și `min`/`max`. Înainte, `z.iso.datetime({ local: true })` lăsa șirul fără
-fus să ajungă neatins în Postgres, citit în fusul sesiunii: 15:00 tastat se scria 15:00 UTC
-și apărea 18:00. Kilometrajul, litrii și costul au acum mesaje proprii în română în schemă.
+de unde își iau și `min`/`max`. Cu `z.iso.datetime({ local: true })`, șirul fără fus ajungea
+neatins în Postgres, citit în fusul sesiunii: 15:00 tastat apărea 18:00. Kilometrajul,
+litrii și costul au mesaje proprii în română în schemă.
 
 ## Citiri
 
@@ -104,11 +108,10 @@ Citește secțiunea asta înainte de orice scriere în modul.
 
 - **`manager` nu are NICIO permisiune `vehicles:*`.** Pe `/flota/foi` și
   `/flota/aprobari`, embed-ul `vehicles!vehicle_id` vine **NULL, fără eroare**. Tipează
-  câmpul `| null` și afișează „—". Nu compensa cu `createAdminSupabase`: ESLint îl
-  permite doar în `actions.ts`, route handlers, scripts și tests. În plus, un vehicul cu
-  `employee_id` NULL e invizibil pentru oricine nu are `vehicles:read = all`. De aceea
-  caseta „Foaie nouă" se randează ca link spre parcul auto când lista de vehicule vine
-  goală — un buton dezactivat n-ar spune de ce. — capcana #18
+  câmpul `| null` și afișează „—". Nu compensa cu `createAdminSupabase` — ESLint nu-l
+  permite în pagini. În plus, un vehicul cu `employee_id` NULL e invizibil pentru oricine
+  nu are `vehicles:read = all`. De aceea caseta „Foaie nouă" devine link spre parcul auto
+  când lista vine goală — un buton dezactivat n-ar spune de ce. — capcana #18
 - **Semaforul de scadențe NU se citește din `expirables`.** Politica de acolo cere ȘI
   dreptul pe vehicul ȘI `compliance:read`, pe care în seed îl au doar `super_admin` și
   `org_admin`. Pentru `hr`, `manager` și `employee` tabela întoarce **zero rânduri,
@@ -121,11 +124,16 @@ Citește secțiunea asta înainte de orice scriere în modul.
   existent. Ștergerea unui document nu e nici ea o linie ștearsă: `vdoc_dupa` promovează
   automat documentul anterior și mută scadența în `expirables`. Ambele drumuri sunt probate
   în `tests/rls/izolare.sql`, verificarea `(l)`, cu rânduri NUMĂRATE — un UPDATE respins de
-  `USING` nu ridică eroare, deci un `begin/exception` n-ar dovedi nimic.
+  `USING` nu ridică eroare.
 - **`vehicles` și `vehicle_documents` cer `created_by` ȘI `updated_by` trimise
   explicit** din client — spre deosebire de tabelele acoperite de `internal.set_actor`.
   Omiterea lor dă **42501**, adică „Nu aveți dreptul…", un mesaj care trimite
   investigația exact în direcția greșită. — capcana #23
+- **O anomalie deja confirmată se poate REconfirma.** `internal.anomalii_protejeaza` pune
+  `confirmat_de` doar la PRIMA confirmare, dar lasă `confirmat_la` și `nota` suprascrise de
+  al doilea om: rândul rămâne semnat de primul, cu explicația celuilalt. De aceea
+  `confirmaAnomalie` filtrează `.is("confirmat_la", null)` — zero rânduri ⇒ CONFLICT. Garda
+  e în acțiune, nu în politică (`actions-foi.test.ts`).
 - **Coloane GENERATED ALWAYS pe care clientul nu are voie să le trimită:**
   `trip_sheets.km_parcursi`, `fuel_entries.pret_litru`, `odometer_anomalies.diferenta`.
   La fel, `aprobat_de`/`aprobat_la` și `confirmat_de` le scrie triggerul din
@@ -147,7 +155,9 @@ Capcana potrivirii: **mesajele din bază sunt scrise cu s și t cu SEDILĂ**
 (`0012_fleet.sql:600`, `0018_fix_flota.sql:98`), nu cu virgula dedesubt folosită în proiect
 — de aceea tiparele ocolesc literele acelea, cu `.` în locul lor. Unul scris cu
 diacriticele corecte nu s-ar potrivi NICIODATĂ, iar eroarea ar cădea tăcut în mesajul
-general. `erori.test.ts` fixează exact asta, mesaj cu mesaj.
+general. `erori.test.ts` fixează exact asta, mesaj cu mesaj; `erori-etichete.test.ts` ține
+codurile non-`P0001` și lipește hărțile din `etichete.ts` de enumurile din
+`src/schemas/fleet.ts` — o valoare nouă fără text ar ajunge `undefined` pe ecran.
 
 ## Ce se mișcă împreună
 
@@ -155,9 +165,9 @@ Migrarea → `src/types/database.ts` → `src/schemas/fleet.ts` →
 `src/lib/queries/fleet.ts` → acțiuni → pagini. Anomaliile de kilometraj și calculul de
 consum stau în `src/domain/fleet/`.
 
-Formularele nu mai citesc `FormData` fiecare pe cont propriu: `flota/valori-vehicul.ts` și
-`flota/[id]/valori-document.ts` sunt singura traducere spre încărcătura acțiunilor,
-folosite și la creare și la modificare, ca și `CampuriVehicul`/`CampuriDocument`. Două
+`flota/valori-vehicul.ts` și `flota/[id]/valori-document.ts` sunt singura traducere din
+`FormData` spre încărcătura acțiunilor, la creare și la modificare, ca și
+`CampuriVehicul`/`CampuriDocument`. Două
 capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-document.test.ts`:
 `Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar
 `actualizeazaVehicul` trimite obiectul ÎNTREG — `employee_id` și `department_id` călătoresc
@@ -167,25 +177,25 @@ prin câmpuri ascunse, altfel orice salvare a fișei ar șterge alocarea făcut�
 `noValidate`: bulele browserului dispar, iar regulile pe care baza le refuză oricum — sosire
 după plecare, kilometraj crescător, alimentare în intervalul cursei, litri peste zero — se
 spun în client, în română, pe câmp. Cele două formulare își țin erorile SEPARAT
-(`eroriInchidere` / `eroriAlimentare`), ca la cele două `useTransition`: o eroare la
-alimentare nu mai înroșește caseta de sosire. Sub buton rămâne „Corectați câmpurile
-marcate", iar ce vine cu `fieldErrors === null` se arată acolo întreg.
+(`eroriInchidere`/`eroriAlimentare`), ca la cele două `useTransition`: o eroare la
+alimentare nu înroșește caseta de sosire. Sub buton rămâne „Corectați câmpurile marcate",
+iar ce vine cu `fieldErrors === null` se arată acolo întreg.
 
 ## Nomenclatorul de tipuri de document
 
 `vehicle_document_types` e o TABELĂ, nu un enum — ca primul client de transport să nu
-ceară o migrare de platformă. Are unsprezece rânduri de platformă, dar **doar șapte
-active** de la `0116`: ITP, RCA, CASCO, rovinietă, revizie, stingător, trusă medicală.
-Licența de transport, copia conformă, verificarea tahograf și certificatul ADR au
-`activ = false` — se reactivează cu un `UPDATE`, pentru toate firmele deodată.
+ceară o migrare de platformă. Din rândurile de platformă, **doar șapte sunt active** de la
+`0116`: ITP, RCA, CASCO, rovinietă, revizie, stingător, trusă medicală. Cele patru de
+transport (licență, copie conformă, tahograf, ADR) au `activ = false` — se reactivează cu
+un `UPDATE`, pentru toate firmele deodată.
 
 Un tip PROPRIU firmei nu poate purta codul unuia de platformă (`vdt_normalizeaza`, 0018 §F6):
 `kind`-ul din `expirables` se deduce din `cod`, iar o coliziune ar face două tipuri să scrie
 peste aceeași scadență. Dezactivarea nu îngheață documentele existente — de la 0018 §F4,
 `vdoc_inainte` revalidează tipul doar la INSERT sau când `document_type_id` chiar se schimbă.
 
-Coloana `numar` a ieșit din interfață (formular și tabel) — nu se căuta după ea, nu intra
-în niciun raport și nu ajungea în `expirables`. Rămâne în bază cu valorile deja scrise.
+Coloana `numar` a ieșit din interfață — nu se căuta după ea, nu intra în rapoarte, nu
+ajungea în `expirables`. Rămâne în bază, cu valorile deja scrise.
 
 ## Ce NU e aici
 
@@ -194,7 +204,6 @@ e alt modul. Fișa șoferului: `[[modul/angajati]]`.
 
 ## Când NU e suficientă pagina asta
 
-- Forma politicilor și a funcției de vizibilitate a vehiculului: migrarea care creează
-  `vehicles`.
+- Forma politicilor și a vizibilității vehiculului: migrarea care creează `vehicles`.
 - Scadențele centralizate: capcanele #19, #21 și #26, integral, prin
   `node .claude/skills/administrativo/scripts/capcana.mjs --nr 19`.

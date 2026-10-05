@@ -12,8 +12,8 @@ permisiuni: [employees:read]
 capcane: [2, 18]
 citeste_daca:
   - "scope `team` care vede prea mult sau prea puțin → secțiunea `manager_path`"
-scris_pe: 15d4ef4edaef4834d88bfbcc49db567d17f5bca4
-scris_la: 2026-09-04
+scris_pe: 9d5b6a4bd8cfd34399ecbf06fa5edd27286eaabd
+scris_la: 2026-10-05
 tags: [modul]
 ---
 
@@ -64,9 +64,17 @@ diurnă.
 ## Citirea ecranului
 
 `arboreleManagerial(organizationId, scope, propriaFisaId)` din
-`src/lib/queries/employees.ts`. Poarta e `employees:read`, iar `scope === null` sau
-`"none"` dă `AccesRestrictionat`. Cu scope diferit de `all`, pagina trimite propria fișă,
-ca arborele să pornească de acolo.
+`src/lib/queries/employees.ts` — fișier marcat `import "server-only"`, deci un import
+dintr-o componentă client oprește build-ul în loc să ducă citirile de personal în
+bundle-ul de browser. Poarta e `employees:read`, iar `scope === null` sau `"none"` dă
+`AccesRestrictionat`. Cu scope diferit de `all`, pagina trimite propria fișă, ca arborele
+să pornească de acolo.
+
+Dacă scope-ul e `team` și fișa proprie lipsește, funcția întoarce lista goală **înainte de
+a interoga**: `manager_path @> array[NULL]` e fals, deci RLS ar fi tăiat oricum tot, dar
+interogarea pleca pe toată organizația și se sprijinea exclusiv pe politică. Același
+scurtcircuit stă în `listeazaAngajati` și `citesteAngajat`, acolo pe orice scope diferit
+de `all`.
 
 Rolurile conturilor vin dintr-o **a doua** interogare, nu dintr-un embed: între
 `employees` și `organization_members` nu există cheie străină, iar PostgREST refuză
@@ -94,7 +102,10 @@ diferită de „n-are șef".
 
 - **Un angajat fără fișă principală de angajat are `team` peste mulțimea vidă.**
   Subordonarea trăiește în `employees`, nu în `organization_members`; un cont de manager
-  fără fișă vede liste goale peste tot, fără nicio eroare.
+  fără fișă vede liste goale peste tot, fără nicio eroare. Pe organigramă golul nu mai
+  vine din politică, ci din cod: `arboreleManagerial` întoarce lista goală pentru `team`
+  fără fișă proprie. Ecranul arată la fel — `StareGoala` „Nimic de afișat" —, doar că
+  motivul e acum verificabil fără bază.
 - **Harta de roluri nu cere limită, deci se taie la plafonul `max_rows`.**
   `toateRolurileConturilor` citește toți membrii activi ai organizației fără paginare;
   peste plafon PostgREST trunchiază fără eroare și fără antet. Efectul nu e o listă mai

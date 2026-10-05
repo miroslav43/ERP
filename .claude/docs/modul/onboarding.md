@@ -22,13 +22,13 @@ tabele:
   ]
 permisiuni: [checklists:read, checklists:create, checklists:update, checklists:approve]
 feature: onboarding
-capcane: [12]
+capcane: [2, 12]
 citeste_daca:
   - "„Checklistul este închis” pe un checklist deschis → secțiunea D6"
   - "pas obligatoriu care nu se poate bifa niciodată → secțiunea D4"
   - "câmpul de filtru rămâne plin după „Șterge filtrele” → secțiunea Ce se mișcă împreună"
-scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
-scris_la: 2026-09-24
+scris_pe: 9d5b6a4bd8cfd34399ecbf06fa5edd27286eaabd
+scris_la: 2026-10-05
 tags: [modul, hr]
 ---
 
@@ -129,6 +129,10 @@ Trei timpi: `pregatesteIncarcareDovada` întoarce `cale` + `urlSemnat`
 (`createSignedUploadUrl`), browserul urcă octeții cu `urcaPeUrlSemnat` — un `PUT`
 obișnuit, nu clientul Supabase din browser —, iar `salveazaDovada` scrie rândul.
 
+- **Un fișier urcat în pas satisface dovada de tip `document`.** Triggerul din `0092`,
+  `dovadaLipseste` din `pas-checklist.tsx` și pre-verificarea din `bifeazaPas` trebuie să
+  spună același lucru — de aceea handlerul citește și `dovada_fisier_path`, nu doar
+  `tip_dovada`: altfel bifarea era respinsă cu VALIDARE exact după gestul cerut.
 - **Calea se re-verifică cu `caleInPrefix`, nu cu `startsWith`.** Prefixul include PASUL,
   ca poarta de aplicație să nu fie mai laxă decât `app.checklist_poate_dovada`, iar
   `caleInPrefix` respinge în plus segmentele goale și `.`/`..`, inclusiv
@@ -153,6 +157,9 @@ obișnuit, nu clientul Supabase din browser —, iar `salveazaDovada` scrie rân
 - **Nicio tabelă `checklist_*` nu are politică DELETE.** Ștergerea e logică peste tot.
 - **`checklists:approve` era seedat și citit de zero politici** până la `0088`, care i-a
   dat conținut: e cheia care ÎNCHIDE parcursul (`finalizeazaInstanta`, `anuleazaInstanta`).
+- **Pașii unui grup de instanțe trec de plafonul PostgREST.** `progresInstante` îi citește
+  în buclă cu `.range()`, iar la atingerea plafonului de iterații **aruncă** — procentele
+  din semafor s-ar calcula altfel din rânduri tăiate tăcut, fără nicio eroare. — capcana #2
 
 ## Ce se mișcă împreună
 
@@ -160,6 +167,15 @@ Materialele de citit refolosesc `course_materials` din [[modul/cursuri]] — nu 
 o bibliotecă paralelă. Predarea de echipament trece prin alocările din [[modul/inventar]],
 vizibile aici doar prin politicile îngustate de D9. Fișa și invitația noului angajat sunt
 la [[modul/angajati]].
+
+`material_id` al unui pas e scris de `adaugaPas` și `actualizeazaPas` (și e în
+allow-list-ul lor de audit): schema îi verifica perechea cu `tip_dovada`, dar handlerul
+nu-l trimitea — succes raportat peste un pas de citire fără nimic de citit.
+
+Opțiunile asistentului vin din `sabloane/_componente/optiuni.ts`, același `optiuniAsistent`
+pentru „nou" și „[id]": cursurile și materialele se cer doar cu modulul `courses` activ
+(lista goală dezactivează cardul, nu scoate pagina pe 404), iar departamentele se citesc cu
+`deleted_at is null` — `activ` singur lăsa un departament șters logic să rămână țintă.
 
 Citirile din `src/lib/queries/checklist.ts` sunt marcate `server-only`: un import dintr-o
 componentă client cade la build, nu în producție.
@@ -179,3 +195,6 @@ sesiunea care livra invitațiile. Convenția e să-ți redenumești **propria** 
 
 - Forma unui pas și verificările automate: `supabase/migrations/0089_integrare_etape.sql`.
 - Cine poate bifa ce: [[rol/manager]].
+- Ce verifică fiecare acțiune înainte de bază: `actions-instante.test.ts`,
+  `actions-sabloane.test.ts`, `actions-dovezi.test.ts`, `erori.test.ts` — pe clientul
+  Supabase fals, deci nu țin loc de `tests/rls/`.
