@@ -101,6 +101,10 @@ export interface RandEvaluare {
   readonly status: StatusEvaluare;
   readonly punctaj: Punctaj;
   readonly nrCriterii: number;
+  /** Instantaneul și notele — ca „Evaluează” să deschidă ciorna din listă. */
+  readonly criterii: readonly CriteriuSablon[];
+  readonly raspunsuri: readonly RaspunsCriteriu[];
+  readonly concluzie: string | null;
 }
 
 export interface RezultatEvaluari {
@@ -187,6 +191,7 @@ export async function listeazaEvaluari(
 
   const randuri: readonly RandEvaluare[] = brute.map((b) => {
     const criterii = normalizeazaCriterii(b.criterii_sablon);
+    const raspunsuri = citesteRaspunsuri(b.raspunsuri);
     return {
       id: b.id,
       employee_id: b.employee_id,
@@ -195,8 +200,11 @@ export async function listeazaEvaluari(
       sablon: b.template?.denumire ?? null,
       data_evaluarii: b.data_evaluarii,
       status: b.status,
-      punctaj: calculeazaScor(criterii, citesteRaspunsuri(b.raspunsuri)),
+      punctaj: calculeazaScor(criterii, raspunsuri),
       nrCriterii: criterii.length,
+      criterii,
+      raspunsuri,
+      concluzie: b.concluzie,
     };
   });
 

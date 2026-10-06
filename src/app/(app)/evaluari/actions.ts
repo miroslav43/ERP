@@ -15,6 +15,7 @@ import {
   creeazaSablonEvaluareSchema,
   duplicaSablonEvaluareSchema,
   personalizeazaSablonEvaluareSchema,
+  planificaEvaluariSchema,
   finalizeazaEvaluareSchema,
   reactiveazaSablonEvaluareSchema,
   redeschideEvaluareSchema,
@@ -435,6 +436,98 @@ interface EvaluareExistenta {
   readonly status: "draft" | "finalizat";
   readonly criterii_sablon: unknown;
 }
+
+/**
+ * „Evaluare nouă” din lista modulului: PROGRAMEAZĂ evaluări, nu le notează.
+ *
+ * Pentru fiecare angajat ales se scrie o ciornă cu instantaneul criteriilor
+ * și fără nicio notă; notarea vine ulterior, din „Evaluează” pe rândul din
+ * listă (`actualizeazaEvaluare`). Așa se pornește evaluarea anuală pentru
+ * toată firma dintr-o singură apăsare, iar fiecare manager își notează oamenii
+ * când ajunge la ei.
+ *
+ * Un angajat care are deja o CIORNĂ pe același șablon e sărit, nu dublat: a
+ * doua apăsare pe același buton nu trebuie să facă două evaluări anuale. Cele
+ * finalizate nu contează — evaluarea de anul trecut nu oprește pe cea de anul
+ * acesta.
+ *
+ * Inserarea e un singur INSERT cu toate rândurile: RLS (`can_access_evaluation`)
+ * verifică fiecare rând, iar un singur angajat interzis respinge tot lotul —
+ * mai bine decât o jumătate de lot scrisă și un mesaj ambiguu.
+ */
+export const planificaEvaluari = createAction<
+  typeof planificaEvaluariSchema,
+  Readonly<{ create: number; sarite: number }>
+>({
+  name: "employee_evaluations.schedule",
+  feature: "evaluations",
+  permission: "evaluations:create",
+  minScope: "team",
+  input: planificaEvaluariSchema,
+  audit: {
+    action: "create",
+    entityType: "employee_evaluations",
+    allow: ["template_id", "data_evaluarii"],
+  },
+  revalidate: ["/evaluari"],
+  handler: async (ctx, input) => {
+    const { data: sablon, error: eroareSablon } = await ctx.supabase
+      .from("evaluation_templates")
+      .select("id, criterii, versiune, activ")
+      .eq("id", input.template_id)
+      .is("deleted_at", null)
+      .maybeSingle<SablonPentruEvaluare>();
+    if (eroareSablon !== null) throw mapPostgrestError(eroareSablon, ctx.requestId);
+    if (sablon === null) throw notFound("Șablonul de evaluare nu mai există.");
+    if (!sablon.activ) throw businessRule("Șablonul a fost arhivat între timp. Alegeți altul.");
+
+    const criterii = normalizeazaCriterii(sablon.criterii);
+    if (criterii.length === 0) {
+      throw businessRule("Șablonul nu are niciun criteriu. Completați-l înainte de a evalua.");
+    }
+
+    const angajati = [...new Set(input.employee_ids)];
+    const { data: existente, error: eroareExistente } = await ctx.supabase
+      .from("employee_evaluations")
+      .select("employee_id")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("template_id", input.template_id)
+      .eq("status", "draft")
+      .is("deleted_at", null)
+      .in("employee_id", angajati)
+      .returns<{ employee_id: string }[]>();
+    if (eroareExistente !== null) throw mapPostgrestError(eroareExistente, ctx.requestId);
+    const auDeja = new Set((existente ?? []).map((e) => e.employee_id));
+    const deCreat = angajati.filter((id) => !auDeja.has(id));
+
+    if (deCreat.length > 0) {
+      // Câte un răspuns gol per criteriu: ciorna se deschide cu toate
+      // criteriile, nenotate — nu cu o listă goală pe care ar trebui s-o
+      // reconstruiască ecranul.
+      const raspunsuri = caJson(aliniazaRaspunsuri(criterii, []));
+      const instantaneu = caJson(criterii);
+      const { error } = await ctx.supabase.from("employee_evaluations").insert(
+        deCreat.map((employeeId) => ({
+          organization_id: ctx.tenant.organizationId,
+          employee_id: employeeId,
+          template_id: input.template_id,
+          evaluator_id: ctx.user.id,
+          data_evaluarii: input.data_evaluarii,
+          raspunsuri,
+          criterii_sablon: instantaneu,
+          versiune_sablon: sablon.versiune,
+          concluzie: null,
+          status: "draft" as const,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        })),
+      );
+      if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    }
+
+    return { create: deCreat.length, sarite: auDeja.size };
+  },
+});
 
 export const creeazaEvaluare = createAction<
   typeof creeazaEvaluareSchema,

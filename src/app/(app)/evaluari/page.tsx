@@ -38,8 +38,9 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { filtreEvaluariSchema } from "@/schemas/evaluation";
 
-import { ButonEvaluareNouaDinLista } from "../angajati/[id]/formular-evaluare-noua";
+import { ButonContinuaCiorna } from "../angajati/[id]/formular-evaluare-noua";
 import { FileEvaluari } from "./_components/file-evaluari";
+import { PlanificareEvaluari } from "./_components/planificare-evaluari";
 import { ETICHETE_STATUS_EVALUARE, TONURI_STATUS_EVALUARE, tonPunctaj } from "./etichete";
 import { FiltreEvaluari } from "./filtre-evaluari";
 
@@ -113,13 +114,14 @@ async function BandaIndicatori({ organizationId }: { readonly organizationId: st
 }
 
 /**
- * „Evaluare nouă” din antet, cu angajatul ales în panou.
+ * „Evaluare nouă” din antet: PROGRAMEAZĂ evaluări pentru unul, mai mulți sau
+ * toți angajații (`planificaEvaluari`); notarea vine din „Evaluează”, pe rând.
  *
  * Lista de angajați urmează scope-ul lui `evaluations:create`: la `all`, toată
  * firma; la `team`, colegii vizibili (RLS-ul pe `employees` îi lasă pe ai
  * echipei), fără propria fișă — `app.can_access_evaluation` refuză oricum
- * autoevaluarea pe `team`, iar un nume pe care baza îl respinge n-are ce căuta
- * în listă. Restul refuzurilor rămân la bază, cu mesaj.
+ * autoevaluarea pe `team`, iar un nume pe care baza îl respinge ar face să
+ * pice tot lotul.
  *
  * Separat, în `Suspense`: cele două citiri nu țin antetul și indicatorii pe loc.
  */
@@ -143,9 +145,11 @@ async function ActiuneEvaluareNoua({
         ),
   ]);
   return (
-    <ButonEvaluareNouaDinLista
+    <PlanificareEvaluari
       angajati={angajati}
-      sabloane={sabloane.map((s) => ({ id: s.id, denumire: s.denumire, criterii: s.criterii }))}
+      sabloane={sabloane
+        .filter((s) => s.criterii.length > 0)
+        .map((s) => ({ id: s.id, denumire: s.denumire, nrCriterii: s.criterii.length }))}
     />
   );
 }
@@ -154,10 +158,12 @@ async function ListaEvaluari({
   organizationId,
   parametri,
   poateEvalua,
+  poateNota,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateEvalua: boolean;
+  readonly poateNota: boolean;
 }) {
   const filtre = filtreDinUrl(filtreEvaluariSchema, parametri);
   const [{ randuri, urmatorulCursor, total, sortare }, sabloane] = await Promise.all([
@@ -243,6 +249,31 @@ async function ListaEvaluari({
         <Badge ton={TONURI_STATUS_EVALUARE[e.status]}>{ETICHETE_STATUS_EVALUARE[e.status]}</Badge>
       ),
     },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      latime: "ingusta",
+      peTelefon: "meta",
+      // „Evaluează” doar pe ciorne și doar cu `evaluations:update`; baza mai
+      // îngustează la echipă (`can_access_evaluation`). Finalizata se vede pe
+      // fișa angajatului; redeschiderea ei rămâne acolo.
+      celula: (e) =>
+        e.status === "draft" && poateNota ? (
+          <ButonContinuaCiorna
+            employeeId={e.employee_id}
+            sabloane={[]}
+            eticheta="Evaluează"
+            ciorna={{
+              id: e.id,
+              data_evaluarii: e.data_evaluarii,
+              concluzie: e.concluzie,
+              criterii: e.criterii,
+              raspunsuri: e.raspunsuri,
+              sablon: e.sablon,
+            }}
+          />
+        ) : null,
+    },
   ];
 
   return (
@@ -261,7 +292,7 @@ async function ListaEvaluari({
             areFiltre
               ? "Ștergeți filtrele ca să vedeți toate evaluările."
               : poateEvalua
-                ? "Porniți una cu „Evaluare nouă”, sus, sau de pe fișa angajatului."
+                ? "Cu „Evaluare nouă”, sus, alegeți angajații — unul, câțiva sau toți —, șablonul și data. Evaluările apar aici, iar notele se dau din „Evaluează”."
                 : "Evaluările apar aici pe măsură ce managerii le completează."
           }
           {...(areFiltre
@@ -364,6 +395,7 @@ export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateEvalua={poateEvalua}
+          poateNota={can(permisiuni, "evaluations:update", "team")}
         />
       </Suspense>
     </div>
