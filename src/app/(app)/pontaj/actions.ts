@@ -1346,7 +1346,9 @@ export const sincronizeazaConcediile = createAction({
   handler: async (
     ctx,
     input,
-  ): Promise<Readonly<{ create: number; actualizate: number; pastrate: number }>> => {
+  ): Promise<
+    Readonly<{ create: number; actualizate: number; inlocuite: number; pastrate: number }>
+  > => {
     // `app.sincronizeaza_pontaj_concedii` există în bază, dar trăiește în
     // schema `app`, neexpusă prin PostgREST (supabase/config.toml:
     // schemas = ["public","graphql_public"]) — `.rpc()` n-ar funcționa deși
@@ -1398,7 +1400,7 @@ export const sincronizeazaConcediile = createAction({
         tip_zi: z.cerere?.tip?.tip_zi_pontaj ?? ("concediu" as TipZiPontaj),
       }));
     if (zileAprobate.length === 0) {
-      return { create: 0, actualizate: 0, pastrate: 0 };
+      return { create: 0, actualizate: 0, inlocuite: 0, pastrate: 0 };
     }
 
     return sincronizeazaZileleDeConcediu(db, ctx.tenant.organizationId, zileAprobate);

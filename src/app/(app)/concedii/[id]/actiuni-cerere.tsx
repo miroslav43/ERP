@@ -56,19 +56,17 @@ export function ActiuniCerere({
   const [eroare, setEroare] = useState<string | null>(null);
   const [confirmareCeruta, setConfirmareCeruta] = useState(false);
   /**
-   * Zile de concediu peste care exista deja o linie de pontaj scrisă de om.
+   * Zile pontate ca lucrate pe care concediul aprobat pe loc le-a înlocuit
+   * în foaia de prezență.
    *
-   * Ține de STARE, nu de o notificare trecătoare: e singurul loc unde numărul
-   * ajunge la cineva care poate repara, iar consecința tăcerii e că ziua se
-   * plătește și ca lucrată, și ca zi de concediu. `role="alert"`, ca în
-   * `DecizieAprobare` — supraviețuiește reîmprospătării paginii.
+   * Ține de STARE, nu de o notificare trecătoare: cine aprobă tocmai a
+   * schimbat pontajul cuiva, iar asta trebuie să rămână pe ecran până o citește.
    */
-  const [zilePastrate, setZilePastrate] = useState(0);
+  const [zileInlocuite, setZileInlocuite] = useState(0);
   /**
    * Ce a rămas de făcut pentru declararea suspendării, când concediul o produce.
-   * Aceeași natură ca `zilePastrate`: stare, nu notificare trecătoare — de
-   * partea cealaltă a tăcerii e o contravenție per salariat, nu o zi plătită de
-   * două ori.
+   * Aceeași natură ca `zileInlocuite`: stare, nu notificare trecătoare — de
+   * partea cealaltă a tăcerii e o contravenție per salariat.
    */
   const [suspendare, setSuspendare] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
@@ -82,7 +80,7 @@ export function ActiuniCerere({
         setEroare(rezultat.error.message);
         return;
       }
-      setZilePastrate(rezultat.data.zilePastrate);
+      setZileInlocuite(rezultat.data.zileInlocuite);
       setSuspendare(
         rezultat.data.suspendare.motiv ??
           (rezultat.data.suspendare.declarata && rezultat.data.suspendare.termen !== null
@@ -185,16 +183,14 @@ export function ActiuniCerere({
           `role="alert"`, deci mesajul se anunță la apariție. */}
       {eroare === null ? null : <Callout fel="eroare">{eroare}</Callout>}
 
-      {/* Aprobarea pe loc scrie imediat zilele în pontaj, iar sincronizarea
-          SARE peste zilele pe care angajatul și le-a pontat singur — le
-          păstrează ca lucrate. Fără rândul ăsta, ziua ar rămâne și plătită ca
-          muncă, și scăzută din sold, fără ca nimeni să afle. */}
-      {zilePastrate === 0 ? null : (
-        <Callout fel="atentie" titlu="Zile pontate peste concediu">
-          {zilePastrate === 1
-            ? "O zi din acest concediu era deja pontată ca lucrată și a rămas așa."
-            : `${String(zilePastrate)} zile din acest concediu erau deja pontate ca lucrate și au rămas așa.`}{" "}
-          Verificați-le în pontaj: altfel se plătesc și ca muncă, și ca zile de concediu.
+      {/* Aprobarea pe loc scrie imediat zilele în pontaj și trece pe concediu
+          zilele pe care angajatul le pontase deja ca lucrate. Se spune, fiindcă
+          cine aprobă tocmai a schimbat foaia de prezență a cuiva. */}
+      {zileInlocuite === 0 ? null : (
+        <Callout fel="informativ" titlu="Zile pontate trecute pe concediu">
+          {zileInlocuite === 1
+            ? "O zi din acest concediu era deja pontată ca lucrată și a fost trecută pe concediu în foaia de prezență."
+            : `${String(zileInlocuite)} zile din acest concediu erau deja pontate ca lucrate și au fost trecute pe concediu în foaia de prezență.`}
         </Callout>
       )}
 

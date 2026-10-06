@@ -172,7 +172,7 @@ export function AprobareBloc({
         return;
       }
       setRezultatSincronizare(
-        `${String(rezultat.data.create)} zile noi, ${String(rezultat.data.actualizate)} actualizate, ${String(rezultat.data.pastrate)} păstrate neschimbate.`,
+        `${String(rezultat.data.create)} zile noi, ${String(rezultat.data.actualizate)} actualizate, ${String(rezultat.data.inlocuite)} zile pontate trecute pe concediu, ${String(rezultat.data.pastrate)} păstrate neschimbate.`,
       );
       router.refresh();
     });

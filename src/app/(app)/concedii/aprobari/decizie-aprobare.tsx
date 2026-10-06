@@ -49,21 +49,16 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
         return;
       }
       /*
-       * Zilele pontate care se suprapun peste concediu NU se suprascriu — dacă
-       * omul chiar a muncit atunci, ștergerea declarației lui ar distruge
-       * singura dovadă. Dar ele se plătesc ȘI ca zile lucrate, ȘI ca zile de
-       * concediu, iar salarizarea agregă fără să se plângă.
-       *
-       * Până acum, numărul era calculat de sincronizare și ARUNCAT de acțiune.
-       * Aici e singurul moment în care cineva care poate face ceva se uită la
-       * ecran, deci aici se spune.
+       * Zilele pontate ca lucrate peste care cade concediul sunt trecute pe
+       * concediu în foaia de prezență (concediul de urgență, cerut pentru o zi
+       * deja pontată). Aprobatorul tocmai a schimbat pontajul cuiva, deci află.
        */
       const adunate: string[] = [];
-      if (rezultat.data.zilePastrate > 0) {
+      if (rezultat.data.zileInlocuite > 0) {
         adunate.push(
-          rezultat.data.zilePastrate === 1
-            ? "O zi din concediu era deja pontată și a rămas înregistrată ca zi lucrată. Verificați-o în pontaj — altfel se plătește de două ori."
-            : `${String(rezultat.data.zilePastrate)} zile din concediu erau deja pontate și au rămas înregistrate ca zile lucrate. Verificați-le în pontaj — altfel se plătesc de două ori.`,
+          rezultat.data.zileInlocuite === 1
+            ? "O zi din concediu era deja pontată ca lucrată și a fost trecută pe concediu în foaia de prezență."
+            : `${String(rezultat.data.zileInlocuite)} zile din concediu erau deja pontate ca lucrate și au fost trecute pe concediu în foaia de prezență.`,
         );
       }
       /*

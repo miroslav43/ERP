@@ -65,7 +65,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   colaboratori.sincronizeazaZileleDeConcediu
     .mockReset()
-    .mockResolvedValue({ create: 0, actualizate: 0, pastrate: 0 });
+    .mockResolvedValue({ create: 0, actualizate: 0, inlocuite: 0, pastrate: 0 });
   colaboratori.declaraSuspendareaContractului
     .mockReset()
     .mockResolvedValue({ ceruta: false, declarata: false, termen: null, motiv: null });
@@ -325,7 +325,7 @@ describe("trimiteCerere", () => {
         id: CERERE,
         zileLucratoare: 5,
         aprobataInstant: false,
-        zilePastrate: 0,
+        zileInlocuite: 0,
         suspendare: { ceruta: false, declarata: false, termen: null, motiv: null },
       },
     });
