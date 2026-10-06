@@ -136,6 +136,8 @@ export function Subsol({ text }: { text: ContinutLanding }) {
           <p className="text-mk-text-inv-slab max-w-[52ch] text-[0.75rem]">
             {text.subsol.notaDiacritice}
           </p>
+          {/* Autorul nu cere credit, dar licența de pe YouTube e CC BY — îl dăm. */}
+          <p className="text-mk-text-inv-slab w-full text-[0.75rem]">{text.subsol.creditVideo}</p>
         </div>
       </div>
     </footer>

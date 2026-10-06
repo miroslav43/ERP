@@ -7,6 +7,7 @@ import type { ContinutLanding } from "@/content/landing/tipuri";
 import { FormularDemo } from "../../cere-demo/formular-demo";
 import { Banda } from "../banda";
 import { Foaia } from "../foaia";
+import { VideoErou } from "../video-erou";
 
 /**
  * Benzile care poartă vânzarea: eroul cu foaia de pontaj, dovada, situația de
@@ -21,103 +22,152 @@ import { Foaia } from "../foaia";
  */
 type ProprietatiBanda = { readonly text: ContinutLanding };
 
+/** Videoclipul din fundalul eroului și posterul lui, din `public/video/`. */
+const VIDEO_EROU = {
+  webm: "/video/erou-birou-1280.webm",
+  mp4: "/video/erou-birou-1280.mp4",
+  poster: "/video/erou-birou-1280.webp",
+} as const;
+
 /**
  * Eroul nu folosește `Banda`: e singura secțiune fără riglă de separare
  * deasupra — n-are ce despărți, e prima — și singura cu propria scară
  * tipografică, `clamp(2.5rem, 5.8vw, 4.5rem)`.
+ *
+ * ── DE CE PE CERNEALĂ, CU VIDEOCLIP (7 oct 2026) ──────────────────────────
+ * Cerut explicit: un erou „un pic mai atractiv”, pe un videoclip de birou
+ * filmat de sus — mâini pe laptopuri, grafice, o strângere de mână, fără fețe.
+ * Sursa: canalul de YouTube Free Stock Footage 4K, licență CC BY, cu acordul
+ * explicit al autorului pentru uz comercial fără credit; creditul stă totuși în
+ * subsol. Clipul are 13 secunde și se repetă; 1280×720, fără sunet, 1,0 MB în
+ * WebM și 1,3 MB în MP4.
+ *
+ * Trei straturi, în ordinea de pictare: posterul (server, `fetchPriority`
+ * înalt — e cel mai mare element din primul ecran, deci elementul LCP), apoi
+ * videoclipul (insula `VideoErou`, care apare peste poster doar când chiar
+ * rulează) și voalul de cerneală. Voalul e mai dens pe telefon, unde textul
+ * ocupă toată lățimea, și coboară spre dreapta pe ecran lat, unde textul stă în
+ * stânga: cadrul e un birou alb, iar textul deschis trebuie să-și păstreze
+ * contrastul pe oricare cadru.
+ *
+ * Foaia de pontaj, care stătea în erou, are acum banda ei, imediat dedesubt.
  */
 export function BandaHero({ text }: ProprietatiBanda) {
   return (
-    <section id="sus" className="bg-mk-hartie text-mk-text">
-      {/*
-        `mk-intra` animă copiii direcți ai acestui container — supratitlu,
-        butoane, foaie — cu 60ms decalaj între ei. Titlul și lead-ul NU intră:
-        lead-ul e elementul LCP, iar intrarea lui întârzia pictarea cu ~0,9s
-        (măsurat 17 sept 2026). Regula stă în `globals.css`; aici e doar
-        declarația că banda o folosește.
-
-        E singura mișcare de intrare de pe sit. Nu există reveal la scroll,
-        deliberat: starea de bază a fiecărui element e starea FINALĂ, iar
-        animația doar se stinge spre ea. Un element pornit din `opacity: 0` ar
-        rămâne invizibil pentru cine cere mișcare redusă și pentru crawlerele
-        care nu execută JavaScript.
-      */}
-      <div className="mk-intra max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-20 sm:pt-24 sm:pb-32">
-        <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
-          {text.hero.supratitlu}
-        </p>
-        <h1 className="font-mk-display mt-6 max-w-[18ch] text-[clamp(2.5rem,5.8vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.022em] text-balance">
-          {text.hero.titlu}
-        </h1>
-        <p className="text-mk-text-slab mt-7 max-w-[58ch] text-[1.1875rem] leading-[1.6] text-pretty">
-          {text.hero.lead}
-        </p>
+    <>
+      <section
+        id="sus"
+        className="mk-cerneala bg-mk-cerneala text-mk-text-inv relative isolate overflow-hidden"
+      >
         {/*
-          `data-umami-event` marchează butonul ca eveniment cu nume.
-
-          Fără el, Umami ar raporta doar vizualizări de pagină — s-ar vedea că
-          lumea ajunge pe `/inregistrare`, dar nu DE UNDE: din erou, din antet
-          sau de pe un card de preț. Exact întrebarea de care depinde ce
-          schimbăm data viitoare. Numele sunt scurte și stabile: se compară în
-          timp, deci nu se redenumesc după ce au început să adune date.
+          O singură lățime, 1280, și pe telefon (37 KB). Cu o variantă de 640 px
+          acolo, posterul — mărit peste dimensiunea lui naturală — „cântărea” la
+          LCP mai puțin decât videoclipul, iar LCP-ul se muta pe primul cadru al
+          videoclipului, adică după descărcarea lui (măsurat pe 7 oct 2026).
         */}
-        <div className="mt-9 flex flex-wrap gap-3">
-          <Link
-            href={text.hero.ctaPrimar.href}
-            data-umami-event="cta-erou"
-            className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
-          >
-            {text.hero.ctaPrimar.eticheta}
-          </Link>
-          <Link
-            href={text.hero.ctaSecundar.href}
-            data-umami-event="cta-erou-secundar"
-            className="border-mk-rigla hover:border-mk-text inline-flex h-12 items-center rounded border px-6 text-[0.9375rem] font-medium transition-colors"
-          >
-            {text.hero.ctaSecundar.eticheta}
-          </Link>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element --
+            WebP gata făcut; motivul complet e în `prin-geam.tsx`. */}
+        <img
+          src={VIDEO_EROU.poster}
+          alt=""
+          aria-hidden="true"
+          width={1280}
+          height={720}
+          fetchPriority="high"
+          decoding="async"
+          className="absolute inset-0 -z-20 h-full w-full object-cover"
+        />
+        <VideoErou webm={VIDEO_EROU.webm} mp4={VIDEO_EROU.mp4} etichete={text.hero.video} />
+        <div
+          aria-hidden="true"
+          className="bg-mk-cerneala/85 lg:from-mk-cerneala/95 lg:via-mk-cerneala/80 lg:to-mk-cerneala/45 absolute inset-0 -z-10 lg:bg-transparent lg:bg-linear-to-r"
+        />
 
         {/*
-          Ce NU cere înscrierea, sub butoane, plus un număr la care răspunde un
-          om. Pentru o firmă fără clienți de arătat, telefonul e dovada că în
-          spatele paginii stă cineva.
+          `mk-intra` animă copiii direcți ai acestui container — supratitlu,
+          butoane, asigurări — cu 60ms decalaj între ei. Titlul și lead-ul NU
+          intră (regula din `globals.css`): starea de bază a fiecărui element e
+          starea FINALĂ, iar animația doar se stinge spre ea. Un element pornit
+          din `opacity: 0` ar rămâne invizibil pentru cine cere mișcare redusă și
+          pentru crawlerele care nu execută JavaScript.
         */}
-        <ul className="text-mk-text-slab mt-5 flex flex-wrap gap-x-6 gap-y-1.5 text-[0.875rem] leading-[1.5]">
-          {text.hero.asigurari.map((asigurare) => (
-            <li key={asigurare}>{asigurare}</li>
-          ))}
-          <li>
-            {text.hero.suna}{" "}
-            <a
-              href={CONTACT.telefonLegatura}
-              data-umami-event="telefon-erou"
-              className="text-mk-text font-mk-date inline-block py-1 tabular-nums underline-offset-4 hover:underline"
+        <div className="mk-intra max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-20 pb-24 sm:pt-28 sm:pb-32 lg:flex lg:min-h-[min(80vh,760px)] lg:flex-col lg:justify-center">
+          <p className="font-mk-date text-mk-text-inv/80 text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            {text.hero.supratitlu}
+          </p>
+          <h1 className="font-mk-display mt-6 max-w-[18ch] text-[clamp(2.5rem,5.8vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.022em] text-balance">
+            {text.hero.titlu}
+          </h1>
+          <p className="text-mk-text-inv/90 mt-7 max-w-[58ch] text-[1.1875rem] leading-[1.6] text-pretty">
+            {text.hero.lead}
+          </p>
+          {/*
+            `data-umami-event` marchează butonul ca eveniment cu nume.
+
+            Fără el, Umami ar raporta doar vizualizări de pagină — s-ar vedea că
+            lumea ajunge pe `/inregistrare`, dar nu DE UNDE: din erou, din antet
+            sau de pe un card de preț. Numele sunt scurte și stabile: se compară
+            în timp, deci nu se redenumesc după ce au început să adune date.
+          */}
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link
+              href={text.hero.ctaPrimar.href}
+              data-umami-event="cta-erou"
+              className="bg-mk-hartie text-mk-cerneala inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
             >
-              {CONTACT.telefon}
-            </a>
-          </li>
-        </ul>
+              {text.hero.ctaPrimar.eticheta}
+            </Link>
+            <Link
+              href={text.hero.ctaSecundar.href}
+              data-umami-event="cta-erou-secundar"
+              className="border-mk-text-inv/40 hover:border-mk-text-inv inline-flex h-12 items-center rounded border px-6 text-[0.9375rem] font-medium transition-colors"
+            >
+              {text.hero.ctaSecundar.eticheta}
+            </Link>
+          </div>
 
-        {/*
-          Foaia stă ÎN erou, nu într-o bandă proprie. E singurul lucru de pe sit
-          pe care concurența nu-l poate copia ieftin: nu o captură de ecran, ci
-          produsul care rulează — 240 de celule randate pe server, cu totalurile
-          care se închid și pe orizontală, și pe verticală, funcțional fără JS.
+          {/*
+            Ce NU cere înscrierea, sub butoane, plus un număr la care răspunde un
+            om. Pentru o firmă fără clienți de arătat, telefonul e dovada că în
+            spatele paginii stă cineva.
+          */}
+          <ul className="text-mk-text-inv/80 mt-5 flex flex-wrap gap-x-6 gap-y-1.5 text-[0.875rem] leading-[1.5]">
+            {text.hero.asigurari.map((asigurare) => (
+              <li key={asigurare}>{asigurare}</li>
+            ))}
+            <li>
+              {text.hero.suna}{" "}
+              <a
+                href={CONTACT.telefonLegatura}
+                data-umami-event="telefon-erou"
+                className="text-mk-text-inv font-mk-date inline-block py-1 tabular-nums underline-offset-4 hover:underline"
+              >
+                {CONTACT.telefon}
+              </a>
+            </li>
+          </ul>
+        </div>
+      </section>
 
-          Fraza de deasupra îi spune cititorului CE e tabelul: rezultatul
-          pontajului de pe telefon. Fără ea, foaia era un tabel dens, cu date
-          fictive, legat de titlu doar prin cuvântul „pontaj”. `[&>figure]:mt-6`
-          strânge distanța pe care foaia și-o pune singură deasupra.
-        */}
-        <div className="mt-16 sm:mt-20 [&>figure]:mt-6">
+      {/*
+        Foaia are banda ei, pe hârtie, imediat sub erou. E singurul lucru de pe
+        sit pe care concurența nu-l poate copia ieftin: nu o captură de ecran, ci
+        produsul care rulează — 240 de celule randate pe server, cu totalurile
+        care se închid și pe orizontală, și pe verticală, funcțional fără JS.
+
+        Fraza de deasupra îi spune cititorului CE e tabelul: rezultatul
+        pontajului de pe telefon. `[&>figure]:mt-6` strânge distanța pe care
+        foaia și-o pune singură deasupra.
+      */}
+      <section className="bg-mk-hartie text-mk-text">
+        <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-20 sm:pt-20 sm:pb-28 [&>figure]:mt-6">
           <p className="max-w-[62ch] text-[1rem] leading-[1.6] text-pretty">
             {text.hero.punteFoaie}
           </p>
           <Foaia text={text.foaie} />
         </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
 

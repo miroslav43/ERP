@@ -61,6 +61,8 @@ export type ContinutLanding = Readonly<{
      * foaia era un tabel dens cu date fictive, fără legătură cu titlul.
      */
     punteFoaie: string;
+    /** Butonul care oprește videoclipul din fundalul eroului (WCAG 2.2.2). */
+    video: Readonly<{ opreste: string; porneste: string }>;
   }>;
 
   foaie: Readonly<{
@@ -427,6 +429,8 @@ export type ContinutLanding = Readonly<{
     contactTitlu: string;
     copyright: string;
     notaDiacritice: string;
+    /** Proveniența videoclipului din erou. Autorul nu cere credit; licența YouTube e CC BY. */
+    creditVideo: string;
   }>;
 
   /**

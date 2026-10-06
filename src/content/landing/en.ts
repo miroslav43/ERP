@@ -49,6 +49,7 @@ export const EN: ContinutLanding = {
     ctaSecundar: { eticheta: "Book a demo", href: "/cere-demo" },
     asigurari: ["No card to sign up", "No setup fee", "Nothing to install"],
     suna: "A person answers at",
+    video: { opreste: "Pause video", porneste: "Play video" },
     punteFoaie:
       "This is what the month looks like at the end: what people clocked on their phones, gathered on the monthly attendance sheet. Leave and public holidays are already on it, and the totals add up across the rows and down the columns.",
   },
@@ -1221,6 +1222,8 @@ export const EN: ContinutLanding = {
     copyright: "All rights reserved.",
     notaDiacritice:
       "We write Romanian ș and ț with a comma below, not a cedilla. It is the correct form, and it is checked automatically on every release.",
+    creditVideo:
+      "Homepage video: “Office Stock Footage” from the Free Stock Footage 4K YouTube channel, Creative Commons Attribution licence.",
   },
 
   // Vezi nota din `ro.ts`: antetele paginilor secundare, scrise pentru cineva

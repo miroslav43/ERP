@@ -74,6 +74,7 @@ export const RO: ContinutLanding = {
     ctaSecundar: { eticheta: "Programează o demonstrație", href: "/cere-demo" },
     asigurari: ["Fără card la înscriere", "Fără cost de pornire", "Nimic de instalat"],
     suna: "Răspunde un om la",
+    video: { opreste: "Oprește videoclipul", porneste: "Pornește videoclipul" },
     punteFoaie:
       "Așa arată luna la final: ce au pontat oamenii pe telefon, adunat în foaia colectivă de prezență. Concediile și sărbătorile legale sunt deja trecute, iar totalurile se închid și pe rânduri, și pe coloane.",
   },
@@ -1309,6 +1310,8 @@ export const RO: ContinutLanding = {
     copyright: "Toate drepturile rezervate.",
     notaDiacritice:
       "Scriem ș și ț cu virgulă dedesubt, nu cu sedilă. E felul corect, și e verificat automat la fiecare livrare.",
+    creditVideo:
+      "Videoclipul de pe pagina de start: „Office Stock Footage”, de pe canalul de YouTube Free Stock Footage 4K, licență Creative Commons Attribution.",
   },
 
   /*
