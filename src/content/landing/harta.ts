@@ -176,7 +176,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    // 6 oct: hub-ul listează ghidul de salariu minim.
+    actualizat: "2026-10-06",
     sectiune: "Obligații legale",
   },
   {
