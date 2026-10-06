@@ -10,9 +10,9 @@ cai:
 tabele: [announcements, announcement_reads, notifications]
 permisiuni: [announcements:read, announcements:create, announcements:update]
 feature: announcements
-capcane: [17]
-scris_pe: 074209a31c682afb49b59c9e6b9989693e9f179e
-scris_la: 2026-10-02
+capcane: [2, 17]
+scris_pe: a2cdfa5180b0b036c983f85f493fe74846b2909c
+scris_la: 2026-10-06
 tags: [modul]
 ---
 
@@ -79,17 +79,24 @@ mele" din portal trebuie să însemne același lucru indiferent de scope-ul celu
 deschide ecranul — regula e cea din capul lui `queries/portal.ts`. Marca temporală intră
 ca argument `acum`, ca citirea să rămână deterministă la test.
 
+`listeazaAnunturi` cere `LIMITA_ANUNTURI + 1` rânduri și întoarce doar `LIMITA_ANUNTURI`:
+rândul-sentinelă e singurul mod de a deosebi „exact limita" de „mai multe". Cu
+`randuri.length >= limita`, un avizier cu exact `LIMITA_ANUNTURI` anunțuri își anunța
+cititorul că mai are și altele, neadevărat. Dacă schimbi limita, schimbi și `.limit()`,
+nu doar tăietura — `src/lib/queries/announcements.test.ts` verifică ambele.
+
 ## Ce refuză baza tăcut
 
 - **Confirmarea de citire e unică pe (organizație, anunț, angajat)**, prin
   `announcement_reads_uq` (`0028_announcements.sql:54-55`). `marcheazaAnuntCitit` caută
   confirmarea înainte de a o scrie, deci a doua apăsare pe același ecran nici nu ajunge la
-  INSERT. Cursa rămâne: două file deschise pe același anunț trec amândouă de căutare, a
-  doua ia 23505, iar handlerul îl ridică mai departe — `mapPostgrestError` îl traduce în
-  `CONFLICT` („Există deja o înregistrare cu aceste date"), adică un mesaj de eroare pentru
-  ceva ce s-a întâmplat deja. Defect cunoscut, fixat ca `it.fails` în
-  `src/app/(app)/anunturi/actions.test.ts`: e stare curentă, nu contract — nu scrie nicăieri
-  că acțiunea înghite 23505, fiindcă n-o face.
+  INSERT. Între căutare și INSERT nu e însă niciun zăvor: două file deschise pe același
+  anunț trec amândouă de căutare, iar a doua ia 23505. Handlerul din
+  `src/app/(app)/anunturi/actions.ts` îl tratează acum ca reușită — efectul dorit există
+  deja, iar un „Există deja o înregistrare" pe ecran spunea, fals, că anunțul rămâne
+  necitit. **Numai** 23505 e înghițit; orice alt cod urcă neschimbat. Nu mai e defect
+  cunoscut: testul care îl descria e `it` verde în
+  `src/app/(app)/anunturi/actions.test.ts`.
 - **Un utilizator fără fișă de angajat** (administrator pur) primește reușită de la
   `marcheazaAnuntCitit` fără ca nicio confirmare să se scrie: `idFisaProprie` întoarce
   `null` și handlerul iese devreme. De aceea numitorul raportului de citire e
@@ -102,6 +109,10 @@ ca argument `acum`, ca citirea să rămână deterministă la test.
 - **Un anunț nepublicat e invizibil angajaților**, dar rămâne vizibil administratorilor, ca
   să-l poată edita înainte de publicare sau după expirare. Deci o listă goală pentru
   angajat, cu rânduri pentru admin, e comportamentul corect, nu un defect de filtrare.
+- **Lista de administrare se taie la o limită proprie, declarată.** Fără `.limit()`,
+  PostgREST ar fi tăiat la `max_rows` fără eroare și fără antet, exact anunțurile cele mai
+  vechi. `LIMITA_ANUNTURI` e mai mică și, mai ales, cunoscută de ecran, care spune în clar
+  că lista s-a oprit (`src/app/(app)/anunturi/page.tsx:206-208`). — capcana #2
 - **`publicaAnunt` e o tranziție**: face `.select()` după `.update()`, iar rezultatul gol
   înseamnă conflict, nu succes. — capcana #17
 
@@ -118,5 +129,5 @@ integrarea era pregătită din nucleu, nu improvizată la `0028`. Ecranul care l
 - Ce se întâmplă cu notificarea după fanout: [[modul/notificari]].
 - Comportamentul exact al celor trei acțiuni, executabil:
   `src/app/(app)/anunturi/actions.test.ts` — payload-uri, filtre, allow-list de audit, căi
-  revalidate și singurul defect încă nereparat. Straturile comune ale lui `createAction` se
+  revalidate și cursa pe confirmarea de citire. Straturile comune ale lui `createAction` se
   verifică o singură dată, în `src/app/(app)/salarizare/actions.test.ts`.
