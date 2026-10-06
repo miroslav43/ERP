@@ -98,7 +98,8 @@ export const PAGINI: readonly Pagina[] = [
     // 2 oct: nota benzii „Primii pași" trimite acum la fiecare modul pe nume;
     // banda de prețuri duce spre ofertă peste 20 de angajați (auditul SEO).
     // 6 oct: pagina de start refăcută — produsul pe ecrane reale, unelte, promisiuni (ro.ts).
-    actualizat: "2026-10-06",
+    // 7 oct: catalogul de module, în cutii cu prima frază a fiecărui modul (benzi/acasa.tsx).
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {
@@ -108,7 +109,8 @@ export const PAGINI: readonly Pagina[] = [
     traducere: "/",
     // 2 oct: banda de prețuri duce spre ofertă (en.ts — poarta nu vede textele).
     // 6 oct: aceeași refacere, în en.ts.
-    actualizat: "2026-10-06",
+    // 7 oct: același catalog, în engleză.
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {

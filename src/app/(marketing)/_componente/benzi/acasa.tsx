@@ -27,6 +27,16 @@ type Rand = ContinutLanding["produs"]["randuri"][number];
 const ETICHETA =
   "font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase";
 
+/**
+ * Prima frază a descrierii unui modul, pentru cutiile din catalog.
+ *
+ * Despărțirea cere un spațiu DUPĂ punct, deci „X?” dintre ghilimele — urmat de
+ * „”” — nu taie fraza asistentului în două.
+ */
+function primaFraza(text: string): string {
+  return text.split(/(?<=[.!?])\s+/u)[0] ?? text;
+}
+
 export function BandaProdus({ text }: ProprietatiBanda) {
   const { produs } = text;
 
@@ -97,31 +107,64 @@ export function BandaProdus({ text }: ProprietatiBanda) {
         <h3 className="font-mk-display text-[clamp(1.25rem,1.8vw,1.5rem)] leading-[1.15] font-semibold">
           {produs.restTitlu}
         </h3>
-        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 sm:gap-x-10 lg:grid-cols-3">
-          {text.module.grupuri.map((grup) => (
-            <div key={grup.cheie}>
-              <p className={ETICHETA}>{grup.titlu}</p>
-              <ul className="mt-2">
-                {grup.module.map((modul) => (
-                  <li key={modul.cheie}>
-                    <Link
-                      href={`/module/${slugModul(modul.cheie)}`}
-                      className="inline-block py-1.5 text-[0.9375rem] underline-offset-4 hover:underline"
-                    >
-                      {modul.titlu}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <Link
-          href={produs.legaturaModule.href}
-          className="mt-8 inline-block py-1 text-[0.9375rem] font-medium underline underline-offset-4"
-        >
-          {produs.legaturaModule.eticheta}
-        </Link>
+        {/*
+          Cutii de aceeași mărime, nu liste pe grupe. Pe grupe, coloanele ieșeau
+          inegale — șapte module la Personal, unul la Comunicare — și banda arăta
+          ca un sitemap cu goluri (reclamat pe 7 oct 2026). Grupa rămâne, ca
+          etichetă mono în colțul cutiei; ordinea e tot cea din catalog.
+
+          A douăzecea cutie e legătura spre `/module`: închide grila de patru
+          coloane fără un loc gol pe ultimul rând.
+        */}
+        <ul className="mt-8 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+          {text.module.grupuri.flatMap((grup) =>
+            grup.module.map((modul) => (
+              <li key={modul.cheie}>
+                <Link
+                  href={`/module/${slugModul(modul.cheie)}`}
+                  className="border-mk-rigla/60 hover:border-mk-text hover:bg-mk-activ-hartie flex h-full flex-col border p-3 transition-colors sm:p-4"
+                >
+                  <span className={ETICHETA}>{grup.titlu}</span>
+                  <span className="font-mk-display mt-2 text-[1rem] leading-[1.2] font-semibold sm:text-[1.0625rem]">
+                    {modul.titlu}
+                  </span>
+                  {/*
+                    Prima frază a descrierii din catalog — aceeași în ambele limbi
+                    prin `text.module`. Pe telefon rămâne doar numele: două coloane
+                    de cutii cu text ar fi luat trei ecrane.
+                  */}
+                  <span className="mt-1.5 hidden sm:block">
+                    {/* `line-clamp` cere `display: -webkit-box`; pe același element,
+                        `sm:block` l-ar suprascrie și textul n-ar mai fi tăiat. */}
+                    <span className="text-mk-text-slab line-clamp-2 text-[0.8125rem] leading-[1.5]">
+                      {primaFraza(modul.text)}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            )),
+          )}
+          <li>
+            <Link
+              href={produs.legaturaModule.href}
+              className="bg-mk-cerneala text-mk-text-inv flex h-full flex-col justify-between gap-4 p-3 transition-opacity hover:opacity-90 sm:p-4"
+            >
+              <span className="font-mk-display text-[1rem] leading-[1.2] font-semibold sm:text-[1.0625rem]">
+                {produs.legaturaModule.eticheta}
+              </span>
+              {/* SVG, nu „→”: săgeata nu e în subsetul `latin` al fontului și ar
+                  cădea pe fontul sistemului. */}
+              <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+                <path
+                  d="M3 10h13M11 5l5 5-5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="square"
+                />
+              </svg>
+            </Link>
+          </li>
+        </ul>
       </div>
     </Banda>
   );
