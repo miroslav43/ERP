@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ADMINISTRATIVO Data Room</title>
+<style>
+  :root {
+    --navy: #0E1B2E;
+    --navy-2: #16263D;
+    --blue: #2563EB;
+    --blue-soft: #E8EFFD;
+    --ink: #0E1B2E;
+    --muted: #55637A;
+    --line: #DDE3EC;
+    --bg: #F6F8FB;
+    --card: #FFFFFF;
+    --ok: #0F7A4A;
+    --ok-soft: #E3F4EC;
+    --web: #2563EB;
+    --todo: #8A5A00;
+    --todo-soft: #FBF1DC;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  a { color: var(--blue); }
+  a:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; border-radius: 3px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+
+  header { background: var(--navy); color: #fff; padding: 40px 0 32px; }
+  .wordmark { font-weight: 300; letter-spacing: .18em; font-size: 15px; color: #B9C6DA; margin: 0 0 18px; }
+  h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.2; margin: 0 0 10px; font-weight: 650; }
+  .lede { max-width: 720px; color: #D5DEEA; margin: 0; }
+  .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+  .fact { background: var(--navy-2); border: 1px solid #263852; border-radius: 10px; padding: 14px 16px; }
+  .fact b { display: block; font-size: 22px; font-weight: 650; color: #fff; font-variant-numeric: tabular-nums; }
+  .fact span { font-size: 13px; color: #B9C6DA; }
+
+  nav.toc { background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; overflow-x: auto; }
+  nav.toc a { display: block; padding: 12px 12px; color: var(--muted); text-decoration: none; font-size: 14px; white-space: nowrap; }
+  nav.toc a:hover { color: var(--blue); }
+
+  main.wrap { padding-top: 28px; padding-bottom: 48px; }
+  .note { background: var(--blue-soft); border-left: 4px solid var(--blue); border-radius: 6px; padding: 12px 16px; font-size: 14.5px; margin: 0 0 28px; }
+  .note p { margin: 0; }
+  .note p + p { margin-top: 6px; }
+
+  section { margin: 0 0 36px; scroll-margin-top: 56px; }
+  h2 { font-size: 20px; margin: 0 0 12px; display: flex; align-items: baseline; gap: 10px; }
+  h2 .n { color: var(--blue); font-variant-numeric: tabular-nums; }
+  ul.docs { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  ul.docs li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 14px 16px; border-top: 1px solid var(--line); }
+  ul.docs li:first-child { border-top: 0; }
+  .doc-title { font-weight: 600; }
+  .doc-title a { text-decoration: none; }
+  .doc-title a:hover { text-decoration: underline; }
+  .doc-title .file { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 6px; }
+  .doc-desc { grid-column: 1 / 2; color: var(--muted); font-size: 14.5px; }
+  .pill { grid-row: 1 / span 2; grid-column: 2; align-self: start; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.web { background: var(--blue-soft); color: var(--web); }
+  .pill.todo { background: var(--todo-soft); color: var(--todo); }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 14px; }
+  .gallery a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; text-decoration: none; color: var(--ink); }
+  .gallery img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; background: #E9EDF3; }
+  .gallery .phone img { aspect-ratio: 16 / 10; object-position: center top; }
+  /* portal-pontare.jpg: the payslip card fills the top; the clock-in card sits at about 47-81% of the height */
+  .gallery .phone img.clockin { object-position: center 66%; }
+  .gallery figcaption { font-size: 12.5px; padding: 6px 8px; color: var(--muted); }
+  .sub { font-size: 14px; color: var(--muted); margin: 14px 0 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 20px 0 32px; font-size: 14px; color: var(--muted); }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    ul.docs li { grid-template-columns: minmax(0, 1fr); }
+    .pill { grid-row: auto; grid-column: 1; justify-self: start; }
+  }
+  @media print {
+    nav.toc { display: none; }
+    header { background: #fff; color: var(--ink); padding: 0 0 12px; }
+    .lede, .wordmark, .fact span { color: var(--muted); }
+    .fact { background: #fff; border-color: var(--line); }
+    .fact b { color: var(--ink); }
+    .gallery { display: none; }
+    a { color: var(--ink); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="wordmark">ADMINISTRATIVO</p>
+    <h1>Data room — pre-seed application</h1>
+    <p class="lede">HR and payroll for Romanian SMEs in one app: staff clock in from their phone, leave and payroll calculate themselves, and REGES filings go straight to the labour inspectorate. Timișoara, Romania. Prepared 6 October 2026.</p>
+    <div class="facts" aria-label="Key figures">
+      <div class="fact"><b>€250k</b><span>pre-seed round sought</span></div>
+      <div class="fact"><b>€1.25M</b><span>pre-money (founders' proposal)</span></div>
+      <div class="fact"><b>19 months</b><span>runway with zero revenue</span></div>
+      <div class="fact"><b>0</b><span>paying customers today</span></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <div class="wrap">
+    <ul>
+      <li><a href="#overview">1. Overview</a></li>
+      <li><a href="#product">2. Product</a></li>
+      <li><a href="#financials">3. Financials</a></li>
+      <li><a href="#legal">4. Legal &amp; cap table</a></li>
+      <li><a href="#market">5. Market research</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div class="note">
+    <p>Every financial figure comes from the financial model; market figures carry their own sources, listed in the appendix of the business plan. Anything dated after 6 October 2026 is a <strong>projection</strong>. We have <strong>zero paying customers</strong>: the product has been live since early September 2026 and an accountant pilot opened on 6 October 2026.</p>
+    <p>REGES-Online is the electronic employee register that every Romanian employer files with the Labour Inspectorate (ITM). Currency is EUR; RON is converted at 5 RON = 1 EUR.</p>
+  </div>
+
+  <section id="overview" aria-labelledby="h-overview">
+    <h2 id="h-overview"><span class="n">1</span> Overview</h2>
+    <ul class="docs">
+      <li>
+        <div class="doc-title"><a href="../pitch-deck.pdf">Pitch deck</a><span class="file">PDF</span></div>
+        <div class="doc-desc">The application deck: problem, product, team, market, business model, traction and the ask.</div>
+        <span class="pill ok">available</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="../business-plan.pdf">Business plan</a><span class="file">PDF</span></div>
+        <div class="doc-desc">Long-form plan: company and founders, problem and regulation, product, market, competition, pricing, go-to-market, traction, financial plan and risks.</div>
+        <span class="pill ok">available</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="../roadmap.pdf">Roadmap</a><span class="file">PDF</span></div>
+        <div class="doc-desc">One-page roadmap, Q4 2026 to Q4 2028: what is shipped today, the planned milestones and hires, and the seed trigger at 100 paying customers.</div>
+        <span class="pill ok">available</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="https://administrativo.ro">administrativo.ro</a><span class="file">website</span></div>
+        <div class="doc-desc">The live product site in Romanian. English overview at <a href="https://administrativo.ro/en">administrativo.ro/en</a>.</div>
+        <span class="pill web">online</span>
+      </li>
+    </ul>
+  </section>
+
+  <section id="product" aria-labelledby="h-product">
+    <h2 id="h-product"><span class="n">2</span> Product</h2>
+    <ul class="docs">
+      <li>
+        <div class="doc-title"><a href="../product-mockups.pdf">Product mockups</a><span class="file">PDF</span></div>
+        <div class="doc-desc">Screenshot book: one screen per page, desktop and phone, with a caption on what each shows.</div>
+        <span class="pill ok">available</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="https://administrativo.ro/module">Module pages</a><span class="file">website</span></div>
+        <div class="doc-desc">One public page per module, describing what it does.</div>
+        <span class="pill web">online</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="https://administrativo.ro/en/preturi">Pricing</a><span class="file">website</span></div>
+        <div class="doc-desc">Flat price per company, from 149 RON (about €30) a month for up to 20 employees; whole application 499 RON (about €100).</div>
+        <span class="pill web">online</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="https://administrativo.ro/incredere">Security and data handling</a><span class="file">website</span></div>
+        <div class="doc-desc">How client data is isolated (row-level security enforced in the database), encrypted, logged and hosted.</div>
+        <span class="pill web">online</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="https://administrativo.ro/pentru-contabili">Offer for accountants</a><span class="file">website</span></div>
+        <div class="doc-desc">The accountant pilot and partner terms, our main sales channel.</div>
+        <span class="pill web">online</span>
+      </li>
+      <li>
+        <div class="doc-title">Product demo video<span class="file">video</span></div>
+        <div class="doc-desc">A 90-second walkthrough of the main flows. Not recorded yet.</div>
+        <span class="pill todo">to be uploaded</span>
+      </li>
+    </ul>
+
+    <p class="sub">Screenshots from the demo company “Administrativo Demo SRL” (fictitious data; the interface is in Romanian). Click to open full size.</p>
+    <div class="gallery">
+      <a href="../assets/capturi/nucleu.jpg"><figure style="margin:0"><img src="../assets/capturi/nucleu.jpg" alt="Employee list with roles and filters" loading="lazy"><figcaption>Employees (core)</figcaption></figure></a>
+      <a href="../assets/capturi/attendance.jpg"><figure style="margin:0"><img src="../assets/capturi/attendance.jpg" alt="Monthly timesheet" loading="lazy"><figcaption>Monthly timesheet</figcaption></figure></a>
+      <a class="phone" href="../assets/capturi/portal-pontare.jpg"><figure style="margin:0"><img class="clockin" src="../assets/capturi/portal-pontare.jpg" alt="Phone: employee clock-in card" loading="lazy"><figcaption>Phone clock-in</figcaption></figure></a>
+      <a class="phone" href="../assets/capturi/portal-scanare.jpg"><figure style="margin:0"><img src="../assets/capturi/portal-scanare.jpg" alt="Phone: clock-in after scanning the QR poster" loading="lazy"><figcaption>Clock-in by QR poster</figcaption></figure></a>
+      <a href="../assets/capturi/leave.jpg"><figure style="margin:0"><img src="../assets/capturi/leave.jpg" alt="Team leave calendar" loading="lazy"><figcaption>Leave calendar</figcaption></figure></a>
+      <a href="../assets/capturi/reges.jpg"><figure style="margin:0"><img src="../assets/capturi/reges.jpg" alt="REGES-Online connection settings, demo company not connected" loading="lazy"><figcaption>REGES-Online settings</figcaption></figure></a>
+      <a href="../assets/capturi/payroll.jpg"><figure style="margin:0"><img src="../assets/capturi/payroll.jpg" alt="Approved payroll period with exports" loading="lazy"><figcaption>Payroll (in accountant validation)</figcaption></figure></a>
+      <a href="../assets/capturi/rapoarte.jpg"><figure style="margin:0"><img src="../assets/capturi/rapoarte.jpg" alt="Annual aggregated report" loading="lazy"><figcaption>Reports</figcaption></figure></a>
+      <a href="../assets/capturi/ssm.jpg"><figure style="margin:0"><img src="../assets/capturi/ssm.jpg" alt="Health and safety briefing matrix" loading="lazy"><figcaption>Health &amp; safety (SSM)</figcaption></figure></a>
+      <a href="../assets/capturi/onboarding.jpg"><figure style="margin:0"><img src="../assets/capturi/onboarding.jpg" alt="Onboarding journeys in progress" loading="lazy"><figcaption>Onboarding</figcaption></figure></a>
+      <a href="../assets/capturi/courses.jpg"><figure style="margin:0"><img src="../assets/capturi/courses.jpg" alt="Company courses" loading="lazy"><figcaption>Courses</figcaption></figure></a>
+      <a href="../assets/capturi/evaluations.jpg"><figure style="margin:0"><img src="../assets/capturi/evaluations.jpg" alt="Annual reviews" loading="lazy"><figcaption>Evaluations</figcaption></figure></a>
+      <a href="../assets/capturi/kpi.jpg"><figure style="margin:0"><img src="../assets/capturi/kpi.jpg" alt="One month of KPIs" loading="lazy"><figcaption>KPIs</figcaption></figure></a>
+      <a href="../assets/capturi/fleet.jpg"><figure style="margin:0"><img src="../assets/capturi/fleet.jpg" alt="Vehicles with expiring documents" loading="lazy"><figcaption>Fleet</figcaption></figure></a>
+      <a href="../assets/capturi/maintenance.jpg"><figure style="margin:0"><img src="../assets/capturi/maintenance.jpg" alt="Maintenance dashboard" loading="lazy"><figcaption>Maintenance</figcaption></figure></a>
+      <a href="../assets/capturi/inventory.jpg"><figure style="margin:0"><img src="../assets/capturi/inventory.jpg" alt="Inventory items and who holds them" loading="lazy"><figcaption>Inventory</figcaption></figure></a>
+      <a href="../assets/capturi/ticketing.jpg"><figure style="margin:0"><img src="../assets/capturi/ticketing.jpg" alt="IT ticket queue" loading="lazy"><figcaption>IT ticketing</figcaption></figure></a>
+      <a href="../assets/capturi/announcements.jpg"><figure style="margin:0"><img src="../assets/capturi/announcements.jpg" alt="Published announcements" loading="lazy"><figcaption>Announcements</figcaption></figure></a>
+      <a href="../assets/capturi/per_diem.jpg"><figure style="margin:0"><img src="../assets/capturi/per_diem.jpg" alt="Trips with estimated per diem" loading="lazy"><figcaption>Travel &amp; per diem</figcaption></figure></a>
+    </div>
+  </section>
+
+  <section id="financials" aria-labelledby="h-financials">
+    <h2 id="h-financials"><span class="n">3</span> Financials</h2>
+    <ul class="docs">
+      <li>
+        <div class="doc-title"><a href="../financial-model.xlsx">Financial model</a><span class="file">XLSX</span></div>
+        <div class="doc-desc">36-month model (Jan 2027 – Dec 2029) with live formulas: assumptions, revenue, costs, P&amp;L and cash, unit economics, three scenarios, use of funds, cap table and sources.</div>
+        <span class="pill ok">available</span>
+      </li>
+      <li>
+        <div class="doc-title">Historical financial statements, FY2024 and FY2025</div>
+        <div class="doc-desc">Balance sheets and profit and loss of the SRL, as filed.</div>
+        <span class="pill todo">to be uploaded</span>
+      </li>
+    </ul>
+  </section>
+
+  <section id="legal" aria-labelledby="h-legal">
+    <h2 id="h-legal"><span class="n">4</span> Legal &amp; cap table</h2>
+    <ul class="docs">
+      <li>
+        <div class="doc-title"><a href="../cap-table.xlsx">Cap table</a><span class="file">XLSX</span></div>
+        <div class="doc-desc">Today (51% / 49%, no investors, no options), after this round, an illustrative seed, and the convertible loan alternative.</div>
+        <span class="pill ok">available</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="../cap-table.pdf">Cap table</a><span class="file">PDF</span></div>
+        <div class="doc-desc">Printable version of the same tables.</div>
+        <span class="pill ok">available</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="https://administrativo.ro/legal/termeni">Terms of service and data processing annex</a><span class="file">website</span></div>
+        <div class="doc-desc">Customer terms with the GDPR Art. 28 data processing annex. Drafted in-house, not yet reviewed by a lawyer. PDF copy to be uploaded.</div>
+        <span class="pill web">online</span>
+      </li>
+      <li>
+        <div class="doc-title"><a href="https://administrativo.ro/legal/confidentialitate">Privacy policy</a><span class="file">website</span></div>
+        <div class="doc-desc">What personal data the service processes, where and for how long. Not yet reviewed by a lawyer.</div>
+        <span class="pill web">online</span>
+      </li>
+      <li>
+        <div class="doc-title">Articles of association</div>
+        <div class="doc-desc">The SRL's constitutive act, every version.</div>
+        <span class="pill todo">to be uploaded</span>
+      </li>
+      <li>
+        <div class="doc-title">Trade register certificate</div>
+        <div class="doc-desc"><i>Certificat constatator</i> with full history, issued within the last 30 days.</div>
+        <span class="pill todo">to be uploaded</span>
+      </li>
+      <li>
+        <div class="doc-title">Registration certificate (CUI)</div>
+        <div class="doc-desc">The company's registration certificate.</div>
+        <span class="pill todo">to be uploaded</span>
+      </li>
+      <li>
+        <div class="doc-title">IP assignment</div>
+        <div class="doc-desc">Assignment of the source code and other intellectual property from both co-founders to the SRL.</div>
+        <span class="pill todo">to be uploaded</span>
+      </li>
+      <li>
+        <div class="doc-title">Beneficial owner statement</div>
+        <div class="doc-desc">Statement of the company's ultimate beneficial owners.</div>
+        <span class="pill todo">to be uploaded</span>
+      </li>
+      <li>
+        <div class="doc-title">Tax certificates</div>
+        <div class="doc-desc">ANAF and local tax certificates, issued within the last 30 days.</div>
+        <span class="pill todo">at due diligence</span>
+      </li>
+    </ul>
+    <p class="sub">Identity documents and criminal records of the administrator and associates are provided directly at due diligence, not stored in this room.</p>
+  </section>
+
+  <section id="market" aria-labelledby="h-market">
+    <h2 id="h-market"><span class="n">5</span> Market research</h2>
+    <ul class="docs">
+      <li>
+        <div class="doc-title"><a href="../business-plan.pdf">Business plan: market, competition and sources</a><span class="file">PDF</span></div>
+        <div class="doc-desc">Firm counts, regulation (REGES-Online, fines, timesheet rules), competitors and prices, and TAM / SAM / SOM, with every external source and its URL in the appendix. SOM is the financial model's base case.</div>
+        <span class="pill ok">available</span>
+      </li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    ADMINISTRATIVO · Timișoara, Romania ·
+    <a href="mailto:contact@administrativo.ro">contact@administrativo.ro</a> · +40 767 991 625 ·
+    <a href="https://www.linkedin.com/company/144846087/">LinkedIn</a>
+  </div>
+</footer>
+
+</body>
+</html>

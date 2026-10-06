@@ -1,0 +1,323 @@
+% =====================================================================
+%  Tema Beamer Administrativo — șabloane și componente.
+%  Se încarcă DUPĂ tema/baza.tex. Folosită de prezentare-comerciala.tex
+%  și de prezentare-module.tex: un slide nou = un apel de macro, nu un
+%  preambul copiat.
+% =====================================================================
+
+% ---------------------------------------------------------------------
+% 3. Tema beamer — construită de la zero, fără ornamentele implicite
+% ---------------------------------------------------------------------
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamercolor{normal text}{fg=brandNavy,bg=white}
+\setbeamercolor{structure}{fg=brandBlue}
+\setbeamersize{text margin left=0.85cm, text margin right=0.85cm}
+\setbeamertemplate{itemize item}{\mbox{\textcolor{brandBlue}{\footnotesize\faIcon{caret-right}}}}
+\setbeamertemplate{itemize subitem}{\mbox{\textcolor{brandTeal}{\scriptsize\faIcon{minus}}}}
+\setlength{\parskip}{0pt}
+% Măsură scurtă peste tot (coloane de 4–8 cm): aliniere la stânga, cu despărțire
+% în silabe. Textul justificat lasă găuri urâte pe rânduri atât de scurte.
+\AtBeginDocument{\RaggedRight}
+
+% Titlu de slide: titlu gros + linie de accent
+\setbeamertemplate{frametitle}{%
+  \vspace*{0.34cm}%
+  \begin{minipage}{\linewidth}%
+    \raggedright
+    {\titlufont\bfseries\large\color{brandNavy}\insertframetitle}\par
+    \vspace{3pt}
+    {\color{brandBlue}\rule{1.7cm}{2.2pt}}%
+  \end{minipage}%
+  \vspace*{0.14cm}%
+}
+
+% Subsol: marcă, poziționare, număr de pagină
+\setbeamertemplate{footline}{%
+  \hbox{%
+    \hspace*{0.85cm}%
+    \parbox{\dimexpr\paperwidth-1.7cm\relax}{%
+      \textcolor{brandLine}{\rule{\linewidth}{0.5pt}}\par
+      \vspace{2pt}
+      {\scriptsize\color{brandSlate}{\titlufont ADMINISTRATIVO}\hfill
+       ERP administrativ, livrat ca abonament\hfill
+       \textbf{\insertframenumber}}%
+    }%
+  }\vspace*{0.26cm}%
+}
+
+% ---------------------------------------------------------------------
+% 4. Componente reutilizabile
+% ---------------------------------------------------------------------
+
+% Pastilă de status / etichetă colorată
+\newcommand{\pastila}[2]{%
+  \tikz[baseline=(x.base)]{\node[fill=#1,text=white,rounded corners=2.5pt,
+    inner xsep=6pt,inner ysep=2.6pt,font=\bfseries\tiny] (x) {\MakeUppercase{#2}};}}
+
+% Placă de logo — înlocuiește cu \includegraphics{sigla.pdf} când există sigla reală
+\newcommand{\logoPlaceholder}[1]{%
+  \begin{tikzpicture}[scale=#1,every node/.style={transform shape}]
+    \draw[brandTeal,line width=1.1pt,dashed,rounded corners=6pt] (0,0) rectangle (2.6,2.6);
+    \node[text=white,font=\titlufont\bfseries\LARGE] at (1.3,1.52) {A};
+    \node[text=brandTeal,font=\titlufont\bfseries\tiny] at (1.3,0.62) {LOGO};
+  \end{tikzpicture}}
+
+% Card cu iconiță, titlu și text — cărămida întregii prezentări
+\newtcolorbox{card}[3][brandBlue]{%
+  enhanced, arc=3pt,
+  colback=white, colframe=brandLine, boxrule=0.5pt,
+  borderline west={2.4pt}{0pt}{#1},
+  left=7pt,right=7pt,top=4pt,bottom=4pt,
+  halign=flush left, halign title=flush left,
+  fonttitle=\bfseries\footnotesize,
+  title={\textcolor{#1}{\faIcon{#2}}\hspace{5pt}\textcolor{brandNavy}{#3}},
+  colbacktitle=white, coltitle=brandNavy,
+  toptitle=1pt, bottomtitle=2pt}
+
+% Cutie de beneficii — fundal deschis, bară de accent
+\newtcolorbox{beneficii}[1][Ce câștigă firma]{%
+  enhanced, arc=3pt, colback=brandMist, colframe=brandTeal, boxrule=0pt,
+  borderline west={3pt}{0pt}{brandTeal},
+  left=8pt,right=8pt,top=4pt,bottom=4pt,
+  halign=flush left, halign title=flush left,
+  fonttitle=\bfseries\footnotesize, coltitle=brandTeal, colbacktitle=brandMist,
+  title={\faIcon{check-circle}\hspace{5pt}#1}}
+
+% Cutie de notă comercială evidențiată
+\newtcolorbox{nota}[1][Notă]{%
+  enhanced, arc=3pt, colback=brandAmber!8, colframe=brandAmber, boxrule=1pt,
+  left=9pt,right=9pt,top=6pt,bottom=6pt,
+  halign=flush left, halign title=flush left,
+  fonttitle=\bfseries\footnotesize, coltitle=white, colbacktitle=brandAmber,
+  title={\faIcon{star}\hspace{5pt}#1}}
+
+% Cutie neutră, cu chenar întrerupt — folosită pentru placeholder-uri
+\newtcolorbox{placeholder}{%
+  enhanced, arc=3pt, colback=brandMist!55, colframe=white, boxrule=0pt,
+  borderline={1pt}{0pt}{brandSlate,dashed},
+  left=10pt,right=10pt,top=8pt,bottom=8pt}
+
+% Rânduri de listă cu iconiță colorată.
+% Fiecare rând ÎȘI ÎNCHIDE singur paragraful (\par la început și la sfârșit):
+% altfel `\vspace` de deasupra rămâne în mod orizontal și rândul se lipește de
+% textul dinainte. `\hangindent` aliniază continuarea sub text, nu sub iconiță.
+%
+% Iconița stă într-un `\makebox` de LĂȚIME FIXĂ, egală cu `\hangindent`, și e
+% CENTRATĂ în el. Pictogramele Font Awesome au lățimi diferite (`user` are
+% 0,875 em, `users` are 1,25 em), deci:
+%   - fără casetă fixă, textul pornea din alt punct pe fiecare rând;
+%   - cu casetă fixă dar aliniere la stânga, textul se alinia, dar pictogramele
+%     rămâneau descentrate una față de alta.
+% Alinierea e la STÂNGA, nu centrată. Centrarea pare ideea corectă, dar
+% pictogramele Font Awesome au lățimi proprii diferite, deci centrate ies toate
+% din altă poziție: marginea din stânga a coloanei devine zimțată, exact ce se
+% vedea pe slide-ul Nucleu. Aliniate la stânga, marginile lor formează o linie
+% dreaptă, iar diferența de lățime se pierde în spațiul până la text.
+%
+% Caseta e de 1,25 em (lățimea maximă a unei pictograme Font Awesome), iar
+% spațiul până la text e ADĂUGAT SEPARAT, nu lăsat pe seama umpluturii casetei:
+% altfel o pictogramă lată umple caseta și textul i se lipește, în timp ce una
+% îngustă stă departe. 1,25 + 0,4 = 1,65 em, exact `\hangindent`-ul, deci
+% continuarea rândului cade sub prima literă, nu sub pictogramă.
+\newcommand{\randlista}[3]{%
+  \par\hangindent=1.65em\hangafter=1\noindent
+  \makebox[1.25em][l]{\textcolor{#1}{\faIcon{#2}}}\hspace{0.4em}#3\par}
+\newcommand{\pct}[2]{\randlista{brandBlue}{#1}{#2}}
+\newcommand{\pctv}[2]{\randlista{brandGreen}{#1}{#2}}
+
+% Titlu de secțiune peste ecran plin: iconiță, titlu, subtitlu
+\newcommand{\separator}[3]{%
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[brandNavy] (current page.south west) rectangle (current page.north east);
+    \fill[brandTeal,opacity=0.10] ([xshift=-3cm,yshift=-2.4cm]current page.east) circle (5.2cm);
+    \fill[brandBlue,opacity=0.16] ([xshift=-1.2cm,yshift=2.2cm]current page.east) circle (3.4cm);
+    \node[anchor=west,align=left] at ([xshift=1.6cm]current page.west) {%
+      \begin{minipage}{10.5cm}
+        \raggedright
+        {\color{brandTeal}\Large\faIcon{#1}}\par\vspace{9pt}
+        {\titlufont\bfseries\huge\color{white} #2}\par\vspace{8pt}
+        {\color{brandLine}\small #3}
+      \end{minipage}};
+  \end{tikzpicture}
+\end{frame}}
+
+
+% ---------------------------------------------------------------------
+% 5. Tiparul unui slide de modul
+% ---------------------------------------------------------------------
+% Toată secțiunea de module e construită dintr-un singur macro, ca cele
+% douăzeci de slide-uri să nu ajungă douăzeci de layout-uri ușor diferite.
+% Un modul nou = un apel nou, nu un slide copiat și ajustat.
+%
+%   #1 titlul slide-ului
+%   #2 grupul din meniu, tipărit ca a doua pastilă (Personal, Financiar, ...)
+%   #3 paragraful de deschidere — ce e modulul, în două-trei rânduri
+%   #4 funcționalitățile, ca rânduri \pct{iconiță}{text}
+%   #5 beneficiile, ca rânduri \pctv{check}{text}
+%
+% `\vspace{-2pt}` de la început nu e cosmetic: corpul cadrului începe cu un
+% grup `{...}`, iar beamer l-ar înghiți ca SUBTITLU (vezi README, capcana 1).
+\newcommand{\modul}[5]{%
+\begin{frame}{#1}
+  \vspace{-2pt}
+  {\pastila{brandGreen}{disponibil}\hspace{5pt}\pastila{brandBlue}{#2}}
+  \vspace{7pt}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      {\footnotesize #3}
+      \vspace{5pt}
+      {\footnotesize #4}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{beneficii}[Ce câștigă firma]
+        \footnotesize #5
+      \end{beneficii}
+    \end{column}
+  \end{columns}
+\end{frame}}
+
+% Card compact — doar pentru pagina cu toate modulele, unde încap opt rânduri într-o
+% coloană. Aceleași culori ca `card`, dar cu jumătate din padding.
+\newtcolorbox{cardm}[3][brandBlue]{%
+  enhanced, arc=3pt,
+  colback=white, colframe=brandLine, boxrule=0.5pt,
+  borderline west={2.4pt}{0pt}{#1},
+  left=6pt,right=6pt,top=1pt,bottom=2pt,
+  halign=flush left, halign title=flush left,
+  fonttitle=\bfseries\scriptsize,
+  title={\textcolor{#1}{\faIcon{#2}}\hspace{4pt}\textcolor{brandNavy}{#3}},
+  colbacktitle=white, coltitle=brandNavy,
+  toptitle=0pt, bottomtitle=1pt}
+
+% Varianta pentru un modul care ÎNCĂ NU e livrat. Singura diferență față de
+% `\modul` e pastila: chihlimbar „în dezvoltare" în locul verdelui „disponibil".
+% Deliberat un macro separat, nu un argument opțional: culoarea pastilei e
+% singurul lucru care spune clientului că plătește pentru ceva ce încă nu poate
+% folosi azi, deci nu trebuie să depindă de un parametru ușor de uitat.
+\newcommand{\modulviitor}[5]{%
+\begin{frame}{#1}
+  \vspace{-2pt}
+  {\pastila{brandAmber}{în dezvoltare}\hspace{5pt}\pastila{brandBlue}{#2}}
+  \vspace{7pt}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      {\footnotesize #3}
+      \vspace{5pt}
+      {\footnotesize #4}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{beneficii}[Ce va câștiga firma]
+        \footnotesize #5
+      \end{beneficii}
+    \end{column}
+  \end{columns}
+\end{frame}}
+
+% Celulă din pagina cu toate modulele: iconiță + denumire, pe un rând.
+%
+% `\tiny` se deschide ÎNAINTE de paragraf și `\par` se închide ÎN INTERIORUL
+% grupului, deliberat. TeX fixează `\baselineskip` la `\par`, din mărimea
+% curentă: cu `{\tiny #2}` doar pe text, literele erau mici, dar rândurile
+% rămâneau la interlinia de 11pt — opt module ocupau cât un slide întreg.
+\newcommand{\celula}[2]{%
+  {\tiny\par\hangindent=1.6em\hangafter=1\noindent
+   \makebox[1.25em][l]{\textcolor{brandBlue}{\faIcon{#1}}}\hspace{0.35em}#2\par}}
+
+% Rând de modul cu preț: denumirea la stânga, prețul lipit de marginea dreaptă.
+% `\makebox` de lățimea coloanei aduce modul LR, singurul în care `\hfill` chiar
+% împinge — într-un paragraf cu `\RaggedRight` activ, glue-ul din dreapta l-ar
+% fi înghițit, iar prețurile ar fi stat lipite de denumire.
+\newcommand{\modulpret}[2]{%
+  {\tiny\par\noindent\makebox[\linewidth][l]{#1\hfill\textbf{#2}}\par}}
+
+% Cifră mare cu etichetă dedesubt — banda de sinteză de pe slide-ul 1.
+\newcommand{\cifra}[2]{%
+  \begin{minipage}[t]{3.15cm}
+    \centering
+    {\titlufont\bfseries\Large\color{brandBlue}#1}\par\vspace{1pt}
+    {\scriptsize\color{brandSlate}#2}
+  \end{minipage}}
+
+% ---------------------------------------------------------------------
+% 6. Slide de modul cu captură din aplicație
+% ---------------------------------------------------------------------
+% Fereastra în care stă captura: bară de titlu cu trei puncte, ca un ecran
+% văzut „prin geam" — același motiv ca pe paginile de modul ale site-ului.
+% Fără margine interioară: chenarul atinge imaginea, altfel captura pare
+% lipită pe o foaie, nu deschisă pe un ecran.
+\newtcolorbox{fereastra}{%
+  enhanced, arc=3pt, colback=white, colframe=brandLine, boxrule=0.5pt,
+  left=0pt,right=0pt,top=0pt,bottom=0pt, boxsep=0pt,
+  halign=center,
+  colbacktitle=brandMist, coltitle=brandLine,
+  toptitle=1.2pt, bottomtitle=1.2pt, lefttitle=4pt,
+  fonttitle=\fontsize{3.5}{4}\selectfont,
+  title={\faIcon{circle}\,\faIcon{circle}\,\faIcon{circle}}}
+
+% Banda de beneficii de sub coloane: aceleași culori ca `beneficii`, dar
+% culcată pe toată lățimea, cu beneficiile pe trei coloane.
+%
+% De ce nu cutia `beneficii` sub captură, în coloana dreaptă: prima variantă
+% așa era, și ieșea peste subsol cu 25–50 pt pe fiecare slide. Captura
+% 16:10 ocupă aproape toată înălțimea coloanei; beneficiile scurte, puse în
+% lat, costă un singur rând în loc de patru.
+\newtcolorbox{bandabeneficii}{%
+  enhanced, arc=3pt, colback=brandMist, colframe=brandTeal, boxrule=0pt,
+  borderline west={3pt}{0pt}{brandTeal},
+  left=8pt,right=8pt,top=3pt,bottom=4pt}
+
+% Un beneficiu din bandă: o treime din lățime, aliniat sus. `\hfill` de la
+% final împarte golul rămas între cele trei coloane.
+%
+% `\RaggedRight` se repune ÎN minipage: minipage reface alinierea implicită
+% (`\@parboxrestore`), deci textul ieșea justificat pe o coloană de 4 cm —
+% câte trei `Underfull \hbox` pe fiecare slide.
+\newcommand{\benef}[1]{%
+  \begin{minipage}[t]{0.27\linewidth}\RaggedRight\pctv{check}{#1}\end{minipage}\hfill}
+
+% Același tipar ca `\modul`, cu o coloană dreaptă diferită: captura, în
+% fereastră, iar beneficiile într-o bandă pe toată lățimea, dedesubt.
+%
+%   #1–#4 exact ca la `\modul`
+%   #5    EXACT trei beneficii, ca `\benef{...}` — nu `\pctv`, și fără
+%         `\par` între ele: un `\par` le-ar așeza unul sub altul
+%   #6    conținutul ferestrei: de regulă `\captura{cheie}`; Portalul pune
+%         aici două capturi de telefon alăturate
+%
+% Pastila de status NU e parametru, din același motiv ca la `\modulviitor`.
+%
+% Eticheta „Ce câștigă firma" stă în prima coloană a benzii, nu deasupra ei:
+% pe un rând separat costa ~10 pt, exact cât ieșea banda peste subsol pe
+% slide-urile cu șase funcționalități.
+\newcommand{\modulcaptura}[6]{%
+\begin{frame}{#1}
+  \vspace{-2pt}
+  {\pastila{brandGreen}{disponibil}\hspace{5pt}\pastila{brandBlue}{#2}}
+  \vspace{5pt}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      {\footnotesize #3}
+      \vspace{4pt}
+      {\footnotesize #4}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{fereastra}#6\end{fereastra}
+    \end{column}
+  \end{columns}
+  \vspace{4pt}
+  \begin{bandabeneficii}
+    \scriptsize
+    \begin{minipage}[t]{0.14\linewidth}\RaggedRight
+      \randlista{brandTeal}{check-circle}{\bfseries\color{brandTeal}Ce câștigă firma}
+    \end{minipage}\hfill
+    #5
+  \end{bandabeneficii}
+\end{frame}}
+
+% Captura de birou a unui modul, după cheia din `src/config/features.ts`.
+% Înălțimea e plafonată, nu lățimea: capturile sunt 16:10, iar la lățimea
+% coloanei ar împinge banda de beneficii peste subsol.
+\newcommand{\captura}[1]{%
+  \includegraphics[width=\linewidth,height=3.0cm,keepaspectratio]{capturi/#1}}
