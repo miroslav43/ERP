@@ -159,7 +159,9 @@ export default async function PaginaReges(props: {
     {
       cheie: "actiuni",
       antet: "Acțiuni",
-      peTelefon: "insigna",
+      // `actiuni`, nu `insigna`: butoanele conțin `<div>`-uri, iar insigna e un
+      // `<span>` — marcaj nevalid și eroare de hidratare pe telefon.
+      peTelefon: "actiuni",
       celula: (m) => {
         if (m.stare !== "de_transmis") return <span className="text-muted-foreground">—</span>;
         return (
@@ -260,7 +262,9 @@ export default async function PaginaReges(props: {
     {
       cheie: "actiuni",
       antet: "Acțiuni",
-      peTelefon: "insigna",
+      // `actiuni`, nu `insigna`: butoanele conțin `<div>`-uri, iar insigna e un
+      // `<span>` — marcaj nevalid și eroare de hidratare pe telefon.
+      peTelefon: "actiuni",
       // Două drumuri, deliberat. „Pregătește" traduce evenimentul în mesaje API
       // și e drumul normal de acum înainte. „Marchează transmis" rămâne pentru
       // evenimentele rezolvate ÎN AFARA aplicației — direct din portalul ITM —

@@ -62,6 +62,8 @@ export type Coloana<R> = Readonly<{
    * `insigna` — la dreapta titlului (o pastilă de stare).
    * `meta` — rândul de dedesubt, mărunt, separat prin „·".
    * `ascuns` — nu apare pe telefon.
+   * `actiuni` — un rând propriu, sub meta, într-un `<div>`: butoane care
+   *   deschid dialoguri, formulare, orice conținut de BLOC.
    *
    * ── CE POATE ÎNTOARCE `celula` PENTRU `titlu`, `insigna` ȘI `meta` ──────
    * Numai conținut de tip FRAZĂ: `<span>`, `<input>`, `<select>`, text. Cele
@@ -71,8 +73,13 @@ export type Coloana<R> = Readonly<{
    * eroare de hidratare. Nimic nu se vede stricat — doar consola țipă și
    * randarea se face de două ori. Pentru un rând de controale, `<span>` cu
    * `inline-flex` face exact ce făcea `<div>` cu `flex`.
+   *
+   * Un buton care deschide un `<dialog>` (orice `PanouLateral`, `Dialog`,
+   * `ConfirmareActiune`) NU e frază: dialogul se randează lângă buton, deci
+   * ajunge în `<p>`. Locul lui e `actiuni` — „Evaluează” din `/evaluari` a dat
+   * exact eroarea asta („<dialog> cannot be a descendant of <p>”).
    */
-  peTelefon?: "titlu" | "insigna" | "meta" | "ascuns";
+  peTelefon?: "titlu" | "insigna" | "meta" | "ascuns" | "actiuni";
   celula: (rand: R) => ReactNode;
 }>;
 
@@ -297,8 +304,13 @@ function CardRand<R>({
   const titlu = coloanaTitlu;
   const insigne = coloane.filter((c) => c.peTelefon === "insigna");
   const meta = coloane.filter(
-    (c) => c !== titlu && c.peTelefon !== "insigna" && c.peTelefon !== "ascuns",
+    (c) =>
+      c !== titlu &&
+      c.peTelefon !== "insigna" &&
+      c.peTelefon !== "ascuns" &&
+      c.peTelefon !== "actiuni",
   );
+  const actiuni = coloane.filter((c) => c.peTelefon === "actiuni");
 
   return (
     <li className="relative flex min-h-14 items-start gap-3 px-4 py-3">
@@ -334,6 +346,15 @@ function CardRand<R>({
               </span>
             ))}
           </p>
+        )}
+        {actiuni.length === 0 ? null : (
+          // `relative`: deasupra linkului care acoperă tot cardul (`after:inset-0`),
+          // altfel butoanele n-ar primi clicul.
+          <div className="relative mt-2 flex flex-wrap items-center gap-2">
+            {actiuni.map((c) => (
+              <div key={c.cheie}>{c.celula(rand)}</div>
+            ))}
+          </div>
         )}
       </div>
     </li>

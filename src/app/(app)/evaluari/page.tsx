@@ -253,7 +253,7 @@ async function ListaEvaluari({
       cheie: "actiuni",
       antet: "Acțiuni",
       latime: "ingusta",
-      peTelefon: "meta",
+      peTelefon: "actiuni",
       // „Evaluează” doar pe ciorne și doar cu `evaluations:update`; baza mai
       // îngustează la echipă (`can_access_evaluation`). Finalizata se vede pe
       // fișa angajatului; redeschiderea ei rămâne acolo.
@@ -270,6 +270,7 @@ async function ListaEvaluari({
               criterii: e.criterii,
               raspunsuri: e.raspunsuri,
               sablon: e.sablon,
+              angajat: e.angajat,
             }}
           />
         ) : null,

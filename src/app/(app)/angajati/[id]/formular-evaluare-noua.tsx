@@ -58,6 +58,8 @@ export interface CiornaEvaluare {
   readonly criterii: readonly CriteriuSablon[];
   readonly raspunsuri: readonly RaspunsCriteriu[];
   readonly sablon: string | null;
+  /** Numele angajatului — în lista din `/evaluari`, unde pagina nu-l spune. */
+  readonly angajat?: string | null;
 }
 
 export type PropsFormularEvaluare = Readonly<{
@@ -85,6 +87,11 @@ export function FormularEvaluareNoua({
   const router = useRouter();
   const idFormular = useId();
   const [deschis, setDeschis] = useState(false);
+  // Panoul se montează abia la prima deschidere și rămâne montat după aceea
+  // (închiderea își păstrează animația). În lista din `/evaluari` fiecare rând
+  // are „Evaluează”, de două ori (tabel + card): montate din start, ar fi fost
+  // zeci de formulare complete de notare, ascunse, pe o singură pagină.
+  const [montat, setMontat] = useState(false);
   const [sablonId, setSablonId] = useState(sabloane[0]?.id ?? "");
   const [raspunsuri, setRaspunsuri] = useState<readonly RaspunsCriteriu[]>([]);
 
@@ -109,6 +116,7 @@ export function FormularEvaluareNoua({
     // „Renunță" n-au voie să reapară data viitoare.
     setSablonId(sabloane[0]?.id ?? "");
     setRaspunsuri(esteEditare ? ciorna.raspunsuri : []);
+    setMontat(true);
     setDeschis(true);
   };
 
@@ -137,193 +145,201 @@ export function FormularEvaluareNoua({
         declansator(deschide)
       )}
 
-      <PanouLateral
-        deschis={deschis}
-        laInchidere={() => {
-          setDeschis(false);
-        }}
-        titlu={esteEditare ? "Corectează ciorna" : "Evaluare nouă"}
-        descriere={
-          esteEditare
-            ? `Șablonul „${ciorna.sablon ?? "șters"}”, cu criteriile de la momentul completării.`
-            : "Notele necompletate rămân necompletate: nu se salvează ca zero."
-        }
-        subsol={
-          <>
-            <p className="text-muted-foreground text-nota me-auto self-center tabular-nums">
-              {punctaj.procent === null
-                ? "nicio notă încă"
-                : `${String(punctaj.procent)} % · ${String(punctaj.completate)} din ${String(punctaj.completate + punctaj.necompletate)} criterii`}
-            </p>
-            <BaraActiuni eticheta="Salvarea evaluării">
-              <Buton
-                varianta="secundar"
-                onClick={() => {
-                  setDeschis(false);
-                }}
-              >
-                Renunță
-              </Buton>
-              <Buton
-                type="submit"
-                form={idFormular}
-                varianta="secundar"
-                name={esteEditare ? "salveaza" : "status"}
-                value={esteEditare ? "da" : "draft"}
-                textInCurs="Se salvează…"
-              >
-                Salvează ciorna
-              </Buton>
-              <Buton
-                type="submit"
-                form={idFormular}
-                varianta="primar"
-                name={esteEditare ? "finalizeaza" : "status"}
-                value={esteEditare ? "da" : "finalizat"}
-                disabled={punctaj.completate === 0}
-                textInCurs="Se salvează…"
-              >
-                Finalizează
-              </Buton>
-            </BaraActiuni>
-          </>
-        }
-      >
-        <Formular
-          id={idFormular}
-          actiune={async (date) => {
-            if (!esteEditare) return creeazaEvaluare(date);
-            const salvat = await actualizeazaEvaluare(date);
-            // Finalizarea e o a doua acțiune, nu un câmp al primei: are alt
-            // nume în jurnalul de audit și altă poartă de permisiune. Dacă a
-            // doua eșuează, prima a reușit deja — starea rămâne o ciornă
-            // salvată, care e sigură, iar mesajul spune exact ce s-a întâmplat.
-            if (!salvat.ok || date.get("finalizeaza") !== "da") return salvat;
-            return finalizeazaEvaluare({ id: ciorna.id });
-          }}
-          mesajReusita={esteEditare ? "Evaluarea a fost salvată." : "Evaluarea a fost creată."}
-          laReusita={() => {
+      {montat ? (
+        <PanouLateral
+          deschis={deschis}
+          laInchidere={() => {
             setDeschis(false);
-            router.refresh();
           }}
-        >
-          {(stare) => (
+          titlu={
+            esteEditare
+              ? ciorna.angajat === undefined || ciorna.angajat === null
+                ? "Corectează ciorna"
+                : `Evaluare: ${ciorna.angajat}`
+              : "Evaluare nouă"
+          }
+          descriere={
+            esteEditare
+              ? `Șablonul „${ciorna.sablon ?? "șters"}”, cu criteriile de la momentul completării.`
+              : "Notele necompletate rămân necompletate: nu se salvează ca zero."
+          }
+          subsol={
             <>
-              {esteEditare ? (
-                <input type="hidden" name="id" value={ciorna.id} />
-              ) : (
-                <>
-                  <input type="hidden" name="employee_id" value={employeeId} />
-                  <input type="hidden" name="template_id" value={sablonId} />
-                </>
-              )}
-              <input
-                type="hidden"
-                name="raspunsuri"
-                value={JSON.stringify(criterii.map((c) => raspunsPentru(c.cod)))}
-              />
+              <p className="text-muted-foreground text-nota me-auto self-center tabular-nums">
+                {punctaj.procent === null
+                  ? "nicio notă încă"
+                  : `${String(punctaj.procent)} % · ${String(punctaj.completate)} din ${String(punctaj.completate + punctaj.necompletate)} criterii`}
+              </p>
+              <BaraActiuni eticheta="Salvarea evaluării">
+                <Buton
+                  varianta="secundar"
+                  onClick={() => {
+                    setDeschis(false);
+                  }}
+                >
+                  Renunță
+                </Buton>
+                <Buton
+                  type="submit"
+                  form={idFormular}
+                  varianta="secundar"
+                  name={esteEditare ? "salveaza" : "status"}
+                  value={esteEditare ? "da" : "draft"}
+                  textInCurs="Se salvează…"
+                >
+                  Salvează ciorna
+                </Buton>
+                <Buton
+                  type="submit"
+                  form={idFormular}
+                  varianta="primar"
+                  name={esteEditare ? "finalizeaza" : "status"}
+                  value={esteEditare ? "da" : "finalizat"}
+                  disabled={punctaj.completate === 0}
+                  textInCurs="Se salvează…"
+                >
+                  Finalizează
+                </Buton>
+              </BaraActiuni>
+            </>
+          }
+        >
+          <Formular
+            id={idFormular}
+            actiune={async (date) => {
+              if (!esteEditare) return creeazaEvaluare(date);
+              const salvat = await actualizeazaEvaluare(date);
+              // Finalizarea e o a doua acțiune, nu un câmp al primei: are alt
+              // nume în jurnalul de audit și altă poartă de permisiune. Dacă a
+              // doua eșuează, prima a reușit deja — starea rămâne o ciornă
+              // salvată, care e sigură, iar mesajul spune exact ce s-a întâmplat.
+              if (!salvat.ok || date.get("finalizeaza") !== "da") return salvat;
+              return finalizeazaEvaluare({ id: ciorna.id });
+            }}
+            mesajReusita={esteEditare ? "Evaluarea a fost salvată." : "Evaluarea a fost creată."}
+            laReusita={() => {
+              setDeschis(false);
+              router.refresh();
+            }}
+          >
+            {(stare) => (
+              <>
+                {esteEditare ? (
+                  <input type="hidden" name="id" value={ciorna.id} />
+                ) : (
+                  <>
+                    <input type="hidden" name="employee_id" value={employeeId} />
+                    <input type="hidden" name="template_id" value={sablonId} />
+                  </>
+                )}
+                <input
+                  type="hidden"
+                  name="raspunsuri"
+                  value={JSON.stringify(criterii.map((c) => raspunsPentru(c.cod)))}
+                />
 
-              {esteEditare ? null : (
+                {esteEditare ? null : (
+                  <Camp
+                    nume="sablon"
+                    eticheta="Șablon"
+                    obligatoriu
+                    erori={stare.erori["template_id"] ?? []}
+                    fel="select"
+                  >
+                    {(a) => (
+                      <select
+                        {...a}
+                        name="sablon"
+                        value={sablonId}
+                        onChange={(e) => {
+                          setSablonId(e.target.value);
+                          // Notele aparțin criteriilor șablonului ales. Păstrate
+                          // peste o schimbare de șablon, ar fi rămas legate de
+                          // coduri care nu mai există.
+                          setRaspunsuri([]);
+                        }}
+                      >
+                        {sabloane.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.denumire}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Camp>
+                )}
+
                 <Camp
-                  nume="sablon"
-                  eticheta="Șablon"
+                  nume="data_evaluarii"
+                  eticheta="Data evaluării"
                   obligatoriu
-                  erori={stare.erori["template_id"] ?? []}
-                  fel="select"
+                  erori={stare.erori["data_evaluarii"] ?? []}
                 >
                   {(a) => (
-                    <select
+                    <IntrareData
                       {...a}
-                      name="sablon"
-                      value={sablonId}
-                      onChange={(e) => {
-                        setSablonId(e.target.value);
-                        // Notele aparțin criteriilor șablonului ales. Păstrate
-                        // peste o schimbare de șablon, ar fi rămas legate de
-                        // coduri care nu mai există.
-                        setRaspunsuri([]);
-                      }}
-                    >
-                      {sabloane.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.denumire}
-                        </option>
-                      ))}
-                    </select>
+                      implicit={
+                        stare.valoriTrimise.data_evaluarii ?? ciorna?.data_evaluarii ?? aziIso()
+                      }
+                    />
                   )}
                 </Camp>
-              )}
 
-              <Camp
-                nume="data_evaluarii"
-                eticheta="Data evaluării"
-                obligatoriu
-                erori={stare.erori["data_evaluarii"] ?? []}
-              >
-                {(a) => (
-                  <IntrareData
-                    {...a}
-                    implicit={
-                      stare.valoriTrimise.data_evaluarii ?? ciorna?.data_evaluarii ?? aziIso()
-                    }
-                  />
-                )}
-              </Camp>
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="text-eticheta text-foreground mb-1 font-semibold tracking-wide uppercase">
+                    Criterii
+                  </legend>
+                  {(stare.erori["raspunsuri"] ?? []).length === 0 ? null : (
+                    <p role="alert" className="text-danger text-nota">
+                      {(stare.erori["raspunsuri"] ?? []).join(" ")}
+                    </p>
+                  )}
+                  {criterii.map((c) => (
+                    <CampCriteriu
+                      key={c.cod}
+                      criteriu={c}
+                      raspuns={raspunsPentru(c.cod)}
+                      prefix="evaluare"
+                      laSchimbare={schimba}
+                    />
+                  ))}
+                </fieldset>
 
-              <fieldset className="flex flex-col gap-2">
-                <legend className="text-eticheta text-foreground mb-1 font-semibold tracking-wide uppercase">
-                  Criterii
-                </legend>
-                {(stare.erori["raspunsuri"] ?? []).length === 0 ? null : (
-                  <p role="alert" className="text-danger text-nota">
-                    {(stare.erori["raspunsuri"] ?? []).join(" ")}
+                <Camp
+                  nume="concluzie"
+                  eticheta="Concluzie"
+                  fel="textarea"
+                  ajutor="Ce reține evaluatorul, dincolo de note."
+                  erori={stare.erori["concluzie"] ?? []}
+                >
+                  {(a) => (
+                    <textarea
+                      {...a}
+                      rows={4}
+                      maxLength={4000}
+                      defaultValue={stare.valoriTrimise.concluzie ?? ciorna?.concluzie ?? ""}
+                    />
+                  )}
+                </Camp>
+
+                {punctaj.necompletate === 0 ? null : (
+                  <p
+                    className={cn(
+                      "text-muted-foreground text-nota",
+                      punctaj.completate === 0 ? "text-danger" : "",
+                    )}
+                  >
+                    {punctaj.necompletate === 1
+                      ? "Un criteriu e încă nenotat."
+                      : `${String(punctaj.necompletate)} criterii sunt încă nenotate.`}{" "}
+                    Nenotat nu înseamnă zero: criteriile rămase goale ies din punctaj.
                   </p>
                 )}
-                {criterii.map((c) => (
-                  <CampCriteriu
-                    key={c.cod}
-                    criteriu={c}
-                    raspuns={raspunsPentru(c.cod)}
-                    prefix="evaluare"
-                    laSchimbare={schimba}
-                  />
-                ))}
-              </fieldset>
-
-              <Camp
-                nume="concluzie"
-                eticheta="Concluzie"
-                fel="textarea"
-                ajutor="Ce reține evaluatorul, dincolo de note."
-                erori={stare.erori["concluzie"] ?? []}
-              >
-                {(a) => (
-                  <textarea
-                    {...a}
-                    rows={4}
-                    maxLength={4000}
-                    defaultValue={stare.valoriTrimise.concluzie ?? ciorna?.concluzie ?? ""}
-                  />
-                )}
-              </Camp>
-
-              {punctaj.necompletate === 0 ? null : (
-                <p
-                  className={cn(
-                    "text-muted-foreground text-nota",
-                    punctaj.completate === 0 ? "text-danger" : "",
-                  )}
-                >
-                  {punctaj.necompletate === 1
-                    ? "Un criteriu e încă nenotat."
-                    : `${String(punctaj.necompletate)} criterii sunt încă nenotate.`}{" "}
-                  Nenotat nu înseamnă zero: criteriile rămase goale ies din punctaj.
-                </p>
-              )}
-            </>
-          )}
-        </Formular>
-      </PanouLateral>
+              </>
+            )}
+          </Formular>
+        </PanouLateral>
+      ) : null}
     </>
   );
 }
