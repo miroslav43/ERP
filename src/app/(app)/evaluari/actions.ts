@@ -5,6 +5,7 @@ import { completeazaCoduri, normalizeazaCriterii } from "@/domain/evaluations/cr
 import { aliniazaRaspunsuri, calculeazaScor, noteInAfaraScalei } from "@/domain/evaluations/scor";
 import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { ActionContext } from "@/lib/actions/types";
 import type { Json } from "@/types/database";
 import {
@@ -22,6 +23,8 @@ import {
   stergeSablonEvaluareSchema,
   type CriteriuSablonIntrare,
 } from "@/schemas/evaluation";
+
+import { anuntaEvaluareaFinalizata } from "./anunta-evaluarea";
 
 /**
  * ── DE CE `revalidate` E DECLARAT, NU CHEMAT ──────────────────────────────
@@ -598,6 +601,10 @@ export const creeazaEvaluare = createAction<
       .select("id, employee_id")
       .single();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (input.status === "finalizat") {
+      // Ca la `finalizeazaEvaluare`: clientul de serviciu, best-effort.
+      await anuntaEvaluareaFinalizata(createAdminSupabase(), ctx.tenant.organizationId, data.id);
+    }
     return { id: data.id, employee_id: data.employee_id };
   },
 });
@@ -724,6 +731,10 @@ export const finalizeazaEvaluare = createAction<
         "Evaluarea nu a fost finalizată: fie a finalizat-o altcineva între timp, fie nu aveți dreptul. Reîncărcați pagina.",
       );
     }
+    // Clientul de serviciu: notificarea se scrie pentru ALT utilizator, al
+    // cărui `user_id` managerul nu-l vede neapărat. Filtrul pe organizație e
+    // în `anuntaEvaluareaFinalizata`; best-effort, nu anulează finalizarea.
+    await anuntaEvaluareaFinalizata(createAdminSupabase(), ctx.tenant.organizationId, data.id);
     return { id: data.id, employee_id: data.employee_id };
   },
 });

@@ -469,6 +469,19 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Grilele de evaluare, reutilizabile de la un ciclu la altul.",
   },
   {
+    id: "evaluari.ale-mele",
+    href: "/evaluari/ale-mele",
+    eticheta: "Evaluările mele",
+    zona: "app",
+    parinte: "evaluari",
+    fila: "Ale mele",
+    featureKey: "evaluations",
+    permission: "evaluations:read",
+    minScope: "own",
+    descriere:
+      "Propriile tale evaluări finalizate — nota pe fiecare criteriu, concluzia evaluatorului și cum ai evoluat de la o evaluare la alta.",
+  },
+  {
     id: "evaluari.kpi",
     href: "/evaluari/kpi",
     eticheta: "KPI lunar",
@@ -1267,6 +1280,19 @@ const INTRARI: readonly Intrare[] = [
     minScope: "own",
     descriere:
       "Indicatorii tăi lunari: ce ținte ai, cât ai realizat și scorul lunii — inclusiv luna în curs, cât timp managerul încă o completează.",
+  },
+  {
+    id: "portal.evaluari",
+    href: "/portal/evaluarile-mele",
+    eticheta: "Evaluările mele",
+    zona: "portal",
+    parinte: "portal-evaluari",
+    fila: null,
+    featureKey: "evaluations",
+    permission: "evaluations:read",
+    minScope: "own",
+    descriere:
+      "Evaluările tale finalizate de manager: nota pe fiecare criteriu, comentariile, concluzia și evoluția în timp.",
   },
   {
     id: "portal.documente",

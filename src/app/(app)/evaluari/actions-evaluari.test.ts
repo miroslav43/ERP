@@ -546,3 +546,85 @@ describe("planificaEvaluari", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
   });
 });
+
+describe("finalizeazaEvaluare — angajatul e anunțat", () => {
+  const PERMIS = { "evaluations:update": "team" } as const;
+  const UTILIZATOR_ANGAJAT = "99999999-9999-4999-8999-999999999999";
+  const FINALIZATA = {
+    id: ID_1,
+    employee_id: ANGAJAT,
+    data_evaluarii: "2026-10-20",
+    criterii_sablon: CRITERII,
+    raspunsuri: [
+      { criteriu_cod: "calitate", scor: 4, raspuns_text: null, comentariu: null },
+      { criteriu_cod: "note", scor: null, raspuns_text: "Bun", comentariu: null },
+    ],
+    template: { denumire: "Evaluare anuală standard" },
+  };
+
+  const pregateste = (cont: string | null) => {
+    const { server, admin } = configureazaActiunea({ rol: "manager", permisiuni: PERMIS });
+    server.raspunde("employee_evaluations", "select", { data: EXISTENTA_DRAFT });
+    server.raspunde("employee_evaluations", "update", { data: { id: ID_1, employee_id: ANGAJAT } });
+    admin.raspunde("employee_evaluations", "select", { data: FINALIZATA });
+    admin.raspunde("employees", "select", { data: { user_id: cont } });
+    return { server, admin };
+  };
+
+  it("notificarea pleacă la contul angajatului, cu punctajul și legătura spre portal", async () => {
+    const { admin } = pregateste(UTILIZATOR_ANGAJAT);
+    admin.raspunde("organization_members", "select", { data: { role: "employee" } });
+    admin.raspunde("notifications", "insert", { data: null });
+
+    const r = await finalizeazaEvaluare({ id: ID_1 });
+
+    expect(r.ok).toBe(true);
+    // Citirile de serviciu sunt legate de firma apelantului.
+    const [evaluare] = admin.apeluriPe("employee_evaluations", "select");
+    expect(areFiltru(evaluare, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(evaluare, "eq", "status", "finalizat")).toBe(true);
+    const [angajat] = admin.apeluriPe("employees", "select");
+    expect(areFiltru(angajat, "eq", "organization_id", ORG_ID)).toBe(true);
+
+    const [notificare] = admin.apeluriPe("notifications", "insert");
+    expect(notificare?.payload).toMatchObject({
+      organization_id: ORG_ID,
+      user_id: UTILIZATOR_ANGAJAT,
+      title: "Evaluarea dumneavoastră a fost finalizată",
+      link: `/portal/evaluarile-mele#evaluare-${ID_1}`,
+      entity_type: "employee_evaluation",
+      entity_id: ID_1,
+    });
+    expect((notificare?.payload as { body: string }).body).toContain("Evaluare anuală standard");
+    expect((notificare?.payload as { body: string }).body).toContain("80 %");
+  });
+
+  it("un manager evaluat e trimis în aplicație — portalul e doar al rolului employee", async () => {
+    const { admin } = pregateste(UTILIZATOR_ANGAJAT);
+    admin.raspunde("organization_members", "select", { data: { role: "manager" } });
+    admin.raspunde("notifications", "insert", { data: null });
+
+    await finalizeazaEvaluare({ id: ID_1 });
+
+    const [membru] = admin.apeluriPe("organization_members", "select");
+    expect(areFiltru(membru, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(membru, "eq", "user_id", UTILIZATOR_ANGAJAT)).toBe(true);
+    const [notificare] = admin.apeluriPe("notifications", "insert");
+    expect(notificare?.payload).toMatchObject({ link: `/evaluari/ale-mele#evaluare-${ID_1}` });
+  });
+
+  it("fișă fără cont: nicio notificare, finalizarea reușește", async () => {
+    const { admin } = pregateste(null);
+    const r = await finalizeazaEvaluare({ id: ID_1 });
+    expect(r.ok).toBe(true);
+    expect(admin.apeluriPe("notifications", "insert")).toHaveLength(0);
+  });
+
+  it("notificarea pică: finalizarea NU se dă înapoi", async () => {
+    const { admin } = pregateste(UTILIZATOR_ANGAJAT);
+    admin.raspunde("organization_members", "select", { data: { role: "employee" } });
+    admin.raspunde("notifications", "insert", { error: eroarePostgrest("42501") });
+    const r = await finalizeazaEvaluare({ id: ID_1 });
+    expect(r).toEqual({ ok: true, data: { id: ID_1, employee_id: ANGAJAT } });
+  });
+});

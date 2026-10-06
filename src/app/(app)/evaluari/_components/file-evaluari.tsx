@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 
 import { BandaFile, Fila } from "@/components/ui/file";
 
-export type FilaEvaluari = "evaluari" | "kpi" | "sabloane";
+export type FilaEvaluari = "evaluari" | "kpi" | "sabloane" | "ale-mele";
 
 export function FileEvaluari({
   activa,
@@ -50,6 +50,10 @@ export function FileEvaluari({
         {...(nrSabloane === undefined ? {} : { contor: nrSabloane })}
       >
         Șabloane
+      </Fila>
+      {/* Pentru cei evaluați care nu intră în portal: manager, HR, administrator. */}
+      <Fila href="/evaluari/ale-mele" activ={activa === "ale-mele"}>
+        Ale mele
       </Fila>
     </BandaFile>
   );
