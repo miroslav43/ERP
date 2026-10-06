@@ -80,6 +80,10 @@ export interface ZiPontaj {
    * și pentru pontarea rapidă de pe telefon.
    */
   readonly tip_prezenta: string | null;
+  /** Sediul SCANAT (0096) — dovadă, scris doar din codul QR. */
+  readonly punct_lucru_id: string | null;
+  /** Sediul DECLARAT în formular (0163). `null` = cel din contract. */
+  readonly punct_lucru_declarat_id: string | null;
   readonly observatii: string | null;
   /**
    * Nenul când ziua a fost pusă automat din concediul aprobat. Ceasul de pontaj
@@ -276,7 +280,8 @@ export async function pontajulMeu(
     .from("attendance_entries")
     .select(
       "id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi, " +
-        "tip_prezenta, observatii, leave_request_id, approved_at, respins_la, motiv_respingere",
+        "tip_prezenta, punct_lucru_id, punct_lucru_declarat_id, observatii, leave_request_id, " +
+        "approved_at, respins_la, motiv_respingere",
     )
     .eq("organization_id", organizationId)
     .eq("employee_id", employeeId)

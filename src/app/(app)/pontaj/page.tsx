@@ -24,7 +24,9 @@ import {
   intrariLuna,
   intrariProprii,
   listeazaAngajatiPontaj,
+  sediiPentruPontaj,
   setariPontaj,
+  setariPontareRapida,
 } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { zileLucratoareLuna } from "@/lib/queries/payroll";
@@ -33,6 +35,8 @@ import type { PermissionScope } from "@/config/permissions";
 import { configZiDin, type ConfigZi } from "@/domain/attendance/calcul-ore";
 import { limiteleFirmei, type LimiteFirmei } from "@/domain/attendance/limite-legale";
 import { stareaLunii } from "@/domain/attendance/luna";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { seAlegeSediul } from "@/domain/attendance/sediu";
 import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
@@ -113,7 +117,13 @@ async function LunaIntreaga({
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly azi: string;
 }) {
-  const { nationale, organizatie } = await zileNelucratoare(organizationId, an, an);
+  // Un val: sediile (0163) n-au nevoie de nimic din zilele nelucrătoare.
+  const [{ nationale, organizatie }, sedii, randPontare] = await Promise.all([
+    zileNelucratoare(organizationId, an, an),
+    sediiPentruPontaj(organizationId),
+    setariPontareRapida(organizationId),
+  ]);
+  const alegeSediul = seAlegeSediul(sedii.length, configPontareRapida(randPontare).verificare);
   const sarbatoriNationale = Object.fromEntries(nationale.map((z) => [z.data, z.denumire]));
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
   const liberSuplimentar = organizatie
@@ -144,6 +154,8 @@ async function LunaIntreaga({
       />
     ) : (
       <FoaieColectiva
+        sedii={sedii}
+        alegeSediul={alegeSediul}
         dataInceput={dataInceput}
         dataSfarsit={dataSfarsit}
         statusPerioada={statusPerioada}
@@ -232,6 +244,8 @@ async function LunaIntreaga({
   return (
     <>
       <FoaieColectiva
+        sedii={sedii}
+        alegeSediul={alegeSediul}
         dataInceput={dataInceput}
         dataSfarsit={dataSfarsit}
         statusPerioada={statusPerioada}

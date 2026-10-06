@@ -41,6 +41,10 @@ export interface IntrareZiClient {
    * dintre o alegere și o lipsă.
    */
   readonly tipPrezenta: TipPrezenta | null;
+  /** Sediul SCANAT din codul QR (0096) — dovadă. */
+  readonly punctLucruId: string | null;
+  /** Sediul DECLARAT în formular (0163). `null` = cel din contract. */
+  readonly punctLucruDeclaratId: string | null;
   readonly esteDinConcediu: boolean;
   readonly aprobat: boolean;
   readonly respins: boolean;
@@ -67,6 +71,8 @@ export function intrareaClient(intrare: IntrarePontaj): IntrareZiClient {
     oreNoapte: intrare.ore_noapte,
     tipZi: intrare.tip_zi,
     tipPrezenta: intrare.tip_prezenta,
+    punctLucruId: intrare.punct_lucru_id,
+    punctLucruDeclaratId: intrare.punct_lucru_declarat_id,
     esteDinConcediu: intrare.leave_request_id !== null,
     aprobat: intrare.approved_at !== null,
     respins: intrare.respins_la !== null,

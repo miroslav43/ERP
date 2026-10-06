@@ -5,6 +5,8 @@
 
 import "server-only";
 
+import { cache } from "react";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { RandPontareRapida } from "@/domain/attendance/pontare-rapida";
 import { seriiDeAbsente } from "@/domain/reges/absente";
@@ -224,6 +226,10 @@ export interface IntrarePontaj {
   readonly tip_zi: TipZi;
   /** Unde s-a lucrat ziua (0118). `null` = nedeclarat, nu „la birou". */
   readonly tip_prezenta: TipPrezenta | null;
+  /** Sediul SCANAT (0096) — dovadă, scris doar din codul QR. */
+  readonly punct_lucru_id: string | null;
+  /** Sediul DECLARAT în formular (0163). `null` = cel din contract. */
+  readonly punct_lucru_declarat_id: string | null;
   readonly sursa: SursaIntrare;
   readonly leave_request_id: string | null;
   readonly observatii: string | null;
@@ -235,8 +241,8 @@ export interface IntrarePontaj {
 
 const COLOANE_INTRARE =
   "id, employee_id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, " +
-  "ore_noapte, tip_zi, tip_prezenta, sursa, leave_request_id, observatii, approved_at, batch_id, " +
-  "respins_la, motiv_respingere";
+  "ore_noapte, tip_zi, tip_prezenta, punct_lucru_id, punct_lucru_declarat_id, sursa, " +
+  "leave_request_id, observatii, approved_at, batch_id, respins_la, motiv_respingere";
 
 export async function intrariLuna(
   organizationId: string,
@@ -867,6 +873,34 @@ export async function setariPontareRapida(
   if (error !== null) throw error;
   return data;
 }
+
+/** Un sediu din care se poate alege în formularul zilei (0163). */
+export interface SediuPontaj {
+  readonly id: string;
+  readonly denumire: string;
+  /** Sediul din contractul în vigoare al CELUI CONECTAT. */
+  readonly din_contract: boolean;
+}
+
+/**
+ * Sediile active ale firmei, pentru alegerea sediului pe ziua de pontaj.
+ *
+ * Prin RPC, nu din `puncte_lucru`: politica tabelei cere `departments:read`,
+ * pe care `employee` nu-l are — iar el e tocmai cel care completează ziua.
+ * Funcția întoarce doar id + denumire, fără adresă și fără codul afișului.
+ *
+ * `cache()`: pagina o cere pentru formular și pentru etichetele din foaie.
+ */
+export const sediiPentruPontaj = cache(
+  async (organizationId: string): Promise<readonly SediuPontaj[]> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db.rpc("sedii_pentru_pontaj", {
+      p_organization_id: organizationId,
+    });
+    if (error !== null) throw error;
+    return data;
+  },
+);
 
 export interface AfisPontare {
   readonly id: string;

@@ -21,7 +21,8 @@ import {
   cumSeTrateazaCodul,
   type ConfigPontareRapida,
 } from "@/domain/attendance/pontare-rapida";
-import { setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
+import { sediiPentruPontaj, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
+import { sediulDeTrimis } from "@/domain/attendance/sediu";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
   aprobaPontajBlocSchema,
@@ -214,6 +215,7 @@ export const salveazaZiPontaj = createAction({
       "ore_noapte",
       "tip_zi",
       "tip_prezenta",
+      "punct_lucru_declarat_id",
     ],
   },
   revalidate: [...CAI_REVALIDARE],
@@ -233,6 +235,24 @@ export const salveazaZiPontaj = createAction({
     }
 
     const employeeId = input.employee_id ?? (await fisaProprie(ctx));
+
+    /*
+      Sediul declarat (0163). Doar pentru munca la sediu — altfel se stinge aici,
+      nu la CHECK-ul din bază, care ar răspunde cu o eroare pe care omul n-a
+      cauzat-o: a ales un sediu, apoi a comutat pe homeoffice.
+
+      Lista vine din ACEEAȘI funcție din care își ia formularul opțiunile, deci
+      „al firmei și activ" se verifică o singură dată, la fel pentru amândouă.
+      FK-ul compus din bază prinde oricum un sediu străin; aici se prinde și cel
+      dezactivat între deschiderea formularului și salvare.
+    */
+    const sediuDeclarat = sediulDeTrimis(input.tip_prezenta, input.punct_lucru_declarat_id ?? "");
+    if (sediuDeclarat !== null) {
+      const sedii = await sediiPentruPontaj(ctx.tenant.organizationId);
+      if (!sedii.some((s) => s.id === sediuDeclarat)) {
+        throw businessRule("Sediul ales nu mai este activ. Reîncărcați pagina și alegeți altul.");
+      }
+    }
 
     // Tipul zilei: alegerea explicită a utilizatorului, sau derivarea automată.
     const tipZi = input.tip_zi ?? (await tipZiDerivat(ctx, input.data));
@@ -408,6 +428,7 @@ export const salveazaZiPontaj = createAction({
             facă la fel.
           */
           tip_prezenta: input.tip_prezenta,
+          punct_lucru_declarat_id: sediuDeclarat,
           observatii: input.observatii,
           /*
             CORECȚIA ȘTERGE RESPINGEREA.
@@ -475,6 +496,7 @@ export const salveazaZiPontaj = createAction({
         ore_noapte: oreNoapte,
         tip_zi: tipZi,
         tip_prezenta: input.tip_prezenta,
+        punct_lucru_declarat_id: sediuDeclarat,
         observatii: input.observatii,
       })
       .select("id")

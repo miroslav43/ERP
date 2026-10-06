@@ -18,6 +18,8 @@ function randBaza(peste: Partial<IntrarePontaj> = {}): IntrarePontaj {
     ore_noapte: 0,
     tip_zi: "lucratoare",
     tip_prezenta: null,
+    punct_lucru_id: null,
+    punct_lucru_declarat_id: null,
     sursa: "manuala",
     leave_request_id: null,
     observatii: null,

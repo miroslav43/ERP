@@ -21,6 +21,8 @@ import { stareaDeciziei } from "@/domain/attendance/stare-decizie";
 import { LegendaDecizie } from "./legenda-decizie";
 
 import { CelulaZi } from "./celula-zi";
+import { etichetaSediului } from "@/domain/attendance/sediu";
+import type { SediuPontaj } from "@/lib/queries/attendance";
 // Tipurile au plecat într-un `.ts` simplu: le importă și serverul, și clientul,
 // iar maparea din `attendance_entries` are acolo teste. Vezi `intrare-client.ts`.
 import type { RandFoaie } from "./intrare-client";
@@ -64,6 +66,9 @@ interface Proprietati {
    * exact la miezul nopții și pentru cine are ceasul pe alt fus.
    */
   readonly azi: string;
+  /** Sediile firmei (0163): numele sediului în descrierea celulei, alegerea în dialog. */
+  readonly sedii: readonly SediuPontaj[];
+  readonly alegeSediul: boolean;
 }
 
 interface Selectie {
@@ -140,6 +145,8 @@ export function FoaieColectiva({
   limite,
   oreAsteptateLuna,
   azi,
+  sedii,
+  alegeSediul,
 }: Proprietati) {
   const [selectie, setSelectie] = useState<Selectie | null>(null);
 
@@ -152,6 +159,7 @@ export function FoaieColectiva({
   const setLiber = useMemo(() => new Set(liberSuplimentar), [liberSuplimentar]);
 
   const perioadaBlocata = statusPerioada === "blocata";
+  const denumiriSedii = useMemo(() => new Map(sedii.map((s) => [s.id, s.denumire])), [sedii]);
 
   /*
     Ce e în neregulă cu luna, pe angajat.
@@ -441,6 +449,8 @@ export function FoaieColectiva({
                         motivBlocare,
                         motivRespins,
                         locMunca,
+                        // Doar scanatul și declaratul; sediul din contract nu se scrie.
+                        intrare === null ? null : etichetaSediului(intrare, denumiriSedii),
                       ]
                         .filter((t) => t !== null)
                         .join(" · ") || undefined;
@@ -629,6 +639,8 @@ export function FoaieColectiva({
           intrare={intrareSelectata}
           poateAproba={poateAproba}
           config={config}
+          sedii={sedii}
+          alegeSediul={alegeSediul}
           poateSterge={
             intrareSelectata !== null &&
             !intrareSelectata.esteDinConcediu &&

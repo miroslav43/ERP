@@ -160,6 +160,14 @@ export const salveazaZiPontajSchema = z
      * „Nedeclarat" e o stare, nu o eroare de completare.
      */
     tip_prezenta: enumOptional(TIPURI_PREZENTA, "Alegeți locul de muncă din listă."),
+    /*
+     * Sediul DECLARAT al zilei (0163). `null` = sediul din contract.
+     *
+     * Implicit `null`, deci un apelant care nu-l trimite îl ȘTERGE — ca la
+     * `tip_prezenta`. Ambele formulare îl trimit; un al treilea trebuie s-o facă
+     * la fel. Acțiunea verifică încă o dată că sediul e al firmei și activ.
+     */
+    punct_lucru_declarat_id: z.uuid("Alegeți sediul din listă.").nullable().default(null),
     observatii: textOptional(1000),
     /*
      * Răspunsul la întrebarea „contractul e suspendat pentru absențe

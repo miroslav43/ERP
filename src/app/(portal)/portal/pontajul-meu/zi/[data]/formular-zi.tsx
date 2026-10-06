@@ -12,6 +12,9 @@ import { ETICHETE_TIP_PREZENTA } from "@/app/(app)/pontaj/etichete";
 import { TIPURI_PREZENTA, type TipPrezenta } from "@/schemas/attendance";
 import { oreleZilei, type ConfigZi } from "@/domain/attendance/calcul-ore";
 import type { AvertismentPontaj } from "@/domain/attendance/limite-legale";
+import { sediulDeTrimis, tipulPermiteSediu } from "@/domain/attendance/sediu";
+import type { SediuPontaj } from "@/lib/queries/attendance";
+import { CampSediu } from "@/app/(app)/pontaj/camp-sediu";
 
 /**
  * Completarea unei singure zile de pontaj, pentru telefon.
@@ -53,6 +56,9 @@ export function FormularZi({
   oreSalvate,
   tipPrezentaInitial,
   observatiiInitiale,
+  sedii,
+  sediuInitial,
+  sediuScanat,
 }: {
   readonly data: string;
   readonly config: ConfigZi;
@@ -74,11 +80,21 @@ export function FormularZi({
    */
   readonly tipPrezentaInitial: TipPrezenta | "";
   readonly observatiiInitiale: string;
+  /**
+   * Sediile din care se alege (0163). Gol = nu se întreabă: firma are un singur
+   * sediu sau cere codul QR. Decizia e a paginii, prin `seAlegeSediul`.
+   */
+  readonly sedii: readonly SediuPontaj[];
+  /** Sediul declarat deja, sau șir gol pentru „sediul din contract". */
+  readonly sediuInitial: string;
+  /** Numele sediului SCANAT al zilei, dacă există — atunci nu se mai alege. */
+  readonly sediuScanat: string | null;
 }) {
   const router = useRouter();
   const [inceput, setInceput] = useState(inceputInitial);
   const [sfarsit, setSfarsit] = useState(sfarsitInitial);
   const [tipPrezenta, setTipPrezenta] = useState<TipPrezenta | "">(tipPrezentaInitial);
+  const [sediu, setSediu] = useState(sediuInitial);
   const [observatii, setObservatii] = useState(observatiiInitiale);
   const [eroare, setEroare] = useState<string | null>(null);
   const [avertismente, setAvertismente] = useState<readonly AvertismentPontaj[]>([]);
@@ -87,6 +103,7 @@ export function FormularZi({
   const idInceput = useId();
   const idSfarsit = useId();
   const idPrezenta = useId();
+  const idSediu = useId();
   const idObservatii = useId();
   const idRezumat = useId();
 
@@ -111,6 +128,7 @@ export function FormularZi({
         ore_noapte: derivate.noapte,
         tip_zi: null,
         tip_prezenta: tipPrezenta.length === 0 ? null : tipPrezenta,
+        punct_lucru_declarat_id: sediulDeTrimis(tipPrezenta, sediu),
         observatii: observatii.length === 0 ? null : observatii,
       });
       if (!rezultat.ok) {
@@ -246,6 +264,21 @@ export function FormularZi({
           ))}
         </select>
       </div>
+
+      {sediuScanat !== null && tipulPermiteSediu(tipPrezenta) ? (
+        <p className="text-muted-foreground text-corp">
+          Sediul: <span className="text-foreground">{sediuScanat}</span>, din codul QR scanat.
+        </p>
+      ) : sedii.length > 0 && tipulPermiteSediu(tipPrezenta) ? (
+        <CampSediu
+          id={idSediu}
+          sedii={sedii}
+          valoare={sediu}
+          onSchimba={setSediu}
+          clasaEticheta="text-foreground text-corp font-medium"
+          clasa={CLASA_CAMP}
+        />
+      ) : null}
 
       <div>
         <label htmlFor={idObservatii} className="text-foreground text-corp font-medium">

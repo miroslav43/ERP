@@ -10,9 +10,11 @@ import {
   citestePerioada,
   intrariLuna,
   setariPontaj,
+  sediiPentruPontaj,
   setariPontareRapida,
 } from "@/lib/queries/attendance";
 import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { seAlegeSediul } from "@/domain/attendance/sediu";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { fisaMea } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
@@ -89,6 +91,7 @@ export async function SectiuneSaptamana({
     setari,
     randPontare,
     { nationale, organizatie },
+    sedii,
   ] = await Promise.all([
     fisaMea(organizationId, userId),
     citestePerioada(organizationId, anInceput, lunaInceput),
@@ -98,6 +101,7 @@ export async function SectiuneSaptamana({
     // fără istoric (0115).
     setariPontareRapida(organizationId),
     zileNelucratoare(organizationId, anInceput, anSfarsit),
+    sediiPentruPontaj(organizationId),
   ]);
 
   const navigare = (
@@ -135,7 +139,8 @@ export async function SectiuneSaptamana({
   );
 
   const config = configZiDin(setari);
-  const programStart = configPontareRapida(randPontare).programStart;
+  const pontare = configPontareRapida(randPontare);
+  const programStart = pontare.programStart;
 
   const zile: readonly ZiGrila[] = zileleSaptamanii(saptamanaStart).map((data, index) => {
     const intrare = peZi[data] ?? null;
@@ -204,6 +209,8 @@ export async function SectiuneSaptamana({
         poateAproba={poateAproba}
         poateSterge={poateEdita}
         azi={azi}
+        sedii={sedii}
+        alegeSediul={seAlegeSediul(sedii.length, pontare.verificare)}
       />
     </div>
   );

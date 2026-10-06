@@ -16,6 +16,7 @@ import {
 
 import { CelulaZi } from "./celula-zi";
 import { CODURI_TIP_ZI, ETICHETE_TIP_PREZENTA, ETICHETE_TIP_ZI } from "./etichete";
+import type { SediuPontaj } from "@/lib/queries/attendance";
 import type { IntrareZiClient } from "./intrare-client";
 
 /**
@@ -84,6 +85,9 @@ interface Proprietati {
   readonly poateSterge: boolean;
   /** Ziua curentă, calculată pe SERVER cu fusul București. */
   readonly azi: string;
+  /** Sediile firmei și dacă se întreabă sediul — trecute neatinse dialogului zilei (0163). */
+  readonly sedii: readonly SediuPontaj[];
+  readonly alegeSediul: boolean;
 }
 
 interface Tragere {
@@ -109,6 +113,8 @@ export function GrilaSaptamana({
   poateAproba,
   poateSterge,
   azi,
+  sedii,
+  alegeSediul,
 }: Proprietati) {
   const [deschisa, setDeschisa] = useState<Deschisa | null>(null);
   const [tragere, setTragere] = useState<Tragere | null>(null);
@@ -264,6 +270,8 @@ export function GrilaSaptamana({
                 oraSfarsitInitiala: deschisa.interval.sfarsit,
               })}
           poateSterge={poateSterge && deschisa.zi.intrare !== null}
+          sedii={sedii}
+          alegeSediul={alegeSediul}
           config={config}
           poateAproba={poateAproba}
           onInchide={() => {

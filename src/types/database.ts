@@ -572,6 +572,7 @@ export type Database = {
           ore_suplimentare: number
           organization_id: string
           period_id: string
+          punct_lucru_declarat_id: string | null
           punct_lucru_id: string | null
           respins_de: string | null
           respins_la: string | null
@@ -603,6 +604,7 @@ export type Database = {
           ore_suplimentare?: number
           organization_id: string
           period_id: string
+          punct_lucru_declarat_id?: string | null
           punct_lucru_id?: string | null
           respins_de?: string | null
           respins_la?: string | null
@@ -634,6 +636,7 @@ export type Database = {
           ore_suplimentare?: number
           organization_id?: string
           period_id?: string
+          punct_lucru_declarat_id?: string | null
           punct_lucru_id?: string | null
           respins_de?: string | null
           respins_la?: string | null
@@ -680,6 +683,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "attendance_periods"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_entries_punct_declarat_fk"
+            columns: ["punct_lucru_declarat_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "puncte_lucru"
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "attendance_entries_punct_lucru_id_fkey"
@@ -13356,6 +13366,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      sedii_pentru_pontaj: {
+        Args: { p_organization_id: string }
+        Returns: {
+          din_contract: boolean
+          denumire: string
+          id: string
+        }[]
       }
       seteaza_zile_concediu_implicit: {
         Args: { p_organization_id: string; p_zile: number }

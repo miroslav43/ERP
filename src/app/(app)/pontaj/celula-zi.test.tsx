@@ -33,6 +33,8 @@ function intrare(peste: Partial<IntrareZiClient> = {}): IntrareZiClient {
     oreNoapte: 0,
     tipZi: "lucratoare",
     tipPrezenta: null,
+    punctLucruId: null,
+    punctLucruDeclaratId: null,
     esteDinConcediu: false,
     aprobat: false,
     respins: false,
@@ -52,6 +54,8 @@ function randeaza(peste: Partial<React.ComponentProps<typeof CelulaZi>> = {}) {
       poateSterge={false}
       config={CONFIG}
       poateAproba={false}
+      sedii={[]}
+      alegeSediul={false}
       onInchide={vi.fn()}
       {...peste}
     />,
@@ -154,5 +158,73 @@ describe("CelulaZi — secțiunea de decizie", () => {
   it("le desenează când aprobarea e activă și omul are dreptul", () => {
     randeaza({ intrare: intrare(), poateAproba: true });
     expect(screen.getByRole("button", { name: /Aprobă ziua/u })).not.toBeNull();
+  });
+});
+
+/*
+  Sediul zilei (0163). Prima opțiune e valoarea GOALĂ — „sediul din contract" —
+  ca o zi neatinsă să nu declare nimic în numele omului.
+*/
+describe("sediul zilei", () => {
+  const SEDII = [
+    { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", denumire: "Sediul Cluj", din_contract: true },
+    { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", denumire: "Sediul Iași", din_contract: false },
+  ];
+
+  it("nu întreabă sediul când firma n-are de ales", () => {
+    randeaza({ sedii: SEDII, alegeSediul: false });
+    expect(screen.queryByLabelText("Sediul")).toBeNull();
+  });
+
+  it("pe ziua proprie numește sediul din contract și nu-l repetă", () => {
+    randeaza({ sedii: SEDII, alegeSediul: true });
+    const optiuni = [...screen.getByLabelText("Sediul").querySelectorAll("option")].map((o) => [
+      o.value,
+      o.textContent,
+    ]);
+    expect(optiuni).toEqual([
+      ["", "Sediul Cluj (din contract)"],
+      ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Sediul Iași"],
+    ]);
+  });
+
+  // `din_contract` e al CELUI CONECTAT: pe ziua altcuiva ar numi sediul greșit.
+  it("pe ziua altcuiva nu numește niciun sediu drept „din contract”", () => {
+    randeaza({
+      sedii: SEDII,
+      alegeSediul: true,
+      angajatId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    });
+    const optiuni = [...screen.getByLabelText("Sediul").querySelectorAll("option")].map(
+      (o) => o.textContent,
+    );
+    expect(optiuni).toEqual(["Sediul din contract", "Sediul Cluj", "Sediul Iași"]);
+  });
+
+  it("păstrează sediul declarat al unei zile existente", () => {
+    randeaza({
+      sedii: SEDII,
+      alegeSediul: true,
+      intrare: intrare({ punctLucruDeclaratId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" }),
+    });
+    expect((screen.getByLabelText("Sediul") as HTMLSelectElement).value).toBe(
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    );
+  });
+
+  it("nu întreabă sediul pe o zi de homeoffice", () => {
+    randeaza({ sedii: SEDII, alegeSediul: true, intrare: intrare({ tipPrezenta: "homeoffice" }) });
+    expect(screen.queryByLabelText("Sediul")).toBeNull();
+  });
+
+  // Scanarea e dovadă: se spune unde, fără listă care să sugereze că se schimbă.
+  it("ziua scanată spune sediul scanat, fără listă", () => {
+    randeaza({
+      sedii: SEDII,
+      alegeSediul: true,
+      intrare: intrare({ punctLucruId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" }),
+    });
+    expect(screen.queryByLabelText("Sediul")).toBeNull();
+    expect(screen.getByText("Sediul Iași")).toBeTruthy();
   });
 });

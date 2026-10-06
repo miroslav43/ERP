@@ -13,9 +13,16 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { ziDinRuta } from "@/lib/rute/parametri";
 import { formatDate } from "@/lib/format/date";
-import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
+import {
+  citestePerioada,
+  sediiPentruPontaj,
+  setariPontaj,
+  setariPontareRapida,
+} from "@/lib/queries/attendance";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { stareaLunii } from "@/domain/attendance/luna";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { seAlegeSediul } from "@/domain/attendance/sediu";
 import type { TipPrezenta } from "@/schemas/attendance";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import { rezumatRegulaPontaj } from "@/app/(app)/pontaj/etichete";
@@ -139,7 +146,22 @@ export default async function PaginaZiPontaj({
   //
   // Angajatul POATE citi tabela: `attendance_settings_select` (0013:732) cere
   // `attendance:read` la scope `own`, exact ce are rolul `employee`.
-  const setari = await setariPontaj(tenant.organizationId, zi);
+  const [setari, randPontare, sedii] = await Promise.all([
+    setariPontaj(tenant.organizationId, zi),
+    setariPontareRapida(tenant.organizationId),
+    sediiPentruPontaj(tenant.organizationId),
+  ]);
+  /*
+    Sediul zilei (0163). Se întreabă doar la firmele cu cel puțin două sedii și
+    fără cod QR obligatoriu — `seAlegeSediul`. Ziua deja SCANATĂ nu se mai
+    întreabă: sediul ei e dovedit, iar o listă alături ar sugera că se poate
+    schimba. Se spune doar unde s-a scanat.
+  */
+  const alegeSediul = seAlegeSediul(sedii.length, configPontareRapida(randPontare).verificare);
+  const sediuScanat =
+    existenta?.punct_lucru_id == null
+      ? null
+      : (sedii.find((s) => s.id === existenta.punct_lucru_id)?.denumire ?? "un sediu inactiv");
   const config: ConfigZi = {
     orePeZi: setari?.ore_pe_zi ?? 8,
     noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
@@ -192,6 +214,11 @@ export default async function PaginaZiPontaj({
         sfarsitInitial={existenta?.ora_sfarsit?.slice(0, 5) ?? ""}
         oreSalvate={existenta?.ore_lucrate ?? null}
         observatiiInitiale={existenta?.observatii ?? ""}
+        sedii={alegeSediul ? sedii : []}
+        // Trimis înapoi și când lista nu se arată: acțiunea rescrie coloana la
+        // fiecare salvare, ca pe `tip_prezenta`.
+        sediuInitial={existenta?.punct_lucru_declarat_id ?? ""}
+        sediuScanat={sediuScanat}
       />
       {inapoi}
     </div>
