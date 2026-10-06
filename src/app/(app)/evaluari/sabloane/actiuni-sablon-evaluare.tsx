@@ -29,6 +29,17 @@
  * Un buton „Editează" pe el ar fi condamnat din construcție. În locul lui apare
  * „Personalizează", care duplică șablonul în firmă și deschide copia.
  *
+ * ── „PERSONALIZEAZĂ" DESCHIDE CHIAR EDITORUL ──────────────────────────────
+ * Până la 6 oct 2026 butonul crea copia și se oprea la un mesaj („O puteți
+ * edita acum”): pe ecran apărea doar un card nou, „… (copie)”, iar omul nu
+ * vedea nimic de personalizat — a șters copiile și a întrebat de ce șablonul
+ * nu se poate personaliza. Acum copia păstrează numele original (e varianta
+ * firmei, nu un duplicat), iar editorul ei se deschide imediat, chiar de aici:
+ * datele copiei sunt cele ale originalului, deja pe client, plus id-ul întors
+ * de acțiune. Nu printr-un `?editeaza=` în adresă — acela trecea prin randarea
+ * de pe server și prin `loading.tsx`, iar editorul se închidea singur.
+ * „Duplică”, pe un șablon al firmei, rămâne „(copie)”.
+ *
  * ── DE CE „ȘTERGE" APARE DOAR PE ȘABLONUL NEFOLOSIT ───────────────────────
  * Evaluările făcute pe un șablon îl referă, deci el trebuie să rămână: se
  * arhivează. O copie nefolosită, în schimb, n-are nimic de păstrat — arhivată,
@@ -86,6 +97,7 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
   const executa = (
     apel: () => Promise<ActionResult<Readonly<{ id: string }>>>,
     mesaj: string,
+    dupa?: (id: string) => void,
   ): void => {
     porneste(async () => {
       const rezultat = await apel();
@@ -95,9 +107,15 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
       }
       setDeConfirmat(null);
       arataToast({ fel: "reusita", text: mesaj });
-      router.refresh();
+      if (dupa === undefined) router.refresh();
+      else dupa(rezultat.data.id);
     });
   };
+
+  // Id-ul variantei create de „Personalizează”: editorul ei se montează
+  // deschis. Cardul de platformă rămâne montat după `router.refresh()` (aceeași
+  // cheie), deci starea supraviețuiește reîncărcării listei.
+  const [variantaNoua, setVariantaNoua] = useState<string | null>(null);
 
   return (
     <>
@@ -161,12 +179,21 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
           varianta={sablon.dePlatforma ? "primar" : "tertiar"}
           disabled={inCurs}
           onClick={() => {
+            if (sablon.dePlatforma) {
+              executa(
+                () => duplicaSablonEvaluare({ id: sablon.id, denumire: sablon.denumire }),
+                "Varianta firmei a fost creată. Modificați criteriile și salvați.",
+                (id) => {
+                  setVariantaNoua(id);
+                  router.refresh();
+                },
+              );
+              return;
+            }
             executa(
               () =>
                 duplicaSablonEvaluare({ id: sablon.id, denumire: denumireCopie(sablon.denumire) }),
-              sablon.dePlatforma
-                ? "Copia a fost creată în firma dumneavoastră. O puteți edita acum."
-                : "Șablonul a fost duplicat.",
+              "Șablonul a fost duplicat.",
             );
           }}
         >
@@ -174,6 +201,23 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
           {sablon.dePlatforma ? "Personalizează" : "Duplică"}
         </Buton>
       </BaraActiuni>
+
+      {variantaNoua === null ? null : (
+        <ConstructorSablon
+          key={variantaNoua}
+          sablon={{
+            id: variantaNoua,
+            denumire: sablon.denumire,
+            descriere: sablon.descriere,
+            criterii: sablon.criterii,
+            versiune: 1,
+            nrEvaluari: 0,
+          }}
+          deschideLaMontare
+          // Fără buton propriu: varianta are, de acum, cardul ei cu „Editează”.
+          declansator={() => <></>}
+        />
+      )}
 
       <ConfirmareActiune
         deschis={deConfirmat === "arhivare"}

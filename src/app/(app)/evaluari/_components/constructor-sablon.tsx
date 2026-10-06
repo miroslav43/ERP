@@ -73,8 +73,14 @@ const cheieNoua = (): string => {
   return `c${String(contorChei)}`;
 };
 
-const criteriuNou = (): CriteriuEditor => ({
-  cheie: cheieNoua(),
+/**
+ * `cheie` explicită doar pentru starea INIȚIALĂ: aceea se randează și pe
+ * server (dialogul nativ e în DOM și închis), iar contorul global de mai sus
+ * are altă valoare acolo decât în browser — `htmlFor` ieșea „c3” pe server și
+ * „c4” la hidratare. Criteriile adăugate ulterior apar doar în browser.
+ */
+const criteriuNou = (cheie: string = cheieNoua()): CriteriuEditor => ({
+  cheie,
   cod: null,
   denumire: "",
   descriere: "",
@@ -83,9 +89,12 @@ const criteriuNou = (): CriteriuEditor => ({
   pondere: "",
 });
 
+// Cheia criteriilor existente vine din `cod` (unic în șablon), nu din
+// `cheieNoua()`: cu `?editeaza` editorul se randează DESCHIS încă de pe server,
+// iar o cheie aleatoare dădea alt `htmlFor` în browser — eroare de hidratare.
 const dinSablon = (criterii: readonly CriteriuSablon[]): CriteriuEditor[] =>
   criterii.map((c) => ({
-    cheie: cheieNoua(),
+    cheie: `existent-${c.cod}`,
     cod: c.cod,
     denumire: c.denumire,
     descriere: c.descriere ?? "",
@@ -136,15 +145,28 @@ export type PropsConstructor = Readonly<{
    * buton, care rămâne un `<button>` adevărat.
    */
   declansator: (deschide: () => void) => ReactElement;
+  /**
+   * Deschide panoul o dată, la montare. Îl folosește „Personalizează”: copia
+   * șablonului de platformă se creează ca să fie editată, deci editorul ei se
+   * deschide singur, în loc să lase omul să ghicească că urmează „Editează”.
+   */
+  deschideLaMontare?: boolean;
 }>;
 
-export function ConstructorSablon({ sablon, declansator }: PropsConstructor): ReactElement {
+export function ConstructorSablon({
+  sablon,
+  declansator,
+  deschideLaMontare,
+}: PropsConstructor): ReactElement {
   const router = useRouter();
   const idFormular = useId();
-  const [deschis, setDeschis] = useState(false);
+  // Starea INIȚIALĂ, nu un efect: contează doar la montare. După deschidere,
+  // pagina scoate `?editeaza` din adresă, iar prop-ul devine fals fără ca
+  // panoul deschis să se închidă.
+  const [deschis, setDeschis] = useState(deschideLaMontare === true);
   const [fila, setFila] = useState<"criterii" | "previzualizare">("criterii");
   const [criterii, setCriterii] = useState<CriteriuEditor[]>(() =>
-    sablon === undefined ? [criteriuNou()] : dinSablon(sablon.criterii),
+    sablon === undefined ? [criteriuNou("initial")] : dinSablon(sablon.criterii),
   );
   const [tras, setTras] = useState<number | null>(null);
 
