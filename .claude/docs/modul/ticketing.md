@@ -16,8 +16,9 @@ capcane: [11, 17]
 citeste_daca:
   - "42P17 «infinite recursion» la citirea unui tichet → secțiunea despre 0062"
   - "căutare liberă în listă care întoarce prea mult sau prea puțin → secțiunea „Citiri”"
-scris_pe: 9dc2fc52ef1b2f425b7621e0819843e285c90272
-scris_la: 2026-09-25
+  - "tichet scris fără `department_id`, sau prioritate suprascrisă fără rând în istoric → partea despre clientul admin din „Server Actions”"
+scris_pe: a2cdfa5180b0b036c983f85f493fe74846b2909c
+scris_la: 2026-10-06
 tags: [modul]
 ---
 
@@ -62,6 +63,25 @@ Cele patru pe `all` sunt uneltele IT-ului: prioritate manuală, asignare, marcar
 duplicat, macro. `schimbaStatusul` rămâne pe `own`, fiindcă și solicitantul închide sau
 redeschide propriul tichet.
 
+Modulul ocolește RLS cu `createAdminSupabase()` în trei puncte, toate în `actions.ts`:
+`fisaMea` și departamentul din fișa solicitantului (`creeazaTichet`) — ca citirea să nu
+depindă de scope-ul `employees:read` al rolului care deschide tichetul — și rândul de
+justificare din `ticket_history` (`suprascriePrioritatea`), fiindcă `0045` dă pe tabela
+aia doar `grant select` și o politică `_select`: istoricul e scris altfel exclusiv de
+trigger. Toate trei filtrează explicit pe `organization_id` și toate trei își citesc
+`error`: înghițită, eroarea scria tichetul fără `department_id` sau raporta prioritate
+suprascrisă cu istoricul lipsă, definitiv și fără urmă. Cine mai adaugă o cale pe
+clientul admin aici păstrează amândouă plasele.
+
+Contractul acțiunilor e fixat pe clientul Supabase fals, în `actions-solicitant.test.ts`
+(deschidere, decizie, tranziție, comentariu, urmărire) și `actions-operare.test.ts`
+(uneltele IT). Fiecare unealtă pe `all` e probată și cu `tickets:update = team` —
+treapta imediat sub prag, exact ce îi dă managerului seed-ul din
+`0046_ticketing_it_reguli.sql` — ca o coborâre a pragului să nu treacă neobservată.
+Testele NU prind o politică RLS greșită; aia rămâne pe `tests/rls/izolare.sql`.
+`etichete.test.ts` cere ca hărțile din `etichete.ts` să aibă exact cheile enum-urilor din
+`src/domain/ticketing/` — o stare nouă fără eticheta ei ajunge pe ecran ca cheie brută.
+
 ## Citiri
 
 `src/lib/queries/ticketing.ts`. `listeazaTichete` caută liber în `titlu` și în
@@ -86,6 +106,13 @@ Singura excepție e suprascrierea manuală a IT-ului: atunci `prioritate_manuala
 `true`, triggerul nu mai recalculează niciodată peste ea, iar constrângerea din `0045`
 cere justificare scrisă. Cine adaugă o cale nouă de scriere a priorității trebuie să
 seteze steagul, altfel prima recalculare i-o șterge.
+
+Justificarea se scrie de mână ca rând în `ticket_history`, după UPDATE-ul reușit, iar
+eșecul ei oprește acțiunea: utilizatorul vede eroare deși prioritatea e deja schimbată.
+E alegerea deliberată — o reîncercare e inofensivă (`prioritate_manuala` e deja `true`),
+iar alternativa era succes raportat peste o justificare pierdută. Verificarea rândului
+sărit de politică stă ÎNAINTEA istoricului, ca istoricul să nu consemneze o schimbare
+care nu s-a produs.
 
 ## 42P17: recursiunea dintre politici (0062)
 
@@ -117,6 +144,10 @@ niciun rând acolo, deci nimeni nu le citise vreodată sub o identitate reală.
   valori — `nou`, `in_aprobare`, `respins`, `in_lucru`, `in_asteptare`, `rezolvat`,
   `inchis`, `anulat`, `redeschis`; un tichet care nu mai e în starea așteptată nu produce
   eroare, produce zero rânduri. — capcana #17
+- **`aplicaMacro` publică comentariul ÎNAINTEA tranziției**, deci o tranziție sărită
+  tăcut lasă răspunsul deja publicat pe tichet; mesajul de CONFLICT spune exact asta, iar
+  ordinea e fixată în `actions-operare.test.ts`. Cine inversează pașii îi trimite
+  solicitantului un răspuns care anunță o schimbare ce nu s-a produs. — capcana #17
 - **`in_asteptare` înseamnă „se așteaptă răspunsul SOLICITANTULUI"**, nu al IT-ului —
   comentariul e pe enum, în `0045_ticketing_it.sql`. Nu există azi niciun cronometru care
   s-o consume; cine adaugă unul trebuie să scadă intervalul, altfel un tichet blocat pe

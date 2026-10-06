@@ -29,8 +29,8 @@ capcane: [26, 32]
 citeste_daca:
   - "listă goală fără eroare la scadențe → [[rol/hr]]"
   - "instruire periodică respinsă la salvare → 0021, secțiunea de mai jos"
-scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
-scris_la: 2026-09-24
+scris_pe: a2cdfa5180b0b036c983f85f493fe74846b2909c
+scris_la: 2026-10-06
 tags: [modul, hr]
 ---
 
@@ -88,7 +88,16 @@ harta de permisiuni se citește și atunci degeaba.
 | Nomenclator     | `nomenclatorInstruiri`                                                         | `ssm:read` / own    |
 
 `nomenclatorInstruiri` e singura pe `own` și n-are `revalidate`: o cheamă `DosarulMeu`
-direct dintr-un Server Component, iar `revalidatePath` în timpul randării aruncă.
+direct dintr-un Server Component, iar `revalidatePath` în timpul randării aruncă. E și
+singura care citește prin `createAdminSupabase()`, cu filtru explicit pe
+`organization_id`: `ssm_training_types` n-are coloană de angajat, deci `app.ssm_acces`
+cere scope ≥ `team` și un `employee` ar vedea UUID-uri în loc de denumiri.
+
+Contractele sunt fixate pe clientul fals: `actions-instruiri-medicina.test.ts`,
+`actions-accidente.test.ts`, `actions-stingatoare.test.ts`,
+`actions-eip-autorizatii.test.ts`, plus `actions-modul.test.ts`, care ia lista din
+exporturile lui `./actions` și verifică pe fiecare cheia `feature` — o acțiune legată din
+greșeală de alt modul trece toate celelalte teste.
 
 ## Citiri
 
@@ -103,6 +112,11 @@ Fișierul începe cu `import "server-only"`: citirile SSM nu pot fi importate di
 componentă client nici din greșeală. Un astfel de import pică la build, cu numele
 fișierului, nu tăcut la rulare.
 
+`stingatoare()` scapă jokerii LIKE din căutarea după cod: `%` și `_` devin text, `*`
+devine spațiu (PostgREST îl traduce oricum în `%`). Nu prin `tiparContine` — ghilimelele
+lui au sens doar în gramatica `or=`, într-un `.ilike()` simplu ar fi literale. Fără
+scăpare, „100%" întorcea tot ce începe cu 100, fără eroare. — `src/lib/queries/ssm.test.ts`
+
 ## Ce refuză baza tăcut
 
 - **`public.expirables` întoarce zero rânduri pentru `hr`.** Politica ei cere ȘI
@@ -116,6 +130,33 @@ fișierului, nu tăcut la rulare.
   un stingător, o autorizație de mediu — cere cel puțin `team`. Consecința: pentru un
   `employee` tabelele fără ancoră de angajat sunt invizibile, iar ecranul arată gol în loc
   să arate refuz.
+- **Coloanele pe care acțiunile NU le trimit**, fiindcă le pune un trigger BEFORE din
+  `0011` și numai când primește `null`: `ssm_trainings.urmatoarea_scadenta`,
+  `work_accidents.termen_comunicare_ore`, `ppe_issuances.data_inlocuirii` și cele trei
+  `fire_extinguishers.scadenta_*` (rescrise integral la fiecare scriere). Trimise din
+  client, periodicitatea legală configurată e ignorată fără eroare. Din triggere AFTER vin
+  rândul de `employee_work_restrictions` (un INSERT manual dă 23505 pe indexul unic
+  parțial) și `ultima_*` de pe stingător, după o verificare — fără un al doilea UPDATE din
+  acțiune. `created_by`/`updated_by` le scrie `internal.set_actor`, altfel decât în
+  [[modul/flota]]. — `actions-stingatoare.test.ts`, `actions-accidente.test.ts`
+- **Fișa de aptitudine e art. 9 GDPR în audit.** `rezultat`, `medic`, `unitate_medicala` și
+  `cost` stau în afara allow-list-ului lui `adaugaFisaAptitudine`, pe ambele căi — succes
+  și eșec; `observatii` nici nu e în schemă. Allow-list STRICTĂ, deci un câmp nou nu intră
+  în jurnal decât adăugat explicit: nu-l adăuga. — `actions-instruiri-medicina.test.ts`
+
+## Erori traduse
+
+`src/app/(app)/ssm/erori.ts` dă mesaj propriu doar pentru `23505` (potrivit pe numele
+constrângerii — stingător, autorizație nominală, număr intern de accident; altfel duplicat
+generic), `22012`/`22003` și `P0001`, al cărui text vine din triggerele lui `0011` cu
+cifre în el și se propagă neschimbat, tăiat la 300 de caractere. Orice alt cod — `42501`,
+`23503`, `23514`, `PGRST116` — se aruncă MAI DEPARTE neatins, către traducerea generică
+din `createAction`; la fel o eroare care nu e PostgREST, chiar cu cod `23505`.
+— `erori.test.ts`
+
+`etichete.ts` e lipit de enumurile din `src/schemas/ssm.ts` prin `Record<Enum, string>`:
+tsc prinde valoarea fără text. Ce nu vede tsc e gravitatea tonului — `pericol` cade exact
+pe accidentele cu comunicare la ITM. — `etichete.test.ts`
 
 ## De ce nicio instruire periodică nu se putea salva (0021)
 
