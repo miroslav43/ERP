@@ -9,6 +9,7 @@ import { formatOre } from "@/lib/format/ore";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 
 import { aprobaPontajBloc, respingePontajBloc, sincronizeazaConcediile } from "../actions";
+import { textSincronizare } from "../buton-sincronizare-concedii";
 
 interface Proprietati {
   readonly periodId: string;
@@ -171,9 +172,7 @@ export function AprobareBloc({
         setEroareSincronizare(rezultat.error.message);
         return;
       }
-      setRezultatSincronizare(
-        `${String(rezultat.data.create)} zile noi, ${String(rezultat.data.actualizate)} actualizate, ${String(rezultat.data.inlocuite)} zile pontate trecute pe concediu, ${String(rezultat.data.pastrate)} păstrate neschimbate.`,
-      );
+      setRezultatSincronizare(textSincronizare(rezultat.data));
       router.refresh();
     });
   }
@@ -361,8 +360,8 @@ export function AprobareBloc({
       {poateSincroniza ? (
         <div className="border-border space-y-2 border-t pt-4">
           <p className="text-muted-foreground text-corp">
-            Completează automat zilele de concediu aprobat lipsă din foaie, fără să atingă vreo zi
-            introdusă manual.
+            Completează automat zilele de concediu aprobat lipsă din foaie. O zi pontată ca lucrată
+            peste un concediu aprobat e trecută pe concediu.
           </p>
           <Buton
             varianta="secundar"

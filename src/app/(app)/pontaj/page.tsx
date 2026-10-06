@@ -13,7 +13,7 @@ import { ComutatorVizualizare, type ParametriAdresa } from "@/components/ui/comu
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatMonthYear, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl, filtreDinUrl } from "@/lib/rute/parametri";
@@ -41,6 +41,7 @@ import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
 import { ButonSetariPontaj } from "./buton-setari";
+import { ButonSincronizareConcedii } from "./buton-sincronizare-concedii";
 import { NavPontaj } from "./nav-pontaj";
 import { fileDePontaj } from "./file-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
@@ -324,6 +325,11 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const { poateAproba, poateConfigura, poateVedeaArhiva, poateVedeaCoduriQr, varianta } =
     await fileDePontaj(tenant.organizationId, permisiuni);
   const poateDeschide = can(permisiuni, "attendance:create", "all");
+  // Aceeași poartă ca în `/pontaj/aprobare`: acțiunea cere `create = all`, iar
+  // fără modulul de concedii n-are ce sincroniza. `getEnabledFeatures` e
+  // memoizată pe cerere — `requireFeature` a citit-o deja.
+  const poateSincroniza =
+    poateDeschide && (await getEnabledFeatures(tenant.organizationId)).has("leave");
 
   const azi = todayInBucharest();
   const anAzi = Number(azi.slice(0, 4));
@@ -401,6 +407,10 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
               <Clock aria-hidden="true" className="size-4" />
               Pontează-te
             </Link>
+          ) : null}
+          {/* Pe luna de pe ecran; săptămâna proprie n-are foaie de completat. */}
+          {poateSincroniza && vizualizare !== "saptamana" ? (
+            <ButonSincronizareConcedii an={an} luna={filtre.luna} />
           ) : null}
           <ButonSetariPontaj
             poateConfigura={poateConfigura}
