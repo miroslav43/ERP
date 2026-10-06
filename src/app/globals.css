@@ -924,6 +924,30 @@ dialog[open]::backdrop {
  * simte, dar nu se vede. Decalajul de 60ms pe cel mult cinci frați — peste
  * cinci, grupul intră deodată.
  */
+/*
+ * Trecerea eroului spre corpul paginii de start (7 oct 2026).
+ *
+ * Eroul e pe cerneală, cu videoclip; corpul, pe hârtie. Tăiate pe o linie
+ * dreaptă, cele două se ciocneau. Aici partea de jos a eroului se topește în
+ * hârtie. Opacitățile urmează o curbă ușoară, nu o rampă liniară: la liniar se
+ * vede o bandă cenușie la mijloc, fiindcă ochiul percepe luminozitatea
+ * neliniar. Prima declarație e rezerva pentru browserele fără `color-mix`.
+ */
+.mk-erou-tranzitie {
+  background: linear-gradient(to bottom, transparent, var(--color-mk-hartie));
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--color-mk-hartie) 6%, transparent) 18%,
+    color-mix(in srgb, var(--color-mk-hartie) 20%, transparent) 35%,
+    color-mix(in srgb, var(--color-mk-hartie) 42%, transparent) 50%,
+    color-mix(in srgb, var(--color-mk-hartie) 66%, transparent) 65%,
+    color-mix(in srgb, var(--color-mk-hartie) 86%, transparent) 80%,
+    color-mix(in srgb, var(--color-mk-hartie) 97%, transparent) 92%,
+    var(--color-mk-hartie) 100%
+  );
+}
+
 @keyframes mk-intra {
   from {
     opacity: 0;

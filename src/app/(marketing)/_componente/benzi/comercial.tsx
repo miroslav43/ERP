@@ -82,6 +82,16 @@ export function BandaHero({ text }: ProprietatiBanda) {
           aria-hidden="true"
           className="bg-mk-cerneala/85 lg:from-mk-cerneala/95 lg:via-mk-cerneala/80 lg:to-mk-cerneala/45 absolute inset-0 -z-10 lg:bg-transparent lg:bg-linear-to-r"
         />
+        {/*
+          Topirea în hârtie, ultimul strat de sub text: același `-z-10` ca voalul,
+          dar după el în DOM, deci pictat peste el și sub conținut. Înălțimea
+          trebuie să rămână sub marginea de jos a textului (`pb-` de mai jos) —
+          altfel asigurările și telefonul ar ajunge, deschise la culoare, pe hârtie.
+        */}
+        <div
+          aria-hidden="true"
+          className="mk-erou-tranzitie pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-32 sm:h-48 lg:h-56"
+        />
 
         {/*
           `mk-intra` animă copiii direcți ai acestui container — supratitlu,
@@ -91,7 +101,7 @@ export function BandaHero({ text }: ProprietatiBanda) {
           din `opacity: 0` ar rămâne invizibil pentru cine cere mișcare redusă și
           pentru crawlerele care nu execută JavaScript.
         */}
-        <div className="mk-intra max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-20 pb-24 sm:pt-28 sm:pb-32 lg:flex lg:min-h-[min(80vh,760px)] lg:flex-col lg:justify-center">
+        <div className="mk-intra max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-20 pb-40 sm:pt-28 sm:pb-56 lg:flex lg:min-h-[min(88vh,860px)] lg:flex-col lg:justify-center lg:pb-64">
           <p className="font-mk-date text-mk-text-inv/80 text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
             {text.hero.supratitlu}
           </p>
@@ -160,7 +170,7 @@ export function BandaHero({ text }: ProprietatiBanda) {
         foaia și-o pune singură deasupra.
       */}
       <section className="bg-mk-hartie text-mk-text">
-        <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-20 sm:pt-20 sm:pb-28 [&>figure]:mt-6">
+        <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-4 pb-20 sm:pt-6 sm:pb-28 [&>figure]:mt-6">
           <p className="max-w-[62ch] text-[1rem] leading-[1.6] text-pretty">
             {text.hero.punteFoaie}
           </p>

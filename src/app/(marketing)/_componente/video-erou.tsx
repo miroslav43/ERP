@@ -95,7 +95,7 @@ export function VideoErou({
         <button
           type="button"
           onClick={comuta}
-          className="font-mk-date border-mk-text-inv/40 text-mk-text-inv hover:border-mk-text-inv bg-mk-cerneala/60 absolute right-[clamp(1rem,4vw,2.5rem)] bottom-4 z-10 inline-flex h-9 items-center rounded border px-3 text-[0.6875rem] tracking-[0.14em] uppercase backdrop-blur-sm transition-colors"
+          className="font-mk-date border-mk-text-inv/40 text-mk-text-inv hover:border-mk-text-inv bg-mk-cerneala/60 absolute top-4 right-[clamp(1rem,4vw,2.5rem)] z-10 inline-flex h-9 items-center rounded border px-3 text-[0.6875rem] tracking-[0.14em] uppercase backdrop-blur-sm transition-colors"
         >
           {opritDeOm ? etichete.porneste : etichete.opreste}
         </button>
