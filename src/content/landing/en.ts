@@ -933,6 +933,7 @@ export const EN: ContinutLanding = {
     ],
     ghiduriTitlu: "Guides, with the article of law next to every statement (in Romanian)",
     ghiduri: [
+      { eticheta: "Minimum wage", href: "/ghid/salariu-minim-pe-economie" },
       { eticheta: "Working-time records", href: "/evidenta-orelor-de-munca" },
       { eticheta: "REGES-ONLINE: deadlines and fines", href: "/reges-online" },
       { eticheta: "Overtime", href: "/ghid/ore-suplimentare" },

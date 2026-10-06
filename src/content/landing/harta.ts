@@ -2,6 +2,7 @@ import { CONCEDIU_ODIHNA } from "@/content/legal/concediu-odihna";
 import { CONTROL_ITM } from "@/content/legal/control-itm";
 import { DIURNA } from "@/content/legal/diurna";
 import { DIURNA_EXTERNA } from "@/content/legal/diurna-externa";
+import { SALARIU_MINIM } from "@/content/legal/salariu-minim";
 import { SPOR_DE_NOAPTE } from "@/content/legal/spor-de-noapte";
 import { ORE_SUPLIMENTARE } from "@/content/legal/ore-suplimentare";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
@@ -240,6 +241,15 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     actualizat: SPOR_DE_NOAPTE.actualizatIso,
+    sectiune: "Obligații legale",
+  },
+  {
+    // 6 oct 2026: cel mai mare termen din Keyword Planner fără pagină a lui.
+    cale: "/ghid/salariu-minim-pe-economie",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: SALARIU_MINIM.actualizatIso,
     sectiune: "Obligații legale",
   },
 

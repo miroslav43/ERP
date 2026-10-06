@@ -102,6 +102,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "/ghid/spor-de-noapte",
     "Sporul de noapte în Codul muncii: munca între 22:00 și 6:00 (art. 125), salariatul de noapte primește fie program redus cu o oră, fie spor de 25% din salariul de bază — „25%”, nu „cel puțin 25%” — dacă lucrează noaptea cel puțin 3 ore (art. 126). Amenda: 1.500–3.000 lei (art. 260 alin. (1) lit. l)). Cu exemplu numeric de calcul.",
   ],
+  [
+    "/ghid/salariu-minim-pe-economie",
+    "Salariul minim pe economie: 4.325 lei brut din 1 iulie 2026 (HG 146/2026, 25,949 lei/oră), 4.050 lei până la 30 iunie 2026 (HG 1506/2024). Netul și costul pentru firmă calculate de motorul calculatorului, suma scutită de 200 de lei (OUG 89/2025 art. III) și pierderea ei la 1 leu peste minim, regula celor 24 de luni (art. 164 alin. (8)), minimul din construcții și amenda de 3.000–5.000 lei pe persoană (art. 260 alin. (1) lit. a)).",
+  ],
   ["/unelte", "Uneltele gratuite, fără cont."],
   [
     "/unelte/foaie-de-pontaj",

@@ -6,6 +6,7 @@ import { DIURNA_EXTERNA } from "./diurna-externa";
 import { EVIDENTA_ORELOR } from "./evidenta-orelor";
 import { ORE_SUPLIMENTARE } from "./ore-suplimentare";
 import { REGES } from "./reges";
+import { SALARIU_MINIM } from "./salariu-minim";
 import { SPOR_DE_NOAPTE } from "./spor-de-noapte";
 import type { PaginaLege } from "./tipuri";
 
@@ -25,4 +26,5 @@ export const PAGINI_LEGE: readonly PaginaLege[] = [
   DIURNA_EXTERNA,
   ORE_SUPLIMENTARE,
   SPOR_DE_NOAPTE,
+  SALARIU_MINIM,
 ];

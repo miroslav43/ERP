@@ -979,6 +979,7 @@ export const RO: ContinutLanding = {
     ],
     ghiduriTitlu: "Ghiduri, cu articolul de lege lângă fiecare afirmație",
     ghiduri: [
+      { eticheta: "Salariul minim pe economie", href: "/ghid/salariu-minim-pe-economie" },
       { eticheta: "Evidența orelor de muncă", href: "/evidenta-orelor-de-munca" },
       { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
       { eticheta: "Ore suplimentare", href: "/ghid/ore-suplimentare" },
@@ -1268,6 +1269,7 @@ export const RO: ContinutLanding = {
       {
         titlu: "Ghiduri",
         legaturi: [
+          { eticheta: "Salariul minim pe economie", href: "/ghid/salariu-minim-pe-economie" },
           { eticheta: "Evidența orelor (art. 119)", href: "/evidenta-orelor-de-munca" },
           { eticheta: "REGES-ONLINE: termene", href: "/reges-online" },
           // Necunoscut lui Google pe 5 oct 2026.

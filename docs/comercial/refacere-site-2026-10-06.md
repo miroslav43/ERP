@@ -92,26 +92,26 @@ doar pașii din §8.
 
 ## 3. Ce spune Keyword Planner
 
-| Cuvânt cheie                    | Căutări / lună | Concurență | Pagina noastră                      |
-| ------------------------------- | -------------- | ---------- | ----------------------------------- |
-| calcul salariu net              | 10K–100K       | redusă     | `/unelte/calculator-salariu`        |
-| salariu minim pe economie 2026  | 10K–100K       | redusă     | **lipsește** — vezi §8              |
-| calcul salariu brut             | 1K–10K         | redusă     | `/unelte/calculator-salariu`        |
-| cerere concediu de odihna word  | 100–1K (+900%) | redusă     | `/unelte/cerere-concediu-de-odihna` |
-| condica de prezenta model word  | 100–1K         | ridicată   | `/unelte/condica-de-prezenta`       |
-| diurna externa 2026             | 100–1K         | redusă     | `/ghid/diurna-externa`              |
-| foaie de parcurs model          | 100–1K         | ridicată   | `/unelte/foaie-de-parcurs`          |
-| foaie de pontaj lunar pdf       | 100–1K         | medie      | `/unelte/foaie-de-pontaj`           |
-| ore suplimentare codul muncii   | 100–1K         | redusă     | `/ghid/ore-suplimentare`            |
-| program salarizare              | 100–1K         | medie      | `/module/salarizare`                |
-| spor de noapte codul muncii     | 100–1K         | redusă     | `/ghid/spor-de-noapte`              |
-| aplicatie pontaj angajati       | 10–100         | ridicată   | `/pontaj-pe-telefon`                |
-| program pontaj angajati         | 10–100         | redusă     | `/module/pontaj`                    |
-| registru salariati reges online | 10–100         | redusă     | `/reges-online`                     |
-| zile concediu de odihna         | 10–100 (+900%) | redusă     | `/ghid/concediu-de-odihna`          |
-| fisa evaluare angajati model    | 10–100         | redusă     | `/unelte/fisa-evaluare`             |
-| fisa instruire ssm model        | —              | —          | `/unelte/fisa-instruire-ssm`        |
-| foaie de pontaj lunar word      | —              | —          | `/unelte/foaie-de-pontaj`           |
+| Cuvânt cheie                    | Căutări / lună | Concurență | Pagina noastră                              |
+| ------------------------------- | -------------- | ---------- | ------------------------------------------- |
+| calcul salariu net              | 10K–100K       | redusă     | `/unelte/calculator-salariu`                |
+| salariu minim pe economie 2026  | 10K–100K       | redusă     | **nouă:** `/ghid/salariu-minim-pe-economie` |
+| calcul salariu brut             | 1K–10K         | redusă     | `/unelte/calculator-salariu`                |
+| cerere concediu de odihna word  | 100–1K (+900%) | redusă     | `/unelte/cerere-concediu-de-odihna`         |
+| condica de prezenta model word  | 100–1K         | ridicată   | `/unelte/condica-de-prezenta`               |
+| diurna externa 2026             | 100–1K         | redusă     | `/ghid/diurna-externa`                      |
+| foaie de parcurs model          | 100–1K         | ridicată   | `/unelte/foaie-de-parcurs`                  |
+| foaie de pontaj lunar pdf       | 100–1K         | medie      | `/unelte/foaie-de-pontaj`                   |
+| ore suplimentare codul muncii   | 100–1K         | redusă     | `/ghid/ore-suplimentare`                    |
+| program salarizare              | 100–1K         | medie      | `/module/salarizare`                        |
+| spor de noapte codul muncii     | 100–1K         | redusă     | `/ghid/spor-de-noapte`                      |
+| aplicatie pontaj angajati       | 10–100         | ridicată   | `/pontaj-pe-telefon`                        |
+| program pontaj angajati         | 10–100         | redusă     | `/module/pontaj`                            |
+| registru salariati reges online | 10–100         | redusă     | `/reges-online`                             |
+| zile concediu de odihna         | 10–100 (+900%) | redusă     | `/ghid/concediu-de-odihna`                  |
+| fisa evaluare angajati model    | 10–100         | redusă     | `/unelte/fisa-evaluare`                     |
+| fisa instruire ssm model        | —              | —          | `/unelte/fisa-instruire-ssm`                |
+| foaie de pontaj lunar word      | —              | —          | `/unelte/foaie-de-pontaj`                   |
 
 Trei concluzii:
 
@@ -126,11 +126,9 @@ Trei concluzii:
    pontaj angajati”. Cine îi caută vrea să cumpere. Acolo se poate pune Google Ads
    pe potrivire exactă, cu trimitere spre `/module/salarizare` și
    `/pontaj-pe-telefon`. Organic, pe ei se urcă abia în luni (§8).
-3. **Singurul gol mare e „salariu minim pe economie”.** Are 10K–100K căutări pe
-   lună, +9.900% față de anul trecut, și nicio pagină dedicată la noi.
-   Calculatorul are doar o bandă despre el. Valorile oficiale sunt deja
-   verificate în cod (`salarizare-publica.ts`): 4.325 lei brut din 1 iulie 2026
-   (HG 146/2026) și 2.699 lei net.
+3. **Singurul gol mare era „salariu minim pe economie”.** Are 10K–100K căutări
+   pe lună, +9.900% față de anul trecut, și nu avea pagină dedicată; calculatorul
+   avea doar o bandă despre el. Acum are ghidul lui (§6).
 
 ---
 
@@ -248,6 +246,24 @@ rămas cel de dinainte.
 - **Engleza.** Aceeași structură, tradusă; testul de paritate s-a extins la
   benzile noi.
 
+**Pagină nouă: [`/ghid/salariu-minim-pe-economie`](../../src/content/legal/salariu-minim.ts).**
+Răspunde la cel mai mare termen din Keyword Planner care nu avea pagină. Adresa e
+fără an, fiindcă cererea se mută pe „2027”. Cifrele au fost citite pe 6 oct pe
+textele oficiale:
+
+- 4.325 lei din 1 iulie 2026 (HG 146/2026) și 4.050 lei până atunci (HG 1506/2024);
+- art. 164 alin. (6) și (8) din Codul muncii — contractul nu poate coborî sub
+  minim, iar minimul se poate plăti cel mult 24 de luni;
+- amenda de 3.000–5.000 lei pe persoană (art. 260 alin. (1) lit. a)) și minimul
+  din construcții (OUG 156/2024).
+
+Netul, contribuțiile și costul le calculează la build motorul calculatorului:
+
+- la minim: 2.699 lei net și 4.418 lei cost pentru firmă;
+- la 1 leu peste minim, suma scutită dispare și netul scade la 2.614 lei;
+- netul se recuperează abia de la 4.480 lei brut. Asta e „capcana de 1 leu”, pe
+  care paginile din top nu o explică.
+
 **Ce nu s-a schimbat, intenționat:**
 
 - titlul paginii (`<title>`);
@@ -308,16 +324,10 @@ Lista cu ce **nu** se poate afirma e în
 
 ### Pagini noi și îmbunătățiri, după cercetarea din 6 oct
 
-7. **`/ghid/salariu-minim-pe-economie`**, cu adresă fără an. Titlul propus:
-   „Salariu minim pe economie 2026: 4.325 lei brut, 2.699 net”. Conținut:
-   - cifrele din `salarizare-publica.ts` și netul calculat de același motor ca
-     calculatorul;
-   - istoricul, cu numărul fiecărei hotărâri de guvern;
-   - suma netaxabilă de 200 de lei;
-   - termenul de 20 de zile lucrătoare pentru REGES.
-
-   Valorile din primul semestru (4.050 lei, HG 1506/2024) și facilitatea de
-   atunci se verifică pe textul oficial înainte de publicare.
+7. **Ghidul de salariu minim: istoricul de dinainte de 2025.** Fiecare valoare
+   intră doar cu hotărârea ei, citită pe textul oficial. La fel, netul și costul
+   pentru primul semestru din 2026, care cer pragurile de atunci ale sumei
+   scutite.
 
 8. **Diurna externă**: calculator, coloana de cazare, echivalentul în lei la
    cursul BNR, ancore pe țări.
