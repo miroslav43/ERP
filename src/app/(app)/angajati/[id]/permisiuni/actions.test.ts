@@ -213,19 +213,18 @@ describe("suprascriePermisiunea", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
   });
 
-  it("`scope: null` cu suprascriere existentă: o retrage LOGIC, prin `deleted_at`", async () => {
+  it("`scope: null` cu suprascriere existentă: o retrage LOGIC, prin `sterge_logic`", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
-    server.raspunde("role_permissions", "update", { data: [{ id: ID_2 }] });
+    server.raspundeRpc("sterge_logic", { data: [ID_2] });
 
     const r = await suprascriePermisiunea(intrare(null));
 
     expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
-    const [update] = server.apeluriPe("role_permissions", "update");
-    expect(Object.keys(update?.payload as object)).toEqual(["deleted_at"]);
-    expect(typeof (update?.payload as { deleted_at: unknown }).deleted_at).toBe("string");
-    expect(areFiltru(update, "eq", "id", ID_2)).toBe(true);
-    expect(update?.selectDupaScriere).toBeDefined();
+    const apel = server.apeluriRpc.find((a) => a.nume === "sterge_logic");
+    expect(apel?.argumente).toEqual({ p_tabela: "role_permissions", p_ids: [ID_2] });
+    // Nici UPDATE direct (pică mereu cu 42501, 0164), nici DELETE.
+    expect(server.apeluriPe("role_permissions", "update")).toHaveLength(0);
     expect(server.apeluriPe("role_permissions", "delete")).toHaveLength(0);
   });
 
@@ -242,7 +241,7 @@ describe("suprascriePermisiunea", () => {
   it("retragere respinsă tăcut (zero rânduri): CONFLICT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
-    server.raspunde("role_permissions", "update", { data: [] });
+    server.raspundeRpc("sterge_logic", { data: [] });
     const r = await suprascriePermisiunea(intrare(null));
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
   });

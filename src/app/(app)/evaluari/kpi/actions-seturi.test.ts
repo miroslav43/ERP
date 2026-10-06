@@ -189,15 +189,16 @@ describe("creeazaSetKpi", () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("kpi_seturi", "insert", { data: { id: ID_1 } });
     server.raspunde("kpi_indicatori", "insert", { error: eroarePostgrest("23514") });
-    server.raspunde("kpi_seturi", "update", { data: null });
+    server.raspundeRpc("sterge_logic", { data: [ID_1] });
 
     const r = await creeazaSetKpi(intrare());
 
     expect(r.ok).toBe(false);
-    const [retragere] = server.apeluriPe("kpi_seturi", "update");
-    expect(retragere?.payload).toEqual({ deleted_at: ACUM.toISOString(), updated_by: USER_ID });
-    expect(areFiltru(retragere, "eq", "id", ID_1)).toBe(true);
-    expect(areFiltru(retragere, "eq", "organization_id", ORG_ID)).toBe(true);
+    // Prin `sterge_logic`, nu UPDATE direct: acela pica tăcut cu 42501 (0164)
+    // și cochilia rămânea în listă.
+    expect(server.apeluriPe("kpi_seturi", "update")).toHaveLength(0);
+    const apel = server.apeluriRpc.find((a) => a.nume === "sterge_logic");
+    expect(apel?.argumente).toEqual({ p_tabela: "kpi_seturi", p_ids: [ID_1] });
     expect(caiRevalidate()).toEqual([]);
   });
 
@@ -235,30 +236,41 @@ describe("actualizeazaSetKpi", () => {
         { id: IND_REBUT, cod: "rebut" },
       ],
     });
-    server.raspunde("kpi_indicatori", "update", { data: null });
+    server.raspundeRpc("sterge_logic", { data: [IND_REBUT] });
     server.raspunde("kpi_indicatori", "update", { data: null });
     server.raspunde("kpi_indicatori", "insert", { data: null });
     server.raspunde("kpi_seturi", "update", { data: { id: ID_1 } });
+    // Ce apeluri pe tabelă existau în clipa ștergerii — ordinea contează.
+    const client = server.client as { rpc: (n: string, a?: unknown) => Promise<unknown> };
+    const rpcOriginal = client.rpc.bind(client);
+    let inainteaStergerii: string[] = [];
+    client.rpc = (n, a) => {
+      if (n === "sterge_logic") {
+        inainteaStergerii = server.apeluriPe("kpi_indicatori").map((x) => x.operatie);
+      }
+      return rpcOriginal(n, a);
+    };
 
     const r = await actualizeazaSetKpi(intrare([{ ...MASURAT, cod: "vizite" }, APRECIAT]));
 
     expect(r).toEqual({ ok: true, data: { id: ID_1 } });
-    // Întâi soft delete-ul celor scoși, abia apoi INSERT-ul: altfel un cod scos
+    // Întâi ștergerea celor scoși, abia apoi INSERT-ul: altfel un cod scos
     // și readăugat în aceeași salvare lovește `kpi_indicatori_cod_uniq`.
-    expect(
-      server
-        .apeluriPe("kpi_indicatori")
-        .map((a) => a.operatie + (a.filtre.some((f) => f.metoda === "in") ? ":sterge" : "")),
-    ).toEqual(["select", "update:sterge", "update", "insert"]);
+    expect(inainteaStergerii).toEqual(["select"]);
+    expect(server.apeluriPe("kpi_indicatori").map((a) => a.operatie)).toEqual([
+      "select",
+      "update",
+      "insert",
+    ]);
     const [citire] = server.apeluriPe("kpi_indicatori", "select");
     expect(areFiltru(citire, "eq", "set_id", ID_1)).toBe(true);
     expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
 
-    const [stergere, actualizare] = server.apeluriPe("kpi_indicatori", "update");
-    expect(stergere?.payload).toEqual({ deleted_at: ACUM.toISOString(), updated_by: USER_ID });
-    expect(areFiltru(stergere, "in", "id", [IND_REBUT])).toBe(true);
-    expect(areFiltru(stergere, "eq", "organization_id", ORG_ID)).toBe(true);
+    // Ștergerea prin `sterge_logic`, nu UPDATE direct (pica mereu cu 42501, 0164).
+    const stergere = server.apeluriRpc.find((a) => a.nume === "sterge_logic");
+    expect(stergere?.argumente).toEqual({ p_tabela: "kpi_indicatori", p_ids: [IND_REBUT] });
+    const [actualizare] = server.apeluriPe("kpi_indicatori", "update");
 
     expect(actualizare?.payload).toMatchObject({
       set_id: ID_1,
@@ -506,26 +518,39 @@ describe("stergeTintaKpi", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it("succes: soft delete pe id + organizație, doar pe rând viu, cu `.select()`", async () => {
+  it("succes: ținta vie se citește pe id + organizație, apoi se șterge prin `sterge_logic`", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("kpi_tinte_angajat", "update", { data: { id: ID_1, employee_id: ID_2 } });
+    server.raspunde("kpi_tinte_angajat", "select", { data: { id: ID_1, employee_id: ID_2 } });
+    server.raspundeRpc("sterge_logic", { data: [ID_1] });
 
     const r = await stergeTintaKpi({ id: ID_1 });
 
     expect(r).toEqual({ ok: true, data: { id: ID_1, employee_id: ID_2 } });
-    const [apel] = server.apeluriPe("kpi_tinte_angajat", "update");
-    expect(apel?.payload).toEqual({ deleted_at: ACUM.toISOString(), updated_by: USER_ID });
-    expect(areFiltru(apel, "eq", "id", ID_1)).toBe(true);
-    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
-    expect(apel?.selectDupaScriere).toBe("id, employee_id");
-    // Fișa revalidată e a angajatului întors de bază.
+    const [citire] = server.apeluriPe("kpi_tinte_angajat", "select");
+    expect(areFiltru(citire, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
+    // Nu UPDATE direct: politica SELECT l-ar respinge mereu cu 42501 (0164).
+    expect(server.apeluriPe("kpi_tinte_angajat", "update")).toHaveLength(0);
+    const apel = server.apeluriRpc.find((a) => a.nume === "sterge_logic");
+    expect(apel?.argumente).toEqual({ p_tabela: "kpi_tinte_angajat", p_ids: [ID_1] });
+    // Fișa revalidată e a angajatului citit înainte de ștergere.
     expect(caiRevalidate()).toEqual([...CAI_KPI, `/angajati/${ID_2}`, "/portal/kpi-ul-meu"]);
   });
 
-  it("zero rânduri: CONFLICT și nicio revalidare", async () => {
+  it("ținta nu mai există: CONFLICT, fără apel de ștergere", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("kpi_tinte_angajat", "update", { data: null });
+    server.raspunde("kpi_tinte_angajat", "select", { data: null });
+    const r = await stergeTintaKpi({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriRpc.filter((a) => a.nume === "sterge_logic")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("ștergerea refuzată de USING (zero rânduri): CONFLICT și nicio revalidare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("kpi_tinte_angajat", "select", { data: { id: ID_1, employee_id: ID_2 } });
+    server.raspundeRpc("sterge_logic", { data: [] });
     const r = await stergeTintaKpi({ id: ID_1 });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     expect(caiRevalidate()).toEqual([]);

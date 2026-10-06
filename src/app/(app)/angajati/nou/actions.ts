@@ -11,6 +11,7 @@ import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/i
 import { alegeSablon } from "@/domain/checklist/potrivire-sablon";
 import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
 import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
+import { stergeLogic } from "@/lib/supabase/sterge-logic";
 import { salveazaCiornaInrolareSchema, inroleazaAngajatSchema } from "@/schemas/employee";
 import { predaObiect } from "@/app/(app)/inventar/actions";
 import { adaugaAutorizatieNominala, adaugaFisaAptitudine } from "@/app/(app)/ssm/actions";
@@ -900,17 +901,24 @@ export const stergeCiornaInrolare = createAction({
   revalidate: ["/angajati/nou"],
   handler: async (ctx): Promise<Readonly<{ sters: boolean }>> => {
     const db = ctx.supabase;
-    const { data, error } = await db
+    // Prin `stergeLogic`, nu `update({ deleted_at })`: politica SELECT ascunde
+    // ciorna ștearsă, iar UPDATE-ul direct pica mereu cu 42501 (0164) — butonul
+    // „Renunță la ciornă” nu ștergea niciodată nimic.
+    const { data: ciorne, error: eroareCitire } = await db
       .from("inrolare_ciorne")
-      .update({ deleted_at: ctx.now.toISOString() })
+      .select("id")
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("autor_id", ctx.user.id)
-      .is("deleted_at", null)
-      .select("id")
-      .maybeSingle();
+      .is("deleted_at", null);
+    if (eroareCitire !== null) throw eroareCitire;
+    const { data, error } = await stergeLogic(
+      db,
+      "inrolare_ciorne",
+      (ciorne ?? []).map((c) => c.id),
+    );
     if (error !== null) throw error;
     // Zero rânduri = nu era nicio ciornă. Cazul normal al unei a doua apăsări,
     // nu un refuz: nu se aruncă.
-    return { sters: data !== null };
+    return { sters: data.length > 0 };
   },
 });

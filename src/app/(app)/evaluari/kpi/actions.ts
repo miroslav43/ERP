@@ -6,6 +6,7 @@ import { calculeazaScorLunar, procentLinie, tintaEfectiva } from "@/domain/evalu
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import { normalizeazaFunctie } from "@/lib/queries/kpi";
+import { stergeLogic } from "@/lib/supabase/sterge-logic";
 import type { ActionContext } from "@/lib/actions/types";
 import {
   actualizeazaSetKpiSchema,
@@ -122,12 +123,9 @@ export const creeazaSetKpi = createAction<typeof creeazaSetKpiSchema, Readonly<{
     if (eroareIndicatori !== null) {
       // Compensare: fără indicatori, setul e o cochilie care ar apărea în listă
       // și ar bloca funcția prin indexul unic. Nu există tranzacție peste două
-      // apeluri PostgREST, deci curățenia se face explicit.
-      await ctx.supabase
-        .from("kpi_seturi")
-        .update({ deleted_at: new Date().toISOString(), updated_by: ctx.user.id })
-        .eq("id", set.id)
-        .eq("organization_id", ctx.tenant.organizationId);
+      // apeluri PostgREST, deci curățenia se face explicit. Prin `stergeLogic`:
+      // `update({ deleted_at })` pica tăcut cu 42501 (0164), iar cochilia rămânea.
+      await stergeLogic(ctx.supabase, "kpi_seturi", [set.id]);
       throw mapPostgrestError(eroareIndicatori, ctx.requestId);
     }
 
@@ -183,16 +181,19 @@ export const actualizeazaSetKpi = createAction<
     );
     const pastrate = new Set(codDupaPozitie);
     const dupaCod = new Map((existente ?? []).map((e) => [e.cod, e.id]));
-    const acum = new Date().toISOString();
 
     const deSters = (existente ?? []).filter((e) => !pastrate.has(e.cod)).map((e) => e.id);
     if (deSters.length > 0) {
-      const { error } = await ctx.supabase
-        .from("kpi_indicatori")
-        .update({ deleted_at: acum, updated_by: ctx.user.id })
-        .in("id", deSters)
-        .eq("organization_id", ctx.tenant.organizationId);
+      // Prin `stergeLogic`, nu `update({ deleted_at })`: politica SELECT ascunde
+      // indicatorul șters, iar UPDATE-ul direct pica mereu cu 42501 (0164) —
+      // orice set din care se scotea un indicator nu se mai putea salva.
+      const { data: sterse, error } = await stergeLogic(ctx.supabase, "kpi_indicatori", deSters);
       if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+      if (sterse.length !== deSters.length) {
+        throw businessRule(
+          "Indicatorii scoși nu au putut fi șterși. Reîncărcați pagina și reîncercați.",
+        );
+      }
     }
 
     const actualizari = input.indicatori
@@ -373,17 +374,24 @@ export const stergeTintaKpi = createAction<
   },
   revalidate: (_input, data) => [...CAI_KPI, `/angajati/${data.employee_id}`, "/portal/kpi-ul-meu"],
   handler: async (ctx, input) => {
-    const { data, error } = await ctx.supabase
+    // Angajatul se citește ÎNAINTE: după ștergere, politica SELECT nu mai lasă
+    // rândul să fie văzut. Prin `stergeLogic`, nu `update({ deleted_at })`:
+    // UPDATE-ul direct pica mereu cu 42501 (0164), deci ținta nu se scotea.
+    const { data: tinta, error: eroareCitire } = await ctx.supabase
       .from("kpi_tinte_angajat")
-      .update({ deleted_at: new Date().toISOString(), updated_by: ctx.user.id })
+      .select("id, employee_id")
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
-      .select("id, employee_id")
       .maybeSingle<{ id: string; employee_id: string }>();
+    if (eroareCitire !== null) throw mapPostgrestError(eroareCitire, ctx.requestId);
+    if (tinta === null)
+      throw businessRule("Ținta nu mai există sau nu aveți dreptul s-o scoateți.");
+    const { data, error } = await stergeLogic(ctx.supabase, "kpi_tinte_angajat", [tinta.id]);
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
-    if (data === null) throw businessRule("Ținta nu mai există sau nu aveți dreptul s-o scoateți.");
-    return { id: data.id, employee_id: data.employee_id };
+    if (data.length === 0)
+      throw businessRule("Ținta nu mai există sau nu aveți dreptul s-o scoateți.");
+    return { id: tinta.id, employee_id: tinta.employee_id };
   },
 });
 
@@ -524,11 +532,7 @@ export const deschideLunaKpi = createAction<
     if (eroareValori !== null) {
       // O lună fără linii ar bloca indexul unic și ar arăta ca un formular gol
       // pe care nu-l poate repara nimeni. Se retrage, ca la crearea setului.
-      await ctx.supabase
-        .from("kpi_evaluari_lunare")
-        .update({ deleted_at: new Date().toISOString(), updated_by: ctx.user.id })
-        .eq("id", luna.id)
-        .eq("organization_id", ctx.tenant.organizationId);
+      await stergeLogic(ctx.supabase, "kpi_evaluari_lunare", [luna.id]);
       throw mapPostgrestError(eroareValori, ctx.requestId);
     }
 

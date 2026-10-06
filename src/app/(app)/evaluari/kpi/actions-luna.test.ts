@@ -253,22 +253,22 @@ describe("deschideLunaKpi", () => {
     expect(server.apeluriPe("kpi_valori")).toHaveLength(0);
   });
 
-  it("liniile pică: luna goală se retrage (soft delete pe id + organizație), fără revalidare", async () => {
+  it("liniile pică: luna goală se retrage prin `sterge_logic`, fără revalidare", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     programeazaPanaLaLuna(server);
     server.raspunde("kpi_evaluari_lunare", "insert", {
       data: { id: LUNA, employee_id: ANGAJAT },
     });
     server.raspunde("kpi_valori", "insert", { error: eroarePostgrest("23514") });
-    server.raspunde("kpi_evaluari_lunare", "update", { data: null });
+    server.raspundeRpc("sterge_logic", { data: [LUNA] });
 
     const r = await deschideLunaKpi(intrare);
 
     expect(r.ok).toBe(false);
-    const [retragere] = server.apeluriPe("kpi_evaluari_lunare", "update");
-    expect(retragere?.payload).toEqual({ deleted_at: ACUM.toISOString(), updated_by: USER_ID });
-    expect(areFiltru(retragere, "eq", "id", LUNA)).toBe(true);
-    expect(areFiltru(retragere, "eq", "organization_id", ORG_ID)).toBe(true);
+    // Nu UPDATE direct: acela pica tăcut cu 42501 (0164) și luna goală rămânea.
+    expect(server.apeluriPe("kpi_evaluari_lunare", "update")).toHaveLength(0);
+    const apel = server.apeluriRpc.find((a) => a.nume === "sterge_logic");
+    expect(apel?.argumente).toEqual({ p_tabela: "kpi_evaluari_lunare", p_ids: [LUNA] });
     expect(caiRevalidate()).toEqual([]);
   });
 

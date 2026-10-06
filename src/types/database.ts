@@ -13379,6 +13379,10 @@ export type Database = {
         Args: { p_organization_id: string; p_zile: number }
         Returns: undefined
       }
+      sterge_logic: {
+        Args: { p_ids: string[]; p_tabela: string }
+        Returns: string[]
+      }
       sterge_sablon_evaluare: {
         Args: { p_id: string; p_organization_id: string }
         Returns: string

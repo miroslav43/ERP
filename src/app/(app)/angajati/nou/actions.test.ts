@@ -773,27 +773,31 @@ describe("stergeCiornaInrolare", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it("succes: ștergere LOGICĂ a ciornei proprii, cu `.select()` după", async () => {
+  it("succes: ciorna proprie se citește, apoi se șterge LOGIC prin `sterge_logic`", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("inrolare_ciorne", "update", { data: { id: ID_1 } });
+    server.raspunde("inrolare_ciorne", "select", { data: [{ id: ID_1 }] });
+    server.raspundeRpc("sterge_logic", { data: [ID_1] });
 
     const r = await stergeCiornaInrolare({});
 
     expect(r).toEqual({ ok: true, data: { sters: true } });
-    const [update] = server.apeluriPe("inrolare_ciorne");
-    expect(update?.operatie).toBe("update");
-    expect(Object.keys(update?.payload as object)).toEqual(["deleted_at"]);
-    expect(areFiltru(update, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(areFiltru(update, "eq", "autor_id", USER_ID)).toBe(true);
-    expect(areFiltru(update, "is", "deleted_at", null)).toBe(true);
-    expect(update?.selectDupaScriere).toBeDefined();
+    const [citire, ...altele] = server.apeluriPe("inrolare_ciorne");
+    expect(altele).toHaveLength(0);
+    expect(citire?.operatie).toBe("select");
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(citire, "eq", "autor_id", USER_ID)).toBe(true);
+    expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
+    // Nu un UPDATE direct: politica SELECT l-ar respinge mereu cu 42501 (0164).
+    const apel = server.apeluriRpc.find((a) => a.nume === "sterge_logic");
+    expect(apel?.argumente).toEqual({ p_tabela: "inrolare_ciorne", p_ids: [ID_1] });
     expect(caiRevalidate()).toEqual(["/angajati/nou"]);
   });
 
-  it("nicio ciornă (a doua apăsare): succes cu `sters: false`, nu eroare", async () => {
+  it("nicio ciornă (a doua apăsare): succes cu `sters: false`, fără apel de ștergere", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("inrolare_ciorne", "update", { data: null });
+    server.raspunde("inrolare_ciorne", "select", { data: [] });
     const r = await stergeCiornaInrolare({});
     expect(r).toEqual({ ok: true, data: { sters: false } });
+    expect(server.apeluriRpc.filter((a) => a.nume === "sterge_logic")).toHaveLength(0);
   });
 });

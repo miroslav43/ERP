@@ -7,6 +7,7 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { BUCKET_BRANDING } from "@/lib/pdf/antet-organizatie";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { stergeLogic } from "@/lib/supabase/sterge-logic";
 import { curataHtml, variabileFolosite } from "@/lib/documents/curata-html";
 import {
   VARIABILE_TOATE,
@@ -275,19 +276,26 @@ export const restabilesteSablonPlatforma = createAction<
   audit: { action: "delete", entityType: "hr_document_templates", allow: ["cod"] },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx: ActionContext, input) => {
-    const { data, error } = await ctx.supabase
+    // Prin `stergeLogic`, nu `update({ deleted_at })`: politica SELECT ascunde
+    // rândul șters, iar UPDATE-ul direct pica mereu cu 42501 (0164) — adică
+    // „Revino la varianta de platformă” răspundea mereu „nu a putut fi retras”.
+    const { data: alFirmei, error: eroareCitire } = await ctx.supabase
       .from("hr_document_templates")
-      .update({ deleted_at: new Date().toISOString(), updated_by: ctx.user.id })
+      .select("id")
       .eq("cod", input.cod)
       .eq("organization_id", ctx.tenant.organizationId)
-      .is("deleted_at", null)
-      .select("id")
-      .maybeSingle();
+      .is("deleted_at", null);
+    if (eroareCitire !== null) throw businessRule("Șablonul firmei nu a putut fi retras.");
+    const { data, error } = await stergeLogic(
+      ctx.supabase,
+      "hr_document_templates",
+      (alFirmei ?? []).map((r) => r.id),
+    );
     if (error !== null) throw businessRule("Șablonul firmei nu a putut fi retras.");
-    if (data === null) {
+    if (data.length === 0) {
       throw notFound("Firma nu are o variantă proprie a acestui șablon.");
     }
-    return { id: data.id };
+    return { id: data[0] ?? "" };
   },
 });
 

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule } from "@/lib/actions/errors";
 import { ROLURI_ATRIBUIBILE, schimbaRolul } from "@/lib/membri/schimba-rol";
+import { stergeLogic } from "@/lib/supabase/sterge-logic";
 import { suprascriePermisiuneSchema } from "@/schemas/permisiuni-membru";
 
 /**
@@ -102,15 +103,14 @@ export const suprascriePermisiunea = createAction({
     if (input.scope === null) {
       // Retragere = ștergere logică. Nicio politică DELETE în tot proiectul.
       if (existent.data === null) return { memberId: input.memberId };
-      const { data, error } = await ctx.supabase
-        .from("role_permissions")
-        .update({ deleted_at: ctx.now.toISOString() })
-        .eq("id", existent.data.id)
-        .select("id");
+      // Prin `stergeLogic`, nu `update({ deleted_at })`: politica SELECT ascunde
+      // rândul șters, iar UPDATE-ul direct pica mereu cu 42501 (0164).
+      const { data, error } = await stergeLogic(ctx.supabase, "role_permissions", [
+        existent.data.id,
+      ]);
       if (error !== null) throw error;
-      // `.select()` după `.update()`: un UPDATE respins de clauza `USING` nu dă
-      // eroare, afectează zero rânduri și tace.
-      if (data === null || data.length === 0) {
+      // Zero rânduri = USING-ul politicii UPDATE a refuzat, fără eroare.
+      if (data.length === 0) {
         throw businessRule(
           "Suprascrierea nu a putut fi retrasă. Verificați dacă mai aveți dreptul asupra acestui membru.",
         );
