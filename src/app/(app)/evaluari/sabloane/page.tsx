@@ -52,7 +52,7 @@ export default async function PaginaSabloaneEvaluare() {
     <div className="space-y-6">
       <AntetPagina
         titlu="Șabloane de evaluare"
-        descriere="Seturi de criterii reutilizabile. Se aplică unui angajat de pe fișa lui, iar evaluarea păstrează criteriile de la momentul completării."
+        descriere="Seturi de criterii reutilizabile. Se aplică din „Evaluare nouă” sau de pe fișa angajatului, iar evaluarea păstrează criteriile de la momentul completării."
         file={<FileEvaluari activa="sabloane" nrSabloane={sabloane.length} />}
         {...(poateScrie ? { actiuni: <ButonSablonNou /> } : {})}
       />

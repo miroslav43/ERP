@@ -33,10 +33,12 @@ import { requireFeature } from "@/lib/auth/features";
 import { formatDate } from "@/lib/format/date";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { indicatoriEvaluari, listeazaEvaluari, listeazaSabloane } from "@/lib/queries/evaluari";
+import { angajatiPentruPontaj, colegiPentruManager, idFisaProprie } from "@/lib/queries/employees";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { filtreEvaluariSchema } from "@/schemas/evaluation";
 
+import { ButonEvaluareNouaDinLista } from "../angajati/[id]/formular-evaluare-noua";
 import { FileEvaluari } from "./_components/file-evaluari";
 import { ETICHETE_STATUS_EVALUARE, TONURI_STATUS_EVALUARE, tonPunctaj } from "./etichete";
 import { FiltreEvaluari } from "./filtre-evaluari";
@@ -107,6 +109,44 @@ async function BandaIndicatori({ organizationId }: { readonly organizationId: st
         />
       </div>
     </section>
+  );
+}
+
+/**
+ * „Evaluare nouă” din antet, cu angajatul ales în panou.
+ *
+ * Lista de angajați urmează scope-ul lui `evaluations:create`: la `all`, toată
+ * firma; la `team`, colegii vizibili (RLS-ul pe `employees` îi lasă pe ai
+ * echipei), fără propria fișă — `app.can_access_evaluation` refuză oricum
+ * autoevaluarea pe `team`, iar un nume pe care baza îl respinge n-are ce căuta
+ * în listă. Restul refuzurilor rămân la bază, cu mesaj.
+ *
+ * Separat, în `Suspense`: cele două citiri nu țin antetul și indicatorii pe loc.
+ */
+async function ActiuneEvaluareNoua({
+  organizationId,
+  userId,
+  scopeToata,
+}: {
+  readonly organizationId: string;
+  readonly userId: string;
+  readonly scopeToata: boolean;
+}) {
+  const [sabloane, angajati] = await Promise.all([
+    listeazaSabloane(organizationId, { includeArhivate: false }),
+    scopeToata
+      ? angajatiPentruPontaj(organizationId)
+      : idFisaProprie(organizationId, userId).then((propria) =>
+          propria === null
+            ? angajatiPentruPontaj(organizationId)
+            : colegiPentruManager(organizationId, propria),
+        ),
+  ]);
+  return (
+    <ButonEvaluareNouaDinLista
+      angajati={angajati}
+      sabloane={sabloane.map((s) => ({ id: s.id, denumire: s.denumire, criterii: s.criterii }))}
+    />
   );
 }
 
@@ -221,7 +261,7 @@ async function ListaEvaluari({
             areFiltre
               ? "Ștergeți filtrele ca să vedeți toate evaluările."
               : poateEvalua
-                ? "O evaluare se pornește de pe fișa angajatului, cu unul dintre șabloanele firmei."
+                ? "Porniți una cu „Evaluare nouă”, sus, sau de pe fișa angajatului."
                 : "Evaluările apar aici pe măsură ce managerii le completează."
           }
           {...(areFiltre
@@ -279,7 +319,7 @@ async function ListaEvaluari({
 }
 
 export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { user, tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -300,6 +340,19 @@ export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina
         titlu="Evaluări"
         descriere="Evaluările angajaților, cu punctajul calculat din criteriile șablonului folosit la completare."
         file={<FileEvaluari activa="evaluari" />}
+        {...(poateEvalua
+          ? {
+              actiuni: (
+                <Suspense fallback={null}>
+                  <ActiuneEvaluareNoua
+                    organizationId={tenant.organizationId}
+                    userId={user.id}
+                    scopeToata={can(permisiuni, "evaluations:create", "all")}
+                  />
+                </Suspense>
+              ),
+            }
+          : {})}
       />
 
       <Suspense fallback={<Schelet forma="carduri" randuri={4} />}>

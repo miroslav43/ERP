@@ -25,6 +25,13 @@
  * 3. `<input type="number">` pentru o notă de la 1 la 5. Grupul de radio
  *    nativ e o singură țintă de `Tab`, se parcurge cu săgețile și se anunță
  *    „2 din 5" la cititorul de ecran.
+ *
+ * ── DIN LISTA DE EVALUĂRI ─────────────────────────────────────────────────
+ * Același panou se deschide și din `/evaluari`, unde angajatul nu e dat de
+ * pagină: atunci primește `angajati` în locul lui `employeeId` și arată un
+ * câmp „Angajat”. Până la 6 oct 2026, pagina modulului n-avea niciun buton de
+ * creare — evaluarea se pornea DOAR de pe fișă, iar lista goală trimitea omul
+ * să caute fișa de mână.
  */
 
 import { Pencil, Plus } from "lucide-react";
@@ -60,8 +67,17 @@ export interface CiornaEvaluare {
   readonly sablon: string | null;
 }
 
+export interface AngajatEvaluabil {
+  readonly id: string;
+  readonly full_name: string;
+  readonly marca: string | null;
+}
+
 export type PropsFormularEvaluare = Readonly<{
-  employeeId: string;
+  /** Angajatul fix, pe fișa lui. Absent ⇒ se alege din `angajati`. */
+  employeeId?: string;
+  /** Lista din care se alege, când formularul pornește din `/evaluari`. */
+  angajati?: readonly AngajatEvaluabil[];
   sabloane: readonly SablonEvaluare[];
   /** Prezentă = se corectează o ciornă. Absentă = evaluare nouă. */
   ciorna?: CiornaEvaluare;
@@ -78,6 +94,7 @@ function aziIso(): string {
 
 export function FormularEvaluareNoua({
   employeeId,
+  angajati,
   sabloane,
   ciorna,
   declansator,
@@ -111,6 +128,14 @@ export function FormularEvaluareNoua({
     setRaspunsuri(esteEditare ? ciorna.raspunsuri : []);
     setDeschis(true);
   };
+
+  const alegeAngajatul = !esteEditare && employeeId === undefined;
+
+  if (alegeAngajatul && (angajati ?? []).length === 0) {
+    return (
+      <p className="text-muted-foreground text-corp">Niciun angajat pe care să-l puteți evalua.</p>
+    );
+  }
 
   if (!esteEditare && sabloane.length === 0) {
     return (
@@ -213,7 +238,9 @@ export function FormularEvaluareNoua({
                 <input type="hidden" name="id" value={ciorna.id} />
               ) : (
                 <>
-                  <input type="hidden" name="employee_id" value={employeeId} />
+                  {alegeAngajatul ? null : (
+                    <input type="hidden" name="employee_id" value={employeeId} />
+                  )}
                   <input type="hidden" name="template_id" value={sablonId} />
                 </>
               )}
@@ -222,6 +249,31 @@ export function FormularEvaluareNoua({
                 name="raspunsuri"
                 value={JSON.stringify(criterii.map((c) => raspunsPentru(c.cod)))}
               />
+
+              {alegeAngajatul ? (
+                <Camp
+                  nume="employee_id"
+                  eticheta="Angajat"
+                  obligatoriu
+                  erori={stare.erori["employee_id"] ?? []}
+                  fel="select"
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={stare.valoriTrimise.employee_id ?? ""}>
+                      <option value="" disabled>
+                        Alegeți angajatul
+                      </option>
+                      {(angajati ?? []).map((ang) => (
+                        <option key={ang.id} value={ang.id}>
+                          {ang.marca === null || ang.marca === ""
+                            ? ang.full_name
+                            : `${ang.full_name} · ${ang.marca}`}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
+              ) : null}
 
               {esteEditare ? null : (
                 <Camp
@@ -378,6 +430,28 @@ export function ButonContinuaCiorna({
         <Buton varianta="tertiar" onClick={deschide}>
           <Pencil aria-hidden="true" className="size-3.5" />
           Continuă ciorna
+        </Buton>
+      )}
+    />
+  );
+}
+
+/** Declanșatorul din `/evaluari`: angajatul se alege în panou. */
+export function ButonEvaluareNouaDinLista({
+  angajati,
+  sabloane,
+}: Readonly<{
+  angajati: readonly AngajatEvaluabil[];
+  sabloane: readonly SablonEvaluare[];
+}>): ReactElement {
+  return (
+    <FormularEvaluareNoua
+      angajati={angajati}
+      sabloane={sabloane}
+      declansator={(deschide) => (
+        <Buton varianta="primar" onClick={deschide}>
+          <Plus aria-hidden="true" className="size-4" />
+          Evaluare nouă
         </Buton>
       )}
     />
