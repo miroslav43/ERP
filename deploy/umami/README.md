@@ -98,6 +98,18 @@ se strică — situl merge cu GA4 singur.
 
 ---
 
+## Ce se măsoară, în afară de afișări
+
+- **`citire`**, o dată pe pagină: `secunde` (cu fila vizibilă), `derulat` (0–100,
+  din 10 în 10), `sectiuni` (ce a trecut prin mijlocul ecranului) și `ultima`
+  (secțiunea cea mai de jos văzută — de aici se vede unde se opresc oamenii).
+  Se citește în _Events → citire → proprietăți_.
+- **Metrici de viteză din teren** (LCP, CLS, INP), prin `data-performance`.
+- Butoanele cu `data-umami-event` (CTA-uri, „Generează" din unelte).
+
+**Echipa se scoate din cifre** deschizând o dată, pe fiecare dispozitiv,
+`https://administrativo.ro/?nu-ma-numara`. `?numara-ma` anulează.
+
 ## Ce NU face configurația asta
 
 - **Nu face copii de siguranță.** Volumul `umami-db` trăiește pe VM. O pierdere
