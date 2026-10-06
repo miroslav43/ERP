@@ -355,8 +355,28 @@ describe("engleza nu e o traducere pe jumătate", () => {
     expect(EN.intrebari.intrebari).toHaveLength(RO.intrebari.intrebari.length);
     expect(EN.roluri.note).toHaveLength(RO.roluri.note.length);
     expect(EN.izolare.straturi).toHaveLength(RO.izolare.straturi.length);
-    expect(EN.implementare.pasi).toHaveLength(RO.implementare.pasi.length);
     expect(EN.conformitate.carduri).toHaveLength(RO.conformitate.carduri.length);
+    // Benzile paginii de start refăcute pe 6 oct 2026.
+    expect(EN.hero.asigurari).toHaveLength(RO.hero.asigurari.length);
+    expect(EN.produs.randuri).toHaveLength(RO.produs.randuri.length);
+    expect(EN.pentruCine.roluri).toHaveLength(RO.pentruCine.roluri.length);
+    expect(EN.unelteGratuite.unelte).toHaveLength(RO.unelteGratuite.unelte.length);
+    expect(EN.unelteGratuite.ghiduri).toHaveLength(RO.unelteGratuite.ghiduri.length);
+    expect(EN.promisiuni.puncte).toHaveLength(RO.promisiuni.puncte.length);
+    expect(EN.siguranta.puncte).toHaveLength(RO.siguranta.puncte.length);
+    expect(EN.incepe.pasi).toHaveLength(RO.incepe.pasi.length);
+    expect(EN.intrebariScurte.intrebari).toHaveLength(RO.intrebariScurte.intrebari.length);
+  });
+
+  it("rândurile de produs arată aceleași ecrane, în aceeași ordine", () => {
+    // Imaginea e aceeași în ambele limbi; doar textul se traduce. Un rând
+    // mutat într-o singură limbă ar pune descrierea unui ecran sub altul.
+    expect(EN.produs.randuri.map((r) => r.captura)).toEqual(
+      RO.produs.randuri.map((r) => r.captura),
+    );
+    expect(EN.unelteGratuite.unelte.map((u) => u.href)).toEqual(
+      RO.unelteGratuite.unelte.map((u) => u.href),
+    );
   });
 
   it("niciun text nu a rămas netradus, identic cu româna", () => {
@@ -1542,5 +1562,39 @@ describe("căutarea AI — auditul din 5 oct 2026", () => {
       expect(conexe(cale), cale).toContain("/unelte/calculator-salariu");
     }
     expect(conexe("/ghid/control-itm")).toContain("/unelte/fisa-instruire-ssm");
+  });
+});
+
+describe("pagina de start arată aplicația reală", () => {
+  /*
+   * Până pe 6 oct 2026 pagina de start nu arăta niciun ecran al aplicației. Un
+   * rând de produs cu o cheie greșită n-ar cădea nicăieri — `Ecran` întoarce
+   * `null` și rândul rămâne fără imagine, în tăcere.
+   */
+  it("fiecare rând de produs are ecranul lui pe disc, sau un panou în loc", async () => {
+    const { capturaInalta, capturaModulului } =
+      await import("@/app/(marketing)/_componente/vitrine");
+    for (const [limba, text] of LIMBI) {
+      for (const rand of text.produs.randuri) {
+        const unde = `${limba}: ${rand.titlu}`;
+        if (rand.captura === null) {
+          expect(rand.panou, unde).toBeDefined();
+          continue;
+        }
+        const captura =
+          rand.captura === "telefon"
+            ? capturaInalta("portal-pontare")
+            : capturaModulului(rand.captura);
+        expect(captura, unde).toBeDefined();
+        expect(rand.descriereCaptura.length, unde).toBeGreaterThan(20);
+      }
+    }
+  });
+
+  it("uneltele de pe pagina de start sunt chiar paginile din /unelte", () => {
+    const unelte = fisiere("src/app/(marketing)/unelte", ["page.tsx"])
+      .map((f) => f.replace(/^src\/app\/\(marketing\)/, "").replace(/\/page\.tsx$/, ""))
+      .filter((cale) => cale !== "/unelte");
+    expect(new Set(RO.unelteGratuite.unelte.map((u) => u.href))).toEqual(new Set(unelte));
   });
 });

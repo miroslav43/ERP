@@ -19,6 +19,13 @@ import type { PaginaLege } from "./tipuri";
  * (legislatie.just.ro), nu din rezumate. Actele modificatoare verificate direct:
  * Legea 88/2018 (art. 119 alin. 1 în forma actuală), OUG 37/2021 (alin. 2),
  * OUG 117/2021 (munca nedeclarată și subdeclarată), Legea 239/2025.
+ *
+ * ── CORECTURA DIN 7 OCT 2026 ──────────────────────────────────────────────
+ * Pagina dădea microîntreprinderilor excepția de la alin. (2), introdusă de
+ * OUG 37/2021. Legea 275/2022 a respins ordonanța, iar forma consolidată a
+ * art. 119 alin. (2) — recitită pe 6 oct 2026 — acoperă DOAR salariații mobili
+ * și pe cei care lucrează la domiciliu. Exact publicul produsului primea o
+ * scutire care nu mai există, cu amendă de 1.500–3.000 de lei în spate.
  */
 
 export const EVIDENTA_ORELOR: PaginaLege = {
@@ -32,7 +39,7 @@ export const EVIDENTA_ORELOR: PaginaLege = {
   raspunsScurt: [
     "Art. 119 alin. (1) din Codul muncii cere angajatorului să țină, la locul de muncă, evidența orelor prestate zilnic de fiecare salariat, cu evidențierea orelor de începere și de sfârșit ale programului, și s-o prezinte inspectorilor de muncă ori de câte ori se solicită.",
     "Nerespectarea obligației se sancționează cu amendă de la 1.500 la 3.000 de lei — art. 260 alin. (1) lit. m). Nu e pe persoană și nu are plafon cumulat.",
-    "Pentru salariații mobili, cei care lucrează la domiciliu și cei din microîntreprinderi, evidența se ține în condițiile stabilite prin acord scris cu salariatul — art. 119 alin. (2). Fără acordul scris, excepția nu se poate invoca.",
+    "Doar pentru salariații mobili și pentru cei care lucrează la domiciliu, evidența se ține în condițiile stabilite prin acord scris cu salariatul — art. 119 alin. (2). Microîntreprinderile nu mai intră în excepție: OUG 37/2021, care le adăugase, a fost respinsă prin Legea 275/2022.",
   ],
 
   titluReguli: "Ce trebuie să conțină evidența orelor, după art. 119?",
@@ -63,9 +70,9 @@ export const EVIDENTA_ORELOR: PaginaLege = {
       temei: "art. 119 alin. (1); art. 264 alin. (2) Codul muncii",
     },
     {
-      situatie: "Salariați mobili, la domiciliu, microîntreprinderi",
+      situatie: "Salariați mobili și la domiciliu",
       cerinta:
-        "Evidența se ține în condițiile stabilite cu salariații prin acord scris, potrivit activității specifice. Microîntreprinderea e cea definită de art. 4 alin. (1) lit. a) din Legea 346/2004.",
+        "Evidența se ține în condițiile stabilite cu salariații prin acord scris, potrivit activității specifice. Microîntreprinderile nu mai sunt cuprinse în excepție de când Legea 275/2022 a respins OUG 37/2021: la ele se aplică regula generală de la alin. (1).",
       temei: "art. 119 alin. (2) Codul muncii",
     },
     {
@@ -165,7 +172,7 @@ export const EVIDENTA_ORELOR: PaginaLege = {
     },
   ],
 
-  actualizat: "septembrie 2026",
-  actualizatIso: "2026-09-03",
+  actualizat: "octombrie 2026",
+  actualizatIso: "2026-10-06",
   publicatIso: "2026-09-04",
 };

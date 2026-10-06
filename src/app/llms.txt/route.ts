@@ -151,7 +151,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/domenii/servicii",
-    "Servicii, birouri și comerț: cereri de concediu cu aprobare ierarhică, sold recalculat, prag de absenți simultani, portal pentru fluturaș.",
+    "Servicii, birouri și comerț: cereri de concediu cu aprobare ierarhică, sold recalculat, calendarul echipei, portal pentru fluturaș.",
   ],
   ["/cere-demo", "Formular pentru o demonstrație cu un om."],
   ["/legal/termeni", "Termenii contractuali și anexa de prelucrare a datelor (RGPD art. 28)."],

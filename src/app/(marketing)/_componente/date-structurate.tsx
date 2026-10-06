@@ -46,11 +46,12 @@ const ORGANIZATIE = {
   name: "Administrativo",
   legalName: FIRMA.denumire,
   url: ADRESA_SITE,
-  // `public/marca.svg` era singurul fișier din `public/` și nu-l folosea nimeni:
-  // declarația `icons` din layout-ul rădăcină care îl numea era suprascrisă de
-  // `icon.tsx`. Aici e o cale stabilă, servită, care nu depinde de hash-ul pus
-  // de Next pe rutele de metadate generate.
-  logo: `${ADRESA_SITE}/marca.svg`,
+  // Raster, nu SVG: Google cere pentru `Organization.logo` o imagine PNG, JPG
+  // sau WebP de cel puțin 112×112 (auditul SEO din 6 oct 2026, #14). Până atunci
+  // aici stătea `/marca.svg`. `/apple-icon` e PNG de 180×180, răspunde 200 fără
+  // sesiune (testul rutelor de metadate din `continut.test.ts`) și nu cere
+  // hash-ul pe care Next îl pune doar în eticheta `<link>`.
+  logo: `${ADRESA_SITE}/apple-icon`,
   // Codul de înregistrare fiscală, ca identificator verificabil. `vatID` NU se
   // declară: firma nu e înregistrată în scopuri de TVA, iar un `vatID` fals ar fi
   // o afirmație greșită despre o entitate juridică reală.
