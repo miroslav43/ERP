@@ -147,8 +147,11 @@ decât cea de pe ecran.
   `can(permisiuni, "attendance:approve", "all")`. — capcana #9
 - **Un UPDATE respins de `USING` afectează zero rânduri, fără eroare.** Orice tranziție
   face `.select()` după `.update()` și tratează rezultatul gol drept conflict. — capcana #17
-- **Foaia colectivă se paginează după ANGAJAT, nu după rânduri de pontaj.** PostgREST
-  trunchiază tăcut peste `max_rows`; angajați × zile depășește pragul altfel. — capcana #2
+- **Foaia colectivă arată TOȚI angajații, dar citește pe bucăți.** PostgREST trunchiază
+  tăcut peste `max_rows`. Din 6 oct 2026 nu mai există „Pagina următoare" (foaia are
+  derulare proprie): `totiAngajatiiPontaj` urmează cursorul keyset în pagini de 500, iar
+  `intrariLuna` cere pontajul în bucăți de 30 de angajați (30 × 31 = 930), în paralel.
+  — capcana #2
 - **O zi deschisă și neînchisă nu poate fi aprobată**: constrângerea
   `attendance_entries_aprobare_zi_incheiata_ck` (`0096_pontaj_rapid.sql`) cere ca
   `approved_at` să fie null cât timp există `ora_inceput` fără `ora_sfarsit`. 23514 NU e

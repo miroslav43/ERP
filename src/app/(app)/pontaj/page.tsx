@@ -23,10 +23,10 @@ import {
   departamente,
   intrariLuna,
   intrariProprii,
-  listeazaAngajatiPontaj,
   sediiPentruPontaj,
   setariPontaj,
   setariPontareRapida,
+  totiAngajatiiPontaj,
 } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { zileLucratoareLuna } from "@/lib/queries/payroll";
@@ -91,7 +91,6 @@ async function LunaIntreaga({
   config,
   limite,
   oreAsteptateLuna,
-  parametri,
   azi,
 }: {
   readonly organizationId: string;
@@ -114,7 +113,6 @@ async function LunaIntreaga({
    */
   readonly limite: LimiteFirmei | null;
   readonly oreAsteptateLuna: number;
-  readonly parametri: Record<string, string | string[] | undefined>;
   readonly azi: string;
 }) {
   // Un val: sediile (0163) n-au nevoie de nimic din zilele nelucrătoare.
@@ -174,10 +172,7 @@ async function LunaIntreaga({
     );
   }
 
-  const { randuri: angajati, urmatorulCursor } = await listeazaAngajatiPontaj(
-    organizationId,
-    filtre,
-  );
+  const { randuri: angajati, trunchiat } = await totiAngajatiiPontaj(organizationId, filtre);
 
   if (angajati.length === 0) {
     const areFiltre = filtre.departament !== null || filtre.cauta !== null;
@@ -209,21 +204,13 @@ async function LunaIntreaga({
     intrari: intrarilePeZi(intrari.filter((i) => i.employee_id === a.id)),
   }));
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
-  }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
-
-  const paginare = (
-    <nav aria-label="Paginare" className="flex justify-end">
-      {urmatorulCursor === null ? null : (
-        <Link href={`/pontaj?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
-          Pagina următoare
-        </Link>
-      )}
-    </nav>
-  );
+  // Plasa buclei din `totiAngajatiiPontaj`, nu un caz real: se spune, nu se taie tăcut.
+  const notaTrunchiere = trunchiat ? (
+    <Callout fel="atentie" titlu="Foaia nu arată toți angajații">
+      Organizația are mai mulți angajați decât poate afișa foaia deodată. Filtrați după departament
+      sau după nume.
+    </Callout>
+  ) : null;
 
   if (vizualizare === "luna") {
     return (
@@ -236,7 +223,7 @@ async function LunaIntreaga({
           azi={azi}
           angajatiAfisati={randuri.length}
         />
-        {paginare}
+        {notaTrunchiere}
       </>
     );
   }
@@ -261,7 +248,7 @@ async function LunaIntreaga({
         oreAsteptateLuna={oreAsteptateLuna}
         azi={azi}
       />
-      {paginare}
+      {notaTrunchiere}
     </>
   );
 }
@@ -270,7 +257,7 @@ async function LunaIntreaga({
  * Matricea „angajat → zile" întoarsă pe dos, în „zi → angajați".
  *
  * Ordinea oamenilor dintr-o zi o dă ordinea rândurilor, adică sortarea din
- * `listeazaAngajatiPontaj`. Contează: „+2 alții" trebuie să însemne aceiași doi
+ * `totiAngajatiiPontaj`. Contează: „+2 alții" trebuie să însemne aceiași doi
  * oameni în fiecare zi a lunii, nu o listă care se rearanjează de la o căsuță la
  * alta.
  */
@@ -513,7 +500,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   /*
    * De ce NU apare în foaie cel care se uită la ea.
    *
-   * `listeazaAngajatiPontaj` filtrează `status in (activ, suspendat, preaviz)`.
+   * `totiAngajatiiPontaj` filtrează `status in (activ, suspendat, preaviz)`.
    * Filtrul e corect — un candidat n-are ore de declarat — dar e TĂCUT: cine nu
    * se regăsește în listă nu primește niciun refuz, pur și simplu nu e acolo.
    * Un administrator cu fișa creată de 0083 (status `candidat`) cade exact în
@@ -581,7 +568,6 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           config={config}
           limite={limiteleFirmei(setari)}
           oreAsteptateLuna={oreAsteptateLuna}
-          parametri={parametri}
           azi={azi}
         />
       </Suspense>

@@ -27,6 +27,7 @@ import {
   liniiDeAprobat,
   listeazaAngajatiPontaj,
   listeazaPerioade,
+  totiAngajatiiPontaj,
   loturiPerioadei,
   pontajDeAprobat,
   saptamaniDeAprobat,
@@ -198,6 +199,25 @@ describe("intrariLuna și angajatiPontajDupaId", () => {
     expect(areFiltru(apel, "lte", "data", "2026-07-31")).toBe(true);
   });
 
+  it("peste 30 de angajați ⇒ bucăți de câte 30, ca nicio cerere să nu atingă max_rows", async () => {
+    // 30 × 31 de zile = 930 < 1000. Într-o singură cerere, o firmă de 40 de
+    // oameni ar fi pierdut tăcut ultimele ~240 de zile pontate ale lunii.
+    const { server } = configureazaActiunea();
+    const ids = Array.from({ length: 61 }, (_, i) => `a${String(i)}`);
+    server.raspunde("attendance_entries", "select", { data: [{ id: "r1" }] });
+    server.raspunde("attendance_entries", "select", { data: [{ id: "r2" }] });
+    server.raspunde("attendance_entries", "select", { data: [{ id: "r3" }] });
+
+    const r = await intrariLuna(ORG_ID, ids, "2026-07-01", "2026-07-31");
+
+    expect(r).toEqual([{ id: "r1" }, { id: "r2" }, { id: "r3" }]);
+    expect(server.apeluri).toHaveLength(3);
+    expect(areFiltru(server.apeluri[0], "in", "employee_id", ids.slice(0, 30))).toBe(true);
+    expect(areFiltru(server.apeluri[1], "in", "employee_id", ids.slice(30, 60))).toBe(true);
+    expect(areFiltru(server.apeluri[2], "in", "employee_id", ids.slice(60))).toBe(true);
+    expect(server.apeluri.every(organizatieSiNeșters)).toBe(true);
+  });
+
   it("angajații după id: id-uri deduplicate, rezultat indexat pe id", async () => {
     const { server } = configureazaActiunea();
     const a = { id: ANGAJAT, full_name: "Ana", marca: "7", department_id: null };
@@ -284,6 +304,39 @@ describe("listeazaAngajatiPontaj — cursor keyset", () => {
     const [apel] = server.apeluri;
     expect(areFiltru(apel, "ilike", "full_name", "%pop%")).toBe(true);
     expect(areFiltru(apel, "eq", "department_id", ID_2)).toBe(true);
+  });
+});
+
+describe("totiAngajatiiPontaj — foaia întreagă, fără paginare pe ecran", () => {
+  const ang = (id: string, full_name: string) => ({
+    id,
+    marca: "1",
+    full_name,
+    department_id: null,
+    status: "activ",
+  });
+
+  it("urmează cursorul până la capăt și păstrează filtrele pe fiecare pagină", async () => {
+    const { server } = configureazaActiunea();
+    const plina = Array.from({ length: 501 }, (_, i) =>
+      ang(`p${String(i).padStart(3, "0")}`, `N${String(i).padStart(3, "0")}`),
+    );
+    server.raspunde("employees", "select", { data: plina });
+    server.raspunde("employees", "select", { data: [ang(ID_3, "Zamfir")] });
+
+    const r = await totiAngajatiiPontaj(ORG_ID, { departament: ID_2, cauta: "a" });
+
+    expect(r.trunchiat).toBe(false);
+    expect(r.randuri).toHaveLength(501);
+    expect(r.randuri.at(-1)?.full_name).toBe("Zamfir");
+    expect(server.apeluri).toHaveLength(2);
+    for (const apel of server.apeluri) {
+      expect(argumente(apel, "limit")).toEqual([501]);
+      expect(areFiltru(apel, "eq", "department_id", ID_2)).toBe(true);
+      expect(areFiltru(apel, "ilike", "full_name", "%a%")).toBe(true);
+    }
+    expect(server.apeluri[0]?.filtre.some((f) => f.metoda === "or")).toBe(false);
+    expect(server.apeluri[1]?.filtre.some((f) => f.metoda === "or")).toBe(true);
   });
 });
 

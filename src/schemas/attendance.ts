@@ -111,11 +111,8 @@ export const filtrePontajSchema = z.object({
   luna: z.coerce.number().int().min(1).max(12).default(lunaImplicita),
   departament: optional(z.uuid()),
   cauta: optional(z.string().max(60)),
-  cursor: optional(z.string().max(256)),
-  // Plafonat la 30, nu la 100 ca în restul aplicației: foaia colectivă
-  // încarcă și pontajul lunii pentru fiecare angajat din pagină — max_rows =
-  // 1000 în PostgREST, iar 30 angajați × 31 zile = 930 rânduri < 1000.
-  limita: z.coerce.number().int().min(5).max(30).default(25),
+  // Fără `cursor`/`limita`: foaia arată toți angajații, în cutia ei cu
+  // derulare (`totiAngajatiiPontaj`). Plafonul `max_rows` e ținut în citiri.
 });
 export type FiltrePontaj = z.output<typeof filtrePontajSchema>;
 
