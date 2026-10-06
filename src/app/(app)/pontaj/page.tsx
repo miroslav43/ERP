@@ -37,6 +37,7 @@ import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
 import { ButonSetariPontaj } from "./buton-setari";
+import { CardAzi } from "./card-azi";
 import { NavPontaj } from "./nav-pontaj";
 import { fileDePontaj } from "./file-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
@@ -288,8 +289,16 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
 
   const parametri = await searchParams;
   const scope = scopeFor(permisiuni, "attendance:read") ?? "own";
-  // `manager` NU are `attendance:create` → foaia e read-only, exact ca RLS.
-  const poateEdita = can(permisiuni, "attendance:create", "own");
+  /*
+    Două porți de scriere, nu una. `poatePontaSine` e ziua PROPRIE — cardul
+    „Astăzi" și grila săptămânii. `poateEdita` e FOAIA: scope-ul de creare
+    trebuie să acopere tot ce arată scope-ul de citire. Un `manager` are
+    `create = own` (0161) dar citește `team`, deci foaia lui rămâne read-only,
+    exact ca RLS — cu o singură poartă, celulele subordonaților ar fi devenit
+    apăsabile și ar fi răspuns cu refuz.
+  */
+  const poatePontaSine = can(permisiuni, "attendance:create", "own");
+  const poateEdita = can(permisiuni, "attendance:create", scope);
   /*
     Aprobarea are DOUĂ porți: permisiunea (cine are dreptul) și alegerea firmei
     (0118 — dacă pontajul trece printr-un pas de aprobare). Compuse într-un
@@ -375,6 +384,19 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     />
   );
 
+  const cardAzi = poatePontaSine ? (
+    // `fallback={null}`: cardul e un adaos, nu trebuie să țină pe loc foaia.
+    <Suspense fallback={null}>
+      <CardAzi
+        organizationId={tenant.organizationId}
+        userId={user.id}
+        numeFirma={tenant.name}
+        azi={azi}
+        inSaptamana={vizualizare === "saptamana"}
+      />
+    </Suspense>
+  ) : null;
+
   const comutator = (
     <ComutatorVizualizare
       eticheta="Vizualizare pontaj"
@@ -391,6 +413,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     return (
       <div className="space-y-6">
         {antet}
+        {cardAzi}
         {comutator}
         <Suspense
           key={`saptamana-${saptamanaStart}`}
@@ -400,7 +423,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             organizationId={tenant.organizationId}
             userId={user.id}
             saptamanaStart={saptamanaStart}
-            poateEdita={poateEdita}
+            poateEdita={poatePontaSine}
             poateAproba={poateAproba}
             parametri={parametri}
             azi={azi}
@@ -479,6 +502,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   return (
     <div className="space-y-6">
       {antet}
+      {cardAzi}
       {comutator}
 
       {/* Explicația stă ÎNAINTEA foii: omul se uită acolo tocmai fiindcă nu

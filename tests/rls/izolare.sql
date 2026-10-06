@@ -1939,9 +1939,14 @@ begin
       -- avertizează că poarta BAZEI e mai largă decât cea a aplicației.
       ('manager', 'fault_reports (sesizare)',         'PERMIS',
        'insert into public.fault_reports (organization_id, equipment_id, descriere, urgenta) values ($1,$2,''Defect semnalat în (l)'',''medie'')'),
-      -- Capcana 4: are attendance:approve=team, dar NU attendance:create.
-      ('manager', 'attendance_entries (fără create)', 'REFUZAT',
+      -- Capcana 4: are attendance:approve=team, dar `create` doar `own` (0161) —
+      -- ziua SUBORDONATULUI rămâne refuzată; o aprobă, nu o scrie.
+      ('manager', 'attendance_entries (ziua subordonatului)', 'REFUZAT',
        'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$3,current_date,8,''lucratoare'')'),
+      -- Jumătatea pozitivă din 0161: propria zi, în forma lui „Am intrat".
+      -- Fișa e rezolvată prin `app.current_employee_id`, ca în politica însăși.
+      ('manager', 'attendance_entries (ziua proprie)', 'PERMIS',
+       'insert into public.attendance_entries (organization_id, employee_id, data, ora_inceput, ore_lucrate, tip_zi, sursa) values ($1,app.current_employee_id($1),current_date,''08:00'',0,''lucratoare'',''pontare_rapida'')'),
       -- employees:read=team, fără create.
       ('manager', 'employees (fără create)',          'REFUZAT',
        'insert into public.employees (organization_id, marca, first_name, last_name, department_id) values ($1,''L-MG-'' || $5,''Test'',''Manager'',$4)'),

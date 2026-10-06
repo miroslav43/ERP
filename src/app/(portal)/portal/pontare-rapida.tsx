@@ -38,6 +38,7 @@ export function PontareRapida({
   lunaDeschisa,
   cod = null,
   inversat = false,
+  adresaScanare = "/portal/ponteaza",
 }: {
   readonly stare: StareCeas;
   /**
@@ -72,6 +73,12 @@ export function PontareRapida({
    * randează pe fundal obișnuit — rămân neatinse.
    */
   readonly inversat?: boolean;
+  /**
+   * Unde duce „Cum se scanează" când firma cere codul QR. `null` pe `/pontaj`:
+   * portalul îi redirecționează pe toți cei care nu sunt `employee`, deci
+   * linkul i-ar arunca pe panou. Acolo rămâne doar fraza.
+   */
+  readonly adresaScanare?: string | null;
 }) {
   const router = useRouter();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -183,13 +190,15 @@ export function PontareRapida({
         <p className={cn("text-corp", clasaSecundara)}>
           Firma cere scanarea codului de la punctul de lucru.
         </p>
-        <Link
-          href="/portal/ponteaza"
-          className={cn(buton({ varianta: "primar" }), "w-full", clasaPrimar)}
-        >
-          <QrCode aria-hidden="true" className="size-4" />
-          Cum se scanează
-        </Link>
+        {adresaScanare === null ? null : (
+          <Link
+            href={adresaScanare}
+            className={cn(buton({ varianta: "primar" }), "w-full", clasaPrimar)}
+          >
+            <QrCode aria-hidden="true" className="size-4" />
+            Cum se scanează
+          </Link>
+        )}
       </div>
     );
   }

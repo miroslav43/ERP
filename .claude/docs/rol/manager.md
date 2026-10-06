@@ -59,8 +59,10 @@ rolurilor.
 
 ## Ce NU are — și cum arată asta pe ecran
 
-- **`attendance:create`.** Are `approve`, deci vede pontajul echipei și decide pe el, dar
-  nu poate scrie o linie. Politica `attendance_entries_update` trece prin
+- **`attendance:create = team`.** Din `0161` are `create = own` — se pontează pe sine,
+  din cardul „Astăzi" de pe `/pontaj` și din grila săptămânii (portalul îl
+  redirecționează). Are `approve`, deci vede pontajul echipei și decide pe el, dar nu
+  scrie nicio linie a ei; foaia colectivă îi rămâne read-only. Politica `attendance_entries_update` trece prin
   `app.poate_scrie_pontaj`, care se uită tocmai la `attendance:create`, deci aprobarea în
   bloc nu merge prin clientul utilizatorului. — capcana #4
 - **`attendance:approve = all`.** Blocarea și deblocarea perioadei o cer; cu `team`
