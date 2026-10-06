@@ -85,7 +85,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             aria-label="Administrativo — pagina principală"
             className="text-primary inline-block rounded py-1"
           >
-            <Sigla clasa="h-5 w-auto" />
+            <Sigla clasa="h-[21.5px] w-auto" />
           </Link>
           <p className="text-muted-foreground text-corp mt-1">
             Administrarea personalului, într-un singur loc.

@@ -12,13 +12,30 @@
  * Când se schimbă sigla din `docs/comercial/sigla/`, calea de aici se
  * regenerează din PDF-ul nou — nu se desenează de mână.
  *
- * Literele sunt subțiri: sub ~14px înălțime nu se mai citesc bine. Antetul o
- * folosește la 15–17px.
+ * Literele sunt subțiri: sub ~14px înălțime nu se mai citesc bine. Înălțimea dată
+ * în CSS include marginea de mai jos (~8%): antetul o folosește la 16–18,5px,
+ * adică litere de 15–17px.
  */
 
-/** `viewBox`-ul siglei: lățimea și înălțimea literelor, în unitățile PDF-ului. */
+/** Cutia literelor, în unitățile PDF-ului: de la piciorul lui „A” la burta lui „O”. */
 export const SIGLA_LATIME = 752.87;
 export const SIGLA_INALTIME = 72.5;
+
+/**
+ * Marginea din jurul literelor, în aceleași unități.
+ *
+ * Fără ea, `viewBox`-ul era exact cutia literelor (`getBBox()` dădea
+ * 0, 0, 752,87, 72,5): „O”-ul de la capăt și burțile lui „S” și „O” atingeau
+ * marginea, iar pixelii de netezire de dincolo de ea se tăiau — sigla părea
+ * retezată jos și în dreapta (reclamat pe 7 oct 2026). Trei unități înseamnă
+ * ~0,7 px la 17 px înălțime: destul pentru netezire, invizibil ca spațiu.
+ */
+const MARGINE = 3;
+
+export const SIGLA_VIEWBOX = `${String(-MARGINE)} ${String(-MARGINE)} ${String(SIGLA_LATIME + 2 * MARGINE)} ${String(SIGLA_INALTIME + 2 * MARGINE)}`;
+
+/** Lățime / înălțime, cu tot cu margine — pentru cine dă dimensiuni în pixeli. */
+export const SIGLA_RAPORT = (SIGLA_LATIME + 2 * MARGINE) / (SIGLA_INALTIME + 2 * MARGINE);
 
 /** Culoarea siglei din materialele tipărite (`brandSlate` din `sigla-administrativo.tex`). */
 export const SIGLA_CULOARE = "#475569";
@@ -40,7 +57,7 @@ export function Sigla({
 }) {
   return (
     <svg
-      viewBox={`0 0 ${String(SIGLA_LATIME)} ${String(SIGLA_INALTIME)}`}
+      viewBox={SIGLA_VIEWBOX}
       className={clasa}
       fill="currentColor"
       focusable="false"

@@ -1,7 +1,7 @@
 // src/app/(marketing)/_componente/imagine-distribuire.tsx
 import { ImageResponse } from "next/og";
 
-import { SIGLA_CALE, SIGLA_CULOARE, SIGLA_INALTIME, SIGLA_LATIME } from "@/components/sigla";
+import { SIGLA_CALE, SIGLA_CULOARE, SIGLA_RAPORT, SIGLA_VIEWBOX } from "@/components/sigla";
 
 import { IMAGINE_DISTRIBUIRE } from "./metadate";
 
@@ -72,11 +72,7 @@ export async function deseneazaImagineDistribuire(): Promise<ImageResponse> {
           2026). Lățimea se calculează din raportul siglei, ca literele să nu se
           deformeze.
         */}
-        <svg
-          width={Math.round((32 * SIGLA_LATIME) / SIGLA_INALTIME)}
-          height={32}
-          viewBox={`0 0 ${String(SIGLA_LATIME)} ${String(SIGLA_INALTIME)}`}
-        >
+        <svg width={Math.round(35 * SIGLA_RAPORT)} height={35} viewBox={SIGLA_VIEWBOX}>
           <path d={SIGLA_CALE} fill={SIGLA_CULOARE} />
         </svg>
 

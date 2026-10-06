@@ -16,7 +16,7 @@ export function Subsol({ text }: { text: ContinutLanding }) {
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-4">
             {/* Pe cerneală, sigla ia culoarea textului inversat. */}
-            <Sigla clasa="text-mk-text-inv h-[17px] w-auto" eticheta="Administrativo" />
+            <Sigla clasa="text-mk-text-inv h-[18.5px] w-auto" eticheta="Administrativo" />
             <p className="text-mk-text-inv-slab mt-4 max-w-[42ch] text-[0.875rem] leading-[1.6]">
               {text.subsol.descriere}
             </p>

@@ -30,7 +30,7 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
             cu fontul titlurilor. `aria-label`-ul e pe legătură, deci sigla nu-l
             mai repetă.
           */}
-          <Sigla clasa="text-mk-sigla h-[15px] w-auto sm:h-[17px]" />
+          <Sigla clasa="text-mk-sigla h-4 w-auto sm:h-[18.5px]" />
         </Link>
 
         <nav
