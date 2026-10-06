@@ -1,0 +1,101 @@
+1
+00:00:00,200 --> 00:00:04,233
+Every Romanian employer must record each
+employee's working hours, every day,
+
+2
+00:00:04,233 --> 00:00:06,800
+and report every hire to the labour
+inspectorate.
+
+3
+00:00:07,200 --> 00:00:11,800
+ADMINISTRATIVO does it in one app,
+starting from the employee's phone.
+
+4
+00:00:12,200 --> 00:00:19,836
+At work, the employee scans the poster
+with their phone and clocks in.
+
+5
+00:00:19,836 --> 00:00:21,800
+One tap, no paper.
+
+6
+00:00:22,200 --> 00:00:26,593
+The manager sees the monthly timesheet
+fill itself in,
+
+7
+00:00:26,593 --> 00:00:31,800
+with overtime and night hours, and approves
+it. The administrator locks the month.
+
+8
+00:00:32,200 --> 00:00:36,314
+Leave requests follow the company's
+approval chain.
+
+9
+00:00:36,314 --> 00:00:41,800
+Balances update themselves, and the team
+calendar shows who is away.
+
+10
+00:00:42,200 --> 00:00:46,861
+Hire someone or change a salary, and the
+event is ready for REGES-Online,
+
+11
+00:00:46,861 --> 00:00:50,437
+the national employee register, with its
+legal deadline.
+
+12
+00:00:50,437 --> 00:00:55,800
+It is filed over the official API, and the
+answer comes back to the employee's file.
+
+13
+00:00:56,200 --> 00:01:00,075
+Health and safety briefings show as a
+traffic light:
+
+14
+00:01:00,075 --> 00:01:03,800
+who is due, who is overdue, and who never
+had one.
+
+15
+00:01:04,200 --> 00:01:08,486
+Accountants get the payroll exports, the
+tax-return file and the bank file,
+
+16
+00:01:08,486 --> 00:01:11,057
+and one login for all their client
+companies.
+
+17
+00:01:11,057 --> 00:01:13,800
+Payroll is now in validation with an
+accountant.
+
+18
+00:01:14,200 --> 00:01:17,722
+Fleet, inventory, onboarding, courses:
+
+19
+00:01:17,722 --> 00:01:21,800
+each company gets only the modules it
+needs.
+
+20
+00:01:22,200 --> 00:01:28,375
+One flat price per company, from 149 lei a
+month, and the first month is free.
+
+21
+00:01:28,375 --> 00:01:29,800
+administrativo.ro.

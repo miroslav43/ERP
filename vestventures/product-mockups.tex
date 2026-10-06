@@ -1,0 +1,278 @@
+% =====================================================================
+%  ADMINISTRATIVO - Product screenshot book (landscape A4)
+%  Vest Ventures application, "Other files" (mockups).
+%  One screenshot per page; captions are taken from _surse/fapte.md
+%  (sections 1 and 9). Do not add claims listed in fapte.md section 10.
+%  Compile: tectonic -X compile product-mockups.tex --keep-logs
+% =====================================================================
+\documentclass[10pt]{article}
+\usepackage[a4paper,landscape,top=11mm,bottom=14mm,left=14mm,right=14mm,footskip=7mm]{geometry}
+\usepackage{xcolor}
+\newcommand{\limbaprincipala}{english}
+\input{tema/baza}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{multicol}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\AtBeginDocument{\RaggedRight}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[L]{\scriptsize\color{brandSlate}{\titlufont ADMINISTRATIVO}\quad Product screenshots \textperiodcentered{} live application, demo company data}
+\fancyfoot[R]{\scriptsize\color{brandSlate}\textbf{\thepage}}
+
+\newcounter{captura}
+\newcommand{\totalcapturi}{19}
+
+% Group pill
+\newcommand{\grup}[2]{%
+  \tikz[baseline=(x.base)]{\node[fill=#1,text=white,rounded corners=2.5pt,
+    inner xsep=6pt,inner ysep=2.6pt,font=\bfseries\scriptsize] (x) {\MakeUppercase{#2}};}}
+
+% Contents line on the cover
+\newcommand{\cuprins}[2]{#1\dotfill\pageref{cap:#2}\par\vspace{1.6pt}}
+
+% Desktop screenshot page: \desktop{file}{colour}{group}{module name}{caption}
+\newcommand{\desktop}[5]{%
+  \clearpage
+  \stepcounter{captura}\label{cap:#1}%
+  \grup{#2}{#3}\hspace{7pt}{\small\color{brandSlate}\arabic{captura}\,/\,\totalcapturi
+    \hspace{6pt}\textperiodcentered\hspace{6pt}module key: \texttt{\detokenize{#1}}}\par
+  \vspace{5pt}
+  {\titlufont\bfseries\fontsize{19}{22}\selectfont\color{brandNavy}#4\par}
+  \vspace{4pt}
+  {\color{brandBlue}\rule{1.7cm}{2.2pt}}\par
+  \vspace{5pt}
+  \begin{minipage}[t]{0.94\linewidth}\RaggedRight
+    \fontsize{10}{13}\selectfont\color{brandNavy}#5
+  \end{minipage}\par
+  \vfill
+  \begin{center}
+    \setlength{\fboxsep}{0pt}\setlength{\fboxrule}{0.6pt}%
+    \fcolorbox{brandLine}{white}{\includegraphics[height=133mm]{assets/capturi/#1.jpg}}
+  \end{center}
+  \vfill
+}
+
+% Phone screenshot page: \telefon{file}{colour}{group}{module name}{caption}
+\newcommand{\telefon}[5]{%
+  \clearpage
+  \stepcounter{captura}\label{cap:#1}%
+  \begin{minipage}[t]{0.56\linewidth}\vspace{0pt}\RaggedRight
+    \grup{#2}{#3}\hspace{7pt}{\small\color{brandSlate}\arabic{captura}\,/\,\totalcapturi
+      \hspace{6pt}\textperiodcentered\hspace{6pt}phone screen, \texttt{\detokenize{#1}}}\par
+    \vspace{5pt}
+    {\titlufont\bfseries\fontsize{19}{22}\selectfont\color{brandNavy}#4\par}
+    \vspace{4pt}
+    {\color{brandBlue}\rule{1.7cm}{2.2pt}}\par
+    \vspace{7pt}
+    {\fontsize{11}{15}\selectfont\color{brandNavy}#5\par}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.38\linewidth}\vspace{0pt}\centering
+    \setlength{\fboxsep}{0pt}\setlength{\fboxrule}{0.6pt}%
+    \fcolorbox{brandLine}{white}{\includegraphics[height=172mm]{assets/capturi/#1.jpg}}
+  \end{minipage}
+}
+
+\usepackage{hyperref}
+\hypersetup{pdftitle={Administrativo - Product screenshots},pdfauthor={Administrativo},pdfsubject={Vest Ventures pre-seed application},hidelinks}
+
+\begin{document}
+
+% ---------------------------------------------------------------------
+% Cover
+% ---------------------------------------------------------------------
+\thispagestyle{empty}
+\begin{minipage}[t][178mm]{0.47\linewidth}\vspace{0pt}\RaggedRight
+  \vspace*{6mm}
+  \includegraphics[width=70mm]{assets/sigla-administrativo.pdf}\par
+  \vspace{30mm}
+  {\color{brandBlue}\rule{2.2cm}{3pt}}\par
+  \vspace{5mm}
+  {\titlufont\bfseries\fontsize{30}{34}\selectfont\color{brandNavy}Product\\screenshots\par}
+  \vspace{5mm}
+  {\large\color{brandSlate}HR \& administration SaaS for Romanian SMEs\\
+   administrativo.ro\par}
+  \vspace{12mm}
+  \begin{tcolorbox}[enhanced,arc=3pt,colback=brandMist,colframe=brandTeal,boxrule=0pt,
+      borderline west={3pt}{0pt}{brandTeal},left=9pt,right=9pt,top=7pt,bottom=7pt]
+    \RaggedRight
+    {\bfseries\color{brandNavy}Screenshots from the live application, demo company data.}\par
+    \vspace{5pt}
+    {\small\color{brandNavy}
+    Captured from the demo company \emph{Administrativo Demo SRL} (8 fictitious
+    employees); names and figures are not real customer data. The application
+    interface is in Romanian; captions are in English. Desktop screens are
+    1280\,×\,800, phone screens 780\,×\,1688.\par
+    \vspace{4pt}
+    Not shown: the AI assistant. No screenshot of it has been captured
+    yet.\par}
+  \end{tcolorbox}
+  \vfill
+  {\footnotesize\color{brandSlate}Prepared for the Vest Ventures application \textperiodcentered{} 6 October 2026\par}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.45\linewidth}\vspace{0pt}
+  \vspace*{6mm}
+  {\titlufont\bfseries\large\color{brandNavy}Contents\par}
+  \vspace{2pt}{\color{brandBlue}\rule{1.2cm}{2pt}}\par\vspace{8pt}
+  \small\color{brandNavy}
+  {\bfseries\color{brandSlate}\footnotesize CORE\par}\vspace{2pt}
+  \cuprins{Core: employees \& organisation}{nucleu}
+  \vspace{4pt}{\bfseries\color{brandSlate}\footnotesize HR\par}\vspace{2pt}
+  \cuprins{Attendance (time tracking)}{attendance}
+  \cuprins{Leave}{leave}
+  \cuprins{REGES-Online filing}{reges}
+  \cuprins{Onboarding / offboarding}{onboarding}
+  \cuprins{Courses}{courses}
+  \cuprins{Performance reviews}{evaluations}
+  \cuprins{KPIs}{kpi}
+  \vspace{4pt}{\bfseries\color{brandSlate}\footnotesize FINANCE\par}\vspace{2pt}
+  \cuprins{Payroll}{payroll}
+  \cuprins{Travel \& per diem}{per_diem}
+  \cuprins{Reports}{rapoarte}
+  \vspace{4pt}{\bfseries\color{brandSlate}\footnotesize OPERATIONS\par}\vspace{2pt}
+  \cuprins{Fleet}{fleet}
+  \cuprins{Maintenance}{maintenance}
+  \cuprins{Inventory}{inventory}
+  \cuprins{Health \& safety (SSM/PSI)}{ssm}
+  \cuprins{IT ticketing}{ticketing}
+  \vspace{4pt}{\bfseries\color{brandSlate}\footnotesize COMMUNICATION\par}\vspace{2pt}
+  \cuprins{Announcements}{announcements}
+  \vspace{4pt}{\bfseries\color{brandSlate}\footnotesize EMPLOYEE PORTAL (PHONE)\par}\vspace{2pt}
+  \cuprins{Clock-in card}{portal-pontare}
+  \cuprins{Clock-in by QR poster}{portal-scanare}
+\end{minipage}
+
+% ---------------------------------------------------------------------
+% Core
+% ---------------------------------------------------------------------
+\desktop{nucleu}{brandNavy}{Core}{Core: employees \& organisation}{%
+  The personnel register of the demo company, with roles, filters and Excel
+  import of employees (column mapping and a per-row validation report). The
+  core also holds departments, the org chart, work locations, personnel files
+  and an append-only audit log; one user can belong to several companies and
+  switch between them without signing out.}
+
+% ---------------------------------------------------------------------
+% HR
+% ---------------------------------------------------------------------
+\desktop{attendance}{brandBlue}{HR}{Attendance (time tracking)}{%
+  Monthly timesheet for August 2026. Attendance covers a monthly timesheet and
+  weekly plan, overtime and night hours, approval by department or week, and
+  month locking and archiving; employees clock in from their phone (see the
+  last two pages).}
+
+\desktop{leave}{brandBlue}{HR}{Leave}{%
+  Team leave calendar for one month. Requests go through a configurable
+  approval chain, balances are computed automatically with public holidays
+  excluded, and 11 leave types are seeded, each with a legal-basis note that is
+  being checked together with the payroll values.}
+
+\desktop{reges}{brandBlue}{HR}{REGES-Online filing}{%
+  REGES-Online is the Labour Inspectorate's (ITM) mandatory electronic employee
+  register: every hire, salary change, suspension and termination must be filed
+  there. This is the connection screen of the demo company, which is
+  deliberately not connected. Each employer enters its own API credentials
+  from the REGES portal and chooses the test or production environment; they
+  are stored encrypted (AES-256-GCM). Events are composed from the employee
+  record into a queue with legal deadlines, and messages carrying an
+  employee's personal ID number are sent by a person with transmit rights.
+  Filing through the API has worked in production with a real company since
+  17 September 2026.}
+
+\desktop{onboarding}{brandBlue}{HR}{Onboarding / offboarding}{%
+  Onboarding journeys in progress. Each journey follows a template of
+  reorderable steps (a tick, a document or a signature) and produces a
+  printable proof of completion.}
+
+\desktop{courses}{brandBlue}{HR}{Courses}{%
+  The company's course library, with PDFs and videos consumed inside the
+  application. Completion is proven per item by a tick, the measured percentage
+  watched or a signed declaration, and recertification can be scheduled.}
+
+\desktop{evaluations}{brandBlue}{HR}{Performance reviews}{%
+  Annual reviews, built from review templates with criteria defined by the
+  company, with the history kept per employee.}
+
+\desktop{kpi}{brandBlue}{HR}{KPIs}{%
+  One month of KPIs (August 2026). Monthly targets per employee or team come
+  from reusable indicator sets; closed months cannot be changed, and each
+  employee sees their own KPIs in the employee portal.}
+
+% ---------------------------------------------------------------------
+% Finance
+% ---------------------------------------------------------------------
+\desktop{payroll}{brandTeal}{Finance}{Payroll}{%
+  An approved payroll period with its deliverables: SEPA bank file, accounting
+  note (CSV), payroll register (PDF) and the D112 monthly contributions return
+  (XML, generated but not filed with the tax authority). Payroll is built end
+  to end, with every rate held in dated, versioned settings; its legal values
+  are undergoing accountant validation.}
+
+\desktop{per_diem}{brandTeal}{Finance}{Travel \& per diem}{%
+  Business trips with their estimated per diem. Travel orders support
+  multi-country legs, 24-hour windows counted from departure, country rates and
+  the split at the tax-free ceiling, with a printable expense report.}
+
+\desktop{rapoarte}{brandTeal}{Finance}{Reports}{%
+  Annual aggregated report built from closed payroll periods. Company-wide
+  aggregates (income, leave, meal vouchers) are computed in the database and
+  export to Excel.}
+
+% ---------------------------------------------------------------------
+% Operations
+% ---------------------------------------------------------------------
+\desktop{fleet}{brandSlate}{Operations}{Fleet}{%
+  Company vehicles, each with the first of its documents to expire
+  (inspection, insurance, road tax). Trip sheets record odometer and fuel; the
+  database blocks an odometer going backwards and flags large jumps.}
+
+\desktop{maintenance}{brandSlate}{Operations}{Maintenance}{%
+  The maintenance dashboard. Servicing is planned by days and by counter
+  (hours, km, cycles), with fault reports, parts and labour cost, and ISCIR
+  authorisations (the state inspectorate for boilers, pressure vessels and
+  lifting equipment).}
+
+\desktop{inventory}{brandSlate}{Operations}{Inventory}{%
+  Inventory items and who holds them. Each allocation has a handover date, the
+  employee confirms receipt, and the database prevents one item from being
+  allocated to two people at once.}
+
+\desktop{ssm}{brandSlate}{Operations}{Health \& safety (SSM/PSI)}{%
+  The occupational health \& safety briefing matrix (employee × briefing
+  type), with a due-date traffic light that tells ``never done'' apart from
+  ``expired''. The module also covers occupational medicine, accidents with a
+  reporting countdown, fire extinguishers, PPE and nominal authorisations.}
+
+\desktop{ticketing}{brandSlate}{Operations}{IT ticketing}{%
+  The team's ticket queue, triaged across software, hardware, faults linked to
+  an inventory item and in-app bug reports. Employees see their own tickets in
+  the employee portal.}
+
+% ---------------------------------------------------------------------
+% Communication
+% ---------------------------------------------------------------------
+\desktop{announcements}{brandAmber}{Communication}{Announcements}{%
+  Published internal announcements, with the pinned one on top. Read
+  confirmations are counted against the number of active employees, and every
+  active member receives an in-app notification.}
+
+% ---------------------------------------------------------------------
+% Employee portal (phone)
+% ---------------------------------------------------------------------
+\telefon{portal-pontare}{brandGreen}{Employee portal}{Clock-in card}{%
+  The employee portal home screen on a phone: the employee's own pay summary and the clock-in card.\par\vspace{8pt}
+  The portal shows the employee only their own data: leave balance and
+  requests, attendance and clock-in, payslip, documents, courses, KPIs,
+  tickets, travel and notifications.\par\vspace{8pt}
+  {\color{brandSlate}\small Phone access today is through the browser or as an
+  installable web app (PWA); an Android app is built and in internal testing.}}
+
+\telefon{portal-scanare}{brandGreen}{Employee portal}{Clock-in by QR poster}{%
+  The clock-in screen that opens after the employee scans the QR poster
+  displayed at the work location.}
+
+\end{document}

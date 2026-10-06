@@ -1,0 +1,1180 @@
+% =====================================================================
+%  ADMINISTRATIVO: business plan (English, A4) for the Vest Ventures
+%  application package.
+%
+%  Compile from this directory:
+%      tectonic -X compile business-plan.tex --keep-logs
+%  Engine: XeLaTeX (fontspec). Do NOT compile with pdflatex.
+%
+%  Sources of truth (do not type numbers from memory):
+%    _surse/cifre.json        every financial number (exported from the
+%                             recalculated financial-model.xlsx / cap-table.xlsx)
+%    _surse/fapte.md          product facts verified against the code
+%    _surse/piata.md          market, regulation, competition, benchmarks
+%    _surse/vestventures.md   the investor
+%  Never repeat the unbacked claims listed in docs/comercial/README.md
+%  (geolocation, card reader, announcement targeting/attachments, REGES
+%  auto-retry) or in fapte.md §10.
+% =====================================================================
+\documentclass[10pt,a4paper]{article}
+\usepackage[table]{xcolor}
+\newcommand{\limbaprincipala}{english}
+\input{tema/baza}
+% Numbers generated from _surse/cifre.json (python3 tema/cifre_tex.py).
+% \cf{key} prints a cifre.json value; an unknown key stops the compile.
+\input{tema/cifre}
+% \cfabs{key}: the absolute value of a NEGATIVE cifre.json number (drops the
+% leading '-', so the text can print a typographic minus before the euro sign).
+\makeatletter
+\newcommand{\cfabs}[1]{\expandafter\expandafter\expandafter\cfabs@\csname cff@#1\endcsname\@nil}
+\def\cfabs@-#1\@nil{#1}
+\makeatother
+\usepackage[a4paper,left=19mm,right=19mm,top=24mm,bottom=22mm,headsep=8mm]{geometry}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{xltabular}
+\usepackage{float}
+\usepackage{needspace}
+\usepackage{etoolbox}
+\usepackage{caption}
+\captionsetup{skip=3pt,justification=RaggedRight,singlelinecheck=false}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{enumitem}
+\usepackage{xurl}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true, linkcolor=brandBlue, urlcolor=brandBlue, citecolor=brandBlue,
+  pdftitle={ADMINISTRATIVO: Business plan (pre-seed)},
+  pdfsubject={HR and administration SaaS for Romanian SMEs; pre-seed round of EUR 250,000},
+  pdfauthor={ADMINISTRATIVO co-founders: Miroslav Maletici, Răzvan Pervulescu},
+  pdfkeywords={HR SaaS, Romania, REGES-Online, SME, pre-seed, Vest Ventures}}
+
+% ---------------------------------------------------------------------
+% Layout
+% ---------------------------------------------------------------------
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3.5pt}
+\AtBeginDocument{\RaggedRight}
+% Ragged-right lines may stay short instead of overflowing the margin.
+\setlength{\RaggedRightRightskip}{0pt plus 4em}
+\setlength{\emergencystretch}{2.5em}
+\tolerance=1000
+% File paths break like URLs (xurl), in typewriter type.
+\newcommand{\fisier}[1]{\nolinkurl{#1}}
+\renewcommand{\arraystretch}{1.18}
+\setlist{nosep,leftmargin=1.3em,topsep=2pt}
+\setlist[itemize]{label=\textcolor{brandBlue}{\textbullet}}
+
+\titleformat{\section}
+  {\titlufont\bfseries\Large\color{brandNavy}}
+  {\textcolor{brandBlue}{\thesection}}{0.55em}{}
+  % \nobreak + \leavevmode: the rule under the title must not become a legal
+  % page break (it left ``13 Milestones'' alone at the foot of a page).
+  [\nobreak\vspace{1pt}\nobreak{\leavevmode\color{brandBlue}\rule{1.4cm}{1.8pt}}\nobreak]
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+\titleformat{\subsection}
+  {\titlufont\bfseries\large\color{brandNavy}}
+  {\textcolor{brandBlue}{\thesubsection}}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{9pt}{3pt}
+
+% Keep a heading with some text after it, WITHOUT a negative break penalty:
+% needspace's \penalty-100 plus LaTeX's \@secpenalty (-300) made TeX, under
+% \raggedbottom, break before every heading it could and left pages a third empty.
+\makeatletter
+\newcommand{\cereloc}[1]{\par\begingroup\dimen@=#1\relax
+  \dimen@ii=\pagegoal\advance\dimen@ii-\pagetotal
+  \ifdim\dimen@>\dimen@ii\ifdim\dimen@ii>\z@\vfil\fi\penalty-\@M\fi\endgroup}
+\@secpenalty=0
+\makeatother
+\pretocmd{\section}{\cereloc{8\baselineskip}}{}{}
+\pretocmd{\subsection}{\cereloc{5\baselineskip}}{}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{14pt}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{{\color{brandLine}\hrule height\headrulewidth}}
+\fancyhead[L]{\small\color{brandSlate}\textbf{ADMINISTRATIVO}\enspace Business plan}
+\fancyhead[R]{\small\color{brandSlate}Pre-seed round \textperiodcentered{} 6 October 2026}
+\fancyfoot[L]{\footnotesize\color{brandSlate}Figures after 6 Oct 2026 are projections. Zero paying customers today.}
+\fancyfoot[R]{\footnotesize\color{brandSlate}Page \thepage\ of \pageref*{LastPage}}
+
+% Column types for tabularx: ragged-right text, avoids Underfull boxes.
+\newcolumntype{L}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{Q}[1]{>{\RaggedLeft\arraybackslash}p{#1}}
+
+% Source marker pointing to the appendix.
+\newcommand{\src}[1]{\textsuperscript{\textcolor{brandSlate}{[#1]}}}
+% Placeholder a founder must fill in.
+\newcommand{\tbc}[1][TO CONFIRM]{\textcolor{brandAmber!80!black}{\textbf{[#1]}}}
+% Label for projections.
+\newcommand{\proj}{\textcolor{brandTeal}{\textsc{projection}}}
+
+% Key-fact box.
+\newtcolorbox{faptbox}[1][]{%
+  enhanced, arc=3pt, colback=brandMist, colframe=brandLine, boxrule=0.5pt,
+  borderline west={2.6pt}{0pt}{brandBlue},
+  left=8pt,right=8pt,top=5pt,bottom=5pt, before upper=\RaggedRight, #1}
+\newtcolorbox{alertbox}[1][]{%
+  enhanced, arc=3pt, colback=brandAmber!8, colframe=brandAmber!60, boxrule=0.5pt,
+  borderline west={2.6pt}{0pt}{brandAmber},
+  left=8pt,right=8pt,top=5pt,bottom=5pt, before upper=\RaggedRight, #1}
+
+% Key figure for the summary strip.
+\newcommand{\cifra}[2]{%
+  \begin{minipage}[t]{0.235\linewidth}\vspace{0pt}\centering
+    {\titlufont\bfseries\Large\color{brandBlue}#1}\par\vspace{1pt}
+    {\footnotesize\color{brandSlate}\RaggedRight\centering #2\par}
+  \end{minipage}}
+
+\setcounter{tocdepth}{1}
+\begin{document}
+% Never break the brand name (it rendered as ``ADMIN-ISTRATIVO'').
+\hyphenation{ADMINISTRATIVO}
+
+% =====================================================================
+% Title page
+% =====================================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\vspace*{18mm}
+\includegraphics[height=17mm]{assets/sigla-administrativo.pdf}\par
+\vspace{20mm}
+{\titlufont\bfseries\fontsize{34}{38}\selectfont\color{brandNavy}Business plan\par}
+\vspace{6pt}
+{\color{brandBlue}\rule{2.2cm}{2.4pt}}\par
+\vspace{10pt}
+{\Large\color{brandSlate}HR and administration software for Romanian SMEs,\\
+sold as a subscription at \textbf{administrativo.ro}\par}
+\vspace{16mm}
+\begin{faptbox}
+\begin{tabularx}{\linewidth}{@{}P{0.30\linewidth}L@{}}
+\textbf{Round} & Pre-seed, \textbf{€\cf{round_eur}} (Vest Ventures Accelerator ticket €\cf{round_split.vest_ventures_ticket_eur} + independent angels €\cf{round_split.independent_angels_eur}; angels not yet identified) \\
+\textbf{Valuation} & €\cf{pre_money_eur} pre-money / €\cf{post_money_eur} post-money (founders' proposal) \\
+\textbf{Applying to} & Vest Ventures Accelerator (Timișoara), not Seed: the company has no revenue yet \\
+\textbf{Company} & Romanian SRL; co-founders Miroslav Maletici (51\%) and Răzvan Pervulescu (49\%) \\
+\textbf{Status, 6 Oct 2026} & Product live in production since early September 2026; \textbf{zero paying customers}; free pilots; accountant pilot programme opened 6 Oct 2026 \\
+\end{tabularx}
+\end{faptbox}
+\vfill
+{\small\color{brandSlate}
+Prepared 6 October 2026. Every figure dated after 6 October 2026 is a \textbf{projection} from the
+financial model (\mbox{\texttt{financial-model.xlsx}}) and is labelled as such. Market figures carry
+numbered sources listed in the appendix. Items marked \tbc{} still need a founder's confirmation.
+Currency: EUR; RON converted at 5~RON = 1~EUR.\par
+\vspace{4pt}
+Confidential: prepared for the Vest Ventures application. Contact: contact@administrativo.ro\par}
+\end{titlepage}
+\setcounter{page}{2}
+
+\tableofcontents
+\vspace{6pt}
+\begin{faptbox}
+\small\textbf{How to read this plan.} Sections \ref{sec:rezumat}--\ref{sec:tractiune} describe what exists today and are written from
+the code repository and public sources. Sections \ref{sec:financiar}--\ref{sec:etape} are the plan: every number there comes from the
+recalculated financial model and is a \proj{} built bottom-up from pilots, accountant partners and
+direct trials. Section~\ref{sec:riscuri} lists the risks, including the ones that could stop the plan.
+\end{faptbox}
+
+% =====================================================================
+\section{Executive summary}\label{sec:rezumat}\nobreak
+% =====================================================================
+
+\textbf{What we do.} ADMINISTRATIVO is a multi-tenant web application that runs the
+employer side of HR and administration for a Romanian small or medium company: time
+tracking from the employee's phone, leave, personnel files, filing with
+\textbf{REGES-Online} (the Labour Inspectorate's mandatory electronic employee register)
+through its official API, occupational health and safety (\textbf{SSM}), onboarding,
+courses, performance reviews and KPIs, fleet, maintenance, inventory, IT ticketing,
+announcements, an employee portal and an AI help assistant. Payroll is built and is
+undergoing validation by an accountant. Customers switch on only the modules they need and
+pay a flat monthly price per company.
+
+\textbf{Why now.} Since 1 January 2026, REGES-Online is the only valid employee register in
+Romania. Every hire, salary change, suspension and termination must be filed there, mostly
+within days; late or missing filing is fined up to 8,000 RON per person\src{10}. When the
+deadline was extended in September 2025, only 23\% of employers had migrated\src{8}. About
+526,000 Romanian companies employ at least one person\src{1}. We expect that many of them still
+keep attendance, leave and HR files on paper or in Excel; no survey we know of measures this.
+
+\textbf{Where we are.} Development started on 17 August 2026. The product has been live at
+administrativo.ro since early September 2026: 19 modules, 811 commits, 162 database migrations,
+and tenant isolation enforced by the database itself (row-level security forced on 160 of 164
+tables). Transmission to REGES-Online through the API was confirmed working in production, for a
+real company, on 17 September 2026. We have \textbf{zero paying customers}. Free pilot and demo
+companies use the product. On 6 October 2026 we opened a pilot with up to 10 places for
+accounting practices (sign-up until 15 November 2026; none signed on 6 October).
+
+\textbf{How we will sell.} Accountants are the \emph{strategic} channel: one practice can bring
+several client companies, and we expect employers to trust a tool their accountant recommends.
+In the base model the channel is not yet the largest one. Over 36 months it brings about 155
+of about 420 new paying companies (37\%; 16 of 58 in year~1). Direct trials from search, free
+tools and paid ads bring the rest. Their cost per trial and conversion are untested assumptions
+(Section~\ref{sec:financiar}).
+
+\textbf{The ask.} A €\cf{round_eur} pre-seed round at €\cfm{pre_money_eur}M pre-money. It pays
+every planned cost for \cf{runway_months} months with zero revenue and for \cf{runway_plan_months}
+months on the base plan. It funds both co-founders full time, a partner manager for the
+accountant channel, an onboarding specialist and, from month 13, a developer. The goal is
+100 paying companies by \cf{base.date_to_100} (month \cf{base.months_to_100}), the trigger for a
+seed round.
+
+\vspace{4pt}
+\noindent
+\cifra{€\cfk{round_eur}k}{pre-seed round,\\\cf{investor_pct}\% for investors}\hfill
+\cifra{\cf{runway_months} months}{runway with zero revenue\\(\cf{runway_plan_months} months on plan)}\hfill
+\cifra{\cf{base.customers_m36}}{paying companies at month 36\\(base case, \proj)}\hfill
+\cifra{\cf{unit_economics.ltv_cac}×}{LTV/CAC, year 2\\(base case, \proj)}
+
+\begin{alertbox}
+\small\textbf{Honest summary of the weak points.} No revenue and no paying customer yet; no
+signed pilot or letter of intent yet; the accountant channel is untested, and most modelled
+growth comes from direct and paid trials whose cost and conversion are assumptions; the base
+case is \emph{not} default-alive (it needs a seed round within about six months of the
+month-\cf{base.months_to_100} trigger); payroll legal values still need an accountant's
+sign-off; the code's IP is not yet assigned to the company in writing; the legal basis of
+REGES-Online (HG 295/2025) was annulled at first instance in April 2026 (not final, still
+applicable); the plan covers Romania only; both co-founders are students.
+Section~\ref{sec:riscuri} shows how each is handled.
+\end{alertbox}
+
+% =====================================================================
+\section{Company and founders}\label{sec:firma}\nobreak
+% =====================================================================
+
+\subsection{Legal entity and ownership}
+
+The company is a Romanian limited-liability company (SRL). The operator named on
+administrativo.ro is WISELEARNING S.R.L., Str.\ Metalurgiei nr.~2, Timișoara, Timiș county
+(CUI 50321210, J35/2618/2024), not VAT-registered. Entity holding the cap table below, and
+its activity and annual results for FY2024--FY2025: \tbc. A registered office or operating site
+in Timiș county meets Vest Ventures' West Region requirement\src{27}.
+
+\textbf{Intellectual property.} The code has been written by the two co-founders. On 6 October
+2026 no written assignment of that IP to the company has been signed. The assignment is part of
+the round's legal work (months 1--2 at the latest) and is listed as a risk in
+Section~\ref{sec:riscuri}.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{0.82\linewidth}{@{}Lrrr@{}}
+\toprule
+\textbf{Holder} & \textbf{Today} & \textbf{After pre-seed} & \textbf{After illustrative seed} \\
+\midrule
+Miroslav Maletici (co-founder) & 51.00\% & 37.40\% & 29.92\% \\
+Răzvan Pervulescu (co-founder) & 49.00\% & 35.93\% & 28.75\% \\
+Employee option pool (ESOP) & -- & 10.00\% & 8.00\% \\
+Vest Ventures & -- & 13.33\% & 10.67\% \\
+Independent angels & -- & 3.33\% & 2.67\% \\
+Seed investors (illustrative only) & -- & -- & 20.00\% \\
+\midrule
+\textbf{Founders combined} & \textbf{100.00\%} & \textbf{73.33\%} & \textbf{58.67\%} \\
+\bottomrule
+\end{tabularx}
+\caption*{\footnotesize\color{brandSlate}Source: \fisier{cap-table.xlsx}. No investors and no
+options exist today. Pre-seed modelled as priced equity at €1.25M pre-money with a 10\% pool
+created pre-money. The seed column (€\cfm{illustrative_seed.amount_eur}M at
+€\cfm{illustrative_seed.pre_money_eur}M pre-money) is illustrative and aspirational; no seed
+discussion has taken place (see the financing risk in Section~\ref{sec:riscuri}).}
+\end{table}
+
+\subsection{Founders}
+
+ADMINISTRATIVO has two co-founders. Both write and commit code to the product repository, and
+both are students at the Politehnica University of Timișoara (UPT). There is no formal
+partnership between the company and UPT.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.24\linewidth}P{0.13\linewidth}L@{}}
+\toprule
+\textbf{Name} & \textbf{Role} & \textbf{Background and responsibilities} \\
+\midrule
+Miroslav Maletici & Co-founder & Student, Politehnica University of Timișoara; author of the first
+commit (17 Aug 2026). Area of responsibility, programme and year of study: \tbc \\
+Răzvan Pervulescu & Co-founder & Student, Politehnica University of Timișoara; commits code to the
+product. Area of responsibility, programme and year of study: \tbc \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The plan assumes both co-founders work \textbf{full time} on ADMINISTRATIVO from the close of
+the round, each on a gross salary of €1,500 per month. How this fits their studies (graduation
+dates, reduced course load) must be stated explicitly \tbc{}, because Vest Ventures asks whether
+founders can commit given other obligations\src{27}.
+
+\textbf{How the product is built.} Development is AI-assisted: the repository carries Claude
+Code project tooling, a nightly multi-agent code review and automated documentation. We say
+this openly. It explains how two people shipped 19 modules in seven weeks, and it means the
+moat is not lines of code but regulatory depth, distribution, speed and, over time, data.
+
+\subsection{Planned team}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{0.9\linewidth}{@{}Lrr@{}}
+\toprule
+\textbf{Role} & \textbf{From model month} & \textbf{Gross, €/month} \\
+\midrule
+Co-founder, Miroslav Maletici & 1 (Jan 2027) & 1,500 \\
+Co-founder, Răzvan Pervulescu & 1 (Jan 2027) & 1,500 \\
+Partner and sales manager (accountant channel) & 3 (Mar 2027) & 2,000 \\
+Customer onboarding and support specialist & 4 (Apr 2027) & 1,400 \\
+Full-stack developer & 13 (Jan 2028) & 2,500 \\
+\bottomrule
+\end{tabularx}
+\caption*{\footnotesize\color{brandSlate}Source: financial model, \textit{Assumptions}. Salaries
+are founders' assumptions. Gross salaries rise 5\% a year from year~2 (assumption); the employer
+adds the 2.25\% work-insurance contribution (CAM), to be confirmed by the accountant.}
+\end{table}
+
+% =====================================================================
+\section{Problem and regulatory context}
+% =====================================================================
+
+\subsection{The problem}
+
+A Romanian employer with 5 to 50 people carries the same legal paperwork as a large company,
+usually without an HR department. Our working hypothesis, not yet measured: the office manager
+or the owner keeps the daily attendance record, approves leave, tracks medical checks and safety
+briefings, watches vehicle inspection dates and sends personnel changes to the accountant, who
+may file them with the Labour Inspectorate; much of it lives in paper registers, Excel files and
+messaging apps. Mistakes surface when an inspector visits, and late or missing REGES filings are
+fined per employee\src{10}.
+
+\subsection{Regulatory drivers}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.27\linewidth}L@{}}
+\toprule
+\textbf{Rule} & \textbf{What it requires} \\
+\midrule
+REGES-Online (HG 295/2025)\src{6} & Replaced the REVISAL desktop tool. Every employer files hires,
+salary and job changes, suspensions, secondments and terminations electronically. A new contract
+must be filed at the latest the day before work starts; salary changes within 20 working days;
+other changes within 3 working days\src{9}. \\
+OUG 46/2025\src{7} & Extended the migration deadline to 31 Dec 2025. Since \textbf{1 January 2026}
+REGES-Online is the only valid register; REVISAL was switched off. Only 23\% of employers had
+completed the transition when the extension was granted\src{8}. \\
+REGES API\src{29} & Unlike REVISAL, REGES-Online exposes an API to third-party software; each
+employer obtains its own API access. \\
+Labour Code art.~119\src{11} & Since 2017, every employer keeps a daily record of hours worked by
+each employee, with start and end times, and shows it to inspectors. The format is free (paper,
+Excel or software); an electronic timesheet is \emph{not} mandatory. \\
+Labour Code art.~34\src{11} & The statutory obligation to keep a general employee register,
+independent of the HG that implements it. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Fines} (in RON, the legal currency of the texts; EUR at 5~RON = 1~EUR):
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lrr@{}}
+\toprule
+\textbf{Breach} & \textbf{RON} & \textbf{≈ EUR} \\
+\midrule
+Not enrolling in REGES-Online by the deadline\src{10} & 15,000--20,000 & 3,000--4,000 \\
+Late or missing transmission of contract data, \emph{per person}\src{10} & 3,000--8,000 & 600--1,600 \\
+Incomplete or incorrect data\src{10} & 3,000--6,000 & 600--1,200 \\
+No daily working-time record (Labour Code art.~260(1))\src{11} & 1,500--3,000 & 300--600 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Risk to the thesis, disclosed.} On 2 April 2026 the Constanța Court of Appeal annulled HG
+295/2025 at first instance (Decision 83/2026). The ruling is not final; the request to suspend the
+HG was rejected, so REGES-Online remains applicable while the appeal is pending at the High Court
+of Cassation and Justice\src{12}. No final ruling was found as of 6 October 2026. The duties to
+keep an employee register (art.~34) and a daily working-time record (art.~119) come from the
+Labour Code and do not depend on that case.
+
+\textbf{Tailwind, not yet law.} The EU Pay Transparency Directive (2023/970) had to be transposed
+by 7 June 2026. Romania has a draft law (30 March 2026) still in Parliament; pay-gap reporting
+targets employers with 100+ staff\src{13}. We treat it as a future reason to keep pay data
+structured, not as a current driver.
+
+% =====================================================================
+\section{Product}\label{sec:produs}\nobreak
+% =====================================================================
+
+ADMINISTRATIVO is a web application with a Romanian interface, built on Next.js and Supabase
+Postgres. Each company switches modules on or off; a module that is off disappears from the menu,
+from search and from its direct URL. One user can belong to several companies (for example an
+accountant with several clients) and switch between them without signing out.
+
+\subsection{Modules}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.20\linewidth}L@{}}
+\toprule
+\textbf{Group} & \textbf{Modules (what is built and verified in code)} \\
+\midrule
+Core (always on) & Company, members and e-mail invitations, departments, org chart, work locations,
+personnel files, append-only audit log; Excel import of employees with column mapping and a
+per-row validation report. \\
+HR & \textbf{Attendance}: monthly timesheet and weekly plan, overtime and night hours, approval,
+month locking; employees clock in from their phone, including by scanning a QR poster at the work
+location. \textbf{Leave}: configurable approval chain, automatic balances, public holidays
+excluded, 11 leave types, team calendar. \textbf{REGES-Online} (Section~\ref{sec:reges}). \textbf{Onboarding}
+and offboarding templates. \textbf{Courses} with proof per item and recertification.
+\textbf{Performance reviews} and monthly \textbf{KPIs}. \\
+Finance & \textbf{Payroll}: step-by-step gross-to-net calculation; all rates in dated, versioned
+settings tables; exports for the accountant (accounting note, D112 contributions return as XML,
+payroll register PDF, SEPA bank file). \emph{Built, undergoing accountant validation.}
+\textbf{Travel and per diem} with country rates. \textbf{Reports} with Excel export. \\
+Operations & \textbf{Fleet}: inspection, insurance and road-tax deadlines, trip sheets (the database
+blocks odometer regressions). \textbf{Maintenance}: servicing by date and by counter, fault reports,
+regulated-equipment (ISCIR) authorisations, parts and labour cost. \textbf{Inventory} with
+allocations the employee confirms. \textbf{SSM}: briefing matrix with due-date status, occupational
+medicine, accidents, fire extinguishers, protective equipment. \textbf{IT ticketing}. \\
+Communication & \textbf{Announcements} to the whole company, with read confirmation and in-app
+notification. \\
+Portal and help & \textbf{Employee portal}: own leave, attendance and clock-in, payslip, documents,
+courses, KPIs, tickets, travel. \textbf{AI assistant} (Section~\ref{sec:asistent}). \\
+\bottomrule
+\end{tabularx}
+\caption*{\footnotesize\color{brandSlate}19 module keys in \fisier{src/config/features.ts}. What
+the product does \emph{not} do: it files nothing with ANAF (the tax authority), keeps no general
+ledger, executes no payments, does not track the phone's location and has no badge-reader
+integration.}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\linewidth]{assets/capturi/attendance.jpg}\par
+\vspace{6pt}
+\includegraphics[height=72mm]{assets/capturi/portal-pontare.jpg}\hspace{14mm}%
+\includegraphics[height=72mm]{assets/capturi/portal-scanare.jpg}
+\caption*{\footnotesize\color{brandSlate}Top: monthly timesheet (desktop). Bottom left: employee
+portal clock-in card on a phone. Bottom right: clock-in screen opened by scanning the
+work-location QR poster. Screenshots from the demo company (fictitious employees).}
+\end{figure}
+
+\subsection{Architecture and security}
+
+\begin{itemize}
+\item \textbf{Tenant isolation in the database, not only in the application.} Postgres row-level
+  security is enabled on all 164 public tables and \emph{forced} on 160 of them (the other four are
+  global catalogues and identity tables), with 443 policies. Isolation between client companies is
+  tested by SQL probes (30 files) that check both that nobody sees another company's data and that
+  each role can still write what it should.
+\item \textbf{Encrypted sensitive data.} Personal numeric codes (CNP) and bank accounts (IBAN) are
+  stored with AES-256-GCM, a random IV per value and key versioning. Reading them requires an
+  explicit permission, and decryption for payroll exports leaves an audit row.
+\item \textbf{Append-only audit log}, enforced by a database trigger even for the service role.
+\item \textbf{Five roles} (platform admin, company admin, manager, HR, employee) with scoped
+  permissions (none / own / team / all); every page and every server action checks them.
+\item \textbf{Legal values are data, not code}: payroll, leave, per-diem and working-time values
+  live in dated, versioned tables, so a change in law is a settings change.
+\end{itemize}
+
+\subsection{REGES-Online over the API}\label{sec:reges}\nobreak
+
+The REGES module composes the legally required events from the employee record (hire, salary,
+job, working-time and duration changes, suspension and resumption, secondment, termination,
+corrections) and queues them with their dependencies. It authenticates with each employer's
+own API credentials, stored encrypted and readable only by the server. Messages that carry an
+employee's personal numeric code are sent by a person with transmit rights; network errors are
+retried, rejected messages are not. Receipts and answers are reconciled back onto the employee
+record. Transmission through the production API was confirmed working on 17 September 2026.
+Each customer must first obtain API access from the REGES portal.
+
+\subsection{Mobile}
+
+Employees use the product from their phone. Today this is the browser, installable as a
+progressive web app (PWA). An Android app wrapping the employee portal is built (push
+notifications, biometric lock, QR scanner for clock-in) and in internal testing; it is
+\emph{not} yet in Google Play, and there is no iOS app.
+
+\subsection{AI assistant}\label{sec:asistent}\nobreak
+
+An optional module answers ``where do I do X?'' and links to the right screen, filtered by the
+user's own permissions; it also answers with the user's real figures, such as a leave balance or
+pending approvals. It executes nothing. It runs on an external language model through OpenRouter
+and needs an API key, which is set in the production deployment configuration; each company
+switches the module on for itself.
+
+\subsection{Engineering evidence}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lr@{}}
+\toprule
+\textbf{Metric (repository, 6 Oct 2026)} & \textbf{Value} \\
+\midrule
+Commits since the first one on 17 Aug 2026 & 811 \\
+SQL migrations & 162 \\
+Server actions (each through one 8-layer wrapper) & 246 \\
+Unit and integration test cases (Vitest), static count & 5,610 in 433 files \\
+TypeScript lines under \fisier{src/} (production + tests) & 237,693 + 90,473 \\
+Known open defect markers in tests & 1 (payroll calculation) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\section{Market analysis}
+% =====================================================================
+
+\subsection{The customers}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lrl@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} & \textbf{Year, source} \\
+\midrule
+Companies reporting at least one employee & ≈526,000 & FY2025\src{1} \\
+\quad employees in those companies & 3.88 million & FY2025\src{1} \\
+Active employees, all employers & 5,586,187 & Dec 2025\src{4} \\
+Active enterprises in industry, construction, trade and market services & 693,447 & 2024\src{3} \\
+Enterprises with 10--19 persons employed & 29,461 & 2023\src{2} \\
+Enterprises with 20--49 / 50--249 persons employed & 17,288 / 7,632 & 2023\src{2} \\
+Micro-employers with 1--9 employees (\textsc{derived} estimate) & ≈470,000 & mixed\src{1,2} \\
+Accounting practices: firms + individual practitioners (\textsc{derived}) & ≈18,400 & Dec 2024\src{5} \\
+\bottomrule
+\end{tabularx}
+\caption*{\footnotesize\color{brandSlate}Eurostat counts persons employed (owners included) and
+includes sole proprietors, so it is not mixed with the ICAP CRIF employer count in one ratio
+without saying so. The accountant figure comes from a search excerpt of the CECCAR report; the PDF
+itself is still to be opened and checked.}
+\end{table}
+
+\subsection{TAM, SAM, SOM}
+
+All three are \textsc{derived} from sourced counts and our own list prices, at 5~RON = 1~EUR.
+They are not market-research figures.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.17\linewidth}rL@{}}
+\toprule
+& \textbf{€/year} & \textbf{Formula and basis} \\
+\midrule
+\textbf{TAM} & 188M & 526,000 employers with ≥1 employee × 149 RON (HR core) × 12. Every employer
+needs at least the register, timesheet, leave and HR file\src{1}. \\
+\textbf{SAM} & 58M & 29,461 firms with 10--19 persons × 398 RON × 12 + 24,920 firms with 20--249
+persons × 499 RON × 12\src{2}. Understated, because no price above 20 employees is published. \\
+\textit{SAM extension via accountants} & \textit{16.8M} & ≈470,000 micro-employers × 10\% reachable
+through accountants (\textsc{assumption}) × 149 RON × 12. Shown separately, \emph{not} added to SAM. \\
+\textbf{SOM} (\proj) & \cfK{base.arr_m36_eur}k ARR & Base case at month 36 (\cf{base.date_to_300}): \cf{base.customers_m36} paying companies × ARPA × 12,
+i.e.\ MRR at month 36 × 12. Equals \cf{tam_sam_som.som.share_of_employers_pct}\% of employers. Conservative case: €\cfK{conservative.arr_m36_eur}k; upside: €\cfK{upside.arr_m36_eur}k. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The SOM is built bottom-up in the financial model (pilots, then accountant partners, then direct
+trials), not as a share of the TAM.
+
+% =====================================================================
+\section{Competition}
+% =====================================================================
+
+\begin{table}[H]
+\centering\footnotesize
+\begin{tabularx}{\linewidth}{@{}P{0.20\linewidth}LP{0.12\linewidth}P{0.24\linewidth}@{}}
+\toprule
+\textbf{Product (vendor)} & \textbf{What it is} & \textbf{REGES-Online} & \textbf{Public price} \\
+\midrule
+SmartBill Conta\src{14} & Cloud accounting for accountants, with payroll and D112 & Yes, via API & €0--79 + VAT per client company/month by contract count \\
+SAGA C / SAGA Web\src{15} & Desktop/web accounting and payroll used by accountants & Yes & Program free; web licences 600--2,500 RON/year (third-party summary) \\
+Nexus Salarii\src{16} & Payroll, desktop/online & Yes, via API & Not public \\
+NextUp Salarii\src{17} & Cloud payroll & Yes & Per employee, not public \\
+qPlus\src{18} & HR documents, timesheet, REGES operations & Yes & Tiered; one tier 187.50 RON \\
+Charisma HCM (TotalSoft)\src{19} & Enterprise HR and payroll, 600+ organisations & Not confirmed & Not public \\
+colorful.hr (SD Worx)\src{20} & HR and payroll, ~750 clients at acquisition & Not confirmed & Not public \\
+Pontajj, PontajAngajati, epontez\src{21,22} & Time tracking only & No transmission & €9--49/month flat, or €1.4--2.4 per user \\
+Factorial, Personio, BambooHR, Deel\src{23} & International HR suites & None found & ~€5--8 (Personio, estimate) to US\$25 per employee/month \\
+\bottomrule
+\end{tabularx}
+\caption*{\footnotesize\color{brandSlate}``None found'' / ``Not confirmed'' means no public evidence
+on 6 Oct 2026, not proof of absence. Prices as published by the vendor or a third party, see sources.}
+\end{table}
+
+\textbf{Where we fit.}
+\begin{enumerate}[leftmargin=1.6em]
+\item Payroll plus REGES is crowded and owned by accountants (SmartBill Conta, SAGA, Nexus). We do
+  not sell ``another payroll''. We give the \emph{employer} the daily HR work and hand the accountant
+  clean data and exports.
+\item Time-tracking apps are cheap point tools without REGES, personnel files or SSM.
+\item Enterprise suites (Charisma, colorful.hr) target firms with 100+ employees and do not publish
+  prices.
+\item International suites have no Romanian payroll or REGES integration.
+\end{enumerate}
+Our position: one subscription for the employer side of a 5--250 person company (phone clock-in,
+leave, HR file, SSM, fleet, inventory, onboarding, REGES over the API), which the accountant can
+also log into, at a flat price per company. The defensible core is depth in Romanian compliance
+and the accountant channel, not the code.
+
+% =====================================================================
+\section{Business model and pricing}
+% =====================================================================
+
+We sell a monthly subscription per company, priced flat (not per employee) up to 20 employees.
+The first month is free for any configuration; there is no setup fee. The seller is not
+VAT-registered, so prices are final.
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lrrr@{}}
+\toprule
+\textbf{Plan} & \textbf{RON/month} & \textbf{€/month} & \textbf{Model mix} \\
+\midrule
+HR core (attendance, leave, personnel file, employee portal) & 149 & 29.8 & 45\% \\
+Extended HR (core + REGES, onboarding, courses, SSM, reviews, KPIs) & 249 & 49.8 & 25\% \\
+Operations (core + fleet, maintenance, inventory, announcements, ticketing) & 229 & 45.8 & 10\% \\
+Finance (core + payroll, per diem, reports) & 219 & 43.8 & 5\% \\
+Whole application (all 15 add-ons) & 499 & 99.8 & 15\% \\
+\bottomrule
+\end{tabularx}
+\caption*{\footnotesize\color{brandSlate}Prices from \fisier{src/content/landing/preturi.ts}.
+Add-on modules cost 15--69 RON/month each (payroll 69). The plan mix is a model assumption; Finance
+is kept low while payroll is under validation. Blended list price in year 1: 238 RON (€47.6).}
+\end{table}
+
+\textbf{Revenue drivers.} Paying companies × ARPA. In the base case ARPA is €49.98 in year~2,
+including a 5\% yearly list-price/upsell increase from year~2 (\proj).
+
+\textbf{Accountant economics.} The accountant's own account is free. A referred company pays list
+price; the accountant earns \textbf{20\% of that company's subscription for 6 months} from its first
+paid month. There is no multi-company discount.
+
+\textbf{Known limits of the model.} No price is published above 20 employees (quote on request),
+so larger firms are modelled at list price, which understates their revenue. No billing or payment
+provider is integrated yet: invoicing is manual today, and integrating one is funded by the round.
+
+% =====================================================================
+\section{Go-to-market}\label{sec:gtm}\nobreak
+% =====================================================================
+
+\subsection{Channel 1: accountants (strategic)}
+
+Our hypothesis, to be tested in the pilot: most small employers already work with an accountant,
+and many accountants handle their clients' labour paperwork, including REGES filings.
+ADMINISTRATIVO would take the daily HR work off both of them: the employer records attendance,
+leave and changes; the accountant logs in with one account across clients and takes the exports.
+We call the channel strategic, not dominant: in the base model it brings 37\% of new paying
+companies over 36 months (Section~\ref{sec:canale}), rising from 27\% in year~1 to 41\% in year~3.
+
+\begin{itemize}
+\item \textbf{Pilot (opened 6 Oct 2026):} 10 places for accounting practices, sign-up until 15 Nov
+  2026, 1--3 client companies each, free until 31 Mar 2027. The team imports employees and sets up
+  each company. Payroll enters the pilot only after the accountant validates the legal values. We
+  ask for a 30-minute monthly feedback call and consent to an anonymised case description. As of
+  6 Oct 2026 no practice has signed yet.
+\item \textbf{After the pilot:} a partner and sales manager (from month 3) signs practices. Model
+  assumptions (base): 2 new partners a month in year~1, 3 in year~2, 4 in year~3; each active partner
+  refers one company every five months; half of referrals convert. That gives 24 / 60 / 108 active
+  partners at months 12 / 24 / 36 (\proj), under 1\% of the ≈18,400 practices.
+\end{itemize}
+
+\subsection{Channel 2: search and free tools}
+
+administrativo.ro offers 7 free tools without an account (salary calculator, leave request form,
+attendance register, review form, SSM briefing sheet, vehicle trip sheet, timesheet), 8 legal guides
+(including REGES-Online and working-time records), 19 module pages, 4 industry pages and a page for
+accountants. Search traffic has just started (Section~\ref{sec:tractiune}). Model assumption: 4 organic trials a month
+in year~1, 12 in year~2, 20 in year~3; 25\% of trials convert after the free month (\proj;
+\textbf{untested}: no trial has been run yet).
+
+\subsection{Channel 3: direct and paid}
+
+Founder-led demos (\fisier{/cere-demo}), LinkedIn and paid search on REGES-Online and timesheet
+keywords. The marketing budget grows from €1,500 to €3,500 a month over three years; 60\% of it
+goes to performance ads at an assumed €80 per trial (\proj). Both the €80 per trial and the
+25\% trial conversion are \textbf{untested assumptions}: paid campaigns have not run yet. Paid
+conversions start in model month~2, and over 36 months the base case's 675 paid trials bring
+roughly as many new paying companies as the accountant channel. This is the model's main sensitivity
+(Section~\ref{sec:riscuri}).
+
+\subsection{Sequencing}
+
+\begin{enumerate}[leftmargin=1.6em]
+\item Turn the pilot into evidence: signed pilot agreements, usage data, conversion on 1 April 2027.
+\item Sell a narrow, legally safe core first (attendance, leave, REGES, SSM, employee portal);
+  other modules are upsell.
+\item Start selling payroll only after the accountant's validation (planned for month 5).
+\item Region first (Timiș and the West Region), then national. Expansion to neighbouring markets is a
+  hypothesis for after the seed round (Section~\ref{sec:international}).
+\end{enumerate}
+
+\subsection{International expansion (hypothesis)}\label{sec:international}\nobreak
+
+Nothing in this round's numbers pays for a second country. We state the ambition and how we would
+test it.
+\begin{itemize}
+\item \textbf{Candidate markets:} Moldova, Serbia, Bulgaria and Hungary, the neighbouring markets
+  whose teams Vest Ventures already accepts\src{27}. Each has its own labour-law registers and
+  payroll rules; we have not yet studied them.
+\item \textbf{What carries over as built:} the multi-tenant core with database-enforced isolation,
+  legal values stored as dated settings data rather than code, attendance and clock-in, leave,
+  personnel files, the structure of the health-and-safety, fleet, maintenance and inventory
+  registers, onboarding, courses, reviews, ticketing and the employee portal.
+\item \textbf{What is country-specific:} the REGES-Online integration, payroll rules and statutory
+  returns (such as D112), national leave and safety rules, and the interface language (Romanian
+  only today).
+\item \textbf{Trigger and milestone:} a market scan of one neighbouring country after the seed round
+  closes (after month \cf{base.months_to_100} in the base case), funded by the seed, at zero cost in
+  this round.
+\end{itemize}
+
+% =====================================================================
+\section{Operations and technology}\label{sec:operatiuni}\nobreak
+% =====================================================================
+
+\begin{itemize}
+\item \textbf{Stack:} Next.js 16, React 19, TypeScript, Tailwind CSS, Supabase (Postgres 17) with
+  forced row-level security. The application runs in Docker Swarm behind nginx on a virtual machine;
+  the database is on Supabase cloud. A staging environment exists.
+\item \textbf{Quality gates:} CI runs typecheck, a server-boundary check, lint, format, the test
+  suite, the build and a bundle check on every push. A nightly multi-agent AI review audits the
+  previous day's commits; end-to-end tests run on staging.
+\item \textbf{Onboarding and support:} the team imports employees from Excel, sets up the company
+  and maps accounting accounts with the accountant. From month 4 an onboarding and support specialist
+  with an HR/payroll background does this.
+\item \textbf{Office:} a coworking desk in Timiș county is budgeted from the round (an assumption
+  in the model), to keep operating decisions in the West Region as Vest Ventures requires.
+\item \textbf{Compliance already in place:} published terms of service with a GDPR art.~28
+  data-processing annex (\url{https://administrativo.ro/legal/termeni}); the annex names the
+  sub-processors that touch customer data.
+\item \textbf{Compliance work funded by the round:} round documents; a lawyer's review of the
+  published terms and their GDPR art.~28 processing annex; assignment of the code's IP to the SRL
+  (months 1--2); payroll legal
+  values validated (months 2--5); accessibility audit to EN 301 549, which Vest Ventures requires for
+  software built in its programme (months 5--6); an external penetration test (month 9); professional
+  liability insurance.
+\item \textbf{Infrastructure debt we will close:} one Supabase project serves both development and
+  production today; a separate production project is budgeted. A written procedure for
+  encryption-key custody is still pending and must exist before the first paying tenant. Billing integration and
+  automatic trial expiry are still to be built.
+\end{itemize}
+
+% =====================================================================
+\section{Current status and traction}\label{sec:tractiune}\nobreak
+% =====================================================================
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.20\linewidth}L@{}}
+\toprule
+\textbf{Date} & \textbf{Event} \\
+\midrule
+17 Aug 2026 & First commit \\
+Early Sep 2026 & Product live in production at administrativo.ro; search console set up (2 Sep) \\
+5 Sep 2026 & Android app build for internal testing \\
+17 Sep 2026 & Transmission through the REGES-Online production API confirmed working \\
+6 Oct 2026 & Accountant pilot programme opened and announced on LinkedIn \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.38\linewidth}L@{}}
+\toprule
+\textbf{Metric (6 Oct 2026)} & \textbf{Value} \\
+\midrule
+Paying customers / MRR & \textbf{0 / €0} \\
+Free pilot and demo companies & In use; number of companies and usage data \tbc \\
+Accounting practices signed for the pilot & 0 (sign-up open until 15 Nov 2026) \\
+Website visitors (Umami, 3 Sep--6 Oct) & ≈7 genuine external visitors from Romania in a month \\
+Google Search Console (since 2 Sep) & 201 impressions, 3 clicks; average position improved from ≈50 to 5--20 by end of September \\
+Largest query & ``program salarizare'' (payroll software): 43 impressions, position ≈61 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Validation evidence}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.38\linewidth}L@{}}
+\toprule
+\textbf{Evidence (6 Oct 2026)} & \textbf{Status} \\
+\midrule
+REGES-Online filing by a real employer & Transmission through the production API worked for a real
+company on 17 Sep 2026. Whether the company can be named, or is described anonymously as a free
+user: \tbc \\
+Signed pilot agreements (accountant pilot) & 0; up to 10 places, sign-up open until 15 Nov 2026 \\
+Letters of intent & None in this application \\
+Qualified conversations with accountants and SMEs & Number and dates \tbc \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Reading.} We are pre-launch and SEO has just started. The evidence we can show today is
+execution: a broad product in production in seven weeks, a REGES-Online API integration that has
+filed for a real company, and security built into the database. We do not yet have the signed
+pilots or letters of intent that show validated demand. That is what the next weeks and months
+must produce: signed pilot agreements by 15 November 2026, usage data from pilot companies, and
+the first conversions to paid on 1 April 2027.
+
+% =====================================================================
+\section{Financial plan}\label{sec:financiar}\nobreak
+% =====================================================================
+
+All figures in this section are projections from \fisier{financial-model.xlsx} (live formulas,
+recalculated, no formula errors). Model month 1 is January 2027, the assumed close of the round;
+the date of Vest Ventures Accelerator Cohort 3 is not published, so a later close shifts the whole
+timeline.
+
+\subsection{Three scenarios}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lrrr@{}}
+\toprule
+\textbf{\proj} & \textbf{Conservative} & \textbf{Base} & \textbf{Upside} \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Customers and recurring revenue}} \\
+Paying companies, month 12 & \cf{conservative.customers_m12} & \cf{base.customers_m12} & \cf{upside.customers_m12} \\
+Paying companies, month 24 & \cf{conservative.customers_m24} & \cf{base.customers_m24} & \cf{upside.customers_m24} \\
+Paying companies, month 36 & \cf{conservative.customers_m36} & \cf{base.customers_m36} & \cf{upside.customers_m36} \\
+MRR, month 12 & €\cf{conservative.mrr_m12_eur} & €\cf{base.mrr_m12_eur} & €\cf{upside.mrr_m12_eur} \\
+MRR, month 24 & €\cf{conservative.mrr_m24_eur} & €\cf{base.mrr_m24_eur} & €\cf{upside.mrr_m24_eur} \\
+MRR, month 36 & €\cf{conservative.mrr_m36_eur} & €\cf{base.mrr_m36_eur} & €\cf{upside.mrr_m36_eur} \\
+ARR, month 36 & €\cf{conservative.arr_m36_eur} & €\cf{base.arr_m36_eur} & €\cf{upside.arr_m36_eur} \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Revenue and costs by model year (Jan--Dec)}} \\
+Revenue, year 1 (2027) & €\cf{conservative.revenue_y1_eur} & €\cf{base.revenue_y1_eur} & €\cf{upside.revenue_y1_eur} \\
+Revenue, year 2 (2028) & €\cf{conservative.revenue_y2_eur} & €\cf{base.revenue_y2_eur} & €\cf{upside.revenue_y2_eur} \\
+Revenue, year 3 (2029) & €\cf{conservative.revenue_y3_eur} & €\cf{base.revenue_y3_eur} & €\cf{upside.revenue_y3_eur} \\
+Costs, year 1 (2027) & €\cf{conservative.costs_y1_eur} & €\cf{base.costs_y1_eur} & €\cf{upside.costs_y1_eur} \\
+Costs, year 2 (2028) & €\cf{conservative.costs_y2_eur} & €\cf{base.costs_y2_eur} & €\cf{upside.costs_y2_eur} \\
+Costs, year 3 (2029) & €\cf{conservative.costs_y3_eur} & €\cf{base.costs_y3_eur} & €\cf{upside.costs_y3_eur} \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Milestones and cash}} \\
+30 paying companies & \cf{conservative.date_to_30} & \cf{base.date_to_30} & \cf{upside.date_to_30} \\
+100 paying companies & not in 36 months & \cf{base.date_to_100} & \cf{upside.date_to_100} \\
+300 paying companies & not in 36 months & \cf{base.date_to_300} & \cf{upside.date_to_300} \\
+Break-even (monthly cash flow ≥ 0) & not in 36 months & not in 36 months & month \cf{upside.breakeven_month} (\cf{upside.breakeven_date}) \\
+Runway with zero revenue & \cf{conservative.runway_zero_revenue_months} months & \cf{base.runway_zero_revenue_months} months & \cf{upside.runway_zero_revenue_months} months \\
+Runway on plan & \cf{conservative.runway_plan_months} months & \cf{base.runway_plan_months} months & more than 36 months \\
+Cash at month 36, without a seed round & −€\cfabs{conservative.cash_m36_eur} & −€\cfabs{base.cash_m36_eur} & €\cf{upside.cash_m36_eur} \\
+Net cash flow, month 36 & −€\cfabs{conservative.net_cash_flow_m36_eur} & −€\cfabs{base.net_cash_flow_m36_eur} & €\cf{upside.net_cash_flow_m36_eur} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{alertbox}
+\small\textbf{The base case is not default-alive, and the seed window is short.} At month 36
+monthly cash flow is still −€\cfabs{base.net_cash_flow_m36_eur}, and without a seed round the
+shortfall by month 36 is about €\cfKa{base.cash_low_point_eur}k. The plan raises a seed round from
+the 100-paying-company milestone (month \cf{base.months_to_100}, \cf{base.date_to_100}). At that
+point the base model shows MRR of about €5.3k (ARR about €64k), closing cash of about €52k and a
+burn of about €9.6k a month; cash turns negative in month 26 (February 2029). That leaves about
+six months to close a seed (Section~\ref{sec:riscuri}, financing risk).
+\end{alertbox}
+
+\subsection{New paying companies by channel}\label{sec:canale}\nobreak
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lrrrr@{}}
+\toprule
+\textbf{Base case, \proj} & \textbf{Year 1} & \textbf{Year 2} & \textbf{Year 3} & \textbf{36 months} \\
+\midrule
+Via accountants (pilot conversions + partner referrals) & 16 & 45 & 94 & 155 \\
+Direct (organic, search and paid trials after the free month) & 42 & 88 & 135 & 265 \\
+\midrule
+\textbf{New paying companies, total} & \textbf{58} & \textbf{134} & \textbf{229} & \textbf{420} \\
+Share via accountants & 27\% & 34\% & 41\% & 37\% \\
+\bottomrule
+\end{tabularx}
+\caption*{\footnotesize\color{brandSlate}Source: \fisier{financial-model.xlsx}, sheet
+\textit{Revenue}, rows ``of which via accountants (pilot + partners)'' and ``New paying customers -
+direct'', summed by model year and rounded (the model works in fractional companies, so rows may
+not add up exactly). Trials over 36 months: 432 organic and 675 paid; both convert at an assumed
+25\%.}
+\end{table}
+
+\textbf{Main assumptions (base).} Six practices join the pilot with two companies each; half of the
+pilot companies convert in April 2027; partner and organic acquisition as in Section~\ref{sec:gtm}; monthly logo
+churn 3\%, a target to be tested in the pilot. ChartMogul's median for products under US\$25 ARPA
+is 6.1\%\src{24}; our blended ARPA of about €50 is above that band, but 45\% of modelled customers
+are on the €29.8 HR core plan. Paid-trial cost (€80) and trial conversion (25\%) are untested.
+The conservative case assumes 3 pilot practices, slower partner signing and conversion,
+5\% monthly churn and a developer from month 19; the upside assumes 10 pilot practices, faster
+acquisition, 2\% churn and a developer from month 10 (sheet \textit{Scenarios}). Base reaches 300 paying companies at month 36, about half of the 600 in an earlier
+top-down sketch, so it is not a hockey stick.
+
+\subsection{Unit economics (base case, year 2: Jan--Dec 2028)}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.30\linewidth}rL@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} & \textbf{Definition / benchmark} \\
+\midrule
+ARPA & €\cf{unit_economics.arpa_eur}/month & Average revenue per paying company \\
+Contribution margin & \cfn{unit_economics.gross_margin_pct}\% & (ARPA − variable infrastructure − payment fees) / ARPA \\
+Gross margin, P\&L basis & \cf{unit_economics.gross_margin_pnl_pct}\% & After fixed hosting and the onboarding/support salary \\
+CAC, fully loaded & €\cf{unit_economics.cac_eur} & Partner manager salary + marketing + travel + commissions, per new paying company \\
+CAC, paid ads only & €\cf{unit_economics.cac_paid_ads_eur} & Cost per trial / trial conversion (both untested assumptions) \\
+Monthly logo churn & \cfn{unit_economics.monthly_churn_pct}\% & Target, to be tested. Benchmark 6.1\% median for ARPA < US\$25\src{24} \\
+LTV & €\cf{unit_economics.ltv_eur} & ARPA × contribution margin / churn \\
+LTV / CAC & \cf{unit_economics.ltv_cac}× & LTV divided by fully loaded CAC \\
+CAC payback & \cf{unit_economics.payback_months} months & SMB SaaS median ≈11 months, 6--14 healthy; 3--9 typical below US\$5k ACV, so ours is above that\src{25} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Runway}
+
+With zero revenue the round pays every planned cost for \textbf{\cf{runway_months} months}; on the base plan cash
+lasts \textbf{\cf{runway_plan_months} months}. If only the minimum private match is found (Vest Ventures €\cfk{round_split.vest_ventures_ticket_eur}k + €20k, a
+€\cfk{round_split.option_a_eur}k round), the zero-revenue runway is \cf{runway_option_a_zero_revenue_months} months. Cash in the company before the round is set to
+zero (prudent) \tbc.
+
+% =====================================================================
+\section{Funding requirement and use of funds}\label{sec:runda}\nobreak
+% =====================================================================
+
+\subsection{The round}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.30\linewidth}L@{}}
+\toprule
+Stage & Pre-seed. We apply to the Vest Ventures Accelerator (ticket €10k--200k, at least 10\% independent
+private co-investment\src{27}), not to Seed, because we have no revenue. \\
+Amount & \textbf{€\cf{round_eur}} = Vest Ventures €\cf{round_split.vest_ventures_ticket_eur} + independent angels €\cf{round_split.independent_angels_eur} (not identified yet) \\
+Valuation & €\cf{pre_money_eur} pre-money, €\cf{post_money_eur} post-money (founders' proposal) \\
+Ownership after the round & Investors \cf{investor_pct}\% (Vest Ventures \cf{investor_pct_split.vest_ventures}\%, angels \cf{investor_pct_split.angels}\%); ESOP \cf{esop_pct}\%; founders 73.33\% \\
+Instrument & Convertible loan agreement (CLA) or shareholders' agreement (SHA) on Vest Ventures'
+templates. Modelled as priced equity; a CLA would use €\cfm{pre_money_eur}M as the valuation cap (illustrative 20\%
+discount). \\
+ESOP & 10\% of post-money, created before the round (dilutes founders only); a virtual/phantom scheme
+while the company is an SRL \tbc \\
+State aid & Vest Ventures invests under \emph{de minimis} (ceiling €300k per undertaking over three
+years\src{28}); prior aid received: none \tbc \\
+Founder vesting & None today. To be agreed in the investment agreement (for example 4 years with a
+1-year cliff for both co-founders) \\
+Company history & Registered in 2024; revenue and result for FY2024 and FY2025 are given in
+Section~\ref{sec:firma} once confirmed, and the balance sheets go into the data room \\
+Tax regime in the model & Micro-enterprise tax of 1\% of revenue, to be confirmed by the accountant
+(1\% or 3\% depends on activity code and revenue) \\
+IP & Assignment of the code's IP to the company: not yet signed; planned in months 1--2 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Why €\cfm{pre_money_eur}M pre-money.} We found no sourced Romanian or CEE pre-seed valuation benchmark. A
+€150--300k round at a typical 10--20\% dilution implies €0.75--3M post-money (\textsc{derived}); with
+zero revenue and student founders we sit in the lower half. The round is below the 2025 Romanian
+average pre-seed round of €\cfK{benchmarks_for_ask.romania_avg_pre_seed_2025_eur}k (average seed: €\cfm{benchmarks_for_ask.romania_avg_seed_2025_eur}M)\src{26}.
+
+\textbf{Structure.} In an SRL, amending the articles (for example, a capital increase for the next
+investor) needs every associate's vote unless the articles say otherwise. At the round we will either
+amend the articles to majority decisions with drag-along, or convert to an SA or a holding structure
+\tbc[TO CONFIRM with a lawyer].
+
+\subsection{Why €250,000 and not less or more}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lrrr@{}}
+\toprule
+\textbf{Round tested (same pre-money)} & \textbf{Runway, zero revenue} & \textbf{Runway on plan} & \textbf{Dilution} \\
+\midrule
+€\cf{round_size_test.0.round_eur}: lower end of the founders' range & \cf{round_size_test.0.runway_zero_revenue_months} months & \cf{round_size_test.0.runway_plan_months} months & \cfn{round_size_test.0.dilution_pct_at_same_pre_money}\% \\
+€\cf{round_size_test.1.round_eur}: VV ticket alone (not allowed) & \cf{round_size_test.1.runway_zero_revenue_months} months & \cf{round_size_test.1.runway_plan_months} months & \cfn{round_size_test.1.dilution_pct_at_same_pre_money}\% \\
+€\cf{round_size_test.2.round_eur}: VV + minimum 10\% private match & \cf{round_size_test.2.runway_zero_revenue_months} months & \cf{round_size_test.2.runway_plan_months} months & \cfn{round_size_test.2.dilution_pct_at_same_pre_money}\% \\
+\textbf{€\cf{round_size_test.3.round_eur}: proposed} & \textbf{\cf{round_size_test.3.runway_zero_revenue_months} months} & \textbf{\cf{round_size_test.3.runway_plan_months} months} & \textbf{\cfn{round_size_test.3.dilution_pct_at_same_pre_money}\%} \\
+€\cf{round_size_test.4.round_eur}: upper end of the founders' range & \cf{round_size_test.4.runway_zero_revenue_months} months & \cf{round_size_test.4.runway_plan_months} months & \cfn{round_size_test.4.dilution_pct_at_same_pre_money}\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+€150k would force a new raise before the accountant channel has a year of data. €300k goes beyond the
+Vest Ventures accelerator ticket and needs €100k of angels nobody has found. €250k reaches the
+seed trigger (100 paying companies, month \cf{base.months_to_100}) inside the runway on plan, but
+only about six months before cash runs out on plan (Section~\ref{sec:riscuri}).
+
+\subsection{Use of funds}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lrr@{}}
+\toprule
+\textbf{Category} & \textbf{€} & \textbf{\%} \\
+\midrule
+Product and engineering (2 co-founders full time, developer) & \cf{use_of_funds.0.eur} & \cfn{use_of_funds.0.pct} \\
+Accountant channel and sales (partner manager, travel, commissions) & \cf{use_of_funds.1.eur} & \cfn{use_of_funds.1.pct} \\
+Marketing (content, SEO, performance ads) & \cf{use_of_funds.3.eur} & \cfn{use_of_funds.3.pct} \\
+Legal, payroll validation, compliance and security & \cf{use_of_funds.4.eur} & \cfn{use_of_funds.4.pct} \\
+Customer onboarding and support & \cf{use_of_funds.2.eur} & \cfn{use_of_funds.2.pct} \\
+Operations and contingency & \cf{use_of_funds.6.eur} & \cfn{use_of_funds.6.pct} \\
+Infrastructure and tools & \cf{use_of_funds.5.eur} & \cfn{use_of_funds.5.pct} \\
+\midrule
+\textbf{Total} & \textbf{\cf{round_eur}} & \textbf{100.0} \\
+\bottomrule
+\end{tabularx}
+\caption*{\footnotesize\color{brandSlate}Each category's share of planned spend over the zero-revenue
+runway (months 1--19), applied to the round. Revenue earned in that period extends the runway.}
+\end{table}
+
+% =====================================================================
+\section{Milestones and KPIs}\label{sec:etape}\nobreak
+% =====================================================================
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}P{0.20\linewidth}L@{}}
+\toprule
+\textbf{Month} & \textbf{Milestone (base case, \proj)} \\
+\midrule
+M1 (Jan 2027) & Pre-seed round closes (assumed); both co-founders full time \\
+M3 (Mar 2027) & Partner and sales manager hired (accountant channel) \\
+M4 (Apr 2027) & Accountant pilot ends (free until 31 Mar 2027); pilot companies convert to paid; onboarding specialist hired \\
+M5 (May 2027) & Payroll legal values validated by an accountant; payroll becomes sellable \\
+M6 (Jun 2027) & Accessibility audit (EN 301 549) completed \\
+M8 (Aug 2027) & 30 paying customers \\
+M9 (Sep 2027) & External penetration test \\
+M13 (Jan 2028) & Developer hired \\
+M19 (Jul 2028) & 100 paying customers: seed-readiness trigger (start seed / Vest Ventures Seed conversations) \\
+M36 (Dec 2029) & 300 paying customers \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}Lrrr@{}}
+\toprule
+\textbf{KPI (base case, \proj)} & \textbf{Month 12} & \textbf{Month 24} & \textbf{Month 36} \\
+\midrule
+Paying companies & \cf{base.customers_m12} & \cf{base.customers_m24} & \cf{base.customers_m36} \\
+MRR & €\cf{base.mrr_m12_eur} & €\cf{base.mrr_m24_eur} & €\cf{base.mrr_m36_eur} \\
+ARR & €\cf{base.arr_m12_eur} & €\cf{base.arr_m24_eur} & €\cf{base.arr_m36_eur} \\
+Active accountant partners & 24 & 60 & 108 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Monthly we will also track: pilot-to-paid conversion (assumed 50\%), trial-to-paid conversion
+(assumed 25\%), monthly logo churn (target at most 3\%), CAC payback (target about 10 months),
+REGES messages transmitted per active company, and weekly active employees per company. Each
+assumption in the model is a named input, so actual results replace assumptions as they arrive.
+
+% =====================================================================
+\section{Risks and mitigations}\label{sec:riscuri}\nobreak
+% =====================================================================
+
+{\small
+\begin{xltabular}{\linewidth}{@{}P{0.36\linewidth}L@{}}
+\toprule
+\textbf{Risk} & \textbf{Mitigation} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Risk (continued)} & \textbf{Mitigation} \\
+\midrule
+\endhead
+\textbf{Regulatory}: HG 295/2025 was annulled at first instance (2 Apr 2026, not final); REGES rules or
+deadlines could change & The register (Labour Code art.~34) and daily timesheet (art.~119) are statutory
+and do not depend on the case. REGES is one module, not the whole product. Legal values live in
+versioned settings tables, so rule changes are configuration. \\
+\textbf{Payroll validation}: every payroll legal value is still marked ``to be confirmed''; one known
+calculation defect is open & Payroll is not sold until an accountant validates it (budgeted, month 5).
+The Finance package is only 5\% of the plan mix. The pilot runs without payroll. \\
+\textbf{No market validation yet}: zero paying customers, no signed pilot or letter of intent; the
+accountant channel is untested & Pilot with up to 10 practices (sign-up until 15 Nov 2026; 0 signed on
+6 Oct; base case assumes 6); pilot conversion measured on 1 April 2027; the model's assumptions are
+explicit inputs and the conservative case is shown. \\
+\textbf{Acquisition assumptions}: most modelled new companies come from direct trials; paid trials at
+€80 each converting at 25\% have never been tested; paid conversions start in model month~2 & This is
+the model's key sensitivity. Paid budget is spent in small, measured steps from month 1; cost per trial
+and conversion are named inputs and are replaced by measured values after the first campaigns. If
+paid trials cost more or convert less, the paid budget is cut and the plan leans on the accountant
+channel and search, which moves the base case towards the conservative case. \\
+\textbf{Financing (seed bridge)}: the base case needs a seed round. At the month-\cf{base.months_to_100}
+trigger (\cf{base.date_to_100}) the base model shows MRR of about €5.3k (ARR about €64k), closing
+cash of about €52k and a burn of about €9.6k a month; cash turns negative in month 26 & About six
+months to close a seed. The illustrative seed (€\cfm{illustrative_seed.amount_eur}M at
+€\cfm{illustrative_seed.pre_money_eur}M pre-money) is aspirational at that ARR. Fallback levers, not
+modelled in the base case: delay the developer hire (month 13) or cut the paid-ads budget; the developer start month and marketing budget are named model inputs, so
+their effect on runway can be tested in the workbook. \\
+\textbf{Single market}: Romania only; REGES is Romania-specific; the UI is in Romanian & Romanian
+compliance depth is the defensible core. Expansion to neighbouring countries (Moldova, Serbia,
+Bulgaria, Hungary) is a hypothesis for after the seed (Section~\ref{sec:international}), not part of
+this plan's numbers. \\
+\textbf{IP ownership}: the code was written by the co-founders and is not yet assigned to the company
+in writing & A written IP assignment from both co-founders to the SRL, completed in months 1--2 at the
+latest, as part of the round's legal work. \\
+\textbf{Competition}: accountant-owned payroll tools (SmartBill, SAGA, Nexus) and cheap time-tracking
+apps & We do not compete on payroll; we serve the employer's daily HR work and give the accountant
+exports and a login. Flat price per company is simple for micro-firms. \\
+\textbf{Founder time}: both co-founders are students & Full-time commitment from the close is a
+condition of the plan, with salaries funded by the round; how it fits their studies \tbc. \\
+\textbf{Key person}: two founders hold all product knowledge & Developer hired in month 13; code,
+migrations and architecture are documented in the repository; CI and tests guard changes. \\
+\textbf{Pricing ceiling}: flat price, no published price above 20 employees & A price for larger
+companies is to be defined; the model understates revenue from them. \\
+\textbf{Security and infrastructure}: HR data is sensitive; one database project serves dev and prod;
+the AI assistant depends on an external model & Forced RLS, encryption, audit log; separate production
+database, external pentest and key-custody procedure funded; the assistant is optional and executes nothing. \\
+\textbf{Timing}: the Cohort 3 date is unknown & The model starts at the close; a later close shifts the
+timeline but not the runway. \\
+\bottomrule
+\end{xltabular}}
+
+% =====================================================================
+\appendix
+\section*{Appendix: sources}
+\addcontentsline{toc}{section}{Appendix: sources}
+% =====================================================================
+
+{\scriptsize
+External sources, retrieved on or before 6 October 2026. ``Excerpt'' means the figure was read from a
+search-engine excerpt and the page itself could not be opened.
+
+\begin{enumerate}[label={[\arabic*]},leftmargin=2.2em,itemsep=1.5pt]
+\item ICAP CRIF analysis of FY2025 financial statements, via Curierul Național (Jul 2026): \url{https://curierulnational.ro/peste-jumatate-de-milion-de-firme-aveau-388-milioane-salariati-in-2025/}
+\item Eurostat, Structural business statistics by size class, \texttt{sbs\_sc\_ovw}, Romania, 2023: \url{https://ec.europa.eu/eurostat/databrowser/view/sbs_sc_ovw/default/table}
+\item INS, active enterprises in industry, construction, trade and market services, 2024 (693,447), via News.ro: \url{https://www.news.ro/economic/ins-romania-active-693-447-intreprinderi-industrie-constructii-comert-servicii-piata-2024-crestere-2-1-cifra-afaceri-s-ridicat-2-68-miliarde-lei-numarul-mediu-salariati-scazut-2-fata-anul-2023-1922403124082025110922248696}
+\item Ministry of Labour data via HotNews (5 Jul 2026): \url{https://hotnews.ro/cati-angajati-sunt-oficial-in-romania-numarul-contractelor-de-munca-active-in-scadere-2292325}
+\item CECCAR 2025 sectoral risk-assessment report (12,776 firms + 5,671 individual practitioners, 31 Dec 2024; excerpt): \url{https://ceccar.ro/ro/wp-content/uploads/2025/08/PDF-Raport-CECCAR-2025-evaluare-risc-spalarea-banilor.pdf}
+\item HG 295/2025 on REGES-Online, Portal Legislativ: \url{https://legislatie.just.ro/Public/DetaliiDocumentAfis/297883}
+\item OUG 46/2025, art.~IV, Portal Legislativ: \url{https://legislatie.just.ro/Public/DetaliiDocumentAfis/302378}; Inspecția Muncii note: \url{https://www.inspectiamuncii.ro/documents/839035/839528/Prelungire+termen+Reges.pdf/8cfc53dc-ee07-447b-a0cc-05c2bd4658ff}
+\item Avocatnet (2025), 23\% of employers migrated: \url{https://www.avocatnet.ro/articol_70344/}
+\item Legislația Muncii, REGES-Online transmission deadlines (2026): \url{https://legislatiamuncii.manager.ro/a/31372/termene-transmitere-reges-online.html}
+\item Fines: Digi24 \url{https://www.digi24.ro/stiri/economie/companii/angajatorii-trebuie-sa-treaca-la-reges-online-pana-la-31-decembrie-ce-risca-firmele-care-nu-respecta-termenul-3547235}; pontajangajati.ro \url{https://pontajangajati.ro/reges-online-termene-amenzi-pontaj/}; Universul Juridic \url{https://www.universuljuridic.ro/registrul-reges-online/}
+\item Labour Code (Legea 53/2003) \url{https://legislatie.just.ro/Public/DetaliiDocument/41625}; art.~119 as amended by Legea 88/2018 \url{https://legeaz.net/monitorul-oficial-315-2018/lege-88-2018-aprobare-oug-modificare-codul-muncii}; art.~260 \url{https://lege5.ro/Gratuit/gi2tknjxgq/art-260-raspunderea-contraventionala-codul-muncii?dp=gu3dmmjzga3tg}
+\item First-instance annulment of HG 295/2025: StartupCafe \url{https://startupcafe.ro/trecerea-la-reges-online-hg-care-a-introdus-noul-sistem-in-locul-revisal-anulata-in-prima-instanta-ce-trebuie-sa-stie-angajatorii-100540}; Juridice.ro \url{https://www.juridice.ro/831975/hg-nr-295-2025-privind-reges-anulata-in-prima-instanta-ce-trebuie-sa-stie-acum-angajatorii.html}
+\item EU Pay Transparency Directive in Romania, Legislația Muncii: \url{https://legislatiamuncii.manager.ro/a/31572/directiva-ue-2023_970-nu-instituie-in-acest-moment-obligatii-directe-in-sarcina-angajatorilor-din-romania-specialistii-explica.html}
+\item SmartBill Conta prices: \url{https://www.smartbill.ro/preturi/contabilitate}
+\item SAGA, REGES-Online: \url{https://www.sagasoftware.ro/reges-online-in-saga/}; prices (third party): \url{https://salariile.ro/saga}
+\item Nexus Salarii and REGES-Online: \url{https://www.docs.nexuserp.ro/articol/conectare-nexus-salarii-la-platforma-reges-online/4833}
+\item NextUp Salarii: \url{https://nextup.ro/soft-salarizare/}
+\item qPlus: \url{https://qplus.ro/}
+\item Charisma HCM (TotalSoft): \url{https://www.charisma.ro/sisteme-software/charisma-nivel-1/charisma-hcm-resurse-umane}
+\item SD Worx acquisition of Romanian Software (colorful.hr): \url{https://www.sdworx.ro/ro-ro/romanian-software-colorful-hr-sd-worx}
+\item Pontajj prices: \url{https://pontajj.ro/}
+\item PontajAngajati \url{https://pontajangajati.ro/premium/}; epontez \url{https://www.epontez.ro/} (excerpts)
+\item Factorial \url{https://www.softwareadvice.com/hr/factorial-profile/}; Personio (third-party estimate) \url{https://costbench.com/software/hr/personio/}; BambooHR \url{https://www.bamboohr.com/pricing/}; Deel \url{https://www.techrepublic.com/article/deel-review/}
+\item ChartMogul, customer churn benchmarks: \url{https://chartmogul.com/blog/good-customer-churn-rate/}
+\item Aleph, CAC payback (secondary): \url{https://www.getaleph.com/answers/cac-payback-period-saas-2026}
+\item How to Web \& Underline Ventures, \textit{Venture in Eastern Europe 2025}, via Romania Insider: \url{https://www.romania-insider.com/romanian-startups-funding-2025}
+\item Vest Ventures programme terms and accelerator stage: \url{https://vestventures.vc/en/programs-terms}; \url{https://vestventures.vc/en/stages-accelerator}; FAQ \url{https://vestventures.vc/en/faq}
+\item Commission Regulation (EU) 2023/2831 (de minimis): \url{https://eur-lex.europa.eu/eli/reg/2023/2831/oj}
+\item Inspecția Muncii, REGES-Online: \url{https://www.inspectiamuncii.ro/en/reges}
+\end{enumerate}
+
+\textbf{Internal evidence} (available in the data room on request): product facts verified against the
+code repository at commit \fisier{e240cfc} (module list \fisier{src/config/features.ts}, prices
+\fisier{src/content/landing/preturi.ts}, accountant offer \fisier{src/content/landing/pentru-contabili.ts},
+REGES client \fisier{src/lib/reges/}, live database catalogue); financial model
+\fisier{financial-model.xlsx} and cap table \fisier{cap-table.xlsx} (recalculated 6 Oct 2026); payroll
+legal values awaiting validation in \fisier{NOTES.md} §3; web analytics from Umami and Google Search
+Console, provided by the founders.
+\par}
+
+\end{document}

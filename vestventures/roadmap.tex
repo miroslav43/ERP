@@ -1,0 +1,205 @@
+% =====================================================================
+%  ADMINISTRATIVO - Roadmap Q4 2026 -> Q4 2028 (one landscape A4 page)
+%  Vest Ventures application, "Other files".
+%  Sources: _surse/fapte.md (what is shipped), _surse/cifre.json
+%  ("milestones", base scenario, runway). No number is typed here that
+%  is not in cifre.json. Compile: tectonic -X compile roadmap.tex --keep-logs
+% =====================================================================
+\documentclass[10pt]{article}
+\usepackage[a4paper,landscape,margin=10mm]{geometry}
+\usepackage{xcolor}
+\newcommand{\limbaprincipala}{english}
+\input{tema/baza}
+\usetikzlibrary{shapes.geometric}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+
+% --- status colours -----------------------------------------------------
+\colorlet{donecol}{brandGreen}
+\colorlet{plancol}{brandBlue}
+\colorlet{projcol}{brandAmber!85!black}
+\colorlet{assumecol}{brandSlate}
+\colorlet{tbccol}{brandBlue}
+\newcommand{\shipfont}{\fontsize{6.5}{7.6}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000}
+\newcommand{\itemfont}{\fontsize{6.5}{7.6}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000}
+
+\tikzset{
+  donemark/.style={circle,fill=donecol,draw=white,line width=0.4pt,inner sep=1.35pt},
+  planmark/.style={diamond,fill=plancol,draw=white,line width=0.4pt,inner sep=1.35pt},
+  projmark/.style={circle,fill=brandAmber,draw=white,line width=0.4pt,inner sep=1.35pt},
+  assumemark/.style={diamond,fill=white,draw=assumecol,line width=0.6pt,inner sep=1.2pt},
+  tbcmark/.style={diamond,fill=white,draw=tbccol,line width=0.7pt,inner sep=1.2pt},
+  doneline/.style={donecol,line width=0.5pt},
+  planline/.style={plancol,line width=0.5pt},
+  projline/.style={brandAmber,line width=0.5pt},
+  assumeline/.style={assumecol,line width=0.5pt,dash pattern=on 1pt off 1pt},
+  tbcline/.style={tbccol,line width=0.5pt,dash pattern=on 1pt off 1pt},
+}
+
+% Timeline geometry (mm): month 0 = 1 Oct 2026, 27 months to 31 Dec 2028.
+\newcommand{\XO}{69}
+\newcommand{\MW}{7.7037}
+% \ms{status}{month (0 = 1 Oct 2026)}{y top}{text width}{date}{text}
+\newcommand{\ms}[6]{%
+  \draw[#1line] ({\XO+\MW*(#2)},#3) -- ++(0,-8.2);
+  \node[anchor=north west,text width=#4,inner sep=0.7pt,fill=white,fill opacity=0.72,text opacity=1,font=\itemfont,align=left]
+    at ({\XO+\MW*(#2)+0.7},{#3+1.95})
+    {{\color{#1col}\bfseries #5}\\[-0.2pt]{\color{brandNavy}#6}};
+  \node[#1mark] at ({\XO+\MW*(#2)},#3) {};
+}
+% Lane: \lane{y top}{height}{colour}{label}
+\newcommand{\lane}[4]{%
+  \fill[#3] (0,#1) rectangle ++(14,-#2);
+  \node[rotate=90,text=white,font=\titlufont\bfseries\fontsize{7.6}{8}\selectfont]
+    at (7,{#1-#2/2}) {#4};
+  \fill[brandMist] (16,#1) rectangle ++(50,-#2);
+  \draw[brandLine,line width=0.4pt] (0,{#1-#2}) -- (277,{#1-#2});
+}
+% Bullet list for the "shipped" panel
+\newcommand{\shipped}[3]{% x, y, items
+  \node[anchor=north west,text width=46.5mm,inner sep=0pt,font=\shipfont,align=flush left]
+    at (#1,#2) {#3};}
+\newcommand{\ok}{{\color{donecol}\faIcon{check}}\hspace{2.5pt}}
+
+\usepackage{hyperref}
+\hypersetup{pdftitle={Administrativo - Roadmap Q4 2026 to Q4 2028},pdfauthor={Administrativo},pdfsubject={Vest Ventures pre-seed application},hidelinks}
+
+\begin{document}
+\begin{tikzpicture}[x=1mm,y=1mm]
+  \useasboundingbox (0,0) rectangle (277,-189);
+  % ------------------------------------------------------------------
+  % Header
+  % ------------------------------------------------------------------
+  \node[anchor=north west,inner sep=0pt] at (0,0)
+    {\includegraphics[width=46mm]{assets/sigla-administrativo.pdf}};
+  \node[anchor=north west,inner sep=0pt,font=\titlufont\bfseries\fontsize{15}{17}\selectfont,text=brandNavy]
+    at (0,-8.3) {Roadmap: Q4 2026 to Q4 2028};
+  \node[anchor=north west,inner sep=0pt,font=\fontsize{7.5}{9}\selectfont,text=brandSlate]
+    at (0,-15.4) {HR \& administration SaaS for Romanian SMEs \textperiodcentered{} administrativo.ro \textperiodcentered{} pre-seed application to Vest Ventures \textperiodcentered{} status as of 6 Oct 2026};
+  % Legend
+  \begin{scope}[shift={(184,-3)}]
+    \node[anchor=west,font=\itemfont\bfseries,text=brandNavy] at (0,0) {Legend};
+    \node[donemark] at (2,-4.2) {};
+    \node[anchor=west,font=\itemfont] at (3.5,-4.2) {Done (verified in code or founder data)};
+    \node[planmark] at (2,-8.2) {};
+    \node[anchor=west,font=\itemfont] at (3.5,-8.2) {Planned};
+    \node[tbcmark] at (2,-12.2) {};
+    \node[anchor=west,font=\itemfont] at (3.5,-12.2) {Planned, date [TO CONFIRM]};
+    \node[projmark] at (52,-4.2) {};
+    \node[anchor=west,font=\itemfont] at (53.5,-4.2) {Projection (base scenario)};
+    \node[assumemark] at (52,-8.2) {};
+    \node[anchor=west,font=\itemfont] at (53.5,-8.2) {Assumption / hypothesis};
+    \node[anchor=west,font=\itemfont,text=brandSlate] at (50.5,-12.2)
+      {Zero paying customers today.};
+    \node[anchor=west,font=\itemfont,text=brandSlate] at (50.5,-15.6)
+      {Model month 1 = Jan 2027 (assumed close).};
+  \end{scope}
+
+  % ------------------------------------------------------------------
+  % Axis: shipped column + 9 quarters
+  % ------------------------------------------------------------------
+  \fill[brandNavy] (16,-21) rectangle ++(50,-7);
+  \node[text=white,font=\bfseries\fontsize{7}{8}\selectfont] at (41,-24.5)
+    {\faIcon{check-circle}\hspace{3pt}Shipped / today (Aug--Oct 2026)};
+  \foreach \q/\lab [count=\i from 0] in {Q4/2026,Q1/2027,Q2/2027,Q3/2027,Q4/2027,Q1/2028,Q2/2028,Q3/2028,Q4/2028}{
+    \pgfmathsetmacro{\xa}{\XO+\MW*3*\i}
+    \pgfmathtruncatemacro{\qpar}{mod(\i,2)}
+    \ifnum\qpar=0 \def\qfill{brandBlue!14}\else\def\qfill{brandBlue!6}\fi
+    \fill[\qfill] (\xa,-21) rectangle ++({\MW*3},-7);
+    \node[font=\bfseries\fontsize{7}{8}\selectfont,text=brandNavy] at ({\xa+\MW*1.5},-24.5) {\q~\lab};
+    % faint quarter separators over the lanes
+    \draw[brandLine,line width=0.3pt] (\xa,-28) -- (\xa,-167);
+  }
+  \draw[brandLine,line width=0.3pt] ({\XO+\MW*27},-28) -- ({\XO+\MW*27},-167);
+  % year boundaries
+  \foreach \m in {3,15}{\draw[brandSlate,line width=0.7pt] ({\XO+\MW*\m},-21) -- ({\XO+\MW*\m},-167);}
+
+  % ------------------------------------------------------------------
+  % Lanes (y top, height): Product 40, GTM 34, Team 31, Funding 34
+  % ------------------------------------------------------------------
+  \lane{-28}{40}{brandBlue}{PRODUCT}
+  \lane{-68}{34}{brandTeal}{GO-TO-MARKET}
+  \lane{-102}{31}{brandSlate}{TEAM}
+  \lane{-133}{34}{brandNavy}{FUNDING}
+
+  % Today line (6 Oct 2026)
+  \draw[brandGreen,line width=0.8pt,dash pattern=on 2pt off 1.2pt] ({\XO+\MW*0.17},-28) -- ({\XO+\MW*0.17},-167);
+  \node[anchor=south,font=\bfseries\fontsize{5.6}{6}\selectfont,text=white,fill=brandGreen,inner sep=1.1pt,rounded corners=1pt]
+    at ({\XO+\MW*0.17},-167.4) {TODAY};
+
+  % ---------------- PRODUCT ----------------
+  \shipped{18}{-30}{%
+    \ok Development started 17 Aug 2026; live at administrativo.ro since early Sep 2026\\
+    \ok 19 modules across HR, payroll, operations and an employee portal\\
+    \ok REGES-Online (labour inspectorate register) filing via API, in production since 17 Sep 2026\\
+    \ok Payroll built; undergoing accountant validation\\
+    \ok Android app built, in internal testing}
+  \ms{tbc}{4}{-31}{29mm}{Q1 2027}{Subscription billing \& invoicing, before pilot companies convert}
+  \ms{plan}{8.5}{-31}{30mm}{Jun 2027}{Accessibility audit (EN 301 549) completed}
+  \ms{tbc}{15.5}{-31}{30mm}{Q1 2028}{iOS app (with the developer hire)}
+  \ms{plan}{7.5}{-43.5}{29mm}{May 2027}{Payroll legal values validated by an accountant: payroll becomes sellable}
+  \ms{plan}{11.5}{-43.5}{30mm}{Sep 2027}{External penetration test}
+  \ms{tbc}{6.5}{-55}{28mm}{Q2 2027}{Android app published in Google Play}
+  \ms{tbc}{10.5}{-55}{30mm}{Q3 2027}{Price for companies above 20 employees published}
+
+  % ---------------- GO-TO-MARKET ----------------
+  \shipped{18}{-70}{%
+    \ok Bilingual site (RO/EN), 7 free tools, 8 legal guides\\
+    \ok Search: 201 impressions, 3 clicks since 2 Sep; pre-launch, SEO just starting\\
+    \ok Demo company for prospects; no signed pilots or paying customers yet\\
+    \ok Accountant pilot offer published (10 practices, 1--3 client companies each)}
+  \ms{done}{0.17}{-71}{31mm}{6 Oct 2026}{Accountant pilot opened; clients free until 31 Mar 2027}
+  \ms{plan}{1.47}{-81.5}{28mm}{15 Nov 2026}{Pilot sign-up closes}
+  \ms{plan}{6.5}{-71}{30mm}{Apr 2027}{Pilot ends; pilot companies convert to paid}
+  \ms{proj}{10.5}{-81.5}{30mm}{Aug 2027}{30 paying customers}
+  \ms{proj}{21.5}{-71}{32mm}{Jul 2028}{100 paying customers: seed-readiness trigger}
+  % beyond the chart
+  \node[anchor=north east,text width=30mm,inner sep=0pt,font=\itemfont,align=right]
+    at ({\XO+\MW*27-4.2},-81.2)
+    {{\color{projcol}\bfseries Dec 2029 (beyond chart)}\\{\color{brandNavy}300 paying customers}};
+  \draw[-{Latex[length=2mm]},brandAmber,line width=0.9pt] ({\XO+\MW*27-3.8},-84.2) -- ({\XO+\MW*27-0.4},-84.2);
+  % expansion hypothesis (text to the left of the marker: the chart ends at Dec 2028)
+  \draw[assumeline] ({\XO+\MW*24},-92) -- ++(0,-8.2);
+  \node[anchor=north east,text width=56mm,inner sep=0.7pt,fill=white,fill opacity=0.72,text opacity=1,font=\itemfont,align=flush right]
+    at ({\XO+\MW*24-0.9},-90.05)
+    {{\color{assumecol}\bfseries Q4 2028 (hypothesis) [TO CONFIRM]}\\[-0.2pt]{\color{brandNavy}Assess a second CEE market (e.g.\ Moldova or Serbia); the Romanian compliance core stays the moat}};
+  \node[assumemark] at ({\XO+\MW*24},-92) {};
+
+  % ---------------- TEAM ----------------
+  \shipped{18}{-104}{%
+    \ok Two co-founders, \mbox{Miroslav Maletici} and \mbox{Răzvan Pervulescu}, both writing code\\
+    \ok 811 commits, 5,610 automated test cases\\
+    \ok AI-assisted development workflow}
+  \ms{plan}{3.5}{-104.5}{86mm}{Jan 2027}{Both co-founders full time; how this fits their studies at Politehnica University of Timișoara (graduation date, part-time or leave) is [TO CONFIRM]}
+  \ms{plan}{5.5}{-114.5}{30mm}{Mar 2027}{Partner \& sales manager hired (accountant channel)}
+  \ms{plan}{6.5}{-124.5}{30mm}{Apr 2027}{Customer onboarding \& support specialist hired}
+  \ms{plan}{15.5}{-104.5}{30mm}{Jan 2028}{Full-stack developer hired}
+
+  % ---------------- FUNDING ----------------
+  \shipped{18}{-135}{%
+    \ok No investors, no options issued\\
+    \ok Cap table: \mbox{Miroslav Maletici 51\,\%}, \mbox{Răzvan Pervulescu 49\,\%}}
+  \ms{plan}{0.17}{-136}{31mm}{Oct 2026}{Application to the Vest Ventures Accelerator}
+  \ms{assume}{3.5}{-147}{42mm}{Jan 2027 (assumed close)}{Pre-seed €250k: €200k Vest Ventures + €50k independent angels}
+  \ms{plan}{21.5}{-136}{32mm}{Jul 2028}{Seed raise starts (at 100 paying customers)}
+  % runway band: Jan 2027 (month 3) -> end Jul 2028 (month 22); plan to Jan 2029
+  \fill[brandBlue!18] ({\XO+\MW*3},-158.6) rectangle ({\XO+\MW*22},-164);
+  \node[font=\bfseries\fontsize{6.3}{7}\selectfont,text=brandNavy] at ({\XO+\MW*12.5},-161.3)
+    {Runway with zero revenue: 19 months (Jan 2027 -- Jul 2028)};
+  \draw[brandBlue,line width=0.6pt,dash pattern=on 2pt off 1pt] ({\XO+\MW*22},-158.6) rectangle ({\XO+\MW*27-0.4},-164);
+  \node[font=\fontsize{5.6}{6.3}\selectfont,text=brandNavy,align=center] at ({\XO+\MW*24.5},-161.3)
+    {on base plan: 25 months\\(to Jan 2029) \faIcon{long-arrow-alt-right}};
+
+  % ------------------------------------------------------------------
+  % Footer notes
+  % ------------------------------------------------------------------
+  \node[anchor=north west,text width=277mm,inner sep=0pt,font=\fontsize{6.3}{7.6}\selectfont,text=brandSlate,align=justify]
+    at (0,-171) {%
+    \textbf{Notes.} Done items are verified against the code repository and the live product, or are founder data such as search and pilot figures (6 Oct 2026). Product items with a hollow diamond close known gaps (billing, app-store publication, larger-company pricing); their dates are [TO CONFIRM] by the founders. Every dated item after 6 Oct 2026 is a plan or a projection, not a commitment.
+    Customer counts are projections from the base scenario of the financial model (financial-model.xlsx); the conservative scenario reaches 15 / 42 / 77 paying companies at months 12 / 24 / 36 and the upside scenario 110 / 344 / 733.
+    The base case is not default-alive: the seed round is part of the plan, and its raise starts in Jul 2028 with about 6 months of planned runway left.
+    The January 2027 close is an assumption, because the Vest Ventures Accelerator Cohort 3 dates are not published.
+    REGES-Online is the Romanian Labour Inspectorate's (ITM) mandatory electronic employee register; SSM is occupational health \& safety.
+    Payroll is built end to end, but its legal values are being validated by an accountant; until then it is not offered to pilot or paying customers as production-ready, although the public price list already shows it.};
+\end{tikzpicture}
+\end{document}
