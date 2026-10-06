@@ -19,6 +19,7 @@ import { stareaCeasului } from "@/domain/attendance/ceas";
 import {
   configPontareRapida,
   cumSeTrateazaCodul,
+  sePonteazaPeZi,
   type ConfigPontareRapida,
 } from "@/domain/attendance/pontare-rapida";
 import { sediiPentruPontaj, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
@@ -233,6 +234,7 @@ export const salveazaZiPontaj = createAction({
     if (ctx.scope !== "all" && input.employee_id !== null) {
       throw businessRule("Nu aveți dreptul să înregistrați pontaj pentru alt angajat.");
     }
+    await refuzaZiuaInVariantaSaptamanala(ctx);
 
     const employeeId = input.employee_id ?? (await fisaProprie(ctx));
 
@@ -548,6 +550,23 @@ interface PregatirePontare {
  * Ordinea nu e arbitrară — se verifică întâi ce e ieftin și refuză cel mai des
  * (modul oprit), abia apoi se plătesc drumurile la bază.
  */
+/** Refuzul unei scrieri pe zi în varianta săptămânală — același text ca triggerul din 0165. */
+const MESAJ_DOAR_SAPTAMANA = "Firma se pontează pe săptămână: completați fișa săptămânii, nu ziua.";
+
+/**
+ * Garda variantei săptămânale pentru scrierile de mână pe o zi (0165).
+ *
+ * Doar pentru cine NU are `attendance:create = all`: responsabilul de pontaj
+ * corectează în continuare foaia colectivă — varianta privește cum se pontează
+ * omul, nu corecturile. Aceeași excepție o face și triggerul din bază, care
+ * rămâne plasa pentru orice cale care ar ocoli acțiunile.
+ */
+async function refuzaZiuaInVariantaSaptamanala(ctx: ActionContext): Promise<void> {
+  if (ctx.scope === "all") return;
+  const pontare = configPontareRapida(await setariPontareRapida(ctx.tenant.organizationId));
+  if (!sePonteazaPeZi(pontare)) throw businessRule(MESAJ_DOAR_SAPTAMANA);
+}
+
 async function pregatirePontareRapida(
   ctx: ActionContext,
   cod: string | null,
@@ -560,6 +579,9 @@ async function pregatirePontareRapida(
   ]);
 
   const pontare = configPontareRapida(randPontare);
+  // Varianta săptămânală (0165) bate orice mod: ceasul și confirmarea pontează
+  // o ZI, iar firma a ales să se ponteze doar pe fișa săptămânii.
+  if (!sePonteazaPeZi(pontare)) throw businessRule(MESAJ_DOAR_SAPTAMANA);
   if (!moduriPermise.includes(pontare.mod)) {
     throw businessRule(
       "Pontarea rapidă nu este activată în acest fel pentru firma dumneavoastră. Completați ziua din „Pontajul meu”.",
@@ -964,6 +986,7 @@ export const stergeZiPontaj = createAction({
   },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    await refuzaZiuaInVariantaSaptamanala(ctx);
     const db = await createServerSupabase();
 
     const { data: existenta, error: eroareExistenta } = await db

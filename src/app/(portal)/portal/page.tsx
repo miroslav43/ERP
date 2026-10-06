@@ -1,7 +1,7 @@
 // src/app/(portal)/portal/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Bell, Check, ChevronRight, Clock, PartyPopper, Plus } from "lucide-react";
+import { Bell, CalendarRange, Check, ChevronRight, Clock, PartyPopper, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
@@ -26,7 +26,7 @@ import {
 import { citesteFluturasulPropriu, perioadaInregistrarii } from "@/lib/queries/payroll";
 import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
 import { zileNepontate } from "@/domain/attendance/zile-nepontate";
-import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 import { urmatoareaZiLibera, zilePanaLa } from "@/domain/calendar/urmatoarea-zi-libera";
 import { sarciniPortal } from "@/domain/portal/sarcini";
 import { listeazaNotificarile } from "@/lib/queries/notifications";
@@ -153,6 +153,7 @@ export default async function PaginaPortal() {
    * butonul ar arăta „Am ieșit" pentru o zi pe care serverul o crede neîncepută.
    */
   const pontare = configPontareRapida(randPontare);
+  const peZi = sePonteazaPeZi(pontare);
   const configZi = configZiDin(setari);
   const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));
   const intervalPropus =
@@ -252,6 +253,7 @@ export default async function PaginaPortal() {
     cursuriDeFacut: restante.deFacut,
     termenCursuri: restante.celMaiApropiatTermen,
     zileNepontate: nepontate.length,
+    peSaptamana: !peZi,
     anunturiNecitite: necitite.length,
     azi,
   });
@@ -398,7 +400,25 @@ export default async function PaginaPortal() {
 
             {/* Butoanele care chiar ponteaza ziua curentă. `inversat`, fiindcă
                 un `varianta="primar"` e tot navy și ar dispărea în card. */}
-            {poatePontaZiua && seLucreazaAzi && pontare.mod !== "oprit" ? (
+            {/*
+              Varianta săptămânală (0165): nicio pontare pe zi — nici butoanele,
+              nici formularul cu ore. Cardul păstrează cifrele zilei și ale lunii
+              și duce la singurul loc în care se pontează acum: fișa săptămânii.
+            */}
+            {poatePontaZiua && !peZi ? (
+              <Link
+                href="/portal/pontajul-meu/saptamana"
+                className={cn(
+                  buton({ varianta: "primar" }),
+                  "bg-primary-foreground text-primary hover:bg-primary-foreground mt-4",
+                )}
+              >
+                <CalendarRange aria-hidden="true" className="size-4" />
+                Completează pontajul săptămânii
+              </Link>
+            ) : null}
+
+            {poatePontaZiua && peZi && seLucreazaAzi && pontare.mod !== "oprit" ? (
               <PontareRapida
                 inversat
                 stare={stareCeas}
@@ -419,7 +439,7 @@ export default async function PaginaPortal() {
               muncit sâmbăta să-și poată scrie orele. Ce nu mai face e să CEARĂ
               pontarea într-o zi liberă.
             */}
-            {poatePontaZiua && lunaDeschisa ? (
+            {poatePontaZiua && peZi && lunaDeschisa ? (
               pontare.mod === "oprit" && seLucreazaAzi ? (
                 <Link
                   href={`/portal/pontajul-meu/zi/${azi}`}

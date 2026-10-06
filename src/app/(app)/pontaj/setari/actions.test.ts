@@ -146,11 +146,21 @@ describe("salveazaPontareaRapida", () => {
       verificare_pontare: "optional",
       program_start: null,
       necesita_aprobare: true,
+      // 0165: un apelant care nu trimite varianta NU mută firma pe săptămână.
+      varianta_pontaj: "zilnic",
     });
     expect(server.apeluriPe("setari_pontare_rapida", "update")).toHaveLength(0);
     // `optional` nu cere niciun afiș: punctele de lucru nu se numără.
     expect(server.apeluriPe("puncte_lucru")).toHaveLength(0);
-    expect(caiRevalidate()).toEqual(["/pontaj", "/pontaj/setari", "/portal", "/portal/ceas"]);
+    expect(caiRevalidate()).toEqual([
+      "/pontaj",
+      "/pontaj/setari",
+      "/pontaj/saptamana",
+      "/portal",
+      "/portal/ceas",
+      "/portal/pontajul-meu",
+      "/portal/pontajul-meu/saptamana",
+    ]);
   });
 
   it("cu rând existent: UPDATE pe id + organizație, cu `.select()` după scriere, nu `.upsert()`", async () => {

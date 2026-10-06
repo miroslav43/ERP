@@ -46,6 +46,7 @@ const CAI = ["/pontaj", "/pontaj/perioade", "/pontaj/aprobare", "/portal", "/por
 const COD = "abcdefghijklmnopqrstuvwxyz012345";
 
 type Rapida = Partial<{
+  varianta_pontaj: string;
   mod_pontare_rapida: string;
   verificare_pontare: string;
   program_start: string | null;
@@ -121,6 +122,24 @@ describe.each([
     preambul(server, admin, { mod_pontare_rapida: "oprit" });
     const r = await actiune({});
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(admin.apeluriPe("employees")).toHaveLength(0);
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+  });
+
+  // Varianta săptămânală (0165) bate orice mod — inclusiv `ambele`, care altfel
+  // ar lăsa să treacă toate trei acțiunile.
+  it("varianta săptămânală ⇒ CONFLICT care trimite la fișa săptămânii, fără scriere", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    preambul(server, admin, {
+      mod_pontare_rapida: "ambele",
+      program_start: "08:00:00",
+      varianta_pontaj: "saptamanal",
+    });
+    const r = await actiune({});
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("fișa săptămânii") },
+    });
     expect(admin.apeluriPe("employees")).toHaveLength(0);
     expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
   });

@@ -6,6 +6,7 @@ const LINISTE: IntrareSarcini = {
   cursuriDeFacut: 0,
   termenCursuri: null,
   zileNepontate: 0,
+  peSaptamana: false,
   anunturiNecitite: 0,
   azi: "2026-09-12",
 };
@@ -77,5 +78,11 @@ describe("sarciniPortal", () => {
       "/portal/pontajul-meu",
       "/portal/anunturi",
     ]);
+  });
+
+  it("pe săptămână, zilele nepontate trimit la fișa săptămânii", () => {
+    const [pontaj] = sarciniPortal({ ...LINISTE, zileNepontate: 2, peSaptamana: true });
+    expect(pontaj?.href).toBe("/portal/pontajul-meu/saptamana");
+    expect(pontaj?.detaliu).toBe("Se completează din pontajul săptămânii");
   });
 });

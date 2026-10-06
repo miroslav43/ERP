@@ -41,6 +41,12 @@ export type IntrareSarcini = Readonly<{
   termenCursuri: string | null;
   /** Zilele lucrătoare nescrise din luna curentă, din `zileNepontate`. */
   zileNepontate: number;
+  /**
+   * Firma se pontează pe săptămână (0165)? Atunci zilele nepontate se
+   * completează din fișa săptămânii, nu din calendar — care nu mai deschide
+   * nicio zi.
+   */
+  peSaptamana: boolean;
   /** Anunțuri publicate pe care omul nu le-a deschis. */
   anunturiNecitite: number;
   azi: string;
@@ -80,8 +86,10 @@ export function sarciniPortal(intrare: IntrareSarcini): readonly SarcinaPortal[]
         intrare.zileNepontate === 1
           ? "O zi nepontată luna aceasta"
           : `${intrare.zileNepontate.toLocaleString("ro-RO")} zile nepontate luna aceasta`,
-      detaliu: "Se completează din calendarul lunii",
-      href: "/portal/pontajul-meu",
+      detaliu: intrare.peSaptamana
+        ? "Se completează din pontajul săptămânii"
+        : "Se completează din calendarul lunii",
+      href: intrare.peSaptamana ? "/portal/pontajul-meu/saptamana" : "/portal/pontajul-meu",
       // Nepontatul nu e urgent în sine: devine urgent la închiderea lunii, iar
       // luna și-o închide firma, nu ecranul ăsta. A-l colora roșu din prima zi
       // ar face din culoare zgomot, exact ca un contor pe zero.

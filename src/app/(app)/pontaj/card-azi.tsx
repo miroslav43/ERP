@@ -1,6 +1,6 @@
 // src/app/(app)/pontaj/card-azi.tsx
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { CalendarRange, Clock } from "lucide-react";
 
 import { buton } from "@/components/ui/buton";
 import { formatDate, oraInBucharest } from "@/lib/format/date";
@@ -9,7 +9,7 @@ import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
 import { stareaLunii } from "@/domain/attendance/luna";
-import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
 import { PontareRapida } from "@/app/(portal)/portal/pontare-rapida";
 
@@ -63,6 +63,34 @@ export async function CardAzi({
   ]);
 
   const pontare = configPontareRapida(randPontare);
+
+  /*
+    Varianta săptămânală (0165): nimic de apăsat pe zi. Cardul rămâne — e locul
+    în care omul caută cum se pontează — dar duce la fișa săptămânii, inclusiv
+    din vizualizarea pe ore, unde grila nu mai primește tragere.
+  */
+  if (!sePonteazaPeZi(pontare)) {
+    return (
+      <section
+        aria-labelledby="pontaj-azi"
+        className="bg-surface border-border rounded-panou flex flex-col gap-3 border p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div>
+          <h2 id="pontaj-azi" className="text-corp text-foreground font-medium">
+            Pontajul dumneavoastră
+          </h2>
+          <p className="text-muted-foreground text-nota">
+            Firma se pontează pe săptămână: completați zilele în fișa săptămânii.
+          </p>
+        </div>
+        <Link href="/pontaj/saptamana" className={buton({ varianta: "primar" })}>
+          <CalendarRange aria-hidden="true" className="size-4" />
+          Completează pontajul săptămânii
+        </Link>
+      </section>
+    );
+  }
+
   const ziDeAzi = zile.find((z) => z.data === azi) ?? null;
   const config = configZiDin(setari);
   const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));

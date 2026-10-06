@@ -21,7 +21,7 @@
 
 import { can, type PermissionMap } from "@/lib/auth/permissions";
 import { setariPontareRapida } from "@/lib/queries/attendance";
-import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { configPontareRapida, type VariantaPontaj } from "@/domain/attendance/pontare-rapida";
 
 export interface FilePontaj {
   /**
@@ -64,6 +64,8 @@ export interface FilePontaj {
    * una care nu. Compusă, regula i-ar fi spus mereu a doua variantă.
    */
   readonly necesitaAprobare: boolean;
+  /** Varianta de pontaj a firmei (0165) — `saptamanal` scoate pontarea pe zi. */
+  readonly varianta: VariantaPontaj;
 }
 
 export async function fileDePontaj(
@@ -77,5 +79,6 @@ export async function fileDePontaj(
     poateVedeaCoduriQr: can(permisiuni, "departments:update", "all"),
     poateVedeaArhiva: can(permisiuni, "attendance:export", "all"),
     necesitaAprobare: config.necesitaAprobare,
+    varianta: config.varianta,
   };
 }

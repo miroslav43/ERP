@@ -860,19 +860,24 @@ export async function istoricSetariPontaj(
  * (`src/domain/attendance/pontare-rapida.ts`), care ține implicitele într-un
  * singur loc, cu teste.
  */
-export async function setariPontareRapida(
+// `cache()`: o pagină de pontaj o cere de până la patru ori — filele, antetul,
+// cardul „Astăzi", secțiunea săptămânii. Varianta de pontaj (0165) a adăugat
+// consumatori; un rând pe firmă nu merită patru drumuri.
+export const setariPontareRapida = cache(async function setariPontareRapida(
   organizationId: string,
 ): Promise<RandPontareRapida | null> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("setari_pontare_rapida")
-    .select("mod_pontare_rapida, verificare_pontare, program_start, necesita_aprobare")
+    .select(
+      "mod_pontare_rapida, verificare_pontare, program_start, necesita_aprobare, varianta_pontaj",
+    )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .maybeSingle<RandPontareRapida>();
   if (error !== null) throw error;
   return data;
-}
+});
 
 /** Un sediu din care se poate alege în formularul zilei (0163). */
 export interface SediuPontaj {

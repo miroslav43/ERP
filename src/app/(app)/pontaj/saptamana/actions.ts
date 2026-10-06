@@ -6,11 +6,11 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import { oreleZilei } from "@/domain/attendance/calcul-ore";
 import { esteWeekend } from "@/domain/attendance/limite-legale";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { zileNelucratoare } from "@/lib/queries/leave";
-import { tipZiAutomat } from "../etichete";
-import { setariPontaj } from "@/lib/queries/attendance";
-import { configZiDin } from "@/domain/attendance/calcul-ore";
-import { scriePontajulSaptamanii } from "./scrie-pontajul";
+import { setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { lunieaSaptamanii } from "@/domain/attendance/saptamana";
+import { todayInBucharest } from "@/lib/format/date";
+import { scrieSaptamanaInPontaj } from "./scrie-pontajul";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
 import { refuzaCandAprobareaEStinsa } from "../aprobarea-firmei";
 import { avertismenteDupaSaptamana, type RezultatCuAvertismente } from "../avertismente";
@@ -59,7 +59,24 @@ export const trimiteSaptamanaPontaj = createAction<
     // pe `valabil_de_la`, iar o săptămână nu traversează o schimbare de
     // parametri decât în cazuri patologice. `saptamana_start` e data de
     // referință.
-    const setari = await setariPontaj(ctx.tenant.organizationId, input.saptamana_start);
+    const [setari, randPontare] = await Promise.all([
+      setariPontaj(ctx.tenant.organizationId, input.saptamana_start),
+      setariPontareRapida(ctx.tenant.organizationId),
+    ]);
+    const peSaptamana = configPontareRapida(randPontare).varianta === "saptamanal";
+
+    /*
+     * În varianta săptămânală (0165) foaia e PONTAJ, nu plan: declară ce s-a
+     * lucrat. O săptămână care n-a început încă n-are ce declara — iar fără
+     * aprobare, trimiterea ei ar scrie pe loc ore în pontaj pentru zile
+     * nelucrate.
+     */
+    if (peSaptamana && input.saptamana_start > lunieaSaptamanii(todayInBucharest())) {
+      throw businessRule(
+        "Fișa de pontaj se completează pentru săptămâna curentă sau pentru una trecută, nu în avans.",
+      );
+    }
+
     const config = {
       orePeZi: setari?.ore_pe_zi ?? 8,
       noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
@@ -138,6 +155,40 @@ export const trimiteSaptamanaPontaj = createAction<
     const zileSarite = Array.isArray(rezultat.zile_sarite)
       ? rezultat.zile_sarite.filter((z): z is string => typeof z === "string")
       : [];
+
+    /*
+     * ── VARIANTA SĂPTĂMÂNALĂ: SĂPTĂMÂNA ÎNCHISĂ DEVINE PONTAJ PE LOC ───────
+     *
+     * Triggerul de trimitere (0118) închide săptămâna singur, fără aprobator,
+     * în două cazuri: firma nu cere aprobare, sau nu există niciun aprobator
+     * (`pas_fara_destinatar`). Până acum, în ambele, nu se scria NIMIC în
+     * pontaj — singurul drum era decizia unui manager, care aici nu vine.
+     * Pentru varianta săptămânală asta ar fi însemnat zero ore la salarizare.
+     *
+     * Se citește STAREA, nu `necesita_aprobare`: ea acoperă ambele cazuri și nu
+     * poate diverge de ce a decis baza. Clientul admin, ca la aprobare — cine
+     * se pontează pe sine are `create = own`, nu dreptul de a scrie zile
+     * aprobate; filtrul pe organizație e explicit.
+     *
+     * În varianta zilnică ramura nu rulează: celelalte variante rămân cum erau.
+     */
+    if (peSaptamana && idSubmisie !== "") {
+      const admin = createAdminSupabase();
+      const { data: submisie, error: eroareSubmisie } = await admin
+        .from("attendance_week_submissions")
+        .select("status")
+        .eq("id", idSubmisie)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .maybeSingle();
+      if (eroareSubmisie !== null) throw eroareSubmisie;
+      if (submisie?.status === "aprobata") {
+        await scrieSaptamanaInPontaj(admin, ctx.tenant.organizationId, idSubmisie, {
+          aprobare: null,
+          rescrie: true,
+          requestId: ctx.requestId,
+        });
+      }
+    }
 
     return {
       id: idSubmisie,
@@ -280,49 +331,16 @@ export const decideSaptamanaPontaj = createAction<
        * explicit pe fiecare interogare de mai jos și în `scriePontajulSaptamanii`.
        */
       const admin = createAdminSupabase();
-
-      // Săptămâna se citește ÎNTÂI: din ea vin și angajatul, și data de la care
-      // se iau setările. Intrarea acțiunii poartă doar `taskId`.
-      const { data: saptamana, error: eroareSaptamana } = await admin
-        .from("attendance_week_submissions")
-        .select("employee_id, saptamana_start")
-        .eq("id", sarcina.entity_id)
-        .eq("organization_id", ctx.tenant.organizationId)
-        .maybeSingle();
-      if (eroareSaptamana !== null) throw eroareSaptamana;
-
-      if (saptamana !== null) {
-        // Setările de la data SĂPTĂMÂNII, nu de azi: `attendance_settings` are
-        // istoric (`valabil_de_la`), iar o normă schimbată între timp n-are
-        // voie să rescrie orele unei săptămâni trecute.
-        const an = Number(saptamana.saptamana_start.slice(0, 4));
-        const [setari, nelucratoare] = await Promise.all([
-          setariPontaj(ctx.tenant.organizationId, saptamana.saptamana_start),
-          // Calendarul firmei, pentru tipul fiecărei zile. Aceeași sursă ca la
-          // ziua individuală — altfel o sâmbătă lucrată ar intra ca zi
-          // obișnuită și n-ar mai primi sporul de repaus.
-          zileNelucratoare(ctx.tenant.organizationId, an, an),
-        ]);
-        const sarbatori = new Set(nelucratoare.nationale.map((z) => z.data));
-        const recuperare = new Set(
-          nelucratoare.organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
-        );
-        const liber = new Set(
-          nelucratoare.organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
-        );
-
-        pontaj = await scriePontajulSaptamanii(
-          admin,
-          ctx.tenant.organizationId,
-          sarcina.entity_id,
-          saptamana.employee_id,
-          configZiDin(setari),
-          (data) => tipZiAutomat(data, sarbatori, recuperare, liber),
-          ctx.user.id,
-          acum,
-          ctx.requestId,
-        );
-      }
+      // Varianta săptămânală (0165): foaia e singura cale de pontare, deci
+      // rândurile ei se rescriu. În varianta zilnică, nimic nu se calcă.
+      const varianta = configPontareRapida(
+        await setariPontareRapida(ctx.tenant.organizationId),
+      ).varianta;
+      pontaj = await scrieSaptamanaInPontaj(admin, ctx.tenant.organizationId, sarcina.entity_id, {
+        aprobare: { de: ctx.user.id, la: acum },
+        rescrie: varianta === "saptamanal",
+        requestId: ctx.requestId,
+      });
     }
 
     return { id: sarcina.entity_id, ...pontaj };

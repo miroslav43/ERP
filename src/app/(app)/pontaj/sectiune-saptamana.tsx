@@ -13,7 +13,7 @@ import {
   sediiPentruPontaj,
   setariPontareRapida,
 } from "@/lib/queries/attendance";
-import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 import { seAlegeSediul } from "@/domain/attendance/sediu";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { fisaMea } from "@/lib/queries/portal";
@@ -127,7 +127,7 @@ export async function SectiuneSaptamana({
     saptamanaStart,
     saptamanaSfarsit,
   );
-  const peZi = intrarilePeZi(intrari);
+  const intrariPeZi = intrarilePeZi(intrari);
 
   const setNationale = new Set(nationale.map((z) => z.data));
   const denumiriSarbatori = new Map(nationale.map((z) => [z.data, z.denumire]));
@@ -141,9 +141,12 @@ export async function SectiuneSaptamana({
   const config = configZiDin(setari);
   const pontare = configPontareRapida(randPontare);
   const programStart = pontare.programStart;
+  // Varianta săptămânală (0165): grila rămâne de citit, dar nu se mai trage pe
+  // ea — ziua se pontează doar din fișa săptămânii.
+  const sePonteazaZiua = sePonteazaPeZi(pontare);
 
   const zile: readonly ZiGrila[] = zileleSaptamanii(saptamanaStart).map((data, index) => {
-    const intrare = peZi[data] ?? null;
+    const intrare = intrariPeZi[data] ?? null;
     const perioada =
       data.slice(0, 7) === saptamanaStart.slice(0, 7) ? perioadaInceput : perioadaSfarsit;
 
@@ -157,17 +160,20 @@ export async function SectiuneSaptamana({
     const perioadaBlocata = perioada !== null && perioada.status === "blocata";
     const dinConcediu = intrare?.esteDinConcediu === true;
     const aprobataFaraDrept = intrare?.aprobat === true && !poateAproba;
-    const editabila = poateEdita && !perioadaBlocata && !dinConcediu && !aprobataFaraDrept;
+    const editabila =
+      poateEdita && sePonteazaZiua && !perioadaBlocata && !dinConcediu && !aprobataFaraDrept;
 
-    const motivBlocare = perioadaBlocata
-      ? "perioada este blocată"
-      : dinConcediu
-        ? "completat din concediul aprobat"
-        : aprobataFaraDrept
-          ? "ziua a fost deja aprobată"
-          : !poateEdita
-            ? "nu aveți dreptul de a înregistra pontaj"
-            : null;
+    const motivBlocare = !sePonteazaZiua
+      ? "firma se pontează pe săptămână — completați „Pontajul săptămânii”"
+      : perioadaBlocata
+        ? "perioada este blocată"
+        : dinConcediu
+          ? "completat din concediul aprobat"
+          : aprobataFaraDrept
+            ? "ziua a fost deja aprobată"
+            : !poateEdita
+              ? "nu aveți dreptul de a înregistra pontaj"
+              : null;
 
     const tipCalendar = tipZiAutomat(data, setNationale, setRecuperare, setLiber);
     const sarbatoare = denumiriSarbatori.get(data) ?? null;
@@ -207,7 +213,7 @@ export async function SectiuneSaptamana({
         angajatId={null}
         eticheta={stareFisa.fisa.full_name ?? stareFisa.fisa.marca}
         poateAproba={poateAproba}
-        poateSterge={poateEdita}
+        poateSterge={poateEdita && sePonteazaZiua}
         azi={azi}
         sedii={sedii}
         alegeSediul={seAlegeSediul(sedii.length, pontare.verificare)}

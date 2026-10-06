@@ -67,12 +67,27 @@ export const salveazaPontareaRapida = createAction({
   audit: {
     action: "update",
     entityType: "setari_pontare_rapida",
-    allow: ["mod_pontare_rapida", "verificare_pontare", "program_start", "necesita_aprobare"],
+    allow: [
+      "mod_pontare_rapida",
+      "verificare_pontare",
+      "program_start",
+      "necesita_aprobare",
+      "varianta_pontaj",
+    ],
   },
   // Ecranele care desenează butoanele de pontare stau în portal, nu sub
   // `/pontaj`: fără căile astea, patronul pornește pontarea și angajatul se uită
   // la un ecran care încă spune că nu e activată.
-  revalidate: ["/pontaj", "/pontaj/setari", "/portal", "/portal/ceas"],
+  // Varianta săptămânală (0165) schimbă și ecranele zilei și ale săptămânii.
+  revalidate: [
+    "/pontaj",
+    "/pontaj/setari",
+    "/pontaj/saptamana",
+    "/portal",
+    "/portal/ceas",
+    "/portal/pontajul-meu",
+    "/portal/pontajul-meu/saptamana",
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
 

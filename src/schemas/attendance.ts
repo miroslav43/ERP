@@ -52,6 +52,8 @@ export type ModPontareRapida = (typeof MODURI_PONTARE_RAPIDA)[number];
  * vrea o firmă care tocmai și-a tipărit primul afiș.
  */
 export const VERIFICARI_PONTARE = ["fara", "optional", "cod_qr"] as const;
+/** 0165 — cum se pontează omul: pe zi, sau doar pe fișa săptămânii. */
+export const VARIANTE_PONTAJ = ["zilnic", "saptamanal"] as const;
 export type VerificarePontare = (typeof VERIFICARI_PONTARE)[number];
 export type StatusPerioada = (typeof STATUS_PERIOADA)[number];
 
@@ -579,6 +581,11 @@ export const setariPontareRapidaSchema = z
      * iar `Boolean(undefined)` e `false` — ceea ce e chiar înțelesul ei.
      */
     necesita_aprobare: z.coerce.boolean(),
+    /*
+     * Varianta de pontaj (0165). Implicit `zilnic`, deci un apelant vechi care
+     * n-o trimite nu mută firma pe săptămână din greșeală.
+     */
+    varianta_pontaj: z.enum(VARIANTE_PONTAJ).default("zilnic"),
   })
   .refine(
     (v) => v.program_start !== null || !["confirmare", "ambele"].includes(v.mod_pontare_rapida),

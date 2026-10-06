@@ -322,10 +322,8 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     Citire în plus, un rând, pe index unic. Nu poate intra în valul de mai jos:
     `poateAproba` intră în antet, construit înaintea ramurii de vizualizare.
   */
-  const { poateAproba, poateConfigura, poateVedeaArhiva, poateVedeaCoduriQr } = await fileDePontaj(
-    tenant.organizationId,
-    permisiuni,
-  );
+  const { poateAproba, poateConfigura, poateVedeaArhiva, poateVedeaCoduriQr, varianta } =
+    await fileDePontaj(tenant.organizationId, permisiuni);
   const poateDeschide = can(permisiuni, "attendance:create", "all");
 
   const azi = todayInBucharest();
@@ -380,7 +378,9 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       titlu="Pontaj"
       descriere={
         vizualizare === "saptamana"
-          ? "Săptămâna proprie, pe ore. Trageți peste o zonă dintr-o zi ca să pontați."
+          ? varianta === "saptamanal"
+            ? "Săptămâna proprie, pe ore. Se pontează din „Pontajul săptămânii”."
+            : "Săptămâna proprie, pe ore. Trageți peste o zonă dintr-o zi ca să pontați."
           : `Luna ${formatMonthYear(an, filtre.luna)}, pentru toți angajații.`
       }
       // Setările s-au întors în antet, ca la concedii: banda de dedesubt e a
@@ -394,7 +394,13 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           poateVedeaCoduriQr={poateVedeaCoduriQr}
         />
       }
-      file={<NavPontaj poateAproba={poateAproba} poateVedeaArhiva={poateVedeaArhiva} />}
+      file={
+        <NavPontaj
+          poateAproba={poateAproba}
+          poateVedeaArhiva={poateVedeaArhiva}
+          varianta={varianta}
+        />
+      }
     />
   );
 

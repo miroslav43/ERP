@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   INDICI_WEEKEND,
   adaugaZile,
+  existaSaptamanaUrmatoare,
+  saptamanaImplicita,
   esteLuni,
   intervalDeTrimis,
   lunieaSaptamanii,
@@ -168,5 +170,28 @@ describe("intervalDeTrimis", () => {
 
   it("indexează weekendul pe poziție, nu pe dată — săptămâna începe luni", () => {
     expect([...INDICI_WEEKEND].sort()).toEqual([5, 6]);
+  });
+});
+
+describe("varianta săptămânală (0165)", () => {
+  // Marți 13 octombrie 2026.
+  const AZI = "2026-10-13";
+
+  it("planul se deschide pe săptămâna viitoare, fișa de pontaj pe cea curentă", () => {
+    expect(saptamanaImplicita(false, AZI)).toBe("2026-10-19");
+    expect(saptamanaImplicita(true, AZI)).toBe("2026-10-12");
+  });
+
+  it("duminica, fișa de pontaj rămâne pe săptămâna care se încheie", () => {
+    expect(saptamanaImplicita(true, "2026-10-18")).toBe("2026-10-12");
+  });
+
+  it("fișa de pontaj nu merge dincolo de săptămâna curentă", () => {
+    expect(existaSaptamanaUrmatoare(true, "2026-10-05", AZI)).toBe(true);
+    expect(existaSaptamanaUrmatoare(true, "2026-10-12", AZI)).toBe(false);
+  });
+
+  it("planul merge înainte oricât", () => {
+    expect(existaSaptamanaUrmatoare(false, "2026-12-28", AZI)).toBe(true);
   });
 });

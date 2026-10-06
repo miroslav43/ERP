@@ -21,12 +21,14 @@ import {
 } from "@/lib/queries/attendance";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { stareaLunii } from "@/domain/attendance/luna";
-import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
+import { lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { seAlegeSediul } from "@/domain/attendance/sediu";
 import type { TipPrezenta } from "@/schemas/attendance";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import { rezumatRegulaPontaj } from "@/app/(app)/pontaj/etichete";
 
+import { DoarPeSaptamana } from "../../../doar-pe-saptamana";
 import { FaraFisa } from "../../../fara-fisa";
 import { ETICHETE_TIP_ZI } from "../../../etichete";
 import { FormularZi } from "./formular-zi";
@@ -151,6 +153,21 @@ export default async function PaginaZiPontaj({
     setariPontareRapida(tenant.organizationId),
     sediiPentruPontaj(tenant.organizationId),
   ]);
+
+  /*
+    Varianta săptămânală (0165): ziua nu se mai scrie de aici — acțiunea și baza
+    o refuză oricum. Linkul duce la săptămâna ZILEI deschise, nu la cea curentă:
+    cine a venit dintr-o notificare despre marțea trecută vrea marțea trecută.
+  */
+  if (!sePonteazaPeZi(configPontareRapida(randPontare))) {
+    return (
+      <div className={`${LATIMI.formular} space-y-4 p-4`}>
+        {antet}
+        <DoarPeSaptamana saptamana={lunieaSaptamanii(zi)} />
+        {inapoi}
+      </div>
+    );
+  }
   /*
     Sediul zilei (0163). Se întreabă doar la firmele cu cel puțin două sedii și
     fără cod QR obligatoriu — `seAlegeSediul`. Ziua deja SCANATĂ nu se mai

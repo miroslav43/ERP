@@ -11737,6 +11737,7 @@ export type Database = {
           program_start: string | null
           updated_at: string
           updated_by: string | null
+          varianta_pontaj: Database["public"]["Enums"]["varianta_pontaj"]
           verificare_pontare: Database["public"]["Enums"]["verificare_pontare"]
         }
         Insert: {
@@ -11750,6 +11751,7 @@ export type Database = {
           program_start?: string | null
           updated_at?: string
           updated_by?: string | null
+          varianta_pontaj?: Database["public"]["Enums"]["varianta_pontaj"]
           verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
         }
         Update: {
@@ -11763,6 +11765,7 @@ export type Database = {
           program_start?: string | null
           updated_at?: string
           updated_by?: string | null
+          varianta_pontaj?: Database["public"]["Enums"]["varianta_pontaj"]
           verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
         }
         Relationships: [
@@ -13809,6 +13812,7 @@ export type Database = {
         | "motocicleta"
         | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
+      varianta_pontaj: "zilnic" | "saptamanal"
       verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
@@ -14375,6 +14379,7 @@ export const Constants = {
         "altele",
       ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
+      varianta_pontaj: ["zilnic", "saptamanal"],
       verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },

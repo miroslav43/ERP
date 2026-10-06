@@ -3,9 +3,10 @@
 // Planul săptămânal: trimiterea (RPC cu orele RE-DERIVATE pe server) și decizia
 // (sarcina + submisia, apoi — doar la aprobare — scrierea în pontaj).
 //
-// `avertismenteDupaSaptamana`, `zileNelucratoare` și `scriePontajulSaptamanii`
-// sunt înlocuite: au testele lor, iar aici contează CE primesc și ce se face
-// cu rezultatul lor.
+// `avertismenteDupaSaptamana`, `zileNelucratoare` și `scrieSaptamanaInPontaj`
+// sunt înlocuite: au testele lor (`scrie-pontajul-varianta.test.ts`), iar aici
+// contează CE primesc și ce se face cu rezultatul lor. La fel setările de
+// pontare rapidă — varianta și aprobarea firmei —, programate pe test.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,14 +36,19 @@ vi.mock("@/lib/auth/permissions", async (orig) =>
 const colaboratori = vi.hoisted(() => ({
   avertismenteDupaSaptamana: vi.fn(),
   zileNelucratoare: vi.fn(),
-  scriePontajulSaptamanii: vi.fn(),
+  scrieSaptamanaInPontaj: vi.fn(),
+  setariPontareRapida: vi.fn(),
+}));
+vi.mock("@/lib/queries/attendance", async (orig) => ({
+  ...(await orig<typeof import("@/lib/queries/attendance")>()),
+  setariPontareRapida: colaboratori.setariPontareRapida,
 }));
 vi.mock("../avertismente", () => ({
   avertismenteDupaSaptamana: colaboratori.avertismenteDupaSaptamana,
 }));
 vi.mock("@/lib/queries/leave", () => ({ zileNelucratoare: colaboratori.zileNelucratoare }));
 vi.mock("./scrie-pontajul", () => ({
-  scriePontajulSaptamanii: colaboratori.scriePontajulSaptamanii,
+  scrieSaptamanaInPontaj: colaboratori.scrieSaptamanaInPontaj,
 }));
 
 import {
@@ -99,7 +105,8 @@ beforeEach(() => {
   vi.setSystemTime(ACUM);
   colaboratori.avertismenteDupaSaptamana.mockReset().mockResolvedValue([]);
   colaboratori.zileNelucratoare.mockReset().mockResolvedValue({ nationale: [], organizatie: [] });
-  colaboratori.scriePontajulSaptamanii.mockReset().mockResolvedValue({ scrise: 5, pastrate: 1 });
+  colaboratori.scrieSaptamanaInPontaj.mockReset().mockResolvedValue({ scrise: 5, pastrate: 1 });
+  colaboratori.setariPontareRapida.mockReset().mockResolvedValue(null);
   return () => vi.useRealTimers();
 });
 
@@ -262,19 +269,23 @@ describe("trimiteSaptamanaPontaj", () => {
   });
 });
 
+/** Rândul din `setari_pontare_rapida`, cu ce diferă de implicit. */
+function rapida(peste: Record<string, unknown> = {}) {
+  return {
+    mod_pontare_rapida: "ceas",
+    verificare_pontare: "optional",
+    program_start: null,
+    necesita_aprobare: true,
+    varianta_pontaj: "zilnic",
+    ...peste,
+  };
+}
+
 /** Programează garda „firma mai cere aprobare?” (`setari_pontare_rapida`). */
-function cereAprobare(server: ClientFals, necesita = true) {
-  server.raspunde("setari_pontare_rapida", "select", {
-    data:
-      necesita === true
-        ? null
-        : {
-            mod_pontare_rapida: "ceas",
-            verificare_pontare: "optional",
-            program_start: null,
-            necesita_aprobare: false,
-          },
-  });
+function cereAprobare(_server: ClientFals, necesita = true) {
+  colaboratori.setariPontareRapida.mockResolvedValue(
+    necesita ? null : rapida({ necesita_aprobare: false }),
+  );
 }
 
 const RESPINGERE = {
@@ -344,7 +355,7 @@ describe("decideSaptamanaPontaj", () => {
     expect(areFiltru(saptamana, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(saptamana?.selectDupaScriere).toBeDefined();
     expect(admin.apeluri).toHaveLength(0);
-    expect(colaboratori.scriePontajulSaptamanii).not.toHaveBeenCalled();
+    expect(colaboratori.scrieSaptamanaInPontaj).not.toHaveBeenCalled();
     expect(caiRevalidate()).toEqual(CAI);
   });
 
@@ -361,52 +372,37 @@ describe("decideSaptamanaPontaj", () => {
     server.raspunde("approval_tasks", "select", { data: { id: ID_1, entity_id: ID_2 } });
     server.raspunde("approval_tasks", "update", { data: { id: ID_1 } });
     server.raspunde("attendance_week_submissions", "update", { data: { id: ID_2 } });
-    admin.raspunde("attendance_week_submissions", "select", {
-      data: { employee_id: ID_3, saptamana_start: "2026-07-13" },
-    });
-    server.raspunde("attendance_settings", "select", { data: setari({ ore_pe_zi: 6 }) });
-    colaboratori.zileNelucratoare.mockResolvedValue({
-      nationale: [{ data: "2026-07-14" }],
-      organizatie: [],
-    });
 
     const r = await decideSaptamanaPontaj({ ...RESPINGERE, decizie: "aprobata" });
 
     expect(r).toEqual({ ok: true, data: { id: ID_2, scrise: 5, pastrate: 1 } });
     const [saptamana] = server.apeluriPe("attendance_week_submissions", "update");
     expect(saptamana?.payload).toMatchObject({ status: "aprobata", motiv_respingere: null });
-    const [citire] = admin.apeluriPe("attendance_week_submissions", "select");
-    expect(areFiltru(citire, "eq", "id", ID_2)).toBe(true);
-    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(colaboratori.zileNelucratoare).toHaveBeenCalledWith(ORG_ID, 2026, 2026);
-    // Setările de la data SĂPTĂMÂNII (luni 13), nu de azi (miercuri 15).
-    const [citireSetari] = server.apeluriPe("attendance_settings", "select");
-    expect(areFiltru(citireSetari, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(areFiltru(citireSetari, "lte", "valabil_de_la", "2026-07-13")).toBe(true);
-
-    const argumente = colaboratori.scriePontajulSaptamanii.mock.calls[0] ?? [];
-    expect(argumente[0]).toBe(admin.client);
-    expect(argumente.slice(1, 4)).toEqual([ORG_ID, ID_2, ID_3]);
-    expect(argumente[4]).toMatchObject({ orePeZi: 6, noapteStart: "22:00" });
-    // Tipul zilei vine din calendarul firmei: 14 iulie e sărbătoare aici.
-    const tipZi = argumente[5] as (data: string) => string;
-    expect(tipZi("2026-07-14")).toBe("sarbatoare");
-    expect(tipZi("2026-07-13")).toBe("lucratoare");
-    expect(argumente.slice(6, 8)).toEqual([USER_ID, ACUM.toISOString()]);
+    // Zilele sosesc aprobate de cel care a apăsat, acum; varianta zilnică NU
+    // rescrie nimic din ce exista deja.
+    expect(colaboratori.scrieSaptamanaInPontaj).toHaveBeenCalledWith(admin.client, ORG_ID, ID_2, {
+      aprobare: { de: USER_ID, la: ACUM.toISOString() },
+      rescrie: false,
+      requestId: expect.any(String),
+    });
   });
 
-  it("aprobarea unei submisii pe care adminul n-o mai găsește nu scrie nimic în pontaj", async () => {
+  it("în varianta săptămânală, aprobarea RESCRIE rândurile săptămânii", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: APROBARE });
-    cereAprobare(server);
+    colaboratori.setariPontareRapida.mockResolvedValue(rapida({ varianta_pontaj: "saptamanal" }));
     server.raspunde("approval_tasks", "select", { data: { id: ID_1, entity_id: ID_2 } });
     server.raspunde("approval_tasks", "update", { data: { id: ID_1 } });
     server.raspunde("attendance_week_submissions", "update", { data: { id: ID_2 } });
-    admin.raspunde("attendance_week_submissions", "select", { data: null });
 
     const r = await decideSaptamanaPontaj({ ...RESPINGERE, decizie: "aprobata" });
 
-    expect(r).toEqual({ ok: true, data: { id: ID_2, scrise: 0, pastrate: 0 } });
-    expect(colaboratori.scriePontajulSaptamanii).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ ok: true });
+    expect(colaboratori.scrieSaptamanaInPontaj).toHaveBeenCalledWith(
+      admin.client,
+      ORG_ID,
+      ID_2,
+      expect.objectContaining({ rescrie: true }),
+    );
   });
 
   it("sarcina decisă între timp de altcineva (zero rânduri) ⇒ CONFLICT, submisia neatinsă", async () => {
@@ -429,5 +425,80 @@ describe("decideSaptamanaPontaj", () => {
     const r = await decideSaptamanaPontaj({ ...RESPINGERE, decizie: "aprobata" });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     expect(admin.apeluri).toHaveLength(0);
+  });
+});
+
+describe("trimiteSaptamanaPontaj — varianta săptămânală (0165)", () => {
+  // Azi e miercuri 15 iulie 2026: săptămâna curentă începe luni 13.
+  const TRIMITERE = { saptamana_start: "2026-07-13", status: "trimisa", zile: [LUNI] } as const;
+
+  it("o săptămână neîncepută e refuzată înaintea RPC-ului", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    colaboratori.setariPontareRapida.mockResolvedValue(rapida({ varianta_pontaj: "saptamanal" }));
+    server.raspunde("attendance_settings", "select", { data: setari() });
+
+    const r = await trimiteSaptamanaPontaj({ ...TRIMITERE, saptamana_start: "2026-07-20" });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriRpc.filter((a) => a.nume === "trimite_saptamana_pontaj")).toHaveLength(0);
+  });
+
+  /*
+    Purtătorul variantei. Fără aprobare (sau fără aprobator), triggerul din 0118
+    închide săptămâna singur — iar înainte de 0165 nimic n-o scria în pontaj:
+    salarizarea număra zero ore pentru o săptămână trimisă.
+  */
+  it("săptămâna închisă la trimitere devine pontaj pe loc, rescrisă, fără aprobator", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: CREARE });
+    colaboratori.setariPontareRapida.mockResolvedValue(
+      rapida({ varianta_pontaj: "saptamanal", necesita_aprobare: false }),
+    );
+    server.raspunde("attendance_settings", "select", { data: setari() });
+    server.raspundeRpc("trimite_saptamana_pontaj", {
+      data: { submission_id: ID_1, zile_sarite: [] },
+    });
+    admin.raspunde("attendance_week_submissions", "select", { data: { status: "aprobata" } });
+
+    const r = await trimiteSaptamanaPontaj(TRIMITERE);
+
+    expect(r).toMatchObject({ ok: true, data: { id: ID_1 } });
+    const [citire] = admin.apeluriPe("attendance_week_submissions", "select");
+    expect(areFiltru(citire, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(colaboratori.scrieSaptamanaInPontaj).toHaveBeenCalledWith(admin.client, ORG_ID, ID_1, {
+      aprobare: null,
+      rescrie: true,
+      requestId: expect.any(String),
+    });
+  });
+
+  it("săptămâna trimisă spre aprobare NU devine încă pontaj", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: CREARE });
+    colaboratori.setariPontareRapida.mockResolvedValue(rapida({ varianta_pontaj: "saptamanal" }));
+    server.raspunde("attendance_settings", "select", { data: setari() });
+    server.raspundeRpc("trimite_saptamana_pontaj", {
+      data: { submission_id: ID_1, zile_sarite: [] },
+    });
+    admin.raspunde("attendance_week_submissions", "select", { data: { status: "trimisa" } });
+
+    const r = await trimiteSaptamanaPontaj(TRIMITERE);
+
+    expect(r).toMatchObject({ ok: true });
+    expect(colaboratori.scrieSaptamanaInPontaj).not.toHaveBeenCalled();
+  });
+
+  // „Celelalte rămân neatinse": în varianta zilnică trimiterea face ce făcea.
+  it("în varianta zilnică trimiterea nu atinge pontajul și nu citește cu adminul", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("attendance_settings", "select", { data: setari() });
+    server.raspundeRpc("trimite_saptamana_pontaj", {
+      data: { submission_id: ID_1, zile_sarite: [] },
+    });
+
+    const r = await trimiteSaptamanaPontaj({ ...TRIMITERE, saptamana_start: "2026-07-20" });
+
+    expect(r).toMatchObject({ ok: true });
+    expect(admin.apeluri).toHaveLength(0);
+    expect(colaboratori.scrieSaptamanaInPontaj).not.toHaveBeenCalled();
   });
 });

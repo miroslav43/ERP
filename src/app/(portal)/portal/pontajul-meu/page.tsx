@@ -16,6 +16,8 @@ import { formatDate, formatMonthYear, todayInBucharest } from "@/lib/format/date
 import { formatOraZi, formatOre } from "@/lib/format/ore";
 import { anDinUrl } from "@/lib/rute/parametri";
 import { pontajulMeu, fisaMea } from "@/lib/queries/portal";
+import { setariPontareRapida } from "@/lib/queries/attendance";
+import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 
 import { ETICHETE_TIP_ZI } from "../etichete";
 
@@ -88,7 +90,17 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
   const luna = lunaDinUrl(parametri["luna"], Number(azi.slice(5, 7)));
   const vizualizare = vizualizareSchema.parse(parametri["vizualizare"]);
 
-  const zile = await pontajulMeu(tenant.organizationId, an, luna, propriaFisaId);
+  const [zile, randPontare] = await Promise.all([
+    pontajulMeu(tenant.organizationId, an, luna, propriaFisaId),
+    setariPontareRapida(tenant.organizationId),
+  ]);
+  /*
+    Varianta săptămânală (0165): calendarul rămâne, dar nu mai deschide nicio zi
+    — ziua se pontează doar din fișa săptămânii. `poateEditaZiua` stinge
+    linkurile din calendar și din listă; butonul primar devine fișa săptămânii.
+  */
+  const peZi = sePonteazaPeZi(configPontareRapida(randPontare));
+  const poateEditaZiua = poatePlanifica && peZi;
 
   const total = zile.reduce(
     (s, z) => ({
@@ -138,18 +150,20 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
           ? {
               actiuni: (
                 <>
-                  <Link
-                    href={`/portal/pontajul-meu/zi/${azi}`}
-                    className={buton({ varianta: "primar" })}
-                  >
-                    <CalendarClock aria-hidden="true" className="size-4" />
-                    Pontează ziua de azi
-                  </Link>
+                  {peZi ? (
+                    <Link
+                      href={`/portal/pontajul-meu/zi/${azi}`}
+                      className={buton({ varianta: "primar" })}
+                    >
+                      <CalendarClock aria-hidden="true" className="size-4" />
+                      Pontează ziua de azi
+                    </Link>
+                  ) : null}
                   <Link
                     href="/portal/pontajul-meu/saptamana"
-                    className={buton({ varianta: "secundar" })}
+                    className={buton({ varianta: peZi ? "secundar" : "primar" })}
                   >
-                    Completează fișa săptămânii
+                    {peZi ? "Completează fișa săptămânii" : "Completează pontajul săptămânii"}
                   </Link>
                 </>
               ),
@@ -199,7 +213,7 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
           </section>
 
           {vizualizare === "calendar" ? (
-            <GrilaLuna an={an} luna={luna} zile={zile} poateEdita={poatePlanifica} />
+            <GrilaLuna an={an} luna={luna} zile={zile} poateEdita={poateEditaZiua} />
           ) : (
             <ul className="space-y-2">
               {zile.map((z) => (
@@ -209,7 +223,7 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
                       ecran care explică refuzul, ceea ce e corect — dar un rând
                       care nu reacționează spune mai bine „nu e nimic de făcut
                       aici". */}
-                  <ZiRand data={z.data} editabila={poatePlanifica && z.tip_zi === "lucratoare"}>
+                  <ZiRand data={z.data} editabila={poateEditaZiua && z.tip_zi === "lucratoare"}>
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-foreground text-corp font-medium">
