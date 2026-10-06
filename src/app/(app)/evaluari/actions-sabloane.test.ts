@@ -482,6 +482,23 @@ describe("personalizeazaSablonEvaluare", () => {
     expect(caiRevalidate()).toEqual(CAI);
   });
 
+  it("primită ca FormData, exact cum o trimite editorul: validează și salvează", async () => {
+    // Editorul dă acțiunii FormData-ul formularului. Până la normalizarea din
+    // `createAction`, Zod citea câmpurile ca `undefined` și refuza orice salvare.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("evaluation_templates", "insert", { data: { id: ID_1 } });
+    const date = new FormData();
+    for (const [cheie, valoare] of Object.entries(intrare())) date.set(cheie, valoare);
+
+    const r = await personalizeazaSablonEvaluare(date);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    expect(server.apeluriPe("evaluation_templates", "insert")[0]?.payload).toMatchObject({
+      derivat_din: ID_2,
+      denumire: "Evaluare anuală standard",
+    });
+  });
+
   it("firma are deja o variantă (23505): CONFLICT care spune ce să facă", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("evaluation_templates", "insert", { error: eroarePostgrest("23505") });
