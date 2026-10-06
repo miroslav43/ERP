@@ -125,6 +125,8 @@ describe("trimiteSaptamanaPontaj", () => {
 
   it("orele planificate se DERIVĂ din interval și setări, nu se cred de la client", async () => {
     const { server } = configureazaActiunea({ permisiuni: CREARE });
+    // Firma fără aprobare: săptămâna e plan, deci trimiterea nu citește starea.
+    colaboratori.setariPontareRapida.mockResolvedValue(rapida({ necesita_aprobare: false }));
     server.raspunde("attendance_settings", "select", { data: setari() });
     server.raspundeRpc("trimite_saptamana_pontaj", {
       data: { submission_id: ID_1, zile_sarite: ["2026-07-14"] },
@@ -166,6 +168,8 @@ describe("trimiteSaptamanaPontaj", () => {
       rol: "hr",
       permisiuni: { "attendance:create": "all" },
     });
+    // Firma fără aprobare: săptămâna e plan, deci trimiterea nu citește starea.
+    colaboratori.setariPontareRapida.mockResolvedValue(rapida({ necesita_aprobare: false }));
     server.raspunde("attendance_settings", "select", { data: setari() });
     server.raspundeRpc("trimite_saptamana_pontaj", { data: { submission_id: ID_1 } });
 
@@ -183,6 +187,8 @@ describe("trimiteSaptamanaPontaj", () => {
 
   it("avertismentele se calculează din zilele TRIMISE, cu orele derivate", async () => {
     const { server } = configureazaActiunea({ permisiuni: CREARE });
+    // Firma fără aprobare: săptămâna e plan, deci trimiterea nu citește starea.
+    colaboratori.setariPontareRapida.mockResolvedValue(rapida({ necesita_aprobare: false }));
     server.raspunde("attendance_settings", "select", { data: setari() });
     server.raspundeRpc("trimite_saptamana_pontaj", { data: { submission_id: ID_1 } });
     colaboratori.avertismenteDupaSaptamana.mockResolvedValue([{ cod: "x" }]);
@@ -487,9 +493,10 @@ describe("trimiteSaptamanaPontaj — varianta săptămânală (0165)", () => {
     expect(colaboratori.scrieSaptamanaInPontaj).not.toHaveBeenCalled();
   });
 
-  // „Celelalte rămân neatinse": în varianta zilnică trimiterea face ce făcea.
-  it("în varianta zilnică trimiterea nu atinge pontajul și nu citește cu adminul", async () => {
+  // „Celelalte rămân neatinse": în varianta zilnică fără aprobare, foaia e plan.
+  it("în varianta zilnică fără aprobare trimiterea nu atinge pontajul și nu citește cu adminul", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: CREARE });
+    colaboratori.setariPontareRapida.mockResolvedValue(rapida({ necesita_aprobare: false }));
     server.raspunde("attendance_settings", "select", { data: setari() });
     server.raspundeRpc("trimite_saptamana_pontaj", {
       data: { submission_id: ID_1, zile_sarite: [] },
@@ -499,6 +506,43 @@ describe("trimiteSaptamanaPontaj — varianta săptămânală (0165)", () => {
 
     expect(r).toMatchObject({ ok: true });
     expect(admin.apeluri).toHaveLength(0);
+    expect(colaboratori.scrieSaptamanaInPontaj).not.toHaveBeenCalled();
+  });
+
+  /*
+    Cazul reclamat pe 6 oct 2026. Varianta zilnică, firma CERE aprobare, dar
+    patronul n-are niciun aprobator deasupra: triggerul din 0118 îi aprobă
+    săptămâna la trimitere. Până acum nu se scria nimic în pontaj, iar zilele
+    lipseau din foaia de prezență, deși săptămâna era aprobată.
+  */
+  it("varianta zilnică, aprobată automat la trimitere: devine pontaj, aprobat, fără rescriere", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("attendance_settings", "select", { data: setari() });
+    server.raspundeRpc("trimite_saptamana_pontaj", {
+      data: { submission_id: ID_1, zile_sarite: [] },
+    });
+    admin.raspunde("attendance_week_submissions", "select", { data: { status: "aprobata" } });
+
+    const r = await trimiteSaptamanaPontaj({ ...TRIMITERE, saptamana_start: "2026-07-20" });
+
+    expect(r).toMatchObject({ ok: true });
+    expect(colaboratori.scrieSaptamanaInPontaj).toHaveBeenCalledWith(admin.client, ORG_ID, ID_1, {
+      aprobare: { de: USER_ID, la: ACUM.toISOString() },
+      rescrie: false,
+      requestId: expect.any(String),
+    });
+  });
+
+  it("varianta zilnică, trimisă spre un aprobator: nu devine încă pontaj", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("attendance_settings", "select", { data: setari() });
+    server.raspundeRpc("trimite_saptamana_pontaj", {
+      data: { submission_id: ID_1, zile_sarite: [] },
+    });
+    admin.raspunde("attendance_week_submissions", "select", { data: { status: "trimisa" } });
+
+    await trimiteSaptamanaPontaj({ ...TRIMITERE, saptamana_start: "2026-07-20" });
+
     expect(colaboratori.scrieSaptamanaInPontaj).not.toHaveBeenCalled();
   });
 });

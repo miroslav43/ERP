@@ -63,7 +63,8 @@ export const trimiteSaptamanaPontaj = createAction<
       setariPontaj(ctx.tenant.organizationId, input.saptamana_start),
       setariPontareRapida(ctx.tenant.organizationId),
     ]);
-    const peSaptamana = configPontareRapida(randPontare).varianta === "saptamanal";
+    const pontare = configPontareRapida(randPontare);
+    const peSaptamana = pontare.varianta === "saptamanal";
 
     /*
      * În varianta săptămânală (0165) foaia e PONTAJ, nu plan: declară ce s-a
@@ -157,22 +158,28 @@ export const trimiteSaptamanaPontaj = createAction<
       : [];
 
     /*
-     * ── VARIANTA SĂPTĂMÂNALĂ: SĂPTĂMÂNA ÎNCHISĂ DEVINE PONTAJ PE LOC ───────
+     * ── SĂPTĂMÂNA APROBATĂ LA TRIMITERE DEVINE PONTAJ PE LOC ─────────────────
      *
-     * Triggerul de trimitere (0118) închide săptămâna singur, fără aprobator,
-     * în două cazuri: firma nu cere aprobare, sau nu există niciun aprobator
-     * (`pas_fara_destinatar`). Până acum, în ambele, nu se scria NIMIC în
-     * pontaj — singurul drum era decizia unui manager, care aici nu vine.
-     * Pentru varianta săptămânală asta ar fi însemnat zero ore la salarizare.
+     * Triggerul de trimitere (0118) închide săptămâna singur, fără om, în două
+     * cazuri: firma nu cere aprobare, sau cel care trimite n-are niciun
+     * aprobator deasupra (`pas_fara_destinatar` — patronul). Până acum nu se
+     * scria NIMIC în pontaj în niciunul: singurul drum era decizia unui
+     * manager, care aici nu vine. Reclamat pe 6 oct 2026 — o săptămână
+     * aprobată, cu ore, lipsea din foaia de prezență; 0167 reface ce a rămas.
      *
-     * Se citește STAREA, nu `necesita_aprobare`: ea acoperă ambele cazuri și nu
-     * poate diverge de ce a decis baza. Clientul admin, ca la aprobare — cine
-     * se pontează pe sine are `create = own`, nu dreptul de a scrie zile
-     * aprobate; filtrul pe organizație e explicit.
+     * Când se scrie:
+     *   · varianta săptămânală (0165) — mereu: foaia E pontajul. Se rescrie,
+     *     ca o retrimitere fără aprobare să corecteze;
+     *   · varianta zilnică — doar dacă firma CERE aprobare: atunci starea
+     *     `aprobata` înseamnă chiar o aprobare (automată), echivalentă cu cea a
+     *     unui manager, deci același efect ca în `decideSaptamanaPontaj`. Fără
+     *     aprobare, foaia rămâne plan, cum a fost mereu.
      *
-     * În varianta zilnică ramura nu rulează: celelalte variante rămân cum erau.
+     * Se citește STAREA din bază, nu se ghicește din setări: ea e decizia. Zilele
+     * sosesc aprobate cu autorul decizei automate — cel care a trimis, pe care
+     * triggerul l-a pus în `decis_de` — doar când firma cere aprobare.
      */
-    if (peSaptamana && idSubmisie !== "") {
+    if (idSubmisie !== "" && (peSaptamana || pontare.necesitaAprobare)) {
       const admin = createAdminSupabase();
       const { data: submisie, error: eroareSubmisie } = await admin
         .from("attendance_week_submissions")
@@ -183,8 +190,10 @@ export const trimiteSaptamanaPontaj = createAction<
       if (eroareSubmisie !== null) throw eroareSubmisie;
       if (submisie?.status === "aprobata") {
         await scrieSaptamanaInPontaj(admin, ctx.tenant.organizationId, idSubmisie, {
-          aprobare: null,
-          rescrie: true,
+          aprobare: pontare.necesitaAprobare
+            ? { de: ctx.user.id, la: ctx.now.toISOString() }
+            : null,
+          rescrie: peSaptamana,
           requestId: ctx.requestId,
         });
       }
