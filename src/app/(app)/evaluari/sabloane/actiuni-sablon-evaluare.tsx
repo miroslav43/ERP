@@ -29,16 +29,15 @@
  * Un buton „Editează" pe el ar fi condamnat din construcție. În locul lui apare
  * „Personalizează", care duplică șablonul în firmă și deschide copia.
  *
- * ── „PERSONALIZEAZĂ" DESCHIDE CHIAR EDITORUL ──────────────────────────────
- * Până la 6 oct 2026 butonul crea copia și se oprea la un mesaj („O puteți
- * edita acum”): pe ecran apărea doar un card nou, „… (copie)”, iar omul nu
- * vedea nimic de personalizat — a șters copiile și a întrebat de ce șablonul
- * nu se poate personaliza. Acum copia păstrează numele original (e varianta
- * firmei, nu un duplicat), iar editorul ei se deschide imediat, chiar de aici:
- * datele copiei sunt cele ale originalului, deja pe client, plus id-ul întors
- * de acțiune. Nu printr-un `?editeaza=` în adresă — acela trecea prin randarea
- * de pe server și prin `loading.tsx`, iar editorul se închidea singur.
- * „Duplică”, pe un șablon al firmei, rămâne „(copie)”.
+ * ── „PERSONALIZEAZĂ" ÎNSEAMNĂ A-L SCHIMBA, NU A-L COPIA ───────────────────
+ * Până la 6 oct 2026 butonul crea o copie alături, „… (copie)”: în listă
+ * apăreau două șabloane, iar omul — care voia să schimbe șablonul, nu să mai
+ * aibă unul — le ștergea. Acum butonul deschide editorul pe conținutul
+ * șablonului de platformă și NU creează nimic până la „Salvează”. Salvarea
+ * scrie varianta firmei (`personalizeazaSablonEvaluare`, 0168), iar
+ * `listeazaSabloane` ascunde de atunci șablonul de platformă: rămâne un singur
+ * card, al firmei, cu insigna „Personalizat”. „Șterge” pe variantă îl readuce
+ * pe cel de platformă. „Duplică”, pe un șablon al firmei, rămâne „(copie)”.
  *
  * ── DE CE „ȘTERGE" APARE DOAR PE ȘABLONUL NEFOLOSIT ───────────────────────
  * Evaluările făcute pe un șablon îl referă, deci el trebuie să rămână: se
@@ -76,6 +75,7 @@ export type PropsActiuni = Readonly<{
     versiune: number;
     activ: boolean;
     dePlatforma: boolean;
+    personalizat: boolean;
     nrEvaluari: number;
   }>;
 }>;
@@ -97,7 +97,6 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
   const executa = (
     apel: () => Promise<ActionResult<Readonly<{ id: string }>>>,
     mesaj: string,
-    dupa?: (id: string) => void,
   ): void => {
     porneste(async () => {
       const rezultat = await apel();
@@ -107,15 +106,9 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
       }
       setDeConfirmat(null);
       arataToast({ fel: "reusita", text: mesaj });
-      if (dupa === undefined) router.refresh();
-      else dupa(rezultat.data.id);
+      router.refresh();
     });
   };
-
-  // Id-ul variantei create de „Personalizează”: editorul ei se montează
-  // deschis. Cardul de platformă rămâne montat după `router.refresh()` (aceeași
-  // cheie), deci starea supraviețuiește reîncărcării listei.
-  const [variantaNoua, setVariantaNoua] = useState<string | null>(null);
 
   return (
     <>
@@ -156,68 +149,55 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
                   }}
                 >
                   <Trash2 aria-hidden="true" className="size-3.5" />
-                  Șterge
+                  {sablon.personalizat ? "Revino la șablonul de platformă" : "Șterge"}
                 </Buton>
               ) : null}
             </>
           )
         }
       >
-        {sablon.dePlatforma ? null : (
+        {sablon.dePlatforma ? (
           <ConstructorSablon
             sablon={sablon}
+            dinPlatforma
             declansator={(deschide) => (
-              <Buton varianta="secundar" onClick={deschide}>
+              <Buton varianta="primar" onClick={deschide}>
                 <Pencil aria-hidden="true" className="size-3.5" />
-                Editează
+                Personalizează
               </Buton>
             )}
           />
+        ) : (
+          <>
+            <ConstructorSablon
+              sablon={sablon}
+              declansator={(deschide) => (
+                <Buton varianta="secundar" onClick={deschide}>
+                  <Pencil aria-hidden="true" className="size-3.5" />
+                  Editează
+                </Buton>
+              )}
+            />
+            <Buton
+              varianta="tertiar"
+              disabled={inCurs}
+              onClick={() => {
+                executa(
+                  () =>
+                    duplicaSablonEvaluare({
+                      id: sablon.id,
+                      denumire: denumireCopie(sablon.denumire),
+                    }),
+                  "Șablonul a fost duplicat.",
+                );
+              }}
+            >
+              <Copy aria-hidden="true" className="size-3.5" />
+              Duplică
+            </Buton>
+          </>
         )}
-
-        <Buton
-          varianta={sablon.dePlatforma ? "primar" : "tertiar"}
-          disabled={inCurs}
-          onClick={() => {
-            if (sablon.dePlatforma) {
-              executa(
-                () => duplicaSablonEvaluare({ id: sablon.id, denumire: sablon.denumire }),
-                "Varianta firmei a fost creată. Modificați criteriile și salvați.",
-                (id) => {
-                  setVariantaNoua(id);
-                  router.refresh();
-                },
-              );
-              return;
-            }
-            executa(
-              () =>
-                duplicaSablonEvaluare({ id: sablon.id, denumire: denumireCopie(sablon.denumire) }),
-              "Șablonul a fost duplicat.",
-            );
-          }}
-        >
-          <Copy aria-hidden="true" className="size-3.5" />
-          {sablon.dePlatforma ? "Personalizează" : "Duplică"}
-        </Buton>
       </BaraActiuni>
-
-      {variantaNoua === null ? null : (
-        <ConstructorSablon
-          key={variantaNoua}
-          sablon={{
-            id: variantaNoua,
-            denumire: sablon.denumire,
-            descriere: sablon.descriere,
-            criterii: sablon.criterii,
-            versiune: 1,
-            nrEvaluari: 0,
-          }}
-          deschideLaMontare
-          // Fără buton propriu: varianta are, de acum, cardul ei cu „Editează”.
-          declansator={() => <></>}
-        />
-      )}
 
       <ConfirmareActiune
         deschis={deConfirmat === "arhivare"}
@@ -246,16 +226,26 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
         laInchidere={() => {
           setDeConfirmat(null);
         }}
-        titlu={`Ștergeți șablonul „${sablon.denumire}”?`}
-        consecinta="Șablonul dispare din listă și nu mai poate fi ales la o evaluare. Nu a fost folosit la nicio evaluare, deci nu se pierde nimic din istoric. Ștergerea nu se poate anula din aplicație."
+        titlu={
+          sablon.personalizat
+            ? `Renunțați la varianta firmei a „${sablon.denumire}”?`
+            : `Ștergeți șablonul „${sablon.denumire}”?`
+        }
+        consecinta={
+          sablon.personalizat
+            ? "Varianta firmei dispare, iar în locul ei revine șablonul de platformă, cu criteriile lui originale. Varianta nu a fost folosită la nicio evaluare, deci nu se pierde nimic din istoric."
+            : "Șablonul dispare din listă și nu mai poate fi ales la o evaluare. Nu a fost folosit la nicio evaluare, deci nu se pierde nimic din istoric. Ștergerea nu se poate anula din aplicație."
+        }
         cifre={[{ eticheta: "Criterii", valoare: String(sablon.criterii.length) }]}
-        etichetaConfirmare="Șterge"
+        etichetaConfirmare={sablon.personalizat ? "Revino la platformă" : "Șterge"}
         distructiv
         inCurs={inCurs}
         laConfirmare={() => {
           executa(
             () => stergeSablonEvaluare({ id: sablon.id }),
-            `Șablonul „${sablon.denumire}” a fost șters.`,
+            sablon.personalizat
+              ? "Varianta firmei a fost ștearsă; șablonul de platformă e din nou în listă."
+              : `Șablonul „${sablon.denumire}” a fost șters.`,
           );
         }}
       />

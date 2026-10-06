@@ -122,6 +122,14 @@ export const creeazaSablonEvaluareSchema = z.object({
   criterii: jsonDinFormData(criteriiSablonSchema),
 });
 
+/** Varianta firmei a unui șablon de platformă: conținutul editat + originea (0168). */
+export const personalizeazaSablonEvaluareSchema = z.object({
+  sablon_platforma_id: z.uuid("Șablonul de platformă nu este valid."),
+  denumire: denumireSablon,
+  descriere: textOptional(500),
+  criterii: jsonDinFormData(criteriiSablonSchema),
+});
+
 export const actualizeazaSablonEvaluareSchema = z.object({
   id: z.uuid("Șablonul selectat nu este valid."),
   denumire: denumireSablon,

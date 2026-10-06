@@ -14,6 +14,7 @@ import {
   creeazaEvaluareSchema,
   creeazaSablonEvaluareSchema,
   duplicaSablonEvaluareSchema,
+  personalizeazaSablonEvaluareSchema,
   finalizeazaEvaluareSchema,
   reactiveazaSablonEvaluareSchema,
   redeschideEvaluareSchema,
@@ -118,6 +119,61 @@ export const creeazaSablonEvaluare = createAction<
       .select("id")
       .single();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    return { id: data.id };
+  },
+});
+
+/**
+ * „Personalizează” pe un șablon de platformă: scrie VARIANTA FIRMEI, cu
+ * conținutul deja editat în panou.
+ *
+ * Nu se creează nimic la deschiderea editorului — doar la salvare. Varianta
+ * poartă `derivat_din`, iar `listeazaSabloane` ascunde de atunci șablonul de
+ * platformă: firma vede un singur șablon, pe al ei (0168). Baza garantează că
+ * originea e chiar un șablon de platformă (trigger) și că există o singură
+ * variantă vie per firmă (index unic) — 23505 înseamnă că a fost deja creată,
+ * de exemplu dintr-o altă filă.
+ */
+export const personalizeazaSablonEvaluare = createAction<
+  typeof personalizeazaSablonEvaluareSchema,
+  Readonly<{ id: string }>
+>({
+  name: "evaluation_templates.personalize",
+  feature: "evaluations",
+  permission: "evaluations:update",
+  minScope: "all",
+  input: personalizeazaSablonEvaluareSchema,
+  audit: {
+    action: "create",
+    entityType: "evaluation_templates",
+    entityId: (_input, data) => data.id,
+    allow: ["denumire", "sablon_platforma_id"],
+  },
+  revalidate: CAI_SABLOANE,
+  handler: async (ctx, input) => {
+    const { data, error } = await ctx.supabase
+      .from("evaluation_templates")
+      .insert({
+        organization_id: ctx.tenant.organizationId,
+        derivat_din: input.sablon_platforma_id,
+        denumire: input.denumire,
+        descriere: input.descriere,
+        criterii: caJson(pregatesteCriterii(input.criterii)),
+        versiune: 1,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      })
+      .select("id")
+      .single();
+    if (error !== null) {
+      if (error.code === "23505") {
+        throw businessRule(
+          "Firma are deja propria variantă a acestui șablon. Reîncărcați pagina și editați-o pe aceea.",
+        );
+      }
+      if (error.code === "P0001") throw businessRule(error.message);
+      throw mapPostgrestError(error, ctx.requestId);
+    }
     return { id: data.id };
   },
 });

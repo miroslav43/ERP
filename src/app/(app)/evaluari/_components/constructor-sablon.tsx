@@ -47,7 +47,11 @@ import {
 } from "@/domain/evaluations/criterii";
 import { cn } from "@/lib/ui/cn";
 
-import { actualizeazaSablonEvaluare, creeazaSablonEvaluare } from "../actions";
+import {
+  actualizeazaSablonEvaluare,
+  creeazaSablonEvaluare,
+  personalizeazaSablonEvaluare,
+} from "../actions";
 import { CampCriteriu, RASPUNS_GOL } from "@/components/evaluari/campuri-evaluare";
 
 const ETICHETE_TIP: Readonly<Record<TipCriteriu, string>> = {
@@ -146,31 +150,29 @@ export type PropsConstructor = Readonly<{
    */
   declansator: (deschide: () => void) => ReactElement;
   /**
-   * Deschide panoul o dată, la montare. Îl folosește „Personalizează”: copia
-   * șablonului de platformă se creează ca să fie editată, deci editorul ei se
-   * deschide singur, în loc să lase omul să ghicească că urmează „Editează”.
+   * `sablon` e un șablon de PLATFORMĂ, iar salvarea scrie varianta firmei
+   * (`personalizeazaSablonEvaluare`, 0168). Nimic nu se creează până la
+   * „Salvează”: „Renunță” nu lasă nicio copie în urmă.
    */
-  deschideLaMontare?: boolean;
+  dinPlatforma?: boolean;
 }>;
 
 export function ConstructorSablon({
   sablon,
   declansator,
-  deschideLaMontare,
+  dinPlatforma,
 }: PropsConstructor): ReactElement {
   const router = useRouter();
   const idFormular = useId();
-  // Starea INIȚIALĂ, nu un efect: contează doar la montare. După deschidere,
-  // pagina scoate `?editeaza` din adresă, iar prop-ul devine fals fără ca
-  // panoul deschis să se închidă.
-  const [deschis, setDeschis] = useState(deschideLaMontare === true);
+  const [deschis, setDeschis] = useState(false);
   const [fila, setFila] = useState<"criterii" | "previzualizare">("criterii");
   const [criterii, setCriterii] = useState<CriteriuEditor[]>(() =>
     sablon === undefined ? [criteriuNou("initial")] : dinSablon(sablon.criterii),
   );
   const [tras, setTras] = useState<number | null>(null);
 
-  const esteEditare = sablon !== undefined;
+  const personalizare = dinPlatforma === true && sablon !== undefined;
+  const esteEditare = sablon !== undefined && !personalizare;
   const ponderi = valideazaPonderi(pentruPrevizualizare(criterii));
 
   const deschide = (): void => {
@@ -206,11 +208,19 @@ export function ConstructorSablon({
           setDeschis(false);
         }}
         marime="lucru"
-        titlu={esteEditare ? `Editează „${sablon.denumire}”` : "Șablon de evaluare nou"}
+        titlu={
+          personalizare
+            ? `Personalizează „${sablon.denumire}”`
+            : esteEditare
+              ? `Editează „${sablon.denumire}”`
+              : "Șablon de evaluare nou"
+        }
         descriere={
-          esteEditare
-            ? `Versiunea ${String(sablon.versiune)}. Criteriile se aplică evaluărilor viitoare.`
-            : "Un set de criterii reutilizabil, aplicat apoi angajaților de pe fișa fiecăruia."
+          personalizare
+            ? "Modificările se salvează ca varianta firmei, care îi ia locul în listă. Pentru celelalte firme, șablonul de platformă rămâne neschimbat."
+            : esteEditare
+              ? `Versiunea ${String(sablon.versiune)}. Criteriile se aplică evaluărilor viitoare.`
+              : "Un set de criterii reutilizabil, aplicat apoi angajaților de pe fișa fiecăruia."
         }
         subsol={
           <>
@@ -227,7 +237,11 @@ export function ConstructorSablon({
               Renunță
             </Buton>
             <Buton type="submit" form={idFormular} varianta="primar" textInCurs="Se salvează…">
-              {esteEditare ? "Salvează modificările" : "Creează șablonul"}
+              {personalizare
+                ? "Salvează varianta firmei"
+                : esteEditare
+                  ? "Salvează modificările"
+                  : "Creează șablonul"}
             </Buton>
           </>
         }
@@ -235,9 +249,19 @@ export function ConstructorSablon({
         <Formular
           id={idFormular}
           actiune={async (date) =>
-            esteEditare ? actualizeazaSablonEvaluare(date) : creeazaSablonEvaluare(date)
+            personalizare
+              ? personalizeazaSablonEvaluare(date)
+              : esteEditare
+                ? actualizeazaSablonEvaluare(date)
+                : creeazaSablonEvaluare(date)
           }
-          mesajReusita={esteEditare ? "Șablonul a fost actualizat." : "Șablonul a fost creat."}
+          mesajReusita={
+            personalizare
+              ? "Varianta firmei a fost salvată."
+              : esteEditare
+                ? "Șablonul a fost actualizat."
+                : "Șablonul a fost creat."
+          }
           laReusita={() => {
             setDeschis(false);
             router.refresh();
@@ -246,6 +270,9 @@ export function ConstructorSablon({
           {(stare) => (
             <>
               {esteEditare ? <input type="hidden" name="id" value={sablon.id} /> : null}
+              {personalizare ? (
+                <input type="hidden" name="sablon_platforma_id" value={sablon.id} />
+              ) : null}
               <input
                 type="hidden"
                 name="criterii"

@@ -4709,6 +4709,7 @@ export type Database = {
           created_by: string | null
           criterii: Json
           deleted_at: string | null
+          derivat_din: string | null
           denumire: string
           descriere: string | null
           id: string
@@ -4723,6 +4724,7 @@ export type Database = {
           created_by?: string | null
           criterii?: Json
           deleted_at?: string | null
+          derivat_din?: string | null
           denumire: string
           descriere?: string | null
           id?: string
@@ -4737,6 +4739,7 @@ export type Database = {
           created_by?: string | null
           criterii?: Json
           deleted_at?: string | null
+          derivat_din?: string | null
           denumire?: string
           descriere?: string | null
           id?: string

@@ -285,6 +285,8 @@ export interface RandSablon {
   readonly activ: boolean;
   /** `true` când e șablon de platformă: vizibil tuturor, editabil de nimeni. */
   readonly dePlatforma: boolean;
+  /** Varianta firmei a unui șablon de platformă (0168): îi ține locul în listă. */
+  readonly personalizat: boolean;
   /** Câte evaluări îl folosesc. Zero înseamnă că se poate schimba liber. */
   readonly nrEvaluari: number;
 }
@@ -311,7 +313,8 @@ export async function listeazaSabloane(
   optiuni: Readonly<{ includeArhivate: boolean }> = { includeArhivate: true },
 ): Promise<readonly RandSablon[]> {
   const db = await createServerSupabase();
-  const coloane = "id, denumire, descriere, criterii, versiune, activ, organization_id";
+  const coloane =
+    "id, denumire, descriere, criterii, versiune, activ, organization_id, derivat_din";
 
   interface SablonBrut {
     readonly id: string;
@@ -321,6 +324,7 @@ export async function listeazaSabloane(
     readonly versiune: number;
     readonly activ: boolean;
     readonly organization_id: string | null;
+    readonly derivat_din: string | null;
   }
 
   const [aleFirmei, alePlatformei] = await Promise.all([
@@ -342,11 +346,19 @@ export async function listeazaSabloane(
   if (aleFirmei.error !== null) throw aleFirmei.error;
   if (alePlatformei.error !== null) throw alePlatformei.error;
 
+  // Un șablon de platformă PERSONALIZAT de firmă nu se mai arată: varianta îi
+  // ține locul (0168), în listă, la „Evaluare nouă” și pe fișă. Contează orice
+  // variantă nestearsă, și una arhivată — arhivarea variantei e o alegere a
+  // firmei, nu o cerere de a reveni la cel generic; revenirea e „Șterge”.
+  const personalizate = new Set(
+    (aleFirmei.data ?? []).map((s) => s.derivat_din).filter((id): id is string => id !== null),
+  );
   // Șabloanele de platformă la urmă: ale firmei sunt cele pe care omul le
   // folosește zilnic, iar cel generic e punctul de plecare, nu destinația.
-  const brute = [...(aleFirmei.data ?? []), ...(alePlatformei.data ?? [])].filter(
-    (s) => optiuni.includeArhivate || s.activ,
-  );
+  const brute = [
+    ...(aleFirmei.data ?? []),
+    ...(alePlatformei.data ?? []).filter((s) => !personalizate.has(s.id)),
+  ].filter((s) => optiuni.includeArhivate || s.activ);
 
   const contoare = await Promise.all(
     brute.map((s) =>
@@ -373,6 +385,7 @@ export async function listeazaSabloane(
     versiune: s.versiune,
     activ: s.activ,
     dePlatforma: s.organization_id === null,
+    personalizat: s.derivat_din !== null,
     nrEvaluari: peSablon.get(s.id) ?? 0,
   }));
 }
