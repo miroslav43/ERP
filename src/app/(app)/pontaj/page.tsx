@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { Callout } from "@/components/ui/callout";
 import type { Metadata } from "next";
-import { Users } from "lucide-react";
+import { Clock, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -41,7 +41,6 @@ import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
 import { ButonSetariPontaj } from "./buton-setari";
-import { CardAzi } from "./card-azi";
 import { NavPontaj } from "./nav-pontaj";
 import { fileDePontaj } from "./file-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
@@ -304,8 +303,8 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const parametri = await searchParams;
   const scope = scopeFor(permisiuni, "attendance:read") ?? "own";
   /*
-    Două porți de scriere, nu una. `poatePontaSine` e ziua PROPRIE — cardul
-    „Astăzi" și grila săptămânii. `poateEdita` e FOAIA: scope-ul de creare
+    Două porți de scriere, nu una. `poatePontaSine` e pontajul PROPRIU — butonul
+    „Pontează-te" din antet și grila săptămânii. `poateEdita` e FOAIA: scope-ul de creare
     trebuie să acopere tot ce arată scope-ul de citire. Un `manager` are
     `create = own` (0161) dar citește `team`, deci foaia lui rămâne read-only,
     exact ca RLS — cu o singură poartă, celulele subordonaților ar fi devenit
@@ -389,10 +388,25 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       // motivul pentru care fusese mutat în bandă. Garda e aceeași
       // (`attendance:update = all`, ca pagina țintă).
       actiuni={
-        <ButonSetariPontaj
-          poateConfigura={poateConfigura}
-          poateVedeaCoduriQr={poateVedeaCoduriQr}
-        />
+        <>
+          {/*
+            Pontarea proprie, ca buton de antet — nu ca un card deasupra foii.
+            Cardul „Pontajul dumneavoastră de azi" ocupa un rând întreg pentru
+            un singur buton, pe ecranul pe care omul vine să vadă firma.
+            Duce la fișa săptămânii proprii, în ambele variante: acolo se
+            completează toate zilele deodată, cu intervalul și locul fiecăreia.
+          */}
+          {poatePontaSine ? (
+            <Link href="/pontaj/saptamana" className={buton({ varianta: "primar" })}>
+              <Clock aria-hidden="true" className="size-4" />
+              Pontează-te
+            </Link>
+          ) : null}
+          <ButonSetariPontaj
+            poateConfigura={poateConfigura}
+            poateVedeaCoduriQr={poateVedeaCoduriQr}
+          />
+        </>
       }
       file={
         <NavPontaj
@@ -403,19 +417,6 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       }
     />
   );
-
-  const cardAzi = poatePontaSine ? (
-    // `fallback={null}`: cardul e un adaos, nu trebuie să țină pe loc foaia.
-    <Suspense fallback={null}>
-      <CardAzi
-        organizationId={tenant.organizationId}
-        userId={user.id}
-        numeFirma={tenant.name}
-        azi={azi}
-        inSaptamana={vizualizare === "saptamana"}
-      />
-    </Suspense>
-  ) : null;
 
   const comutator = (
     <ComutatorVizualizare
@@ -433,7 +434,6 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     return (
       <div className="space-y-6">
         {antet}
-        {cardAzi}
         {comutator}
         <Suspense
           key={`saptamana-${saptamanaStart}`}
@@ -522,7 +522,6 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   return (
     <div className="space-y-6">
       {antet}
-      {cardAzi}
       {comutator}
 
       {/* Explicația stă ÎNAINTEA foii: omul se uită acolo tocmai fiindcă nu
