@@ -11,15 +11,17 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { clientEnv } from "@/config/env";
 
+import { ButonTiparAfis } from "./buton-tipar";
+
 export const metadata: Metadata = { title: "Afiș de pontare" };
 
 /**
  * Afișul care se tipărește și se lipește la intrarea în punctul de lucru.
  *
  * ── DE CE E O PAGINĂ, NU UN PDF ─────────────────────────────────────────────
- * Se tipărește din browser, cu Ctrl+P. Un generator de PDF ar fi un al doilea
- * lanț de randare pentru un afiș cu patru elemente, iar formatul hârtiei îl
- * alege oricum dialogul de tipărire.
+ * Se tipărește din browser, din butonul „Tipărește afișul" (`window.print()`).
+ * Un generator de PDF ar fi un al doilea lanț de randare pentru un afiș cu
+ * patru elemente, iar formatul hârtiei îl alege oricum dialogul de tipărire.
  *
  * ── DE CE URL-UL E ABSOLUT ──────────────────────────────────────────────────
  * Codul QR se scanează cu aplicația de cameră a telefonului, care n-are niciun
@@ -125,10 +127,10 @@ export default async function PaginaAfisPontare({
       </div>
 
       <div className="text-muted-foreground text-corp space-y-2 print:hidden">
-        <p>
-          Tipăriți pagina cu <kbd className="border-border rounded border px-1">Ctrl</kbd>+
-          <kbd className="border-border rounded border px-1">P</kbd> și lipiți afișul la intrare.
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <ButonTiparAfis />
+          <p>Tipăriți afișul și lipiți-l la intrarea în punctul de lucru.</p>
+        </div>
         <p>
           Codul duce la: <span className="text-foreground break-all">{url}</span>
         </p>
