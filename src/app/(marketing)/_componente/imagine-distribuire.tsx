@@ -1,6 +1,8 @@
 // src/app/(marketing)/_componente/imagine-distribuire.tsx
 import { ImageResponse } from "next/og";
 
+import { SIGLA_CALE, SIGLA_CULOARE, SIGLA_INALTIME, SIGLA_LATIME } from "@/components/sigla";
+
 import { IMAGINE_DISTRIBUIRE } from "./metadate";
 
 const size = { width: IMAGINE_DISTRIBUIRE.width, height: IMAGINE_DISTRIBUIRE.height };
@@ -65,18 +67,18 @@ export async function deseneazaImagineDistribuire(): Promise<ImageResponse> {
           padding: "64px 72px 0 72px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          {/* Marca: coloana de ore care se închide pe linia de total. */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 34 }}>
-              {[16, 30, 12, 22].map((h) => (
-                <div key={h} style={{ width: 7, height: h, backgroundColor: CERNEALA }} />
-              ))}
-            </div>
-            <div style={{ width: 40, height: 5, backgroundColor: CERNEALA }} />
-          </div>
-          <div style={{ fontSize: 38, letterSpacing: "-0.01em" }}>Administrativo</div>
-        </div>
+        {/*
+          Sigla din `docs/comercial/sigla/`, aceeași ca în antetul sitului (7 oct
+          2026). Lățimea se calculează din raportul siglei, ca literele să nu se
+          deformeze.
+        */}
+        <svg
+          width={Math.round((32 * SIGLA_LATIME) / SIGLA_INALTIME)}
+          height={32}
+          viewBox={`0 0 ${String(SIGLA_LATIME)} ${String(SIGLA_INALTIME)}`}
+        >
+          <path d={SIGLA_CALE} fill={SIGLA_CULOARE} />
+        </svg>
 
         <div
           style={{
@@ -85,14 +87,15 @@ export async function deseneazaImagineDistribuire(): Promise<ImageResponse> {
             lineHeight: 1.02,
             letterSpacing: "-0.022em",
             marginTop: 72,
-            maxWidth: 940,
+            // Aceeași rupere ca titlul paginii de start: trei rânduri, fără „Excel.” singur.
+            maxWidth: 780,
           }}
         >
-          Firma ta are deja procedurile. Administrativo le ține minte.
+          Angajații se pontează de pe telefon. Tu{"\u00a0"}închizi luna fără Excel.
         </div>
 
         <div style={{ display: "flex", fontSize: 27, color: SLAB, marginTop: 34 }}>
-          ERP și HR pentru firme din România
+          Program de pontaj și HR pentru firme cu 5–50 de angajați
         </div>
       </div>
 
@@ -108,7 +111,7 @@ export async function deseneazaImagineDistribuire(): Promise<ImageResponse> {
         }}
       >
         <span style={{ fontSize: 19, letterSpacing: "0.14em" }}>MODULE</span>
-        <span>Pontaj · Concedii · Salarizare · SSM și PSI · Parc auto · Inventar</span>
+        <span>Pontaj · Concedii · REGES-ONLINE · Salarizare · SSM și PSI · Parc auto</span>
       </div>
     </div>,
     // `exactOptionalPropertyTypes` e activ: cheia `fonts` nu are voie să existe

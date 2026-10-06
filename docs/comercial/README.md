@@ -148,6 +148,14 @@ ca subsolul (TeX Gyre Adventor, regular, fără bold). Așa rămâne vectorială
 scalează fără pierdere și nu depinde de un fișier care poate lipsi. Fișierele din
 `sigla/` sunt pentru materialele DIN AFARA prezentării.
 
+**Pe site** (din 7 oct 2026), sigla stă în
+[`src/components/sigla.tsx`](../../src/components/sigla.tsx). E aceeași siglă,
+convertită din `sigla-administrativo.pdf` cu `pdftocairo -svg` și aplatizată
+într-un singur `<path>` pe `currentColor`. Se folosește în antetul și subsolul
+sitului, pe paginile de autentificare și în imaginea de distribuire
+(`/imagine-distribuire.png`). Când sigla de aici se schimbă, calea din componentă
+se regenerează din PDF-ul nou.
+
 Regenerarea PNG-urilor, după orice modificare a `sigla-administrativo.tex`:
 
 ```bash

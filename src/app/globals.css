@@ -593,6 +593,10 @@ dialog[open]::backdrop {
   --color-mk-usa: #0f1e3d;
   --color-mk-usa-text: #faf7f0;
 
+  /* Sigla. Aceeași culoare ca în materialele tipărite (`brandSlate` din
+   * `docs/comercial/sigla/sigla-administrativo.tex`). 6,54:1 pe hârtie. */
+  --color-mk-sigla: #475569;
+
   /* Hașura: notația pentru „nu s-a întâmplat și nu se mai poate scrie aici”.
    * Într-o condică, o celulă barată e definitiv barată. */
   --mk-hasura: repeating-linear-gradient(45deg, #93a5a6 0 1px, transparent 1px 7px);
@@ -656,6 +660,7 @@ dialog[open]::backdrop {
 
   --color-mk-usa: var(--color-mk-usa);
   --color-mk-usa-text: var(--color-mk-usa-text);
+  --color-mk-sigla: var(--color-mk-sigla);
 
   --font-mk-display: var(--font-fira-condensed);
   --font-mk-date: var(--font-fira-mono);

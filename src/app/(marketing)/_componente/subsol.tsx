@@ -4,7 +4,7 @@ import { ADRESA_FIRMA, CONTACT, FIRMA } from "@/content/landing/contact";
 import { slugModul } from "@/content/landing/slug-module";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
-import { Marca } from "./marca";
+import { Sigla } from "@/components/sigla";
 
 /** Subsolul: pânza de la cotorul registrului. Pe cerneală, ca tot ce închide. */
 export function Subsol({ text }: { text: ContinutLanding }) {
@@ -15,12 +15,8 @@ export function Subsol({ text }: { text: ContinutLanding }) {
       <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] py-16">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-4">
-            <div className="flex items-center gap-2.5">
-              <Marca clasa="h-6 w-6" />
-              <span className="font-mk-display text-[1.0625rem] font-semibold tracking-[-0.01em]">
-                Administrativo
-              </span>
-            </div>
+            {/* Pe cerneală, sigla ia culoarea textului inversat. */}
+            <Sigla clasa="text-mk-text-inv h-[17px] w-auto" eticheta="Administrativo" />
             <p className="text-mk-text-inv-slab mt-4 max-w-[42ch] text-[0.875rem] leading-[1.6]">
               {text.subsol.descriere}
             </p>
