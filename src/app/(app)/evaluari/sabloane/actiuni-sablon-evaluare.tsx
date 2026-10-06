@@ -28,9 +28,16 @@
  * Politica `evaluation_templates_update` cere `organization_id is not null`.
  * Un buton „Editează" pe el ar fi condamnat din construcție. În locul lui apare
  * „Personalizează", care duplică șablonul în firmă și deschide copia.
+ *
+ * ── DE CE „ȘTERGE" APARE DOAR PE ȘABLONUL NEFOLOSIT ───────────────────────
+ * Evaluările făcute pe un șablon îl referă, deci el trebuie să rămână: se
+ * arhivează. O copie nefolosită, în schimb, n-are nimic de păstrat — arhivată,
+ * ar fi rămas pentru totdeauna în listă, cu pastila „Arhivat". Butonul se
+ * ascunde pe `nrEvaluari > 0`, iar funcția din bază (0162) refuză oricum
+ * același caz, cu mesaj, dacă între timp cineva a început o evaluare pe el.
  */
 
-import { Archive, ArchiveRestore, Copy, Pencil } from "lucide-react";
+import { Archive, ArchiveRestore, Copy, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactElement } from "react";
 
@@ -46,6 +53,7 @@ import {
   arhiveazaSablonEvaluare,
   duplicaSablonEvaluare,
   reactiveazaSablonEvaluare,
+  stergeSablonEvaluare,
 } from "../actions";
 
 export type PropsActiuni = Readonly<{
@@ -70,7 +78,10 @@ function denumireCopie(denumire: string): string {
 export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
-  const [deConfirmat, setDeConfirmat] = useState<"arhivare" | "reactivare" | null>(null);
+  const [deConfirmat, setDeConfirmat] = useState<"arhivare" | "reactivare" | "stergere" | null>(
+    null,
+  );
+  const poateFiSters = !sablon.dePlatforma && sablon.nrEvaluari === 0;
 
   const executa = (
     apel: () => Promise<ActionResult<Readonly<{ id: string }>>>,
@@ -93,28 +104,44 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
       <BaraActiuni
         eticheta={`Acțiuni pentru „${sablon.denumire}”`}
         distructiva={
-          sablon.dePlatforma ? undefined : sablon.activ ? (
-            <Buton
-              varianta="distructiv"
-              disabled={inCurs}
-              onClick={() => {
-                setDeConfirmat("arhivare");
-              }}
-            >
-              <Archive aria-hidden="true" className="size-3.5" />
-              Arhivează
-            </Buton>
-          ) : (
-            <Buton
-              varianta="secundar"
-              disabled={inCurs}
-              onClick={() => {
-                setDeConfirmat("reactivare");
-              }}
-            >
-              <ArchiveRestore aria-hidden="true" className="size-3.5" />
-              Reactivează
-            </Buton>
+          sablon.dePlatforma ? undefined : (
+            <>
+              {sablon.activ ? (
+                <Buton
+                  varianta="distructiv"
+                  disabled={inCurs}
+                  onClick={() => {
+                    setDeConfirmat("arhivare");
+                  }}
+                >
+                  <Archive aria-hidden="true" className="size-3.5" />
+                  Arhivează
+                </Buton>
+              ) : (
+                <Buton
+                  varianta="secundar"
+                  disabled={inCurs}
+                  onClick={() => {
+                    setDeConfirmat("reactivare");
+                  }}
+                >
+                  <ArchiveRestore aria-hidden="true" className="size-3.5" />
+                  Reactivează
+                </Buton>
+              )}
+              {poateFiSters ? (
+                <Buton
+                  varianta="distructiv"
+                  disabled={inCurs}
+                  onClick={() => {
+                    setDeConfirmat("stergere");
+                  }}
+                >
+                  <Trash2 aria-hidden="true" className="size-3.5" />
+                  Șterge
+                </Buton>
+              ) : null}
+            </>
           )
         }
       >
@@ -166,6 +193,25 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
           executa(
             () => arhiveazaSablonEvaluare({ id: sablon.id }),
             `Șablonul „${sablon.denumire}” a fost arhivat.`,
+          );
+        }}
+      />
+
+      <ConfirmareActiune
+        deschis={deConfirmat === "stergere"}
+        laInchidere={() => {
+          setDeConfirmat(null);
+        }}
+        titlu={`Ștergeți șablonul „${sablon.denumire}”?`}
+        consecinta="Șablonul dispare din listă și nu mai poate fi ales la o evaluare. Nu a fost folosit la nicio evaluare, deci nu se pierde nimic din istoric. Ștergerea nu se poate anula din aplicație."
+        cifre={[{ eticheta: "Criterii", valoare: String(sablon.criterii.length) }]}
+        etichetaConfirmare="Șterge"
+        distructiv
+        inCurs={inCurs}
+        laConfirmare={() => {
+          executa(
+            () => stergeSablonEvaluare({ id: sablon.id }),
+            `Șablonul „${sablon.denumire}” a fost șters.`,
           );
         }}
       />

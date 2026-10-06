@@ -13361,6 +13361,10 @@ export type Database = {
         Args: { p_organization_id: string; p_zile: number }
         Returns: undefined
       }
+      sterge_sablon_evaluare: {
+        Args: { p_id: string; p_organization_id: string }
+        Returns: string
+      }
       submit_demo_request: {
         Args: {
           p_email: string

@@ -138,6 +138,7 @@ const doarId = (mesaj: string) => z.object({ id: z.uuid(mesaj) });
 
 export const arhiveazaSablonEvaluareSchema = doarId("Șablonul selectat nu este valid.");
 export const reactiveazaSablonEvaluareSchema = doarId("Șablonul selectat nu este valid.");
+export const stergeSablonEvaluareSchema = doarId("Șablonul selectat nu este valid.");
 
 // ── Evaluări ──────────────────────────────────────────────────────────────────
 

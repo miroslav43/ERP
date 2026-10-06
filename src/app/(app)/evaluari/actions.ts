@@ -17,6 +17,7 @@ import {
   finalizeazaEvaluareSchema,
   reactiveazaSablonEvaluareSchema,
   redeschideEvaluareSchema,
+  stergeSablonEvaluareSchema,
   type CriteriuSablonIntrare,
 } from "@/schemas/evaluation";
 
@@ -313,6 +314,49 @@ export const reactiveazaSablonEvaluare = createAction<
   },
   revalidate: CAI_SABLOANE,
   handler: comutaActiv(true),
+});
+
+/**
+ * Ștergerea logică a unui șablon NEFOLOSIT.
+ *
+ * Prin funcția `public.sterge_sablon_evaluare` (0162), nu printr-un UPDATE:
+ * politica SELECT ascunde rândurile cu `deleted_at`, iar Postgres o aplică și
+ * rândului nou, deci `update({ deleted_at })` ar pica mereu cu 42501. Funcția
+ * repetă autorizarea politicii de UPDATE și refuză șablonul folosit de vreo
+ * evaluare — acela se arhivează.
+ *
+ * Mesajele P0001/P0002 sunt scrise pentru om în funcție și trec ca atare:
+ * `mapPostgrestError` le-ar fi înlocuit cu „respinsă de o regulă a sistemului”,
+ * iar omul n-ar fi aflat că soluția e arhivarea.
+ */
+export const stergeSablonEvaluare = createAction<
+  typeof stergeSablonEvaluareSchema,
+  Readonly<{ id: string }>
+>({
+  name: "evaluation_templates.delete",
+  feature: "evaluations",
+  permission: "evaluations:update",
+  minScope: "all",
+  input: stergeSablonEvaluareSchema,
+  audit: {
+    action: "delete",
+    entityType: "evaluation_templates",
+    entityId: (input) => input.id,
+    allow: [],
+  },
+  revalidate: CAI_SABLOANE,
+  handler: async (ctx: ActionContext, input) => {
+    const { error } = await ctx.supabase.rpc("sterge_sablon_evaluare", {
+      p_organization_id: ctx.tenant.organizationId,
+      p_id: input.id,
+    });
+    if (error !== null) {
+      if (error.code === "P0001") throw businessRule(error.message);
+      if (error.code === "P0002") throw notFound(error.message);
+      throw mapPostgrestError(error, ctx.requestId);
+    }
+    return { id: input.id };
+  },
 });
 
 // ── Evaluări ──────────────────────────────────────────────────────────────────
