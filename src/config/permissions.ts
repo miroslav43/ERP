@@ -138,6 +138,13 @@ export const PERMISSION_KEYS = [
   "maintenance:create",
   "maintenance:read",
   "maintenance:update",
+  // Acordate lui `org_admin`/`super_admin` de seed (0002_authz.sql:1149-1166) și,
+  // din 0180 încolo, folosite de cod: `maintenance:delete` păzește ștergerea
+  // logică a unui echipament (nicio politică DELETE — `revoke delete` în bucla
+  // din 0011), `maintenance:export` păzește exportul CSV al registrului de
+  // echipamente. Declarate aici ca inventarul din cod să corespundă seed-ului.
+  "maintenance:delete",
+  "maintenance:export",
   "organizations:read",
   "organizations:update",
   "payroll:read",

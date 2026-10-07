@@ -306,7 +306,7 @@ describe("inregistreazaContor", () => {
 });
 
 describe("adaugaAutorizatieIscir", () => {
-  it("INSERT cu organizația din sesiune, emitent implicit ISCIR; revalidează fișa echipamentului", async () => {
+  it("INSERT cu organizația din sesiune, emitent implicit ISCIR; revalidează fișa și panoul", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
     server.raspunde("iscir_authorizations", "insert", { data: { id: ID_2 } });
 
@@ -322,7 +322,9 @@ describe("adaugaAutorizatieIscir", () => {
       emis_la: null,
     });
     expect(apel?.selectDupaScriere).toBe("id");
-    expect(caiRevalidate()).toEqual([`/mentenanta/echipamente/${ID_1}`]);
+    // Și panoul `/mentenanta`: afișează autorizațiile care expiră, deci o
+    // autorizație nouă trebuie să-i schimbe lista (lipsea până la M1).
+    expect(caiRevalidate()).toEqual([`/mentenanta/echipamente/${ID_1}`, "/mentenanta"]);
   });
 
   it("număr duplicat: mesajul modulului pomenește autorizația ISCIR", async () => {

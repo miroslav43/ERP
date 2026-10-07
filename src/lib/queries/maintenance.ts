@@ -413,15 +413,107 @@ export async function echipamenteDupaId(
   return new Map((data ?? []).map((e) => [e.id, e]));
 }
 
+export interface EchipamentProblema {
+  readonly id: string;
+  readonly cod: string;
+  readonly denumire: string;
+  readonly status: "in_reparatie" | "in_conservare" | "casat";
+}
+
+export interface RezultatEchipamenteProblema {
+  readonly randuri: readonly EchipamentProblema[];
+  /** Câte echipamente nu sunt „în funcțiune”, după politici — nu câte s-au citit. */
+  readonly total: number;
+}
+
+/**
+ * Echipamentele care NU sunt „în funcțiune”, pentru panoul de organizație.
+ *
+ * `count: "exact"` pe ACEEAȘI interogare: numărul din antetul panoului trebuie
+ * să respecte aceleași politici RLS ca rândurile de sub el. Trăia inline în
+ * `mentenanta/page.tsx`; stă aici ca `coloane.test.ts` să-i vadă coloanele și
+ * ca panoul și rapoartele să numere la fel.
+ */
+export async function echipamenteCuProbleme(
+  organizationId: string,
+  limita: number,
+): Promise<RezultatEchipamenteProblema> {
+  const db = await createServerSupabase();
+  const { data, error, count } = await db
+    .from("equipment")
+    .select("id, cod, denumire, status", { count: "exact" })
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .neq("status", "in_functiune")
+    .order("cod", { ascending: true })
+    .limit(limita)
+    .returns<EchipamentProblema[]>();
+  if (error !== null) throw error;
+  const randuri = data ?? [];
+  return { randuri, total: count ?? randuri.length };
+}
+
+// ── Selectoare ──────────────────────────────────────────────────────────────
+
+export interface OptiuneSelect {
+  readonly id: string;
+  readonly nume: string;
+}
+
+/** Sub `max_rows = 1000`; cea mai mare firmă reală are opt angajați. */
+const LIMITA_OPTIUNI = 500;
+
+/**
+ * Angajații organizației pentru selectoarele „Responsabil”, „Citit de”,
+ * „Executant” — id și nume, sortați, cu limită explicită.
+ *
+ * Trăia ca interogare inline, fără limită, în două pagini. O limită ratată nu
+ * dă eroare: PostgREST taie la 1000 și selectorul arată o listă subtil
+ * incompletă. Aici limita e scrisă și sortarea e stabilă.
+ */
+export async function optiuniAngajati(organizationId: string): Promise<readonly OptiuneSelect[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("full_name", { ascending: true })
+    .limit(LIMITA_OPTIUNI)
+    .returns<AngajatRezumat[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((a) => ({ id: a.id, nume: a.full_name ?? "—" }));
+}
+
+export async function optiuniDepartamente(
+  organizationId: string,
+): Promise<readonly OptiuneSelect[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("departments")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .limit(LIMITA_OPTIUNI)
+    .returns<Array<{ id: string; denumire: string }>>();
+  if (error !== null) throw error;
+  return (data ?? []).map((d) => ({ id: d.id, nume: d.denumire }));
+}
+
 // ── Contoare ────────────────────────────────────────────────────────────
 
-export async function contoareEchipament(equipmentId: string): Promise<readonly CitireContor[]> {
+export async function contoareEchipament(
+  organizationId: string,
+  equipmentId: string,
+): Promise<readonly CitireContor[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("equipment_meters")
     .select(
       "id, tip, citire, data_citirii, resetare_contor, sursa, citit_de_employee_id, observatii",
     )
+    .eq("organization_id", organizationId)
     .eq("equipment_id", equipmentId)
     .is("deleted_at", null)
     .order("data_citirii", { ascending: false })
@@ -439,11 +531,15 @@ const COLOANE_PLAN =
   "ultima_executie, ultima_citire_contor, urmatoarea_scadenta, urmatoarea_scadenta_contor, " +
   "responsabil_employee_id, instructiuni, activ";
 
-export async function planuriEchipament(equipmentId: string): Promise<readonly PlanMentenanta[]> {
+export async function planuriEchipament(
+  organizationId: string,
+  equipmentId: string,
+): Promise<readonly PlanMentenanta[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("maintenance_plans")
     .select(COLOANE_PLAN)
+    .eq("organization_id", organizationId)
     .eq("equipment_id", equipmentId)
     .is("deleted_at", null)
     .order("denumire", { ascending: true })

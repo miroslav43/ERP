@@ -10,7 +10,6 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
@@ -21,6 +20,8 @@ import {
   citesteEchipament,
   contoareEchipament,
   interventii,
+  optiuniAngajati,
+  optiuniDepartamente,
   planuriEchipament,
   sesizari,
 } from "@/lib/queries/maintenance";
@@ -58,11 +59,6 @@ interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
 }
 
-interface Optiune {
-  readonly id: string;
-  readonly nume: string;
-}
-
 export default async function PaginaEchipament({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
 
@@ -88,8 +84,8 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
 
   const [contoare, planuri, interventiiEchipament, sesizariEchipament, autorizatii, features] =
     await Promise.all([
-      contoareEchipament(echipament.id),
-      planuriEchipament(echipament.id),
+      contoareEchipament(tenant.organizationId, echipament.id),
+      planuriEchipament(tenant.organizationId, echipament.id),
       interventii(tenant.organizationId, {
         tip: null,
         rezultat: null,
@@ -108,30 +104,12 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       getEnabledFeatures(tenant.organizationId),
     ]);
 
-  const db = await createServerSupabase();
-  const [{ data: angajatiOrg }, { data: departamenteOrg }] = await Promise.all([
-    db
-      .from("employees")
-      .select("id, full_name")
-      .eq("organization_id", tenant.organizationId)
-      .is("deleted_at", null)
-      .order("full_name", { ascending: true }),
-    db
-      .from("departments")
-      .select("id, denumire")
-      .eq("organization_id", tenant.organizationId)
-      .is("deleted_at", null)
-      .order("denumire", { ascending: true }),
+  // Selectoarele formularelor: funcții de citire cu limită explicită, nu
+  // interogări inline — o listă tăiată tăcut la 1000 arată exact ca una întreagă.
+  const [angajatiGenerali, departamente] = await Promise.all([
+    optiuniAngajati(tenant.organizationId),
+    optiuniDepartamente(tenant.organizationId),
   ]);
-
-  const angajatiGenerali: readonly Optiune[] = (angajatiOrg ?? []).map((a) => ({
-    id: a.id,
-    nume: a.full_name ?? "—",
-  }));
-  const departamente: readonly Optiune[] = (departamenteOrg ?? []).map((d) => ({
-    id: d.id,
-    nume: d.denumire,
-  }));
   const departament =
     echipament.department_id === null
       ? null

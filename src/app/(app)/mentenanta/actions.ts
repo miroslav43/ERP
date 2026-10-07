@@ -3,6 +3,7 @@
 
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
+import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { verificaContinuitate } from "@/domain/fleet/kilometraj";
@@ -36,6 +37,17 @@ import { traduEroare } from "./erori";
  * `raportat_de_employee_id` scris explicit, politica SELECT (coloana de scope
  * e `raportat_de_employee_id`) ascunde rândul abia inserat, iar `.select("id")`
  * cade cu 42501 (verificat empiric — vezi capcane.md #28).
+ *
+ * ── ADMINISTRATORUL FĂRĂ FIȘĂ DE ANGAJAT ──────────────────────────────────
+ * Un `org_admin` care nu e și angajat (patronul, contabilul extern cu drepturi
+ * de administrare) primea „Contul dvs. nu este legat de o fișă de angajat" și
+ * nu putea raporta NIMIC, deși administrează tot modulul. Politica din 0150
+ * acceptă `raportat_de_employee_id = null` când apelantul are
+ * `maintenance:create` pe `team` sau mai sus (ramura `p_employee is null` din
+ * `app.ssm_acces`), iar politica SELECT lasă rândul vizibil celor cu `read ≥
+ * team` — deci `.select("id")` trece. Pragul se verifică AICI, pe
+ * `maintenance:update`/`team` (cine administrează modulul), nu pe `create`:
+ * un `employee` are `create = all` din seed, dar fără fișă nu are ce raporta.
  */
 export const creeazaSesizare = createAction({
   name: "maintenance.fault.create",
@@ -61,10 +73,20 @@ export const creeazaSesizare = createAction({
       .is("deleted_at", null)
       .maybeSingle();
     if (eroareFisa !== null) throw eroareFisa;
-    if (fisa === null) {
-      throw businessRule(
-        "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+
+    let raportorId: string | null = fisa?.id ?? null;
+    if (raportorId === null) {
+      const permisiuni = await getPermissionMap(
+        ctx.tenant.organizationId,
+        ctx.tenant.role,
+        ctx.tenant.memberId,
       );
+      if (!can(permisiuni, "maintenance:update", "team")) {
+        throw businessRule(
+          "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+        );
+      }
+      raportorId = null;
     }
 
     const db = await createServerSupabase();
@@ -75,7 +97,7 @@ export const creeazaSesizare = createAction({
       .insert({
         organization_id: ctx.tenant.organizationId,
         equipment_id: input.equipment_id,
-        raportat_de_employee_id: fisa.id,
+        raportat_de_employee_id: raportorId,
         descriere: input.descriere,
         urgenta: input.urgenta,
         opreste_functionarea: input.opreste_functionarea,
@@ -691,7 +713,9 @@ export const adaugaAutorizatieIscir = createAction({
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
     allow: ["equipment_id", "numar", "tip", "emitent", "emis_la", "valabil_pana"],
   },
-  revalidate: (input) => [`/mentenanta/echipamente/${input.equipment_id}`],
+  // Și panoul: afișează autorizațiile care expiră, deci o autorizație nouă
+  // (sau reînnoită) trebuie să-i schimbe lista.
+  revalidate: (input) => [`/mentenanta/echipamente/${input.equipment_id}`, "/mentenanta"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     const { data, error } = await db

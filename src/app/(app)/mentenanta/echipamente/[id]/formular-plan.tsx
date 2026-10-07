@@ -70,6 +70,7 @@ export function FormularPlan({
       };
       const perZile = gol("periodicitate_zile");
       const perContor = gol("periodicitate_contor");
+      const ultimaCitire = gol("ultima_citire_contor");
 
       const valori = {
         equipment_id: equipmentId,
@@ -79,14 +80,19 @@ export function FormularPlan({
         periodicitate_contor: perContor === null ? null : Number(perContor),
         tip_contor: gol("tip_contor"),
         ultima_executie: gol("ultima_executie"),
-        ultima_citire_contor: null,
         responsabil_employee_id: gol("responsabil_employee_id"),
         instructiuni: gol("instructiuni"),
         activ: formular.get("activ") === "on",
       };
 
+      // Citirea de pornire se dă DOAR la creare. La editare nu se trimite
+      // deloc: o mută numai o intervenție reușită, iar un `null` trimis de
+      // formular o ștergea și aducea scadența pe contor înapoi la zero.
       return planExistent === undefined
-        ? await creeazaPlan(valori)
+        ? await creeazaPlan({
+            ...valori,
+            ultima_citire_contor: ultimaCitire === null ? null : Number(ultimaCitire),
+          })
         : await actualizeazaPlan({ ...valori, id: planExistent.id });
     },
     [equipmentId, planExistent],
@@ -258,6 +264,26 @@ export function FormularPlan({
                   />
                 )}
               </Camp>
+
+              {editare ? null : (
+                <Camp
+                  nume="ultima_citire_contor"
+                  id={idc("ultima-citire-contor")}
+                  eticheta="Contorul la ultima execuție"
+                  ajutor="Doar pentru planurile pe contor. Gol = se ia ultima citire înregistrată a echipamentului."
+                  erori={stare.erori["ultima_citire_contor"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={trimise["ultima_citire_contor"] ?? ""}
+                    />
+                  )}
+                </Camp>
+              )}
 
               <Camp
                 nume="responsabil_employee_id"

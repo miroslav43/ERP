@@ -14,12 +14,12 @@ import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
   angajatiDupaId,
   autorizatiiIscir,
   cheieContor,
+  echipamenteCuProbleme,
   echipamenteDupaId,
   planuriScadente,
   sesizariDeschise,
@@ -52,37 +52,6 @@ export const metadata: Metadata = { title: "Mentenanță" };
 /** Câte rânduri intră într-un panou. Restul se numără în antet, nu dispar tăcut. */
 const MAXIM_PE_PANOU = 8;
 
-interface EchipamentProblema {
-  readonly id: string;
-  readonly cod: string;
-  readonly denumire: string;
-  readonly status: "in_reparatie" | "in_conservare" | "casat";
-}
-
-interface RezultatEchipamenteProblema {
-  readonly randuri: readonly EchipamentProblema[];
-  readonly total: number;
-}
-
-/** Echipamentele care nu sunt „în funcțiune” — inline, doar pentru panoul de organizație. */
-async function echipamenteCuProbleme(organizationId: string): Promise<RezultatEchipamenteProblema> {
-  const db = await createServerSupabase();
-  // `count: "exact"` pe ACEEAȘI interogare: numărul din antetul panoului trebuie
-  // să respecte aceleași politici RLS ca rândurile de sub el.
-  const { data, error, count } = await db
-    .from("equipment")
-    .select("id, cod, denumire, status", { count: "exact" })
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .neq("status", "in_functiune")
-    .order("cod", { ascending: true })
-    .limit(MAXIM_PE_PANOU)
-    .returns<EchipamentProblema[]>();
-  if (error !== null) throw error;
-  const randuri = data ?? [];
-  return { randuri, total: count ?? randuri.length };
-}
-
 async function PanouOrganizatie({ organizationId }: { readonly organizationId: string }) {
   const azi = todayInBucharest();
 
@@ -92,7 +61,7 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
     // sesizările deschise, în ordinea corectă. Vezi `sesizariDeschise`.
     sesizariDeschise(organizationId, MAXIM_PE_PANOU),
     autorizatiiIscir(organizationId),
-    echipamenteCuProbleme(organizationId),
+    echipamenteCuProbleme(organizationId, MAXIM_PE_PANOU),
   ]);
 
   /*

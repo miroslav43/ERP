@@ -120,11 +120,22 @@ export const echipamentSchema = z.object({
   tip_autorizare_necesara: z.string().trim().max(80).nullable().default(null),
   valoare_achizitie: z.coerce.number().min(0).nullable().default(null),
   data_punerii_in_functiune: z.iso.date().nullable().default(null),
-  // Minimum 20 de caractere doar contează efectiv când `equipment_iscir_guard`
+  // Minimum 20 de caractere contează efectiv doar când `equipment_iscir_guard`
   // ajunge pe ramura de derogare (este_iscir=true, fără responsabil autorizat,
-  // apelant org_admin/super_admin) — validarea de lungime minimă e front-loaded
-  // aici ca omul să afle imediat, nu după un P0001.
-  derogare_motiv: z.string().trim().max(500).nullable().default(null),
+  // apelant org_admin/super_admin) — dar garda îl cere exact așa, iar fără
+  // validarea de aici omul afla abia după un P0001 de 247 de caractere. Un
+  // câmp lăsat gol devine `null` (nu „"”), ca să nu declanșeze regula.
+  derogare_motiv: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .default(null)
+    .transform((v) => (v === null || v.length === 0 ? null : v))
+    .refine(
+      (v) => v === null || v.length >= 20,
+      "Motivul derogării are cel puțin 20 de caractere — spuneți cine răspunde de echipament și până când.",
+    ),
 });
 export type EchipamentInput = z.output<typeof echipamentSchema>;
 
@@ -205,7 +216,16 @@ function valideazaPeriodicitatePlan(
 export const planNouSchema = campuriPlan.superRefine(valideazaPeriodicitatePlan);
 export type PlanNouInput = z.output<typeof planNouSchema>;
 
+/**
+ * `ultima_citire_contor` NU se poate edita: e punctul de pornire al scadenței pe
+ * contor și îl mută DOAR o intervenție reușită (`maintenance_interventions_apply`).
+ * Formularul de editare îl trimitea mereu `null`, iar `maintenance_plans_calc`
+ * recalcula `urmatoarea_scadenta_contor = 0 + periodicitate` — o simplă
+ * redenumire a planului îi aducea scadența pe contor înapoi la zero, fără nicio
+ * eroare. Omis din schemă, UPDATE-ul nu mai atinge coloana deloc.
+ */
 export const actualizeazaPlanSchema = campuriPlan
+  .omit({ ultima_citire_contor: true })
   .extend({ id: z.uuid("Planul selectat nu este valid.") })
   .superRefine(valideazaPeriodicitatePlan);
 export type ActualizeazaPlanInput = z.output<typeof actualizeazaPlanSchema>;

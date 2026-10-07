@@ -125,6 +125,36 @@ describe("creeazaSesizare", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
+  it("administratorul fără fișă de angajat raportează totuși: INSERT cu raportor null", async () => {
+    // Patronul sau contabilul extern cu rol `org_admin`: politica din 0150
+    // acceptă `raportat_de_employee_id = null` pentru cine are `create ≥ team`,
+    // iar SELECT-ul de după INSERT trece pe `read ≥ team`.
+    const { server, admin } = configureazaActiunea({
+      rol: "org_admin",
+      permisiuni: { "maintenance:create": "all", "maintenance:update": "all" },
+    });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("fault_reports", "insert", { data: { id: ID_3 } });
+
+    const r = await creeazaSesizare(sesizare);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_3 } });
+    const [insert] = server.apeluriPe("fault_reports");
+    expect(insert?.payload).toMatchObject({ raportat_de_employee_id: null, equipment_id: ID_1 });
+    expect(insert?.selectDupaScriere).toBe("id");
+  });
+
+  it("un manager fără fișă și fără `maintenance:update` rămâne la CONFLICT", async () => {
+    const { server, admin } = configureazaActiunea({
+      rol: "manager",
+      permisiuni: { "maintenance:create": "all", "maintenance:read": "team" },
+    });
+    admin.raspunde("employees", "select", { data: null });
+    const r = await creeazaSesizare(sesizare);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("fault_reports")).toHaveLength(0);
+  });
+
   it("eroarea la căutarea fișei nu ajunge la INSERT", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: SESIZARE });
     admin.raspunde("employees", "select", { error: eroarePostgrest("57014") });

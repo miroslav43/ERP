@@ -28,6 +28,9 @@ import {
   citesteInterventie,
   citesteSesizare,
   contoareEchipament,
+  echipamenteCuProbleme,
+  optiuniAngajati,
+  optiuniDepartamente,
   echipamenteDupaId,
   interventii,
   listeazaEchipamente,
@@ -166,13 +169,14 @@ describe("citiri punctuale și hărți după id", () => {
     expect(areFiltru(server.apeluriPe("employees")[0], "eq", "organization_id", ORG_ID)).toBe(true);
   });
 
-  it("contoareEchipament și planuriEchipament: pe echipament, nesterse, ordonate", async () => {
+  it("contoareEchipament și planuriEchipament: pe organizație și echipament, nesterse, ordonate", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("equipment_meters", "select", { data: null });
     server.raspunde("maintenance_plans", "select", { data: [{ id: ID_3 }] });
-    expect(await contoareEchipament(ID_1)).toEqual([]);
-    expect(await planuriEchipament(ID_1)).toEqual([{ id: ID_3 }]);
+    expect(await contoareEchipament(ORG_ID, ID_1)).toEqual([]);
+    expect(await planuriEchipament(ORG_ID, ID_1)).toEqual([{ id: ID_3 }]);
     const [c] = server.apeluriPe("equipment_meters");
+    expect(areFiltru(c, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(c, "eq", "equipment_id", ID_1)).toBe(true);
     expect(areFiltru(c, "is", "deleted_at", null)).toBe(true);
     expect(c?.filtre).toContainEqual({
@@ -180,8 +184,40 @@ describe("citiri punctuale și hărți după id", () => {
       argumente: ["data_citirii", { ascending: false }],
     });
     const [p] = server.apeluriPe("maintenance_plans");
+    expect(areFiltru(p, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(p, "eq", "equipment_id", ID_1)).toBe(true);
     expect(areFiltru(p, "is", "deleted_at", null)).toBe(true);
+  });
+
+  it("echipamenteCuProbleme: fără „în funcțiune”, cu total din aceeași interogare, limitat", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("equipment", "select", {
+      data: [{ id: ID_1, cod: "A", denumire: "Presă", status: "in_reparatie" }],
+      count: 3,
+    });
+    const r = await echipamenteCuProbleme(ORG_ID, 8);
+    expect(r.total).toBe(3);
+    expect(r.randuri).toHaveLength(1);
+    const [e] = server.apeluriPe("equipment");
+    expect(areFiltru(e, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(e, "is", "deleted_at", null)).toBe(true);
+    expect(areFiltru(e, "neq", "status", "in_functiune")).toBe(true);
+    expect(e?.filtre).toContainEqual({ metoda: "limit", argumente: [8] });
+    expect(e?.optiuni).toMatchObject({ count: "exact" });
+  });
+
+  it("optiuniAngajati / optiuniDepartamente: pe organizație, nesterse, sortate, cu limită", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("employees", "select", { data: [{ id: ID_1, full_name: null }] });
+    server.raspunde("departments", "select", { data: [{ id: ID_2, denumire: "Producție" }] });
+    expect(await optiuniAngajati(ORG_ID)).toEqual([{ id: ID_1, nume: "—" }]);
+    expect(await optiuniDepartamente(ORG_ID)).toEqual([{ id: ID_2, nume: "Producție" }]);
+    for (const tabela of ["employees", "departments"] as const) {
+      const [apel] = server.apeluriPe(tabela);
+      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+      expect(apel?.filtre).toContainEqual({ metoda: "limit", argumente: [500] });
+    }
   });
 });
 
