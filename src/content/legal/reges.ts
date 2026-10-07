@@ -35,7 +35,7 @@ export const REGES: PaginaLege = {
 
   raspunsScurt: [
     "Registrul se ține potrivit HG nr. 295/2025, publicată în Monitorul Oficial nr. 279 din 31 martie 2025. Vechea reglementare, HG 905/2017, a fost abrogată la 31 decembrie 2025, după prorogarea adusă de OUG 46/2025 — deci REGES-ONLINE e registrul unic începând cu 1 ianuarie 2026.",
-    "Regula pe care se greșește cel mai des: datele unui contract nou se transmit cel târziu în ziua anterioară începerii activității, nu în ziua în care omul vine la lucru. Netransmiterea se sancționează cu 20.000 de lei pentru fiecare persoană, plafonat la 200.000 de lei.",
+    "Regula pe care se greșește cel mai des: datele unui contract nou se transmit cel târziu în ziua anterioară începerii activității, nu în ziua în care omul vine la lucru. Netransmiterea se sancționează cu 20.000 de lei pentru fiecare persoană, plafonat la 200.000 de lei, iar inspectorul dispune și sistarea activității locului de muncă până la plata amenzii și transmiterea în registru — art. 260 alin. (4)–(5) din Codul muncii.",
     "Termenele exprimate în zile sunt întotdeauna zile lucrătoare. Sintagma „zile calendaristice” nu apare nicăieri în hotărâre.",
   ],
 
@@ -124,7 +124,7 @@ export const REGES: PaginaLege = {
       temei:
         "art. 9 alin. (1) HG 295/2025, care trimite la art. 260 alin. (1) lit. e¹) Codul muncii",
       nuConfunda:
-        "Aici omul ARE contract; ce lipsește e transmiterea în registru. Cuantumul e cel din 2018 și nu a fost modificat de Legea 239/2025 — care a schimbat altă literă.",
+        "Aici omul ARE contract; ce lipsește e transmiterea în registru. Cuantumul e cel din 2018 și nu a fost modificat de Legea 239/2025 — care a schimbat altă literă. Amenda nu vine singură: inspectorul dispune sistarea activității locului de muncă controlat, reluată doar după plata amenzii și transmiterea în registru — art. 260 alin. (4)–(5) din Codul muncii.",
     },
     {
       fapta: "Primirea la muncă fără încheierea unui contract individual de muncă",
@@ -145,9 +145,22 @@ export const REGES: PaginaLege = {
     },
     {
       fapta:
-        "Netransmiterea modificărilor — salariu, timp de muncă, funcție, date ale angajatorului, suspendare, încetare, transfer",
+        "Netransmiterea unui transfer sau a modificărilor — salariu, timp de muncă, funcție, loc de muncă, date ale angajatorului —, inclusiv ale unei suspendări ori încetări deja transmise",
       suma: "5.000 – 8.000 lei",
       temei: "art. 9 alin. (2) lit. b) și alin. (3) HG 295/2025",
+    },
+    // Rândul lipsea până la auditul din 7 oct 2026: suspendarea netransmisă stătea
+    // amestecată în rândul de mai sus, cu amenda modificărilor. Verificat pe textul
+    // consolidat al HG 295/2025, art. 4 alin. (2) lit. p), art. 5 alin. (1) lit. e)
+    // și art. 9 alin. (2) lit. e).
+    {
+      fapta:
+        "Netransmiterea unei suspendări — inclusiv concediul medical, care se transmite în 3 zile lucrătoare de la înregistrarea certificatului la angajator",
+      suma: "3.000 – 5.000 lei",
+      aplicare: "pentru fiecare situație de suspendare",
+      temei: "art. 9 alin. (2) lit. e) HG 295/2025, cu termenul din art. 5 alin. (1) lit. e)",
+      nuConfunda:
+        "Într-o firmă mică, concediul medical e evenimentul de registru cel mai frecvent. Suspendarea netransmisă e altă faptă decât modificarea netransmisă, cu altă amendă — și se socotește pe fiecare situație.",
     },
     {
       fapta: "Netransmiterea unei detașări, interne sau transnaționale",
@@ -245,7 +258,7 @@ export const REGES: PaginaLege = {
     },
   ],
 
-  actualizat: "septembrie 2026",
-  actualizatIso: "2026-09-17",
+  actualizat: "octombrie 2026",
+  actualizatIso: "2026-10-07",
   publicatIso: "2026-09-04",
 };

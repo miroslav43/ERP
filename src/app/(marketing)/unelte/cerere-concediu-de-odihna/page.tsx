@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { ANTET_CERERE_CONCEDIU } from "@/content/landing/unelte";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -51,12 +51,20 @@ import { cerereCaDocument, normalizeazaTip } from "./cerere-document";
  * putem cunoaște — sunt ale fiecărei firme. Pagina o spune, în loc să dea un
  * număr care pare exact și nu e.
  */
-export const metadata: Metadata = metadatePagina({
-  titlu: "Cerere concediu de odihnă: model Word, PDF",
-  descriere:
-    "Cerere de concediu de odihnă cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale. Model gratuit Word sau PDF, fără cont.",
-  cale: "/unelte/cerere-concediu-de-odihna",
-});
+/**
+ * Anul stă în titlu fiindcă așa se caută („cerere concediu de odihnă 2026") și
+ * așa titrează concurența (auditul din 7 oct 2026). Se calculează la fiecare
+ * cerere, nu se scrie: „2026" scris de mână ar fi rămas în titlu și în ianuarie.
+ * Pagina e oricum dinamică — citește `searchParams` —, deci nu costă nimic.
+ */
+export function generateMetadata(): Metadata {
+  return metadatePagina({
+    titlu: `Cerere concediu de odihnă ${todayInBucharest().slice(0, 4)}: model Word, PDF`,
+    descriere:
+      "Cerere de concediu de odihnă cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale. Model gratuit Word sau PDF, fără cont.",
+    cale: "/unelte/cerere-concediu-de-odihna",
+  });
+}
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;

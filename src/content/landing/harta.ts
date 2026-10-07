@@ -261,7 +261,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    // 7 oct: firimituri și H1 cu domeniile (auditul SEO).
+    actualizat: "2026-10-07",
     sectiune: "Domenii",
   },
   {

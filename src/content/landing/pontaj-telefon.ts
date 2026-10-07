@@ -96,7 +96,7 @@ export const CE_NU_MERGE: SectiunePontajTelefon = {
     },
     {
       titlu: "Nu are NFC, cartelă sau recunoaștere facială",
-      text: "Nici măcar ca o coloană în baza de date. Dacă una dintre ele ar schimba decizia ta, spune-ne — construim în ordinea în care ne cer firmele care ne folosesc.",
+      text: "Nici măcar ca o coloană în baza de date. Dacă una dintre ele ar schimba decizia ta, spune-ne — construim în ordinea în care ne-o cer firmele care ne scriu.",
     },
     {
       titlu: "Nu e în App Store sau Google Play",
