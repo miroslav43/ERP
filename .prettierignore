@@ -26,3 +26,9 @@ docs/comercial/linkedin/unelte/png
 docs/comercial/linkedin/unelte/livrare
 docs/comercial/linkedin/unelte/kit
 docs/comercial/linkedin/unelte/pachet
+
+# Dosarul pentru Vest Ventures: documente de afaceri, nu cod. Se sincronizează
+# cu Google Drive prin `sync_drive.py`, care rescrie ACELEAȘI fișiere — o
+# formatare locală s-ar pierde la sincronizarea următoare. Pe 7 oct 2026, 11
+# fișiere de aici au ținut CI-ul și staging-ul roșii o dimineață întreagă.
+vestventures/
