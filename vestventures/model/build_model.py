@@ -99,8 +99,9 @@ SCENARIO_DRIVERS = [
      "Pilot allows 1-3 client companies per practice (administrativo.ro/pentru-contabili). ASSUMPTION within that range."),
     ("PilotConv", "Pilot company -> paying customer (Apr 2027)", 0.50, 0.33, 0.70, "%", PCT,
      "Pilot is free until 31 Mar 2027 (administrativo.ro/pentru-contabili). Conversion not observed yet. ASSUMPTION."),
-    ("NewPartnersY1", "New accountant partners per month, year 1", 2, 1, 3, "per month", NUM1,
-     "Signed by the partner manager from in_PartnerStart. ASSUMPTION (~18,400 practices in RO: CECCAR 2025 report, as reported)."),
+    ("NewPartnersY1", "New accountant partners per month, year 1 (full-time partner manager)", 2, 1, 3, "per month", NUM1,
+     "Signed by the partner manager from in_PartnerStart; rate for a FULL-TIME manager, scaled by in_SalesFTE while the role is part-time "
+     "(until in_SalesFullStart). ASSUMPTION (~18,400 practices in RO: CECCAR 2025 report, as reported)."),
     ("NewPartnersY2", "New accountant partners per month, year 2", 3, 1.5, 5, "per month", NUM1, "ASSUMPTION."),
     ("NewPartnersY3", "New accountant partners per month, year 3", 4, 2, 6, "per month", NUM1, "ASSUMPTION."),
     ("RefRate", "Firms referred per active partner per month", 0.20, 0.12, 0.30, "firms", '0.00',
@@ -116,7 +117,9 @@ SCENARIO_DRIVERS = [
     ("Churn", "Monthly logo churn", 0.03, 0.05, 0.02, "% / month", PCT,
      "ChartMogul median 6.1%/mo for ARPA < US$25; our ARPA ~US$50 sits in a better band. 3% base / 5% conservative / 2% upside: ASSUMPTION, to be tested in the pilot."),
     ("PriceInc", "Annual list-price / upsell increase (from year 2)", 0.05, 0.00, 0.08, "% / year", PCT, "ASSUMPTION."),
-    ("DevStart", "Month the developer is hired", 13, 19, 10, "model month", NUM, "Funded by the round. Conservative delays it. ASSUMPTION."),
+    ("DevStart", "Month the developer is hired", 25, 31, 19, "model month", NUM,
+     "AFTER the seed: seed raise starts at 100 paying customers (in_M100), ~5-6 months to close. Base Jan 2029; Upside Jul 2028 "
+     "(100 customers sooner); Conservative Jul 2029 (seed trigger not reached - deliberately late). Not funded by the pre-seed. ASSUMPTION."),
 ]
 
 # Plain inputs: (name, label, value, unit, number format, note).  Section rows are ("#", title).
@@ -136,10 +139,12 @@ INPUTS = [
     ("FundingMonth", "Month the round is received", 1, "model month", NUM, "ASSUMPTION; see StartDate."),
     ("OpeningCash", "Cash in the company before the round", 0, "EUR", EUR, "[TO CONFIRM] by the founders. Set to 0 (prudent)."),
     ("#", "Round (key levers)"),
-    ("VVTicket", "Vest Ventures accelerator ticket", 200000, "EUR", EUR,
-     "VV Accelerator ticket EUR 10k-200k, de minimis, >=10% independent private co-investment (vestventures.vc/en/programs-terms). Max ticket assumed."),
-    ("Angels", "Independent private co-investors (business angels)", 50000, "EUR", EUR,
-     "Covers VV's >=10% private co-investment rule with margin (20% of the round). Angels NOT identified yet."),
+    ("VVTicket", "Vest Ventures accelerator ticket", 135000, "EUR", EUR,
+     "VV Accelerator ticket EUR 10k-200k, de minimis, >=10% independent private co-investment (vestventures.vc/en/programs-terms). "
+     "EUR 135k requested, inside the range."),
+    ("Angels", "Independent private co-investors (business angels)", 15000, "EUR", EUR,
+     "10% of the round (11.1% of the VV ticket): meets VV's >=10% private co-investment rule whether it is measured on the total "
+     "(exactly, no margin) or on VV's ticket - basis [TO CONFIRM] with VV. Angels NOT identified yet."),
     ("MinPrivatePct", "Minimum private co-investment (VV rule, as % of VV ticket)", 0.10, "%", PCT,
      "Vest Ventures programme terms ('>=10% private co-investment'). Basis of the 10% (ticket vs total) [TO CONFIRM] with VV."),
     ("PreMoney", "Pre-money valuation (fully diluted, incl. new ESOP)", 1250000, "EUR", EUR,
@@ -166,12 +171,22 @@ INPUTS = [
     ("CAM", "Employer contribution on gross (CAM)", 0.0225, "%", PCT,
      "Romanian 'contribuția asiguratorie pentru muncă' 2.25% - legal value [TO CONFIRM] by accountant."),
     ("Raise", "Annual salary increase (from year 2)", 0.05, "%", PCT, "ASSUMPTION."),
-    ("SalFounder", "Co-founder gross salary (each, 2 people)", 1500, "EUR/month", EUR,
-     "Both co-founders full time from close. ASSUMPTION - no sourced salary benchmark; check against current Timișoara IT salary surveys."),
-    ("SalSales", "Partner & sales manager (accountant channel) gross", 2000, "EUR/month", EUR, "ASSUMPTION (no sourced salary benchmark)."),
+    ("SalFounder", "Co-founder gross salary (each, 2 people)", 1000, "EUR/month", EUR,
+     "Both co-founders full time from close, on a deliberately lean pre-seed salary (~RON 5,000 gross) to stretch the runway; "
+     "kept at this level in the model (only the annual raise applies). ASSUMPTION - no sourced salary benchmark."),
+    ("SalSales", "Partner & sales manager (accountant channel) gross, full-time equivalent", 2000, "EUR/month", EUR,
+     "ASSUMPTION (no sourced salary benchmark). Paid pro rata to in_SalesFTE while part-time."),
     ("SalesStart", "Partner & sales manager start month", 3, "model month", NUM, "ASSUMPTION."),
-    ("SalSupport", "Customer onboarding & support specialist (HR/payroll background) gross", 1400, "EUR/month", EUR, "ASSUMPTION."),
-    ("SupportStart", "Onboarding & support specialist start month", 4, "model month", NUM, "Starts when pilot companies convert. ASSUMPTION."),
+    ("SalesFTE", "Partner & sales manager share of full time until full-time start", 0.5, "FTE", PCT,
+     "Half time in year 1 to fit the EUR 150k round. Partner signings scale with it (new partners/month x FTE): fewer sales hours = fewer partners. ASSUMPTION."),
+    ("SalesFullStart", "Partner & sales manager full time from", 13, "model month", NUM, "Jan 2028, after the first year of channel data. ASSUMPTION."),
+    ("SalSupport", "Customer onboarding & support specialist (HR/payroll background) gross, full-time equivalent", 1400, "EUR/month", EUR,
+     "ASSUMPTION. Paid pro rata to in_SupportFTE while part-time."),
+    ("SupportStart", "Onboarding & support specialist start month", 7, "model month", NUM,
+     "Founders onboard the pilot companies (Apr 2027); the specialist starts part-time around 30 paying customers. ASSUMPTION."),
+    ("SupportFTE", "Onboarding & support specialist share of full time until full-time start", 0.5, "FTE", PCT, "ASSUMPTION."),
+    ("SupportFullStart", "Onboarding & support specialist full time from", 25, "model month", NUM,
+     "With the seed (same month as the base-case developer hire). ASSUMPTION."),
     ("SalDev", "Full-stack developer gross", 2500, "EUR/month", EUR, "ASSUMPTION. Start month is a scenario driver (in_DevStart)."),
     ("#", "Operating costs (EUR)"),
     ("InfraFixed", "Hosting, database, e-mail, monitoring, backups (fixed)", 350, "EUR/month", EUR,
@@ -182,7 +197,8 @@ INPUTS = [
     ("MktY1", "Marketing budget, year 1", 1500, "EUR/month", EUR, "ASSUMPTION."),
     ("MktY2", "Marketing budget, year 2", 2500, "EUR/month", EUR, "ASSUMPTION."),
     ("MktY3", "Marketing budget, year 3", 3500, "EUR/month", EUR, "ASSUMPTION."),
-    ("Travel", "Travel to accounting practices, accountant events", 500, "EUR/month", EUR, "Founders' internal cost estimate (accountant sales)."),
+    ("Travel", "Travel to accounting practices, accountant events", 300, "EUR/month", EUR,
+     "Founders' internal cost estimate (accountant sales), trimmed to fit the EUR 150k round: local Timiș/West Region practices first, few paid events."),
     ("Office", "Coworking desk(s) in Timiș county", 200, "EUR/month", EUR, "VV requires an operating site in the West Region (vestventures.vc/en/programs-terms). ASSUMPTION."),
     ("Insurance", "Professional liability insurance", 100, "EUR/month", EUR, "Founders' internal cost estimate (EUR 1,200/yr)."),
     ("Admin", "Bookkeeping, bank, admin", 200, "EUR/month", EUR, "ASSUMPTION."),
@@ -199,8 +215,8 @@ INPUTS = [
     ("A11yStart", "  start month", 5, "model month", NUM, ""),
     ("A11yEnd", "  end month", 6, "model month", NUM, ""),
     ("PentestAmt", "External penetration test", 6000, "EUR", EUR, "Founders' internal cost estimate ('~EUR 6,000')."),
-    ("PentestStart", "  start month", 9, "model month", NUM, ""),
-    ("PentestEnd", "  end month", 9, "model month", NUM, ""),
+    ("PentestStart", "  start month", 12, "model month", NUM, "Dec 2027: before the year-2 scale-up and before seed due diligence."),
+    ("PentestEnd", "  end month", 12, "model month", NUM, ""),
     ("#", "Tax"),
     ("TaxRegime", "Tax regime (1 = micro-enterprise on revenue, 2 = profit tax)", 1, "1 / 2", NUM,
      "[TO CONFIRM] with accountant: micro-enterprise eligibility (revenue threshold, CAEN, shareholder tests) for the SRL."),
@@ -484,8 +500,9 @@ class Model:
         self.section(ws, r, "Acquisition channels")
         self.mrow(ws, 8, "pilot", "Pilot companies converting to paid", "firms",
                   lambda m, c: f"=IF({c}$3=in_PilotConvMonth,in_PilotPractices*in_PilotFirmsPerPractice*in_PilotConv,0)", NUM1)
-        self.mrow(ws, 9, "newpartners", "New accountant partners signed", "practices",
-                  lambda m, c: f"=IF({c}$3>=in_PartnerStart,CHOOSE({c}$5,in_NewPartnersY1,in_NewPartnersY2,in_NewPartnersY3),0)", NUM1)
+        self.mrow(ws, 9, "newpartners", "New accountant partners signed (x partner manager FTE)", "practices",
+                  lambda m, c: (f"=IF({c}$3>=in_PartnerStart,CHOOSE({c}$5,in_NewPartnersY1,in_NewPartnersY2,in_NewPartnersY3)"
+                                f"*IF({c}$3>=in_SalesFullStart,1,in_SalesFTE),0)"), NUM1)
         self.mrow(ws, 10, "partners", "Active accountant partners (end of month)", "practices",
                   lambda m, c: f"={prev(c, 10, m)}+{c}9+IF({c}$3=in_PilotConvMonth,in_PilotPractices,0)", NUM1)
         self.mrow(ws, 11, "referred", "Firms referred by partners", "firms",
@@ -539,13 +556,21 @@ class Model:
         rev = lambda c, key: f"Revenue!{c}{self.r('Revenue', key)}"
         self.section(ws, 7, "Headcount (employer cost)")
         sal = lambda gross, start: (lambda m, c: f"=IF({c}$3>={start},{gross}*(1+in_CAM)*(1+in_Raise)^({c}$5-1),0)")
+        # part-time until full_start: gross x FTE share
+        salpt = lambda gross, start, fte, full_start: (lambda m, c: (f"=IF({c}$3>={start},{gross}*IF({c}$3>={full_start},1,{fte})"
+                                                                     f"*(1+in_CAM)*(1+in_Raise)^({c}$5-1),0)"))
+        fte_of = lambda c, start, fte, full_start: f"IF({c}$3>={start},IF({c}$3>={full_start},1,{fte}),0)"
         self.mrow(ws, 8, "founder1", "Co-founder - Miroslav Maletici (role [TO CONFIRM])", "EUR", sal("in_SalFounder", 1), EUR)
         self.mrow(ws, 9, "founder2", "Co-founder - Răzvan Pervulescu (role [TO CONFIRM])", "EUR", sal("in_SalFounder", 1), EUR)
-        self.mrow(ws, 10, "sales", "Partner & sales manager (accountant channel)", "EUR", sal("in_SalSales", "in_SalesStart"), EUR)
-        self.mrow(ws, 11, "support", "Customer onboarding & support specialist", "EUR", sal("in_SalSupport", "in_SupportStart"), EUR)
+        self.mrow(ws, 10, "sales", "Partner & sales manager (accountant channel; part-time first)", "EUR",
+                  salpt("in_SalSales", "in_SalesStart", "in_SalesFTE", "in_SalesFullStart"), EUR)
+        self.mrow(ws, 11, "support", "Customer onboarding & support specialist (part-time first)", "EUR",
+                  salpt("in_SalSupport", "in_SupportStart", "in_SupportFTE", "in_SupportFullStart"), EUR)
         self.mrow(ws, 12, "dev", "Full-stack developer", "EUR", sal("in_SalDev", "in_DevStart"), EUR)
         self.mrow(ws, 13, "people", "Total headcount cost", "EUR", lambda m, c: f"=SUM({c}8:{c}12)", EUR, bold=True, border=True)
-        self.mrow(ws, 14, "fte", "Headcount (FTE)", "people", lambda m, c: f"=COUNTIF({c}8:{c}12,\">0\")", NUM)
+        self.mrow(ws, 14, "fte", "Headcount (FTE)", "FTE",
+                  lambda m, c: (f"=2+{fte_of(c, 'in_SalesStart', 'in_SalesFTE', 'in_SalesFullStart')}"
+                                f"+{fte_of(c, 'in_SupportStart', 'in_SupportFTE', 'in_SupportFullStart')}+IF({c}$3>=in_DevStart,1,0)"), NUM1)
         self.section(ws, 16, "Operating expenses")
         self.mrow(ws, 17, "infrafix", "Hosting & infrastructure (fixed)", "EUR", lambda m, c: "=in_InfraFixed", EUR)
         self.mrow(ws, 18, "infravar", "Infrastructure (variable, per customer)", "EUR", lambda m, c: f"={rev(c, 'customers')}*in_InfraVar", EUR, GREEN)
@@ -733,11 +758,13 @@ class Model:
         within = lambda row: f"SUMPRODUCT(({mo}<=$B$5)*{rng('Costs', row)})"
         R = lambda k: self.r("Costs", k)
         cats = [
-            ("Product & engineering (2 co-founders full time, developer)", [R("founder1"), R("founder2"), R("dev")],
-             "Both co-founders full time; a developer from month in_DevStart. REGES-Online, payroll validation fixes, billing, mobile store release."),
+            ("Product & engineering (2 co-founders full time)", [R("founder1"), R("founder2"), R("dev")],
+             "Both co-founders full time on lean salaries; the developer is hired after the seed (in_DevStart), outside this horizon in the base case. "
+             "REGES-Online, payroll validation fixes, billing, mobile store release."),
             ("Accountant channel & sales (partner manager, travel, commissions)", [R("sales"), R("travel"), R("comm")],
-             "Partner manager signing accounting practices; 20% x 6-month commissions."),
-            ("Customer onboarding & support", [R("support")], "Employee import, company setup and accounting mapping for each new firm."),
+             "Partner manager (half time in year 1, full time from in_SalesFullStart) signing accounting practices; 20% x 6-month commissions."),
+            ("Customer onboarding & support", [R("support")],
+             "Half-time specialist from in_SupportStart: employee import, company setup and accounting mapping for each new firm."),
             ("Marketing (content, SEO, performance ads)", [R("mkt")], "REGES-Online / timesheet keywords; accountant materials."),
             ("Legal, payroll validation, compliance & security", [R("legal"), R("payrollval"), R("a11y"), R("pentest"), R("insurance")],
              "Round documents, DPA, payroll legal values validated, EN 301 549 accessibility audit, pentest, liability insurance."),
@@ -771,8 +798,10 @@ class Model:
             c = ws.cell(row=j + 1, column=i, value=h)
             c.font, c.fill = HDR, HDR_FILL
         cumcost, runmin = rng("P&L & Cash", 24), rng("P&L & Cash", 30)
-        tests = [("Lower end of founders' range", 150000), ("VV ticket alone (not allowed without private match)", 200000),
-                 ("Option A: VV ticket + minimum 10% private match", "=in_OptionA"), ("Proposed round", "=in_Round"),
+        tests = [("VV ticket alone (not allowed without private match)", "=in_VVTicket"),
+                 ("Proposed round", "=in_Round"),
+                 ("VV maximum ticket + minimum 10% private match", "=200000*(1+in_MinPrivatePct)"),
+                 ("Larger round (more angels)", 250000),
                  ("Upper end of founders' range", 300000)]
         for i, (lbl, v) in enumerate(tests):
             rr = j + 2 + i
@@ -789,10 +818,11 @@ class Model:
             if lbl == "Proposed round":
                 ws[f"A{rr}"].font = BOLD
         self.round_test_rows = (j + 2, j + 6)
-        ws[f"A{j + 7}"] = ("Runway on plan assumes the money arrives in model month 1 (running minimum of cumulative operating cash flow). "
-                           "Dilution shown for the same pre-money; a different round size would be negotiated at a different valuation.")
+        ws[f"A{j + 7}"] = ("All rows use the same (lean) cost plan and the selected scenario. Runway on plan assumes the money arrives in model "
+                           "month 1 (running minimum of cumulative operating cash flow). Dilution shown for the same pre-money; a different "
+                           "round size would be negotiated at a different valuation.")
         ws[f"A{j + 7}"].font = SUB
-        t150, t300 = j + 2, j + 6
+        t220 = j + 4
         j = j + 9
         self.section(ws, j, "Why this round size", 5)
         lines = [
@@ -802,8 +832,12 @@ class Model:
              'is raised from the 100-paying-customer milestone (model month "&in_M100&").","On the selected scenario cash never falls below €"'
              '&TEXT(in_CashLow,"#,##0")&"; break-even in model month "&in_Breakeven&".")'),
             '="Next milestone (seed readiness) inside the runway: 100 paying firms by model month "&in_M100&", payroll validated, REGES-Online in daily use, accountant channel repeatable."',
-            (f'="Why not €150k: "&C{t150}&" months with zero revenue, "&D{t150}&" on plan - a raise before the accountant channel has a year of data. '
-             f'Why not €300k: above the VV accelerator ticket (max €200k) and needs €100k of angels not yet identified ("&C{t300}&" months with zero revenue, "&D{t300}&" on plan)."'),
+            ('="Why this size: the round funds the path to the seed trigger (100 paying firms, model month "&in_M100&") with "&in_RunwayPlan&'
+             '" months of runway on plan and "&TEXT(in_InvPct,"0.0%")&" dilution, on a lean cost plan: co-founders at €"&TEXT(in_SalFounder,"#,##0")&'
+             '" gross, partner manager at "&TEXT(in_SalesFTE,"0%")&" until model month "&in_SalesFullStart&" (partner signings scaled to match), '
+             'support specialist at "&TEXT(in_SupportFTE,"0%")&" from model month "&in_SupportStart&", developer after the seed (model month "&in_DevStart&")."'),
+            (f'="Larger rounds (table above) buy runway, e.g. €"&TEXT(B{t220},"#,##0")&" (VV maximum ticket + minimum match): "&C{t220}&'
+             f'" months with zero revenue, "&D{t220}&" on plan - but need a larger VV ticket and more private money, and no angel is identified yet."'),
         ]
         for k, f in enumerate(lines):
             ws[f"A{j + 1 + k}"] = f
@@ -925,7 +959,7 @@ class Model:
         ws["B2"] = "ADMINISTRATIVO - financial model (pre-seed)"
         ws["B2"].font = TITLE
         ws["B3"] = "HR & administration SaaS for Romanian SMEs - administrativo.ro"
-        ws["B4"], ws["C4"] = "Prepared", "6 Oct 2026"
+        ws["B4"], ws["C4"] = "Prepared", "7 Oct 2026"
         ws["B5"], ws["C5"] = "Currency", "EUR (RON converted at 5.0 RON = 1 EUR, Assumptions!in_FX)"
         ws["B6"], ws["C6"] = "Status on 6 Oct 2026", "Product live since early Sept 2026; ZERO paying customers; free pilots only"
         ws["B8"] = "SCENARIO SELECTOR (1 = Base, 2 = Conservative, 3 = Upside)"
@@ -985,6 +1019,8 @@ class Model:
             "Prices above 20 employees are not published; larger firms are modelled at list price.",
             "No billing integration exists in code yet; payment fees are an assumption.",
             "Salaries, conversion rates and partner productivity are founders' assumptions (no external source).",
+            "Lean pre-seed cost plan: co-founders on lean salaries, partner manager and support specialist part-time first "
+            "(partner signings scaled to the manager's hours), developer hired only after the seed.",
             "[TO CONFIRM]: legal entity and registered office (VV requires Arad, Caraș-Severin, Hunedoara or Timiș), tax regime, social parts.",
             "Sheets: Assumptions -> Revenue -> Costs -> P&L & Cash -> Unit economics; Scenarios; Use of funds; Cap table; Sources.",
         ]
@@ -997,8 +1033,8 @@ class Model:
 # Standalone cap table workbook
 # --------------------------------------------------------------------------------------
 
-CAP = dict(founders_units=10000, m_pct=0.51, r_pct=0.49, esop=0.10, vv=200000, angels=50000, pre=1250000,
-           seed_amount=1000000, seed_pre=4000000, seed_esop_topup=0.0, cla_discount=0.20, cla_interest=0.0, cla_years=1.5)
+CAP = dict(founders_units=10000, m_pct=0.51, r_pct=0.49, esop=0.10, vv=135000, angels=15000, pre=1250000,
+           seed_amount=1000000, seed_pre=4000000, seed_esop_topup=0.0, cla_discount=0.20, cla_interest=0.0, cla_years=2.0)
 
 
 def build_cap_table_wb() -> Workbook:
@@ -1110,7 +1146,7 @@ def build_cap_table_wb() -> Workbook:
         ("Valuation cap, pre-money FD (EUR)", "='Cap table'!B10", EUR, "cap = pre-money of the priced alternative"),  # B5
         ("Discount to the next priced round", CAP["cla_discount"], PCT, "ILLUSTRATIVE"),                     # B6
         ("Annual interest (simple)", CAP["cla_interest"], PCT, "ILLUSTRATIVE; VV template terms [TO CONFIRM]"),  # B7
-        ("Years until conversion", CAP["cla_years"], '0.0', "ILLUSTRATIVE (seed ~18 months after close)"),  # B8
+        ("Years until conversion", CAP["cla_years"], '0.0', "ILLUSTRATIVE (seed ~24 months after close: 100-customer trigger + raise)"),  # B8
         ("Amount converting (EUR)", "=B4*(1+B7*B8)", EUR, ""),                                               # B9
         ("Pre-conversion units (founders + ESOP pool, notional)", "='Cap table'!B5+'Cap table'!D31", NUM,
          "same pool units as the priced round (10% of post-money), so the two paths are comparable"),  # B10

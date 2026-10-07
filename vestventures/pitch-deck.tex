@@ -1,18 +1,23 @@
 % =====================================================================
-%  ADMINISTRATIVO -- pre-seed pitch deck (Vest Ventures application)
+%  ADMINISTRATIVO -- pre-seed pitch deck (Vest Ventures Accelerator)
 %
 %  Build (from this directory):
 %      python3 tema/cifre_tex.py        # refresh numbers from _surse/cifre.json
 %      tectonic -X compile pitch-deck.tex --keep-logs
 %
-%  Every model number (round, valuation, runway, projections, unit
-%  economics, use of funds, pricing in EUR, TAM/SAM/SOM) is read from
-%  tema/cifre.tex, generated from _surse/cifre.json. Do NOT type them by
-%  hand. Market and regulatory facts come from _surse/piata.md, product and
-%  engineering facts from _surse/fapte.md (both with sources).
+%  12 slides, one message each, stated as the slide title. Body text kept
+%  to about 35 words per slide; sources in ONE tiny line, only where a
+%  number needs it. No ownership percentages, cap table or valuation in
+%  this deck (founders' decision, 7 Oct 2026): those live in the data room.
+%
+%  Every model number (round, runway, milestone, use of funds, prices,
+%  unit economics, TAM/SAM/SOM) is read from tema/cifre.tex, generated
+%  from _surse/cifre.json. Do NOT type them by hand. Market and regulatory
+%  facts come from _surse/piata.md, product facts from _surse/fapte.md.
 %
 %  Engine: XeTeX via tectonic (fontspec). English hyphenation through the
-%  switch in tema/baza.tex.
+%  switch in tema/baza.tex. The shared theme (tema/) is not edited here:
+%  every deck-specific macro lives in this file.
 % =====================================================================
 \documentclass[aspectratio=169,10pt,t,xcolor={table}]{beamer}
 
@@ -30,19 +35,19 @@
 
 \hypersetup{
   pdftitle={ADMINISTRATIVO - pre-seed pitch deck},
-  pdfsubject={HR and payroll SaaS for Romanian SMEs - pre-seed round},
+  pdfsubject={HR SaaS for Romanian SMEs - pre-seed round, Vest Ventures Accelerator},
   pdfauthor={ADMINISTRATIVO - Miroslav Maletici, Răzvan Pervulescu},
-  pdfkeywords={HR SaaS, payroll, REGES-Online, Romania, SME, pre-seed,
-    time tracking, compliance, Vest Ventures}}
+  pdfkeywords={HR SaaS, REGES-Online, time tracking, leave, Romania, SME,
+    pre-seed, accountants, Vest Ventures}}
 
 % ---------------------------------------------------------------------
 % DRAFT SWITCH. The deck still contains founder facts we do not have
-% (titles, bios, study plan, legal entity, pilot counts). Each one is a
-% \deconfirmat{...} and prints "[TO CONFIRM: ...]" in amber.
-% While \ciornatrue, every slide carries a DRAFT label in the footer.
-% When all \deconfirmat are replaced with real text, write \ciornafalse:
-% a \deconfirmat left behind then STOPS the compilation, so a deck with a
-% placeholder can never be built as final. Before uploading, check:
+% (the two founders' roles). Each one is a \deconfirmat{...} and prints
+% "[TO CONFIRM: ...]" in amber. While \ciornatrue, every slide carries a
+% DRAFT label in the footer. When all \deconfirmat are replaced with real
+% text, write \ciornafalse: a \deconfirmat left behind then STOPS the
+% compilation, so a deck with a placeholder can never be built as final.
+% Before uploading, check:
 %     python3 -c "import pymupdf;print(sum(p.get_text().count('TO CONFIRM') for p in pymupdf.open('pitch-deck.pdf')))"
 % must print 0 (data-room/HOSTING.md).
 % ---------------------------------------------------------------------
@@ -53,16 +58,9 @@
   \else\errmessage{pitch-deck: [TO CONFIRM: #1] left in a deck marked final}\fi}
 
 % FOUNDER INPUTS (team slide). Replace each \deconfirmat{...} with the real
-% text, e.g. \newcommand{\fondMiroslavRol}{CEO: product, sales, finance}.
-\newcommand{\fondMiroslavRol}{\deconfirmat{title, areas}}
-\newcommand{\fondMiroslavStudii}{\deconfirmat{programme, year, prior work}}
-\newcommand{\fondMiroslavOre}{\deconfirmat{hours/week}}
-\newcommand{\fondRazvanRol}{\deconfirmat{title, areas}}
-\newcommand{\fondRazvanStudii}{\deconfirmat{programme, year, prior work}}
-\newcommand{\fondRazvanOre}{\deconfirmat{hours/week}}
-\newcommand{\fondStudiiPlan}{\deconfirmat{how studies fit}}
-\newcommand{\firmaInvestita}{\deconfirmat{investee}}
-\newcommand{\firmaIstoric}{\deconfirmat{activity}}
+% text, e.g. \newcommand{\fondMiroslavRol}{CEO: product and sales}.
+\newcommand{\fondMiroslavRol}{\deconfirmat{role}}
+\newcommand{\fondRazvanRol}{\deconfirmat{role}}
 
 % ---------------------------------------------------------------------
 % Icons carry an empty ActualText, so the PDF text layer (read by people
@@ -85,61 +83,101 @@
   \hbox{%
     \hspace*{0.85cm}%
     \parbox{\dimexpr\paperwidth-1.7cm\relax}{%
-      \textcolor{brandLine}{\rule{\linewidth}{0.5pt}}\par
-      \vspace{2pt}
-      {\scriptsize\color{brandSlate}{\titlufont ADMINISTRATIVO}\hfill
+      {\fontsize{6}{7}\selectfont\color{brandSlate}{\titlufont ADMINISTRATIVO}\hfill
        \ifciorna\textcolor{brandAmber}{\textbf{DRAFT: founder details pending, do not upload}}%
-       \else Pre-seed investor presentation \textperiodcentered{} October 2026\fi\hfill
-       \textbf{\insertframenumber}\,/\,\inserttotalframenumber}%
+       \else Pre-seed \textperiodcentered{} October 2026\fi\hfill
+       \insertframenumber\,/\,\inserttotalframenumber}%
     }%
-  }\vspace*{0.26cm}%
+  }\vspace*{0.25cm}%
 }
 
-% Compact frame title: same look as the theme, less air above and below.
+% Slide title = the slide's one message. Large, left-aligned, accent rule.
 \setbeamertemplate{frametitle}{%
-  \vspace*{0.26cm}%
+  \vspace*{0.42cm}%
   \begin{minipage}{\linewidth}%
     \raggedright
-    {\titlufont\bfseries\large\color{brandNavy}\insertframetitle\par}
-    \nointerlineskip\vspace{4pt}
+    {\titlufont\bfseries\fontsize{15.5}{18.5}\selectfont\color{brandNavy}\insertframetitle\par}
+    \nointerlineskip\vspace{5pt}
     \noindent{\color{brandBlue}\rule{1.7cm}{2pt}}%
   \end{minipage}%
-  \vspace*{0.02cm}%
+  \vspace*{0.05cm}%
 }
 
-% Sources line at the bottom of the frame. It sits IN the flow after a
-% \vfill (frames are top-aligned), so a slide that is too full shows up as
-% an "Overfull \vbox" in the log instead of text silently overlapping.
+% ONE tiny source line at the bottom of the frame. It sits IN the flow
+% after a \vfill (frames are top-aligned), so a slide that is too full
+% shows up as an "Overfull \vbox" in the log instead of text silently
+% overlapping the footer.
 \newcommand{\surse}[1]{%
   \par\vfill
-  {\fontsize{5.2}{6.2}\selectfont\color{brandSlate}\RaggedRight #1\par}\vspace{-2pt}}
+  {\fontsize{5.2}{6.2}\selectfont\color{brandSlate}\raggedright\nohyph #1\par}\vspace{1pt}}
 
-% No hyphenation in narrow boxes (nodes, table cells): "in-ventory" at
-% presentation size looks careless.
+% No hyphenation in narrow boxes: "in-ventory" at presentation size looks careless.
 \newcommand{\nohyph}{\hyphenpenalty=10000\exhyphenpenalty=10000\relax}
 
-% Big number + label (narrow variant of \cifra, width as argument)
-\newcommand{\stat}[3]{%
-  \begin{minipage}[t]{#1}\RaggedRight
-    {\titlufont\bfseries\Large\color{brandBlue}#2\par}\vspace{1pt}
-    {\scriptsize\color{brandSlate}#3\par}
-  \end{minipage}}
+% Big number: the visual anchor of a slide.
+\newcommand{\mare}[2][brandBlue]{%
+  {\titlufont\bfseries\fontsize{34}{36}\selectfont\color{#1}#2}}
 
-% Same, one size smaller (seven numbers in one band)
-\newcommand{\statm}[3]{%
-  \begin{minipage}[t]{#1}\RaggedRight
-    {\titlufont\bfseries\large\color{brandBlue}#2\par}\vspace{1pt}
-    {\fontsize{6}{7}\selectfont\color{brandSlate}#3\par}
-  \end{minipage}}
+% Body text size for the deck (larger than the theme's \scriptsize cards).
+\newcommand{\corp}{\fontsize{10.5}{13.5}\selectfont\nohyph}
+\newcommand{\eticheta}{\fontsize{8.5}{10.5}\selectfont\nohyph}
 
-% Small coloured key square for chart legends
-\newcommand{\cheie}[1]{\tikz[baseline=-0.6ex]\fill[#1] (0,-0.09) rectangle (0.18,0.09);}
+% Icon row in body size; the icon box is wider than in the theme's \pct
+% because the text is larger.
+\newcommand{\rand}[3][brandBlue]{%
+  \par\hangindent=2.1em\hangafter=1\noindent
+  \makebox[1.6em][l]{\textcolor{#1}{\faIcon{#2}}}\hspace{0.5em}#3\par}
 
-% Screenshot with caption under a "window" frame
+% Icon in a filled circle (pillars, team, steps).
+\newcommand{\bulina}[3]{% colour, size (cm), icon
+  \tikz[baseline=-0.6ex]\node[circle,fill=#1,text=white,minimum size=#2cm,inner sep=0pt,
+    font=\large]{\faIcon{#3}};}
+
+% Screenshot under a "window" frame, with a one-line caption.
 \newcommand{\ecran}[3]{% width, file, caption
-  \begin{minipage}[t]{#1}\vspace{0pt}
+  \begin{minipage}[b]{#1}
     \begin{fereastra}\includegraphics[width=\linewidth]{#2}\end{fereastra}
-    \vspace{1pt}{\fontsize{6}{7}\selectfont\color{brandSlate}\RaggedRight #3\par}
+    \vspace{3pt}{\eticheta\color{brandSlate}\RaggedRight #3\par}
+  \end{minipage}}
+
+% Use of funds: the seven model categories of cifre.json grouped into four.
+% Euros are summed with \numexpr (exact integers, then rounded to €k);
+% shares are summed from the model's own percentages. Nothing typed by hand.
+\newcommand{\fondK}[1]{\the\numexpr(#1)/1000\relax}
+\newcommand{\fondsProdus}{\cfn{use_of_funds.0.eur}+\cfn{use_of_funds.5.eur}}
+\newcommand{\fondsPiata}{\cfn{use_of_funds.1.eur}+\cfn{use_of_funds.3.eur}+\cfn{use_of_funds.2.eur}}
+\newcommand{\fondsLegal}{\cfn{use_of_funds.4.eur}}
+\newcommand{\fondsOps}{\cfn{use_of_funds.6.eur}}
+\newcommand{\pctgrup}[1]{\pgfmathparse{#1}\pgfmathprintnumber[fixed,precision=1,fixed zerofill,assume math mode=true]{\pgfmathresult}}
+
+% Slide-specific layouts (defined here, not inside frames).
+\newcommand{\pilon}[4]{% colour, icon, heading, text
+  \begin{minipage}[t]{0.3\linewidth}\vspace{0pt}\raggedright
+    \bulina{#1}{1.25}{#2}\par\vspace{10pt}
+    {\titlufont\bfseries\large\color{brandNavy}#3\par}\vspace{6pt}
+    {\corp\color{brandSlate}#4\par}
+  \end{minipage}}
+\newcommand{\piata}[4]{% colour, label, number, explanation
+  \begin{minipage}[t]{0.3\linewidth}\vspace{0pt}\raggedright
+    {\titlufont\bfseries\footnotesize\color{brandSlate}#2\par}\vspace{4pt}
+    \mare[#1]{#3}\par\vspace{6pt}
+    {\corp\color{brandSlate}#4\par}
+  \end{minipage}}
+\newcommand{\fondator}[5]{% colour, initials, name, role, credential
+  \begin{minipage}[t]{0.47\linewidth}\vspace{0pt}
+    \begin{tcolorbox}[enhanced,arc=4pt,colback=white,colframe=brandLine,boxrule=0.6pt,
+        borderline west={3pt}{0pt}{#1},left=8pt,right=8pt,top=7pt,bottom=7pt,height=3.5cm]
+      \begin{minipage}[t]{1.45cm}\vspace{0pt}
+        \tikz\node[circle,fill=#1,text=white,minimum size=1.2cm,inner sep=0pt,
+          font=\titlufont\bfseries\large]{#2};
+      \end{minipage}%
+      \begin{minipage}[t]{\dimexpr\linewidth-1.45cm\relax}\vspace{0pt}\raggedright
+        {\titlufont\bfseries\fontsize{13}{16}\selectfont\color{brandNavy}#3\par}\vspace{3pt}
+        {\eticheta #4\par}\vspace{7pt}
+        {\corp #5\par}\vspace{5pt}
+        {\eticheta\color{brandSlate}Politehnica University\\of Timișoara\par}
+      \end{minipage}
+    \end{tcolorbox}
   \end{minipage}}
 
 \begin{document}
@@ -152,790 +190,309 @@
     \fill[brandNavy] (current page.south west) rectangle (current page.north east);
     \fill[brandBlue!30!brandNavy] ([xshift=-2.6cm,yshift=1.2cm]current page.east) circle (4.4cm);
     \fill[brandTeal!22!brandNavy] ([xshift=-4.6cm,yshift=-3.0cm]current page.east) circle (2.8cm);
-    \draw[brandTeal!45!brandNavy,line width=0.7pt]
-      ([xshift=-2.6cm,yshift=1.2cm]current page.east) circle (5.5cm);
 
-    \node[anchor=north west,align=left] at ([xshift=1.45cm,yshift=-1.0cm]current page.north west) {%
-      \begin{minipage}{9.2cm}
+    \node[anchor=north west,align=left] at ([xshift=1.2cm,yshift=-1.25cm]current page.north west) {%
+      \begin{minipage}{8.6cm}
         \raggedright
-        {\color{brandTeal}\scriptsize\titlufont\bfseries PRE-SEED \textperiodcentered{} INVESTOR PRESENTATION \textperiodcentered{} OCTOBER 2026}\par
-        \vspace{30pt}
-        {\titlufont\fontsize{25}{29}\selectfont\color{white} ADMINISTRATIVO}\par
-        \vspace{4pt}
-        {\color{brandTeal}\rule{2.2cm}{2pt}}\par
-        \vspace{12pt}
-        {\color{white}\large HR for Romanian SMEs in one app: staff clock in from their
-        phone, leave balances keep themselves up to date, and REGES-Online filings go to the
-        Labour Inspectorate over its API.}\par
+        {\color{brandTeal}\footnotesize\titlufont\bfseries PRE-SEED \textperiodcentered{}
+          €\cfK{round_eur}k \textperiodcentered{} VEST VENTURES ACCELERATOR}\par
+        \vspace{22pt}
+        {\titlufont\bfseries\fontsize{30}{34}\selectfont\color{white} ADMINISTRATIVO}\par
         \vspace{6pt}
-        {\color{brandLine}\footnotesize Payroll is built and undergoing accountant validation.}
+        {\color{brandTeal}\rule{2.2cm}{2pt}}\par
+        \vspace{14pt}
+        {\color{white}\fontsize{13}{17}\selectfont HR software for Romanian SMEs: staff clock
+          in by phone, leave tracks itself, and filings reach the Labour Inspectorate over
+          its API.\par}
       \end{minipage}};
+
     \ifciorna
     \node[anchor=north east,fill=brandAmber,text=white,rounded corners=2pt,inner sep=3pt,
       font=\scriptsize\bfseries] at ([xshift=-0.5cm,yshift=-0.4cm]current page.north east)
       {DRAFT: founder details pending, do not upload};
     \fi
 
-    \node[anchor=south west,align=left] at ([xshift=1.5cm,yshift=0.85cm]current page.south west) {%
-      \begin{minipage}{9.6cm}
-        {\color{white}\scriptsize
-          \faIcon{hand-holding-usd}~~€\cfK{round_eur}k pre-seed\quad\textcolor{brandTeal}{\textbullet}\quad
-          \faIcon{globe}~~administrativo.ro\quad\textcolor{brandTeal}{\textbullet}\quad
-          \faIcon{map-marker-alt}~~Timișoara, Romania}
-      \end{minipage}};
+    \node[anchor=south west] at ([xshift=1.2cm,yshift=0.85cm]current page.south west) {%
+      {\color{brandLine}\footnotesize
+        \faIcon{globe}~~administrativo.ro\qquad
+        \faIcon{map-marker-alt}~~Timișoara, Romania}};
 
     % Phone screenshot: the employee's clock-in card
-    \node[anchor=east,inner sep=0pt] at ([xshift=-1.55cm,yshift=-0.05cm]current page.east) {%
-      \begin{tikzpicture}
-        \node[inner sep=0pt] (tel) {\includegraphics[height=6.6cm]{capturi/portal-pontare.jpg}};
-        \draw[white,line width=2.2pt,rounded corners=7pt]
-          ([xshift=-1.5pt,yshift=-1.5pt]tel.south west) rectangle ([xshift=1.5pt,yshift=1.5pt]tel.north east);
-      \end{tikzpicture}};
-    \node[anchor=north,text=brandLine,font=\fontsize{5.5}{6.5}\selectfont,align=center]
-      at ([xshift=-3.08cm,yshift=0.95cm]current page.south east) {Employee portal, phone (demo company)};
+    \node[anchor=east,inner sep=0pt] (tel) at ([xshift=-1.7cm,yshift=-0.1cm]current page.east)
+      {\includegraphics[height=6.6cm]{capturi/portal-pontare.jpg}};
+    \draw[white,line width=2.2pt,rounded corners=7pt]
+      ([xshift=-1.5pt,yshift=-1.5pt]tel.south west) rectangle ([xshift=1.5pt,yshift=1.5pt]tel.north east);
   \end{tikzpicture}
 \end{frame}
 
 % =====================================================================
 %  2 - PROBLEM
 % =====================================================================
-\begin{frame}{Every Romanian employer owes the state the same HR paperwork}
-  \vspace{0pt}
-  {\footnotesize\color{brandSlate} About half a million companies employ staff. Each one
-  must keep a daily time record and report every hire, change and termination to the
-  Labour Inspectorate (ITM), with fines counted per employee.}
-  \vspace{8pt}
-
+\begin{frame}{Every Romanian employer must log hours daily and report each hire to the state}
+  \vspace{0pt}\vfill
   \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.43\textwidth}
-      \stat{\linewidth}{≈526,000}{Romanian companies employ at least one person (FY2025),
-        with 3.88M staff in total}\par\vspace{8pt}
-      \stat{\linewidth}{3,000–8,000 RON}{fine \emph{per person} for late or missing
-        REGES-Online data (≈€600–1,600; 5 RON = 1 EUR)}\par\vspace{8pt}
-      \stat{\linewidth}{1,500–3,000 RON}{fine for not keeping a daily record of start and
-        end hours (Labour Code art.~119 and art.~260)}
+    \begin{column}{0.41\textwidth}
+      \mare{≈526,000}\par\vspace{4pt}
+      {\corp\color{brandSlate} employers bound by these rules\par}
     \end{column}
-    \begin{column}{0.54\textwidth}
-      \begin{card}[brandAmber]{clipboard-list}{What a 10–50-person firm must run, every month}
-        \scriptsize
-        \pct{clock}{A \textbf{daily start/end record} for every employee. Paper and Excel are
-          legal, and both can be rewritten after the fact.}\par\vspace{2pt}
-        \pct{file-signature}{\textbf{REGES-Online}: a new contract by the day before work
-          starts; other changes within 3–20 working days.}\par\vspace{2pt}
-        \pct{calendar-alt}{Leave requests and balances, public holidays, approvals.}\par\vspace{2pt}
-        \pct{hard-hat}{Health \& safety (SSM) briefings, medical checks, fire extinguishers,
-          vehicle documents: each with its own expiry date.}\par\vspace{2pt}
-        \pct{calculator}{Month-end hand-over of hours and leave to the accountant, who runs payroll.}
-      \end{card}
+    \begin{column}{0.56\textwidth}
+      \corp
+      \rand{clock}{\textbf{Daily start and end hours} per employee; paper or Excel is legal,
+        and easy to rewrite}\vspace{9pt}
+      \rand{file-signature}{\textbf{Every hire filed} in REGES-Online before work starts}\vspace{9pt}
+      \rand[brandAmber]{gavel}{\textbf{Fines of 3,000–8,000 RON per employee} for late filings}
     \end{column}
   \end{columns}
 
-  \surse{Sources: ICAP CRIF FY2025 via Curierul Național (Jul 2026); fines: HG 295/2025 art.~9 as
-    summarised by pontajangajati.ro and universuljuridic.ro; Labour Code art.~119/260 via lege5.ro and
-    ITM Arad; REGES deadlines: Legislația Muncii 2026 guide. Full URLs: Data room › 5 Market
-    research, §a.1, §b.1–b.3. REGES-Online: the Labour Inspectorate's mandatory electronic
-    employee register.}
+  \surse{Sources: ICAP CRIF, FY2025 (companies with $\geq$1 employee); Labour Code art.~119;
+    HG 295/2025 art.~9. Paper and Excel are legal formats. URLs: data room, market research §a–b.}
 \end{frame}
 
 % =====================================================================
 %  3 - WHY NOW
 % =====================================================================
-\begin{frame}{Why now: REGES-Online made HR reporting an API, from 2026}
-  \vspace{0pt}
-  {\footnotesize\color{brandSlate} Since 1 January 2026 every employer reports through
-  REGES-Online, a register that software can call directly.\par}
-  \vspace{2pt}
-
+\begin{frame}{Since January 2026, HR reporting to the state runs through an API}
+  \vspace{0pt}\vfill
   \begin{center}
   \begin{tikzpicture}[x=1cm,y=1cm]
-    \draw[brandLine,line width=1.4pt] (0,0) -- (14.1,0);
+    \draw[brandLine,line width=1.6pt] (0,0) -- (13.6,0);
     \foreach \x/\data/\txt/\c in {
-        1.2/31 Mar 2025/{HG 295/2025 in force:\\REGES-Online replaces\\REVISAL}/brandBlue,
-        4.7/Sep 2025/{Deadline extended (OUG\\46/2025); only \textbf{23\%} of\\employers had migrated}/brandAmber,
-        8.2/1 Jan 2026/{REGES-Online is the\\\textbf{only valid register};\\REVISAL switched off}/brandBlue,
-        11.9/2026/{Accounting \& payroll vendors\\integrate with REGES (SmartBill,\\Nexus: API; SAGA: XML)}/brandTeal} {
-      \fill[\c] (\x,0) circle (0.13);
-      \node[above=3pt,font=\scriptsize\bfseries,text=\c] at (\x,0.1) {\data};
-      \node[below=6pt,font=\fontsize{6.5}{7.8}\selectfont,align=center,text=brandNavy] at (\x,0) {\txt};
+        2.0/Mar 2025/{REGES-Online\\replaces REVISAL}/brandSlate,
+        6.8/Sep 2025/{Only \textbf{23\%} of\\employers switched}/brandAmber,
+        11.55/1 Jan 2026/{Sole legal register,\\open to software}/brandBlue} {
+      \fill[\c] (\x,0) circle (0.17);
+      \node[anchor=base,font=\titlufont\bfseries\large,text=\c] at (\x,0.42) {\data};
+      \node[below=9pt,font=\corp,align=center,text=brandNavy] at (\x,0) {\txt};
     }
   \end{tikzpicture}
   \end{center}
-  \vspace{4pt}
+  \vspace{0.5cm}
+  {\corp\centering\textbf{Our HR record becomes the filing.}\par}
+  \vspace{0.3cm}
+  {\eticheta\centering\color{brandSlate}\textcolor{brandAmber}{\faIcon{exclamation-triangle}}~Risk:
+    decree annulled at first instance (Apr 2026); not final, still applies.\par}
 
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.49\textwidth}
-      \begin{card}[brandTeal]{arrow-up}{What this opens for us}
-        \scriptsize
-        \pct{plug}{Reporting is now a machine-to-machine call: the HR record \emph{is} the filing.}\par\vspace{1pt}
-        \pct{balance-scale}{EU Pay Transparency Directive: Romania missed the June 2026
-          deadline; a draft law is in Parliament.}
-      \end{card}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \begin{card}[brandAmber]{exclamation-triangle}{Risk, disclosed}
-        \scriptsize
-        HG 295/2025 was annulled at first instance (2 Apr 2026). \textbf{Not final}; suspension
-        refused, so REGES-Online still applies. The register (Labour Code art.~34) and daily
-        timesheet (art.~119) duties do not depend on it.
-      \end{card}
-    \end{column}
-  \end{columns}
-
-  \surse{Sources: Portal Legislativ (HG 295/2025; OUG 46/2025 art.~IV); Inspecția Muncii note on the
-    extension; Avocatnet (23\% figure, 2025); Nexus, SmartBill, SAGA docs (REGES integrations); StartupCafe,
-    Juridice.ro, Profit.ro (annulment, Apr–May 2026); Legislația Muncii, Business24 (Directive). Outcome
-    of the recourse: unknown as of 6 Oct 2026. URLs: Data room › 5 Market research, §b.}
+  \surse{Sources: HG 295/2025 and OUG 46/2025 (Portal Legislativ); 23\%: Ministry of Labour via Avocatnet, Sep 2025;
+    annulment: Constanța Court of Appeal, Decision 83/2026. URLs: data room, market research §b.}
 \end{frame}
 
 % =====================================================================
 %  4 - SOLUTION
 % =====================================================================
-\begin{frame}{One app for the employer side of HR, which the accountant sees too}
-  \vspace{0pt}
-  {\footnotesize\color{brandSlate} Each person works on the same employee record from their own
-  screen. Filings and payroll files come out of that record, not out of retyping.}
-  \vspace{6pt}
-
-  \begin{center}
-  \begin{tikzpicture}[
-      actor/.style={draw=brandLine,fill=white,rounded corners=3pt,text width=3.75cm,
-        align=left,inner sep=4pt,font=\fontsize{6.5}{7.8}\selectfont\nohyph},
-      iesire/.style={draw=brandLine,fill=white,rounded corners=3pt,text width=3.95cm,
-        align=left,inner sep=4pt,font=\fontsize{6.5}{7.8}\selectfont\nohyph},
-      flow/.style={-{Stealth[length=4pt]},line width=0.9pt,brandBlue}]
-    \node[actor] (ang) at (-0.1,1.55) {\textcolor{brandBlue}{\faIcon{mobile-alt}}~\textbf{Employee, on the phone}\\
-      Clock in by tapping or scanning the QR poster at the site; leave requests; payslip.};
-    \node[actor] (man) at (-0.1,0) {\textcolor{brandBlue}{\faIcon{user-check}}~\textbf{Manager}\\
-      Approves the team's timesheet and leave, week by week.};
-    \node[actor] (hr) at (-0.1,-1.55) {\textcolor{brandBlue}{\faIcon{user-tie}}~\textbf{Owner / HR}\\
-      Personnel files, SSM, fleet, inventory, onboarding, courses, reviews.};
-
-    \node[fill=brandNavy,text=white,rounded corners=4pt,text width=3.65cm,align=center,
-      inner sep=7pt,font=\fontsize{6.5}{8}\selectfont] (core) at (4.75,0) {%
-      {\titlufont\bfseries\small ADMINISTRATIVO}\\[3pt]
-      One record per employee\\
-      19 modules, toggled per company\\
-      5 roles, each sees only its scope\\
-      Rates in dated tables, not in code};
-
-    \node[iesire] (reges) at (9.85,1.55) {\textcolor{brandTeal}{\faIcon{landmark}}~\textbf{Labour Inspectorate (ITM)}\\
-      REGES-Online events sent over the API; receipts come back onto the record.};
-    \node[iesire] (cont) at (9.85,0) {\textcolor{brandTeal}{\faIcon{calculator}}~\textbf{Accountant}\\
-      Payroll register, D112 XML, SEPA bank file and accounting note (payroll undergoing accountant validation).};
-    \node[iesire] (itm) at (9.85,-1.55) {\textcolor{brandTeal}{\faIcon{search}}~\textbf{Inspection-ready}\\
-      Daily timesheet, SSM briefing matrix, append-only audit log.};
-
-    \foreach \a in {ang,man,hr} \draw[flow] (\a.east) -- (core.west);
-    \foreach \b in {reges,cont,itm} \draw[flow,brandTeal] (core.east) -- (\b.west);
-  \end{tikzpicture}
-  \end{center}
-  \vspace{2pt}
-  {\scriptsize\centering
-    \pastila{brandBlue}{flat price per company}\hspace{6pt}
-    \pastila{brandTeal}{first month free}\hspace{6pt}
-    \pastila{brandNavy}{browser + installable app}\hspace{6pt}
-    \pastila{brandSlate}{android app in internal testing}\par}
-  \vspace{3pt}
-
-  \surse{Sources: the product code and live database, 6 Oct 2026; product mockups in the data room. D112 is
-    generated, not filed; no ANAF (tax authority) or bank connection. SSM: occupational health \& safety.}
+\begin{frame}{One employee record serves the staff, the owner and the accountant}
+  \vspace{0pt}\vfill
+  \pilon{brandBlue}{mobile-alt}{Phone clock-in}{Tap in or scan a QR poster;
+    leave balances update themselves.}\hfill
+  \pilon{brandTeal}{landmark}{REGES by API}{Hires and changes filed from
+    the record; receipts come back.}\hfill
+  \pilon{brandNavy}{calculator}{Accountant-ready}{Hours, leave and payroll files.
+    Payroll: built, undergoing accountant validation.}
+  \vfill
 \end{frame}
 
 % =====================================================================
 %  5 - PRODUCT
 % =====================================================================
-\begin{frame}{The product is live: real screens from the demo company}
-  \vspace{0pt}
-  \ecran{2.15cm}{capturi/portal-pontare.jpg}{Phone: clock-in, net pay}\hfill
-  \ecran{7.0cm}{capturi/attendance.jpg}{Monthly timesheet: weekly plan, approval by
-    department, month locking and archiving}\hfill
-  \begin{minipage}[t]{3.55cm}\vspace{0pt}
-    \begin{fereastra}\includegraphics[width=\linewidth]{capturi/leave.jpg}\end{fereastra}
-    \vspace{1pt}{\fontsize{6}{7}\selectfont\color{brandSlate}Team leave calendar\par}
-    \vspace{3pt}
-    \begin{fereastra}\includegraphics[width=\linewidth]{capturi/payroll.jpg}\end{fereastra}
-    \vspace{1pt}{\fontsize{6}{7}\selectfont\color{brandSlate}Payroll (in accountant validation)\par}
-  \end{minipage}
+\begin{frame}{The product is live, on desktop and on the phone}
+  \vspace{0.3cm}
+  {\centering
+  \ecran{2.2cm}{capturi/portal-pontare.jpg}{Employee app}\hspace{0.9cm}%
+  \ecran{7.6cm}{capturi/attendance.jpg}{Manager view: monthly timesheet}\par}
 
-  \surse{Screenshots from production, demo company ``Administrativo Demo SRL'' (8 fictitious employees).
-    The app UI is in Romanian; the marketing site is in Romanian and English. More screens in the data room.}
+  \surse{Live production screens, demo company with fictitious staff. The app is in Romanian.}
 \end{frame}
 
 % =====================================================================
-%  6 - DIFFERENTIATION
+%  6 - MARKET
 % =====================================================================
-\begin{frame}{Where we are different}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.49\textwidth}
-      \begin{card}[brandTeal]{th}{The employer's daily work, on one record}
-        \scriptsize
-        Phone clock-in, leave, SSM, fleet, inventory, onboarding, courses, reviews: 19 modules
-        on one employee record, which the accountant sees too. Accounting suites start
-        from the payroll run; time-tracking apps cover one task. One flat price per company,
-        not per user.
-      \end{card}
-      \vspace{3pt}
-      \begin{card}[brandBlue]{landmark}{REGES over the API: parity, not a moat}
-        \scriptsize
-        Accounting suites (SmartBill, Nexus) already file over the API. Ours files from the
-        employer's own record, with the employer's credentials stored encrypted; receipts come
-        back onto the record. Live since 17 Sep 2026.
-      \end{card}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \begin{card}[brandNavy]{shield-alt}{Isolation enforced by the database}
-        \scriptsize
-        Row-level security \textbf{forced} on 160 of 164 tables, 443 policies, so a bug in an
-        ordinary user query cannot return another company's rows. Service-role paths are limited
-        by lint rules and must filter by company explicitly. National ID (CNP) and IBAN encrypted
-        (AES-256-GCM); append-only audit log; 5 roles.
-      \end{card}
-      \vspace{3pt}
-      \begin{card}[brandAmber]{rocket}{Low cost per feature}
-        \scriptsize
-        In 51 days since the first commit: \textbf{811} commits, \textbf{162} database
-        migrations, \textbf{5,610} automated test cases, CI gates on every change.
-        Development is AI-assisted, and we say so: it keeps each feature cheap. It is not,
-        by itself, a barrier to copying.
-      \end{card}
-    \end{column}
-  \end{columns}
-  \vspace{3pt}
-  {\scriptsize\color{brandSlate}\RaggedRight Honest view: at pre-seed our edge is breadth on the
-  employer side at a flat price.\newline Switching costs grow with each month of employee history stored.\par}
+\begin{frame}{A €\cfM{tam_sam_som.tam.eur_year}M-a-year market at our cheapest price}
+  \vspace{0pt}\vfill
+  \piata{brandNavy}{TAM}{€\cfM{tam_sam_som.tam.eur_year}M}{a year: 526,000 employers
+    $\times$ the \cf{pricing.0.ron_month}~RON core plan}\hfill
+  \piata{brandBlue}{SAM}{€\cfM{tam_sam_som.sam.eur_year}M}{a year: about 54,000 firms with
+    10--249 staff}\hfill
+  \piata{brandTeal}{SOM, BASE CASE}{€\cfK{tam_sam_som.som.eur_arr}k}{ARR: \cf{base.customers_m36}
+    paying companies by month 36}
 
-  \surse{Sources: git history and live database catalogue, 6 Oct 2026; competitors: Data room › 5 Market research, §c.
-    Test count is a static count of test cases in 433 files. Tables without FORCE are global catalogues
-    (features, role permissions, platform admins, memberships) and still have RLS enabled.}
+  \surse{Derived: ICAP CRIF FY2025 (employers); Eurostat SBS 2023 (size classes); our list prices;
+    5 RON = 1 EUR. SOM is a projection from financial-model.xlsx. Formulas: data room, market research §e.}
 \end{frame}
 
 % =====================================================================
-%  7 - MARKET
+%  7 - BUSINESS MODEL
 % =====================================================================
-\begin{frame}{Market: €\cfM{tam_sam_som.tam.eur_year}M a year at our own entry price}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.4\textwidth}
-      \centering
-      \begin{tikzpicture}
-        \fill[brandBlue!12] (0,0) circle (2.35);
-        \fill[brandBlue!30] (0,-0.75) circle (1.55);
-        \fill[brandBlue] (0,-1.62) circle (0.62);
-        \node[font=\scriptsize\bfseries,text=brandNavy,align=center] at (0,1.55)
-          {TAM\\[2pt]{\titlufont\large €\cfM{tam_sam_som.tam.eur_year}M/yr}};
-        \node[font=\scriptsize\bfseries,text=brandNavy,align=center] at (0,0.05)
-          {SAM\\[2pt]{\titlufont\large €\cfM{tam_sam_som.sam.eur_year}M/yr}};
-        \node[font=\fontsize{6.5}{7.5}\selectfont\bfseries,text=white,align=center] at (0,-1.62)
-          {SOM\\€\cfK{tam_sam_som.som.eur_arr}k\\ARR};
-      \end{tikzpicture}\par
-      {\fontsize{6}{7}\selectfont\color{brandSlate} Circles not to scale.\par}
-    \end{column}
-    \begin{column}{0.57\textwidth}
-      \scriptsize
-      \pct{globe-europe}{\textbf{TAM, derived.} €\cfM{tam_sam_som.tam.eur_year}M a year: every employer
-        with $\geq$1 employee ($\approx$526,000) $\times$ HR core at 149 RON $\times$ 12.}\par\vspace{4pt}
-      \pct{building}{\textbf{SAM, derived.} €\cfM{tam_sam_som.sam.eur_year}M a year: 29,461 firms with
-        10–19 people at 398 RON/month, plus 24,920 firms with 20–249 at 499 RON. Understated:
-        no price above 20 employees is published yet.}\par\vspace{4pt}
-      \pct{bullseye}{\textbf{SOM, projection.} €\cf{tam_sam_som.som.eur_arr} ARR = base case,
-        \cf{base.customers_m36} paying companies at month 36 (Dec 2029), i.e.
-        \cf{tam_sam_som.som.share_of_employers_pct}\% of employers. Conservative case
-        €\cfK{tam_sam_som.som.conservative_eur_arr}k, upside €\cfK{tam_sam_som.som.upside_eur_arr}k.}\par\vspace{4pt}
-      \pct{handshake}{\textbf{Not added to SAM:} micro-employers (1–9) reached through accountants,
-        €\cfM{tam_sam_som.sam_extension_accountants.eur_year}M/yr if 10\% are reachable
-        (that 10\% is our assumption).}
-    \end{column}
-  \end{columns}
-
-  \surse{Sources: employers with $\geq$1 employee: ICAP CRIF FY2025 via Curierul Național; size classes:
-    Eurostat SBS 2023 (sbs\_sc\_ovw, persons employed, owners included); prices: administrativo.ro price
-    list. FX 5 RON = 1 EUR. Formulas: financial-model.xlsx and Data room › 5 Market research, §e.}
+\begin{frame}{A flat monthly price per company, not per seat}
+  \vspace{0pt}\vfill
+  \begin{center}
+    \mare{\cf{pricing.0.ron_month}–\cf{pricing.4.ron_month} RON}\par
+    \vspace{6pt}
+    {\fontsize{13}{16}\selectfont\color{brandNavy} per company per month, up to 20
+      employees (≈€\cfp{pricing.0.eur_month}{0}–\cfp{pricing.4.eur_month}{0})\par}
+    \vspace{0.75cm}
+    {\corp\color{brandSlate} First month free \textperiodcentered{} no setup fee
+      \textperiodcentered{} five packages\par}
+    \vspace{0.25cm}
+    {\eticheta\color{brandSlate} Model, year 2: ARPA €\cfp{unit_economics.arpa_eur}{0},
+      contribution margin \cf{unit_economics.gross_margin_pct}\%, CAC payback
+      \cf{unit_economics.payback_months} months (projection)\par}
+  \end{center}
+  \vfill
 \end{frame}
 
 % =====================================================================
-%  8 - BUSINESS MODEL & PRICING
+%  8 - GO-TO-MARKET
 % =====================================================================
-\begin{frame}{Business model: flat monthly subscription per company}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.6\textwidth}
-      {\fontsize{6.8}{8}\selectfont
-      \renewcommand{\arraystretch}{1.1}\setlength{\tabcolsep}{4pt}
-      \begin{tabular}{@{}>{\RaggedRight}p{5.25cm}rrr@{}}
-        \toprule
-        \textbf{Package} (up to 20 employees) & \textbf{RON/mo} & \textbf{≈ €/mo} & \textbf{Mix*} \\
-        \midrule
-        \textbf{HR core}: attendance, leave, personnel files, portal & 149 & \cf{pricing.0.eur_month} & \cf{pricing.0.plan_mix_pct}\% \\
-        \textbf{Extended HR}: + REGES, SSM, onboarding, courses, reviews, KPI & 249 & \cf{pricing.1.eur_month} & \cf{pricing.1.plan_mix_pct}\% \\
-        \textbf{Operations}: + fleet, maintenance, inventory, announcements, ticketing & 229 & \cf{pricing.2.eur_month} & \cf{pricing.2.plan_mix_pct}\% \\
-        \textbf{Finance}: + payroll, per diem, reports & 219 & \cf{pricing.3.eur_month} & \cf{pricing.3.plan_mix_pct}\% \\
-        \textbf{Whole application} (all 15 add-ons) & \textbf{499} & \cf{pricing.4.eur_month} & \cf{pricing.4.plan_mix_pct}\% \\
-        \bottomrule
-      \end{tabular}\par}
-      \vspace{2pt}
-      {\fontsize{6}{7}\selectfont\color{brandSlate} *Plan mix is a model assumption. Add-on modules
-      15–69 RON/month each. Above 20 employees: quoted, no published price yet.\par}
-    \end{column}
-    \begin{column}{0.37\textwidth}
-      \begin{card}[brandTeal]{tags}{Terms, as published}
-        \fontsize{6.8}{8}\selectfont
-        \pct{gift}{First month free, any configuration}\par\vspace{1pt}
-        \pct{ban}{No setup fee, no implementation invoice}\par\vspace{1pt}
-        \pct{receipt}{Final prices: seller not VAT-registered}\par\vspace{1pt}
-        \pct{handshake}{Accountants: free account, 20\% commission for 6 months}\par\vspace{1pt}
-        \pct{file-invoice}{Invoicing manual today; no payment integration yet}
-      \end{card}
-    \end{column}
-  \end{columns}
-  \vspace{1pt}
-  \begin{tcolorbox}[enhanced,arc=3pt,colback=brandMist,colframe=brandMist,boxrule=0pt,
-      left=6pt,right=6pt,top=2pt,bottom=2pt]
-    {\fontsize{6.5}{7.5}\selectfont\bfseries\color{brandTeal} UNIT ECONOMICS, PROJECTION
-      (base case, model year 2)\par}\vspace{2pt}
-    \statm{1.85cm}{€\cf{unit_economics.arpa_eur}}{ARPA / month}\hfill
-    \statm{1.9cm}{\cf{unit_economics.gross_margin_pct}\%}{contribution margin; P\&L \cf{unit_economics.gross_margin_pnl_pct}\%}\hfill
-    \statm{1.85cm}{€\cf{unit_economics.cac_eur}}{CAC, fully loaded}\hfill
-    \statm{1.85cm}{€\cf{unit_economics.ltv_eur}}{LTV}\hfill
-    \statm{1.6cm}{\cf{unit_economics.ltv_cac}×}{LTV / CAC}\hfill
-    \statm{1.85cm}{\cf{unit_economics.payback_months} mo}{CAC payback}\hfill
-    \statm{1.85cm}{\cf{unit_economics.monthly_churn_pct}\%}{monthly churn (assumption)}\par
-    \vspace{1pt}
-    {\fontsize{5.8}{6.6}\selectfont\color{brandSlate}\RaggedRight
-    \textbf{Benchmarks:} ChartMogul's 6.1\% median churn is for ARPA < US\$25; ours sits in the
-    US\$50–249 band, which retains better, so 3\% is an assumption to prove (conservative case: 5\%).
-    Payback: SMB median $\approx$11 months, but 3–9 is typical below US\$5k ACV, so ours is above that.\par}
-  \end{tcolorbox}
+\begin{frame}{Accountants bring their client companies to us}
+  \vspace{0pt}\vfill
+  \begin{center}
+  \begin{tikzpicture}[
+      pas/.style={draw=brandLine,fill=white,rounded corners=4pt,text width=3.55cm,
+        minimum height=2.15cm,align=left,inner sep=7pt,font=\corp\nohyph},
+      sageata/.style={-{Stealth[length=7pt]},line width=1.4pt,brandBlue}]
+    \node[pas] (a) at (0,0) {{\titlufont\bfseries\color{brandBlue}\strut 1~~Practice joins}\\[3pt]
+      {\color{brandSlate}Free account, one login for all its clients\strut}};
+    \node[pas] (b) at (4.85,0) {{\titlufont\bfseries\color{brandBlue}\strut 2~~Brings clients}\\[3pt]
+      {\color{brandSlate}Free until 31 Mar 2027 in the pilot\strut}};
+    \node[pas] (c) at (9.7,0) {{\titlufont\bfseries\color{brandTeal}\strut 3~~Clients pay}\\[3pt]
+      {\color{brandSlate}Accountant earns 20\% for 6 months\strut}};
+    \draw[sageata] (a.east) -- (b.west);
+    \draw[sageata] (b.east) -- (c.west);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.45cm}
+  {\corp\centering\textbf{≈18,400 accounting practices} in Romania can recommend us.\par}
 
-  \surse{Sources: price list on administrativo.ro/en/preturi and in the product code; unit economics: financial-model.xlsx,
-    ``Unit economics'' and ``Scenarios'' sheets. Benchmarks: ChartMogul (churn by ARPA band); Aleph (SMB CAC payback,
-    secondary source). Data room › 5 Market research, §d.1. FX 5 RON = 1 EUR.}
+  \surse{Practices: CECCAR 2025 report as reported by a secondary source (12,776 firms + 5,671 individual
+    practitioners). Pilot terms: administrativo.ro/pentru-contabili.}
 \end{frame}
 
 % =====================================================================
-%  9 - GO-TO-MARKET
+%  9 - TRACTION
 % =====================================================================
-\begin{frame}{Go-to-market: accountants first, search second}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.36\textwidth}
-      \begin{card}[brandBlue]{handshake}{1. Accounting practices}
-        \scriptsize
-        Small employers already rely on an accountant for payroll and REGES.
-        \textbf{Pilot opened 6 Oct 2026:} 10 places for practices, sign-up until 15 Nov,
-        1–3 client companies each, free until 31 Mar 2027, then 20\% commission for 6 months.
-        \textbf{Signed so far: 0} (6 Oct) \deconfirmat{update before submitting}.\par\vspace{2pt}
-        {\color{brandSlate}≈18,400 practices (CECCAR, as reported).\par}
-      \end{card}
-    \end{column}
-    \begin{column}{0.31\textwidth}
-      \begin{card}[brandTeal]{search}{2. Search and free tools}
-        \scriptsize
-        7 free tools with no account (salary calculator, leave request, timesheet\ldots),
-        8 legal guides (REGES-Online, ITM inspection, overtime\ldots), 19 module pages.
-        Organic search is just starting.
-      \end{card}
-    \end{column}
-    \begin{column}{0.29\textwidth}
-      \begin{card}[brandNavy]{user-plus}{3. Self-service}
-        \scriptsize
-        Sign-up creates the company on a trial; first month free; Excel import of employees
-        with a per-row error report. Low-touch by design.
-      \end{card}
-    \end{column}
-  \end{columns}
-  \vspace{3pt}
-  \begin{nota}[What the round adds (plan)]
-    \scriptsize
-    Partner \& sales manager for accountants from month 3, onboarding specialist from month 4,
-    content/SEO/ads budget. Projected fully loaded CAC €\cf{unit_economics.cac_eur} (paid ads
-    €\cf{unit_economics.cac_paid_ads_eur}); base case \cf{base.customers_m12} paying companies by
-    month 12, \cf{base.customers_m24} by month 24.
-  \end{nota}
-
-  \surse{Sources: pilot terms on administrativo.ro/pentru-contabili; free tools and guides on administrativo.ro. Practices:
-    CECCAR 2025 AML sector report, 31 Dec 2024, as reported by a secondary source (PDF not yet checked): 12,776 firms +
-    5,671 individual practitioners (Data room › 5 Market research, §a.4). Hires and CAC: financial-model.xlsx (projection).}
-\end{frame}
-
-% =====================================================================
-% 10 - TRACTION (honest)
-% =====================================================================
-\begin{frame}{Traction: product live, no revenue yet; pilots come next}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.3\textwidth}
-      \begin{tcolorbox}[enhanced,arc=3pt,colback=brandNavy,colframe=brandNavy,boxrule=0pt,
-          left=8pt,right=8pt,top=6pt,bottom=6pt]
-        \color{white}
-        {\titlufont\bfseries\fontsize{30}{32}\selectfont 0}\par\vspace{1pt}
-        {\scriptsize\bfseries paying customers today}\par\vspace{3pt}
-        {\fontsize{6.5}{8}\selectfont\color{brandLine}\RaggedRight Pre-revenue. Free use only
-          (demo company, pilot). We will not count free users as customers.\par}
-      \end{tcolorbox}
-      \vspace{3pt}
-      {\scriptsize
-      \pctv{check}{17 Aug 2026: first commit}\par\vspace{1pt}
-      \pctv{check}{Early Sep 2026: live at administrativo.ro}\par\vspace{1pt}
-      \pctv{check}{17 Sep 2026: first live REGES-Online API transmission}\par\vspace{1pt}
-      \pctv{check}{6 Oct 2026: accountant pilot opened}\par}
-    \end{column}
-    \begin{column}{0.33\textwidth}
-      \begin{card}[brandBlue]{code-branch}{Engineering, 51 days}
-        \scriptsize
-        \stat{1.75cm}{811}{commits}\hfill\stat{1.75cm}{162}{DB migrations}\par\vspace{4pt}
-        \stat{1.75cm}{5,610}{test cases}\hfill\stat{1.75cm}{246}{server actions}\par\vspace{4pt}
-        \stat{1.75cm}{19}{modules live}\hfill\stat{1.75cm}{443}{RLS policies}
-      \end{card}
-    \end{column}
-    \begin{column}{0.33\textwidth}
-      \begin{card}[brandAmber]{chart-line}{Web: pre-launch, SEO just starting}
-        \scriptsize
-        \pct{users}{≈7 genuine external visitors from Romania in a month (3 Sep–6 Oct)}\par\vspace{1pt}
-        \pct{google}{201 impressions, 3 clicks in Google Search since 2 Sep}\par\vspace{1pt}
-        \pct{sort-amount-up}{Average position from ≈50 to 5–20 by end of September}\par\vspace{1pt}
-        \pct{search}{Top query ``program salarizare'' (payroll software): 43 impressions, position ≈61}
-      \end{card}
-    \end{column}
-  \end{columns}
-  \vspace{4pt}
-  {\fontsize{6.5}{7.8}\selectfont
-  \textbf{Counts, 6 Oct 2026:} signed pilot agreements 0; LOIs \deconfirmat{n}; non-demo companies
-  using it \deconfirmat{n}; qualified practice conversations \deconfirmat{n}.\par\vspace{1pt}
-  \textbf{Before the accelerator (by Jan 2027):} signed pilots, weekly use of attendance and REGES.
-  \textbf{During it:} paid conversions from Apr 2027.\par}
-
-  \surse{Sources: git history and live database catalogue, 6 Oct 2026; web analytics: Umami
-    (3 Sep–6 Oct 2026) and Google Search Console, measured 6 Oct 2026. Android app built and in internal
-    testing, not yet in Google Play; no iOS app.}
-\end{frame}
-
-% =====================================================================
-% 11 - COMPETITION
-% =====================================================================
-\begin{frame}{Competition: crowded on payroll, thin on the employer's daily HR}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.64\textwidth}
-      {\fontsize{6.3}{7.6}\selectfont\nohyph
-      \renewcommand{\arraystretch}{1.12}\setlength{\tabcolsep}{3pt}
-      \begin{tabular}{@{}>{\RaggedRight\nohyph}p{2.4cm}>{\RaggedRight\nohyph}p{2.25cm}>{\RaggedRight\nohyph}p{1.25cm}>{\RaggedRight\nohyph}p{2.25cm}@{}}
-        \toprule
-        \textbf{Product} & \textbf{Built for} & \textbf{REGES} & \textbf{Public price} \\
-        \midrule
-        SmartBill Conta & Accountants: accounting + payroll & Yes, API & €0–79 + VAT per client/mo \\
-        SAGA C / Web & Accountants: accounting + payroll & Yes, XML & 600–2,500 RON/yr (3rd party) \\
-        Nexus Salarii, NextUp & Payroll & Yes & Not public \\
-        qPlus, IMFS One, HRiFlow & HR documents, timesheet, REGES & Yes & Partly public \\
-        Charisma HCM, \mbox{colorful.hr} & Enterprise HR \& payroll & Not confirmed & Not public \\
-        Pontajj, epontez, \mbox{PontajAngajati} & Time tracking only & No & €9–49/mo flat or 10–12 RON/user \\
-        Factorial, Personio, BambooHR & International suites & None found & From US\$8/user/mo \\
-        \midrule
-        \rowcolor{brandMist}\textbf{ADMINISTRATIVO} & \textbf{The employer, 1–250 staff} & \textbf{Yes, API, live} & \textbf{149–499 RON}\newline\textbf{per company/mo} \\
-        \bottomrule
-      \end{tabular}\par}
-    \end{column}
-    \begin{column}{0.33\textwidth}
-      \centering
-      {\fontsize{6.3}{7}\selectfont\bfseries\color{brandSlate} POSITIONING (our analysis)\par}
-      \vspace{3pt}
-      \begin{tikzpicture}[x=1cm,y=1cm,font=\fontsize{5.8}{6.6}\selectfont]
-        \fill[brandMist] (0,0) rectangle (4.1,3.5);
-        \draw[brandLine] (2.05,0) -- (2.05,3.5) (0,1.75) -- (4.1,1.75);
-        \draw[-{Stealth[length=3pt]},brandSlate] (0,0) -- (4.25,0);
-        \draw[-{Stealth[length=3pt]},brandSlate] (0,0) -- (0,3.65);
-        \node[below,text=brandSlate] at (0.75,0) {one task};
-        \node[below,text=brandSlate] at (3.3,0) {many modules};
-        \node[rotate=90,above,text=brandSlate] at (0,0.85) {for the accountant};
-        \node[rotate=90,above,text=brandSlate] at (0,2.65) {for the employer};
-        \node[fill=white,draw=brandLine,rounded corners=2pt,align=center] at (0.8,3.13) {Time-tracking\\apps};
-        \node[fill=white,draw=brandLine,rounded corners=2pt,align=center] at (1.72,2.4) {RO HR tools\\(qPlus, IMFS,\\HRiFlow)};
-        \node[fill=white,draw=brandLine,rounded corners=2pt,align=center] at (3.25,2.15) {International\\suites (no RO)};
-        \node[fill=white,draw=brandLine,rounded corners=2pt,align=center] at (1.0,0.8) {Payroll \&\\REGES tools};
-        \node[fill=white,draw=brandLine,rounded corners=2pt,align=center] at (3.05,0.8) {Accounting\\suites};
-        \node[fill=brandBlue,text=white,rounded corners=2pt,align=center,font=\fontsize{5.8}{6.6}\selectfont\bfseries]
-          at (3.05,3.05) {ADMINISTRATIVO};
-      \end{tikzpicture}\par
-      \vspace{3pt}
-      {\fontsize{6.3}{7.6}\selectfont\RaggedRight Our lane: the employer's daily HR work with
-        Romanian compliance built in, at a flat price.\par\vspace{2pt}
-        \textbf{Why pay if the accountant runs payroll and REGES?} We take daily time, leave and
-        SSM work off the employer and hand the accountant clean data, not replace their payroll.\par}
-    \end{column}
-  \end{columns}
-
-  \surse{Sources: vendor sites and price pages fetched 6 Oct 2026 (smartbill.ro, sagasoftware.ro, nexuserp.ro, nextup.ro,
-    qplus.ro, imfs.ro, hriflow.ro, charisma.ro, sdworx.ro, pontajj.ro, bamboohr.com). ``None found'' or ``Not confirmed''
-    means no public evidence, not proof of absence. Details: Data room › 5 Market research, §c.}
-\end{frame}
-
-% =====================================================================
-% 12 - TEAM
-% =====================================================================
-\begin{frame}{Team: two technical co-founders who built the platform}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.31\textwidth}
-      \begin{card}[brandBlue]{user}{Miroslav Maletici}
-        \fontsize{6.6}{7.9}\selectfont
-        \textbf{Co-founder} \textperiodcentered{} \cf{founders_today.Miroslav Maletici}\% today\par\vspace{2pt}
-        \textbf{Owns:} \fondMiroslavRol\par\vspace{2pt}
-        Student, Politehnica University of Timișoara (UPT), \fondMiroslavStudii. Made the first
-        commit on 17 Aug 2026; commits code.\par\vspace{2pt}
-        \textbf{Time on the company today:} \fondMiroslavOre\par
-      \end{card}
-    \end{column}
-    \begin{column}{0.31\textwidth}
-      \begin{card}[brandTeal]{user}{Răzvan Pervulescu}
-        \fontsize{6.6}{7.9}\selectfont
-        \textbf{Co-founder} \textperiodcentered{} \cf{founders_today.Răzvan Pervulescu}\% today\par\vspace{2pt}
-        \textbf{Owns:} \fondRazvanRol\par\vspace{2pt}
-        Student, Politehnica University of Timișoara (UPT), \fondRazvanStudii. Commits code to
-        the same repository.\par\vspace{2pt}
-        \textbf{Time on the company today:} \fondRazvanOre\par
-      \end{card}
-    \end{column}
-    \begin{column}{0.34\textwidth}
-      \begin{card}[brandNavy]{building}{Company}
-        \fontsize{6.6}{7.9}\selectfont
-        \pct{flag}{WISELEARNING S.R.L., Timișoara, reg.\ 2024 \firmaInvestita; 2024–Aug 2026 \firmaIstoric}\par\vspace{1pt}
-        \pct{chart-pie}{Two founders, no investors, no options issued}\par\vspace{1pt}
-        \pct{clock}{Both full time from the close (month 1) \fondStudiiPlan}\par\vspace{1pt}
-        \pct{users}{\cf{esop_pct}\% option pool planned to hire}
-      \end{card}
-    \end{column}
-  \end{columns}
-  \vspace{3pt}
-  {\fontsize{6.6}{7.9}\selectfont\RaggedRight\textbf{Gaps we are filling:} payroll domain expertise
-  and B2B sales. A partner \& sales manager for the accountant channel joins
-  in month \cf{team_plan.2.from_month}; an accountant validates the payroll legal values (May 2027).
-  No advisors yet \deconfirmat{advisors}.\par}
-  \vspace{5pt}
-  \vspace{1pt}
-  {\scriptsize\bfseries\color{brandNavy} Hiring plan funded by the round\par}
+\begin{frame}{Live and filing to REGES-Online; no revenue yet}
+  \vspace{0pt}\vfill
+  \begin{center}
   \begin{tikzpicture}[x=1cm,y=1cm]
-    \draw[brandLine,line width=1.2pt] (0,0) -- (14.0,0);
-    \foreach \x/\m/\rol/\c in {
-        1.35/{Month \cf{team_plan.0.from_month}}/{Both co-founders full time}/brandBlue,
-        5.1/{Month \cf{team_plan.2.from_month}}/{Partner \& sales manager (accountants)}/brandTeal,
-        9.0/{Month \cf{team_plan.3.from_month}}/{Onboarding \& support specialist}/brandTeal,
-        12.6/{Month \cf{team_plan.4.from_month}}/{Full-stack developer}/brandAmber} {
-      \fill[\c] (\x,0) circle (0.11);
-      \node[above=2pt,font=\fontsize{6.5}{7.5}\selectfont\bfseries,text=\c] at (\x,0.05) {\m};
-      \node[below=4pt,font=\fontsize{6.5}{7.8}\selectfont,align=center,text=brandNavy] at (\x,0) {\rol};
+    \draw[brandLine,line width=1.6pt] (0,0) -- (13.8,0);
+    \foreach \x/\data/\txt/\c in {
+        1.35/17 Aug 2026/{First commit}/brandGreen,
+        5.05/Sep 2026/{Live at\\administrativo.ro}/brandGreen,
+        8.75/17 Sep 2026/{First live filing\\via the REGES API}/brandGreen,
+        12.45/6 Oct 2026/{Accountant\\pilot opened}/brandGreen} {
+      \fill[\c] (\x,0) circle (0.17);
+      \node[anchor=base,font=\titlufont\bfseries\normalsize,text=brandNavy] at (\x,0.42) {\data};
+      \node[below=9pt,font=\corp,align=center,text=brandSlate] at (\x,0) {\txt};
     }
   \end{tikzpicture}
-
-  \surse{Sources: founders' statement (cap table, roles); git history (both founders commit code, UPT
-    e-mail addresses); legal operator and trade register no.\ J35/2618/2024: administrativo.ro; hiring plan and salaries: financial-model.xlsx, ``Assumptions'' sheet.
-    Option pool: cap-table.xlsx (virtual/phantom scheme while the company is an SRL, to be confirmed).}
+  \end{center}
+  \vspace{0.55cm}
+  \begin{center}
+  \begin{tcolorbox}[enhanced,arc=3pt,colback=brandMist,colframe=brandMist,boxrule=0pt,
+      width=10.4cm,halign=center,left=8pt,right=8pt,top=5pt,bottom=5pt]
+    {\corp\textbf{0 paying customers} today. Pilot sign-ups close 15~Nov;
+      paid conversions planned from Apr~2027.\par}
+  \end{tcolorbox}
+  \end{center}
+  \vfill
 \end{frame}
 
 % =====================================================================
-% 13 - FINANCIAL PROJECTIONS
+% 10 - COMPETITION
 % =====================================================================
-\begin{frame}{Projections: a deliberately modest base case}
-  \vspace{0pt}
+\begin{frame}{Payroll tools serve accountants; we serve employers}
+  \vspace{0pt}\vfill
   \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.5\textwidth}
-      {\fontsize{6.5}{7.5}\selectfont\bfseries\color{brandSlate} MRR BY SCENARIO (€, PROJECTION)\par}
-      \vspace{4pt}
+    \begin{column}{0.66\textwidth}
+      \begin{tikzpicture}[x=0.93cm,y=1cm,font=\eticheta,
+          firma/.style={fill=white,draw=brandLine,rounded corners=3pt,align=center,inner sep=3pt}]
+        \fill[brandMist] (0,0) rectangle (8.6,4.4);
+        \draw[brandLine,line width=0.8pt] (4.3,0) -- (4.3,4.4) (0,2.2) -- (8.6,2.2);
+        \draw[-{Stealth[length=4pt]},brandSlate] (0,0) -- (8.8,0);
+        \draw[-{Stealth[length=4pt]},brandSlate] (0,0) -- (0,4.6);
+        \node[below,text=brandSlate] at (2.15,0) {one task};
+        \node[rotate=90,text=brandSlate,font=\eticheta\bfseries] at (-0.75,2.2) {built for};
+        \node[below,text=brandSlate] at (6.45,0) {many modules};
+        \node[rotate=90,above,text=brandSlate] at (0,1.1) {accountant};
+        \node[rotate=90,above,text=brandSlate] at (0,3.3) {employer};
+        \node[firma] at (1.55,3.65) {Time-tracking apps\\{\color{brandSlate}Pontajj, epontez}};
+        \node[firma] at (3.0,2.7) {RO HR tools\\{\color{brandSlate}qPlus, HRiFlow}};
+        \node[firma] at (6.2,2.7) {International suites\\{\color{brandSlate}no REGES}};
+        \node[firma] at (2.15,1.05) {Payroll \& REGES\\{\color{brandSlate}Nexus, NextUp}};
+        \node[firma] at (6.45,1.05) {Accounting suites\\{\color{brandSlate}SmartBill, SAGA}};
+        \node[fill=brandBlue,text=white,rounded corners=3pt,inner sep=5pt,
+          font=\titlufont\bfseries\small] at (6.45,3.65) {ADMINISTRATIVO};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.31\textwidth}
+      \vspace{0.55cm}
+      {\corp\raggedright Our lane: the employer's daily HR, Romanian compliance built in,
+        flat price.\par\vspace{10pt}
+        {\color{brandSlate}The accountant gets clean data, not a rival payroll.\par}}
+    \end{column}
+  \end{columns}
+
+  \surse{Our analysis of vendor sites and price pages, 6 Oct 2026. ``No REGES'' = no public evidence found.
+    Details: data room, market research §c.}
+\end{frame}
+
+% =====================================================================
+% 11 - TEAM
+% =====================================================================
+\begin{frame}{Two technical co-founders who built the platform}
+  \vspace{0pt}\vfill
+  \fondator{brandBlue}{MM}{Miroslav Maletici}{\fondMiroslavRol}{Built the platform end to end,
+    from the first commit.}\hfill
+  \fondator{brandTeal}{RP}{Răzvan Pervulescu}{\fondRazvanRol}{Co-develops the platform:
+    200+ commits.}
+  \par\vspace{0.4cm}
+  {\corp\raggedright Both full time from the close of the round.\par}
+
+  \surse{Git history, 17 Aug -- 6 Oct 2026 (811 commits in total).}
+\end{frame}
+
+% =====================================================================
+% 12 - THE ASK
+% =====================================================================
+\begin{frame}{€\cfK{round_eur}k takes us to 100 paying companies}
+  \vspace{0pt}\vfill
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.4\textwidth}
+      \mare{€\cf{round_eur}}\par\vspace{3pt}
+      {\eticheta\color{brandSlate} €\cfK{round_split.vest_ventures_ticket_eur}k Vest Ventures
+        + €\cfK{round_split.independent_angels_eur}k angels\par}
+      \vspace{12pt}
+      \corp
+      \rand{hourglass-half}{\textbf{\cf{runway_plan_months} months} of runway on plan
+        (\cf{runway_months} with zero revenue)}\vspace{6pt}
+      \rand[brandTeal]{flag-checkered}{\textbf{100 paying companies} by \cf{base.date_to_100}
+        (month~\cf{base.months_to_100})}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      {\titlufont\bfseries\footnotesize\color{brandSlate}USE OF FUNDS\par}
+      \vspace{8pt}
       \begin{tikzpicture}[x=1cm,y=1cm]
-        \def\sc{0.095}% cm per €1k
-        \foreach \v in {0,10,20,30,40} {
-          \draw[brandLine,line width=0.3pt] (0,\v*\sc) -- (6.6,\v*\sc);
-          \node[left,font=\fontsize{5.5}{6}\selectfont,text=brandSlate] at (0,\v*\sc) {\v k};
+        \def\sc{0.062}% cm per €1k
+        \foreach \i/\lab/\suma/\pct/\c in {
+            0/{Sales, marketing \& onboarding}/{\fondsPiata}/{\cfn{use_of_funds.1.pct}+\cfn{use_of_funds.3.pct}+\cfn{use_of_funds.2.pct}}/brandBlue,
+            1/{Product \& infrastructure}/{\fondsProdus}/{\cfn{use_of_funds.0.pct}+\cfn{use_of_funds.5.pct}}/brandNavy,
+            2/{Payroll validation, legal, security}/{\fondsLegal}/{\cfn{use_of_funds.4.pct}}/brandTeal,
+            3/{Operations \& contingency}/{\fondsOps}/{\cfn{use_of_funds.6.pct}}/brandSlate} {
+          \pgfmathsetmacro{\yy}{-\i*0.95}
+          \pgfmathsetmacro{\w}{\fondK{\suma}*\sc}
+          \node[anchor=south west,inner sep=0pt,font=\eticheta,text=brandNavy] at (0,\yy+0.08) {\lab};
+          \fill[\c] (0,\yy-0.3) rectangle ++(\w,0.3);
+          \node[anchor=west,inner sep=0pt,font=\eticheta\bfseries,text=brandNavy] at (\w+0.12,\yy-0.15)
+            {€\fondK{\suma}k \textcolor{brandSlate}{\mdseries(\pctgrup{\pct}\%)}};
         }
-        \foreach \m/\x in {12/0.35,24/2.55,36/4.75} {
-          \foreach \s/\dx/\c in {conservative/0/brandSlate,base/0.6/brandBlue,upside/1.2/brandTeal} {
-            \pgfmathsetmacro{\h}{\cfk{\s.mrr_m\m_eur}*\sc}
-            \fill[\c] (\x+\dx,0) rectangle ++(0.52,\h);
-            \node[above,font=\fontsize{5.3}{6}\selectfont,text=brandNavy,inner sep=1.5pt]
-              at (\x+\dx+0.26,\h) {\cfkd{\s.mrr_m\m_eur}k};
-          }
-          \node[below,font=\fontsize{6.5}{7}\selectfont\bfseries,text=brandNavy] at (\x+0.86,0) {Month \m};
-        }
-      \end{tikzpicture}\par
-      \vspace{2pt}
-      {\fontsize{6.3}{7}\selectfont \cheie{brandSlate}~Conservative\quad\cheie{brandBlue}~Base\quad
-        \cheie{brandTeal}~Upside\quad{\color{brandSlate}M1 = Jan 2027 (assumed)}\par}
-    \end{column}
-    \begin{column}{0.47\textwidth}
-      {\fontsize{6.5}{7.8}\selectfont
-      \renewcommand{\arraystretch}{1.15}\setlength{\tabcolsep}{3pt}
-      \begin{tabular}{@{}>{\RaggedRight}p{2.45cm}rrr@{}}
-        \toprule
-         & \textbf{Conserv.} & \textbf{Base} & \textbf{Upside} \\
-        \midrule
-        Paying firms, M12 & \cf{conservative.customers_m12} & \cf{base.customers_m12} & \cf{upside.customers_m12} \\
-        Paying firms, M24 & \cf{conservative.customers_m24} & \cf{base.customers_m24} & \cf{upside.customers_m24} \\
-        Paying firms, M36 & \cf{conservative.customers_m36} & \cf{base.customers_m36} & \cf{upside.customers_m36} \\
-        ARR at M36 & €\cfK{conservative.arr_m36_eur}k & €\cfK{base.arr_m36_eur}k & €\cfK{upside.arr_m36_eur}k \\
-        Revenue, year 3 & €\cfK{conservative.revenue_y3_eur}k & €\cfK{base.revenue_y3_eur}k & €\cfK{upside.revenue_y3_eur}k \\
-        Costs, year 3 & €\cfK{conservative.costs_y3_eur}k & €\cfK{base.costs_y3_eur}k & €\cfK{upside.costs_y3_eur}k \\
-        Break-even month & after M36 & after M36 & M\cf{upside.breakeven_month} \\
-        Cash M36, no seed & −€\cfKa{conservative.cash_m36_eur}k & −€\cfKa{base.cash_m36_eur}k & €\cfK{upside.cash_m36_eur}k \\
-        \bottomrule
-      \end{tabular}\par}
-      \vspace{3pt}
-      {\fontsize{6.3}{7.6}\selectfont\RaggedRight
-      \textbf{Base is not default-alive.} It reaches 100 paying companies in
-      \cf{base.date_to_100} (month \cf{base.months_to_100}): that is when the seed raise starts,
-      inside the \cf{runway_plan_months}-month runway. Monthly churn \cf{unit_economics.monthly_churn_pct}\%;
-      \cf{base.customers_m36} companies at M36 is half the 600 in our top-down sketch.\par}
+      \end{tikzpicture}
     \end{column}
   \end{columns}
+  \vfill
+  {\corp\color{brandNavy}\faIcon{envelope}~~contact@administrativo.ro\qquad
+    \faIcon{globe}~~administrativo.ro\qquad\faIcon{map-marker-alt}~~Timișoara\par}
 
-  \surse{All figures: financial-model.xlsx (2,715 live formulas, recalculated 6 Oct 2026), three scenarios on the
-    ``Scenarios'' sheet. Everything after 6 Oct 2026 is a projection; today there are zero paying customers.
-    Negative cash = shortfall a seed round must cover.}
-\end{frame}
-
-% =====================================================================
-% 14 - THE ASK
-% =====================================================================
-\begin{frame}{The ask: €\cfK{round_eur}k pre-seed for \cf{runway_months} months of runway}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.44\textwidth}
-      \begin{tcolorbox}[enhanced,arc=3pt,colback=brandNavy,colframe=brandNavy,boxrule=0pt,
-          left=8pt,right=8pt,top=5pt,bottom=5pt]
-        \color{white}
-        {\titlufont\bfseries\fontsize{22}{24}\selectfont €\cf{round_eur}}\par\vspace{2pt}
-        {\fontsize{6.8}{8.2}\selectfont\RaggedRight\nohyph
-        €\cf{round_split.vest_ventures_ticket_eur} Vest Ventures Accelerator ticket
-        + €\cf{round_split.independent_angels_eur} from independent angels (not yet identified;
-        covers the $\geq$10\% private co-investment rule)\par}
-      \end{tcolorbox}
-      \vspace{3pt}
-      {\scriptsize
-      \pct{file-contract}{Convertible loan (CLA) or SHA on Vest Ventures' templates}\par\vspace{1pt}
-      \pct{balance-scale}{Pre-money €\cfm{pre_money_eur}M, post €\cfm{post_money_eur}M: founders'
-        proposal, no sourced benchmark}\par\vspace{1pt}
-      \pct{chart-pie}{Investors \cfp{investor_pct}{2}\%, option pool \cf{esop_pct}\%, founders
-        \cfp{founders_post.Miroslav Maletici}{2}\% + \cfp{founders_post.Răzvan Pervulescu}{2}\%}\par\vspace{1pt}
-      \pct{hourglass-half}{\cf{runway_months} months with zero revenue; \cf{runway_plan_months}
-        months on the base plan}\par\vspace{1pt}
-      \pct{flag-checkered}{Seed trigger: 100 paying companies, \cf{base.date_to_100}}\par}
-    \end{column}
-    \begin{column}{0.53\textwidth}
-      {\fontsize{6.5}{7.5}\selectfont\bfseries\color{brandSlate} USE OF FUNDS\par}
-      \vspace{3pt}
-      \begin{tikzpicture}[x=1cm,y=1cm]
-        \def\sc{0.03}% cm per €1k
-        \foreach \i/\lab in {0/{Product \& engineering},1/{Accountant channel \& sales},
-            2/{Onboarding \& support},3/{Marketing, SEO, ads},
-            4/{Legal, compliance, security},5/{Infrastructure \& tools},
-            6/{Ops \& contingency}} {
-          \pgfmathsetmacro{\w}{\cfk{use_of_funds.\i.eur}*\sc}
-          \pgfmathsetmacro{\yy}{-\i*0.56}
-          \node[anchor=east,font=\fontsize{6.3}{7}\selectfont,text=brandNavy] at (3.2,\yy) {\lab};
-          \fill[brandBlue] (3.3,\yy-0.16) rectangle ++(\w,0.32);
-          \node[anchor=west,font=\fontsize{6}{7}\selectfont,text=brandNavy] at (3.35+\w,\yy)
-            {€\cfK{use_of_funds.\i.eur}k \textcolor{brandSlate}{(\cfp{use_of_funds.\i.pct}{1}\%)}};
-        }
-      \end{tikzpicture}\par
-      \vspace{4pt}
-      {\fontsize{6.3}{7.6}\selectfont\RaggedRight\color{brandSlate}
-      \textbf{Minimum viable close:} €\cfK{round_size_test.0.round_eur}k \textrightarrow{}
-      \cf{round_size_test.0.runway_zero_revenue_months} months with zero revenue
-      (\cf{round_size_test.0.runway_plan_months} on plan), same cost plan; the developer hire
-      (month \cf{team_plan.4.from_month}) falls outside it. Other sizes, zero-revenue runway:
-      €\cfK{round_size_test.2.round_eur}k (VV + minimum match) \textrightarrow{}
-      \cf{round_size_test.2.runway_zero_revenue_months} mo; €\cfK{round_size_test.4.round_eur}k
-      \textrightarrow{} \cf{round_size_test.4.runway_zero_revenue_months} mo. A smaller VV ticket means a
-      smaller round; below €\cfK{round_size_test.0.round_eur}k in total is not modelled. The 2025 average Romanian pre-seed round
-      was €\cfK{benchmarks_for_ask.romania_avg_pre_seed_2025_eur}k.\par}
-    \end{column}
-  \end{columns}
-
-  \surse{Sources: financial-model.xlsx (``Use of funds'' sheet: share of planned spend over the zero-revenue
-    runway applied to the round) and cap-table.xlsx (incl. a CLA alternative). Vest Ventures terms: vestventures.vc
-    programs-terms §3. Average pre-seed: How to Web \& Underline Ventures, Venture in Eastern Europe 2025.}
-\end{frame}
-
-% =====================================================================
-% 15 - ROADMAP
-% =====================================================================
-\begin{frame}{Roadmap: from pilots to 100 paying companies and a seed round}
-  \vspace{0pt}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.3\textwidth}
-      \begin{card}[brandGreen]{check-circle}{2026: done, then pilot}
-        \scriptsize
-        \pctv{check}{\textbf{17 Aug}: development starts}\par\vspace{1pt}
-        \pctv{check}{\textbf{Early Sep}: live in production}\par\vspace{1pt}
-        \pctv{check}{\textbf{17 Sep}: REGES-Online API live}\par\vspace{1pt}
-        \pctv{check}{\textbf{6 Oct}: accountant pilot opens}\par\vspace{1pt}
-        \pct{hourglass-half}{\textbf{15 Nov}: pilot sign-ups close}
-      \end{card}
-    \end{column}
-    \begin{column}{0.36\textwidth}
-      \begin{card}[brandBlue]{flag}{2027 (plan)}
-        \scriptsize
-        \pct{hand-holding-usd}{\textbf{Jan}: round closes (assumed); founders full time}\par\vspace{1pt}
-        \pct{user-plus}{\textbf{Mar}: partner \& sales manager}\par\vspace{1pt}
-        \pct{exchange-alt}{\textbf{Apr}: pilot ends, companies convert to paid}\par\vspace{1pt}
-        \pct{calculator}{\textbf{May}: payroll values validated by an accountant}\par\vspace{1pt}
-        \pct{universal-access}{\textbf{Jun}: accessibility audit (EN 301 549)}\par\vspace{1pt}
-        \pct{users}{\textbf{Aug}: 30 paying companies}\par\vspace{1pt}
-        \pct{shield-alt}{\textbf{Sep}: external penetration test}
-      \end{card}
-    \end{column}
-    \begin{column}{0.3\textwidth}
-      \begin{card}[brandTeal]{rocket}{2028–2029 (plan)}
-        \scriptsize
-        \pct{code}{\textbf{Jan 2028}: developer hired}\par\vspace{1pt}
-        \pct{flag-checkered}{\textbf{\cf{base.date_to_100}}: 100 paying companies, seed
-          conversations start}\par\vspace{1pt}
-        \pct{chart-line}{\textbf{\cf{base.date_to_300}}: \cf{base.customers_m36} paying companies}
-      \end{card}
-    \end{column}
-  \end{columns}
-  \vspace{4pt}
-  {\scriptsize\color{brandSlate}\textbf{Beyond the model (a hypothesis, not in the numbers):}
-  neighbouring markets such as Serbia, Hungary, Moldova or Bulgaria. REGES-Online is Romanian, so each
-  country needs its own compliance layer on the same multi-tenant core.\par}
-
-  \surse{Milestones: financial-model.xlsx (base case). Done items: git history and administrativo.ro.
-    Vest Ventures Accelerator Cohort 3 dates are not published;
-    January 2027 is our assumption.}
-\end{frame}
-
-% =====================================================================
-% 16 - CONTACT
-% =====================================================================
-\begin{frame}[plain]
-  \begin{tikzpicture}[remember picture,overlay]
-    \fill[brandNavy] (current page.south west) rectangle (current page.north east);
-    \fill[brandBlue!30!brandNavy] ([xshift=-2.4cm,yshift=1.7cm]current page.east) circle (4.2cm);
-    \fill[brandTeal!22!brandNavy] ([xshift=-4.6cm,yshift=-2.9cm]current page.east) circle (2.6cm);
-
-    \node[anchor=north west,text=white,font=\titlufont\fontsize{13}{15}\selectfont]
-      at ([xshift=1.5cm,yshift=-1.0cm]current page.north west) {ADMINISTRATIVO};
-
-    \node[anchor=west,align=left] at ([xshift=1.45cm,yshift=-0.35cm]current page.west) {%
-      \begin{minipage}{8.2cm}
-        \raggedright
-        {\titlufont\bfseries\fontsize{26}{30}\selectfont\color{white} Thank you}\par
-        \vspace{8pt}
-        {\color{brandLine}\small €\cfK{round_eur}k pre-seed to turn a live product and an accountant pilot
-        into 100 paying companies.}\par
-        \vspace{14pt}
-        {\color{white}\small
-        \faIcon{envelope}~~contact@administrativo.ro\par\vspace{4pt}
-        \faIcon{globe}~~administrativo.ro\par\vspace{4pt}
-        \faIcon{phone}~~+40 767 991 625\par\vspace{4pt}
-        \faIcon{map-marker-alt}~~Timișoara, Romania}\par
-        \vspace{12pt}
-        {\color{brandLine}\scriptsize Miroslav Maletici \& Răzvan Pervulescu, co-founders}
-      \end{minipage}};
-
-    \node[anchor=south west,text=brandLine,font=\fontsize{6}{7}\selectfont,align=left,text width=8.6cm]
-      at ([xshift=1.5cm,yshift=0.7cm]current page.south west)
-      {Attached to this application: financial model (XLSX), cap table, data room.
-       Projections are labelled as such; today there are zero paying customers.};
-  \end{tikzpicture}
+  \surse{All figures: financial-model.xlsx, base case; model month 1 = Jan 2027 (assumed close).
+    Projections, not results.}
 \end{frame}
 
 \end{document}

@@ -11,7 +11,7 @@ script again (or `--check` to only verify). Before pasting, run it with
 Rules behind the text:
 
 - Every number comes from `_surse/cifre.json` (financial model and cap table,
-  recalculated 6 Oct 2026) or from the sourced files `_surse/fapte.md` and
+  recalculated 7 Oct 2026) or from the sourced files `_surse/fapte.md` and
   `_surse/piata.md`. Anything dated after 6 Oct 2026 is a **projection**.
 - Zero paying customers today. Nothing here implies revenue, customers,
   partnerships or logos.
@@ -69,7 +69,7 @@ Pre-seed. The product is live in production, with zero paying customers so far a
 
 **Long** (max 1000)
 <!-- 507 chars -->
-Pre-seed. The product is built and live in production at administrativo.ro (since early Sep 2026), with 19 modules that each company switches on or off. We have zero paying customers today: the product is used by demo companies and free pilots, and an accountant pilot program opened on 6 Oct 2026 (free for pilot companies until 31 Mar 2027). We are applying to the Vest Ventures Accelerator rather than Seed because Seed expects first invoices, which we do not have yet. The round we are raising is €250k.
+Pre-seed. The product is built and live in production at administrativo.ro (since early Sep 2026), with 19 modules that each company switches on or off. We have zero paying customers today: the product is used by demo companies and free pilots, and an accountant pilot program opened on 6 Oct 2026 (free for pilot companies until 31 Mar 2027). We are applying to the Vest Ventures Accelerator rather than Seed because Seed expects first invoices, which we do not have yet. The round we are raising is €150k.
 
 ## 6. Industry / sector tags
 
@@ -139,7 +139,7 @@ Romanian SMEs with employees, bought by the owner or office manager and often re
 
 **Long** (max 1000)
 <!-- 821 chars -->
-Buyer: the owner or office manager of a Romanian company with 5–250 people, usually advised by an external accountant. TAM: about 526,000 companies with at least one employee (ICAP CRIF, FY2025) times our 149 RON core price times 12, about €188M a year. SAM: the 54,381 companies with 10–249 people (Eurostat 2023), at 398 RON a month for 10–19 people and 499 RON for 20–249, about €58M a year; this is understated because we publish no price above 20 employees. Reaching micro-employers through accountants could add about €16.8M a year, an estimate that assumes 10% of them are reachable; we show it separately. SOM: the base case of our financial model reaches 300 paying companies and €189k ARR in Dec 2029 (month 36), which is 0.057% of employers. TAM and SAM are derived by us at 5 RON = 1 EUR; SOM is a projection.
+Buyer: the owner or office manager of a Romanian company with 5–250 people, usually advised by an external accountant. TAM: about 526,000 companies with at least one employee (ICAP CRIF, FY2025) times our 149 RON core price times 12, about €188M a year. SAM: the 54,381 companies with 10–249 people (Eurostat 2023), at 398 RON a month for 10–19 people and 499 RON for 20–249, about €58M a year; this is understated because we publish no price above 20 employees. Reaching micro-employers through accountants could add about €16.8M a year, an estimate that assumes 10% of them are reachable; we show it separately. SOM: the base case of our financial model reaches 284 paying companies and €179k ARR in Dec 2029 (month 36), which is 0.054% of employers. TAM and SAM are derived by us at 5 RON = 1 EUR; SOM is a projection.
 
 ## 13. Competition and differentiation
 
@@ -169,17 +169,17 @@ Zero paying customers and €0 MRR. The product has been live since early Sep 20
 
 **Long** (max 1000)
 <!-- 501 chars -->
-€0 revenue from ADMINISTRATIVO and €0 MRR to date; we have no paying customers [TO CONFIRM: SRL turnover FY2024/FY2025]. Self-service sign-ups get the first month free, and accountant pilot companies use the product free until 31 Mar 2027. The plan is for pilot companies to start paying list price from April 2027 (model month 4). The base case of our financial model, which is a projection, reaches 50 paying companies and €2,380 MRR in Dec 2027, and 150 paying companies and €7,488 MRR in Dec 2028.
+€0 revenue from ADMINISTRATIVO and €0 MRR to date; we have no paying customers [TO CONFIRM: SRL turnover FY2024/FY2025]. Self-service sign-ups get the first month free, and accountant pilot companies use the product free until 31 Mar 2027. The plan is for pilot companies to start paying list price from April 2027 (model month 4). The base case of our financial model, which is a projection, reaches 47 paying companies and €2,254 MRR in Dec 2027, and 139 paying companies and €6,941 MRR in Dec 2028.
 
 ## 16. Go-to-market
 
 **Short** (max 300)
-<!-- 276 chars -->
-Accountants first: they already keep the books of SMEs and often file to REGES for them. Pilot open to 10 practices, free until 31 Mar 2027, then 20% commission for 6 months. Plus SEO (7 free tools, 8 legal guides), LinkedIn and direct demos. Partner manager hired in month 3.
+<!-- 286 chars -->
+Accountants first: they already keep the books of SMEs and often file to REGES for them. Pilot open to 10 practices, free until 31 Mar 2027, then 20% commission for 6 months. Plus SEO (7 free tools, 8 legal guides), LinkedIn and direct demos. Partner manager hired half time in month 3.
 
 **Long** (max 1000)
-<!-- 936 chars -->
-Channel one is accounting practices. Romanian SMEs typically keep their books with an external accountant, who often also files to REGES-Online and runs payroll for them, working from timesheets and leave sent by e-mail. Our pilot has places for 10 practices, each bringing 1–3 client companies free until 31 Mar 2027; we import employees and configure the company with the accountant; after the pilot the accountant earns 20% of each referred subscription for 6 months. Channel two is search: 7 free tools without an account (salary calculator, timesheet, leave form and others) and 8 legal guides on administrativo.ro, plus our LinkedIn page. Channel three is direct demos to SMEs in Western Romania. With the round we hire a partner and sales manager for the accountant channel in month 3 and an onboarding specialist in month 4. Projected year-2 fully loaded acquisition cost (CAC) is €479 per customer, with payback in 10.1 months.
+<!-- 982 chars -->
+Channel one is accounting practices. Romanian SMEs typically keep their books with an external accountant, who often also files to REGES-Online and runs payroll for them, working from timesheets and leave sent by e-mail. Our pilot has places for 10 practices, each bringing 1–3 client companies free until 31 Mar 2027; we import employees and configure the company with the accountant; after the pilot the accountant earns 20% of each referred subscription for 6 months. Channel two is search: 7 free tools without an account (salary calculator, timesheet, leave form and others) and 8 legal guides on administrativo.ro, plus our LinkedIn page. Channel three is direct demos to SMEs in Western Romania. With the round we hire a partner and sales manager for the accountant channel in month 3 (half time, full time from month 13) and a half-time onboarding specialist in month 7. Projected year-2 fully loaded acquisition cost (CAC) is €497 per customer, with payback in 10.5 months.
 
 ## 17. Team
 
@@ -188,18 +188,18 @@ Channel one is accounting practices. Romanian SMEs typically keep their books wi
 Two co-founders who both write code: Miroslav Maletici (Co-founder, 51%) and Răzvan Pervulescu (Co-founder, 49%), students at the Politehnica University of Timișoara. They took the product from first commit to production in about three weeks. The plan has both full time once the round closes.
 
 **Long** (max 1000)
-<!-- 902 chars -->
-Miroslav Maletici, Co-founder (51%) [TO CONFIRM: role, e.g. CEO or CTO, and a one-line bio]. Răzvan Pervulescu, Co-founder (49%) [TO CONFIRM: role and one-line bio]. Both are students at the Politehnica University of Timișoara (UPT) and both commit code. Together they built ADMINISTRATIVO from the first commit on 17 Aug 2026 to production in early September: 811 commits (34 of them automated), 19 modules and a live REGES-Online integration by 6 Oct 2026. We use AI coding tools openly, with automated tests and nightly AI code review, which is how two people ship at this pace. Both founders go full time when the round closes [TO CONFIRM: how studies fit with full-time work]. Planned hires from the round: a partner and sales manager for the accountant channel (month 3), an onboarding and support specialist (month 4) and a full-stack developer (month 13). There are no other team members today.
+<!-- 985 chars -->
+Miroslav Maletici, Co-founder (51%) [TO CONFIRM: role, e.g. CEO or CTO, and a one-line bio]. Răzvan Pervulescu, Co-founder (49%) [TO CONFIRM: role and one-line bio]. Both are students at the Politehnica University of Timișoara (UPT) and both commit code. Together they built ADMINISTRATIVO from the first commit on 17 Aug 2026 to production in early September: 811 commits (34 of them automated), 19 modules and a live REGES-Online integration by 6 Oct 2026. We use AI coding tools openly, with automated tests and nightly AI code review, which is how two people ship at this pace. Both founders go full time when the round closes, on a lean €1,000 gross salary each [TO CONFIRM: how studies fit with full-time work]. Planned hires from the round: a partner and sales manager for the accountant channel (month 3, half time until month 13) and a half-time onboarding and support specialist (month 7). A full-stack developer follows after the seed. There are no other team members today.
 
 ## 18. Cap table
 
 **Short** (max 300)
 <!-- 212 chars -->
-Today: Miroslav Maletici 51%, Răzvan Pervulescu 49%. No investors, no options issued. After the proposed round (fully diluted): founders 73.33% (37.40% and 35.93%), investors 16.67%, new employee option pool 10%.
+Today: Miroslav Maletici 51%, Răzvan Pervulescu 49%. No investors, no options issued. After the proposed round (fully diluted): founders 79.29% (40.44% and 38.85%), investors 10.71%, new employee option pool 10%.
 
 **Long** (max 1000)
-<!-- 663 chars -->
-Today the SRL is owned 51% by Miroslav Maletici and 49% by Răzvan Pervulescu. There are no other shareholders, no investors and no options. After the proposed €250k round at €1.25M pre-money, fully diluted: Miroslav Maletici 37.40%, Răzvan Pervulescu 35.93%, Vest Ventures 13.33%, independent angels 3.33% and an employee option pool of 10%. The pool is created before the round, so it dilutes only the founders. While the company is an SRL, the pool would be a virtual (phantom) scheme [TO CONFIRM with a lawyer]. Illustration only, not a plan: after a later €1M seed at €4M pre-money the founders would hold 58.67% together. The full table is in cap-table.xlsx.
+<!-- 662 chars -->
+Today the SRL is owned 51% by Miroslav Maletici and 49% by Răzvan Pervulescu. There are no other shareholders, no investors and no options. After the proposed €150k round at €1.25M pre-money, fully diluted: Miroslav Maletici 40.44%, Răzvan Pervulescu 38.85%, Vest Ventures 9.64%, independent angels 1.07% and an employee option pool of 10%. The pool is created before the round, so it dilutes only the founders. While the company is an SRL, the pool would be a virtual (phantom) scheme [TO CONFIRM with a lawyer]. Illustration only, not a plan: after a later €1M seed at €4M pre-money the founders would hold 63.43% together. The full table is in cap-table.xlsx.
 
 ## 19. Funding raised to date
 
@@ -215,51 +215,51 @@ None for ADMINISTRATIVO. We have raised €0 from investors, received no grants 
 
 **Short** (max 300)
 <!-- 244 chars -->
-€250k pre-seed: a €200k Vest Ventures Accelerator ticket plus €50k from independent angels (not yet identified). €1.25M pre-money (founders' proposal), €1.5M post-money, 16.67% to investors. Instrument: a CLA or SHA on Vest Ventures' templates.
+€150k pre-seed: a €135k Vest Ventures Accelerator ticket plus €15k from independent angels (not yet identified). €1.25M pre-money (founders' proposal), €1.4M post-money, 10.71% to investors. Instrument: a CLA or SHA on Vest Ventures' templates.
 
 **Long** (max 1000)
-<!-- 948 chars -->
-We are raising €250k: the €200k maximum Vest Ventures Accelerator ticket plus €50k from independent business angels, which covers the rule of at least 10% private co-investment with room to spare. We have not identified the angels yet. With only the minimum match the round is €220k. If the accelerator ticket is smaller, the round scales down (€150k pays 12 months with zero revenue, 14 on plan) and the milestones are re-cut. We propose €1.25M pre-money (€1.5M post-money), so investors would own 16.67%. We found no sourced Romanian pre-seed valuation benchmark, so this is our proposal, in the lower half of the €0.75–3M post-money range implied by 10–20% dilution, which fits zero revenue. The ask is below the 2025 Romanian average pre-seed round of €526k (How to Web and Underline Ventures). Instrument: a convertible loan (CLA) or shareholders' agreement (SHA) on Vest Ventures' templates; under a CLA the €1.25M would be the valuation cap.
+<!-- 973 chars -->
+We are raising €150k: a €135k Vest Ventures Accelerator ticket plus €15k from independent business angels, whom we have not identified yet. The €15k is 10% of the round and 11% of the ticket, so it meets the rule of at least 10% private co-investment on either basis [TO CONFIRM with Vest Ventures]. The size follows a lean plan: both founders on €1,000 gross, the first two hires half time, and a developer only after the seed. It pays every planned cost for 16 months with zero revenue and lasts 24 months on the base plan, past the seed trigger of 100 paying customers in Aug 2028. We propose €1.25M pre-money (€1.4M post-money), so investors would own 10.71%. We found no sourced Romanian pre-seed valuation benchmark; this is our proposal, in the lower half of the €0.75–3M post-money range implied by 10–20% dilution. Instrument: a convertible loan (CLA) or shareholders' agreement (SHA) on Vest Ventures' templates; under a CLA the €1.25M would be the valuation cap.
 
 ## 21. Use of funds
 
 **Short** (max 300)
 <!-- 234 chars -->
-Product and engineering 32.6%, accountant channel and sales 19.4%, marketing 14.8%, legal, payroll validation, compliance and security 10.0%, onboarding and support 9.7%, operations and contingency 7.9%, infrastructure and tools 5.6%.
+Product and engineering 23.6%, marketing 19.9%, accountant channel and sales 17.4%, legal, payroll validation, compliance and security 16.8%, operations and contingency 9.3%, infrastructure and tools 7.8%, onboarding and support 5.2%.
 
 **Long** (max 1000)
-<!-- 745 chars -->
-The €250k is split by each category's share of planned spending over the first 19 months. Product and engineering, €81,339 (32.6%): both co-founders full time and a developer from month 13. Accountant channel and sales, €48,543 (19.4%): a partner and sales manager, travel and accountant commissions. Marketing, €36,952 (14.8%): content, SEO and performance ads. Legal, payroll validation, compliance and security, €24,877 (10.0%): validation of payroll legal values by an accountant, an accessibility audit (EN 301 549), an external penetration test and legal documents. Customer onboarding and support, €24,362 (9.7%): an onboarding specialist from month 4. Operations and contingency, €19,816 (7.9%). Infrastructure and tools, €14,111 (5.6%).
+<!-- 815 chars -->
+The €150k is split by each category's share of planned spending over the first 16 months. Product and engineering, €35,345 (23.6%): both co-founders full time on €1,000 gross each; the developer is hired only after the seed. Marketing, €29,873 (19.9%): content, SEO and performance ads. Accountant channel and sales, €26,149 (17.4%): a partner and sales manager (half time until month 13), travel and accountant commissions. Legal, payroll validation, compliance and security, €25,178 (16.8%): validation of payroll legal values by an accountant, an accessibility audit (EN 301 549), an external penetration test and legal documents. Operations and contingency, €13,971 (9.3%). Infrastructure and tools, €11,695 (7.8%). Customer onboarding and support, €7,789 (5.2%): a half-time onboarding specialist from month 7.
 
 ## 22. Runway and burn
 
 **Short** (max 300)
-<!-- 208 chars -->
-19 months with zero revenue, 25 months on the base plan. We plan to start the seed raise at 100 paying customers, planned for month 19 (Jul 2028), inside that runway. Planned costs: €137,291 in year 1 (2027).
+<!-- 217 chars -->
+16 months with zero revenue, 24 months on the base plan. We start the seed raise at 100 paying customers, planned for month 20 (Aug 2028), about 4 months before cash runs out. Planned costs: €102,029 in year 1 (2027).
 
 **Long** (max 1000)
-<!-- 914 chars -->
-Current monthly burn: [TO CONFIRM amount]. After the round closes (assumed Jan 2027), planned costs are €137,291 in 2027, €177,588 in 2028 and €203,503 in 2029. With zero revenue, €250k pays every planned cost for 19 months. On the base revenue plan cash lasts 25 months. We plan to start the seed raise at 100 paying customers, which the base case reaches in month 19 (Jul 2028), inside that runway. Other round sizes: €150k gives 12 months with zero revenue (14 on plan), €220k gives 17 (21) and €300k gives 23 (35). The base case is not default-alive: in month 36 monthly cash flow is still about −€1.7k, and without a seed round the cash shortfall by then is about €50k. In the conservative case cash lasts 22 months on plan and 100 customers are not reached within 36 months; if the pilot tracks that case, we delay the month-13 developer hire [TO CONFIRM]. The upside case breaks even in month 23 (Nov 2028).
+<!-- 956 chars -->
+Current monthly burn: [TO CONFIRM amount]. After the round closes (assumed Jan 2027), planned costs are €102,029 in 2027, €117,399 in 2028 and €185,606 in 2029, when the post-seed developer joins. With zero revenue, €150k pays every planned cost for 16 months; on the base revenue plan cash lasts 24 months, to Dec 2028. The base case reaches 100 paying customers, our seed trigger, in month 20 (Aug 2028) with about €15k in cash, so the seed raise must start promptly and conversations begin before then. Other round sizes: the €135k ticket alone gives 15 months with zero revenue (20 on plan), €220k gives 24 (over 36) and €300k gives 29 (over 36). The base case is not default-alive: in month 36 monthly cash flow is still about −€1.1k, and without a seed the shortfall by then is about €51k. In the conservative case cash lasts 18 months on plan; if the pilot tracks it, we cut paid ads [TO CONFIRM]. The upside case breaks even in month 22 (Oct 2028).
 
 ## 23. Milestones
 
 **Short** (max 300)
-<!-- 230 chars -->
-Plan, not fact: Jan 2027 round closes, founders full time; Apr 2027 pilot companies start paying; May 2027 payroll validated; Aug 2027 30 paying firms; Jul 2028 100 paying firms, start of the seed raise; Dec 2029 300 paying firms.
+<!-- 244 chars -->
+Plan, not fact: Jan 2027 round closes, founders full time; Apr 2027 pilot companies start paying; May 2027 payroll validated; Aug 2027 30 paying firms; Aug 2028 100 paying firms, start of the seed raise; Jan 2029 developer hired after the seed.
 
 **Long** (max 1000)
-<!-- 780 chars -->
-All dates are plans from our financial model, counted from an assumed close in Jan 2027 (month 1), when both co-founders go full time. Month 3 (Mar 2027): partner and sales manager hired for the accountant channel. Month 4 (Apr 2027): the free accountant pilot ends, pilot companies convert to paid, and an onboarding specialist joins. Month 5 (May 2027): payroll legal values validated by an accountant, so payroll becomes sellable. Month 6 (Jun 2027): accessibility audit (EN 301 549) completed. Month 8 (Aug 2027): 30 paying companies. Month 9 (Sep 2027): external penetration test. Month 13 (Jan 2028): developer hired. Month 19 (Jul 2028): 100 paying companies, when we start talking to seed investors, including Vest Ventures Seed. Month 36 (Dec 2029): 300 paying companies.
+<!-- 898 chars -->
+All dates are plans from our financial model, counted from an assumed close in Jan 2027 (month 1), when both co-founders go full time. Month 3 (Mar 2027): partner and sales manager hired for the accountant channel, half time. Month 4 (Apr 2027): the free accountant pilot ends and pilot companies convert to paid; the founders onboard them. Month 5 (May 2027): payroll legal values validated by an accountant, so payroll becomes sellable. Month 6 (Jun 2027): accessibility audit (EN 301 549) completed. Month 7 (Jul 2027): onboarding and support specialist hired, half time. Month 8 (Aug 2027): 30 paying companies. Month 12 (Dec 2027): external penetration test. Month 13 (Jan 2028): partner manager full time. Month 20 (Aug 2028): 100 paying companies, when we start the seed raise, including Vest Ventures Seed. Month 25 (Jan 2029), after the seed: developer hired, support specialist full time.
 
 ## 24. Financial projections (summary)
 
 **Short** (max 300)
 <!-- 227 chars -->
-Projection, base case: 50 paying companies at month 12, 150 at month 24, 300 at month 36, with €189k ARR in Dec 2029. Revenue €14.7k in 2027, €61.1k in 2028, €144.5k in 2029. No break-even within 36 months without a seed round.
+Projection, base case: 47 paying companies at month 12, 139 at month 24, 284 at month 36, with €179k ARR in Dec 2029. Revenue €14.3k in 2027, €56.6k in 2028, €135.5k in 2029. No break-even within 36 months without a seed round.
 
 **Long** (max 1000)
-<!-- 944 chars -->
-Three scenarios, built bottom-up from the accountant pilot, new accountant partners and organic trials, starting from zero paying customers. Base: 50, 150 and 300 paying companies at months 12, 24 and 36; MRR €15,761 at month 36 (€189k ARR); revenue €14,658 in 2027, €61,053 in 2028 and €144,461 in 2029; no break-even within 36 months. Conservative: 15, 42 and 77 companies; MRR €3,687 at month 36. Upside: 110, 344 and 733 companies; MRR €40,719 at month 36 and break-even in month 23. Base-case monthly churn is an assumed 3%, to be validated in the pilot (ChartMogul median for ARPA under US$25: 6.1%; our ~€50 ARPA sits in a band with better retention). Year-2 unit economics (base): €49.98 average monthly revenue per company, 95% contribution margin (58.6% gross margin on the P&L), €479 fully loaded CAC, €1,583 lifetime value, LTV/CAC 3.3x, 10.1 months payback. The financial model is a live-formula XLSX with assumptions on one sheet.
+<!-- 912 chars -->
+Three scenarios, built bottom-up from the accountant pilot, new accountant partners and organic trials, starting from zero paying customers. Base: 47, 139 and 284 paying companies at months 12, 24 and 36; MRR €14,881 at month 36 (€179k ARR); revenue €14,275 in 2027, €56,648 in 2028 and €135,468 in 2029; no break-even within 36 months. Conservative: 15, 39 and 74 companies; MRR €3,533 at month 36. Upside: 103, 313 and 682 companies; MRR €37,888 at month 36 and break-even in month 22. Base-case monthly churn is an assumed 3%, to be validated in the pilot (ChartMogul median for ARPA under US$25: 6.1%; our ~€50 ARPA sits in a band with better retention). Year-2 unit economics (base): €49.98 average monthly revenue per company, 95% contribution margin, €497 fully loaded CAC, €1,583 lifetime value, LTV/CAC 3.2x, 10.5 months payback. The financial model is a live-formula XLSX with assumptions on one sheet.
 
 ## 25. Technology and IP
 
@@ -289,7 +289,7 @@ You are the pre-seed fund of our own region: based in Timișoara, focused on B2B
 
 **Long** (max 1000)
 <!-- 779 chars -->
-We are a Timișoara company selling to Romanian SMEs, and Vest Ventures is the pre-seed fund built for exactly that region, focused on B2B tech. Our round is sized around your accelerator ticket: €200k plus the private co-investment you require. What we need most is not code but go-to-market, and your accelerator mentors cover our gap: B2B SaaS growth, relationship-led B2B sales and value-based selling, which is how the accountant channel is won. Your programme also asks for things already in our plan: digital accessibility to EN 301 549, with an audit planned for month 6. Your Seed stage is a natural follow-on when we reach 100 paying customers, and Western Romanian companies are our first target market. The project fits the West Region's ICT smart-specialisation area.
+We are a Timișoara company selling to Romanian SMEs, and Vest Ventures is the pre-seed fund built for exactly that region, focused on B2B tech. Our round is sized around your accelerator ticket: €135k plus the private co-investment you require. What we need most is not code but go-to-market, and your accelerator mentors cover our gap: B2B SaaS growth, relationship-led B2B sales and value-based selling, which is how the accountant channel is won. Your programme also asks for things already in our plan: digital accessibility to EN 301 549, with an audit planned for month 6. Your Seed stage is a natural follow-on when we reach 100 paying customers, and Western Romanian companies are our first target market. The project fits the West Region's ICT smart-specialisation area.
 
 ## 28. Key risks and mitigations
 
@@ -298,8 +298,8 @@ We are a Timișoara company selling to Romanian SMEs, and Vest Ventures is the p
 No revenue yet; the government decision behind REGES-Online was annulled at first instance (not final, still in force); payroll values await accountant validation; incumbents own the accountant relationship; Romania-only today; a two-person team of students.
 
 **Long** (max 1000)
-<!-- 854 chars -->
-Demand is unproven: we have zero paying customers, so the accountant pilot and the April 2027 conversion are the test. Regulatory: HG 295/2025, the government decision behind REGES-Online, was annulled at first instance in April 2026. The ruling is not final and the register still applies. The duty to keep an employee register and a daily timesheet comes from the Labour Code, so our core does not depend on that case. Payroll: legal values are being validated by an accountant before we sell payroll. Competition: accountants' software (SmartBill, SAGA, Nexus) already files to REGES, so we position as the employer-side tool that feeds the accountant, not a rival. Team: two student founders; the round pays both full time and adds three hires. Security: an external penetration test is planned for month 9. Funding: the base case needs a seed round.
+<!-- 961 chars -->
+Demand is unproven: we have zero paying customers, so the accountant pilot and the April 2027 conversion are the test. Regulatory: HG 295/2025, the government decision behind REGES-Online, was annulled at first instance in April 2026. The ruling is not final and the register still applies. The duty to keep an employee register and a daily timesheet comes from the Labour Code, so our core does not depend on that case. Payroll: legal values are being validated by an accountant before we sell payroll. Competition: accountants' software (SmartBill, SAGA, Nexus) already files to REGES, so we position as the employer-side tool that feeds the accountant, not a rival. Team: two student founders; the round pays both full time and adds two half-time hires, and a developer follows after the seed. Security: an external penetration test is planned for month 12. Funding: the base case needs a seed round within about four months of reaching 100 paying customers.
 
 ## 29. Contact person
 

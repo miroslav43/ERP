@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated": "2026-10-06",
+    "generated": "2026-10-07",
     "generated_from": [
       "financial-model.xlsx (recalculated by LibreOffice)",
       "cap-table.xlsx",
@@ -10,22 +10,22 @@
     "currency": "EUR; RON converted at 5.0 RON = 1 EUR",
     "status": "Everything after 6 Oct 2026 is a PROJECTION. Zero paying customers today."
   },
-  "round_eur": 250000,
+  "round_eur": 150000,
   "round_split": {
-    "vest_ventures_ticket_eur": 200000,
-    "independent_angels_eur": 50000,
+    "vest_ventures_ticket_eur": 135000,
+    "independent_angels_eur": 15000,
     "angels_identified": false,
-    "option_a_eur": 220000,
+    "option_a_eur": 148500,
     "option_a_note": "Vest Ventures ticket + the minimum 10% private co-investment only"
   },
   "stage": "Pre-seed (apply to the Vest Ventures Accelerator, not Seed: zero revenue)",
   "instrument": "Convertible loan agreement (CLA) or SHA on Vest Ventures' templates; modelled as priced equity at the pre-money valuation (a CLA would use it as the valuation cap, illustrative 20% discount)",
   "pre_money_eur": 1250000,
-  "post_money_eur": 1500000,
-  "investor_pct": 16.67,
+  "post_money_eur": 1400000,
+  "investor_pct": 10.71,
   "investor_pct_split": {
-    "vest_ventures": 13.33,
-    "angels": 3.33
+    "vest_ventures": 9.64,
+    "angels": 1.07
   },
   "esop_pct": 10.0,
   "esop_note": "10% of post-money, created pre-money (dilutes founders only); virtual/phantom scheme while the company is an SRL [TO CONFIRM]",
@@ -34,237 +34,245 @@
     "Răzvan Pervulescu": 49.0
   },
   "founders_post": {
-    "Miroslav Maletici": 37.4,
-    "Răzvan Pervulescu": 35.93
+    "Miroslav Maletici": 40.44,
+    "Răzvan Pervulescu": 38.85
   },
   "illustrative_seed": {
     "amount_eur": 1000000,
     "pre_money_eur": 4000000,
-    "founders_combined_after_seed_pct": 58.67,
+    "founders_combined_after_seed_pct": 63.43,
     "note": "ILLUSTRATIVE only, no seed discussion has taken place"
   },
-  "runway_months": 19,
+  "runway_months": 16,
   "runway_basis": "Months the round pays every planned cost with ZERO revenue (base cost plan)",
-  "runway_plan_months": 25,
-  "runway_option_a_zero_revenue_months": 17,
+  "runway_plan_months": 24,
+  "runway_option_a_zero_revenue_months": 16,
   "round_size_test": [
     {
-      "case": "Lower end of founders' range",
-      "round_eur": 150000,
-      "runway_zero_revenue_months": 12,
-      "runway_plan_months": 14,
-      "dilution_pct_at_same_pre_money": 10.7
-    },
-    {
       "case": "VV ticket alone (not allowed without private match)",
-      "round_eur": 200000,
-      "runway_zero_revenue_months": 16,
-      "runway_plan_months": 19,
-      "dilution_pct_at_same_pre_money": 13.8
-    },
-    {
-      "case": "Option A: VV ticket + minimum 10% private match",
-      "round_eur": 220000,
-      "runway_zero_revenue_months": 17,
-      "runway_plan_months": 21,
-      "dilution_pct_at_same_pre_money": 15.0
+      "round_eur": 135000,
+      "runway_zero_revenue_months": 15,
+      "runway_plan_months": 20,
+      "dilution_pct_at_same_pre_money": 9.7
     },
     {
       "case": "Proposed round",
+      "round_eur": 150000,
+      "runway_zero_revenue_months": 16,
+      "runway_plan_months": 24,
+      "dilution_pct_at_same_pre_money": 10.7
+    },
+    {
+      "case": "VV maximum ticket + minimum 10% private match",
+      "round_eur": 220000,
+      "runway_zero_revenue_months": 24,
+      "runway_plan_months": "> 36",
+      "dilution_pct_at_same_pre_money": 15.0
+    },
+    {
+      "case": "Larger round (more angels)",
       "round_eur": 250000,
-      "runway_zero_revenue_months": 19,
-      "runway_plan_months": 25,
+      "runway_zero_revenue_months": 26,
+      "runway_plan_months": "> 36",
       "dilution_pct_at_same_pre_money": 16.7
     },
     {
       "case": "Upper end of founders' range",
       "round_eur": 300000,
-      "runway_zero_revenue_months": 23,
-      "runway_plan_months": 35,
+      "runway_zero_revenue_months": 29,
+      "runway_plan_months": "> 36",
       "dilution_pct_at_same_pre_money": 19.4
     }
   ],
   "use_of_funds": [
     {
-      "category": "Product & engineering (2 co-founders full time, developer)",
-      "eur": 81339,
-      "pct": 32.6
+      "category": "Product & engineering (2 co-founders full time)",
+      "eur": 35345,
+      "pct": 23.6
     },
     {
       "category": "Accountant channel & sales (partner manager, travel, commissions)",
-      "eur": 48543,
-      "pct": 19.4
+      "eur": 26149,
+      "pct": 17.4
     },
     {
       "category": "Customer onboarding & support",
-      "eur": 24362,
-      "pct": 9.7
+      "eur": 7789,
+      "pct": 5.2
     },
     {
       "category": "Marketing (content, SEO, performance ads)",
-      "eur": 36952,
-      "pct": 14.8
+      "eur": 29873,
+      "pct": 19.9
     },
     {
       "category": "Legal, payroll validation, compliance & security",
-      "eur": 24877,
-      "pct": 10.0
+      "eur": 25178,
+      "pct": 16.8
     },
     {
       "category": "Infrastructure & tools",
-      "eur": 14111,
-      "pct": 5.6
+      "eur": 11695,
+      "pct": 7.8
     },
     {
       "category": "Operations & contingency",
-      "eur": 19816,
-      "pct": 7.9
+      "eur": 13971,
+      "pct": 9.3
     }
   ],
-  "use_of_funds_basis": "Share of planned spend over the zero-revenue runway (months 1-19), applied to the round",
+  "use_of_funds_basis": "Share of planned spend over the zero-revenue runway (months 1-16), applied to the round",
   "close_month": "Jan 2027 (model month 1) - ASSUMPTION; Vest Ventures Accelerator Cohort 3 dates are not published",
   "model_start": "Jan 2027",
   "base": {
     "scenario": 1,
-    "customers_m12": 50,
-    "mrr_m12_eur": 2380,
-    "arr_m12_eur": 28560,
-    "customers_m24": 150,
-    "mrr_m24_eur": 7488,
-    "arr_m24_eur": 89858,
-    "customers_m36": 300,
-    "mrr_m36_eur": 15761,
-    "arr_m36_eur": 189133,
+    "customers_m12": 47,
+    "mrr_m12_eur": 2254,
+    "arr_m12_eur": 27053,
+    "customers_m24": 139,
+    "mrr_m24_eur": 6941,
+    "arr_m24_eur": 83294,
+    "customers_m36": 284,
+    "mrr_m36_eur": 14881,
+    "arr_m36_eur": 178567,
     "breakeven_month": "not within 36 months",
-    "cash_low_point_eur": -50412,
+    "cash_low_point_eur": -50706,
     "cash_low_point_month": 36,
-    "cash_m36_eur": -50412,
-    "net_cash_flow_m36_eur": -1685,
-    "customers_m36_exact": 300.3,
-    "runway_zero_revenue_months": 19,
-    "runway_plan_months": 25,
+    "cash_m36_eur": -50706,
+    "net_cash_flow_m36_eur": -1059,
+    "customers_m36_exact": 283.6,
+    "runway_zero_revenue_months": 16,
+    "runway_plan_months": 24,
     "months_to_30": 8,
-    "months_to_100": 19,
-    "months_to_300": 36,
-    "revenue_y1_eur": 14658,
-    "revenue_y2_eur": 61053,
-    "revenue_y3_eur": 144461,
-    "costs_y1_eur": 137291,
-    "costs_y2_eur": 177588,
-    "costs_y3_eur": 203503,
+    "months_to_100": 20,
+    "months_to_300": "not within 36 months",
+    "revenue_y1_eur": 14275,
+    "revenue_y2_eur": 56648,
+    "revenue_y3_eur": 135468,
+    "costs_y1_eur": 102029,
+    "costs_y2_eur": 117399,
+    "costs_y3_eur": 185606,
     "breakeven_date": null,
     "date_to_30": "Aug 2027",
-    "date_to_100": "Jul 2028",
-    "date_to_300": "Dec 2029"
+    "date_to_100": "Aug 2028",
+    "date_to_300": null
   },
   "base_note": "Base case is NOT default-alive: without a seed round cash runs out after runway_plan_months; the seed raise starts at the 100-paying-customer milestone. cash_low_point_eur < 0 = shortfall without a seed.",
   "conservative": {
     "scenario": 2,
     "customers_m12": 15,
-    "mrr_m12_eur": 731,
-    "arr_m12_eur": 8774,
-    "customers_m24": 42,
-    "mrr_m24_eur": 1986,
-    "arr_m24_eur": 23837,
-    "customers_m36": 77,
-    "mrr_m36_eur": 3687,
-    "arr_m36_eur": 44246,
+    "mrr_m12_eur": 702,
+    "arr_m12_eur": 8426,
+    "customers_m24": 39,
+    "mrr_m24_eur": 1877,
+    "arr_m24_eur": 22523,
+    "customers_m36": 74,
+    "mrr_m36_eur": 3533,
+    "arr_m36_eur": 42401,
     "breakeven_month": "not within 36 months",
-    "cash_low_point_eur": -180653,
+    "cash_low_point_eur": -170735,
     "cash_low_point_month": 36,
-    "cash_m36_eur": -180653,
-    "net_cash_flow_m36_eur": -12568,
-    "customers_m36_exact": 77.5,
-    "runway_zero_revenue_months": 21,
-    "runway_plan_months": 22,
-    "months_to_30": 19,
+    "cash_m36_eur": -170735,
+    "net_cash_flow_m36_eur": -11306,
+    "customers_m36_exact": 74.2,
+    "runway_zero_revenue_months": 17,
+    "runway_plan_months": 18,
+    "months_to_30": 20,
     "months_to_100": "not within 36 months",
     "months_to_300": "not within 36 months",
-    "revenue_y1_eur": 4683,
-    "revenue_y2_eur": 16871,
-    "revenue_y3_eur": 34934,
-    "costs_y1_eur": 136232,
-    "costs_y2_eur": 156591,
-    "costs_y3_eur": 193754,
+    "revenue_y1_eur": 4594,
+    "revenue_y2_eur": 15957,
+    "revenue_y3_eur": 33305,
+    "costs_y1_eur": 101049,
+    "costs_y2_eur": 113973,
+    "costs_y3_eur": 159031,
     "breakeven_date": null,
-    "date_to_30": "Jul 2028",
+    "date_to_30": "Aug 2028",
     "date_to_100": null,
     "date_to_300": null
   },
   "upside": {
     "scenario": 3,
-    "customers_m12": 110,
-    "mrr_m12_eur": 5238,
-    "arr_m12_eur": 62852,
-    "customers_m24": 344,
-    "mrr_m24_eur": 17699,
-    "arr_m24_eur": 212385,
-    "customers_m36": 733,
-    "mrr_m36_eur": 40719,
-    "arr_m36_eur": 488626,
-    "breakeven_month": 23,
-    "cash_low_point_eur": 85116,
-    "cash_low_point_month": 22,
-    "cash_m36_eur": 222161,
-    "net_cash_flow_m36_eur": 20624,
-    "customers_m36_exact": 733.4,
-    "runway_zero_revenue_months": 18,
+    "customers_m12": 103,
+    "mrr_m12_eur": 4892,
+    "arr_m12_eur": 58702,
+    "customers_m24": 313,
+    "mrr_m24_eur": 16072,
+    "arr_m24_eur": 192865,
+    "customers_m36": 682,
+    "mrr_m36_eur": 37888,
+    "arr_m36_eur": 454657,
+    "breakeven_month": 22,
+    "cash_low_point_eur": 57773,
+    "cash_low_point_month": 21,
+    "cash_m36_eur": 188830,
+    "net_cash_flow_m36_eur": 19525,
+    "customers_m36_exact": 682.4,
+    "runway_zero_revenue_months": 16,
     "runway_plan_months": "> 36",
     "months_to_30": 4,
     "months_to_100": 12,
-    "months_to_300": 23,
-    "revenue_y1_eur": 31620,
-    "revenue_y2_eur": 140652,
-    "revenue_y3_eur": 364165,
-    "costs_y1_eur": 147557,
-    "costs_y2_eur": 186113,
-    "costs_y3_eur": 225242,
-    "breakeven_date": "Nov 2028",
+    "months_to_300": 24,
+    "revenue_y1_eur": 30573,
+    "revenue_y2_eur": 127797,
+    "revenue_y3_eur": 335844,
+    "costs_y1_eur": 104065,
+    "costs_y2_eur": 141297,
+    "costs_y3_eur": 205080,
+    "breakeven_date": "Oct 2028",
     "date_to_30": "Apr 2027",
     "date_to_100": "Dec 2027",
-    "date_to_300": "Nov 2028"
+    "date_to_300": "Dec 2028"
   },
   "unit_economics": {
     "basis": "Base scenario, model year 2 (Jan-Dec 2028)",
     "arpa_eur": 49.98,
     "gross_margin_pct": 95.0,
     "gross_margin_definition": "Contribution margin per customer: (ARPA - variable infra - payment fees) / ARPA",
-    "gross_margin_pnl_pct": 58.6,
+    "gross_margin_pnl_pct": 71.7,
     "gross_margin_pnl_definition": "P&L gross margin after fixed hosting and the onboarding/support salary (year 2)",
-    "cac_eur": 479,
+    "cac_eur": 497,
     "cac_definition": "Fully loaded: partner manager salary + marketing + travel + accountant commissions / new paying customers",
     "cac_paid_ads_eur": 320,
     "monthly_churn_pct": 3.0,
     "ltv_eur": 1583,
-    "ltv_cac": 3.3,
-    "payback_months": 10.1,
+    "ltv_cac": 3.2,
+    "payback_months": 10.5,
     "benchmarks": "ChartMogul median churn 6.1%/month for ARPA < US$25; SMB CAC payback median ~11 months, 6-14 healthy (piata.md §d.1)"
   },
   "team_plan": [
     {
       "role": "Co-founder - Miroslav Maletici",
       "from_month": 1,
-      "gross_eur_month": 1500
+      "gross_eur_month": 1000
     },
     {
       "role": "Co-founder - Răzvan Pervulescu",
       "from_month": 1,
-      "gross_eur_month": 1500
+      "gross_eur_month": 1000
     },
     {
       "role": "Partner & sales manager (accountant channel)",
       "from_month": 3,
-      "gross_eur_month": 2000
+      "gross_eur_month": 2000,
+      "gross_basis": "full-time equivalent",
+      "fte_until_full_time": 0.5,
+      "full_time_from_month": 13,
+      "note": "new accountant partners per month scale with this FTE"
     },
     {
       "role": "Customer onboarding & support specialist",
-      "from_month": 4,
-      "gross_eur_month": 1400
+      "from_month": 7,
+      "gross_eur_month": 1400,
+      "gross_basis": "full-time equivalent",
+      "fte_until_full_time": 0.5,
+      "full_time_from_month": 25
     },
     {
       "role": "Full-stack developer",
-      "from_month": 13,
-      "gross_eur_month": 2500
+      "from_month": 25,
+      "gross_eur_month": 2500,
+      "note": "hired after the seed; not funded by the pre-seed round"
     }
   ],
   "pricing": [
@@ -314,11 +322,11 @@
     },
     {
       "month": "M3 (Mar 2027)",
-      "milestone": "Partner & sales manager hired (accountant channel)"
+      "milestone": "Partner & sales manager hired (accountant channel), part-time (50%)"
     },
     {
       "month": "M4 (Apr 2027)",
-      "milestone": "Accountant pilot ends (free until 31 Mar 2027); pilot companies convert to paid; onboarding specialist hired"
+      "milestone": "Accountant pilot ends (free until 31 Mar 2027); pilot companies convert to paid (founders onboard them)"
     },
     {
       "month": "M5 (May 2027)",
@@ -329,24 +337,32 @@
       "milestone": "Accessibility audit (EN 301 549) completed"
     },
     {
+      "month": "M7 (Jul 2027)",
+      "milestone": "Customer onboarding & support specialist hired, part-time (50%)"
+    },
+    {
       "month": "M8 (Aug 2027)",
       "milestone": "30 paying customers"
     },
     {
-      "month": "M9 (Sep 2027)",
+      "month": "M12 (Dec 2027)",
       "milestone": "External penetration test"
     },
     {
       "month": "M13 (Jan 2028)",
-      "milestone": "Developer hired"
+      "milestone": "Partner & sales manager full time"
     },
     {
-      "month": "M19 (Jul 2028)",
+      "month": "M20 (Aug 2028)",
       "milestone": "100 paying customers - seed-readiness trigger (start seed / VV Seed conversations)"
     },
     {
-      "month": "M36 (Dec 2029)",
-      "milestone": "300 paying customers"
+      "month": "M25 (Jan 2029)",
+      "milestone": "Developer hired (after the seed)"
+    },
+    {
+      "month": "M25 (Jan 2029)",
+      "milestone": "Onboarding & support specialist full time (after the seed)"
     }
   ],
   "tam_sam_som": {
@@ -377,12 +393,12 @@
       "label": "DERIVED + ASSUMPTION; show separately, never add silently"
     },
     "som": {
-      "eur_arr": 189133,
-      "formula": "base-case paying customers at month 36 (300) x ARPA x 12 = MRR month 36 x 12",
+      "eur_arr": 178567,
+      "formula": "base-case paying customers at month 36 (284) x ARPA x 12 = MRR month 36 x 12",
       "label": "PROJECTION (financial model, base scenario, Dec 2029)",
-      "share_of_employers_pct": 0.057,
-      "conservative_eur_arr": 44246,
-      "upside_eur_arr": 488626,
+      "share_of_employers_pct": 0.054,
+      "conservative_eur_arr": 42401,
+      "upside_eur_arr": 454657,
       "note": "piata.md §e illustrated 600 firms x 250 RON x 12 = EUR 360k ARR; the model's bottom-up base case replaces it"
     }
   },
