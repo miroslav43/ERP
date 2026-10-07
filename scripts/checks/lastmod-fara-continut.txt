@@ -5,3 +5,4 @@
 # chiar n-a schimbat textul, legăturile sau datele structurate ale paginii.
 65e6891 metadatePagina pe toate paginile: doar forma metadatelor (og:title propriu), textul paginilor neschimbat
 91217eb 6 oct 2026: câmpurile de 16 px pe calculator și pe formularul de demo — doar stil, fără conținut
+7e03bbf 7 oct 2026: doar <meta name="description"> scurtată sub 160 de caractere — textul paginilor neschimbat
