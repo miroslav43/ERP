@@ -31,7 +31,9 @@ export async function SesizarileMele() {
         titlu="Sesizările mele"
         descriere="Defecțiunile pe care le-ați raportat, cu starea lor curentă."
         actiuni={
-          <Link href="/mentenanta/sesizari/noua" className={buton({ varianta: "primar" })}>
+          // Caseta de pe lista de sesizări; pentru un `employee`, învelișul `(app)`
+          // îl duce în portal, unde aceeași cheie deschide aceeași casetă.
+          <Link href="/mentenanta/sesizari?sesizare=noua" className={buton({ varianta: "primar" })}>
             Sesizare nouă
           </Link>
         }
@@ -50,7 +52,7 @@ export async function SesizarileMele() {
           pictograma={Wrench}
           titlu="Nu ați trimis nicio sesizare"
           descriere="Dacă un echipament s-a defectat, raportați-l — durează un minut."
-          actiune={{ eticheta: "Sesizare nouă", href: "/mentenanta/sesizari/noua" }}
+          actiune={{ eticheta: "Sesizare nouă", href: "/mentenanta/sesizari?sesizare=noua" }}
         />
       ) : (
         <ul className="space-y-3">

@@ -346,12 +346,12 @@ export const MESAJE: readonly MesajIncarcare[] = [
     text: "Consumul se evidențiază abia peste 15% abatere: sub prag, variația sezonieră e normală.",
     categorie: "Parc auto și mentenanță",
   },
-  // src/app/(app)/mentenanta/sesizari/noua/page.tsx
+  // src/app/(app)/mentenanta/sesizari/page.tsx (`?sesizare=noua&echipament=`)
   {
     text: "Codul QR lipit pe utilaj deschide direct sesizarea, cu echipamentul deja completat.",
     categorie: "Parc auto și mentenanță",
   },
-  // src/app/(app)/mentenanta/sesizari/noua/formular-sesizare.tsx:139
+  // src/app/(app)/mentenanta/sesizari/campuri-sesizare.tsx (banda „Codul QR scanat nu a dus…”)
   {
     text: "Dacă autocolantul QR e deteriorat, formularul o spune și vă lasă să căutați echipamentul după cod.",
     categorie: "Parc auto și mentenanță",

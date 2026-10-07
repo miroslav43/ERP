@@ -1,27 +1,31 @@
 // src/app/(app)/mentenanta/echipamente/page.tsx
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { Wrench, WrenchIcon } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { listeazaEchipamente } from "@/lib/queries/maintenance";
+import {
+  citesteEchipament,
+  listeazaEchipamente,
+  optiuniAngajati,
+  optiuniDepartamente,
+} from "@/lib/queries/maintenance";
 import { filtreEchipamenteSchema } from "@/schemas/maintenance";
 
 import { ETICHETE_STATUS_ECHIPAMENT, TONURI_STATUS_ECHIPAMENT } from "../etichete";
 import { NavMentenanta } from "../nav-mentenanta";
+import { DialogEchipamentNou } from "./dialog-echipament-nou";
 import { FiltreEchipamenteForm } from "./filtre-echipamente";
 
 export const metadata: Metadata = { title: "Echipamente" };
@@ -30,12 +34,19 @@ interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
+/** Adresa fostei rute `/mentenanta/echipamente/nou`, acum caseta de pe listă. */
+const ADRESA_ECHIPAMENT_NOU = "/mentenanta/echipamente?echipament=nou";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
 async function TabelEchipamente({
   organizationId,
   parametri,
+  poateAdauga,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly poateAdauga: boolean;
 }) {
   const filtre = filtreDinUrl(filtreEchipamenteSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaEchipamente(
@@ -81,7 +92,12 @@ async function TabelEchipamente({
                 }),
               },
             }
-          : {})}
+          : poateAdauga
+            ? // Starea goală inițială duce la caseta de adăugare: fără asta,
+              // primul utilizator al modulului citea „adăugați primul echipament"
+              // și căuta singur butonul, în antet.
+              { actiune: { eticheta: "Adaugă echipament", href: ADRESA_ECHIPAMENT_NOU } }
+            : {})}
       />
     );
   }
@@ -193,6 +209,28 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
   const filtre = filtreDinUrl(filtreEchipamenteSchema, parametri);
   const poateAdauga = can(permisiuni, "maintenance:update", "team");
 
+  // Ținute în afara lui `filtreEchipamenteSchema`: nu sunt filtre ale listei, ci
+  // adresa fostei rute `/mentenanta/echipamente/nou` (`?echipament=nou`) și
+  // fișa după care se copiază câmpurile („Adaugă unul la fel", `?model=<id>`).
+  // Un `model` stricat se ignoră, nu dă 404: nu vine din autocolante, ci dintr-un
+  // buton al aplicației, iar caseta goală e mai bună decât un ecran de eroare.
+  const deschideCaseta = parametri["echipament"] === "nou";
+  const modelBrut = typeof parametri["model"] === "string" ? parametri["model"] : null;
+  const modelId = modelBrut !== null && UUID.test(modelBrut) ? modelBrut : null;
+
+  // Selectoarele casetei și fișa-model se citesc doar pentru cine poate adăuga:
+  // restul n-are caseta, deci nici nevoie de liste.
+  const [angajati, departamente, features, model] = poateAdauga
+    ? await Promise.all([
+        optiuniAngajati(tenant.organizationId),
+        optiuniDepartamente(tenant.organizationId),
+        getEnabledFeatures(tenant.organizationId),
+        modelId === null
+          ? Promise.resolve(null)
+          : citesteEchipament(tenant.organizationId, modelId),
+      ])
+    : [[], [], new Set<string>(), null];
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -201,9 +239,20 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
         {...(poateAdauga
           ? {
               actiuni: (
-                <Link href="/mentenanta/echipamente/nou" className={buton({ varianta: "primar" })}>
-                  Echipament nou
-                </Link>
+                /*
+                  `key` legat de parametri, nu de conținut: o navigare spre
+                  `?echipament=nou` rămâne pe ACEEAȘI rută, deci React n-ar remonta
+                  componenta și `deschisInitial` n-ar mai fi citit a doua oară.
+                */
+                <DialogEchipamentNou
+                  key={deschideCaseta ? `echipament-nou:${modelId ?? ""}` : "lista"}
+                  deschisInitial={deschideCaseta}
+                  angajati={angajati}
+                  departamente={departamente}
+                  ssmActiv={features.has("ssm")}
+                  poateDerogare={can(permisiuni, "maintenance:update", "all")}
+                  {...(model === null ? {} : { model })}
+                />
               ),
             }
           : {})}
@@ -213,7 +262,11 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
       <FiltreEchipamenteForm filtre={filtre} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
-        <TabelEchipamente organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelEchipamente
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateAdauga={poateAdauga}
+        />
       </Suspense>
     </div>
   );

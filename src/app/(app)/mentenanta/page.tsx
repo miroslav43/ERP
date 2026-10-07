@@ -408,12 +408,21 @@ export default async function PaginaMentenanta() {
         titlu="Mentenanță"
         descriere="Echipamente, planuri de mentenanță, intervenții și sesizări de defecțiune."
         actiuni={
+          // Ambele deschid casete pe listele lor (`?sesizare=noua`,
+          // `?echipament=nou`): rutele `/noua` și `/nou` nu mai există ca
+          // pagini — vezi `dialog-sesizare-noua.tsx` și `dialog-echipament-nou.tsx`.
           <>
-            <Link href="/mentenanta/sesizari/noua" className={buton({ varianta: "secundar" })}>
+            <Link
+              href="/mentenanta/sesizari?sesizare=noua"
+              className={buton({ varianta: "secundar" })}
+            >
               Sesizare nouă
             </Link>
             {poateAdaugaEchipament ? (
-              <Link href="/mentenanta/echipamente/nou" className={buton({ varianta: "primar" })}>
+              <Link
+                href="/mentenanta/echipamente?echipament=nou"
+                className={buton({ varianta: "primar" })}
+              >
                 Echipament nou
               </Link>
             ) : null}

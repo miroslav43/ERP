@@ -1,28 +1,33 @@
 // src/app/(portal)/portal/sesizari/page.tsx
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Plus, Wrench } from "lucide-react";
+import { Wrench } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
-import { numeleEchipamentelorMele } from "@/app/(app)/mentenanta/actions";
+import { cautaEchipament, numeleEchipamentelorMele } from "@/app/(app)/mentenanta/actions";
 import {
   ETICHETE_STATUS_SESIZARE,
   ETICHETE_URGENTA_SESIZARE,
   TONURI_STATUS_SESIZARE,
   TONURI_URGENTA_SESIZARE,
 } from "@/app/(app)/mentenanta/etichete";
+import { DialogSesizareNoua } from "@/app/(app)/mentenanta/sesizari/dialog-sesizare-noua";
 
 export const metadata: Metadata = { title: "Sesizările mele" };
 
-export default async function PaginaSesizariPortal() {
+interface ProprietatiPagina {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+export default async function PaginaSesizariPortal({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -41,6 +46,26 @@ export default async function PaginaSesizariPortal() {
 
   const poateRaporta = can(permisiuni, "maintenance:create", "own");
 
+  /*
+   * Caseta „Sesizare nouă" (fosta rută `/portal/sesizari/noua`): `?sesizare=noua`
+   * o deschide, `?echipament=<id>` o precompletează. Numele parametrului e
+   * `echipament` și AICI, identic cu ruta din aplicația mare: autocolantele cu
+   * cod QR sunt lipite fizic pe utilaje și codifică deja forma asta. Un
+   * identificator stricat e mai probabil un autocolant deteriorat decât o
+   * intenție — nu dă 404, ci banda de atenție din casetă, cu căutarea sub ea.
+   */
+  const parametri = await searchParams;
+  const deschideCaseta = parametri["sesizare"] === "noua";
+  const echipamentBrut =
+    typeof parametri["echipament"] === "string" && parametri["echipament"].length > 0
+      ? parametri["echipament"]
+      : null;
+  const prefill =
+    poateRaporta && deschideCaseta && echipamentBrut !== null && UUID.test(echipamentBrut)
+      ? await cautaEchipament({ q: echipamentBrut })
+      : null;
+  const echipamentPrefill = prefill !== null && prefill.ok ? (prefill.data[0] ?? null) : null;
+
   // Acțiune, nu citire: `equipment` are coloană de scope `null` în bucla de
   // politici din `0011_ssm.sql`, deci cere `maintenance:read >= team` — un
   // angajat nu poate citi denumirea utilajului pe care chiar el l-a sesizat.
@@ -57,10 +82,15 @@ export default async function PaginaSesizariPortal() {
         {...(poateRaporta
           ? {
               actiuni: (
-                <Link href="/portal/sesizari/noua" className={buton({ varianta: "primar" })}>
-                  <Plus aria-hidden="true" className="size-4" />
-                  Sesizare nouă
-                </Link>
+                <DialogSesizareNoua
+                  key={deschideCaseta ? `sesizare-noua:${echipamentBrut ?? ""}` : "lista"}
+                  deschisInitial={deschideCaseta}
+                  echipamentPrefill={echipamentPrefill}
+                  prefillEsuat={
+                    deschideCaseta && echipamentBrut !== null && echipamentPrefill === null
+                  }
+                  zona="portal"
+                />
               ),
             }
           : {})}
@@ -79,7 +109,10 @@ export default async function PaginaSesizariPortal() {
           fel="initiala"
           pictograma={Wrench}
           titlu="Nu ați trimis nicio sesizare"
-          descriere="Dacă un utilaj s-a defectat, raportați-l — durează un minut. Puteți scana și codul QR de pe echipament."
+          descriere="Dacă un utilaj s-a defectat, raportați-l — durează un minut. Puteți scana și codul QR de pe echipament. Pentru calculator, imprimantă sau telefon, folosiți Tichetele IT."
+          {...(poateRaporta
+            ? { actiune: { eticheta: "Sesizare nouă", href: "/portal/sesizari?sesizare=noua" } }
+            : {})}
         />
       ) : (
         <ul className="space-y-2">

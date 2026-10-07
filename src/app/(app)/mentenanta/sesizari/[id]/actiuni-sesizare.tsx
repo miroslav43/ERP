@@ -1,282 +1,219 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { Check, Search, Wrench, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Check, Wrench, X } from "lucide-react";
+import { useState, useTransition, type ReactElement } from "react";
 
 import { Buton } from "@/components/ui/buton";
-import { REZULTATE_INTERVENTIE } from "@/schemas/maintenance";
-import { ETICHETE_REZULTAT_INTERVENTIE } from "../../etichete";
+import { Camp } from "@/components/ui/camp";
+import { ConfirmareActiune } from "@/components/ui/dialog";
+import { FormularDialog } from "@/components/ui/formular-dialog";
+import { arataToast } from "@/components/ui/toast";
+import { tranzitiiPermise, type TranzitieSesizare } from "@/domain/maintenance/sesizari";
+import type { StatusSesizare } from "@/schemas/maintenance";
+
 import { rezolvaSesizare, trieazaSesizare } from "../../actions";
+import { ETICHETE_STATUS_SESIZARE } from "../../etichete";
+import { CampuriInterventie, type OptiuneInterventie } from "../../interventii/campuri-interventie";
+import { valoriInterventie } from "../../interventii/valori-interventie";
 
-const LUNGIME_MINIMA_MOTIV = 5;
+/**
+ * Triajul și rezolvarea unei sesizări — fiecare gest în caseta lui.
+ *
+ * ── CE ÎNLOCUIEȘTE ───────────────────────────────────────────────────────
+ * Un rând de patru butoane afișate oricând, inclusiv cel al stării curente,
+ * care schimbau starea la un clic, fără confirmare; un panou de respingere cu
+ * `<input>` liber; și un panou de rezolvare pe `<form action>` necontrolat
+ * (React 19 îl reseta la eroare) cu cinci câmpuri din treisprezece, restul
+ * fixate pe `null`. „Renunță" rămânea activ cât cererea era în zbor.
+ *
+ * ── CE E ACUM ────────────────────────────────────────────────────────────
+ * Butoanele vin din `tranzitiiPermise` (`domain/maintenance/sesizari.ts`):
+ * starea curentă nu e ofertă. Schimbările de stare trec prin `ConfirmareActiune`
+ * cu propoziția de consecință; respingerea prin `FormularDialog` cu motivul pe
+ * `Camp` (eroarea serverului ajunge pe câmp); rezolvarea prin `FormularDialog`
+ * cu TOATE câmpurile intervenției, pre-completată cu azi / corectivă / reușită.
+ * Toate trei refuză închiderea cât o trimitere e în zbor și dau toast.
+ */
+interface Proprietati {
+  readonly sesizareId: string;
+  readonly status: StatusSesizare;
+  readonly angajati: readonly OptiuneInterventie[];
+  /** Ziua României, ISO — data implicită a intervenției care rezolvă. */
+  readonly azi: string;
+}
 
-export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string }) {
+const CONSECINTA: Readonly<Record<"in_analiza" | "in_lucru", string>> = {
+  in_analiza:
+    "Sesizarea trece în „În analiză”: așa apare în coada de triaj și pe ecranul celui care a raportat-o. Se poate schimba oricând, până la rezolvare sau respingere.",
+  in_lucru:
+    "Sesizarea trece în „În lucru”: cineva s-a apucat de ea. Raportorul vede starea nouă; rezolvarea se înregistrează tot de aici, cu intervenția făcută.",
+};
+
+function ButonTranzitie({
+  sesizareId,
+  tinta,
+  pictograma,
+}: {
+  readonly sesizareId: string;
+  readonly tinta: "in_analiza" | "in_lucru";
+  readonly pictograma: ReactElement;
+}): ReactElement {
   const router = useRouter();
-  const [panou, setPanou] = useState<"inchis" | "respingere" | "rezolvare">("inchis");
-  const [motivRespingere, setMotivRespingere] = useState("");
-  const [eroare, setEroare] = useState<string | null>(null);
+  const [deschis, setDeschis] = useState(false);
   const [inCurs, porneste] = useTransition();
-  const idMotiv = useId();
-  const idData = useId();
-  const idDescriere = useId();
-  const idCostPiese = useId();
-  const idCostManopera = useId();
-  const idRezultat = useId();
 
-  function triaza(status: "in_analiza" | "in_lucru" | "respins"): void {
-    if (status === "respins" && motivRespingere.trim().length < LUNGIME_MINIMA_MOTIV) {
-      setEroare(
-        `Motivul respingerii trebuie să aibă cel puțin ${String(LUNGIME_MINIMA_MOTIV)} caractere.`,
-      );
-      return;
-    }
-    setEroare(null);
+  function confirma(): void {
     porneste(async () => {
       const rezultat = await trieazaSesizare({
         id: sesizareId,
-        status,
-        motiv_respingere: status === "respins" ? motivRespingere : null,
+        status: tinta,
+        motiv_respingere: null,
       });
       if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
+        arataToast({ fel: "eroare", text: rezultat.error.message });
         return;
       }
-      setPanou("inchis");
-      router.refresh();
-    });
-  }
-
-  function rezolva(formular: FormData): void {
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await rezolvaSesizare({
-        id: sesizareId,
-        tip: "corectiva",
-        data: String(formular.get("data") ?? ""),
-        ora_start: null,
-        durata_ore: null,
-        executant_employee_id: null,
-        executant_extern: null,
-        descriere: String(formular.get("descriere") ?? ""),
-        piese: null,
-        cost_piese: Number(formular.get("cost_piese") ?? "0"),
-        cost_manopera: Number(formular.get("cost_manopera") ?? "0"),
-        rezultat: String(formular.get("rezultat") ?? "reusita"),
-        oprire_minute: null,
-        citire_contor: null,
-        observatii: null,
+      setDeschis(false);
+      arataToast({
+        fel: "reusita",
+        text: `Sesizarea e acum „${ETICHETE_STATUS_SESIZARE[tinta]}”.`,
       });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      setPanou("inchis");
       router.refresh();
     });
-  }
-
-  if (panou === "rezolvare") {
-    return (
-      <form
-        action={rezolva}
-        className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
-      >
-        <p className="text-corp font-medium sm:col-span-2">
-          Rezolvarea creează intervenția care a rezolvat defecțiunea.
-        </p>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={idData} className="text-corp">
-            Data intervenției
-          </label>
-          <input
-            id={idData}
-            name="data"
-            type="date"
-            required
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={idRezultat} className="text-corp">
-            Rezultat
-          </label>
-          <select
-            id={idRezultat}
-            name="rezultat"
-            defaultValue="reusita"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            {REZULTATE_INTERVENTIE.map((r) => (
-              <option key={r} value={r}>
-                {ETICHETE_REZULTAT_INTERVENTIE[r]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={idDescriere} className="text-corp">
-            Ce s-a făcut
-          </label>
-          <textarea
-            id={idDescriere}
-            name="descriere"
-            rows={3}
-            required
-            minLength={3}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={idCostPiese} className="text-corp">
-            Cost piese (lei)
-          </label>
-          <input
-            id={idCostPiese}
-            name="cost_piese"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue="0"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={idCostManopera} className="text-corp">
-            Cost manoperă (lei)
-          </label>
-          <input
-            id={idCostManopera}
-            name="cost_manopera"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue="0"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
-
-        <div aria-live="polite" className="sm:col-span-2">
-          {eroare === null ? null : (
-            <p role="alert" className="text-danger text-corp">
-              {eroare}
-            </p>
-          )}
-        </div>
-
-        <div className="flex gap-2 sm:col-span-2">
-          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-            Confirmă rezolvarea
-          </Buton>
-          <Buton
-            varianta="secundar"
-            disabled={inCurs}
-            onClick={() => {
-              setPanou("inchis");
-              setEroare(null);
-            }}
-          >
-            Renunță
-          </Buton>
-        </div>
-      </form>
-    );
-  }
-
-  if (panou === "respingere") {
-    return (
-      <div className="border-border rounded-control space-y-2 border p-3">
-        <div>
-          <label htmlFor={idMotiv} className="text-nota block font-medium">
-            Motivul respingerii *
-          </label>
-          <input
-            id={idMotiv}
-            value={motivRespingere}
-            onChange={(eveniment) => {
-              setMotivRespingere(eveniment.target.value);
-            }}
-            className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-2 py-1.5"
-          />
-        </div>
-        <div aria-live="polite">
-          {eroare === null ? null : <p className="text-danger text-nota">{eroare}</p>}
-        </div>
-        <div className="flex gap-2">
-          <Buton
-            varianta="distructiv"
-            inCurs={inCurs}
-            textInCurs="Se salvează…"
-            onClick={() => {
-              triaza("respins");
-            }}
-          >
-            Confirmă respingerea
-          </Buton>
-          <Buton
-            varianta="secundar"
-            onClick={() => {
-              setPanou("inchis");
-              setEroare(null);
-            }}
-          >
-            Renunță
-          </Buton>
-        </div>
-      </div>
-    );
   }
 
   return (
-    <div className="space-y-2">
-      <div aria-live="polite">
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Buton
-          varianta="secundar"
-          disabled={inCurs}
-          onClick={() => {
-            triaza("in_analiza");
+    <>
+      <Buton
+        varianta="secundar"
+        onClick={() => {
+          setDeschis(true);
+        }}
+      >
+        {pictograma}
+        {ETICHETE_STATUS_SESIZARE[tinta]}
+      </Buton>
+      <ConfirmareActiune
+        deschis={deschis}
+        laInchidere={() => {
+          setDeschis(false);
+        }}
+        titlu={`Treceți sesizarea în „${ETICHETE_STATUS_SESIZARE[tinta]}”?`}
+        consecinta={CONSECINTA[tinta]}
+        etichetaConfirmare={`Trece în „${ETICHETE_STATUS_SESIZARE[tinta]}”`}
+        inCurs={inCurs}
+        laConfirmare={confirma}
+      />
+    </>
+  );
+}
+
+export function ActiuniSesizare({ sesizareId, status, angajati, azi }: Proprietati): ReactElement {
+  const router = useRouter();
+  const tranzitii: readonly TranzitieSesizare[] = tranzitiiPermise(status, {
+    poateGestiona: true,
+  });
+
+  async function respinge(date: FormData) {
+    return trieazaSesizare({
+      id: sesizareId,
+      status: "respins",
+      motiv_respingere: String(date.get("motiv_respingere") ?? "").trim(),
+    });
+  }
+
+  async function rezolva(date: FormData) {
+    return rezolvaSesizare({ id: sesizareId, ...valoriInterventie(date) });
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {tranzitii.includes("in_analiza") ? (
+        <ButonTranzitie
+          sesizareId={sesizareId}
+          tinta="in_analiza"
+          pictograma={<Search aria-hidden="true" className="size-4" />}
+        />
+      ) : null}
+      {tranzitii.includes("in_lucru") ? (
+        <ButonTranzitie
+          sesizareId={sesizareId}
+          tinta="in_lucru"
+          pictograma={<Wrench aria-hidden="true" className="size-4" />}
+        />
+      ) : null}
+
+      {tranzitii.includes("rezolvat") ? (
+        <FormularDialog
+          declansator={{
+            eticheta: "Rezolvă",
+            varianta: "primar",
+            pictograma: <Check aria-hidden="true" className="size-4" />,
+          }}
+          titlu="Rezolvați sesizarea"
+          descriere="Rezolvarea înregistrează intervenția care a remediat defecțiunea și închide sesizarea. Data e azi, tipul „corectivă” și rezultatul „reușită” — schimbați-le dacă a fost altfel."
+          marime="mare"
+          actiune={rezolva}
+          mesajReusita="Sesizarea a fost rezolvată, iar intervenția e în registru."
+          etichetaTrimite="Confirmă rezolvarea"
+          textInCurs="Se salvează…"
+          laReusita={() => {
+            router.refresh();
           }}
         >
-          În analiză
-        </Buton>
-        <Buton
-          varianta="secundar"
-          disabled={inCurs}
-          onClick={() => {
-            triaza("in_lucru");
+          {(stare, idc) => (
+            <CampuriInterventie
+              stare={stare}
+              idc={idc}
+              angajati={angajati}
+              tipImplicit="corectiva"
+              dataImplicita={azi}
+            />
+          )}
+        </FormularDialog>
+      ) : null}
+
+      {tranzitii.includes("respins") ? (
+        <FormularDialog
+          declansator={{
+            eticheta: "Respinge",
+            varianta: "distructiv",
+            pictograma: <X aria-hidden="true" className="size-4" />,
           }}
+          titlu="Respingeți sesizarea?"
+          descriere="Respingerea e definitivă: sesizarea nu se mai redeschide, iar cel care a raportat-o vede motivul pe ecranul lui. O defecțiune reală se raportează din nou, cu detaliile cerute aici."
+          marime="mediu"
+          actiune={respinge}
+          mesajReusita="Sesizarea a fost respinsă."
+          etichetaTrimite="Respinge sesizarea"
+          variantaTrimite="distructiv"
+          textInCurs="Se respinge…"
         >
-          <Wrench aria-hidden="true" className="size-4" />
-          În lucru
-        </Buton>
-        <Buton
-          varianta="primar"
-          disabled={inCurs}
-          onClick={() => {
-            setPanou("rezolvare");
-          }}
-        >
-          <Check aria-hidden="true" className="size-4" />
-          Rezolvă
-        </Buton>
-        <Buton
-          varianta="distructiv"
-          disabled={inCurs}
-          onClick={() => {
-            setPanou("respingere");
-          }}
-        >
-          <X aria-hidden="true" className="size-4" />
-          Respinge
-        </Buton>
-      </div>
+          {(stare, idc) => (
+            <Camp
+              nume="motiv_respingere"
+              id={idc("motiv")}
+              eticheta="Motivul respingerii"
+              obligatoriu
+              fel="textarea"
+              ajutor="Cel puțin 5 caractere. Se arată raportorului — spuneți-i ce să verifice sau unde să raporteze."
+              erori={stare.erori["motiv_respingere"] ?? []}
+            >
+              {(a) => (
+                <textarea
+                  {...a}
+                  rows={3}
+                  maxLength={500}
+                  defaultValue={
+                    stare.data === null ? (stare.valoriTrimise["motiv_respingere"] ?? "") : ""
+                  }
+                />
+              )}
+            </Camp>
+          )}
+        </FormularDialog>
+      ) : null}
     </div>
   );
 }

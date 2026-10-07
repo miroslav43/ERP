@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
@@ -319,7 +320,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         </dl>
 
         {poateScrie ? (
-          <div>
+          <div className="flex flex-wrap items-center gap-2">
             <ButonEditeazaEchipament
               echipament={{
                 id: echipament.id,
@@ -344,6 +345,15 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
               ssmActiv={features.has("ssm")}
               poateDerogare={can(permisiuni, "maintenance:update", "all")}
             />
+            {/* Cinci stivuitoare identice se introduc din cinci clicuri: caseta
+                de pe listă se deschide cu câmpurile acestei fișe, fără cod și
+                fără serie (amândouă unice pe utilaj). */}
+            <Link
+              href={`/mentenanta/echipamente?echipament=nou&model=${echipament.id}`}
+              className={buton({ varianta: "tertiar" })}
+            >
+              Adaugă unul la fel
+            </Link>
           </div>
         ) : null}
       </section>

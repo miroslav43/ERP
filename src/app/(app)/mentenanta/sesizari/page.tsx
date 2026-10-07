@@ -1,13 +1,11 @@
 // src/app/(app)/mentenanta/sesizari/page.tsx
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { Wrench } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
@@ -27,7 +25,9 @@ import {
   TONURI_STATUS_SESIZARE,
   TONURI_URGENTA_SESIZARE,
 } from "../etichete";
+import { cautaEchipament } from "../actions";
 import { NavMentenanta } from "../nav-mentenanta";
+import { DialogSesizareNoua } from "./dialog-sesizare-noua";
 import { FiltreSesizariForm } from "./filtre-sesizari";
 
 export const metadata: Metadata = { title: "Sesizări de defecțiune" };
@@ -237,16 +237,51 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
           filtre.echipament,
         )?.cod ?? null);
 
+  /*
+   * Caseta „Sesizare nouă" (fosta rută `/sesizari/noua`): `?sesizare=noua` o
+   * deschide, iar `?echipament=<id>` — același parametru pe care îl pun
+   * autocolantele QR — o precompletează. Echipamentul se rezolvă AICI, pe
+   * server, prin aceeași acțiune pe care o folosește căutarea din casetă (un
+   * `employee` nu poate citi `equipment` direct, capcana #27); un id stricat sau
+   * un utilaj casat nu dau 404, ci o bandă de atenție în casetă.
+   */
+  const poateRaporta = can(permisiuni, "maintenance:create", "own");
+  const deschideCaseta = parametri["sesizare"] === "noua";
+  const echipamentBrut =
+    typeof parametri["echipament"] === "string" && parametri["echipament"].length > 0
+      ? parametri["echipament"]
+      : null;
+  const prefill =
+    poateRaporta && deschideCaseta && filtre.echipament !== null
+      ? await cautaEchipament({ q: filtre.echipament })
+      : null;
+  const echipamentPrefill = prefill !== null && prefill.ok ? (prefill.data[0] ?? null) : null;
+
   return (
     <div className="space-y-6">
       <AntetPagina
         titlu="Sesizări de defecțiune"
         descriere="Defecțiunile raportate, cu starea lor de triaj și rezolvare."
-        actiuni={
-          <Link href="/mentenanta/sesizari/noua" className={buton({ varianta: "primar" })}>
-            Sesizare nouă
-          </Link>
-        }
+        {...(poateRaporta
+          ? {
+              actiuni: (
+                /*
+                  `key` legat de parametri: o navigare spre `?sesizare=noua` rămâne
+                  pe ACEEAȘI rută, deci fără el React n-ar remonta caseta și
+                  `deschisInitial` n-ar mai fi citit.
+                */
+                <DialogSesizareNoua
+                  key={deschideCaseta ? `sesizare-noua:${echipamentBrut ?? ""}` : "lista"}
+                  deschisInitial={deschideCaseta}
+                  echipamentPrefill={echipamentPrefill}
+                  prefillEsuat={
+                    deschideCaseta && echipamentBrut !== null && echipamentPrefill === null
+                  }
+                  zona="app"
+                />
+              ),
+            }
+          : {})}
         file={<NavMentenanta />}
       />
 

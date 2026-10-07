@@ -2,73 +2,80 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { useCallback, useState } from "react";
+import type { ReactElement } from "react";
 
-import { Buton } from "@/components/ui/buton";
-import { Dialog } from "@/components/ui/dialog";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 
-import { FormularEchipament, type EchipamentEditabil } from "../formular-echipament";
+import { actualizeazaEchipament } from "../../actions";
+import {
+  CampuriEchipament,
+  type OptiuneEchipament,
+  type ValoriInitialeEchipament,
+} from "../campuri-echipament";
+import { valoriEchipament } from "../valori-echipament";
+
+export type EchipamentEditabil = ValoriInitialeEchipament & Readonly<{ id: string }>;
 
 /**
- * Editarea fișei de echipament, într-o casetă.
+ * Editarea fișei de echipament, în casetă — pe `FormularDialog`, ca restul.
  *
- * ── DE CE `Dialog`, NU `FormularDialog` ───────────────────────────────────
- * `FormularDialog` cere o acțiune cu semnătura `(date: FormData) => …`, fiindcă
- * își randează singur `<form action={…}>`. `FormularEchipament` e însă unul
- * dintre cele patru formulare pe react-hook-form din depozit: `handleSubmit`
- * predă un obiect deja validat, nu `FormData`, iar formularul își poartă propriul
- * `<form onSubmit={…}>` cu butonul lui înăuntru. Cele două arhitecturi nu se
- * unifică — și nici nu trebuie: `Dialog` e exact stratul de care e nevoie aici,
- * iar `FormularDialog` e doar `Dialog` plus partea de `FormData`.
+ * ── CE S-A SCHIMBAT ───────────────────────────────────────────────────────
+ * Până la M2 caseta era un `Dialog` gol în jurul lui `formular-echipament.tsx`,
+ * singurul formular de mentenanță pe react-hook-form: cele două arhitecturi nu
+ * se unificau, deci butoanele stăteau în formular, erorile de server se împăcau
+ * de mână cu cele de client, iar „Echipament nou" rămăsese pagină întreagă.
+ * `CampuriEchipament` + `valoriEchipament` sunt aceleași în ambele casete;
+ * `FormularDialog` aduce de la sine toast-ul, `router.refresh()` și refuzul de a
+ * se închide cât o trimitere e în zbor.
  *
  * ── DE CE NU MAI E UN `<details>` ─────────────────────────────────────────
- * Cele șaisprezece câmpuri se desfăceau ÎN pagină, sub lista de date a
- * echipamentului, și împingeau sub linia de plutire planurile de mentenanță,
- * intervențiile și scadențele ISCIR — adică toată partea pentru care se intră pe
- * fișă. `<details>` ascundea problema cât era închis, dar deschis o avea
- * întreagă.
- *
- * Caseta se randează doar cât e deschisă: react-hook-form își construiește
- * starea pentru șaisprezece câmpuri la montare, iar fișa nu trebuie să plătească
- * asta pentru un formular pe care nu-l deschide nimeni. Montarea îl și repune pe
- * valorile din bază, deci o încercare abandonată nu lasă urme.
+ * Cele șaisprezece câmpuri se desfăceau ÎN pagină și împingeau sub linia de
+ * plutire planurile, intervențiile și scadențele ISCIR — adică toată partea
+ * pentru care se intră pe fișă.
  */
-export function ButonEditeazaEchipament(props: {
+export function ButonEditeazaEchipament({
+  echipament,
+  angajati,
+  departamente,
+  ssmActiv,
+  poateDerogare,
+}: {
   readonly echipament: EchipamentEditabil;
-  readonly angajati: readonly { readonly id: string; readonly nume: string }[];
-  readonly departamente: readonly { readonly id: string; readonly nume: string }[];
+  readonly angajati: readonly OptiuneEchipament[];
+  readonly departamente: readonly OptiuneEchipament[];
   readonly ssmActiv: boolean;
   readonly poateDerogare: boolean;
-}) {
-  const [deschis, setDeschis] = useState(false);
-
-  const inchide = useCallback((): void => {
-    setDeschis(false);
-  }, []);
+}): ReactElement {
+  async function trimite(date: FormData) {
+    return actualizeazaEchipament({ id: echipament.id, ...valoriEchipament(date) });
+  }
 
   return (
-    <>
-      <Buton
-        varianta="secundar"
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        <Pencil aria-hidden="true" className="size-4" />
-        Editează datele echipamentului
-      </Buton>
-
-      {deschis ? (
-        <Dialog
-          deschis
-          laInchidere={inchide}
-          titlu={`Editează „${props.echipament.denumire}”`}
-          descriere="Codul echipamentului e unic în organizație. Trecerea pe „ISCIR” cere tipul autorizării, iar scoaterea din regim ISCIR fără o derogare motivată e refuzată de bază."
-          marime="lucru"
-        >
-          <FormularEchipament {...props} laReusita={inchide} />
-        </Dialog>
-      ) : null}
-    </>
+    <FormularDialog
+      declansator={{
+        eticheta: "Editează datele echipamentului",
+        varianta: "secundar",
+        pictograma: <Pencil aria-hidden="true" className="size-4" />,
+      }}
+      titlu={`Editează „${echipament.denumire}”`}
+      descriere="Codul echipamentului e unic în organizație. Trecerea pe „ISCIR” cere tipul autorizării, iar un responsabil fără autorizație nominală valabilă e refuzat de bază — sau acceptat cu derogare motivată, de un administrator."
+      marime="lucru"
+      actiune={trimite}
+      mesajReusita="Datele echipamentului au fost salvate."
+      etichetaTrimite="Salvează modificările"
+      textInCurs="Se salvează…"
+    >
+      {(stare, idc) => (
+        <CampuriEchipament
+          stare={stare}
+          idc={idc}
+          angajati={angajati}
+          departamente={departamente}
+          ssmActiv={ssmActiv}
+          poateDerogare={poateDerogare}
+          echipament={echipament}
+        />
+      )}
+    </FormularDialog>
   );
 }

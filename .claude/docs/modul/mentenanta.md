@@ -23,8 +23,8 @@ capcane: [17, 35]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, ori intervenție fără sesizare → „Ce refuză baza tăcut”"
-scris_pe: 592cbf5b63e99ecbd46a87285dc6b2968523809e
-scris_la: 2026-10-03
+scris_pe: b7d1a106923b665b3a477477ea73de3d3e619938
+scris_la: 2026-10-07
 tags: [modul]
 ---
 
@@ -42,17 +42,30 @@ jumătate.
 | --------------------------------------------------------- | ------------------------- |
 | `/mentenanta`                                             | `maintenance:read` own    |
 | `/mentenanta/sesizari`, `/mentenanta/sesizari/[id]`       | `maintenance:read` own    |
-| `/mentenanta/sesizari/noua`                               | `maintenance:create` own  |
+| `/mentenanta/sesizari?sesizare=noua` (casetă)             | `maintenance:create` own  |
 | `/mentenanta/echipamente`, `/mentenanta/echipamente/[id]` | `maintenance:read` team   |
-| `/mentenanta/echipamente/nou`                             | `maintenance:update` team |
+| `/mentenanta/echipamente?echipament=nou` (casetă)         | `maintenance:update` team |
 | `/mentenanta/planuri`                                     | `maintenance:read` team   |
 | `/mentenanta/interventii`                                 | `maintenance:read` team   |
 
 Pragul `own` pe panou și pe sesizări e intenționat: **oricine poate sesiza o defecțiune**.
 Restul modulului — parcul de echipamente, planurile, intervențiile — cere `team`.
-Cele două formulare nu se păzesc pe `read`, ci pe permisiunea pe care o exercită:
-`/mentenanta/sesizari/noua` pe `maintenance:create`, `/mentenanta/echipamente/nou` pe
-`maintenance:update` — aceeași linie de despărțire ca la Server Actions.
+Cele două formulare de creare sunt CASETE pe listele lor (`FormularDialog`, tiparul
+`?vehicul=nou` din [[modul/flota]]), nu pagini; butonul care le deschide se păzește pe
+permisiunea pe care o exercită — `maintenance:create` pentru sesizare, `maintenance:update`
+pentru echipament — aceeași linie de despărțire ca la Server Actions. `?echipament=nou&model=<id>`
+precompletează caseta din altă fișă, fără cod și serie („Adaugă unul la fel”).
+
+**`/mentenanta/sesizari/noua` și `/portal/sesizari/noua` există doar ca REDIRECTURI** spre
+listă cu `?sesizare=noua`, păstrând `?echipament=`: autocolantele QR lipite pe utilaje codifică
+adresa veche, iar un autocolant nu se actualizează cu un deploy. Echipamentul din QR se rezolvă
+pe server (pagina listei cheamă `cautaEchipament`), iar un id stricat ori un utilaj casat dau o
+bandă de atenție în casetă, nu 404. `/mentenanta/echipamente/nou` a fost șters fără redirect.
+
+Triajul de pe `/mentenanta/sesizari/[id]` vine din `src/domain/maintenance/sesizari.ts`
+(`tranzitiiPermise`): starea curentă nu e ofertă, schimbările de stare trec prin
+`ConfirmareActiune`, respingerea și rezolvarea prin `FormularDialog` — rezolvarea cu toate
+câmpurile intervenției (`interventii/campuri-interventie.tsx`, aceleași ca pe fișa echipamentului).
 
 Preambulul paginilor cheamă `requireFeature` și `getPermissionMap` într-un `Promise.all`,
 nu înlănțuit: sunt două citiri independente, iar `Promise.all` respinge la prima
@@ -151,8 +164,22 @@ subtil greșită. Curățarea manuală dinainte rămâne în ambele locuri (`,()
   sesizării întoarce zero rânduri (cursă pierdută) sau eroare, intervenția abia inserată
   se anulează logic cu `deleted_at` și acțiunea întoarce CONFLICT; altfel rămânea în
   registru o intervenție cu costuri, fără sesizare, iar utilizatorul vedea „succes”.
-  `internal.ssm_intervention_apply` iese din prima linie pe `deleted_at`, deci planul nu
-  e atins de rândul anulat. — `592cbf5`
+  Din 0180, anularea logică a unei intervenții reușite legate de plan îl READUCE pe plan
+  la intervenția anterioară (sau la zi/contorul real, dacă nu mai rămâne niciuna). — `592cbf5`, `0180`
+- **Scadența pe contor pornește de la contorul real, nu de la zero** (0180). Planul nou
+  fără `ultima_citire_contor` ia ultima citire a echipamentului pe `tip_contor`; schema de
+  editare OMITE coloana (o mută doar o intervenție reușită). Până la 0180, orice editare
+  trimitea `null` și aducea scadența la „0 + periodicitate”, fără eroare.
+- **Autorizația ISCIR are rândurile ei în `expirables`** (0180): `entity_id` = autorizația,
+  `kind` fix (`autorizatie`, `verificare_tehnica`), nu `tip`-ul liber — care cădea cu 23514
+  pe `expirables_kind_ck`. O autorizație suspendată iese din scadențe. Planul dezactivat
+  iese și el (`activ` intră în `is_active`), iar o scadență golită retrage rândul.
+- **O intervenție pe planul altui echipament e refuzată** cu P0001 (0180); o corecție de
+  citire nu poate sări peste citirea URMĂTOARE deja înregistrată. Proba reală:
+  `tests/rls/proba-mentenanta-integritate.sql`.
+- **Administratorul fără fișă de angajat poate sesiza**: `creeazaSesizare` inserează cu
+  `raportat_de_employee_id = null` când actorul are `maintenance:update ≥ team` — politica
+  din 0150 o permite, iar SELECT-ul de după INSERT trece pe `team`.
 
 ## Ce NU e aici
 

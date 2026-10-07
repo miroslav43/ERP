@@ -9,10 +9,16 @@ import { Callout } from "@/components/ui/callout";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { angajatiDupaId, citesteInterventie, citesteSesizare } from "@/lib/queries/maintenance";
+import {
+  angajatiDupaId,
+  citesteInterventie,
+  citesteSesizare,
+  optiuniAngajati,
+} from "@/lib/queries/maintenance";
+import { esteTerminala } from "@/domain/maintenance/sesizari";
 
 import {
   ETICHETE_REZULTAT_INTERVENTIE,
@@ -84,7 +90,10 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
     idAngajat === null ? null : (numeAngajati.get(idAngajat)?.full_name ?? null);
 
   const poateGestiona = can(permisiuni, "maintenance:update", "team");
-  const esteTerminala = sesizare.status === "rezolvat" || sesizare.status === "respins";
+  const inchisa = esteTerminala(sesizare.status);
+  // Selectorul de executant din caseta „Rezolvă” — doar pentru cine o vede.
+  const angajatiPentruInterventie =
+    poateGestiona && !inchisa ? await optiuniAngajati(tenant.organizationId) : [];
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
@@ -206,19 +215,24 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
         </section>
       )}
 
-      {poateGestiona && !esteTerminala ? (
+      {poateGestiona && !inchisa ? (
         <section aria-labelledby="actiuni-sesizare" className="space-y-3">
           <h2 id="actiuni-sesizare" className="text-sectiune font-semibold">
             Triaj și rezolvare
           </h2>
-          <ActiuniSesizare sesizareId={sesizare.id} />
+          <ActiuniSesizare
+            sesizareId={sesizare.id}
+            status={sesizare.status}
+            angajati={angajatiPentruInterventie}
+            azi={todayInBucharest()}
+          />
         </section>
       ) : null}
 
       {/* Pentru o sesizare închisă, ecranul nu mai avea nici acțiune, nici
           explicație: secțiunea de triaj pur și simplu lipsea, iar cine ajungea
           pe pagină nu afla de ce. */}
-      {esteTerminala ? (
+      {inchisa ? (
         <Callout
           fel={sesizare.status === "respins" ? "eroare" : "neutru"}
           titlu={sesizare.status === "respins" ? "Sesizare respinsă" : "Sesizare rezolvată"}
