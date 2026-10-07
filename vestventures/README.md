@@ -24,7 +24,7 @@ trebuie pornită imediat, iar discuțiile încep înainte de prag.
 
 | Câmp din formular | Ce încarci / ce scrii | Observații |
 | --- | --- | --- |
-| **Pitch deck (PDF, max 10 MB)** | `pitch-deck.pdf` | Are aproximativ 0,5 MB, deci e sub limită. Conține încă `[TO CONFIRM]` la roluri (vezi §3) |
+| **Pitch deck (PDF, max 10 MB)** | `pitch-deck.pdf` | **Final** (7 oct): 12 slide-uri, ~0,3 MB, fără `[TO CONFIRM]` și fără „DRAFT” |
 | **Financial model (XLSX)** | `financial-model.xlsx` | Formulele sunt vii și valorile recalculate în LibreOffice, deci se citește și fără Excel |
 | **Data room URL** | linkul obținut după `data-room/HOSTING.md` | Recomandat: un folder Google Drive cu „Anyone with the link → Viewer” |
 | **Other files** (roadmap, cap table, mockups, business plan) | `business-plan.pdf`, `roadmap.pdf`, `cap-table.pdf` (plus `cap-table.xlsx`, dacă formularul primește mai multe fișiere), `product-mockups.pdf` | Ordinea recomandată: business plan, roadmap, cap table, mockups |
@@ -118,8 +118,9 @@ Grupate pe subiect. Între paranteze sunt fișierele în care apare fiecare.
 
 **Echipa**
 
-9. **Rolurile și bio-urile.** Titlul fiecăruia (CEO/CTO etc.), aria de
-   responsabilitate, programul și anul de studiu, plus o frază de bio.
+9. **Bio-urile.** Rolurile sunt stabilite (7 oct): Miroslav **CEO**, Răzvan
+   **CTO**, trecute în deck, plan și formular. Mai lipsesc programul și anul
+   de studiu, plus o frază de bio, dacă le vreți în plan și formular.
    (`pitch-deck.tex`, slide-ul de echipă; `business-plan.tex`; `form-answers.md` §17)
 10. **Angajamentul full-time față de facultate.** Vest Ventures întreabă
     explicit dacă fondatorii se pot dedica. Scrieți concret cum: date,
@@ -203,12 +204,9 @@ PDF-ul se recompilează (vezi §5).
 
 1. Rezolvați punctele 1, 2, 9 și 10 din §3: apar în deck și în planul de afaceri.
 2. Recompilați PDF-urile (§5) și verificați că nu mai conțin `[TO CONFIRM]`.
-   **Deck-ul are pe fiecare slide, în subsol, „DRAFT: founder details pending,
-   do not upload”** cât timp în `pitch-deck.tex` stă `\ciornatrue`. După ce
-   înlocuiți toate `\deconfirmat{…}` (rolurile, studiile, orele, firma,
-   consilierii, numărătorile de pe slide-urile 9 și 10), scrieți `\ciornafalse`
-   și recompilați. Dacă a rămas vreun marcaj, compilarea se oprește cu eroare,
-   intenționat.
+   Deck-ul e deja pe `\ciornafalse` (7 oct, după rolurile CEO/CTO): orice
+   `\deconfirmat{…}` adăugat de acum oprește compilarea, intenționat, ca să
+   nu plece la investitor un deck cu goluri.
 3. Montați camera de date pe Google Drive (`data-room/HOSTING.md`, opțiunea A).
 4. Rulați `python3 tools/count_chars.py --final` până trece, apoi completați
    formularul: fișierele din §1, apoi textele din `form-answers.md`.

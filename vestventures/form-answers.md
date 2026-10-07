@@ -184,12 +184,12 @@ Channel one is accounting practices. Romanian SMEs typically keep their books wi
 ## 17. Team
 
 **Short** (max 300)
-<!-- 293 chars -->
-Two co-founders who both write code: Miroslav Maletici (Co-founder, 51%) and Răzvan Pervulescu (Co-founder, 49%), students at the Politehnica University of Timișoara. They took the product from first commit to production in about three weeks. The plan has both full time once the round closes.
+<!-- 279 chars -->
+Two co-founders who both write code: Miroslav Maletici (CEO, 51%) and Răzvan Pervulescu (CTO, 49%), students at the Politehnica University of Timișoara. They took the product from first commit to production in about three weeks. The plan has both full time once the round closes.
 
 **Long** (max 1000)
-<!-- 985 chars -->
-Miroslav Maletici, Co-founder (51%) [TO CONFIRM: role, e.g. CEO or CTO, and a one-line bio]. Răzvan Pervulescu, Co-founder (49%) [TO CONFIRM: role and one-line bio]. Both are students at the Politehnica University of Timișoara (UPT) and both commit code. Together they built ADMINISTRATIVO from the first commit on 17 Aug 2026 to production in early September: 811 commits (34 of them automated), 19 modules and a live REGES-Online integration by 6 Oct 2026. We use AI coding tools openly, with automated tests and nightly AI code review, which is how two people ship at this pace. Both founders go full time when the round closes, on a lean €1,000 gross salary each [TO CONFIRM: how studies fit with full-time work]. Planned hires from the round: a partner and sales manager for the accountant channel (month 3, half time until month 13) and a half-time onboarding and support specialist (month 7). A full-stack developer follows after the seed. There are no other team members today.
+<!-- 953 chars -->
+Miroslav Maletici, co-founder and CEO (51%), leads product and sales. Răzvan Pervulescu, co-founder and CTO (49%), leads engineering. Both are students at the Politehnica University of Timișoara (UPT) and both commit code. Together they built ADMINISTRATIVO from the first commit on 17 Aug 2026 to production in early September: 811 commits (34 of them automated), 19 modules and a live REGES-Online integration by 6 Oct 2026. We use AI coding tools openly, with automated tests and nightly AI code review, which is how two people ship at this pace. Both founders go full time when the round closes, on a lean €1,000 gross salary each [TO CONFIRM: how studies fit with full-time work]. Planned hires from the round: a partner and sales manager for the accountant channel (month 3, half time until month 13) and a half-time onboarding and support specialist (month 7). A full-stack developer follows after the seed. There are no other team members today.
 
 ## 18. Cap table
 
@@ -304,12 +304,12 @@ Demand is unproven: we have zero paying customers, so the accountant pilot and t
 ## 29. Contact person
 
 **Short** (max 300)
-<!-- 102 chars -->
-Miroslav Maletici, Co-founder [TO CONFIRM contact person], contact@administrativo.ro, +40 767 991 625.
+<!-- 67 chars -->
+Miroslav Maletici, CEO, contact@administrativo.ro, +40 767 991 625.
 
 **Long** (max 1000)
-<!-- 307 chars -->
-Main contact: Miroslav Maletici, Co-founder [TO CONFIRM which founder is the contact person, and a personal e-mail address]. Company e-mail: contact@administrativo.ro. Phone: +40 767 991 625. Second co-founder: Răzvan Pervulescu, Co-founder. Both are based in Timișoara and available for in-person meetings.
+<!-- 228 chars -->
+Main contact: Miroslav Maletici, co-founder and CEO. Company e-mail: contact@administrativo.ro. Phone: +40 767 991 625. Second co-founder: Răzvan Pervulescu, CTO. Both are based in Timișoara and available for in-person meetings.
 
 ## 30. Links (website, data room, media)
 

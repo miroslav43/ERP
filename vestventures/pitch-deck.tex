@@ -52,15 +52,15 @@
 % must print 0 (data-room/HOSTING.md).
 % ---------------------------------------------------------------------
 \newif\ifciorna
-\ciornatrue
+\ciornafalse
 \newcommand{\deconfirmat}[1]{%
   \ifciorna{\color{brandAmber}\textbf{[TO CONFIRM: #1]}}%
   \else\errmessage{pitch-deck: [TO CONFIRM: #1] left in a deck marked final}\fi}
 
 % FOUNDER INPUTS (team slide). Replace each \deconfirmat{...} with the real
 % text, e.g. \newcommand{\fondMiroslavRol}{CEO: product and sales}.
-\newcommand{\fondMiroslavRol}{\deconfirmat{role}}
-\newcommand{\fondRazvanRol}{\deconfirmat{role}}
+\newcommand{\fondMiroslavRol}{CEO}
+\newcommand{\fondRazvanRol}{CTO}
 
 % ---------------------------------------------------------------------
 % Icons carry an empty ActualText, so the PDF text layer (read by people
