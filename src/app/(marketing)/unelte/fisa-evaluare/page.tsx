@@ -27,7 +27,7 @@ import { CRITERII_IMPLICITE, construiesteFisaEvaluare, parametriFisaEvaluare } f
 export const metadata: Metadata = metadatePagina({
   titlu: "Fișa de evaluare a angajaților: model Word, PDF",
   descriere:
-    "Fișa de evaluare a performanțelor profesionale, cu criteriile firmei, pondere și notă. Ce spune Codul muncii. Model gratuit în Word, PDF sau Excel.",
+    "Fișa de evaluare a performanțelor profesionale, cu criteriile firmei, pondere și notă pe fiecare. Ce cere Codul muncii. Model gratuit în Word, PDF sau Excel.",
   cale: "/unelte/fisa-evaluare",
 });
 

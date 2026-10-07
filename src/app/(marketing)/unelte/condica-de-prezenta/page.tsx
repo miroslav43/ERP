@@ -31,7 +31,7 @@ import { construiesteCondica, parametriCondica } from "./model";
 export const metadata: Metadata = metadatePagina({
   titlu: "Condica de prezență: model Word, PDF și Excel",
   descriere:
-    "Condica de prezență cu zilele lucrătoare ale lunii, ora sosirii, ora plecării și semnătura. Model gratuit în Word, PDF sau Excel. Și: e obligatorie?",
+    "Condica de prezență completată cu zilele lucrătoare ale lunii, ora sosirii, ora plecării și semnătura. Model gratuit în Word, PDF sau Excel. E obligatorie?",
   cale: "/unelte/condica-de-prezenta",
 });
 

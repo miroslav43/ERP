@@ -145,17 +145,22 @@ def cmd_cifre(a):
                             "15-69 RON/month each (payroll 69). Accountant pilot: free until 31 Mar 2027, then 20% "
                             "commission for 6 months to the accountant."})
 
-    snm = {k: num(fm.name(f"in_{k}")) for k in ("SalesStart", "SupportStart", "DevStart", "PilotConvMonth", "PayrollValEnd", "A11yEnd", "PentestEnd")}
+    snm = {k: num(fm.name(f"in_{k}")) for k in ("SalesStart", "SalesFullStart", "SupportStart", "SupportFullStart", "DevStart",
+                                                 "PilotConvMonth", "PayrollValEnd", "A11yEnd", "PentestEnd")}
+    fte = {k: round(fm.name(f"in_{k}"), 2) for k in ("SalesFTE", "SupportFTE")}
     lab = lambda m: f"M{m} ({month_label(fm, m)})" if isinstance(m, int) else str(m)
     milestones = [
         {"month": lab(1), "milestone": "Pre-seed round closes (assumed); both co-founders full time"},
-        {"month": lab(snm["SalesStart"]), "milestone": "Partner & sales manager hired (accountant channel)"},
-        {"month": lab(snm["PilotConvMonth"]), "milestone": "Accountant pilot ends (free until 31 Mar 2027); pilot companies convert to paid; onboarding specialist hired"},
+        {"month": lab(snm["SalesStart"]), "milestone": f"Partner & sales manager hired (accountant channel), part-time ({fte['SalesFTE']:.0%})"},
+        {"month": lab(snm["PilotConvMonth"]), "milestone": "Accountant pilot ends (free until 31 Mar 2027); pilot companies convert to paid (founders onboard them)"},
+        {"month": lab(snm["SupportStart"]), "milestone": f"Customer onboarding & support specialist hired, part-time ({fte['SupportFTE']:.0%})"},
+        {"month": lab(snm["SalesFullStart"]), "milestone": "Partner & sales manager full time"},
         {"month": lab(snm["PayrollValEnd"]), "milestone": "Payroll legal values validated by an accountant (payroll moves from 'built, undergoing validation' to sellable)"},
         {"month": lab(snm["A11yEnd"]), "milestone": "Accessibility audit (EN 301 549) completed"},
         {"month": lab(snm["PentestEnd"]), "milestone": "External penetration test"},
         {"month": lab(base["months_to_30"]), "milestone": "30 paying customers"},
-        {"month": lab(snm["DevStart"]), "milestone": "Developer hired"},
+        {"month": lab(snm["DevStart"]), "milestone": "Developer hired (after the seed)"},
+        {"month": lab(snm["SupportFullStart"]), "milestone": "Onboarding & support specialist full time (after the seed)"},
         {"month": lab(base["months_to_100"]), "milestone": "100 paying customers - seed-readiness trigger (start seed / VV Seed conversations)"},
     ]
     if isinstance(base["breakeven_month"], int):
@@ -168,7 +173,7 @@ def cmd_cifre(a):
     som_arr = base["arr_m36_eur"]
     cifre = {
         "_meta": {
-            "generated": "2026-10-06",
+            "generated": "2026-10-07",
             "generated_from": ["financial-model.xlsx (recalculated by LibreOffice)", "cap-table.xlsx", "model/recalc/snapshot.json"],
             "rule": "Single source of numbers for every VestVentures document. Do not type numbers by hand elsewhere.",
             "currency": "EUR; RON converted at 5.0 RON = 1 EUR",
@@ -229,9 +234,13 @@ def cmd_cifre(a):
         "team_plan": [
             {"role": "Co-founder - Miroslav Maletici", "from_month": 1, "gross_eur_month": num(fm.name("in_SalFounder"))},
             {"role": "Co-founder - Răzvan Pervulescu", "from_month": 1, "gross_eur_month": num(fm.name("in_SalFounder"))},
-            {"role": "Partner & sales manager (accountant channel)", "from_month": snm["SalesStart"], "gross_eur_month": num(fm.name("in_SalSales"))},
-            {"role": "Customer onboarding & support specialist", "from_month": snm["SupportStart"], "gross_eur_month": num(fm.name("in_SalSupport"))},
-            {"role": "Full-stack developer", "from_month": snm["DevStart"], "gross_eur_month": num(fm.name("in_SalDev"))},
+            {"role": "Partner & sales manager (accountant channel)", "from_month": snm["SalesStart"], "gross_eur_month": num(fm.name("in_SalSales")),
+             "gross_basis": "full-time equivalent", "fte_until_full_time": fte["SalesFTE"], "full_time_from_month": snm["SalesFullStart"],
+             "note": "new accountant partners per month scale with this FTE"},
+            {"role": "Customer onboarding & support specialist", "from_month": snm["SupportStart"], "gross_eur_month": num(fm.name("in_SalSupport")),
+             "gross_basis": "full-time equivalent", "fte_until_full_time": fte["SupportFTE"], "full_time_from_month": snm["SupportFullStart"]},
+            {"role": "Full-stack developer", "from_month": snm["DevStart"], "gross_eur_month": num(fm.name("in_SalDev")),
+             "note": "hired after the seed; not funded by the pre-seed round"},
         ],
         "pricing": pricing,
         "milestones": milestones,

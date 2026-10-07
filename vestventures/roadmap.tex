@@ -136,9 +136,13 @@
     \ok Android app built, in internal testing}
   \ms{tbc}{4}{-31}{29mm}{Q1 2027}{Subscription billing \& invoicing, before pilot companies convert}
   \ms{plan}{8.5}{-31}{30mm}{Jun 2027}{Accessibility audit (EN 301 549) completed}
-  \ms{tbc}{15.5}{-31}{30mm}{Q1 2028}{iOS app (with the developer hire)}
+  % iOS app: needs the developer, who is hired after the seed (beyond the chart)
+  \node[anchor=north east,text width=46mm,inner sep=0pt,font=\itemfont,align=flush right]
+    at ({\XO+\MW*27-4.2},-29.1)
+    {{\color{tbccol}\bfseries 2029, after the seed [TO CONFIRM]}\\{\color{brandNavy}iOS app, with the developer hire}};
+  \draw[-{Latex[length=2mm]},tbccol,line width=0.9pt,dash pattern=on 1.5pt off 1pt] ({\XO+\MW*27-3.8},-32.1) -- ({\XO+\MW*27-0.4},-32.1);
   \ms{plan}{7.5}{-43.5}{29mm}{May 2027}{Payroll legal values validated by an accountant: payroll becomes sellable}
-  \ms{plan}{11.5}{-43.5}{30mm}{Sep 2027}{External penetration test}
+  \ms{plan}{14.5}{-43.5}{30mm}{Dec 2027}{External penetration test}
   \ms{tbc}{6.5}{-55}{28mm}{Q2 2027}{Android app published in Google Play}
   \ms{tbc}{10.5}{-55}{30mm}{Q3 2027}{Price for companies above 20 employees published}
 
@@ -152,11 +156,11 @@
   \ms{plan}{1.47}{-81.5}{28mm}{15 Nov 2026}{Pilot sign-up closes}
   \ms{plan}{6.5}{-71}{30mm}{Apr 2027}{Pilot ends; pilot companies convert to paid}
   \ms{proj}{10.5}{-81.5}{30mm}{Aug 2027}{30 paying customers}
-  \ms{proj}{21.5}{-71}{32mm}{Jul 2028}{100 paying customers: seed-readiness trigger}
+  \ms{proj}{22.5}{-71}{32mm}{Aug 2028}{100 paying customers: seed-readiness trigger}
   % beyond the chart
   \node[anchor=north east,text width=30mm,inner sep=0pt,font=\itemfont,align=right]
     at ({\XO+\MW*27-4.2},-81.2)
-    {{\color{projcol}\bfseries Dec 2029 (beyond chart)}\\{\color{brandNavy}300 paying customers}};
+    {{\color{projcol}\bfseries Dec 2029 (beyond chart)}\\{\color{brandNavy}about 284 paying customers}};
   \draw[-{Latex[length=2mm]},brandAmber,line width=0.9pt] ({\XO+\MW*27-3.8},-84.2) -- ({\XO+\MW*27-0.4},-84.2);
   % expansion hypothesis (text to the left of the marker: the chart ends at Dec 2028)
   \draw[assumeline] ({\XO+\MW*24},-92) -- ++(0,-8.2);
@@ -170,25 +174,30 @@
     \ok Two co-founders, \mbox{Miroslav Maletici} and \mbox{Răzvan Pervulescu}, both writing code\\
     \ok 811 commits, 5,610 automated test cases\\
     \ok AI-assisted development workflow}
-  \ms{plan}{3.5}{-104.5}{86mm}{Jan 2027}{Both co-founders full time; how this fits their studies at Politehnica University of Timișoara (graduation date, part-time or leave) is [TO CONFIRM]}
-  \ms{plan}{5.5}{-114.5}{30mm}{Mar 2027}{Partner \& sales manager hired (accountant channel)}
-  \ms{plan}{6.5}{-124.5}{30mm}{Apr 2027}{Customer onboarding \& support specialist hired}
-  \ms{plan}{15.5}{-104.5}{30mm}{Jan 2028}{Full-stack developer hired}
+  \ms{plan}{3.5}{-104.5}{88mm}{Jan 2027}{Both co-founders full time, on a lean €1,000 gross each; fit with their studies at Politehnica University of Timișoara (graduation, part-time or leave) [TO CONFIRM]}
+  \ms{plan}{5.5}{-114.5}{40mm}{Mar 2027}{Partner \& sales manager hired (accountant channel), half time}
+  \ms{plan}{9.5}{-124.5}{40mm}{Jul 2027}{Customer onboarding \& support specialist hired, half time}
+  \ms{plan}{15.5}{-114.5}{40mm}{Jan 2028}{Partner \& sales manager full time}
+  % after the seed (beyond the chart)
+  \node[anchor=north east,text width=52mm,inner sep=0pt,font=\itemfont,align=flush right]
+    at ({\XO+\MW*27-4.2},-121.7)
+    {{\color{plancol}\bfseries Jan 2029, after the seed (beyond chart)}\\{\color{brandNavy}Developer hired; support specialist full time}};
+  \draw[-{Latex[length=2mm]},plancol,line width=0.9pt] ({\XO+\MW*27-3.8},-124.7) -- ({\XO+\MW*27-0.4},-124.7);
 
   % ---------------- FUNDING ----------------
   \shipped{18}{-135}{%
     \ok No investors, no options issued\\
     \ok Cap table: \mbox{Miroslav Maletici 51\,\%}, \mbox{Răzvan Pervulescu 49\,\%}}
   \ms{plan}{0.17}{-136}{31mm}{Oct 2026}{Application to the Vest Ventures Accelerator}
-  \ms{assume}{3.5}{-147}{42mm}{Jan 2027 (assumed close)}{Pre-seed €250k: €200k Vest Ventures + €50k independent angels}
-  \ms{plan}{21.5}{-136}{32mm}{Jul 2028}{Seed raise starts (at 100 paying customers)}
-  % runway band: Jan 2027 (month 3) -> end Jul 2028 (month 22); plan to Jan 2029
-  \fill[brandBlue!18] ({\XO+\MW*3},-158.6) rectangle ({\XO+\MW*22},-164);
-  \node[font=\bfseries\fontsize{6.3}{7}\selectfont,text=brandNavy] at ({\XO+\MW*12.5},-161.3)
-    {Runway with zero revenue: 19 months (Jan 2027 -- Jul 2028)};
-  \draw[brandBlue,line width=0.6pt,dash pattern=on 2pt off 1pt] ({\XO+\MW*22},-158.6) rectangle ({\XO+\MW*27-0.4},-164);
-  \node[font=\fontsize{5.6}{6.3}\selectfont,text=brandNavy,align=center] at ({\XO+\MW*24.5},-161.3)
-    {on base plan: 25 months\\(to Jan 2029) \faIcon{long-arrow-alt-right}};
+  \ms{assume}{3.5}{-147}{42mm}{Jan 2027 (assumed close)}{Pre-seed €150k: €135k Vest Ventures + €15k independent angels}
+  \ms{plan}{22.5}{-136}{32mm}{Aug 2028}{Seed raise starts (at 100 paying customers)}
+  % runway band: Jan 2027 (month 3) -> end Apr 2028 (month 19); on plan to end Dec 2028 (month 27)
+  \fill[brandBlue!18] ({\XO+\MW*3},-158.6) rectangle ({\XO+\MW*19},-164);
+  \node[font=\bfseries\fontsize{6.3}{7}\selectfont,text=brandNavy] at ({\XO+\MW*11},-161.3)
+    {Runway with zero revenue: 16 months (Jan 2027 -- Apr 2028)};
+  \draw[brandBlue,line width=0.6pt,dash pattern=on 2pt off 1pt] ({\XO+\MW*19},-158.6) rectangle ({\XO+\MW*27-0.4},-164);
+  \node[font=\fontsize{5.6}{6.3}\selectfont,text=brandNavy,align=center] at ({\XO+\MW*23},-161.3)
+    {on base plan: 24 months (to Dec 2028);\\cash runs out in Jan 2029 without the seed};
 
   % ------------------------------------------------------------------
   % Footer notes
@@ -196,8 +205,8 @@
   \node[anchor=north west,text width=277mm,inner sep=0pt,font=\fontsize{6.3}{7.6}\selectfont,text=brandSlate,align=justify]
     at (0,-171) {%
     \textbf{Notes.} Done items are verified against the code repository and the live product, or are founder data such as search and pilot figures (6 Oct 2026). Product items with a hollow diamond close known gaps (billing, app-store publication, larger-company pricing); their dates are [TO CONFIRM] by the founders. Every dated item after 6 Oct 2026 is a plan or a projection, not a commitment.
-    Customer counts are projections from the base scenario of the financial model (financial-model.xlsx); the conservative scenario reaches 15 / 42 / 77 paying companies at months 12 / 24 / 36 and the upside scenario 110 / 344 / 733.
-    The base case is not default-alive: the seed round is part of the plan, and its raise starts in Jul 2028 with about 6 months of planned runway left.
+    Customer counts are projections from the base scenario of the financial model (financial-model.xlsx); the base scenario reaches 47 / 139 / 284 paying companies at months 12 / 24 / 36, the conservative scenario 15 / 39 / 74 and the upside scenario 103 / 313 / 682.
+    The base case is not default-alive: the seed round is part of the plan, and its raise starts in Aug 2028 with about €15k of cash and 4 months of planned runway left, so it has to start on time. The developer is hired only after the seed; the pre-seed does not fund that role.
     The January 2027 close is an assumption, because the Vest Ventures Accelerator Cohort 3 dates are not published.
     REGES-Online is the Romanian Labour Inspectorate's (ITM) mandatory electronic employee register; SSM is occupational health \& safety.
     Payroll is built end to end, but its legal values are being validated by an accountant; until then it is not offered to pilot or paying customers as production-ready, although the public price list already shows it.};

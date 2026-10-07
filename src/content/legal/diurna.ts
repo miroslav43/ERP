@@ -184,7 +184,7 @@ export const DIURNA: PaginaLege = {
     {
       intrebare: "Cât e diurna externă pentru o anumită țară?",
       raspuns:
-        "Valorile sunt stabilite pe țări prin hotărâre de guvern și se modifică independent de Codul fiscal. Le găsești pe toate, cu plafonul de 2,5 ori calculat și cu data verificării, în ghidul diurnei externe.",
+        "Valorile sunt stabilite pe țări prin HG 518/1995 și se modifică independent de Codul fiscal. Le-am pus pe toate, cu plafonul neimpozabil calculat și cu data verificării, pe pagina despre diurna externă — data contează: o listă copiată o dată îmbătrânește fără să anunțe.",
     },
     {
       intrebare: "Cum se tratează „diurna” șoferilor?",

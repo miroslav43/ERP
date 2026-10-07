@@ -61,7 +61,15 @@ export const ADRESA_SITE = process.env.NEXT_PUBLIC_APP_URL ?? "https://administr
  * inventată ar fi mai rea decât niciuna. Pagina de firmă de pe LinkedIn a
  * apărut în aceeași zi și e prima intrare.
  */
-export const PROFILURI_PUBLICE: readonly string[] = [
-  // Adresa publică, nu `…/admin/dashboard/` — aceea cere autentificare.
-  "https://www.linkedin.com/company/144846087/",
-];
+/**
+ * Pagina de firmă de pe LinkedIn, după numele ei public.
+ *
+ * Până pe 7 oct 2026 aici stătea `…/company/144846087/` — adresa numerică din
+ * panoul de administrare. Pentru un vizitator neautentificat (și pentru orice
+ * crawler) ea răspunde 302 spre `/uas/login`, deci `sameAs` trimitea motoarele
+ * de căutare la un ecran de login. Numele public răspunde 200 și e chiar
+ * `og:url`-ul pe care LinkedIn îl declară pentru pagină.
+ */
+export const LINKEDIN = "https://www.linkedin.com/company/administrativo-ro/";
+
+export const PROFILURI_PUBLICE: readonly string[] = [LINKEDIN];

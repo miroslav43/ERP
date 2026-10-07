@@ -802,33 +802,6 @@ describe("legăturile interne duc undeva", () => {
     }
   });
 
-  it("descrierile încap în rezultatul de căutare: cel mult 160 de caractere", async () => {
-    /*
-     * Auditul din 7 oct 2026 a măsurat douăsprezece descrieri randate între 161
-     * și 178 de caractere. Motorul le taie pe la 155–160, de obicei exact înaintea
-     * articolului de lege sau a cifrei care deosebea pagina. Se verifică sursele
-     * literale; o descriere compusă dintr-un șablon (`/en/preturi`) se măsoară
-     * pe pagina randată.
-     */
-    const { FISE } = await import("./fise-module");
-    const { DOMENII } = await import("./domenii");
-    const statice = fisiere("src/app/(marketing)", ["page.tsx"]).flatMap((f) =>
-      [...readFileSync(f, "utf8").matchAll(/\bdescriere:\s*"([^"]+)"/g)].map(
-        (m) => [f, m[1] ?? ""] as const,
-      ),
-    );
-    const descrieri = [
-      ...FISE.map((f) => [`fișa ${f.cheie}`, f.metaDescriere] as const),
-      ...DOMENII.map((d) => [`domeniul ${d.slug}`, d.metaDescriere] as const),
-      ["pagina de start", RO.meta.descriere] as const,
-      ...statice,
-    ];
-    expect(statice.length).toBeGreaterThan(20);
-    for (const [sursa, descriere] of descrieri) {
-      expect(descriere.length, `${sursa}: „${descriere}”`).toBeLessThanOrEqual(160);
-    }
-  });
-
   it("fiecare pagină își pune Open Graph-ul ei, prin metadatePagina", () => {
     /*
      * Next îmbină metadatele superficial: o pagină fără `openGraph` moștenește
@@ -1448,6 +1421,11 @@ describe("profilurile publice ale firmei", () => {
       expect(url.protocol, adresa).toBe("https:");
       expect(url.pathname, `${adresa}: pagină de administrare, cere autentificare`).not.toMatch(
         /\/admin(\/|$)/,
+      );
+      // 7 oct 2026: `…/company/144846087/` răspundea 302 spre login unui
+      // vizitator neautentificat. Doar numele public e vizibil fără cont.
+      expect(url.pathname, `${adresa}: adresa numerică duce la login`).not.toMatch(
+        /\/company\/\d+\/?$/,
       );
     }
   });

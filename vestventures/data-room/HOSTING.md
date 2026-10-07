@@ -23,7 +23,7 @@ Upload only investor-facing files:
 - `_surse/vestventures.md`: our research about the investor.
 - `_surse/piata.md`: internal research note. It has positioning advice for
   us, UNVERIFIED rows, repository paths, and an illustrative SOM (600 firms,
-  €360k ARR) that contradicts the model's base case (300 firms, €189k ARR).
+  €360k ARR) that contradicts the model's base case (284 firms, €179k ARR).
   The investor-facing version of the same sources is the business plan.
 - `_surse/cifre.json` and `model/`: they cite internal files (`fapte.md`,
   `vestventures.md`, `piata.md`, `src/…`) that the reader cannot open. The
