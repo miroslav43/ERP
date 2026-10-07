@@ -66,7 +66,7 @@ export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly ti
               {/*
                 `width` și `height` sunt OBLIGATORII, chiar dacă CSS-ul le
                 rescrie: fără ele, browserul nu știe raportul înainte să sosească
-                fișierul, iar imaginea leneșă împinge pagina când aterizează.
+                fișierul, iar imaginea împinge pagina când aterizează.
                 Sunt dimensiunile reale ale fișierului WebP, nu o presupunere.
               */}
               {/* eslint-disable-next-line @next/next/no-img-element --
@@ -83,7 +83,11 @@ export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly ti
                 alt={descriere}
                 width={LATIME_CAPTURA}
                 height={INALTIME_CAPTURA}
-                loading="lazy"
+                // Fără `loading="lazy"`: captura e elementul LCP al paginii de
+                // modul. Leneșă, pleca cu prioritate mică și abia după layout —
+                // 2,5 s depășite pe telefon (auditul din 7 oct 2026). Copia din
+                // fereastra de mărire, de mai jos, rămâne leneșă.
+                fetchPriority="high"
                 decoding="async"
                 className="block h-auto w-full"
               />
@@ -116,6 +120,7 @@ export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly ti
                 Vezi motivul de mai sus. Aici se cere direct varianta mare:
                 mărirea are rost doar dacă se citește ce scrie pe ecran. */}
             <img
+              loading="lazy"
               src={captura.sursa}
               alt={descriere}
               width={LATIME_CAPTURA}

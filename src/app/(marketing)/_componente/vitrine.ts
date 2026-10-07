@@ -64,7 +64,7 @@ const NOTE: Readonly<Record<string, string>> = {
   attendance:
     "Aici se vede foaia lunară; modulul mai are planul săptămânii, aprobarea pe departament și blocarea lunii.",
   leave:
-    "Aici se vede calendarul de echipă pe o lună; modulul are unsprezece tipuri de concediu și încă patru ecrane.",
+    "Aici se vede calendarul de echipă pe o lună; modulul are treisprezece tipuri de concediu și încă patru ecrane.",
   payroll: "Aici se vede o singură perioadă de salarizare, deja aprobată, cu livrabilele ei.",
   rapoarte: "Aici se vede raportul anual agregat, construit din perioadele de salarizare închise.",
   ssm: "Aici se vede matricea de instruiri; modulul mai acoperă medicina muncii, accidentele, stingătoarele, echipamentul individual și autorizațiile nominale.",

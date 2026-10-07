@@ -45,6 +45,9 @@ const ORGANIZATIE = {
   "@id": ID_ORGANIZATIE,
   name: "Administrativo",
   legalName: FIRMA.denumire,
+  // Cine e firma, într-o frază: fără ea, un motor care descrie entitatea
+  // compune singur descrierea din fragmente (auditul din 7 oct 2026).
+  description: `Administrativo e aplicația de administrare a personalului făcută de ${FIRMA.denumire}, din ${FIRMA.oras}, pentru firmele din România cu 5–50 de angajați: pontaj, concedii, dosare de personal, salarizare și REGES-ONLINE.`,
   url: ADRESA_SITE,
   // Raster, nu SVG: Google cere pentru `Organization.logo` o imagine PNG, JPG
   // sau WebP de cel puțin 112×112 (auditul SEO din 6 oct 2026, #14). Până atunci
@@ -88,7 +91,9 @@ const SITE = {
   "@id": ID_SITE,
   url: ADRESA_SITE,
   name: "Administrativo",
-  inLanguage: "ro-RO",
+  // SITUL are pagini în română și în engleză (`/en`); APLICAȚIA, doar în română.
+  // Până la 7 oct 2026 cele două erau inversate.
+  inLanguage: ["ro-RO", "en-GB"],
   publisher: { "@id": ORGANIZATIE["@id"] },
 } as const;
 
@@ -103,7 +108,8 @@ const APLICATIE = {
   // nimic. Ce se folosește efectiv e aplicația web, instalabilă pe ecranul de start.
   operatingSystem: "Web",
   url: ADRESA_SITE,
-  inLanguage: ["ro-RO", "en-GB"],
+  // Interfața aplicației e doar în română; engleza e numai pe sit.
+  inLanguage: "ro-RO",
   publisher: { "@id": ORGANIZATIE["@id"] },
   // Intervalul pachetelor, calculat din tabelul canonic — nu scris de mână. Un
   // preț în două locuri e un preț care ajunge greșit într-unul din ele.

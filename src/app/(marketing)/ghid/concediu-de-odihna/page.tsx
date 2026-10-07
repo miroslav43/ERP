@@ -19,9 +19,9 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
  * răspunde ca și cum ar avea.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Concediu de odihnă: zile, programare, bani",
+  titlu: "Concediu de odihnă: câte zile ai pe an și lună",
   descriere:
-    "Cele 20 de zile lucrătoare, programarea până la sfârșitul anului, cele 10 zile neîntrerupte, reportul de 18 luni și ce a schimbat decizia ÎCCJ din august 2026.",
+    "Câte zile de concediu ai: minimum 20 lucrătoare pe an, cam 1,67 pe lună lucrată. Plus programarea, cele 10 zile neîntrerupte și reportul de 18 luni.",
   cale: "/ghid/concediu-de-odihna",
 });
 

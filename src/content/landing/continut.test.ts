@@ -22,6 +22,22 @@ const LIMBI: readonly (readonly [string, ContinutLanding])[] = [
   ["en", EN],
 ];
 
+/**
+ * Ancorele pe care le randează o pagină-lege: secțiunile din cuprins și
+ * rândurile tabelului (`#germania`). `undefined` pentru o pagină care nu e
+ * pagină-lege — acolo nu promitem nicio ancoră, deci o legătură cu `#` cade.
+ */
+async function ancorelePaginii(cale: string): Promise<ReadonlySet<string> | undefined> {
+  const { PAGINI_LEGE } = await import("@/content/legal/pagini");
+  const { ancoraRand, cuprinsulPaginii } = await import("@/content/legal/cuprins");
+  const pagina = PAGINI_LEGE.find((p) => p.cale === cale);
+  if (pagina === undefined) return undefined;
+  return new Set([
+    ...cuprinsulPaginii(pagina).map((c) => c.id),
+    ...(pagina.tabel?.randuri ?? []).map((r) => ancoraRand(r[0] ?? "")),
+  ]);
+}
+
 function fisiere(radacina: string, extensii: readonly string[]): string[] {
   const gasite: string[] = [];
   const mergi = (cale: string) => {
@@ -563,7 +579,14 @@ describe("legăturile interne duc undeva", () => {
     ];
     expect(linkuri.length, "n-am găsit nicio legătură").toBeGreaterThan(5);
     for (const [sursa, href] of linkuri) {
-      expect(dinSitemap.has(href), `${sursa}: ${href} nu e în sitemap`).toBe(true);
+      // O legătură spre o secțiune (din 7 oct 2026) se verifică pe ambele
+      // jumătăți: pagina e în sitemap ȘI ancora chiar există pe ea.
+      const [cale = "", ancora] = href.split("#");
+      expect(dinSitemap.has(cale), `${sursa}: ${href} nu e în sitemap`).toBe(true);
+      if (ancora !== undefined) {
+        const ancore = await ancorelePaginii(cale);
+        expect(ancore?.has(ancora), `${sursa}: #${ancora} nu există pe ${cale}`).toBe(true);
+      }
     }
   });
 
@@ -779,6 +802,33 @@ describe("legăturile interne duc undeva", () => {
     }
   });
 
+  it("descrierile încap în rezultatul de căutare: cel mult 160 de caractere", async () => {
+    /*
+     * Auditul din 7 oct 2026 a măsurat douăsprezece descrieri randate între 161
+     * și 178 de caractere. Motorul le taie pe la 155–160, de obicei exact înaintea
+     * articolului de lege sau a cifrei care deosebea pagina. Se verifică sursele
+     * literale; o descriere compusă dintr-un șablon (`/en/preturi`) se măsoară
+     * pe pagina randată.
+     */
+    const { FISE } = await import("./fise-module");
+    const { DOMENII } = await import("./domenii");
+    const statice = fisiere("src/app/(marketing)", ["page.tsx"]).flatMap((f) =>
+      [...readFileSync(f, "utf8").matchAll(/\bdescriere:\s*"([^"]+)"/g)].map(
+        (m) => [f, m[1] ?? ""] as const,
+      ),
+    );
+    const descrieri = [
+      ...FISE.map((f) => [`fișa ${f.cheie}`, f.metaDescriere] as const),
+      ...DOMENII.map((d) => [`domeniul ${d.slug}`, d.metaDescriere] as const),
+      ["pagina de start", RO.meta.descriere] as const,
+      ...statice,
+    ];
+    expect(statice.length).toBeGreaterThan(20);
+    for (const [sursa, descriere] of descrieri) {
+      expect(descriere.length, `${sursa}: „${descriere}”`).toBeLessThanOrEqual(160);
+    }
+  });
+
   it("fiecare pagină își pune Open Graph-ul ei, prin metadatePagina", () => {
     /*
      * Next îmbină metadatele superficial: o pagină fără `openGraph` moștenește
@@ -804,7 +854,7 @@ describe("legăturile interne duc undeva", () => {
     for (const f of FISE) {
       const ultima = propozitii(f.metaDescriere).at(-1) ?? "";
       finaluri.set(ultima, (finaluri.get(ultima) ?? 0) + 1);
-      expect(f.metaDescriere.length, f.cheie).toBeLessThanOrEqual(170);
+      expect(f.metaDescriere.length, f.cheie).toBeLessThanOrEqual(160);
     }
     for (const [propozitie, ori] of finaluri) {
       expect(ori, `„${propozitie}” încheie ${ori} descrieri`).toBeLessThanOrEqual(2);
@@ -1511,8 +1561,13 @@ describe("reparațiile din auditul SEO din 2 oct 2026", () => {
       expect(dinSitemap.has(cale), `${cale} nu e în sitemap`).toBe(true);
       expect(legaturi.length, cale).toBeGreaterThanOrEqual(2);
       for (const l of legaturi) {
-        expect(dinSitemap.has(l.href), `${cale}: ${l.href}`).toBe(true);
-        expect(l.href, cale).not.toBe(cale);
+        const [tinta = "", ancora] = l.href.split("#");
+        expect(dinSitemap.has(tinta), `${cale}: ${l.href}`).toBe(true);
+        expect(tinta, cale).not.toBe(cale);
+        if (ancora !== undefined) {
+          const ancore = await ancorelePaginii(tinta);
+          expect(ancore?.has(ancora), `${cale}: #${ancora} nu există pe ${tinta}`).toBe(true);
+        }
       }
       // Tabelul nu ține loc de randare: pagina trebuie să-și ceară rândul.
       if (!cale.startsWith("/domenii/")) {

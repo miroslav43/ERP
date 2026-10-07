@@ -54,7 +54,7 @@ import { cerereCaDocument, normalizeazaTip } from "./cerere-document";
 export const metadata: Metadata = metadatePagina({
   titlu: "Cerere concediu de odihnă: model Word, PDF",
   descriere:
-    "Cerere de concediu de odihnă cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale. Model gratuit în Word sau PDF, fără cont.",
+    "Cerere de concediu de odihnă cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale. Model în Word sau PDF, fără cont.",
   cale: "/unelte/cerere-concediu-de-odihna",
 });
 
@@ -66,7 +66,7 @@ const unul = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
 const CLASA_CAMP =
-  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2 text-[0.9375rem]";
+  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
 
 /** Un loc de completat cu mâna, pe documentul tipărit. */
 function Gol({ latime = "12rem" }: { readonly latime?: string }) {
@@ -135,7 +135,12 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
       </div>
 
       <Banda inaltime="scurta">
-        <form method="get" className="grid gap-4 sm:grid-cols-2" data-tipar="ascunde">
+        <form
+          action="#documentul"
+          method="get"
+          className="grid gap-4 sm:grid-cols-2"
+          data-tipar="ascunde"
+        >
           <label className="flex flex-col gap-1.5">
             <span className="text-[0.875rem] font-medium">Angajatorul</span>
             <input
@@ -246,7 +251,7 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
         </form>
       </Banda>
 
-      <Banda inaltime="scurta">
+      <Banda id="documentul" inaltime="scurta">
         {cerere.problema !== null ? (
           // Pentru toate trei variantele: un interval inversat nu e o cerere.
           // Ruta de descărcare refuză același interval cu 400.

@@ -80,27 +80,14 @@ const PAGINI = [
   },
 ];
 
-/**
- * Scurtături către luni concrete. Unealta e un formular GET, deci starea ei stă
- * în adresă — legăturile astea nu cer cod nou, doar parametrii pe care pagina îi
- * citește oricum.
+/*
+ * Scurtătura spre luna curentă NU poartă parametri. Pagina asta e prerandată
+ * static, iar un `new Date()` la nivel de modul îngheța luna la data build-ului:
+ * din 1 noiembrie, „Luna curentă" ar fi deschis octombrie (auditul din 7 oct
+ * 2026). Fără parametri, unealta își alege singură luna la fiecare cerere.
+ * „Luna trecută" și „Luna viitoare" au căzut din același motiv: le alegi din
+ * formularul uneltei, la un clic distanță.
  */
-const ACUM = new Date();
-const LUNA_CURENTA = ACUM.getMonth() + 1;
-const AN_CURENT = ACUM.getFullYear();
-const SCURTATURI = [
-  { eticheta: "Luna curentă", an: AN_CURENT, luna: LUNA_CURENTA },
-  {
-    eticheta: "Luna trecută",
-    an: LUNA_CURENTA === 1 ? AN_CURENT - 1 : AN_CURENT,
-    luna: LUNA_CURENTA === 1 ? 12 : LUNA_CURENTA - 1,
-  },
-  {
-    eticheta: "Luna viitoare",
-    an: LUNA_CURENTA === 12 ? AN_CURENT + 1 : AN_CURENT,
-    luna: LUNA_CURENTA === 12 ? 1 : LUNA_CURENTA + 1,
-  },
-];
 
 export default function PaginaUnelte() {
   return (
@@ -118,38 +105,37 @@ export default function PaginaUnelte() {
           <p className="font-mk-date text-mk-text-slab text-[0.6875rem] tracking-[0.14em] uppercase">
             Sari direct la
           </p>
-          {SCURTATURI.map((s) => (
-            <Link
-              key={s.eticheta}
-              href={`/unelte/foaie-de-pontaj?an=${s.an}&luna=${s.luna}`}
-              className="text-[0.9375rem] underline underline-offset-4"
-            >
-              {s.eticheta}
-            </Link>
-          ))}
+          <Link
+            href="/unelte/foaie-de-pontaj"
+            className="text-[0.9375rem] underline underline-offset-4"
+          >
+            Foaia de pontaj a lunii curente
+          </Link>
         </div>
       </Banda>
 
       <Banda
         inaltime="medie"
-        supratitlu="Ce face, concret"
-        titlu="Foaia de pontaj, fără cont și fără abonament"
-        lead="E aceeași funcție care alimentează foaia din aplicație, scoasă separat pentru cine are nevoie o singură dată."
+        supratitlu="Ce au în comun"
+        titlu="Fără cont, fără abonament, fără să rețină ceva"
+        lead="Sunt aceleași funcții care lucrează în aplicație, scoase separat pentru cine are nevoie de un document o singură dată."
       >
+        {/* Până la 7 oct 2026 banda descria doar foaia de pontaj, de când era
+            singura unealtă; între timp au devenit șapte. */}
         <div className="mt-6 max-w-[68ch] space-y-4">
           <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
-            Alegi luna și anul, între {AN_MIN} și {AN_MAX}, scrii numele oamenilor — până la{" "}
-            {MAX_ANGAJATI} — și primești foaia lunii, cu weekendurile și sărbătorile legale deja
-            marcate. Sărbătorile nu sunt o listă copiată: cele mobile se derivă din data Paștelui
-            ortodox, deci anii viitori ies corect fără să-i actualizeze cineva.
+            Uneltele cu calendar — foaia de pontaj, condica de prezență și cererea de concediu — își
+            calculează singure weekendurile și sărbătorile legale, pentru orice an între {AN_MIN} și{" "}
+            {AN_MAX}. Sărbătorile nu sunt o listă copiată: cele mobile se derivă din data Paștelui
+            ortodox, deci anii viitori ies corect fără să-i actualizeze cineva. Foaia de pontaj ia
+            până la {MAX_ANGAJATI} de oameni pe o pagină.
           </p>
           <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
-            Foaia se tipărește direct sau se descarcă în format de foaie de calcul, ca s-o
-            completezi pe calculator. Nu cere cont, nu cere adresă de e-mail și nu reține nimic:
-            alegerile tale stau în adresa paginii, iar dacă o pui la favorite, revii la aceeași
-            configurație. Ce nu face: nu ține minte lunile trecute și nu calculează ore suplimentare
-            — pentru asta e nevoie de evidența din aplicație, unde ziua are oră de început și de
-            sfârșit.
+            Documentele se tipăresc direct sau se descarcă în Word, PDF sau Excel, după unealtă.
+            Niciuna nu cere cont sau adresă de e-mail și niciuna nu reține ce scrii: alegerile stau
+            în adresa paginii, iar dacă o pui la favorite, revii la aceeași configurație. Ce nu fac:
+            nu țin minte lunile trecute și nu leagă documentele între ele — pentru asta e nevoie de
+            evidența din aplicație, unde ziua are oră de început și de sfârșit.
           </p>
         </div>
       </Banda>

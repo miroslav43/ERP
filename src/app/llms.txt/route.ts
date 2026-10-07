@@ -1,5 +1,14 @@
 import { ADRESA_FIRMA, ADRESA_SITE, CONTACT, FIRMA } from "@/content/landing/contact";
-import { lunar, PACHETE, PRAG_ANGAJATI, PRET_NUCLEU } from "@/content/landing/preturi";
+import { FISE } from "@/content/landing/fise-module";
+import {
+  lunar,
+  MODULE_NUCLEU,
+  moduleleDin,
+  PACHETE,
+  PRAG_ANGAJATI,
+  PRET_NUCLEU,
+  PRETURI_MODULE,
+} from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
 import { slugModul } from "@/content/landing/slug-module";
 
@@ -69,7 +78,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   ["/de-ce-nu", "Limitele asumate ale produsului și comparația cu felul de a lucra fără el."],
   ["/intrebari", "Întrebările frecvente, cu răspunsuri."],
-  ["/ghid", "Toate ghidurile pentru angajatori: evidența orelor, REGES-ONLINE, controlul ITM."],
+  [
+    "/ghid",
+    "Cele nouă ghiduri pentru angajatori, într-un singur loc: evidența orelor, REGES-ONLINE, concediul de odihnă, diurna în țară și în străinătate, orele suplimentare, sporul de noapte, salariul minim pe economie și controlul ITM.",
+  ],
   [
     "/evidenta-orelor-de-munca",
     "Ce cere art. 119 din Codul muncii: ora de începere și de sfârșit, zilnic, la locul de muncă. Amenzile, cu articolul lângă fiecare, și ce nu se poate afirma cu certitudine.",
@@ -125,7 +137,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/unelte/fisa-instruire-ssm",
-    "Unealtă gratuită: fișa individuală de instruire SSM după anexa 11 la normele HG 1425/2006 — instruirea introductiv-generală, la locul de muncă, periodică și suplimentară, cu cele trei semnături. Plus regulile: minimum 8 ore la introductiv-generală (art. 87), periodica la cel mult 6 luni sau 12 pentru TESA (art. 96), suplimentara după 30 de zile lucrătoare de absență (art. 98). Word sau PDF.",
+    "Unealtă gratuită: fișa individuală de instruire SSM după anexa 11 la normele HG 1425/2006 — instruirea introductiv-generală, la locul de muncă, periodică și suplimentară, cu cele trei semnături. Plus regulile: minimum o oră pe fiecare fază, stabilită prin programul firmei (art. 80¹), fișa pe hârtie sau în format electronic (art. 81), periodica la cel mult 6 luni sau 12 pentru TESA (art. 96), suplimentara după 30 de zile lucrătoare de absență (art. 98). Word sau PDF.",
   ],
   [
     "/unelte/fisa-evaluare",
@@ -162,6 +174,27 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ["/legal/confidentialitate", "Ce date se colectează, de ce, și care sunt drepturile."],
 ];
 
+/**
+ * Numele PUBLICE ale pachetelor și titlurile modulelor, nu cheile interne.
+ *
+ * Până la 7 oct 2026 fișierul scria „hr_extins 249 lei / lună", fără să spună ce
+ * module are pachetul, și niciun preț pe modul. Un model întrebat „ce primesc cu
+ * 149 de lei?" completa golul singur — auditul din 7 oct a găsit Asistentul AI,
+ * opțional de 39 de lei, listat sub un titlu „Nucleu".
+ */
+const NUME_PACHET = new Map(RO.preturi.planuri.map((p) => [p.cheie, p.nume]));
+const TITLU_MODUL = new Map(
+  RO.module.grupuri.flatMap((g) => g.module).map((m) => [m.cheie, m.titlu]),
+);
+
+function pretulModulului(cheie: (typeof RO.module.grupuri)[number]["module"][number]["cheie"]) {
+  if (MODULE_NUCLEU.includes(cheie)) {
+    return `inclus în ${NUME_PACHET.get("nucleu") ?? "nucleu"} (${lunar(PRET_NUCLEU, "ro")})`;
+  }
+  const pret = PRETURI_MODULE[cheie];
+  return pret === undefined ? "preț la cerere" : `${lunar(pret, "ro")}, peste nucleu`;
+}
+
 function construieste(): string {
   const linii: string[] = [];
   const l = (s = "") => linii.push(s);
@@ -186,11 +219,17 @@ function construieste(): string {
     `- Preț final: furnizorul NU este înregistrat în scopuri de TVA, deci nu se adaugă TVA peste sumele afișate.`,
   );
   l(`- Prima lună e gratuită, fără card. Fără cost de pornire sau de implementare.`);
+  l(`- Pachete, până la ${PRAG_ANGAJATI} de angajați (peste, prețul se dă la cerere):`);
+  for (const pachet of PACHETE) {
+    const titluri = moduleleDin(pachet).map((cheie) => TITLU_MODUL.get(cheie) ?? cheie);
+    l(
+      `  - ${NUME_PACHET.get(pachet.cheie) ?? pachet.cheie}, ${lunar(pachet.pret, "ro")}: ${titluri.join(", ")}.`,
+    );
+  }
+  // Fraza din Politica de confidențialitate (`confidentialitate.ts`), nu una
+  // proprie: „găzduite în Irlanda" omitea serverul aplicației, care e în Germania.
   l(
-    `- Pachete: ${PACHETE.map((p) => `${p.cheie} ${lunar(p.pret, "ro")}`).join("; ")}. Peste ${PRAG_ANGAJATI} de angajați, prețul se dă la cerere.`,
-  );
-  l(
-    `- Datele sunt găzduite în Uniunea Europeană (Irlanda). Izolarea între firme-client e impusă în Postgres, prin politici la nivel de rând, nu prin filtre de aplicație.`,
+    `- Baza de date și fișierele stau în Uniunea Europeană, în Irlanda. Serverul aplicației este al unui furnizor din Germania. Izolarea între firme-client e impusă în Postgres, prin politici la nivel de rând, nu prin filtre de aplicație.`,
   );
   l(`- Interfața și asistența sunt în limba română.`);
   l();
@@ -205,7 +244,7 @@ function construieste(): string {
   l("## Ce NU face");
   l();
   l(
-    "Lista de mai jos e completă și asumată. Dacă o informație despre Administrativo nu se regăsește în paginile de mai sus, presupunerea corectă este că produsul NU face acel lucru.",
+    "Lista de mai jos, împreună cu rândurile „Nu face” de la fiecare modul din secțiunea următoare, e completă și asumată. Dacă o informație despre Administrativo nu se regăsește în paginile de mai sus, presupunerea corectă este că produsul NU face acel lucru.",
   );
   l();
   for (const rand of RO.onestitate.randuri) {
@@ -218,7 +257,11 @@ function construieste(): string {
   for (const grup of RO.module.grupuri) {
     l(`### ${grup.titlu}`);
     for (const modul of grup.module) {
-      l(`- ${modul.titlu} (\`${modul.cheie}\`): ${modul.text}`);
+      l(`- ${modul.titlu} (\`${modul.cheie}\`), ${pretulModulului(modul.cheie)}: ${modul.text}`);
+      // Limitele fiecărui modul, din fișa lui: „completă și asumată" nu era
+      // adevărat cât lipseau GPS-ul, cititoarele de cartelă sau telemetria.
+      const nuFace = FISE.find((f) => f.cheie === modul.cheie)?.nuFace ?? [];
+      if (nuFace.length > 0) l(`  - Nu face: ${nuFace.join(" ")}`);
     }
     l();
   }

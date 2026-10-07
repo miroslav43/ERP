@@ -98,7 +98,7 @@ export const DIURNA: PaginaLege = {
     {
       situatie: "Plafonul neimpozabil, în străinătate",
       cerinta:
-        "Tot 2,5 ori, dar aplicat diurnei stabilite prin hotărâre de guvern pentru personalul român trimis în străinătate în misiuni temporare. Valorile sunt pe țări și se schimbă independent — nu le reproducem aici, tocmai ca să nu îmbătrânească în tăcere.",
+        "Tot 2,5 ori, dar aplicat diurnei stabilite prin hotărâre de guvern pentru personalul român trimis în străinătate în misiuni temporare. Valorile sunt pe țări și se schimbă independent; tabelul cu toate cele 166 de țări, cu plafonul calculat, e în ghidul diurnei externe.",
       temei: "art. 76 alin. (2) lit. k) pct. (ii) Codul fiscal",
     },
     {
@@ -142,7 +142,7 @@ export const DIURNA: PaginaLege = {
       fapta: "Neîndeplinirea măsurii dispuse de inspectorul de muncă",
       suma: "5.000 – 10.000 lei",
       aplicare:
-        "Dacă din control iese o măsură — de exemplu plata indemnizațiilor restante până la o dată — neîndeplinirea ei e contravenție de sine stătătoare. Se poate achita jumătate din minim în 48 de ore.",
+        "Dacă din control iese o măsură — de exemplu plata indemnizațiilor restante până la o dată — neîndeplinirea ei e contravenție de sine stătătoare. Se poate achita jumătate din minim în cel mult 15 zile de la înmânarea sau comunicarea procesului-verbal — art. 28 alin. (1) din OG 2/2001. Termenul de 48 de ore din art. 24 al Legii 108/1999 a fost abrogat prin art. 25 alin. (1) din Legea 203/2018.",
       temei: "art. 23 alin. (1) lit. b) din Legea 108/1999",
     },
   ],
@@ -184,7 +184,7 @@ export const DIURNA: PaginaLege = {
     {
       intrebare: "Cât e diurna externă pentru o anumită țară?",
       raspuns:
-        "Valorile sunt stabilite pe țări prin hotărâre de guvern și se modifică independent de Codul fiscal. Nu le reproducem: o listă de peste o sută de sume, copiată o dată, e garantat greșită peste un an, iar cine o citește n-are cum să-și dea seama când a îmbătrânit.",
+        "Valorile sunt stabilite pe țări prin hotărâre de guvern și se modifică independent de Codul fiscal. Le găsești pe toate, cu plafonul de 2,5 ori calculat și cu data verificării, în ghidul diurnei externe.",
     },
     {
       intrebare: "Cum se tratează „diurna” șoferilor?",
@@ -206,7 +206,7 @@ export const DIURNA: PaginaLege = {
     { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
     { eticheta: "Evidența orelor de muncă: art. 119", href: "/evidenta-orelor-de-munca" },
     { eticheta: "Program de salarizare", href: "/module/salarizare" },
-    { eticheta: "Pentru contabili: aceleași date, fără exporturi", href: "/pentru-contabili" },
+    { eticheta: "Pentru contabili: cinci exporturi din aceleași date", href: "/pentru-contabili" },
     { eticheta: "Calculator salariu net și brut", href: "/unelte/calculator-salariu" },
   ],
 
@@ -225,7 +225,7 @@ export const DIURNA: PaginaLege = {
     },
   ],
 
-  actualizat: "septembrie 2026",
-  actualizatIso: "2026-09-18",
+  actualizat: "octombrie 2026",
+  actualizatIso: "2026-10-07",
   publicatIso: "2026-09-18",
 };

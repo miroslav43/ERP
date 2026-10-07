@@ -11,7 +11,7 @@ import type { AntetPagina } from "./tipuri";
 export const ANTET_FOAIE_PONTAJ: AntetPagina = {
   supratitlu: "Unealtă gratuită",
   titlu: "Foaie de pontaj lunar",
-  lead: "Alege luna și scrie numele. Weekendurile și sărbătorile legale se marchează singure — inclusiv Paștele ortodox și zilele care depind de el. Se tipărește sau se descarcă în PDF, Word ori Excel, fără cont.",
+  lead: "Model de foaie de pontaj lunar: alegi luna și scrii numele. Weekendurile și sărbătorile legale se marchează singure — inclusiv Paștele ortodox și zilele care depind de el. Se tipărește sau se descarcă în PDF, Word ori Excel, fără cont.",
 };
 
 /**
@@ -62,6 +62,6 @@ export const ANTET_FISA_EVALUARE: AntetPagina = {
 /** Calculatorul de salariu: cea mai mare cerere din cercetare (10.000–100.000 de căutări pe lună, Keyword Planner, 2 oct 2026). */
 export const ANTET_CALCULATOR: AntetPagina = {
   supratitlu: "Unealtă gratuită",
-  titlu: "Calculator salariu net și brut",
+  titlu: "Calcul salariu net și brut 2026",
   lead: "Scrie brutul și afli netul, sau invers — cu salariul minim de 4.325 de lei, deducerea personală, CAS, CASS, impozitul și costul total pentru angajator, la valorile din iulie 2026.",
 };

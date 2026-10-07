@@ -2,8 +2,12 @@ import type { DocumentTabelar } from "@/lib/unelte/document-tabelar";
 
 /**
  * Fișa individuală de instruire SSM, după anexa nr. 11 la normele metodologice
- * aprobate prin HG 1425/2006 (forma din Portalul Legislativ, doc. 134138,
- * citită la 2 oct 2026).
+ * aprobate prin HG 1425/2006, în forma consolidată din 7 martie 2022 (Portalul
+ * Legislativ, doc. 252029, recitită pe 7 oct 2026).
+ *
+ * Până pe 7 oct 2026 aici stătea consolidarea din 2011 (doc. 134138), deci
+ * pagina dădea „cel puțin 8 ore” pe fază (art. 87 alin. (2), abrogat prin HG
+ * 767/2016) și fișa „cu pix sau stilou” (art. 81, modificat prin HG 259/2022).
  *
  * ── CE E LUAT DIN ANEXĂ ȘI CE NU ──────────────────────────────────────────
  * Antetul (datele lucrătorului), instruirea la angajare în cele trei momente
@@ -66,7 +70,7 @@ export function construiesteFisaSsm(o: ParametriFisaSsm): DocumentTabelar {
     randuri: [...gol(RANDURI_PERIODICA, "Periodică"), ...gol(RANDURI_SUPLIMENTARA, "Suplimentară")],
     umbrite: [],
     note: [
-      "Rezultatul instruirii se consemnează obligatoriu în fișă, cu materialul predat, durata și data, cu pix sau stilou, imediat după verificare — art. 81 din normele aprobate prin HG 1425/2006.",
+      "Rezultatul instruirii se consemnează obligatoriu în fișa individuală, pe hârtie sau în format electronic, cu materialul predat, durata și data; se completează olograf sau electronic, imediat după verificarea instruirii — art. 81 alin. (1)–(2) din normele aprobate prin HG 1425/2006, modificat prin HG 259/2022.",
       "Anexa nr. 11 mai cuprinde: rezultatele testărilor, accidentele de muncă sau îmbolnăvirile profesionale suferite și sancțiunile aplicate pentru nerespectarea regulilor SSM.",
     ],
     semnaturi: [],
@@ -90,8 +94,9 @@ export function fisaSsmDinParametri(q: URLSearchParams): DocumentTabelar {
 
 /**
  * Regulile din banda „Când se face fiecare instruire”, cu articolul din normele
- * aprobate prin HG 1425/2006. Minimul de 8 ore apare la toate trei instruirile
- * care îl au în norme — prima variantă îl dădea doar la cea introductiv-generală.
+ * aprobate prin HG 1425/2006. Durata minimă e o oră pe fiecare fază și pe
+ * instruirea suplimentară (art. 80¹, din HG 767/2016); restul o stabilește
+ * angajatorul, prin programul de instruire-testare.
  */
 export const INSTRUIRI_SSM = [
   {
@@ -102,14 +107,14 @@ export const INSTRUIRI_SSM = [
   {
     tip: "Introductiv-generală",
     regula:
-      "La angajare, cu o durată stabilită prin instrucțiuni proprii, dar nu mai mică de 8 ore.",
-    temei: "art. 87 alin. (2)",
+      "La angajare. Durata o stabilește angajatorul prin programul de instruire-testare, după riscurile firmei, dar nu poate fi mai mică de o oră.",
+    temei: "art. 80¹ și 87 alin. (1)",
   },
   {
     tip: "La locul de muncă",
     regula:
-      "După cea introductiv-generală, la postul de lucru, cu o durată stabilită prin instrucțiuni proprii de conducătorul locului de muncă, dar nu mai mică de 8 ore.",
-    temei: "art. 92 alin. (2)",
+      "După cea introductiv-generală, la postul de lucru. Durata o stabilește angajatorul împreună cu conducătorul locului de muncă sau cu serviciul de prevenire și protecție, dar nu mai puțin de o oră.",
+    temei: "art. 80¹ și 92 alin. (2)",
   },
   {
     tip: "Periodică",
@@ -120,13 +125,13 @@ export const INSTRUIRI_SSM = [
   {
     tip: "Suplimentară",
     regula:
-      "În plus față de cea programată, de cel puțin 8 ore: când lucrătorul a lipsit peste 30 de zile lucrătoare, la reluarea activității după un accident de muncă, la schimbarea echipamentului, a tehnologiei sau a procedurilor de lucru, la lucrări speciale.",
-    temei: "art. 98 și 99",
+      "În plus față de cea programată, de cel puțin o oră: când lucrătorul a lipsit peste 30 de zile lucrătoare, la reluarea activității după un accident de muncă, la schimbarea echipamentului, a tehnologiei sau a procedurilor de lucru, la lucrări speciale.",
+    temei: "art. 80¹ și 98",
   },
   {
     tip: "Consemnarea",
     regula:
-      "Obligatoriu în fișa individuală, cu materialul predat, durata și data; fișa se păstrează de la angajare până la încetarea raporturilor de muncă.",
-    temei: "art. 81",
+      "Obligatoriu în fișa individuală, pe hârtie sau în format electronic, cu materialul predat, durata și data; se semnează olograf sau electronic. Când instruirea e făcută electronic, fișa o semnează electronic toți cei implicați. Fișa se păstrează de la angajare până la încetarea raporturilor de muncă.",
+    temei: "art. 81 și 81¹",
   },
 ] as const;

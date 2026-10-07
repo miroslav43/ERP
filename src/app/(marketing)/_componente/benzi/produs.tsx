@@ -96,7 +96,7 @@ export function BandaModule({ text }: ProprietatiBanda) {
                       href={`/module/${slugModul(modul.cheie)}`}
                       className="text-[0.9375rem] underline underline-offset-4"
                     >
-                      Despre {modul.titlu.toLocaleLowerCase("ro-RO")}
+                      Despre modulul {modul.titlu}
                     </Link>
                   </p>
                 }

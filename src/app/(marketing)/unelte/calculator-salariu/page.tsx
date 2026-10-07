@@ -11,7 +11,7 @@ import {
   VERIFICARE,
 } from "@/content/legal/salarizare-publica";
 import { formatDate } from "@/lib/format/date";
-import { dinBrut, type RezultatSalariu } from "@/lib/unelte/salariu";
+import { dinBrut, dinNet, type RezultatSalariu } from "@/lib/unelte/salariu";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -32,9 +32,11 @@ import { calculeazaDinParametri } from "./parametri";
  * verificate pe textele oficiale și pe vectorii publicați (2.699 / 2.981 lei).
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Calculator salariu net și brut 2026",
+  // 7 oct 2026: titlul pe forma căutată („calcul salariu net”, 10K–100K pe lună),
+  // descrierea sub 160 de caractere (avea 183 și se tăia în rezultate).
+  titlu: "Calcul salariu net și brut 2026: calculator",
   descriere:
-    "Calculează salariul net din brut sau brutul din net, cu valorile din iulie 2026: salariul minim de 4.325 lei, deducerea personală, CAS, CASS, impozit și costul total al angajatorului.",
+    "Calcul salariu net din brut și brut din net, cu valorile din iulie 2026: CAS, CASS, impozit, deducerea personală și costul total pentru firmă.",
   cale: "/unelte/calculator-salariu",
 });
 
@@ -51,6 +53,61 @@ const CLASA_CAMP =
 /** Sumele sunt deja rotunjite la leu (OUG 59/2005), deci fără zecimale. */
 const lei = (n: number) =>
   `${new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 }).format(n)} lei`;
+
+/** Un tabel de calcule uzuale; fiecare rând duce la calculul complet. */
+function TabelUzual({
+  legenda,
+  capete,
+  randuri,
+}: {
+  readonly legenda: string;
+  readonly capete: readonly [string, string, string];
+  readonly randuri: readonly Readonly<{
+    valori: readonly [number, number, number];
+    href: string;
+  }>[];
+}) {
+  return (
+    <table className="w-full text-left">
+      <caption className="font-mk-display mb-3 text-left text-[1.125rem] font-semibold">
+        {legenda}
+      </caption>
+      <thead>
+        <tr className="border-mk-rigla border-b">
+          {capete.map((cap) => (
+            <th
+              key={cap}
+              scope="col"
+              className="font-mk-date text-mk-text-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.1em] uppercase"
+            >
+              {cap}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {randuri.map((rand) => (
+          <tr key={rand.href} className="border-mk-rigla/40 border-b">
+            {rand.valori.map((v, i) => (
+              <td
+                key={capete[i]}
+                className="font-mk-date py-2.5 pr-4 text-[0.9375rem] tabular-nums"
+              >
+                {i === 0 ? (
+                  <Link href={rand.href} className="underline underline-offset-4">
+                    {lei(v)}
+                  </Link>
+                ) : (
+                  lei(v)
+                )}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 function Desfasurator({ r }: { r: RezultatSalariu }) {
   const randuri: readonly (readonly [string, number, "plus" | "minus" | "total" | "info"])[] = [
@@ -121,7 +178,11 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
       />
 
       <Banda inaltime="scurta">
-        <form method="get" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/*
+          `#rezultat`: după trimitere, pagina se deschide la rezultat, nu sus, pe
+          formularul gol — pe telefon rezultatul cădea sub pliu (auditul din 7 oct).
+        */}
+        <form method="get" action="#rezultat" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-[0.875rem] font-medium">Suma (lei)</span>
             <input
@@ -178,6 +239,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
       </Banda>
 
       <Banda
+        id="rezultat"
         inaltime="scurta"
         supratitlu="Rezultatul"
         titlu={`Net ${lei(rezultat.net)} din brut ${lei(rezultat.brut)}`}
@@ -197,7 +259,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
 
       <Banda
         inaltime="medie"
-        supratitlu="Salariul minim pe economie în 2026"
+        supratitlu="Netul la salariul minim"
         titlu={`${lei(SALARIU_MINIM_BRUT_2026_IULIE)} brut, ${lei(laMinim.net)} net`}
       >
         <div className="mt-6 max-w-[68ch] space-y-3 text-[0.9375rem] leading-[1.7]">
@@ -212,10 +274,62 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             {lei(FACILITATE_SALARIU_MINIM.suma)} pe lună nu intră la impozit și contribuții, până la
             31 decembrie 2026 — OUG 89/2025, art. III. De aici netul de {lei(laMinim.net)}.
           </p>
+          <p>
+            Istoricul, minimul din construcții, amenda și ce se întâmplă cu un leu peste minim sunt
+            în{" "}
+            <Link href="/ghid/salariu-minim-pe-economie" className="underline underline-offset-4">
+              ghidul salariului minim pe economie
+            </Link>
+            .
+          </p>
         </div>
       </Banda>
 
-      <Banda inaltime="medie" supratitlu="Cum se calculează" titlu="Pașii, în ordinea din lege">
+      {/*
+        Calculele uzuale, făcute la randare de același motor. Răspund direct la
+        căutările „5000 net brut”, „calcul salariu brut din net”, fiecare cu
+        legătura spre calculul complet. Canonicalul rămâne pagina fără parametri.
+      */}
+      <Banda
+        inaltime="medie"
+        supratitlu="Calcule uzuale"
+        titlu="Din brut în net și din net în brut"
+      >
+        <div className="mt-6 grid gap-10 lg:grid-cols-2">
+          <TabelUzual
+            legenda="Calcul salariu net din brut"
+            capete={["Brut", "Net", "Cost firmă"]}
+            randuri={[4325, 4500, 5000, 6000, 7000, 8000, 10000, 15000].map((brut) => {
+              const r = dinBrut(brut, 0, true);
+              return {
+                valori: [r.brut, r.net, r.costTotal],
+                href: `?suma=${String(brut)}&din=brut#rezultat`,
+              };
+            })}
+          />
+          <TabelUzual
+            legenda="Calcul salariu brut din net"
+            capete={["Net dorit", "Brut necesar", "Cost firmă"]}
+            randuri={[3000, 3500, 4000, 5000, 6000, 7000].map((net) => {
+              const r = dinNet(net, 0, true);
+              return {
+                valori: [net, r.brut, r.costTotal],
+                href: `?suma=${String(net)}&din=net#rezultat`,
+              };
+            })}
+          />
+        </div>
+        <p className="text-mk-text-slab mt-5 max-w-[68ch] text-[0.8125rem] leading-[1.55]">
+          Normă întreagă, funcția de bază, fără persoane în întreținere, valorile din iulie 2026.
+          Pentru alte situații, scrie suma în calculator.
+        </p>
+      </Banda>
+
+      <Banda
+        inaltime="medie"
+        supratitlu="Pașii, în ordinea din lege"
+        titlu="Cum se calculează salariul net din brut"
+      >
         <ol className="mt-6 max-w-[68ch] list-decimal space-y-2 pl-5 text-[0.9375rem] leading-[1.65]">
           <li>CAS 25% și CASS 10% se calculează din brut — Codul fiscal art. 138 și 156.</li>
           <li>
@@ -233,7 +347,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
         <ul className="mt-6 max-w-[72ch] space-y-3">
           {[
             "Deducerea personală suplimentară: 15% din salariul minim pentru cei sub 26 de ani și 100 de lei pentru fiecare copil înscris la școală — art. 77 alin. (10).",
-            "Facilitățile pe sectoare de activitate, scutirile pentru persoanele cu handicap și tichetele de masă.",
+            "Scutirile pentru persoanele cu handicap și tichetele de masă. Facilitățile pe sectoare de activitate nu se mai aplică veniturilor din 2025 (OUG 156/2024).",
             "Timpul parțial, sporurile, orele suplimentare și concediile din lună.",
           ].map((t) => (
             <li

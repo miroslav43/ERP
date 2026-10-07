@@ -66,7 +66,7 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
     {
       situatie: "Ce NU se numără în ele",
       cerinta:
-        "Sărbătorile legale în care nu se lucrează și zilele libere plătite stabilite prin contractul colectiv. Un concediu de două săptămâni care cuprinde 1 Decembrie consumă tot 10 zile de concediu, nu 11.",
+        "Sărbătorile legale în care nu se lucrează și zilele libere plătite stabilite prin contractul colectiv. Două săptămâni de concediu, luni 23 noiembrie – vineri 4 decembrie 2026, consumă 8 zile, nu 10: 30 noiembrie și 1 decembrie sunt sărbători legale.",
       temei: "art. 145 alin. (3) Codul muncii",
     },
     {
@@ -152,7 +152,7 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
         "Neîndeplinirea măsurii dispuse de inspectorul de muncă — de exemplu „acordați concediul restant până la data X”",
       suma: "5.000 – 10.000 lei",
       aplicare:
-        "Pe măsură neîndeplinită, nu pe salariat. Contravenientul poate achita pe loc sau în 48 de ore jumătate din minim, adică 2.500 lei (art. 24 din aceeași lege).",
+        "Pe măsură neîndeplinită, nu pe salariat. Contravenientul poate achita jumătate din minim, adică 2.500 lei, în cel mult 15 zile de la înmânarea sau comunicarea procesului-verbal — art. 28 alin. (1) din OG 2/2001. Termenul de 48 de ore din art. 24 al Legii 108/1999 a fost abrogat prin art. 25 alin. (1) din Legea 203/2018.",
       temei: "art. 23 alin. (1) lit. b) din Legea 108/1999, forma din 18 decembrie 2025",
     },
     {
@@ -169,6 +169,8 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
       // Search Console, sept 2026: „câte zile de concediu ai pe lună” aduce pagina
       // pe poziția 5,8 — întrebarea primește răspunsul în primul titlu al prozei.
       titlu: "Câte zile de concediu ai pe an și pe lună",
+      // Fixată: o leagă `/module/concedii` și cererea de concediu.
+      ancora: "zile-pe-an",
       paragrafe: [
         "Pe an, cel puțin 20 de zile lucrătoare — art. 145 alin. (1). Durata efectivă e cea din contractul individual, care poate da mai mult, nu mai puțin. Sărbătorile legale în care nu se lucrează nu se scad din aceste zile — art. 145 alin. (3).",
         "Pe lună, Codul muncii nu dă o cifră: dreptul e anual. Împărțit la 12, minimul de 20 de zile înseamnă în medie 1,67 zile pe lună lucrată, iar socoteala asta e cea folosită de obicei pentru un an lucrat parțial. Ea vine însă din contracte și din practică, nu dintr-un articol — vezi mai jos, la întrebările fără răspuns sigur.",
@@ -183,6 +185,7 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
     },
     {
       titlu: "Concediul neefectuat la plecarea din firmă",
+      ancora: "neefectuat",
       paragrafe: [
         "Compensarea în bani a concediului neefectuat e permisă numai la încetarea contractului individual de muncă — art. 146 alin. (3). La plecare, zilele rămase se plătesc; cât timp contractul durează, se iau în natură.",
       ],
@@ -275,6 +278,6 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
   ],
 
   actualizat: "octombrie 2026",
-  actualizatIso: "2026-10-02",
+  actualizatIso: "2026-10-07",
   publicatIso: "2026-09-18",
 };

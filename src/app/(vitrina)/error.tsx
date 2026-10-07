@@ -21,10 +21,10 @@ import { StareEroare } from "@/components/ui/stare-eroare";
  * o pagină de vânzare: că datele au plecat undeva.
  *
  * ── DE CE FĂRĂ PROPUL `inapoi` ────────────────────────────────────────────
- * `StareEroare` randează ieșirea aceea ca `<Link>` obișnuit, iar aici suntem
- * într-un `<iframe>`: navigarea ar încărca pagina de marketing ÎNĂUNTRUL
- * chenarului de 16:10, adică un sit întreg într-o fereastră de citat. Ieșirea
- * reală e pagina din jur, pe care vizitatorul o are deja sub ochi.
+ * Demonstrația a fost gândită pentru un `<iframe>`, unde un `<Link>` ar fi
+ * încărcat situl întreg ÎNĂUNTRUL chenarului. Azi se deschide direct, iar
+ * ieșirea e bara din `layout.tsx` — sigla, „Toate modulele", „Creează cont" —,
+ * care rămâne pe ecran și peste eroare, fiindcă eroarea înlocuiește doar pagina.
  */
 export default function Eroare({
   error,

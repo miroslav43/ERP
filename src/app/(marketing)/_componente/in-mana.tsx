@@ -144,6 +144,7 @@ export function InMana({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element -- vezi mai sus. */}
                     <img
+                      loading="lazy"
                       src={captura.sursa}
                       alt={captura.alt}
                       width={captura.latime}

@@ -5,7 +5,13 @@ import { notFound } from "next/navigation";
 
 import { FEATURES, isFeatureKey, type FeatureKey } from "@/config/features";
 import { type Domeniu, fisaModulului } from "@/content/landing/fise-module";
-import { lunar, MODULE_NUCLEU, PRETURI_MODULE } from "@/content/landing/preturi";
+import {
+  lunar,
+  MODULE_NUCLEU,
+  PRAG_ANGAJATI,
+  PRET_NUCLEU,
+  PRETURI_MODULE,
+} from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
 import { cheieDinSlug, slugModul } from "@/content/landing/slug-module";
 
@@ -198,9 +204,14 @@ export default async function PaginaModul({ params }: Proprietati) {
           </p>
           <p className="mt-3 text-[1.0625rem] leading-[1.6]">
             {inNucleu ? (
+              // Cifra, nu doar „vine în nucleu": cele patru module de bază erau singurele
+              // fără preț, inclusiv pagina comercială pentru „program pontaj angajați"
+              // (auditul din 7 oct 2026).
               <>
-                Vine în nucleu, împreună cu abonamentul de bază. Nu se cumpără separat și nu se
-                poate stinge.
+                Inclus în abonamentul de bază:{" "}
+                <span className="font-mk-date">{lunar(PRET_NUCLEU, "ro")}</span> pentru toată firma,
+                până la {PRAG_ANGAJATI} de angajați. Nu se cumpără separat și nu se poate stinge.{" "}
+                {RO.preturi.mentiuneTva}
               </>
             ) : pret !== undefined ? (
               <>
@@ -396,7 +407,9 @@ export default async function PaginaModul({ params }: Proprietati) {
                       href={`/module/${slugModul(vecin.cheie)}`}
                       className="text-[0.9375rem] underline underline-offset-4"
                     >
-                      Vezi modulul
+                      {/* Textul ancorei spune UNDE duce: „Vezi modulul", repetat
+                          de cinci ori, nu spunea nimic nici omului, nici unui motor. */}
+                      Despre modulul {vecin.titlu}
                     </Link>
                   </p>
                 }

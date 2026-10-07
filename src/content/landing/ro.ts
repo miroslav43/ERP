@@ -28,7 +28,7 @@ export const RO: ContinutLanding = {
      * concurența afișează prețuri pe angajat, plus TVA, pe altă pagină.
      */
     descriere:
-      "Pontaj de pe telefon, concedii, dosare de personal și REGES-ONLINE, într-un singur cont. 149 lei pe lună până la 20 de angajați, prima lună gratuită.",
+      "Pontaj de pe telefon, concedii și dosare de personal: 149 lei pe lună până la 20 de angajați, prima lună gratuită. REGES-ONLINE, încă 39 lei pe lună.",
   },
 
   antet: {
@@ -208,7 +208,7 @@ export const RO: ContinutLanding = {
         de: "scadente",
         la: "audit",
         eticheta: "append-only",
-        text: "Jurnalul se adaugă. Nu există nicio politică de ștergere, nicăieri în produs.",
+        text: "Jurnalul se adaugă, nu se rescrie: în aplicație nu există nicio cale de a șterge un rând din el.",
       },
     ],
     nota: "Numele din etichete sunt numele reale ale funcțiilor și tabelelor. Le poți cere la demonstrație.",
@@ -221,7 +221,7 @@ export const RO: ContinutLanding = {
     grupuri: [
       {
         cheie: "core",
-        titlu: "Nucleu",
+        titlu: "Platformă",
         module: [
           {
             cheie: "nucleu",
@@ -264,7 +264,7 @@ export const RO: ContinutLanding = {
             titlu: "Concedii",
             text: "Cererea trece pe lanțul de aprobare, soldul se recalculează singur, iar zilele nelucrătoare și sărbătorile legale se scot automat din numărătoare.",
             puncte: [
-              "Unsprezece tipuri, fiecare cu temeiul legal notat",
+              "Treisprezece tipuri de concediu, configurabile pe firmă",
               "Drept anual pe vechime, condiții de muncă, handicap sau vârstă",
               // Până pe 6 oct 2026: „cu prag de absenți simultani". Pragul există
               // doar ca funcție pură, `conflictDeEchipa` din
@@ -379,7 +379,7 @@ export const RO: ContinutLanding = {
             puncte: [
               "Sporuri și prime reutilizabile, definite o dată",
               "Rețineri plafonate ca procent din net",
-              "Tichetele nu intră niciodată în baza CAS și CASS",
+              "Tichetele de masă nu intră în baza CAS; în CASS, după setarea confirmată de contabil",
             ],
           },
           {
@@ -539,7 +539,7 @@ export const RO: ContinutLanding = {
       },
     ],
     notaViitoare:
-      "Niciuna dintre cele patru nu există azi. Afișul QR de mai sus are un cod fix, schimbat de administrator; codul care se schimbă singur, la câteva zeci de secunde, e cel de aici. Dacă una ți-ar schimba decizia, spune-ne — construim în ordinea în care ne-o cer firmele care ne folosesc.",
+      "Niciuna dintre cele patru nu există azi. Afișul QR de mai sus are un cod fix, schimbat de administrator; codul care se schimbă singur, la câteva zeci de secunde, e cel de aici. Dacă una ți-ar schimba decizia, spune-ne — construim în ordinea în care ne-o cer firmele care ne scriu.",
     buton: { eticheta: "Am nevoie de asta", href: "/cere-demo" },
   },
 
@@ -587,8 +587,8 @@ export const RO: ContinutLanding = {
     lead: "Tabelul de mai jos e domeniul de citire al fiecărui rol, exact cum e așezat în baza de date. Un test din integrarea continuă compară fiecare celulă cu sursa: dacă baza se schimbă, pagina cade înainte să mintă.",
     capResursa: "Resursă",
     note: [
-      "Angajatul are „—” la fișele de personal. Nu-și vede nici propria fișă în modulul de personal: datele lui le găsește în portal, care e alt drum, cu alte reguli.",
-      "Managerul aprobă pontajul echipei, dar nu-l poate crea. Foaia îi este, practic, doar de citit.",
+      "Angajatul își vede propria fișă de personal și numai pe ea. CNP-ul și IBAN-ul rămân închise și pentru el: cer drept de citire pe toată firma, nu pe propriul rând.",
+      "Managerul aprobă pontajul echipei și se pontează pe sine, dar nu scrie ziua altcuiva. Foaia echipei îi rămâne de citit.",
       "Managerul are refuz EXPLICIT pe salarizare, nu absență de rând. Un administrator îi poate acorda dreptul pe firma lui, fără o nouă livrare.",
       "Resursele umane administrează complet SSM-ul, dar nu au drept pe scadențele de conformitate: lista le apare goală, fără nicio eroare. E o limită reală, pe care preferăm s-o știi de aici.",
     ],
@@ -675,8 +675,15 @@ export const RO: ContinutLanding = {
     ],
     retentieTitlu: "Retenția datelor",
     retentie: [
-      { ce: "Dosarul de personal", regula: "Termen configurat per firmă, cu purjare automată" },
-      { ce: "Jurnalul de audit", regula: "Se adaugă, nu se șterge; nicio politică de ștergere" },
+      {
+        ce: "Dosarul de personal",
+        regula:
+          "Pe durata contractului; după încetare, 30 de zile de recuperare, apoi ștergere definitivă",
+      },
+      {
+        ce: "Jurnalul de audit",
+        regula: "Se adaugă, nu se rescrie; se păstrează cât cere legea, ca probă",
+      },
       { ce: "Cererile de demonstrație", regula: "Doar pentru a te contacta despre solicitare" },
       { ce: "Datele sensibile", regula: "Criptate, cu urmă la fiecare citire" },
       {
@@ -685,7 +692,7 @@ export const RO: ContinutLanding = {
       },
     ],
     retentieNota:
-      "Termenele exacte se stabilesc împreună cu tine și cu juristul tău, și se scriu ca politică per firmă. Nu punem cifre aici, fiindcă nu sunt ale noastre.",
+      "Termenele vin din Termeni și din Politica de confidențialitate. Dacă firma ta are nevoie de altele, le stabilim în contract, împreună cu juristul tău.",
   },
 
   onestitate: {
@@ -703,7 +710,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Datele cu CNP nu pleacă la REGES fără un om",
-        text: "Transmiterea în REGES-ONLINE se face prin API, din aplicație, cu accesul obținut de firma ta din portalul Inspecției Muncii. Mesajele se pregătesc singure din fișa angajatului și stau în coadă până le trimite cineva cu drept de transmitere — nimic nu pleacă pe fundal, fără știrea nimănui, iar fiecare citire a CNP-ului lasă urmă în jurnal. Fișier REVISAL nu generăm: REGES-ONLINE l-a înlocuit.",
+        text: "Transmiterea în REGES-ONLINE se face prin API, din aplicație, cu accesul obținut de firma ta din portalul Inspecției Muncii. Mesajele se pregătesc singure din fișa angajatului. Cele care poartă CNP-ul unui salariat stau în coadă până le trimite cineva cu drept de transmitere, iar fiecare citire a CNP-ului lasă urmă în jurnal; mesajele de contract, fără date personale, pot pleca și din ciclul automat de transmitere. Fișier REVISAL nu generăm: REGES-ONLINE l-a înlocuit.",
       },
       {
         titlu: "Asistentul AI îți arată drumul, nu-ți face treaba",
@@ -719,7 +726,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Nu avem aplicație mobilă în magazinele de aplicații",
-        text: "Portalul angajatului merge din browser, pe telefon. Atât.",
+        text: "Portalul angajatului merge din browser, pe telefon. O aplicație Android există, în testare internă, dar nu e publicată în Google Play; pentru iPhone nu avem una.",
       },
     ],
     incheiere:
@@ -830,7 +837,7 @@ export const RO: ContinutLanding = {
         titlu: "Cererea de concediu se aprobă dintr-un clic, iar soldul se calculează singur",
         text: "Angajatul cere concediul din telefon și vede din prima câte zile lucrătoare consumă. Managerul aprobă sau respinge cu motiv, sărbătorile legale se scad singure, iar zilele aprobate apar pe foaia de pontaj fără să le treacă nimeni de mână.",
         puncte: [
-          "Unsprezece tipuri de concediu, fiecare cu temeiul legal notat",
+          "Treisprezece tipuri de concediu, configurabile pe firmă",
           "Dreptul anual, calculat din vechime și din condițiile de muncă",
           "Calendarul echipei: cine lipsește și când",
         ],
@@ -1012,7 +1019,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Construim în ordinea în care ne cereți",
-        text: "Funcțiile noi vin în ordinea în care le cer firmele care lucrează cu noi. Dacă îți lipsește ceva, spune-ne la prima discuție.",
+        text: "Funcțiile noi vin în ordinea în care ni le cer firmele. Dacă îți lipsește ceva, spune-ne la prima discuție.",
       },
     ],
   },
@@ -1030,7 +1037,7 @@ export const RO: ContinutLanding = {
       {
         cheie: "hr_extins",
         nume: "HR extins",
-        pentru: "Peste nucleu: REGES-ONLINE, integrare, cursuri, SSM și evaluări",
+        pentru: "Peste nucleu: REGES-ONLINE, integrare, cursuri, SSM, evaluări și KPI-uri",
       },
       {
         cheie: "operational",
@@ -1040,7 +1047,7 @@ export const RO: ContinutLanding = {
       {
         cheie: "financiar",
         nume: "Financiar",
-        pentru: "Peste nucleu: salarizare, deplasări și diurne",
+        pentru: "Peste nucleu: salarizare, deplasări și diurne, rapoarte",
       },
       {
         cheie: "tot",
@@ -1134,7 +1141,7 @@ export const RO: ContinutLanding = {
       },
       {
         q: "Ce se întâmplă când pleacă un angajat?",
-        a: "Când pleacă un angajat, fișa lui se închide, dar nimic nu se șterge fizic din baza de date. Documentele, pontajul, concediile și instruirile rămân, fiindcă exact ele se cer la un control pentru perioada în care omul a lucrat la tine. În aplicație, contul lui nu mai intră, iar în REGES-ONLINE încetarea contractului are termenul ei, urmărită ca orice alt eveniment. Datele se purjează abia la termenul din politica de retenție a firmei tale, pe care o stabilești tu împreună cu juristul tău, nu noi. Tehnic, garanția e că nu există nicio politică de ștergere în baza de date, nicăieri: nici măcar administratorul platformei n-are cum să șteargă un rând, doar să-l marcheze ca închis.",
+        a: "Când pleacă un angajat, fișa lui se închide, dar nimic nu se șterge fizic din baza de date. Documentele, pontajul, concediile și instruirile rămân, fiindcă exact ele se cer la un control pentru perioada în care omul a lucrat la tine. În aplicație, contul lui nu mai intră, iar în REGES-ONLINE încetarea contractului are termenul ei, urmărită ca orice alt eveniment. În aplicație, nimeni nu poate șterge un rând — nici administratorul firmei, nici al nostru: rândul se marchează ca închis și rămâne în istoric. Garanția stă în baza de date, nu într-un buton ascuns: pe datele firmelor nu există nicio politică de ștergere, deci o comandă de ștergere venită din aplicație nu atinge niciun rând. Ștergerea definitivă o facem noi, doar după încetarea contractului cu firma ta, în termenele scrise în Termeni.",
       },
       {
         q: "Înlocuiește contabilul?",
@@ -1162,7 +1169,7 @@ export const RO: ContinutLanding = {
       },
       {
         q: "Ce se întâmplă cu datele dacă renunțăm?",
-        a: "Le iei. Exportăm ce ținem despre tine în format deschis, iar ce rămâne la noi se purjează la termenul convenit. Nu ținem date ca argument de negociere.",
+        a: "Le iei. Exportăm ce ținem despre tine în format deschis. După încetarea contractului, datele rămân accesibile treizeci de zile, apoi se șterg definitiv în cel mult încă treizeci, inclusiv din copiile de siguranță. Nu ținem date ca argument de negociere.",
       },
       {
         q: "Cât costă?",
@@ -1216,7 +1223,7 @@ export const RO: ContinutLanding = {
     program: "Luni–vineri, 9–18",
     notaReferinte:
       "Primii clienți sunt în implementare. Dacă vrei să vorbești cu unul dintre ei înainte să decizi, îți facem legătura.",
-    cine: "Administrativo e făcut în {oras}, de {firma}. La telefon răspunde un om din echipa care construiește aplicația.",
+    cine: "Administrativo e făcut de {firma}, în {oras}. La telefon răspunde un om din echipa care construiește aplicația.",
     formularTitlu: "Sau lasă-ne datele tale",
   },
 
@@ -1344,7 +1351,9 @@ export const RO: ContinutLanding = {
     },
     domenii: {
       supratitlu: "Pe domenii",
-      titlu: "Aceleași module, altă ordine de importanță",
+      // H1-ul spune și domeniile: „altă ordine de importanță" singur nu conținea
+      // niciun cuvânt pe care l-ar căuta cineva (auditul din 7 oct 2026).
+      titlu: "Aceleași module, altă ordine: construcții, producție, transport, servicii",
       lead: "Nu vindem versiuni diferite pe industrii. Se schimbă doar ce pornești întâi și ce ajunge pe primul ecran, iar mai jos scrie exact ce anume, pentru patru feluri de firmă.",
     },
     pentruContabili: {
@@ -1353,9 +1362,9 @@ export const RO: ContinutLanding = {
       lead: "Contabilul nu e un utilizator în plus al unei firme, ci aceeași persoană în zece firme deodată. Aplicația e construită pe apartenențe, nu pe conturi separate: intri o dată și comuți între clienți dintr-un meniu.",
     },
     pontajTelefon: {
-      supratitlu: "Pontaj de pe telefon",
-      titlu: "Se pontează din browser, fără instalare din magazin",
-      lead: "Omul de pe șantier deschide o adresă, o adaugă pe ecranul de start și pontează. Fără cont în App Store sau Google Play, fără actualizări de instalat, fără un telefon care nu mai are loc.",
+      supratitlu: "Aplicație de pontaj pentru angajați",
+      titlu: "Aplicația de pontaj pe telefon, fără instalare din magazin",
+      lead: "Omul de pe șantier deschide aplicația de pontaj din browserul telefonului, o adaugă pe ecranul de start și pontează online. Fără cont în App Store sau Google Play, fără actualizări de instalat, fără un telefon care nu mai are loc.",
     },
     ghid: {
       supratitlu: "Ghiduri",

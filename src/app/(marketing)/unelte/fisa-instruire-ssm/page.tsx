@@ -21,13 +21,14 @@ import { construiesteFisaSsm, INSTRUIRI_SSM, parametriFisaSsm } from "./model";
  * Fișa individuală de instruire SSM, gratuită.
  *
  * Fiecare rând din banda „Când se face fiecare instruire” are articolul lui din
- * normele aprobate prin HG 1425/2006, citite pe 2 oct 2026 în Portalul
- * Legislativ (doc. 134138). Lista stă în `model.ts`, unde o păzește un test.
+ * normele aprobate prin HG 1425/2006, în forma consolidată din 2022 (Portalul
+ * Legislativ, doc. 252029, recitită pe 7 oct 2026). Lista stă în `model.ts`,
+ * unde o păzește un test.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Fișa de instruire SSM: model completabil",
+  titlu: "Fișa de instruire SSM: model PDF și Word",
   descriere:
-    "Fișa individuală de instruire SSM după anexa 11 la HG 1425/2006: instruirea la angajare, periodică și suplimentară, cu cele trei semnături. Model gratuit în Word sau PDF.",
+    "Fișa individuală de instruire SSM (anexa 11, HG 1425/2006), pe hârtie sau în format electronic: la angajare, periodică, suplimentară. Model Word, PDF.",
   cale: "/unelte/fisa-instruire-ssm",
 });
 
@@ -39,7 +40,7 @@ const unul = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
 const CLASA_CAMP =
-  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2 text-[0.9375rem]";
+  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
 
 const CAMPURI = [
   { nume: "nume", eticheta: "Numele și prenumele", exemplu: "Popa Ion" },
@@ -89,7 +90,7 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
           inaltime="scurta"
           supratitlu="Ce spun normele"
           titlu="Când se face fiecare instruire"
-          lead="Articolele sunt din normele metodologice aprobate prin HG 1425/2006."
+          lead="Articolele sunt din normele metodologice aprobate prin HG 1425/2006, în forma în vigoare. Din martie 2022, fișa se poate ține și în format electronic, semnată olograf sau cu semnătură electronică."
         >
           <dl className="border-mk-rigla/40 mt-6 border-t">
             {INSTRUIRI_SSM.map((r) => (
@@ -112,6 +113,7 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
 
       <Banda inaltime="scurta">
         <form
+          action="#documentul"
           method="get"
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
           data-tipar="ascunde"
@@ -146,7 +148,7 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
         </form>
       </Banda>
 
-      <Banda inaltime="scurta">
+      <Banda id="documentul" inaltime="scurta">
         <PrevizualizareDocument document={document} />
       </Banda>
 

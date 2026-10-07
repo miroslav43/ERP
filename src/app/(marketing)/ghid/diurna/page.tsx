@@ -16,9 +16,9 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
  * că plafonul e o obligație de plată.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Diurna: plafonul neimpozabil și cele 3 salarii",
+  titlu: "Diurna 2026 în țară: plafonul neimpozabil",
   descriere:
-    "Cele două plafoane ale diurnei — 2,5 ori nivelul din hotărârea de guvern și 3 salarii de bază calculate lunar — plus ce spune Codul muncii despre delegare și cele 60 de zile.",
+    "Diurna neimpozabilă în 2026: 57,50 lei pe zi în țară (2,5 × 23 lei) și plafonul lunar de 3 salarii de bază. Ce spune Codul muncii despre delegare.",
   cale: "/ghid/diurna",
 });
 

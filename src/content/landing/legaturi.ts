@@ -16,24 +16,33 @@ import type { Legatura } from "./tipuri";
 export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
   "/unelte/cerere-concediu-de-odihna": [
     { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
+    {
+      eticheta: "Câte zile de concediu ai pe an și pe lună",
+      href: "/ghid/concediu-de-odihna#zile-pe-an",
+    },
     { eticheta: "Program de concedii: cerere, aprobare și sold", href: "/module/concedii" },
+    { eticheta: "Pentru firmele de servicii și birouri", href: "/domenii/servicii" },
   ],
   "/unelte/condica-de-prezenta": [
     { eticheta: "Ce cere art. 119 la evidența orelor", href: "/evidenta-orelor-de-munca" },
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+    { eticheta: "Evidența pe șantier, în construcții", href: "/domenii/constructii" },
   ],
   "/unelte/foaie-de-parcurs": [
     { eticheta: "Program de parc auto: ITP, RCA, rovinietă", href: "/module/flota" },
     { eticheta: "Diurna: cele două plafoane neimpozabile", href: "/ghid/diurna" },
+    { eticheta: "Pentru firmele de transport și logistică", href: "/domenii/transport" },
   ],
   "/unelte/fisa-instruire-ssm": [
     { eticheta: "Program SSM: instruiri, aptitudini, echipament", href: "/module/ssm" },
     { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
+    { eticheta: "Pentru firmele de construcții", href: "/domenii/constructii" },
   ],
   "/unelte/fisa-evaluare": [
     { eticheta: "Program de evaluare a angajaților, cu istoric", href: "/module/evaluari" },
     { eticheta: "KPI-uri: indicatori și ținte pe angajat", href: "/module/kpi" },
+    { eticheta: "Pentru firmele de servicii și birouri", href: "/domenii/servicii" },
   ],
   "/unelte/calculator-salariu": [
     { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },
@@ -57,18 +66,33 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
   "/domenii/constructii": [
     { eticheta: "Pontaj de pe telefon, la punctul de lucru", href: "/pontaj-pe-telefon" },
     { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
+    {
+      eticheta: "Salariul minim în construcții: 4.582 lei",
+      href: "/ghid/salariu-minim-pe-economie",
+    },
+    { eticheta: "Fișa de instruire SSM, model gratuit", href: "/unelte/fisa-instruire-ssm" },
+    { eticheta: "Condica de prezență pentru șantier", href: "/unelte/condica-de-prezenta" },
   ],
   "/domenii/productie": [
     { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
     { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+    { eticheta: "Sporul de noapte: 25% sau o oră mai puțin", href: "/ghid/spor-de-noapte" },
+    { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
   ],
   "/domenii/transport": [
     { eticheta: "Diurna: cele două plafoane neimpozabile", href: "/ghid/diurna" },
     { eticheta: "Program de diurne și deplasări", href: "/module/diurna" },
+    { eticheta: "Diurna externă pe fiecare țară", href: "/ghid/diurna-externa" },
+    { eticheta: "Foaie de parcurs lunară, gratuită", href: "/unelte/foaie-de-parcurs" },
   ],
   "/domenii/servicii": [
     { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
     { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+    {
+      eticheta: "Cerere de concediu de odihnă, model gratuit",
+      href: "/unelte/cerere-concediu-de-odihna",
+    },
+    { eticheta: "Fișa de evaluare a angajaților, model", href: "/unelte/fisa-evaluare" },
   ],
 };
 

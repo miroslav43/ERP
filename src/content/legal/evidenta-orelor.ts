@@ -66,8 +66,9 @@ export const EVIDENTA_ORELOR: PaginaLege = {
     {
       situatie: "Cui se arată",
       cerinta:
-        "Inspectorilor de muncă, ori de câte ori o cer. Refuzul nejustificat de a prezenta documentele, după a doua solicitare, depășește contravenționalul.",
-      temei: "art. 119 alin. (1); art. 264 alin. (2) Codul muncii",
+        "Inspectorilor de muncă, ori de câte ori o cer. Documentele nepredate în termenul stabilit de inspector se amendează cu 5.000–10.000 de lei (art. 23 din Legea 108/1999); refuzul nejustificat după a doua solicitare devine infracțiune.",
+      temei:
+        "art. 119 alin. (1) și art. 264 alin. (2) Codul muncii; art. 23 alin. (1) lit. c) Legea 108/1999",
     },
     {
       situatie: "Salariați mobili și la domiciliu",
@@ -131,7 +132,7 @@ export const EVIDENTA_ORELOR: PaginaLege = {
       paragrafe: [
         "Lista de documente publicată de inspectoratele teritoriale cuprinde, pe zona de timp de muncă: documentele privind evidența orelor prestate de fiecare salariat, foile colective de prezență, statele de plată, actele adiționale care au modificat timpul de muncă și de odihnă, programarea concediilor, informarea privind munca de noapte, regulamentul intern și dosarele de personal.",
         "Din decembrie 2025, inspectorii pot fixa foto, audio și video activitățile de la locul de muncă controlat, fără consimțământul persoanelor vizate; înregistrările se păstrează șase luni. Temeiul e art. 19¹ din Legea 108/1999, introdus prin Legea 239/2025.",
-        "Împiedicarea accesului inspectorilor și refuzul nejustificat de a prezenta documentele cerute, în cel mult 15 zile de la a doua solicitare, sunt infracțiuni, nu contravenții — art. 264 alin. (2) și (3) din Codul muncii.",
+        "Documentele cerute și nepredate în termenul inspectorului sunt contravenție, cu amendă de 5.000–10.000 de lei — art. 23 alin. (1) din Legea 108/1999. Împiedicarea accesului inspectorilor și refuzul nejustificat de a prezenta documentele, în cel mult 15 zile de la a doua solicitare, sunt infracțiuni — art. 264 alin. (2) și (3) din Codul muncii.",
       ],
     },
     {
@@ -160,6 +161,7 @@ export const EVIDENTA_ORELOR: PaginaLege = {
   legaturaSecundara: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
   legaturiConexe: [
     { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+    { eticheta: "Condica de prezență, model gratuit", href: "/unelte/condica-de-prezenta" },
     { eticheta: "Modulul de pontaj", href: "/module/pontaj" },
     { eticheta: "Ore suplimentare: limita și plata", href: "/ghid/ore-suplimentare" },
     { eticheta: "Pontaj în Excel sau în aplicație", href: "/comparatie/excel" },
@@ -173,6 +175,6 @@ export const EVIDENTA_ORELOR: PaginaLege = {
   ],
 
   actualizat: "octombrie 2026",
-  actualizatIso: "2026-10-06",
+  actualizatIso: "2026-10-07",
   publicatIso: "2026-09-04",
 };

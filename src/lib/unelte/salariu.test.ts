@@ -31,11 +31,27 @@ describe("calculul public de salariu", () => {
     }
   });
 
-  it("net → brut → net se închide la cel mult 1 leu, deasupra netului de la minim", () => {
+  it("net → brut atinge netul cerut, niciodată cu un leu sub el", () => {
     for (const net of [3000, 4500, 7000, 12000]) {
       const r = dinNet(net, 1, true);
-      expect(Math.abs(r.net - net), String(net)).toBeLessThanOrEqual(1);
+      expect(r.net, String(net)).toBeGreaterThanOrEqual(net);
+      expect(r.net - net, String(net)).toBeLessThanOrEqual(5);
     }
+  });
+
+  it("net → brut, pe toate țintele rotunde 2.700–15.000: netul atins, brutul cel mai mic", () => {
+    // Auditul din 7 oct 2026: 26 din 124 de ținte ieșeau cu netul = ținta − 1
+    // (5.000 → brut 8.545, net 4.999; corect: 8.548).
+    for (let tinta = 2700; tinta <= 15000; tinta += 100) {
+      const r = dinNet(tinta, 0, true);
+      expect(r.net, `ținta ${String(tinta)}`).toBeGreaterThanOrEqual(tinta);
+      for (let b = r.brut - 1; b >= r.brut - 60; b -= 1) {
+        expect(dinBrut(b, 0, true).net, `brut ${String(b)} pentru ${String(tinta)}`).toBeLessThan(
+          tinta,
+        );
+      }
+    }
+    expect(dinNet(5000, 0, true).brut).toBe(8548);
   });
 
   it("un net sub cel de la salariul minim întoarce salariul minim, nu un brut sub el", () => {

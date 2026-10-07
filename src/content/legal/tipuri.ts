@@ -85,7 +85,12 @@ export type PaginaLege = Readonly<{
   titluAmenzi: string;
   amenzi: readonly Amenda[];
   /** Secțiuni de proză, între tabele. */
-  sectiuni: readonly Readonly<{ titlu: string; paragrafe: readonly string[] }>[];
+  sectiuni: readonly Readonly<{
+    titlu: string;
+    paragrafe: readonly string[];
+    /** Ancora secțiunii, când trebuie fixată; altfel vine din titlu (`cuprins.ts`). */
+    ancora?: string;
+  }>[];
   /**
    * Un tabel de consultat (diurna pe țări). Opțional: paginile-lege fără așa
    * ceva nu-l declară și nu se schimbă. Prima coloană dă și ancora rândului
@@ -93,6 +98,8 @@ export type PaginaLege = Readonly<{
    */
   tabel?: Readonly<{
     titlu: string;
+    /** Ancora tabelului, când trebuie fixată; altfel vine din titlu (`cuprins.ts`). */
+    ancora?: string;
     coloane: readonly string[];
     randuri: readonly (readonly string[])[];
     nota: string;

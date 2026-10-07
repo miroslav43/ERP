@@ -29,7 +29,7 @@ export const CONTROL_ITM: PaginaLege = {
   raspunsScurt: [
     "La un control de fond, inspectorul cere dosarele de personal, contractele cu actele adiționale, evidența orelor prestate zilnic de fiecare salariat, foile colective de prezență, statele de plată, registrul unic de control și regulamentul intern.",
     "Nu se citesc separat. Se compară între ele, iar problemele apar din neconcordanțe: ore care nu se regăsesc în state, salarii nete peste cele declarate, oameni la lucru în perioadă de suspendare.",
-    "Refuzul nejustificat de a prezenta documentele, în cel mult 15 zile de la a doua solicitare, și împiedicarea accesului inspectorilor nu sunt contravenții, sunt infracțiuni — art. 264 alin. (2) și (3) din Codul muncii.",
+    "Documentele nepredate în termenul stabilit de inspector, împiedicarea controlului și măsurile neîndeplinite sunt contravenții, cu amendă de la 5.000 la 10.000 de lei — art. 23 alin. (1) din Legea 108/1999. Devin infracțiuni refuzul nejustificat de a prezenta documentele, în cel mult 15 zile de la a doua solicitare, și împiedicarea accesului inspectorilor — art. 264 alin. (2) și (3) din Codul muncii.",
   ],
 
   titluReguli: "Ce documente cere inspectorul ITM la un control?",
@@ -99,6 +99,17 @@ export const CONTROL_ITM: PaginaLege = {
       temei: "art. 260 alin. (1) lit. m) Codul muncii",
       nuConfunda:
         "Cea mai mică de pe listă, și rareori singura. Când evidența lipsește, restul constatărilor se fac din statele de plată și din declarații — adică din documente care nu vă mai apără.",
+    },
+    {
+      // Adăugat pe 7 oct 2026 (auditul SEO): tabelul n-avea nicio amendă din Legea
+      // 108/1999, deși exact ea se aplică la controlul însuși. Citit pe textul
+      // consolidat (doc. 304537), art. 23 alin. (1).
+      fapta:
+        "Documente nepredate în termenul stabilit de inspector, împiedicarea controlului sau măsuri neîndeplinite",
+      suma: "5.000 – 10.000 lei",
+      temei: "art. 23 alin. (1) lit. a)–c) Legea 108/1999",
+      nuConfunda:
+        "Forma agravată — refuzul nejustificat după a doua solicitare sau împiedicarea accesului — e infracțiune, la art. 264 din Codul muncii.",
     },
     {
       fapta: "Ore peste norma dintr-un contract cu timp parțial",
@@ -211,6 +222,6 @@ export const CONTROL_ITM: PaginaLege = {
   ],
 
   actualizat: "octombrie 2026",
-  actualizatIso: "2026-10-06",
+  actualizatIso: "2026-10-07",
   publicatIso: "2026-09-04",
 };

@@ -25,9 +25,9 @@ import { CRITERII_IMPLICITE, construiesteFisaEvaluare, parametriFisaEvaluare } f
  * verificate pe forma consolidată la 2 oct 2026.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Fișa de evaluare a angajaților: model",
+  titlu: "Fișa de evaluare a angajaților: model Word, PDF",
   descriere:
-    "Fișa de evaluare a performanțelor profesionale, cu criteriile firmei, pondere și notă pe fiecare. Ce spune Codul muncii despre evaluare. Model gratuit în Word, PDF sau Excel.",
+    "Fișa de evaluare a performanțelor profesionale, cu criteriile firmei, pondere și notă. Ce spune Codul muncii. Model gratuit în Word, PDF sau Excel.",
   cale: "/unelte/fisa-evaluare",
 });
 
@@ -39,7 +39,7 @@ const unul = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
 const CLASA_CAMP =
-  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2 text-[0.9375rem]";
+  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
 
 const CAMPURI = [
   { nume: "nume", eticheta: "Angajat", exemplu: "Ilie Maria" },
@@ -109,6 +109,7 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
 
       <Banda inaltime="scurta">
         <form
+          action="#documentul"
           method="get"
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
           data-tipar="ascunde"
@@ -156,7 +157,7 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
         </form>
       </Banda>
 
-      <Banda inaltime="scurta">
+      <Banda id="documentul" inaltime="scurta">
         <PrevizualizareDocument document={document} />
       </Banda>
 

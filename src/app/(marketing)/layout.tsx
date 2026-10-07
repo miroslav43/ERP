@@ -74,7 +74,9 @@ export const metadata: Metadata = {
       ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
       : {},
   },
-  robots: { index: true, follow: true },
+  // `max-image-preview: large`: fără el, Google nu arată imaginea mare în Discover și
+  // în rezultatele cu imagine (auditul din 7 oct 2026).
+  robots: { index: true, follow: true, "max-image-preview": "large" },
 };
 
 /**

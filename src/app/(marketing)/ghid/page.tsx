@@ -29,9 +29,9 @@ import { metadatePagina } from "../_componente/metadate";
  * rădăcină: pentru cine caută „ce cere legea”, sunt același fel de pagină.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Ghiduri pentru angajatori: pontaj, REGES, ITM",
+  titlu: "Ghiduri pentru angajatori: salariu minim, ITM",
   descriere:
-    "Ce cer Codul muncii și HG 295/2025 de la o firmă mică: evidența orelor, REGES-ONLINE, concediul de odihnă, controlul ITM. Cu articolul de lege lângă fiecare afirmație.",
+    "Salariul minim, diurna, orele suplimentare, concediul, REGES-ONLINE, evidența orelor și controlul ITM, pentru firme mici. Cu articolul lângă fiecare regulă.",
   cale: "/ghid",
 });
 

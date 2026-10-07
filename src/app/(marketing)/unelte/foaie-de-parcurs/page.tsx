@@ -44,7 +44,7 @@ const unul = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
 const CLASA_CAMP =
-  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2 text-[0.9375rem]";
+  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
 
 const CAMPURI_TEXT = [
   { nume: "auto", eticheta: "Nr. de înmatriculare", exemplu: "B-123-ABC" },
@@ -109,6 +109,7 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
 
       <Banda inaltime="scurta">
         <form
+          action="#documentul"
           method="get"
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
           data-tipar="ascunde"
@@ -164,7 +165,7 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
         </form>
       </Banda>
 
-      <Banda inaltime="scurta">
+      <Banda id="documentul" inaltime="scurta">
         <PrevizualizareDocument document={document} />
       </Banda>
 

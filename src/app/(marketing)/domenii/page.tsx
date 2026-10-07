@@ -34,7 +34,15 @@ export const metadata: Metadata = metadatePagina({
 export default function PaginaDomenii() {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={RO.pagini.domenii} />
+      {/* Firimiturile lipseau doar aici: cele patru pagini-copil și hub-urile surori
+          le aveau, cu `BreadcrumbList` (auditul din 7 oct 2026). */}
+      <AntetSecundar
+        text={RO.pagini.domenii}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Domenii", href: "/domenii" },
+        ]}
+      />
       <BandaVerticale text={RO} />
 
       <Banda

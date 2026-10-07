@@ -31,7 +31,7 @@ import { construiesteCondica, parametriCondica } from "./model";
 export const metadata: Metadata = metadatePagina({
   titlu: "Condica de prezență: model Word, PDF și Excel",
   descriere:
-    "Condica de prezență gata completată cu zilele lucrătoare ale lunii, ora sosirii, ora plecării și semnătura. Model gratuit în Word, PDF sau Excel. Și: e obligatorie?",
+    "Condica de prezență cu zilele lucrătoare ale lunii, ora sosirii, ora plecării și semnătura. Model gratuit în Word, PDF sau Excel. Și: e obligatorie?",
   cale: "/unelte/condica-de-prezenta",
 });
 
@@ -43,7 +43,7 @@ const unul = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
 const CLASA_CAMP =
-  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2 text-[0.9375rem]";
+  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
 
 export default async function PaginaCondica({ searchParams }: Proprietati) {
   const p = await searchParams;
@@ -98,6 +98,7 @@ export default async function PaginaCondica({ searchParams }: Proprietati) {
 
       <Banda inaltime="scurta">
         <form
+          action="#documentul"
           method="get"
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
           data-tipar="ascunde"
@@ -163,7 +164,7 @@ export default async function PaginaCondica({ searchParams }: Proprietati) {
         </form>
       </Banda>
 
-      <Banda inaltime="scurta">
+      <Banda id="documentul" inaltime="scurta">
         <PrevizualizareDocument document={document} />
       </Banda>
 

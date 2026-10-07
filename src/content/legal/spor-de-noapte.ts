@@ -131,6 +131,8 @@ export const SPOR_DE_NOAPTE: PaginaLege = {
     { eticheta: "Program de salarizare", href: "/module/salarizare" },
     { eticheta: "Ore suplimentare: limita și plata", href: "/ghid/ore-suplimentare" },
     { eticheta: "Calculator salariu net și brut", href: "/unelte/calculator-salariu" },
+    { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },
+    { eticheta: "Pentru fabrici și producție pe schimburi", href: "/domenii/productie" },
   ],
 
   surse: [

@@ -22,16 +22,16 @@ export const EN: ContinutLanding = {
     // căutat și dimensiunea firmei în locul ei.
     titlu: "Time tracking and HR for companies with 5–50 employees",
     descriere:
-      "Clocking in by phone, leave, personnel files and REGES-ONLINE reporting in one account. 149 lei a month for up to 20 employees, first month free.",
+      "Clocking in by phone, leave and personnel files: 149 lei a month for up to 20 employees, first month free. REGES-ONLINE reporting, 39 lei a month more.",
   },
 
   antet: {
     navigare: [
-      { eticheta: "What it does", href: "/en/#produs" },
-      { eticheta: "Who it is for", href: "/en/#pentru-cine" },
+      { eticheta: "What it does", href: "/en#produs" },
+      { eticheta: "Who it is for", href: "/en#pentru-cine" },
       { eticheta: "Pricing", href: "/en/preturi" },
-      { eticheta: "Security", href: "/en/#siguranta" },
-      { eticheta: "Contact", href: "/en/#contact" },
+      { eticheta: "Security", href: "/en#siguranta" },
+      { eticheta: "Contact", href: "/en#contact" },
     ],
     autentificare: "Sign in",
     demo: "Create an account",
@@ -187,7 +187,7 @@ export const EN: ContinutLanding = {
     grupuri: [
       {
         cheie: "core",
-        titlu: "Core",
+        titlu: "Platform",
         module: [
           {
             cheie: "nucleu",
@@ -230,7 +230,7 @@ export const EN: ContinutLanding = {
             titlu: "Leave",
             text: "The request travels the approval chain, the balance recalculates itself, and non-working days and public holidays drop out of the count automatically.",
             puncte: [
-              "Eleven leave types, each with its legal basis noted",
+              "Thirteen leave types, configurable per company",
               "Annual entitlement by seniority, working conditions, disability or age",
               "Team calendar: who is away, and when",
             ],
@@ -339,7 +339,7 @@ export const EN: ContinutLanding = {
             puncte: [
               "Reusable premiums and bonuses, defined once",
               "Deductions capped as a percentage of net pay",
-              "Meal vouchers never enter the social contribution base",
+              "Meal vouchers stay out of the pension (CAS) base; for health (CASS), per the setting your accountant confirms",
             ],
           },
           {
@@ -551,8 +551,8 @@ export const EN: ContinutLanding = {
     lead: "The table below is each role's read scope, exactly as it is seeded in the database. A test in continuous integration compares every cell against that source: if the database changes, the page fails before it can lie.",
     capResursa: "Resource",
     note: [
-      "The employee has “—” on personnel files. They cannot see even their own file in the personnel module: their data lives in the portal, which is a different route with different rules.",
-      "A manager approves their team's attendance but cannot create it. In practice the sheet is read-only for them.",
+      "An employee sees their own personnel file and nobody else's. Their personal ID number and IBAN stay closed even to them: those need read access across the whole company, not on one's own row.",
+      "A manager approves their team's attendance and clocks their own days, but cannot write anyone else's. The team sheet stays read-only for them.",
       "A manager has an EXPLICIT refusal on payroll, not a missing row. An administrator can grant the right for their own company, without a new release.",
       "HR fully administers health and safety, but has no right over compliance due dates: the list comes back empty, with no error at all. It is a real limit, and we would rather you learned it here.",
     ],
@@ -639,8 +639,15 @@ export const EN: ContinutLanding = {
     ],
     retentieTitlu: "Data retention",
     retentie: [
-      { ce: "Personnel file", regula: "Term configured per company, with automatic purging" },
-      { ce: "Audit log", regula: "Appended to, never deleted; no delete policy exists" },
+      {
+        ce: "Personnel file",
+        regula:
+          "For the length of the contract; after it ends, 30 days to recover, then permanent deletion",
+      },
+      {
+        ce: "Audit log",
+        regula: "Appended to, never rewritten; kept as long as the law requires, as evidence",
+      },
       { ce: "Walkthrough requests", regula: "Used only to contact you about that request" },
       { ce: "Sensitive data", regula: "Encrypted, with a trace on every read" },
       {
@@ -667,7 +674,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "Data carrying a national ID does not reach REGES without a person",
-        text: "Filing with REGES-ONLINE happens over the API, from the application, using the access your company obtains from the Labour Inspectorate portal. Messages are prepared from the employee record and wait in a queue until someone with the right to file sends them — nothing leaves in the background, unnoticed, and every read of a national ID number is logged. We do not generate a REVISAL file: REGES-ONLINE replaced it.",
+        text: "Filing with REGES-ONLINE happens over the API, from the application, using the access your company obtains from the Labour Inspectorate portal. Messages are prepared from the employee record. Those carrying an employee's national ID number wait in a queue until someone with the right to file sends them, and every read of that number is logged; contract messages, which hold no personal data, can also leave from the automatic sending cycle. We do not generate a REVISAL file: REGES-ONLINE replaced it.",
       },
       {
         titlu: "The AI assistant shows you the way, it does not do the work",
@@ -683,7 +690,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "There is no native mobile app in the app stores",
-        text: "The employee portal runs in the browser, on a phone. That is all.",
+        text: "The employee portal runs in the browser, on a phone. An Android app exists in internal testing but is not published on Google Play; there is none for iPhone.",
       },
     ],
     incheiere:
@@ -790,7 +797,7 @@ export const EN: ContinutLanding = {
         titlu: "Leave requests are approved in one click, and the balance works itself out",
         text: "Employees request leave from their phone and see up front how many working days it uses. The manager approves or rejects with a reason, public holidays come off automatically, and approved days land on the attendance sheet without anyone copying them over.",
         puncte: [
-          "Eleven leave types, each with its legal basis noted",
+          "Thirteen leave types, configurable per company",
           "Annual entitlement, worked out from seniority and working conditions",
           "The team calendar: who is away, and when",
         ],
@@ -966,7 +973,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "We build in the order you ask",
-        text: "New features come in the order the companies working with us request them. If something is missing for you, tell us in the first conversation.",
+        text: "New features come in the order companies ask for them. If something is missing for you, tell us in the first conversation.",
       },
     ],
   },
@@ -984,7 +991,7 @@ export const EN: ContinutLanding = {
       {
         cheie: "hr_extins",
         nume: "Extended HR",
-        pentru: "On top of the core: REGES-ONLINE, onboarding, courses, safety and reviews",
+        pentru: "On top of the core: REGES-ONLINE, onboarding, courses, safety, reviews and KPIs",
       },
       {
         cheie: "operational",
@@ -994,7 +1001,7 @@ export const EN: ContinutLanding = {
       {
         cheie: "financiar",
         nume: "Finance",
-        pentru: "On top of the core: payroll, per diem and travel",
+        pentru: "On top of the core: payroll, per diem and travel, reports",
       },
       {
         cheie: "tot",
@@ -1088,7 +1095,7 @@ export const EN: ContinutLanding = {
       },
       {
         q: "What happens when an employee leaves?",
-        a: "Nothing is physically deleted. The file closes, the trace remains, and the data is purged at the term set in your company's retention policy. There is no delete policy anywhere in the database.",
+        a: "Nothing is deleted inside the application, not by your administrator and not by ours: the record is marked as closed and stays in the history. The guarantee lives in the database, not behind a hidden button: there is no deletion policy on any company data, so a delete command coming from the application touches no row. We delete data permanently only after your contract with us ends, within the terms set out in the Terms of service.",
       },
       {
         q: "Does it replace the accountant?",
@@ -1116,7 +1123,7 @@ export const EN: ContinutLanding = {
       },
       {
         q: "What happens to our data if we leave?",
-        a: "You take it. We export what we hold about you in an open format, and what remains with us is purged at the agreed term. We do not hold data as a negotiating position.",
+        a: "You take it. We export what we hold about you in an open format. After the contract ends, the data stays accessible for thirty days and is then permanently deleted within another thirty, backups included. We do not hold data as a negotiating position.",
       },
       {
         q: "How much does it cost?",
@@ -1176,7 +1183,7 @@ export const EN: ContinutLanding = {
     program: "Monday–Friday, 9–18 (Romania)",
     notaReferinte:
       "The first customers are in implementation. If you would like to speak to one of them before deciding, we will put you in touch.",
-    cine: "Administrativo is made in {oras} by {firma}. The phone is answered by someone from the team that builds the application.",
+    cine: "Administrativo is made by {firma}, in {oras}. The phone is answered by someone from the team that builds the application.",
     formularTitlu: "Or leave us your details",
   },
 
@@ -1187,11 +1194,11 @@ export const EN: ContinutLanding = {
       {
         titlu: "Product",
         legaturi: [
-          { eticheta: "What it does", href: "/en/#produs" },
-          { eticheta: "Free tools", href: "/en/#unelte" },
+          { eticheta: "What it does", href: "/en#produs" },
+          { eticheta: "Free tools", href: "/en#unelte" },
           { eticheta: "Pricing", href: "/en/preturi" },
-          { eticheta: "Data security", href: "/en/#siguranta" },
-          { eticheta: "How to start", href: "/en/#incepe" },
+          { eticheta: "Data security", href: "/en#siguranta" },
+          { eticheta: "How to start", href: "/en#incepe" },
         ],
       },
       {
@@ -1251,7 +1258,8 @@ export const EN: ContinutLanding = {
     },
     domenii: {
       supratitlu: "By industry",
-      titlu: "The same modules, a different order of importance",
+      titlu:
+        "The same modules, a different order: construction, manufacturing, transport, services",
       lead: "We do not sell different versions per industry. Only what you switch on first and what lands on the first screen changes, and below is exactly what that means for four kinds of company.",
     },
     pentruContabili: {

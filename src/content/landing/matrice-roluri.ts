@@ -2,9 +2,10 @@
  * Matricea „cine ce vede" din banda `#roluri`.
  *
  * Fiecare celulă e DOMENIUL de citire al unui rol pe o resursă, exact cum e
- * așezat în seed-ul global din `0002_authz.sql`. Nu e o simplificare de
- * marketing: `matrice-roluri.test.ts` parsează migrarea și cade dacă vreo
- * celulă de aici nu mai corespunde bazei.
+ * așezat în seed-ul global din `0002_authz.sql` și mutat apoi de migrările de
+ * după (`0023_portal_angajat.sql` a dat angajatului `own` pe fișe). Nu e o
+ * simplificare de marketing: `matrice-roluri.test.ts` parsează migrările și cade
+ * dacă vreo celulă de aici nu mai corespunde bazei.
  *
  * Trei decizii deliberate:
  *
@@ -53,7 +54,9 @@ export const MATRICE: readonly RandMatrice[] = [
   {
     resursa: "employees",
     eticheta: "Fișele de personal",
-    domenii: { org_admin: "all", hr: "all", manager: "team", employee: "none" },
+    // `own` din 0023: își vede propria fișă, nu pe ale altora. Până la 7 oct 2026
+    // tabelul arăta „—", rămas din 0002 — testul citea doar seed-ul inițial.
+    domenii: { org_admin: "all", hr: "all", manager: "team", employee: "own" },
   },
   {
     resursa: "attendance",

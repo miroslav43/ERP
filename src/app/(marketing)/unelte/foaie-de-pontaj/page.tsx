@@ -46,9 +46,9 @@ import {
  * nevoie de hidratare.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Foaie de pontaj lunar: PDF, Word și Excel",
+  titlu: "Foaie de pontaj lunar: model PDF, Word, Excel",
   descriere:
-    "Foaie colectivă de pontaj pentru orice lună, cu weekendurile și sărbătorile legale marcate automat. Descarci în PDF, Word sau Excel, fără cont.",
+    "Model de foaie colectivă de pontaj pentru orice lună, cu weekendurile și sărbătorile legale marcate automat. Descarci în PDF, Word sau Excel, fără cont.",
   cale: "/unelte/foaie-de-pontaj",
 });
 
@@ -60,7 +60,7 @@ const unul = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
 const CLASA_CAMP =
-  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2 text-[0.9375rem]";
+  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
 
 export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati) {
   const p = await searchParams;
@@ -96,6 +96,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
 
       <Banda inaltime="scurta">
         <form
+          action="#documentul"
           method="get"
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
           data-tipar="ascunde"
@@ -167,7 +168,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
         </div>
       </Banda>
 
-      <Banda inaltime="scurta">
+      <Banda id="documentul" inaltime="scurta">
         <figure className="mk-foaie">
           <figcaption className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
             <p className="font-mk-date text-[0.6875rem] font-medium tracking-[0.14em] uppercase">

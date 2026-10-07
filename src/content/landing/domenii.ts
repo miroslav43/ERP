@@ -79,7 +79,7 @@ export const DOMENII: readonly Domeniu[] = [
     module: [
       {
         cheie: "ssm",
-        deCe: "Instruirile, aptitudinile medicale și echipamentul individual, fiecare cu scadență și cu semafor înainte de termen. E modulul de la care pornesc aproape toate firmele de construcții.",
+        deCe: "Instruirile, aptitudinile medicale și echipamentul individual, fiecare cu scadență și cu semafor înainte de termen. Pentru o firmă de construcții, e modulul cu care recomandăm să înceapă.",
       },
       {
         cheie: "attendance",
@@ -99,7 +99,7 @@ export const DOMENII: readonly Domeniu[] = [
       },
     ],
     ordinea: [
-      "Ordinea care funcționează în practică: SSM întâi, pontaj imediat după. SSM fiindcă are cea mai scurtă distanță până la o problemă reală — o instruire expirată se vede la primul control și n-are cum fi reparată retroactiv.",
+      "Ordinea pe care o recomandăm: SSM întâi, pontaj imediat după. SSM fiindcă are cea mai scurtă distanță până la o problemă reală — o instruire expirată se vede la primul control și n-are cum fi reparată retroactiv.",
       "Pontajul vine al doilea fiindcă are nevoie de câteva zile ca oamenii să se obișnuiască să deschidă linkul dimineața. Merită pornit la început de lună, nu la mijloc: o lună tăiată în două, jumătate pe hârtie și jumătate în aplicație, e mai greu de închis decât oricare dintre ele separat.",
       "Diurnele, parcul auto și inventarul se pornesc când ajungi la ele. Nu sunt condiții pentru primele două și nu au sens activate toate în aceeași săptămână.",
     ],
@@ -111,7 +111,7 @@ export const DOMENII: readonly Domeniu[] = [
     titlu: "Pontaj pe schimburi pentru producție",
     metaTitlu: "Pontaj pe schimburi pentru fabrici",
     metaDescriere:
-      "Ture și schimburi, spor de noapte cu interval propriu, revizii pe scadență și pe contor, autorizații nominale cu termen. Evidența orelor, ținută cum o cere legea.",
+      "Ture și schimburi, spor de noapte pe interval propriu, revizii pe scadență și pe contor, autorizații nominale cu termen. Evidența orelor, cum o cere legea.",
     lead: "Schimbul de noapte, sporul care i se cuvine și revizia care trebuie făcută la o mie de ore sunt trei evidențe diferite. De obicei se țin în trei fișiere care nu se cunosc.",
     dureri: [
       {
@@ -221,7 +221,7 @@ export const DOMENII: readonly Domeniu[] = [
     titlu: "Concedii și dosare de personal pentru birouri",
     metaTitlu: "Concedii și dosare de personal pentru birouri",
     metaDescriere:
-      "Cereri de concediu cu aprobare pe linie ierarhică, sold recalculat automat, calendarul echipei, evaluări periodice și portal în care omul își găsește singur fluturașul.",
+      "Cereri de concediu cu aprobare pe linie ierarhică, sold recalculat automat, calendarul echipei, evaluări și un portal unde omul își găsește singur fluturașul.",
     lead: "Aici nu se pierd ore, se pierd zile de concediu și răspunsuri. Problema nu e evidența, e că fiecare cerere trece prin cineva care trebuie să-și amintească.",
     dureri: [
       {
@@ -234,7 +234,7 @@ export const DOMENII: readonly Domeniu[] = [
       },
       {
         titlu: "Soldul de zile nu e un număr, e un calcul",
-        text: "Dreptul anual depinde de vechime, de condițiile de muncă și de gradul de handicap, iar zilele netransferate au propriile reguli de reportare. Ținut ca o cifră într-un tabel, e greșit din prima zi a anului.",
+        text: "Dreptul anual pornește de la minimul de 20 de zile lucrătoare (art. 145), plus zilele pentru condiții grele, handicap sau vârstă (art. 147) și, dacă le prevede contractul, zile pentru vechime. Iar zilele neluate au propriile reguli de reportare. Ținut ca o cifră într-un tabel, e greșit din prima zi a anului.",
       },
       {
         titlu: "Fluturașul se cere pe e-mail, unul câte unul",
@@ -244,7 +244,7 @@ export const DOMENII: readonly Domeniu[] = [
     module: [
       {
         cheie: "leave",
-        deCe: "Cerere, aprobare pe linie ierarhică și sold recalculat singur. Dreptul anual iese din vechime, condiții și grad de handicap, nu dintr-o cifră scrisă de mână.",
+        deCe: "Cerere, aprobare pe linie ierarhică și sold recalculat singur. Dreptul anual iese din regulile firmei — vechime, dacă o prevede contractul, condiții de muncă, handicap, vârstă —, nu dintr-o cifră scrisă de mână.",
       },
       {
         cheie: "employee_portal",

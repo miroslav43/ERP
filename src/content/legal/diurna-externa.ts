@@ -32,7 +32,7 @@ export const DIURNA_EXTERNA: PaginaLege = {
   raspunsScurt: [
     "Diurna în străinătate are un cuantum pe zi pentru fiecare țară, stabilit în anexa HG 518/1995: de exemplu 35 de euro pentru Germania, Franța sau Ungaria și 32 de euro pentru Bulgaria. Pentru firmele private hotărârea e doar o recomandare — art. 17 alin. (1).",
     "Ce contează pentru o firmă privată e plafonul neimpozabil: 2,5 ori cuantumul din anexă, în limita a 3 salarii de bază pe lună — art. 76 alin. (2) lit. k) pct. (ii) din Codul fiscal. Pentru Germania, 87,50 de euro pe zi. Ce trece de plafon e venit din salarii, cu impozit și contribuții.",
-    "Zilele se numără de la trecerea frontierei (decolare sau aterizare, pentru avion). Fracțiunea de zi sub 12 ore primește 50% din diurnă, peste 12 ore 100% — art. 7^1 din hotărâre.",
+    "Zilele se numără de la trecerea frontierei (decolare sau aterizare, pentru avion). Fracțiunea de zi de până la 12 ore primește 50% din diurnă, peste 12 ore 100% — art. 7^1 din hotărâre.",
   ],
 
   titluReguli: "Cum se acordă diurna externă și cât e neimpozabil?",
@@ -71,7 +71,7 @@ export const DIURNA_EXTERNA: PaginaLege = {
     },
     {
       situatie: "Fracțiunile de zi",
-      cerinta: "Sub 12 ore: 50% din diurnă. Peste 12 ore: diurna întreagă.",
+      cerinta: "Până la 12 ore inclusiv: 50% din diurnă. Peste 12 ore: diurna întreagă.",
       temei: "art. 7^1 alin. (2) HG 518/1995",
     },
   ],
@@ -133,6 +133,7 @@ export const DIURNA_EXTERNA: PaginaLege = {
     { eticheta: "Program de diurne și deplasări", href: "/module/diurna" },
     { eticheta: "Diurna în țară: cele două plafoane", href: "/ghid/diurna" },
     { eticheta: "Foaie de parcurs: model gratuit", href: "/unelte/foaie-de-parcurs" },
+    { eticheta: "Pentru firmele de transport internațional", href: "/domenii/transport" },
   ],
 
   surse: [
@@ -147,6 +148,6 @@ export const DIURNA_EXTERNA: PaginaLege = {
   ],
 
   actualizat: "octombrie 2026",
-  actualizatIso: "2026-10-02",
+  actualizatIso: "2026-10-07",
   publicatIso: "2026-10-02",
 };

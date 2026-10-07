@@ -15,7 +15,7 @@ import { RandarePaginaLege } from "../_componente/pagina-lege";
 export const metadata: Metadata = metadatePagina({
   titlu: "Evidența orelor de muncă: art. 119 în 2026",
   descriere:
-    "Legea cere ora de începere și de sfârșit, zilnic, la locul de muncă — nu doar numărul de ore. Regulile, amenzile și ce se verifică la un control ITM, cu articolul lângă fiecare.",
+    "Art. 119 cere ora de începere și de sfârșit, zilnic, la locul de muncă — nu doar numărul de ore. Ce verifică ITM și amenda de 1.500–3.000 lei.",
   cale: "/evidenta-orelor-de-munca",
 });
 

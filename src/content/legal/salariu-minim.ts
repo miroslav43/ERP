@@ -107,7 +107,7 @@ export const SALARIU_MINIM: PaginaLege = {
     {
       situatie: "Construcții",
       cerinta:
-        "Minim propriu, prin derogare: 4.582 lei pe lună din 1 ianuarie 2025, pentru 165,334 ore în medie, adică 27,714 lei pe oră. Nerespectarea anulează și facilitățile fiscale ale sectorului.",
+        "Minim propriu, prin derogare: 4.582 lei pe lună din 1 ianuarie 2025, pentru 165,334 ore în medie, adică 27,714 lei pe oră. Plata sub el se amendează ca la art. 260 alin. (1) lit. a) din Codul muncii. Facilitățile fiscale ale sectorului au fost abrogate de la 1 ianuarie 2025, chiar prin OUG 156/2024.",
       temei: "OUG 156/2024, art. LXIX",
     },
     {
@@ -177,7 +177,7 @@ export const SALARIU_MINIM: PaginaLege = {
     {
       intrebare: "Minimul din construcții s-a schimbat în 2026?",
       raspuns:
-        "În forma consolidată a Codului muncii, citită pe 6 octombrie 2026, valoarea pentru construcții rămâne cea din OUG 156/2024 — 4.582 lei. Dacă firma aplică facilitățile din construcții, contabilul verifică încadrarea și pragurile.",
+        "În forma consolidată a Codului muncii, citită pe 6 octombrie 2026, valoarea pentru construcții rămâne cea din OUG 156/2024 — 4.582 lei. Facilitățile fiscale din construcții nu se mai aplică veniturilor de după 1 ianuarie 2025, deci salariul de acolo se impozitează ca oricare altul.",
     },
     {
       intrebare: "Cât se plătește la jumătate de normă?",
@@ -219,6 +219,6 @@ export const SALARIU_MINIM: PaginaLege = {
     },
   ],
   actualizat: "octombrie 2026",
-  actualizatIso: "2026-10-06",
+  actualizatIso: "2026-10-07",
   publicatIso: "2026-10-06",
 };

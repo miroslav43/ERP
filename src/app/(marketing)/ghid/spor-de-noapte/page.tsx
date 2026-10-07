@@ -9,7 +9,7 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
 export const metadata: Metadata = metadatePagina({
   titlu: "Spor de noapte: Codul muncii și calculul",
   descriere:
-    "Sporul de noapte în Codul muncii: 25% din salariul de bază sau o oră mai puțin, pragul de 3 ore, intervalul 22–6 și un exemplu de calcul. Cu articolul lângă fiecare regulă.",
+    "Sporul de noapte în Codul muncii: 25% din salariul de bază sau o oră mai puțin, de la 3 ore lucrate între 22 și 6. Calcul cu exemplu și articolul.",
   cale: "/ghid/spor-de-noapte",
 });
 

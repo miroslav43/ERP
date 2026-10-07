@@ -38,14 +38,21 @@ describe("fișa individuală de instruire SSM", () => {
 });
 
 describe("regulile afișate pe pagină", () => {
-  it("dau minimul de 8 ore la toate trei instruirile care îl au în norme", () => {
-    // Revizuirea finală: pagina dădea 8 ore doar la introductiv-generală, deși
-    // art. 92 alin. (2) și art. 99 îl cer și la locul de muncă și la suplimentară.
+  it("dau minimul de o oră din art. 80¹, nu cele 8 ore abrogate în 2016", () => {
+    // Auditul SEO din 7 oct 2026: pagina citea consolidarea din 2011 și dădea
+    // „cel puțin 8 ore” pe fază. Art. 87 alin. (2) e abrogat prin HG 767/2016,
+    // care a introdus art. 80¹: cel puțin o oră, stabilită prin programul firmei.
     const dupa = (tip: string) => INSTRUIRI_SSM.find((r) => r.tip === tip);
-    expect(dupa("Introductiv-generală")?.regula).toMatch(/8 ore/u);
-    expect(dupa("La locul de muncă")?.regula).toMatch(/8 ore/u);
-    expect(dupa("La locul de muncă")?.temei).toBe("art. 92 alin. (2)");
-    expect(dupa("Suplimentară")?.regula).toMatch(/8 ore/u);
-    expect(dupa("Suplimentară")?.temei).toBe("art. 98 și 99");
+    for (const tip of ["Introductiv-generală", "La locul de muncă", "Suplimentară"]) {
+      expect(dupa(tip)?.regula, tip).toMatch(/o oră/u);
+      expect(dupa(tip)?.temei, tip).toMatch(/80¹/u);
+    }
+    expect(INSTRUIRI_SSM.some((r) => /8 ore/u.test(r.regula))).toBe(false);
+  });
+
+  it("spun că fișa se poate ține și în format electronic (HG 259/2022)", () => {
+    const consemnarea = INSTRUIRI_SSM.find((r) => r.tip === "Consemnarea");
+    expect(consemnarea?.regula).toMatch(/format electronic/u);
+    expect(INSTRUIRI_SSM.some((r) => /pix|stilou/u.test(r.regula))).toBe(false);
   });
 });

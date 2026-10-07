@@ -9,7 +9,7 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
 export const metadata: Metadata = metadatePagina({
   titlu: "Ore suplimentare: ce spune Codul muncii",
   descriere:
-    "Orele suplimentare în Codul muncii: limita de 48 de ore pe săptămână, compensarea cu timp liber în 90 de zile, sporul de minimum 75% și amenda. Cu articolul lângă fiecare regulă.",
+    "Ore suplimentare în Codul muncii: cel mult 48 de ore pe săptămână în medie, timp liber în 90 de zile, apoi spor de minimum 75%. Amenda și articolul.",
   cale: "/ghid/ore-suplimentare",
 });
 

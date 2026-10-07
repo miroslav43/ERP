@@ -1,5 +1,6 @@
 // src/app/(marketing)/cere-demo/page.tsx
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { CONTACT } from "@/content/landing/contact";
 import { lunar, PRAG_ANGAJATI, PRET_NUCLEU } from "@/content/landing/preturi";
@@ -27,7 +28,10 @@ const ASTEPTARI = [
   },
   {
     titlu: "Îți spunem și ce nu e gata",
-    text: "Lista completă e pe pagina principală, la „Ce nu facem”. Nu o ținem pentru a treia întâlnire.",
+    // Lista NU e pe pagina principală, cum spunea textul până la 7 oct 2026, ci
+    // pe `/de-ce-nu` — și nu era legată deloc.
+    text: "Lista completă e pe pagina „Ce nu facem”. Nu o ținem pentru a treia întâlnire.",
+    legatura: { eticheta: "Ce nu facem", href: "/de-ce-nu" },
   },
   {
     titlu: "Prețul îl știi dinainte",
@@ -70,6 +74,14 @@ export default function PaginaCereDemo() {
                   <p className="text-mk-text-slab mt-1.5 text-[0.875rem] leading-[1.55]">
                     {element.text}
                   </p>
+                  {"legatura" in element && (
+                    <Link
+                      href={element.legatura.href}
+                      className="mt-1.5 inline-block text-[0.875rem] underline underline-offset-4"
+                    >
+                      {element.legatura.eticheta}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

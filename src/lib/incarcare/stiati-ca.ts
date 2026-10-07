@@ -126,9 +126,9 @@ export const MESAJE: readonly MesajIncarcare[] = [
   },
 
   // ── Concedii ──────────────────────────────────────────────────────────
-  // docs/project-overview.md §3
+  // supabase/migrations/0125_concedii_care_suspenda_contractul.sql (seed-ul celor 13 tipuri)
   {
-    text: "Sunt unsprezece tipuri statutare de concediu, cu sold ținut pe fiecare angajat și pe fiecare an.",
+    text: "Sunt treisprezece tipuri de concediu predefinite, cu sold ținut pe fiecare angajat și pe fiecare an.",
     categorie: "Concedii",
   },
   // src/domain/calendar/paste-ortodox.ts

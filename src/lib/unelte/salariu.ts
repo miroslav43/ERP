@@ -115,16 +115,21 @@ export function dinNet(net: number, persoane: number, functieDeBaza: boolean): R
     if (dinBrut(mijloc, persoane, functieDeBaza).net < tinta) jos = mijloc;
     else sus = mijloc;
   }
-  let ales = dinBrut(Math.ceil(sus), persoane, functieDeBaza);
+  let start = Math.ceil(sus);
+  let ales = dinBrut(start, persoane, functieDeBaza);
+  // Bisecția merge pe bruturi cu bani: un brut fracționar poate atinge ținta prin
+  // rotunjirea contribuțiilor, iar întregul de deasupra să rămână cu un leu SUB
+  // ea. Auditul din 7 oct 2026 a găsit 26 din 124 de ținte rotunde (2.700–15.000)
+  // întoarse cu netul = ținta − 1. Se urcă leu cu leu până când ținta e atinsă.
+  for (let pas = 0; ales.net < tinta && pas < 4 * RECUL_MAXIM_LEI && start < BRUT_MAX; pas += 1) {
+    start += 1;
+    ales = dinBrut(start, persoane, functieDeBaza);
+  }
   // La salariul minim, suma neimpozabilă face netul să sară în sus, iar brutul
   // de imediat deasupra are un net MAI MIC. Minimul se încearcă explicit.
   const laMinim = dinBrut(SALARIU_MINIM_BRUT_2026_IULIE, persoane, functieDeBaza);
   if (laMinim.net >= tinta && laMinim.brut < ales.brut) ales = laMinim;
-  for (
-    let b = Math.ceil(sus) - 1;
-    b >= Math.max(BRUT_MIN, Math.ceil(sus) - RECUL_MAXIM_LEI);
-    b -= 1
-  ) {
+  for (let b = start - 1; b >= Math.max(BRUT_MIN, start - RECUL_MAXIM_LEI); b -= 1) {
     const r = dinBrut(b, persoane, functieDeBaza);
     if (r.net >= tinta && r.brut < ales.brut) ales = r;
   }

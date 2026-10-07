@@ -119,7 +119,7 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: "/en/preturi",
     // 6 oct: numele modulelor duc la pagina lor, fără slug afișat (pagina-preturi.tsx).
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {
@@ -129,7 +129,7 @@ export const PAGINI: readonly Pagina[] = [
     traducere: "/preturi",
     // 2 oct: legătura spre ofertă și slug-urile din tabel (en.ts, pagina-preturi.tsx).
     // 6 oct: aceeași schimbare în tabel (pagina-preturi.tsx).
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {
@@ -138,7 +138,7 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     // 6 oct: trei puncte fără acoperire în cod, scoase; actorii fără chei interne (ro.ts).
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {
@@ -146,7 +146,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {
@@ -155,7 +155,7 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     // 6 oct: pilotul numește modulele, nu „nucleul” (pentru-contabili.ts).
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {
@@ -163,7 +163,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-18",
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
 
@@ -179,7 +179,7 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     // 6 oct: hub-ul listează ghidul de salariu minim.
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     sectiune: "Obligații legale",
   },
   {
@@ -271,7 +271,7 @@ export const PAGINI: readonly Pagina[] = [
     traducere: null,
     // 2 oct: „Pe același subiect" din `legaturi.ts` — poarta compară domeniile cu
     // `domenii.ts`, deci nu vede schimbarea; data se ridică de mână, pe toate patru.
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     sectiune: "Domenii",
   },
   {
@@ -279,7 +279,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     sectiune: "Domenii",
   },
   {
@@ -287,7 +287,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     sectiune: "Domenii",
   },
   {
@@ -296,7 +296,7 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     // 6 oct: calendarul echipei în locul pragului de absenți (domenii.ts).
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     sectiune: "Domenii",
   },
 
@@ -306,7 +306,7 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     // 6 oct: titlul și descrierea numesc toate cele șapte unelte.
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
   // 5 oct 2026: toate uneltele primesc nodul `WebApplication`, a cărui
@@ -317,7 +317,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-05",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
   {
@@ -325,7 +325,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-05",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
   {
@@ -333,7 +333,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-05",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
   {
@@ -341,7 +341,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-05",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
   {
@@ -349,7 +349,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-05",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
   {
@@ -357,7 +357,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-05",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
   {
@@ -365,7 +365,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-05",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
   {
@@ -390,7 +390,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-07",
     sectiune: "Înainte să întrebi",
   },
   {
@@ -398,7 +398,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     sectiune: "Înainte să întrebi",
   },
   {
@@ -406,7 +406,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-07",
     sectiune: "Înainte să întrebi",
   },
 
@@ -415,7 +415,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.3,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-07",
     sectiune: "Legal",
   },
   {

@@ -182,19 +182,20 @@ describe("catalogul vitrinelor", () => {
 
   it("captura modulului `leave` își declară limita, ca pagina să nu se contrazică", () => {
     /*
-     * `ro.ts` promite, în punctele modulului, „Unsprezece tipuri, fiecare cu
-     * temeiul legal notat". Captura arată UN ecran, pe O lună. Ambele texte
+     * `ro.ts` promite, în punctele modulului, „Treisprezece tipuri de concediu"
+     * (câte semănă `0125_concedii_care_suspenda_contractul.sql` pe fiecare
+     * firmă). Captura arată UN ecran, pe O lună. Ambele texte
      * ajung pe aceeași pagină, la câțiva centimetri distanță, deci fără notă
      * pagina s-ar contrazice sub ochii unui prospect.
      *
      * Asertarea nu cere un cuvânt anume — un tipar pe „subset" ar fi căzut la
      * prima reformulare, fără ca nimic să se strice de fapt. Cere ca nota să
      * existe, să fie o frază adevărată, și să numească explicit cele
-     * unsprezece tipuri față de care se declară mai mică.
+     * treisprezece tipuri față de care se declară mai mică.
      */
     const nota = notaVitrinei("leave") ?? "";
     expect(nota.length).toBeGreaterThan(40);
-    expect(nota).toMatch(/unsprezece|11/i);
+    expect(nota).toMatch(/treisprezece|13/i);
     expect(notaVitrinei("reges")).toBeUndefined();
   });
 });

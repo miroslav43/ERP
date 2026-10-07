@@ -15,7 +15,7 @@ import { PrinGeam } from "./prin-geam";
  *    anterioară stătea într-un element cu `overflow-hidden` și raport de aspect
  *    fix, iar 6,5px din ea ieșeau din casetă — măsurați în Chromium headless, pe
  *    CSS-ul compilat real. Un avertisment tăiat nu apără pe nimeni.
- * 2. Imaginea trebuie să-și declare dimensiunile. Fără ele, o imagine leneșă
+ * 2. Imaginea trebuie să-și declare dimensiunile. Fără ele, imaginea
  *    aterizează după layout și împinge pagina — CLS pe pagina de vânzare.
  * 3. Fișierul NU are voie să devină `"use client"`. Când era, un export al lui
  *    chemat din Server Component rupea prerandarea tuturor celor nouăsprezece
@@ -29,7 +29,7 @@ describe("banda cu captura ecranului", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("arată captura leneș, cu dimensiuni declarate", () => {
+  it("arată captura cu prioritate mare, cu dimensiuni declarate", () => {
     const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
     const poza = container.querySelector("figure img");
 
@@ -37,7 +37,12 @@ describe("banda cu captura ecranului", () => {
     expect(poza?.getAttribute("src")).toBe("/capturi/leave-1920.webp");
     // `srcset` cu două lățimi: pe telefon se descarcă 28 KB în loc de 71.
     expect(poza?.getAttribute("srcset")).toMatch(/leave-960\.webp 960w/);
-    expect(poza?.getAttribute("loading")).toBe("lazy");
+    // E elementul LCP al paginii de modul: leneșă, pleca cu prioritate mică și
+    // abia după layout (auditul din 7 oct 2026). Copia din fereastra de mărire
+    // e cea care așteaptă.
+    expect(poza?.getAttribute("loading")).toBeNull();
+    expect(poza?.getAttribute("fetchpriority")).toBe("high");
+    expect(container.querySelector("[popover] img")?.getAttribute("loading")).toBe("lazy");
     // Fără `width`/`height`, browserul nu știe raportul înainte să sosească
     // fișierul, iar imaginea împinge pagina când aterizează.
     expect(poza?.getAttribute("width")).toBe("1920");

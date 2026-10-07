@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Inel } from "@/components/grafice/inel";
 import { formatLei } from "@/lib/format/money";
+import { dinBrut } from "@/lib/unelte/salariu";
 
 /**
  * Vinietele de interfață.
@@ -141,11 +142,15 @@ export function VinietaPontaj({
  * nu se mai dă deloc — vine din paleta categorică — deci greșeala nu se mai
  * poate repeta.
  */
-const BRUT = 6000;
-const CAS = 1500;
-const CASS = 600;
-const IMPOZIT = 390;
-const NET = BRUT - CAS - CASS - IMPOZIT;
+// Cifrele vin din motorul calculatorului de salariu, nu scrise de mână: până la
+// 7 oct 2026 impozitul era 390 de lei, adică 10% fără deducerea personală de
+// 130 de lei pe care art. 77 o dă la 6.000 de lei brut — net 3.510 în loc de 3.523.
+const EXEMPLU = dinBrut(6000, 0, true);
+const BRUT = EXEMPLU.brut;
+const CAS = EXEMPLU.cas;
+const CASS = EXEMPLU.cass;
+const IMPOZIT = EXEMPLU.impozit;
+const NET = EXEMPLU.net;
 
 export function VinietaFluturas({
   titlu,

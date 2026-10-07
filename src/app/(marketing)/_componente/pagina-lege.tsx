@@ -1,13 +1,14 @@
 import Link from "next/link";
 
 import { RO } from "@/content/landing/ro";
+import { ancoraRand, cuprinsulPaginii, TITLU_NESIGUR } from "@/content/legal/cuprins";
 import type { PaginaLege } from "@/content/legal/tipuri";
 
 import { AntetSecundar } from "./antet-secundar";
 import { Banda } from "./banda";
 import { Cadru } from "./cadru";
 import { JsonLd } from "./json-ld";
-import { nodArticol } from "./noduri-json-ld";
+import { dataModificarii, nodArticol } from "./noduri-json-ld";
 import { PeAcelasiSubiect } from "./pe-acelasi-subiect";
 import { capturaModulului, INALTIME_CAPTURA, LATIME_CAPTURA } from "./vitrine";
 
@@ -33,6 +34,16 @@ import { capturaModulului, INALTIME_CAPTURA, LATIME_CAPTURA } from "./vitrine";
  * pagină întreținută de una abandonată — și pentru cititor, și pentru un model
  * care trebuie să aleagă pe care s-o creadă.
  */
+/** `2026-10-07` → „7 octombrie 2026”. Data e calendaristică, deci fără fus orar. */
+function dataLunga(iso: string): string {
+  return new Intl.DateTimeFormat("ro-RO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${iso}T00:00:00Z`));
+}
+
 /**
  * „Astea trei nu stau” era scris de mână în componenta comună, iar
  * `/evidenta-orelor-de-munca` are doar două întrebări nesigure. Numeralul vine
@@ -49,18 +60,12 @@ function numeralNesigur(n: number): string {
   return `Astea ${cuvinte[n] ?? String(n)} nu stau`;
 }
 
-/** „Marea Britanie (Regatul Unit)” → `marea-britanie-regatul-unit`, pentru `#ancora` din adresă. */
-export function ancoraRand(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, "-")
-    .replace(/^-+|-+$/gu, "");
-}
-
 export function RandarePaginaLege({ text }: { text: PaginaLege }) {
   const captura = text.captura === undefined ? undefined : capturaModulului(text.captura.cheie);
+  // Ancorele și cuprinsul vin din aceeași listă: o bandă fără intrare în cuprins,
+  // sau o intrare spre o bandă fără `id`, nu se pot despărți.
+  const cuprins = cuprinsulPaginii(text);
+  const ancora = (titlu: string) => cuprins.find((c) => c.titlu === titlu)?.id ?? ancoraRand(titlu);
   return (
     <Cadru text={RO}>
       {/* `dateModified` e data verificării textelor de lege — același `actualizatIso`
@@ -70,17 +75,15 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         text={text.antet}
         // Butonul vine după răspunsul scurt, mai jos — vezi comentariul de acolo.
         cta={null}
-        // Firimituri doar sub `/ghid/`, singurul părinte real; `/reges-online` și
-        // `/evidenta-orelor-de-munca` stau la rădăcină și n-au ce traseu arăta.
-        firimituri={
-          text.cale.startsWith("/ghid/")
-            ? [
-                { eticheta: "Acasă", href: "/" },
-                { eticheta: "Ghiduri", href: "/ghid" },
-                { eticheta: text.antet.titlu.split(":")[0] ?? text.antet.titlu, href: text.cale },
-              ]
-            : undefined
-        }
+        // Toate paginile-lege stau sub „Ghiduri", inclusiv `/reges-online` și
+        // `/evidenta-orelor-de-munca`, care au adrese la rădăcină: traseul spune
+        // ierarhia sitului, iar hub-ul `/ghid` le listează pe amândouă. Până la
+        // 7 oct 2026 cele două n-aveau nici traseu vizibil, nici `BreadcrumbList`.
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Ghiduri", href: "/ghid" },
+          { eticheta: text.antet.titlu.split(":")[0] ?? text.antet.titlu, href: text.cale },
+        ]}
       />
 
       {/* Răspunsul, înaintea oricărei nuanțe. Cine a ajuns aici dintr-o căutare
@@ -98,8 +101,14 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
             </p>
           ))}
         </div>
+        {/* Zi exactă, în `<time>`, din aceleași câmpuri ca `datePublished` și
+            `dateModified`: până la 7 oct 2026 pagina arăta doar luna, iar data
+            precisă exista numai în JSON-LD. Contează mai ales pe căutările care
+            poartă anul, ca „salariu minim pe economie 2026". */}
         <p className="font-mk-date text-mk-text-slab mt-6 text-[0.75rem] tracking-[0.08em] uppercase">
-          Textele verificate în {text.actualizat}
+          Publicat pe <time dateTime={text.publicatIso}>{dataLunga(text.publicatIso)}</time> ·
+          textele verificate pe{" "}
+          <time dateTime={dataModificarii(text)}>{dataLunga(dataModificarii(text))}</time>
         </p>
         {/* Butonul stă aici, nu în antet: acolo rupea pasajul pe care îl citează
             motoarele generative (lead + răspuns). Rămâne aproape de pliu pe
@@ -111,9 +120,29 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         >
           {RO.hero.ctaPrimar.eticheta}
         </Link>
+        {/* Cuprinsul, după buton: răspunsul și butonul rămân lângă pliu, iar
+            cine caută o subsecțiune anume sare direct la ea (auditul din 7 oct
+            2026). `<a>`, nu `<Link>`: e salt în aceeași pagină. */}
+        <nav aria-label="Cuprins" className="mt-10 max-w-[68ch]">
+          <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            Pe pagina asta
+          </p>
+          <ol className="mt-3 space-y-2">
+            {cuprins.map((c) => (
+              <li key={c.id}>
+                <a
+                  href={`#${c.id}`}
+                  className="text-[0.9375rem] leading-[1.4] underline underline-offset-4"
+                >
+                  {c.titlu}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
       </Banda>
 
-      <Banda inaltime="medie" titlu={text.titluReguli}>
+      <Banda id={ancora(text.titluReguli)} inaltime="medie" titlu={text.titluReguli}>
         <dl className="border-mk-rigla/40 mt-8 border-t">
           {text.reguli.map((r) => (
             <div
@@ -163,7 +192,13 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         </Banda>
       )}
 
-      <Banda fundal="cerneala" inaltime="medie" titlu={text.titluAmenzi} aliniereTitlu="larg">
+      <Banda
+        id={ancora(text.titluAmenzi)}
+        fundal="cerneala"
+        inaltime="medie"
+        titlu={text.titluAmenzi}
+        aliniereTitlu="larg"
+      >
         <dl className="border-mk-rigla-inv/40 mt-8 border-t">
           {text.amenzi.map((a) => (
             <div key={a.fapta} className="border-mk-rigla-inv/40 border-b py-5">
@@ -197,7 +232,7 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
       </Banda>
 
       {text.sectiuni.map((s) => (
-        <Banda key={s.titlu} inaltime="medie" titlu={s.titlu}>
+        <Banda key={s.titlu} id={ancora(s.titlu)} inaltime="medie" titlu={s.titlu}>
           <div className="mt-6 max-w-[68ch] space-y-4">
             {s.paragrafe.map((p) => (
               <p key={p} className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
@@ -209,7 +244,7 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
       ))}
 
       {text.tabel !== undefined && (
-        <Banda inaltime="medie" titlu={text.tabel.titlu}>
+        <Banda id={ancora(text.tabel.titlu)} inaltime="medie" titlu={text.tabel.titlu}>
           {/* `relative` pe containerul derulabil, ca orice tabel lat din sit. */}
           <div className="relative mt-6 overflow-x-auto">
             <table className="w-full border-collapse text-left text-[0.9375rem]">
@@ -227,7 +262,9 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
                   <tr
                     key={r[0]}
                     id={ancoraRand(r[0] ?? "")}
-                    className="border-mk-rigla/40 border-b"
+                    // `scroll-mt`: rândul țintit dintr-o legătură cu ancoră (ex. o țară din
+                    // diurna externă) aterizează sub antetul lipit, nu ascuns de el.
+                    className="border-mk-rigla/40 scroll-mt-24 border-b"
                   >
                     {r.map((celula, i) => (
                       <td
@@ -255,9 +292,10 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         rest.
       */}
       <Banda
+        id={ancora(TITLU_NESIGUR)}
         inaltime="medie"
         supratitlu="Unde se termină certitudinea"
-        titlu="Ce nu putem afirma cu siguranță"
+        titlu={TITLU_NESIGUR}
         lead={`Fiecare rând de mai sus stă pe un text de lege citit în forma consolidată. ${numeralNesigur(text.nesigur.length)}, și preferăm s-o spunem noi.`}
       >
         <dl className="border-mk-rigla/40 mt-8 border-t">

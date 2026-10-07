@@ -5,9 +5,13 @@
 // schimbat. Rulează după fiecare deploy de producție, din `ops/01-main.sh`.
 //
 // ── DE CE ──────────────────────────────────────────────────────────────────
-// Auditul din 2 oct 2026: Google avea 48/48 de pagini, Brave 0 (Brave
-// alimentează căutarea mai multor asistenți AI), Bing neconfirmat. Search
-// Console nu ajunge la ei; IndexNow da, fără cont.
+// Auditul din 2 oct 2026: Google avea 48/48 de pagini, Brave 0, Bing
+// neconfirmat. Search Console nu ajunge la Bing; IndexNow da, fără cont.
+//
+// Brave NU e în rețeaua IndexNow (participanții sunt Bing, Yandex, Seznam,
+// Naver, Yep), deci scriptul ăsta nu-l atinge — comentariul de aici spunea
+// altceva până la auditul din 7 oct 2026. Brave are formularul lui,
+// https://search.brave.com/submit-url, o adresă pe rând, trimisă de om.
 //
 // ── CE VERIFICĂ ÎNAINTE ────────────────────────────────────────────────────
 // Că fișierul cheii e servit pe domeniu și conține cheia. Fără el, IndexNow

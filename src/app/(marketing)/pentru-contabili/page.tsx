@@ -32,7 +32,7 @@ import { metadatePagina } from "../_componente/metadate";
 export const metadata: Metadata = metadatePagina({
   titlu: "Pentru contabili: un cont, toate firmele",
   descriere:
-    "Cum arată aplicația pentru cine ține zece firme: o apartenență per client, comutare fără delogare, nota contabilă și D112 exportate, iar depunerea rămâne la tine.",
+    "Pentru cine ține zece firme: o apartenență per client, comutare fără delogare, nota contabilă și D112 exportate. Depunerea la ANAF rămâne la tine.",
   cale: "/pentru-contabili",
 });
 

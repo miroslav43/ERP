@@ -255,6 +255,7 @@ function Ecran({
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- vezi mai sus. */}
         <img
+          loading="lazy"
           src={captura.sursa}
           alt={descriere}
           width={LATIME_CAPTURA}

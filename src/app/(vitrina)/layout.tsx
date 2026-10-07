@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Sigla } from "@/components/sigla";
 import { ZonaToast } from "@/components/ui/toast";
 import { monoCifre } from "@/lib/ui/fonturi";
 
@@ -36,6 +38,29 @@ export default function LayoutVitrina({ children }: { children: ReactNode }) {
       className={`${monoCifre.variable} bg-background text-foreground min-h-dvh`}
       data-zona="vitrina"
     >
+      {/*
+        Ieșirea din demonstrație. Gândită pentru un `<iframe>`, pagina n-avea
+        niciun `<a>`, dar azi se deschide direct, din pagina de start („Încearcă
+        ecranul, fără cont") — iar vizitatorul care a încercat-o nu mai avea
+        unde să meargă (auditul din 7 oct 2026). Stă în LAYOUT, nu în pagină:
+        `error.tsx` înlocuiește doar pagina, deci bara rămâne și peste o eroare.
+      */}
+      <header className="border-border flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b px-4 py-3 sm:px-6">
+        <Link href="/" aria-label="Administrativo, pagina de start" className="text-foreground">
+          <Sigla clasa="block h-4 w-auto" />
+        </Link>
+        <nav aria-label="Ieșirea din demonstrație" className="flex items-center gap-5 text-sm">
+          <Link href="/module" className="underline underline-offset-4">
+            Toate modulele
+          </Link>
+          <Link
+            href="/inregistrare"
+            className="bg-primary text-primary-foreground rounded-md px-3 py-1.5 font-medium"
+          >
+            Creează cont
+          </Link>
+        </nav>
+      </header>
       {children}
       {/*
         `Formular` (`@/components/ui/formular.tsx:108`) predă mesajul de

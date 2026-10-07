@@ -104,13 +104,13 @@ export type FisaModul = Readonly<{
 export const FISE: readonly FisaModul[] = [
   {
     cheie: "attendance",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     // Fără „foaie lunară" din 2 oct 2026: interogarea „foaie de pontaj" o ține
     // `/unelte/foaie-de-pontaj`; două pagini pe același termen se împart.
     titluPagina: "Program de pontaj pentru angajați, cu aprobare",
     titluH1: "Program de pontaj",
     metaDescriere:
-      "Cum se ține pontajul în Administrativo: foaia colectivă lunară, pontarea de pe telefon, aprobarea pe echipă și blocarea lunii. Managerul aprobă, nu pontează.",
+      "Program de pontaj online: foaia colectivă lunară, pontaj de pe telefon, aprobare pe echipă, luna blocată. Managerul aprobă echipa și se pontează doar pe sine.",
     intro: [
       "Pontajul e modulul din care iese aproape tot restul: sporurile, statul de plată și dovada la un control. De aceea are cea mai strictă separare de roluri din toată aplicația.",
       "Luna are o stare. Cât e deschisă, zilele se completează și se corectează; când e închisă, nu se mai poate edita nici din greșeală, iar ce s-a schimbat până atunci rămâne în jurnal, cu cine și când. Închiderea nu e o convenție de echipă, e o tranziție pe care baza o refuză dacă nu vine de la cine trebuie.",
@@ -126,19 +126,15 @@ export const FISE: readonly FisaModul[] = [
         angajat: "own",
       },
       {
-        ce: "Pontează o zi",
+        // Din 0161 (6 oct 2026) managerul are `attendance:create = own`: își pontează
+        // propria zi, nu pe a echipei. Corectarea unei zile e aceeași cheie — în
+        // aplicație `poateEdita` cere `attendance:create` (pontaj/page.tsx);
+        // `attendance:update` păzește doar regulile pontajului, nu ziua.
+        ce: "Pontează sau corectează o zi",
         cheie: "attendance:create",
         orgAdmin: "all",
         hr: "all",
-        manager: null,
-        angajat: "own",
-      },
-      {
-        ce: "Corectează o zi pontată",
-        cheie: "attendance:update",
-        orgAdmin: "all",
-        hr: "all",
-        manager: null,
+        manager: "own",
         angajat: "own",
       },
       {
@@ -151,13 +147,13 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     cazDeUtilizare:
-      "E 3 septembrie și luna august trebuie închisă. Persoana de la personal deschide foaia lunii: o grilă cu zilele pe orizontală și oamenii pe verticală, cu weekendurile și sărbătorile deja marcate. Trei zile arată gol pentru un om plecat pe șantier — se completează ora de intrare și cea de ieșire, iar orele se calculează ca sugestie, editabilă. Concediile aprobate în august sunt deja pe foaie, trecute automat, deci nu se retastează. Șeful de echipă intră pe ecranul lui și aprobă zilele oamenilor din echipa lui — atât: nu poate ponta în locul lor și nu poate corecta o zi, fiindcă cheia de creare nu e a lui. După ce toate departamentele sunt aprobate, luna se blochează. Din clipa aia nimeni nu mai scrie în august, nici din greșeală, iar ce s-a schimbat până atunci rămâne în jurnal, cu nume și oră.",
+      "E 3 septembrie și luna august trebuie închisă. Persoana de la personal deschide foaia lunii: o grilă cu zilele pe orizontală și oamenii pe verticală, cu weekendurile și sărbătorile deja marcate. Trei zile arată gol pentru un om plecat pe șantier — se completează ora de intrare și cea de ieșire, iar orele se calculează ca sugestie, editabilă. Concediile aprobate în august sunt deja pe foaie, trecute automat, deci nu se retastează. Șeful de echipă intră pe ecranul lui și aprobă zilele oamenilor din echipa lui. Își pontează doar propria zi: nu poate ponta în locul lor și nu le poate corecta ziua. După ce toate departamentele sunt aprobate, luna se blochează. Din clipa aia nimeni nu mai scrie în august, nici din greșeală, iar ce s-a schimbat până atunci rămâne în jurnal, cu nume și oră.",
     leadRoluri:
       "Pontajul are cea mai strictă separare de roluri din aplicație, fiindcă din el ies sporurile, statul de plată și dovada la un control. Regulile de mai jos sunt impuse în baza de date: un rol fără permisiune nu primește un buton dezactivat, cererea lui e refuzată la sursă.",
     leadLegaturi:
       "Pontajul nu stă singur: luna închisă e intrarea salarizării, concediile aprobate ajung pe foaie fără să le retasteze cineva, iar angajatul își vede zilele în portal.",
     notaPermisiuni:
-      "Două lucruri din tabelul de mai sus surprind pe toată lumea. Un manager poate aproba pontajul echipei, dar nu poate ponta și nu poate corecta — separarea dintre cine execută și cine confirmă e impusă în baza de date, nu lăsată la disciplina echipei. Iar HR, care poate scrie orice zi din orice lună, nu poate aproba: are refuz explicit pe aprobare. Închiderea lunii rămâne la șeful echipei sau la administrator.",
+      "Două lucruri din tabelul de mai sus surprind pe toată lumea. Un manager poate aproba pontajul echipei, dar nu-l poate scrie: se pontează doar pe sine, iar ziua altcuiva n-o poate ponta și n-o poate corecta. Separarea dintre cine execută și cine confirmă e impusă în baza de date, nu lăsată la disciplina echipei. Iar HR, care poate scrie orice zi din orice lună, nu poate aproba: are refuz explicit pe aprobare. Închiderea lunii rămâne la șeful echipei sau la administrator.",
     legaturi: [
       {
         catre: "leave",
@@ -189,13 +185,13 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ssm",
-    actualizat: "2026-10-02",
-    titluPagina: "SSM și PSI: instruiri, aptitudini, echipament",
+    actualizat: "2026-10-07",
+    titluPagina: "Program SSM: instruiri, aptitudini, echipament",
     titluH1: "Evidența SSM și PSI",
     metaDescriere:
       "Matrice angajat × tip de instruire, cu semafor pe scadențe și „niciodată făcută” ca stare distinctă de „expirată”. Pentru HR și responsabilul SSM.",
     intro: [
-      "Modulul de SSM e cel de la care pornesc aproape toate firmele de construcții, dintr-un motiv simplu: are cea mai scurtă distanță până la o problemă reală. O instruire expirată se vede la primul control și nu poate fi reparată retroactiv.",
+      "Pentru o firmă de construcții recomandăm să înceapă cu SSM, dintr-un motiv simplu: are cea mai scurtă distanță până la o problemă reală. O instruire expirată se vede la primul control și nu poate fi reparată retroactiv.",
       "Evidența e o matrice: fiecare angajat pe verticală, fiecare tip de instruire pe orizontală, cu starea în celulă. Distincția care contează e că „niciodată făcută” nu se confundă cu „expirată” — a doua înseamnă că cineva s-a ocupat cândva, prima că omul n-a fost instruit niciodată, iar la un control diferența e între o abatere și o problemă.",
       "Aceeași scadență o poartă aptitudinile medicale și echipamentul individual de protecție dat în primire. Semaforul se aprinde înainte de termen, nu la el.",
     ],
@@ -256,7 +252,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "payroll",
-    actualizat: "2026-10-03",
+    actualizat: "2026-10-07",
     // Search Console, 4–29 sept 2026: „program salarizare" (40 de afișări) și
     // „program salarii" (20) erau cele mai căutate interogări ale sitului, dar
     // Google le trimitea pe pagina de start, pe pozițiile 58–67. Pagina asta,
@@ -316,7 +312,7 @@ export const FISE: readonly FisaModul[] = [
     cazDeUtilizare:
       "Luna de pontaj s-a închis, deci salarizarea poate porni — nu înainte. Contabila deschide calculul și vede fiecare om pe un rând, cu desfășurătorul pe linii: orele normale, cele suplimentare și cele de noapte, deja separate de pontaj, nu retastate. Unde ceva arată neobișnuit — un spor care sare față de luna trecută, o reținere nouă — apare un avertisment lângă cifră, nu în subsol. Cotele folosite sunt cele ale firmei, cu data de la care se aplică: dacă una s-a schimbat la mijlocul anului, luna dinainte rămâne calculată cu versiunea veche, iar asta se vede. Managerul echipei nu deschide ecranul ăsta deloc: are un refuz scris în baza de date pe fiecare acțiune din salarizare, nu doar lipsa unui drept.",
     leadRoluri:
-      "Salarizarea e singurul modul unde un rol are refuz SCRIS, nu doar absența dreptului: managerul de echipă nu vede salariile oamenilor lui, iar asta e o decizie, nu o scăpare.",
+      "În salarizare, managerul are un refuz SCRIS pe fiecare acțiune, nu doar absența dreptului: nu vede salariile oamenilor lui, iar asta e o decizie, nu o scăpare.",
     leadLegaturi:
       "Salarizarea nu introduce date, le primește: luna de pontaj închisă, cu orele suplimentare și cele de noapte deja separate, și partea neimpozabilă din diurnă, calculată separat.",
     notaPermisiuni:
@@ -337,6 +333,7 @@ export const FISE: readonly FisaModul[] = [
     ],
     ghiduri: [
       { href: "/unelte/calculator-salariu", eticheta: "Calculator salariu net și brut" },
+      { href: "/ghid/salariu-minim-pe-economie", eticheta: "Salariul minim pe economie în 2026" },
       {
         href: "/pentru-contabili",
         eticheta: "Ce primește contabilul: stat de plată, D112, fișier bancar",
@@ -347,16 +344,16 @@ export const FISE: readonly FisaModul[] = [
     nuFace: [
       "Nu depune D112 și nu comunică cu ANAF. Produce datele; depunerea rămâne la contabil.",
       "Nu face contabilitate. Nu ține registre contabile, nu emite facturi și nu întocmește bilanțul.",
-      "Nu execută plăți. Nu se leagă la bancă și nu generează ordine de plată.",
+      "Nu execută plăți și nu se leagă la bancă: generează fișierul SEPA cu plățile, pe care îl încarci tu în internet banking.",
       "Valorile legale — plafoane, cote implicite — se confirmă de contabil înainte de primul calcul real.",
     ],
   },
 
   {
     cheie: "fleet",
-    actualizat: "2026-10-02",
-    titluPagina: "Parc auto: ITP, RCA, rovinietă și foi de parcurs",
-    titluH1: "Evidența parcului auto",
+    actualizat: "2026-10-07",
+    titluPagina: "Program de parc auto: ITP, RCA, rovinietă",
+    titluH1: "Program de parc auto",
     metaDescriere:
       "Termenele fiecărei mașini cu semafor înainte de scadență, foi de parcurs cu kilometraj și alimentări. Managerul aprobă doar foile echipei.",
     intro: [
@@ -451,7 +448,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "per_diem",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     // „calculul pe țări" e intenția unui calculator; pagina e un program (2 oct 2026).
     titluPagina: "Program de diurne: deplasări, etape și decont",
     titluH1: "Deplasări și diurne, până la decont",
@@ -477,7 +474,7 @@ export const FISE: readonly FisaModul[] = [
         cheie: "per_diem:create",
         orgAdmin: "all",
         hr: null,
-        manager: null,
+        manager: "own",
         angajat: "own",
       },
       {
@@ -485,7 +482,7 @@ export const FISE: readonly FisaModul[] = [
         cheie: "per_diem:update",
         orgAdmin: "all",
         hr: null,
-        manager: null,
+        manager: "own",
         angajat: "own",
       },
       {
@@ -501,7 +498,7 @@ export const FISE: readonly FisaModul[] = [
         cheie: "per_diem:delete",
         orgAdmin: "all",
         hr: null,
-        manager: null,
+        manager: "own",
         angajat: "own",
       },
     ],
@@ -512,6 +509,7 @@ export const FISE: readonly FisaModul[] = [
     ghiduri: [
       { href: "/ghid/diurna", eticheta: "Plafoanele neimpozabile și durata delegării" },
       { href: "/ghid/diurna-externa", eticheta: "Diurna externă pe țări" },
+      { href: "/ghid/diurna-externa#germania", eticheta: "Diurna externă în Germania" },
     ],
     legaturi: [
       {
@@ -535,8 +533,8 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
-    actualizat: "2026-10-06",
-    titluPagina: "Concedii: cerere, aprobare și sold automat",
+    actualizat: "2026-10-07",
+    titluPagina: "Program de concedii: cerere, aprobare și sold",
     titluH1: "Program de concedii",
     metaDescriere:
       "Cum se cer și se aprobă concediile în Administrativo: soldul pe fiecare tip, aprobarea pe echipă, trecerea automată pe pontaj.",
@@ -597,6 +595,16 @@ export const FISE: readonly FisaModul[] = [
       {
         href: "/ghid/concediu-de-odihna",
         eticheta: "Ce cere Codul muncii: zile, programare, report",
+      },
+      // Legături spre SECȚIUNI, cu textul exact al subîntrebării: până la 7 oct
+      // 2026 nicio legătură din sit nu ducea mai jos de capul unei pagini.
+      {
+        href: "/ghid/concediu-de-odihna#zile-pe-an",
+        eticheta: "Câte zile de concediu ai pe an și pe lună",
+      },
+      {
+        href: "/ghid/concediu-de-odihna#neefectuat",
+        eticheta: "Concediul de odihnă neefectuat la plecare",
       },
       {
         href: "/unelte/cerere-concediu-de-odihna",
@@ -758,10 +766,10 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "reges",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     // „REGES-Online: …" e începutul titlului de pe `/reges-online` (ghidul de
     // termene); modulul ține intenția comercială (2 oct 2026).
-    titluPagina: "Program REGES-Online: transmitere automată",
+    titluPagina: "Program REGES-Online (fost Revisal), prin API",
     titluH1: "Transmitere în REGES-Online",
     metaDescriere:
       "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale urmărite, reconciliere.",
@@ -821,7 +829,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     cazDeUtilizare:
-      "Se angajează cineva luni, iar contractul trebuie transmis cel târziu duminică — în ziua anterioară începerii activității. Persoana de la personal completează fișa omului, iar modulul construiește singur mesajul din ce e deja acolo: date de identificare, funcția cu codul COR, durata, salariul, sporurile. Înainte de trimitere verifică, iar ce lipsește se spune pe nume — un tip de spor nemapat, un CNP absent, o funcție fără cod. Mesajul stă în coadă până îl trimite cineva cu drept de transmitere. Răspunsul Inspecției Muncii se întoarce lângă mesaj, cu motivul unei respingeri scris pe înțeles, nu ca un cod. Termenul fiecărui eveniment e ținut ca dată, nu ca text în documentație, și se numără în zile lucrătoare acolo unde legea o cere.",
+      "Se angajează cineva luni, iar contractul trebuie transmis cel târziu duminică — în ziua anterioară începerii activității. Persoana de la personal completează fișa omului, iar modulul construiește singur mesajul din ce e deja acolo: date de identificare, funcția cu codul COR, durata, salariul, sporurile. Înainte de trimitere verifică, iar ce lipsește se spune pe nume — un tip de spor nemapat, un CNP absent, o funcție fără cod. Mesajul care poartă CNP-ul omului stă în coadă până îl trimite cineva cu drept de transmitere. Răspunsul Inspecției Muncii se întoarce lângă mesaj, cu motivul unei respingeri scris pe înțeles, nu ca un cod. Termenul fiecărui eveniment e ținut ca dată, nu ca text în documentație, și se numără în zile lucrătoare acolo unde legea o cere.",
     leadRoluri:
       "REGES e tabelul cel mai închis din aplicație: două roluri au acces, două n-au absolut nimic, nici măcar dreptul de a citi. Regulile sunt impuse în baza de date, nu în interfață.",
     leadLegaturi:
@@ -847,7 +855,7 @@ export const FISE: readonly FisaModul[] = [
       { href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" },
     ],
     nuFace: [
-      "Nu trimite singur, pe fundal. Mesajele se compun din fișa angajatului și stau în coadă până le trimite cineva cu drept de transmitere; termenele se arată, decizia rămâne a omului.",
+      "Nu trimite singur, pe fundal, datele cu CNP: mesajele de salariat se compun din fișa angajatului și stau în coadă până le trimite cineva cu drept de transmitere. Mesajele de contract, fără date personale, pot pleca și din ciclul automat de transmitere.",
       "Nu înlocuiește verificarea contabilului. Spune ce lipsește dintr-un mesaj, nu dacă un contract e corect juridic.",
       "Nu recuperează istoricul dinaintea intrării în aplicație. Contractele vechi se aduc la prima încărcare, apoi evidența curge de aici.",
     ],
@@ -1159,14 +1167,14 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "announcements",
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     titluPagina: "Anunțuri interne cu dovadă că au ajuns",
     titluH1: "Anunțuri interne cu confirmare",
     metaDescriere:
-      "Cum se transmit anunțurile interne în Administrativo: publicare, țintire pe departamente, confirmare de citire.",
+      "Cum se transmit anunțurile interne în Administrativo: ciornă, publicare către toată firma și confirmare de citire pe fiecare om.",
     intro: [
       "Anunțul intern trimis pe e-mail sau pe un grup de chat are o problemă pe care nimeni n-o observă până nu e nevoie de ea: nu se poate arăta cine l-a citit. Iar unele lucruri — o schimbare de program, o regulă nouă de acces, o notificare cerută de lege — chiar trebuie să poată fi dovedite.",
-      "Aici anunțul are o ciornă și o publicare distinctă. Cât e ciornă se scrie și se reformulează; la publicare pleacă spre oamenii vizați și rămâne cu data lui. Citirea se înregistrează pe fiecare persoană, deci lista celor care încă n-au deschis anunțul e o listă reală, nu o presupunere.",
+      "Aici anunțul are o ciornă și o publicare distinctă. Cât e ciornă se scrie și se reformulează; la publicare pleacă spre toată firma și rămâne cu data lui. Citirea se înregistrează pe fiecare persoană, deci lista celor care încă n-au deschis anunțul e o listă reală, nu o presupunere.",
       "Anunțurile ajung și în aplicație, și în portalul angajatului, și ca notificare pe telefon dacă omul a pornit-o. Același conținut, un singur loc de scris.",
     ],
     actiuni: [
@@ -1220,7 +1228,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "employee_portal",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "Portalul angajatului, de pe telefon",
     titluH1: "Portalul angajatului",
     metaDescriere:
@@ -1244,7 +1252,7 @@ export const FISE: readonly FisaModul[] = [
         cheie: "attendance:create",
         orgAdmin: "all",
         hr: "all",
-        manager: null,
+        manager: "own",
         angajat: "own",
       },
       {
@@ -1268,7 +1276,7 @@ export const FISE: readonly FisaModul[] = [
         cheie: "per_diem:create",
         orgAdmin: "all",
         hr: null,
-        manager: null,
+        manager: "own",
         angajat: "own",
       },
     ],
@@ -1353,11 +1361,11 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "nucleu",
-    actualizat: "2026-10-02",
-    titluPagina: "Organizație, roluri și jurnal de audit",
-    titluH1: "Organizație, roluri și jurnal de audit",
+    actualizat: "2026-10-07",
+    titluPagina: "Evidența angajaților: fișe, roluri și audit",
+    titluH1: "Evidența angajaților, roluri și audit",
     metaDescriere:
-      "Cum se administrează firma în Administrativo: utilizatori, roluri, permisiuni per om, jurnal de audit. Regula firmei bate regula globală.",
+      "Evidența angajaților în Administrativo: fișa fiecărui om, import din Excel, roluri și permisiuni per om, jurnal de audit. Regula firmei bate regula globală.",
     intro: [
       "Nucleul nu e un modul care se cumpără, e ce rămâne când le scoți pe toate celelalte: firma, oamenii care intră în aplicație, rolurile lor și urma pe care o lasă fiecare acțiune.",
       "Rolurile sunt cinci, iar permisiunile lor sunt rânduri într-o tabelă, nu cod. Se pot suprascrie pentru un singur om, când realitatea nu încape în rol — un contabil care trebuie să vadă un raport în plus nu cere o versiune nouă a aplicației.",

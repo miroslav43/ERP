@@ -142,10 +142,18 @@ export function nodFirimituri(lista: readonly Firimitura[]) {
  * Textele de lege din `surse`, aceleași legături de pe pagină. Leagă
  * afirmațiile de sursa primară și în datele citite de motoare, nu doar în HTML.
  */
+/**
+ * Data modificării unei pagini-lege: niciodată înaintea publicării. Aceeași
+ * cifră ajunge în `dateModified` și în textul vizibil al paginii
+ * (`pagina-lege.tsx`), ca cele două să nu se poată despărți.
+ */
+export function dataModificarii(pagina: PaginaLege): string {
+  return pagina.actualizatIso < pagina.publicatIso ? pagina.publicatIso : pagina.actualizatIso;
+}
+
 export function nodArticol(pagina: PaginaLege) {
   const url = `${ADRESA_SITE}${pagina.cale}`;
-  const modificat =
-    pagina.actualizatIso < pagina.publicatIso ? pagina.publicatIso : pagina.actualizatIso;
+  const modificat = dataModificarii(pagina);
   const captura = pagina.captura;
   return {
     "@context": "https://schema.org",

@@ -30,7 +30,7 @@ import { metadatePagina } from "../../_componente/metadate";
 export const metadata: Metadata = metadatePagina({
   titlu: "Termeni și condiții",
   descriere:
-    "Condițiile în care se folosește Administrativo: obiect, preț, durată, disponibilitate, răspundere, plus anexa de prelucrare a datelor cerută de articolul 28 din RGPD.",
+    "Condițiile în care se folosește Administrativo: obiect, preț, durată, disponibilitate, răspundere și anexa de prelucrare a datelor (RGPD art. 28).",
   // Fără `limbi`: pagina n-are variantă engleză, iar o pereche hreflang
   // declarată către o rută inexistentă invalidează întreaga grupă, nu doar
   // rândul greșit. Se adaugă odată cu traducerea, nu înainte.
