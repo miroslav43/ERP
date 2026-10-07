@@ -402,7 +402,9 @@ describe("sesizariDeschise", () => {
 
     expect(r).toEqual({ randuri: [{ id: ID_1 }], total: 73 });
     const [apel] = server.apeluriPe("fault_reports");
-    expect(areFiltru(apel, "in", "status", ["nou", "in_analiza", "in_lucru"])).toBe(true);
+    expect(areFiltru(apel, "in", "status", ["nou", "in_analiza", "in_lucru", "in_asteptare"])).toBe(
+      true,
+    );
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
     const ordini = apel?.filtre.filter((f) => f.metoda === "order").map((f) => f.argumente);

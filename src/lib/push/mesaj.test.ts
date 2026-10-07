@@ -10,10 +10,12 @@ const ID = "3f8c1d2e-1111-4222-8333-444455556666";
 const AL_MEU: ContextDestinatar = {
   concediiProprii: new Set([ID]),
   ticheteProprii: new Set([ID]),
+  sesizariProprii: new Set([ID]),
 };
 const AL_ALTCUIVA: ContextDestinatar = {
   concediiProprii: new Set<string>(),
   ticheteProprii: new Set<string>(),
+  sesizariProprii: new Set<string>(),
 };
 
 describe("construiesteMesaj", () => {

@@ -98,6 +98,8 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         status: null,
         urgenta: null,
         echipament: echipament.id,
+        atribuit: null,
+        deschise: null,
         cursor: null,
         limita: 50,
       }),

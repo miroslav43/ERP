@@ -896,6 +896,19 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Defecțiunile raportate de colegi, de preluat și rezolvat.",
   },
   {
+    id: "mentenanta.setari",
+    href: "/mentenanta/setari",
+    eticheta: "Setări mentenanță",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "Setări",
+    featureKey: "maintenance",
+    permission: "maintenance:update",
+    minScope: "all",
+    descriere:
+      "Cine primește sesizările, închiderea automată, pragurile de avertizare și programul de lucru al utilajelor.",
+  },
+  {
     id: "mentenanta.sesizari.noua",
     href: "/mentenanta/sesizari?sesizare=noua",
     eticheta: "Sesizare nouă",

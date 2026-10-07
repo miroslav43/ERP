@@ -196,7 +196,7 @@ export default async function PaginaPlanuri() {
       <AntetPagina
         titlu="Planuri de mentenanță"
         descriere={`${textNumarat(total, "plan ACTIV", "planuri ACTIVE")}, cu cea mai apropiată scadență prima. Starea combină scadența pe zile cu cea pe contor, față de ultima citire cunoscută.`}
-        file={<NavMentenanta />}
+        file={<NavMentenanta poateSetari={can(permisiuni, "maintenance:update", "all")} />}
       />
 
       <Tabel

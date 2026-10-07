@@ -8,6 +8,8 @@ cai:
   - "src/schemas/maintenance.ts"
   - "src/domain/maintenance/**"
   - "supabase/migrations/0011_ssm.sql"
+  - "supabase/migrations/0180_mentenanta_integritate.sql"
+  - "supabase/migrations/0181_sesizari_flux.sql"
 tabele:
   [
     equipment,
@@ -19,11 +21,12 @@ tabele:
   ]
 permisiuni: [maintenance:read, maintenance:create, maintenance:update]
 feature: maintenance
-capcane: [17, 35]
+capcane: [17, 35, 50, 51]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
-  - "sesizare care nu se mai mișcă, ori intervenție fără sesizare → „Ce refuză baza tăcut”"
-scris_pe: b7d1a106923b665b3a477477ea73de3d3e619938
+  - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
+  - "intervenție fără sesizare, plan care sare → „Ce refuză baza tăcut”"
+scris_pe: daddafbae6900219be31f82717adf1ff0217230c
 scris_la: 2026-10-07
 tags: [modul]
 ---
@@ -31,10 +34,11 @@ tags: [modul]
 # Mentenanță
 
 Echipamente cu contoare, planuri de mentenanță cu scadențe, intervenții, sesizări de
-defecțiune și autorizații ISCIR. Tabelele sunt create de `0011_ssm.sql`, în aceeași buclă
-de politici ca SSM-ul, dar sub resursa de permisiune `maintenance` și feature-ul
-`maintenance` — **aceeași migrare, alt modul**. Vezi [[modul/ssm]] pentru cealaltă
-jumătate.
+defecțiune și autorizații ISCIR. Tabelele de bază sunt create de `0011_ssm.sql`, în
+aceeași buclă de politici ca SSM-ul, dar sub resursa de permisiune `maintenance` și
+feature-ul `maintenance` — **aceeași migrare, alt modul**. Vezi [[modul/ssm]] pentru
+cealaltă jumătate. Fluxul complet al sesizării (număr, tehnician, comentarii, fotografii,
+opriri, setări — `0181`) are pagina lui: [[modul/mentenanta/sesizari]].
 
 ## Rute și cine ajunge
 
@@ -45,36 +49,29 @@ jumătate.
 | `/mentenanta/sesizari?sesizare=noua` (casetă)             | `maintenance:create` own  |
 | `/mentenanta/echipamente`, `/mentenanta/echipamente/[id]` | `maintenance:read` team   |
 | `/mentenanta/echipamente?echipament=nou` (casetă)         | `maintenance:update` team |
-| `/mentenanta/planuri`                                     | `maintenance:read` team   |
-| `/mentenanta/interventii`                                 | `maintenance:read` team   |
+| `/mentenanta/planuri`, `/mentenanta/interventii`          | `maintenance:read` team   |
+| `/mentenanta/setari`                                      | `maintenance:update` all  |
 
 Pragul `own` pe panou și pe sesizări e intenționat: **oricine poate sesiza o defecțiune**.
-Restul modulului — parcul de echipamente, planurile, intervențiile — cere `team`.
+Restul modulului — parcul de echipamente, planurile, intervențiile — cere `team`. Fila
+„Setări” din `nav-mentenanta` apare pe un boolean calculat în pagină, nu pe harta de
+permisiuni (componenta e client).
+
 Cele două formulare de creare sunt CASETE pe listele lor (`FormularDialog`, tiparul
 `?vehicul=nou` din [[modul/flota]]), nu pagini; butonul care le deschide se păzește pe
-permisiunea pe care o exercită — `maintenance:create` pentru sesizare, `maintenance:update`
-pentru echipament — aceeași linie de despărțire ca la Server Actions. `?echipament=nou&model=<id>`
-precompletează caseta din altă fișă, fără cod și serie („Adaugă unul la fel”).
+permisiunea pe care o exercită. `?echipament=nou&model=<id>` precompletează caseta din
+altă fișă, fără cod și serie („Adaugă unul la fel”).
 
 **`/mentenanta/sesizari/noua` și `/portal/sesizari/noua` există doar ca REDIRECTURI** spre
 listă cu `?sesizare=noua`, păstrând `?echipament=`: autocolantele QR lipite pe utilaje codifică
-adresa veche, iar un autocolant nu se actualizează cu un deploy. Echipamentul din QR se rezolvă
-pe server (pagina listei cheamă `cautaEchipament`), iar un id stricat ori un utilaj casat dau o
-bandă de atenție în casetă, nu 404. `/mentenanta/echipamente/nou` a fost șters fără redirect.
+adresa veche. Echipamentul din QR se rezolvă pe server (`cautaEchipament`), vine cu
+`sesizare_deschisa` pentru avertismentul de duplicat, iar un id stricat ori un utilaj casat
+dau o bandă de atenție în casetă, nu 404. `/mentenanta/echipamente/nou` a fost șters.
 
-Triajul de pe `/mentenanta/sesizari/[id]` vine din `src/domain/maintenance/sesizari.ts`
-(`tranzitiiPermise`): starea curentă nu e ofertă, schimbările de stare trec prin
-`ConfirmareActiune`, respingerea și rezolvarea prin `FormularDialog` — rezolvarea cu toate
-câmpurile intervenției (`interventii/campuri-interventie.tsx`, aceleași ca pe fișa echipamentului).
-
-Preambulul paginilor cheamă `requireFeature` și `getPermissionMap` într-un `Promise.all`,
-nu înlănțuit: sunt două citiri independente, iar `Promise.all` respinge la prima
-respingere, deci refuzul lui `requireFeature` ajunge tot înaintea oricărui `can()`.
-
-Pe `/mentenanta` poarta se citește de două ori: `maintenance:read` own deschide pagina —
-lipsa ei dă `AccesRestrictionat` —, iar `maintenance:read` team decide dacă se vede panoul
-de organizație sau doar `SesizarileMele`. Cine are doar `own` ajunge acolo prin link
-direct: în meniu itemul cere `team`.
+Preambulul paginilor cheamă `requireFeature` și `getPermissionMap` într-un `Promise.all`:
+sunt două citiri independente, iar refuzul lui `requireFeature` ajunge tot înaintea
+oricărui `can()`. Pe `/mentenanta` poarta se citește de două ori: `own` deschide pagina,
+`team` decide dacă se vede panoul de organizație sau doar `SesizarileMele`.
 
 ## `create` NU e poarta pentru echipamente
 
@@ -88,110 +85,77 @@ Consecința: baza îi lasă să insereze în `equipment`, `equipment_meters`,
 aplicație**, pe `maintenance:update` cu `minScope: "team"`, și așa e scrisă azi. Doar
 sesizarea rămâne pe `maintenance:create` / `own`. — capcana #35
 
-E singurul loc din proiect unde politica e mai largă decât acțiunea, și e deliberat: o
-politică îngustă ar fi tăiat și sesizarea.
-
 ## Server Actions
 
-`src/app/(app)/mentenanta/actions.ts`.
+`src/app/(app)/mentenanta/actions.ts` (cele ale fluxului de sesizări sunt în
+`sesizari/actions.ts`, vezi [[modul/mentenanta/sesizari]]).
 
 | Funcție                                                              | Permisiune / minScope       |
 | -------------------------------------------------------------------- | --------------------------- |
 | `creeazaSesizare`, `cautaEchipament`                                 | `maintenance:create` / own  |
-| `numeleEchipamentelorMele`                                           | `maintenance:read` / own    |
+| `numeleEchipamentelorMele`, `rezolvaSesizare`                        | `maintenance:read` / own    |
 | `creeazaEchipament`, `actualizeazaEchipament`, `inregistreazaContor` | `maintenance:update` / team |
 | `creeazaPlan`, `actualizeazaPlan`, `inregistreazaInterventie`        | `maintenance:update` / team |
-| `trieazaSesizare`, `rezolvaSesizare`                                 | `maintenance:update` / team |
-| `adaugaAutorizatieIscir`                                             | `maintenance:update` / team |
+| `trieazaSesizare`, `adaugaAutorizatieIscir`                          | `maintenance:update` / team |
 
 `cautaEchipament` e pe `create` / own fiindcă servește formularul de sesizare: cine poate
-raporta trebuie să poată găsi echipamentul, fără să vadă parcul.
+raporta trebuie să poată găsi echipamentul, fără să vadă parcul. `rezolvaSesizare` e pe
+`read` / own fiindcă o face și tehnicianul atribuit; cine poate ce decide baza.
 
-`rezolvaSesizare` e singura acțiune cu **două scrieri**, în ordine obligatorie: întâi
-intervenția, apoi sesizarea cu `intervention_id`-ul ei — `internal.ssm_fault_guard`
-refuză `status = 'rezolvat'` fără intervenție. Ordinea și compensarea sunt în „Ce refuză
-baza tăcut”.
+`rezolvaSesizare` are **două scrieri**, în ordine obligatorie: întâi intervenția (legată de
+sesizare prin `fault_report_id`), apoi sesizarea cu `intervention_id`-ul ei — garda refuză
+`status = 'rezolvat'` fără intervenție. Ordinea și compensarea sunt în „Ce refuză baza tăcut”.
 
 ## Citiri
 
 `src/lib/queries/maintenance.ts`: `listeazaEchipamente`, `citesteEchipament`,
 `echipamenteDupaId`, `contoareEchipament`, `planuriEchipament`, `planuriScadente`,
-`ultimeleCitiriContor`, `interventii`, `citesteInterventie`, `sesizari`,
-`sesizariDeschise`, `citesteSesizare`, `autorizatiiIscir`, `angajatiAutorizati`,
-`angajatiDupaId`, `numarScadenteMentenanta`.
+`ultimeleCitiriContor`, `interventii`, `citesteInterventie`, `sesizari` (filtre
+`atribuit`, `deschise`; fișa apelantului al treilea argument), `sesizariDeschise`,
+`citesteSesizare`, `autorizatiiIscir`, `angajatiAutorizati`, `angajatiDupaId`,
+`angajatiDupaUserId`, `optiuniAngajati`, `numarScadenteMentenanta`, plus cele ale
+fluxului de sesizări.
 
-Ca la SSM, niciun filtru manual de scope: politicile din bucla lui `0011` restrâng
-rândurile în Postgres.
-
-Ziua de business vine din `todayInBucharest()` (`src/lib/format/date.ts`), nu din
-`new Date()`: `angajatiAutorizati` compară `valabil_pana` cu ea, iar
-`numarScadenteMentenanta` o dă mai departe. Pe ziua UTC, între miezul nopții și ora 3
-dimineața ora României, o autorizație expirată ieri trecea drept valabilă și alimenta
-selectorul de responsabil ISCIR — fără nicio eroare.
-
-Căutarea liberă după cod și denumire — `listeazaEchipamente` și acțiunea
-`cautaEchipament` — trece prin `tiparContine` (`src/lib/queries/cursor.ts`), nu prin
-tipar scris de mână: `%` și `_` tastate de om ar fi jokeri (un cod care conține `100%`
-ar întoarce tot parcul), `*` e tradus de PostgREST tot în `%`, iar tiparul se
-ghilimelează fiindcă virgula și paranteza sunt sintaxă în gramatica `or=`. Nu e o
-barieră de securitate, ci corectitudine: fără ea rezultatul nu e o eroare, e o listă
-subtil greșită. Curățarea manuală dinainte rămâne în ambele locuri (`,()*"`, plus `:`
-în acțiune) — `tiparContine` se adaugă peste ea, n-o înlocuiește.
+Niciun filtru manual de scope: politicile din bucla lui `0011` și cele din `0181`
+restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()`, nu din
+`new Date()`. Căutarea liberă după cod și denumire trece prin `tiparContine`
+(`src/lib/queries/cursor.ts`): `%` și `_` tastate de om ar fi jokeri.
 
 ## Ce refuză baza tăcut
 
-- **Sesizările se ancorează pe `raportat_de_employee_id`, restul tabelelor pe nimic.**
-  În bucla de politici, `fault_reports` primește coloana de angajat, iar `equipment`,
-  `equipment_meters`, `maintenance_plans`, `maintenance_interventions` și
-  `iscir_authorizations` primesc `null`. Deci un `employee` își vede propriile sesizări,
-  dar parcul îi e invizibil — ecran gol, fără eroare, fiindcă `ssm_acces` cu angajat NULL
-  cere cel puțin `team`.
+- **Sesizările se ancorează pe `raportat_de_employee_id` (și, din 0181, pe
+  `atribuit_employee_id`), restul tabelelor pe nimic.** Un `employee` își vede sesizările
+  proprii și pe cele atribuite lui — plus denumirea utilajelor de pe ele —, dar parcul îi e
+  invizibil: ecran gol, fără eroare.
 - **Scadențele NU se citesc din `public.expirables`.** Politica ei cere în plus
-  `compliance:read`, pe care administratorul de mentenanță nu-l are; tabela ar întoarce
-  zero rânduri fără eroare. `planuriScadente` și `numarScadenteMentenanta` calculează din
-  tabelele sursă. — v. [[modul/ssm]], capcana #26 acolo
-- **Ștergerea e logică.** Tabelele modulului primesc grant pe `select`, `insert` și
-  `update`, cu `revoke delete` explicit în aceeași buclă.
-- **`rezolvat` și `respins` sunt terminale, dar baza nu păzește ieșirea din ele.**
-  `internal.ssm_fault_guard` cere intervenție la `rezolvat` și motiv la `respins`; nu
-  refuză însă mutarea unei sesizări deja închise înapoi în lucru, caz în care
-  `rezolvat_la` și `intervention_id` rămân agățate. Condiția stă în aplicație, în
-  `.in("status", ...)` pus **pe UPDATE** — și la `trieazaSesizare`, și la
-  `rezolvaSesizare` —, nu într-o citire prealabilă: numai în UPDATE ține și la doi
-  operatori simultani. Zero rânduri înseamnă „deja închisă”, nu eroare. — capcana #17,
-  `592cbf5`
-- **Rezolvarea nu e atomică, deci se compensează.** Dacă UPDATE-ul condiționat al
-  sesizării întoarce zero rânduri (cursă pierdută) sau eroare, intervenția abia inserată
-  se anulează logic cu `deleted_at` și acțiunea întoarce CONFLICT; altfel rămânea în
-  registru o intervenție cu costuri, fără sesizare, iar utilizatorul vedea „succes”.
-  Din 0180, anularea logică a unei intervenții reușite legate de plan îl READUCE pe plan
-  la intervenția anterioară (sau la zi/contorul real, dacă nu mai rămâne niciuna). — `592cbf5`, `0180`
-- **Scadența pe contor pornește de la contorul real, nu de la zero** (0180). Planul nou
-  fără `ultima_citire_contor` ia ultima citire a echipamentului pe `tip_contor`; schema de
-  editare OMITE coloana (o mută doar o intervenție reușită). Până la 0180, orice editare
-  trimitea `null` și aducea scadența la „0 + periodicitate”, fără eroare.
-- **Autorizația ISCIR are rândurile ei în `expirables`** (0180): `entity_id` = autorizația,
-  `kind` fix (`autorizatie`, `verificare_tehnica`), nu `tip`-ul liber — care cădea cu 23514
-  pe `expirables_kind_ck`. O autorizație suspendată iese din scadențe. Planul dezactivat
-  iese și el (`activ` intră în `is_active`), iar o scadență golită retrage rândul.
+  `compliance:read`; `planuriScadente` și `numarScadenteMentenanta` calculează din tabelele
+  sursă. — v. [[modul/ssm]]
+- **Ștergerea e logică.** Grant pe `select`, `insert`, `update`; `revoke delete` explicit.
+- **Tranzițiile se păzesc ÎN UPDATE**, prin `.in("status", STARI_DESCHISE)` și `.select()`
+  după: zero rânduri înseamnă „deja închisă” sau „nu ai dreptul”, nu succes. — capcana #17
+- **Rezolvarea nu e atomică, deci se compensează.** Dacă UPDATE-ul condiționat întoarce
+  zero rânduri sau eroare, intervenția abia inserată se anulează logic și acțiunea
+  întoarce CONFLICT. Din 0180, anularea logică a unei intervenții legate de plan îl READUCE
+  la intervenția anterioară.
+- **Scadența pe contor pornește de la contorul real** (0180): planul nou fără
+  `ultima_citire_contor` ia ultima citire a echipamentului; schema de editare OMITE coloana.
+- **Autorizația ISCIR are rândurile ei în `expirables`** (0180): `kind` fix, nu `tip`-ul
+  liber; suspendarea și planul dezactivat ies din scadențe.
 - **O intervenție pe planul altui echipament e refuzată** cu P0001 (0180); o corecție de
-  citire nu poate sări peste citirea URMĂTOARE deja înregistrată. Proba reală:
-  `tests/rls/proba-mentenanta-integritate.sql`.
-- **Administratorul fără fișă de angajat poate sesiza**: `creeazaSesizare` inserează cu
-  `raportat_de_employee_id = null` când actorul are `maintenance:update ≥ team` — politica
-  din 0150 o permite, iar SELECT-ul de după INSERT trece pe `team`.
+  citire nu sare peste citirea URMĂTOARE. Proba: `tests/rls/proba-mentenanta-integritate.sql`.
+- **Administratorul fără fișă poate sesiza**: `raportat_de_employee_id = null`, iar garda
+  reține `raportat_de_user_id`.
 
 ## Ce NU e aici
 
-Vehiculele și foile de parcurs sunt la [[modul/flota]] — un vehicul nu e un `equipment`,
-are politici și scadențe proprii. Instruirile, EIP-ul și accidentele sunt la
-[[modul/ssm]], deși vin din aceeași migrare.
+Vehiculele și foile de parcurs sunt la [[modul/flota]]. Instruirile, EIP-ul și accidentele
+sunt la [[modul/ssm]], deși vin din aceeași migrare. Fluxul sesizării, cu actorii lui, e la
+[[modul/mentenanta/sesizari]].
 
 ## Când NU e suficientă pagina asta
 
 - Calculul scadenței unui plan: `src/domain/maintenance/`.
 - De ce un manager poate sesiza dar nu poate administra: [[rol/manager]].
-- Contractul exact al unei acțiuni (payload, filtre, căi revalidate, câmpuri ținute în
-  afara auditului): `src/app/(app)/mentenanta/actions-*.test.ts`, pe client Supabase fals.
-  `actions-modul.test.ts` verifică cheia `feature` a tuturor exporturilor din `actions.ts`;
-  mesajele traduse sunt în `erori.test.ts`, formatările în `etichete.test.ts`.
+- Contractul exact al unei acțiuni: `src/app/(app)/mentenanta/actions-*.test.ts` și
+  `sesizari/actions.test.ts`, pe client Supabase fals. `actions-modul.test.ts` verifică
+  cheia `feature` a exporturilor din `actions.ts`.

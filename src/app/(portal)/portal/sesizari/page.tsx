@@ -1,5 +1,6 @@
 // src/app/(portal)/portal/sesizari/page.tsx
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Wrench } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -10,7 +11,13 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
-import { cautaEchipament, numeleEchipamentelorMele } from "@/app/(app)/mentenanta/actions";
+import { fisaMea } from "@/lib/queries/portal";
+import { esteDeschisa } from "@/domain/maintenance/sesizari";
+import {
+  cautaEchipament,
+  numeleEchipamentelorMele,
+  type SesizareProprie,
+} from "@/app/(app)/mentenanta/actions";
 import {
   ETICHETE_STATUS_SESIZARE,
   ETICHETE_URGENTA_SESIZARE,
@@ -27,8 +34,65 @@ interface ProprietatiPagina {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
+function CardSesizare({ sesizare }: Readonly<{ sesizare: SesizareProprie }>) {
+  return (
+    <li className="bg-surface border-border rounded-panou border">
+      <Link href={`/portal/sesizari/${sesizare.id}`} className="block p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-muted-foreground text-nota tabular-nums">{sesizare.numar}</p>
+            <p className="text-foreground text-corp font-medium">
+              {sesizare.echipament === null
+                ? "Echipament indisponibil"
+                : `${sesizare.echipament.cod} · ${sesizare.echipament.denumire}`}
+            </p>
+            <p className="text-muted-foreground text-nota mt-0.5">
+              Raportată {formatDateTime(sesizare.raportat_la)}
+            </p>
+          </div>
+          <Badge className="shrink-0" ton={TONURI_STATUS_SESIZARE[sesizare.status]}>
+            {ETICHETE_STATUS_SESIZARE[sesizare.status]}
+          </Badge>
+        </div>
+
+        <p className="text-foreground text-corp mt-2 line-clamp-3">{sesizare.descriere}</p>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Badge ton={TONURI_URGENTA_SESIZARE[sesizare.urgenta]}>
+            {ETICHETE_URGENTA_SESIZARE[sesizare.urgenta]}
+          </Badge>
+          {sesizare.opreste_functionarea ? (
+            <Badge ton="pericol" cuAvertisment>
+              Oprește funcționarea
+            </Badge>
+          ) : null}
+          {sesizare.rezolvat_la === null ? null : (
+            <span className="text-muted-foreground text-nota">
+              Rezolvată {formatDateTime(sesizare.rezolvat_la)}
+            </span>
+          )}
+        </div>
+
+        {/* Motivul respingerii, întotdeauna vizibil: fără el, omul
+            raportează a doua oară aceeași defecțiune. */}
+        {sesizare.motiv_respingere === null ? null : (
+          <p className="border-danger text-foreground text-corp mt-3 border-l-2 pl-3">
+            {sesizare.motiv_respingere}
+          </p>
+        )}
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * Sesizările angajatului: cele pe care le-a RAPORTAT și cele care i-au fost
+ * ATRIBUITE ca tehnician (0181). RLS le dă pe amândouă din aceeași citire;
+ * aici doar se despart, fiindcă înseamnă lucruri diferite pentru om: una o
+ * urmărește, pe cealaltă o lucrează.
+ */
 export default async function PaginaSesizariPortal({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -60,25 +124,39 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
     typeof parametri["echipament"] === "string" && parametri["echipament"].length > 0
       ? parametri["echipament"]
       : null;
-  const prefill =
-    poateRaporta && deschideCaseta && echipamentBrut !== null && UUID.test(echipamentBrut)
-      ? await cautaEchipament({ q: echipamentBrut })
-      : null;
-  const echipamentPrefill = prefill !== null && prefill.ok ? (prefill.data[0] ?? null) : null;
 
-  // Acțiune, nu citire: `equipment` are coloană de scope `null` în bucla de
-  // politici din `0011_ssm.sql`, deci cere `maintenance:read >= team` — un
-  // angajat nu poate citi denumirea utilajului pe care chiar el l-a sesizat.
-  // Acțiunea rezolvă denumirile cu client admin, filtrat pe organizație, și e
-  // păzită de `maintenance:read` / `own`.
-  const rezultat = await numeleEchipamentelorMele({});
-  const sesizari = rezultat.ok ? rezultat.data : [];
+  // Acțiune, nu citire: `equipment` cere `maintenance:read >= team` (capcana
+  // #27) — un angajat nu poate citi denumirea utilajului pe care chiar el l-a
+  // sesizat. Acțiunea rezolvă denumirile cu client admin, filtrat pe organizație.
+  const [prefill, rezultat, stareFisa] = await Promise.all([
+    poateRaporta && deschideCaseta && echipamentBrut !== null && UUID.test(echipamentBrut)
+      ? cautaEchipament({ q: echipamentBrut })
+      : Promise.resolve(null),
+    numeleEchipamentelorMele({}),
+    fisaMea(tenant.organizationId, user.id),
+  ]);
+  const echipamentPrefill = prefill !== null && prefill.ok ? (prefill.data[0] ?? null) : null;
+  const fisaId = stareFisa.stare === "ok" ? stareFisa.fisa.id : null;
+
+  const toate = rezultat.ok ? rezultat.data : [];
+  const deLucrat = toate.filter(
+    (s) => fisaId !== null && s.atribuit_employee_id === fisaId && esteDeschisa(s.status),
+  );
+  const raportate = toate.filter(
+    (s) =>
+      !deLucrat.includes(s) &&
+      ((fisaId !== null && s.raportat_de_employee_id === fisaId) ||
+        s.raportat_de_user_id === user.id),
+  );
+  // Un manager cu `read = team` vede și sesizările echipei; le ținem separat,
+  // ca „ale mele” să însemne exact asta.
+  const aleEchipei = toate.filter((s) => !deLucrat.includes(s) && !raportate.includes(s));
 
   return (
-    <div className={`${LATIMI.lista} space-y-4 p-4`}>
+    <div className={`${LATIMI.lista} space-y-6 p-4`}>
       <AntetPagina
         titlu="Sesizările mele"
-        descriere="Defecțiunile pe care le-ați raportat și starea lor."
+        descriere="Defecțiunile pe care le-ați raportat și cele pe care le aveți de rezolvat."
         {...(poateRaporta
           ? {
               actiuni: (
@@ -104,7 +182,7 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
         >
           {rezultat.error.message}
         </p>
-      ) : sesizari.length === 0 ? (
+      ) : toate.length === 0 ? (
         <StareGoala
           fel="initiala"
           pictograma={Wrench}
@@ -115,53 +193,51 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
             : {})}
         />
       ) : (
-        <ul className="space-y-2">
-          {sesizari.map((sesizare) => (
-            <li key={sesizare.id} className="bg-surface border-border rounded-panou border p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-foreground text-corp font-medium">
-                    {sesizare.echipament === null
-                      ? "Echipament indisponibil"
-                      : `${sesizare.echipament.cod} · ${sesizare.echipament.denumire}`}
-                  </p>
-                  <p className="text-muted-foreground text-nota mt-0.5">
-                    Raportată {formatDateTime(sesizare.raportat_la)}
-                  </p>
-                </div>
-                <Badge className="shrink-0" ton={TONURI_STATUS_SESIZARE[sesizare.status]}>
-                  {ETICHETE_STATUS_SESIZARE[sesizare.status]}
-                </Badge>
-              </div>
+        <>
+          {deLucrat.length > 0 ? (
+            <section aria-labelledby="de-lucrat" className="space-y-2">
+              <h2 id="de-lucrat" className="text-corp font-semibold">
+                De rezolvat de mine
+              </h2>
+              <ul className="space-y-2">
+                {deLucrat.map((s) => (
+                  <CardSesizare key={s.id} sesizare={s} />
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
-              <p className="text-foreground text-corp mt-2">{sesizare.descriere}</p>
+          <section aria-labelledby="raportate" className="space-y-2">
+            <h2 id="raportate" className="text-corp font-semibold">
+              Raportate de mine
+            </h2>
+            {raportate.length === 0 ? (
+              <p className="text-muted-foreground text-corp">Nu ați raportat nicio defecțiune.</p>
+            ) : (
+              <ul className="space-y-2">
+                {raportate.map((s) => (
+                  <CardSesizare key={s.id} sesizare={s} />
+                ))}
+              </ul>
+            )}
+            <p className="text-muted-foreground text-nota">
+              Pentru calculator, imprimantă sau telefon, folosiți Tichetele IT.
+            </p>
+          </section>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge ton={TONURI_URGENTA_SESIZARE[sesizare.urgenta]}>
-                  {ETICHETE_URGENTA_SESIZARE[sesizare.urgenta]}
-                </Badge>
-                {sesizare.opreste_functionarea ? (
-                  <span className="border-danger text-danger text-nota rounded border px-2 py-0.5">
-                    Oprește funcționarea
-                  </span>
-                ) : null}
-                {sesizare.rezolvat_la === null ? null : (
-                  <span className="text-muted-foreground text-nota">
-                    Rezolvată {formatDateTime(sesizare.rezolvat_la)}
-                  </span>
-                )}
-              </div>
-
-              {/* Motivul respingerii, întotdeauna vizibil: fără el, omul
-                  raportează a doua oară aceeași defecțiune. */}
-              {sesizare.motiv_respingere === null ? null : (
-                <p className="border-danger text-foreground text-corp mt-3 border-l-2 pl-3">
-                  {sesizare.motiv_respingere}
-                </p>
-              )}
-            </li>
-          ))}
-        </ul>
+          {aleEchipei.length > 0 ? (
+            <section aria-labelledby="ale-echipei" className="space-y-2">
+              <h2 id="ale-echipei" className="text-corp font-semibold">
+                Ale echipei
+              </h2>
+              <ul className="space-y-2">
+                {aleEchipei.map((s) => (
+                  <CardSesizare key={s.id} sesizare={s} />
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </>
       )}
     </div>
   );

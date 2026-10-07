@@ -1,21 +1,42 @@
 import { describe, expect, it } from "vitest";
 
-import { caleaDePortal, idCerereDeConcediu, idTichet, type ContextDestinatar } from "./legaturi";
+import {
+  caleaDePortal,
+  idCerereDeConcediu,
+  idSesizare,
+  idTichet,
+  type ContextDestinatar,
+} from "./legaturi";
 
 const ID = "3f8c1d2e-1111-4222-8333-444455556666";
 const ALT_ID = "9a7b6c5d-2222-4333-8444-555566667777";
 
-/** Destinatarul deține cererea `ID` și tichetul `ID`, nimic altceva. */
+/** Destinatarul deține cererea `ID`, tichetul `ID` și sesizarea `ID`, nimic altceva. */
 const AL_MEU: ContextDestinatar = {
   concediiProprii: new Set([ID]),
   ticheteProprii: new Set([ID]),
+  sesizariProprii: new Set([ID]),
 };
 
 /** Destinatarul nu deține nimic — HR, aprobator, manager. */
 const AL_ALTCUIVA: ContextDestinatar = {
   concediiProprii: new Set<string>(),
   ticheteProprii: new Set<string>(),
+  sesizariProprii: new Set<string>(),
 };
+
+describe("sesizarea de defecțiune (0181)", () => {
+  it("se traduce doar pentru raportor sau tehnicianul atribuit; responsabilii rămân în aplicație", () => {
+    expect(caleaDePortal(`/mentenanta/sesizari/${ID}`, AL_MEU)).toBe(`/portal/sesizari/${ID}`);
+    expect(caleaDePortal(`/mentenanta/sesizari/${ID}`, AL_ALTCUIVA)).toBeNull();
+    expect(caleaDePortal(`/mentenanta/sesizari/${ALT_ID}`, AL_MEU)).toBeNull();
+    expect(caleaDePortal(`/mentenanta/sesizari/${ID}`)).toBeNull();
+    expect(caleaDePortal("/mentenanta/sesizari")).toBe("/portal/sesizari");
+    expect(idSesizare(`/mentenanta/sesizari/${ID}`)).toBe(ID);
+    expect(idSesizare("/mentenanta/sesizari")).toBeNull();
+    expect(idSesizare(null)).toBeNull();
+  });
+});
 
 describe("caleaDePortal", () => {
   it("traduce legăturile care nu depind de destinatar", () => {

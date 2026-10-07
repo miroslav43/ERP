@@ -1,8 +1,9 @@
-// src/app/(app)/mentenanta/sesizari/[id]/page.tsx
-import { notFound } from "next/navigation";
+// src/app/(portal)/portal/sesizari/[id]/page.tsx
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -10,22 +11,26 @@ import { todayInBucharest } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { optiuniAngajati } from "@/lib/queries/maintenance";
 import { esteTerminala } from "@/domain/maintenance/sesizari";
+import {
+  actorPentru,
+  incarcaFisaSesizare,
+} from "@/app/(app)/mentenanta/sesizari/[id]/date-sesizare";
+import { FisaSesizare } from "@/app/(app)/mentenanta/sesizari/[id]/fisa-sesizare";
 
-import { actorPentru, incarcaFisaSesizare } from "./date-sesizare";
-import { FisaSesizare } from "./fisa-sesizare";
-
-export const metadata: Metadata = { title: "Sesizare de defecțiune" };
-
-interface ProprietatiPagina {
-  readonly params: Promise<{ readonly id: string }>;
-}
+export const metadata: Metadata = { title: "Sesizarea mea" };
 
 /**
- * Fișa sesizării în aplicație. Poarta e `maintenance:read`/own — un
- * tehnician-angajat ajunge aici din notificare, pe sesizarea LUI; ce vede
- * dincolo de ea decide RLS (politica de SELECT are ramura „atribuită mie”).
+ * Fișa sesizării în portal — a raportorului sau a tehnicianului atribuit.
+ *
+ * Garda de proprietate, ca la tichet: politica de SELECT are ramuri legitime
+ * pentru gestionari, dar sub eticheta „sesizarea mea” o rută de portal n-are
+ * ce deschide altcuiva. Un gestionar o citește din aplicație.
  */
-export default async function PaginaSesizare({ params }: ProprietatiPagina) {
+export default async function PaginaSesizareaMea({
+  params,
+}: {
+  readonly params: Promise<{ readonly id: string }>;
+}) {
   const id = idDinRuta((await params).id);
 
   const { tenant, user } = await requireTenant();
@@ -38,7 +43,9 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
 
   if (!can(permisiuni, "maintenance:read", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta sesizările de defecțiune. Solicitați administratorului organizației rolul potrivit." />
+      <div className="p-4">
+        <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta sesizările de defecțiune." />
+      </div>
     );
   }
 
@@ -47,17 +54,17 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
 
   const poateGestiona = can(permisiuni, "maintenance:update", "team");
   const actor = actorPentru(date, poateGestiona, user.id);
-  // Selectoarele de tehnician și de executant — doar cât sesizarea mai e vie.
-  // Sub RLS, un angajat primește doar fișa lui; e exact ce are nevoie.
+  if (actor.esteRaportor !== true && actor.esteTehnician !== true) notFound();
+
   const angajati = esteTerminala(date.sesizare.status)
     ? []
     : await optiuniAngajati(tenant.organizationId);
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className={`${LATIMI.formular} p-4`}>
       <FisaSesizare
         date={date}
-        zona="app"
+        zona="portal"
         actor={actor}
         userId={user.id}
         angajati={angajati}

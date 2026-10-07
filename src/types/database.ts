@@ -4630,6 +4630,86 @@ export type Database = {
           },
         ]
       }
+      equipment_opriri: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          equipment_id: string
+          fault_report_id: string | null
+          id: string
+          inceput: string
+          intervention_id: string | null
+          motiv: string | null
+          organization_id: string
+          sfarsit: string | null
+          tip: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          equipment_id: string
+          fault_report_id?: string | null
+          id?: string
+          inceput: string
+          intervention_id?: string | null
+          motiv?: string | null
+          organization_id: string
+          sfarsit?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          equipment_id?: string
+          fault_report_id?: string | null
+          id?: string
+          inceput?: string
+          intervention_id?: string | null
+          motiv?: string | null
+          organization_id?: string
+          sfarsit?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_opriri_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_opriri_fault_report_id_fkey"
+            columns: ["fault_report_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_opriri_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_opriri_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evacuation_drills: {
         Row: {
           created_at: string
@@ -4831,20 +4911,148 @@ export type Database = {
           },
         ]
       }
+      fault_report_comments: {
+        Row: {
+          autor_employee_id: string | null
+          autor_user_id: string | null
+          continut: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          fault_report_id: string
+          id: string
+          intern: boolean
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          autor_employee_id?: string | null
+          autor_user_id?: string | null
+          continut: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          fault_report_id: string
+          id?: string
+          intern?: boolean
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          autor_employee_id?: string | null
+          autor_user_id?: string | null
+          continut?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          fault_report_id?: string
+          id?: string
+          intern?: boolean
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fault_report_comments_autor_employee_id_fkey"
+            columns: ["autor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_report_comments_fault_report_id_fkey"
+            columns: ["fault_report_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_report_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fault_report_history: {
+        Row: {
+          actor_user_id: string | null
+          camp: string
+          created_at: string
+          fault_report_id: string
+          id: string
+          motiv: string | null
+          organization_id: string
+          valoare_noua: string | null
+          valoare_veche: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          camp: string
+          created_at?: string
+          fault_report_id: string
+          id?: string
+          motiv?: string | null
+          organization_id: string
+          valoare_noua?: string | null
+          valoare_veche?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          camp?: string
+          created_at?: string
+          fault_report_id?: string
+          id?: string
+          motiv?: string | null
+          organization_id?: string
+          valoare_noua?: string | null
+          valoare_veche?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fault_report_history_fault_report_id_fkey"
+            columns: ["fault_report_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_report_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fault_reports: {
         Row: {
+          atribuit_employee_id: string | null
+          atribuit_la: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
           descriere: string
+          duplicat_al_id: string | null
           equipment_id: string
           id: string
+          inchis_la: string | null
           intervention_id: string | null
+          motiv_redeschidere: string | null
           motiv_respingere: string | null
+          motiv_respingere_tip: string | null
+          nota_rezolvare: string | null
+          numar: string
           opreste_functionarea: boolean
           organization_id: string
           raportat_de_employee_id: string | null
+          raportat_de_user_id: string | null
           raportat_la: string
+          redeschisa_de_ori: number
           rezolvat_la: string | null
           status: Database["public"]["Enums"]["fault_status"]
           updated_at: string
@@ -4852,18 +5060,28 @@ export type Database = {
           urgenta: Database["public"]["Enums"]["fault_urgency"]
         }
         Insert: {
+          atribuit_employee_id?: string | null
+          atribuit_la?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           descriere: string
+          duplicat_al_id?: string | null
           equipment_id: string
           id?: string
+          inchis_la?: string | null
           intervention_id?: string | null
+          motiv_redeschidere?: string | null
           motiv_respingere?: string | null
+          motiv_respingere_tip?: string | null
+          nota_rezolvare?: string | null
+          numar?: string
           opreste_functionarea?: boolean
           organization_id: string
           raportat_de_employee_id?: string | null
+          raportat_de_user_id?: string | null
           raportat_la?: string
+          redeschisa_de_ori?: number
           rezolvat_la?: string | null
           status?: Database["public"]["Enums"]["fault_status"]
           updated_at?: string
@@ -4871,18 +5089,28 @@ export type Database = {
           urgenta?: Database["public"]["Enums"]["fault_urgency"]
         }
         Update: {
+          atribuit_employee_id?: string | null
+          atribuit_la?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           descriere?: string
+          duplicat_al_id?: string | null
           equipment_id?: string
           id?: string
+          inchis_la?: string | null
           intervention_id?: string | null
+          motiv_redeschidere?: string | null
           motiv_respingere?: string | null
+          motiv_respingere_tip?: string | null
+          nota_rezolvare?: string | null
+          numar?: string
           opreste_functionarea?: boolean
           organization_id?: string
           raportat_de_employee_id?: string | null
+          raportat_de_user_id?: string | null
           raportat_la?: string
+          redeschisa_de_ori?: number
           rezolvat_la?: string | null
           status?: Database["public"]["Enums"]["fault_status"]
           updated_at?: string
@@ -4890,6 +5118,20 @@ export type Database = {
           urgenta?: Database["public"]["Enums"]["fault_urgency"]
         }
         Relationships: [
+          {
+            foreignKeyName: "fault_reports_atribuit_employee_id_fkey"
+            columns: ["atribuit_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_reports_duplicat_al_id_fkey"
+            columns: ["duplicat_al_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fault_reports_equipment_id_fkey"
             columns: ["equipment_id"]
@@ -7166,6 +7408,65 @@ export type Database = {
           },
         ]
       }
+      maintenance_attachments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          entity_id: string
+          entity_type: string
+          id: string
+          marime_bytes: number | null
+          mime: string | null
+          organization_id: string
+          storage_path: string
+          tip: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          marime_bytes?: number | null
+          mime?: string | null
+          organization_id: string
+          storage_path: string
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          marime_bytes?: number | null
+          mime?: string | null
+          organization_id?: string
+          storage_path?: string
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_interventions: {
         Row: {
           citire_contor: number | null
@@ -7181,6 +7482,7 @@ export type Database = {
           equipment_id: string
           executant_employee_id: string | null
           executant_extern: string | null
+          fault_report_id: string | null
           id: string
           observatii: string | null
           oprire_minute: number | null
@@ -7207,6 +7509,7 @@ export type Database = {
           equipment_id: string
           executant_employee_id?: string | null
           executant_extern?: string | null
+          fault_report_id?: string | null
           id?: string
           observatii?: string | null
           oprire_minute?: number | null
@@ -7233,6 +7536,7 @@ export type Database = {
           equipment_id?: string
           executant_employee_id?: string | null
           executant_extern?: string | null
+          fault_report_id?: string | null
           id?: string
           observatii?: string | null
           oprire_minute?: number | null
@@ -7258,6 +7562,13 @@ export type Database = {
             columns: ["executant_employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_interventions_fault_report_id_fkey"
+            columns: ["fault_report_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
             referencedColumns: ["id"]
           },
           {
@@ -7361,6 +7672,75 @@ export type Database = {
           {
             foreignKeyName: "maintenance_plans_responsabil_employee_id_fkey"
             columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_settings: {
+        Row: {
+          cost_ora_oprire: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          inchidere_automata_zile: number
+          ore_functionare_pe_zi: number
+          organization_id: string
+          prag_avertizare_zile: number
+          prag_contor_necitit_zile: number
+          responsabili: string[]
+          rsvti_employee_id: string | null
+          updated_at: string
+          updated_by: string | null
+          zile_pe_saptamana: number
+        }
+        Insert: {
+          cost_ora_oprire?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          inchidere_automata_zile?: number
+          ore_functionare_pe_zi?: number
+          organization_id: string
+          prag_avertizare_zile?: number
+          prag_contor_necitit_zile?: number
+          responsabili?: string[]
+          rsvti_employee_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile_pe_saptamana?: number
+        }
+        Update: {
+          cost_ora_oprire?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          inchidere_automata_zile?: number
+          ore_functionare_pe_zi?: number
+          organization_id?: string
+          prag_avertizare_zile?: number
+          prag_contor_necitit_zile?: number
+          responsabili?: string[]
+          rsvti_employee_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile_pe_saptamana?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_settings_rsvti_employee_id_fkey"
+            columns: ["rsvti_employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -13658,7 +14038,15 @@ export type Database = {
         | "industrie_alimentara"
         | "persoana_handicap"
         | "cercetare_dezvoltare"
-      fault_status: "nou" | "in_analiza" | "in_lucru" | "rezolvat" | "respins"
+      fault_status:
+        | "nou"
+        | "in_analiza"
+        | "in_lucru"
+        | "in_asteptare"
+        | "rezolvat"
+        | "inchis"
+        | "respins"
+        | "retrasa"
       fault_urgency: "scazuta" | "medie" | "ridicata" | "critica"
       feature_group:
         | "core"
@@ -13725,7 +14113,11 @@ export type Database = {
         | "varsta_copil"
         | "alta"
       locale_code: "ro-RO" | "en-US"
-      maintenance_kind: "preventiva" | "predictiva" | "corectiva"
+      maintenance_kind:
+        | "preventiva"
+        | "predictiva"
+        | "corectiva"
+        | "verificare_legala"
       maintenance_result: "reusita" | "partiala" | "esuata" | "amanata"
       medical_payer: "angajator" | "fnuass" | "mixt"
       member_status: "active" | "suspended" | "inactive"
@@ -14201,7 +14593,16 @@ export const Constants = {
         "persoana_handicap",
         "cercetare_dezvoltare",
       ],
-      fault_status: ["nou", "in_analiza", "in_lucru", "rezolvat", "respins"],
+      fault_status: [
+        "nou",
+        "in_analiza",
+        "in_lucru",
+        "in_asteptare",
+        "rezolvat",
+        "inchis",
+        "respins",
+        "retrasa",
+      ],
       fault_urgency: ["scazuta", "medie", "ridicata", "critica"],
       feature_group: [
         "core",
@@ -14275,7 +14676,12 @@ export const Constants = {
         "alta",
       ],
       locale_code: ["ro-RO", "en-US"],
-      maintenance_kind: ["preventiva", "predictiva", "corectiva"],
+      maintenance_kind: [
+        "preventiva",
+        "predictiva",
+        "corectiva",
+        "verificare_legala",
+      ],
       maintenance_result: ["reusita", "partiala", "esuata", "amanata"],
       medical_payer: ["angajator", "fnuass", "mixt"],
       member_status: ["active", "suspended", "inactive"],

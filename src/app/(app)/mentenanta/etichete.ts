@@ -1,10 +1,13 @@
 // src/app/(app)/mentenanta/etichete.ts
 import type {
+  MotivRespingere,
   RezultatInterventie,
   StatusEchipament,
   StatusSesizare,
+  TipAtasament,
   TipContor,
   TipMentenanta,
+  TipOprire,
   UrgentaSesizare,
 } from "@/schemas/maintenance";
 import type { StareScadentaMentenanta } from "@/domain/maintenance/scadente";
@@ -88,6 +91,7 @@ export const ETICHETE_TIP_MENTENANTA: Readonly<Record<TipMentenanta, string>> = 
   preventiva: "Preventivă",
   predictiva: "Predictivă",
   corectiva: "Corectivă",
+  verificare_legala: "Verificare legală",
 };
 
 export const ETICHETE_REZULTAT_INTERVENTIE: Readonly<Record<RezultatInterventie, string>> = {
@@ -129,8 +133,11 @@ export const ETICHETE_STATUS_SESIZARE: Readonly<Record<StatusSesizare, string>> 
   nou: "Nouă",
   in_analiza: "În analiză",
   in_lucru: "În lucru",
+  in_asteptare: "În așteptare",
   rezolvat: "Rezolvată",
+  inchis: "Închisă",
   respins: "Respinsă",
+  retrasa: "Retrasă",
 };
 
 export const TONURI_STATUS_SESIZARE: Readonly<Record<StatusSesizare, TonStare>> = {
@@ -139,8 +146,63 @@ export const TONURI_STATUS_SESIZARE: Readonly<Record<StatusSesizare, TonStare>> 
   in_analiza: "atentie",
   // În lucru = deschisă și în sarcina cuiva. Atenție, nu succes: succesul e „Rezolvată”.
   in_lucru: "atentie",
+  // În așteptare = blocată de piese sau de furnizor; tot deschisă, tot de urmărit.
+  in_asteptare: "atentie",
   rezolvat: "succes",
+  // Închisă = raportorul a confirmat (sau n-a obiectat); capătul bun al drumului.
+  inchis: "succes",
   respins: "pericol",
+  // Retrasă = raportorul a renunțat; nici bine, nici rău — s-a terminat.
+  retrasa: "neutru",
+};
+
+/** Explicația pe scurt a unei stări, pentru raportor — ce înseamnă pentru el. */
+export const EXPLICATII_STATUS_SESIZARE: Readonly<Record<StatusSesizare, string>> = {
+  nou: "Sesizarea a ajuns la responsabilii de mentenanță și așteaptă să fie preluată.",
+  in_analiza: "Cineva se uită la ea și decide ce urmează.",
+  in_lucru: "Un tehnician lucrează la ea.",
+  in_asteptare: "Lucrarea așteaptă piese sau un furnizor.",
+  rezolvat:
+    "Intervenția e făcută. Confirmați rezolvarea sau redeschideți sesizarea dacă defecțiunea persistă.",
+  inchis: "Rezolvarea a fost confirmată. Sesizarea e încheiată.",
+  respins: "Sesizarea a fost închisă fără intervenție; motivul e scris mai jos.",
+  retrasa: "Ați retras sesizarea.",
+};
+
+export const ETICHETE_MOTIV_RESPINGERE: Readonly<Record<MotivRespingere, string>> = {
+  informatii_insuficiente: "Informații insuficiente",
+  nu_tine_de_mentenanta: "Nu ține de mentenanță",
+  duplicat: "Duplicat al altei sesizări",
+  prioritate_scazuta: "Prioritate scăzută, nu se intervine",
+  altul: "Alt motiv",
+};
+
+export const ETICHETE_TIP_OPRIRE: Readonly<Record<TipOprire, string>> = {
+  neplanificata: "Neplanificată",
+  planificata: "Planificată",
+  legala: "Legală",
+};
+
+export const ETICHETE_TIP_ATASAMENT: Readonly<Record<TipAtasament, string>> = {
+  foto: "Fotografie",
+  carte_tehnica: "Carte tehnică",
+  certificat_ce: "Certificat / declarație CE",
+  manual: "Manual de utilizare",
+  contract: "Contract de service",
+  autorizatie: "Autorizație",
+  pv: "Proces-verbal",
+  buletin: "Buletin de verificare",
+  factura: "Factură / deviz",
+  altele: "Alt document",
+};
+
+/** Câmpurile din `fault_report_history`, în cuvinte — pentru cronologia sesizării. */
+export const ETICHETE_CAMP_ISTORIC: Readonly<Record<string, string>> = {
+  status: "Stare",
+  atribuit_employee_id: "Tehnician",
+  urgenta: "Urgență",
+  equipment_id: "Echipament",
+  duplicat_al_id: "Duplicat al",
 };
 
 export const ETICHETE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, string>> = {

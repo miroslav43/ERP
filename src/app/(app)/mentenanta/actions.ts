@@ -7,6 +7,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { verificaContinuitate } from "@/domain/fleet/kilometraj";
+import { STARI_DESCHISE_SESIZARE } from "@/domain/maintenance/sesizari";
 import {
   actualizeazaEchipamentSchema,
   actualizeazaPlanSchema,
@@ -115,6 +116,42 @@ export interface EchipamentCautat {
   readonly cod: string;
   readonly denumire: string;
   readonly locatie: string | null;
+  /** Cea mai veche sesizare ÎNCĂ deschisă pe utilaj — avertismentul de duplicat din casetă. */
+  readonly sesizare_deschisa: Readonly<{ id: string; numar: string }> | null;
+}
+
+type EchipamentBrut = Omit<EchipamentCautat, "sesizare_deschisa">;
+
+/**
+ * Atașează fiecărui echipament găsit sesizarea deschisă (dacă există), cu
+ * clientul admin filtrat pe organizație — un `employee` nu poate citi
+ * sesizările colegilor, dar trebuie să afle că „SZ-2026-0007 e deja deschisă
+ * pe presa asta” înainte s-o raporteze a doua oară.
+ */
+async function cuSesizareaDeschisa(
+  admin: ReturnType<typeof createAdminSupabase>,
+  organizationId: string,
+  randuri: readonly EchipamentBrut[],
+): Promise<readonly EchipamentCautat[]> {
+  if (randuri.length === 0) return [];
+  const { data, error } = await admin
+    .from("fault_reports")
+    .select("id, numar, equipment_id")
+    .eq("organization_id", organizationId)
+    .in(
+      "equipment_id",
+      randuri.map((r) => r.id),
+    )
+    .is("deleted_at", null)
+    .in("status", STARI_DESCHISE_SESIZARE)
+    .order("raportat_la", { ascending: true });
+  if (error !== null) throw error;
+
+  const prima = new Map<string, Readonly<{ id: string; numar: string }>>();
+  for (const s of data ?? []) {
+    if (!prima.has(s.equipment_id)) prima.set(s.equipment_id, { id: s.id, numar: s.numar });
+  }
+  return randuri.map((r) => ({ ...r, sesizare_deschisa: prima.get(r.id) ?? null }));
 }
 
 /**
@@ -148,9 +185,9 @@ export const cautaEchipament = createAction({
         .eq("organization_id", ctx.tenant.organizationId)
         .eq("id", termen)
         .is("deleted_at", null)
-        .maybeSingle<EchipamentCautat>();
+        .maybeSingle<EchipamentBrut>();
       if (error !== null) throw error;
-      return data === null ? [] : [data];
+      return cuSesizareaDeschisa(admin, ctx.tenant.organizationId, data === null ? [] : [data]);
     }
 
     // Virgula și parantezele sunt sintaxă în filtrul `or()` al PostgREST; `:`
@@ -166,15 +203,19 @@ export const cautaEchipament = createAction({
       .neq("status", "casat")
       .or(`cod.ilike.${tiparContine(curatat)},denumire.ilike.${tiparContine(curatat)}`)
       .limit(10)
-      .returns<EchipamentCautat[]>();
+      .returns<EchipamentBrut[]>();
     if (error !== null) throw error;
 
-    return data ?? [];
+    return cuSesizareaDeschisa(admin, ctx.tenant.organizationId, data ?? []);
   },
 });
 
 export interface SesizareProprie {
   readonly id: string;
+  readonly numar: string;
+  readonly raportat_de_employee_id: string | null;
+  readonly raportat_de_user_id: string | null;
+  readonly atribuit_employee_id: string | null;
   readonly descriere: string;
   readonly urgenta: UrgentaSesizare;
   readonly status: StatusSesizare;
@@ -209,8 +250,10 @@ export const numeleEchipamentelorMele = createAction({
   handler: async (ctx): Promise<readonly SesizareProprie[]> => {
     const { data: proprii, error } = await ctx.supabase
       .from("fault_reports")
+      // Un singur literal: concatenat, tipul devine `string` și PostgREST-js
+      // pierde coloanele (`GenericStringError`).
       .select(
-        "id, equipment_id, descriere, urgenta, status, raportat_la, opreste_functionarea, rezolvat_la, motiv_respingere",
+        "id, numar, equipment_id, raportat_de_employee_id, raportat_de_user_id, atribuit_employee_id, descriere, urgenta, status, raportat_la, opreste_functionarea, rezolvat_la, motiv_respingere",
       )
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
@@ -237,6 +280,10 @@ export const numeleEchipamentelorMele = createAction({
 
     return randuri.map((r) => ({
       id: r.id,
+      numar: r.numar,
+      raportat_de_employee_id: r.raportat_de_employee_id,
+      raportat_de_user_id: r.raportat_de_user_id,
+      atribuit_employee_id: r.atribuit_employee_id,
       descriere: r.descriere,
       urgenta: r.urgenta,
       status: r.status,
@@ -563,6 +610,16 @@ export const inregistreazaInterventie = createAction({
 
 // ── Sesizări: triaj și rezolvare ────────────────────────────────────────
 
+/**
+ * Triajul: în analiză, în lucru, în așteptare, respins. Poarta e
+ * `maintenance:update`/team — tehnicianul atribuit își trece sesizarea în lucru
+ * prin `sesizari/actions.ts` (`incepeLucrul`), pe drepturile lui nominale.
+ *
+ * Tranzițiile le judecă `internal.fault_reports_garda` (0181): „în lucru” cere
+ * tehnician atribuit, „respins” cere motiv și tipul lui, iar din stările
+ * terminale nu se iese. Filtrul `.in("status", deschise)` rămâne pe UPDATE, nu
+ * într-o citire prealabilă, ca să țină și la doi operatori simultani.
+ */
 export const trieazaSesizare = createAction({
   name: "maintenance.fault.triage",
   feature: "maintenance",
@@ -573,7 +630,7 @@ export const trieazaSesizare = createAction({
     action: "update",
     entityType: "fault_report",
     entityId: (input) => input.id,
-    allow: ["id", "status", "motiv_respingere"],
+    allow: ["id", "status", "motiv_respingere", "motiv_respingere_tip", "duplicat_al_id"],
   },
   revalidate: (input) => [
     "/mentenanta/sesizari",
@@ -582,25 +639,24 @@ export const trieazaSesizare = createAction({
   ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
+    const respinge = input.status === "respins";
     const { data, error } = await db
       .from("fault_reports")
       .update({
         status: input.status,
-        motiv_respingere: input.status === "respins" ? input.motiv_respingere : null,
+        motiv_respingere: respinge ? input.motiv_respingere : null,
+        motiv_respingere_tip: respinge ? (input.motiv_respingere_tip ?? "altul") : null,
+        duplicat_al_id: respinge ? input.duplicat_al_id : null,
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
-      // Rezolvat și respins sunt terminale (ca în pagina sesizării): garda din
-      // bază nu oprește ieșirea din ele, iar o redeschidere dintr-un tab vechi
-      // lăsa `rezolvat_la` și `intervention_id` agățate. Filtrul stă în UPDATE,
-      // nu într-o citire prealabilă, ca să țină și la cursă.
-      .in("status", ["nou", "in_analiza", "in_lucru"])
+      .in("status", STARI_DESCHISE_SESIZARE)
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     if (data === null) {
       throw notFound(
-        "Sesizarea nu a fost găsită, nu vă este accesibilă sau a fost deja închisă (rezolvată ori respinsă).",
+        "Sesizarea nu a fost găsită, nu vă este accesibilă sau a fost deja închisă (rezolvată, respinsă ori retrasă).",
       );
     }
 
@@ -611,14 +667,27 @@ export const trieazaSesizare = createAction({
 /**
  * Rezolvarea unei sesizări: creează întâi intervenția care a rezolvat-o, apoi
  * marchează sesizarea rezolvată cu `intervention_id`-ul ei. Garda din bază
- * (`fault_reports_guard`) refuză `status = 'rezolvat'` fără intervenție —
- * ordinea contează, nu doar stilistic.
+ * refuză `status = 'rezolvat'` fără intervenție — ordinea contează, nu doar
+ * stilistic.
+ *
+ * ── CINE O CHEAMĂ ─────────────────────────────────────────────────────────
+ * Gestionarul, pe orice sesizare deschisă; dar ȘI tehnicianul atribuit, pe a
+ * lui — de aceea poarta e `maintenance:read`/own, nu `update`: politica de
+ * INSERT pe intervenții are ramura „sesizarea e atribuită mie”, iar garda
+ * sesizării îi dă tehnicianului câmpurile `status`, `intervention_id`,
+ * `nota_rezolvare`. Un străin trece de poartă și e refuzat de bază cu 42501
+ * sau P0001 — tradus, nu ascuns.
+ *
+ * ── OPRIREA SE ÎNCHIDE ───────────────────────────────────────────────────
+ * Triggerul `fault_reports_oprire` închide oprirea la `rezolvat_la`;
+ * `repus_in_functiune_la` o mută la momentul REAL în care utilajul a mers din
+ * nou (poate fi înainte de completarea formularului).
  */
 export const rezolvaSesizare = createAction({
   name: "maintenance.fault.resolve",
   feature: "maintenance",
-  permission: "maintenance:update",
-  minScope: "team",
+  permission: "maintenance:read",
+  minScope: "own",
   input: rezolvaSesizareSchema,
   audit: {
     action: "update",
@@ -631,6 +700,8 @@ export const rezolvaSesizare = createAction({
     `/mentenanta/sesizari/${input.id}`,
     "/mentenanta/interventii",
     "/mentenanta",
+    "/portal/sesizari",
+    `/portal/sesizari/${input.id}`,
   ],
   handler: async (ctx, input): Promise<Readonly<{ id: string; interventionId: string }>> => {
     const db = await createServerSupabase();
@@ -646,11 +717,28 @@ export const rezolvaSesizare = createAction({
     if (sesizare === null) {
       throw notFound("Sesizarea nu a fost găsită sau nu vă este accesibilă.");
     }
-    if (sesizare.status === "rezolvat" || sesizare.status === "respins") {
-      throw businessRule("Această sesizare a fost deja închisă (rezolvată sau respinsă).");
+    if (!STARI_DESCHISE_SESIZARE.includes(sesizare.status)) {
+      throw businessRule(
+        "Această sesizare nu mai e deschisă: a fost rezolvată, respinsă sau retrasă.",
+      );
+    }
+    // „Rezolvat” pleacă DOAR din „în lucru” (mașina de stări). Verificat aici,
+    // înainte de a insera intervenția: altfel garda ar refuza UPDATE-ul, iar
+    // pentru tehnician compensarea de mai jos n-ar putea anula intervenția
+    // (politica de UPDATE pe intervenții cere `update ≥ team`) — ar rămâne o
+    // intervenție orfană, cu costuri, în registru.
+    if (sesizare.status !== "in_lucru") {
+      throw businessRule(
+        "Sesizarea trebuie să fie „În lucru” ca să fie rezolvată. Treceți-o întâi în lucru (sau atribuiți-o), apoi înregistrați intervenția.",
+      );
     }
 
-    const { id: sesizareId, ...campuriInterventie } = input;
+    const {
+      id: sesizareId,
+      repus_in_functiune_la: repusLa,
+      nota_rezolvare: notaRezolvare,
+      ...campuriInterventie
+    } = input;
 
     const { data: interventie, error: eroareInterventie } = await db
       .from("maintenance_interventions")
@@ -658,13 +746,14 @@ export const rezolvaSesizare = createAction({
         ...campuriInterventie,
         plan_id: null,
         equipment_id: sesizare.equipment_id,
+        fault_report_id: sesizareId,
         organization_id: ctx.tenant.organizationId,
       })
       .select("id")
       .single();
     if (eroareInterventie !== null) traduEroare(eroareInterventie);
 
-    // `rezolvat_la` NU se trimite: `fault_reports_guard` îl completează singur.
+    // `rezolvat_la` NU se trimite: garda îl completează singură.
     //
     // UPDATE-ul e CONDIȚIONAT pe starea deschisă: doi operatori care rezolvă
     // simultan aceeași sesizare treceau amândoi de citirea de mai sus, inserau
@@ -672,27 +761,59 @@ export const rezolvaSesizare = createAction({
     // fără nicio eroare. Acum doar unul câștigă; celălalt primește zero rânduri.
     const { data, error } = await db
       .from("fault_reports")
-      .update({ status: "rezolvat", intervention_id: interventie.id })
+      .update({
+        status: "rezolvat",
+        intervention_id: interventie.id,
+        nota_rezolvare: notaRezolvare,
+      })
       .eq("id", sesizareId)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
-      .in("status", ["nou", "in_analiza", "in_lucru"])
+      .eq("status", "in_lucru")
       .select("id")
       .maybeSingle();
     if (error !== null || data === null) {
       // Compensare: intervenția abia inserată nu rezolvă nimic, deci se anulează
       // logic (DELETE e revocat pe tabelă; `maintenance_interventions_apply`
       // ignoră rândurile cu `deleted_at`). Eroarea anulării nu o ascunde pe cea
-      // originală.
-      await db
+      // originală. Zero rânduri la anulare (tehnicianul n-are UPDATE pe
+      // intervenții) se jurnalizează: e cazul de curățat de mână.
+      const { data: anulate } = await db
         .from("maintenance_interventions")
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", interventie.id)
-        .eq("organization_id", ctx.tenant.organizationId);
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id");
+      if ((anulate ?? []).length === 0) {
+        console.warn(
+          `[rezolvaSesizare] intervenția ${interventie.id} nu a putut fi anulată după cursa pierdută pe sesizarea ${sesizareId}`,
+        );
+      }
       if (error !== null) traduEroare(error);
       throw businessRule(
         "Sesizarea a fost închisă între timp de altcineva (sau nu mai e accesibilă). Intervenția nu a fost înregistrată. Reîncărcați pagina.",
       );
+    }
+
+    // Momentul real al repunerii în funcțiune, dacă utilajul a stat. Triggerul
+    // a închis deja oprirea la `rezolvat_la`; aici se corectează la ce a spus
+    // omul. Eșecul nu anulează rezolvarea: oprirea rămâne închisă la rezolvat_la.
+    if (repusLa !== null) {
+      const { data: opriri, error: eroareOprire } = await db
+        .from("equipment_opriri")
+        .update({ sfarsit: repusLa })
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("fault_report_id", sesizareId)
+        .is("deleted_at", null)
+        .gte("sfarsit", repusLa)
+        .select("id");
+      if (eroareOprire !== null) {
+        console.warn(`[rezolvaSesizare] oprirea nu s-a putut corecta: ${eroareOprire.message}`);
+      } else if ((opriri ?? []).length === 0) {
+        console.warn(
+          `[rezolvaSesizare] nicio oprire de corectat pe sesizarea ${sesizareId} (zero rânduri)`,
+        );
+      }
     }
 
     return { id: data.id, interventionId: interventie.id };

@@ -428,7 +428,7 @@ export default async function PaginaMentenanta() {
             ) : null}
           </>
         }
-        file={<NavMentenanta />}
+        file={<NavMentenanta poateSetari={can(permisiuni, "maintenance:update", "all")} />}
       />
 
       <PanouOrganizatie organizationId={tenant.organizationId} />

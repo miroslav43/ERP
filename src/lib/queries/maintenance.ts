@@ -12,18 +12,23 @@ import "server-only";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
 import { cereActiune, stareScadentaPlan } from "@/domain/maintenance/scadente";
+import { STARI_DESCHISE_SESIZARE } from "@/domain/maintenance/sesizari";
 import type {
+  EntitateAtasament,
   FiltreEchipamente,
   FiltreInterventii,
   FiltreSesizari,
+  MotivRespingere,
   RezultatInterventie,
   SortareEchipamente,
   SortareInterventii,
   SortareSesizari,
   StatusEchipament,
   StatusSesizare,
+  TipAtasament,
   TipContor,
   TipMentenanta,
+  TipOprire,
   UrgentaSesizare,
 } from "@/schemas/maintenance";
 import { SORTARI_ECHIPAMENTE, SORTARI_INTERVENTII, SORTARI_SESIZARI } from "@/schemas/maintenance";
@@ -142,8 +147,10 @@ export interface RezultatInterventii {
 
 export interface RandSesizare {
   readonly id: string;
+  readonly numar: string;
   readonly equipment_id: string;
   readonly raportat_de_employee_id: string | null;
+  readonly raportat_de_user_id: string | null;
   readonly descriere: string;
   readonly urgenta: UrgentaSesizare;
   readonly status: StatusSesizare;
@@ -151,8 +158,84 @@ export interface RandSesizare {
   readonly opreste_functionarea: boolean;
   readonly intervention_id: string | null;
   readonly rezolvat_la: string | null;
+  readonly inchis_la: string | null;
   readonly motiv_respingere: string | null;
+  readonly motiv_respingere_tip: MotivRespingere | null;
+  readonly atribuit_employee_id: string | null;
+  readonly atribuit_la: string | null;
+  readonly redeschisa_de_ori: number;
+  readonly motiv_redeschidere: string | null;
+  readonly duplicat_al_id: string | null;
+  readonly nota_rezolvare: string | null;
 }
+
+export interface ComentariuSesizare {
+  readonly id: string;
+  readonly autor_employee_id: string | null;
+  readonly autor_user_id: string | null;
+  readonly continut: string;
+  readonly intern: boolean;
+  readonly created_at: string;
+}
+
+export interface IstoricSesizare {
+  readonly id: string;
+  readonly actor_user_id: string | null;
+  readonly camp: string;
+  readonly valoare_veche: string | null;
+  readonly valoare_noua: string | null;
+  readonly motiv: string | null;
+  readonly created_at: string;
+}
+
+export interface Atasament {
+  readonly id: string;
+  readonly entity_type: EntitateAtasament;
+  readonly entity_id: string;
+  readonly storage_path: string;
+  readonly denumire: string;
+  readonly tip: TipAtasament;
+  readonly mime: string | null;
+  readonly marime_bytes: number | null;
+  readonly created_by: string | null;
+  readonly created_at: string;
+}
+
+export interface Oprire {
+  readonly id: string;
+  readonly equipment_id: string;
+  readonly inceput: string;
+  readonly sfarsit: string | null;
+  readonly tip: TipOprire;
+  readonly motiv: string | null;
+  readonly fault_report_id: string | null;
+  readonly intervention_id: string | null;
+}
+
+export interface SetariMentenanta {
+  readonly id: string | null;
+  readonly responsabili: readonly string[];
+  readonly rsvti_employee_id: string | null;
+  readonly inchidere_automata_zile: number;
+  readonly prag_avertizare_zile: number;
+  readonly prag_contor_necitit_zile: number;
+  readonly ore_functionare_pe_zi: number;
+  readonly zile_pe_saptamana: number;
+  readonly cost_ora_oprire: number | null;
+}
+
+/** Implicitele din `default`-urile tabelei `maintenance_settings` (0181) — identice. */
+export const SETARI_MENTENANTA_IMPLICITE: SetariMentenanta = {
+  id: null,
+  responsabili: [],
+  rsvti_employee_id: null,
+  inchidere_automata_zile: 5,
+  prag_avertizare_zile: 15,
+  prag_contor_necitit_zile: 30,
+  ore_functionare_pe_zi: 8,
+  zile_pe_saptamana: 5,
+  cost_ora_oprire: null,
+};
 
 export interface RezultatSesizari {
   readonly randuri: readonly RandSesizare[];
@@ -273,8 +356,10 @@ const COLOANE_INTERVENTIE =
   "oprire_minute, citire_contor, observatii";
 
 const COLOANE_SESIZARE =
-  "id, equipment_id, raportat_de_employee_id, descriere, urgenta, status, raportat_la, " +
-  "opreste_functionarea, intervention_id, rezolvat_la, motiv_respingere";
+  "id, numar, equipment_id, raportat_de_employee_id, raportat_de_user_id, descriere, urgenta, " +
+  "status, raportat_la, opreste_functionarea, intervention_id, rezolvat_la, inchis_la, " +
+  "motiv_respingere, motiv_respingere_tip, atribuit_employee_id, atribuit_la, redeschisa_de_ori, " +
+  "motiv_redeschidere, duplicat_al_id, nota_rezolvare";
 
 // ── Echipamente ──────────────────────────────────────────────────────────
 
@@ -807,9 +892,18 @@ export async function citesteInterventie(
 
 // ── Sesizări ────────────────────────────────────────────────────────────
 
+/** Un uuid care nu există: pentru „sesizările mele” când apelantul n-are fișă, lista e goală, nu întreagă. */
+const NICIO_FISA = "00000000-0000-4000-8000-000000000000";
+
+/**
+ * Lista de sesizări. `fisaMea` e fișa apelantului, pentru filtrul `atribuit=mie`:
+ * citirea nu poate ști singură cine întreabă, iar un `mie` fără fișă trebuie să
+ * dea zero rânduri, nu toate rândurile — de aici și `NICIO_FISA`.
+ */
 export async function sesizari(
   organizationId: string,
   filtre: FiltreSesizariCitire,
+  fisaMea: string | null = null,
 ): Promise<RezultatSesizari> {
   const db = await createServerSupabase();
   const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_SESIZARI, SORTARE_IMPLICITA_SESIZARI);
@@ -826,14 +920,19 @@ export async function sesizari(
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    else if (filtre.deschise === "da") cu = cu.in("status", STARI_DESCHISE_SESIZARE);
     if (filtre.urgenta !== null) cu = cu.eq("urgenta", filtre.urgenta);
     if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+    if (filtre.atribuit === "nimeni") cu = cu.is("atribuit_employee_id", null);
+    else if (filtre.atribuit === "mie") cu = cu.eq("atribuit_employee_id", fisaMea ?? NICIO_FISA);
+    else if (filtre.atribuit !== null) cu = cu.eq("atribuit_employee_id", filtre.atribuit);
     return cu;
   };
 
@@ -873,11 +972,11 @@ export async function sesizari(
 }
 
 /**
- * Statusurile care ÎNCĂ cer o acțiune — complementul lui `rezolvat`/`respins`.
- * Scris ca listă, nu ca negație, ca să fie o alegere explicită: un status nou
- * adăugat în `fault_status` n-ar trebui să intre tăcut în coada de dimineață.
+ * Statusurile care ÎNCĂ cer o acțiune — lista explicită din domeniu
+ * (`STARI_DESCHISE_SESIZARE`), nu o negație: un status nou adăugat în
+ * `fault_status` n-ar trebui să intre tăcut în coada de dimineață.
  */
-const STATUSURI_DESCHISE: readonly StatusSesizare[] = ["nou", "in_analiza", "in_lucru"];
+const STATUSURI_DESCHISE: readonly StatusSesizare[] = STARI_DESCHISE_SESIZARE;
 
 export interface RezultatSesizariDeschise {
   readonly randuri: readonly RandSesizare[];
@@ -1014,6 +1113,255 @@ export async function angajatiDupaId(
 
   if (error !== null) throw error;
   return new Map((data ?? []).map((a) => [a.id, a]));
+}
+
+/**
+ * Fișele după CONTUL de utilizator — pentru istoricul și comentariile sesizării,
+ * care rețin `actor_user_id`/`autor_user_id` (un administrator fără fișă are
+ * doar cont). Cheia hărții e `user_id`. Sub RLS, un `employee` vede doar fișa
+ * lui: numele lipsă se afișează ca „Echipa de mentenanță", nu ca eroare.
+ */
+export async function angajatiDupaUserId(
+  organizationId: string,
+  userIds: readonly string[],
+): Promise<ReadonlyMap<string, AngajatRezumat>> {
+  const unice = [...new Set(userIds)];
+  if (unice.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, user_id")
+    .eq("organization_id", organizationId)
+    .in("user_id", unice)
+    .is("deleted_at", null)
+    .order("is_primary", { ascending: false })
+    .returns<(AngajatRezumat & { readonly user_id: string | null })[]>();
+
+  if (error !== null) throw error;
+  const harta = new Map<string, AngajatRezumat>();
+  for (const a of data ?? []) {
+    // Prima fișă (cea principală, sortată în față) câștigă.
+    if (a.user_id !== null && !harta.has(a.user_id)) {
+      harta.set(a.user_id, { id: a.id, full_name: a.full_name });
+    }
+  }
+  return harta;
+}
+
+// ── Sesizări: cronologie, comentarii, atașamente, opriri (0181) ─────────────
+
+export async function comentariiSesizare(
+  organizationId: string,
+  faultReportId: string,
+): Promise<readonly ComentariuSesizare[]> {
+  const db = await createServerSupabase();
+  // Notele interne le filtrează RLS, nu noi: `fault_report_comments_select` le
+  // ascunde raportorului. Aici se citește tot ce lasă politica.
+  const { data, error } = await db
+    .from("fault_report_comments")
+    .select("id, autor_employee_id, autor_user_id, continut, intern, created_at")
+    .eq("organization_id", organizationId)
+    .eq("fault_report_id", faultReportId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(500)
+    .returns<ComentariuSesizare[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function istoricSesizare(
+  organizationId: string,
+  faultReportId: string,
+): Promise<readonly IstoricSesizare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fault_report_history")
+    .select("id, actor_user_id, camp, valoare_veche, valoare_noua, motiv, created_at")
+    .eq("organization_id", organizationId)
+    .eq("fault_report_id", faultReportId)
+    .order("created_at", { ascending: true })
+    .limit(500)
+    .returns<IstoricSesizare[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/** Bucketul privat al modulului (0181). Politicile lui proprii decid cine citește ce. */
+export const BUCKET_MENTENANTA = "org-mentenanta";
+
+export async function atasamente(
+  organizationId: string,
+  entityType: EntitateAtasament,
+  entityId: string,
+): Promise<readonly Atasament[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_attachments")
+    .select(
+      "id, entity_type, entity_id, storage_path, denumire, tip, mime, marime_bytes, created_by, created_at",
+    )
+    .eq("organization_id", organizationId)
+    .eq("entity_type", entityType)
+    .eq("entity_id", entityId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(100)
+    .returns<Atasament[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * URL-uri semnate de descărcare pentru o listă de atașamente — pe clientul
+ * utilizatorului, deci sub politicile bucketului: cine n-are voie primește
+ * `null`, nu un link. Zece minute, cât ține o pagină deschisă.
+ */
+export async function urlSemnate(
+  randuri: readonly Atasament[],
+): Promise<ReadonlyMap<string, string>> {
+  if (randuri.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const { data, error } = await db.storage.from(BUCKET_MENTENANTA).createSignedUrls(
+    randuri.map((a) => a.storage_path),
+    600,
+  );
+  if (error !== null || data === null) return new Map();
+  const harta = new Map<string, string>();
+  for (const semnat of data) {
+    const cale: string | null = semnat.path;
+    const url: string | null = semnat.signedUrl;
+    if (cale !== null && url !== null && url.length > 0 && semnat.error === null) {
+      harta.set(cale, url);
+    }
+  }
+  return harta;
+}
+
+export async function opririSesizare(
+  organizationId: string,
+  faultReportId: string,
+): Promise<readonly Oprire[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment_opriri")
+    .select("id, equipment_id, inceput, sfarsit, tip, motiv, fault_report_id, intervention_id")
+    .eq("organization_id", organizationId)
+    .eq("fault_report_id", faultReportId)
+    .is("deleted_at", null)
+    .order("inceput", { ascending: false })
+    .limit(20)
+    .returns<Oprire[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function opririEchipament(
+  organizationId: string,
+  equipmentId: string,
+  limita: number,
+): Promise<readonly Oprire[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment_opriri")
+    .select("id, equipment_id, inceput, sfarsit, tip, motiv, fault_report_id, intervention_id")
+    .eq("organization_id", organizationId)
+    .eq("equipment_id", equipmentId)
+    .is("deleted_at", null)
+    .order("inceput", { ascending: false })
+    .limit(limita)
+    .returns<Oprire[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * Opririle încă deschise ale organizației, pe echipament — de aici se derivă
+ * „Oprit” pe listă și pe panou. `equipment.status` NU se schimbă automat (vezi
+ * 0181, §5): jurnalul e singura sursă.
+ */
+export async function opririDeschise(organizationId: string): Promise<ReadonlyMap<string, Oprire>> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment_opriri")
+    .select("id, equipment_id, inceput, sfarsit, tip, motiv, fault_report_id, intervention_id")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("sfarsit", null)
+    .order("inceput", { ascending: true })
+    .limit(500)
+    .returns<Oprire[]>();
+  if (error !== null) throw error;
+  // Prima oprire deschisă câștigă: e cea mai veche, deci cea care spune de când stă utilajul.
+  const harta = new Map<string, Oprire>();
+  for (const o of data ?? []) if (!harta.has(o.equipment_id)) harta.set(o.equipment_id, o);
+  return harta;
+}
+
+/** Sesizarea deschisă cea mai veche pe un echipament — avertismentul de duplicat la raportare. */
+export async function sesizareDeschisaPeEchipament(
+  organizationId: string,
+  equipmentId: string,
+): Promise<RandSesizare | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fault_reports")
+    .select(COLOANE_SESIZARE)
+    .eq("organization_id", organizationId)
+    .eq("equipment_id", equipmentId)
+    .is("deleted_at", null)
+    .in("status", STARI_DESCHISE_SESIZARE)
+    .order("raportat_la", { ascending: true })
+    .limit(1)
+    .maybeSingle<RandSesizare>();
+  if (error !== null) throw error;
+  return data;
+}
+
+/** Sesizările atribuite fișei date, încă deschise — „de lucrat” pentru tehnician. */
+export async function sesizariAtribuite(
+  organizationId: string,
+  fisaId: string,
+  limita: number,
+): Promise<readonly RandSesizare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fault_reports")
+    .select(COLOANE_SESIZARE)
+    .eq("organization_id", organizationId)
+    .eq("atribuit_employee_id", fisaId)
+    .is("deleted_at", null)
+    .in("status", STARI_DESCHISE_SESIZARE)
+    .order("opreste_functionarea", { ascending: false })
+    .order("urgenta", { ascending: false })
+    .order("raportat_la", { ascending: true })
+    .limit(limita)
+    .returns<RandSesizare[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+// ── Setări (0181) ───────────────────────────────────────────────────────────
+
+/**
+ * Setările modulului, cu implicitele completate. Lipsa rândului nu e o eroare:
+ * o firmă care n-a deschis niciodată pagina de setări are exact valorile din
+ * `default`-urile tabelei.
+ */
+export async function setariMentenanta(organizationId: string): Promise<SetariMentenanta> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_settings")
+    .select(
+      "id, responsabili, rsvti_employee_id, inchidere_automata_zile, prag_avertizare_zile, " +
+        "prag_contor_necitit_zile, ore_functionare_pe_zi, zile_pe_saptamana, cost_ora_oprire",
+    )
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .maybeSingle<SetariMentenanta>();
+  if (error !== null) throw error;
+  return data ?? SETARI_MENTENANTA_IMPLICITE;
 }
 
 // ── Badge de navigare ────────────────────────────────────────────────────

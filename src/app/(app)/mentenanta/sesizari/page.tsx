@@ -16,8 +16,15 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { echipamenteDupaId, sesizari } from "@/lib/queries/maintenance";
+import {
+  angajatiDupaId,
+  echipamenteDupaId,
+  optiuniAngajati,
+  sesizari,
+} from "@/lib/queries/maintenance";
+import { fisaMea } from "@/lib/queries/portal";
 import { filtreSesizariSchema } from "@/schemas/maintenance";
+import { esteDeschisa } from "@/domain/maintenance/sesizari";
 
 import {
   ETICHETE_STATUS_SESIZARE,
@@ -27,6 +34,7 @@ import {
 } from "../etichete";
 import { cautaEchipament } from "../actions";
 import { NavMentenanta } from "../nav-mentenanta";
+import { ButonPreiau } from "./buton-preiau";
 import { DialogSesizareNoua } from "./dialog-sesizare-noua";
 import { FiltreSesizariForm } from "./filtre-sesizari";
 
@@ -39,12 +47,21 @@ interface ProprietatiPagina {
 async function TabelSesizari({
   organizationId,
   parametri,
+  fisaId,
+  poatePrelua,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly fisaId: string | null;
+  /** Gestionar cu fișă: butonul „Preiau eu” pe rândurile neatribuite. */
+  readonly poatePrelua: boolean;
 }) {
   const filtre = filtreDinUrl(filtreSesizariSchema, parametri);
-  const { randuri, urmatorulCursor, total, sortare } = await sesizari(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await sesizari(
+    organizationId,
+    filtre,
+    fisaId,
+  );
 
   /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
   function adresa(schimba: (p: URLSearchParams) => void): string {
@@ -58,7 +75,11 @@ async function TabelSesizari({
 
   if (randuri.length === 0) {
     const areFiltre =
-      filtre.status !== null || filtre.urgenta !== null || filtre.echipament !== null;
+      filtre.status !== null ||
+      filtre.urgenta !== null ||
+      filtre.echipament !== null ||
+      filtre.atribuit !== null ||
+      filtre.deschise !== null;
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -77,10 +98,16 @@ async function TabelSesizari({
                 // ordinea aleasă din antet și nici mărimea de pagină. `echipament`
                 // intră și el, fiindcă textul promite „toate sesizările”.
                 href: adresa((p) => {
-                  p.delete("status");
-                  p.delete("urgenta");
-                  p.delete("echipament");
-                  p.delete("cursor");
+                  for (const cheie of [
+                    "status",
+                    "urgenta",
+                    "echipament",
+                    "atribuit",
+                    "deschise",
+                    "cursor",
+                  ]) {
+                    p.delete(cheie);
+                  }
                 }),
               },
             }
@@ -89,12 +116,25 @@ async function TabelSesizari({
     );
   }
 
-  const echipamente = await echipamenteDupaId(
-    organizationId,
-    randuri.map((r) => r.equipment_id),
-  );
+  const [echipamente, tehnicieni] = await Promise.all([
+    echipamenteDupaId(
+      organizationId,
+      randuri.map((r) => r.equipment_id),
+    ),
+    angajatiDupaId(
+      organizationId,
+      randuri.map((r) => r.atribuit_employee_id).filter((v): v is string => v !== null),
+    ),
+  ]);
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "numar",
+      antet: "Nr.",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (s) => <span className="text-muted-foreground tabular-nums">{s.numar}</span>,
+    },
     {
       cheie: "echipament",
       antet: "Echipament",
@@ -112,10 +152,8 @@ async function TabelSesizari({
     },
     {
       /*
-       * `opreste_functionarea` era CITIT de `sesizari()` (e în `COLOANE_SESIZARE`)
-       * și nu apărea nicăieri în coadă — se vedea abia pe detaliu, după două
-       * clicuri. E singurul semnal care spune „utilajul nu produce acum”, adică
-       * exact ce decide ce se ia primul dintr-o coadă de triaj.
+       * `opreste_functionarea` e singurul semnal care spune „utilajul nu produce
+       * acum”, adică exact ce decide ce se ia primul dintr-o coadă de triaj.
        */
       cheie: "oprit",
       antet: "Utilaj",
@@ -164,6 +202,23 @@ async function TabelSesizari({
         <Badge ton={TONURI_STATUS_SESIZARE[s.status]}>{ETICHETE_STATUS_SESIZARE[s.status]}</Badge>
       ),
     },
+    {
+      cheie: "atribuit",
+      antet: "Tehnician",
+      peTelefon: "actiuni",
+      celula: (s) => {
+        if (s.atribuit_employee_id !== null) {
+          const nume = tehnicieni.get(s.atribuit_employee_id)?.full_name ?? "Atribuită";
+          return (
+            <span className={s.atribuit_employee_id === fisaId ? "font-medium" : undefined}>
+              {s.atribuit_employee_id === fisaId ? `${nume} (dvs.)` : nume}
+            </span>
+          );
+        }
+        if (poatePrelua && esteDeschisa(s.status)) return <ButonPreiau sesizareId={s.id} />;
+        return <span className="text-muted-foreground">Neatribuită</span>;
+      },
+    },
   ];
 
   return (
@@ -203,7 +258,7 @@ async function TabelSesizari({
 }
 
 export default async function PaginaSesizari({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -222,39 +277,44 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
   // filtre are nevoie de valorile CURENTE ca să-și scrie pastilele, iar din
   // parametrii bruți ar putea scrie o pastilă cu o valoare inventată din URL.
   const filtre = filtreDinUrl(filtreSesizariSchema, parametri);
-
-  /*
-   * Denumirea echipamentului filtrat, DOAR ca să existe o pastilă cu ieșire.
-   * `echipament` e cheia pusă de codul QR de pe utilaj: lista deschisă de pe
-   * telefonul cuiva din hală e filtrată la o singură mașină, iar până acum
-   * filtrul era invizibil ȘI de neșters — singura ieșire era linkul din starea
-   * goală, care apare numai când lista chiar e goală.
-   */
-  const etichetaEchipament =
-    filtre.echipament === null
-      ? null
-      : ((await echipamenteDupaId(tenant.organizationId, [filtre.echipament])).get(
-          filtre.echipament,
-        )?.cod ?? null);
-
-  /*
-   * Caseta „Sesizare nouă" (fosta rută `/sesizari/noua`): `?sesizare=noua` o
-   * deschide, iar `?echipament=<id>` — același parametru pe care îl pun
-   * autocolantele QR — o precompletează. Echipamentul se rezolvă AICI, pe
-   * server, prin aceeași acțiune pe care o folosește căutarea din casetă (un
-   * `employee` nu poate citi `equipment` direct, capcana #27); un id stricat sau
-   * un utilaj casat nu dau 404, ci o bandă de atenție în casetă.
-   */
+  const poateGestiona = can(permisiuni, "maintenance:update", "team");
+  const poateSetari = can(permisiuni, "maintenance:update", "all");
   const poateRaporta = can(permisiuni, "maintenance:create", "own");
   const deschideCaseta = parametri["sesizare"] === "noua";
   const echipamentBrut =
     typeof parametri["echipament"] === "string" && parametri["echipament"].length > 0
       ? parametri["echipament"]
       : null;
-  const prefill =
+
+  /*
+   * Denumirea echipamentului filtrat, DOAR ca să existe o pastilă cu ieșire.
+   * `echipament` e cheia pusă de codul QR de pe utilaj: lista deschisă de pe
+   * telefonul cuiva din hală e filtrată la o singură mașină, iar fără pastilă
+   * filtrul era invizibil ȘI de neșters.
+   *
+   * Caseta „Sesizare nouă" (fosta rută `/sesizari/noua`): `?sesizare=noua` o
+   * deschide, iar `?echipament=<id>` o precompletează. Echipamentul se rezolvă
+   * AICI, pe server, prin aceeași acțiune pe care o folosește căutarea din
+   * casetă (un `employee` nu poate citi `equipment` direct, capcana #27).
+   */
+  const [stareFisa, etichetaEchipament, prefill, tehnicieni] = await Promise.all([
+    fisaMea(tenant.organizationId, user.id),
+    filtre.echipament === null
+      ? Promise.resolve(null)
+      : echipamenteDupaId(tenant.organizationId, [filtre.echipament]).then(
+          (h) => h.get(filtre.echipament ?? "")?.cod ?? null,
+        ),
     poateRaporta && deschideCaseta && filtre.echipament !== null
-      ? await cautaEchipament({ q: filtre.echipament })
-      : null;
+      ? cautaEchipament({ q: filtre.echipament })
+      : Promise.resolve(null),
+    // Selectorul de tehnician din bară: pentru gestionar, toți angajații; un
+    // angajat obișnuit primește sub RLS doar fișa lui — i-ar dubla opțiunea
+    // „Atribuite mie”, deci nu i se dă lista.
+    poateGestiona ? optiuniAngajati(tenant.organizationId) : Promise.resolve([]),
+  ]);
+  const fisaId = stareFisa.stare === "ok" ? stareFisa.fisa.id : null;
+  // Avertismentul de duplicat vine cu echipamentul (`sesizare_deschisa`), din
+  // aceeași acțiune: omul vede „SZ-… e deja deschisă” și decide dacă trimite oricum.
   const echipamentPrefill = prefill !== null && prefill.ok ? (prefill.data[0] ?? null) : null;
 
   return (
@@ -282,16 +342,23 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
               ),
             }
           : {})}
-        file={<NavMentenanta />}
+        file={<NavMentenanta poateSetari={poateSetari} />}
       />
 
       <FiltreSesizariForm
         filtre={filtre}
         {...(etichetaEchipament === null ? {} : { etichetaEchipament })}
+        tehnicieni={tehnicieni}
+        areFisa={fisaId !== null}
       />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
-        <TabelSesizari organizationId={tenant.organizationId} parametri={parametri} />
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
+        <TabelSesizari
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          fisaId={fisaId}
+          poatePrelua={poateGestiona && fisaId !== null}
+        />
       </Suspense>
     </div>
   );

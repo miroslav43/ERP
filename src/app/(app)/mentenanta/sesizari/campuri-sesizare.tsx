@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useTransition, type ReactElement } from "react";
 
 import { Buton } from "@/components/ui/buton";
@@ -20,6 +21,8 @@ export interface ProprietatiCampuriSesizare<TData> {
   readonly echipamentPrefill: EchipamentCautat | null;
   /** `?echipament=` a existat, dar n-a dus la niciun echipament activ. */
   readonly prefillEsuat: boolean;
+  /** `/mentenanta/sesizari` sau `/portal/sesizari` — pentru linkul din avertismentul de duplicat. */
+  readonly radacinaSesizari: string;
 }
 
 /**
@@ -33,12 +36,15 @@ export interface ProprietatiCampuriSesizare<TData> {
  * cu debounce; alegerea ajunge în formular printr-un `<input type="hidden">`.
  *
  * ── PREFILL-UL DIN QR SE REZOLVĂ PE SERVER ───────────────────────────────────
- * Formularul-pagină de dinainte căuta echipamentul din `useEffect`, la montare:
- * o clipă de ecran gol, apoi cardul. Acum pagina îl citește ea (aceeași acțiune,
- * chemată din Server Component) și îl dă gata rezolvat — caseta se deschide cu
- * utilajul în ea. Ramura de eșec rămâne explicită: un autocolant vechi, un
- * utilaj casat sau un id stricat dau o bandă de atenție, nu un ecran de
- * căutare gol identic cu cel al unei vizite obișnuite.
+ * Pagina citește echipamentul (aceeași acțiune, chemată din Server Component)
+ * și îl dă gata rezolvat — caseta se deschide cu utilajul în ea. Ramura de
+ * eșec rămâne explicită: un autocolant vechi, un utilaj casat sau un id stricat
+ * dau o bandă de atenție, nu un ecran de căutare gol.
+ *
+ * ── DUPLICATUL SE ANUNȚĂ ─────────────────────────────────────────────────────
+ * Fiecare rezultat vine cu `sesizare_deschisa`; la alegere, banda spune
+ * „există deja SZ-… deschisă” cu link. Trimiterea rămâne posibilă — pot fi două
+ * defecte diferite pe același utilaj.
  *
  * ── LISTA DE REZULTATE E ÎN FLUX, NU ABSOLUTĂ ────────────────────────────────
  * Caseta are corpul `overflow-y-auto`; un derulant poziționat absolut ar fi
@@ -50,6 +56,7 @@ export function CampuriSesizare<TData>({
   idc,
   echipamentPrefill,
   prefillEsuat,
+  radacinaSesizari,
 }: ProprietatiCampuriSesizare<TData>): ReactElement {
   const trimise: Readonly<Record<string, string>> = stare.data === null ? stare.valoriTrimise : {};
   const sATrimis = Object.keys(trimise).length > 0;
@@ -83,6 +90,7 @@ export function CampuriSesizare<TData>({
   const eroriEchipament = stare.erori["equipment_id"] ?? [];
   const idCauta = idc("cauta");
   const idEroareEchipament = idc("cauta-eroare");
+  const duplicat = selectat?.sesizare_deschisa ?? null;
 
   return (
     <div className="space-y-5">
@@ -175,6 +183,11 @@ export function CampuriSesizare<TData>({
                       {echipament.locatie !== null ? (
                         <span className="text-muted-foreground"> · {echipament.locatie}</span>
                       ) : null}
+                      {echipament.sesizare_deschisa !== null ? (
+                        <span className="text-muted-foreground text-nota block">
+                          Are deja o sesizare deschisă: {echipament.sesizare_deschisa.numar}
+                        </span>
+                      ) : null}
                     </button>
                   </li>
                 ))}
@@ -188,6 +201,23 @@ export function CampuriSesizare<TData>({
           </p>
         ) : null}
       </div>
+
+      {duplicat !== null ? (
+        <Callout
+          fel="atentie"
+          titlu={`Există deja o sesizare deschisă pe acest echipament: ${duplicat.numar}`}
+        >
+          Dacă e aceeași defecțiune, deschideți{" "}
+          <Link
+            href={`${radacinaSesizari}/${duplicat.id}`}
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            sesizarea existentă
+          </Link>{" "}
+          și adăugați acolo un comentariu sau o fotografie. Dacă e altă problemă, trimiteți oricum —
+          la triaj se pot lega.
+        </Callout>
+      ) : null}
 
       <Camp
         nume="descriere"

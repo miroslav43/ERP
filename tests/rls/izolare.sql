@@ -685,13 +685,44 @@ begin
          (v_beta, (select val from t_ids where cheie='mplan_beta'), (select val from t_ids where cheie='equip_beta'),
           current_date - 3, 'Intervenție de test', (select val from t_ids where cheie='mgr_beta'));
 
-  insert into public.fault_reports (organization_id, equipment_id, raportat_de_employee_id, descriere)
-  values (v_alfa, (select val from t_ids where cheie='equip_alfa'), (select val from t_ids where cheie='ang_alfa'), 'Zgomot neobișnuit la ridicare.'),
-         (v_beta, (select val from t_ids where cheie='equip_beta'), (select val from t_ids where cheie='ang_beta'), 'Zgomot neobișnuit la ridicare.');
+  -- Id-urile sesizărilor sunt fixate: tabelele-copil din 0181 (comentarii,
+  -- istoric, atașamente, opriri) au nevoie de ele.
+  insert into t_ids
+  select 'fr_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+
+  insert into public.fault_reports (id, organization_id, equipment_id, raportat_de_employee_id, descriere)
+  values ((select val from t_ids where cheie='fr_alfa'), v_alfa, (select val from t_ids where cheie='equip_alfa'), (select val from t_ids where cheie='ang_alfa'), 'Zgomot neobișnuit la ridicare.'),
+         ((select val from t_ids where cheie='fr_beta'), v_beta, (select val from t_ids where cheie='equip_beta'), (select val from t_ids where cheie='ang_beta'), 'Zgomot neobișnuit la ridicare.');
 
   insert into public.iscir_authorizations (organization_id, equipment_id, numar, tip, valabil_pana)
   values (v_alfa, (select val from t_ids where cheie='equip_alfa'), 'ISCIR-' || v_sufix || '-A', 'verificare_tehnica_periodica', current_date + 300),
          (v_beta, (select val from t_ids where cheie='equip_beta'), 'ISCIR-' || v_sufix || '-B', 'verificare_tehnica_periodica', current_date + 300);
+
+  -- ── Migrarea 0181: sesizarea ca flux ────────────────────────────────────────
+  -- Comentariul e al raportorului; istoricul se scrie direct (în viață îl scrie
+  -- garda, sub definer); atașamentul e doar un rând — bucketul nu se atinge aici;
+  -- oprirea e cea pe care ar deschide-o o sesizare cu „oprește funcționarea".
+  insert into public.fault_report_comments (organization_id, fault_report_id, autor_employee_id, continut)
+  values (v_alfa, (select val from t_ids where cheie='fr_alfa'), (select val from t_ids where cheie='ang_alfa'), 'Zgomotul apare doar la sarcină maximă.'),
+         (v_beta, (select val from t_ids where cheie='fr_beta'), (select val from t_ids where cheie='ang_beta'), 'Zgomotul apare doar la sarcină maximă.');
+
+  insert into public.fault_report_history (organization_id, fault_report_id, camp, valoare_veche, valoare_noua)
+  values (v_alfa, (select val from t_ids where cheie='fr_alfa'), 'status', 'nou', 'in_analiza'),
+         (v_beta, (select val from t_ids where cheie='fr_beta'), 'status', 'nou', 'in_analiza');
+
+  insert into public.maintenance_attachments (organization_id, entity_type, entity_id, storage_path, denumire, tip, mime, marime_bytes)
+  values (v_alfa, 'fault_report', (select val from t_ids where cheie='fr_alfa'),
+          v_alfa::text || '/fault_report/' || (select val from t_ids where cheie='fr_alfa')::text || '/' || v_sufix || '-a.jpg', 'poza.jpg', 'foto', 'image/jpeg', 2048),
+         (v_beta, 'fault_report', (select val from t_ids where cheie='fr_beta'),
+          v_beta::text || '/fault_report/' || (select val from t_ids where cheie='fr_beta')::text || '/' || v_sufix || '-b.jpg', 'poza.jpg', 'foto', 'image/jpeg', 2048);
+
+  insert into public.equipment_opriri (organization_id, equipment_id, inceput, tip, motiv, fault_report_id)
+  values (v_alfa, (select val from t_ids where cheie='equip_alfa'), now() - interval '2 hours', 'neplanificata', 'Zgomot la ridicare', (select val from t_ids where cheie='fr_alfa')),
+         (v_beta, (select val from t_ids where cheie='equip_beta'), now() - interval '2 hours', 'neplanificata', 'Zgomot la ridicare', (select val from t_ids where cheie='fr_beta'));
+
+  insert into public.maintenance_settings (organization_id, responsabili)
+  values (v_alfa, array[(select val from t_ids where cheie='mgr_alfa')]),
+         (v_beta, array[(select val from t_ids where cheie='mgr_beta')]);
 
   -- ── Faza 3b (migrarea 0013): pontaj ─────────────────────────────────────────
   insert into t_ids

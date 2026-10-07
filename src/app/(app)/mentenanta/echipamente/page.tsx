@@ -256,7 +256,7 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
               ),
             }
           : {})}
-        file={<NavMentenanta />}
+        file={<NavMentenanta poateSetari={can(permisiuni, "maintenance:update", "all")} />}
       />
 
       <FiltreEchipamenteForm filtre={filtre} />

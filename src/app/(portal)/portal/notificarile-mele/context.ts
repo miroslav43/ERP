@@ -33,12 +33,13 @@
 import type { AdminSupabase } from "@/lib/supabase/admin";
 import type { ServerSupabase } from "@/lib/supabase/server";
 
-import { idCerereDeConcediu, idTichet, type ContextDestinatar } from "./legaturi";
+import { idCerereDeConcediu, idSesizare, idTichet, type ContextDestinatar } from "./legaturi";
 
 /** Contextul gol — nimic nu-i aparține destinatarului, deci nimic nu se traduce. */
 export const CONTEXT_GOL: ContextDestinatar = {
   concediiProprii: new Set<string>(),
   ticheteProprii: new Set<string>(),
+  sesizariProprii: new Set<string>(),
 };
 
 type Client = ServerSupabase | AdminSupabase;
@@ -90,9 +91,10 @@ export async function contexteDestinatar(
 
   const cerereIds = [...new Set(linkuri.map(idCerereDeConcediu).filter((x) => x !== null))];
   const tichetIds = [...new Set(linkuri.map(idTichet).filter((x) => x !== null))];
-  if (cerereIds.length === 0 && tichetIds.length === 0) return goale;
+  const sesizareIds = [...new Set(linkuri.map(idSesizare).filter((x) => x !== null))];
+  if (cerereIds.length === 0 && tichetIds.length === 0 && sesizareIds.length === 0) return goale;
 
-  const [cereri, tichete] = await Promise.all([
+  const [cereri, tichete, sesizari] = await Promise.all([
     cerereIds.length === 0
       ? null
       : db
@@ -109,6 +111,14 @@ export async function contexteDestinatar(
           .in("organization_id", organizationIds)
           .in("id", tichetIds)
           .is("deleted_at", null),
+    sesizareIds.length === 0
+      ? null
+      : db
+          .from("fault_reports")
+          .select("id, raportat_de_employee_id, atribuit_employee_id, raportat_de_user_id")
+          .in("organization_id", organizationIds)
+          .in("id", sesizareIds)
+          .is("deleted_at", null),
   ]);
 
   if (cereri?.error != null) {
@@ -117,34 +127,63 @@ export async function contexteDestinatar(
   if (tichete?.error != null) {
     console.error(`[context-notificari] citirea tichetelor a eșuat: ${tichete.error.message}.`);
   }
+  if (sesizari?.error != null) {
+    console.error(`[context-notificari] citirea sesizărilor a eșuat: ${sesizari.error.message}.`);
+  }
 
   const perechiCereri = (cereri?.data ?? []).map((r) => [r.id, r.employee_id] as const);
   const perechiTichete = (tichete?.data ?? [])
     .filter((r) => r.solicitant_employee_id !== null)
     .map((r) => [r.id, r.solicitant_employee_id as string] as const);
+  // O sesizare are DOI proprietari de portal: raportorul și tehnicianul atribuit.
+  const perechiSesizari: (readonly [string, string])[] = [];
+  const sesizariPeUtilizator: (readonly [string, string])[] = [];
+  for (const r of sesizari?.data ?? []) {
+    if (r.raportat_de_employee_id !== null) perechiSesizari.push([r.id, r.raportat_de_employee_id]);
+    if (r.atribuit_employee_id !== null) perechiSesizari.push([r.id, r.atribuit_employee_id]);
+    // Raportorul fără fișă (administratorul) e deja un utilizator.
+    if (r.raportat_de_user_id !== null) sesizariPeUtilizator.push([r.id, r.raportat_de_user_id]);
+  }
 
-  const fise = [...new Set([...perechiCereri, ...perechiTichete].map(([, fisa]) => fisa))];
+  const fise = [
+    ...new Set([...perechiCereri, ...perechiTichete, ...perechiSesizari].map(([, fisa]) => fisa)),
+  ];
   const utilizatori = await utilizatoriiFiselor(db, organizationIds, fise);
 
-  const rezultat = new Map<string, { concedii: Set<string>; tichete: Set<string> }>();
-  const adauga = (fisaId: string, entitateId: string, fel: "concedii" | "tichete"): void => {
-    const userId = utilizatori.get(fisaId);
-    if (userId === undefined) return;
+  type Seturi = { concedii: Set<string>; tichete: Set<string>; sesizari: Set<string> };
+  const rezultat = new Map<string, Seturi>();
+  const intrarea = (userId: string): Seturi => {
     let intrare = rezultat.get(userId);
     if (intrare === undefined) {
-      intrare = { concedii: new Set<string>(), tichete: new Set<string>() };
+      intrare = {
+        concedii: new Set<string>(),
+        tichete: new Set<string>(),
+        sesizari: new Set<string>(),
+      };
       rezultat.set(userId, intrare);
     }
-    intrare[fel].add(entitateId);
+    return intrare;
+  };
+  const adauga = (fisaId: string, entitateId: string, fel: keyof Seturi): void => {
+    const userId = utilizatori.get(fisaId);
+    if (userId === undefined) return;
+    intrarea(userId)[fel].add(entitateId);
   };
 
   for (const [cerereId, fisaId] of perechiCereri) adauga(fisaId, cerereId, "concedii");
   for (const [tichetId, fisaId] of perechiTichete) adauga(fisaId, tichetId, "tichete");
+  for (const [sesizareId, fisaId] of perechiSesizari) adauga(fisaId, sesizareId, "sesizari");
+  for (const [sesizareId, userId] of sesizariPeUtilizator)
+    intrarea(userId).sesizari.add(sesizareId);
 
   return new Map(
     [...rezultat].map(([userId, seturi]) => [
       userId,
-      { concediiProprii: seturi.concedii, ticheteProprii: seturi.tichete },
+      {
+        concediiProprii: seturi.concedii,
+        ticheteProprii: seturi.tichete,
+        sesizariProprii: seturi.sesizari,
+      },
     ]),
   );
 }

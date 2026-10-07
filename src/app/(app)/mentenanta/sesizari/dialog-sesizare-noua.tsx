@@ -18,16 +18,14 @@ import { valoriSesizare } from "./valori-sesizare";
  * utilaje le codifică deja, cu `?echipament=<id>`, iar un autocolant tipărit nu
  * se actualizează cu un deploy.
  *
- * ── DE CE LISTA RĂMÂNE VIZIBILĂ ───────────────────────────────────────────────
- * Lista filtrată pe același echipament (`?echipament=` e și cheia filtrului) e
- * exact ce omul vrea să vadă cât scrie: „a mai raportat cineva asta?". Până la
- * M3, care aduce avertismentul de duplicat în casetă, lista de sub ea e
- * răspunsul.
+ * ── DUPLICATUL SE ANUNȚĂ, NU SE BLOCHEAZĂ ────────────────────────────────────
+ * Echipamentul vine cu `sesizare_deschisa`: dacă există deja una, câmpurile
+ * arată o bandă cu numărul și linkul ei. A doua sesizare rămâne posibilă — pot
+ * fi două defecte diferite —, iar la triaj se poate respinge ca duplicat.
  *
  * ── UNDE AJUNGE DUPĂ TRIMITERE ───────────────────────────────────────────────
- * În aplicație, pe sesizarea abia creată (urmează triajul). În portal rămâne pe
- * listă, cu toast: fișa de sesizare a angajatului vine în M3 și atunci se
- * schimbă și destinația de aici.
+ * Pe fișa sesizării abia create: în aplicație urmează triajul, în portal omul
+ * își vede sesizarea cu starea, cronologia și locul pentru fotografii.
  */
 interface Proprietati {
   readonly deschisInitial?: boolean;
@@ -50,7 +48,7 @@ export function DialogSesizareNoua({
     return creeazaSesizare(valoriSesizare(date));
   }
 
-  const inAplicatie = zona === "app";
+  const radacina = zona === "app" ? "/mentenanta/sesizari" : "/portal/sesizari";
 
   return (
     <FormularDialog
@@ -67,14 +65,10 @@ export function DialogSesizareNoua({
       mesajReusita="Sesizarea a fost trimisă."
       etichetaTrimite="Trimite sesizarea"
       textInCurs="Se trimite…"
-      {...(inAplicatie
-        ? {
-            faraReimprospatare: true,
-            laReusita: (sesizare: Readonly<{ id: string }>) => {
-              router.push(`/mentenanta/sesizari/${sesizare.id}`);
-            },
-          }
-        : {})}
+      faraReimprospatare
+      laReusita={(sesizare: Readonly<{ id: string }>) => {
+        router.push(`${radacina}/${sesizare.id}`);
+      }}
     >
       {(stare, idc) => (
         <CampuriSesizare
@@ -82,6 +76,7 @@ export function DialogSesizareNoua({
           idc={idc}
           echipamentPrefill={echipamentPrefill}
           prefillEsuat={prefillEsuat}
+          radacinaSesizari={radacina}
         />
       )}
     </FormularDialog>

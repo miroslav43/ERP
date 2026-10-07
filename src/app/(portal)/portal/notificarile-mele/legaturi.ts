@@ -32,6 +32,7 @@ const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-
 
 const TIPAR_CONCEDIU = new RegExp(`^/concedii/(${UUID})$`, "u");
 const TIPAR_TICHET = new RegExp(`^/ticketing/(${UUID})$`, "u");
+const TIPAR_SESIZARE = new RegExp(`^/mentenanta/sesizari/(${UUID})$`, "u");
 
 /**
  * Ce știe apelantul despre DESTINATARUL notificării — nu despre link.
@@ -61,7 +62,14 @@ const TIPAR_TICHET = new RegExp(`^/ticketing/(${UUID})$`, "u");
  * zero astfel de rânduri; se tratează totuși aici, fiindcă în ziua în care e
  * cablat defectul apare gata făcut, iar cine îl cablează n-are de unde ști.
  *
- * IMPLICITUL E SIGUR. Fără context, niciuna din cele două nu se traduce: rândul
+ * `/mentenanta/sesizari/<uuid>` (0181) E A TREIA DIN ACEEAȘI CLASĂ:
+ * `fault_reports_notifica` o trimite RAPORTORULUI la fiecare schimbare de stare
+ * și TEHNICIANULUI atribuit la atribuire — amândoi pot fi angajați de portal,
+ * iar `portal/sesizari/[id]` are gardă de proprietate (raportor sau tehnician).
+ * Responsabilii de mentenanță primesc aceeași legătură la o sesizare nouă; ei
+ * sunt în aplicația mare și nu trec pe aici.
+ *
+ * IMPLICITUL E SIGUR. Fără context, niciuna din cele trei nu se traduce: rândul
  * cade pe cutia poștală, unde mesajul se citește oricum întreg. Un apelant
  * viitor care uită să dea contextul pierde o aterizare bună; nu produce un 404.
  */
@@ -70,6 +78,8 @@ export type ContextDestinatar = Readonly<{
   concediiProprii: ReadonlySet<string>;
   /** Id-urile tichetelor IT al căror SOLICITANT e destinatarul. */
   ticheteProprii: ReadonlySet<string>;
+  /** Id-urile sesizărilor de defecțiune pe care destinatarul le-a RAPORTAT sau i-au fost ATRIBUITE. */
+  sesizariProprii: ReadonlySet<string>;
 }>;
 
 /**
@@ -90,6 +100,12 @@ export function idTichet(link: string | null): string | null {
   return TIPAR_TICHET.exec(link)?.[1] ?? null;
 }
 
+/** Id-ul sesizării dintr-un `/mentenanta/sesizari/<uuid>`, sau `null`. Vezi mai sus. */
+export function idSesizare(link: string | null): string | null {
+  if (link === null) return null;
+  return TIPAR_SESIZARE.exec(link)?.[1] ?? null;
+}
+
 /**
  * Legăturile care se traduc doar uitându-te la ele.
  *
@@ -108,6 +124,7 @@ const FIXE: Readonly<Record<string, string>> = {
   "/anunturi": "/portal/anunturi",
   "/concedii": "/portal/concediile-mele",
   "/pontaj": "/portal/pontajul-meu",
+  "/mentenanta/sesizari": "/portal/sesizari",
 };
 
 export function caleaDePortal(link: string | null, context?: ContextDestinatar): string | null {
@@ -133,6 +150,13 @@ export function caleaDePortal(link: string | null, context?: ContextDestinatar):
   if (idTichetul !== null) {
     return context?.ticheteProprii.has(idTichetul) === true
       ? `/portal/tichetele-mele/${idTichetul}`
+      : null;
+  }
+
+  const idSesizarea = idSesizare(link);
+  if (idSesizarea !== null) {
+    return context?.sesizariProprii.has(idSesizarea) === true
+      ? `/portal/sesizari/${idSesizarea}`
       : null;
   }
 

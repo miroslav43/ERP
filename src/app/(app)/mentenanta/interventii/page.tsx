@@ -233,7 +233,7 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
       <AntetPagina
         titlu="Intervenții de mentenanță"
         descriere="Istoricul intervențiilor, cu costurile lor. Se adaugă din fișa fiecărui echipament."
-        file={<NavMentenanta />}
+        file={<NavMentenanta poateSetari={can(permisiuni, "maintenance:update", "all")} />}
       />
 
       <FiltreInterventiiForm
