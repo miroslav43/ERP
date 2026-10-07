@@ -7,7 +7,8 @@ cai:
   - "src/lib/queries/fleet.ts"
   - "src/schemas/fleet.ts"
   - "src/domain/fleet/**"
-tabele: [vehicles, vehicle_documents, trip_sheets, fuel_entries, odometer_anomalies]
+tabele:
+  [vehicles, vehicle_assignments, vehicle_documents, trip_sheets, fuel_entries, odometer_anomalies]
 permisiuni:
   [
     vehicles:read,
@@ -24,7 +25,7 @@ citeste_daca:
   - "vehicul care nu apare în listă → [[rol/manager]]"
   - "42501 la salvarea unui vehicul → capcana #23"
   - "tip de document care lipsește din listă → 0116, cele patru de transport sunt activ=false"
-scris_pe: f8e364799f393c902837698f60a8f33abb539779
+scris_pe: c2cf6c8f968d9b2a0a3121ba02ff74a4b97f3c6d
 scris_la: 2026-10-07
 tags: [modul, operations]
 ---
@@ -67,6 +68,7 @@ P0001 o foaie pe un vehicul vândut sau casat.
 | `creeazaVehicul`, `adaugaDocument`                    | `vehicles:create` / all      |
 | `actualizeazaVehicul`, `stergeVehicul`                | `vehicles:update` / all      |
 | `corecteazaKilometraj`                                | `vehicles:update` / all      |
+| `alocaVehicul`, `incheieAlocarea`, `stergeAlocarea`   | `vehicles:update` / all      |
 | `actualizeazaDocument`, `stergeDocument`              | `vehicles:update` / all      |
 | `creeazaFoaie`                                        | `trip_sheets:create` / own   |
 | `trimiteFoaie`, `redeschideFoaie`, `adaugaAlimentare` | `trip_sheets:update` / own   |
@@ -146,30 +148,21 @@ Citește secțiunea asta înainte de orice scriere în modul.
   `alimentari_insert`/`_update` prin `app.poate_scrie_foaie` (pe `update`). Înainte,
   ambele foloseau dreptul de citire. Proba: `tests/rls/proba-flota-integritate.sql`, care
   verifică și `department_id` din altă firmă (P0001).
+- **Șoferul vehiculului NU se scrie pe `vehicles`** (0173). `vehicles.employee_id` e
+  derivatul alocării deschise din `vehicle_assignments` (`pana_la is null`); scris direct
+  dă P0001, în afara contextului de serviciu (seed, importuri). `alocaVehicul` e un singur
+  INSERT: triggerul închide singur alocarea precedentă și mută responsabilul din
+  `expirables`. Nu există alocări viitoare, iar vânzarea, casarea sau ștergerea vehiculului
+  închid alocarea. Proba: `tests/rls/proba-flota-alocari.sql`.
 - **Coloane GENERATED ALWAYS pe care clientul nu are voie să le trimită:**
   `trip_sheets.km_parcursi`, `fuel_entries.pret_litru`, `odometer_anomalies.diferenta`.
   La fel, `aprobat_de`/`aprobat_la` și `confirmat_de` le scrie triggerul din
   `auth.uid()`. — capcana #22
 
-## Erori traduse
+## Erori traduse și nomenclatorul de documente
 
-`src/app/(app)/flota/erori.ts` acoperă `23505`, `22012`, `22003` și `P0001`.
-`22012` (împărțire la zero) apare real: preț pe litru cu cantitate zero.
-
-**P0001 ajunge pe câmp, nu sub buton.** Mesajele triggerelor se propagă neschimbate —
-cifrele din ele se află doar din bază — dar `CAMPURI_DUPA_MESAJ` le potrivește după
-ÎNCEPUTUL mesajului, iar `invalidInput` pune `fieldErrors` pe câmpul vinovat: `km_sosire`,
-`km_plecare`, `sosire_la`, `alimentat_la`, `litri`, `vehicle_id`, `employee_id`; cel despre
-ora ȘI kilometrajul de sosire (`0018_fix_flota.sql:124`) cade pe două deodată. Ce nu se
-potrivește rămâne `businessRule`, mesaj general (foaie aprobată, vehicul ieșit din parc).
-
-Capcana potrivirii: **mesajele din bază sunt scrise cu s și t cu SEDILĂ**
-(`0012_fleet.sql:600`, `0018_fix_flota.sql:98`), nu cu virgula dedesubt folosită în proiect
-— de aceea tiparele ocolesc literele acelea, cu `.` în locul lor. Unul scris cu
-diacriticele corecte nu s-ar potrivi NICIODATĂ, iar eroarea ar cădea tăcut în mesajul
-general. `erori.test.ts` fixează exact asta, mesaj cu mesaj; `erori-etichete.test.ts` ține
-codurile non-`P0001` și lipește hărțile din `etichete.ts` de enumurile din
-`src/schemas/fleet.ts` — o valoare nouă fără text ar ajunge `undefined` pe ecran.
+În `[[modul/flota/documente-si-erori]]`: P0001 pe câmp, harta separată a alocărilor,
+SEDILA din mesajele 0012/0018, tipurile de document active și coloana `numar`.
 
 ## Ce se mișcă împreună
 
@@ -181,29 +174,12 @@ consum stau în `src/domain/fleet/`.
 `FormData` spre încărcătura acțiunilor, la creare și la modificare, ca și
 `CampuriVehicul`/`CampuriDocument`. Două
 capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-document.test.ts`:
-`Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar
-`actualizeazaVehicul` trimite obiectul ÎNTREG — `employee_id` și `department_id` călătoresc
-prin câmpuri ascunse, altfel orice salvare a fișei ar șterge alocarea făcută altundeva.
+`Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar bifa
+`pool` nebifată LIPSEȘTE din `FormData`, deci absența ei înseamnă `false`.
 
 Închiderea și alimentarea (`foi/[id]/actiuni-foaie.tsx`) folosesc `Camp` cu `noValidate`:
 regulile pe care baza le refuză oricum se spun în client, pe câmp. Fiecare formular are
 erorile și `useTransition`-ul lui, ca o eroare la alimentare să nu înroșească sosirea.
-
-## Nomenclatorul de tipuri de document
-
-`vehicle_document_types` e o TABELĂ, nu un enum — ca primul client de transport să nu
-ceară o migrare de platformă. Din rândurile de platformă, **doar șapte sunt active** de la
-`0116`: ITP, RCA, CASCO, rovinietă, revizie, stingător, trusă medicală. Cele patru de
-transport (licență, copie conformă, tahograf, ADR) au `activ = false` — se reactivează cu
-un `UPDATE`, pentru toate firmele deodată.
-
-Un tip PROPRIU firmei nu poate purta codul unuia de platformă (`vdt_normalizeaza`, 0018 §F6):
-`kind`-ul din `expirables` se deduce din `cod`, iar o coliziune ar face două tipuri să scrie
-peste aceeași scadență. Dezactivarea nu îngheață documentele existente — de la 0018 §F4,
-`vdoc_inainte` revalidează tipul doar la INSERT sau când `document_type_id` chiar se schimbă.
-
-Coloana `numar` a ieșit din interfață — nu se căuta după ea, nu intra în rapoarte, nu
-ajungea în `expirables`. Rămâne în bază, cu valorile deja scrise.
 
 ## Ce NU e aici
 
