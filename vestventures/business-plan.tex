@@ -8,7 +8,7 @@
 %
 %  Sources of truth (do not type numbers from memory):
 %    _surse/cifre.json        every financial number (exported from the
-%                             recalculated financial-model.xlsx / cap-table.xlsx)
+%                             recalculated financial-model.xlsx)
 %    _surse/fapte.md          product facts verified against the code
 %    _surse/piata.md          market, regulation, competition, benchmarks
 %    _surse/vestventures.md   the investor
@@ -152,10 +152,10 @@ sold as a subscription at \textbf{administrativo.ro}\par}
 \vspace{16mm}
 \begin{faptbox}
 \begin{tabularx}{\linewidth}{@{}P{0.30\linewidth}L@{}}
-\textbf{Round} & Pre-seed, \textbf{€\cf{round_eur}} (Vest Ventures Accelerator ticket €\cf{round_split.vest_ventures_ticket_eur} + independent angels €\cf{round_split.independent_angels_eur}; angels not yet identified) \\
+\textbf{Round} & Pre-seed, \textbf{€\cf{round_eur}}, all from the Vest Ventures Accelerator (ticket €\cf{round_investor.vest_ventures_ticket_eur}) \\
 \textbf{Valuation} & €\cf{pre_money_eur} pre-money / €\cf{post_money_eur} post-money (founders' proposal) \\
 \textbf{Applying to} & Vest Ventures Accelerator (Timișoara), not Seed: the company has no revenue yet \\
-\textbf{Company} & Romanian SRL; co-founders Miroslav Maletici (51\%) and Răzvan Pervulescu (49\%) \\
+\textbf{Company} & Romanian SRL owned by its two co-founders, Miroslav Maletici (CEO) and Răzvan Pervulescu (CTO) \\
 \textbf{Status, 6 Oct 2026} & Product live in production since early September 2026; \textbf{zero paying customers}; free pilots; accountant pilot programme opened 6 Oct 2026 \\
 \end{tabularx}
 \end{faptbox}
@@ -225,7 +225,7 @@ for a seed round.
 
 \vspace{4pt}
 \noindent
-\cifra{€\cfk{round_eur}k}{pre-seed round,\\\cf{investor_pct}\% for investors}\hfill
+\cifra{€\cfk{round_eur}k}{pre-seed round,\\all from Vest Ventures}\hfill
 \cifra{\cf{runway_months} months}{runway with zero revenue\\(\cf{runway_plan_months} months on plan)}\hfill
 \cifra{\cf{base.customers_m36}}{paying companies at month 36\\(base case, \proj)}\hfill
 \cifra{\cf{unit_economics.ltv_cac}×}{LTV/CAC, year 2\\(base case, \proj)}
@@ -246,41 +246,19 @@ Section~\ref{sec:riscuri} shows how each is handled.
 \section{Company and founders}\label{sec:firma}\nobreak
 % =====================================================================
 
-\subsection{Legal entity and ownership}
+\subsection{Legal entity}
 
 The company is a Romanian limited-liability company (SRL). The operator named on
 administrativo.ro is WISELEARNING S.R.L., Str.\ Metalurgiei nr.~2, Timișoara, Timiș county
-(CUI 50321210, J35/2618/2024), not VAT-registered. Entity holding the cap table below, and
-its activity and annual results for FY2024--FY2025: \tbc. A registered office or operating site
+(CUI 50321210, J35/2618/2024), not VAT-registered. The two co-founders hold all the shares;
+there are no external investors and no options to date. That this SRL is the company receiving the
+round, and its activity and annual results for FY2024--FY2025: \tbc. A registered office or operating site
 in Timiș county meets Vest Ventures' West Region requirement\src{27}.
 
 \textbf{Intellectual property.} The code has been written by the two co-founders. On 6 October
 2026 no written assignment of that IP to the company has been signed. The assignment is part of
 the round's legal work (months 1--2 at the latest) and is listed as a risk in
 Section~\ref{sec:riscuri}.
-
-\begin{table}[H]
-\centering\small
-\begin{tabularx}{0.82\linewidth}{@{}Lrrr@{}}
-\toprule
-\textbf{Holder} & \textbf{Today} & \textbf{After pre-seed} & \textbf{After illustrative seed} \\
-\midrule
-Miroslav Maletici (CEO) & 51.00\% & 40.44\% & 32.35\% \\
-Răzvan Pervulescu (CTO) & 49.00\% & 38.85\% & 31.08\% \\
-Employee option pool (ESOP) & -- & 10.00\% & 8.00\% \\
-Vest Ventures & -- & 9.64\% & 7.71\% \\
-Independent angels & -- & 1.07\% & 0.86\% \\
-Seed investors (illustrative only) & -- & -- & 20.00\% \\
-\midrule
-\textbf{Founders combined} & \textbf{100.00\%} & \textbf{79.29\%} & \textbf{63.43\%} \\
-\bottomrule
-\end{tabularx}
-\caption*{\footnotesize\color{brandSlate}Source: \fisier{cap-table.xlsx}. No investors and no
-options exist today. Pre-seed modelled as priced equity at €1.25M pre-money with a 10\% pool
-created pre-money. The seed column (€\cfm{illustrative_seed.amount_eur}M at
-€\cfm{illustrative_seed.pre_money_eur}M pre-money) is illustrative and aspirational; no seed
-discussion has taken place (see the financing risk in Section~\ref{sec:riscuri}).}
-\end{table}
 
 \subsection{Founders}
 
@@ -940,10 +918,7 @@ CAC payback & \cf{unit_economics.payback_months} months & SMB SaaS median ≈11 
 \subsection{Runway}
 
 With zero revenue the round pays every planned cost for \textbf{\cf{runway_months} months}; on the base plan cash
-lasts \textbf{\cf{runway_plan_months} months} (to December 2028). If the angels bring only the
-minimum private match of 10\% of the Vest Ventures ticket (€\cfk{round_split.vest_ventures_ticket_eur}k +
-€13.5k, a €\cfkd{round_split.option_a_eur}k round), the zero-revenue runway is still
-\cf{runway_option_a_zero_revenue_months} months (23 on plan). Cash in the company before the round
+lasts \textbf{\cf{runway_plan_months} months} (to December 2028). Cash in the company before the round
 is set to zero (prudent) \tbc.
 
 % =====================================================================
@@ -956,16 +931,12 @@ is set to zero (prudent) \tbc.
 \centering\small
 \begin{tabularx}{\linewidth}{@{}P{0.30\linewidth}L@{}}
 \toprule
-Stage & Pre-seed. We apply to the Vest Ventures Accelerator (ticket €10k--200k, at least 10\% independent
-private co-investment\src{27}), not to Seed, because we have no revenue. \\
-Amount & \textbf{€\cf{round_eur}} = Vest Ventures €\cf{round_split.vest_ventures_ticket_eur} + independent angels €\cf{round_split.independent_angels_eur} (not identified yet). The angels' share is 10\% of the round and 11\% of the Vest Ventures ticket, so it meets the private co-investment rule on either basis \tbc[TO CONFIRM with Vest Ventures] \\
+Stage & Pre-seed. We apply to the Vest Ventures Accelerator (ticket €10k--200k\src{27}), not to
+Seed, because we have no revenue. \\
+Amount & \textbf{€\cf{round_eur}}, a single Vest Ventures Accelerator ticket; Vest Ventures is the only investor in the round \\
 Valuation & €\cf{pre_money_eur} pre-money, €\cf{post_money_eur} post-money (founders' proposal) \\
-Ownership after the round & Investors \cf{investor_pct}\% (Vest Ventures \cf{investor_pct_split.vest_ventures}\%, angels \cf{investor_pct_split.angels}\%); ESOP \cf{esop_pct}\%; founders 79.29\% \\
 Instrument & Convertible loan agreement (CLA) or shareholders' agreement (SHA) on Vest Ventures'
-templates. Modelled as priced equity; a CLA would use €\cfm{pre_money_eur}M as the valuation cap (illustrative 20\%
-discount). \\
-ESOP & 10\% of post-money, created before the round (dilutes founders only); a virtual/phantom scheme
-while the company is an SRL \tbc \\
+templates; a CLA would use the €\cfm{pre_money_eur}M pre-money as its valuation cap. \\
 State aid & Vest Ventures invests under \emph{de minimis} (ceiling €300k per undertaking over three
 years\src{28}); prior aid received: none \tbc \\
 Founder vesting & None today. To be agreed in the investment agreement (for example 4 years with a
@@ -979,9 +950,9 @@ IP & Assignment of the code's IP to the company: not yet signed; planned in mont
 \end{tabularx}
 \end{table}
 
-\textbf{Why €\cfm{pre_money_eur}M pre-money.} We found no sourced Romanian or CEE pre-seed valuation benchmark. A
-€150--300k round at a typical 10--20\% dilution implies €0.75--3M post-money (\textsc{derived}); with
-zero revenue and student founders we sit in the lower half. The round is below the 2025 Romanian
+\textbf{Why €\cfm{pre_money_eur}M pre-money.} We found no sourced Romanian or CEE pre-seed valuation benchmark.
+The figure is our proposal for a company with a live product, filings already made through the
+state API, zero revenue and student founders. The round is below the 2025 Romanian
 average pre-seed round of €\cfK{benchmarks_for_ask.romania_avg_pre_seed_2025_eur}k (average seed: €\cfm{benchmarks_for_ask.romania_avg_seed_2025_eur}M)\src{26}.
 
 \textbf{Structure.} In an SRL, amending the articles (for example, a capital increase for the next
@@ -993,30 +964,29 @@ amend the articles to majority decisions with drag-along, or convert to an SA or
 
 \begin{table}[H]
 \centering\small
-\begin{tabularx}{\linewidth}{@{}Lrrr@{}}
+\begin{tabularx}{\linewidth}{@{}Lrr@{}}
 \toprule
-\textbf{Round tested (same pre-money)} & \textbf{Runway, zero revenue} & \textbf{Runway on plan} & \textbf{Dilution} \\
+\textbf{Round tested} & \textbf{Runway, zero revenue} & \textbf{Runway on plan} \\
 \midrule
-€\cf{round_size_test.0.round_eur}: VV ticket alone (not allowed) & \cf{round_size_test.0.runway_zero_revenue_months} months & \cf{round_size_test.0.runway_plan_months} months & \cfn{round_size_test.0.dilution_pct_at_same_pre_money}\% \\
-\textbf{€\cf{round_size_test.1.round_eur}: proposed} & \textbf{\cf{round_size_test.1.runway_zero_revenue_months} months} & \textbf{\cf{round_size_test.1.runway_plan_months} months} & \textbf{\cfn{round_size_test.1.dilution_pct_at_same_pre_money}\%} \\
-€\cf{round_size_test.2.round_eur}: VV maximum ticket + minimum 10\% match & \cf{round_size_test.2.runway_zero_revenue_months} months & \cf{round_size_test.2.runway_plan_months} months & \cfn{round_size_test.2.dilution_pct_at_same_pre_money}\% \\
-€\cf{round_size_test.3.round_eur}: larger round (more angels) & \cf{round_size_test.3.runway_zero_revenue_months} months & \cf{round_size_test.3.runway_plan_months} months & \cfn{round_size_test.3.dilution_pct_at_same_pre_money}\% \\
-€\cf{round_size_test.4.round_eur}: upper end of the founders' range & \cf{round_size_test.4.runway_zero_revenue_months} months & \cf{round_size_test.4.runway_plan_months} months & \cfn{round_size_test.4.dilution_pct_at_same_pre_money}\% \\
+€\cf{round_size_test.0.round_eur}: smaller Vest Ventures ticket & \cf{round_size_test.0.runway_zero_revenue_months} months & \cf{round_size_test.0.runway_plan_months} months \\
+\textbf{€\cf{round_size_test.1.round_eur}: proposed} & \textbf{\cf{round_size_test.1.runway_zero_revenue_months} months} & \textbf{\cf{round_size_test.1.runway_plan_months} months} \\
+€\cf{round_size_test.2.round_eur}: Vest Ventures maximum ticket & \cf{round_size_test.2.runway_zero_revenue_months} months & \cf{round_size_test.2.runway_plan_months} months \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 The round is sized to a lean cost plan, not to the largest cheque available. Co-founders take
 €1,000 gross each, the partner manager works half time until month 13 (and the model scales partner
-signings down to match), the support specialist starts half time in month 7, and the developer is
-hired only after the seed. On that plan €\cfk{round_eur}k is the Vest Ventures ticket plus a 10\%
-private match, and it reaches the seed trigger (100 paying companies, month \cf{base.months_to_100},
+signings down with the manager's hours), the support specialist starts half time in month 7, and the developer is
+hired only after the seed. On that plan a €\cfk{round_eur}k Vest Ventures ticket, inside the
+Accelerator's €10k--200k range, reaches the seed trigger (100 paying companies, month \cf{base.months_to_100},
 \cf{base.date_to_100}) inside the \cf{runway_plan_months}-month runway on plan. The margin is thin:
 at the trigger about €15k of cash and four months of runway are left, so the seed raise must start
-promptly, and seed conversations begin before the milestone (Section~\ref{sec:riscuri}). The VV
-ticket alone is not allowed without the private match. Larger rounds buy 24--29 months of
-zero-revenue runway, but they need the maximum VV ticket and €20--100k of angels nobody has found
-yet, at 15--19\% dilution for the same pre-money.
+promptly, and seed conversations begin before the milestone (Section~\ref{sec:riscuri}). A
+€\cfk{round_size_test.0.round_eur}k ticket lasts only \cf{round_size_test.0.runway_plan_months} months on plan,
+so cash runs out before the trigger. The €\cfk{round_size_test.2.round_eur}k maximum buys
+\cf{round_size_test.2.runway_plan_months} months on plan, more than the lean plan needs to reach the
+trigger: we would rather raise the seed on measured traction than spend a larger pre-seed.
 
 \subsection{Use of funds}
 
@@ -1124,8 +1094,7 @@ channel and search, which moves the base case towards the conservative case. \\
 trigger (\cf{base.date_to_100}) the base model shows MRR of about €5.3k (ARR about €64k), closing
 cash of about €15k and a net burn of about €4.6k a month; cash turns negative in month 25 & About four
 months to close a seed, so seed conversations start before the trigger, and the Vest Ventures Seed
-stage is one route. The illustrative seed (€\cfm{illustrative_seed.amount_eur}M at
-€\cfm{illustrative_seed.pre_money_eur}M pre-money) is aspirational at that ARR. The developer is
+stage is one route. No seed amount or valuation has been discussed yet. The developer is
 already hired only after the seed, so it is not a lever. Remaining lever, not modelled in the base
 case: cut the paid-ads budget; the marketing budget is a named model input, so its effect on runway
 can be tested in the workbook. \\
@@ -1133,7 +1102,7 @@ can be tested in the workbook. \\
 compliance depth is the defensible core. Expansion to neighbouring countries (Moldova, Serbia,
 Bulgaria, Hungary) is a hypothesis for after the seed (Section~\ref{sec:international}), not part of
 this plan's numbers. \\
-\textbf{IP ownership}: the code was written by the co-founders and is not yet assigned to the company
+\textbf{IP assignment}: the code was written by the co-founders and is not yet assigned to the company
 in writing & A written IP assignment from both co-founders to the SRL, completed in months 1--2 at the
 latest, as part of the round's legal work. \\
 \textbf{Competition}: accountant-owned payroll tools (SmartBill, SAGA, Nexus) and cheap time-tracking
@@ -1199,7 +1168,7 @@ search-engine excerpt and the page itself could not be opened.
 code repository at commit \fisier{e240cfc} (module list \fisier{src/config/features.ts}, prices
 \fisier{src/content/landing/preturi.ts}, accountant offer \fisier{src/content/landing/pentru-contabili.ts},
 REGES client \fisier{src/lib/reges/}, live database catalogue); financial model
-\fisier{financial-model.xlsx} and cap table \fisier{cap-table.xlsx} (recalculated 7 Oct 2026); payroll
+\fisier{financial-model.xlsx} (recalculated 7 Oct 2026); payroll
 legal values awaiting validation in \fisier{NOTES.md} §3; web analytics from Umami and Google Search
 Console, provided by the founders.
 \par}

@@ -4,10 +4,18 @@ Pachetul pentru aplicația la **Vest Ventures** (fondul pre-seed din Timișoara;
 formularul e găzduit pe platforma Pynn). Tot ce merge la investitor e **în
 engleză**. Fișierul ăsta e în română și e doar pentru voi: **nu se trimite**.
 
-Stadiul la 7 oct 2026: runda propusă e de **150.000 €** (un tichet Vest
-Ventures de 135.000 € plus 15.000 € de la business angels încă neidentificați,
-adică 10% din rundă). Evaluarea pre-money e de 1,25 mil. € (post-money
-1,4 mil. €; investitorii primesc 10,71%). Aplicăm la **Accelerator**, nu la
+Stadiul la 7 oct 2026: runda propusă e de **150.000 €**, integral un tichet
+Vest Ventures Accelerator (intervalul publicat e 10.000–200.000 €); Vest
+Ventures e singurul investitor din rundă. Evaluarea pre-money e de 1,25 mil. €
+(post-money 1,4 mil. €).
+
+**Fără procente de proprietate.** Împărțirea părților sociale între fondatori
+o știți voi; e lăsată intenționat în afara tuturor documentelor (decizia
+fondatorilor, 7 oct 2026). Niciun fișier din pachet nu arată cote ale
+fondatorilor, ale investitorului sau ale unui pool de opțiuni și nici
+diluare; de aceea nu mai există niciun fișier de cap table. Documentele spun
+doar: „Two co-founders hold all shares; no external investors or options to
+date." Aplicăm la **Accelerator**, nu la
 Seed, fiindcă avem zero clienți plătitori.
 
 Runda e dimensionată pe un plan de costuri strâns: 1.000 € brut pe lună pentru
@@ -27,7 +35,7 @@ trebuie pornită imediat, iar discuțiile încep înainte de prag.
 | **Pitch deck (PDF, max 10 MB)** | `pitch-deck.pdf` | **Final** (7 oct): 12 slide-uri, ~0,3 MB, fără `[TO CONFIRM]` și fără „DRAFT” |
 | **Financial model (XLSX)** | `financial-model.xlsx` | Formulele sunt vii și valorile recalculate în LibreOffice, deci se citește și fără Excel |
 | **Data room URL** | linkul obținut după `data-room/HOSTING.md` | Recomandat: un folder Google Drive cu „Anyone with the link → Viewer” |
-| **Other files** (roadmap, cap table, mockups, business plan) | `business-plan.pdf`, `roadmap.pdf`, `cap-table.pdf` (plus `cap-table.xlsx`, dacă formularul primește mai multe fișiere), `product-mockups.pdf` | Ordinea recomandată: business plan, roadmap, cap table, mockups |
+| **Other files** | `business-plan.pdf`, `roadmap.pdf`, `product-mockups.pdf` | Ordinea recomandată: business plan, roadmap, mockups. Eticheta câmpului pomenește și „cap table”: intenționat nu încărcăm niciun tabel de acționariat (vezi mai sus) |
 | **Media URLs** | pagina de LinkedIn, până există video-ul | https://www.linkedin.com/company/144846087/ . Niciodată un link care nu arată produsul. Video-ul se filmează după `media/demo-video-script.md`, se publică după `media/README.md` și îi ia locul LinkedIn-ului |
 | Câmpurile text (pitch, problemă, echipă, rundă etc.) | `form-answers.md` | 30 de câmpuri, fiecare cu o variantă scurtă (≤300 de caractere) și una lungă (≤1000) |
 
@@ -40,10 +48,8 @@ trebuie pornită imediat, iar discuțiile încep înainte de prag.
 | `pitch-deck.pdf` / `.tex` | Deck-ul aplicației (Beamer, cu strat de text real, pe care îl poate citi și evaluatorul automat) |
 | `business-plan.pdf` / `.tex` | Planul de afaceri: firmă și fondatori, problemă și context legal, produs, piață, concurență, preț, go-to-market, operațiuni, tracțiune, plan financiar, riscuri |
 | `roadmap.pdf` / `.tex` | Foaia de parcurs, T4 2026 → T4 2028, pe o pagină |
-| `cap-table.pdf` / `.tex` | Structura acționariatului azi, după rundă, un seed ilustrativ și varianta cu împrumut convertibil, pe o pagină |
-| `cap-table.xlsx` | Aceleași tabele, cu formule |
 | `product-mockups.pdf` / `.tex` | Albumul de capturi de ecran, câte una pe pagină, cu explicații |
-| `financial-model.xlsx` | Modelul financiar pe 36 de luni (ian 2027 – dec 2029), cu trei scenarii, unit economics, utilizarea fondurilor și cap table |
+| `financial-model.xlsx` | Modelul financiar pe 36 de luni (ian 2027 – dec 2029), cu trei scenarii, unit economics și utilizarea fondurilor |
 | `form-answers.md` | Răspunsurile gata de lipit în formular |
 | `data-room/README.md`, `data-room/index.html` | Cuprinsul camerei de date: varianta Markdown pentru Notion și varianta HTML, tipărită ca PDF (`00 READ ME FIRST.pdf`) pentru Drive sau găzduită direct |
 | `data-room/HOSTING.md` | Cele trei moduri de a obține linkul de data room, cu pașii exacți și recomandarea |
@@ -79,8 +85,8 @@ Grupate pe subiect. Între paranteze sunt fișierele în care apare fiecare.
 **Firma și acționariatul**
 
 1. **Entitatea juridică.** WISELEARNING S.R.L. (CUI 50321210,
-   J35/2618/2024), firma numită pe site, este cea cu 51% / 49% și cea care
-   primește investiția? Care e data înființării și ce a făcut firma între 2024
+   J35/2618/2024), firma numită pe site, este cea deținută de voi doi și cea
+   care primește investiția? Care e data înființării și ce a făcut firma între 2024
    și aug 2026? Câte părți sociale are în realitate?
    **Verificare blocantă înainte de trimitere:** activitatea anterioară a SRL-ului,
    cifra de afaceri din FY2024 și FY2025 și orice grant, împrumut sau ajutor de
@@ -90,7 +96,7 @@ Grupate pe subiect. Între paranteze sunt fișierele în care apare fiecare.
    bilanțurile pe ultimii doi ani la due diligence și recuperează banii dacă
    datele se dovedesc false; (c) istoria SRL-ului decide rata de cofinanțare la
    Seed (10% sau 20%) și suma de minimis pe „întreprinderea unică”.
-   (`form-answers.md` §1, §3, §15, §19; `cap-table.tex`; `business-plan.tex`; `financial-model.xlsx`, `cap-table.xlsx`)
+   (`form-answers.md` §1, §3, §15, §19; `business-plan.tex`; `financial-model.xlsx`)
 2. **Sediul în regiune.** Vest Ventures cere sediu sau punct de lucru activ în
    Arad, Caraș-Severin, Hunedoara sau Timiș. Str. Metalurgiei nr. 2, Timișoara,
    e sediul social real? (`financial-model.xlsx` → Sources)
@@ -104,15 +110,12 @@ Grupate pe subiect. Între paranteze sunt fișierele în care apare fiecare.
 5. **Cesiunea drepturilor asupra codului (IP assignment)** de la ambii
    fondatori către SRL. Încă nu există; trebuie redactată și semnată.
    (`form-answers.md` §25; `data-room/`)
-6. **Planul de opțiuni (ESOP) într-un SRL** (schemă virtuală/phantom) și
-   **transformarea SRL → SA** sau holding la rundă: pașii legali și
-   fiscalitatea, cu un avocat. (`cap-table.tex`; `business-plan.tex`; `financial-model.xlsx`)
-7. **Termenii Vest Ventures.** Cele minimum 10% co-investiție privată se
-   calculează din tichet sau din total? Cei 15.000 € de la angels sunt 10% din
-   rundă și 11% din tichet, deci regula e acoperită în ambele lecturi, dar
-   baza de calcul trebuie confirmată cu fondul. Ce dobândă și ce discount au în
-   șablonul de împrumut convertibil? Întrebați la Founder Playground.
-   (`cap-table.tex`; `cap-table.xlsx` → CLA alternative; `financial-model.xlsx`)
+6. **Transformarea SRL → SA** sau holding la rundă: pașii legali și
+   fiscalitatea, cu un avocat. (`business-plan.tex`, „Structure”)
+7. **Termenii Vest Ventures.** Ce dobândă și ce discount au în șablonul de
+   împrumut convertibil? Întrebați la Founder Playground. (Regula de
+   co-finanțare privată e punctul 29.)
+   (`business-plan.tex`, rândul „Instrument”; `form-answers.md` §20)
 8. **Fiscalitate.** Regimul de microîntreprindere (1% sau 3%) și CAM 2,25%,
    cu contabilul. (`financial-model.xlsx` → Assumptions)
 
@@ -170,10 +173,8 @@ Grupate pe subiect. Între paranteze sunt fișierele în care apare fiecare.
     vestventures.vc, ChartMogul, Aleph, Legea 31/1990) sau „founders' internal
     cost estimate”; `run_all.sh` a fost rulat din nou: `cifre.json` identic,
     0 erori de formulă, 0 referințe la fișiere interne în ambele registre.
-22. ~~Comparația CLA din `cap-table.xlsx`~~ — **REZOLVAT 6 oct 2026.** Foaia
-    „CLA alternative” folosește acum aceleași unități de pool ca runda cu preț,
-    deci arată aceeași cotă pe ambele căi (63,43% după runda de 150.000 €,
-    recalculat la 7 oct 2026), exact ce spune `cap-table.pdf`.
+22. ~~Comparația CLA din registrul de cap table~~ — **ELIMINAT 7 oct 2026**,
+    odată cu tot registrul: pachetul nu mai conține procente de proprietate.
 
 **Marcaje care lipseau din lista de mai sus** (adăugate la verificarea finală)
 
@@ -182,7 +183,7 @@ Grupate pe subiect. Între paranteze sunt fișierele în care apare fiecare.
 24. **Timpul de azi pe firmă**, în ore pe săptămână, pentru fiecare fondator.
     (`pitch-deck.tex`, `\fondMiroslavOre`, `\fondRazvanOre`)
 25. **Vesting-ul fondatorilor.** Propunerea e 4 ani cu cliff de 1 an, „standard
-    leaver terms”; azi nu există vesting. Acceptați formularea? (`cap-table.tex` §2; `business-plan.tex` §12.1)
+    leaver terms”; azi nu există vesting. Acceptați formularea? (`business-plan.tex` §12.1)
 26. **Firma reală care a transmis prin REGES pe 17 sept 2026** poate fi numită,
     sau se descrie anonim? (`business-plan.tex` §10.1)
 27. **Pârghia de rezervă.** `form-answers.md` §22 spune acum că, dacă
@@ -194,6 +195,14 @@ Grupate pe subiect. Între paranteze sunt fișierele în care apare fiecare.
     plată în T1 2027, Android în Google Play în T2 2027, preț peste 20 de
     angajați în T3 2027, iOS în 2029 (după seed, odată cu developerul), plus evaluarea unei a doua piețe
     (Moldova sau Serbia) în T4 2028. Toate sunt marcate. (`roadmap.tex`)
+
+**Runda**
+
+29. **Regula Vest Ventures de minimum 10% co-finanțare privată independentă
+    (publicată pe site-ul lor):** runda e prezentată acum integral de la VV,
+    fără co-investitori, la cererea fondatorilor. De întrebat la Q&A dacă
+    regula se aplică și cum. (Intern: niciun document trimis investitorului nu
+    mai pomenește regula.)
 
 Fiecare marcaj `[TO CONFIRM]` din `form-answers.md` se înlocuiește cu
 textul real **înainte de lipire**. Apoi rulați `python3 tools/count_chars.py`,
@@ -229,8 +238,8 @@ Toate comenzile se rulează din `/srv/apps/ERP/vestventures`.
 rulează LibreOffice într-un container:
 
 ```bash
-sh model/run_all.sh                 # cele 3 scenarii → recalculare → financial-model.xlsx, cap-table.xlsx → _surse/cifre.json
-# sau doar registrele, cu formule, fără valori calculate (nu le trimiteți așa):
+sh model/run_all.sh                 # cele 3 scenarii → recalculare → financial-model.xlsx → _surse/cifre.json
+# sau doar registrul, cu formule, fără valori calculate (nu-l trimiteți așa):
 python3 model/build_model.py
 ```
 
@@ -247,7 +256,6 @@ rulați din director:
 tectonic -X compile pitch-deck.tex --keep-logs
 tectonic -X compile business-plan.tex --keep-logs
 tectonic -X compile roadmap.tex --keep-logs
-tectonic -X compile cap-table.tex --keep-logs
 tectonic -X compile product-mockups.tex --keep-logs
 grep -E "Overfull|Missing character" *.log    # trebuie să nu afișeze nimic
 rm -f *.log *.aux *.out *.toc *.nav *.snm *.vrb
@@ -265,12 +273,11 @@ python3 tools/count_chars.py --final  # ca --check, dar pică și cât timp a r�
 formular trebuie să treacă `--final`.
 
 **Atenție.** `business-plan.tex` și `pitch-deck.tex` își iau cifrele automat
-din `cifre.json` (prin `tema/cifre.tex`), dar `cap-table.tex`, `roadmap.tex`,
+din `cifre.json` (prin `tema/cifre.tex`), dar `roadmap.tex`,
 `form-answers.md`, `data-room/` și `media/` au cifrele **copiate de mână**
 din `cifre.json`, ultima dată la 7 oct 2026 (runda de 150.000 €). Și în
-`business-plan.tex` câteva cifre derivate sunt scrise de mână (cap table,
-împărțirea pe canale, partenerii activi, poziția de numerar din luna 20).
+`business-plan.tex` câteva cifre derivate sunt scrise de mână (împărțirea pe canale, partenerii activi, poziția de numerar din luna 20).
 Dacă se schimbă modelul (alt cuantum al rundei, altă evaluare), căutați
 valorile vechi, de exemplu
-`grep -rn "150k\|1.25M\|16 months\|10.71" --include='*.md' --include='*.tex' --include='*.html' .`,
+`grep -rn "150k\|1.25M\|16 months" --include='*.md' --include='*.tex' --include='*.html' .`,
 și actualizați-le.

@@ -3,7 +3,6 @@
     "generated": "2026-10-07",
     "generated_from": [
       "financial-model.xlsx (recalculated by LibreOffice)",
-      "cap-table.xlsx",
       "model/recalc/snapshot.json"
     ],
     "rule": "Single source of numbers for every VestVentures document. Do not type numbers by hand elsewhere.",
@@ -11,77 +10,37 @@
     "status": "Everything after 6 Oct 2026 is a PROJECTION. Zero paying customers today."
   },
   "round_eur": 150000,
-  "round_split": {
-    "vest_ventures_ticket_eur": 135000,
-    "independent_angels_eur": 15000,
-    "angels_identified": false,
-    "option_a_eur": 148500,
-    "option_a_note": "Vest Ventures ticket + the minimum 10% private co-investment only"
+  "round_investor": {
+    "name": "Vest Ventures",
+    "programme": "Accelerator",
+    "vest_ventures_ticket_eur": 150000,
+    "note": "Vest Ventures is the only investor in the pre-seed round; ticket inside VV's published EUR 10k-200k accelerator range"
   },
   "stage": "Pre-seed (apply to the Vest Ventures Accelerator, not Seed: zero revenue)",
-  "instrument": "Convertible loan agreement (CLA) or SHA on Vest Ventures' templates; modelled as priced equity at the pre-money valuation (a CLA would use it as the valuation cap, illustrative 20% discount)",
+  "instrument": "Convertible loan agreement (CLA) or SHA on Vest Ventures' templates; a CLA would use the pre-money valuation as its cap",
   "pre_money_eur": 1250000,
   "post_money_eur": 1400000,
-  "investor_pct": 10.71,
-  "investor_pct_split": {
-    "vest_ventures": 9.64,
-    "angels": 1.07
-  },
-  "esop_pct": 10.0,
-  "esop_note": "10% of post-money, created pre-money (dilutes founders only); virtual/phantom scheme while the company is an SRL [TO CONFIRM]",
-  "founders_today": {
-    "Miroslav Maletici": 51.0,
-    "Răzvan Pervulescu": 49.0
-  },
-  "founders_post": {
-    "Miroslav Maletici": 40.44,
-    "Răzvan Pervulescu": 38.85
-  },
-  "illustrative_seed": {
-    "amount_eur": 1000000,
-    "pre_money_eur": 4000000,
-    "founders_combined_after_seed_pct": 63.43,
-    "note": "ILLUSTRATIVE only, no seed discussion has taken place"
-  },
   "runway_months": 16,
   "runway_basis": "Months the round pays every planned cost with ZERO revenue (base cost plan)",
   "runway_plan_months": 24,
-  "runway_option_a_zero_revenue_months": 16,
   "round_size_test": [
     {
-      "case": "VV ticket alone (not allowed without private match)",
-      "round_eur": 135000,
-      "runway_zero_revenue_months": 15,
-      "runway_plan_months": 20,
-      "dilution_pct_at_same_pre_money": 9.7
+      "case": "Smaller Vest Ventures ticket",
+      "round_eur": 100000,
+      "runway_zero_revenue_months": 11,
+      "runway_plan_months": 13
     },
     {
       "case": "Proposed round",
       "round_eur": 150000,
       "runway_zero_revenue_months": 16,
-      "runway_plan_months": 24,
-      "dilution_pct_at_same_pre_money": 10.7
+      "runway_plan_months": 24
     },
     {
-      "case": "VV maximum ticket + minimum 10% private match",
-      "round_eur": 220000,
-      "runway_zero_revenue_months": 24,
-      "runway_plan_months": "> 36",
-      "dilution_pct_at_same_pre_money": 15.0
-    },
-    {
-      "case": "Larger round (more angels)",
-      "round_eur": 250000,
-      "runway_zero_revenue_months": 26,
-      "runway_plan_months": "> 36",
-      "dilution_pct_at_same_pre_money": 16.7
-    },
-    {
-      "case": "Upper end of founders' range",
-      "round_eur": 300000,
-      "runway_zero_revenue_months": 29,
-      "runway_plan_months": "> 36",
-      "dilution_pct_at_same_pre_money": 19.4
+      "case": "Vest Ventures maximum accelerator ticket",
+      "round_eur": 200000,
+      "runway_zero_revenue_months": 22,
+      "runway_plan_months": 35
     }
   ],
   "use_of_funds": [
@@ -406,7 +365,7 @@
     "romania_avg_pre_seed_2025_eur": 526000,
     "romania_avg_seed_2025_eur": 1500000,
     "source": "How to Web & Underline Ventures, Venture in Eastern Europe 2025 (piata.md §d.2)",
-    "vv_accelerator_ticket": "EUR 10k-200k, >=10% independent private co-investment (vestventures.md §4)",
-    "valuation_benchmark": "No sourced RO/CEE pre-seed valuation benchmark (UNVERIFIED); DERIVED range EUR 0.75-3M post for 10-20% dilution"
+    "vv_accelerator_ticket": "EUR 10k-200k (vestventures.md §4)",
+    "valuation_benchmark": "No sourced RO/CEE pre-seed valuation benchmark (UNVERIFIED)"
   }
 }

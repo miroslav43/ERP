@@ -1,7 +1,7 @@
 #!/bin/sh
 # Recalculates .xlsx files with LibreOffice (headless) inside a Debian container, so that the
 # delivered workbooks carry cached values for readers that do not recalculate (e.g. AI screeners).
-# Usage (from anywhere):  model/recalc.sh financial-model.xlsx cap-table.xlsx   (paths relative to vestventures/)
+# Usage (from anywhere):  model/recalc.sh financial-model.xlsx   (paths relative to vestventures/)
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 C=vv-lo

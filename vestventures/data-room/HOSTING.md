@@ -13,7 +13,7 @@ Upload only investor-facing files:
 | 1 Overview | `pitch-deck.pdf`, `business-plan.pdf`, `roadmap.pdf` |
 | 2 Product | `product-mockups.pdf`, the folder `assets/capturi/` (19 JPG screenshots) |
 | 3 Financials | `financial-model.xlsx` |
-| 4 Legal & cap table | `cap-table.xlsx`, `cap-table.pdf`, then the legal documents as they arrive (articles of association, trade register certificate, CUI certificate, IP assignment, beneficial owner statement, terms of service PDF) |
+| 4 Legal | The legal documents as they arrive (articles of association, trade register certificate, CUI certificate, IP assignment, beneficial owner statement, terms of service PDF) |
 | 5 Market research | `business-plan.pdf` again (its market and competition sections and the sources appendix), or a shortcut to it |
 | Index | `00 READ ME FIRST.pdf`, a PDF print of `data-room/index.html` (Drive, see step 4), or `data-room/README.md` imported into Notion (option B), or `data-room/index.html` itself (option C) |
 
@@ -27,15 +27,15 @@ Upload only investor-facing files:
   The investor-facing version of the same sources is the business plan.
 - `_surse/cifre.json` and `model/`: they cite internal files (`fapte.md`,
   `vestventures.md`, `piata.md`, `src/…`) that the reader cannot open. The
-  XLSX workbooks carry the same numbers with live formulas.
+  XLSX financial model carries the same numbers with live formulas.
 - `form-answers.md`, `README.md` (the Romanian one), `media/`, `tema/`, `tools/`.
 - Any PDF that still contains `[TO CONFIRM]` (see the check below).
 - Identity documents and criminal records. These go to the fund directly at
   due diligence, never into a link-shared folder.
 
 Before uploading, check the PDFs: `pdftotext <file>.pdf - | grep -c "TO CONFIRM"`
-must print 0 for each one. The XLSX workbooks are the exception: they use
-`[TO CONFIRM]` to label open assumptions, and those markers may stay. Their
+must print 0 for each one. The XLSX financial model is the exception: it uses
+`[TO CONFIRM]` to label open assumptions, and those markers may stay. Its
 notes cite only public sources or the founders' own estimates (internal file
 names were removed on 6 Oct 2026).
 
@@ -47,7 +47,7 @@ names were removed on 6 Oct 2026).
    personal one, so the link survives if a founder leaves).
 2. **New → New folder**, name it `ADMINISTRATIVO – Data room`.
 3. Inside it, **New → New folder** five times: `1 Overview`, `2 Product`,
-   `3 Financials`, `4 Legal & cap table`, `5 Market research`.
+   `3 Financials`, `4 Legal`, `5 Market research`.
 4. Drag the files from the table above into their folders. For screenshots,
    drag the whole `assets/capturi` folder into `2 Product`. For the index,
    do **not** upload `README.md`: Drive shows a `.md` file as raw text with
@@ -115,7 +115,7 @@ comments explain why each rule matters.
    cd /srv/apps/ERP/vestventures
    rsync -a --relative \
      data-room/index.html pitch-deck.pdf business-plan.pdf roadmap.pdf \
-     product-mockups.pdf financial-model.xlsx cap-table.xlsx cap-table.pdf \
+     product-mockups.pdf financial-model.xlsx \
      assets/capturi/ "$DEST/"
    # keep it out of the Strawboss repository, which tracks conf.d
    echo "nginx/conf.d/dataroom-vv*" >> /srv/apps/Strawboss/.git/info/exclude

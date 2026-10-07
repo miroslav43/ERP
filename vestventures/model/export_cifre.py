@@ -4,7 +4,7 @@ Reads RECALCULATED workbooks (cached values written by LibreOffice) and exports 
 
     python3 model/export_cifre.py snapshot  model/recalc/scen1.xlsx model/recalc/scen2.xlsx model/recalc/scen3.xlsx \
                                             --out model/recalc/snapshot.json
-    python3 model/export_cifre.py cifre     financial-model.xlsx cap-table.xlsx model/recalc/snapshot.json \
+    python3 model/export_cifre.py cifre     financial-model.xlsx model/recalc/snapshot.json \
                                             --out _surse/cifre.json
 
 Every value comes from the workbook's cached results (openpyxl data_only=True), never from a
@@ -91,11 +91,12 @@ def round_tests(b: Book) -> list:
     out = []
     for r in range(1, ws.max_row + 1):
         if ws[f"A{r}"].value == "Round size tested":
-            for rr in range(r + 1, r + 6):
+            rr = r + 1
+            while ws[f"A{rr}"].value and ws[f"B{rr}"].value is not None:
                 out.append({"case": ws[f"A{rr}"].value, "round_eur": num(b.cell("Use of funds", f"B{rr}")),
                             "runway_zero_revenue_months": num(b.cell("Use of funds", f"C{rr}")),
-                            "runway_plan_months": num(b.cell("Use of funds", f"D{rr}")),
-                            "dilution_pct_at_same_pre_money": round(b.cell("Use of funds", f"E{rr}") * 100, 1)})
+                            "runway_plan_months": num(b.cell("Use of funds", f"D{rr}"))})
+                rr += 1
     return out
 
 
@@ -112,14 +113,16 @@ def cmd_snapshot(a):
 
 
 def cmd_cifre(a):
-    fm, ct = Book(a.books[0]), Book(a.books[1])
-    snap = json.loads(Path(a.books[2]).read_text())
+    fm = Book(a.books[0])
+    snap = json.loads(Path(a.books[1]).read_text())
     base = scenario_metrics(fm)
     # the delivered workbook must reproduce the base snapshot exactly
     for k, v in snap["Base"].items():
         if base.get(k) != v:
             raise SystemExit(f"base mismatch on {k}: workbook {base.get(k)} vs snapshot {v}")
-    if fm.cell("Cover", "C27") != "OK":
+    cover = fm.wb["Cover"]
+    integ = [r for r in range(1, cover.max_row + 1) if str(cover[f"B{r}"].value or "").startswith("Integrity checks")]
+    if len(integ) != 1 or fm.cell("Cover", f"C{integ[0]}") != "OK":
         raise SystemExit("Cover integrity check is not OK")
 
     fx = fm.name("in_FX")
@@ -174,37 +177,22 @@ def cmd_cifre(a):
     cifre = {
         "_meta": {
             "generated": "2026-10-07",
-            "generated_from": ["financial-model.xlsx (recalculated by LibreOffice)", "cap-table.xlsx", "model/recalc/snapshot.json"],
+            "generated_from": ["financial-model.xlsx (recalculated by LibreOffice)", "model/recalc/snapshot.json"],
             "rule": "Single source of numbers for every VestVentures document. Do not type numbers by hand elsewhere.",
             "currency": "EUR; RON converted at 5.0 RON = 1 EUR",
             "status": "Everything after 6 Oct 2026 is a PROJECTION. Zero paying customers today.",
         },
         "round_eur": round_eur,
-        "round_split": {"vest_ventures_ticket_eur": num(fm.name("in_VVTicket")), "independent_angels_eur": num(fm.name("in_Angels")),
-                        "angels_identified": False,
-                        "option_a_eur": num(fm.name("in_OptionA")),
-                        "option_a_note": "Vest Ventures ticket + the minimum 10% private co-investment only"},
+        "round_investor": {"name": "Vest Ventures", "programme": "Accelerator",
+                           "vest_ventures_ticket_eur": num(fm.name("in_VVTicket")),
+                           "note": "Vest Ventures is the only investor in the pre-seed round; ticket inside VV's published EUR 10k-200k accelerator range"},
         "stage": "Pre-seed (apply to the Vest Ventures Accelerator, not Seed: zero revenue)",
-        "instrument": ("Convertible loan agreement (CLA) or SHA on Vest Ventures' templates; modelled as priced equity at the "
-                       "pre-money valuation (a CLA would use it as the valuation cap, illustrative 20% discount)"),
+        "instrument": "Convertible loan agreement (CLA) or SHA on Vest Ventures' templates; a CLA would use the pre-money valuation as its cap",
         "pre_money_eur": num(fm.name("in_PreMoney")),
         "post_money_eur": num(fm.name("in_PostMoney")),
-        "investor_pct": round(fm.name("in_InvPct") * 100, 2),
-        "investor_pct_split": {"vest_ventures": round(fm.name("in_VVPct") * 100, 2), "angels": round(fm.name("in_AngelPct") * 100, 2)},
-        "esop_pct": round(fm.name("in_ESOPPct") * 100, 2),
-        "esop_note": "10% of post-money, created pre-money (dilutes founders only); virtual/phantom scheme while the company is an SRL [TO CONFIRM]",
-        "founders_today": {"Miroslav Maletici": 51.0, "Răzvan Pervulescu": 49.0},
-        "founders_post": {"Miroslav Maletici": round(fm.name("in_FoundersPostM") * 100, 2),
-                          "Răzvan Pervulescu": round(fm.name("in_FoundersPostR") * 100, 2)},
-        "illustrative_seed": {
-            "amount_eur": num(ct.cell("Cap table", "B12")), "pre_money_eur": num(ct.cell("Cap table", "B13")),
-            "founders_combined_after_seed_pct": round(ct.cell("Cap table", "G36") * 100, 2),
-            "note": "ILLUSTRATIVE only, no seed discussion has taken place",
-        },
         "runway_months": base["runway_zero_revenue_months"],
         "runway_basis": "Months the round pays every planned cost with ZERO revenue (base cost plan)",
         "runway_plan_months": base["runway_plan_months"],
-        "runway_option_a_zero_revenue_months": num(fm.name("in_RunwayZeroRevA")),
         "round_size_test": round_tests(fm),
         "use_of_funds": uof,
         "use_of_funds_basis": f"Share of planned spend over the zero-revenue runway (months 1-{base['runway_zero_revenue_months']}), applied to the round",
@@ -268,8 +256,8 @@ def cmd_cifre(a):
         "benchmarks_for_ask": {
             "romania_avg_pre_seed_2025_eur": 526_000, "romania_avg_seed_2025_eur": 1_500_000,
             "source": "How to Web & Underline Ventures, Venture in Eastern Europe 2025 (piata.md §d.2)",
-            "vv_accelerator_ticket": "EUR 10k-200k, >=10% independent private co-investment (vestventures.md §4)",
-            "valuation_benchmark": "No sourced RO/CEE pre-seed valuation benchmark (UNVERIFIED); DERIVED range EUR 0.75-3M post for 10-20% dilution",
+            "vv_accelerator_ticket": "EUR 10k-200k (vestventures.md §4)",
+            "valuation_benchmark": "No sourced RO/CEE pre-seed valuation benchmark (UNVERIFIED)",
         },
     }
     Path(a.out).write_text(json.dumps(cifre, indent=2, ensure_ascii=False) + "\n")

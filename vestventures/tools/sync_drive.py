@@ -57,8 +57,6 @@ FISIERE = {
     "financial-model.xlsx": ("02 · Financial model", XLSX, SHEET),
     "business-plan.pdf": ("03 · Business plan.pdf", PDF, None),
     "roadmap.pdf": ("04 · Roadmap.pdf", PDF, None),
-    "cap-table.pdf": ("05 · Cap table.pdf", PDF, None),
-    "cap-table.xlsx": ("05 · Cap table (model)", XLSX, SHEET),
     "product-mockups.pdf": ("06 · Product screenshots.pdf", PDF, None),
     "form-answers.md": ("07 · Răspunsuri formular (EN)", MD, DOC),
     "media/demo-video-script.md": ("08 · Demo video script", MD, DOC),
