@@ -24,8 +24,8 @@ citeste_daca:
   - "vehicul care nu apare în listă → [[rol/manager]]"
   - "42501 la salvarea unui vehicul → capcana #23"
   - "tip de document care lipsește din listă → 0116, cele patru de transport sunt activ=false"
-scris_pe: 9d5b6a4bd8cfd34399ecbf06fa5edd27286eaabd
-scris_la: 2026-10-05
+scris_pe: f8e364799f393c902837698f60a8f33abb539779
+scris_la: 2026-10-07
 tags: [modul, operations]
 ---
 
@@ -45,8 +45,9 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 
 **Fișa vehiculului nu e doar de citit.** Modificarea și ștergerea stau amândouă în spatele
 lui `vehicles:update` all — `poateAdministra` din `[id]/page.tsx`, poarta cerută de
-`vehicule_update` în bază. Sub ea intră și coloana „Acțiuni" a documentelor: pentru cine
-n-o poate folosi lipsește cu totul, nu apare goală.
+`vehicule_update` în bază. Sub ea intră și corectura documentelor din coloana „Acțiuni”.
+Pe un rând „Lipsește”, aceeași coloană are „Adaugă” (`vehicles:create`, cu tipul
+preselectat). Pentru cine nu poate nici una, nici alta, coloana lipsește cu totul.
 
 **Vehiculul nou și foaia nouă NU mai au rută.** `/flota/nou` și `/flota/foi/noua` au
 dispărut, fără redirect, în favoarea unor casete pe listă — tiparul din `[[modul/concedii]]`.
@@ -61,15 +62,25 @@ P0001 o foaie pe un vehicul vândut sau casat.
 
 `src/app/(app)/flota/actions.ts`.
 
-| Funcție                                  | Permisiune / minScope        |
-| ---------------------------------------- | ---------------------------- |
-| `creeazaVehicul`, `adaugaDocument`       | `vehicles:create` / all      |
-| `actualizeazaVehicul`, `stergeVehicul`   | `vehicles:update` / all      |
-| `actualizeazaDocument`, `stergeDocument` | `vehicles:update` / all      |
-| `creeazaFoaie`                           | `trip_sheets:create` / own   |
-| `trimiteFoaie`, `adaugaAlimentare`       | `trip_sheets:update` / own   |
-| `decideFoaie`                            | `trip_sheets:approve` / team |
-| `confirmaAnomalie`                       | `vehicles:update` / team     |
+| Funcție                                               | Permisiune / minScope        |
+| ----------------------------------------------------- | ---------------------------- |
+| `creeazaVehicul`, `adaugaDocument`                    | `vehicles:create` / all      |
+| `actualizeazaVehicul`, `stergeVehicul`                | `vehicles:update` / all      |
+| `corecteazaKilometraj`                                | `vehicles:update` / all      |
+| `actualizeazaDocument`, `stergeDocument`              | `vehicles:update` / all      |
+| `creeazaFoaie`                                        | `trip_sheets:create` / own   |
+| `trimiteFoaie`, `redeschideFoaie`, `adaugaAlimentare` | `trip_sheets:update` / own   |
+| `decideFoaie`                                         | `trip_sheets:approve` / team |
+| `confirmaAnomalie`                                    | `vehicles:update` / team     |
+
+**Kilometrajul de bord e obligatoriu la creare** (`numarObligatoriu`) și lipsește din
+modificare. Pe `default 0`, prima foaie trecea de orice verificare. `z.coerce.number()` nu
+ajunge: `Number("")` și `Number(null)` dau `0`. Corectura e `corecteazaKilometraj`, cu
+motivul în audit.
+
+**Din `respins` baza permite doar `draft`.** Pe o foaie respinsă ecranul arată doar
+„Redeschide” (`redeschideFoaie`); închiderea apare în `draft`, alimentările în `draft` și
+`trimis`.
 
 Scrierile pe vehicule și documente sunt toate `minScope: "all"`, fiindcă politicile cer
 literal `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși
@@ -88,12 +99,9 @@ pune `internal.vehicles_normalizeaza` din `status` și o golește la întoarcere
 Ștergerea e altceva: e pentru rândul care n-ar fi trebuit să existe, iar
 `internal.vehicles_dupa` scoate atunci scadențele vehiculului din semafor.
 
-**Orele foilor se citesc și se scriu ca ora României.** `plecare_la`, `sosire_la` și
-`alimentat_la` trec prin `dataOraRomania` (`src/schemas/comun.ts`) și ies moment exact în
-UTC; formularele umplu câmpul invers, cu `oraRomanieiPentruCamp` (`src/lib/format/date.ts`),
-de unde își iau și `min`/`max`. Cu `z.iso.datetime({ local: true })`, șirul fără fus ajungea
-neatins în Postgres, citit în fusul sesiunii: 15:00 tastat apărea 18:00. Kilometrajul,
-litrii și costul au mesaje proprii în română în schemă.
+**Orele foilor sunt ora României.** `plecare_la`, `sosire_la` și `alimentat_la` trec prin
+`dataOraRomania` și ies în UTC; formularele umplu câmpul cu `oraRomanieiPentruCamp`. Cu
+`z.iso.datetime({ local: true })`, 15:00 tastat apărea 18:00.
 
 ## Citiri
 
@@ -129,11 +137,15 @@ Citește secțiunea asta înainte de orice scriere în modul.
   explicit** din client — spre deosebire de tabelele acoperite de `internal.set_actor`.
   Omiterea lor dă **42501**, adică „Nu aveți dreptul…", un mesaj care trimite
   investigația exact în direcția greșită. — capcana #23
-- **O anomalie deja confirmată se poate REconfirma.** `internal.anomalii_protejeaza` pune
-  `confirmat_de` doar la PRIMA confirmare, dar lasă `confirmat_la` și `nota` suprascrise de
-  al doilea om: rândul rămâne semnat de primul, cu explicația celuilalt. De aceea
-  `confirmaAnomalie` filtrează `.is("confirmat_la", null)` — zero rânduri ⇒ CONFLICT. Garda
-  e în acțiune, nu în politică (`actions-foi.test.ts`).
+- **O anomalie confirmată e închisă, din 0171 și în bază.** Orice schimbare de
+  `confirmat_la`, `confirmat_de` sau `nota` după confirmare dă P0001, iar `confirmat_de`
+  nu mai vine din payload. `confirmaAnomalie` păstrează `.is("confirmat_la", null)`: fără
+  el, al doilea clic ar primi P0001 în loc de CONFLICT.
+- **Scrierea foilor și a alimentărilor se judecă pe dreptul de SCRIERE.** Din 0171,
+  `foi_insert` filtrează rândul prin `app.poate_crea_foaie` (pe `trip_sheets:create`), iar
+  `alimentari_insert`/`_update` prin `app.poate_scrie_foaie` (pe `update`). Înainte,
+  ambele foloseau dreptul de citire. Proba: `tests/rls/proba-flota-integritate.sql`, care
+  verifică și `department_id` din altă firmă (P0001).
 - **Coloane GENERATED ALWAYS pe care clientul nu are voie să le trimită:**
   `trip_sheets.km_parcursi`, `fuel_entries.pret_litru`, `odometer_anomalies.diferenta`.
   La fel, `aprobat_de`/`aprobat_la` și `confirmat_de` le scrie triggerul din
@@ -173,13 +185,9 @@ capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-docum
 `actualizeazaVehicul` trimite obiectul ÎNTREG — `employee_id` și `department_id` călătoresc
 prin câmpuri ascunse, altfel orice salvare a fișei ar șterge alocarea făcută altundeva.
 
-Închiderea cursei și alimentarea (`foi/[id]/actiuni-foaie.tsx`) trec și ele pe `Camp`, cu
-`noValidate`: bulele browserului dispar, iar regulile pe care baza le refuză oricum — sosire
-după plecare, kilometraj crescător, alimentare în intervalul cursei, litri peste zero — se
-spun în client, în română, pe câmp. Cele două formulare își țin erorile SEPARAT
-(`eroriInchidere`/`eroriAlimentare`), ca la cele două `useTransition`: o eroare la
-alimentare nu înroșește caseta de sosire. Sub buton rămâne „Corectați câmpurile marcate",
-iar ce vine cu `fieldErrors === null` se arată acolo întreg.
+Închiderea și alimentarea (`foi/[id]/actiuni-foaie.tsx`) folosesc `Camp` cu `noValidate`:
+regulile pe care baza le refuză oricum se spun în client, pe câmp. Fiecare formular are
+erorile și `useTransition`-ul lui, ca o eroare la alimentare să nu înroșească sosirea.
 
 ## Nomenclatorul de tipuri de document
 
