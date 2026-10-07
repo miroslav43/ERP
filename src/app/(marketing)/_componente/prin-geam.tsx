@@ -114,12 +114,17 @@ export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly ti
           >
             {/* eslint-disable-next-line @next/next/no-img-element --
                 Vezi motivul de mai sus. Aici se cere direct varianta mare:
-                mărirea are rost doar dacă se citește ce scrie pe ecran. */}
+                mărirea are rost doar dacă se citește ce scrie pe ecran.
+                `lazy`: un `popover` închis e `display: none`, deci imaginea se
+                cere abia la deschidere. Fără el, React 19 emitea
+                `<link rel="preload">` pentru ea — vezi `preincarcari.test.tsx`. */}
             <img
               src={captura.sursa}
               alt={descriere}
               width={LATIME_CAPTURA}
               height={INALTIME_CAPTURA}
+              loading="lazy"
+              decoding="async"
               className="block h-auto max-h-[92dvh] w-auto max-w-full"
             />
             {/*

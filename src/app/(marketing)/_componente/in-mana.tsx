@@ -142,12 +142,16 @@ export function InMana({
                     popover="auto"
                     className="backdrop:bg-mk-cerneala/85 max-h-[92dvh] max-w-[96vw] border-0 bg-transparent p-0"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- vezi mai sus. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element -- vezi mai sus.
+                        `lazy`: fără el, React preîncarcă imaginea mare deși
+                        fereastra e închisă — vezi `preincarcari.test.tsx`. */}
                     <img
                       src={captura.sursa}
                       alt={captura.alt}
                       width={captura.latime}
                       height={captura.inaltime}
+                      loading="lazy"
+                      decoding="async"
                       className="block h-auto max-h-[92dvh] w-auto max-w-full"
                     />
                     <button
