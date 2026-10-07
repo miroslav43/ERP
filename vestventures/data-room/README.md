@@ -62,15 +62,13 @@ poster at the work location).
 
 | Document | What it is | Status |
 | --- | --- | --- |
-| [Financial model](../financial-model.xlsx) | 36-month model, Jan 2027 – Dec 2029, with live formulas: assumptions, revenue, costs, P&L and cash, unit economics, three scenarios, use of funds, cap table, sources | available |
+| [Financial model](../financial-model.xlsx) | 36-month model, Jan 2027 – Dec 2029, with live formulas: assumptions, revenue, costs, P&L and cash, unit economics, three scenarios, use of funds, sources | available |
 | Historical financial statements, FY2024 and FY2025 | Balance sheets and P&L of the SRL as filed | to be uploaded |
 
-## 4. Legal and cap table
+## 4. Legal
 
 | Document | What it is | Status |
 | --- | --- | --- |
-| [Cap table (XLSX)](../cap-table.xlsx) | Today (51% / 49%), after this round, an illustrative seed, and the convertible loan alternative | available |
-| [Cap table (PDF)](../cap-table.pdf) | Printable version of the same tables | available |
 | [Terms of service](https://administrativo.ro/legal/termeni) | Customer terms, with the GDPR data processing annex (Art. 28). Drafted in-house, not yet reviewed by a lawyer | online; PDF copy to be uploaded |
 | [Privacy policy](https://administrativo.ro/legal/confidentialitate) | What personal data the service processes, where and for how long. Not yet reviewed by a lawyer | online |
 | Articles of association | The SRL's constitutive act, all versions | to be uploaded |

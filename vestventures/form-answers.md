@@ -10,7 +10,7 @@ script again (or `--check` to only verify). Before pasting, run it with
 
 Rules behind the text:
 
-- Every number comes from `_surse/cifre.json` (financial model and cap table,
+- Every number comes from `_surse/cifre.json` (financial model,
   recalculated 7 Oct 2026) or from the sourced files `_surse/fapte.md` and
   `_surse/piata.md`. Anything dated after 6 Oct 2026 is a **projection**.
 - Zero paying customers today. Nothing here implies revenue, customers,
@@ -28,8 +28,8 @@ Rules behind the text:
 ADMINISTRATIVO (administrativo.ro). Legal entity: WISELEARNING S.R.L. (CUI 50321210, J35/2618/2024), Timișoara, Romania [TO CONFIRM].
 
 **Long** (max 1000)
-<!-- 403 chars -->
-ADMINISTRATIVO is the product and brand, live at administrativo.ro. Legal entity: WISELEARNING S.R.L., fiscal code (CUI) 50321210, trade register number J35/2618/2024, registered office Str. Metalurgiei nr. 2, Timișoara, Timiș county, Romania. The company is a Romanian SRL (limited-liability company) owned 51% by Miroslav Maletici and 49% by Răzvan Pervulescu, with no other shareholders [TO CONFIRM].
+<!-- 413 chars -->
+ADMINISTRATIVO is the product and brand, live at administrativo.ro. Legal entity: WISELEARNING S.R.L., fiscal code (CUI) 50321210, trade register number J35/2618/2024, registered office Str. Metalurgiei nr. 2, Timișoara, Timiș county, Romania. The company is a Romanian SRL (limited-liability company) owned by its two co-founders, Miroslav Maletici and Răzvan Pervulescu, with no other shareholders [TO CONFIRM].
 
 ## 2. Website
 
@@ -184,22 +184,22 @@ Channel one is accounting practices. Romanian SMEs typically keep their books wi
 ## 17. Team
 
 **Short** (max 300)
-<!-- 279 chars -->
-Two co-founders who both write code: Miroslav Maletici (CEO, 51%) and Răzvan Pervulescu (CTO, 49%), students at the Politehnica University of Timișoara. They took the product from first commit to production in about three weeks. The plan has both full time once the round closes.
+<!-- 269 chars -->
+Two co-founders who both write code: Miroslav Maletici (CEO) and Răzvan Pervulescu (CTO), students at the Politehnica University of Timișoara. They took the product from first commit to production in about three weeks. The plan has both full time once the round closes.
 
 **Long** (max 1000)
-<!-- 953 chars -->
-Miroslav Maletici, co-founder and CEO (51%), leads product and sales. Răzvan Pervulescu, co-founder and CTO (49%), leads engineering. Both are students at the Politehnica University of Timișoara (UPT) and both commit code. Together they built ADMINISTRATIVO from the first commit on 17 Aug 2026 to production in early September: 811 commits (34 of them automated), 19 modules and a live REGES-Online integration by 6 Oct 2026. We use AI coding tools openly, with automated tests and nightly AI code review, which is how two people ship at this pace. Both founders go full time when the round closes, on a lean €1,000 gross salary each [TO CONFIRM: how studies fit with full-time work]. Planned hires from the round: a partner and sales manager for the accountant channel (month 3, half time until month 13) and a half-time onboarding and support specialist (month 7). A full-stack developer follows after the seed. There are no other team members today.
+<!-- 941 chars -->
+Miroslav Maletici, co-founder and CEO, leads product and sales. Răzvan Pervulescu, co-founder and CTO, leads engineering. Both are students at the Politehnica University of Timișoara (UPT) and both commit code. Together they built ADMINISTRATIVO from the first commit on 17 Aug 2026 to production in early September: 811 commits (34 of them automated), 19 modules and a live REGES-Online integration by 6 Oct 2026. We use AI coding tools openly, with automated tests and nightly AI code review, which is how two people ship at this pace. Both founders go full time when the round closes, on a lean €1,000 gross salary each [TO CONFIRM: how studies fit with full-time work]. Planned hires from the round: a partner and sales manager for the accountant channel (month 3, half time until month 13) and a half-time onboarding and support specialist (month 7). A full-stack developer follows after the seed. There are no other team members today.
 
-## 18. Cap table
+## 18. Shareholders
 
 **Short** (max 300)
-<!-- 212 chars -->
-Today: Miroslav Maletici 51%, Răzvan Pervulescu 49%. No investors, no options issued. After the proposed round (fully diluted): founders 79.29% (40.44% and 38.85%), investors 10.71%, new employee option pool 10%.
+<!-- 74 chars -->
+Two co-founders hold all shares; no external investors or options to date.
 
 **Long** (max 1000)
-<!-- 662 chars -->
-Today the SRL is owned 51% by Miroslav Maletici and 49% by Răzvan Pervulescu. There are no other shareholders, no investors and no options. After the proposed €150k round at €1.25M pre-money, fully diluted: Miroslav Maletici 40.44%, Răzvan Pervulescu 38.85%, Vest Ventures 9.64%, independent angels 1.07% and an employee option pool of 10%. The pool is created before the round, so it dilutes only the founders. While the company is an SRL, the pool would be a virtual (phantom) scheme [TO CONFIRM with a lawyer]. Illustration only, not a plan: after a later €1M seed at €4M pre-money the founders would hold 63.43% together. The full table is in cap-table.xlsx.
+<!-- 373 chars -->
+Two co-founders hold all shares; no external investors or options to date. Miroslav Maletici (CEO) and Răzvan Pervulescu (CTO) are the SRL's only associates, and no shares or options have been promised to anyone else. Vest Ventures would be the first external investor, through the pre-seed round described in the next answer, on Vest Ventures' templates (a CLA or an SHA).
 
 ## 19. Funding raised to date
 
@@ -214,12 +214,12 @@ None for ADMINISTRATIVO. We have raised €0 from investors, received no grants 
 ## 20. Amount raising, instrument and valuation
 
 **Short** (max 300)
-<!-- 244 chars -->
-€150k pre-seed: a €135k Vest Ventures Accelerator ticket plus €15k from independent angels (not yet identified). €1.25M pre-money (founders' proposal), €1.4M post-money, 10.71% to investors. Instrument: a CLA or SHA on Vest Ventures' templates.
+<!-- 171 chars -->
+€150k pre-seed, all from a Vest Ventures Accelerator ticket. €1.25M pre-money (founders' proposal), €1.4M post-money. Instrument: a CLA or SHA on Vest Ventures' templates.
 
 **Long** (max 1000)
-<!-- 973 chars -->
-We are raising €150k: a €135k Vest Ventures Accelerator ticket plus €15k from independent business angels, whom we have not identified yet. The €15k is 10% of the round and 11% of the ticket, so it meets the rule of at least 10% private co-investment on either basis [TO CONFIRM with Vest Ventures]. The size follows a lean plan: both founders on €1,000 gross, the first two hires half time, and a developer only after the seed. It pays every planned cost for 16 months with zero revenue and lasts 24 months on the base plan, past the seed trigger of 100 paying customers in Aug 2028. We propose €1.25M pre-money (€1.4M post-money), so investors would own 10.71%. We found no sourced Romanian pre-seed valuation benchmark; this is our proposal, in the lower half of the €0.75–3M post-money range implied by 10–20% dilution. Instrument: a convertible loan (CLA) or shareholders' agreement (SHA) on Vest Ventures' templates; under a CLA the €1.25M would be the valuation cap.
+<!-- 768 chars -->
+We are raising €150k, all as one Vest Ventures Accelerator ticket, inside the published €10k–200k range; Vest Ventures is the only investor in the round. The size follows a lean plan: both founders on €1,000 gross, the first two hires half time, and a developer only after the seed. It pays every planned cost for 16 months with zero revenue and lasts 24 months on the base plan, past the seed trigger of 100 paying customers in Aug 2028. We propose €1.25M pre-money (€1.4M post-money). We found no sourced Romanian pre-seed valuation benchmark; this is our proposal for a company with a live product and zero revenue. Instrument: a convertible loan (CLA) or shareholders' agreement (SHA) on Vest Ventures' templates; under a CLA the €1.25M would be the valuation cap.
 
 ## 21. Use of funds
 
@@ -238,8 +238,8 @@ The €150k is split by each category's share of planned spending over the first
 16 months with zero revenue, 24 months on the base plan. We start the seed raise at 100 paying customers, planned for month 20 (Aug 2028), about 4 months before cash runs out. Planned costs: €102,029 in year 1 (2027).
 
 **Long** (max 1000)
-<!-- 956 chars -->
-Current monthly burn: [TO CONFIRM amount]. After the round closes (assumed Jan 2027), planned costs are €102,029 in 2027, €117,399 in 2028 and €185,606 in 2029, when the post-seed developer joins. With zero revenue, €150k pays every planned cost for 16 months; on the base revenue plan cash lasts 24 months, to Dec 2028. The base case reaches 100 paying customers, our seed trigger, in month 20 (Aug 2028) with about €15k in cash, so the seed raise must start promptly and conversations begin before then. Other round sizes: the €135k ticket alone gives 15 months with zero revenue (20 on plan), €220k gives 24 (over 36) and €300k gives 29 (over 36). The base case is not default-alive: in month 36 monthly cash flow is still about −€1.1k, and without a seed the shortfall by then is about €51k. In the conservative case cash lasts 18 months on plan; if the pilot tracks it, we cut paid ads [TO CONFIRM]. The upside case breaks even in month 22 (Oct 2028).
+<!-- 951 chars -->
+Current monthly burn: [TO CONFIRM amount]. After the round closes (assumed Jan 2027), planned costs are €102,029 in 2027, €117,399 in 2028 and €185,606 in 2029, when the post-seed developer joins. With zero revenue, €150k pays every planned cost for 16 months; on the base revenue plan cash lasts 24 months, to Dec 2028. The base case reaches 100 paying customers, our seed trigger, in month 20 (Aug 2028) with about €15k in cash, so the seed raise must start promptly and conversations begin before then. Other ticket sizes: €100k gives 11 months with zero revenue (13 on plan, short of the trigger) and the €200k maximum gives 22 (35 on plan). The base case is not default-alive: in month 36 monthly cash flow is still about −€1.1k, and without a seed the shortfall by then is about €51k. In the conservative case cash lasts 18 months on plan; if the pilot tracks it, we cut paid ads [TO CONFIRM]. The upside case breaks even in month 22 (Oct 2028).
 
 ## 23. Milestones
 
@@ -288,8 +288,8 @@ Romania first, on purpose: REGES-Online, Romanian payroll and labour-law rules a
 You are the pre-seed fund of our own region: based in Timișoara, focused on B2B tech, an accelerator built inside a VC fund, with B2B SaaS and relationship-led sales mentors. Our first target market is Western Romanian SMEs, and your Seed stage is our next step.
 
 **Long** (max 1000)
-<!-- 779 chars -->
-We are a Timișoara company selling to Romanian SMEs, and Vest Ventures is the pre-seed fund built for exactly that region, focused on B2B tech. Our round is sized around your accelerator ticket: €135k plus the private co-investment you require. What we need most is not code but go-to-market, and your accelerator mentors cover our gap: B2B SaaS growth, relationship-led B2B sales and value-based selling, which is how the accountant channel is won. Your programme also asks for things already in our plan: digital accessibility to EN 301 549, with an audit planned for month 6. Your Seed stage is a natural follow-on when we reach 100 paying customers, and Western Romanian companies are our first target market. The project fits the West Region's ICT smart-specialisation area.
+<!-- 782 chars -->
+We are a Timișoara company selling to Romanian SMEs, and Vest Ventures is the pre-seed fund built for exactly that region, focused on B2B tech. Our round is sized around your accelerator ticket: €150k, the whole round, inside your €10k–200k range. What we need most is not code but go-to-market, and your accelerator mentors cover our gap: B2B SaaS growth, relationship-led B2B sales and value-based selling, which is how the accountant channel is won. Your programme also asks for things already in our plan: digital accessibility to EN 301 549, with an audit planned for month 6. Your Seed stage is a natural follow-on when we reach 100 paying customers, and Western Romanian companies are our first target market. The project fits the West Region's ICT smart-specialisation area.
 
 ## 28. Key risks and mitigations
 

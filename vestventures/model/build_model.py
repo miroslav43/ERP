@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-Generates the ADMINISTRATIVO investor financial model and the standalone cap table.
+Generates the ADMINISTRATIVO investor financial model.
 
-    python3 model/build_model.py                 # writes the workbooks (formulas only)
+    python3 model/build_model.py                 # writes the workbook (formulas only)
     python3 model/build_model.py --snapshot f.json  # also writes the scenario snapshot table
 
 Outputs (relative to /srv/apps/ERP/vestventures):
     financial-model.xlsx   live Excel formulas; every driver lives on "Assumptions"
                            or "Scenarios"; Cover!C8 selects the scenario (1/2/3)
-    cap-table.xlsx         today / pre-seed / illustrative seed + CLA alternative
 
 Recalculation (cached values for readers that do not recalculate) is done by
 model/recalc.sh with LibreOffice in a container; model/export_cifre.py then
@@ -139,18 +138,11 @@ INPUTS = [
     ("FundingMonth", "Month the round is received", 1, "model month", NUM, "ASSUMPTION; see StartDate."),
     ("OpeningCash", "Cash in the company before the round", 0, "EUR", EUR, "[TO CONFIRM] by the founders. Set to 0 (prudent)."),
     ("#", "Round (key levers)"),
-    ("VVTicket", "Vest Ventures accelerator ticket", 135000, "EUR", EUR,
-     "VV Accelerator ticket EUR 10k-200k, de minimis, >=10% independent private co-investment (vestventures.vc/en/programs-terms). "
-     "EUR 135k requested, inside the range."),
-    ("Angels", "Independent private co-investors (business angels)", 15000, "EUR", EUR,
-     "10% of the round (11.1% of the VV ticket): meets VV's >=10% private co-investment rule whether it is measured on the total "
-     "(exactly, no margin) or on VV's ticket - basis [TO CONFIRM] with VV. Angels NOT identified yet."),
-    ("MinPrivatePct", "Minimum private co-investment (VV rule, as % of VV ticket)", 0.10, "%", PCT,
-     "Vest Ventures programme terms ('>=10% private co-investment'). Basis of the 10% (ticket vs total) [TO CONFIRM] with VV."),
-    ("PreMoney", "Pre-money valuation (fully diluted, incl. new ESOP)", 1250000, "EUR", EUR,
-     "Founders' proposal. We found no sourced RO/CEE pre-seed valuation benchmark; DERIVED range EUR 0.75-3M post."),
-    ("ESOP", "Employee option pool, % of post-money (created pre-money)", 0.10, "%", PCT,
-     "Created before the round so it dilutes founders only (standard 'pre-money pool'). SRL needs a phantom/virtual scheme until SRL->SA [TO CONFIRM]."),
+    ("VVTicket", "Vest Ventures accelerator ticket", 150000, "EUR", EUR,
+     "VV Accelerator ticket EUR 10k-200k, de minimis (vestventures.vc/en/programs-terms). "
+     "EUR 150k requested, inside the range; Vest Ventures is the only investor in this round."),
+    ("PreMoney", "Pre-money valuation", 1250000, "EUR", EUR,
+     "Founders' proposal. We found no sourced RO/CEE pre-seed valuation benchmark."),
     ("#", "Pricing (list prices, RON/month, final - seller not VAT-registered)"),
 ] + [
     (f"Price{k}", lbl, p, "RON/month", RON, "Public price list, administrativo.ro/en/preturi") for k, lbl, p, _ in PRICES_RON
@@ -312,7 +304,7 @@ class Model:
         wb = self.wb
         self.cover = wb.active
         self.cover.title = "Cover"
-        for t in ["Assumptions", "Revenue", "Costs", "P&L & Cash", "Unit economics", "Scenarios", "Use of funds", "Cap table", "Sources"]:
+        for t in ["Assumptions", "Revenue", "Costs", "P&L & Cash", "Unit economics", "Scenarios", "Use of funds", "Sources"]:
             wb.create_sheet(t)
         self.build_scenarios()
         self.build_assumptions()
@@ -321,7 +313,6 @@ class Model:
         self.build_pnl()
         self.build_unit_economics()
         self.build_use_of_funds()
-        self.build_cap_table()
         self.build_sources()
         self.build_cover()
         self.fill_snapshot()
@@ -337,7 +328,7 @@ class Model:
         ws["A1"] = "Scenarios - key growth drivers"
         ws["A1"].font = TITLE
         ws["A2"] = ("Blue = input. The scenario in use is chosen on Cover!C8 (1 Base, 2 Conservative, 3 Upside); "
-                    "Assumptions picks the matching column with INDEX. All values are ASSUMPTIONS / PROJECTIONS.")
+                    "Assumptions picks the corresponding column with INDEX. All values are ASSUMPTIONS / PROJECTIONS.")
         ws["A2"].font = SUB
         heads = ["Driver", "Unit", "Base", "Conservative", "Upside", "Note / source"]
         for i, h in enumerate(heads, 1):
@@ -414,7 +405,7 @@ class Model:
         ws.column_dimensions["C"].width = 16
         ws.column_dimensions["D"].width = 110
         row = 5
-        key_levers = {"VVTicket", "Angels", "PreMoney", "ESOP"}
+        key_levers = {"VVTicket", "PreMoney"}
         for item in INPUTS:
             if item[0] == "#":
                 row += 1
@@ -436,14 +427,23 @@ class Model:
             row += 1
             if key == "OpeningCash":
                 pass
-            if key == "Angels":
-                ws[f"A{row}"], ws[f"C{row}"] = "Round size (VV ticket + angels)", "EUR"
-                ws[f"B{row}"] = "=in_VVTicket+in_Angels"
+            if key == "VVTicket":
+                ws[f"A{row}"], ws[f"C{row}"] = "Round size (single investor: Vest Ventures)", "EUR"
+                ws[f"B{row}"] = "=in_VVTicket"
                 ws[f"B{row}"].number_format = EUR
                 ws[f"B{row}"].font = BOLD
-                ws[f"D{row}"] = "Calculated. Target range given by the founders: EUR 150k-300k pre-seed."
+                ws[f"D{row}"] = "Calculated. The whole pre-seed round is the Vest Ventures accelerator ticket."
                 ws[f"D{row}"].font = SUB
                 self.name("Round", "Assumptions", f"B{row}")
+                row += 1
+            if key == "PreMoney":
+                ws[f"A{row}"], ws[f"C{row}"] = "Post-money valuation", "EUR"
+                ws[f"B{row}"] = "=in_PreMoney+in_Round"
+                ws[f"B{row}"].number_format = EUR
+                ws[f"B{row}"].font = BOLD
+                ws[f"D{row}"] = "Calculated: pre-money + round."
+                ws[f"D{row}"].font = SUB
+                self.name("PostMoney", "Assumptions", f"B{row}")
                 row += 1
             if key == "MixAll":
                 ws[f"A{row}"], ws[f"C{row}"] = "Check: plan mix total", "%"
@@ -638,31 +638,23 @@ class Model:
                   lambda m, c: f"={prev(25, m)}+{c}18" if m > 1 else f"={c}18", EUR)
         self.mrow(ws, 26, "negflag", "Flag: cash below zero", "1/0", lambda m, c: f"=IF({c}23<0,1,0)", NUM)
         self.mrow(ws, 27, "beflag", "Flag: net cash flow >= 0", "1/0", lambda m, c: f"=IF({c}18>=0,1,0)", NUM)
-        self.mrow(ws, 28, "cashA", "Closing cash - option A (VV ticket + minimum private match only)", "EUR",
-                  lambda m, c: f"={c}23-(in_Round-in_OptionA)*IF({c}$3>=in_FundingMonth,1,0)", EUR)
-        self.mrow(ws, 29, "negflagA", "Flag: option A cash below zero", "1/0", lambda m, c: f"=IF({c}28<0,1,0)", NUM)
-        self.mrow(ws, 30, "runmin", "Running minimum of cumulative operating cash flow (for round-size tests)", "EUR",
-                  lambda m, c: f"=MIN({prev(30, m)},{c}25)" if m > 1 else f"={c}25", EUR)
+        self.mrow(ws, 28, "runmin", "Running minimum of cumulative operating cash flow (for round-size tests)", "EUR",
+                  lambda m, c: f"=MIN({prev(28, m)},{c}25)" if m > 1 else f"={c}25", EUR)
 
         # summary block
         cash, cumcost = rng(S, 23), rng(S, 24)
-        neg, be, negA, cashA = rng(S, 26), rng(S, 27), rng(S, 29), rng(S, 28)
+        neg, be = rng(S, 26), rng(S, 27)
         dates = rng("Revenue", 4)
-        self.section(ws, 31, "Summary (selected scenario)", 6)
+        self.section(ws, 30, "Summary (selected scenario)", 6)
         rows = [
-            ("OptionA", "Option A round: VV ticket + minimum private co-investment", "=in_VVTicket*(1+in_MinPrivatePct)", EUR,
-             "VV ticket alone is not allowed: VV requires >=10% independent private money."),
             ("RunwayZeroRev", "Runway with ZERO revenue (target round)", f'=COUNTIF({cumcost},"<="&(in_Round+in_OpeningCash))', MON,
              "Months the round pays every planned cost even if no customer ever pays. Basis of the round size."),
-            ("RunwayZeroRevA", "Runway with ZERO revenue (option A)", f'=COUNTIF({cumcost},"<="&(in_OptionA+in_OpeningCash))', MON, ""),
             ("RunwayPlan", "Runway on plan (months until cash < 0)", f'=IF(MAX({neg})=0,"> 36",MATCH(1,{neg},0)-1)', MON,
              "'> 36' = cash never goes negative within the model horizon."),
-            ("RunwayPlanA", "Runway on plan, option A", f'=IF(MAX({negA})=0,"> 36",MATCH(1,{negA},0)-1)', MON, ""),
             ("Breakeven", "Break-even month (first month net cash flow >= 0)", f'=IF(MAX({be})=0,"not within 36 months",MATCH(1,{be},0))', NUM,
              "model month #; date in next cell"),
             ("CashLow", "Cash low point", f"=MIN({cash})", EUR, ""),
             ("CashLowMonth", "Cash low point month", f"=MATCH(in_CashLow,{cash},0)", NUM, ""),
-            ("CashLowA", "Cash low point, option A", f"=MIN({cashA})", EUR, ""),
             ("Cash36", "Cash at month 36", f"={CN}23", EUR, ""),
             ("Rev12", "Revenue, months 1-12", f"=SUMIF({rng('Revenue', 5)},1,{rng(S, 8)})", EUR, ""),
             ("Rev24", "Revenue, months 13-24", f"=SUMIF({rng('Revenue', 5)},2,{rng(S, 8)})", EUR, ""),
@@ -673,7 +665,7 @@ class Model:
             ("MaxCheck", "Integrity check: max |EBITDA check| (must be 0)", f"=MAX({rng(S, 16)})-MIN({rng(S, 16)})", EUR2, ""),
         ]
         for i, (key, label, f, fmt, note) in enumerate(rows):
-            rr = 32 + i
+            rr = 31 + i
             ws[f"A{rr}"], ws[f"C{rr}"], ws[f"E{rr}"] = label, f, note
             ws[f"C{rr}"].number_format = fmt
             ws[f"C{rr}"].font = BOLD
@@ -793,16 +785,14 @@ class Model:
             ws[f"{cc}{tr}"].font = BOLD
             ws[f"{cc}{tr}"].border = TOP
         j = tr + 2
-        self.section(ws, j, "Round size test (selected scenario; same pre-money valuation)", 5)
-        for i, h in enumerate(["Round size tested", "EUR", "Runway, zero revenue", "Runway on plan", "Dilution at this pre-money"], 1):
+        self.section(ws, j, "Round size test (selected scenario)", 5)
+        for i, h in enumerate(["Round size tested", "EUR", "Runway, zero revenue", "Runway on plan"], 1):
             c = ws.cell(row=j + 1, column=i, value=h)
             c.font, c.fill = HDR, HDR_FILL
-        cumcost, runmin = rng("P&L & Cash", 24), rng("P&L & Cash", 30)
-        tests = [("VV ticket alone (not allowed without private match)", "=in_VVTicket"),
+        cumcost, runmin = rng("P&L & Cash", 24), rng("P&L & Cash", 28)
+        tests = [("Smaller Vest Ventures ticket", 100000),
                  ("Proposed round", "=in_Round"),
-                 ("VV maximum ticket + minimum 10% private match", "=200000*(1+in_MinPrivatePct)"),
-                 ("Larger round (more angels)", 250000),
-                 ("Upper end of founders' range", 300000)]
+                 ("Vest Ventures maximum accelerator ticket", 200000)]
         for i, (lbl, v) in enumerate(tests):
             rr = j + 2 + i
             ws[f"A{rr}"], ws[f"B{rr}"] = lbl, v
@@ -811,114 +801,36 @@ class Model:
             ws[f"C{rr}"] = f'=COUNTIF({cumcost},"<="&(B{rr}+in_OpeningCash))'
             ws[f"D{rr}"] = (f'=IF(COUNTIF({runmin},">="&-(B{rr}+in_OpeningCash))>={N_MONTHS},"> {N_MONTHS}",'
                             f'COUNTIF({runmin},">="&-(B{rr}+in_OpeningCash)))')
-            ws[f"E{rr}"] = f"=B{rr}/(in_PreMoney+B{rr})"
             ws[f"C{rr}"].number_format = MON
             ws[f"D{rr}"].number_format = MON
-            ws[f"E{rr}"].number_format = PCT
             if lbl == "Proposed round":
                 ws[f"A{rr}"].font = BOLD
-        self.round_test_rows = (j + 2, j + 6)
-        ws[f"A{j + 7}"] = ("All rows use the same (lean) cost plan and the selected scenario. Runway on plan assumes the money arrives in model "
-                           "month 1 (running minimum of cumulative operating cash flow). Dilution shown for the same pre-money; a different "
-                           "round size would be negotiated at a different valuation.")
-        ws[f"A{j + 7}"].font = SUB
-        t220 = j + 4
-        j = j + 9
+        n_t = len(tests)
+        self.round_test_rows = (j + 2, j + 1 + n_t)
+        ws[f"A{j + 2 + n_t}"] = ("All rows use the same (lean) cost plan and the selected scenario. Runway on plan assumes the money arrives in model "
+                                 "month 1 (running minimum of cumulative operating cash flow).")
+        ws[f"A{j + 2 + n_t}"].font = SUB
+        t100, t200 = j + 2, j + 1 + n_t
+        j = j + 4 + n_t
         self.section(ws, j, "Why this round size", 5)
         lines = [
-            '="Round: €"&TEXT(in_Round,"#,##0")&" = Vest Ventures accelerator ticket €"&TEXT(in_VVTicket,"#,##0")&" + independent angels €"&TEXT(in_Angels,"#,##0")&"."',
-            '="Zero-revenue runway: "&in_RunwayZeroRev&" months (option A, VV + minimum 10% match = €"&TEXT(in_OptionA,"#,##0")&": "&in_RunwayZeroRevA&" months)."',
+            '="Round: €"&TEXT(in_Round,"#,##0")&" = Vest Ventures accelerator ticket (published range €10,000-200,000); Vest Ventures is the only investor in this round."',
+            '="Zero-revenue runway: "&in_RunwayZeroRev&" months - the round alone pays every planned cost even if no customer ever pays."',
             ('=IF(in_CashLow<0,"On the selected scenario cash lasts "&in_RunwayPlan&" months on plan without further funding; the seed round '
              'is raised from the 100-paying-customer milestone (model month "&in_M100&").","On the selected scenario cash never falls below €"'
              '&TEXT(in_CashLow,"#,##0")&"; break-even in model month "&in_Breakeven&".")'),
             '="Next milestone (seed readiness) inside the runway: 100 paying firms by model month "&in_M100&", payroll validated, REGES-Online in daily use, accountant channel repeatable."',
             ('="Why this size: the round funds the path to the seed trigger (100 paying firms, model month "&in_M100&") with "&in_RunwayPlan&'
-             '" months of runway on plan and "&TEXT(in_InvPct,"0.0%")&" dilution, on a lean cost plan: co-founders at €"&TEXT(in_SalFounder,"#,##0")&'
-             '" gross, partner manager at "&TEXT(in_SalesFTE,"0%")&" until model month "&in_SalesFullStart&" (partner signings scaled to match), '
+             '" months of runway on plan, on a lean cost plan: co-founders at €"&TEXT(in_SalFounder,"#,##0")&'
+             '" gross, partner manager at "&TEXT(in_SalesFTE,"0%")&" until model month "&in_SalesFullStart&" (partner signings scaled to the manager\'s hours), '
              'support specialist at "&TEXT(in_SupportFTE,"0%")&" from model month "&in_SupportStart&", developer after the seed (model month "&in_DevStart&")."'),
-            (f'="Larger rounds (table above) buy runway, e.g. €"&TEXT(B{t220},"#,##0")&" (VV maximum ticket + minimum match): "&C{t220}&'
-             f'" months with zero revenue, "&D{t220}&" on plan - but need a larger VV ticket and more private money, and no angel is identified yet."'),
+            (f'="A smaller ticket (€"&TEXT(B{t100},"#,##0")&") gives "&C{t100}&" months with zero revenue and "&D{t100}&" on plan"&'
+             f'IF(AND(ISNUMBER(D{t100}),ISNUMBER(in_M100)),IF(D{t100}<in_M100," - cash runs out before the seed trigger."," - with little margin before the seed trigger."),".")'),
+            (f'="The Vest Ventures maximum (€"&TEXT(B{t200},"#,##0")&") buys "&C{t200}&" months with zero revenue and "&D{t200}&'
+             f'" on plan: more runway than the lean plan needs to reach the seed trigger."'),
         ]
         for k, f in enumerate(lines):
             ws[f"A{j + 1 + k}"] = f
-
-    # -- Cap table ---------------------------------------------------------------------
-    def build_cap_table(self):
-        ws = self.wb["Cap table"]
-        ws["A1"] = "Cap table - today and after the pre-seed round (fully diluted)"
-        ws["A1"].font = TITLE
-        ws["A2"] = ("Today: SRL, 2 co-founders, no investors, no options (founders' statement). Units below are NOTIONAL (10,000 = 100%); "
-                    "the SRL's real number of social parts is [TO CONFIRM]. Instrument: Vest Ventures templates are a CLA or an SHA "
-                    "(vestventures.vc/en/programs-terms); modelled as priced equity at the pre-money valuation.")
-        ws["A2"].font = SUB
-        ws.column_dimensions["A"].width = 52
-        for cc in "BCDEFG":
-            ws.column_dimensions[cc].width = 16
-        ws["A4"], ws["B4"] = "Pre-money valuation (fully diluted)", "=in_PreMoney"
-        ws["A5"], ws["B5"] = "Round size", "=in_Round"
-        ws["A6"], ws["B6"] = "Post-money valuation", "=B4+B5"
-        ws["A7"], ws["B7"] = "Investors' ownership post-money", "=B5/B6"
-        ws["A8"], ws["B8"] = "ESOP pool, % post-money (created pre-money)", "=in_ESOP"
-        ws["A9"], ws["B9"] = "Founders' units today (notional)", 10000
-        ws["A10"], ws["B10"] = "Fully diluted units post-money", "=B9/(1-B7-B8)"
-        ws["A11"], ws["B11"] = "Price per unit (pre-money / pre-money FD units)", "=B4/(B9+B8*B10)"
-        for rr, fmt in zip(range(4, 12), (EUR, EUR, EUR, PCT, PCT, NUM, NUM, EUR2)):
-            ws[f"B{rr}"].number_format = fmt
-            ws[f"B{rr}"].font = GREEN if isinstance(ws[f"B{rr}"].value, str) and "in_" in ws[f"B{rr}"].value else BLACK
-        ws["B9"].font = BLUE
-        self.name("PostMoney", "Cap table", "B6")
-        self.name("InvPct", "Cap table", "B7")
-        heads = ["Holder", "Today - units", "Today - %", "Pre-seed - units", "Pre-seed - %", "Invested (EUR)"]
-        for i, h in enumerate(heads, 1):
-            c = ws.cell(row=13, column=i, value=h)
-            c.font, c.fill = HDR, HDR_FILL
-        holders = [
-            ("Miroslav Maletici (co-founder)", "=0.51*$B$9", None),
-            ("Răzvan Pervulescu (co-founder)", "=0.49*$B$9", None),
-            ("ESOP pool (unallocated)", 0, "=$B$8*$B$10"),
-            ("Vest Ventures (accelerator ticket)", 0, "=in_VVTicket/$B$11"),
-            ("Independent angels", 0, "=in_Angels/$B$11"),
-        ]
-        for i, (h, today, post) in enumerate(holders):
-            rr = 14 + i
-            ws[f"A{rr}"] = h
-            ws[f"B{rr}"] = today
-            if i < 2:
-                ws[f"B{rr}"].font = BLUE
-                ws[f"D{rr}"] = f"=B{rr}"
-            else:
-                ws[f"D{rr}"] = post
-            ws[f"C{rr}"] = f"=B{rr}/$B$19"
-            ws[f"E{rr}"] = f"=D{rr}/$D$19"
-            ws[f"F{rr}"] = {3: "=in_VVTicket", 4: "=in_Angels"}.get(i, 0)
-            for cc, fmt in (("B", NUM), ("C", PCT), ("D", NUM), ("E", PCT), ("F", EUR)):
-                ws[f"{cc}{rr}"].number_format = fmt
-        ws["A19"] = "Total"
-        for cc, f, fmt in (("B", "=SUM(B14:B18)", NUM), ("C", "=SUM(C14:C18)", PCT), ("D", "=SUM(D14:D18)", NUM),
-                           ("E", "=SUM(E14:E18)", PCT), ("F", "=SUM(F14:F18)", EUR)):
-            ws[f"{cc}19"] = f
-            ws[f"{cc}19"].number_format = fmt
-            ws[f"{cc}19"].font = BOLD
-            ws[f"{cc}19"].border = TOP
-        ws["A19"].font = BOLD
-        ws["A20"] = "Check: post-money of the round at unit price (must equal post-money)"
-        ws["D20"] = "=D19*B11"
-        ws["D20"].number_format = EUR
-        self.name("FoundersPostM", "Cap table", "E14")
-        self.name("FoundersPostR", "Cap table", "E15")
-        self.name("VVPct", "Cap table", "E17")
-        self.name("AngelPct", "Cap table", "E18")
-        self.name("ESOPPct", "Cap table", "E16")
-        notes = [
-            "Convertible alternative (CLA / SAFE-like): Vest Ventures' default instruments are a convertible loan agreement or an SHA.",
-            "A CLA would carry a valuation cap equal to the pre-money above and a discount (e.g. 20%) to the next priced round; the CLA "
-            "conversion math is on cap-table.xlsx, sheet 'CLA alternative'.",
-            "SRL caveat: changing an SRL's articles needs every associate's vote (Companies Law 31/1990, art. 192); conversion SRL -> SA or a holding "
-            "at the round is [TO CONFIRM] with a lawyer. An ESOP in an SRL is usually a virtual / phantom scheme until then.",
-        ]
-        for i, t in enumerate(notes):
-            ws[f"A{22 + i}"] = t
-            ws[f"A{22 + i}"].font = SUB
 
     # -- Sources -----------------------------------------------------------------------
     def build_sources(self):
@@ -933,7 +845,7 @@ class Model:
             ("SMB CAC payback ~11 months median, 6-14 healthy; 3-9 typical below US$5k ACV","Aleph - https://www.getaleph.com/answers/cac-payback-period-saas-2026 (secondary)"),
             ("Romania 2025: EUR 103M VC in 40 deals; avg pre-seed EUR 526k; avg seed EUR 1.5M",
              "How to Web & Underline Ventures via Romania Insider - https://www.romania-insider.com/romanian-startups-funding-2025"),
-            ("Vest Ventures stages, tickets (Accelerator EUR 10k-200k, >=10% private co-investment), instruments (CLA/SHA)",
+            ("Vest Ventures stages, tickets (Accelerator EUR 10k-200k), instruments (CLA/SHA)",
              "https://vestventures.vc/en/stages-accelerator ; https://vestventures.vc/en/programs-terms ; https://vestventures.vc/en/faq"),
             ("Employers with >=1 employee: ~526,000 (FY2025)", "ICAP CRIF via Curierul Național - https://curierulnational.ro/peste-jumatate-de-milion-de-firme-aveau-388-milioane-salariati-in-2025/"),
             ("Enterprises by size class (Eurostat SBS 2023)", "https://ec.europa.eu/eurostat/databrowser/view/sbs_sc_ovw/default/table"),
@@ -976,7 +888,6 @@ class Model:
         outs = [
             ("Round size", "=in_Round", EUR),
             ("Pre-money / post-money valuation", '="€"&TEXT(in_PreMoney,"#,##0")&" / €"&TEXT(in_PostMoney,"#,##0")', None),
-            ("Investors' ownership post-money", "=in_InvPct", PCT),
             ("Model month 1 (assumed close)", "=in_StartDate", "mmm yyyy"),
             ("Runway with zero revenue", "=in_RunwayZeroRev", MON),
             ("Runway on plan", "=in_RunwayPlan", MON),
@@ -1005,7 +916,7 @@ class Model:
         leg = [("Blue text", "hard-coded input - edit on Assumptions / Scenarios", BLUE),
                ("Green text", "link to another sheet", GREEN),
                ("Black text", "formula", BLACK),
-               ("Yellow fill", "key lever (scenario, round, valuation, ESOP)", BLACK)]
+               ("Yellow fill", "key lever (scenario, round, valuation)", BLACK)]
         for i, (a, b, f) in enumerate(leg):
             ws[f"B{rr + 1 + i}"], ws[f"C{rr + 1 + i}"] = a, b
             ws[f"B{rr + 1 + i}"].font = f
@@ -1022,175 +933,11 @@ class Model:
             "Lean pre-seed cost plan: co-founders on lean salaries, partner manager and support specialist part-time first "
             "(partner signings scaled to the manager's hours), developer hired only after the seed.",
             "[TO CONFIRM]: legal entity and registered office (VV requires Arad, Caraș-Severin, Hunedoara or Timiș), tax regime, social parts.",
-            "Sheets: Assumptions -> Revenue -> Costs -> P&L & Cash -> Unit economics; Scenarios; Use of funds; Cap table; Sources.",
+            "Sheets: Assumptions -> Revenue -> Costs -> P&L & Cash -> Unit economics; Scenarios; Use of funds; Sources.",
         ]
         for i, t in enumerate(notes):
             ws[f"B{rr + 1 + i}"] = t
             ws[f"B{rr + 1 + i}"].font = SUB
-
-
-# --------------------------------------------------------------------------------------
-# Standalone cap table workbook
-# --------------------------------------------------------------------------------------
-
-CAP = dict(founders_units=10000, m_pct=0.51, r_pct=0.49, esop=0.10, vv=135000, angels=15000, pre=1250000,
-           seed_amount=1000000, seed_pre=4000000, seed_esop_topup=0.0, cla_discount=0.20, cla_interest=0.0, cla_years=2.0)
-
-
-def build_cap_table_wb() -> Workbook:
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Cap table"
-    ws["A1"] = "ADMINISTRATIVO - pro-forma cap table (fully diluted, notional units)"
-    ws["A1"].font = TITLE
-    ws["A2"] = ("Today = founders' statement (SRL, 51/49, no investors, no options). Pre-seed = this round. Seed = ILLUSTRATIVE only "
-                "(not a plan, not a commitment). Units are notional (10,000 = 100% today); the SRL's real social parts are [TO CONFIRM].")
-    ws["A2"].font = SUB
-    ws.column_dimensions["A"].width = 52
-    for cc in "BCDEFGHI":
-        ws.column_dimensions[cc].width = 15
-    ws.column_dimensions["J"].width = 70
-    inputs = [
-        ("Founders' units today (notional)", CAP["founders_units"], NUM, "notional"),
-        ("Miroslav Maletici share today", CAP["m_pct"], PCT, "founders' statement"),
-        ("Răzvan Pervulescu share today", CAP["r_pct"], PCT, "founders' statement"),
-        ("Pre-seed: Vest Ventures accelerator ticket (EUR)", CAP["vv"], EUR, "Vest Ventures Accelerator: EUR 10k-200k (vestventures.vc)"),
-        ("Pre-seed: independent angels (EUR)", CAP["angels"], EUR, ">= 10% private co-investment rule"),
-        ("Pre-seed: pre-money valuation, fully diluted (EUR)", CAP["pre"], EUR, "same as financial-model.xlsx"),
-        ("Pre-seed: ESOP pool, % post-money, created pre-money", CAP["esop"], PCT, "dilutes founders only"),
-        ("Seed (ILLUSTRATIVE): amount (EUR)", CAP["seed_amount"], EUR, "VV Seed range EUR 200k-1M; RO avg seed 2025 EUR 1.5M (How to Web & Underline Ventures)"),
-        ("Seed (ILLUSTRATIVE): pre-money valuation (EUR)", CAP["seed_pre"], EUR, "ILLUSTRATIVE assumption, needs traction"),
-        ("Seed (ILLUSTRATIVE): ESOP top-up, % post-seed", CAP["seed_esop_topup"], PCT, "0 = no top-up"),
-    ]
-    for i, h in enumerate(["Input", "Value", "", "", "", "", "", "", "", "Note"], 1):
-        if h:
-            c = ws.cell(row=4, column=i, value=h)
-            c.font, c.fill = HDR, HDR_FILL
-    for i, (lbl, v, fmt, note) in enumerate(inputs):
-        rr = 5 + i
-        ws[f"A{rr}"], ws[f"B{rr}"], ws[f"J{rr}"] = lbl, v, note
-        ws[f"B{rr}"].font = BLUE
-        ws[f"B{rr}"].number_format = fmt
-        ws[f"J{rr}"].font = SUB
-    for rr in (8, 9, 10, 11):
-        ws[f"B{rr}"].fill = YELLOW
-    # B5 units, B6 M, B7 R, B8 VV, B9 angels, B10 pre, B11 esop, B12 seed amt, B13 seed pre, B14 topup
-    ws["A16"] = "Derived"
-    ws["A16"].font = BOLD
-    der = [
-        ("Pre-seed round (EUR)", "=B8+B9", EUR),                                   # B17
-        ("Pre-seed post-money (EUR)", "=B10+B17", EUR),                            # B18
-        ("Pre-seed investors' % post", "=B17/B18", PCT),                           # B19
-        ("Pre-seed FD units post", "=B5/(1-B19-B11)", NUM),                        # B20
-        ("Pre-seed price per unit (EUR)", "=B10/(B5+B11*B20)", EUR2),              # B21
-        ("Seed post-money (EUR)", "=B13+B12", EUR),                                # B22
-        ("Seed investors' % post", "=B12/B22", PCT),                               # B23
-        ("Seed FD units post", "=B20/(1-B23-B14)", NUM),                           # B24
-        ("Seed price per unit (EUR)", "=B13/(B20+B14*B24)", EUR2),                 # B25
-    ]
-    for i, (lbl, f, fmt) in enumerate(der):
-        rr = 17 + i
-        ws[f"A{rr}"], ws[f"B{rr}"] = lbl, f
-        ws[f"B{rr}"].number_format = fmt
-    hdr = ["Holder", "Today units", "Today %", "Pre-seed units", "Pre-seed %", "Seed units", "Seed %", "Invested (EUR)"]
-    for i, h in enumerate(hdr, 1):
-        c = ws.cell(row=28, column=i, value=h)
-        c.font, c.fill = HDR, HDR_FILL
-    holders = [
-        ("Miroslav Maletici (co-founder)", "=B5*B6", "=B29", "=D29"),
-        ("Răzvan Pervulescu (co-founder)", "=B5*B7", "=B30", "=D30"),
-        ("ESOP pool", "0", "=B11*B20", "=D31+B14*B24"),
-        ("Vest Ventures", "0", "=B8/B21", "=D32"),
-        ("Independent angels", "0", "=B9/B21", "=D33"),
-        ("Seed investors (ILLUSTRATIVE)", "0", "0", "=B12/B25"),
-    ]
-    for i, (h, t, p, s) in enumerate(holders):
-        rr = 29 + i
-        ws[f"A{rr}"] = h
-        ws[f"B{rr}"] = t if t.startswith("=") else 0
-        ws[f"D{rr}"] = p if p.startswith("=") else 0
-        ws[f"F{rr}"] = s
-        ws[f"C{rr}"] = f"=B{rr}/$B$35"
-        ws[f"E{rr}"] = f"=D{rr}/$D$35"
-        ws[f"G{rr}"] = f"=F{rr}/$F$35"
-        ws[f"H{rr}"] = {3: "=B8", 4: "=B9", 5: "=B12"}.get(i, 0)
-        for cc, fmt in (("B", NUM), ("C", PCT), ("D", NUM), ("E", PCT), ("F", NUM), ("G", PCT), ("H", EUR)):
-            ws[f"{cc}{rr}"].number_format = fmt
-    ws["A35"] = "Total"
-    ws["A35"].font = BOLD
-    for cc, fmt in (("B", NUM), ("C", PCT), ("D", NUM), ("E", PCT), ("F", NUM), ("G", PCT), ("H", EUR)):
-        ws[f"{cc}35"] = f"=SUM({cc}29:{cc}34)"
-        ws[f"{cc}35"].number_format = fmt
-        ws[f"{cc}35"].font = BOLD
-        ws[f"{cc}35"].border = TOP
-    ws["A36"] = "Founders combined"
-    for cc in "CEG":
-        ws[f"{cc}36"] = f"={cc}29+{cc}30"
-        ws[f"{cc}36"].number_format = PCT
-    ws["A37"] = "Check: units x price = post-money (pre-seed, seed)"
-    ws["D37"], ws["F37"] = "=D35*B21", "=F35*B25"
-    ws["D37"].number_format = ws["F37"].number_format = EUR
-
-    # CLA alternative
-    w2 = wb.create_sheet("CLA alternative")
-    w2["A1"] = "Alternative: convertible loan agreement (CLA) instead of priced equity"
-    w2["A1"].font = TITLE
-    w2["A2"] = ("Vest Ventures contracts: term sheet, then a CLA or an SHA on the fund's templates (vestventures.vc/en/programs-terms). "
-                "Interest, discount and cap below are ILLUSTRATIVE inputs, not VV terms [TO CONFIRM].")
-    w2["A2"].font = SUB
-    w2.column_dimensions["A"].width = 64
-    w2.column_dimensions["B"].width = 18
-    w2.column_dimensions["C"].width = 70
-    rows = [
-        ("CLA principal (EUR)", "='Cap table'!B17", EUR, "same money as the pre-seed round"),              # B4
-        ("Valuation cap, pre-money FD (EUR)", "='Cap table'!B10", EUR, "cap = pre-money of the priced alternative"),  # B5
-        ("Discount to the next priced round", CAP["cla_discount"], PCT, "ILLUSTRATIVE"),                     # B6
-        ("Annual interest (simple)", CAP["cla_interest"], PCT, "ILLUSTRATIVE; VV template terms [TO CONFIRM]"),  # B7
-        ("Years until conversion", CAP["cla_years"], '0.0', "ILLUSTRATIVE (seed ~24 months after close: 100-customer trigger + raise)"),  # B8
-        ("Amount converting (EUR)", "=B4*(1+B7*B8)", EUR, ""),                                               # B9
-        ("Pre-conversion units (founders + ESOP pool, notional)", "='Cap table'!B5+'Cap table'!D31", NUM,
-         "same pool units as the priced round (10% of post-money), so the two paths are comparable"),  # B10
-        ("Cap price per unit (EUR)", "=B5/B10", EUR2, "cap / pre-conversion units"),                         # B11
-        ("Seed price per unit if no CLA (seed pre-money / pre-conversion units)", "='Cap table'!B13/B10", EUR2, "ILLUSTRATIVE seed"),  # B12
-        ("Discounted seed price", "=B12*(1-B6)", EUR2, ""),                                                  # B13
-        ("Conversion price = MIN(cap price, discounted price)", "=MIN(B11,B13)", EUR2, ""),                  # B14
-        ("CLA units at conversion", "=B9/B14", NUM, ""),                                                     # B15
-        ("CLA holders' % right after conversion (before seed money)", "=B15/(B10+B15)", PCT, ""),            # B16
-        ("Seed amount (EUR)", "='Cap table'!B12", EUR, ""),                                                  # B17
-        ("Seed new units (at seed price, after conversion)", "=B17/('Cap table'!B13/(B10+B15))", NUM,
-         "pre-money includes converted units (simplification)"),                                             # B18
-        ("Total units post-seed", "=B10+B15+B18", NUM, ""),                                                  # B19
-        ("Founders combined after seed - CLA path", "=('Cap table'!B5)/B19", PCT, ""),                       # B20
-        ("Founders combined after seed - priced pre-seed path", "='Cap table'!G36", PCT, "from sheet 'Cap table'"),  # B21
-        ("CLA holders after seed", "=B15/B19", PCT, ""),                                                     # B22
-    ]
-    for i, (lbl, v, fmt, note) in enumerate(rows):
-        rr = 4 + i
-        w2[f"A{rr}"], w2[f"B{rr}"], w2[f"C{rr}"] = lbl, v, note
-        w2[f"B{rr}"].number_format = fmt
-        w2[f"C{rr}"].font = SUB
-        if not (isinstance(v, str) and v.startswith("=")):
-            w2[f"B{rr}"].font = BLUE
-        elif "Cap table" in v:
-            w2[f"B{rr}"].font = GREEN
-    w3 = wb.create_sheet("Notes")
-    notes = [
-        "Ownership today: Miroslav Maletici 51%, Răzvan Pervulescu 49% - founders' statement; no investors, no options issued.",
-        "Legal entity named on administrativo.ro as its operator: WISELEARNING S.R.L. (CUI 50321210, J35/2618/2024) - [TO CONFIRM] that this SRL holds the 51/49 cap table.",
-        "Pre-seed modelled as priced equity at EUR 1.25M pre-money, fully diluted including a new 10% ESOP pool created pre-money.",
-        "Vest Ventures may use a CLA (convertible loan) or an SHA; see 'CLA alternative'.",
-        "SRL governance: amendments to the articles need unanimity of associates; an SRL -> SA or holding conversion at the round is [TO CONFIRM] with a lawyer.",
-        "Seed column is ILLUSTRATIVE only: no seed investor, amount or valuation has been discussed.",
-        "Same figures as financial-model.xlsx, sheet 'Cap table'.",
-    ]
-    w3.column_dimensions["A"].width = 150
-    for i, t in enumerate(notes):
-        w3[f"A{1 + i}"] = t
-    for w in wb.worksheets:
-        style_all(w)
-        w.sheet_view.showGridLines = False
-    wb.calculation.fullCalcOnLoad = True
-    return wb
 
 
 def main():
@@ -1198,15 +945,10 @@ def main():
     ap.add_argument("--scenario", type=int, default=1)
     ap.add_argument("--out", default=str(ROOT / "financial-model.xlsx"))
     ap.add_argument("--snapshot", default=None, help="JSON with per-scenario results to paste on 'Scenarios'")
-    ap.add_argument("--cap-table", default=str(ROOT / "cap-table.xlsx"))
-    ap.add_argument("--no-cap-table", action="store_true")
     a = ap.parse_args()
     snap = json.loads(Path(a.snapshot).read_text()) if a.snapshot else None
     Model(a.scenario, snap).build().save(a.out)
     print("wrote", a.out)
-    if not a.no_cap_table:
-        build_cap_table_wb().save(a.cap_table)
-        print("wrote", a.cap_table)
 
 
 if __name__ == "__main__":

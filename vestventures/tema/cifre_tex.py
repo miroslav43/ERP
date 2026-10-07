@@ -12,7 +12,7 @@ number by hand:
     \\cfK{tam_sam_som.som.eur_arr} -> 189     (thousands, whole)
     \\cfM{tam_sam_som.tam.eur_year} -> 188    (millions, max 1 decimal)
     \\cfKa{base.cash_m36_eur}      -> 50      (absolute value, thousands, whole)
-    \\cfp{founders_post.Miroslav Maletici}{2} -> 37.40  (fixed decimals: 0, 1 or 2)
+    \\cfp{unit_economics.ltv_cac}{2}         -> 3.20   (fixed decimals: 0, 1 or 2)
     \\cfkd{conservative.mrr_m24_eur}           -> 2.0    (thousands, always 1 decimal)
 
 Rounding is half-up on the decimal value (Decimal(str(v))), never Python's
