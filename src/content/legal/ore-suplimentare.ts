@@ -28,7 +28,7 @@ export const ORE_SUPLIMENTARE: PaginaLege = {
   },
 
   raspunsScurt: [
-    "Munca suplimentară e munca peste durata normală de 40 de ore pe săptămână — art. 120. Durata maximă, cu tot cu suplimentarele, e de 48 de ore pe săptămână; o săptămână poate trece de 48 doar dacă media pe 4 luni calendaristice rămâne sub 48 — art. 114. Codul muncii nu fixează o limită lunară.",
+    "Munca suplimentară e munca peste durata normală de 40 de ore pe săptămână — art. 120. Durata maximă, cu tot cu suplimentarele, e de 48 de ore pe săptămână; o săptămână poate trece de 48 doar dacă media pe 4 luni calendaristice nu depășește 48 — art. 114. Codul muncii nu fixează o limită lunară.",
     "Orele suplimentare se compensează întâi cu ore libere plătite, în următoarele 90 de zile calendaristice — art. 122. Dacă nu se poate, se plătesc cu un spor de cel puțin 75% din salariul de bază — art. 123.",
     "Nu se pot cere fără acordul salariatului, în afara forței majore și a lucrărilor urgente — art. 120 alin. (2). Tinerii sub 18 ani nu pot face ore suplimentare — art. 124. Încălcarea regulilor se amendează cu 1.500–3.000 de lei pentru fiecare persoană — art. 260 alin. (1) lit. i).",
   ],
@@ -108,8 +108,8 @@ export const ORE_SUPLIMENTARE: PaginaLege = {
     {
       titlu: "Câte ore suplimentare ai voie pe lună",
       paragrafe: [
-        "Niciun articol nu dă o cifră lunară. Limita e de 48 de ore pe săptămână cu tot cu suplimentarele, deci, într-o săptămână obișnuită de 40 de ore, cel mult 8 ore suplimentare. Peste asta se poate merge în unele săptămâni, cu condiția ca media pe 4 luni calendaristice să rămână sub 48 de ore — art. 114 alin. (2).",
-        "Socotit pe o lună cu patru săptămâni și jumătate, asta înseamnă în medie în jur de 35 de ore suplimentare. E o consecință aritmetică a limitei săptămânale, nu o regulă scrisă — iar o lună cu mai mult poate fi legală, dacă lunile din jur o echilibrează.",
+        "Niciun articol nu dă o cifră lunară. Limita e de 48 de ore pe săptămână cu tot cu suplimentarele, deci, într-o săptămână obișnuită de 40 de ore, cel mult 8 ore suplimentare. Peste asta se poate merge în unele săptămâni, cu condiția ca media pe 4 luni calendaristice să nu depășească 48 de ore — art. 114 alin. (2).",
+        "Socotit pe o lună cu patru săptămâni și jumătate, asta înseamnă în medie cel mult 36 de ore suplimentare. E o consecință aritmetică a limitei săptămânale, nu o regulă scrisă — iar o lună cu mai mult poate fi legală, dacă lunile din jur o echilibrează.",
       ],
     },
     {

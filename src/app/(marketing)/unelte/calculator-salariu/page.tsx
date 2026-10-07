@@ -34,7 +34,7 @@ import { calculeazaDinParametri } from "./parametri";
 export const metadata: Metadata = metadatePagina({
   titlu: "Calculator salariu net și brut 2026",
   descriere:
-    "Calculează salariul net din brut sau brutul din net, cu valorile din iulie 2026: salariul minim de 4.325 lei, deducerea personală, CAS, CASS, impozit și costul total al angajatorului.",
+    "Calculează salariul net din brut sau brutul din net cu valorile din iulie 2026: salariul minim de 4.325 lei, CAS, CASS, impozit și costul angajatorului.",
   cale: "/unelte/calculator-salariu",
 });
 

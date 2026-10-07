@@ -24,7 +24,7 @@ export const metadata: Metadata = metadatePagina({
   // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
   titlu: "Ce nu facem: limitele, scrise dinainte",
   descriere:
-    "Lista limitelor, scrisă înainte să întrebi: fără raportare la ANAF, fără CNP-uri trimise la REGES pe fundal, fără aplicație în magazine. Și de ce e mai ieftin așa.",
+    "Limitele, scrise înainte să întrebi: fără raportare la ANAF, fără CNP-uri trimise la REGES pe fundal, fără aplicație în magazine. Și de ce e mai ieftin așa.",
   cale: "/de-ce-nu",
 });
 

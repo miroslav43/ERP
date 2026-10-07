@@ -31,7 +31,7 @@ import { metadatePagina } from "../_componente/metadate";
 export const metadata: Metadata = metadatePagina({
   titlu: "Ghiduri pentru angajatori: pontaj, REGES, ITM",
   descriere:
-    "Ce cer Codul muncii și HG 295/2025 de la o firmă mică: evidența orelor, REGES-ONLINE, concediul de odihnă, controlul ITM. Cu articolul de lege lângă fiecare afirmație.",
+    "Ghiduri pentru angajatori, cu articolul de lege lângă fiecare afirmație: salariul minim, evidența orelor, REGES-ONLINE, ore suplimentare, diurnă, control ITM.",
   cale: "/ghid",
 });
 

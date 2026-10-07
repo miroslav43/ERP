@@ -11,7 +11,7 @@ import { PaginaPreturi } from "../../_componente/pagina-preturi";
 // Construită din tabelul canonic, ca varianta românească — vezi `preturi/page.tsx`.
 export const metadata: Metadata = metadatePagina({
   titlu: "Pricing",
-  descriere: `The Administrativo core costs ${lunar(PRET_NUCLEU, "en")} for up to ${PRAG_ANGAJATI} employees; the first month is free. Packages and the price of every module, final amounts with no VAT added.`,
+  descriere: `The Administrativo core costs ${lunar(PRET_NUCLEU, "en")} for up to ${PRAG_ANGAJATI} employees, first month free. Every package and module price, as final amounts with no VAT added.`,
   cale: "/en/preturi",
   limba: "en",
   limbi: { ro: "/preturi", en: "/en/preturi", "x-default": "/preturi" },

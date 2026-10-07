@@ -54,7 +54,7 @@ import { cerereCaDocument, normalizeazaTip } from "./cerere-document";
 export const metadata: Metadata = metadatePagina({
   titlu: "Cerere concediu de odihnă: model Word, PDF",
   descriere:
-    "Cerere de concediu de odihnă cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale. Model gratuit în Word sau PDF, fără cont.",
+    "Cerere de concediu de odihnă cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale. Model gratuit Word sau PDF, fără cont.",
   cale: "/unelte/cerere-concediu-de-odihna",
 });
 

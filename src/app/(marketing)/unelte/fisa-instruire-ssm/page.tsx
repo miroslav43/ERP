@@ -27,7 +27,7 @@ import { construiesteFisaSsm, INSTRUIRI_SSM, parametriFisaSsm } from "./model";
 export const metadata: Metadata = metadatePagina({
   titlu: "Fișa de instruire SSM: model completabil",
   descriere:
-    "Fișa individuală de instruire SSM după anexa 11 la HG 1425/2006: instruirea la angajare, periodică și suplimentară, cu cele trei semnături. Model gratuit în Word sau PDF.",
+    "Fișa individuală de instruire SSM după anexa 11 la HG 1425/2006: instruirea la angajare, periodică și suplimentară, cu semnăturile. Model gratuit Word sau PDF.",
   cale: "/unelte/fisa-instruire-ssm",
 });
 

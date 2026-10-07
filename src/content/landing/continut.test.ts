@@ -1399,6 +1399,11 @@ describe("profilurile publice ale firmei", () => {
       expect(url.pathname, `${adresa}: pagină de administrare, cere autentificare`).not.toMatch(
         /\/admin(\/|$)/,
       );
+      // 7 oct 2026: `…/company/144846087/` răspundea 302 spre login unui
+      // vizitator neautentificat. Doar numele public e vizibil fără cont.
+      expect(url.pathname, `${adresa}: adresa numerică duce la login`).not.toMatch(
+        /\/company\/\d+\/?$/,
+      );
     }
   });
 });

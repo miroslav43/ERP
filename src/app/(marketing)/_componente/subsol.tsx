@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ADRESA_FIRMA, CONTACT, FIRMA } from "@/content/landing/contact";
+import { ADRESA_FIRMA, CONTACT, FIRMA, LINKEDIN } from "@/content/landing/contact";
 import { slugModul } from "@/content/landing/slug-module";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
@@ -61,6 +61,23 @@ export function Subsol({ text }: { text: ContinutLanding }) {
                 </a>
               </li>
               <li className="text-mk-text-inv-slab">{text.contact.program}</li>
+              {/*
+                Legătura vizibilă spre pagina de firmă. `sameAs` din JSON-LD o
+                declara din 23 sept, dar pe pagină nu exista: pentru vizitator
+                (și pentru crawlerele care nu citesc datele structurate) firma
+                n-avea nicio prezență în afara sitului. `rel="me"` spune că
+                profilul e al aceleiași entități.
+              */}
+              <li>
+                <a
+                  href={LINKEDIN}
+                  rel="me noopener"
+                  target="_blank"
+                  className="text-mk-text-inv-slab hover:text-mk-text-inv transition-colors"
+                >
+                  LinkedIn
+                </a>
+              </li>
             </ul>
           </div>
         </div>

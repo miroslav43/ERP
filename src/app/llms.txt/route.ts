@@ -1,4 +1,4 @@
-import { ADRESA_FIRMA, ADRESA_SITE, CONTACT, FIRMA } from "@/content/landing/contact";
+import { ADRESA_FIRMA, ADRESA_SITE, CONTACT, FIRMA, LINKEDIN } from "@/content/landing/contact";
 import { lunar, PACHETE, PRAG_ANGAJATI, PRET_NUCLEU } from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
 import { slugModul } from "@/content/landing/slug-module";
@@ -179,6 +179,7 @@ function construieste(): string {
   l();
   l(`- Furnizor: ${FIRMA.denumire}, ${ADRESA_FIRMA}. CUI ${FIRMA.cui}, ${FIRMA.regCom}.`);
   l(`- Contact: ${CONTACT.email}, ${CONTACT.telefon}.`);
+  l(`- Pagina de firmă de pe LinkedIn: ${LINKEDIN}`);
   l(
     `- Preț de pornire: ${lunar(PRET_NUCLEU, "ro")} pentru nucleu, până la ${PRAG_ANGAJATI} de angajați.`,
   );

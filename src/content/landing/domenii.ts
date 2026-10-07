@@ -111,7 +111,7 @@ export const DOMENII: readonly Domeniu[] = [
     titlu: "Pontaj pe schimburi pentru producție",
     metaTitlu: "Pontaj pe schimburi pentru fabrici",
     metaDescriere:
-      "Ture și schimburi, spor de noapte cu interval propriu, revizii pe scadență și pe contor, autorizații nominale cu termen. Evidența orelor, ținută cum o cere legea.",
+      "Ture și schimburi, spor de noapte cu interval propriu, revizii pe scadență și pe contor, autorizații nominale cu termen și evidența orelor cerută de lege.",
     lead: "Schimbul de noapte, sporul care i se cuvine și revizia care trebuie făcută la o mie de ore sunt trei evidențe diferite. De obicei se țin în trei fișiere care nu se cunosc.",
     dureri: [
       {
@@ -221,7 +221,7 @@ export const DOMENII: readonly Domeniu[] = [
     titlu: "Concedii și dosare de personal pentru birouri",
     metaTitlu: "Concedii și dosare de personal pentru birouri",
     metaDescriere:
-      "Cereri de concediu cu aprobare pe linie ierarhică, sold recalculat automat, calendarul echipei, evaluări periodice și portal în care omul își găsește singur fluturașul.",
+      "Cereri de concediu aprobate pe linie ierarhică, sold recalculat automat, calendarul echipei, evaluări periodice și portal cu fluturașul fiecărui om.",
     lead: "Aici nu se pierd ore, se pierd zile de concediu și răspunsuri. Problema nu e evidența, e că fiecare cerere trece prin cineva care trebuie să-și amintească.",
     dureri: [
       {

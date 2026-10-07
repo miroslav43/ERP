@@ -16,7 +16,7 @@ import { RandarePaginaLege } from "../_componente/pagina-lege";
 export const metadata: Metadata = metadatePagina({
   titlu: "REGES-ONLINE 2026: termene și amenzi",
   descriere:
-    "Toate termenele din HG 295/2025, puse cap la cap, și cele trei amenzi pe care presa le confundă. Ce se transmite în ziua anterioară, ce în 3, 5, 10 sau 20 de zile lucrătoare.",
+    "Toate termenele din HG 295/2025 și cele trei amenzi pe care presa le confundă: ce se transmite în ziua anterioară, ce în 3, 5, 10 sau 20 de zile lucrătoare.",
   cale: "/reges-online",
 });
 

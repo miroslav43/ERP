@@ -16,7 +16,7 @@ import { RandarePaginaLege } from "../../_componente/pagina-lege";
 export const metadata: Metadata = metadatePagina({
   titlu: "Diurna externă 2026: cuantumul pe țări",
   descriere:
-    "Diurna pe fiecare țară din HG 518/1995 și plafonul neimpozabil de 2,5 ori, calculat: Germania, Bulgaria, Ungaria, Franța și restul. Cu articolul lângă fiecare regulă.",
+    "Diurna pe fiecare țară din HG 518/1995 și plafonul neimpozabil de 2,5 ori, calculat: Germania, Bulgaria, Ungaria, Franța și restul, cu articolul de lege.",
   cale: "/ghid/diurna-externa",
 });
 
