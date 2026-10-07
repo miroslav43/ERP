@@ -531,6 +531,14 @@ begin
          ((select val from t_ids where cheie='veh_beta'), v_beta, 'TM' || v_sufix || 'BB', 'Dacia', 'Logan',
           (select val from t_ids where cheie='ang_beta'), (select val from t_ids where cheie='dep_beta'), 1000, v_admin_beta, v_admin_beta);
 
+  -- 0173: alocarea deschisă a fiecărui vehicul. Sincronizarea găsește același
+  -- șofer pe care îl are deja vehiculul, deci rândul derivat nu se mișcă.
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, km_predare, created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='veh_alfa'), (select val from t_ids where cheie='ang_alfa'),
+          now() - interval '30 days', 1000, v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='veh_beta'), (select val from t_ids where cheie='ang_beta'),
+          now() - interval '30 days', 1000, v_admin_beta, v_admin_beta);
+
   insert into public.vehicle_documents (id, organization_id, vehicle_id, document_type_id, numar, valabil_de_la, expira_la, created_by, updated_by)
   select (select val from t_ids where cheie='vdoc_alfa'), v_alfa, (select val from t_ids where cheie='veh_alfa'),
          vdt.id, 'RCA-' || v_sufix || '-A', current_date - 30, current_date + 300, v_admin_alfa, v_admin_alfa

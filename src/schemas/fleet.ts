@@ -159,8 +159,10 @@ const campuriVehicul = {
     mesaj: "Scrieți numărul de locuri.",
     interval: "Numărul de locuri e un întreg între 1 și 200.",
   }),
-  employee_id: z.uuid().nullable().default(null),
+  // `employee_id` NU e aici din 0173: șoferul se schimbă doar prin alocare
+  // (`alocaVehicul`), iar baza refuză scrierea directă cu P0001.
   department_id: z.uuid().nullable().default(null),
+  pool: z.boolean().default(false),
   data_achizitie: z.iso.date().nullable().default(null),
   valoare_achizitie: z.coerce.number().min(0).nullable().default(null),
   prag_salt_km: z.coerce.number().int().min(10).max(100000).nullable().default(null),
@@ -312,6 +314,47 @@ export const trimiteFoaieSchema = z.object({
   // exista în bază, dar niciun formular n-o scria.
   observatii: z.string().trim().max(1000).nullable().default(null),
 });
+
+// ── Alocări (0173) ──────────────────────────────────────────────────────────
+
+/**
+ * Predarea vehiculului unui șofer.
+ *
+ * `de_la` e ora României, ca la foi. O alocare nu începe în viitor: nimic n-ar
+ * activa-o la ora ei, deci baza o refuză. Predarea către alt om închide
+ * singură alocarea deschisă, în bază, cu `km_predare` ca restituire.
+ */
+export const alocareSchema = z.object({
+  vehicle_id: z.uuid(),
+  employee_id: z.uuid("Alegeți șoferul căruia i se predă vehiculul."),
+  de_la: dataOraRomania("predării"),
+  km_predare: numarOptional({
+    min: 0,
+    max: 5_000_000,
+    intreg: true,
+    mesaj: "Scrieți kilometrajul la predare, în km.",
+    interval: "Kilometrajul se scrie în km întregi.",
+  }),
+  folosinta_personala: z.boolean().default(false),
+  observatii: z.string().trim().max(1000).nullable().default(null),
+});
+export type Alocare = z.output<typeof alocareSchema>;
+
+export const incheieAlocareSchema = z.object({
+  id: z.uuid(),
+  vehicle_id: z.uuid(),
+  pana_la: dataOraRomania("restituirii"),
+  km_restituire: numarOptional({
+    min: 0,
+    max: 5_000_000,
+    intreg: true,
+    mesaj: "Scrieți kilometrajul la restituire, în km.",
+    interval: "Kilometrajul se scrie în km întregi.",
+  }),
+  observatii: z.string().trim().max(1000).nullable().default(null),
+});
+
+export const stergeAlocareSchema = z.object({ id: z.uuid(), vehicle_id: z.uuid() });
 
 /** Foaia respinsă se întoarce în ciornă, ca șoferul s-o corecteze și s-o retrimită. */
 export const redeschideFoaieSchema = z.object({ id: z.uuid() });

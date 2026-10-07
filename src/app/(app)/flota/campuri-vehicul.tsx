@@ -28,9 +28,8 @@ import { ETICHETE_CATEGORIE, ETICHETE_COMBUSTIBIL } from "./etichete";
  * (`cuKilometraj`): fără el, mașina intra cu 0 km și prima foaie trecea de orice
  * verificare.
  *
- * `employee_id` / `department_id` — nu există încă selector. Caseta de
- * modificare le trimite prin câmpuri ascunse ca să nu le șteargă; vezi
- * `valori-vehicul.ts`.
+ * `employee_id` — din 0173 e derivatul alocării deschise. Se schimbă din
+ * secțiunea „Alocări” a fișei, cu istoric, nu de aici.
  */
 export interface ValoriInitialeVehicul {
   readonly nr_inmatriculare: string;
@@ -49,11 +48,20 @@ export interface ValoriInitialeVehicul {
   readonly valoare_achizitie: number | null;
   readonly prag_salt_km: number | null;
   readonly observatii: string | null;
+  readonly department_id: string | null;
+  readonly pool: boolean;
+}
+
+export interface OptiuneDepartament {
+  readonly id: string;
+  readonly denumire: string;
 }
 
 export interface ProprietatiCampuriVehicul<TData> {
   readonly stare: StareFormular<TData>;
   readonly idc: (sufix: string) => string;
+  /** Departamentele active ale firmei, pentru selector. */
+  readonly departamente: readonly OptiuneDepartament[];
   /** Vehiculul care se modifică. Absent la adăugare. */
   readonly vehicul?: ValoriInitialeVehicul | undefined;
   /** Câmpul de kilometraj — doar la adăugare. */
@@ -69,6 +77,7 @@ export function CampuriVehicul<TData>({
   stare,
   idc,
   vehicul,
+  departamente,
   cuKilometraj = false,
 }: ProprietatiCampuriVehicul<TData>): ReactElement {
   const trimis = stare.valoriTrimise;
@@ -255,6 +264,50 @@ export function CampuriVehicul<TData>({
           />
         )}
       </Camp>
+
+      <Camp
+        nume="department_id"
+        id={idc("department_id")}
+        eticheta="Departament"
+        fel="select"
+        ajutor="Pentru rapoarte și costuri pe departament."
+        erori={stare.erori["department_id"] ?? []}
+      >
+        {(a) => (
+          <select {...a} defaultValue={trimis["department_id"] ?? vehicul?.department_id ?? ""}>
+            <option value="">— Niciunul —</option>
+            {/* Departamentul curent poate fi dezactivat sau șters între timp și
+                atunci lipsește din listă. Fără opțiunea asta, selectul ar cădea
+                pe „Niciunul”, iar orice salvare a fișei, făcută pentru cu
+                totul altceva, ar șterge tăcut departamentul. */}
+            {vehicul?.department_id !== undefined &&
+            vehicul.department_id !== null &&
+            !departamente.some((d) => d.id === vehicul.department_id) ? (
+              <option value={vehicul.department_id}>Departamentul actual (inactiv)</option>
+            ) : null}
+            {departamente.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.denumire}
+              </option>
+            ))}
+          </select>
+        )}
+      </Camp>
+
+      <label className="text-corp flex items-center gap-2 self-end pb-2">
+        <input
+          type="checkbox"
+          name="pool"
+          className="size-4"
+          // O bifă nebifată nu apare deloc în `FormData`. După un refuz,
+          // absența ei e o alegere, nu o lipsă de date: altfel bifa debifată de
+          // om ar reveni bifată.
+          defaultChecked={
+            Object.keys(trimis).length === 0 ? (vehicul?.pool ?? false) : trimis["pool"] === "on"
+          }
+        />
+        Mașină comună (pool), fără șofer fix
+      </label>
 
       <Camp
         nume="masa_maxima_kg"

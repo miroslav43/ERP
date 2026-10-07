@@ -56,8 +56,8 @@ describe("valoriVehicul", () => {
       capacitate_cilindrica: 1461,
       masa_maxima_kg: 1550,
       numar_locuri: 5,
-      employee_id: null,
       department_id: null,
+      pool: false,
       data_achizitie: "2020-03-15",
       valoare_achizitie: 42500,
       prag_salt_km: 800,
@@ -88,12 +88,25 @@ describe("valoriVehicul", () => {
     ).toBe(true);
   });
 
-  it("păstrează alocarea trimisă prin câmpuri ascunse", () => {
+  /**
+   * Din 0173, șoferul se schimbă doar prin alocare. Un `employee_id` rătăcit în
+   * formular nu are voie să ajungă în încărcătură: baza l-ar refuza cu P0001,
+   * pe un formular care nici n-are câmpul.
+   */
+  it("nu citește șoferul, chiar dacă formularul l-ar trimite", () => {
     const sofer = "55555555-5555-4555-8555-555555555555";
     const valori = valoriVehicul(formular({ ...MINIM, employee_id: sofer }));
 
-    expect(valori.employee_id).toBe(sofer);
-    expect(valori.department_id).toBeNull();
+    expect(valori).not.toHaveProperty("employee_id");
+  });
+
+  it("citește departamentul și bifa de pool; bifa absentă înseamnă `false`", () => {
+    const departament = "66666666-6666-4666-8666-666666666666";
+    const bifat = valoriVehicul(formular({ ...MINIM, department_id: departament, pool: "on" }));
+    expect(bifat.department_id).toBe(departament);
+    expect(bifat.pool).toBe(true);
+
+    expect(valoriVehicul(formular(MINIM)).pool).toBe(false);
   });
 
   it("produce o încărcătură pe care schema de creare o acceptă", () => {

@@ -8,6 +8,9 @@ import {
   actualizeazaDocumentSchema,
   actualizeazaVehiculSchema,
   alimentareSchema,
+  alocareSchema,
+  incheieAlocareSchema,
+  stergeAlocareSchema,
   confirmaAnomalieSchema,
   corecteazaKilometrajSchema,
   decizieFoaieSchema,
@@ -20,7 +23,7 @@ import {
   vehiculNouSchema,
 } from "@/schemas/fleet";
 
-import { traduEroare } from "./erori";
+import { traduEroare, traduEroareAlocare } from "./erori";
 
 export const creeazaVehicul = createAction({
   name: "fleet.vehicle.create",
@@ -42,8 +45,8 @@ export const creeazaVehicul = createAction({
       "an_fabricatie",
       "masa_maxima_kg",
       "km_curent",
-      "employee_id",
       "department_id",
+      "pool",
       "data_achizitie",
     ],
   },
@@ -81,7 +84,9 @@ export const creeazaVehicul = createAction({
  *
  * ── CE NU SE TRIMITE ─────────────────────────────────────────────────────────
  * `km_curent` (îl ridică triggerul de aprobare a foilor), `data_iesire` (o pune
- * `internal.vehicles_normalizeaza` din `status`) și `deleted_at`.
+ * `internal.vehicles_normalizeaza` din `status`), `deleted_at` și, din 0173,
+ * `employee_id`: șoferul se schimbă doar prin `alocaVehicul`, iar baza refuză
+ * scrierea directă.
  *
  * `updated_by` se trimite EXPLICIT: pe `vehicles` nu există trigger de actor —
  * singurul atașat e `vehicles_set_updated_at` — iar `WITH CHECK` îl cere
@@ -108,8 +113,8 @@ export const actualizeazaVehicul = createAction({
       "tip_combustibil",
       "an_fabricatie",
       "masa_maxima_kg",
-      "employee_id",
       "department_id",
+      "pool",
       "data_achizitie",
       "status",
       "motiv_iesire",
@@ -239,6 +244,139 @@ export const corecteazaKilometraj = createAction({
     if (data === null) {
       throw notFound(
         "Vehiculul nu a fost găsit sau nu aveți dreptul de a-l modifica. Reîncărcați fișa vehiculului.",
+      );
+    }
+
+    return { id: data.id };
+  },
+});
+
+// ── Alocări (0173) ──────────────────────────────────────────────────────────
+
+/**
+ * Predarea vehiculului unui șofer.
+ *
+ * Un singur INSERT. Dacă vehiculul avea deja o alocare deschisă,
+ * `internal.alocari_inainte` o închide în aceeași instrucțiune, la momentul
+ * predării și cu `km_predare` ca restituire. Apoi `alocari_dupa` mută
+ * `vehicles.employee_id`, iar odată cu el responsabilul scadențelor din
+ * `expirables`. Aplicația nu face niciunul dintre acești pași: două apeluri ar
+ * putea lăsa vehiculul pe jumătate predat.
+ *
+ * `minScope: "all"`, fiindcă `alocari_insert` cere literal
+ * `has_permission(…,'vehicles','update') = 'all'`.
+ */
+export const alocaVehicul = createAction({
+  name: "fleet.assignment.create",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: alocareSchema,
+  audit: {
+    action: "create",
+    entityType: "vehicle_assignment",
+    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    allow: ["vehicle_id", "employee_id", "de_la", "km_predare", "folosinta_personala"],
+  },
+  revalidate: (input) => ["/flota", `/flota/${input.vehicle_id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("vehicle_assignments")
+      .insert({
+        ...input,
+        organization_id: ctx.tenant.organizationId,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      })
+      .select("id")
+      .single();
+    if (error !== null) traduEroareAlocare(error);
+
+    return { id: data.id };
+  },
+});
+
+/**
+ * Restituirea: alocarea deschisă se încheie, iar vehiculul rămâne fără șofer.
+ *
+ * Filtrul `.is("pana_la", null)` e garda contra dublului clic. O alocare deja
+ * încheiată nu se mai mută (o refuză și baza). Zero rânduri înseamnă CONFLICT,
+ * nu reușită.
+ */
+export const incheieAlocarea = createAction({
+  name: "fleet.assignment.close",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: incheieAlocareSchema,
+  audit: {
+    action: "update",
+    entityType: "vehicle_assignment",
+    entityId: (input) => input.id,
+    allow: ["id", "vehicle_id", "pana_la", "km_restituire"],
+  },
+  revalidate: (input) => ["/flota", `/flota/${input.vehicle_id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("vehicle_assignments")
+      .update({
+        pana_la: input.pana_la,
+        km_restituire: input.km_restituire,
+        ...(input.observatii === null ? {} : { observatii: input.observatii }),
+        updated_by: ctx.user.id,
+      })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("pana_la", null)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroareAlocare(error);
+    if (data === null) {
+      throw businessRule(
+        "Alocarea nu a fost încheiată: fusese deja încheiată sau nu aveți dreptul de a administra parcul auto. Reîncărcați fișa vehiculului.",
+      );
+    }
+
+    return { id: data.id };
+  },
+});
+
+/**
+ * Ștergerea logică a unei alocări GREȘITE: alt șofer, altă zi.
+ *
+ * Nu e restituire: istoricul pierde rândul. Dacă alocarea era cea deschisă,
+ * sincronizarea lasă vehiculul fără șofer.
+ */
+export const stergeAlocarea = createAction({
+  name: "fleet.assignment.remove",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: stergeAlocareSchema,
+  audit: {
+    action: "delete",
+    entityType: "vehicle_assignment",
+    entityId: (input) => input.id,
+    allow: ["id", "vehicle_id"],
+  },
+  revalidate: (input) => ["/flota", `/flota/${input.vehicle_id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("vehicle_assignments")
+      .update({ deleted_at: ctx.now.toISOString(), updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroareAlocare(error);
+    if (data === null) {
+      throw businessRule(
+        "Alocarea nu a fost ștearsă: fusese deja ștearsă sau nu aveți dreptul de a administra parcul auto. Reîncărcați fișa vehiculului.",
       );
     }
 

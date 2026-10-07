@@ -30,6 +30,8 @@ export interface RandVehicul {
   readonly km_curent: number;
   readonly employee_id: string | null;
   readonly department_id: string | null;
+  /** Mașină comună, fără șofer fix (0173). */
+  readonly pool: boolean;
   readonly status: StatusVehicul;
   readonly prag_salt_km: number | null;
   readonly data_iesire: string | null;
@@ -226,7 +228,7 @@ export type FiltreFoiCitire = Omit<FiltreFoi, "sort"> & { readonly sort?: string
 
 const COLOANE_VEHICUL_LISTA =
   "id, nr_inmatriculare, marca, model, categorie, tip_combustibil, an_fabricatie, " +
-  "km_curent, employee_id, department_id, status, prag_salt_km, data_iesire, " +
+  "km_curent, employee_id, department_id, pool, status, prag_salt_km, data_iesire, " +
   "consum_mediu_declarat";
 
 const COLOANE_FOAIE =
@@ -362,6 +364,103 @@ export async function scadenteCurente(
     .eq("este_curent", true)
     .is("deleted_at", null)
     .returns<ScadentaVehicul[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+// ── Alocări (0173) ──────────────────────────────────────────────────────────
+
+export interface AlocareVehicul {
+  readonly id: string;
+  readonly employee_id: string;
+  readonly de_la: string;
+  readonly pana_la: string | null;
+  readonly folosinta_personala: boolean;
+  readonly km_predare: number | null;
+  readonly km_restituire: number | null;
+  readonly observatii: string | null;
+  /**
+   * Embed-ul pe `employees` urmează politica ANGAJAȚILOR, nu a flotei: cine
+   * vede vehiculul fără `employees:read` primește `null`, fără eroare
+   * (capcana 18). Ecranul scrie atunci „—”, nu un nume inventat.
+   */
+  readonly sofer: Readonly<{ full_name: string; marca: string | null }> | null;
+}
+
+/**
+ * Istoricul alocărilor unui vehicul, cel mai recent primul.
+ *
+ * Fără paginare: o mașină schimbă șoferul de câteva ori pe an, iar cea mai
+ * mare firmă are 8 angajați. Plafonul de 200 protejează totuși ecranul de un
+ * import greșit; peste el, PostgREST ar trunchia tăcut la 1000.
+ */
+export async function alocarileVehiculului(
+  organizationId: string,
+  vehiculId: string,
+): Promise<readonly AlocareVehicul[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("vehicle_assignments")
+    .select(
+      "id, employee_id, de_la, pana_la, folosinta_personala, km_predare, km_restituire, " +
+        "observatii, sofer:employees!employee_id(full_name, marca)",
+    )
+    .eq("organization_id", organizationId)
+    .eq("vehicle_id", vehiculId)
+    .is("deleted_at", null)
+    .order("de_la", { ascending: false })
+    .limit(200)
+    .returns<AlocareVehicul[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export interface OptiuneAngajat {
+  readonly id: string;
+  readonly full_name: string;
+  readonly marca: string | null;
+}
+
+/** Angajații activi, pentru selectorul de predare. */
+export async function angajatiPentruAlocare(
+  organizationId: string,
+): Promise<readonly OptiuneAngajat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca")
+    .eq("organization_id", organizationId)
+    .eq("status", "activ")
+    .is("deleted_at", null)
+    .order("full_name")
+    .limit(500)
+    .returns<OptiuneAngajat[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export interface OptiuneDepartamentFlota {
+  readonly id: string;
+  readonly denumire: string;
+}
+
+/** Departamentele active, pentru selectorul de pe fișa vehiculului. */
+export async function departamentePentruVehicul(
+  organizationId: string,
+): Promise<readonly OptiuneDepartamentFlota[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("departments")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("denumire")
+    .limit(500)
+    .returns<OptiuneDepartamentFlota[]>();
 
   if (error !== null) throw error;
   return data ?? [];

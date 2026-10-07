@@ -13,11 +13,18 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { citesteVehicul, documenteleVehiculului, tipuriDocument } from "@/lib/queries/fleet";
-import type { DocumentVehicul, TipDocument } from "@/lib/queries/fleet";
+import {
+  alocarileVehiculului,
+  angajatiPentruAlocare,
+  citesteVehicul,
+  departamentePentruVehicul,
+  documenteleVehiculului,
+  tipuriDocument,
+} from "@/lib/queries/fleet";
+import type { AlocareVehicul, DocumentVehicul, TipDocument } from "@/lib/queries/fleet";
 
 import {
   ETICHETE_CATEGORIE,
@@ -27,7 +34,10 @@ import {
   stareScadenta,
   TONURI_STATUS_VEHICUL,
 } from "../etichete";
+import { ButonStergeAlocare } from "./buton-sterge-alocare";
 import { ButonStergeDocument } from "./buton-sterge-document";
+import { DialogAlocare } from "./dialog-alocare";
+import { DialogIncheieAlocare } from "./dialog-incheie-alocare";
 import { ButonStergeVehicul } from "./buton-sterge-vehicul";
 import { DialogDocument } from "./dialog-document";
 import { DialogDocumentNou } from "./dialog-document-nou";
@@ -76,16 +86,101 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   const vehicul = await citesteVehicul(tenant.organizationId, id);
   if (vehicul === null) notFound();
 
-  const [documente, tipuri] = await Promise.all([
-    documenteleVehiculului(vehicul.id),
-    tipuriDocument(),
-  ]);
-  const azi = todayInBucharest();
   const poateScrie = can(permisiuni, "vehicles:create", "all");
   // Modificarea ȘI ștergerea trec amândouă prin `vehicules:update = all`: exact
   // ce cere `vehicule_update` în bază. O poartă mai largă aici ar lăsa un rol să
   // apese butonul și să fie respins tăcut, cu zero rânduri și mesaj de reușită.
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
+
+  // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
+  const [documente, tipuri, alocari, angajati, departamente] = await Promise.all([
+    documenteleVehiculului(vehicul.id),
+    tipuriDocument(),
+    alocarileVehiculului(tenant.organizationId, vehicul.id),
+    poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
+    poateAdministra ? departamentePentruVehicul(tenant.organizationId) : Promise.resolve([]),
+  ]);
+  const azi = todayInBucharest();
+  const alocareDeschisa = alocari.find((a) => a.pana_la === null);
+  // Un vehicul vândut sau casat nu se mai predă: baza refuză oricum, iar
+  // butonul n-ar face decât să ducă omul spre un P0001.
+  const vehiculInParc = vehicul.status !== "vandut" && vehicul.status !== "casat";
+
+  const coloaneAlocari: readonly Coloana<AlocareVehicul>[] = [
+    {
+      cheie: "sofer",
+      antet: "Șofer",
+      peTelefon: "titlu",
+      celula: (a) => (
+        <>
+          {a.sofer?.full_name ?? "—"}
+          {a.folosinta_personala ? (
+            <span className="text-muted-foreground text-nota block">și în scop personal</span>
+          ) : null}
+          {a.observatii === null ? null : (
+            <span className="text-muted-foreground text-nota block">{a.observatii}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "de_la",
+      antet: "De la",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (a) => formatDateTime(new Date(a.de_la)),
+    },
+    {
+      cheie: "pana_la",
+      antet: "Până la",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (a) => (a.pana_la === null ? "în curs" : formatDateTime(new Date(a.pana_la))),
+    },
+    {
+      cheie: "km",
+      antet: "Km predare → restituire",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (a) =>
+        `${a.km_predare === null ? "—" : a.km_predare.toLocaleString("ro-RO")} → ${
+          a.km_restituire === null ? "—" : a.km_restituire.toLocaleString("ro-RO")
+        }`,
+    },
+    ...(poateAdministra
+      ? [
+          {
+            cheie: "actiuni",
+            antet: "Acțiuni",
+            antetAscuns: true,
+            latime: "ingusta",
+            peTelefon: "meta",
+            celula: (a: AlocareVehicul) => (
+              <span className="inline-flex items-center gap-1">
+                {a.pana_la === null ? (
+                  <DialogIncheieAlocare
+                    alocareId={a.id}
+                    vehiculId={vehicul.id}
+                    sofer={a.sofer?.full_name ?? "șofer"}
+                    deLa={a.de_la}
+                    kmCurent={vehicul.km_curent}
+                  />
+                ) : null}
+                <ButonStergeAlocare
+                  alocareId={a.id}
+                  vehiculId={vehicul.id}
+                  sofer={a.sofer?.full_name ?? "șofer"}
+                  perioada={`${formatDateTime(new Date(a.de_la))} – ${
+                    a.pana_la === null ? "în curs" : formatDateTime(new Date(a.pana_la))
+                  }`}
+                  deschisa={a.pana_la === null}
+                />
+              </span>
+            ),
+          } satisfies Coloana<AlocareVehicul>,
+        ]
+      : []),
+  ];
   const poateVedeaFoi = can(permisiuni, "trip_sheets:read", "own");
 
   const curente = documente.filter((d) => d.este_curent);
@@ -254,7 +349,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
               ) : null}
               {poateAdministra ? (
                 <>
-                  <DialogVehicul vehicul={vehicul} />
+                  <DialogVehicul vehicul={vehicul} departamente={departamente} />
                   <DialogKilometraj vehiculId={vehicul.id} kmCurent={vehicul.km_curent} />
                   <ButonStergeVehicul
                     id={vehicul.id}
@@ -335,6 +430,42 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           <p className="text-corp whitespace-pre-line">{vehicul.observatii}</p>
         </section>
       )}
+
+      <section aria-labelledby="alocari" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="alocari" className="text-sectiune font-semibold">
+            Alocări
+          </h2>
+          {poateAdministra && vehiculInParc ? (
+            <DialogAlocare
+              vehiculId={vehicul.id}
+              kmCurent={vehicul.km_curent}
+              soferCurent={
+                alocareDeschisa === undefined ? null : (alocareDeschisa.sofer?.full_name ?? "—")
+              }
+              angajati={angajati}
+            />
+          ) : null}
+        </div>
+        <p className="text-muted-foreground text-corp">
+          {vehicul.pool
+            ? "Mașină comună (pool): se poate folosi fără alocare fixă."
+            : alocareDeschisa === undefined
+              ? "Vehiculul nu are acum șofer alocat."
+              : `Șofer acum: ${alocareDeschisa.sofer?.full_name ?? "—"}, din ${formatDateTime(new Date(alocareDeschisa.de_la))}.`}
+        </p>
+        <Tabel
+          caption="Cine a avut vehiculul, de când până când, cu kilometrajul la predare și la restituire."
+          coloane={coloaneAlocari}
+          randuri={alocari}
+          cheieRand={(a) => a.id}
+          gol={
+            <p className="text-muted-foreground text-corp">
+              Nicio alocare înregistrată pentru acest vehicul.
+            </p>
+          }
+        />
+      </section>
 
       <section aria-labelledby="documente" className="space-y-3">
         <h2 id="documente" className="text-sectiune font-semibold">

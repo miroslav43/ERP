@@ -4709,8 +4709,8 @@ export type Database = {
           created_by: string | null
           criterii: Json
           deleted_at: string | null
-          derivat_din: string | null
           denumire: string
+          derivat_din: string | null
           descriere: string | null
           id: string
           organization_id: string | null
@@ -4724,8 +4724,8 @@ export type Database = {
           created_by?: string | null
           criterii?: Json
           deleted_at?: string | null
-          derivat_din?: string | null
           denumire: string
+          derivat_din?: string | null
           descriere?: string | null
           id?: string
           organization_id?: string | null
@@ -4739,8 +4739,8 @@ export type Database = {
           created_by?: string | null
           criterii?: Json
           deleted_at?: string | null
-          derivat_din?: string | null
           denumire?: string
+          derivat_din?: string | null
           descriere?: string | null
           id?: string
           organization_id?: string | null
@@ -4749,6 +4749,13 @@ export type Database = {
           versiune?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "evaluation_templates_derivat_din_fkey"
+            columns: ["derivat_din"]
+            isOneToOne: false
+            referencedRelation: "evaluation_templates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "evaluation_templates_organization_id_fkey"
             columns: ["organization_id"]
@@ -12650,6 +12657,82 @@ export type Database = {
           },
         ]
       }
+      vehicle_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          de_la: string
+          deleted_at: string | null
+          employee_id: string
+          folosinta_personala: boolean
+          id: string
+          km_predare: number | null
+          km_restituire: number | null
+          observatii: string | null
+          organization_id: string
+          pana_la: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          de_la: string
+          deleted_at?: string | null
+          employee_id: string
+          folosinta_personala?: boolean
+          id?: string
+          km_predare?: number | null
+          km_restituire?: number | null
+          observatii?: string | null
+          organization_id: string
+          pana_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          de_la?: string
+          deleted_at?: string | null
+          employee_id?: string
+          folosinta_personala?: boolean
+          id?: string
+          km_predare?: number | null
+          km_restituire?: number | null
+          observatii?: string | null
+          organization_id?: string
+          pana_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_assignments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_assignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_document_types: {
         Row: {
           activ: boolean
@@ -12821,6 +12904,7 @@ export type Database = {
           numar_locuri: number | null
           observatii: string | null
           organization_id: string
+          pool: boolean
           prag_salt_km: number | null
           status: Database["public"]["Enums"]["vehicle_status"]
           tip_combustibil: Database["public"]["Enums"]["fuel_type"]
@@ -12852,6 +12936,7 @@ export type Database = {
           numar_locuri?: number | null
           observatii?: string | null
           organization_id: string
+          pool?: boolean
           prag_salt_km?: number | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           tip_combustibil?: Database["public"]["Enums"]["fuel_type"]
@@ -12883,6 +12968,7 @@ export type Database = {
           numar_locuri?: number | null
           observatii?: string | null
           organization_id?: string
+          pool?: boolean
           prag_salt_km?: number | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           tip_combustibil?: Database["public"]["Enums"]["fuel_type"]
@@ -13357,6 +13443,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      sedii_pentru_pontaj: {
+        Args: { p_organization_id: string }
+        Returns: {
+          denumire: string
+          din_contract: boolean
+          id: string
+        }[]
+      }
       seed_leave_balances: {
         Args: {
           p_an: number
@@ -13372,14 +13466,6 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
-      }
-      sedii_pentru_pontaj: {
-        Args: { p_organization_id: string }
-        Returns: {
-          din_contract: boolean
-          denumire: string
-          id: string
-        }[]
       }
       seteaza_zile_concediu_implicit: {
         Args: { p_organization_id: string; p_zile: number }
@@ -13803,6 +13889,7 @@ export type Database = {
         | "parcare"
         | "alta"
       trip_sheet_status: "draft" | "trimis" | "aprobat" | "respins"
+      varianta_pontaj: "zilnic" | "saptamanal"
       vehicle_category:
         | "autoturism"
         | "autoutilitara"
@@ -13815,7 +13902,6 @@ export type Database = {
         | "motocicleta"
         | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
-      varianta_pontaj: "zilnic" | "saptamanal"
       verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
@@ -14369,6 +14455,7 @@ export const Constants = {
         "alta",
       ],
       trip_sheet_status: ["draft", "trimis", "aprobat", "respins"],
+      varianta_pontaj: ["zilnic", "saptamanal"],
       vehicle_category: [
         "autoturism",
         "autoutilitara",
@@ -14382,7 +14469,6 @@ export const Constants = {
         "altele",
       ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
-      varianta_pontaj: ["zilnic", "saptamanal"],
       verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },

@@ -811,6 +811,7 @@ const VEHICULE = [
     consum: 5.5,
     km: 61200,
     angajat: null, // vehicul de pool, fără șofer nominal
+    pool: true,
     departament: DEPARTAMENT.productie,
     status: "activ",
     achizitie: "2021-06-15",
@@ -1256,6 +1257,7 @@ async function flota() {
         km_curent: v.km,
         employee_id: v.angajat,
         department_id: v.departament,
+        pool: v.pool ?? false,
         status: v.status,
         data_achizitie: v.achizitie,
         valoare_achizitie: v.valoare,
@@ -1267,6 +1269,34 @@ async function flota() {
   console.log(
     `  · vehicles: ${String(VEHICULE.length)} (3 autoturisme, 3 autoutilitare, 1 în service)`,
   );
+
+  /*
+   * 0173: șoferul vehiculului e derivatul alocării deschise. Fără rândul de
+   * alocare, fișa ar arăta șoferul, dar secțiunea „Alocări” ar fi goală.
+   * Cheia include `de_la`, fix pe data achiziției, ca a doua rulare să găsească
+   * același rând și să nu deschidă o alocare nouă, care ar închide-o pe prima.
+   */
+  let numarAlocari = 0;
+  for (const v of VEHICULE) {
+    if (!v.angajat) continue;
+    await asigura(
+      "vehicle_assignments",
+      {
+        organization_id: ORG,
+        vehicle_id: vehiculDupaNumar[v.nr],
+        employee_id: v.angajat,
+        de_la: `${v.achizitie ?? "2025-01-06"}T08:00:00+02:00`,
+      },
+      {
+        km_predare: null,
+        folosinta_personala: false,
+        observatii: "Alocare din parcul demo.",
+        ...AUTOR,
+      },
+    );
+    numarAlocari += 1;
+  }
+  console.log(`  · vehicle_assignments: ${String(numarAlocari)} (câte una deschisă pe mașină)`);
 
   let numarDocumente = 0;
   for (const [nr, documente] of Object.entries(DOCUMENTE_FLOTA)) {

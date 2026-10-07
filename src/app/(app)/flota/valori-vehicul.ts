@@ -10,12 +10,10 @@
  * typecheck, nici lint, nici baza — toate trei sunt nullable. Mutarea maparii
  * într-un fișier propriu, cu test, face desincronizarea vizibilă.
  *
- * ── DE CE `employee_id` ȘI `department_id` SE CITESC, DEȘI NU SE COMPLETEAZĂ ──
- * Formularele nu au încă selector de șofer sau de departament. Dar acțiunea de
- * MODIFICARE trimite obiectul întreg, deci dacă le-aș fixa pe `null` aici, orice
- * salvare a fișei ar șterge o alocare făcută altundeva. Caseta de modificare le
- * trimite prin `<input type="hidden">` cu valorile curente; la creare lipsesc din
- * `FormData` și devin `null`, exact ca înainte.
+ * ── ȘOFERUL NU E AICI ────────────────────────────────────────────────────────
+ * Din 0173, `employee_id` e derivatul alocării deschise și se schimbă doar prin
+ * `alocaVehicul`. Departamentul are acum selector, iar `pool` e o bifă: o bifă
+ * nebifată LIPSEȘTE din `FormData`, deci absența înseamnă `false`, nu „nu știu”.
  */
 export type ValoriVehicul = Readonly<{
   nr_inmatriculare: string;
@@ -30,8 +28,8 @@ export type ValoriVehicul = Readonly<{
   capacitate_cilindrica: number | null;
   masa_maxima_kg: number | null;
   numar_locuri: number | null;
-  employee_id: string | null;
   department_id: string | null;
+  pool: boolean;
   data_achizitie: string | null;
   valoare_achizitie: number | null;
   prag_salt_km: number | null;
@@ -69,8 +67,8 @@ export function valoriVehicul(date: FormData): ValoriVehicul {
     capacitate_cilindrica: numarSauNull(date, "capacitate_cilindrica"),
     masa_maxima_kg: numarSauNull(date, "masa_maxima_kg"),
     numar_locuri: numarSauNull(date, "numar_locuri"),
-    employee_id: textSauNull(date, "employee_id"),
     department_id: textSauNull(date, "department_id"),
+    pool: date.get("pool") === "on",
     data_achizitie: textSauNull(date, "data_achizitie"),
     valoare_achizitie: numarSauNull(date, "valoare_achizitie"),
     prag_salt_km: numarSauNull(date, "prag_salt_km"),

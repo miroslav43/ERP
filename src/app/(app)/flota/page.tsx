@@ -22,7 +22,12 @@ import {
 } from "@/domain/fleet/scadente";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { listeazaVehicule, scadenteCurente, tipuriDocument } from "@/lib/queries/fleet";
+import {
+  departamentePentruVehicul,
+  listeazaVehicule,
+  scadenteCurente,
+  tipuriDocument,
+} from "@/lib/queries/fleet";
 import { filtreVehiculeSchema } from "@/schemas/fleet";
 
 import {
@@ -314,6 +319,9 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
   // mai jos forțează remontarea casetei — o navigare pe ACEEAȘI rută păstrează
   // altfel starea clientului, iar caseta n-ar mai apărea.
   const deschideCaseta = parametri["vehicul"] === "nou";
+  // Selectorul de departament din caseta „Vehicul nou”. Citit doar pentru cine
+  // poate adăuga: restul n-are caseta, deci nici nevoie de listă.
+  const departamente = poateAdauga ? await departamentePentruVehicul(tenant.organizationId) : [];
 
   return (
     <div className="space-y-6">
@@ -330,6 +338,7 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
                 <DialogVehiculNou
                   key={deschideCaseta ? "vehicul-nou" : "listă"}
                   deschisInitial={deschideCaseta}
+                  departamente={departamente}
                 />
               ),
             }

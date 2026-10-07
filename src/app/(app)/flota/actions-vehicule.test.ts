@@ -45,8 +45,11 @@ import {
   actualizeazaDocument,
   actualizeazaVehicul,
   adaugaDocument,
+  alocaVehicul,
   corecteazaKilometraj,
   creeazaVehicul,
+  incheieAlocarea,
+  stergeAlocarea,
   stergeDocument,
   stergeVehicul,
 } from "./actions";
@@ -512,5 +515,177 @@ describe("corecteazaKilometraj", () => {
     const r = await corecteazaKilometraj(corectura);
     expect(r.ok).toBe(false);
     expect(caiRevalidate()).toEqual([]);
+  });
+});
+
+describe("actualizeazaVehicul — șoferul nu mai trece pe aici (0173)", () => {
+  it("un `employee_id` trimis e ignorat de schemă, nu ajunge în UPDATE", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicles", "update", { data: { id: ID_1 } });
+
+    await actualizeazaVehicul({ id: ID_1, ...vehicul({ employee_id: ID_2 }), status: "activ" });
+
+    const [apel] = server.apeluriPe("vehicles");
+    expect(apel?.payload).not.toHaveProperty("employee_id");
+    expect(apel?.payload).toMatchObject({ pool: false });
+  });
+});
+
+describe("alocaVehicul", () => {
+  const predare = (modificari: Record<string, unknown> = {}) => ({
+    vehicle_id: ID_1,
+    employee_id: ID_2,
+    de_la: "2026-09-15T08:30",
+    km_predare: "87250",
+    folosinta_personala: true,
+    ...modificari,
+  });
+
+  it("managerul (fără `vehicles:*`) e refuzat înainte de bază", async () => {
+    const { server } = configureazaActiunea({ rol: "manager", permisiuni: MANAGER });
+    const r = await alocaVehicul(predare());
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("succes: un singur INSERT, cu ora României, autorul pe ambele coloane și `.select()`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicle_assignments", "insert", { data: { id: ID_3 } });
+
+    const r = await alocaVehicul(predare());
+
+    expect(r).toEqual({ ok: true, data: { id: ID_3 } });
+    const apeluri = server.apeluriPe("vehicle_assignments");
+    // Închiderea alocării precedente e a triggerului, nu a aplicației.
+    expect(apeluri).toHaveLength(1);
+    expect(server.apeluriPe("vehicles")).toHaveLength(0);
+    expect(apeluri[0]?.payload).toMatchObject({
+      organization_id: ORG_ID,
+      vehicle_id: ID_1,
+      employee_id: ID_2,
+      de_la: "2026-09-15T05:30:00.000Z",
+      km_predare: 87250,
+      folosinta_personala: true,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
+    expect(apeluri[0]?.selectDupaScriere).toBe("id");
+    expect(caiRevalidate()).toEqual(["/flota", `/flota/${ID_1}`]);
+  });
+
+  it("kilometrajul gol pleacă `null`, nu `0`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicle_assignments", "insert", { data: { id: ID_3 } });
+    await alocaVehicul(predare({ km_predare: "" }));
+    const [apel] = server.apeluriPe("vehicle_assignments");
+    expect(apel?.payload).toMatchObject({ km_predare: null });
+  });
+
+  it("suprapunerea (23P01) ajunge pe `de_la`, fără detaliile brute ale bazei", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicle_assignments", "insert", { error: eroarePostgrest("23P01") });
+
+    const r = await alocaVehicul(predare());
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors).toHaveProperty("de_la");
+    expect(r.error.message).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/u);
+  });
+
+  it("km sub predarea anterioară (23514 `va_km_ck`) ajunge pe câmpul de kilometraj", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicle_assignments", "insert", {
+      error: eroarePostgrest(
+        "23514",
+        'new row for relation "vehicle_assignments" violates check constraint "va_km_ck"',
+      ),
+    });
+    const r = await alocaVehicul(predare({ km_predare: "40000" }));
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors).toHaveProperty("km_predare");
+  });
+
+  it("predarea în viitor (P0001) ajunge pe `de_la`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    const mesaj =
+      "Alocarea începe cel târziu acum. O predare viitoare se înregistrează când are loc.";
+    server.raspunde("vehicle_assignments", "insert", { error: eroarePostgrest("P0001", mesaj) });
+    const r = await alocaVehicul(predare());
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", fieldErrors: { de_la: [mesaj] } },
+    });
+  });
+
+  /**
+   * Vehiculul e un câmp ASCUNS în caseta de predare. Harta foilor ar pune
+   * mesajul pe `vehicle_id`, iar omul n-ar vedea nimic. Aici rămâne general.
+   */
+  it("vehiculul ieșit din parc (P0001) rămâne mesaj general, nu pe un câmp ascuns", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    const mesaj = "Vehiculul este ieșit din parc (vândut sau casat). Nu se mai poate aloca.";
+    server.raspunde("vehicle_assignments", "insert", { error: eroarePostgrest("P0001", mesaj) });
+    const r = await alocaVehicul(predare());
+    expect(r).toMatchObject({ ok: false, error: { message: mesaj, fieldErrors: null } });
+  });
+});
+
+describe("incheieAlocarea", () => {
+  const restituire = {
+    id: ID_3,
+    vehicle_id: ID_1,
+    pana_la: "2026-09-15T17:00",
+    km_restituire: "87400",
+  };
+
+  it("succes: doar alocarea încă deschisă, cu `.select()`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicle_assignments", "update", { data: { id: ID_3 } });
+
+    const r = await incheieAlocarea(restituire);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_3 } });
+    const [apel] = server.apeluriPe("vehicle_assignments");
+    expect(apel?.payload).toEqual({
+      pana_la: "2026-09-15T14:00:00.000Z",
+      km_restituire: 87400,
+      updated_by: USER_ID,
+    });
+    expect(areFiltru(apel, "is", "pana_la", null)).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(apel?.selectDupaScriere).toBeDefined();
+  });
+
+  it("zero rânduri (deja încheiată): CONFLICT, fără revalidare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicle_assignments", "update", { data: null });
+    const r = await incheieAlocarea(restituire);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(caiRevalidate()).toEqual([]);
+  });
+});
+
+describe("stergeAlocarea", () => {
+  it("ștergere logică pe o alocare vie, cu `.select()`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicle_assignments", "update", { data: { id: ID_3 } });
+
+    const r = await stergeAlocarea({ id: ID_3, vehicle_id: ID_1 });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_3 } });
+    const [apel] = server.apeluriPe("vehicle_assignments");
+    expect(apel?.payload).toEqual({ deleted_at: ACUM, updated_by: USER_ID });
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    expect(apel?.selectDupaScriere).toBeDefined();
+  });
+
+  it("scope `team` pe `vehicles:update`: INTERZIS", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "team" } });
+    const r = await stergeAlocarea({ id: ID_3, vehicle_id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
   });
 });
