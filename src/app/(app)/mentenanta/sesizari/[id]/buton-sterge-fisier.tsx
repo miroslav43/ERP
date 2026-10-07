@@ -14,10 +14,13 @@ import { stergeFisier } from "../actions";
 export function ButonStergeFisier({
   id,
   denumire,
-}: Readonly<{ id: string; denumire: string }>): ReactElement {
+  fel = "fotografie",
+}: Readonly<{ id: string; denumire: string; fel?: "fotografie" | "document" }>): ReactElement {
   const router = useRouter();
   const [deschis, setDeschis] = useState(false);
   const [inCurs, porneste] = useTransition();
+  const Fel = fel === "fotografie" ? "Fotografia" : "Documentul";
+  const felul = fel === "fotografie" ? "fotografia" : "documentul";
 
   function confirma(): void {
     porneste(async () => {
@@ -27,7 +30,10 @@ export function ButonStergeFisier({
         return;
       }
       setDeschis(false);
-      arataToast({ fel: "reusita", text: "Fotografia a fost ștearsă." });
+      arataToast({
+        fel: "reusita",
+        text: `${Fel} a fost ${fel === "fotografie" ? "ștearsă" : "șters"}.`,
+      });
       router.refresh();
     });
   }
@@ -37,7 +43,7 @@ export function ButonStergeFisier({
       <Buton
         varianta="tertiar"
         marime="iconita"
-        aria-label={`Șterge fotografia ${denumire}`}
+        aria-label={`Șterge ${felul} ${denumire}`}
         onClick={() => {
           setDeschis(true);
         }}
@@ -49,9 +55,9 @@ export function ButonStergeFisier({
         laInchidere={() => {
           setDeschis(false);
         }}
-        titlu="Ștergeți fotografia?"
-        consecinta={`„${denumire}” dispare de pe sesizare pentru toată lumea. Nu se poate anula.`}
-        etichetaConfirmare="Șterge fotografia"
+        titlu={`Ștergeți ${felul}?`}
+        consecinta={`„${denumire}” dispare din listă pentru toată lumea. Nu se poate anula.`}
+        etichetaConfirmare={`Șterge ${felul}`}
         distructiv
         inCurs={inCurs}
         laConfirmare={confirma}

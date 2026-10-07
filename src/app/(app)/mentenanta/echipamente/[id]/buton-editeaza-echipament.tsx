@@ -29,7 +29,7 @@ export type EchipamentEditabil = ValoriInitialeEchipament & Readonly<{ id: strin
  * se închide cât o trimitere e în zbor.
  *
  * ── DE CE NU MAI E UN `<details>` ─────────────────────────────────────────
- * Cele șaisprezece câmpuri se desfăceau ÎN pagină și împingeau sub linia de
+ * Cele douăzeci de câmpuri se desfăceau ÎN pagină și împingeau sub linia de
  * plutire planurile, intervențiile și scadențele ISCIR — adică toată partea
  * pentru care se intră pe fișă.
  */
@@ -37,12 +37,18 @@ export function ButonEditeazaEchipament({
   echipament,
   angajati,
   departamente,
+  puncteLucru,
+  parinti,
+  categorii,
   ssmActiv,
   poateDerogare,
 }: {
   readonly echipament: EchipamentEditabil;
   readonly angajati: readonly OptiuneEchipament[];
   readonly departamente: readonly OptiuneEchipament[];
+  readonly puncteLucru: readonly OptiuneEchipament[];
+  readonly parinti: readonly OptiuneEchipament[];
+  readonly categorii: readonly string[];
   readonly ssmActiv: boolean;
   readonly poateDerogare: boolean;
 }): ReactElement {
@@ -71,6 +77,9 @@ export function ButonEditeazaEchipament({
           idc={idc}
           angajati={angajati}
           departamente={departamente}
+          puncteLucru={puncteLucru}
+          parinti={parinti}
+          categorii={categorii}
           ssmActiv={ssmActiv}
           poateDerogare={poateDerogare}
           echipament={echipament}

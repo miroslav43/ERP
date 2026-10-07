@@ -18,6 +18,7 @@ import type {
   FiltreEchipamente,
   FiltreInterventii,
   FiltreSesizari,
+  MarcajCe,
   MotivRespingere,
   RezultatInterventie,
   SortareEchipamente,
@@ -31,7 +32,12 @@ import type {
   TipOprire,
   UrgentaSesizare,
 } from "@/schemas/maintenance";
-import { SORTARI_ECHIPAMENTE, SORTARI_INTERVENTII, SORTARI_SESIZARI } from "@/schemas/maintenance";
+import {
+  SORTARI_ECHIPAMENTE,
+  SORTARI_INTERVENTII,
+  SORTARI_SESIZARI,
+  TIPURI_CONTOR,
+} from "@/schemas/maintenance";
 
 import {
   codificaCursor,
@@ -66,6 +72,13 @@ export interface RandEchipament {
   readonly este_iscir: boolean;
   readonly tip_autorizare_necesara: string | null;
   readonly data_punerii_in_functiune: string | null;
+  // 0182
+  readonly categorie: string | null;
+  readonly punct_lucru_id: string | null;
+  readonly garantie_expira: string | null;
+  readonly parent_equipment_id: string | null;
+  readonly casat_la: string | null;
+  readonly folosit_in_afara_sediului: boolean;
 }
 
 export interface RezultatEchipamente {
@@ -85,6 +98,12 @@ export interface Echipament extends RandEchipament {
   readonly derogare_motiv: string | null;
   readonly derogare_acordata_de: string | null;
   readonly derogare_acordata_la: string | null;
+  // 0182
+  readonly service_garantie: string | null;
+  readonly motiv_casare: string | null;
+  readonly observatii: string | null;
+  readonly marcaj_ce: MarcajCe;
+  readonly risc_specific: boolean;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -348,7 +367,8 @@ export type FiltreSesizariCitire = Omit<FiltreSesizari, "sort"> & {
 
 const COLOANE_ECHIPAMENT_LISTA =
   "id, cod, denumire, serie, producator, model, an_fabricatie, locatie, department_id, " +
-  "responsabil_employee_id, status, este_iscir, tip_autorizare_necesara, data_punerii_in_functiune";
+  "responsabil_employee_id, status, este_iscir, tip_autorizare_necesara, data_punerii_in_functiune, " +
+  "categorie, punct_lucru_id, garantie_expira, parent_equipment_id, casat_la, folosit_in_afara_sediului";
 
 const COLOANE_INTERVENTIE =
   "id, plan_id, equipment_id, tip, data, ora_start, durata_ore, executant_employee_id, " +
@@ -412,6 +432,12 @@ export async function listeazaEchipamente(
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.categorie !== null) cu = cu.eq("categorie", filtre.categorie);
+    if (filtre.punct_lucru !== null) cu = cu.eq("punct_lucru_id", filtre.punct_lucru);
+    if (filtre.responsabil !== null) cu = cu.eq("responsabil_employee_id", filtre.responsabil);
+    // `eq` cu boolean: PostgREST acceptă `este_iscir=eq.true`; `is` ar fi tot
+    // corect, dar `eq` ține filtrul în aceeași familie cu restul.
+    if (filtre.iscir === "da") cu = cu.eq("este_iscir", "true");
     if (filtre.cauta !== null) {
       const termen = filtre.cauta.replace(/[,()*"]/gu, "");
       cu = cu.or(`cod.ilike.${tiparContine(termen)},denumire.ilike.${tiparContine(termen)}`);
@@ -467,7 +493,8 @@ export async function citesteEchipament(
     .from("equipment")
     .select(
       `${COLOANE_ECHIPAMENT_LISTA}, valoare_achizitie, derogare_motiv, derogare_acordata_de, ` +
-        "derogare_acordata_la, created_at, updated_at",
+        "derogare_acordata_la, service_garantie, motiv_casare, observatii, marcaj_ce, " +
+        "risc_specific, created_at, updated_at",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
@@ -496,6 +523,149 @@ export async function echipamenteDupaId(
 
   if (error !== null) throw error;
   return new Map((data ?? []).map((e) => [e.id, e]));
+}
+
+// ── Echipamente: ciclul de viață (0182) ──────────────────────────────────────
+
+/**
+ * Categoriile folosite deja în organizație — pentru `<datalist>`-ul câmpului
+ * și pentru filtrul listei. PostgREST n-are DISTINCT, deci se citesc valorile și
+ * se deduplică aici; plafonul e cel al parcului (sub 1000 pe orice firmă reală).
+ */
+export async function categoriiEchipamente(organizationId: string): Promise<readonly string[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment")
+    .select("categorie")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .not("categorie", "is", null)
+    .order("categorie", { ascending: true })
+    .limit(1000)
+    .returns<{ readonly categorie: string | null }[]>();
+  if (error !== null) throw error;
+  return [...new Set((data ?? []).map((r) => r.categorie).filter((c): c is string => c !== null))];
+}
+
+/** Componentele unui echipament (copiii direcți), pentru secțiunea de pe fișă. */
+export async function copiiEchipament(
+  organizationId: string,
+  parentId: string,
+): Promise<readonly RandEchipament[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment")
+    .select(COLOANE_ECHIPAMENT_LISTA)
+    .eq("organization_id", organizationId)
+    .eq("parent_equipment_id", parentId)
+    .is("deleted_at", null)
+    .order("cod", { ascending: true })
+    .limit(200)
+    .returns<RandEchipament[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/** Echipamentele ca opțiuni de selector (părinte, filtre), fără cel exclus. */
+export async function optiuniEchipamente(
+  organizationId: string,
+  faraId: string | null = null,
+): Promise<readonly OptiuneSelect[]> {
+  const db = await createServerSupabase();
+  let interogare = db
+    .from("equipment")
+    .select("id, cod, denumire")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .neq("status", "casat")
+    .order("cod", { ascending: true })
+    .limit(LIMITA_OPTIUNI);
+  if (faraId !== null) interogare = interogare.neq("id", faraId);
+  const { data, error } =
+    await interogare.returns<
+      { readonly id: string; readonly cod: string; readonly denumire: string }[]
+    >();
+  if (error !== null) throw error;
+  return (data ?? []).map((e) => ({ id: e.id, nume: `${e.cod} — ${e.denumire}` }));
+}
+
+/**
+ * Echipamentele în grija unei fișe (responsabilul), pentru portal. Sub RLS,
+ * responsabilul-angajat vede exact rândurile astea (0182), deci citirea merge
+ * pe clientul utilizatorului.
+ */
+export async function echipamenteleMele(
+  organizationId: string,
+  fisaId: string,
+): Promise<readonly RandEchipament[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment")
+    .select(COLOANE_ECHIPAMENT_LISTA)
+    .eq("organization_id", organizationId)
+    .eq("responsabil_employee_id", fisaId)
+    .is("deleted_at", null)
+    .neq("status", "casat")
+    .order("cod", { ascending: true })
+    .limit(200)
+    .returns<RandEchipament[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export interface UltimaCitire {
+  readonly citire: number;
+  readonly data_citirii: string;
+}
+
+/**
+ * Ultima citire CU DATA ei, per (echipament, tip) — pentru pagina „Contoare”,
+ * unde contează și de când nu s-a mai citit. Aceeași paginare pe `equipment_id`
+ * ca `ultimeleCitiriContor`; cheia hărții e `cheieContor`.
+ */
+export async function ultimeleCitiriCuData(
+  organizationId: string,
+  equipmentIds: readonly string[],
+): Promise<ReadonlyMap<string, UltimaCitire>> {
+  const idUnice = [...new Set(equipmentIds)];
+  if (idUnice.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const ultima = new Map<string, UltimaCitire>();
+
+  await Promise.all(
+    TIPURI_CONTOR.map(async (tip) => {
+      let dupaId: string | null = null;
+      for (let pagina = 0; pagina < MAXIM_PAGINI_CONTOARE; pagina += 1) {
+        let interogare = db
+          .from("equipment_meters")
+          .select("equipment_id, tip, citire, data_citirii")
+          .eq("organization_id", organizationId)
+          .eq("tip", tip)
+          .in("equipment_id", idUnice)
+          .is("deleted_at", null)
+          .order("equipment_id", { ascending: true })
+          .order("data_citirii", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(LIMITA_PAGINA_CONTOARE);
+        if (dupaId !== null) interogare = interogare.gt("equipment_id", dupaId);
+        const { data, error } =
+          await interogare.returns<(RandUltimaCitire & { readonly data_citirii: string })[]>();
+        if (error !== null) throw error;
+        const randuri = data ?? [];
+        for (const rand of randuri) {
+          const cheie = cheieContor(rand.equipment_id, rand.tip);
+          if (!ultima.has(cheie)) {
+            ultima.set(cheie, { citire: rand.citire, data_citirii: rand.data_citirii });
+          }
+        }
+        if (randuri.length < LIMITA_PAGINA_CONTOARE) break;
+        const ultimulRand = randuri.at(-1);
+        if (ultimulRand === undefined) break;
+        dupaId = ultimulRand.equipment_id;
+      }
+    }),
+  );
+  return ultima;
 }
 
 export interface EchipamentProblema {

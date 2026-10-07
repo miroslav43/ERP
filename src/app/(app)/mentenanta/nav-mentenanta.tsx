@@ -25,6 +25,7 @@ export function NavMentenanta({ poateSetari = false }: Readonly<{ poateSetari?: 
   const file: readonly IntrareFila[] = [
     { href: "/mentenanta", eticheta: "Panou" },
     { href: "/mentenanta/echipamente", eticheta: "Echipamente" },
+    { href: "/mentenanta/contoare", eticheta: "Contoare" },
     { href: "/mentenanta/planuri", eticheta: "Planuri" },
     { href: "/mentenanta/interventii", eticheta: "Intervenții" },
     { href: "/mentenanta/sesizari", eticheta: "Sesizări" },

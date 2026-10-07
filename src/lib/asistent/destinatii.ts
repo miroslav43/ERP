@@ -848,6 +848,32 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Echipamentele și utilajele aflate în evidență, cu istoricul lor.",
   },
   {
+    id: "mentenanta.echipamente.etichete",
+    href: "/mentenanta/echipamente/etichete",
+    eticheta: "Etichete QR pentru echipamente",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "Echipamente",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "team",
+    descriere:
+      "Etichetele QR de lipit pe utilaje, pentru lista filtrată; scanate, deschid sesizarea de defecțiune.",
+  },
+  {
+    id: "mentenanta.contoare",
+    href: "/mentenanta/contoare",
+    eticheta: "Contoare",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "Contoare",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "team",
+    descriere:
+      "Citirile de contor ale tuturor echipamentelor, cu cele necitite de mult și câmpuri pentru citirile noi în lot.",
+  },
+  {
     id: "mentenanta.echipamente.nou",
     href: "/mentenanta/echipamente?echipament=nou",
     eticheta: "Echipament nou",

@@ -31,7 +31,40 @@ describe("valoriEchipament", () => {
       valoare_achizitie: null,
       data_punerii_in_functiune: null,
       derogare_motiv: null,
+      categorie: null,
+      punct_lucru_id: null,
+      garantie_expira: null,
+      service_garantie: null,
+      parent_equipment_id: null,
+      marcaj_ce: "nu_se_aplica",
+      risc_specific: false,
+      folosit_in_afara_sediului: false,
+      observatii: null,
     });
+  });
+
+  it("câmpurile ciclului de viață (0182): bifele absente sunt false, marcajul CE lipsă e „nu se aplică”", () => {
+    const v = valoriEchipament(
+      formular({
+        cod: "C",
+        denumire: "D",
+        categorie: " Utilaje de ridicat ",
+        punct_lucru_id: "22222222-2222-4222-8222-222222222222",
+        garantie_expira: "2027-03-01",
+        service_garantie: "Service SRL, 0722 000 000",
+        parent_equipment_id: "33333333-3333-4333-8333-333333333333",
+        marcaj_ce: "da",
+        risc_specific: "on",
+        observatii: "Montat pe linia 2.",
+      }),
+    );
+    expect(v.categorie).toBe("Utilaje de ridicat");
+    expect(v.punct_lucru_id).toBe("22222222-2222-4222-8222-222222222222");
+    expect(v.garantie_expira).toBe("2027-03-01");
+    expect(v.marcaj_ce).toBe("da");
+    expect(v.risc_specific).toBe(true);
+    expect(v.folosit_in_afara_sediului).toBe(false);
+    expect(v.observatii).toBe("Montat pe linia 2.");
   });
 
   it("numerele se convertesc; regimul ISCIR aduce tipul de autorizare și derogarea", () => {

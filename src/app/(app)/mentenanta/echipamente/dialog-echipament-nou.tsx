@@ -19,7 +19,7 @@ import { valoriEchipament } from "./valori-echipament";
  *
  * Tiparul e cel din Flotă (`dialog-vehicul-nou.tsx`) și Inventar: ruta veche se
  * șterge, iar fiecare intrare spre ea devine `?echipament=nou` pe listă. Motivul
- * e același — un formular de șaisprezece câmpuri care înlocuiește tot ecranul
+ * e același — un formular de douăzeci de câmpuri care înlocuiește tot ecranul
  * te face să pierzi din ochi parcul, exact lista pe care vrei s-o consulți cât
  * completezi („ce cod urmează?", „mai am deja presa asta?").
  *
@@ -37,6 +37,9 @@ interface Proprietati {
   readonly deschisInitial?: boolean;
   readonly angajati: readonly OptiuneEchipament[];
   readonly departamente: readonly OptiuneEchipament[];
+  readonly puncteLucru: readonly OptiuneEchipament[];
+  readonly parinti: readonly OptiuneEchipament[];
+  readonly categorii: readonly string[];
   readonly ssmActiv: boolean;
   readonly poateDerogare: boolean;
   /** Fișa după care se copiază câmpurile („Adaugă unul la fel”). */
@@ -47,6 +50,9 @@ export function DialogEchipamentNou({
   deschisInitial = false,
   angajati,
   departamente,
+  puncteLucru,
+  parinti,
+  categorii,
   ssmActiv,
   poateDerogare,
   model,
@@ -58,7 +64,9 @@ export function DialogEchipamentNou({
   }
 
   const valoriInitiale: ValoriInitialeEchipament | undefined =
-    model === undefined ? undefined : { ...model, cod: "", serie: null };
+    model === undefined
+      ? undefined
+      : { ...model, cod: "", serie: null, status: "in_functiune", parent_equipment_id: null };
 
   return (
     <FormularDialog
@@ -85,6 +93,9 @@ export function DialogEchipamentNou({
           idc={idc}
           angajati={angajati}
           departamente={departamente}
+          puncteLucru={puncteLucru}
+          parinti={parinti}
+          categorii={categorii}
           ssmActiv={ssmActiv}
           poateDerogare={poateDerogare}
           echipament={valoriInitiale}

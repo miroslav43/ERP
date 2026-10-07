@@ -10,6 +10,7 @@ cai:
   - "supabase/migrations/0011_ssm.sql"
   - "supabase/migrations/0180_mentenanta_integritate.sql"
   - "supabase/migrations/0181_sesizari_flux.sql"
+  - "supabase/migrations/0182_echipamente_ciclu.sql"
 tabele:
   [
     equipment,
@@ -19,14 +20,15 @@ tabele:
     fault_reports,
     iscir_authorizations,
   ]
-permisiuni: [maintenance:read, maintenance:create, maintenance:update]
+permisiuni:
+  [maintenance:read, maintenance:create, maintenance:update, maintenance:delete, maintenance:export]
 feature: maintenance
 capcane: [17, 35, 50, 51]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
-  - "intervenție fără sesizare, plan care sare → „Ce refuză baza tăcut”"
-scris_pe: daddafbae6900219be31f82717adf1ff0217230c
+  - "casare, ștergere, componente, contoare, responsabil → [[modul/mentenanta/echipamente]]"
+scris_pe: 9ea2a16b2a1238c4bcf3726661ee4b024da7167f
 scris_la: 2026-10-07
 tags: [modul]
 ---
@@ -38,19 +40,22 @@ defecțiune și autorizații ISCIR. Tabelele de bază sunt create de `0011_ssm.s
 aceeași buclă de politici ca SSM-ul, dar sub resursa de permisiune `maintenance` și
 feature-ul `maintenance` — **aceeași migrare, alt modul**. Vezi [[modul/ssm]] pentru
 cealaltă jumătate. Fluxul complet al sesizării (număr, tehnician, comentarii, fotografii,
-opriri, setări — `0181`) are pagina lui: [[modul/mentenanta/sesizari]].
+opriri, setări — `0181`) are pagina lui: [[modul/mentenanta/sesizari]]. Ciclul de viață al
+echipamentului (casare, componente, garanție, contoare în lot, etichete QR, responsabilul
+— `0182`) are și el una: [[modul/mentenanta/echipamente]].
 
 ## Rute și cine ajunge
 
-| Rută                                                      | Poartă                    |
-| --------------------------------------------------------- | ------------------------- |
-| `/mentenanta`                                             | `maintenance:read` own    |
-| `/mentenanta/sesizari`, `/mentenanta/sesizari/[id]`       | `maintenance:read` own    |
-| `/mentenanta/sesizari?sesizare=noua` (casetă)             | `maintenance:create` own  |
-| `/mentenanta/echipamente`, `/mentenanta/echipamente/[id]` | `maintenance:read` team   |
-| `/mentenanta/echipamente?echipament=nou` (casetă)         | `maintenance:update` team |
-| `/mentenanta/planuri`, `/mentenanta/interventii`          | `maintenance:read` team   |
-| `/mentenanta/setari`                                      | `maintenance:update` all  |
+| Rută                                                       | Poartă                    |
+| ---------------------------------------------------------- | ------------------------- |
+| `/mentenanta`                                              | `maintenance:read` own    |
+| `/mentenanta/sesizari`, `/mentenanta/sesizari/[id]`        | `maintenance:read` own    |
+| `/mentenanta/sesizari?sesizare=noua` (casetă)              | `maintenance:create` own  |
+| `/mentenanta/echipamente`, `/mentenanta/echipamente/[id]`  | `maintenance:read` team   |
+| `/mentenanta/echipamente?echipament=nou` (casetă)          | `maintenance:update` team |
+| `/mentenanta/planuri`, `/mentenanta/interventii`           | `maintenance:read` team   |
+| `/mentenanta/contoare`, `/mentenanta/echipamente/etichete` | `maintenance:read` team   |
+| `/mentenanta/setari`                                       | `maintenance:update` all  |
 
 Pragul `own` pe panou și pe sesizări e intenționat: **oricine poate sesiza o defecțiune**.
 Restul modulului — parcul de echipamente, planurile, intervențiile — cere `team`. Fila
@@ -90,17 +95,20 @@ sesizarea rămâne pe `maintenance:create` / `own`. — capcana #35
 `src/app/(app)/mentenanta/actions.ts` (cele ale fluxului de sesizări sunt în
 `sesizari/actions.ts`, vezi [[modul/mentenanta/sesizari]]).
 
-| Funcție                                                              | Permisiune / minScope       |
-| -------------------------------------------------------------------- | --------------------------- |
-| `creeazaSesizare`, `cautaEchipament`                                 | `maintenance:create` / own  |
-| `numeleEchipamentelorMele`, `rezolvaSesizare`                        | `maintenance:read` / own    |
-| `creeazaEchipament`, `actualizeazaEchipament`, `inregistreazaContor` | `maintenance:update` / team |
-| `creeazaPlan`, `actualizeazaPlan`, `inregistreazaInterventie`        | `maintenance:update` / team |
-| `trieazaSesizare`, `adaugaAutorizatieIscir`                          | `maintenance:update` / team |
+| Funcție                                                       | Permisiune / minScope       |
+| ------------------------------------------------------------- | --------------------------- |
+| `creeazaSesizare`, `cautaEchipament`                          | `maintenance:create` / own  |
+| `numeleEchipamentelorMele`, `rezolvaSesizare`                 | `maintenance:read` / own    |
+| `creeazaEchipament`, `actualizeazaEchipament`                 | `maintenance:update` / team |
+| `creeazaPlan`, `actualizeazaPlan`, `inregistreazaInterventie` | `maintenance:update` / team |
+| `trieazaSesizare`, `adaugaAutorizatieIscir`                   | `maintenance:update` / team |
+| `inregistreazaContor`                                         | `maintenance:read` / own    |
 
 `cautaEchipament` e pe `create` / own fiindcă servește formularul de sesizare: cine poate
-raporta trebuie să poată găsi echipamentul, fără să vadă parcul. `rezolvaSesizare` e pe
-`read` / own fiindcă o face și tehnicianul atribuit; cine poate ce decide baza.
+raporta trebuie să poată găsi echipamentul, fără să vadă parcul. `rezolvaSesizare` și
+`inregistreazaContor` sunt pe `read` / own fiindcă le fac și tehnicianul atribuit, respectiv
+responsabilul utilajului; cine poate ce decide baza. Ciclul echipamentului (stare,
+ștergere, corecția citirilor, lot) e în `echipamente/actions.ts`.
 
 `rezolvaSesizare` are **două scrieri**, în ordine obligatorie: întâi intervenția (legată de
 sesizare prin `fault_report_id`), apoi sesizarea cu `intervention_id`-ul ei — garda refuză

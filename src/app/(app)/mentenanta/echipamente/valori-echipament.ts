@@ -31,6 +31,16 @@ export type ValoriEchipament = Readonly<{
   valoare_achizitie: number | null;
   data_punerii_in_functiune: string | null;
   derogare_motiv: string | null;
+  // 0182
+  categorie: string | null;
+  punct_lucru_id: string | null;
+  garantie_expira: string | null;
+  service_garantie: string | null;
+  parent_equipment_id: string | null;
+  marcaj_ce: string;
+  risc_specific: boolean;
+  folosit_in_afara_sediului: boolean;
+  observatii: string | null;
 }>;
 
 function text(date: FormData, cheie: string): string {
@@ -70,5 +80,14 @@ export function valoriEchipament(date: FormData): ValoriEchipament {
     valoare_achizitie: numarSauNull(date, "valoare_achizitie"),
     data_punerii_in_functiune: textSauNull(date, "data_punerii_in_functiune"),
     derogare_motiv: esteIscir ? textSauNull(date, "derogare_motiv") : null,
+    categorie: textSauNull(date, "categorie"),
+    punct_lucru_id: textSauNull(date, "punct_lucru_id"),
+    garantie_expira: textSauNull(date, "garantie_expira"),
+    service_garantie: textSauNull(date, "service_garantie"),
+    parent_equipment_id: textSauNull(date, "parent_equipment_id"),
+    marcaj_ce: text(date, "marcaj_ce") || "nu_se_aplica",
+    risc_specific: date.get("risc_specific") === "on",
+    folosit_in_afara_sediului: date.get("folosit_in_afara_sediului") === "on",
+    observatii: textSauNull(date, "observatii"),
   };
 }

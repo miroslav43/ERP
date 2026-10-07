@@ -4454,6 +4454,8 @@ export type Database = {
       equipment: {
         Row: {
           an_fabricatie: number | null
+          casat_la: string | null
+          categorie: string | null
           cod: string
           created_at: string
           created_by: string | null
@@ -4465,13 +4467,22 @@ export type Database = {
           derogare_acordata_la: string | null
           derogare_motiv: string | null
           este_iscir: boolean
+          folosit_in_afara_sediului: boolean
+          garantie_expira: string | null
           id: string
           locatie: string | null
+          marcaj_ce: string
           model: string | null
+          motiv_casare: string | null
+          observatii: string | null
           organization_id: string
+          parent_equipment_id: string | null
           producator: string | null
+          punct_lucru_id: string | null
           responsabil_employee_id: string | null
+          risc_specific: boolean
           serie: string | null
+          service_garantie: string | null
           status: Database["public"]["Enums"]["equipment_status"]
           tip_autorizare_necesara: string | null
           updated_at: string
@@ -4480,6 +4491,8 @@ export type Database = {
         }
         Insert: {
           an_fabricatie?: number | null
+          casat_la?: string | null
+          categorie?: string | null
           cod: string
           created_at?: string
           created_by?: string | null
@@ -4491,13 +4504,22 @@ export type Database = {
           derogare_acordata_la?: string | null
           derogare_motiv?: string | null
           este_iscir?: boolean
+          folosit_in_afara_sediului?: boolean
+          garantie_expira?: string | null
           id?: string
           locatie?: string | null
+          marcaj_ce?: string
           model?: string | null
+          motiv_casare?: string | null
+          observatii?: string | null
           organization_id: string
+          parent_equipment_id?: string | null
           producator?: string | null
+          punct_lucru_id?: string | null
           responsabil_employee_id?: string | null
+          risc_specific?: boolean
           serie?: string | null
+          service_garantie?: string | null
           status?: Database["public"]["Enums"]["equipment_status"]
           tip_autorizare_necesara?: string | null
           updated_at?: string
@@ -4506,6 +4528,8 @@ export type Database = {
         }
         Update: {
           an_fabricatie?: number | null
+          casat_la?: string | null
+          categorie?: string | null
           cod?: string
           created_at?: string
           created_by?: string | null
@@ -4517,13 +4541,22 @@ export type Database = {
           derogare_acordata_la?: string | null
           derogare_motiv?: string | null
           este_iscir?: boolean
+          folosit_in_afara_sediului?: boolean
+          garantie_expira?: string | null
           id?: string
           locatie?: string | null
+          marcaj_ce?: string
           model?: string | null
+          motiv_casare?: string | null
+          observatii?: string | null
           organization_id?: string
+          parent_equipment_id?: string | null
           producator?: string | null
+          punct_lucru_id?: string | null
           responsabil_employee_id?: string | null
+          risc_specific?: boolean
           serie?: string | null
+          service_garantie?: string | null
           status?: Database["public"]["Enums"]["equipment_status"]
           tip_autorizare_necesara?: string | null
           updated_at?: string
@@ -4544,6 +4577,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_parent_equipment_id_fkey"
+            columns: ["parent_equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_punct_lucru_fk"
+            columns: ["punct_lucru_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "puncte_lucru"
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "equipment_responsabil_employee_id_fkey"

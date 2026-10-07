@@ -2,7 +2,7 @@
 "use server";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, notFound } from "@/lib/actions/errors";
+import { businessRule, forbidden, notFound } from "@/lib/actions/errors";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -328,6 +328,13 @@ export const creeazaEchipament = createAction({
       "este_iscir",
       "tip_autorizare_necesara",
       "data_punerii_in_functiune",
+      "categorie",
+      "punct_lucru_id",
+      "garantie_expira",
+      "parent_equipment_id",
+      "marcaj_ce",
+      "risc_specific",
+      "folosit_in_afara_sediului",
     ],
   },
   revalidate: ["/mentenanta/echipamente", "/mentenanta"],
@@ -376,6 +383,13 @@ export const actualizeazaEchipament = createAction({
       "este_iscir",
       "tip_autorizare_necesara",
       "data_punerii_in_functiune",
+      "categorie",
+      "punct_lucru_id",
+      "garantie_expira",
+      "parent_equipment_id",
+      "marcaj_ce",
+      "risc_specific",
+      "folosit_in_afara_sediului",
     ],
   },
   revalidate: (input) => ["/mentenanta/echipamente", `/mentenanta/echipamente/${input.id}`],
@@ -401,11 +415,17 @@ export const actualizeazaEchipament = createAction({
 
 // ── Contoare ────────────────────────────────────────────────────────────
 
+/**
+ * Poarta e `maintenance:read`/own din 0182: citirea o înregistrează gestionarul
+ * SAU responsabilul echipamentului (din portal, „echipamentele în grija mea”),
+ * iar cine poate pe ce utilaj decide politica de INSERT — care NU mai trece
+ * prin `create = all` al angajaților. Un străin primește 42501, tradus.
+ */
 export const inregistreazaContor = createAction({
   name: "maintenance.meter.create",
   feature: "maintenance",
-  permission: "maintenance:update",
-  minScope: "team",
+  permission: "maintenance:read",
+  minScope: "own",
   input: contorNouSchema,
   audit: {
     action: "create",
@@ -417,12 +437,34 @@ export const inregistreazaContor = createAction({
     entityId: (_input, data: Readonly<{ id: string; avertismentSalt: string | null }>) => data.id,
     allow: ["equipment_id", "tip", "citire", "data_citirii", "resetare_contor", "sursa"],
   },
-  revalidate: (input) => [`/mentenanta/echipamente/${input.equipment_id}`, "/mentenanta"],
+  revalidate: (input) => [
+    `/mentenanta/echipamente/${input.equipment_id}`,
+    "/mentenanta",
+    "/mentenanta/contoare",
+    "/portal/sesizari",
+  ],
   handler: async (
     ctx,
     input,
   ): Promise<Readonly<{ id: string; avertismentSalt: string | null }>> => {
     const db = await createServerSupabase();
+
+    // Resetarea contorului mută țintele planurilor pe contor — adică editează
+    // planuri. O face doar cine administrează mentenanța; responsabilul
+    // utilajului (din portal) înregistrează citiri obișnuite. Politica de
+    // INSERT refuză oricum (42501); aici omul primește motivul.
+    if (input.resetare_contor) {
+      const permisiuni = await getPermissionMap(
+        ctx.tenant.organizationId,
+        ctx.tenant.role,
+        ctx.tenant.memberId,
+      );
+      if (!can(permisiuni, "maintenance:update", "team")) {
+        throw forbidden(
+          "Resetarea contorului o înregistrează responsabilul de mentenanță, nu responsabilul utilajului. Înregistrați o citire obișnuită.",
+        );
+      }
+    }
 
     // Pre-verificare, replicată din trigger-ul `ssm_meter_guard`, pentru
     // feedback imediat — decizia finală rămâne oricum a bazei de date.

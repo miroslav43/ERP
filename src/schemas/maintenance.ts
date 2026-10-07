@@ -17,6 +17,10 @@ export const STATUS_ECHIPAMENT = [
 ] as const;
 export type StatusEchipament = (typeof STATUS_ECHIPAMENT)[number];
 
+/** Marcajul CE al utilajului (0182): „nu se aplică” pentru ce e dinainte de 1995 sau în afara directivelor. */
+export const MARCAJE_CE = ["da", "nu", "nu_se_aplica"] as const;
+export type MarcajCe = (typeof MARCAJE_CE)[number];
+
 export const TIPURI_CONTOR = ["ore", "km", "cicluri"] as const;
 export type TipContor = (typeof TIPURI_CONTOR)[number];
 
@@ -130,6 +134,11 @@ export type SortareSesizari = (typeof SORTARI_SESIZARI)[number];
 export const filtreEchipamenteSchema = z.object({
   status: optional(z.enum(STATUS_ECHIPAMENT)),
   cauta: optional(z.string().max(80)),
+  categorie: optional(z.string().max(80)),
+  punct_lucru: optional(z.uuid()),
+  /** `da` = doar echipamentele sub incidența ISCIR. */
+  iscir: optional(z.literal("da")),
+  responsabil: optional(z.uuid()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   /** Forma din URL: `cod` crescător, `-cod` descrescător. */
@@ -189,6 +198,16 @@ export const echipamentSchema = z.object({
   tip_autorizare_necesara: z.string().trim().max(80).nullable().default(null),
   valoare_achizitie: z.coerce.number().min(0).nullable().default(null),
   data_punerii_in_functiune: z.iso.date().nullable().default(null),
+  // ── 0182: ciclul de viață ──
+  categorie: z.string().trim().max(80).nullable().default(null),
+  punct_lucru_id: z.uuid().nullable().default(null),
+  garantie_expira: z.iso.date().nullable().default(null),
+  service_garantie: z.string().trim().max(200).nullable().default(null),
+  parent_equipment_id: z.uuid().nullable().default(null),
+  marcaj_ce: z.enum(MARCAJE_CE).default("nu_se_aplica"),
+  risc_specific: z.boolean().default(false),
+  folosit_in_afara_sediului: z.boolean().default(false),
+  observatii: z.string().trim().max(2000).nullable().default(null),
   // Minimum 20 de caractere contează efectiv doar când `equipment_iscir_guard`
   // ajunge pe ramura de derogare (este_iscir=true, fără responsabil autorizat,
   // apelant org_admin/super_admin) — dar garda îl cere exact așa, iar fără
@@ -213,6 +232,35 @@ export const actualizeazaEchipamentSchema = echipamentSchema.extend({
 });
 export type ActualizeazaEchipamentInput = z.output<typeof actualizeazaEchipamentSchema>;
 
+/**
+ * Schimbarea stării cu un gest propriu (0182): casarea cere motiv, conservarea
+ * și repunerea în funcțiune nu. `casat_la` lipsă = azi (o pune garda).
+ */
+export const schimbaStareEchipamentSchema = z
+  .object({
+    id: z.uuid("Echipamentul selectat nu este valid."),
+    status: z.enum(STATUS_ECHIPAMENT),
+    casat_la: z.iso.date().nullable().default(null),
+    motiv_casare: z.string().trim().max(1000).nullable().default(null),
+  })
+  .superRefine((v, ctx) => {
+    if (v.status === "casat" && (v.motiv_casare === null || v.motiv_casare.length < 5)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["motiv_casare"],
+        message: "Casarea cere un motiv scris, de cel puțin 5 caractere.",
+      });
+    }
+  });
+export type SchimbaStareEchipamentInput = z.output<typeof schimbaStareEchipamentSchema>;
+
+/** Ștergerea logică cere codul tastat — un utilaj șters dispare cu planurile și contoarele lui. */
+export const stergeEchipamentSchema = z.object({
+  id: z.uuid("Echipamentul selectat nu este valid."),
+  confirmare: z.string().trim().min(1, "Tastați codul echipamentului."),
+});
+export type StergeEchipamentInput = z.output<typeof stergeEchipamentSchema>;
+
 /** Text de căutare pentru selectorul de echipament din formularul de sesizare. */
 export const cautaEchipamentSchema = z.object({
   q: z.string().trim().max(80).default(""),
@@ -232,6 +280,42 @@ export const contorNouSchema = z.object({
   observatii: z.string().trim().max(500).nullable().default(null),
 });
 export type ContorNouInput = z.output<typeof contorNouSchema>;
+
+/** Corecția unei citiri deja înregistrate: valoarea, data, observația. Garda verifică vecinii. */
+export const corecteazaCitireSchema = z.object({
+  id: z.uuid("Citirea selectată nu este validă."),
+  citire: z.coerce.number().min(0),
+  data_citirii: z.iso.date(),
+  observatii: z.string().trim().max(500).nullable().default(null),
+});
+export type CorecteazaCitireInput = z.output<typeof corecteazaCitireSchema>;
+
+/** Anularea logică a unei citiri greșite; motivul rămâne pe rând. */
+export const anuleazaCitireSchema = z.object({
+  id: z.uuid("Citirea selectată nu este validă."),
+  motiv: z.string().trim().min(3, "Spuneți de ce anulați citirea.").max(500),
+});
+export type AnuleazaCitireInput = z.output<typeof anuleazaCitireSchema>;
+
+/**
+ * Citirile în lot, de pe pagina „Contoare”: o dată, mai multe utilaje. Fiecare
+ * rând se trimite separat în bază (garda judecă fiecare citire), iar raportul
+ * spune pe nume ce a intrat și ce a fost refuzat.
+ */
+export const citiriLotSchema = z.object({
+  data_citirii: z.iso.date(),
+  citiri: z
+    .array(
+      z.object({
+        equipment_id: z.uuid(),
+        tip: z.enum(TIPURI_CONTOR),
+        citire: z.coerce.number().min(0),
+      }),
+    )
+    .min(1, "Completați cel puțin o citire.")
+    .max(200),
+});
+export type CitiriLotInput = z.output<typeof citiriLotSchema>;
 
 // ── Planuri de mentenanță ──────────────────────────────────────────────────
 

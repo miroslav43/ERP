@@ -1,5 +1,6 @@
 // src/app/(app)/mentenanta/etichete.ts
 import type {
+  MarcajCe,
   MotivRespingere,
   RezultatInterventie,
   StatusEchipament,
@@ -26,6 +27,23 @@ export const TONURI_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, TonStar
   in_reparatie: "atentie",
   in_conservare: "neutru",
   casat: "neutru",
+};
+
+export const ETICHETE_MARCAJ_CE: Readonly<Record<MarcajCe, string>> = {
+  da: "Da, are marcaj CE",
+  nu: "Nu are marcaj CE",
+  nu_se_aplica: "Nu se aplică",
+};
+
+/** Explicația fiecărei stări, pentru caseta „Schimbă starea”. */
+export const EXPLICATII_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, string>> = {
+  in_functiune: "Utilajul lucrează; planurile și scadențele lui sunt active.",
+  in_reparatie:
+    "Utilajul e la reparat; planurile rămân active, iar sesizările deschise se văd pe fișă.",
+  in_conservare:
+    "Utilajul e oprit pe termen lung. Planurile de mentenanță ies din scadențe și din alertele zilnice până la repunerea în funcțiune; autorizația ISCIR continuă să expire.",
+  casat:
+    "Utilajul iese definitiv din evidență. Cere un motiv, refuză cât există sesizări deschise, dezactivează planurile și scoate autorizațiile din scadențe. Fișa rămâne, cu istoricul ei.",
 };
 
 export const ETICHETE_TIP_CONTOR: Readonly<Record<TipContor, string>> = {

@@ -25,6 +25,9 @@ import {
   TONURI_URGENTA_SESIZARE,
 } from "@/app/(app)/mentenanta/etichete";
 import { DialogSesizareNoua } from "@/app/(app)/mentenanta/sesizari/dialog-sesizare-noua";
+import { todayInBucharest } from "@/lib/format/date";
+
+import { EchipamenteleMele } from "./echipamentele-mele";
 
 export const metadata: Metadata = { title: "Sesizările mele" };
 
@@ -173,6 +176,14 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
             }
           : {})}
       />
+
+      {fisaId === null ? null : (
+        <EchipamenteleMele
+          organizationId={tenant.organizationId}
+          fisaId={fisaId}
+          azi={todayInBucharest()}
+        />
+      )}
 
       {!rezultat.ok ? (
         <p

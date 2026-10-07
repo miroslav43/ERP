@@ -4,9 +4,9 @@ import { useState, type ReactElement } from "react";
 
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import type { StareFormular } from "@/components/ui/formular";
-import { STATUS_ECHIPAMENT } from "@/schemas/maintenance";
+import { MARCAJE_CE, STATUS_ECHIPAMENT } from "@/schemas/maintenance";
 
-import { ETICHETE_STATUS_ECHIPAMENT } from "../etichete";
+import { ETICHETE_MARCAJ_CE, ETICHETE_STATUS_ECHIPAMENT } from "../etichete";
 
 export interface OptiuneEchipament {
   readonly id: string;
@@ -30,6 +30,16 @@ export interface ValoriInitialeEchipament {
   readonly valoare_achizitie: number | null;
   readonly data_punerii_in_functiune: string | null;
   readonly derogare_motiv: string | null;
+  // 0182
+  readonly categorie: string | null;
+  readonly punct_lucru_id: string | null;
+  readonly garantie_expira: string | null;
+  readonly service_garantie: string | null;
+  readonly parent_equipment_id: string | null;
+  readonly marcaj_ce: string;
+  readonly risc_specific: boolean;
+  readonly folosit_in_afara_sediului: boolean;
+  readonly observatii: string | null;
 }
 
 export interface ProprietatiCampuriEchipament<TData> {
@@ -37,6 +47,12 @@ export interface ProprietatiCampuriEchipament<TData> {
   readonly idc: (sufix: string) => string;
   readonly angajati: readonly OptiuneEchipament[];
   readonly departamente: readonly OptiuneEchipament[];
+  /** Punctele de lucru (prin acțiune cu client admin — `puncte_lucru_select` cere `departments:read`). */
+  readonly puncteLucru: readonly OptiuneEchipament[];
+  /** Echipamentele care pot fi părinte (fără cel editat). */
+  readonly parinti: readonly OptiuneEchipament[];
+  /** Categoriile deja folosite în firmă, pentru `<datalist>`. */
+  readonly categorii: readonly string[];
   /** Modulul SSM e activ: autorizațiile nominale se pot verifica, nu doar deroga. */
   readonly ssmActiv: boolean;
   /** `can(permisiuni, "maintenance:update", "all")` — deschide câmpul de derogare. */
@@ -60,6 +76,11 @@ function cifra(valoare: number | null | undefined): string {
  * aceleași câmpuri intră în ambele casete, iar erorile serverului ajung pe
  * câmpul lor prin `stare.erori`, fără cod de împăcare între două biblioteci.
  *
+ * ── STAREA „CASAT” NU E ÎN SELECTOR ─────────────────────────────────────────
+ * Casarea e un gest cu motiv și cu verificări (sesizări deschise, planuri):
+ * are caseta ei pe fișă („Schimbă starea”). Un echipament deja casat rămâne
+ * afișat ca atare, dar nu se cașează din formularul de date.
+ *
  * ── BIFA ISCIR E CONTROLATĂ ──────────────────────────────────────────────────
  * Singura stare proprie: bifa decide ce câmpuri se randează dedesubt. Pornește
  * din ce s-a trimis ultima dată (după un refuz) sau din fișă, și e singurul
@@ -74,6 +95,9 @@ export function CampuriEchipament<TData>({
   idc,
   angajati,
   departamente,
+  puncteLucru,
+  parinti,
+  categorii,
   ssmActiv,
   poateDerogare,
   echipament,
@@ -93,6 +117,11 @@ export function CampuriEchipament<TData>({
     if (valoare === undefined || valoare === null) return "";
     return typeof valoare === "boolean" ? (valoare ? "on" : "") : String(valoare);
   };
+  const bifa = (cheie: "risc_specific" | "folosit_in_afara_sediului"): boolean =>
+    sATrimis ? trimise[cheie] === "on" : (echipament?.[cheie] ?? false);
+
+  const statusCurent = echipament?.status ?? "in_functiune";
+  const statusuriOferite = STATUS_ECHIPAMENT.filter((s) => s !== "casat" || s === statusCurent);
 
   const selectorResponsabil = (sufixId: string): ReactElement => (
     <Camp
@@ -100,6 +129,7 @@ export function CampuriEchipament<TData>({
       id={idc(sufixId)}
       eticheta="Responsabil"
       fel="select"
+      ajutor="Responsabilul vede utilajul în portalul lui și îi poate citi contorul."
       erori={stare.erori["responsabil_employee_id"] ?? []}
     >
       {(a) => (
@@ -155,6 +185,32 @@ export function CampuriEchipament<TData>({
           )}
         </Camp>
 
+        <Camp
+          nume="categorie"
+          id={idc("categorie")}
+          eticheta="Categorie"
+          ajutor="Liberă, dar se propun cele deja folosite: utilaje de ridicat, compresoare, instalații electrice…"
+          erori={stare.erori["categorie"] ?? []}
+        >
+          {(a) => (
+            <>
+              <input
+                {...a}
+                type="text"
+                maxLength={80}
+                list={idc("categorii")}
+                autoComplete="off"
+                defaultValue={text("categorie")}
+              />
+              <datalist id={idc("categorii")}>
+                {categorii.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </>
+          )}
+        </Camp>
+
         <Camp nume="serie" id={idc("serie")} eticheta="Serie" erori={stare.erori["serie"] ?? []}>
           {(a) => <input {...a} type="text" maxLength={120} defaultValue={text("serie")} />}
         </Camp>
@@ -190,9 +246,49 @@ export function CampuriEchipament<TData>({
         </Camp>
 
         <Camp
+          nume="marcaj_ce"
+          id={idc("marcaj-ce")}
+          eticheta="Marcaj CE"
+          fel="select"
+          erori={stare.erori["marcaj_ce"] ?? []}
+        >
+          {(a) => (
+            <select
+              {...a}
+              defaultValue={trimise["marcaj_ce"] ?? echipament?.marcaj_ce ?? "nu_se_aplica"}
+            >
+              {MARCAJE_CE.map((m) => (
+                <option key={m} value={m}>
+                  {ETICHETE_MARCAJ_CE[m]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+
+        <Camp
+          nume="punct_lucru_id"
+          id={idc("punct-lucru")}
+          eticheta="Punct de lucru"
+          fel="select"
+          erori={stare.erori["punct_lucru_id"] ?? []}
+        >
+          {(a) => (
+            <select {...a} defaultValue={text("punct_lucru_id")}>
+              <option value="">Nespecificat</option>
+              {puncteLucru.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nume}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+
+        <Camp
           nume="locatie"
           id={idc("locatie")}
-          eticheta="Locație"
+          eticheta="Locație (hală, linie, încăpere)"
           erori={stare.erori["locatie"] ?? []}
         >
           {(a) => <input {...a} type="text" maxLength={200} defaultValue={text("locatie")} />}
@@ -218,15 +314,44 @@ export function CampuriEchipament<TData>({
         </Camp>
 
         <Camp
+          nume="parent_equipment_id"
+          id={idc("parinte")}
+          eticheta="Componentă a echipamentului"
+          fel="select"
+          ajutor="Pentru un motor, o pompă sau un modul care face parte dintr-un utilaj mai mare."
+          erori={stare.erori["parent_equipment_id"] ?? []}
+        >
+          {(a) => (
+            <select {...a} defaultValue={text("parent_equipment_id")}>
+              <option value="">De sine stătător</option>
+              {parinti.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nume}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+
+        <Camp
           nume="status"
           id={idc("status")}
           eticheta="Stare"
           fel="select"
+          ajutor={
+            statusCurent === "casat"
+              ? "Echipamentul e casat; repunerea în evidență se face din „Schimbă starea”."
+              : "Casarea se face din fișă, prin „Schimbă starea”, cu motiv."
+          }
           erori={stare.erori["status"] ?? []}
         >
           {(a) => (
-            <select {...a} defaultValue={trimise["status"] ?? echipament?.status ?? "in_functiune"}>
-              {STATUS_ECHIPAMENT.map((s) => (
+            <select
+              {...a}
+              defaultValue={trimise["status"] ?? statusCurent}
+              disabled={statusCurent === "casat"}
+            >
+              {statusuriOferite.map((s) => (
                 <option key={s} value={s}>
                   {ETICHETE_STATUS_ECHIPAMENT[s]}
                 </option>
@@ -260,6 +385,64 @@ export function CampuriEchipament<TData>({
             />
           )}
         </Camp>
+
+        <Camp
+          nume="garantie_expira"
+          id={idc("garantie")}
+          eticheta="Garanție până la"
+          ajutor="Intră în scadențe; sesizările noi pe utilaj amintesc că e în garanție."
+          erori={stare.erori["garantie_expira"] ?? []}
+        >
+          {(a) => <input {...a} type="date" defaultValue={text("garantie_expira")} />}
+        </Camp>
+
+        <Camp
+          nume="service_garantie"
+          id={idc("service")}
+          eticheta="Service în garanție (firmă, contact)"
+          className="sm:col-span-2"
+          erori={stare.erori["service_garantie"] ?? []}
+        >
+          {(a) => (
+            <input {...a} type="text" maxLength={200} defaultValue={text("service_garantie")} />
+          )}
+        </Camp>
+
+        <Camp
+          nume="observatii"
+          id={idc("observatii")}
+          eticheta="Observații"
+          fel="textarea"
+          className="sm:col-span-2 lg:col-span-3"
+          erori={stare.erori["observatii"] ?? []}
+        >
+          {(a) => <textarea {...a} rows={2} maxLength={2000} defaultValue={text("observatii")} />}
+        </Camp>
+
+        <div className="flex items-center gap-2 self-end pb-2">
+          <input
+            id={idc("risc")}
+            name="risc_specific"
+            type="checkbox"
+            className={clasaBifa}
+            defaultChecked={bifa("risc_specific")}
+          />
+          <label htmlFor={idc("risc")} className="text-corp">
+            Risc specific (evaluare de risc proprie)
+          </label>
+        </div>
+        <div className="flex items-center gap-2 self-end pb-2 sm:col-span-2">
+          <input
+            id={idc("afara")}
+            name="folosit_in_afara_sediului"
+            type="checkbox"
+            className={clasaBifa}
+            defaultChecked={bifa("folosit_in_afara_sediului")}
+          />
+          <label htmlFor={idc("afara")} className="text-corp">
+            Folosit în afara sediului (eticheta poartă ultima verificare și scadența)
+          </label>
+        </div>
       </div>
 
       <div className="border-border rounded-panou border p-4">
