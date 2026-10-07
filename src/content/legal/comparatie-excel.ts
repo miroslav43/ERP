@@ -57,14 +57,14 @@ export const PERECHI: readonly PerecheComparatie[] = [
     aspect: "Cine a schimbat ora aia",
     excel: "Nu se știe. Fișierul păstrează ultima stare, nu drumul până la ea.",
     aplicatie:
-      "Fiecare modificare lasă cine, când și de la ce adresă. Jurnalul se adaugă, nu se șterge.",
+      "Fiecare modificare rămâne notată cu cine, când și de la ce adresă IP. Din jurnal nu se șterge nimic.",
   },
   {
     aspect: "Cine vede salariile",
     excel:
       "Oricine deschide fișierul. O parolă de foaie de calcul se scoate în câteva minute cu unelte gratuite.",
     aplicatie:
-      "Fiecare rol vede ce ține de el, iar regula e impusă în baza de date. Un manager vede echipa; un angajat, doar propria fișă.",
+      "Fiecare vede doar ce ține de el, iar regula nu se poate ocoli. Un manager vede echipa; un angajat, doar propria fișă.",
   },
   {
     aspect: "La un control",

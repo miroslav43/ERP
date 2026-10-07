@@ -120,7 +120,7 @@ describe("catalogul vitrinelor", () => {
      * roșu, fiindcă `<img>` nu se plânge de un `src` care dă 404.
      */
     for (const cheie of cheiCuCaptura()) {
-      for (const latime of [960, 1920]) {
+      for (const latime of [960, 1440, 1920]) {
         const cale = `public/capturi/${cheie}-${String(latime)}.webp`;
         expect(existsSync(cale), `lipsește ${cale}`).toBe(true);
       }

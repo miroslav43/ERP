@@ -9,6 +9,7 @@ import { REGES } from "./reges";
 import { SALARIU_MINIM } from "./salariu-minim";
 import { SPOR_DE_NOAPTE } from "./spor-de-noapte";
 import type { PaginaLege } from "./tipuri";
+import { ZILE_LIBERE } from "./zile-libere";
 
 /**
  * Toate paginile-lege, într-un singur loc.
@@ -27,4 +28,5 @@ export const PAGINI_LEGE: readonly PaginaLege[] = [
   ORE_SUPLIMENTARE,
   SPOR_DE_NOAPTE,
   SALARIU_MINIM,
+  ZILE_LIBERE,
 ];

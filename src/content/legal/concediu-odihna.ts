@@ -218,7 +218,7 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
       paragrafe: [
         "Art. 148 alin. (1) cere ca programarea să fie făcută până la sfârșitul anului calendaristic, pentru anul următor. Nu „când își ia omul liber”, nu „când se poate”. E un document care trebuie să existe în decembrie pentru anul care vine, iar absența lui e primul lucru care se vede la un control pe relații de muncă.",
         "Programarea nu e o listă de date fixe. Poate stabili perioade — cel puțin 3 luni pentru cele colective, cel mult 3 luni pentru cele individuale — în interiorul cărora salariatul cere concediul cu 60 de zile înainte. Forma asta e mai ușor de ținut decât un calendar exact și rezistă mai bine la schimbările de plan.",
-        "Singura constrângere greu de ocolit e alin. (5): oricât s-ar fracționa, fiecare salariat trebuie să apuce într-un an cel puțin 10 zile lucrătoare neîntrerupt. O firmă care dă concediul numai în bucăți de câte 2-3 zile, ca să nu rămână descoperită, e în neregulă chiar dacă la finalul anului suma zilelor iese corectă.",
+        "Singura regulă greu de ocolit e alin. (5): oricât s-ar fracționa, fiecare salariat trebuie să apuce într-un an cel puțin 10 zile lucrătoare neîntrerupt. O firmă care dă concediul numai în bucăți de câte 2-3 zile, ca să nu rămână descoperită, e în neregulă chiar dacă la finalul anului suma zilelor iese corectă.",
       ],
     },
   ],
@@ -264,6 +264,7 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
       eticheta: "Portalul angajatului: cererile depuse de pe telefon",
       href: "/module/portal-angajat",
     },
+    { eticheta: "Zilele libere legale, cu ziua săptămânii", href: "/ghid/zile-libere" },
   ],
 
   surse: [

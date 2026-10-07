@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { DIURNA_EXTERNA } from "@/content/legal/diurna-externa";
 
+import { CalculatorDiurnaExterna } from "../../_componente/calculator-diurna-externa";
 import { metadatePagina } from "../../_componente/metadate";
 import { RandarePaginaLege } from "../../_componente/pagina-lege";
 
@@ -21,5 +22,14 @@ export const metadata: Metadata = metadatePagina({
 });
 
 export default function PaginaDiurnaExterna() {
-  return <RandarePaginaLege text={DIURNA_EXTERNA} />;
+  return (
+    <RandarePaginaLege
+      text={DIURNA_EXTERNA}
+      calculator={{
+        titlu: "Calculator de diurnă externă",
+        lead: "Alegi țara și orele la care ai trecut frontiera; afli câte zile de diurnă ies, cât e plafonul neimpozabil și, dacă scrii suma plătită, cât din ea se impozitează.",
+        continut: <CalculatorDiurnaExterna />,
+      }}
+    />
+  );
 }

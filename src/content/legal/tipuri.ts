@@ -100,6 +100,11 @@ export type PaginaLege = Readonly<{
     titlu: string;
     /** Ancora tabelului, când trebuie fixată; altfel vine din titlu (`cuprins.ts`). */
     ancora?: string;
+    /**
+     * Rândurile cele mai căutate, ca legături deasupra tabelului — „Sari la
+     * țară”. Valorile sunt exact textul din prima coloană.
+     */
+    saltLa?: readonly string[];
     coloane: readonly string[];
     randuri: readonly (readonly string[])[];
     nota: string;

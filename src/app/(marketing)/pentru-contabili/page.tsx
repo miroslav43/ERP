@@ -32,7 +32,7 @@ import { metadatePagina } from "../_componente/metadate";
 export const metadata: Metadata = metadatePagina({
   titlu: "Pentru contabili: un cont, toate firmele",
   descriere:
-    "Pentru cine ține zece firme: o apartenență per client, comutare fără delogare, nota contabilă și D112 exportate. Depunerea la ANAF rămâne la tine.",
+    "Pentru cine ține zece firme: același cont la fiecare client, comuți fără să ieși din cont, nota contabilă și D112 exportate. Depunerea la ANAF rămâne la tine.",
   cale: "/pentru-contabili",
 });
 
@@ -57,9 +57,17 @@ function Pasi({ sectiune, dupa }: { sectiune: SectiuneContabili; dupa?: ReactNod
             <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
               {pas.titlu}
             </h3>
-            <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6] md:col-span-8">
-              {pas.text}
-            </p>
+            <div className="md:col-span-8">
+              <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6]">{pas.text}</p>
+              {pas.legatura !== undefined && (
+                <Link
+                  href={pas.legatura.href}
+                  className="mt-2 inline-block text-[0.9375rem] underline underline-offset-4"
+                >
+                  {pas.legatura.eticheta}
+                </Link>
+              )}
+            </div>
           </div>
         ))}
       </div>

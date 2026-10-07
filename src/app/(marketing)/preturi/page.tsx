@@ -5,9 +5,7 @@ import { lunar, PRAG_ANGAJATI, PRET_NUCLEU } from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
 
 import { Cadru } from "../_componente/cadru";
-import { JsonLd } from "../_componente/json-ld";
 import { metadatePagina } from "../_componente/metadate";
-import { nodFirimituri } from "../_componente/noduri-json-ld";
 import { PaginaPreturi } from "../_componente/pagina-preturi";
 
 /**
@@ -30,13 +28,13 @@ export const metadata: Metadata = metadatePagina({
 export default function Preturi() {
   return (
     <Cadru text={RO}>
-      <JsonLd
-        date={nodFirimituri([
+      <PaginaPreturi
+        text={RO}
+        firimituri={[
           { eticheta: "Acasă", href: "/" },
           { eticheta: "Prețuri", href: "/preturi" },
-        ])}
+        ]}
       />
-      <PaginaPreturi text={RO} />
     </Cadru>
   );
 }

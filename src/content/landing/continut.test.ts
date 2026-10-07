@@ -1008,8 +1008,15 @@ describe("un singur adevăr pe tot site-ul", () => {
    */
   it("REGES: o singură afirmație despre transmitere", async () => {
     const livrat = await textLivrat();
-    const afirma = livrat.some(([, text]) => /API-ul REGES|REGES API|prin API/i.test(text));
-    expect(afirma, "afirmația despre transmiterea prin API a dispărut").toBe(true);
+    // Din 7 oct 2026, situl o spune fără „API”, pe înțelesul patronului
+    // („legătura directă cu REGES-ONLINE”); afirmația apărată e aceeași: datele
+    // pleacă din aplicație, nu se încarcă de mână într-un fișier.
+    const afirma = livrat.some(([, text]) =>
+      /API-ul REGES|REGES API|prin API|legătura directă cu REGES-ONLINE|trimite direct în REGES-ONLINE|direct link to REGES-ONLINE|files directly with REGES-ONLINE/i.test(
+        text,
+      ),
+    );
+    expect(afirma, "afirmația despre transmiterea directă în REGES a dispărut").toBe(true);
 
     const contrazic = [
       /r[ăa]m[âa]ne [îi]n platforma Inspec[țt]iei Muncii/i,

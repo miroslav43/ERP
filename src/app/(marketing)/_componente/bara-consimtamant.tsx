@@ -79,7 +79,11 @@ export function BaraConsimtamant() {
         <p className="text-mk-text-inv-slab min-w-[18rem] flex-1 text-[0.8125rem] leading-[1.5] sm:text-[0.875rem] sm:leading-[1.55]">
           Folosim cookie-uri de analiză ca să știm ce pagini sunt citite. Nu sunt necesare, iar dacă
           refuzi nu se schimbă nimic pentru tine.{" "}
-          <Link href="/legal/confidentialitate" className="text-mk-text-inv underline-offset-4">
+          {/* Direct la secțiunea despre cookie-uri, nu în capul politicii. */}
+          <Link
+            href="/legal/confidentialitate#sectiunea-8"
+            className="text-mk-text-inv underline-offset-4"
+          >
             Politica de confidențialitate
           </Link>
         </p>

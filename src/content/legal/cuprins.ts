@@ -41,3 +41,18 @@ export function cuprinsulPaginii(text: PaginaLege): readonly IntrareCuprins[] {
     { id: "nesigur", titlu: TITLU_NESIGUR },
   ];
 }
+
+/**
+ * Ancora unei clauze legale, din NUMĂRUL ei, nu din titlu: „8. Cookie-uri…” →
+ * `sectiunea-8`, „A5. Subîmputerniciți” → `anexa-a5`. Un titlu reformulat nu
+ * mută adresa, iar textul care spune „secțiunea 8” devine legătură (auditul
+ * din 7 oct 2026: nicio clauză nu putea fi legată, iar bara de cookie-uri
+ * ducea în capul politicii).
+ */
+export function ancoraClauza(titlu: string): string {
+  const anexa = /^A(\d+)\./u.exec(titlu);
+  if (anexa !== null) return `anexa-a${anexa[1] ?? ""}`;
+  const sectiune = /^(\d+)\./u.exec(titlu);
+  if (sectiune !== null) return `sectiunea-${sectiune[1] ?? ""}`;
+  return ancoraRand(titlu);
+}

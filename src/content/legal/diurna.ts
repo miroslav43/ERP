@@ -86,7 +86,7 @@ export const DIURNA: PaginaLege = {
     {
       situatie: "Plafonul neimpozabil, în țară",
       cerinta:
-        "2,5 ori nivelul legal stabilit prin hotărâre a Guvernului pentru personalul autorităților și instituțiilor publice. Formularea e o înmulțire cu o valoare externă, nu o sumă: când hotărârea se schimbă, plafonul se mută fără să se modifice Codul fiscal.",
+        "2,5 ori nivelul legal stabilit prin hotărâre a Guvernului pentru personalul autorităților și instituțiilor publice. Formularea e o înmulțire cu o valoare din alt act, nu o sumă fixă: când hotărârea se schimbă, plafonul se mută fără să se modifice Codul fiscal.",
       temei: "art. 76 alin. (2) lit. k) pct. (i) Codul fiscal",
     },
     {
@@ -169,7 +169,7 @@ export const DIURNA: PaginaLege = {
       titlu: "Cele 60 de zile și acordul care nu e formalitate",
       paragrafe: [
         "Delegarea poate fi dispusă unilateral pentru cel mult 60 de zile calendaristice în 12 luni. După ele, prelungirea e posibilă doar cu acordul salariatului — iar art. 44 alin. (1) adaugă o propoziție pe care puține regulamente interne o reproduc: refuzul prelungirii nu poate constitui motiv pentru sancționarea disciplinară.",
-        "Cele 60 de zile se numără calendaristic, nu în zile lucrătoare, și pe o fereastră de 12 luni, nu pe an calendaristic. Pentru o firmă care trimite aceiași oameni în deplasare des, fereastra mobilă e partea greu de ținut minte — și singurul motiv bun pentru care perioadele de deplasare trebuie să stea într-o evidență, nu în e-mailuri.",
+        "Cele 60 de zile se numără calendaristic, nu în zile lucrătoare, și pe ultimele 12 luni, nu pe an calendaristic. Pentru o firmă care trimite des aceiași oameni în deplasare, tocmai socoteala asta e partea greu de ținut minte — și singurul motiv bun pentru care perioadele de deplasare trebuie să stea într-o evidență, nu în e-mailuri.",
         "Detașarea are alt regim și altă durată: cel mult un an, prelungibilă din 6 în 6 luni, cu refuz posibil numai în mod excepțional și pentru motive personale temeinice. Diferența practică e că la detașare se schimbă angajatorul care acordă drepturile, nu doar locul unde se lucrează.",
       ],
     },

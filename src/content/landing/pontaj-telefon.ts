@@ -45,15 +45,15 @@ export const CUM_PONTEAZA: SectiunePontajTelefon = {
     },
     {
       titlu: "3. Apasă butonul de pontare",
-      text: "Pontarea propriu-zisă e un buton pe prima pagină a portalului, nu un formular. Firma alege ce arată: o singură confirmare pentru ziua obișnuită, două butoane — „Am intrat” și „Am ieșit” — sau amândouă, în funcție de cum lucrează oamenii. Ora care se scrie e a serverului, nu a telefonului: un ceas dat înapoi pe telefon nu schimbă nimic în evidență, iar asta contează fiindcă din pontaj ies sporurile și dovada la un control. Ziua apare imediat pe foaia lunii, acolo unde o vede și persoana de la personal, și șeful de echipă care o aprobă — nu într-un jurnal separat, care ar trebui împăcat cu foaia la sfârșit de lună.",
+      text: "Pontarea propriu-zisă e un buton pe prima pagină a portalului, nu un formular. Firma alege ce arată: o singură confirmare pentru ziua obișnuită, două butoane — „Am intrat” și „Am ieșit” — sau amândouă, în funcție de cum lucrează oamenii. Ora care se scrie e cea oficială, nu cea de pe telefonul omului: un ceas dat înapoi pe telefon nu schimbă nimic în evidență, iar asta contează fiindcă din pontaj ies sporurile și dovada la un control. Ziua apare imediat pe foaia lunii, acolo unde o vede și persoana de la personal, și șeful de echipă care o aprobă — nu într-un jurnal separat, care ar trebui împăcat cu foaia la sfârșit de lună.",
     },
     {
       titlu: "4. Dacă firma cere, scanează întâi afișul",
-      text: "Pentru firmele care vor pontarea legată de un loc, fiecare punct de lucru poate avea un afiș tipărit din aplicație, cu un cod QR. Omul îl scanează cu camera telefonului — nu are nevoie de un scanner separat și nici de altă aplicație — și pontează pe punctul acela. Când firma cere scanarea, butoanele de pontare apar doar după ea. Spunem pe față ce este: o frână împotriva pontării din pat, nu o dovadă că omul a fost la lucru. Codul de pe afiș e fix, nu se schimbă la câteva secunde, deci se poate fotografia și trimite mai departe. Administratorul îl poate roti oricând, iar din clipa aia toate afișele tipărite cu el nu mai funcționează și trebuie retipărite.",
+      text: "Pentru firmele care vor pontarea legată de un loc, fiecare punct de lucru poate avea un afiș tipărit din aplicație, cu un cod QR. Omul îl scanează cu camera telefonului — nu are nevoie de un scanner separat și nici de altă aplicație — și pontează pe punctul acela. Când firma cere scanarea, butoanele de pontare apar doar după ea. Spunem pe față ce este: o frână împotriva pontării din pat, nu o dovadă că omul a fost la lucru. Codul de pe afiș e fix, nu se schimbă la câteva secunde, deci se poate fotografia și trimite mai departe. Administratorul îl poate schimba oricând, iar din clipa aia toate afișele tipărite cu codul vechi nu mai funcționează și trebuie retipărite.",
     },
     {
       titlu: "5. Vede ce-l privește, tot de acolo",
-      text: "Portalul nu e doar un buton de pontare: e locul unde omul își vede propriile lucruri fără să ceară nimănui nimic. Luna lui de pontaj, soldul de concediu pe fiecare tip, cererile depuse și starea lor, fluturașul, cursurile de parcurs și documentele primite. De acolo depune direct o cerere de concediu, care ajunge la același aprobator și scade din același sold ca oricare alta. Ce nu e al lui nu apare deloc — nu apare gri, nu apare blocat, pur și simplu nu există pentru contul lui: regula stă în baza de date, cu domeniul restrâns la „ale mele”, nu într-un meniu care ascunde butoane.",
+      text: "Portalul nu e doar un buton de pontare: e locul unde omul își vede propriile lucruri fără să ceară nimănui nimic. Luna lui de pontaj, soldul de concediu pe fiecare tip, cererile depuse și starea lor, fluturașul, cursurile de parcurs și documentele primite. De acolo depune direct o cerere de concediu, care ajunge la același aprobator și scade din același sold ca oricare alta. Ce nu e al lui nu apare deloc — nu apare gri, nu apare blocat, pur și simplu nu există pentru contul lui. Datele colegilor nu le poate deschide pe nicio cale, nici dacă ar ști unde să caute.",
     },
   ],
 };
@@ -64,7 +64,7 @@ export const CE_ALEGE_FIRMA: SectiunePontajTelefon = {
   pasi: [
     {
       titlu: "Modul de pontare",
-      text: "Oprit, o confirmare pe zi, ceas cu intrare și ieșire, sau amândouă. Se schimbă din setările de pontaj, fără o versiune nouă a aplicației.",
+      text: "Oprit, o confirmare pe zi, ceas cu intrare și ieșire, sau amândouă. Se schimbă direct din setările de pontaj, fără să aștepți nimic de la noi.",
     },
     {
       titlu: "Dacă se cere scanarea codului",
@@ -76,7 +76,7 @@ export const CE_ALEGE_FIRMA: SectiunePontajTelefon = {
     },
     {
       titlu: "Cine aprobă",
-      text: "Pontajul zilei poate cere aprobarea managerului de echipă. Managerul aprobă, dar nu pontează în locul oamenilor: cheia de creare nu e a lui.",
+      text: "Pontajul zilei poate cere aprobarea managerului de echipă. Managerul aprobă, dar nu poate ponta în locul oamenilor — n-are dreptul ăsta.",
     },
   ],
 };
@@ -88,19 +88,19 @@ export const CE_NU_MERGE: SectiunePontajTelefon = {
   pasi: [
     {
       titlu: "Nu merge fără internet",
-      text: "Portalul nu ține nimic offline: fără semnal, butonul nu scrie nimic. Pentru o hală fără acoperire, pontajul se face în continuare din foaia lunară.",
+      text: "Portalul nu păstrează nimic pe telefon: fără semnal, apăsarea pe buton nu se înregistrează. Pentru o hală fără acoperire, pontajul se face în continuare din foaia lunară.",
     },
     {
       titlu: "Nu citește localizarea telefonului",
-      text: "Nu cerem GPS și nu verificăm dacă omul e în raza punctului de lucru. Nu există nicio linie de cod care să ceară localizarea.",
+      text: "Nu cerem GPS și nu verificăm dacă omul e în raza punctului de lucru. Aplicația nu cere nicăieri acces la localizare, deci nici n-are de unde s-o știe.",
     },
     {
       titlu: "Nu are NFC, cartelă sau recunoaștere facială",
-      text: "Nici măcar ca o coloană în baza de date. Dacă una dintre ele ar schimba decizia ta, spune-ne — construim în ordinea în care ne-o cer firmele care ne scriu.",
+      text: "Nu sunt nici măcar începute. Dacă una dintre ele ar schimba decizia ta, spune-ne — construim în ordinea în care ne-o cer firmele care ne scriu.",
     },
     {
       titlu: "Nu e în App Store sau Google Play",
-      text: "Există o aplicație Android care împachetează același portal, instalată manual, pentru scanarea codului din aplicație și pentru notificări. În magazine nu e, iar pe iPhone rămâne varianta din browser — cea de pe ecranul de start.",
+      text: "Există o aplicație Android care deschide același portal, instalată manual, pentru scanarea codului din aplicație și pentru notificări. În magazine nu e, iar pe iPhone rămâne varianta din browser — cea de pe ecranul de start.",
     },
   ],
 };

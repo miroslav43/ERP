@@ -39,6 +39,16 @@ describe("cuprinsul paginilor-lege", () => {
     }
   });
 
+  it("legăturile „Sari la țară” duc la rânduri care există în tabel", async () => {
+    const { PAGINI_LEGE } = await import("@/content/legal/pagini");
+    for (const pagina of PAGINI_LEGE) {
+      const randuri = new Set((pagina.tabel?.randuri ?? []).map((r) => r[0] ?? ""));
+      for (const tara of pagina.tabel?.saltLa ?? []) {
+        expect(randuri.has(tara), `${pagina.cale}: „${tara}” nu e în tabel`).toBe(true);
+      }
+    }
+  });
+
   it("fiecare bandă din cuprins își primește ancora în randare", () => {
     expect(SURSA).toContain("cuprinsulPaginii(text)");
     // Cinci benzi cu `id`: reguli, amenzi, secțiunile, tabelul, nesigur.

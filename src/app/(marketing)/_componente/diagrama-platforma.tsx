@@ -16,9 +16,9 @@ const NODURI = [
 ] as const;
 
 const SAGETI = [
-  { d: "M190 52 H288", eticheta: "expirables", lx: 196, ly: 44 },
-  { d: "M190 152 H288", eticheta: "sincronizare_concedii", lx: 196, ly: 144 },
-  { d: "M450 152 H548", eticheta: "agregare în SQL", lx: 456, ly: 144 },
+  { d: "M190 52 H288", eticheta: "ce expiră", lx: 196, ly: 44 },
+  { d: "M190 152 H288", eticheta: "zile aprobate", lx: 196, ly: 144 },
+  { d: "M450 152 H548", eticheta: "orele lunii", lx: 456, ly: 144 },
   { d: "M190 244 H645 V186", eticheta: "plafon neimpozabil", lx: 196, ly: 236 },
 ] as const;
 

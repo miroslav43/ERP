@@ -113,7 +113,7 @@ export const FISE: readonly FisaModul[] = [
       "Program de pontaj online: foaia colectivă lunară, pontaj de pe telefon, aprobare pe echipă, luna blocată. Managerul aprobă echipa și se pontează doar pe sine.",
     intro: [
       "Pontajul e modulul din care iese aproape tot restul: sporurile, statul de plată și dovada la un control. De aceea are cea mai strictă separare de roluri din toată aplicația.",
-      "Luna are o stare. Cât e deschisă, zilele se completează și se corectează; când e închisă, nu se mai poate edita nici din greșeală, iar ce s-a schimbat până atunci rămâne în jurnal, cu cine și când. Închiderea nu e o convenție de echipă, e o tranziție pe care baza o refuză dacă nu vine de la cine trebuie.",
+      "Luna e fie deschisă, fie închisă. Cât e deschisă, zilele se completează și se corectează; când e închisă, nu se mai poate edita nici din greșeală, iar ce s-a schimbat până atunci rămâne în jurnal, cu cine și când. Închiderea nu ține de o înțelegere în echipă: cine n-are dreptul s-o facă pur și simplu nu poate.",
       "Fiecare zi reține ora de începere și ora de sfârșit, nu doar numărul de ore — forma pe care o cere art. 119 din Codul muncii și pe care majoritatea pontajelor din fișiere de calcul n-o au.",
     ],
     actiuni: [
@@ -147,13 +147,13 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     cazDeUtilizare:
-      "E 3 septembrie și luna august trebuie închisă. Persoana de la personal deschide foaia lunii: o grilă cu zilele pe orizontală și oamenii pe verticală, cu weekendurile și sărbătorile deja marcate. Trei zile arată gol pentru un om plecat pe șantier — se completează ora de intrare și cea de ieșire, iar orele se calculează ca sugestie, editabilă. Concediile aprobate în august sunt deja pe foaie, trecute automat, deci nu se retastează. Șeful de echipă intră pe ecranul lui și aprobă zilele oamenilor din echipa lui. Își pontează doar propria zi: nu poate ponta în locul lor și nu le poate corecta ziua. După ce toate departamentele sunt aprobate, luna se blochează. Din clipa aia nimeni nu mai scrie în august, nici din greșeală, iar ce s-a schimbat până atunci rămâne în jurnal, cu nume și oră.",
+      "E 3 septembrie și luna august trebuie închisă. Persoana de la personal deschide foaia lunii: o grilă cu zilele pe orizontală și oamenii pe verticală, cu weekendurile și sărbătorile deja marcate. Trei zile arată gol pentru un om plecat pe șantier — se completează ora de intrare și cea de ieșire, iar aplicația propune numărul de ore, care se poate corecta. Concediile aprobate în august sunt deja pe foaie, trecute automat, deci nu se retastează. Șeful de echipă intră pe ecranul lui și aprobă zilele oamenilor din echipa lui. Își pontează doar propria zi: nu poate ponta în locul lor și nu le poate corecta ziua. După ce toate departamentele sunt aprobate, luna se blochează. Din clipa aia nimeni nu mai scrie în august, nici din greșeală, iar ce s-a schimbat până atunci rămâne în jurnal, cu nume și oră.",
     leadRoluri:
-      "Pontajul are cea mai strictă separare de roluri din aplicație, fiindcă din el ies sporurile, statul de plată și dovada la un control. Regulile de mai jos sunt impuse în baza de date: un rol fără permisiune nu primește un buton dezactivat, cererea lui e refuzată la sursă.",
+      "Pontajul are cea mai strictă separare de roluri din aplicație, fiindcă din el ies sporurile, statul de plată și dovada la un control. Regulile de mai jos nu sunt doar butoane ascunse pe ecran: cine n-are dreptul la ceva nu poate face acel lucru, nici din greșeală, nici intenționat.",
     leadLegaturi:
-      "Pontajul nu stă singur: luna închisă e intrarea salarizării, concediile aprobate ajung pe foaie fără să le retasteze cineva, iar angajatul își vede zilele în portal.",
+      "Pontajul nu stă singur: salariile se calculează din luna închisă, concediile aprobate ajung pe foaie fără să le retasteze cineva, iar angajatul își vede zilele în portal.",
     notaPermisiuni:
-      "Două lucruri din tabelul de mai sus surprind pe toată lumea. Un manager poate aproba pontajul echipei, dar nu-l poate scrie: se pontează doar pe sine, iar ziua altcuiva n-o poate ponta și n-o poate corecta. Separarea dintre cine execută și cine confirmă e impusă în baza de date, nu lăsată la disciplina echipei. Iar HR, care poate scrie orice zi din orice lună, nu poate aproba: are refuz explicit pe aprobare. Închiderea lunii rămâne la șeful echipei sau la administrator.",
+      "Două lucruri din tabelul de mai sus surprind pe toată lumea. Un manager poate aproba pontajul echipei, dar nu-l poate completa: se pontează doar pe sine, iar ziua altcuiva n-o poate ponta și n-o poate corecta. Separarea dintre cine completează și cine confirmă nu e lăsată la disciplina echipei: aplicația nu permite altfel. Iar HR, care poate completa orice zi din orice lună, nu poate aproba, și asta e voit, nu o scăpare. Închiderea lunii rămâne la șeful echipei sau la administrator.",
     legaturi: [
       {
         catre: "leave",
@@ -179,7 +179,7 @@ export const FISE: readonly FisaModul[] = [
     nuFace: [
       "Nu citește pontaje de la cititoare de cartelă sau de amprentă. Zilele se completează de om, din browser.",
       "Nu urmărește poziția telefonului. Locul de muncă se alege dintr-o listă, nu se deduce din GPS.",
-      "Nu calculează singur programul de lucru din ture generate automat. Turele se configurează, apoi zilele se completează pe ele.",
+      "Nu face singur graficul de ture. Turele le stabiliți voi, apoi zilele se completează pe ele.",
     ],
   },
 
@@ -189,15 +189,15 @@ export const FISE: readonly FisaModul[] = [
     titluPagina: "Program SSM: instruiri, aptitudini, echipament",
     titluH1: "Evidența SSM și PSI",
     metaDescriere:
-      "Matrice angajat × tip de instruire, cu semafor pe scadențe și „niciodată făcută” ca stare distinctă de „expirată”. Pentru HR și responsabilul SSM.",
+      "Toți angajații și toate instruirile SSM într-un tabel, cu semafor pe scadențe și „niciodată făcută” separat de „expirată”. Pentru HR și responsabilul SSM.",
     intro: [
-      "Pentru o firmă de construcții recomandăm să înceapă cu SSM, dintr-un motiv simplu: are cea mai scurtă distanță până la o problemă reală. O instruire expirată se vede la primul control și nu poate fi reparată retroactiv.",
-      "Evidența e o matrice: fiecare angajat pe verticală, fiecare tip de instruire pe orizontală, cu starea în celulă. Distincția care contează e că „niciodată făcută” nu se confundă cu „expirată” — a doua înseamnă că cineva s-a ocupat cândva, prima că omul n-a fost instruit niciodată, iar la un control diferența e între o abatere și o problemă.",
-      "Aceeași scadență o poartă aptitudinile medicale și echipamentul individual de protecție dat în primire. Semaforul se aprinde înainte de termen, nu la el.",
+      "Pentru o firmă de construcții recomandăm să înceapă cu SSM, dintr-un motiv simplu: acolo o scăpare devine cel mai repede o problemă reală. O instruire expirată se vede la primul control și nu poate fi reparată retroactiv.",
+      "Evidența e un tabel: fiecare angajat pe verticală, fiecare tip de instruire pe orizontală, iar în fiecare căsuță, situația la zi. Distincția care contează e că „niciodată făcută” nu se confundă cu „expirată” — a doua înseamnă că cineva s-a ocupat cândva, prima că omul n-a fost instruit niciodată, iar la un control diferența e între o abatere și o problemă.",
+      "Tot cu scadență se urmăresc aptitudinile medicale și echipamentul individual de protecție dat în primire. Semaforul se aprinde înainte de termen, nu la el.",
     ],
     actiuni: [
       {
-        ce: "Vede matricea și scadențele",
+        ce: "Vede tabelul și scadențele",
         cheie: "ssm:read",
         orgAdmin: "all",
         hr: "all",
@@ -222,9 +222,9 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     cazDeUtilizare:
-      "Vine un control și se cer fișele de instruire. Responsabilul SSM deschide matricea: oamenii pe verticală, tipurile de instruire pe orizontală, starea în celulă. Verde înseamnă făcută și în termen, galben că se apropie scadența, roșu că a expirat — iar „niciodată făcută” e o stare separată de „expirată”, fiindcă la un control înseamnă două lucruri diferite. Aceeași matrice ține aptitudinile medicale și echipamentul de protecție dat în primire, cu durata lui. Semaforul se aprinde înainte de termen, nu la el, deci instruirea se reprogramează până nu e prea târziu. Șeful de echipă vede oamenii lui și află că unuia îi expiră instruirea, dar nu poate marca nimic ca făcut: scrierea e a lui HR.",
+      "Vine un control și se cer fișele de instruire. Responsabilul SSM deschide tabelul: oamenii pe verticală, tipurile de instruire pe orizontală, iar în fiecare căsuță o culoare. Verde înseamnă făcută și în termen, galben că se apropie scadența, roșu că a expirat — iar „niciodată făcută” e o stare separată de „expirată”, fiindcă la un control înseamnă două lucruri diferite. Același tabel ține aptitudinile medicale și echipamentul de protecție dat în primire, cu durata lui. Semaforul se aprinde înainte de termen, nu la el, deci instruirea se reprogramează până nu e prea târziu. Șeful de echipă vede oamenii lui și află că unuia îi expiră instruirea, dar nu poate bifa nimic ca făcut: asta rămâne treaba lui HR.",
     notaPermisiuni:
-      "SSM e modulul lui HR: scrie tot, la fel ca administratorul. Managerul vede doar echipa lui și nu poate scrie nimic — poate afla că unui om îi expiră instruirea, dar nu poate declara că a făcut-o. Angajatul își vede propriile instruiri și propriul echipament, atât. Merită știut că HR administrează SSM-ul, dar nu are acces la modulul de conformitate, unde stau termenele firmei: sunt două zone separate, cu roluri separate.",
+      "SSM e modulul lui HR: completează și modifică tot, la fel ca administratorul. Managerul vede doar echipa lui și nu poate modifica nimic — poate afla că unui om îi expiră instruirea, dar nu poate declara că a făcut-o. Angajatul își vede propriile instruiri și propriul echipament, atât. Merită știut că HR administrează SSM-ul, dar nu are acces la modulul de conformitate, unde stau termenele firmei: sunt două zone separate, cu roluri separate.",
     legaturi: [
       {
         catre: "onboarding",
@@ -262,10 +262,13 @@ export const FISE: readonly FisaModul[] = [
     metaDescriere:
       "Program de salarizare pornit din pontajul închis: calculul salariilor pas cu pas, cu desfășurător și avertismente. Managerul nu vede salariile.",
     intro: [
-      "Programul de salarizare calculează salariile din aceeași bază în care stau pontajul, concediile și diurnele — fără import lunar dintr-un alt program de salarii și fără un fișier trimis între HR și contabil.",
+      "Programul de salarizare calculează salariile direct din pontaj, concedii și diurne, care sunt deja în aplicație — fără import lunar dintr-un alt program de salarii și fără un fișier trimis între HR și contabil.",
       "Calculul nu e o cutie neagră care scoate o cifră. Merge pas cu pas, cu desfășurător pe fiecare linie și cu avertismente unde ceva arată neobișnuit — un spor care sare, o lună cu mai puține zile decât ar trebui, un om fără contract activ.",
-      "Cotele sunt ale firmei tale și sunt versionate cu data de la care se aplică. Niciuna nu e scrisă în cod. Când se schimbă o cotă, se adaugă o versiune nouă cu data ei, iar lunile deja calculate rămân cu cotele care erau valabile atunci — recalcularea trecutului nu se întâmplă din greșeală.",
-      "Intrarea e luna de pontaj închisă, cu orele suplimentare și cele de noapte deja separate. Nu se retastează nimic din pontaj în salarizare, fiindcă nu sunt două evidențe.",
+      "Cotele sunt ale firmei tale și le schimbi din setările salarizării, fără să aștepți ceva de la noi. Când se schimbă o cotă, treci valoarea nouă cu data de la care se aplică, iar lunile deja calculate rămân cu cotele valabile atunci — trecutul nu se recalculează din greșeală.",
+      "Calculul pornește de la luna de pontaj închisă, cu orele suplimentare și cele de noapte deja separate. Nu se retastează nimic din pontaj în salarizare, fiindcă nu sunt două evidențe.",
+      // Pagina nu pomenea niciunul dintre fișierele lunii (auditul din 7 oct
+      // 2026); faptele sunt cele de pe /pentru-contabili, „Ce pleacă spre tine”.
+      "Din fiecare lună aprobată ies cinci lucruri: statul de plată în PDF, gata de semnat; fluturașii, pe care fiecare om și-i vede în portal; declarația 112 în XML, pe care contabilul o validează și o depune ca până acum; fișierul pentru bancă, în format SEPA, cu restul de plată al fiecăruia, pe care îl încarci tu în internet banking; și nota contabilă în CSV, generată doar dacă debitul egalează creditul.",
     ],
     actiuni: [
       {
@@ -310,17 +313,17 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     cazDeUtilizare:
-      "Luna de pontaj s-a închis, deci salarizarea poate porni — nu înainte. Contabila deschide calculul și vede fiecare om pe un rând, cu desfășurătorul pe linii: orele normale, cele suplimentare și cele de noapte, deja separate de pontaj, nu retastate. Unde ceva arată neobișnuit — un spor care sare față de luna trecută, o reținere nouă — apare un avertisment lângă cifră, nu în subsol. Cotele folosite sunt cele ale firmei, cu data de la care se aplică: dacă una s-a schimbat la mijlocul anului, luna dinainte rămâne calculată cu versiunea veche, iar asta se vede. Managerul echipei nu deschide ecranul ăsta deloc: are un refuz scris în baza de date pe fiecare acțiune din salarizare, nu doar lipsa unui drept.",
+      "Luna de pontaj s-a închis, deci salarizarea poate porni — nu înainte. Contabila deschide calculul și vede fiecare om pe un rând, cu desfășurătorul pe linii: orele normale, cele suplimentare și cele de noapte, deja separate de pontaj, nu retastate. Unde ceva arată neobișnuit — un spor care sare față de luna trecută, o reținere nouă — apare un avertisment lângă cifră, nu în subsol. Cotele folosite sunt cele ale firmei, cu data de la care se aplică: dacă una s-a schimbat la mijlocul anului, luna dinainte rămâne calculată cu cota veche, iar asta se vede. Managerul echipei nu deschide ecranul ăsta deloc: fiecare pas din salarizare îi e închis anume, nu din întâmplare.",
     leadRoluri:
-      "În salarizare, managerul are un refuz SCRIS pe fiecare acțiune, nu doar absența dreptului: nu vede salariile oamenilor lui, iar asta e o decizie, nu o scăpare.",
+      "În salarizare, managerul nu are acces la nimic: nu vede salariile oamenilor lui, iar asta e o decizie luată anume, nu o scăpare.",
     leadLegaturi:
-      "Salarizarea nu introduce date, le primește: luna de pontaj închisă, cu orele suplimentare și cele de noapte deja separate, și partea neimpozabilă din diurnă, calculată separat.",
+      "Salarizarea nu cere date tastate din nou, le primește gata: luna de pontaj închisă, cu orele suplimentare și cele de noapte deja separate, și partea neimpozabilă din diurnă, calculată separat.",
     notaPermisiuni:
-      "Managerul are refuz explicit pe fiecare acțiune din salarizare — nu absența unui rând, ci un „nu” scris în baza de date. E o decizie, nu o omisiune: șeful de echipă aprobă pontajul oamenilor lui, dar nu vede ce câștigă. Angajatul își vede și își descarcă propriul fluturaș, și numai pe al lui; CNP-ul și IBAN-ul rămân închise chiar și pentru roluri care văd restul fișei.",
+      "Managerul nu poate face nimic în salarizare: nici să vadă, nici să calculeze, nici să aprobe, nici să descarce. E o decizie, nu o omisiune: șeful de echipă aprobă pontajul oamenilor lui, dar nu vede ce câștigă. Angajatul își vede și își descarcă propriul fluturaș, și numai pe al lui; CNP-ul și IBAN-ul rămân închise chiar și pentru roluri care văd restul fișei.",
     legaturi: [
       {
         catre: "attendance",
-        text: "Luna închisă e intrarea calculului. Fără ea, nu se pornește.",
+        text: "Calculul își ia orele din luna închisă. Fără ea, nu pornește.",
       },
       {
         catre: "per_diem",
@@ -355,7 +358,7 @@ export const FISE: readonly FisaModul[] = [
     titluPagina: "Program de parc auto: ITP, RCA, rovinietă",
     titluH1: "Program de parc auto",
     metaDescriere:
-      "Termenele fiecărei mașini cu semafor înainte de scadență, foi de parcurs cu kilometraj și alimentări. Managerul aprobă doar foile echipei.",
+      "Program de parc auto: ITP, RCA și rovinieta fiecărei mașini, cu semafor înainte de scadență, plus foi de parcurs cu kilometraj și alimentări.",
     intro: [
       "Un termen ratat la o mașină oprește mașina. ITP, RCA, rovinieta, tahograful și licența de transport au fiecare data lui, pe fiecare vehicul, iar ținute în capul unei singure persoane devin indisponibile exact când acea persoană e în concediu.",
       "Fiecare vehicul poartă termenele lui, cu semafor care se aprinde înainte de scadență, nu la ea. Foile de parcurs rețin kilometrajul și alimentările, iar consumul rezultat se poate compara cu ce arată bonurile — nu e o cifră introdusă de mână care iese mereu bine.",
@@ -423,11 +426,11 @@ export const FISE: readonly FisaModul[] = [
     cazDeUtilizare:
       "Administratorul deschide lista de vehicule și vede semaforul pe fiecare: ITP-ul unei dube se aprinde galben cu trei săptămâni înainte de scadență, nu în ziua în care expiră. Programează revizia, iar data nouă rămâne pe mașină, nu pe șoferul care o conduce luna asta. Șoferii predau foile de parcurs cu kilometrajul și alimentările, iar consumul se vede pe vehicul, nu pe hârtii adunate într-un biblioraft. Șeful de echipă aprobă foile oamenilor lui și atât — mașinile, termenele și documentele lor le administrează doar administratorul organizației; HR n-are nimic aici. Când se schimbă șoferul, istoricul vehiculului nu se rupe, iar întrebarea „când s-a schimbat ultima dată distribuția” are un răspuns.",
     notaPermisiuni:
-      "Parcul auto e cel mai închis modul din aplicație: mașinile le vede și le administrează doar administratorul organizației. HR nu are nimic aici, iar angajatul nu are nimic. Managerul face excepție doar pe foile de parcurs — le vede și le aprobă pe ale echipei lui, dar nu le poate întocmi, aceeași separare între execuție și confirmare ca la pontaj.",
+      "Parcul auto e cel mai închis modul din aplicație: mașinile le vede și le administrează doar administratorul organizației. HR nu are nimic aici, iar angajatul nu are nimic. Managerul face excepție doar pe foile de parcurs — le vede și le aprobă pe ale echipei lui, dar nu le poate întocmi. E aceeași separare ca la pontaj, între cine completează și cine confirmă.",
     legaturi: [
       {
         catre: "maintenance",
-        text: "Reviziile se scadențează pe kilometraj sau pe dată, cu alertă la cea care vine prima.",
+        text: "Reviziile au scadență pe kilometraj sau pe dată, cu alertă la cea care vine prima.",
       },
       {
         catre: "per_diem",
@@ -440,7 +443,7 @@ export const FISE: readonly FisaModul[] = [
     ],
     ghiduri: [{ href: "/unelte/foaie-de-parcurs", eticheta: "Foaie de parcurs: model gratuit" }],
     nuFace: [
-      "Nu urmărește mașinile prin GPS și nu se leagă la niciun sistem de telemetrie.",
+      "Nu urmărește mașinile prin GPS și nu se leagă la niciun sistem de monitorizare a flotei.",
       "Nu citește cardurile de tahograf și nu calculează timpii de conducere și odihnă.",
       "Nu plătește rovinieta și nu cumpără asigurări. Reține termenele; plata rămâne în altă parte.",
     ],
@@ -453,10 +456,10 @@ export const FISE: readonly FisaModul[] = [
     titluPagina: "Program de diurne: deplasări, etape și decont",
     titluH1: "Deplasări și diurne, până la decont",
     metaDescriere:
-      "Ordine de deplasare, etape pe țări și deconturi, cu ferestre de 24 de ore care curg de la plecare. Managerul aprobă, nu modifică.",
+      "Program de diurne: ordinul de deplasare, etapele pe țări și decontul, cu ferestre de 24 de ore de la plecare. Partea neimpozabilă intră separat în salarii.",
     intro: [
       "Diurna externă nu se socotește pe zile calendaristice. Se socotește pe ferestre de 24 de ore care curg de la ora plecării, nu de la miezul nopții, iar o deplasare care traversează mai multe țări are etape cu plafoane diferite. Făcut cu mâna, e locul cu cele mai multe greșeli din toată salarizarea.",
-      "Fluxul are trei pași: ordinul de deplasare, etapele efective și decontul. Fiecare pas se poate întoarce la cel dinainte fără să se piardă ce era completat.",
+      "Fluxul are trei pași: ordinul de deplasare, etapele efective și decontul. De la fiecare pas te poți întoarce la cel dinainte fără să pierzi ce era completat.",
       "Partea neimpozabilă se calculează separat de rest și intră ca atare în salarizare, în loc să fie o sumă rotundă adăugată la final. Distincția contează la un control: o diurnă socotită greșit nu se descoperă la plată, se descoperă peste un an, cu accesorii.",
       "Merită calculată în paralel o lună întreagă, cu felul în care socotiți azi. Dacă rezultatele diferă, e mai bine să se afle pe o lună pe care o puteți verifica pas cu pas decât pe una de acum doi ani, reconstituită din memorie.",
     ],
@@ -503,9 +506,9 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     cazDeUtilizare:
-      "Un șofer pleacă marți la 16:00 spre Germania și se întoarce vineri seara. Își deschide singur ordinul de deplasare, fiindcă diurnele sunt modulul în care omul își conduce propriul dosar. Ferestrele de 24 de ore curg de la ora plecării, nu de la miezul nopții, așa că ziua de marți nu se rotunjește: aplicația le numără de la 16:00, iar etapele se completează pe țări, cu ora trecerii. La întoarcere face decontul, iar dacă ceva lipsește se poate întoarce la pasul dinainte fără să piardă ce era completat. Partea neimpozabilă se calculează separat și intră ca atare în salarizare, nu ca o sumă rotundă adăugată la final. Șeful lui aprobă, dar nu poate modifica cifrele: aprobarea și scrierea sunt drepturi diferite.",
+      "Un șofer pleacă marți la 16:00 spre Germania și se întoarce vineri seara. Își deschide singur ordinul de deplasare, fiindcă diurnele sunt modulul în care omul își conduce propriul dosar. Zilele de deplasare se socotesc câte 24 de ore de la ora plecării, nu de la miezul nopții, așa că ziua de marți nu se rotunjește: aplicația numără de la 16:00, iar etapele se completează pe țări, cu ora trecerii. La întoarcere face decontul, iar dacă ceva lipsește se poate întoarce la pasul dinainte fără să piardă ce era completat. Partea neimpozabilă se calculează separat și intră ca atare în salarizare, nu ca o sumă rotundă adăugată la final. Șeful lui aprobă, dar nu poate modifica cifrele: una e să aprobi, alta e să completezi.",
     notaPermisiuni:
-      "Diurnele sunt singurul modul în care omul care pleacă în deplasare își conduce singur dosarul: cere, completează etapele, face decontul și poate șterge cererea cât timp e a lui. Managerul aprobă echipa, dar nu poate completa în locul nimănui. HR nu are nicio permisiune aici — e un flux între angajat, șeful lui și administrator.",
+      "Diurnele sunt singurul modul în care omul care pleacă în deplasare își conduce singur dosarul: cere, completează etapele, face decontul și poate șterge cererea cât timp e a lui. Managerul aprobă echipa, dar nu poate completa în locul nimănui. HR nu are niciun drept aici — deplasarea rămâne între angajat, șeful lui și administrator.",
     ghiduri: [
       { href: "/ghid/diurna", eticheta: "Plafoanele neimpozabile și durata delegării" },
       { href: "/ghid/diurna-externa", eticheta: "Diurna externă pe țări" },
@@ -537,11 +540,11 @@ export const FISE: readonly FisaModul[] = [
     titluPagina: "Program de concedii: cerere, aprobare și sold",
     titluH1: "Program de concedii",
     metaDescriere:
-      "Cum se cer și se aprobă concediile în Administrativo: soldul pe fiecare tip, aprobarea pe echipă, trecerea automată pe pontaj.",
+      "Program de concedii: cererea depusă de pe telefon, aprobarea pe echipă, soldul pe fiecare tip calculat automat și zilele trecute singure pe pontaj.",
     intro: [
       "Concediul e locul unde se văd cel mai repede consecințele unei evidențe ținute în fișiere de calcul: două persoane din aceeași echipă plecate în aceeași săptămână, un sold de zile pe care fiecare îl calculează altfel și o cerere aprobată pe e-mail, care nu ajunge niciodată pe pontaj.",
-      "Aici cererea are un drum cu stări. Cât e ciornă, o poți schimba sau șterge. După trimitere trece la cine aprobă, iar decizia — da sau nu — rămâne cu numele și ora ei. Soldul se scade la aprobare, nu la cerere, și se pune la loc dacă cererea se anulează. Nimeni nu ține un al doilea calcul pe hârtie.",
-      "Tipurile de concediu se configurează pe firmă: câte zile dă fiecare, dacă cere document justificativ, dacă suspendă contractul. Concediul medical suspendă contractul și se raportează ca atare; odihna nu. Diferența nu e o etichetă, e o regulă pe care baza o aplică.",
+      "Aici cererea urmează un drum clar. Cât e ciornă, o poți schimba sau șterge. După trimitere trece la cine aprobă, iar decizia — da sau nu — rămâne cu numele și ora ei. Soldul se scade la aprobare, nu la cerere, și se pune la loc dacă cererea se anulează. Nimeni nu ține un al doilea calcul pe hârtie.",
+      "Tipurile de concediu se configurează pe firmă: câte zile dă fiecare, dacă cere document justificativ, dacă suspendă contractul. Concediul medical suspendă contractul și se raportează ca atare; odihna nu. Diferența nu e o etichetă: e o regulă pe care aplicația o respectă singură, de fiecare dată.",
     ],
     actiuni: [
       {
@@ -588,7 +591,7 @@ export const FISE: readonly FisaModul[] = [
     cazDeUtilizare:
       "Un om cere trei zile la sfârșitul lui august. Deschide portalul de pe telefon, vede soldul lui pe fiecare tip de concediu și depune cererea; cât e ciornă, o poate schimba sau șterge. După trimitere ajunge la șeful lui, care vede pe același ecran că un coleg din echipă e deja plecat în aceleași zile — aplicația arată suprapunerea, dar nu decide în locul lui. Șeful aprobă, iar decizia rămâne cu numele și ora ei. Din clipa aia soldul scade automat și cele trei zile apar pe foaia de pontaj a lunii, fără ca cineva să le retasteze. Dacă ar fi fost concediu medical, ar fi suspendat contractul și ar fi pregătit evenimentul pentru REGES, cu termenul lui legal calculat în zile lucrătoare.",
     leadRoluri:
-      "Concediul e locul unde separarea rolurilor se simte cel mai des: cine cere, cine aprobă și cine vede soldul altcuiva sunt trei drepturi diferite, impuse în baza de date, nu în interfață.",
+      "Concediul e locul unde separarea rolurilor se simte cel mai des: cine cere, cine aprobă și cine vede soldul altcuiva sunt trei drepturi diferite. Nu e vorba de un buton ascuns: cine n-are dreptul nu poate face pasul pe nicio cale.",
     leadLegaturi:
       "O cerere aprobată se vede imediat în altă parte: pe pontaj, unde ziua apare singură, în salarizare, care o plătește, și în REGES, când tipul de concediu suspendă contractul.",
     ghiduri: [
@@ -612,7 +615,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Managerul e cazul care surprinde. Vede cererile întregii echipe și le aprobă, dar poate depune și modifica numai pe ale lui: nu poate cere concediu în numele unui subordonat, oricât de bine ar cunoaște situația. Iar HR, care are acces la toate cererile și le poate chiar șterge, are refuz explicit pe aprobare — un „none” scris în tabel, nu o omisiune. Cine ține evidența nu e cine decide, și baza ține minte diferența.",
+      "Managerul e cazul care surprinde. Vede cererile întregii echipe și le aprobă, dar poate depune și modifica numai pe ale lui: nu poate cere concediu în numele unui subordonat, oricât de bine ar cunoaște situația. Iar HR, care are acces la toate cererile și le poate chiar șterge, nu le poate aproba. Nu e o scăpare, e o alegere făcută dinadins: cine ține evidența nu e cine decide, iar aplicația nu amestecă cele două roluri.",
     legaturi: [
       {
         catre: "attendance",
@@ -628,7 +631,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     nuFace: [
-      "Nu dă concedii pe jumătate de zi. Baza refuză orice altceva decât zile întregi, printr-o constrângere, nu printr-o convenție.",
+      "Nu dă concedii pe jumătate de zi. Aplicația acceptă doar zile întregi: e o regulă fixă, nu o simplă convenție.",
       "Nu decide singură dacă o cerere se suprapune cu alta din echipă. Arată suprapunerea celui care aprobă și îl lasă pe el să hotărască.",
       "Nu trimite concediul medical mai departe la Casa de Sănătate. Îl înregistrează, îl pune pe pontaj și îl pregătește pentru declarație.",
     ],
@@ -636,15 +639,15 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "onboarding",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "Integrare angajați: pașii de la angajare",
     titluH1: "Integrarea angajaților noi",
     metaDescriere:
       "Cum se face integrarea unui angajat nou în Administrativo: șabloane de pași, dovezi încărcate, confirmare de citire, termene urmărite.",
     intro: [
       "Prima săptămână a unui angajat e locul în care se pierd cele mai multe documente. Fișa postului semnată, instruirea introductivă, predarea laptopului, cititul regulamentului intern — fiecare există undeva, la cineva, și nimeni nu are lista completă în ziua în care vine controlul.",
-      "Modulul face din lista aia un obiect cu stare. Se pornește un șablon pe angajatul nou, fiecare pas are un responsabil și un termen, iar pașii care cer o dovadă nu se pot bifa fără ea: documentul se încarcă, rămâne atașat pasului și se vede cine l-a pus și când.",
-      "Șabloanele se scriu o dată, pe firmă, și se refolosesc. Se poate porni de la unul de platformă și se poate rescrie cu totul — restabilirea la varianta inițială există, ca să nu rămâi blocat după o editare nefericită.",
+      "Modulul face din lista aia una care arată oricând ce e gata și ce nu. Se pornește un șablon pe angajatul nou, fiecare pas are un responsabil și un termen, iar pașii care cer o dovadă nu se pot bifa fără ea: documentul se încarcă, rămâne atașat pasului și se vede cine l-a pus și când.",
+      "Șabloanele se scriu o dată, pe firmă, și se refolosesc. Se poate porni de la unul gata făcut, din aplicație, și se poate rescrie cu totul. Dacă o modificare iese prost, te întorci oricând la varianta inițială.",
     ],
     actiuni: [
       {
@@ -681,7 +684,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Tabelul descrie un flux cu trei mâini. HR construiește șabloanele și pornește listele; managerul nu poate crea nimic, dar bifează pașii care îi revin lui și declară integrarea încheiată pentru oamenii din echipa lui; angajatul își vede propria listă și își bifează propriii pași — confirmarea că a citit regulamentul e o acțiune a lui, nu una făcută în numele lui. Nimeni nu poate bifa în locul altcuiva, fiindcă domeniul „own” e verificat pe rândul din bază, nu pe ecran.",
+      "Tabelul descrie un flux cu trei mâini. HR construiește șabloanele și pornește listele; managerul nu poate crea nimic, dar bifează pașii care îi revin lui și declară integrarea încheiată pentru oamenii din echipa lui; angajatul își vede propria listă și își bifează propriii pași — confirmarea că a citit regulamentul e o acțiune a lui, nu una făcută în numele lui. Nimeni nu poate bifa în locul altcuiva: la fiecare bifă, aplicația verifică dacă pasul e chiar al celui care apasă.",
     legaturi: [
       {
         catre: "courses",
@@ -705,14 +708,14 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "courses",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "Cursuri interne: lecții, teste și dovezi",
     titluH1: "Cursuri interne pentru angajați",
     metaDescriere:
-      "Cum se țin cursurile interne în Administrativo: materiale versionate, lecții cu semnătură, teste cu prag, atribuire pe reguli.",
+      "Cum se țin cursurile interne în Administrativo: materiale cu versiunile vechi păstrate, lecții cu semnătură, teste cu prag, atribuire pe reguli.",
     intro: [
       "Un curs intern se termină aproape întotdeauna cu aceeași întrebare la control: cine l-a făcut și cu ce dovadă. Un fișier trimis pe e-mail nu răspunde. O listă de prezență semnată pe hârtie răspunde pe jumătate, până se pierde.",
-      "Aici cursul are lecții, iar lecțiile au materiale versionate: când documentul se schimbă, versiunea veche rămâne, cu tot cu cine a parcurs-o. Progresul se raportează pe măsură ce omul citește, iar la final lecția se semnează. Testul, dacă există, are un prag și un rezultat păstrat.",
+      "Aici cursul are lecții, iar fiecare material își păstrează versiunile: când documentul se schimbă, versiunea veche rămâne, cu tot cu cine a parcurs-o. Progresul se salvează pe măsură ce omul citește, iar la final lecția se semnează. Testul, dacă există, are un prag și un rezultat păstrat.",
       "Atribuirea nu se face de mână, om cu om. Se scriu reguli — după departament, după funcție — și cursul ajunge singur la cine trebuie, inclusiv la angajații care vin peste șase luni.",
     ],
     actiuni: [
@@ -742,7 +745,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Aici e singurul modul din aplicație în care managerul poate CONSTRUI ceva, nu doar aproba: are drept de creare pe echipa lui, deci își poate face propriile materiale de instruire fără să treacă prin HR. Angajatul are drept de scriere cu domeniul „own” — pare mult, până observi ce înseamnă: singurele lucruri pe care le poate schimba sunt propriul progres și propria semnătură pe lecție. Fără dreptul ăsta, cursul n-ar avea cine să-l parcurgă.",
+      "Aici e singurul modul din aplicație în care managerul poate CONSTRUI ceva, nu doar aproba: creează cursuri pentru echipa lui, deci își face singur materialele de instruire, fără să treacă prin HR. Angajatul are și el dreptul să modifice, dar numai ce e al lui — pare mult, până observi ce înseamnă: singurele lucruri pe care le poate schimba sunt propriul progres și propria semnătură pe lecție. Fără dreptul ăsta, cursul n-ar avea cine să-l parcurgă.",
     legaturi: [
       {
         catre: "onboarding",
@@ -758,7 +761,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     nuFace: [
-      "Nu găzduiește video propriu și nu transcodează filme. Materialele sunt documente și linkuri.",
+      "Nu găzduiește filme proprii și nu le convertește în alt format. Materialele sunt documente și linkuri.",
       "Nu emite diplome sau certificate cu numărul lor. Rezultatul e o înregistrare, nu un act.",
       "Nu are forum, comentarii sau discuții între cursanți. E o bibliotecă cu evidență, nu o platformă de învățare socială.",
     ],
@@ -769,14 +772,14 @@ export const FISE: readonly FisaModul[] = [
     actualizat: "2026-10-07",
     // „REGES-Online: …" e începutul titlului de pe `/reges-online` (ghidul de
     // termene); modulul ține intenția comercială (2 oct 2026).
-    titluPagina: "Program REGES-Online (fost Revisal), prin API",
+    titluPagina: "Program REGES-Online (ex-Revisal), direct la ITM",
     titluH1: "Transmitere în REGES-Online",
     metaDescriere:
-      "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale urmărite, reconciliere.",
+      "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale și răspunsuri urmărite.",
     intro: [
       "REGES-Online a înlocuit Revisal, iar odată cu el s-a schimbat și felul în care greșești: nu mai uiți să exporți un fișier, ci ratezi un termen. Fiecare eveniment din viața unui contract — angajare, modificare de salariu, suspendare, încetare — are propriul lui număr de zile până la care trebuie transmis, iar unele se numără în zile lucrătoare.",
-      "Modulul ține termenele astea ca date, nu ca text în documentație. Angajarea se transmite cel târziu în ziua anterioară începerii activității; suspendarea pentru absențe nemotivate are trei zile lucrătoare, fiindcă nu se poate anunța dinainte; reluarea se transmite în ziua în care omul se prezintă. Fiecare termen are temeiul lui legal scris lângă el, iar o firmă care vrea altceva își pune propria regulă, fără să aștepte o versiune nouă.",
-      "Mesajul se compune din ce e deja în fișa angajatului — nu se retastează nimic. Înainte de trimitere se verifică, iar ce lipsește se spune pe nume: un tip de spor nemapat, un CNP absent, o funcție fără cod COR.",
+      "Modulul nu doar descrie termenele astea: le calculează singur, pentru fiecare eveniment. Angajarea se transmite cel târziu în ziua anterioară începerii activității; suspendarea pentru absențe nemotivate are trei zile lucrătoare, fiindcă nu se poate anunța dinainte; reluarea se transmite în ziua în care omul se prezintă. Fiecare termen are temeiul lui legal scris lângă el, iar o firmă care vrea altceva își pune propria regulă, fără să aștepte o versiune nouă.",
+      "Mesajul se compune din ce e deja în fișa angajatului — nu se retastează nimic. Înainte de trimitere se verifică, iar ce lipsește se spune pe nume: un spor care nu e încă legat de lista din REGES, un CNP absent, o funcție fără cod COR.",
     ],
     actiuni: [
       {
@@ -829,21 +832,21 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     cazDeUtilizare:
-      "Se angajează cineva luni, iar contractul trebuie transmis cel târziu duminică — în ziua anterioară începerii activității. Persoana de la personal completează fișa omului, iar modulul construiește singur mesajul din ce e deja acolo: date de identificare, funcția cu codul COR, durata, salariul, sporurile. Înainte de trimitere verifică, iar ce lipsește se spune pe nume — un tip de spor nemapat, un CNP absent, o funcție fără cod. Mesajul care poartă CNP-ul omului stă în coadă până îl trimite cineva cu drept de transmitere. Răspunsul Inspecției Muncii se întoarce lângă mesaj, cu motivul unei respingeri scris pe înțeles, nu ca un cod. Termenul fiecărui eveniment e ținut ca dată, nu ca text în documentație, și se numără în zile lucrătoare acolo unde legea o cere.",
+      "Se angajează cineva luni, iar contractul trebuie transmis cel târziu duminică — în ziua anterioară începerii activității. Persoana de la personal completează fișa omului, iar modulul construiește singur mesajul din ce e deja acolo: date de identificare, funcția cu codul COR, durata, salariul, sporurile. Înainte de trimitere verifică, iar ce lipsește se spune pe nume — un spor care nu e încă legat de lista din REGES, un CNP absent, o funcție fără cod. Mesajul care conține CNP-ul omului așteaptă până îl trimite cineva cu drept de transmitere. Răspunsul Inspecției Muncii se întoarce lângă mesaj, cu motivul unei respingeri scris pe înțeles, nu ca un cod. Termenul fiecărui eveniment îl calculează aplicația, nu un om din memorie, și se numără în zile lucrătoare acolo unde legea o cere.",
     leadRoluri:
-      "REGES e tabelul cel mai închis din aplicație: două roluri au acces, două n-au absolut nimic, nici măcar dreptul de a citi. Regulile sunt impuse în baza de date, nu în interfață.",
+      "REGES e modulul cel mai închis din aplicație: două roluri au acces, două n-au absolut nimic, nici măcar dreptul de a citi. Iar asta nu ține de un meniu ascuns: cine n-are acces nu ajunge la registru pe nicio cale.",
     leadLegaturi:
       "Registrul nu se completează de mână: contractul vine din fișa omului, suspendarea pentru absențe pornește din pontaj, iar concediile care suspendă contractul își generează singure evenimentul.",
     notaPermisiuni:
-      "Tabelul e cel mai închis din toată aplicația: două roluri au acces, celelalte două n-au absolut nimic — nici măcar dreptul de a citi. Nu e o scăpare, e forma corectă. Registrul de evidență a salariaților conține datele de identificare și salariile tuturor, iar un manager care își vede echipa în restul aplicației n-are ce căuta aici. Transmiterea are cheia ei separată de creare: se poate pregăti un mesaj fără dreptul de a-l trimite, ceea ce lasă loc pentru o verificare între cele două.",
+      "E cel mai închis modul din toată aplicația: două roluri au acces, celelalte două n-au absolut nimic — nici măcar dreptul de a citi. Nu e o scăpare, e forma corectă. Registrul de evidență a salariaților conține datele de identificare și salariile tuturor, iar un manager care își vede echipa în restul aplicației n-are ce căuta aici. Trimiterea e un drept separat de pregătire: cineva poate pregăti un mesaj fără să aibă voie să-l trimită, iar între cele două rămâne loc pentru o verificare.",
     legaturi: [
       {
         catre: "payroll",
-        text: "Sporurile transmise în obiectul de salariu sunt aceleași componente pe care le calculează statul de plată.",
+        text: "Sporurile trimise în REGES odată cu salariul sunt aceleași pe care le calculează statul de plată.",
       },
       {
         catre: "attendance",
-        text: "Suspendarea pentru absențe nemotivate pornește dintr-o decizie luată pe baza pontajului, nu dintr-un text liber.",
+        text: "Suspendarea pentru absențe nemotivate pornește dintr-o decizie luată pe baza pontajului, nu dintr-o simplă notă.",
       },
       {
         catre: "leave",
@@ -855,22 +858,22 @@ export const FISE: readonly FisaModul[] = [
       { href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" },
     ],
     nuFace: [
-      "Nu trimite singur, pe fundal, datele cu CNP: mesajele de salariat se compun din fișa angajatului și stau în coadă până le trimite cineva cu drept de transmitere. Mesajele de contract, fără date personale, pot pleca și din ciclul automat de transmitere.",
+      "Nu trimite singur datele cu CNP: mesajele cu datele salariatului se compun din fișa angajatului și așteaptă până le trimite cineva cu drept de transmitere. Mesajele de contract, fără date personale, pot pleca și automat, odată cu trimiterile periodice ale aplicației.",
       "Nu înlocuiește verificarea contabilului. Spune ce lipsește dintr-un mesaj, nu dacă un contract e corect juridic.",
       "Nu recuperează istoricul dinaintea intrării în aplicație. Contractele vechi se aduc la prima încărcare, apoi evidența curge de aici.",
     ],
   },
   {
     cheie: "evaluations",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "Evaluarea angajaților: criterii și istoric",
     titluH1: "Evaluarea angajaților",
     metaDescriere:
-      "Cum se fac evaluările de performanță în Administrativo: șabloane duplicabile, evaluare pe echipă, finalizare cu istoric. Evaluarea rămâne în dosarul omului.",
+      "Cum se fac evaluările de performanță în Administrativo: șabloane refolosite, evaluare pe echipă, finalizare cu istoric. Evaluarea rămâne în dosarul omului.",
     intro: [
       "Evaluarea anuală ajunge de obicei un formular Word trimis pe e-mail, completat în grabă și salvat pe un desktop. Anul următor nimeni nu mai găsește ce s-a discutat, iar promisiunile făcute atunci n-au unde să fie verificate.",
-      "Aici șablonul de evaluare e un obiect al firmei: criterii, ponderi, scală. Se duplică pentru anul următor în loc să fie rescris, iar cel vechi se arhivează fără să dispară — evaluările făcute pe el rămân citibile exact în forma în care au fost completate.",
-      "Evaluarea în sine are stări. Cât e deschisă se completează; la finalizare se închide, iar redeschiderea e o acțiune separată, care lasă urmă. Nu e o măsură de neîncredere, e felul în care o discuție de anul trecut poate fi arătată anul acesta fără dubii că a fost modificată între timp.",
+      "Aici fiecare firmă își face șablonul de evaluare: criterii, ponderi, scală. Se copiază pentru anul următor în loc să fie rescris, iar cel vechi se arhivează fără să dispară — evaluările făcute pe el rămân citibile exact în forma în care au fost completate.",
+      "Evaluarea în sine trece prin etape. Cât e deschisă se completează; la finalizare se închide, iar redeschiderea e o acțiune separată, care lasă urmă. Nu e o măsură de neîncredere, e felul în care o discuție de anul trecut poate fi arătată anul acesta fără dubii că a fost modificată între timp.",
     ],
     actiuni: [
       {
@@ -899,7 +902,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Angajatul apare în tabel o singură dată, cu drept de citire pe propria evaluare — și atât. Nu poate completa nimic, nici măcar o autoevaluare, fiindcă modulul nu are astăzi un pas de autoevaluare separat de restul formularului. E o limită reală, nu o alegere de securitate, și merită spusă ca atare. Managerul, în schimb, are drepturi complete pe echipa lui: creează, completează și finalizează fără să treacă prin HR.",
+      "Angajatul apare în tabel o singură dată: își poate citi propria evaluare — și atât. Nu poate completa nimic, nici măcar o autoevaluare, fiindcă modulul nu are astăzi un pas de autoevaluare separat de restul formularului. E o limită reală, nu o alegere de securitate, și merită spusă ca atare. Managerul, în schimb, are drepturi complete pe echipa lui: creează, completează și finalizează fără să treacă prin HR.",
     legaturi: [
       {
         catre: "kpi",
@@ -924,15 +927,15 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "kpi",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "KPI-uri: indicatori și ținte pe angajat",
     titluH1: "KPI-uri pe angajat",
     metaDescriere:
       "Cum se urmăresc indicatorii de performanță în Administrativo: seturi de KPI, ținte individuale, luni deschise și închise.",
     intro: [
       "Un indicator de performanță devine inutil în momentul în care nimeni nu mai știe ce valoare avea ținta când a fost stabilită. Foaia de calcul se rescrie peste, iar la discuția de final de an rămâne doar cifra de acum, nu și cea promisă atunci.",
-      "Modulul separă cele trei lucruri care se amestecă de obicei: setul de indicatori — ce se măsoară, cu ce unitate și cu ce sens al creșterii; ținta — pentru cine și cât, cu perioada ei; realizarea — valoarea lunii, completată și apoi finalizată.",
-      "Luna e unitatea de lucru și are stare, ca la pontaj. Se deschide, se completează, se finalizează. O lună finalizată nu se mai rescrie tăcut; iar setul de indicatori se arhivează în loc să fie șters, ca lunile trecute să rămână citibile.",
+      "Modulul separă cele trei lucruri care se amestecă de obicei: setul de indicatori — ce se măsoară, în ce unitate și dacă e mai bine să crească sau să scadă; ținta — pentru cine și cât, cu perioada ei; realizarea — valoarea lunii, completată și apoi finalizată.",
+      "Totul se ține pe luni, iar fiecare lună trece prin pași, ca la pontaj: se deschide, se completează, se finalizează. O lună finalizată nu mai poate fi rescrisă pe ascuns; iar setul de indicatori se arhivează în loc să fie șters, ca lunile trecute să rămână citibile.",
     ],
     actiuni: [
       {
@@ -961,7 +964,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Un lucru care nu se vede din interfață și pe care preferăm să-l spunem: KPI-urile nu au permisiuni proprii, ci le folosesc pe cele de evaluări. Cine poate evalua poate și seta ținte, iar cine nu poate evalua nu ajunge la indicatori. Consecința practică e că modulele astea două nu se pot despărți pe roluri — dacă vrei ca un manager să vadă KPI-urile fără să poată face evaluări, astăzi nu se poate. E o simplificare asumată, nu o scăpare.",
+      "Un lucru pe care nu-l observi folosind aplicația și pe care preferăm să-l spunem: KPI-urile nu au drepturi proprii, ci le folosesc pe cele de la evaluări. Cine poate evalua poate și seta ținte, iar cine nu poate evalua nu ajunge la indicatori. Consecința practică e că modulele astea două nu se pot despărți pe roluri — dacă vrei ca un manager să vadă KPI-urile fără să poată face evaluări, astăzi nu se poate. E o simplificare asumată, nu o scăpare.",
     legaturi: [
       {
         catre: "evaluations",
@@ -977,15 +980,15 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     nuFace: [
-      "Nu culege valorile singur din alte sisteme. Realizările se completează sau se importă, nu se sincronizează.",
-      "Nu are grafice de tendință pe mai mulți ani. Unitatea de lucru e luna, iar comparația se face pe ea.",
+      "Nu culege singur valorile din alte programe. Realizările se completează sau se importă, nu vin automat.",
+      "Nu are grafice de tendință pe mai mulți ani. Se lucrează pe luni, iar comparația se face lună cu lună.",
       "Nu leagă indicatorul de un bonus calculat automat. Consecința rămâne o decizie de om.",
     ],
   },
 
   {
     cheie: "maintenance",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "Mentenanță: sesizări, planuri și ISCIR",
     titluH1: "Mentenanță și sesizări",
     metaDescriere:
@@ -1022,7 +1025,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Rândul de mijloc e neobișnuit și e intenționat: la deschiderea unei sesizări, angajatul are domeniul „all”, nu „own”. Poate raporta un defect pe orice echipament din firmă, nu doar pe al lui — altfel utilajul de la care tocmai a trecut ar rămâne nesemnalat. În schimb citirea îi e limitată la ce îl privește. HR nu apare deloc în tabel, pe niciun rând: mentenanța nu e treaba lui, iar absența rândului înseamnă refuz, nu acces implicit.",
+      "Rândul din mijloc e neobișnuit, dar e făcut dinadins: la deschiderea unei sesizări, în dreptul angajatului scrie „tot”, nu „ale lui”. Poate raporta un defect pe orice echipament din firmă, nu doar pe al lui — altfel utilajul pe lângă care tocmai a trecut ar rămâne nesemnalat. În schimb, vede doar echipamentele și sesizările care îl privesc. Coloana HR e goală de sus până jos: mentenanța nu e treaba lui. Iar un rol nu primește nimic din oficiu — ce nu i s-a dat, nu poate face.",
     legaturi: [
       {
         catre: "inventory",
@@ -1038,7 +1041,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     nuFace: [
-      "Nu se leagă la senzori sau la sisteme SCADA. Contoarele se citesc și se introduc.",
+      "Nu se leagă la senzori sau la automatizările utilajelor (SCADA). Contoarele se citesc de pe aparat și se trec de mână.",
       "Nu ține stoc de piese de schimb și nu comandă nimic de la furnizori.",
       "Nu calculează costul intervenției pe manoperă și materiale. Notează ce s-a făcut, nu cât a costat.",
     ],
@@ -1046,14 +1049,14 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "inventory",
-    actualizat: "2026-10-06",
+    actualizat: "2026-10-07",
     titluPagina: "Inventar: obiectele firmei, pe angajat",
     titluH1: "Inventarul firmei, pe angajat",
     metaDescriere:
       "Cum se ține inventarul de obiecte în Administrativo: predare cu confirmare, returnare, casare, obiecte pe fiecare angajat. Angajatul confirmă ce primește.",
     intro: [
       "Laptopul, telefonul, scula, cheia de la depozit — lucrurile firmei aflate la oameni sunt aproape întotdeauna scrise într-un fișier pe care îl ține o singură persoană, și care rămâne în urmă din prima lună. La plecarea unui angajat urmează o discuție incomodă despre ce mai avea la el.",
-      "Aici obiectul are un traseu complet: intră în stoc, se predă unei persoane, ea confirmă primirea, se returnează sau se casează. Fiecare pas rămâne cu data lui, iar starea curentă nu e o părere, ci rezultatul pașilor.",
+      "Aici obiectul are un traseu complet: intră în stoc, se predă unei persoane, ea confirmă primirea, se returnează sau se casează. Fiecare pas rămâne cu data lui, iar unde se află obiectul acum nu e o părere: reiese din pașii înregistrați.",
       "Confirmarea primirii e a angajatului, nu a celui care predă. Diferența pare mică, dar exact ea transformă o listă într-o dovadă: cine a primit a spus el că a primit.",
     ],
     actiuni: [
@@ -1075,7 +1078,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Tabelul are doar două rânduri, și asta spune ceva despre modul: toate scrierile — adăugarea unui obiect nou, predarea, returnarea, casarea, readucerea în stoc — trec printr-o singură permisiune. Nu există un drept separat de „creare” față de unul de „mutare”, deci cine poate preda un laptop poate și adăuga unul nou în evidență. Managerul nu are nicio scriere aici: vede ce are echipa lui, dar predarea rămâne la HR sau la administrator. Confirmarea primirii, în schimb, o face angajatul din portal, pe rândul lui.",
+      "Tabelul are doar două rânduri, și asta spune ceva despre modul: tot ce schimbă evidența — adăugarea unui obiect nou, predarea, returnarea, casarea, readucerea în stoc — ține de un singur drept. Nu se dă separat dreptul de a adăuga și cel de a muta un obiect, deci cine poate preda un laptop poate și adăuga unul nou în evidență. Managerul nu poate modifica nimic aici: vede ce are echipa lui, dar predarea rămâne la HR sau la administrator. Confirmarea primirii, în schimb, o face angajatul din portal, pentru obiectele primite de el.",
     legaturi: [
       {
         catre: "employee_portal",
@@ -1099,7 +1102,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "ticketing",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "Ticketing intern pentru IT și administrativ",
     titluH1: "Ticketing intern",
     metaDescriere:
@@ -1144,7 +1147,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Două lucruri ies în evidență. Primul: la deschiderea unui tichet toate cele patru roluri au același domeniu, „own” — inclusiv administratorul. Nimeni nu poate deschide un tichet în numele altcuiva, fiindcă un tichet e o cerere, iar cererea aparține celui care o face. Al doilea: HR apare aici cu „own” peste tot, adică exact ca un angajat obișnuit. E singurul modul din aplicație în care HR nu are acces extins — nu e o omisiune, e recunoașterea că o cerere către IT nu ține de resurse umane.",
+      "Două lucruri ies în evidență. Primul: la deschiderea unui tichet, în dreptul tuturor celor patru roluri scrie „ale lui” — inclusiv la administrator. Nimeni nu poate deschide un tichet în numele altcuiva, fiindcă un tichet e o cerere, iar cererea aparține celui care o face. Al doilea: HR are aici exact drepturile unui angajat obișnuit, doar pe tichetele lui. E singurul modul din aplicație în care HR nu are acces extins — nu e o omisiune, e recunoașterea că o cerere către IT nu ține de resurse umane.",
     legaturi: [
       {
         catre: "employee_portal",
@@ -1162,7 +1165,7 @@ export const FISE: readonly FisaModul[] = [
     nuFace: [
       "Nu are timpi de răspuns garantați, nici alarme când un tichet stă prea mult.",
       "Nu primește tichete pe e-mail și nu răspunde pe e-mail. Totul stă în aplicație.",
-      "Nu e pentru clienți din afara firmei. Cine deschide un tichet trebuie să fie angajatul organizației.",
+      "Nu e pentru clienți din afara firmei. Cine deschide un tichet trebuie să fie angajat al firmei.",
     ],
   },
   {
@@ -1204,7 +1207,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "E singurul tabel din aplicație în care toate cele patru roluri au „all” pe același rând: anunțurile se citesc de toată lumea, fără excepție și fără domeniu restrâns. Scrisul, în schimb, e închis la două roluri — un manager nu poate publica un anunț pe firmă, oricât de mult l-ar privi echipa lui. Un detaliu care surprinde: marcarea unui anunț drept citit e o scriere, dar e păzită de permisiunea de CITIRE. Altfel n-ar avea logică — cine are voie să vadă anunțul trebuie să poată confirma că l-a văzut.",
+      "E singurul modul din aplicație în care toate cele patru roluri au „tot” pe același rând: anunțurile le citește toată lumea, pe toate, fără excepție. Scrisul, în schimb, e închis la două roluri — un manager nu poate publica un anunț pe firmă, oricât de mult l-ar privi echipa lui. Un detaliu care surprinde: când omul confirmă că a citit, înregistrează ceva în aplicație, dar pentru asta îi ajunge dreptul de CITIRE. Altfel n-ar avea logică — cine are voie să vadă anunțul trebuie să poată confirma că l-a văzut.",
     legaturi: [
       {
         catre: "employee_portal",
@@ -1235,8 +1238,8 @@ export const FISE: readonly FisaModul[] = [
       "Ce vede un angajat în portalul Administrativo: fluturașul, soldul de concediu, pontajul, cursurile, documentele. Cum e limitat accesul la propriile date.",
     intro: [
       "Cele mai multe întrebări care ajung la HR au același răspuns scris deja undeva: câte zile de concediu mai am, unde e adeverința de venit, ce am semnat luna trecută, cât mi-a intrat pe card. Fiecare dintre ele costă o întrerupere și un e-mail.",
-      "Portalul e locul unde omul își vede propriile lucruri, fără să ceară nimănui nimic. Se deschide în browserul telefonului, se poate adăuga pe ecranul principal ca o aplicație, și nu cere cont de domeniu, VPN sau instalare.",
-      "Nu e o aplicație separată cu datele ei. E aceeași bază, aceleași rânduri, văzute prin aceleași reguli — doar că restrânse la „ale mele”.",
+      "Portalul e locul unde omul își vede propriile lucruri, fără să ceară nimănui nimic. Se deschide în browserul telefonului, se poate adăuga pe ecranul principal ca o aplicație, și nu cere instalare, VPN sau vreun cont special în rețeaua firmei.",
+      "Nu e o aplicație separată, cu datele ei. Sunt aceleași date cu care lucrează biroul, după aceleași reguli — doar că omul le vede numai pe ale lui.",
     ],
     actiuni: [
       {
@@ -1281,9 +1284,9 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     cazDeUtilizare:
-      "Un om vrea să știe câte zile de concediu i-au rămas, la 9 seara. În loc să scrie pe grupul de WhatsApp și să aștepte până a doua zi, deschide portalul de pe telefon — adresa e pe ecranul principal, adăugată o singură dată, fără instalare din magazin. Vede soldul pe fiecare tip de concediu, luna lui de pontaj, fluturașul, cursurile pe care le are de parcurs și documentele primite. De acolo depune direct cererea, iar ea ajunge la același aprobator ca oricare alta, cu același sold în spate. Ce nu e al lui nu apare deloc: portalul n-are permisiuni proprii, fiecare ecran cere cheia modulului din care își ia datele, cu domeniul restrâns la „ale mele”.",
+      "Un om vrea să știe câte zile de concediu i-au rămas, la 9 seara. În loc să scrie pe grupul de WhatsApp și să aștepte până a doua zi, deschide portalul de pe telefon — adresa e pe ecranul principal, adăugată o singură dată, fără instalare din magazin. Vede soldul pe fiecare tip de concediu, luna lui de pontaj, fluturașul, cursurile pe care le are de parcurs și documentele primite. De acolo depune direct cererea, iar ea ajunge la același aprobator ca oricare alta, cu același sold în spate. Ce nu e al lui nu apare deloc: portalul nu are reguli proprii, ci fiecare ecran le urmează pe ale modulului din care vin datele.",
     notaPermisiuni:
-      "Portalul nu are permisiuni proprii, și asta e partea importantă. Fiecare ecran din el verifică exact cheia modulului din care își ia datele, cu domeniul „own”. Consecința: nu există un drum prin portal care să ocolească o regulă din aplicație, fiindcă e aceeași regulă, verificată în același loc. Coloana „Angajat” din tabelul de mai sus e, de fapt, definiția portalului. Iar restul coloanelor arată de ce nu e nevoie de un al doilea sistem: aceleași chei servesc și ecranele de birou.",
+      "Portalul nu are reguli proprii, și asta e partea importantă. Fiecare ecran din el cere exact dreptul din modulul de unde vin datele, limitat la „ale lui”. Consecința: nu există un drum prin portal care să ocolească o regulă din aplicație, fiindcă e aceeași regulă, verificată în același loc. Coloana „Angajat” din tabelul de mai sus spune, de fapt, tot ce face portalul. Iar restul coloanelor arată de ce nu e nevoie de un al doilea sistem: aceleași drepturi se aplică și pe ecranele de birou.",
     legaturi: [
       {
         catre: "attendance",
@@ -1308,14 +1311,14 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "rapoarte",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "Rapoarte HR din datele care există deja",
     titluH1: "Rapoarte HR",
     metaDescriere:
       "Ce rapoarte scoate Administrativo: situații pe salarizare și pe lună, din aceleași date care au fost aprobate. Cine ce poate vedea, pe roluri.",
     intro: [
       "Un raport făcut prin copierea datelor în altă foaie de calcul e greșit din momentul în care cineva mai corectează ceva la sursă. Iar corecțiile vin întotdeauna după ce raportul a fost trimis.",
-      "Aici raportul se calculează din rândurile care au trecut deja prin aprobare — luna închisă la pontaj, perioada de salarizare aprobată — nu dintr-o copie. Dacă sursa se redeschide și se schimbă, se schimbă și cifra.",
+      "Aici raportul se calculează din datele care au trecut deja prin aprobare — luna închisă la pontaj, perioada de salarizare aprobată — nu dintr-o copie. Dacă luna sau perioada se redeschide și se corectează ceva, se schimbă și cifra din raport.",
       "Modulul e deliberat îngust astăzi: acoperă zona de salarizare și situațiile lunare care se cer cel mai des. Restul datelor se exportă din modulele lor, unde contextul e complet.",
     ],
     actiuni: [
@@ -1337,7 +1340,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Trebuie spus limpede, fiindcă nu se vede din interfață: rapoartele nu au permisiuni proprii. Ele sunt păzite de cheile datelor pe care le adună — astăzi cele de salarizare. Consecința e că accesul la rapoarte nu se poate acorda separat: cine vede rapoartele vede salarizarea, iar managerul, care are refuz explicit pe salarizare, nu ajunge la ele deloc. E o limită asumată a formei actuale, nu o regulă de securitate gândită dinainte, și se va schimba când modulul va acoperi și alte zone.",
+      "Trebuie spus limpede, fiindcă din aplicație nu se vede: rapoartele nu au drepturi separate. Cine le vede se decide după datele pe care le adună — astăzi, cele de salarizare. Consecința e că accesul la rapoarte nu se poate da separat: cine vede rapoartele vede și salarizarea, iar managerul, căruia salarizarea îi e închisă dinadins, nu ajunge deloc la ele. E o limită asumată a formei de acum, nu o regulă de securitate gândită dinainte, și se va schimba când modulul va acoperi și alte zone.",
     legaturi: [
       {
         catre: "payroll",
@@ -1353,7 +1356,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     nuFace: [
-      "Nu are constructor de rapoarte. Situațiile sunt cele definite, nu se compun din interfață.",
+      "Nu are un editor de rapoarte: situațiile sunt cele pregătite deja, nu se pot compune altele noi.",
       "Nu trimite rapoarte programate pe e-mail. Se deschid când sunt cerute.",
       "Nu acoperă încă toate modulele. Zonele neacoperite se exportă din modulul lor.",
     ],
@@ -1365,11 +1368,11 @@ export const FISE: readonly FisaModul[] = [
     titluPagina: "Evidența angajaților: fișe, roluri și audit",
     titluH1: "Evidența angajaților, roluri și audit",
     metaDescriere:
-      "Evidența angajaților în Administrativo: fișa fiecărui om, import din Excel, roluri și permisiuni per om, jurnal de audit. Regula firmei bate regula globală.",
+      "Evidența angajaților în Administrativo: fișa fiecărui om, import din Excel, roluri și drepturi pe om, jurnal de audit. Ce decide firma bate setarea implicită.",
     intro: [
       "Nucleul nu e un modul care se cumpără, e ce rămâne când le scoți pe toate celelalte: firma, oamenii care intră în aplicație, rolurile lor și urma pe care o lasă fiecare acțiune.",
-      "Rolurile sunt cinci, iar permisiunile lor sunt rânduri într-o tabelă, nu cod. Se pot suprascrie pentru un singur om, când realitatea nu încape în rol — un contabil care trebuie să vadă un raport în plus nu cere o versiune nouă a aplicației.",
-      "Izolarea între firme nu se face prin filtre scrise în aplicație, ci prin reguli impuse de baza de date pe fiecare tabelă. Diferența contează: un filtru uitat într-o interogare devine o scurgere de date, o regulă de bază uitată nu returnează nimic. Greșeala eșuează în siguranță.",
+      "Sunt cinci roluri, iar ce poate face fiecare om se ajustează din aplicație, fără să ne ceri nouă. Când realitatea nu încape în rol, unui singur om i se poate da sau lua un drept anume — un contabil care trebuie să vadă un raport în plus nu are nevoie de o versiune nouă a aplicației.",
+      "Datele unei firme nu se văd din contul alteia, nici din greșeală. Separarea nu depinde de un filtru pe care cineva l-ar putea uita: dacă undeva lipsește o regulă, omul vede o listă goală, nu datele altei firme. Pentru omul de IT: izolarea e impusă de baza de date, pe fiecare tabelă, nu de filtre scrise în aplicație.",
     ],
     actiuni: [
       {
@@ -1414,7 +1417,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Tabelul ăsta e cel mai instructiv din toate. HR — rolul care administrează oameni în toată aplicația — n-are absolut nicio permisiune pe utilizatori: poate ține fișa unui angajat, dar nu poate da pe nimeni în aplicație. Sunt două lucruri diferite, iar aici se vede că sunt tratate ca atare. Jurnalul de audit e închis cu „none” explicit pentru trei roluri din patru, adică refuz scris, nu rând lipsă. Iar managerul are un singur drept, pe roluri, cu domeniul „team”: poate schimba rolul cuiva din echipa lui — mecanismul prin care un șef de departament devine manager fără să treacă pe la administrator.",
+      "Tabelul ăsta e cel mai instructiv din toate. HR — rolul care se ocupă de oameni în toată aplicația — n-are niciun drept asupra conturilor de acces: poate ține fișa unui angajat, dar nu poate da nimănui acces în aplicație. Sunt două lucruri diferite, iar aici se vede că sunt tratate ca atare. Jurnalul de audit e închis dinadins pentru trei roluri din patru: nu e o scăpare, e o decizie. Iar managerul poate face un singur lucru aici, și doar în echipa lui: poate schimba rolul cuiva — așa devine manager un șef de departament, fără să treacă pe la administrator.",
     legaturi: [
       {
         catre: "employee_portal",
@@ -1430,15 +1433,15 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     nuFace: [
-      "Nu se leagă la Active Directory sau la conturi de Google pentru autentificare unică.",
-      "Nu are roluri definite de client. Cele cinci sunt fixe; se ajustează permisiunile din ele, pe om.",
+      "Nu permite intrarea în aplicație cu contul de Google sau cu cel din rețeaua firmei (Active Directory).",
+      "Firma nu își poate crea roluri noi. Cele cinci sunt fixe; se ajustează doar drepturile din ele, pe om.",
       "Nu șterge date. Ce iese din uz se marchează ca șters și rămâne în jurnal.",
     ],
   },
 
   {
     cheie: "asistent",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     titluPagina: "Asistent AI în română pentru aplicația HR",
     titluH1: "Asistent AI pentru HR",
     metaDescriere:
@@ -1446,8 +1449,8 @@ export const FISE: readonly FisaModul[] = [
     intro: [
       "O aplicație cu nouăsprezece module are o problemă pe care n-o rezolvă niciun meniu: omul știe ce vrea, dar nu știe unde se face. „Cum cer concediu”, „unde văd cine n-a făcut instruirea”, „de ce nu pot închide luna” — fiecare are un răspuns într-un ecran, iar drumul până la el e cunoscut doar de cine folosește aplicația zilnic.",
       "Asistentul răspunde în română și, când răspunsul e un ecran, duce direct acolo. Nu e un chat separat de aplicație: vede aceleași date, prin aceleași reguli, pentru omul care întreabă.",
-      "Partea importantă e ce NU poate. Asistentul nu are permisiuni proprii — niciun rând într-o tabelă de roluri, nicio cheie a lui. Ce poate atinge se calculează din permisiunile celui care întreabă și din modulele pornite pe firmă. Un angajat care întreabă despre salariile colegilor primește același refuz pe care l-ar primi dacă ar deschide ecranul direct, fiindcă e exact același refuz, verificat în același loc. Nu există o cale ocolită prin întrebare.",
-      "Modulul se poate opri de tot, pe firmă, dintr-un singur comutator. Cu el stins, nu doar că butonul dispare — cererea către asistent primește „nu există”, deci nici cineva care ar ști adresa nu ajunge la el.",
+      "Partea importantă e ce NU poate. Asistentul nu are drepturi proprii — nici un rol al lui, nici vreun acces separat. Ce poate atinge se stabilește din drepturile celui care întreabă și din modulele pornite pe firmă. Un angajat care întreabă despre salariile colegilor primește același refuz pe care l-ar primi dacă ar deschide ecranul direct, fiindcă e exact același refuz, verificat în același loc. Nu există o cale ocolită prin întrebare.",
+      "Modulul se poate opri de tot, pe firmă, dintr-un singur comutator. Cu el stins, nu dispare doar butonul: asistentul nu mai poate fi folosit deloc, nici de cineva care i-ar ști adresa.",
     ],
     actiuni: [],
     notaPermisiuni:
@@ -1455,7 +1458,7 @@ export const FISE: readonly FisaModul[] = [
     legaturi: [
       {
         catre: "nucleu",
-        text: "Permisiunile care limitează asistentul sunt exact cele din rolul omului care întreabă.",
+        text: "Asistentul are exact drepturile omului care întreabă, nimic în plus.",
       },
       {
         catre: "employee_portal",
@@ -1469,7 +1472,7 @@ export const FISE: readonly FisaModul[] = [
     nuFace: [
       "Nu completează formulare și nu apasă butoane în locul omului. Duce în ecran, restul se face de mână.",
       "Nu învață din datele firmei și nu antrenează nimic pe ele.",
-      "Nu funcționează fără cheia de acces la furnizorul de model, configurată separat de comutatorul de modul.",
+      "Nu funcționează fără legătura cu furnizorul de inteligență artificială, care se configurează separat de comutatorul modulului.",
     ],
   },
 ];

@@ -8,6 +8,7 @@ import { FormularDemo } from "../../cere-demo/formular-demo";
 import { Banda } from "../banda";
 import { Foaia } from "../foaia";
 import { VideoErou } from "../video-erou";
+import { ancoraRand } from "@/content/legal/cuprins";
 
 /**
  * Benzile care poartă vânzarea: eroul cu foaia de pontaj, dovada, situația de
@@ -373,9 +374,18 @@ export function BandaIntrebari({ text }: ProprietatiBanda) {
     >
       <div className="border-mk-rigla/40 mt-10 border-t">
         {text.intrebari.intrebari.map((intrebare) => (
-          <details key={intrebare.q} className="border-mk-rigla/40 group border-b">
+          // `id` din întrebare: răspunsul se poate lega direct, iar Chromium
+          // deschide singur `<details>`-ul țintit dintr-o adresă cu ancoră.
+          <details
+            key={intrebare.q}
+            id={ancoraRand(intrebare.q)}
+            className="border-mk-rigla/40 group scroll-mt-24 border-b"
+          >
             <summary className="flex cursor-pointer list-none items-baseline justify-between gap-6 py-4 text-[1.0625rem] leading-[1.4] font-medium [&::-webkit-details-marker]:hidden">
-              {intrebare.q}
+              {/* `<h3>` în `<summary>` e HTML valid și pune întrebările în
+                  structura paginii, unde pot fi ținte de citare (auditul din
+                  7 oct 2026). Preflight-ul îi lasă mărimea și grosimea părintelui. */}
+              <h3>{intrebare.q}</h3>
               <span
                 aria-hidden="true"
                 className="font-mk-date text-mk-text-slab shrink-0 text-[0.875rem] group-open:hidden"
@@ -392,6 +402,14 @@ export function BandaIntrebari({ text }: ProprietatiBanda) {
             <p className="text-mk-text-slab max-w-[72ch] pb-5 text-[0.9375rem] leading-[1.6]">
               {intrebare.a}
             </p>
+            {intrebare.legatura !== undefined && (
+              <Link
+                href={intrebare.legatura.href}
+                className="-mt-2 mb-5 inline-block text-[0.9375rem] underline underline-offset-4"
+              >
+                {intrebare.legatura.eticheta}
+              </Link>
+            )}
           </details>
         ))}
       </div>

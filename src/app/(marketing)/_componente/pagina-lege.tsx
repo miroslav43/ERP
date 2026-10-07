@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { RO } from "@/content/landing/ro";
 import { ancoraRand, cuprinsulPaginii, TITLU_NESIGUR } from "@/content/legal/cuprins";
@@ -60,11 +61,35 @@ function numeralNesigur(n: number): string {
   return `Astea ${cuvinte[n] ?? String(n)} nu stau`;
 }
 
-export function RandarePaginaLege({ text }: { text: PaginaLege }) {
+/**
+ * O unealtă interactivă pusă pe pagina-lege, înaintea tabelului (calculatorul de
+ * diurnă externă). Conținutul e o componentă; titlul intră și în cuprins.
+ */
+export type CalculatorPagina = Readonly<{ titlu: string; lead: string; continut: ReactNode }>;
+
+export function RandarePaginaLege({
+  text,
+  calculator,
+}: {
+  text: PaginaLege;
+  calculator?: CalculatorPagina;
+}) {
   const captura = text.captura === undefined ? undefined : capturaModulului(text.captura.cheie);
   // Ancorele și cuprinsul vin din aceeași listă: o bandă fără intrare în cuprins,
-  // sau o intrare spre o bandă fără `id`, nu se pot despărți.
-  const cuprins = cuprinsulPaginii(text);
+  // sau o intrare spre o bandă fără `id`, nu se pot despărți. Calculatorul, când
+  // există, stă înaintea tabelului și în pagină, și în cuprins.
+  const dinText = cuprinsulPaginii(text);
+  // Înaintea tabelului, dacă pagina are unul; altfel înaintea ultimei benzi.
+  const loc = dinText.findIndex((c) => c.titlu === text.tabel?.titlu);
+  const pozitie = loc >= 0 ? loc : dinText.length - 1;
+  const cuprins =
+    calculator === undefined
+      ? dinText
+      : [
+          ...dinText.slice(0, pozitie),
+          { id: "calculator", titlu: calculator.titlu },
+          ...dinText.slice(pozitie),
+        ];
   const ancora = (titlu: string) => cuprins.find((c) => c.titlu === titlu)?.id ?? ancoraRand(titlu);
   return (
     <Cadru text={RO}>
@@ -243,8 +268,28 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
         </Banda>
       ))}
 
+      {calculator !== undefined && (
+        <Banda id="calculator" inaltime="medie" titlu={calculator.titlu} lead={calculator.lead}>
+          {calculator.continut}
+        </Banda>
+      )}
+
       {text.tabel !== undefined && (
         <Banda id={ancora(text.tabel.titlu)} inaltime="medie" titlu={text.tabel.titlu}>
+          {text.tabel.saltLa !== undefined && (
+            <nav aria-label="Sari la țară" className="mt-6 flex flex-wrap gap-x-4 gap-y-2">
+              {text.tabel.saltLa.map((tara) => (
+                <a
+                  key={tara}
+                  href={`#${ancoraRand(tara)}`}
+                  className="text-[0.9375rem] underline underline-offset-4"
+                >
+                  {/* „Anglia (Regatul Unit…)” e prea lungă pentru un rând de legături. */}
+                  {tara.split(" (")[0]}
+                </a>
+              ))}
+            </nav>
+          )}
           {/* `relative` pe containerul derulabil, ca orice tabel lat din sit. */}
           <div className="relative mt-6 overflow-x-auto">
             <table className="w-full border-collapse text-left text-[0.9375rem]">

@@ -5,10 +5,11 @@ import { MODULE_NUCLEU, moduleleDin, PACHETE, PRETURI_MODULE } from "@/content/l
 import { slugModul } from "@/content/landing/slug-module";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
+import { Firimituri } from "./antet-secundar";
 import { Banda } from "./banda";
 import { GrilaPachete } from "./benzi/comercial";
 import { JsonLd } from "./json-ld";
-import { nodCatalogPreturi } from "./noduri-json-ld";
+import { type Firimitura, nodCatalogPreturi } from "./noduri-json-ld";
 
 /**
  * Pagina de prețuri.
@@ -28,7 +29,14 @@ import { nodCatalogPreturi } from "./noduri-json-ld";
  * pachete e aceeași componentă ca pe pagina de start: două grile care trebuie să
  * spună același lucru sunt două grile care vor ajunge să nu-l spună.
  */
-export function PaginaPreturi({ text }: { text: ContinutLanding }) {
+export function PaginaPreturi({
+  text,
+  firimituri,
+}: {
+  text: ContinutLanding;
+  /** Doar pe `/preturi`: `/en/preturi` n-are un părinte în engleză. */
+  firimituri?: readonly Firimitura[];
+}) {
   const modulele = text.module.grupuri.flatMap((grup) =>
     grup.module.map((modul) => ({ ...modul, grup: grup.titlu })),
   );
@@ -42,6 +50,7 @@ export function PaginaPreturi({ text }: { text: ContinutLanding }) {
       <JsonLd date={nodCatalogPreturi(text)} />
       <section className="bg-mk-hartie text-mk-text">
         <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-12 sm:pt-24">
+          {firimituri !== undefined && <Firimituri firimituri={firimituri} />}
           <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
             {text.preturi.supratitlu}
           </p>
@@ -64,6 +73,9 @@ export function PaginaPreturi({ text }: { text: ContinutLanding }) {
       </section>
 
       <Banda inaltime="medie">
+        {/* Pagina sărea de la H1 direct la H3 (auditul din 7 oct 2026): pachetele
+            primesc un H2, ascuns vizual — grila se explică singură pe ecran. */}
+        <h2 className="sr-only">{roman ? "Pachetele" : "Packages"}</h2>
         <GrilaPachete text={text} />
 
         <div className="mt-8 grid gap-x-10 gap-y-3 sm:grid-cols-2">
@@ -87,9 +99,21 @@ export function PaginaPreturi({ text }: { text: ContinutLanding }) {
         {/* `relative` e obligatoriu: vezi nota din `matrice.tsx`. Fără el,
             spanurile `sr-only` din celule scapă din containerul derulabil și
             lărgesc pagina cu vreo trei sute de pixeli pe telefon. */}
-        <div className="border-mk-rigla relative mt-12 overflow-x-auto border">
+        {/* Ținta legăturilor „Prețul fiecărui modul” de pe pagina de start și din
+            întrebări. Înainte, tabelul n-avea titlu, iar legenda lui repeta H1-ul. */}
+        <h2
+          id="module"
+          className="font-mk-display mt-14 scroll-mt-24 text-[1.375rem] leading-[1.15] font-semibold"
+        >
+          {roman ? "Prețul fiecărui modul" : "The price of every module"}
+        </h2>
+        <div className="border-mk-rigla relative mt-6 overflow-x-auto border">
           <table className="w-full border-collapse text-left">
-            <caption className="sr-only">{text.preturi.titlu}</caption>
+            <caption className="sr-only">
+              {roman
+                ? "Prețul fiecărui modul, pe pachete"
+                : "The price of every module, by package"}
+            </caption>
             <thead>
               <tr className="border-mk-rigla border-b">
                 <th

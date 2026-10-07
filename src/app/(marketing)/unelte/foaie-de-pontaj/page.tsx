@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
+import { calendarulAnului, cuDe } from "@/content/legal/zile-libere";
 import { RO } from "@/content/landing/ro";
 import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 
@@ -71,6 +72,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
   const brutAngajati = unul(p.angajati) ?? "";
   const angajati = normalizeazaAngajati(brutAngajati);
   const foaie = construiesteFoaie(an, luna, angajati, oreZi);
+  const calendar = calendarulAnului(an);
 
   return (
     <Cadru text={RO}>
@@ -265,6 +267,53 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
         </figure>
       </Banda>
 
+      {/* Zilele lucrătoare și norma pe luni, pentru anul ales — din același calcul
+          ca ghidul zilelor libere. Pagina concurentă care se vede peste noi la
+          „foaie de pontaj lunar” le are; foaia noastră n-avea decât generatorul
+          (auditul din 7 oct 2026). */}
+      <div data-tipar="ascunde">
+        <Banda
+          id="zile-lucratoare"
+          inaltime="medie"
+          titlu={`Zile lucrătoare și ore normă în ${String(an)}`}
+          lead={`Pentru normă întreagă de 8 ore pe zi. ${String(an)} are ${cuDe(calendar.zileLucratoare, "zile lucrătoare")}, adică ${cuDe(calendar.zileLucratoare * 8, "ore")}.`}
+        >
+          <div className="relative mt-6 max-w-xl overflow-x-auto">
+            <table className="w-full border-collapse text-left text-[0.9375rem]">
+              <thead>
+                <tr className="border-mk-rigla border-b">
+                  <th scope="col" className="py-2 pr-4 font-medium">
+                    Luna
+                  </th>
+                  <th scope="col" className="py-2 pr-4 font-medium">
+                    Zile lucrătoare
+                  </th>
+                  <th scope="col" className="py-2 font-medium">
+                    Ore normă
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {calendar.luni.map((l) => (
+                  <tr key={l.luna} className="border-mk-rigla/40 border-b">
+                    <td className="py-2 pr-4 capitalize">{l.luna}</td>
+                    <td className="font-mk-date py-2 pr-4 tabular-nums">{l.zileLucratoare}</td>
+                    <td className="font-mk-date py-2 tabular-nums">{l.zileLucratoare * 8}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-mk-text-slab mt-4 text-[0.9375rem] leading-[1.6]">
+            Sărbătorile legale ale anului, cu ziua în care cade fiecare:{" "}
+            <Link href="/ghid/zile-libere" className="underline underline-offset-4">
+              zilele libere legale
+            </Link>
+            .
+          </p>
+        </Banda>
+      </div>
+
       <Banda inaltime="medie" titlu="De ce sărbătorile de aici sunt corecte" data-tipar="ascunde">
         <div className="mt-6 max-w-[68ch] space-y-4" data-tipar="ascunde">
           <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
@@ -273,8 +322,8 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
             Paștele ortodox, Vinerea Mare și Rusaliile se mută în fiecare an.
           </p>
           <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
-            Aici zilele se calculează, cu același cod care ține calendarul aplicației. Dacă alegi
-            2031, primești sărbătorile lui 2031, nu pe ale lui 2026.
+            Aici zilele se calculează exact ca în calendarul aplicației. Dacă alegi 2031, primești
+            sărbătorile lui 2031, nu pe ale lui 2026.
           </p>
           <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
             Foaia rămâne o hârtie: nu adună singură orele, nu știe cine a fost în concediu și nu
@@ -292,8 +341,8 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
           <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
             Și o precizare care ne dezavantajează: foaia asta are o căsuță pe zi, adică numărul de
             ore. Art. 119 din Codul muncii cere ora de începere <em>și</em> ora de sfârșit, zilnic,
-            ținute la locul de muncă. Pentru evidența cerută de lege, foaia lunară e util
-            complementară, nu suficientă —{" "}
+            ținute la locul de muncă. Pentru evidența cerută de lege, foaia lunară ajută, dar nu
+            ajunge —{" "}
             <Link href="/evidenta-orelor-de-munca" className="underline underline-offset-4">
               ce cere exact art. 119
             </Link>

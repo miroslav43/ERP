@@ -169,6 +169,49 @@ export default async function PaginaCondica({ searchParams }: Proprietati) {
       </Banda>
 
       <div data-tipar="ascunde">
+        {/* Întrebările care urmează după „e obligatorie?”. Răspunsurile stau pe
+            art. 119 alin. (1), în aceleași cuvinte ca ghidul evidenței orelor
+            (auditul din 7 oct 2026). */}
+        <Banda inaltime="medie" supratitlu="Întrebări" titlu="Ce se mai întreabă despre condică">
+          <div className="border-mk-rigla/40 mt-8 border-t">
+            {[
+              {
+                q: "Condica electronică e valabilă la control?",
+                a: "Legea nu cere hârtie și nu impune un model. Art. 119 cere conținutul — pentru fiecare salariat, zilnic, ora de începere și ora de sfârșit a programului — și ca evidența să fie la locul de muncă, gata de arătat inspectorului. O evidență ținută pe calculator sau într-o aplicație îndeplinește asta, dacă poate fi deschisă acolo, la control.",
+              },
+              {
+                q: "Trebuie semnată de salariat?",
+                a: "Codul muncii nu cere semnătura zilnică a salariatului: art. 119 cere orele, nu o semnătură. Multe firme o cer totuși prin regulamentul intern, ca omul să-și confirme orele; de aceea modelul de aici are coloana de semnătură, pentru cine o folosește.",
+              },
+              {
+                q: "Cum arată o condică completată?",
+                a: "Ca mai sus, cu numele oamenilor trecute și câte un rând pe fiecare zi lucrătoare, cu ora sosirii, ora plecării și semnătura. Poți vedea un exemplu gata completat cu trei angajați, apoi îl schimbi cu oamenii tăi.",
+                href: "?an=2026&luna=10&firma=Construct%20SRL&angajati=Popa%20Ion%0AIlie%20Maria%0ARadu%20Andrei#documentul",
+              },
+            ].map((r) => (
+              <div
+                key={r.q}
+                className="border-mk-rigla/40 grid gap-2 border-b py-5 md:grid-cols-12 md:gap-8"
+              >
+                <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
+                  {r.q}
+                </h3>
+                <div className="md:col-span-8">
+                  <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6]">{r.a}</p>
+                  {r.href !== undefined && (
+                    <a
+                      href={r.href}
+                      className="mt-2 inline-block text-[0.9375rem] underline underline-offset-4"
+                    >
+                      Vezi condica completată
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Banda>
+
         <Banda inaltime="scurta" supratitlu="Fără hârtie" titlu="Când condica devine prea mult">
           <p className="text-mk-text-slab mt-4 max-w-[68ch] text-[0.9375rem] leading-[1.7]">
             Cu o aplicație, ora sosirii și a plecării se scriu de pe telefonul omului, iar luna se

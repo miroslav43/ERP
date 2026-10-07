@@ -13,6 +13,7 @@ import { SALARIU_MINIM } from "@/content/legal/salariu-minim";
 import { SPOR_DE_NOAPTE } from "@/content/legal/spor-de-noapte";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
 import { REGES } from "@/content/legal/reges";
+import { ZILE_LIBERE } from "@/content/legal/zile-libere";
 
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
@@ -44,6 +45,7 @@ const PAGINI = [
   ORE_SUPLIMENTARE,
   SPOR_DE_NOAPTE,
   SALARIU_MINIM,
+  ZILE_LIBERE,
   CONTROL_ITM,
 ].map((p) => ({
   href: p.cale,

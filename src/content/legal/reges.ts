@@ -160,7 +160,7 @@ export const REGES: PaginaLege = {
       aplicare: "pentru fiecare situație de suspendare",
       temei: "art. 9 alin. (2) lit. e) HG 295/2025, cu termenul din art. 5 alin. (1) lit. e)",
       nuConfunda:
-        "Într-o firmă mică, concediul medical e evenimentul de registru cel mai frecvent. Suspendarea netransmisă e altă faptă decât modificarea netransmisă, cu altă amendă — și se socotește pe fiecare situație.",
+        "Într-o firmă mică, concediul medical e ce ai de transmis cel mai des în registru. Suspendarea netransmisă e altă faptă decât modificarea netransmisă, cu altă amendă — și se socotește pe fiecare situație.",
     },
     {
       fapta: "Netransmiterea unei detașări, interne sau transnaționale",
@@ -207,14 +207,14 @@ export const REGES: PaginaLege = {
       titlu: "Cum intri în REGES-ONLINE",
       paragrafe: [
         "Accesul se cere de firmă, din portalul Inspecției Muncii — reges.inspectiamuncii.ro. Portalul are aplicații separate: una pentru angajator, una pentru salariat, de unde omul își scoate singur extrasul din registru, și una pentru autorități.",
-        "Registrul se completează și se transmite pe platforma Inspecției Muncii sau dintr-o aplicație a angajatorului conectată la ea. Administrativo merge pe a doua cale: mesajele pleacă prin API cu credențialele firmei tale, iar răspunsul Inspecției se întoarce lângă mesajul trimis. Termenele fiecărui eveniment rămân aceleași, indiferent de calea aleasă.",
+        "Registrul se completează și se transmite pe platforma Inspecției Muncii sau dintr-o aplicație a angajatorului conectată la ea. Administrativo merge pe a doua cale: trimite datele direct la Inspecția Muncii, cu accesul firmei tale, iar răspunsul Inspecției apare în aplicație, lângă ce ai trimis. Termenele fiecărui eveniment rămân aceleași, indiferent de calea aleasă.",
       ],
     },
     {
       titlu: "Ce nu ține de noi",
       paragrafe: [
-        "Administrativo ține datele din care se completează registrul — contracte, funcții, timp de muncă, salarii, suspendări, încetări —, le arată la termen și le transmite la REGES-ONLINE prin API, cu accesul firmei. Răspunsul Inspecției Muncii se întoarce în aplicație, lângă mesajul trimis, cu motivul unei respingeri scris pe înțeles.",
-        "Rămân ale firmei: obținerea accesului la API din portalul REGES-ONLINE, persoana împuternicită să transmită și corectitudinea datelor din contracte. Aplicația spune ce lipsește dintr-un mesaj înainte de trimitere; nu decide în locul tău dacă un contract e corect juridic.",
+        "Administrativo ține datele din care se completează registrul — contracte, funcții, timp de muncă, salarii, suspendări, încetări —, îți spune ce e de trimis și până când, și le trimite direct la REGES-ONLINE, cu accesul firmei. Răspunsul Inspecției Muncii apare în aplicație, lângă ce ai trimis, iar dacă ceva e respins, motivul e scris pe înțeles.",
+        "Rămân ale firmei: cererea accesului pentru legătura directă, din portalul REGES-ONLINE; persoana împuternicită să transmită; corectitudinea datelor din contracte. Înainte de trimitere, aplicația îți spune ce lipsește; nu decide în locul tău dacă un contract e corect juridic.",
       ],
     },
   ],

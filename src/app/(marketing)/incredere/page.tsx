@@ -20,14 +20,20 @@ import { metadatePagina } from "../_componente/metadate";
 export const metadata: Metadata = metadatePagina({
   titlu: "Securitatea datelor de personal între firme",
   descriere:
-    "Cum ține Administrativo datele fiecărei firme separate: regula e impusă în Postgres, nu în aplicație. Plus termenele de păstrare, pe fiecare fel de dată.",
+    "Cum ține Administrativo datele fiecărei firme separate, ca nimeni din altă firmă să nu le vadă, nici din greșeală. Plus cât se păstrează fiecare fel de dată.",
   cale: "/incredere",
 });
 
 export default function PaginaIncredere() {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={RO.pagini.incredere} />
+      <AntetSecundar
+        text={RO.pagini.incredere}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Securitatea datelor", href: "/incredere" },
+        ]}
+      />
       <BandaIzolare text={RO} />
       <BandaConformitate text={RO} />
     </Cadru>

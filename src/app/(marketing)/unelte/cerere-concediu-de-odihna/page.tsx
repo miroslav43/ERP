@@ -1,5 +1,6 @@
 // src/app/(marketing)/unelte/cerere-concediu-de-odihna/page.tsx
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
@@ -385,6 +386,72 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
                 </p>
               </div>
             ))}
+          </div>
+        </Banda>
+
+        {/* Cele două variante ale aceleiași cereri, cu temeiul lor. Până la 7 oct
+            2026 existau în formular, dar pagina nu spunea nimic despre ele, deși
+            „cerere concediu fără plată” se caută separat (auditul SEO). */}
+        <Banda
+          id="alte-cereri"
+          inaltime="medie"
+          supratitlu="Aceeași unealtă"
+          titlu="Cerere de concediu fără plată sau de zile libere pentru un eveniment"
+        >
+          <div className="border-mk-rigla/40 mt-8 border-t">
+            {[
+              {
+                titlu: "Concediul fără plată",
+                text: "Art. 153: salariatul are dreptul la concediu fără plată pentru situații personale, iar durata o stabilesc contractul colectiv aplicabil sau regulamentul intern. Cererea arată la fel; în ea se trec perioada și, de obicei, motivul.",
+                href: "?tip=fara-plata#documentul",
+                eticheta: "Fă o cerere de concediu fără plată",
+              },
+              {
+                titlu: "Zile libere pentru un eveniment familial",
+                text: "Art. 152: pentru evenimente familiale deosebite, salariatul are dreptul la zile libere plătite, care nu se scad din concediul de odihnă. Care sunt evenimentele și câte zile se dau stabilesc legea, contractul colectiv sau regulamentul intern — numărul nu e același în toate firmele.",
+                href: "?tip=eveniment#documentul",
+                eticheta: "Fă o cerere de zile libere pentru un eveniment",
+              },
+            ].map((r) => (
+              <div
+                key={r.titlu}
+                className="border-mk-rigla/40 grid gap-2 border-b py-5 md:grid-cols-12 md:gap-8"
+              >
+                <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
+                  {r.titlu}
+                </h3>
+                <div className="md:col-span-8">
+                  <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6]">{r.text}</p>
+                  <a
+                    href={r.href}
+                    className="mt-2 inline-block text-[0.9375rem] underline underline-offset-4"
+                  >
+                    {r.eticheta}
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Banda>
+
+        {/* Ca la celelalte unelte: unde duce aceeași treabă când nu mai e pe hârtie. */}
+        <Banda
+          inaltime="medie"
+          supratitlu="Fără hârtie"
+          titlu="Cererea, aprobarea și soldul, în aplicație"
+          lead="În Administrativo, omul cere concediul de pe telefon, șeful îl aprobă dintr-o apăsare, iar zilele se scad singure din sold, fără sărbători și fără weekenduri."
+        >
+          <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+            <Link href="/module/concedii" className="text-[0.9375rem] underline underline-offset-4">
+              Cum funcționează modulul Concedii
+            </Link>
+            <Link
+              href="/vitrina/leave"
+              data-umami-event="vitrina-din-cerere"
+              className="text-[0.9375rem] underline underline-offset-4"
+            >
+              Încearcă ecranul de concedii, fără cont
+            </Link>
           </div>
           <PeAcelasiSubiect legaturi={LEGATURI_CONEXE["/unelte/cerere-concediu-de-odihna"]} />
         </Banda>

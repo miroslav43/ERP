@@ -68,7 +68,13 @@ function Pasi({ sectiune }: { sectiune: SectiunePontajTelefon }) {
 export default function PaginaPontajPeTelefon() {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={RO.pagini.pontajTelefon} />
+      <AntetSecundar
+        text={RO.pagini.pontajTelefon}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Pontaj pe telefon", href: "/pontaj-pe-telefon" },
+        ]}
+      />
       {/* Întâi drumul omului — pagina e căutată de cine vrea butonul, nu de cine
           administrează luna —, apoi ce se configurează, apoi limitele. */}
       <Pasi sectiune={CUM_PONTEAZA} />

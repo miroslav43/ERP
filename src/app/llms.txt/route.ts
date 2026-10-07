@@ -70,17 +70,17 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/pentru-contabili",
-    "Pentru cine ține mai multe firme: o apartenență per client pe același cont, comutare fără delogare, rolul „Resurse umane” și ce nu vede el. Cele cinci fișiere exportate — nota contabilă, D112, statul de plată, fișierul SEPA, arhiva de pontaj — și faptul că depunerea la ANAF rămâne la contabil.",
+    "Pentru cine ține mai multe firme: același cont, cu acces separat la fiecare client, comutarea între firme fără să ieși din cont, rolul „Resurse umane” și ce nu vede el. Cele cinci fișiere exportate — nota contabilă, D112, statul de plată, fișierul SEPA, arhiva de pontaj — și faptul că depunerea la ANAF rămâne la contabil.",
   ],
   [
     "/incredere",
-    "Cum sunt izolate datele între firme-client și ce reguli românești sunt în produs.",
+    "Cum sunt ținute separat datele fiecărei firme-client și ce reguli românești sunt în produs.",
   ],
   ["/de-ce-nu", "Limitele asumate ale produsului și comparația cu felul de a lucra fără el."],
   ["/intrebari", "Întrebările frecvente, cu răspunsuri."],
   [
     "/ghid",
-    "Cele nouă ghiduri pentru angajatori, într-un singur loc: evidența orelor, REGES-ONLINE, concediul de odihnă, diurna în țară și în străinătate, orele suplimentare, sporul de noapte, salariul minim pe economie și controlul ITM.",
+    "Cele zece ghiduri pentru angajatori, într-un singur loc: evidența orelor, REGES-ONLINE, concediul de odihnă, diurna în țară și în străinătate, orele suplimentare, sporul de noapte, salariul minim pe economie, zilele libere legale și controlul ITM.",
   ],
   [
     "/evidenta-orelor-de-munca",
@@ -104,7 +104,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/ghid/diurna-externa",
-    "Diurna în străinătate pe fiecare țară, din anexa HG 518/1995 (categoria I), cu plafonul neimpozabil de 2,5 ori calculat pentru toate cele 166 de țări — de exemplu Germania 35 €/zi, plafon 87,50 €. Plus numărarea zilelor de la trecerea frontierei și fracțiunile de 50%/100% (art. 7^1).",
+    "Diurna în străinătate pe fiecare țară, din anexa HG 518/1995 (categoria I), cu plafonul neimpozabil de 2,5 ori calculat pentru toate cele 166 de țări — de exemplu Germania 35 €/zi, plafon 87,50 €. Plus numărarea zilelor de la trecerea frontierei și fracțiunile de 50%/100% (art. 7^1). Plus un calculator: țara, orele de trecere a frontierei și suma plătită de firmă dau zilele de diurnă, plafonul neimpozabil și partea impozabilă.",
   ],
   [
     "/ghid/ore-suplimentare",
@@ -117,6 +117,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   [
     "/ghid/salariu-minim-pe-economie",
     "Salariul minim pe economie: 4.325 lei brut din 1 iulie 2026 (HG 146/2026, 25,949 lei/oră), 4.050 lei până la 30 iunie 2026 (HG 1506/2024). Netul și costul pentru firmă calculate de motorul calculatorului, suma scutită de 200 de lei (OUG 89/2025 art. III) și pierderea ei la 1 leu peste minim, regula celor 24 de luni (art. 164 alin. (8)), minimul din construcții și amenda de 3.000–5.000 lei pe persoană (art. 260 alin. (1) lit. a)).",
+  ],
+  [
+    "/ghid/zile-libere",
+    "Zilele libere legale din anul curent și din cel următor, calculate din data Paștelui ortodox: cele 17 sărbători din art. 139 al Codului muncii, ziua săptămânii în care cade fiecare, suprapunerile (în 2026, a doua zi de Rusalii cade pe 1 iunie, odată cu Ziua Copilului) și zilele lucrătoare pe fiecare lună. Plus regulile: fără zi liberă în schimb pentru sărbătorile din weekend, timp liber în 30 de zile sau spor de cel puțin 100% pentru cine lucrează de sărbători (art. 142), amenda de 5.000–10.000 lei (art. 260 lit. g)).",
   ],
   ["/unelte", "Uneltele gratuite, fără cont."],
   [
@@ -204,7 +208,7 @@ function construieste(): string {
   l(`> ${RO.meta.descriere}`);
   l();
   l(
-    `Produs software (SaaS) pentru administrarea personalului, făcut pentru firme din România cu 5–50 de angajați. Se folosește din browser; nu se instalează nimic local.`,
+    `Aplicație online, cu abonament, pentru administrarea personalului, făcută pentru firme din România cu 5–50 de angajați. Se folosește din browser, fără să instalezi nimic.`,
   );
   l();
 
@@ -230,9 +234,9 @@ function construieste(): string {
   // Fraza din Politica de confidențialitate (`confidentialitate.ts`), nu una
   // proprie: „găzduite în Irlanda" omitea serverul aplicației, care e în Germania.
   l(
-    `- Baza de date și fișierele stau în Uniunea Europeană, în Irlanda. Serverul aplicației este al unui furnizor din Germania. Izolarea între firme-client e impusă în Postgres, prin politici la nivel de rând, nu prin filtre de aplicație.`,
+    `- Baza de date și fișierele stau în Uniunea Europeană, în Irlanda. Serverul aplicației este al unui furnizor din Germania. Nicio firmă-client nu vede datele alteia, nici din greșeală. Pentru omul de IT: izolarea e impusă în Postgres (RLS), nu prin filtre în aplicație.`,
   );
-  l(`- Interfața și asistența sunt în limba română.`);
+  l(`- Aplicația și asistența sunt în limba română.`);
   l();
 
   l("## Pagini");

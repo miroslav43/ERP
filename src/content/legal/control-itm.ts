@@ -162,7 +162,7 @@ export const CONTROL_ITM: PaginaLege = {
       paragrafe: [
         "Se poate pregăti ordinea: dosarele scoase, registrul unic găsit, copiile contractelor duse la punctele de lucru unde lipsesc. Sunt lucruri care se rezolvă într-o seară și care schimbă tonul controlului.",
         "Nu se poate pregăti evidența orelor. O foaie completată în ajun pentru șase luni în urmă se recunoaște — scrisul e același, cerneala e aceeași, iar cifrele ies prea rotund. Reconstituirea retroactivă e, în practică, mai riscantă decât lipsa.",
-        "Nici istoricul modificărilor nu se poate produce ulterior. Întrebarea „cine a schimbat ora asta și când” are răspuns doar dacă sistemul îl păstra deja. E chiar diferența dintre o evidență și o afirmație despre trecut.",
+        "Nici istoricul modificărilor nu se poate pregăti în ajun. Întrebarea „cine a schimbat ora asta și când” are răspuns doar dacă pontajul ținea deja minte fiecare schimbare. E chiar diferența dintre o evidență și o afirmație despre trecut.",
       ],
     },
   ],

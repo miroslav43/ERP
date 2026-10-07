@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { RUTA_AUTENTIFICARE, RUTA_DUPA_AUTENTIFICARE, SEGMENTE_APLICATIE } from "@/config/routes";
+import { SLUG_MODUL } from "@/content/landing/slug-module";
 import { updateSession } from "@/lib/supabase/middleware";
 
 /**
@@ -92,8 +93,42 @@ function estePublica(pathname: string): boolean {
   return RUTE_PUBLICE.some((ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`));
 }
 
+/**
+ * Adresele de modul și de domeniu care există.
+ *
+ * Un slug necunoscut sub `/module/` sau `/domenii/` nu mai ajunge la pagină.
+ * Acolo, Next randa 404-ul o dată și îl păstra pe disc ca intrare de cache de
+ * ~1 MB, cu `s-maxage=31536000`, până la următorul deploy: un robot care încearcă
+ * adrese la întâmplare putea umple discul containerului, iar un disc plin
+ * înseamnă 5xx pe tot situl (auditul din 7 oct 2026). Rescris spre o cale fără
+ * rută, primește 404-ul obișnuit — `no-store`, nimic scris pe disc.
+ *
+ * `dynamicParams` rămâne activ pe ambele pagini: capcana 45. Domeniile sunt
+ * scrise aici, nu importate din `domenii.ts`, ca proxy-ul să nu care după el
+ * tot textul paginilor; `proxy.test.ts` le compară cu sursa.
+ */
+export const SLUGURI_CUNOSCUTE: Readonly<Record<string, ReadonlySet<string>>> = {
+  module: new Set(Object.values(SLUG_MODUL)),
+  domenii: new Set(["constructii", "productie", "transport", "servicii"]),
+};
+
+/** O cale care nu se potrivește cu nicio rută: randează 404-ul obișnuit. */
+const CALE_FARA_RUTA = "/__adresa-necunoscuta";
+
+function slugNecunoscut(pathname: string): boolean {
+  const [, sectiune = "", slug = "", ...rest] = pathname.split("/");
+  const cunoscute = SLUGURI_CUNOSCUTE[sectiune];
+  return cunoscute !== undefined && slug !== "" && rest.length === 0 && !cunoscute.has(slug);
+}
+
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
+
+  if (slugNecunoscut(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = CALE_FARA_RUTA;
+    return NextResponse.rewrite(url);
+  }
 
   // Rutele de API răspund în JSON și își verifică singure sesiunea. Un redirect
   // 307 către o pagină HTML le-ar strica pe toate, inclusiv webhook-urile.

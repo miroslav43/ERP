@@ -66,9 +66,9 @@ export const EN: ContinutLanding = {
     notaCodConcediu:
       "0 CO means a day of annual leave: zero hours worked, because leave is paid as an allowance rather than from hours. The cell still shows the figure, so the column adds up.",
     notaSubset:
-      "OT and NGT are of which, not on top — hours worked already include them. The same rule is written as a constraint in the database.",
+      "OT and NGT are part of the hours worked, not on top: HRS already includes them. The app will not accept a day with more OT or NGT than hours worked.",
     notaNorma:
-      "Twenty working days × eight hours = 160 contract hours. Good Friday and Easter Monday are public holidays; Orthodox Easter falls on a Sunday in 2026, so it adds no day off. The movable dates come from the Easter calculation, not from a hand-written list.",
+      "Twenty working days × eight hours = 160 contract hours. Good Friday and Easter Monday are public holidays; Orthodox Easter falls on a Sunday in 2026, so it adds no day off. The movable holidays are worked out from the date of Easter, not copied from a hand-written list.",
     monumentEticheta: "hours worked in April 2026",
     monumentNota:
       "Added down the eight rows or across the thirty columns — the same figure. That is what closing a month means.",
@@ -86,7 +86,7 @@ export const EN: ContinutLanding = {
       {
         valoare: "1",
         eticheta: "free month",
-        nota: "For any configuration. No card asked for at sign-up.",
+        nota: "Whatever package and modules you choose. No card asked for at sign-up.",
       },
       {
         valoare: "149",
@@ -129,7 +129,7 @@ export const EN: ContinutLanding = {
   platforma: {
     supratitlu: "How it connects",
     titlu: "The modules are not separate apps placed side by side.",
-    lead: "What goes in once is never retyped. The links below exist in the code, under the names printed here — this is not a presentation diagram.",
+    lead: "What goes in once is never retyped. The links below work in the app today, exactly as described — this is not a diagram drawn for a presentation.",
     noduri: [
       { cheie: "angajati", eticheta: "People" },
       { cheie: "concedii", eticheta: "Leave" },
@@ -143,47 +143,47 @@ export const EN: ContinutLanding = {
       {
         de: "concedii",
         la: "pontaj",
-        eticheta: "sincronizare_concedii",
-        text: "Approved leave becomes a leave day on the sheet. The operation is idempotent: run ten times, it has the same effect as running once.",
+        eticheta: "on approval",
+        text: "Approved leave becomes a leave day on the sheet. Done ten times over, it gives the same result as doing it once: no day is ever counted twice.",
       },
       {
         de: "pontaj",
         la: "salarizare",
-        eticheta: "aggregation in SQL",
-        text: "Hours from a closed month feed payroll. The aggregation moved out of the application and into the database after two silent defects that discarded weekend and holiday days.",
+        eticheta: "when the month closes",
+        text: "Hours from a closed month go into payroll, including those worked at weekends and on public holidays. The calculation was rebuilt after two errors that lost them without any warning.",
       },
       {
         de: "angajati",
         la: "scadente",
-        eticheta: "expirables",
-        text: "Contracts, permits, safety briefings, vehicle documents — all reach the same deadline engine, with a warning before expiry.",
+        eticheta: "deadlines",
+        text: "Contracts, permits, safety briefings, vehicle documents — all their deadlines sit in one list, and you get a warning before they expire.",
       },
       {
         de: "diurna",
         la: "salarizare",
         eticheta: "tax-free ceiling",
-        text: "The ceiling splits the amount, it does not block it: whatever exceeds it becomes salary-assimilated income.",
+        text: "The ceiling does not block the amount, it splits it: whatever goes over it is treated as salary income.",
       },
       {
         de: "angajati",
         la: "audit",
-        eticheta: "audit trigger",
-        text: "Every write records who, when, from which address, and what changed.",
+        eticheta: "automatic",
+        text: "Every change is recorded: who, when, from which address, and what changed.",
       },
       {
         de: "scadente",
         la: "audit",
-        eticheta: "append-only",
-        text: "The log is appended to. There is no delete policy anywhere in the product.",
+        eticheta: "nothing deleted",
+        text: "The log is only ever added to: nothing can be deleted from inside the app.",
       },
     ],
-    nota: "The names on the arrows are the real function and table names. Ask to see them during the walkthrough.",
+    nota: "Ask during the walkthrough and we will show you any of the links above working.",
   },
 
   module: {
     supratitlu: "Modules",
     titlu: "Nineteen modules. You switch on only what you use.",
-    lead: "What is not enabled does not appear in the menu, does not appear in search, and cannot be opened by typing the address. Modules are toggled per company.",
+    lead: "What is not switched on does not appear in the menu or in search, and will not open even if someone types the page address. Modules are switched on and off separately, for each company.",
     grupuri: [
       {
         cheie: "core",
@@ -195,18 +195,18 @@ export const EN: ContinutLanding = {
             text: "The company, its members, e-mail invitations, and a trace of every change. One person can work for several companies and switch between them without signing out.",
             puncte: [
               "Accounts are created by invitation only",
-              "Five roles, each with its own scope",
-              "A log that is appended to, never rewritten",
+              "Five roles, each with its own rights",
+              "A log that is only ever added to, never rewritten",
             ],
           },
           {
             cheie: "asistent",
             titlu: "AI assistant",
-            text: "An assistant that answers \u201cwhere do I do X?\u201d and hands you the button that takes you there. It cannot point you at a screen you may not open: its list of destinations is filtered by your own permissions.",
+            text: "An assistant that answers \u201cwhere do I do X?\u201d and hands you the button that takes you there. It cannot point you at a screen you may not open: it only sends you where you are already allowed to go.",
             puncte: [
-              "It tells you the click path, then shortens it to one button",
+              "It tells you where to click, then shortens the whole route to one button",
               "It answers with real figures too: leave balance, what awaits approval",
-              "It executes nothing \u2014 it explains and takes you there; you press",
+              "It never acts on your behalf \u2014 it explains and takes you there; you press",
             ],
           },
         ],
@@ -220,7 +220,7 @@ export const EN: ContinutLanding = {
             titlu: "Attendance",
             text: "The monthly sheet and the week plan. The month locks when it is done, and after that it cannot be edited, not even by accident.",
             puncte: [
-              "Overtime and night hours, as subsets of hours worked",
+              "Overtime and night hours, counted within hours worked, not added on top",
               "Approval per department or per week",
               "Holiday compensation: a day off or a premium, with a deadline",
             ],
@@ -239,21 +239,24 @@ export const EN: ContinutLanding = {
             cheie: "onboarding",
             titlu: "Onboarding",
             text: "An onboarding path for new hires and a checklist for leavers, with steps that require a tick, a document or a signature.",
-            puncte: ["Templates with reorderable steps", "A printable record of completion"],
+            puncte: [
+              "Templates with steps in the order you choose",
+              "A printable record of completion",
+            ],
           },
           {
             cheie: "courses",
             titlu: "Courses",
-            text: "A library of PDF and video material, taken inside the app. Each item sets how strong its own proof is: a tick, a measured percentage watched, or a signed declaration.",
+            text: "A library of PDF and video material, taken inside the app. For each item you choose how strong the proof must be: a tick, a minimum percentage watched, or a signed declaration.",
             puncte: [
-              "Videos and documents are viewed in the ERP, and never leave it",
+              "Videos and documents are viewed in the app, and never leave it",
               "Recertification on schedule, reappearing in the person's list on its own",
             ],
           },
           {
             cheie: "reges",
             titlu: "REGES-Online (formerly Revisal)",
-            text: "Contracts and employees are filed with the Labour Inspectorate straight from the ERP, over the REGES API. No hand-carried import file, no second typing of the same data.",
+            text: "Contracts and employees are filed with the Labour Inspectorate from the app, over a direct link to REGES-ONLINE. No hand-carried import file, no second typing of the same data.",
             puncte: [
               "Each event's legal deadline, counted in working days",
               "The Inspectorate's answer lands back on the employee record, with the rejection reason in plain words",
@@ -284,7 +287,7 @@ export const EN: ContinutLanding = {
           {
             cheie: "ssm",
             titlu: "Health and safety",
-            text: "A matrix of employee × briefing type, with a traffic light on due dates. “Never done” is a state distinct from “expired” — and a more serious one.",
+            text: "A table of every employee against every type of briefing, with a traffic light on due dates. “Never done” is a state distinct from “expired” — and a more serious one.",
             puncte: [
               "Countdown for reporting an accident to the labour inspectorate",
               "Fire extinguishers: inspection, refill, pressure test",
@@ -306,7 +309,7 @@ export const EN: ContinutLanding = {
             text: "Equipment, planned servicing and fault reports, triaged by urgency.",
             puncte: [
               "Due by days AND by counter — hours, kilometres, cycles",
-              "The final state is the more serious of the two",
+              "The more urgent of the two deadlines is the one that counts",
               "ISCIR authorisations for regulated equipment",
             ],
           },
@@ -335,7 +338,7 @@ export const EN: ContinutLanding = {
           {
             cheie: "payroll",
             titlu: "Payroll",
-            text: "The calculation runs step by step, with a breakdown and warnings. The rates are yours, versioned with the date they take effect — none of them is written into the code.",
+            text: "The calculation runs step by step, with a breakdown and warnings. The rates are yours, each with the date it takes effect. When the law changes, a setting changes, not the software.",
             puncte: [
               "Reusable premiums and bonuses, defined once",
               "Deductions capped as a percentage of net pay",
@@ -345,7 +348,7 @@ export const EN: ContinutLanding = {
           {
             cheie: "per_diem",
             titlu: "Travel and per diem",
-            text: "Travel orders, legs across countries, and expense claims. The 24-hour windows run from departure, not from midnight.",
+            text: "Travel orders, legs across countries, and expense claims. Per diem runs in 24-hour blocks from departure, not from midnight.",
             puncte: [
               "A border-crossing day is paid once, to one country",
               "Country rates and the exchange rate on the departure date",
@@ -355,9 +358,9 @@ export const EN: ContinutLanding = {
           {
             cheie: "rapoarte",
             titlu: "Reports",
-            text: "Income, leave and meal vouchers, aggregated across the organisation. The aggregation runs in SQL, not in the application — the same decision as for attendance.",
+            text: "Income, leave and meal vouchers, added up across the whole company. The figures come straight from the calculated payroll, so the report shows exactly what is on the payroll sheets.",
             puncte: [
-              "An owner-level threshold, not a manager one: it needs the „all” scope",
+              "Only someone with access to the whole company sees them, not a team manager",
               "Excel export, with the same figures as on screen",
             ],
           },
@@ -401,17 +404,17 @@ export const EN: ContinutLanding = {
       {
         cod: "ORG",
         titlu: "Org chart",
-        text: "The reporting tree, visible even to someone whose rights cover only their own branch.",
+        text: "Who reports to whom. Even a manager with access only to their own branch can see it.",
       },
       {
         cod: "XLS",
         titlu: "Employee import from Excel",
-        text: "Column mapping, row-by-row validation, batch application, and a CSV report listing every rejected row with its reason.",
+        text: "Column matching, a check on every row, import in batches, and a CSV report of every rejected row with its reason.",
       },
       {
         cod: "DOC",
         titlu: "Documents from templates",
-        text: "Employment contract, job description and three certificates, with series numbering, a checksum and a verification code.",
+        text: "Employment contract, job description and three certificates, with series numbering and a verification code. Any later change to the text can be proven.",
       },
       {
         cod: "CAEN",
@@ -421,7 +424,7 @@ export const EN: ContinutLanding = {
       {
         cod: "REV",
         titlu: "REVISAL event register",
-        text: "Ten event types, each with a deadline computed from your configuration and a state of on time / today / overdue.",
+        text: "Ten event types, each with a deadline worked out from your company settings and a status of on time / today / overdue.",
       },
       {
         cod: "RPT",
@@ -436,7 +439,7 @@ export const EN: ContinutLanding = {
       {
         cod: "AUD",
         titlu: "Audit log, with export",
-        text: "Who, when, from which address, what changed. Exportable to CSV, with protection against formula injection.",
+        text: "Who, when, from which address, what changed. Downloads as CSV and opens in Excel without hidden formulas.",
       },
     ],
   },
@@ -444,12 +447,12 @@ export const EN: ContinutLanding = {
   pontaj: {
     supratitlu: "How hours reach the system",
     titlu: "Six ways that work today. Four we do not have yet.",
-    lead: "We draw them differently so you cannot confuse them. What is solid exists and can be shown in a walkthrough. What is hatched does not exist — not even as a column in the database.",
+    lead: "We draw them differently so you cannot confuse them. What is solid exists and can be shown in a walkthrough. What is hatched does not exist — not even half-built.",
     livrateTitlu: "Works today",
     livrate: [
       {
         titlu: "One-tap clock-in from the phone",
-        text: "From the employee portal, in the browser: one button that confirms the usual day, or two — “I'm in” and “I'm out”. The time recorded is the server's, not the phone's.",
+        text: "From the employee portal, in the browser: one button that confirms the usual day, or two — “I’m in” and “I’m out”. The time recorded is the official time, not the one shown on the phone.",
         detaliu: "The company picks the mode: confirm, clock, or both",
       },
       {
@@ -459,8 +462,8 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "The monthly sheet",
-        text: "A day × employee grid. You enter start and end times, and the hours are computed as an editable suggestion.",
-        detaliu: "One row per day per person, uniqueness enforced in the database",
+        text: "A day × employee grid. You enter start and end times, and the hours are worked out for you, and can be corrected.",
+        detaliu: "One row per day per person: the same day cannot be entered twice",
       },
       {
         titlu: "The week plan",
@@ -470,11 +473,11 @@ export const EN: ContinutLanding = {
       {
         titlu: "Sync from leave",
         text: "Approved leave becomes a leave day on the sheet, without anyone retyping anything.",
-        detaliu: "Idempotent: ten runs have the effect of one",
+        detaliu: "Ten runs have the effect of one: nothing is counted twice",
       },
       {
         titlu: "Import and lock",
-        text: "The period opens, is filled in, is approved per department, and locks. After locking, nothing can be written.",
+        text: "The period opens, is filled in, is approved per department, and locks. After locking, nothing more can be entered.",
         detaliu: "Three states: open, in approval, locked",
       },
     ],
@@ -492,11 +495,11 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "Geolocation tied to the work site",
-        text: "Clock-ins accepted only within range of the declared work site, with a configurable tolerance.",
+        text: "Clock-ins accepted only within range of the declared work site, with a distance margin chosen by the company.",
       },
       {
         titlu: "Face recognition at a kiosk",
-        text: "Verification at a fixed terminal. Face descriptors are biometric data: they require explicit consent, an impact assessment and encryption.",
+        text: "Verification at a fixed terminal. Face measurements are biometric data: they require explicit consent, an impact assessment and encryption.",
       },
     ],
     notaViitoare:
@@ -507,7 +510,7 @@ export const EN: ContinutLanding = {
   fluxuri: {
     supratitlu: "Three routes",
     titlu: "What a month looks like, end to end",
-    lead: "Every step has a role that performs it. If the role lacks the right, the step does not happen — not from the interface, and not from anywhere else.",
+    lead: "Every step is done by a particular person. If that person lacks the right, the step does not happen — not from the app, and not by any other route.",
     fluxuri: [
       {
         titlu: "From a day worked to the payslip",
@@ -523,7 +526,10 @@ export const EN: ContinutLanding = {
       {
         titlu: "From a leave request to the balance",
         pasi: [
-          { actor: "employee", text: "Requests leave, with the days consumed shown up front" },
+          {
+            actor: "employee",
+            text: "Requests leave and sees straight away how many days it uses",
+          },
           { actor: "automatic", text: "Checks the balance and overlaps with other requests" },
           { actor: "manager", text: "Approves or rejects, with a reason" },
           {
@@ -535,7 +541,7 @@ export const EN: ContinutLanding = {
       {
         titlu: "From a new hire to a complete file",
         pasi: [
-          { actor: "hr", text: "Walks the six-step enrolment wizard" },
+          { actor: "hr", text: "Goes through the six-step new-hire form" },
           { actor: "automatic", text: "Generates the contract and job description from templates" },
           { actor: "automatic", text: "Opens the REVISAL event, with its deadline" },
           { actor: "hr", text: "Starts the onboarding checklist" },
@@ -547,14 +553,14 @@ export const EN: ContinutLanding = {
 
   roluri: {
     supratitlu: "Who sees what",
-    titlu: "Rights are data, not code. And you can read them.",
-    lead: "The table below is each role's read scope, exactly as it is seeded in the database. A test in continuous integration compares every cell against that source: if the database changes, the page fails before it can lie.",
-    capResursa: "Resource",
+    titlu: "You set the rights yourself. And you can read them here.",
+    lead: "The table below shows what each role can see, exactly as it comes set up in the app. We check it automatically, cell by cell: if the rules in the app change, the check stops us before this page can say anything different.",
+    capResursa: "Data",
     note: [
-      "An employee sees their own personnel file and nobody else's. Their personal ID number and IBAN stay closed even to them: those need read access across the whole company, not on one's own row.",
-      "A manager approves their team's attendance and clocks their own days, but cannot write anyone else's. The team sheet stays read-only for them.",
-      "A manager has an EXPLICIT refusal on payroll, not a missing row. An administrator can grant the right for their own company, without a new release.",
-      "HR fully administers health and safety, but has no right over compliance due dates: the list comes back empty, with no error at all. It is a real limit, and we would rather you learned it here.",
+      "An employee sees their own personnel file and nobody else's. Their personal ID number and IBAN stay closed even to them: only someone with access to data across the whole company can see them.",
+      "A manager approves their team's attendance and clocks their own days, but cannot fill in days for anyone else. They can only read the team sheet.",
+      "A manager has no access to payroll: that is a decision, not an oversight. The company administrator can give them access from within the app, without waiting for us.",
+      "HR fully administers health and safety, but has no access to compliance due dates: the list simply shows up empty, with no warning at all. It is a real limit, and we would rather you learned it here.",
     ],
     notaPlatforma:
       "There is also a platform administrator role, ours, used for enrolment and support. It is not a member of your organisation, and everything it does leaves a trace in the same log you can read.",
@@ -563,7 +569,7 @@ export const EN: ContinutLanding = {
   izolare: {
     supratitlu: "The barrier",
     titlu: "How the barrier is built, layer by layer",
-    lead: "Three of the layers below are convenience: they help people avoid locked doors. Only the fourth is a barrier — and it is the only one that answers the question “what happens if someone gets the code wrong?”.",
+    lead: "Three of the layers below are there for convenience: they help people avoid locked doors. Only the fourth is a barrier — and it is the only one that answers the question “what happens if we get something wrong in the app?”.",
     straturi: [
       {
         nume: "The menu",
@@ -574,27 +580,26 @@ export const EN: ContinutLanding = {
       {
         nume: "The page",
         rol: "convenience",
-        text: "Checks the permission before rendering. But a page does not protect a server action: they are separate entry points.",
+        text: "Checks that the person has the right before showing anything. But a page does not guard changes: those arrive by another route and are checked separately.",
         bariera: false,
       },
       {
-        nume: "The action",
+        nume: "The change",
         rol: "convenience",
-        text: "Every write declares its module, permission and scope, and checks them again at execution time.",
+        text: "Every save or approval checks again, on the spot: is the module on, does the person have the right, and over whom?",
         bariera: false,
       },
       {
-        nume: "Postgres",
+        nume: "The data itself",
         rol: "barrier",
-        text: "Row-level policies, forced even for the table owner. Company membership is recomputed on every request, from data, not from a cookie. A suspended company drops out of the list and access ends immediately.",
+        text: "Even if we get something wrong higher up, nobody receives data they may not see. Every click re-checks which company the person belongs to, rather than trusting the browser. A suspended company drops out of the list and access ends immediately. For your IT person: Postgres row-level security, forced even for the table owner.",
         bariera: true,
       },
     ],
     vinieta: {
       titlu: "Attendance — the same page, seen by a manager",
-      politica: "attendance_select",
       contor: "{ascunse} of {total} rows are not shown",
-      nota: "The missing rows are not hidden by the interface. The database never sent them. Same page, different person, different rows.",
+      nota: "The missing rows are not just hidden from the screen: they never reach the manager at all. Same page, different person, different rows.",
       randuri: ["Popa I.", "Ilie M.", "Radu A.", "Marin D.", "Vlad C.", "Toma S."],
       ascunse: 4,
     },
@@ -602,29 +607,29 @@ export const EN: ContinutLanding = {
   },
 
   conformitate: {
-    supratitlu: "Romania, not “localisation”",
-    titlu: "Local rules are in the product, not in a translation file",
-    lead: "An international ERP translated into Romanian asks you to adapt. What follows is written for how a company here actually operates.",
+    supratitlu: "Made for Romania",
+    titlu: "Romanian rules are built into the product, not just translated",
+    lead: "Foreign software, translated into Romanian, expects you to adapt to it. What follows is written for how a company here actually operates.",
     carduri: [
       {
         titlu: "Public holidays, computed",
-        text: "Seventeen days: the fixed ones from the Labour Code and the movable ones derived from Orthodox Easter. The timesheet on the home page is fed by that very function.",
+        text: "Seventeen days: the fixed ones from the Labour Code and the movable ones derived from Orthodox Easter. The timesheet on the home page uses this very calculation.",
         temei: "Labour Code, art. 139",
       },
       {
         titlu: "CAEN Rev. 3, complete",
-        text: "Six hundred and fifty-one activity classes, checked against the official list. Composition rules differ by legal form: a sole trader may hold at most four secondary codes, others more, and a start-up SRL-D has forbidden domains.",
+        text: "Six hundred and fifty-one activity classes, checked against the official list. The rules differ by legal form: a sole trader may hold at most four secondary codes, other forms more, and a start-up SRL-D is barred from certain fields of activity.",
         temei: "Law 31/1990, GEO 44/2008",
       },
       {
         titlu: "Tax ID with a control digit",
-        text: "The company tax number is validated with the official weights, not merely by length. A typo is caught on entry, not at the first filing.",
+        text: "The company tax number is checked with the official control-digit calculation, not merely by its length. A typo is caught on entry, not at the first filing.",
         temei: "",
       },
       {
         titlu: "Per diem in 24-hour windows",
-        text: "Windows run from the hour of departure, not from midnight, and a border-crossing day is paid once, to one country. The tax-free ceiling splits the amount rather than blocking it.",
-        temei: "Structure of GD 518/1995, loaded as data",
+        text: "The 24 hours count from the time of departure, not from midnight, and the day a border is crossed is paid once, for one country. Above the tax-free ceiling nothing is refused: only the excess is taxed.",
+        temei: "Structure of GD 518/1995, built into the app",
       },
       {
         titlu: "Safety, with a legal basis on every deadline",
@@ -633,7 +638,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "Personal data encrypted",
-        text: "National ID numbers and bank accounts are written encrypted and read only through a path that leaves an audit row on every disclosure. The key can be rotated without re-encrypting the database.",
+        text: "National ID numbers and bank accounts are stored encrypted, and every time someone opens them a trace is left in the log. The encryption key can be changed, like a password, without re-encrypting all the data.",
         temei: "AES-256-GCM",
       },
     ],
@@ -646,13 +651,14 @@ export const EN: ContinutLanding = {
       },
       {
         ce: "Audit log",
-        regula: "Appended to, never rewritten; kept as long as the law requires, as evidence",
+        regula:
+          "Only ever added to, never rewritten; kept as long as the law requires, as evidence",
       },
       { ce: "Walkthrough requests", regula: "Used only to contact you about that request" },
-      { ce: "Sensitive data", regula: "Encrypted, with a trace on every read" },
+      { ce: "Sensitive data", regula: "Encrypted, with a trace every time they are viewed" },
       {
         ce: "When an employee leaves",
-        regula: "Logical deletion, trace preserved; nothing disappears silently",
+        regula: "Taken off the lists, trace kept; nothing disappears quietly",
       },
     ],
     retentieNota:
@@ -670,23 +676,23 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "No integration with the tax authority or e-invoicing",
-        text: "Zero lines of code. The data structure is ready for a future transmission, but the transmission does not exist.",
+        text: "We have built nothing for this. The data is kept so that sending could be added later, but today nothing is sent.",
       },
       {
         titlu: "Data carrying a national ID does not reach REGES without a person",
-        text: "Filing with REGES-ONLINE happens over the API, from the application, using the access your company obtains from the Labour Inspectorate portal. Messages are prepared from the employee record. Those carrying an employee's national ID number wait in a queue until someone with the right to file sends them, and every read of that number is logged; contract messages, which hold no personal data, can also leave from the automatic sending cycle. We do not generate a REVISAL file: REGES-ONLINE replaced it.",
+        text: "The app files directly with REGES-ONLINE, using the access your company obtains from the Labour Inspectorate portal. Messages are prepared from the employee record. Those carrying an employee's national ID number wait in a queue until someone with the right to file sends them, and every time that number is viewed, it is logged; contract messages, which hold no personal data, can also go out automatically, without anyone sending them. We do not generate a REVISAL file: REGES-ONLINE replaced it.",
       },
       {
         titlu: "The AI assistant shows you the way, it does not do the work",
-        text: "It answers \u201cwhere do I do X?\u201d and takes you there. It files nothing, approves nothing, deletes nothing \u2014 you press. It gives no legal or tax advice. It can be wrong in an explanation, but it cannot send you to a screen you may not open. Your question goes to an external model provider (OpenRouter) to be answered; data from personnel records leaves only if you ask about it. The module can be switched off entirely, per company.",
+        text: "It answers \u201cwhere do I do X?\u201d and takes you there. It files nothing, approves nothing, deletes nothing \u2014 you press. It gives no legal or tax advice. It can be wrong in an explanation, but it cannot send you to a screen you may not open. Your question goes to an outside AI provider (OpenRouter) to be answered; data from personnel records leaves only if you ask about it. The module can be switched off entirely, company by company.",
       },
       {
-        titlu: "The PDF is a rendering of the issued document, not a second document",
-        text: "The document of record is the row in the database: it carries the number allocated on its series, the SHA-256 fingerprint and the verification code. The PDF is composed from it, on the server. A PDF built separately from the same data would be a second source of truth — two papers with the same number, whose agreement nobody guarantees.",
+        titlu: "The PDF shows the issued document; it is not a second document",
+        text: "The document of record is the one registered in the app: it carries the number allocated on its series, the verification code and proof that its text has not been touched since it was issued. The PDF is generated from it, inside the app. A PDF built separately from the same data would be a second original — two papers with the same number, whose agreement nobody guarantees.",
       },
       {
         titlu: "Tax rates must be confirmed by your accountant",
-        text: "No rate, threshold or allowance is written into the code. All of them are configured for your company, with the date they take effect, and all are marked “to be verified” until someone accountable confirms them.",
+        text: "No rate, threshold or allowance is set in stone in the software. All of them are configured for your company, with the date they take effect, and all are marked “to be verified” until someone accountable confirms them.",
       },
       {
         titlu: "There is no native mobile app in the app stores",
@@ -704,7 +710,7 @@ export const EN: ContinutLanding = {
     domenii: [
       {
         titlu: "Construction and installations",
-        text: "Crews across sites and work points, safety briefings and protective equipment that expire, and a labour inspection that arrives unannounced. The sector minimum wage is a configured rate, not an exception to be coded.",
+        text: "Crews across sites and work points, safety briefings and protective equipment that expire, and a labour inspection that arrives unannounced. The sector minimum wage is a figure you set yourself, not something you have to ask us for.",
         module: ["Health and safety", "Attendance", "Fleet", "Inventory", "Travel"],
       },
       {
@@ -755,7 +761,7 @@ export const EN: ContinutLanding = {
       },
       {
         azi: "Contracts are typed over a 2019 template",
-        noi: "Generated from a template, numbered by series, with a checksum",
+        noi: "Generated from a template, numbered by series, with proof they have not been altered",
       },
       {
         azi: "Who changed this? Nobody knows any more",
@@ -763,7 +769,7 @@ export const EN: ContinutLanding = {
       },
       {
         azi: "Everyone sees the whole file",
-        noi: "Each role has its own scope, enforced in the database",
+        noi: "Everyone sees only their part, and there is no way round the rule",
       },
     ],
   },
@@ -782,7 +788,7 @@ export const EN: ContinutLanding = {
           "The employee portal on a phone, in Romanian: this month's pay, the clock-in button and a to-do list.",
         eticheta: "Time tracking · Labour Code art. 119",
         titlu: "Clocking in happens on the phone, with no app to install",
-        text: "People open an address in the browser and tap “clock in” and “clock out”. The time recorded is the server's, not the phone's. You can put a QR poster, printed from the app, at every work site, and require a scan before clocking in.",
+        text: "People open an address in the browser and tap “clock in” and “clock out”. The time recorded is the official time, not the one shown on their phone. You can put a QR poster, printed from the app, at every work site, and require a scan before clocking in.",
         puncte: [
           "The monthly attendance sheet fills itself from the clock-ins",
           "Overtime and night hours, counted separately",
@@ -809,7 +815,7 @@ export const EN: ContinutLanding = {
         descriereCaptura: "",
         eticheta: "REGES-ONLINE · formerly Revisal",
         titlu: "Contracts go to REGES-ONLINE straight from the app",
-        text: "Since 2026 the employee register is kept only in REGES-ONLINE, the Labour Inspectorate's system. Administrativo prepares the messages from each employee's file and sends them through the REGES API, with the legal deadline of every event counted in working days. The inspectorate's answer comes back to the person's file.",
+        text: "Since 2026 the employee register is kept only in REGES-ONLINE, the Labour Inspectorate's system. Administrativo prepares the messages from each employee's file and sends them straight into the register, with the legal deadline of every event counted in working days. The inspectorate's answer comes back to the person's file.",
         puncte: [
           "No import file carried around by hand",
           "Data with a personal ID number leaves only when a person with sending rights sends it",
@@ -866,7 +872,7 @@ export const EN: ContinutLanding = {
   pentruCine: {
     supratitlu: "Who it is for",
     titlu: "One account for the whole company. Everyone sees only what concerns them.",
-    lead: "Five roles, each with its own rights. A manager sees their team, an employee sees only what is theirs, and the rule lives in the database, not in a hidden menu.",
+    lead: "Five roles, each with its own rights. A manager sees their own team, an employee only what is theirs. It does not depend on a setting someone might forget.",
     roluri: [
       {
         cine: "The owner",
@@ -1019,31 +1025,31 @@ export const EN: ContinutLanding = {
       legatura: { eticheta: "Ask for a quote for your headcount", href: "/cere-demo" },
     },
     primaLuna:
-      "The first month is free, for any configuration. No setup fee and no separately billed implementation.",
-    nota: "The three middle packages are parallel axes over the same core, not rungs: you switch on only the axis you need. The struck-through figure is what the same modules would cost bought one by one.",
+      "The first month is free, whichever modules you choose. No setup fee and no separately billed implementation.",
+    nota: "The three middle packages are not rungs: each covers a different part of the company, on top of the same core, and you switch on only the one you need. The struck-through figure is what the same modules would cost bought one by one.",
     legaturaPagina: { eticheta: "See the price of each module", href: "/preturi" },
   },
 
   siguranta: {
     supratitlu: "Your people's data",
     titlu: "ID numbers, salaries, sick leave. We treat them accordingly.",
-    lead: "An HR system holds a company's most sensitive data. In short, here is how we keep it — the long version, with the whole mechanism, is on the data isolation page.",
+    lead: "An HR system holds a company's most sensitive data. In short, here is how we keep it — the long version, with all the details, is on the data security page.",
     puncte: [
       {
-        titlu: "Separated by company, in the database",
-        text: "Not by a filter in the application: the database returns nothing from another company, not even to a query we got wrong.",
+        titlu: "Kept apart by company, not just hidden",
+        text: "Nobody from another company can see your data, not even if we got something wrong in the app.",
       },
       {
         titlu: "ID numbers and IBANs encrypted",
-        text: "Written encrypted and read only through a path that leaves a trace: who saw them, and when.",
+        text: "Stored encrypted, and anyone who opens them leaves a trace: a record of who saw them, and when.",
       },
       {
         titlu: "Every change, with a name and a time",
-        text: "Who changed what, and when. The log is appended to, never rewritten — not even by us.",
+        text: "Who changed what, and when. The log is only ever added to and cannot be rewritten — not even by us.",
       },
       {
         titlu: "In the European Union",
-        text: "The database and files are in Ireland, and the application server is in Germany.",
+        text: "The data and files are kept in Ireland, and the app is hosted in Germany.",
       },
     ],
     legatura: { eticheta: "How we keep data separate (in Romanian)", href: "/incredere" },
@@ -1052,7 +1058,7 @@ export const EN: ContinutLanding = {
   incepe: {
     supratitlu: "How to start",
     titlu: "The first timesheet, the same day",
-    lead: "Nothing to install and nothing to migrate. You create the account, upload the employee list from an Excel file and record the current month.",
+    lead: "Nothing to install, and no complicated moving of data. You create the account, upload the employee list from an Excel file and record the current month.",
     pasi: [
       {
         titlu: "Create your account",
@@ -1083,23 +1089,23 @@ export const EN: ContinutLanding = {
     intrebari: [
       {
         q: "What do I do with the spreadsheet I have now?",
-        a: "You upload it. You choose which of your columns means which of our fields, and validation runs row by row: the good ones go in, the broken ones come back in a file with the reason for each rejection. Nothing imports halfway and nothing is lost silently.",
+        a: "You upload it. You say which of your columns holds what, then every row is checked on its own: the good ones go in, and the faulty ones come back to you in a file, with the reason written next to each. Nothing is left half-imported, and nothing goes missing without you knowing.",
       },
       {
         q: "Can our data reach another company on the platform?",
-        a: "No, and the mechanism is not an application filter. Every query passes through row-level policies in Postgres, forced even for the table owner. Your membership is recomputed on each request from real data, not from a cookie. The check runs automatically on every code release.",
+        a: "No, and that does not rest on a filter someone could forget. Everything you open passes through the same rule, for every kind of data. Which company you belong to is checked each time from real data, not from your browser. Each new version is checked for this automatically before it reaches you. For your IT person: Postgres row-level policies, forced even for the table owner.",
       },
       {
         q: "My accountant sees everyone's salary. Can a manager?",
-        a: "No. Managers carry an explicit refusal on payroll — not a missing right, a written refusal. If you want to grant it, that is one line of configuration for your company, with no new code release. The table showing who sees what is on the modules page.",
+        a: "No. Managers are not merely missing the right: they are expressly barred from everything to do with payroll. If you want to grant it, that is one setting for your company alone, with no new version of the app. The table showing who sees what is on the modules page.",
       },
       {
         q: "What happens when an employee leaves?",
-        a: "Nothing is deleted inside the application, not by your administrator and not by ours: the record is marked as closed and stays in the history. The guarantee lives in the database, not behind a hidden button: there is no deletion policy on any company data, so a delete command coming from the application touches no row. We delete data permanently only after your contract with us ends, within the terms set out in the Terms of service.",
+        a: "Nothing is deleted inside the application, not by your administrator and not by ours: the record is marked as closed and stays in the history. And it is not a matter of hiding a button: deleting is simply not allowed on any company data, so a delete command coming from the app makes nothing disappear. We delete data permanently only after your contract with us ends, within the terms set out in the Terms of service.",
       },
       {
         q: "Does it replace the accountant?",
-        a: "No, and you should not want it to. We calculate and keep records; the filings and the liability stay with your accountant. They confirm the rates, and the application marks that explicitly until they do.",
+        a: "No, and you should not want it to. We calculate and keep records; the filings and the liability stay with your accountant. They confirm the rates, and until they do, the app clearly marks them as unconfirmed.",
       },
       {
         q: "Does it work on a phone?",
@@ -1111,11 +1117,11 @@ export const EN: ContinutLanding = {
       },
       {
         q: "Who on your side can see our data?",
-        a: "A platform administrator role, used for enrolment and support. It is not a member of your company, and everything it does leaves a trace in the same log you can read. National ID numbers and bank accounts are encrypted, and every disclosure writes an audit row.",
+        a: "A platform administrator role, ours, used to set up your account and for support. It is not a member of your company, and everything it does leaves a trace in the same log you can read. National ID numbers and bank accounts are encrypted, and every viewing is recorded in the log.",
       },
       {
         q: "Can we change a role's rights?",
-        a: "Yes. The permission matrix is data, not code: your company's row overrides the global rule, including when you want to forbid something that is allowed by default. It does not require a new version of the application.",
+        a: "Yes. The rights of a role can be changed for your company alone, without a new version of the app. The setting for your company overrides the usual rule, even when you want to forbid something that is normally allowed.",
       },
       {
         q: "How long until we are actually working in it?",
@@ -1189,7 +1195,7 @@ export const EN: ContinutLanding = {
 
   subsol: {
     descriere:
-      "Administrativo — attendance, leave, payroll, health and safety, fleet and inventory for companies in Romania. Every company has its own data space, its own roles, and only the modules it needs.",
+      "Administrativo — attendance, leave, payroll, health and safety, fleet and inventory for companies in Romania. Every company has its own data, kept apart from other companies, its own roles, and only the modules it needs.",
     coloane: [
       {
         titlu: "Product",
@@ -1228,7 +1234,7 @@ export const EN: ContinutLanding = {
     contactTitlu: "Contact",
     copyright: "All rights reserved.",
     notaDiacritice:
-      "We write Romanian ș and ț with a comma below, not a cedilla. It is the correct form, and it is checked automatically on every release.",
+      "We write Romanian ș and ț with a comma below, not a cedilla. It is the correct form, and we check it automatically every time the site is updated.",
     creditVideo:
       "Homepage video: “Office Stock Footage” from the Free Stock Footage 4K YouTube channel, Creative Commons Attribution licence.",
   },
@@ -1243,8 +1249,8 @@ export const EN: ContinutLanding = {
     },
     incredere: {
       supratitlu: "Where the barrier sits",
-      titlu: "One company's data never reaches another. The rule lives in Postgres.",
-      lead: "Not in the menu, not in an application filter. Below: where the barrier actually sits, what happens when a write breaks it, and how long we keep each kind of data.",
+      titlu: "One company's data never reaches another. Not even by mistake.",
+      lead: "It is not about hidden buttons, nor about a setting someone might forget. Below: what keeps the data apart, what happens when someone tries to change data they may not touch, and how long we keep each kind of data.",
     },
     deCeNu: {
       supratitlu: "Before you ask",
@@ -1265,7 +1271,7 @@ export const EN: ContinutLanding = {
     pentruContabili: {
       supratitlu: "For accountants",
       titlu: "One account, every company you keep",
-      lead: "An accountant is not one more user of one company, but the same person in ten companies at once. The application is built on memberships, not on separate accounts: you sign in once and switch between clients from a menu.",
+      lead: "An accountant is not one more user of one company, but the same person in ten companies at once. That is why you do not need a separate account for each company: you sign in once and switch between clients from a menu.",
     },
     pontajTelefon: {
       supratitlu: "Clocking in by phone",

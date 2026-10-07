@@ -1,6 +1,8 @@
 import "server-only";
 
-import { rgb, type PDFFont } from "pdf-lib";
+import { PDFName, PDFString, rgb, type PDFFont } from "pdf-lib";
+
+import { ADRESA_SITE } from "@/content/landing/contact";
 
 import {
   GRI,
@@ -12,7 +14,12 @@ import {
   pornesteDocument,
 } from "@/lib/pdf/document";
 
-import { LINIE_GOALA, type DocumentTabelar } from "./document-tabelar";
+import {
+  adresaDinFisier,
+  LINIE_GOALA,
+  SEMNATURA_FISIER,
+  type DocumentTabelar,
+} from "./document-tabelar";
 
 /**
  * `DocumentTabelar` → PDF.
@@ -193,13 +200,31 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
     y -= 20;
   }
 
-  pagina.drawText("Generat gratuit cu administrativo.ro", {
+  pagina.drawText(SEMNATURA_FISIER, {
     x: MARGINE,
     y: MARGINE / 2,
     size: 7,
     font: fonturi.normal,
     color: GRI,
   });
+  // Textul devine clicabil printr-o adnotare `Link` cu acțiune `URI`, întinsă
+  // exact peste el. `pdf-lib` n-are un API pentru legături; dicționarul e cel
+  // din specificația PDF (ISO 32000, 12.5.6.5).
+  const latimeText = fonturi.normal.widthOfTextAtSize(SEMNATURA_FISIER, 7);
+  const legatura = doc.context.register(
+    doc.context.obj({
+      Type: "Annot",
+      Subtype: "Link",
+      Rect: [MARGINE, MARGINE / 2 - 2, MARGINE + latimeText, MARGINE / 2 + 8],
+      Border: [0, 0, 0],
+      A: {
+        Type: "Action",
+        S: "URI",
+        URI: PDFString.of(adresaDinFisier(d, "pdf", ADRESA_SITE)),
+      },
+    }),
+  );
+  pagina.node.set(PDFName.of("Annots"), doc.context.obj([legatura]));
 
   return doc.save();
 }

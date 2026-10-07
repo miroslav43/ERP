@@ -55,6 +55,49 @@ describe("proxy", () => {
 });
 
 /**
+ * Slugurile necunoscute ale celor două rute prerandate.
+ *
+ * Fiecare `/module/<orice>` randa o dată 404-ul și îl lăsa pe disc, ~1 MB, până
+ * la deploy-ul următor (auditul din 7 oct 2026). Acum se rescriu spre o cale fără
+ * rută, înainte de pagină și fără să coste o verificare de sesiune.
+ */
+describe("proxy — sluguri necunoscute", () => {
+  beforeEach(() => {
+    updateSession.mockReset();
+    updateSession.mockResolvedValue({ response: NextResponse.next(), autentificat: false });
+  });
+
+  it("rescrie un modul inexistent spre 404, fără să atingă pagina", async () => {
+    const raspuns = await proxy(cerere("/module/zz-q7x-test"));
+    expect(raspuns.headers.get("x-middleware-rewrite")).toMatch(/\/__adresa-necunoscuta$/);
+    expect(updateSession).not.toHaveBeenCalled();
+  });
+
+  it("rescrie un domeniu inexistent, dar lasă în pace domeniile și modulele reale", async () => {
+    expect(
+      (await proxy(cerere("/domenii/zz-q7x"))).headers.get("x-middleware-rewrite"),
+    ).toBeTruthy();
+    for (const cale of [
+      "/module/pontaj",
+      "/module/portal-angajat",
+      "/domenii/constructii",
+      "/module",
+      "/domenii",
+    ]) {
+      expect((await proxy(cerere(cale))).headers.get("x-middleware-rewrite"), cale).toBeNull();
+    }
+  });
+
+  it("domeniile scrise în proxy sunt exact cele din conținut", async () => {
+    const { SLUGURI_CUNOSCUTE } = await import("./proxy");
+    const { DOMENII } = await import("@/content/landing/domenii");
+    expect([...(SLUGURI_CUNOSCUTE["domenii"] ?? [])].sort()).toEqual(
+      DOMENII.map((d) => d.slug).sort(),
+    );
+  });
+});
+
+/**
  * Vizitatorul nelogat: cine primește ecranul de autentificare și cine nu.
  *
  * Până la 17 sept 2026 orice cale nepublică primea 307 spre `/autentificare`,

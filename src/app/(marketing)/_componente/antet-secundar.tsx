@@ -37,6 +37,47 @@ import { type Firimitura, nodFirimituri } from "./noduri-json-ld";
  * omul. Se trimit doar când pagina are un părinte real — ultimul element e
  * pagina însăși și nu e legătură.
  */
+/**
+ * Traseul vizibil și `BreadcrumbList`, din același tablou. Separat de antet ca
+ * să-l poată pune și paginile care își desenează singure capul — legale,
+ * `/cere-demo`, `/preturi` (auditul din 7 oct 2026: 11 pagini fără traseu, iar
+ * `/preturi` avea `BreadcrumbList` fără nimic vizibil).
+ */
+export function Firimituri({
+  firimituri,
+  clasa = "mb-6",
+}: {
+  firimituri: readonly Firimitura[];
+  clasa?: string;
+}) {
+  return (
+    <>
+      <JsonLd date={nodFirimituri(firimituri)} />
+      <nav aria-label="Firimituri" className={clasa}>
+        <ol className="text-mk-text-slab flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem]">
+          {firimituri.map((f, index) => {
+            const ultima = index === firimituri.length - 1;
+            return (
+              <li key={f.href} className="flex items-center gap-2">
+                {ultima ? (
+                  <span aria-current="page">{f.eticheta}</span>
+                ) : (
+                  <>
+                    <Link href={f.href} className="underline-offset-4 hover:underline">
+                      {f.eticheta}
+                    </Link>
+                    <span aria-hidden="true">/</span>
+                  </>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+    </>
+  );
+}
+
 export function AntetSecundar({
   text,
   cta = RO.hero.ctaPrimar,
@@ -48,31 +89,8 @@ export function AntetSecundar({
 }) {
   return (
     <section className="bg-mk-hartie text-mk-text">
-      {firimituri !== undefined && <JsonLd date={nodFirimituri(firimituri)} />}
       <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-12 sm:pt-24">
-        {firimituri !== undefined && (
-          <nav aria-label="Firimituri" className="mb-6">
-            <ol className="text-mk-text-slab flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem]">
-              {firimituri.map((f, index) => {
-                const ultima = index === firimituri.length - 1;
-                return (
-                  <li key={f.href} className="flex items-center gap-2">
-                    {ultima ? (
-                      <span aria-current="page">{f.eticheta}</span>
-                    ) : (
-                      <>
-                        <Link href={f.href} className="underline-offset-4 hover:underline">
-                          {f.eticheta}
-                        </Link>
-                        <span aria-hidden="true">/</span>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          </nav>
-        )}
+        {firimituri !== undefined && <Firimituri firimituri={firimituri} />}
         <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
           {text.supratitlu}
         </p>

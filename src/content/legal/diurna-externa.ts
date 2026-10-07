@@ -105,6 +105,24 @@ export const DIURNA_EXTERNA: PaginaLege = {
   tabel: {
     titlu: "Cuantumul pe țări și plafonul neimpozabil",
     coloane: ["Țara", "Moneda", "Diurna pe zi (HG 518/1995)", "Plafon neimpozabil (2,5 ×)"],
+    // Destinațiile frecvente ale firmelor românești, deasupra a 166 de rânduri:
+    // fără ele, Germania stă la jumătatea unei liste lungi pe telefon.
+    saltLa: [
+      "Germania",
+      "Italia",
+      "Franța",
+      "Spania",
+      "Austria",
+      "Olanda",
+      "Belgia",
+      "Ungaria",
+      "Bulgaria",
+      "Polonia",
+      "Cehia (Republica)",
+      "Anglia (Regatul Unit al Marii Britanii și Irlandei de Nord)",
+      "Moldova",
+      "Grecia",
+    ],
     randuri: DIURNA_EXTERNA_TARI.map((t) => [
       t.tara,
       t.moneda,

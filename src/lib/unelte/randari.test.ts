@@ -113,3 +113,42 @@ describe("răspunsul HTTP", () => {
     );
   });
 });
+
+/**
+ * Rândul de jos al fișierului duce înapoi la unealtă. Fișierele se trimit mai
+ * departe și se reîncarcă în alte firme; ca text simplu, rândul nu aducea pe
+ * nimeni înapoi (auditul din 7 oct 2026).
+ */
+describe("legătura din subsolul fișierului", () => {
+  const CU_SURSA: DocumentTabelar = { ...DOC, sursa: "/unelte/foaie-de-parcurs" };
+  const TINTA = /\/unelte\/foaie-de-parcurs\?utm_source=fisier&(amp;)?utm_medium=/;
+
+  it("PDF: adnotare URI peste text", async () => {
+    const pdf = await PDFDocument.load(await randeazaPdf(CU_SURSA));
+    const text = new TextDecoder("latin1").decode(await pdf.save({ useObjectStreams: false }));
+    expect(text).toMatch(/\/Subtype \/Link/);
+    expect(text).toMatch(/\/S \/URI/);
+    expect(text).toMatch(TINTA);
+  });
+
+  it("Word: hyperlink extern", async () => {
+    const zip = await JSZip.loadAsync(await randeazaDocx(CU_SURSA));
+    const relatii = (await zip.file("word/_rels/document.xml.rels")?.async("string")) ?? "";
+    expect(relatii).toMatch(TINTA);
+    expect((await zip.file("word/document.xml")?.async("string")) ?? "").toMatch(/<w:hyperlink/);
+  });
+
+  it("Excel: celulă cu legătură și titlul documentului", async () => {
+    const zip = await JSZip.loadAsync(await randeazaXlsx(CU_SURSA));
+    const relatii = Object.keys(zip.files).filter((f) => f.includes("worksheets/_rels/"));
+    const continut = await Promise.all(relatii.map((f) => zip.file(f)?.async("string")));
+    expect(continut.join(" ")).toMatch(TINTA);
+    expect((await zip.file("docProps/core.xml")?.async("string")) ?? "").toContain(DOC.titlu);
+  });
+
+  it("fără sursă, duce la lista uneltelor", async () => {
+    const zip = await JSZip.loadAsync(await randeazaDocx(DOC));
+    const relatii = (await zip.file("word/_rels/document.xml.rels")?.async("string")) ?? "";
+    expect(relatii).toMatch(/\/unelte\?utm_source=fisier/);
+  });
+});

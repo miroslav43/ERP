@@ -87,7 +87,7 @@ const PROFILE = {
     cont: "demo_orgadmin@gmail.com",
     viewport: { width: 1440, height: 900 },
     scale: 2,
-    latimi: [960, 1920],
+    latimi: [960, 1440, 1920],
   },
   telefon: {
     cont: "demo_employee@gmail.com",

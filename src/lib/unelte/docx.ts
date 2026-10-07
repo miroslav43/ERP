@@ -1,5 +1,6 @@
 import {
   Document,
+  ExternalHyperlink,
   Packer,
   PageOrientation,
   Paragraph,
@@ -11,7 +12,14 @@ import {
   WidthType,
 } from "docx";
 
-import { LINIE_GOALA, type DocumentTabelar } from "./document-tabelar";
+import { ADRESA_SITE } from "@/content/landing/contact";
+
+import {
+  adresaDinFisier,
+  LINIE_GOALA,
+  SEMNATURA_FISIER,
+  type DocumentTabelar,
+} from "./document-tabelar";
 
 /** `DocumentTabelar` → .docx. Mărimile în `docx` sunt în jumătăți de punct: 16 = 8 pt. */
 export async function randeazaDocx(d: DocumentTabelar): Promise<Uint8Array> {
@@ -78,7 +86,18 @@ export async function randeazaDocx(d: DocumentTabelar): Promise<Uint8Array> {
       }),
     );
   }
-  copii.push(paragraf("Generat gratuit cu administrativo.ro", { size: 14, color: "6B7280" }));
+  copii.push(
+    new Paragraph({
+      children: [
+        new ExternalHyperlink({
+          link: adresaDinFisier(d, "docx", ADRESA_SITE),
+          children: [
+            new TextRun({ text: SEMNATURA_FISIER, size: 14, color: "6B7280", underline: {} }),
+          ],
+        }),
+      ],
+    }),
+  );
 
   const document = new Document({
     creator: "Administrativo",

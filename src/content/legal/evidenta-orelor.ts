@@ -139,8 +139,8 @@ export const EVIDENTA_ORELOR: PaginaLege = {
       titlu: "Ce nu rezolvă un fișier",
       paragrafe: [
         "Un tabel ținut corect satisface litera legii. Problema apare la partea a doua a obligației: „să supună controlului această evidență, ori de câte ori se solicită”.",
-        "Ce se cere atunci nu e foaia, ci încrederea în ea. Un fișier de calcul păstrează ultima stare, nu drumul până la ea — nu poate arăta cine a schimbat o oră, când, și ce scria înainte. Într-un control care merge înapoi șase luni, asta e diferența dintre o evidență și o afirmație.",
-        "În Administrativo, fiecare zi de pontaj reține ora de început și ora de sfârșit, iar fiecare modificare lasă cine și când. Foaia lunii se tipărește ca o foaie colectivă de prezență obișnuită și se exportă în format de calcul pentru contabil.",
+        "Ce se cere atunci nu e foaia, ci încrederea în ea. Un fișier Excel obișnuit păstrează doar ce scrie în el acum, nu și drumul până acolo — nu poate arăta cine a schimbat o oră, când, și ce scria înainte. Într-un control care merge înapoi șase luni, asta e diferența dintre o evidență și o afirmație.",
+        "În Administrativo, fiecare zi de pontaj are ora de început și ora de sfârșit, iar la fiecare modificare rămâne scris cine a făcut-o și când. Foaia lunii se tipărește ca o foaie colectivă de prezență obișnuită și se descarcă în Excel pentru contabil.",
       ],
     },
   ],

@@ -9,6 +9,7 @@ import {
   normalizeazaOre,
 } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie";
 import { foaieCaDocument } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie-document";
+import { ADRESA_SITE } from "@/content/landing/contact";
 import type { Format } from "@/lib/unelte/document-tabelar";
 import { raspunsDocument } from "@/lib/unelte/raspuns";
 
@@ -62,7 +63,9 @@ export async function GET(cerere: NextRequest): Promise<Response> {
   const foaie = construiesteFoaie(an, luna, angajati, oreZi);
 
   const format = normalizeazaFormatFoaie(q.get("format"));
-  if (format !== "xlsx") return raspunsDocument(foaieCaDocument(foaie), format);
+  if (format !== "xlsx") {
+    return raspunsDocument({ ...foaieCaDocument(foaie), sursa: "/unelte/foaie-de-pontaj" }, format);
+  }
 
   const registru = new ExcelJS.Workbook();
   registru.creator = "Administrativo";
@@ -168,7 +171,14 @@ export async function GET(cerere: NextRequest): Promise<Response> {
         .map((z) => `${z.zi} ${z.sarbatoare ?? ""}`)
         .join("; ") || "niciuna"),
   ]);
-  fila.addRow(["Generat cu administrativo.ro/unelte/foaie-de-pontaj"]);
+  // Rândul de jos duce înapoi la unealtă, ca în celelalte fișiere (auditul din 7 oct 2026).
+  const semnatura = fila.addRow([
+    {
+      text: "Generat cu administrativo.ro/unelte/foaie-de-pontaj",
+      hyperlink: `${ADRESA_SITE}/unelte/foaie-de-pontaj?utm_source=fisier&utm_medium=xlsx&utm_campaign=unelte`,
+    },
+  ]);
+  semnatura.getCell(1).font = { color: { argb: "FF6B7280" }, underline: true };
   legenda.height = 8;
 
   const continut = await registru.xlsx.writeBuffer();

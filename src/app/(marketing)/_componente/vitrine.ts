@@ -34,16 +34,22 @@
  * doar ca să existe e zgomot.
  */
 /**
- * Fiecare captură există în DOUĂ lățimi, generate din același PNG de 2880px.
+ * Fiecare captură există în TREI lățimi, generate din același PNG de 2880px.
+ *
+ * 1440 a venit pe 7 oct 2026: un telefon cu densitate 3 (390 px × 3) cere ~1080 px
+ * de imagine, iar cu doar 960 și 1920 în `srcset` lua varianta de 1920 — iar pe
+ * paginile de modul captura e chiar elementul LCP. Primele 1440 au fost
+ * derivate din 1920 (aceeași calitate 80); la următoarea rulare a
+ * `scripts/capturi/capturi.mjs` ies din PNG, ca celelalte.
  *
  * Nu e micro-optimizare: pe telefon, slotul are sub 400px, iar o imagine de
  * 1920px acolo e de două ori și jumătate mai grea degeaba, pe o pagină de
  * conversie unde LCP-ul contează. `next/image` ar fi rezolvat-o singur, dar ar
  * fi adus optimizatorul de imagini al lui Next în joc pentru fișiere DEJA
  * optimizate, într-un deployment `standalone` — cost de rulare pentru zero
- * câștig. Două fișiere pe disc și un `srcset` fac același lucru, static.
+ * câștig. Trei fișiere pe disc și un `srcset` fac același lucru, static.
  */
-const LATIMI = [960, 1920] as const;
+const LATIMI = [960, 1440, 1920] as const;
 
 /** Dimensiunile variantei mari. Aceleași pentru toate capturile: 1440×900 la 2×, redus la 1920. */
 export const LATIME_CAPTURA = 1920;
@@ -65,8 +71,9 @@ const NOTE: Readonly<Record<string, string>> = {
     "Aici se vede foaia lunară; modulul mai are planul săptămânii, aprobarea pe departament și blocarea lunii.",
   leave:
     "Aici se vede calendarul de echipă pe o lună; modulul are treisprezece tipuri de concediu și încă patru ecrane.",
-  payroll: "Aici se vede o singură perioadă de salarizare, deja aprobată, cu livrabilele ei.",
-  rapoarte: "Aici se vede raportul anual agregat, construit din perioadele de salarizare închise.",
+  payroll:
+    "Aici se vede o singură perioadă de salarizare, deja aprobată, cu documentele care ies din ea.",
+  rapoarte: "Aici se vede raportul pe tot anul, adunat din perioadele de salarizare închise.",
   ssm: "Aici se vede matricea de instruiri; modulul mai acoperă medicina muncii, accidentele, stingătoarele, echipamentul individual și autorizațiile nominale.",
   fleet:
     "Aici se văd vehiculele cu documentul care expiră primul; modulul mai are foile de parcurs, alimentările și anomaliile de kilometraj.",
@@ -78,9 +85,9 @@ const NOTE: Readonly<Record<string, string>> = {
   courses:
     "Aici se văd cursurile firmei; modulul mai are biblioteca de materiale, atribuirea pe reguli și raportul de conformitate.",
   onboarding:
-    "Aici se văd parcursurile în derulare; modulul mai are șabloanele cu pași reordonabili și dovada printabilă a parcurgerii.",
+    "Aici se văd parcursurile în derulare; modulul mai are șabloanele cu pași în ordinea dorită și dovada parcurgerii, gata de tipărit.",
   evaluations:
-    "Aici se văd evaluările anuale; modulul mai are indicatorii lunari și constructorul de șabloane.",
+    "Aici se văd evaluările anuale; modulul mai are indicatorii lunari și șabloanele pe care ți le faci singur.",
   kpi: "Aici se vede o singură lună; indicatorii se urmăresc pe tot anul, cu ținta pusă pe funcție și ajustată pe om.",
   maintenance:
     "Aici se vede panoul; modulul mai are echipamentele, planurile pe contor, intervențiile și sesizările de defecțiune.",

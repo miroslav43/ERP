@@ -29,7 +29,10 @@ import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "./foaie-de-pontaj/foaie";
  * nouă — pe 18 sept 2026 a venit, cererea de concediu de odihnă.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Unelte gratuite: calculator salariu și modele HR",
+  // Nu „calculator salariu” în titlu: hub-ul concura cu propria pagină de
+  // calculator pe același termen (auditul din 7 oct 2026). Calculatorul rămâne
+  // în descriere și primul în listă.
+  titlu: "Unelte HR gratuite: modele Word, PDF și Excel",
   descriere:
     "Calculator de salariu net și brut, foaie de pontaj, condică de prezență, cerere de concediu, foaie de parcurs, fișe SSM și de evaluare. Gratuit, fără cont.",
   cale: "/unelte",

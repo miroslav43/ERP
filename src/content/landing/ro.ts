@@ -91,9 +91,9 @@ export const RO: ContinutLanding = {
     notaCodConcediu:
       "0 CO înseamnă zi de concediu de odihnă, zero ore prestate: concediul se plătește din indemnizație, nu din ore. De aceea celula arată și cifra, ca adunarea să iasă.",
     notaSubset:
-      "SUP și NPT sunt din care, nu în plus — orele lucrate le includ deja. Aceeași regulă e scrisă ca restricție în baza de date.",
+      "SUP și NPT sunt din care, nu în plus — orele lucrate le includ deja. Aplicația nici nu primește o zi cu mai multe ore SUP sau NPT decât ore lucrate.",
     notaNorma:
-      "Douăzeci de zile lucrătoare × opt ore = 160 de ore normă. Vinerea Mare și a doua zi de Paște sunt libere; Paștele ortodox cade duminică în 2026, deci nu adaugă o zi. Datele mobile vin din calculul Paștelui, nu dintr-o listă scrisă de mână.",
+      "Douăzeci de zile lucrătoare × opt ore = 160 de ore normă. Vinerea Mare și a doua zi de Paște sunt libere; Paștele ortodox cade duminică în 2026, deci nu adaugă o zi. Sărbătorile cu dată variabilă se calculează din data Paștelui, nu se iau dintr-o listă scrisă de mână.",
     monumentEticheta: "ore lucrate în aprilie 2026",
     monumentNota:
       "Adunate pe cele opt rânduri sau pe cele treizeci de coloane — aceeași cifră. Așa se închide o lună.",
@@ -119,7 +119,7 @@ export const RO: ContinutLanding = {
       {
         valoare: "1",
         eticheta: "lună gratuită",
-        nota: "Pentru orice configurație. Fără card cerut la înscriere.",
+        nota: "Indiferent de pachet și de module. Fără card cerut la înscriere.",
       },
       {
         valoare: "149",
@@ -163,7 +163,7 @@ export const RO: ContinutLanding = {
   platforma: {
     supratitlu: "Cum se leagă",
     titlu: "Pontajul, concediile și salarizarea nu sunt aplicații separate.",
-    lead: "Ce intră o dată nu se mai retastează. Legăturile de mai jos există în cod, cu numele scrise aici — nu sunt o schemă de prezentare.",
+    lead: "Ce intră o dată nu se mai retastează. Legăturile de mai jos funcționează azi în aplicație, exact cum sunt descrise — nu sunt o schemă de prezentare.",
     noduri: [
       { cheie: "angajati", eticheta: "Angajați" },
       { cheie: "concedii", eticheta: "Concedii" },
@@ -177,20 +177,20 @@ export const RO: ContinutLanding = {
       {
         de: "concedii",
         la: "pontaj",
-        eticheta: "sincronizare_concedii",
-        text: "Concediul aprobat devine zi de concediu pe foaie. Operația e idempotentă: rulată de zece ori, are același efect ca o dată.",
+        eticheta: "la aprobare",
+        text: "Concediul aprobat devine zi de concediu pe foaie. Făcută de zece ori, trecerea dă același rezultat ca o dată: nicio zi nu se dublează.",
       },
       {
         de: "pontaj",
         la: "salarizare",
-        eticheta: "agregare în SQL",
-        text: "Orele lunii închise intră în statul de plată. Agregarea s-a mutat din aplicație în bază după două defecte tăcute care aruncau zilele de weekend și de sărbătoare.",
+        eticheta: "la închiderea lunii",
+        text: "Orele lunii închise intră în statul de plată, inclusiv cele lucrate în weekend și de sărbători. Calculul a fost refăcut după două greșeli care le pierdeau fără niciun avertisment.",
       },
       {
         de: "angajati",
         la: "scadente",
-        eticheta: "expirables",
-        text: "Contracte, permise, instruiri, documente de vehicul — toate ajung în același motor de termene, cu alertă înainte.",
+        eticheta: "termene",
+        text: "Contracte, permise, instruiri, documente de vehicul — termenele tuturor stau într-o singură listă și primești alertă înainte să expire.",
       },
       {
         de: "diurna",
@@ -201,23 +201,23 @@ export const RO: ContinutLanding = {
       {
         de: "angajati",
         la: "audit",
-        eticheta: "trigger de audit",
-        text: "Orice scriere lasă cine, când, de la ce adresă și ce s-a schimbat.",
+        eticheta: "automat",
+        text: "Orice modificare rămâne consemnată: cine, când, de la ce adresă și ce s-a schimbat.",
       },
       {
         de: "scadente",
         la: "audit",
-        eticheta: "append-only",
-        text: "Jurnalul se adaugă, nu se rescrie: în aplicație nu există nicio cale de a șterge un rând din el.",
+        eticheta: "fără ștergere",
+        text: "Jurnalul doar se completează, nu se rescrie: în aplicație nu există nicio cale de a șterge ceva din el.",
       },
     ],
-    nota: "Numele din etichete sunt numele reale ale funcțiilor și tabelelor. Le poți cere la demonstrație.",
+    nota: "Oricare dintre legăturile de mai sus ți-o arătăm funcționând la demonstrație, dacă o ceri.",
   },
 
   module: {
     supratitlu: "Module",
     titlu: "Nouăsprezece module. Pornești doar ce folosești.",
-    lead: "Ce nu e activat nu apare în meniu, nu apare în căutare și nu poate fi deschis prin adresă directă. Modulele se comută per firmă.",
+    lead: "Ce nu e pornit nu apare în meniu, nici în căutare, și nu se deschide nici dacă cineva tastează adresa paginii. Modulele se pornesc și se opresc separat, pentru fiecare firmă.",
     grupuri: [
       {
         cheie: "core",
@@ -226,21 +226,21 @@ export const RO: ContinutLanding = {
           {
             cheie: "nucleu",
             titlu: "Organizație, roluri și audit",
-            text: "Firma, membrii, invitațiile pe e-mail și urma fiecărei modificări. Un om poate lucra pentru mai multe firme și comută între ele fără să se delogheze.",
+            text: "Firma, membrii, invitațiile pe e-mail și urma fiecărei modificări. Un om poate lucra pentru mai multe firme și trece de la una la alta fără să iasă din cont.",
             puncte: [
               "Conturile se creează exclusiv prin invitație",
-              "Cinci roluri, fiecare cu domeniu propriu",
-              "Jurnal care se adaugă, nu se rescrie",
+              "Cinci roluri, fiecare cu drepturile lui",
+              "Jurnal care doar se completează, nu se rescrie",
             ],
           },
           {
             cheie: "asistent",
             titlu: "Asistent AI",
-            text: "Un asistent care răspunde la „unde se face X?” și îți dă butonul care te duce acolo. Nu-ți poate arăta un ecran la care n-ai acces: lista lui de destinații e filtrată pe permisiunile tale.",
+            text: "Un asistent care răspunde la „unde se face X?” și îți dă butonul care te duce acolo. Nu-ți poate arăta un ecran la care n-ai acces: te trimite doar unde ai deja voie să intri.",
             puncte: [
-              "Îți spune drumul de click, apoi ți-l scurtează la un buton",
+              "Îți spune pe unde să apeși, apoi îți scurtează drumul la un singur buton",
               "Răspunde și cu cifre reale: sold de concediu, ce ai de aprobat",
-              "Nu execută nimic — explică și te duce, apeși tu",
+              "Nu face nimic în locul tău — explică și te duce, apeși tu",
             ],
           },
         ],
@@ -254,7 +254,7 @@ export const RO: ContinutLanding = {
             titlu: "Pontaj",
             text: "Foaia colectivă lunară și planul săptămânii. Luna se blochează când e gata, și atunci nu se mai poate edita nici din greșeală.",
             puncte: [
-              "Ore suplimentare și de noapte, ca subseturi ale orelor lucrate",
+              "Ore suplimentare și de noapte, cuprinse în orele lucrate, nu adunate peste ele",
               "Aprobare pe departament sau pe săptămână",
               "Compensarea sărbătorii: zi liberă sau spor, cu termen",
             ],
@@ -277,21 +277,21 @@ export const RO: ContinutLanding = {
             cheie: "onboarding",
             titlu: "Integrare angajați",
             text: "Parcurs de integrare la angajare și listă de verificare la plecare, cu pași care cer bifă, document sau semnătură.",
-            puncte: ["Șabloane cu pași reordonabili", "Dovadă printabilă a parcurgerii"],
+            puncte: ["Șabloane cu pași în ordinea dorită", "Dovada parcurgerii, gata de tipărit"],
           },
           {
             cheie: "courses",
             titlu: "Cursuri",
-            text: "Bibliotecă de materiale PDF și video, parcurse direct în aplicație. Fiecare material își alege singur cât de serioasă e dovada: bifă, procent urmărit sau declarație asumată.",
+            text: "Bibliotecă de materiale PDF și video, parcurse direct în aplicație. Pentru fiecare material alegi cât de serioasă e dovada: o bifă, cât la sută trebuie parcurs sau o declarație asumată.",
             puncte: [
-              "Filmele și documentele se văd în ERP, fără să plece nicăieri",
+              "Filmele și documentele se văd în aplicație, fără să plece nicăieri",
               "Recertificare la termen, care reapare singură în lista omului",
             ],
           },
           {
             cheie: "reges",
             titlu: "REGES-Online (fost Revisal)",
-            text: "Contractele și salariații pleacă la Inspecția Muncii direct din ERP, prin API-ul REGES. Fără fișier de import purtat cu mâna și fără a doua tastare a acelorași date.",
+            text: "Contractele și salariații pleacă la Inspecția Muncii din aplicație, prin legătura directă cu REGES-ONLINE. Fără fișier de import purtat cu mâna și fără a doua tastare a acelorași date.",
             puncte: [
               "Termenul legal al fiecărui eveniment, calculat în zile lucrătoare",
               "Răspunsul ITM se întoarce în fișa omului, cu motivul refuzului scris pe înțeles",
@@ -322,7 +322,7 @@ export const RO: ContinutLanding = {
           {
             cheie: "ssm",
             titlu: "SSM și PSI",
-            text: "Matrice angajat × tip de instruire, cu semafor pe scadențe. „Niciodată făcută” e o stare distinctă de „expirată” — și e mai gravă.",
+            text: "Un tabel cu fiecare angajat și fiecare tip de instruire, cu semafor pe scadențe. „Niciodată făcută” e o stare distinctă de „expirată” — și e mai gravă.",
             puncte: [
               "Numărătoare inversă pentru comunicarea accidentului la ITM",
               "Stingătoare: verificare, reîncărcare, probă de presiune",
@@ -334,7 +334,7 @@ export const RO: ContinutLanding = {
             titlu: "Parc auto",
             text: "Vehicule cu ITP, RCA și rovinietă pe termen, foi de parcurs cu kilometraj și alimentări.",
             puncte: [
-              "Kilometraj în regres: fizic imposibil, deci se blochează",
+              "Kilometraj care scade: imposibil, deci nu se acceptă",
               "Salt peste prag: posibil, dar se semnalează",
             ],
           },
@@ -344,7 +344,7 @@ export const RO: ContinutLanding = {
             text: "Echipamente, revizii planificate și sesizări de defecțiune, cu triaj pe urgență.",
             puncte: [
               "Scadență pe zile ȘI pe contor — ore, kilometri, cicluri",
-              "Starea finală e cea mai gravă dintre cele două",
+              "Contează cel mai urgent dintre cele două termene",
               "Autorizații ISCIR",
             ],
           },
@@ -359,7 +359,7 @@ export const RO: ContinutLanding = {
           {
             cheie: "ticketing",
             titlu: "Ticketing IT",
-            text: "Solicitări către IT: software, hardware, defecțiuni pe obiectele din inventar și bug-uri raportate din aplicație. Tichetul intră într-o coadă, nu într-un chat.",
+            text: "Solicitări către IT: software, hardware, defecțiuni pe obiectele din inventar și erori semnalate din aplicație. Tichetul intră într-o coadă, nu într-un chat.",
             puncte: [
               "Legat de obiectul din inventar care s-a stricat",
               "Coadă cu triaj, nu o adresă comună de e-mail",
@@ -375,7 +375,7 @@ export const RO: ContinutLanding = {
           {
             cheie: "payroll",
             titlu: "Salarizare",
-            text: "Calculul merge pas cu pas, cu desfășurător și avertismente. Cotele sunt ale firmei tale, versionate cu data de la care se aplică — niciuna nu e scrisă în cod.",
+            text: "Calculul merge pas cu pas, cu desfășurător și avertismente. Cotele sunt ale firmei tale, fiecare cu data de la care se aplică. Când se schimbă legea, se schimbă o setare, nu programul.",
             puncte: [
               "Sporuri și prime reutilizabile, definite o dată",
               "Rețineri plafonate ca procent din net",
@@ -385,19 +385,19 @@ export const RO: ContinutLanding = {
           {
             cheie: "per_diem",
             titlu: "Deplasări și diurne",
-            text: "Ordine de deplasare, etape pe țări și deconturi. Ferestrele de 24 de ore curg de la plecare, nu de la miezul nopții.",
+            text: "Ordine de deplasare, etape pe țări și deconturi. Zilele de diurnă se numără din 24 în 24 de ore de la plecare, nu de la miezul nopții.",
             puncte: [
               "Ziua trecerii de frontieră se plătește o singură dată, unei singure țări",
               "Barem pe țări și curs la data plecării",
-              "Decont printabil",
+              "Decont gata de tipărit",
             ],
           },
           {
             cheie: "rapoarte",
             titlu: "Rapoarte",
-            text: "Venituri, concedii și tichete, agregate pe toată organizația. Agregarea se face în SQL, nu în aplicație — aceeași decizie ca la pontaj.",
+            text: "Venituri, concedii și tichete, adunate pe toată firma. Cifrele vin direct din salariile calculate, deci raportul spune exact ce scrie pe statele de plată.",
             puncte: [
-              "Prag de proprietar, nu de manager: cere drept „toate”, nu „echipa”",
+              "Le vede doar cine are acces la toată firma, nu managerul de echipă",
               "Export în Excel, cu aceleași cifre ca pe ecran",
             ],
           },
@@ -440,17 +440,17 @@ export const RO: ContinutLanding = {
       {
         cod: "ORG",
         titlu: "Organigramă",
-        text: "Arborele managerial, vizibil și pentru cine are drept doar pe propria ramură.",
+        text: "Cine răspunde de cine. O vede și managerul care are acces doar la ramura lui.",
       },
       {
         cod: "XLS",
         titlu: "Import de angajați din Excel",
-        text: "Mapare de coloane, validare pe rând, aplicare pe loturi și raport CSV cu rândurile respinse și motivul fiecăruia.",
+        text: "Arăți ce conține fiecare coloană, fiecare rând e verificat, angajații intră pe loturi, iar rândurile respinse vin într-un raport CSV, cu motivul fiecăruia.",
       },
       {
         cod: "DOC",
         titlu: "Documente din șabloane",
-        text: "Contract individual de muncă, fișa postului și trei adeverințe, cu numerotare pe serie, sumă de control și cod de verificare.",
+        text: "Contract individual de muncă, fișa postului și trei adeverințe, numerotate pe serie și cu cod de verificare. Dacă textul e schimbat după emitere, se poate dovedi.",
       },
       {
         cod: "CAEN",
@@ -460,7 +460,7 @@ export const RO: ContinutLanding = {
       {
         cod: "REV",
         titlu: "Registrul de evenimente REVISAL",
-        text: "Zece tipuri de eveniment, cu termenul calculat din configurația firmei și starea „în termen / astăzi / întârziat”.",
+        text: "Zece tipuri de eveniment, cu termenul calculat din setările firmei și starea „în termen / astăzi / întârziat”.",
       },
       {
         cod: "RAP",
@@ -475,7 +475,7 @@ export const RO: ContinutLanding = {
       {
         cod: "AUD",
         titlu: "Jurnal de audit, cu export",
-        text: "Cine, când, de la ce adresă, ce s-a schimbat. Exportabil în CSV, cu protecție împotriva injecției de formule.",
+        text: "Cine, când, de la ce adresă, ce s-a schimbat. Se descarcă în CSV și se deschide în Excel fără formule strecurate în celule.",
       },
     ],
   },
@@ -483,12 +483,12 @@ export const RO: ContinutLanding = {
   pontaj: {
     supratitlu: "Cum ajung orele în sistem",
     titlu: "Șase moduri care merg azi. Patru pe care încă nu le avem.",
-    lead: "Le desenăm diferit ca să nu le confunzi. Ce e plin există și se poate vedea la demonstrație. Ce e hașurat nu există — nici măcar ca o coloană în bază.",
+    lead: "Le desenăm diferit ca să nu le confunzi. Ce e plin există și se poate vedea la demonstrație. Ce e hașurat nu există — nu e construit nici măcar pe jumătate.",
     livrateTitlu: "Merge azi",
     livrate: [
       {
         titlu: "Pontare dintr-o atingere, de pe telefon",
-        text: "Din portalul angajatului, în browser: un buton care confirmă ziua obișnuită sau două — „Am intrat” și „Am ieșit”. Ora scrisă e a serverului, nu a telefonului.",
+        text: "Din portalul angajatului, în browser: un buton care confirmă ziua obișnuită sau două — „Am intrat” și „Am ieșit”. Ora pontajului e cea oficială, nu cea de pe telefonul omului.",
         detaliu: "Firma alege modul: confirmare, ceas sau amândouă",
       },
       {
@@ -498,8 +498,8 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Foaia colectivă lunară",
-        text: "Grila zi × angajat. Se completează ora de intrare și de ieșire, iar orele se calculează ca sugestie editabilă.",
-        detaliu: "Un rând pe zi și pe om, cu unicitate impusă în bază",
+        text: "Grila zi × angajat. Se completează ora de intrare și de ieșire, iar orele se calculează singure și se pot corecta.",
+        detaliu: "Un rând pe zi și pe om: aceeași zi nu se trece de două ori",
       },
       {
         titlu: "Planul săptămânii",
@@ -509,7 +509,7 @@ export const RO: ContinutLanding = {
       {
         titlu: "Sincronizare din concedii",
         text: "Concediul aprobat devine zi de concediu pe foaie, fără ca cineva să retasteze ceva.",
-        detaliu: "Idempotentă: rulată de zece ori are același efect ca o dată",
+        detaliu: "Pornită de zece ori, are același efect ca o dată: nimic nu se dublează",
       },
       {
         titlu: "Import și blocare",
@@ -531,11 +531,11 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Geolocație legată de punctul de lucru",
-        text: "Pontarea acceptată doar în raza punctului de lucru declarat, cu toleranță configurabilă.",
+        text: "Pontarea acceptată doar în raza punctului de lucru declarat, cu o marjă de distanță aleasă de firmă.",
       },
       {
         titlu: "Recunoaștere facială la chioșc",
-        text: "Verificare la un terminal fix. Descriptorii faciali sunt date biometrice: cer consimțământ explicit, evaluare de impact și criptare.",
+        text: "Verificare la un terminal fix. Măsurătorile feței sunt date biometrice: cer consimțământ explicit, evaluare de impact și criptare.",
       },
     ],
     notaViitoare:
@@ -546,7 +546,7 @@ export const RO: ContinutLanding = {
   fluxuri: {
     supratitlu: "Trei drumuri",
     titlu: "Cum arată o lună, de la un capăt la altul",
-    lead: "Fiecare pas are un rol care îl face. Dacă rolul n-are dreptul, pasul nu se întâmplă — nici din interfață, nici din altă parte.",
+    lead: "Fiecare pas îl face cineva anume. Dacă omul n-are dreptul, pasul nu se întâmplă — nici din aplicație, nici pe altă cale.",
     fluxuri: [
       {
         titlu: "De la ziua lucrată la statul de plată",
@@ -562,7 +562,7 @@ export const RO: ContinutLanding = {
       {
         titlu: "De la cererea de concediu la sold",
         pasi: [
-          { actor: "angajat", text: "Cere concediu, cu zilele consumate calculate în față" },
+          { actor: "angajat", text: "Cere concediu și vede pe loc câte zile consumă" },
           { actor: "automat", text: "Verifică soldul și suprapunerea cu alte cereri" },
           { actor: "manager", text: "Aprobă sau respinge, cu motiv" },
           { actor: "automat", text: "Scade din sold și scrie zilele pe foaia de pontaj" },
@@ -575,7 +575,7 @@ export const RO: ContinutLanding = {
           { actor: "automat", text: "Generează contractul și fișa postului din șablon" },
           { actor: "automat", text: "Deschide evenimentul REVISAL, cu termen" },
           { actor: "hr", text: "Pornește lista de verificare a integrării" },
-          { actor: "angajat", text: "Confirmă bunurile primite în primire" },
+          { actor: "angajat", text: "Confirmă bunurile luate în primire" },
         ],
       },
     ],
@@ -583,14 +583,14 @@ export const RO: ContinutLanding = {
 
   roluri: {
     supratitlu: "Cine ce vede",
-    titlu: "Drepturile sunt date, nu cod. Și le poți citi.",
-    lead: "Tabelul de mai jos e domeniul de citire al fiecărui rol, exact cum e așezat în baza de date. Un test din integrarea continuă compară fiecare celulă cu sursa: dacă baza se schimbă, pagina cade înainte să mintă.",
-    capResursa: "Resursă",
+    titlu: "Drepturile le reglezi tu. Și le poți citi aici.",
+    lead: "Tabelul de mai jos arată ce vede fiecare rol, exact cum vine reglat în aplicație. Îl verificăm automat, celulă cu celulă: dacă regulile din aplicație se schimbă, verificarea ne oprește înainte ca pagina să spună altceva.",
+    capResursa: "Datele",
     note: [
-      "Angajatul își vede propria fișă de personal și numai pe ea. CNP-ul și IBAN-ul rămân închise și pentru el: cer drept de citire pe toată firma, nu pe propriul rând.",
-      "Managerul aprobă pontajul echipei și se pontează pe sine, dar nu scrie ziua altcuiva. Foaia echipei îi rămâne de citit.",
-      "Managerul are refuz EXPLICIT pe salarizare, nu absență de rând. Un administrator îi poate acorda dreptul pe firma lui, fără o nouă livrare.",
-      "Resursele umane administrează complet SSM-ul, dar nu au drept pe scadențele de conformitate: lista le apare goală, fără nicio eroare. E o limită reală, pe care preferăm s-o știi de aici.",
+      "Angajatul își vede propria fișă de personal și numai pe ea. CNP-ul și IBAN-ul rămân închise și pentru el: le vede doar cine are acces la datele întregii firme.",
+      "Managerul aprobă pontajul echipei și se pontează pe sine, dar nu completează ziua altcuiva. Foaia echipei o poate doar citi.",
+      "Managerul nu are acces la salarizare: e o decizie, nu o scăpare. Administratorul firmei îi poate da acces din aplicație, fără să aștepte după noi.",
+      "Resursele umane administrează complet SSM-ul, dar nu au acces la scadențele de conformitate: lista le apare goală, fără niciun avertisment. E o limită reală, pe care preferăm s-o știi de aici.",
     ],
     notaPlatforma:
       "Există și un rol de administrator de platformă, al nostru, folosit la înrolarea firmei și la suport. Nu e membru al organizației tale, iar tot ce face lasă urmă în același jurnal pe care îl vezi și tu.",
@@ -599,7 +599,7 @@ export const RO: ContinutLanding = {
   izolare: {
     supratitlu: "Bariera",
     titlu: "Cum e construită bariera, strat cu strat",
-    lead: "Trei dintre straturile de mai jos sunt confort: ajută omul să nu se lovească de uși închise. Doar al patrulea e barieră — și e singurul de care depinde răspunsul la întrebarea „ce se întâmplă dacă cineva greșește codul?”.",
+    lead: "Trei dintre straturile de mai jos sunt de confort: ajută omul să nu se lovească de uși închise. Doar al patrulea e barieră — și e singurul de care depinde răspunsul la întrebarea „ce se întâmplă dacă greșim noi ceva în aplicație?”.",
     straturi: [
       {
         nume: "Meniul",
@@ -610,27 +610,26 @@ export const RO: ContinutLanding = {
       {
         nume: "Pagina",
         rol: "confort",
-        text: "Verifică permisiunea înainte să randeze. Dar o pagină nu protejează o acțiune de server: sunt puncte de intrare diferite.",
+        text: "Verifică dreptul omului înainte să-i arate ceva. Dar pagina nu păzește și modificările: acelea pot veni pe altă cale și se verifică separat.",
         bariera: false,
       },
       {
-        nume: "Acțiunea",
+        nume: "Modificarea",
         rol: "confort",
-        text: "Fiecare scriere își declară modulul, permisiunea și domeniul, și le verifică din nou la execuție.",
+        text: "Fiecare salvare sau aprobare verifică din nou, pe loc, dacă modulul e pornit, dacă omul are dreptul și asupra cui.",
         bariera: false,
       },
       {
-        nume: "Postgres",
+        nume: "Datele înseși",
         rol: "barieră",
-        text: "Politici pe rând, forțate inclusiv pentru proprietarul tabelei. Apartenența la firmă se recalculează la fiecare cerere, din date, nu dintr-un cookie. O firmă suspendată dispare din listă și accesul se stinge pe loc.",
+        text: "Chiar dacă greșim ceva mai sus, nimeni nu primește date pe care n-are voie să le vadă. La fiecare clic se verifică din nou din ce firmă face parte omul, nu se ia de bun ce a rămas în browser. O firmă suspendată dispare din listă și accesul se stinge pe loc. Pentru omul de IT: politici RLS în Postgres, forțate și pentru proprietarul tabelei.",
         bariera: true,
       },
     ],
     vinieta: {
       titlu: "Pontaj — cum arată aceeași pagină pentru un manager",
-      politica: "attendance_select",
       contor: "{ascunse} din {total} rânduri nu sunt afișate",
-      nota: "Rândurile lipsă nu sunt ascunse din interfață. Baza de date nu le-a trimis niciodată. Aceeași pagină, alt om, alte rânduri.",
+      nota: "Rândurile lipsă nu sunt doar ascunse de pe ecran: nici nu ajung la manager. Aceeași pagină, alt om, alte rânduri.",
       randuri: ["Popa I.", "Ilie M.", "Radu A.", "Marin D.", "Vlad C.", "Toma S."],
       ascunse: 4,
     },
@@ -638,29 +637,29 @@ export const RO: ContinutLanding = {
   },
 
   conformitate: {
-    supratitlu: "România, nu „localizare”",
-    titlu: "Regulile locale sunt în produs, nu într-un fișier de traduceri",
-    lead: "Un ERP internațional tradus în română îți cere să te adaptezi tu. Lucrurile de mai jos sunt scrise pentru cum funcționează efectiv o firmă de aici.",
+    supratitlu: "Făcut pentru România",
+    titlu: "Regulile românești sunt construite în produs, nu doar traduse",
+    lead: "Un program străin, tradus în română, îți cere să te adaptezi tu. Lucrurile de mai jos sunt scrise pentru cum funcționează efectiv o firmă de aici.",
     carduri: [
       {
         titlu: "Sărbătorile legale, calculate",
-        text: "Șaptesprezece zile: cele fixe din Codul muncii și cele mobile, derivate din data Paștelui ortodox. Foaia de pontaj de pe pagina de start e alimentată chiar din funcția asta.",
+        text: "Șaptesprezece zile: cele fixe din Codul muncii și cele mobile, derivate din data Paștelui ortodox. Foaia de pontaj de pe pagina de start folosește chiar acest calcul.",
         temei: "Codul muncii, art. 139",
       },
       {
         titlu: "CAEN Rev. 3, complet",
-        text: "Șase sute cincizeci și una de clase, verificate față de nomenclatorul oficial. Regulile de compoziție diferă pe formă juridică: PFA cel mult patru coduri secundare, întreprinderea individuală nouă, SRL-D cu domenii interzise.",
+        text: "Șase sute cincizeci și una de clase, verificate față de nomenclatorul oficial. Regulile diferă după forma juridică: PFA are cel mult patru coduri secundare, întreprinderea individuală cel mult nouă, iar SRL-D are domenii interzise.",
         temei: "Legea 31/1990, OUG 44/2008",
       },
       {
         titlu: "CUI cu cifră de control",
-        text: "Codul fiscal se validează cu ponderile oficiale, nu doar ca lungime. O greșeală de tastare se prinde la introducere, nu la prima declarație.",
+        text: "Codul fiscal se verifică după calculul oficial al cifrei de control, nu doar după lungime. O greșeală de tastare se prinde la introducere, nu la prima declarație.",
         temei: "",
       },
       {
         titlu: "Diurna pe ferestre de 24 de ore",
-        text: "Ferestrele curg de la ora plecării, nu de la miezul nopții, iar ziua trecerii de frontieră se plătește o singură dată, unei singure țări. Plafonul neimpozabil împarte suma, nu o blochează.",
-        temei: "Structura HG 518/1995, importată ca date",
+        text: "Cele 24 de ore se numără de la ora plecării, nu de la miezul nopții, iar ziua în care se trece granița se plătește o singură dată, pentru o singură țară. Ce trece de plafonul neimpozabil nu e refuzat: se impozitează doar partea de peste.",
+        temei: "Structura HG 518/1995, preluată în aplicație",
       },
       {
         titlu: "SSM și PSI, cu temei pe fiecare termen",
@@ -669,7 +668,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Date personale criptate",
-        text: "CNP-ul și IBAN-ul se scriu criptat și se citesc doar printr-o cale care lasă rând de audit la fiecare dezvăluire. Cheia se poate roti fără să recriptăm baza.",
+        text: "CNP-ul și IBAN-ul se păstrează criptate, iar de fiecare dată când cineva le deschide rămâne o urmă în jurnal. Cheia de criptare se poate schimba, ca o parolă, fără să criptăm din nou toate datele.",
         temei: "AES-256-GCM",
       },
     ],
@@ -688,7 +687,7 @@ export const RO: ContinutLanding = {
       { ce: "Datele sensibile", regula: "Criptate, cu urmă la fiecare citire" },
       {
         ce: "Plecarea unui angajat",
-        regula: "Ștergere logică, cu păstrarea urmei; nimic nu dispare tăcut",
+        regula: "Fișa iese din liste, dar urma rămâne; nimic nu dispare pe tăcute",
       },
     ],
     retentieNota:
@@ -703,26 +702,27 @@ export const RO: ContinutLanding = {
       {
         titlu: "Salarizarea nu e software certificat",
         text: "E un instrument intern de calcul și evidență. Nu înlocuiește statul de plată oficial, declarația 112 sau avizul contabilului tău. Scrie asta și în aplicație, pe fiecare ecran de salarizare.",
+        legatura: { eticheta: "Ce primește contabilul tău", href: "/pentru-contabili" },
       },
       {
         titlu: "Nu avem integrare cu ANAF, e-Factura sau SAF-T",
-        text: "Zero linii de cod. Structura de date e pregătită pentru o transmitere viitoare, dar transmiterea nu există.",
+        text: "N-am construit nimic pentru asta. Datele sunt ținute astfel încât transmiterea să poată fi adăugată mai târziu, dar azi ea nu există.",
       },
       {
         titlu: "Datele cu CNP nu pleacă la REGES fără un om",
-        text: "Transmiterea în REGES-ONLINE se face prin API, din aplicație, cu accesul obținut de firma ta din portalul Inspecției Muncii. Mesajele se pregătesc singure din fișa angajatului. Cele care poartă CNP-ul unui salariat stau în coadă până le trimite cineva cu drept de transmitere, iar fiecare citire a CNP-ului lasă urmă în jurnal; mesajele de contract, fără date personale, pot pleca și din ciclul automat de transmitere. Fișier REVISAL nu generăm: REGES-ONLINE l-a înlocuit.",
+        text: "Aplicația trimite direct în REGES-ONLINE, cu accesul pe care firma ta îl obține din portalul Inspecției Muncii. Mesajele se pregătesc singure din fișa angajatului. Cele care poartă CNP-ul unui salariat stau în coadă până le trimite cineva cu drept de transmitere, iar fiecare citire a CNP-ului lasă urmă în jurnal; mesajele de contract, fără date personale, pot pleca și singure, la următoarea trimitere automată. Fișier REVISAL nu generăm: REGES-ONLINE l-a înlocuit.",
       },
       {
         titlu: "Asistentul AI îți arată drumul, nu-ți face treaba",
-        text: "Răspunde la „unde se face X?” și te duce acolo. Nu depune cereri, nu aprobă, nu șterge — apeși tu. Nu dă sfaturi juridice sau fiscale. Poate greși într-o explicație, dar nu te poate trimite la un ecran la care n-ai acces. Întrebarea ta pleacă la un furnizor extern de model (OpenRouter) ca să primească răspuns; datele din fișe pleacă doar dacă întrebi ceva despre ele. Modulul se poate stinge cu totul, per firmă.",
+        text: "Răspunde la „unde se face X?” și te duce acolo. Nu depune cereri, nu aprobă, nu șterge — apeși tu. Nu dă sfaturi juridice sau fiscale. Poate greși într-o explicație, dar nu te poate trimite la un ecran la care n-ai acces. Întrebarea ta pleacă la un furnizor extern de inteligență artificială (OpenRouter) ca să primească răspuns; datele din fișe pleacă doar dacă întrebi ceva despre ele. Modulul se poate opri cu totul, pentru fiecare firmă în parte.",
       },
       {
-        titlu: "PDF-ul e o randare a documentului emis, nu un al doilea document",
-        text: "Documentul de referință e rândul din bază: el poartă numărul alocat pe serie, amprenta SHA-256 și codul de verificare. PDF-ul se compune din el, pe server. Un PDF făcut separat, din aceleași date, ar fi un al doilea izvor de adevăr — două hârtii cu același număr, a căror potrivire n-o garantează nimeni.",
+        titlu: "PDF-ul arată documentul emis, nu e un al doilea document",
+        text: "Documentul de referință e cel înregistrat în aplicație: el poartă numărul alocat pe serie, codul de verificare și dovada că textul n-a fost atins de la emitere. PDF-ul se generează din el, în aplicație. Un PDF făcut separat, din aceleași date, ar fi un al doilea original — două hârtii cu același număr, a căror potrivire n-o garantează nimeni.",
       },
       {
         titlu: "Cotele fiscale trebuie confirmate de contabilul tău",
-        text: "Nicio cotă, niciun prag și niciun barem nu e scris în cod. Toate sunt configurate pe firma ta, cu data de la care se aplică, și toate sunt marcate „de verificat” până le confirmă cineva care răspunde de ele.",
+        text: "Nicio cotă, niciun prag și niciun barem nu e bătut în cuie în program. Toate sunt configurate pe firma ta, cu data de la care se aplică, și toate sunt marcate „de verificat” până le confirmă cineva care răspunde de ele.",
       },
       {
         titlu: "Nu avem aplicație mobilă în magazinele de aplicații",
@@ -740,7 +740,7 @@ export const RO: ContinutLanding = {
     domenii: [
       {
         titlu: "Construcții și instalații",
-        text: "Echipe pe șantiere și puncte de lucru, instruiri și echipament de protecție care expiră, control ITM care vine fără să sune. Salariul minim sectorial e o cotă configurată, nu o excepție de programat.",
+        text: "Echipe pe șantiere și puncte de lucru, instruiri și echipament de protecție care expiră, control ITM care vine fără să sune. Salariul minim sectorial e o valoare pe care o setezi tu, nu ceva ce trebuie să ne ceri nouă.",
         module: ["SSM și PSI", "Pontaj", "Parc auto", "Inventar", "Diurne"],
       },
       {
@@ -791,7 +791,7 @@ export const RO: ContinutLanding = {
       },
       {
         azi: "Contractele se completează peste un model din 2019",
-        noi: "Generate din șablon, numerotate pe serie, cu sumă de control",
+        noi: "Generate din șablon, numerotate pe serie, cu dovada că n-au fost modificate",
       },
       {
         azi: "Cine a modificat? Nimeni nu mai știe",
@@ -799,7 +799,7 @@ export const RO: ContinutLanding = {
       },
       {
         azi: "Toată lumea vede tot fișierul",
-        noi: "Fiecare rol are domeniul lui, impus în baza de date",
+        noi: "Fiecare vede doar partea lui, iar regula nu se poate ocoli",
       },
     ],
   },
@@ -822,7 +822,7 @@ export const RO: ContinutLanding = {
           "Portalul angajatului pe telefon: salariul lunii, butonul „Am intrat” și lista de lucruri de făcut.",
         eticheta: "Pontaj · art. 119 din Codul muncii",
         titlu: "Pontajul se face de pe telefon, fără aplicație de instalat",
-        text: "Omul deschide o adresă în browser și apasă „Am intrat” și „Am ieșit”. Ora scrisă e a serverului, nu a telefonului. La fiecare punct de lucru poți lipi un afiș cu cod QR, tipărit din aplicație, iar firma poate cere scanarea lui înainte de pontare.",
+        text: "Omul deschide o adresă în browser și apasă „Am intrat” și „Am ieșit”. Ora pontajului e cea oficială, nu cea de pe telefonul omului. La fiecare punct de lucru poți lipi un afiș cu cod QR, tipărit din aplicație, iar firma poate cere scanarea lui înainte de pontare.",
         puncte: [
           "Foaia colectivă a lunii se completează din pontări",
           "Ore suplimentare și de noapte, numărate separat",
@@ -849,7 +849,7 @@ export const RO: ContinutLanding = {
         descriereCaptura: "",
         eticheta: "REGES-ONLINE · fost Revisal",
         titlu: "Contractele pleacă în REGES-ONLINE direct din aplicație",
-        text: "Din 2026, registrul salariaților se ține doar în REGES-ONLINE. Administrativo pregătește mesajele din fișa angajatului și le transmite prin API-ul REGES, cu termenul legal al fiecărui eveniment calculat în zile lucrătoare. Răspunsul Inspecției Muncii se întoarce în fișa omului.",
+        text: "Din 2026, registrul salariaților se ține doar în REGES-ONLINE. Administrativo pregătește mesajele din fișa angajatului și le trimite direct în registru, cu termenul legal al fiecărui eveniment calculat în zile lucrătoare. Răspunsul Inspecției Muncii se întoarce în fișa omului.",
         puncte: [
           "Fără fișier de import purtat cu mâna",
           "Datele cu CNP pleacă doar când le trimite un om cu drept de transmitere",
@@ -912,7 +912,7 @@ export const RO: ContinutLanding = {
   pentruCine: {
     supratitlu: "Pentru cine",
     titlu: "Un singur cont pentru toată firma. Fiecare vede doar ce-l privește.",
-    lead: "Cinci roluri, fiecare cu drepturile lui. Managerul vede echipa lui, angajatul vede doar ce e al lui, iar regula stă în baza de date, nu într-un meniu ascuns.",
+    lead: "Cinci roluri, fiecare cu drepturile lui. Managerul își vede echipa, angajatul doar ce e al lui. Nu depinde de o setare pe care cineva o poate uita.",
     roluri: [
       {
         cine: "Patronul",
@@ -1027,7 +1027,7 @@ export const RO: ContinutLanding = {
   preturi: {
     supratitlu: "Prețuri",
     titlu: "149 de lei pe lună, până la 20 de angajați",
-    lead: "Un nucleu care vine mereu și module care se aprind separat. Prima lună e gratuită, nu se facturează pornirea, iar sumele de mai jos sunt cele finale — nu se mai adaugă TVA.",
+    lead: "Un nucleu care vine mereu și module pe care le adaugi separat. Prima lună e gratuită, nu se facturează pornirea, iar sumele de mai jos sunt cele finale — nu se mai adaugă TVA.",
     planuri: [
       {
         cheie: "nucleu",
@@ -1037,7 +1037,7 @@ export const RO: ContinutLanding = {
       {
         cheie: "hr_extins",
         nume: "HR extins",
-        pentru: "Peste nucleu: REGES-ONLINE, integrare, cursuri, SSM, evaluări și KPI-uri",
+        pentru: "Peste nucleu: REGES-ONLINE, integrare angajați, cursuri, SSM, evaluări și KPI-uri",
       },
       {
         cheie: "operational",
@@ -1065,31 +1065,31 @@ export const RO: ContinutLanding = {
       legatura: { eticheta: "Cere o ofertă pentru câți oameni ai", href: "/cere-demo" },
     },
     primaLuna:
-      "Prima lună e gratuită, pentru orice configurație. Fără cost de pornire și fără implementare facturată separat.",
-    nota: "Cele trei pachete din mijloc sunt axe paralele peste același nucleu, nu trepte: pornești doar axa de care ai nevoie. Suma tăiată e cât ar costa aceleași module cumpărate unul câte unul.",
-    legaturaPagina: { eticheta: "Vezi prețul fiecărui modul", href: "/preturi" },
+      "Prima lună e gratuită, oricare ar fi modulele alese. Fără cost de pornire și fără implementare facturată separat.",
+    nota: "Cele trei pachete din mijloc nu sunt trepte: fiecare acoperă altă parte a firmei, peste același nucleu, și pornești doar pachetul de care ai nevoie. Suma tăiată e cât ar costa aceleași module cumpărate unul câte unul.",
+    legaturaPagina: { eticheta: "Vezi prețul fiecărui modul", href: "/preturi#module" },
   },
 
   siguranta: {
     supratitlu: "Datele oamenilor tăi",
     titlu: "CNP-uri, salarii, concedii medicale. Le tratăm ca atare.",
-    lead: "Într-un program de HR stau cele mai sensibile date ale unei firme. Pe scurt, cum le ținem — iar varianta lungă, cu tot mecanismul, e pe pagina despre izolarea datelor.",
+    lead: "Într-un program de HR stau cele mai sensibile date ale unei firme. Pe scurt, cum le ținem — iar varianta lungă, cu toate detaliile, e pe pagina despre siguranța datelor.",
     puncte: [
       {
-        titlu: "Separate pe firmă, în baza de date",
-        text: "Nu printr-un filtru din aplicație: baza de date nu întoarce nimic dintr-o altă firmă, nici măcar unei cereri scrise greșit de noi.",
+        titlu: "Separate pe firmă, nu doar ascunse",
+        text: "Nimeni din altă firmă nu-ți poate vedea datele, nici măcar dacă noi am greși ceva în aplicație.",
       },
       {
         titlu: "CNP și IBAN criptate",
-        text: "Se scriu criptat și se citesc doar printr-o cale care lasă urmă: cine le-a văzut și când.",
+        text: "Stau criptate, iar oricine le deschide lasă urmă: se știe cine le-a văzut și când.",
       },
       {
         titlu: "Fiecare modificare, cu nume și oră",
-        text: "Cine a schimbat, când și ce anume. Jurnalul se adaugă, nu se rescrie — nici de noi.",
+        text: "Cine a schimbat, când și ce anume. Jurnalul doar se completează și nu poate fi rescris — nici de noi.",
       },
       {
         titlu: "În Uniunea Europeană",
-        text: "Baza de date și fișierele stau în Irlanda, iar serverul aplicației în Germania.",
+        text: "Datele și fișierele stau în Irlanda, iar aplicația e găzduită în Germania.",
       },
     ],
     legatura: { eticheta: "Cum ținem datele separate", href: "/incredere" },
@@ -1098,7 +1098,7 @@ export const RO: ContinutLanding = {
   incepe: {
     supratitlu: "Cum începi",
     titlu: "Primul pontaj, în aceeași zi",
-    lead: "Nu se instalează nimic și nu se migrează nimic. Îți faci contul, urci lista de angajați dintr-un fișier Excel și pontezi luna în curs.",
+    lead: "Nu se instalează nimic și nu e nevoie de o mutare complicată a datelor. Îți faci contul, urci lista de angajați dintr-un fișier Excel și pontezi luna în curs.",
     pasi: [
       {
         titlu: "Îți faci contul",
@@ -1129,51 +1129,66 @@ export const RO: ContinutLanding = {
     intrebari: [
       {
         q: "Ce fac cu fișierul Excel pe care îl am acum?",
-        a: "Fișierul de calcul cu angajații se încarcă în Administrativo, nu se retastează. Coloanele se potrivesc singure după antet, oricum ar fi scris: „Data nașterii”, „DATA NASTERII” și „data-nasterii” ajung la același câmp, fără diacritice și fără punctuație. Dacă lipsește o coloană obligatorie, importul îți spune care, pe nume, înainte să scrie ceva. Validarea se face apoi rând cu rând: rândurile bune intră, cele stricate îți vin înapoi într-un fișier cu motivul fiecărei respingeri, scris pe înțeles. Nu se importă „pe jumătate” și nu se pierde nimic tăcut — dacă zece rânduri din o sută au CNP greșit, intră nouăzeci și primești zece înapoi, nu un mesaj de eroare pe tot fișierul.",
+        a: "Fișierul de calcul cu angajații se încarcă în Administrativo, nu se retastează. Coloanele se potrivesc singure după antet, oricum ar fi scris: „Data nașterii”, „DATA NASTERII” și „data-nasterii” sunt recunoscute ca aceeași coloană, fiindcă diacriticele și punctuația nu contează. Dacă lipsește o coloană obligatorie, importul îți spune care, pe nume, înainte să încarce ceva. Apoi fiecare rând e verificat separat: rândurile bune intră, cele greșite îți vin înapoi într-un fișier, cu motivul scris pe înțeles lângă fiecare. Nu rămâne nimic importat „pe jumătate” și nu se pierde nimic fără să afli — dacă zece rânduri din o sută au CNP greșit, intră nouăzeci și primești zece înapoi, nu un mesaj de eroare pe tot fișierul.",
+        legatura: { eticheta: "Pontaj în Excel sau în aplicație", href: "/comparatie/excel" },
       },
       {
         q: "Datele noastre pot ajunge la altă firmă din platformă?",
-        a: "Datele unei firme nu ajung la alta, iar mecanismul care o garantează nu e un filtru scris în aplicație. Fiecare interogare trece prin politici la nivel de rând, în Postgres, activate obligatoriu pe fiecare tabelă și forțate inclusiv pentru proprietarul ei. O interogare care ar depăși granița firmei nu întoarce rânduri — nu întoarce o eroare pe care cineva ar putea s-o prindă și s-o ignore, ci pur și simplu nimic. Apartenența ta la firmă se recalculează la fiecare cerere, din datele reale, nu dintr-un cookie sau dintr-un identificator trimis de browser. Verificarea rulează automat la fiecare livrare de cod: dacă o politică lipsește de pe o tabelă nouă, livrarea se oprește înainte să ajungă la voi.",
+        a: "Nu. Datele unei firme nu ajung la alta, și asta nu depinde de un filtru pe care cineva l-ar putea uita într-un ecran. Orice informație ceri trece prin aceeași regulă, pusă pe fiecare fel de dată din aplicație. O căutare care ar depăși granița firmei nu primește o eroare pe care cineva ar putea s-o treacă cu vederea, ci pur și simplu nimic. Aplicația verifică de fiecare dată, din datele reale, din ce firmă faci parte — nu se bazează pe ce îi spune browserul, deci nu poate fi păcălită de acolo. Orice versiune nouă a aplicației e verificată automat înainte să ajungă la voi: dacă o parte nouă n-ar fi protejată la fel, versiunea se oprește. Pentru omul de IT: politici la nivel de rând în Postgres, activate și forțate pe fiecare tabelă, inclusiv pentru proprietarul ei.",
+        legatura: { eticheta: "Cum ținem datele firmelor separate", href: "/incredere" },
       },
       {
         q: "Contabila mea vede salariile tuturor. Managerul poate?",
-        a: "Nu, managerul de echipă nu vede salariile oamenilor lui. Diferența față de alte aplicații e că nu e vorba de absența unui drept, ci de un refuz scris: pe fiecare acțiune din salarizare, rolul de manager are un „nu” trecut explicit în baza de date. Un drept lipsă se poate acorda din greșeală la o configurare viitoare; un refuz scris trebuie șters de cineva care știe ce face. Contabila, în schimb, vede tot ce ține de salarizare, fiindcă asta e treaba ei. Dacă vrei totuși ca un anumit manager să vadă salariile echipei lui, se schimbă o linie de configurare pe firma ta, fără o versiune nouă a aplicației. Tabelul complet cu cine ce vede, pe fiecare modul, e pe pagina de module.",
+        a: "Nu, managerul de echipă nu vede salariile oamenilor lui. Diferența față de alte aplicații e că dreptul ăsta nu doar îi lipsește: managerului i s-a interzis anume, pe tot ce ține de salarizare. Un drept care doar lipsește se poate da din greșeală, la o schimbare de setări făcută mai târziu; o interdicție pusă anume trebuie scoasă de cineva care știe ce face. Contabila, în schimb, vede tot ce ține de salarizare, fiindcă asta e treaba ei. Dacă vrei totuși ca un anumit manager să vadă salariile echipei lui, se schimbă o setare doar pentru firma ta, fără să aștepți o versiune nouă a aplicației. Tabelul complet cu cine ce vede, pe fiecare modul, e pe pagina de module.",
+        legatura: { eticheta: "Programul de salarizare, cine ce vede", href: "/module/salarizare" },
       },
       {
         q: "Ce se întâmplă când pleacă un angajat?",
-        a: "Când pleacă un angajat, fișa lui se închide, dar nimic nu se șterge fizic din baza de date. Documentele, pontajul, concediile și instruirile rămân, fiindcă exact ele se cer la un control pentru perioada în care omul a lucrat la tine. În aplicație, contul lui nu mai intră, iar în REGES-ONLINE încetarea contractului are termenul ei, urmărită ca orice alt eveniment. În aplicație, nimeni nu poate șterge un rând — nici administratorul firmei, nici al nostru: rândul se marchează ca închis și rămâne în istoric. Garanția stă în baza de date, nu într-un buton ascuns: pe datele firmelor nu există nicio politică de ștergere, deci o comandă de ștergere venită din aplicație nu atinge niciun rând. Ștergerea definitivă o facem noi, doar după încetarea contractului cu firma ta, în termenele scrise în Termeni.",
+        a: "Când pleacă un angajat, fișa lui se închide, dar nimic nu se șterge de tot. Documentele, pontajul, concediile și instruirile rămân, fiindcă exact ele se cer la un control pentru perioada în care omul a lucrat la tine. În aplicație, contul lui nu mai intră, iar în REGES-ONLINE încetarea contractului are termenul ei, urmărită ca orice alt eveniment. În aplicație, nimeni nu poate șterge definitiv o înregistrare — nici administratorul firmei, nici al nostru: ea se marchează ca închisă și rămâne în istoric. Și nu e vorba de un buton ascuns: ștergerea pur și simplu nu e permisă pe datele firmelor, deci o comandă de ștergere venită din aplicație nu face să dispară nimic. Ștergerea definitivă o facem noi, doar după încetarea contractului cu firma ta, în termenele scrise în Termeni.",
+        legatura: { eticheta: "Evidența angajaților, cu istoric", href: "/module/nucleu" },
       },
       {
         q: "Înlocuiește contabilul?",
-        a: "Nu, și n-ar trebui să vrei asta. Calculăm și ținem evidența; declarațiile și răspunderea rămân la contabilul tău. Cotele le confirmă el, iar aplicația marchează asta explicit până o face.",
+        a: "Nu, și n-ar trebui să vrei asta. Calculăm și ținem evidența; declarațiile și răspunderea rămân la contabilul tău. Cotele le confirmă el, iar până atunci aplicația le arată clar ca neconfirmate.",
+        legatura: { eticheta: "Ce primește contabilul", href: "/pentru-contabili" },
       },
       {
         q: "Merge pe telefon?",
-        a: "Da, Administrativo merge pe telefon din browser, fără instalare din magazin. Portalul angajatului e făcut pentru ecran mic: soldul de concediu, cererile depuse, luna lui de pontaj, fluturașul și documentele primite. Adresa se adaugă pe ecranul principal — pe iPhone din Safari, pe Android din Chrome — și de atunci pornește pe tot ecranul, ca o aplicație, fără să ocupe spațiu ca una și fără actualizări de instalat. De acolo omul își poate și ponta ziua, dacă firma a pornit butoanele de pontare rapidă, iar la punctele de lucru se poate cere scanarea codului QR de pe afiș înainte. Ce nu merge: fără internet nu se scrie nimic, fiindcă portalul nu ține date offline. În magazinele de aplicații nu suntem.",
+        a: "Da, Administrativo merge pe telefon din browser, fără instalare din magazin. Portalul angajatului e făcut pentru ecran mic: soldul de concediu, cererile depuse, luna lui de pontaj, fluturașul și documentele primite. Adresa se adaugă pe ecranul principal — pe iPhone din Safari, pe Android din Chrome — și de atunci pornește pe tot ecranul, ca o aplicație, fără să ocupe spațiu ca una și fără actualizări de instalat. De acolo omul își poate și ponta ziua, dacă firma a pornit butoanele de pontare rapidă, iar la punctele de lucru se poate cere scanarea codului QR de pe afiș înainte. Ce nu merge: fără internet nu se înregistrează nimic, fiindcă portalul nu păstrează date pe telefon. În magazinele de aplicații nu suntem.",
+        legatura: { eticheta: "Aplicația de pontaj pe telefon", href: "/pontaj-pe-telefon" },
       },
       {
         q: "Ce arăt la un control ITM?",
-        a: "La un control ITM se cer documentele de personal, iar Administrativo le are pe toate într-un singur loc: fișele de instruire cu data și semnătura, evidența medicinei muncii, echipamentul de protecție dat în primire cu durata lui, foaia de prezență a lunii cerute și jurnalul care arată cine a modificat ce și când. Evidența SSM e o matrice cu oamenii pe verticală și tipurile de instruire pe orizontală, în care „niciodată făcută” e o stare separată de „expirată” — la un control înseamnă două lucruri diferite. Termenele se văd înainte să expire, nu în ziua în care expiră, deci instruirea se poate reprograma. Ce se cere exact și în ce ordine se verifică e scris pe pagina noastră despre controlul ITM, cu articolul de lege lângă fiecare afirmație.",
+        a: "La un control ITM se cer documentele de personal, iar Administrativo le are pe toate într-un singur loc: fișele de instruire cu data și semnătura, evidența medicinei muncii, echipamentul de protecție dat în primire cu durata lui, foaia de prezență a lunii cerute și jurnalul care arată cine a modificat ce și când. Evidența SSM e un tabel cu oamenii pe rânduri și tipurile de instruire pe coloane, în care „niciodată făcută” apare separat de „expirată” — la un control înseamnă două lucruri diferite. Termenele se văd înainte să expire, nu în ziua în care expiră, deci instruirea se poate reprograma. Ce se cere exact și în ce ordine se verifică e scris pe pagina noastră despre controlul ITM, cu articolul de lege lângă fiecare afirmație.",
+        legatura: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
       },
       {
         q: "Cine are acces la datele noastre din partea voastră?",
-        a: "Un rol de administrator de platformă, folosit la înrolare și la suport. Nu e membru al firmei tale, iar tot ce face lasă urmă în același jurnal pe care îl vezi și tu. CNP-urile și conturile bancare sunt criptate, iar fiecare dezvăluire scrie un rând de audit.",
+        a: "Un rol de administrator de platformă, al nostru, folosit la pornirea contului firmei și la suport. Nu e membru al firmei tale, iar tot ce face lasă urmă în același jurnal pe care îl vezi și tu. CNP-urile și conturile bancare sunt criptate, iar fiecare afișare a lor rămâne scrisă în jurnal.",
+        legatura: {
+          eticheta: "Cine are acces, în politica de confidențialitate",
+          href: "/legal/confidentialitate#sectiunea-4",
+        },
       },
       {
         q: "Putem schimba drepturile unui rol?",
-        a: "Da. Matricea de permisiuni e date, nu cod: rândul firmei tale bate regula globală, inclusiv când vrei să interzici ceva ce e permis implicit. Nu cere o versiune nouă a aplicației.",
+        a: "Da. Drepturile unui rol se pot schimba doar pentru firma ta, fără o versiune nouă a aplicației. Setarea firmei tale bate regula obișnuită, chiar și când vrei să interzici ceva permis în mod normal.",
+        legatura: { eticheta: "Rolurile și drepturile lor", href: "/module/nucleu" },
       },
       {
         q: "Cât durează până lucrăm efectiv?",
         a: "Depinde de câți oameni ai și de câte module pornim. Partea lungă nu e configurarea, ci curățarea datelor pe care le aduci. Îți spunem o estimare după ce ne uităm la fișierele tale, nu înainte.",
+        legatura: { eticheta: "Prima lună gratuită și prețurile", href: "/preturi" },
       },
       {
         q: "Ce se întâmplă cu datele dacă renunțăm?",
         a: "Le iei. Exportăm ce ținem despre tine în format deschis. După încetarea contractului, datele rămân accesibile treizeci de zile, apoi se șterg definitiv în cel mult încă treizeci, inclusiv din copiile de siguranță. Nu ținem date ca argument de negociere.",
+        legatura: { eticheta: "Exportul datelor, în termeni", href: "/legal/termeni#sectiunea-10" },
       },
       {
         q: "Cât costă?",
         a: "Nucleul — pontaj, concedii, dosare și portalul angajatului — costă 149 de lei pe lună, până la 20 de angajați, iar prima lună e gratuită. Modulele în plus au fiecare prețul lui, afișat pe pagina de prețuri, și sunt sume finale: nu se mai adaugă TVA. Peste 20 de angajați prețul crește în trepte — cere o ofertă și îți spunem cifra pentru câți oameni ai.",
+        legatura: { eticheta: "Prețul fiecărui modul", href: "/preturi#module" },
       },
     ],
   },
@@ -1185,7 +1200,7 @@ export const RO: ContinutLanding = {
       {
         q: "Cât costă?",
         a: "Nucleul — pontaj, concedii, dosare și portalul angajatului — costă 149 de lei pe lună pentru toată firma, până la 20 de angajați. Modulele în plus au fiecare prețul lui. Prima lună e gratuită, iar sumele sunt finale: nu se mai adaugă TVA.",
-        legatura: { eticheta: "Prețul fiecărui modul", href: "/preturi" },
+        legatura: { eticheta: "Prețul fiecărui modul", href: "/preturi#module" },
       },
       {
         q: "Trebuie instalat ceva?",
@@ -1229,7 +1244,7 @@ export const RO: ContinutLanding = {
 
   subsol: {
     descriere:
-      "Administrativo — pontaj, concedii, salarizare, SSM, parc auto și inventar pentru firme din România. Fiecare firmă are propriul spațiu de date, propriile roluri și doar modulele de care are nevoie.",
+      "Administrativo — pontaj, concedii, salarizare, SSM, parc auto și inventar pentru firme din România. Fiecare firmă are datele ei, separate de ale altora, rolurile ei și doar modulele de care are nevoie.",
     /*
      * 6 oct 2026: uneltele și ghidurile au coloane proprii. Auditul din 6 oct a
      * găsit că subsolul omitea exact paginile cel mai slab legate — sporul de
@@ -1316,7 +1331,7 @@ export const RO: ContinutLanding = {
     contactTitlu: "Contact",
     copyright: "Toate drepturile rezervate.",
     notaDiacritice:
-      "Scriem ș și ț cu virgulă dedesubt, nu cu sedilă. E felul corect, și e verificat automat la fiecare livrare.",
+      "Scriem ș și ț cu virgulă dedesubt, nu cu sedilă. E felul corect, și îl verificăm automat la fiecare actualizare a sitului.",
     creditVideo:
       "Videoclipul de pe pagina de start: „Office Stock Footage”, de pe canalul de YouTube Free Stock Footage 4K, licență Creative Commons Attribution.",
   },
@@ -1332,12 +1347,12 @@ export const RO: ContinutLanding = {
     module: {
       supratitlu: "Ce e înăuntru",
       titlu: "Nouăsprezece module, pornite câte unul",
-      lead: "Patru module vin în nucleu, iar cincisprezece se aprind și se sting separat. Plătești ce ai pornit, iar ce nu folosești nu apare nici în meniu, nici pe factură.",
+      lead: "Patru module vin în nucleu, iar celelalte cincisprezece le pornești sau le oprești separat. Plătești ce ai pornit, iar ce nu folosești nu apare nici în meniu, nici pe factură.",
     },
     incredere: {
       supratitlu: "Unde stă bariera",
-      titlu: "Datele unei firme nu ajung la alta. Regula stă în Postgres.",
-      lead: "Nu în meniu, nu într-un filtru de aplicație. Mai jos e unde anume stă bariera, ce se întâmplă când o scriere o încalcă, și cât timp ținem fiecare fel de dată.",
+      titlu: "Datele unei firme nu ajung la alta. Nici din greșeală.",
+      lead: "Nu e vorba de butoane ascunse și nici de o setare care se poate uita. Mai jos: ce ține datele separate, ce se întâmplă când cineva încearcă să scrie unde n-are voie și cât păstrăm fiecare fel de dată.",
     },
     deCeNu: {
       supratitlu: "Înainte să întrebi",
@@ -1359,7 +1374,7 @@ export const RO: ContinutLanding = {
     pentruContabili: {
       supratitlu: "Pentru contabili",
       titlu: "Un cont, toate firmele pe care le ții",
-      lead: "Contabilul nu e un utilizator în plus al unei firme, ci aceeași persoană în zece firme deodată. Aplicația e construită pe apartenențe, nu pe conturi separate: intri o dată și comuți între clienți dintr-un meniu.",
+      lead: "Contabilul nu e un utilizator în plus al unei firme, ci aceeași persoană în zece firme deodată. De aceea nu ai câte un cont pentru fiecare firmă: intri o dată și treci de la un client la altul dintr-un meniu.",
     },
     pontajTelefon: {
       supratitlu: "Aplicație de pontaj pentru angajați",

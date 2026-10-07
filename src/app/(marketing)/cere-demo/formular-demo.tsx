@@ -1,12 +1,12 @@
 // src/app/(marketing)/cere-demo/formular-demo.tsx
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useState, useTransition, type FocusEvent, type FormEvent } from "react";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { trimiteCerereDemo } from "./actions";
+// `./campuri`, NU `./schema`: schema aduce Zod, iar formularul stă pe pagina de
+// start. Validarea de aici e de confort; autoritatea e schema din acțiune.
 import {
   BENZI_ANGAJATI,
   CAMPURI_CERE_DEMO,
@@ -14,18 +14,33 @@ import {
   ETICHETE_BANDA_EN,
   MESAJE_EN,
   MESAJE_RO,
-  creeazaSchemaCereDemo,
+  valideazaCerereDemo,
+  type BandaAngajati,
   type CereDemoInput,
-} from "./schema";
+  type EroriCereDemo,
+} from "./campuri";
 
-const VALORI_INITIALE: CereDemoInput = {
-  nume: "",
-  firma: "",
-  email: "",
-  telefon: "",
-  nrAngajati: "10-49",
-  mesaj: "",
-};
+const BANDA_IMPLICITA: BandaAngajati = "10-49";
+
+/** Valorile din formular, curățate de spațiile de la capete. */
+function citesteValori(form: HTMLFormElement): CereDemoInput {
+  const date = new FormData(form);
+  const text = (nume: keyof CereDemoInput) => {
+    const valoare = date.get(nume);
+    return typeof valoare === "string" ? valoare.trim() : "";
+  };
+  const banda = text("nrAngajati");
+  return {
+    nume: text("nume"),
+    firma: text("firma"),
+    email: text("email"),
+    telefon: text("telefon"),
+    nrAngajati: (BENZI_ANGAJATI as readonly string[]).includes(banda)
+      ? (banda as BandaAngajati)
+      : BANDA_IMPLICITA,
+    mesaj: text("mesaj"),
+  };
+}
 
 /**
  * UN SINGUR formular pe acest punct de intrare.
@@ -93,36 +108,62 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
   const [trimis, setTrimis] = useState(false);
   const [eroareGenerala, setEroareGenerala] = useState<string | null>(null);
 
+  const [erori, setErori] = useState<EroriCereDemo>({});
+
   const t = TEXTE[limba];
   const benzi = limba === "ro" ? ETICHETE_BANDA : ETICHETE_BANDA_EN;
+  const mesaje = limba === "ro" ? MESAJE_RO : MESAJE_EN;
 
-  const form = useForm<CereDemoInput>({
-    resolver: zodResolver(creeazaSchemaCereDemo(limba === "ro" ? MESAJE_RO : MESAJE_EN)),
-    defaultValues: VALORI_INITIALE,
-    mode: "onBlur",
-  });
+  /**
+   * Validarea la ieșirea din câmp, ca înainte (`mode: "onBlur"`): doar câmpul
+   * părăsit își schimbă mesajul, ca omul să nu vadă erori la câmpuri pe care
+   * încă nu le-a atins.
+   */
+  const laIesire =
+    (camp: keyof CereDemoInput) =>
+    (eveniment: FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      const formular = eveniment.currentTarget.form;
+      if (formular === null) return;
+      const mesaj = valideazaCerereDemo(citesteValori(formular), mesaje)[camp];
+      setErori((vechi) => ({ ...vechi, [camp]: mesaj }));
+    };
 
-  const trimite = form.handleSubmit((valori) => {
+  const trimite = (eveniment: FormEvent<HTMLFormElement>) => {
+    eveniment.preventDefault();
+    const formular = eveniment.currentTarget;
+    const valori = citesteValori(formular);
+    const gasite = valideazaCerereDemo(valori, mesaje);
+    setErori(gasite);
     setEroareGenerala(null);
+
+    const primul = CAMPURI_CERE_DEMO.find((camp) => gasite[camp] !== undefined);
+    if (primul !== undefined) {
+      formular.querySelector<HTMLElement>(`[name="${primul}"]`)?.focus();
+      return;
+    }
+
     startTransition(async () => {
       const rezultat = await trimiteCerereDemo(valori);
       if (rezultat.ok) {
         setTrimis(true);
-        form.reset(VALORI_INITIALE);
         return;
       }
-      const campuri = rezultat.error.fieldErrors;
-      if (campuri) {
-        for (const cheie of CAMPURI_CERE_DEMO) {
-          const primulMesaj = campuri[cheie]?.[0];
-          if (primulMesaj) {
-            form.setError(cheie, { type: "server", message: primulMesaj });
-          }
+      // Serverul validează cu schema Zod și răspunde în română. Câmpurile
+      // respinse primesc mesajul în limba paginii; textul serverului rămâne
+      // rezerva, pentru o regulă pe care clientul n-o cunoaște.
+      const respinse = rezultat.error.fieldErrors;
+      if (respinse) {
+        const locale = valideazaCerereDemo(valori, mesaje);
+        const deLaServer: EroriCereDemo = {};
+        for (const camp of CAMPURI_CERE_DEMO) {
+          const mesajServer = respinse[camp]?.[0];
+          if (mesajServer) deLaServer[camp] = locale[camp] ?? mesajServer;
         }
+        setErori(deLaServer);
       }
       setEroareGenerala(rezultat.error.message);
     });
-  });
+  };
 
   if (trimis) {
     return (
@@ -141,8 +182,6 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
       </div>
     );
   }
-
-  const erori = form.formState.errors;
 
   return (
     <form onSubmit={trimite} noValidate className="space-y-5">
@@ -166,11 +205,12 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
           className={CLASA_INPUT}
           aria-invalid={erori.nume ? true : undefined}
           aria-describedby={erori.nume ? `${idFormular}-nume-eroare` : undefined}
-          {...form.register("nume")}
+          name="nume"
+          onBlur={laIesire("nume")}
         />
         {erori.nume && (
           <p id={`${idFormular}-nume-eroare`} className={CLASA_EROARE}>
-            {erori.nume.message}
+            {erori.nume}
           </p>
         )}
       </div>
@@ -186,11 +226,12 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
           className={CLASA_INPUT}
           aria-invalid={erori.firma ? true : undefined}
           aria-describedby={erori.firma ? `${idFormular}-firma-eroare` : undefined}
-          {...form.register("firma")}
+          name="firma"
+          onBlur={laIesire("firma")}
         />
         {erori.firma && (
           <p id={`${idFormular}-firma-eroare`} className={CLASA_EROARE}>
-            {erori.firma.message}
+            {erori.firma}
           </p>
         )}
       </div>
@@ -208,11 +249,12 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
             className={CLASA_INPUT}
             aria-invalid={erori.email ? true : undefined}
             aria-describedby={erori.email ? `${idFormular}-email-eroare` : undefined}
-            {...form.register("email")}
+            name="email"
+            onBlur={laIesire("email")}
           />
           {erori.email && (
             <p id={`${idFormular}-email-eroare`} className={CLASA_EROARE}>
-              {erori.email.message}
+              {erori.email}
             </p>
           )}
         </div>
@@ -229,11 +271,12 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
             className={CLASA_INPUT}
             aria-invalid={erori.telefon ? true : undefined}
             aria-describedby={erori.telefon ? `${idFormular}-telefon-eroare` : undefined}
-            {...form.register("telefon")}
+            name="telefon"
+            onBlur={laIesire("telefon")}
           />
           {erori.telefon && (
             <p id={`${idFormular}-telefon-eroare`} className={CLASA_EROARE}>
-              {erori.telefon.message}
+              {erori.telefon}
             </p>
           )}
         </div>
@@ -248,7 +291,9 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
           className={`${CLASA_INPUT} cursor-pointer`}
           aria-invalid={erori.nrAngajati ? true : undefined}
           aria-describedby={erori.nrAngajati ? `${idFormular}-angajati-eroare` : undefined}
-          {...form.register("nrAngajati")}
+          name="nrAngajati"
+          defaultValue={BANDA_IMPLICITA}
+          onBlur={laIesire("nrAngajati")}
         >
           {BENZI_ANGAJATI.map((banda) => (
             <option key={banda} value={banda}>
@@ -258,7 +303,7 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
         </select>
         {erori.nrAngajati && (
           <p id={`${idFormular}-angajati-eroare`} className={CLASA_EROARE}>
-            {erori.nrAngajati.message}
+            {erori.nrAngajati}
           </p>
         )}
       </div>
@@ -273,11 +318,12 @@ export function FormularDemo({ limba = "ro" }: { limba?: "ro" | "en" }) {
           className={`${CLASA_CAMP} min-h-28 py-2.5`}
           aria-invalid={erori.mesaj ? true : undefined}
           aria-describedby={erori.mesaj ? `${idFormular}-mesaj-eroare` : undefined}
-          {...form.register("mesaj")}
+          name="mesaj"
+          onBlur={laIesire("mesaj")}
         />
         {erori.mesaj && (
           <p id={`${idFormular}-mesaj-eroare`} className={CLASA_EROARE}>
-            {erori.mesaj.message}
+            {erori.mesaj}
           </p>
         )}
       </div>

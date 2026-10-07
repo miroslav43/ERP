@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
 import { Banda } from "../banda";
@@ -62,7 +63,6 @@ export function BandaIzolare({ text }: ProprietatiBanda) {
         <div className="lg:col-span-5">
           <VinietaPontaj
             titlu={text.izolare.vinieta.titlu}
-            politica={text.izolare.vinieta.politica}
             contor={text.izolare.vinieta.contor}
             nota={text.izolare.vinieta.nota}
             randuri={text.izolare.vinieta.randuri}
@@ -153,6 +153,14 @@ export function BandaOnestitate({ text }: ProprietatiBanda) {
             <p className="text-mk-text-inv-slab mt-2 max-w-[72ch] text-[0.9375rem] leading-[1.6]">
               {rand.text}
             </p>
+            {rand.legatura !== undefined && (
+              <Link
+                href={rand.legatura.href}
+                className="text-mk-text-inv mt-2 inline-block text-[0.9375rem] underline underline-offset-4"
+              >
+                {rand.legatura.eticheta}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

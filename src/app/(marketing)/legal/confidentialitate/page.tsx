@@ -8,8 +8,12 @@ import {
   SECTIUNI_CONFIDENTIALITATE,
 } from "@/content/legal/confidentialitate";
 
+import { ancoraClauza } from "@/content/legal/cuprins";
+
+import { Firimituri } from "../../_componente/antet-secundar";
 import { Cadru } from "../../_componente/cadru";
 import { metadatePagina } from "../../_componente/metadate";
+import { cuTrimiteriLaSectiuni } from "../../_componente/paragraf-legal";
 
 /**
  * Politica de confidențialitate.
@@ -36,6 +40,12 @@ export default function PaginaConfidentialitate() {
   return (
     <Cadru text={RO}>
       <div className="mx-auto w-full max-w-3xl px-[clamp(1rem,4vw,2.5rem)] py-16 sm:py-24">
+        <Firimituri
+          firimituri={[
+            { eticheta: "Acasă", href: "/" },
+            { eticheta: "Confidențialitate", href: "/legal/confidentialitate" },
+          ]}
+        />
         <h1 className="font-mk-display text-[clamp(2rem,4vw,3rem)] leading-[1.04] font-semibold tracking-[-0.02em]">
           Politica de confidențialitate
         </h1>
@@ -49,13 +59,17 @@ export default function PaginaConfidentialitate() {
 
         <div className="mt-10 space-y-9">
           {SECTIUNI_CONFIDENTIALITATE.map((sectiune) => (
-            <section key={sectiune.titlu}>
+            <section
+              key={sectiune.titlu}
+              id={ancoraClauza(sectiune.titlu)}
+              className="scroll-mt-24"
+            >
               <h2 className="font-mk-display text-[1.125rem] leading-[1.3] font-semibold">
                 {sectiune.titlu}
               </h2>
               {sectiune.paragrafe.map((paragraf) => (
                 <p key={paragraf} className="text-mk-text-slab mt-3 text-[0.9375rem] leading-[1.7]">
-                  {paragraf}
+                  {cuTrimiteriLaSectiuni(paragraf)}
                 </p>
               ))}
             </section>

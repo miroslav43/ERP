@@ -7,6 +7,7 @@ import { SPOR_DE_NOAPTE } from "@/content/legal/spor-de-noapte";
 import { ORE_SUPLIMENTARE } from "@/content/legal/ore-suplimentare";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
 import { REGES } from "@/content/legal/reges";
+import { ZILE_LIBERE } from "@/content/legal/zile-libere";
 
 import { ADRESA_SITE } from "./contact";
 import { fisaModulului } from "./fise-module";
@@ -255,6 +256,15 @@ export const PAGINI: readonly Pagina[] = [
     actualizat: SALARIU_MINIM.actualizatIso,
     sectiune: "Obligații legale",
   },
+  {
+    // 7 oct 2026: „zile libere 2026”, cel mai mare gol al sitului (auditul SEO).
+    cale: "/ghid/zile-libere",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: ZILE_LIBERE.actualizatIso,
+    sectiune: "Obligații legale",
+  },
 
   {
     cale: "/domenii",
@@ -382,7 +392,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.6,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-07",
     sectiune: "Unelte și comparații",
   },
 
@@ -424,7 +434,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.3,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-17",
+    actualizat: "2026-10-07",
     sectiune: "Legal",
   },
 ];

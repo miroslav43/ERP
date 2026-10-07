@@ -42,7 +42,32 @@ export type DocumentTabelar = Readonly<{
   orientare: "portret" | "peisaj";
   /** Fără extensie; trece prin `numeFisierSigur`. */
   numeFisier: string;
+  /**
+   * Pagina uneltei, fără domeniu (`/unelte/foaie-de-parcurs`). O pune ruta de
+   * descărcare; rândul de jos al fișierului devine legătură spre ea.
+   */
+  sursa?: string;
 }>;
+
+/** Textul rândului de jos, același în toate formatele. */
+export const SEMNATURA_FISIER = "Generat gratuit cu administrativo.ro";
+
+/**
+ * Adresa spre care trimite rândul de jos al fișierului.
+ *
+ * Fișierele astea se trimit mai departe și se reîncarcă în alte firme; un rând
+ * de text simplu nu aducea pe nimeni înapoi (auditul din 7 oct 2026). Parametrii
+ * UTM spun în statistici de unde a venit vizita, iar canonicul paginii îi
+ * ignoră, deci nu creează adrese noi pentru motoare.
+ */
+export function adresaDinFisier(d: DocumentTabelar, format: Format, site: string): string {
+  const parametri = new URLSearchParams({
+    utm_source: "fisier",
+    utm_medium: format,
+    utm_campaign: "unelte",
+  });
+  return `${site}${d.sursa ?? "/unelte"}?${parametri.toString()}`;
+}
 
 /** Linia de completat de mână, aceeași în toate cele patru randări. */
 export const LINIE_GOALA = "______________________________";

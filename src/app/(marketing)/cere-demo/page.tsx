@@ -6,6 +6,7 @@ import { CONTACT } from "@/content/landing/contact";
 import { lunar, PRAG_ANGAJATI, PRET_NUCLEU } from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
 
+import { Firimituri } from "../_componente/antet-secundar";
 import { Cadru } from "../_componente/cadru";
 import { metadatePagina } from "../_componente/metadate";
 import { FormularDemo } from "./formular-demo";
@@ -47,6 +48,12 @@ export default function PaginaCereDemo() {
   return (
     <Cadru text={RO}>
       <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] py-16 sm:py-24">
+        <Firimituri
+          firimituri={[
+            { eticheta: "Acasă", href: "/" },
+            { eticheta: "Cere o demonstrație", href: "/cere-demo" },
+          ]}
+        />
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div>
             <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">

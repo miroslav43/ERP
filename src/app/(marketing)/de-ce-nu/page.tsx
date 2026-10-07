@@ -24,14 +24,20 @@ export const metadata: Metadata = metadatePagina({
   // Fără marcă în titlu: șablonul „%s · Administrativo” o adaugă deja.
   titlu: "Ce nu facem: limitele, scrise dinainte",
   descriere:
-    "Limitele, scrise înainte să întrebi: fără raportare la ANAF, fără CNP-uri trimise la REGES pe fundal, fără aplicație în magazine. Și de ce e mai ieftin așa.",
+    "Limitele, scrise înainte să întrebi: fără raportare la ANAF, fără CNP-uri trimise singure la REGES, fără aplicație în magazine. Și de ce e mai ieftin așa.",
   cale: "/de-ce-nu",
 });
 
 export default function PaginaDeCeNu() {
   return (
     <Cadru text={RO}>
-      <AntetSecundar text={RO.pagini.deCeNu} />
+      <AntetSecundar
+        text={RO.pagini.deCeNu}
+        firimituri={[
+          { eticheta: "Acasă", href: "/" },
+          { eticheta: "Ce nu facem", href: "/de-ce-nu" },
+        ]}
+      />
       <BandaOnestitate text={RO} />
       <BandaComparatie text={RO} />
     </Cadru>

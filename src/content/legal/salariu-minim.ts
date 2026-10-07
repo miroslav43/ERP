@@ -135,7 +135,7 @@ export const SALARIU_MINIM: PaginaLege = {
       paragrafe: [
         `Pentru ${lei(MINIM)} brut, la normă întreagă, în funcția de bază și fără persoane în întreținere: ${lei(LA_MINIM.sumaNeimpozabila)} sunt scutiți, iar contribuțiile se calculează pe restul de ${lei(BAZA_CONTRIBUTII)} — CAS ${lei(LA_MINIM.cas)}, CASS ${lei(LA_MINIM.cass)}. Deducerea personală e ${lei(LA_MINIM.deducerePersonala)}, impozitul ${lei(LA_MINIM.impozit)}. Netul e ${lei(LA_MINIM.net)}.`,
         `Firma mai plătește contribuția asiguratorie pentru muncă, 2,25% din aceeași bază: ${lei(LA_MINIM.cam)}. Costul total pe lună e ${lei(LA_MINIM.costTotal)}.`,
-        "Cifrele sunt calculate de același motor ca în calculatorul de salariu de pe site. Sunt informative: suma de pe statul de plată o confirmă contabilul.",
+        "Cifrele sunt calculate exact ca în calculatorul de salariu de pe site. Sunt informative: suma de pe statul de plată o confirmă contabilul.",
       ],
     },
     {
@@ -165,7 +165,7 @@ export const SALARIU_MINIM: PaginaLege = {
       ["Net, normă întreagă, fără persoane în întreținere", "—", lei(LA_MINIM.net)],
       ["Cost total pentru firmă", "—", lei(LA_MINIM.costTotal)],
     ],
-    nota: "Netul și costul sunt calculate doar pentru valoarea în vigoare, de același motor ca în calculatorul de salariu, cu suma scutită inclusă.",
+    nota: "Netul și costul sunt calculate doar pentru valoarea în vigoare, la fel ca în calculatorul de salariu, cu suma scutită inclusă.",
   },
 
   nesigur: [

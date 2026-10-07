@@ -170,7 +170,6 @@ export type ContinutLanding = Readonly<{
     straturi: readonly Readonly<{ nume: string; rol: string; text: string; bariera: boolean }>[];
     vinieta: Readonly<{
       titlu: string;
-      politica: string;
       /** `{ascunse}`, `{total}`. */
       contor: string;
       nota: string;
@@ -201,7 +200,8 @@ export type ContinutLanding = Readonly<{
     supratitlu: string;
     titlu: string;
     lead: string;
-    randuri: readonly Readonly<{ titlu: string; text: string }>[];
+    /** `legatura`: unde se citește pe larg ce spune rândul. */
+    randuri: readonly Readonly<{ titlu: string; text: string; legatura?: Legatura }>[];
     incheiere: string;
   }>;
 
@@ -395,7 +395,8 @@ export type ContinutLanding = Readonly<{
     supratitlu: string;
     titlu: string;
     lead: string;
-    intrebari: readonly Readonly<{ q: string; a: string }>[];
+    /** `legatura`: pagina care tratează subiectul pe larg (auditul din 7 oct 2026). */
+    intrebari: readonly Readonly<{ q: string; a: string; legatura?: Legatura }>[];
   }>;
 
   /**

@@ -51,6 +51,7 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
   ],
   "/unelte/foaie-de-pontaj": [
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
+    { eticheta: "Zilele libere legale și zilele lucrătoare pe luni", href: "/ghid/zile-libere" },
     { eticheta: "Pontaj de pe telefon, fără instalare", href: "/pontaj-pe-telefon" },
   ],
   "/comparatie/excel": [

@@ -1,11 +1,14 @@
 import ExcelJS from "exceljs";
 
-import type { DocumentTabelar } from "./document-tabelar";
+import { ADRESA_SITE } from "@/content/landing/contact";
+
+import { adresaDinFisier, SEMNATURA_FISIER, type DocumentTabelar } from "./document-tabelar";
 
 /** `DocumentTabelar` → .xlsx, pe o singură filă, cu antetul tabelului înghețat. */
 export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
   const registru = new ExcelJS.Workbook();
   registru.creator = "Administrativo";
+  registru.title = d.titlu;
   const fila = registru.addWorksheet("Document", {
     pageSetup: {
       orientation: d.orientare === "peisaj" ? "landscape" : "portrait",
@@ -47,7 +50,10 @@ export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
   fila.addRow([]);
   for (const n of d.note) fila.addRow([n]);
   if (d.semnaturi.length > 0) fila.addRow(d.semnaturi.map((s) => `${s}: ______________`));
-  fila.addRow(["Generat gratuit cu administrativo.ro"]);
+  const semnatura = fila.addRow([
+    { text: SEMNATURA_FISIER, hyperlink: adresaDinFisier(d, "xlsx", ADRESA_SITE) },
+  ]);
+  semnatura.getCell(1).font = { color: { argb: "FF6B7280" }, underline: true };
 
   return new Uint8Array(await registru.xlsx.writeBuffer());
 }

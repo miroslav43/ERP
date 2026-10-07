@@ -22,7 +22,10 @@ export async function GET(
   if (construieste === undefined) return new Response("Unealtă necunoscută.", { status: 404 });
   const q = cerere.nextUrl.searchParams;
   try {
-    return await raspunsDocument(construieste(q), normalizeazaFormat(q.get("format")));
+    return await raspunsDocument(
+      { ...construieste(q), sursa: `/unelte/${unealta}` },
+      normalizeazaFormat(q.get("format")),
+    );
   } catch (eroare) {
     if (eroare instanceof EroareIntrare) return new Response(eroare.message, { status: 400 });
     throw eroare;

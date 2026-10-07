@@ -54,19 +54,18 @@ export function Vinieta({
  *
  * Singura imagine de pe pagină care DEMONSTREAZĂ o politică de acces în loc s-o
  * afirme: patru din șase rânduri nu sunt estompate, ci înlocuite de bare
- * hașurate, cu numele politicii care le-a refuzat. Rândurile lipsă nu sunt
- * ascunse de interfață — baza de date nu le-a trimis niciodată.
+ * hașurate. Rândurile lipsă nu sunt ascunse de pagină — nu i-au fost trimise
+ * niciodată. Până la 7 oct 2026 legenda purta și numele regulii din baza de
+ * date (`attendance_select`): cod afișat unui patron, care nu-i spunea nimic.
  */
 export function VinietaPontaj({
   titlu,
-  politica,
   contor,
   nota,
   randuri,
   ascunse,
 }: {
   titlu: string;
-  politica: string;
   contor: string;
   nota: string;
   randuri: readonly string[];
@@ -74,14 +73,7 @@ export function VinietaPontaj({
 }) {
   const vizibile = randuri.length - ascunse;
   return (
-    <Vinieta
-      titlu={titlu}
-      subsol={
-        <>
-          <span className="font-mk-date text-mk-text-inv">{politica}</span> — {nota}
-        </>
-      }
-    >
+    <Vinieta titlu={titlu} subsol={<>{nota}</>}>
       <table className="w-full border-collapse text-left text-sm">
         <caption className="sr-only">{titlu}</caption>
         <thead>
