@@ -14,8 +14,10 @@
 -- (4) dar NU una în numele subordonatului (read = team ≠ create = team);
 -- (5) org_admin adaugă alimentare pe foaia unui șofer             [POZITIVĂ];
 -- (6) un vehicul nu poate primi departamentul altei firme (P0001);
--- (7) confirmarea anomaliei pune semnatarul din sesiune           [POZITIVĂ];
--- (8) o anomalie confirmată nu se mai poate reconfirma (P0001);
+-- (7) confirmarea anomaliei pune semnatarul din sesiune și momentul din
+--     ceasul bazei, oricât ar încerca payload-ul altceva          [POZITIVĂ];
+-- (8) o anomalie confirmată nu se mai poate reconfirma (P0001), nici
+--     „dezsemna” cu `confirmat_de = NULL` (8b);
 -- (9) dar contul care a confirmat-o se poate șterge (FK set null)  [POZITIVĂ].
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
@@ -186,14 +188,18 @@ begin
   perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
   set local role authenticated;
   begin
+    -- Payload-ul încearcă și să antedateze, și să semneze în numele altuia.
     update public.odometer_anomalies
-       set confirmat_la = now(), confirmat_de = v_u_a, nota = 'Foaie lipsă, completată ulterior.'
+       set confirmat_la = now() - interval '30 days', confirmat_de = v_u_a,
+           nota = 'Foaie lipsă, completată ulterior.'
      where id = v_anomalie;
     get diagnostics v_atinse = row_count;
     reset role;
     select confirmat_de into v_semnatar from public.odometer_anomalies where id = v_anomalie;
-    if v_atinse = 1 and v_semnatar = v_u_admin then
-      raise notice '  ✓ (7) confirmarea e semnată de cine confirmă';
+    if v_atinse = 1 and v_semnatar = v_u_admin
+       and (select confirmat_la from public.odometer_anomalies where id = v_anomalie)
+           > now() - interval '1 minute' then
+      raise notice '  ✓ (7) confirmarea e semnată de cine confirmă, cu ceasul bazei';
     else
       v_esecuri := v_esecuri + 1;
       raise warning '  ✗ (7) confirmarea: % rânduri, semnatar %', v_atinse, v_semnatar;
@@ -215,6 +221,19 @@ begin
   exception when raise_exception then
     reset role;
     raise notice '  ✓ (8) anomalia confirmată nu se mai rescrie';
+  end;
+
+  -- (8b) semnătura nu se poate șterge cu un UPDATE: golirea e rezervată FK-ului
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    update public.odometer_anomalies set confirmat_de = null where id = v_anomalie;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (8b) semnătura unei anomalii confirmate a fost ștearsă cu un UPDATE';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (8b) semnătura nu se șterge cu un UPDATE';
   end;
 
   -- (9) dar contul care a confirmat se poate șterge: FK-ul `on delete set null`
@@ -242,7 +261,7 @@ begin
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA INTEGRITATE: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 9 verificări au trecut.';
+  raise notice '  TOATE cele 10 verificări au trecut.';
   raise notice '';
 end;
 $$;
