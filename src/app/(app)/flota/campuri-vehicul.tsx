@@ -23,8 +23,10 @@ import { ETICHETE_CATEGORIE, ETICHETE_COMBUSTIBIL } from "./etichete";
  * cere literal `status = 'activ'`: un vehicul nu poate intra direct „vândut".
  * Caseta de modificare le randează ea, deasupra acestor câmpuri.
  *
- * `km_curent` — îl ridică triggerul la aprobarea unei foi de parcurs. Editabil
- * din formular, ar fi a doua sursă pentru aceeași cifră.
+ * `km_curent` la MODIFICARE — îl ridică triggerul la aprobarea unei foi de
+ * parcurs; corectura are casetă proprie, cu motiv. La CREARE însă e obligatoriu
+ * (`cuKilometraj`): fără el, mașina intra cu 0 km și prima foaie trecea de orice
+ * verificare.
  *
  * `employee_id` / `department_id` — nu există încă selector. Caseta de
  * modificare le trimite prin câmpuri ascunse ca să nu le șteargă; vezi
@@ -40,6 +42,9 @@ export interface ValoriInitialeVehicul {
   readonly an_fabricatie: number | null;
   readonly culoare: string | null;
   readonly consum_mediu_declarat: number | null;
+  readonly capacitate_cilindrica: number | null;
+  readonly masa_maxima_kg: number | null;
+  readonly numar_locuri: number | null;
   readonly data_achizitie: string | null;
   readonly valoare_achizitie: number | null;
   readonly prag_salt_km: number | null;
@@ -51,6 +56,8 @@ export interface ProprietatiCampuriVehicul<TData> {
   readonly idc: (sufix: string) => string;
   /** Vehiculul care se modifică. Absent la adăugare. */
   readonly vehicul?: ValoriInitialeVehicul | undefined;
+  /** Câmpul de kilometraj — doar la adăugare. */
+  readonly cuKilometraj?: boolean;
 }
 
 /** `?? ""` singur ar transforma un `0` legitim în câmp gol. */
@@ -62,11 +69,34 @@ export function CampuriVehicul<TData>({
   stare,
   idc,
   vehicul,
+  cuKilometraj = false,
 }: ProprietatiCampuriVehicul<TData>): ReactElement {
   const trimis = stare.valoriTrimise;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {cuKilometraj ? (
+        <Camp
+          nume="km_curent"
+          id={idc("km_curent")}
+          eticheta="Kilometraj la bord"
+          obligatoriu
+          ajutor="Cifra de pe bord azi. De la ea pornește verificarea foilor de parcurs."
+          erori={stare.erori["km_curent"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="number"
+              min="0"
+              step="1"
+              inputMode="numeric"
+              defaultValue={trimis["km_curent"] ?? ""}
+            />
+          )}
+        </Camp>
+      ) : null}
+
       <Camp
         nume="nr_inmatriculare"
         id={idc("nr_inmatriculare")}
@@ -222,6 +252,62 @@ export function CampuriVehicul<TData>({
             max="300"
             step="0.1"
             defaultValue={trimis["consum_mediu_declarat"] ?? cifra(vehicul?.consum_mediu_declarat)}
+          />
+        )}
+      </Camp>
+
+      <Camp
+        nume="masa_maxima_kg"
+        id={idc("masa_maxima_kg")}
+        eticheta="Masă maximă autorizată (kg)"
+        ajutor="Din talon, rubrica F.2. Decide dacă mașina are nevoie de rovinietă."
+        erori={stare.erori["masa_maxima_kg"] ?? []}
+      >
+        {(a) => (
+          <input
+            {...a}
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            defaultValue={trimis["masa_maxima_kg"] ?? cifra(vehicul?.masa_maxima_kg)}
+          />
+        )}
+      </Camp>
+
+      <Camp
+        nume="capacitate_cilindrica"
+        id={idc("capacitate_cilindrica")}
+        eticheta="Capacitate cilindrică (cm³)"
+        erori={stare.erori["capacitate_cilindrica"] ?? []}
+      >
+        {(a) => (
+          <input
+            {...a}
+            type="number"
+            min="0"
+            step="1"
+            inputMode="numeric"
+            defaultValue={trimis["capacitate_cilindrica"] ?? cifra(vehicul?.capacitate_cilindrica)}
+          />
+        )}
+      </Camp>
+
+      <Camp
+        nume="numar_locuri"
+        id={idc("numar_locuri")}
+        eticheta="Număr de locuri"
+        erori={stare.erori["numar_locuri"] ?? []}
+      >
+        {(a) => (
+          <input
+            {...a}
+            type="number"
+            min="1"
+            max="200"
+            step="1"
+            inputMode="numeric"
+            defaultValue={trimis["numar_locuri"] ?? cifra(vehicul?.numar_locuri)}
           />
         )}
       </Camp>

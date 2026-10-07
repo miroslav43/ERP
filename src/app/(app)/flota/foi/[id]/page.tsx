@@ -99,6 +99,22 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
       celula: (a) => a.statie ?? "—",
     },
     {
+      // „Plin” contează la consum: între două plinuri, litrii alimentați sunt
+      // exact cât s-a consumat. Fără marcaj, cifra de consum e o estimare.
+      cheie: "bon",
+      antet: "Bon",
+      peTelefon: "meta",
+      celula: (a) => (
+        <>
+          {a.numar_bon ?? "—"}
+          {a.plin ? <span className="text-muted-foreground"> · plin</span> : null}
+          {a.observatii === null ? null : (
+            <span className="text-muted-foreground block text-xs">{a.observatii}</span>
+          )}
+        </>
+      ),
+    },
+    {
       cheie: "litri",
       antet: "Litri",
       numeric: true,
@@ -282,7 +298,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           }
           subsol={
             <tr>
-              <td className="px-4 py-3" colSpan={2}>
+              <td className="px-4 py-3" colSpan={3}>
                 Total
               </td>
               <td className="px-4 py-3 text-right tabular-nums">{litriTotali.toFixed(2)}</td>

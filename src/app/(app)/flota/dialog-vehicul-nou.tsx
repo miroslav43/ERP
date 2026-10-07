@@ -8,7 +8,7 @@ import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { creeazaVehicul } from "./actions";
 import { CampuriVehicul } from "./campuri-vehicul";
-import { valoriVehicul } from "./valori-vehicul";
+import { valoriVehiculNou } from "./valori-vehicul";
 
 /**
  * Vehiculul nou, în casetă. Ruta `/flota/nou` a dispărut.
@@ -33,7 +33,7 @@ export function DialogVehiculNou({ deschisInitial = false }: Proprietati): React
   const router = useRouter();
 
   async function trimite(date: FormData) {
-    return creeazaVehicul(valoriVehicul(date));
+    return creeazaVehicul(valoriVehiculNou(date));
   }
 
   return (
@@ -55,7 +55,7 @@ export function DialogVehiculNou({ deschisInitial = false }: Proprietati): React
         router.push(`/flota/${vehicul.id}`);
       }}
     >
-      {(stare, idc) => <CampuriVehicul stare={stare} idc={idc} />}
+      {(stare, idc) => <CampuriVehicul stare={stare} idc={idc} cuKilometraj />}
     </FormularDialog>
   );
 }

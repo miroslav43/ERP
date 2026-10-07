@@ -45,6 +45,7 @@ import {
   actualizeazaDocument,
   actualizeazaVehicul,
   adaugaDocument,
+  corecteazaKilometraj,
   creeazaVehicul,
   stergeDocument,
   stergeVehicul,
@@ -65,6 +66,7 @@ const vehicul = (modificari: Record<string, unknown> = {}) => ({
   marca: "Dacia",
   model: "Logan",
   vin: "uu1lsda1234567890",
+  km_curent: "87000",
   ...modificari,
 });
 
@@ -113,9 +115,24 @@ describe("creeazaVehicul", () => {
       vin: "UU1LSDA1234567890",
       categorie: "autoturism",
       tip_combustibil: "motorina",
+      km_curent: 87000,
     });
     expect(apel?.selectDupaScriere).toBe("id");
     expect(caiRevalidate()).toEqual(["/flota"]);
+  });
+
+  /**
+   * Defectul reparat în F1: `km_curent` nu se trimitea, coloana rămânea pe
+   * `default 0`, iar prima foaie de parcurs trecea de orice verificare de
+   * kilometraj. Fără cifră, crearea se oprește în schemă.
+   */
+  it("fără kilometraj: VALIDARE pe `km_curent`, fără interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:create": "all" } });
+    const r = await creeazaVehicul(vehicul({ km_curent: undefined }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.fieldErrors).toHaveProperty("km_curent");
+    expect(server.apeluri).toHaveLength(0);
   });
 
   it("auditul de succes poartă id-ul vehiculului nou", async () => {
@@ -444,5 +461,56 @@ describe("stergeDocument", () => {
     server.raspunde("vehicle_documents", "update", { data: null });
     const r = await stergeDocument({ id: ID_3, vehicle_id: ID_1 });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+  });
+});
+
+describe("corecteazaKilometraj", () => {
+  const corectura = { id: ID_1, km_curent: "87250", motiv: "Cifra de la creare era greșită." };
+
+  it("scope `team` pe `vehicles:update`: INTERZIS", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "team" } });
+    const r = await corecteazaKilometraj(corectura);
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("fără motiv: VALIDARE pe `motiv`, fără interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    const r = await corecteazaKilometraj({ ...corectura, motiv: "" });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.fieldErrors).toHaveProperty("motiv");
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("succes: scrie DOAR kilometrajul și autorul; motivul merge în audit, nu în bază", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicles", "update", { data: { id: ID_1 } });
+
+    const r = await corecteazaKilometraj(corectura);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [apel] = server.apeluriPe("vehicles");
+    expect(apel?.payload).toEqual({ km_curent: 87250, updated_by: USER_ID });
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    expect(apel?.selectDupaScriere).toBeDefined();
+
+    await asteaptaDupa();
+    const [audit] = server.audituri();
+    expect(audit?.p_after).toMatchObject({
+      id: ID_1,
+      km_curent: 87250,
+      motiv: "Cifra de la creare era greșită.",
+    });
+    expect(caiRevalidate()).toEqual(["/flota", `/flota/${ID_1}`]);
+  });
+
+  it("zero rânduri (vehicul șters sau din altă firmă): NEGASIT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicles:update": "all" } });
+    server.raspunde("vehicles", "update", { data: null });
+    const r = await corecteazaKilometraj(corectura);
+    expect(r.ok).toBe(false);
+    expect(caiRevalidate()).toEqual([]);
   });
 });

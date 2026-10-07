@@ -9,9 +9,11 @@ import {
   actualizeazaVehiculSchema,
   alimentareSchema,
   confirmaAnomalieSchema,
+  corecteazaKilometrajSchema,
   decizieFoaieSchema,
   documentVehiculSchema,
   foaieNouaSchema,
+  redeschideFoaieSchema,
   stergeDocumentSchema,
   stergeVehiculSchema,
   trimiteFoaieSchema,
@@ -38,6 +40,8 @@ export const creeazaVehicul = createAction({
       "categorie",
       "tip_combustibil",
       "an_fabricatie",
+      "masa_maxima_kg",
+      "km_curent",
       "employee_id",
       "department_id",
       "data_achizitie",
@@ -103,6 +107,7 @@ export const actualizeazaVehicul = createAction({
       "categorie",
       "tip_combustibil",
       "an_fabricatie",
+      "masa_maxima_kg",
       "employee_id",
       "department_id",
       "data_achizitie",
@@ -186,6 +191,54 @@ export const stergeVehicul = createAction({
     if (data === null) {
       throw businessRule(
         "Vehiculul nu a fost șters: fusese deja scos din parc sau nu aveți dreptul de a-l administra. Reîncărcați parcul auto.",
+      );
+    }
+
+    return { id: data.id };
+  },
+});
+
+/**
+ * Corectura kilometrajului de bord.
+ *
+ * Singurul drum prin care `km_curent` se schimbă din aplicație. Altfel îl
+ * ridică doar aprobarea foilor (`internal.foi_parcurs_dupa`). Motivul nu se
+ * scrie în bază: nu există coloană pentru el. Rămâne în audit, alături de
+ * cifra nouă, iar „cine a mutat kilometrajul și de ce” se citește de acolo.
+ *
+ * Coborârea e permisă: corectura e tocmai pentru cifra greșită de la creare.
+ * Nu deschide nicio portiță la foi, fiindcă triggerul de regres compară cu
+ * `greatest(ultima foaie aprobată, km_curent)`. Kilometrajul unei foi aprobate
+ * rămâne prag, oricât de jos s-ar pune `km_curent`.
+ */
+export const corecteazaKilometraj = createAction({
+  name: "fleet.vehicle.odometer",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: corecteazaKilometrajSchema,
+  audit: {
+    action: "update",
+    entityType: "vehicle",
+    entityId: (input) => input.id,
+    allow: ["id", "km_curent", "motiv"],
+  },
+  revalidate: (input) => ["/flota", `/flota/${input.id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+
+    const { data, error } = await db
+      .from("vehicles")
+      .update({ km_curent: input.km_curent, updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw notFound(
+        "Vehiculul nu a fost găsit sau nu aveți dreptul de a-l modifica. Reîncărcați fișa vehiculului.",
       );
     }
 
@@ -352,7 +405,15 @@ export const creeazaFoaie = createAction({
     action: "create",
     entityType: "trip_sheet",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["vehicle_id", "employee_id", "plecare_la", "km_plecare", "traseu", "scop"],
+    allow: [
+      "vehicle_id",
+      "employee_id",
+      "plecare_la",
+      "km_plecare",
+      "traseu",
+      "scop",
+      "observatii",
+    ],
   },
   revalidate: ["/flota/foi"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
@@ -386,7 +447,7 @@ export const trimiteFoaie = createAction({
     action: "update",
     entityType: "trip_sheet",
     entityId: (input) => input.id,
-    allow: ["id", "sosire_la", "km_sosire"],
+    allow: ["id", "sosire_la", "km_sosire", "observatii"],
   },
   revalidate: ["/flota/foi", "/flota/aprobari"],
   handler: async (ctx, input): Promise<Readonly<{ id: string; anomalie: string | null }>> => {
@@ -401,6 +462,9 @@ export const trimiteFoaie = createAction({
         status: "trimis",
         sosire_la: input.sosire_la,
         km_sosire: input.km_sosire,
+        // Câmp gol la închidere = nimic de adăugat, nu „șterge ce era”. Nota
+        // pusă la întocmire rămâne.
+        ...(input.observatii === null ? {} : { observatii: input.observatii }),
         updated_by: ctx.user.id,
       })
       .eq("id", input.id)
@@ -432,6 +496,58 @@ export const trimiteFoaie = createAction({
           ? null
           : `Kilometrajul declarat (${salt.km_declarat} km) este cu ${salt.km_declarat - salt.km_asteptat} km peste ultimul cunoscut (${salt.km_asteptat} km). Foaia a fost salvată, dar diferența apare la anomalii până când cineva o confirmă.`,
     };
+  },
+});
+
+/**
+ * Foaia respinsă revine în ciornă.
+ *
+ * ── DE CE O ACȚIUNE SEPARATĂ ────────────────────────────────────────────────
+ * `internal.foi_parcurs_inainte` permite din `respins` DOAR tranziția spre
+ * `draft`, nu direct spre `trimis`. Ecranul arăta totuși formularul „Trimite
+ * spre aprobare” pe o foaie respinsă, iar trimiterea cădea mereu cu P0001
+ * („Nu se poate trece foaia din starea «respins»…”). Șoferul rămânea blocat
+ * într-un punct mort. Redeschiderea e pasul lipsă și rămâne vizibilă în audit.
+ *
+ * Motivul respingerii rămâne pe foaie, ca omul să vadă ce are de corectat.
+ * `aprobat_de`/`aprobat_la` le golește triggerul la orice stare ≠ `aprobat`.
+ */
+export const redeschideFoaie = createAction({
+  name: "fleet.trip.reopen",
+  feature: "fleet",
+  permission: "trip_sheets:update",
+  minScope: "own",
+  input: redeschideFoaieSchema,
+  audit: {
+    action: "update",
+    entityType: "trip_sheet",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: (input) => ["/flota/foi", `/flota/foi/${input.id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("trip_sheets")
+      .update({ status: "draft", updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      // Doar o foaie respinsă. Pe una trimisă, „draft” ar fi o retragere din
+      // aprobare, adică altă operațiune, nu o corectură.
+      .eq("status", "respins")
+      // `foi_update` nu are `deleted_at` în USING (0016): fără filtrul ăsta, o
+      // foaie ștearsă logic ar fi „redeschisă” invizibil, cu audit de reușită.
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Foaia nu a putut fi redeschisă: nu mai e respinsă sau nu aveți dreptul de a o modifica. Reîncărcați pagina.",
+      );
+    }
+
+    return { id: data.id };
   },
 });
 
@@ -497,7 +613,16 @@ export const adaugaAlimentare = createAction({
     action: "create",
     entityType: "fuel_entry",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["trip_sheet_id", "litri", "cost", "statie", "numar_bon", "alimentat_la", "plin"],
+    allow: [
+      "trip_sheet_id",
+      "litri",
+      "cost",
+      "statie",
+      "numar_bon",
+      "alimentat_la",
+      "plin",
+      "observatii",
+    ],
   },
   revalidate: ["/flota/foi"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {

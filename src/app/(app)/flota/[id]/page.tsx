@@ -30,6 +30,8 @@ import {
 import { ButonStergeDocument } from "./buton-sterge-document";
 import { ButonStergeVehicul } from "./buton-sterge-vehicul";
 import { DialogDocument } from "./dialog-document";
+import { DialogDocumentNou } from "./dialog-document-nou";
+import { DialogKilometraj } from "./dialog-kilometraj";
 import { DialogVehicul } from "./dialog-vehicul";
 import { FormularDocument } from "./formular-document";
 
@@ -173,7 +175,11 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
     },
     // Coloana lipsește cu totul pentru cine n-o poate folosi — un `<th>` care
     // conduce cinci celule goale e zgomot pentru cititorul de ecran.
-    ...(poateAdministra
+    //
+    // Pe un rând „Lipsește”, acțiunea e „Adaugă” (`vehicles:create`, poarta lui
+    // `adaugaDocument`). Pe un document existent, corectura și ștergerea
+    // (`vehicles:update`). Coloana există dacă măcar una dintre ele e posibilă.
+    ...(poateAdministra || poateScrie
       ? [
           {
             cheie: "actiuni",
@@ -189,7 +195,11 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
              * de hidratare. Nimic nu se vede stricat; doar consola țipă.
              */
             celula: (rand: RandDocument) =>
-              rand.documentul === null ? null : (
+              rand.documentul === null ? (
+                poateScrie ? (
+                  <DialogDocumentNou vehiculId={vehicul.id} tip={rand.tip} tipuri={tipuri} />
+                ) : null
+              ) : !poateAdministra ? null : (
                 <span className="inline-flex items-center gap-1">
                   <DialogDocument
                     vehiculId={vehicul.id}
@@ -245,6 +255,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
               {poateAdministra ? (
                 <>
                   <DialogVehicul vehicul={vehicul} />
+                  <DialogKilometraj vehiculId={vehicul.id} kmCurent={vehicul.km_curent} />
                   <ButonStergeVehicul
                     id={vehicul.id}
                     nrInmatriculare={vehicul.nr_inmatriculare}

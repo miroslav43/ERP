@@ -27,6 +27,9 @@ export type ValoriVehicul = Readonly<{
   an_fabricatie: number | null;
   culoare: string | null;
   consum_mediu_declarat: number | null;
+  capacitate_cilindrica: number | null;
+  masa_maxima_kg: number | null;
+  numar_locuri: number | null;
   employee_id: string | null;
   department_id: string | null;
   data_achizitie: string | null;
@@ -63,6 +66,9 @@ export function valoriVehicul(date: FormData): ValoriVehicul {
     an_fabricatie: numarSauNull(date, "an_fabricatie"),
     culoare: textSauNull(date, "culoare"),
     consum_mediu_declarat: numarSauNull(date, "consum_mediu_declarat"),
+    capacitate_cilindrica: numarSauNull(date, "capacitate_cilindrica"),
+    masa_maxima_kg: numarSauNull(date, "masa_maxima_kg"),
+    numar_locuri: numarSauNull(date, "numar_locuri"),
     employee_id: textSauNull(date, "employee_id"),
     department_id: textSauNull(date, "department_id"),
     data_achizitie: textSauNull(date, "data_achizitie"),
@@ -70,4 +76,19 @@ export function valoriVehicul(date: FormData): ValoriVehicul {
     prag_salt_km: numarSauNull(date, "prag_salt_km"),
     observatii: textSauNull(date, "observatii"),
   };
+}
+
+/**
+ * Încărcătura vehiculului NOU: aceleași câmpuri, plus kilometrajul de la bord.
+ *
+ * `km_curent` nu intră în `valoriVehicul`: acțiunea de modificare trimite
+ * obiectul întreg, iar kilometrajul nu se schimbă de acolo.
+ *
+ * Câmpul gol rămâne `null`, nu devine `0`, ca schema să-l refuze cu mesajul
+ * ei. `Number("")` ar fi dat 0 km, adică exact defectul pe care îl repară.
+ */
+export function valoriVehiculNou(
+  date: FormData,
+): ValoriVehicul & Readonly<{ km_curent: number | null }> {
+  return { ...valoriVehicul(date), km_curent: numarSauNull(date, "km_curent") };
 }

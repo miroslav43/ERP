@@ -44,6 +44,7 @@ import {
   confirmaAnomalie,
   creeazaFoaie,
   decideFoaie,
+  redeschideFoaie,
   trimiteFoaie,
 } from "./actions";
 
@@ -400,5 +401,67 @@ describe("confirmaAnomalie", () => {
     expect(r.ok).toBe(true);
     expect(apel).toBeDefined();
     expect(areFiltru(apel, "is", "confirmat_la", null)).toBe(true);
+  });
+});
+
+describe("trimiteFoaie — observații", () => {
+  const inchidere = { id: ID_1, sosire_la: "2026-09-14T18:00", km_sosire: "10720" };
+
+  it("observațiile de la închidere se scriu pe foaie", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
+    server.raspunde("trip_sheets", "update", { data: { id: ID_1 } });
+    server.raspunde("odometer_anomalies", "select", { data: [] });
+
+    await trimiteFoaie({ ...inchidere, observatii: "Ocol prin Câmpina, drum închis." });
+
+    const [apel] = server.apeluriPe("trip_sheets");
+    expect(apel?.payload).toMatchObject({ observatii: "Ocol prin Câmpina, drum închis." });
+  });
+
+  it("câmpul gol nu șterge observațiile puse la întocmire", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
+    server.raspunde("trip_sheets", "update", { data: { id: ID_1 } });
+    server.raspunde("odometer_anomalies", "select", { data: [] });
+
+    await trimiteFoaie({ ...inchidere, observatii: null });
+
+    const [apel] = server.apeluriPe("trip_sheets");
+    expect(apel?.payload).not.toHaveProperty("observatii");
+  });
+});
+
+describe("redeschideFoaie", () => {
+  it("fără `trip_sheets:update`: INTERZIS", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:read": "own" } });
+    const r = await redeschideFoaie({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("succes: respins → draft, filtrat pe starea `respins`, cu `.select()`", async () => {
+    const { server } = configureazaActiunea({
+      rol: "employee",
+      permisiuni: { "trip_sheets:update": "own" },
+    });
+    server.raspunde("trip_sheets", "update", { data: { id: ID_1 } });
+
+    const r = await redeschideFoaie({ id: ID_1 });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [apel] = server.apeluriPe("trip_sheets");
+    expect(apel?.payload).toEqual({ status: "draft", updated_by: USER_ID });
+    expect(areFiltru(apel, "eq", "status", "respins")).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(apel?.selectDupaScriere).toBeDefined();
+    expect(caiRevalidate()).toEqual(["/flota/foi", `/flota/foi/${ID_1}`]);
+  });
+
+  it("zero rânduri (nu mai e respinsă sau e a altcuiva): CONFLICT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
+    server.raspunde("trip_sheets", "update", { data: null });
+    const r = await redeschideFoaie({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(caiRevalidate()).toEqual([]);
   });
 });
