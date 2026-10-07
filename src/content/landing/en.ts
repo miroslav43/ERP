@@ -22,14 +22,15 @@ export const EN: ContinutLanding = {
     // căutat și dimensiunea firmei în locul ei.
     titlu: "Time tracking and HR for companies with 5–50 employees",
     descriere:
-      "Daily working-time records as required by Romanian law, leave, personnel files and REGES-ONLINE reporting in one account. Built for companies with 5–50 employees.",
+      "Clocking in by phone, leave, personnel files and REGES-ONLINE reporting in one account. 149 lei a month for up to 20 employees, first month free.",
   },
 
   antet: {
     navigare: [
-      { eticheta: "First steps", href: "/en/#pornire" },
+      { eticheta: "What it does", href: "/en/#produs" },
+      { eticheta: "Who it is for", href: "/en/#pentru-cine" },
       { eticheta: "Pricing", href: "/en/preturi" },
-      { eticheta: "Security", href: "/en/#incredere" },
+      { eticheta: "Security", href: "/en/#siguranta" },
       { eticheta: "Contact", href: "/en/#contact" },
     ],
     autentificare: "Sign in",
@@ -39,13 +40,18 @@ export const EN: ContinutLanding = {
   },
 
   hero: {
-    // Vezi nota din `ro.ts`: titlul numește ce se rezolvă, supratitlul califică
-    // dimensiunea firmei, iar a doua acțiune duce la preț, nu la limite.
-    supratitlu: "For companies with 5–50 employees",
-    titlu: "Attendance, leave and personnel files in one account",
-    lead: "Daily working-time records, exactly as the Romanian Labour Code requires. Leave, every person's file and REGES-ONLINE reporting in the same place. No spreadsheets, no chat threads.",
+    // Vezi nota din `ro.ts` (6 oct 2026): titlul spune ce se schimbă pentru cele
+    // două capete ale lunii, iar a doua acțiune duce la un om, nu la preț.
+    supratitlu: "Time tracking and HR · for companies with 5–50 employees",
+    titlu: "Your people clock in from their phones. You\u00a0close the month without spreadsheets.",
+    lead: "Start and end times land on the monthly attendance sheet by themselves, approved leave comes off the balance, and contracts go to REGES-ONLINE, the Labour Inspectorate's register, straight from the app. The daily working-time record Romanian law requires, kept up to date in one account.",
     ctaPrimar: { eticheta: "Create an account · first month free", href: "/inregistrare" },
-    ctaSecundar: { eticheta: "See pricing", href: "/en/#preturi" },
+    ctaSecundar: { eticheta: "Book a demo", href: "/cere-demo" },
+    asigurari: ["No card to sign up", "No setup fee", "Nothing to install"],
+    suna: "A person answers at",
+    video: { opreste: "Pause video", porneste: "Play video" },
+    punteFoaie:
+      "This is what the month looks like at the end: what people clocked on their phones, gathered on the monthly attendance sheet. Leave and public holidays are already on it, and the totals add up across the rows and down the columns.",
   },
 
   foaie: {
@@ -85,7 +91,7 @@ export const EN: ContinutLanding = {
       {
         valoare: "149",
         eticheta: "RON a month",
-        nota: "The core, up to 20 employees. Final price — no VAT is added.",
+        nota: "The core, for the whole company up to 20 employees — not per person. Final price, no VAT.",
       },
       {
         valoare: "0",
@@ -226,7 +232,7 @@ export const EN: ContinutLanding = {
             puncte: [
               "Eleven leave types, each with its legal basis noted",
               "Annual entitlement by seniority, working conditions, disability or age",
-              "Team calendar, with a cap on simultaneous absences",
+              "Team calendar: who is away, and when",
             ],
           },
           {
@@ -308,7 +314,7 @@ export const EN: ContinutLanding = {
             cheie: "inventory",
             titlu: "Inventory",
             text: "Items, categories and allocations. The employee confirms for themselves what they received.",
-            puncte: ["Handover with a date", "Batch import from Excel"],
+            puncte: ["Handover with a date", "The employee confirms receipt themselves"],
           },
           {
             cheie: "ticketing",
@@ -365,7 +371,7 @@ export const EN: ContinutLanding = {
             cheie: "announcements",
             titlu: "Announcements",
             text: "Internal notices with read confirmation. You see who has read, against the number of active employees.",
-            puncte: ["In-app and e-mail notification"],
+            puncte: ["Notification in the app and in the employee portal"],
           },
         ],
       },
@@ -506,10 +512,10 @@ export const EN: ContinutLanding = {
       {
         titlu: "From a day worked to the payslip",
         pasi: [
-          { actor: "org_admin", text: "Opens the month" },
+          { actor: "admin", text: "Opens the month" },
           { actor: "hr", text: "Fills in or imports the attendance sheet" },
           { actor: "manager", text: "Approves their own team's attendance" },
-          { actor: "org_admin", text: "Locks the month" },
+          { actor: "admin", text: "Locks the month" },
           { actor: "hr", text: "Runs payroll from the locked hours" },
           { actor: "employee", text: "Finds their payslip in the portal" },
         ],
@@ -518,17 +524,20 @@ export const EN: ContinutLanding = {
         titlu: "From a leave request to the balance",
         pasi: [
           { actor: "employee", text: "Requests leave, with the days consumed shown up front" },
-          { actor: "system", text: "Checks the balance, overlaps and the team cap" },
+          { actor: "automatic", text: "Checks the balance and overlaps with other requests" },
           { actor: "manager", text: "Approves or rejects, with a reason" },
-          { actor: "system", text: "Deducts from the balance and writes the days onto the sheet" },
+          {
+            actor: "automatic",
+            text: "Deducts from the balance and writes the days onto the sheet",
+          },
         ],
       },
       {
         titlu: "From a new hire to a complete file",
         pasi: [
           { actor: "hr", text: "Walks the six-step enrolment wizard" },
-          { actor: "system", text: "Generates the contract and job description from templates" },
-          { actor: "system", text: "Opens the REVISAL event, with its deadline" },
+          { actor: "automatic", text: "Generates the contract and job description from templates" },
+          { actor: "automatic", text: "Opens the REVISAL event, with its deadline" },
           { actor: "hr", text: "Starts the onboarding checklist" },
           { actor: "employee", text: "Confirms the equipment they received" },
         ],
@@ -703,7 +712,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "Services, offices and retail",
-        text: "Flexible schedules, leave with a cap on simultaneous absences, periodic reviews, internal announcements with read confirmation, and a portal where people find their own payslip.",
+        text: "Flexible schedules, leave approved along the reporting line and seen on a team calendar, periodic reviews, internal announcements with read confirmation, and a portal where people find their own payslip.",
         module: ["Leave", "Attendance", "Reviews", "Announcements", "Employee portal"],
       },
     ],
@@ -752,32 +761,214 @@ export const EN: ContinutLanding = {
     ],
   },
 
-  pornire: {
-    supratitlu: "First steps",
-    titlu: "The first timesheet, the same day",
-    lead: "Nothing gets installed on your computers and nothing has to be migrated. You create the account, upload the employee list from a file, and record the current month.",
-    blocuri: [
+  // Vezi nota din `ro.ts` pentru benzile noi ale paginii de start (6 oct 2026).
+  // Legăturile duc spre pagini în română: modulele, uneltele și ghidurile există
+  // doar acolo, iar eticheta o spune, ca cititorul să nu fie surprins.
+  produs: {
+    supratitlu: "What it does",
+    titlu: "Five things you stop doing by hand",
+    lead: "The screenshots come from the real application, on an invented company. What you see here you also see in a demo, moving.",
+    randuri: [
       {
-        titlu: "Clocking in, from the worker's phone",
-        text: "You open an address in the browser and add it to the home screen. No app store, no updates to install, no phone that has run out of space.",
-        legatura: { eticheta: "How clocking in works", href: "/pontaj-pe-telefon" },
+        captura: "telefon",
+        descriereCaptura:
+          "The employee portal on a phone, in Romanian: this month's pay, the clock-in button and a to-do list.",
+        eticheta: "Time tracking · Labour Code art. 119",
+        titlu: "Clocking in happens on the phone, with no app to install",
+        text: "People open an address in the browser and tap “clock in” and “clock out”. The time recorded is the server's, not the phone's. You can put a QR poster, printed from the app, at every work site, and require a scan before clocking in.",
+        puncte: [
+          "The monthly attendance sheet fills itself from the clock-ins",
+          "Overtime and night hours, counted separately",
+          "The manager approves, then the month locks",
+        ],
+        legatura: { eticheta: "How clocking in works (in Romanian)", href: "/pontaj-pe-telefon" },
       },
       {
-        titlu: "Leave and due dates",
-        text: "A request is approved once and becomes a leave day on the sheet. Safety briefings, vehicle inspections and occupational medicine visits land in the same list of deadlines, with a warning before expiry.",
-        legatura: { eticheta: "See the modules", href: "/module" },
+        captura: "leave",
+        descriereCaptura: "A team's leave calendar for one month, in Administrativo.",
+        eticheta: "Leave",
+        titlu: "Leave requests are approved in one click, and the balance works itself out",
+        text: "Employees request leave from their phone and see up front how many working days it uses. The manager approves or rejects with a reason, public holidays come off automatically, and approved days land on the attendance sheet without anyone copying them over.",
+        puncte: [
+          "Eleven leave types, each with its legal basis noted",
+          "Annual entitlement, worked out from seniority and working conditions",
+          "The team calendar: who is away, and when",
+        ],
+        legatura: { eticheta: "The leave module (in Romanian)", href: "/module/concedii" },
+        demo: { eticheta: "Try the screen, no account", href: "/vitrina/leave" },
       },
       {
-        titlu: "Who sees what",
-        text: "Five roles, each with its own scope. A manager sees the team, an employee sees only their own file, and the rule is not in the menu — it is in the database.",
-        legatura: { eticheta: "How we keep data separate", href: "/incredere" },
+        captura: null,
+        descriereCaptura: "",
+        eticheta: "REGES-ONLINE · formerly Revisal",
+        titlu: "Contracts go to REGES-ONLINE straight from the app",
+        text: "Since 2026 the employee register is kept only in REGES-ONLINE, the Labour Inspectorate's system. Administrativo prepares the messages from each employee's file and sends them through the REGES API, with the legal deadline of every event counted in working days. The inspectorate's answer comes back to the person's file.",
+        puncte: [
+          "No import file carried around by hand",
+          "Data with a personal ID number leaves only when a person with sending rights sends it",
+          "A rejection by the inspectorate, explained in plain words",
+        ],
+        legatura: { eticheta: "REGES-ONLINE deadlines (in Romanian)", href: "/reges-online" },
+        panou: {
+          titlu: "Some REGES-ONLINE deadlines",
+          randuri: [
+            { ce: "New contract", termen: "at the latest the day before work starts" },
+            { ce: "Contract termination", termen: "at the latest on the termination date" },
+            { ce: "Transfer", termen: "5 working days" },
+            { ce: "Salary change", termen: "20 working days" },
+          ],
+          sursa:
+            "Government Decision 295/2025, art. 5. Every deadline, with the fines, is on the REGES-ONLINE page.",
+        },
+      },
+      {
+        captura: "payroll",
+        descriereCaptura: "An approved payroll period with its documents, in Administrativo.",
+        eticheta: "Payroll",
+        titlu: "The closed month goes straight into payroll",
+        text: "Hours locked on the attendance sheet reach the month's payroll without anyone retyping them. Every person sees their payslip in the portal, and the accountant receives the calculation, not a table of hours. Filings and responsibility stay with them.",
+        puncte: [
+          "A step-by-step breakdown of the calculation, for every person",
+          "Bonuses and deductions defined once, used every month",
+          "Your accountant confirms the tax rates before the first real run",
+        ],
+        legatura: { eticheta: "Payroll (in Romanian)", href: "/module/salarizare" },
+      },
+      {
+        captura: "ssm",
+        descriereCaptura:
+          "The safety-training matrix by employee, with the status of each training, in Administrativo.",
+        eticheta: "Deadlines · safety, medical checks, vehicles",
+        titlu: "What expires shows up before the inspection, not during it",
+        text: "Safety briefings, fitness-for-work certificates, protective equipment, vehicle inspections and insurance, fire extinguisher checks: all of them land in the same list of deadlines, with a warning before they expire.",
+        puncte: [
+          "“Never done” is a separate status from “expired”",
+          "The individual training record, per Annex 11 to Government Decision 1425/2006",
+          "Fleet: inspections, insurance, road vignette and trip logs",
+        ],
+        legatura: { eticheta: "Health and safety (in Romanian)", href: "/module/ssm" },
       },
     ],
-    // Fără legături: paginile de modul există doar în română.
-    nota: [
-      "The same subscription also carries modules for REGES-ONLINE reporting, payroll, occupational safety, fleet, inventory, per diem, courses and onboarding.",
+    restTitlu: "All nineteen modules, each with its own page (in Romanian)",
+    legaturaModule: { eticheta: "All modules on one page", href: "/module" },
+    notaCaptura: "A screenshot of the real application. The company and its people are invented.",
+    mareste: "tap to enlarge",
+    inchide: "Close",
+  },
+
+  pentruCine: {
+    supratitlu: "Who it is for",
+    titlu: "One account for the whole company. Everyone sees only what concerns them.",
+    lead: "Five roles, each with its own rights. A manager sees their team, an employee sees only what is theirs, and the rule lives in the database, not in a hidden menu.",
+    roluri: [
+      {
+        cine: "The owner",
+        text: "See at a glance who is at work, who is on leave and which deadlines expire this month. Approve requests in one click and know at any moment what an inspector would find.",
+        legatura: { eticheta: "Your industry (in Romanian)", href: "/domenii" },
+      },
+      {
+        cine: "The HR person",
+        text: "Files, contracts, leave, training and REGES-ONLINE in one place. Employees come in from Excel once, and the contract and job description are generated from their data.",
+        legatura: { eticheta: "What the law requires (in Romanian)", href: "/ghid" },
+      },
+      {
+        cine: "The external accountant",
+        text: "Every company you look after, in one account, with a menu to switch between them. You receive the closed month, not hours retyped into an e-mail.",
+        legatura: { eticheta: "For accountants (in Romanian)", href: "/pentru-contabili" },
+      },
+      {
+        cine: "The employee",
+        text: "Clocks in, requests leave and checks their balance, payslip and documents from their phone, without having to ask anyone.",
+        legatura: { eticheta: "The employee portal (in Romanian)", href: "/module/portal-angajat" },
+      },
     ],
-    legaturaModule: { eticheta: "The full module list", href: "/module" },
+  },
+
+  unelteGratuite: {
+    supratitlu: "Free, no account",
+    titlu: "Tools and templates you can use right now",
+    lead: "The salary calculator and the templates inspectors ask for, ready to fill in and download — in Romanian, the language the paperwork is kept in. No account, and no e-mail address asked in return.",
+    unelte: [
+      {
+        titlu: "Net and gross salary calculator",
+        text: "Enter the gross and get the net, or the other way round, with the July 2026 figures: minimum wage, personal deduction, contributions, income tax and the total cost to the company.",
+        formate: "Online",
+        href: "/unelte/calculator-salariu",
+      },
+      {
+        titlu: "Monthly timesheet",
+        text: "Pick the month and type the names; weekends and public holidays are marked for you.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/foaie-de-pontaj",
+      },
+      {
+        titlu: "Attendance register",
+        text: "Every working day, with arrival time, departure time and signature.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/condica-de-prezenta",
+      },
+      {
+        titlu: "Annual leave request",
+        text: "With the working days counted, plus unpaid and family-event versions.",
+        formate: "PDF · Word",
+        href: "/unelte/cerere-concediu-de-odihna",
+      },
+      {
+        titlu: "Vehicle trip log",
+        text: "Vehicle, driver and month: the route, the purpose of each trip and the kilometres.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/foaie-de-parcurs",
+      },
+      {
+        titlu: "Safety training record",
+        text: "The individual record per Annex 11 to Government Decision 1425/2006, with the worker's details filled in.",
+        formate: "PDF · Word",
+        href: "/unelte/fisa-instruire-ssm",
+      },
+      {
+        titlu: "Employee review form",
+        text: "The company's own criteria, each with a weight and a score, plus the signatures.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/fisa-evaluare",
+      },
+    ],
+    ghiduriTitlu: "Guides, with the article of law next to every statement (in Romanian)",
+    ghiduri: [
+      { eticheta: "Minimum wage", href: "/ghid/salariu-minim-pe-economie" },
+      { eticheta: "Working-time records", href: "/evidenta-orelor-de-munca" },
+      { eticheta: "REGES-ONLINE: deadlines and fines", href: "/reges-online" },
+      { eticheta: "Overtime", href: "/ghid/ore-suplimentare" },
+      { eticheta: "Night-work premium", href: "/ghid/spor-de-noapte" },
+      { eticheta: "Annual leave", href: "/ghid/concediu-de-odihna" },
+      { eticheta: "Per diem abroad, by country", href: "/ghid/diurna-externa" },
+      { eticheta: "Per diem in Romania", href: "/ghid/diurna" },
+      { eticheta: "Labour inspections", href: "/ghid/control-itm" },
+    ],
+    legaturaToate: { eticheta: "All free tools", href: "/unelte" },
+  },
+
+  promisiuni: {
+    supratitlu: "We are just starting",
+    titlu: "No recommendations yet. Promises instead.",
+    lead: "We do not print testimonials we wrote ourselves, nor logos of companies that do not use us. Here, instead, is what we commit to with every company that starts now — each one can be checked from the first phone call.",
+    puncte: [
+      {
+        titlu: "You talk to the people who build it",
+        text: "No call centre answers the phone. What you ask for goes straight to the people building the application.",
+      },
+      {
+        titlu: "Your data stays yours",
+        text: "If you leave, we export everything we hold about your company in an open format. We do not hold data as a bargaining chip.",
+      },
+      {
+        titlu: "You learn the limits before, not after",
+        text: "What the application does not do is written on the site, on the “What we don't do” page — not discovered after signing.",
+      },
+      {
+        titlu: "We build in the order you ask",
+        text: "New features come in the order the companies working with us request them. If something is missing for you, tell us in the first conversation.",
+      },
+    ],
   },
 
   preturi: {
@@ -826,39 +1017,58 @@ export const EN: ContinutLanding = {
     legaturaPagina: { eticheta: "See the price of each module", href: "/preturi" },
   },
 
-  implementare: {
-    supratitlu: "How we start",
-    titlu: "Five steps, in this order",
-    lead: "It is the only real sequence on this page, which is why it is the only place we number anything.",
-    pasi: [
+  siguranta: {
+    supratitlu: "Your people's data",
+    titlu: "ID numbers, salaries, sick leave. We treat them accordingly.",
+    lead: "An HR system holds a company's most sensitive data. In short, here is how we keep it — the long version, with the whole mechanism, is on the data isolation page.",
+    puncte: [
       {
-        actor: "you",
-        titlu: "A half-hour conversation",
-        text: "You tell us how you work now. We tell you what helps and what does not. No card, no account created for you.",
+        titlu: "Separated by company, in the database",
+        text: "Not by a filter in the application: the database returns nothing from another company, not even to a query we got wrong.",
       },
       {
-        actor: "us",
-        titlu: "We configure your company",
-        text: "Company details, activity codes, work sites, departments and positions. We switch on exactly the modules we discussed.",
+        titlu: "ID numbers and IBANs encrypted",
+        text: "Written encrypted and read only through a path that leaves a trace: who saw them, and when.",
       },
       {
-        actor: "us",
-        titlu: "We bring your people in",
-        text: "From Excel, with column mapping and a report for the rows that fail validation. Nothing enters halfway.",
+        titlu: "Every change, with a name and a time",
+        text: "Who changed what, and when. The log is appended to, never rewritten — not even by us.",
       },
       {
-        actor: "you",
-        titlu: "You invite your colleagues",
-        text: "By e-mail, each with their role. They land directly in the modules that concern them and see nothing else.",
-      },
-      {
-        actor: "both",
-        titlu: "We close the first month together",
-        text: "We walk the first attendance sheet and the first payroll run with you, step by step. After that you do it yourself.",
+        titlu: "In the European Union",
+        text: "The database and files are in Ireland, and the application server is in Germany.",
       },
     ],
+    legatura: { eticheta: "How we keep data separate (in Romanian)", href: "/incredere" },
   },
 
+  incepe: {
+    supratitlu: "How to start",
+    titlu: "The first timesheet, the same day",
+    lead: "Nothing to install and nothing to migrate. You create the account, upload the employee list from an Excel file and record the current month.",
+    pasi: [
+      {
+        titlu: "Create your account",
+        text: "A few minutes, no card and no setup fee. The first month is free.",
+      },
+      {
+        titlu: "Bring your people in from Excel",
+        text: "Columns are matched by their headers. Good rows go in; bad ones come back to you with the reason.",
+      },
+      {
+        titlu: "Invite your team",
+        text: "By e-mail, each with their role. They clock in from their phone's browser, with nothing to install.",
+      },
+      {
+        titlu: "We close the first month together",
+        text: "The first attendance sheet and the first payroll run, walked through with you on the phone. After that you do it yourself.",
+      },
+    ],
+    alternativa: {
+      text: "Would you rather see it first? A half-hour conversation about the modules you care about — not a sales pitch.",
+      legatura: { eticheta: "Book a demo", href: "/cere-demo" },
+    },
+  },
   intrebari: {
     supratitlu: "Frequently asked",
     titlu: "The answers, in short",
@@ -915,12 +1125,47 @@ export const EN: ContinutLanding = {
     ],
   },
 
-  clienti: {
-    supratitlu: "Customers",
-    titlu: "Their recommendations will go here",
-    text: "We do not print testimonials we wrote ourselves, and we do not print logos of companies that do not use us. The first customers are in implementation; if you would like to speak to one of them before deciding, we will put you in touch by phone.",
+  intrebariScurte: {
+    supratitlu: "Questions",
+    titlu: "What people ask before the first click",
+    intrebari: [
+      {
+        q: "How much does it cost?",
+        a: "The core — attendance, leave, personnel files and the employee portal — costs 149 lei a month for the whole company, up to 20 employees. Extra modules each have their own price. The first month is free, and the amounts are final: no VAT is added.",
+        legatura: { eticheta: "The price of every module", href: "/en/preturi" },
+      },
+      {
+        q: "Do I need to install anything?",
+        a: "No. Administrativo works in the browser, on a computer and on a phone. Employees add the address to their phone's home screen and open it like an app, with no app store and no updates to install.",
+      },
+      {
+        q: "What do I show at a labour inspection?",
+        a: "Working-time records with the start and end time of every day, as article 119 of the Labour Code requires, safety training records, occupational medicine records and the change log — pulled from the app, not hunted for in binders.",
+        legatura: {
+          eticheta: "What the inspector checks (in Romanian)",
+          href: "/ghid/control-itm",
+        },
+      },
+      {
+        q: "Does it work with my accountant?",
+        a: "Yes. Your accountant gets access to your company's account with their own role, and if they look after several companies, they see all of them from a single account. Filings and responsibility stay with them.",
+        legatura: { eticheta: "The page for accountants (in Romanian)", href: "/pentru-contabili" },
+      },
+      {
+        q: "What do I do with my current spreadsheet?",
+        a: "You upload it. Columns are matched by their headers however they are written, good rows go in, and the bad ones come back to you in a file, each with its reason. Nothing is imported halfway.",
+      },
+      {
+        q: "What doesn't Administrativo do?",
+        a: "It does not file returns with ANAF, the tax authority, does not issue e-invoices and does not keep the books. It is not in the app stores either: the employee portal runs in the browser. The full list is written out in the open.",
+        legatura: { eticheta: "What we don't do, in full (in Romanian)", href: "/de-ce-nu" },
+      },
+    ],
+    legatura: {
+      eticheta: "All questions, with the long answers (in Romanian)",
+      href: "/intrebari",
+    },
   },
-
   contact: {
     supratitlu: "Let's talk",
     titlu: "Tell us how you work now",
@@ -931,6 +1176,7 @@ export const EN: ContinutLanding = {
     program: "Monday–Friday, 9–18 (Romania)",
     notaReferinte:
       "The first customers are in implementation. If you would like to speak to one of them before deciding, we will put you in touch.",
+    cine: "Administrativo is made in {oras} by {firma}. The phone is answered by someone from the team that builds the application.",
     formularTitlu: "Or leave us your details",
   },
 
@@ -941,10 +1187,11 @@ export const EN: ContinutLanding = {
       {
         titlu: "Product",
         legaturi: [
-          { eticheta: "First steps", href: "/en/#pornire" },
+          { eticheta: "What it does", href: "/en/#produs" },
+          { eticheta: "Free tools", href: "/en/#unelte" },
           { eticheta: "Pricing", href: "/en/preturi" },
-          { eticheta: "Data isolation", href: "/en/#incredere" },
-          { eticheta: "How we start", href: "/en/#implementare" },
+          { eticheta: "Data security", href: "/en/#siguranta" },
+          { eticheta: "How to start", href: "/en/#incepe" },
         ],
       },
       {
@@ -975,6 +1222,8 @@ export const EN: ContinutLanding = {
     copyright: "All rights reserved.",
     notaDiacritice:
       "We write Romanian ș and ț with a comma below, not a cedilla. It is the correct form, and it is checked automatically on every release.",
+    creditVideo:
+      "Homepage video: “Office Stock Footage” from the Free Stock Footage 4K YouTube channel, Creative Commons Attribution licence.",
   },
 
   // Vezi nota din `ro.ts`: antetele paginilor secundare, scrise pentru cineva

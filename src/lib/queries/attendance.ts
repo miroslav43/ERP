@@ -5,6 +5,8 @@
 
 import "server-only";
 
+import { cache } from "react";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { RandPontareRapida } from "@/domain/attendance/pontare-rapida";
 import { seriiDeAbsente } from "@/domain/reges/absente";
@@ -102,6 +104,12 @@ export interface AngajatPontaj {
   readonly status: string;
 }
 
+/** O pagină keyset din angajații foii — filtrele din adresă plus cursorul. */
+export interface PaginaAngajatiPontaj extends Pick<FiltrePontaj, "departament" | "cauta"> {
+  readonly cursor: string | null;
+  readonly limita: number;
+}
+
 export interface RezultatAngajatiPontaj {
   readonly randuri: readonly AngajatPontaj[];
   readonly urmatorulCursor: string | null;
@@ -140,7 +148,7 @@ function ghilimeleaza(valoare: string): string {
  */
 export async function listeazaAngajatiPontaj(
   organizationId: string,
-  filtre: FiltrePontaj,
+  filtre: PaginaAngajatiPontaj,
 ): Promise<RezultatAngajatiPontaj> {
   const db = await createServerSupabase();
   let interogare = db
@@ -185,6 +193,42 @@ export async function listeazaAngajatiPontaj(
   };
 }
 
+/** Pagina internă a lui `totiAngajatiiPontaj` — sub `max_rows = 1000`. */
+const PAGINA_ANGAJATI_FOAIE = 500;
+/** Oprirea buclei: 20 × 500 = 10.000 de oameni, mult peste orice firmă-client. */
+const MAXIM_PAGINI_ANGAJATI_FOAIE = 20;
+
+/**
+ * TOȚI angajații foii colective, citiți până la capăt.
+ *
+ * Foaia stă într-o cutie cu derulare proprie, deci un buton „Pagina următoare"
+ * sub ea era o a doua derulare, mai proastă: 25 de oameni pe ecran, iar
+ * calendarul lunii („+N alții") număra doar pagina, nu firma. Paginarea exista
+ * pentru `max_rows`, dar plafonul e al UNEI cereri — aici se urmează cursorul
+ * keyset de la `listeazaAngajatiPontaj` până la capăt, iar pontajul lor se
+ * citește pe bucăți în `intrariLuna`.
+ */
+export async function totiAngajatiiPontaj(
+  organizationId: string,
+  filtre: Readonly<Pick<FiltrePontaj, "departament" | "cauta">>,
+): Promise<Readonly<{ randuri: readonly AngajatPontaj[]; trunchiat: boolean }>> {
+  const adunati: AngajatPontaj[] = [];
+  let cursor: string | null = null;
+
+  for (let pagina = 0; pagina < MAXIM_PAGINI_ANGAJATI_FOAIE; pagina += 1) {
+    const rezultat: RezultatAngajatiPontaj = await listeazaAngajatiPontaj(organizationId, {
+      departament: filtre.departament,
+      cauta: filtre.cauta,
+      cursor,
+      limita: PAGINA_ANGAJATI_FOAIE,
+    });
+    adunati.push(...rezultat.randuri);
+    cursor = rezultat.urmatorulCursor;
+    if (cursor === null) return { randuri: adunati, trunchiat: false };
+  }
+  return { randuri: adunati, trunchiat: true };
+}
+
 export interface AngajatRezumatPontaj {
   readonly id: string;
   readonly full_name: string;
@@ -224,6 +268,10 @@ export interface IntrarePontaj {
   readonly tip_zi: TipZi;
   /** Unde s-a lucrat ziua (0118). `null` = nedeclarat, nu „la birou". */
   readonly tip_prezenta: TipPrezenta | null;
+  /** Sediul SCANAT (0096) — dovadă, scris doar din codul QR. */
+  readonly punct_lucru_id: string | null;
+  /** Sediul DECLARAT în formular (0163). `null` = cel din contract. */
+  readonly punct_lucru_declarat_id: string | null;
   readonly sursa: SursaIntrare;
   readonly leave_request_id: string | null;
   readonly observatii: string | null;
@@ -235,9 +283,21 @@ export interface IntrarePontaj {
 
 const COLOANE_INTRARE =
   "id, employee_id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, " +
-  "ore_noapte, tip_zi, tip_prezenta, sursa, leave_request_id, observatii, approved_at, batch_id, " +
-  "respins_la, motiv_respingere";
+  "ore_noapte, tip_zi, tip_prezenta, punct_lucru_id, punct_lucru_declarat_id, sursa, " +
+  "leave_request_id, observatii, approved_at, batch_id, respins_la, motiv_respingere";
 
+/**
+ * Câți angajați încap într-o cerere: o zi pe om e unică
+ * (`attendance_entries_zi_uq`), deci 30 × 31 de zile = 930 < `max_rows`.
+ */
+const ANGAJATI_PE_CERERE_INTRARI = 30;
+
+/**
+ * Pontajul unor angajați într-un interval de cel mult o lună.
+ *
+ * Pe bucăți de câte `ANGAJATI_PE_CERERE_INTRARI`, în paralel: o singură cerere
+ * pentru toată foaia ar fi fost tăiată tăcut la 1000 de rânduri.
+ */
 export async function intrariLuna(
   organizationId: string,
   idAngajati: readonly string[],
@@ -247,17 +307,27 @@ export async function intrariLuna(
   if (idAngajati.length === 0) return [];
 
   const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("attendance_entries")
-    .select(COLOANE_INTRARE)
-    .eq("organization_id", organizationId)
-    .in("employee_id", [...idAngajati])
-    .gte("data", dataInceput)
-    .lte("data", dataSfarsit)
-    .is("deleted_at", null)
-    .returns<IntrarePontaj[]>();
-  if (error !== null) throw error;
-  return data ?? [];
+  const bucati: (readonly string[])[] = [];
+  for (let i = 0; i < idAngajati.length; i += ANGAJATI_PE_CERERE_INTRARI) {
+    bucati.push(idAngajati.slice(i, i + ANGAJATI_PE_CERERE_INTRARI));
+  }
+
+  const rezultate = await Promise.all(
+    bucati.map(async (ids) => {
+      const { data, error } = await db
+        .from("attendance_entries")
+        .select(COLOANE_INTRARE)
+        .eq("organization_id", organizationId)
+        .in("employee_id", [...ids])
+        .gte("data", dataInceput)
+        .lte("data", dataSfarsit)
+        .is("deleted_at", null)
+        .returns<IntrarePontaj[]>();
+      if (error !== null) throw error;
+      return data ?? [];
+    }),
+  );
+  return rezultate.flat();
 }
 
 /**
@@ -854,19 +924,52 @@ export async function istoricSetariPontaj(
  * (`src/domain/attendance/pontare-rapida.ts`), care ține implicitele într-un
  * singur loc, cu teste.
  */
-export async function setariPontareRapida(
+// `cache()`: o pagină de pontaj o cere de până la patru ori — filele, antetul,
+// cardul „Astăzi", secțiunea săptămânii. Varianta de pontaj (0165) a adăugat
+// consumatori; un rând pe firmă nu merită patru drumuri.
+export const setariPontareRapida = cache(async function setariPontareRapida(
   organizationId: string,
 ): Promise<RandPontareRapida | null> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("setari_pontare_rapida")
-    .select("mod_pontare_rapida, verificare_pontare, program_start, necesita_aprobare")
+    .select(
+      "mod_pontare_rapida, verificare_pontare, program_start, necesita_aprobare, varianta_pontaj",
+    )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .maybeSingle<RandPontareRapida>();
   if (error !== null) throw error;
   return data;
+});
+
+/** Un sediu din care se poate alege în formularul zilei (0163). */
+export interface SediuPontaj {
+  readonly id: string;
+  readonly denumire: string;
+  /** Sediul din contractul în vigoare al CELUI CONECTAT. */
+  readonly din_contract: boolean;
 }
+
+/**
+ * Sediile active ale firmei, pentru alegerea sediului pe ziua de pontaj.
+ *
+ * Prin RPC, nu din `puncte_lucru`: politica tabelei cere `departments:read`,
+ * pe care `employee` nu-l are — iar el e tocmai cel care completează ziua.
+ * Funcția întoarce doar id + denumire, fără adresă și fără codul afișului.
+ *
+ * `cache()`: pagina o cere pentru formular și pentru etichetele din foaie.
+ */
+export const sediiPentruPontaj = cache(
+  async (organizationId: string): Promise<readonly SediuPontaj[]> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db.rpc("sedii_pentru_pontaj", {
+      p_organization_id: organizationId,
+    });
+    if (error !== null) throw error;
+    return data;
+  },
+);
 
 export interface AfisPontare {
   readonly id: string;

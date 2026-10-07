@@ -5,6 +5,7 @@ import {
   configPontareRapida,
   cePoateFace,
   cumSeTrateazaCodul,
+  sePonteazaPeZi,
   type RandPontareRapida,
 } from "./pontare-rapida";
 
@@ -15,6 +16,7 @@ function rand(peste: Partial<RandPontareRapida> = {}): RandPontareRapida {
     verificare_pontare: "fara",
     program_start: null,
     necesita_aprobare: true,
+    varianta_pontaj: "zilnic",
     ...peste,
   };
 }
@@ -144,5 +146,22 @@ describe("cumSeTrateazaCodul", () => {
   it("cu cod opțional, absența trece, dar un cod prezent se verifică", () => {
     expect(cumSeTrateazaCodul("optional", null)).toBe("ignorat");
     expect(cumSeTrateazaCodul("optional", "cod-de-pe-afis")).toBe("de_rezolvat");
+  });
+});
+
+describe("varianta de pontaj (0165)", () => {
+  // Perechea SQL e `internal.pontaj_varianta`, cu același implicit.
+  it("firma fără rând de setări se pontează pe zi", () => {
+    expect(configPontareRapida(null).varianta).toBe("zilnic");
+    expect(sePonteazaPeZi(configPontareRapida(null))).toBe(true);
+  });
+
+  it("varianta săptămânală scoate pontarea pe zi, oricare ar fi modul", () => {
+    for (const mod of ["ceas", "confirmare", "ambele", "oprit"] as const) {
+      const config = configPontareRapida(
+        rand({ mod_pontare_rapida: mod, varianta_pontaj: "saptamanal" }),
+      );
+      expect(sePonteazaPeZi(config)).toBe(false);
+    }
   });
 });

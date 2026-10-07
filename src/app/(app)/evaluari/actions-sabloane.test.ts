@@ -44,7 +44,9 @@ import {
   arhiveazaSablonEvaluare,
   creeazaSablonEvaluare,
   duplicaSablonEvaluare,
+  personalizeazaSablonEvaluare,
   reactiveazaSablonEvaluare,
+  stergeSablonEvaluare,
 } from "./actions";
 
 const PERMIS = { "evaluations:update": "all" } as const;
@@ -389,5 +391,131 @@ describe.each([
     server.raspunde("evaluation_templates", "update", { data: { id: ID_1 } });
     await actiune({ id: ID_1 });
     expect(caiRevalidate()).toEqual(CAI);
+  });
+});
+
+describe("stergeSablonEvaluare", () => {
+  it("scope `team` sub pragul `all`: INTERZIS, fără niciun apel la bază", async () => {
+    const { server } = configureazaActiunea({ rol: "manager", permisiuni: SUB_PRAG });
+    const r = await stergeSablonEvaluare({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluriRpc.filter((a) => a.nume === "sterge_sablon_evaluare")).toHaveLength(0);
+  });
+
+  it("succes: cheamă funcția cu organizația din context, nu cu una venită de la client", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspundeRpc("sterge_sablon_evaluare", { data: ID_1 });
+
+    const r = await stergeSablonEvaluare({ id: ID_1 });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const apel = server.apeluriRpc.find((a) => a.nume === "sterge_sablon_evaluare");
+    expect(apel?.argumente).toEqual({ p_organization_id: ORG_ID, p_id: ID_1 });
+    // Nu un UPDATE direct: politica SELECT l-ar respinge mereu cu 42501 (0162).
+    expect(server.apeluriPe("evaluation_templates", "update")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual(CAI);
+  });
+
+  it("șablon folosit (P0001): mesajul funcției ajunge neschimbat la om", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const mesaj =
+      "Șablonul este folosit de 2 evaluări, deci nu poate fi șters. Arhivați-l: evaluările făcute pe el rămân neatinse.";
+    server.raspundeRpc("sterge_sablon_evaluare", { error: eroarePostgrest("P0001", mesaj) });
+
+    const r = await stergeSablonEvaluare({ id: ID_1 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("șablon inexistent sau de platformă (P0002): NEGASIT cu mesajul funcției", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const mesaj = "Șablonul nu mai există sau nu poate fi șters.";
+    server.raspundeRpc("sterge_sablon_evaluare", { error: eroarePostgrest("P0002", mesaj) });
+
+    const r = await stergeSablonEvaluare({ id: ID_2 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT", message: mesaj } });
+  });
+
+  it("refuz de drept din bază (42501): INTERZIS", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspundeRpc("sterge_sablon_evaluare", { error: eroarePostgrest("42501") });
+    const r = await stergeSablonEvaluare({ id: ID_1 });
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+  });
+});
+
+describe("personalizeazaSablonEvaluare", () => {
+  const intrare = () => ({
+    sablon_platforma_id: ID_2,
+    denumire: "Evaluare anuală standard",
+    descriere: "",
+    criterii: JSON.stringify([{ denumire: "Calitatea muncii" }]),
+  });
+
+  it("scope `team` sub pragul `all`: INTERZIS, fără nicio interogare", async () => {
+    const { server } = configureazaActiunea({ rol: "manager", permisiuni: SUB_PRAG });
+    const r = await personalizeazaSablonEvaluare(intrare());
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("succes: un singur INSERT, varianta firmei cu `derivat_din` = șablonul de platformă", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("evaluation_templates", "insert", { data: { id: ID_1 } });
+
+    const r = await personalizeazaSablonEvaluare(intrare());
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    // Nimic înainte de salvare: niciun duplicat creat la deschiderea editorului.
+    const apeluri = server.apeluriPe("evaluation_templates");
+    expect(apeluri.map((a) => a.operatie)).toEqual(["insert"]);
+    expect(apeluri[0]?.payload).toMatchObject({
+      organization_id: ORG_ID,
+      derivat_din: ID_2,
+      denumire: "Evaluare anuală standard",
+      versiune: 1,
+      created_by: USER_ID,
+      updated_by: USER_ID,
+    });
+    expect(caiRevalidate()).toEqual(CAI);
+  });
+
+  it("primită ca FormData, exact cum o trimite editorul: validează și salvează", async () => {
+    // Editorul dă acțiunii FormData-ul formularului. Până la normalizarea din
+    // `createAction`, Zod citea câmpurile ca `undefined` și refuza orice salvare.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("evaluation_templates", "insert", { data: { id: ID_1 } });
+    const date = new FormData();
+    for (const [cheie, valoare] of Object.entries(intrare())) date.set(cheie, valoare);
+
+    const r = await personalizeazaSablonEvaluare(date);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    expect(server.apeluriPe("evaluation_templates", "insert")[0]?.payload).toMatchObject({
+      derivat_din: ID_2,
+      denumire: "Evaluare anuală standard",
+    });
+  });
+
+  it("firma are deja o variantă (23505): CONFLICT care spune ce să facă", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("evaluation_templates", "insert", { error: eroarePostgrest("23505") });
+    const r = await personalizeazaSablonEvaluare(intrare());
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (!r.ok) expect(r.error.message).toMatch(/deja propria variantă/u);
+  });
+
+  it("origine care nu e șablon de platformă (P0001 din trigger): mesajul bazei", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("evaluation_templates", "insert", {
+      error: eroarePostgrest("P0001", "Se poate personaliza doar un șablon de platformă."),
+    });
+    const r = await personalizeazaSablonEvaluare(intrare());
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: "Se poate personaliza doar un șablon de platformă." },
+    });
   });
 });

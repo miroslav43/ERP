@@ -28,9 +28,26 @@
  * Politica `evaluation_templates_update` cere `organization_id is not null`.
  * Un buton „Editează" pe el ar fi condamnat din construcție. În locul lui apare
  * „Personalizează", care duplică șablonul în firmă și deschide copia.
+ *
+ * ── „PERSONALIZEAZĂ" ÎNSEAMNĂ A-L SCHIMBA, NU A-L COPIA ───────────────────
+ * Până la 6 oct 2026 butonul crea o copie alături, „… (copie)”: în listă
+ * apăreau două șabloane, iar omul — care voia să schimbe șablonul, nu să mai
+ * aibă unul — le ștergea. Acum butonul deschide editorul pe conținutul
+ * șablonului de platformă și NU creează nimic până la „Salvează”. Salvarea
+ * scrie varianta firmei (`personalizeazaSablonEvaluare`, 0168), iar
+ * `listeazaSabloane` ascunde de atunci șablonul de platformă: rămâne un singur
+ * card, al firmei, cu insigna „Personalizat”. „Șterge” pe variantă îl readuce
+ * pe cel de platformă. „Duplică”, pe un șablon al firmei, rămâne „(copie)”.
+ *
+ * ── DE CE „ȘTERGE" APARE DOAR PE ȘABLONUL NEFOLOSIT ───────────────────────
+ * Evaluările făcute pe un șablon îl referă, deci el trebuie să rămână: se
+ * arhivează. O copie nefolosită, în schimb, n-are nimic de păstrat — arhivată,
+ * ar fi rămas pentru totdeauna în listă, cu pastila „Arhivat". Butonul se
+ * ascunde pe `nrEvaluari > 0`, iar funcția din bază (0162) refuză oricum
+ * același caz, cu mesaj, dacă între timp cineva a început o evaluare pe el.
  */
 
-import { Archive, ArchiveRestore, Copy, Pencil } from "lucide-react";
+import { Archive, ArchiveRestore, Copy, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactElement } from "react";
 
@@ -46,6 +63,7 @@ import {
   arhiveazaSablonEvaluare,
   duplicaSablonEvaluare,
   reactiveazaSablonEvaluare,
+  stergeSablonEvaluare,
 } from "../actions";
 
 export type PropsActiuni = Readonly<{
@@ -57,6 +75,7 @@ export type PropsActiuni = Readonly<{
     versiune: number;
     activ: boolean;
     dePlatforma: boolean;
+    personalizat: boolean;
     nrEvaluari: number;
   }>;
 }>;
@@ -70,7 +89,10 @@ function denumireCopie(denumire: string): string {
 export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
-  const [deConfirmat, setDeConfirmat] = useState<"arhivare" | "reactivare" | null>(null);
+  const [deConfirmat, setDeConfirmat] = useState<"arhivare" | "reactivare" | "stergere" | null>(
+    null,
+  );
+  const poateFiSters = !sablon.dePlatforma && sablon.nrEvaluari === 0;
 
   const executa = (
     apel: () => Promise<ActionResult<Readonly<{ id: string }>>>,
@@ -93,59 +115,88 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
       <BaraActiuni
         eticheta={`Acțiuni pentru „${sablon.denumire}”`}
         distructiva={
-          sablon.dePlatforma ? undefined : sablon.activ ? (
-            <Buton
-              varianta="distructiv"
-              disabled={inCurs}
-              onClick={() => {
-                setDeConfirmat("arhivare");
-              }}
-            >
-              <Archive aria-hidden="true" className="size-3.5" />
-              Arhivează
-            </Buton>
-          ) : (
-            <Buton
-              varianta="secundar"
-              disabled={inCurs}
-              onClick={() => {
-                setDeConfirmat("reactivare");
-              }}
-            >
-              <ArchiveRestore aria-hidden="true" className="size-3.5" />
-              Reactivează
-            </Buton>
+          sablon.dePlatforma ? undefined : (
+            <>
+              {sablon.activ ? (
+                <Buton
+                  varianta="distructiv"
+                  disabled={inCurs}
+                  onClick={() => {
+                    setDeConfirmat("arhivare");
+                  }}
+                >
+                  <Archive aria-hidden="true" className="size-3.5" />
+                  Arhivează
+                </Buton>
+              ) : (
+                <Buton
+                  varianta="secundar"
+                  disabled={inCurs}
+                  onClick={() => {
+                    setDeConfirmat("reactivare");
+                  }}
+                >
+                  <ArchiveRestore aria-hidden="true" className="size-3.5" />
+                  Reactivează
+                </Buton>
+              )}
+              {poateFiSters ? (
+                <Buton
+                  varianta="distructiv"
+                  disabled={inCurs}
+                  onClick={() => {
+                    setDeConfirmat("stergere");
+                  }}
+                >
+                  <Trash2 aria-hidden="true" className="size-3.5" />
+                  {sablon.personalizat ? "Revino la șablonul de platformă" : "Șterge"}
+                </Buton>
+              ) : null}
+            </>
           )
         }
       >
-        {sablon.dePlatforma ? null : (
+        {sablon.dePlatforma ? (
           <ConstructorSablon
             sablon={sablon}
+            dinPlatforma
             declansator={(deschide) => (
-              <Buton varianta="secundar" onClick={deschide}>
+              <Buton varianta="primar" onClick={deschide}>
                 <Pencil aria-hidden="true" className="size-3.5" />
-                Editează
+                Personalizează
               </Buton>
             )}
           />
+        ) : (
+          <>
+            <ConstructorSablon
+              sablon={sablon}
+              declansator={(deschide) => (
+                <Buton varianta="secundar" onClick={deschide}>
+                  <Pencil aria-hidden="true" className="size-3.5" />
+                  Editează
+                </Buton>
+              )}
+            />
+            <Buton
+              varianta="tertiar"
+              disabled={inCurs}
+              onClick={() => {
+                executa(
+                  () =>
+                    duplicaSablonEvaluare({
+                      id: sablon.id,
+                      denumire: denumireCopie(sablon.denumire),
+                    }),
+                  "Șablonul a fost duplicat.",
+                );
+              }}
+            >
+              <Copy aria-hidden="true" className="size-3.5" />
+              Duplică
+            </Buton>
+          </>
         )}
-
-        <Buton
-          varianta={sablon.dePlatforma ? "primar" : "tertiar"}
-          disabled={inCurs}
-          onClick={() => {
-            executa(
-              () =>
-                duplicaSablonEvaluare({ id: sablon.id, denumire: denumireCopie(sablon.denumire) }),
-              sablon.dePlatforma
-                ? "Copia a fost creată în firma dumneavoastră. O puteți edita acum."
-                : "Șablonul a fost duplicat.",
-            );
-          }}
-        >
-          <Copy aria-hidden="true" className="size-3.5" />
-          {sablon.dePlatforma ? "Personalizează" : "Duplică"}
-        </Buton>
       </BaraActiuni>
 
       <ConfirmareActiune
@@ -166,6 +217,35 @@ export function ActiuniSablonEvaluare({ sablon }: PropsActiuni): ReactElement {
           executa(
             () => arhiveazaSablonEvaluare({ id: sablon.id }),
             `Șablonul „${sablon.denumire}” a fost arhivat.`,
+          );
+        }}
+      />
+
+      <ConfirmareActiune
+        deschis={deConfirmat === "stergere"}
+        laInchidere={() => {
+          setDeConfirmat(null);
+        }}
+        titlu={
+          sablon.personalizat
+            ? `Renunțați la varianta firmei a „${sablon.denumire}”?`
+            : `Ștergeți șablonul „${sablon.denumire}”?`
+        }
+        consecinta={
+          sablon.personalizat
+            ? "Varianta firmei dispare, iar în locul ei revine șablonul de platformă, cu criteriile lui originale. Varianta nu a fost folosită la nicio evaluare, deci nu se pierde nimic din istoric."
+            : "Șablonul dispare din listă și nu mai poate fi ales la o evaluare. Nu a fost folosit la nicio evaluare, deci nu se pierde nimic din istoric. Ștergerea nu se poate anula din aplicație."
+        }
+        cifre={[{ eticheta: "Criterii", valoare: String(sablon.criterii.length) }]}
+        etichetaConfirmare={sablon.personalizat ? "Revino la platformă" : "Șterge"}
+        distructiv
+        inCurs={inCurs}
+        laConfirmare={() => {
+          executa(
+            () => stergeSablonEvaluare({ id: sablon.id }),
+            sablon.personalizat
+              ? "Varianta firmei a fost ștearsă; șablonul de platformă e din nou în listă."
+              : `Șablonul „${sablon.denumire}” a fost șters.`,
           );
         }}
       />

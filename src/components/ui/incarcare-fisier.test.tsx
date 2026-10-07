@@ -22,7 +22,9 @@ function campul(): HTMLInputElement {
   return screen.getByLabelText(/Contract semnat/) as HTMLInputElement;
 }
 
-function randeaza(suplimentare?: Readonly<{ id?: string; erori?: readonly string[] }>) {
+function randeaza(
+  suplimentare?: Readonly<{ id?: string; erori?: readonly string[]; dezactivat?: boolean }>,
+) {
   return render(
     <IncarcareFisier
       nume="fisier"
@@ -233,5 +235,46 @@ describe("marimeCitibila — cifra pe care o citește omul", () => {
   it("octeții rămân întregi, fără zecimale", () => {
     expect(marimeCitibila(0)).toBe("0 B");
     expect(marimeCitibila(999)).toBe("999 B");
+  });
+});
+
+describe("IncarcareFisier — formularul resetat și câmpul dezactivat", () => {
+  it("resetarea formularului (React 19 după `action`) golește și fișierul afișat", () => {
+    render(
+      <form data-testid="formular">
+        <IncarcareFisier
+          nume="fisier"
+          eticheta="Contract semnat"
+          restrictii="PDF, până în 2 MB."
+          textAlegere="Alege fișierul"
+          etichetaScoate="Scoate fișierul ales"
+        />
+      </form>,
+    );
+    alege(campul(), new File(["x"], "contract.pdf", { type: "application/pdf" }));
+    expect(screen.getByText("contract.pdf")).toBeTruthy();
+
+    // Altfel omul vede un fișier „ales” pe care inputul golit nu-l mai trimite.
+    fireEvent.reset(screen.getByTestId("formular"));
+
+    expect(screen.queryByText("contract.pdf")).toBeNull();
+  });
+
+  it("`dezactivat` stinge inputul și butonul de scoatere, ca dialogul să nu se redeschidă", () => {
+    const { rerender } = randeaza();
+    alege(campul(), new File(["x"], "contract.pdf", { type: "application/pdf" }));
+    rerender(
+      <IncarcareFisier
+        nume="fisier"
+        eticheta="Contract semnat"
+        restrictii="PDF sau JPG, până în 2 MB."
+        textAlegere="Alege fișierul"
+        etichetaScoate="Scoate fișierul ales"
+        dezactivat
+      />,
+    );
+    expect(campul().disabled).toBe(true);
+    const scoate = screen.getByRole("button", { name: "Scoate fișierul ales" });
+    expect((scoate as HTMLButtonElement).disabled).toBe(true);
   });
 });

@@ -43,6 +43,7 @@ import {
   actualizeazaEvaluare,
   creeazaEvaluare,
   finalizeazaEvaluare,
+  planificaEvaluari,
   redeschideEvaluare,
 } from "./actions";
 
@@ -434,5 +435,196 @@ describe("redeschideEvaluare", () => {
     server.raspunde("employee_evaluations", "update", { error: eroarePostgrest("42501") });
     const r = await redeschideEvaluare({ id: ID_1 });
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+  });
+});
+
+describe("planificaEvaluari", () => {
+  const ALT = ID_1;
+  const PERMIS_CREARE = { "evaluations:create": "all" } as const;
+  const formular = (angajati: readonly string[]) => {
+    const f = new FormData();
+    f.set("template_id", SABLON);
+    f.set("data_evaluarii", "2026-12-15");
+    for (const id of angajati) f.append("employee_ids", id);
+    return f;
+  };
+
+  it("fără `evaluations:create` la team: INTERZIS, fără nicio interogare", async () => {
+    const { server } = configureazaActiunea({
+      rol: "employee",
+      permisiuni: { "evaluations:create": "own" },
+    });
+    const r = await planificaEvaluari(formular([ANGAJAT]));
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("niciun angajat bifat: VALIDARE pe `employee_ids`", async () => {
+    configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    const r = await planificaEvaluari(formular([]));
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (!r.ok) expect(r.error.fieldErrors?.["employee_ids"]).toBeDefined();
+  });
+
+  it("succes: o ciornă fără note per angajat, cu instantaneul; sare peste cine are deja ciornă", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    server.raspunde("evaluation_templates", "select", { data: SABLON_ACTIV });
+    server.raspunde("employee_evaluations", "select", { data: [{ employee_id: ALT }] });
+    server.raspunde("employee_evaluations", "insert", { data: null });
+
+    const r = await planificaEvaluari(formular([ANGAJAT, ALT]));
+
+    expect(r).toEqual({ ok: true, data: { create: 1, sarite: 1 } });
+    const [existente] = server.apeluriPe("employee_evaluations", "select");
+    expect(areFiltru(existente, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(existente, "eq", "template_id", SABLON)).toBe(true);
+    expect(areFiltru(existente, "eq", "status", "draft")).toBe(true);
+    expect(areFiltru(existente, "is", "deleted_at", null)).toBe(true);
+
+    const [insert] = server.apeluriPe("employee_evaluations", "insert");
+    expect(insert?.payload).toEqual([
+      {
+        organization_id: ORG_ID,
+        employee_id: ANGAJAT,
+        template_id: SABLON,
+        evaluator_id: USER_ID,
+        data_evaluarii: "2026-12-15",
+        // Câte un răspuns gol per criteriu: ciorna se deschide cu toate criteriile.
+        raspunsuri: [
+          { criteriu_cod: "calitate", scor: null, raspuns_text: null, comentariu: null },
+          { criteriu_cod: "note", scor: null, raspuns_text: null, comentariu: null },
+        ],
+        criterii_sablon: CRITERII,
+        versiune_sablon: 7,
+        concluzie: null,
+        status: "draft",
+        created_by: USER_ID,
+        updated_by: USER_ID,
+      },
+    ]);
+    expect(caiRevalidate()).toEqual(["/evaluari"]);
+  });
+
+  it("un singur angajat bifat (FormData dă text, nu listă) merge la fel", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    server.raspunde("evaluation_templates", "select", { data: SABLON_ACTIV });
+    server.raspunde("employee_evaluations", "select", { data: [] });
+    server.raspunde("employee_evaluations", "insert", { data: null });
+
+    const r = await planificaEvaluari(formular([ANGAJAT]));
+
+    expect(r).toEqual({ ok: true, data: { create: 1, sarite: 0 } });
+  });
+
+  it("toți aveau deja ciornă: niciun INSERT, raportul spune câți au fost săriți", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    server.raspunde("evaluation_templates", "select", { data: SABLON_ACTIV });
+    server.raspunde("employee_evaluations", "select", { data: [{ employee_id: ANGAJAT }] });
+
+    const r = await planificaEvaluari(formular([ANGAJAT]));
+
+    expect(r).toEqual({ ok: true, data: { create: 0, sarite: 1 } });
+    expect(server.apeluriPe("employee_evaluations", "insert")).toHaveLength(0);
+  });
+
+  it("șablon arhivat între timp: CONFLICT, nimic scris", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    server.raspunde("evaluation_templates", "select", {
+      data: { ...SABLON_ACTIV, activ: false },
+    });
+    const r = await planificaEvaluari(formular([ANGAJAT]));
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("employee_evaluations", "insert")).toHaveLength(0);
+  });
+
+  it("un angajat din afara echipei respinge lotul (42501 din RLS): INTERZIS", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    server.raspunde("evaluation_templates", "select", { data: SABLON_ACTIV });
+    server.raspunde("employee_evaluations", "select", { data: [] });
+    server.raspunde("employee_evaluations", "insert", { error: eroarePostgrest("42501") });
+    const r = await planificaEvaluari(formular([ANGAJAT]));
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+  });
+});
+
+describe("finalizeazaEvaluare — angajatul e anunțat", () => {
+  const PERMIS = { "evaluations:update": "team" } as const;
+  const UTILIZATOR_ANGAJAT = "99999999-9999-4999-8999-999999999999";
+  const FINALIZATA = {
+    id: ID_1,
+    employee_id: ANGAJAT,
+    data_evaluarii: "2026-10-20",
+    criterii_sablon: CRITERII,
+    raspunsuri: [
+      { criteriu_cod: "calitate", scor: 4, raspuns_text: null, comentariu: null },
+      { criteriu_cod: "note", scor: null, raspuns_text: "Bun", comentariu: null },
+    ],
+    template: { denumire: "Evaluare anuală standard" },
+  };
+
+  const pregateste = (cont: string | null) => {
+    const { server, admin } = configureazaActiunea({ rol: "manager", permisiuni: PERMIS });
+    server.raspunde("employee_evaluations", "select", { data: EXISTENTA_DRAFT });
+    server.raspunde("employee_evaluations", "update", { data: { id: ID_1, employee_id: ANGAJAT } });
+    admin.raspunde("employee_evaluations", "select", { data: FINALIZATA });
+    admin.raspunde("employees", "select", { data: { user_id: cont } });
+    return { server, admin };
+  };
+
+  it("notificarea pleacă la contul angajatului, cu punctajul și legătura spre portal", async () => {
+    const { admin } = pregateste(UTILIZATOR_ANGAJAT);
+    admin.raspunde("organization_members", "select", { data: { role: "employee" } });
+    admin.raspunde("notifications", "insert", { data: null });
+
+    const r = await finalizeazaEvaluare({ id: ID_1 });
+
+    expect(r.ok).toBe(true);
+    // Citirile de serviciu sunt legate de firma apelantului.
+    const [evaluare] = admin.apeluriPe("employee_evaluations", "select");
+    expect(areFiltru(evaluare, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(evaluare, "eq", "status", "finalizat")).toBe(true);
+    const [angajat] = admin.apeluriPe("employees", "select");
+    expect(areFiltru(angajat, "eq", "organization_id", ORG_ID)).toBe(true);
+
+    const [notificare] = admin.apeluriPe("notifications", "insert");
+    expect(notificare?.payload).toMatchObject({
+      organization_id: ORG_ID,
+      user_id: UTILIZATOR_ANGAJAT,
+      title: "Evaluarea dumneavoastră a fost finalizată",
+      link: `/portal/evaluarile-mele#evaluare-${ID_1}`,
+      entity_type: "employee_evaluation",
+      entity_id: ID_1,
+    });
+    expect((notificare?.payload as { body: string }).body).toContain("Evaluare anuală standard");
+    expect((notificare?.payload as { body: string }).body).toContain("80 %");
+  });
+
+  it("un manager evaluat e trimis în aplicație — portalul e doar al rolului employee", async () => {
+    const { admin } = pregateste(UTILIZATOR_ANGAJAT);
+    admin.raspunde("organization_members", "select", { data: { role: "manager" } });
+    admin.raspunde("notifications", "insert", { data: null });
+
+    await finalizeazaEvaluare({ id: ID_1 });
+
+    const [membru] = admin.apeluriPe("organization_members", "select");
+    expect(areFiltru(membru, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(membru, "eq", "user_id", UTILIZATOR_ANGAJAT)).toBe(true);
+    const [notificare] = admin.apeluriPe("notifications", "insert");
+    expect(notificare?.payload).toMatchObject({ link: `/evaluari/ale-mele#evaluare-${ID_1}` });
+  });
+
+  it("fișă fără cont: nicio notificare, finalizarea reușește", async () => {
+    const { admin } = pregateste(null);
+    const r = await finalizeazaEvaluare({ id: ID_1 });
+    expect(r.ok).toBe(true);
+    expect(admin.apeluriPe("notifications", "insert")).toHaveLength(0);
+  });
+
+  it("notificarea pică: finalizarea NU se dă înapoi", async () => {
+    const { admin } = pregateste(UTILIZATOR_ANGAJAT);
+    admin.raspunde("organization_members", "select", { data: { role: "employee" } });
+    admin.raspunde("notifications", "insert", { error: eroarePostgrest("42501") });
+    const r = await finalizeazaEvaluare({ id: ID_1 });
+    expect(r).toEqual({ ok: true, data: { id: ID_1, employee_id: ANGAJAT } });
   });
 });

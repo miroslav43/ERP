@@ -259,17 +259,15 @@ async function verificaInainteDeTrimitere(
  * `0` întors de aici înseamnă „nicio zi păstrată SAU sincronizarea n-a rulat” —
  * absența avertismentului nu e o garanție.
  *
- * ── DUBLA PLATĂ, SCOASĂ LA SUPRAFAȚĂ ──────────────────────────────────────
- * `sincronizeazaZileleDeConcediu` sare peste orice zi a cărei `sursa` NU e
- * `sincronizare_concedii` — adică peste zilele pe care angajatul le-a pontat el
- * însuși — și le numără în `pastrate`. Numărul ăla era ARUNCAT, iar consecința
- * era tăcută în ambele capete: ziua rămâne „lucrătoare, 8 ore” ȘI se scade o zi
- * din soldul de concediu. Salarizarea agregă `ore_lucrate` fără să se plângă,
- * deci ziua se plătește de două ori.
+ * ── ZIUA PONTATĂ DEVINE CONCEDIU ──────────────────────────────────────────
+ * Concediul aprobat ÎNLOCUIEȘTE ziua pontată peste care cade (manual, ceas,
+ * plan săptămânal) — cazul tipic e concediul de urgență, cerut pentru o zi
+ * deja completată. Până acum ziua rămânea „lucrătoare, 8 ore” ȘI se scădea din
+ * sold, deci se plătea de două ori. Valorile vechi rămân în `audit_logs`;
+ * detaliul e la `ZI_LUCRATA_GOLITA`, în `sincronizare-concediu.ts`.
  *
- * NU se suprascrie ziua pontată: dacă omul chiar a muncit atunci, ștergerea
- * declarației lui ar distruge singura dovadă. Se raportează celui care a decis
- * și se anunță angajatul; decizia rămâne a oamenilor.
+ * Numărul zilelor înlocuite iese în rezultat, iar angajatul e anunțat: el le-a
+ * pontat, deci trebuie să afle că foaia lui s-a schimbat.
  *
  * Clientul e cel ADMIN, primit ca parametru: cine aprobă nu are neapărat
  * `attendance:create`, iar filtrul pe organizație e explicit peste tot.
@@ -325,13 +323,13 @@ async function sincronizeazaConcediulAprobat(
     }));
     const sincronizare = await sincronizeazaZileleDeConcediu(admin, organizationId, zile);
 
-    if (sincronizare.pastrate > 0 && userAngajat !== null) {
+    if (sincronizare.inlocuite > 0 && userAngajat !== null) {
       const { error: eroareNotificare } = await admin.from("notifications").insert({
         organization_id: organizationId,
         user_id: userAngajat,
-        kind: "warning" as const,
-        title: "Zile pontate care se suprapun cu concediul",
-        body: `Aveți ${String(sincronizare.pastrate)} ${sincronizare.pastrate === 1 ? "zi pontată care se suprapune" : "zile pontate care se suprapun"} cu concediul aprobat. Au rămas înregistrate ca zile lucrate — verificați-le cu responsabilul de pontaj.`,
+        kind: "info" as const,
+        title: "Zile pontate trecute pe concediu",
+        body: `${sincronizare.inlocuite === 1 ? "O zi pe care o aveați pontată a fost trecută" : `${String(sincronizare.inlocuite)} zile pe care le aveați pontate au fost trecute`} pe concediu în foaia de prezență, odată cu aprobarea cererii.`,
         link: "/portal/pontajul-meu",
         entity_type: "leave_request",
         entity_id: cerereId,
@@ -339,14 +337,14 @@ async function sincronizeazaConcediulAprobat(
       if (eroareNotificare !== null) {
         // Notificarea e un plus, nu poarta: dacă ea cade, aprobarea NU se
         // dă înapoi. Numărul ajunge oricum la ecran prin rezultat.
-        console.error("[concedii] notificarea de zile suprapuse a eșuat", {
+        console.error("[concedii] notificarea de zile înlocuite a eșuat", {
           leaveRequestId: cerereId,
           requestId,
           eroare: eroareNotificare,
         });
       }
     }
-    return sincronizare.pastrate;
+    return sincronizare.inlocuite;
   } catch (eroare) {
     console.error("[pontaj] sincronizarea automată cu concediul aprobat a eșuat", {
       leaveRequestId: cerereId,
@@ -473,7 +471,7 @@ async function aprobaPeLoc(ctx: ActionContext, cerereId: string): Promise<Rezult
   // Pontajul și REGES-ul, în ordinea asta: primul e evidența internă, al doilea
   // e obligația către Inspecția Muncii. Niciunul nu aruncă — aprobarea e deja
   // dată, iar amândouă își raportează eșecul prin valoarea întoarsă.
-  const zilePastrate = await sincronizeazaConcediulAprobat(
+  const zileInlocuite = await sincronizeazaConcediulAprobat(
     admin,
     ctx.tenant.organizationId,
     cerereId,
@@ -487,22 +485,22 @@ async function aprobaPeLoc(ctx: ActionContext, cerereId: string): Promise<Rezult
     ctx.requestId,
   );
 
-  return { zilePastrate, suspendare };
+  return { zileInlocuite, suspendare };
 }
 
 /** Ce lasă în urmă o aprobare, dincolo de schimbarea de status. */
 interface RezultatAprobare {
-  readonly zilePastrate: number;
+  readonly zileInlocuite: number;
   readonly suspendare: RezultatSuspendare;
 }
 
 /**
  * Ce întorc creerea și trimiterea unei cereri.
  *
- * `aprobataInstant`, `zilePastrate` și `suspendare` NU sunt decor: primul
+ * `aprobataInstant`, `zileInlocuite` și `suspendare` NU sunt decor: primul
  * schimbă mesajul de pe ecran (o cerere aprobată pe loc nu mai „a plecat spre
- * aprobare”), al doilea e numărul de zile care se vor plăti și ca lucrate, și
- * ca zile de concediu, dacă nimeni nu se uită la ele, iar al treilea spune
+ * aprobare”), al doilea e numărul de zile pontate ca lucrate pe care
+ * concediul le-a înlocuit în foaia de prezență, iar al treilea spune
  * dacă declarația către Inspecția Muncii a fost pregătită sau a rămas de făcut
  * de mână. Cine adaugă un apelant nou trebuie să le afișeze pe toate trei.
  */
@@ -510,7 +508,7 @@ interface CerereTrimisa {
   readonly id: string;
   readonly zileLucratoare: number;
   readonly aprobataInstant: boolean;
-  readonly zilePastrate: number;
+  readonly zileInlocuite: number;
   readonly suspendare: RezultatSuspendare;
 }
 
@@ -710,7 +708,7 @@ export const creeazaCerereConcediu = createAction({
       id: data.id,
       zileLucratoare: data.zile_lucratoare,
       aprobataInstant,
-      zilePastrate: aprobare?.zilePastrate ?? 0,
+      zileInlocuite: aprobare?.zileInlocuite ?? 0,
       suspendare: aprobare?.suspendare ?? FARA_SUSPENDARE,
     };
   },
@@ -992,7 +990,7 @@ export const trimiteCerere = createAction({
       id: data.id,
       zileLucratoare: data.zile_lucratoare,
       aprobataInstant,
-      zilePastrate: aprobare?.zilePastrate ?? 0,
+      zileInlocuite: aprobare?.zileInlocuite ?? 0,
       suspendare: aprobare?.suspendare ?? FARA_SUSPENDARE,
     };
   },
@@ -1017,7 +1015,7 @@ export const decideCerere = createAction({
   // obiectul literal, deci TypeScript n-are încă de unde infera forma datelor.
   revalidate: (
     _input,
-    data: Readonly<{ id: string; zilePastrate: number; suspendare: RezultatSuspendare }>,
+    data: Readonly<{ id: string; zileInlocuite: number; suspendare: RezultatSuspendare }>,
   ) => [
     "/concedii",
     "/concedii/aprobari",
@@ -1031,7 +1029,7 @@ export const decideCerere = createAction({
   handler: async (
     ctx,
     input,
-  ): Promise<Readonly<{ id: string; zilePastrate: number; suspendare: RezultatSuspendare }>> => {
+  ): Promise<Readonly<{ id: string; zileInlocuite: number; suspendare: RezultatSuspendare }>> => {
     // (1) Sarcina, cu clientul utilizatorului: `approval_tasks_select` arată
     // doar sarcinile proprii (sau `leave:approve = all`), deci un aprobator
     // nu poate decide o sarcină care nu e a lui — RLS o ascunde, nu o refuză.
@@ -1097,7 +1095,7 @@ export const decideCerere = createAction({
     // PĂSTRATE ca zile lucrate. Declarată la nivelul handlerului fiindcă
     // rezultatul trebuie să ajungă la aprobator și când sincronizarea (care e
     // best-effort, într-un `try`) cade pe drum.
-    let zilePastrate = 0;
+    let zileInlocuite = 0;
     // Idem, pentru declaratia catre Inspectia Muncii: pe ramura de respingere
     // nu se suspenda nimic, deci valoarea neutra e cea corecta.
     let suspendare: RezultatSuspendare = FARA_SUSPENDARE;
@@ -1174,8 +1172,8 @@ export const decideCerere = createAction({
       // mai așteaptă butonul manual „Sincronizează” din /pontaj/aprobare.
       // Corpul a plecat în `sincronizeazaConcediulAprobat`: de la aprobarea pe
       // loc a patronului încoace are DOI apelanți, iar o a doua copie ar fi
-      // însemnat două locuri în care se poate uita notificarea de dublă plată.
-      zilePastrate = await sincronizeazaConcediulAprobat(
+      // însemnat două locuri în care se poate uita notificarea zilelor înlocuite.
+      zileInlocuite = await sincronizeazaConcediulAprobat(
         admin,
         ctx.tenant.organizationId,
         sarcina.entity_id,
@@ -1195,9 +1193,10 @@ export const decideCerere = createAction({
       );
     }
 
-    // `zilePastrate` NU e un detaliu tehnic: e numărul de zile care se vor plăti
-    // și ca lucrate, și ca zile de concediu, dacă nimeni nu se uită la ele.
-    return { id: sarcina.entity_id, zilePastrate, suspendare };
+    // `zileInlocuite`: zilele pontate ca lucrate pe care concediul le-a
+    // înlocuit în foaia de prezență — aprobatorul trebuie să afle că a schimbat
+    // pontajul cuiva, nu doar o cerere.
+    return { id: sarcina.entity_id, zileInlocuite, suspendare };
   },
 });
 

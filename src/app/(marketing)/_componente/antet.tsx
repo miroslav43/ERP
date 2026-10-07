@@ -3,7 +3,7 @@ import Link from "next/link";
 import { RUTA_AUTENTIFICARE } from "@/config/routes";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
-import { Marca } from "./marca";
+import { Sigla } from "@/components/sigla";
 
 /**
  * Antetul.
@@ -24,10 +24,13 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
           className="flex items-center gap-2.5"
           aria-label={`Administrativo — ${text.limba === "ro" ? "pagina principală" : "home"}`}
         >
-          <Marca clasa="h-6 w-6" />
-          <span className="font-mk-display text-[1.0625rem] font-semibold tracking-[-0.01em]">
-            Administrativo
-          </span>
+          {/*
+            Sigla din `docs/comercial/sigla/`, aceeași ca pe materialele tipărite.
+            Până pe 7 oct 2026 aici stăteau barele din `icon.tsx` și numele scris
+            cu fontul titlurilor. `aria-label`-ul e pe legătură, deci sigla nu-l
+            mai repetă.
+          */}
+          <Sigla clasa="text-mk-sigla h-4 w-auto sm:h-[18.5px]" />
         </Link>
 
         <nav

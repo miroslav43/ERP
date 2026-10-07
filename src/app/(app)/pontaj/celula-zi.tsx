@@ -19,7 +19,11 @@ import {
 import { ETICHETE_TIP_PREZENTA, ETICHETE_TIP_ZI } from "./etichete";
 import { arataToast } from "@/components/ui/toast";
 
+import { sediulDeTrimis, tipulPermiteSediu } from "@/domain/attendance/sediu";
+import type { SediuPontaj } from "@/lib/queries/attendance";
+
 import { decideZiPontaj, salveazaZiPontaj, stergeZiPontaj } from "./actions";
+import { CampSediu } from "./camp-sediu";
 import type { IntrareZiClient } from "./intrare-client";
 
 interface Proprietati {
@@ -45,6 +49,10 @@ interface Proprietati {
   readonly config: ConfigZi;
   /** Aprobatorul vede secțiunea de decizie pe zi; ceilalți, doar rezultatul ei. */
   readonly poateAproba: boolean;
+  /** Sediile active ale firmei (0163) — și pentru numele sediului scanat. */
+  readonly sedii: readonly SediuPontaj[];
+  /** Se întreabă sediul? `seAlegeSediul`, decis pe server: ≥ 2 sedii, fără QR obligatoriu. */
+  readonly alegeSediul: boolean;
   readonly onInchide: () => void;
 }
 
@@ -92,6 +100,8 @@ export function CelulaZi({
   poateSterge,
   config,
   poateAproba,
+  sedii,
+  alegeSediul,
   onInchide,
 }: Proprietati) {
   const router = useRouter();
@@ -144,6 +154,20 @@ export function CelulaZi({
     intrare === null ? "birou" : (intrare.tipPrezenta ?? ""),
   );
   const [observatii, setObservatii] = useState(intrare?.observatii ?? "");
+  // Șir gol = sediul din contract. Pornește din ce e salvat, fiindcă acțiunea
+  // rescrie coloana la fiecare salvare — ca pe `tip_prezenta`.
+  const [sediu, setSediu] = useState(intrare?.punctLucruDeclaratId ?? "");
+  /*
+    `din_contract` vine din contractul CELUI CONECTAT. Pe ziua altcuiva — un
+    `hr` în foaia colectivă — ar numi sediul greșit, deci acolo se stinge, iar
+    prima opțiune rămâne „Sediul din contract", fără nume.
+  */
+  const sediiAfisate =
+    angajatId === null ? sedii : sedii.map((s) => ({ ...s, din_contract: false }));
+  const sediuScanat =
+    intrare?.punctLucruId == null
+      ? null
+      : (sedii.find((s) => s.id === intrare.punctLucruId)?.denumire ?? "un sediu inactiv");
 
   const idTitlu = useId();
   const idOraInceput = useId();
@@ -153,6 +177,7 @@ export function CelulaZi({
   const idOreNoapte = useId();
   const idTipZi = useId();
   const idTipPrezenta = useId();
+  const idSediu = useId();
   const idObservatii = useId();
   const idMotivRespingere = useId();
   /** Mesajul dialogului de conflict; `null` = nu există conflict de rezolvat. */
@@ -181,6 +206,7 @@ export function CelulaZi({
         ore_noapte: oreNoapte ?? 0,
         tip_zi: tipZi.length === 0 ? null : (tipZi as TipZi),
         tip_prezenta: tipPrezenta.length === 0 ? null : (tipPrezenta as TipPrezenta),
+        punct_lucru_declarat_id: sediulDeTrimis(tipPrezenta, sediu),
         observatii: observatii.length === 0 ? null : observatii,
         confirma_reluare: confirmaReluare,
       });
@@ -430,6 +456,22 @@ export function CelulaZi({
             </select>
           </div>
         </div>
+
+        {/* Sediul zilei (0163): scanat = dovedit, deci doar se spune; altfel se alege. */}
+        {!tipulPermiteSediu(tipPrezenta) ? null : sediuScanat !== null ? (
+          <p className="text-muted-foreground text-corp">
+            Sediul: <span className="text-foreground">{sediuScanat}</span>, din codul QR scanat.
+          </p>
+        ) : alegeSediul ? (
+          <CampSediu
+            id={idSediu}
+            sedii={sediiAfisate}
+            valoare={sediu}
+            onSchimba={setSediu}
+            clasaEticheta="text-corp block font-medium"
+            clasa={CLASA_CAMP}
+          />
+        ) : null}
 
         <div>
           <label htmlFor={idObservatii} className="text-corp block font-medium">

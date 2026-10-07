@@ -148,7 +148,7 @@ type CerereCreata = Readonly<{
    * două ori dacă nimeni nu se uită. Ecranul e singurul loc unde ajunge la
    * cineva care poate repara.
    */
-  zilePastrate: number;
+  zileInlocuite: number;
   /**
    * Ce a rămas de făcut pentru declararea suspendării contractului, când tipul
    * de concediu o produce. `motiv` non-null înseamnă că declararea a eșuat și
@@ -407,25 +407,19 @@ function FormularCerereNoua({
   const laReusita = useCallback(
     (data: CerereCreata): void => {
       /*
-       * Zilele păstrate NU se pot pierde aici.
-       *
-       * Cererea aprobată pe loc intră imediat în pontaj, iar sincronizarea sare
-       * peste zilele pe care angajatul și le-a pontat singur. Ele rămân
-       * „lucrate" ȘI scad din soldul de concediu — adică se plătesc de două
-       * ori. Aceeași notificare o dă și ecranul de aprobări (`DecizieAprobare`);
-       * pe drumul ăsta nu exista niciun aprobator care s-o vadă.
-       *
-       * `fel: "eroare"`, nu „reușită": notificările de reușită se sting singure
-       * după șase secunde, erorile nu. Numărul ăsta trebuie citit.
+       * Cererea aprobată pe loc intră imediat în pontaj și trece pe concediu
+       * zilele pe care angajatul le pontase deja ca lucrate. Se spune: cine a
+       * creat cererea tocmai a schimbat foaia de prezență. Aceeași informare o
+       * dă și ecranul de aprobări (`DecizieAprobare`).
        */
-      if (data.zilePastrate > 0) {
+      if (data.zileInlocuite > 0) {
         arataToast({
-          fel: "eroare",
-          text: `Atenție: ${String(data.zilePastrate)} ${
-            data.zilePastrate === 1
-              ? "zi de concediu era deja pontată ca lucrată și a rămas așa"
-              : "zile de concediu erau deja pontate ca lucrate și au rămas așa"
-          }. Verificați-le în pontaj — altfel se plătesc de două ori.`,
+          fel: "informativ",
+          text: `${String(data.zileInlocuite)} ${
+            data.zileInlocuite === 1
+              ? "zi de concediu era deja pontată ca lucrată și a fost trecută"
+              : "zile de concediu erau deja pontate ca lucrate și au fost trecute"
+          } pe concediu în foaia de prezență.`,
         });
       }
       /*

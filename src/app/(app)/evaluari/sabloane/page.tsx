@@ -52,7 +52,7 @@ export default async function PaginaSabloaneEvaluare() {
     <div className="space-y-6">
       <AntetPagina
         titlu="Șabloane de evaluare"
-        descriere="Seturi de criterii reutilizabile. Se aplică unui angajat de pe fișa lui, iar evaluarea păstrează criteriile de la momentul completării."
+        descriere="Seturi de criterii reutilizabile. Se aplică din „Evaluare nouă” sau de pe fișa angajatului, iar evaluarea păstrează criteriile de la momentul completării."
         file={<FileEvaluari activa="sabloane" nrSabloane={sabloane.length} />}
         {...(poateScrie ? { actiuni: <ButonSablonNou /> } : {})}
       />
@@ -83,6 +83,13 @@ export default async function PaginaSabloaneEvaluare() {
                       <h2 className="text-corp text-foreground font-semibold">{sablon.denumire}</h2>
                       {sablon.dePlatforma ? (
                         <Badge ton="neutru">Șablon de platformă</Badge>
+                      ) : sablon.personalizat ? (
+                        <>
+                          <Badge ton="neutru">Personalizat</Badge>
+                          <span className="text-muted-foreground text-nota tabular-nums">
+                            v{sablon.versiune}
+                          </span>
+                        </>
                       ) : (
                         <span className="text-muted-foreground text-nota tabular-nums">
                           v{sablon.versiune}
@@ -144,7 +151,8 @@ export default async function PaginaSabloaneEvaluare() {
       {poateScrie && aleFirmei.length === 0 && sabloane.length > 0 ? (
         <p className="text-muted-foreground text-nota">
           Firma nu are încă niciun șablon propriu. Șablonul de platformă se poate folosi așa cum e,
-          sau personalizat: butonul face o copie editabilă în firma dumneavoastră.
+          sau personalizat: modificările se salvează ca varianta firmei și îi iau locul, iar pentru
+          celelalte firme șablonul rămâne neschimbat.
         </p>
       ) : null}
     </div>

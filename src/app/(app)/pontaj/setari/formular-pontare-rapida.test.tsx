@@ -42,6 +42,7 @@ function randeaza(
     verificare: "fara",
     programStart: "08:00",
     necesitaAprobare: true,
+    varianta: "zilnic",
     ...pontare,
   };
   return render(

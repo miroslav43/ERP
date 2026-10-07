@@ -101,7 +101,7 @@ beforeEach(() => {
   vi.setSystemTime(ACUM);
   colaboratori.sincronizeazaZileleDeConcediu
     .mockReset()
-    .mockResolvedValue({ create: 1, actualizate: 0, pastrate: 0 });
+    .mockResolvedValue({ create: 1, actualizate: 0, inlocuite: 0, pastrate: 0 });
   colaboratori.declaraSuspendareaContractului.mockReset().mockResolvedValue(SUSPENDARE);
   return () => vi.useRealTimers();
 });
@@ -213,7 +213,7 @@ describe("decideCerere — aprobare pe ultimul pas", () => {
 
     expect(r).toEqual({
       ok: true,
-      data: { id: CERERE, zilePastrate: 0, suspendare: SUSPENDARE },
+      data: { id: CERERE, zileInlocuite: 0, suspendare: SUSPENDARE },
     });
 
     const [sarcina] = server.apeluriPe("approval_tasks", "update");
@@ -274,12 +274,13 @@ describe("decideCerere — aprobare pe ultimul pas", () => {
     expect(areFiltru(angajat, "eq", "organization_id", ORG_ID)).toBe(true);
   });
 
-  it("zile pontate păstrate peste concediu, angajat fără cont: numărul ajunge la aprobator, fără notificare", async () => {
+  it("zile pontate trecute pe concediu, angajat fără cont: numărul ajunge la aprobator, fără notificare", async () => {
     const { server, admin } = configureazaActiunea({ rol: "manager", permisiuni: PERMIS });
     colaboratori.sincronizeazaZileleDeConcediu.mockResolvedValue({
       create: 0,
       actualizate: 0,
-      pastrate: 1,
+      inlocuite: 1,
+      pastrate: 0,
     });
     inceput(server, admin, 0);
     server.raspunde("leave_requests", "update", { data: { id: CERERE } });
@@ -287,16 +288,17 @@ describe("decideCerere — aprobare pe ultimul pas", () => {
 
     const r = await decideCerere(aprobare);
 
-    expect(r).toMatchObject({ ok: true, data: { zilePastrate: 1 } });
+    expect(r).toMatchObject({ ok: true, data: { zileInlocuite: 1 } });
     expect(admin.apeluriPe("notifications")).toHaveLength(0);
   });
 
-  it("notificarea de dublă plată cade: aprobarea rămâne validă", async () => {
+  it("notificarea zilelor înlocuite cade: aprobarea rămâne validă", async () => {
     const { server, admin } = configureazaActiunea({ rol: "manager", permisiuni: PERMIS });
     colaboratori.sincronizeazaZileleDeConcediu.mockResolvedValue({
       create: 0,
       actualizate: 0,
-      pastrate: 3,
+      inlocuite: 3,
+      pastrate: 0,
     });
     inceput(server, admin, 0);
     server.raspunde("leave_requests", "update", { data: { id: CERERE } });
@@ -307,10 +309,10 @@ describe("decideCerere — aprobare pe ultimul pas", () => {
 
     const r = await decideCerere(aprobare);
 
-    expect(r).toMatchObject({ ok: true, data: { zilePastrate: 3 } });
+    expect(r).toMatchObject({ ok: true, data: { zileInlocuite: 3 } });
     expect(admin.apeluriPe("notifications", "insert")[0]?.payload).toMatchObject({
       user_id: USER_ID,
-      kind: "warning",
+      kind: "info",
       link: "/portal/pontajul-meu",
     });
   });
@@ -408,7 +410,7 @@ describe("decideCerere — aprobare cu pași rămași", () => {
 
     expect(r).toEqual({
       ok: true,
-      data: { id: CERERE, zilePastrate: 0, suspendare: NIMIC_DE_DECLARAT },
+      data: { id: CERERE, zileInlocuite: 0, suspendare: NIMIC_DE_DECLARAT },
     });
     expect(server.apeluriPe("leave_requests")).toHaveLength(0);
     expect(colaboratori.sincronizeazaZileleDeConcediu).not.toHaveBeenCalled();
@@ -427,7 +429,7 @@ describe("decideCerere — respingere", () => {
 
     expect(r).toEqual({
       ok: true,
-      data: { id: CERERE, zilePastrate: 0, suspendare: NIMIC_DE_DECLARAT },
+      data: { id: CERERE, zileInlocuite: 0, suspendare: NIMIC_DE_DECLARAT },
     });
     const [sarcina] = server.apeluriPe("approval_tasks", "update");
     expect(sarcina?.payload).toMatchObject({ status: "respinsa", comentariu: null });

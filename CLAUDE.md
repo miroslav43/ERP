@@ -101,7 +101,8 @@ care spune DE CE ocolești RLS și cu filtru explicit pe `organization_id`.
 - `employee` are `employees:read = own` — își vede propria fișă, dar numai pe a
   lui (mutat de `0023_portal_angajat.sql:51`, de la `none`; CNP/IBAN rămân
   închise, `hr_read_sensitive` cere `= all` exact).
-- `manager` are `attendance:approve=team` dar **nu** `attendance:create`; are
+- `manager` are `attendance:approve=team` dar `attendance:create` doar `own` (din
+  `0161`: se pontează pe sine, nu scrie ziua echipei — foaia rămâne read-only); are
   `per_diem:approve=team` dar `per_diem:create/update/delete` doar `own` (din
   `0154`: își face propria deplasare, nu o scrie pe a echipei); **niciun** `vehicles:*`.
 - `hr` administrează SSM dar n-are `compliance:read` — `expirables` îi întoarce

@@ -535,7 +535,7 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-06",
     titluPagina: "Concedii: cerere, aprobare și sold automat",
     titluH1: "Program de concedii",
     metaDescriere:
@@ -1038,7 +1038,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "inventory",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-06",
     titluPagina: "Inventar: obiectele firmei, pe angajat",
     titluH1: "Inventarul firmei, pe angajat",
     metaDescriere:
@@ -1159,7 +1159,7 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "announcements",
-    actualizat: "2026-10-02",
+    actualizat: "2026-10-06",
     titluPagina: "Anunțuri interne cu dovadă că au ajuns",
     titluH1: "Anunțuri interne cu confirmare",
     metaDescriere:

@@ -18,6 +18,8 @@ function randBaza(peste: Partial<IntrarePontaj> = {}): IntrarePontaj {
     ore_noapte: 0,
     tip_zi: "lucratoare",
     tip_prezenta: null,
+    punct_lucru_id: null,
+    punct_lucru_declarat_id: null,
     sursa: "manuala",
     leave_request_id: null,
     observatii: null,
@@ -60,6 +62,31 @@ describe("intrareaClient", () => {
       ore_lucrate: intrare.oreLucrate,
     });
     expect(normalizat.success).toBe(true);
+  });
+
+  it("ziua din concediu se citește aprobată, deși `approved_at` e gol", () => {
+    /*
+      Aprobarea pontajului o EXCLUDE (`liniiDeAprobat`, `aprobaPerioada` filtrează
+      `leave_request_id is null`): decizia s-a luat deja în Concedii. Citită după
+      `approved_at`, ziua purta în foaie punctul „așteaptă decizia" pe veci, pe un
+      concediu aprobat, fiindcă nimeni n-o mai putea decide.
+    */
+    const intrare = intrareaClient(
+      randBaza({
+        ora_inceput: null,
+        ora_sfarsit: null,
+        ore_lucrate: 0,
+        tip_zi: "concediu",
+        sursa: "sincronizare_concedii",
+        leave_request_id: "33333333-3333-4333-8333-333333333333",
+      }),
+    );
+    expect(intrare.esteDinConcediu).toBe(true);
+    expect(intrare.aprobat).toBe(true);
+  });
+
+  it("ziua lucrată fără `approved_at` rămâne nedecisă", () => {
+    expect(intrareaClient(randBaza()).aprobat).toBe(false);
   });
 
   it("ziua fără interval rămâne fără interval", () => {

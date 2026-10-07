@@ -23,7 +23,9 @@ import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import {
   adaugaZile,
   esteLuni,
-  lunieaUrmatoare,
+  existaSaptamanaUrmatoare,
+  lunieaSaptamanii,
+  saptamanaImplicita,
   zileleSaptamanii,
 } from "@/domain/attendance/saptamana";
 import { ziuaInitialaPlan } from "@/domain/attendance/plan-si-fapt";
@@ -54,20 +56,28 @@ export default async function PaginaSaptamanaPortal({
   if (!can(permisiuni, "attendance:create", "own")) {
     return (
       <div className="p-4">
-        <AccesRestrictionat mesaj="Nu aveți dreptul de a completa un plan de prezență." />
+        <AccesRestrictionat mesaj="Nu aveți dreptul de a completa pontajul săptămânii." />
       </div>
     );
   }
 
-  const stare = await fisaMea(tenant.organizationId, user.id);
+  // Varianta de pontaj (0165) se citește ÎNAINTEA săptămânii: ea decide care e
+  // săptămâna implicită — viitoarea pentru plan, cea curentă pentru fișa de pontaj.
+  const [stare, randPontare] = await Promise.all([
+    fisaMea(tenant.organizationId, user.id),
+    setariPontareRapida(tenant.organizationId),
+  ]);
   if (stare.stare !== "ok") return <FaraFisa stare={stare} numeOrganizatie={tenant.name} />;
+  const { necesitaAprobare, varianta } = configPontareRapida(randPontare);
+  const peSaptamana = varianta === "saptamanal";
 
+  const azi = todayInBucharest();
   const parametri = await searchParams;
   const brut = parametri["saptamana"];
   // Valoarea din bara de adrese se acceptă doar dacă e chiar o zi de luni.
   // Orice altceva cade pe implicit — nu ajunge la Postgres ca text.
   const cerut = typeof brut === "string" ? brut : "";
-  const saptamanaStart = esteLuni(cerut) ? cerut : lunieaUrmatoare(todayInBucharest());
+  const saptamanaStart = esteLuni(cerut) ? cerut : saptamanaImplicita(peSaptamana, azi);
 
   /*
     Planul și ce s-a pontat efectiv în săptămâna asta (0118) — aceeași
@@ -105,11 +115,7 @@ export default async function PaginaSaptamanaPortal({
     ăsta trebuie s-o afle singur: n-are banda de file, deci nu trece prin
     `fileDePontaj` ca paginile de sub `/pontaj`.
   */
-  const [setari, randPontare] = await Promise.all([
-    setariPontaj(tenant.organizationId, saptamanaStart),
-    setariPontareRapida(tenant.organizationId),
-  ]);
-  const { necesitaAprobare } = configPontareRapida(randPontare);
+  const setari = await setariPontaj(tenant.organizationId, saptamanaStart);
 
   const zileInitiale = zileleSaptamanii(saptamanaStart).map((data) =>
     ziuaInitialaPlan(
@@ -135,15 +141,21 @@ export default async function PaginaSaptamanaPortal({
   // tăcut. Formularul se blochează, nu lasă butonul activ ca să ducă în refuz.
   // Fără pas de aprobare, `aprobata` e pusă de trigger la trimitere (0118 §3):
   // fără ramura a treia, planul s-ar îngheța la prima apăsare.
-  const poateEdita = submisie === null || submisie.status !== "aprobata" || !necesitaAprobare;
+  // Pe săptămână, o săptămână neîncepută nu se pontează: serverul o refuză, deci
+  // formularul nu-i oferă butoanele.
+  const inViitor = peSaptamana && saptamanaStart > lunieaSaptamanii(azi);
+  const poateEdita =
+    !inViitor && (submisie === null || submisie.status !== "aprobata" || !necesitaAprobare);
 
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
       <AntetPagina
-        titlu="Planul săptămânii"
-        descriere={`Săptămâna care începe ${formatDate(
-          saptamanaStart,
-        )}: cum veniți la lucru și în ce interval.`}
+        titlu={peSaptamana ? "Pontajul săptămânii" : "Planul săptămânii"}
+        descriere={
+          peSaptamana
+            ? `Săptămâna care începe ${formatDate(saptamanaStart)}: ce ați lucrat, zi cu zi.`
+            : `Săptămâna care începe ${formatDate(saptamanaStart)}: cum veniți la lucru și în ce interval.`
+        }
       />
 
       <nav aria-label="Alege săptămâna" className="flex flex-wrap items-center gap-2">
@@ -154,13 +166,15 @@ export default async function PaginaSaptamanaPortal({
           <ChevronLeft aria-hidden="true" className="size-4" />
           Anterioară
         </Link>
-        <Link
-          href={`/portal/pontajul-meu/saptamana?saptamana=${adaugaZile(saptamanaStart, 7)}`}
-          className={buton({ varianta: "secundar" })}
-        >
-          Următoarea
-          <ChevronRight aria-hidden="true" className="size-4" />
-        </Link>
+        {existaSaptamanaUrmatoare(peSaptamana, saptamanaStart, azi) ? (
+          <Link
+            href={`/portal/pontajul-meu/saptamana?saptamana=${adaugaZile(saptamanaStart, 7)}`}
+            className={buton({ varianta: "secundar" })}
+          >
+            Următoarea
+            <ChevronRight aria-hidden="true" className="size-4" />
+          </Link>
+        ) : null}
         {submisie === null ? null : (
           <Badge ton={TONURI_STARE_SAPTAMANA[submisie.status]}>
             {etichetaStareSaptamana(submisie.status, necesitaAprobare)}
@@ -191,6 +205,7 @@ export default async function PaginaSaptamanaPortal({
         zileInitiale={zileInitiale}
         poateEdita={poateEdita}
         necesitaAprobare={necesitaAprobare}
+        peSaptamana={peSaptamana}
         config={config}
         // Aceeași dată ca la citirea setărilor: începutul săptămânii.
         regulaFirmei={rezumatRegulaPontaj(config, setari !== null)}

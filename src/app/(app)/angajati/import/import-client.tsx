@@ -1,9 +1,10 @@
 // src/app/(app)/angajati/import/import-client.tsx
 "use client";
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import { LIMITA_FISIER_BYTES, verificaFisierImport } from "@/lib/import/excel";
 import { Buton } from "@/components/ui/buton";
+import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { StareEroare } from "@/components/ui/stare-eroare";
 import { Schelet } from "@/components/ui/schelet";
@@ -59,11 +60,13 @@ const aplicaImportAngajati = aplicaImportAngajatiBruta as unknown as (input: {
   offset: number;
 }) => Promise<ActionResult<Aplicare>>;
 
+const MB_LIMITA = Math.round(LIMITA_FISIER_BYTES / 1024 / 1024);
+
 type Pas = "incarcare" | "analiza" | "previzualizare" | "aplicare" | "gata";
 
 export function ImportAngajatiClient() {
   const idFisier = useId();
-  const referintaFisier = useRef<HTMLInputElement>(null);
+  const [fisier, setFisier] = useState<File | null>(null);
   const [pas, setPas] = useState<Pas>("incarcare");
   const [eroare, setEroare] = useState<string | null>(null);
   const [previzualizare, setPrevizualizare] = useState<Previzualizare | null>(null);
@@ -71,8 +74,7 @@ export function ImportAngajatiClient() {
   const [esecuri, setEsecuri] = useState<{ rand: number; marca: string; mesaj: string }[]>([]);
 
   async function incarca(): Promise<void> {
-    const fisier = referintaFisier.current?.files?.[0];
-    if (!fisier) {
+    if (fisier === null) {
       setEroare("Alege un fișier Excel.");
       return;
     }
@@ -82,6 +84,10 @@ export function ImportAngajatiClient() {
       return;
     }
     setEroare(null);
+    // Câmpul iese din ecran pe durata analizei și revine GOL dacă ceva pică;
+    // fișierul din stare se golește odată cu el, ca afișajul și ce urmează să
+    // fie trimis să spună același lucru.
+    setFisier(null);
     setPas("analiza");
     const pregatire = await pregatesteIncarcareaImportului({
       numeFisier: fisier.name,
@@ -205,21 +211,19 @@ export function ImportAngajatiClient() {
 
       {pas === "incarcare" && (
         <div className="border-border rounded-panou border p-6">
-          <label htmlFor={idFisier} className="text-foreground text-corp block font-medium">
-            Fișier Excel (.xlsx), maximum {Math.round(LIMITA_FISIER_BYTES / 1024 / 1024)} MB
-          </label>
-          <input
-            ref={referintaFisier}
+          <IncarcareFisier
+            nume="fisier_import"
             id={idFisier}
-            type="file"
+            eticheta="Fișier Excel"
             accept=".xlsx,.xlsm"
-            aria-describedby={`${idFisier}-ajutor`}
-            className="text-corp mt-2 block w-full"
+            maxOcteti={LIMITA_FISIER_BYTES}
+            mesajPreaMare={`Fișierul depășește ${String(MB_LIMITA)} MB. Împarte-l în mai multe fișiere mai mici.`}
+            mesajTipRespins="Acceptăm doar fișiere Excel (.xlsx sau .xlsm)."
+            restrictii={`Excel .xlsx sau .xlsm, cel mult ${String(MB_LIMITA)} MB. Primul rând trebuie să conțină antetul coloanelor; obligatorii: Marcă, Nume (sau Nume complet) și Data angajării.`}
+            textAlegere="Alege fișierul Excel"
+            etichetaScoate="Scoate fișierul ales"
+            laSchimbare={setFisier}
           />
-          <p id={`${idFisier}-ajutor`} className="text-muted-foreground text-corp mt-2">
-            Primul rând trebuie să conțină antetul coloanelor. Obligatorii: Marcă, Nume (sau Nume
-            complet) și Data angajării.
-          </p>
           <Buton
             varianta="primar"
             className="mt-4"

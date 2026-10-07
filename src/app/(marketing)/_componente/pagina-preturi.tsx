@@ -123,11 +123,19 @@ export function PaginaPreturi({ text }: { text: ContinutLanding }) {
                 const pret = PRETURI_MODULE[modul.cheie];
                 return (
                   <tr key={modul.cheie} className="border-mk-liniatura border-b last:border-b-0">
+                    {/*
+                      Numele trimite la pagina modulului. Până pe 6 oct 2026 stătea
+                      lângă el slug-ul, în mono — „Parc auto flota”, „Portal angajat
+                      portal-angajat” —, o cheie internă afișată ca text (auditul SEO
+                      din 6 oct, #8), în locul unei legături care chiar duce undeva.
+                    */}
                     <th scope="row" className="px-3 py-2.5 text-[0.9375rem] font-normal">
-                      {modul.titlu}
-                      <span className="font-mk-date text-mk-text-slab ml-2 text-[0.6875rem]">
-                        {slugModul(modul.cheie)}
-                      </span>
+                      <Link
+                        href={`/module/${slugModul(modul.cheie)}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {modul.titlu}
+                      </Link>
                     </th>
                     <td className="font-mk-date border-mk-liniatura border-l px-3 py-2.5 text-right text-[0.875rem] tabular-nums">
                       {pret === undefined ? (

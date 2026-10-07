@@ -57,6 +57,32 @@ export function lunieaSaptamanii(zi: string): string {
   return adaugaZile(zi, -inapoi);
 }
 
+/**
+ * Săptămâna pe care se deschide formularul săptămânii.
+ *
+ * Plan (varianta zilnică): săptămâna VIITOARE — se declară în avans.
+ * Fișă de pontaj (varianta săptămânală, 0165): săptămâna CURENTĂ — se declară
+ * ce s-a lucrat, iar cine deschide ecranul vineri vrea săptămâna de acum, nu
+ * pe cea în care încă n-a lucrat nimic.
+ */
+export function saptamanaImplicita(peSaptamana: boolean, azi: string): string {
+  return peSaptamana ? lunieaSaptamanii(azi) : lunieaUrmatoare(azi);
+}
+
+/**
+ * Se mai poate merge înainte? În varianta săptămânală, nu dincolo de săptămâna
+ * curentă: fișa de pontaj declară ce s-a lucrat, iar serverul refuză oricum o
+ * săptămână neîncepută (`trimiteSaptamanaPontaj`). Planul se poate face oricât
+ * de departe.
+ */
+export function existaSaptamanaUrmatoare(
+  peSaptamana: boolean,
+  saptamanaStart: string,
+  azi: string,
+): boolean {
+  return !peSaptamana || saptamanaStart < lunieaSaptamanii(azi);
+}
+
 /** Cele șapte zile ale săptămânii care începe luni la `saptamanaStart`. */
 export function zileleSaptamanii(saptamanaStart: string): readonly string[] {
   return Array.from({ length: 7 }, (_, i) => adaugaZile(saptamanaStart, i));

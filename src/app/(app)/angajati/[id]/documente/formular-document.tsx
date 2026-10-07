@@ -1,13 +1,14 @@
 // src/app/(app)/angajati/[id]/documente/formular-document.tsx
 "use client";
 import { Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
+import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import type { ActionResult } from "@/lib/actions/types";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
-import { verificaDocument } from "@/lib/documents/cale";
+import { LIMITA_DOCUMENT_BYTES, MIME_ACCEPTATE, verificaDocument } from "@/lib/documents/cale";
 import {
   anuleazaDocumentEmis,
   linkDescarcareDocument,
@@ -66,13 +67,15 @@ export function FormularDocument({
   employeeId: string;
   tipuri: readonly TipDocument[];
 }) {
-  const referinta = useRef<HTMLInputElement>(null);
-
   async function trimite(formular: FormData): Promise<ActionResult<{ id: string }>> {
-    const fisier = referinta.current?.files?.[0];
+    // Din `FormData`, nu dintr-o referință: inputul are acum `name`, deci
+    // fișierul pleacă odată cu restul câmpurilor. Fără fișier ales, browserul
+    // pune în `FormData` un `File` gol, fără nume.
+    const ales = formular.get("fisier");
+    const fisier = ales instanceof File && ales.name !== "" ? ales : null;
     const tipId = String(formular.get("tip") ?? "");
     const titlu = String(formular.get("titlu") ?? "").trim();
-    if (!fisier) return refuzLocal("Alegeți un fișier.", "fisier");
+    if (fisier === null) return refuzLocal("Alegeți un fișier.", "fisier");
 
     const problema = verificaDocument(fisier.type, fisier.size);
     if (problema !== null) return refuzLocal(problema, "fisier");
@@ -111,7 +114,7 @@ export function FormularDocument({
         pictograma: <Plus aria-hidden="true" className="size-4" />,
       }}
       titlu="Document nou în dosar"
-      descriere="Tipul documentului decide singur dacă actul e confidențial și dacă angajatul îl vede în portal. Fișierele acceptate: PDF și imagini, până la 20 MB."
+      descriere="Tipul documentului decide singur dacă actul e confidențial și dacă angajatul îl vede în portal."
       marime="mare"
       actiune={trimite}
       mesajReusita="Documentul a fost adăugat în dosar."
@@ -158,18 +161,23 @@ export function FormularDocument({
 
           {/* Fișierul NU trece prin `valoriTrimise`: un `<input type="file">`
               nu poate primi o valoare din cod, deci nici nu poate fi repus
-              după un refuz. Rămâne pe referință, ca înainte. */}
-          <Camp
+              după un refuz. `IncarcareFisier` își golește afișajul la
+              resetarea formularului, ca să nu arate un fișier care nu mai e. */}
+          <IncarcareFisier
             nume="fisier"
             id={idc("fisier")}
             eticheta="Fișier"
-            ajutor="PDF sau imagine, cel mult 20 MB."
+            accept={MIME_ACCEPTATE.join(",")}
+            maxOcteti={LIMITA_DOCUMENT_BYTES}
+            mesajPreaMare="Fișierul depășește 20 MB."
+            mesajTipRespins="Acceptăm doar PDF, imagini (JPG, PNG, WEBP), Word sau Excel."
+            restrictii="PDF, imagine, Word sau Excel, cel mult 20 MB."
+            textAlegere="Alege fișierul"
+            etichetaScoate="Scoate fișierul ales"
             obligatoriu
             className="sm:col-span-2"
             erori={stare.erori["fisier"] ?? []}
-          >
-            {(a) => <input {...a} ref={referinta} type="file" />}
-          </Camp>
+          />
         </div>
       )}
     </FormularDialog>

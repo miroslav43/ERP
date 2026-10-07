@@ -1,12 +1,13 @@
 import Link from "next/link";
 
-import { CONTACT } from "@/content/landing/contact";
+import { CONTACT, FIRMA } from "@/content/landing/contact";
 import { lunar, MODULE_NUCLEU, PACHETE, sumaSeparat } from "@/content/landing/preturi";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
 import { FormularDemo } from "../../cere-demo/formular-demo";
 import { Banda } from "../banda";
 import { Foaia } from "../foaia";
+import { VideoErou } from "../video-erou";
 
 /**
  * Benzile care poartă vânzarea: eroul cu foaia de pontaj, dovada, situația de
@@ -21,72 +22,162 @@ import { Foaia } from "../foaia";
  */
 type ProprietatiBanda = { readonly text: ContinutLanding };
 
+/** Videoclipul din fundalul eroului și posterul lui, din `public/video/`. */
+const VIDEO_EROU = {
+  webm: "/video/erou-birou-1280.webm",
+  mp4: "/video/erou-birou-1280.mp4",
+  poster: "/video/erou-birou-1280.webp",
+} as const;
+
 /**
  * Eroul nu folosește `Banda`: e singura secțiune fără riglă de separare
  * deasupra — n-are ce despărți, e prima — și singura cu propria scară
  * tipografică, `clamp(2.5rem, 5.8vw, 4.5rem)`.
+ *
+ * ── DE CE PE CERNEALĂ, CU VIDEOCLIP (7 oct 2026) ──────────────────────────
+ * Cerut explicit: un erou „un pic mai atractiv”, pe un videoclip de birou
+ * filmat de sus — mâini pe laptopuri, grafice, o strângere de mână, fără fețe.
+ * Sursa: canalul de YouTube Free Stock Footage 4K, licență CC BY, cu acordul
+ * explicit al autorului pentru uz comercial fără credit; creditul stă totuși în
+ * subsol. Clipul are 13 secunde și se repetă; 1280×720, fără sunet, 1,0 MB în
+ * WebM și 1,3 MB în MP4.
+ *
+ * Trei straturi, în ordinea de pictare: posterul (server, `fetchPriority`
+ * înalt — e cel mai mare element din primul ecran, deci elementul LCP), apoi
+ * videoclipul (insula `VideoErou`, care apare peste poster doar când chiar
+ * rulează) și voalul de cerneală. Voalul e mai dens pe telefon, unde textul
+ * ocupă toată lățimea, și coboară spre dreapta pe ecran lat, unde textul stă în
+ * stânga: cadrul e un birou alb, iar textul deschis trebuie să-și păstreze
+ * contrastul pe oricare cadru.
+ *
+ * Foaia de pontaj, care stătea în erou, are acum banda ei, imediat dedesubt.
  */
 export function BandaHero({ text }: ProprietatiBanda) {
   return (
-    <section id="sus" className="bg-mk-hartie text-mk-text">
-      {/*
-        `mk-intra` animă copiii direcți ai acestui container — supratitlu,
-        butoane, foaie — cu 60ms decalaj între ei. Titlul și lead-ul NU intră:
-        lead-ul e elementul LCP, iar intrarea lui întârzia pictarea cu ~0,9s
-        (măsurat 17 sept 2026). Regula stă în `globals.css`; aici e doar
-        declarația că banda o folosește.
-
-        E singura mișcare de intrare de pe sit. Nu există reveal la scroll,
-        deliberat: starea de bază a fiecărui element e starea FINALĂ, iar
-        animația doar se stinge spre ea. Un element pornit din `opacity: 0` ar
-        rămâne invizibil pentru cine cere mișcare redusă și pentru crawlerele
-        care nu execută JavaScript.
-      */}
-      <div className="mk-intra max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-20 sm:pt-24 sm:pb-32">
-        <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
-          {text.hero.supratitlu}
-        </p>
-        <h1 className="font-mk-display mt-6 max-w-[16ch] text-[clamp(2.5rem,5.8vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.022em] text-balance">
-          {text.hero.titlu}
-        </h1>
-        <p className="text-mk-text-slab mt-7 max-w-[58ch] text-[1.1875rem] leading-[1.6] text-pretty">
-          {text.hero.lead}
-        </p>
+    <>
+      <section
+        id="sus"
+        className="mk-cerneala bg-mk-cerneala text-mk-text-inv relative isolate overflow-hidden"
+      >
         {/*
-          `data-umami-event` marchează butonul ca eveniment cu nume.
-
-          Fără el, Umami ar raporta doar vizualizări de pagină — s-ar vedea că
-          lumea ajunge pe `/inregistrare`, dar nu DE UNDE: din erou, din antet
-          sau de pe un card de preț. Exact întrebarea de care depinde ce
-          schimbăm data viitoare. Numele sunt scurte și stabile: se compară în
-          timp, deci nu se redenumesc după ce au început să adune date.
+          O singură lățime, 1280, și pe telefon (37 KB). Cu o variantă de 640 px
+          acolo, posterul — mărit peste dimensiunea lui naturală — „cântărea” la
+          LCP mai puțin decât videoclipul, iar LCP-ul se muta pe primul cadru al
+          videoclipului, adică după descărcarea lui (măsurat pe 7 oct 2026).
         */}
-        <div className="mt-9 flex flex-wrap gap-3">
-          <Link
-            href={text.hero.ctaPrimar.href}
-            data-umami-event="cta-erou"
-            className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
-          >
-            {text.hero.ctaPrimar.eticheta}
-          </Link>
-          <a
-            href={text.hero.ctaSecundar.href}
-            data-umami-event="cta-erou-secundar"
-            className="border-mk-rigla hover:border-mk-text inline-flex h-12 items-center rounded border px-6 text-[0.9375rem] font-medium transition-colors"
-          >
-            {text.hero.ctaSecundar.eticheta}
-          </a>
+        {/* eslint-disable-next-line @next/next/no-img-element --
+            WebP gata făcut; motivul complet e în `prin-geam.tsx`. */}
+        <img
+          src={VIDEO_EROU.poster}
+          alt=""
+          aria-hidden="true"
+          width={1280}
+          height={720}
+          fetchPriority="high"
+          decoding="async"
+          className="absolute inset-0 -z-20 h-full w-full object-cover"
+        />
+        <VideoErou webm={VIDEO_EROU.webm} mp4={VIDEO_EROU.mp4} etichete={text.hero.video} />
+        <div
+          aria-hidden="true"
+          className="bg-mk-cerneala/85 lg:from-mk-cerneala/95 lg:via-mk-cerneala/80 lg:to-mk-cerneala/45 absolute inset-0 -z-10 lg:bg-transparent lg:bg-linear-to-r"
+        />
+        {/*
+          Topirea în hârtie, ultimul strat de sub text: același `-z-10` ca voalul,
+          dar după el în DOM, deci pictat peste el și sub conținut. Înălțimea
+          trebuie să rămână sub marginea de jos a textului (`pb-` de mai jos) —
+          altfel asigurările și telefonul ar ajunge, deschise la culoare, pe hârtie.
+        */}
+        <div
+          aria-hidden="true"
+          className="mk-erou-tranzitie pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-32 sm:h-48 lg:h-56"
+        />
+
+        {/*
+          `mk-intra` animă copiii direcți ai acestui container — supratitlu,
+          butoane, asigurări — cu 60ms decalaj între ei. Titlul și lead-ul NU
+          intră (regula din `globals.css`): starea de bază a fiecărui element e
+          starea FINALĂ, iar animația doar se stinge spre ea. Un element pornit
+          din `opacity: 0` ar rămâne invizibil pentru cine cere mișcare redusă și
+          pentru crawlerele care nu execută JavaScript.
+        */}
+        <div className="mk-intra max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-20 pb-40 sm:pt-28 sm:pb-56 lg:flex lg:min-h-[min(88vh,860px)] lg:flex-col lg:justify-center lg:pb-64">
+          <p className="font-mk-date text-mk-text-inv/80 text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            {text.hero.supratitlu}
+          </p>
+          <h1 className="font-mk-display mt-6 max-w-[18ch] text-[clamp(2.5rem,5.8vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.022em] text-balance">
+            {text.hero.titlu}
+          </h1>
+          <p className="text-mk-text-inv/90 mt-7 max-w-[58ch] text-[1.1875rem] leading-[1.6] text-pretty">
+            {text.hero.lead}
+          </p>
+          {/*
+            `data-umami-event` marchează butonul ca eveniment cu nume.
+
+            Fără el, Umami ar raporta doar vizualizări de pagină — s-ar vedea că
+            lumea ajunge pe `/inregistrare`, dar nu DE UNDE: din erou, din antet
+            sau de pe un card de preț. Numele sunt scurte și stabile: se compară
+            în timp, deci nu se redenumesc după ce au început să adune date.
+          */}
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link
+              href={text.hero.ctaPrimar.href}
+              data-umami-event="cta-erou"
+              className="bg-mk-hartie text-mk-cerneala inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+            >
+              {text.hero.ctaPrimar.eticheta}
+            </Link>
+            <Link
+              href={text.hero.ctaSecundar.href}
+              data-umami-event="cta-erou-secundar"
+              className="border-mk-text-inv/40 hover:border-mk-text-inv inline-flex h-12 items-center rounded border px-6 text-[0.9375rem] font-medium transition-colors"
+            >
+              {text.hero.ctaSecundar.eticheta}
+            </Link>
+          </div>
+
+          {/*
+            Ce NU cere înscrierea, sub butoane, plus un număr la care răspunde un
+            om. Pentru o firmă fără clienți de arătat, telefonul e dovada că în
+            spatele paginii stă cineva.
+          */}
+          <ul className="text-mk-text-inv/80 mt-5 flex flex-wrap gap-x-6 gap-y-1.5 text-[0.875rem] leading-[1.5]">
+            {text.hero.asigurari.map((asigurare) => (
+              <li key={asigurare}>{asigurare}</li>
+            ))}
+            <li>
+              {text.hero.suna}{" "}
+              <a
+                href={CONTACT.telefonLegatura}
+                data-umami-event="telefon-erou"
+                className="text-mk-text-inv font-mk-date inline-block py-1 tabular-nums underline-offset-4 hover:underline"
+              >
+                {CONTACT.telefon}
+              </a>
+            </li>
+          </ul>
         </div>
+      </section>
 
-        {/*
-          Foaia stă ÎN erou, nu într-o bandă proprie. E singurul lucru de pe sit
-          pe care concurența nu-l poate copia ieftin: nu o captură de ecran, ci
-          produsul care rulează — 240 de celule randate pe server, cu totalurile
-          care se închid și pe orizontală, și pe verticală, funcțional fără JS.
-        */}
-        <Foaia text={text.foaie} />
-      </div>
-    </section>
+      {/*
+        Foaia are banda ei, pe hârtie, imediat sub erou. E singurul lucru de pe
+        sit pe care concurența nu-l poate copia ieftin: nu o captură de ecran, ci
+        produsul care rulează — 240 de celule randate pe server, cu totalurile
+        care se închid și pe orizontală, și pe verticală, funcțional fără JS.
+
+        Fraza de deasupra îi spune cititorului CE e tabelul: rezultatul
+        pontajului de pe telefon. `[&>figure]:mt-6` strânge distanța pe care
+        foaia și-o pune singură deasupra.
+      */}
+      <section className="bg-mk-hartie text-mk-text">
+        <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-4 pb-20 sm:pt-6 sm:pb-28 [&>figure]:mt-6">
+          <p className="max-w-[62ch] text-[1rem] leading-[1.6] text-pretty">
+            {text.hero.punteFoaie}
+          </p>
+          <Foaia text={text.foaie} />
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -133,89 +224,6 @@ export function BandaRealitatea({ text }: ProprietatiBanda) {
           </div>
         ))}
       </div>
-    </Banda>
-  );
-}
-
-/**
- * „Ce pornești întâi”: trei drumuri, fiecare cu pagina lui.
- *
- * A înlocuit catalogul de șapte sute cincizeci de cuvinte. Rolul ei nu e să
- * enumere, ci să RAMIFICE — fără ea, paginile care au preluat conținutul mutat
- * ar fi accesibile doar din subsol.
- */
-export function BandaPornire({ text }: ProprietatiBanda) {
-  return (
-    <Banda
-      id="pornire"
-      supratitlu={text.pornire.supratitlu}
-      titlu={text.pornire.titlu}
-      lead={text.pornire.lead}
-    >
-      <div className="mt-12 grid gap-10 md:grid-cols-3">
-        {text.pornire.blocuri.map((bloc) => (
-          <div key={bloc.titlu} className="border-mk-rigla/40 flex flex-col border-t pt-5">
-            <h3 className="font-mk-display max-w-[24ch] text-[clamp(1.125rem,1.4vw,1.375rem)] leading-[1.18] font-semibold">
-              {bloc.titlu}
-            </h3>
-            <p className="text-mk-text-slab mt-3 flex-1 text-[0.9375rem] leading-[1.6]">
-              {bloc.text}
-            </p>
-            <Link
-              href={bloc.legatura.href}
-              data-umami-event={`pornire-${bloc.legatura.href.replace(/^\//, "")}`}
-              className="mt-4 inline-block text-[0.9375rem] underline underline-offset-4"
-            >
-              {bloc.legatura.eticheta}
-            </Link>
-          </div>
-        ))}
-      </div>
-      <p className="text-mk-text-slab mt-10 max-w-[62ch] text-[0.9375rem] leading-[1.6]">
-        {text.pornire.nota.map((bucata) =>
-          typeof bucata === "string" ? (
-            bucata
-          ) : (
-            <Link
-              key={bucata.href}
-              href={bucata.href}
-              className="text-mk-text underline underline-offset-4"
-            >
-              {bucata.eticheta}
-            </Link>
-          ),
-        )}{" "}
-        <Link href={text.pornire.legaturaModule.href} className="text-mk-text underline-offset-4">
-          {text.pornire.legaturaModule.eticheta}
-        </Link>
-      </p>
-    </Banda>
-  );
-}
-
-/**
- * Încrederea, în formă scurtă.
- *
- * Cele patru straturi și vinieta care pierde patru rânduri sub politica de
- * securitate rămân pe `/incredere`. Aici stă doar afirmația și drumul spre ea:
- * pe pagina de start e un motiv de a continua, nu o demonstrație.
- */
-export function BandaIncredereScurt({ text }: ProprietatiBanda) {
-  return (
-    <Banda
-      id="incredere"
-      fundal="cerneala"
-      supratitlu={text.izolare.supratitlu}
-      titlu={text.izolare.titlu}
-      lead={text.izolare.lead}
-      aliniereTitlu="larg"
-    >
-      <Link
-        href={text.izolare.legaturaPagina.href}
-        className="bg-mk-hartie text-mk-cerneala mt-10 inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
-      >
-        {text.izolare.legaturaPagina.eticheta}
-      </Link>
     </Banda>
   );
 }
@@ -348,33 +356,6 @@ export function GrilaPachete({ text }: ProprietatiBanda) {
   );
 }
 
-/** Singurul loc numerotat de pe sit. Numerotarea aici înseamnă ordine obligatorie. */
-export function BandaImplementare({ text }: ProprietatiBanda) {
-  return (
-    <Banda
-      id="implementare"
-      supratitlu={text.implementare.supratitlu}
-      titlu={text.implementare.titlu}
-      lead={text.implementare.lead}
-    >
-      <ol className="mt-12 grid gap-8 md:grid-cols-5">
-        {text.implementare.pasi.map((pas, index) => (
-          <li key={pas.titlu} className="border-mk-rigla/40 border-t pt-5">
-            <p className="font-mk-date flex items-baseline gap-3 text-[0.6875rem] tracking-[0.14em] uppercase">
-              <span className="text-mk-text text-[1.25rem] tabular-nums">{index + 1}</span>
-              <span className="text-mk-text-slab">{pas.actor}</span>
-            </p>
-            <h3 className="font-mk-display mt-3 text-[1.0625rem] leading-[1.2] font-semibold">
-              {pas.titlu}
-            </h3>
-            <p className="text-mk-text-slab mt-2 text-[0.875rem] leading-[1.55]">{pas.text}</p>
-          </li>
-        ))}
-      </ol>
-    </Banda>
-  );
-}
-
 /**
  * `<details>` nativ, deschis fără o linie de JavaScript.
  *
@@ -414,21 +395,6 @@ export function BandaIntrebari({ text }: ProprietatiBanda) {
           </details>
         ))}
       </div>
-    </Banda>
-  );
-}
-
-export function BandaClienti({ text }: ProprietatiBanda) {
-  return (
-    <Banda
-      id="clienti"
-      inaltime="scurta"
-      supratitlu={text.clienti.supratitlu}
-      titlu={text.clienti.titlu}
-    >
-      <p className="text-mk-text-slab mt-5 max-w-[62ch] text-[0.9375rem] leading-[1.6]">
-        {text.clienti.text}
-      </p>
     </Banda>
   );
 }
@@ -482,6 +448,10 @@ export function BandaContact({ text }: ProprietatiBanda) {
           </dl>
           <p className="text-mk-text-slab mt-5 max-w-[42ch] text-[0.8125rem] leading-[1.55]">
             {text.contact.notaReferinte}
+          </p>
+          {/* Denumirea și orașul vin din `FIRMA`: aceeași sursă ca subsolul și JSON-LD-ul. */}
+          <p className="text-mk-text-slab mt-3 max-w-[42ch] text-[0.8125rem] leading-[1.55]">
+            {text.contact.cine.replace("{firma}", FIRMA.denumire).replace("{oras}", FIRMA.oras)}
           </p>
         </div>
 

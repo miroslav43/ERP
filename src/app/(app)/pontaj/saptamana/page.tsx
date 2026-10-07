@@ -11,8 +11,20 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { angajatiPentruPontaj, idFisaProprie } from "@/lib/queries/employees";
-import { citesteSaptamanaPontaj, intrariLuna, setariPontaj } from "@/lib/queries/attendance";
-import { adaugaZile, esteLuni, lunieaUrmatoare } from "@/domain/attendance/saptamana";
+import {
+  citesteSaptamanaPontaj,
+  intrariLuna,
+  setariPontaj,
+  setariPontareRapida,
+} from "@/lib/queries/attendance";
+import {
+  adaugaZile,
+  esteLuni,
+  existaSaptamanaUrmatoare,
+  lunieaSaptamanii,
+  saptamanaImplicita,
+} from "@/domain/attendance/saptamana";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 import { ziuaInitialaPlan } from "@/domain/attendance/plan-si-fapt";
 
 import { ButonSetariPontaj } from "../buton-setari";
@@ -41,16 +53,23 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
 
   if (!can(permisiuni, "attendance:create", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a completa un plan de prezență. Solicitați administratorului organizației rolul potrivit." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a completa pontajul săptămânii. Solicitați administratorului organizației rolul potrivit." />
     );
   }
+
+  // Varianta de pontaj (0165) decide săptămâna implicită: viitoarea pentru plan,
+  // cea curentă pentru fișa de pontaj. Citirea e memoizată pe cerere, deci
+  // `fileDePontaj` de mai jos n-o mai plătește.
+  const { varianta } = configPontareRapida(await setariPontareRapida(tenant.organizationId));
+  const peSaptamana = varianta === "saptamanal";
+  const azi = todayInBucharest();
 
   const parametri = await searchParams;
   const parametruSaptamana = parametri["saptamana"];
   const saptamanaCeruta = typeof parametruSaptamana === "string" ? parametruSaptamana : "";
   const saptamanaStart = esteLuni(saptamanaCeruta)
     ? saptamanaCeruta
-    : lunieaUrmatoare(todayInBucharest());
+    : saptamanaImplicita(peSaptamana, azi);
 
   // ── PENTRU CINE SE COMPLETEAZĂ SĂPTĂMÂNA (0084) ──────────────────────────
   // Ecranul era personal prin construcție: citea și scria exclusiv săptămâna
@@ -102,7 +121,9 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
   // restricționat", care trimite omul să-și caute drepturi pe care le are.
   if (fisaTinta === null && !poateAlegeAngajat) {
     return (
-      <AccesRestrictionat mesaj="Contul dvs. nu este legat de o fișă de angajat principală în această organizație, deci nu are o săptămână proprie de planificat. Cereți-i administratorului să vă creeze fișa." />
+      <AccesRestrictionat
+        mesaj={`Contul dvs. nu este legat de o fișă de angajat principală în această organizație, deci nu are o săptămână proprie de ${peSaptamana ? "pontat" : "planificat"}. Cereți-i administratorului să vă creeze fișa.`}
+      />
     );
   }
 
@@ -110,7 +131,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
     return (
       <div className="space-y-6">
         <AntetPagina
-          titlu="Planul săptămânii"
+          titlu={peSaptamana ? "Pontajul săptămânii" : "Planul săptămânii"}
           descriere="Contul dumneavoastră nu are fișă de angajat proprie, deci nu are nici săptămână proprie. Alegeți angajatul pentru care completați."
           actiuni={
             <ButonSetariPontaj
@@ -185,8 +206,10 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
     server a ramurii ăsteia e în upsert-ul lui `trimite_saptamana_pontaj`
     (0118 §5); despărțite, ecranul ar oferi un buton pe care baza îl refuză.
   */
+  // Pe săptămână, o săptămână neîncepută nu se pontează — serverul o refuză.
+  const inViitor = peSaptamana && saptamanaStart > lunieaSaptamanii(azi);
   const poateEdita =
-    submisie === null || submisie.status !== "aprobata" || !fileNav.necesitaAprobare;
+    !inViitor && (submisie === null || submisie.status !== "aprobata" || !fileNav.necesitaAprobare);
   const inceputSaptamanii = new Date(`${saptamanaStart}T00:00:00Z`).toLocaleDateString("ro-RO");
 
   // Persoana aleasă călătorește prin navigarea între săptămâni; fără ea,
@@ -196,8 +219,12 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
   return (
     <div className="space-y-6">
       <AntetPagina
-        titlu="Planul săptămânii"
-        descriere={`Declarați, pentru săptămâna care începe ${inceputSaptamanii}, cum veniți la lucru și câte ore planificați — editabil oricând, până la decizia managerului.`}
+        titlu={peSaptamana ? "Pontajul săptămânii" : "Planul săptămânii"}
+        descriere={
+          peSaptamana
+            ? `Declarați, pentru săptămâna care începe ${inceputSaptamanii}, ce s-a lucrat, zi cu zi — devine pontaj ${fileNav.necesitaAprobare ? "când îl aprobă managerul" : "la salvare"}.`
+            : `Declarați, pentru săptămâna care începe ${inceputSaptamanii}, cum veniți la lucru și câte ore planificați — editabil oricând, până la decizia managerului.`
+        }
         actiuni={
           <ButonSetariPontaj
             poateConfigura={fileNav.poateConfigura}
@@ -218,12 +245,14 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         >
           ← Săptămâna anterioară
         </Link>
-        <Link
-          href={`/pontaj/saptamana?saptamana=${adaugaZile(saptamanaStart, 7)}${contextAngajat}`}
-          className={buton({ varianta: "secundar" })}
-        >
-          Săptămâna următoare →
-        </Link>
+        {existaSaptamanaUrmatoare(peSaptamana, saptamanaStart, azi) ? (
+          <Link
+            href={`/pontaj/saptamana?saptamana=${adaugaZile(saptamanaStart, 7)}${contextAngajat}`}
+            className={buton({ varianta: "secundar" })}
+          >
+            Săptămâna următoare →
+          </Link>
+        ) : null}
         {submisie === null ? null : (
           <Badge ton={TONURI_STARE_SAPTAMANA[submisie.status]}>
             {etichetaStareSaptamana(submisie.status, fileNav.necesitaAprobare)}
@@ -252,6 +281,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         zileInitiale={zileInitiale}
         poateEdita={poateEdita}
         necesitaAprobare={fileNav.necesitaAprobare}
+        peSaptamana={peSaptamana}
         config={config}
         // Regula se compune pentru ÎNCEPUTUL săptămânii, aceeași dată pentru
         // care s-au citit setările — altfel textul ar putea descrie altă

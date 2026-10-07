@@ -5,6 +5,7 @@ import { completeazaCoduri, normalizeazaCriterii } from "@/domain/evaluations/cr
 import { aliniazaRaspunsuri, calculeazaScor, noteInAfaraScalei } from "@/domain/evaluations/scor";
 import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { ActionContext } from "@/lib/actions/types";
 import type { Json } from "@/types/database";
 import {
@@ -14,11 +15,16 @@ import {
   creeazaEvaluareSchema,
   creeazaSablonEvaluareSchema,
   duplicaSablonEvaluareSchema,
+  personalizeazaSablonEvaluareSchema,
+  planificaEvaluariSchema,
   finalizeazaEvaluareSchema,
   reactiveazaSablonEvaluareSchema,
   redeschideEvaluareSchema,
+  stergeSablonEvaluareSchema,
   type CriteriuSablonIntrare,
 } from "@/schemas/evaluation";
+
+import { anuntaEvaluareaFinalizata } from "./anunta-evaluarea";
 
 /**
  * ── DE CE `revalidate` E DECLARAT, NU CHEMAT ──────────────────────────────
@@ -117,6 +123,61 @@ export const creeazaSablonEvaluare = createAction<
       .select("id")
       .single();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    return { id: data.id };
+  },
+});
+
+/**
+ * „Personalizează” pe un șablon de platformă: scrie VARIANTA FIRMEI, cu
+ * conținutul deja editat în panou.
+ *
+ * Nu se creează nimic la deschiderea editorului — doar la salvare. Varianta
+ * poartă `derivat_din`, iar `listeazaSabloane` ascunde de atunci șablonul de
+ * platformă: firma vede un singur șablon, pe al ei (0168). Baza garantează că
+ * originea e chiar un șablon de platformă (trigger) și că există o singură
+ * variantă vie per firmă (index unic) — 23505 înseamnă că a fost deja creată,
+ * de exemplu dintr-o altă filă.
+ */
+export const personalizeazaSablonEvaluare = createAction<
+  typeof personalizeazaSablonEvaluareSchema,
+  Readonly<{ id: string }>
+>({
+  name: "evaluation_templates.personalize",
+  feature: "evaluations",
+  permission: "evaluations:update",
+  minScope: "all",
+  input: personalizeazaSablonEvaluareSchema,
+  audit: {
+    action: "create",
+    entityType: "evaluation_templates",
+    entityId: (_input, data) => data.id,
+    allow: ["denumire", "sablon_platforma_id"],
+  },
+  revalidate: CAI_SABLOANE,
+  handler: async (ctx, input) => {
+    const { data, error } = await ctx.supabase
+      .from("evaluation_templates")
+      .insert({
+        organization_id: ctx.tenant.organizationId,
+        derivat_din: input.sablon_platforma_id,
+        denumire: input.denumire,
+        descriere: input.descriere,
+        criterii: caJson(pregatesteCriterii(input.criterii)),
+        versiune: 1,
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      })
+      .select("id")
+      .single();
+    if (error !== null) {
+      if (error.code === "23505") {
+        throw businessRule(
+          "Firma are deja propria variantă a acestui șablon. Reîncărcați pagina și editați-o pe aceea.",
+        );
+      }
+      if (error.code === "P0001") throw businessRule(error.message);
+      throw mapPostgrestError(error, ctx.requestId);
+    }
     return { id: data.id };
   },
 });
@@ -315,6 +376,49 @@ export const reactiveazaSablonEvaluare = createAction<
   handler: comutaActiv(true),
 });
 
+/**
+ * Ștergerea logică a unui șablon NEFOLOSIT.
+ *
+ * Prin funcția `public.sterge_sablon_evaluare` (0162), nu printr-un UPDATE:
+ * politica SELECT ascunde rândurile cu `deleted_at`, iar Postgres o aplică și
+ * rândului nou, deci `update({ deleted_at })` ar pica mereu cu 42501. Funcția
+ * repetă autorizarea politicii de UPDATE și refuză șablonul folosit de vreo
+ * evaluare — acela se arhivează.
+ *
+ * Mesajele P0001/P0002 sunt scrise pentru om în funcție și trec ca atare:
+ * `mapPostgrestError` le-ar fi înlocuit cu „respinsă de o regulă a sistemului”,
+ * iar omul n-ar fi aflat că soluția e arhivarea.
+ */
+export const stergeSablonEvaluare = createAction<
+  typeof stergeSablonEvaluareSchema,
+  Readonly<{ id: string }>
+>({
+  name: "evaluation_templates.delete",
+  feature: "evaluations",
+  permission: "evaluations:update",
+  minScope: "all",
+  input: stergeSablonEvaluareSchema,
+  audit: {
+    action: "delete",
+    entityType: "evaluation_templates",
+    entityId: (input) => input.id,
+    allow: [],
+  },
+  revalidate: CAI_SABLOANE,
+  handler: async (ctx: ActionContext, input) => {
+    const { error } = await ctx.supabase.rpc("sterge_sablon_evaluare", {
+      p_organization_id: ctx.tenant.organizationId,
+      p_id: input.id,
+    });
+    if (error !== null) {
+      if (error.code === "P0001") throw businessRule(error.message);
+      if (error.code === "P0002") throw notFound(error.message);
+      throw mapPostgrestError(error, ctx.requestId);
+    }
+    return { id: input.id };
+  },
+});
+
 // ── Evaluări ──────────────────────────────────────────────────────────────────
 
 const caiEvaluare = (employeeId: string): readonly string[] => [
@@ -335,6 +439,98 @@ interface EvaluareExistenta {
   readonly status: "draft" | "finalizat";
   readonly criterii_sablon: unknown;
 }
+
+/**
+ * „Evaluare nouă” din lista modulului: PROGRAMEAZĂ evaluări, nu le notează.
+ *
+ * Pentru fiecare angajat ales se scrie o ciornă cu instantaneul criteriilor
+ * și fără nicio notă; notarea vine ulterior, din „Evaluează” pe rândul din
+ * listă (`actualizeazaEvaluare`). Așa se pornește evaluarea anuală pentru
+ * toată firma dintr-o singură apăsare, iar fiecare manager își notează oamenii
+ * când ajunge la ei.
+ *
+ * Un angajat care are deja o CIORNĂ pe același șablon e sărit, nu dublat: a
+ * doua apăsare pe același buton nu trebuie să facă două evaluări anuale. Cele
+ * finalizate nu contează — evaluarea de anul trecut nu oprește pe cea de anul
+ * acesta.
+ *
+ * Inserarea e un singur INSERT cu toate rândurile: RLS (`can_access_evaluation`)
+ * verifică fiecare rând, iar un singur angajat interzis respinge tot lotul —
+ * mai bine decât o jumătate de lot scrisă și un mesaj ambiguu.
+ */
+export const planificaEvaluari = createAction<
+  typeof planificaEvaluariSchema,
+  Readonly<{ create: number; sarite: number }>
+>({
+  name: "employee_evaluations.schedule",
+  feature: "evaluations",
+  permission: "evaluations:create",
+  minScope: "team",
+  input: planificaEvaluariSchema,
+  audit: {
+    action: "create",
+    entityType: "employee_evaluations",
+    allow: ["template_id", "data_evaluarii"],
+  },
+  revalidate: ["/evaluari"],
+  handler: async (ctx, input) => {
+    const { data: sablon, error: eroareSablon } = await ctx.supabase
+      .from("evaluation_templates")
+      .select("id, criterii, versiune, activ")
+      .eq("id", input.template_id)
+      .is("deleted_at", null)
+      .maybeSingle<SablonPentruEvaluare>();
+    if (eroareSablon !== null) throw mapPostgrestError(eroareSablon, ctx.requestId);
+    if (sablon === null) throw notFound("Șablonul de evaluare nu mai există.");
+    if (!sablon.activ) throw businessRule("Șablonul a fost arhivat între timp. Alegeți altul.");
+
+    const criterii = normalizeazaCriterii(sablon.criterii);
+    if (criterii.length === 0) {
+      throw businessRule("Șablonul nu are niciun criteriu. Completați-l înainte de a evalua.");
+    }
+
+    const angajati = [...new Set(input.employee_ids)];
+    const { data: existente, error: eroareExistente } = await ctx.supabase
+      .from("employee_evaluations")
+      .select("employee_id")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("template_id", input.template_id)
+      .eq("status", "draft")
+      .is("deleted_at", null)
+      .in("employee_id", angajati)
+      .returns<{ employee_id: string }[]>();
+    if (eroareExistente !== null) throw mapPostgrestError(eroareExistente, ctx.requestId);
+    const auDeja = new Set((existente ?? []).map((e) => e.employee_id));
+    const deCreat = angajati.filter((id) => !auDeja.has(id));
+
+    if (deCreat.length > 0) {
+      // Câte un răspuns gol per criteriu: ciorna se deschide cu toate
+      // criteriile, nenotate — nu cu o listă goală pe care ar trebui s-o
+      // reconstruiască ecranul.
+      const raspunsuri = caJson(aliniazaRaspunsuri(criterii, []));
+      const instantaneu = caJson(criterii);
+      const { error } = await ctx.supabase.from("employee_evaluations").insert(
+        deCreat.map((employeeId) => ({
+          organization_id: ctx.tenant.organizationId,
+          employee_id: employeeId,
+          template_id: input.template_id,
+          evaluator_id: ctx.user.id,
+          data_evaluarii: input.data_evaluarii,
+          raspunsuri,
+          criterii_sablon: instantaneu,
+          versiune_sablon: sablon.versiune,
+          concluzie: null,
+          status: "draft" as const,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        })),
+      );
+      if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    }
+
+    return { create: deCreat.length, sarite: auDeja.size };
+  },
+});
 
 export const creeazaEvaluare = createAction<
   typeof creeazaEvaluareSchema,
@@ -405,6 +601,10 @@ export const creeazaEvaluare = createAction<
       .select("id, employee_id")
       .single();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (input.status === "finalizat") {
+      // Ca la `finalizeazaEvaluare`: clientul de serviciu, best-effort.
+      await anuntaEvaluareaFinalizata(createAdminSupabase(), ctx.tenant.organizationId, data.id);
+    }
     return { id: data.id, employee_id: data.employee_id };
   },
 });
@@ -531,6 +731,10 @@ export const finalizeazaEvaluare = createAction<
         "Evaluarea nu a fost finalizată: fie a finalizat-o altcineva între timp, fie nu aveți dreptul. Reîncărcați pagina.",
       );
     }
+    // Clientul de serviciu: notificarea se scrie pentru ALT utilizator, al
+    // cărui `user_id` managerul nu-l vede neapărat. Filtrul pe organizație e
+    // în `anuntaEvaluareaFinalizata`; best-effort, nu anulează finalizarea.
+    await anuntaEvaluareaFinalizata(createAdminSupabase(), ctx.tenant.organizationId, data.id);
     return { id: data.id, employee_id: data.employee_id };
   },
 });

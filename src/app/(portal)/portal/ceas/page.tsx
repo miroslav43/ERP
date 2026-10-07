@@ -16,9 +16,10 @@ import { stareaLunii } from "@/domain/attendance/luna";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
-import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
 
+import { DoarPeSaptamana } from "../doar-pe-saptamana";
 import { FaraFisa } from "../fara-fisa";
 import { PontareRapida } from "../pontare-rapida";
 
@@ -90,6 +91,17 @@ export default async function PaginaCeas() {
   );
 
   const antet = <AntetPagina titlu={formatDate(azi)} descriere="Pontajul dumneavoastră de azi." />;
+
+  // Varianta săptămânală (0165): scurtătura „Pontează ziua" de pe telefon duce
+  // tot aici, dar ziua nu se mai pontează separat. Se spune unde se face acum.
+  if (!sePonteazaPeZi(pontare)) {
+    return (
+      <div className={`${LATIMI.formular} space-y-4 p-4`}>
+        {antet}
+        <DoarPeSaptamana saptamana={null} />
+      </div>
+    );
+  }
 
   // Firma n-a aprins pontarea rapidă: scurtătura n-are ce face, dar nici nu
   // trebuie să ducă într-un ecran gol. Omul e trimis unde poate lucra.

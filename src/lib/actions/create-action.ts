@@ -11,6 +11,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { readRequestMeta, redactPayload, writeAuditLog } from "./audit";
 import { ActionDenied, esteActionError, isPostgrestError, mapPostgrestError } from "./errors";
+import { intrareaActiunii } from "./intrare";
 import type {
   ActionContext,
   ActionDefinition,
@@ -78,7 +79,9 @@ function esteControlNext(err: unknown): boolean {
 export function createAction<TSchema extends z.ZodType, TData>(
   def: ActionDefinition<TSchema, TData>,
 ): (rawInput: unknown) => Promise<ActionResult<TData>> {
-  return async (rawInput: unknown): Promise<ActionResult<TData>> => {
+  return async (intrareBruta: unknown): Promise<ActionResult<TData>> => {
+    // `FormData` → obiect, înaintea validării și a auditului (vezi `intrare.ts`).
+    const rawInput = intrareaActiunii(intrareBruta);
     const requestId = randomUUID();
     const meta = await readRequestMeta();
 

@@ -52,6 +52,8 @@ export type ModPontareRapida = (typeof MODURI_PONTARE_RAPIDA)[number];
  * vrea o firmă care tocmai și-a tipărit primul afiș.
  */
 export const VERIFICARI_PONTARE = ["fara", "optional", "cod_qr"] as const;
+/** 0165 — cum se pontează omul: pe zi, sau doar pe fișa săptămânii. */
+export const VARIANTE_PONTAJ = ["zilnic", "saptamanal"] as const;
 export type VerificarePontare = (typeof VERIFICARI_PONTARE)[number];
 export type StatusPerioada = (typeof STATUS_PERIOADA)[number];
 
@@ -109,11 +111,8 @@ export const filtrePontajSchema = z.object({
   luna: z.coerce.number().int().min(1).max(12).default(lunaImplicita),
   departament: optional(z.uuid()),
   cauta: optional(z.string().max(60)),
-  cursor: optional(z.string().max(256)),
-  // Plafonat la 30, nu la 100 ca în restul aplicației: foaia colectivă
-  // încarcă și pontajul lunii pentru fiecare angajat din pagină — max_rows =
-  // 1000 în PostgREST, iar 30 angajați × 31 zile = 930 rânduri < 1000.
-  limita: z.coerce.number().int().min(5).max(30).default(25),
+  // Fără `cursor`/`limita`: foaia arată toți angajații, în cutia ei cu
+  // derulare (`totiAngajatiiPontaj`). Plafonul `max_rows` e ținut în citiri.
 });
 export type FiltrePontaj = z.output<typeof filtrePontajSchema>;
 
@@ -160,6 +159,14 @@ export const salveazaZiPontajSchema = z
      * „Nedeclarat" e o stare, nu o eroare de completare.
      */
     tip_prezenta: enumOptional(TIPURI_PREZENTA, "Alegeți locul de muncă din listă."),
+    /*
+     * Sediul DECLARAT al zilei (0163). `null` = sediul din contract.
+     *
+     * Implicit `null`, deci un apelant care nu-l trimite îl ȘTERGE — ca la
+     * `tip_prezenta`. Ambele formulare îl trimit; un al treilea trebuie s-o facă
+     * la fel. Acțiunea verifică încă o dată că sediul e al firmei și activ.
+     */
+    punct_lucru_declarat_id: z.uuid("Alegeți sediul din listă.").nullable().default(null),
     observatii: textOptional(1000),
     /*
      * Răspunsul la întrebarea „contractul e suspendat pentru absențe
@@ -571,6 +578,11 @@ export const setariPontareRapidaSchema = z
      * iar `Boolean(undefined)` e `false` — ceea ce e chiar înțelesul ei.
      */
     necesita_aprobare: z.coerce.boolean(),
+    /*
+     * Varianta de pontaj (0165). Implicit `zilnic`, deci un apelant vechi care
+     * n-o trimite nu mută firma pe săptămână din greșeală.
+     */
+    varianta_pontaj: z.enum(VARIANTE_PONTAJ).default("zilnic"),
   })
   .refine(
     (v) => v.program_start !== null || !["confirmare", "ambele"].includes(v.mod_pontare_rapida),

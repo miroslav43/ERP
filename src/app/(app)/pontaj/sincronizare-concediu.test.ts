@@ -32,6 +32,7 @@ describe("sincronizeazaZileleDeConcediu", () => {
     expect(await sincronizeazaZileleDeConcediu(fals.client, ORG_ID, [])).toEqual({
       create: 0,
       actualizate: 0,
+      inlocuite: 0,
       pastrate: 0,
     });
     expect(fals.apeluri).toHaveLength(0);
@@ -69,7 +70,7 @@ describe("sincronizeazaZileleDeConcediu", () => {
       zi("2026-07-14", { tip_zi: "medical", leave_request_id: ID_2 }),
     ]);
 
-    expect(r).toEqual({ create: 1, actualizate: 0, pastrate: 0 });
+    expect(r).toEqual({ create: 1, actualizate: 0, inlocuite: 0, pastrate: 0 });
     const [insert] = fals.apeluriPe("attendance_entries", "insert");
     expect(insert?.payload).toMatchObject({
       organization_id: ORG_ID,
@@ -97,7 +98,7 @@ describe("sincronizeazaZileleDeConcediu", () => {
       zi("2026-07-14", { tip_zi: "medical" }),
     ]);
 
-    expect(r).toEqual({ create: 0, actualizate: 1, pastrate: 0 });
+    expect(r).toEqual({ create: 0, actualizate: 1, inlocuite: 0, pastrate: 0 });
     const [update] = fals.apeluriPe("attendance_entries", "update");
     expect(update?.payload).toEqual({
       tip_zi: "medical",
@@ -111,18 +112,56 @@ describe("sincronizeazaZileleDeConcediu", () => {
   });
 
   it.each(["manuala", "pontare_rapida", "import", "saptamana"])(
-    "zi cu sursa `%s` se PĂSTREAZĂ — nu se suprascrie niciodată",
+    "zi cu sursa `%s` ⇒ concediul aprobat o ÎNLOCUIEȘTE, pe același rând",
     async (sursa) => {
+      // Concediul de urgență: ziua era deja pontată (sau completată din plan),
+      // iar omul n-a mai venit. Concediul aprobat e ultima decizie despre zi;
+      // valorile vechi rămân în `audit_logs`, prin `audit_attendance_entries`.
       const fals = clientFals();
       fals.raspunde("attendance_entries", "select", {
         data: [{ id: "z1", employee_id: ID_3, data: "2026-07-14", sursa }],
       });
+      fals.raspunde("attendance_entries", "update", { data: { id: "z1" } });
+
       const r = await sincronizeazaZileleDeConcediu(fals.client, ORG_ID, [zi("2026-07-14")]);
-      expect(r).toEqual({ create: 0, actualizate: 0, pastrate: 1 });
-      expect(fals.apeluriPe("attendance_entries", "update")).toHaveLength(0);
+
+      expect(r).toEqual({ create: 0, actualizate: 0, inlocuite: 1, pastrate: 0 });
       expect(fals.apeluriPe("attendance_entries", "insert")).toHaveLength(0);
+      const [update] = fals.apeluriPe("attendance_entries", "update");
+      expect(update?.payload).toEqual({
+        tip_zi: "concediu",
+        ore_lucrate: 0,
+        ore_suplimentare: 0,
+        ore_noapte: 0,
+        leave_request_id: ID_1,
+        sursa: "sincronizare_concedii",
+        ora_inceput: null,
+        ora_sfarsit: null,
+        tip_prezenta: null,
+        punct_lucru_id: null,
+        punct_lucru_declarat_id: null,
+        approved_at: null,
+        approved_by: null,
+        batch_id: null,
+        respins_la: null,
+        respins_de: null,
+        motiv_respingere: null,
+      });
+      expect(areFiltru(update, "eq", "id", "z1")).toBe(true);
+      expect(areFiltru(update, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(update?.selectDupaScriere).toBeDefined();
     },
   );
+
+  it("zi pontată pe care UPDATE-ul n-o atinge (zero rânduri) ⇒ PĂSTRATĂ, nu înlocuită", async () => {
+    const fals = clientFals();
+    fals.raspunde("attendance_entries", "select", {
+      data: [{ id: "z1", employee_id: ID_3, data: "2026-07-14", sursa: "manuala" }],
+    });
+    fals.raspunde("attendance_entries", "update", { data: null });
+    const r = await sincronizeazaZileleDeConcediu(fals.client, ORG_ID, [zi("2026-07-14")]);
+    expect(r).toEqual({ create: 0, actualizate: 0, inlocuite: 0, pastrate: 1 });
+  });
 
   it("ziua altui angajat în aceeași dată nu e confundată cu a acestuia", async () => {
     const fals = clientFals();
@@ -131,7 +170,7 @@ describe("sincronizeazaZileleDeConcediu", () => {
     });
     fals.raspunde("attendance_entries", "insert", {});
     const r = await sincronizeazaZileleDeConcediu(fals.client, ORG_ID, [zi("2026-07-14")]);
-    expect(r).toEqual({ create: 1, actualizate: 0, pastrate: 0 });
+    expect(r).toEqual({ create: 1, actualizate: 0, inlocuite: 0, pastrate: 0 });
   });
 
   it("P0001 la INSERT (lună blocată) ⇒ se aruncă CONFLICT cu mesajul triggerului", async () => {

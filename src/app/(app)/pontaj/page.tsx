@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { Callout } from "@/components/ui/callout";
 import type { Metadata } from "next";
-import { Users } from "lucide-react";
+import { Clock, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -13,7 +13,7 @@ import { ComutatorVizualizare, type ParametriAdresa } from "@/components/ui/comu
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatMonthYear, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl, filtreDinUrl } from "@/lib/rute/parametri";
@@ -23,8 +23,10 @@ import {
   departamente,
   intrariLuna,
   intrariProprii,
-  listeazaAngajatiPontaj,
+  sediiPentruPontaj,
   setariPontaj,
+  setariPontareRapida,
+  totiAngajatiiPontaj,
 } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { zileLucratoareLuna } from "@/lib/queries/payroll";
@@ -33,10 +35,13 @@ import type { PermissionScope } from "@/config/permissions";
 import { configZiDin, type ConfigZi } from "@/domain/attendance/calcul-ore";
 import { limiteleFirmei, type LimiteFirmei } from "@/domain/attendance/limite-legale";
 import { stareaLunii } from "@/domain/attendance/luna";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { seAlegeSediul } from "@/domain/attendance/sediu";
 import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
 import { ButonSetariPontaj } from "./buton-setari";
+import { ButonSincronizareConcedii } from "./buton-sincronizare-concedii";
 import { NavPontaj } from "./nav-pontaj";
 import { fileDePontaj } from "./file-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
@@ -86,7 +91,6 @@ async function LunaIntreaga({
   config,
   limite,
   oreAsteptateLuna,
-  parametri,
   azi,
 }: {
   readonly organizationId: string;
@@ -109,10 +113,15 @@ async function LunaIntreaga({
    */
   readonly limite: LimiteFirmei | null;
   readonly oreAsteptateLuna: number;
-  readonly parametri: Record<string, string | string[] | undefined>;
   readonly azi: string;
 }) {
-  const { nationale, organizatie } = await zileNelucratoare(organizationId, an, an);
+  // Un val: sediile (0163) n-au nevoie de nimic din zilele nelucrătoare.
+  const [{ nationale, organizatie }, sedii, randPontare] = await Promise.all([
+    zileNelucratoare(organizationId, an, an),
+    sediiPentruPontaj(organizationId),
+    setariPontareRapida(organizationId),
+  ]);
+  const alegeSediul = seAlegeSediul(sedii.length, configPontareRapida(randPontare).verificare);
   const sarbatoriNationale = Object.fromEntries(nationale.map((z) => [z.data, z.denumire]));
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
   const liberSuplimentar = organizatie
@@ -143,6 +152,8 @@ async function LunaIntreaga({
       />
     ) : (
       <FoaieColectiva
+        sedii={sedii}
+        alegeSediul={alegeSediul}
         dataInceput={dataInceput}
         dataSfarsit={dataSfarsit}
         statusPerioada={statusPerioada}
@@ -161,10 +172,7 @@ async function LunaIntreaga({
     );
   }
 
-  const { randuri: angajati, urmatorulCursor } = await listeazaAngajatiPontaj(
-    organizationId,
-    filtre,
-  );
+  const { randuri: angajati, trunchiat } = await totiAngajatiiPontaj(organizationId, filtre);
 
   if (angajati.length === 0) {
     const areFiltre = filtre.departament !== null || filtre.cauta !== null;
@@ -196,21 +204,13 @@ async function LunaIntreaga({
     intrari: intrarilePeZi(intrari.filter((i) => i.employee_id === a.id)),
   }));
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
-  }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
-
-  const paginare = (
-    <nav aria-label="Paginare" className="flex justify-end">
-      {urmatorulCursor === null ? null : (
-        <Link href={`/pontaj?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
-          Pagina următoare
-        </Link>
-      )}
-    </nav>
-  );
+  // Plasa buclei din `totiAngajatiiPontaj`, nu un caz real: se spune, nu se taie tăcut.
+  const notaTrunchiere = trunchiat ? (
+    <Callout fel="atentie" titlu="Foaia nu arată toți angajații">
+      Organizația are mai mulți angajați decât poate afișa foaia deodată. Filtrați după departament
+      sau după nume.
+    </Callout>
+  ) : null;
 
   if (vizualizare === "luna") {
     return (
@@ -223,7 +223,7 @@ async function LunaIntreaga({
           azi={azi}
           angajatiAfisati={randuri.length}
         />
-        {paginare}
+        {notaTrunchiere}
       </>
     );
   }
@@ -231,6 +231,8 @@ async function LunaIntreaga({
   return (
     <>
       <FoaieColectiva
+        sedii={sedii}
+        alegeSediul={alegeSediul}
         dataInceput={dataInceput}
         dataSfarsit={dataSfarsit}
         statusPerioada={statusPerioada}
@@ -246,7 +248,7 @@ async function LunaIntreaga({
         oreAsteptateLuna={oreAsteptateLuna}
         azi={azi}
       />
-      {paginare}
+      {notaTrunchiere}
     </>
   );
 }
@@ -255,7 +257,7 @@ async function LunaIntreaga({
  * Matricea „angajat → zile" întoarsă pe dos, în „zi → angajați".
  *
  * Ordinea oamenilor dintr-o zi o dă ordinea rândurilor, adică sortarea din
- * `listeazaAngajatiPontaj`. Contează: „+2 alții" trebuie să însemne aceiași doi
+ * `totiAngajatiiPontaj`. Contează: „+2 alții" trebuie să însemne aceiași doi
  * oameni în fiecare zi a lunii, nu o listă care se rearanjează de la o căsuță la
  * alta.
  */
@@ -288,8 +290,16 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
 
   const parametri = await searchParams;
   const scope = scopeFor(permisiuni, "attendance:read") ?? "own";
-  // `manager` NU are `attendance:create` → foaia e read-only, exact ca RLS.
-  const poateEdita = can(permisiuni, "attendance:create", "own");
+  /*
+    Două porți de scriere, nu una. `poatePontaSine` e pontajul PROPRIU — butonul
+    „Pontează-te" din antet și grila săptămânii. `poateEdita` e FOAIA: scope-ul de creare
+    trebuie să acopere tot ce arată scope-ul de citire. Un `manager` are
+    `create = own` (0161) dar citește `team`, deci foaia lui rămâne read-only,
+    exact ca RLS — cu o singură poartă, celulele subordonaților ar fi devenit
+    apăsabile și ar fi răspuns cu refuz.
+  */
+  const poatePontaSine = can(permisiuni, "attendance:create", "own");
+  const poateEdita = can(permisiuni, "attendance:create", scope);
   /*
     Aprobarea are DOUĂ porți: permisiunea (cine are dreptul) și alegerea firmei
     (0118 — dacă pontajul trece printr-un pas de aprobare). Compuse într-un
@@ -299,11 +309,14 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     Citire în plus, un rând, pe index unic. Nu poate intra în valul de mai jos:
     `poateAproba` intră în antet, construit înaintea ramurii de vizualizare.
   */
-  const { poateAproba, poateConfigura, poateVedeaArhiva, poateVedeaCoduriQr } = await fileDePontaj(
-    tenant.organizationId,
-    permisiuni,
-  );
+  const { poateAproba, poateConfigura, poateVedeaArhiva, poateVedeaCoduriQr, varianta } =
+    await fileDePontaj(tenant.organizationId, permisiuni);
   const poateDeschide = can(permisiuni, "attendance:create", "all");
+  // Aceeași poartă ca în `/pontaj/aprobare`: acțiunea cere `create = all`, iar
+  // fără modulul de concedii n-are ce sincroniza. `getEnabledFeatures` e
+  // memoizată pe cerere — `requireFeature` a citit-o deja.
+  const poateSincroniza =
+    poateDeschide && (await getEnabledFeatures(tenant.organizationId)).has("leave");
 
   const azi = todayInBucharest();
   const anAzi = Number(azi.slice(0, 4));
@@ -357,7 +370,9 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       titlu="Pontaj"
       descriere={
         vizualizare === "saptamana"
-          ? "Săptămâna proprie, pe ore. Trageți peste o zonă dintr-o zi ca să pontați."
+          ? varianta === "saptamanal"
+            ? "Săptămâna proprie, pe ore. Se pontează din „Pontajul săptămânii”."
+            : "Săptămâna proprie, pe ore. Trageți peste o zonă dintr-o zi ca să pontați."
           : `Luna ${formatMonthYear(an, filtre.luna)}, pentru toți angajații.`
       }
       // Setările s-au întors în antet, ca la concedii: banda de dedesubt e a
@@ -366,12 +381,37 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       // motivul pentru care fusese mutat în bandă. Garda e aceeași
       // (`attendance:update = all`, ca pagina țintă).
       actiuni={
-        <ButonSetariPontaj
-          poateConfigura={poateConfigura}
-          poateVedeaCoduriQr={poateVedeaCoduriQr}
+        <>
+          {/*
+            Pontarea proprie, ca buton de antet — nu ca un card deasupra foii.
+            Cardul „Pontajul dumneavoastră de azi" ocupa un rând întreg pentru
+            un singur buton, pe ecranul pe care omul vine să vadă firma.
+            Duce la fișa săptămânii proprii, în ambele variante: acolo se
+            completează toate zilele deodată, cu intervalul și locul fiecăreia.
+          */}
+          {poatePontaSine ? (
+            <Link href="/pontaj/saptamana" className={buton({ varianta: "primar" })}>
+              <Clock aria-hidden="true" className="size-4" />
+              Pontează-te
+            </Link>
+          ) : null}
+          {/* Pe luna de pe ecran; săptămâna proprie n-are foaie de completat. */}
+          {poateSincroniza && vizualizare !== "saptamana" ? (
+            <ButonSincronizareConcedii an={an} luna={filtre.luna} />
+          ) : null}
+          <ButonSetariPontaj
+            poateConfigura={poateConfigura}
+            poateVedeaCoduriQr={poateVedeaCoduriQr}
+          />
+        </>
+      }
+      file={
+        <NavPontaj
+          poateAproba={poateAproba}
+          poateVedeaArhiva={poateVedeaArhiva}
+          varianta={varianta}
         />
       }
-      file={<NavPontaj poateAproba={poateAproba} poateVedeaArhiva={poateVedeaArhiva} />}
     />
   );
 
@@ -400,7 +440,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             organizationId={tenant.organizationId}
             userId={user.id}
             saptamanaStart={saptamanaStart}
-            poateEdita={poateEdita}
+            poateEdita={poatePontaSine}
             poateAproba={poateAproba}
             parametri={parametri}
             azi={azi}
@@ -460,7 +500,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   /*
    * De ce NU apare în foaie cel care se uită la ea.
    *
-   * `listeazaAngajatiPontaj` filtrează `status in (activ, suspendat, preaviz)`.
+   * `totiAngajatiiPontaj` filtrează `status in (activ, suspendat, preaviz)`.
    * Filtrul e corect — un candidat n-are ore de declarat — dar e TĂCUT: cine nu
    * se regăsește în listă nu primește niciun refuz, pur și simplu nu e acolo.
    * Un administrator cu fișa creată de 0083 (status `candidat`) cade exact în
@@ -528,7 +568,6 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           config={config}
           limite={limiteleFirmei(setari)}
           oreAsteptateLuna={oreAsteptateLuna}
-          parametri={parametri}
           azi={azi}
         />
       </Suspense>

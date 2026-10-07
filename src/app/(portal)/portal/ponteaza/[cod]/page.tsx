@@ -16,8 +16,9 @@ import { stareaLunii } from "@/domain/attendance/luna";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
-import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 
+import { DoarPeSaptamana } from "../../doar-pe-saptamana";
 import { FaraFisa } from "../../fara-fisa";
 import { PontareRapida } from "../../pontare-rapida";
 
@@ -94,6 +95,17 @@ export default async function PaginaPonteazaCod({
       descriere={`${formatDate(azi)} · ați scanat codul de la intrare`}
     />
   );
+
+  // Varianta săptămânală (0165): afișul nu mai pontează — ziua se declară în
+  // fișa săptămânii. Bate orice mod, inclusiv `oprit`, ca omul să afle unde.
+  if (!sePonteazaPeZi(pontare)) {
+    return (
+      <div className={`${LATIMI.formular} space-y-4 p-4`}>
+        {antet}
+        <DoarPeSaptamana saptamana={null} />
+      </div>
+    );
+  }
 
   if (pontare.mod === "oprit") {
     return (

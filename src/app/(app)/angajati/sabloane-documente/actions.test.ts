@@ -392,35 +392,47 @@ describe("restabilesteSablonPlatforma", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
-  it("succes: retrage LOGIC varianta firmei, niciodată seed-ul", async () => {
+  it("succes: retrage LOGIC varianta firmei prin `sterge_logic`, niciodată seed-ul", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("hr_document_templates", "update", { data: { id: ID_1 } });
+    server.raspunde("hr_document_templates", "select", { data: [{ id: ID_1 }] });
+    server.raspundeRpc("sterge_logic", { data: [ID_1] });
 
     const r = await restabilesteSablonPlatforma({ cod: "nda" });
 
     expect(r).toEqual({ ok: true, data: { id: ID_1 } });
-    const [update, ...altele] = server.apeluriPe("hr_document_templates");
+    const [citire, ...altele] = server.apeluriPe("hr_document_templates");
     expect(altele).toHaveLength(0);
-    expect(update?.operatie).toBe("update");
-    expect(update?.payload).toMatchObject({ updated_by: USER_ID });
-    expect(typeof (update?.payload as { deleted_at: unknown }).deleted_at).toBe("string");
-    expect(areFiltru(update, "eq", "cod", "nda")).toBe(true);
-    expect(areFiltru(update, "eq", "organization_id", ORG_ID)).toBe(true);
-    expect(areFiltru(update, "is", "deleted_at", null)).toBe(true);
-    expect(update?.selectDupaScriere).toBeDefined();
+    expect(citire?.operatie).toBe("select");
+    expect(areFiltru(citire, "eq", "cod", "nda")).toBe(true);
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
+    // Nu un UPDATE direct: politica SELECT l-ar respinge mereu cu 42501 (0164).
+    expect(server.apeluriPe("hr_document_templates", "update")).toHaveLength(0);
+    const apel = server.apeluriRpc.find((a) => a.nume === "sterge_logic");
+    expect(apel?.argumente).toEqual({ p_tabela: "hr_document_templates", p_ids: [ID_1] });
     expect(caiRevalidate()).toEqual(CAI);
   });
 
-  it("firma nu are variantă proprie (zero rânduri): NEGASIT", async () => {
+  it("firma nu are variantă proprie: NEGASIT, fără apel de ștergere", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("hr_document_templates", "update", { data: null });
+    server.raspunde("hr_document_templates", "select", { data: [] });
+    const r = await restabilesteSablonPlatforma({ cod: "nda" });
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriRpc.filter((a) => a.nume === "sterge_logic")).toHaveLength(0);
+  });
+
+  it("ștergerea refuzată de USING (zero rânduri): NEGASIT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("hr_document_templates", "select", { data: [{ id: ID_1 }] });
+    server.raspundeRpc("sterge_logic", { data: [] });
     const r = await restabilesteSablonPlatforma({ cod: "nda" });
     expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
   });
 
-  it("eroare la scriere: CONFLICT", async () => {
+  it("eroare la ștergere: CONFLICT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
-    server.raspunde("hr_document_templates", "update", { error: eroarePostgrest("42501") });
+    server.raspunde("hr_document_templates", "select", { data: [{ id: ID_1 }] });
+    server.raspundeRpc("sterge_logic", { error: eroarePostgrest("42501") });
     const r = await restabilesteSablonPlatforma({ cod: "nda" });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
   });

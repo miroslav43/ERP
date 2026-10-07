@@ -9,6 +9,7 @@ import { CONTROL_ITM } from "@/content/legal/control-itm";
 import { DIURNA } from "@/content/legal/diurna";
 import { DIURNA_EXTERNA } from "@/content/legal/diurna-externa";
 import { ORE_SUPLIMENTARE } from "@/content/legal/ore-suplimentare";
+import { SALARIU_MINIM } from "@/content/legal/salariu-minim";
 import { SPOR_DE_NOAPTE } from "@/content/legal/spor-de-noapte";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
 import { REGES } from "@/content/legal/reges";
@@ -42,6 +43,7 @@ const PAGINI = [
   DIURNA_EXTERNA,
   ORE_SUPLIMENTARE,
   SPOR_DE_NOAPTE,
+  SALARIU_MINIM,
   CONTROL_ITM,
 ].map((p) => ({
   href: p.cale,

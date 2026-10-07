@@ -736,6 +736,22 @@ export const PORTAL_NAV_ITEMS: readonly PortalNavItem[] = [
     prioritateBara: null,
   },
   {
+    id: "portal-evaluari",
+    label: "Evaluările mele",
+    href: "/portal/evaluarile-mele",
+    icon: ClipboardCheck,
+    group: "munca",
+    featureKey: "evaluations",
+    // `own` din 0070:271; politica SELECT din 0119 îi arată doar evaluările
+    // FINALIZATE. Până la 6 oct 2026 portalul n-avea ecranul deloc.
+    permission: "evaluations:read",
+    minScope: "own",
+    order: 42,
+    exact: false,
+    // Se consultă, nu se acționează: locul de pe bara de jos rămâne liber.
+    prioritateBara: null,
+  },
+  {
     id: "portal-anunturi",
     label: "Anunțuri",
     href: "/portal/anunturi",

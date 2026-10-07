@@ -2,7 +2,7 @@
 "use client";
 
 import { AlertCircle, Paperclip, Upload, X } from "lucide-react";
-import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 
 import { cn } from "@/lib/ui/cn";
 
@@ -37,6 +37,11 @@ import { buton, Buton } from "./buton";
  *
  * Niciunul nu arată ce s-a ales și niciunul nu se poate răzgândi: după ce ai
  * ales fișierul greșit, singura ieșire e să redeschizi dialogul sistemului.
+ *
+ * Din 6 oct 2026 toate trei folosesc componenta, la fel ca dovada de integrare
+ * (`onboarding/[id]/incarcare-dovada.tsx`) — care afișa „Choose file”, în
+ * engleză. Pentru fișierul care urcă imediat la alegere: `laSchimbare` +
+ * `dezactivat` cât durează, plus un `key` nou după reușită ca să se golească.
  *
  * ── INPUTUL NATIV RĂMÂNE SURSA ADEVĂRULUI ─────────────────────────────────
  * `name` se pune ÎNTOTDEAUNA pe input, iar fișierul nu se ține nicăieri
@@ -159,6 +164,8 @@ type PropsComune = Readonly<{
   erori?: readonly string[];
   /** Se cheamă după fiecare schimbare ACCEPTATĂ, și cu `null` la respingere sau scoatere. */
   laSchimbare?: (fisier: File | null) => void;
+  /** Cât timp un fișier deja ales urcă: dialogul nu se mai deschide, butonul arată stins. */
+  dezactivat?: boolean;
   className?: string;
 }>;
 
@@ -187,12 +194,31 @@ export function IncarcareFisier(props: PropsIncarcareFisier): ReactElement {
     obligatoriu,
     erori,
     laSchimbare,
+    dezactivat,
     className,
   } = props;
 
   const referinta = useRef<HTMLInputElement | null>(null);
   const [ales, setAles] = useState<File | null>(null);
   const [respins, setRespins] = useState<string | null>(null);
+
+  // React 19 RESETEAZĂ formularul după o acțiune `<form action>` (vezi
+  // `formular.tsx`): inputul se golește, dar oglinda din stare ar fi rămas cu
+  // numele fișierului — omul ar fi văzut un fișier „ales” care nu mai pleacă
+  // nicăieri. `reset` e evenimentul nativ al formularului, deci prinde și
+  // resetarea din React, și un `<button type="reset">`.
+  useEffect(() => {
+    const formular = referinta.current?.form ?? null;
+    if (formular === null) return undefined;
+    const laReset = (): void => {
+      setAles(null);
+      setRespins(null);
+    };
+    formular.addEventListener("reset", laReset);
+    return () => {
+      formular.removeEventListener("reset", laReset);
+    };
+  }, []);
 
   const idCamp = id ?? `camp-${nume}`;
   const idRestrictii = `${idCamp}-restrictii`;
@@ -288,6 +314,9 @@ export function IncarcareFisier(props: PropsIncarcareFisier): ReactElement {
             // Releul inelului de focus — vezi docblock. NU un inel scris local:
             // culoarea și grosimea rămân ale regulii globale.
             "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
+            // Aceleași tonuri ca `disabled:` din `buton()`: eticheta nu e
+            // `<button>`, deci starea se citește de pe inputul din ea.
+            "has-[:disabled]:border-border has-[:disabled]:bg-surface has-[:disabled]:text-muted-foreground has-[:disabled]:cursor-not-allowed has-[:disabled]:active:translate-y-0",
           )}
         >
           <Upload aria-hidden="true" className="size-4 shrink-0" />
@@ -299,6 +328,7 @@ export function IncarcareFisier(props: PropsIncarcareFisier): ReactElement {
             type="file"
             onChange={laAlegere}
             required={obligatoriu === true ? true : undefined}
+            disabled={dezactivat === true ? true : undefined}
             aria-invalid={areEroare ? true : undefined}
             aria-describedby={descrieri === "" ? undefined : descrieri}
             {...(accept === undefined ? {} : { accept })}
@@ -327,6 +357,7 @@ export function IncarcareFisier(props: PropsIncarcareFisier): ReactElement {
                 marime="iconita"
                 varianta="tertiar"
                 aria-label={etichetaScoate}
+                disabled={dezactivat === true}
                 onClick={scoate}
                 className="shrink-0"
               >

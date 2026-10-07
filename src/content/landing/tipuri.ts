@@ -49,6 +49,20 @@ export type ContinutLanding = Readonly<{
     lead: string;
     ctaPrimar: Legatura;
     ctaSecundar: Legatura;
+    /**
+     * Ce NU cere înscrierea, chiar sub butoane — răspunsul la „ce risc dacă
+     * apăs?" pus acolo unde se ia decizia, nu trei benzi mai jos.
+     */
+    asigurari: readonly string[];
+    /** Eticheta dinaintea numărului de telefon, scris din `CONTACT`, nu de mână. */
+    suna: string;
+    /**
+     * Fraza dintre butoane și foaie: spune ce e tabelul de dedesubt. Fără ea,
+     * foaia era un tabel dens cu date fictive, fără legătură cu titlul.
+     */
+    punteFoaie: string;
+    /** Butonul care oprește videoclipul din fundalul eroului (WCAG 2.2.2). */
+    video: Readonly<{ opreste: string; porneste: string }>;
   }>;
 
   foaie: Readonly<{
@@ -213,30 +227,123 @@ export type ContinutLanding = Readonly<{
   }>;
 
   /**
-   * „Ce pornești întâi” — banda care a înlocuit catalogul de șapte sute de
-   * cuvinte de pe pagina de start.
+   * „Ce face” — produsul arătat pe ecranele lui reale, câte un rând pe treaba
+   * pe care o rezolvă, nu pe modul.
    *
-   * Rolul ei nu e să enumere, ci să RAMIFICE: trei drumuri, fiecare cu pagina
-   * lui. Fără ea, paginile care au preluat conținutul mutat ar fi accesibile
-   * doar din subsol — orfane pentru vizitator și aproape orfane pentru un motor.
+   * Până pe 6 oct 2026 pagina de start nu arăta NICIUN ecran al aplicației, deși
+   * `public/capturi/` avea șaptesprezece. Cumpărătorul vedea o foaie stilizată
+   * cu date fictive și trebuia să ghicească restul.
+   *
+   * `captura` e cheia unui modul din `vitrine.ts`, `"telefon"` pentru perechea
+   * telefon + afiș, sau `null` — atunci rândul își arată `panou`-ul.
    */
-  pornire: Readonly<{
+  produs: Readonly<{
     supratitlu: string;
     titlu: string;
     lead: string;
-    blocuri: readonly Readonly<{ titlu: string; text: string; legatura: Legatura }>[];
+    randuri: readonly Readonly<{
+      captura: FeatureKey | "telefon" | null;
+      /** Textul alternativ al capturii: ce se vede, nu ce e. */
+      descriereCaptura: string;
+      eticheta: string;
+      titlu: string;
+      text: string;
+      puncte: readonly string[];
+      legatura: Legatura;
+      /** Ecranul viu, fără cont (`/vitrina/...`), unde există unul. */
+      demo?: Legatura;
+      /** Pentru rândurile fără ecran: un tabel mic, cu sursa scrisă dedesubt. */
+      panou?: Readonly<{
+        titlu: string;
+        randuri: readonly Readonly<{ ce: string; termen: string }>[];
+        sursa: string;
+      }>;
+    }>[];
     /**
-     * Fraza care enumeră restul modulelor, pe bucăți: textul simplu rămâne
-     * șir, numele unui modul devine legătură spre pagina lui.
-     *
-     * Până pe 2 oct 2026 era un singur șir, iar pagina de start nu trimitea la
-     * NICIUNA dintre cele nouăsprezece pagini de modul, doar la lista `/module`.
-     * Search Console arăta atunci patru module „descoperite, neindexate” și
-     * patru necunoscute: o pagină la două clicuri de cea mai puternică pagină a
-     * sitului e, pentru un sit nou, o pagină pe care Google o amână.
+     * Restul modulelor, ca grilă de legături. Lista NU se scrie aici: se
+     * generează din catalog, ca pagina de start să trimită la FIECARE pagină de
+     * modul (vezi testul din `continut.test.ts`). Până pe 2 oct 2026 nu trimitea
+     * la niciuna, iar Google amâna paginile aflate la două clicuri de ea.
      */
-    nota: readonly (string | Legatura)[];
+    restTitlu: string;
     legaturaModule: Legatura;
+    /** Sub fiecare captură: că e aplicația reală, cu o firmă inventată. */
+    notaCaptura: string;
+    /** Completează eticheta butonului de mărire: „<descriere> — <mareste>”. */
+    mareste: string;
+    inchide: string;
+  }>;
+
+  /** Cine folosește aplicația și ce câștigă fiecare — patronul, HR, contabilul, angajatul. */
+  pentruCine: Readonly<{
+    supratitlu: string;
+    titlu: string;
+    lead: string;
+    roluri: readonly Readonly<{ cine: string; text: string; legatura: Legatura }>[];
+  }>;
+
+  /**
+   * Uneltele gratuite, pe pagina de start.
+   *
+   * Keyword Planner, oct 2026: „calcul salariu net” are 10.000–100.000 de
+   * căutări pe lună, modelele de documente câte 100–1.000, iar termenii
+   * comerciali („program pontaj angajați”) 10–100. Cererea e pe unelte, iar
+   * pagina de start — cea mai legată pagină a sitului — nu le pomenea decât în
+   * subsol.
+   */
+  unelteGratuite: Readonly<{
+    supratitlu: string;
+    titlu: string;
+    lead: string;
+    unelte: readonly Readonly<{ titlu: string; text: string; formate: string; href: string }>[];
+    ghiduriTitlu: string;
+    ghiduri: readonly Legatura[];
+    legaturaToate: Legatura;
+  }>;
+
+  /**
+   * „Suntem la început” — ce ne asumăm, în locul recomandărilor pe care nu le
+   * avem încă.
+   *
+   * Nouă din șaisprezece site-uri de HR analizate pe 6 oct 2026 pun dovadă
+   * socială sub erou; niciunul dintre cele mici sau noi n-are de unde. Cel mai
+   * apropiat concurent ca poziționare răspunde cu un bloc de promisiuni. Aici
+   * stau doar promisiuni pe care le putem ține azi — fiecare are deja acoperire
+   * în altă pagină a sitului.
+   */
+  promisiuni: Readonly<{
+    supratitlu: string;
+    titlu: string;
+    lead: string;
+    puncte: readonly Readonly<{ titlu: string; text: string }>[];
+  }>;
+
+  /**
+   * Siguranța datelor, în cuvintele cumpărătorului.
+   *
+   * Versiunea tehnică — straturile, politica, vinieta — rămâne pe `/incredere`,
+   * în `izolare`. Aici patronul află ce îl privește: cine vede, ce se criptează,
+   * unde stau datele și că le ia cu el dacă pleacă.
+   */
+  siguranta: Readonly<{
+    supratitlu: string;
+    titlu: string;
+    lead: string;
+    puncte: readonly Readonly<{ titlu: string; text: string }>[];
+    legatura: Legatura;
+  }>;
+
+  /**
+   * Pașii de pornire. A înlocuit două benzi care se contraziceau: „Primii pași”
+   * spunea „îți faci contul”, „Cum începem” spunea „nu-ți creăm cont” — pe
+   * aceeași pagină, sub același buton „Creează cont”.
+   */
+  incepe: Readonly<{
+    supratitlu: string;
+    titlu: string;
+    lead: string;
+    pasi: readonly Readonly<{ titlu: string; text: string }>[];
+    alternativa: Readonly<{ text: string; legatura: Legatura }>;
   }>;
 
   /**
@@ -284,13 +391,6 @@ export type ContinutLanding = Readonly<{
     legaturaPagina: Legatura;
   }>;
 
-  implementare: Readonly<{
-    supratitlu: string;
-    titlu: string;
-    lead: string;
-    pasi: readonly Readonly<{ actor: string; titlu: string; text: string }>[];
-  }>;
-
   intrebari: Readonly<{
     supratitlu: string;
     titlu: string;
@@ -298,10 +398,15 @@ export type ContinutLanding = Readonly<{
     intrebari: readonly Readonly<{ q: string; a: string }>[];
   }>;
 
-  clienti: Readonly<{
+  /**
+   * Întrebările de pe pagina de start: șase, scurte, cu legătura spre restul.
+   * Răspunsurile lungi, scrise ca pasaje citabile, rămân pe `/intrebari`.
+   */
+  intrebariScurte: Readonly<{
     supratitlu: string;
     titlu: string;
-    text: string;
+    intrebari: readonly Readonly<{ q: string; a: string; legatura?: Legatura }>[];
+    legatura: Legatura;
   }>;
 
   contact: Readonly<{
@@ -313,6 +418,8 @@ export type ContinutLanding = Readonly<{
     programEticheta: string;
     program: string;
     notaReferinte: string;
+    /** Cine e în spatele produsului. `{firma}` și `{oras}` vin din `FIRMA`, nu de mână. */
+    cine: string;
     formularTitlu: string;
   }>;
 
@@ -322,6 +429,8 @@ export type ContinutLanding = Readonly<{
     contactTitlu: string;
     copyright: string;
     notaDiacritice: string;
+    /** Proveniența videoclipului din erou. Autorul nu cere credit; licența YouTube e CC BY. */
+    creditVideo: string;
   }>;
 
   /**

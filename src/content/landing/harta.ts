@@ -2,6 +2,7 @@ import { CONCEDIU_ODIHNA } from "@/content/legal/concediu-odihna";
 import { CONTROL_ITM } from "@/content/legal/control-itm";
 import { DIURNA } from "@/content/legal/diurna";
 import { DIURNA_EXTERNA } from "@/content/legal/diurna-externa";
+import { SALARIU_MINIM } from "@/content/legal/salariu-minim";
 import { SPOR_DE_NOAPTE } from "@/content/legal/spor-de-noapte";
 import { ORE_SUPLIMENTARE } from "@/content/legal/ore-suplimentare";
 import { EVIDENTA_ORELOR } from "@/content/legal/evidenta-orelor";
@@ -96,7 +97,9 @@ export const PAGINI: readonly Pagina[] = [
     // poarta lastmod nu vede textele din ro.ts, deci data se ridică de mână.
     // 2 oct: nota benzii „Primii pași" trimite acum la fiecare modul pe nume;
     // banda de prețuri duce spre ofertă peste 20 de angajați (auditul SEO).
-    actualizat: "2026-10-02",
+    // 6 oct: pagina de start refăcută — produsul pe ecrane reale, unelte, promisiuni (ro.ts).
+    // 7 oct: catalogul de module, în cutii cu prima frază a fiecărui modul (benzi/acasa.tsx).
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {
@@ -105,7 +108,9 @@ export const PAGINI: readonly Pagina[] = [
     limba: "en",
     traducere: "/",
     // 2 oct: banda de prețuri duce spre ofertă (en.ts — poarta nu vede textele).
-    actualizat: "2026-10-02",
+    // 6 oct: aceeași refacere, în en.ts.
+    // 7 oct: același catalog, în engleză.
+    actualizat: "2026-10-07",
     sectiune: "Principale",
   },
   {
@@ -113,7 +118,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: "/en/preturi",
-    actualizat: "2026-10-02",
+    // 6 oct: numele modulelor duc la pagina lor, fără slug afișat (pagina-preturi.tsx).
+    actualizat: "2026-10-06",
     sectiune: "Principale",
   },
   {
@@ -122,7 +128,8 @@ export const PAGINI: readonly Pagina[] = [
     limba: "en",
     traducere: "/preturi",
     // 2 oct: legătura spre ofertă și slug-urile din tabel (en.ts, pagina-preturi.tsx).
-    actualizat: "2026-10-02",
+    // 6 oct: aceeași schimbare în tabel (pagina-preturi.tsx).
+    actualizat: "2026-10-06",
     sectiune: "Principale",
   },
   {
@@ -130,7 +137,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    // 6 oct: trei puncte fără acoperire în cod, scoase; actorii fără chei interne (ro.ts).
+    actualizat: "2026-10-06",
     sectiune: "Principale",
   },
   {
@@ -146,7 +154,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.8,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-09-23",
+    // 6 oct: pilotul numește modulele, nu „nucleul” (pentru-contabili.ts).
+    actualizat: "2026-10-06",
     sectiune: "Principale",
   },
   {
@@ -169,7 +178,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    // 6 oct: hub-ul listează ghidul de salariu minim.
+    actualizat: "2026-10-06",
     sectiune: "Obligații legale",
   },
   {
@@ -236,6 +246,15 @@ export const PAGINI: readonly Pagina[] = [
     actualizat: SPOR_DE_NOAPTE.actualizatIso,
     sectiune: "Obligații legale",
   },
+  {
+    // 6 oct 2026: cel mai mare termen din Keyword Planner fără pagină a lui.
+    cale: "/ghid/salariu-minim-pe-economie",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: SALARIU_MINIM.actualizatIso,
+    sectiune: "Obligații legale",
+  },
 
   {
     cale: "/domenii",
@@ -276,7 +295,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-02",
+    // 6 oct: calendarul echipei în locul pragului de absenți (domenii.ts).
+    actualizat: "2026-10-06",
     sectiune: "Domenii",
   },
 
@@ -285,7 +305,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-03",
+    // 6 oct: titlul și descrierea numesc toate cele șapte unelte.
+    actualizat: "2026-10-06",
     sectiune: "Unelte și comparații",
   },
   // 5 oct 2026: toate uneltele primesc nodul `WebApplication`, a cărui

@@ -105,14 +105,16 @@ Cele șase scrieri de configurare și citirile lor: [[modul/concedii/setari]].
 - **Cursorul keyset pe text** (`full_name`, `denumire`) cere funcția `ghilimeleaza()` din
   `src/lib/queries/employees.ts`: o virgulă sau o ghilimea dintr-un nume sparge altfel
   filtrul PostgREST `or=(…)`. — capcana #11
-- **Sincronizarea în pontaj sare tăcut peste ziua pe care angajatul și-a pontat-o
-  singur.** `sincronizeazaZileleDeConcediu` nu atinge nicio linie cu
-  `sursa <> "sincronizare_concedii"`: o numără în `pastrate` și merge mai departe, fără
-  eroare. Ziua rămâne lucrată **și** se scade o zi din soldul de concediu, iar
-  salarizarea agregă `ore_lucrate` fără să se plângă — se plătește de două ori. Numărul
-  iese din `decideCerere` ca `zilePastrate`, la aprobator. Suprascrierea rămâne
-  **interzisă**: declarația omului e singura dovadă că a muncit atunci, iar decizia e a
-  oamenilor. — `src/app/(app)/pontaj/sincronizare-concediu.ts:97`
+- **Concediul aprobat înlocuiește ziua pontată.** Din 6 oct 2026,
+  `sincronizeazaZileleDeConcediu` rescrie pe ACELAȘI rând ziua cu
+  `sursa <> "sincronizare_concedii"` (manuală, ceas, plan, import): zero ore, fără
+  interval, sediu sau decizie de pontaj (`ZI_LUCRATA_GOLITA`). Cazul real e concediul
+  de urgență cerut pentru o zi deja pontată; înainte ziua rămânea lucrată ȘI scădea din
+  sold. Dovada rămâne în `audit_logs`. Numărul iese din `decideCerere` ca
+  `zileInlocuite`, iar angajatul primește o notificare `info`. La anulare, 0079 §3
+  șterge rândul: ziua rămâne goală, nu revine singură ca lucrată. `pastrate` numără
+  acum doar UPDATE-ul refuzat tăcut (zero rânduri). —
+  `src/app/(app)/pontaj/sincronizare-concediu.ts`
 - **Sincronizarea e best-effort, aprobarea nu.** Apelul stă într-un `try` din
   `decideCerere`: dacă pică (tipic, luna n-are perioadă de pontaj deschisă —
   `internal.pontaj_intrare_pregateste` refuză INSERT-ul), decizia rămâne dată, eșecul se

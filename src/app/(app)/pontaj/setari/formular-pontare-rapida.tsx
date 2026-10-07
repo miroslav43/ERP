@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Ban, CheckCheck, Clock, Handshake, Layers, Lock, QrCode } from "lucide-react";
+import {
+  Ban,
+  CalendarDays,
+  CalendarRange,
+  CheckCheck,
+  Clock,
+  Handshake,
+  Layers,
+  Lock,
+  QrCode,
+} from "lucide-react";
 
 import { AlegereCarduri, type OptiuneCard } from "@/components/ui/alegere-carduri";
 import { Buton } from "@/components/ui/buton";
@@ -70,6 +80,11 @@ export function FormularPontareRapida({
   const [verificare, setVerificare] = useState<string>(pontare.verificare);
   const [programStart, setProgramStart] = useState(pontare.programStart ?? "");
   const [necesitaAprobare, setNecesitaAprobare] = useState(pontare.necesitaAprobare);
+  const [varianta, setVarianta] = useState<string>(pontare.varianta);
+  // Pe săptămână, ceasul, confirmarea și codul QR n-au pe ce se aplica: fișa
+  // săptămânii nu are butoane pe zi. Alegerile lor se PĂSTREAZĂ, neatinse, ca
+  // întoarcerea pe `zilnic` să regăsească firma cum era.
+  const peZi = varianta === "zilnic";
 
   const afiseCuCod = afise.filter((a) => a.activ && a.areCod);
   const areAfis = afiseCuCod.length > 0;
@@ -114,6 +129,23 @@ export function FormularPontareRapida({
    * refuză oricum pe server, dar un refuz pe care nu-l poți anticipa de pe ecran
    * e tot o atingere aruncată.
    */
+  const VARIANTE: readonly OptiuneCard[] = [
+    {
+      valoare: "zilnic",
+      eticheta: "Pe zi",
+      descriere:
+        "Butoane de pontare pe zi, formularul zilei, codul QR — după alegerile de mai jos.",
+      pictograma: CalendarDays,
+    },
+    {
+      valoare: "saptamanal",
+      eticheta: "Pe săptămână",
+      descriere:
+        "Fișa săptămânii, ca un timesheet: ziua cu zi, intervalul și locul. Butoanele pe zi dispar.",
+      pictograma: CalendarRange,
+    },
+  ];
+
   const VERIFICARI: readonly OptiuneCard[] = [
     {
       valoare: "fara",
@@ -158,7 +190,7 @@ export function FormularPontareRapida({
     setEroare(null);
     setErori({});
 
-    if (cereProgram && programStart === "") {
+    if (peZi && cereProgram && programStart === "") {
       setErori({
         program_start: [
           "Completați ora de început a programului: fără ea nu se poate propune un interval.",
@@ -166,7 +198,7 @@ export function FormularPontareRapida({
       });
       return;
     }
-    if (cereProgram && intervalPropus === null) {
+    if (peZi && cereProgram && intervalPropus === null) {
       setErori({ program_start: ["Programul nu încape într-o singură zi calendaristică."] });
       return;
     }
@@ -177,6 +209,7 @@ export function FormularPontareRapida({
         verificare_pontare: verificare,
         program_start: programStart === "" ? null : programStart,
         necesita_aprobare: necesitaAprobare,
+        varianta_pontaj: varianta,
       });
       if (rezultat.ok) {
         setMesaj("Setările au fost salvate.");
@@ -192,74 +225,106 @@ export function FormularPontareRapida({
 
   return (
     <div className="border-border rounded-panou space-y-6 border p-4">
+      {/*
+        ── VARIANTA DE PONTAJ (0165) ─────────────────────────────────────────
+        Prima alegere, fiindcă le ramifică pe toate celelalte: pe săptămână,
+        modul de pontare rapidă, ora programului și codul QR n-au ce controla.
+        Secțiunile lor DISPAR în loc să rămână dezactivate — un control mort
+        lângă o alegere vie se citește ca o setare care încă se aplică.
+      */}
       <section className="space-y-3">
-        <h2 className="text-corp font-medium">Cum se pontează</h2>
-        <p className="text-muted-foreground text-nota">
-          Cifrele se calculează pe server, din regulile de timp — omul declară doar că a fost la
-          muncă. Nici ora, nici numărul de ore nu vin de pe telefon.
-        </p>
+        <h2 className="text-corp font-medium">Varianta de pontaj</h2>
         <AlegereCarduri
-          nume="mod_pontare_rapida"
-          eticheta="Cum se pontează"
-          optiuni={MODURI}
-          valoare={mod}
-          laSchimbare={setMod}
+          nume="varianta_pontaj"
+          eticheta="Varianta de pontaj"
+          optiuni={VARIANTE}
+          valoare={varianta}
+          laSchimbare={setVarianta}
           coloane={2}
         />
-      </section>
-
-      {cereProgram ? (
-        <section className="space-y-2">
-          <Camp
-            nume="program_start"
-            eticheta="Ora de început a programului"
-            ajutor="Ora de sfârșit NU se completează: se calculează din normă și din pauză, ca să nu existe două cifre care se pot contrazice."
-            erori={erori["program_start"] ?? []}
-            obligatoriu
-          >
-            {(atribute) => (
-              <IntrareOra {...atribute} valoare={programStart} onSchimba={setProgramStart} />
-            )}
-          </Camp>
-          {intervalPropus === null ? null : (
-            <p className="text-muted-foreground text-corp">
-              Butonul va propune{" "}
-              <span className="text-foreground font-medium tabular-nums">
-                {intervalPropus.inceput}–{intervalPropus.sfarsit}
-              </span>{" "}
-              și va înregistra{" "}
-              <span className="text-foreground font-medium tabular-nums">
-                {formatOre(config.orePeZi)} h
-              </span>{" "}
-              lucrate.
-            </p>
-          )}
-        </section>
-      ) : null}
-
-      <section className="space-y-3">
-        <h2 className="text-corp font-medium">Verificarea prezenței</h2>
-        <p className="text-muted-foreground text-nota">
-          Codul QR dovedește că cineva a fost lângă afiș, nu că angajatul era acolo. E o frână, nu o
-          probă — pontajul rămâne declarația angajatului.
-        </p>
-        <AlegereCarduri
-          nume="verificare_pontare"
-          eticheta="Verificarea prezenței"
-          optiuni={VERIFICARI}
-          valoare={verificare}
-          laSchimbare={setVerificare}
-          coloane={3}
-        />
-        {posibilitati.cereScanare ? (
-          <Callout fel="atentie" titlu="Butonul din aplicație nu se mai desenează">
-            Cu această alegere, un angajat fără afișul la îndemână nu mai poate ponta deloc.
-            Asigurați-vă că afișul e tipărit și lipit la fiecare intrare.
+        {peZi ? null : (
+          <Callout fel="informativ" titlu="Angajații se pontează doar pe fișa săptămânii">
+            Butoanele „Am intrat”/„Am ieșit”, confirmarea zilei, formularul zilei și scanarea
+            codului QR nu mai pontează. Fiecare completează săptămâna — zi cu zi, intervalul și
+            locul — și o trimite.{" "}
+            {necesitaAprobare
+              ? "Devine pontaj când o aprobă managerul."
+              : "Devine pontaj în clipa trimiterii."}{" "}
+            Responsabilul de pontaj poate corecta în continuare orice zi din foaia colectivă.
           </Callout>
-        ) : null}
+        )}
       </section>
 
-      {/*
+      {peZi ? (
+        <>
+          <section className="space-y-3">
+            <h2 className="text-corp font-medium">Cum se pontează</h2>
+            <p className="text-muted-foreground text-nota">
+              Cifrele se calculează pe server, din regulile de timp — omul declară doar că a fost la
+              muncă. Nici ora, nici numărul de ore nu vin de pe telefon.
+            </p>
+            <AlegereCarduri
+              nume="mod_pontare_rapida"
+              eticheta="Cum se pontează"
+              optiuni={MODURI}
+              valoare={mod}
+              laSchimbare={setMod}
+              coloane={2}
+            />
+          </section>
+
+          {cereProgram ? (
+            <section className="space-y-2">
+              <Camp
+                nume="program_start"
+                eticheta="Ora de început a programului"
+                ajutor="Ora de sfârșit NU se completează: se calculează din normă și din pauză, ca să nu existe două cifre care se pot contrazice."
+                erori={erori["program_start"] ?? []}
+                obligatoriu
+              >
+                {(atribute) => (
+                  <IntrareOra {...atribute} valoare={programStart} onSchimba={setProgramStart} />
+                )}
+              </Camp>
+              {intervalPropus === null ? null : (
+                <p className="text-muted-foreground text-corp">
+                  Butonul va propune{" "}
+                  <span className="text-foreground font-medium tabular-nums">
+                    {intervalPropus.inceput}–{intervalPropus.sfarsit}
+                  </span>{" "}
+                  și va înregistra{" "}
+                  <span className="text-foreground font-medium tabular-nums">
+                    {formatOre(config.orePeZi)} h
+                  </span>{" "}
+                  lucrate.
+                </p>
+              )}
+            </section>
+          ) : null}
+
+          <section className="space-y-3">
+            <h2 className="text-corp font-medium">Verificarea prezenței</h2>
+            <p className="text-muted-foreground text-nota">
+              Codul QR dovedește că cineva a fost lângă afiș, nu că angajatul era acolo. E o frână,
+              nu o probă — pontajul rămâne declarația angajatului.
+            </p>
+            <AlegereCarduri
+              nume="verificare_pontare"
+              eticheta="Verificarea prezenței"
+              optiuni={VERIFICARI}
+              valoare={verificare}
+              laSchimbare={setVerificare}
+              coloane={3}
+            />
+            {posibilitati.cereScanare ? (
+              <Callout fel="atentie" titlu="Butonul din aplicație nu se mai desenează">
+                Cu această alegere, un angajat fără afișul la îndemână nu mai poate ponta deloc.
+                Asigurați-vă că afișul e tipărit și lipit la fiecare intrare.
+              </Callout>
+            ) : null}
+          </section>
+
+          {/*
         ── UNDE S-A MUTAT SECȚIUNEA „AFIȘELE DE PONTARE" ────────────────────
         Era aici o listă a punctelor de lucru cu starea afișului fiecăruia. A
         plecat în fila „Coduri QR", și nu ca să facă loc: lista arăta DACĂ
@@ -272,13 +337,15 @@ export function FormularPontareRapida({
         Lista întreagă, repetată în două file, ar fi fost al doilea loc în care
         se schimbă aceeași regulă.
       */}
-      <p className="text-muted-foreground text-corp">
-        Codurile QR și afișele de tipărit sunt în fila{" "}
-        <Link href="/pontaj/setari/coduri-qr" className="underline underline-offset-2">
-          Coduri QR
-        </Link>
-        , câte unul pentru fiecare punct de lucru.
-      </p>
+          <p className="text-muted-foreground text-corp">
+            Codurile QR și afișele de tipărit sunt în fila{" "}
+            <Link href="/pontaj/setari/coduri-qr" className="underline underline-offset-2">
+              Coduri QR
+            </Link>
+            , câte unul pentru fiecare punct de lucru.
+          </p>
+        </>
+      ) : null}
 
       {/*
         ── APROBAREA, CA ALEGERE A FIRMEI (0118) ─────────────────────────────
@@ -307,8 +374,12 @@ export function FormularPontareRapida({
         </label>
         <p className="text-muted-foreground text-nota">
           {necesitaAprobare
-            ? "Zilele înregistrate așteaptă decizia unui aprobator, iar planurile săptămânale se trimit spre aprobare. Fila „Aprobare” rămâne în navigarea pontajului."
-            : "Zilele se salvează direct, pentru toată lumea — inclusiv pentru angajați — și rămân modificabile până la blocarea lunii. Planul săptămânii se închide în clipa trimiterii, iar fila „Aprobare” dispare din navigare."}
+            ? peZi
+              ? "Zilele înregistrate așteaptă decizia unui aprobator, iar planurile săptămânale se trimit spre aprobare. Fila „Aprobare” rămâne în navigarea pontajului."
+              : "Fișa săptămânii se trimite spre aprobare și devine pontaj când o aprobă managerul. Fila „Aprobare” rămâne în navigarea pontajului."
+            : peZi
+              ? "Zilele se salvează direct, pentru toată lumea — inclusiv pentru angajați — și rămân modificabile până la blocarea lunii. Planul săptămânii se închide în clipa trimiterii, iar fila „Aprobare” dispare din navigare."
+              : "Fișa săptămânii devine pontaj în clipa trimiterii și se poate retrimite până la blocarea lunii. Fila „Aprobare” dispare din navigare."}
         </p>
       </section>
 

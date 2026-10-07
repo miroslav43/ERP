@@ -122,6 +122,14 @@ export const creeazaSablonEvaluareSchema = z.object({
   criterii: jsonDinFormData(criteriiSablonSchema),
 });
 
+/** Varianta firmei a unui șablon de platformă: conținutul editat + originea (0168). */
+export const personalizeazaSablonEvaluareSchema = z.object({
+  sablon_platforma_id: z.uuid("Șablonul de platformă nu este valid."),
+  denumire: denumireSablon,
+  descriere: textOptional(500),
+  criterii: jsonDinFormData(criteriiSablonSchema),
+});
+
 export const actualizeazaSablonEvaluareSchema = z.object({
   id: z.uuid("Șablonul selectat nu este valid."),
   denumire: denumireSablon,
@@ -138,6 +146,7 @@ const doarId = (mesaj: string) => z.object({ id: z.uuid(mesaj) });
 
 export const arhiveazaSablonEvaluareSchema = doarId("Șablonul selectat nu este valid.");
 export const reactiveazaSablonEvaluareSchema = doarId("Șablonul selectat nu este valid.");
+export const stergeSablonEvaluareSchema = doarId("Șablonul selectat nu este valid.");
 
 // ── Evaluări ──────────────────────────────────────────────────────────────────
 
@@ -179,6 +188,26 @@ export const creeazaEvaluareSchema = z.object({
   ),
   concluzie: textOptional(4000),
   status: z.enum(STATUSURI_EVALUARE).default("draft"),
+});
+
+/**
+ * Evaluări PROGRAMATE din lista modulului: angajații, șablonul și data, fără
+ * note. Fiecare angajat primește o ciornă, care se notează ulterior.
+ *
+ * `employee_ids` vine din casete bifate cu același `name`: o singură bifă
+ * ajunge ca text, mai multe ca listă (`intrareaActiunii`), deci se aduc la
+ * listă înainte de validare. Plafonul de 500 e mărimea listei pe ecran.
+ */
+export const planificaEvaluariSchema = z.object({
+  template_id: z.uuid("Alegeți un șablon de evaluare."),
+  data_evaluarii: dataIso,
+  employee_ids: z.preprocess(
+    (v) => (typeof v === "string" ? [v] : (v ?? [])),
+    z
+      .array(z.uuid("Unul dintre angajații aleși nu este valid."))
+      .min(1, "Alegeți cel puțin un angajat.")
+      .max(500, "Se pot programa cel mult 500 de evaluări odată."),
+  ),
 });
 
 export const actualizeazaEvaluareSchema = z.object({

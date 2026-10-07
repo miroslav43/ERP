@@ -200,7 +200,7 @@ describe("sincronizeazaConcediile", () => {
 
     const r = await sincronizeazaConcediile({ an: 2026, luna: 2 });
 
-    expect(r).toEqual({ ok: true, data: { create: 0, actualizate: 0, pastrate: 0 } });
+    expect(r).toEqual({ ok: true, data: { create: 0, actualizate: 0, inlocuite: 0, pastrate: 0 } });
     const [apel] = server.apeluriPe("leave_request_days");
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(apel, "eq", "este_lucratoare", true)).toBe(true);
@@ -210,7 +210,7 @@ describe("sincronizeazaConcediile", () => {
     expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
   });
 
-  it("doar cererile APROBATE se sincronizează; zilele manuale se păstrează, nu se suprascriu", async () => {
+  it("doar cererile APROBATE se sincronizează; ziua pontată manual e înlocuită cu concediul", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     const cerere = (status: string, tip: string | null) => ({
       employee_id: ID_3,
@@ -236,10 +236,11 @@ describe("sincronizeazaConcediile", () => {
     // Rândul chiar scris: un UPDATE refuzat tăcut nu trebuie numărat (defectul
     // e descris în `sincronizare-concediu.test.ts`).
     server.raspunde("attendance_entries", "update", { data: { id: "z14" } });
+    server.raspunde("attendance_entries", "update", { data: { id: "z15" } });
 
     const r = await sincronizeazaConcediile({ an: 2026, luna: 7 });
 
-    expect(r).toEqual({ ok: true, data: { create: 1, actualizate: 1, pastrate: 1 } });
+    expect(r).toEqual({ ok: true, data: { create: 1, actualizate: 1, inlocuite: 1, pastrate: 0 } });
     const [insert] = server.apeluriPe("attendance_entries", "insert");
     expect(insert?.payload).toMatchObject({
       organization_id: ORG_ID,
@@ -250,11 +251,20 @@ describe("sincronizeazaConcediile", () => {
       sursa: "sincronizare_concedii",
       leave_request_id: ID_1,
     });
-    const [update] = server.apeluriPe("attendance_entries", "update");
+    const [update, inlocuire] = server.apeluriPe("attendance_entries", "update");
     // Tipul de concediu șters ⇒ „concediu”, ca înainte de 0064.
     expect(update?.payload).toMatchObject({ tip_zi: "concediu", ore_lucrate: 0 });
     expect(areFiltru(update, "eq", "id", "z14")).toBe(true);
     expect(areFiltru(update, "eq", "organization_id", ORG_ID)).toBe(true);
+    // Ziua pontată manual devine zi de concediu, pe același rând.
+    expect(inlocuire?.payload).toMatchObject({
+      tip_zi: "concediu",
+      ore_lucrate: 0,
+      sursa: "sincronizare_concedii",
+      ora_inceput: null,
+      ora_sfarsit: null,
+    });
+    expect(areFiltru(inlocuire, "eq", "id", "z15")).toBe(true);
     expect(caiRevalidate()).toEqual(CAI);
   });
 });

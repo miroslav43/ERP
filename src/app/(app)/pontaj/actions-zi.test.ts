@@ -36,6 +36,13 @@ const colaboratori = vi.hoisted(() => ({
   zileNelucratoare: vi.fn(),
   suspendareaDinAbsente: vi.fn(),
   inchideSuspendareaLaReluare: vi.fn(),
+  setariPontareRapida: vi.fn(),
+}));
+// Doar varianta de pontaj (0165) e înlocuită; restul citirilor rămân reale,
+// pe clientul fals, ca testele de mai jos să le poată programa.
+vi.mock("@/lib/queries/attendance", async (orig) => ({
+  ...(await orig<typeof import("@/lib/queries/attendance")>()),
+  setariPontareRapida: colaboratori.setariPontareRapida,
 }));
 vi.mock("./avertismente", () => ({ avertismenteDupaZi: colaboratori.avertismenteDupaZi }));
 vi.mock("@/lib/queries/leave", () => ({ zileNelucratoare: colaboratori.zileNelucratoare }));
@@ -93,6 +100,7 @@ beforeEach(() => {
   colaboratori.zileNelucratoare.mockReset().mockResolvedValue({ nationale: [], organizatie: [] });
   colaboratori.suspendareaDinAbsente.mockReset().mockResolvedValue(null);
   colaboratori.inchideSuspendareaLaReluare.mockReset().mockResolvedValue(null);
+  colaboratori.setariPontareRapida.mockReset().mockResolvedValue(null);
   return () => vi.useRealTimers();
 });
 
@@ -363,6 +371,77 @@ describe("salveazaZiPontaj — scrierea", () => {
   });
 });
 
+describe("salveazaZiPontaj — sediul declarat (0163)", () => {
+  const SEDIU = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+  it("la birou, sediul ales se verifică în lista firmei și se scrie", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    server.raspundeRpc("sedii_pentru_pontaj", {
+      data: [{ id: SEDIU, denumire: "Sediul Iași", din_contract: false }],
+    });
+    pregatesteDrumul(server, admin);
+    server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });
+
+    const r = await salveazaZiPontaj({
+      ...ZI,
+      tip_prezenta: "birou",
+      punct_lucru_declarat_id: SEDIU,
+    });
+
+    expect(r).toMatchObject({ ok: true });
+    const [rpc] = server.apeluriRpc.filter((a) => a.nume === "sedii_pentru_pontaj");
+    expect(rpc?.argumente).toEqual({ p_organization_id: ORG_ID });
+    const [insert] = server.apeluriPe("attendance_entries", "insert");
+    expect(insert?.payload).toMatchObject({ punct_lucru_declarat_id: SEDIU });
+  });
+
+  // Purtătorul: omul a ales un sediu, apoi a comutat pe homeoffice. CHECK-ul
+  // din bază ar refuza combinația cu o eroare pe care n-a cauzat-o el.
+  it("pe homeoffice sediul se stinge, fără să mai fie căutat în listă", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    pregatesteDrumul(server, admin);
+    server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });
+
+    const r = await salveazaZiPontaj({
+      ...ZI,
+      tip_prezenta: "homeoffice",
+      punct_lucru_declarat_id: SEDIU,
+    });
+
+    expect(r).toMatchObject({ ok: true });
+    expect(server.apeluriRpc.filter((a) => a.nume === "sedii_pentru_pontaj")).toHaveLength(0);
+    const [insert] = server.apeluriPe("attendance_entries", "insert");
+    expect(insert?.payload).toMatchObject({ punct_lucru_declarat_id: null });
+  });
+
+  it("un sediu absent din lista firmei (inactiv sau străin) ⇒ CONFLICT, fără scriere", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    admin.raspunde("employees", "select", { data: { id: FISA } });
+    server.raspundeRpc("sedii_pentru_pontaj", { data: [] });
+
+    const r = await salveazaZiPontaj({
+      ...ZI,
+      tip_prezenta: "birou",
+      punct_lucru_declarat_id: SEDIU,
+    });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+  });
+
+  it("zi existentă: UPDATE-ul rescrie și sediul — ca pe `tip_prezenta`", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    pregatesteDrumul(server, admin, { existenta: { id: ID_1, leave_request_id: null } });
+    server.raspunde("attendance_entries", "update", { data: { id: ID_1 } });
+
+    const r = await salveazaZiPontaj({ ...ZI, tip_prezenta: null });
+
+    expect(r).toMatchObject({ ok: true });
+    const [update] = server.apeluriPe("attendance_entries", "update");
+    expect(update?.payload).toMatchObject({ punct_lucru_declarat_id: null });
+  });
+});
+
 describe("salveazaZiPontaj — contractul suspendat pentru absențe", () => {
   const SUSPENDARE = { id: ID_1, data_inceput: "2026-07-01", contract_id: ID_2 };
 
@@ -508,5 +587,53 @@ describe("stergeZiPontaj", () => {
     const r = await stergeZiPontaj({ id: ID_1 });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });
     expect(caiRevalidate()).toEqual([]);
+  });
+});
+
+describe("varianta săptămânală (0165)", () => {
+  const PE_SAPTAMANA = {
+    mod_pontare_rapida: "ceas",
+    verificare_pontare: "fara",
+    program_start: null,
+    necesita_aprobare: true,
+    varianta_pontaj: "saptamanal",
+  } as const;
+
+  it("angajatul nu-și mai salvează ziua: CONFLICT, nicio scriere", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    colaboratori.setariPontareRapida.mockResolvedValue(PE_SAPTAMANA);
+
+    const r = await salveazaZiPontaj(ZI);
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("fișa săptămânii") },
+    });
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+    expect(admin.apeluriPe("attendance_entries")).toHaveLength(0);
+  });
+
+  it("nici nu-și șterge ziua", async () => {
+    const { server } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    colaboratori.setariPontareRapida.mockResolvedValue(PE_SAPTAMANA);
+
+    const r = await stergeZiPontaj({ id: ID_1 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("attendance_entries")).toHaveLength(0);
+  });
+
+  // Varianta privește cum se pontează OMUL, nu corecturile din foaia colectivă.
+  it("responsabilul cu `create = all` corectează în continuare ziua altcuiva", async () => {
+    const { server } = configureazaActiunea({ permisiuni: TOT });
+    colaboratori.setariPontareRapida.mockResolvedValue(PE_SAPTAMANA);
+    server.raspunde("attendance_settings", "select", { data: null });
+    server.raspunde("attendance_entries", "select", { data: null });
+    server.raspunde("attendance_entries", "insert", { data: { id: ID_1 } });
+
+    const r = await salveazaZiPontaj({ ...ZI, employee_id: ID_2 });
+
+    expect(r).toMatchObject({ ok: true });
+    expect(colaboratori.setariPontareRapida).not.toHaveBeenCalled();
   });
 });

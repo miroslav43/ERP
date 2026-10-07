@@ -167,7 +167,7 @@ describe("creeazaCerereConcediu — autorizare și fișa țintă", () => {
         id: CERERE,
         zileLucratoare: 5,
         aprobataInstant: false,
-        zilePastrate: 0,
+        zileInlocuite: 0,
         suspendare: { ceruta: false, declarata: false, termen: null, motiv: null },
       },
     });

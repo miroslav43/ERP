@@ -254,7 +254,42 @@ describe("listeazaSabloane", () => {
     versiune: 1,
     activ: true,
     organization_id: ORG_ID,
+    derivat_din: null,
     ...extra,
+  });
+
+  it("șablonul de platformă personalizat de firmă dispare: varianta îi ține locul (0168)", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("evaluation_templates", "select", {
+      data: [sablon(ID_1, { derivat_din: ID_2 })],
+    });
+    server.raspunde("evaluation_templates", "select", {
+      data: [sablon(ID_2, { organization_id: null }), sablon(ID_3, { organization_id: null })],
+    });
+    server.raspunde("employee_evaluations", "select", { count: 0 });
+    server.raspunde("employee_evaluations", "select", { count: 0 });
+
+    const r = await listeazaSabloane(ORG_ID);
+
+    // ID_2 e ascuns de varianta ID_1; ID_3, nepersonalizat, rămâne.
+    expect(r.map((s) => [s.id, s.dePlatforma, s.personalizat])).toEqual([
+      [ID_1, false, true],
+      [ID_3, true, false],
+    ]);
+  });
+
+  it("varianta ARHIVATĂ ascunde în continuare șablonul de platformă — revenirea e „Șterge”", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("evaluation_templates", "select", {
+      data: [sablon(ID_1, { derivat_din: ID_2, activ: false })],
+    });
+    server.raspunde("evaluation_templates", "select", {
+      data: [sablon(ID_2, { organization_id: null })],
+    });
+
+    const r = await listeazaSabloane(ORG_ID, { includeArhivate: false });
+
+    expect(r).toEqual([]);
   });
 
   it("ale firmei întâi, apoi cele de platformă; utilizarea se numără pe toate evaluările firmei", async () => {

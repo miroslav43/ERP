@@ -59,6 +59,8 @@ function intrare(peste: Partial<IntrareZiClient> = {}): IntrareZiClient {
     oreNoapte: 0,
     tipZi: "lucratoare",
     tipPrezenta: "birou",
+    punctLucruId: null,
+    punctLucruDeclaratId: null,
     esteDinConcediu: false,
     aprobat: false,
     respins: false,
@@ -96,6 +98,8 @@ function randeaza(zileGrila: readonly ZiGrila[] = zile()) {
       poateAproba={false}
       poateSterge
       azi="2026-08-26"
+      sedii={[]}
+      alegeSediul={false}
     />,
   );
 }

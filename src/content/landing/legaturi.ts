@@ -36,6 +36,7 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     { eticheta: "KPI-uri: indicatori și ținte pe angajat", href: "/module/kpi" },
   ],
   "/unelte/calculator-salariu": [
+    { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },
     { eticheta: "Program de salarizare: calculul salariilor", href: "/module/salarizare" },
     { eticheta: "Diurna: cele două plafoane neimpozabile", href: "/ghid/diurna" },
   ],

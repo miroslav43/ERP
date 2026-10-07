@@ -32,12 +32,48 @@ export interface ZiConcediuDeSincronizat {
 export interface RezultatSincronizare {
   readonly create: number;
   readonly actualizate: number;
+  /** Zile pontate ca lucrate (manual, ceas, plan, import) trecute pe concediu. */
+  readonly inlocuite: number;
+  /** Zile pontate pe care UPDATE-ul nu le-a putut atinge (zero rânduri). */
   readonly pastrate: number;
 }
 
 /**
- * Upsert idempotent: nu atinge niciodată o zi introdusă manual
- * (`sursa <> 'sincronizare_concedii'`). Cere ca luna zilei să aibă deja o
+ * Ce rămâne dintr-o zi pontată când un concediu aprobat o acoperă.
+ *
+ * Până acum ziua pontată se PĂSTRA („dacă omul chiar a muncit, ștergerea ar
+ * distruge singura dovadă”). Dar cazul real e invers: concediul de urgență,
+ * cerut pentru o zi deja completată din planul săptămânii sau pontată
+ * dimineața. Concediul aprobat e ultima decizie despre zi; o zi rămasă
+ * „lucrătoare, 8 ore” se plătea și ca muncă, și ca zi scăzută din sold.
+ *
+ * Dovada nu se pierde: `audit_attendance_entries` scrie rândul vechi întreg în
+ * `audit_logs`. Se rescrie ACELAȘI rând (nu ștergere + inserare): o singură
+ * comandă, deci nu există momentul în care ziua lipsește. Intervalul, sediul și
+ * decizia de pontaj se golesc — erau ale zilei lucrate, nu ale concediului
+ * (`attendance_entries_punct_declarat_ck`, `_aprobare_zi_incheiata_ck`).
+ * La anularea concediului, 0079 §3 șterge logic rândul: ziua rămâne goală, de
+ * repontat, nu revine singură ca lucrată.
+ */
+const ZI_LUCRATA_GOLITA = {
+  sursa: "sincronizare_concedii",
+  ora_inceput: null,
+  ora_sfarsit: null,
+  tip_prezenta: null,
+  punct_lucru_id: null,
+  punct_lucru_declarat_id: null,
+  approved_at: null,
+  approved_by: null,
+  batch_id: null,
+  respins_la: null,
+  respins_de: null,
+  motiv_respingere: null,
+} as const;
+
+/**
+ * Upsert idempotent: ziua scrisă de o sincronizare anterioară se actualizează,
+ * ziua pontată ca lucrată se ÎNLOCUIEȘTE cu concediul (vezi
+ * `ZI_LUCRATA_GOLITA`). Cere ca luna zilei să aibă deja o
  * perioadă de pontaj deschisă (`internal.pontaj_intrare_pregateste` refuză
  * altfel INSERT-ul) — apelantul decide dacă un eșec aici e blocant sau doar
  * semnalat (vezi `decideCerere`, unde e best-effort).
@@ -47,7 +83,7 @@ export async function sincronizeazaZileleDeConcediu(
   organizationId: string,
   zile: readonly ZiConcediuDeSincronizat[],
 ): Promise<RezultatSincronizare> {
-  if (zile.length === 0) return { create: 0, actualizate: 0, pastrate: 0 };
+  if (zile.length === 0) return { create: 0, actualizate: 0, inlocuite: 0, pastrate: 0 };
 
   const idAngajati = [...new Set(zile.map((z) => z.employee_id))];
   const datele = zile.map((z) => z.data);
@@ -70,6 +106,7 @@ export async function sincronizeazaZileleDeConcediu(
 
   let create = 0;
   let actualizate = 0;
+  let inlocuite = 0;
   let pastrate = 0;
 
   for (const zi of zile) {
@@ -94,11 +131,7 @@ export async function sincronizeazaZileleDeConcediu(
       continue;
     }
 
-    if (existenta.sursa !== "sincronizare_concedii") {
-      // Linie manuală: conflictul se consumă tăcut, fără suprascriere.
-      pastrate += 1;
-      continue;
-    }
+    const eraLucrata = existenta.sursa !== "sincronizare_concedii";
 
     const { data: actualizata, error } = await db
       .from("attendance_entries")
@@ -108,6 +141,7 @@ export async function sincronizeazaZileleDeConcediu(
         ore_suplimentare: 0,
         ore_noapte: 0,
         leave_request_id: zi.leave_request_id,
+        ...(eraLucrata ? ZI_LUCRATA_GOLITA : {}),
       })
       .eq("id", existenta.id)
       .eq("organization_id", organizationId)
@@ -116,10 +150,15 @@ export async function sincronizeazaZileleDeConcediu(
     if (error !== null) traduEroare(error);
     // Zero rânduri, fără eroare: ziua a fost aprobată între timp, iar
     // `attendance_entries_update` (0013:795) o refuză celui fără
-    // `attendance:approve`. Nu s-a actualizat nimic, deci nu se numără.
-    if (actualizata === null) continue;
-    actualizate += 1;
+    // `attendance:approve`. Nu s-a scris nimic: ziua lucrată rămâne lucrată și
+    // se numără drept păstrată, ca apelantul s-o poată semnala.
+    if (actualizata === null) {
+      if (eraLucrata) pastrate += 1;
+      continue;
+    }
+    if (eraLucrata) inlocuite += 1;
+    else actualizate += 1;
   }
 
-  return { create, actualizate, pastrate };
+  return { create, actualizate, inlocuite, pastrate };
 }

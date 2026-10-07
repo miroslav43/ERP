@@ -21,7 +21,8 @@ Migrările se aplică prin **`psql`**, byte-exact (NOTES.md §1) — NICI prin
 - `employee` are `employees:read = own` — își vede propria fișă, dar numai pe a
   lui (mutat de `0023_portal_angajat.sql:51`, de la `none`; CNP/IBAN rămân
   închise, `hr_read_sensitive` cere `= all` exact).
-- `manager` are `attendance:approve=team` dar **nu** `attendance:create`; are
+- `manager` are `attendance:approve=team` dar `attendance:create` doar `own`
+  (0161 — propria zi, nu a echipei); are
   `per_diem:approve` dar **nu** `per_diem:update`; **niciun** `vehicles:*`.
 - `hr` administrează SSM dar **nu** are `compliance:read` — `expirables` îi
   întoarce zero rânduri, fără eroare. N-are niciun `users:*`.

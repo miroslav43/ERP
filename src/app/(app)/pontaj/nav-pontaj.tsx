@@ -29,9 +29,14 @@ interface IntrareFila {
 interface Proprietati {
   readonly poateAproba: boolean;
   readonly poateVedeaArhiva: boolean;
+  /**
+   * Varianta de pontaj (0165). Pe săptămână, fila nu mai e un plan: e locul în
+   * care omul se pontează. OBLIGATORIE — vine din `fileDePontaj`, ca restul.
+   */
+  readonly varianta: "zilnic" | "saptamanal";
 }
 
-export function NavPontaj({ poateAproba, poateVedeaArhiva }: Proprietati) {
+export function NavPontaj({ poateAproba, poateVedeaArhiva, varianta }: Proprietati) {
   const cale = usePathname();
 
   const file: readonly IntrareFila[] = [
@@ -40,7 +45,10 @@ export function NavPontaj({ poateAproba, poateVedeaArhiva }: Proprietati) {
     // ele n-are ce căuta pe filă. Contrastul util e cu fila următoare: aici e ce
     // s-a lucrat, dincolo e ce se planifică.
     { href: "/pontaj", eticheta: "Prezența" },
-    { href: "/pontaj/saptamana", eticheta: "Planul săptămânii" },
+    {
+      href: "/pontaj/saptamana",
+      eticheta: varianta === "saptamanal" ? "Pontajul săptămânii" : "Planul săptămânii",
+    },
     { href: "/pontaj/perioade", eticheta: "Perioade" },
     ...(poateAproba ? [{ href: "/pontaj/aprobare", eticheta: "Aprobare" }] : []),
     ...(poateVedeaArhiva ? [{ href: "/pontaj/arhiva", eticheta: "Arhiva" }] : []),

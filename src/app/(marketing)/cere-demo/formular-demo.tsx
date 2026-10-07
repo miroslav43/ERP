@@ -41,7 +41,7 @@ const VALORI_INITIALE: CereDemoInput = {
  * cu culorile sistemului de operare.
  */
 const CLASA_CAMP =
-  "w-full rounded border border-mk-rigla bg-mk-hartie px-3 text-[0.9375rem] text-mk-text transition-colors hover:border-mk-text placeholder:text-mk-text-slab aria-invalid:border-mk-refuz";
+  "w-full rounded border border-mk-rigla bg-mk-hartie px-3 text-base text-mk-text transition-colors hover:border-mk-text placeholder:text-mk-text-slab aria-invalid:border-mk-refuz";
 const CLASA_INPUT = `h-11 ${CLASA_CAMP}`;
 const CLASA_ETICHETA = "mb-1.5 block text-[0.9375rem] font-medium";
 const CLASA_EROARE = "text-mk-refuz mt-1.5 text-[0.8125rem]";

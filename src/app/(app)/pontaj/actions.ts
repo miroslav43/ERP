@@ -19,9 +19,11 @@ import { stareaCeasului } from "@/domain/attendance/ceas";
 import {
   configPontareRapida,
   cumSeTrateazaCodul,
+  sePonteazaPeZi,
   type ConfigPontareRapida,
 } from "@/domain/attendance/pontare-rapida";
-import { setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
+import { sediiPentruPontaj, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
+import { sediulDeTrimis } from "@/domain/attendance/sediu";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
   aprobaPontajBlocSchema,
@@ -214,6 +216,7 @@ export const salveazaZiPontaj = createAction({
       "ore_noapte",
       "tip_zi",
       "tip_prezenta",
+      "punct_lucru_declarat_id",
     ],
   },
   revalidate: [...CAI_REVALIDARE],
@@ -231,8 +234,27 @@ export const salveazaZiPontaj = createAction({
     if (ctx.scope !== "all" && input.employee_id !== null) {
       throw businessRule("Nu aveți dreptul să înregistrați pontaj pentru alt angajat.");
     }
+    await refuzaZiuaInVariantaSaptamanala(ctx);
 
     const employeeId = input.employee_id ?? (await fisaProprie(ctx));
+
+    /*
+      Sediul declarat (0163). Doar pentru munca la sediu — altfel se stinge aici,
+      nu la CHECK-ul din bază, care ar răspunde cu o eroare pe care omul n-a
+      cauzat-o: a ales un sediu, apoi a comutat pe homeoffice.
+
+      Lista vine din ACEEAȘI funcție din care își ia formularul opțiunile, deci
+      „al firmei și activ" se verifică o singură dată, la fel pentru amândouă.
+      FK-ul compus din bază prinde oricum un sediu străin; aici se prinde și cel
+      dezactivat între deschiderea formularului și salvare.
+    */
+    const sediuDeclarat = sediulDeTrimis(input.tip_prezenta, input.punct_lucru_declarat_id ?? "");
+    if (sediuDeclarat !== null) {
+      const sedii = await sediiPentruPontaj(ctx.tenant.organizationId);
+      if (!sedii.some((s) => s.id === sediuDeclarat)) {
+        throw businessRule("Sediul ales nu mai este activ. Reîncărcați pagina și alegeți altul.");
+      }
+    }
 
     // Tipul zilei: alegerea explicită a utilizatorului, sau derivarea automată.
     const tipZi = input.tip_zi ?? (await tipZiDerivat(ctx, input.data));
@@ -408,6 +430,7 @@ export const salveazaZiPontaj = createAction({
             facă la fel.
           */
           tip_prezenta: input.tip_prezenta,
+          punct_lucru_declarat_id: sediuDeclarat,
           observatii: input.observatii,
           /*
             CORECȚIA ȘTERGE RESPINGEREA.
@@ -475,6 +498,7 @@ export const salveazaZiPontaj = createAction({
         ore_noapte: oreNoapte,
         tip_zi: tipZi,
         tip_prezenta: input.tip_prezenta,
+        punct_lucru_declarat_id: sediuDeclarat,
         observatii: input.observatii,
       })
       .select("id")
@@ -526,6 +550,23 @@ interface PregatirePontare {
  * Ordinea nu e arbitrară — se verifică întâi ce e ieftin și refuză cel mai des
  * (modul oprit), abia apoi se plătesc drumurile la bază.
  */
+/** Refuzul unei scrieri pe zi în varianta săptămânală — același text ca triggerul din 0165. */
+const MESAJ_DOAR_SAPTAMANA = "Firma se pontează pe săptămână: completați fișa săptămânii, nu ziua.";
+
+/**
+ * Garda variantei săptămânale pentru scrierile de mână pe o zi (0165).
+ *
+ * Doar pentru cine NU are `attendance:create = all`: responsabilul de pontaj
+ * corectează în continuare foaia colectivă — varianta privește cum se pontează
+ * omul, nu corecturile. Aceeași excepție o face și triggerul din bază, care
+ * rămâne plasa pentru orice cale care ar ocoli acțiunile.
+ */
+async function refuzaZiuaInVariantaSaptamanala(ctx: ActionContext): Promise<void> {
+  if (ctx.scope === "all") return;
+  const pontare = configPontareRapida(await setariPontareRapida(ctx.tenant.organizationId));
+  if (!sePonteazaPeZi(pontare)) throw businessRule(MESAJ_DOAR_SAPTAMANA);
+}
+
 async function pregatirePontareRapida(
   ctx: ActionContext,
   cod: string | null,
@@ -538,6 +579,9 @@ async function pregatirePontareRapida(
   ]);
 
   const pontare = configPontareRapida(randPontare);
+  // Varianta săptămânală (0165) bate orice mod: ceasul și confirmarea pontează
+  // o ZI, iar firma a ales să se ponteze doar pe fișa săptămânii.
+  if (!sePonteazaPeZi(pontare)) throw businessRule(MESAJ_DOAR_SAPTAMANA);
   if (!moduriPermise.includes(pontare.mod)) {
     throw businessRule(
       "Pontarea rapidă nu este activată în acest fel pentru firma dumneavoastră. Completați ziua din „Pontajul meu”.",
@@ -942,6 +986,7 @@ export const stergeZiPontaj = createAction({
   },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    await refuzaZiuaInVariantaSaptamanala(ctx);
     const db = await createServerSupabase();
 
     const { data: existenta, error: eroareExistenta } = await db
@@ -1301,7 +1346,9 @@ export const sincronizeazaConcediile = createAction({
   handler: async (
     ctx,
     input,
-  ): Promise<Readonly<{ create: number; actualizate: number; pastrate: number }>> => {
+  ): Promise<
+    Readonly<{ create: number; actualizate: number; inlocuite: number; pastrate: number }>
+  > => {
     // `app.sincronizeaza_pontaj_concedii` există în bază, dar trăiește în
     // schema `app`, neexpusă prin PostgREST (supabase/config.toml:
     // schemas = ["public","graphql_public"]) — `.rpc()` n-ar funcționa deși
@@ -1353,7 +1400,7 @@ export const sincronizeazaConcediile = createAction({
         tip_zi: z.cerere?.tip?.tip_zi_pontaj ?? ("concediu" as TipZiPontaj),
       }));
     if (zileAprobate.length === 0) {
-      return { create: 0, actualizate: 0, pastrate: 0 };
+      return { create: 0, actualizate: 0, inlocuite: 0, pastrate: 0 };
     }
 
     return sincronizeazaZileleDeConcediu(db, ctx.tenant.organizationId, zileAprobate);

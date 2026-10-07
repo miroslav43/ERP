@@ -5,6 +5,11 @@ import { QrCode } from "lucide-react";
 
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
+import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
+import { setariPontareRapida } from "@/lib/queries/attendance";
+import { requireTenant } from "@/lib/tenant/resolve-tenant";
+
+import { DoarPeSaptamana } from "../doar-pe-saptamana";
 
 export const metadata: Metadata = { title: "Pontare cu cod" };
 
@@ -17,7 +22,23 @@ export const metadata: Metadata = { title: "Pontare cu cod" };
  * se re-cere greu — și ar dubla un lucru pe care sistemul de operare îl face
  * mai bine.
  */
-export default function PaginaPonteazaCuCod() {
+export default async function PaginaPonteazaCuCod() {
+  /*
+    Varianta săptămânală (0165): scanarea nu mai pontează, iar „ziua se
+    completează cu ore" ar trimite într-un calendar care nu mai deschide nicio
+    zi. Pagina rămâne instrucțiune pentru varianta zilnică; aici spune unde se
+    face pontajul acum.
+  */
+  const { tenant } = await requireTenant();
+  if (!sePonteazaPeZi(configPontareRapida(await setariPontareRapida(tenant.organizationId)))) {
+    return (
+      <div className={`${LATIMI.formular} space-y-5 p-4`}>
+        <AntetPagina titlu="Pontarea cu cod" />
+        <DoarPeSaptamana saptamana={null} />
+      </div>
+    );
+  }
+
   return (
     <div className={`${LATIMI.formular} space-y-5 p-4`}>
       <AntetPagina

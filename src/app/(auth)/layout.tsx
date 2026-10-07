@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Sigla } from "@/components/sigla";
+
 /**
  * Niciun ecran de autentificare nu are ce căuta într-un index de căutare.
  *
@@ -72,8 +74,18 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           cere din nou și se ajunge la patru valori. */}
       <main id="continut" className="w-full max-w-lg">
         <div className="mb-8 text-center">
-          <Link href="/" className="text-primary text-titlu rounded font-semibold tracking-tight">
-            Administrativo
+          {/*
+            Aceeași siglă ca în antetul sitului: aici ajunge prospectul de pe
+            „Creează cont”, iar un nume scris altfel ar arăta ca alt produs.
+            Culoarea e `text-primary`, din sistemul aplicației, nu slate-ul
+            materialelor tipărite — zona asta nu folosește tokenurile `mk-`.
+          */}
+          <Link
+            href="/"
+            aria-label="Administrativo — pagina principală"
+            className="text-primary inline-block rounded py-1"
+          >
+            <Sigla clasa="h-[21.5px] w-auto" />
           </Link>
           <p className="text-muted-foreground text-corp mt-1">
             Administrarea personalului, într-un singur loc.

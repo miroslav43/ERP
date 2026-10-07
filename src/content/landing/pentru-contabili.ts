@@ -193,7 +193,7 @@ export const PILOT_CONTABILI: SectiuneContabili = {
   pasi: [
     {
       titlu: "Ce primești",
-      text: "Firmele pe care le aduci folosesc nucleul — pontaj, concedii, REGES-Online, SSM și portalul angajatului — fără cost până la sfârșitul pilotului. Importul angajaților, setările firmei și conturile analitice pentru nota contabilă le facem noi, împreună cu tine, o singură dată. Salarizarea intră în pilot doar dacă treci tu, înainte de primul calcul real, prin valorile legale implicite: sunt un punct de pornire, nu o sursă de adevăr.",
+      text: "Firmele pe care le aduci folosesc pontajul, concediile, REGES-Online, SSM-ul și portalul angajatului fără cost până la sfârșitul pilotului. Importul angajaților, setările firmei și conturile analitice pentru nota contabilă le facem noi, împreună cu tine, o singură dată. Salarizarea intră în pilot doar dacă treci tu, înainte de primul calcul real, prin valorile legale implicite: sunt un punct de pornire, nu o sursă de adevăr.",
     },
     {
       titlu: "Ce îți cerem",

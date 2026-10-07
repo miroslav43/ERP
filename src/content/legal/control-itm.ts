@@ -88,7 +88,7 @@ export const CONTROL_ITM: PaginaLege = {
       situatie: "Documentele de sănătate și securitate",
       cerinta:
         "Fișele de aptitudini, fișele de instruire, programarea concediilor de odihnă, organigrama și informarea privind munca de noapte.",
-      temei: "Legea 319/2006; art. 125 alin. (3) Codul muncii",
+      temei: "Legea 319/2006; art. 125 alin. (6) Codul muncii",
     },
   ],
 
@@ -210,7 +210,7 @@ export const CONTROL_ITM: PaginaLege = {
     },
   ],
 
-  actualizat: "septembrie 2026",
-  actualizatIso: "2026-09-04",
+  actualizat: "octombrie 2026",
+  actualizatIso: "2026-10-06",
   publicatIso: "2026-09-04",
 };

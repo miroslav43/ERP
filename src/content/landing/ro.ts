@@ -22,19 +22,27 @@ export const RO: ContinutLanding = {
      * înainte de clic.
      */
     titlu: "Program de pontaj și HR pentru firme cu 5–50 de angajați",
+    /*
+     * 6 oct 2026: descrierea spune acum oferta — prețul și prima lună gratuită.
+     * E singurul text pe care îl vede cineva în Google înainte de clic, iar
+     * concurența afișează prețuri pe angajat, plus TVA, pe altă pagină.
+     */
     descriere:
-      "Evidența zilnică a orelor conform art. 119, concedii, dosare de personal și REGES-ONLINE, într-un singur cont. Pentru firme cu 5–50 de angajați.",
+      "Pontaj de pe telefon, concedii, dosare de personal și REGES-ONLINE, într-un singur cont. 149 lei pe lună până la 20 de angajați, prima lună gratuită.",
   },
 
   antet: {
     navigare: [
       { eticheta: "Module", href: "/module" },
-      { eticheta: "Cum se pontează", href: "/pontaj-pe-telefon" },
+      { eticheta: "Pontaj pe telefon", href: "/pontaj-pe-telefon" },
       { eticheta: "Prețuri", href: "/preturi" },
       // Contabilul extern ține zece firme și decide pentru toate zece. Până pe
       // 23 sept 2026 pagina lui era legată doar din subsol.
       { eticheta: "Pentru contabili", href: "/pentru-contabili" },
-      { eticheta: "Întrebări", href: "/intrebari" },
+      // 6 oct 2026: în locul „Întrebărilor”, care au acum bandă pe pagina de
+      // start și legătură în subsol. Uneltele au de o sută de ori mai multe
+      // căutări decât numele programului (Keyword Planner, oct 2026).
+      { eticheta: "Unelte gratuite", href: "/unelte" },
     ],
     autentificare: "Autentificare",
     demo: "Creează cont",
@@ -44,23 +52,31 @@ export const RO: ContinutLanding = {
 
   hero: {
     /*
-     * Titlul de dinainte — „Firma ta are deja procedurile. Administrativo le
-     * ține minte." — era o frază de poziționare, nu una de căutare: nu conținea
-     * niciun cuvânt pe care cineva l-ar tasta. Cel de acum numește cele trei
-     * lucruri care se rezolvă, în ordinea în care sunt căutate.
+     * 6 oct 2026. Titlul de dinainte — „Pontaj, concedii și dosare de personal,
+     * într-un singur cont" — era o listă de funcții: spunea CE e produsul, nu
+     * ce se schimbă pentru cine îl cumpără. Cel de acum pune cele două capete
+     * ale lunii, cu cei doi oameni care le țin: angajatul care apasă un buton și
+     * patronul care nu mai adună ore în Excel. Ambele se arată în cinci minute
+     * de demonstrație — regula de deasupra fișierului rămâne.
      *
-     * Supratitlul califică vizitatorul înainte de a citi titlul: firma de opt
-     * oameni se recunoaște, cea de trei sute pleacă — și bine face.
+     * Cuvintele căutate („program de pontaj", „HR") au trecut în supratitlu și
+     * stau oricum în `<title>` și în descriere.
      *
-     * A doua acțiune duce la preț, nu la lista de limite. „Vezi ce nu facem" e
-     * exact conversația de la a treia vizită, iar în erou punea o obiecție
-     * înaintea unui motiv.
+     * A doua acțiune duce la un om, nu la preț: prețul e în banda de imediat
+     * dedesubt, iar o firmă fără clienți de arătat câștigă mai mult dintr-o
+     * discuție decât dintr-un clic în plus pe aceeași pagină.
      */
-    supratitlu: "Pentru firme cu 5–50 de angajați",
-    titlu: "Pontaj, concedii și dosare de personal, într-un singur cont",
-    lead: "Evidența zilnică a orelor, așa cum cere art. 119 din Codul muncii. Concediile, dosarul fiecărui om și transmiterea în REGES-ONLINE, în același loc. Fără Excel, fără WhatsApp.",
+    supratitlu: "Program de pontaj și HR · pentru firme cu 5–50 de angajați",
+    // `\u00a0` ține „Tu” lângă verbul lui: fără el, „Tu” rămânea singur la capăt de rând.
+    titlu: "Angajații se pontează de pe telefon. Tu\u00a0închizi luna fără Excel.",
+    lead: "Ora de intrare și de ieșire ajunge singură în foaia colectivă, concediul aprobat se scade din sold, iar contractele pleacă în REGES-ONLINE direct din aplicație. Evidența cerută de art. 119 din Codul muncii, ținută la zi, într-un singur cont.",
     ctaPrimar: { eticheta: "Creează cont · prima lună gratuită", href: "/inregistrare" },
-    ctaSecundar: { eticheta: "Vezi prețurile", href: "/#preturi" },
+    ctaSecundar: { eticheta: "Programează o demonstrație", href: "/cere-demo" },
+    asigurari: ["Fără card la înscriere", "Fără cost de pornire", "Nimic de instalat"],
+    suna: "Răspunde un om la",
+    video: { opreste: "Oprește videoclipul", porneste: "Pornește videoclipul" },
+    punteFoaie:
+      "Așa arată luna la final: ce au pontat oamenii pe telefon, adunat în foaia colectivă de prezență. Concediile și sărbătorile legale sunt deja trecute, iar totalurile se închid și pe rânduri, și pe coloane.",
   },
 
   foaie: {
@@ -108,7 +124,8 @@ export const RO: ContinutLanding = {
       {
         valoare: "149",
         eticheta: "lei pe lună",
-        nota: "Nucleul, până la 20 de angajați. Preț final — nu se mai adaugă TVA.",
+        // Nu „pe angajat": concurența românească vinde pe om, în euro, plus TVA.
+        nota: "Nucleul, pentru toată firma până la 20 de angajați — nu pe om. Preț final, fără TVA.",
       },
       {
         valoare: "0",
@@ -249,7 +266,11 @@ export const RO: ContinutLanding = {
             puncte: [
               "Unsprezece tipuri, fiecare cu temeiul legal notat",
               "Drept anual pe vechime, condiții de muncă, handicap sau vârstă",
-              "Calendar de echipă, cu prag de absenți simultani",
+              // Până pe 6 oct 2026: „cu prag de absenți simultani". Pragul există
+              // doar ca funcție pură, `conflictDeEchipa` din
+              // `src/domain/leave/verificari.ts`: nicio acțiune n-o cheamă și nicio
+              // setare a firmei nu-l configurează. Când se leagă, revine aici.
+              "Calendar de echipă: cine lipsește și când",
             ],
           },
           {
@@ -331,7 +352,9 @@ export const RO: ContinutLanding = {
             cheie: "inventory",
             titlu: "Inventar",
             text: "Obiecte, categorii și alocări. Angajatul își confirmă singur ce a primit în primire.",
-            puncte: ["Predare-primire cu dată", "Import din Excel pe loturi"],
+            // „Import din Excel pe loturi" a stat aici până pe 6 oct 2026: schema
+            // are tabela de loturi, dar nicio acțiune și niciun ecran n-o folosesc.
+            puncte: ["Predare-primire cu dată", "Confirmarea de primire o dă chiar angajatul"],
           },
           {
             cheie: "ticketing",
@@ -388,7 +411,9 @@ export const RO: ContinutLanding = {
             cheie: "announcements",
             titlu: "Anunțuri",
             text: "Comunicări interne cu confirmare de citire. Vezi cine a citit, raportat la numărul de angajați activi.",
-            puncte: ["Notificare în aplicație și pe e-mail"],
+            // Fără „și pe e-mail": `src/lib/email/templates/` n-are șablon de anunț,
+            // iar fișa modulului spune chiar „Nu trimite pe e-mail" (6 oct 2026).
+            puncte: ["Notificare în aplicație și în portalul angajatului"],
           },
         ],
       },
@@ -526,10 +551,10 @@ export const RO: ContinutLanding = {
       {
         titlu: "De la ziua lucrată la statul de plată",
         pasi: [
-          { actor: "org_admin", text: "Deschide perioada lunii" },
+          { actor: "administrator", text: "Deschide perioada lunii" },
           { actor: "hr", text: "Completează sau importă foaia colectivă" },
           { actor: "manager", text: "Aprobă pontajul echipei lui" },
-          { actor: "org_admin", text: "Blochează luna" },
+          { actor: "administrator", text: "Blochează luna" },
           { actor: "hr", text: "Calculează statul de plată din orele blocate" },
           { actor: "angajat", text: "Își vede fluturașul în portal" },
         ],
@@ -538,17 +563,17 @@ export const RO: ContinutLanding = {
         titlu: "De la cererea de concediu la sold",
         pasi: [
           { actor: "angajat", text: "Cere concediu, cu zilele consumate calculate în față" },
-          { actor: "sistem", text: "Verifică soldul, suprapunerile și pragul de echipă" },
+          { actor: "automat", text: "Verifică soldul și suprapunerea cu alte cereri" },
           { actor: "manager", text: "Aprobă sau respinge, cu motiv" },
-          { actor: "sistem", text: "Scade din sold și scrie zilele pe foaia de pontaj" },
+          { actor: "automat", text: "Scade din sold și scrie zilele pe foaia de pontaj" },
         ],
       },
       {
         titlu: "De la angajarea nouă la dosar complet",
         pasi: [
           { actor: "hr", text: "Parcurge asistentul de înrolare, pe șase pași" },
-          { actor: "sistem", text: "Generează contractul și fișa postului din șablon" },
-          { actor: "sistem", text: "Deschide evenimentul REVISAL, cu termen" },
+          { actor: "automat", text: "Generează contractul și fișa postului din șablon" },
+          { actor: "automat", text: "Deschide evenimentul REVISAL, cu termen" },
           { actor: "hr", text: "Pornește lista de verificare a integrării" },
           { actor: "angajat", text: "Confirmă bunurile primite în primire" },
         ],
@@ -723,7 +748,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Servicii, birouri și comerț",
-        text: "Program flexibil, concedii cu prag de absenți simultani, evaluări periodice, anunțuri interne cu confirmare de citire și un portal în care omul își găsește singur fluturașul.",
+        text: "Program flexibil, concedii aprobate pe linie ierarhică și văzute în calendarul echipei, evaluări periodice, anunțuri interne cu confirmare de citire și un portal în care omul își găsește singur fluturașul.",
         module: ["Concedii", "Pontaj", "Evaluări", "Anunțuri", "Portal angajat"],
       },
     ],
@@ -772,57 +797,224 @@ export const RO: ContinutLanding = {
     ],
   },
 
-  pornire: {
-    supratitlu: "Primii pași",
-    titlu: "Primul pontaj, în aceeași zi",
-    lead: "Nu se instalează nimic pe calculatoarele voastre și nu se migrează nimic. Îți faci contul, urci lista de angajați dintr-un fișier și pontezi luna în curs.",
-    blocuri: [
+  /*
+   * ── BENZILE NOI ALE PAGINII DE START (6 oct 2026) ────────────────────────
+   * Au înlocuit „Primii pași”, „Cum începem” și „Bariera”. Motivele, cu cifrele
+   * și concurența: `docs/comercial/refacere-site-2026-10-06.md`. Fiecare
+   * afirmație de mai jos are acoperire în cod sau în altă pagină a sitului; ce
+   * NU se poate afirma e listat în `vestventures/_surse/fapte.md` §10.
+   */
+  produs: {
+    supratitlu: "Ce face",
+    titlu: "Cinci lucruri pe care nu le mai faci de mână",
+    lead: "Capturile sunt din aplicația reală, pe o firmă inventată. Ce vezi aici vezi și la demonstrație, mișcându-se.",
+    randuri: [
       {
-        titlu: "Pontajul, de pe telefonul omului",
-        text: "Se deschide o adresă în browser și se adaugă pe ecranul de start. Fără magazin de aplicații, fără actualizări de instalat, fără un telefon care nu mai are loc.",
-        legatura: { eticheta: "Cum se pontează", href: "/pontaj-pe-telefon" },
+        captura: "telefon",
+        descriereCaptura:
+          "Portalul angajatului pe telefon: salariul lunii, butonul „Am intrat” și lista de lucruri de făcut.",
+        eticheta: "Pontaj · art. 119 din Codul muncii",
+        titlu: "Pontajul se face de pe telefon, fără aplicație de instalat",
+        text: "Omul deschide o adresă în browser și apasă „Am intrat” și „Am ieșit”. Ora scrisă e a serverului, nu a telefonului. La fiecare punct de lucru poți lipi un afiș cu cod QR, tipărit din aplicație, iar firma poate cere scanarea lui înainte de pontare.",
+        puncte: [
+          "Foaia colectivă a lunii se completează din pontări",
+          "Ore suplimentare și de noapte, numărate separat",
+          "Managerul aprobă, apoi luna se blochează",
+        ],
+        legatura: { eticheta: "Cum se pontează pe telefon", href: "/pontaj-pe-telefon" },
       },
       {
-        titlu: "Concediile și scadențele",
-        text: "Cererea se aprobă o dată și devine zi de concediu pe foaie. Instruirile de securitate, ITP-urile și vizitele la medicina muncii ajung în aceeași listă de termene, cu alertă înainte.",
-        legatura: { eticheta: "Vezi modulele", href: "/module" },
+        captura: "leave",
+        descriereCaptura: "Calendarul de concedii al unei echipe, pe o lună, în Administrativo.",
+        eticheta: "Concedii",
+        titlu: "Cererea de concediu se aprobă dintr-un clic, iar soldul se calculează singur",
+        text: "Angajatul cere concediul din telefon și vede din prima câte zile lucrătoare consumă. Managerul aprobă sau respinge cu motiv, sărbătorile legale se scad singure, iar zilele aprobate apar pe foaia de pontaj fără să le treacă nimeni de mână.",
+        puncte: [
+          "Unsprezece tipuri de concediu, fiecare cu temeiul legal notat",
+          "Dreptul anual, calculat din vechime și din condițiile de muncă",
+          "Calendarul echipei: cine lipsește și când",
+        ],
+        legatura: { eticheta: "Modulul de concedii", href: "/module/concedii" },
+        demo: { eticheta: "Încearcă ecranul, fără cont", href: "/vitrina/leave" },
       },
       {
-        titlu: "Cine ce vede",
-        text: "Cinci roluri, fiecare cu domeniul lui. Un manager vede echipa, un angajat vede doar propria fișă, iar regula nu e în meniu — e în baza de date.",
-        legatura: { eticheta: "Cum ținem datele separate", href: "/incredere" },
+        captura: null,
+        descriereCaptura: "",
+        eticheta: "REGES-ONLINE · fost Revisal",
+        titlu: "Contractele pleacă în REGES-ONLINE direct din aplicație",
+        text: "Din 2026, registrul salariaților se ține doar în REGES-ONLINE. Administrativo pregătește mesajele din fișa angajatului și le transmite prin API-ul REGES, cu termenul legal al fiecărui eveniment calculat în zile lucrătoare. Răspunsul Inspecției Muncii se întoarce în fișa omului.",
+        puncte: [
+          "Fără fișier de import purtat cu mâna",
+          "Datele cu CNP pleacă doar când le trimite un om cu drept de transmitere",
+          "Refuzul ITM, explicat pe înțeles",
+        ],
+        legatura: { eticheta: "Termenele REGES-ONLINE, pe scurt", href: "/reges-online" },
+        /*
+         * Termenele sunt cele din `src/content/legal/reges.ts`, verificate pe
+         * textul HG 295/2025 — aici doar scurtate. Când se schimbă acolo, se
+         * schimbă și aici.
+         */
+        panou: {
+          titlu: "Câteva termene din REGES-ONLINE",
+          randuri: [
+            { ce: "Contract nou", termen: "cel târziu în ziua dinaintea începerii activității" },
+            { ce: "Încetarea contractului", termen: "cel târziu la data încetării" },
+            { ce: "Transfer", termen: "5 zile lucrătoare" },
+            { ce: "Modificarea salariului", termen: "20 de zile lucrătoare" },
+          ],
+          sursa:
+            "HG 295/2025, art. 5. Toate termenele, cu amenzile, sunt pe pagina despre REGES-ONLINE.",
+        },
+      },
+      {
+        captura: "payroll",
+        descriereCaptura:
+          "O perioadă de salarizare aprobată, cu documentele ei, în Administrativo.",
+        eticheta: "Salarii",
+        titlu: "Luna închisă intră direct în calculul salariilor",
+        text: "Orele blocate în pontaj ajung în calculul lunii fără să le retasteze nimeni. Fiecare om își vede fluturașul în portal, iar contabilul primește calculul, nu un tabel de ore. Declarațiile și răspunderea rămân la el.",
+        puncte: [
+          "Desfășurătorul calculului, pas cu pas, pentru fiecare om",
+          "Sporuri și rețineri definite o dată, folosite în fiecare lună",
+          "Cotele fiscale le confirmă contabilul înainte de primul calcul real",
+        ],
+        legatura: { eticheta: "Programul de salarizare", href: "/module/salarizare" },
+      },
+      {
+        captura: "ssm",
+        descriereCaptura:
+          "Matricea instruirilor SSM pe angajați, cu starea fiecărei instruiri, în Administrativo.",
+        eticheta: "Termene · SSM, medicina muncii, ITP",
+        titlu: "Ce expiră se vede înainte, nu la control",
+        text: "Instruirile SSM, fișele de aptitudine de la medicina muncii, echipamentul de protecție, ITP-ul și RCA-ul mașinilor, verificarea stingătoarelor: toate ajung în aceeași listă de termene, cu alertă înainte să expire.",
+        puncte: [
+          "„Niciodată făcută” e o stare separată de „expirată”",
+          "Fișa individuală de instruire, după anexa 11 la HG 1425/2006",
+          "Parc auto: ITP, RCA, rovinietă și foi de parcurs",
+        ],
+        legatura: { eticheta: "SSM și PSI", href: "/module/ssm" },
       },
     ],
-    nota: [
-      "În același abonament mai sunt module pentru ",
-      { eticheta: "REGES-ONLINE", href: "/module/reges" },
-      ", ",
-      { eticheta: "salarizare", href: "/module/salarizare" },
-      ", ",
-      { eticheta: "SSM", href: "/module/ssm" },
-      ", ",
-      { eticheta: "parc auto", href: "/module/flota" },
-      ", ",
-      { eticheta: "inventar", href: "/module/inventar" },
-      ", ",
-      { eticheta: "mentenanță", href: "/module/mentenanta" },
-      ", ",
-      { eticheta: "diurne", href: "/module/diurna" },
-      ", ",
-      { eticheta: "cursuri", href: "/module/cursuri" },
-      ", ",
-      { eticheta: "evaluări", href: "/module/evaluari" },
-      ", ",
-      { eticheta: "KPI-uri", href: "/module/kpi" },
-      " și ",
-      { eticheta: "integrarea angajaților noi", href: "/module/onboarding" },
-      ", plus un ",
-      { eticheta: "asistent AI în română", href: "/module/asistent" },
-      ". Rolurile, invitațiile și ",
-      { eticheta: "jurnalul de audit", href: "/module/nucleu" },
-      " vin în nucleu.",
+    restTitlu: "Toate cele nouăsprezece module, fiecare cu pagina lui",
+    legaturaModule: { eticheta: "Toate modulele, pe o singură pagină", href: "/module" },
+    notaCaptura: "Captură din aplicația reală. Firma și oamenii din ea sunt inventați.",
+    mareste: "apasă pentru a mări",
+    inchide: "Închide",
+  },
+
+  pentruCine: {
+    supratitlu: "Pentru cine",
+    titlu: "Un singur cont pentru toată firma. Fiecare vede doar ce-l privește.",
+    lead: "Cinci roluri, fiecare cu drepturile lui. Managerul vede echipa lui, angajatul vede doar ce e al lui, iar regula stă în baza de date, nu într-un meniu ascuns.",
+    roluri: [
+      {
+        cine: "Patronul",
+        text: "Vezi dintr-o privire cine e la lucru, cine e în concediu și ce termene expiră luna asta. Aprobi cererile dintr-un clic și știi oricând ce ar găsi un inspector la control.",
+        legatura: { eticheta: "Cum arată pe domeniul tău", href: "/domenii" },
+      },
+      {
+        cine: "Omul de resurse umane",
+        text: "Dosarele, contractele, concediile, instruirile și REGES-ONLINE, într-un singur loc. Angajații vin din Excel o singură dată, iar contractul și fișa postului se generează din datele lor.",
+        legatura: { eticheta: "Ce cere legea, pe scurt", href: "/ghid" },
+      },
+      {
+        cine: "Contabilul extern",
+        text: "Toate firmele pe care le ții, într-un singur cont, cu un meniu din care comuți între ele. Primești luna închisă, nu orele retastate pe e-mail.",
+        legatura: { eticheta: "Pentru contabili", href: "/pentru-contabili" },
+      },
+      {
+        cine: "Angajatul",
+        text: "Se pontează, cere concediu și își vede soldul, fluturașul și documentele de pe telefon, fără să mai întrebe pe nimeni.",
+        legatura: { eticheta: "Portalul angajatului", href: "/module/portal-angajat" },
+      },
     ],
-    legaturaModule: { eticheta: "Lista completă a modulelor", href: "/module" },
+  },
+
+  unelteGratuite: {
+    supratitlu: "Gratuit, fără cont",
+    titlu: "Unelte și modele pe care le folosești chiar acum",
+    lead: "Calculatorul de salariu și modelele cerute la control, gata de completat și de descărcat. Fără cont și fără adresă de e-mail lăsată în schimb.",
+    unelte: [
+      {
+        titlu: "Calculator salariu net și brut",
+        text: "Scrii brutul și afli netul, sau invers, cu valorile din iulie 2026: salariul minim, deducerea personală, CAS, CASS, impozitul și costul total pentru firmă.",
+        formate: "Online",
+        href: "/unelte/calculator-salariu",
+      },
+      {
+        titlu: "Foaie de pontaj lunar",
+        text: "Alegi luna și scrii numele; weekendurile și sărbătorile legale se marchează singure.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/foaie-de-pontaj",
+      },
+      {
+        titlu: "Condica de prezență",
+        text: "Fiecare zi lucrătoare, cu ora sosirii, ora plecării și semnătura.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/condica-de-prezenta",
+      },
+      {
+        titlu: "Cerere de concediu de odihnă",
+        text: "Cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale.",
+        formate: "PDF · Word",
+        href: "/unelte/cerere-concediu-de-odihna",
+      },
+      {
+        titlu: "Foaie de parcurs",
+        text: "Mașina, șoferul și luna: traseul, scopul deplasării și kilometrii.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/foaie-de-parcurs",
+      },
+      {
+        titlu: "Fișa de instruire SSM",
+        text: "Fișa individuală după anexa 11 la HG 1425/2006, cu datele lucrătorului completate.",
+        formate: "PDF · Word",
+        href: "/unelte/fisa-instruire-ssm",
+      },
+      {
+        titlu: "Fișa de evaluare a angajaților",
+        text: "Criteriile firmei, cu pondere și notă pe fiecare, plus semnăturile.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/fisa-evaluare",
+      },
+    ],
+    ghiduriTitlu: "Ghiduri, cu articolul de lege lângă fiecare afirmație",
+    ghiduri: [
+      { eticheta: "Salariul minim pe economie", href: "/ghid/salariu-minim-pe-economie" },
+      { eticheta: "Evidența orelor de muncă", href: "/evidenta-orelor-de-munca" },
+      { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+      { eticheta: "Ore suplimentare", href: "/ghid/ore-suplimentare" },
+      { eticheta: "Spor de noapte", href: "/ghid/spor-de-noapte" },
+      { eticheta: "Concediul de odihnă", href: "/ghid/concediu-de-odihna" },
+      { eticheta: "Diurna externă, pe țări", href: "/ghid/diurna-externa" },
+      { eticheta: "Diurna în țară", href: "/ghid/diurna" },
+      { eticheta: "Controlul ITM", href: "/ghid/control-itm" },
+    ],
+    legaturaToate: { eticheta: "Toate uneltele gratuite", href: "/unelte" },
+  },
+
+  promisiuni: {
+    supratitlu: "Suntem la început",
+    titlu: "N-avem încă recomandări. Avem promisiuni.",
+    lead: "Nu punem testimoniale scrise de noi și nici sigle de firme care nu ne folosesc. Iată, în schimb, ce ne asumăm față de fiecare firmă care începe acum — fiecare se poate verifica de la primul telefon.",
+    puncte: [
+      {
+        titlu: "Vorbești cu oamenii care fac aplicația",
+        text: "La telefon nu răspunde un centru de apeluri. Ce ne ceri ajunge direct la cei care o construiesc.",
+      },
+      {
+        titlu: "Datele rămân ale tale",
+        text: "Dacă renunți, îți exportăm tot ce ținem despre firma ta, în format deschis. Nu ținem date ca argument de negociere.",
+      },
+      {
+        titlu: "Limitele le afli înainte, nu după",
+        text: "Ce nu face aplicația e scris pe site, pe pagina „Ce nu facem”, nu descoperit după ce ai semnat.",
+      },
+      {
+        titlu: "Construim în ordinea în care ne cereți",
+        text: "Funcțiile noi vin în ordinea în care le cer firmele care lucrează cu noi. Dacă îți lipsește ceva, spune-ne la prima discuție.",
+      },
+    ],
   },
 
   preturi: {
@@ -871,39 +1063,58 @@ export const RO: ContinutLanding = {
     legaturaPagina: { eticheta: "Vezi prețul fiecărui modul", href: "/preturi" },
   },
 
-  implementare: {
-    supratitlu: "Cum începem",
-    titlu: "Cinci pași, în ordinea asta",
-    lead: "E singura secvență reală de pe pagina asta, de aceea e singurul loc unde numerotăm.",
-    pasi: [
+  siguranta: {
+    supratitlu: "Datele oamenilor tăi",
+    titlu: "CNP-uri, salarii, concedii medicale. Le tratăm ca atare.",
+    lead: "Într-un program de HR stau cele mai sensibile date ale unei firme. Pe scurt, cum le ținem — iar varianta lungă, cu tot mecanismul, e pe pagina despre izolarea datelor.",
+    puncte: [
       {
-        actor: "tu",
-        titlu: "O discuție de o jumătate de oră",
-        text: "Ne spui cum lucrezi acum. Îți spunem ce te ajută și ce nu. Nu-ți cerem card și nu-ți creăm cont.",
+        titlu: "Separate pe firmă, în baza de date",
+        text: "Nu printr-un filtru din aplicație: baza de date nu întoarce nimic dintr-o altă firmă, nici măcar unei cereri scrise greșit de noi.",
       },
       {
-        actor: "noi",
-        titlu: "Îți configurăm firma",
-        text: "Datele firmei, codurile CAEN, punctele de lucru, departamentele și funcțiile. Pornim exact modulele discutate.",
+        titlu: "CNP și IBAN criptate",
+        text: "Se scriu criptat și se citesc doar printr-o cale care lasă urmă: cine le-a văzut și când.",
       },
       {
-        actor: "noi",
-        titlu: "Aducem angajații",
-        text: "Din Excel, cu mapare de coloane și raport pentru rândurile care nu trec validarea. Nimic nu intră pe jumătate.",
+        titlu: "Fiecare modificare, cu nume și oră",
+        text: "Cine a schimbat, când și ce anume. Jurnalul se adaugă, nu se rescrie — nici de noi.",
       },
       {
-        actor: "tu",
-        titlu: "Îți inviți colegii",
-        text: "Pe e-mail, fiecare cu rolul lui. Intră direct în modulele care îi privesc și nu văd restul.",
-      },
-      {
-        actor: "amândoi",
-        titlu: "Prima lună o închidem împreună",
-        text: "Primul pontaj și primul stat de plată le trecem cu tine, pas cu pas. După aceea le faci singur.",
+        titlu: "În Uniunea Europeană",
+        text: "Baza de date și fișierele stau în Irlanda, iar serverul aplicației în Germania.",
       },
     ],
+    legatura: { eticheta: "Cum ținem datele separate", href: "/incredere" },
   },
 
+  incepe: {
+    supratitlu: "Cum începi",
+    titlu: "Primul pontaj, în aceeași zi",
+    lead: "Nu se instalează nimic și nu se migrează nimic. Îți faci contul, urci lista de angajați dintr-un fișier Excel și pontezi luna în curs.",
+    pasi: [
+      {
+        titlu: "Îți faci contul",
+        text: "Câteva minute, fără card și fără cost de pornire. Prima lună e gratuită.",
+      },
+      {
+        titlu: "Aduci angajații din Excel",
+        text: "Coloanele se potrivesc singure după antet. Rândurile bune intră, cele greșite îți vin înapoi cu motivul.",
+      },
+      {
+        titlu: "Îți inviți oamenii",
+        text: "Pe e-mail, fiecare cu rolul lui. Se pontează din browserul telefonului, fără nimic de instalat.",
+      },
+      {
+        titlu: "Închidem prima lună împreună",
+        text: "Primul pontaj și primul calcul de salarii le trecem cu tine, la telefon. După aceea le faci singur.",
+      },
+    ],
+    alternativa: {
+      text: "Preferi să vezi întâi cum arată? O discuție de o jumătate de oră, pe modulele care te interesează — nu o prezentare de vânzări.",
+      legatura: { eticheta: "Programează o demonstrație", href: "/cere-demo" },
+    },
+  },
   intrebari: {
     supratitlu: "Întrebări frecvente",
     titlu: "Răspunsurile, pe scurt",
@@ -960,12 +1171,41 @@ export const RO: ContinutLanding = {
     ],
   },
 
-  clienti: {
-    supratitlu: "Clienți",
-    titlu: "Aici o să fie recomandările lor",
-    text: "Nu punem testimoniale scrise de noi și nu punem logo-uri de firme care nu ne folosesc. Primii clienți sunt în implementare; dacă vrei să vorbești cu unul dintre ei înainte să decizi, îți facem legătura la telefon.",
+  intrebariScurte: {
+    supratitlu: "Întrebări",
+    titlu: "Ce se întreabă înainte de primul clic",
+    intrebari: [
+      {
+        q: "Cât costă?",
+        a: "Nucleul — pontaj, concedii, dosare și portalul angajatului — costă 149 de lei pe lună pentru toată firma, până la 20 de angajați. Modulele în plus au fiecare prețul lui. Prima lună e gratuită, iar sumele sunt finale: nu se mai adaugă TVA.",
+        legatura: { eticheta: "Prețul fiecărui modul", href: "/preturi" },
+      },
+      {
+        q: "Trebuie instalat ceva?",
+        a: "Nu. Administrativo merge din browser, pe calculator și pe telefon. Angajații adaugă adresa pe ecranul de start al telefonului și o deschid ca pe o aplicație, fără magazin de aplicații și fără actualizări de instalat.",
+      },
+      {
+        q: "Ce arăt la un control ITM?",
+        a: "Evidența orelor cu ora de început și de sfârșit a fiecărei zile, cerută de art. 119 din Codul muncii, fișele de instruire SSM, evidența medicinei muncii și jurnalul modificărilor — scoase din aplicație, nu căutate prin dosare.",
+        legatura: { eticheta: "Ce verifică inspectorul, pe rând", href: "/ghid/control-itm" },
+      },
+      {
+        q: "Lucrează cu contabilul meu?",
+        a: "Da. Contabilul primește acces în contul firmei, cu rolul lui, iar dacă ține mai multe firme le vede pe toate dintr-un singur cont. Declarațiile și răspunderea rămân la el.",
+        legatura: { eticheta: "Pagina pentru contabili", href: "/pentru-contabili" },
+      },
+      {
+        q: "Ce fac cu Excelul de acum?",
+        a: "Îl încarci. Coloanele se potrivesc după antet, oricum ar fi scrise, rândurile bune intră, iar cele greșite îți vin înapoi într-un fișier, cu motivul fiecăruia. Nu se importă nimic pe jumătate.",
+      },
+      {
+        q: "Ce nu face Administrativo?",
+        a: "Nu depune declarații la ANAF, nu emite e-Factura și nu ține contabilitatea. Nu e nici în magazinele de aplicații: portalul angajatului merge din browser. Lista completă e scrisă pe față.",
+        legatura: { eticheta: "Ce nu facem, pe larg", href: "/de-ce-nu" },
+      },
+    ],
+    legatura: { eticheta: "Toate întrebările, cu răspunsurile lungi", href: "/intrebari" },
   },
-
   contact: {
     supratitlu: "Hai să vorbim",
     titlu: "Spune-ne cum lucrați acum",
@@ -976,12 +1216,19 @@ export const RO: ContinutLanding = {
     program: "Luni–vineri, 9–18",
     notaReferinte:
       "Primii clienți sunt în implementare. Dacă vrei să vorbești cu unul dintre ei înainte să decizi, îți facem legătura.",
+    cine: "Administrativo e făcut în {oras}, de {firma}. La telefon răspunde un om din echipa care construiește aplicația.",
     formularTitlu: "Sau lasă-ne datele tale",
   },
 
   subsol: {
     descriere:
       "Administrativo — pontaj, concedii, salarizare, SSM, parc auto și inventar pentru firme din România. Fiecare firmă are propriul spațiu de date, propriile roluri și doar modulele de care are nevoie.",
+    /*
+     * 6 oct 2026: uneltele și ghidurile au coloane proprii. Auditul din 6 oct a
+     * găsit că subsolul omitea exact paginile cel mai slab legate — sporul de
+     * noapte, fișa SSM, foaia de parcurs, diurna în țară — iar el e singurul
+     * bloc de legături prezent pe toate cele cincizeci și ceva de pagini.
+     */
     coloane: [
       {
         titlu: "Produs",
@@ -992,23 +1239,48 @@ export const RO: ContinutLanding = {
           // 18 sept 2026 nu-i vorbea nicio pagină, deși e cel care alege
           // programul în bună parte din cazuri.
           { eticheta: "Pentru contabili", href: "/pentru-contabili" },
-          { eticheta: "Foaie de pontaj gratuită", href: "/unelte/foaie-de-pontaj" },
-          { eticheta: "Condica de prezență", href: "/unelte/condica-de-prezenta" },
-          { eticheta: "Cerere de concediu", href: "/unelte/cerere-concediu-de-odihna" },
-          // 5 oct 2026: calculatorul — cea mai căutată unealtă — avea două legături
-          // interne, iar Google nu găsise încă fișa de evaluare.
-          { eticheta: "Calculator salariu net", href: "/unelte/calculator-salariu" },
-          { eticheta: "Fișă de evaluare", href: "/unelte/fisa-evaluare" },
+          { eticheta: "Prețuri", href: "/preturi" },
+          { eticheta: "Izolarea datelor", href: "/incredere" },
           { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
           // Hub-urile aveau o singură cale de acces: firimitura din pagina-copil.
           // Un vizitator care nu deschide copilul nu află niciodată că există.
-          { eticheta: "Toate uneltele", href: "/unelte" },
           { eticheta: "Toate comparațiile", href: "/comparatie" },
-          { eticheta: "Izolarea datelor", href: "/incredere" },
-          { eticheta: "Prețuri", href: "/preturi" },
+          { eticheta: "Ce nu facem", href: "/de-ce-nu" },
+          { eticheta: "Întrebări frecvente", href: "/intrebari" },
           // Singura legătură spre cererea de demonstrație era butonul de pe
           // /pontaj-pe-telefon; restul site-ului trimite la înregistrarea directă.
           { eticheta: "Cere o demonstrație", href: "/cere-demo" },
+        ],
+      },
+      {
+        titlu: "Unelte gratuite",
+        legaturi: [
+          // 5 oct 2026: calculatorul — cea mai căutată unealtă — avea două legături
+          // interne, iar Google nu găsise încă fișa de evaluare.
+          { eticheta: "Calculator salariu net", href: "/unelte/calculator-salariu" },
+          { eticheta: "Foaie de pontaj", href: "/unelte/foaie-de-pontaj" },
+          { eticheta: "Condica de prezență", href: "/unelte/condica-de-prezenta" },
+          { eticheta: "Cerere de concediu", href: "/unelte/cerere-concediu-de-odihna" },
+          { eticheta: "Foaie de parcurs", href: "/unelte/foaie-de-parcurs" },
+          { eticheta: "Fișă de instruire SSM", href: "/unelte/fisa-instruire-ssm" },
+          { eticheta: "Fișă de evaluare", href: "/unelte/fisa-evaluare" },
+          { eticheta: "Toate uneltele", href: "/unelte" },
+        ],
+      },
+      {
+        titlu: "Ghiduri",
+        legaturi: [
+          { eticheta: "Salariul minim pe economie", href: "/ghid/salariu-minim-pe-economie" },
+          { eticheta: "Evidența orelor (art. 119)", href: "/evidenta-orelor-de-munca" },
+          { eticheta: "REGES-ONLINE: termene", href: "/reges-online" },
+          // Necunoscut lui Google pe 5 oct 2026.
+          { eticheta: "Ore suplimentare", href: "/ghid/ore-suplimentare" },
+          { eticheta: "Spor de noapte", href: "/ghid/spor-de-noapte" },
+          { eticheta: "Concediul de odihnă", href: "/ghid/concediu-de-odihna" },
+          { eticheta: "Diurna externă pe țări", href: "/ghid/diurna-externa" },
+          { eticheta: "Diurna în țară", href: "/ghid/diurna" },
+          { eticheta: "Control ITM: ce se cere", href: "/ghid/control-itm" },
+          { eticheta: "Toate ghidurile", href: "/ghid" },
         ],
       },
       {
@@ -1027,22 +1299,6 @@ export const RO: ContinutLanding = {
         ],
       },
       {
-        titlu: "Înainte să întrebi",
-        legaturi: [
-          { eticheta: "Evidența orelor (art. 119)", href: "/evidenta-orelor-de-munca" },
-          { eticheta: "REGES-ONLINE: termene", href: "/reges-online" },
-          { eticheta: "Diurna externă pe țări", href: "/ghid/diurna-externa" },
-          // Necunoscut lui Google pe 5 oct 2026; ghidul leagă mai departe sporul de noapte.
-          { eticheta: "Ore suplimentare și spor de noapte", href: "/ghid/ore-suplimentare" },
-          { eticheta: "Control ITM: ce se cere", href: "/ghid/control-itm" },
-          { eticheta: "Toate ghidurile", href: "/ghid" },
-          { eticheta: "Ce nu facem", href: "/de-ce-nu" },
-          { eticheta: "Conformitate", href: "/incredere" },
-          { eticheta: "Întrebări frecvente", href: "/intrebari" },
-          { eticheta: "Cum începem", href: "/#implementare" },
-        ],
-      },
-      {
         titlu: "Legal",
         legaturi: [
           { eticheta: "Termeni și condiții", href: "/legal/termeni" },
@@ -1054,6 +1310,8 @@ export const RO: ContinutLanding = {
     copyright: "Toate drepturile rezervate.",
     notaDiacritice:
       "Scriem ș și ț cu virgulă dedesubt, nu cu sedilă. E felul corect, și e verificat automat la fiecare livrare.",
+    creditVideo:
+      "Videoclipul de pe pagina de start: „Office Stock Footage”, de pe canalul de YouTube Free Stock Footage 4K, licență Creative Commons Attribution.",
   },
 
   /*

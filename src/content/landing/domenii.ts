@@ -221,7 +221,7 @@ export const DOMENII: readonly Domeniu[] = [
     titlu: "Concedii și dosare de personal pentru birouri",
     metaTitlu: "Concedii și dosare de personal pentru birouri",
     metaDescriere:
-      "Cereri de concediu cu aprobare pe linie ierarhică, sold recalculat automat, prag de absenți simultani, evaluări periodice și portal în care omul își găsește singur fluturașul.",
+      "Cereri de concediu cu aprobare pe linie ierarhică, sold recalculat automat, calendarul echipei, evaluări periodice și portal în care omul își găsește singur fluturașul.",
     lead: "Aici nu se pierd ore, se pierd zile de concediu și răspunsuri. Problema nu e evidența, e că fiecare cerere trece prin cineva care trebuie să-și amintească.",
     dureri: [
       {
@@ -230,7 +230,7 @@ export const DOMENII: readonly Domeniu[] = [
       },
       {
         titlu: "Nu se știe cine mai poate lipsi în august",
-        text: "Fără un prag de absenți simultani, aprobările se dau în ordinea în care s-au cerut, iar constatarea că jumătate de echipă lipsește în aceeași săptămână vine după ce toate au fost aprobate.",
+        text: "Fără un calendar comun al echipei, aprobările se dau în ordinea în care s-au cerut, iar constatarea că jumătate de echipă lipsește în aceeași săptămână vine după ce toate au fost aprobate.",
       },
       {
         titlu: "Soldul de zile nu e un număr, e un calcul",

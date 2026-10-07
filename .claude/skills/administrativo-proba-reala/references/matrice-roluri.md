@@ -46,7 +46,7 @@ Nu apare deloc: `vehicles`, `compliance`, `organizations`, `features`,
 
 Divergențe cunoscute (restanțe documentate, nu descoperiri):
 
-- **capcana 4** — are `attendance:approve` dar **nu** `attendance:create`, iar
+- **capcana 4** — are `attendance:approve` dar `attendance:create` doar `own` (0161), iar
   `attendance_entries_update` cere `app.poate_scrie_pontaj`, care se uită la
   `create`. Managerul nu poate scrie `approved_at` cu clientul utilizatorului.
 - **capcana 9** — blocarea perioadei cere `approve` cu scope `all`; managerul are

@@ -1,12 +1,18 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, Loader2, Paperclip } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { arataToast } from "@/components/ui/toast";
-import { RESTRICTII_DOVADA, verificaDovada } from "@/lib/onboarding/cale";
+import {
+  LIMITA_DOVADA_BYTES,
+  MIME_DOVADA,
+  RESTRICTII_DOVADA,
+  verificaDovada,
+} from "@/lib/onboarding/cale";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 
 import { linkDovada, pregatesteIncarcareDovada, salveazaDovada } from "../actions";
@@ -53,8 +59,10 @@ function marimeCitibila(octeti: number): string {
 export function IncarcareDovada({ pasId, numeFisier, marimeBytes, poateScrie }: Proprietati) {
   const router = useRouter();
   const idCamp = useId();
-  const intrare = useRef<HTMLInputElement>(null);
   const [stadiu, setStadiu] = useState<Stadiu>({ tip: "inactiv" });
+  // Câmpul se remontează gol după o încărcare reușită: dovada nouă apare deja
+  // în caseta de deasupra, iar numele ei repetat în câmp ar părea o a doua.
+  const [generatie, setGeneratie] = useState(0);
 
   async function urca(fisier: File): Promise<void> {
     // Verificarea locală ÎNAINTE de orice drum la server: un fișier prea mare
@@ -96,7 +104,7 @@ export function IncarcareDovada({ pasId, numeFisier, marimeBytes, poateScrie }: 
     }
 
     setStadiu({ tip: "inactiv" });
-    if (intrare.current !== null) intrare.current.value = "";
+    setGeneratie((g) => g + 1);
     arataToast({ fel: "reusita", text: "Dovada a fost atașată." });
     router.refresh();
   }
@@ -135,7 +143,9 @@ export function IncarcareDovada({ pasId, numeFisier, marimeBytes, poateScrie }: 
       <p className="text-foreground text-corp font-medium">Document justificativ</p>
 
       {numeFisier === null ? (
-        <p className="text-muted-foreground text-nota">Niciun fișier atașat. {RESTRICTII_DOVADA}</p>
+        <p className="text-muted-foreground text-nota">
+          Niciun fișier atașat.{poateScrie ? null : ` ${RESTRICTII_DOVADA}`}
+        </p>
       ) : (
         <div className="border-border bg-surface rounded-control flex flex-wrap items-center gap-2 border p-2">
           <Paperclip aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
@@ -160,15 +170,22 @@ export function IncarcareDovada({ pasId, numeFisier, marimeBytes, poateScrie }: 
 
       {poateScrie ? (
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={intrare}
+          <IncarcareFisier
+            key={generatie}
+            nume="dovada"
             id={idCamp}
-            type="file"
-            disabled={inCurs}
-            className="text-corp file:border-border file:bg-surface file:text-foreground file:rounded-control file:mr-3 file:border file:px-3 file:py-1.5"
-            onChange={(e) => {
-              const fisier = e.target.files?.[0];
-              if (fisier !== undefined) void urca(fisier);
+            eticheta={numeFisier === null ? "Atașează dovada" : "Înlocuiește dovada"}
+            accept={MIME_DOVADA.join(",")}
+            maxOcteti={LIMITA_DOVADA_BYTES}
+            mesajPreaMare={`Fișierul depășește 20 MB. ${RESTRICTII_DOVADA}`}
+            mesajTipRespins={`Tipul fișierului nu e acceptat. ${RESTRICTII_DOVADA}`}
+            restrictii={RESTRICTII_DOVADA}
+            textAlegere={numeFisier === null ? "Alege fișierul" : "Alege alt fișier"}
+            etichetaScoate="Scoate fișierul ales"
+            dezactivat={inCurs}
+            className="min-w-0 flex-1"
+            laSchimbare={(fisier) => {
+              if (fisier !== null) void urca(fisier);
             }}
           />
           {inCurs ? (

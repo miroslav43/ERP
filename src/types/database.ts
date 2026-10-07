@@ -572,6 +572,7 @@ export type Database = {
           ore_suplimentare: number
           organization_id: string
           period_id: string
+          punct_lucru_declarat_id: string | null
           punct_lucru_id: string | null
           respins_de: string | null
           respins_la: string | null
@@ -603,6 +604,7 @@ export type Database = {
           ore_suplimentare?: number
           organization_id: string
           period_id: string
+          punct_lucru_declarat_id?: string | null
           punct_lucru_id?: string | null
           respins_de?: string | null
           respins_la?: string | null
@@ -634,6 +636,7 @@ export type Database = {
           ore_suplimentare?: number
           organization_id?: string
           period_id?: string
+          punct_lucru_declarat_id?: string | null
           punct_lucru_id?: string | null
           respins_de?: string | null
           respins_la?: string | null
@@ -680,6 +683,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "attendance_periods"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_entries_punct_declarat_fk"
+            columns: ["punct_lucru_declarat_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "puncte_lucru"
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "attendance_entries_punct_lucru_id_fkey"
@@ -4699,6 +4709,7 @@ export type Database = {
           created_by: string | null
           criterii: Json
           deleted_at: string | null
+          derivat_din: string | null
           denumire: string
           descriere: string | null
           id: string
@@ -4713,6 +4724,7 @@ export type Database = {
           created_by?: string | null
           criterii?: Json
           deleted_at?: string | null
+          derivat_din?: string | null
           denumire: string
           descriere?: string | null
           id?: string
@@ -4727,6 +4739,7 @@ export type Database = {
           created_by?: string | null
           criterii?: Json
           deleted_at?: string | null
+          derivat_din?: string | null
           denumire?: string
           descriere?: string | null
           id?: string
@@ -11727,6 +11740,7 @@ export type Database = {
           program_start: string | null
           updated_at: string
           updated_by: string | null
+          varianta_pontaj: Database["public"]["Enums"]["varianta_pontaj"]
           verificare_pontare: Database["public"]["Enums"]["verificare_pontare"]
         }
         Insert: {
@@ -11740,6 +11754,7 @@ export type Database = {
           program_start?: string | null
           updated_at?: string
           updated_by?: string | null
+          varianta_pontaj?: Database["public"]["Enums"]["varianta_pontaj"]
           verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
         }
         Update: {
@@ -11753,6 +11768,7 @@ export type Database = {
           program_start?: string | null
           updated_at?: string
           updated_by?: string | null
+          varianta_pontaj?: Database["public"]["Enums"]["varianta_pontaj"]
           verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
         }
         Relationships: [
@@ -13357,9 +13373,25 @@ export type Database = {
         }
         Returns: undefined
       }
+      sedii_pentru_pontaj: {
+        Args: { p_organization_id: string }
+        Returns: {
+          din_contract: boolean
+          denumire: string
+          id: string
+        }[]
+      }
       seteaza_zile_concediu_implicit: {
         Args: { p_organization_id: string; p_zile: number }
         Returns: undefined
+      }
+      sterge_logic: {
+        Args: { p_ids: string[]; p_tabela: string }
+        Returns: string[]
+      }
+      sterge_sablon_evaluare: {
+        Args: { p_id: string; p_organization_id: string }
+        Returns: string
       }
       submit_demo_request: {
         Args: {
@@ -13783,6 +13815,7 @@ export type Database = {
         | "motocicleta"
         | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
+      varianta_pontaj: "zilnic" | "saptamanal"
       verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
@@ -14349,6 +14382,7 @@ export const Constants = {
         "altele",
       ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
+      varianta_pontaj: ["zilnic", "saptamanal"],
       verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },

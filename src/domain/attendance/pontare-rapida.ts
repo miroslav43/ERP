@@ -20,6 +20,8 @@ import type { Enums } from "@/types/database";
 
 export type ModPontare = Enums<"mod_pontare_rapida">;
 export type VerificarePontare = Enums<"verificare_pontare">;
+/** 0165 — `zilnic` (pe zi) sau `saptamanal` (doar pe fișa săptămânii). */
+export type VariantaPontaj = Enums<"varianta_pontaj">;
 
 /** Rândul din `setari_pontare_rapida`, cât îi trebuie modulului ăstuia. */
 export interface RandPontareRapida {
@@ -29,6 +31,8 @@ export interface RandPontareRapida {
   readonly program_start: string | null;
   /** 0118 — dacă pontajul trece printr-un pas de aprobare. */
   readonly necesita_aprobare: boolean;
+  /** 0165 — varianta de pontaj a firmei. */
+  readonly varianta_pontaj: VariantaPontaj;
 }
 
 export interface ConfigPontareRapida {
@@ -48,6 +52,12 @@ export interface ConfigPontareRapida {
    * setării rămâne astfel reversibilă.
    */
   readonly necesitaAprobare: boolean;
+  /**
+   * Cum se pontează omul (0165). `saptamanal` scoate TOATE căile pe zi —
+   * butoanele, formularul zilei, tragerea pe grilă — și lasă doar fișa
+   * săptămânii. Baza o impune și ea (`internal.pontaj_doar_pe_saptamana`).
+   */
+  readonly varianta: VariantaPontaj;
 }
 
 /**
@@ -74,10 +84,16 @@ export const IMPLICIT_PONTARE_RAPIDA = {
    * altfel pentru aceeași firmă.
    */
   necesitaAprobare: true,
+  /*
+   * `zilnic` — perechea SQL e `internal.pontaj_varianta`, cu același `coalesce`.
+   * Varianta săptămânală e o alegere a firmei, nu un implicit.
+   */
+  varianta: "zilnic",
 } as const satisfies {
   readonly mod: ModPontare;
   readonly verificare: VerificarePontare;
   readonly necesitaAprobare: boolean;
+  readonly varianta: VariantaPontaj;
 };
 
 /** `"08:30:00"` → `"08:30"`. */
@@ -98,6 +114,7 @@ export function configPontareRapida(rand: RandPontareRapida | null): ConfigPonta
     programStart: faraSecunde(rand?.program_start ?? null),
     verificare: rand?.verificare_pontare ?? IMPLICIT_PONTARE_RAPIDA.verificare,
     necesitaAprobare: rand?.necesita_aprobare ?? IMPLICIT_PONTARE_RAPIDA.necesitaAprobare,
+    varianta: rand?.varianta_pontaj ?? IMPLICIT_PONTARE_RAPIDA.varianta,
   };
 }
 
@@ -158,4 +175,15 @@ export function cumSeTrateazaCodul(verificare: VerificarePontare, cod: string | 
   if (verificare === "fara") return "ignorat";
   if (verificare === "cod_qr") return cod === null ? "cerut_lipsa" : "de_rezolvat";
   return cod === null ? "ignorat" : "de_rezolvat";
+}
+
+/**
+ * Se pontează ZIUA, de mână sau din buton? Fals în varianta săptămânală (0165).
+ *
+ * O singură întrebare pentru toate ecranele — cardul „Astăzi", ceasul, ținta
+ * codului QR, formularul zilei, grila orară — ca niciunul să nu rămână cu un
+ * buton pe care serverul îl va refuza.
+ */
+export function sePonteazaPeZi(config: Pick<ConfigPontareRapida, "varianta">): boolean {
+  return config.varianta !== "saptamanal";
 }

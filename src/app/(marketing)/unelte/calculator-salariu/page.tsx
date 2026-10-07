@@ -46,7 +46,7 @@ const unul = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
 const CLASA_CAMP =
-  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2 text-[0.9375rem]";
+  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
 
 /** Sumele sunt deja rotunjite la leu (OUG 59/2005), deci fără zecimale. */
 const lei = (n: number) =>

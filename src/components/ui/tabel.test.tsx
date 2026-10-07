@@ -157,6 +157,32 @@ describe("Tabel — pe telefon", () => {
     expect(primul.textContent).toContain("Activ"); // insignă
     expect(primul.textContent).toContain("DEMO-001"); // meta
   });
+
+  it("coloana `actiuni` stă într-un <div> propriu, NU în paragraful de meta", () => {
+    // „Evaluează” din `/evaluari` era `meta`: dialogul panoului ajungea într-un
+    // <p> — „<dialog> cannot be a descendant of <p>”, eroare de hidratare.
+    const { container } = randeaza({
+      coloane: [
+        ...COLOANE,
+        {
+          cheie: "actiuni",
+          antet: "Acțiuni",
+          peTelefon: "actiuni",
+          celula: () => <dialog data-testid="dialog-actiune" />,
+        },
+      ],
+    });
+    const lista = container.querySelector("ul.md\\:hidden") as HTMLElement;
+    const dialoguri = lista.querySelectorAll("[data-testid=dialog-actiune]");
+    expect(dialoguri).toHaveLength(2);
+    for (const d of dialoguri) {
+      expect(d.closest("p")).toBeNull();
+      expect(d.closest("span")).toBeNull();
+    }
+    // Și metadatele rămân în paragraf, fără coloana de acțiuni.
+    const meta = lista.querySelector("p") as HTMLElement;
+    expect(meta.querySelector("[data-testid=dialog-actiune]")).toBeNull();
+  });
 });
 
 describe("Tabel — rândul apăsabil", () => {

@@ -79,6 +79,14 @@ interface Proprietati {
    * nimic, exact felul de rămânere în urmă deja pățit aici o dată.
    */
   readonly necesitaAprobare: boolean;
+  /**
+   * Varianta săptămânală (0165): formularul e FIȘA DE PONTAJ, nu un plan —
+   * declară ce s-a lucrat, iar trimiterea devine pontaj. Schimbă doar
+   * cuvintele; comportamentul e al serverului. OBLIGATORIE, ca `necesitaAprobare`
+   * și din același motiv: altfel portalul ar rămâne pe „plan" într-o firmă care
+   * se pontează pe săptămână.
+   */
+  readonly peSaptamana: boolean;
   /** Parametrii firmei după care se derivă orele — aceiași ca la ziua individuală. */
   readonly config: ConfigZi;
   /**
@@ -100,6 +108,25 @@ interface Proprietati {
   readonly employeeId?: string | null;
 }
 
+/** Cuvintele formularului, după ce ESTE: plan de prezență sau fișă de pontaj (0165). */
+const TEXTE_PLAN = {
+  substantiv: "plan",
+  caption: "Planul de prezență pentru săptămâna selectată.",
+  participiu: "planificată",
+  participiuPlural: "planificate",
+  titluAvertismente: "Planul depășește regulile firmei",
+  salveaza: "Salvează planul",
+} as const;
+
+const TEXTE_PONTAJ = {
+  substantiv: "fișă",
+  caption: "Pontajul pentru săptămâna selectată.",
+  participiu: "pontată",
+  participiuPlural: "pontate",
+  titluAvertismente: "Pontajul depășește regulile firmei",
+  salveaza: "Salvează pontajul",
+} satisfies Record<keyof typeof TEXTE_PLAN, string>;
+
 const ETICHETE_ZI = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"] as const;
 
 /** Eticheta zilei vine din poziție, deci indexul călătorește cu rândul. */
@@ -112,11 +139,13 @@ export function FormularSaptamana({
   zileInitiale,
   poateEdita,
   necesitaAprobare,
+  peSaptamana,
   config,
   regulaFirmei,
   lucreazaWeekendInitial,
   employeeId = null,
 }: Proprietati) {
+  const t = peSaptamana ? TEXTE_PONTAJ : TEXTE_PLAN;
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -414,7 +443,7 @@ export function FormularSaptamana({
             <label htmlFor={idWeekend} className="text-corp">
               Lucrez în weekend
               <span className="text-muted-foreground text-nota block">
-                Debifat, sâmbăta și duminica nu apar în plan și se trimit cu zero ore.
+                Debifat, sâmbăta și duminica nu apar în {t.substantiv} și se trimit cu zero ore.
               </span>
             </label>
           </div>
@@ -425,7 +454,7 @@ export function FormularSaptamana({
       ) : null}
 
       <Tabel
-        caption="Planul de prezență pentru săptămâna selectată."
+        caption={t.caption}
         coloane={coloane}
         randuri={randuri}
         cheieRand={(rand) => rand.data}
@@ -481,8 +510,8 @@ export function FormularSaptamana({
             className="border-warning/40 bg-warning/12 text-foreground rounded-control text-corp border p-3"
           >
             {zileSarite.length === 1
-              ? `Ziua de ${formatDate(zileSarite[0] ?? "")} nu a fost planificată: aveți concediu aprobat atunci. Restul săptămânii s-a salvat.`
-              : `${String(zileSarite.length)} zile nu au fost planificate — ${zileSarite
+              ? `Ziua de ${formatDate(zileSarite[0] ?? "")} nu a fost ${t.participiu}: aveți concediu aprobat atunci. Restul săptămânii s-a salvat.`
+              : `${String(zileSarite.length)} zile nu au fost ${t.participiuPlural} — ${zileSarite
                   .map((z) => formatDate(z))
                   .join(
                     ", ",
@@ -490,7 +519,7 @@ export function FormularSaptamana({
           </p>
         )}
 
-        <ListaAvertismente avertismente={avertismente} titlu="Planul depășește regulile firmei" />
+        <ListaAvertismente avertismente={avertismente} titlu={t.titluAvertismente} />
       </div>
 
       {poateEdita ? (
@@ -513,7 +542,7 @@ export function FormularSaptamana({
               trimite("trimisa");
             }}
           >
-            {necesitaAprobare ? "Trimite spre aprobare" : "Salvează planul"}
+            {necesitaAprobare ? "Trimite spre aprobare" : t.salveaza}
           </Buton>
         </div>
       ) : null}

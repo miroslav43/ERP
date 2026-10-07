@@ -33,11 +33,14 @@ import { requireFeature } from "@/lib/auth/features";
 import { formatDate } from "@/lib/format/date";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { indicatoriEvaluari, listeazaEvaluari, listeazaSabloane } from "@/lib/queries/evaluari";
+import { angajatiPentruPontaj, colegiPentruManager, idFisaProprie } from "@/lib/queries/employees";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { filtreEvaluariSchema } from "@/schemas/evaluation";
 
+import { ButonContinuaCiorna } from "../angajati/[id]/formular-evaluare-noua";
 import { FileEvaluari } from "./_components/file-evaluari";
+import { PlanificareEvaluari } from "./_components/planificare-evaluari";
 import { ETICHETE_STATUS_EVALUARE, TONURI_STATUS_EVALUARE, tonPunctaj } from "./etichete";
 import { FiltreEvaluari } from "./filtre-evaluari";
 
@@ -110,14 +113,57 @@ async function BandaIndicatori({ organizationId }: { readonly organizationId: st
   );
 }
 
+/**
+ * „Evaluare nouă” din antet: PROGRAMEAZĂ evaluări pentru unul, mai mulți sau
+ * toți angajații (`planificaEvaluari`); notarea vine din „Evaluează”, pe rând.
+ *
+ * Lista de angajați urmează scope-ul lui `evaluations:create`: la `all`, toată
+ * firma; la `team`, colegii vizibili (RLS-ul pe `employees` îi lasă pe ai
+ * echipei), fără propria fișă — `app.can_access_evaluation` refuză oricum
+ * autoevaluarea pe `team`, iar un nume pe care baza îl respinge ar face să
+ * pice tot lotul.
+ *
+ * Separat, în `Suspense`: cele două citiri nu țin antetul și indicatorii pe loc.
+ */
+async function ActiuneEvaluareNoua({
+  organizationId,
+  userId,
+  scopeToata,
+}: {
+  readonly organizationId: string;
+  readonly userId: string;
+  readonly scopeToata: boolean;
+}) {
+  const [sabloane, angajati] = await Promise.all([
+    listeazaSabloane(organizationId, { includeArhivate: false }),
+    scopeToata
+      ? angajatiPentruPontaj(organizationId)
+      : idFisaProprie(organizationId, userId).then((propria) =>
+          propria === null
+            ? angajatiPentruPontaj(organizationId)
+            : colegiPentruManager(organizationId, propria),
+        ),
+  ]);
+  return (
+    <PlanificareEvaluari
+      angajati={angajati}
+      sabloane={sabloane
+        .filter((s) => s.criterii.length > 0)
+        .map((s) => ({ id: s.id, denumire: s.denumire, nrCriterii: s.criterii.length }))}
+    />
+  );
+}
+
 async function ListaEvaluari({
   organizationId,
   parametri,
   poateEvalua,
+  poateNota,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateEvalua: boolean;
+  readonly poateNota: boolean;
 }) {
   const filtre = filtreDinUrl(filtreEvaluariSchema, parametri);
   const [{ randuri, urmatorulCursor, total, sortare }, sabloane] = await Promise.all([
@@ -203,6 +249,32 @@ async function ListaEvaluari({
         <Badge ton={TONURI_STATUS_EVALUARE[e.status]}>{ETICHETE_STATUS_EVALUARE[e.status]}</Badge>
       ),
     },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      latime: "ingusta",
+      peTelefon: "actiuni",
+      // „Evaluează” doar pe ciorne și doar cu `evaluations:update`; baza mai
+      // îngustează la echipă (`can_access_evaluation`). Finalizata se vede pe
+      // fișa angajatului; redeschiderea ei rămâne acolo.
+      celula: (e) =>
+        e.status === "draft" && poateNota ? (
+          <ButonContinuaCiorna
+            employeeId={e.employee_id}
+            sabloane={[]}
+            eticheta="Evaluează"
+            ciorna={{
+              id: e.id,
+              data_evaluarii: e.data_evaluarii,
+              concluzie: e.concluzie,
+              criterii: e.criterii,
+              raspunsuri: e.raspunsuri,
+              sablon: e.sablon,
+              angajat: e.angajat,
+            }}
+          />
+        ) : null,
+    },
   ];
 
   return (
@@ -221,7 +293,7 @@ async function ListaEvaluari({
             areFiltre
               ? "Ștergeți filtrele ca să vedeți toate evaluările."
               : poateEvalua
-                ? "O evaluare se pornește de pe fișa angajatului, cu unul dintre șabloanele firmei."
+                ? "Cu „Evaluare nouă”, sus, alegeți angajații — unul, câțiva sau toți —, șablonul și data. Evaluările apar aici, iar notele se dau din „Evaluează”."
                 : "Evaluările apar aici pe măsură ce managerii le completează."
           }
           {...(areFiltre
@@ -279,7 +351,7 @@ async function ListaEvaluari({
 }
 
 export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { user, tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -300,6 +372,19 @@ export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina
         titlu="Evaluări"
         descriere="Evaluările angajaților, cu punctajul calculat din criteriile șablonului folosit la completare."
         file={<FileEvaluari activa="evaluari" />}
+        {...(poateEvalua
+          ? {
+              actiuni: (
+                <Suspense fallback={null}>
+                  <ActiuneEvaluareNoua
+                    organizationId={tenant.organizationId}
+                    userId={user.id}
+                    scopeToata={can(permisiuni, "evaluations:create", "all")}
+                  />
+                </Suspense>
+              ),
+            }
+          : {})}
       />
 
       <Suspense fallback={<Schelet forma="carduri" randuri={4} />}>
@@ -311,6 +396,7 @@ export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateEvalua={poateEvalua}
+          poateNota={can(permisiuni, "evaluations:update", "team")}
         />
       </Suspense>
     </div>

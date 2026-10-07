@@ -116,7 +116,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   colaboratori.sincronizeazaZileleDeConcediu
     .mockReset()
-    .mockResolvedValue({ create: 5, actualizate: 0, pastrate: 0 });
+    .mockResolvedValue({ create: 5, actualizate: 0, inlocuite: 0, pastrate: 0 });
   colaboratori.declaraSuspendareaContractului.mockReset().mockResolvedValue(SUSPENDARE_DECLARATA);
 });
 
@@ -152,7 +152,7 @@ describe("creeazaCerereConcediu — aprobarea pe loc (`leave:approve = all`)", (
         id: CERERE,
         zileLucratoare: 5,
         aprobataInstant: true,
-        zilePastrate: 0,
+        zileInlocuite: 0,
         suspendare: SUSPENDARE_DECLARATA,
       },
     });
@@ -228,12 +228,13 @@ describe("creeazaCerereConcediu — aprobarea pe loc (`leave:approve = all`)", (
     expect(areFiltru(angajat, "eq", "organization_id", ORG_ID)).toBe(true);
   });
 
-  it("zile pontate păstrate peste concediu: numărul iese în rezultat și angajatul e anunțat", async () => {
+  it("zile pontate trecute pe concediu: numărul iese în rezultat și angajatul e anunțat", async () => {
     const { server, admin } = configureazaActiunea({ rol: "org_admin", permisiuni: ADMIN_FIRMA });
     colaboratori.sincronizeazaZileleDeConcediu.mockResolvedValue({
       create: 0,
       actualizate: 0,
-      pastrate: 2,
+      inlocuite: 2,
+      pastrate: 0,
     });
     fisaProprie(admin);
     server.raspunde("leave_types", "select", { data: tipOdihna() });
@@ -243,12 +244,12 @@ describe("creeazaCerereConcediu — aprobarea pe loc (`leave:approve = all`)", (
 
     const r = await creeazaCerereConcediu(intrare({ trimite: true }));
 
-    expect(r).toMatchObject({ ok: true, data: { zilePastrate: 2 } });
+    expect(r).toMatchObject({ ok: true, data: { zileInlocuite: 2 } });
     const [notificare] = admin.apeluriPe("notifications", "insert");
     expect(notificare?.payload).toMatchObject({
       organization_id: ORG_ID,
       user_id: USER_ANGAJAT,
-      kind: "warning",
+      kind: "info",
       entity_type: "leave_request",
       entity_id: CERERE,
     });
@@ -264,7 +265,7 @@ describe("creeazaCerereConcediu — aprobarea pe loc (`leave:approve = all`)", (
 
     const r = await creeazaCerereConcediu(intrare({ trimite: true }));
 
-    expect(r).toMatchObject({ ok: true, data: { aprobataInstant: true, zilePastrate: 0 } });
+    expect(r).toMatchObject({ ok: true, data: { aprobataInstant: true, zileInlocuite: 0 } });
   });
 
   it("cererea nu mai e `trimisa` la aprobare (zero rânduri): CONFLICT, nu „aprobată”", async () => {
