@@ -12,8 +12,13 @@ Aici stă doar ce se folosește săptămânal.
 
 - **Pânza Claude Design** (sursa planșelor, 1080×1350):
   https://claude.ai/artifact/A8wvj3U1WaAqzgsPXYsDFZ
-- **Kit-ul lotului 1** (text de copiat + fișierele de urcat):
+- **Kit-ul lotului curent** (text de copiat + fișierele de urcat; din 9 oct, lotul 2):
   https://claude.ai/artifact/XjG4YCBbDfufXX7fbDkibr
+- **Pe Drive:** folderul „Administrativo — LinkedIn”, cu un Google Doc pe lot
+  (textele, gata de copiat de pe telefon). Imaginile și PDF-urile NU sunt acolo:
+  robotul `claude-seo@…` n-are acces la folder (partajarea a fost refuzată de
+  barieră pe 9 oct), iar conectorul nu urcă fișiere mari. Fișierele stau în kit
+  și în `unelte/pachet/` (un folder pe zi, cu pașii de programare).
 - Uneltele stau în [`unelte/`](unelte/), iar ieșirile lor sunt ignorate de git:
 
   ```bash
@@ -22,6 +27,7 @@ Aici stă doar ce se folosește săptămânal.
   node randeaza.cjs         # export/*.html → png/
   node pdf.cjs              # caruselele în PDF + imaginile, în livrare/
   python3 kit_genereaza.py  # pagina-kit din lot-NN.md, în kit/
+  python3 pachet_genereaza.py  # un folder pe zi, cu pașii din LinkedIn, + arhiva
   ```
 
   Pentru un lot nou se schimbă planșele din `genereaza.py`, lista din `pdf.cjs`
@@ -44,23 +50,27 @@ API propriu): [`automatizare.md`](automatizare.md).
   pe săptămână.
 - **Ritmul:** marți carusel-ghid, joi imagine; 8:30. Zilnic, 3–5 comentarii utile
   ale paginii la contabili și oameni de HR.
-- **Îndemnul:** pilotul pentru contabili — 10 cabinete, înscrieri până pe
+- **Îndemnul:** în seria de reach (lotul 2), pilotul apare o singură dată,
+  într-un P.S. din primul comentariu (#16). În rest, pilotul pentru contabili — 10 cabinete, înscrieri până pe
   15 nov, gratuit pentru firme până pe 31 mar 2027, apoi 20% timp de 6 luni.
   Sursa unică a cifrelor: `PILOT` din `src/content/landing/pentru-contabili.ts`.
-- **Ce măsurăm:** înscrierile la pilot, apoi mesajele și cererile de demo. Nu
-  like-urile.
+- **Ce măsurăm:** în seria de reach, afișările, salvările, redistribuirile și
+  urmăritorii noi; altfel, înscrierile la pilot, apoi mesajele și cererile de
+  demo. Nu like-urile.
 
 ## Loturile
 
-| Lot             | Postări | Rulează        | Livrat până pe | Stare  |
-| --------------- | ------- | -------------- | -------------- | ------ |
-| [L1](lot-01.md) | #1–4    | 29 sep – 8 oct | Vi 25 sep      | scris  |
-| [L2](lot-02.md) | #5–8    | 13 – 22 oct    | Vi 9 oct       | ciornă |
-| L3              | #9–12   | 27 oct – 5 nov | Vi 23 oct      | —      |
-| L4              | #13–16  | 10 – 19 nov    | Vi 6 nov       | —      |
-| L5              | #17–20  | 24 nov – 3 dec | Vi 20 nov      | —      |
-| L6              | #21–24  | 8 – 17 dec     | Vi 4 dec       | —      |
-| L7              | #25–28  | 22 – 30 dec    | Vi 18 dec      | —      |
+| Lot             | Postări               | Rulează     | Livrat până pe | Stare |
+| --------------- | --------------------- | ----------- | -------------- | ----- |
+| [L1](lot-01.md) | #1–4                  | 2 – 8 oct   | Vi 25 sep      | scris |
+| [L2](lot-02.md) | #5–19, rezerve #20–22 | 12 – 30 oct | Vi 9 oct       | scris |
+| L3              | —                     | din 2 nov   | Vi 30 oct      | —     |
+
+Lotul 2 a devenit pe 8 oct o **serie de reach** de 15 postări zilnice (plus 3
+rezerve), care absoarbe ciorna veche a lotului 2 (REGES API, foaia de pontaj,
+control ITM). Calendarul din spec (#9–#28, marți și joi) nu mai e programul: L3
+se scrie după rezultatele seriei, din subiectele lui rămase neconsumate
+(concediile pe 2027, închiderea de an, primul caz din pilot).
 
 ## Cine face ce
 
@@ -85,9 +95,9 @@ API propriu): [`automatizare.md`](automatizare.md).
 Se completează vinerea, pentru postările vechi de 7 zile. Postările se compară
 între ele, nu cu medii din industrie.
 
-| #   | Data | Afișări | Reacții | Coment. | Redistr. | Clicuri | Vizite UTM | Mesaje | Pilot |
-| --- | ---- | ------- | ------- | ------- | -------- | ------- | ---------- | ------ | ----- |
-| 1   |      |         |         |         |          |         |            |        |       |
+| #   | Data | Afișări | Reacții | Coment. | Redistr. | Salvări | Clicuri | Vizite UTM | Mesaje | Pilot |
+| --- | ---- | ------- | ------- | ------- | -------- | ------- | ------- | ---------- | ------ | ----- |
+| 1   |      |         |         |         |          |         |         |            |        |       |
 
 **Urmăritori pe pagină**, săptămânal:
 
