@@ -14,6 +14,7 @@
 --     ZERO rânduri, FĂRĂ eroare — capcana tăcută a lui `USING`
 -- (5) `org_admin` POATE corecta `angajat_id` — coloana nu e pinuită de gardă
 -- (6) `hr` vede `angajat_id` în SELECT (coloana nouă nu cere grant separat)
+-- (7) alocatorul însuși refuză un angajat din altă firmă (paritate, 0185)
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-registru-angajat.sql
@@ -206,6 +207,32 @@ begin
   if v_randuri <> 1 then
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (6) hr nu vede `angajat_id` — filtrul pe angajat ar da gol.';
+  end if;
+
+  -- ═══════════════════════════════════════════════════════════════════════════
+  -- (7) Paritate (0185): ALOCATORUL însuși refuză un angajat din altă firmă,
+  --     chiar chemat ca `postgres`, pe drumul trigger-elor — nu doar RPC-ul manual.
+  -- ═══════════════════════════════════════════════════════════════════════════
+  begin
+    perform internal.inregistreaza_document(
+      p_organization_id  => v_org,
+      p_sens             => 'intern'::public.registru_sens,
+      p_tip_document     => 'decizie_interna',
+      p_continut_rezumat => 'Nu trebuie să intre — angajat străin, prin alocator',
+      p_entitate_tip     => 'proba',
+      p_entitate_id      => gen_random_uuid(),
+      p_angajat_id       => v_e_strain
+    );
+    v_a_mers := true;
+  exception when others then
+    v_a_mers := false;
+  end;
+
+  raise notice '  (7) alocatorul refuză angajatul străin .... % (aștept refuz)',
+    case when v_a_mers then 'A MERS' else 'refuzat' end;
+  if v_a_mers then
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (7) ALOCATORUL A LEGAT UN RÂND DE UN ANGAJAT DIN ALTĂ FIRMĂ.';
   end if;
 
   raise notice '';
