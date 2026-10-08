@@ -46,6 +46,8 @@ export interface RandReges {
   readonly eroare: string | null;
   readonly angajatId: string;
   readonly angajatNume: string;
+  /** `false` = fișa e ștearsă sau ascunsă de RLS („Angajat șters"): linkul n-are țintă. */
+  readonly angajatVizibil: boolean;
   readonly angajatMarca: string;
   readonly contractNumar: string | null;
 }
@@ -184,6 +186,7 @@ export async function interogheazaEvenimenteReges(
       eroare: eveniment.eroare,
       angajatId: eveniment.employee_id,
       angajatNume: angajat?.full_name ?? "Angajat șters",
+      angajatVizibil: angajat !== undefined,
       angajatMarca: angajat?.marca ?? "—",
       contractNumar:
         eveniment.contract_id === null ? null : (numarContract.get(eveniment.contract_id) ?? null),

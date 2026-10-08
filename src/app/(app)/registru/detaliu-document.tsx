@@ -30,22 +30,31 @@ import {
 } from "./etichete";
 import { legaturaDocument } from "./legaturi";
 import { PrevizualizarePdf } from "./previzualizare-pdf";
+import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 
 export function DetaliuDocument({
   detaliu,
   hrefDocument,
+  context,
 }: Readonly<{
   detaliu: Detaliu;
   /** Adresa unui alt rând, cu filtrele curente păstrate — pentru conexări. */
   hrefDocument: (id: string) => string;
+  /** Modulele firmei și permisiunile celui care privește: legătura trece prin poarta ȚINTEI. */
+  context: ContextPorti;
 }>): ReactElement {
   const d = detaliu.document;
-  const legatura = legaturaDocument({
+  const legaturaBruta = legaturaDocument({
     entitateTip: d.entitateTip,
     entitateId: d.entitateId,
     parinteId: detaliu.parinteId,
     angajatId: d.angajatId,
   });
+  // `hr` vede rândul (registru:read), dar n-are per_diem, trip_sheets, vehicles,
+  // maintenance; iar o firmă care a oprit un modul păstrează rândurile vechi
+  // pentru totdeauna. În ambele cazuri butonul ducea în refuz sau în 404.
+  const legatura =
+    legaturaBruta !== null && poateDeschide(legaturaBruta.href, context) ? legaturaBruta : null;
 
   const rubrici: readonly Definitie[] = [
     { eticheta: "Tip document", valoare: eticheteazaTipDocument(d.tipDocument) },
@@ -107,7 +116,9 @@ export function DetaliuDocument({
         <div className="flex flex-wrap items-center gap-2">
           {legatura === null ? (
             <p className="text-muted-foreground text-corp">
-              Documentul nu are ecran propriu în aplicație.
+              {legaturaBruta === null
+                ? "Documentul nu are ecran propriu în aplicație."
+                : "Ecranul documentului e într-un modul oprit sau pe care nu aveți dreptul să-l deschideți."}
             </p>
           ) : (
             <>

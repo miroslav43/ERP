@@ -14,7 +14,7 @@ import { Sparkline } from "@/components/grafice/sparkline";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
 import { formatOre, formatOreCuUnitate } from "@/lib/format/ore";
@@ -49,9 +49,10 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "rapoarte"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "payroll:read", "all")) {
@@ -66,7 +67,12 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
    * `hr` fără `payroll:create` primea altfel o instrucțiune pe care n-o putea
    * executa.
    */
-  const poateDeschideSalarizarea = can(permisiuni, "payroll:create", "all");
+  // Rapoartele se cumpără și fără Salarizare (0123): fără modul, `/salarizare` e 404.
+  const poateDeschideSalarizarea =
+    module.has("payroll") && can(permisiuni, "payroll:create", "all");
+  // Fișa cere `employees:read`; cu `team` (suprascriere) un angajat din afara
+  // echipei dă 404, iar unul șters dă 404 pentru oricine.
+  const poateDeschideFisa = can(permisiuni, "employees:read", "all");
 
   const parametri = await searchParams;
   const anulCurent = new Date().getFullYear();
@@ -169,9 +175,13 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
       peTelefon: "titlu",
       celula: (angajat) => (
         <>
-          <Link href={`/angajati/${angajat.employeeId}`} className="text-primary hover:underline">
-            {angajat.fullName}
-          </Link>
+          {poateDeschideFisa && angajat.exista ? (
+            <Link href={`/angajati/${angajat.employeeId}`} className="text-primary hover:underline">
+              {angajat.fullName}
+            </Link>
+          ) : (
+            <span>{angajat.fullName}</span>
+          )}
           <span className="text-muted-foreground text-nota ml-1.5 font-mono">{angajat.marca}</span>
         </>
       ),

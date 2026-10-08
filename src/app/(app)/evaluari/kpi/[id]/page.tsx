@@ -19,14 +19,14 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { Nivel } from "@/components/ui/nivel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { citesteLunaKpi } from "@/lib/queries/kpi";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
-import { FileEvaluari } from "../../_components/file-evaluari";
-
 import { ETICHETE_STATUS_KPI, TONURI_STATUS_KPI, numeLuna, tonKpi } from "../etichete";
 import { FormularLuna } from "./formular-luna";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Luna de KPI" };
 
@@ -38,9 +38,10 @@ export default async function PaginaLunaKpi({ params }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "kpi"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "evaluations:read", "team")) {
@@ -57,13 +58,20 @@ export default async function PaginaLunaKpi({ params }: ProprietatiPagina) {
     <div className="space-y-6">
       <AntetPagina
         firimituri={[
-          { eticheta: "Evaluări", href: "/evaluari" },
+          // KPI se vinde separat: la o firmă fără Evaluări, `/evaluari` e 404.
+          ...(module.has("evaluations") ? [{ eticheta: "Evaluări", href: "/evaluari" }] : []),
           { eticheta: "KPI lunar", href: "/evaluari/kpi" },
           { eticheta: numeLuna(luna.an, luna.luna) },
         ]}
         titlu={luna.angajat ?? "Angajat"}
         descriere={`${numeLuna(luna.an, luna.luna)}${luna.marca === null ? "" : ` · marca ${luna.marca}`}`}
-        file={<FileEvaluari activa="kpi" />}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari()}
+            tenant={tenant}
+          />
+        }
         actiuni={
           <div className="flex items-center gap-3">
             <Badge ton={TONURI_STATUS_KPI[luna.status]}>{ETICHETE_STATUS_KPI[luna.status]}</Badge>

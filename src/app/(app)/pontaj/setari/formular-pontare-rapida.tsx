@@ -45,7 +45,10 @@ export function FormularPontareRapida({
   pontare,
   afise,
   config,
+  poateVedeaCoduriQr = false,
 }: {
+  /** `departments:update = all`, poarta filei „Coduri QR" (secretul e al punctului de lucru). */
+  readonly poateVedeaCoduriQr?: boolean;
   readonly pontare: ConfigPontareRapida;
   /**
    * Punctele de lucru și starea afișului lor.
@@ -339,9 +342,13 @@ export function FormularPontareRapida({
       */}
           <p className="text-muted-foreground text-corp">
             Codurile QR și afișele de tipărit sunt în fila{" "}
-            <Link href="/pontaj/setari/coduri-qr" className="underline underline-offset-2">
-              Coduri QR
-            </Link>
+            {poateVedeaCoduriQr ? (
+              <Link href="/pontaj/setari/coduri-qr" className="underline underline-offset-2">
+                Coduri QR
+              </Link>
+            ) : (
+              "Coduri QR"
+            )}
             , câte unul pentru fiecare punct de lucru.
           </p>
         </>

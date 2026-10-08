@@ -73,9 +73,12 @@ function CelulaScadenta({
 async function TabelStingatoare({
   organizationId,
   parametri,
+  poateCrea,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  /** `ssm:create` — poarta paginii de creare; managerul (doar `read`) ajungea în refuz din starea goală. */
+  readonly poateCrea: boolean;
 }) {
   const filtre = filtreDinUrl(filtreStingatoareSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await stingatoare(organizationId, filtre);
@@ -92,11 +95,11 @@ async function TabelStingatoare({
             ? "Ștergeți filtrele ca să vedeți toate stingătoarele."
             : "Adăugați primul stingător ca să puteți urmări verificările, reîncărcările și probele de presiune."
         }
-        actiune={
-          areFiltre
-            ? { eticheta: "Șterge filtrele", href: "/ssm/stingatoare" }
-            : { eticheta: "Adaugă stingător", href: "/ssm/stingatoare/nou" }
-        }
+        {...(areFiltre
+          ? { actiune: { eticheta: "Șterge filtrele", href: "/ssm/stingatoare" } }
+          : poateCrea
+            ? { actiune: { eticheta: "Adaugă stingător", href: "/ssm/stingatoare/nou" } }
+            : {})}
       />
     );
   }
@@ -277,7 +280,11 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
       <FiltreStingatoare status={filtreCurente.status} cauta={filtreCurente.cauta} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
-        <TabelStingatoare organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelStingatoare
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateCrea={poateCrea}
+        />
       </Suspense>
     </div>
   );

@@ -11,6 +11,8 @@ import { listeazaObiecteleMele } from "@/lib/queries/ticketing";
 import { fisaProprie } from "@/lib/queries/portal";
 
 import { FormularTichet } from "./formular-tichet";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { LifeBuoy } from "lucide-react";
 
 export const metadata: Metadata = { title: "Tichet nou" };
 
@@ -35,6 +37,22 @@ export default async function PaginaTichetNou({ searchParams }: ProprietatiPagin
   // prin RLS — politica de pe `employees` îi permite fiecăruia propria fișă,
   // deci nu e nevoie să ocolim nimic.
   const fisa = await fisaProprie(tenant.organizationId, user.id);
+  if (fisa === null) {
+    // `creeazaTichet` refuză fără fișă (`fisaMea`); formularul complet ar fi
+    // fost o promisiune refuzată abia la trimitere.
+    return (
+      <div className={cn(LATIMI.formular, "space-y-6")}>
+        <AntetPagina titlu="Tichet nou" />
+        <StareGoala
+          fel="restrictionata"
+          pictograma={LifeBuoy}
+          titlu="Contul nu are fișă de personal"
+          descriere="Tichetele se leagă de fișa de angajat a solicitantului, iar contul dumneavoastră nu are una."
+          actiune={{ eticheta: "Înapoi la tichete", href: "/ticketing" }}
+        />
+      </div>
+    );
+  }
 
   const obiecte = fisa === null ? [] : await listeazaObiecteleMele(fisa.id);
   const parametri = await searchParams;

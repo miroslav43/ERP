@@ -35,7 +35,7 @@ import { Paginare } from "@/components/ui/paginare";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana, type Grupare } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { scrieSortare } from "@/lib/queries/cursor";
@@ -99,9 +99,10 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "nucleu"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   // `registru:read` e cheie PROPRIE, nu `compliance:read` refolosit: rolul `hr`
@@ -557,7 +558,11 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
               dreptul să-l vedeți. Închideți panoul și alegeți un rând din listă.
             </Callout>
           ) : (
-            <DetaliuDocument detaliu={detaliu} hrefDocument={hrefDocument} />
+            <DetaliuDocument
+              detaliu={detaliu}
+              hrefDocument={hrefDocument}
+              context={{ features: module, permissions: permisiuni }}
+            />
           )}
         </PanouDocumentRegistru>
       )}

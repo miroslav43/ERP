@@ -43,10 +43,11 @@ import {
   formatPeriodicitate,
   textNumarat,
 } from "../etichete";
-import { NavMentenanta } from "../nav-mentenanta";
 import { DialogAmanaPlan } from "./dialog-amana-plan";
 import { DialogExecutaPlan } from "./dialog-executa-plan";
 import { FiltrePlanuriForm } from "./filtre-planuri";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Planuri de mentenanță" };
 
@@ -404,7 +405,7 @@ export default async function PaginaPlanuri({ searchParams }: ProprietatiPagina)
               ),
             }
           : {})}
-        file={<NavMentenanta poateSetari={can(permisiuni, "maintenance:update", "all")} />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
       <FiltrePlanuriForm filtre={filtre} echipamente={echipamente} responsabili={angajati} />

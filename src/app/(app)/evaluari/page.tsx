@@ -39,10 +39,11 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { filtreEvaluariSchema } from "@/schemas/evaluation";
 
 import { ButonContinuaCiorna } from "../angajati/[id]/formular-evaluare-noua";
-import { FileEvaluari } from "./_components/file-evaluari";
 import { PlanificareEvaluari } from "./_components/planificare-evaluari";
 import { ETICHETE_STATUS_EVALUARE, TONURI_STATUS_EVALUARE, tonPunctaj } from "./etichete";
 import { FiltreEvaluari } from "./filtre-evaluari";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Evaluări" };
 
@@ -159,11 +160,14 @@ async function ListaEvaluari({
   parametri,
   poateEvalua,
   poateNota,
+  poateCreaSabloane,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateEvalua: boolean;
   readonly poateNota: boolean;
+  /** `evaluations:update = all`, poarta butonului „Șablon nou"; managerul (team) ajungea pe o pagină fără el. */
+  readonly poateCreaSabloane: boolean;
 }) {
   const filtre = filtreDinUrl(filtreEvaluariSchema, parametri);
   const [{ randuri, urmatorulCursor, total, sortare }, sabloane] = await Promise.all([
@@ -309,7 +313,7 @@ async function ListaEvaluari({
                   }),
                 },
               }
-            : sabloane.length === 0
+            : sabloane.length === 0 && poateCreaSabloane
               ? { actiune: { eticheta: "Creează un șablon", href: "/evaluari/sabloane" } }
               : {})}
         />
@@ -371,7 +375,13 @@ export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina
       <AntetPagina
         titlu="Evaluări"
         descriere="Evaluările angajaților, cu punctajul calculat din criteriile șablonului folosit la completare."
-        file={<FileEvaluari activa="evaluari" />}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari()}
+            tenant={tenant}
+          />
+        }
         {...(poateEvalua
           ? {
               actiuni: (
@@ -397,6 +407,7 @@ export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina
           parametri={parametri}
           poateEvalua={poateEvalua}
           poateNota={can(permisiuni, "evaluations:update", "team")}
+          poateCreaSabloane={can(permisiuni, "evaluations:update", "all")}
         />
       </Suspense>
     </div>

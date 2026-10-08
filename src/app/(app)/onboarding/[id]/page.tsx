@@ -7,8 +7,8 @@ import { PackageX } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
@@ -37,9 +37,10 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "onboarding"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "checklists:read", "own")) {
@@ -97,8 +98,21 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
   // stătea seedată și moartă din 0002. Ecranul trebuie să ceară exact ce cer
   // acum `finalizeazaInstanta` și `anuleazaInstanta`, altfel butonul apare și
   // acțiunea îl refuză.
+  // La scope `team`, politica de UPDATE cere și `is_manager_of(subiect)`: un
+  // manager care vede instanța doar ca RESPONSABIL de pas primea butoanele și
+  // un refuz cu zero rânduri. `angajat !== undefined` e dovada că subiectul s-a
+  // citit prin `manager_path`, deci e în subordine.
+  const scopAprobare = scopeFor(permisiuni, "checklists:approve");
   const poateGestiona =
-    can(permisiuni, "checklists:approve", "team") && instanta.status === "in_curs";
+    can(permisiuni, "checklists:approve", "team") &&
+    instanta.status === "in_curs" &&
+    (scopAprobare === "all" || angajat !== undefined);
+  // Politica dovezii n-are ramură de responsabil: fără subordonare, pagina
+  // dovezii răspundea „nu există încă", cu o cauză falsă.
+  const poateVedeaDovada =
+    scopeFor(permisiuni, "checklists:read") === "all" || angajat !== undefined;
+  const poateDeschideInventarul =
+    module.has("inventory") && can(permisiuni, "inventory:read", "team");
 
   // Vizibil MEREU pentru cine are dreptul (politica din 0014 cere
   // `checklists:update ≥ team`) — nu doar lângă butonul „Finalizează".
@@ -158,10 +172,18 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
             Bunuri nereturnate
           </h2>
           <p className="text-foreground text-corp mt-1">
-            Checklistul poate fi finalizat doar după ce toate sunt returnate în modulul{" "}
-            <Link href="/inventar" className="underline underline-offset-2">
-              Inventar
-            </Link>
+            Checklistul poate fi finalizat doar după ce toate sunt returnate
+            {poateDeschideInventarul ? (
+              <>
+                {" "}
+                în modulul{" "}
+                <Link href="/inventar" className="underline underline-offset-2">
+                  Inventar
+                </Link>
+              </>
+            ) : (
+              " de către responsabilul de inventar"
+            )}
             .
           </p>
           <ul className="text-foreground text-corp mt-2 space-y-1">
@@ -184,14 +206,16 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
 
       {poateGestiona ? <ActiuniInstanta instantaId={instanta.id} /> : null}
 
-      <p className="text-muted-foreground text-corp">
-        <Link
-          href={`/onboarding/${instanta.id}/dovada`}
-          className="underline-offset-2 hover:underline"
-        >
-          Vezi dovada de parcurgere
-        </Link>
-      </p>
+      {poateVedeaDovada ? (
+        <p className="text-muted-foreground text-corp">
+          <Link
+            href={`/onboarding/${instanta.id}/dovada`}
+            className="underline-offset-2 hover:underline"
+          >
+            Vezi dovada de parcurgere
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -190,11 +190,13 @@ export default async function PaginaCeas() {
           </p>
         ) : null}
       </section>
-      <p>
-        <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
-          Vezi luna întreagă
-        </Link>
-      </p>
+      {can(permisiuni, "attendance:read", "own") ? (
+        <p>
+          <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
+            Vezi luna întreagă
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

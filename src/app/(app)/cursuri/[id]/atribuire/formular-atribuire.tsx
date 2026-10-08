@@ -29,9 +29,18 @@ interface Proprietati {
   readonly angajati: readonly AngajatOptiune[];
   /** Cine are deja cursul în curs sau parcurs: nu se re-atribuie din greșeală. */
   readonly deja: readonly string[];
+  /** `employees:read`, poarta lui `/angajati` — fără el, lista goală nu promite un drum închis. */
+  readonly poateVedeaAngajati?: boolean;
 }
 
-export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja }: Proprietati) {
+export function FormularAtribuire({
+  cursId,
+  denumire,
+  termenZile,
+  angajati,
+  deja,
+  poateVedeaAngajati = false,
+}: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [cauta, setCauta] = useState("");
@@ -84,7 +93,9 @@ export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja
         pictograma={Users}
         titlu="Niciun angajat activ"
         descriere="Adăugați întâi angajați, apoi le puteți atribui cursuri."
-        actiune={{ eticheta: "Deschideți lista de angajați", href: "/angajati" }}
+        {...(poateVedeaAngajati
+          ? { actiune: { eticheta: "Deschideți lista de angajați", href: "/angajati" } }
+          : {})}
       />
     );
   }

@@ -201,7 +201,9 @@ export default async function PaginaStadiu({
                 : "Cursul e în ciornă. Publicați-l din pagina cursului, apoi îl puteți atribui."
             }
             {...(curs.publicat
-              ? { actiune: { eticheta: "Atribuie cursul", href: `/cursuri/${cursId}/atribuire` } }
+              ? can(permisiuni, "courses:create", "team")
+                ? { actiune: { eticheta: "Atribuie cursul", href: `/cursuri/${cursId}/atribuire` } }
+                : {}
               : // Un curs nepublicat nu se poate atribui, dar tăcerea de dinainte
                 // lăsa omul fără nimic de apăsat ȘI fără explicație.
                 { actiune: { eticheta: "Publicați cursul întâi", href: `/cursuri/${cursId}` } })}

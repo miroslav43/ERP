@@ -14,7 +14,8 @@ import { configZiDin } from "@/domain/attendance/calcul-ore";
 import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 
 import { FormularPontareRapida } from "./formular-pontare-rapida";
-import { NavSetariPontaj } from "./nav-setari";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_SETARI_PONTAJ } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Pontarea" };
 
@@ -65,12 +66,19 @@ export default async function PaginaSetariPontare() {
         <AntetPagina
           titlu="Setări pontaj"
           descriere="Cum își pontează angajații ziua de pe telefon."
-          file={<NavSetariPontaj />}
+          file={
+            <FileModul
+              eticheta="Navigare setări pontaj"
+              file={FILE_SETARI_PONTAJ}
+              tenant={tenant}
+            />
+          }
         />
       </div>
 
       <FormularPontareRapida
         pontare={configPontareRapida(randPontare)}
+        poateVedeaCoduriQr={can(permisiuni, "departments:update", "all")}
         // Lista lor se desenează în fila „Coduri QR", nu aici; ce rămâne de
         // spus ecranului ăstuia e dacă EXISTĂ vreun afiș, fiindcă de asta
         // atârnă alegerea „Numai prin cod QR".

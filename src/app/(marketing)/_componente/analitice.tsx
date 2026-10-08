@@ -3,6 +3,7 @@ import Script from "next/script";
 import { BaraConsimtamant } from "./bara-consimtamant";
 import { CHEIE_CONSIMTAMANT } from "./consimtamant";
 import { MasurareCitire } from "./masurare-citire";
+import { PornireGa } from "./pornire-ga";
 
 /**
  * Măsurarea paginilor publice.
@@ -33,6 +34,7 @@ import { MasurareCitire } from "./masurare-citire";
  * ÎNAINTE ca `gtag.js` să se încarce — de aceea e un `<script>` obișnuit, care
  * rulează la parsare, iar biblioteca vine `afterInteractive`, adică mai târziu.
  * Inversate, cookie-ul ar fi deja scris când sosește refuzul.
+ * Pornirea (`js` + `config`) nu mai e script inline din 8 oct 2026: vezi `pornire-ga.tsx`.
  */
 export const ID_GA = "G-ZH3T2BSNJK";
 
@@ -58,13 +60,6 @@ try{
     gtag('consent','update',{analytics_storage:'granted'});
   }
 }catch(e){}
-`;
-
-const PORNIRE_GA = `
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', '${ID_GA}');
 `;
 
 /**
@@ -133,9 +128,9 @@ export function Analitice() {
         src={`https://www.googletagmanager.com/gtag/js?id=${ID_GA}`}
         strategy="afterInteractive"
       />
-      <Script id="ga-pornire" strategy="afterInteractive">
-        {PORNIRE_GA}
-      </Script>
+      {/* `js` + `config` dintr-un efect, cu poarta „fără date de formular în
+          adresă” (`pornire-ga.tsx`, auditul din 8 oct 2026). */}
+      <PornireGa id={ID_GA} />
       {/*
         Aceeași componentă ca pe `/inregistrare`. Atributele scriptului —
         `data-domains`, `data-do-not-track` — se scriu într-un singur loc:

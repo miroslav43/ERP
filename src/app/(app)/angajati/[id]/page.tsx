@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { evaluariAngajat, listeazaSabloane } from "@/lib/queries/evaluari";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -150,9 +150,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "nucleu"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
   const scope = scopeFor(permisiuni, "employees:read") ?? undefined;
 
@@ -176,15 +177,22 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
    * interogare pleacă deloc. `Promise.resolve(…)` pe ramura refuzată păstrează
    * exact semantica de dinainte — nicio interogare, nicio schimbare de tip.
    */
-  const poateAdaugaScutire = can(permisiuni, "payroll:create", "all");
-  const poateAdaugaComponenta = can(permisiuni, "payroll:create", "all");
+  // Permisiunea ȘI modulul: tipurile de componente de platformă se văd și fără
+  // Salarizare, deci formularul apărea la firmele fără modul, iar acțiunile îl
+  // refuzau (`feature: "payroll"`). Acum secțiunile nu se randează deloc.
+  const arePayroll = module.has("payroll");
+  const poateAdaugaScutire = arePayroll && can(permisiuni, "payroll:create", "all");
+  const poateAdaugaComponenta = arePayroll && can(permisiuni, "payroll:create", "all");
   // Cheie proprie din 0070; politicile au urmat-o în 0071. Până atunci poarta
   // din bază era `employees:update`, pe care managerul nu o are la niciun
   // scope: acțiunea trecea de preambul și baza o refuza cu 42501, deci
   // formularul era în fapt exclusiv al HR-ului și al administratorului,
   // contrar cerinței „managerul direct".
-  const poateCreaEvaluare = can(permisiuni, "evaluations:create", "team");
-  const poateEditaEvaluare = can(permisiuni, "evaluations:update", "team");
+  // Modulul, nu doar permisiunea: șablonul de platformă e vizibil și fără
+  // Evaluări, deci butonul apărea și la firmele fără modul.
+  const areEvaluari = module.has("evaluations");
+  const poateCreaEvaluare = areEvaluari && can(permisiuni, "evaluations:create", "team");
+  const poateEditaEvaluare = areEvaluari && can(permisiuni, "evaluations:update", "team");
   // Invitarea are permisiune PROPRIE (0099), separată de `employees:update`:
   // ea consumă un loc din `seats_limit` și creează un cont, nu editează o fișă.
   // Stă printre porțile de sus fiindcă decide dacă pleacă interogarea de mai
@@ -455,6 +463,11 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   })();
 
   const esteFisaProprie = angajat.user_id === utilizator.id;
+  // La scope `team`, echipa exclude fișa proprie (`can_access_evaluation`,
+  // 0170): butonul se vedea, iar inserarea era refuzată de RLS.
+  const poateCreaEvaluareAici =
+    poateCreaEvaluare &&
+    !(esteFisaProprie && scopeFor(permisiuni, "evaluations:create") === "team");
   const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
   // Pragul `team` e cel mai mic care deschide ecranul: `org_admin` are `all`
   // (toată firma), managerul `team` (doar echipa lui, restul îl oprește RLS).
@@ -599,7 +612,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             */
             actiuni={
               <>
-                {poateAcordaPermisiuni ? (
+                {/* Nimeni nu-și acordă sieși: `role_permissions_insert` (0063)
+                    cere `member_id` diferit de membrul curent. */}
+                {poateAcordaPermisiuni && !esteFisaProprie ? (
                   <Link
                     href={`/angajati/${angajat.id}/permisiuni`}
                     className={buton({ varianta: "secundar" })}
@@ -977,9 +992,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         departmentId={angajat.department?.id ?? null}
         codCor={angajat.cod_cor}
         poateVedeaRegulile={poateVedeaRegulileConcediu}
+        poateEditaRegulile={module.has("leave") && can(permisiuni, "leave:update", "all")}
       />
 
-      {scope === "all" ? (
+      {scope === "all" && arePayroll ? (
         <section aria-labelledby="titlu-scutiri" className={CLASA_SECTIUNE}>
           <h2 id="titlu-scutiri" className="text-sectiune mb-4 font-medium">
             Scutiri fiscale
@@ -1030,7 +1046,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         </section>
       ) : null}
 
-      {scope === "all" ? (
+      {scope === "all" && arePayroll ? (
         <section aria-labelledby="titlu-componente" className={CLASA_SECTIUNE}>
           <h2 id="titlu-componente" className="text-sectiune mb-4 font-medium">
             Sporuri și prime
@@ -1085,126 +1101,138 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           )}
           {poateAdaugaComponenta ? (
             <div className="mt-4">
-              <FormularComponentaSalariala employeeId={angajat.id} sabloane={sabloaneComponente} />
+              <FormularComponentaSalariala
+                employeeId={angajat.id}
+                sabloane={sabloaneComponente}
+                poateDeschideComponente={can(permisiuni, "payroll:read", "own")}
+              />
             </div>
           ) : null}
         </section>
       ) : null}
 
-      <section aria-labelledby="titlu-evaluari" className={CLASA_SECTIUNE}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 id="titlu-evaluari" className="text-sectiune font-medium">
-            Evaluări
-          </h2>
-          {poateCreaEvaluare && sabloaneEvaluare.length > 0 ? (
-            <ButonEvaluareNoua employeeId={angajat.id} sabloane={sabloaneEvaluare} />
-          ) : null}
-        </div>
+      {areEvaluari ? (
+        <section aria-labelledby="titlu-evaluari" className={CLASA_SECTIUNE}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 id="titlu-evaluari" className="text-sectiune font-medium">
+              Evaluări
+            </h2>
+            {poateCreaEvaluareAici && sabloaneEvaluare.length > 0 ? (
+              <ButonEvaluareNoua employeeId={angajat.id} sabloane={sabloaneEvaluare} />
+            ) : null}
+          </div>
 
-        {evaluari.length === 0 ? (
-          <StareGoala mesaj="Angajatul nu are nicio evaluare înregistrată." />
-        ) : (
-          <ul className="space-y-3">
-            {evaluari.map((evaluare) => {
-              const criteriiDupaCod = new Map(evaluare.criterii.map((c) => [c.cod, c]));
-              return (
-                <li key={evaluare.id} className="border-border rounded-panou border p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{evaluare.sablon ?? "Șablon șters"}</span>
-                    {evaluare.versiune_sablon === null ? null : (
-                      <span className="text-muted-foreground text-nota tabular-nums">
-                        v{evaluare.versiune_sablon}
+          {evaluari.length === 0 ? (
+            <StareGoala mesaj="Angajatul nu are nicio evaluare înregistrată." />
+          ) : (
+            <ul className="space-y-3">
+              {evaluari.map((evaluare) => {
+                const criteriiDupaCod = new Map(evaluare.criterii.map((c) => [c.cod, c]));
+                return (
+                  <li key={evaluare.id} className="border-border rounded-panou border p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{evaluare.sablon ?? "Șablon șters"}</span>
+                      {evaluare.versiune_sablon === null ? null : (
+                        <span className="text-muted-foreground text-nota tabular-nums">
+                          v{evaluare.versiune_sablon}
+                        </span>
+                      )}
+                      <span className="text-muted-foreground text-corp">
+                        {formatDate(evaluare.data_evaluarii)}
                       </span>
-                    )}
-                    <span className="text-muted-foreground text-corp">
-                      {formatDate(evaluare.data_evaluarii)}
-                    </span>
-                    <Badge ton={TONURI_STATUS_EVALUARE[evaluare.status]}>
-                      {ETICHETE_STATUS_EVALUARE[evaluare.status]}
-                    </Badge>
-                  </div>
-
-                  {evaluare.punctaj.procent === null ? null : (
-                    <div className="mt-2 max-w-sm">
-                      <Nivel
-                        valoare={evaluare.punctaj.procent}
-                        din={100}
-                        marime="subtire"
-                        ton={tonPunctaj(evaluare.punctaj.procent)}
-                        eticheta={`Punctajul evaluării din ${formatDate(evaluare.data_evaluarii)}`}
-                        text={
-                          evaluare.punctaj.necompletate === 0
-                            ? `${String(evaluare.punctaj.procent)} %`
-                            : `${String(evaluare.punctaj.procent)} % pe ${String(evaluare.punctaj.completate)} din ${String(evaluare.criterii.length)} criterii`
-                        }
-                      />
+                      <Badge ton={TONURI_STATUS_EVALUARE[evaluare.status]}>
+                        {ETICHETE_STATUS_EVALUARE[evaluare.status]}
+                      </Badge>
                     </div>
-                  )}
 
-                  {/* Criteriile vin din INSTANTANEUL evaluării, nu din șablonul
+                    {evaluare.punctaj.procent === null ? null : (
+                      <div className="mt-2 max-w-sm">
+                        <Nivel
+                          valoare={evaluare.punctaj.procent}
+                          din={100}
+                          marime="subtire"
+                          ton={tonPunctaj(evaluare.punctaj.procent)}
+                          eticheta={`Punctajul evaluării din ${formatDate(evaluare.data_evaluarii)}`}
+                          text={
+                            evaluare.punctaj.necompletate === 0
+                              ? `${String(evaluare.punctaj.procent)} %`
+                              : `${String(evaluare.punctaj.procent)} % pe ${String(evaluare.punctaj.completate)} din ${String(evaluare.criterii.length)} criterii`
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {/* Criteriile vin din INSTANTANEUL evaluării, nu din șablonul
                       de azi: denumirea și scala sunt cele de la momentul
                       notării. Un criteriu nenotat se scrie „—", nu „0". */}
-                  <ul className="text-nota mt-2 flex flex-wrap gap-2">
-                    {evaluare.raspunsuri.map((raspuns) => {
-                      const criteriu = criteriiDupaCod.get(raspuns.criteriu_cod);
-                      if (criteriu === undefined) return null;
-                      return (
-                        <li
-                          key={raspuns.criteriu_cod}
-                          className="bg-background border-border rounded-full border px-2.5 py-1"
-                        >
-                          {criteriu.denumire}
-                          {": "}
-                          {criteriu.tip === "text" ? (
-                            <span className="text-muted-foreground">
-                              {raspuns.raspuns_text ?? "—"}
-                            </span>
-                          ) : raspuns.scor === null ? (
-                            <span className="text-muted-foreground">nenotat</span>
-                          ) : criteriu.tip === "da_nu" ? (
-                            <span className="tabular-nums">{raspuns.scor === 1 ? "da" : "nu"}</span>
-                          ) : (
-                            <span className="tabular-nums">
-                              {raspuns.scor}/{criteriu.scala_max}
-                            </span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
+                    <ul className="text-nota mt-2 flex flex-wrap gap-2">
+                      {evaluare.raspunsuri.map((raspuns) => {
+                        const criteriu = criteriiDupaCod.get(raspuns.criteriu_cod);
+                        if (criteriu === undefined) return null;
+                        return (
+                          <li
+                            key={raspuns.criteriu_cod}
+                            className="bg-background border-border rounded-full border px-2.5 py-1"
+                          >
+                            {criteriu.denumire}
+                            {": "}
+                            {criteriu.tip === "text" ? (
+                              <span className="text-muted-foreground">
+                                {raspuns.raspuns_text ?? "—"}
+                              </span>
+                            ) : raspuns.scor === null ? (
+                              <span className="text-muted-foreground">nenotat</span>
+                            ) : criteriu.tip === "da_nu" ? (
+                              <span className="tabular-nums">
+                                {raspuns.scor === 1 ? "da" : "nu"}
+                              </span>
+                            ) : (
+                              <span className="tabular-nums">
+                                {raspuns.scor}/{criteriu.scala_max}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
 
-                  {evaluare.concluzie === null ? null : (
-                    <p className="text-muted-foreground text-corp mt-2">{evaluare.concluzie}</p>
-                  )}
+                    {evaluare.concluzie === null ? null : (
+                      <p className="text-muted-foreground text-corp mt-2">{evaluare.concluzie}</p>
+                    )}
 
-                  {/* Ciorna se poate corecta; evaluarea finalizată e imuabilă
+                    {/* Ciorna se poate corecta; evaluarea finalizată e imuabilă
                       pentru scope-ul de echipă, prin politica din 0071. */}
-                  {evaluare.status === "draft" && poateEditaEvaluare ? (
-                    <div className="mt-3">
-                      <ButonContinuaCiorna
-                        employeeId={angajat.id}
-                        sabloane={sabloaneEvaluare}
-                        ciorna={{
-                          id: evaluare.id,
-                          data_evaluarii: evaluare.data_evaluarii,
-                          concluzie: evaluare.concluzie,
-                          criterii: evaluare.criterii,
-                          raspunsuri: evaluare.raspunsuri,
-                          sablon: evaluare.sablon,
-                        }}
-                      />
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                    {evaluare.status === "draft" && poateEditaEvaluare ? (
+                      <div className="mt-3">
+                        <ButonContinuaCiorna
+                          employeeId={angajat.id}
+                          sabloane={sabloaneEvaluare}
+                          ciorna={{
+                            id: evaluare.id,
+                            data_evaluarii: evaluare.data_evaluarii,
+                            concluzie: evaluare.concluzie,
+                            criterii: evaluare.criterii,
+                            raspunsuri: evaluare.raspunsuri,
+                            sablon: evaluare.sablon,
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-        {poateCreaEvaluare && sabloaneEvaluare.length === 0 ? (
-          <FormularEvaluareNoua employeeId={angajat.id} sabloane={sabloaneEvaluare} />
-        ) : null}
-      </section>
+          {poateCreaEvaluareAici && sabloaneEvaluare.length === 0 ? (
+            <FormularEvaluareNoua
+              employeeId={angajat.id}
+              sabloane={sabloaneEvaluare}
+              poateCreaSabloane={can(permisiuni, "evaluations:update", "all")}
+            />
+          ) : null}
+        </section>
+      ) : null}
 
       {/*
        * Secțiunea listează documentele, dar descărcarea, încărcarea și

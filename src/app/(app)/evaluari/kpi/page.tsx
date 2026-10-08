@@ -28,11 +28,11 @@ import { idFisaProprie } from "@/lib/queries/employees";
 import { angajatiPentruKpi, listeazaLuniKpi, type RandKpi } from "@/lib/queries/kpi";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
-import { FileEvaluari } from "../_components/file-evaluari";
-
 import { DeschideLuna } from "./deschide-luna";
 import { ETICHETE_STATUS_KPI, TONURI_STATUS_KPI, numeLuna, tonKpi } from "./etichete";
 import { SelectorPerioada } from "./selector-perioada";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "KPI lunar" };
 
@@ -187,7 +187,13 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
       <AntetPagina
         titlu="KPI lunar"
         descriere="Indicatorii lunari ai echipei, cu ținta pusă pe funcție și ajustată pe om. Angajatul își vede luna în lucru din portal."
-        file={<FileEvaluari activa="kpi" />}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari()}
+            tenant={tenant}
+          />
+        }
         {...(poateEvalua
           ? { actiuni: <DeschideLuna angajati={angajati} an={an} luna={luna} /> }
           : {})}

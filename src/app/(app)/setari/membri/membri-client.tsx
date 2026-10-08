@@ -60,7 +60,17 @@ function linkDinToken(token: string): string {
 export function PanouMembri({
   membri,
   invitatii,
-}: Readonly<{ membri: readonly RandMembru[]; invitatii: readonly RandInvitatie[] }>) {
+  poateInvita,
+}: Readonly<{
+  membri: readonly RandMembru[];
+  invitatii: readonly RandInvitatie[];
+  /**
+   * `users:create = all` — poarta lui `invitaMembru` și `revocaInvitatia`.
+   * Pagina se deschide cu `users:update`; un membru cu `update` fără `create`
+   * (suprascriere 0063) completa formularul și era refuzat la trimitere.
+   */
+  poateInvita: boolean;
+}>) {
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState<"org_admin" | "manager" | "hr" | "employee">("employee");
   const [mesaj, setMesaj] = useState<Mesaj | null>(null);
@@ -237,44 +247,51 @@ export function PanouMembri({
         <h2 id="titlu-invita" className="text-foreground text-corp font-medium">
           Invitați un coleg
         </h2>
-        <form onSubmit={invita} className="mt-3 flex flex-wrap items-end gap-3" noValidate>
-          <div className="flex min-w-56 flex-1 flex-col gap-1">
-            <label htmlFor="invita-email" className="text-muted-foreground text-corp">
-              Adresă de e-mail
-            </label>
-            <input
-              id="invita-email"
-              type="email"
-              required
-              value={email}
-              onChange={(eveniment) => setEmail(eveniment.target.value)}
-              className="border-border bg-background text-foreground rounded-control text-corp h-9 border px-3"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="invita-rol" className="text-muted-foreground text-corp">
-              Rol
-            </label>
-            <select
-              id="invita-rol"
-              value={rol}
-              onChange={(eveniment) =>
-                setRol(eveniment.target.value as "org_admin" | "manager" | "hr" | "employee")
-              }
-              className="border-border bg-background text-foreground rounded-control text-corp h-9 border px-2"
-            >
-              {ROLURI.map((element) => (
-                <option key={element.valoare} value={element.valoare}>
-                  {element.eticheta}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se trimite…">
-            <MailPlus aria-hidden="true" className="h-4 w-4" />
-            Trimite invitația
-          </Buton>
-        </form>
+        {!poateInvita ? (
+          <p className="text-muted-foreground text-corp mt-2">
+            Invitațiile le trimite un administrator al firmei; contul dumneavoastră poate doar
+            consulta lista.
+          </p>
+        ) : (
+          <form onSubmit={invita} className="mt-3 flex flex-wrap items-end gap-3" noValidate>
+            <div className="flex min-w-56 flex-1 flex-col gap-1">
+              <label htmlFor="invita-email" className="text-muted-foreground text-corp">
+                Adresă de e-mail
+              </label>
+              <input
+                id="invita-email"
+                type="email"
+                required
+                value={email}
+                onChange={(eveniment) => setEmail(eveniment.target.value)}
+                className="border-border bg-background text-foreground rounded-control text-corp h-9 border px-3"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="invita-rol" className="text-muted-foreground text-corp">
+                Rol
+              </label>
+              <select
+                id="invita-rol"
+                value={rol}
+                onChange={(eveniment) =>
+                  setRol(eveniment.target.value as "org_admin" | "manager" | "hr" | "employee")
+                }
+                className="border-border bg-background text-foreground rounded-control text-corp h-9 border px-2"
+              >
+                {ROLURI.map((element) => (
+                  <option key={element.valoare} value={element.valoare}>
+                    {element.eticheta}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se trimite…">
+              <MailPlus aria-hidden="true" className="h-4 w-4" />
+              Trimite invitația
+            </Buton>
+          </form>
+        )}
 
         <p
           role="status"
@@ -343,7 +360,7 @@ export function PanouMembri({
                 <span className="text-muted-foreground">expiră la {invitatie.expiraLa}</span>
                 <Buton
                   varianta="distructiv"
-                  disabled={inCurs}
+                  disabled={inCurs || !poateInvita}
                   className="ml-auto"
                   onClick={() =>
                     ruleaza(

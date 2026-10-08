@@ -492,7 +492,7 @@ const INTRARI: readonly Intrare[] = [
     zona: "app",
     parinte: "evaluari",
     fila: "KPI lunar",
-    featureKey: "evaluations",
+    featureKey: "kpi",
     permission: "evaluations:read",
     minScope: "team",
     descriere:
@@ -505,7 +505,7 @@ const INTRARI: readonly Intrare[] = [
     zona: "app",
     parinte: "evaluari",
     fila: "KPI lunar",
-    featureKey: "evaluations",
+    featureKey: "kpi",
     permission: "evaluations:read",
     minScope: "team",
     descriere:

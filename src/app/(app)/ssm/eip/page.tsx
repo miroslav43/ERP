@@ -35,8 +35,11 @@ async function TabelEip({
   organizationId,
   parametri,
   poateActualiza,
+  poateCrea,
 }: {
   readonly organizationId: string;
+  /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
+  readonly poateCrea: boolean;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateActualiza: boolean;
 }) {
@@ -49,7 +52,11 @@ async function TabelEip({
         fel="initiala"
         pictograma={HardHat}
         titlu="Niciun echipament predat"
-        descriere="Predați primul echipament individual de protecție folosind formularul de mai sus."
+        descriere={
+          poateCrea
+            ? "Predați primul echipament individual de protecție folosind formularul de mai sus."
+            : "Niciun echipament de protecție nu a fost predat încă. Predarea o înregistrează responsabilul SSM."
+        }
       />
     );
   }
@@ -247,6 +254,7 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateActualiza={poateActualiza}
+          poateCrea={poateCrea}
         />
       </Suspense>
     </div>

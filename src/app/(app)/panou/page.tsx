@@ -78,6 +78,10 @@ export default async function PanouPage() {
   const totalDeRezolvat = numarulDinAntet(coada);
   const { scadente, firma } = contoare;
   const firmaGoala = firma.angajatiActivi === 0;
+  // Porțile ȚINTELOR din blocul „Pornire": `hr` n-are `organizations:*`, iar
+  // managerul fără fișă n-are `departments:*` — ambii ajungeau în refuz.
+  const poateEditaFirma = can(permisiuni, "organizations:update", "all");
+  const poateCreaDepartamente = can(permisiuni, "departments:create", "all");
   const peProcente = firma.angajatiActivi >= PRAG_EFECTIV_PROCENTE;
 
   const poateAdaugaAngajat = can(permisiuni, "employees:create", "all");
@@ -237,6 +241,9 @@ export default async function PanouPage() {
               gata
               titlu="Datele firmei sunt complete"
               detaliu="CUI, sediu și reprezentant legal — completate la înrolare."
+              {...(poateEditaFirma
+                ? { actiune: { eticheta: "Verifică", href: "/setari/organizatie" } }
+                : {})}
             />
             <PasPornire
               titlu="Adăugați primul angajat"
@@ -248,12 +255,16 @@ export default async function PanouPage() {
             <PasPornire
               titlu="Definiți departamentele"
               detaliu="Un departament e destul ca să înceapă aprobările."
-              actiune={{ eticheta: "Definește", href: "/departamente" }}
+              {...(poateCreaDepartamente
+                ? { actiune: { eticheta: "Definește", href: "/departamente" } }
+                : {})}
             />
             <PasPornire
               titlu="Porniți modulele de care aveți nevoie"
               detaliu={`${module.size} din ${Object.keys(FEATURES).length} pornite. Pontajul și Concediile sunt cele mai folosite la început.`}
-              actiune={{ eticheta: "Vezi modulele", href: "/setari/organizatie" }}
+              {...(poateEditaFirma
+                ? { actiune: { eticheta: "Vezi modulele", href: "/setari/organizatie" } }
+                : {})}
             />
           </ul>
         </section>

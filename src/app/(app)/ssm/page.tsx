@@ -173,6 +173,9 @@ export default async function PaginaSsm() {
   ]);
   const ssm = instruiri.find((c) => c.domeniu === "ssm")?.deAtentionat ?? 0;
   const psi = instruiri.find((c) => c.domeniu === "psi")?.deAtentionat ?? 0;
+  // Aceeași poartă dublă ca fila „Instruiri": pagina cere și `employees:read`.
+  const poateVedeaInstruiri =
+    can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team");
 
   return (
     <div className="space-y-6">
@@ -198,13 +201,22 @@ export default async function PaginaSsm() {
       {/* Șase carduri SEPARATE: instruirile SSM și PSI sunt obligații legale
           distincte, cu periodicități proprii — NICIODATĂ însumate. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card
-          href="/ssm/instruiri?domeniu=ssm"
-          icon={GraduationCap}
-          titlu="Instruiri SSM"
-          numar={ssm}
-        />
-        <Card href="/ssm/instruiri?domeniu=psi" icon={Flame} titlu="Instruiri PSI" numar={psi} />
+        {poateVedeaInstruiri ? (
+          <>
+            <Card
+              href="/ssm/instruiri?domeniu=ssm"
+              icon={GraduationCap}
+              titlu="Instruiri SSM"
+              numar={ssm}
+            />
+            <Card
+              href="/ssm/instruiri?domeniu=psi"
+              icon={Flame}
+              titlu="Instruiri PSI"
+              numar={psi}
+            />
+          </>
+        ) : null}
         <Card
           href="/ssm/medicina-muncii"
           icon={Stethoscope}

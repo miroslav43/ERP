@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { ArrowLeft, BookMarked, Download, FileText } from "lucide-react";
 import { requireFeature } from "@/lib/auth/features";
-import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format/date";
@@ -187,17 +187,23 @@ export default async function PaginaDocumenteAngajat({
           className="mt-1"
           titlu={`Documente — ${angajat.full_name ?? ""}`}
           descriere={`Marca ${angajat.marca} · ${String(documente.data.length)} document(e) în dosar`}
-          actiuni={
-            // 0184: registrul știe salariatul fiecărui rând, deci fișa lui poate
-            // deschide direct lista documentelor lui înregistrate anul acesta.
-            <Link
-              href={`/registru?an=${String(anulCurent())}&angajat=${angajat.id}`}
-              className={buton({ varianta: "secundar" })}
-            >
-              <BookMarked aria-hidden="true" className="size-4" />
-              Vezi în registru
-            </Link>
-          }
+          {...(can(permisiuni, "registru:read", "all")
+            ? {
+                actiuni: (
+                  // 0184: registrul știe salariatul fiecărui rând, deci fișa lui
+                  // poate deschide direct lista documentelor lui înregistrate anul
+                  // acesta. Doar cu `registru:read = all`, poarta registrului:
+                  // managerul (fără niciun `registru:*`) ajungea în refuz.
+                  <Link
+                    href={`/registru?an=${String(anulCurent())}&angajat=${angajat.id}`}
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    <BookMarked aria-hidden="true" className="size-4" />
+                    Vezi în registru
+                  </Link>
+                ),
+              }
+            : {})}
         />
       </div>
 

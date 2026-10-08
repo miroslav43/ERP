@@ -18,6 +18,8 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 
 import { adresaCu } from "../adresa";
 import { TabelTichete } from "../tabel-tichete";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_TICKETING } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Coada de tichete" };
 
@@ -171,6 +173,7 @@ export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
       <AntetPagina
         titlu="Coada de tichete"
         descriere="Tichetele la care ai acces, cu cererile care așteaptă decizia ta."
+        file={<FileModul eticheta="Navigare ticketing" file={FILE_TICKETING} tenant={tenant} />}
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>

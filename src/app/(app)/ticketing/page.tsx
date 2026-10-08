@@ -22,6 +22,8 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 
 import { adresaCu } from "./adresa";
 import { TabelTichete } from "./tabel-tichete";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_TICKETING } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Tichetele mele" };
 
@@ -142,17 +144,26 @@ export default async function PaginaTichetelorMele({ searchParams }: Proprietati
   }
 
   const parametri = await searchParams;
+  // Un `org_admin` fără fișă de personal nu poate fi solicitant: „Tichet nou"
+  // l-ar fi dus la un formular refuzat la trimitere (`fisaMea`).
+  const faraFisa =
+    scope !== "own" && (await idFisaProprie(tenant.organizationId, utilizator.id)) === null;
 
   return (
     <div className="space-y-6">
       <AntetPagina
         titlu="Tichetele mele"
         descriere="Cererile și problemele pe care le-ai trimis către IT, cu starea fiecăreia."
-        actiuni={
-          <Link href="/ticketing/nou" className={buton({ varianta: "primar" })}>
-            Tichet nou
-          </Link>
-        }
+        file={<FileModul eticheta="Navigare ticketing" file={FILE_TICKETING} tenant={tenant} />}
+        {...(faraFisa
+          ? {}
+          : {
+              actiuni: (
+                <Link href="/ticketing/nou" className={buton({ varianta: "primar" })}>
+                  Tichet nou
+                </Link>
+              ),
+            })}
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>

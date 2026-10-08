@@ -117,13 +117,15 @@ export default async function PaginaSalarizare() {
         // rol sau pentru un membru anume (rândurile pe organizație și pe
         // `member_id` din 0063 bat rândul global). Se pune acum fiindcă atunci
         // nu se va uita nimeni aici.
-        // „Istoric venituri” rămâne neatins — ținta lui cere tot
-        // `payroll:read`, deci cine a ajuns aici îl poate deschide.
+        // „Istoric venituri” cere `payroll:create = all` (istoric-venituri/page.tsx),
+        // MAI MULT decât pagina asta — deci aceeași gardă ca „Setări”.
         actiuni={
           <>
-            <Link href="/salarizare/istoric-venituri" className={buton({ varianta: "secundar" })}>
-              Istoric venituri
-            </Link>
+            {poateCrea ? (
+              <Link href="/salarizare/istoric-venituri" className={buton({ varianta: "secundar" })}>
+                Istoric venituri
+              </Link>
+            ) : null}
             {poateConfigura ? (
               <Link href="/salarizare/setari" className={buton({ varianta: "secundar" })}>
                 Setări

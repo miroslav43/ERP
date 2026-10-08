@@ -22,6 +22,7 @@ import {
 } from "@/lib/queries/attendance";
 
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../../etichete";
+import { fileDePontaj } from "../../file-pontaj";
 
 export const metadata: Metadata = { title: "Lotul de aprobare" };
 
@@ -47,6 +48,9 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
       <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta loturile de aprobare ale pontajului. Această secțiune este rezervată managerilor și personalului de resurse umane." />
     );
   }
+  // `hr` are `attendance:read = all` și `approve = none`: linkurile spre
+  // `/pontaj/aprobare` îl duceau în refuz. Aceeași poartă ca fila din bandă.
+  const file = await fileDePontaj(tenant.organizationId, permisiuni);
 
   const perioada = await citestePerioadaDupaId(tenant.organizationId, id);
   if (perioada === null) notFound();
@@ -158,12 +162,16 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
                 key={grup.departamentId}
                 className="flex items-baseline justify-between gap-4 py-2"
               >
-                <Link
-                  href={adresaAprobare(grup.departamentId)}
-                  className="text-corp underline-offset-2 hover:underline"
-                >
-                  {grup.denumire}
-                </Link>
+                {file.poateAproba ? (
+                  <Link
+                    href={adresaAprobare(grup.departamentId)}
+                    className="text-corp underline-offset-2 hover:underline"
+                  >
+                    {grup.denumire}
+                  </Link>
+                ) : (
+                  <span className="text-corp">{grup.denumire}</span>
+                )}
                 <span className="text-muted-foreground text-nota tabular-nums">
                   {grup.zile} {grup.zile === 1 ? "zi" : "zile"} · {grup.angajati}{" "}
                   {grup.angajati === 1 ? "angajat" : "angajați"}
@@ -173,13 +181,15 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
           </ul>
         )}
 
-        <p className="text-muted-foreground text-corp mt-3">
-          Fiecare departament duce în{" "}
-          <Link href={adresaAprobare("")} className="underline-offset-2 hover:underline">
-            ecranul de aprobare
-          </Link>
-          , deschis direct pe luna asta.
-        </p>
+        {file.poateAproba ? (
+          <p className="text-muted-foreground text-corp mt-3">
+            Fiecare departament duce în{" "}
+            <Link href={adresaAprobare("")} className="underline-offset-2 hover:underline">
+              ecranul de aprobare
+            </Link>
+            , deschis direct pe luna asta.
+          </p>
+        ) : null}
       </section>
 
       <section aria-labelledby="titlu-loturi" className="space-y-3">

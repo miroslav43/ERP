@@ -68,6 +68,12 @@ export type PropsFormularEvaluare = Readonly<{
   /** Prezentă = se corectează o ciornă. Absentă = evaluare nouă. */
   ciorna?: CiornaEvaluare;
   declansator?: (deschide: () => void) => ReactElement;
+  /**
+   * `evaluations:update = all`, poarta butonului „Șablon nou" de pe
+   * `/evaluari/sabloane`. Fără el, „Creați unul" îl trimitea pe manager pe o
+   * pagină fără butonul promis.
+   */
+  poateCreaSabloane?: boolean;
 }>;
 
 /** Ziua de azi în fusul local, ca ISO. `toISOString()` ar da ziua în UTC. */
@@ -83,6 +89,7 @@ export function FormularEvaluareNoua({
   sabloane,
   ciorna,
   declansator,
+  poateCreaSabloane = false,
 }: PropsFormularEvaluare): ReactElement {
   const router = useRouter();
   const idFormular = useId();
@@ -124,13 +131,19 @@ export function FormularEvaluareNoua({
     return (
       <p className="text-muted-foreground text-corp">
         Niciun șablon de evaluare activ.{" "}
-        <Link
-          href="/evaluari/sabloane"
-          className="text-primary underline decoration-1 underline-offset-4"
-        >
-          Creați unul
-        </Link>{" "}
-        înainte de a evalua un angajat.
+        {poateCreaSabloane ? (
+          <>
+            <Link
+              href="/evaluari/sabloane"
+              className="text-primary underline decoration-1 underline-offset-4"
+            >
+              Creați unul
+            </Link>{" "}
+            înainte de a evalua un angajat.
+          </>
+        ) : (
+          "Un administrator al firmei trebuie să creeze unul înainte de a evalua un angajat."
+        )}
       </p>
     );
   }

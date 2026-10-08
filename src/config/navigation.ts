@@ -270,6 +270,24 @@ export const NAV_ITEMS: readonly NavItem[] = [
     minScope: "team",
     order: 48,
   },
+  /*
+   * KPI e modul PROPRIU din 0123, vândut separat de Evaluări. Până aici,
+   * singura intrare spre `/evaluari/kpi` era fila din pagina de evaluări — adică
+   * o firmă care cumpărase doar KPI n-avea niciun drum din meniu. La o firmă cu
+   * ambele, intrarea dublează fila; e prețul corect pentru un modul care poate
+   * sta singur.
+   */
+  {
+    id: "kpi",
+    label: "KPI lunar",
+    href: "/evaluari/kpi",
+    icon: Gauge,
+    group: "personal",
+    featureKey: "kpi",
+    permission: "evaluations:read",
+    minScope: "team",
+    order: 49,
+  },
   {
     id: "onboarding",
     label: "Integrare angajați",
@@ -452,7 +470,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: "financiar",
     featureKey: "payroll",
     permission: "payroll:read",
-    minScope: "team",
+    // `all`, exact poarta lui `/salarizare`: cu `team` (posibil printr-o
+    // suprascriere per membru) intrarea și scurtătura de pe panou duceau în refuz.
+    minScope: "all",
     order: 110,
   },
   {

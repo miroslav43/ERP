@@ -22,11 +22,12 @@ import { functiiFolosite } from "@/lib/queries/employees";
 import { listeazaSeturiKpi } from "@/lib/queries/kpi";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
-import { FileEvaluari } from "../../_components/file-evaluari";
 import { ETICHETE_SENS_KPI } from "@/domain/evaluations/kpi-vocabular";
 
 import { ActiuniSet } from "./actiuni-set";
 import { ConstructorSet } from "./constructor-set";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Seturi de indicatori" };
 
@@ -57,7 +58,13 @@ export default async function PaginaSeturiKpi() {
       <AntetPagina
         titlu="Seturi de indicatori"
         descriere="Ce se măsoară la fiecare funcție, cu ținta implicită și ponderea fiecărei linii."
-        file={<FileEvaluari activa="kpi" />}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari()}
+            tenant={tenant}
+          />
+        }
         {...(poateEdita ? { actiuni: <ConstructorSet functiiSugerate={functii} /> } : {})}
       />
 

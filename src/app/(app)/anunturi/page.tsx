@@ -109,7 +109,10 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
       <AntetPagina
         titlu="Anunțuri"
         descriere={descriere}
-        actiuni={poateAdministra ? <DialogAnuntNou /> : undefined}
+        // Poarta ACȚIUNII (`creeazaAnunt` cere `announcements:create = all`), nu a
+        // administrării: un membru cu `update` fără `create` vedea butonul și era
+        // refuzat la trimitere.
+        actiuni={can(permisiuni, "announcements:create", "all") ? <DialogAnuntNou /> : undefined}
         file={
           poateAdministra && anunturi.length > 0 ? (
             <ComutatorVizualizare

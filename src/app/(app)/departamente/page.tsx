@@ -250,6 +250,7 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
             angajati={optiuniAngajati}
             poateEdita={poateEdita}
             poateMutaPersoane={poateMutaPersoane}
+            poateInvita={can(permisiuni, "users:update", "all")}
           />
         </>
       )}

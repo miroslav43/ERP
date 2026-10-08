@@ -361,7 +361,11 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         </Callout>
       ) : null}
 
-      {oprireDeschisa !== null && oprireDeschisa.fault_report_id !== null ? (
+      {/* Linkul doar spre o sesizare pe care RLS o întoarce: oprirea se vede la
+          scope `team`, sesizarea nu, când raportorul e din afara echipei. */}
+      {oprireDeschisa !== null &&
+      oprireDeschisa.fault_report_id !== null &&
+      sesizariEchipament.randuri.some((s) => s.id === oprireDeschisa.fault_report_id) ? (
         <Callout fel="atentie" titlu="Utilajul nu funcționează">
           Oprit din {formatDateTime(oprireDeschisa.inceput)} (
           {ETICHETE_TIP_OPRIRE[oprireDeschisa.tip]}
@@ -689,7 +693,8 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                   <p className="text-muted-foreground text-nota">
                     {ETICHETE_TIP_OPRIRE[o.tip]}
                     {o.motiv === null ? "" : ` · ${o.motiv}`}
-                    {o.fault_report_id === null ? null : (
+                    {o.fault_report_id === null ||
+                    !sesizariEchipament.randuri.some((s) => s.id === o.fault_report_id) ? null : (
                       <>
                         {" · "}
                         <Link

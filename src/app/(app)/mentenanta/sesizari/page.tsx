@@ -33,10 +33,11 @@ import {
   TONURI_URGENTA_SESIZARE,
 } from "../etichete";
 import { cautaEchipament } from "../actions";
-import { NavMentenanta } from "../nav-mentenanta";
 import { ButonPreiau } from "./buton-preiau";
 import { DialogSesizareNoua } from "./dialog-sesizare-noua";
 import { FiltreSesizariForm } from "./filtre-sesizari";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Sesizări de defecțiune" };
 
@@ -278,7 +279,6 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
   // parametrii bruți ar putea scrie o pastilă cu o valoare inventată din URL.
   const filtre = filtreDinUrl(filtreSesizariSchema, parametri);
   const poateGestiona = can(permisiuni, "maintenance:update", "team");
-  const poateSetari = can(permisiuni, "maintenance:update", "all");
   const poateRaporta = can(permisiuni, "maintenance:create", "own");
   const deschideCaseta = parametri["sesizare"] === "noua";
   const echipamentBrut =
@@ -342,7 +342,7 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
               ),
             }
           : {})}
-        file={<NavMentenanta poateSetari={poateSetari} />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
       <FiltreSesizariForm

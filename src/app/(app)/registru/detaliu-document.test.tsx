@@ -16,6 +16,14 @@ vi.mock("next/navigation", () => ({
 import type { DetaliuDocument as Detaliu } from "@/lib/queries/registru";
 
 import { DetaliuDocument } from "./detaliu-document";
+import { FEATURE_KEYS } from "@/config/features";
+import { PERMISSION_KEYS } from "@/config/permissions";
+
+/** Un privitor cu toate modulele și toate drepturile: testele de aici verifică rubricile, nu porțile. */
+const CONTEXT_TOTAL = {
+  features: new Set<string>(FEATURE_KEYS),
+  permissions: new Map(PERMISSION_KEYS.map((cheie) => [cheie, "all" as const])),
+};
 
 /** happy-dom ar încărca `src`-ul cadrului ca un browser; testul verifică marcajul. */
 type FereastraHappyDom = Window & {
@@ -87,7 +95,9 @@ const hrefDocument = (id: string) => `/registru?an=2026&doc=${id}`;
 
 describe("DetaliuDocument", () => {
   it("arată numărul, sensul și tipul cu cuvintele lor, și rezolvarea etichetată", () => {
-    render(<DetaliuDocument detaliu={detaliu()} hrefDocument={hrefDocument} />);
+    render(
+      <DetaliuDocument detaliu={detaliu()} hrefDocument={hrefDocument} context={CONTEXT_TOTAL} />,
+    );
     expect(screen.getByText("46/08.10.2026")).toBeDefined();
     expect(screen.getByText("Intrare")).toBeDefined();
     expect(screen.getByText("Cerere de concediu")).toBeDefined();
@@ -96,7 +106,9 @@ describe("DetaliuDocument", () => {
   });
 
   it("leagă angajatul, dosarul, documentul conexat și documentul-sursă", () => {
-    render(<DetaliuDocument detaliu={detaliu()} hrefDocument={hrefDocument} />);
+    render(
+      <DetaliuDocument detaliu={detaliu()} hrefDocument={hrefDocument} context={CONTEXT_TOTAL} />,
+    );
     expect(screen.getByRole("link", { name: /Georgescu Ioana/u }).getAttribute("href")).toBe(
       `/angajati/${ANG}`,
     );
@@ -111,9 +123,30 @@ describe("DetaliuDocument", () => {
     expect(deschide.getAttribute("target")).toBeNull();
   });
 
+  it("legătura spre documentul-sursă trece prin poarta ȚINTEI: fără modul sau fără drept, text", () => {
+    // Cererea de concediu duce la `/concedii/[id]`, care cere modulul `leave`
+    // și `leave:read`. Un `hr` dintr-o firmă care a oprit Concediile vede
+    // rândul (registru:read), dar clicul ar fi dat 404.
+    const faraLeave = {
+      features: new Set<string>(FEATURE_KEYS.filter((c) => c !== "leave")),
+      permissions: CONTEXT_TOTAL.permissions,
+    };
+    render(<DetaliuDocument detaliu={detaliu()} hrefDocument={hrefDocument} context={faraLeave} />);
+    expect(screen.queryByRole("link", { name: /Deschide documentul/u })).toBeNull();
+    expect(screen.getByText(/modul oprit sau pe care nu aveți dreptul/u)).toBeDefined();
+
+    const faraDrept = {
+      features: CONTEXT_TOTAL.features,
+      permissions: new Map([...CONTEXT_TOTAL.permissions].filter(([c]) => c !== "leave:read")),
+    };
+    render(<DetaliuDocument detaliu={detaliu()} hrefDocument={hrefDocument} context={faraDrept} />);
+    expect(screen.queryByRole("link", { name: /Deschide documentul/u })).toBeNull();
+  });
+
   it("documentul emis de aplicație: PDF în filă nouă, descărcare și previzualizare la cerere", () => {
     render(
       <DetaliuDocument
+        context={CONTEXT_TOTAL}
         detaliu={detaliu({}, { entitateTip: "hr_issued_documents", tipDocument: "nda" })}
         hrefDocument={hrefDocument}
       />,
@@ -134,6 +167,7 @@ describe("DetaliuDocument", () => {
   it("lipsurile se spun cu cuvinte: fără ecran, fără salariat, neclasat, în lucru", () => {
     render(
       <DetaliuDocument
+        context={CONTEXT_TOTAL}
         detaliu={detaliu(
           { angajat: null, dosar: null, conexatLa: null },
           {
@@ -161,6 +195,7 @@ describe("DetaliuDocument", () => {
   it("rândul anulat spune că e anulat și de ce", () => {
     render(
       <DetaliuDocument
+        context={CONTEXT_TOTAL}
         detaliu={detaliu({}, { anulatLa: "2026-10-09T08:00:00Z", motivAnulare: "Cerere retrasă" })}
         hrefDocument={hrefDocument}
       />,
@@ -172,6 +207,7 @@ describe("DetaliuDocument", () => {
   it("documentele conexate la acesta se listează cu link spre fiecare", () => {
     render(
       <DetaliuDocument
+        context={CONTEXT_TOTAL}
         detaliu={detaliu({
           conexate: [
             {

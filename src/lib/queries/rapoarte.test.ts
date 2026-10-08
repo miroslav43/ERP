@@ -181,11 +181,14 @@ describe("statisticiAnuale", () => {
         ["Angajat șters", "—"],
         ["Bogdan Ene", "2"],
       ]);
+      // Linkul spre fișă are nevoie să știe că rândul șters n-are țintă.
+      expect(r.perAngajat.map((a) => a.exista)).toEqual([true, false, true]);
       const bogdan = r.perAngajat.find((a) => a.employeeId === "ang-b");
       expect(bogdan).toEqual({
         employeeId: "ang-b",
         fullName: "Bogdan Ene",
         marca: "2",
+        exista: true,
         zileConcediuOdihna: 2,
         zileConcediuMedical: 4,
         venitBrutAnual: 10500,

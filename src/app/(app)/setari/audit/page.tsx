@@ -15,6 +15,8 @@ import {
   RUTA_AUTENTIFICARE,
   RUTA_DUPA_AUTENTIFICARE,
 } from "@/config/routes";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_SETARI } from "@/config/file-module";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -62,6 +64,7 @@ export default async function PaginaAuditOrganizatie({ searchParams }: Props) {
     <div className={`${LATIMI.lista} space-y-6`}>
       <AntetPagina
         titlu="Jurnal de audit"
+        file={<FileModul eticheta="Navigare setări" file={FILE_SETARI} tenant={tenant} />}
         descriere={`Ce s-a întâmplat în ${tenant.name}: cine, ce și când. Înregistrările nu pot fi modificate sau șterse.`}
       />
 

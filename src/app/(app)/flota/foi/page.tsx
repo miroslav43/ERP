@@ -20,10 +20,11 @@ import { angajatiDupaId, listeazaFoi, listeazaVehicule, vehiculeDupaId } from "@
 import { filtreFoiSchema } from "@/schemas/fleet";
 
 import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
-import { NavFlota } from "../nav-flota";
 import { dateFoaieNoua } from "./date-foaie-noua";
 import { DialogFoaieNoua } from "./dialog-foaie-noua";
 import { FiltreFoi } from "./filtre-foi";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_FLOTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Foi de parcurs" };
 
@@ -255,16 +256,11 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
                   key={deschideCaseta ? "foaie-noua" : "listă"}
                   date={dateFoaie}
                   deschisInitial={deschideCaseta}
+                  poateVedeaParcul={can(permisiuni, "vehicles:read", "own")}
                 />
               ),
             })}
-        file={
-          <NavFlota
-            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
-          />
-        }
+        file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
 
       <FiltreFoi parametri={parametri} vehicule={vehiculeFiltru} />

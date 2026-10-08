@@ -102,9 +102,12 @@ async function BandaRestrictii({ organizationId }: { readonly organizationId: st
 async function TabelFise({
   organizationId,
   parametri,
+  poateCrea,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  /** `ssm:create` — poarta paginii de creare; managerul (doar `read`) ajungea în refuz din starea goală. */
+  readonly poateCrea: boolean;
 }) {
   const filtre = filtreDinUrl(filtreFiseSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await fiseAptitudine(organizationId, filtre);
@@ -116,7 +119,9 @@ async function TabelFise({
         pictograma={Stethoscope}
         titlu="Nicio fișă de aptitudine înregistrată"
         descriere="Adăugați prima fișă ca să urmăriți valabilitatea controalelor medicale periodice."
-        actiune={{ eticheta: "Fișă nouă", href: "/ssm/medicina-muncii/noua" }}
+        {...(poateCrea
+          ? { actiune: { eticheta: "Fișă nouă", href: "/ssm/medicina-muncii/noua" } }
+          : {})}
       />
     );
   }
@@ -288,7 +293,11 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
       </Suspense>
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
-        <TabelFise organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelFise
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateCrea={poateCrea}
+        />
       </Suspense>
     </div>
   );

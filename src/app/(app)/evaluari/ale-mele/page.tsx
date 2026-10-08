@@ -21,8 +21,8 @@ import { requireFeature } from "@/lib/auth/features";
 import { evaluariAngajat } from "@/lib/queries/evaluari";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-
-import { FileEvaluari } from "../_components/file-evaluari";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Evaluările mele" };
 
@@ -43,7 +43,13 @@ export default async function PaginaEvaluarileMeleAplicatie() {
       <AntetPagina
         titlu="Evaluările mele"
         descriere="Evaluările dumneavoastră finalizate, cu nota pe fiecare criteriu, concluzia evaluatorului și evoluția în timp."
-        file={<FileEvaluari activa="ale-mele" />}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari()}
+            tenant={tenant}
+          />
+        }
       />
       {fisa === null ? (
         <p className="text-muted-foreground text-corp">

@@ -162,7 +162,9 @@ export default async function PaginaConformitate() {
           }
           actiune={
             cursuri.length > 0
-              ? { eticheta: "Deschideți lista de angajați", href: "/angajati" }
+              ? can(permisiuni, "employees:read", "own")
+                ? { eticheta: "Deschideți lista de angajați", href: "/angajati" }
+                : { eticheta: "Vedeți cursurile", href: "/cursuri" }
               : primul === undefined
                 ? { eticheta: "Vedeți cursurile", href: "/cursuri" }
                 : {

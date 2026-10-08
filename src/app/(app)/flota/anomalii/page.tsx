@@ -18,8 +18,9 @@ import { formatDateTime } from "@/lib/format/date";
 import { anomaliiNeconfirmate, PLAFON_ANOMALII, vehiculeDupaId } from "@/lib/queries/fleet";
 
 import { ETICHETE_TIP_ANOMALIE, TONURI_TIP_ANOMALIE } from "../etichete";
-import { NavFlota } from "../nav-flota";
 import { ConfirmaAnomalie } from "./confirma-anomalie";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_FLOTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Anomalii de kilometraj" };
 
@@ -28,7 +29,14 @@ function cuSemn(valoare: number): string {
   return `${valoare < 0 ? "−" : "+"}${Math.abs(valoare).toLocaleString("ro-RO")}`;
 }
 
-async function TabelAnomalii({ organizationId }: { readonly organizationId: string }) {
+async function TabelAnomalii({
+  organizationId,
+  poateVedeaFoi,
+}: {
+  readonly organizationId: string;
+  /** `trip_sheets:read`, poarta lui `/flota/foi/[id]`. */
+  readonly poateVedeaFoi: boolean;
+}) {
   const anomalii = await anomaliiNeconfirmate(organizationId);
 
   if (anomalii.length === 0) {
@@ -70,7 +78,7 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
           {/* `trip_sheet_id` era citit din bază și nefolosit: ca să afli ce cursă
               a produs diferența trebuia să mergi la /flota/foi și să cauți după
               dată — iar acolo nici filtru pe vehicul nu exista. */}
-          {a.trip_sheet_id === null ? null : (
+          {a.trip_sheet_id === null || !poateVedeaFoi ? null : (
             <Link
               href={`/flota/foi/${a.trip_sheet_id}`}
               className="text-muted-foreground text-nota block underline-offset-2 hover:underline"
@@ -170,17 +178,16 @@ export default async function PaginaAnomalii() {
                 odometru nu poate da înapoi.
               </span>
             </p>
-            <NavFlota
-              poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-              poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-              poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
-            />
+            <FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />
           </>
         }
       />
 
       <Suspense fallback={<Schelet forma="tabel" coloane={7} />}>
-        <TabelAnomalii organizationId={tenant.organizationId} />
+        <TabelAnomalii
+          organizationId={tenant.organizationId}
+          poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
+        />
       </Suspense>
     </div>
   );

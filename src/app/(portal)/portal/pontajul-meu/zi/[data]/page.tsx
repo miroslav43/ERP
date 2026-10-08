@@ -59,6 +59,10 @@ export default async function PaginaZiPontaj({
     );
   }
 
+  // `create` fără `read` e posibil prin suprascriere per membru: atunci luna
+  // nu se poate deschide, iar „înapoi" duce în refuz.
+  const poateVedeaLuna = can(permisiuni, "attendance:read", "own");
+
   const stare = await fisaMea(tenant.organizationId, user.id);
   if (stare.stare !== "ok") return <FaraFisa stare={stare} numeOrganizatie={tenant.name} />;
 
@@ -74,7 +78,7 @@ export default async function PaginaZiPontaj({
     <AntetPagina titlu={formatDate(zi)} descriere="Pontajul dumneavoastră pe ziua aceasta." />
   );
 
-  const inapoi = (
+  const inapoi = !poateVedeaLuna ? null : (
     <p>
       <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
         Înapoi la pontajul meu
@@ -216,6 +220,7 @@ export default async function PaginaZiPontaj({
       <FormularZi
         key={zi}
         data={zi}
+        dupaSalvare={poateVedeaLuna ? "/portal/pontajul-meu" : "/portal"}
         config={config}
         // Regula se calculează pentru ZIUA pontată, nu pentru azi: setările au
         // istoric, iar o versiune pusă în vigoare de luna viitoare nu se aplică

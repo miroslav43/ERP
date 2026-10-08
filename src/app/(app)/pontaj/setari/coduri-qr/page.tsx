@@ -17,8 +17,9 @@ import { coduriQrDePontare } from "@/lib/queries/attendance";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { cn } from "@/lib/ui/cn";
 
-import { NavSetariPontaj } from "../nav-setari";
 import { ButonCodQr } from "./buton-cod";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_SETARI_PONTAJ } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Coduri QR" };
 
@@ -75,7 +76,9 @@ export default async function PaginaCoduriQr() {
       <AntetPagina
         titlu="Coduri QR"
         descriere="Codul pe care angajații îl scanează la intrare, câte unul pentru fiecare punct de lucru."
-        file={<NavSetariPontaj />}
+        file={
+          <FileModul eticheta="Navigare setări pontaj" file={FILE_SETARI_PONTAJ} tenant={tenant} />
+        }
       />
     </div>
   );
@@ -123,7 +126,9 @@ export default async function PaginaCoduriQr() {
           fel="initiala"
           titlu="Firma n-are niciun punct de lucru"
           descriere="Codul de pontare aparține unui punct de lucru. Adăugați unul ca să puteți genera un cod."
-          actiune={{ eticheta: "Puncte de lucru", href: "/puncte-lucru" }}
+          {...(can(permisiuni, "departments:read", "own")
+            ? { actiune: { eticheta: "Puncte de lucru", href: "/puncte-lucru" } }
+            : {})}
         />
       ) : (
         <ul className="space-y-4">

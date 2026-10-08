@@ -59,7 +59,11 @@ export function RandTabel({
 
   function gestioneazaClick(evenimet: MouseEvent<HTMLTableRowElement>): void {
     const tinta = evenimet.target as HTMLElement;
-    if (tinta.closest("a, button, input, select, textarea, label")) return;
+    // `dialog`, `details`, `summary`: un panou deschis dintr-o celulă `actiuni`
+    // se randează ÎN rând; un clic în el (sau pe un `<summary>` pliabil) nu e
+    // o cerere de navigare.
+    if (tinta.closest("a, button, input, select, textarea, label, dialog, details, summary"))
+      return;
     // Al doilea clic cât timp primul încă navighează ar pune o a doua sursă în
     // depozitar, iar componenta e demontată de chiar navigarea pe care a
     // pornit-o: a doua ar rămâne aprinsă până la `PLAFON_TARE`, 30 de secunde.

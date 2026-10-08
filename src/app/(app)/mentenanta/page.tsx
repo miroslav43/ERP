@@ -57,8 +57,9 @@ import {
   formatContor,
   textNumarat,
 } from "./etichete";
-import { NavMentenanta } from "./nav-mentenanta";
 import { SesizarileMele } from "./sesizarile-mele";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Mentenanță" };
 
@@ -527,10 +528,11 @@ export default async function PaginaMentenanta() {
   // minScope „team”, deci nu-l vede. Vede DOAR sesizările proprii, nu panoul
   // de organizație.
   if (!can(permisiuni, "maintenance:read", "team")) {
-    return <SesizarileMele />;
+    return <SesizarileMele poateRaporta={can(permisiuni, "maintenance:create", "own")} />;
   }
 
   const poateAdaugaEchipament = can(permisiuni, "maintenance:update", "team");
+  const poateRaporta = can(permisiuni, "maintenance:create", "own");
 
   return (
     <div className="space-y-6">
@@ -542,12 +544,14 @@ export default async function PaginaMentenanta() {
           // `?echipament=nou`): rutele `/noua` și `/nou` nu mai există ca
           // pagini — vezi `dialog-sesizare-noua.tsx` și `dialog-echipament-nou.tsx`.
           <>
-            <Link
-              href="/mentenanta/sesizari?sesizare=noua"
-              className={buton({ varianta: "secundar" })}
-            >
-              Sesizare nouă
-            </Link>
+            {poateRaporta ? (
+              <Link
+                href="/mentenanta/sesizari?sesizare=noua"
+                className={buton({ varianta: "secundar" })}
+              >
+                Sesizare nouă
+              </Link>
+            ) : null}
             {poateAdaugaEchipament ? (
               <Link
                 href="/mentenanta/echipamente?echipament=nou"
@@ -558,7 +562,7 @@ export default async function PaginaMentenanta() {
             ) : null}
           </>
         }
-        file={<NavMentenanta poateSetari={can(permisiuni, "maintenance:update", "all")} />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
       <PanouOrganizatie organizationId={tenant.organizationId} />

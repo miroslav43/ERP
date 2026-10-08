@@ -117,7 +117,8 @@ export interface EchipamentCautat {
   readonly denumire: string;
   readonly locatie: string | null;
   /** Cea mai veche sesizare ÎNCĂ deschisă pe utilaj — avertismentul de duplicat din casetă. */
-  readonly sesizare_deschisa: Readonly<{ id: string; numar: string }> | null;
+  /** `vizibila`: rândul trece de RLS pentru CINE caută — altfel linkul spre ea ar da 404. */
+  readonly sesizare_deschisa: Readonly<{ id: string; numar: string; vizibila: boolean }> | null;
 }
 
 type EchipamentBrut = Omit<EchipamentCautat, "sesizare_deschisa">;
@@ -130,6 +131,7 @@ type EchipamentBrut = Omit<EchipamentCautat, "sesizare_deschisa">;
  */
 async function cuSesizareaDeschisa(
   admin: ReturnType<typeof createAdminSupabase>,
+  cititor: Pick<ReturnType<typeof createAdminSupabase>, "from">,
   organizationId: string,
   randuri: readonly EchipamentBrut[],
 ): Promise<readonly EchipamentCautat[]> {
@@ -151,7 +153,21 @@ async function cuSesizareaDeschisa(
   for (const s of data ?? []) {
     if (!prima.has(s.equipment_id)) prima.set(s.equipment_id, { id: s.id, numar: s.numar });
   }
-  return randuri.map((r) => ({ ...r, sesizare_deschisa: prima.get(r.id) ?? null }));
+  // Vizibilitatea se întreabă cu clientul OMULUI: sesizarea există (admin),
+  // dar linkul spre ea are sens doar dacă RLS i-o arată.
+  const ids = [...prima.values()].map((s) => s.id);
+  const vizibile = new Set<string>();
+  if (ids.length > 0) {
+    const { data: aleLui } = await cititor.from("fault_reports").select("id").in("id", ids);
+    for (const s of aleLui ?? []) vizibile.add(s.id);
+  }
+  return randuri.map((r) => {
+    const s = prima.get(r.id);
+    return {
+      ...r,
+      sesizare_deschisa: s === undefined ? null : { ...s, vizibila: vizibile.has(s.id) },
+    };
+  });
 }
 
 /**
@@ -187,7 +203,12 @@ export const cautaEchipament = createAction({
         .is("deleted_at", null)
         .maybeSingle<EchipamentBrut>();
       if (error !== null) throw error;
-      return cuSesizareaDeschisa(admin, ctx.tenant.organizationId, data === null ? [] : [data]);
+      return cuSesizareaDeschisa(
+        admin,
+        ctx.supabase,
+        ctx.tenant.organizationId,
+        data === null ? [] : [data],
+      );
     }
 
     // Virgula și parantezele sunt sintaxă în filtrul `or()` al PostgREST; `:`
@@ -206,7 +227,7 @@ export const cautaEchipament = createAction({
       .returns<EchipamentBrut[]>();
     if (error !== null) throw error;
 
-    return cuSesizareaDeschisa(admin, ctx.tenant.organizationId, data ?? []);
+    return cuSesizareaDeschisa(admin, ctx.supabase, ctx.tenant.organizationId, data ?? []);
   },
 });
 

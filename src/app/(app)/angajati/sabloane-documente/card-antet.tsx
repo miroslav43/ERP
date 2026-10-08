@@ -45,6 +45,8 @@ export type PropsCardAntet = Readonly<{
   urlSigla: string | null;
   /** `false` pentru rolurile fără `branding:update` — cardul rămâne în citire. */
   poateEdita: boolean;
+  /** `organizations:update = all`, poarta lui `/setari/organizatie`; `hr` n-o are. */
+  poateEditaFirma: boolean;
 }>;
 
 const ETICHETE: Readonly<Record<PozitieAntet, string>> = {
@@ -56,6 +58,7 @@ export function CardAntetDocumente({
   antet,
   urlSigla,
   poateEdita,
+  poateEditaFirma,
 }: PropsCardAntet): React.ReactElement {
   const [pozitie, setPozitie] = useState<PozitieAntet>(antet.pozitie);
   const [inCurs, startTransition] = useTransition();
@@ -199,11 +202,17 @@ export function CardAntetDocumente({
         <Callout fel="atentie" titlu="Antetul nu are tot ce cere legea">
           Lipsesc: {lipsa.join(", ")}. Legea 31/1990 art. 74 le cere pe documentele emise de
           societate, iar art. 270³ sancționează lipsa lor cu amendă de la 2.500 la 5.000 lei.
-          Completați-le în{" "}
-          <a href="/setari/organizatie" className="underline">
-            profilul firmei
-          </a>
-          .
+          {poateEditaFirma ? (
+            <>
+              Completați-le în{" "}
+              <a href="/setari/organizatie" className="underline">
+                profilul firmei
+              </a>
+              .
+            </>
+          ) : (
+            "Le completează un administrator al firmei, în profilul firmei."
+          )}
         </Callout>
       )}
 

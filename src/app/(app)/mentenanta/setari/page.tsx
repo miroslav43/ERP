@@ -8,8 +8,9 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { optiuniAngajati, setariMentenanta } from "@/lib/queries/maintenance";
 
-import { NavMentenanta } from "../nav-mentenanta";
 import { FormularSetariMentenanta } from "./formular-setari-mentenanta";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Setări mentenanță" };
 
@@ -44,7 +45,7 @@ export default async function PaginaSetariMentenanta() {
       <AntetPagina
         titlu="Setări mentenanță"
         descriere="Cine primește sesizările, termenele de închidere și avertizare, programul de lucru al utilajelor."
-        file={<NavMentenanta poateSetari />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
       <div className={`${LATIMI.formular}`}>
         <FormularSetariMentenanta setari={setari} angajati={angajati} />

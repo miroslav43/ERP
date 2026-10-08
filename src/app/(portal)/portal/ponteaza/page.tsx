@@ -10,6 +10,9 @@ import { setariPontareRapida } from "@/lib/queries/attendance";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
 import { DoarPeSaptamana } from "../doar-pe-saptamana";
+import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap } from "@/lib/auth/permissions";
 
 export const metadata: Metadata = { title: "Pontare cu cod" };
 
@@ -30,6 +33,19 @@ export default async function PaginaPonteazaCuCod() {
     face pontajul acum.
   */
   const { tenant } = await requireTenant();
+  // Preambulul lipsea cu totul: deschisă din semn de carte după oprirea
+  // modulului, pagina se randa și butonul ducea în 404.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "attendance"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
+  if (!can(permisiuni, "attendance:create", "own")) {
+    return (
+      <div className="p-4">
+        <AccesRestrictionat mesaj="Nu aveți dreptul de a ponta." />
+      </div>
+    );
+  }
   if (!sePonteazaPeZi(configPontareRapida(await setariPontareRapida(tenant.organizationId)))) {
     return (
       <div className={`${LATIMI.formular} space-y-5 p-4`}>
@@ -69,11 +85,13 @@ export default async function PaginaPonteazaCuCod() {
           înainte nu mai funcționează. Cereți unul nou responsabilului. Până atunci, ziua se
           completează cu ore, ca înainte.
         </p>
-        <p>
-          <Link href="/portal/pontajul-meu" className={buton({ varianta: "secundar" })}>
-            Completează ziua cu ore
-          </Link>
-        </p>
+        {can(permisiuni, "attendance:read", "own") ? (
+          <p>
+            <Link href="/portal/pontajul-meu" className={buton({ varianta: "secundar" })}>
+              Completează ziua cu ore
+            </Link>
+          </p>
+        ) : null}
       </section>
     </div>
   );

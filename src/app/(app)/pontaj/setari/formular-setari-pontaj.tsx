@@ -309,8 +309,11 @@ function Rand({
 
 export function FormularSetariPontaj({
   setariCurente,
+  poateVedeaSalarizare = false,
 }: {
   readonly setariCurente: SetariPontajComplete | null;
+  /** Modulul Salarizare activ + `payroll:update = all`, poarta lui `/salarizare/setari`. */
+  readonly poateVedeaSalarizare?: boolean;
 }) {
   // Implicitul `true` pentru o firmă fără setări salvate: ecranul arată tot,
   // ca până acum. Nimic nu dispare fără ca cineva să bifeze deliberat.
@@ -585,9 +588,13 @@ export function FormularSetariPontaj({
             <strong className="text-foreground">Sporurile nu se setează aici.</strong> Procentele
             care intră pe fluturaș — ore suplimentare, noapte, repaus săptămânal, sărbătoare — se
             configurează într-un singur loc,{" "}
-            <Link href="/salarizare/setari" className="underline underline-offset-2">
-              Salarizare → Setări
-            </Link>
+            {poateVedeaSalarizare ? (
+              <Link href="/salarizare/setari" className="underline underline-offset-2">
+                Salarizare → Setări
+              </Link>
+            ) : (
+              "Salarizare → Setări"
+            )}
             . Aici rămân doar parametrii care descriu cum se înregistrează timpul.
           </div>
 

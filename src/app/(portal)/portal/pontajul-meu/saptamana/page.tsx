@@ -212,11 +212,13 @@ export default async function PaginaSaptamanaPortal({
         lucreazaWeekendInitial={lucreazaWeekendInitial}
       />
 
-      <p>
-        <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
-          Înapoi la pontajul meu
-        </Link>
-      </p>
+      {can(permisiuni, "attendance:read", "own") ? (
+        <p>
+          <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
+            Înapoi la pontajul meu
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

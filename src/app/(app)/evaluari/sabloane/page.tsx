@@ -13,8 +13,9 @@ import { listeazaSabloane } from "@/lib/queries/evaluari";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
 import { ButonSablonNou } from "../_components/constructor-sablon";
-import { FileEvaluari } from "../_components/file-evaluari";
 import { ActiuniSablonEvaluare } from "./actiuni-sablon-evaluare";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Șabloane de evaluare" };
 
@@ -53,7 +54,13 @@ export default async function PaginaSabloaneEvaluare() {
       <AntetPagina
         titlu="Șabloane de evaluare"
         descriere="Seturi de criterii reutilizabile. Se aplică din „Evaluare nouă” sau de pe fișa angajatului, iar evaluarea păstrează criteriile de la momentul completării."
-        file={<FileEvaluari activa="sabloane" nrSabloane={sabloane.length} />}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari({ sabloane: sabloane.length })}
+            tenant={tenant}
+          />
+        }
         {...(poateScrie ? { actiuni: <ButonSablonNou /> } : {})}
       />
 

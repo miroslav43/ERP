@@ -9,7 +9,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
 import { formatDate, formatDateTime } from "@/lib/format/date";
@@ -42,9 +42,10 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "payroll"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "payroll:read", "all")) {
@@ -67,6 +68,10 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const poateModifica = can(permisiuni, "payroll:update", "all");
   const poateAproba = can(permisiuni, "payroll:approve", "all");
   const poateExporta = can(permisiuni, "payroll:export", "all");
+  // Porțile ȚINTELOR: pontajul e modul opțional cu cheie proprie, iar fișa
+  // angajatului cere `employees:read = all` ca să se deschidă pentru oricine.
+  const poateVedeaPontajul = module.has("attendance") && can(permisiuni, "attendance:read", "team");
+  const poateDeschideFisa = can(permisiuni, "employees:read", "all");
 
   const personalDraft =
     perioada.status === "draft" && poateCalcula
@@ -180,13 +185,17 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           ]
             .filter((bucata) => bucata !== null)
             .join(" · ") || "Perioadă în ciornă, încă necalculată."}
-          {" · "}
-          <Link
-            href={`/pontaj/perioade/${perioada.attendance_period_id}`}
-            className="underline-offset-2 hover:underline"
-          >
-            pontajul lunii
-          </Link>
+          {poateVedeaPontajul ? (
+            <>
+              {" · "}
+              <Link
+                href={`/pontaj/perioade/${perioada.attendance_period_id}`}
+                className="underline-offset-2 hover:underline"
+              >
+                pontajul lunii
+              </Link>
+            </>
+          ) : null}
         </p>
       </div>
 
@@ -229,7 +238,8 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
         }}
       />
 
-      {perioada.status !== "aprobat" && perioada.status !== "inchis" ? null : (
+      {/* Toate descărcările cer `payroll:export`: fără el, patru butoane cu 403. */}
+      {(perioada.status !== "aprobat" && perioada.status !== "inchis") || !poateExporta ? null : (
         <section aria-label="Livrabile" className="border-border rounded-panou border p-4">
           <h2 className="text-corp mb-1 font-medium">Livrabile</h2>
           <p className="text-muted-foreground text-nota mb-3">
@@ -320,12 +330,16 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
               <ul className="mt-3 space-y-1">
                 {faraContract.map((a) => (
                   <li key={a.employee_id}>
-                    <Link
-                      href={`/angajati/${a.employee_id}`}
-                      className="underline underline-offset-2"
-                    >
-                      {a.full_name || "(fără nume)"}
-                    </Link>{" "}
+                    {poateDeschideFisa ? (
+                      <Link
+                        href={`/angajati/${a.employee_id}`}
+                        className="underline underline-offset-2"
+                      >
+                        {a.full_name || "(fără nume)"}
+                      </Link>
+                    ) : (
+                      <span>{a.full_name || "(fără nume)"}</span>
+                    )}{" "}
                     <span className="text-muted-foreground">marca {a.marca}</span>
                   </li>
                 ))}

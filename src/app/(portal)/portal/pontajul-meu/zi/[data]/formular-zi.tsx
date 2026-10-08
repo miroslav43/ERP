@@ -59,6 +59,7 @@ export function FormularZi({
   sedii,
   sediuInitial,
   sediuScanat,
+  dupaSalvare = "/portal/pontajul-meu",
 }: {
   readonly data: string;
   readonly config: ConfigZi;
@@ -89,6 +90,8 @@ export function FormularZi({
   readonly sediuInitial: string;
   /** Numele sediului SCANAT al zilei, dacă există — atunci nu se mai alege. */
   readonly sediuScanat: string | null;
+  /** Unde ajunge omul după salvare; luna, dacă o poate citi, altfel ecranul de start. */
+  readonly dupaSalvare?: string;
 }) {
   const router = useRouter();
   const [inceput, setInceput] = useState(inceputInitial);
@@ -146,7 +149,7 @@ export function FormularZi({
         router.refresh();
         return;
       }
-      router.push("/portal/pontajul-meu");
+      router.push(dupaSalvare);
       router.refresh();
     });
   }
@@ -337,7 +340,7 @@ export function FormularZi({
             varianta="secundar"
             className="w-full"
             onClick={() => {
-              router.push("/portal/pontajul-meu");
+              router.push(dupaSalvare);
             }}
           >
             Am înțeles, înapoi la pontajul meu

@@ -26,8 +26,9 @@ import {
   ETICHETE_TIP_MENTENANTA,
   TONURI_REZULTAT_INTERVENTIE,
 } from "../etichete";
-import { NavMentenanta } from "../nav-mentenanta";
 import { FiltreInterventiiForm } from "./filtre-interventii";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Intervenții de mentenanță" };
 
@@ -244,7 +245,7 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
       <AntetPagina
         titlu="Intervenții de mentenanță"
         descriere="Istoricul intervențiilor, cu costurile lor. Se adaugă din fișa fiecărui echipament."
-        file={<NavMentenanta poateSetari={can(permisiuni, "maintenance:update", "all")} />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
       <FiltreInterventiiForm

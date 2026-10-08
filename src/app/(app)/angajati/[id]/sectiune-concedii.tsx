@@ -115,6 +115,12 @@ interface Proprietati {
   readonly codCor: string | null;
   /** `leave:read = all` — fără el se văd cifrele, dar nu și motivul lor. */
   readonly poateVedeaRegulile: boolean;
+  /**
+   * `leave:update = all` + modulul activ — poarta lui `/concedii/setari`.
+   * Linkul „Editați regulile" era necondiționat și îl trimitea pe manager
+   * (`leave:update = own`) în AccesRestrictionat.
+   */
+  readonly poateEditaRegulile: boolean;
 }
 
 export async function SectiuneConcedii({
@@ -127,6 +133,7 @@ export async function SectiuneConcedii({
   departmentId,
   codCor,
   poateVedeaRegulile,
+  poateEditaRegulile,
 }: Proprietati) {
   const anCurent = Number(todayInBucharest().slice(0, 4));
   const angajat: AngajatPentruDrept = {
@@ -176,11 +183,16 @@ export async function SectiuneConcedii({
         Concedii
       </h2>
       <p className="text-muted-foreground text-corp mb-4">
-        Dreptul anual pentru {String(anCurent)}, rezultat din regula companiei.{" "}
-        <Link href="/concedii/setari" className="underline underline-offset-2">
-          Editați regulile
-        </Link>
-        .
+        Dreptul anual pentru {String(anCurent)}, rezultat din regula companiei.
+        {poateEditaRegulile ? (
+          <>
+            {" "}
+            <Link href="/concedii/setari" className="underline underline-offset-2">
+              Editați regulile
+            </Link>
+            .
+          </>
+        ) : null}
       </p>
       <ul className="space-y-2">
         {randuri.map(({ tip, dreptAfisat, regulileOriginale }) => (

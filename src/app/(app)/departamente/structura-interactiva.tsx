@@ -39,6 +39,7 @@ export type PropsStructuraInteractiva = Readonly<{
   angajati: readonly OptiuneAngajat[];
   poateEdita: boolean;
   poateMutaPersoane: boolean;
+  poateInvita: boolean;
   vizualizare: "lista" | "organigrama";
 }>;
 
@@ -50,6 +51,7 @@ export function StructuraInteractiva({
   angajati,
   poateEdita,
   poateMutaPersoane,
+  poateInvita,
   vizualizare,
 }: PropsStructuraInteractiva) {
   const [deschisId, setDeschisId] = useState<string | null>(null);
@@ -149,6 +151,7 @@ export function StructuraInteractiva({
         candidati={candidati}
         departamente={departamente}
         poateMuta={poateMutaPersoane}
+        poateInvita={poateInvita}
       />
     </>
   );

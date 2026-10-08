@@ -21,7 +21,11 @@ import {
  * prin QR sau link direct; în meniu itemul are minScope „team”, deci nu-l
  * vede acolo (`config/navigation.ts`).
  */
-export async function SesizarileMele() {
+export async function SesizarileMele({
+  poateRaporta,
+}: Readonly<{
+  /** `maintenance:create` — caseta „Sesizare nouă" se deschide doar cu el. */ poateRaporta: boolean;
+}>) {
   const rezultat = await numeleEchipamentelorMele({});
   const sesizari = rezultat.ok ? rezultat.data : [];
 
@@ -30,13 +34,20 @@ export async function SesizarileMele() {
       <AntetPagina
         titlu="Sesizările mele"
         descriere="Defecțiunile pe care le-ați raportat, cu starea lor curentă."
-        actiuni={
-          // Caseta de pe lista de sesizări; pentru un `employee`, învelișul `(app)`
-          // îl duce în portal, unde aceeași cheie deschide aceeași casetă.
-          <Link href="/mentenanta/sesizari?sesizare=noua" className={buton({ varianta: "primar" })}>
-            Sesizare nouă
-          </Link>
-        }
+        {...(poateRaporta
+          ? {
+              actiuni: (
+                // Caseta de pe lista de sesizări; pentru un `employee`, învelișul `(app)`
+                // îl duce în portal, unde aceeași cheie deschide aceeași casetă.
+                <Link
+                  href="/mentenanta/sesizari?sesizare=noua"
+                  className={buton({ varianta: "primar" })}
+                >
+                  Sesizare nouă
+                </Link>
+              ),
+            }
+          : {})}
       />
 
       {!rezultat.ok ? (
@@ -52,7 +63,9 @@ export async function SesizarileMele() {
           pictograma={Wrench}
           titlu="Nu ați trimis nicio sesizare"
           descriere="Dacă un echipament s-a defectat, raportați-l — durează un minut."
-          actiune={{ eticheta: "Sesizare nouă", href: "/mentenanta/sesizari?sesizare=noua" }}
+          {...(poateRaporta
+            ? { actiune: { eticheta: "Sesizare nouă", href: "/mentenanta/sesizari?sesizare=noua" } }
+            : {})}
         />
       ) : (
         <ul className="space-y-3">

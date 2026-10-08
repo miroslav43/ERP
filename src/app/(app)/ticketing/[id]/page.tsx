@@ -139,7 +139,11 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
   // butoane arătăm; baza verifică din nou la scriere.
   const poateAproba =
     !esteSolicitant &&
-    ((fisa !== null && managerulSolicitantului === fisa.id) ||
+    // Managerul direct decide doar dacă ARE `tickets:approve` (acțiunea îl cere
+    // la `team`): un `hr` șef direct primea butoanele și refuzul.
+    ((fisa !== null &&
+      managerulSolicitantului === fisa.id &&
+      can(permisiuni, "tickets:approve", "team")) ||
       can(permisiuni, "tickets:approve", "all"));
 
   const drepturi = { esteSolicitant, poateAproba, poateOpera };

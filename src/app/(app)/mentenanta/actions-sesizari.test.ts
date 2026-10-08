@@ -201,7 +201,7 @@ describe("cautaEchipament", () => {
   });
 
   it("fiecare echipament găsit vine cu cea mai veche sesizare DESCHISĂ pe el (avertismentul de duplicat), citită cu admin pe organizație", async () => {
-    const { admin } = configureazaActiunea({ rol: "employee", permisiuni: SESIZARE });
+    const { admin, server } = configureazaActiunea({ rol: "employee", permisiuni: SESIZARE });
     admin.raspunde("equipment", "select", {
       data: [
         { id: ID_1, cod: "BT-1", denumire: "Bandă", locatie: null },
@@ -214,13 +214,21 @@ describe("cautaEchipament", () => {
         { id: ID_2, numar: "SZ-2026-0009", equipment_id: ID_1 },
       ],
     });
+    // Vizibilitatea se întreabă cu clientul OMULUI: aici RLS îi arată sesizarea.
+    server.raspunde("fault_reports", "select", { data: [{ id: ID_3 }] });
 
     const r = await cautaEchipament({ q: "banda" });
 
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.data[0]?.sesizare_deschisa).toEqual({ id: ID_3, numar: "SZ-2026-0003" });
+    expect(r.data[0]?.sesizare_deschisa).toEqual({
+      id: ID_3,
+      numar: "SZ-2026-0003",
+      vizibila: true,
+    });
     expect(r.data[1]?.sesizare_deschisa).toBeNull();
+    const [vizibilitate] = server.apeluriPe("fault_reports");
+    expect(areFiltru(vizibilitate, "in", "id", [ID_3])).toBe(true);
     const [sesizari] = admin.apeluriPe("fault_reports");
     expect(areFiltru(sesizari, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(sesizari, "in", "equipment_id", [ID_1, ID_2])).toBe(true);
@@ -228,6 +236,26 @@ describe("cautaEchipament", () => {
     expect(
       areFiltru(sesizari, "in", "status", ["nou", "in_analiza", "in_lucru", "in_asteptare"]),
     ).toBe(true);
+  });
+
+  it("sesizarea pe care RLS n-o arată rămâne cu `vizibila: false` — linkul nu se desenează", async () => {
+    const { admin, server } = configureazaActiunea({ rol: "employee", permisiuni: SESIZARE });
+    admin.raspunde("equipment", "select", {
+      data: [{ id: ID_1, cod: "BT-1", denumire: "Bandă", locatie: null }],
+    });
+    admin.raspunde("fault_reports", "select", {
+      data: [{ id: ID_3, numar: "SZ-2026-0003", equipment_id: ID_1 }],
+    });
+    server.raspunde("fault_reports", "select", { data: [] });
+
+    const r = await cautaEchipament({ q: "banda" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data[0]?.sesizare_deschisa).toEqual({
+      id: ID_3,
+      numar: "SZ-2026-0003",
+      vizibila: false,
+    });
   });
 
   it("UUID fără rând (alt tenant sau șters): listă goală", async () => {

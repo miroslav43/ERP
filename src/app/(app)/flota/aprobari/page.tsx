@@ -25,8 +25,9 @@ import {
 } from "@/lib/queries/fleet";
 
 import { formatConsum } from "../etichete";
-import { NavFlota } from "../nav-flota";
 import { DecizieFoaie } from "./decizie-foaie";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_FLOTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Foi de aprobat" };
 
@@ -293,13 +294,7 @@ export default async function PaginaAprobari() {
       <AntetPagina
         titlu="Foi de aprobat"
         descriere="Foaia de parcurs justifică fiscal consumul de combustibil, de aceea nu vă puteți aproba propria foaie — nici măcar cu drepturi depline."
-        file={
-          <NavFlota
-            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
-          />
-        }
+        file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
 
       <Suspense fallback={<Schelet forma="lista" />}>

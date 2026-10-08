@@ -7,9 +7,11 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
-import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_SETARI } from "@/config/file-module";
 export const metadata: Metadata = { title: "Membri și invitații" };
 
 export default async function SetariMembriPage() {
@@ -116,9 +118,14 @@ export default async function SetariMembriPage() {
     <div className="flex flex-col gap-6">
       <AntetPagina
         titlu="Membri și invitații"
+        file={<FileModul eticheta="Navigare setări" file={FILE_SETARI} tenant={tenant} />}
         descriere={`Persoanele care au acces la ${tenant.name}. Rolul stabilește ce module și ce date poate vedea fiecare.`}
       />
-      <PanouMembri membri={membri} invitatii={invitatii} />
+      <PanouMembri
+        membri={membri}
+        invitatii={invitatii}
+        poateInvita={can(permisiuni, "users:create", "all")}
+      />
     </div>
   );
 }

@@ -71,6 +71,9 @@ export default async function PaginaReges(props: {
   const poatePregati = meetsScope(scopeFor(permisiuni, "reges:create") ?? undefined, "all");
   const poateTransmite = meetsScope(scopeFor(permisiuni, "reges:transmit") ?? undefined, "all");
   const poateExporta = meetsScope(scopeFor(permisiuni, "reges:export") ?? undefined, "all");
+  // Rândul duce la fișă doar pentru cine o poate deschide pe a ORICUI: cu
+  // `employees:read = team` (suprascriere), salariații din afara echipei dau 404.
+  const poateDeschideFisa = meetsScope(scopeFor(permisiuni, "employees:read") ?? undefined, "all");
   const poateConfigura = meetsScope(scopeFor(permisiuni, "reges:configure") ?? undefined, "all");
 
   const parametri = await props.searchParams;
@@ -396,7 +399,9 @@ export default async function PaginaReges(props: {
           coloane={coloane}
           randuri={randuri}
           cheieRand={(rand) => rand.id}
-          href={(rand) => `/angajati/${rand.angajatId}`}
+          href={(rand) =>
+            poateDeschideFisa && rand.angajatVizibil ? `/angajati/${rand.angajatId}` : null
+          }
           densitate="compact"
           gol={null}
           // Citirea taie la `filtre.limita` rânduri, fără să spună. Într-un

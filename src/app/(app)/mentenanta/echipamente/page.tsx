@@ -30,10 +30,11 @@ import {
 import { filtreEchipamenteSchema } from "@/schemas/maintenance";
 
 import { ETICHETE_STATUS_ECHIPAMENT, TONURI_STATUS_ECHIPAMENT } from "../etichete";
-import { NavMentenanta } from "../nav-mentenanta";
 import { optiuniPuncteLucru } from "./actions";
 import { DialogEchipamentNou } from "./dialog-echipament-nou";
 import { FiltreEchipamenteForm } from "./filtre-echipamente";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Echipamente" };
 
@@ -243,7 +244,6 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
   const filtre = filtreDinUrl(filtreEchipamenteSchema, parametri);
   const poateAdauga = can(permisiuni, "maintenance:update", "team");
   const poateExporta = can(permisiuni, "maintenance:export", "team");
-  const poateSetari = can(permisiuni, "maintenance:update", "all");
 
   // Ținute în afara lui `filtreEchipamenteSchema`: nu sunt filtre ale listei, ci
   // adresa fostei rute `/mentenanta/echipamente/nou` (`?echipament=nou`) și
@@ -303,7 +303,7 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
               ),
             }
           : {})}
-        file={<NavMentenanta poateSetari={poateSetari} />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
       <FiltreEchipamenteForm

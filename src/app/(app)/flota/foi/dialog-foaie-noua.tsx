@@ -109,9 +109,15 @@ async function trimiteFoaia(date: FormData): Promise<ActionResult<FoaieCreata>> 
 interface Proprietati {
   readonly date: DateFoaieNoua;
   readonly deschisInitial?: boolean;
+  /** `vehicles:read`, poarta lui `/flota` — fără el, „Adăugați întâi un vehicul" ducea în refuz. */
+  readonly poateVedeaParcul?: boolean;
 }
 
-export function DialogFoaieNoua({ date, deschisInitial = false }: Proprietati): ReactElement {
+export function DialogFoaieNoua({
+  date,
+  deschisInitial = false,
+  poateVedeaParcul = false,
+}: Proprietati): ReactElement {
   const parcGol = date.vehicule.length === 0;
   const primulVehicul = date.vehicule[0];
 
@@ -153,11 +159,16 @@ export function DialogFoaieNoua({ date, deschisInitial = false }: Proprietati): 
    * la fiecare randare.
    */
   if (parcGol) {
-    return (
+    return poateVedeaParcul ? (
       <Link href="/flota" className={buton({ varianta: "secundar" })}>
         <FilePlus2 aria-hidden="true" className="size-4" />
         Adăugați întâi un vehicul
       </Link>
+    ) : (
+      <p className="text-muted-foreground text-corp">
+        Nu aveți niciun vehicul alocat; foaia se poate deschide abia după ce responsabilul de flotă
+        vă alocă unul.
+      </p>
     );
   }
 

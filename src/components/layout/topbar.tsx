@@ -8,6 +8,7 @@ import { CommandPalette, type ElementPaleta } from "@/components/layout/command-
 import { MeniuCont, type OrganizatieComutator } from "@/components/layout/meniu-cont";
 import { SidebarTrigger } from "@/components/layout/sidebar";
 import { buildNavigation, type NavGroupResult } from "@/lib/navigation/build-navigation";
+import { tiparePermise } from "@/config/porti-ruta";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { numaraNecitite } from "@/lib/queries/notifications";
@@ -92,6 +93,9 @@ export async function Topbar() {
     badges: insigneMeniu(contoare),
   });
   const elementePaleta = elementePentruPaleta(navigatie);
+  // Aceleași module și aceeași hartă ca meniul: firimiturile leagă exact ce
+  // poate deschide omul, nu ce există pe disc.
+  const rutePermise = tiparePermise({ features: module, permissions: permisiuni });
 
   const organizatiiComutator: readonly OrganizatieComutator[] = organizatii.map((organizatie) => ({
     id: organizatie.id,
@@ -137,7 +141,7 @@ export async function Topbar() {
       {/* Firimiturile repetă pe telefon ceea ce `<h1>`-ul paginii spune 40 px
           mai jos, și consumă exact lățimea care lipsește. */}
       <div className="hidden min-w-0 md:flex">
-        <Breadcrumb />
+        <Breadcrumb tiparePermise={rutePermise} />
       </div>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">

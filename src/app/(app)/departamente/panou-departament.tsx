@@ -60,6 +60,8 @@ export interface OptiuneDepartamentPanou {
 export type PropsPanouDepartament = Readonly<{
   deschis: boolean;
   laInchidere: () => void;
+  /** `users:update = all`, poarta lui `/setari/membri` — altfel „Invită un cofondator" duce în refuz. */
+  poateInvita: boolean;
   /** `null` = panoul nerepartizaților. */
   departament: OptiuneDepartamentPanou | null;
   /**
@@ -91,6 +93,7 @@ export function PanouDepartament({
   candidati,
   departamente,
   poateMuta,
+  poateInvita,
 }: PropsPanouDepartament) {
   const router = useRouter();
   const [cautare, setCautare] = useState("");
@@ -235,11 +238,15 @@ export function PanouDepartament({
           <Callout
             fel="informativ"
             titlu="Conducerea firmei"
-            actiune={
-              <Link href="/setari/membri" className="text-nota font-medium underline">
-                Invită un cofondator
-              </Link>
-            }
+            {...(poateInvita
+              ? {
+                  actiune: (
+                    <Link href="/setari/membri" className="text-nota font-medium underline">
+                      Invită un cofondator
+                    </Link>
+                  ),
+                }
+              : {})}
           >
             Administratorii intră aici automat: invită pe cineva cu rolul „Administrator” și apare
             singur în listă. Poți aduce aici, cu câmpul de mai jos, și asociați sau directori care

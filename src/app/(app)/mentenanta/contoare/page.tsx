@@ -19,8 +19,9 @@ import {
 } from "@/lib/queries/maintenance";
 import { TIPURI_CONTOR } from "@/schemas/maintenance";
 
-import { NavMentenanta } from "../nav-mentenanta";
 import { FormularCitiriLot, type RandContor } from "./formular-citiri-lot";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Contoare" };
 
@@ -112,7 +113,7 @@ export default async function PaginaContoare() {
             ? `Toate contoarele au citiri mai noi de ${String(setari.prag_contor_necitit_zile)} zile.`
             : `${String(restante)} ${restante === 1 ? "contor necitit" : "contoare necitite"} de peste ${String(setari.prag_contor_necitit_zile)} zile.`
         }
-        file={<NavMentenanta poateSetari={can(permisiuni, "maintenance:update", "all")} />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
       {randuri.length === 0 ? (

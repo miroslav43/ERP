@@ -38,7 +38,8 @@ import {
 } from "./etichete";
 import { DialogVehiculNou } from "./dialog-vehicul-nou";
 import { FiltreVehicule } from "./filtre-vehicule";
-import { NavFlota } from "./nav-flota";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_FLOTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Parc auto" };
 
@@ -343,13 +344,7 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
               ),
             }
           : {})}
-        file={
-          <NavFlota
-            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
-          />
-        }
+        file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
 
       <FiltreVehicule parametri={parametri} />

@@ -30,9 +30,12 @@ export const metadata: Metadata = { title: "Autorizații nominale" };
 async function TabelAutorizatii({
   organizationId,
   poateActualiza,
+  poateCrea,
 }: {
   readonly organizationId: string;
   readonly poateActualiza: boolean;
+  /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
+  readonly poateCrea: boolean;
 }) {
   const autorizatii = await autorizatiiNominale(organizationId);
 
@@ -42,7 +45,11 @@ async function TabelAutorizatii({
         fel="initiala"
         pictograma={BadgeCheck}
         titlu="Nicio autorizație nominală înregistrată"
-        descriere="Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
+        descriere={
+          poateCrea
+            ? "Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
+            : "Nicio autorizație nominală nu e înregistrată încă. Le adaugă responsabilul SSM."
+        }
       />
     );
   }
@@ -198,7 +205,11 @@ export default async function PaginaAutorizatii() {
       {poateCrea ? <FormularAutorizatie angajati={angajati} /> : null}
 
       <Suspense fallback={<Schelet forma="tabel" coloane={6} />}>
-        <TabelAutorizatii organizationId={tenant.organizationId} poateActualiza={poateActualiza} />
+        <TabelAutorizatii
+          organizationId={tenant.organizationId}
+          poateActualiza={poateActualiza}
+          poateCrea={poateCrea}
+        />
       </Suspense>
     </div>
   );

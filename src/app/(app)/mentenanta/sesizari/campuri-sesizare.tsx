@@ -207,15 +207,22 @@ export function CampuriSesizare<TData>({
           fel="atentie"
           titlu={`Există deja o sesizare deschisă pe acest echipament: ${duplicat.numar}`}
         >
-          Dacă e aceeași defecțiune, deschideți{" "}
-          <Link
-            href={`${radacinaSesizari}/${duplicat.id}`}
-            className="text-primary underline-offset-2 hover:underline"
-          >
-            sesizarea existentă
-          </Link>{" "}
-          și adăugați acolo un comentariu sau o fotografie. Dacă e altă problemă, trimiteți oricum —
-          la triaj se pot lega.
+          Dacă e aceeași defecțiune,{" "}
+          {duplicat.vizibila ? (
+            <>
+              deschideți{" "}
+              <Link
+                href={`${radacinaSesizari}/${duplicat.id}`}
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                sesizarea existentă
+              </Link>{" "}
+              și adăugați acolo un comentariu sau o fotografie.
+            </>
+          ) : (
+            "anunțați-l pe cel care a raportat-o sau pe tehnicianul care lucrează la ea."
+          )}{" "}
+          Dacă e altă problemă, trimiteți oricum — la triaj se pot lega.
         </Callout>
       ) : null}
 

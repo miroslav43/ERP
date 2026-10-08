@@ -36,9 +36,12 @@ interface ProprietatiPagina {
 async function TabelAccidente({
   organizationId,
   parametri,
+  poateCrea,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  /** `ssm:create` — poarta paginii de creare; managerul (doar `read`) ajungea în refuz din starea goală. */
+  readonly poateCrea: boolean;
 }) {
   const filtre = filtreDinUrl(filtreAccidenteSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await accidente(organizationId, filtre);
@@ -55,11 +58,11 @@ async function TabelAccidente({
             ? "Ștergeți filtrele ca să vedeți toate accidentele."
             : "Registrul de accidente e gol — sperăm să rămână așa."
         }
-        actiune={
-          areFiltre
-            ? { eticheta: "Șterge filtrele", href: "/ssm/accidente" }
-            : { eticheta: "Înregistrează un accident", href: "/ssm/accidente/nou" }
-        }
+        {...(areFiltre
+          ? { actiune: { eticheta: "Șterge filtrele", href: "/ssm/accidente" } }
+          : poateCrea
+            ? { actiune: { eticheta: "Înregistrează un accident", href: "/ssm/accidente/nou" } }
+            : {})}
       />
     );
   }
@@ -228,7 +231,11 @@ export default async function PaginaAccidente({ searchParams }: ProprietatiPagin
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
-        <TabelAccidente organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelAccidente
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateCrea={poateCrea}
+        />
       </Suspense>
     </div>
   );

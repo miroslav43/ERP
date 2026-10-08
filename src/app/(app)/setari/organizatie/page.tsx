@@ -11,6 +11,8 @@ import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_SETARI } from "@/config/file-module";
 export const metadata: Metadata = { title: "Datele firmei" };
 
 const ETICHETE_PLAN: Readonly<Record<string, string>> = {
@@ -135,6 +137,7 @@ export default async function SetariOrganizatiePage() {
       <AntetPagina
         titlu="Datele firmei"
         descriere="Informațiile de identificare folosite în documente, facturi și rapoarte."
+        file={<FileModul eticheta="Navigare setări" file={FILE_SETARI} tenant={rezolvare.tenant} />}
       />
 
       <section

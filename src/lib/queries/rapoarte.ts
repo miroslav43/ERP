@@ -14,6 +14,8 @@ export interface StatisticaAngajat {
   readonly employeeId: string;
   readonly fullName: string;
   readonly marca: string;
+  /** `false` = fișa e ștearsă sau ascunsă de RLS; numele e „Angajat șters", linkul n-are țintă. */
+  readonly exista: boolean;
   readonly zileConcediuOdihna: number;
   readonly zileConcediuMedical: number;
   readonly venitBrutAnual: number;
@@ -246,6 +248,7 @@ export async function statisticiAnuale(
       employeeId: rand.employee_id,
       fullName: nume?.full_name ?? "Angajat șters",
       marca: nume?.marca ?? "—",
+      exista: nume !== undefined,
       zileConcediuOdihna: 0,
       zileConcediuMedical: 0,
       venitBrutAnual: 0,
