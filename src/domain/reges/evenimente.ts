@@ -120,20 +120,41 @@ const ZILE_FIXE = [
 ] as const;
 
 /**
+ * Ziua din care sărbătoarea e în art. 139 alin. (1): aceleași patru mențiuni din
+ * forma consolidată ca în `src/domain/calendar/sarbatori.ts` (24 ianuarie din
+ * 16.10.2016, 1 iunie din 21.11.2016, Vinerea Mare din 16.03.2018, 6–7 ianuarie
+ * din 09.03.2023).
+ * Scrise separat intenționat: `evenimente.lacune.test.ts` cere ca cele două
+ * liste să coincidă an de an, 2016–2035.
+ */
+const FIXE_IN_VIGOARE_DIN: Readonly<Record<string, ZiIso>> = {
+  "01-06": "2023-03-09",
+  "01-07": "2023-03-09",
+  "01-24": "2016-10-16",
+  "06-01": "2016-11-21",
+};
+const VINEREA_MARE_DIN: ZiIso = "2018-03-16";
+
+/**
  * Sărbătorile legale (art. 139 Codul muncii). Lista se schimbă prin lege —
  * DE CONFIRMAT anual cu juristul; zilele suplimentare se pot injecta din configurare.
+ * Garantată din 2017 încolo (vezi `FIXE_IN_VIGOARE_DIN`).
  */
 export function sarbatoriLegale(an: number): readonly ZiIso[] {
   const prefix = String(an).padStart(4, "0");
   const paste = pasteOrtodox(an);
+  const vinereaMare = adaugaZileCalendaristice(paste, -2);
+  const fixe = ZILE_FIXE.map((zi) => `${prefix}-${zi}`).filter(
+    (zi) => zi >= (FIXE_IN_VIGOARE_DIN[zi.slice(5)] ?? ""),
+  );
   const mobile: readonly ZiIso[] = [
-    adaugaZileCalendaristice(paste, -2), // Vinerea Mare
+    ...(vinereaMare >= VINEREA_MARE_DIN ? [vinereaMare] : []),
     paste,
     adaugaZileCalendaristice(paste, 1),
     adaugaZileCalendaristice(paste, 49), // Rusalii
     adaugaZileCalendaristice(paste, 50),
   ];
-  return [...ZILE_FIXE.map((zi) => `${prefix}-${zi}`), ...mobile].sort();
+  return [...fixe, ...mobile].sort();
 }
 
 export interface CalendarLucrator {

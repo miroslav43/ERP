@@ -45,6 +45,23 @@ describe("zilele libere legale", () => {
     }
   });
 
+  /**
+   * 6 și 7 ianuarie sunt în art. 139 abia din 9 martie 2023 (Legea 52/2023).
+   * Totalurile, numărate pe calendar: 2020 și 2022 au 251, 2021 are 254, 2023
+   * are 248. Pagina foii de pontaj arăta 249, 252, 249 și 247 (auditul din 8 oct 2026).
+   */
+  it.each([
+    [2020, 251],
+    [2021, 254],
+    [2022, 251],
+    [2023, 248],
+  ])("zile lucrătoare în %i: %i; sărbători: 15", (an, zile) => {
+    const c = calendarulAnului(an);
+    expect(c.zileLucratoare).toBe(zile);
+    expect(c.sarbatori).toBe(15);
+    expect(c.luni[0]?.zileLucratoare).toBe(20);
+  });
+
   it("pagina spune numărul corect de sărbători și nu le confundă cu zilele", () => {
     const text = ZILE_LIBERE.raspunsScurt.join(" ");
     expect(text).toMatch(/17 zile de sărbătoare legală/);

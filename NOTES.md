@@ -192,9 +192,16 @@ Este configurabil tocmai de aceea.
 ### Sărbători legale · `public_holidays`
 
 ⚠️ Lista zilelor fixe și a celor mobile (offset față de **Paștele ortodox**, nu
-cel catolic). Lista **s-a modificat prin lege** de mai multe ori: 6 și 7 ianuarie
-au fost adăugate în 2016, Vinerea Mare în 2018. Se adaugă și zilele pentru
-salariații aparținând altor culte religioase legale.
+cel catolic). Lista **s-a modificat prin lege** de mai multe ori. Datele din
+mențiunile formei consolidate a Codului muncii (legislatie.just.ro, consolidarea
+din 27.04.2026, citită pe 8 oct 2026): 24 ianuarie de la 16.10.2016 (Legea
+176/2016, care rescrie alin. (1)), 1 iunie de la 21.11.2016 (Legea 220/2016),
+Vinerea Mare de la 16.03.2018 (Legea 64/2018), 6 și 7 ianuarie de la 09.03.2023
+(Legea 52/2023, MO 186/06.03.2023). `src/domain/calendar/sarbatori.ts` și
+`src/domain/reges/evenimente.ts` aplică aceste date; seed-ul `public_holidays`
+începe în 2024, deci nu e atins. Comentariul tabelei din `0009_leave.sql` („6 și
+7 ianuarie … din 2016”) e greșit și rămâne așa: migrarea e aplicată. Se adaugă și
+zilele pentru salariații aparținând altor culte religioase legale.
 
 ### Diurne · `per_diem_policies`, `per_diem_country_rates`
 
