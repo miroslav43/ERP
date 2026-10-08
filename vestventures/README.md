@@ -46,7 +46,7 @@ compatibil cu full-time pe firmă etc.).
 | --- | --- | --- |
 | **Pitch deck (PDF, max 10 MB)** | `pitch-deck.pdf` | **Final** (7 oct): 12 slide-uri, ~0,3 MB, fără `[TO CONFIRM]` și fără „DRAFT” |
 | **Financial model (XLSX)** | `financial-model.xlsx` | Formulele sunt vii și valorile recalculate în LibreOffice, deci se citește și fără Excel |
-| **Data room URL** | linkul obținut după `data-room/HOSTING.md` | Recomandat: un folder Google Drive cu „Anyone with the link → Viewer” |
+| **Data room URL** | `drive.google.com/drive/folders/15DkKrJ3SzL07r69CoC3Tlvd1vaSKj6gM` (fără `https://`, câmpul îl are deja) | Subfolderul „ADMINISTRATIVO – Data room” din folderul de Drive (8 oct): READ ME FIRST, deck, model XLSX, plan, roadmap, capturi; se ține la zi cu `tools/sync_drive.py`. **Încă privat**: „Anyone with the link → Viewer” se pune abia după ce planul de afaceri și roadmap-ul nu mai au `[TO CONFIRM]` |
 | **Other files** | `business-plan.pdf`, `roadmap.pdf`, `product-mockups.pdf` | Ordinea recomandată: business plan, roadmap, mockups. Eticheta câmpului pomenește și „cap table”: intenționat nu încărcăm niciun tabel de acționariat (vezi mai sus) |
 | **Media URLs** | pagina de LinkedIn, până există video-ul | https://www.linkedin.com/company/144846087/ . Niciodată un link care nu arată produsul. Video-ul se filmează după `media/demo-video-script.md`, se publică după `media/README.md` și îi ia locul LinkedIn-ului |
 | Câmpurile text (pitch, problemă, echipă, rundă etc.) | `form-answers.md` | 30 de câmpuri, fiecare cu o variantă scurtă (≤300 de caractere) și una lungă (≤1000) |
