@@ -32,3 +32,9 @@ docs/comercial/linkedin/unelte/pachet
 # formatare locală s-ar pierde la sincronizarea următoare. Pe 7 oct 2026, 11
 # fișiere de aici au ținut CI-ul și staging-ul roșii o dimineață întreagă.
 vestventures/
+
+# Planul uneltelor din 8 oct 2026: blocurile „vechi” din pași sunt ancore
+# copiate EXACT din fișierele reale și verificate cu `grep -F`. Prettier
+# reformatează codul din blocurile markdown (91 de blocuri doar în C), deci ar
+# rupe ancorele pe care le caută executantul planului.
+docs/superpowers/plans/2026-10-08-unelte/
