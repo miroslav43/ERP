@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { creeazaInvitatie, type InvitatieCreata } from "@/lib/invitatii/creeaza";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { numaraAdminiActivi, ROLURI_ATRIBUIBILE, schimbaRolul } from "@/lib/membri/schimba-rol";
 
 // Aceeași listă și pentru invitație, și pentru schimbarea rolului: cine poate fi
@@ -37,6 +38,11 @@ export const invitaMembru = createAction({
     // unui angajat. Aici rămâne doar contextul: cine invită și cu ce drept.
     creeazaInvitatie({
       db: ctx.supabase,
+      // Ocolește RLS DELIBERAT, doar pentru jurnalul de e-mail: `email_log` are
+      // INSERT/UPDATE revocate pentru `authenticated`, iar fără rând de jurnal
+      // `sendEmail` nu trimite nimic. Rândul poartă `organization_id`-ul din
+      // sesiune; dreptul `users:create = all` a fost deja verificat mai sus.
+      dbEmail: createAdminSupabase(),
       organizationId: ctx.tenant.organizationId,
       email: input.email,
       rol: input.role,

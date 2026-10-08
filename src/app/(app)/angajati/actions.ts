@@ -23,6 +23,7 @@ import {
 // `stergeAngajat` — o gardă numărată sub RLS ar slăbi odată cu drepturile de
 // citire ale celui pe care îl păzește.
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { refuzaSubSalariulMinim } from "@/lib/contracte/prag-salariu";
 import { mesajRefuzStergere } from "@/domain/hr/stergere-angajat";
 import {
   amprentaSensibila,
@@ -456,6 +457,12 @@ export const creeazaContract = createAction({
     ],
   },
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    await refuzaSubSalariulMinim(
+      ctx.tenant.organizationId,
+      input.valabil_de_la,
+      input.salariu_baza,
+      input.norma_ore_zi,
+    );
     const db = await createServerSupabase();
     const { data, error } = await db
       .from("employment_contracts")
@@ -872,6 +879,12 @@ export const modificaSalariulContractului = createAction({
         salariu_baza: ["Salariul nou e același cu cel în vigoare la data aleasă."],
       });
     }
+    await refuzaSubSalariulMinim(
+      ctx.tenant.organizationId,
+      input.valabil_de_la,
+      input.salariu_baza,
+      Number(contract.norma_ore_zi),
+    );
 
     // ── 1. Actul adițional ──
     // Numărul e unic în firmă (`contracts_org_numar_uniq`), ca al oricărui
@@ -1181,6 +1194,10 @@ export const invitaAngajatul = createAction({
 
     const invitatie = await creeazaInvitatie({
       db,
+      // Ocolește RLS DELIBERAT, doar pentru jurnalul de e-mail (`email_log` are
+      // INSERT/UPDATE revocate pentru `authenticated`; fără jurnal nu pleacă
+      // nimic). Organizația e cea din sesiune, dreptul e verificat de acțiune.
+      dbEmail: createAdminSupabase(),
       organizationId: ctx.tenant.organizationId,
       email: alegere.adresa,
       rol: "employee",

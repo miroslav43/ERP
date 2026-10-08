@@ -84,6 +84,32 @@ export async function citesteSetariPeId(
   return { ...data, praguri: await incarcaPraguri(db, data.id) };
 }
 
+/**
+ * Salariul minim brut configurat de firmă, valabil la o dată, sau `null` dacă
+ * firma n-are setări de salarizare la data aceea. `0` înseamnă „neconfigurat"
+ * (⚠️ de confirmat de contabil, 0055) și e tratat ca lipsă de `verificaSalariulMinim`.
+ *
+ * Citire îngustă, pentru contracte: fără praguri, fără restul setărilor.
+ */
+export async function salariulMinimLaData(
+  organizationId: string,
+  data: string,
+): Promise<number | null> {
+  const db = await createServerSupabase();
+  const { data: randuri, error } = await db
+    .from("payroll_settings")
+    .select("salariu_minim_brut")
+    .eq("organization_id", organizationId)
+    .lte("valabil_de_la", data)
+    .is("deleted_at", null)
+    .order("valabil_de_la", { ascending: false })
+    .limit(1)
+    .returns<{ salariu_minim_brut: number | string }[]>();
+  if (error !== null) throw error;
+  const rand = randuri?.[0];
+  return rand === undefined ? null : Number(rand.salariu_minim_brut);
+}
+
 /** Setările valabile pentru o dată — cea mai recentă `valabil_de_la <= data`. */
 export async function citesteSetariValabile(
   organizationId: string,

@@ -87,6 +87,8 @@ describe("creeazaContract", () => {
   };
 
   function programeaza(server: Fals, opts: { actAditional?: boolean } = {}) {
+    // Salariul minim al firmei, citit înaintea scrierii (nicio setare = fără prag).
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspunde("employment_contracts", "insert", { data: { id: CONTRACT_NOU } });
     server.raspunde("employment_contracts", "update", { data: { id: CONTRACT_NOU } });
     if (opts.actAditional !== true) {
@@ -100,6 +102,23 @@ describe("creeazaContract", () => {
     const r = await creeazaContract(intrare);
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
     expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("sub salariul minim configurat de firmă: VALIDARE pe `salariu_baza`, fără INSERT", async () => {
+    // 100 lei treceau fără avertisment (QA 8 oct 2026, HR-021). Pragul vine din
+    // `payroll_settings.salariu_minim_brut` valabil la data contractului.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: "4050.00" }] });
+
+    const r = await creeazaContract({ ...intrare, salariu_baza: 100 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("4.050");
+    expect(server.apeluriPe("employment_contracts")).toHaveLength(0);
+    const [citire] = server.apeluriPe("payroll_settings", "select");
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(citire, "lte", "valabil_de_la", "2026-10-01")).toBe(true);
   });
 
   it("succes: inserează ca `proiect` (cerut de RLS), apoi îl activează cu `.select()` după", async () => {
@@ -209,6 +228,7 @@ describe("creeazaContract", () => {
 
   it("activarea respinsă tăcut (zero rânduri): CONFLICT; fișa, soldul și REVISAL nu se ating", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspunde("employment_contracts", "insert", { data: { id: CONTRACT_NOU } });
     server.raspunde("employment_contracts", "update", { data: null });
 
@@ -222,6 +242,7 @@ describe("creeazaContract", () => {
 
   it("fișa nu poate fi activată (zero rânduri): CONFLICT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspunde("employment_contracts", "insert", { data: { id: CONTRACT_NOU } });
     server.raspunde("employment_contracts", "update", { data: { id: CONTRACT_NOU } });
     server.raspunde("employees", "update", { data: null });
@@ -232,6 +253,7 @@ describe("creeazaContract", () => {
 
   it("soldul sau REVISAL eșuează: contractul rămâne creat (pași best-effort)", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspunde("employment_contracts", "insert", { data: { id: CONTRACT_NOU } });
     server.raspunde("employment_contracts", "update", { data: { id: CONTRACT_NOU } });
     server.raspunde("employees", "update", { data: { id: ID_1 } });
@@ -245,6 +267,7 @@ describe("creeazaContract", () => {
 
   it("numărul de contract deja folosit (23505): CONFLICT, fără activare", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspunde("employment_contracts", "insert", { error: eroarePostgrest("23505") });
     const r = await creeazaContract(intrare);
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
@@ -460,7 +483,23 @@ describe("modificaSalariulContractului — act adițional", () => {
   function programeaza(server: Fals, acte: readonly object[] = []) {
     server.raspunde("employment_contracts", "select", { data: contract });
     server.raspunde("employment_contracts", "select", { data: acte });
+    // Salariul minim al firmei la data aplicării (nicio setare = fără prag).
+    server.raspunde("payroll_settings", "select", { data: [] });
   }
+
+  it("sub salariul minim al firmei, proporțional cu norma contractului: VALIDARE, fără act", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("employment_contracts", "select", { data: contract });
+    server.raspunde("employment_contracts", "select", { data: [] });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: 4050 }] });
+
+    const r = await modificaSalariulContractului({ ...intrare, salariu_baza: 1000 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("salariul minim");
+    expect(server.apeluriPe("employment_contracts", "insert")).toHaveLength(0);
+  });
 
   it("fără employees:create la `all`: INTERZIS — inserarea trece prin `contracts_insert`", async () => {
     const { server } = configureazaActiunea({

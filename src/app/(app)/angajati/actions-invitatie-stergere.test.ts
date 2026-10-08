@@ -87,7 +87,7 @@ describe("invitaAngajatul", () => {
   });
 
   it("succes cu e-mail personal: invită pe adresa fișei, cu retrimitere, și întoarce link + QR", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
     programeaza(server);
     creeazaInvitatieFals.mockResolvedValue({
       id: ID_2,
@@ -110,6 +110,8 @@ describe("invitaAngajatul", () => {
       link: "http://localhost:3000/invitatie/tok%2Fen%2B1",
     });
     expect(r.data.qr.startsWith("<svg")).toBe(true);
+    // Jurnalul de e-mail se scrie prin clientul admin (vezi setari/membri).
+    expect(creeazaInvitatieFals.mock.calls[0]?.[0]).toMatchObject({ dbEmail: admin.client });
     const expira = new Date(r.data.expiraLa).getTime();
     expect(expira - inainte).toBeGreaterThanOrEqual(7 * 24 * 3600 * 1000 - 1000);
     expect(expira - inainte).toBeLessThanOrEqual(7 * 24 * 3600 * 1000 + 5000);

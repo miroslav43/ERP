@@ -11,6 +11,8 @@ import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/i
 import { alegeSablon } from "@/domain/checklist/potrivire-sablon";
 import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
 import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { refuzaSubSalariulMinim } from "@/lib/contracte/prag-salariu";
 import { stergeLogic } from "@/lib/supabase/sterge-logic";
 import { salveazaCiornaInrolareSchema, inroleazaAngajatSchema } from "@/schemas/employee";
 import { predaObiect } from "@/app/(app)/inventar/actions";
@@ -126,6 +128,51 @@ function textAtribuiri(text: string | null): readonly string[] {
     .filter((linie) => linie.length > 0);
 }
 
+/**
+ * Membrul ACTIV al firmei care folosește adresa dată, sau `null`.
+ *
+ * `fisaExistenta` = marca fișei principale pe care contul o are deja (un cont
+ * are cel mult una: `employees_org_user_primary_uniq`). Clientul admin, cu
+ * filtru explicit pe firmă — vezi comentariul de la apel.
+ */
+async function membruCuAdresa(
+  organizationId: string,
+  email: string,
+): Promise<Readonly<{ userId: string; rol: string; fisaExistenta: string | null }> | null> {
+  const admin = createAdminSupabase();
+  // `profiles.email` e citext: egalitatea e deja insensibilă la majuscule.
+  const { data: profil, error: eroareProfil } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (eroareProfil !== null) throw eroareProfil;
+  if (profil === null) return null;
+
+  const { data: membru, error: eroareMembru } = await admin
+    .from("organization_members")
+    .select("id, role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", profil.id)
+    .eq("status", "active")
+    .maybeSingle();
+  if (eroareMembru !== null) throw eroareMembru;
+  if (membru === null) return null;
+
+  const { data: fisa, error: eroareFisa } = await admin
+    .from("employees")
+    .select("id, marca")
+    .eq("organization_id", organizationId)
+    .eq("user_id", profil.id)
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (eroareFisa !== null) throw eroareFisa;
+
+  return { userId: profil.id, rol: membru.role, fisaExistenta: fisa?.marca ?? null };
+}
+
 export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, RezultatInrolare>({
   name: "employees.enroll",
   permission: "employees:create",
@@ -149,6 +196,13 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
   handler: async (ctx, input): Promise<RezultatInrolare> => {
     const db = ctx.supabase;
     const avertismente: string[] = [];
+
+    await refuzaSubSalariulMinim(
+      ctx.tenant.organizationId,
+      input.valabil_de_la,
+      input.salariu_baza,
+      input.norma_ore_zi,
+    );
 
     const { data: marca, error: eroareMarca } = await db.rpc("urmatoarea_marca", {
       p_organization_id: ctx.tenant.organizationId,
@@ -668,14 +722,53 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
      * tipăribilă cu cod QR apare pe ecran în clipa creării.
      */
     const adresaInvitatie = adresaRealaDinFisa(fisa);
+    /*
+     * Adresa aparține unui MEMBRU EXISTENT al firmei? Atunci nu se invită, se
+     * LEAGĂ. Ordinea „întâi contul din Setări → Membri, apoi fișa" producea o
+     * invitație pe care membrul activ n-o putea accepta („nu mai este validă")
+     * și o fișă fără cont pentru totdeauna, fără nicio legare manuală în
+     * interfață (QA 8 oct 2026, ONB-030). Citirea trece prin clientul admin
+     * DELIBERAT: `profiles` și `organization_members` ale altora nu sunt
+     * vizibile sub RLS oricărui rol cu `employees:create`; filtrul pe firmă e
+     * explicit și singura scriere, `user_id`, pleacă prin clientul de sesiune.
+     */
+    const membruExistent =
+      adresaInvitatie === null
+        ? null
+        : await membruCuAdresa(ctx.tenant.organizationId, adresaInvitatie);
     if (adresaInvitatie === null) {
       avertismente.push(
         "Angajatul nu are e-mail, deci nu i s-a trimis nicio invitație. Deschideți fișa lui și apăsați „Invită în aplicație”: primește un nume de utilizator și o fișă de tipărit, cu cod QR.",
       );
+    } else if (membruExistent !== null) {
+      if (membruExistent.fisaExistenta !== null) {
+        avertismente.push(
+          `Adresa ${adresaInvitatie} aparține unui membru care are deja fișa ${membruExistent.fisaExistenta}. Fișa nouă nu a fost legată de cont și nu s-a trimis nicio invitație.`,
+        );
+      } else {
+        const { data: legata, error: eroareLegare } = await db
+          .from("employees")
+          .update({ user_id: membruExistent.userId })
+          .eq("id", angajat.id)
+          .eq("organization_id", ctx.tenant.organizationId)
+          .select("id")
+          .maybeSingle();
+        if (eroareLegare !== null) throw eroareLegare;
+        if (legata === null) {
+          throw businessRule("Fișa nu a putut fi legată de contul existent.");
+        }
+        avertismente.push(
+          `Adresa ${adresaInvitatie} aparține unui membru existent al firmei (${membruExistent.rol}): fișa a fost legată de contul lui, fără invitație nouă.`,
+        );
+      }
     } else {
       try {
         const invitatie = await creeazaInvitatie({
           db,
+          // Ocolește RLS DELIBERAT, doar pentru jurnalul de e-mail (`email_log`
+          // are INSERT/UPDATE revocate pentru `authenticated`; fără jurnal nu
+          // pleacă nimic). Organizația e cea din sesiune.
+          dbEmail: createAdminSupabase(),
           organizationId: ctx.tenant.organizationId,
           email: adresaInvitatie,
           rol: "employee",
@@ -731,9 +824,13 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       });
 
       if (ales === null) {
-        avertismente.push(
-          "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun checklist. Creați unul din Integrare → Șabloane.",
-        );
+        // Fără modulul Integrare, șabloanele vin oricum zero (politica cere
+        // `feature_on`): avertismentul ar trimite spre un meniu care nu există.
+        if (ctx.features.has("onboarding")) {
+          avertismente.push(
+            "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun checklist. Creați unul din Integrare → Șabloane.",
+          );
+        }
       } else {
         const { error: eroareInstanta } = await db.from("checklist_instances").insert({
           organization_id: ctx.tenant.organizationId,
