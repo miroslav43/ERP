@@ -21,6 +21,16 @@ import "server-only";
 
 import { z } from "zod";
 
+import {
+  GRUPURI_REGISTRU,
+  SORTARI_REGISTRU,
+  STARI_REGISTRU,
+  SURSE_REGISTRU,
+  type CheieSortare,
+  type GrupRegistru,
+  type StareRegistru,
+  type SursaRegistru,
+} from "@/lib/registru/filtre";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { Enums } from "@/types/database";
 
@@ -48,23 +58,25 @@ export type StareExercitiu = Enums<"registru_stare_exercitiu">;
 
 const SENSURI = ["intrare", "iesire", "intern"] as const satisfies readonly SensRegistru[];
 
+// Vocabularul filtrelor stă în `@/lib/registru/filtre` (fără `server-only`),
+// ca bara de filtre — Client Component — să-l poată importa. Re-exportat de
+// aici pentru apelanții de pe server.
+export {
+  GRUPURI_REGISTRU,
+  SORTARI_REGISTRU,
+  STARI_REGISTRU,
+  SURSE_REGISTRU,
+  type CheieSortare,
+  type GrupRegistru,
+  type StareRegistru,
+  type SursaRegistru,
+} from "@/lib/registru/filtre";
+
 /**
  * Starea unui rând, dedusă din două coloane: `anulat_la` (pct. 58 lit. d —
  * rândul nu se șterge, se anulează) și `rezolvat_la` (art. 9 — răspunsul
  * închide cazul, fără număr nou).
  */
-export const STARI_REGISTRU = ["active", "anulate", "in_lucru", "rezolvate"] as const;
-export type StareRegistru = (typeof STARI_REGISTRU)[number];
-
-/** `manual` = înregistrat pe hârtie (art. 8); restul vin din triggere. */
-export const SURSE_REGISTRU = ["automat", "manual"] as const;
-export type SursaRegistru = (typeof SURSE_REGISTRU)[number];
-
-export const GRUPURI_REGISTRU = ["tip", "dosar", "luna", "angajat"] as const;
-export type GrupRegistru = (typeof GRUPURI_REGISTRU)[number];
-
-export const SORTARI_REGISTRU = ["numar", "data", "tip", "dosar"] as const;
-export type CheieSortare = (typeof SORTARI_REGISTRU)[number];
 export type SortareRegistru = Readonly<{ cheie: CheieSortare; directie: Directie }>;
 
 const SORTARE_IMPLICITA: SortareRegistru = { cheie: "numar", directie: "desc" };

@@ -8,12 +8,15 @@ import { useId } from "react";
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
 import { Camp } from "@/components/ui/camp";
 import { Combobox } from "@/components/ui/combobox";
+// Din `@/lib/registru/filtre`, NU din `@/lib/queries/registru`: acela e
+// `server-only`, iar un import de valoare de acolo într-un Client Component
+// pică doar la build (a7c2b58, 8 oct 2026).
 import {
   STARI_REGISTRU,
   SURSE_REGISTRU,
   type StareRegistru,
   type SursaRegistru,
-} from "@/lib/queries/registru";
+} from "@/lib/registru/filtre";
 
 import { ETICHETE_SENS, eticheteazaTipDocument } from "./etichete";
 
