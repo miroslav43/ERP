@@ -11478,6 +11478,7 @@ export type Database = {
       registru_documente: {
         Row: {
           an: number
+          angajat_id: string | null
           anulat_la: string | null
           compartiment: string | null
           conexat_la: string | null
@@ -11512,6 +11513,7 @@ export type Database = {
         }
         Insert: {
           an: number
+          angajat_id?: string | null
           anulat_la?: string | null
           compartiment?: string | null
           conexat_la?: string | null
@@ -11546,6 +11548,7 @@ export type Database = {
         }
         Update: {
           an?: number
+          angajat_id?: string | null
           anulat_la?: string | null
           compartiment?: string | null
           conexat_la?: string | null
@@ -11579,6 +11582,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "registru_documente_angajat_id_fkey"
+            columns: ["angajat_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registru_documente_conexat_la_fkey"
             columns: ["conexat_la"]
@@ -13733,6 +13743,7 @@ export type Database = {
       }
       inregistreaza_document_manual: {
         Args: {
+          p_angajat_id?: string | null
           p_continut_rezumat: string
           p_data_document_emitent?: string | null
           p_emitent?: string | null
