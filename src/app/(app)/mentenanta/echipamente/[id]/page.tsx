@@ -71,6 +71,8 @@ import { FormularInterventie } from "./formular-interventie";
 import { FormularIscir } from "./formular-iscir";
 import { FormularPlan } from "./formular-plan";
 import { IncarcareDocument } from "./incarcare-document";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Fișa echipamentului" };
 
@@ -195,6 +197,12 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
   const numeAngajati = await angajatiDupaId(tenant.organizationId, idAngajatiNecesari);
   const numeleAngajatului = (idAngajat: string | null) =>
     idAngajat === null ? "—" : (numeAngajati.get(idAngajat)?.full_name ?? "—");
+  // Numele legat de fișă, doar când rândul a venit prin RLS și fișa se deschide.
+  const angajatLegat = (idAngajat: string | null) => (
+    <LinkEntitate href={hrefFisaDinHarta(idAngajat, numeAngajati, permisiuni)}>
+      {numeleAngajatului(idAngajat)}
+    </LinkEntitate>
+  );
 
   // Ultima citire cunoscută pe fiecare tip de contor — pentru semaforul
   // planurilor cu periodicitate pe contor. `contoare` e deja ordonat descrescător.
@@ -240,7 +248,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       cheie: "citit_de",
       antet: "Citit de",
       peTelefon: "meta",
-      celula: (citire) => numeleAngajatului(citire.citit_de_employee_id),
+      celula: (citire) => angajatLegat(citire.citit_de_employee_id),
     },
     {
       cheie: "observatii",
@@ -286,7 +294,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       antet: "Executant",
       peTelefon: "meta",
       celula: (interventie) =>
-        interventie.executant_extern ?? numeleAngajatului(interventie.executant_employee_id),
+        interventie.executant_extern ?? angajatLegat(interventie.executant_employee_id),
     },
     {
       cheie: "cost",
@@ -615,7 +623,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                     </p>
                     <p className="text-muted-foreground text-nota">
                       {ETICHETE_TIP_MENTENANTA[plan.tip]} · Responsabil:{" "}
-                      {numeleAngajatului(plan.responsabil_employee_id)}
+                      {angajatLegat(plan.responsabil_employee_id)}
                     </p>
                     <p className="text-muted-foreground text-nota">{formatPeriodicitate(plan)}</p>
                     {poateScrie && !casat ? (

@@ -98,6 +98,7 @@ describe("custodie", () => {
       fel: "alocat",
       alocareId: "a1",
       detinator: "Ionescu Ana",
+      hrefDetinator: null,
       predatLa: "2026-06-01T08:00:00+00:00",
       stareLaPredare: "bun",
       confirmatLa: null,

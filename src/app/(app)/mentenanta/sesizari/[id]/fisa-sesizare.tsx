@@ -26,10 +26,13 @@ import type { DateSesizare } from "./date-sesizare";
 import { FormularComentariu } from "./formular-comentariu";
 import { GalerieFoto } from "./galerie-foto";
 import { IncarcareFoto } from "./incarcare-foto";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 interface Proprietati {
   readonly date: DateSesizare;
   readonly zona: "app" | "portal";
+  /** Fișa unui angajat, decisă de pagină per id (RLS + `deleted_at` + drept); în portal lipsește. */
+  readonly legaturaFisa?: (idFisa: string | null) => string | null;
   readonly actor: ActorSesizare;
   readonly userId: string;
   /** Angajații pentru atribuire și pentru executantul intervenției (ce lasă RLS). */
@@ -55,6 +58,7 @@ export function FisaSesizare({
   angajati,
   azi,
   acum,
+  legaturaFisa = () => null,
 }: Proprietati): ReactElement {
   const { sesizare, echipament, interventie, opriri } = date;
   const inAplicatie = zona === "app";
@@ -151,7 +155,11 @@ export function FisaSesizare({
             <dt className="text-muted-foreground text-nota tracking-wide uppercase">
               Raportată de
             </dt>
-            <dd className="text-corp mt-0.5">{raportor}</dd>
+            <dd className="text-corp mt-0.5">
+              <LinkEntitate href={legaturaFisa(sesizare.raportat_de_employee_id)}>
+                {raportor}
+              </LinkEntitate>
+            </dd>
           </div>
           <div>
             <dt className="text-muted-foreground text-nota tracking-wide uppercase">
@@ -166,7 +174,9 @@ export function FisaSesizare({
                 <span className="text-muted-foreground">Neatribuită</span>
               ) : (
                 <>
-                  {atribuitaMie ? `${tehnician} (dvs.)` : tehnician}
+                  <LinkEntitate href={legaturaFisa(sesizare.atribuit_employee_id)}>
+                    {atribuitaMie ? `${tehnician} (dvs.)` : tehnician}
+                  </LinkEntitate>
                   {sesizare.atribuit_la === null ? null : (
                     <span className="text-muted-foreground">
                       {" "}
@@ -272,9 +282,11 @@ export function FisaSesizare({
             <p className="text-corp font-medium">{interventie.descriere}</p>
             <p className="text-muted-foreground text-nota">
               {ETICHETE_TIP_MENTENANTA[interventie.tip]} · {formatDate(interventie.data)} ·{" "}
-              {interventie.executant_extern ??
-                numeFisa(interventie.executant_employee_id) ??
-                "Executant necunoscut"}
+              {interventie.executant_extern ?? (
+                <LinkEntitate href={legaturaFisa(interventie.executant_employee_id)}>
+                  {numeFisa(interventie.executant_employee_id) ?? "Executant necunoscut"}
+                </LinkEntitate>
+              )}
             </p>
             <p className="text-corp">
               Cost:{" "}

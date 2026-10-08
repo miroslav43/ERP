@@ -1,4 +1,5 @@
 // src/app/(app)/evaluari/sabloane/page.tsx
+import Link from "next/link";
 import type { Metadata } from "next";
 import { ClipboardCheck } from "lucide-react";
 
@@ -135,11 +136,19 @@ export default async function PaginaSabloaneEvaluare() {
                       {sablon.criterii.length === 1 ? "criteriu" : "criterii"}
                       {ponderi.arePonderi ? " · cu ponderi" : " · criterii egale"}
                       {" · "}
-                      {sablon.nrEvaluari === 0
-                        ? "nefolosit încă"
-                        : sablon.nrEvaluari === 1
-                          ? "folosit într-o evaluare"
-                          : `folosit în ${String(sablon.nrEvaluari)} evaluări`}
+                      {sablon.nrEvaluari === 0 ? (
+                        "nefolosit încă"
+                      ) : (
+                        // Lista are deja filtrul pe șablon; cifra duce la el.
+                        <Link
+                          href={`/evaluari?template_id=${sablon.id}`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          {sablon.nrEvaluari === 1
+                            ? "folosit într-o evaluare"
+                            : `folosit în ${String(sablon.nrEvaluari)} evaluări`}
+                        </Link>
+                      )}
                     </p>
                   </div>
                 </div>

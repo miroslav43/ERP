@@ -2,7 +2,11 @@
 import { celMaiBunContrast, cernealaPentruFundal, PRAG_TEXT_MIC } from "@/domain/leave/contrast";
 import type { StatusCerere } from "@/schemas/leave";
 
+import Link from "next/link";
+
 export interface EvenimentZiCalendar {
+  /** Pastila duce la cerere. */
+  readonly cerereId: string;
   readonly employeeLabel: string;
   readonly tipDenumire: string;
   readonly tipCuloare: string;
@@ -200,7 +204,12 @@ export function GrilaCalendar({ an, luna, zileHarta }: Proprietati) {
                                 className={`text-nota truncate rounded px-1 py-0.5 ${clasa}`}
                                 style={stil}
                               >
-                                {eveniment.employeeLabel}
+                                <Link
+                                  href={`/concedii/${eveniment.cerereId}`}
+                                  className="hover:underline"
+                                >
+                                  {eveniment.employeeLabel}
+                                </Link>
                                 {/* `title` nu apare la atingere și nu se citește
                                     la tastatură: pe telefon, tipul și starea
                                     erau pur și simplu inaccesibile. Textul

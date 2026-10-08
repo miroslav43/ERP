@@ -7,7 +7,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { pasEsteGata } from "@/schemas/checklist";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
@@ -53,6 +53,7 @@ export default async function PaginaParcursulMeu({
   if (instanta.employee_id !== stare.fisa.id) notFound();
 
   const pasi = await pasiiInstantei(tenant.organizationId, instanta.id);
+  const features = await getEnabledFeatures(tenant.organizationId);
 
   /*
    * Care pași se pot bifa — regula e strictă și vine din politică, nu din bun-simț.
@@ -104,7 +105,15 @@ export default async function PaginaParcursulMeu({
         </p>
       ) : null}
 
-      <PasChecklist pasi={pasi} idPasuriBifabile={idPasuriBifabile} />
+      <PasChecklist
+        pasi={pasi}
+        idPasuriBifabile={idPasuriBifabile}
+        hrefCurs={
+          features.has("courses") && can(permisiuni, "courses:read", "own")
+            ? () => "/portal/cursurile-mele"
+            : null
+        }
+      />
 
       {/* Fără buton de finalizare: `checklist.instance.finish` cere
           `checklists:update` la prag `team`, pe care angajatul nu-l are.

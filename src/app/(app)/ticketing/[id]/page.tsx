@@ -1,15 +1,16 @@
 // src/app/(app)/ticketing/[id]/page.tsx
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import {
   citesteTichetul,
   listeazaComentariile,
@@ -36,6 +37,9 @@ import {
   Repartizare,
   SchimbaStatus,
 } from "./actiuni-tichet";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { legaturaSigura } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Tichet" };
 
@@ -43,7 +47,7 @@ interface ProprietatiPagina {
   readonly params: Promise<{ id: string }>;
 }
 
-function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: string | null }>) {
+function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: ReactNode | null }>) {
   if (valoare === null || valoare === "") return null;
   return (
     <div className="border-border flex items-baseline justify-between gap-4 border-b py-2 last:border-0">
@@ -106,9 +110,10 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "ticketing"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "tickets:read", "own")) {
@@ -158,7 +163,15 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
           obiectului de inventar și pe cea a deplasării. */}
       <AntetPagina
         titlu={tichet.titlu}
-        descriere={`${ETICHETE_TIP[tichet.tip]} · deschis de ${tichet.solicitant?.full_name ?? "—"} la ${formatDateTime(tichet.created_at)}`}
+        descriere={
+          <>
+            {ETICHETE_TIP[tichet.tip]} · deschis de{" "}
+            <LinkEntitate href={hrefFisa(tichet.solicitant, permisiuni)}>
+              {tichet.solicitant?.full_name ?? "—"}
+            </LinkEntitate>{" "}
+            la {formatDateTime(tichet.created_at)}
+          </>
+        }
         actiuni={
           <>
             <span className="text-muted-foreground text-corp font-mono">{tichet.numar_afisat}</span>
@@ -213,9 +226,24 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
           <Rand
             eticheta="Obiectul stricat"
             valoare={
-              tichet.obiect === null
-                ? null
-                : `${tichet.obiect.denumire}${tichet.obiect.numar_inventar === null ? "" : ` · ${tichet.obiect.numar_inventar}`}`
+              tichet.obiect === null ? null : (
+                <>
+                  <LinkEntitate
+                    href={legaturaSigura(`/inventar/${tichet.obiect.id}`, {
+                      features: module,
+                      permissions: permisiuni,
+                    })}
+                  >
+                    {tichet.obiect.denumire}
+                    {tichet.obiect.numar_inventar === null
+                      ? ""
+                      : ` · ${tichet.obiect.numar_inventar}`}
+                  </LinkEntitate>
+                  {tichet.obiect.garantie_expira === null
+                    ? ""
+                    : ` · garanție până la ${formatDate(tichet.obiect.garantie_expira)}`}
+                </>
+              )
             }
           />
           <Rand
@@ -237,13 +265,27 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             eticheta="Cost estimat"
             valoare={tichet.cost_estimat === null ? null : `${tichet.cost_estimat} RON`}
           />
-          <Rand eticheta="Asignat" valoare={tichet.asignat?.full_name ?? null} />
+          <Rand
+            eticheta="Asignat"
+            valoare={
+              tichet.asignat === null ? null : (
+                <LinkEntitate href={hrefFisa(tichet.asignat, permisiuni)}>
+                  {tichet.asignat.full_name}
+                </LinkEntitate>
+              )
+            }
+          />
           <Rand
             eticheta="Decizie"
             valoare={
-              tichet.decizie_la === null
-                ? null
-                : `${tichet.aprobator?.full_name ?? "—"} · ${formatDateTime(tichet.decizie_la)}`
+              tichet.decizie_la === null ? null : (
+                <>
+                  <LinkEntitate href={hrefFisa(tichet.aprobator, permisiuni)}>
+                    {tichet.aprobator?.full_name ?? "—"}
+                  </LinkEntitate>
+                  {` · ${formatDateTime(tichet.decizie_la)}`}
+                </>
+              )
             }
           />
         </dl>
@@ -310,7 +352,9 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
               >
                 <p className="text-muted-foreground text-nota flex flex-wrap items-center gap-2">
                   <span className="text-foreground font-medium">
-                    {comentariu.autor?.full_name ?? "—"}
+                    <LinkEntitate href={hrefFisa(comentariu.autor, permisiuni)}>
+                      {comentariu.autor?.full_name ?? "—"}
+                    </LinkEntitate>
                   </span>
                   {formatDateTime(comentariu.created_at)}
                   {comentariu.intern && (

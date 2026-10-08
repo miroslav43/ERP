@@ -13,6 +13,7 @@ import { esteTerminala } from "@/domain/maintenance/sesizari";
 
 import { actorPentru, incarcaFisaSesizare } from "./date-sesizare";
 import { FisaSesizare } from "./fisa-sesizare";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Sesizare de defecțiune" };
 
@@ -63,6 +64,7 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
         angajati={angajati}
         azi={todayInBucharest()}
         acum={new Date().toISOString()}
+        legaturaFisa={(idFisa) => hrefFisaDinHarta(idFisa, date.numeAngajati, permisiuni)}
       />
     </div>
   );

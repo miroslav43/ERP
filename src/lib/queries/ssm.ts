@@ -974,6 +974,8 @@ export interface AngajatRezumat {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  /** Pentru `hrefFisa()`: fișa ștearsă rămâne cu nume în registre, fără link. */
+  readonly deleted_at: string | null;
 }
 
 export async function angajatiDupaId(
@@ -986,7 +988,7 @@ export async function angajatiDupaId(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", unice)
     .returns<AngajatRezumat[]>();

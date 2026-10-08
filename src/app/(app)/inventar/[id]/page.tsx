@@ -45,6 +45,7 @@ import { Cronologie } from "./cronologie";
 import { CardCustodie } from "./custodie";
 import { DialogObiect } from "./dialog-obiect";
 import { idDinRuta } from "@/lib/rute/parametri";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Fișa obiectului de inventar" };
 
@@ -120,6 +121,13 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
     alocareDeschisa === null
       ? null
       : (angajati.get(alocareDeschisa.employee_id)?.full_name ?? null),
+    alocareDeschisa === null
+      ? null
+      : hrefFisaDinHarta(alocareDeschisa.employee_id, angajati, permisiuni),
+  );
+  // Fișa fiecărui om din cronologie: doar cei întorși de RLS și neșterși.
+  const hrefuriFise = new Map(
+    [...angajati.keys()].map((id) => [id, hrefFisaDinHarta(id, angajati, permisiuni)] as const),
   );
   const poateCasa = poateScrie && stareCustodie.fel !== "alocat" && obiect.status !== "casat";
 
@@ -304,7 +312,10 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
             ? "Obiectul nu a fost încă predat nimănui. Fiecare predare și fiecare returnare apar aici, cu procesul-verbal."
             : "Fiecare predare și fiecare returnare, de la cea mai recentă."}
         </p>
-        <Cronologie evenimente={evenimenteFisa(obiect, istoric, numeNume)} />
+        <Cronologie
+          evenimente={evenimenteFisa(obiect, istoric, numeNume, hrefuriFise)}
+          obiectId={obiect.id}
+        />
         {istoric.length === 0 ? null : (
           <ul className="border-border mt-5 flex flex-wrap gap-x-4 gap-y-1 border-t pt-4">
             {istoric.map((alocare) => (

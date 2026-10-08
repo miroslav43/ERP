@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/ui/callout";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
@@ -26,6 +26,9 @@ import {
 
 import { ETICHETE_STATUS_FOAIE, formatConsum, TONURI_STATUS_FOAIE } from "../../etichete";
 import { ActiuniFoaie } from "./actiuni-foaie";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { legaturaSigura } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
 
@@ -39,9 +42,10 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "fleet"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "trip_sheets:read", "own")) {
@@ -69,9 +73,33 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const titlu = `${vehicul?.nr_inmatriculare ?? "Vehicul indisponibil"}${
     foaie.numar === null ? "" : ` · ${foaie.numar}`
   }`;
-  const descriere = `${formatDateTime(new Date(foaie.plecare_la))}${
-    foaie.sosire_la === null ? "" : ` – ${formatDateTime(new Date(foaie.sosire_la))}`
-  }${sofer === undefined ? "" : ` · ${sofer.full_name ?? sofer.marca}`}`;
+  const descriere = (
+    <>
+      {formatDateTime(new Date(foaie.plecare_la))}
+      {foaie.sosire_la === null ? "" : ` – ${formatDateTime(new Date(foaie.sosire_la))}`}
+      {sofer === undefined ? null : (
+        <>
+          {" · "}
+          <LinkEntitate href={hrefFisa(sofer, permisiuni)}>
+            {sofer.full_name ?? sofer.marca}
+          </LinkEntitate>
+        </>
+      )}
+      {vehicul === undefined ? null : (
+        <>
+          {" · "}
+          <LinkEntitate
+            href={legaturaSigura(`/flota/${foaie.vehicle_id}`, {
+              features: module,
+              permissions: permisiuni,
+            })}
+          >
+            fișa vehiculului
+          </LinkEntitate>
+        </>
+      )}
+    </>
+  );
 
   const litriTotali = alimentari.reduce((s, a) => s + a.litri, 0);
   const costTotal = alimentari.reduce((s, a) => s + a.cost, 0);

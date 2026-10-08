@@ -11,14 +11,20 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { citestePlan, echipamenteDupaId, interventii } from "@/lib/queries/maintenance";
+import {
+  citestePlan,
+  echipamenteDupaId,
+  interventii,
+  angajatiDupaId,
+  planuriDupaId,
+} from "@/lib/queries/maintenance";
 import { filtreInterventiiSchema } from "@/schemas/maintenance";
 
 import {
@@ -29,6 +35,8 @@ import {
 import { FiltreInterventiiForm } from "./filtre-interventii";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_MENTENANTA } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Intervenții de mentenanță" };
 
@@ -39,12 +47,26 @@ interface ProprietatiPagina {
 async function TabelInterventii({
   organizationId,
   parametri,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreInterventiiSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await interventii(organizationId, filtre);
+  // Planul executat și executantul: rândul avea `plan_id` și `executant_employee_id`
+  // citite, dar nicio coloană nu le arăta și nu le lega.
+  const [planuri, executanti] = await Promise.all([
+    planuriDupaId(
+      organizationId,
+      randuri.map((r) => r.plan_id),
+    ),
+    angajatiDupaId(
+      organizationId,
+      randuri.map((r) => r.executant_employee_id).filter((id): id is string => id !== null),
+    ),
+  ]);
 
   /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
   function adresa(schimba: (p: URLSearchParams) => void): string {
@@ -142,6 +164,38 @@ async function TabelInterventii({
       antet: "Descriere",
       peTelefon: "meta",
       celula: (i) => i.descriere,
+    },
+    {
+      cheie: "plan",
+      antet: "Plan",
+      peTelefon: "meta",
+      celula: (i) => {
+        if (i.plan_id === null) return "—";
+        const plan = planuri.get(i.plan_id);
+        return plan === undefined ? (
+          "plan șters"
+        ) : (
+          <Link
+            href={`/mentenanta/planuri/${i.plan_id}`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {plan.denumire}
+          </Link>
+        );
+      },
+    },
+    {
+      cheie: "executant",
+      antet: "Executant",
+      peTelefon: "meta",
+      celula: (i) =>
+        i.executant_extern ?? (
+          <LinkEntitate href={hrefFisaDinHarta(i.executant_employee_id, executanti, permisiuni)}>
+            {i.executant_employee_id === null
+              ? "—"
+              : (executanti.get(i.executant_employee_id)?.full_name ?? "—")}
+          </LinkEntitate>
+        ),
     },
     {
       cheie: "cost",
@@ -255,7 +309,11 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
-        <TabelInterventii organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelInterventii
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          permisiuni={permisiuni}
+        />
       </Suspense>
     </div>
   );

@@ -10,7 +10,7 @@ import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -24,6 +24,8 @@ import { filtreEipSchema } from "@/schemas/ssm";
 import { NavSsm } from "../nav-ssm";
 import { ConfirmarePrimireEip, ReturnareEip } from "./actiuni-eip";
 import { FormularEip } from "./formular-eip";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Echipament individual de protecție" };
 
@@ -36,10 +38,12 @@ async function TabelEip({
   parametri,
   poateActualiza,
   poateCrea,
+  permisiuni,
 }: {
   readonly organizationId: string;
   /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
   readonly poateCrea: boolean;
+  readonly permisiuni: PermissionMap;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateActualiza: boolean;
 }) {
@@ -84,7 +88,11 @@ async function TabelEip({
       peTelefon: "titlu",
       celula: (e) => {
         const angajat = angajati.get(e.employee_id);
-        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+        return (
+          <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+            {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+          </LinkEntitate>
+        );
       },
     },
     {
@@ -255,6 +263,7 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
           parametri={parametri}
           poateActualiza={poateActualiza}
           poateCrea={poateCrea}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

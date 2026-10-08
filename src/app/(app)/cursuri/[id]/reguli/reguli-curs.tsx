@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 // src/app/(app)/cursuri/[id]/reguli/reguli-curs.tsx
 //
 // Un criteriu pe regulă, ales dintr-o listă scurtă. Nu un motor de reguli cu
@@ -49,6 +51,8 @@ interface Proprietati {
   readonly departamente: readonly OptiuneDenumita[];
   readonly angajati: readonly AngajatOptiune[];
   readonly poateEdita: boolean;
+  /** `employees:read` — țintele „departament" și „persoană" devin linkuri spre lista/fișa lor. */
+  readonly poateVedeaAngajati?: boolean;
 }
 
 export function ReguliCurs({
@@ -58,6 +62,7 @@ export function ReguliCurs({
   departamente,
   angajati,
   poateEdita,
+  poateVedeaAngajati = false,
 }: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
@@ -88,6 +93,21 @@ export function ReguliCurs({
       }
     },
     [angajati, departamente],
+  );
+
+  // Doar țintele cu pagină ȘI cu nume rezolvat devin linkuri: departamentul
+  // spre lista de angajați filtrată (managerul n-are `departments:read`, iar
+  // `/departamente` n-are detaliu), persoana spre fișa ei.
+  const hrefTinta = useCallback(
+    (regula: RandRegula): string | null => {
+      if (!poateVedeaAngajati || numeTinta(regula) === "—") return null;
+      if (regula.criteriu === "departament" && regula.department_id !== null)
+        return `/angajati?department_id=${regula.department_id}`;
+      if (regula.criteriu === "angajat" && regula.employee_id !== null)
+        return `/angajati/${regula.employee_id}`;
+      return null;
+    },
+    [numeTinta, poateVedeaAngajati],
   );
 
   const ruleaza = useCallback(
@@ -152,7 +172,21 @@ export function ReguliCurs({
               <div className="min-w-0 flex-1">
                 <p className="font-medium">
                   {ETICHETE_CRITERIU[regula.criteriu]}
-                  {regula.criteriu === "toti" ? "" : `: ${numeTinta(regula)}`}
+                  {regula.criteriu === "toti" ? null : (
+                    <>
+                      {": "}
+                      {hrefTinta(regula) === null ? (
+                        numeTinta(regula)
+                      ) : (
+                        <Link
+                          href={hrefTinta(regula) ?? "#"}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          {numeTinta(regula)}
+                        </Link>
+                      )}
+                    </>
+                  )}
                 </p>
                 <p className="text-muted-foreground text-nota">
                   {regula.decalaj_zile === 0

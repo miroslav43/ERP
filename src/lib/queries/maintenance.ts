@@ -303,6 +303,27 @@ export interface AngajatAutorizat {
 export interface AngajatRezumat {
   readonly id: string;
   readonly full_name: string | null;
+  /** Pentru `hrefFisa()`: fișa ștearsă rămâne cu nume în istoric, fără link. */
+  readonly deleted_at: string | null;
+}
+
+/** Planurile după id, pentru coloana „Plan" a intervențiilor; cele șterse lipsesc din hartă. */
+export async function planuriDupaId(
+  organizationId: string,
+  ids: readonly (string | null)[],
+): Promise<ReadonlyMap<string, Readonly<{ id: string; denumire: string }>>> {
+  const unice = [...new Set(ids.filter((id): id is string => id !== null))];
+  if (unice.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_plans")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .in("id", unice)
+    .is("deleted_at", null)
+    .returns<{ id: string; denumire: string }[]>();
+  if (error !== null) throw error;
+  return new Map((data ?? []).map((p) => [p.id, p]));
 }
 
 /**
@@ -1474,7 +1495,7 @@ export async function angajatiDupaId(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name")
+    .select("id, full_name, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", unice)
     .returns<AngajatRezumat[]>();
@@ -1511,7 +1532,7 @@ export async function angajatiDupaUserId(
   for (const a of data ?? []) {
     // Prima fișă (cea principală, sortată în față) câștigă.
     if (a.user_id !== null && !harta.has(a.user_id)) {
-      harta.set(a.user_id, { id: a.id, full_name: a.full_name });
+      harta.set(a.user_id, { id: a.id, full_name: a.full_name, deleted_at: null });
     }
   }
   return harta;

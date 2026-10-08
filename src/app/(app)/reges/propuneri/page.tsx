@@ -23,6 +23,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { NavReges } from "../nav-reges";
 import { FormularPropunere } from "./formular-propunere";
 import { RaspunsPropunere } from "./raspuns-propunere";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 export const metadata = { title: "REGES-Online — propuneri de detașare și mutare" };
 
@@ -56,6 +57,7 @@ export default async function PaginaPropuneriReges() {
   const supabase = await createServerSupabase();
   const organizationId = idOrganizatie(tenant);
   const poatePropune = meetsScope(scopeFor(permisiuni, "reges:create") ?? undefined, "all");
+  const poateDeschideFisa = meetsScope(scopeFor(permisiuni, "employees:read") ?? undefined, "all");
   const [propuneri, contracte, temeiuri] = await Promise.all([
     interogheazaPropuneriReges(supabase, organizationId),
     poatePropune
@@ -99,7 +101,16 @@ export default async function PaginaPropuneriReges() {
       // (încă) angajatul nostru, iar datele lui n-au ce căuta întregi la noi.
       celula: (p) => (
         <span className="text-foreground">
-          {p.salariatNume ?? "—"}
+          {/* Doar propunerea TRIMISĂ descrie un angajat al nostru; cea primită, un om de la alt angajator. */}
+          <LinkEntitate
+            href={
+              p.directie === "trimisa" && p.employeeId !== null && poateDeschideFisa
+                ? `/angajati/${p.employeeId}`
+                : null
+            }
+          >
+            {p.salariatNume ?? "—"}
+          </LinkEntitate>
           {p.salariatCnpUltimele4 === null ? null : (
             <span className="text-muted-foreground text-nota block">
               CNP *********{p.salariatCnpUltimele4}
@@ -193,6 +204,8 @@ export default async function PaginaPropuneriReges() {
           randuri={trimise}
           coloane={COLOANE_COMUNE}
           cheieRand={(p) => p.id}
+          // Rândul duce la mesajul din coadă (starea și răspunsul ITM), când există.
+          href={(p) => (p.mesajId === null ? null : `/reges/${p.mesajId}`)}
           densitate="compact"
           caption="Propuneri trimise altor angajatori"
           gol={

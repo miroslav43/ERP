@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
+import { numeLuna } from "../../etichete";
 import { Fluturas } from "@/components/payroll/fluturas";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -65,12 +66,30 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
     <div className={`${LATIMI.detaliu} space-y-6`}>
       <div className="space-y-1">
         <p className="text-muted-foreground text-corp">
+          <Link href="/salarizare" className="underline-offset-2 hover:underline">
+            Salarizare
+          </Link>
+          {" › "}
           <Link href={`/salarizare/${id}`} className="underline-offset-2 hover:underline">
-            Perioada de salarizare
+            {perioada === null
+              ? "Perioada de salarizare"
+              : `${numeLuna(perioada.luna)} ${perioada.an}`}
           </Link>
         </p>
         <AntetPagina
           titlu={inregistrare.angajat?.full_name ?? inregistrare.angajat?.marca ?? "Angajat"}
+          {...(can(permisiuni, "employees:read", "all") && inregistrare.angajat !== null
+            ? {
+                actiuni: (
+                  <Link
+                    href={`/angajati/${inregistrare.employee_id}`}
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    Fișa angajatului
+                  </Link>
+                ),
+              }
+            : {})}
         />
       </div>
 

@@ -1129,7 +1129,11 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
               {evaluari.map((evaluare) => {
                 const criteriiDupaCod = new Map(evaluare.criterii.map((c) => [c.cod, c]));
                 return (
-                  <li key={evaluare.id} className="border-border rounded-panou border p-3">
+                  <li
+                    key={evaluare.id}
+                    id={`evaluare-${evaluare.id}`}
+                    className="border-border rounded-panou scroll-mt-20 border p-3"
+                  >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{evaluare.sablon ?? "Șablon șters"}</span>
                       {evaluare.versiune_sablon === null ? null : (

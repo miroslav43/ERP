@@ -15,7 +15,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { pasiDinInstructiuni } from "@/domain/maintenance/instructiuni";
 import { TREPTE_MENTENANTA, stareScadentaPlan } from "@/domain/maintenance/scadente";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
@@ -48,6 +48,8 @@ import { DialogExecutaPlan } from "./dialog-executa-plan";
 import { FiltrePlanuriForm } from "./filtre-planuri";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_MENTENANTA } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Planuri de mentenanță" };
 
@@ -67,11 +69,13 @@ async function TabelPlanuri({
   parametri,
   poateScrie,
   angajati,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateScrie: boolean;
   readonly angajati: readonly { readonly id: string; readonly nume: string }[];
+  readonly permisiuni: PermissionMap;
 }) {
   const azi = todayInBucharest();
   const filtre = cuImplicitActiv(filtreDinUrl(filtrePlanuriSchema, parametri));
@@ -222,7 +226,13 @@ async function TabelPlanuri({
       peTelefon: "meta",
       celula: (plan) => {
         if (plan.responsabil_employee_id === null) return "—";
-        const nume = responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—";
+        const nume = (
+          <LinkEntitate
+            href={hrefFisaDinHarta(plan.responsabil_employee_id, responsabili, permisiuni)}
+          >
+            {responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—"}
+          </LinkEntitate>
+        );
         return inactivi.has(plan.responsabil_employee_id) ? (
           <span className="inline-flex flex-wrap items-center gap-1.5">
             {nume}
@@ -416,6 +426,7 @@ export default async function PaginaPlanuri({ searchParams }: ProprietatiPagina)
           parametri={parametri}
           poateScrie={poateScrie}
           angajati={angajati}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

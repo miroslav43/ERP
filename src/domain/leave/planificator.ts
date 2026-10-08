@@ -25,6 +25,8 @@ import { esteZiLucratoareIso, type ZiCalendaristica } from "./zile-cerere";
 export type StareAbsenta = "aprobata" | "in_aprobare";
 
 export interface AbsentaCelula {
+  /** Cererea din spatele absenței — caseta din planificator duce la ea. */
+  readonly cerereId: string;
   readonly tipId: string;
   readonly tipDenumire: string;
   /** `leave_types.culoare`, hex ales de administrator dintr-un selector liber. */

@@ -15,12 +15,14 @@ import {
 } from "./planificator";
 
 const ODIHNA: AbsentaCelula = {
+  cerereId: "c1",
   tipId: "t1",
   tipDenumire: "Concediu de odihnă",
   tipCuloare: "#2563EB",
   stare: "aprobata",
 };
 const MEDICAL: AbsentaCelula = {
+  cerereId: "c2",
   tipId: "t2",
   tipDenumire: "Concediu medical",
   tipCuloare: "#DC2626",

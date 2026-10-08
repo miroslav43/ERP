@@ -1,11 +1,13 @@
+import Link from "next/link";
 import { HandCoins, PackagePlus, PackageX, Undo2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import type { EvenimentFisa, FelEveniment } from "@/domain/inventory/fisa";
 import { formatDateTime } from "@/lib/format/date";
 
 import { ETICHETE_STARE } from "../etichete";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 /**
  * Ce s-a întâmplat cu obiectul, de la cel mai recent înapoi.
@@ -37,15 +39,18 @@ const PICTOGRAMA: Readonly<Record<FelEveniment, LucideIcon>> = {
   casare: PackageX,
 };
 
-function titlulEvenimentului(eveniment: EvenimentFisa): string {
-  const cine = eveniment.angajat ?? "un angajat";
+function titlulEvenimentului(eveniment: EvenimentFisa): ReactNode {
+  // Numele devine link doar când fișa se poate deschide (`hrefAngajat`).
+  const cine = (
+    <LinkEntitate href={eveniment.hrefAngajat}>{eveniment.angajat ?? "un angajat"}</LinkEntitate>
+  );
   switch (eveniment.fel) {
     case "inregistrare":
       return "Obiect înregistrat în evidență";
     case "predare":
-      return `Predat lui ${cine}`;
+      return <>Predat lui {cine}</>;
     case "returnare":
-      return `Returnat de ${cine}`;
+      return <>Returnat de {cine}</>;
     case "casare":
       return "Scos din uz";
   }
@@ -61,9 +66,11 @@ function detaliulEvenimentului(eveniment: EvenimentFisa): string | null {
 
 interface Proprietati {
   readonly evenimente: readonly EvenimentFisa[];
+  /** Pentru linkul spre procesul-verbal al fiecărei predări/returnări. */
+  readonly obiectId: string;
 }
 
-export function Cronologie({ evenimente }: Proprietati): ReactElement {
+export function Cronologie({ evenimente, obiectId }: Proprietati): ReactElement {
   return (
     <ol className="border-border space-y-5 border-l-2 pl-6">
       {evenimente.map((eveniment) => {
@@ -88,6 +95,17 @@ export function Cronologie({ evenimente }: Proprietati): ReactElement {
                 ? "Fără dată înregistrată"
                 : formatDateTime(eveniment.moment)}
               {detaliu === null ? "" : ` · ${detaliu}`}
+              {eveniment.alocareId === null ? null : (
+                <>
+                  {" · "}
+                  <Link
+                    href={`/inventar/${obiectId}/pv/${eveniment.alocareId}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    proces-verbal
+                  </Link>
+                </>
+              )}
             </p>
           </li>
         );

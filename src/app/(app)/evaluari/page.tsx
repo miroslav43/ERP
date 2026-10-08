@@ -212,7 +212,21 @@ async function ListaEvaluari({
       cheie: "sablon",
       antet: "Șablon",
       peTelefon: "meta",
-      celula: (e) => e.sablon ?? "Șablon șters",
+      celula: (e) =>
+        e.template_id === null ? (
+          (e.sablon ?? "Șablon șters")
+        ) : (
+          // Același filtru pe care îl are bara: lista se restrânge la șablon.
+          <Link
+            href={adresa((p) => {
+              p.set("template_id", e.template_id ?? "");
+              p.delete("cursor");
+            })}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {e.sablon ?? "Șablon șters"}
+          </Link>
+        ),
     },
     {
       cheie: "data",
@@ -262,7 +276,15 @@ async function ListaEvaluari({
       // îngustează la echipă (`can_access_evaluation`). Finalizata se vede pe
       // fișa angajatului; redeschiderea ei rămâne acolo.
       celula: (e) =>
-        e.status === "draft" && poateNota ? (
+        e.status === "finalizat" && e.angajat !== null ? (
+          // Finalizata trăiește pe fișa angajatului, cu ancoră pe rândul ei.
+          <Link
+            href={`/angajati/${e.employee_id}#evaluare-${e.id}`}
+            className="underline-offset-2 hover:underline"
+          >
+            Vezi
+          </Link>
+        ) : e.status === "draft" && poateNota ? (
           <ButonContinuaCiorna
             employeeId={e.employee_id}
             sabloane={[]}

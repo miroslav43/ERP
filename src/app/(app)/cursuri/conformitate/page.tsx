@@ -14,6 +14,7 @@
 // opt oameni e o minciună cu trei zecimale: un singur om mută cifra cu 12,5
 // puncte.
 
+import Link from "next/link";
 import type { Metadata } from "next";
 import { ShieldCheck } from "lucide-react";
 
@@ -36,6 +37,8 @@ import { textProgres, treaptaTermen, treaptaValabilitate } from "@/domain/cursur
 import type { TreaptaScadenta } from "@/domain/scadente";
 
 import { NavCursuri } from "../nav-cursuri";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Conformitate" };
 
@@ -93,6 +96,17 @@ export default async function PaginaConformitate() {
   }
 
   const { angajati, cursuri, celule } = await matriceConformitate(tenant.organizationId);
+  // Celula duce la stadiul cursului filtrat pe om; „Neatribuit" duce la
+  // atribuire, dar numai pentru cine poate atribui (`courses:create`).
+  const poateAtribui = can(permisiuni, "courses:create", "team");
+  const hrefCelula = (
+    cursId: string,
+    angajatId: string,
+    celula: CelulaConformitate | undefined,
+  ): string =>
+    celula === undefined && poateAtribui
+      ? `/cursuri/${cursId}/atribuire`
+      : `/cursuri/${cursId}/stadiu?angajat=${angajatId}`;
   const azi = todayInBucharest();
 
   /*
@@ -226,7 +240,9 @@ export default async function PaginaConformitate() {
                       scope="col"
                       className="border-border text-eticheta border-b p-2 text-start uppercase"
                     >
-                      {curs.denumire}
+                      <Link href={`/cursuri/${curs.id}/stadiu`} className="hover:underline">
+                        {curs.denumire}
+                      </Link>
                     </th>
                   ))}
                 </tr>
@@ -235,15 +251,22 @@ export default async function PaginaConformitate() {
                 {angajati.map((angajat) => (
                   <tr key={angajat.id}>
                     <th scope="row" className="border-border border-b p-2 text-start font-medium">
-                      {angajat.nume}
+                      <LinkEntitate href={hrefFisa({ id: angajat.id }, permisiuni)}>
+                        {angajat.nume}
+                      </LinkEntitate>
                     </th>
                     {cursuri.map((curs) => {
                       const celula = celule.get(cheieCelula(angajat.id, curs.id));
                       return (
                         <td key={curs.id} className="border-border border-b p-2">
-                          <Scadenta treapta={treaptaCelula(celula, azi)}>
-                            {textCelula(celula)}
-                          </Scadenta>
+                          <Link
+                            href={hrefCelula(curs.id, angajat.id, celula)}
+                            className="inline-block underline-offset-2 hover:underline"
+                          >
+                            <Scadenta treapta={treaptaCelula(celula, azi)}>
+                              {textCelula(celula)}
+                            </Scadenta>
+                          </Link>
                         </td>
                       );
                     })}
@@ -257,7 +280,11 @@ export default async function PaginaConformitate() {
           <ul className="space-y-3 md:hidden">
             {angajati.map((angajat) => (
               <li key={angajat.id} className="bg-surface border-border rounded-panou border p-3">
-                <p className="font-medium">{angajat.nume}</p>
+                <p className="font-medium">
+                  <LinkEntitate href={hrefFisa({ id: angajat.id }, permisiuni)}>
+                    {angajat.nume}
+                  </LinkEntitate>
+                </p>
                 <ul className="mt-2 space-y-1">
                   {cursuri.map((curs) => {
                     const celula = celule.get(cheieCelula(angajat.id, curs.id));
@@ -266,10 +293,20 @@ export default async function PaginaConformitate() {
                         key={curs.id}
                         className="flex flex-wrap items-center justify-between gap-2"
                       >
-                        <span className="text-corp">{curs.denumire}</span>
-                        <Scadenta treapta={treaptaCelula(celula, azi)}>
-                          {textCelula(celula)}
-                        </Scadenta>
+                        <Link
+                          href={`/cursuri/${curs.id}/stadiu`}
+                          className="text-corp hover:underline"
+                        >
+                          {curs.denumire}
+                        </Link>
+                        <Link
+                          href={hrefCelula(curs.id, angajat.id, celula)}
+                          className="inline-block underline-offset-2 hover:underline"
+                        >
+                          <Scadenta treapta={treaptaCelula(celula, azi)}>
+                            {textCelula(celula)}
+                          </Scadenta>
+                        </Link>
                       </li>
                     );
                   })}

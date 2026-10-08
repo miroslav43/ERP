@@ -11,7 +11,7 @@ import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { Scadenta } from "@/components/ui/scadenta";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -24,6 +24,8 @@ import { ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FormularAutorizatie } from "./formular-autorizatie";
 import { SuspendareAutorizatie } from "./suspendare-autorizatie";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Autorizații nominale" };
 
@@ -31,11 +33,13 @@ async function TabelAutorizatii({
   organizationId,
   poateActualiza,
   poateCrea,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly poateActualiza: boolean;
   /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
   readonly poateCrea: boolean;
+  readonly permisiuni: PermissionMap;
 }) {
   const autorizatii = await autorizatiiNominale(organizationId);
 
@@ -72,7 +76,11 @@ async function TabelAutorizatii({
       peTelefon: "titlu",
       celula: (a) => {
         const angajat = angajati.get(a.employee_id);
-        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+        return (
+          <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+            {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+          </LinkEntitate>
+        );
       },
     },
     {
@@ -209,6 +217,7 @@ export default async function PaginaAutorizatii() {
           organizationId={tenant.organizationId}
           poateActualiza={poateActualiza}
           poateCrea={poateCrea}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

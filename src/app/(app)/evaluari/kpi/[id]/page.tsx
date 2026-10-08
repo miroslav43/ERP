@@ -11,6 +11,7 @@
  * încărcare — ar fi plătit pentru un caz care apare la directorii de nivel doi.
  */
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -27,6 +28,8 @@ import { ETICHETE_STATUS_KPI, TONURI_STATUS_KPI, numeLuna, tonKpi } from "../eti
 import { FormularLuna } from "./formular-luna";
 import { FileModul } from "@/components/ui/file-modul";
 import { fileEvaluari } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Luna de KPI" };
 
@@ -60,11 +63,39 @@ export default async function PaginaLunaKpi({ params }: ProprietatiPagina) {
         firimituri={[
           // KPI se vinde separat: la o firmă fără Evaluări, `/evaluari` e 404.
           ...(module.has("evaluations") ? [{ eticheta: "Evaluări", href: "/evaluari" }] : []),
-          { eticheta: "KPI lunar", href: "/evaluari/kpi" },
+          // Înapoi pe LUNA din care s-a venit, nu pe luna curentă.
+          { eticheta: "KPI lunar", href: `/evaluari/kpi?an=${luna.an}&luna=${luna.luna}` },
           { eticheta: numeLuna(luna.an, luna.luna) },
         ]}
-        titlu={luna.angajat ?? "Angajat"}
-        descriere={`${numeLuna(luna.an, luna.luna)}${luna.marca === null ? "" : ` · marca ${luna.marca}`}`}
+        titlu={
+          // Embed-ul e `null` când RLS ascunde fișa: atunci numele rămâne text.
+          <LinkEntitate
+            href={hrefFisa(luna.angajat === null ? null : { id: luna.employee_id }, permisiuni)}
+          >
+            {luna.angajat ?? "Angajat"}
+          </LinkEntitate>
+        }
+        descriere={
+          <>
+            {numeLuna(luna.an, luna.luna)}
+            {luna.marca === null ? "" : ` · marca ${luna.marca}`}
+            {" · "}
+            <Link href="/evaluari/kpi/seturi" className="underline-offset-2 hover:underline">
+              setul funcției
+            </Link>
+            {module.has("evaluations") && luna.angajat !== null ? (
+              <>
+                {" · "}
+                <Link
+                  href={`/angajati/${luna.employee_id}#titlu-evaluari`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  evaluările anuale
+                </Link>
+              </>
+            ) : null}
+          </>
+        }
         file={
           <FileModul
             eticheta="Secțiunile modulului de evaluări"

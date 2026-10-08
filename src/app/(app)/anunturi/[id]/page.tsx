@@ -20,6 +20,8 @@ import { citesteAnunt, cititoriAnunt, numarAngajatiCuCont } from "@/lib/queries/
 
 import { MarcheazaCitit } from "./marcheaza-citit";
 import { PublicaButon } from "./publica-buton";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Anunț" };
 
@@ -183,9 +185,18 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
                   key={c.employee_id}
                   className="flex items-center justify-between gap-3 px-4 py-2"
                 >
-                  <span className="min-w-0 truncate">
+                  <LinkEntitate
+                    href={hrefFisa(
+                      c.angajat === null
+                        ? null
+                        : { id: c.employee_id, deleted_at: c.angajat.deleted_at },
+                      permisiuni,
+                    )}
+                    className="min-w-0 truncate"
+                    clasaText="min-w-0 truncate"
+                  >
                     {c.angajat?.full_name ?? c.angajat?.marca ?? "—"}
-                  </span>
+                  </LinkEntitate>
                   <span className="text-muted-foreground text-nota shrink-0 tabular-nums">
                     {formatDateTime(c.citit_la)}
                   </span>

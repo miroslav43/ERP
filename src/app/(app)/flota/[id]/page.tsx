@@ -43,6 +43,8 @@ import { DialogDocument } from "./dialog-document";
 import { DialogDocumentNou } from "./dialog-document-nou";
 import { DialogKilometraj } from "./dialog-kilometraj";
 import { DialogVehicul } from "./dialog-vehicul";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -112,7 +114,14 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       peTelefon: "titlu",
       celula: (a) => (
         <>
-          {a.sofer?.full_name ?? "—"}
+          <LinkEntitate
+            href={hrefFisa(
+              a.sofer === null ? null : { id: a.employee_id, deleted_at: a.sofer.deleted_at },
+              permisiuni,
+            )}
+          >
+            {a.sofer?.full_name ?? "—"}
+          </LinkEntitate>
           {a.folosinta_personala ? (
             <span className="text-muted-foreground text-nota block">și în scop personal</span>
           ) : null}
@@ -458,11 +467,29 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           ) : null}
         </div>
         <p className="text-muted-foreground text-corp">
-          {vehicul.pool
-            ? "Mașină comună (pool): se poate folosi fără alocare fixă."
-            : alocareDeschisa === undefined
-              ? "Vehiculul nu are acum șofer alocat."
-              : `Șofer acum: ${alocareDeschisa.sofer?.full_name ?? "—"}, din ${formatDateTime(new Date(alocareDeschisa.de_la))}.`}
+          {vehicul.pool ? (
+            "Mașină comună (pool): se poate folosi fără alocare fixă."
+          ) : alocareDeschisa === undefined ? (
+            "Vehiculul nu are acum șofer alocat."
+          ) : (
+            <>
+              Șofer acum:{" "}
+              <LinkEntitate
+                href={hrefFisa(
+                  alocareDeschisa.sofer === null
+                    ? null
+                    : {
+                        id: alocareDeschisa.employee_id,
+                        deleted_at: alocareDeschisa.sofer.deleted_at,
+                      },
+                  permisiuni,
+                )}
+              >
+                {alocareDeschisa.sofer?.full_name ?? "—"}
+              </LinkEntitate>
+              , din {formatDateTime(new Date(alocareDeschisa.de_la))}.
+            </>
+          )}
         </p>
         <Tabel
           caption="Cine a avut vehiculul, de când până când, cu kilometrajul la predare și la restituire."

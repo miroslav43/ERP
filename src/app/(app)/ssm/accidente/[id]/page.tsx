@@ -19,6 +19,8 @@ import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
 import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "../../etichete";
 import { BandaTermenItm } from "../../numaratoare-itm";
 import { FormularComunicareItm } from "./formular-comunicare-itm";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Accident de muncă" };
 
@@ -68,11 +70,16 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
     accident.numar_intern === null
       ? formatDate(accident.data_producerii)
       : `${formatDate(accident.data_producerii)} · ${accident.numar_intern}`;
-  const cineSiUnde = `${
-    angajat === undefined
-      ? "Angajat neidentificat"
-      : `${angajat.full_name ?? "—"} (${angajat.marca})`
-  } · ${accident.locul}`;
+  const cineSiUnde = (
+    <>
+      <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+        {angajat === undefined
+          ? "Angajat neidentificat"
+          : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+      </LinkEntitate>
+      {` · ${accident.locul}`}
+    </>
+  );
 
   return (
     <div className={`${LATIMI.detaliu} space-y-6`}>

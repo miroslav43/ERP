@@ -175,13 +175,8 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
       peTelefon: "titlu",
       celula: (angajat) => (
         <>
-          {poateDeschideFisa && angajat.exista ? (
-            <Link href={`/angajati/${angajat.employeeId}`} className="text-primary hover:underline">
-              {angajat.fullName}
-            </Link>
-          ) : (
-            <span>{angajat.fullName}</span>
-          )}
+          {/* Linkul îl pune `Tabel` pe coloana-titlu, din `href`-ul rândului. */}
+          <span>{angajat.fullName}</span>
           <span className="text-muted-foreground text-nota ml-1.5 font-mono">{angajat.marca}</span>
         </>
       ),
@@ -418,6 +413,11 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             coloane={coloane}
             randuri={statistici.perAngajat}
             cheieRand={(angajat) => angajat.employeeId}
+            // Rândul duce la fișă doar când se poate deschide: angajatul șters sau
+            // un drept sub `all` ar fi dat 404.
+            href={(angajat) =>
+              poateDeschideFisa && angajat.exista ? `/angajati/${angajat.employeeId}` : null
+            }
             gol={null}
             subsol={
               <tr>

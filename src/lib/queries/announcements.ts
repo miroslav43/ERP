@@ -149,7 +149,12 @@ export async function idAnunturiCitite(
 export interface CititorAnunt {
   readonly employee_id: string;
   readonly citit_la: string;
-  readonly angajat: Readonly<{ full_name: string; marca: string }> | null;
+  /** `null` = fișa e ascunsă de RLS pentru cine privește; `deleted_at` pentru `hrefFisa()`. */
+  readonly angajat: Readonly<{
+    full_name: string;
+    marca: string;
+    deleted_at: string | null;
+  }> | null;
 }
 
 /** Cine a citit anunțul — vizibil doar pentru cine administrează avizierul (RLS). */
@@ -157,7 +162,7 @@ export async function cititoriAnunt(announcementId: string): Promise<readonly Ci
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("announcement_reads")
-    .select("employee_id, citit_la, angajat:employees!employee_id(full_name, marca)")
+    .select("employee_id, citit_la, angajat:employees!employee_id(full_name, marca, deleted_at)")
     .eq("announcement_id", announcementId)
     .order("citit_la", { ascending: false })
     .returns<CititorAnunt[]>();

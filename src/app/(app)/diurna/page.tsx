@@ -14,7 +14,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime, todayInBucharest } from "@/lib/format/date";
@@ -37,6 +37,8 @@ import { filtreDeplasariSchema } from "@/schemas/per-diem";
 import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE, textZile } from "./etichete";
 import { FiltreDeplasari } from "./filtre-deplasari";
 import { NavDiurna } from "./nav-diurna";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Deplasări" };
 
@@ -94,10 +96,12 @@ async function TabelDeplasari({
   organizationId,
   parametri,
   arataAngajat,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly arataAngajat: boolean;
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreDeplasariSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaDeplasari(
@@ -174,7 +178,13 @@ async function TabelDeplasari({
           peTelefon: "meta",
           celula: (r) => {
             const angajat = angajati.get(r.employee_id);
-            return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+            return angajat === undefined ? (
+              "—"
+            ) : (
+              <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                {angajat.full_name ?? "—"} ({angajat.marca})
+              </LinkEntitate>
+            );
           },
         },
       ]
@@ -354,6 +364,7 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
           organizationId={tenant.organizationId}
           parametri={parametri}
           arataAngajat={scope === "team" || scope === "all"}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

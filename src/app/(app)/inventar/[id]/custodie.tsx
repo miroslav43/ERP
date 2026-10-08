@@ -9,6 +9,7 @@ import { ETICHETE_STARE } from "../etichete";
 import { ButonReaduInStoc } from "./buton-readu-in-stoc";
 import { DialogPredare } from "./dialog-predare";
 import { DialogReturnare } from "./dialog-returnare";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 /**
  * „Unde e obiectul” — răspunsul pentru care există un registru de inventar.
@@ -65,9 +66,13 @@ export function CardCustodie({
       <div className="space-y-4">
         <div>
           <p className="text-sectiune font-medium">
-            {custodie.detinator === null
-              ? "Obiectul e predat unui angajat."
-              : `La ${custodie.detinator}.`}
+            {custodie.detinator === null ? (
+              "Obiectul e predat unui angajat."
+            ) : (
+              <>
+                La <LinkEntitate href={custodie.hrefDetinator}>{custodie.detinator}</LinkEntitate>.
+              </>
+            )}
           </p>
           <p className="text-muted-foreground text-corp mt-1">
             Predat la {formatDateTime(custodie.predatLa)} · stare la predare:{" "}

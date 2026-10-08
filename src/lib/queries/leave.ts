@@ -697,6 +697,7 @@ export interface AngajatEmbedCalendar {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  readonly deleted_at: string | null;
 }
 
 export interface TipEmbedCalendar {
@@ -708,6 +709,8 @@ export interface TipEmbedCalendar {
 export interface RandZiCalendar {
   readonly data: string;
   readonly status: StatusCerere;
+  /** Ziua duce la cererea ei: pastila din grilă și caseta din planificator sunt linkuri. */
+  readonly leave_request_id: string;
   readonly cerere: Readonly<{
     readonly employee_id: string;
     readonly leave_type_id: string;
@@ -742,7 +745,7 @@ export async function calendarLunii(
   const { data, error } = await db
     .from("leave_request_days")
     .select(
-      "data, status, cerere:leave_requests!leave_request_id(employee_id, leave_type_id, angajat:employees!employee_id(id, full_name, marca), tip:leave_types!leave_requests_leave_type_id_fkey(id, denumire, culoare))",
+      "data, status, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, leave_type_id, angajat:employees!employee_id(id, full_name, marca, deleted_at), tip:leave_types!leave_requests_leave_type_id_fkey(id, denumire, culoare))",
     )
     .eq("organization_id", organizationId)
     .eq("este_lucratoare", true)

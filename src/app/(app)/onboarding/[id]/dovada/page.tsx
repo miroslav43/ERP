@@ -17,6 +17,8 @@ import { continutDovadaSchema } from "@/schemas/checklist";
 
 import { ETICHETE_STATUS_ITEM, ETICHETE_TIP, ETICHETE_TIP_DOVADA } from "../../etichete";
 import { ButonTiparire } from "./buton-tiparire";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Dovada de parcurgere" };
 
@@ -95,9 +97,11 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
         file={
           <div className="space-y-1">
             <p className="text-corp">
-              {angajat === undefined
-                ? "Angajat"
-                : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}{" "}
+              <LinkEntitate href={hrefFisa(angajat, permisiuni)} className="print:no-underline">
+                {angajat === undefined
+                  ? "Angajat"
+                  : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}
+              </LinkEntitate>{" "}
               · {ETICHETE_TIP[dovada.tip]} · Ciclul {dovada.ciclu}
             </p>
             <p className="text-corp">Finalizată la {formatDateTime(dovada.finalizata_la)}</p>

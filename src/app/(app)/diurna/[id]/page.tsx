@@ -36,6 +36,8 @@ import { ActiuniDeplasare } from "./actiuni-deplasare";
 import { Etape } from "./etape";
 import { FormularCheltuiala } from "./formular-cheltuiala";
 import { FormularEtapa } from "./formular-etapa";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Fișa deplasării" };
 
@@ -214,7 +216,20 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   // Sub titlu rămâne doar CINE; unde și când stau în Rezumat, pe primul rând,
   // unde se văd ca date, nu ca o propoziție lungă.
   const descriereDeplasare =
-    angajat === undefined ? undefined : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+    angajat === undefined ? undefined : (
+      <>
+        <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+          {angajat.full_name ?? "—"} ({angajat.marca})
+        </LinkEntitate>
+        {" · "}
+        <Link
+          href={`/diurna?angajat=${deplasare.employee_id}`}
+          className="underline-offset-2 hover:underline"
+        >
+          alte deplasări
+        </Link>
+      </>
+    );
 
   const plecare = new Date(deplasare.plecare_efectiva_la ?? deplasare.plecare_la);
   const sosire = new Date(deplasare.sosire_efectiva_la ?? deplasare.sosire_la);

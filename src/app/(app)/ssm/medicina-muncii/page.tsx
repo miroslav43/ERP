@@ -14,7 +14,7 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/ui/callout";
 import { Scadenta } from "@/components/ui/scadenta";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -32,6 +32,8 @@ import {
   TONURI_REZULTAT_EXAMEN,
 } from "../etichete";
 import { NavSsm } from "../nav-ssm";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Medicina muncii" };
 
@@ -53,7 +55,13 @@ interface ProprietatiPagina {
  * Restricțiile le scrie singur triggerul `internal.ssm_exam_sync` la fiecare
  * rezultat diferit de „apt", deci banda se umple fără nicio acțiune nouă.
  */
-async function BandaRestrictii({ organizationId }: { readonly organizationId: string }) {
+async function BandaRestrictii({
+  organizationId,
+  permisiuni,
+}: {
+  readonly organizationId: string;
+  readonly permisiuni: PermissionMap;
+}) {
   const restrictii = await restrictiiActive(organizationId);
   if (restrictii.length === 0) return null;
 
@@ -73,7 +81,9 @@ async function BandaRestrictii({ organizationId }: { readonly organizationId: st
           return (
             <li key={r.id}>
               <span className="font-medium">
-                {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+                <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                  {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+                </LinkEntitate>
               </span>
               {" · "}
               {r.restrictie}
@@ -103,11 +113,13 @@ async function TabelFise({
   organizationId,
   parametri,
   poateCrea,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   /** `ssm:create` — poarta paginii de creare; managerul (doar `read`) ajungea în refuz din starea goală. */
   readonly poateCrea: boolean;
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreFiseSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await fiseAptitudine(organizationId, filtre);
@@ -149,7 +161,11 @@ async function TabelFise({
       peTelefon: "titlu",
       celula: (f) => {
         const angajat = angajati.get(f.employee_id);
-        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+        return (
+          <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+            {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+          </LinkEntitate>
+        );
       },
     },
     {
@@ -289,7 +305,7 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
       />
 
       <Suspense fallback={null}>
-        <BandaRestrictii organizationId={tenant.organizationId} />
+        <BandaRestrictii organizationId={tenant.organizationId} permisiuni={permisiuni} />
       </Suspense>
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
@@ -297,6 +313,7 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateCrea={poateCrea}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

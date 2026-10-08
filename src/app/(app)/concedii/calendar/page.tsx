@@ -30,6 +30,8 @@ import { GrilaCalendar, type EvenimentZiCalendar } from "./grila-calendar";
 import { NavigareLuna } from "./navigare-luna";
 import { PlanificatorConcedii, type RandAngajatPlanificator } from "./planificator-concedii";
 import { VEDERI_CALENDAR, vedereDinParametru } from "./vedere";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { idFisaProprie } from "@/lib/queries/employees";
 
 export const metadata: Metadata = { title: "Calendarul de concedii" };
 
@@ -54,7 +56,7 @@ function parametrulNumeric(valoare: string | string[] | undefined): number | nul
 }
 
 export default async function PaginaCalendarConcedii({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { user, tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -108,6 +110,7 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
     const tipCuloare = tip?.culoare ?? "#94a3b8";
 
     const eveniment: EvenimentZiCalendar = {
+      cerereId: rand.leave_request_id,
       employeeLabel:
         angajat === null ? "Angajat" : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`,
       tipDenumire,
@@ -120,6 +123,7 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
 
     const cheie = cheieCelula(rand.cerere.employee_id, rand.data);
     const absenta: AbsentaCelula = {
+      cerereId: rand.leave_request_id,
       tipId: rand.cerere.leave_type_id,
       tipDenumire,
       tipCuloare,
@@ -137,10 +141,17 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
     nelucratoare.organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
     nelucratoare.organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
   );
+  // Rândurile planificatorului vin din `employees` sub RLS, deci fișa fiecăruia
+  // se deschide pentru cine privește; rândul propriu duce la „Cererile mele".
+  const fisaMea =
+    vedere === "planificator" ? await idFisaProprie(tenant.organizationId, user.id) : null;
   const randuriAngajati: readonly RandAngajatPlanificator[] = angajatiRanduri.map((a) => ({
     id: a.id,
     nume: a.full_name ?? a.marca,
     marca: a.marca,
+    hrefCereri:
+      a.id === fisaMea ? "/concedii?vedere=cereri" : `/concedii/echipa?employee_id=${a.id}`,
+    hrefFisa: hrefFisa({ id: a.id, deleted_at: null }, permisiuni),
   }));
 
   const lunaAnterioara =

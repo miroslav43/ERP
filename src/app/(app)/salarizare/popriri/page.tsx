@@ -15,6 +15,7 @@ import { formatDate } from "@/lib/format/date";
 
 import { ActiuniPoprire } from "./actiuni-poprire";
 import { FormularPoprireNoua } from "./formular-poprire-noua";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 export const metadata: Metadata = { title: "Popriri" };
 
@@ -85,7 +86,17 @@ export default async function PaginaPopriri() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{dosar.angajat?.full_name ?? "—"}</span>
+                      <span className="font-medium">
+                        <LinkEntitate
+                          href={
+                            dosar.angajat !== null && can(permisiuni, "employees:read", "all")
+                              ? `/angajati/${dosar.employee_id}`
+                              : null
+                          }
+                        >
+                          {dosar.angajat?.full_name ?? "—"}
+                        </LinkEntitate>
+                      </span>
                       <span className="text-muted-foreground text-nota font-mono">
                         {dosar.angajat?.marca ?? ""}
                       </span>

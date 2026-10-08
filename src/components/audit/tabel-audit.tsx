@@ -1,4 +1,5 @@
 // src/components/audit/tabel-audit.tsx
+import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 import { Fragment } from "react";
 
@@ -15,6 +16,11 @@ import type { RandJurnal } from "@/lib/queries/audit";
 import { formatDateTime } from "@/lib/format/date";
 type Props = Readonly<{
   randuri: readonly RandJurnal[];
+  /**
+   * Ruta obiectului unui rând, decisă de pagină (modul + drept); în consola de
+   * platformă nu se trimite, iar entitatea rămâne text.
+   */
+  rutaEntitate?: (entityType: string | null, entityId: string | null) => string | null;
   arataOrganizatia: boolean;
 }>;
 
@@ -99,7 +105,7 @@ function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
   );
 }
 
-export function TabelAudit({ randuri, arataOrganizatia }: Props) {
+export function TabelAudit({ randuri, arataOrganizatia, rutaEntitate = () => null }: Props) {
   const numarColoane = arataOrganizatia ? 6 : 5;
   return (
     <div className="border-border rounded-panou overflow-x-auto border">
@@ -180,7 +186,18 @@ export function TabelAudit({ randuri, arataOrganizatia }: Props) {
                   </span>
                 </td>
                 <td className={clasaCelula}>{etichetaActiune(rand.action)}</td>
-                <td className={clasaCelula}>{etichetaEntitate(rand.entityType)}</td>
+                <td className={clasaCelula}>
+                  {(() => {
+                    const href = rutaEntitate(rand.entityType, rand.entityId);
+                    return href === null ? (
+                      etichetaEntitate(rand.entityType)
+                    ) : (
+                      <Link href={href} className="underline-offset-2 hover:underline">
+                        {etichetaEntitate(rand.entityType)}
+                      </Link>
+                    );
+                  })()}
+                </td>
                 <td className={clasaCelula}>
                   <Badge ton={tonStatus(rand.status)}>{etichetaStatus(rand.status)}</Badge>
                 </td>

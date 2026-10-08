@@ -10,7 +10,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
@@ -38,6 +38,8 @@ import { DialogSesizareNoua } from "./dialog-sesizare-noua";
 import { FiltreSesizariForm } from "./filtre-sesizari";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_MENTENANTA } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Sesizări de defecțiune" };
 
@@ -50,12 +52,14 @@ async function TabelSesizari({
   parametri,
   fisaId,
   poatePrelua,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly fisaId: string | null;
   /** Gestionar cu fișă: butonul „Preiau eu” pe rândurile neatribuite. */
   readonly poatePrelua: boolean;
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreSesizariSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await sesizari(
@@ -212,7 +216,9 @@ async function TabelSesizari({
           const nume = tehnicieni.get(s.atribuit_employee_id)?.full_name ?? "Atribuită";
           return (
             <span className={s.atribuit_employee_id === fisaId ? "font-medium" : undefined}>
-              {s.atribuit_employee_id === fisaId ? `${nume} (dvs.)` : nume}
+              <LinkEntitate href={hrefFisaDinHarta(s.atribuit_employee_id, tehnicieni, permisiuni)}>
+                {s.atribuit_employee_id === fisaId ? `${nume} (dvs.)` : nume}
+              </LinkEntitate>
             </span>
           );
         }
@@ -358,6 +364,7 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
           parametri={parametri}
           fisaId={fisaId}
           poatePrelua={poateGestiona && fisaId !== null}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

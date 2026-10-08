@@ -17,12 +17,15 @@ import {
   bunuriNereturnate,
   citesteInstanta,
   pasiiInstantei,
+  citesteSablon,
 } from "@/lib/queries/checklist";
 import { fisaMea } from "@/lib/queries/portal";
 
 import { TONURI_STATUS_INSTANTA, ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "../etichete";
 import { ActiuniInstanta } from "./actiuni-instanta";
 import { PasChecklist } from "./pas-checklist";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Detaliile checklistului" };
 
@@ -53,13 +56,26 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
   if (instanta === null) notFound();
 
   const pasi = await pasiiInstantei(tenant.organizationId, instanta.id);
+  const sablon = await citesteSablon(tenant.organizationId, instanta.template_id);
 
   const poateVedeaAngajati = can(permisiuni, "employees:read", "team");
-  const angajat = poateVedeaAngajati
-    ? (await angajatiDupaId(tenant.organizationId, [instanta.employee_id])).get(
+  // Subiectul ȘI responsabilii pașilor, dintr-o singură citire sub RLS: cine nu
+  // vine înapoi rămâne eticheta de tip („Managerul direct"), fără nume și link.
+  const fise = poateVedeaAngajati
+    ? await angajatiDupaId(tenant.organizationId, [
         instanta.employee_id,
+        ...pasi.map((p) => p.responsabil_employee_id).filter((id): id is string => id !== null),
+      ])
+    : new Map<string, never>();
+  const angajat = fise.get(instanta.employee_id);
+  const responsabili = Object.fromEntries(
+    [...fise.values()]
+      .filter(
+        (f) =>
+          f.id !== instanta.employee_id || pasi.some((p) => p.responsabil_employee_id === f.id),
       )
-    : undefined;
+      .map((f) => [f.id, { nume: f.full_name ?? f.marca, href: hrefFisa(f, permisiuni) }] as const),
+  );
 
   // Bifare = poate gestiona orice pas al echipei (scope „team"/„all") SAU e
   // responsabilul desemnat al pasului.
@@ -132,13 +148,42 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
         </p>
         <AntetPagina
           titlu={
-            angajat === undefined
-              ? "Checklist"
-              : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`
+            angajat === undefined ? (
+              "Checklist"
+            ) : (
+              <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                {angajat.full_name ?? angajat.marca} ({angajat.marca})
+              </LinkEntitate>
+            )
           }
-          descriere={`${ETICHETE_TIP[instanta.tip]} · Referință ${formatDate(
-            instanta.data_referinta,
-          )} · Ciclul ${instanta.ciclu}`}
+          descriere={
+            <>
+              {ETICHETE_TIP[instanta.tip]} · Referință {formatDate(instanta.data_referinta)} ·
+              Ciclul {instanta.ciclu}
+              {angajat === undefined ? null : (
+                <>
+                  {" · "}
+                  <Link
+                    href={`/onboarding?angajat=${instanta.employee_id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    toate parcursurile lui
+                  </Link>
+                </>
+              )}
+              {sablon === null ? null : (
+                <>
+                  {" · "}
+                  <Link
+                    href={`/onboarding/sabloane/${instanta.template_id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    șablon: {sablon.denumire}
+                  </Link>
+                </>
+              )}
+            </>
+          }
           actiuni={
             <Badge ton={TONURI_STATUS_INSTANTA[instanta.status]}>
               {ETICHETE_STATUS_INSTANTA[instanta.status]}
@@ -201,7 +246,16 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
         <h2 id="titlu-pasi" className="text-sectiune font-semibold">
           Pași
         </h2>
-        <PasChecklist pasi={pasi} idPasuriBifabile={idPasuriBifabile} />
+        <PasChecklist
+          pasi={pasi}
+          idPasuriBifabile={idPasuriBifabile}
+          responsabili={responsabili}
+          hrefCurs={
+            module.has("courses") && can(permisiuni, "courses:read", "team")
+              ? (cursId) => `/cursuri/${cursId}/stadiu?angajat=${instanta.employee_id}`
+              : null
+          }
+        />
       </section>
 
       {poateGestiona ? <ActiuniInstanta instantaId={instanta.id} /> : null}

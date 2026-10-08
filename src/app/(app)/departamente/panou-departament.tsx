@@ -75,6 +75,12 @@ export type PropsPanouDepartament = Readonly<{
    * cerut-o.
    */
   managerId: string | null;
+  /**
+   * Embed-ul managerului, cu trei stări: rând → nume legat; `null` cu
+   * `managerId` → „în afara echipei tale" (RLS l-a ascuns, fișa nu s-ar
+   * deschide); ambele `null` → nedesemnat.
+   */
+  manager: Readonly<{ full_name: string }> | null;
   persoane: readonly PersoanaPanou[];
   /** Cine poate fi adus aici: toți ceilalți angajați activi. */
   candidati: readonly PersoanaPanou[];
@@ -89,6 +95,7 @@ export function PanouDepartament({
   laInchidere,
   departament,
   managerId,
+  manager,
   persoane,
   candidati,
   departamente,
@@ -228,6 +235,20 @@ export function PanouDepartament({
   return (
     <PanouLateral deschis={deschis} laInchidere={inchide} titlu={titlu} descriere={descriere}>
       <div className="space-y-4">
+        {departament === null ? null : (
+          <p className="text-corp">
+            <span className="text-muted-foreground">Manager: </span>
+            {managerId === null ? (
+              <span className="text-muted-foreground italic">nedesemnat</span>
+            ) : manager === null ? (
+              <span className="text-muted-foreground italic">în afara echipei dumneavoastră</span>
+            ) : (
+              <Link href={`/angajati/${managerId}`} className="hover:text-primary font-medium">
+                {manager.full_name}
+              </Link>
+            )}
+          </p>
+        )}
         {/*
          * Mecanismul e corect și fără nota asta, dar invizibil: nimic din
          * ecranul de departamente nu spune că un cofondator se adaugă
@@ -338,6 +359,12 @@ export function PanouDepartament({
                       <span className="text-muted-foreground text-nota block truncate">
                         <span className="font-mono">{p.marca}</span>
                         {p.functie === null ? "" : ` · ${p.functie}`}
+                        {p.id === managerId ? (
+                          <>
+                            {" "}
+                            <Badge ton="neutru">Manager</Badge>
+                          </>
+                        ) : null}
                       </span>
                       {/*
                        * Statusul se arată doar când NU e „activ". Persoanele

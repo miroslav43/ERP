@@ -794,6 +794,7 @@ type AngajatBrut = Readonly<{
   full_name: string;
   department_id: string | null;
   cod_cor: string | null;
+  deleted_at: string | null;
 }>;
 
 export async function angajatiPentruAtribuire(
@@ -825,17 +826,21 @@ export async function angajatiPentruAtribuire(
 export async function numeAngajati(
   organizationId: string,
   ids: readonly string[],
-): Promise<ReadonlyMap<string, string>> {
+): Promise<ReadonlyMap<string, Readonly<{ nume: string; deleted_at: string | null }>>> {
   if (ids.length === 0) return new Map();
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name")
+    .select("id, full_name, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", [...new Set(ids)].slice(0, 500))
-    .returns<Pick<AngajatBrut, "id" | "full_name">[]>();
+    .returns<Pick<AngajatBrut, "id" | "full_name" | "deleted_at">[]>();
   if (error !== null) throw error;
-  return new Map((data ?? []).map((a) => [a.id, a.full_name || "—"]));
+  // Prezența în hartă = rândul a trecut de RLS pentru cine privește; `deleted_at`
+  // e pentru `hrefFisa()`: fișa ștearsă rămâne cu nume în istoric, fără link.
+  return new Map(
+    (data ?? []).map((a) => [a.id, { nume: a.full_name || "—", deleted_at: a.deleted_at }]),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

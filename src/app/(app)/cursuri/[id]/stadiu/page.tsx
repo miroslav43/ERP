@@ -22,6 +22,8 @@ import { textProgres, treaptaTermen } from "@/domain/cursuri/scadente";
 
 import { ETICHETE_MOTIV, ETICHETE_STATUS, TONURI_STATUS } from "../../etichete";
 import { AnulareInrolare } from "./anulare-inrolare";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Stadiul cursului" };
 
@@ -79,7 +81,21 @@ export default async function PaginaStadiu({
       cheie: "angajat",
       antet: "Persoană",
       peTelefon: "titlu",
-      celula: (r) => <span className="font-medium">{nume.get(r.employee_id) ?? "—"}</span>,
+      celula: (r) => {
+        const angajat = nume.get(r.employee_id);
+        return (
+          <LinkEntitate
+            href={hrefFisa(
+              angajat === undefined ? null : { id: r.employee_id, deleted_at: angajat.deleted_at },
+              permisiuni,
+            )}
+            className="font-medium"
+            clasaText="font-medium"
+          >
+            {angajat?.nume ?? "—"}
+          </LinkEntitate>
+        );
+      },
     },
     {
       cheie: "stare",
@@ -132,7 +148,7 @@ export default async function PaginaStadiu({
             celula: (r: (typeof randuri)[number]) => (
               <AnulareInrolare
                 inrolareId={r.id}
-                numeAngajat={nume.get(r.employee_id) ?? "această persoană"}
+                numeAngajat={nume.get(r.employee_id)?.nume ?? "această persoană"}
                 status={r.status}
               />
             ),

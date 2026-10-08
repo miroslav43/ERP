@@ -1,4 +1,5 @@
 // src/app/(app)/reges/[id]/page.tsx
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -20,6 +21,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { ETICHETE_OPERATIE, ETICHETE_STARE_MESAJ } from "../constante";
 import { FormularClasificare } from "./formular-clasificare";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 export const metadata = { title: "REGES-Online — mesaj" };
 
@@ -61,6 +63,7 @@ export default async function PaginaMesajReges(props: { params: Promise<{ id: st
     );
   }
   const poateEdita = meetsScope(scopeFor(permisiuni, "reges:update") ?? undefined, "all");
+  const poateConfigura = meetsScope(scopeFor(permisiuni, "reges:configure") ?? undefined, "all");
 
   const { id } = await props.params;
   const supabase = await createServerSupabase();
@@ -68,6 +71,12 @@ export default async function PaginaMesajReges(props: { params: Promise<{ id: st
   if (detaliu === null) notFound();
 
   const { mesaj, clasificare, apeluri } = detaliu;
+  // Fișa oricărui salariat: cu `employees:read = team` (suprascriere) ar da 404.
+  const hrefFisaSalariat =
+    meetsScope(scopeFor(permisiuni, "employees:read") ?? undefined, "all") &&
+    mesaj.angajatId !== null
+      ? `/angajati/${mesaj.angajatId}`
+      : null;
 
   // Ce se va trimite, dacă operatorul n-a ales explicit. Se afișează ca atare —
   // ascunsă, deducția devine o presupunere nevăzută care ajunge la o autoritate.
@@ -95,12 +104,36 @@ export default async function PaginaMesajReges(props: { params: Promise<{ id: st
       <AntetPagina
         firimituri={[{ eticheta: "REGES-Online", href: "/reges" }, { eticheta: "Mesaj" }]}
         titlu={ETICHETE_OPERATIE[mesaj.operatie] ?? mesaj.operatie}
-        descriere={`${mesaj.angajatNume ?? "—"}${mesaj.contractNumar === null ? "" : ` · CIM ${mesaj.contractNumar}`}`}
+        descriere={
+          <>
+            <LinkEntitate href={hrefFisaSalariat}>{mesaj.angajatNume ?? "—"}</LinkEntitate>
+            {mesaj.contractNumar === null ? "" : ` · CIM ${mesaj.contractNumar}`}
+            {hrefFisaSalariat === null ? null : (
+              <>
+                {" · "}
+                <Link
+                  href={`${hrefFisaSalariat}#titlu-contracte`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  contractele
+                </Link>
+              </>
+            )}
+          </>
+        }
       />
 
       {mesaj.stare === "esuat" ? (
         <Callout fel="eroare" titlu="Inspecția Muncii a respins mesajul">
           {mesaj.rezultatMesaj ?? mesaj.eroare ?? "Fără explicație."}
+          {poateConfigura ? (
+            <>
+              {" "}
+              <Link href="/reges/setari" className="underline underline-offset-2">
+                Chei API și nomenclatoare
+              </Link>
+            </>
+          ) : null}
         </Callout>
       ) : null}
 
@@ -108,6 +141,15 @@ export default async function PaginaMesajReges(props: { params: Promise<{ id: st
         <Callout fel="atentie" titlu="Așteaptă mesajul precedent">
           Mesajul se transmite prin referință la o entitate pe care Inspecția Muncii nu ne-a
           confirmat-o încă. Pleacă singur imediat ce sosește identificatorul.
+          {mesaj.depindeDe === null ? null : (
+            <>
+              {" "}
+              <Link href={`/reges/${mesaj.depindeDe}`} className="underline underline-offset-2">
+                Deschide mesajul precedent
+              </Link>
+              .
+            </>
+          )}
         </Callout>
       ) : null}
 

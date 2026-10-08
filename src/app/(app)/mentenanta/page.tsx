@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Scadenta } from "@/components/ui/scadenta";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
@@ -60,13 +60,21 @@ import {
 import { SesizarileMele } from "./sesizarile-mele";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_MENTENANTA } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Mentenanță" };
 
 /** Câte rânduri intră într-un panou. Restul se numără în antet, nu dispar tăcut. */
 const MAXIM_PE_PANOU = 8;
 
-async function PanouOrganizatie({ organizationId }: { readonly organizationId: string }) {
+async function PanouOrganizatie({
+  organizationId,
+  permisiuni,
+}: {
+  readonly organizationId: string;
+  readonly permisiuni: PermissionMap;
+}) {
   const azi = todayInBucharest();
 
   const [rezultatPlanuri, rezultatSesizari, iscirBrute, rezultatEchipamente] = await Promise.all([
@@ -248,17 +256,34 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
           {planuriScadenteAfisate.map(({ plan, stare }) => (
             <li key={plan.id} className="flex items-start justify-between gap-3 py-2">
               <div>
+                {/* Planul duce la fișa PLANULUI (Execută, Amână); echipamentul are linkul lui mai jos. */}
                 <Link
-                  href={`/mentenanta/echipamente/${plan.equipment_id}`}
+                  href={`/mentenanta/planuri/${plan.id}`}
                   className="font-medium underline-offset-2 hover:underline"
                 >
                   {plan.denumire}
                 </Link>
                 <p className="text-muted-foreground text-nota">
-                  {numeEchipament(plan.equipment_id)}
-                  {plan.responsabil_employee_id !== null
-                    ? ` · ${responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—"}`
-                    : ""}
+                  <Link
+                    href={`/mentenanta/echipamente/${plan.equipment_id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {numeEchipament(plan.equipment_id)}
+                  </Link>
+                  {plan.responsabil_employee_id !== null ? (
+                    <>
+                      {" · "}
+                      <LinkEntitate
+                        href={hrefFisaDinHarta(
+                          plan.responsabil_employee_id,
+                          responsabili,
+                          permisiuni,
+                        )}
+                      >
+                        {responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—"}
+                      </LinkEntitate>
+                    </>
+                  ) : null}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1 text-right">
@@ -353,7 +378,12 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                     {plan.denumire}
                   </Link>
                   <p className="text-muted-foreground text-nota">
-                    {numeEchipament(plan.equipment_id)}
+                    <Link
+                      href={`/mentenanta/echipamente/${plan.equipment_id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {numeEchipament(plan.equipment_id)}
+                    </Link>
                   </p>
                 </div>
                 <span className="text-muted-foreground text-nota shrink-0 text-right">
@@ -565,7 +595,7 @@ export default async function PaginaMentenanta() {
         file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
-      <PanouOrganizatie organizationId={tenant.organizationId} />
+      <PanouOrganizatie organizationId={tenant.organizationId} permisiuni={permisiuni} />
     </div>
   );
 }

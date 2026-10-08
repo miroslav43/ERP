@@ -91,6 +91,24 @@ export default async function SetariMembriPage() {
 
   const profilDupaId = new Map((profiluriRezultat.data ?? []).map((p) => [p.id, p] as const));
 
+  // Fișa PRINCIPALĂ a fiecărui membru, doar pentru cine o poate deschide pe a
+  // oricui: lista administrează accesul, dar omul din spatele contului are o
+  // fișă, și de acolo se ajunge la permisiunile lui punctuale.
+  const poateVedeaFise = can(permisiuni, "employees:read", "all");
+  const fisaDupaUser = new Map<string, string>();
+  if (poateVedeaFise && idUtilizatori.length > 0) {
+    const { data: fise } = await supabase
+      .from("employees")
+      .select("id, user_id")
+      .eq("organization_id", tenant.organizationId)
+      .in("user_id", idUtilizatori)
+      .eq("is_primary", true)
+      .is("deleted_at", null);
+    for (const f of fise ?? []) {
+      if (f.user_id !== null && !fisaDupaUser.has(f.user_id)) fisaDupaUser.set(f.user_id, f.id);
+    }
+  }
+
   const membri: readonly RandMembru[] = (membriRezultat.data ?? []).map((rand) => {
     const profil = rand.user_id === null ? undefined : profilDupaId.get(rand.user_id);
     // `full_name` e opțional în `profiles`: un membru invitat care nu și-a
@@ -104,6 +122,8 @@ export default async function SetariMembriPage() {
       status: rand.status,
       jobTitle: rand.job_title,
       esteEu: rand.id === tenant.memberId,
+      userId: rand.user_id,
+      fisaId: rand.user_id === null ? null : (fisaDupaUser.get(rand.user_id) ?? null),
     };
   });
 
@@ -125,6 +145,9 @@ export default async function SetariMembriPage() {
         membri={membri}
         invitatii={invitatii}
         poateInvita={can(permisiuni, "users:create", "all")}
+        poateVedeaFise={poateVedeaFise}
+        poateAcordaPermisiuni={can(permisiuni, "roles:update", "all")}
+        poateVedeaAudit={can(permisiuni, "audit:read", "all")}
       />
     </div>
   );

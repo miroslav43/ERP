@@ -1,6 +1,8 @@
 // src/app/(app)/setari/membri/membri-client.tsx
 "use client";
 
+import Link from "next/link";
+
 import { useState, useTransition } from "react";
 import { Copy, MailPlus, ShieldAlert } from "lucide-react";
 
@@ -20,6 +22,7 @@ import {
   seteazaStareaMembrului,
 } from "./actions";
 import type { InvitatieCreata } from "./actions";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 export type RandMembru = Readonly<{
   id: string;
@@ -30,6 +33,10 @@ export type RandMembru = Readonly<{
   status: string;
   jobTitle: string | null;
   esteEu: boolean;
+  /** Contul (pentru „Activitate" din jurnal); `null` la invitațiile neacceptate. */
+  userId: string | null;
+  /** Fișa principală de angajat, dacă există și se poate deschide; altfel `null`. */
+  fisaId: string | null;
 }>;
 
 export type RandInvitatie = Readonly<{
@@ -61,6 +68,9 @@ export function PanouMembri({
   membri,
   invitatii,
   poateInvita,
+  poateVedeaFise,
+  poateAcordaPermisiuni,
+  poateVedeaAudit,
 }: Readonly<{
   membri: readonly RandMembru[];
   invitatii: readonly RandInvitatie[];
@@ -70,6 +80,12 @@ export function PanouMembri({
    * (suprascriere 0063) completa formularul și era refuzat la trimitere.
    */
   poateInvita: boolean;
+  /** `employees:read = all` — numele devine link spre fișă, iar lipsa fișei se spune. */
+  poateVedeaFise: boolean;
+  /** `roles:update = all` — „Permisiuni" pe rândul membrului (niciodată pe al meu). */
+  poateAcordaPermisiuni: boolean;
+  /** `audit:read = all` — „Activitate" → jurnalul filtrat pe cont. */
+  poateVedeaAudit: boolean;
 }>) {
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState<"org_admin" | "manager" | "hr" | "employee">("employee");
@@ -160,10 +176,17 @@ export function PanouMembri({
       peTelefon: "titlu",
       celula: (membru) => (
         <>
-          <span className="text-foreground block">{membru.nume ?? membru.email}</span>
+          <span className="text-foreground block">
+            <LinkEntitate href={membru.fisaId === null ? null : `/angajati/${membru.fisaId}`}>
+              {membru.nume ?? membru.email}
+            </LinkEntitate>
+          </span>
           {membru.nume === null ? null : (
             <span className="text-muted-foreground text-nota block">{membru.email}</span>
           )}
+          {poateVedeaFise && membru.fisaId === null ? (
+            <span className="text-muted-foreground text-nota block">fără fișă de angajat</span>
+          ) : null}
           {membru.jobTitle === null ? null : (
             <span className="text-muted-foreground text-nota">{membru.jobTitle}</span>
           )}
@@ -213,28 +236,48 @@ export function PanouMembri({
       antet: "Acțiuni",
       latime: "ingusta",
       peTelefon: "insigna",
-      celula: (membru) =>
-        membru.esteEu ? (
-          <span className="text-muted-foreground text-nota">—</span>
-        ) : (
-          <Buton
-            varianta="secundar"
-            disabled={inCurs}
-            onClick={() =>
-              ruleaza(
-                seteazaStareaMembrului({
-                  memberId: membru.id,
-                  status: membru.status === "active" ? "inactive" : "active",
-                }),
-                membru.status === "active"
-                  ? "Membrul a fost dezactivat."
-                  : "Membrul a fost reactivat.",
-              )
-            }
-          >
-            {membru.status === "active" ? "Dezactivează" : "Reactivează"}
-          </Buton>
-        ),
+      celula: (membru) => (
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {/* Permisiunile punctuale stau pe fișă; nimeni nu și le acordă sieși. */}
+          {poateAcordaPermisiuni && membru.fisaId !== null && !membru.esteEu ? (
+            <Link
+              href={`/angajati/${membru.fisaId}/permisiuni`}
+              className="text-nota underline-offset-2 hover:underline"
+            >
+              Permisiuni
+            </Link>
+          ) : null}
+          {poateVedeaAudit && membru.userId !== null ? (
+            <Link
+              href={`/setari/audit?actor=${membru.userId}`}
+              className="text-nota underline-offset-2 hover:underline"
+            >
+              Activitate
+            </Link>
+          ) : null}
+          {membru.esteEu ? (
+            <span className="text-muted-foreground text-nota">—</span>
+          ) : (
+            <Buton
+              varianta="secundar"
+              disabled={inCurs}
+              onClick={() =>
+                ruleaza(
+                  seteazaStareaMembrului({
+                    memberId: membru.id,
+                    status: membru.status === "active" ? "inactive" : "active",
+                  }),
+                  membru.status === "active"
+                    ? "Membrul a fost dezactivat."
+                    : "Membrul a fost reactivat.",
+                )
+              }
+            >
+              {membru.status === "active" ? "Dezactivează" : "Reactivează"}
+            </Buton>
+          )}
+        </span>
+      ),
     },
   ];
 

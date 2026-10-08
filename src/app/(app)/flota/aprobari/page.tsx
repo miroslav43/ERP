@@ -10,8 +10,8 @@ import { Callout } from "@/components/ui/callout";
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
@@ -28,6 +28,9 @@ import { formatConsum } from "../etichete";
 import { DecizieFoaie } from "./decizie-foaie";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_FLOTA } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { legaturaSigura } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Foi de aprobat" };
 
@@ -44,7 +47,14 @@ function cuSemn(valoare: number): string {
   return `${semn}${Math.abs(valoare).toLocaleString("ro-RO")}`;
 }
 
-async function ListaDeAprobat({ organizationId }: { readonly organizationId: string }) {
+async function ListaDeAprobat({
+  organizationId,
+  permisiuni,
+}: {
+  readonly organizationId: string;
+  readonly permisiuni: PermissionMap;
+}) {
+  const moduleActive = await getEnabledFeatures(organizationId);
   // Foile de parcurs NU generează sarcini în `approval_tasks`: triggerul de acolo
   // creează sarcini doar pentru `entity_type = 'leave_request'`. Aprobarea se
   // face direct pe rând, iar RLS decide cine vede ce.
@@ -156,7 +166,23 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
                         „ · (1234)” — o paranteză fără nimeni în față. */}
                     {sofer === undefined ? null : (
                       <span className="text-muted-foreground">
-                        {` · ${sofer.full_name ?? `Angajat ${sofer.marca}`} (${sofer.marca})`}
+                        {" · "}
+                        <LinkEntitate href={hrefFisa(sofer, permisiuni)}>
+                          {`${sofer.full_name ?? `Angajat ${sofer.marca}`} (${sofer.marca})`}
+                        </LinkEntitate>
+                      </span>
+                    )}
+                    {vehicul === undefined ? null : (
+                      <span className="text-muted-foreground">
+                        {" · "}
+                        <LinkEntitate
+                          href={legaturaSigura(`/flota/${f.vehicle_id}`, {
+                            features: moduleActive,
+                            permissions: permisiuni,
+                          })}
+                        >
+                          fișa vehiculului
+                        </LinkEntitate>
                       </span>
                     )}
                   </p>
@@ -298,7 +324,7 @@ export default async function PaginaAprobari() {
       />
 
       <Suspense fallback={<Schelet forma="lista" />}>
-        <ListaDeAprobat organizationId={tenant.organizationId} />
+        <ListaDeAprobat organizationId={tenant.organizationId} permisiuni={permisiuni} />
       </Suspense>
     </div>
   );

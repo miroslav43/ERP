@@ -14,6 +14,7 @@ import {
   ETICHETE_TIP_ZI,
 } from "./etichete";
 import type { IntrareZiClient } from "./intrare-client";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 /**
  * Luna întregii firme, în formă de calendar.
@@ -62,6 +63,8 @@ const MAXIM_PE_ZI = 3;
 export interface OmZi {
   readonly eticheta: string;
   readonly intrare: IntrareZiClient;
+  /** Fișa omului; `null` pe rândul propriu (scope `own`) sau fără drept. */
+  readonly hrefFisa: string | null;
 }
 
 interface Proprietati {
@@ -217,7 +220,8 @@ function RandOm({ om }: { readonly om: OmZi }) {
         stare === "respinsa" ? "text-muted-foreground line-through" : "text-foreground"
       }`}
     >
-      <span className="tabular-nums">{cifraZilei(om.intrare)}</span> {numeScurt(om.eticheta)}
+      <span className="tabular-nums">{cifraZilei(om.intrare)}</span>{" "}
+      <LinkEntitate href={om.hrefFisa}>{numeScurt(om.eticheta)}</LinkEntitate>
       {stare === "de_decis" ? (
         <span
           aria-hidden="true"

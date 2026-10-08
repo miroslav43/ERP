@@ -165,7 +165,13 @@ export function VitrinaConcedii({ azi }: { readonly azi: string }) {
       const cheie = cheieCelula(cerere.employeeId, data);
       celuleCuCereri[cheie] = [
         ...(celuleCuCereri[cheie] ?? []),
-        { tipId: tip.id, tipDenumire: tip.denumire, tipCuloare: tip.culoare, stare: "in_aprobare" },
+        {
+          cerereId: `vitrina-${cerere.employeeId}-${tip.id}`,
+          tipId: tip.id,
+          tipDenumire: tip.denumire,
+          tipCuloare: tip.culoare,
+          stare: "in_aprobare",
+        },
       ];
     }
   }

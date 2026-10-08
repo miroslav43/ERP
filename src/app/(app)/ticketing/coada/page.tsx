@@ -9,7 +9,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { limitaDinUrl, listeazaTichete, rezumatCoada } from "@/lib/queries/ticketing";
@@ -20,6 +20,7 @@ import { adresaCu } from "../adresa";
 import { TabelTichete } from "../tabel-tichete";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_TICKETING } from "@/config/file-module";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Coada de tichete" };
 
@@ -69,9 +70,11 @@ function Cifra({
 async function Continut({
   organizationId,
   parametri,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreTicheteSchema, parametri);
   const cursor = typeof parametri["cursor"] === "string" ? parametri["cursor"] : null;
@@ -129,7 +132,12 @@ async function Continut({
         />
       ) : (
         <div className="flex flex-col gap-4">
-          <TabelTichete randuri={randuri} aratSolicitantul aratAsignatul />
+          <TabelTichete
+            randuri={randuri}
+            aratSolicitantul
+            aratAsignatul
+            legaturaFisa={(angajat) => hrefFisa(angajat, permisiuni)}
+          />
           <Paginare
             afisate={randuri.length}
             total={total}
@@ -177,7 +185,11 @@ export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
-        <Continut organizationId={tenant.organizationId} parametri={parametri} />
+        <Continut
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          permisiuni={permisiuni}
+        />
       </Suspense>
     </div>
   );

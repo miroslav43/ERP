@@ -85,7 +85,17 @@ function Card({
 
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-corp font-medium">{d.denumire}</span>
+            {/* Numele deschide panoul: până acum singurul declanșator era
+                butonul mic cu efectivul, un control pe care nimeni nu-l ghicea. */}
+            <button
+              type="button"
+              onClick={() => {
+                laDeschiderePanou(d.id);
+              }}
+              className="text-corp hover:text-primary rounded-control text-left font-medium underline-offset-2 hover:underline"
+            >
+              {d.denumire}
+            </button>
             {/* Codul e opțional (0139) — fără el rândul rămâne pe denumire, la fel ca la centrul de cost de mai jos. */}
             {d.cod === null ? null : (
               <span className="text-muted-foreground text-nota font-mono">{d.cod}</span>
@@ -123,7 +133,16 @@ function Card({
           </span>
         </span>
 
-        <StivaAvatare persoane={d.persoane} />
+        <button
+          type="button"
+          onClick={() => {
+            laDeschiderePanou(d.id);
+          }}
+          className="rounded-control shrink-0"
+        >
+          <span className="sr-only">Deschide lista persoanelor</span>
+          <StivaAvatare persoane={d.persoane} />
+        </button>
 
         <button
           type="button"

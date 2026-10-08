@@ -40,8 +40,8 @@ export function limitaDinUrl(brut: string | string[] | undefined): number {
 
 const COLOANE_LISTA = `
   id, numar_afisat, tip, titlu, status, prioritate, created_at, updated_at,
-  solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name),
-  asignat:employees!tickets_asignat_employee_id_fkey (id, full_name)
+  solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name, deleted_at),
+  asignat:employees!tickets_asignat_employee_id_fkey (id, full_name, deleted_at)
 ` as const;
 
 export type RandTichet = Readonly<{
@@ -53,8 +53,8 @@ export type RandTichet = Readonly<{
   prioritate: Prioritate;
   created_at: string;
   updated_at: string;
-  solicitant: Readonly<{ id: string; full_name: string }> | null;
-  asignat: Readonly<{ id: string; full_name: string }> | null;
+  solicitant: Readonly<{ id: string; full_name: string; deleted_at: string | null }> | null;
+  asignat: Readonly<{ id: string; full_name: string; deleted_at: string | null }> | null;
 }>;
 
 export type PaginaTichete = Readonly<{
@@ -191,9 +191,9 @@ export async function listeazaTichete(
 
 const COLOANE_FISA = `
   *,
-  solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name, department_id),
-  asignat:employees!tickets_asignat_employee_id_fkey (id, full_name),
-  aprobator:employees!tickets_aprobat_de_employee_id_fkey (id, full_name),
+  solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name, department_id, deleted_at),
+  asignat:employees!tickets_asignat_employee_id_fkey (id, full_name, deleted_at),
+  aprobator:employees!tickets_aprobat_de_employee_id_fkey (id, full_name, deleted_at),
   obiect:inventory_items (id, denumire, numar_inventar, serie, model, garantie_expira)
 ` as const;
 
@@ -249,7 +249,7 @@ export async function listeazaComentariile(ticketId: string) {
   // `ticket_comments_select` le ascunde solicitantului.
   const { data, error } = await db
     .from("ticket_comments")
-    .select("id, continut, intern, created_at, autor:employees (id, full_name)")
+    .select("id, continut, intern, created_at, autor:employees (id, full_name, deleted_at)")
     .eq("ticket_id", ticketId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });

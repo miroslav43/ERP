@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useCallback, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, SlidersHorizontal } from "lucide-react";
@@ -29,6 +31,7 @@ import {
   ETICHETE_TIP_DOVADA,
   TONURI_STATUS_ITEM,
 } from "../etichete";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 /**
  * Lista pașilor unei instanțe de checklist.
@@ -63,6 +66,8 @@ export interface PasAfisat {
   readonly responsabil_tip: ChecklistResponsabilTip;
   readonly responsabil_rol: "super_admin" | "org_admin" | "manager" | "hr" | "employee" | null;
   readonly responsabil_employee_id: string | null;
+  /** Cursul de care depinde pasul `curs_finalizat`; `null` la celelalte. */
+  readonly curs_id: string | null;
   readonly termen: string | null;
   readonly obligatoriu: boolean;
   readonly tip_dovada: "niciuna" | "bifa" | "document" | "semnatura";
@@ -96,16 +101,34 @@ interface Proprietati {
   readonly pasi: readonly PasAfisat[];
   /** Id-urile pașilor pe care viewerul curent are voie să-i bifeze — calculat pe server. */
   readonly idPasuriBifabile: readonly string[];
+  /**
+   * Numele și fișa responsabililor, calculate de PAGINA din (app) sub RLS:
+   * componenta e partajată cu portalul, care nu trimite nimic și păstrează
+   * eticheta de tip.
+   */
+  readonly responsabili?: Readonly<Record<string, Readonly<{ nume: string; href: string | null }>>>;
+  /** Ținta pasului de tip curs, gata construită de pagină (`/cursuri/.../stadiu` sau portalul); `null` = fără link. */
+  readonly hrefCurs?: ((cursId: string) => string) | null;
 }
 
-export function PasChecklist({ pasi, idPasuriBifabile }: Proprietati) {
+export function PasChecklist({
+  pasi,
+  idPasuriBifabile,
+  responsabili = {},
+  hrefCurs = null,
+}: Proprietati) {
   const bifabile = new Set(idPasuriBifabile);
 
   return (
     <ol className="space-y-2">
       {pasi.map((pas) => (
         <li key={pas.id} className="border-border rounded-panou border p-3">
-          <PasRand pas={pas} poateBifa={bifabile.has(pas.id)} />
+          <PasRand
+            pas={pas}
+            poateBifa={bifabile.has(pas.id)}
+            responsabili={responsabili}
+            hrefCurs={hrefCurs}
+          />
         </li>
       ))}
     </ol>
@@ -136,7 +159,17 @@ function dovadaLipseste(pas: PasAfisat): boolean {
   return false;
 }
 
-function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBifa: boolean }) {
+function PasRand({
+  pas,
+  poateBifa,
+  responsabili,
+  hrefCurs,
+}: {
+  readonly pas: PasAfisat;
+  readonly poateBifa: boolean;
+  readonly responsabili: NonNullable<Proprietati["responsabili"]>;
+  readonly hrefCurs: NonNullable<Proprietati["hrefCurs"]> | null;
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -253,7 +286,14 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
             <p className="text-muted-foreground text-corp mt-0.5">{pas.descriere}</p>
           )}
           <p className="text-muted-foreground text-nota mt-1">
-            Responsabil: {responsabilText(pas)}
+            Responsabil:{" "}
+            {pas.responsabil_employee_id !== null && responsabili[pas.responsabil_employee_id] ? (
+              <LinkEntitate href={responsabili[pas.responsabil_employee_id]?.href ?? null}>
+                {responsabili[pas.responsabil_employee_id]?.nume}
+              </LinkEntitate>
+            ) : (
+              responsabilText(pas)
+            )}
             {pas.termen === null ? "" : ` · Termen: ${formatDate(pas.termen)}`}
             {pas.tip_dovada === "niciuna" || pas.tip_dovada === "bifa"
               ? ""
@@ -283,6 +323,15 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
       {automat ? (
         <p className="bg-surface text-muted-foreground rounded-control text-nota p-2">
           Se bifează automat de sistem, pe baza altui modul.
+          {pas.curs_id !== null && hrefCurs !== null ? (
+            <>
+              {" "}
+              <Link href={hrefCurs(pas.curs_id)} className="underline-offset-2 hover:underline">
+                Vezi stadiul cursului
+              </Link>
+              .
+            </>
+          ) : null}
           {pas.observatii === null ? "" : ` ${pas.observatii}`}
         </p>
       ) : null}

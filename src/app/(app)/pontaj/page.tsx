@@ -88,6 +88,8 @@ async function LunaIntreaga({
   utilizatorEticheta,
   poateEdita,
   poateAproba,
+  poateVedeaConcedii,
+  poateDeschideFisa,
   config,
   limite,
   oreAsteptateLuna,
@@ -105,6 +107,8 @@ async function LunaIntreaga({
   readonly utilizatorEticheta: string;
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
+  readonly poateVedeaConcedii: boolean;
+  readonly poateDeschideFisa: boolean;
   readonly config: ConfigZi;
   /**
    * Limitele legale ale firmei, sau `null` când n-a configurat nimic. Foaia
@@ -164,6 +168,8 @@ async function LunaIntreaga({
         liberSuplimentar={liberSuplimentar}
         poateEdita={poateEdita}
         poateAproba={poateAproba}
+        poateVedeaConcedii={poateVedeaConcedii}
+        poateDeschideFisa={poateDeschideFisa}
         config={config}
         limite={limite}
         oreAsteptateLuna={oreAsteptateLuna}
@@ -243,6 +249,8 @@ async function LunaIntreaga({
         liberSuplimentar={liberSuplimentar}
         poateEdita={poateEdita}
         poateAproba={poateAproba}
+        poateVedeaConcedii={poateVedeaConcedii}
+        poateDeschideFisa={poateDeschideFisa}
         config={config}
         limite={limite}
         oreAsteptateLuna={oreAsteptateLuna}
@@ -265,7 +273,11 @@ function peZiDinRanduri(randuri: readonly RandFoaie[]): Readonly<Record<string, 
   const peZi: Record<string, OmZi[]> = {};
   for (const rand of randuri) {
     for (const [data, intrare] of Object.entries(rand.intrari)) {
-      (peZi[data] ??= []).push({ eticheta: rand.eticheta, intrare });
+      (peZi[data] ??= []).push({
+        eticheta: rand.eticheta,
+        intrare,
+        hrefFisa: rand.angajatId === null ? null : `/angajati/${rand.angajatId}`,
+      });
     }
   }
   return peZi;
@@ -565,6 +577,11 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           utilizatorEticheta={user.fullName ?? user.email}
           poateEdita={poateEdita}
           poateAproba={poateAproba}
+          poateVedeaConcedii={
+            (await getEnabledFeatures(tenant.organizationId)).has("leave") &&
+            can(permisiuni, "leave:read", "team")
+          }
+          poateDeschideFisa={can(permisiuni, "employees:read", "own")}
           config={config}
           limite={limiteleFirmei(setari)}
           oreAsteptateLuna={oreAsteptateLuna}

@@ -134,6 +134,7 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
           scope={scope}
           fisaMea={fisaMea?.id ?? null}
           caleBaza="/concedii/echipa"
+          poateVedeaFisa={can(permisiuni, "employees:read", "own")}
           gol={{
             titlu: "Nicio cerere de la echipă",
             descriere:

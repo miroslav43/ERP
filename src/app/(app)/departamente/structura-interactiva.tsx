@@ -147,6 +147,7 @@ export function StructuraInteractiva({
               }
         }
         managerId={esteNerepartizati ? null : (nodDeschis?.date.manager_employee_id ?? null)}
+        manager={esteNerepartizati ? null : (nodDeschis?.date.manager ?? null)}
         persoane={persoanePanou}
         candidati={candidati}
         departamente={departamente}

@@ -577,7 +577,8 @@ export interface NodManagerial {
    */
   readonly user_id: string | null;
   readonly avatar_url: string | null;
-  readonly department: { readonly denumire: string } | null;
+  /** Cu `id`: departamentul de pe card duce la lista de angajați filtrată pe el. */
+  readonly department: { readonly id: string; readonly denumire: string } | null;
   readonly functie: string | null;
 }
 

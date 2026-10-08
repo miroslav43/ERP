@@ -305,6 +305,8 @@ export interface PasInstanta {
   readonly responsabil_tip: ChecklistResponsabilTip;
   readonly responsabil_rol: RolResponsabil | null;
   readonly responsabil_employee_id: string | null;
+  /** Cursul pasului `curs_finalizat` — linkul spre stadiul lui. */
+  readonly curs_id: string | null;
   readonly termen: string | null;
   readonly obligatoriu: boolean;
   readonly tip_dovada: ChecklistTipDovada;
@@ -347,7 +349,7 @@ export async function pasiiInstantei(
     .from("checklist_instance_items")
     .select(
       "id, ordine, titlu, descriere, responsabil_tip, responsabil_rol, responsabil_employee_id, " +
-        "termen, obligatoriu, tip_dovada, verificare_automata, status, bifat_de, bifat_la, " +
+        "curs_id, termen, obligatoriu, tip_dovada, verificare_automata, status, bifat_de, bifat_la, " +
         "bifat_automat, dovada, dovada_document_id, observatii, " +
         "dovada_fisier_nume, dovada_fisier_marime_bytes, " +
         "etapa_titlu, etapa_ordine, etapa_termen, fel, " +
@@ -666,6 +668,8 @@ export interface AngajatRezumat {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  /** Pentru `hrefFisa()`: o fișă ștearsă logic rămâne în istoric, dar fără link. */
+  readonly deleted_at: string | null;
 }
 
 /**
@@ -686,7 +690,7 @@ export async function angajatiDupaId(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", unice)
     .returns<AngajatRezumat[]>();

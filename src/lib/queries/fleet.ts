@@ -167,6 +167,8 @@ export interface AngajatRezumat {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  /** Pentru `hrefFisa()`: fișa ștearsă rămâne cu nume în istoric, fără link. */
+  readonly deleted_at: string | null;
 }
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
@@ -385,7 +387,12 @@ export interface AlocareVehicul {
    * vede vehiculul fără `employees:read` primește `null`, fără eroare
    * (capcana 18). Ecranul scrie atunci „—”, nu un nume inventat.
    */
-  readonly sofer: Readonly<{ full_name: string; marca: string | null }> | null;
+  /** `null` = RLS a ascuns fișa pentru cine privește; atunci numele nu devine link. */
+  readonly sofer: Readonly<{
+    full_name: string;
+    marca: string | null;
+    deleted_at: string | null;
+  }> | null;
 }
 
 /**
@@ -404,7 +411,7 @@ export async function alocarileVehiculului(
     .from("vehicle_assignments")
     .select(
       "id, employee_id, de_la, pana_la, folosinta_personala, km_predare, km_restituire, " +
-        "observatii, sofer:employees!employee_id(full_name, marca)",
+        "observatii, sofer:employees!employee_id(full_name, marca, deleted_at)",
     )
     .eq("organization_id", organizationId)
     .eq("vehicle_id", vehiculId)
@@ -786,7 +793,7 @@ export async function angajatiDupaId(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", unice)
     .returns<AngajatRezumat[]>();

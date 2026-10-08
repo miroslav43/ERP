@@ -107,16 +107,40 @@ function Arbore({
         const functie = etichetaFunctiei(nod.date, roluri);
         return (
           <li key={nod.date.id} className={nod.implicit ? "og-implicit" : undefined}>
-            <Link
-              href={`/angajati/${nod.date.id}`}
-              className="border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center"
-            >
+            {/* Cardul rămâne apăsabil în întregime (linkul numelui se întinde
+                peste el), dar departamentul și funcția au linkurile LOR, deasupra
+                (`relative z-10`): un `<a>` în alt `<a>` nu e permis. */}
+            <div className="border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat relative flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center">
               <AvatarAngajat url={nod.date.avatar_url} nume={nod.date.full_name} marime="sm" />
-              <span className="text-corp leading-tight font-medium">{nod.date.full_name}</span>
+              <Link
+                href={`/angajati/${nod.date.id}`}
+                className="text-corp leading-tight font-medium after:absolute after:inset-0"
+              >
+                {nod.date.full_name}
+              </Link>
               <span className="text-muted-foreground text-nota font-mono">{nod.date.marca}</span>
               <span className="text-muted-foreground text-nota leading-tight">
-                <span className={functie.derivat ? "italic" : undefined}>{functie.text}</span>
-                {nod.date.department === null ? "" : ` · ${nod.date.department.denumire}`}
+                {nod.date.functie === null || functie.derivat ? (
+                  <span className={functie.derivat ? "italic" : undefined}>{functie.text}</span>
+                ) : (
+                  <Link
+                    href={`/angajati?functie=${encodeURIComponent(nod.date.functie)}&status=activ`}
+                    className="relative z-10 hover:underline"
+                  >
+                    {functie.text}
+                  </Link>
+                )}
+                {nod.date.department === null ? null : (
+                  <>
+                    {" · "}
+                    <Link
+                      href={`/angajati?department_id=${nod.date.department.id}&status=activ`}
+                      className="relative z-10 hover:underline"
+                    >
+                      {nod.date.department.denumire}
+                    </Link>
+                  </>
+                )}
               </span>
               {nod.implicit ? (
                 <span className="text-muted-foreground text-nota border-border/70 w-full border-t pt-1.5 leading-tight italic">
@@ -132,7 +156,7 @@ function Arbore({
                   <span className="sr-only">subordonați direcți</span>
                 </span>
               ) : null}
-            </Link>
+            </div>
             {nod.copii.length > 0 ? (
               <Arbore noduri={nod.copii} nivel={nivel + 1} roluri={roluri} />
             ) : null}

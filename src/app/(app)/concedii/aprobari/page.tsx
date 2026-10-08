@@ -19,6 +19,8 @@ import { oreParaTermen, treaptaTermenDecizie } from "@/domain/leave/termen-aprob
 import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
 import { DecizieAprobare } from "./decizie-aprobare";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 /**
  * Câte zile îi mai rămân celui care cere — sub perioada cerută.
@@ -186,16 +188,36 @@ export default async function PaginaAprobariConcedii() {
                       }}
                       aria-hidden="true"
                     />
-                    {sarcina.angajat === null
-                      ? "Angajat"
-                      : `${sarcina.angajat.fullName} (${sarcina.angajat.marca})`}
+                    {/* Titlul duce la cerere; numele, separat, la fișa omului
+                        (doar dacă RLS a întors-o: `angajat !== null`). */}
+                    <Link
+                      href={`/concedii/${sarcina.cerere.id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {sarcina.tip?.denumire ?? "Concediu"}
+                    </Link>
                     {" · "}
-                    {sarcina.tip?.denumire ?? "Concediu"}
+                    <LinkEntitate href={hrefFisa(sarcina.angajat, permisiuni)}>
+                      {sarcina.angajat === null
+                        ? "Angajat"
+                        : `${sarcina.angajat.fullName} (${sarcina.angajat.marca})`}
+                    </LinkEntitate>
                   </p>
                   <p className="text-muted-foreground text-corp mt-1">
                     {formatDate(sarcina.cerere.dataInceput)} –{" "}
                     {formatDate(sarcina.cerere.dataSfarsit)} ·{" "}
                     {formatAmount(sarcina.cerere.zileLucratoare)} zile lucrătoare
+                    {poateVedeaCalendar ? (
+                      <>
+                        {" · "}
+                        <Link
+                          href={`/concedii/calendar?an=${sarcina.cerere.dataInceput.slice(0, 4)}&luna=${String(Number(sarcina.cerere.dataInceput.slice(5, 7)))}&vedere=planificator`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          cine mai lipsește atunci
+                        </Link>
+                      </>
+                    ) : null}
                   </p>
                   <SoldulCererii
                     ramase={
@@ -215,12 +237,6 @@ export default async function PaginaAprobariConcedii() {
                       </span>
                     </p>
                   )}
-                  <Link
-                    href={`/concedii/${sarcina.cerere.id}`}
-                    className="text-primary text-nota mt-1 inline-block underline-offset-2 hover:underline"
-                  >
-                    Vezi cererea completă
-                  </Link>
                 </div>
                 <DecizieAprobare taskId={sarcina.taskId} />
               </div>

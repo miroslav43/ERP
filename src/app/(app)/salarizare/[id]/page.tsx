@@ -372,6 +372,9 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
                       periodId={perioada.id}
                       employeeId={a.employee_id}
                       nume={a.full_name || a.marca}
+                      hrefFisa={
+                        poateDeschideFisa ? `/angajati/${a.employee_id}#titlu-contracte` : null
+                      }
                       salariuBaza={a.salariu_baza}
                       prime={primePeAngajat.get(a.employee_id) ?? []}
                       retineri={retineriPeAngajat.get(a.employee_id) ?? []}

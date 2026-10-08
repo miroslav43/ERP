@@ -11,7 +11,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
@@ -28,6 +28,8 @@ import { DialogObiectNou } from "./dialog-obiect-nou";
 import { ETICHETE_STARE, ETICHETE_STATUS, TONURI_STARE, TONURI_STATUS } from "./etichete";
 import { FiltreInventar } from "./filtre-inventar";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Inventar" };
 
@@ -46,6 +48,7 @@ interface ProprietatiTabel {
   readonly categorii: readonly OptiuneCategorie[];
   /** Doar `inventory:update = all` poate adăuga — starea goală nu oferă altora un drum închis. */
   readonly poateScrie: boolean;
+  readonly permisiuni: PermissionMap;
 }
 
 /**
@@ -102,6 +105,7 @@ async function TabelInventar({
   parametri,
   categorii: listaCategorii,
   poateScrie,
+  permisiuni,
 }: ProprietatiTabel) {
   const filtre = filtreDinUrl(filtreInventarSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaObiecte(
@@ -208,7 +212,16 @@ async function TabelInventar({
       cheie: "detinut_de",
       antet: "Deținut de",
       peTelefon: "meta",
-      celula: (rand) => detinatori.get(rand.id)?.angajatNume ?? "—",
+      celula: (rand) => {
+        const detinator = detinatori.get(rand.id);
+        return detinator === undefined ? (
+          "—"
+        ) : (
+          <LinkEntitate href={hrefFisa(detinator.angajat, permisiuni)}>
+            {detinator.angajatNume ?? "—"}
+          </LinkEntitate>
+        );
+      },
     },
     {
       cheie: "valoare",
@@ -325,6 +338,7 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
           parametri={parametri}
           categorii={listaCategorii}
           poateScrie={poateScrie}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

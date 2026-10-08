@@ -1,10 +1,11 @@
+import Link from "next/link";
 // src/app/(app)/concedii/tabel-cereri.tsx
 // Tabelul de cereri, comun celor două rute care îl arată: `/concedii`
 // („Cererile mele”) și `/concedii/echipa`. Diferă prin `vizualizare`, prin
 // coloana „Angajat” și prin calea pe care se construiesc adresele de sortare și
 // paginare — restul e identic, iar o a doua copie ar fi divergat la primul câmp
 // adăugat.
-import { CalendarRange } from "lucide-react";
+import { CalendarRange, UserRound } from "lucide-react";
 
 import { StareGoala, type ActiuneStareGoala } from "@/components/ui/stare-goala";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 import type { PermissionScope } from "@/config/permissions";
 
 import { ETICHETE_STATUS_CERERE, TONURI_STATUS_CERERE } from "./etichete";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 interface OptiuneTip {
   readonly id: string;
@@ -31,6 +33,7 @@ interface OptiuneAngajat {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  readonly deleted_at: string | null;
 }
 
 interface Proprietati {
@@ -46,6 +49,8 @@ interface Proprietati {
   readonly gol: Readonly<{ titlu: string; descriere: string }>;
   /** Acțiunea stării goale inițiale. Absentă = fără buton. */
   readonly actiuneGol?: ActiuneStareGoala | undefined;
+  /** `employees:read` — pictograma „Fișa" pe fiecare rând vizibil sub RLS. */
+  readonly poateVedeaFisa?: boolean;
 }
 
 export async function TabelCereri({
@@ -58,6 +63,7 @@ export async function TabelCereri({
   caleBaza,
   gol,
   actiuneGol,
+  poateVedeaFisa = false,
 }: Proprietati) {
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaCereri(
@@ -103,7 +109,10 @@ export async function TabelCereri({
   if (aratăAngajat) {
     const idAngajati = [...new Set(randuri.map((r) => r.employee_id))];
     const db = await createServerSupabase();
-    const { data } = await db.from("employees").select("id, full_name, marca").in("id", idAngajati);
+    const { data } = await db
+      .from("employees")
+      .select("id, full_name, marca, deleted_at")
+      .in("id", idAngajati);
     hartaAngajati = new Map((data ?? []).map((a) => [a.id, a]));
   }
 
@@ -130,6 +139,33 @@ export async function TabelCereri({
           celula: (cerere) => {
             const angajat = hartaAngajati.get(cerere.employee_id);
             return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+          },
+        },
+        // Rândul duce la CERERE (coloana-titlu); fișa omului are coloana ei,
+        // în blocul de acțiuni (deasupra overlay-ului cardului pe telefon).
+        {
+          cheie: "fisa",
+          antet: "Fișa angajatului",
+          antetAscuns: true,
+          latime: "ingusta",
+          peTelefon: "actiuni",
+          celula: (cerere) => {
+            const href = poateVedeaFisa
+              ? hrefFisaDinHarta(
+                  cerere.employee_id,
+                  hartaAngajati,
+                  new Map([["employees:read", "own"]]),
+                )
+              : null;
+            return href === null ? null : (
+              <Link
+                href={href}
+                aria-label="Fișa angajatului"
+                className="text-muted-foreground hover:text-foreground relative inline-flex size-8 items-center justify-center"
+              >
+                <UserRound aria-hidden="true" className="size-4" />
+              </Link>
+            );
           },
         },
       ]

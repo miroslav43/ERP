@@ -65,6 +65,8 @@ export interface DetinatorAlocare {
   readonly itemId: string;
   readonly employeeId: string;
   readonly angajatNume: string | null;
+  /** Fișa deținătorului, dacă a trecut de RLS și nu e ștearsă — pentru `hrefFisa()`. */
+  readonly angajat: Readonly<{ id: string; deleted_at: string | null }> | null;
   readonly angajatMarca: string | null;
   readonly predatLa: string;
   readonly confirmatDeAngajatLa: string | null;
@@ -89,6 +91,8 @@ export interface AngajatRezumat {
   // de tipuri o dă drept `string | null` — respectat aici, nu forțat cu `!`.
   readonly full_name: string | null;
   readonly marca: string;
+  /** Pentru `hrefFisa()`: o fișă ștearsă logic rămâne în istoric, dar fără link. */
+  readonly deleted_at: string | null;
 }
 
 export interface Categorie {
@@ -248,7 +252,7 @@ export async function angajatiActivi(organizationId: string): Promise<readonly A
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca, deleted_at")
     .eq("organization_id", organizationId)
     .eq("status", "activ")
     .is("deleted_at", null)
@@ -273,7 +277,7 @@ export async function numeleAngajatilor(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", idUnice);
   if (error !== null) throw error;
@@ -314,6 +318,10 @@ export async function alocariDeschise(
       itemId: rand.item_id,
       employeeId: rand.employee_id,
       angajatNume: angajat?.full_name ?? null,
+      angajat:
+        angajat === undefined || angajat === null
+          ? null
+          : { id: angajat.id, deleted_at: angajat.deleted_at },
       angajatMarca: angajat?.marca ?? null,
       predatLa: rand.predat_la,
       confirmatDeAngajatLa: rand.confirmat_de_angajat_la,

@@ -369,6 +369,10 @@ export interface RandPropunere {
   readonly primitaLa: string | null;
   readonly raspunsLa: string | null;
   readonly observatii: string | null;
+  /** Mesajul din coadă al propunerii TRIMISE; `null` la cele primite sau nepuse încă în coadă. */
+  readonly mesajId: string | null;
+  /** Salariatul nostru (prin contract), doar la propunerile trimise și doar dacă RLS îl arată. */
+  readonly employeeId: string | null;
 }
 
 export async function interogheazaPropuneriReges(
@@ -380,7 +384,7 @@ export async function interogheazaPropuneriReges(
     .from("reges_propuneri")
     // prettier-ignore
     .select(
-      "id, directie, fel, stare, angajator_partener_nume, angajator_partener_cui, salariat_nume, salariat_cnp_last4, data_inceput, data_sfarsit, temei_legal, primita_la, raspuns_la, observatii",
+      "id, directie, fel, stare, angajator_partener_nume, angajator_partener_cui, salariat_nume, salariat_cnp_last4, data_inceput, data_sfarsit, temei_legal, primita_la, raspuns_la, observatii, contract_id, mesaj_id",
     )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
@@ -388,7 +392,25 @@ export async function interogheazaPropuneriReges(
     .limit(limita);
   if (error !== null) throw error;
 
+  // Salariatul propunerii trimise e al nostru, prin contract: se rezolvă sub
+  // RLS, ca fișa să fie legată doar când se poate deschide.
+  const idContracte = [
+    ...new Set(
+      (data ?? []).map((p) => p.contract_id).filter((c): c is string => typeof c === "string"),
+    ),
+  ];
+  const angajatPeContract = new Map<string, string>();
+  if (idContracte.length > 0) {
+    const { data: contracte } = await supabase
+      .from("employment_contracts")
+      .select("id, employee_id")
+      .in("id", idContracte);
+    for (const c of contracte ?? []) angajatPeContract.set(c.id, c.employee_id);
+  }
+
   return (data ?? []).map((p) => ({
+    mesajId: p.mesaj_id ?? null,
+    employeeId: p.contract_id === null ? null : (angajatPeContract.get(p.contract_id) ?? null),
     id: p.id,
     directie: p.directie,
     fel: p.fel,

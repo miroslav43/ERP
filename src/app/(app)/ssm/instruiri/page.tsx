@@ -12,7 +12,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Scadenta } from "@/components/ui/scadenta";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -26,6 +26,8 @@ import { stareScadentaSsm } from "@/domain/ssm/scadente";
 import { ETICHETE_DOMENIU, ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FiltreInstruiri } from "./filtre-instruiri";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Instruiri SSM/PSI" };
 
@@ -38,11 +40,13 @@ async function Matrice({
   userId,
   scope,
   parametri,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly userId: string;
   readonly scope: "team" | "all";
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreInstruiriSchema, parametri);
   const propriaFisaId = await idFisaProprie(organizationId, userId);
@@ -161,7 +165,9 @@ async function Matrice({
             {angajati.map((angajat) => (
               <tr key={angajat.id} className="hover:bg-surface">
                 <td className="bg-background sticky left-0 px-4 py-3 font-medium whitespace-nowrap">
-                  {angajat.full_name}
+                  <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                    {angajat.full_name}
+                  </LinkEntitate>
                 </td>
                 {tipuri.map((tip) => {
                   const rand = celeMaiRecente.get(cheieMatrice(angajat.id, tip.id));
@@ -262,6 +268,7 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
           userId={user.id}
           scope={scopeAngajati}
           parametri={parametri}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

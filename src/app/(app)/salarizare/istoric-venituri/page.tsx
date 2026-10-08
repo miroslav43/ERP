@@ -19,6 +19,7 @@ import {
 import { CalendarClock } from "lucide-react";
 
 import { FormularIstoricVenit } from "./formular-istoric-venit";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 export const metadata: Metadata = { title: "Istoric venituri" };
 
@@ -38,6 +39,7 @@ export default async function PaginaIstoricVenituri() {
       </div>
     );
   }
+  const poateDeschideFisa = can(permisiuni, "employees:read", "all");
 
   /*
    * Lista de angajați NU se mai filtrează pe luna curentă.
@@ -64,7 +66,13 @@ export default async function PaginaIstoricVenituri() {
       cheie: "angajat",
       antet: "Angajat",
       peTelefon: "titlu",
-      celula: (rand) => rand.nume || rand.marca,
+      celula: (rand) => (
+        <LinkEntitate
+          href={poateDeschideFisa && rand.nume !== "" ? `/angajati/${rand.employee_id}` : null}
+        >
+          {rand.nume || rand.marca}
+        </LinkEntitate>
+      ),
     },
     {
       cheie: "luna",

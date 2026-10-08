@@ -12,6 +12,7 @@ import { formatLei } from "@/lib/format/money";
 import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
 import type { RandPrimaPerioada, RandRetinerePerioada } from "@/lib/queries/payroll";
 import { adaugaPrima, adaugaRetinere, stergePrima, stergeRetinere } from "../actions";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 const TIPURI_PRIMA = Object.keys(ETICHETE_TIP_PRIMA);
 const TIPURI_RETINERE = Object.keys(ETICHETE_TIP_RETINERE);
@@ -20,6 +21,8 @@ interface Proprietati {
   readonly periodId: string;
   readonly employeeId: string;
   readonly nume: string;
+  /** `/angajati/<id>#titlu-contracte`, sau `null` când fișa nu se poate deschide. Calculat de pagină. */
+  readonly hrefFisa: string | null;
   readonly salariuBaza: number;
   readonly prime: readonly RandPrimaPerioada[];
   readonly retineri: readonly RandRetinerePerioada[];
@@ -43,6 +46,7 @@ export function RandAngajatDraft({
   prime,
   retineri,
   poateSterge,
+  hrefFisa,
 }: Proprietati) {
   const router = useRouter();
   const [formular, setFormular] = useState<"prima" | "retinere" | null>(null);
@@ -121,9 +125,12 @@ export function RandAngajatDraft({
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-medium">{nume}</p>
+          <p className="font-medium">
+            <LinkEntitate href={hrefFisa}>{nume}</LinkEntitate>
+          </p>
           <p className="text-muted-foreground text-corp">
-            Salariu de bază: {formatLei(salariuBaza)}
+            {/* Salariul vine din contract: dacă e greșit, acolo se corectează. */}
+            <LinkEntitate href={hrefFisa}>Salariu de bază</LinkEntitate>: {formatLei(salariuBaza)}
           </p>
         </div>
         <div className="flex gap-2">

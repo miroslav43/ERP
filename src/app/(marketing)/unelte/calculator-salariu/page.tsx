@@ -156,7 +156,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
     const v = unul(p[cheie]);
     if (v !== undefined && v !== "") q.set(cheie, v);
   }
-  const { parametri, rezultat, subMinim } = calculeazaDinParametri(q);
+  const { parametri, rezultat, eroare, subMinim } = calculeazaDinParametri(q);
   const laMinim = dinBrut(SALARIU_MINIM_BRUT_2026_IULIE, 0, true);
 
   return (
@@ -190,7 +190,9 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
               inputMode="decimal"
               name="suma"
               maxLength={20}
-              defaultValue={String(parametri.suma)}
+              defaultValue={parametri.text}
+              aria-invalid={eroare !== null}
+              aria-describedby={eroare !== null ? "eroare-suma" : undefined}
               className={CLASA_CAMP}
             />
           </label>
@@ -242,18 +244,40 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
         id="rezultat"
         inaltime="scurta"
         supratitlu="Rezultatul"
-        titlu={`Net ${lei(rezultat.net)} din brut ${lei(rezultat.brut)}`}
+        titlu={
+          rezultat === null
+            ? "Suma nu a putut fi calculată"
+            : `Net ${lei(rezultat.net)} din brut ${lei(rezultat.brut)}`
+        }
       >
-        <div className="mt-6">
-          <Desfasurator r={rezultat} />
-        </div>
-        {subMinim && (
-          <p className="border-mk-rigla mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]">
-            Brutul e sub salariul minim de {lei(SALARIU_MINIM_BRUT_2026_IULIE)}. Cu normă întreagă,
-            salariul nu poate fi mai mic; la timp parțial, CAS și CASS se datorează în general cel
-            puțin la nivelul salariului minim, cu excepțiile din Codul fiscal (de exemplu elevii și
-            studenții până la 26 de ani) — calculul de mai sus nu le aplică.
+        {rezultat === null ? (
+          <p
+            id="eroare-suma"
+            role="alert"
+            className="border-mk-cerneala mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]"
+          >
+            {eroare}
           </p>
+        ) : (
+          <>
+            {parametri.rotunjita && parametri.suma !== null && (
+              <p className="text-mk-text-slab mt-4 max-w-[68ch] text-[0.875rem] leading-[1.6]">
+                Suma avea bani; calculatorul lucrează în lei întregi, deci am calculat pentru{" "}
+                {lei(parametri.suma)}.
+              </p>
+            )}
+            <div className="mt-6">
+              <Desfasurator r={rezultat} />
+            </div>
+            {subMinim && (
+              <p className="border-mk-rigla mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]">
+                Brutul e sub salariul minim de {lei(SALARIU_MINIM_BRUT_2026_IULIE)}. Cu normă
+                întreagă, salariul nu poate fi mai mic; la timp parțial, CAS și CASS se datorează în
+                general cel puțin la nivelul salariului minim, cu excepțiile din Codul fiscal (de
+                exemplu elevii și studenții până la 26 de ani) — calculul de mai sus nu le aplică.
+              </p>
+            )}
+          </>
         )}
       </Banda>
 
