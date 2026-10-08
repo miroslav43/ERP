@@ -1,6 +1,11 @@
 import "server-only";
 
-import { numeFisierSigur, type DocumentTabelar, type Format } from "./document-tabelar";
+import {
+  curataDocument,
+  numeFisierSigur,
+  type DocumentTabelar,
+  type Format,
+} from "./document-tabelar";
 import { randeazaDocx } from "./docx";
 import { randeazaPdf } from "./pdf";
 import { randeazaXlsx } from "./xlsx";
@@ -33,7 +38,8 @@ export const ANTET_CACHE_DESCARCARE = "private, no-store";
  * `Uint8Array<ArrayBufferLike>`, iar `Buffer`-ul din `docx` e exact asta.
  */
 export async function raspunsDocument(d: DocumentTabelar, format: Format): Promise<Response> {
-  const continut = await RANDARI[format](d);
+  // Punctul unic de curățare pentru toate uneltele și toate formatele: vezi `curataText`.
+  const continut = await RANDARI[format](curataDocument(d));
   return new Response(new Uint8Array(continut), {
     headers: {
       "content-type": TIP[format],

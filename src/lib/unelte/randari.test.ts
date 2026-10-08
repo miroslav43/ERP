@@ -3,9 +3,16 @@ import { join } from "node:path";
 
 import JSZip from "jszip";
 import { PDFDocument } from "pdf-lib";
+import { SaxesParser } from "saxes";
 import { describe, expect, it } from "vitest";
 
-import { normalizeazaFormat, numeFisierSigur, type DocumentTabelar } from "./document-tabelar";
+import {
+  curataDocument,
+  curataText,
+  normalizeazaFormat,
+  numeFisierSigur,
+  type DocumentTabelar,
+} from "./document-tabelar";
 import { randeazaDocx } from "./docx";
 import { imparte, randeazaPdf, taie } from "./pdf";
 import { raspunsDocument } from "./raspuns";
@@ -39,6 +46,13 @@ describe("modelul comun", () => {
   it("numeFisierSigur scoate diacriticele și ghilimelele", () => {
     expect(numeFisierSigur('foaie "ș" țară/2026')).toBe("foaie-s-tara-2026");
     expect(numeFisierSigur("„”")).toBe("document");
+  });
+
+  it("numeFisierSigur nu lasă liniuțe duble din compunerea „unealtă-” + nume", () => {
+    expect(numeFisierSigur("fisa-evaluare-<script>alert(1)</script>")).toBe(
+      "fisa-evaluare-script-alert-1-script",
+    );
+    expect(numeFisierSigur("pontaj--2026---10")).toBe("pontaj-2026-10");
   });
 });
 
@@ -166,5 +180,93 @@ describe("legătura din subsolul fișierului", () => {
     const zip = await JSZip.loadAsync(await randeazaDocx(DOC));
     const relatii = (await zip.file("word/_rels/document.xml.rels")?.async("string")) ?? "";
     expect(relatii).toMatch(/\/unelte\?utm_source=fisier/);
+  });
+});
+
+/**
+ * Parserul XML strict pe care îl folosește și exceljs. Respinge orice caracter
+ * din afara producției `Char` din XML 1.0, exact ca Word. `happy-dom` NU e o
+ * poartă aici: acceptă U+000B fără nicio eroare (verificat pe 8 oct 2026).
+ */
+function eroriXml(xml: string): readonly string[] {
+  const erori: string[] = [];
+  const parser = new SaxesParser({ xmlns: true });
+  parser.on("error", (eroare) => {
+    erori.push(eroare.message);
+  });
+  parser.write(xml).close();
+  return erori;
+}
+
+/** Text lipit din Word, PowerPoint sau un PDF: rândul manual U+000B, NUL, BOM. */
+const MURDAR: DocumentTabelar = {
+  ...DOC,
+  titlu: "Condica\u000Bde prezență",
+  subtitlu: "Firma\u000CSRL",
+  campuri: [{ eticheta: "Angajat", valoare: "Popa\u0000Ion\u0001\u001F\u007F\u{FFFE}\u{FFFF}" }],
+  paragrafe: [`Text\u0008 lipit${String.fromCodePoint(0x2028)}din Word`],
+  randuri: [["01.10.2026", "Ana\u001FB", "\u{200B}"]],
+  note: ["Notă\u{85}finală"],
+  semnaturi: ["Întocmit\u0002"],
+};
+
+describe("caracterele de control (auditul din 8 oct 2026)", () => {
+  it("curataText scoate ce rupe XML-ul și păstrează rândul nou și diacriticele", () => {
+    expect(curataText("Popa\u0000Ion")).toBe("PopaIon");
+    expect(curataText("Popa\u000BIon")).toBe("Popa Ion");
+    expect(curataText("Popa\tIon")).toBe("Popa Ion");
+    expect(curataText("a\r\nb\rc")).toBe("a\nb\nc");
+    expect(curataText("\u{200B}\u{FEFF}")).toBe("");
+    expect(curataText("x\u{FFFE}y\u{FFFF}")).toBe("xy");
+    expect(curataText(`L${String.fromCodePoint(0x2028)}S`)).toBe("L S");
+    expect(curataText(`orfan${String.fromCharCode(0xd800)}`)).toBe("orfan");
+    expect(curataText("Ștefan Țepeș, Ână Îî\n1\nM")).toBe("Ștefan Țepeș, Ână Îî\n1\nM");
+  });
+
+  it("curataDocument atinge fiecare text al documentului", () => {
+    const d = curataDocument(MURDAR);
+    const toate = [
+      d.titlu,
+      d.subtitlu ?? "",
+      ...d.campuri.flatMap((c) => [c.eticheta, c.valoare]),
+      ...d.paragrafe,
+      ...d.coloane.map((c) => c.eticheta),
+      ...d.randuri.flat(),
+      ...d.note,
+      ...d.semnaturi,
+    ].join("|");
+    expect(toate).not.toMatch(
+      /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u{FFFE}\u{FFFF}\u{200B}]/u,
+    );
+    expect(d.titlu).toBe("Condica de prezență");
+    expect(d.umbrite).toEqual(MURDAR.umbrite);
+    expect(d.numeFisier).toBe(MURDAR.numeFisier);
+  });
+
+  it("controlul: fără curățare, același Word NU e XML valid (parserul chiar vede)", async () => {
+    const zip = await JSZip.loadAsync(await randeazaDocx(MURDAR));
+    const xml = (await zip.file("word/document.xml")?.async("string")) ?? "";
+    expect(eroriXml(xml).length).toBeGreaterThan(0);
+  });
+
+  it("Word-ul descărcat rămâne XML valid oricât de murdar e textul", async () => {
+    const r = await raspunsDocument(MURDAR, "docx");
+    const zip = await JSZip.loadAsync(await r.arrayBuffer());
+    for (const parte of ["word/document.xml", "docProps/core.xml"]) {
+      const xml = (await zip.file(parte)?.async("string")) ?? "";
+      expect(xml, parte).not.toBe("");
+      expect(eroriXml(xml), parte).toEqual([]);
+    }
+    const document = (await zip.file("word/document.xml")?.async("string")) ?? "";
+    expect(document).toContain("Condica de prezență");
+    expect(document).toContain("PopaIon");
+  });
+
+  it("PDF-ul și Excelul ies și ele din același document", async () => {
+    const pdf = await raspunsDocument(MURDAR, "pdf");
+    expect((await PDFDocument.load(await pdf.arrayBuffer())).getPageCount()).toBeGreaterThan(0);
+    const xlsx = await JSZip.loadAsync(await (await raspunsDocument(MURDAR, "xlsx")).arrayBuffer());
+    const siruri = (await xlsx.file("xl/sharedStrings.xml")?.async("string")) ?? "";
+    expect(eroriXml(siruri)).toEqual([]);
   });
 });

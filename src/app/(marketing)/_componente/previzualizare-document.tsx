@@ -1,4 +1,4 @@
-import { LINIE_GOALA, type DocumentTabelar } from "@/lib/unelte/document-tabelar";
+import { curataDocument, LINIE_GOALA, type DocumentTabelar } from "@/lib/unelte/document-tabelar";
 
 /**
  * Previzualizarea HTML a unui `DocumentTabelar`, din același obiect ca fișierele
@@ -7,7 +7,10 @@ import { LINIE_GOALA, type DocumentTabelar } from "@/lib/unelte/document-tabelar
  * `relative` pe containerul derulabil: fără el, `sr-only` din `<caption>` scapă
  * și târăște pagina lateral (capcana documentată pe `/module/[modul]`).
  */
-export function PrevizualizareDocument({ document: d }: { document: DocumentTabelar }) {
+export function PrevizualizareDocument({ document: brut }: { document: DocumentTabelar }) {
+  // Același text ca în fișiere: un U+000B lipit din Word se vede pe ecran ca
+  // spațiu, la fel ca în PDF și în Word (vezi `curataText`).
+  const d = curataDocument(brut);
   return (
     <figure className="mk-foaie">
       <figcaption>

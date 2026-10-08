@@ -83,9 +83,66 @@ export function numeFisierSigur(baza: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/gu, "")
     .replace(/[^a-zA-Z0-9-]+/gu, "-")
+    .replace(/-{2,}/gu, "-")
     .replace(/^-+|-+$/gu, "")
     .toLowerCase();
   return curat === "" ? "document" : curat;
+}
+
+/** CRLF și CR singur devin LF: singurul rând nou pe care îl înțeleg toate randările. */
+const RAND_NOU = /\r\n?/gu;
+
+/**
+ * Caractere care, într-un text scris de om, înseamnă „aici e un spațiu”: tabul
+ * (o celulă de Excel lipită), tabul vertical U+000B (rândul manual din Word,
+ * Shift+Enter), form feed, NEL și separatorii Unicode de rând și de paragraf.
+ */
+const SPATIU_DE_CONTROL = /[\t\v\f\u{85}\u{2028}\u{2029}]/gu;
+
+/**
+ * Ce nu are voie într-un document XML 1.0 (producția `Char`: sub U+0020 doar
+ * tab, LF și CR; nici U+FFFE, U+FFFF sau surogate orfane), plus caracterele
+ * invizibile care fac dintr-un rând gol un „nume”: spațiile de lățime zero și
+ * BOM-ul. C1 (U+0080–U+009F) e permis de XML, dar e mereu gunoi de codificare.
+ */
+const INTERZISE =
+  /[\u0000-\u0008\u000E-\u001F\u007F-\u{84}\u{86}-\u{9F}\u{200B}-\u{200D}\u{2060}\u{FEFF}\u{FFFE}\u{FFFF}]|\p{Cs}/gu;
+
+/**
+ * Textul unui câmp, curățat de ce rupe un document.
+ *
+ * ── DE CE AICI, O DATĂ ────────────────────────────────────────────────────
+ * Auditul din 8 oct 2026: un U+000B lipit din Word sau PowerPoint ajungea
+ * neschimbat în `word/document.xml`, iar Word refuza fișierul („not
+ * well-formed”), pe toate cele șase unelte, cu HTTP 200. exceljs scoate singur
+ * controalele C0, dar lipește cuvintele („Condicade prezență”) și lasă U+FFFE și
+ * U+FFFF, care rup `sharedStrings.xml` (verificat cu saxes pe 8 oct 2026); PDF-ul
+ * punea spații. Curățarea stă AICI și se aplică
+ * în `raspunsDocument` și în previzualizare, nu în cele cinci funcții `text()`
+ * ale uneltelor, unde a șasea unealtă ar fi uitat-o.
+ *
+ * Păstrează `\n`: etichetele de coloană îl folosesc intenționat („1\nM”).
+ */
+export function curataText(text: string): string {
+  return text.replace(RAND_NOU, "\n").replace(SPATIU_DE_CONTROL, " ").replace(INTERZISE, "");
+}
+
+/** Același document, cu fiecare text trecut prin `curataText`. Funcție pură. */
+export function curataDocument(d: DocumentTabelar): DocumentTabelar {
+  return {
+    ...d,
+    titlu: curataText(d.titlu),
+    subtitlu: d.subtitlu === null ? null : curataText(d.subtitlu),
+    campuri: d.campuri.map((c) => ({
+      eticheta: curataText(c.eticheta),
+      valoare: curataText(c.valoare),
+    })),
+    paragrafe: d.paragrafe.map((p) => curataText(p)),
+    coloane: d.coloane.map((c) => ({ ...c, eticheta: curataText(c.eticheta) })),
+    randuri: d.randuri.map((rand) => rand.map((celula) => curataText(celula))),
+    note: d.note.map((n) => curataText(n)),
+    semnaturi: d.semnaturi.map((s) => curataText(s)),
+  };
 }
 
 /**
