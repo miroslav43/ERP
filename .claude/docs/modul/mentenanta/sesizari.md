@@ -19,12 +19,13 @@ tabele:
   ]
 permisiuni: [maintenance:read, maintenance:create, maintenance:update]
 feature: maintenance
-capcane: [6, 17, 50]
+capcane: [6, 7, 17, 27, 50]
 citeste_daca:
   - "un tehnician sau un raportor „nu poate” ceva pe sesizarea lui → „Cine poate ce”"
   - "o tranziție întoarce zero rânduri sau P0001 → „Ce refuză baza tăcut”"
-scris_pe: daddafbae6900219be31f82717adf1ff0217230c
-scris_la: 2026-10-07
+  - "o fotografie sau un document nu se leagă de sesizare → „Rute”, pașii de încărcare"
+scris_pe: 2b0ac3615f3fdc9a43fec6e817b48a569497d8a5
+scris_la: 2026-10-08
 tags: [modul, operations]
 ---
 
@@ -53,17 +54,27 @@ alertele zilnice).
 
 ## Rute
 
-| Rută                                                     | Poartă                                                                       |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `/mentenanta/sesizari` (+ filtre `atribuit`, `deschise`) | `maintenance:read` own                                                       |
-| `/mentenanta/sesizari/[id]`                              | `maintenance:read` own; acțiunile după actor                                 |
-| `/portal/sesizari`, `/portal/sesizari/[id]`              | `maintenance:read` own; fișa doar raportorului sau tehnicianului, altfel 404 |
-| `/mentenanta/setari`                                     | `maintenance:update` all                                                     |
+| Rută                                                                            | Poartă                                                                       |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `/mentenanta/sesizari` (filtre `atribuit` = `mie`/`nimeni`/fișă, `deschise=da`) | `maintenance:read` own; „Preiau eu” cere `update` team ȘI o fișă principală  |
+| `/mentenanta/sesizari/[id]`                                                     | `maintenance:read` own; acțiunile după actor                                 |
+| `/portal/sesizari`, `/portal/sesizari/[id]`                                     | `maintenance:read` own; fișa doar raportorului sau tehnicianului, altfel 404 |
+| `/mentenanta/setari`                                                            | `maintenance:update` all                                                     |
 
 Fișa e aceeași componentă în aplicație și în portal (`sesizari/[id]/fisa-sesizare.tsx`,
 datele din `date-sesizare.ts`); diferă actorul și câteva linkuri. Fotografiile urcă în trei
-pași (semnare pe clientul utilizatorului → `PUT` din browser → rând cu mărimea citită din
-Storage), în bucketul privat `org-mentenanta`, pe calea `{org}/{entity_type}/{entity_id}/…`.
+pași (`pregatesteFisier` semnează pe clientul utilizatorului → `urcaPeUrlSemnat` face `PUT`
+din browser → `confirmaFisier` scrie rândul), în bucketul privat `org-mentenanta`, pe calea
+`{org}/{entity_type}/{entity_id}/…`. Pasul 3 recitește `mime` și `marime_bytes` din Storage
+(`masoaraObiectul`) — ce declară clientul nu intră în rând — și refuză o cale care nu stă
+exact sub prefixul entității; limitele sunt `MAXIM_FOTO_PE_SESIZARE`, `LIMITA_FOTO_BYTES`,
+`LIMITA_DOCUMENT_MENTENANTA_BYTES`. `stergeFisier` șterge LOGIC rândul, obiectul rămâne.
+
+Lista din portal găzduiește și secțiunea „Echipamentele în grija mea”, cu citirea rapidă de
+contor (`echipamentele-mele.tsx`, `dialog-citire-rapida.tsx` → `inregistreazaContor`): e
+contractul lui `0182`, descris în [[modul/mentenanta/echipamente]], nu al fluxului de aici.
+Caseta „Sesizare nouă” (`?sesizare=noua`, precompletată din `?echipament=`) stă în
+[[modul/mentenanta]].
 
 ## Server Actions
 
@@ -90,20 +101,26 @@ P0001 tradus. Așa regula trăiește într-un singur loc, probat de
   `inchis_la`, `atribuit_la`, `redeschisa_de_ori`, `motiv_respingere_tip`, `numar`,
   `raportat_la` trimise de raportor sau tehnician se întorc la valoarea veche înainte de
   verificare; le recalculează tranziția. Un câmp străin schimbat → P0001 cu numele lui.
+  — capcanele #6 și #50(b)
 - **Ștergerea logică a sesizării cere `update ≥ team`**, deși politica de UPDATE lasă și
-  actorii nominali pe rând: raportorul RETRAGE, nu șterge.
+  actorii nominali pe rând: raportorul RETRAGE, nu șterge. — capcana #50(a)
+- **Atribuirea nu schimbă starea, iar luarea ei înapoi merge doar din `nou`/`in_analiza`**:
+  `atribuieSesizare` cu tehnician `null` filtrează pe acele două stări, fiindcă garda cere
+  tehnician la `in_lucru`. „Preiau eu” pe un cont fără fișă principală e regulă de business,
+  nu refuz din bază.
 - **`in_lucru` cere tehnician; `rezolvat` cere `intervention_id`**, iar intervenția trebuie
   să fie a aceleiași firme, pe același echipament și legată de sesizare (sau nelegată —
   rândurile de dinainte de 0181). Politica de INSERT pe intervenții îl lasă pe tehnician
   doar pe echipamentul sesizării lui și fără `plan_id`.
 - **Comentariul nu se mută și nu devine intern după scriere**: garda refuză orice schimbare
   în afara textului, iar WITH CHECK cere vizibilitatea părintelui. Nota internă e refuzată
-  raportorului la INSERT (42501) și ascunsă la SELECT.
+  raportorului la INSERT (42501) și ascunsă la SELECT. — capcana #50(c)
 - **O sesizare cu `opreste_functionarea` deschide o oprire în jurnal** la raportare și o
   închide la rezolvare (`rezolvat_la`, corectabil cu `repus_in_functiune_la`) sau respingere.
   Starea echipamentului NU se schimbă automat.
 - **`equipment_select` are ramura „există o sesizare vizibilă pe el”**: raportorul și
-  tehnicianul citesc denumirea utilajului de pe sesizarea lor, nu parcul.
+  tehnicianul citesc denumirea utilajului de pe sesizarea lor, nu parcul — dar NU prin
+  clientul utilizatorului: fișa și prefill-ul trec prin `cautaEchipament` (capcana #27).
 - **`maintenance_settings` are index unic PARȚIAL pe organizație**, deci fără `upsert`:
   acțiunea citește rândul viu și alege INSERT sau UPDATE (capcana #7).
 
