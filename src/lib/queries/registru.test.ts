@@ -13,17 +13,19 @@ vi.mock("@/lib/supabase/server", async () =>
 import { configureazaActiunea, ID_1, ID_2, ID_3, ORG_ID } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 
+import { codificaCursor, VALOARE_NULA } from "./cursor";
 import {
   anulCurent,
   cheieFiltre,
+  citesteDocumentRegistru,
   citesteExercitiu,
-  codificaCursor,
-  decodificaCursor,
+  citesteSumarAn,
   LIMITA_IMPLICITA,
   LIMITA_MAXIMA,
   listeazaAni,
   listeazaRegistru,
-  listeazaTipuriDocument,
+  listeazaRegistruComplet,
+  MAX_RANDURI_EXPORT,
   parseazaFiltre,
   serializeazaFiltre,
   type FiltreRegistru,
@@ -40,10 +42,20 @@ const filtreDe = (peste: Partial<FiltreRegistru> = {}): FiltreRegistru => ({
   deLa: null,
   panaLa: null,
   cautare: null,
+  angajatId: null,
+  dosar: null,
+  stare: null,
+  sursa: null,
+  sort: null,
+  grup: null,
   cursor: null,
   limita: 2,
   ...peste,
 });
+
+/** Cursorul implicit, pe `numar`: valoarea ȘI departajatorul sunt numărul. */
+const cursorNumar = (numar: number): string =>
+  codificaCursor({ valoare: String(numar), id: String(numar) });
 
 const randBrut = (id: string, numar: number) => ({
   id,
@@ -70,6 +82,7 @@ const randBrut = (id: string, numar: number) => ({
   motiv_anulare: null,
   indicativ_dosar: "I-A-3",
   rezolvat_la: null,
+  angajat_id: null,
 });
 
 /* ------------------------------ funcții pure ----------------------------- */
@@ -98,6 +111,12 @@ describe("parseazaFiltre", () => {
       deLa: null,
       panaLa: null,
       cautare: null,
+      angajatId: null,
+      dosar: null,
+      stare: null,
+      sursa: null,
+      sort: null,
+      grup: null,
       cursor: null,
       limita: LIMITA_IMPLICITA,
     });
@@ -111,6 +130,12 @@ describe("parseazaFiltre", () => {
       de_la: "2025-01-01",
       pana_la: "2025-03-31",
       q: "  demisie  ",
+      angajat: ID_1,
+      dosar: "II.5",
+      stare: "in_lucru",
+      sursa: "manual",
+      sort: "-data",
+      grup: "tip",
       cursor: "MTA",
       limita: "100",
     });
@@ -121,6 +146,12 @@ describe("parseazaFiltre", () => {
       deLa: "2025-01-01",
       panaLa: "2025-03-31",
       cautare: "demisie",
+      angajatId: ID_1,
+      dosar: "II.5",
+      stare: "in_lucru",
+      sursa: "manual",
+      sort: "-data",
+      grup: "tip",
       cursor: "MTA",
       limita: 100,
     });
@@ -136,6 +167,12 @@ describe("parseazaFiltre", () => {
     ["limita text", { limita: "multe" }, "limita", LIMITA_IMPLICITA],
     ["căutare prea lungă", { q: "x".repeat(121) }, "cautare", null],
     ["cursor prea lung", { cursor: "c".repeat(65) }, "cursor", null],
+    ["angajat care nu e uuid", { angajat: "popescu" }, "angajatId", null],
+    ["dosar cu sintaxă străină", { dosar: "II.5; drop" }, "dosar", null],
+    ["stare necunoscută", { stare: "pierdute" }, "stare", null],
+    ["sursă necunoscută", { sursa: "fax" }, "sursa", null],
+    ["sortare cu caractere străine", { sort: "numar; drop" }, "sort", null],
+    ["grupare necunoscută", { grup: "culoare" }, "grup", null],
   ])("valoare invalidă (%s) cade pe implicit, nu aruncă", (_e, brute, cheie, asteptat) => {
     const f = parseazaFiltre({ an: "2026", ...brute });
     expect(f[cheie as keyof FiltreRegistru]).toBe(asteptat);
@@ -161,6 +198,24 @@ describe("serializeazaFiltre / cheieFiltre", () => {
     expect(s).toBe("an=2026&sens=intern&tip=nda&de_la=2026-01-01&q=x+y");
   });
 
+  // `Paginare` construiește „pagina următoare" din serializare: fără cheile
+  // astea, sortarea și gruparea s-ar pierde la primul „mai departe".
+  it("scrie și angajatul, dosarul, starea, sursa, sortarea și gruparea", () => {
+    const s = serializeazaFiltre(
+      filtreDe({
+        angajatId: ID_1,
+        dosar: "II.5",
+        stare: "anulate",
+        sursa: "automat",
+        sort: "-data",
+        grup: "luna",
+      }),
+    );
+    expect(s).toBe(
+      `an=2026&angajat=${ID_1}&dosar=II.5&stare=anulate&sursa=automat&sort=-data&grup=luna`,
+    );
+  });
+
   it("cursorul și limita NU intră în serializare; suplimentarul da, fără valori goale", () => {
     const s = serializeazaFiltre(filtreDe({ cursor: "MTA", limita: 100 }), {
       limita: "100",
@@ -176,6 +231,12 @@ describe("serializeazaFiltre / cheieFiltre", () => {
       deLa: "2026-02-01",
       panaLa: "2026-02-28",
       cautare: "Popescu",
+      angajatId: ID_2,
+      dosar: "IV.A.3",
+      stare: "rezolvate",
+      sursa: "manual",
+      sort: "tip",
+      grup: "dosar",
       limita: LIMITA_IMPLICITA,
     });
     const inapoi = parseazaFiltre(Object.fromEntries(new URLSearchParams(serializeazaFiltre(f))));
@@ -187,27 +248,6 @@ describe("serializeazaFiltre / cheieFiltre", () => {
       cheieFiltre(filtreDe({ cursor: "MTA" })),
     );
     expect(cheieFiltre(filtreDe({ cursor: null }))).toBe("an=2026|");
-  });
-});
-
-describe("codificaCursor / decodificaCursor", () => {
-  it.each([1, 10, 437, 999_999_999])("numărul %i face drumul dus-întors", (numar) => {
-    expect(decodificaCursor(codificaCursor(numar))).toBe(numar);
-  });
-
-  it("cursorul e base64url, fără caractere care cer escape în URL", () => {
-    expect(codificaCursor(437)).toMatch(/^[A-Za-z0-9_-]+$/);
-  });
-
-  it.each([
-    ["null", null],
-    ["text care nu e număr", Buffer.from("abc").toString("base64url")],
-    ["număr negativ", Buffer.from("-5").toString("base64url")],
-    ["număr cu zece cifre", Buffer.from("1234567890").toString("base64url")],
-    ["zecimal", Buffer.from("1.5").toString("base64url")],
-    ["gunoi", "!!!"],
-  ])("cursor invalid (%s) ⇒ null", (_e, brut) => {
-    expect(decodificaCursor(brut)).toBeNull();
   });
 });
 
@@ -253,8 +293,9 @@ describe("listeazaRegistru", () => {
     const r = await listeazaRegistru(ORG_ID, filtreDe({ limita: 2 }));
 
     expect(r.randuri.map((x) => x.numar)).toEqual([30, 29]);
-    expect(r.cursorUrmator).toBe(codificaCursor(29));
+    expect(r.cursorUrmator).toBe(cursorNumar(29));
     expect(r.total).toBe(30);
+    expect(r.sortare).toEqual({ cheie: "numar", directie: "desc" });
     const [pagina] = server.apeluriPe("registru_documente");
     expect(pagina?.filtre).toEqual(
       expect.arrayContaining([
@@ -280,12 +321,139 @@ describe("listeazaRegistru", () => {
     server.raspunde("registru_documente", "select", { data: [] });
     server.raspunde("registru_documente", "select", { count: 30 });
 
-    const r = await listeazaRegistru(ORG_ID, filtreDe({ cursor: codificaCursor(29) }));
+    const r = await listeazaRegistru(ORG_ID, filtreDe({ cursor: cursorNumar(29) }));
 
     const [pagina, numarare] = server.apeluriPe("registru_documente");
     expect(areFiltru(pagina, "lt", "numar", 29)).toBe(true);
     expect(areFiltru(numarare, "lt", "numar")).toBe(false);
     expect(r.total).toBe(30);
+  });
+
+  it("filtrele noi ajung în interogare: angajat, dosar, stare, sursă", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { data: [] });
+    server.raspunde("registru_documente", "select", { count: 0 });
+
+    await listeazaRegistru(
+      ORG_ID,
+      filtreDe({ angajatId: ID_2, dosar: "II.5", stare: "in_lucru", sursa: "manual" }),
+    );
+
+    for (const apel of server.apeluriPe("registru_documente")) {
+      expect(areFiltru(apel, "eq", "angajat_id", ID_2)).toBe(true);
+      expect(areFiltru(apel, "eq", "indicativ_dosar", "II.5")).toBe(true);
+      expect(areFiltru(apel, "is", "anulat_la", null)).toBe(true);
+      expect(areFiltru(apel, "is", "rezolvat_la", null)).toBe(true);
+      expect(areFiltru(apel, "eq", "entitate_tip", "manual")).toBe(true);
+    }
+  });
+
+  it.each([
+    ["active", "is", "anulat_la", "not"],
+    ["anulate", "not", "anulat_la", "is"],
+    ["rezolvate", "not", "rezolvat_la", "is"],
+  ] as const)(
+    "starea „%s” pune `%s` pe `%s`, nu `%s`",
+    async (stare, metoda, coloana, metodaAbsenta) => {
+      const { server } = configureazaActiunea();
+      server.raspunde("registru_documente", "select", { data: [] });
+      server.raspunde("registru_documente", "select", { count: 0 });
+      await listeazaRegistru(ORG_ID, filtreDe({ stare }));
+      const [pagina] = server.apeluriPe("registru_documente");
+      const pe = (m: string): boolean =>
+        pagina?.filtre.some((f) => f.metoda === m && f.argumente[0] === coloana) ?? false;
+      expect(pe(metoda)).toBe(true);
+      expect(pe(metodaAbsenta)).toBe(false);
+    },
+  );
+
+  it("sursa „automat” exclude rândurile manuale", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { data: [] });
+    server.raspunde("registru_documente", "select", { count: 0 });
+    await listeazaRegistru(ORG_ID, filtreDe({ sursa: "automat" }));
+    expect(
+      areFiltru(server.apeluriPe("registru_documente")[0], "neq", "entitate_tip", "manual"),
+    ).toBe(true);
+  });
+
+  it("sortarea pe dată: ordine pe coloană cu NULL-urile la coadă, apoi pe numar, în aceeași direcție", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", {
+      data: [
+        { ...randBrut(ID_1, 5), data_inregistrare: "2026-03-01" },
+        { ...randBrut(ID_2, 9), data_inregistrare: "2026-02-01" },
+        { ...randBrut(ID_3, 2), data_inregistrare: "2026-02-01" },
+      ],
+    });
+    server.raspunde("registru_documente", "select", { count: 3 });
+
+    const r = await listeazaRegistru(ORG_ID, filtreDe({ sort: "-data", limita: 2 }));
+
+    const [pagina, numarare] = server.apeluriPe("registru_documente");
+    expect(pagina?.filtre).toEqual(
+      expect.arrayContaining([
+        {
+          metoda: "order",
+          argumente: ["data_inregistrare", { ascending: false, nullsFirst: false }],
+        },
+        { metoda: "order", argumente: ["numar", { ascending: false }] },
+      ]),
+    );
+    expect(numarare?.filtre.some((f) => f.metoda === "order")).toBe(false);
+    expect(r.sortare).toEqual({ cheie: "data", directie: "desc" });
+    // Cursorul poartă VALOAREA coloanei de sortare și numărul ultimului rând vizibil.
+    expect(r.cursorUrmator).toBe(codificaCursor({ valoare: "2026-02-01", id: "9" }));
+  });
+
+  it("continuarea unei sortări pe dată e un predicat `or` cu `numar` ca departajator", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { data: [] });
+    server.raspunde("registru_documente", "select", { count: 0 });
+
+    await listeazaRegistru(
+      ORG_ID,
+      filtreDe({ sort: "data", cursor: codificaCursor({ valoare: "2026-02-01", id: "9" }) }),
+    );
+
+    const [pagina] = server.apeluriPe("registru_documente");
+    const or = pagina?.filtre.find((f) => f.metoda === "or");
+    expect(String(or?.argumente[0])).toBe(
+      'data_inregistrare.gt."2026-02-01",and(data_inregistrare.eq."2026-02-01",numar.gt."9")',
+    );
+    expect(areFiltru(pagina, "lt", "numar")).toBe(false);
+    expect(areFiltru(pagina, "gt", "numar")).toBe(false);
+  });
+
+  it("sortarea pe dosar (nulabil): după un NULL urmează doar NULL-urile, după numar", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", {
+      data: [{ ...randBrut(ID_1, 5), indicativ_dosar: null }],
+    });
+    server.raspunde("registru_documente", "select", { count: 1 });
+
+    const r = await listeazaRegistru(
+      ORG_ID,
+      filtreDe({
+        sort: "dosar",
+        limita: 2,
+        cursor: codificaCursor({ valoare: VALOARE_NULA, id: "3" }),
+      }),
+    );
+
+    const [pagina] = server.apeluriPe("registru_documente");
+    const or = pagina?.filtre.find((f) => f.metoda === "or");
+    expect(String(or?.argumente[0])).toBe('and(indicativ_dosar.is.null,numar.gt."3")');
+    expect(r.cursorUrmator).toBeNull();
+  });
+
+  it("o sortare nepermisă cade pe implicit, tăcut", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { data: [] });
+    server.raspunde("registru_documente", "select", { count: 0 });
+    const r = await listeazaRegistru(ORG_ID, filtreDe({ sort: "-emitent" }));
+    expect(r.sortare).toEqual({ cheie: "numar", directie: "desc" });
+    expect(areFiltru(server.apeluriPe("registru_documente")[0], "order", "numar")).toBe(true);
   });
 
   it("un cursor stricat e ignorat: prima pagină, fără `lt`", async () => {
@@ -296,7 +464,7 @@ describe("listeazaRegistru", () => {
     expect(areFiltru(server.apeluriPe("registru_documente")[0], "lt", "numar")).toBe(false);
   });
 
-  it("căutarea scoate caracterele care ar rupe sintaxa `or=(...)`", async () => {
+  it("căutarea ghilimelează termenul și scapă metacaracterele, pe cinci coloane", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("registru_documente", "select", { data: [] });
     server.raspunde("registru_documente", "select", { count: 0 });
@@ -305,16 +473,18 @@ describe("listeazaRegistru", () => {
 
     const or = server.apeluriPe("registru_documente")[0]?.filtre.find((f) => f.metoda === "or");
     const expresie = String(or?.argumente[0]);
-    expect(expresie).toContain("continut_rezumat.ilike.*a b c  d*");
-    expect(expresie.split(",")).toHaveLength(4);
-    expect(expresie).not.toMatch(/[()%]/);
+    // Virgula și parantezele rămân — ghilimelele le fac inofensive; `%` e scăpat,
+    // `*` (pe care PostgREST l-ar traduce în `%`) devine spațiu.
+    expect(expresie).toContain('continut_rezumat.ilike."%a,b(c)\\\\%d %"');
+    expect(expresie.match(/\.ilike\./gu)).toHaveLength(5);
+    expect(expresie).toContain("emitent.ilike.");
   });
 
-  it("o căutare făcută doar din caractere interzise nu pune niciun `or`", async () => {
+  it("o căutare din spații nu pune niciun `or`", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("registru_documente", "select", { data: [] });
     server.raspunde("registru_documente", "select", { count: 0 });
-    await listeazaRegistru(ORG_ID, filtreDe({ cautare: "%,()" }));
+    await listeazaRegistru(ORG_ID, filtreDe({ cautare: "**" }));
     for (const apel of server.apeluriPe("registru_documente")) {
       expect(apel.filtre.some((f) => f.metoda === "or")).toBe(false);
     }
@@ -346,7 +516,12 @@ describe("listeazaRegistru", () => {
     server.raspunde("registru_documente", "select", { data: [] });
     server.raspunde("registru_documente", "select", { count: null });
     const r = await listeazaRegistru(ORG_ID, filtreDe());
-    expect(r).toEqual({ randuri: [], cursorUrmator: null, total: 0 });
+    expect(r).toEqual({
+      randuri: [],
+      cursorUrmator: null,
+      total: 0,
+      sortare: { cheie: "numar", directie: "desc" },
+    });
   });
 
   it("eroarea paginii sau a numărătorii se propagă", async () => {
@@ -354,6 +529,174 @@ describe("listeazaRegistru", () => {
     server.raspunde("registru_documente", "select", { data: [] });
     server.raspunde("registru_documente", "select", { error: eroarePostgrest("57014") });
     await expect(listeazaRegistru(ORG_ID, filtreDe())).rejects.toMatchObject({ code: "57014" });
+  });
+});
+
+describe("citesteDocumentRegistru", () => {
+  const ANG = "88888888-8888-4888-8888-888888888888";
+  const PARINTE = "99999999-9999-4999-8999-999999999999";
+  const brutDetaliu = (peste: Record<string, unknown> = {}) => ({
+    ...randBrut(ID_1, 46),
+    entitate_tip: "leave_requests",
+    entitate_id: ID_2,
+    conexat_la: ID_3,
+    angajat_id: ANG,
+    punct_lucru_id: null,
+    created_at: "2026-09-02T08:00:00Z",
+    angajat: { full_name: "Georgescu Ioana" },
+    ...peste,
+  });
+
+  it("rândul lipsă sau ascuns de RLS ⇒ null, fără alte citiri", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { data: null });
+    expect(await citesteDocumentRegistru(ORG_ID, ID_1)).toBeNull();
+    expect(server.apeluriPe("registru_documente")).toHaveLength(1);
+    const [apel] = server.apeluriPe("registru_documente");
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "eq", "id", ID_1)).toBe(true);
+    expect(apel?.terminal).toBe("maybeSingle");
+    expect(apel?.coloane).toContain(
+      "angajat:employees!registru_documente_angajat_id_fkey(full_name)",
+    );
+  });
+
+  it("aduce rândul, angajatul, dosarul, conexarea în ambele sensuri — fără părinte la un tip cu pagină proprie", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { data: brutDetaliu() });
+    server.raspunde("nomenclator_dosare", "select", {
+      data: { indicativ: "I-A-3", continut: "Cereri de concediu", termen_pastrare: "5" },
+    });
+    server.raspunde("registru_documente", "select", {
+      data: { id: ID_3, numar_afisat: "12/03.02.2026" },
+    });
+    server.raspunde("registru_documente", "select", {
+      data: [
+        {
+          id: ID_2,
+          numar_afisat: "50/09.10.2026",
+          tip_document: "document_personal",
+          continut_rezumat: "Răspuns",
+        },
+      ],
+    });
+
+    const d = await citesteDocumentRegistru(ORG_ID, ID_1);
+
+    expect(d).not.toBeNull();
+    expect(d?.document).toMatchObject({
+      id: ID_1,
+      numar: 46,
+      entitateTip: "leave_requests",
+      entitateId: ID_2,
+      angajatId: ANG,
+      punctLucruId: null,
+      createdAt: "2026-09-02T08:00:00Z",
+    });
+    expect(d?.angajat).toEqual({ id: ANG, nume: "Georgescu Ioana" });
+    expect(d?.dosar).toEqual({
+      indicativ: "I-A-3",
+      continut: "Cereri de concediu",
+      termenPastrare: "5",
+    });
+    expect(d?.conexatLa).toEqual({ id: ID_3, numarAfisat: "12/03.02.2026" });
+    expect(d?.conexate).toEqual([
+      {
+        id: ID_2,
+        numarAfisat: "50/09.10.2026",
+        tipDocument: "document_personal",
+        continutRezumat: "Răspuns",
+      },
+    ]);
+    expect(d?.parinteId).toBeNull();
+    expect(server.apeluriPe("leave_requests")).toHaveLength(0);
+
+    // Fiecare citire e pe organizație; dosarul e nesters și pe indicativ.
+    const [dosar] = server.apeluriPe("nomenclator_dosare");
+    expect(areFiltru(dosar, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(dosar, "eq", "indicativ", "I-A-3")).toBe(true);
+    expect(areFiltru(dosar, "is", "deleted_at", null)).toBe(true);
+    const [, conexatLa, conexate] = server.apeluriPe("registru_documente");
+    expect(areFiltru(conexatLa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(conexatLa, "eq", "id", ID_3)).toBe(true);
+    expect(areFiltru(conexate, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(conexate, "eq", "conexat_la", ID_1)).toBe(true);
+  });
+
+  it("fără angajat, dosar sau conexare, nu face citirile aferente și întoarce null-uri", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", {
+      data: brutDetaliu({
+        angajat_id: null,
+        angajat: null,
+        indicativ_dosar: null,
+        conexat_la: null,
+      }),
+    });
+    server.raspunde("registru_documente", "select", { data: [] });
+
+    const d = await citesteDocumentRegistru(ORG_ID, ID_1);
+
+    expect(d?.angajat).toBeNull();
+    expect(d?.dosar).toBeNull();
+    expect(d?.conexatLa).toBeNull();
+    expect(d?.conexate).toEqual([]);
+    expect(server.apeluriPe("nomenclator_dosare")).toHaveLength(0);
+    expect(server.apeluriPe("registru_documente")).toHaveLength(2);
+  });
+
+  it.each([
+    ["vehicle_documents", "vehicle_id"],
+    ["fire_extinguisher_checks", "extinguisher_id"],
+    ["iscir_authorizations", "equipment_id"],
+    ["inventory_allocations", "item_id"],
+    ["payroll_entries", "period_id"],
+    ["per_diem_calculations", "business_trip_id"],
+  ])("pentru %s citește părintele din `%s`, pe organizație", async (tip, coloana) => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", {
+      data: brutDetaliu({
+        entitate_tip: tip,
+        angajat_id: null,
+        angajat: null,
+        indicativ_dosar: null,
+        conexat_la: null,
+      }),
+    });
+    server.raspunde("registru_documente", "select", { data: [] });
+    server.raspunde(tip, "select", { data: { [coloana]: PARINTE } });
+
+    const d = await citesteDocumentRegistru(ORG_ID, ID_1);
+
+    expect(d?.parinteId).toBe(PARINTE);
+    const [parinte] = server.apeluriPe(tip);
+    expect(parinte?.coloane).toBe(coloana);
+    expect(areFiltru(parinte, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(parinte, "eq", "id", ID_2)).toBe(true);
+    expect(parinte?.terminal).toBe("maybeSingle");
+  });
+
+  it("părintele ascuns de RLS ⇒ `parinteId` null, nu eroare", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", {
+      data: brutDetaliu({
+        entitate_tip: "payroll_entries",
+        angajat_id: null,
+        angajat: null,
+        indicativ_dosar: null,
+        conexat_la: null,
+      }),
+    });
+    server.raspunde("registru_documente", "select", { data: [] });
+    server.raspunde("payroll_entries", "select", { data: null });
+
+    expect((await citesteDocumentRegistru(ORG_ID, ID_1))?.parinteId).toBeNull();
+  });
+
+  it("eroarea rândului se propagă", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { error: eroarePostgrest("57014") });
+    await expect(citesteDocumentRegistru(ORG_ID, ID_1)).rejects.toMatchObject({ code: "57014" });
   });
 });
 
@@ -454,43 +797,141 @@ describe("listeazaAni", () => {
   });
 });
 
-describe("listeazaTipuriDocument", () => {
-  it("tipurile distincte ale anului, sortate alfabetic", async () => {
+describe("citesteSumarAn", () => {
+  const rand = (numar: number, peste: Record<string, unknown> = {}) => ({
+    numar,
+    sens: "intrare",
+    tip_document: "cerere_concediu",
+    indicativ_dosar: "II.5",
+    angajat_id: ID_1,
+    anulat_la: null,
+    rezolvat_la: null,
+    ...peste,
+  });
+
+  it("numără totalul, sensurile, anulatele, cele în lucru și cele rezolvate; adună tipurile și dosarele", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("registru_documente", "select", {
-      data: [{ tip_document: "nda" }, { tip_document: "demisie" }, { tip_document: "nda" }],
+      data: [
+        rand(1, { rezolvat_la: "2026-03-01T10:00:00Z" }),
+        rand(2, { sens: "iesire", tip_document: "contract_munca", indicativ_dosar: "II.1" }),
+        rand(3, {
+          sens: "intern",
+          tip_document: "fisa_instruire",
+          indicativ_dosar: null,
+          angajat_id: null,
+          anulat_la: "2026-03-02T10:00:00Z",
+        }),
+      ],
     });
 
-    expect(await listeazaTipuriDocument(ORG_ID, 2026)).toEqual(["demisie", "nda"]);
+    const s = await citesteSumarAn(ORG_ID, 2026);
+
+    expect(s).toEqual({
+      total: 3,
+      peSens: { intrare: 1, iesire: 1, intern: 1 },
+      anulate: 1,
+      inLucru: 1,
+      rezolvate: 1,
+      tipuri: ["cerere_concediu", "contract_munca", "fisa_instruire"],
+      dosare: ["II.1", "II.5"],
+      peDosar: { "II.1": 1, "II.5": 1 },
+    });
     const [apel] = server.apeluriPe("registru_documente");
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(apel, "eq", "an", 2026)).toBe(true);
+    expect(areFiltru(apel, "order", "numar")).toBe(true);
+    expect(apel?.filtre).toEqual(expect.arrayContaining([{ metoda: "limit", argumente: [1000] }]));
   });
 
-  // Același tipar ca la ani: 1000 de rânduri-document, deci un tip aflat doar
-  // dincolo de plafon lipsea tăcut din filtru. A doua pagină sare peste tipul
-  // deja văzut (`gt`, ordonat crescător).
-  it("un tip aflat dincolo de primele 1000 de documente apare în filtru", async () => {
+  // Capcana #2: `max_rows = 1000` trunchiază tăcut. Un an cu peste 1000 de
+  // rânduri se citește în pagini, cu salt peste ultimul număr văzut.
+  it("peste 1000 de rânduri continuă cu `gt` pe numar și numără tot", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("registru_documente", "select", {
-      data: Array.from({ length: 1000 }, () => ({ tip_document: "demisie" })),
+      data: Array.from({ length: 1000 }, (_, i) => rand(i + 1)),
     });
-    server.raspunde("registru_documente", "select", { data: [{ tip_document: "fluturas" }] });
+    server.raspunde("registru_documente", "select", {
+      data: [rand(1001, { tip_document: "fluturas", indicativ_dosar: "III.2" })],
+    });
 
-    expect(await listeazaTipuriDocument(ORG_ID, 2026)).toEqual(["demisie", "fluturas"]);
+    const s = await citesteSumarAn(ORG_ID, 2026);
+
+    expect(s.total).toBe(1001);
+    expect(s.tipuri).toEqual(["cerere_concediu", "fluturas"]);
     const apeluri = server.apeluriPe("registru_documente");
     expect(apeluri).toHaveLength(2);
-    expect(areFiltru(apeluri[1], "gt", "tip_document", "demisie")).toBe(true);
-    for (const apel of apeluri) {
-      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
-      expect(areFiltru(apel, "eq", "an", 2026)).toBe(true);
-      expect(areFiltru(apel, "order", "tip_document")).toBe(true);
-    }
+    expect(areFiltru(apeluri[1], "gt", "numar", 1000)).toBe(true);
+  });
+
+  it("anul gol: totul zero și liste goale", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { data: [] });
+    expect(await citesteSumarAn(ORG_ID, 2026)).toEqual({
+      total: 0,
+      peSens: { intrare: 0, iesire: 0, intern: 0 },
+      anulate: 0,
+      inLucru: 0,
+      rezolvate: 0,
+      tipuri: [],
+      dosare: [],
+      peDosar: {},
+    });
   });
 
   it("eroarea se propagă", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("registru_documente", "select", { error: eroarePostgrest("42501") });
-    await expect(listeazaTipuriDocument(ORG_ID, 2026)).rejects.toMatchObject({ code: "42501" });
+    await expect(citesteSumarAn(ORG_ID, 2026)).rejects.toMatchObject({ code: "42501" });
+  });
+});
+
+describe("listeazaRegistruComplet", () => {
+  it("ia tot anul filtrat în pagini de 1000, cu salt pe numar, fără cursor și fără limită", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", {
+      data: Array.from({ length: 1000 }, (_, i) => randBrut(ID_1, i + 1)),
+    });
+    server.raspunde("registru_documente", "select", { data: [randBrut(ID_2, 1001)] });
+
+    const r = await listeazaRegistruComplet(
+      ORG_ID,
+      filtreDe({ sens: "intrare", cursor: cursorNumar(5), limita: 2 }),
+    );
+
+    expect(r.randuri).toHaveLength(1001);
+    expect(r.trunchiat).toBe(false);
+    const apeluri = server.apeluriPe("registru_documente");
+    expect(apeluri).toHaveLength(2);
+    expect(areFiltru(apeluri[0], "eq", "sens", "intrare")).toBe(true);
+    expect(areFiltru(apeluri[0], "lt", "numar")).toBe(false);
+    expect(apeluri[0]?.filtre).toEqual(
+      expect.arrayContaining([{ metoda: "limit", argumente: [1000] }]),
+    );
+    expect(areFiltru(apeluri[1], "gt", "numar", 1000)).toBe(true);
+  });
+
+  it("se oprește la plafon și spune că a tăiat", async () => {
+    const { server } = configureazaActiunea();
+    const pagini = MAX_RANDURI_EXPORT / 1000;
+    for (let p = 0; p < pagini; p += 1) {
+      server.raspunde("registru_documente", "select", {
+        data: Array.from({ length: 1000 }, (_, i) => randBrut(ID_1, p * 1000 + i + 1)),
+      });
+    }
+
+    const r = await listeazaRegistruComplet(ORG_ID, filtreDe());
+
+    expect(r.randuri).toHaveLength(MAX_RANDURI_EXPORT);
+    expect(r.trunchiat).toBe(true);
+    expect(server.apeluriPe("registru_documente")).toHaveLength(pagini);
+  });
+
+  it("eroarea se propagă", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("registru_documente", "select", { error: eroarePostgrest("57014") });
+    await expect(listeazaRegistruComplet(ORG_ID, filtreDe())).rejects.toMatchObject({
+      code: "57014",
+    });
   });
 });

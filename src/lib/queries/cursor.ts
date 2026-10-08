@@ -101,11 +101,21 @@ export function tiparContine(termen: string): string {
  * mare, ori e egală și identificatorul e mai mare. Ordinea celor două condiții
  * trebuie să fie EXACT cea din `.order()`, altfel baza întoarce rânduri pe
  * care le-am arătat deja.
+ *
+ * `coloanaId` e departajatorul — `id` aproape peste tot. Registrul îl pune pe
+ * `numar`: cu anul fixat e unic ȘI e ordinea registrului, deci rândurile din
+ * aceeași zi rămân în ordinea înregistrării; un uuid le-ar fi amestecat.
+ * `cursor.id` poartă atunci numărul, ca text — codecul nu știe ce e înăuntru.
  */
-export function predicatKeyset(coloana: string, cursor: Cursor, directie: Directie): string {
+export function predicatKeyset(
+  coloana: string,
+  cursor: Cursor,
+  directie: Directie,
+  coloanaId = "id",
+): string {
   const op = directie === "asc" ? "gt" : "lt";
   const v = ghilimeleaza(cursor.valoare);
-  return `${coloana}.${op}.${v},and(${coloana}.eq.${v},id.${op}.${ghilimeleaza(cursor.id)})`;
+  return `${coloana}.${op}.${v},and(${coloana}.eq.${v},${coloanaId}.${op}.${ghilimeleaza(cursor.id)})`;
 }
 
 /**
@@ -123,11 +133,16 @@ export const VALOARE_NULA = "";
  * NULL (cursor cu `VALOARE_NULA`), doar NULL-urile cu id-ul mai departe.
  * Cursorul paginii se construiește cu `valoare ?? VALOARE_NULA`.
  */
-export function predicatKeysetNulabil(coloana: string, cursor: Cursor, directie: Directie): string {
+export function predicatKeysetNulabil(
+  coloana: string,
+  cursor: Cursor,
+  directie: Directie,
+  coloanaId = "id",
+): string {
   const op = directie === "asc" ? "gt" : "lt";
   return cursor.valoare === VALOARE_NULA
-    ? `and(${coloana}.is.null,id.${op}.${ghilimeleaza(cursor.id)})`
-    : `${predicatKeyset(coloana, cursor, directie)},${coloana}.is.null`;
+    ? `and(${coloana}.is.null,${coloanaId}.${op}.${ghilimeleaza(cursor.id)})`
+    : `${predicatKeyset(coloana, cursor, directie, coloanaId)},${coloana}.is.null`;
 }
 
 /**

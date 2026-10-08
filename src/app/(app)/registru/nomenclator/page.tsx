@@ -26,9 +26,12 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { citesteAvizNomenclator, citesteNomenclator } from "@/lib/queries/nomenclator";
+import { anulCurent, citesteSumarAn } from "@/lib/queries/registru";
 
 import { eticheteazaTipDocument } from "../etichete";
+import { comparaIndicative } from "../indicativ";
 import { DialogAviz, DialogDosar } from "./dialoguri";
+import { FiltreNomenclator } from "./filtre-nomenclator";
 
 export const metadata: Metadata = {
   title: "Nomenclatorul dosarelor",
@@ -37,7 +40,15 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function PaginaNomenclator() {
+interface ProprietatiPagina {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/** Căutare fără diacritice și fără majuscule: „evaluari" găsește „Evaluări". */
+const cheieCautare = (text: string): string =>
+  text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+export default async function PaginaNomenclator({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   const [, permisiuni] = await Promise.all([
     requireFeature(tenant.organizationId, "nucleu"),
@@ -52,10 +63,39 @@ export default async function PaginaNomenclator() {
 
   const poateScrie = can(permisiuni, "registru:update", "all");
 
-  const [dosare, aviz] = await Promise.all([
+  const brute = await searchParams;
+  const cautareBruta = Array.isArray(brute.q) ? brute.q[0] : brute.q;
+  const cautare = (cautareBruta ?? "").trim().slice(0, 120);
+  const an = anulCurent();
+
+  const [toateDosarele, aviz, sumar] = await Promise.all([
     citesteNomenclator(tenant.organizationId),
     citesteAvizNomenclator(tenant.organizationId),
+    // Contorul „documente în anul curent" per dosar — aceeași citire ca banda
+    // de cifre din registru.
+    citesteSumarAn(tenant.organizationId, an),
   ]);
+
+  // Ordinea pe VALOAREA cifrei romane, nu alfabetic: „IX" vine după „VIII",
+  // nu înaintea lui „V". Baza o ordonează alfabetic (vezi `nomenclator.ts`).
+  const ordonate = [...toateDosarele].sort((a, b) => comparaIndicative(a.indicativ, b.indicativ));
+
+  // Filtrarea e aici, nu în bază: lista nu e paginată și se citește întreagă.
+  const termen = cheieCautare(cautare);
+  const dosare =
+    termen === ""
+      ? ordonate
+      : ordonate.filter((d) =>
+          cheieCautare(
+            [
+              d.indicativ,
+              d.compartimentDenumire,
+              d.subdiviziuneDenumire ?? "",
+              d.continut,
+              ...d.tipuri.map((t) => eticheteazaTipDocument(t)),
+            ].join(" "),
+          ).includes(termen),
+        );
 
   // Compartimentul se scrie o singură dată, pe primul lui dosar — ca în anexa 1,
   // unde rubrica întâi nu se repetă pe fiecare rând.
@@ -106,12 +146,18 @@ export default async function PaginaNomenclator() {
         </div>
       )}
 
+      <FiltreNomenclator />
+
       {dosare.length === 0 ? (
         <StareGoala
-          fel="initiala"
+          fel={termen === "" ? "initiala" : "filtrata"}
           pictograma={FolderTree}
-          titlu="Nomenclatorul e gol"
-          descriere="Firmele noi primesc automat un nomenclator generat din modulele aplicației. Dacă lipsește, contactați administratorul platformei."
+          titlu={termen === "" ? "Nomenclatorul e gol" : "Niciun dosar nu se potrivește"}
+          descriere={
+            termen === ""
+              ? "Firmele noi primesc automat un nomenclator generat din modulele aplicației. Dacă lipsește, contactați administratorul platformei."
+              : "Căutarea se face în indicativ, compartiment, conținut și tipurile clasate. Șterge filtrul ca să vezi tot nomenclatorul."
+          }
         />
       ) : (
         <div className="border-border bg-surface rounded-panou overflow-x-auto border">
@@ -123,15 +169,20 @@ export default async function PaginaNomenclator() {
                 <th className="px-3 py-2 font-medium">Conținutul dosarului</th>
                 <th className="px-3 py-2 font-medium">Tipuri clasate</th>
                 <th className="px-3 py-2 font-medium">Termen</th>
+                <th className="px-3 py-2 text-right font-medium">Documente în {an}</th>
                 {poateScrie ? <th className="sr-only px-3 py-2 font-medium">Acțiuni</th> : null}
               </tr>
             </thead>
             <tbody className="text-corp">
               {randuri.map(({ dosar: d, primulDinCompartiment: compartimentNou }) => {
+                const documente = sumar.peDosar[d.indicativ] ?? 0;
                 return (
+                  // `id` + `target:`: linkul „Indicativ" din registru aduce aici
+                  // (`#dosar-II.5`) și rândul țintit se evidențiază.
                   <tr
                     key={d.id}
-                    className={`border-border/60 border-b last:border-0 ${
+                    id={`dosar-${d.indicativ}`}
+                    className={`border-border/60 target:bg-primary/5 scroll-mt-24 border-b last:border-0 ${
                       compartimentNou ? "border-t-border border-t" : ""
                     }`}
                   >
@@ -153,6 +204,19 @@ export default async function PaginaNomenclator() {
                         : d.tipuri.map((t) => eticheteazaTipDocument(t)).join(", ")}
                     </td>
                     <td className="px-3 py-2 align-top whitespace-nowrap">{d.termenPastrare}</td>
+                    <td className="px-3 py-2 text-right align-top font-mono whitespace-nowrap tabular-nums">
+                      {documente === 0 ? (
+                        <span className="text-muted-foreground">0</span>
+                      ) : (
+                        <Link
+                          href={`/registru?an=${String(an)}&dosar=${encodeURIComponent(d.indicativ)}`}
+                          className="underline decoration-1 underline-offset-4 hover:decoration-2"
+                          title={`Documentele din ${d.indicativ}, în registrul pe ${String(an)}`}
+                        >
+                          {documente}
+                        </Link>
+                      )}
+                    </td>
                     {poateScrie ? (
                       <td className="px-3 py-2 align-top">
                         <DialogDosar

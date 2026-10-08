@@ -73,6 +73,16 @@ export const inregistrareManualaSchema = z.object({
     .default(null)
     .transform((v) => (v === null || v.length === 0 ? null : v))
     .refine((v) => v === null || z.uuid().safeParse(v).success, "Punctul de lucru nu e valid."),
+  // 0184: salariatul la care se referă documentul — o demisie, un certificat
+  // adus pe hârtie. Opțional: o adresă de la inspectorat n-are angajat. Baza
+  // verifică singură că e un angajat al firmei (P0001 altfel).
+  angajat_id: z
+    .string()
+    .trim()
+    .nullable()
+    .default(null)
+    .transform((v) => (v === null || v.length === 0 ? null : v))
+    .refine((v) => v === null || z.uuid().safeParse(v).success, "Angajatul ales nu e valid."),
 });
 export type IntrareInregistrareManuala = z.output<typeof inregistrareManualaSchema>;
 

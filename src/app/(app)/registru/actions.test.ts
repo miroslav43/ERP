@@ -64,6 +64,7 @@ const intrareManuala = {
   numar_file: "2",
   numar_anexe: "",
   punct_lucru_id: "",
+  angajat_id: "",
 };
 
 describe("inregistreazaDocumentManual", () => {
@@ -101,10 +102,24 @@ describe("inregistreazaDocumentManual", () => {
       p_numar_file: 2,
       p_numar_anexe: null,
       p_punct_lucru_id: null,
+      p_angajat_id: null,
     });
     // Nicio scriere directă în registru: grantul de INSERT e revocat.
     expect(server.apeluri).toHaveLength(0);
     expect(caiRevalidate()).toEqual(["/registru"]);
+  });
+
+  // 0184: o demisie adusă pe hârtie e a unui salariat; legătura se transmite
+  // RPC-ului, care verifică singur că angajatul e al firmei.
+  it("angajatul ales ajunge la RPC ca `p_angajat_id`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: SCRIERE });
+    server.raspundeRpc("inregistreaza_document_manual", { data: "438/02.09.2026" });
+
+    const r = await inregistreazaDocumentManual({ ...intrareManuala, angajat_id: ID_1 });
+
+    expect(r.ok).toBe(true);
+    const apel = server.apeluriRpc.find((a) => a.nume === "inregistreaza_document_manual");
+    expect(apel?.argumente).toMatchObject({ p_angajat_id: ID_1 });
   });
 
   it("auditul de succes păstrează doar câmpurile din allow-list", async () => {
@@ -137,6 +152,7 @@ describe("inregistreazaDocumentManual", () => {
     ["numar_anexe", "10000"],
     ["data_document_emitent", "01.09.2026"],
     ["punct_lucru_id", "nu-e-uuid"],
+    ["angajat_id", "nu-e-uuid"],
     ["continut_rezumat", "ab"],
     ["tip_document", "Demisie"],
   ])("câmpul `%s` = %j e respins de schemă", async (camp, valoare) => {

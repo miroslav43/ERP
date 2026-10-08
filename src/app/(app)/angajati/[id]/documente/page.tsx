@@ -1,6 +1,6 @@
 // src/app/(app)/angajati/[id]/documente/page.tsx
 import Link from "next/link";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { ArrowLeft, BookMarked, Download, FileText } from "lucide-react";
 import { requireFeature } from "@/lib/auth/features";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -18,6 +18,7 @@ import {
   FormularDocument,
   ListaDescarcare,
 } from "./formular-document";
+import { anulCurent } from "@/lib/queries/registru";
 import { listeazaSabloanePersonalizate } from "@/lib/queries/sabloane-documente";
 import { DialogEmiteDocumente } from "../dialog-emite-documente";
 import { optiuniEmitere } from "./optiuni-emitere";
@@ -186,6 +187,17 @@ export default async function PaginaDocumenteAngajat({
           className="mt-1"
           titlu={`Documente — ${angajat.full_name ?? ""}`}
           descriere={`Marca ${angajat.marca} · ${String(documente.data.length)} document(e) în dosar`}
+          actiuni={
+            // 0184: registrul știe salariatul fiecărui rând, deci fișa lui poate
+            // deschide direct lista documentelor lui înregistrate anul acesta.
+            <Link
+              href={`/registru?an=${String(anulCurent())}&angajat=${angajat.id}`}
+              className={buton({ varianta: "secundar" })}
+            >
+              <BookMarked aria-hidden="true" className="size-4" />
+              Vezi în registru
+            </Link>
+          }
         />
       </div>
 

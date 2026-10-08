@@ -1,14 +1,17 @@
 // src/components/ui/tabel.test.tsx
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 /**
  * `RandTabel` cheamă `useRouter()` ca să facă rândul apăsabil fără să înfășoare
  * fiecare celulă într-un link. În afara aplicației nu există router montat, deci
- * i se dă unul inert: testele de aici verifică MARCAJUL, nu navigarea.
+ * i se dă unul inert: testele de aici verifică MARCAJUL, nu navigarea — cu o
+ * singură excepție, `pastreazaDerularea`, unde contează CUM se cheamă `push`.
  */
+const push = vi.fn(() => new Promise(() => {}));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {}, prefetch: () => {} }),
+  useRouter: () => ({ push, replace: () => {}, refresh: () => {}, prefetch: () => {} }),
   usePathname: () => "/angajati",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -224,6 +227,65 @@ describe("Tabel — cifrele", () => {
     const suma = Array.from(celule).find((c) => c.textContent === "4200");
     expect(suma?.className).toContain("text-right");
     expect(suma?.className).toContain("tabular-nums");
+  });
+});
+
+describe("Tabel — gruparea", () => {
+  const RANDURI_GRUPATE: readonly Rand[] = [
+    { id: "1", nume: "Ionescu Ana", marca: "DEMO-001", suma: 4200, stare: "Activ" },
+    { id: "2", nume: "Pop Radu", marca: "DEMO-003", suma: 3800, stare: "Activ" },
+    { id: "3", nume: "Vasile Ion", marca: "DEMO-007", suma: 2100, stare: "Suspendat" },
+  ];
+  const grupare = {
+    cheie: (r: Rand) => r.stare,
+    antet: (cheie: string, primul: Rand) => `${cheie} · de la ${primul.nume}`,
+  };
+
+  it("pune un rând de antet înaintea fiecărui grup, peste toate coloanele", () => {
+    // Un singur <thead>, un singur <caption>: gruparea nu e „un tabel per grup”,
+    // ci rânduri de antet în același corp — `aria-sort` și numele rămân unice.
+    const { container } = randeaza({ randuri: RANDURI_GRUPATE, grupare });
+    const corp = container.querySelector("tbody") as HTMLElement;
+    const antete = Array.from(corp.querySelectorAll("th[scope=rowgroup]"));
+    expect(antete.map((a) => a.textContent)).toEqual([
+      "Activ · de la Ionescu Ana",
+      "Suspendat · de la Vasile Ion",
+    ]);
+    expect(antete[0]?.getAttribute("colspan")).toBe(String(COLOANE.length));
+    // Antetul stă ÎNAINTEA primului rând al grupului lui.
+    const randuri = Array.from(corp.querySelectorAll("tr"));
+    expect(randuri[0]?.querySelector("th[scope=rowgroup]")).not.toBeNull();
+    expect(randuri[1]?.textContent).toContain("Ionescu Ana");
+    expect(randuri[3]?.querySelector("th[scope=rowgroup]")).not.toBeNull();
+    expect(randuri[4]?.textContent).toContain("Vasile Ion");
+    expect(container.querySelectorAll("table")).toHaveLength(1);
+  });
+
+  it("pe telefon, antetul grupului e un element propriu al listei", () => {
+    const { container } = randeaza({ randuri: RANDURI_GRUPATE, grupare });
+    const lista = container.querySelector("ul.md\\:hidden") as HTMLElement;
+    const elemente = within(lista).getAllByRole("listitem");
+    expect(elemente).toHaveLength(5); // 2 antete + 3 rânduri
+    expect(elemente[0]?.textContent).toBe("Activ · de la Ionescu Ana");
+    expect(elemente[3]?.textContent).toBe("Suspendat · de la Vasile Ion");
+  });
+
+  it("fără `grupare`, corpul n-are niciun rând de antet", () => {
+    const { container } = randeaza({ randuri: RANDURI_GRUPATE });
+    expect(container.querySelectorAll("tbody th[scope=rowgroup]")).toHaveLength(0);
+  });
+});
+
+describe("Tabel — rândul care deschide un panou", () => {
+  it("cu `pastreazaDerularea`, clicul pe rând navighează fără să sară sus", () => {
+    const { container } = randeaza({
+      href: (r) => `/registru?doc=${r.id}`,
+      pastreazaDerularea: true,
+    });
+    const tabel = container.querySelector("div.md\\:block") as HTMLElement;
+    const celula = within(tabel).getAllByText("DEMO-001")[0] as HTMLElement;
+    fireEvent.click(celula);
+    expect(push).toHaveBeenCalledWith("/registru?doc=1", { scroll: false });
   });
 });
 

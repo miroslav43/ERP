@@ -30,11 +30,19 @@ export function RandTabel({
   href,
   children,
   className = "",
+  pastreazaDerularea = false,
 }: {
   /** `null` când rândul nu are nicio destinație (ex. entitatea legată e ascunsă de RLS) — rândul rămâne un `<tr>` simplu, fără click. */
   readonly href: string | null;
   readonly children: ReactNode;
   readonly className?: string;
+  /**
+   * Pentru rândurile care deschid un panou peste ACEEAȘI pagină (`?doc=…`):
+   * App Router derulează segmentul schimbat în vizor, deci de pe rândul 40 omul
+   * ar fi ajuns înapoi sus, cu panoul deschis peste un tabel pe care nu-l mai
+   * recunoștea. `scroll: false` lasă lista unde era.
+   */
+  readonly pastreazaDerularea?: boolean;
 }) {
   const router = useRouter();
   // Cele două hook-uri stau ÎNAINTEA ieșirii devreme de mai jos. `href === null`
@@ -59,7 +67,9 @@ export function RandTabel({
     // Corp-EXPRESIE, nu bloc: `router.push` întoarce `void` în aplicație, dar
     // React 19 ține tranziția deschisă dacă i se întoarce o promisiune. Forma
     // asta rămâne corectă dacă Next ajunge vreodată să întoarcă una.
-    porneste(() => router.push(destinatie));
+    porneste(() =>
+      pastreazaDerularea ? router.push(destinatie, { scroll: false }) : router.push(destinatie),
+    );
   }
 
   const claseStare = inCurs ? "opacity-60 cursor-wait" : "cursor-pointer";
