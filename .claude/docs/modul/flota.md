@@ -47,8 +47,12 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 **Fișa vehiculului nu e doar de citit.** Modificarea și ștergerea stau amândouă în spatele
 lui `vehicles:update` all — `poateAdministra` din `[id]/page.tsx`, poarta cerută de
 `vehicule_update` în bază. Sub ea intră și corectura documentelor din coloana „Acțiuni”.
-Pe un rând „Lipsește”, aceeași coloană are „Adaugă” (`vehicles:create`, cu tipul
-preselectat). Pentru cine nu poate nici una, nici alta, coloana lipsește cu totul.
+Pe un rând fără document, aceeași coloană are „+” (`vehicles:create`, cu tipul
+preselectat); „Document nou” din capul secțiunii deschide aceeași casetă fără tip (panoul
+permanent de sub tabel a fost scos). Pentru cine nu poate nici una, nici alta, coloana
+lipsește cu totul. Tabelul listează TOATE tipurile: obligatoriile întâi (roșu „Lipsește”
+când n-au document), apoi opționalele (pastilă neutră „Neînregistrat” — lipsa lor nu e o
+problemă); un document fără dată de expirare e „Fără scadență”, nu „Lipsește”.
 
 **Vehiculul nou și foaia nouă NU mai au rută.** `/flota/nou` și `/flota/foi/noua` au
 dispărut, fără redirect, în favoarea unor casete pe listă — tiparul din `[[modul/concedii]]`.

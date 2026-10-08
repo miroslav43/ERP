@@ -43,7 +43,6 @@ import { DialogDocument } from "./dialog-document";
 import { DialogDocumentNou } from "./dialog-document-nou";
 import { DialogKilometraj } from "./dialog-kilometraj";
 import { DialogVehicul } from "./dialog-vehicul";
-import { FormularDocument } from "./formular-document";
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -186,15 +185,17 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   const curente = documente.filter((d) => d.este_curent);
   const dupaTip = new Map(curente.map((d) => [d.document_type_id, d]));
 
-  // Se listează TIPURILE, nu documentele: un tip obligatoriu fără document
-  // trebuie să apară ca „Lipsește”, roșu. Altfel absența unui RCA arată identic
-  // cu absența unei rubrici.
-  const randuriDocumente: readonly RandDocument[] = tipuri
-    .filter((tip) => dupaTip.has(tip.id) || tip.obligatoriu)
+  // Se listează TOATE tipurile, nu documentele: un tip obligatoriu fără
+  // document trebuie să apară ca „Lipsește”, roșu — altfel absența unui RCA
+  // arată identic cu absența unei rubrici. Cele opționale apar și ele, ca omul
+  // să vadă ce MAI poate înregistra, dar fără roșu: un opțional lipsă nu e o
+  // problemă. Obligatoriile întâi, apoi opționalele, fiecare grup în ordinea
+  // nomenclatorului (`ordine`).
+  const randuriDocumente: readonly RandDocument[] = [...tipuri]
+    .sort((a, b) => Number(b.obligatoriu) - Number(a.obligatoriu) || a.ordine - b.ordine)
     .map((tip) => ({ tip, documentul: dupaTip.get(tip.id) ?? null }));
 
-  // Fără sortare: lista de tipuri nu are cursor, se citește întreagă și e
-  // ordonată de nomenclator (`ordine`).
+  // Fără sortare din antet: lista de tipuri nu are cursor, se citește întreagă.
   const coloaneDocumente: readonly Coloana<RandDocument>[] = [
     {
       cheie: "tip",
@@ -260,6 +261,15 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       antet: "Stare",
       peTelefon: "insigna",
       celula: (rand) => {
+        // Un tip OPȚIONAL fără document nu e o scadență ratată: pastilă
+        // neutră, nu roșu. Un document înregistrat fără dată de expirare (tipul
+        // nu cere una) e „fără scadență”, nu „lipsește”.
+        if (rand.documentul === null && !rand.tip.obligatoriu) {
+          return <Badge ton="neutru">Neînregistrat</Badge>;
+        }
+        if (rand.documentul !== null && rand.documentul.expira_la === null) {
+          return <Scadenta treapta="neaplicabil">Fără scadență</Scadenta>;
+        }
         // Un tip obligatoriu fără document dă `null`, iar în flotă `null`
         // înseamnă `lipsa` — treapta cea mai gravă, fiindcă un document care nu
         // există n-are dată de la care să numere și nu se aprinde niciodată
@@ -468,24 +478,25 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="documente" className="space-y-3">
-        <h2 id="documente" className="text-sectiune font-semibold">
-          Documente
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="documente" className="text-sectiune font-semibold">
+            Documente
+          </h2>
+          {poateScrie ? <DialogDocumentNou vehiculId={vehicul.id} tipuri={tipuri} /> : null}
+        </div>
         <Tabel
-          caption="Documentele vehiculului, cu starea fiecărei scadențe."
+          caption="Documentele vehiculului — obligatoriile întâi, apoi cele opționale — cu starea fiecărei scadențe."
           coloane={coloaneDocumente}
           randuri={randuriDocumente}
           cheieRand={(rand) => rand.tip.id}
           gol={
             <p className="text-muted-foreground text-corp">
-              Niciun document înregistrat și niciun tip obligatoriu de completat.
+              Nomenclatorul de documente e gol: niciun tip de completat.
             </p>
           }
         />
 
-        {poateScrie ? (
-          <FormularDocument vehiculId={vehicul.id} tipuri={tipuri} />
-        ) : (
+        {poateScrie ? null : (
           <p className="text-muted-foreground text-corp">
             Documentele se adaugă de către cei care administrează parcul auto.
           </p>
