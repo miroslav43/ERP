@@ -89,3 +89,6 @@ supabase/.branches
 # editează de mână: o modificare aici s-ar pierde tăcut la următorul deploy.
 /.stack-*.generat.yml
 /e2e/.auth/
+
+# QA manual pe producție — conține parole și capturi
+/qa/
