@@ -22,62 +22,62 @@
   "post_money_eur": 1350000,
   "runway_months": 15,
   "runway_basis": "Months the round pays every planned cost with ZERO revenue (base cost plan)",
-  "runway_plan_months": 21,
+  "runway_plan_months": "> 36",
   "round_size_test": [
     {
       "case": "Smaller Vest Ventures ticket",
       "round_eur": 75000,
-      "runway_zero_revenue_months": 13,
-      "runway_plan_months": 15
+      "runway_zero_revenue_months": 12,
+      "runway_plan_months": 19
     },
     {
       "case": "Proposed round",
       "round_eur": 100000,
       "runway_zero_revenue_months": 15,
-      "runway_plan_months": 21
+      "runway_plan_months": "> 36"
     },
     {
       "case": "Larger ticket, same lean plan",
       "round_eur": 150000,
       "runway_zero_revenue_months": 20,
-      "runway_plan_months": 29
+      "runway_plan_months": "> 36"
     }
   ],
   "use_of_funds": [
     {
       "category": "Product & engineering (2 co-founders full time)",
-      "eur": 6897,
-      "pct": 6.9
+      "eur": 6803,
+      "pct": 6.8
     },
     {
       "category": "Accountant channel & sales (partner manager, travel, commissions)",
-      "eur": 21915,
-      "pct": 21.9
+      "eur": 22295,
+      "pct": 22.3
     },
     {
       "category": "Customer onboarding & support",
-      "eur": 5479,
-      "pct": 5.5
+      "eur": 5405,
+      "pct": 5.4
     },
     {
       "category": "Marketing (content, SEO, performance ads)",
-      "eur": 27301,
-      "pct": 27.3
+      "eur": 26931,
+      "pct": 26.9
     },
     {
       "category": "Legal, payroll validation, compliance & security",
-      "eur": 18736,
-      "pct": 18.7
+      "eur": 18482,
+      "pct": 18.5
     },
     {
       "category": "Infrastructure & tools",
-      "eur": 10895,
-      "pct": 10.9
+      "eur": 11362,
+      "pct": 11.4
     },
     {
       "category": "Operations & contingency",
-      "eur": 8777,
-      "pct": 8.8
+      "eur": 8722,
+      "pct": 8.7
     }
   ],
   "use_of_funds_basis": "Share of planned spend over the zero-revenue runway (months 1-15), applied to the round",
@@ -85,6 +85,49 @@
   "model_start": "Jan 2027",
   "base": {
     "scenario": 1,
+    "customers_m12": 71,
+    "mrr_m12_eur": 3378,
+    "arr_m12_eur": 40536,
+    "customers_m24": 212,
+    "mrr_m24_eur": 10751,
+    "arr_m24_eur": 129013,
+    "customers_m36": 448,
+    "mrr_m36_eur": 24204,
+    "arr_m36_eur": 290452,
+    "breakeven_month": 24,
+    "cash_low_point_eur": 9624,
+    "cash_low_point_month": 28,
+    "cash_m36_eur": 41683,
+    "net_cash_flow_m36_eur": 7535,
+    "customers_m36_exact": 448.3,
+    "runway_zero_revenue_months": 15,
+    "runway_plan_months": "> 36",
+    "months_to_30": 5,
+    "months_to_100": 16,
+    "months_to_300": 29,
+    "revenue_y1_eur": 21254,
+    "revenue_y2_eur": 86514,
+    "revenue_y3_eur": 217268,
+    "costs_y1_eur": 66169,
+    "costs_y2_eur": 117172,
+    "costs_y3_eur": 196761,
+    "breakeven_date": "Dec 2028",
+    "date_to_30": "May 2027",
+    "date_to_100": "Apr 2028",
+    "date_to_300": "May 2029"
+  },
+  "base_note": "Base case: the round alone carries the plan through month 36 (cash never below cash_low_point_eur); the seed, raised from the 100-paying-customer milestone, accelerates growth rather than keeping the company alive.",
+  "ambition_2031": {
+    "label": "AMBITION, not modelled: the financial model stops at month 36 (Dec 2029)",
+    "paying_customers": 2000,
+    "arpa_eur_month": 55,
+    "arr_eur": 1320000,
+    "share_of_sam_pct": 3.7,
+    "share_of_employers_pct": 0.38,
+    "basis": "2,000 paying companies at about EUR 55 a month (base ARPA ~EUR 50 in 2028 plus price increases); SAM = 54,381 firms with 10-249 people"
+  },
+  "conservative": {
+    "scenario": 2,
     "customers_m12": 47,
     "mrr_m12_eur": 2254,
     "arr_m12_eur": 27053,
@@ -114,40 +157,6 @@
     "breakeven_date": null,
     "date_to_30": "Aug 2027",
     "date_to_100": "Aug 2028",
-    "date_to_300": null
-  },
-  "base_note": "Base case is NOT default-alive: without a seed round cash runs out after runway_plan_months; the seed raise starts at the 100-paying-customer milestone. cash_low_point_eur < 0 = shortfall without a seed.",
-  "conservative": {
-    "scenario": 2,
-    "customers_m12": 15,
-    "mrr_m12_eur": 702,
-    "arr_m12_eur": 8426,
-    "customers_m24": 39,
-    "mrr_m24_eur": 1877,
-    "arr_m24_eur": 22523,
-    "customers_m36": 74,
-    "mrr_m36_eur": 3533,
-    "arr_m36_eur": 42401,
-    "breakeven_month": "not within 36 months",
-    "cash_low_point_eur": -184015,
-    "cash_low_point_month": 36,
-    "cash_m36_eur": -184015,
-    "net_cash_flow_m36_eur": -11043,
-    "customers_m36_exact": 74.2,
-    "runway_zero_revenue_months": 15,
-    "runway_plan_months": 16,
-    "months_to_30": 20,
-    "months_to_100": "not within 36 months",
-    "months_to_300": "not within 36 months",
-    "revenue_y1_eur": 4594,
-    "revenue_y2_eur": 15957,
-    "revenue_y3_eur": 33305,
-    "costs_y1_eur": 64329,
-    "costs_y2_eur": 110823,
-    "costs_y3_eur": 162181,
-    "breakeven_date": null,
-    "date_to_30": "Aug 2028",
-    "date_to_100": null,
     "date_to_300": null
   },
   "upside": {
@@ -185,18 +194,18 @@
   },
   "unit_economics": {
     "basis": "Base scenario, model year 2 (Jan-Dec 2028)",
-    "arpa_eur": 49.98,
+    "arpa_eur": 50.69,
     "gross_margin_pct": 95.0,
     "gross_margin_definition": "Contribution margin per customer: (ARPA - variable infra - payment fees) / ARPA",
-    "gross_margin_pnl_pct": 71.7,
+    "gross_margin_pnl_pct": 79.8,
     "gross_margin_pnl_definition": "P&L gross margin after fixed hosting and the onboarding/support salary (year 2)",
-    "cac_eur": 487,
+    "cac_eur": 339,
     "cac_definition": "Fully loaded: partner manager salary + marketing + travel + accountant commissions / new paying customers",
-    "cac_paid_ads_eur": 320,
-    "monthly_churn_pct": 3.0,
-    "ltv_eur": 1583,
-    "ltv_cac": 3.2,
-    "payback_months": 10.3,
+    "cac_paid_ads_eur": 255,
+    "monthly_churn_pct": 2.5,
+    "ltv_eur": 1927,
+    "ltv_cac": 5.7,
+    "payback_months": 7.0,
     "benchmarks": "ChartMogul median churn 6.1%/month for ARPA < US$25; SMB CAC payback median ~11 months, 6-14 healthy (piata.md §d.1)"
   },
   "team_plan": [
@@ -296,12 +305,12 @@
       "milestone": "Payroll legal values validated by an accountant (payroll moves from 'built, undergoing validation' to sellable)"
     },
     {
-      "month": "M6 (Jun 2027)",
-      "milestone": "Accessibility audit (EN 301 549) completed"
+      "month": "M5 (May 2027)",
+      "milestone": "30 paying customers"
     },
     {
-      "month": "M8 (Aug 2027)",
-      "milestone": "30 paying customers"
+      "month": "M6 (Jun 2027)",
+      "milestone": "Accessibility audit (EN 301 549) completed"
     },
     {
       "month": "M9 (Sep 2027)",
@@ -316,8 +325,12 @@
       "milestone": "Partner & sales manager full time"
     },
     {
-      "month": "M20 (Aug 2028)",
+      "month": "M16 (Apr 2028)",
       "milestone": "100 paying customers - seed-readiness trigger (start seed / VV Seed conversations)"
+    },
+    {
+      "month": "M24 (Dec 2028)",
+      "milestone": "Monthly break-even (net cash flow >= 0)"
     },
     {
       "month": "M25 (Jan 2029)",
@@ -330,6 +343,10 @@
     {
       "month": "M26 (Feb 2029)",
       "milestone": "External penetration test (after the seed)"
+    },
+    {
+      "month": "M29 (May 2029)",
+      "milestone": "300 paying customers"
     }
   ],
   "tam_sam_som": {
@@ -360,11 +377,11 @@
       "label": "DERIVED + ASSUMPTION; show separately, never add silently"
     },
     "som": {
-      "eur_arr": 178567,
-      "formula": "base-case paying customers at month 36 (284) x ARPA x 12 = MRR month 36 x 12",
+      "eur_arr": 290452,
+      "formula": "base-case paying customers at month 36 (448) x ARPA x 12 = MRR month 36 x 12",
       "label": "PROJECTION (financial model, base scenario, Dec 2029)",
-      "share_of_employers_pct": 0.054,
-      "conservative_eur_arr": 42401,
+      "share_of_employers_pct": 0.085,
+      "conservative_eur_arr": 178567,
       "upside_eur_arr": 454657,
       "note": "piata.md §e illustrated 600 firms x 250 RON x 12 = EUR 360k ARR; the model's bottom-up base case replaces it"
     }

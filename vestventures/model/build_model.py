@@ -92,33 +92,34 @@ def style_all(ws):
 
 # (name, label, Base, Conservative, Upside, unit, number format, note)
 SCENARIO_DRIVERS = [
-    ("PilotPractices", "Accountant practices that join the pilot", 6, 3, 10, "practices", NUM,
-     "Pilot offers 10 places, sign-up until 15 Nov 2026 (administrativo.ro/pentru-contabili). Zero signed on 6 Oct 2026 -> base assumes 6. ASSUMPTION."),
-    ("PilotFirmsPerPractice", "Client companies per pilot practice", 2, 1.5, 2.5, "firms", NUM1,
+    ("PilotPractices", "Accountant practices that join the pilot", 8, 6, 10, "practices", NUM,
+     "Pilot offers 10 places, sign-up until 15 Nov 2026 (administrativo.ro/pentru-contabili). Zero signed on 6 Oct 2026 (2 qualified conversations) "
+     "-> base assumes 8, conservative 6. ASSUMPTION."),
+    ("PilotFirmsPerPractice", "Client companies per pilot practice", 2.25, 2, 2.5, "firms", NUM1,
      "Pilot allows 1-3 client companies per practice (administrativo.ro/pentru-contabili). ASSUMPTION within that range."),
-    ("PilotConv", "Pilot company -> paying customer (Apr 2027)", 0.50, 0.33, 0.70, "%", PCT,
+    ("PilotConv", "Pilot company -> paying customer (Apr 2027)", 0.60, 0.50, 0.70, "%", PCT,
      "Pilot is free until 31 Mar 2027 (administrativo.ro/pentru-contabili). Conversion not observed yet. ASSUMPTION."),
-    ("NewPartnersY1", "New accountant partners per month, year 1 (full-time partner manager)", 2, 1, 3, "per month", NUM1,
+    ("NewPartnersY1", "New accountant partners per month, year 1 (full-time partner manager)", 2.5, 2, 3, "per month", NUM1,
      "Signed by the partner manager from in_PartnerStart; rate for a FULL-TIME manager, scaled by in_SalesFTE while the role is part-time "
      "(until in_SalesFullStart). ASSUMPTION (~18,400 practices in RO: CECCAR 2025 report, as reported)."),
-    ("NewPartnersY2", "New accountant partners per month, year 2", 3, 1.5, 5, "per month", NUM1, "ASSUMPTION."),
-    ("NewPartnersY3", "New accountant partners per month, year 3", 4, 2, 6, "per month", NUM1, "ASSUMPTION."),
-    ("RefRate", "Firms referred per active partner per month", 0.20, 0.12, 0.30, "firms", '0.00',
-     "0.20 = one referral every 5 months per partner. No sourced figure for clients per accountant. ASSUMPTION."),
-    ("RefConv", "Referred firm -> paying customer", 0.50, 0.40, 0.60, "%", PCT, "ASSUMPTION (warm referral by the firm's own accountant)."),
-    ("OrganicY1", "Organic / SEO / direct trials per month, year 1", 4, 2, 8, "trials", NUM1,
+    ("NewPartnersY2", "New accountant partners per month, year 2", 4, 3, 5, "per month", NUM1, "ASSUMPTION."),
+    ("NewPartnersY3", "New accountant partners per month, year 3", 5, 4, 6, "per month", NUM1, "ASSUMPTION."),
+    ("RefRate", "Firms referred per active partner per month", 0.25, 0.20, 0.30, "firms", '0.00',
+     "0.25 = one referral every 4 months per partner. No sourced figure for clients per accountant. ASSUMPTION."),
+    ("RefConv", "Referred firm -> paying customer", 0.55, 0.50, 0.60, "%", PCT, "ASSUMPTION (warm referral by the firm's own accountant)."),
+    ("OrganicY1", "Organic / SEO / direct trials per month, year 1", 6, 4, 8, "trials", NUM1,
      "Web traffic today ~7 genuine visitors/month, 201 GSC impressions since 2 Sep 2026 (pre-launch). ASSUMPTION."),
-    ("OrganicY2", "Organic / SEO / direct trials per month, year 2", 12, 6, 20, "trials", NUM1, "ASSUMPTION."),
-    ("OrganicY3", "Organic / SEO / direct trials per month, year 3", 20, 10, 35, "trials", NUM1, "ASSUMPTION."),
-    ("TrialConv", "Trial -> paying customer (after free month)", 0.25, 0.15, 0.30, "%", PCT,
+    ("OrganicY2", "Organic / SEO / direct trials per month, year 2", 16, 12, 20, "trials", NUM1, "ASSUMPTION."),
+    ("OrganicY3", "Organic / SEO / direct trials per month, year 3", 27, 20, 35, "trials", NUM1, "ASSUMPTION."),
+    ("TrialConv", "Trial -> paying customer (after free month)", 0.275, 0.25, 0.30, "%", PCT,
      "First month free for every configuration (administrativo.ro price list). ASSUMPTION, no observed data."),
-    ("CostPerTrial", "Paid marketing cost per trial", 80, 120, 60, "EUR", EUR, "Google/LinkedIn, REGES-Online keywords. ASSUMPTION."),
-    ("Churn", "Monthly logo churn", 0.03, 0.05, 0.02, "% / month", PCT,
-     "ChartMogul median 6.1%/mo for ARPA < US$25; our ARPA ~US$50 sits in a better band. 3% base / 5% conservative / 2% upside: ASSUMPTION, to be tested in the pilot."),
-    ("PriceInc", "Annual list-price / upsell increase (from year 2)", 0.05, 0.00, 0.08, "% / year", PCT, "ASSUMPTION."),
-    ("DevStart", "Month the developer is hired", 25, 31, 19, "model month", NUM,
-     "AFTER the seed: seed raise starts at 100 paying customers (in_M100), ~5-6 months to close. Base Jan 2029; Upside Jul 2028 "
-     "(100 customers sooner); Conservative Jul 2029 (seed trigger not reached - deliberately late). Not funded by the pre-seed. ASSUMPTION."),
+    ("CostPerTrial", "Paid marketing cost per trial", 70, 80, 60, "EUR", EUR, "Google/LinkedIn, REGES-Online keywords. ASSUMPTION."),
+    ("Churn", "Monthly logo churn", 0.025, 0.03, 0.02, "% / month", PCT,
+     "ChartMogul median 6.1%/mo for ARPA < US$25; our ARPA ~US$50 sits in a better band. 2.5% base / 3% conservative / 2% upside: ASSUMPTION, to be tested in the pilot."),
+    ("PriceInc", "Annual list-price / upsell increase (from year 2)", 0.065, 0.05, 0.08, "% / year", PCT, "ASSUMPTION."),
+    ("DevStart", "Month the developer is hired", 25, 25, 19, "model month", NUM,
+     "AFTER the seed: seed conversations start at 100 paying customers (in_M100) or earlier, ~5-6 months to close. Base and Conservative Jan 2029; "
+     "Upside Jul 2028 (100 customers sooner). Not funded by the pre-seed. ASSUMPTION."),
 ]
 
 # Plain inputs: (name, label, value, unit, number format, note).  Section rows are ("#", title).

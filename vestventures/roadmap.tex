@@ -84,7 +84,7 @@
     \node[planmark] at (2,-8.2) {};
     \node[anchor=west,font=\itemfont] at (3.5,-8.2) {Planned};
     \node[tbcmark] at (2,-12.2) {};
-    \node[anchor=west,font=\itemfont] at (3.5,-12.2) {Planned, date [TO CONFIRM]};
+    \node[anchor=west,font=\itemfont] at (3.5,-12.2) {Planned, closes a known gap};
     \node[projmark] at (52,-4.2) {};
     \node[anchor=west,font=\itemfont] at (53.5,-4.2) {Projection (base scenario)};
     \node[assumemark] at (52,-8.2) {};
@@ -136,11 +136,8 @@
     \ok Android app built, in internal testing}
   \ms{tbc}{4}{-31}{29mm}{Q1 2027}{Subscription billing \& invoicing, before pilot companies convert}
   \ms{plan}{8.5}{-31}{30mm}{Jun 2027}{Accessibility audit (EN 301 549) completed}
-  % iOS app: needs the developer, who is hired after the seed (beyond the chart)
-  \node[anchor=north east,text width=46mm,inner sep=0pt,font=\itemfont,align=flush right]
-    at ({\XO+\MW*27-4.2},-29.1)
-    {{\color{tbccol}\bfseries 2029, after the seed [TO CONFIRM]}\\{\color{brandNavy}iOS app, with the developer hire}};
-  \draw[-{Latex[length=2mm]},tbccol,line width=0.9pt,dash pattern=on 1.5pt off 1pt] ({\XO+\MW*27-3.8},-32.1) -- ({\XO+\MW*27-0.4},-32.1);
+  % iOS app: the mobile app is Expo (React Native), so iOS shares the Android code base
+  \ms{tbc}{16.5}{-43.5}{34mm}{H1 2028}{iOS app, from the same code base as Android}
   \ms{plan}{7.5}{-43.5}{29mm}{May 2027}{Payroll legal values validated by an accountant: payroll becomes sellable}
   \ms{tbc}{6.5}{-55}{28mm}{Q2 2027}{Android app published in Google Play}
   \ms{tbc}{10.5}{-55}{30mm}{Q3 2027}{Price for companies above 20 employees published}
@@ -154,18 +151,18 @@
   \ms{done}{0.17}{-71}{31mm}{6 Oct 2026}{Accountant pilot opened; clients free until 31 Mar 2027}
   \ms{plan}{1.47}{-81.5}{28mm}{15 Nov 2026}{Pilot sign-up closes}
   \ms{plan}{6.5}{-71}{30mm}{Apr 2027}{Pilot ends; pilot companies convert to paid}
-  \ms{proj}{10.5}{-81.5}{30mm}{Aug 2027}{30 paying customers}
-  \ms{proj}{22.5}{-71}{32mm}{Aug 2028}{100 paying customers: seed-readiness trigger}
+  \ms{proj}{7.5}{-81.5}{30mm}{May 2027}{30 paying customers}
+  \ms{proj}{18.5}{-71}{32mm}{Apr 2028}{100 paying customers: seed raise starts}
   % beyond the chart
-  \node[anchor=north east,text width=30mm,inner sep=0pt,font=\itemfont,align=right]
+  \node[anchor=north east,text width=58mm,inner sep=0pt,font=\itemfont,align=flush right]
     at ({\XO+\MW*27-4.2},-81.2)
-    {{\color{projcol}\bfseries Dec 2029 (beyond chart)}\\{\color{brandNavy}about 284 paying customers}};
+    {{\color{projcol}\bfseries Dec 2028: monthly break-even}\\{\color{brandNavy}Dec 2029 (beyond chart): about 448 paying customers}};
   \draw[-{Latex[length=2mm]},brandAmber,line width=0.9pt] ({\XO+\MW*27-3.8},-84.2) -- ({\XO+\MW*27-0.4},-84.2);
   % expansion hypothesis (text to the left of the marker: the chart ends at Dec 2028)
   \draw[assumeline] ({\XO+\MW*24},-92) -- ++(0,-8.2);
   \node[anchor=north east,text width=56mm,inner sep=0.7pt,fill=white,fill opacity=0.72,text opacity=1,font=\itemfont,align=flush right]
     at ({\XO+\MW*24-0.9},-90.05)
-    {{\color{assumecol}\bfseries Q4 2028 (hypothesis) [TO CONFIRM]}\\[-0.2pt]{\color{brandNavy}Assess a second CEE market (e.g.\ Moldova or Serbia); the Romanian compliance core stays the moat}};
+    {{\color{assumecol}\bfseries Q4 2028 (hypothesis)}\\[-0.2pt]{\color{brandNavy}Assess a second CEE market (e.g.\ Moldova or Serbia); the Romanian compliance core stays the moat}};
   \node[assumemark] at ({\XO+\MW*24},-92) {};
 
   % ---------------- TEAM ----------------
@@ -173,7 +170,7 @@
     \ok Two co-founders, \mbox{Miroslav Maletici} and \mbox{Răzvan Pervulescu}, both writing code\\
     \ok 811 commits, 5,610 automated test cases\\
     \ok AI-assisted development workflow}
-  \ms{plan}{3.5}{-104.5}{88mm}{Jan 2027}{Both co-founders full time, unpaid in 2027 (€1,000 gross each from 2028); fit with studies at Politehnica University of Timișoara [TO CONFIRM]}
+  \ms{plan}{3.5}{-104.5}{88mm}{Jan 2027}{Both co-founders full time alongside their studies at Politehnica University of Timișoara; unpaid in 2027, living on savings (€1,000 gross each from 2028)}
   \ms{plan}{5.5}{-114.5}{40mm}{Mar 2027}{Partner \& sales manager hired (accountant channel), half time}
   \ms{plan}{11.5}{-124.5}{40mm}{Sep 2027}{Customer onboarding \& support specialist hired, half time}
   \ms{plan}{15.5}{-114.5}{40mm}{Jan 2028}{Partner \& sales manager full time; co-founders paid from now}
@@ -185,28 +182,27 @@
 
   % ---------------- FUNDING ----------------
   \shipped{18}{-135}{%
-    \ok Two co-founders hold all shares\\
+    \ok Miroslav Maletici sole associate; Răzvan Pervulescu joins before the close\\
     \ok No external investors or options to date}
   \ms{plan}{0.17}{-136}{31mm}{Oct 2026}{Application to the Vest Ventures Accelerator}
   \ms{assume}{3.5}{-147}{42mm}{Jan 2027 (assumed close)}{Pre-seed €100k, all from the Vest Ventures Accelerator}
-  \ms{plan}{18.5}{-147}{34mm}{Apr 2028}{Seed conversations start (about 74 paying customers)}
-  \ms{plan}{22.5}{-136}{32mm}{Aug 2028}{Seed round closes (at 100 paying customers)}
-  % runway band: Jan 2027 (month 3) -> end Mar 2028 (month 18); on plan to end Sep 2028 (month 24)
+  \ms{plan}{18.5}{-136}{34mm}{Apr 2028}{Seed raise starts (at 100 paying customers), to accelerate}
+  % runway band: Jan 2027 (month 3) -> end Mar 2028 (month 18); on plan cash never runs out
   \fill[brandBlue!18] ({\XO+\MW*3},-158.6) rectangle ({\XO+\MW*18},-164);
   \node[font=\bfseries\fontsize{6.3}{7}\selectfont,text=brandNavy] at ({\XO+\MW*10.5},-161.3)
     {Runway with zero revenue: 15 months (Jan 2027 -- Mar 2028)};
-  \draw[brandBlue,line width=0.6pt,dash pattern=on 2pt off 1pt] ({\XO+\MW*18},-158.6) rectangle ({\XO+\MW*24},-164);
-  \node[font=\fontsize{5.6}{6.3}\selectfont,text=brandNavy,align=center] at ({\XO+\MW*21},-161.3)
-    {on base plan: 21 months (to Sep 2028);\\cash runs out in Oct 2028 without the seed};
+  \draw[brandBlue,line width=0.6pt,dash pattern=on 2pt off 1pt] ({\XO+\MW*18},-158.6) rectangle ({\XO+\MW*27-0.4},-164);
+  \node[font=\fontsize{5.6}{6.3}\selectfont,text=brandNavy,align=center] at ({\XO+\MW*22.5},-161.3)
+    {on base plan: cash never runs out;\\break-even in Dec 2028 without the seed};
 
   % ------------------------------------------------------------------
   % Footer notes
   % ------------------------------------------------------------------
   \node[anchor=north west,text width=277mm,inner sep=0pt,font=\fontsize{6.3}{7.6}\selectfont,text=brandSlate,align=justify]
     at (0,-171) {%
-    \textbf{Notes.} Done items are verified against the code repository and the live product, or are founder data such as search and pilot figures (6 Oct 2026). Product items with a hollow diamond close known gaps (billing, app-store publication, larger-company pricing); their dates are [TO CONFIRM] by the founders. Every dated item after 6 Oct 2026 is a plan or a projection, not a commitment.
-    Customer counts are projections from the base scenario of the financial model (financial-model.xlsx); the base scenario reaches 47 / 139 / 284 paying companies at months 12 / 24 / 36, the conservative scenario 15 / 39 / 74 and the upside scenario 103 / 313 / 682.
-    The base case is not default-alive: the seed round is part of the plan. At 100 paying customers (Aug 2028) about €4k of cash and one month of planned runway are left, so seed conversations start in Apr 2028; if the close slips, the co-founders stop drawing salaries again, which adds about two months. The developer and the penetration test come after the seed; the pre-seed funds neither. The co-founders take no salary in 2027.
+    \textbf{Notes.} Done items are verified against the code repository and the live product, or are founder data such as search and pilot figures (6 Oct 2026). Product items with a hollow diamond close known gaps (billing, app-store publication, larger-company pricing); their dates are the founders' plan. Every dated item after 6 Oct 2026 is a plan or a projection, not a commitment.
+    Customer counts are projections from the base scenario of the financial model (financial-model.xlsx); the base scenario reaches 71 / 212 / 448 paying companies at months 12 / 24 / 36, the conservative scenario 47 / 139 / 284 and the upside scenario 103 / 313 / 682. Our ambition for 2031, beyond the model, is 2,000 paying companies.
+    On the base plan the €100k round reaches 100 paying customers in Apr 2028 and monthly break-even in Dec 2028 without further funding; the seed accelerates growth. The conservative scenario reaches 100 paying customers in Aug 2028 with little cash left and needs the seed then. The developer and the penetration test come after the seed; the co-founders take no salary in 2027.
     The January 2027 close is an assumption, because the Vest Ventures Accelerator Cohort 3 dates are not published.
     REGES-Online is the Romanian Labour Inspectorate's (ITM) mandatory electronic employee register; SSM is occupational health \& safety.
     Payroll is built end to end, but its legal values are being validated by an accountant; until then it is not offered to pilot or paying customers as production-ready, although the public price list already shows it.};

@@ -28,15 +28,31 @@ Restul tăieturilor nu ating creșterea: pentestul trece după seed, biroul
 onboarding pornește în luna 9 în loc de 7. Planul de vânzări și marketing a
 rămas neschimbat, deci și clienții proiectați sunt aceiași.
 
-Rezultatul: 15 luni fără niciun venit și 21 de luni pe planul de bază (până în
-sep 2028). Pragul de seed (100 de clienți plătitori) cade în luna 20 (aug
-2028), cu **aproximativ 4k € în cont și o lună** până se termină banii.
-Discuțiile de seed încep deci în luna 16 (apr 2028, ~74 de clienți). Dacă
-închiderea alunecă, vă opriți din nou salariile și câștigați ~2 luni.
+**Baza ambițioasă (decizia fondatorilor, 8 oct 2026).** La cererea voastră
+(„la VV le place să gândești optimist”), baza modelului a urcat la jumătatea
+drumului spre scenariul optimist: 8 cabinete în pilot (în loc de 6), conversie
+60% (în loc de 50%), 2,5 / 4 / 5 parteneri noi pe lună, 6 / 16 / 27 de trialuri
+organice pe lună, 27,5% conversie, 70 € pe trial plătit, churn 2,5%. Vechea
+bază a devenit scenariul **prudent** (conservative); optimistul a rămas la fel.
 
-Pregătiți-vă pentru întrebarea din interviu: **„din ce trăiți în 2027?”**
-Răspunsul trebuie să fie concret (economii, familie, bursă, job part-time
-compatibil cu full-time pe firmă etc.).
+Cu 100k €, pe baza nouă: 100 de clienți plătitori în **apr 2028** (luna 16),
+**break-even lunar în dec 2028**, iar banii nu se termină în cele 36 de luni
+(minimum ~10k € în mai 2029). 448 de clienți și 290k € ARR în dec 2029. Seed-ul
+devine accelerare, nu salvare. Scenariul prudent (vechea bază) are 21 de luni
+de bani și atinge 100 de clienți în aug 2028 cu ~4k € în cont: acolo seed-ul
+trebuie pornit din timp.
+
+**Ambiția 2031** (nu e în model, e scrisă ca țintă): 2.000 de firme plătitoare,
+~1,32 mil. € ARR, 3,7% din SAM. Apare în deck (slide-ul de piață), în plan
+(secțiunea „Ambition beyond the model”) și în formular.
+
+**Prețul optimismului:** fiecare ipoteză trebuie apărată în interviu. Azi aveți
+0 cabinete înscrise și 2 discuții serioase; baza presupune 8 cabinete până pe
+15 nov. Dacă pilotul arată altfel, spuneți direct că sunteți pe scenariul
+prudent și că și acela atinge pragul cu 100k.
+
+Pentru întrebarea din interviu **„din ce trăiți în 2027?”** răspunsul e:
+din economii (8 oct 2026).
 
 ---
 
@@ -76,11 +92,13 @@ compatibil cu full-time pe firmă etc.).
 | `README.md` (acesta) | Ghidul vostru |
 | `_surse/fapte.md` | Fișa de fapte verificate în cod. Conține și slăbiciunile formulate pentru uz intern |
 | `_surse/vestventures.md` | Cercetarea noastră despre investitor |
-| `_surse/piata.md` | Sursele de piață. **Nu intră** în data room: are note de poziționare pentru noi, rânduri UNVERIFIED, căi din repo și un SOM ilustrativ (600 de firme, 360k € ARR) care contrazice modelul (284 de firme, 179k €). Sursele publice sunt în anexa planului de afaceri |
+| `_surse/piata.md` | Sursele de piață. **Nu intră** în data room: are note de poziționare pentru noi, rânduri UNVERIFIED, căi din repo și un SOM ilustrativ (600 de firme, 360k € ARR) care contrazice modelul (448 de firme, 290k €). Sursele publice sunt în anexa planului de afaceri |
 | `_surse/cifre.json` | Sursa unică a cifrelor. **Nu intră** în data room: citează fișiere interne (`vestventures.md`, `piata.md`, `src/…`). La fel `model/` |
 | `model/`, `tema/`, `tools/` | Scripturile de reconstrucție și tema LaTeX |
 
 ## 3. Ce trebuie să completați voi: lista `[TO CONFIRM]`
+
+**Stare la 8 oct 2026: închisă.** Toate marcajele din deck, planul de afaceri, roadmap și formular s-au închis cu răspunsurile voastre din 8 oct (firma din datele ANAF, asociat unic + Răzvan intră înainte de rundă, CAEN 8559 → 6201, fără ajutoare de stat, full time alături de facultate, economii, amândoi în Timișoara, 2 discuții serioase, firma REGES anonimă, cesiunea IP înainte de închidere, statutul cu avocatul la închidere, iOS din același cod Expo). `python3 tools/count_chars.py --final` trece. Modelul XLSX păstrează intenționat `[TO CONFIRM]` la ipotezele de contabil (CAM, regim fiscal). Lista de mai jos rămâne ca istoric.
 
 Lista e adunată cu grep din toate fișierele pachetului, la 6 oct 2026. Pentru
 o numărătoare actualizată, rulați:

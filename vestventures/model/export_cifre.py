@@ -200,8 +200,20 @@ def cmd_cifre(a):
         "close_month": "Jan 2027 (model month 1) - ASSUMPTION; Vest Ventures Accelerator Cohort 3 dates are not published",
         "model_start": "Jan 2027",
         "base": base,
-        "base_note": ("Base case is NOT default-alive: without a seed round cash runs out after runway_plan_months; "
-                      "the seed raise starts at the 100-paying-customer milestone. cash_low_point_eur < 0 = shortfall without a seed."),
+        "base_note": (("Base case is NOT default-alive: without a seed round cash runs out after runway_plan_months; "
+                       "the seed raise starts at the 100-paying-customer milestone. cash_low_point_eur < 0 = shortfall without a seed.")
+                      if isinstance(base["cash_low_point_eur"], (int, float)) and base["cash_low_point_eur"] < 0 else
+                      ("Base case: the round alone carries the plan through month 36 (cash never below cash_low_point_eur); "
+                       "the seed, raised from the 100-paying-customer milestone, accelerates growth rather than keeping the company alive.")),
+        "ambition_2031": {
+            "label": "AMBITION, not modelled: the financial model stops at month 36 (Dec 2029)",
+            "paying_customers": 2000,
+            "arpa_eur_month": 55,
+            "arr_eur": 2000 * 55 * 12,
+            "share_of_sam_pct": round(2000 / 54_381 * 100, 1),
+            "share_of_employers_pct": round(2000 / 526_000 * 100, 2),
+            "basis": "2,000 paying companies at about EUR 55 a month (base ARPA ~EUR 50 in 2028 plus price increases); SAM = 54,381 firms with 10-249 people",
+        },
         "conservative": snap["Conservative"],
         "upside": snap["Upside"],
         "unit_economics": {

@@ -163,7 +163,7 @@ sold as a subscription at \textbf{administrativo.ro}\par}
 {\small\color{brandSlate}
 Prepared 6 October 2026. Every figure dated after 6 October 2026 is a \textbf{projection} from the
 financial model (\mbox{\texttt{financial-model.xlsx}}) and is labelled as such. Market figures carry
-numbered sources listed in the appendix. Items marked \tbc{} still need a founder's confirmation.
+numbered sources listed in the appendix.
 Currency: EUR; RON converted at 5~RON = 1~EUR.\par
 \vspace{4pt}
 Confidential: prepared for the Vest Ventures application. Contact: contact@administrativo.ro\par}
@@ -204,40 +204,43 @@ keep attendance, leave and HR files on paper or in Excel; no survey we know of m
 administrativo.ro since early September 2026: 19 modules, 811 commits, 162 database migrations,
 and tenant isolation enforced by the database itself (row-level security forced on 160 of 164
 tables). Transmission to REGES-Online through the API was confirmed working in production, for a
-real company, on 17 September 2026. We have \textbf{zero paying customers}. Free pilot and demo
-companies use the product. On 6 October 2026 we opened a pilot with up to 10 places for
-accounting practices (sign-up until 15 November 2026; none signed on 6 October).
+real company, on 17 September 2026. We have \textbf{zero paying customers}; demo companies show
+the product to prospects. On 6 October 2026 we opened a pilot with up to 10 places for
+accounting practices (sign-up until 15 November 2026; none signed yet, two qualified conversations).
 
 \textbf{How we will sell.} Accountants are the \emph{strategic} channel: one practice can bring
 several client companies, and we expect employers to trust a tool their accountant recommends.
-In the base model the channel is not yet the largest one. Over 36 months it brings about 130
-of about 396 new paying companies (33\%; 13 of 55 in year~1). Direct trials from search, free
-tools and paid ads bring the rest. Their cost per trial and conversion are untested assumptions
-(Section~\ref{sec:financiar}).
+In the base model the channel grows from 29\% of new paying companies in year~1 to 45\% in
+year~3: about 233 of 591 over 36 months. Direct trials from search, free tools and paid ads bring
+the rest. Their cost per trial and conversion are untested assumptions (Section~\ref{sec:financiar}).
 
 \textbf{The ask.} A €\cf{round_eur} pre-seed round at €\cfm{pre_money_eur}M pre-money. It pays
-every planned cost for \cf{runway_months} months with zero revenue and for \cf{runway_plan_months}
-months on the base plan. It funds a deliberately lean plan: both co-founders full time and unpaid in
+every planned cost for \cf{runway_months} months with zero revenue, and on the base plan it carries
+the company to monthly break-even in \cf{base.breakeven_date} (month \cf{base.breakeven_month}) without
+further funding. It funds a deliberately lean plan: both co-founders full time and unpaid in
 year~1 (€1,000 gross each from month 13), a partner
 manager for the accountant channel (half time from month 3, full time from month 13) and a
 half-time onboarding specialist from month 9. The developer is hired only after the seed. The
-goal is 100 paying companies by \cf{base.date_to_100} (month \cf{base.months_to_100}), the trigger
-for a seed round.
+goal is 100 paying companies by \cf{base.date_to_100} (month \cf{base.months_to_100}), when we
+raise a seed round to grow faster, not to survive. Beyond the model, our ambition for 2031 is
+\cf{ambition_2031.paying_customers} paying companies and about €\cfm{ambition_2031.arr_eur}M ARR,
+\cfn{ambition_2031.share_of_sam_pct}\% of our serviceable market (Section~\ref{sec:ambitie}).
 
 \vspace{4pt}
 \noindent
 \cifra{€\cfk{round_eur}k}{pre-seed round,\\all from Vest Ventures}\hfill
-\cifra{\cf{runway_months} months}{runway with zero revenue\\(\cf{runway_plan_months} months on plan)}\hfill
+\cifra{\cf{runway_months} months}{runway with zero revenue\\(break-even \cf{base.breakeven_date} on plan)}\hfill
 \cifra{\cf{base.customers_m36}}{paying companies at month 36\\(base case, \proj)}\hfill
 \cifra{\cf{unit_economics.ltv_cac}×}{LTV/CAC, year 2\\(base case, \proj)}
 
 \begin{alertbox}
 \small\textbf{Honest summary of the weak points.} No revenue and no paying customer yet; no
 signed pilot or letter of intent yet; the accountant channel is untested, and most modelled
-growth comes from direct and paid trials whose cost and conversion are assumptions; the base
-case is \emph{not} default-alive (cash on plan lasts about one month past the
-month-\cf{base.months_to_100} trigger, so seed conversations start in month~16); payroll legal values still need an accountant's
-sign-off; the code's IP is not yet assigned to the company in writing; the legal basis of
+growth comes from direct and paid trials whose cost and conversion are assumptions; the
+conservative case (our previous base) is \emph{not} default-alive and needs a seed round in
+\cf{conservative.date_to_100}; payroll legal values still need an accountant's
+sign-off; the code's IP is not yet assigned to the company in writing; Miroslav Maletici is
+today the SRL's sole associate; the legal basis of
 REGES-Online (HG 295/2025) was annulled at first instance in April 2026 (not final, still
 applicable); the plan covers Romania only; both co-founders are students.
 Section~\ref{sec:riscuri} shows how each is handled.
@@ -251,14 +254,18 @@ Section~\ref{sec:riscuri} shows how each is handled.
 
 The company is a Romanian limited-liability company (SRL). The operator named on
 administrativo.ro is WISELEARNING S.R.L., Str.\ Metalurgiei nr.~2, Timișoara, Timiș county
-(CUI 50321210, J35/2618/2024), not VAT-registered. The two co-founders hold all the shares;
-there are no external investors and no options to date. That this SRL is the company receiving the
-round, and its activity and annual results for FY2024--FY2025: \tbc. A registered office or operating site
-in Timiș county meets Vest Ventures' West Region requirement\src{27}.
+(CUI 50321210, J35/2618/2024), registered on 4 July 2024 and not VAT-registered. This SRL receives
+the round. Before ADMINISTRATIVO it ran small training activities (CAEN 8559, other education):
+turnover RON 2,800 in 2024 and RON 6,210 in 2025, no employees (annual accounts filed with ANAF).
+Before the round its main activity moves to software development (CAEN 6201; 62.10 under CAEN
+Rev.~3). Miroslav Maletici is today the sole associate; Răzvan Pervulescu enters the share capital
+before the round closes, so the two co-founders hold all the shares. There are no external
+investors and no options. The registered office in Timișoara meets Vest Ventures' West Region
+requirement\src{27}.
 
 \textbf{Intellectual property.} The code has been written by the two co-founders. On 6 October
 2026 no written assignment of that IP to the company has been signed. The assignment is part of
-the round's legal work (months 1--2 at the latest) and is listed as a risk in
+the round's legal work and is signed before the round closes; it is listed as a risk in
 Section~\ref{sec:riscuri}.
 
 \subsection{Founders}
@@ -274,9 +281,9 @@ partnership between the company and UPT.
 \textbf{Name} & \textbf{Role} & \textbf{Background and responsibilities} \\
 \midrule
 Miroslav Maletici & Co-founder, CEO & Student, Politehnica University of Timișoara; author of the first
-commit (17 Aug 2026). Area of responsibility, programme and year of study: \tbc \\
+commit (17 Aug 2026). Leads product and sales \\
 Răzvan Pervulescu & Co-founder, CTO & Student, Politehnica University of Timișoara; commits code to the
-product. Area of responsibility, programme and year of study: \tbc \\
+product. Leads engineering \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -284,10 +291,10 @@ product. Area of responsibility, programme and year of study: \tbc \\
 The plan assumes both co-founders work \textbf{full time} on ADMINISTRATIVO from the close of
 the round and take \textbf{no salary in year~1}; from month 13 (January 2028) each draws a
 deliberately lean gross salary of €1,000 per month (about RON 5,000, just above the full-time
-minimum wage). This is what lets a €\cfk{round_eur}k round reach the seed trigger. How this fits
-their studies and personal finances (graduation
-dates, reduced course load) must be stated explicitly \tbc{}, because Vest Ventures asks whether
-founders can commit given other obligations\src{27}.
+minimum wage). This keeps even the conservative case inside the runway of a
+€\cfk{round_eur}k round. Vest Ventures asks whether founders can commit given other
+obligations\src{27}: both co-founders commit their time full time to the company from the close,
+alongside their studies, and live on personal savings in year~1. Both live and work in Timișoara.
 
 \textbf{How the product is built.} Development is AI-assisted: the repository carries Claude
 Code project tooling, a nightly multi-agent code review and automated documentation. We say
@@ -654,10 +661,10 @@ companies over 36 months (Section~\ref{sec:canale}), rising from 24\% in year~1 
   ask for a 30-minute monthly feedback call and consent to an anonymised case description. As of
   6 Oct 2026 no practice has signed yet.
 \item \textbf{After the pilot:} a partner and sales manager (half time from month 3, full time
-  from month 13) signs practices. Model assumptions (base): a full-time manager signs 2 new partners
-  a month in year~1, 3 in year~2 and 4 in year~3, and signings scale with the manager's hours, so
-  year~1 runs at half that pace; each active partner refers one company every five months; half of
-  referrals convert. That gives 15 / 51 / 99 active partners at months 12 / 24 / 36 (\proj), under
+  from month 13) signs practices. Model assumptions (base): a full-time manager signs 2.5 new partners
+  a month in year~1, 4 in year~2 and 5 in year~3, and signings scale with the manager's hours, so
+  year~1 runs at half that pace; each active partner refers one company every four months; 55\% of
+  referrals convert. That gives 19 / 67 / 127 active partners at months 12 / 24 / 36 (\proj), under
   1\% of the ≈18,400 practices.
 \end{itemize}
 
@@ -666,18 +673,18 @@ companies over 36 months (Section~\ref{sec:canale}), rising from 24\% in year~1 
 administrativo.ro offers 7 free tools without an account (salary calculator, leave request form,
 attendance register, review form, SSM briefing sheet, vehicle trip sheet, timesheet), 8 legal guides
 (including REGES-Online and working-time records), 19 module pages, 4 industry pages and a page for
-accountants. Search traffic has just started (Section~\ref{sec:tractiune}). Model assumption: 4 organic trials a month
-in year~1, 12 in year~2, 20 in year~3; 25\% of trials convert after the free month (\proj;
+accountants. Search traffic has just started (Section~\ref{sec:tractiune}). Model assumption: 6 organic trials a month
+in year~1, 16 in year~2, 27 in year~3; 27.5\% of trials convert after the free month (\proj;
 \textbf{untested}: no trial has been run yet).
 
 \subsection{Channel 3: direct and paid}
 
 Founder-led demos (\fisier{/cere-demo}), LinkedIn and paid search on REGES-Online and timesheet
 keywords. The marketing budget grows from €1,500 to €3,500 a month over three years; 60\% of it
-goes to performance ads at an assumed €80 per trial (\proj). Both the €80 per trial and the
-25\% trial conversion are \textbf{untested assumptions}: paid campaigns have not run yet. Paid
-conversions start in model month~2, and over 36 months the base case's 675 paid trials bring
-about 170 new paying companies, more than the accountant channel's about 130. This is the model's main sensitivity
+goes to performance ads at an assumed €70 per trial (\proj). Both the €70 per trial and the
+27.5\% trial conversion are \textbf{untested assumptions}: paid campaigns have not run yet. Paid
+conversions start in model month~2, and over 36 months the base case's 771 paid trials bring
+about 200 new paying companies, close to the accountant channel's about 233. This is the model's main sensitivity
 (Section~\ref{sec:riscuri}).
 
 \subsection{Sequencing}
@@ -733,7 +740,7 @@ test it.
   sub-processors that touch customer data.
 \item \textbf{Compliance work funded by the round:} round documents; a lawyer's review of the
   published terms and their GDPR art.~28 processing annex; assignment of the code's IP to the SRL
-  (months 1--2); payroll legal
+  (before the round closes); payroll legal
   values validated (months 2--5); accessibility audit to EN 301 549, which Vest Ventures requires for
   software built in its programme (months 5--6); professional liability insurance. The external
   penetration test is moved after the seed (month 26); until then security rests on the automated
@@ -770,7 +777,7 @@ Early Sep 2026 & Product live in production at administrativo.ro; search console
 \textbf{Metric (6 Oct 2026)} & \textbf{Value} \\
 \midrule
 Paying customers / MRR & \textbf{0 / €0} \\
-Free pilot and demo companies & In use; number of companies and usage data \tbc \\
+Free pilot and demo companies & Demo companies only; no external company uses the product yet \\
 Accounting practices signed for the pilot & 0 (sign-up open until 15 Nov 2026) \\
 Website visitors (Umami, 3 Sep--6 Oct) & ≈7 genuine external visitors from Romania in a month \\
 Google Search Console (since 2 Sep) & 201 impressions, 3 clicks; average position improved from ≈50 to 5--20 by end of September \\
@@ -788,11 +795,10 @@ Largest query & ``program salarizare'' (payroll software): 43 impressions, posit
 \textbf{Evidence (6 Oct 2026)} & \textbf{Status} \\
 \midrule
 REGES-Online filing by a real employer & Transmission through the production API worked for a real
-company on 17 Sep 2026. Whether the company can be named, or is described anonymously as a free
-user: \tbc \\
+company on 17 Sep 2026 (not named in this application) \\
 Signed pilot agreements (accountant pilot) & 0; up to 10 places, sign-up open until 15 Nov 2026 \\
 Letters of intent & None in this application \\
-Qualified conversations with accountants and SMEs & Number and dates \tbc \\
+Qualified conversations with accountants and SMEs & 2 \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -840,28 +846,28 @@ Costs, year 3 (2029) & €\cf{conservative.costs_y3_eur} & €\cf{base.costs_y3_
 \midrule
 \multicolumn{4}{@{}l}{\textit{Milestones and cash}} \\
 30 paying companies & \cf{conservative.date_to_30} & \cf{base.date_to_30} & \cf{upside.date_to_30} \\
-100 paying companies & not in 36 months & \cf{base.date_to_100} & \cf{upside.date_to_100} \\
-300 paying companies & not in 36 months & not in 36 months & \cf{upside.date_to_300} \\
-Break-even (monthly cash flow ≥ 0) & not in 36 months & not in 36 months & month \cf{upside.breakeven_month} (\cf{upside.breakeven_date}) \\
+100 paying companies & \cf{conservative.date_to_100} & \cf{base.date_to_100} & \cf{upside.date_to_100} \\
+300 paying companies & not in 36 months & \cf{base.date_to_300} & \cf{upside.date_to_300} \\
+Break-even (monthly cash flow ≥ 0) & not in 36 months & month \cf{base.breakeven_month} (\cf{base.breakeven_date}) & month \cf{upside.breakeven_month} (\cf{upside.breakeven_date}) \\
 Runway with zero revenue & \cf{conservative.runway_zero_revenue_months} months & \cf{base.runway_zero_revenue_months} months & \cf{upside.runway_zero_revenue_months} months \\
-Runway on plan & \cf{conservative.runway_plan_months} months & \cf{base.runway_plan_months} months & more than 36 months \\
-Cash at month 36, without a seed round & −€\cfabs{conservative.cash_m36_eur} & −€\cfabs{base.cash_m36_eur} & €\cf{upside.cash_m36_eur} \\
-Net cash flow, month 36 & −€\cfabs{conservative.net_cash_flow_m36_eur} & −€\cfabs{base.net_cash_flow_m36_eur} & €\cf{upside.net_cash_flow_m36_eur} \\
+Runway on plan & \cf{conservative.runway_plan_months} months & more than 36 months & more than 36 months \\
+Cash at month 36, without a seed round & −€\cfabs{conservative.cash_m36_eur} & €\cf{base.cash_m36_eur} & €\cf{upside.cash_m36_eur} \\
+Net cash flow, month 36 & −€\cfabs{conservative.net_cash_flow_m36_eur} & €\cf{base.net_cash_flow_m36_eur} & €\cf{upside.net_cash_flow_m36_eur} \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \begin{alertbox}
-\small\textbf{The base case is not default-alive, and the seed window is short.} At month 36
-monthly cash flow is still −€\cfabs{base.net_cash_flow_m36_eur}, and without a seed round the
-shortfall by month 36 is about €\cfKa{base.cash_low_point_eur}k. The plan raises a seed round from
-the 100-paying-company milestone (month \cf{base.months_to_100}, \cf{base.date_to_100}). At that
-point the base model shows MRR of about €5.3k (ARR about €64k), closing cash of about €4k,
-costs of about €9.6k a month and a net burn of about €4.3k a month; cash turns negative in
-month 22 (October 2028). The seed raise therefore starts before the milestone: conversations
-begin in month 16 (April 2028, about 74 paying companies), so that the round can close around
-the trigger. If it slips, the co-founders stop drawing their salaries again, which adds about two
-months (Section~\ref{sec:riscuri}, financing risk).
+\small\textbf{The round alone carries the base case; the seed accelerates it.} On the base plan
+monthly cash flow turns positive in month \cf{base.breakeven_month} (\cf{base.breakeven_date}) and cash
+never falls below €\cfK{base.cash_low_point_eur}k, even after the post-seed hires are counted
+without the seed money. At the 100-paying-company milestone (month \cf{base.months_to_100},
+\cf{base.date_to_100}) the base model shows MRR of about €5.6k (ARR about €67k) and about €36k in
+cash: that is when we raise the seed, to hire the developer and scale the accountant channel. The
+conservative case, our previous base, is \emph{not} default-alive: it reaches 100 paying companies
+in \cf{conservative.date_to_100} with about €4k of cash left and needs the seed there; if the seed
+slips, the co-founders stop drawing their salaries again, which adds about two months
+(Section~\ref{sec:riscuri}, financing risk).
 \end{alertbox}
 
 \subsection{New paying companies by channel}\label{sec:canale}\nobreak
@@ -872,32 +878,40 @@ months (Section~\ref{sec:riscuri}, financing risk).
 \toprule
 \textbf{Base case, \proj} & \textbf{Year 1} & \textbf{Year 2} & \textbf{Year 3} & \textbf{36 months} \\
 \midrule
-Via accountants (pilot conversions + partner referrals) & 13 & 34 & 83 & 130 \\
-Direct (organic, search and paid trials after the free month) & 42 & 88 & 135 & 265 \\
+Via accountants (pilot conversions + partner referrals) & 23 & 62 & 148 & 233 \\
+Direct (organic, search and paid trials after the free month) & 57 & 118 & 183 & 358 \\
 \midrule
-\textbf{New paying companies, total} & \textbf{55} & \textbf{123} & \textbf{218} & \textbf{396} \\
-Share via accountants & 24\% & 28\% & 38\% & 33\% \\
+\textbf{New paying companies, total} & \textbf{80} & \textbf{180} & \textbf{331} & \textbf{591} \\
+Share via accountants & 29\% & 34\% & 45\% & 39\% \\
 \bottomrule
 \end{tabularx}
 \caption*{\footnotesize\color{brandSlate}Source: \fisier{financial-model.xlsx}, sheet
 \textit{Revenue}, rows ``of which via accountants (pilot + partners)'' and ``New paying customers -
 direct'', summed by model year and rounded (the model works in fractional companies, so rows may
-not add up exactly). Trials over 36 months: 432 organic and 675 paid; both convert at an assumed
-25\%.}
+not add up exactly). Trials over 36 months: 588 organic and 771 paid; both convert at an assumed
+27.5\%.}
 \end{table}
 
-\textbf{Main assumptions (base).} Six practices join the pilot with two companies each; half of the
-pilot companies convert in April 2027; partner and organic acquisition as in Section~\ref{sec:gtm}; monthly logo
-churn 3\%, a target to be tested in the pilot. ChartMogul's median for products under US\$25 ARPA
-is 6.1\%\src{24}; our blended ARPA of about €50 is above that band, but 45\% of modelled customers
-are on the €29.8 HR core plan. Paid-trial cost (€80) and trial conversion (25\%) are untested.
-The conservative case assumes 3 pilot practices, slower partner signing and conversion,
-5\% monthly churn and a developer from month 31; the upside assumes 10 pilot practices, faster
-acquisition, 2\% churn and a developer from month 19 (sheet \textit{Scenarios}). In every scenario
-the developer's start is tied to the seed; the conservative case never reaches the seed trigger,
-so its date is set deliberately late. Base reaches about \cf{base.customers_m36} paying
-companies at month 36, under half of the 600 in an earlier top-down sketch, so it is not a hockey
-stick.
+\textbf{Main assumptions (base).} Eight of the ten pilot places are filled, with two to three
+companies each; 60\% of the pilot companies convert in April 2027; partner and organic acquisition as
+in Section~\ref{sec:gtm}; monthly logo churn 2.5\%, a target to be tested in the pilot. ChartMogul's
+median for products under US\$25 ARPA is 6.1\%\src{24}; our blended ARPA of about €50 is above that
+band, but 45\% of modelled customers are on the €29.8 HR core plan. Paid-trial cost (€70) and trial
+conversion (27.5\%) are untested. The conservative case is our previous base: six pilot practices,
+50\% pilot conversion, slower partner signing, 3\% churn and €80 per paid trial. The upside assumes
+all ten pilot places, faster acquisition, 2\% churn and a developer from month 19 (sheet
+\textit{Scenarios}). In every scenario the developer's start is tied to the seed.
+
+\subsection{Ambition beyond the model (2031)}\label{sec:ambitie}
+
+The financial model stops at month 36 (December 2029) with \cf{base.customers_m36} paying companies
+in the base case. Our ambition for 2031, two years after the model ends and with the seed round
+invested, is \textbf{\cf{ambition_2031.paying_customers} paying companies} and about
+\textbf{€\cfm{ambition_2031.arr_eur}M ARR} (at about €\cf{ambition_2031.arpa_eur_month} a month per
+company). That is \cfn{ambition_2031.share_of_sam_pct}\% of the 54,381 Romanian firms with 10--249
+people, or \cfn{ambition_2031.share_of_employers_pct}\% of all 526,000 employers. It is a target, not
+a projection: it assumes the accountant channel scales nationally after the seed and that
+neighbouring markets (Section~\ref{sec:international}) are not needed to get there.
 
 \subsection{Unit economics (base case, year 2: Jan--Dec 2028)}
 
@@ -922,9 +936,11 @@ CAC payback & \cf{unit_economics.payback_months} months & SMB SaaS median ≈11 
 
 \subsection{Runway}
 
-With zero revenue the round pays every planned cost for \textbf{\cf{runway_months} months}; on the base plan cash
-lasts \textbf{\cf{runway_plan_months} months} (to September 2028). Cash in the company before the round
-is set to zero (prudent) \tbc.
+With zero revenue the round pays every planned cost for \textbf{\cf{runway_months} months}. On the base
+plan cash never runs out within the 36 months (lowest point €\cfK{base.cash_low_point_eur}k, after the
+post-seed hires); in the conservative case it lasts \textbf{\cf{conservative.runway_plan_months} months}.
+Cash in the company before the round is set to zero (prudent; the SRL held about RON 1,900 at the end
+of 2025). Today the founders spend under €200 a month on hosting and tools.
 
 % =====================================================================
 \section{Funding requirement and use of funds}\label{sec:runda}\nobreak
@@ -943,14 +959,14 @@ Valuation & €\cf{pre_money_eur} pre-money, €\cf{post_money_eur} post-money (
 Instrument & Convertible loan agreement (CLA) or shareholders' agreement (SHA) on Vest Ventures'
 templates; a CLA would use the €\cfm{pre_money_eur}M pre-money as its valuation cap. \\
 State aid & Vest Ventures invests under \emph{de minimis} (ceiling €300k per undertaking over three
-years\src{28}); prior aid received: none \tbc \\
+years\src{28}); prior aid received: none \\
 Founder vesting & None today. To be agreed in the investment agreement (for example 4 years with a
 1-year cliff for both co-founders) \\
 Company history & Registered in 2024; revenue and result for FY2024 and FY2025 are given in
 Section~\ref{sec:firma} once confirmed, and the balance sheets go into the data room \\
 Tax regime in the model & Micro-enterprise tax of 1\% of revenue, to be confirmed by the accountant
 (1\% or 3\% depends on activity code and revenue) \\
-IP & Assignment of the code's IP to the company: not yet signed; planned in months 1--2 \\
+IP & Assignment of the code's IP to the company: not yet signed; signed before the round closes \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -962,8 +978,8 @@ average pre-seed round of €\cfK{benchmarks_for_ask.romania_avg_pre_seed_2025_e
 
 \textbf{Structure.} In an SRL, amending the articles (for example, a capital increase for the next
 investor) needs every associate's vote unless the articles say otherwise. At the round we will either
-amend the articles to majority decisions with drag-along, or convert to an SA or a holding structure
-\tbc[TO CONFIRM with a lawyer].
+amend the articles to majority decisions with drag-along, or convert to an SA or a holding structure;
+the choice is settled with a lawyer at closing.
 
 \subsection{Why €100,000 and not less or more}
 
@@ -985,15 +1001,14 @@ We ask for the smallest ticket that reaches the seed trigger, not for the larges
 The co-founders work unpaid in year~1 and on €1,000 gross each afterwards, the partner manager works
 half time until month 13 (and the model scales partner signings down with the manager's hours), the
 support specialist starts half time in month 9, the penetration test moves after the seed, and the
-developer is hired only after the seed. Every cut falls on cost, not on growth: the sales and marketing
-plan is unchanged, so the trigger (100 paying companies, month \cf{base.months_to_100},
-\cf{base.date_to_100}) is reached inside the \cf{runway_plan_months}-month runway on plan. The margin
-is thin: at the trigger about €4k of cash and one month of runway are left, so seed conversations
-begin in month 16 (Section~\ref{sec:riscuri}). A €\cfk{round_size_test.0.round_eur}k ticket lasts only
-\cf{round_size_test.0.runway_plan_months} months on plan, so cash runs out before the trigger. A
-€\cfk{round_size_test.2.round_eur}k ticket would buy \cf{round_size_test.2.runway_plan_months} months on the
-same plan, more than the plan needs: we would rather raise the seed on measured traction than spend a
-larger pre-seed.
+developer is hired only after the seed. Every cut falls on cost, not on growth. On the base plan
+the round reaches 100 paying companies (month \cf{base.months_to_100}, \cf{base.date_to_100}) and
+monthly break-even (\cf{base.breakeven_date}) without further funding. Even the conservative case
+reaches 100 paying companies inside its \cf{conservative.runway_plan_months}-month runway, with a thin
+margin (Section~\ref{sec:riscuri}). A €\cfk{round_size_test.0.round_eur}k ticket lasts
+\cf{round_size_test.0.runway_plan_months} months on the base plan, but the conservative case would run
+out of cash before its trigger. A €\cfk{round_size_test.2.round_eur}k ticket adds little on the base plan:
+we would rather raise the seed on measured traction than spend a larger pre-seed.
 
 \subsection{Use of funds}
 
@@ -1032,15 +1047,15 @@ the runway. The developer is not in this budget: the role is hired after the see
 M1 (Jan 2027) & Pre-seed round closes (assumed); both co-founders full time, unpaid \\
 M3 (Mar 2027) & Partner and sales manager hired (accountant channel), half time \\
 M4 (Apr 2027) & Accountant pilot ends (free until 31 Mar 2027); pilot companies convert to paid (the founders onboard them) \\
-M5 (May 2027) & Payroll legal values validated by an accountant; payroll becomes sellable \\
+M5 (May 2027) & Payroll legal values validated by an accountant; payroll becomes sellable; 30 paying customers \\
 M6 (Jun 2027) & Accessibility audit (EN 301 549) completed \\
-M8 (Aug 2027) & 30 paying customers \\
 M9 (Sep 2027) & Customer onboarding and support specialist hired, half time \\
 M13 (Jan 2028) & Co-founders start drawing a salary; partner and sales manager full time \\
-M16 (Apr 2028) & Seed conversations start (about 74 paying companies) \\
-M20 (Aug 2028) & 100 paying customers: seed-readiness trigger (start seed / Vest Ventures Seed conversations) \\
+M16 (Apr 2028) & 100 paying customers: seed raise starts (including Vest Ventures Seed) \\
+M24 (Dec 2028) & Monthly break-even on the pre-seed alone \\
 M25 (Jan 2029) & After the seed: developer hired; onboarding and support specialist full time \\
 M26 (Feb 2029) & External penetration test, funded by the seed \\
+M29 (May 2029) & 300 paying customers \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1059,8 +1074,8 @@ Active accountant partners & 15 & 51 & 99 \\
 \end{tabularx}
 \end{table}
 
-Monthly we will also track: pilot-to-paid conversion (assumed 50\%), trial-to-paid conversion
-(assumed 25\%), monthly logo churn (target at most 3\%), CAC payback (target about 10 months),
+Monthly we will also track: pilot-to-paid conversion (assumed 60\%), trial-to-paid conversion
+(assumed 27.5\%), monthly logo churn (target at most 2.5\%), CAC payback (target about 7 months),
 REGES messages transmitted per active company, and weekly active employees per company. Each
 assumption in the model is a named input, so actual results replace assumptions as they arrive.
 
@@ -1090,35 +1105,35 @@ calculation defect is open & Payroll is not sold until an accountant validates i
 The Finance package is only 5\% of the plan mix. The pilot runs without payroll. \\
 \textbf{No market validation yet}: zero paying customers, no signed pilot or letter of intent; the
 accountant channel is untested & Pilot with up to 10 practices (sign-up until 15 Nov 2026; 0 signed on
-6 Oct; base case assumes 6); pilot conversion measured on 1 April 2027; the model's assumptions are
+6 Oct, two qualified conversations; base case assumes 8, conservative 6); pilot conversion measured on 1 April 2027; the model's assumptions are
 explicit inputs and the conservative case is shown. \\
 \textbf{Acquisition assumptions}: most modelled new companies come from direct trials; paid trials at
-€80 each converting at 25\% have never been tested; paid conversions start in model month~2 & This is
+€70 each converting at 27.5\% have never been tested; paid conversions start in model month~2 & This is
 the model's key sensitivity. Paid budget is spent in small, measured steps from month 1; cost per trial
 and conversion are named inputs and are replaced by measured values after the first campaigns. If
 paid trials cost more or convert less, the paid budget is cut and the plan leans on the accountant
 channel and search, which moves the base case towards the conservative case. \\
-\textbf{Financing (seed bridge)}: the base case needs a seed round. At the month-\cf{base.months_to_100}
-trigger (\cf{base.date_to_100}) the base model shows MRR of about €5.3k (ARR about €64k), closing
-cash of about €4k and a net burn of about €4.3k a month; cash turns negative in month 22 & Seed
-conversations start in month 16, four months before the trigger, and the Vest Ventures Seed
-stage is one route. No seed amount or valuation has been discussed yet. The developer is
-already hired only after the seed, so it is not a lever. Levers not modelled in the base case: the
-co-founders stop drawing their salaries again (about two more months); cut the paid-ads budget; the marketing budget is a named model input, so its effect on runway
-can be tested in the workbook. \\
+\textbf{Financing (seed)}: the base case is carried by the round alone, but the conservative case
+needs a seed round: at its 100-paying-company trigger (\cf{conservative.date_to_100}) about €4k of
+cash is left and cash turns negative two months later & The seed raise starts at 100 paying
+companies (\cf{base.date_to_100} in the base case), or four months before the conservative trigger
+if the pilot tracks the conservative case; the Vest Ventures Seed stage is one route. No seed amount
+or valuation has been discussed yet. Levers not modelled: the co-founders stop drawing their salaries
+again (about two more months); the paid-ads budget may be cut, and its effect on runway can be tested
+in the workbook. \\
 \textbf{Single market}: Romania only; REGES is Romania-specific; the UI is in Romanian & Romanian
 compliance depth is the defensible core. Expansion to neighbouring countries (Moldova, Serbia,
 Bulgaria, Hungary) is a hypothesis for after the seed (Section~\ref{sec:international}), not part of
 this plan's numbers. \\
 \textbf{IP assignment}: the code was written by the co-founders and is not yet assigned to the company
-in writing & A written IP assignment from both co-founders to the SRL, completed in months 1--2 at the
-latest, as part of the round's legal work. \\
+in writing & A written IP assignment from both co-founders to the SRL, signed before the round closes, as
+part of the round's legal work; Răzvan Pervulescu enters the share capital at the same time. \\
 \textbf{Competition}: accountant-owned payroll tools (SmartBill, SAGA, Nexus) and cheap time-tracking
 apps & We do not compete on payroll; we serve the employer's daily HR work and give the accountant
 exports and a login. Flat price per company is simple for micro-firms. \\
 \textbf{Founder time}: both co-founders are students & Full-time commitment from the close is a
-condition of the plan; they are unpaid in year~1 and paid from month 13; how this fits their
-studies and personal finances \tbc. \\
+condition of the plan; they are unpaid in year~1, live on personal savings, and are paid from
+month 13. \\
 \textbf{Key person}: two founders hold all product knowledge & Developer hired after the seed (month 25 in the base case); code,
 migrations and architecture are documented in the repository; CI and tests guard changes. \\
 \textbf{Pricing ceiling}: flat price, no published price above 20 employees & A price for larger

@@ -313,9 +313,17 @@
     10--249 staff}\hfill
   \piata{brandTeal}{SOM, BASE CASE}{€\cfK{tam_sam_som.som.eur_arr}k}{ARR: \cf{base.customers_m36}
     paying companies by month 36}
+  \par\vspace{0.6cm}
+  \begin{center}
+  \begin{tcolorbox}[enhanced,arc=3pt,colback=brandMist,colframe=brandMist,boxrule=0pt,
+      width=10.4cm,halign=center,left=8pt,right=8pt,top=5pt,bottom=5pt]
+    {\corp\textbf{Ambition for 2031:} \cf{ambition_2031.paying_customers} paying companies,
+      about €\cfm{ambition_2031.arr_eur}M ARR (\cfn{ambition_2031.share_of_sam_pct}\% of SAM)\par}
+  \end{tcolorbox}
+  \end{center}
 
   \surse{Derived: ICAP CRIF FY2025 (employers); Eurostat SBS 2023 (size classes); our list prices;
-    5 RON = 1 EUR. SOM is a projection from financial-model.xlsx. Formulas: data room, market research §e.}
+    5 RON = 1 EUR. SOM is a projection from financial-model.xlsx; the 2031 ambition is a target, not modelled.}
 \end{frame}
 
 % =====================================================================
@@ -461,8 +469,8 @@
       {\eticheta\color{brandSlate} One Vest Ventures accelerator ticket\par}
       \vspace{12pt}
       \corp
-      \rand{hourglass-half}{\textbf{\cf{runway_plan_months} months} of runway on plan
-        (\cf{runway_months} with zero revenue)}\vspace{6pt}
+      \rand{hourglass-half}{\textbf{Break-even by \cf{base.breakeven_date}} on plan, with no
+        further funding}\vspace{6pt}
       \rand[brandTeal]{flag-checkered}{\textbf{100 paying companies} by \cf{base.date_to_100}
         (month~\cf{base.months_to_100})}\vspace{6pt}
       \rand{user}{Founders take no salary in year~1}
