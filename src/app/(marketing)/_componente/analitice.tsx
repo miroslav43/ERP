@@ -1,9 +1,11 @@
 import Script from "next/script";
 
+import { FUNCTIE_UMAMI } from "./adresa-analitice";
 import { BaraConsimtamant } from "./bara-consimtamant";
 import { CHEIE_CONSIMTAMANT } from "./consimtamant";
 import { MasurareCitire } from "./masurare-citire";
 import { PornireGa } from "./pornire-ga";
+import { PregatireUmami } from "./pregatire-umami";
 
 /**
  * Măsurarea paginilor publice.
@@ -104,18 +106,28 @@ export function ScriptUmami() {
     return null;
   }
   return (
-    <Script
-      src={UMAMI_SRC}
-      data-website-id={UMAMI_ID}
-      data-domains="administrativo.ro"
-      data-do-not-track="true"
-      // LCP, CLS, INP măsurate la vizitatorii reali. CrUX nu publică nimic
-      // pentru un sit cu traficul ăsta, iar PageSpeed e o simulare de laborator;
-      // altă sursă de teren nu există.
-      data-performance="true"
-      strategy="afterInteractive"
-      defer
-    />
+    <>
+      {/* Funcția numită în `data-before-send` trebuie să existe înainte ca
+          scriptul să trimită ceva. */}
+      <PregatireUmami />
+      <Script
+        src={UMAMI_SRC}
+        data-website-id={UMAMI_ID}
+        data-domains="administrativo.ro"
+        data-do-not-track="true"
+        // LCP, CLS, INP măsurate la vizitatorii reali. CrUX nu publică nimic
+        // pentru un sit cu traficul ăsta, iar PageSpeed e o simulare de laborator;
+        // altă sursă de teren nu există.
+        data-performance="true"
+        // Fără query string în `url` și `referrer`: formularele uneltelor sunt
+        // GET, deci acolo stau numele angajaților (auditul din 8 oct 2026).
+        // Umami taie singur; funcția pune înapoi doar campania (`utm_*`, `m`).
+        data-exclude-search="true"
+        data-before-send={FUNCTIE_UMAMI}
+        strategy="afterInteractive"
+        defer
+      />
+    </>
   );
 }
 
