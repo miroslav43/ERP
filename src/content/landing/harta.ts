@@ -316,8 +316,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    // 6 oct: titlul și descrierea numesc toate cele șapte unelte.
-    actualizat: "2026-10-07",
+    // 9 oct: promisiunea de confidențialitate spusă exact, cu legătură spre politică.
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   // 5 oct 2026: toate uneltele primesc nodul `WebApplication`, a cărui
@@ -434,7 +434,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.3,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    // 9 oct: uneltele gratuite, jurnalul de acces, excepția GA (secțiunile 2, 3, 8).
+    actualizat: "2026-10-09",
     sectiune: "Legal",
   },
 ];

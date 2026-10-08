@@ -19,14 +19,17 @@ import type { SectiuneLegala } from "./termeni";
  *   - Google Analytics în Consent Mode v2, cu refuz implicit:
  *     `(marketing)/_componente/analitice.tsx`;
  *   - sesiunea, 400 de zile ca plafon de cookie: `src/lib/supabase/optiuni-cookie.ts`;
- *   - serverul: Contabo GmbH, Germania (`whois` pe adresa VM-ului, 17 sept 2026).
+ *   - serverul: Contabo GmbH, Germania (`whois` pe adresa VM-ului, 17 sept 2026);
+ *   - uneltele gratuite: GA tace pe documentul cu valori (`_componente/pornire-ga.tsx`),
+ *     Umami primește adresa fără query (`_componente/analitice.tsx`, `ScriptUmami`),
+ *     nginx scrie fără argumente (`deploy/nginx/30-administrativo.ro.conf`) — 9 oct 2026.
  *
  * Ce ține de judecată juridică — temeiurile de prelucrare și garanțiile fiecărui
  * transfer — e formulat ca propunere și spus ca atare în avertismentul de sus,
  * o singură dată, ca la termeni.
  */
 
-export const DATA_CONFIDENTIALITATE = "17 septembrie 2026";
+export const DATA_CONFIDENTIALITATE = "9 octombrie 2026";
 
 export const AVERTISMENT_CONFIDENTIALITATE =
   "Documentul descrie exact ce date atinge Administrativo astăzi și unde ajung. Nu a fost încă verificat de un jurist: temeiurile de prelucrare și garanțiile pentru transferurile în afara Spațiului Economic European sunt propunerea noastră și pot fi reformulate la validare. Faptele — ce colectăm, cât păstrăm, cine are acces — nu depind de validare.";
@@ -47,7 +50,8 @@ export const SECTIUNI_CONFIDENTIALITATE: readonly SectiuneLegala[] = [
       "În aplicație, datele pe care firma le ține despre angajații ei: identificare și contact, contractul de muncă și timpul lucrat, concediile, datele necesare salarizării și documentele încărcate. Codul numeric personal și IBAN-ul sunt criptate în baza de date.",
       "La pontajul de pe telefon se înregistrează ora serverului și punctul de lucru ales. Nu colectăm localizarea telefonului.",
       "Dacă firma a pornit asistentul, întrebările puse lui. Dacă folosești aplicația Android, identificatorul dispozitivului, necesar ca să primești notificări.",
-      "Pe paginile publice: statistici de vizitare, descrise la secțiunea 8.",
+      "Pe paginile publice: statistici de vizitare, descrise la secțiunea 8, și jurnalul de acces al serverului — adresa IP, ora, pagina cerută fără valorile din formulare, pagina de pe care ai venit și identificarea browserului —, folosit pentru securitate și pentru diagnosticarea erorilor.",
+      "Uneltele gratuite de la administrativo.ro/unelte — foaia de pontaj, condica de prezență, cererea de concediu, foaia de parcurs, fișa de instruire SSM, fișa de evaluare și calculatorul de salariu — generează documentul pe loc, din ce completezi, fără cont și fără să salveze ceva într-o bază de date. Valorile din câmpuri, de pildă numele angajaților, firma sau salariul, stau în adresa paginii, ca s-o poți pune la favorite. Ele nu ajung în statisticile de vizitare și nici în jurnalul serverului: acolo se înregistrează doar unealta și formatul cerut. Adresa completă rămâne în istoricul browserului tău, pleacă odată cu linkul dacă îl trimiți cuiva și trece, criptată, prin Cloudflare, ca orice cerere spre site.",
     ],
   },
   {
@@ -57,6 +61,7 @@ export const SECTIUNI_CONFIDENTIALITATE: readonly SectiuneLegala[] = [
       "Contul și aplicația: ca să furnizăm serviciul contractat — executarea contractului, litera b.",
       "Documentele contabile și fiscale ale relației cu firma ta: obligația legală, litera c.",
       "Statistica paginilor publice cu Google Analytics: consimțământul tău, litera a, dat din bara de jos. Statistica fără cookie-uri: interesul nostru legitim de a ști ce pagini sunt citite.",
+      "Jurnalul de acces al serverului: interesul nostru legitim de a ține situl sigur și de a diagnostica erorile, litera f.",
       "Datele angajaților dintr-o firmă-client: temeiul îl stabilește firma, ca operator. Noi le prelucrăm doar pentru a furniza serviciul.",
     ],
   },
@@ -99,8 +104,8 @@ export const SECTIUNI_CONFIDENTIALITATE: readonly SectiuneLegala[] = [
     paragrafe: [
       "Sesiunea din aplicație folosește cookie-uri strict necesare pentru autentificare, care nu cer consimțământ. Plafonul lor e de 400 de zile; sesiunea propriu-zisă poate expira mai devreme, după setările de autentificare.",
       "Alegerea din bara de consimțământ se păstrează în stocarea locală a browserului, nu într-un cookie, până o ștergi.",
-      "Google Analytics 4 scrie cookie-urile _ga și _ga_ urmat de identificatorul proprietății, cu durata de doi ani, numai după ce apeși „Accept”. Până atunci, refuzul e implicit: biblioteca Google se încarcă totuși și trimite semnale fără cookie-uri, cum prevede modul de consimțământ al Google.",
-      "Statistica proprie, pe serverul nostru, nu folosește cookie-uri și nu urmărește vizitatorii de la un site la altul.",
+      "Google Analytics 4 scrie cookie-urile _ga și _ga_ urmat de identificatorul proprietății, cu durata de doi ani, numai după ce apeși „Accept”. Până atunci, refuzul e implicit: biblioteca Google se încarcă totuși și trimite semnale fără cookie-uri, cum prevede modul de consimțământ al Google. Excepție: o pagină de unealtă deschisă cu valori completate nu trimite nimic la Google Analytics, nici după „Accept”.",
+      "Statistica proprie, pe serverul nostru, nu folosește cookie-uri și nu urmărește vizitatorii de la un site la altul. Primește adresa paginii fără valorile din formulare; din parametrii adresei păstrează doar pe cei de campanie (utm_…) și marcajul m, cu care ne recunoaștem propriile verificări.",
     ],
   },
   {

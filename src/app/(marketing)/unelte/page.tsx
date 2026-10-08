@@ -120,7 +120,7 @@ export default function PaginaUnelte() {
       <Banda
         inaltime="medie"
         supratitlu="Ce au în comun"
-        titlu="Fără cont, fără abonament, fără să rețină ceva"
+        titlu="Fără cont, fără plată, fără să păstrăm ce scrii"
         lead="Sunt aceleași funcții care lucrează în aplicație, scoase separat pentru cine are nevoie de un document o singură dată."
       >
         {/* Până la 7 oct 2026 banda descria doar foaia de pontaj, de când era
@@ -133,12 +133,30 @@ export default function PaginaUnelte() {
             ortodox, deci anii viitori ies corect fără să-i actualizeze cineva. Foaia de pontaj ia
             până la {MAX_ANGAJATI} de oameni pe o pagină.
           </p>
+          {/* Până la 8 oct 2026 banda promitea că uneltele nu păstrează nimic din
+              ce completezi, iar numele din formular plecau la Google Analytics,
+              la Umami și în jurnalele serverului. Fraza de acum descrie ce face
+              codul după reparație. Vechea formulare NU se citează aici:
+              `confidentialitate.test.ts` caută textul ei în fișier. */}
           <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
             Documentele se tipăresc direct sau se descarcă în Word, PDF sau Excel, după unealtă.
-            Niciuna nu cere cont sau adresă de e-mail și niciuna nu reține ce scrii: alegerile stau
-            în adresa paginii, iar dacă o pui la favorite, revii la aceeași configurație. Ce nu fac:
-            nu țin minte lunile trecute și nu leagă documentele între ele — pentru asta e nevoie de
-            evidența din aplicație, unde ziua are oră de început și de sfârșit.
+            Niciuna nu cere cont sau adresă de e-mail. Ce completezi nu se salvează la noi:
+            documentul se face pe loc și nu intră în nicio bază de date, iar statisticile de
+            vizitare și jurnalul serverului înregistrează doar ce unealtă ai deschis, fără valorile
+            din câmpuri. Valorile stau în adresa paginii, ca s-o poți pune la favorite și să revii
+            la aceeași configurație. Asta înseamnă că rămân în istoricul browserului tău și pleacă
+            odată cu linkul, dacă îl trimiți cuiva.{" "}
+            <Link
+              href="/legal/confidentialitate#sectiunea-2"
+              className="underline underline-offset-4"
+            >
+              Detaliile, în politica de confidențialitate
+            </Link>
+            .
+          </p>
+          <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
+            Ce nu fac: nu țin minte lunile trecute și nu leagă documentele între ele — pentru asta e
+            nevoie de evidența din aplicație, unde ziua are oră de început și de sfârșit.
           </p>
         </div>
       </Banda>
