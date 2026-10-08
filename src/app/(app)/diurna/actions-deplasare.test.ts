@@ -223,16 +223,18 @@ describe("trimiteDeplasare", () => {
   });
 
   it("succes: trece în aprobare doar din ciornă sau respinsă, cu `.select()` după UPDATE", async () => {
-    const { server } = configureazaActiunea({
+    const { server, admin } = configureazaActiunea({
       rol: "employee",
       permisiuni: { "per_diem:update": "own" },
     });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_2 } });
     server.raspunde("business_trips", "update", { data: { id: ID_1 } });
 
     const r = await trimiteDeplasare({ id: ID_1 });
 
     expect(r).toEqual({ ok: true, data: { id: ID_1 } });
-    const [apel, ...altele] = server.apeluriPe("business_trips");
+    const [apel, ...altele] = server.apeluriPe("business_trips", "update");
     expect(altele).toHaveLength(0);
     expect(apel?.payload).toEqual({ status: "in_aprobare" });
     expect(areFiltru(apel, "eq", "id", ID_1)).toBe(true);
@@ -243,8 +245,30 @@ describe("trimiteDeplasare", () => {
     expect(caiRevalidate()).toEqual(["/diurna", "/diurna/aprobari", ...CAI_PORTAL]);
   });
 
+  it("cu scope `own`, ciorna ALTUI angajat nu se trimite: CONFLICT, fără UPDATE", async () => {
+    // Managerul are `per_diem:update = own` (0154): își trimite propria
+    // deplasare, nu pe a subordonatului. Politica RLS îl lăsa să treacă prin
+    // ramura de aprobare, deci poarta stă aici (QA 8 oct 2026, MGR-017).
+    const { server, admin } = configureazaActiunea({
+      rol: "manager",
+      permisiuni: { "per_diem:update": "own", "per_diem:approve": "team" },
+    });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
+
+    const r = await trimiteDeplasare({ id: ID_1 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) return;
+    expect(r.error.message).toContain("propria deplasare");
+    expect(server.apeluriPe("business_trips", "update")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
   it("zero rânduri (deja trimisă sau respinsă de USING): CONFLICT, nicio revalidare", async () => {
-    const { server } = configureazaActiunea({ permisiuni: { "per_diem:update": "own" } });
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:update": "own" } });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_2 } });
     server.raspunde("business_trips", "update", { data: null });
     const r = await trimiteDeplasare({ id: ID_1 });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
@@ -252,7 +276,9 @@ describe("trimiteDeplasare", () => {
   });
 
   it("23505 (numerotare): CONFLICT cu îndemn de reîncercare, nu textul constrângerii", async () => {
-    const { server } = configureazaActiunea({ permisiuni: { "per_diem:update": "own" } });
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:update": "own" } });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_2 } });
     server.raspunde("business_trips", "update", {
       error: eroarePostgrest("23505", "duplicate key value violates business_trips_numar_uk"),
     });
@@ -314,16 +340,18 @@ describe("decideDeplasare", () => {
   it.each([["aprobata"], ["respinsa"]] as const)(
     "managerul (`team`) decide `%s` doar pe o deplasare aflată în aprobare",
     async (decizie) => {
-      const { server } = configureazaActiunea({
+      const { server, admin } = configureazaActiunea({
         rol: "manager",
         permisiuni: { "per_diem:approve": "team" },
       });
+      admin.raspunde("employees", "select", { data: { id: ID_2 } });
+      server.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
       server.raspunde("business_trips", "update", { data: { id: ID_1 } });
 
       const r = await decideDeplasare({ id: ID_1, decizie });
 
       expect(r).toEqual({ ok: true, data: { id: ID_1 } });
-      const [apel] = server.apeluriPe("business_trips");
+      const [apel] = server.apeluriPe("business_trips", "update");
       expect(apel?.payload).toEqual({ status: decizie });
       expect(areFiltru(apel, "eq", "id", ID_1)).toBe(true);
       expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
@@ -340,8 +368,40 @@ describe("decideDeplasare", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
+  it("managerul nu-și poate decide PROPRIA deplasare: CONFLICT, fără UPDATE", async () => {
+    // `is_manager_of` include propria fișă în „echipă", deci scope-ul `team`
+    // nu-l exclude singur. La concedii excluderea e în lanțul de aprobare; aici
+    // n-a existat niciodată (QA 8 oct 2026, MGR-015: managerul și-a aprobat
+    // deplasarea din /diurna/aprobari).
+    const { server, admin } = configureazaActiunea({
+      rol: "manager",
+      permisiuni: { "per_diem:approve": "team" },
+    });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_2 } });
+
+    const r = await decideDeplasare({ id: ID_1, decizie: "aprobata" });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) return;
+    expect(r.error.message).toContain("propria deplasare");
+    expect(server.apeluriPe("business_trips", "update")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("un administrator fără fișă de angajat decide normal (fișa proprie e opțională)", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "all" } });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
+    server.raspunde("business_trips", "update", { data: { id: ID_1 } });
+    const r = await decideDeplasare({ id: ID_1, decizie: "respinsa" });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+  });
+
   it("zero rânduri (decisă deja din altă parte): CONFLICT, audit `failure`", async () => {
-    const { server } = configureazaActiunea({ permisiuni: { "per_diem:approve": "team" } });
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "team" } });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
     server.raspunde("business_trips", "update", { data: null });
 
     const r = await decideDeplasare({ id: ID_1, decizie: "aprobata" });
@@ -353,10 +413,12 @@ describe("decideDeplasare", () => {
   });
 
   it("42501 (WITH CHECK cere și `per_diem:update`): INTERZIS pe calea generică", async () => {
-    const { server } = configureazaActiunea({
+    const { server, admin } = configureazaActiunea({
       rol: "manager",
       permisiuni: { "per_diem:approve": "team" },
     });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "select", { data: { employee_id: ID_3 } });
     server.raspunde("business_trips", "update", { error: eroarePostgrest("42501") });
     const r = await decideDeplasare({ id: ID_1, decizie: "aprobata" });
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });

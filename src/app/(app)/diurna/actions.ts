@@ -3,8 +3,9 @@
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/errors";
+import { businessRule, invalidInput, isPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import type { ServerSupabase } from "@/lib/supabase/server";
 import {
   cheltuialaNouaSchema,
   decizieCheltuialaSchema,
@@ -53,6 +54,44 @@ async function fisaProprie(organizationId: string, userId: string): Promise<stri
     );
   }
   return data.id;
+}
+
+/** Ca `fisaProprie`, dar `null` când contul n-are fișă (un administrator pur). */
+async function fisaProprieSauNull(organizationId: string, userId: string): Promise<string | null> {
+  const admin = createAdminSupabase();
+  const { data, error } = await admin
+    .from("employees")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw error;
+  return data?.id ?? null;
+}
+
+/**
+ * Fișa pe care stă deplasarea, citită PRIN RLS: dacă apelantul n-o vede, n-o
+ * poate nici trimite, nici decide. Decide „e a mea sau a altcuiva" — singura
+ * întrebare pe care politicile n-o pun: `is_manager_of` include propria fișă
+ * în „echipă", iar `business_trips_update` lasă aprobatorul să schimbe orice
+ * coloană, inclusiv `status`-ul unei ciorne care nu e a lui.
+ */
+async function fisaDeplasarii(
+  supabase: ServerSupabase,
+  organizationId: string,
+  id: string,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("business_trips")
+    .select("employee_id")
+    .eq("id", id)
+    .eq("organization_id", organizationId)
+    .maybeSingle<{ readonly employee_id: string }>();
+  if (error !== null) traduEroare(error);
+  if (data === null) throw notFound("Deplasarea nu a fost găsită.");
+  return data.employee_id;
 }
 
 export const creeazaDeplasare = createAction({
@@ -136,6 +175,21 @@ export const trimiteDeplasare = createAction({
   },
   revalidate: ["/diurna", "/diurna/aprobari", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // Sub `all`, doar propria deplasare pleacă spre aprobare. Managerul are
+    // `per_diem:update = own` (0154), dar politica îl lăsa să treacă prin ramura
+    // de aprobare și să trimită ciorna unui subordonat (QA 8 oct 2026, MGR-017).
+    if (ctx.scope !== "all") {
+      const [aMea, aDeplasarii] = await Promise.all([
+        fisaProprie(ctx.tenant.organizationId, ctx.user.id),
+        fisaDeplasarii(ctx.supabase, ctx.tenant.organizationId, input.id),
+      ]);
+      if (aMea !== aDeplasarii) {
+        throw businessRule(
+          "Puteți trimite spre aprobare doar propria deplasare. Ciorna unui coleg o trimite el însuși.",
+        );
+      }
+    }
+
     const { data, error } = await ctx.supabase
       .from("business_trips")
       .update({ status: "in_aprobare" })
@@ -204,6 +258,19 @@ export const decideDeplasare = createAction({
   },
   revalidate: ["/diurna", "/diurna/aprobari", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // Nimeni nu-și decide propria deplasare — nici managerul, al cărui scope
+    // `team` îl cuprinde și pe el (QA 8 oct 2026, MGR-015). La concedii
+    // excluderea stă în lanțul de aprobare; diurna n-are lanț, deci stă aici.
+    const [aMea, aDeplasarii] = await Promise.all([
+      fisaProprieSauNull(ctx.tenant.organizationId, ctx.user.id),
+      fisaDeplasarii(ctx.supabase, ctx.tenant.organizationId, input.id),
+    ]);
+    if (aMea !== null && aMea === aDeplasarii) {
+      throw businessRule(
+        "Nu vă puteți aproba sau respinge propria deplasare. Decizia o ia managerul dumneavoastră direct.",
+      );
+    }
+
     const { data, error } = await ctx.supabase
       .from("business_trips")
       .update({ status: input.decizie })
