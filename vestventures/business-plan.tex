@@ -47,7 +47,7 @@
 \hypersetup{
   colorlinks=true, linkcolor=brandBlue, urlcolor=brandBlue, citecolor=brandBlue,
   pdftitle={ADMINISTRATIVO: Business plan (pre-seed)},
-  pdfsubject={HR and administration SaaS for Romanian SMEs; pre-seed round of EUR 150,000},
+  pdfsubject={HR and administration SaaS for Romanian SMEs; pre-seed round of EUR 100,000},
   pdfauthor={ADMINISTRATIVO co-founders: Miroslav Maletici, Răzvan Pervulescu},
   pdfkeywords={HR SaaS, Romania, REGES-Online, SME, pre-seed, Vest Ventures}}
 
@@ -217,9 +217,10 @@ tools and paid ads bring the rest. Their cost per trial and conversion are untes
 
 \textbf{The ask.} A €\cf{round_eur} pre-seed round at €\cfm{pre_money_eur}M pre-money. It pays
 every planned cost for \cf{runway_months} months with zero revenue and for \cf{runway_plan_months}
-months on the base plan. It funds a deliberately lean plan: both co-founders full time on €1,000 gross each, a partner
+months on the base plan. It funds a deliberately lean plan: both co-founders full time and unpaid in
+year~1 (€1,000 gross each from month 13), a partner
 manager for the accountant channel (half time from month 3, full time from month 13) and a
-half-time onboarding specialist from month 7. The developer is hired only after the seed. The
+half-time onboarding specialist from month 9. The developer is hired only after the seed. The
 goal is 100 paying companies by \cf{base.date_to_100} (month \cf{base.months_to_100}), the trigger
 for a seed round.
 
@@ -234,8 +235,8 @@ for a seed round.
 \small\textbf{Honest summary of the weak points.} No revenue and no paying customer yet; no
 signed pilot or letter of intent yet; the accountant channel is untested, and most modelled
 growth comes from direct and paid trials whose cost and conversion are assumptions; the base
-case is \emph{not} default-alive (it needs a seed round within about four months of the
-month-\cf{base.months_to_100} trigger); payroll legal values still need an accountant's
+case is \emph{not} default-alive (cash on plan lasts about one month past the
+month-\cf{base.months_to_100} trigger, so seed conversations start in month~16); payroll legal values still need an accountant's
 sign-off; the code's IP is not yet assigned to the company in writing; the legal basis of
 REGES-Online (HG 295/2025) was annulled at first instance in April 2026 (not final, still
 applicable); the plan covers Romania only; both co-founders are students.
@@ -281,8 +282,10 @@ product. Area of responsibility, programme and year of study: \tbc \\
 \end{table}
 
 The plan assumes both co-founders work \textbf{full time} on ADMINISTRATIVO from the close of
-the round, each on a deliberately lean gross salary of €1,000 per month (about RON 5,000), which
-stretches the runway. How this fits their studies (graduation
+the round and take \textbf{no salary in year~1}; from month 13 (January 2028) each draws a
+deliberately lean gross salary of €1,000 per month (about RON 5,000, just above the full-time
+minimum wage). This is what lets a €\cfk{round_eur}k round reach the seed trigger. How this fits
+their studies and personal finances (graduation
 dates, reduced course load) must be stated explicitly \tbc{}, because Vest Ventures asks whether
 founders can commit given other obligations\src{27}.
 
@@ -299,10 +302,10 @@ moat is not lines of code but regulatory depth, distribution, speed and, over ti
 \toprule
 \textbf{Role} & \textbf{From model month} & \textbf{Gross, €/month} \\
 \midrule
-Co-founder, Miroslav Maletici & 1 (Jan 2027) & 1,000 \\
-Co-founder, Răzvan Pervulescu & 1 (Jan 2027) & 1,000 \\
+Co-founder and CEO, Miroslav Maletici: full time from month 1, unpaid until month 12 & 13 (Jan 2028) & 1,000 \\
+Co-founder and CTO, Răzvan Pervulescu: full time from month 1, unpaid until month 12 & 13 (Jan 2028) & 1,000 \\
 Partner and sales manager (accountant channel): half time, full time from month 13 (Jan 2028) & 3 (Mar 2027) & 2,000 \\
-Customer onboarding and support specialist: half time, full time from month 25 (Jan 2029) & 7 (Jul 2027) & 1,400 \\
+Customer onboarding and support specialist: half time, full time from month 25 (Jan 2029) & 9 (Sep 2027) & 1,400 \\
 Full-stack developer, hired after the seed (not funded by this round) & 25 (Jan 2029) & 2,500 \\
 \bottomrule
 \end{tabularx}
@@ -721,7 +724,7 @@ test it.
   previous day's commits; end-to-end tests run on staging.
 \item \textbf{Onboarding and support:} the team imports employees from Excel, sets up the company
   and maps accounting accounts with the accountant. The founders onboard the pilot companies
-  themselves; from month 7 a half-time onboarding and support specialist with an HR/payroll
+  themselves; from month 9 a half-time onboarding and support specialist with an HR/payroll
   background takes over (full time after the seed).
 \item \textbf{Office:} a coworking desk in Timiș county is budgeted from the round (an assumption
   in the model), to keep operating decisions in the West Region as Vest Ventures requires.
@@ -732,8 +735,9 @@ test it.
   published terms and their GDPR art.~28 processing annex; assignment of the code's IP to the SRL
   (months 1--2); payroll legal
   values validated (months 2--5); accessibility audit to EN 301 549, which Vest Ventures requires for
-  software built in its programme (months 5--6); an external penetration test (month 12); professional
-  liability insurance.
+  software built in its programme (months 5--6); professional liability insurance. The external
+  penetration test is moved after the seed (month 26); until then security rests on the automated
+  test suite, the database isolation checks and the nightly code review.
 \item \textbf{Infrastructure debt we will close:} one Supabase project serves both development and
   production today; a separate production project is budgeted. A written procedure for
   encryption-key custody is still pending and must exist before the first paying tenant. Billing integration and
@@ -852,11 +856,12 @@ Net cash flow, month 36 & −€\cfabs{conservative.net_cash_flow_m36_eur} & −
 monthly cash flow is still −€\cfabs{base.net_cash_flow_m36_eur}, and without a seed round the
 shortfall by month 36 is about €\cfKa{base.cash_low_point_eur}k. The plan raises a seed round from
 the 100-paying-company milestone (month \cf{base.months_to_100}, \cf{base.date_to_100}). At that
-point the base model shows MRR of about €5.3k (ARR about €64k), closing cash of about €15k,
-costs of about €9.8k a month and a net burn of about €4.6k a month; cash turns negative in
-month 25 (January 2029). That leaves about four months to close a seed, so the seed raise has to
-start on time, and conversations with seed investors start before the milestone
-(Section~\ref{sec:riscuri}, financing risk).
+point the base model shows MRR of about €5.3k (ARR about €64k), closing cash of about €4k,
+costs of about €9.6k a month and a net burn of about €4.3k a month; cash turns negative in
+month 22 (October 2028). The seed raise therefore starts before the milestone: conversations
+begin in month 16 (April 2028, about 74 paying companies), so that the round can close around
+the trigger. If it slips, the co-founders stop drawing their salaries again, which adds about two
+months (Section~\ref{sec:riscuri}, financing risk).
 \end{alertbox}
 
 \subsection{New paying companies by channel}\label{sec:canale}\nobreak
@@ -918,7 +923,7 @@ CAC payback & \cf{unit_economics.payback_months} months & SMB SaaS median ≈11 
 \subsection{Runway}
 
 With zero revenue the round pays every planned cost for \textbf{\cf{runway_months} months}; on the base plan cash
-lasts \textbf{\cf{runway_plan_months} months} (to December 2028). Cash in the company before the round
+lasts \textbf{\cf{runway_plan_months} months} (to September 2028). Cash in the company before the round
 is set to zero (prudent) \tbc.
 
 % =====================================================================
@@ -960,7 +965,7 @@ investor) needs every associate's vote unless the articles say otherwise. At the
 amend the articles to majority decisions with drag-along, or convert to an SA or a holding structure
 \tbc[TO CONFIRM with a lawyer].
 
-\subsection{Why €150,000 and not less or more}
+\subsection{Why €100,000 and not less or more}
 
 \begin{table}[H]
 \centering\small
@@ -970,23 +975,25 @@ amend the articles to majority decisions with drag-along, or convert to an SA or
 \midrule
 €\cf{round_size_test.0.round_eur}: smaller Vest Ventures ticket & \cf{round_size_test.0.runway_zero_revenue_months} months & \cf{round_size_test.0.runway_plan_months} months \\
 \textbf{€\cf{round_size_test.1.round_eur}: proposed} & \textbf{\cf{round_size_test.1.runway_zero_revenue_months} months} & \textbf{\cf{round_size_test.1.runway_plan_months} months} \\
-€\cf{round_size_test.2.round_eur}: Vest Ventures maximum ticket & \cf{round_size_test.2.runway_zero_revenue_months} months & \cf{round_size_test.2.runway_plan_months} months \\
+€\cf{round_size_test.2.round_eur}: larger ticket, same plan & \cf{round_size_test.2.runway_zero_revenue_months} months & \cf{round_size_test.2.runway_plan_months} months \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The round is sized to a lean cost plan, not to the largest cheque available. Co-founders take
-€1,000 gross each, the partner manager works half time until month 13 (and the model scales partner
-signings down with the manager's hours), the support specialist starts half time in month 7, and the developer is
-hired only after the seed. On that plan a €\cfk{round_eur}k Vest Ventures ticket, inside the
-Accelerator's €10k--200k range, reaches the seed trigger (100 paying companies, month \cf{base.months_to_100},
-\cf{base.date_to_100}) inside the \cf{runway_plan_months}-month runway on plan. The margin is thin:
-at the trigger about €15k of cash and four months of runway are left, so the seed raise must start
-promptly, and seed conversations begin before the milestone (Section~\ref{sec:riscuri}). A
-€\cfk{round_size_test.0.round_eur}k ticket lasts only \cf{round_size_test.0.runway_plan_months} months on plan,
-so cash runs out before the trigger. The €\cfk{round_size_test.2.round_eur}k maximum buys
-\cf{round_size_test.2.runway_plan_months} months on plan, more than the lean plan needs to reach the
-trigger: we would rather raise the seed on measured traction than spend a larger pre-seed.
+We ask for the smallest ticket that reaches the seed trigger, not for the largest cheque available.
+€\cfk{round_eur}k is also the typical Vest Ventures Accelerator ticket reported in the press\src{27}.
+The co-founders work unpaid in year~1 and on €1,000 gross each afterwards, the partner manager works
+half time until month 13 (and the model scales partner signings down with the manager's hours), the
+support specialist starts half time in month 9, the penetration test moves after the seed, and the
+developer is hired only after the seed. Every cut falls on cost, not on growth: the sales and marketing
+plan is unchanged, so the trigger (100 paying companies, month \cf{base.months_to_100},
+\cf{base.date_to_100}) is reached inside the \cf{runway_plan_months}-month runway on plan. The margin
+is thin: at the trigger about €4k of cash and one month of runway are left, so seed conversations
+begin in month 16 (Section~\ref{sec:riscuri}). A €\cfk{round_size_test.0.round_eur}k ticket lasts only
+\cf{round_size_test.0.runway_plan_months} months on plan, so cash runs out before the trigger. A
+€\cfk{round_size_test.2.round_eur}k ticket would buy \cf{round_size_test.2.runway_plan_months} months on the
+same plan, more than the plan needs: we would rather raise the seed on measured traction than spend a
+larger pre-seed.
 
 \subsection{Use of funds}
 
@@ -1022,17 +1029,18 @@ the runway. The developer is not in this budget: the role is hired after the see
 \toprule
 \textbf{Month} & \textbf{Milestone (base case, \proj)} \\
 \midrule
-M1 (Jan 2027) & Pre-seed round closes (assumed); both co-founders full time \\
+M1 (Jan 2027) & Pre-seed round closes (assumed); both co-founders full time, unpaid \\
 M3 (Mar 2027) & Partner and sales manager hired (accountant channel), half time \\
 M4 (Apr 2027) & Accountant pilot ends (free until 31 Mar 2027); pilot companies convert to paid (the founders onboard them) \\
 M5 (May 2027) & Payroll legal values validated by an accountant; payroll becomes sellable \\
 M6 (Jun 2027) & Accessibility audit (EN 301 549) completed \\
-M7 (Jul 2027) & Customer onboarding and support specialist hired, half time \\
 M8 (Aug 2027) & 30 paying customers \\
-M12 (Dec 2027) & External penetration test \\
-M13 (Jan 2028) & Partner and sales manager full time \\
+M9 (Sep 2027) & Customer onboarding and support specialist hired, half time \\
+M13 (Jan 2028) & Co-founders start drawing a salary; partner and sales manager full time \\
+M16 (Apr 2028) & Seed conversations start (about 74 paying companies) \\
 M20 (Aug 2028) & 100 paying customers: seed-readiness trigger (start seed / Vest Ventures Seed conversations) \\
 M25 (Jan 2029) & After the seed: developer hired; onboarding and support specialist full time \\
+M26 (Feb 2029) & External penetration test, funded by the seed \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1092,11 +1100,11 @@ paid trials cost more or convert less, the paid budget is cut and the plan leans
 channel and search, which moves the base case towards the conservative case. \\
 \textbf{Financing (seed bridge)}: the base case needs a seed round. At the month-\cf{base.months_to_100}
 trigger (\cf{base.date_to_100}) the base model shows MRR of about €5.3k (ARR about €64k), closing
-cash of about €15k and a net burn of about €4.6k a month; cash turns negative in month 25 & About four
-months to close a seed, so seed conversations start before the trigger, and the Vest Ventures Seed
+cash of about €4k and a net burn of about €4.3k a month; cash turns negative in month 22 & Seed
+conversations start in month 16, four months before the trigger, and the Vest Ventures Seed
 stage is one route. No seed amount or valuation has been discussed yet. The developer is
-already hired only after the seed, so it is not a lever. Remaining lever, not modelled in the base
-case: cut the paid-ads budget; the marketing budget is a named model input, so its effect on runway
+already hired only after the seed, so it is not a lever. Levers not modelled in the base case: the
+co-founders stop drawing their salaries again (about two more months); cut the paid-ads budget; the marketing budget is a named model input, so its effect on runway
 can be tested in the workbook. \\
 \textbf{Single market}: Romania only; REGES is Romania-specific; the UI is in Romanian & Romanian
 compliance depth is the defensible core. Expansion to neighbouring countries (Moldova, Serbia,
@@ -1109,7 +1117,8 @@ latest, as part of the round's legal work. \\
 apps & We do not compete on payroll; we serve the employer's daily HR work and give the accountant
 exports and a login. Flat price per company is simple for micro-firms. \\
 \textbf{Founder time}: both co-founders are students & Full-time commitment from the close is a
-condition of the plan, with salaries funded by the round; how it fits their studies \tbc. \\
+condition of the plan; they are unpaid in year~1 and paid from month 13; how this fits their
+studies and personal finances \tbc. \\
 \textbf{Key person}: two founders hold all product knowledge & Developer hired after the seed (month 25 in the base case); code,
 migrations and architecture are documented in the repository; CI and tests guard changes. \\
 \textbf{Pricing ceiling}: flat price, no published price above 20 employees & A price for larger
@@ -1159,7 +1168,7 @@ search-engine excerpt and the page itself could not be opened.
 \item ChartMogul, customer churn benchmarks: \url{https://chartmogul.com/blog/good-customer-churn-rate/}
 \item Aleph, CAC payback (secondary): \url{https://www.getaleph.com/answers/cac-payback-period-saas-2026}
 \item How to Web \& Underline Ventures, \textit{Venture in Eastern Europe 2025}, via Romania Insider: \url{https://www.romania-insider.com/romanian-startups-funding-2025}
-\item Vest Ventures programme terms and accelerator stage: \url{https://vestventures.vc/en/programs-terms}; \url{https://vestventures.vc/en/stages-accelerator}; FAQ \url{https://vestventures.vc/en/faq}
+\item Vest Ventures programme terms and accelerator stage: \url{https://vestventures.vc/en/programs-terms}; \url{https://vestventures.vc/en/stages-accelerator}; FAQ \url{https://vestventures.vc/en/faq}; press report of about €100k per accelerator startup: \url{https://start-up.ro/cum-va-investi-vest-ventures-6-milioane-de-euro-investitii-directe-4-programe-de-accelerare-dar-si-educatie}
 \item Commission Regulation (EU) 2023/2831 (de minimis): \url{https://eur-lex.europa.eu/eli/reg/2023/2831/oj}
 \item Inspecția Muncii, REGES-Online: \url{https://www.inspectiamuncii.ro/en/reges}
 \end{enumerate}

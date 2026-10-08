@@ -4,10 +4,10 @@ Pachetul pentru aplicația la **Vest Ventures** (fondul pre-seed din Timișoara;
 formularul e găzduit pe platforma Pynn). Tot ce merge la investitor e **în
 engleză**. Fișierul ăsta e în română și e doar pentru voi: **nu se trimite**.
 
-Stadiul la 7 oct 2026: runda propusă e de **150.000 €**, integral un tichet
-Vest Ventures Accelerator (intervalul publicat e 10.000–200.000 €); Vest
-Ventures e singurul investitor din rundă. Evaluarea pre-money e de 1,25 mil. €
-(post-money 1,4 mil. €).
+Stadiul la 8 oct 2026: runda propusă e de **100.000 €**, integral un tichet
+Vest Ventures Accelerator (intervalul publicat e 10.000–200.000 €, iar presa a
+raportat ~100k € per startup); Vest Ventures e singurul investitor din rundă.
+Evaluarea pre-money e de 1,25 mil. € (post-money 1,35 mil. €).
 
 **Fără procente de proprietate.** Împărțirea părților sociale între fondatori
 o știți voi; e lăsată intenționat în afara tuturor documentelor (decizia
@@ -18,13 +18,25 @@ doar: „Two co-founders hold all shares; no external investors or options to
 date." Aplicăm la **Accelerator**, nu la
 Seed, fiindcă avem zero clienți plătitori.
 
-Runda e dimensionată pe un plan de costuri strâns: 1.000 € brut pe lună pentru
-fiecare fondator, managerul de parteneri cu jumătate de normă până în luna 13,
-specialistul de onboarding cu jumătate de normă din luna 7, developerul abia
-după seed. Ajunge 16 luni fără niciun venit și 24 de luni pe planul de bază.
-Pragul de seed (100 de clienți plătitori) cade în luna 20 (aug 2028), cu
-aproximativ 15k € în cont și patru luni până se termină banii: runda de seed
-trebuie pornită imediat, iar discuțiile încep înainte de prag.
+**De ce 100k și ce costă asta (decizia fondatorilor, 8 oct 2026).** Runda a
+coborât de la 150k la 100k ca să ceară cel mai mic tichet care tot atinge
+pragul de seed. Asta se ține **doar** pentru că voi doi lucrați **fără salariu
+în primul an** (2027) și luați 1.000 € brut fiecare abia din luna 13 (ian
+2028). 500 € brut pe normă întreagă nu e o opțiune: e sub salariul minim.
+Restul tăieturilor nu ating creșterea: pentestul trece după seed, biroul
+200→100 €, deplasările 300→200 €, administrativul 200→150 €, specialistul de
+onboarding pornește în luna 9 în loc de 7. Planul de vânzări și marketing a
+rămas neschimbat, deci și clienții proiectați sunt aceiași.
+
+Rezultatul: 15 luni fără niciun venit și 21 de luni pe planul de bază (până în
+sep 2028). Pragul de seed (100 de clienți plătitori) cade în luna 20 (aug
+2028), cu **aproximativ 4k € în cont și o lună** până se termină banii.
+Discuțiile de seed încep deci în luna 16 (apr 2028, ~74 de clienți). Dacă
+închiderea alunecă, vă opriți din nou salariile și câștigați ~2 luni.
+
+Pregătiți-vă pentru întrebarea din interviu: **„din ce trăiți în 2027?”**
+Răspunsul trebuie să fie concret (economii, familie, bursă, job part-time
+compatibil cu full-time pe firmă etc.).
 
 ---
 
@@ -127,8 +139,9 @@ Grupate pe subiect. Între paranteze sunt fișierele în care apare fiecare.
    (`pitch-deck.tex`, slide-ul de echipă; `business-plan.tex`; `form-answers.md` §17)
 10. **Angajamentul full-time față de facultate.** Vest Ventures întreabă
     explicit dacă fondatorii se pot dedica. Scrieți concret cum: date,
-    încărcare redusă etc. Planul presupune full time pe 1.000 € brut pe lună
-    fiecare (aproximativ 5.000 de lei); verificați că vă ajunge.
+    încărcare redusă etc. Planul presupune full time **fără salariu în 2027**
+    și 1.000 € brut pe lună fiecare (aproximativ 5.000 de lei) din ian 2028;
+    scrieți din ce trăiți în primul an.
     (`business-plan.tex`; `form-answers.md` §17; `roadmap.tex`)
 11. **Domiciliul.** Locuiți și lucrați amândoi în Timișoara? (`form-answers.md` §4)
 12. **Persoana de contact și adresa ei de e-mail.** (`form-answers.md` §29)
@@ -275,9 +288,9 @@ formular trebuie să treacă `--final`.
 **Atenție.** `business-plan.tex` și `pitch-deck.tex` își iau cifrele automat
 din `cifre.json` (prin `tema/cifre.tex`), dar `roadmap.tex`,
 `form-answers.md`, `data-room/` și `media/` au cifrele **copiate de mână**
-din `cifre.json`, ultima dată la 7 oct 2026 (runda de 150.000 €). Și în
+din `cifre.json`, ultima dată la 8 oct 2026 (runda de 100.000 €). Și în
 `business-plan.tex` câteva cifre derivate sunt scrise de mână (împărțirea pe canale, partenerii activi, poziția de numerar din luna 20).
 Dacă se schimbă modelul (alt cuantum al rundei, altă evaluare), căutați
 valorile vechi, de exemplu
-`grep -rn "150k\|1.25M\|16 months" --include='*.md' --include='*.tex' --include='*.html' .`,
+`grep -rn "100k\|1.35M\|15 months" --include='*.md' --include='*.tex' --include='*.html' .`,
 și actualizați-le.

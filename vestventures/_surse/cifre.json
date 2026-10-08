@@ -9,78 +9,78 @@
     "currency": "EUR; RON converted at 5.0 RON = 1 EUR",
     "status": "Everything after 6 Oct 2026 is a PROJECTION. Zero paying customers today."
   },
-  "round_eur": 150000,
+  "round_eur": 100000,
   "round_investor": {
     "name": "Vest Ventures",
     "programme": "Accelerator",
-    "vest_ventures_ticket_eur": 150000,
+    "vest_ventures_ticket_eur": 100000,
     "note": "Vest Ventures is the only investor in the pre-seed round; ticket inside VV's published EUR 10k-200k accelerator range"
   },
   "stage": "Pre-seed (apply to the Vest Ventures Accelerator, not Seed: zero revenue)",
   "instrument": "Convertible loan agreement (CLA) or SHA on Vest Ventures' templates; a CLA would use the pre-money valuation as its cap",
   "pre_money_eur": 1250000,
-  "post_money_eur": 1400000,
-  "runway_months": 16,
+  "post_money_eur": 1350000,
+  "runway_months": 15,
   "runway_basis": "Months the round pays every planned cost with ZERO revenue (base cost plan)",
-  "runway_plan_months": 24,
+  "runway_plan_months": 21,
   "round_size_test": [
     {
       "case": "Smaller Vest Ventures ticket",
-      "round_eur": 100000,
-      "runway_zero_revenue_months": 11,
-      "runway_plan_months": 13
+      "round_eur": 75000,
+      "runway_zero_revenue_months": 13,
+      "runway_plan_months": 15
     },
     {
       "case": "Proposed round",
-      "round_eur": 150000,
-      "runway_zero_revenue_months": 16,
-      "runway_plan_months": 24
+      "round_eur": 100000,
+      "runway_zero_revenue_months": 15,
+      "runway_plan_months": 21
     },
     {
-      "case": "Vest Ventures maximum accelerator ticket",
-      "round_eur": 200000,
-      "runway_zero_revenue_months": 22,
-      "runway_plan_months": 35
+      "case": "Larger ticket, same lean plan",
+      "round_eur": 150000,
+      "runway_zero_revenue_months": 20,
+      "runway_plan_months": 29
     }
   ],
   "use_of_funds": [
     {
       "category": "Product & engineering (2 co-founders full time)",
-      "eur": 35345,
-      "pct": 23.6
+      "eur": 6897,
+      "pct": 6.9
     },
     {
       "category": "Accountant channel & sales (partner manager, travel, commissions)",
-      "eur": 26149,
-      "pct": 17.4
+      "eur": 21915,
+      "pct": 21.9
     },
     {
       "category": "Customer onboarding & support",
-      "eur": 7789,
-      "pct": 5.2
+      "eur": 5479,
+      "pct": 5.5
     },
     {
       "category": "Marketing (content, SEO, performance ads)",
-      "eur": 29873,
-      "pct": 19.9
+      "eur": 27301,
+      "pct": 27.3
     },
     {
       "category": "Legal, payroll validation, compliance & security",
-      "eur": 25178,
-      "pct": 16.8
+      "eur": 18736,
+      "pct": 18.7
     },
     {
       "category": "Infrastructure & tools",
-      "eur": 11695,
-      "pct": 7.8
+      "eur": 10895,
+      "pct": 10.9
     },
     {
       "category": "Operations & contingency",
-      "eur": 13971,
-      "pct": 9.3
+      "eur": 8777,
+      "pct": 8.8
     }
   ],
-  "use_of_funds_basis": "Share of planned spend over the zero-revenue runway (months 1-16), applied to the round",
+  "use_of_funds_basis": "Share of planned spend over the zero-revenue runway (months 1-15), applied to the round",
   "close_month": "Jan 2027 (model month 1) - ASSUMPTION; Vest Ventures Accelerator Cohort 3 dates are not published",
   "model_start": "Jan 2027",
   "base": {
@@ -95,22 +95,22 @@
     "mrr_m36_eur": 14881,
     "arr_m36_eur": 178567,
     "breakeven_month": "not within 36 months",
-    "cash_low_point_eur": -50706,
+    "cash_low_point_eur": -63986,
     "cash_low_point_month": 36,
-    "cash_m36_eur": -50706,
-    "net_cash_flow_m36_eur": -1059,
+    "cash_m36_eur": -63986,
+    "net_cash_flow_m36_eur": -796,
     "customers_m36_exact": 283.6,
-    "runway_zero_revenue_months": 16,
-    "runway_plan_months": 24,
+    "runway_zero_revenue_months": 15,
+    "runway_plan_months": 21,
     "months_to_30": 8,
     "months_to_100": 20,
     "months_to_300": "not within 36 months",
     "revenue_y1_eur": 14275,
     "revenue_y2_eur": 56648,
     "revenue_y3_eur": 135468,
-    "costs_y1_eur": 102029,
-    "costs_y2_eur": 117399,
-    "costs_y3_eur": 185606,
+    "costs_y1_eur": 65309,
+    "costs_y2_eur": 114249,
+    "costs_y3_eur": 188756,
     "breakeven_date": null,
     "date_to_30": "Aug 2027",
     "date_to_100": "Aug 2028",
@@ -129,22 +129,22 @@
     "mrr_m36_eur": 3533,
     "arr_m36_eur": 42401,
     "breakeven_month": "not within 36 months",
-    "cash_low_point_eur": -170735,
+    "cash_low_point_eur": -184015,
     "cash_low_point_month": 36,
-    "cash_m36_eur": -170735,
-    "net_cash_flow_m36_eur": -11306,
+    "cash_m36_eur": -184015,
+    "net_cash_flow_m36_eur": -11043,
     "customers_m36_exact": 74.2,
-    "runway_zero_revenue_months": 17,
-    "runway_plan_months": 18,
+    "runway_zero_revenue_months": 15,
+    "runway_plan_months": 16,
     "months_to_30": 20,
     "months_to_100": "not within 36 months",
     "months_to_300": "not within 36 months",
     "revenue_y1_eur": 4594,
     "revenue_y2_eur": 15957,
     "revenue_y3_eur": 33305,
-    "costs_y1_eur": 101049,
-    "costs_y2_eur": 113973,
-    "costs_y3_eur": 159031,
+    "costs_y1_eur": 64329,
+    "costs_y2_eur": 110823,
+    "costs_y3_eur": 162181,
     "breakeven_date": null,
     "date_to_30": "Aug 2028",
     "date_to_100": null,
@@ -162,12 +162,12 @@
     "mrr_m36_eur": 37888,
     "arr_m36_eur": 454657,
     "breakeven_month": 22,
-    "cash_low_point_eur": 57773,
+    "cash_low_point_eur": 46856,
     "cash_low_point_month": 21,
-    "cash_m36_eur": 188830,
-    "net_cash_flow_m36_eur": 19525,
+    "cash_m36_eur": 175550,
+    "net_cash_flow_m36_eur": 19787,
     "customers_m36_exact": 682.4,
-    "runway_zero_revenue_months": 16,
+    "runway_zero_revenue_months": 15,
     "runway_plan_months": "> 36",
     "months_to_30": 4,
     "months_to_100": 12,
@@ -175,9 +175,9 @@
     "revenue_y1_eur": 30573,
     "revenue_y2_eur": 127797,
     "revenue_y3_eur": 335844,
-    "costs_y1_eur": 104065,
-    "costs_y2_eur": 141297,
-    "costs_y3_eur": 205080,
+    "costs_y1_eur": 67345,
+    "costs_y2_eur": 138147,
+    "costs_y3_eur": 208230,
     "breakeven_date": "Oct 2028",
     "date_to_30": "Apr 2027",
     "date_to_100": "Dec 2027",
@@ -190,25 +190,29 @@
     "gross_margin_definition": "Contribution margin per customer: (ARPA - variable infra - payment fees) / ARPA",
     "gross_margin_pnl_pct": 71.7,
     "gross_margin_pnl_definition": "P&L gross margin after fixed hosting and the onboarding/support salary (year 2)",
-    "cac_eur": 497,
+    "cac_eur": 487,
     "cac_definition": "Fully loaded: partner manager salary + marketing + travel + accountant commissions / new paying customers",
     "cac_paid_ads_eur": 320,
     "monthly_churn_pct": 3.0,
     "ltv_eur": 1583,
     "ltv_cac": 3.2,
-    "payback_months": 10.5,
+    "payback_months": 10.3,
     "benchmarks": "ChartMogul median churn 6.1%/month for ARPA < US$25; SMB CAC payback median ~11 months, 6-14 healthy (piata.md §d.1)"
   },
   "team_plan": [
     {
-      "role": "Co-founder - Miroslav Maletici",
+      "role": "Co-founder & CEO - Miroslav Maletici",
       "from_month": 1,
-      "gross_eur_month": 1000
+      "paid_from_month": 13,
+      "gross_eur_month": 1000,
+      "note": "full time from close, unpaid until paid_from_month"
     },
     {
-      "role": "Co-founder - Răzvan Pervulescu",
+      "role": "Co-founder & CTO - Răzvan Pervulescu",
       "from_month": 1,
-      "gross_eur_month": 1000
+      "paid_from_month": 13,
+      "gross_eur_month": 1000,
+      "note": "full time from close, unpaid until paid_from_month"
     },
     {
       "role": "Partner & sales manager (accountant channel)",
@@ -221,7 +225,7 @@
     },
     {
       "role": "Customer onboarding & support specialist",
-      "from_month": 7,
+      "from_month": 9,
       "gross_eur_month": 1400,
       "gross_basis": "full-time equivalent",
       "fte_until_full_time": 0.5,
@@ -277,7 +281,7 @@
   "milestones": [
     {
       "month": "M1 (Jan 2027)",
-      "milestone": "Pre-seed round closes (assumed); both co-founders full time"
+      "milestone": "Pre-seed round closes (assumed); both co-founders full time, unpaid"
     },
     {
       "month": "M3 (Mar 2027)",
@@ -296,16 +300,16 @@
       "milestone": "Accessibility audit (EN 301 549) completed"
     },
     {
-      "month": "M7 (Jul 2027)",
-      "milestone": "Customer onboarding & support specialist hired, part-time (50%)"
-    },
-    {
       "month": "M8 (Aug 2027)",
       "milestone": "30 paying customers"
     },
     {
-      "month": "M12 (Dec 2027)",
-      "milestone": "External penetration test"
+      "month": "M9 (Sep 2027)",
+      "milestone": "Customer onboarding & support specialist hired, part-time (50%)"
+    },
+    {
+      "month": "M13 (Jan 2028)",
+      "milestone": "Co-founders start drawing a salary"
     },
     {
       "month": "M13 (Jan 2028)",
@@ -322,6 +326,10 @@
     {
       "month": "M25 (Jan 2029)",
       "milestone": "Onboarding & support specialist full time (after the seed)"
+    },
+    {
+      "month": "M26 (Feb 2029)",
+      "milestone": "External penetration test (after the seed)"
     }
   ],
   "tam_sam_som": {
