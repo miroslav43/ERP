@@ -19,4 +19,13 @@ describe("ruta comună de descărcare", () => {
   it("o unealtă necunoscută primește 404", async () => {
     expect((await cere("/api/unelte/constructor", "constructor")).status).toBe(404);
   });
+
+  it("fișierul generat iese cu cache-control private, no-store", async () => {
+    const r = await cere(
+      "/api/unelte/condica-de-prezenta?luna=10&an=2026&firma=Firma+Test&format=pdf",
+      "condica-de-prezenta",
+    );
+    expect(r.status).toBe(200);
+    expect(r.headers.get("cache-control")).toBe("private, no-store");
+  });
 });

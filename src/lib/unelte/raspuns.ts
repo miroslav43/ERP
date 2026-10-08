@@ -18,6 +18,16 @@ const RANDARI: Readonly<Record<Format, (d: DocumentTabelar) => Promise<Uint8Arra
 };
 
 /**
+ * Antetul de cache al oricărei descărcări de unealtă.
+ *
+ * A fost `public, max-age=3600` până la 8 oct 2026, pe fișiere care poartă
+ * numele angajaților, firma și salariul. `public` dă voie oricărui cache
+ * intermediar să păstreze o oră documentul unui alt om. Acum e aceeași
+ * politică pe care Next o pune deja paginilor uneltelor.
+ */
+export const ANTET_CACHE_DESCARCARE = "private, no-store";
+
+/**
  * Fișierul ca răspuns de descărcare. `new Uint8Array(...)` copiază într-un
  * `ArrayBuffer` propriu: tipurile din `lib.dom` nu acceptă ca `BodyInit` un
  * `Uint8Array<ArrayBufferLike>`, iar `Buffer`-ul din `docx` e exact asta.
@@ -28,7 +38,7 @@ export async function raspunsDocument(d: DocumentTabelar, format: Format): Promi
     headers: {
       "content-type": TIP[format],
       "content-disposition": `attachment; filename="${numeFisierSigur(d.numeFisier)}.${format}"`,
-      "cache-control": "public, max-age=3600",
+      "cache-control": ANTET_CACHE_DESCARCARE,
     },
   });
 }

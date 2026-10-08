@@ -11,7 +11,7 @@ import {
 import { foaieCaDocument } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie-document";
 import { ADRESA_SITE } from "@/content/landing/contact";
 import type { Format } from "@/lib/unelte/document-tabelar";
-import { raspunsDocument } from "@/lib/unelte/raspuns";
+import { ANTET_CACHE_DESCARCARE, raspunsDocument } from "@/lib/unelte/raspuns";
 
 /**
  * Exportul în format de calcul al foii de pontaj gratuite.
@@ -188,7 +188,7 @@ export async function GET(cerere: NextRequest): Promise<Response> {
     headers: {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "content-disposition": `attachment; filename="${nume}"`,
-      "cache-control": "public, max-age=3600",
+      "cache-control": ANTET_CACHE_DESCARCARE,
     },
   });
 }

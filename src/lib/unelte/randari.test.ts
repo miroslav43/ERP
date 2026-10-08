@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
 import JSZip from "jszip";
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
@@ -111,6 +114,19 @@ describe("răspunsul HTTP", () => {
     expect(r.headers.get("content-disposition")).toBe(
       'attachment; filename="condica-octombrie-2026.docx"',
     );
+  });
+
+  it("descărcarea nu intră în niciun cache comun: poate purta nume de angajați", async () => {
+    const r = await raspunsDocument(DOC, "pdf");
+    expect(r.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("nicio rută de unealtă nu mai declară cache public", () => {
+    const rute = readdirSync("src/app/api/unelte", { recursive: true, encoding: "utf8" })
+      .filter((f) => f.endsWith("route.ts"))
+      .map((f) => readFileSync(join("src/app/api/unelte", f), "utf8"));
+    expect(rute.length).toBeGreaterThanOrEqual(2);
+    expect(rute.filter((s) => /cache-control["']?\s*:\s*["']public/iu.test(s))).toEqual([]);
   });
 });
 
