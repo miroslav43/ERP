@@ -18,7 +18,7 @@ import { formatDate } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { echipamenteDupaId, interventii } from "@/lib/queries/maintenance";
+import { citestePlan, echipamenteDupaId, interventii } from "@/lib/queries/maintenance";
 import { filtreInterventiiSchema } from "@/schemas/maintenance";
 
 import {
@@ -56,7 +56,11 @@ async function TabelInterventii({
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.tip !== null || filtre.rezultat !== null || filtre.echipament !== null;
+    const areFiltre =
+      filtre.tip !== null ||
+      filtre.rezultat !== null ||
+      filtre.echipament !== null ||
+      filtre.plan !== null;
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -80,6 +84,7 @@ async function TabelInterventii({
                   p.delete("tip");
                   p.delete("rezultat");
                   p.delete("echipament");
+                  p.delete("plan");
                   p.delete("cursor");
                 }),
               },
@@ -221,12 +226,18 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
    * filtrul era invizibil ȘI de neșters — singura ieșire era linkul din starea
    * goală, care apare numai când lista chiar e goală.
    */
-  const etichetaEchipament =
+  const [etichetaEchipament, etichetaPlan] = await Promise.all([
     filtre.echipament === null
-      ? null
-      : ((await echipamenteDupaId(tenant.organizationId, [filtre.echipament])).get(
-          filtre.echipament,
-        )?.cod ?? null);
+      ? Promise.resolve(null)
+      : echipamenteDupaId(tenant.organizationId, [filtre.echipament]).then(
+          (m) => m.get(filtre.echipament ?? "")?.cod ?? null,
+        ),
+    // Același motiv ca mai sus: linkul „Vezi toate intervențiile planului” de pe
+    // fișa planului pune `plan=` în adresă, iar fără pastilă filtrul ar fi invizibil.
+    filtre.plan === null
+      ? Promise.resolve(null)
+      : citestePlan(tenant.organizationId, filtre.plan).then((p) => p?.denumire ?? null),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -239,6 +250,7 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
       <FiltreInterventiiForm
         filtre={filtre}
         {...(etichetaEchipament === null ? {} : { etichetaEchipament })}
+        {...(etichetaPlan === null ? {} : { etichetaPlan })}
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>

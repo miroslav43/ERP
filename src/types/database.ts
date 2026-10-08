@@ -7637,17 +7637,27 @@ export type Database = {
       maintenance_plans: {
         Row: {
           activ: boolean
+          amanat_pana: string | null
+          categorie_legala: string | null
+          cost_estimat: number | null
           created_at: string
           created_by: string | null
+          data_ancora: string | null
           deleted_at: string | null
           denumire: string
+          durata_estimata_ore: number | null
           equipment_id: string
           id: string
           instructiuni: string | null
+          mod_calcul: string
+          motiv_amanare: string | null
+          numar_amanari: number
+          oprire_necesara: boolean
           organization_id: string
           periodicitate_contor: number | null
           periodicitate_zile: number | null
           responsabil_employee_id: string | null
+          temei_legal: string | null
           tip: Database["public"]["Enums"]["maintenance_kind"]
           tip_contor: Database["public"]["Enums"]["meter_kind"] | null
           ultima_citire_contor: number | null
@@ -7659,17 +7669,27 @@ export type Database = {
         }
         Insert: {
           activ?: boolean
+          amanat_pana?: string | null
+          categorie_legala?: string | null
+          cost_estimat?: number | null
           created_at?: string
           created_by?: string | null
+          data_ancora?: string | null
           deleted_at?: string | null
           denumire: string
+          durata_estimata_ore?: number | null
           equipment_id: string
           id?: string
           instructiuni?: string | null
+          mod_calcul?: string
+          motiv_amanare?: string | null
+          numar_amanari?: number
+          oprire_necesara?: boolean
           organization_id: string
           periodicitate_contor?: number | null
           periodicitate_zile?: number | null
           responsabil_employee_id?: string | null
+          temei_legal?: string | null
           tip?: Database["public"]["Enums"]["maintenance_kind"]
           tip_contor?: Database["public"]["Enums"]["meter_kind"] | null
           ultima_citire_contor?: number | null
@@ -7681,17 +7701,27 @@ export type Database = {
         }
         Update: {
           activ?: boolean
+          amanat_pana?: string | null
+          categorie_legala?: string | null
+          cost_estimat?: number | null
           created_at?: string
           created_by?: string | null
+          data_ancora?: string | null
           deleted_at?: string | null
           denumire?: string
+          durata_estimata_ore?: number | null
           equipment_id?: string
           id?: string
           instructiuni?: string | null
+          mod_calcul?: string
+          motiv_amanare?: string | null
+          numar_amanari?: number
+          oprire_necesara?: boolean
           organization_id?: string
           periodicitate_contor?: number | null
           periodicitate_zile?: number | null
           responsabil_employee_id?: string | null
+          temei_legal?: string | null
           tip?: Database["public"]["Enums"]["maintenance_kind"]
           tip_contor?: Database["public"]["Enums"]["meter_kind"] | null
           ultima_citire_contor?: number | null

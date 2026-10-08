@@ -1,6 +1,8 @@
 // src/app/(app)/mentenanta/etichete.ts
 import type {
+  FiltruScadentaPlan,
   MarcajCe,
+  ModCalcul,
   MotivRespingere,
   RezultatInterventie,
   StatusEchipament,
@@ -27,6 +29,23 @@ export const TONURI_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, TonStar
   in_reparatie: "atentie",
   in_conservare: "neutru",
   casat: "neutru",
+};
+
+export const ETICHETE_MOD_CALCUL: Readonly<Record<ModCalcul, string>> = {
+  flotant: "Flotant — de la ultima execuție",
+  fix: "Fix — pe grilă, de la o ancoră",
+};
+
+export const EXPLICATII_MOD_CALCUL: Readonly<Record<ModCalcul, string>> = {
+  flotant:
+    "Următoarea scadență = ultima execuție + periodicitatea. O execuție întârziată mută tot calendarul.",
+  fix: "Scadențele cad pe o grilă fixă (ancoră + n × periodicitate). O execuție întârziată sare la următoarea dată de pe grilă, fără restanțe în serie.",
+};
+
+export const ETICHETE_FILTRU_SCADENTA_PLAN: Readonly<Record<FiltruScadentaPlan, string>> = {
+  depasita: "Depășită",
+  curand: "În următoarele 15 zile",
+  luna: "În următoarele 30 de zile",
 };
 
 export const ETICHETE_MARCAJ_CE: Readonly<Record<MarcajCe, string>> = {

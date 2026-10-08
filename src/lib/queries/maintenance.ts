@@ -23,7 +23,10 @@ import type {
   RezultatInterventie,
   SortareEchipamente,
   SortareInterventii,
+  SortarePlanuri,
   SortareSesizari,
+  FiltrePlanuri,
+  ModCalcul,
   StatusEchipament,
   StatusSesizare,
   TipAtasament,
@@ -35,6 +38,7 @@ import type {
 import {
   SORTARI_ECHIPAMENTE,
   SORTARI_INTERVENTII,
+  SORTARI_PLANURI,
   SORTARI_SESIZARI,
   TIPURI_CONTOR,
 } from "@/schemas/maintenance";
@@ -43,9 +47,11 @@ import {
   codificaCursor,
   decodificaCursor,
   predicatKeyset,
+  predicatKeysetNulabil,
   sortareCeruta,
   type Directie,
   tiparContine,
+  VALOARE_NULA,
 } from "./cursor";
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
@@ -134,6 +140,17 @@ export interface PlanMentenanta {
   readonly responsabil_employee_id: string | null;
   readonly instructiuni: string | null;
   readonly activ: boolean;
+  // 0183
+  readonly mod_calcul: ModCalcul;
+  readonly data_ancora: string | null;
+  readonly amanat_pana: string | null;
+  readonly motiv_amanare: string | null;
+  readonly numar_amanari: number;
+  readonly durata_estimata_ore: number | null;
+  readonly cost_estimat: number | null;
+  readonly oprire_necesara: boolean;
+  readonly temei_legal: string | null;
+  readonly categorie_legala: string | null;
 }
 
 export interface RandInterventie {
@@ -784,7 +801,9 @@ export async function contoareEchipament(
 const COLOANE_PLAN =
   "id, equipment_id, denumire, tip, periodicitate_zile, periodicitate_contor, tip_contor, " +
   "ultima_executie, ultima_citire_contor, urmatoarea_scadenta, urmatoarea_scadenta_contor, " +
-  "responsabil_employee_id, instructiuni, activ";
+  "responsabil_employee_id, instructiuni, activ, mod_calcul, data_ancora, amanat_pana, " +
+  "motiv_amanare, numar_amanari, durata_estimata_ore, cost_estimat, oprire_necesara, " +
+  "temei_legal, categorie_legala";
 
 export async function planuriEchipament(
   organizationId: string,
@@ -843,6 +862,184 @@ export async function planuriScadente(organizationId: string): Promise<RezultatP
     total: count ?? randuri.length,
     trunchiat: count !== null && count > randuri.length,
   };
+}
+
+// ── Planuri: lista paginată, fișa, proiecția (0183) ─────────────────────────
+
+export type FiltrePlanuriCitire = Omit<FiltrePlanuri, "sort"> & {
+  readonly sort?: string | null;
+};
+
+export interface RezultatPlanuri {
+  readonly randuri: readonly PlanMentenanta[];
+  readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortarePlanuri; directie: Directie }>;
+}
+
+const COLOANA_SORTARE_PLAN: Readonly<Record<SortarePlanuri, string>> = {
+  scadenta: "urmatoarea_scadenta",
+  denumire: "denumire",
+};
+const SORTARE_IMPLICITA_PLANURI = { cheie: "scadenta", directie: "asc" } as const;
+
+/** Ziua ISO de peste `zile` zile față de `azi`. */
+function plusZile(azi: string, zile: number): string {
+  const d = new Date(`${azi}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + zile);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Lista planurilor, paginată keyset pe (`urmatoarea_scadenta` cu NULL la coadă,
+ * `id`) sau pe denumire, cu filtrele în SQL. Filtrul de scadență e pe DATĂ:
+ * starea pe contor se calculează în TypeScript, din ultima citire, deci nu
+ * poate intra într-un `WHERE` — ecranul o spune.
+ */
+export async function listeazaPlanuri(
+  organizationId: string,
+  filtre: FiltrePlanuriCitire,
+  azi: string,
+): Promise<RezultatPlanuri> {
+  const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_PLANURI, SORTARE_IMPLICITA_PLANURI);
+  const coloana = COLOANA_SORTARE_PLAN[sortare.cheie];
+  const crescator = sortare.directie === "asc";
+
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string | boolean) => Q;
+      is: (c: string, v: null) => Q;
+      lt: (c: string, v: string) => Q;
+      gte: (c: string, v: string) => Q;
+      lte: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.responsabil !== null) cu = cu.eq("responsabil_employee_id", filtre.responsabil);
+    if (filtre.activ === "da") cu = cu.eq("activ", true);
+    if (filtre.activ === "nu") cu = cu.eq("activ", false);
+    if (filtre.scadenta === "depasita") cu = cu.lt("urmatoarea_scadenta", azi);
+    if (filtre.scadenta === "curand") {
+      cu = cu.gte("urmatoarea_scadenta", azi).lte("urmatoarea_scadenta", plusZile(azi, 15));
+    }
+    if (filtre.scadenta === "luna") {
+      cu = cu.gte("urmatoarea_scadenta", azi).lte("urmatoarea_scadenta", plusZile(azi, 30));
+    }
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("maintenance_plans").select(COLOANE_PLAN))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
+    .limit(filtre.limita + 1);
+
+  if (filtre.cursor !== null) {
+    const c = decodificaCursor(filtre.cursor);
+    if (c !== null) {
+      // Scadența poate fi NULL (plan doar pe contor): keyset nulabil.
+      interogare = interogare.or(
+        sortare.cheie === "scadenta"
+          ? predicatKeysetNulabil(coloana, c, sortare.directie)
+          : predicatKeyset(coloana, c, sortare.directie),
+      );
+    }
+  }
+
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<PlanMentenanta[]>(),
+    filtreaza(db.from("maintenance_plans").select("id", { count: "exact", head: true })),
+  ]);
+  if (rezultat.error !== null) throw rezultat.error;
+  if (numarare.error !== null) throw numarare.error;
+
+  const toate = rezultat.data ?? [];
+  const areUrmatoarea = toate.length > filtre.limita;
+  const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
+  const ultim = randuri.at(-1);
+  return {
+    randuri,
+    urmatorulCursor:
+      areUrmatoarea && ultim !== undefined
+        ? codificaCursor({
+            valoare:
+              sortare.cheie === "scadenta"
+                ? (ultim.urmatoarea_scadenta ?? VALOARE_NULA)
+                : ultim.denumire,
+            id: ultim.id,
+          })
+        : null,
+    total: numarare.count ?? randuri.length,
+    sortare,
+  };
+}
+
+export async function citestePlan(
+  organizationId: string,
+  id: string,
+): Promise<PlanMentenanta | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_plans")
+    .select(COLOANE_PLAN)
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<PlanMentenanta>();
+  if (error !== null) throw error;
+  return data;
+}
+
+export interface CitireScurta {
+  readonly data: string;
+  readonly citire: number;
+}
+
+/** Citirile unui contor de la o dată încoace — intrarea lui `proiectieScadentaContor`. */
+export async function citiriPentruProiectie(
+  organizationId: string,
+  equipmentId: string,
+  tip: TipContor,
+  deLa: string,
+): Promise<readonly CitireScurta[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment_meters")
+    .select("data_citirii, citire")
+    .eq("organization_id", organizationId)
+    .eq("equipment_id", equipmentId)
+    .eq("tip", tip)
+    .is("deleted_at", null)
+    .gte("data_citirii", deLa)
+    .order("data_citirii", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(500)
+    .returns<{ readonly data_citirii: string; readonly citire: number }[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((r) => ({ data: r.data_citirii, citire: r.citire }));
+}
+
+/** Dintre fișele date, cele care NU mai sunt active — responsabilii „de reatribuit”. */
+export async function angajatiInactiviDintre(
+  organizationId: string,
+  ids: readonly string[],
+): Promise<ReadonlySet<string>> {
+  const unice = [...new Set(ids)];
+  if (unice.length === 0) return new Set();
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .in("id", unice)
+    .or("status.neq.activ,deleted_at.not.is.null")
+    .returns<{ readonly id: string }[]>();
+  if (error !== null) throw error;
+  return new Set((data ?? []).map((r) => r.id));
 }
 
 // ── Ultima citire de contor, pe (echipament, tip) ──────────────────────────
@@ -995,6 +1192,7 @@ export async function interventii(
     if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
     if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
     if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+    if (filtre.plan !== null) cu = cu.eq("plan_id", filtre.plan);
     return cu;
   };
 

@@ -292,6 +292,19 @@ begin
     reset role;
     raise notice '  ✓ (11) responsabilul nu poate înregistra o resetare (42501)';
   end;
+  -- (11b) …și nici o citire semnată cu fișa unui coleg (0183: semnătura e în
+  -- politică, nu doar în `inregistreazaContor`).
+  set local role authenticated;
+  begin
+    insert into public.equipment_meters (organization_id, equipment_id, tip, citire, data_citirii, citit_de_employee_id, created_at)
+    values (v_org, v_presa, 'ore', 26, app.azi_local(), v_e_col, clock_timestamp());
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11b) responsabilul a semnat o citire cu fișa unui coleg';
+  exception when insufficient_privilege then
+    reset role;
+    raise notice '  ✓ (11b) responsabilul nu poate semna citirea cu fișa altcuiva (42501)';
+  end;
 
   -- ═══ (12) Starea utilajului nu mută o scadență restantă ═════════════════
   -- Sub superuser: planul pe zile e trecut, prin registru, în restanță (nicio

@@ -128,6 +128,17 @@ export type SortareEchipamente = (typeof SORTARI_ECHIPAMENTE)[number];
 export const SORTARI_INTERVENTII = ["data", "tip", "cost", "rezultat"] as const;
 export type SortareInterventii = (typeof SORTARI_INTERVENTII)[number];
 
+export const SORTARI_PLANURI = ["scadenta", "denumire"] as const;
+export type SortarePlanuri = (typeof SORTARI_PLANURI)[number];
+
+/** Modul de calcul al scadenței pe zile (0183): flotant = de la ultima execuție; fix = pe grilă, de la ancoră. */
+export const MODURI_CALCUL = ["flotant", "fix"] as const;
+export type ModCalcul = (typeof MODURI_CALCUL)[number];
+
+/** Filtrul de scadență al listei de planuri — pe data calendaristică, în SQL. */
+export const FILTRE_SCADENTA_PLAN = ["depasita", "curand", "luna"] as const;
+export type FiltruScadentaPlan = (typeof FILTRE_SCADENTA_PLAN)[number];
+
 export const SORTARI_SESIZARI = ["raportat", "urgenta", "stare"] as const;
 export type SortareSesizari = (typeof SORTARI_SESIZARI)[number];
 
@@ -150,11 +161,29 @@ export const filtreInterventiiSchema = z.object({
   tip: optional(z.enum(TIPURI_MENTENANTA)),
   rezultat: optional(z.enum(REZULTATE_INTERVENTIE)),
   echipament: optional(z.uuid()),
+  plan: optional(z.uuid()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   sort: optional(z.string().max(40)),
 });
 export type FiltreInterventii = z.output<typeof filtreInterventiiSchema>;
+
+export const filtrePlanuriSchema = z.object({
+  echipament: optional(z.uuid()),
+  tip: optional(z.enum(TIPURI_MENTENANTA)),
+  responsabil: optional(z.uuid()),
+  /**
+   * `da` = doar active, `nu` = doar inactive, `toate` = fără filtru. Lipsa din
+   * adresă o tratează ECRANUL ca `da` — lista de planuri se deschide pe cele
+   * active — iar citirea tratează `null` ca „toate” (pagina îi dă mereu o valoare).
+   */
+  activ: optional(z.union([z.literal("da"), z.literal("nu"), z.literal("toate")])),
+  scadenta: optional(z.enum(FILTRE_SCADENTA_PLAN)),
+  cursor: optional(z.string().max(256)),
+  limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: optional(z.string().max(40)),
+});
+export type FiltrePlanuri = z.output<typeof filtrePlanuriSchema>;
 
 /**
  * `atribuit`: `mie` (sesizările tehnicianului curent), `nimeni` (neatribuite —
@@ -339,6 +368,18 @@ const campuriPlan = z.object({
   responsabil_employee_id: z.uuid().nullable().default(null),
   instructiuni: z.string().trim().max(2000).nullable().default(null),
   activ: z.boolean().default(true),
+  // ── 0183 ──
+  mod_calcul: z.enum(MODURI_CALCUL).default("flotant"),
+  data_ancora: z.iso.date().nullable().default(null),
+  durata_estimata_ore: z.coerce.number().min(0).nullable().default(null),
+  cost_estimat: z.coerce.number().min(0).nullable().default(null),
+  oprire_necesara: z.boolean().default(false),
+  temei_legal: z.string().trim().max(300).nullable().default(null),
+  categorie_legala: z
+    .string()
+    .regex(/^[a-z][a-z0-9_]{1,59}$/u, "Categoria legală nu este validă.")
+    .nullable()
+    .default(null),
 });
 
 /** Oglindește `maintenance_plans_periodicitate_ck` și `..._contor_ck` din bază — verificare front-loaded. */
@@ -382,6 +423,26 @@ export const actualizeazaPlanSchema = campuriPlan
   .extend({ id: z.uuid("Planul selectat nu este valid.") })
   .superRefine(valideazaPeriodicitatePlan);
 export type ActualizeazaPlanInput = z.output<typeof actualizeazaPlanSchema>;
+
+/** Amânarea unui plan (0183): până la o dată, cu motiv; execuția reușită o șterge. */
+export const amanaPlanSchema = z.object({
+  id: z.uuid("Planul selectat nu este valid."),
+  amanat_pana: z.iso.date(),
+  motiv_amanare: z
+    .string()
+    .trim()
+    .min(5, "Spuneți de ce se amână, în cel puțin 5 caractere.")
+    .max(1000),
+});
+export type AmanaPlanInput = z.output<typeof amanaPlanSchema>;
+
+export const comutaPlanActivSchema = z.object({
+  id: z.uuid("Planul selectat nu este valid."),
+  activ: z.boolean(),
+});
+export type ComutaPlanActivInput = z.output<typeof comutaPlanActivSchema>;
+
+export const stergePlanSchema = z.object({ id: z.uuid("Planul selectat nu este valid.") });
 
 // ── Intervenții ──────────────────────────────────────────────────────────
 

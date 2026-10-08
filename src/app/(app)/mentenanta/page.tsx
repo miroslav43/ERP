@@ -3,7 +3,15 @@ import { TREPTE_MENTENANTA } from "@/domain/maintenance/scadente";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { AlertTriangle, CalendarClock, ShieldAlert, Wrench, type LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  Gauge,
+  ShieldAlert,
+  UserX,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -17,15 +25,19 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
   angajatiDupaId,
+  angajatiInactiviDintre,
   autorizatiiIscir,
   cheieContor,
   echipamenteCuProbleme,
   echipamenteDupaId,
   planuriScadente,
   sesizariDeschise,
+  setariMentenanta,
   ultimeleCitiriContor,
+  ultimeleCitiriCuData,
   type PlanMentenanta,
 } from "@/lib/queries/maintenance";
+import { contorInvechit } from "@/domain/maintenance/proiectie";
 import {
   PRAG_MENTENANTA_AVERTIZARE_ZILE,
   cereActiune,
@@ -37,6 +49,7 @@ import type { TipContor } from "@/schemas/maintenance";
 import {
   ETICHETE_STARE_SCADENTA,
   ETICHETE_STATUS_ECHIPAMENT,
+  ETICHETE_TIP_CONTOR,
   ETICHETE_URGENTA_SESIZARE,
   TONURI_STATUS_ECHIPAMENT,
   TONURI_URGENTA_SESIZARE,
@@ -72,11 +85,54 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
   const planuriCuContor = rezultatPlanuri.randuri.filter(
     (p) => p.tip_contor !== null && p.urmatoarea_scadenta_contor !== null,
   );
-  const citiri = await ultimeleCitiriContor(
-    organizationId,
-    planuriCuContor.map((p) => p.equipment_id),
-    planuriCuContor.map((p) => p.tip_contor).filter((tip): tip is TipContor => tip !== null),
+  const idResponsabili = rezultatPlanuri.randuri
+    .map((p) => p.responsabil_employee_id)
+    .filter((id): id is string => id !== null);
+  const [citiri, citiriCuData, responsabiliInactivi, setari] = await Promise.all([
+    ultimeleCitiriContor(
+      organizationId,
+      planuriCuContor.map((p) => p.equipment_id),
+      planuriCuContor.map((p) => p.tip_contor).filter((tip): tip is TipContor => tip !== null),
+    ),
+    // Aceleași contoare, CU data citirii: pentru „necitit de N zile”.
+    ultimeleCitiriCuData(
+      organizationId,
+      planuriCuContor.map((p) => p.equipment_id),
+    ),
+    // Responsabilul plecat din firmă nu dă nicio eroare: planul rămâne al lui
+    // și alertele lui pleacă în gol. Panoul îl scoate la vedere.
+    angajatiInactiviDintre(organizationId, idResponsabili),
+    setariMentenanta(organizationId),
+  ]);
+
+  const planuriDeReatribuit = rezultatPlanuri.randuri.filter(
+    (p) =>
+      p.responsabil_employee_id !== null && responsabiliInactivi.has(p.responsabil_employee_id),
   );
+
+  /*
+   * Contoarele pe care stau planuri și care n-au mai fost citite peste pragul
+   * din setări (sau deloc). Un plan „la 500 de ore” cu contorul necitit de două
+   * luni e „În regulă” pe hârtie și depășit în hală — fără citire, starea pe
+   * contor nu poate spune nimic.
+   */
+  const contoareNecitite = [
+    ...new Map(
+      planuriCuContor
+        .filter(
+          (p): p is PlanMentenanta & { readonly tip_contor: TipContor } => p.tip_contor !== null,
+        )
+        .map((p) => [cheieContor(p.equipment_id, p.tip_contor), p] as const),
+    ).values(),
+  ]
+    .map((p) => {
+      const tip = p.tip_contor as TipContor;
+      const ultima = citiriCuData.get(cheieContor(p.equipment_id, tip)) ?? null;
+      return { equipmentId: p.equipment_id, tip, ultima };
+    })
+    .filter((c) =>
+      contorInvechit(c.ultima?.data_citirii ?? null, azi, setari.prag_contor_necitit_zile),
+    );
 
   /*
    * `stareScadentaPlan`, NU `stareScadentaData`.
@@ -129,17 +185,22 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
    */
   const numarScadente = planuriInCoada.length + iscirInCoada.length;
 
+  const deReatribuitAfisate = planuriDeReatribuit.slice(0, MAXIM_PE_PANOU);
+  const contoareNecititeAfisate = contoareNecitite.slice(0, MAXIM_PE_PANOU);
+
   const idEchipamente = [
     ...planuriScadenteAfisate.map(({ plan }) => plan.equipment_id),
     ...sesizariAfisate.map((s) => s.equipment_id),
     ...iscirScadente.map((a) => a.equipment_id),
+    ...deReatribuitAfisate.map((p) => p.equipment_id),
+    ...contoareNecititeAfisate.map((c) => c.equipmentId),
   ];
   const [echipamente, responsabili] = await Promise.all([
     echipamenteDupaId(organizationId, idEchipamente),
     angajatiDupaId(
       organizationId,
-      planuriScadenteAfisate
-        .map(({ plan }) => plan.responsabil_employee_id)
+      [...planuriScadenteAfisate.map(({ plan }) => plan), ...deReatribuitAfisate]
+        .map((plan) => plan.responsabil_employee_id)
         .filter((id): id is string => id !== null),
     ),
   ]);
@@ -270,6 +331,75 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
             </li>
           ))}
         </Panou>
+
+        {planuriDeReatribuit.length > 0 ? (
+          <Panou
+            icon={UserX}
+            titlu="Planuri de reatribuit"
+            total={planuriDeReatribuit.length}
+            afisate={deReatribuitAfisate.length}
+            href="/mentenanta/planuri"
+            etichetaHref="Vezi toate planurile"
+            gol="Toate planurile au un responsabil activ."
+          >
+            {deReatribuitAfisate.map((plan) => (
+              <li key={plan.id} className="flex items-start justify-between gap-3 py-2">
+                <div>
+                  <Link
+                    href={`/mentenanta/planuri/${plan.id}`}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {plan.denumire}
+                  </Link>
+                  <p className="text-muted-foreground text-nota">
+                    {numeEchipament(plan.equipment_id)}
+                  </p>
+                </div>
+                <span className="text-muted-foreground text-nota shrink-0 text-right">
+                  {plan.responsabil_employee_id === null
+                    ? "—"
+                    : (responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—")}
+                  <br />
+                  nu mai e activ
+                </span>
+              </li>
+            ))}
+          </Panou>
+        ) : null}
+
+        {contoareNecitite.length > 0 ? (
+          <Panou
+            icon={Gauge}
+            titlu={`Contoare necitite de peste ${textNumarat(setari.prag_contor_necitit_zile, "zi", "zile")}`}
+            total={contoareNecitite.length}
+            afisate={contoareNecititeAfisate.length}
+            href="/mentenanta/contoare"
+            etichetaHref="Deschide contoarele"
+            gol="Toate contoarele cu plan au citiri recente."
+          >
+            {contoareNecititeAfisate.map((c) => (
+              <li
+                key={cheieContor(c.equipmentId, c.tip)}
+                className="flex items-start justify-between gap-3 py-2"
+              >
+                <div>
+                  <Link
+                    href={`/mentenanta/echipamente/${c.equipmentId}`}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {numeEchipament(c.equipmentId)}
+                  </Link>
+                  <p className="text-muted-foreground text-nota">{ETICHETE_TIP_CONTOR[c.tip]}</p>
+                </div>
+                <span className="text-muted-foreground text-nota shrink-0 text-right">
+                  {c.ultima === null
+                    ? "nicio citire"
+                    : `ultima: ${formatDate(c.ultima.data_citirii)}`}
+                </span>
+              </li>
+            ))}
+          </Panou>
+        ) : null}
 
         <Panou
           icon={ShieldAlert}

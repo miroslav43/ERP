@@ -449,21 +449,36 @@ export const inregistreazaContor = createAction({
   ): Promise<Readonly<{ id: string; avertismentSalt: string | null }>> => {
     const db = await createServerSupabase();
 
-    // Resetarea contorului mută țintele planurilor pe contor — adică editează
-    // planuri. O face doar cine administrează mentenanța; responsabilul
-    // utilajului (din portal) înregistrează citiri obișnuite. Politica de
-    // INSERT refuză oricum (42501); aici omul primește motivul.
-    if (input.resetare_contor) {
-      const permisiuni = await getPermissionMap(
-        ctx.tenant.organizationId,
-        ctx.tenant.role,
-        ctx.tenant.memberId,
+    // Cine NU administrează mentenanța (responsabilul utilajului, din portal)
+    // înregistrează citiri obișnuite, semnate cu propria fișă:
+    //  · resetarea contorului mută țintele planurilor pe contor — adică
+    //    editează planuri; politica de INSERT refuză oricum (42501), aici omul
+    //    primește motivul;
+    //  · `citit_de_employee_id` nu se alege: altfel și-ar atribui citirea unui
+    //    coleg. Se pune fișa apelantului, sau nimic dacă n-are fișă.
+    const permisiuni = await getPermissionMap(
+      ctx.tenant.organizationId,
+      ctx.tenant.role,
+      ctx.tenant.memberId,
+    );
+    const gestionar = can(permisiuni, "maintenance:update", "team");
+    if (input.resetare_contor && !gestionar) {
+      throw forbidden(
+        "Resetarea contorului o înregistrează responsabilul de mentenanță, nu responsabilul utilajului. Înregistrați o citire obișnuită.",
       );
-      if (!can(permisiuni, "maintenance:update", "team")) {
-        throw forbidden(
-          "Resetarea contorului o înregistrează responsabilul de mentenanță, nu responsabilul utilajului. Înregistrați o citire obișnuită.",
-        );
-      }
+    }
+    let cititDe = input.citit_de_employee_id;
+    if (!gestionar) {
+      const { data: fisa, error: eroareFisa } = await db
+        .from("employees")
+        .select("id")
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("user_id", ctx.user.id)
+        .eq("is_primary", true)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (eroareFisa !== null) throw eroareFisa;
+      cititDe = fisa?.id ?? null;
     }
 
     // Pre-verificare, replicată din trigger-ul `ssm_meter_guard`, pentru
@@ -498,6 +513,7 @@ export const inregistreazaContor = createAction({
       .from("equipment_meters")
       .insert({
         ...input,
+        citit_de_employee_id: cititDe,
         organization_id: ctx.tenant.organizationId,
       })
       .select("id")
@@ -529,6 +545,10 @@ export const creeazaPlan = createAction({
       "tip_contor",
       "responsabil_employee_id",
       "activ",
+      "mod_calcul",
+      "data_ancora",
+      "oprire_necesara",
+      "categorie_legala",
     ],
   },
   revalidate: (input) => [
@@ -574,6 +594,10 @@ export const actualizeazaPlan = createAction({
       "tip_contor",
       "responsabil_employee_id",
       "activ",
+      "mod_calcul",
+      "data_ancora",
+      "oprire_necesara",
+      "categorie_legala",
     ],
   },
   revalidate: (input) => [
@@ -590,6 +614,10 @@ export const actualizeazaPlan = createAction({
       .update(campuri)
       .eq("id", id)
       .eq("organization_id", ctx.tenant.organizationId)
+      // Planul șters logic (0183, `stergePlan`) nu se mai editează: politica
+      // nu filtrează `deleted_at`, deci fără filtrul ăsta un apel direct l-ar
+      // reactiva (`activ = true`) cu intrare de audit.
+      .is("deleted_at", null)
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroare(error);

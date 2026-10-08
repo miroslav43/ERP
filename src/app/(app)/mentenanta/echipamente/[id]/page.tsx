@@ -121,6 +121,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       tip: null,
       rezultat: null,
       echipament: echipament.id,
+      plan: null,
       cursor: null,
       limita: 50,
     }),
@@ -598,7 +599,12 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                 >
                   <div>
                     <p className="font-medium">
-                      {plan.denumire}
+                      <Link
+                        href={`/mentenanta/planuri/${plan.id}`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {plan.denumire}
+                      </Link>
                       {!plan.activ ? (
                         <span className="text-muted-foreground text-nota ml-2">(inactiv)</span>
                       ) : null}

@@ -11,6 +11,7 @@ cai:
   - "supabase/migrations/0180_mentenanta_integritate.sql"
   - "supabase/migrations/0181_sesizari_flux.sql"
   - "supabase/migrations/0182_echipamente_ciclu.sql"
+  - "supabase/migrations/0183_planuri_scadente.sql"
 tabele:
   [
     equipment,
@@ -27,9 +28,9 @@ capcane: [17, 35, 50, 51]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
-  - "casare, ștergere, componente, contoare, responsabil → [[modul/mentenanta/echipamente]]"
-scris_pe: 9ea2a16b2a1238c4bcf3726661ee4b024da7167f
-scris_la: 2026-10-07
+  - "casare, componente, contoare, responsabil → [[modul/mentenanta/echipamente]]; scadență, amânare, grilă fixă, proiecție → [[modul/mentenanta/planuri]]"
+scris_pe: f3937f52a02b737ac62ef500b1d6b42e81e7640b
+scris_la: 2026-10-08
 tags: [modul]
 ---
 
@@ -42,7 +43,8 @@ feature-ul `maintenance` — **aceeași migrare, alt modul**. Vezi [[modul/ssm]]
 cealaltă jumătate. Fluxul complet al sesizării (număr, tehnician, comentarii, fotografii,
 opriri, setări — `0181`) are pagina lui: [[modul/mentenanta/sesizari]]. Ciclul de viață al
 echipamentului (casare, componente, garanție, contoare în lot, etichete QR, responsabilul
-— `0182`) are și el una: [[modul/mentenanta/echipamente]].
+— `0182`) are și el una: [[modul/mentenanta/echipamente]]. Planurile și scadențele (mod de
+calcul, amânare, proiecție pe contor, fișa planului — `0183`): [[modul/mentenanta/planuri]].
 
 ## Rute și cine ajunge
 
@@ -53,7 +55,8 @@ echipamentului (casare, componente, garanție, contoare în lot, etichete QR, re
 | `/mentenanta/sesizari?sesizare=noua` (casetă)              | `maintenance:create` own  |
 | `/mentenanta/echipamente`, `/mentenanta/echipamente/[id]`  | `maintenance:read` team   |
 | `/mentenanta/echipamente?echipament=nou` (casetă)          | `maintenance:update` team |
-| `/mentenanta/planuri`, `/mentenanta/interventii`           | `maintenance:read` team   |
+| `/mentenanta/planuri`, `/mentenanta/planuri/[id]`          | `maintenance:read` team   |
+| `/mentenanta/interventii`                                  | `maintenance:read` team   |
 | `/mentenanta/contoare`, `/mentenanta/echipamente/etichete` | `maintenance:read` team   |
 | `/mentenanta/setari`                                       | `maintenance:update` all  |
 

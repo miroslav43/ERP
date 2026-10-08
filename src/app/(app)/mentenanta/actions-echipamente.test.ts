@@ -66,6 +66,14 @@ const echipament = {
 
 const contor = { equipment_id: ID_1, tip: "ore", citire: "1200", data_citirii: "2026-09-20" };
 
+/**
+ * Fișa apelantului, citită de handler DOAR când nu e gestionar: cine nu
+ * administrează mentenanța (responsabilul utilajului, din portal) își semnează
+ * citirea cu propria fișă, n-o atribuie unui coleg (0182).
+ */
+const ID_FISA_MEA = "00000000-0000-4000-8000-00000000f15a";
+const FISA_MEA = { data: { id: ID_FISA_MEA } };
+
 const iscir = {
   equipment_id: ID_1,
   numar: "ISCIR-77",
@@ -95,6 +103,7 @@ describe("pragul de permisiune (capcana 35)", () => {
 
   it("inregistreazaContor: `maintenance:read` = own trece poarta — un străin e refuzat de BAZĂ (42501)", async () => {
     const { server } = configureazaActiunea({ rol: "employee", permisiuni: CITIRE });
+    server.raspunde("employees", "select", FISA_MEA);
     server.raspunde("equipment_meters", "select", { data: null });
     server.raspunde("equipment_meters", "insert", { error: eroarePostgrest("42501") });
     const r = await inregistreazaContor(contor);
@@ -220,6 +229,7 @@ describe("actualizeazaEchipament", () => {
 describe("inregistreazaContor", () => {
   it("prima citire: precitire pe (echipament, tip, nesters), ultima întâi; apoi INSERT, fără avertisment", async () => {
     const { server } = configureazaActiunea({ permisiuni: CITIRE });
+    server.raspunde("employees", "select", FISA_MEA);
     server.raspunde("equipment_meters", "select", { data: null });
     server.raspunde("equipment_meters", "insert", { data: { id: ID_2 } });
 
@@ -245,6 +255,7 @@ describe("inregistreazaContor", () => {
       citire: 1200,
       resetare_contor: false,
       sursa: "manual",
+      citit_de_employee_id: ID_FISA_MEA,
     });
     expect(insert?.selectDupaScriere).toBe("id");
     expect(caiRevalidate()).toEqual([
@@ -257,6 +268,7 @@ describe("inregistreazaContor", () => {
 
   it("regres fără resetare: CONFLICT cu ambele cifre, fără INSERT", async () => {
     const { server } = configureazaActiunea({ permisiuni: CITIRE });
+    server.raspunde("employees", "select", FISA_MEA);
     server.raspunde("equipment_meters", "select", { data: { citire: 10000 } });
 
     const r = await inregistreazaContor({ ...contor, citire: "9500" });
@@ -301,6 +313,7 @@ describe("inregistreazaContor", () => {
     "%s: avertisment de salt = %s, iar citirea se înregistrează oricum",
     async (_d, citire, salt) => {
       const { server } = configureazaActiunea({ permisiuni: CITIRE });
+      server.raspunde("employees", "select", FISA_MEA);
       server.raspunde("equipment_meters", "select", { data: { citire: 1000 } });
       server.raspunde("equipment_meters", "insert", { data: { id: ID_2 } });
 
@@ -320,6 +333,7 @@ describe("inregistreazaContor", () => {
 
   it("eroarea la precitire nu ajunge la INSERT", async () => {
     const { server } = configureazaActiunea({ permisiuni: CITIRE });
+    server.raspunde("employees", "select", FISA_MEA);
     server.raspunde("equipment_meters", "select", { error: eroarePostgrest("42501") });
     const r = await inregistreazaContor(contor);
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
@@ -328,11 +342,51 @@ describe("inregistreazaContor", () => {
 
   it("garda din bază are ultimul cuvânt: P0001 la INSERT ajunge la om", async () => {
     const { server } = configureazaActiunea({ permisiuni: CITIRE });
+    server.raspunde("employees", "select", FISA_MEA);
     server.raspunde("equipment_meters", "select", { data: null });
     const mesaj = "Citirea (9500) este mai mică decât ultima citire înregistrată (10000).";
     server.raspunde("equipment_meters", "insert", { error: eroarePostgrest("P0001", mesaj) });
     const r = await inregistreazaContor(contor);
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });
+  });
+
+  it("fără `update`: `citit_de_employee_id` ales de om e înlocuit cu fișa proprie (nu-și atribuie citirea unui coleg)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CITIRE });
+    server.raspunde("employees", "select", FISA_MEA);
+    server.raspunde("equipment_meters", "select", { data: null });
+    server.raspunde("equipment_meters", "insert", { data: { id: ID_2 } });
+    const r = await inregistreazaContor({ ...contor, citit_de_employee_id: ID_2 });
+    expect(r.ok).toBe(true);
+    const fisa = server.apeluriPe("employees", "select")[0];
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "is_primary", true)).toBe(true);
+    expect(server.apeluriPe("equipment_meters", "insert")[0]?.payload).toMatchObject({
+      citit_de_employee_id: ID_FISA_MEA,
+    });
+  });
+
+  it("fără `update` și fără fișă: citirea pleacă nesemnată (null), nu cu id-ul trimis", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CITIRE });
+    server.raspunde("employees", "select", { data: null });
+    server.raspunde("equipment_meters", "select", { data: null });
+    server.raspunde("equipment_meters", "insert", { data: { id: ID_2 } });
+    const r = await inregistreazaContor({ ...contor, citit_de_employee_id: ID_2 });
+    expect(r.ok).toBe(true);
+    expect(server.apeluriPe("equipment_meters", "insert")[0]?.payload).toMatchObject({
+      citit_de_employee_id: null,
+    });
+  });
+
+  it("cu `update`: `citit_de_employee_id` ales rămâne, fără citirea fișei", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { ...CITIRE, ...UPDATE } });
+    server.raspunde("equipment_meters", "select", { data: null });
+    server.raspunde("equipment_meters", "insert", { data: { id: ID_2 } });
+    const r = await inregistreazaContor({ ...contor, citit_de_employee_id: ID_2 });
+    expect(r.ok).toBe(true);
+    expect(server.apeluriPe("employees")).toHaveLength(0);
+    expect(server.apeluriPe("equipment_meters", "insert")[0]?.payload).toMatchObject({
+      citit_de_employee_id: ID_2,
+    });
   });
 
   it("citirea negativă e refuzată de schemă", async () => {

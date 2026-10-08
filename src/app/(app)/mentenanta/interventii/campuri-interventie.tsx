@@ -5,7 +5,11 @@ import type { ReactElement } from "react";
 import { Camp } from "@/components/ui/camp";
 import type { StareFormular } from "@/components/ui/formular";
 import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
-import { REZULTATE_INTERVENTIE, TIPURI_MENTENANTA } from "@/schemas/maintenance";
+import {
+  REZULTATE_INTERVENTIE,
+  TIPURI_MENTENANTA,
+  type TipMentenanta,
+} from "@/schemas/maintenance";
 
 import { ETICHETE_REZULTAT_INTERVENTIE, ETICHETE_TIP_MENTENANTA } from "../etichete";
 
@@ -22,7 +26,8 @@ export interface ProprietatiCampuriInterventie<TData> {
   readonly planuri?: readonly OptiuneInterventie[] | undefined;
   /** Planul preselectat — „Execută” de pe un plan. */
   readonly planImplicit?: string | undefined;
-  readonly tipImplicit?: "preventiva" | "predictiva" | "corectiva";
+  /** Tipul preselectat — „Execută” de pe plan îl ia din plan (inclusiv `verificare_legala`). */
+  readonly tipImplicit?: TipMentenanta;
   /** Data pre-completată (ISO) — „Rezolvă” pune ziua de azi. */
   readonly dataImplicita?: string | undefined;
 }
