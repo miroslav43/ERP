@@ -354,7 +354,19 @@ export const onboardeazaOrganizatieSchema = CAMPURI_INROLARE.superRefine(verific
  * pasul 6 e ascuns. `plan` și `seats_limit` vin din firma deja creată; acțiunea
  * le ignoră, ca un administrator să nu-și poată ridica singur plafonul.
  */
-export const completeazaFirmaSchema = CAMPURI_INROLARE.superRefine(verificaCaen);
+/*
+ * Câmpurile `owner_*` sunt SCOASE din schemă, nu doar ignorate: cât timp erau
+ * obligatorii, `owner_telefon` (opțional la înregistrare, deci adesea gol) nu
+ * avea niciun câmp în asistent, iar „Finalizează configurarea" nu trimitea nimic
+ * — un banner „un câmp obligatoriu lipsește" fără niciun câmp marcat. Găsit de
+ * QA pe 8 oct 2026 (ONB-010). Acțiunea nu scria niciodată aceste câmpuri.
+ */
+export const completeazaFirmaSchema = CAMPURI_INROLARE.omit({
+  owner_nume: true,
+  owner_prenume: true,
+  owner_email: true,
+  owner_telefon: true,
+}).superRefine(verificaCaen);
 
 export type CompleteazaFirmaInput = z.input<typeof completeazaFirmaSchema>;
 

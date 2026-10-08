@@ -1,6 +1,10 @@
 // src/schemas/organization.test.ts
 import { describe, expect, it } from "vitest";
-import { actualizeazaOrganizatieSchema, onboardeazaOrganizatieSchema } from "./organization";
+import {
+  actualizeazaOrganizatieSchema,
+  completeazaFirmaSchema,
+  onboardeazaOrganizatieSchema,
+} from "./organization";
 
 const BAZA = {
   name: "Firma Mea",
@@ -21,6 +25,32 @@ const BAZA = {
   owner_email: "ion@firma.ro",
   owner_telefon: "0731234567",
 };
+
+describe("completeazaFirmaSchema — fără datele proprietarului", () => {
+  // Asistentul `/bun-venit` are pașii 1–5 și confirmarea: proprietarul e chiar
+  // apelantul, deci pasul 6 nu există, iar acțiunea nu scrie niciun `owner_*`.
+  // Cât timp schema le cerea, `owner_telefon` (opțional la înregistrare) lipsea
+  // din formular și „Finalizează" nu trimitea nimic (QA 8 oct 2026, ONB-010).
+  const COMPLET = { ...BAZA, cod_caen: "6210", cod_caen_secundare: [] };
+
+  it("acceptă un formular complet fără niciun câmp owner_*", () => {
+    const { owner_nume, owner_prenume, owner_email, owner_telefon, ...faraProprietar } = COMPLET;
+    void owner_nume;
+    void owner_prenume;
+    void owner_email;
+    void owner_telefon;
+    const rezultat = completeazaFirmaSchema.safeParse(faraProprietar);
+    expect(rezultat.success).toBe(true);
+  });
+
+  it("ignoră câmpurile owner_* dacă totuși vin", () => {
+    const rezultat = completeazaFirmaSchema.safeParse(COMPLET);
+    expect(rezultat.success).toBe(true);
+    if (rezultat.success) {
+      expect("owner_telefon" in rezultat.data).toBe(false);
+    }
+  });
+});
 
 describe("onboardeazaOrganizatieSchema — cod_caen", () => {
   it("respinge lipsa codului principal, cu mesaj în română", () => {

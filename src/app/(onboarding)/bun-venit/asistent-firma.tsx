@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { ETICHETE_PASI, ProgresAsistent } from "@/components/onboarding/progres-asistent";
@@ -54,7 +54,14 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
   const [eroareServer, setEroareServer] = useState<string | null>(null);
 
   const formular = useForm<OnboardeazaOrganizatieInput>({
-    resolver: zodResolver(completeazaFirmaSchema),
+    // Formularul rămâne tipat pe forma COMPLETĂ (pașii 1–5 sunt componente
+    // comune cu asistentul din consola de platformă, care are și pasul 6), dar
+    // schema de aici NU mai cere `owner_*`: proprietarul e chiar apelantul și
+    // pasul lui e sărit. Validarea rulează pe schema îngustă; câmpurile lipsă
+    // nu pot pica (QA 8 oct 2026, ONB-010), iar la trimitere nu sunt transmise.
+    resolver: zodResolver(
+      completeazaFirmaSchema,
+    ) as unknown as Resolver<OnboardeazaOrganizatieInput>,
     defaultValues: {
       platitor_tva: false,
       forma_juridica: "SRL",
