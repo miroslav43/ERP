@@ -84,9 +84,18 @@ Riscurile care traversează secțiunile. Fiecare e prins de testul numit:
 4. **O unealtă mutată pe rută statică își pierde cache-ul privat sau curățarea textului.** Testul: cel de cache din A5, mutat de I7 pe fișa SSM, plus poarta lui J3 pe rutele noi.
 5. **Documentul de semnat se întinde pe mai multe pagini la tipărirea din browser.** Testul: sonda `page.pdf` din B6, cu număr de pagini fix, rulată din nou la E13, F14, G7, H7 și I9.
 
+## Deciziile utilizatorului (9 oct 2026, 00:12)
+
+- **D2:** migrarea se aplică pe producție după `banc-migrare.sh` verde. Confirmat.
+- **Firma `wise`:** utilizatorul îi spune să nu calculeze octombrie până la reparație. Planul nu contactează clientul.
+- **J3/J4:** numărarea pe server e acceptată. Utilizatorul vrea să vadă și „datele”. Interpretarea aplicată: pe lângă număr se trimit doar câmpuri care nu identifică pe nimeni (unealta, formatul, luna și anul, numărul de angajați, varianta sau programul ales). **Niciodată** nume, firmă, CUI, traseu sau text liber, ca promisiunea din A7 să rămână adevărată.
+- **Textele juridice (F: cultele, I: concedierea, K8: preavizul la demisie):** juristul le-a confirmat. Se publică fără ⚠ de jurist. Temeiurile rămân citate pe pagină.
+- **Datele scurse (A9):** aproape toate rândurile cu valori din jurnal vin din auditurile noastre. După A8 se șterg rândurile `/unelte` cu query din `administrativo.log` și din Umami. Jurnalul docker comun nu se atinge, ci se rotește natural. GA4 rămâne la latitudinea utilizatorului.
+- **D2 aplicată:** 0187 e pe producție din 9 oct 2026 (`b17b363`), verificată prin MCP: funcția conține `rest_de_plata`, migrarea e în registru, granturile sunt corecte.
+
 ## Decizii care sunt ale tale
 
-Planul se oprește la fiecare dintre ele. Restul deciziilor sunt luate și argumentate în secțiunea „Decizii luate” din fiecare fișier.
+Planul se oprește la fiecare dintre ele. Restul deciziilor sunt luate și argumentate în secțiunea „Decizii luate” din fiecare fișier. Deciziile de mai sus le închid pe 1 (parțial), 3, 4 și 5.
 
 1. **Salarizarea (D), cu firmele reale:**
    - Aplic migrarea din D2 pe producție?
