@@ -21,6 +21,7 @@ import {
   categorii,
   listeazaObiecte,
   rezumatInventar,
+  numeleAngajatilor,
 } from "@/lib/queries/inventory";
 import { filtreInventarSchema } from "@/schemas/inventory";
 
@@ -119,7 +120,8 @@ async function TabelInventar({
       filtre.numar !== null ||
       filtre.status !== null ||
       filtre.stare !== null ||
-      filtre.category_id !== null;
+      filtre.category_id !== null ||
+      filtre.angajat !== null;
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -295,6 +297,13 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
   // Aceleași filtre pe care le vede lista: bara le arată în câmpuri și ca pastile.
   const filtre = filtreDinUrl(filtreInventarSchema, parametri);
 
+  // Numele pentru pastila „În primirea lui: X" — citit sub RLS.
+  const numeAngajatFiltrat =
+    filtre.angajat === null
+      ? null
+      : ((await numeleAngajatilor(tenant.organizationId, [filtre.angajat])).get(filtre.angajat)
+          ?.full_name ?? null);
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -330,7 +339,7 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
         </Suspense>
       ) : null}
 
-      <FiltreInventar categorii={listaCategorii} filtre={filtre} />
+      <FiltreInventar categorii={listaCategorii} filtre={filtre} numeAngajat={numeAngajatFiltrat} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelInventar

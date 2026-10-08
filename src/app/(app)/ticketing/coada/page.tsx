@@ -21,6 +21,8 @@ import { TabelTichete } from "../tabel-tichete";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_TICKETING } from "@/config/file-module";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
+import { angajatiDupaId } from "@/lib/queries/checklist";
 
 export const metadata: Metadata = { title: "Coada de tichete" };
 
@@ -85,10 +87,25 @@ async function Continut({
   // coada, tabelul arăta primele douăzeci și cinci de rânduri, iar între cele
   // două nu exista niciun drum. Acum cifra din paginare și cifrele de sus vin
   // din aceleași filtre, iar restul rândurilor au unde să fie deschise.
-  const [rezumat, { randuri, urmatorulCursor, total }] = await Promise.all([
+  const [rezumat, { randuri, urmatorulCursor, total }, solicitantFiltrat] = await Promise.all([
     rezumatCoada(organizationId),
     listeazaTichete(organizationId, filtre, cursor, null, limita),
+    // Numele pentru pastila filtrului de intrare, citit sub RLS.
+    filtre.solicitant_employee_id === undefined
+      ? Promise.resolve(null)
+      : angajatiDupaId(organizationId, [filtre.solicitant_employee_id]).then(
+          (h) => h.get(filtre.solicitant_employee_id ?? "")?.full_name ?? null,
+        ),
   ]);
+  const pastileIntrare =
+    filtre.solicitant_employee_id === undefined
+      ? []
+      : [
+          {
+            cheie: "solicitant_employee_id",
+            eticheta: `Solicitant: ${solicitantFiltrat ?? "ales"}`,
+          },
+        ];
 
   const catreStatus = (status: string): string =>
     adresaCu("/ticketing/coada", parametri, (p) => {
@@ -100,6 +117,7 @@ async function Continut({
 
   return (
     <>
+      <PastileFiltre active={pastileIntrare} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Cifra eticheta="Deschise" valoare={rezumat.deschise} />
         {/* „De aprobat" spunea că cifra e a privitorului. Nu era: numără toate
@@ -122,7 +140,13 @@ async function Continut({
 
       {randuri.length === 0 ? (
         <StareGoala
-          fel={filtre.status === undefined && filtre.cauta === undefined ? "initiala" : "filtrata"}
+          fel={
+            filtre.status === undefined &&
+            filtre.cauta === undefined &&
+            filtre.solicitant_employee_id === undefined
+              ? "initiala"
+              : "filtrata"
+          }
           pictograma={LifeBuoy}
           titlu="Nimic în coadă"
           descriere="Tichetele echipei apar aici pe măsură ce sunt deschise."

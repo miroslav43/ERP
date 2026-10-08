@@ -50,6 +50,7 @@ const [lista, numarare] = [0, 1];
 const filtre = (m: Partial<FiltreInventar> = {}): FiltreInventar => ({
   q: null,
   numar: null,
+  angajat: null,
   status: null,
   stare: null,
   category_id: null,

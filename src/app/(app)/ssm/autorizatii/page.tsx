@@ -26,22 +26,28 @@ import { FormularAutorizatie } from "./formular-autorizatie";
 import { SuspendareAutorizatie } from "./suspendare-autorizatie";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Autorizații nominale" };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function TabelAutorizatii({
   organizationId,
+  angajat,
   poateActualiza,
   poateCrea,
   permisiuni,
 }: {
   readonly organizationId: string;
+  /** `?angajat=`: doar autorizațiile unui om. */
+  readonly angajat: string | null;
   readonly poateActualiza: boolean;
   /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
   readonly poateCrea: boolean;
   readonly permisiuni: PermissionMap;
 }) {
-  const autorizatii = await autorizatiiNominale(organizationId);
+  const autorizatii = await autorizatiiNominale(organizationId, { angajat });
 
   if (autorizatii.length === 0) {
     return (
@@ -154,7 +160,11 @@ async function TabelAutorizatii({
   );
 }
 
-export default async function PaginaAutorizatii() {
+export default async function PaginaAutorizatii({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireUser();
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
@@ -191,6 +201,17 @@ export default async function PaginaAutorizatii() {
     angajati = data ?? [];
   }
 
+  // Filtrul de intrare din fișa angajatului: un UUID sau nimic; numele, sub RLS.
+  const parametri = await searchParams;
+  const angajatBrut = parametri["angajat"];
+  const angajatFiltrat =
+    typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -212,9 +233,18 @@ export default async function PaginaAutorizatii() {
 
       {poateCrea ? <FormularAutorizatie angajati={angajati} /> : null}
 
+      <PastileFiltre
+        active={
+          angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
+        }
+      />
+
       <Suspense fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelAutorizatii
           organizationId={tenant.organizationId}
+          angajat={angajatFiltrat}
           poateActualiza={poateActualiza}
           poateCrea={poateCrea}
           permisiuni={permisiuni}

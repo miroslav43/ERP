@@ -199,6 +199,8 @@ export const filtreAngajatiSchema = z.object({
    */
   functie: textOptional(160),
   status: enumOptional(STATUSURI_ANGAJAT, "Statusul din filtru nu este valid."),
+  /** Filtru de INTRARE (de pe un punct de lucru): angajații cu contract ACTIV acolo. */
+  punct_lucru: uuidOptional,
   cursor: textOptional(400),
   limita: numarCuImplicit({
     min: 5,

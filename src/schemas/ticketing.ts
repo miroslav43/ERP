@@ -196,6 +196,8 @@ export const filtreTicheteSchema = z.object({
   status: z.enum(STATUSURI_TICHET).optional(),
   prioritate: z.enum(PRIORITATI).optional(),
   asignat_employee_id: uuid.optional(),
+  /** Filtru de INTRARE pe coadă (din fișa angajatului). „Tichetele mele" rămâne pe argumentul separat `doarSolicitant`. */
+  solicitant_employee_id: uuid.optional(),
   department_id: uuid.optional(),
   cauta: z.string().trim().max(200).optional(),
 });

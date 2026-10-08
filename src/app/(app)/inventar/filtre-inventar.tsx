@@ -25,6 +25,8 @@ interface Proprietati {
    * formular altceva decât ce s-a filtrat de fapt.
    */
   readonly filtre: ValoriFiltre;
+  /** Numele din `?angajat=`, rezolvat de pagină sub RLS. */
+  readonly numeAngajat?: string | null;
 }
 
 /**
@@ -34,10 +36,12 @@ interface Proprietati {
  * arunca sortarea aleasă din tabel și mărimea de pagină aleasă din paginare.
  */
 const CHEI_PROPRII = ["q", "numar", "status", "stare", "category_id"] as const;
+/** Filtrul de intrare din fișa angajatului: pastilă cu ștergere, fără câmp în bară. */
+const CHEI_EXTERNE = ["angajat"] as const;
 
 const CLASA_SELECT = "border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2";
 
-export function FiltreInventar({ categorii, filtre }: Proprietati) {
+export function FiltreInventar({ categorii, filtre, numeAngajat = null }: Proprietati) {
   const numeCategorii = new Map(categorii.map((categorie) => [categorie.id, categorie.denumire]));
 
   // Pastilele poartă DENUMIREA, nu identificatorul: „Categorie: Scule”, nu un UUID.
@@ -61,9 +65,20 @@ export function FiltreInventar({ categorii, filtre }: Proprietati) {
       eticheta: `Categorie: ${numeCategorii.get(filtre.category_id) ?? "necunoscută"}`,
     });
   }
+  if (filtre.angajat !== null) {
+    active.push({
+      cheie: "angajat",
+      eticheta: `În primirea lui: ${numeAngajat ?? "angajat ales"}`,
+    });
+  }
 
   return (
-    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII} textAplica="Aplică filtrele">
+    <BaraFiltre
+      active={active}
+      cheiProprii={CHEI_PROPRII}
+      cheiExterne={CHEI_EXTERNE}
+      textAplica="Aplică filtrele"
+    >
       <div className="min-w-56 flex-1">
         <label htmlFor="filtru-inventar-q" className="text-corp block font-medium">
           Caută după denumire

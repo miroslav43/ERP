@@ -66,6 +66,7 @@ const filtreVehicule = (m: Partial<FiltreVehiculeCitire> = {}): FiltreVehiculeCi
 const filtreFoi = (m: Partial<FiltreFoiCitire> = {}): FiltreFoiCitire => ({
   status: null,
   vehicul: null,
+  sofer: null,
   cursor: null,
   limita: 2,
   ...m,

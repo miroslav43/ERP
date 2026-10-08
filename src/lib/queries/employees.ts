@@ -250,17 +250,37 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
    * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
    * numărătoare care nu se potrivește cu lista — defectul reparat aici.
    */
+  // „Angajații de la punctul X" = cei cu contract ACTIV pe punctul ăla. Id-urile
+  // se citesc întâi, ca același `.in()` să se aplice și listei, și numărătorii.
+  const idDoarLaPunct =
+    filtre.punct_lucru === null
+      ? null
+      : await db
+          .from("employment_contracts")
+          .select("employee_id")
+          .eq("organization_id", organizationId)
+          .eq("punct_lucru_id", filtre.punct_lucru)
+          .eq("status", "activ")
+          .is("deleted_at", null)
+          .then(({ data }) => [...new Set((data ?? []).map((r) => r.employee_id))]);
   const filtreaza = <
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
       ilike: (c: string, v: string) => Q;
       contains: (c: string, v: readonly string[]) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    // Un `in` gol ar fi respins de PostgREST; un id imposibil întoarce lista goală.
+    if (idDoarLaPunct !== null)
+      cu = cu.in(
+        "id",
+        idDoarLaPunct.length === 0 ? ["00000000-0000-0000-0000-000000000000"] : idDoarLaPunct,
+      );
     if (scope === "own" && propriaFisaId !== null) cu = cu.eq("id", propriaFisaId);
     else if (scope === "team" && propriaFisaId !== null)
       cu = cu.contains("manager_path", [propriaFisaId]);

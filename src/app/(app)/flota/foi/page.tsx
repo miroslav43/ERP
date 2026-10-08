@@ -59,7 +59,7 @@ async function TabelFoi({
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.status !== null || filtre.vehicul !== null;
+    const areFiltre = filtre.status !== null || filtre.vehicul !== null || filtre.sofer !== null;
     // Ca la /flota: se scot DOAR cheile de filtrare. Un `href="/flota/foi"` sec
     // ar fi luat cu el și sortarea coloanelor, și mărimea paginii.
     const faraFiltre = adresa((p) => {
@@ -258,6 +258,14 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
     poateCrea ? dateFoaieNoua(tenant.organizationId) : Promise.resolve(null),
   ]);
 
+  // Filtrul de intrare din fișa angajatului: numele pastilei, citit sub RLS.
+  const soferFiltrat = filtreDinUrl(filtreFoiSchema, parametri).sofer;
+  const numeSoferFiltrat =
+    soferFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [soferFiltrat])).get(soferFiltrat)
+          ?.full_name ?? null);
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -286,7 +294,7 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
         file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
 
-      <FiltreFoi parametri={parametri} vehicule={vehiculeFiltru} />
+      <FiltreFoi parametri={parametri} vehicule={vehiculeFiltru} numeSofer={numeSoferFiltrat} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelFoi

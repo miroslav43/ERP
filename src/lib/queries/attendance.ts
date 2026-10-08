@@ -105,7 +105,10 @@ export interface AngajatPontaj {
 }
 
 /** O pagină keyset din angajații foii — filtrele din adresă plus cursorul. */
-export interface PaginaAngajatiPontaj extends Pick<FiltrePontaj, "departament" | "cauta"> {
+export interface PaginaAngajatiPontaj extends Pick<
+  FiltrePontaj,
+  "departament" | "cauta" | "angajat"
+> {
   readonly cursor: string | null;
   readonly limita: number;
 }
@@ -162,6 +165,7 @@ export async function listeazaAngajatiPontaj(
     .limit(filtre.limita + 1);
 
   if (filtre.cauta !== null) interogare = interogare.ilike("full_name", `%${filtre.cauta}%`);
+  if (filtre.angajat !== null) interogare = interogare.eq("id", filtre.angajat);
   if (filtre.departament !== null) {
     interogare = interogare.eq("department_id", filtre.departament);
   }
@@ -210,7 +214,7 @@ const MAXIM_PAGINI_ANGAJATI_FOAIE = 20;
  */
 export async function totiAngajatiiPontaj(
   organizationId: string,
-  filtre: Readonly<Pick<FiltrePontaj, "departament" | "cauta">>,
+  filtre: Readonly<Pick<FiltrePontaj, "departament" | "cauta" | "angajat">>,
 ): Promise<Readonly<{ randuri: readonly AngajatPontaj[]; trunchiat: boolean }>> {
   const adunati: AngajatPontaj[] = [];
   let cursor: string | null = null;
@@ -219,6 +223,7 @@ export async function totiAngajatiiPontaj(
     const rezultat: RezultatAngajatiPontaj = await listeazaAngajatiPontaj(organizationId, {
       departament: filtre.departament,
       cauta: filtre.cauta,
+      angajat: filtre.angajat,
       cursor,
       limita: PAGINA_ANGAJATI_FOAIE,
     });

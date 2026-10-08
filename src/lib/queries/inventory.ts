@@ -142,6 +142,9 @@ const SORTARE_IMPLICITA = { cheie: "denumire", directie: "asc" } as const;
 const COLOANE_LISTA =
   "id, denumire, numar_inventar, serie, model, producator, category_id, status, stare, locatie, valoare, data_achizitie, garantie_expira";
 
+/** UUID nul: un `.in("id", [])` ar fi o eroare PostgREST; cu el lista iese goală, cum trebuie. */
+const ID_NIMIC = "00000000-0000-0000-0000-000000000000";
+
 export async function listeazaObiecte(
   organizationId: string,
   filtre: FiltreInventar,
@@ -176,15 +179,33 @@ export async function listeazaObiecte(
    * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
    * numărătoare care nu se potrivește cu lista — defectul reparat aici.
    */
+  // „Obiectele lui X" = obiectele cu alocare DESCHISĂ pe el. Id-urile se citesc
+  // întâi, ca același `.in()` să se aplice și listei, și numărătorii.
+  const idDoarLaAngajat =
+    filtre.angajat === null
+      ? null
+      : await db
+          .from("inventory_allocations")
+          .select("item_id")
+          .eq("organization_id", organizationId)
+          .eq("employee_id", filtre.angajat)
+          .is("returnat_la", null)
+          .is("deleted_at", null)
+          .then(({ data }) => (data ?? []).map((r) => r.item_id));
   const filtreaza = <
     Q extends {
       eq: (c: string, v: string) => Q;
       ilike: (c: string, v: string) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
     let cu = q.eq("organization_id", organizationId);
+    // Fără nicio alocare: un `in` gol ar fi respins de PostgREST, deci un id
+    // imposibil întoarce lista goală, corect.
+    if (idDoarLaAngajat !== null)
+      cu = cu.in("id", idDoarLaAngajat.length === 0 ? [ID_NIMIC] : idDoarLaAngajat);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.stare !== null) cu = cu.eq("stare", filtre.stare);
     if (filtre.category_id !== null) cu = cu.eq("category_id", filtre.category_id);

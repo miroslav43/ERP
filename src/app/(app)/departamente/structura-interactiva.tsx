@@ -1,7 +1,8 @@
 // src/app/(app)/departamente/structura-interactiva.tsx
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useMemo } from "react";
 
 import { UserRoundX } from "lucide-react";
 
@@ -54,7 +55,27 @@ export function StructuraInteractiva({
   poateInvita,
   vizualizare,
 }: PropsStructuraInteractiva) {
-  const [deschisId, setDeschisId] = useState<string | null>(null);
+  /*
+   * Panoul deschis se derivă din ADRESĂ (`?departament=<id>` sau
+   * `?departament=nerepartizati`), nu dintr-un `useState`: așa are un link pe
+   * care îl poate trimite orice alt modul, supraviețuiește reîncărcării și se
+   * închide cu butonul „înapoi". Scrierea se face cu `history.replaceState`,
+   * pe care `useSearchParams` îl urmărește fără un drum la server.
+   */
+  const parametri = useSearchParams();
+  const brut = parametri.get("departament");
+  const deschisId = brut === null ? null : brut === "nerepartizati" ? NEREPARTIZATI : brut;
+  const setDeschisId = useCallback((id: string | null): void => {
+    const p = new URLSearchParams(window.location.search);
+    if (id === null) p.delete("departament");
+    else p.set("departament", id === NEREPARTIZATI ? "nerepartizati" : id);
+    const interogare = p.toString();
+    window.history.replaceState(
+      null,
+      "",
+      interogare === "" ? window.location.pathname : `?${interogare}`,
+    );
+  }, []);
 
   /** Toate nodurile, aplatizate, ca panoul să găsească departamentul din O(1). */
   const dupaId = useMemo(() => {
@@ -71,7 +92,7 @@ export function StructuraInteractiva({
 
   const inchide = useCallback((): void => {
     setDeschisId(null);
-  }, []);
+  }, [setDeschisId]);
 
   const nodDeschis = deschisId === null ? null : (dupaId.get(deschisId) ?? null);
   const esteNerepartizati = deschisId === NEREPARTIZATI;
@@ -134,7 +155,8 @@ export function StructuraInteractiva({
       )}
 
       <PanouDepartament
-        deschis={deschisId !== null}
+        // Un id necunoscut (străin sau ascuns de RLS) lasă panoul închis.
+        deschis={esteNerepartizati || nodDeschis !== null}
         laInchidere={inchide}
         departament={
           esteNerepartizati || nodDeschis === null

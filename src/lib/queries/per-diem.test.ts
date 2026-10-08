@@ -55,6 +55,7 @@ const predicatOr = (apel: ApelFals | undefined): string | undefined => {
 
 const filtre = (modificari: Partial<FiltreDeplasari> = {}): FiltreDeplasari => ({
   status: null,
+  angajat: null,
   cursor: null,
   limita: 2,
   ...modificari,

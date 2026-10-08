@@ -31,6 +31,7 @@ import { departamente as listaDepartamente } from "@/lib/queries/attendance";
 
 import { ETICHETE_ROL_CONT, TONURI_STATUS, etichetaStare, rolAdministrativ } from "./etichete";
 import { FiltreAngajati } from "./filtre-angajati";
+import { createServerSupabase } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Angajați" };
 
@@ -65,6 +66,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
       filtre.q !== null ||
       filtre.department_id !== null ||
       filtre.functie !== null ||
+      filtre.punct_lucru !== null ||
       filtre.status !== null;
     return (
       <StareGoala
@@ -224,6 +226,18 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
   );
 }
 
+async function numelePunctului(organizationId: string, id: string | null): Promise<string | null> {
+  if (id === null) return null;
+  const db = await createServerSupabase();
+  const { data } = await db
+    .from("puncte_lucru")
+    .select("denumire")
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .maybeSingle();
+  return data?.denumire ?? null;
+}
+
 export default async function PaginaAngajati({ searchParams }: ProprietatiPagina) {
   const utilizator = await requireUser();
   const { tenant } = await requireTenant();
@@ -254,9 +268,12 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
    * nimic definit, iar bara ascunde atunci filtrul — două din cele trei firme
    * reale din sistem au zero angajați, deci starea „gol" e cea obișnuită.
    */
-  const [departamente, functii] = await Promise.all([
+  const [departamente, functii, numePunctLucru] = await Promise.all([
     listaDepartamente(tenant.organizationId),
     functiiFolosite(tenant.organizationId),
+    // Denumirea pentru pastila filtrului de intrare, sub RLS: un id străin
+    // rămâne „Punct de lucru ales", ca pastila să existe oricum.
+    numelePunctului(tenant.organizationId, filtre.punct_lucru),
   ]);
   const poateCrea = scopeFor(permisiuni, "employees:create") === "all";
 
@@ -306,7 +323,12 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
 
       {/* Parametrii vin ca prop: bara de filtre e Server Component, iar
           `useSearchParams()` e hook de client. */}
-      <FiltreAngajati filtre={filtre} departamente={departamente} functii={functii} />
+      <FiltreAngajati
+        filtre={filtre}
+        departamente={departamente}
+        functii={functii}
+        punctLucru={numePunctLucru}
+      />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelAngajati

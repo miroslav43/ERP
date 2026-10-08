@@ -61,6 +61,7 @@ async function ListaDeAprobat({
   const { randuri, total, urmatorulCursor } = await listeazaFoi(organizationId, {
     status: "trimis",
     vehicul: null,
+    sofer: null,
     cursor: null,
     limita: PLAFON_COADA,
   });

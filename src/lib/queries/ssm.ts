@@ -430,6 +430,7 @@ export async function fiseAptitudine(
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
+    if (filtre.angajat !== null) cu = cu.eq("employee_id", filtre.angajat);
     return cu;
   };
 
@@ -566,6 +567,7 @@ export async function accidente(
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
     if (filtre.necomunicate !== null) cu = cu.is("comunicat_la_itm_la", null);
+    if (filtre.angajat !== null) cu = cu.eq("employee_id", filtre.angajat);
     return cu;
   };
 
@@ -891,7 +893,10 @@ export async function eip(organizationId: string, filtre: FiltreEip): Promise<Re
     },
   >(
     q: Q,
-  ): Q => q.eq("organization_id", organizationId).is("deleted_at", null);
+  ): Q => {
+    const cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    return filtre.angajat === null ? cu : cu.eq("employee_id", filtre.angajat);
+  };
 
   let interogare = filtreaza(db.from("ppe_issuances").select(COLOANE_EIP))
     .order(coloana, { ascending: crescator, nullsFirst: false })
@@ -948,13 +953,16 @@ export interface RandAutorizatieNominala {
 /** Nomenclator relativ mic (o autorizație per angajat calificat) — fără paginare. */
 export async function autorizatiiNominale(
   organizationId: string,
+  filtre: Readonly<{ angajat: string | null }> = { angajat: null },
 ): Promise<readonly RandAutorizatieNominala[]> {
   const db = await createServerSupabase();
-  const { data, error } = await db
+  let interogare = db
     .from("personnel_authorizations")
     .select("id, employee_id, tip, grupa, numar, emitent, emis_la, valabil_pana, suspendata_la")
     .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+    .is("deleted_at", null);
+  if (filtre.angajat !== null) interogare = interogare.eq("employee_id", filtre.angajat);
+  const { data, error } = await interogare
     .order("valabil_pana", { ascending: true })
     .limit(500)
     .returns<RandAutorizatieNominala[]>();

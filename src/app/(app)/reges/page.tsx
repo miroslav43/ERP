@@ -33,10 +33,13 @@ import {
 import { ActiuniEveniment, ButonExport } from "./actiuni-client";
 import { ButonAnuleazaMesaj, ButonPregateste, ButonTransmite } from "./coada-client";
 import { NavReges } from "./nav-reges";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata = { title: "REGES-Online — evidența evenimentelor" };
 
 const STARI_VALIDE: readonly FiltruStare[] = ["toate", "intarziate", "de_transmis", "transmise"];
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function esteStare(valoare: string | undefined): valoare is FiltruStare {
   return valoare !== undefined && STARI_VALIDE.includes(valoare as FiltruStare);
@@ -78,7 +81,17 @@ export default async function PaginaReges(props: {
 
   const parametri = await props.searchParams;
   const stareBruta = Array.isArray(parametri["stare"]) ? parametri["stare"][0] : parametri["stare"];
-  const filtre = { ...FILTRE_IMPLICITE, stare: esteStare(stareBruta) ? stareBruta : "toate" };
+  // Filtrul de intrare din fișa angajatului: un UUID sau nimic.
+  const angajatBrut = Array.isArray(parametri["angajat"])
+    ? parametri["angajat"][0]
+    : parametri["angajat"];
+  const angajatFiltrat =
+    typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
+  const filtre = {
+    ...FILTRE_IMPLICITE,
+    stare: esteStare(stareBruta) ? stareBruta : "toate",
+    angajat: angajatFiltrat,
+  };
 
   const supabase = await createServerSupabase();
   const organizationId = idOrganizatie(tenant);
@@ -89,7 +102,7 @@ export default async function PaginaReges(props: {
   // paralel cu celelalte două, nu un rând în plus de latență.
   const [{ randuri, statistici, azi }, coada, propuneri, credentiale] = await Promise.all([
     interogheazaEvenimenteReges(supabase, organizationId, filtre),
-    interogheazaMesajeReges(supabase, organizationId),
+    interogheazaMesajeReges(supabase, organizationId, 200, angajatFiltrat),
     interogheazaPropuneriReges(supabase, organizationId),
     /*
      * Doar ca să știm DACĂ modulul e legat de Inspecția Muncii — nu ce chei
@@ -328,6 +341,22 @@ export default async function PaginaReges(props: {
       />
 
       {bannerNeconectat}
+      <PastileFiltre
+        active={
+          angajatFiltrat === null
+            ? []
+            : [
+                {
+                  cheie: "angajat",
+                  eticheta: `Doar: ${
+                    randuri.find((r) => r.angajatId === angajatFiltrat)?.angajatNume ??
+                    coada.randuri.find((m) => m.angajatId === angajatFiltrat)?.angajatNume ??
+                    "angajatul ales"
+                  }`,
+                },
+              ]
+        }
+      />
 
       {/*
         Cifrele se numără în bază, pe tot registrul, nu peste rândurile afișate:

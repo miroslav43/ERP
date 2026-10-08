@@ -28,9 +28,16 @@ export interface FiltreReges {
   readonly stare: FiltruStare;
   readonly tip: TipEvenimentReges | "toate";
   readonly limita: number;
+  /** Filtru de INTRARE (din fișa angajatului): evenimentele și mesajele unui singur om. */
+  readonly angajat: string | null;
 }
 
-export const FILTRE_IMPLICITE: FiltreReges = { stare: "toate", tip: "toate", limita: 100 };
+export const FILTRE_IMPLICITE: FiltreReges = {
+  stare: "toate",
+  tip: "toate",
+  limita: 100,
+  angajat: null,
+};
 
 export interface RandReges {
   readonly id: string;
@@ -132,6 +139,7 @@ export async function interogheazaEvenimenteReges(
     .limit(filtre.limita);
 
   if (filtre.tip !== "toate") cerere = cerere.eq("event_type", filtre.tip);
+  if (filtre.angajat !== null) cerere = cerere.eq("employee_id", filtre.angajat);
   if (filtre.stare === "transmise") {
     cerere = cerere.in("status", STATUSURI_TRANSMISE);
   } else if (filtre.stare === "de_transmis" || filtre.stare === "intarziate") {
@@ -241,15 +249,19 @@ export async function interogheazaMesajeReges(
   supabase: ServerSupabase,
   organizationId: string,
   limita = 200,
+  /** Filtru de intrare: doar mesajele unui angajat (din fișa lui). */
+  angajat: string | null = null,
 ): Promise<Readonly<{ randuri: readonly RandMesaj[]; statistici: StatisticiMesaje }>> {
-  const { data, error } = await supabase
+  let cerere = supabase
     .from("reges_mesaje")
     // prettier-ignore
     .select(
       "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id",
     )
     .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+    .is("deleted_at", null);
+  if (angajat !== null) cerere = cerere.eq("employee_id", angajat);
+  const { data, error } = await cerere
     .order("created_at", { ascending: false })
     .order("ordine", { ascending: true })
     .limit(limita);

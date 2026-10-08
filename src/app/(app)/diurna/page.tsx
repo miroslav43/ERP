@@ -124,12 +124,13 @@ async function TabelDeplasari({
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.status !== null;
+    const areFiltre = filtre.status !== null || filtre.angajat !== null;
     // „Șterge filtrele” scoate DOAR cheile de filtrare, aceleași pe care le
     // administrează `<FiltreDeplasari>`. Un `href="/diurna"` sec ar fi luat cu
     // el și sortarea, și mărimea paginii — exact defectul reparat în bară.
     const faraFiltre = adresa((p) => {
       p.delete("status");
+      p.delete("angajat");
       p.delete("cursor");
     });
     return (
@@ -315,6 +316,14 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
    */
   const faraPolitica = politicaCurenta === null;
 
+  // Numele pentru pastila „Angajat: X" — citit sub RLS; un id străin rămâne „ales".
+  const filtreUrl = filtreDinUrl(filtreDeplasariSchema, parametri);
+  const numeAngajatFiltrat =
+    filtreUrl.angajat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [filtreUrl.angajat])).get(filtreUrl.angajat)
+          ?.full_name ?? null);
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -357,7 +366,7 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
         </Callout>
       ) : null}
 
-      <FiltreDeplasari parametri={parametri} />
+      <FiltreDeplasari parametri={parametri} numeAngajat={numeAngajatFiltrat} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelDeplasari

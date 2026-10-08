@@ -26,6 +26,7 @@ import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
 import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { NumaratoareItm } from "../numaratoare-itm";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Accidente de muncă" };
 
@@ -201,6 +202,13 @@ export default async function PaginaAccidente({ searchParams }: ProprietatiPagin
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
+  // Filtrul de intrare din fișa angajatului: pastilă cu nume, citit sub RLS.
+  const angajatFiltrat = filtreDinUrl(filtreAccidenteSchema, parametri).angajat;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -227,6 +235,14 @@ export default async function PaginaAccidente({ searchParams }: ProprietatiPagin
             poateVedeaEip={can(permisiuni, "ssm:read", "team")}
             poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
           />
+        }
+      />
+
+      <PastileFiltre
+        active={
+          angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
         }
       />
 

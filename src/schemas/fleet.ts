@@ -98,6 +98,8 @@ export type FiltreVehicule = z.output<typeof filtreVehiculeSchema>;
 export const filtreFoiSchema = z.object({
   status: optional(z.enum(STATUS_FOAIE)),
   vehicul: optional(z.uuid()),
+  /** Filtru de INTRARE (din fișa angajatului): foile unui șofer. */
+  sofer: optional(z.uuid()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   sort: optional(z.string().max(40)),

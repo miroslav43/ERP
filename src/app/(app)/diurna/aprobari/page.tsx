@@ -123,8 +123,18 @@ async function ListaDeAprobat({
   readonly permisiuni: PermissionMap;
 }) {
   const [inAprobare, aprobate] = await Promise.all([
-    listeazaDeplasari(organizationId, { status: "in_aprobare", cursor: null, limita: 100 }),
-    listeazaDeplasari(organizationId, { status: "aprobata", cursor: null, limita: 100 }),
+    listeazaDeplasari(organizationId, {
+      status: "in_aprobare",
+      angajat: null,
+      cursor: null,
+      limita: 100,
+    }),
+    listeazaDeplasari(organizationId, {
+      status: "aprobata",
+      angajat: null,
+      cursor: null,
+      limita: 100,
+    }),
   ]);
 
   if (inAprobare.randuri.length === 0 && aprobate.randuri.length === 0) {

@@ -138,6 +138,9 @@ export async function listeazaTichete(
     if (filtre.asignat_employee_id !== undefined) {
       cu = cu.eq("asignat_employee_id", filtre.asignat_employee_id);
     }
+    if (filtre.solicitant_employee_id !== undefined) {
+      cu = cu.eq("solicitant_employee_id", filtre.solicitant_employee_id);
+    }
     if (filtre.department_id !== undefined) cu = cu.eq("department_id", filtre.department_id);
     if (cautare !== null) cu = cu.or(cautare);
     return cu;

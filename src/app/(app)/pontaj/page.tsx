@@ -27,6 +27,7 @@ import {
   setariPontaj,
   setariPontareRapida,
   totiAngajatiiPontaj,
+  angajatiPontajDupaId,
 } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { zileLucratoareLuna } from "@/lib/queries/payroll";
@@ -181,7 +182,8 @@ async function LunaIntreaga({
   const { randuri: angajati, trunchiat } = await totiAngajatiiPontaj(organizationId, filtre);
 
   if (angajati.length === 0) {
-    const areFiltre = filtre.departament !== null || filtre.cauta !== null;
+    const areFiltre =
+      filtre.departament !== null || filtre.cauta !== null || filtre.angajat !== null;
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -528,6 +530,18 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       ? []
       : await absenteNemotivateFaraDecizie(tenant.organizationId, perioada.id);
 
+  // Filtrul de intrare din fișa angajatului: numele pastilei, citit sub RLS.
+  const angajatFiltrat =
+    filtre.angajat === null
+      ? null
+      : {
+          id: filtre.angajat,
+          nume:
+            (await angajatiPontajDupaId(tenant.organizationId, [filtre.angajat])).get(
+              filtre.angajat,
+            )?.full_name ?? null,
+        };
+
   return (
     <div className="space-y-6">
       {antet}
@@ -560,6 +574,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           departament={filtre.departament}
           cauta={filtre.cauta}
           departamente={listaDepartamente}
+          angajat={angajatFiltrat}
         />
       )}
 

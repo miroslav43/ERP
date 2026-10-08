@@ -432,6 +432,7 @@ export async function listeazaDeplasari(
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.angajat !== null) cu = cu.eq("employee_id", filtre.angajat);
     return cu;
   };
 

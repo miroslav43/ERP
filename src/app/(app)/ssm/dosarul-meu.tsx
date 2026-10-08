@@ -39,9 +39,15 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
   const [instruiri, fise, restrictii, echipamente, autorizatii, tipuriRezultat] = await Promise.all(
     [
       instruirileMele(organizationId),
-      fiseAptitudine(organizationId, { rezultat: null, cursor: null, limita: 100, sort: null }),
+      fiseAptitudine(organizationId, {
+        rezultat: null,
+        angajat: null,
+        cursor: null,
+        limita: 100,
+        sort: null,
+      }),
       restrictiiActive(organizationId),
-      eip(organizationId, { cursor: null, limita: 100, sort: null }),
+      eip(organizationId, { angajat: null, cursor: null, limita: 100, sort: null }),
       autorizatiiNominale(organizationId),
       nomenclatorInstruiri({}),
     ],

@@ -34,6 +34,7 @@ import {
 import { NavSsm } from "../nav-ssm";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Medicina muncii" };
 
@@ -275,6 +276,13 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
+  // Filtrul de intrare din fișa angajatului: pastilă cu nume, citit sub RLS.
+  const angajatFiltrat = filtreDinUrl(filtreFiseSchema, parametri).angajat;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -307,6 +315,14 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
       <Suspense fallback={null}>
         <BandaRestrictii organizationId={tenant.organizationId} permisiuni={permisiuni} />
       </Suspense>
+
+      <PastileFiltre
+        active={
+          angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
+        }
+      />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelFise

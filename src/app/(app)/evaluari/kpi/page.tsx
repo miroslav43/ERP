@@ -33,12 +33,16 @@ import { ETICHETE_STATUS_KPI, TONURI_STATUS_KPI, numeLuna, tonKpi } from "./etic
 import { SelectorPerioada } from "./selector-perioada";
 import { FileModul } from "@/components/ui/file-modul";
 import { fileEvaluari } from "@/config/file-module";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
+import { angajatiDupaId } from "@/lib/queries/checklist";
 
 export const metadata: Metadata = { title: "KPI lunar" };
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Un parametru de URL e text străin: orice nu e număr în interval cade pe implicit. */
 function intreg(brut: string | string[] | undefined, min: number, max: number): number | null {
@@ -53,17 +57,20 @@ async function ListaLuni({
   an,
   luna,
   cursor,
+  angajat,
 }: {
   readonly organizationId: string;
   readonly an: number;
   readonly luna: number;
   readonly cursor: string | null;
+  /** `?angajat=`: toate lunile unui om, indiferent de an și lună. */
+  readonly angajat: string | null;
 }) {
   const { randuri, urmatorulCursor, total } = await listeazaLuniKpi(organizationId, {
-    an,
-    luna,
+    an: angajat === null ? an : null,
+    luna: angajat === null ? luna : null,
     status: null,
-    employee_id: null,
+    employee_id: angajat,
     sort: null,
     cursor,
     limita: 25,
@@ -125,7 +132,11 @@ async function ListaLuni({
   return (
     <div className="space-y-4">
       <Tabel
-        caption={`Lunile de KPI din ${numeLuna(an, luna)}`}
+        caption={
+          angajat === null
+            ? `Lunile de KPI din ${numeLuna(an, luna)}`
+            : "Lunile de KPI ale angajatului"
+        }
         coloane={coloane}
         randuri={randuri}
         cheieRand={(r) => r.id}
@@ -134,7 +145,11 @@ async function ListaLuni({
           <StareGoala
             fel="filtrata"
             pictograma={Gauge}
-            titlu={`Nicio lună deschisă în ${numeLuna(an, luna)}`}
+            titlu={
+              angajat === null
+                ? `Nicio lună deschisă în ${numeLuna(an, luna)}`
+                : "Nicio lună de KPI pentru acest angajat"
+            }
             descriere="Deschideți luna pentru un subordonat direct, din butonul de sus. Liniile se preiau din setul funcției lui."
           />
         }
@@ -146,6 +161,7 @@ async function ListaLuni({
         limita={25}
         construiesteHref={({ cursor: c, limita }) => {
           const p = new URLSearchParams({ an: String(an), luna: String(luna) });
+          if (angajat !== null) p.set("angajat", angajat);
           p.set("limita", String(limita));
           if (c !== null) p.set("cursor", c);
           return `/evaluari/kpi?${p.toString()}`;
@@ -174,6 +190,15 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
   const luna = intreg(parametri["luna"], 1, 12) ?? acum.getMonth() + 1;
   const cursorBrut = parametri["cursor"];
   const cursor = typeof cursorBrut === "string" ? cursorBrut : null;
+  // Filtrul de intrare din fișa angajatului sau din luna lui: un UUID, altfel nimic.
+  const angajatBrut = parametri["angajat"];
+  const angajatFiltrat =
+    typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
 
   const poateEvalua = can(permisiuni, "evaluations:create", "team");
   // Scope `all` (hr, org_admin) vede toată firma; managerul, doar subordonații
@@ -201,11 +226,25 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
 
       <SelectorPerioada an={an} luna={luna} />
 
+      <PastileFiltre
+        active={
+          angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
+        }
+      />
+
       <Suspense
         key={`${String(an)}-${String(luna)}-${cursor ?? ""}`}
         fallback={<Schelet forma="tabel" randuri={8} coloane={5} />}
       >
-        <ListaLuni organizationId={tenant.organizationId} an={an} luna={luna} cursor={cursor} />
+        <ListaLuni
+          organizationId={tenant.organizationId}
+          an={an}
+          luna={luna}
+          cursor={cursor}
+          angajat={angajatFiltrat}
+        />
       </Suspense>
     </div>
   );

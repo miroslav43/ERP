@@ -86,8 +86,11 @@ async function trimite(fd: FormData): Promise<ActionResult<RandSalvat>> {
  */
 export function FormularIstoricVenit({
   angajati,
+  angajatImplicit = null,
 }: {
   readonly angajati: readonly AngajatOptiune[];
+  /** Din `?angajat=`: atenționarea de pe fluturaș trimite aici deja cu omul ales. */
+  readonly angajatImplicit?: string | null;
 }) {
   return (
     <FormularDialog
@@ -120,7 +123,10 @@ export function FormularIstoricVenit({
                 <select
                   {...a}
                   defaultValue={
-                    stare.valoriTrimise["employee_id"] ?? angajati[0]?.employee_id ?? ""
+                    stare.valoriTrimise["employee_id"] ??
+                    angajatImplicit ??
+                    angajati[0]?.employee_id ??
+                    ""
                   }
                 >
                   {angajati.map((angajat) => (

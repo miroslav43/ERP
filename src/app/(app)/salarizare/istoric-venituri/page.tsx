@@ -20,10 +20,23 @@ import { CalendarClock } from "lucide-react";
 
 import { FormularIstoricVenit } from "./formular-istoric-venit";
 import { LinkEntitate } from "@/components/ui/link-entitate";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Istoric venituri" };
 
-export default async function PaginaIstoricVenituri() {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default async function PaginaIstoricVenituri({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // Filtru de INTRARE (atenționarea de pe fluturaș, fișa angajatului): un UUID
+  // sau nimic. Lista se restrânge la om și caseta îl preselectează.
+  const parametri = await searchParams;
+  const angajatBrut = parametri["angajat"];
+  const angajatFiltrat =
+    typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -122,13 +135,32 @@ export default async function PaginaIstoricVenituri() {
         </p>
       </div>
 
-      <FormularIstoricVenit angajati={personal.angajati} />
+      <PastileFiltre
+        active={
+          angajatFiltrat === null
+            ? []
+            : [
+                {
+                  cheie: "angajat",
+                  eticheta: `Angajat: ${
+                    personal.angajati.find((a) => a.employee_id === angajatFiltrat)?.full_name ??
+                    "ales"
+                  }`,
+                },
+              ]
+        }
+      />
+      <FormularIstoricVenit angajati={personal.angajati} angajatImplicit={angajatFiltrat} />
 
       <section aria-label="Rânduri introduse">
         <Tabel
           caption="Veniturile lunare introduse manual, pentru perioada dinaintea aplicației"
           coloane={coloane}
-          randuri={randuri}
+          randuri={
+            angajatFiltrat === null
+              ? randuri
+              : randuri.filter((rand) => rand.employee_id === angajatFiltrat)
+          }
           cheieRand={(rand) => rand.id}
           densitate="compact"
           // `listeazaIstoricVenit` taie la 500 de rânduri fără să spună. Într-un

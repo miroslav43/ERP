@@ -543,6 +543,7 @@ export async function listeazaFoi(
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.vehicul !== null) cu = cu.eq("vehicle_id", filtre.vehicul);
+    if (filtre.sofer !== null) cu = cu.eq("employee_id", filtre.sofer);
     return cu;
   };
 

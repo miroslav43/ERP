@@ -62,6 +62,7 @@ const CLASA_SELECT = "border-foreground/60 rounded-control text-corp mt-1 border
 function filtreActive(
   filtre: ValoriFiltre,
   departamente: readonly Optiune[],
+  punctLucru: string | null,
 ): readonly FiltruActiv[] {
   const active: FiltruActiv[] = [];
   if (filtre.q !== null) active.push({ cheie: "q", eticheta: `Caută: ${filtre.q}` });
@@ -81,6 +82,13 @@ function filtreActive(
   if (filtre.functie !== null) {
     active.push({ cheie: "functie", eticheta: `Funcție: ${filtre.functie}` });
   }
+  // Filtru de INTRARE (de pe un punct de lucru): n-are câmp, doar pastilă.
+  if (filtre.punct_lucru !== null) {
+    active.push({
+      cheie: "punct_lucru",
+      eticheta: punctLucru === null ? "Punct de lucru ales" : `Punct de lucru: ${punctLucru}`,
+    });
+  }
   return active;
 }
 
@@ -93,20 +101,24 @@ export function FiltreAngajati({
   filtre,
   departamente,
   functii,
+  punctLucru = null,
 }: {
   /** Filtrele deja trecute prin `filtreDinUrl` — exact ce a folosit lista. */
   readonly filtre: ValoriFiltre;
   /** Lista goală ascunde filtrul: o firmă fără departamente n-are ce alege. */
   readonly departamente: readonly Optiune[];
   readonly functii: readonly string[];
+  /** Denumirea din `?punct_lucru=`, citită de pagină sub RLS; filtru de intrare, fără câmp. */
+  readonly punctLucru?: string | null;
 }): ReactElement {
   return (
     // Reperul de căutare stă pe înveliș: `<BaraFiltre>` își randează singură
     // formularul, iar pastilele fac parte din aceeași treabă.
     <div role="search" aria-label="Filtrare angajați">
       <BaraFiltre
-        active={filtreActive(filtre, departamente)}
+        active={filtreActive(filtre, departamente, punctLucru)}
         cheiProprii={[...CHEI_PROPRII]}
+        cheiExterne={["punct_lucru"]}
         textAplica="Aplică filtrele"
       >
         <div className="min-w-56 flex-1">
