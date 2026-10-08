@@ -9,12 +9,10 @@ cai:
   - "src/lib/registru/document-generat.ts"
   - "src/schemas/registru.ts"
   - "supabase/migrations/0120_registru_documente.sql"
-  - "supabase/migrations/0124_registru_backfill.sql"
   - "supabase/migrations/0135_registru_nomenclator_si_rezolvare.sql"
-  - "supabase/migrations/0136_registru_conectare_totala.sql"
-  - "supabase/migrations/0140_registru_data_si_numar_document.sql"
-  - "supabase/migrations/0141_registru_indicativ_retroactiv.sql"
   - "supabase/migrations/0142_registru_doar_ce_cere_legea.sql"
+  - "supabase/migrations/0184_registru_angajat.sql"
+  - "supabase/migrations/0185_registru_angajat_garda.sql"
 tabele:
   [
     registru_documente,
@@ -30,8 +28,8 @@ citeste_daca:
   - "index fără `where deleted_at is null` care pare o scăpare → secțiunea „fără ștergere logică”"
   - "„Registrul pe anul X este închis” → secțiunea exercițiului"
   - "42501 pe un `.insert()` în `registru_documente` → secțiunea celor trei drumuri"
-scris_pe: 9d5b6a4bd8cfd34399ecbf06fa5edd27286eaabd
-scris_la: 2026-10-05
+scris_pe: a7c2b58cec1e1cbb3045ddf085fd245122a50e7a
+scris_la: 2026-10-08
 tags: [modul]
 ---
 
@@ -39,11 +37,12 @@ tags: [modul]
 
 Orice document produs de aplicație primește un număr în formatul `437/02.09.2026`, dintr-un
 registru **unic pe firmă**, cu contorul resetat la 1 ianuarie. Temeiul e citat în antetul
-migrării: Legea 16/1996 art. 7 (de unde vine enumul `sens`), Ordinul 217/1996 art. 9
-(coloanele și resetarea anuală), OMFP 2634/2015 pct. 24 și 58.
+migrării 0120: Legea 16/1996 art. 7 (enumul `sens`), Ordinul 217/1996 art. 9 (coloanele și
+resetarea anuală), OMFP 2634/2015 pct. 24 și 58.
 
-Specificațiile, în `docs/superpowers/specs/`: `2026-09-03-registru-inregistrare-documente-design.md`
-și `2026-09-10-registru-acoperire-totala-design.md` (nomenclator, indicativ, răspunsuri, surse).
+Specificațiile, în `docs/superpowers/specs/`: `2026-09-03-registru-inregistrare-documente-design.md`,
+`2026-09-10-registru-acoperire-totala-design.md` (nomenclator, indicativ, răspunsuri, surse) și
+`2026-10-08-registru-navigare-si-panou-design.md` (angajat, panou, filtre, sortare, grupare).
 
 ## Rute și cine ajunge
 
@@ -56,44 +55,79 @@ Specificațiile, în `docs/superpowers/specs/`: `2026-09-03-registru-inregistrar
 Toate sub `requireFeature(..., "nucleu")`. Din seed-ul lui `0120`: `super_admin` și
 `org_admin` au `read`, `export` și `update`; `hr` are `read` și `export`, **fără** `update`.
 `manager` și `employee` n-au niciun rând — absența permisiunii ESTE refuzul. Nomenclatorul
-se **scrie** cu `registru:update` (`0135` §5, pe `nomenclator_dosare`, `nomenclator_tipuri`,
-`nomenclator_config`): aceleași chei ca registrul, fiindcă indicativul e o coloană de
-registru.
+se **scrie** cu `registru:update` (`0135` §5). `hr` ajunge pe `/registru/nomenclator` fără
+să poată schimba ceva — intenționat.
+
+## Ecranul: tot ce e stare stă în URL
+
+`/registru` citește din `searchParams` filtrele (`an`, `sens`, `tip`, `de_la`, `pana_la`,
+`q`, `angajat`, `dosar`, `stare`, `sursa`), sortarea (`sort`, forma `-data`), gruparea
+(`grup` = `tip|dosar|luna|angajat`), pagina (`cursor`, `limita`) și **documentul deschis în
+panou** (`doc` = uuid). Orice link pornește din parametrii existenți (`adresa()`), deci
+niciun clic nu șterge ce era înainte.
+
+- **Rândul e apăsabil** prin `Tabel` cu `href` → `?doc=<id>` și `pastreazaDerularea`
+  (`scroll: false`, altfel App Router sare la începutul listei). Panoul
+  (`panou-document.tsx`, `PanouLateral`) ține `deschis` local și la închidere face
+  `router.replace` fără `doc`; conținutul (`detaliu-document.tsx`) vine randat pe server din
+  `citesteDocumentRegistru`. Id nevalid → fără panou; id negăsit sau ascuns de RLS → panou cu
+  `Callout`, nu adresă ignorată.
+- **„Deschide documentul"** vine din `legaturi.ts` (funcție pură, **nu aruncă**): pagină
+  proprie pe id, pagina părintelui pentru `TIPURI_CU_PARINTE` (vehicul, stingător, echipament
+  ISCIR, obiect de inventar, perioadă de salarizare, deplasare — părintele e citit în
+  `citesteParinte`, cu selecturi literale ca `coloane.test.ts` să le verifice), fișa
+  angajatului pentru contracte/documente/evaluări, lista modulului unde nu există pagină,
+  `null` pentru `manual` și cele șapte tabele fără ecran. Documentele emise au PDF
+  (`/documente/[id]?format=pdf`) montat **la cerere** (`previzualizare-pdf.tsx`): ruta
+  randează PDF-ul la fiecare cerere.
+- **Sortarea** e keyset cu **`numar` ca departajator**, nu `id` (`predicatKeyset(…, "numar")`,
+  parametru adăugat în `cursor.ts`): cu anul fixat numărul e unic ȘI e ordinea registrului.
+  Chei permise `numar`, `data`, `tip`, `dosar` (nulabil, `predicatKeysetNulabil`); `emitent`
+  NU, fiindcă garda din 0148 îl pinuiește și un `''` existent s-ar confunda cu `VALOARE_NULA`.
+- **Gruparea nu se paginează**: `listeazaRegistruComplet` ia tot anul filtrat în pagini de
+  1000, plafon `MAX_RANDURI_EXPORT` cu `trunchiat`; `Tabel` primește prop-ul `grupare` (rânduri
+  de antet în același corp). Antetele nu sortează cât e activă.
+- **Banda de cifre** și tipurile/dosarele pentru filtre vin din `citesteSumarAn` — o singură
+  citire în buclă de 1000, agregată în TypeScript. `listeazaTipuriDocument` nu mai există.
+- Etichetele: `etichete.ts` are TOATE codurile din harta SQL (test de drift care citește 0142
+  de pe disc), `eticheteazaRezolvare` (stările brute `aprobata` → „Aprobată", `null` → „În
+  lucru"), `eticheteazaSursa`, `TON_SENS`.
+
+## Angajatul e o coloană, nu o deducție (0184, 0185)
+
+`registru_documente.angajat_id` (FK `employees`, `on delete set null`, index neparțial
+`(organization_id, an, angajat_id, numar)`) e scrisă de alocator: scriitorul generic o ia din
+`col_ang`, trigger-ele dedicate din `new.employee_id`, RPC-ul manual din `p_angajat_id`
+opțional. Backfill-ul din 0184 a sărit anii închiși (`registru_verifica_exercitiu` ridică
+P0001 și la UPDATE, chiar pentru superuser) și a cerut `exists` pe `employees` — un id orfan
+ar fi oprit tot. **0185**: alocatorul însuși refuză cu P0001 un angajat din altă firmă, pe
+orice drum (revizuirea de securitate a cerut paritatea, nu doar pe drumul manual). Coloana NU
+e pinuită de gardă — rămâne corectabilă, ca `indicativ_dosar`. Nomenclatorul arată contorul
+per dosar și duce la `/registru?an&dosar`; fișa angajatului (tab-ul de documente) are „Vezi
+în registru". `inregistreaza_document_generat` nu primește angajat: fluturașul rămâne fără.
 
 ## Trei drumuri către un număr, niciunul prin `.insert()`
 
-Un `employee` care depune o cerere de concediu produce o **intrare** în registru. Deci
-alocatorul nu poate fi păzit de `registru:*` — angajatul n-are cheia aia și nici n-ar
-trebui s-o aibă. De aici trei drumuri, toate cu alocarea numărului **în bază**:
+Un `employee` care depune o cerere de concediu produce o **intrare** în registru, deci
+alocatorul nu poate fi păzit de `registru:*`. Toate drumurile alocă **în bază**:
 
 1. **Trigger pe tabela sursă.** Dreptul care contează e dreptul de a scrie **documentul**,
-   verificat deja de RLS-ul acelei tabele. `internal.inregistreaza_document` e
-   `security definer` și **revocată complet** de la `authenticated` — nu se cheamă din
-   TypeScript. Triggerele se numesc `zz_*` ca să ruleze după celelalte pe aceeași tabelă.
-2. **Documentele generate la cerere**, fără rând în bază și deci fără INSERT pe care să pui
-   trigger (stat de plată, fluturaș, D112, notă contabilă, ordin bancar, foaie colectivă):
-   `public.inregistreaza_document_generat`, prin `inregistreazaDocumentGenerat`
-   (`src/lib/registru/document-generat.ts`). Poarta **nu** e `registru:*`, ci permisiunea
-   modulului, dedusă din tip printr-un `case`; un tip necunoscut ridică P0001, nu alocă
-   tăcut. `entitateId` face regenerarea idempotentă. Fără număr, fără document: eșecul
-   înregistrării oprește exportul.
-3. **Înregistrarea manuală**, pentru ce vine pe hârtie — art. 8. Vezi acțiunile mai jos.
+   verificat de RLS-ul acelei tabele. `internal.inregistreaza_document` (14 parametri din 0184) e `security definer` și **revocată complet** de la `authenticated`. Triggerele se
+   numesc `zz_*` ca să ruleze după celelalte.
+2. **Documentele generate la cerere** (stat de plată, fluturaș, D112, notă contabilă, ordin
+   bancar, foaie colectivă): `public.inregistreaza_document_generat`, prin
+   `inregistreazaDocumentGenerat`. Poarta e permisiunea modulului, dedusă din tip; tip
+   necunoscut ridică P0001. `entitateId` face regenerarea idempotentă.
+3. **Înregistrarea manuală**, pentru ce vine pe hârtie — art. 8.
 
-Sursele drumului 1 nu se mai caută prin triggere: `internal.registru_config_surse()` e harta
-unică din care se creează **și** triggerele, **și** backfill-ul, deci nu pot diverge —
-`select * from internal.registru_config_surse()` spune ce e conectat azi. Sursele cu status
-se înregistrează la **tranziția** către starea în care documentul există, nu la inserare: o
-cerere de concediu în ciornă nu e un document.
-
-Simetric, `0142` a scos din hartă ce **nu** e document — invitația de înrolare, anunțul de
-pe avizier, sesizarea de defecțiune, lista de integrare, afișul de punct de lucru, listarea
-de audit. Criteriul: intră ce e numit de un act normativ sau ce poate fi cerut într-un
-control. Rândurile deja scrise s-au **anulat**, nu s-au șters.
+`internal.registru_config_surse()` e harta unică din care se creează **și** triggerele,
+**și** backfill-ul, **și** backfill-ul lui 0184. Sursele cu status se înregistrează la
+**tranziție**, nu la inserare. `0142` a scos ce **nu** e document; rândurile deja scrise
+s-au **anulat**, nu șters.
 
 ## Server Actions
 
-`src/app/(app)/registru/actions.ts` — toate prin `.rpc()` sau prin `.update()` cu
-`.select()`, niciuna cu `.insert()` în registru.
+`actions.ts` — toate prin `.rpc()` sau `.update()` + `.select()`, niciuna cu `.insert()`.
 
 | Acțiune                        | `name`                       | Poartă                     |
 | ------------------------------ | ---------------------------- | -------------------------- |
@@ -103,114 +137,62 @@ control. Rândurile deja scrise s-au **anulat**, nu s-au șters.
 | `actualizeazaDosarNomenclator` | `registru.nomenclator_dosar` | `registru:update` all      |
 | `actualizeazaAvizNomenclator`  | `registru.nomenclator_aviz`  | `registru:update` all      |
 
-Redeschiderea are pragul mai sus decât închiderea fiindcă rupe o listare care poate fi deja
-la un control; amprenta veche **nu** se șterge, ca diferența să rămână demonstrabilă.
-⚠️ `inchideExercitiu` și `redeschideExercitiu` n-au azi **niciun apelant** în interfață:
-acțiunile există, ecranul care le cheamă nu.
-
-`traduEroare` (`registru/erori.ts`, tiparul din `ssm/erori.ts`) propagă P0001 cu mesajul
-bazei, trunchiat la 300 de caractere. Fără el, `mapPostgrestError` ar înlocui „Registrul pe
-anul X este închis." cu un mesaj generic, iar cine ține registrul n-ar afla ce să corecteze.
-Pe 42501 cere ca mesajul bazei să conțină **`registru_documente`**; altfel îl lasă mai
-departe, deci un 42501 de politică pe nomenclator iese INTERZIS, nu cu îndemnul la
-înregistrarea manuală. Acțiunile, traducerea și etichetele au teste pe clientul Supabase
-fals; citirile, în `src/lib/queries/registru.test.ts`.
+⚠️ `inchideExercitiu` și `redeschideExercitiu` n-au **niciun apelant** în interfață.
+`traduEroare` (`erori.ts`) propagă P0001 cu mesajul bazei; pe 42501 cere ca mesajul să
+conțină `registru_documente`. Testele acțiunilor și citirilor rulează pe clientul fals.
 
 ## Registrul NU are `deleted_at`
 
-**Abatere deliberată** de la tiparul proiectului, unde orice tabelă are ștergere logică și
-indexuri **parțiale** `where deleted_at is null`. OMFP pct. 58 lit. d) cere liste
-„numerotate în ordine cronologică, interzicându-se inserări, intercalări, precum și orice
-eliminări sau adăugări ulterioare". Un rând de registru nu se șterge — se **anulează**
-(`anulat_la` + `motiv_anulare`), ca la `hr_issued_documents`.
-
-Consecința pentru cine scrie cod aici: **indexurile nu sunt parțiale**, iar lipsa
-predicatului e intenționată; cine copiază tiparul din `0013_attendance.sql` în altă tabelă
-pune `where deleted_at is null` la loc. Abaterea e **numai a registrului** — tabelele
-nomenclatorului au `deleted_at` și indexuri parțiale ca oriunde altundeva (`0135` §3).
+**Abatere deliberată**: OMFP pct. 58 lit. d) interzice eliminările. Un rând se **anulează**
+(`anulat_la` + `motiv_anulare`). Consecința: **indexurile nu sunt parțiale**, iar lipsa
+predicatului e intenționată — numai pe registru; nomenclatorul are `deleted_at` ca oriunde.
 
 ## Ce refuză baza
 
-- **Inserarea directă în registru e închisă.** `0135` §14 retrage politica INSERT și revocă
-  grantul: un număr venit din client s-ar putea fabrica sau repeta, contra pct. 58 lit. o).
-  Un `.insert()` pe `registru_documente` nu dă o eroare de tip, ci **42501** la execuție.
-- **Răspunsul nu ia număr nou** — art. 9. `internal.rezolva_document` nu alocă număr și nu
-  inserează rând: completează `data_expedierii`, `mod_rezolvare`, `destinatar` și
-  `rezolvat_la` pe rândul cererii. Un rând per caz.
-- **`nomenclator_dosare.indicativ` e coloană GENERATĂ** din cifra romană, literă și cifra
-  arabă (art. 11). Un UPDATE peste ea e **respins**, nu ignorat tăcut — de aceea lipsește
-  din `dosarNomenclatorSchema`, unde firma schimbă doar conținutul și termenul.
-- **Un exercițiu închis blochează totul, inclusiv anularea.**
-  `internal.registru_verifica_exercitiu` ridică P0001 la orice INSERT sau UPDATE pe un an
-  cu `stare = 'inchis'` — pct. 58 lit. h). Un document anulat după închidere ar schimba un
-  registru deja listat la control.
-- **Coloanele de identitate ale rândului se rescriu din OLD.** `guard_registru_documente`
-  pinuiește `numar_afisat`, `data_inregistrare`, `sens`, `tip_document`, `entitate_tip`,
-  `entitate_id`, `inregistrat_retroactiv` și `created_at` — trimise de client, sunt ignorate
-  tăcut, nu respinse. Ce **nu** pinuiește contează la fel: `numar_document_emitent`,
-  `data_document_emitent` și `indicativ_dosar` rămân corectabile, iar pe asta s-au sprijinit
-  `0140` și `0141` ca să repare rubrici greșite fără să atingă numerotarea.
-- **`amprenta`** e un SHA-256 peste registrul anului, scris la închidere: pct. 58 lit. d)
-  interzice adăugările ulterioare, iar amprenta le face **detectabile**. Mecanica e cea de
-  la `hr_issued_documents.continut_checksum`.
+- **Inserarea directă e închisă** (`0135` §14): un `.insert()` dă **42501** la execuție.
+- **Răspunsul nu ia număr nou** (art. 9): `internal.rezolva_document` completează rândul
+  cererii. Un rând per caz.
+- **`nomenclator_dosare.indicativ` e GENERATĂ** (cifră romană, literă, cifră arabă); un
+  UPDATE peste ea e respins.
+- **Un exercițiu închis blochează totul, inclusiv anularea** (`registru_verifica_exercitiu`,
+  P0001) — pct. 58 lit. h).
+- **Garda rescrie din OLD** (forma finală în **0148**, nu 0120): număr, dată, sens, tip,
+  entitate, retroactiv, `created_at` **și** rezumat, emitent, destinatar, numărul/data
+  emitentului, file, anexe, punct de lucru — trimise de client, sunt ignorate tăcut.
+  Corectabile rămân `indicativ_dosar`, `angajat_id`, rezolvarea.
+- **`amprenta`** e SHA-256 peste registrul anului, scris la închidere.
 
 ## ⚠️ De ce alocatorul nu cheamă `lpad`
 
-Capcană documentată la `0098` și repetată identic aici: `lpad` **TAIE** când șirul e mai lung
-decât lungimea cerută — `lpad('10', 1, '0')` → `'1'`, verificat pe baza proiectului. Registrul
-are `padding = 1`, deci de la al **zecelea** document al anului numărul s-ar trunchia la „1",
-ar coliziona pe indexul unic, iar reîncercările ar arde numere până la epuizare — „numerotarea
-e ocupată", tot restul anului. Se concatenează direct. **Golurile sunt permise, repetările
-nu** — ca la marcă (`0033`), tichete (`0047`) și contracte (`0098`).
+`lpad` **TAIE** când șirul e mai lung decât lungimea cerută — `lpad('10', 1, '0')` → `'1'`.
+Cu `padding = 1`, de la al zecelea document numărul s-ar trunchia și ar coliziona pe indexul
+unic. Se concatenează direct. **Golurile sunt permise, repetările nu.**
 
 ## Ce se mișcă împreună
 
-Alocatorul refolosește `public.document_sequences` cu `document_type = 'registru_general'`.
-Anul face parte din cheia unică `(organization_id, document_type, year)`, deci **resetarea
-pe 1 ianuarie vine din construcție**, nu dintr-un job programat. `numar_de_pornire` din
-`registru_exercitii` există fiindcă OMFP pct. 24 cere ca procedura proprie să declare,
-pentru fiecare exercițiu, numărul primului document — o firmă migrată din alt sistem nu
-pornește de la 1.
+Alocatorul refolosește `document_sequences` cu `document_type = 'registru_general'`; anul e
+în cheia unică, deci resetarea vine din construcție. `numar_de_pornire` există fiindcă o
+firmă migrată nu pornește de la 1. Nomenclatorul implicit se seamănă per firmă
+(`internal.seed_nomenclator`), din el vine `indicativ_dosar`.
 
-`0124_registru_backfill.sql` a adus documentele emise în anul curent **înainte** ca
-triggerele să existe, în ordinea datei lor: un registru pe 2026 care începe în septembrie nu
-e un registru, e o listă care începe de la mijloc.
-
-Nomenclatorul implicit se seamănă per firmă (`internal.seed_nomenclator`), firmele noi îl
-primesc dintr-un trigger pe `organizations`, iar din el vine `indicativ_dosar`, completat de
-alocator din `nomenclator_tipuri`. Rândurile scrise înainte să existe nomenclatorul le-a
-completat `0141`, care **ocolește exercițiile închise** în loc să cadă pe garda lor.
-
-⚠️ Două reguli pentru cine atinge mecanica: harta surselor se rescrie **întreagă**, nu se
-petecește (`0140`, `0142`) — o versiune peticită în două migrări e exact divergența pe care
-`0136` a vrut s-o facă imposibilă; și orice parametru nou pe o funcție de registru cere
-`drop function if exists` înainte de `create or replace`, altfel iese o supraîncărcare, iar
-triggerele care cheamă cu argumente numite cad la execuție — capcana #41, plătită aici.
+⚠️ Harta surselor se rescrie **întreagă** (`0140`, `0142`); orice parametru nou pe o funcție
+de registru cere `drop function if exists` înainte de `create or replace` (capcana #41 —
+0184 a făcut exact asta la alocator și la RPC-ul manual), iar `drop` șterge și
+`comment on function`, care se re-adaugă.
 
 ## Ce refuză citirea tăcut
 
-- **`max_rows = 1000` trunchiază tăcut**, iar exportul are propriul plafon,
-  `MAX_RANDURI_EXPORT`. Listarea folosește cursor pe numărul de înregistrare
-  (`codificaCursor` / `decodificaCursor`), nu `.range()`, iar `listeazaAni` și
-  `listeazaTipuriDocument` citesc în buclă, cu salt peste ultima valoare văzută: e un rând
-  per document, deci un an vechi dispărea din selector și un tip rar din filtru. — capcana #2
-- **Eticheta tipului se citește cu `Object.hasOwn`** (`eticheteazaTipDocument`):
-  `tip_document` e text liber, deci `constructor` e cod valid ȘI cheie de prototip — citit
-  direct, dădea o funcție în loc de etichetă.
-- **Nomenclatorul NU e paginat**, deliberat: se citește întreg, ca formularul din anexa
-  nr. 1. Plafonul rămâne explicit — `MAX_DOSARE` — ca trunchierea să nu fie tăcută.
-  Ordonarea pe `compartiment_cifra` e alfabetică: corectă până la „VIII", greșită de la
-  „IX" în sus.
-- **`indicativ_dosar` gol nu e o eroare** — art. 9 îl vrea completat „după rezolvarea
-  documentului", iar un tip neclasat în nomenclator n-are niciunul. Ecranul arată „—".
-- **`hr` ajunge pe `/registru/nomenclator`, fără să poată schimba ceva.** Poarta paginii e
-  `registru:read`, iar butonul din antetul lui `/registru` apare doar la `registru:update`.
-  Pe URL scris de mână ecranul se încarcă fără nicio acțiune — intenționat, nu o scăpare.
+- `max_rows = 1000` trunchiază tăcut: `listeazaAni`, `citesteSumarAn` și
+  `listeazaRegistruComplet` citesc în buclă cu salt peste ultima valoare — capcana #2.
+- Eticheta tipului se citește cu `Object.hasOwn`: `constructor` e cod valid ȘI cheie de
+  prototip — la fel în `legaturi.ts`.
+- Nomenclatorul NU e paginat (`MAX_DOSARE`); baza îl ordonează alfabetic, ecranul îl
+  reordonează cu `comparaIndicative` (`indicativ.ts`), corect și de la „IX" în sus.
+- `indicativ_dosar` gol nu e o eroare — ecranul scrie „Neclasat", nu „—".
 
 ## Când NU e suficientă pagina asta
 
-- Textul actelor și decizia completă: specificațiile numite mai sus.
-- Ce e conectat azi și cu ce coloane: `select * from internal.registru_config_surse()`.
+- Textul actelor și decizia completă: specificațiile de mai sus.
+- Ce e conectat azi: `select * from internal.registru_config_surse()`.
 - Documentele de personal care produc intrări: [[modul/angajati]].
-- ⚠️ Termenele de păstrare din nomenclatorul implicit sunt un punct de plecare, nu un
-  aviz — `NOTES.md` le ține la valorile ⚠️ de confirmat de contabil sau jurist.
+- ⚠️ Termenele de păstrare din nomenclatorul implicit sunt un punct de plecare, nu un aviz.
