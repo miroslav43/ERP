@@ -350,7 +350,10 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
       activ: filtre.stare === "in_lucru",
     },
     {
-      eticheta: "Anulate",
+      // „Înregistrări anulate", nu „Anulate": rubrica „Rezolvare" a unei cereri
+      // de concediu poate spune „Anulată" (starea cererii) fără ca RÂNDUL de
+      // registru să fie anulat — două lucruri diferite, cu același cuvânt.
+      eticheta: "Înregistrări anulate",
       valoare: sumar.anulate,
       href: adresa((p) => {
         fara(p);
@@ -478,6 +481,8 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
       <FiltreRegistru ani={ani} tipuri={sumar.tipuri} angajati={angajati} dosare={dosareFiltru} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* `flex-wrap`: cinci segmente fac 424 px, iar la 390 px pagina se
+            lățea cu 51 px (măsurat pe staging, 8 oct 2026). */}
         <ComutatorVizualizare
           eticheta="Grupare"
           cheieParametru="grup"
@@ -486,6 +491,7 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
           implicita=""
           parametri={brute}
           cale="/registru"
+          className="flex-wrap"
         />
         {grupat && complet !== null ? (
           <p className="text-muted-foreground text-corp">

@@ -22,9 +22,11 @@ import { ETICHETE_SENS, eticheteazaTipDocument } from "./etichete";
 
 const SENSURI = ["intrare", "iesire", "intern"] as const;
 
+// Starea RÂNDULUI de registru, nu a documentului: o cerere de concediu
+// „Anulată" la rubrica „Rezolvare" e un rând viu, rezolvat prin anulare.
 const ETICHETE_STARE: Readonly<Record<StareRegistru, string>> = {
-  active: "Active (neanulate)",
-  anulate: "Anulate",
+  active: "Înregistrări active",
+  anulate: "Înregistrări anulate",
   in_lucru: "În lucru",
   rezolvate: "Rezolvate",
 };
