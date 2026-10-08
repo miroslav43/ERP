@@ -11,7 +11,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime, formatZiuaMomentului } from "@/lib/format/date";
 import {
   baremeleTarilor,
   cheltuielile,
@@ -95,7 +95,7 @@ export default async function PaginaDeplasareaMea({
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
       <AntetPagina
         titlu={deplasare.scop}
-        descriere={`${formatDate(deplasare.plecare_la)} – ${formatDate(deplasare.sosire_la)}${
+        descriere={`${formatZiuaMomentului(deplasare.plecare_la)} – ${formatZiuaMomentului(deplasare.sosire_la)}${
           deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`
         }`}
         actiuni={

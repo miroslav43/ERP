@@ -9,7 +9,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate } from "@/lib/format/date";
+import { formatZiuaMomentului } from "@/lib/format/date";
 import { anunturiPublicate, idAnunturiCitite } from "@/lib/queries/announcements";
 import { fisaMea } from "@/lib/queries/portal";
 
@@ -71,7 +71,7 @@ export default async function PaginaAnunturiPortal() {
                     </span>
                     {anunt.publicat_la === null ? null : (
                       <span className="text-muted-foreground text-nota mt-0.5 block">
-                        {formatDate(anunt.publicat_la)}
+                        {formatZiuaMomentului(anunt.publicat_la)}
                       </span>
                     )}
                   </span>

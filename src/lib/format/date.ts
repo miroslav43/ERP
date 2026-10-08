@@ -87,6 +87,22 @@ export function formatDate(value: DateString): string {
   return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
 }
 
+/**
+ * Ziua românească a unui moment în timp → `"09.10.2026"`.
+ *
+ * Pentru `timestamptz` (`publicat_la`, `created_at`, `plecare_la`): întâi
+ * conversia în ziua locală, apoi formatarea. `formatDate` primește DOAR zile
+ * calendaristice și aruncă la un timestamp — exact defectul care prăbușea
+ * trei pagini din portal (QA 8 oct 2026, G1).
+ */
+export function formatZiuaMomentului(value: Date | string): string {
+  const moment = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(moment.getTime())) {
+    throw new TypeError(`Moment invalid: ${JSON.stringify(value)}`);
+  }
+  return formatDate(toBucharestDateString(moment));
+}
+
 /** Un moment în timp → `"15.07.2026, 12:30"`, în ora României. */
 export function formatDateTime(value: Date | string): string {
   const date = typeof value === "string" ? new Date(value) : value;

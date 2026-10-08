@@ -11,7 +11,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate } from "@/lib/format/date";
+import { formatZiuaMomentului } from "@/lib/format/date";
 import { deplasarileMele, tari } from "@/lib/queries/per-diem";
 import { fisaMea } from "@/lib/queries/portal";
 import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE } from "@/app/(app)/diurna/etichete";
@@ -83,7 +83,8 @@ export default async function PaginaDiurnaMea() {
                   <div className="min-w-0">
                     <p className="text-foreground text-corp font-medium">{deplasare.scop}</p>
                     <p className="text-muted-foreground text-corp mt-0.5">
-                      {formatDate(deplasare.plecare_la)} – {formatDate(deplasare.sosire_la)}
+                      {formatZiuaMomentului(deplasare.plecare_la)} –{" "}
+                      {formatZiuaMomentului(deplasare.sosire_la)}
                     </p>
                     <p className="text-muted-foreground text-nota mt-0.5">
                       {deplasare.localitate ?? "Fără localitate"}

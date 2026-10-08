@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatDate,
   formatDateTime,
+  formatZiuaMomentului,
   formatMonthYear,
   parseDateRo,
   toBucharestDateString,
@@ -26,6 +27,29 @@ describe("formatDate", () => {
 
   it("respinge o valoare care nu este o dată", () => {
     expect(() => formatDate("nu-e-data")).toThrow();
+  });
+
+  it("respinge un moment în timp: un timestamptz nu e o zi calendaristică", () => {
+    // Exact ce primeau paginile de portal (anunțuri, tichete, diurnă) din
+    // `publicat_la`, `created_at`, `plecare_la` — și cădeau cu „Portalul nu a
+    // putut fi încărcat". Pentru un moment se folosește `formatZiuaMomentului`.
+    expect(() => formatDate("2026-10-08T21:17:54.3+00:00")).toThrow(/Zi calendaristică invalidă/);
+  });
+});
+
+describe("formatZiuaMomentului", () => {
+  it("afișează ziua românească a unui moment în timp, în dd.MM.yyyy", () => {
+    expect(formatZiuaMomentului("2026-10-08T21:17:54.3+00:00")).toBe("09.10.2026");
+  });
+
+  it("traversează miezul nopții după fusul României, nu după UTC", () => {
+    // 22:30 UTC vara = 01:30 a doua zi la București.
+    expect(formatZiuaMomentului("2026-07-14T22:30:00Z")).toBe("15.07.2026");
+    expect(formatZiuaMomentului(new Date("2026-07-14T20:30:00Z"))).toBe("14.07.2026");
+  });
+
+  it("respinge un moment invalid", () => {
+    expect(() => formatZiuaMomentului("nu-e-moment")).toThrow(/Moment invalid/);
   });
 });
 
