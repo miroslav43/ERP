@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { construiesteFoaie } from "./foaie";
+import { citesteAngajati, construiesteFoaie, normalizeazaAngajati } from "./foaie";
 
 /**
  * Foaia de pontaj pe anii pe care formularul îi acceptă (2020–2035).
@@ -32,5 +32,58 @@ describe("zilele lucrătoare ale foii", () => {
     const f = construiesteFoaie(2025, 1, ["Popa Ion"], 8);
     expect(f.zile[5]?.sarbatoare).toBe("Bobotează");
     expect(f.zile[6]?.sarbatoare).toBe("Soborul Sfântului Ioan Botezătorul");
+  });
+});
+
+/**
+ * Pagina spune „câte un nume pe rând”. Până pe 8 oct 2026, virgula și punctul
+ * și virgula despărțeau și ele, deci „Popescu, Ion” ieșea pe două rânduri.
+ */
+describe("lista de angajați", () => {
+  it("virgula și punctul și virgula fac parte din nume", () => {
+    expect(normalizeazaAngajati("Popescu, Ion\nIonescu Maria; ing.")).toEqual([
+      "Popescu, Ion",
+      "Ionescu Maria; ing.",
+    ]);
+    expect(normalizeazaAngajati('&amp; "quote"')).toEqual(['&amp; "quote"']);
+  });
+
+  it("orice fel de rând nou desparte: LF, CRLF (trimis de formular), CR, rândul manual din Word", () => {
+    expect(normalizeazaAngajati("A\r\nB\rC\u000BD")).toEqual(["A", "B", "C", "D"]);
+    expect(normalizeazaAngajati(`E${String.fromCodePoint(0x2028)}F`)).toEqual(["E", "F"]);
+  });
+
+  it("tabul dintre două coloane lipite din Excel devine un spațiu", () => {
+    expect(normalizeazaAngajati("Popa\tIon\nIlie \t Maria")).toEqual(["Popa Ion", "Ilie Maria"]);
+  });
+
+  it("rândurile cu doar spații invizibile nu sunt angajați (formularul trimite CRLF)", () => {
+    const lista = citesteAngajati("A\r\n\u{A0}\u{A0}\r\n\u{200B}\r\n\t\r\nB");
+    expect(lista.nume).toEqual(["A", "B"]);
+    expect(lista.total).toBe(2);
+  });
+
+  it("o listă goală dă zece rânduri goale, de completat cu pixul", () => {
+    const lista = citesteAngajati("\u{200B}\n  \n\t");
+    expect(lista.total).toBe(0);
+    expect(lista.omisi).toBe(0);
+    expect(lista.nume).toHaveLength(10);
+    expect(lista.nume.every((n) => n === "")).toBe(true);
+  });
+
+  it("numără ce a rămas pe dinafară peste 60", () => {
+    const lista = citesteAngajati(
+      Array.from({ length: 70 }, (_, i) => `Om ${String(i + 1)}`).join("\n"),
+    );
+    expect(lista.nume).toHaveLength(60);
+    expect(lista.nume.at(-1)).toBe("Om 60");
+    expect(lista.total).toBe(70);
+    expect(lista.omisi).toBe(10);
+  });
+
+  it("numără numele scurtate la 80 de caractere", () => {
+    const lista = citesteAngajati(`${"a".repeat(81)}\nScurt`);
+    expect(lista.scurtate).toBe(1);
+    expect(lista.nume[0]).toHaveLength(80);
   });
 });

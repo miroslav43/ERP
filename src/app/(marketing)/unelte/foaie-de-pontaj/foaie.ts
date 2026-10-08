@@ -1,4 +1,5 @@
 import { sarbatoriDupaZi } from "@/domain/calendar/sarbatori";
+import { curataText } from "@/lib/unelte/document-tabelar";
 
 /**
  * Construcția unei foi de pontaj goale, pentru o lună anume.
@@ -75,23 +76,59 @@ export function normalizeazaOre(brut: string | undefined): number {
   return Number.isFinite(n) && n > 0 && n <= 24 ? n : 8;
 }
 
+export type ListaAngajati = Readonly<{
+  /** Numele de pe foaie: cel mult `MAX_ANGAJATI`, fiecare cel mult `MAX_LUNGIME_NUME`. Gol ⇒ 10 rânduri goale. */
+  nume: readonly string[];
+  /** Câte nume nevide avea câmpul, înainte de plafon. */
+  total: number;
+  /** Câte nume au rămas pe dinafară din cauza plafonului de `MAX_ANGAJATI`. */
+  omisi: number;
+  /** Câte dintre numele păstrate au fost scurtate la `MAX_LUNGIME_NUME`. */
+  scurtate: number;
+}>;
+
 /**
- * Numele din câmpul de text, câte unul pe rând.
+ * Despărțitorul dintre angajați: DOAR rândul nou.
+ *
+ * Până pe 8 oct 2026 despărțeau și virgula, și punctul și virgula. Pagina spune
+ * „câte un nume pe rând”, dar „Popescu, Ion” ieșea ca doi angajați, iar „&amp;”
+ * se rupea la „;” (auditul din 8 oct 2026). O coloană copiată din Excel vine
+ * deja cu un nume pe rând. O listă scrisă cu virgule se rescrie o dată, pe când
+ * un nume rupt în doi nu se vede până la semnătură. Tabul vertical (U+000B,
+ * rândul manual din Word), NEL și separatorii Unicode sunt tot rând nou.
+ */
+const RAND_NOU_INTRE_NUME = /\r\n|[\n\r\v\f\u{85}\u{2028}\u{2029}]/u;
+
+/**
+ * Numele din câmpul de text, câte unul pe rând, plus ce s-a pierdut pe drum.
  *
  * Când lista e goală se întorc rânduri goale numerotate: foaia are rost și
  * necompletată — se tipărește și se scrie de mână, ceea ce e chiar felul în care
  * o va folosi jumătate dintre cei care o descarcă.
  */
+export function citesteAngajati(brut: string | undefined): ListaAngajati {
+  const toate = (brut ?? "")
+    .split(RAND_NOU_INTRE_NUME)
+    // `curataText` scoate spațiile de lățime zero (un rând care le conține doar
+    // pe ele nu mai trece drept nume) și face din tab un spațiu: „Popa⇥Ion”,
+    // două coloane din Excel, devine „Popa Ion”.
+    .map((linie) => curataText(linie).replace(/\s+/gu, " ").trim())
+    .filter((linie) => linie.length > 0);
+  // Plafon și pe lungimea unui nume, nu doar pe numărul lor: un „nume” de mii de
+  // caractere costa secunde de CPU la PDF.
+  const pastrate = toate.slice(0, MAX_ANGAJATI);
+  const nume = pastrate.map((linie) => linie.slice(0, MAX_LUNGIME_NUME));
+  return {
+    nume: nume.length > 0 ? nume : Array.from({ length: 10 }, () => ""),
+    total: toate.length,
+    omisi: toate.length - pastrate.length,
+    scurtate: pastrate.filter((linie) => linie.length > MAX_LUNGIME_NUME).length,
+  };
+}
+
+/** Doar numele de pe foaie; vezi `citesteAngajati`. */
 export function normalizeazaAngajati(brut: string | undefined): readonly string[] {
-  const linii = (brut ?? "")
-    .split(/[\n,;]/)
-    // Plafon și pe lungimea unui nume, nu doar pe numărul lor: un „nume” de mii de
-    // caractere (un rând de Excel lipit cu tab-uri) costa secunde de CPU la PDF.
-    .map((x) => x.trim().slice(0, MAX_LUNGIME_NUME))
-    .filter((x) => x.length > 0)
-    .slice(0, MAX_ANGAJATI);
-  if (linii.length > 0) return linii;
-  return Array.from({ length: 10 }, () => "");
+  return citesteAngajati(brut).nume;
 }
 
 export function construiesteFoaie(
