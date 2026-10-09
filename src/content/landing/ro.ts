@@ -961,6 +961,12 @@ export const RO: ContinutLanding = {
         href: "/unelte/condica-de-prezenta",
       },
       {
+        titlu: "Calculator de zile lucrătoare",
+        text: "Câte zile lucrătoare sunt între două date, sau ce dată e peste un număr de zile lucrătoare.",
+        formate: "Online",
+        href: "/unelte/calculator-zile-lucratoare",
+      },
+      {
         titlu: "Cerere de concediu de odihnă",
         text: "Cu zilele lucrătoare calculate și rubrica angajatorului, plus fără plată, paternal, îngrijitor, eveniment, formare și reprogramare.",
         formate: "PDF · Word",

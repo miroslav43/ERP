@@ -102,6 +102,7 @@ export const PAGINI: readonly Pagina[] = [
     // 7 oct: catalogul de module, în cutii cu prima frază a fiecărui modul (benzi/acasa.tsx).
     // 9 oct: cardul calculatorului de zile de concediu în banda de unelte (ro.ts/en.ts).
     // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
+    // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -115,6 +116,7 @@ export const PAGINI: readonly Pagina[] = [
     // 7 oct: același catalog, în engleză.
     // 9 oct: cardul calculatorului de zile de concediu în banda de unelte (ro.ts/en.ts).
     // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
+    // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -327,6 +329,7 @@ export const PAGINI: readonly Pagina[] = [
     // 9 oct: nota foii de parcurs numește cele 4 elemente din norme.
     // Secțiunea I: nota fișei de evaluare — nota finală calculată, Excel cu formule.
     // 2026-10-09: hub-ul pe categorii (hub-unelte.ts).
+    // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -361,6 +364,15 @@ export const PAGINI: readonly Pagina[] = [
   },
   {
     cale: "/unelte/condica-de-prezenta",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    // 8 oct 2026: „calculator zile lucratoare intre doua date” (completarea automată).
+    cale: "/unelte/calculator-zile-lucratoare",
     prioritate: 0.7,
     limba: "ro",
     traducere: null,

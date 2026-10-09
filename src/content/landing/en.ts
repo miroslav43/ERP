@@ -921,6 +921,12 @@ export const EN: ContinutLanding = {
         href: "/unelte/condica-de-prezenta",
       },
       {
+        titlu: "Working days calculator",
+        text: "How many working days there are between two dates, or which date falls N working days later, with Romanian public holidays.",
+        formate: "Online",
+        href: "/unelte/calculator-zile-lucratoare",
+      },
+      {
         titlu: "Annual leave request",
         text: "With the working days counted and the employer's section, plus unpaid, paternity, carer's, family-event, training and rescheduling versions.",
         formate: "PDF · Word",

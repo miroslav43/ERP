@@ -25,6 +25,10 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
       eticheta: "Câte zile de concediu ți se cuvin pe an",
       href: "/unelte/calculator-zile-concediu",
     },
+    {
+      eticheta: "Zile lucrătoare între două date: calculator",
+      href: "/unelte/calculator-zile-lucratoare",
+    },
     { eticheta: "Pentru firmele de servicii și birouri", href: "/domenii/servicii" },
   ],
   "/unelte/condica-de-prezenta": [
@@ -56,6 +60,14 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     },
     { eticheta: "Program de concedii: cerere, aprobare și sold", href: "/module/concedii" },
   ],
+  "/unelte/calculator-zile-lucratoare": [
+    { eticheta: "Zilele libere legale și zilele lucrătoare pe luni", href: "/ghid/zile-libere" },
+    { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+    {
+      eticheta: "Cerere de concediu cu zilele lucrătoare calculate",
+      href: "/unelte/cerere-concediu-de-odihna",
+    },
+  ],
   "/unelte/calculator-salariu": [
     { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },
     { eticheta: "Program de salarizare: calculul salariilor", href: "/module/salarizare" },
@@ -64,6 +76,10 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
   "/unelte/foaie-de-pontaj": [
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Zilele libere legale și zilele lucrătoare pe luni", href: "/ghid/zile-libere" },
+    {
+      eticheta: "Calculator de zile lucrătoare între două date",
+      href: "/unelte/calculator-zile-lucratoare",
+    },
     { eticheta: "Pontaj de pe telefon, fără instalare", href: "/pontaj-pe-telefon" },
   ],
   "/comparatie/excel": [

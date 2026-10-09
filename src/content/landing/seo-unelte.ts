@@ -57,6 +57,12 @@ export const META_UNELTE: Readonly<Record<string, MetaUnealta>> = {
       "Câte zile de concediu de odihnă ți se cuvin în anul angajării sau al plecării: minimul legal, zilele suplimentare și calculul proporțional. Gratuit, fără cont.",
     termen: "calculator zile concediu de odihna",
   },
+  "/unelte/calculator-zile-lucratoare": {
+    titlu: "Calculator zile lucrătoare între două date",
+    descriere:
+      "Câte zile lucrătoare sunt între două date, fără weekend și sărbători legale, sau ce dată e peste N zile lucrătoare. Pentru termene, preaviz și concedii.",
+    termen: "calculator zile lucratoare",
+  },
   "/unelte/foaie-de-parcurs": {
     // Titlul și descrierea scrise la G8 (cele patru elemente din normele fiscale).
     titlu: "Foaie de parcurs: model Word, PDF și Excel",

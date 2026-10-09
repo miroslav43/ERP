@@ -8,6 +8,7 @@ import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "@/app/(marketing)/unelte/foaie-de-
 import {
   ANTET_CALCULATOR,
   ANTET_CALCULATOR_CONCEDIU,
+  ANTET_CALCULATOR_ZILE_LUCRATOARE,
   ANTET_CERERE_CONCEDIU,
   ANTET_CONDICA,
   ANTET_FISA_EVALUARE,
@@ -69,6 +70,11 @@ export const GRUPURI_HUB: readonly GrupHub[] = [
         "/unelte/condica-de-prezenta",
         ANTET_CONDICA,
         "toate zilele, inclusiv ture · ore lucrate calculate în Excel · Word, PDF, Excel",
+      ),
+      rand(
+        "/unelte/calculator-zile-lucratoare",
+        ANTET_CALCULATOR_ZILE_LUCRATOARE,
+        "între două date sau peste N zile · sărbătorile scăzute · fără cont",
       ),
     ],
   },

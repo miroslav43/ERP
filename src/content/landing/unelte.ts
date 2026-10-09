@@ -76,3 +76,14 @@ export const ANTET_CALCULATOR: AntetPagina = {
   titlu: "Calcul salariu net și brut 2026",
   lead: "Scrie brutul și afli netul, sau invers, pentru ianuarie–iunie sau iulie–decembrie 2026: CAS, CASS, impozitul, deducerea personală, și pentru copii sau sub 26 de ani, tichetele de masă, timpul parțial și costul total pentru firmă.",
 };
+
+/**
+ * Calculatorul de zile lucrătoare: „între două date” și „peste N zile”
+ * (completarea automată Google, 8 oct 2026). Același calendar ca foaia de
+ * pontaj și cererea de concediu.
+ */
+export const ANTET_CALCULATOR_ZILE_LUCRATOARE: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Calculator de zile lucrătoare",
+  lead: "Câte zile lucrătoare sunt între două date sau ce dată cade peste un număr de zile lucrătoare: weekendurile și sărbătorile legale se scad singure, inclusiv Paștele ortodox și Rusaliile.",
+};

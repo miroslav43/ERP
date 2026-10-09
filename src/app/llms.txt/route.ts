@@ -136,6 +136,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Unealtă gratuită: câte zile de concediu de odihnă se cuvin într-un an — minimul de 20 de zile lucrătoare (art. 145 alin. (1) Codul muncii), zilele suplimentare de cel puțin 3 (art. 147) și estimarea proporțională pentru anul angajării sau al plecării, prezentată ca practică, nu ca regulă legală. Fără cont.",
   ],
   [
+    "/unelte/calculator-zile-lucratoare",
+    "Unealtă gratuită: câte zile lucrătoare sunt între două date (ambele incluse) sau ce dată cade peste N zile lucrătoare (ziua de pornire nu se numără, ca la preaviz — RIL nr. 8/2024). Scade sâmbetele, duminicile și cele 17 sărbători legale din art. 139 Codul muncii, cu Paștele ortodox calculat; nu scade zilele libere din contractul colectiv. Exemplu: 20 de zile lucrătoare după 10 decembrie 2026 = 13 ianuarie 2027. Fără cont.",
+  ],
+  [
     "/unelte/condica-de-prezenta",
     "Unealtă gratuită: condica de prezență pentru orice lună, pe program luni–vineri, luni–sâmbătă sau ture; un rând pe om pe fiecare zi, cu ora sosirii, ora plecării, pauza, orele lucrate și observațiile, iar zilele nelucrate marcate L sau SL. Antetul firmei (CUI, compartiment). Excel cu orele calculate și total pe angajat, Word sau PDF, fără cont. Plus răspunsul la „e obligatorie?” și amenda din art. 260 alin. (1) lit. m) Codul muncii.",
   ],
