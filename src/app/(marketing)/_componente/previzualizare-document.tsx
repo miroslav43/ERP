@@ -3,6 +3,7 @@ import {
   LINIE_GOALA,
   type Coloana,
   type DocumentTabelar,
+  type Sectiune,
 } from "@/lib/unelte/document-tabelar";
 
 /**
@@ -14,11 +15,14 @@ function Tabel({
   coloane,
   randuri,
   umbrite,
+  inaltimeRand,
 }: Readonly<{
   legenda: string;
   coloane: readonly Coloana[];
   randuri: readonly (readonly string[])[];
   umbrite: readonly number[];
+  /** Puncte tipografice, ca în PDF (fișa SSM: 28); lipsă = înălțimea implicită a rândului. */
+  inaltimeRand?: number | undefined;
 }>) {
   return (
     <div className="border-mk-rigla relative mt-4 overflow-x-auto border">
@@ -44,6 +48,9 @@ function Tabel({
                 <td
                   key={`${String(j)}-${c.eticheta}`}
                   className={`h-7 px-2 ${umbrite.includes(j) ? "bg-mk-rigla/20" : ""}`}
+                  style={
+                    inaltimeRand === undefined ? undefined : { height: `${String(inaltimeRand)}pt` }
+                  }
                 >
                   {r[j] ?? ""}
                 </td>
@@ -104,6 +111,9 @@ export function PrevizualizareDocument({ document: brut }: { document: DocumentT
             <Tabel legenda={t.titlu} coloane={t.coloane} randuri={t.randuri} umbrite={[]} />
           </div>
         ))}
+      {(d.sectiuni ?? []).map((s, i) => (
+        <SectiuneHtml key={`${String(i)}-${s.tip}`} sectiune={s} />
+      ))}
       {d.note.map((n) => (
         <p key={n} className="text-mk-text-slab mt-3 text-[0.8125rem]">
           {n}
@@ -111,4 +121,72 @@ export function PrevizualizareDocument({ document: brut }: { document: DocumentT
       ))}
     </figure>
   );
+}
+
+/** O secțiune a documentului (fișa SSM), cu aceleași rubrici ca fișierele. */
+function SectiuneHtml({ sectiune: s }: Readonly<{ sectiune: Sectiune }>) {
+  switch (s.tip) {
+    case "text":
+      return (
+        <div className="mt-5">
+          {s.titlu !== null && <h3 className="text-[0.9375rem] font-semibold">{s.titlu}</h3>}
+          {s.paragrafe.map((p, i) => (
+            <p
+              key={`${String(i)}-${p}`}
+              className="mt-2 max-w-[68ch] text-[0.875rem] leading-[1.65]"
+            >
+              {p}
+            </p>
+          ))}
+          {s.semnaturi.length > 0 && (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              {s.semnaturi.map((e) => (
+                <div
+                  key={e}
+                  className="border-mk-rigla text-mk-text-slab min-h-16 border p-2 text-[0.75rem] sm:flex-1"
+                >
+                  {e}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    case "tabel":
+      if (s.coloane.length === 0) return null;
+      return (
+        <div className="mt-5">
+          <h3 className="text-[0.9375rem] font-semibold">{s.titlu}</h3>
+          <Tabel
+            legenda={s.titlu}
+            coloane={s.coloane}
+            randuri={s.randuri}
+            umbrite={[]}
+            inaltimeRand={s.inaltimeRand}
+          />
+        </div>
+      );
+    case "casete":
+      return (
+        <div className="mt-5">
+          <h3 className="text-[0.9375rem] font-semibold">{s.titlu}</h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {Array.from({ length: s.numar }, (_, i) => (
+              <div key={i} className="border-mk-rigla border p-3 text-[0.8125rem]">
+                <p>{s.rubrica}</p>
+                <div className="border-mk-rigla/60 mt-5 border-b" />
+                <div className="border-mk-rigla/60 mt-5 border-b" />
+                <div className="border-mk-rigla/60 mt-5 border-b" />
+                <p className="text-mk-text-slab mt-3 flex justify-between gap-4 text-[0.75rem]">
+                  {s.semnaturi.map((e) => (
+                    <span key={e}>{e}</span>
+                  ))}
+                </p>
+              </div>
+            ))}
+          </div>
+          {s.nota !== null && <p className="text-mk-text-slab mt-2 text-[0.75rem]">{s.nota}</p>}
+        </div>
+      );
+  }
 }
