@@ -118,6 +118,18 @@ describe("datele evenimentului nu poartă nimic scris de vizitator", () => {
     expect(JSON.stringify(date)).not.toContain("21");
   });
 
+  it("cultul (calendarul Paștelui) nu pleacă: ar spune religia salariatului", () => {
+    // Decizia din 9 oct 2026 numește câmpurile permise (luna și anul, câți
+    // angajați, varianta sau programul); religia, chiar fără nume, nu e printre
+    // ele, iar politica de confidențialitate n-o declară.
+    for (const cult of ["ortodox", "gregorian"]) {
+      const q = new URLSearchParams({ tip: TIPURI_CERERE[0] ?? "", cult, de_la: "2026-04-01" });
+      const date = dateDescarcare("cerere-concediu-de-odihna", q);
+      expect(date).not.toHaveProperty("cult");
+      expect(JSON.stringify(date)).not.toContain(cult);
+    }
+  });
+
   it("o unealtă fără listă și cheile moștenite nu dau nimic", () => {
     const q = new URLSearchParams({ an: "2026" });
     expect(dateDescarcare("calculator-salariu", q)).toEqual({});

@@ -141,9 +141,10 @@ export const CAMPURI_EVENIMENT: Readonly<Record<string, Readonly<Record<string, 
     utilizare: alegere("utilizare", UTILIZARI),
     curse: intreg("curse", 1, MAX_CURSE_PE_ZI),
   },
+  // Fără `cult`: calendarul Paștelui ales spune religia salariatului. Nu e
+  // printre câmpurile permise pe 9 oct 2026, iar politica nu-l declară.
   "cerere-concediu-de-odihna": {
     tip: alegere("tip", TIPURI_CERERE),
-    cult: alegere("cult", ["ortodox", "gregorian"]),
     an: dinData("de_la", "an"),
     luna: dinData("de_la", "luna"),
   },
