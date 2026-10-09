@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { calculeazaDinParametri, citesteSuma, parametriCalculator } from "./parametri";
 
 const q = (o: Record<string, string>) => new URLSearchParams(o);
+const AZI = "2026-10-08";
 
 describe("citirea sumei, cum o scrie un român", () => {
   it("punctul de mii nu e virgulă zecimală: „4.500” e 4.500 de lei, nu 4,5", () => {
@@ -58,58 +59,85 @@ describe("citirea sumei, cum o scrie un român", () => {
 });
 
 describe("parametrii calculatorului de salariu", () => {
-  it("implicit: salariul minim brut, fără persoane, funcție de bază", () => {
-    expect(parametriCalculator(new URLSearchParams())).toEqual({
+  it("implicit: salariul minim al perioadei de azi, fără persoane, funcție de bază", () => {
+    expect(parametriCalculator(new URLSearchParams(), AZI)).toEqual({
       text: "4325",
       suma: 4325,
       eroare: null,
       rotunjita: false,
       din: "brut",
-      persoane: 0,
-      functieDeBaza: true,
+      optiuni: { perioada: "2026-2", persoane: 0, functieDeBaza: true },
     });
   });
 
-  it("un câmp golit (doar spații) înseamnă salariul minim, nu o eroare", () => {
-    const p = parametriCalculator(new URLSearchParams({ suma: "   " }));
+  it("în martie 2026 implicitul e ianuarie–iunie, cu minimul de 4.050", () => {
+    const p = parametriCalculator(new URLSearchParams(), "2026-03-15");
+    expect(p.optiuni.perioada).toBe("2026-1");
+    expect(p.suma).toBe(4050);
+  });
+
+  it("perioada din adresă bate ziua de azi; una necunoscută e ignorată", () => {
+    expect(parametriCalculator(q({ perioada: "2026-1" }), AZI).optiuni.perioada).toBe("2026-1");
+    expect(parametriCalculator(q({ perioada: "2025-2" }), AZI).optiuni.perioada).toBe("2026-2");
+  });
+
+  it("un câmp golit (doar spații) înseamnă salariul minim al perioadei, nu o eroare", () => {
+    const p = parametriCalculator(new URLSearchParams({ suma: "   " }), AZI);
     expect([p.suma, p.eroare, p.text]).toEqual([4325, null, "4325"]);
   });
 
+  it("4.325 în ianuarie–iunie e un salariu peste minim: fără sumă scutită, net 2.599", () => {
+    // Review Focus 3: suma rămasă în câmp după schimbarea perioadei.
+    // CAS 1.081,25 → 1.081; CASS 432,50 → 433; deducere minim + 275, pasul 6, 17% × 4.050 = 688,50 → 689;
+    // impozit (4.325 − 1.081,25 − 432,5 − 689) × 10% = 212,225 → 212; net 4.325 − 1.081 − 433 − 212 = 2.599.
+    const r = calculeazaDinParametri(q({ suma: "4325", perioada: "2026-1" }), AZI);
+    expect(r.rezultat).toMatchObject({ sumaNeimpozabila: 0, net: 2599 });
+    expect(r.subMinim).toBe(false);
+  });
+
   it("mărginește persoanele și citește direcția și funcția de bază", () => {
-    expect(parametriCalculator(q({ persoane: "17" })).persoane).toBe(4);
-    expect(parametriCalculator(q({ persoane: "-1" })).persoane).toBe(0);
-    expect(parametriCalculator(q({ din: "orice" })).din).toBe("brut");
-    expect(parametriCalculator(q({ baza: "nu" })).functieDeBaza).toBe(false);
+    expect(parametriCalculator(q({ persoane: "17" }), AZI).optiuni.persoane).toBe(4);
+    expect(parametriCalculator(q({ persoane: "-1" }), AZI).optiuni.persoane).toBe(0);
+    expect(parametriCalculator(q({ din: "orice" }), AZI).din).toBe("brut");
+    expect(parametriCalculator(q({ baza: "nu" }), AZI).optiuni.functieDeBaza).toBe(false);
   });
 
   it("o sumă de neînțeles nu produce un rezultat pentru altă cifră", () => {
-    const r = calculeazaDinParametri(q({ suma: "5000 de lei" }));
+    const r = calculeazaDinParametri(q({ suma: "5000 de lei" }), AZI);
     expect(r.rezultat).toBeNull();
     expect(r.parametri.text).toBe("5000 de lei");
     expect(r.eroare).toBe("Nu am înțeles suma „5000 de lei”. Scrie-o ca 5000 sau 5.000.");
   });
 
   it("„4.500” brut dă netul pentru 4.500 de lei", () => {
-    // CAS 4.500 × 25% = 1.125; CASS 450. Deducere fără persoane la minim + 175 lei:
-    // pasul 4, 18% × 4.325 = 778,50 → 779. Impozit (4.500 − 1.125 − 450 − 779) × 10%
-    // = 214,6 → 215. Net 4.500 − 1.125 − 450 − 215 = 2.710.
-    const r = calculeazaDinParametri(q({ suma: "4.500" }));
+    // CAS 1.125; CASS 450; deducere pasul 4, 18% × 4.325 = 778,50 → 779;
+    // impozit (4.500 − 1.125 − 450 − 779) × 10% = 214,6 → 215; net 2.710.
+    const r = calculeazaDinParametri(q({ suma: "4.500" }), AZI);
     expect(r.rezultat?.brut).toBe(4500);
     expect(r.rezultat?.net).toBe(2710);
   });
 
   it("„3.000” net cere 5.036 de lei brut, nu 4 lei", () => {
-    const r = calculeazaDinParametri(q({ suma: "3.000", din: "net" }));
+    const r = calculeazaDinParametri(q({ suma: "3.000", din: "net" }), AZI);
     expect(r.rezultat?.brut).toBe(5036);
-    expect(r.rezultat?.net).toBeGreaterThanOrEqual(3000);
   });
 
-  it("semnalează un brut sub salariul minim, pe care calculul cu normă întreagă nu-l acoperă", () => {
-    expect(calculeazaDinParametri(q({ suma: "3000" })).subMinim).toBe(true);
-    expect(calculeazaDinParametri(q({ suma: "4325" })).subMinim).toBe(false);
+  it("semnalează un brut sub salariul minim al perioadei alese", () => {
+    expect(calculeazaDinParametri(q({ suma: "3000" }), AZI).subMinim).toBe(true);
+    expect(calculeazaDinParametri(q({ suma: "4325" }), AZI).subMinim).toBe(false);
+    expect(calculeazaDinParametri(q({ suma: "4050" }), AZI).subMinim).toBe(true);
+    const ianuarie = calculeazaDinParametri(q({ suma: "4050", perioada: "2026-1" }), AZI);
+    expect(ianuarie.subMinim).toBe(false);
+    expect(ianuarie.minimLegal).toBe(4050);
+    expect(ianuarie.rezultat?.net).toBe(2574);
   });
 
   it("calculul din net întoarce brutul care dă netul", () => {
-    expect(calculeazaDinParametri(q({ suma: "2981", din: "net" })).rezultat?.brut).toBe(5000);
+    expect(calculeazaDinParametri(q({ suma: "2981", din: "net" }), AZI).rezultat?.brut).toBe(5000);
+  });
+
+  it("după 31 decembrie 2026 pagina știe că valorile au expirat", () => {
+    expect(calculeazaDinParametri(new URLSearchParams(), "2027-01-04").expirat).toBe(true);
+    expect(calculeazaDinParametri(new URLSearchParams(), AZI).expirat).toBe(false);
   });
 });

@@ -1,3 +1,5 @@
+import { PERIOADE, PERIOADE_2026 } from "@/content/legal/salarizare-publica";
+
 import type { ParametriCalculator } from "./parametri";
 
 /**
@@ -17,7 +19,7 @@ export function Formular({
   readonly eroare: string | null;
 }) {
   return (
-    <form method="get" action="#rezultat" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <form method="get" action="#rezultat" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <label className="flex flex-col gap-1.5">
         <span className={CLASA_ETICHETA}>Suma (lei)</span>
         <input
@@ -40,7 +42,7 @@ export function Formular({
       </label>
       <label className="flex flex-col gap-1.5">
         <span className={CLASA_ETICHETA}>Persoane în întreținere</span>
-        <select name="persoane" defaultValue={String(p.persoane)} className={CLASA_CAMP}>
+        <select name="persoane" defaultValue={String(p.optiuni.persoane)} className={CLASA_CAMP}>
           <option value="0">niciuna</option>
           <option value="1">1</option>
           <option value="2">2</option>
@@ -50,12 +52,26 @@ export function Formular({
       </label>
       <label className="flex flex-col gap-1.5">
         <span className={CLASA_ETICHETA}>Funcția de bază</span>
-        <select name="baza" defaultValue={p.functieDeBaza ? "da" : "nu"} className={CLASA_CAMP}>
+        <select
+          name="baza"
+          defaultValue={p.optiuni.functieDeBaza ? "da" : "nu"}
+          className={CLASA_CAMP}
+        >
           <option value="da">da — aici e funcția de bază</option>
           <option value="nu">nu — al doilea contract</option>
         </select>
       </label>
-      <div className="flex items-end sm:col-span-2 lg:col-span-4">
+      <label className="flex flex-col gap-1.5">
+        <span className={CLASA_ETICHETA}>Perioada</span>
+        <select name="perioada" defaultValue={p.optiuni.perioada} className={CLASA_CAMP}>
+          {PERIOADE.map((cheie) => (
+            <option key={cheie} value={cheie}>
+              {PERIOADE_2026[cheie].eticheta}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex items-end sm:col-span-2 lg:col-span-3">
         <button
           type="submit"
           data-umami-event="calculator-salariu"

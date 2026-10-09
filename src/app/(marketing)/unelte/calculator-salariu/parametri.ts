@@ -1,6 +1,16 @@
-import { SALARIU_MINIM_BRUT_2026_IULIE } from "@/content/legal/salarizare-publica";
+import {
+  estePerioada,
+  PERIOADE_2026,
+  perioadaPentruZi,
+  valoriExpirate,
+} from "@/content/legal/salarizare-publica";
 import { parseAmount } from "@/lib/format/money";
-import { dinBrut, dinNet, type RezultatSalariu } from "@/lib/unelte/salariu";
+import {
+  calculeazaDinBrut,
+  calculeazaDinNet,
+  type OptiuniSalariu,
+  type RezultatSalariu,
+} from "@/lib/unelte/salariu";
 
 /**
  * Intrările calculatorului din adresă, normalizate, și calculul lor.
@@ -64,26 +74,43 @@ export type ParametriCalculator = Readonly<{
   /** Suma avea bani și a fost rotunjită la leu. */
   rotunjita: boolean;
   din: "brut" | "net";
-  /** 0–4; 4 înseamnă „4 și peste”, ca în tabelul art. 77 alin. (4). */
-  persoane: number;
-  functieDeBaza: boolean;
+  optiuni: OptiuniSalariu;
 }>;
 
-export function parametriCalculator(q: URLSearchParams): ParametriCalculator {
+/** Un întreg din adresă, mărginit; `implicit` când lipsește sau nu e număr. */
+function intreg(text: string | null, implicit: number, min: number, max: number): number {
+  const n = Number.parseInt(text ?? "", 10);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : implicit;
+}
+
+function optiuniDin(q: URLSearchParams, azi: string): OptiuniSalariu {
+  const ceruta = q.get("perioada");
+  return {
+    perioada: estePerioada(ceruta) ? ceruta : perioadaPentruZi(azi),
+    persoane: intreg(q.get("persoane"), 0, 0, 4),
+    functieDeBaza: q.get("baza") !== "nu",
+  };
+}
+
+/**
+ * @param azi Ziua curentă în România (`todayInBucharest()`), care alege perioada
+ *   când adresa n-o spune. E parametru, nu ceas citit aici, ca testele să fie fixe.
+ */
+export function parametriCalculator(q: URLSearchParams, azi: string): ParametriCalculator {
+  const optiuni = optiuniDin(q, azi);
+  const minim = PERIOADE_2026[optiuni.perioada].salariuMinim;
   const text = (q.get("suma") ?? "").slice(0, 20);
   const gol = text.trim() === "";
   const citire: CitireSuma = gol
-    ? { ok: true, valoare: SALARIU_MINIM_BRUT_2026_IULIE, rotunjita: false }
+    ? { ok: true, valoare: minim, rotunjita: false }
     : citesteSuma(text);
-  const persoane = Number.parseInt(q.get("persoane") ?? "", 10);
   return {
-    text: gol ? String(SALARIU_MINIM_BRUT_2026_IULIE) : text,
+    text: gol ? String(minim) : text,
     suma: citire.ok ? citire.valoare : null,
     eroare: citire.ok ? null : citire.eroare,
     rotunjita: citire.ok && citire.rotunjita,
     din: q.get("din") === "net" ? "net" : "brut",
-    persoane: Number.isFinite(persoane) ? Math.min(4, Math.max(0, persoane)) : 0,
-    functieDeBaza: q.get("baza") !== "nu",
+    optiuni,
   };
 }
 
@@ -92,21 +119,28 @@ export type CalculCalculator = Readonly<{
   /** `null` când nu există un calcul pentru cifra cerută; motivul e în `eroare`. */
   rezultat: RezultatSalariu | null;
   eroare: string | null;
-  /** Brut sub salariul minim: calculul cu normă întreagă nu se aplică (vezi pagina). */
+  /** Brutul minim legal pentru opțiunile alese: pragul lui `subMinim`. */
+  minimLegal: number;
   subMinim: boolean;
+  /** Ziua de azi e după ultima perioadă cu valori verificate (31 decembrie 2026). */
+  expirat: boolean;
 }>;
 
-export function calculeazaDinParametri(q: URLSearchParams): CalculCalculator {
-  const p = parametriCalculator(q);
-  if (p.suma === null) return { parametri: p, rezultat: null, eroare: p.eroare, subMinim: false };
+export function calculeazaDinParametri(q: URLSearchParams, azi: string): CalculCalculator {
+  const p = parametriCalculator(q, azi);
+  const minimLegal = PERIOADE_2026[p.optiuni.perioada].salariuMinim;
+  const expirat = valoriExpirate(azi);
+  if (p.suma === null) {
+    return { parametri: p, rezultat: null, eroare: p.eroare, minimLegal, subMinim: false, expirat };
+  }
   const rezultat =
-    p.din === "net"
-      ? dinNet(p.suma, p.persoane, p.functieDeBaza)
-      : dinBrut(p.suma, p.persoane, p.functieDeBaza);
+    p.din === "net" ? calculeazaDinNet(p.suma, p.optiuni) : calculeazaDinBrut(p.suma, p.optiuni);
   return {
     parametri: p,
     rezultat,
     eroare: null,
-    subMinim: rezultat.brut < SALARIU_MINIM_BRUT_2026_IULIE,
+    minimLegal,
+    subMinim: rezultat.brut < minimLegal,
+    expirat,
   };
 }

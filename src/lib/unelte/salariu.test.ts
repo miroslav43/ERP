@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dinBrut, dinNet } from "./salariu";
+import { calculeazaDinBrut, calculeazaDinNet, dinBrut, dinNet, OPTIUNI_IMPLICITE } from "./salariu";
 
 describe("calculul public de salariu", () => {
   it("netul NU e strict monoton: la fiecare prag de 50 de lei scade cu cel mult 5 lei", () => {
@@ -117,5 +117,55 @@ describe("vectorii de control, publicați pentru a doua jumătate a lui 2026", (
 
   it("net 2.699 → brutul minim, nu unul de deasupra lui", () => {
     expect(dinNet(2699, 0, true).brut).toBe(4325);
+  });
+});
+
+describe("perioada ianuarie–iunie 2026", () => {
+  const S1 = { ...OPTIUNI_IMPLICITE, perioada: "2026-1" } as const;
+
+  it("4.050 brut → 2.574 net, cost 4.134, cu 300 de lei scutiți", () => {
+    // Baza: 4.050 − 300 = 3.750. CAS 25% = 937,50 → 938; CASS 10% = 375.
+    // Deducere 20% × 4.050 = 810. Impozit (3.750 − 937,50 − 375 − 810) × 10% = 162,75 → 163.
+    // Net 3.750 − 938 − 375 − 163 + 300 = 2.574. CAM 2,25% × 3.750 = 84,375 → 84; cost 4.050 + 84 = 4.134.
+    expect(calculeazaDinBrut(4050, S1)).toMatchObject({
+      sumaNeimpozabila: 300,
+      cas: 938,
+      cass: 375,
+      deducerePersonala: 810,
+      impozit: 163,
+      net: 2574,
+      cam: 84,
+      costTotal: 4134,
+    });
+  });
+
+  it("4.051 pierde facilitatea: net 2.449", () => {
+    // CAS 1.012,75 → 1.013; CASS 405,10 → 405; deducerea, pasul 1: 19,5% × 4.050 = 789,75 → 790.
+    // Impozit (4.051 − 1.012,75 − 405,10 − 790) × 10% = 184,315 → 184. Net 4.051 − 1.013 − 405 − 184 = 2.449.
+    expect(calculeazaDinBrut(4051, S1).net).toBe(2449);
+  });
+
+  it("4.050 în iulie–decembrie nu mai e salariul minim: fără scutire", () => {
+    expect(calculeazaDinBrut(4050, OPTIUNI_IMPLICITE).sumaNeimpozabila).toBe(0);
+  });
+
+  it("net 2.575 cere 4.280 de lei brut: capcana de după minim e mai lungă în prima jumătate", () => {
+    // Peste 4.050, cei 300 de lei scutiți se pierd: netul revine peste 2.574 abia la 4.280.
+    expect(calculeazaDinNet(2575, S1).brut).toBe(4280);
+    expect(calculeazaDinNet(2574, S1).brut).toBe(4050);
+  });
+});
+
+describe("rotunjirea la leu nu mai depinde de virgula mobilă", () => {
+  // Auditul din 8 oct 2026: motorul primea luna ca 21 de zile, iar 5.394 / 21 × 21 iese
+  // 5.393,999… — CAS 1.348,50 se rotunjea în jos. Circa 225 de bruturi între 4.325 și 20.000.
+  it("brut 5.394: CAS 1.348,50 → 1.349, net 3.194", () => {
+    // CASS 539,4 → 539; deducere la minim + 1.069: pasul 22, 9% × 4.325 = 389,25 → 389;
+    // impozit (5.394 − 1.348,5 − 539,4 − 389) × 10% = 311,71 → 312; net 5.394 − 1.349 − 539 − 312 = 3.194.
+    expect(dinBrut(5394, 0, true)).toMatchObject({ cas: 1349, net: 3194 });
+  });
+
+  it("brut 5.415: CASS 541,50 → 542", () => {
+    expect(dinBrut(5415, 0, true).cass).toBe(542);
   });
 });

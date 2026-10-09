@@ -5,7 +5,7 @@ import { Formular } from "./formular";
 import { parametriCalculator } from "./parametri";
 
 const randeaza = (o: Record<string, string>) => {
-  const p = parametriCalculator(new URLSearchParams(o));
+  const p = parametriCalculator(new URLSearchParams(o), "2026-10-08");
   return render(<Formular p={p} eroare={p.eroare} />).container;
 };
 
@@ -31,5 +31,13 @@ describe("formularul calculatorului", () => {
     const suma = randeaza({ suma: "5.000" }).querySelector('input[name="suma"]');
     expect(suma?.getAttribute("aria-invalid")).toBe("false");
     expect(suma?.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("perioada aleasă rămâne aleasă", () => {
+    const c = randeaza({ perioada: "2026-1" });
+    expect(c.querySelector<HTMLSelectElement>('select[name="perioada"]')?.value).toBe("2026-1");
+    expect(
+      [...c.querySelectorAll('select[name="perioada"] option')].map((o) => o.textContent),
+    ).toEqual(["ianuarie–iunie 2026", "iulie–decembrie 2026"]);
   });
 });

@@ -10,7 +10,7 @@ import {
   SALARIU_MINIM_BRUT_2026_IULIE,
   VERIFICARE,
 } from "@/content/legal/salarizare-publica";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { dinBrut, dinNet } from "@/lib/unelte/salariu";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
@@ -111,11 +111,17 @@ function TabelUzual({
 export default async function PaginaCalculatorSalariu({ searchParams }: Proprietati) {
   const p = await searchParams;
   const q = new URLSearchParams();
-  for (const cheie of ["suma", "din", "persoane", "baza"]) {
-    const v = unul(p[cheie]);
+  // Toate cheile: `parametri.ts` le citește doar pe cele pe care le cunoaște.
+  for (const [cheie, valoare] of Object.entries(p)) {
+    const v = unul(valoare);
     if (v !== undefined && v !== "") q.set(cheie, v);
   }
-  const { parametri, rezultat, eroare, subMinim } = calculeazaDinParametri(q);
+  // Ziua din România alege perioada implicită și spune când valorile au expirat.
+  // Pagina e oricum dinamică (citește `searchParams`), deci ceasul nu se îngheață la build.
+  const { parametri, rezultat, eroare, minimLegal, subMinim, expirat } = calculeazaDinParametri(
+    q,
+    todayInBucharest(),
+  );
   const laMinim = dinBrut(SALARIU_MINIM_BRUT_2026_IULIE, 0, true);
 
   return (
@@ -154,6 +160,15 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             : `Net ${lei(rezultat.net)} din brut ${lei(rezultat.brut)}`
         }
       >
+        {expirat && (
+          <p
+            role="note"
+            className="border-mk-cerneala mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]"
+          >
+            Valorile sunt cele verificate pentru 2026. Pentru 2027, calculatorul nu are încă valori
+            verificate: salariul minim, suma scutită și deducerea se pot schimba.
+          </p>
+        )}
         {rezultat === null ? (
           <p
             id="eroare-suma"
@@ -175,10 +190,10 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             </div>
             {subMinim && (
               <p className="border-mk-rigla mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]">
-                Brutul e sub salariul minim de {lei(SALARIU_MINIM_BRUT_2026_IULIE)}. Cu normă
-                întreagă, salariul nu poate fi mai mic; la timp parțial, CAS și CASS se datorează în
-                general cel puțin la nivelul salariului minim, cu excepțiile din Codul fiscal (de
-                exemplu elevii și studenții până la 26 de ani) — calculul de mai sus nu le aplică.
+                Brutul e sub salariul minim de {lei(minimLegal)}. Cu normă întreagă, salariul nu
+                poate fi mai mic; la timp parțial, CAS și CASS se datorează în general cel puțin la
+                nivelul salariului minim, cu excepțiile din Codul fiscal (de exemplu elevii și
+                studenții până la 26 de ani) — calculul de mai sus nu le aplică.
               </p>
             )}
           </>
@@ -292,7 +307,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
         <p className="border-mk-cerneala text-mk-text mt-8 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.6]">
           Calculul e informativ, pentru un contract cu normă întreagă, fără sporuri și fără cazurile
           din lista de mai sus; suma neimpozabilă de la salariul minim (OUG 89/2025) e inclusă.
-          Valorile sunt cele din iulie–decembrie 2026; pentru statul de plată, confirmă cu
+          Valorile sunt cele din perioada aleasă a lui 2026; pentru statul de plată, confirmă cu
           contabilul firmei.
         </p>
         <p className="text-mk-text-slab mt-8 text-[0.875rem]">
