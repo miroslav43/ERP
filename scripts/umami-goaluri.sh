@@ -83,6 +83,23 @@ creeaza() {
   fi
 }
 
+# Șterge un raport după nume, DOAR dacă ține încă valoarea veche. O a doua
+# rulare, sau un raport refăcut de mână cu alt eveniment, rămân neatinse.
+sterge_daca() {
+  local nume="$1" valoare="$2" id cod
+  id="$(api "$LISTA" | jq -r --arg n "$nume" --arg v "$valoare" \
+    '(.data // [])[] | select(.name == $n and .parameters.value == $v) | .id' | head -n1)"
+  if [ -z "$id" ]; then
+    printf "   ${D}=${N} %-42s nu mai ține „%s”, sar\n" "$nume" "$valoare"; return 0
+  fi
+  cod="$(api -o /tmp/umami-raspuns.json -w '%{http_code}' -X DELETE "$GAZDA/api/reports/$id")"
+  if [ "$cod" = "200" ] || [ "$cod" = "204" ]; then
+    printf "   ${V}-${N} %-42s șters (număra „%s”)\n" "$nume" "$valoare"
+  else
+    printf "   ${R}✗${N} %-42s HTTP %s — %s\n" "$nume" "$cod" "$(head -c 160 /tmp/umami-raspuns.json)"
+  fi
+}
+
 # ── Goal-uri ────────────────────────────────────────────────────────────────
 # Ordinea nu e întâmplătoare: primul e singurul care măsoară bani, restul măsoară
 # drumul până la el.
@@ -99,9 +116,29 @@ creeaza "Click pe CTA din erou"          goal \
   "Butonul principal de pe pagina de start. Raportat la vizite, dă rata de intenție." \
   "$(g event cta-erou)"
 
-creeaza "Descărcări foaie de pontaj"     goal \
-  "Exportul în Excel al uneltei gratuite. Măsoară dacă momeala prinde." \
-  "$(g event foaie-excel)"
+# „Descărcări foaie de pontaj" număra `foaie-excel`, pe care nu-l mai trimite
+# nimic (butoanele trimit `foaie-pdf|docx|xlsx`): a arătat zero pentru totdeauna
+# (8 oct 2026). Îl înlocuiesc evenimentele de pe server, care nu depind de
+# blocantul vizitatorului — `src/lib/unelte/masurare.ts`.
+sterge_daca "Descărcări foaie de pontaj" foaie-excel
+
+creeaza "Foaia de pontaj în Excel (server, om)"   goal \
+  "Descărcarea Excel pornită de un clic, numărată pe server, fără IP." \
+  "$(g event dl:foaie-de-pontaj:xlsx:om)"
+
+creeaza "Cont venit din foaia de pontaj (server)" goal \
+  "Contul creat după îndemnul din foaia de pontaj, numărat pe server." \
+  "$(g event cont:foaie-de-pontaj)"
+
+creeaza "Cont venit din cererea de concediu (server)" goal \
+  "Contul creat după îndemnul din cererea de concediu, numărat pe server." \
+  "$(g event cont:cerere-concediu-de-odihna)"
+
+# 9 oct 2026: calculatorul de salariu se numără și el pe server, la randarea
+# paginii cu ?suma= (fără sumă: doar perioada, sensul și treapta brutului).
+creeaza "Calcul de salariu (server, om)"          goal \
+  "Un calcul pornit de un clic pe „Calculează”, numărat pe server, fără IP." \
+  "$(g event calc:calculator-salariu:om)"
 
 creeaza "CTA de pe paginile de lege"     goal \
   "Click pe Creează cont de pe art. 119, REGES sau ghidul ITM. Răspunde dacă traficul legislativ convertește sau doar citește." \
