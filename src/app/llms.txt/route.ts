@@ -132,6 +132,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Unealtă gratuită: cerere de concediu de odihnă gata de tipărit, cu zilele lucrătoare calculate — weekendurile și sărbătorile legale se scad, iar cele scoase se enumeră cu motivul. Plus variantele de concediu fără plată (art. 153) și zile libere pentru evenimente familiale (art. 152). Word sau PDF, fără cont.",
   ],
   [
+    "/unelte/calculator-zile-concediu",
+    "Unealtă gratuită: câte zile de concediu de odihnă se cuvin într-un an — minimul de 20 de zile lucrătoare (art. 145 alin. (1) Codul muncii), zilele suplimentare de cel puțin 3 (art. 147) și estimarea proporțională pentru anul angajării sau al plecării, prezentată ca practică, nu ca regulă legală. Fără cont.",
+  ],
+  [
     "/unelte/condica-de-prezenta",
     "Unealtă gratuită: condica de prezență pentru orice lună, pe program luni–vineri, luni–sâmbătă sau ture; un rând pe om pe fiecare zi, cu ora sosirii, ora plecării, pauza, orele lucrate și observațiile, iar zilele nelucrate marcate L sau SL. Antetul firmei (CUI, compartiment). Excel cu orele calculate și total pe angajat, Word sau PDF, fără cont. Plus răspunsul la „e obligatorie?” și amenda din art. 260 alin. (1) lit. m) Codul muncii.",
   ],

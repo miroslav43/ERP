@@ -29,6 +29,17 @@ export const ANTET_CERERE_CONCEDIU: AntetPagina = {
 };
 
 /**
+ * Perechea cererii: înainte de „ce perioadă”, „câte zile am”. Proporția pentru
+ * un an lucrat parțial e prezentată ca practică, nu ca lege — ca în ghidul
+ * `/ghid/concediu-de-odihna`.
+ */
+export const ANTET_CALCULATOR_CONCEDIU: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Calculator de zile de concediu de odihnă",
+  lead: "Câte zile de concediu ți se cuvin pe an și cât din ele dacă te-ai angajat sau pleci în cursul anului: minimul legal, zilele suplimentare și calculul proporțional, cu ce e lege și ce e doar practică.",
+};
+
+/**
  * Condica: ce se caută e „model Word” și „este obligatorie”. Pagina răspunde la
  * a doua întrebare înainte să dea fișierul pentru prima.
  */

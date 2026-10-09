@@ -6,6 +6,7 @@ import Link from "next/link";
 import { RO } from "@/content/landing/ro";
 import {
   ANTET_CALCULATOR,
+  ANTET_CALCULATOR_CONCEDIU,
   ANTET_CERERE_CONCEDIU,
   ANTET_CONDICA,
   ANTET_FISA_EVALUARE,
@@ -56,6 +57,12 @@ const PAGINI = [
     titlu: ANTET_CERERE_CONCEDIU.titlu,
     lead: ANTET_CERERE_CONCEDIU.lead,
     nota: `${AN_MIN}–${AN_MAX} · zilele lucrătoare calculate · fără cont`,
+  },
+  {
+    href: "/unelte/calculator-zile-concediu",
+    titlu: ANTET_CALCULATOR_CONCEDIU.titlu,
+    lead: ANTET_CALCULATOR_CONCEDIU.lead,
+    nota: "minimul legal, zile suplimentare, an lucrat parțial · fără cont",
   },
   {
     href: "/unelte/foaie-de-parcurs",

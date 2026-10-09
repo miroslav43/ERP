@@ -967,6 +967,12 @@ export const RO: ContinutLanding = {
         href: "/unelte/cerere-concediu-de-odihna",
       },
       {
+        titlu: "Calculator de zile de concediu",
+        text: "Câte zile de concediu ți se cuvin pe an și cât din ele în anul angajării sau al plecării.",
+        formate: "Online",
+        href: "/unelte/calculator-zile-concediu",
+      },
+      {
         titlu: "Foaie de parcurs",
         text: "Mașina, șoferul și luna: traseul, scopul deplasării și kilometrii.",
         formate: "PDF · Word · Excel",

@@ -927,6 +927,12 @@ export const EN: ContinutLanding = {
         href: "/unelte/cerere-concediu-de-odihna",
       },
       {
+        titlu: "Annual leave entitlement calculator",
+        text: "How many days of leave you are owed in a year, and how many in the year you join or leave.",
+        formate: "Online",
+        href: "/unelte/calculator-zile-concediu",
+      },
+      {
         titlu: "Vehicle trip log",
         text: "Vehicle, driver and month: the route, the purpose of each trip and the kilometres.",
         formate: "PDF · Word · Excel",

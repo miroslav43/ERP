@@ -44,6 +44,14 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     { eticheta: "KPI-uri: indicatori și ținte pe angajat", href: "/module/kpi" },
     { eticheta: "Pentru firmele de servicii și birouri", href: "/domenii/servicii" },
   ],
+  "/unelte/calculator-zile-concediu": [
+    { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
+    {
+      eticheta: "Cerere de concediu cu zilele calculate",
+      href: "/unelte/cerere-concediu-de-odihna",
+    },
+    { eticheta: "Program de concedii: cerere, aprobare și sold", href: "/module/concedii" },
+  ],
   "/unelte/calculator-salariu": [
     { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },
     { eticheta: "Program de salarizare: calculul salariilor", href: "/module/salarizare" },
