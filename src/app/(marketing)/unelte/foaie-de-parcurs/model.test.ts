@@ -239,6 +239,23 @@ describe("parametrii din adresă", () => {
     expect(normalizeazaKm("-5")).toBeNull();
   });
 
+  it("kilometrajul: punctul e doar separator de mii, nu zecimală lipită de cifre", () => {
+    // „125000.5” dădea tăcut 1.250.005 km în document: punctul era scos oriunde.
+    expect(normalizeazaKm("125000.5")).toBeNull();
+    expect(normalizeazaKm("12.5")).toBeNull();
+    expect(normalizeazaKm("1.25.000")).toBeNull();
+    expect(normalizeazaKm("1.250.000")).toBe(1_250_000);
+    expect(normalizeazaKm("1 250 000")).toBe(1_250_000);
+  });
+
+  it("stocul de la începutul lunii poate fi 0: rezervorul gol e o valoare, nu o greșeală", () => {
+    const q = new URLSearchParams({ stoc: "0" });
+    const p = parametriFoaieParcurs(q);
+    expect(p.stocInitial).toBe(0);
+    expect(avizeFoaieParcurs(q, p)).toEqual([]);
+    expect(parametriFoaieParcurs(new URLSearchParams({ stoc: "1000" })).stocInitial).toBeNull();
+  });
+
   it("taie câmpurile de text la 120 de caractere, CUI și numărul la 20", () => {
     const p = parametriFoaieParcurs(
       new URLSearchParams({

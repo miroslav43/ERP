@@ -161,23 +161,29 @@ function alegere<T extends string>(brut: string | null, valori: readonly T[]): T
 /**
  * Un număr pozitiv cu cel mult trei zecimale, cu virgulă sau cu punct („6,5”,
  * „6.5”), cel mult `max`. Orice altceva = `null`, adică rubrică de completat.
+ * `permiteZero`: stocul din rezervor poate fi 0 (rezervorul gol); norma, nu.
  */
-export function normalizeazaZecimal(brut: string | null, max: number): number | null {
+export function normalizeazaZecimal(
+  brut: string | null,
+  max: number,
+  permiteZero = false,
+): number | null {
   const v = (brut ?? "").trim();
   if (!/^\d{1,6}(?:[.,]\d{1,3})?$/u.test(v)) return null;
   const n = Number(v.replace(",", "."));
-  return n > 0 && n <= max ? n : null;
+  return (n > 0 || (permiteZero && n === 0)) && n <= max ? n : null;
 }
 
 /**
  * Kilometri întregi, între 0 și 5.000.000. Punctul și spațiul de grupare se
  * acceptă („125.000”, „125 000”), fiindcă așa se scrie kilometrajul în română;
- * o virgulă zecimală nu.
+ * o virgulă zecimală nu. Gruparea trebuie să fie în treimi: „125000.5” scos
+ * de puncte ar fi devenit tăcut 1.250.005 km.
  */
 export function normalizeazaKm(brut: string | null): number | null {
-  const v = (brut ?? "").trim().replace(/[\s.]/gu, "");
-  if (!/^\d{1,7}$/u.test(v)) return null;
-  const n = Number(v);
+  const v = (brut ?? "").trim();
+  if (!/^(?:\d{1,7}|\d{1,3}(?:[.\s]\d{3})+)$/u.test(v)) return null;
+  const n = Number(v.replace(/[.\s]/gu, ""));
   return n <= MAX_KM ? n : null;
 }
 
@@ -204,7 +210,7 @@ export function parametriFoaieParcurs(q: URLSearchParams): ParametriFoaieParcurs
     utilizare: alegere(q.get("utilizare"), UTILIZARI),
     norma: normalizeazaZecimal(q.get("norma"), MAX_NORMA),
     kmInitial: normalizeazaKm(q.get("km")),
-    stocInitial: normalizeazaZecimal(q.get("stoc"), MAX_STOC),
+    stocInitial: normalizeazaZecimal(q.get("stoc"), MAX_STOC, true),
     cursePeZi: normalizeazaCurse(q.get("curse")),
   };
 }
