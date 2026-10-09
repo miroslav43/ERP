@@ -162,6 +162,7 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/pontaj/setari/reguli", "attendance", "attendance:update", "all"),
   p("/profil", null, null),
   p("/puncte-lucru", null, "departments:read"),
+  p("/puncte-lucru/[id]", null, "departments:read"),
   p("/puncte-lucru/[id]/afis", null, "departments:update", "all"),
   p("/rapoarte", "rapoarte", "payroll:read", "all"),
   p("/reges", "reges", "reges:read", "all"),

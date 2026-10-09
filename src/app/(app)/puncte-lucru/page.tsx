@@ -157,7 +157,13 @@ export default async function PaginaPuncteLucru({
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{punct.denumire}</span>
+                    {/* Punctul are acum fișa lui: numele o deschide. */}
+                    <Link
+                      href={`/puncte-lucru/${punct.id}`}
+                      className="font-medium underline-offset-2 hover:underline"
+                    >
+                      {punct.denumire}
+                    </Link>
                     {punct.sediu_principal ? (
                       <span className="bg-primary/10 text-primary text-nota rounded-full px-2 py-0.5 font-medium">
                         Sediu principal

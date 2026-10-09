@@ -75,6 +75,10 @@ export default async function PaginaAfisPontare({
       <div className="mx-auto max-w-2xl space-y-4 p-4">
         <Callout fel="atentie" titlu="Punctul de lucru nu are încă un cod">
           Generați codul din lista de puncte de lucru, apoi reveniți aici ca să tipăriți afișul.{" "}
+          <Link href={`/puncte-lucru/${punct.id}`} className="underline-offset-2 hover:underline">
+            Fișa punctului
+          </Link>
+          {" · "}
           <Link
             href={`/puncte-lucru?punct=${punct.id}#punct-${punct.id}`}
             className="underline underline-offset-2"

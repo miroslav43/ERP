@@ -191,3 +191,4 @@ semnala un drift care nu există. Corecțiile stau aici:
 - Instalarea timerului și cele trei locuri ale secretului: `DEPLOY.md`.
 - Aplicația mobilă în sine (build EAS, magazine, ce nu se poate proba local): `mobil/README.md`.
 - Lotul 7m: clopoțelul din antet previzualizează ultimele 5 necitite, traduse la obiect la deschidere (`citesteNotificarileRecente`): [[strat/navigare]].
+- Lotul 7n (migrări 0188–0189, pe banc; producția după confirmare): duplicatul primește linkul lui; aprobatorii respectă rândul de membru (`internal.scope_membru`): [[strat/navigare]].

@@ -17,7 +17,12 @@ import type { Metadata } from "next";
 
 import { EvaluarileMele } from "@/components/evaluari/evaluarile-mele";
 import { AntetPagina } from "@/components/ui/antet-pagina";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { poateDeschide } from "@/config/porti-ruta";
+import { todayInBucharest } from "@/lib/format/date";
+
+import { KpiUlMeu } from "./kpi-ul-meu";
 import { evaluariAngajat } from "@/lib/queries/evaluari";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -28,7 +33,15 @@ export const metadata: Metadata = { title: "Evaluările mele" };
 
 export default async function PaginaEvaluarileMeleAplicatie() {
   const { user, tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "evaluations");
+  const [, permisiuni, module] = await Promise.all([
+    requireFeature(tenant.organizationId, "evaluations"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
+  ]);
+  // KPI-ul propriu: modulul `kpi` pornit și dreptul de citire (0190 deschide
+  // propria lună și pentru scope `team`).
+  const vedeKpi = module.has("kpi") && can(permisiuni, "evaluations:read", "own");
+  const azi = todayInBucharest();
 
   const fisa = await idFisaProprie(tenant.organizationId, user.id);
   const evaluari =
@@ -57,6 +70,19 @@ export default async function PaginaEvaluarileMeleAplicatie() {
         </p>
       ) : (
         <div className="max-w-2xl space-y-6">
+          {vedeKpi ? (
+            <KpiUlMeu
+              organizationId={tenant.organizationId}
+              employeeId={fisa}
+              an={Number(azi.slice(0, 4))}
+              luna={Number(azi.slice(5, 7))}
+              hrefToate={
+                poateDeschide("/evaluari/kpi", { features: module, permissions: permisiuni })
+                  ? `/evaluari/kpi?angajat=${fisa}`
+                  : null
+              }
+            />
+          ) : null}
           <EvaluarileMele evaluari={evaluari} />
         </div>
       )}

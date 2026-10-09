@@ -130,3 +130,4 @@ deschide `/puncte-lucru`; în celulă e `target="_blank"`, fiindcă celula e un 
 
 - Ce se întâmplă cu codul după scanare: [[modul/pontaj]].
 - Cealaltă axă a structurii: [[modul/departamente]].
+- Lotul 7n: fișa punctului de lucru `/puncte-lucru/[id]` (adresă, cod, legături numărate, acțiuni, afiș), legată din listă și din afiș: [[strat/navigare]].

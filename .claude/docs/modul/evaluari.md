@@ -178,3 +178,4 @@ agregări peste `jsonb_array_elements`, care încetinesc tăcut la 200 de angaja
 - De ce un manager vede dar nu poate scrie: [[rol/manager]].
 - Filtrul `?status=` pe KPI, seturile din antet, „Redeschide” pe fișă, notificările de programare și de lună închisă, luna din istoricul portalului: [[strat/navigare]].
 - Lotul 7m: țintele KPI proprii se pun și se scot de pe fișa angajatului (`TinteKpi`), nu doar din acțiuni orfane: [[strat/navigare]].
+- Lotul 7n (migrarea 0190, pe banc): managerul își citește propria lună KPI; secțiunea „KPI-ul meu” pe `/evaluari/ale-mele`: [[strat/navigare]].

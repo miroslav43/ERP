@@ -95,7 +95,8 @@ describe("poartaRutei", () => {
   });
 
   it("întoarce null pentru o rută fără pagină", () => {
-    expect(poartaRutei("/puncte-lucru/0f8fad5b-d9cb-469f-a165-70867728950e")).toBeNull();
+    // `/puncte-lucru/[id]` are pagină din lotul 7n; un segment în plus n-are.
+    expect(poartaRutei("/puncte-lucru/0f8fad5b-d9cb-469f-a165-70867728950e/istoric")).toBeNull();
     expect(poartaRutei("/setari")).toBeNull();
     expect(poartaRutei("/inexistent")).toBeNull();
   });
