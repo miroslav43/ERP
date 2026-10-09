@@ -215,8 +215,34 @@ function deseneaza(
   scrie(d.titlu, 14, fonturi.aldin);
   if (d.subtitlu !== null) scrie(d.subtitlu, 9, fonturi.normal, GRI);
   y -= 4;
-  for (const c of d.campuri) {
-    scrie(`${c.eticheta}: ${c.valoare === "" ? LINIE_GOALA : c.valoare}`, 9, fonturi.normal);
+  const textCamp = (c: DocumentTabelar["campuri"][number]) =>
+    `${c.eticheta}: ${c.valoare === "" ? LINIE_GOALA : c.valoare}`;
+  if (d.campuriPeDouaColoane === true) {
+    // Câte două câmpuri pe rând; fiecare se rupe pe cuvinte în coloana lui, iar
+    // rândul ia înălțimea celui mai lung, ca perechea următoare să nu-l calce.
+    const spatiu = 16;
+    const latimeColoana = (util - spatiu) / 2;
+    for (let i = 0; i < d.campuri.length; i += 2) {
+      const pereche = d.campuri
+        .slice(i, i + 2)
+        .map((c) => imparte(textCamp(c), latimeColoana, masoara(fonturi.normal, 9)));
+      const linii = Math.max(...pereche.map((p) => p.length));
+      asiguraLoc(linii * 12 + 3);
+      pereche.forEach((randuri, k) => {
+        randuri.forEach((rand, j) => {
+          pagina.drawText(rand, {
+            x: MARGINE + k * (latimeColoana + spatiu),
+            y: y - 9 - j * 12,
+            size: 9,
+            font: fonturi.normal,
+            color: NEGRU,
+          });
+        });
+      });
+      y -= linii * 12 + 3;
+    }
+  } else {
+    for (const c of d.campuri) scrie(textCamp(c), 9, fonturi.normal);
   }
   y -= 4;
   for (const p of d.paragrafe) scrie(p, 10, fonturi.normal);

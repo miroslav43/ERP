@@ -38,6 +38,12 @@ export type DocumentTabelar = Readonly<{
   subtitlu: string | null;
   /** Perechi „Angajat: Popa Ion”. Valoare goală = linie de completat de mână. */
   campuri: readonly Readonly<{ eticheta: string; valoare: string }>[];
+  /**
+   * PDF: câmpurile se așază pe două coloane, de la stânga la dreapta. Pentru
+   * antetele lungi (foaia de parcurs are 12), care altfel mănâncă o treime din
+   * prima pagină. Lipsă = o coloană, ca până acum.
+   */
+  campuriPeDouaColoane?: boolean;
   /** Proză înaintea tabelului (corpul unei cereri). Gol pentru formularele tabelare. */
   paragrafe: readonly string[];
   /** Fără coloane, tabelul nu se randează deloc. */
