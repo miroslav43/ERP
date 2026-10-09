@@ -97,11 +97,14 @@ async function TabelDeplasari({
   parametri,
   arataAngajat,
   permisiuni,
+  hrefPolitica,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly arataAngajat: boolean;
   readonly permisiuni: PermissionMap;
+  /** Pagina politicii, pentru rândurile fără politică valabilă; `null` fără drept. */
+  readonly hrefPolitica: string | null;
 }) {
   const filtre = filtreDinUrl(filtreDeplasariSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaDeplasari(
@@ -235,7 +238,13 @@ async function TabelDeplasari({
         const sumar = sumarDeplasare(r, politiciDupaData, baremuri, salvate.get(r.id));
         return (
           <>
-            {sumar.text}
+            {sumar.text === "fără politică valabilă" && hrefPolitica !== null ? (
+              <Link href={hrefPolitica} className="relative underline-offset-2 hover:underline">
+                {sumar.text}
+              </Link>
+            ) : (
+              sumar.text
+            )}
             {sumar.estimare ? (
               <span className="text-muted-foreground text-nota ml-1">(estimare)</span>
             ) : null}
@@ -374,6 +383,7 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
           parametri={parametri}
           arataAngajat={scope === "team" || scope === "all"}
           permisiuni={permisiuni}
+          hrefPolitica={poateConfiguraPolitica ? "/diurna/politica" : null}
         />
       </Suspense>
     </div>

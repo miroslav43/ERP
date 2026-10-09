@@ -11,7 +11,7 @@ import { buton } from "@/components/ui/buton";
 import { Scadenta } from "@/components/ui/scadenta";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
@@ -23,6 +23,8 @@ import {
   departamentePentruVehicul,
   documenteleVehiculului,
   tipuriDocument,
+  listeazaFoi,
+  anomaliiNeconfirmate,
 } from "@/lib/queries/fleet";
 import type { AlocareVehicul, DocumentVehicul, TipDocument } from "@/lib/queries/fleet";
 
@@ -46,6 +48,7 @@ import { DialogVehicul } from "./dialog-vehicul";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
 import { IstoricModificari } from "@/components/audit/istoric-modificari";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -74,10 +77,12 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "fleet"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  const contextPorti = { features: module, permissions: permisiuni };
 
   if (!can(permisiuni, "vehicles:read", "own")) {
     return (
@@ -100,7 +105,33 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
     tipuriDocument(),
     alocarileVehiculului(tenant.organizationId, vehicul.id),
     poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
-    poateAdministra ? departamentePentruVehicul(tenant.organizationId) : Promise.resolve([]),
+    // Și pentru cine doar citește: departamentul vehiculului se AFIȘA nicăieri.
+    poateAdministra || vehicul.department_id !== null
+      ? departamentePentruVehicul(tenant.organizationId)
+      : Promise.resolve([]),
+  ]);
+  const departamentVehicul =
+    vehicul.department_id === null
+      ? null
+      : (departamente.find((d) => d.id === vehicul.department_id) ?? null);
+  // Railul: ce așteaptă pe vehiculul ăsta — foi trimise, anomalii — și foaia nouă pe el.
+  const poateVedeaFoiVehicul = can(permisiuni, "trip_sheets:read", "own");
+  const [foiTrimise, anomaliiVehicul] = await Promise.all([
+    poateVedeaFoiVehicul
+      ? listeazaFoi(tenant.organizationId, {
+          status: "trimis",
+          vehicul: vehicul.id,
+          sofer: null,
+          cursor: null,
+          limita: 5,
+          sort: null,
+        }).then((r) => r.total)
+      : Promise.resolve(0),
+    poateDeschide("/flota/anomalii", contextPorti)
+      ? anomaliiNeconfirmate(tenant.organizationId).then(
+          (a) => a.filter((x) => x.vehicle_id === vehicul.id).length,
+        )
+      : Promise.resolve(0),
   ]);
   const azi = todayInBucharest();
   const alocareDeschisa = alocari.find((a) => a.pana_la === null);
@@ -350,7 +381,27 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         </p>
         <AntetPagina
           titlu={vehicul.nr_inmatriculare}
-          descriere={`${vehicul.marca} ${vehicul.model} · ${ETICHETE_CATEGORIE[vehicul.categorie]} · ${ETICHETE_COMBUSTIBIL[vehicul.tip_combustibil]}`}
+          descriere={
+            <>
+              {vehicul.marca} {vehicul.model} · {ETICHETE_CATEGORIE[vehicul.categorie]} ·{" "}
+              {ETICHETE_COMBUSTIBIL[vehicul.tip_combustibil]}
+              {departamentVehicul === null ? null : (
+                <>
+                  {" · "}
+                  {poateDeschide("/departamente", contextPorti) ? (
+                    <Link
+                      href={`/departamente?departament=${departamentVehicul.id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {departamentVehicul.denumire}
+                    </Link>
+                  ) : (
+                    departamentVehicul.denumire
+                  )}
+                </>
+              )}
+            </>
+          }
           actiuni={
             <div className="flex flex-wrap items-center gap-3">
               <Badge ton={TONURI_STATUS_VEHICUL[vehicul.status]} className="shrink-0">
@@ -365,6 +416,23 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                   className={buton({ varianta: "secundar" })}
                 >
                   Foile de parcurs
+                  {foiTrimise > 0 ? ` · ${String(foiTrimise)} de aprobat` : ""}
+                </Link>
+              ) : null}
+              {anomaliiVehicul > 0 ? (
+                <Link href="/flota/anomalii" className={buton({ varianta: "secundar" })}>
+                  {anomaliiVehicul === 1 ? "O anomalie" : `${String(anomaliiVehicul)} anomalii`} de
+                  explicat
+                </Link>
+              ) : null}
+              {vehicul.status === "activ" &&
+              can(permisiuni, "trip_sheets:create", "own") &&
+              poateDeschide("/flota/foi", contextPorti) ? (
+                <Link
+                  href={`/flota/foi?vehicul=${vehicul.id}&foaie=noua`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  Foaie nouă pe acest vehicul
                 </Link>
               ) : null}
               {poateAdministra ? (

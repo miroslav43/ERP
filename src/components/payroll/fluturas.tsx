@@ -15,6 +15,7 @@ import type {
   RandRetinerePerioada,
 } from "@/lib/queries/payroll";
 import { Inel } from "@/components/grafice/inel";
+import Link from "next/link";
 
 const ETICHETE_PAS: Record<string, string> = {
   bazaSalariu: "Salariu de bază (zile plătite)",
@@ -67,9 +68,17 @@ interface Proprietati {
    * `payroll_entries` sau o politică de scop propriu), nu din interfață.
    */
   readonly perioada: { readonly an: number; readonly luna: number } | null;
+  /** Deplasările angajatului, pentru rândurile de diurnă; `null` = privitorul nu le poate deschide. */
+  readonly hrefDiurna?: string | null;
 }
 
-export function Fluturas({ inregistrare, bonusuri, retineri, perioada }: Proprietati) {
+export function Fluturas({
+  inregistrare,
+  bonusuri,
+  retineri,
+  perioada,
+  hrefDiurna = null,
+}: Proprietati) {
   /*
    * Feliile nu-și mai aleg culoarea: o iau din paleta categorică a graficelor.
    *
@@ -214,7 +223,16 @@ export function Fluturas({ inregistrare, bonusuri, retineri, perioada }: Proprie
                 key={pas.pas}
                 className={pas.pas === "netDePlata" ? "bg-surface font-medium" : ""}
               >
-                <td className="px-4 py-2">{ETICHETE_PAS[pas.pas] ?? pas.pas}</td>
+                <td className="px-4 py-2">
+                  {hrefDiurna !== null &&
+                  (pas.pas === "diurnaNeimpozabila" || pas.pas === "diurnaImpozabila") ? (
+                    <Link href={hrefDiurna} className="underline-offset-2 hover:underline">
+                      {ETICHETE_PAS[pas.pas] ?? pas.pas}
+                    </Link>
+                  ) : (
+                    (ETICHETE_PAS[pas.pas] ?? pas.pas)
+                  )}
+                </td>
                 <td className="px-4 py-2 text-right tabular-nums">{formatLei(pas.valoare)}</td>
               </tr>
             ))}

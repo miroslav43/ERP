@@ -113,15 +113,20 @@ interface Proprietati {
   readonly deschisInitial?: boolean;
   /** `vehicles:read`, poarta lui `/flota` — fără el, „Adăugați întâi un vehicul" ducea în refuz. */
   readonly poateVedeaParcul?: boolean;
+  /** `?vehicul=<id>` din pagina filtrată sau din fișa vehiculului: caseta pornește pe el. */
+  readonly vehiculInitial?: string | null;
 }
 
 export function DialogFoaieNoua({
   date,
   deschisInitial = false,
   poateVedeaParcul = false,
+  vehiculInitial = null,
 }: Proprietati): ReactElement {
   const parcGol = date.vehicule.length === 0;
-  const primulVehicul = date.vehicule[0];
+  const primulVehicul =
+    (vehiculInitial === null ? undefined : date.vehicule.find((v) => v.id === vehiculInitial)) ??
+    date.vehicule[0];
 
   const [vehiculId, setVehiculId] = useState(primulVehicul?.id ?? "");
 

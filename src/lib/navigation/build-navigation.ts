@@ -61,7 +61,12 @@ function esteVizibil(item: NavLink, input: NavigationInput): boolean {
 export function buildNavigation(input: NavigationInput): readonly NavGroupResult[] {
   const badges = input.badges ?? {};
 
-  const vizibile = NAV_ITEMS.filter((item) => esteVizibil(item, input));
+  const vizibilePrin = NAV_ITEMS.filter((item) => esteVizibil(item, input));
+  // Intrările de rezervă (`doarFara`) se retrag când intrarea principală se vede.
+  const idVizibile = new Set(vizibilePrin.map((item) => item.id));
+  const vizibile = vizibilePrin.filter(
+    (item) => item.doarFara === undefined || !idVizibile.has(item.doarFara),
+  );
 
   return NAV_GROUPS.map((grup) => {
     const items = vizibile

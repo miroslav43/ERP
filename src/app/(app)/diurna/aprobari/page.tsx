@@ -59,6 +59,18 @@ function ListaGrup({
                     <Link href={`/diurna/${r.id}`} className="underline-offset-2 hover:underline">
                       {r.scop}
                     </Link>
+                    {/* „Marchează decontată" închide un decont pe care aprobatorul nu-l vedea. */}
+                    {status === "aprobata" ? (
+                      <>
+                        {" · "}
+                        <Link
+                          href={`/diurna/${r.id}/decont`}
+                          className="text-muted-foreground text-nota underline-offset-2 hover:underline"
+                        >
+                          decontul
+                        </Link>
+                      </>
+                    ) : null}
                     {angajat === undefined ? null : (
                       <span className="text-muted-foreground">
                         {" · "}

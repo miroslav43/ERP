@@ -119,6 +119,8 @@ export function FormularDeplasare({
   baremuri,
   angajati,
   prefixCale = "/diurna",
+  angajatImplicit = null,
+  hrefPolitica = null,
 }: {
   readonly tari: readonly Tara[];
   /** Versiunea de referință: dă țara internă implicită și rămâne rezerva. */
@@ -131,6 +133,10 @@ export function FormularDeplasare({
   readonly baremuri: readonly BaremTara[];
   readonly angajati: readonly Angajat[] | null;
   readonly prefixCale?: string;
+  /** Angajatul preselectat (`?angajat=`), doar dacă e în listă. */
+  readonly angajatImplicit?: string | null;
+  /** Pagina politicii, pentru rândul „Calculat cu politica…"; `null` fără drept. */
+  readonly hrefPolitica?: string | null;
 }) {
   const router = useRouter();
   const idDetasare = useId();
@@ -196,7 +202,10 @@ export function FormularDeplasare({
                   erori={stare.erori["employee_id"] ?? []}
                 >
                   {(a) => (
-                    <select {...a} defaultValue={stare.valoriTrimise["employee_id"] ?? ""}>
+                    <select
+                      {...a}
+                      defaultValue={stare.valoriTrimise["employee_id"] ?? angajatImplicit ?? ""}
+                    >
                       <option value="">Eu însumi</option>
                       {angajati.map((ang) => (
                         <option key={ang.id} value={ang.id}>
@@ -497,6 +506,7 @@ export function FormularDeplasare({
       <aside aria-live="polite" className="border-border bg-surface rounded-panou h-fit border p-4">
         <h2 className="text-corp mb-2 font-semibold">Previzualizare diurnă</h2>
         <PrevizualizareDiurna
+          hrefPolitica={hrefPolitica}
           plecareLa={plecareLa}
           sosireLa={sosireLa}
           countryId={countryId.length === 0 ? null : countryId}

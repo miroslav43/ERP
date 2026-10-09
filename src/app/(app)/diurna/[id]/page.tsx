@@ -10,7 +10,7 @@ import { buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime, oraRomanieiPentruCamp } from "@/lib/format/date";
 import { formatAmount, formatLei } from "@/lib/format/money";
@@ -42,6 +42,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { DecizieDeplasare } from "../aprobari/decizie-deplasare";
 import { NumarRegistru } from "@/components/registru/numar-registru";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Fișa deplasării" };
 
@@ -66,10 +67,12 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const utilizator = await requireUser();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "per_diem"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  const contextPorti = { features: module, permissions: permisiuni };
 
   if (!can(permisiuni, "per_diem:read", "own")) {
     return (
@@ -398,6 +401,29 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
         <h2 id="titlu-traseu" className="text-sectiune font-medium">
           Traseu și calculul diurnei
         </h2>
+        {/* Regula din spatele sumei și foaia în care ar trebui să apară zilele. */}
+        <p className="text-muted-foreground text-nota flex flex-wrap gap-x-3">
+          <span>
+            Politica aplicată:{" "}
+            {politica === null ? (
+              "niciuna valabilă la data plecării"
+            ) : poateDeschide("/diurna/politica", contextPorti) ? (
+              <Link href="/diurna/politica" className="underline-offset-2 hover:underline">
+                „{politica.denumire}”
+              </Link>
+            ) : (
+              `„${politica.denumire}”`
+            )}
+          </span>
+          {arataAngajat && poateDeschide("/pontaj", contextPorti) ? (
+            <Link
+              href={`/pontaj?an=${deplasare.plecare_la.slice(0, 4)}&luna=${String(Number(deplasare.plecare_la.slice(5, 7)))}&angajat=${deplasare.employee_id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Pontajul lunii plecării
+            </Link>
+          ) : null}
+        </p>
         <Etape
           deplasare={deplasare}
           etape={etapeTrip}

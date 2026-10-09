@@ -32,10 +32,13 @@ function cuSemn(valoare: number): string {
 async function TabelAnomalii({
   organizationId,
   poateVedeaFoi,
+  poateVedeaParcul,
 }: {
   readonly organizationId: string;
   /** `trip_sheets:read`, poarta lui `/flota/foi/[id]`. */
   readonly poateVedeaFoi: boolean;
+  /** `vehicles:read`, poarta lui `/flota/[id]`: numărul devine link. */
+  readonly poateVedeaParcul: boolean;
 }) {
   const anomalii = await anomaliiNeconfirmate(organizationId);
 
@@ -74,7 +77,17 @@ async function TabelAnomalii({
       peTelefon: "titlu",
       celula: (a) => (
         <>
-          {vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—"}
+          {/* Kilometrajul se corectează pe fișa vehiculului: numărul duce acolo. */}
+          {poateVedeaParcul && vehicule.has(a.vehicle_id) ? (
+            <Link
+              href={`/flota/${a.vehicle_id}`}
+              className="relative underline-offset-2 hover:underline"
+            >
+              {vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—"}
+            </Link>
+          ) : (
+            (vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—")
+          )}
           {/* `trip_sheet_id` era citit din bază și nefolosit: ca să afli ce cursă
               a produs diferența trebuia să mergi la /flota/foi și să cauți după
               dată — iar acolo nici filtru pe vehicul nu exista. */}
@@ -137,6 +150,10 @@ async function TabelAnomalii({
       coloane={coloane}
       randuri={anomalii}
       cheieRand={(a) => a.id}
+      // Rândul duce la foaia care a produs diferența; linkul mic rămâne pentru tastatură.
+      href={(a) =>
+        a.trip_sheet_id !== null && poateVedeaFoi ? `/flota/foi/${a.trip_sheet_id}` : null
+      }
       // Citirea are o limită fixă și PostgREST taie tăcut: o coadă plină rămânea
       // o coadă care pare golită.
       trunchiat={anomalii.length >= PLAFON_ANOMALII}
@@ -187,6 +204,7 @@ export default async function PaginaAnomalii() {
         <TabelAnomalii
           organizationId={tenant.organizationId}
           poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
+          poateVedeaParcul={can(permisiuni, "vehicles:read", "own")}
         />
       </Suspense>
     </div>

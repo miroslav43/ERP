@@ -39,10 +39,13 @@ async function TabelFoi({
   organizationId,
   parametri,
   permisiuni,
+  poateCrea,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly permisiuni: PermissionMap;
+  /** `trip_sheets:create`: starea goală pe un vehicul oferă foaia nouă. */
+  readonly poateCrea: boolean;
 }) {
   const moduleActive = await getEnabledFeatures(organizationId);
   const filtre = filtreDinUrl(filtreFoiSchema, parametri);
@@ -77,7 +80,17 @@ async function TabelFoi({
             ? "Ștergeți filtrele ca să vedeți toate foile."
             : "Înregistrați prima cursă ca să puteți justifica consumul de combustibil."
         }
-        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } } : {})}
+        {...(filtre.vehicul !== null && poateCrea
+          ? {
+              // Omul a venit din fișa vehiculului: prima foaie se pornește de aici, pe el.
+              actiune: {
+                eticheta: "Foaie nouă pe acest vehicul",
+                href: `/flota/foi?vehicul=${filtre.vehicul}&foaie=noua`,
+              },
+            }
+          : areFiltre
+            ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } }
+            : {})}
       />
     );
   }
@@ -288,6 +301,7 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
                   key={deschideCaseta ? "foaie-noua" : "listă"}
                   date={dateFoaie}
                   deschisInitial={deschideCaseta}
+                  vehiculInitial={filtreDinUrl(filtreFoiSchema, parametri).vehicul}
                   poateVedeaParcul={can(permisiuni, "vehicles:read", "own")}
                 />
               ),
@@ -302,6 +316,7 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
           organizationId={tenant.organizationId}
           parametri={parametri}
           permisiuni={permisiuni}
+          poateCrea={poateCrea}
         />
       </Suspense>
     </div>

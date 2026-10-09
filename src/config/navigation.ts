@@ -91,6 +91,12 @@ export type NavItem = NavLink &
      */
     badgeHref?: string;
     children?: readonly NavLink[];
+    /**
+     * Intrare de REZERVĂ: apare doar când intrarea numită aici NU e vizibilă.
+     * Managerul n-are `vehicles:read`, deci nu vede „Parc auto" — dar are foi de
+     * parcurs de aprobat, și singurul lui drum era coada panoului.
+     */
+    doarFara?: string;
   }>;
 
 export const NAV_ITEMS: readonly NavItem[] = [
@@ -376,6 +382,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
     badge: "fleet_expiring",
     badgeHref: "/flota?conformitate=expira",
     order: 70,
+  },
+  {
+    id: "flota-foi",
+    label: "Foi de parcurs",
+    href: "/flota/foi",
+    icon: Car,
+    group: "resurse",
+    featureKey: "fleet",
+    permission: "trip_sheets:read",
+    minScope: "team",
+    order: 71,
+    doarFara: "flota",
   },
   {
     id: "mentenanta",

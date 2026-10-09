@@ -138,7 +138,18 @@ export default async function PaginaDeplasareaMea({
                   </p>
                   <p className="text-muted-foreground text-nota">
                     {formatDate(cheltuiala.data_cheltuielii)}
+                    {/* Starea deciziei lipsea: angajatul nu vedea că o cheltuială i-a fost respinsă. */}
+                    {cheltuiala.aprobata_la === null
+                      ? cheltuiala.motiv_respingere === null
+                        ? " · în așteptare"
+                        : " · respinsă"
+                      : cheltuiala.aprobata
+                        ? " · aprobată"
+                        : " · respinsă"}
                   </p>
+                  {cheltuiala.motiv_respingere === null ? null : (
+                    <p className="text-danger text-nota">Motiv: {cheltuiala.motiv_respingere}</p>
+                  )}
                 </div>
                 <span className="text-foreground text-corp shrink-0 font-medium tabular-nums">
                   {cheltuiala.suma.toLocaleString("ro-RO")} {cheltuiala.moneda}

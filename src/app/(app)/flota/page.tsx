@@ -11,7 +11,7 @@ import { Paginare } from "@/components/ui/paginare";
 import { Scadenta } from "@/components/ui/scadenta";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
@@ -27,6 +27,7 @@ import {
   listeazaVehicule,
   scadenteCurente,
   tipuriDocument,
+  angajatiDupaId,
 } from "@/lib/queries/fleet";
 import { filtreVehiculeSchema } from "@/schemas/fleet";
 
@@ -42,6 +43,8 @@ import { FileModul } from "@/components/ui/file-modul";
 import { FILE_FLOTA } from "@/config/file-module";
 import { PastileFiltre } from "@/components/ui/pastile-filtre";
 import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Parc auto" };
 
@@ -53,15 +56,22 @@ async function TabelVehicule({
   organizationId,
   parametri,
   poateAdauga,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateAdauga: boolean;
+  /** Harta permisiunilor: șoferul devine link doar prin `hrefFisa`. */
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreVehiculeSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaVehicule(
     organizationId,
     filtre,
+  );
+  const soferi = await angajatiDupaId(
+    organizationId,
+    randuri.map((v) => v.employee_id).filter((id): id is string => id !== null),
   );
 
   /**
@@ -200,6 +210,21 @@ async function TabelVehicule({
           )}
         </>
       ),
+    },
+    {
+      cheie: "sofer",
+      antet: "Șofer",
+      peTelefon: "meta",
+      // Lista citea `employee_id` și nu-l afișa: cine are mașina se afla deschizând fiecare fișă.
+      celula: (v) => {
+        const sofer = v.employee_id === null ? undefined : soferi.get(v.employee_id);
+        if (v.employee_id === null) return v.pool ? "pool" : "—";
+        return (
+          <LinkEntitate href={hrefFisa(sofer, permisiuni)}>
+            {sofer?.full_name ?? sofer?.marca ?? "—"}
+          </LinkEntitate>
+        );
+      },
     },
     {
       cheie: "categorie",
@@ -373,6 +398,7 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateAdauga={poateAdauga}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

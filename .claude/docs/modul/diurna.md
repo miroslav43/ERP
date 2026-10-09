@@ -202,3 +202,4 @@ Foaia de parcurs și vehiculul în sine sunt la [[modul/flota]]; diurna doar ref
 
 - Calculul zilelor și al plafoanelor: `src/domain/per-diem/`, cu teste.
 - De ce un rol vede lista dar nu poate aproba: [[rol/manager]].
+- Lotul 7g: `?angajat=` preselectat pe deplasarea nouă, „decontul” pe cardurile aprobate, politica aplicată și pontajul lunii pe fișă, politica legată din previzualizare și din listă, starea cheltuielilor în portal, rândurile de diurnă din fluturaș → deplasările omului: [[strat/navigare]].

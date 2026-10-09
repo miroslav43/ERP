@@ -23,7 +23,15 @@ interface AngajatMinim {
   readonly marca: string;
 }
 
-export default async function PaginaDeplasareNoua() {
+export default async function PaginaDeplasareNoua({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?angajat=<uuid>` din fișa angajatului: selectorul pornește pe el, nu pe „Eu însumi".
+  const angajatBrut = (await searchParams)["angajat"];
+  const angajatCerut =
+    typeof angajatBrut === "string" && /^[0-9a-f-]{36}$/i.test(angajatBrut) ? angajatBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -121,6 +129,12 @@ export default async function PaginaDeplasareNoua() {
         politici={politici}
         baremuri={baremuri}
         angajati={angajati}
+        angajatImplicit={
+          angajatCerut !== null && (angajati ?? []).some((a) => a.id === angajatCerut)
+            ? angajatCerut
+            : null
+        }
+        hrefPolitica={can(permisiuni, "per_diem:update", "all") ? "/diurna/politica" : null}
       />
     </div>
   );

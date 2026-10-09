@@ -9,7 +9,7 @@ import { buton } from "@/components/ui/buton";
 import { numeLuna } from "../../etichete";
 import { Fluturas } from "@/components/payroll/fluturas";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries/payroll";
 
 import { AVERTISMENT_SALARIZARE } from "../../etichete";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Fluturaș" };
 
@@ -34,9 +35,10 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "payroll"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "payroll:read", "all")) {
@@ -105,6 +107,11 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
         bonusuri={bonusuri}
         retineri={retineri}
         perioada={perioada === null ? null : { an: perioada.an, luna: perioada.luna }}
+        hrefDiurna={
+          poateDeschide("/diurna", { features: module, permissions: permisiuni })
+            ? `/diurna?angajat=${inregistrare.employee_id}`
+            : null
+        }
       />
 
       <a
