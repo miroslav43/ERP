@@ -80,6 +80,7 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
       href: "/ghid/concediu-de-odihna#neefectuat",
     },
     { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+    { eticheta: "Adeverință de salariat: model", href: "/unelte/adeverinta-salariat" },
   ],
   "/unelte/programare-concedii": [
     { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
@@ -88,6 +89,11 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
       href: "/unelte/calculator-zile-concediu",
     },
     { eticheta: "Zilele libere legale și zilele lucrătoare pe luni", href: "/ghid/zile-libere" },
+  ],
+  "/unelte/adeverinta-salariat": [
+    { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+    { eticheta: "Evidența angajaților: fișe, roluri și audit", href: "/module/nucleu" },
+    { eticheta: "Cerere de demisie cu preaviz calculat", href: "/unelte/cerere-demisie" },
   ],
   "/unelte/calculator-salariu": [
     { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },

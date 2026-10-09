@@ -1,3 +1,4 @@
+import { adeverintaDinParametri } from "@/app/(marketing)/unelte/adeverinta-salariat/model";
 import { demisieDinParametri } from "@/app/(marketing)/unelte/cerere-demisie/model";
 import { fisaSsmDinParametri } from "@/app/(marketing)/unelte/fisa-instruire-ssm/model";
 import { programareDinParametri } from "@/app/(marketing)/unelte/programare-concedii/model";
@@ -18,6 +19,7 @@ export const UNELTE: Readonly<Record<string, Constructor>> = {
   "fisa-instruire-ssm": fisaSsmDinParametri,
   "cerere-demisie": demisieDinParametri,
   "programare-concedii": programareDinParametri,
+  "adeverinta-salariat": adeverintaDinParametri,
 };
 
 /**
@@ -38,6 +40,8 @@ const FORMATE_RESTRANSE: Readonly<Record<string, readonly Format[]>> = {
   "fisa-instruire-ssm": ["pdf", "docx"],
   // Scrisoare, fără tabel: o foaie de calcul ar ieși goală (K8).
   "cerere-demisie": ["pdf", "docx"],
+  // Scrisoare, fără tabel, ca cererea de demisie (K10).
+  "adeverinta-salariat": ["pdf", "docx"],
 };
 
 export function formatePentru(slug: string): readonly Format[] {

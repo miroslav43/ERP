@@ -148,6 +148,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Unealtă gratuită: programarea anuală a concediilor de odihnă — un rând pe salariat, o coloană pe lună, cu zilele lucrătoare ale fiecărei luni în antet (2027: 18 în ianuarie, 23 în martie, 252 pe an) și sărbătorile legale care cad în zile lucrătoare. Programarea se face până la sfârșitul anului pentru anul următor, cu consultarea sindicatului sau a reprezentanților salariaților (art. 148 alin. (1) Codul muncii); la fracționare, cel puțin 10 zile lucrătoare neîntrerupte (alin. (5)). Excel, Word sau PDF, fără cont.",
   ],
   [
+    "/unelte/adeverinta-salariat",
+    "Unealtă gratuită: adeverință de salariat — funcția, tipul și durata contractului, norma, data angajării, opțional salariul de bază și destinația („pentru a-i servi la…”), după art. 34 alin. (5) Codul muncii (angajatorul e obligat s-o elibereze la cerere). Formularul nu cere CNP-ul, care rămâne de completat de mână. Word sau PDF, fără cont.",
+  ],
+  [
     "/unelte/condica-de-prezenta",
     "Unealtă gratuită: condica de prezență pentru orice lună, pe program luni–vineri, luni–sâmbătă sau ture; un rând pe om pe fiecare zi, cu ora sosirii, ora plecării, pauza, orele lucrate și observațiile, iar zilele nelucrate marcate L sau SL. Antetul firmei (CUI, compartiment). Excel cu orele calculate și total pe angajat, Word sau PDF, fără cont. Plus răspunsul la „e obligatorie?” și amenda din art. 260 alin. (1) lit. m) Codul muncii.",
   ],

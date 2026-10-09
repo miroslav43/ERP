@@ -105,6 +105,7 @@ export const PAGINI: readonly Pagina[] = [
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     // 2026-10-09: cererea de demisie.
     // 2026-10-09: programarea concediilor.
+    // 2026-10-09: adeverința de salariat.
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -121,6 +122,7 @@ export const PAGINI: readonly Pagina[] = [
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     // 2026-10-09: cererea de demisie.
     // 2026-10-09: programarea concediilor.
+    // 2026-10-09: adeverința de salariat.
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -336,6 +338,7 @@ export const PAGINI: readonly Pagina[] = [
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     // 2026-10-09: cererea de demisie.
     // 2026-10-09: programarea concediilor.
+    // 2026-10-09: adeverința de salariat.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -398,6 +401,15 @@ export const PAGINI: readonly Pagina[] = [
   {
     // 8 oct 2026: „model demisie”, „cerere demisie”, „preaviz demisie” (completarea automată).
     cale: "/unelte/cerere-demisie",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    // 8 oct 2026: „adeverinta de salariat” și formele pe destinație (completarea automată).
+    cale: "/unelte/adeverinta-salariat",
     prioritate: 0.7,
     limba: "ro",
     traducere: null,

@@ -979,6 +979,12 @@ export const RO: ContinutLanding = {
         href: "/unelte/cerere-demisie",
       },
       {
+        titlu: "Adeverință de salariat",
+        text: "Funcția, contractul, data angajării și norma, cu destinația pentru care se eliberează.",
+        formate: "PDF · Word",
+        href: "/unelte/adeverinta-salariat",
+      },
+      {
         titlu: "Calculator de zile de concediu",
         text: "Câte zile de concediu ți se cuvin pe an și cât din ele în anul angajării sau al plecării.",
         formate: "Online",

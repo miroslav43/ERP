@@ -939,6 +939,12 @@ export const EN: ContinutLanding = {
         href: "/unelte/cerere-demisie",
       },
       {
+        titlu: "Employment certificate",
+        text: "Proof of employment: job title, contract type, start date and working hours, with what it is issued for. In Romanian.",
+        formate: "PDF · Word",
+        href: "/unelte/adeverinta-salariat",
+      },
+      {
         titlu: "Annual leave entitlement calculator",
         text: "How many days of leave you are owed in a year, and how many in the year you join or leave.",
         formate: "Online",

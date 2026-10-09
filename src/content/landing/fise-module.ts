@@ -779,6 +779,7 @@ export const FISE: readonly FisaModul[] = [
   {
     cheie: "reges",
     // 2026-10-09: legătura spre cererea de demisie, în ghiduri.
+    // 2026-10-09: și spre adeverința de salariat.
     actualizat: "2026-10-09",
     // „REGES-Online: …" e începutul titlului de pe `/reges-online` (ghidul de
     // termene); modulul ține intenția comercială (2 oct 2026).
@@ -867,6 +868,7 @@ export const FISE: readonly FisaModul[] = [
       { href: "/reges-online", eticheta: "REGES-ONLINE: termene și amenzi" },
       { href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" },
       { href: "/unelte/cerere-demisie", eticheta: "Cerere de demisie: model cu preaviz calculat" },
+      { href: "/unelte/adeverinta-salariat", eticheta: "Adeverință de salariat: model gratuit" },
     ],
     nuFace: [
       "Nu trimite singur datele cu CNP: mesajele cu datele salariatului se compun din fișa angajatului și așteaptă până le trimite cineva cu drept de transmitere. Mesajele de contract, fără date personale, pot pleca și automat, odată cu trimiterile periodice ale aplicației.",

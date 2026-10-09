@@ -77,6 +77,12 @@ export const META_UNELTE: Readonly<Record<string, MetaUnealta>> = {
       "Model de cerere de demisie cu preaviz calculat: ultima zi de lucru, fără weekend și sărbători. Și fără preaviz, în perioada de probă sau cu acordul părților.",
     termen: "cerere demisie",
   },
+  "/unelte/adeverinta-salariat": {
+    titlu: "Adeverință de salariat: model Word și PDF",
+    descriere:
+      "Adeverință de salariat completată online: funcția, data angajării, norma și, la nevoie, salariul. Model gratuit Word sau PDF, după art. 34 Codul muncii.",
+    termen: "adeverinta de salariat model",
+  },
   "/unelte/foaie-de-parcurs": {
     // Titlul și descrierea scrise la G8 (cele patru elemente din normele fiscale).
     titlu: "Foaie de parcurs: model Word, PDF și Excel",

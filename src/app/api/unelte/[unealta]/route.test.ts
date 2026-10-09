@@ -103,3 +103,20 @@ describe("programarea concediilor prin ruta comună", () => {
     );
   });
 });
+
+describe("adeverința de salariat prin ruta comună", () => {
+  it("dă un Word valid", async () => {
+    const r = await cere(
+      "/api/unelte/adeverinta-salariat?nume=Popescu%20Ana&salariu=4.325&format=docx",
+      "adeverinta-salariat",
+    );
+    expect(r.status).toBe(200);
+    expect(new Uint8Array(await r.arrayBuffer()).slice(0, 2)).toEqual(new Uint8Array([0x50, 0x4b]));
+  });
+
+  it("Excel primește 400: adeverința n-are formă de foaie de calcul", async () => {
+    const r = await cere("/api/unelte/adeverinta-salariat?format=xlsx", "adeverinta-salariat");
+    expect(r.status).toBe(400);
+    expect(await r.text()).toBe("Unealta asta se descarcă doar în PDF sau Word.");
+  });
+});

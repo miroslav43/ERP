@@ -109,3 +109,13 @@ export const ANTET_PROGRAMARE_CONCEDII: AntetPagina = {
   titlu: "Programarea concediilor de odihnă",
   lead: "Tabelul anual cu oamenii firmei și lunile anului, cu zilele lucrătoare din fiecare lună și sărbătorile legale ale anului. Descarci în Excel, Word sau PDF, fără cont.",
 };
+
+/**
+ * Adeverința de salariat: „adeverinta de salariat model” și formele pe
+ * destinație („pentru spital”, „medic familie”), 8 oct 2026. Art. 34 alin. (5).
+ */
+export const ANTET_ADEVERINTA_SALARIAT: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Adeverință de salariat",
+  lead: "Adeverința că omul lucrează la firmă: funcția, contractul, data angajării, norma și, dacă vrei, salariul, cu destinația pentru care se eliberează. Word sau PDF, fără cont și fără CNP în formular.",
+};

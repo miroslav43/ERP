@@ -6,6 +6,7 @@ import {
 import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie";
 
 import {
+  ANTET_ADEVERINTA_SALARIAT,
   ANTET_CALCULATOR,
   ANTET_CALCULATOR_CONCEDIU,
   ANTET_CALCULATOR_ZILE_LUCRATOARE,
@@ -113,6 +114,11 @@ export const GRUPURI_HUB: readonly GrupHub[] = [
         "/unelte/cerere-demisie",
         ANTET_CERERE_DEMISIE,
         "ultima zi de preaviz calculată · fără preaviz, probă, acord · Word, PDF",
+      ),
+      rand(
+        "/unelte/adeverinta-salariat",
+        ANTET_ADEVERINTA_SALARIAT,
+        "funcție, contract, normă, salariu opțional · fără CNP · Word, PDF",
       ),
     ],
   },
