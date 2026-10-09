@@ -195,12 +195,12 @@ Termenele și evenimentele REGES nu se calculează aici: `genereazaEvenimenteReg
 `reges_termene`, iar transmiterea e a lui `[[modul/reges]]`. Concediile doar cer generarea,
 prin `declaraSuspendareaContractului`.
 
-Contractul de cale în Storage — bucketul, entitățile permise, limita și tipurile MIME —
-stă în `src/lib/documents/cale.ts`, comun cu `[[modul/angajati]]`: o entitate nouă acolo
-se adaugă o singură dată, pentru toate modulele.
+Contractul de cale în Storage (bucket, entități, limită, MIME) stă în
+`src/lib/documents/cale.ts`, comun cu `[[modul/angajati]]`.
 
 ## Când NU e suficientă pagina asta
 
 - Regulile de drept și calculul soldului: `src/domain/leave/`.
 - Forma lanțului de aprobare: migrarea care creează `approval_tasks`, plus
   `lantulAprobarii` din queries.
+- Legăturile dintre ecrane (lotul 7i: fișa cererii, sold adresabil, „Cerere nouă” din calendar): [[strat/navigare]].

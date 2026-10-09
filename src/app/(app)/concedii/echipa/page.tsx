@@ -6,11 +6,14 @@
 // are `leave:read = all`. Filtrul din `listeazaCereri` exclude doar fișa
 // proprie — restul e RLS.
 import { Suspense } from "react";
+import Link from "next/link";
 import type { Metadata } from "next";
+import { CalendarPlus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Schelet } from "@/components/ui/schelet";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -62,6 +65,15 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
 
   const parametri = await searchParams;
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
+  // „Cerere nouă" de aici: cu lista filtrată pe un om și `leave:create = all`,
+  // caseta se deschide cu el precompletat (`&pentru=`); altfel pe cererea
+  // proprie, dacă privitorul are fișă.
+  const poateCereDinNumele = can(permisiuni, "leave:create", "all");
+  const hrefCerereNoua = poateCereDinNumele
+    ? `/concedii?cerere=noua${filtre.employee_id === null ? "" : `&pentru=${filtre.employee_id}`}`
+    : can(permisiuni, "leave:create", "own") && fisaMea !== null
+      ? "/concedii?cerere=noua"
+      : null;
   const db = await createServerSupabase();
   const [{ data: tipuri }, deAprobat] = await Promise.all([
     db
@@ -110,8 +122,22 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
             ? "Cererile de concediu ale tuturor angajaților din organizație, mai puțin ale dumneavoastră."
             : "Cererile de concediu ale angajaților din subordinea dumneavoastră."
         }
-        {...(poateConfigura
-          ? { actiuni: <ButonSetariConcedii poateConfigura={poateConfigura} /> }
+        {...(poateConfigura || hrefCerereNoua !== null
+          ? {
+              actiuni: (
+                <>
+                  <ButonSetariConcedii poateConfigura={poateConfigura} />
+                  {hrefCerereNoua === null ? null : (
+                    <Link href={hrefCerereNoua} className={buton({ varianta: "primar" })}>
+                      <CalendarPlus aria-hidden="true" className="size-4" />
+                      {filtre.employee_id === null || !poateCereDinNumele
+                        ? "Cerere nouă"
+                        : "Cerere nouă pentru acest angajat"}
+                    </Link>
+                  )}
+                </>
+              ),
+            }
           : {})}
         file={
           <NavConcedii

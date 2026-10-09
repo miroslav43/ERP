@@ -27,6 +27,8 @@ import {
 
 import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa, type HartaPermisiuni } from "@/lib/navigare/fisa";
 import { anDinUrl } from "@/lib/rute/parametri";
 import { deAprobat } from "@/lib/queries/leave";
 
@@ -40,6 +42,7 @@ interface AngajatMinim {
   readonly id: string;
   readonly full_name: string;
   readonly marca: string;
+  readonly deleted_at: string | null;
 }
 
 const ETICHETE_EVENIMENT: Readonly<Record<string, string>> = {
@@ -239,7 +242,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
     const idAngajatiIstoric = [...new Set(istoric.map((rand) => rand.employee_id))];
     const { data: angajatiIstoric } = await db
       .from("employees")
-      .select("id, full_name, marca")
+      .select("id, full_name, marca, deleted_at")
       .eq("organization_id", tenant.organizationId)
       .in("id", idAngajatiIstoric)
       .returns<AngajatMinim[]>();
@@ -288,6 +291,8 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
           organizationId={tenant.organizationId}
           tipuri={tipuri}
           solduri={solduri}
+          fisaProprie={fisaProprie?.id ?? null}
+          permisiuni={permisiuni}
         />
       )}
 
@@ -320,6 +325,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
             an={an}
             trunchiat={istoricTrunchiat}
             angajati={scope === "own" ? null : hartaAngajatiIstoric}
+            permisiuni={permisiuni}
           />
         )}
       </section>
@@ -331,10 +337,15 @@ async function SectiuniPeAngajat({
   organizationId,
   tipuri,
   solduri,
+  fisaProprie,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly tipuri: readonly TipConcediu[];
   readonly solduri: readonly SoldTip[];
+  /** Fișa privitorului: secțiunea lui duce la „Cererile mele", nu la echipă. */
+  readonly fisaProprie: string | null;
+  readonly permisiuni: HartaPermisiuni;
 }) {
   const grupuri = grupeazaSoldDupaAngajat(solduri);
   if (grupuri.size === 0) {
@@ -353,7 +364,7 @@ async function SectiuniPeAngajat({
   const db = await createServerSupabase();
   const { data } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", idAngajati)
     .returns<AngajatMinim[]>();
@@ -364,10 +375,26 @@ async function SectiuniPeAngajat({
       {idAngajati.map((employeeId) => {
         const angajat = hartaAngajati.get(employeeId);
         const randuri = imperecheazaSold(tipuri, grupuri.get(employeeId) ?? []);
+        // Secțiunea e ADRESABILĂ (`#angajat-<id>`): fișa angajatului și fișa
+        // cererii pot trimite direct la soldul omului, nu la capul paginii.
+        // Numele duce la fișă (per rând, prin RLS + drept), iar „cererile" la
+        // lista lui — a privitorului pe „Cererile mele", a altuia pe echipă.
+        const hrefCereri =
+          employeeId === fisaProprie
+            ? "/concedii?vedere=cereri"
+            : `/concedii/echipa?employee_id=${employeeId}`;
         return (
-          <div key={employeeId}>
-            <h3 className="text-corp mb-2 font-semibold">
-              {angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`}
+          <div key={employeeId} id={`angajat-${employeeId}`} className="scroll-mt-24">
+            <h3 className="text-corp mb-2 flex flex-wrap items-baseline gap-x-3 font-semibold">
+              <LinkEntitate href={angajat === undefined ? null : hrefFisa(angajat, permisiuni)}>
+                {angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`}
+              </LinkEntitate>
+              <Link
+                href={hrefCereri}
+                className="text-muted-foreground text-nota font-normal underline-offset-2 hover:underline"
+              >
+                cererile
+              </Link>
             </h3>
             <TabelTipuri
               randuri={randuri}
@@ -394,6 +421,7 @@ function IstoricTabel({
   an,
   trunchiat,
   angajati,
+  permisiuni,
 }: {
   readonly randuri: readonly EvenimentIstoricSold[];
   readonly tipuri: readonly TipConcediu[];
@@ -401,6 +429,7 @@ function IstoricTabel({
   readonly trunchiat: boolean;
   /** `null` pentru scope „own”: coloana „Angajat” n-are ce distinge acolo. */
   readonly angajati: ReadonlyMap<string, AngajatMinim> | null;
+  readonly permisiuni: HartaPermisiuni;
 }) {
   const hartaTipuri = new Map(tipuri.map((t) => [t.id, t]));
   const randuriIndexate: readonly RandIstoric[] = randuri.map((rand, index) => ({
@@ -420,7 +449,12 @@ function IstoricTabel({
             peTelefon: "titlu",
             celula: (rand) => {
               const angajat = angajati.get(rand.employee_id);
-              return angajat === undefined ? "—" : `${angajat.full_name} (${angajat.marca})`;
+              if (angajat === undefined) return "—";
+              return (
+                <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                  {angajat.full_name} ({angajat.marca})
+                </LinkEntitate>
+              );
             },
           },
         ];

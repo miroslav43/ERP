@@ -16,6 +16,7 @@ import type {
 } from "@/lib/queries/payroll";
 import { Inel } from "@/components/grafice/inel";
 import Link from "next/link";
+import type { ValoareDefinitie } from "@/components/ui/lista-definitii";
 
 const ETICHETE_PAS: Record<string, string> = {
   bazaSalariu: "Salariu de bază (zile plătite)",
@@ -49,6 +50,16 @@ const ETICHETE_PAS: Record<string, string> = {
   costTotalAngajator: "Cost total angajator",
 };
 
+/** Valoarea devine link doar când are unde duce; altfel rămâne cifra. */
+function cuLink(valoare: number | string, href: string | null): ValoareDefinitie {
+  if (href === null) return valoare;
+  return (
+    <Link href={href} className="underline-offset-2 hover:underline">
+      {valoare}
+    </Link>
+  );
+}
+
 interface Proprietati {
   readonly inregistrare: DetaliuInregistrare;
   readonly bonusuri: readonly RandPrimaPerioada[];
@@ -70,6 +81,14 @@ interface Proprietati {
   readonly perioada: { readonly an: number; readonly luna: number } | null;
   /** Deplasările angajatului, pentru rândurile de diurnă; `null` = privitorul nu le poate deschide. */
   readonly hrefDiurna?: string | null;
+  /** Pontajul angajatului din luna fluturașului; `null` = fără modul sau drept. */
+  readonly hrefPontaj?: string | null;
+  /** Cererile de concediu ale angajatului din lună; `null` = fără modul sau drept. */
+  readonly hrefConcedii?: string | null;
+  /** Ecranul care repară fiecare atenționare, aliniat cu `calc_warnings`; `null` = text. */
+  readonly hrefAvertismente?: readonly (string | null)[];
+  /** Ecranul popririlor, pentru reținerile cu dosar; `null` = fără drept. */
+  readonly hrefPopriri?: string | null;
 }
 
 export function Fluturas({
@@ -78,6 +97,10 @@ export function Fluturas({
   retineri,
   perioada,
   hrefDiurna = null,
+  hrefPontaj = null,
+  hrefConcedii = null,
+  hrefAvertismente = [],
+  hrefPopriri = null,
 }: Proprietati) {
   /*
    * Feliile nu-și mai aleg culoarea: o iau din paleta categorică a graficelor.
@@ -125,17 +148,23 @@ export function Fluturas({
           textNecompletat="—"
           definitii={[
             { eticheta: "Zile lucrătoare lună", valoare: inregistrare.zile_lucratoare_luna },
-            { eticheta: "Zile lucrate", valoare: inregistrare.zile_lucrate },
-            { eticheta: "Zile CO", valoare: inregistrare.zile_concediu_odihna },
+            // Cifrele din care s-a calculat brutul duc la sursa lor: pontajul
+            // lunii și cererile de concediu ale lunii, prefiltrate pe om. Doar
+            // cu modulul pornit și dreptul paginii-țintă (altfel text).
+            { eticheta: "Zile lucrate", valoare: cuLink(inregistrare.zile_lucrate, hrefPontaj) },
+            {
+              eticheta: "Zile CO",
+              valoare: cuLink(inregistrare.zile_concediu_odihna, hrefConcedii),
+            },
             {
               eticheta: "Ore suplimentare",
-              valoare: formatOre(inregistrare.ore_suplimentare),
+              valoare: cuLink(formatOre(inregistrare.ore_suplimentare), hrefPontaj),
             },
             ...(inregistrare.zile_concediu_medical > 0
               ? [
                   {
                     eticheta: "Zile concediu medical",
-                    valoare: inregistrare.zile_concediu_medical,
+                    valoare: cuLink(inregistrare.zile_concediu_medical, hrefConcedii),
                   },
                 ]
               : []),
@@ -153,15 +182,26 @@ export function Fluturas({
 
       {inregistrare.calc_warnings.length === 0 ? null : (
         <ul className="space-y-1">
-          {inregistrare.calc_warnings.map((w, i) => (
-            <li
-              key={i}
-              role="alert"
-              className="border-warning/40 bg-warning/8 rounded-control text-corp border p-3"
-            >
-              {w.mesaj}
-            </li>
-          ))}
+          {inregistrare.calc_warnings.map((w, i) => {
+            const href = hrefAvertismente[i] ?? null;
+            return (
+              <li
+                key={i}
+                role="alert"
+                className="border-warning/40 bg-warning/8 rounded-control text-corp border p-3"
+              >
+                {w.mesaj}
+                {href === null ? null : (
+                  <>
+                    {" "}
+                    <Link href={href} className="underline underline-offset-2">
+                      Deschide ecranul de reparat
+                    </Link>
+                  </>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -207,7 +247,19 @@ export function Fluturas({
               <li key={r.id} className="text-danger flex items-center gap-2 px-4 py-2">
                 <span className="tabular-nums">− {formatLei(r.suma)}</span>
                 <span className="text-muted-foreground">
-                  {ETICHETE_TIP_RETINERE[r.tip] ?? r.tip} — {r.motiv}
+                  {/* Reținerea din poprire duce la dosarul ei: „Poprire — motiv"
+                      era text simplu, fără drum spre ecranul popririlor. */}
+                  {r.garnishment_id !== null && hrefPopriri !== null ? (
+                    <Link
+                      href={`${hrefPopriri}#dosar-${r.garnishment_id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {ETICHETE_TIP_RETINERE[r.tip] ?? r.tip}
+                    </Link>
+                  ) : (
+                    (ETICHETE_TIP_RETINERE[r.tip] ?? r.tip)
+                  )}{" "}
+                  — {r.motiv}
                 </span>
               </li>
             ))}

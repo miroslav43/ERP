@@ -200,5 +200,6 @@ Pontajul care alimentează calculul (`[[modul/pontaj]]`), diurna, și fișa anga
 ## Când NU e suficientă pagina asta
 
 - Orice întrebare despre o cifră: `src/domain/payroll/` plus `NOTES.md` §valorile legale.
-- Exportul: route handlers sub `src/app/api/export/salarizare/` — pagina spune doar cum
-  se cer și ce antete întorc, nu ce e în fișier.
+- Exportul: route handlers sub `src/app/api/export/salarizare/` — aici doar cum se cer
+  și ce antete întorc.
+- Legăturile dintre ecrane (lotul 7i: atenționările → ecranul de reparat, `legaturi-avertismente.ts`): [[strat/navigare]].

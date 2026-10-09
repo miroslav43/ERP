@@ -1114,6 +1114,8 @@ export async function varianteConcediu(): Promise<readonly VariantaConcediu[]> {
 // ── Zilele deja prinse în cereri ────────────────────────────────────────────
 
 export interface CerereOcupata {
+  /** Cererea însăși: mesajul de suprapunere din casetă o leagă, nu doar o numește. */
+  readonly id: string;
   readonly employee_id: string;
   readonly data_inceput: string;
   readonly data_sfarsit: string;
@@ -1149,7 +1151,7 @@ export async function cereriCareOcupaZile(
   const { data, error } = await db
     .from("leave_requests")
     .select(
-      "employee_id, data_inceput, data_sfarsit, status, tip:leave_types!leave_type_id(denumire)",
+      "id, employee_id, data_inceput, data_sfarsit, status, tip:leave_types!leave_type_id(denumire)",
     )
     .eq("organization_id", organizationId)
     .in("status", ["trimisa", "in_aprobare", "aprobata"])
@@ -1159,6 +1161,7 @@ export async function cereriCareOcupaZile(
     .order("data_inceput", { ascending: true })
     .returns<
       {
+        id: string;
         employee_id: string;
         data_inceput: string;
         data_sfarsit: string;
@@ -1169,6 +1172,7 @@ export async function cereriCareOcupaZile(
   if (error !== null) throw error;
 
   return (data ?? []).map((r) => ({
+    id: r.id,
     employee_id: r.employee_id,
     data_inceput: r.data_inceput,
     data_sfarsit: r.data_sfarsit,

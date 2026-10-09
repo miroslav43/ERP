@@ -13,6 +13,20 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { ActiuniSablonComponenta } from "./actiuni-sablon-componenta";
 import { FormularSablonComponentaNou } from "./formular-sablon-componenta-nou";
 import { cn } from "@/lib/ui/cn";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { todayInBucharest } from "@/lib/format/date";
+
+/** O componentă activă azi, cu fișa (prin RLS) a angajatului care o are. */
+interface ComponentaAtribuita {
+  readonly component_type_id: string;
+  readonly employee_id: string;
+  readonly angajat: Readonly<{
+    full_name: string | null;
+    marca: string;
+    deleted_at: string | null;
+  }> | null;
+}
 
 export const metadata: Metadata = { title: "Sporuri și prime" };
 
@@ -81,6 +95,32 @@ export default async function PaginaComponenteSalariale({
 
   const sabloane = data ?? [];
 
+  /*
+    Cine are fiecare șablon. Descrierea paginii spune că șabloanele „se
+    asociază angajaților de pe fișa fiecăruia", dar un șablon nu arăta nici
+    câți, nici care angajați îl au: înainte să-i schimbi regimul fiscal nu
+    puteai vedea pe cine afectează (analiza 2026-10-08, salarizare-L17/P13).
+    Doar componentele valabile azi; fișa se leagă per rând, prin `hrefFisa`.
+  */
+  const azi = todayInBucharest();
+  const { data: atribuiri } = await db
+    .from("salary_components")
+    .select(
+      "component_type_id, employee_id, angajat:employees!employee_id(full_name, marca, deleted_at)",
+    )
+    .eq("organization_id", tenant.organizationId)
+    .is("deleted_at", null)
+    .lte("valabil_de_la", azi)
+    .or(`valabil_pana.is.null,valabil_pana.gte.${azi}`)
+    .returns<ComponentaAtribuita[]>();
+  const angajatiPeSablon = new Map<string, ComponentaAtribuita[]>();
+  for (const atribuire of atribuiri ?? []) {
+    const existente = angajatiPeSablon.get(atribuire.component_type_id) ?? [];
+    if (!existente.some((e) => e.employee_id === atribuire.employee_id)) {
+      angajatiPeSablon.set(atribuire.component_type_id, [...existente, atribuire]);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -135,6 +175,41 @@ export default async function PaginaComponenteSalariale({
                     {sablon.intra_in_baza_cass ? "intră în baza CASS" : "nu intră în baza CASS"}
                     {sablon.cod_revisal !== null ? ` · cod REVISAL ${sablon.cod_revisal}` : ""}
                   </p>
+                  {(() => {
+                    const cineIlAre = angajatiPeSablon.get(sablon.id) ?? [];
+                    if (cineIlAre.length === 0) {
+                      return (
+                        <p className="text-muted-foreground text-nota mt-1">
+                          Niciun angajat nu-l are în prezent.
+                        </p>
+                      );
+                    }
+                    return (
+                      <p className="text-nota mt-1">
+                        <span className="text-muted-foreground">
+                          {cineIlAre.length === 1
+                            ? "Un angajat îl are: "
+                            : `${String(cineIlAre.length)} angajați îl au: `}
+                        </span>
+                        {cineIlAre.map((atribuire, indice) => (
+                          <span key={atribuire.employee_id}>
+                            {indice > 0 ? ", " : ""}
+                            <LinkEntitate
+                              href={hrefFisa(
+                                {
+                                  id: atribuire.employee_id,
+                                  deleted_at: atribuire.angajat?.deleted_at ?? null,
+                                },
+                                permisiuni,
+                              )}
+                            >
+                              {atribuire.angajat?.full_name ?? atribuire.angajat?.marca ?? "—"}
+                            </LinkEntitate>
+                          </span>
+                        ))}
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
               {poateEdita && sablon.organization_id !== null ? (

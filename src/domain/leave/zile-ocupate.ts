@@ -17,6 +17,8 @@ import { adaugaZileIso } from "@/domain/calendar/grila-lunara";
 
 /** O cerere existentă, redusă la ce trebuie desenat în calendar. */
 export interface IntervalOcupat {
+  /** Cererea din spatele intervalului, când apelantul o are; caseta o leagă în avertisment. */
+  readonly cerereId?: string;
   readonly employeeId: string;
   /** ISO, inclusiv. */
   readonly dataInceput: string;

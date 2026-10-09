@@ -9,7 +9,10 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
+import { poateDeschide } from "@/config/porti-ruta";
+import { perioadaSalarizariiPentruPontaj } from "@/lib/queries/payroll";
+import { ETICHETE_STATUS_PERIOADA as ETICHETE_STATUS_SALARIZARE } from "@/app/(app)/salarizare/etichete";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime, formatMonthYear } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
@@ -43,9 +46,10 @@ export default async function PaginaPerioadaDetaliu({ params, searchParams }: Pr
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "attendance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   // `attendance_batches_select` cere `attendance:read ≥ team`.
@@ -61,11 +65,22 @@ export default async function PaginaPerioadaDetaliu({ params, searchParams }: Pr
   const perioada = await citestePerioadaDupaId(tenant.organizationId, id);
   if (perioada === null) notFound();
 
-  const [loturi, { linii: liniiNeaprobate, trunchiat }, departamenteList] = await Promise.all([
-    loturiPerioadei(tenant.organizationId, id),
-    liniiDeAprobat(tenant.organizationId, id),
-    departamente(tenant.organizationId),
-  ]);
+  // Statul de plată calculat peste pontajul ăsta: legătura mergea într-un
+  // singur sens (salarizarea lega pontajul, pontajul nu lega salarizarea).
+  // Doar prin poarta lui `/salarizare`; citirea trece oricum prin RLS.
+  const poateVedeaSalarizarea = poateDeschide("/salarizare", {
+    features: module,
+    permissions: permisiuni,
+  });
+  const [loturi, { linii: liniiNeaprobate, trunchiat }, departamenteList, statDePlata] =
+    await Promise.all([
+      loturiPerioadei(tenant.organizationId, id),
+      liniiDeAprobat(tenant.organizationId, id),
+      departamente(tenant.organizationId),
+      poateVedeaSalarizarea
+        ? perioadaSalarizariiPentruPontaj(tenant.organizationId, id)
+        : Promise.resolve(null),
+    ]);
 
   const idManageri = loturi
     .map((l) => l.manager_employee_id)
@@ -139,6 +154,17 @@ export default async function PaginaPerioadaDetaliu({ params, searchParams }: Pr
             </Badge>
           }
         />
+        {statDePlata === null ? null : (
+          <p className="text-muted-foreground text-corp">
+            <Link
+              href={`/salarizare/${statDePlata.id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Statul de plată al lunii
+            </Link>{" "}
+            ({(ETICHETE_STATUS_SALARIZARE[statDePlata.status] ?? statDePlata.status).toLowerCase()})
+          </p>
+        )}
       </div>
 
       <section

@@ -167,6 +167,14 @@ export default async function PaginaSalarizare() {
             pictograma={Wallet}
             titlu="Nicio perioadă de salarizare"
             descriere="Configurați setările, apoi creați prima perioadă pentru o lună cu pontajul deschis."
+            // Starea goală descria doi pași și n-avea niciun buton. Primul pas,
+            // setările, cere `payroll:update = all`; pontajul e modul opțional,
+            // cu poarta lui, deci linkul spre perioade trece prin ea.
+            {...(poateConfigura
+              ? { actiune: { eticheta: "Deschide setările", href: "/salarizare/setari" } }
+              : poateDeschide("/pontaj/perioade", { features: module, permissions: permisiuni })
+                ? { actiune: { eticheta: "Perioadele de pontaj", href: "/pontaj/perioade" } }
+                : {})}
           />
         }
       />

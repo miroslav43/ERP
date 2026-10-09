@@ -89,6 +89,7 @@ import { FormularModificaSalariu } from "./formular-modifica-salariu";
 import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 import { SectiuneConcedii } from "./sectiune-concedii";
+import { SectiuneSalarizare } from "./sectiune-salarizare";
 import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
 import { InvitatieAngajat } from "./invitatie-angajat";
 import { DateLipsa } from "./date-lipsa";
@@ -1199,6 +1200,29 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         </div>
       </section>
 
+      {/* Fluturașii, popririle și istoricul lui — prin poarta lui `/salarizare`
+          (modul pornit + `payroll:read = all`); fiecare link secundar prin a lui. */}
+      {poateDeschide("/salarizare", contextPorti) ? (
+        <SectiuneSalarizare
+          organizationId={tenant.organizationId}
+          employeeId={angajat.id}
+          hrefIstoricVenituri={
+            poateDeschide("/salarizare/istoric-venituri", contextPorti)
+              ? `/salarizare/istoric-venituri?angajat=${angajat.id}`
+              : null
+          }
+          hrefPopriri={
+            poateDeschide("/salarizare/popriri", contextPorti)
+              ? `/salarizare/popriri?angajat=${angajat.id}`
+              : null
+          }
+          hrefComponente={
+            poateDeschide("/salarizare/componente", contextPorti) ? "/salarizare/componente" : null
+          }
+          className={CLASA_SECTIUNE}
+        />
+      ) : null}
+
       <SectiuneConcedii
         organizationId={tenant.organizationId}
         employeeId={angajat.id}
@@ -1218,6 +1242,15 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             : poateDeschide("/concedii/echipa", contextPorti)
               ? `/concedii/echipa?employee_id=${angajat.id}`
               : null
+        }
+        // Soldul e pe secțiuni per angajat doar peste scope „own"; pentru fișa
+        // proprie pagina arată un singur tabel, fără ancoră.
+        hrefSold={
+          !poateDeschide("/concedii/sold", contextPorti)
+            ? null
+            : esteFisaProprie || !can(permisiuni, "leave:read", "team")
+              ? "/concedii/sold"
+              : `/concedii/sold#angajat-${angajat.id}`
         }
       />
 

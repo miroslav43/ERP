@@ -10,8 +10,12 @@
 // favorite și supraviețuiește lui „înapoi".
 import type { Metadata } from "next";
 
+import Link from "next/link";
+import { CalendarPlus } from "lucide-react";
+
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -150,8 +154,14 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
   );
   // Rândurile planificatorului vin din `employees` sub RLS, deci fișa fiecăruia
   // se deschide pentru cine privește; rândul propriu duce la „Cererile mele".
-  const fisaMea =
-    vedere === "planificator" ? await idFisaProprie(tenant.organizationId, user.id) : null;
+  const fisaMea = await idFisaProprie(tenant.organizationId, user.id);
+  // „Cerere nouă" exista doar pe „Cererile mele"; de pe calendar — prima
+  // pagină a managerului — trebuia schimbată fila ca să depui una. Caseta stă
+  // pe lista proprie, deschisă direct prin `?cerere=noua`; cine are
+  // `leave:create = all` poate alege acolo și pe altcineva.
+  const poateCerere =
+    can(permisiuni, "leave:create", "own") &&
+    (fisaMea !== null || can(permisiuni, "leave:create", "all"));
   const randuriAngajati: readonly RandAngajatPlanificator[] = angajatiRanduri.map((a) => ({
     id: a.id,
     nume: a.full_name ?? a.marca,
@@ -174,8 +184,20 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
       <AntetPagina
         titlu="Calendarul de concedii"
         descriere={`${descriereVedere} ${formatMonthYear(anCurent, luna)}.`}
-        {...(poateConfigura
-          ? { actiuni: <ButonSetariConcedii poateConfigura={poateConfigura} /> }
+        {...(poateConfigura || poateCerere
+          ? {
+              actiuni: (
+                <>
+                  <ButonSetariConcedii poateConfigura={poateConfigura} />
+                  {poateCerere ? (
+                    <Link href="/concedii?cerere=noua" className={buton({ varianta: "primar" })}>
+                      <CalendarPlus aria-hidden="true" className="size-4" />
+                      Cerere nouă
+                    </Link>
+                  ) : null}
+                </>
+              ),
+            }
           : {})}
         file={
           <NavConcedii

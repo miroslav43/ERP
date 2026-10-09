@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useId, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarPlus } from "lucide-react";
 
@@ -194,6 +195,7 @@ function textSauNull(date: FormData, cheie: string): string | null {
 export function DialogCerereNoua({
   date,
   deschisInitial = false,
+  angajatInitial = null,
 }: {
   readonly date: DateCerereNoua;
   /**
@@ -206,6 +208,12 @@ export function DialogCerereNoua({
    * clientului, iar `useState` ar ignora valoarea inițială nouă.
    */
   readonly deschisInitial?: boolean;
+  /**
+   * Angajatul precompletat (`/concedii?cerere=noua&pentru=<id>`), VALIDAT de
+   * pagină contra listei alegibile. Contează doar când există selector de
+   * angajat; pentru o cerere strict proprie se ignoră.
+   */
+  readonly angajatInitial?: string | null;
 }) {
   const [deschis, setDeschis] = useState(deschisInitial);
 
@@ -233,7 +241,11 @@ export function DialogCerereNoua({
           descriere="Zilele consumate se numără pe măsură ce completați; soldul se verifică din nou, exact, la trimitere."
           marime="mare"
         >
-          <FormularCerereNoua date={date} laInchidere={inchide} />
+          <FormularCerereNoua
+            date={date}
+            laInchidere={inchide}
+            angajatInitial={angajatInitial ?? null}
+          />
         </Dialog>
       ) : null}
     </>
@@ -255,9 +267,11 @@ function FormularCerereNoua({
     poateAprobaPeLoc,
   },
   laInchidere,
+  angajatInitial,
 }: {
   readonly date: DateCerereNoua;
   readonly laInchidere: () => void;
+  readonly angajatInitial: string | null;
 }) {
   const router = useRouter();
   const idFormular = useId();
@@ -267,7 +281,7 @@ function FormularCerereNoua({
   // alte câmpuri; starea lor supraviețuiește oricum unei erori de validare.
   // Restul sunt necontrolate și își reiau valoarea din `stare.valoriTrimise`.
   const [leaveTypeId, setLeaveTypeId] = useState(tipImplicitConcediu(tipuri)?.id ?? "");
-  const [employeeId, setEmployeeId] = useState("");
+  const [employeeId, setEmployeeId] = useState(angajatInitial ?? "");
   const [dataInceput, setDataInceput] = useState("");
   const [dataSfarsit, setDataSfarsit] = useState("");
   const [variantaId, setVariantaId] = useState("");
@@ -321,6 +335,19 @@ function FormularCerereNoua({
       .filter((zi) => zi >= dataInceput && zi <= dataSfarsit)
       .sort();
   }, [zileDejaOcupate, dataInceput, dataSfarsit]);
+  // Cererile din spatele zilelor ocupate, ca omul să le poată DESCHIDE — ca să
+  // verifice sau să retragă una — nu doar să afle că există. Doar cele cu id
+  // cunoscut; intervalele fără (vechi) rămân simplu text.
+  const cereriSuprapuse = useMemo(() => {
+    if (ocupateInInterval.length === 0 || persoanaVizata === null) return [];
+    return concediiExistente.filter(
+      (interval) =>
+        interval.cerereId !== undefined &&
+        interval.employeeId === persoanaVizata &&
+        interval.dataInceput <= dataSfarsit &&
+        interval.dataSfarsit >= dataInceput,
+    );
+  }, [ocupateInInterval, concediiExistente, persoanaVizata, dataInceput, dataSfarsit]);
   // Variantele legale ale tipului ales — „paternal 15 zile cu atestat” e o
   // variantă a lui `paternal`, nu un tip separat.
   const varianteTip = variante.filter((v) => v.leave_type_key === tip?.key);
@@ -735,6 +762,21 @@ function FormularCerereNoua({
                   : `Perioada aleasă se suprapune peste ${String(ocupateInInterval.length)} ${ocupateInInterval.length === 1 ? "zi de concediu" : "zile de concediu"}. Tipul ales le întrerupe, deci suprapunerea e permisă.`}
               </p>
             ) : null}
+            {cereriSuprapuse.length === 0 ? null : (
+              <ul className="text-nota mb-2 space-y-0.5">
+                {cereriSuprapuse.map((interval) => (
+                  <li key={interval.cerereId}>
+                    <Link
+                      href={`/concedii/${interval.cerereId ?? ""}`}
+                      className="underline underline-offset-2"
+                    >
+                      {interval.eticheta}, {formatDate(interval.dataInceput)} –{" "}
+                      {formatDate(interval.dataSfarsit)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
             {previzualizare === null ? (
               <p className="text-muted-foreground">
                 Completați ambele date pentru a vedea câte zile lucrătoare consumă cererea.

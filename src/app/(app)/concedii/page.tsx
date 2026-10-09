@@ -112,6 +112,12 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   // `/concedii?cerere=noua` — adresa care deschide caseta direct, folosită de
   // butonul din panou și de starea goală a listei.
   const deschideCaseta = parametri["cerere"] === "noua";
+  // `&pentru=<id>`: angajatul precompletat, când caseta se deschide din
+  // calendar sau din „Echipa" (filtrată pe un om). Parametru DISTINCT, nu un
+  // filtru de listă — lista „Cererile mele" n-are ce filtra pe altcineva. Se
+  // validează mai jos contra listei pe care cel care se uită o poate alege.
+  const pentruBrut = parametri["pentru"];
+  const pentruCerut = typeof pentruBrut === "string" ? pentruBrut : null;
   // Aceleași filtre pe care le folosește lista — vezi nota din `FiltreCereri`.
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
   const db = await createServerSupabase();
@@ -167,9 +173,15 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
                     // la `/concedii?cerere=noua`) păstrează altfel starea
                     // clientului, iar caseta nu s-ar mai deschide.
                     <DialogCerereNoua
-                      key={deschideCaseta ? "cerere-noua" : "listă"}
+                      key={deschideCaseta ? `cerere-noua-${pentruCerut ?? ""}` : "listă"}
                       date={dateCerere}
                       deschisInitial={deschideCaseta}
+                      angajatInitial={
+                        pentruCerut !== null &&
+                        (dateCerere.angajati ?? []).some((a) => a.id === pentruCerut)
+                          ? pentruCerut
+                          : null
+                      }
                     />
                   )}
                 </>

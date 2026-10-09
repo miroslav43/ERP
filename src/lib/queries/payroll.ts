@@ -215,7 +215,17 @@ export interface RandInregistrare {
   readonly net: number;
   readonly net_de_plata: number;
   readonly cost_total_angajator: number;
+  /**
+   * Câte atenționări de calcul poartă fluturașul. Tabelul perioadei nu le
+   * arăta deloc: ca să afli care fluturași au probleme înainte de „Aprobă",
+   * trebuia să-i deschizi pe toți (analiza 2026-10-08, salarizare-L10/P7).
+   */
+  readonly avertismente: number;
 }
+
+/** Rândul așa cum vine de la PostgREST: `calc_warnings` e JSON, se numără aici. */
+type RandInregistrareCitit = Omit<RandInregistrare, "avertismente"> &
+  Readonly<{ calc_warnings: unknown }>;
 
 export interface RezultatInregistrari {
   readonly randuri: readonly RandInregistrare[];
@@ -253,7 +263,7 @@ export async function listeazaInregistrari(periodId: string): Promise<RezultatIn
     let interogare = db
       .from("payroll_entries")
       .select(
-        "id, employee_id, brut, net, net_de_plata, cost_total_angajator, angajat:employees!employee_id(full_name, marca)",
+        "id, employee_id, brut, net, net_de_plata, cost_total_angajator, calc_warnings, angajat:employees!employee_id(full_name, marca)",
       )
       .eq("period_id", periodId)
       .is("deleted_at", null)
@@ -261,9 +271,12 @@ export async function listeazaInregistrari(periodId: string): Promise<RezultatIn
       .limit(PAGINA_INREGISTRARI);
     if (dupaId !== null) interogare = interogare.gt("id", dupaId);
 
-    const { data, error } = await interogare.returns<RandInregistrare[]>();
+    const { data, error } = await interogare.returns<RandInregistrareCitit[]>();
     if (error !== null) throw error;
-    const lot = data ?? [];
+    const lot = (data ?? []).map(({ calc_warnings, ...rand }) => ({
+      ...rand,
+      avertismente: Array.isArray(calc_warnings) ? calc_warnings.length : 0,
+    }));
     randuri.push(...lot);
 
     if (lot.length < PAGINA_INREGISTRARI) {
@@ -809,6 +822,8 @@ export interface RandRetinerePerioada {
   readonly suma: number;
   readonly motiv: string;
   readonly procent_maxim_din_net: number | null;
+  /** Dosarul de poprire din spatele reținerii (0065); `null` pentru reținerile scrise de mână. */
+  readonly garnishment_id: string | null;
 }
 
 export async function primeSiRetineriPerioada(
@@ -829,7 +844,7 @@ export async function primeSiRetineriPerioada(
         .returns<RandPrimaPerioada[]>(),
       db
         .from("payroll_deductions")
-        .select("id, employee_id, tip, suma, motiv, procent_maxim_din_net")
+        .select("id, employee_id, tip, suma, motiv, procent_maxim_din_net, garnishment_id")
         .eq("organization_id", organizationId)
         .eq("period_id", periodId)
         .is("deleted_at", null)
@@ -862,7 +877,7 @@ export async function listeazaBonusuriSiRetineri(
         .returns<RandPrimaPerioada[]>(),
       db
         .from("payroll_deductions")
-        .select("id, employee_id, tip, suma, motiv, procent_maxim_din_net")
+        .select("id, employee_id, tip, suma, motiv, procent_maxim_din_net, garnishment_id")
         .eq("organization_id", organizationId)
         .eq("period_id", periodId)
         .eq("employee_id", employeeId)
@@ -1697,4 +1712,105 @@ export async function dosarePopriri(organizationId: string): Promise<readonly Ra
     .returns<RandDosarPoprire[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+// ── Salarizarea unui angajat, pentru fișa lui ─────────────────────────────────
+
+export interface RezumatSalarizareAngajat {
+  /** Ultimul fluturaș calculat, cu luna lui; `null` dacă n-a fost niciodată pe stat. */
+  readonly ultimulFluturas: Readonly<{
+    id: string;
+    period_id: string;
+    net_de_plata: number;
+    an: number;
+    luna: number;
+  }> | null;
+  readonly fluturasi: number;
+  readonly popririActive: number;
+}
+
+/**
+ * Ce are fișa angajatului de spus despre salarizare — cu linkuri, nu cifre
+ * goale. Fișa arăta din salarizare doar scutirile și componentele; niciun
+ * fluturaș, niciun dosar de poprire (analiza 2026-10-08, salarizare-L20).
+ *
+ * Două numărători `head` și o citire de un rând. Toate trec prin RLS
+ * (`payroll_entries_select` cere `payroll:read = all`), deci pentru un rol
+ * fără drept rezultatul e gol, fără eroare; apelantul gardează oricum
+ * secțiunea cu poarta lui `/salarizare`.
+ */
+export async function rezumatSalarizareAngajat(
+  organizationId: string,
+  employeeId: string,
+): Promise<RezumatSalarizareAngajat> {
+  const db = await createServerSupabase();
+  const [ultimul, fluturasi, popriri] = await Promise.all([
+    db
+      .from("payroll_entries")
+      .select("id, period_id, net_de_plata, perioada:payroll_periods!period_id(an, luna)")
+      .eq("organization_id", organizationId)
+      .eq("employee_id", employeeId)
+      .is("deleted_at", null)
+      .order("calculat_la", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle<{
+        id: string;
+        period_id: string;
+        net_de_plata: number;
+        perioada: { an: number; luna: number } | null;
+      }>(),
+    db
+      .from("payroll_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("employee_id", employeeId)
+      .is("deleted_at", null),
+    db
+      .from("payroll_garnishments")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("employee_id", employeeId)
+      .eq("activa", true)
+      .is("deleted_at", null),
+  ]);
+  if (ultimul.error !== null) throw ultimul.error;
+  if (fluturasi.error !== null) throw fluturasi.error;
+  if (popriri.error !== null) throw popriri.error;
+
+  const rand = ultimul.data;
+  return {
+    ultimulFluturas:
+      rand === null || rand.perioada === null
+        ? null
+        : {
+            id: rand.id,
+            period_id: rand.period_id,
+            net_de_plata: rand.net_de_plata,
+            an: rand.perioada.an,
+            luna: rand.perioada.luna,
+          },
+    fluturasi: fluturasi.count ?? 0,
+    popririActive: popriri.count ?? 0,
+  };
+}
+
+/**
+ * Perioada de salarizare calculată peste o perioadă de pontaj — drumul invers
+ * față de „pontajul lunii" de pe statul de plată. Lega într-un singur sens
+ * (analiza 2026-10-08, salarizare-L21/P15).
+ */
+export async function perioadaSalarizariiPentruPontaj(
+  organizationId: string,
+  attendancePeriodId: string,
+): Promise<Readonly<{ id: string; status: string }> | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("payroll_periods")
+    .select("id, status")
+    .eq("organization_id", organizationId)
+    .eq("attendance_period_id", attendancePeriodId)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string; status: string }>();
+  if (error !== null) throw error;
+  return data;
 }

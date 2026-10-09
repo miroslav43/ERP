@@ -5,7 +5,9 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
+import { poateDeschide } from "@/config/porti-ruta";
+import { buton } from "@/components/ui/buton";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { citesteSetariValabile, listeazaIstoricSetari } from "@/lib/queries/payroll";
@@ -19,10 +21,20 @@ export default async function PaginaSetariSalarizare() {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "payroll"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Setările de pontaj sunt alt modul, cu poarta lui (`attendance:update =
+  // all` + modulul pornit): linkul era necondiționat și putea duce în 404.
+  const hrefSetariPontaj = poateDeschide("/pontaj/setari", {
+    features: module,
+    permissions: permisiuni,
+  })
+    ? "/pontaj/setari"
+    : null;
+  const poateCreaPerioada = can(permisiuni, "payroll:create", "all");
 
   if (!can(permisiuni, "payroll:update", "all")) {
     return (
@@ -61,13 +73,27 @@ export default async function PaginaSetariSalarizare() {
           setările de PONTAJ: pagina asta nu le pomenea și nu le lega. */}
       <p className="text-muted-foreground text-corp">
         Pragul orelor de noapte și regimul de lucru vin din{" "}
-        <Link href="/pontaj/setari" className="underline underline-offset-2">
-          setările de pontaj
-        </Link>
+        {hrefSetariPontaj === null ? (
+          "setările de pontaj"
+        ) : (
+          <Link href={hrefSetariPontaj} className="underline underline-offset-2">
+            setările de pontaj
+          </Link>
+        )}
         ; calculul le citește de acolo.
       </p>
 
       <FormularSetari setariCurente={curente} />
+
+      {/* Pasul următor: după setări, prima perioadă se creează pe lista de
+          salarizare. Doar pentru cine o poate crea. */}
+      {poateCreaPerioada ? (
+        <p className="text-corp">
+          <Link href="/salarizare" className={buton({ varianta: "secundar" })}>
+            Creați prima perioadă
+          </Link>
+        </p>
+      ) : null}
 
       {istoric.length === 0 ? null : (
         <section aria-labelledby="istoric-setari" className="space-y-2">

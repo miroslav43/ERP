@@ -188,10 +188,24 @@ export function GrilaCalendar({ an, luna, zileHarta }: Proprietati) {
                   }
                   const iso = ziIso(an, luna, zi);
                   const evenimente = zileHarta[iso] ?? [];
+                  // Aceeași listă pe care o adună grila: stările care ocupă
+                  // ziua (trimisă, în aprobare, aprobată), nu și respinsele
+                  // ori anulatele, care în grilă nu apar.
+                  const hrefZi = `/concedii/echipa?de_la=${iso}&pana_la=${iso}&status=trimisa,in_aprobare,aprobata`;
                   return (
                     <td key={iso} className="border-border h-24 border align-top">
                       <div className="p-1.5">
-                        <span className="text-muted-foreground text-nota font-medium">{zi}</span>
+                        {evenimente.length === 0 ? (
+                          <span className="text-muted-foreground text-nota font-medium">{zi}</span>
+                        ) : (
+                          <Link
+                            href={hrefZi}
+                            aria-label={`${String(zi)}: ${String(evenimente.length)} ${evenimente.length === 1 ? "absență" : "absențe"}, vezi lista`}
+                            className="text-muted-foreground text-nota font-medium underline-offset-2 hover:underline"
+                          >
+                            {zi}
+                          </Link>
+                        )}
                         <ul className="mt-1 space-y-0.5">
                           {evenimente.slice(0, 3).map((eveniment, indexEveniment) => {
                             const aprobata = eveniment.status === "aprobata";
@@ -225,10 +239,7 @@ export function GrilaCalendar({ an, luna, zileHarta }: Proprietati) {
                           {evenimente.length > 3 ? (
                             <li className="text-muted-foreground text-nota">
                               {/* Restul absențelor zilei: lista echipei filtrată pe suprapunere. */}
-                              <Link
-                                href={`/concedii/echipa?de_la=${iso}&pana_la=${iso}`}
-                                className="underline-offset-2 hover:underline"
-                              >
+                              <Link href={hrefZi} className="underline-offset-2 hover:underline">
                                 +{evenimente.length - 3} altele
                               </Link>
                             </li>

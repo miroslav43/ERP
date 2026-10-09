@@ -131,6 +131,8 @@ interface Proprietati {
    * `null` = pagina-țintă nu se deschide pentru rolul ăsta.
    */
   readonly hrefCereri: string | null;
+  /** Soldul lui pe `/concedii/sold#angajat-<id>`; `null` = pagina nu se deschide pentru rol. */
+  readonly hrefSold: string | null;
 }
 
 export async function SectiuneConcedii({
@@ -145,6 +147,7 @@ export async function SectiuneConcedii({
   poateVedeaRegulile,
   poateEditaRegulile,
   hrefCereri,
+  hrefSold,
 }: Proprietati) {
   const anCurent = Number(todayInBucharest().slice(0, 4));
   const angajat: AngajatPentruDrept = {
@@ -214,6 +217,15 @@ export async function SectiuneConcedii({
             {" "}
             <Link href={hrefCereri} className="underline underline-offset-2">
               Vezi cererile
+            </Link>
+            .
+          </>
+        )}
+        {hrefSold === null ? null : (
+          <>
+            {" "}
+            <Link href={hrefSold} className="underline underline-offset-2">
+              Soldul și istoricul lui
             </Link>
             .
           </>

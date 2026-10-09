@@ -26,6 +26,10 @@ import { TabelReguli } from "./tabel-reguli";
 import { FormularRegulaNoua } from "./formular-regula-noua";
 import { ButonAplicaDrepturi } from "./buton-aplica-drepturi";
 import { deAprobat } from "@/lib/queries/leave";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { getEnabledFeatures } from "@/lib/auth/features";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Setări concedii" };
 
@@ -37,6 +41,7 @@ interface AngajatMinim {
   readonly id: string;
   readonly full_name: string;
   readonly marca: string;
+  readonly deleted_at: string | null;
 }
 
 /** Ancorat pe `#aplicare`, ca schimbarea anului să nu sară pagina la vârf. */
@@ -64,10 +69,17 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "leave"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // „Departament: X" din grile duce la panoul departamentului — prin poarta
+  // paginii-ȚINTĂ, ca linkul să nu se termine în refuz.
+  const poateDeschideDepartament = poateDeschide("/departamente", {
+    features: module,
+    permissions: permisiuni,
+  });
 
   if (!can(permisiuni, "leave:update", "all")) {
     return (
@@ -103,7 +115,7 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       ? { data: [] as AngajatMinim[] }
       : await db
           .from("employees")
-          .select("id, full_name, marca")
+          .select("id, full_name, marca, deleted_at")
           .eq("organization_id", tenant.organizationId)
           .in("id", idAngajatiPreview)
           .returns<AngajatMinim[]>();
@@ -120,7 +132,13 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       peTelefon: "titlu",
       celula: (rand) => {
         const angajat = hartaAngajati.get(rand.employee_id);
-        return angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`;
+        if (angajat === undefined) return "Angajat";
+        // Per rând: fișa s-a citit prin RLS, iar `hrefFisa` cere și dreptul.
+        return (
+          <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+            {angajat.full_name} ({angajat.marca})
+          </LinkEntitate>
+        );
       },
     },
     {
@@ -222,7 +240,12 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
           simultan (ex. vechime + condiții deosebite). Nu se pot adăuga grile pe tipurile
           reglementate legal.
         </p>
-        <TabelReguli reguli={reguli} tipuri={tipuri} departamente={departamente} />
+        <TabelReguli
+          reguli={reguli}
+          tipuri={tipuri}
+          departamente={departamente}
+          poateDeschideDepartament={poateDeschideDepartament}
+        />
         <FormularRegulaNoua tipuri={tipuriAdaptabile} departamente={departamente} />
       </section>
 

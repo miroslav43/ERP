@@ -154,7 +154,23 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
       peTelefon: "meta",
       celula: (r) => formatLei(r.cost_total_angajator),
     },
+    {
+      // Care fluturași au probleme — înainte de „Aprobă", nu după ce i-ai
+      // deschis pe toți. Cifra vine din `calc_warnings`, numărate la citire.
+      cheie: "avertismente",
+      antet: "Atenționări",
+      peTelefon: "insigna",
+      celula: (r) =>
+        r.avertismente === 0 ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <Badge ton="atentie" cuAvertisment>
+            {r.avertismente === 1 ? "1 atenționare" : `${String(r.avertismente)} atenționări`}
+          </Badge>
+        ),
+    },
   ];
+  const fluturasiCuAvertismente = inregistrari.filter((r) => r.avertismente > 0).length;
 
   return (
     <div className="space-y-6">
@@ -275,6 +291,15 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
             audit. Declarația 112 conține CNP-ul fiecărui asigurat, deci cere aceleași drepturi;
             contabilul o validează cu DUKIntegrator înainte de depunere.
           </p>
+          {/* Fișierul bancar decriptează IBAN-ul, iar D112 conține CNP-ul: rutele
+              cer `employees:read = all` pe lângă `payroll:export`. Fără el,
+              butoanele erau două refuzuri în așteptare. */}
+          {poateDeschideFisa ? null : (
+            <p className="text-muted-foreground text-nota mb-3">
+              Fișierul bancar și declarația 112 cer și dreptul de citire a datelor de identitate ale
+              angajaților; rolul dumneavoastră nu-l are.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             {/*
               Butoane, nu `<a href>`. Rutele astea fac un tur de bază per angajat
@@ -285,13 +310,15 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
               nimănui; prin `fetch` ajung în notificare. Vezi
               `components/incarcare/buton-descarcare.tsx`.
             */}
-            <ButonDescarcare
-              href={`/api/export/salarizare/bancar?perioada=${perioada.id}`}
-              eticheta="fișierul bancar"
-              numeImplicit="salarii.xml"
-            >
-              Fișier bancar (SEPA)
-            </ButonDescarcare>
+            {poateDeschideFisa ? (
+              <ButonDescarcare
+                href={`/api/export/salarizare/bancar?perioada=${perioada.id}`}
+                eticheta="fișierul bancar"
+                numeImplicit="salarii.xml"
+              >
+                Fișier bancar (SEPA)
+              </ButonDescarcare>
+            ) : null}
             <ButonDescarcare
               href={`/api/export/salarizare/nota?perioada=${perioada.id}`}
               eticheta="nota contabilă"
@@ -306,13 +333,15 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
             >
               Stat de plată (PDF)
             </ButonDescarcare>
-            <ButonDescarcare
-              href={`/api/export/salarizare/d112?perioada=${perioada.id}`}
-              eticheta="declarația 112"
-              numeImplicit="d112.xml"
-            >
-              Declarația 112 (XML)
-            </ButonDescarcare>
+            {poateDeschideFisa ? (
+              <ButonDescarcare
+                href={`/api/export/salarizare/d112?perioada=${perioada.id}`}
+                eticheta="declarația 112"
+                numeImplicit="d112.xml"
+              >
+                Declarația 112 (XML)
+              </ButonDescarcare>
+            ) : null}
           </div>
         </section>
       )}
@@ -379,6 +408,12 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
               pictograma={Users}
               titlu="Perioada nu a fost încă calculată"
               descriere="Nu există încă niciun angajat cu contract aplicabil lunii. Completați contractele, apoi apăsați „Calculează” pentru a genera fluturașii pe baza pontajului blocat al lunii."
+              // Drumul spre contracte: lista angajaților, prin poarta ei. Când
+              // firma n-are niciun angajat activ, lista „fără contract" e goală
+              // și butonul ăsta e singurul care duce undeva.
+              {...(poateDeschide("/angajati", { features: module, permissions: permisiuni })
+                ? { actiune: { eticheta: "Deschide angajații", href: "/angajati" } }
+                : {})}
             />
           ) : (
             <section aria-labelledby="ajustari-ciorna" className="space-y-2">
@@ -413,22 +448,32 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           )}
         </>
       ) : (
-        <Tabel
-          caption={`Fluturașii perioadei ${numeLuna(perioada.luna)} ${String(perioada.an)}`}
-          coloane={coloane}
-          randuri={inregistrari}
-          cheieRand={(r) => r.id}
-          href={(r) => `/salarizare/${perioada.id}/${r.id}`}
-          trunchiat={registru.trunchiat}
-          gol={
-            <StareGoala
-              fel="initiala"
-              pictograma={Receipt}
-              titlu="Niciun fluturaș în perioadă"
-              descriere="Perioada a fost calculată, dar nu are nicio înregistrare. Verificați dacă există angajați activi cu contract activ în luna respectivă."
-            />
-          }
-        />
+        <>
+          {fluturasiCuAvertismente === 0 ? null : (
+            <p className="text-warning text-corp">
+              {fluturasiCuAvertismente === 1
+                ? "Un fluturaș are atenționări de calcul"
+                : `${String(fluturasiCuAvertismente)} fluturași au atenționări de calcul`}
+              ; deschideți-i din coloana „Atenționări” înainte de aprobare.
+            </p>
+          )}
+          <Tabel
+            caption={`Fluturașii perioadei ${numeLuna(perioada.luna)} ${String(perioada.an)}`}
+            coloane={coloane}
+            randuri={inregistrari}
+            cheieRand={(r) => r.id}
+            href={(r) => `/salarizare/${perioada.id}/${r.id}`}
+            trunchiat={registru.trunchiat}
+            gol={
+              <StareGoala
+                fel="initiala"
+                pictograma={Receipt}
+                titlu="Niciun fluturaș în perioadă"
+                descriere="Perioada a fost calculată, dar nu are nicio înregistrare. Verificați dacă există angajați activi cu contract activ în luna respectivă."
+              />
+            }
+          />
+        </>
       )}
       {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
       <IstoricModificari tenant={tenant} entityId={perioada.id} />
