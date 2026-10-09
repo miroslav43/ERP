@@ -12,7 +12,7 @@ import {
   VERIFICARE,
 } from "@/content/legal/salarizare-publica";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
-import { bazaMinimaContributii, dinBrut, dinNet } from "@/lib/unelte/salariu";
+import { bazaMinimaContributii, dinBrut, dinNet, type RezultatSalariu } from "@/lib/unelte/salariu";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -23,8 +23,9 @@ import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { Desfasurator } from "./desfasurator";
 import { Formular } from "./formular";
-import { lei } from "./lei";
+import { deLei, lei } from "./lei";
 import { calculeazaDinParametri } from "./parametri";
+import { impartireaCostului } from "./randuri";
 
 /**
  * Calculatorul de salariu net și brut.
@@ -106,6 +107,18 @@ function TabelUzual({
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** Fraza care se citește și se trimite mai departe: cât din costul firmei ajunge la om. */
+function ImpartireaCostului({ r }: { readonly r: RezultatSalariu }) {
+  const i = impartireaCostului(r);
+  return (
+    <p className="mt-6 max-w-[68ch] text-[1.0625rem] leading-[1.6]">
+      Din fiecare 100 de lei plătiți de firmă, {deLei(i.net)} ajung la angajat în cont
+      {i.tichete > 0 ? `, ${deLei(i.tichete)} pe cardul de tichete` : ""}, iar {deLei(i.stat)} merg
+      la stat, ca impozit și contribuții.
+    </p>
   );
 }
 
@@ -209,6 +222,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             <div className="mt-6">
               <Desfasurator r={rezultat} />
             </div>
+            <ImpartireaCostului r={rezultat} />
             {subMinim && (
               <p className="border-mk-rigla mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]">
                 Brutul e sub minimul legal de {lei(minimLegal)} pentru{" "}

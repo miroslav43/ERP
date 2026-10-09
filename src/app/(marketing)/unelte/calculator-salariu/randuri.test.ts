@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { calculeazaDinBrut, dinBrut, OPTIUNI_IMPLICITE } from "@/lib/unelte/salariu";
 
-import { randuriDesfasurator } from "./randuri";
+import { impartireaCostului, randuriDesfasurator } from "./randuri";
 
 const suma = (randuri: readonly { valoare: number; fel: string }[], fel: string) =>
   randuri.filter((r) => r.fel === fel).reduce((s, r) => s + r.valoare, 0);
@@ -85,5 +85,26 @@ describe("rândurile desfășurătorului", () => {
       "Impozit pe venit — scutit, Codul fiscal art. 60 pct. 1",
       0,
     ]);
+  });
+});
+
+describe("împărțirea costului firmei", () => {
+  it("5.000 brut: din 100 de lei, 58 ajung la angajat, 42 la stat", () => {
+    // 2.981 / 5.113 = 58,3% → 58; statul = 100 − 58 = 42.
+    expect(impartireaCostului(dinBrut(5000, 0, true))).toEqual({ net: 58, tichete: 0, stat: 42 });
+  });
+
+  it("la salariul minim, 61 / 39", () => {
+    // 2.699 / 4.418 = 61,09% → 61.
+    expect(impartireaCostului(dinBrut(4325, 0, true))).toEqual({ net: 61, tichete: 0, stat: 39 });
+  });
+
+  it("cu tichete, cele trei părți fac tot 100", () => {
+    // Net 2.771, tichete 900, cost 6.013: 46,08% → 46; 14,97% → 15; statul 39.
+    const r = calculeazaDinBrut(5000, {
+      ...OPTIUNI_IMPLICITE,
+      tichete: { valoare: 45, numar: 20 },
+    });
+    expect(impartireaCostului(r)).toEqual({ net: 46, tichete: 15, stat: 39 });
   });
 });

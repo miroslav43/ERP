@@ -85,3 +85,18 @@ export function randuriDesfasurator(r: RezultatSalariu): Desfasurare {
     ],
   };
 }
+
+export type ImpartireCost = Readonly<{ net: number; tichete: number; stat: number }>;
+
+/**
+ * Din fiecare 100 de lei pe care îi plătește firma: cât ajunge la angajat în cont,
+ * cât pe cardul de tichete și cât la stat (CAS, CASS, impozit, CAM și diferențele
+ * de la timpul parțial). Procente întregi; partea statului e restul până la 100,
+ * ca cele trei să facă mereu exact 100.
+ */
+export function impartireaCostului(r: RezultatSalariu): ImpartireCost {
+  if (r.costTotal <= 0) return { net: 0, tichete: 0, stat: 0 };
+  const net = Math.round((r.net / r.costTotal) * 100);
+  const tichete = Math.round((r.tichete / r.costTotal) * 100);
+  return { net, tichete, stat: 100 - net - tichete };
+}
