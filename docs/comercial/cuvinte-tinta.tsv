@@ -35,3 +35,11 @@ program salarizare	/module/salarizare
 program salarii	/module/salarizare
 aplicatie pontaj angajati	/pontaj-pe-telefon
 program pontaj angajati	/module/pontaj
+calculator zile concediu de odihna	/unelte/calculator-zile-concediu
+calculator zile concediu odihna	/unelte/calculator-zile-concediu
+cerere concediu de odihna pdf	/unelte/cerere-concediu-de-odihna
+cerere concediu de odihna o zi	/unelte/cerere-concediu-de-odihna
+condica de prezenta pdf	/unelte/condica-de-prezenta
+foaie de parcurs model completat	/unelte/foaie-de-parcurs
+foaie de parcurs excel	/unelte/foaie-de-parcurs
+foaie colectiva de pontaj pdf	/unelte/foaie-de-pontaj
