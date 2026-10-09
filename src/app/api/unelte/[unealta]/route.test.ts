@@ -28,4 +28,9 @@ describe("ruta comună de descărcare", () => {
     expect(r.status).toBe(200);
     expect(r.headers.get("cache-control")).toBe("private, no-store");
   });
+
+  it("formatul cu majuscule dă formatul cerut, nu PDF", async () => {
+    const r = await cere("/api/unelte/fisa-evaluare?format=DOCX", "fisa-evaluare");
+    expect(r.headers.get("content-type")).toContain("wordprocessingml");
+  });
 });

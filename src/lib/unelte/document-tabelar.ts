@@ -14,7 +14,9 @@ export type Format = "pdf" | "docx" | "xlsx";
 export const FORMATE: readonly Format[] = ["pdf", "docx", "xlsx"];
 
 export function normalizeazaFormat(brut: string | null): Format {
-  return brut === "docx" || brut === "xlsx" ? brut : "pdf";
+  // „DOCX” sau „ docx ” înseamnă tot Word; până pe 8 oct 2026 primeau tăcut un PDF.
+  const format = brut?.trim().toLowerCase();
+  return format === "docx" || format === "xlsx" ? format : "pdf";
 }
 
 export type Coloana = Readonly<{

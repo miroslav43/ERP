@@ -169,6 +169,59 @@ export function notaOmisi(lista: ListaAngajati): string | null {
   return `Documentul cuprinde primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")} trimiși; ${restul}.`;
 }
 
+export type ParametriBruti = Readonly<{
+  an?: string | undefined;
+  luna?: string | undefined;
+  ore?: string | undefined;
+}>;
+
+function prezent(brut: string | undefined): brut is string {
+  return brut !== undefined && brut.trim() !== "";
+}
+
+/** Textul primit, scurtat: o adresă lungă nu se reproduce întreagă pe pagină. */
+function citat(brut: string): string {
+  const t = brut.trim();
+  return t.length > 24 ? `${t.slice(0, 24)}…` : t;
+}
+
+/**
+ * Ce s-a corectat din adresă, spus în cuvinte, cu valoarea folosită de fapt.
+ *
+ * Ruta de descărcare rămâne TOLERANTĂ: un link vechi sau tăiat dă tot un fișier,
+ * nu o pagină text/plain de eroare. Pagina însă spune ce a schimbat; altfel omul
+ * primea foaia altei luni, cu numele de fișier al acelei luni (auditul din 8 oct 2026).
+ *
+ * Compară cu `Number`, nu cu `parseInt`: „2e1” trece prin `parseInt` drept 2 și
+ * dădea februarie fără niciun semn. La ore, valoarea folosită vine din
+ * `normalizeazaOre`, ca avizul să nu spună „8” când foaia e pe 7:30.
+ */
+export function avizeParametri(
+  brut: ParametriBruti,
+  ales: Readonly<{ an: number; luna: number }>,
+): readonly string[] {
+  const avize: string[] = [];
+  if (prezent(brut.an) && Number(brut.an.trim()) !== ales.an) {
+    avize.push(
+      `Anul „${citat(brut.an)}” nu e un an între ${String(AN_MIN)} și ${String(AN_MAX)}; am folosit ${String(ales.an)}.`,
+    );
+  }
+  if (prezent(brut.luna) && Number(brut.luna.trim()) !== ales.luna) {
+    avize.push(
+      `Luna „${citat(brut.luna)}” nu e între 1 și 12; am folosit ${LUNI[ales.luna - 1] ?? ""}.`,
+    );
+  }
+  if (prezent(brut.ore)) {
+    const folosit = normalizeazaOre(brut.ore);
+    if (Number(brut.ore.trim().replace(",", ".")) !== folosit) {
+      avize.push(
+        `Orele pe zi „${citat(brut.ore)}” nu sunt un număr între 0 și 24; am folosit ${oreFoaie(folosit)}.`,
+      );
+    }
+  }
+  return avize;
+}
+
 export function construiesteFoaie(
   an: number,
   luna: number,

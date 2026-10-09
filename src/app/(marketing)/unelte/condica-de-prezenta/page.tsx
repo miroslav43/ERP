@@ -16,7 +16,14 @@ import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { PrevizualizareDocument } from "../../_componente/previzualizare-document";
-import { AN_MAX, AN_MIN, avizAngajati, citesteAngajati, LUNI } from "../foaie-de-pontaj/foaie";
+import {
+  AN_MAX,
+  AN_MIN,
+  avizAngajati,
+  avizeParametri,
+  citesteAngajati,
+  LUNI,
+} from "../foaie-de-pontaj/foaie";
 import { construiesteCondica, parametriCondica } from "./model";
 
 /**
@@ -62,7 +69,10 @@ export default async function PaginaCondica({ searchParams }: Proprietati) {
     ales.notaAngajati,
   );
   const brutAngajati = unul(p.angajati) ?? "";
-  const avize = avizAngajati(citesteAngajati(q.get("angajati") ?? undefined));
+  const avize = [
+    ...avizeParametri({ an: q.get("an") ?? undefined, luna: q.get("luna") ?? undefined }, ales),
+    ...avizAngajati(citesteAngajati(q.get("angajati") ?? undefined)),
+  ];
 
   return (
     <Cadru text={RO}>

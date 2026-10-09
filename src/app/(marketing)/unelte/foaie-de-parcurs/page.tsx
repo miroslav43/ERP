@@ -7,6 +7,7 @@ import { RO } from "@/content/landing/ro";
 import { ANTET_FOAIE_PARCURS } from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
+import { AvizCorectari } from "../../_componente/aviz-corectari";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { JsonLd } from "../../_componente/json-ld";
@@ -15,7 +16,7 @@ import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { PrevizualizareDocument } from "../../_componente/previzualizare-document";
-import { AN_MAX, AN_MIN, LUNI } from "../foaie-de-pontaj/foaie";
+import { AN_MAX, AN_MIN, avizeParametri, LUNI } from "../foaie-de-pontaj/foaie";
 import { construiesteFoaieParcurs, parametriFoaieParcurs } from "./model";
 
 /**
@@ -62,6 +63,10 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
   }
   const ales = parametriFoaieParcurs(q);
   const document = construiesteFoaieParcurs(ales);
+  const avize = avizeParametri(
+    { an: q.get("an") ?? undefined, luna: q.get("luna") ?? undefined },
+    ales,
+  );
   const valori: Readonly<Record<(typeof CAMPURI_TEXT)[number]["nume"], string>> = {
     auto: ales.nrAuto,
     marca: ales.marca,
@@ -165,6 +170,7 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
             formate={["docx", "pdf", "xlsx"]}
           />
         </form>
+        <AvizCorectari avize={avize} />
       </Banda>
 
       <Banda id="documentul" inaltime="scurta">

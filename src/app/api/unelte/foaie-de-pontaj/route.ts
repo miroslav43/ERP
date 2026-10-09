@@ -47,7 +47,8 @@ export const dynamic = "force-dynamic";
  * `format`, trebuie să dea tot fișierul cu formule pe care îl dădeau.
  */
 function normalizeazaFormatFoaie(brut: string | null): Format {
-  return brut === "pdf" || brut === "docx" ? brut : "xlsx";
+  const format = brut?.trim().toLowerCase();
+  return format === "pdf" || format === "docx" ? format : "xlsx";
 }
 
 /** Lățimile în „caractere" ale ExcelJS, alese ca foaia să încapă pe A4 lat. */

@@ -65,4 +65,13 @@ describe("ruta foii de pontaj", () => {
     expect(siruri).toContain("21 de zile lucrătoare × 7:18 h = 153:18 h normă");
     expect(siruri).not.toContain("153.2999");
   });
+
+  it("formatul se citește fără majuscule: PDF dă PDF, nu Excel", async () => {
+    expect((await cere("an=2026&luna=12&format=PDF")).headers.get("content-type")).toBe(
+      "application/pdf",
+    );
+    expect((await cere("an=2026&luna=12&format=DOCX")).headers.get("content-type")).toContain(
+      "wordprocessingml",
+    );
+  });
 });

@@ -43,6 +43,12 @@ describe("modelul comun", () => {
     expect(normalizeazaFormat("docx")).toBe("docx");
   });
 
+  it("formatul se citește fără majuscule și fără spații", () => {
+    expect(normalizeazaFormat("DOCX")).toBe("docx");
+    expect(normalizeazaFormat(" xlsx ")).toBe("xlsx");
+    expect(normalizeazaFormat("Pdf")).toBe("pdf");
+  });
+
   it("numeFisierSigur scoate diacriticele și ghilimelele", () => {
     expect(numeFisierSigur('foaie "ș" țară/2026')).toBe("foaie-s-tara-2026");
     expect(numeFisierSigur("„”")).toBe("document");

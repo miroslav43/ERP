@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   avizAngajati,
+  avizeParametri,
   citesteAngajati,
   construiesteFoaie,
   normalizeazaAngajati,
+  normalizeazaLuna,
   notaOmisi,
   oreFoaie,
   textNorma,
@@ -165,5 +167,52 @@ describe("orele foii", () => {
     expect(textNorma(construiesteFoaie(2026, 1, ["A"], 8))).toBe(
       "18 zile lucrătoare × 8 h = 144 h normă",
     );
+  });
+});
+
+/**
+ * API-ul rămâne tolerant (un link vechi dă tot un fișier), dar pagina spune ce
+ * a corectat. Înainte, `an=1999&luna=13` dădea foaia lunii curente fără semn.
+ */
+describe("avizele pentru parametrii corectați", () => {
+  const ALES = { an: 2026, luna: 10 };
+
+  it("anul și luna din afara limitelor se spun pe nume, cu valoarea folosită", () => {
+    expect(avizeParametri({ an: "1999", luna: "13" }, ALES)).toEqual([
+      "Anul „1999” nu e un an între 2020 și 2035; am folosit 2026.",
+      "Luna „13” nu e între 1 și 12; am folosit octombrie.",
+    ]);
+  });
+
+  it("„2e1” nu mai trece tăcut drept februarie", () => {
+    expect(
+      avizeParametri({ luna: "2e1" }, { an: 2026, luna: normalizeazaLuna("2e1", 10) }),
+    ).toEqual(["Luna „2e1” nu e între 1 și 12; am folosit februarie."]);
+  });
+
+  it("valorile bune, cu zero în față sau cu spații, nu dau aviz", () => {
+    expect(avizeParametri({ an: " 2026 ", luna: "05", ore: "7,5" }, { an: 2026, luna: 5 })).toEqual(
+      [],
+    );
+  });
+
+  it("parametrii lipsă sau goi nu dau aviz", () => {
+    expect(avizeParametri({ an: "", luna: undefined, ore: "  " }, ALES)).toEqual([]);
+  });
+
+  it("orele: avizul spune valoarea folosită de fapt", () => {
+    expect(avizeParametri({ ore: "abc" }, ALES)).toEqual([
+      "Orele pe zi „abc” nu sunt un număr între 0 și 24; am folosit 8 h.",
+    ]);
+    // parseFloat citește „7,5abc” drept 7,5: foaia e pe 7:30 h, iar avizul trebuie s-o spună.
+    expect(avizeParametri({ ore: "7,5abc" }, ALES)).toEqual([
+      "Orele pe zi „7,5abc” nu sunt un număr între 0 și 24; am folosit 7:30 h.",
+    ]);
+  });
+
+  it("textul primit se citează scurtat la 24 de caractere", () => {
+    const [aviz] = avizeParametri({ an: "x".repeat(100) }, ALES);
+    expect(aviz).toContain(`„${"x".repeat(24)}…”`);
+    expect(aviz).not.toContain("x".repeat(25));
   });
 });

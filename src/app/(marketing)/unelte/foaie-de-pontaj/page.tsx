@@ -18,6 +18,7 @@ import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import {
   avizAngajati,
+  avizeParametri,
   citesteAngajati,
   construiesteFoaie,
   LUNI,
@@ -169,7 +170,15 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
         <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-2" data-tipar="ascunde">
           <p className="font-mk-date text-mk-text text-[0.9375rem]">{textNorma(foaie)}</p>
         </div>
-        <AvizCorectari avize={avizAngajati(lista)} />
+        <AvizCorectari
+          avize={[
+            ...avizeParametri(
+              { an: unul(p.an), luna: unul(p.luna), ore: unul(p.ore) },
+              { an, luna },
+            ),
+            ...avizAngajati(lista),
+          ]}
+        />
       </Banda>
 
       <Banda id="documentul" inaltime="scurta">
