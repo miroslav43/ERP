@@ -177,4 +177,27 @@ describe("paginile uneltelor", () => {
     const interzise = /from "next\/form"|useRouter\(|history\.(?:push|replace)State/u;
     expect(pagini.filter((s) => interzise.test(s))).toEqual([]);
   });
+
+  /**
+   * Același defect, pe altă cale: `<Link href="?suma=…">` navighează moale, în
+   * documentul deja măsurat, deci GA vede adresa cu valori fără ca poarta să se
+   * mai decidă (revizia valului 1, 9 oct 2026: `TabelUzual` din calculator).
+   * O legătură care duce la o adresă cu interogare e un `<a>` simplu — navigare
+   * tare, document nou, poartă nouă. Prinde și href-ul dat prin variabilă, când
+   * fișierul conține adrese de forma `?cheie=`.
+   */
+  it("nicio legătură `next/link` nu duce la o adresă cu interogare", () => {
+    const INTEROGARE = /["'`]\?[a-z_]+=/u;
+    const linkuri = (sursa: string) =>
+      [...sursa.matchAll(/<Link\b[^>]*?\bhref=(\{[^}]*\}|"[^"]*")/gu)].map((m) => m[1] ?? "");
+    const vinovate = pagini.flatMap((sursa) =>
+      linkuri(sursa).filter((href) =>
+        href.startsWith('"') || /^\{\s*["'`]/u.test(href)
+          ? /^\{?\s*["'`]\?/u.test(href)
+          : INTEROGARE.test(sursa),
+      ),
+    );
+    expect(pagini.some((s) => s.includes("<Link"))).toBe(true);
+    expect(vinovate).toEqual([]);
+  });
 });

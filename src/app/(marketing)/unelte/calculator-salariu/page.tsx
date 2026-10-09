@@ -90,9 +90,12 @@ function TabelUzual({
                 className="font-mk-date py-2.5 pr-4 text-[0.9375rem] tabular-nums"
               >
                 {i === 0 ? (
-                  <Link href={rand.href} className="underline underline-offset-4">
+                  // `<a>`, nu `<Link>`: navigarea tare face un document nou, iar
+                  // poarta GA se decide din nou pe adresa cu `?suma=`. Cu `<Link>`,
+                  // adresa cu valori intra într-un document deja măsurat.
+                  <a href={rand.href} className="underline underline-offset-4">
                     {lei(v)}
-                  </Link>
+                  </a>
                 ) : (
                   lei(v)
                 )}
