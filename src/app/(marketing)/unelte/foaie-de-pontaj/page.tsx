@@ -8,6 +8,7 @@ import { RO } from "@/content/landing/ro";
 import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
+import { AvizCorectari } from "../../_componente/aviz-corectari";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { JsonLd } from "../../_componente/json-ld";
@@ -16,10 +17,11 @@ import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import {
+  avizAngajati,
+  citesteAngajati,
   construiesteFoaie,
   LUNI,
   normalizeazaAn,
-  normalizeazaAngajati,
   normalizeazaLuna,
   normalizeazaOre,
   AN_MAX,
@@ -70,8 +72,8 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
   const luna = normalizeazaLuna(unul(p.luna), acum.getUTCMonth() + 1);
   const oreZi = normalizeazaOre(unul(p.ore));
   const brutAngajati = unul(p.angajati) ?? "";
-  const angajati = normalizeazaAngajati(brutAngajati);
-  const foaie = construiesteFoaie(an, luna, angajati, oreZi);
+  const lista = citesteAngajati(brutAngajati);
+  const foaie = construiesteFoaie(an, luna, lista.nume, oreZi);
   const calendar = calendarulAnului(an);
 
   return (
@@ -168,6 +170,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
             normă
           </p>
         </div>
+        <AvizCorectari avize={avizAngajati(lista)} />
       </Banda>
 
       <Banda id="documentul" inaltime="scurta">

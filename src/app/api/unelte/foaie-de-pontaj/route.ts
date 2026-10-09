@@ -2,11 +2,12 @@ import ExcelJS from "exceljs";
 import type { NextRequest } from "next/server";
 
 import {
+  citesteAngajati,
   construiesteFoaie,
   normalizeazaAn,
-  normalizeazaAngajati,
   normalizeazaLuna,
   normalizeazaOre,
+  notaOmisi,
 } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie";
 import { foaieCaDocument } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie-document";
 import { ADRESA_SITE } from "@/content/landing/contact";
@@ -59,12 +60,16 @@ export async function GET(cerere: NextRequest): Promise<Response> {
   const an = normalizeazaAn(q.get("an") ?? undefined, acum.getUTCFullYear());
   const luna = normalizeazaLuna(q.get("luna") ?? undefined, acum.getUTCMonth() + 1);
   const oreZi = normalizeazaOre(q.get("ore") ?? undefined);
-  const angajati = normalizeazaAngajati(q.get("angajati") ?? undefined);
-  const foaie = construiesteFoaie(an, luna, angajati, oreZi);
+  const lista = citesteAngajati(q.get("angajati") ?? undefined);
+  const foaie = construiesteFoaie(an, luna, lista.nume, oreZi);
+  const nota = notaOmisi(lista);
 
   const format = normalizeazaFormatFoaie(q.get("format"));
   if (format !== "xlsx") {
-    return raspunsDocument({ ...foaieCaDocument(foaie), sursa: "/unelte/foaie-de-pontaj" }, format);
+    return raspunsDocument(
+      { ...foaieCaDocument(foaie, nota), sursa: "/unelte/foaie-de-pontaj" },
+      format,
+    );
   }
 
   const registru = new ExcelJS.Workbook();
@@ -171,6 +176,7 @@ export async function GET(cerere: NextRequest): Promise<Response> {
         .map((z) => `${z.zi} ${z.sarbatoare ?? ""}`)
         .join("; ") || "niciuna"),
   ]);
+  if (nota !== null) fila.addRow([nota]);
   // Rândul de jos duce înapoi la unealtă, ca în celelalte fișiere (auditul din 7 oct 2026).
   const semnatura = fila.addRow([
     {

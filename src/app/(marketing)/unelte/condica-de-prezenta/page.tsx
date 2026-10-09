@@ -7,6 +7,7 @@ import { RO } from "@/content/landing/ro";
 import { ANTET_CONDICA } from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
+import { AvizCorectari } from "../../_componente/aviz-corectari";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { JsonLd } from "../../_componente/json-ld";
@@ -15,7 +16,7 @@ import { Descarcari } from "../../_componente/descarcari";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { PrevizualizareDocument } from "../../_componente/previzualizare-document";
-import { AN_MAX, AN_MIN, LUNI } from "../foaie-de-pontaj/foaie";
+import { AN_MAX, AN_MIN, avizAngajati, citesteAngajati, LUNI } from "../foaie-de-pontaj/foaie";
 import { construiesteCondica, parametriCondica } from "./model";
 
 /**
@@ -53,8 +54,15 @@ export default async function PaginaCondica({ searchParams }: Proprietati) {
     if (v !== undefined && v !== "") q.set(cheie, v);
   }
   const ales = parametriCondica(q);
-  const document = construiesteCondica(ales.an, ales.luna, ales.angajati, ales.firma);
+  const document = construiesteCondica(
+    ales.an,
+    ales.luna,
+    ales.angajati,
+    ales.firma,
+    ales.notaAngajati,
+  );
   const brutAngajati = unul(p.angajati) ?? "";
+  const avize = avizAngajati(citesteAngajati(q.get("angajati") ?? undefined));
 
   return (
     <Cadru text={RO}>
@@ -162,6 +170,7 @@ export default async function PaginaCondica({ searchParams }: Proprietati) {
             formate={["docx", "pdf", "xlsx"]}
           />
         </form>
+        <AvizCorectari avize={avize} />
       </Banda>
 
       <Banda id="documentul" inaltime="scurta">

@@ -41,4 +41,20 @@ describe("condica de prezență", () => {
     const d = condicaDinParametri(q);
     expect(new Set(d.randuri.map((r) => r[1])).size).toBeLessThanOrEqual(60);
   });
+
+  it("cu peste 60 de nume, documentul spune că lista e incompletă", () => {
+    const q = new URLSearchParams({
+      an: "2026",
+      luna: "12",
+      angajati: Array.from({ length: 70 }, (_, i) => `Om ${String(i + 1)}`).join("\n"),
+    });
+    const d = condicaDinParametri(q);
+    expect(d.note.at(-1)).toBe(
+      "Documentul cuprinde primii 60 din 70 de angajați trimiși; ceilalți 10 nu apar aici.",
+    );
+  });
+
+  it("fără tăiere, notele rămân cele două de dinainte", () => {
+    expect(condicaDinParametri(new URLSearchParams({ angajati: "Popa Ion" })).note).toHaveLength(2);
+  });
 });

@@ -1,3 +1,4 @@
+import { cuDe } from "@/content/legal/zile-libere";
 import { sarbatoriDupaZi } from "@/domain/calendar/sarbatori";
 import { curataText } from "@/lib/unelte/document-tabelar";
 
@@ -129,6 +130,35 @@ export function citesteAngajati(brut: string | undefined): ListaAngajati {
 /** Doar numele de pe foaie; vezi `citesteAngajati`. */
 export function normalizeazaAngajati(brut: string | undefined): readonly string[] {
   return citesteAngajati(brut).nume;
+}
+
+/**
+ * Ce s-a pierdut din listă, spus pe pagină. Plafonul de 60 rămâne (o adresă
+ * mai lungă de ~8 KB cade la Cloudflare, iar 60 de nume înseamnă deja trei
+ * pagini A4 culcate), dar nu mai e tăcut: cu 70 de nume, foaia avea 60 de
+ * rânduri și nimic nu spunea asta (auditul din 8 oct 2026).
+ */
+export function avizAngajati(lista: ListaAngajati): readonly string[] {
+  const avize: string[] = [];
+  if (lista.omisi > 0) {
+    avize.push(
+      `Am păstrat primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")}. Pentru ceilalți ${String(lista.omisi)}, generează încă o foaie doar cu numele lor.`,
+    );
+  }
+  if (lista.scurtate === 1) {
+    avize.push(`Un nume avea peste ${cuDe(MAX_LUNGIME_NUME, "caractere")} și l-am scurtat.`);
+  } else if (lista.scurtate > 1) {
+    avize.push(
+      `${cuDe(lista.scurtate, "nume")} aveau peste ${cuDe(MAX_LUNGIME_NUME, "caractere")} și le-am scurtat.`,
+    );
+  }
+  return avize;
+}
+
+/** Nota din fișierul descărcat: fișierul circulă fără pagină, deci spune singur că lista e incompletă. */
+export function notaOmisi(lista: ListaAngajati): string | null {
+  if (lista.omisi === 0) return null;
+  return `Documentul cuprinde primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")} trimiși; ceilalți ${String(lista.omisi)} nu apar aici.`;
 }
 
 export function construiesteFoaie(

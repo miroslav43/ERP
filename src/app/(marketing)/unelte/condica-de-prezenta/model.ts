@@ -1,10 +1,11 @@
 import type { DocumentTabelar } from "@/lib/unelte/document-tabelar";
 
 import {
+  citesteAngajati,
   construiesteFoaie,
   normalizeazaAn,
-  normalizeazaAngajati,
   normalizeazaLuna,
+  notaOmisi,
 } from "../foaie-de-pontaj/foaie";
 
 /**
@@ -23,16 +24,20 @@ export type ParametriCondica = Readonly<{
   luna: number;
   angajati: readonly string[];
   firma: string;
+  /** Nota pentru document când lista a trecut de 60 de nume; `null` altfel. */
+  notaAngajati: string | null;
 }>;
 
 /** Intrările din adresă, normalizate cu aceleași limite ca foaia de pontaj. */
 export function parametriCondica(q: URLSearchParams): ParametriCondica {
   const acum = new Date();
+  const lista = citesteAngajati(q.get("angajati") ?? undefined);
   return {
     an: normalizeazaAn(q.get("an") ?? undefined, acum.getUTCFullYear()),
     luna: normalizeazaLuna(q.get("luna") ?? undefined, acum.getUTCMonth() + 1),
-    angajati: normalizeazaAngajati(q.get("angajati") ?? undefined),
+    angajati: lista.nume,
     firma: (q.get("firma") ?? "").trim().slice(0, 120),
+    notaAngajati: notaOmisi(lista),
   };
 }
 
@@ -41,6 +46,7 @@ export function construiesteCondica(
   luna: number,
   angajati: readonly string[],
   firma: string,
+  notaAngajati: string | null = null,
 ): DocumentTabelar {
   const foaie = construiesteFoaie(an, luna, angajati, 8);
   const ll = String(luna).padStart(2, "0");
@@ -72,6 +78,7 @@ export function construiesteCondica(
     note: [
       "Art. 119 alin. (1) din Codul muncii cere evidența orelor prestate zilnic de fiecare salariat, cu ora de începere și ora de sfârșit a programului.",
       `Zile scoase (weekend și sărbători legale): ${String(foaie.zile.length - lucratoare.length)}.`,
+      ...(notaAngajati === null ? [] : [notaAngajati]),
     ],
     semnaturi: ["Verificat (conducătorul locului de muncă)"],
     orientare: "portret",
@@ -81,5 +88,5 @@ export function construiesteCondica(
 
 export function condicaDinParametri(q: URLSearchParams): DocumentTabelar {
   const p = parametriCondica(q);
-  return construiesteCondica(p.an, p.luna, p.angajati, p.firma);
+  return construiesteCondica(p.an, p.luna, p.angajati, p.firma, p.notaAngajati);
 }

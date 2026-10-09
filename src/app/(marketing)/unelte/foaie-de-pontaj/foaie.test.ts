@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { citesteAngajati, construiesteFoaie, normalizeazaAngajati } from "./foaie";
+import {
+  avizAngajati,
+  citesteAngajati,
+  construiesteFoaie,
+  normalizeazaAngajati,
+  notaOmisi,
+} from "./foaie";
 
 /**
  * Foaia de pontaj pe anii pe care formularul îi acceptă (2020–2035).
@@ -85,5 +91,35 @@ describe("lista de angajați", () => {
     const lista = citesteAngajati(`${"a".repeat(81)}\nScurt`);
     expect(lista.scurtate).toBe(1);
     expect(lista.nume[0]).toHaveLength(80);
+  });
+});
+
+describe("avizul și nota pentru lista tăiată", () => {
+  const SAPTEZECI = Array.from({ length: 70 }, (_, i) => `Om ${String(i + 1)}`).join("\n");
+
+  it("pagina spune câți au rămas pe dinafară", () => {
+    expect(avizAngajati(citesteAngajati(SAPTEZECI))).toEqual([
+      "Am păstrat primii 60 din 70 de angajați. Pentru ceilalți 10, generează încă o foaie doar cu numele lor.",
+    ]);
+  });
+
+  it("numele scurtate se spun și ele", () => {
+    expect(avizAngajati(citesteAngajati(`${"a".repeat(81)}\nScurt`))).toEqual([
+      "Un nume avea peste 80 de caractere și l-am scurtat.",
+    ]);
+    expect(avizAngajati(citesteAngajati(`${"a".repeat(81)}\n${"b".repeat(90)}`))).toEqual([
+      "2 nume aveau peste 80 de caractere și le-am scurtat.",
+    ]);
+  });
+
+  it("fișierul primește o notă, fiindcă circulă fără pagină", () => {
+    expect(notaOmisi(citesteAngajati(SAPTEZECI))).toBe(
+      "Documentul cuprinde primii 60 din 70 de angajați trimiși; ceilalți 10 nu apar aici.",
+    );
+    expect(notaOmisi(citesteAngajati("Popa Ion"))).toBeNull();
+  });
+
+  it("fără nimic tăiat, niciun aviz", () => {
+    expect(avizAngajati(citesteAngajati("Popa Ion\nIlie Maria"))).toEqual([]);
   });
 });
