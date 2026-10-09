@@ -4,7 +4,7 @@ import { constructorPentru } from "./registru";
 
 describe("registrul uneltelor", () => {
   it("găsește o unealtă înregistrată", () => {
-    expect(constructorPentru("condica-de-prezenta")).toBeTypeOf("function");
+    expect(constructorPentru("foaie-de-parcurs")).toBeTypeOf("function");
   });
 
   it("registrul nu răspunde la cheile prototipului", () => {

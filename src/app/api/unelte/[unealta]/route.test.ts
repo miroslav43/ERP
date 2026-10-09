@@ -21,10 +21,8 @@ describe("ruta comună de descărcare", () => {
   });
 
   it("fișierul generat iese cu cache-control private, no-store", async () => {
-    const r = await cere(
-      "/api/unelte/condica-de-prezenta?luna=10&an=2026&firma=Firma+Test&format=pdf",
-      "condica-de-prezenta",
-    );
+    // Condica are rută statică din E12; ruta comună se verifică pe o unealtă din `UNELTE`.
+    const r = await cere("/api/unelte/fisa-evaluare?format=pdf", "fisa-evaluare");
     expect(r.status).toBe(200);
     expect(r.headers.get("cache-control")).toBe("private, no-store");
   });
