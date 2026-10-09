@@ -1,4 +1,60 @@
-import { curataDocument, LINIE_GOALA, type DocumentTabelar } from "@/lib/unelte/document-tabelar";
+import {
+  curataDocument,
+  LINIE_GOALA,
+  type Coloana,
+  type DocumentTabelar,
+} from "@/lib/unelte/document-tabelar";
+
+/**
+ * Un tabel derulabil pe orizontală, cu legenda pentru cititorul de ecran. Același
+ * marcaj pentru tabelul principal și pentru cele suplimentare (8 oct 2026).
+ */
+function Tabel({
+  legenda,
+  coloane,
+  randuri,
+  umbrite,
+}: Readonly<{
+  legenda: string;
+  coloane: readonly Coloana[];
+  randuri: readonly (readonly string[])[];
+  umbrite: readonly number[];
+}>) {
+  return (
+    <div className="border-mk-rigla relative mt-4 overflow-x-auto border">
+      <table className="w-full border-collapse text-left text-[0.8125rem]">
+        <caption className="sr-only">{legenda}</caption>
+        <thead>
+          <tr className="border-mk-rigla border-b">
+            {coloane.map((c, j) => (
+              <th
+                key={`${String(j)}-${c.eticheta}`}
+                scope="col"
+                className="px-2 py-1.5 font-medium whitespace-pre-line"
+              >
+                {c.eticheta}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {randuri.map((r, i) => (
+            <tr key={`${String(i)}-${r.join("|")}`} className="border-mk-rigla/40 border-b">
+              {coloane.map((c, j) => (
+                <td
+                  key={`${String(j)}-${c.eticheta}`}
+                  className={`h-7 px-2 ${umbrite.includes(j) ? "bg-mk-rigla/20" : ""}`}
+                >
+                  {r[j] ?? ""}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 /**
  * Previzualizarea HTML a unui `DocumentTabelar`, din același obiect ca fișierele
@@ -38,39 +94,16 @@ export function PrevizualizareDocument({ document: brut }: { document: DocumentT
         </p>
       ))}
       {d.coloane.length > 0 && (
-        <div className="border-mk-rigla relative mt-4 overflow-x-auto border">
-          <table className="w-full border-collapse text-left text-[0.8125rem]">
-            <caption className="sr-only">{d.titlu}</caption>
-            <thead>
-              <tr className="border-mk-rigla border-b">
-                {d.coloane.map((c, j) => (
-                  <th
-                    key={`${String(j)}-${c.eticheta}`}
-                    scope="col"
-                    className="px-2 py-1.5 font-medium whitespace-pre-line"
-                  >
-                    {c.eticheta}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {d.randuri.map((r, i) => (
-                <tr key={`${String(i)}-${r.join("|")}`} className="border-mk-rigla/40 border-b">
-                  {d.coloane.map((c, j) => (
-                    <td
-                      key={`${String(j)}-${c.eticheta}`}
-                      className={`h-7 px-2 ${d.umbrite.includes(j) ? "bg-mk-rigla/20" : ""}`}
-                    >
-                      {r[j] ?? ""}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Tabel legenda={d.titlu} coloane={d.coloane} randuri={d.randuri} umbrite={d.umbrite} />
       )}
+      {(d.tabeleSuplimentare ?? [])
+        .filter((t) => t.coloane.length > 0)
+        .map((t) => (
+          <div key={t.titlu} className="mt-6">
+            <p className="text-[0.9375rem] font-semibold">{t.titlu}</p>
+            <Tabel legenda={t.titlu} coloane={t.coloane} randuri={t.randuri} umbrite={[]} />
+          </div>
+        ))}
       {d.note.map((n) => (
         <p key={n} className="text-mk-text-slab mt-3 text-[0.8125rem]">
           {n}
