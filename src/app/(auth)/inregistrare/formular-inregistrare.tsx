@@ -25,7 +25,7 @@ const CLASA_CAMP =
 
 type Erori = Readonly<Record<string, readonly string[]>>;
 
-export function FormularInregistrare() {
+export function FormularInregistrare({ sursa = null }: Readonly<{ sursa?: string | null }>) {
   const idForm = useId();
   const [inCurs, porneste] = useTransition();
   const [erori, setErori] = useState<Erori>({});
@@ -48,6 +48,8 @@ export function FormularInregistrare() {
         // Schema cere `true` literal, deci conversia se face aici — altfel
         // mesajul de eroare ar vorbi despre tipuri, nu despre accept.
         acceptTermeni: date.get("acceptTermeni") === "on",
+        // Unealta din care a venit, citită pe server din UTM; nu e un câmp.
+        sursa,
       });
 
       if (rezultat.ok) {

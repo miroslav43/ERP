@@ -58,6 +58,13 @@ export const schemaInregistrare = z.object({
   acceptTermeni: z.literal(true, {
     error: "Trebuie să accepți termenii ca să putem crea contul.",
   }),
+  /*
+   * Unealta din care a venit vizitatorul (`utm_campaign` pe adresele puse de
+   * `adresaInregistrare`). `.catch(null)`: o valoare stricată devine „direct”,
+   * nu un formular respins — statistica nu are voie să coste un cont. Lista
+   * uneltelor o verifică `sursaConversiei`, nu schema.
+   */
+  sursa: z.string().max(80).nullish().catch(null),
 });
 
 export type InregistrareInput = z.input<typeof schemaInregistrare>;

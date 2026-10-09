@@ -1,5 +1,7 @@
 "use server";
 
+import { headers } from "next/headers";
+
 import { businessRule } from "@/lib/actions/errors";
 import { createPublicAction } from "@/lib/actions/public-action";
 import { generateazaTokenInvitatie } from "@/lib/auth/token-invitatie";
@@ -12,6 +14,7 @@ import { trimiteEmailInvitatie } from "@/lib/email/invitations";
 // nevoie de nicio directivă — una scrisă degeaba ar fi devenit ea însăși o
 // avertizare.
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { numaraConversia } from "@/lib/unelte/umami-server";
 import { ZILE_EXPIRARE_IMPLICIT } from "@/schemas/membership";
 
 import { schemaInregistrare } from "./schema";
@@ -109,6 +112,11 @@ export const inregistreazaFirma = createPublicAction({
     }
     const organizationId = rezultat.organization_id;
     const invitationId = rezultat.invitation_id;
+
+    // Contul se numără pe server, nu doar din browser: singurul cont venit
+    // dintr-o unealtă (30 sept 2026) lipsea cu totul din Umami. Fără IP și fără
+    // date din formular — doar `cont:<unealtă>` (`src/lib/unelte/masurare.ts`).
+    numaraConversia(input.sursa, await headers());
 
     let prinEmail = false;
     try {
