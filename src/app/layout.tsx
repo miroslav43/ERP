@@ -62,7 +62,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ro" className={`${inter.variable} h-full antialiased`}>
+    // `suppressHydrationWarning`: pe paginile publice, scriptul de consimțământ
+    // (`(marketing)/_componente/analitice.tsx`) pune `data-consimtamant` pe
+    // `<html>` la parsare, înaintea hidratării, ca bara să se vadă din primul
+    // cadru. Fără el, React raportează atributul ca nepotrivire. Acoperă doar
+    // atributele lui `<html>`, nu și copiii (K13, 9 oct 2026).
+    <html lang="ro" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="flex min-h-full flex-col">
         {children}
         {/*

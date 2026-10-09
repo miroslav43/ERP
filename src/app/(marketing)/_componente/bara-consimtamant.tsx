@@ -64,15 +64,18 @@ export function BaraConsimtamant() {
     window.dispatchEvent(new CustomEvent<Alegere>(EVENIMENT_CONSIMTAMANT, { detail: raspuns }));
   }
 
-  // Trei motive de a nu apărea: alegerea nu s-a citit încă (inclusiv la randarea
-  // pe server), e deja salvată, sau tocmai a fost dată în sesiunea asta.
-  if (salvat !== "nimic" || raspunsAcum !== null) return null;
+  // Două motive de a nu apărea: alegerea e deja salvată sau tocmai a fost dată.
+  // „necitit” (inclusiv pe server) RANDEAZĂ bara: dacă se vede o decide CSS-ul,
+  // după atributul pus pe <html> la parsare (`ATRIBUT_CONSIMTAMANT`). Așa bara
+  // se vopsește odată cu pagina, nu după hidratare (auditul din 8 oct 2026).
+  if (raspunsAcum !== null || salvat === "acceptat" || salvat === "refuzat") return null;
 
   return (
     <div
       role="region"
       aria-label="Cookie-uri de analiză"
       data-tipar="ascunde"
+      data-bara-consimtamant=""
       className="mk-cerneala bg-mk-cerneala text-mk-text-inv fixed inset-x-0 bottom-0 z-50 border-t border-(--color-mk-rigla-inv)"
     >
       {/* Pe telefon, bara ocupa 180 px din 844 (21%) și acoperea captura de sub

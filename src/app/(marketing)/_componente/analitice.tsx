@@ -3,7 +3,7 @@ import Script from "next/script";
 import { FUNCTIE_UMAMI } from "./adresa-analitice";
 import { BaraConsimtamant } from "./bara-consimtamant";
 import { BibliotecaGa } from "./biblioteca-ga";
-import { CHEIE_CONSIMTAMANT } from "./consimtamant";
+import { ATRIBUT_CONSIMTAMANT, CHEIE_CONSIMTAMANT } from "./consimtamant";
 import { MasurareCitire } from "./masurare-citire";
 import { PornireGa } from "./pornire-ga";
 import { PregatireUmami } from "./pregatire-umami";
@@ -48,8 +48,10 @@ export const ID_GA = "G-ZH3T2BSNJK";
  * Se scrie o singură dată, aici, ca șirul cheii de stocare să nu existe în două
  * locuri. `try`/`catch` fiindcă `localStorage` ARUNCĂ, nu întoarce null, în
  * fereastră privată și când browserul are stocarea blocată.
+ *
+ * Din 8 oct 2026 pune și `data-consimtamant="cere"` pe `<html>` când nu există o alegere: bara se arată din CSS, din primul cadru (`globals.css`).
  */
-const CONSIMTAMANT_IMPLICIT = `
+export const CONSIMTAMANT_IMPLICIT = `
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('consent','default',{
@@ -59,11 +61,14 @@ gtag('consent','default',{
   analytics_storage:'denied',
   wait_for_update:500
 });
-try{
-  if(localStorage.getItem('${CHEIE_CONSIMTAMANT}')==='acceptat'){
-    gtag('consent','update',{analytics_storage:'granted'});
-  }
-}catch(e){}
+var alegere=null;
+try{alegere=localStorage.getItem('${CHEIE_CONSIMTAMANT}');}catch(e){}
+if(alegere==='acceptat'){
+  gtag('consent','update',{analytics_storage:'granted'});
+}
+if(alegere!=='acceptat'&&alegere!=='refuzat'){
+  document.documentElement.setAttribute('${ATRIBUT_CONSIMTAMANT}','cere');
+}
 `;
 
 /**

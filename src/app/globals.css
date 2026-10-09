@@ -1187,3 +1187,18 @@ dialog[open]::backdrop {
     word-break: break-all;
   }
 }
+
+/*
+ * Bara de consimțământ: randată pe server, arătată din primul cadru.
+ *
+ * Scriptul de consimțământ (`analitice.tsx`) pune `data-consimtamant="cere"` pe
+ * `<html>` la parsare, înaintea barei din DOM, când nu există o alegere. Fără
+ * atribut — alegere deja făcută, sau JavaScript oprit, caz în care nici GA nu
+ * rulează — bara nu se vede. La tipar o ascunde regula `data-tipar` de mai sus.
+ */
+[data-bara-consimtamant] {
+  display: none;
+}
+:root[data-consimtamant="cere"] [data-bara-consimtamant] {
+  display: block;
+}
