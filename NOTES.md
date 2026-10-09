@@ -248,6 +248,27 @@ Vinerea Mare de la 16.03.2018 (Legea 64/2018), 6 și 7 ianuarie de la 09.03.2023
 7 ianuarie … din 2016”) e greșit și rămâne așa: migrarea e aplicată. Se adaugă și
 zilele pentru salariații aparținând altor culte religioase legale.
 
+### Unealta publică „Cerere de concediu” · `unelte/cerere-concediu-de-odihna/variante.ts`
+
+⚠️ Valorile scrise în documentul generat, verificate pe 8 oct 2026 pe formele
+consolidate de pe legislatie.just.ro, de confirmat de jurist: concediul paternal
+de 10 zile lucrătoare + 5 cu atestatul de puericultură, în primele 8 săptămâni
+de la naștere (Legea 210/1999 art. 2 și 4, documentul 20488, ultima modificare
+OUG 117/2022, aprobată prin Legea 196/2024) · concediul de îngrijitor de 5 zile
+lucrătoare pe an (art. 152¹ CM) · concediul plătit pentru formare de până la 10
+zile lucrătoare sau 80 de ore (art. 157 CM) · fracțiunea de 10 zile lucrătoare
+neîntrerupte (art. 148 alin. (5) CM) · zilele pentru evenimente din HG 250/1992
+art. 24 (5/3/3), afișate doar ca REPER pentru bugetari.
+
+**Confirmat de jurist (9 oct 2026):** interpretarea art. 139 alin. (2¹) și (3¹)
+din Codul muncii (documentul 128647 pe legislatie.just.ro): salariatul de alt cult
+creștin primește Vinerea Mare, Paștele și Rusaliile la datele cultului, ÎN LOCUL
+celor ortodoxe, deci unealta numără datele ortodoxe ca zile lucrătoare pentru el
+(`src/domain/calendar/sarbatori-cult.ts`). Temeiul rămâne citat pe pagină.
+
+**Fără regulă legală:** proporția „drept ÷ 12 × lunile lucrate” din
+`/unelte/calculator-zile-concediu` — practică, nu articol (ca la `leave_types`).
+
 ### Diurne · `per_diem_policies`, `per_diem_country_rates`
 
 ⚠️ Baremul intern pentru instituții publice și multiplul de plafonare · baremul
