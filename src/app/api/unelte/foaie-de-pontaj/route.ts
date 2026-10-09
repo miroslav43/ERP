@@ -9,6 +9,7 @@ import {
 } from "@/app/(marketing)/unelte/foaie-de-pontaj/pontaj";
 import { EroareIntrare, type Format } from "@/lib/unelte/document-tabelar";
 import { raspunsBinar, raspunsDocumente } from "@/lib/unelte/raspuns";
+import { cuNumarare } from "@/lib/unelte/umami-server";
 
 /**
  * Descărcarea foii de pontaj gratuite: colectivă sau câte o fișă pe om, în
@@ -42,7 +43,7 @@ function normalizeazaFormatFoaie(brut: string | null): Format {
   return format === "pdf" || format === "docx" ? format : "xlsx";
 }
 
-export async function GET(cerere: NextRequest): Promise<Response> {
+async function genereaza(cerere: NextRequest): Promise<Response> {
   const q = cerere.nextUrl.searchParams;
   try {
     const pontaj = construiestePontaj(parametriPontaj(q));
@@ -59,3 +60,9 @@ export async function GET(cerere: NextRequest): Promise<Response> {
     throw eroare;
   }
 }
+
+/**
+ * Descărcarea se numără pe server, după răspuns și fără IP (`src/lib/unelte/
+ * masurare.ts`): Umami din browser nu-l vede pe cine blochează măsurarea.
+ */
+export const GET = cuNumarare(genereaza);

@@ -1,5 +1,6 @@
 // src/app/(marketing)/unelte/calculator-salariu/page.tsx
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
@@ -13,7 +14,9 @@ import {
   VERIFICARE,
 } from "@/content/legal/salarizare-publica";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { evenimentCalcul } from "@/lib/unelte/masurare";
 import { bazaMinimaContributii, dinBrut, type RezultatSalariu } from "@/lib/unelte/salariu";
+import { programeaza } from "@/lib/unelte/umami-server";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -201,6 +204,10 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
     avertismente,
     expirat,
   } = calculeazaDinParametri(q, todayInBucharest());
+  // Calculul se numără pe server, după răspuns (`after`), ca descărcările: fără
+  // IP, fără sumă — doar perioada, sensul și treapta brutului
+  // (`src/lib/unelte/date-eveniment.ts`). Fără `?suma=` nu pleacă nimic.
+  programeaza(evenimentCalcul(await headers(), q, rezultat?.brut ?? null));
   const laMinim = dinBrut(SALARIU_MINIM_BRUT_2026_IULIE, 0, true);
 
   return (

@@ -47,3 +47,18 @@ describe("promisiunea de pe /unelte", () => {
     expect(pagina).toContain('href="/legal/confidentialitate#sectiunea-2"');
   });
 });
+
+describe("numărarea pe server a uneltelor", () => {
+  it("politica spune ce se numără pe server și ce nu pleacă", () => {
+    expect(politica).toMatch(/se numără și pe server/u);
+    expect(politica).toMatch(/fără adresa IP/u);
+    expect(politica).toMatch(/fără identificarea browserului/u);
+    expect(politica).toMatch(/fără nume, firmă, CUI, traseu, text scris de tine sau sume exacte/u);
+  });
+
+  it("spune și ce câmpuri însoțesc numărătoarea (cerut pe 9 oct 2026)", () => {
+    expect(politica).toMatch(/câți angajați are lista, nu numele lor/u);
+    expect(politica).toMatch(/perioada calculatorului/u);
+    expect(politica).toMatch(/trepte largi/u);
+  });
+});

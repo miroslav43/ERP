@@ -7,6 +7,7 @@ import {
 import { EroareIntrare, numeFisierSigur } from "@/lib/unelte/document-tabelar";
 import { randeazaScrisoareDocx } from "@/lib/unelte/scrisoare-docx";
 import { randeazaScrisoarePdf } from "@/lib/unelte/scrisoare-pdf";
+import { cuNumarare } from "@/lib/unelte/umami-server";
 
 /**
  * Descărcarea cererii de concediu: `/api/unelte/cerere-concediu?format=pdf|docx&…`.
@@ -57,7 +58,7 @@ function esteNavigare(cerere: Request): boolean {
   );
 }
 
-export async function GET(cerere: NextRequest): Promise<Response> {
+async function genereaza(cerere: NextRequest): Promise<Response> {
   const q = cerere.nextUrl.searchParams;
   try {
     const format = citesteFormat(q.get("format"));
@@ -98,3 +99,9 @@ export async function GET(cerere: NextRequest): Promise<Response> {
     });
   }
 }
+
+/**
+ * Descărcarea se numără pe server, după răspuns și fără IP (`src/lib/unelte/
+ * masurare.ts`): Umami din browser nu-l vede pe cine blochează măsurarea.
+ */
+export const GET = cuNumarare(genereaza);

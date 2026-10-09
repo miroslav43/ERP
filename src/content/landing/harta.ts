@@ -510,6 +510,7 @@ export const PAGINI: readonly Pagina[] = [
     traducere: null,
     // 9 oct: uneltele gratuite, jurnalul de acces, excepția GA (secțiunile 2, 3, 8);
     // tot 9 oct: pe /unelte, biblioteca GA abia după „Accept” (secțiunea 8).
+    // 2026-10-09: numărarea pe server a uneltelor, în secțiunea 8.
     actualizat: "2026-10-09",
     sectiune: "Legal",
   },

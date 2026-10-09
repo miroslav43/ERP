@@ -7,6 +7,7 @@ import {
 } from "@/app/(marketing)/unelte/fisa-evaluare/model";
 import { curataDocument, normalizeazaFormat } from "@/lib/unelte/document-tabelar";
 import { raspunsBinar, raspunsDocument } from "@/lib/unelte/raspuns";
+import { cuNumarare } from "@/lib/unelte/umami-server";
 
 /**
  * Descărcarea fișei de evaluare: `/api/unelte/fisa-evaluare?format=pdf|docx|xlsx&…`.
@@ -22,7 +23,7 @@ import { raspunsBinar, raspunsDocument } from "@/lib/unelte/raspuns";
  */
 export const dynamic = "force-dynamic";
 
-export async function GET(cerere: NextRequest): Promise<Response> {
+async function genereaza(cerere: NextRequest): Promise<Response> {
   const q = cerere.nextUrl.searchParams;
   const parametri = parametriFisaEvaluare(q);
   const document = { ...construiesteFisaEvaluare(parametri), sursa: "/unelte/fisa-evaluare" };
@@ -33,3 +34,9 @@ export async function GET(cerere: NextRequest): Promise<Response> {
   const curat = curataDocument(document);
   return raspunsBinar(await randeazaXlsxEvaluare(curat, parametri), "xlsx", curat.numeFisier);
 }
+
+/**
+ * Descărcarea se numără pe server, după răspuns și fără IP (`src/lib/unelte/
+ * masurare.ts`): Umami din browser nu-l vede pe cine blochează măsurarea.
+ */
+export const GET = cuNumarare(genereaza);

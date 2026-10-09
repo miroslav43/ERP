@@ -7,6 +7,7 @@ import {
 } from "@/app/(marketing)/unelte/condica-de-prezenta/model";
 import { EroareIntrare, normalizeazaFormat } from "@/lib/unelte/document-tabelar";
 import { raspunsBinar, raspunsDocument } from "@/lib/unelte/raspuns";
+import { cuNumarare } from "@/lib/unelte/umami-server";
 
 /**
  * Descărcarea condicii: `/api/unelte/condica-de-prezenta?format=pdf|docx|xlsx&…`.
@@ -19,7 +20,7 @@ import { raspunsBinar, raspunsDocument } from "@/lib/unelte/raspuns";
  */
 export const dynamic = "force-dynamic";
 
-export async function GET(cerere: NextRequest): Promise<Response> {
+async function genereaza(cerere: NextRequest): Promise<Response> {
   const q = cerere.nextUrl.searchParams;
   try {
     const p = parametriCondica(q);
@@ -32,3 +33,9 @@ export async function GET(cerere: NextRequest): Promise<Response> {
     throw eroare;
   }
 }
+
+/**
+ * Descărcarea se numără pe server, după răspuns și fără IP (`src/lib/unelte/
+ * masurare.ts`): Umami din browser nu-l vede pe cine blochează măsurarea.
+ */
+export const GET = cuNumarare(genereaza);

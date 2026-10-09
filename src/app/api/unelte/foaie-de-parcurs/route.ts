@@ -7,6 +7,7 @@ import {
 } from "@/app/(marketing)/unelte/foaie-de-parcurs/model";
 import { normalizeazaFormat } from "@/lib/unelte/document-tabelar";
 import { raspunsBinar, raspunsDocument } from "@/lib/unelte/raspuns";
+import { cuNumarare } from "@/lib/unelte/umami-server";
 
 /**
  * Descărcarea foii de parcurs: `/api/unelte/foaie-de-parcurs?format=pdf|docx|xlsx&…`.
@@ -22,7 +23,7 @@ import { raspunsBinar, raspunsDocument } from "@/lib/unelte/raspuns";
  */
 export const dynamic = "force-dynamic";
 
-export async function GET(cerere: NextRequest): Promise<Response> {
+async function genereaza(cerere: NextRequest): Promise<Response> {
   const q = cerere.nextUrl.searchParams;
   const p = parametriFoaieParcurs(q);
   const d = { ...construiesteFoaieParcurs(p), sursa: "/unelte/foaie-de-parcurs" };
@@ -30,3 +31,9 @@ export async function GET(cerere: NextRequest): Promise<Response> {
   if (format !== "xlsx") return raspunsDocument(d, format);
   return raspunsBinar(await randeazaFoaieParcursXlsx(p, d), "xlsx", d.numeFisier);
 }
+
+/**
+ * Descărcarea se numără pe server, după răspuns și fără IP (`src/lib/unelte/
+ * masurare.ts`): Umami din browser nu-l vede pe cine blochează măsurarea.
+ */
+export const GET = cuNumarare(genereaza);

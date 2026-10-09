@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { EroareIntrare, normalizeazaFormat, type Format } from "@/lib/unelte/document-tabelar";
 import { constructorPentru, formatePentru } from "@/lib/unelte/registru";
 import { raspunsDocument } from "@/lib/unelte/raspuns";
+import { cuNumarare } from "@/lib/unelte/umami-server";
 
 /**
  * Descărcarea uneltelor gratuite: `/api/unelte/<slug>?format=pdf|docx|xlsx&…`.
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 const NUME_FORMAT: Readonly<Record<Format, string>> = { pdf: "PDF", docx: "Word", xlsx: "Excel" };
 
-export async function GET(
+async function genereaza(
   cerere: NextRequest,
   { params }: { params: Promise<{ unealta: string }> },
 ): Promise<Response> {
@@ -38,3 +39,9 @@ export async function GET(
     throw eroare;
   }
 }
+
+/**
+ * Descărcarea se numără pe server, după răspuns și fără IP (`src/lib/unelte/
+ * masurare.ts`): Umami din browser nu-l vede pe cine blochează măsurarea.
+ */
+export const GET = cuNumarare(genereaza);
