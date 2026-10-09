@@ -1,6 +1,6 @@
 import type { DocumentTabelar } from "@/lib/unelte/document-tabelar";
 
-import type { Foaie } from "./foaie";
+import { textNorma, type Foaie } from "./foaie";
 
 /**
  * Foaia de pontaj ca `DocumentTabelar`, pentru PDF și Word.
@@ -14,7 +14,7 @@ export function foaieCaDocument(foaie: Foaie, notaAngajati: string | null = null
   const listaSarbatori = sarbatori.map((z) => `${String(z.zi)} ${z.sarbatoare ?? ""}`).join("; ");
   return {
     titlu: `Foaie colectivă de prezență — ${foaie.eticheta}`,
-    subtitlu: `${String(foaie.zileLucratoare)} zile lucrătoare × ${String(foaie.oreZi)} h = ${String(foaie.normaLunara)} h normă`,
+    subtitlu: textNorma(foaie),
     campuri: [],
     paragrafe: [],
     coloane: [

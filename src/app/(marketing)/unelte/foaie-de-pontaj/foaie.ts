@@ -1,5 +1,6 @@
 import { cuDe } from "@/content/legal/zile-libere";
 import { sarbatoriDupaZi } from "@/domain/calendar/sarbatori";
+import { formatOre } from "@/lib/format/ore";
 import { curataText } from "@/lib/unelte/document-tabelar";
 
 /**
@@ -198,6 +199,22 @@ export function construiesteFoaie(
     angajati,
     oreZi,
     zileLucratoare,
-    normaLunara: zileLucratoare * oreZi,
+    // În minute întregi, apoi înapoi în ore: 21 × 7,3 dădea 153,29999999999998.
+    normaLunara: Math.round(zileLucratoare * oreZi * 60) / 60,
   };
+}
+
+/**
+ * Orele foii, în ceas: `8` → „8 h”, `7.5` → „7:30 h”, `153.3` → „153:18 h”.
+ *
+ * Regula produsului (`src/lib/format/ore.ts`): fără „8,5 ore” și fără „7.5”.
+ * Orele întregi rămân fără „:00”, ca pe foaia de hârtie.
+ */
+export function oreFoaie(ore: number): string {
+  return `${formatOre(ore).replace(/:00$/u, "")} h`;
+}
+
+/** „21 de zile lucrătoare × 8 h = 168 h normă”: același text pe pagină, în PDF, Word și Excel. */
+export function textNorma(foaie: Foaie): string {
+  return `${cuDe(foaie.zileLucratoare, "zile lucrătoare")} × ${oreFoaie(foaie.oreZi)} = ${oreFoaie(foaie.normaLunara)} normă`;
 }

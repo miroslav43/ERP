@@ -59,4 +59,10 @@ describe("ruta foii de pontaj", () => {
     expect(siruri).toContain("Maria");
     expect(siruri).not.toContain("\u{FFFE}");
   });
+
+  it("Excelul scrie norma în ceas, fără virgulă mobilă", async () => {
+    const siruri = await parte(await cere("an=2026&luna=6&ore=7.3"), "xl/sharedStrings.xml");
+    expect(siruri).toContain("21 de zile lucrătoare × 7:18 h = 153:18 h normă");
+    expect(siruri).not.toContain("153.2999");
+  });
 });

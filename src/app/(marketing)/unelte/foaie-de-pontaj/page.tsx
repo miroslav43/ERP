@@ -26,6 +26,7 @@ import {
   normalizeazaOre,
   AN_MAX,
   AN_MIN,
+  textNorma,
 } from "./foaie";
 
 /**
@@ -166,11 +167,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
         </form>
 
         <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-2" data-tipar="ascunde">
-          <p className="text-mk-text-slab text-[0.9375rem]">
-            <span className="font-mk-date text-mk-text">{foaie.zileLucratoare}</span> zile
-            lucrătoare · <span className="font-mk-date text-mk-text">{foaie.normaLunara}</span> ore
-            normă
-          </p>
+          <p className="font-mk-date text-mk-text text-[0.9375rem]">{textNorma(foaie)}</p>
         </div>
         <AvizCorectari avize={avizAngajati(lista)} />
       </Banda>
@@ -182,7 +179,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
               Foaie colectivă de prezență · {foaie.eticheta}
             </p>
             <p className="font-mk-date text-mk-text-slab text-[0.6875rem] tracking-[0.08em] uppercase">
-              {foaie.zileLucratoare} zile lucrătoare × {foaie.oreZi} h = {foaie.normaLunara} h
+              {textNorma(foaie)}
             </p>
           </figcaption>
 

@@ -8,6 +8,7 @@ import {
   normalizeazaLuna,
   normalizeazaOre,
   notaOmisi,
+  textNorma,
 } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie";
 import { foaieCaDocument } from "@/app/(marketing)/unelte/foaie-de-pontaj/foaie-document";
 import { ADRESA_SITE } from "@/content/landing/contact";
@@ -86,9 +87,7 @@ export async function GET(cerere: NextRequest): Promise<Response> {
 
   const titlu = fila.addRow([`Foaie colectivă de prezență — ${foaie.eticheta}`]);
   titlu.font = { bold: true, size: 13 };
-  fila.addRow([
-    `${foaie.zileLucratoare} zile lucrătoare × ${foaie.oreZi} h = ${foaie.normaLunara} h normă`,
-  ]);
+  fila.addRow([textNorma(foaie)]);
   fila.addRow([]);
 
   const capZile = fila.addRow(["Angajat", ...foaie.zile.map((z) => z.zi), "Total"]);

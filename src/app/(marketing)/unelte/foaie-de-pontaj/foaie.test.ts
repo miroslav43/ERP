@@ -6,6 +6,8 @@ import {
   construiesteFoaie,
   normalizeazaAngajati,
   notaOmisi,
+  oreFoaie,
+  textNorma,
 } from "./foaie";
 
 /**
@@ -133,5 +135,35 @@ describe("avizul și nota pentru lista tăiată", () => {
 
   it("fără nimic tăiat, niciun aviz", () => {
     expect(avizAngajati(citesteAngajati("Popa Ion\nIlie Maria"))).toEqual([]);
+  });
+});
+
+/**
+ * Regula produsului (`src/lib/format/ore.ts`): orele se scriu în ceas, nu în
+ * zecimale. Pe 8 oct 2026, `ore=7.3` pe iunie 2026 afișa
+ * „153.29999999999998 h normă”, cu punct.
+ */
+describe("orele foii", () => {
+  it("norma nu poartă erori de virgulă mobilă: 21 × 7:18 h = 153:18 h", () => {
+    const f = construiesteFoaie(2026, 6, ["A"], 7.3);
+    expect(f.zileLucratoare).toBe(21);
+    expect(f.normaLunara).toBe(153.3);
+    expect(textNorma(f)).toBe("21 de zile lucrătoare × 7:18 h = 153:18 h normă");
+  });
+
+  it("orele întregi rămân fără „:00”, jumătățile în ceas", () => {
+    expect(oreFoaie(8)).toBe("8 h");
+    expect(oreFoaie(7.5)).toBe("7:30 h");
+    expect(oreFoaie(168)).toBe("168 h");
+    expect(oreFoaie(1198)).toBe("1.198 h");
+  });
+
+  it("„de” apare de la 20 în sus", () => {
+    expect(textNorma(construiesteFoaie(2026, 12, ["A"], 8))).toBe(
+      "21 de zile lucrătoare × 8 h = 168 h normă",
+    );
+    expect(textNorma(construiesteFoaie(2026, 1, ["A"], 8))).toBe(
+      "18 zile lucrătoare × 8 h = 144 h normă",
+    );
   });
 });
