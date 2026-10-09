@@ -141,3 +141,20 @@ describe("parametrii calculatorului de salariu", () => {
     expect(calculeazaDinParametri(new URLSearchParams(), AZI).expirat).toBe(false);
   });
 });
+
+describe("net → brut, din adresă", () => {
+  it("un net mai mic decât cel de la minim: brutul e minimul, cu explicație", () => {
+    const r = calculeazaDinParametri(q({ suma: "2614", din: "net" }), AZI);
+    expect(r.rezultat?.brut).toBe(4325);
+    expect(r.ridicatLaMinim).toBe(true);
+    expect(r.subMinim).toBe(false);
+  });
+
+  it("un net de neatins primește un mesaj, nu un calcul pentru alt net", () => {
+    const r = calculeazaDinParametri(q({ suma: "300.000", din: "net" }), AZI);
+    expect(r.rezultat).toBeNull();
+    expect(r.eroare).toBe(
+      "Pentru un net de 300.000 lei ar trebui un brut de peste 500.000 lei, cât acoperă calculatorul.",
+    );
+  });
+});

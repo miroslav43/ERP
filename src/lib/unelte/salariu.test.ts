@@ -22,10 +22,11 @@ describe("calculul public de salariu", () => {
     expect(celMaiMareRecul).toBeLessThanOrEqual(5);
   });
 
-  it("dinNet întoarce CEL MAI MIC brut care atinge netul cerut, și lângă praguri", () => {
-    const bruturi = Array.from({ length: 1201 }, (_, i) => 3500 + i);
+  it("dinNet întoarce CEL MAI MIC brut LEGAL care atinge netul cerut, și lângă praguri", () => {
+    // Bruturile încep la salariul minim: sub el, niciun brut nu e un răspuns (auditul din 8 oct 2026).
+    const bruturi = Array.from({ length: 1201 }, (_, i) => 4325 + i);
     const neturi = bruturi.map((b) => dinBrut(b, 0, true).net);
-    for (const tinta of [2600, 2642.13, 2643, 2650, 2700]) {
+    for (const tinta of [2600, 2700, 2710, 2731.5, 2750, 3000]) {
       const minim = bruturi.find((_, i) => (neturi[i] ?? 0) >= tinta);
       expect(dinNet(tinta, 0, true).brut, String(tinta)).toBe(minim);
     }
@@ -60,6 +61,8 @@ describe("calculul public de salariu", () => {
     const r = dinNet(2700, 1, true);
     expect(r.brut).toBe(4325);
     expect(r.net).toBeGreaterThanOrEqual(2700);
+    // Fără persoane, cazul pe care testul vechi nu-l acoperea: 2.614 întorcea 4.320.
+    expect(dinNet(2614, 0, true).brut).toBe(4325);
   });
 
   it("persoanele în întreținere nu scad netul, iar funcția de bază contează", () => {
@@ -151,8 +154,8 @@ describe("perioada ianuarie–iunie 2026", () => {
 
   it("net 2.575 cere 4.280 de lei brut: capcana de după minim e mai lungă în prima jumătate", () => {
     // Peste 4.050, cei 300 de lei scutiți se pierd: netul revine peste 2.574 abia la 4.280.
-    expect(calculeazaDinNet(2575, S1).brut).toBe(4280);
-    expect(calculeazaDinNet(2574, S1).brut).toBe(4050);
+    expect(calculeazaDinNet(2575, S1)?.rezultat.brut).toBe(4280);
+    expect(calculeazaDinNet(2574, S1)?.rezultat.brut).toBe(4050);
   });
 });
 
@@ -167,5 +170,56 @@ describe("rotunjirea la leu nu mai depinde de virgula mobilă", () => {
 
   it("brut 5.415: CASS 541,50 → 542", () => {
     expect(dinBrut(5415, 0, true).cass).toBe(542);
+  });
+});
+
+describe("net → brut nu coboară sub minimul legal și nu plafonează tăcut", () => {
+  it("fără persoane, orice net sub 2.699 întoarce 4.325, marcat ca ridicare la minim", () => {
+    // Auditul din 8 oct 2026, live: 2.614 → 4.320, 2.500 → 4.127, 1.500 → 2.417.
+    for (const tinta of [2614, 2500, 1500, 1]) {
+      const r = calculeazaDinNet(tinta, OPTIUNI_IMPLICITE);
+      expect(r?.rezultat.brut, String(tinta)).toBe(4325);
+      expect(r?.rezultat.net, String(tinta)).toBe(2699);
+      expect(r?.ridicatLaMinim, String(tinta)).toBe(true);
+    }
+  });
+
+  it("exact netul de la minim nu e o ridicare", () => {
+    expect(calculeazaDinNet(2699, OPTIUNI_IMPLICITE)).toMatchObject({
+      ridicatLaMinim: false,
+      rezultat: { brut: 4325 },
+    });
+  });
+
+  it("în ianuarie–iunie, minimul legal e 4.050", () => {
+    const r = calculeazaDinNet(2000, { ...OPTIUNI_IMPLICITE, perioada: "2026-1" });
+    expect(r?.rezultat.brut).toBe(4050);
+    expect(r?.ridicatLaMinim).toBe(true);
+  });
+
+  it("un net peste ce dă brutul de 500.000 de lei e refuzat, nu plafonat", () => {
+    // 500.000 brut: CAS 125.000, CASS 50.000, fără deducere; impozit 32.500; net 292.500.
+    expect(calculeazaDinNet(292_500, OPTIUNI_IMPLICITE)?.rezultat.brut).toBe(500_000);
+    expect(calculeazaDinNet(292_501, OPTIUNI_IMPLICITE)).toBeNull();
+    expect(calculeazaDinNet(500_000, OPTIUNI_IMPLICITE)).toBeNull();
+  });
+
+  it("lângă pragul de minim + 2.000, cu 3–4 persoane, brutul nu iese cu 100+ lei prea mare", () => {
+    // Live, 8 oct 2026: net 3.715 cu 4 persoane → brut 6.291 (net 3.788), iar 6.153 dă exact 3.715.
+    // 6.153: minim + 1.828, pasul 37, 45% − 18,5 = 26,5% × 4.325 = 1.146,13 → 1.146.
+    // Impozit (6.153 − 1.538,25 − 615,3 − 1.146) × 10% = 285,345 → 285; net 6.153 − 1.538 − 615 − 285 = 3.715.
+    expect(dinNet(3715, 4, true).brut).toBe(6153);
+    expect(dinNet(3800, 4, true).brut).toBe(6311);
+    for (const persoane of [3, 4]) {
+      const bruturi = Array.from({ length: 2400 }, (_, i) => 4325 + i);
+      const neturi = bruturi.map((b) => dinBrut(b, persoane, true).net);
+      for (let tinta = 3600; tinta <= 3900; tinta += 5) {
+        const minim = bruturi.find((_, i) => (neturi[i] ?? 0) >= tinta);
+        expect(
+          dinNet(tinta, persoane, true).brut,
+          `${String(persoane)} pers., ${String(tinta)}`,
+        ).toBe(minim);
+      }
+    }
   });
 });

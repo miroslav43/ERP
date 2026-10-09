@@ -1,4 +1,8 @@
-import { PERIOADE_2026, type Perioada } from "@/content/legal/salarizare-publica";
+import {
+  PERIOADE_2026,
+  type Perioada,
+  PLAFON_DEDUCERE_PESTE_MINIM,
+} from "@/content/legal/salarizare-publica";
 import { calculatePayrollEntry, type PayrollCalcInput } from "@/domain/payroll/calc";
 
 /**
@@ -123,11 +127,29 @@ const RECUL_MAXIM_LEI = 60;
  * mai mic — de aceea se caută înapoi, leu cu leu, o treaptă întreagă. Un brut cu
  * câțiva lei prea mare ar fi bani în plus pentru angajator.
  */
-export function calculeazaDinNet(net: number, optiuni: OptiuniSalariu): RezultatSalariu {
-  const tinta = margineste(net, BRUT_MIN, BRUT_MAX);
+function celMaiMicBrut(tinta: number, optiuni: OptiuniSalariu): RezultatSalariu {
   const calc = (b: number) => calculeazaDinBrut(b, optiuni);
-  let jos = BRUT_MIN;
-  let sus = BRUT_MAX;
+  // Pragul deducerii (art. 77 alin. (3), minim + 2.000 de lei). Peste el, deducerea
+  // de bază dispare dintr-o dată (la 4 persoane, 25% × 4.325 = 1.081 de lei) și
+  // netul cade cu peste 100 de lei. Căutarea înapoi de 60 de lei nu trecea peste
+  // cădere: net 3.715 cu 4 persoane întorcea 6.291 (net 3.788) în loc de 6.153,
+  // adică 138 de lei de brut în plus (live, 8 oct 2026). Sub prag și peste el,
+  // netul e aproape monoton, așa că se caută doar în partea care conține răspunsul.
+  const prag = Math.max(
+    BRUT_MIN,
+    Math.floor(PERIOADE_2026[optiuni.perioada].salariuMinim + PLAFON_DEDUCERE_PESTE_MINIM),
+  );
+  // Sub prag, netul e cel mai mare în ultimii lei dinaintea lui. O rotunjire de 50
+  // de bani îl poate muta cu un leu (cu tichete, CASS 632,50 → 633 la 5.425 face
+  // netul de acolo mai mic decât cel de la 5.424), deci se încearcă ultimii cinci
+  // lei. Dacă niciunul nu atinge ținta, niciun brut de dedesubt n-o atinge, iar
+  // brutul găsit devine capătul de sus al bisecției, care rămâne valid.
+  let atinsSubPrag: number | null = null;
+  for (let b = prag; b >= Math.max(BRUT_MIN, prag - 5) && atinsSubPrag === null; b -= 1) {
+    if (calc(b).net >= tinta) atinsSubPrag = b;
+  }
+  let jos = atinsSubPrag === null ? prag : BRUT_MIN;
+  let sus = atinsSubPrag ?? BRUT_MAX;
   for (let i = 0; i < 60 && sus - jos > 0.01; i += 1) {
     const mijloc = (jos + sus) / 2;
     if (calc(mijloc).net < tinta) jos = mijloc;
@@ -154,11 +176,47 @@ export function calculeazaDinNet(net: number, optiuni: OptiuniSalariu): Rezultat
   return ales;
 }
 
+/** Brutul minim legal pentru opțiunile alese: salariul minim al perioadei, la normă întreagă. */
+export function brutMinimLegal(o: OptiuniSalariu): number {
+  return PERIOADE_2026[o.perioada].salariuMinim;
+}
+
+export type RezultatNet = Readonly<{
+  rezultat: RezultatSalariu;
+  /** Netul cerut era sub cel de la brutul minim legal: s-a întors brutul minim, nu unul ilegal. */
+  ridicatLaMinim: boolean;
+}>;
+
+/**
+ * Net → brut, cu două refuzuri pe față:
+ * - un net peste ce dă brutul maxim întoarce `null` (era „Net 292.500 din brut
+ *   500.000” pentru un net cerut de 500.000);
+ * - un net sub cel de la brutul minim legal întoarce brutul minim legal, marcat:
+ *   auditul din 8 oct 2026 a găsit 2.614 → 4.320, 2.500 → 4.127, 1.500 → 2.417,
+ *   salarii pe care nu le poți plăti.
+ */
+export function calculeazaDinNet(net: number, optiuni: OptiuniSalariu): RezultatNet | null {
+  const tinta = margineste(net, BRUT_MIN, BRUT_MAX);
+  if (calculeazaDinBrut(BRUT_MAX, optiuni).net < tinta) return null;
+  const ales = celMaiMicBrut(tinta, optiuni);
+  const minim = brutMinimLegal(optiuni);
+  if (ales.brut >= minim) return { rezultat: ales, ridicatLaMinim: false };
+  let b = Math.ceil(minim);
+  let r = calculeazaDinBrut(b, optiuni);
+  for (let pas = 0; r.net < tinta && pas < 4 * RECUL_MAXIM_LEI && b < BRUT_MAX; pas += 1) {
+    b += 1;
+    r = calculeazaDinBrut(b, optiuni);
+  }
+  return { rezultat: r, ridicatLaMinim: true };
+}
+
 /** Forma scurtă, cu valorile din iulie–decembrie 2026 (ghidul salariului minim, viniețele). */
 export function dinBrut(brut: number, persoane: number, functieDeBaza: boolean): RezultatSalariu {
   return calculeazaDinBrut(brut, { ...OPTIUNI_IMPLICITE, persoane, functieDeBaza });
 }
 
+/** Netul de neatins cade pe brutul maxim: forma scurtă nu are cum să spună „nu se poate”. */
 export function dinNet(net: number, persoane: number, functieDeBaza: boolean): RezultatSalariu {
-  return calculeazaDinNet(net, { ...OPTIUNI_IMPLICITE, persoane, functieDeBaza });
+  const o: OptiuniSalariu = { ...OPTIUNI_IMPLICITE, persoane, functieDeBaza };
+  return calculeazaDinNet(net, o)?.rezultat ?? calculeazaDinBrut(BRUT_MAX, o);
 }

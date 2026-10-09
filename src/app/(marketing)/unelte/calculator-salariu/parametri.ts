@@ -6,11 +6,15 @@ import {
 } from "@/content/legal/salarizare-publica";
 import { parseAmount } from "@/lib/format/money";
 import {
+  BRUT_MAX,
+  brutMinimLegal,
   calculeazaDinBrut,
   calculeazaDinNet,
   type OptiuniSalariu,
   type RezultatSalariu,
 } from "@/lib/unelte/salariu";
+
+import { lei } from "./lei";
 
 /**
  * Intrările calculatorului din adresă, normalizate, și calculul lor.
@@ -122,25 +126,51 @@ export type CalculCalculator = Readonly<{
   /** Brutul minim legal pentru opțiunile alese: pragul lui `subMinim`. */
   minimLegal: number;
   subMinim: boolean;
+  /** Netul cerut era sub cel de la brutul minim legal; brutul afișat e minimul. */
+  ridicatLaMinim: boolean;
   /** Ziua de azi e după ultima perioadă cu valori verificate (31 decembrie 2026). */
   expirat: boolean;
 }>;
 
 export function calculeazaDinParametri(q: URLSearchParams, azi: string): CalculCalculator {
   const p = parametriCalculator(q, azi);
-  const minimLegal = PERIOADE_2026[p.optiuni.perioada].salariuMinim;
+  const minimLegal = brutMinimLegal(p.optiuni);
   const expirat = valoriExpirate(azi);
-  if (p.suma === null) {
-    return { parametri: p, rezultat: null, eroare: p.eroare, minimLegal, subMinim: false, expirat };
+  const faraRezultat = (eroare: string | null): CalculCalculator => ({
+    parametri: p,
+    rezultat: null,
+    eroare,
+    minimLegal,
+    subMinim: false,
+    ridicatLaMinim: false,
+    expirat,
+  });
+  if (p.suma === null) return faraRezultat(p.eroare);
+  if (p.din === "brut") {
+    const rezultat = calculeazaDinBrut(p.suma, p.optiuni);
+    return {
+      parametri: p,
+      rezultat,
+      eroare: null,
+      minimLegal,
+      subMinim: rezultat.brut < minimLegal,
+      ridicatLaMinim: false,
+      expirat,
+    };
   }
-  const rezultat =
-    p.din === "net" ? calculeazaDinNet(p.suma, p.optiuni) : calculeazaDinBrut(p.suma, p.optiuni);
+  const r = calculeazaDinNet(p.suma, p.optiuni);
+  if (r === null) {
+    return faraRezultat(
+      `Pentru un net de ${lei(p.suma)} ar trebui un brut de peste ${lei(BRUT_MAX)}, cât acoperă calculatorul.`,
+    );
+  }
   return {
     parametri: p,
-    rezultat,
+    rezultat: r.rezultat,
     eroare: null,
     minimLegal,
-    subMinim: rezultat.brut < minimLegal,
+    subMinim: r.rezultat.brut < minimLegal,
+    ridicatLaMinim: r.ridicatLaMinim,
     expirat,
   };
 }

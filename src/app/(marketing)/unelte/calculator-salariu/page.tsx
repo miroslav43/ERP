@@ -118,10 +118,8 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
   }
   // Ziua din România alege perioada implicită și spune când valorile au expirat.
   // Pagina e oricum dinamică (citește `searchParams`), deci ceasul nu se îngheață la build.
-  const { parametri, rezultat, eroare, minimLegal, subMinim, expirat } = calculeazaDinParametri(
-    q,
-    todayInBucharest(),
-  );
+  const { parametri, rezultat, eroare, minimLegal, subMinim, ridicatLaMinim, expirat } =
+    calculeazaDinParametri(q, todayInBucharest());
   const laMinim = dinBrut(SALARIU_MINIM_BRUT_2026_IULIE, 0, true);
 
   return (
@@ -183,6 +181,12 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
               <p className="text-mk-text-slab mt-4 max-w-[68ch] text-[0.875rem] leading-[1.6]">
                 Suma avea bani; calculatorul lucrează în lei întregi, deci am calculat pentru{" "}
                 {lei(parametri.suma)}.
+              </p>
+            )}
+            {ridicatLaMinim && (
+              <p className="border-mk-cerneala mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]">
+                Netul cerut e mai mic decât cel de la brutul minim legal. Brutul nu poate coborî sub{" "}
+                {lei(minimLegal)}, deci acesta e brutul, iar netul real iese {lei(rezultat.net)}.
               </p>
             )}
             <div className="mt-6">
