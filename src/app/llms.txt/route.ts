@@ -149,7 +149,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/unelte/calculator-salariu",
-    "Unealtă gratuită: calculator de salariu net din brut și brut din net, la valorile din iulie–decembrie 2026 — salariul minim de 4.325 lei (HG 146/2026), cei 200 de lei neimpozabili la salariul minim (OUG 89/2025 art. III), deducerea personală din art. 77, CAS 25%, CASS 10%, impozit 10%, CAM 2,25%, sume rotunjite la leu. Exemple: 4.325 brut → 2.699 net; 5.000 brut → 2.981 net.",
+    "Unealtă gratuită: calculator de salariu net din brut și brut din net, pentru ianuarie–iunie 2026 (salariul minim de 4.050 lei, HG 1506/2024, cu 300 de lei neimpozabili) și iulie–decembrie 2026 (4.325 lei, HG 146/2026, cu 200 de lei neimpozabili; OUG 89/2025 art. III). Deducerea personală din art. 77, inclusiv 15% din minim până la 26 de ani și 100 de lei pe copil înscris la școală; tichetele de masă (impozit și CASS, fără CAS și CAM); timpul parțial, cu baza minimă de contribuții plătită de firmă; scutirea pentru handicap grav sau accentuat; CAS 25%, CASS 10%, impozit 10%, CAM 2,25%, costul total pentru firmă, sume rotunjite la leu. Legătura spre calcul se poate trimite. Exemple: 4.050 lei brut în ianuarie–iunie → 2.574 lei net; 4.325 lei brut → 2.699 lei net; 5.000 lei brut → 2.981 lei net.",
   ],
   ["/comparatie", "Comparațiile cu felul în care se lucrează azi."],
   [

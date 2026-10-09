@@ -63,5 +63,5 @@ export const ANTET_FISA_EVALUARE: AntetPagina = {
 export const ANTET_CALCULATOR: AntetPagina = {
   supratitlu: "Unealtă gratuită",
   titlu: "Calcul salariu net și brut 2026",
-  lead: "Scrie brutul și afli netul, sau invers — cu salariul minim de 4.325 de lei, deducerea personală, CAS, CASS, impozitul și costul total pentru angajator, la valorile din iulie 2026.",
+  lead: "Scrie brutul și afli netul, sau invers, pentru ianuarie–iunie sau iulie–decembrie 2026: CAS, CASS, impozitul, deducerea personală, și pentru copii sau sub 26 de ani, tichetele de masă, timpul parțial și costul total pentru firmă.",
 };

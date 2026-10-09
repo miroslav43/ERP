@@ -12,7 +12,7 @@ import {
   VERIFICARE,
 } from "@/content/legal/salarizare-publica";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
-import { bazaMinimaContributii, dinBrut, dinNet, type RezultatSalariu } from "@/lib/unelte/salariu";
+import { bazaMinimaContributii, dinBrut, type RezultatSalariu } from "@/lib/unelte/salariu";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -27,6 +27,7 @@ import { Formular } from "./formular";
 import { deLei, lei } from "./lei";
 import { adresaPartajabila, calculeazaDinParametri, legaturaWhatsApp } from "./parametri";
 import { impartireaCostului } from "./randuri";
+import { grilaBrutNet, grilaNetBrut, salariulMinim2026, type ColoanaSalariuMinim } from "./tabele";
 
 /**
  * Calculatorul de salariu net și brut.
@@ -42,7 +43,7 @@ export const metadata: Metadata = metadatePagina({
   // descrierea sub 160 de caractere (avea 183 și se tăia în rezultate).
   titlu: "Calcul salariu net și brut 2026: calculator",
   descriere:
-    "Calcul salariu net din brut și brut din net, cu valorile din iulie 2026: CAS, CASS, impozit, deducerea personală și costul total pentru firmă.",
+    "Calcul salariu net din brut și brut din net, 2026: CAS, CASS, impozit, deducerea pentru copii și sub 26 de ani, tichete de masă, timp parțial, cost firmă.",
   cale: "/unelte/calculator-salariu",
 });
 
@@ -60,54 +61,115 @@ function TabelUzual({
   randuri,
 }: {
   readonly legenda: string;
-  readonly capete: readonly [string, string, string];
-  readonly randuri: readonly Readonly<{
-    valori: readonly [number, number, number];
-    href: string;
-  }>[];
+  readonly capete: readonly string[];
+  readonly randuri: readonly Readonly<{ valori: readonly number[]; href: string }>[];
 }) {
   return (
-    <table className="w-full text-left">
-      <caption className="font-mk-display mb-3 text-left text-[1.125rem] font-semibold">
-        {legenda}
-      </caption>
-      <thead>
-        <tr className="border-mk-rigla border-b">
-          {capete.map((cap) => (
-            <th
-              key={cap}
-              scope="col"
-              className="font-mk-date text-mk-text-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.1em] uppercase"
-            >
-              {cap}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {randuri.map((rand) => (
-          <tr key={rand.href} className="border-mk-rigla/40 border-b">
-            {rand.valori.map((v, i) => (
-              <td
-                key={capete[i]}
-                className="font-mk-date py-2.5 pr-4 text-[0.9375rem] tabular-nums"
+    // `relative`: un `sr-only` dintr-un container derulabil fără el târa pagina lateral.
+    <div className="relative overflow-x-auto">
+      <table className="w-full min-w-[20rem] text-left">
+        <caption className="font-mk-display mb-3 text-left text-[1.125rem] font-semibold">
+          {legenda}
+        </caption>
+        <thead>
+          <tr className="border-mk-rigla border-b">
+            {capete.map((cap) => (
+              <th
+                key={cap}
+                scope="col"
+                className="font-mk-date text-mk-text-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.1em] uppercase"
               >
-                {i === 0 ? (
-                  // `<a>`, nu `<Link>`: navigarea tare face un document nou, iar
-                  // poarta GA se decide din nou pe adresa cu `?suma=`. Cu `<Link>`,
-                  // adresa cu valori intra într-un document deja măsurat.
-                  <a href={rand.href} className="underline underline-offset-4">
-                    {lei(v)}
-                  </a>
-                ) : (
-                  lei(v)
-                )}
-              </td>
+                {cap}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {randuri.map((rand) => (
+            <tr key={rand.href} className="border-mk-rigla/40 border-b">
+              {rand.valori.map((v, i) => (
+                <td
+                  key={String(i)}
+                  className="font-mk-date py-2.5 pr-4 text-[0.9375rem] whitespace-nowrap tabular-nums"
+                >
+                  {i === 0 ? (
+                    // `<a>`, nu `<Link>`: navigarea tare face un document nou, iar
+                    // poarta GA se decide din nou pe adresa cu `?suma=`. Cu `<Link>`,
+                    // adresa cu valori intra într-un document deja măsurat.
+                    <a href={rand.href} className="underline underline-offset-4">
+                      {lei(v)}
+                    </a>
+                  ) : (
+                    lei(v)
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const RANDURI_SALARIU_MINIM: readonly (readonly [string, (c: ColoanaSalariuMinim) => string])[] = [
+  ["Brut pe lună", (c) => lei(c.brut)],
+  ["Ore pe lună, în medie", (c) => c.oreLuna],
+  ["Brut pe oră", (c) => `${c.leiPeOra} lei`],
+  ["Actul normativ", (c) => c.act],
+  ["Neimpozabil (OUG 89/2025 art. III)", (c) => lei(c.neimpozabil)],
+  ["Net, normă întreagă, fără persoane", (c) => lei(c.net)],
+  ["Cost total pentru firmă", (c) => lei(c.costTotal)],
+];
+
+/** Salariul minim pe cele două perioade ale lui 2026, cu netul și costul din același motor. */
+function TabelSalariuMinim() {
+  const coloane = salariulMinim2026();
+  return (
+    <div className="relative mt-8 overflow-x-auto">
+      <table className="w-full min-w-[20rem] text-left text-[0.9375rem]">
+        <caption className="font-mk-display mb-3 text-left text-[1.125rem] font-semibold">
+          Salariul minim în 2026, pe cele două perioade
+        </caption>
+        <thead>
+          <tr className="border-mk-rigla border-b">
+            <td className="py-2 pr-4" />
+            {coloane.map((c) => (
+              <th
+                key={c.perioada}
+                scope="col"
+                className="font-mk-date text-mk-text-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.1em] uppercase"
+              >
+                {/* `<a>`, nu `<Link>`: adresa cu `?suma=` cere navigare tare (vezi `TabelUzual`). */}
+                <a
+                  href={`?suma=${String(c.brut)}&perioada=${c.perioada}#rezultat`}
+                  className="underline underline-offset-4"
+                >
+                  {c.eticheta}
+                </a>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {RANDURI_SALARIU_MINIM.map(([eticheta, valoare]) => (
+            <tr key={eticheta} className="border-mk-rigla/40 border-b">
+              <th scope="row" className="py-2.5 pr-4 font-normal">
+                {eticheta}
+              </th>
+              {coloane.map((c) => (
+                <td
+                  key={c.perioada}
+                  className="font-mk-date py-2.5 pr-4 whitespace-nowrap tabular-nums"
+                >
+                  {valoare(c)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -284,6 +346,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             .
           </p>
         </div>
+        <TabelSalariuMinim />
       </Banda>
 
       {/*
@@ -296,33 +359,28 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
         supratitlu="Calcule uzuale"
         titlu="Din brut în net și din net în brut"
       >
-        <div className="mt-6 grid gap-10 lg:grid-cols-2">
+        <div className="mt-6 grid gap-10 lg:grid-cols-[3fr_2fr]">
           <TabelUzual
             legenda="Calcul salariu net din brut"
-            capete={["Brut", "Net", "Cost firmă"]}
-            randuri={[4325, 4500, 5000, 6000, 7000, 8000, 10000, 15000].map((brut) => {
-              const r = dinBrut(brut, 0, true);
-              return {
-                valori: [r.brut, r.net, r.costTotal],
-                href: `?suma=${String(brut)}&din=brut#rezultat`,
-              };
-            })}
+            capete={["Brut", "Net", "Net, 2 persoane", "Cost firmă"]}
+            randuri={grilaBrutNet().map((r) => ({
+              valori: [r.brut, r.net, r.netDouaPersoane, r.costTotal],
+              href: `?suma=${String(r.brut)}&din=brut&perioada=2026-2#rezultat`,
+            }))}
           />
           <TabelUzual
             legenda="Calcul salariu brut din net"
             capete={["Net dorit", "Brut necesar", "Cost firmă"]}
-            randuri={[3000, 3500, 4000, 5000, 6000, 7000].map((net) => {
-              const r = dinNet(net, 0, true);
-              return {
-                valori: [net, r.brut, r.costTotal],
-                href: `?suma=${String(net)}&din=net#rezultat`,
-              };
-            })}
+            randuri={grilaNetBrut().map((r) => ({
+              valori: [r.net, r.brut, r.costTotal],
+              href: `?suma=${String(r.net)}&din=net&perioada=2026-2#rezultat`,
+            }))}
           />
         </div>
         <p className="text-mk-text-slab mt-5 max-w-[68ch] text-[0.8125rem] leading-[1.55]">
-          Normă întreagă, funcția de bază, fără persoane în întreținere, valorile din iulie 2026.
-          Pentru alte situații, scrie suma în calculator.
+          Normă întreagă, funcția de bază, fără tichete, valorile din iulie–decembrie 2026. Peste
+          6.325 de lei brut, deducerea personală nu se mai acordă, deci persoanele în întreținere nu
+          mai schimbă netul. Pentru alte situații, scrie suma în calculator.
         </p>
       </Banda>
 

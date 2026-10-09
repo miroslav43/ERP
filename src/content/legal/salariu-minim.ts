@@ -1,6 +1,10 @@
-import { dinBrut } from "@/lib/unelte/salariu";
+import { calculeazaDinBrut, dinBrut, OPTIUNI_IMPLICITE } from "@/lib/unelte/salariu";
 
-import { FACILITATE_SALARIU_MINIM, SALARIU_MINIM_BRUT_2026_IULIE } from "./salarizare-publica";
+import {
+  FACILITATE_SALARIU_MINIM,
+  SALARIU_MINIM_BRUT_2026_IANUARIE,
+  SALARIU_MINIM_BRUT_2026_IULIE,
+} from "./salarizare-publica";
 import type { PaginaLege } from "./tipuri";
 
 /**
@@ -35,6 +39,11 @@ const lei = (n: number) =>
 const MINIM = SALARIU_MINIM_BRUT_2026_IULIE;
 const LA_MINIM = dinBrut(MINIM, 0, true);
 const UN_LEU_PESTE = dinBrut(MINIM + 1, 0, true);
+/** Ianuarie–iunie 2026: 4.050 lei, cu 300 de lei scutiți (OUG 89/2025 art. III alin. (1)). */
+const LA_MINIM_IANUARIE = calculeazaDinBrut(SALARIU_MINIM_BRUT_2026_IANUARIE, {
+  ...OPTIUNI_IMPLICITE,
+  perioada: "2026-1",
+});
 
 /**
  * Primul brut întreg peste minim la care netul ajunge din nou cel puțin la netul
@@ -162,10 +171,14 @@ export const SALARIU_MINIM: PaginaLege = {
       ["Ore pe lună, în medie", "165,334", "166,667"],
       ["Brut pe oră", "24,496 lei", "25,949 lei"],
       ["Actul normativ", "HG 1506/2024", "HG 146/2026"],
-      ["Net, normă întreagă, fără persoane în întreținere", "—", lei(LA_MINIM.net)],
-      ["Cost total pentru firmă", "—", lei(LA_MINIM.costTotal)],
+      [
+        "Net, normă întreagă, fără persoane în întreținere",
+        lei(LA_MINIM_IANUARIE.net),
+        lei(LA_MINIM.net),
+      ],
+      ["Cost total pentru firmă", lei(LA_MINIM_IANUARIE.costTotal), lei(LA_MINIM.costTotal)],
     ],
-    nota: "Netul și costul sunt calculate doar pentru valoarea în vigoare, la fel ca în calculatorul de salariu, cu suma scutită inclusă.",
+    nota: `Netul și costul sunt calculate de același motor ca în calculatorul de salariu, cu suma scutită a fiecărei perioade: ${String(LA_MINIM_IANUARIE.sumaNeimpozabila)} de lei în ianuarie–iunie, ${String(LA_MINIM.sumaNeimpozabila)} de lei din iulie (OUG 89/2025 art. III).`,
   },
 
   nesigur: [

@@ -317,6 +317,7 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     // 9 oct: promisiunea de confidențialitate spusă exact, cu legătură spre politică.
+    // 2026-10-09: nota calculatorului de salariu numește funcțiile noi.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },

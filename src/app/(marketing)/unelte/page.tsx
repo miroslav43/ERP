@@ -79,7 +79,7 @@ const PAGINI = [
     href: "/unelte/calculator-salariu",
     titlu: ANTET_CALCULATOR.titlu,
     lead: ANTET_CALCULATOR.lead,
-    nota: "net din brut și brut din net · valorile din iulie 2026",
+    nota: "net și brut · tichete, deduceri, timp parțial · ambele perioade din 2026",
   },
 ];
 
