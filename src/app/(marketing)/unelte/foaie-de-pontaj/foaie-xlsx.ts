@@ -145,8 +145,10 @@ function filaColectiva(registru: ExcelJS.Workbook, p: Pontaj, adresaSursa: strin
     rand.height = 18;
     coloreaza(rand);
     const zile = `${adresa(r, colZi(0))}:${adresa(r, colZi(nZile - 1))}`;
+    // Ziua rotunjită la minut ÎNAINTE de înmulțire, ca `normaLunara` și rândul
+    // cu norma lunii: 7,33 h → 7:20 → 21 × 7:20 = 154, nu 153,93.
     rand.getCell(colNorma).value = {
-      formula: `ROUND(${adresa(r, 2)}*${String(p.zileLucratoare)},2)`,
+      formula: `ROUND(ROUND(${adresa(r, 2)}*60,0)*${String(p.zileLucratoare)}/60,2)`,
     };
     rand.getCell(colOre).value = { formula: `SUM(${zile})` };
     rand.getCell(colOre).font = { bold: true };

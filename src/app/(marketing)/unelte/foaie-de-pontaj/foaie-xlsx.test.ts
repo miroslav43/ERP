@@ -39,7 +39,7 @@ describe("Excelul foii colective", () => {
     expect(f.getCell("C7").value).toBe("SL");
     expect(f.getCell("D7").value).toBeNull();
     expect(f.getCell("G7").value).toBe("L");
-    expect(f.getCell("AH7").formula).toBe("ROUND(B7*21,2)");
+    expect(f.getCell("AH7").formula).toBe("ROUND(ROUND(B7*60,0)*21/60,2)");
     expect(f.getCell("AI7").formula).toBe("SUM(C7:AG7)");
     expect(f.getCell("AL7").formula).toBe('COUNTIF(C7:AG7,"CO")');
     expect(f.getCell("AN8").formula).toBe('COUNTIF(C8:AG8,"CFS")');
@@ -52,6 +52,18 @@ describe("Excelul foii colective", () => {
     expect(f.getCell("AL9").formula).toBe("SUM(AL7:AL8)");
     // Auditul: coloana de total n-avea lățime.
     for (let c = 1; c <= 42; c += 1) expect(f.getColumn(c).width, String(c)).toBeGreaterThan(0);
+  });
+
+  it("norma din coloana „Normă” rotunjește ziua la minut, ca rândul cu norma lunii", async () => {
+    // 7,33 h se afișează „7:20”; rândul 3 spune 21 × 7:20 = 154 h, deci și
+    // coloana trebuie să dea 154, nu ROUND(7,33 × 21) = 153,93.
+    const { registru } = await deschide(
+      await registruPontaj(pontaj({ ore: "7.33", angajati: "Popa Ion" })),
+    );
+    const f = registru.worksheets[0];
+    if (f === undefined) throw new Error("fila lipsește");
+    expect(String(f.getCell("A3").value)).toContain("= 154 h normă");
+    expect(f.getCell("AH7").formula).toBe("ROUND(ROUND(B7*60,0)*21/60,2)");
   });
 
   it("se tipărește pe A4 culcat, cu cele două rânduri de cap repetate", async () => {
