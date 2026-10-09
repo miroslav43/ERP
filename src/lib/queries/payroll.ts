@@ -1814,3 +1814,46 @@ export async function perioadaSalarizariiPentruPontaj(
   if (error !== null) throw error;
   return data;
 }
+
+/**
+ * Angajații de pe statul perioadei care n-au IBAN — cu drum spre fișă.
+ *
+ * Fișierul bancar îi raporta doar ca număr, după descărcare („N fără IBAN"),
+ * iar refuzul scria numele în text simplu (analiza 2026-10-08, salarizare-O1).
+ * Aceeași verificare ca în ruta de export (`hr_read_sensitive`, rând cu rând):
+ * funcția cere `employees:read = all`, deci pentru un rol fără drept întoarce
+ * nimic, iar apelantul gardează oricum cu poarta fișei.
+ */
+export async function angajatiFaraIban(
+  organizationId: string,
+  periodId: string,
+): Promise<readonly Readonly<{ id: string; nume: string }>[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("payroll_entries")
+    .select("employee_id, angajat:employees!employee_id(full_name, marca)")
+    .eq("organization_id", organizationId)
+    .eq("period_id", periodId)
+    .is("deleted_at", null)
+    .returns<{ employee_id: string; angajat: { full_name: string; marca: string } | null }[]>();
+  if (error !== null) throw error;
+
+  const lipsa: Array<Readonly<{ id: string; nume: string }>> = [];
+  for (const rand of data ?? []) {
+    const { data: sensibile } = await db.rpc("hr_read_sensitive", { p_employee: rand.employee_id });
+    const s = sensibile?.[0];
+    const areIban =
+      s !== undefined &&
+      s.iban_ciphertext !== null &&
+      s.iban_iv !== null &&
+      s.iban_tag !== null &&
+      s.iban_key_version !== null;
+    if (!areIban) {
+      lipsa.push({
+        id: rand.employee_id,
+        nume: rand.angajat?.full_name || rand.angajat?.marca || rand.employee_id,
+      });
+    }
+  }
+  return lipsa;
+}

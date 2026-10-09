@@ -189,3 +189,4 @@ Documentele scanate ale angajatului și dosarul lui de personal: [[modul/angajat
 - Calculul stării unei scadențe: `src/domain/ssm/scadente.ts`, cu teste.
 - De ce `hr` nu vede o listă pe care o administrează: [[rol/hr]].
 - Lotul 7f: celulele Expirat/Lipsă deschid formularul precompletat (`?angajat=&tip=`), „Instruire nouă” poartă domeniul, `?departament=` pe matrice (din panoul departamentului), situația SSM la data accidentului, echipamentele ISCIR ale titularului: [[strat/navigare]].
+- Lotul 7m: celula matricei de instruiri se deschide (durata, scadența, semnătura) și confirmă semnătura (`confirmaSemnaturaInstruire`, `ssm:update`): [[strat/navigare]].

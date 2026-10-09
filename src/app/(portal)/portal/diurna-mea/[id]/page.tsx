@@ -182,6 +182,17 @@ export default async function PaginaDeplasareaMea({
         />
       ) : null}
 
+      {/* Decontul propriu, de tipărit: trăia doar în aplicația mare, unde
+          angajatul e redirecționat în portal, deci n-avea spre ce lega. */}
+      <p>
+        <Link
+          href={`/portal/diurna-mea/${deplasare.id}/decont`}
+          className={buton({ varianta: "secundar" })}
+        >
+          Decontul, de tipărit
+        </Link>
+      </p>
+
       <p>
         <Link href="/portal/diurna-mea" className={buton({ varianta: "link" })}>
           Înapoi la diurna mea

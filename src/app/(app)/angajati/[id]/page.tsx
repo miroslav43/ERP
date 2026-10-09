@@ -90,6 +90,7 @@ import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 import { SectiuneConcedii } from "./sectiune-concedii";
 import { SectiuneSalarizare } from "./sectiune-salarizare";
+import { TinteKpi } from "./tinte-kpi";
 import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
 import { InvitatieAngajat } from "./invitatie-angajat";
 import { DateLipsa } from "./date-lipsa";
@@ -1199,6 +1200,19 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           ) : null}
         </div>
       </section>
+
+      {/* Țintele KPI proprii: acțiunile existau fără niciun ecran. Poarta e a
+          acțiunii (modulul `kpi` + `evaluations:update ≥ team`). */}
+      {module.has("kpi") && can(permisiuni, "evaluations:update", "team") ? (
+        <TinteKpi
+          organizationId={tenant.organizationId}
+          employeeId={angajat.id}
+          hrefSeturi={
+            poateDeschide("/evaluari/kpi/seturi", contextPorti) ? "/evaluari/kpi/seturi" : null
+          }
+          className={CLASA_SECTIUNE}
+        />
+      ) : null}
 
       {/* Fluturașii, popririle și istoricul lui — prin poarta lui `/salarizare`
           (modul pornit + `payroll:read = all`); fiecare link secundar prin a lui. */}

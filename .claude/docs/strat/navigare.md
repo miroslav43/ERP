@@ -103,3 +103,5 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
   și responsabilului); „De finalizat” pentru ciorne și deplasări respinse; ziua de concediu
   duce la cerere din zi, grilă, ceas și start; fluturașul leagă pontajul, concediile și
   diurna din portal; detaliile au firimituri.
+- Decontul deplasării e un document comun (`ContinutDecont`, lotul 7m): aplicația și portalul
+  îl montează sub preambulul fiecăruia, cu `caleFisa` diferit.

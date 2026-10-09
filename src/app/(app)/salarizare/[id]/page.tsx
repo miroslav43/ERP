@@ -19,6 +19,7 @@ import {
   citestePerioada,
   listeazaInregistrari,
   primeSiRetineriPerioada,
+  angajatiFaraIban,
   type RandInregistrare,
   type RandPrimaPerioada,
   type RandRetinerePerioada,
@@ -104,6 +105,14 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
     perioada.status === "draft" && poateCalcula
       ? await primeSiRetineriPerioada(tenant.organizationId, perioada.id)
       : { prime: [], retineri: [] };
+  // Cine n-are IBAN, ÎNAINTE de descărcarea fișierului bancar, cu drum spre
+  // fișa unde se completează. Doar pentru cine poate exporta și deschide fișa.
+  const faraIban =
+    (perioada.status === "aprobat" || perioada.status === "inchis") &&
+    poateExporta &&
+    poateDeschideFisa
+      ? await angajatiFaraIban(tenant.organizationId, perioada.id)
+      : [];
 
   const primePeAngajat = new Map<string, RandPrimaPerioada[]>();
   for (const p of prime) {
@@ -298,6 +307,27 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
             <p className="text-muted-foreground text-nota mb-3">
               Fișierul bancar și declarația 112 cer și dreptul de citire a datelor de identitate ale
               angajaților; rolul dumneavoastră nu-l are.
+            </p>
+          )}
+          {faraIban.length === 0 ? null : (
+            <p className="text-warning text-corp mb-3">
+              {faraIban.length === 1
+                ? "Un angajat n-are IBAN"
+                : `${String(faraIban.length)} angajați n-au IBAN`}
+              {" și "}
+              {faraIban.length === 1 ? "lipsește" : "lipsesc"} din fișierul bancar:{" "}
+              {faraIban.map((a, indice) => (
+                <span key={a.id}>
+                  {indice === 0 ? "" : ", "}
+                  <Link
+                    href={`/angajati/${a.id}#titlu-date-personale`}
+                    className="underline underline-offset-2"
+                  >
+                    {a.nume}
+                  </Link>
+                </span>
+              ))}
+              .
             </p>
           )}
           <div className="flex flex-wrap gap-2">

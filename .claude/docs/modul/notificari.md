@@ -190,3 +190,4 @@ semnala un drift care nu există. Corecțiile stau aici:
 - Cine produce notificările: [[modul/anunturi]], [[modul/concedii]], [[modul/onboarding]].
 - Instalarea timerului și cele trei locuri ale secretului: `DEPLOY.md`.
 - Aplicația mobilă în sine (build EAS, magazine, ce nu se poate proba local): `mobil/README.md`.
+- Lotul 7m: clopoțelul din antet previzualizează ultimele 5 necitite, traduse la obiect la deschidere (`citesteNotificarileRecente`): [[strat/navigare]].

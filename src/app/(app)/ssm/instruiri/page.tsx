@@ -28,6 +28,7 @@ import { NavSsm } from "../nav-ssm";
 import { FiltreInstruiri } from "./filtre-instruiri";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { CelulaInstruire } from "./celula-instruire";
 
 export const metadata: Metadata = { title: "Instruiri SSM/PSI" };
 
@@ -43,6 +44,7 @@ async function Matrice({
   permisiuni,
   departament,
   poateCrea,
+  poateConfirma,
 }: {
   readonly organizationId: string;
   readonly userId: string;
@@ -53,6 +55,8 @@ async function Matrice({
   readonly departament: string | null;
   /** `ssm:create` — celula Expirat/Lipsă devine link spre formularul precompletat. */
   readonly poateCrea: boolean;
+  /** `ssm:update` — „Confirmă semnătura” în previzualizarea celulei. */
+  readonly poateConfirma: boolean;
 }) {
   const filtre = filtreDinUrl(filtreInstruiriSchema, parametri);
   const propriaFisaId = await idFisaProprie(organizationId, userId);
@@ -194,16 +198,26 @@ async function Matrice({
                             {ETICHETE_SCADENTA[stare]}
                           </Scadenta>
                         </Link>
-                      ) : (
+                      ) : rand === undefined ? (
                         <Scadenta treapta={treaptaSsm(stare, scadenta)}>
                           {ETICHETE_SCADENTA[stare]}
                         </Scadenta>
+                      ) : (
+                        // Instruirea existentă se deschide pe loc: durata, scadența,
+                        // semnătura — și confirmarea ei, pentru cine are dreptul.
+                        <CelulaInstruire instruire={rand} poateConfirma={poateConfirma}>
+                          <Scadenta treapta={treaptaSsm(stare, scadenta)}>
+                            {ETICHETE_SCADENTA[stare]}
+                          </Scadenta>
+                        </CelulaInstruire>
                       )}
-                      {rand === undefined ? null : (
+                      {rand !== undefined &&
+                      poateCrea &&
+                      (stare === "niciodata" || stare === "expirat") ? (
                         <span className="text-muted-foreground text-nota ml-2">
                           {formatDate(rand.data_instruirii)}
                         </span>
-                      )}
+                      ) : null}
                     </td>
                   );
                 })}
@@ -298,6 +312,7 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
           organizationId={tenant.organizationId}
           userId={user.id}
           scope={scopeAngajati}
+          poateConfirma={can(permisiuni, "ssm:update", "team")}
           parametri={parametri}
           permisiuni={permisiuni}
           departament={departamentFiltrat}

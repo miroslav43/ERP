@@ -52,7 +52,8 @@ const ACTIUNI = Object.entries(modul as unknown as Record<string, Actiune>);
 
 describe("cheia de modul a acțiunilor", () => {
   it("lista acțiunilor nu e goală (exporturile lui ./actions)", () => {
-    expect(ACTIUNI).toHaveLength(14);
+    // 15 de la `confirmaSemnaturaInstruire` (lotul 7m, 9 oct 2026).
+    expect(ACTIUNI).toHaveLength(15);
   });
 
   it.each(ACTIUNI)(

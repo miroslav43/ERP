@@ -215,6 +215,7 @@ export const PORTI_PORTAL: readonly PoartaRuta[] = [
   p("/portal/cursurile-mele/[id]/[lectieId]", "courses", "courses:read"),
   p("/portal/diurna-mea", "per_diem", "per_diem:read"),
   p("/portal/diurna-mea/[id]", "per_diem", "per_diem:read"),
+  p("/portal/diurna-mea/[id]/decont", "per_diem", "per_diem:read"),
   p("/portal/diurna-mea/noua", "per_diem", "per_diem:create"),
   p("/portal/documentele-mele", "employee_portal", "employees:read"),
   p("/portal/echipa-mea", null, null),
