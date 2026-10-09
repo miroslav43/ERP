@@ -27,10 +27,27 @@ function Tabel({
   /** Rândurile înalte ale tabelului principal (scris de mână, semnătură): mai mult loc și pe ecran. */
   inalt?: boolean;
 }>) {
+  const latimeTotala = coloane.reduce((suma, c) => suma + c.latime, 0) || 1;
   return (
     <div className="border-mk-rigla relative mt-4 overflow-x-auto border">
-      <table className="w-full border-collapse text-left text-[0.8125rem]">
+      {/*
+       * Lățimile coloanelor vin din model, ca în PDF (`pdf.ts` le scalează la
+       * pagină). Lăsat pe auto-layout, browserul le împărțea după conținut:
+       * la lățimea A4 a tipăririi, „Nume și prenume” ajungea la ~73 px, orice
+       * nume obișnuit se rupea pe două rânduri și condica unei luni sărea pe a
+       * treia pagină (testul `tipar: condica de prezență`, 9 oct 2026).
+       * Procente, nu puncte: tabelul rămâne `w-full` pe orice ecran.
+       */}
+      <table className="w-full table-fixed border-collapse text-left text-[0.8125rem]">
         <caption className="sr-only">{legenda}</caption>
+        <colgroup>
+          {coloane.map((c, j) => (
+            <col
+              key={`${String(j)}-${c.eticheta}`}
+              style={{ width: `${String((c.latime / latimeTotala) * 100)}%` }}
+            />
+          ))}
+        </colgroup>
         <thead>
           <tr className="border-mk-rigla border-b">
             {coloane.map((c, j) => (
