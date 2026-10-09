@@ -1,4 +1,6 @@
+import JSZip from "jszip";
 import { PDFDocument } from "pdf-lib";
+import { SaxesParser } from "saxes";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,7 +9,9 @@ import {
   textPagina,
   type DocumentTabelar,
 } from "./document-tabelar";
+import { randeazaDocx } from "./docx";
 import { INALT_CASETA, randeazaPdf, type SondaPdf } from "./pdf";
+import { raspunsDocument } from "./raspuns";
 
 /**
  * Documentele cu secțiuni (fișa SSM, anexa 11 la HG 1425/2006): mai multe
@@ -175,5 +179,66 @@ describe("PDF cu secțiuni", () => {
       if (p > 1) expect(pePagina, `pagina ${String(p)}`).toContain(CU_SECTIUNI.antetRulant);
     }
     expect(pdf.getPage(0).getHeight()).toBeGreaterThan(pdf.getPage(0).getWidth()); // portret
+  });
+});
+
+function eroriXml(xml: string): readonly string[] {
+  const erori: string[] = [];
+  const parser = new SaxesParser({ xmlns: true });
+  parser.on("error", (eroare) => {
+    erori.push(eroare.message);
+  });
+  parser.write(xml).close();
+  return erori;
+}
+
+describe("Word cu secțiuni", () => {
+  it("are antetul cu numele, subsolul numerotat pe secțiune și rânduri de cel puțin 28 pt", async () => {
+    const zip = await JSZip.loadAsync(await randeazaDocx(CU_SECTIUNI));
+    const fisiere = Object.keys(zip.files);
+    const antet = fisiere.find((f) => /^word\/header\d+\.xml$/u.test(f));
+    const subsol = fisiere.find((f) => /^word\/footer\d+\.xml$/u.test(f));
+    expect(antet).toBeDefined();
+    expect(subsol).toBeDefined();
+    expect(await zip.file(antet ?? "")?.async("string")).toContain("Popescu Ștefanța");
+    const xmlSubsol = (await zip.file(subsol ?? "")?.async("string")) ?? "";
+    expect(xmlSubsol).toContain("Pagina ");
+    expect(xmlSubsol).toContain("SECTIONPAGES");
+    const document = (await zip.file("word/document.xml")?.async("string")) ?? "";
+    // 28 pt = 560 twips; 40 de rânduri periodice. Casetele au 96 pt = 1920.
+    expect(document.match(/<w:trHeight w:val="560" w:hRule="atLeast"\/>/gu)).toHaveLength(40);
+    expect(document.match(/<w:trHeight w:val="1920" w:hRule="atLeast"\/>/gu)).toHaveLength(4);
+    for (const titlu of [
+      "Instruirea la angajare",
+      "Rezultatele testărilor",
+      "Control medical periodic",
+    ]) {
+      expect(document).toContain(titlu);
+    }
+    expect(document).toContain("Semnătura celui care a verificat însușirea cunoștințelor");
+    expect(document).toContain('w:orient="portrait"');
+  });
+
+  it("rămâne XML valid cu caractere de control în secțiuni", async () => {
+    const murdar: DocumentTabelar = {
+      ...CU_SECTIUNI,
+      antetRulant: "Popa\u000BIon\u0001",
+      sectiuni: [
+        { tip: "text", titlu: "A\u0001", paragrafe: ["b\u0000c"], semnaturi: ["d\u001F"] },
+        {
+          tip: "casete",
+          titlu: "C\u000B",
+          numar: 1,
+          rubrica: "R\u0003",
+          semnaturi: ["S"],
+          nota: null,
+        },
+      ],
+    };
+    const r = await raspunsDocument(murdar, "docx");
+    const zip = await JSZip.loadAsync(await r.arrayBuffer());
+    for (const parte of Object.keys(zip.files).filter((f) => /^word\/.*\.xml$/u.test(f))) {
+      expect(eroriXml((await zip.file(parte)?.async("string")) ?? ""), parte).toEqual([]);
+    }
   });
 });
