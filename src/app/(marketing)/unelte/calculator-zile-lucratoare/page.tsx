@@ -12,6 +12,7 @@ import { todayInBucharest } from "@/lib/format/date";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { IntrebariUnealta } from "../../_componente/intrebari-unealta";
 import { JsonLd } from "../../_componente/json-ld";
 import { metadatePagina } from "../../_componente/metadate";
@@ -211,6 +212,8 @@ export default async function PaginaCalculatorZileLucratoare({ searchParams }: P
           .
         </p>
       </Banda>
+
+      <ContinuaInAplicatie unealta="calculator-zile-lucratoare" generat={aGenerat(p)} />
 
       <IntrebariUnealta
         titlu="Ce se mai întreabă despre zilele lucrătoare"

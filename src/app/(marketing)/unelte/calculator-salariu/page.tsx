@@ -21,6 +21,7 @@ import { programeaza } from "@/lib/unelte/umami-server";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { JsonLd } from "../../_componente/json-ld";
 import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { metadatePagina } from "../../_componente/metadate";
@@ -322,6 +323,8 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
           </>
         )}
       </Banda>
+
+      <ContinuaInAplicatie unealta="calculator-salariu" generat={aGenerat(p)} />
 
       <Banda
         inaltime="medie"

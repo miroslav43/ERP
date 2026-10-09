@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { adresaInregistrare } from "@/content/landing/cta-unelte";
 import { exempluPentru, imagineExemplu } from "@/content/landing/exemple-unelte";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
@@ -11,6 +12,7 @@ import { ANTET_FISA_EVALUARE } from "@/content/landing/unelte";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { Descarcari } from "../../_componente/descarcari";
 import { ExempluCompletat } from "../../_componente/exemplu-completat";
 import { JsonLd } from "../../_componente/json-ld";
@@ -238,6 +240,8 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
         <PrevizualizareDocument document={document} />
       </Banda>
 
+      <ContinuaInAplicatie unealta="fisa-evaluare" generat={aGenerat(p)} />
+
       <Banda
         inaltime="scurta"
         supratitlu="Când evaluarea devine dovadă"
@@ -265,7 +269,10 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
           <Link href="/module/evaluari" className="underline underline-offset-4">
             Cum arată modulul de evaluări
           </Link>
-          <Link href={RO.hero.ctaPrimar.href} className="underline underline-offset-4">
+          <Link
+            href={adresaInregistrare("fisa-evaluare", "banda")}
+            className="underline underline-offset-4"
+          >
             {RO.hero.ctaPrimar.eticheta}
           </Link>
         </p>

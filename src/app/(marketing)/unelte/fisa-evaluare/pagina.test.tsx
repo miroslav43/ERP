@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { adresaInregistrare } from "@/content/landing/cta-unelte";
+
 import { metadata } from "./page";
 import PaginaFisaEvaluare from "./page";
 
@@ -81,7 +83,8 @@ describe("pagina fișei de evaluare", () => {
       .closest("section");
     const legaturi = [...(banda?.querySelectorAll("a") ?? [])].map((a) => a.getAttribute("href"));
     expect(legaturi).toContain("/module/evaluari");
-    expect(legaturi).toContain("/inregistrare");
+    // J5: înregistrarea poartă sursa uneltei (utm_campaign), ca să se știe de unde vine contul.
+    expect(legaturi).toContain(adresaInregistrare("fisa-evaluare", "banda"));
   });
 
   it("formularul are data, grila și rubricile, toate cu limită", async () => {

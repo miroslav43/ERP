@@ -345,6 +345,7 @@ export const PAGINI: readonly Pagina[] = [
   // 5 oct 2026: toate uneltele primesc nodul `WebApplication`, a cărui
   // `dateModified` e chiar data de aici (`dataPaginii`); calculatorul, și nota
   // „informativ". Data se mută în același commit cu schimbarea paginii.
+  // 2026-10-09: îndemn după document, cu sursa uneltei în adresa de înregistrare.
   {
     cale: "/unelte/foaie-de-pontaj",
     prioritate: 0.7,

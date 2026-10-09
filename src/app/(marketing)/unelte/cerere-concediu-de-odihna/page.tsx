@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 
+import { adresaInregistrare } from "@/content/landing/cta-unelte";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { metaUnealta } from "@/content/landing/seo-unelte";
@@ -14,6 +15,7 @@ import { formatDate } from "@/lib/format/date";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { Descarcari } from "../../_componente/descarcari";
 import { JsonLd } from "../../_componente/json-ld";
 import { metadatePagina } from "../../_componente/metadate";
@@ -486,6 +488,8 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
         )}
       </Banda>
 
+      <ContinuaInAplicatie unealta="cerere-concediu-de-odihna" generat={aGenerat(p)} />
+
       {/* `Banda` nu primește atribute libere, deci marcajul de tipărire stă pe
           învelișul ei — la fel ca la antet, mai sus. */}
       <div data-tipar="ascunde">
@@ -574,7 +578,7 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
         >
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              href={RO.hero.ctaPrimar.href}
+              href={adresaInregistrare("cerere-concediu-de-odihna", "banda")}
               data-umami-event="cta-cerere-concediu"
               className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
             >

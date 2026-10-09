@@ -13,6 +13,7 @@ import { todayInBucharest } from "@/lib/format/date";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { Descarcari } from "../../_componente/descarcari";
 import { ExempluCompletat } from "../../_componente/exemplu-completat";
 import { IntrebariUnealta } from "../../_componente/intrebari-unealta";
@@ -193,6 +194,8 @@ export default async function PaginaProgramareConcedii({ searchParams }: Proprie
       <Banda id="documentul" inaltime="scurta">
         <PrevizualizareDocument document={document} />
       </Banda>
+
+      <ContinuaInAplicatie unealta="programare-concedii" generat={aGenerat(p)} />
 
       <ExempluCompletat exemplu={exemplu} />
 

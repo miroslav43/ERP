@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/format/date";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { JsonLd } from "../../_componente/json-ld";
 import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { Descarcari } from "../../_componente/descarcari";
@@ -301,6 +302,8 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
       <Banda id="documentul" inaltime="scurta">
         <PrevizualizareDocument document={document} />
       </Banda>
+
+      <ContinuaInAplicatie unealta="fisa-instruire-ssm" generat={aGenerat(p)} />
 
       <div data-tipar="ascunde">
         <Banda

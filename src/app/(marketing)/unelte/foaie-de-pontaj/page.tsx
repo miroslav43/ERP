@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { adresaInregistrare } from "@/content/landing/cta-unelte";
 import { ACOPERIRE_FOAIE, INTREBARI_FOAIE_PONTAJ } from "@/content/landing/intrebari-pontaj";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
@@ -14,6 +15,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { AvizCorectari } from "../../_componente/aviz-corectari";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { CeCereItm } from "../../_componente/ce-cere-itm";
 import { Descarcari } from "../../_componente/descarcari";
 import { IntrebariUnealta } from "../../_componente/intrebari-unealta";
@@ -297,6 +299,8 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
         )}
       </Banda>
 
+      <ContinuaInAplicatie unealta="foaie-de-pontaj" generat={aGenerat(p)} />
+
       <div data-tipar="ascunde">
         <CeCereItm acoperire={ACOPERIRE_FOAIE} />
       </div>
@@ -404,7 +408,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
           </div>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              href={RO.hero.ctaPrimar.href}
+              href={adresaInregistrare("foaie-de-pontaj", "banda")}
               data-umami-event="cta-foaie-pontaj"
               className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
             >

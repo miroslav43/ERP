@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { adresaInregistrare } from "@/content/landing/cta-unelte";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { metaUnealta } from "@/content/landing/seo-unelte";
@@ -11,6 +12,7 @@ import { todayInBucharest } from "@/lib/format/date";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { JsonLd } from "../../_componente/json-ld";
 import { metadatePagina } from "../../_componente/metadate";
 import { nodUnealta } from "../../_componente/noduri-json-ld";
@@ -201,6 +203,8 @@ export default async function PaginaCalculatorConcediu({ searchParams }: Proprie
         )}
       </Banda>
 
+      <ContinuaInAplicatie unealta="calculator-zile-concediu" generat={aGenerat(p)} />
+
       <Banda
         inaltime="medie"
         supratitlu="Ce spune legea"
@@ -249,7 +253,7 @@ export default async function PaginaCalculatorConcediu({ searchParams }: Proprie
       >
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href={RO.hero.ctaPrimar.href}
+            href={adresaInregistrare("calculator-zile-concediu", "banda")}
             data-umami-event="cta-calculator-concediu"
             className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
           >

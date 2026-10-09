@@ -1,6 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { adresaInregistrare } from "@/content/landing/cta-unelte";
+
 import { EXEMPLU_COMPLETAT } from "./model";
 import PaginaFoaieParcurs from "./page";
 
@@ -127,7 +129,8 @@ describe("pagina foii de parcurs: ce spune legea", { timeout: 30_000 }, () => {
   it("îndemnul spre aplicație are evenimentul lui și duce la înregistrare", async () => {
     const { container } = await deschide({});
     const cta = container.querySelector('a[data-umami-event="cta-foaie-parcurs"]');
-    expect(cta?.getAttribute("href")).toBe("/inregistrare");
+    // J5: înregistrarea poartă sursa uneltei (utm_campaign), ca să se știe de unde vine contul.
+    expect(cta?.getAttribute("href")).toBe(adresaInregistrare("foaie-de-parcurs", "banda"));
     expect(container.querySelector('a[href="/module/flota"]')).not.toBeNull();
   });
 });

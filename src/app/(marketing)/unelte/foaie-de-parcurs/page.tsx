@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { adresaInregistrare } from "@/content/landing/cta-unelte";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { metaUnealta } from "@/content/landing/seo-unelte";
@@ -11,6 +12,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { AvizCorectari } from "../../_componente/aviz-corectari";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { JsonLd } from "../../_componente/json-ld";
 import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { Descarcari } from "../../_componente/descarcari";
@@ -332,6 +334,8 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
         <PrevizualizareDocument document={document} />
       </Banda>
 
+      <ContinuaInAplicatie unealta="foaie-de-parcurs" generat={aGenerat(p)} />
+
       <div data-tipar="ascunde">
         <Banda
           inaltime="scurta"
@@ -409,7 +413,7 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              href={RO.hero.ctaPrimar.href}
+              href={adresaInregistrare("foaie-de-parcurs", "banda")}
               data-umami-event="cta-foaie-parcurs"
               className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
             >

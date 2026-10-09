@@ -13,6 +13,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { AvizCorectari } from "../../_componente/aviz-corectari";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { ContinuaInAplicatie, aGenerat } from "../../_componente/continua-in-aplicatie";
 import { CeCereItm } from "../../_componente/ce-cere-itm";
 import { Descarcari } from "../../_componente/descarcari";
 import { IntrebariUnealta } from "../../_componente/intrebari-unealta";
@@ -227,6 +228,8 @@ export default async function PaginaCondica({ searchParams }: Proprietati) {
       <Banda id="documentul" inaltime="scurta">
         <PrevizualizareDocument document={document} />
       </Banda>
+
+      <ContinuaInAplicatie unealta="condica-de-prezenta" generat={aGenerat(p)} />
 
       <div data-tipar="ascunde">
         <CeCereItm acoperire={ACOPERIRE_CONDICA} />
