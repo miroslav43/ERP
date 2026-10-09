@@ -1,7 +1,7 @@
 import { fisaSsmDinParametri } from "@/app/(marketing)/unelte/fisa-instruire-ssm/model";
 import { fisaEvaluareDinParametri } from "@/app/(marketing)/unelte/fisa-evaluare/model";
 
-import type { DocumentTabelar } from "./document-tabelar";
+import { FORMATE, type DocumentTabelar, type Format } from "./document-tabelar";
 
 export type Constructor = (q: URLSearchParams) => DocumentTabelar;
 
@@ -24,4 +24,17 @@ export const UNELTE: Readonly<Record<string, Constructor>> = {
  */
 export function constructorPentru(slug: string): Constructor | undefined {
   return Object.hasOwn(UNELTE, slug) ? UNELTE[slug] : undefined;
+}
+
+/**
+ * Formatele unei unelte, când nu sunt toate trei. Fișa SSM n-are Excel: are
+ * secțiuni (casete de viză, șapte tabele), pe care `randeazaXlsx` nu le poate
+ * așeza, iar pagina și lista uneltelor promit doar Word și PDF.
+ */
+const FORMATE_RESTRANSE: Readonly<Record<string, readonly Format[]>> = {
+  "fisa-instruire-ssm": ["pdf", "docx"],
+};
+
+export function formatePentru(slug: string): readonly Format[] {
+  return Object.hasOwn(FORMATE_RESTRANSE, slug) ? (FORMATE_RESTRANSE[slug] ?? FORMATE) : FORMATE;
 }

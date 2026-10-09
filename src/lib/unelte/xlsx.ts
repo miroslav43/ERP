@@ -4,8 +4,19 @@ import { ADRESA_SITE } from "@/content/landing/contact";
 
 import { adresaDinFisier, SEMNATURA_FISIER, type DocumentTabelar } from "./document-tabelar";
 
-/** `DocumentTabelar` → .xlsx, pe o singură filă, cu antetul tabelului înghețat. */
+/**
+ * `DocumentTabelar` → .xlsx, pe o singură filă, cu antetul tabelului înghețat.
+ *
+ * Secțiunile (`sectiuni`, fișa SSM) NU au formă de foaie de calcul: casetele de
+ * viză și cele șapte tabele cu lățimi diferite nu încap pe o grilă de coloane.
+ * Unealta care le are se descarcă doar în PDF și Word (`formatePentru` din
+ * `registru.ts`); aici se aruncă, ca o unealtă nouă să nu piardă tăcut jumătate
+ * din document într-un Excel.
+ */
 export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
+  if ((d.sectiuni?.length ?? 0) > 0) {
+    throw new Error("Documentul are secțiuni, iar Excelul nu le randează.");
+  }
   const registru = new ExcelJS.Workbook();
   registru.creator = "Administrativo";
   registru.title = d.titlu;

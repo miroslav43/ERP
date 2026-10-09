@@ -12,6 +12,7 @@ import {
 import { randeazaDocx } from "./docx";
 import { INALT_CASETA, randeazaPdf, type SondaPdf } from "./pdf";
 import { raspunsDocument } from "./raspuns";
+import { randeazaXlsx } from "./xlsx";
 
 /**
  * Documentele cu secțiuni (fișa SSM, anexa 11 la HG 1425/2006): mai multe
@@ -240,5 +241,12 @@ describe("Word cu secțiuni", () => {
     for (const parte of Object.keys(zip.files).filter((f) => /^word\/.*\.xml$/u.test(f))) {
       expect(eroriXml((await zip.file(parte)?.async("string")) ?? ""), parte).toEqual([]);
     }
+  });
+});
+
+describe("Excel", () => {
+  it("refuză un document cu secțiuni, în loc să le piardă tăcut", async () => {
+    await expect(randeazaXlsx(CU_SECTIUNI)).rejects.toThrow(/secțiuni/u);
+    await expect(randeazaXlsx(SIMPLU)).resolves.toBeInstanceOf(Uint8Array);
   });
 });
