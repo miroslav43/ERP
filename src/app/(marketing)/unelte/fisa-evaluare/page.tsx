@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { exempluPentru, imagineExemplu } from "@/content/landing/exemple-unelte";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { metaUnealta } from "@/content/landing/seo-unelte";
@@ -11,6 +12,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { Descarcari } from "../../_componente/descarcari";
+import { ExempluCompletat } from "../../_componente/exemplu-completat";
 import { JsonLd } from "../../_componente/json-ld";
 import { metadatePagina } from "../../_componente/metadate";
 import { nodUnealta } from "../../_componente/noduri-json-ld";
@@ -115,6 +117,7 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
   }
   const ales = parametriFisaEvaluare(q);
   const document = construiesteFisaEvaluare(ales);
+  const exemplu = exempluPentru("/unelte/fisa-evaluare");
   const valori: Readonly<Record<(typeof CAMPURI)[number]["nume"], string>> = {
     nume: ales.nume,
     functie: ales.functie,
@@ -137,6 +140,7 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
           cale: "/unelte/fisa-evaluare",
           nume: ANTET_FISA_EVALUARE.titlu,
           descriere: ANTET_FISA_EVALUARE.lead,
+          ...(exemplu === undefined ? {} : { imagine: imagineExemplu(exemplu) }),
         })}
       />
       <div data-tipar="ascunde">
@@ -243,6 +247,8 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
       >
         <ListaLege reguli={PASI_CONCEDIERE} />
       </Banda>
+
+      <ExempluCompletat exemplu={exemplu} />
 
       <Banda
         inaltime="scurta"

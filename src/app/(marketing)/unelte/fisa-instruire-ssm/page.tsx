@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { exempluPentru, imagineExemplu } from "@/content/landing/exemple-unelte";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { metaUnealta } from "@/content/landing/seo-unelte";
@@ -15,6 +16,7 @@ import { Cadru } from "../../_componente/cadru";
 import { JsonLd } from "../../_componente/json-ld";
 import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { Descarcari } from "../../_componente/descarcari";
+import { ExempluCompletat } from "../../_componente/exemplu-completat";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { PrevizualizareDocument } from "../../_componente/previzualizare-document";
@@ -124,6 +126,7 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
   }
   const ales = parametriFisaSsm(q);
   const document = construiesteFisaSsm(ales);
+  const exemplu = exempluPentru("/unelte/fisa-instruire-ssm");
   const lucrator: Readonly<Record<(typeof CAMPURI_LUCRATOR)[number]["nume"], string>> = {
     nume: ales.nume,
     marca: ales.marca,
@@ -167,6 +170,7 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
           cale: "/unelte/fisa-instruire-ssm",
           nume: ANTET_FISA_SSM.titlu,
           descriere: ANTET_FISA_SSM.lead,
+          ...(exemplu === undefined ? {} : { imagine: imagineExemplu(exemplu) }),
         })}
       />
       <div data-tipar="ascunde">
@@ -328,6 +332,8 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
           </p>
         </Banda>
       </div>
+
+      <ExempluCompletat exemplu={exemplu} />
 
       <div data-tipar="ascunde">
         <Banda inaltime="scurta" supratitlu="Fără hârtie" titlu="Scadențele, înainte să treacă">

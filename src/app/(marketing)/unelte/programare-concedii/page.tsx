@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { exempluPentru, imagineExemplu } from "@/content/landing/exemple-unelte";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { metaUnealta } from "@/content/landing/seo-unelte";
@@ -13,6 +14,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { Descarcari } from "../../_componente/descarcari";
+import { ExempluCompletat } from "../../_componente/exemplu-completat";
 import { IntrebariUnealta } from "../../_componente/intrebari-unealta";
 import { JsonLd } from "../../_componente/json-ld";
 import { metadatePagina } from "../../_componente/metadate";
@@ -60,6 +62,7 @@ export default async function PaginaProgramareConcedii({ searchParams }: Proprie
   }
   const { parametri, avertismente } = citesteProgramare(q, todayInBucharest());
   const document = construiesteProgramare(parametri);
+  const exemplu = exempluPentru(CALE);
 
   return (
     <Cadru text={RO}>
@@ -68,6 +71,7 @@ export default async function PaginaProgramareConcedii({ searchParams }: Proprie
           cale: CALE,
           nume: ANTET_PROGRAMARE_CONCEDII.titlu,
           descriere: ANTET_PROGRAMARE_CONCEDII.lead,
+          ...(exemplu === undefined ? {} : { imagine: imagineExemplu(exemplu) }),
         })}
       />
       <div data-tipar="ascunde">
@@ -189,6 +193,8 @@ export default async function PaginaProgramareConcedii({ searchParams }: Proprie
       <Banda id="documentul" inaltime="scurta">
         <PrevizualizareDocument document={document} />
       </Banda>
+
+      <ExempluCompletat exemplu={exemplu} />
 
       <div data-tipar="ascunde">
         <IntrebariUnealta

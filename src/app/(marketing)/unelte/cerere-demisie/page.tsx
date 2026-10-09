@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { exempluPentru, imagineExemplu } from "@/content/landing/exemple-unelte";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
 import { metaUnealta } from "@/content/landing/seo-unelte";
@@ -14,6 +15,7 @@ import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
 import { Descarcari } from "../../_componente/descarcari";
+import { ExempluCompletat } from "../../_componente/exemplu-completat";
 import { IntrebariUnealta } from "../../_componente/intrebari-unealta";
 import { JsonLd } from "../../_componente/json-ld";
 import { metadatePagina } from "../../_componente/metadate";
@@ -80,6 +82,7 @@ export default async function PaginaCerereDemisie({ searchParams }: Proprietati)
     if (v !== undefined && v !== "") q.set(cheie, v);
   }
   const { parametri, avertismente } = citesteDemisie(q, todayInBucharest());
+  const exemplu = exempluPentru(CALE);
   let document: DocumentTabelar | null = null;
   let preaviz: Preaviz | null = null;
   let problema: string | null = null;
@@ -106,6 +109,7 @@ export default async function PaginaCerereDemisie({ searchParams }: Proprietati)
           cale: CALE,
           nume: ANTET_CERERE_DEMISIE.titlu,
           descriere: ANTET_CERERE_DEMISIE.lead,
+          ...(exemplu === undefined ? {} : { imagine: imagineExemplu(exemplu) }),
         })}
       />
       <div data-tipar="ascunde">
@@ -269,6 +273,8 @@ export default async function PaginaCerereDemisie({ searchParams }: Proprietati)
           <PrevizualizareDocument document={document} />
         </Banda>
       )}
+
+      <ExempluCompletat exemplu={exemplu} />
 
       <div data-tipar="ascunde">
         <IntrebariUnealta titlu="Ce se mai întreabă despre demisie" intrebari={INTREBARI_DEMISIE} />

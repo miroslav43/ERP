@@ -91,10 +91,11 @@ export const META_UNELTE: Readonly<Record<string, MetaUnealta>> = {
     termen: "foaie de parcurs model",
   },
   "/unelte/fisa-instruire-ssm": {
-    // Titlul și descrierea scrise la H7 (anexa 11 completă).
+    // Titlul scris la H7 (anexa 11 completă); descrierea, din K11, spune că are
+    // model completat („fisa ssm completata”, scor 19).
     titlu: "Fișa individuală de instruire SSM: model gratuit",
     descriere:
-      "Fișa individuală de instruire SSM completă, după anexa 11 la HG 1425/2006: la angajare, periodică, suplimentară, testări, control medical. Word sau PDF.",
+      "Fișa individuală de instruire SSM după anexa 11 la HG 1425/2006, cu model completat: la angajare, periodică, suplimentară, testări. Word sau PDF.",
     termen: "fisa instruire ssm model",
   },
   "/unelte/fisa-evaluare": {

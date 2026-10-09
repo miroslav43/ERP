@@ -194,8 +194,17 @@ export function nodArticol(pagina: PaginaLege) {
  * produsul cu abonament (`#aplicatie`). `dateModified` e data din sitemap, ca
  * cele două să nu poată spune lucruri diferite. Fără `aggregateRating`: nu avem
  * recenzii, iar unele inventate ar fi o afirmație falsă.
+ * `image`: doar cu o captură a documentului completat — informație, nu decor (8 oct 2026).
  */
-export function nodUnealta(u: Readonly<{ cale: string; nume: string; descriere: string }>) {
+export function nodUnealta(
+  u: Readonly<{
+    cale: string;
+    nume: string;
+    descriere: string;
+    /** Captura modelului completat (`exemple-unelte.ts`), din 8 oct 2026. */
+    imagine?: Readonly<{ url: string; latime: number; inaltime: number; descriere: string }>;
+  }>,
+) {
   const url = `${ADRESA_SITE}${u.cale}`;
   return {
     "@context": "https://schema.org",
@@ -212,5 +221,16 @@ export function nodUnealta(u: Readonly<{ cale: string; nume: string; descriere: 
     offers: { "@type": "Offer", price: "0", priceCurrency: "RON" },
     provider: { "@id": ID_ORGANIZATIE },
     isPartOf: { "@id": ID_SITE },
+    ...(u.imagine === undefined
+      ? {}
+      : {
+          image: {
+            "@type": "ImageObject",
+            url: `${ADRESA_SITE}${u.imagine.url}`,
+            width: u.imagine.latime,
+            height: u.imagine.inaltime,
+            caption: u.imagine.descriere,
+          },
+        }),
   };
 }

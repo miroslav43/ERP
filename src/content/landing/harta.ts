@@ -369,6 +369,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
+    // 2026-10-09: modelul completat, cu captură.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -404,6 +405,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
+    // 2026-10-09: modelul completat, cu captură.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -413,6 +415,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
+    // 2026-10-09: modelul completat, cu captură.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -429,6 +432,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
+    // 2026-10-09: modelul completat, cu captură.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -437,7 +441,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    // 2026-10-09: „model” în titlu (seo-unelte.ts).
+    // 2026-10-09: „model” în titlu (seo-unelte.ts); modelul completat, cu captură.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
