@@ -41,6 +41,8 @@ export default async function PaginaSarcini() {
   const fisaId = stare.stare === "ok" ? stare.fisa.id : null;
 
   const sarcini = await sarcinileMele(tenant.organizationId, fisaId, tenant.role as RolResponsabil);
+  // Fișa subiectului se deschide doar cu `employees:read` (rândul a venit prin RLS în `angajatiDupaId`).
+  const poateDeschideFisa = can(permisiuni, "employees:read", "own");
 
   const numeAngajati = await angajatiDupaId(tenant.organizationId, [
     ...new Set(sarcini.map((s) => s.employee_id)),
@@ -69,10 +71,16 @@ export default async function PaginaSarcini() {
             const intarziat = sarcina.termen !== null && sarcina.termen < azi;
             const angajat = numeAngajati.get(sarcina.employee_id);
             return (
-              <li key={sarcina.id}>
+              // Cardul rămâne apăsabil în întregime (linkul pasului se întinde
+              // peste el cu `after:`), iar omul are linkul LUI, deasupra: un `<a>`
+              // în alt `<a>` nu e permis.
+              <li
+                key={sarcina.id}
+                className="bg-surface border-border hover:border-ring rounded-panou relative border p-4 transition-colors"
+              >
                 <Link
                   href={`/onboarding/${sarcina.instance_id}#pas-${sarcina.id}`}
-                  className="bg-surface border-border hover:border-ring rounded-panou block border p-4 transition-colors"
+                  className="block after:absolute after:inset-0 after:content-['']"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -85,11 +93,20 @@ export default async function PaginaSarcini() {
                         ) : null}
                       </p>
                       <p className="text-muted-foreground text-nota mt-1 flex flex-wrap items-center gap-2">
-                        <span>
-                          {angajat === undefined
-                            ? "Un coleg"
-                            : (angajat.full_name ?? angajat.marca)}
-                        </span>
+                        {angajat !== undefined && poateDeschideFisa ? (
+                          <Link
+                            href={`/angajati/${sarcina.employee_id}`}
+                            className="relative z-10 underline-offset-2 hover:underline"
+                          >
+                            {angajat.full_name ?? angajat.marca}
+                          </Link>
+                        ) : (
+                          <span>
+                            {angajat === undefined
+                              ? "Un coleg"
+                              : (angajat.full_name ?? angajat.marca)}
+                          </span>
+                        )}
                         {sarcina.etapa_titlu === null ? null : (
                           <>
                             <span>·</span>

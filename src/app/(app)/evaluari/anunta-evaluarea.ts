@@ -119,3 +119,105 @@ export async function anuntaEvaluareaFinalizata(
     return false;
   }
 }
+
+/**
+ * Programarea: managerul direct al fiecărui angajat evaluat află că are o
+ * ciornă de notat, cu linkul pe fișa omului, la ancora evaluării. Cine a
+ * programat (HR) nu se anunță pe sine. Best-effort, ca mai sus.
+ */
+export async function anuntaEvaluatorii(
+  admin: SupabaseClient<Database>,
+  organizationId: string,
+  expeditorUserId: string,
+  evaluari: readonly Readonly<{ id: string; employee_id: string }>[],
+): Promise<void> {
+  if (evaluari.length === 0) return;
+  try {
+    const { data: fise, error } = await admin
+      .from("employees")
+      .select("id, full_name, manager_employee_id")
+      .eq("organization_id", organizationId)
+      .in("id", [...new Set(evaluari.map((e) => e.employee_id))]);
+    if (error !== null) throw error;
+    const idManageri = [
+      ...new Set(
+        (fise ?? []).map((f) => f.manager_employee_id).filter((id): id is string => id !== null),
+      ),
+    ];
+    if (idManageri.length === 0) return;
+    const { data: manageri, error: eroareManageri } = await admin
+      .from("employees")
+      .select("id, user_id")
+      .eq("organization_id", organizationId)
+      .in("id", idManageri)
+      .is("deleted_at", null);
+    if (eroareManageri !== null) throw eroareManageri;
+    const userDupaManager = new Map(
+      (manageri ?? [])
+        .filter((m) => m.user_id !== null)
+        .map((m) => [m.id, m.user_id as string] as const),
+    );
+    const fisaDupaId = new Map((fise ?? []).map((f) => [f.id, f] as const));
+    const randuri = evaluari.flatMap((e) => {
+      const fisa = fisaDupaId.get(e.employee_id);
+      const managerId = fisa?.manager_employee_id ?? null;
+      const userId = managerId === null ? undefined : userDupaManager.get(managerId);
+      if (userId === undefined || userId === expeditorUserId) return [];
+      return [
+        {
+          organization_id: organizationId,
+          user_id: userId,
+          kind: "task" as const,
+          title: "Evaluare de completat",
+          body: `Evaluarea pentru ${fisa?.full_name ?? "un subordonat"} a fost programată; notele se dau de pe fișa lui.`,
+          link: `/angajati/${e.employee_id}#evaluare-${e.id}`,
+          entity_type: "employee_evaluation",
+          entity_id: e.id,
+        },
+      ];
+    });
+    if (randuri.length === 0) return;
+    const { error: eroareInsert } = await admin.from("notifications").insert(randuri);
+    if (eroareInsert !== null) throw eroareInsert;
+  } catch (eroare) {
+    console.error("[evaluari] notificarea evaluatorilor a eșuat", { eroare });
+  }
+}
+
+/**
+ * Luna KPI închisă: angajatul află scorul, cu linkul pe LUNA lui din portal
+ * (`?an=&luna=`), nu pe pagina generică. Best-effort.
+ */
+export async function anuntaLunaKpiInchisa(
+  admin: SupabaseClient<Database>,
+  organizationId: string,
+  lunaId: string,
+  employeeId: string,
+  an: number | null,
+  luna: number | null,
+): Promise<void> {
+  try {
+    const { data: fisa, error } = await admin
+      .from("employees")
+      .select("user_id")
+      .eq("organization_id", organizationId)
+      .eq("id", employeeId)
+      .maybeSingle();
+    if (error !== null) throw error;
+    if (fisa?.user_id == null) return;
+    const perioada = an === null || luna === null ? "" : `?an=${String(an)}&luna=${String(luna)}`;
+    const { error: eroareInsert } = await admin.from("notifications").insert({
+      organization_id: organizationId,
+      user_id: fisa.user_id,
+      kind: "info" as const,
+      title: "Luna de KPI a fost închisă",
+      body: "Managerul a închis luna: scorul, liniile și concluzia sunt în „KPI-ul meu”.",
+      link: `/portal/kpi-ul-meu${perioada}`,
+      entity_type: "kpi_evaluare_lunara",
+      entity_id: lunaId,
+    });
+    if (eroareInsert !== null) throw eroareInsert;
+  } catch (eroare) {
+    console.error("[evaluari] notificarea de lună KPI închisă a eșuat", { lunaId, eroare });
+  }
+}

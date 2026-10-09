@@ -7,7 +7,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
@@ -23,6 +23,7 @@ import {
 import { AsistentSablon } from "../_componente/asistent-sablon";
 import { optiuniAsistent } from "../_componente/optiuni";
 import { buton } from "@/components/ui/buton";
+import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Șablon de checklist" };
 
@@ -36,10 +37,12 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "onboarding"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  const contextPorti: ContextPorti = { features: module, permissions: permisiuni };
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
@@ -75,14 +78,23 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
         // Pasul firesc după ce vezi (sau tocmai ai creat) un șablon: pornești
         // o instanță din el. Poarta e a paginii-țintă (`checklists:create` all).
         actiuni={
-          sablon.activ && can(permisiuni, "checklists:create", "all") ? (
+          <span className="flex flex-wrap items-center gap-3">
+            {/* Sensul invers: de pe șablon la parcursurile pornite din el. */}
             <Link
-              href={`/onboarding/noua?sablon=${sablon.id}`}
-              className={buton({ varianta: "primar" })}
+              href={`/onboarding?sablon=${sablon.id}`}
+              className="text-nota underline-offset-2 hover:underline"
             >
-              Pornește o instanță
+              Parcursurile pornite din el
             </Link>
-          ) : null
+            {sablon.activ && can(permisiuni, "checklists:create", "all") ? (
+              <Link
+                href={`/onboarding/noua?sablon=${sablon.id}`}
+                className={buton({ varianta: "primar" })}
+              >
+                Pornește o instanță
+              </Link>
+            ) : null}
+          </span>
         }
       />
     </div>
@@ -91,7 +103,23 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
   if (!poateEditare) {
     // Fără drept de editare, șablonul se CITEȘTE. Varianta veche randa oricum
     // lista cu butoane inerte; un control care nu poate reuși e mai rău decât
-    // absența lui.
+    // absența lui. Cursul, materialul și responsabilul se NUMESC (și se
+    // leagă, prin poarta țintei), nu doar „Curs de parcurs".
+    const optiuniCitire = await optiuniAsistent(tenant.organizationId);
+    const numeCurs = new Map(optiuniCitire.cursuri.map((c) => [c.id, c.denumire]));
+    const numeMaterial = new Map(optiuniCitire.materiale.map((m) => [m.id, m.denumire]));
+    const numeAngajat = new Map(optiuniCitire.angajati.map((a) => [a.id, a.nume]));
+    const leagaCurs = poateDeschide("/cursuri/[id]", contextPorti);
+    const leagaMaterial = poateDeschide("/cursuri/biblioteca/[id]", contextPorti);
+    const leagaFisa = poateDeschide("/angajati/[id]", contextPorti);
+    const legatura = (href: string, text: string, poate: boolean) =>
+      poate ? (
+        <Link href={href} className="underline-offset-2 hover:underline">
+          {text}
+        </Link>
+      ) : (
+        <span>{text}</span>
+      );
     return (
       <div className={`${LATIMI.detaliu} space-y-6`}>
         {antet}
@@ -115,7 +143,43 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
                     {p.responsabil_tip === "rol" && p.responsabil_rol !== null
                       ? `: ${ETICHETE_ROL[p.responsabil_rol]}`
                       : ""}
+                    {p.responsabil_employee_id !== null ? (
+                      <>
+                        {": "}
+                        {legatura(
+                          `/angajati/${p.responsabil_employee_id}`,
+                          numeAngajat.get(p.responsabil_employee_id) ?? "un angajat anume",
+                          leagaFisa && numeAngajat.has(p.responsabil_employee_id),
+                        )}
+                      </>
+                    ) : null}
                   </span>
+                  {p.curs_id === null ? null : (
+                    <>
+                      <span>·</span>
+                      <span>
+                        Curs:{" "}
+                        {legatura(
+                          `/cursuri/${p.curs_id}`,
+                          numeCurs.get(p.curs_id) ?? "curs nevizibil",
+                          leagaCurs && numeCurs.has(p.curs_id),
+                        )}
+                      </span>
+                    </>
+                  )}
+                  {p.material_id === null ? null : (
+                    <>
+                      <span>·</span>
+                      <span>
+                        Material:{" "}
+                        {legatura(
+                          `/cursuri/biblioteca/${p.material_id}`,
+                          numeMaterial.get(p.material_id) ?? "material nevizibil",
+                          leagaMaterial && numeMaterial.has(p.material_id),
+                        )}
+                      </span>
+                    </>
+                  )}
                   <span>·</span>
                   <span>{p.termen_zile_relativ} zile</span>
                 </p>

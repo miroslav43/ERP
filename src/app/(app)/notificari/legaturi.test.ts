@@ -162,6 +162,20 @@ describe("caleaInAplicatie — legăturile de portal pentru rolurile din aplica�
     );
   });
 
+  it("luna KPI din portal duce la lista KPI, pe fișa proprie", () => {
+    const cuKpi: ContextPorti = {
+      features: new Set([...MANAGER.features, "kpi"]),
+      permissions: new Map([...MANAGER.permissions, ["evaluations:read", "team"]]),
+    };
+    expect(caleaInAplicatie(notificare("/portal/kpi-ul-meu?an=2026&luna=9"), ctx(cuKpi))).toBe(
+      `/evaluari/kpi?an=2026&luna=9&angajat=${FISA}`,
+    );
+    expect(caleaInAplicatie(notificare("/portal/kpi-ul-meu"), ctx(cuKpi))).toBe(
+      `/evaluari/kpi?angajat=${FISA}`,
+    );
+    expect(caleaInAplicatie(notificare("/portal/kpi-ul-meu"), ctx(MANAGER))).toBeNull();
+  });
+
   it("o legătură de portal fără echivalent rămâne text, nu drum spre /panou", () => {
     expect(caleaInAplicatie(notificare("/portal/altceva"), ctx(MANAGER))).toBeNull();
   });

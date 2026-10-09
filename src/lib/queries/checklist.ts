@@ -138,6 +138,7 @@ export async function listeazaInstante(
     if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
     if (filtre.status !== null && filtre.status.length > 0) cu = cu.in("status", filtre.status);
     if (filtre.angajat !== null) cu = cu.eq("employee_id", filtre.angajat);
+    if (filtre.sablon !== null) cu = cu.eq("template_id", filtre.sablon);
     if (filtre.de_la !== null) cu = cu.gte("data_referinta", filtre.de_la);
     if (filtre.pana_la !== null) cu = cu.lte("data_referinta", filtre.pana_la);
     return cu;

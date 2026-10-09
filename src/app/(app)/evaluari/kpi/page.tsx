@@ -35,6 +35,7 @@ import { FileModul } from "@/components/ui/file-modul";
 import { fileEvaluari } from "@/config/file-module";
 import { PastileFiltre } from "@/components/ui/pastile-filtre";
 import { angajatiDupaId } from "@/lib/queries/checklist";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "KPI lunar" };
 
@@ -58,6 +59,7 @@ async function ListaLuni({
   luna,
   cursor,
   angajat,
+  status,
 }: {
   readonly organizationId: string;
   readonly an: number;
@@ -65,11 +67,13 @@ async function ListaLuni({
   readonly cursor: string | null;
   /** `?angajat=`: toate lunile unui om, indiferent de an și lună. */
   readonly angajat: string | null;
+  /** `?status=`: doar lunile în lucru sau doar cele închise. */
+  readonly status: "draft" | "finalizat" | null;
 }) {
   const { randuri, urmatorulCursor, total } = await listeazaLuniKpi(organizationId, {
     an: angajat === null ? an : null,
     luna: angajat === null ? luna : null,
-    status: null,
+    status,
     employee_id: angajat,
     sort: null,
     cursor,
@@ -151,6 +155,7 @@ async function ListaLuni({
                 : "Nicio lună de KPI pentru acest angajat"
             }
             descriere="Deschideți luna pentru un subordonat direct, din butonul de sus. Liniile se preiau din setul funcției lui."
+            actiune={{ eticheta: "Seturile de indicatori", href: "/evaluari/kpi/seturi" }}
           />
         }
       />
@@ -194,6 +199,9 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
   const angajatBrut = parametri["angajat"];
   const angajatFiltrat =
     typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
+  // Filtrul de stare, din fișa angajatului sau din notificări; altceva = toate.
+  const statusBrut = parametri["status"];
+  const statusFiltrat = statusBrut === "draft" || statusBrut === "finalizat" ? statusBrut : null;
   const numeAngajatFiltrat =
     angajatFiltrat === null
       ? null
@@ -219,19 +227,36 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
             tenant={tenant}
           />
         }
-        {...(poateEvalua
-          ? { actiuni: <DeschideLuna angajati={angajati} an={an} luna={luna} /> }
-          : {})}
+        actiuni={
+          <span className="flex flex-wrap items-center gap-3">
+            {/* Pagina seturilor era orfană: nimic din modul nu ducea la ea. */}
+            <Link
+              href="/evaluari/kpi/seturi"
+              className="text-nota underline-offset-2 hover:underline"
+            >
+              Seturile de indicatori
+            </Link>
+            {poateEvalua ? <DeschideLuna angajati={angajati} an={an} luna={luna} /> : null}
+          </span>
+        }
       />
 
       <SelectorPerioada an={an} luna={luna} />
 
       <PastileFiltre
-        active={
-          angajatFiltrat === null
+        active={[
+          ...(angajatFiltrat === null
             ? []
-            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
-        }
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]),
+          ...(statusFiltrat === null
+            ? []
+            : [
+                {
+                  cheie: "status",
+                  eticheta: statusFiltrat === "draft" ? "Stare: în lucru" : "Stare: închise",
+                },
+              ]),
+        ]}
       />
 
       <Suspense
@@ -244,6 +269,7 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
           luna={luna}
           cursor={cursor}
           angajat={angajatFiltrat}
+          status={statusFiltrat}
         />
       </Suspense>
     </div>

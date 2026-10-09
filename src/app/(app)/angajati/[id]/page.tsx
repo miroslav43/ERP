@@ -94,6 +94,7 @@ import { InvitatieAngajat } from "./invitatie-angajat";
 import { DateLipsa } from "./date-lipsa";
 import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 import { SectiuneInAlteModule } from "./sectiune-in-alte-module";
+import { RedeschideEvaluare } from "./redeschide-evaluare";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -195,6 +196,8 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const areEvaluari = module.has("evaluations");
   const poateCreaEvaluare = areEvaluari && can(permisiuni, "evaluations:create", "team");
   const poateEditaEvaluare = areEvaluari && can(permisiuni, "evaluations:update", "team");
+  // `redeschideEvaluare` cere `all`: butonul apare doar cu dreptul ăsta.
+  const poateRedeschideEvaluare = areEvaluari && can(permisiuni, "evaluations:update", "all");
   // Invitarea are permisiune PROPRIE (0099), separată de `employees:update`:
   // ea consumă un loc din `seats_limit` și creează un cont, nu editează o fișă.
   // Stă printre porțile de sus fiindcă decide dacă pleacă interogarea de mai
@@ -1379,6 +1382,14 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                         />
                       </div>
                     ) : null}
+                    {evaluare.status === "finalizat" && poateRedeschideEvaluare ? (
+                      <div className="mt-3">
+                        <RedeschideEvaluare
+                          id={evaluare.id}
+                          eticheta={`Evaluarea din ${formatDate(evaluare.data_evaluarii)}`}
+                        />
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}
@@ -1562,6 +1573,18 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
               istoricul — pontaj, concedii, documente — fiindcă adeverințele de vechime se emit din
               el și după plecare. Ștergerea o scoate din listă, din căutare, din organigramă și din
               pontaj.
+              {poateDeschide("/onboarding/noua", contextPorti) ? (
+                <>
+                  {" "}
+                  <Link
+                    href={`/onboarding/noua?angajat=${angajat.id}`}
+                    className="text-foreground underline-offset-2 hover:underline"
+                  >
+                    Pornește checklistul de ieșire
+                  </Link>
+                  , dacă nu există deja.
+                </>
+              ) : null}
             </p>
           ) : (
             <>

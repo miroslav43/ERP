@@ -225,7 +225,10 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
               <>
                 {" "}
                 în modulul{" "}
-                <Link href="/inventar" className="underline underline-offset-2">
+                <Link
+                  href={`/inventar?angajat=${instanta.employee_id}`}
+                  className="underline underline-offset-2"
+                >
                   Inventar
                 </Link>
               </>
@@ -237,8 +240,18 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
           <ul className="text-foreground text-corp mt-2 space-y-1">
             {bunuri.map((b) => (
               <li key={b.id}>
-                {b.item.denumire} ({b.item.numar_inventar}) — în primire din{" "}
-                {formatDateTime(b.predat_la)}
+                {/* Returnarea se face de pe fișa obiectului; fără drept pe inventar rămâne text. */}
+                {poateDeschideInventarul ? (
+                  <Link
+                    href={`/inventar/${b.item.id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {b.item.denumire} ({b.item.numar_inventar})
+                  </Link>
+                ) : (
+                  `${b.item.denumire} (${b.item.numar_inventar})`
+                )}{" "}
+                — în primire din {formatDateTime(b.predat_la)}
               </li>
             ))}
           </ul>

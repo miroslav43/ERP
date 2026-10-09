@@ -28,6 +28,7 @@ import { ActiuniSet } from "./actiuni-set";
 import { ConstructorSet } from "./constructor-set";
 import { FileModul } from "@/components/ui/file-modul";
 import { fileEvaluari } from "@/config/file-module";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Seturi de indicatori" };
 
@@ -81,6 +82,7 @@ export default async function PaginaSeturiKpi() {
             titlu="Active"
             seturi={active}
             poateEdita={poateEdita}
+            poateDeschideAngajati={can(permisiuni, "employees:read", "own")}
             functii={functii}
             gol="Niciun set activ. Cele arhivate se pot vedea mai jos."
           />
@@ -89,6 +91,7 @@ export default async function PaginaSeturiKpi() {
               titlu="Arhivate"
               seturi={arhivate}
               poateEdita={poateEdita}
+              poateDeschideAngajati={can(permisiuni, "employees:read", "own")}
               functii={functii}
               gol=""
             />
@@ -103,12 +106,15 @@ function ListaSeturi({
   titlu,
   seturi,
   poateEdita,
+  poateDeschideAngajati,
   functii,
   gol,
 }: {
   readonly titlu: string;
   readonly seturi: readonly Awaited<ReturnType<typeof listeazaSeturiKpi>>[number][];
   readonly poateEdita: boolean;
+  /** `employees:read`: funcția setului duce la lista oamenilor de pe ea. */
+  readonly poateDeschideAngajati: boolean;
   readonly functii: readonly string[];
   readonly gol: string;
 }) {
@@ -133,7 +139,16 @@ function ListaSeturi({
                 <header className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <h3 className="font-medium">{set.denumire}</h3>
-                    <p className="text-muted-foreground text-nota">{set.functie}</p>
+                    {poateDeschideAngajati ? (
+                      <Link
+                        href={`/angajati?functie=${encodeURIComponent(set.functie)}&status=activ`}
+                        className="text-muted-foreground text-nota underline-offset-2 hover:underline"
+                      >
+                        {set.functie}
+                      </Link>
+                    ) : (
+                      <p className="text-muted-foreground text-nota">{set.functie}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {set.activ ? null : <Badge ton="neutru">Arhivat</Badge>}

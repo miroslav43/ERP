@@ -114,3 +114,4 @@ panoului — nu sunt documente de vehicul, e altă scadență.
   [[modul/reges]]; pentru zile și fișe săptămânale, [[modul/pontaj]]; pentru cererile în
   curs, [[modul/concedii]].
 - De ce un card lipsește: [[rol/manager]], [[rol/hr]].
+- Rândul „Pași de integrare care îți revin” (`pasiIntegrare`, `sarcinileMele` pe fișă + rol): [[strat/navigare]].

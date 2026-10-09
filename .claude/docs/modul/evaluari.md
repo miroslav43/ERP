@@ -176,3 +176,4 @@ agregări peste `jsonb_array_elements`, care încetinesc tăcut la 200 de angaja
 
 - Fișa angajatului și lanțul de subordonare: [[modul/angajati]].
 - De ce un manager vede dar nu poate scrie: [[rol/manager]].
+- Filtrul `?status=` pe KPI, seturile din antet, „Redeschide” pe fișă, notificările de programare și de lună închisă, luna din istoricul portalului: [[strat/navigare]].

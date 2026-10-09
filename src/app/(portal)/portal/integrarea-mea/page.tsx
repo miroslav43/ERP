@@ -48,6 +48,7 @@ export default async function PaginaIntegrareaMea() {
     angajat: stare.fisa.id,
     de_la: null,
     pana_la: null,
+    sablon: null,
     cursor: null,
     limita: 25,
   });

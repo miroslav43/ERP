@@ -16,6 +16,7 @@ const TOTI_PE_UNU: CoadaPanou = {
   tichete: 1,
   anomaliiKm: 1,
   regesDeTransmis: 1,
+  pasiIntegrare: 1,
 };
 
 function contoare(coada: CoadaPanou): ContoarePanou {
@@ -80,8 +81,14 @@ describe("coadaDinContoare", () => {
     const intrari = coadaDinContoare(
       contoare({ ...TOTI_PE_UNU, deplasari: null, foiParcurs: 0, tichete: null }),
     );
-    expect(intrari.map((i) => i.cheie)).toEqual(["concedii", "pontaj", "anomalii", "reges"]);
-    expect(numarulDinAntet(intrari)).toBe(4);
+    expect(intrari.map((i) => i.cheie)).toEqual([
+      "concedii",
+      "pontaj",
+      "integrare",
+      "anomalii",
+      "reges",
+    ]);
+    expect(numarulDinAntet(intrari)).toBe(5);
   });
 
   it("coada goală dă zero, nu un rând gol", () => {
@@ -95,6 +102,7 @@ describe("coadaDinContoare", () => {
       tichete: 0,
       anomaliiKm: 0,
       regesDeTransmis: 0,
+      pasiIntegrare: 0,
     };
     expect(coadaDinContoare(contoare(goala))).toHaveLength(0);
     expect(numarulDinAntet([])).toBe(0);

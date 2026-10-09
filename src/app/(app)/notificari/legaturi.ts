@@ -32,6 +32,7 @@ import { lunieaSaptamanii, ziuaRomaneascaDinText } from "@/domain/attendance/sap
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 const TIPAR_ZI_PORTAL = new RegExp(`^/portal/pontajul-meu/zi/(\\d{4}-\\d{2}-\\d{2})$`, "u");
 const TIPAR_LUNA_PORTAL = /^\/portal\/pontajul-meu\?an=(\d{4})&luna=(\d{1,2})$/u;
+const TIPAR_KPI_PORTAL = /^\/portal\/kpi-ul-meu(?:\?an=(\d{4})&luna=(\d{1,2}))?$/u;
 const TIPAR_CURS_PORTAL = new RegExp(`^/portal/cursurile-mele/(${UUID})$`, "u");
 const TIPAR_CONCEDIU_PORTAL = new RegExp(`^/portal/concediile-mele/(${UUID})$`, "u");
 const TIPAR_DEPLASARE_PORTAL = new RegExp(`^/portal/diurna-mea/(${UUID})$`, "u");
@@ -110,6 +111,14 @@ export function caleaInAplicatie(n: NotificareDeTradus, ctx: ContextAplicatie): 
       return prinPoarta(`/pontaj?an=${luna[1] ?? ""}&luna=${luna[2] ?? ""}${propria}`, porti);
     }
     if (link === "/portal/pontajul-meu") return prinPoarta("/pontaj", porti);
+    const kpi = TIPAR_KPI_PORTAL.exec(link);
+    if (kpi !== null) {
+      // Un manager evaluat lunar n-are portal: luna lui e în lista KPI, pe fișa proprie.
+      const propria = ctx.fisaProprie === null ? "" : `&angajat=${ctx.fisaProprie}`;
+      const perioada = kpi[1] === undefined ? "" : `an=${kpi[1]}&luna=${kpi[2] ?? ""}`;
+      const interogare = `${perioada}${propria}`.replace(/^&/u, "");
+      return prinPoarta(interogare === "" ? "/evaluari/kpi" : `/evaluari/kpi?${interogare}`, porti);
+    }
     if (link === "/portal/pontajul-meu/saptamana") return prinPoarta("/pontaj/saptamana", porti);
     const inrolareId = TIPAR_CURS_PORTAL.exec(link)?.[1];
     if (inrolareId !== undefined) {

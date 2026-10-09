@@ -21,6 +21,8 @@ import { citesteTot } from "./citeste-tot";
 import { numarScadenteMentenanta } from "./maintenance";
 import { numarScadenteSsm } from "./ssm";
 import { PRAG_CONTRACTE_EXPIRA_ZILE } from "@/domain/hr/contracte-expira";
+import { sarcinileMele } from "./checklist";
+import type { RolResponsabil } from "@/schemas/checklist";
 
 /**
  * Citirile panoului principal.
@@ -99,6 +101,8 @@ export type CoadaPanou = Readonly<{
    * pe care nimeni n-are motiv să-l deschidă în ziua în care s-a întâmplat ceva.
    */
   regesDeTransmis: Contor;
+  /** Pașii de integrare deschiși care îmi revin (ca fișă sau ca rol); `null` = modul stins sau fără drept. */
+  pasiIntegrare: Contor;
 }>;
 
 /** Ce are termen. `lipsa` e o treaptă proprie, mai gravă decât „expiră curând”. */
@@ -143,6 +147,21 @@ export type ContoarePanou = Readonly<{
  * duce insigna. Fără fișă (administrator invitat) nu există „citit", deci
  * nici cifră.
  */
+/**
+ * Pașii de integrare deschiși care îmi revin — același predicat ca
+ * `/onboarding/sarcinile-mele` (`sarcinileMele`), unde duce rândul.
+ * Comentariul de acolo promitea un „contor din panou" care nu exista.
+ */
+async function pasiiDeIntegrareAiMei(
+  organizationId: string,
+  userId: string,
+  role: AppRole,
+): Promise<Contor> {
+  const fisa = await idFisaProprie(organizationId, userId);
+  const sarcini = await sarcinileMele(organizationId, fisa, role as RolResponsabil);
+  return sarcini.length;
+}
+
 async function anunturiNecitite(organizationId: string, userId: string): Promise<Contor> {
   const fisa = await idFisaProprie(organizationId, userId);
   if (fisa === null) return null;
@@ -506,6 +525,8 @@ export const PRAG_PANOU_ZILE = PRAG_CONTRACTE_EXPIRA_ZILE;
 type Porti = Readonly<{
   /** Utilizatorul curent. Contorul de concedii îl cere ca să-și excludă fișa. */
   userId: string;
+  /** Rolul din organizație: pașii de integrare se atribuie și pe rol. */
+  role: AppRole;
   features: ReadonlySet<FeatureKey>;
   /**
    * Harta întreagă, cum o dă `getPermissionMap`. `scope = "none"` e refuz
@@ -586,6 +607,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
    */
   const vedeReges = areModul(porti, "reges") && are(porti, "reges:transmit", "all");
   const vedeAvizier = areModul(porti, "announcements") && are(porti, "announcements:read", "own");
+  const vedeIntegrare = areModul(porti, "onboarding") && are(porti, "checklists:read", "own");
 
   const [
     cereriConcediu,
@@ -601,6 +623,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     firma,
     regesDeTransmis,
     avizier,
+    pasiIntegrare,
   ] = await Promise.all([
     vedeConcedii ? contorCereriConcediu(organizationId, porti.userId) : null,
     vedePontaj ? pontajDeAprobat(organizationId) : null,
@@ -622,6 +645,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     stareFirmeiAzi(organizationId),
     vedeReges ? contorRegesDeTransmis(organizationId) : null,
     vedeAvizier ? anunturiNecitite(organizationId, porti.userId) : null,
+    vedeIntegrare ? pasiiDeIntegrareAiMei(organizationId, porti.userId, porti.role) : null,
   ]);
 
   const coada: CoadaPanou = {
@@ -634,6 +658,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     tichetUnicId: tichete?.unicId ?? null,
     anomaliiKm: anomalii,
     regesDeTransmis,
+    pasiIntegrare,
   };
 
   return {
@@ -686,7 +711,7 @@ export const contoarePanouPentru = cache(
       getEnabledFeatures(organizationId),
       getPermissionMap(organizationId, role, memberId),
     ]);
-    return contoarePanou(organizationId, { userId, features, permissions });
+    return contoarePanou(organizationId, { userId, role, features, permissions });
   },
 );
 

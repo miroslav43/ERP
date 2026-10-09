@@ -143,6 +143,16 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
       actiune: "Deschide",
     });
   }
+  if (coada.pasiIntegrare !== null && coada.pasiIntegrare > 0) {
+    intrari.push({
+      cheie: "integrare",
+      numar: coada.pasiIntegrare,
+      titlu: "Pași de integrare care îți revin",
+      detaliu: coada.pasiIntegrare === 1 ? "pas" : "pași",
+      href: "/onboarding/sarcinile-mele",
+      actiune: "Deschide",
+    });
+  }
   /*
    * Anomaliile de kilometraj erau citite la fiecare încărcare de panou și
    * aruncate: `contorAnomaliiKm` intra în `Promise.all`, ajungea în
