@@ -1,4 +1,5 @@
 // src/content/landing/seo-unelte.ts
+import { anulProgramarii } from "@/domain/calendar/interval-lucrator";
 import { todayInBucharest } from "@/lib/format/date";
 
 /**
@@ -20,6 +21,7 @@ import { todayInBucharest } from "@/lib/format/date";
  * Anul calendaristic al zilei cererii, în România. Paginile care îl folosesc
  * își declară metadatele cu `generateMetadata`, nu cu o constantă: o constantă
  * se evaluează la build și ar fi ținut „2026” în titlu și în ianuarie 2027.
+ * `{an-programare}` e anul programării concediilor: din octombrie, anul următor.
  */
 
 export type MetaUnealta = Readonly<{
@@ -56,6 +58,12 @@ export const META_UNELTE: Readonly<Record<string, MetaUnealta>> = {
     descriere:
       "Câte zile de concediu de odihnă ți se cuvin în anul angajării sau al plecării: minimul legal, zilele suplimentare și calculul proporțional. Gratuit, fără cont.",
     termen: "calculator zile concediu de odihna",
+  },
+  "/unelte/programare-concedii": {
+    titlu: "Programare concedii de odihnă {an-programare}: Excel",
+    descriere:
+      "Programarea anuală a concediilor de odihnă în Excel, Word sau PDF, cu zilele lucrătoare ale fiecărei luni și sărbătorile anului. Ce cere Codul muncii.",
+    termen: "programare concedii de odihna",
   },
   "/unelte/calculator-zile-lucratoare": {
     titlu: "Calculator zile lucrătoare între două date",
@@ -115,7 +123,11 @@ export function metaUnealta(
   const meta = Object.hasOwn(META_UNELTE, cale) ? META_UNELTE[cale] : undefined;
   if (meta === undefined) throw new Error(`Unealta ${cale} n-are metadate în seo-unelte.ts.`);
   return {
-    titlu: meta.titlu.replaceAll("{an}", azi.slice(0, 4)),
+    // `{an-programare}`: anul care se programează — din octombrie, cel următor
+    // (art. 148 alin. (1), `anulProgramarii`).
+    titlu: meta.titlu
+      .replaceAll("{an-programare}", String(anulProgramarii(azi)))
+      .replaceAll("{an}", azi.slice(0, 4)),
     descriere: meta.descriere,
     cale,
   };

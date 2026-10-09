@@ -144,6 +144,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Unealtă gratuită: cerere de demisie gata de semnat, cu ultima zi de preaviz calculată în zile lucrătoare — preavizul e cel din contract, dar cel mult 20 de zile lucrătoare pentru funcțiile de execuție și 45 pentru cele de conducere (art. 81 alin. (4) Codul muncii); numărătoarea începe a doua zi după înregistrare (prin analogie cu RIL nr. 8/2024). Exemplu: înregistrată pe 8 octombrie 2026, cu 20 de zile, ultima zi e 5 noiembrie 2026. Plus demisia fără preaviz (art. 81 alin. (8)), încetarea în perioada de probă (art. 31 alin. (3)) și acordul părților (art. 55 lit. b)). Word sau PDF, fără cont.",
   ],
   [
+    "/unelte/programare-concedii",
+    "Unealtă gratuită: programarea anuală a concediilor de odihnă — un rând pe salariat, o coloană pe lună, cu zilele lucrătoare ale fiecărei luni în antet (2027: 18 în ianuarie, 23 în martie, 252 pe an) și sărbătorile legale care cad în zile lucrătoare. Programarea se face până la sfârșitul anului pentru anul următor, cu consultarea sindicatului sau a reprezentanților salariaților (art. 148 alin. (1) Codul muncii); la fracționare, cel puțin 10 zile lucrătoare neîntrerupte (alin. (5)). Excel, Word sau PDF, fără cont.",
+  ],
+  [
     "/unelte/condica-de-prezenta",
     "Unealtă gratuită: condica de prezență pentru orice lună, pe program luni–vineri, luni–sâmbătă sau ture; un rând pe om pe fiecare zi, cu ora sosirii, ora plecării, pauza, orele lucrate și observațiile, iar zilele nelucrate marcate L sau SL. Antetul firmei (CUI, compartiment). Excel cu orele calculate și total pe angajat, Word sau PDF, fără cont. Plus răspunsul la „e obligatorie?” și amenda din art. 260 alin. (1) lit. m) Codul muncii.",
   ],

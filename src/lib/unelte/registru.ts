@@ -1,5 +1,6 @@
 import { demisieDinParametri } from "@/app/(marketing)/unelte/cerere-demisie/model";
 import { fisaSsmDinParametri } from "@/app/(marketing)/unelte/fisa-instruire-ssm/model";
+import { programareDinParametri } from "@/app/(marketing)/unelte/programare-concedii/model";
 
 import { FORMATE, type DocumentTabelar, type Format } from "./document-tabelar";
 
@@ -16,6 +17,7 @@ export type Constructor = (q: URLSearchParams) => DocumentTabelar;
 export const UNELTE: Readonly<Record<string, Constructor>> = {
   "fisa-instruire-ssm": fisaSsmDinParametri,
   "cerere-demisie": demisieDinParametri,
+  "programare-concedii": programareDinParametri,
 };
 
 /**

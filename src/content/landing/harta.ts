@@ -104,6 +104,7 @@ export const PAGINI: readonly Pagina[] = [
     // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     // 2026-10-09: cererea de demisie.
+    // 2026-10-09: programarea concediilor.
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -119,6 +120,7 @@ export const PAGINI: readonly Pagina[] = [
     // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     // 2026-10-09: cererea de demisie.
+    // 2026-10-09: programarea concediilor.
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -333,6 +335,7 @@ export const PAGINI: readonly Pagina[] = [
     // 2026-10-09: hub-ul pe categorii (hub-unelte.ts).
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
     // 2026-10-09: cererea de demisie.
+    // 2026-10-09: programarea concediilor.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -354,6 +357,15 @@ export const PAGINI: readonly Pagina[] = [
     limba: "ro",
     traducere: null,
     // 2026-10-09: descrierea din rezultat rescrisă pe intenție (seo-unelte.ts).
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    // 8 oct 2026: „programare concedii de odihna 2026 excel” (completarea automată) și auditul din 7 oct.
+    cale: "/unelte/programare-concedii",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },

@@ -90,3 +90,16 @@ describe("cererea de demisie prin ruta comună", () => {
     expect(await r.text()).toBe("Unealta asta se descarcă doar în PDF sau Word.");
   });
 });
+
+describe("programarea concediilor prin ruta comună", () => {
+  it("dă un Excel", async () => {
+    const r = await cere(
+      "/api/unelte/programare-concedii?an=2027&angajati=Popa%20Ion&format=xlsx",
+      "programare-concedii",
+    );
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toBe(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+  });
+});

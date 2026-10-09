@@ -72,6 +72,8 @@ describe("metadatele uneltelor", () => {
   it("anul din titlu e anul cererii, nu al build-ului", () => {
     expect(metaUnealta("/unelte/cerere-concediu-de-odihna", "2027-03-01").titlu).toContain("2027");
     expect(metaUnealta("/unelte/cerere-concediu-de-odihna", "2026-12-31").titlu).toContain("2026");
+    expect(metaUnealta("/unelte/programare-concedii", "2026-10-08").titlu).toContain("2027");
+    expect(metaUnealta("/unelte/programare-concedii", "2026-03-01").titlu).toContain("2026");
   });
 
   it("fiecare pagină de unealtă își ia metadatele de aici", () => {

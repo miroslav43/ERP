@@ -98,3 +98,14 @@ export const ANTET_CERERE_DEMISIE: AntetPagina = {
   titlu: "Cerere de demisie",
   lead: "Cererea de demisie gata de semnat, cu ultima zi de preaviz calculată în zile lucrătoare, fără weekenduri și sărbători. Plus variantele fără preaviz, în perioada de probă și prin acordul părților. Word sau PDF, fără cont.",
 };
+
+/**
+ * Programarea concediilor de odihnă: „programare concedii de odihna 2026
+ * excel” și „planificare concedii odihna excel” (8 oct 2026); cerută și de
+ * auditul SEO din 7 oct 2026.
+ */
+export const ANTET_PROGRAMARE_CONCEDII: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Programarea concediilor de odihnă",
+  lead: "Tabelul anual cu oamenii firmei și lunile anului, cu zilele lucrătoare din fiecare lună și sărbătorile legale ale anului. Descarci în Excel, Word sau PDF, fără cont.",
+};

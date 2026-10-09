@@ -16,6 +16,7 @@ import {
   ANTET_FISA_SSM,
   ANTET_FOAIE_PARCURS,
   ANTET_FOAIE_PONTAJ,
+  ANTET_PROGRAMARE_CONCEDII,
 } from "./unelte";
 
 /**
@@ -94,6 +95,11 @@ export const GRUPURI_HUB: readonly GrupHub[] = [
         "/unelte/calculator-zile-concediu",
         ANTET_CALCULATOR_CONCEDIU,
         "minimul legal, zile suplimentare, an lucrat parțial · fără cont",
+      ),
+      rand(
+        "/unelte/programare-concedii",
+        ANTET_PROGRAMARE_CONCEDII,
+        "un rând pe om, zilele lucrătoare pe luni · Excel, Word, PDF",
       ),
     ],
   },

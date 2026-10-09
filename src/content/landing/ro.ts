@@ -985,6 +985,12 @@ export const RO: ContinutLanding = {
         href: "/unelte/calculator-zile-concediu",
       },
       {
+        titlu: "Programarea concediilor de odihnă",
+        text: "Un rând pe om, o coloană pe lună, cu zilele lucrătoare ale fiecărei luni și sărbătorile anului.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/programare-concedii",
+      },
+      {
         titlu: "Foaie de parcurs",
         text: "Cele 4 elemente cerute de normele fiscale, mai multe curse pe zi, alimentări.",
         formate: "PDF · Word · Excel",

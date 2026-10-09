@@ -536,6 +536,7 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
+    // 2026-10-09: legătura spre programarea concediilor, în ghiduri.
     actualizat: "2026-10-09",
     titluPagina: "Program de concedii: cerere, aprobare și sold",
     titluH1: "Program de concedii",
@@ -616,6 +617,10 @@ export const FISE: readonly FisaModul[] = [
       {
         href: "/unelte/calculator-zile-concediu",
         eticheta: "Câte zile de concediu ți se cuvin: calculator",
+      },
+      {
+        href: "/unelte/programare-concedii",
+        eticheta: "Programarea concediilor de odihnă: model Excel",
       },
     ],
     notaPermisiuni:

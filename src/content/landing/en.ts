@@ -945,6 +945,12 @@ export const EN: ContinutLanding = {
         href: "/unelte/calculator-zile-concediu",
       },
       {
+        titlu: "Annual leave schedule",
+        text: "One row per employee and one column per month, with each month's working days and the year's public holidays. In Romanian.",
+        formate: "PDF · Word · Excel",
+        href: "/unelte/programare-concedii",
+      },
+      {
         titlu: "Vehicle trip log",
         text: "The four items the tax rules require, several trips a day, refuelling.",
         formate: "PDF · Word · Excel",

@@ -52,3 +52,7 @@ model demisie	/unelte/cerere-demisie
 cerere demisie fara preaviz	/unelte/cerere-demisie
 preaviz demisie zile lucratoare sau calendaristice	/unelte/cerere-demisie
 model demisie cu acordul partilor	/unelte/cerere-demisie
+programare concedii de odihna	/unelte/programare-concedii
+programare concedii de odihna excel	/unelte/programare-concedii
+planificare concedii odihna excel	/unelte/programare-concedii
+planificarea concediului de odihna	/unelte/programare-concedii

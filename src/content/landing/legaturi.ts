@@ -30,6 +30,7 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
       href: "/unelte/calculator-zile-lucratoare",
     },
     { eticheta: "Pentru firmele de servicii și birouri", href: "/domenii/servicii" },
+    { eticheta: "Programarea anuală a concediilor, în Excel", href: "/unelte/programare-concedii" },
   ],
   "/unelte/condica-de-prezenta": [
     { eticheta: "Ce cere art. 119 la evidența orelor", href: "/evidenta-orelor-de-munca" },
@@ -79,6 +80,14 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
       href: "/ghid/concediu-de-odihna#neefectuat",
     },
     { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+  ],
+  "/unelte/programare-concedii": [
+    { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
+    {
+      eticheta: "Câte zile de concediu ți se cuvin pe an",
+      href: "/unelte/calculator-zile-concediu",
+    },
+    { eticheta: "Zilele libere legale și zilele lucrătoare pe luni", href: "/ghid/zile-libere" },
   ],
   "/unelte/calculator-salariu": [
     { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },
