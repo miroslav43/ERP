@@ -3,27 +3,14 @@ import type { Metadata } from "next";
 
 import Link from "next/link";
 
+import { GRUPURI_HUB } from "@/content/landing/hub-unelte";
 import { RO } from "@/content/landing/ro";
-import {
-  ANTET_CALCULATOR,
-  ANTET_CALCULATOR_CONCEDIU,
-  ANTET_CERERE_CONCEDIU,
-  ANTET_CONDICA,
-  ANTET_FISA_EVALUARE,
-  ANTET_FISA_SSM,
-  ANTET_FOAIE_PARCURS,
-  ANTET_FOAIE_PONTAJ,
-} from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
 import { Cadru } from "../_componente/cadru";
 import { ListaHub } from "../_componente/lista-hub";
 import { metadatePagina } from "../_componente/metadate";
-import {
-  AN_MAX as AN_MAX_CERERE,
-  AN_MIN as AN_MIN_CERERE,
-} from "./cerere-concediu-de-odihna/cerere";
 import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "./foaie-de-pontaj/foaie";
 
 /**
@@ -42,57 +29,6 @@ export const metadata: Metadata = metadatePagina({
     "Calculator de salariu net și brut, foaie de pontaj, condică de prezență, cerere de concediu, foaie de parcurs, fișe SSM și de evaluare. Gratuit, fără cont.",
   cale: "/unelte",
 });
-
-const PAGINI = [
-  {
-    href: "/unelte/foaie-de-pontaj",
-    titlu: ANTET_FOAIE_PONTAJ.titlu,
-    lead: ANTET_FOAIE_PONTAJ.lead,
-    nota: `${AN_MIN}–${AN_MAX} · colectivă sau individuală · normă pe angajat · Excel cu formule · până la ${MAX_ANGAJATI} de angajați`,
-  },
-  {
-    href: "/unelte/condica-de-prezenta",
-    titlu: ANTET_CONDICA.titlu,
-    lead: ANTET_CONDICA.lead,
-    nota: "toate zilele, inclusiv ture · ore lucrate calculate în Excel · Word, PDF, Excel",
-  },
-  {
-    href: "/unelte/cerere-concediu-de-odihna",
-    titlu: ANTET_CERERE_CONCEDIU.titlu,
-    lead: ANTET_CERERE_CONCEDIU.lead,
-    nota: `${AN_MIN_CERERE}–${AN_MAX_CERERE} · odihnă, fără plată, paternal, îngrijitor · Word, PDF`,
-  },
-  {
-    href: "/unelte/calculator-zile-concediu",
-    titlu: ANTET_CALCULATOR_CONCEDIU.titlu,
-    lead: ANTET_CALCULATOR_CONCEDIU.lead,
-    nota: "minimul legal, zile suplimentare, an lucrat parțial · fără cont",
-  },
-  {
-    href: "/unelte/foaie-de-parcurs",
-    titlu: ANTET_FOAIE_PARCURS.titlu,
-    lead: ANTET_FOAIE_PARCURS.lead,
-    nota: "cele 4 elemente din normele fiscale · până la 4 curse pe zi · Excel cu formule",
-  },
-  {
-    href: "/unelte/fisa-instruire-ssm",
-    titlu: ANTET_FISA_SSM.titlu,
-    lead: ANTET_FISA_SSM.lead,
-    nota: "toate rubricile anexei 11 la HG 1425/2006 · Word, PDF",
-  },
-  {
-    href: "/unelte/fisa-evaluare",
-    titlu: ANTET_FISA_EVALUARE.titlu,
-    lead: ANTET_FISA_EVALUARE.lead,
-    nota: "nota finală calculată · Excel cu formule, Word, PDF",
-  },
-  {
-    href: "/unelte/calculator-salariu",
-    titlu: ANTET_CALCULATOR.titlu,
-    lead: ANTET_CALCULATOR.lead,
-    nota: "net și brut · tichete, deduceri, timp parțial · ambele perioade din 2026",
-  },
-];
 
 /*
  * Scurtătura spre luna curentă NU poartă parametri. Pagina asta e prerandată
@@ -113,20 +49,40 @@ export default function PaginaUnelte() {
           { eticheta: "Unelte", href: "/unelte" },
         ]}
       />
-      <Banda inaltime="medie" supratitlu="Toate uneltele" titlu="Gata de folosit">
-        <ListaHub pagini={PAGINI} />
-        <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <p className="font-mk-date text-mk-text-slab text-[0.6875rem] tracking-[0.14em] uppercase">
-            Sari direct la
-          </p>
+      <Banda inaltime="scurta" supratitlu="Toate uneltele" titlu="Gata de folosit">
+        {/* Cuprinsul categoriilor: pe telefon, a patra categorie e la trei
+            ecrane distanță. Ancorele sunt `id`-urile benzilor de mai jos. */}
+        <nav aria-label="Categoriile de unelte" className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+          {GRUPURI_HUB.map((g) => (
+            <a
+              key={g.id}
+              href={`#${g.id}`}
+              className="text-[0.9375rem] underline underline-offset-4"
+            >
+              {g.supratitlu}
+            </a>
+          ))}
           <Link
             href="/unelte/foaie-de-pontaj"
             className="text-[0.9375rem] underline underline-offset-4"
           >
             Foaia de pontaj a lunii curente
           </Link>
-        </div>
+        </nav>
       </Banda>
+
+      {GRUPURI_HUB.map((g) => (
+        <Banda
+          key={g.id}
+          id={g.id}
+          inaltime="scurta"
+          supratitlu={g.supratitlu}
+          titlu={g.titlu}
+          lead={g.lead}
+        >
+          <ListaHub pagini={g.pagini} />
+        </Banda>
+      ))}
 
       <Banda
         inaltime="medie"

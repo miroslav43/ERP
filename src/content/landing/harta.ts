@@ -326,6 +326,7 @@ export const PAGINI: readonly Pagina[] = [
     // 9 oct: nota cererii de concediu numește variantele.
     // 9 oct: nota foii de parcurs numește cele 4 elemente din norme.
     // Secțiunea I: nota fișei de evaluare — nota finală calculată, Excel cu formule.
+    // 2026-10-09: hub-ul pe categorii (hub-unelte.ts).
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
