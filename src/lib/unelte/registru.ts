@@ -1,4 +1,3 @@
-import { cerereDinParametri } from "@/app/(marketing)/unelte/cerere-concediu-de-odihna/cerere-document";
 import { foaieParcursDinParametri } from "@/app/(marketing)/unelte/foaie-de-parcurs/model";
 import { fisaSsmDinParametri } from "@/app/(marketing)/unelte/fisa-instruire-ssm/model";
 import { fisaEvaluareDinParametri } from "@/app/(marketing)/unelte/fisa-evaluare/model";
@@ -8,15 +7,15 @@ import type { DocumentTabelar } from "./document-tabelar";
 export type Constructor = (q: URLSearchParams) => DocumentTabelar;
 
 /**
- * Uneltele servite de `/api/unelte/[unealta]`. Foaia de pontaj și condica NU
- * sunt aici: au rute statice, cu Excel pe formule, iar ruta statică are
- * prioritate față de segmentul dinamic.
+ * Uneltele servite de `/api/unelte/[unealta]`. Trei NU sunt aici, fiindcă au
+ * rută statică, iar ruta statică are prioritate față de segmentul dinamic:
+ * foaia de pontaj și condica (Excel pe formule) și cererea de concediu (o
+ * scrisoare, nu un formular tabelar — `src/app/api/unelte/cerere-concediu/route.ts`).
  */
 export const UNELTE: Readonly<Record<string, Constructor>> = {
   "fisa-evaluare": fisaEvaluareDinParametri,
   "fisa-instruire-ssm": fisaSsmDinParametri,
   "foaie-de-parcurs": foaieParcursDinParametri,
-  "cerere-concediu": cerereDinParametri,
 };
 
 /**
