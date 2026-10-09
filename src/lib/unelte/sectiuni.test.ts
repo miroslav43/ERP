@@ -1,6 +1,13 @@
+import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 
-import { curataDocument, textAntetRulant, type DocumentTabelar } from "./document-tabelar";
+import {
+  curataDocument,
+  textAntetRulant,
+  textPagina,
+  type DocumentTabelar,
+} from "./document-tabelar";
+import { INALT_CASETA, randeazaPdf, type SondaPdf } from "./pdf";
 
 /**
  * Documentele cu secțiuni (fișa SSM, anexa 11 la HG 1425/2006): mai multe
@@ -112,5 +119,61 @@ describe("curățarea textului ajunge și în secțiuni", () => {
     const d = curataDocument(SIMPLU);
     expect("sectiuni" in d).toBe(false);
     expect("antetRulant" in d).toBe(false);
+  });
+});
+
+function sonda() {
+  const texte: { pagina: number; text: string }[] = [];
+  const cutii: { pagina: number; inaltime: number }[] = [];
+  const s: SondaPdf = {
+    text: (pagina, text) => texte.push({ pagina, text }),
+    cutie: (pagina, inaltime) => cutii.push({ pagina, inaltime }),
+  };
+  return { s, texte, cutii };
+}
+
+describe("PDF cu secțiuni", () => {
+  it("scrie fiecare titlu de secțiune și fiecare rubrică de semnătură, întreagă", async () => {
+    const { s, texte } = sonda();
+    await randeazaPdf(CU_SECTIUNI, s);
+    const tot = texte.map((t) => t.text).join("\n");
+    for (const titlu of [
+      "Instruirea la angajare",
+      "Instruirea periodică",
+      "Rezultatele testărilor",
+      "Control medical periodic",
+    ]) {
+      expect(tot).toContain(titlu);
+    }
+    // Eticheta lungă se rupe pe rânduri, nu se taie cu „…”.
+    expect(tot.replace(/\n/gu, " ")).toContain("însușirea cunoștințelor");
+    expect(texte.filter((t) => t.text.includes("…"))).toEqual([]);
+  });
+
+  it("rândurile de completat de mână au înălțimea cerută (28 pt ≈ 9,9 mm)", async () => {
+    const { s, cutii } = sonda();
+    await randeazaPdf(CU_SECTIUNI, s);
+    // 40 de rânduri cu 28 pt; antetele și tabelul fără `inaltimeRand` rămân mai joase.
+    expect(cutii.filter((c) => c.inaltime === 28)).toHaveLength(40);
+    expect(cutii.filter((c) => c.inaltime === 16).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("desenează câte o casetă de viză pentru fiecare, inclusiv ultima, fără pereche", async () => {
+    const { s, cutii } = sonda();
+    await randeazaPdf(CU_SECTIUNI, s);
+    expect(cutii.filter((c) => c.inaltime === INALT_CASETA)).toHaveLength(7);
+  });
+
+  it("pune numele pe fiecare pagină de la a doua și „Pagina x din y” pe toate", async () => {
+    const { s, texte } = sonda();
+    const pdf = await PDFDocument.load(await randeazaPdf(CU_SECTIUNI, s));
+    const n = pdf.getPageCount();
+    expect(n).toBeGreaterThan(1);
+    for (let p = 1; p <= n; p += 1) {
+      const pePagina = texte.filter((t) => t.pagina === p).map((t) => t.text);
+      expect(pePagina, `pagina ${String(p)}`).toContain(textPagina(p - 1, n));
+      if (p > 1) expect(pePagina, `pagina ${String(p)}`).toContain(CU_SECTIUNI.antetRulant);
+    }
+    expect(pdf.getPage(0).getHeight()).toBeGreaterThan(pdf.getPage(0).getWidth()); // portret
   });
 });

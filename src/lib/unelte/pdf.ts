@@ -23,6 +23,7 @@ import {
   textPagina,
   type Coloana,
   type DocumentTabelar,
+  type SectiuneCasete,
 } from "./document-tabelar";
 
 /**
@@ -50,6 +51,26 @@ const RANDURI_TABEL_SCURT = 12;
 const MARIME_MARGINE = 7;
 
 type Masurare = (font: PDFFont, marime: number) => (t: string) => number;
+
+/** Rubrica de semnătură dintr-o secțiune de text: eticheta sus, loc de semnat dedesubt. */
+const INALT_SEMNATURA = 46;
+/** Caseta de viză (medicina muncii, psiholog): rubrica, trei linii, etichetele de jos. */
+export const INALT_CASETA = 96;
+const SPATIU_CASETE = 12;
+/** Antetul de tabel cel mai înalt al fișei SSM: trei rânduri de etichetă. */
+const INALT_ANTET_MAX = INALT_RAND + 2 * (MARIME + 2);
+/** Tabelele de secțiune cu atâtea rânduri sau mai puține nu se rup între pagini. */
+const RANDURI_NERUPTE = 6;
+
+/**
+ * Ce desenează randarea, pentru teste. `pdf-lib` nu poate citi textul înapoi:
+ * fontul e subsetat, iar în fișier glifele sunt identificatori CID, nu litere.
+ * `pagina` se numără în documentul curent, de la 1; `inaltime` e în puncte.
+ */
+export type SondaPdf = Readonly<{
+  text: (pagina: number, text: string) => void;
+  cutie: (pagina: number, inaltime: number) => void;
+}>;
 
 /**
  * Taie textul la lățimea dată, cu „…” la final. `masoara` e injectat ca să fie testabil.
@@ -136,8 +157,8 @@ export function inlocuiesteGlifeLipsa(text: string, are: (cod: number) => boolea
  */
 let glifeComune: ReadonlySet<number> | null = null;
 
-export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
-  return randeazaPdfMultiplu([d]);
+export async function randeazaPdf(d: DocumentTabelar, sonda?: SondaPdf): Promise<Uint8Array> {
+  return randeazaPdfMultiplu([d], sonda);
 }
 
 /**
@@ -147,6 +168,7 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
  */
 export async function randeazaPdfMultiplu(
   bruteDocumente: readonly DocumentTabelar[],
+  sonda?: SondaPdf,
 ): Promise<Uint8Array> {
   const primul = bruteDocumente[0];
   if (primul === undefined) throw new Error("Niciun document de randat.");
@@ -174,7 +196,7 @@ export async function randeazaPdfMultiplu(
     return latimeText;
   };
 
-  for (const d of documente) deseneaza(doc, fonturi, masoara, d);
+  for (const d of documente) deseneaza(doc, fonturi, masoara, d, sonda);
   return doc.save();
 }
 
@@ -183,9 +205,12 @@ function deseneaza(
   fonturi: Fonturi,
   masoara: Masurare,
   d: DocumentTabelar,
+  sonda: SondaPdf | undefined,
 ): void {
   const [latime, inaltime] = dimensiuni(d);
   const util = latime - 2 * MARGINE;
+  /** Cât încape pe o pagină goală, între marginea de sus și rezerva subsolului. */
+  const inaltimeUtila = inaltime - 2 * MARGINE - REZERVA_SUBSOL;
   const latimi = latimiColoane(d);
   const inaltCorp = Math.max(INALT_RAND, d.inaltimeRand ?? INALT_RAND);
 
@@ -194,6 +219,21 @@ function deseneaza(
   pagini.push(pagina);
   let y = inaltime - MARGINE;
 
+  /**
+   * Singurul loc care scrie text în corpul paginii: sonda testelor vede tot ce
+   * apare și pe ce pagină (numărată în documentul curent, de la 1).
+   */
+  const text = (
+    continut: string,
+    x: number,
+    yText: number,
+    marime: number,
+    font: PDFFont,
+    culoare = NEGRU,
+  ) => {
+    pagina.drawText(continut, { x, y: yText, size: marime, font, color: culoare });
+    if (continut !== "") sonda?.text(pagini.length, continut);
+  };
   const paginaNoua = () => {
     pagina = doc.addPage([latime, inaltime]);
     pagini.push(pagina);
@@ -203,11 +243,11 @@ function deseneaza(
     if (y - necesar < MARGINE + REZERVA_SUBSOL) paginaNoua();
   };
   /** Proză pe mai multe rânduri; doar celulele de tabel se taie cu „…”. */
-  const scrie = (text: string, marime: number, font: PDFFont, culoare = NEGRU) => {
-    const randuri = imparte(text, util, masoara(font, marime));
+  const scrie = (continut: string, marime: number, font: PDFFont, culoare = NEGRU) => {
+    const randuri = imparte(continut, util, masoara(font, marime));
     randuri.forEach((rand, k) => {
       asiguraLoc(marime + 6);
-      pagina.drawText(rand, { x: MARGINE, y: y - marime, size: marime, font, color: culoare });
+      text(rand, MARGINE, y - marime, marime, font, culoare);
       y -= k === randuri.length - 1 ? marime + 6 : marime + 3;
     });
   };
@@ -230,13 +270,7 @@ function deseneaza(
       asiguraLoc(linii * 12 + 3);
       pereche.forEach((randuri, k) => {
         randuri.forEach((rand, j) => {
-          pagina.drawText(rand, {
-            x: MARGINE + k * (latimeColoana + spatiu),
-            y: y - 9 - j * 12,
-            size: 9,
-            font: fonturi.normal,
-            color: NEGRU,
-          });
+          text(rand, MARGINE + k * (latimeColoana + spatiu), y - 9 - j * 12, 9, fonturi.normal);
         });
       });
       y -= linii * 12 + 3;
@@ -251,7 +285,8 @@ function deseneaza(
    * Un rând de tabel. Etichetele pot avea `\n` (antetul foii de pontaj pune
    * ziua deasupra literei): rândul crește cu numărul de linii, iar fiecare linie
    * se taie separat la lățimea coloanei. Un rând mai înalt decât textul lui
-   * (condica, 22 pt) își centrează textul pe verticală.
+   * (condica, 22 pt) își centrează textul pe verticală. Tabelele suplimentare și
+   * cele ale secțiunilor (fișa SSM) își dau propriile lățimi.
    */
   const rand = (
     celule: readonly string[],
@@ -280,31 +315,96 @@ function deseneaza(
         borderWidth: 0.5,
       });
       (linii[i] ?? [""]).forEach((linie, k) => {
-        pagina.drawText(taie(linie, w - 4, masoara(font, MARIME)), {
-          x: x + 2,
-          y: y - sus - k * (MARIME + 2),
-          size: MARIME,
+        text(
+          taie(linie, w - 4, masoara(font, MARIME)),
+          x + 2,
+          y - sus - k * (MARIME + 2),
+          MARIME,
           font,
-          color: NEGRU,
-        });
+        );
       });
       x += w;
     });
+    sonda?.cutie(pagini.length, inalt);
     y -= inalt;
   };
 
-  if (d.coloane.length > 0) {
-    const antet = d.coloane.map((c) => c.eticheta);
+  /** Un tabel cu antetul repetat pe fiecare pagină nouă. */
+  const tabel = (
+    coloane: readonly Coloana[],
+    randuri: readonly (readonly string[])[],
+    inaltMinim: number,
+    latimiRand: readonly number[] = latimi,
+    umbrite: readonly number[] = d.umbrite,
+  ) => {
+    const antet = coloane.map((c) => c.eticheta);
     asiguraLoc(INALT_RAND * 3);
-    rand(antet, true, INALT_RAND);
-    for (const r of d.randuri) {
-      if (y - inaltCorp < MARGINE + REZERVA_SUBSOL) {
+    rand(antet, true, INALT_RAND, latimiRand, umbrite);
+    for (const r of randuri) {
+      if (y - inaltMinim < MARGINE + REZERVA_SUBSOL) {
         paginaNoua();
-        rand(antet, true, INALT_RAND); // antetul se repetă pe fiecare pagină
+        rand(antet, true, INALT_RAND, latimiRand, umbrite); // antetul se repetă pe fiecare pagină
       }
-      rand(r, false, inaltCorp);
+      rand(r, false, inaltMinim, latimiRand, umbrite);
     }
-  }
+  };
+
+  /** Rubrici de semnătură etichetate, pe un rând: eticheta sus, loc de semnat dedesubt. */
+  const caseteSemnatura = (etichete: readonly string[]) => {
+    const pas = util / etichete.length;
+    asiguraLoc(INALT_SEMNATURA + 6);
+    y -= 4;
+    etichete.forEach((eticheta, i) => {
+      const x = MARGINE + i * pas;
+      pagina.drawRectangle({
+        x,
+        y: y - INALT_SEMNATURA,
+        width: pas - 6,
+        height: INALT_SEMNATURA,
+        borderColor: CHENAR,
+        borderWidth: 0.5,
+      });
+      imparte(eticheta, pas - 14, masoara(fonturi.normal, 7))
+        .slice(0, 2)
+        .forEach((r, k) => {
+          text(r, x + 4, y - 10 - k * 9, 7, fonturi.normal, GRI);
+        });
+      sonda?.cutie(pagini.length, INALT_SEMNATURA);
+    });
+    y -= INALT_SEMNATURA + 6;
+  };
+
+  /** O casetă de viză, cu colțul din stânga sus la (x, y). */
+  const caseta = (x: number, w: number, s: SectiuneCasete) => {
+    pagina.drawRectangle({
+      x,
+      y: y - INALT_CASETA,
+      width: w,
+      height: INALT_CASETA,
+      borderColor: CHENAR,
+      borderWidth: 0.5,
+    });
+    text(taie(s.rubrica, w - 12, masoara(fonturi.normal, 8)), x + 6, y - 14, 8, fonturi.normal);
+    for (const jos of [30, 44, 58]) {
+      pagina.drawLine({
+        start: { x: x + 6, y: y - jos },
+        end: { x: x + w - 6, y: y - jos },
+        thickness: 0.5,
+        color: CHENAR,
+      });
+    }
+    const pas = (w - 12) / Math.max(1, s.semnaturi.length);
+    s.semnaturi.forEach((eticheta, i) => {
+      imparte(eticheta, pas - 6, masoara(fonturi.normal, 7))
+        .slice(0, 2)
+        .forEach((r, k) => {
+          text(r, x + 6 + i * pas, y - 74 - k * 9, 7, fonturi.normal, GRI);
+        });
+    });
+    sonda?.cutie(pagini.length, INALT_CASETA);
+  };
+
+  if (d.coloane.length > 0) tabel(d.coloane, d.randuri, inaltCorp);
 
   // Tabelele suplimentare: titlu, antet, rânduri. Unul scurt (cel mult
   // `RANDURI_TABEL_SCURT`) nu se rupe între pagini: trece întreg pe pagina
@@ -328,6 +428,54 @@ function deseneaza(
     }
   }
 
+  // Secțiunile (fișa SSM), după tabelele suplimentare și înaintea notelor.
+  for (const s of d.sectiuni ?? []) {
+    switch (s.tip) {
+      case "text": {
+        y -= 6;
+        if (s.titlu !== null) {
+          asiguraLoc(60);
+          scrie(s.titlu, 10, fonturi.aldin);
+        }
+        for (const p of s.paragrafe) scrie(p, 9, fonturi.normal);
+        if (s.semnaturi.length > 0) caseteSemnatura(s.semnaturi);
+        break;
+      }
+      case "tabel": {
+        if (s.coloane.length === 0) break;
+        const inaltMinim = Math.max(INALT_RAND, s.inaltimeRand ?? INALT_RAND);
+        y -= 6;
+        // Titlul nu rămâne singur jos pe pagină: încape cu antetul și două rânduri.
+        // Un tabel scurt (testări, accidente, sancțiuni: 5 rânduri) nu se rupe deloc.
+        const intreg = 16 + INALT_ANTET_MAX + s.randuri.length * inaltMinim;
+        asiguraLoc(
+          s.randuri.length <= RANDURI_NERUPTE && intreg <= inaltimeUtila
+            ? intreg
+            : 16 + INALT_RAND + 2 * inaltMinim,
+        );
+        scrie(s.titlu, 10, fonturi.aldin);
+        tabel(s.coloane, s.randuri, inaltMinim, latimiTabel(d, s.coloane), []);
+        break;
+      }
+      case "casete": {
+        y -= 6;
+        // Grupul de casete stă pe o singură pagină când încape; altfel măcar un rând.
+        const intreg = 16 + Math.ceil(s.numar / 2) * (INALT_CASETA + SPATIU_CASETE);
+        asiguraLoc(intreg <= inaltimeUtila ? intreg : 16 + INALT_CASETA + SPATIU_CASETE);
+        scrie(s.titlu, 10, fonturi.aldin);
+        const w = (util - SPATIU_CASETE) / 2;
+        for (let k = 0; k < s.numar; k += 2) {
+          asiguraLoc(INALT_CASETA + SPATIU_CASETE);
+          caseta(MARGINE, w, s);
+          if (k + 1 < s.numar) caseta(MARGINE + w + SPATIU_CASETE, w, s);
+          y -= INALT_CASETA + SPATIU_CASETE;
+        }
+        if (s.nota !== null) scrie(s.nota, 8, fonturi.normal, GRI);
+        break;
+      }
+    }
+  }
+
   y -= 10;
   for (const n of d.note) scrie(n, 8, fonturi.normal, GRI);
 
@@ -343,13 +491,7 @@ function deseneaza(
         thickness: 0.5,
         color: GRI,
       });
-      pagina.drawText(taie(eticheta, pas - 24, masoara(fonturi.normal, 8)), {
-        x,
-        y: y - 11,
-        size: 8,
-        font: fonturi.normal,
-        color: GRI,
-      });
+      text(taie(eticheta, pas - 24, masoara(fonturi.normal, 8)), x, y - 11, 8, fonturi.normal, GRI);
     });
     y -= 20;
   }
@@ -390,6 +532,7 @@ function deseneaza(
         font: fonturi.normal,
         color: GRI,
       });
+      sonda?.text(i + 1, antetRulant);
     }
     const numar = textPagina(i, pagini.length);
     if (numar !== null) {
@@ -400,6 +543,7 @@ function deseneaza(
         font: fonturi.normal,
         color: GRI,
       });
+      sonda?.text(i + 1, numar);
     }
   });
 }
