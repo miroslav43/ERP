@@ -11,7 +11,7 @@ import {
   VERIFICARE,
 } from "@/content/legal/salarizare-publica";
 import { formatDate } from "@/lib/format/date";
-import { dinBrut, dinNet, type RezultatSalariu } from "@/lib/unelte/salariu";
+import { dinBrut, dinNet } from "@/lib/unelte/salariu";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -20,6 +20,9 @@ import { JsonLd } from "../../_componente/json-ld";
 import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
+import { Desfasurator } from "./desfasurator";
+import { Formular } from "./formular";
+import { lei } from "./lei";
 import { calculeazaDinParametri } from "./parametri";
 
 /**
@@ -46,13 +49,6 @@ type Proprietati = Readonly<{
 
 const unul = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
-
-const CLASA_CAMP =
-  "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
-
-/** Sumele sunt deja rotunjite la leu (OUG 59/2005), deci fără zecimale. */
-const lei = (n: number) =>
-  `${new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 }).format(n)} lei`;
 
 /** Un tabel de calcule uzuale; fiecare rând duce la calculul complet. */
 function TabelUzual({
@@ -109,46 +105,6 @@ function TabelUzual({
   );
 }
 
-function Desfasurator({ r }: { r: RezultatSalariu }) {
-  const randuri: readonly (readonly [string, number, "plus" | "minus" | "total" | "info"])[] = [
-    ["Salariu brut", r.brut, "plus"],
-    ...(r.sumaNeimpozabila > 0
-      ? ([["Din care neimpozabil (OUG 89/2025)", r.sumaNeimpozabila, "info"]] as const)
-      : []),
-    ["CAS — pensie, 25%", r.cas, "minus"],
-    ["CASS — sănătate, 10%", r.cass, "minus"],
-    ["Deducere personală", r.deducerePersonala, "info"],
-    ["Impozit pe venit, 10%", r.impozit, "minus"],
-    ["Salariu net", r.net, "total"],
-    ["CAM — plătit de angajator, 2,25%", r.cam, "info"],
-    ["Cost total pentru angajator", r.costTotal, "total"],
-  ];
-  return (
-    <table className="w-full max-w-[40rem] border-collapse text-left text-[0.9375rem]">
-      <caption className="sr-only">Desfășurătorul salariului</caption>
-      <tbody>
-        {randuri.map(([eticheta, valoare, fel]) => (
-          <tr
-            key={eticheta}
-            className={`border-mk-rigla/40 border-b ${fel === "total" ? "font-semibold" : ""}`}
-          >
-            <th
-              scope="row"
-              className={`py-2 pr-4 font-normal ${fel === "info" ? "text-mk-text-slab" : ""}`}
-            >
-              {eticheta}
-            </th>
-            <td className="font-mk-date py-2 text-right tabular-nums">
-              {fel === "minus" ? "− " : ""}
-              {lei(valoare)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
 export default async function PaginaCalculatorSalariu({ searchParams }: Proprietati) {
   const p = await searchParams;
   const q = new URLSearchParams();
@@ -182,62 +138,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
           `#rezultat`: după trimitere, pagina se deschide la rezultat, nu sus, pe
           formularul gol — pe telefon rezultatul cădea sub pliu (auditul din 7 oct).
         */}
-        <form method="get" action="#rezultat" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[0.875rem] font-medium">Suma (lei)</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              name="suma"
-              maxLength={20}
-              defaultValue={parametri.text}
-              aria-invalid={eroare !== null}
-              aria-describedby={eroare !== null ? "eroare-suma" : undefined}
-              className={CLASA_CAMP}
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[0.875rem] font-medium">Suma e</span>
-            <select name="din" defaultValue={parametri.din} className={CLASA_CAMP}>
-              <option value="brut">brută — calculează netul</option>
-              <option value="net">netă — calculează brutul</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[0.875rem] font-medium">Persoane în întreținere</span>
-            <select
-              name="persoane"
-              defaultValue={String(parametri.persoane)}
-              className={CLASA_CAMP}
-            >
-              <option value="0">niciuna</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4 sau mai multe</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[0.875rem] font-medium">Funcția de bază</span>
-            <select
-              name="baza"
-              defaultValue={parametri.functieDeBaza ? "da" : "nu"}
-              className={CLASA_CAMP}
-            >
-              <option value="da">da — aici e funcția de bază</option>
-              <option value="nu">nu — al doilea contract</option>
-            </select>
-          </label>
-          <div className="flex items-end sm:col-span-2 lg:col-span-4">
-            <button
-              type="submit"
-              data-umami-event="calculator-salariu"
-              className="bg-mk-cerneala text-mk-text-inv inline-flex h-11 items-center justify-center rounded px-8 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
-            >
-              Calculează
-            </button>
-          </div>
-        </form>
+        <Formular p={parametri} eroare={eroare} />
       </Banda>
 
       <Banda
