@@ -1,3 +1,5 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
 // src/app/(app)/mentenanta/sesizari/[id]/cronologie.tsx
 import type { ReactElement } from "react";
 
@@ -23,6 +25,10 @@ interface Proprietati {
   readonly numeUtilizatori: ReadonlyMap<string, AngajatRezumat>;
   /** Contul apelantului — rândurile lui spun „dvs.”, nu numele propriu. */
   readonly userId: string;
+  /** Lista de sesizări a zonei (`/mentenanta/sesizari` sau `/portal/sesizari`): „Duplicat al" devine link. */
+  readonly prefixSesizare?: string;
+  /** Doar în aplicație, cu `maintenance:read`: „Echipament" devine link spre fișa lui. */
+  readonly poateDeschideEchipament?: boolean;
 }
 
 type Element =
@@ -52,6 +58,8 @@ export function Cronologie({
   numeAngajati,
   numeUtilizatori,
   userId,
+  prefixSesizare,
+  poateDeschideEchipament = false,
 }: Proprietati): ReactElement {
   const elemente: Element[] = [
     ...istoric.map((rand): Element => ({ fel: "istoric", la: rand.created_at, rand })),
@@ -69,11 +77,26 @@ export function Cronologie({
     return numeAngajati.get(idFisa)?.full_name ?? ECHIPA;
   }
 
-  function valoare(camp: string, v: string | null): string {
+  function valoare(camp: string, v: string | null): ReactNode {
     if (v === null) return "—";
     if (camp === "status" && esteStatus(v)) return ETICHETE_STATUS_SESIZARE[v];
     if (camp === "urgenta" && esteUrgenta(v)) return ETICHETE_URGENTA_SESIZARE[v];
     if (camp === "atribuit_employee_id") return numeleFisei(v);
+    // UUID-urile brute aveau pagină proprie și nu duceau nicăieri.
+    if (camp === "equipment_id" && poateDeschideEchipament) {
+      return (
+        <Link href={`/mentenanta/echipamente/${v}`} className="underline-offset-2 hover:underline">
+          fișa echipamentului
+        </Link>
+      );
+    }
+    if (camp === "duplicat_al_id" && prefixSesizare !== undefined) {
+      return (
+        <Link href={`${prefixSesizare}/${v}`} className="underline-offset-2 hover:underline">
+          sesizarea originală
+        </Link>
+      );
+    }
     return v;
   }
 

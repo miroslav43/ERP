@@ -23,6 +23,7 @@ import { FILE_TICKETING } from "@/config/file-module";
 import { hrefFisa } from "@/lib/navigare/fisa";
 import { PastileFiltre } from "@/components/ui/pastile-filtre";
 import { angajatiDupaId } from "@/lib/queries/checklist";
+import { idFisaProprie } from "@/lib/queries/employees";
 
 export const metadata: Metadata = { title: "Coada de tichete" };
 
@@ -73,10 +74,13 @@ async function Continut({
   organizationId,
   parametri,
   permisiuni,
+  fisaProprie,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly permisiuni: PermissionMap;
+  /** Fișa privitorului: scurtătura „Asignate mie"; `null` = cont fără fișă. */
+  readonly fisaProprie: string | null;
 }) {
   const filtre = filtreDinUrl(filtreTicheteSchema, parametri);
   const cursor = typeof parametri["cursor"] === "string" ? parametri["cursor"] : null;
@@ -107,6 +111,19 @@ async function Continut({
           },
         ]),
     ...(filtre.deschise === "da" ? [{ cheie: "deschise", eticheta: "Doar deschise" }] : []),
+    ...(filtre.nerepartizate === "da"
+      ? [{ cheie: "nerepartizate", eticheta: "Nerepartizate" }]
+      : []),
+    ...(filtre.asignat_employee_id === undefined
+      ? []
+      : [
+          {
+            cheie: "asignat_employee_id",
+            eticheta:
+              filtre.asignat_employee_id === fisaProprie ? "Asignate mie" : "Asignate cuiva",
+          },
+        ]),
+    ...(filtre.cauta === undefined ? [] : [{ cheie: "cauta", eticheta: `Caută: ${filtre.cauta}` }]),
     ...(filtre.fara_miscare === "7"
       ? [{ cheie: "fara_miscare", eticheta: "Fără mișcare de 7 zile" }]
       : []),
@@ -159,7 +176,54 @@ async function Continut({
             p.set("fara_miscare", "7");
           })}
         />
+        <Cifra
+          eticheta="Nerepartizate"
+          valoare={rezumat.nerepartizate}
+          href={adresaCu("/ticketing/coada", parametri, (p) => {
+            p.delete("status");
+            p.delete("deschise");
+            p.delete("fara_miscare");
+            p.delete("cursor");
+            p.set("nerepartizate", "da");
+          })}
+        />
       </div>
+
+      {/* Întrebarea pentru care se deschide coada: „ale mele sau nerepartizate" — și căutarea după număr. */}
+      <form
+        action="/ticketing/coada"
+        method="get"
+        className="text-nota flex flex-wrap items-center gap-3"
+      >
+        {fisaProprie === null ? null : (
+          <Link
+            href={adresaCu("/ticketing/coada", parametri, (p) => {
+              p.delete("cursor");
+              p.delete("nerepartizate");
+              p.set("asignat_employee_id", fisaProprie);
+            })}
+            className="underline-offset-2 hover:underline"
+          >
+            Asignate mie
+          </Link>
+        )}
+        <label className="flex items-center gap-2">
+          <span className="text-muted-foreground">Caută</span>
+          <input
+            type="search"
+            name="cauta"
+            defaultValue={filtre.cauta ?? ""}
+            placeholder="număr sau titlu"
+            className="border-foreground/60 rounded-control text-corp h-9 border px-3"
+          />
+        </label>
+        <button
+          type="submit"
+          className="border-foreground/60 rounded-control hover:bg-background border px-2.5 py-1 font-medium"
+        >
+          Filtrează
+        </button>
+      </form>
 
       {randuri.length === 0 ? (
         <StareGoala
@@ -184,6 +248,7 @@ async function Continut({
             aratSolicitantul
             aratAsignatul
             legaturaFisa={(angajat) => hrefFisa(angajat, permisiuni)}
+            dinCoada
           />
           <Paginare
             afisate={randuri.length}
@@ -205,7 +270,7 @@ async function Continut({
 }
 
 export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -236,6 +301,7 @@ export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
           organizationId={tenant.organizationId}
           parametri={parametri}
           permisiuni={permisiuni}
+          fisaProprie={await idFisaProprie(tenant.organizationId, user.id)}
         />
       </Suspense>
     </div>

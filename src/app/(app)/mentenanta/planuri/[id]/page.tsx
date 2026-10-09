@@ -1,6 +1,7 @@
 // src/app/(app)/mentenanta/planuri/[id]/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
+import { poateDeschide } from "@/config/porti-ruta";
 import { notFound } from "next/navigation";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -20,7 +21,7 @@ import {
 } from "@/domain/maintenance/proiectie";
 import { TREPTE_MENTENANTA, stareScadentaPlan } from "@/domain/maintenance/scadente";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
@@ -50,6 +51,8 @@ import {
   textNumarat,
 } from "../../etichete";
 import { ActiuniPlan } from "./actiuni-plan";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Plan de mentenanță" };
 
@@ -76,10 +79,12 @@ function textProiectie(p: Proiectie | null, invechit: boolean): string {
 export default async function PaginaPlan({ params }: ProprietatiPagina) {
   const { id } = await params;
   const { tenant } = await requireTenant();
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "maintenance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  const contextPorti = { features: module, permissions: permisiuni };
 
   if (!can(permisiuni, "maintenance:read", "team")) {
     return (
@@ -194,7 +199,17 @@ export default async function PaginaPlan({ params }: ProprietatiPagina) {
           ? null
           : formatContor(plan.ultima_citire_contor, plan.tip_contor),
     },
-    { eticheta: "Responsabil", valoare: responsabil },
+    {
+      eticheta: "Responsabil",
+      valoare:
+        plan.responsabil_employee_id === null ? (
+          responsabil
+        ) : (
+          <LinkEntitate href={hrefFisa(responsabili.get(plan.responsabil_employee_id), permisiuni)}>
+            {responsabil}
+          </LinkEntitate>
+        ),
+    },
     {
       eticheta: "Durată estimată",
       valoare:
@@ -247,9 +262,18 @@ export default async function PaginaPlan({ params }: ProprietatiPagina) {
       <AntetPagina
         titlu={plan.denumire}
         descriere={
-          echipament === undefined
-            ? "Echipamentul planului nu vă este vizibil."
-            : `${echipament.cod} — ${echipament.denumire}`
+          echipament === undefined ? (
+            "Echipamentul planului nu vă este vizibil."
+          ) : poateDeschide("/mentenanta/echipamente/[id]", contextPorti) ? (
+            <Link
+              href={`/mentenanta/echipamente/${echipament.id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              {echipament.cod} — {echipament.denumire}
+            </Link>
+          ) : (
+            `${echipament.cod} — ${echipament.denumire}`
+          )
         }
         firimituri={[
           { eticheta: "Mentenanță", href: "/mentenanta" },
@@ -345,8 +369,27 @@ export default async function PaginaPlan({ params }: ProprietatiPagina) {
         {plan.tip_contor !== null && ultimaCitire === null ? (
           <Callout fel="atentie" titlu="Contor fără citire" className="mt-4">
             Planul are scadență pe contor, dar echipamentul n-are nicio citire de tipul ăsta.
-            Înregistrați o citire din fișa echipamentului sau din „Contoare”; până atunci starea se
-            calculează doar din zile.
+            Înregistrați o citire din{" "}
+            {echipament !== undefined &&
+            poateDeschide("/mentenanta/echipamente/[id]", contextPorti) ? (
+              <Link
+                href={`/mentenanta/echipamente/${echipament.id}#contoare`}
+                className="underline underline-offset-2"
+              >
+                fișa echipamentului
+              </Link>
+            ) : (
+              "fișa echipamentului"
+            )}{" "}
+            sau din{" "}
+            {poateDeschide("/mentenanta/contoare", contextPorti) ? (
+              <Link href="/mentenanta/contoare" className="underline underline-offset-2">
+                „Contoare”
+              </Link>
+            ) : (
+              "„Contoare”"
+            )}
+            ; până atunci starea se calculează doar din zile.
           </Callout>
         ) : null}
         {invechit && ultimaCitire !== null ? (

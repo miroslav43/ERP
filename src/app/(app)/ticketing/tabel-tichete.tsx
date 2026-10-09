@@ -30,12 +30,15 @@ export function TabelTichete({
   aratSolicitantul = false,
   aratAsignatul = false,
   legaturaFisa = () => null,
+  dinCoada = false,
 }: Readonly<{
   randuri: readonly RandTichet[];
   aratSolicitantul?: boolean;
   aratAsignatul?: boolean;
   /** Fișa solicitantului, decisă de pagină (RLS + `deleted_at` + drept); implicit nimic. */
   legaturaFisa?: (angajat: RandTichet["solicitant"]) => string | null;
+  /** Rândurile deschise din coadă poartă `?din=coada` pentru firimitura fișei. */
+  readonly dinCoada?: boolean;
 }>) {
   const coloanaSolicitant: Coloana<RandTichet> = {
     cheie: "solicitant",
@@ -130,7 +133,8 @@ export function TabelTichete({
       coloane={coloane}
       randuri={randuri}
       cheieRand={(tichet) => tichet.id}
-      href={(tichet) => `/ticketing/${tichet.id}`}
+      // Proveniența rămâne în adresă: firimitura fișei duce înapoi de unde a venit omul.
+      href={(tichet) => `/ticketing/${tichet.id}${dinCoada ? "?din=coada" : ""}`}
       // Golul e tratat de fiecare dintre cele două pagini care folosesc
       // componenta, cu propriul text: „Niciun tichet deschis” pe lista proprie,
       // „Nimic în coadă” pe coada echipei.

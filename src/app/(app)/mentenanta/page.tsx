@@ -229,9 +229,21 @@ async function PanouOrganizatie({
         </p>
         <p className="text-3xl font-semibold tabular-nums">{numarScadente}</p>
         <p className="text-muted-foreground text-nota">
-          {textNumarat(planuriInCoada.length, "plan de mentenanță", "planuri de mentenanță")} ·{" "}
-          {textNumarat(iscirInCoada.length, "autorizație ISCIR", "autorizații ISCIR")}, scadente sau
-          în întârziere. Planurile pe contor intră și ele, cu ultima citire cunoscută.
+          <Link
+            href="/mentenanta/planuri?scadenta=actiune"
+            className="underline-offset-2 hover:underline"
+          >
+            {textNumarat(planuriInCoada.length, "plan de mentenanță", "planuri de mentenanță")}
+          </Link>{" "}
+          ·{" "}
+          <Link
+            href="/mentenanta/echipamente?iscir=da"
+            className="underline-offset-2 hover:underline"
+          >
+            {textNumarat(iscirInCoada.length, "autorizație ISCIR", "autorizații ISCIR")}
+          </Link>
+          , scadente sau în întârziere. Planurile pe contor intră și ele, cu ultima citire
+          cunoscută.
         </p>
       </div>
 
@@ -316,6 +328,15 @@ async function PanouOrganizatie({
                 >
                   {numeEchipament(sesizare.equipment_id)}
                 </Link>
+                {/* Eticheta e utilajul, dar linkul duce la sesizare: fișa utilajului are drumul ei. */}
+                {can(permisiuni, "maintenance:read", "team") ? (
+                  <Link
+                    href={`/mentenanta/echipamente/${sesizare.equipment_id}`}
+                    className="text-muted-foreground text-nota ml-2 underline-offset-2 hover:underline"
+                  >
+                    fișa utilajului
+                  </Link>
+                ) : null}
                 <p className="text-muted-foreground text-nota">{sesizare.descriere}</p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">

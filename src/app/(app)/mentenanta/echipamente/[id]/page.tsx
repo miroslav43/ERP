@@ -342,6 +342,15 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           descriere={`${echipament.denumire}${echipament.categorie === null ? "" : ` · ${echipament.categorie}`}`}
           actiuni={
             <span className="flex flex-wrap items-center justify-end gap-1">
+              {/* Lista de sesizări acceptă precompletarea; de aici lipsea drumul. */}
+              {can(permisiuni, "maintenance:create", "own") ? (
+                <Link
+                  href={`/mentenanta/sesizari?sesizare=noua&echipament=${echipament.id}`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  Sesizare nouă
+                </Link>
+              ) : null}
               <Badge ton={TONURI_STATUS_ECHIPAMENT[echipament.status]}>
                 {ETICHETE_STATUS_ECHIPAMENT[echipament.status]}
               </Badge>
@@ -456,10 +465,22 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           />
           <Camp eticheta="Sub incidența ISCIR" valoare={echipament.este_iscir ? "Da" : "Nu"} />
           {echipament.este_iscir ? (
-            <Camp
-              eticheta="Tip autorizare necesară"
-              valoare={echipament.tip_autorizare_necesara ?? "—"}
-            />
+            poateDeschide("/ssm/autorizatii", { features, permissions: permisiuni }) &&
+            echipament.tip_autorizare_necesara !== null ? (
+              <div>
+                <dt className="text-muted-foreground text-nota">Tip autorizare necesară</dt>
+                <dd className="text-corp font-medium">
+                  <Link href="/ssm/autorizatii" className="underline-offset-2 hover:underline">
+                    {echipament.tip_autorizare_necesara}
+                  </Link>
+                </dd>
+              </div>
+            ) : (
+              <Camp
+                eticheta="Tip autorizare necesară"
+                valoare={echipament.tip_autorizare_necesara ?? "—"}
+              />
+            )
           ) : null}
           {echipament.observatii === null ? null : (
             <div className="sm:col-span-2 lg:col-span-4">
@@ -677,6 +698,17 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         <h2 id="interventii" className="text-sectiune font-semibold">
           Istoricul intervențiilor
         </h2>
+
+        {/* Istoricul e tăiat la 50: lista filtrată pe utilaj are tot restul. */}
+
+        <p className="text-nota">
+          <Link
+            href={`/mentenanta/interventii?echipament=${echipament.id}`}
+            className="underline-offset-2 hover:underline"
+          >
+            Vezi toate intervențiile pe acest utilaj
+          </Link>
+        </p>
         <Tabel
           caption="Intervențiile de mentenanță înregistrate pe acest echipament."
           coloane={coloaneInterventii}
@@ -832,6 +864,15 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         <h2 id="sesizari-legate" className="text-sectiune font-semibold">
           Sesizări legate
         </h2>
+
+        <p className="text-nota">
+          <Link
+            href={`/mentenanta/sesizari?echipament=${echipament.id}`}
+            className="underline-offset-2 hover:underline"
+          >
+            Vezi toate sesizările pe acest utilaj
+          </Link>
+        </p>
         {sesizariEchipament.randuri.length === 0 ? (
           <p className="text-muted-foreground text-corp">
             Nicio sesizare înregistrată pentru acest echipament.

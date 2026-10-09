@@ -136,7 +136,12 @@ export function FormularCitiriLot({
                         className={rez !== undefined && !rez.ok ? "bg-danger/8" : ""}
                       >
                         <td className="px-3 py-2">
-                          <span className="font-medium">{r.cod}</span>{" "}
+                          <a
+                            href={`/mentenanta/echipamente/${r.equipment_id}#contoare`}
+                            className="font-medium underline-offset-2 hover:underline"
+                          >
+                            {r.cod}
+                          </a>{" "}
                           <span className="text-muted-foreground">{r.denumire}</span>
                         </td>
                         <td className="px-3 py-2">

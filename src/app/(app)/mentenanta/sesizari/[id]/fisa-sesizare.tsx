@@ -43,6 +43,8 @@ interface Proprietati {
   readonly acum: string;
   /** Formularul de sesizare nouă, pe același utilaj; `null` = rolul nu-l deschide. */
   readonly hrefRaporteazaDinNou?: string | null;
+  /** Poarta lui `/mentenanta/echipamente/[id]` (maintenance:read team): titlul și intervențiile devin linkuri. */
+  readonly poateDeschideEchipament?: boolean;
 }
 
 const ECHIPA = "Echipa de mentenanță";
@@ -62,6 +64,7 @@ export function FisaSesizare({
   azi,
   acum,
   legaturaFisa = () => null,
+  poateDeschideEchipament = false,
 }: Proprietati): ReactElement {
   const { sesizare, echipament, interventie, opriri } = date;
   const inAplicatie = zona === "app";
@@ -101,7 +104,7 @@ export function FisaSesizare({
             <h1 className="text-titlu font-semibold">
               {echipament === null ? (
                 "Echipament indisponibil"
-              ) : inAplicatie && actor.poateGestiona ? (
+              ) : inAplicatie && poateDeschideEchipament ? (
                 <Link
                   href={`/mentenanta/echipamente/${sesizare.equipment_id}`}
                   className="underline-offset-4 hover:underline"
@@ -301,7 +304,7 @@ export function FisaSesizare({
             {interventie.piese === null ? null : (
               <p className="text-muted-foreground text-nota">Piese: {interventie.piese}</p>
             )}
-            {inAplicatie && actor.poateGestiona ? (
+            {inAplicatie && poateDeschideEchipament ? (
               <p className="text-nota">
                 <Link
                   href={`/mentenanta/interventii?echipament=${sesizare.equipment_id}`}
@@ -375,6 +378,8 @@ export function FisaSesizare({
           numeAngajati={date.numeAngajati}
           numeUtilizatori={date.numeUtilizatori}
           userId={userId}
+          prefixSesizare={inAplicatie ? "/mentenanta/sesizari" : "/portal/sesizari"}
+          poateDeschideEchipament={inAplicatie && poateDeschideEchipament}
         />
         {terminala ? null : (
           <FormularComentariu sesizareId={sesizare.id} poateNotaInterna={poateNotaInterna(actor)} />

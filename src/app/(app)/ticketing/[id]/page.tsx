@@ -1,6 +1,7 @@
 // src/app/(app)/ticketing/[id]/page.tsx
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -16,6 +17,7 @@ import {
   listeazaComentariile,
   listeazaIstoricul,
   managerulDirectAl,
+  listeazaObiecteleMele,
 } from "@/lib/queries/ticketing";
 import { fisaProprie } from "@/lib/queries/portal";
 import { tranzitiiOferite, type StatusTichet } from "@/domain/ticketing/stari";
@@ -46,6 +48,7 @@ export const metadata: Metadata = { title: "Tichet" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ id: string }>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: ReactNode | null }>) {
@@ -107,7 +110,9 @@ function contextDiagnostic(
   });
 }
 
-export default async function PaginaTichet({ params }: ProprietatiPagina) {
+export default async function PaginaTichet({ params, searchParams }: ProprietatiPagina) {
+  // `?din=coada`: omul a venit din coada echipei, nu din „Tichetele mele".
+  const dinCoada = (await searchParams)["din"] === "coada";
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -140,6 +145,14 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
 
   const esteSolicitant = fisa !== null && fisa.id === tichet.solicitant_employee_id;
   const poateOpera = can(permisiuni, "tickets:update", "all");
+  const contextPorti = { features: module, permissions: permisiuni };
+  // Ce are solicitantul deja în primire: aprobatorul decidea o cerere de echipament orbește.
+  const inPrimireaSolicitantului =
+    (tichet.tip === "hardware" || tichet.tip === "defectiune") &&
+    (poateOpera || can(permisiuni, "tickets:approve", "team")) &&
+    poateDeschide("/inventar", contextPorti)
+      ? await listeazaObiecteleMele(tichet.solicitant_employee_id)
+      : [];
   // Aceeași regulă ca în `internal.tickets_valideaza_tranzitia`: managerul
   // direct sau patronul, dar niciodată solicitantul. Aici doar decidem ce
   // butoane arătăm; baza verifică din nou la scriere.
@@ -163,6 +176,12 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
           comun locul lor e slotul de acțiuni, la dreapta — la fel ca pe fișa
           obiectului de inventar și pe cea a deplasării. */}
       <AntetPagina
+        firimituri={[
+          dinCoada && poateDeschide("/ticketing/coada", contextPorti)
+            ? { eticheta: "Coada echipei", href: "/ticketing/coada" }
+            : { eticheta: "Tichetele mele", href: "/ticketing" },
+          { eticheta: tichet.numar_afisat },
+        ]}
         titlu={tichet.titlu}
         descriere={
           <>
@@ -221,7 +240,52 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             valoare={tichet.numar_licente === null ? null : String(tichet.numar_licente)}
           />
           <Rand eticheta="Motivul necesității" valoare={tichet.motiv_necesitate} />
-          <Rand eticheta="Echipament cerut" valoare={tichet.denumire_hardware} />
+          <Rand
+            eticheta="Echipament cerut"
+            valoare={
+              tichet.denumire_hardware !== null &&
+              // Cererea a trecut de decizie: din „în lucru" încolo echipamentul se cumpără și se înregistrează.
+              !["nou", "in_aprobare", "respins", "anulat"].includes(tichet.status) &&
+              can(permisiuni, "inventory:update", "all") &&
+              poateDeschide("/inventar", contextPorti) ? (
+                <>
+                  {tichet.denumire_hardware}{" "}
+                  <Link
+                    href={`/inventar?obiect=nou&denumire=${encodeURIComponent(tichet.denumire_hardware)}`}
+                    className="text-nota underline-offset-2 hover:underline"
+                  >
+                    Înregistrează-l în inventar
+                  </Link>
+                </>
+              ) : (
+                tichet.denumire_hardware
+              )
+            }
+          />
+          {inPrimireaSolicitantului.length === 0 ? null : (
+            <Rand
+              eticheta="Are deja în primire"
+              valoare={
+                <span className="flex flex-wrap justify-end gap-x-2">
+                  {inPrimireaSolicitantului.map((o, i) => (
+                    <span key={o.id}>
+                      {i > 0 ? "· " : ""}
+                      {poateDeschide("/inventar/[id]", contextPorti) ? (
+                        <Link
+                          href={`/inventar/${o.id}`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          {o.denumire}
+                        </Link>
+                      ) : (
+                        o.denumire
+                      )}
+                    </span>
+                  ))}
+                </span>
+              }
+            />
+          )}
           <Rand
             eticheta="Livrare"
             valoare={

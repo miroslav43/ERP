@@ -134,7 +134,13 @@ export default async function PaginaContoare() {
               className="text-corp flex flex-wrap items-center justify-between gap-2 p-3"
             >
               <span>
-                <span className="font-medium">{r.cod}</span> {r.denumire}
+                <Link
+                  href={`/mentenanta/echipamente/${r.equipment_id}#contoare`}
+                  className="font-medium underline-offset-2 hover:underline"
+                >
+                  {r.cod}
+                </Link>{" "}
+                {r.denumire}
               </span>
               <span className="text-muted-foreground">
                 {r.ultima === null ? "—" : `${String(r.ultima.citire)} (${r.ultima.data_citirii})`}

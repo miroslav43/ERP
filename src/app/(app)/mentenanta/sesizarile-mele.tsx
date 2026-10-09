@@ -74,9 +74,14 @@ export async function SesizarileMele({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">
-                    {sesizare.echipament === null
-                      ? "Echipament necunoscut"
-                      : `${sesizare.echipament.cod} — ${sesizare.echipament.denumire}`}
+                    <Link
+                      href={`/mentenanta/sesizari/${sesizare.id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {sesizare.echipament === null
+                        ? "Echipament necunoscut"
+                        : `${sesizare.echipament.cod} — ${sesizare.echipament.denumire}`}
+                    </Link>
                   </p>
                   <p className="text-muted-foreground text-corp mt-1">{sesizare.descriere}</p>
                   <p className="text-muted-foreground text-nota mt-1">

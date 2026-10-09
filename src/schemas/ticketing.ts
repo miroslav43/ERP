@@ -204,6 +204,8 @@ export const filtreTicheteSchema = z.object({
   deschise: z.literal("da").optional(),
   /** Deschise, neatinse de 7 zile — ACELAȘI predicat ca `rezumatCoada`. */
   fara_miscare: z.literal("7").optional(),
+  /** Deschise, fără nimeni atribuit — scurtătura „Nerepartizate" a cozii. */
+  nerepartizate: z.literal("da").optional(),
 });
 export type FiltreTichete = z.infer<typeof filtreTicheteSchema>;
 

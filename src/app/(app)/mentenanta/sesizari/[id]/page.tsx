@@ -64,6 +64,7 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
             : null
         }
         zona="app"
+        poateDeschideEchipament={can(permisiuni, "maintenance:read", "team")}
         actor={actor}
         userId={user.id}
         angajati={angajati}

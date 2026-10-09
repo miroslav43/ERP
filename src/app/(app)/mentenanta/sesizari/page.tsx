@@ -1,6 +1,7 @@
 // src/app/(app)/mentenanta/sesizari/page.tsx
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Wrench } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -151,6 +152,15 @@ async function TabelSesizari({
             {echipament === undefined
               ? "Echipament necunoscut"
               : `${echipament.cod} — ${echipament.denumire}`}
+            {/* Rândul duce la sesizare; utilajul are linkul lui, deasupra rândului. */}
+            {echipament !== undefined && can(permisiuni, "maintenance:read", "team") ? (
+              <Link
+                href={`/mentenanta/echipamente/${s.equipment_id}`}
+                className="text-muted-foreground text-nota relative ml-2 font-normal underline-offset-2 hover:underline"
+              >
+                fișa utilajului
+              </Link>
+            ) : null}
           </span>
         );
       },

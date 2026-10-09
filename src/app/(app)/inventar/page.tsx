@@ -338,6 +338,11 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
                   key={deschideCaseta ? "obiect-nou" : "lista"}
                   categorii={listaCategorii}
                   deschisInitial={deschideCaseta}
+                  denumireInitiala={
+                    typeof parametri["denumire"] === "string"
+                      ? parametri["denumire"].slice(0, 200)
+                      : null
+                  }
                 />
               ),
             }

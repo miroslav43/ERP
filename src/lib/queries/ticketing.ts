@@ -161,6 +161,8 @@ export async function listeazaTichete(
     if (filtre.deschise === "da" || filtre.fara_miscare === "7")
       cu = cu.in("status", [...STATUSURI_DESCHISE_COADA]);
     if (filtre.fara_miscare === "7") cu = cu.lt("updated_at", acumMinusZile(7));
+    if (filtre.nerepartizate === "da")
+      cu = cu.in("status", [...STATUSURI_DESCHISE_COADA]).is("asignat_employee_id", null);
     if (cautare !== null) cu = cu.or(cautare);
     return cu;
   };
@@ -369,6 +371,8 @@ export type RezumatCoada = Readonly<{
    * modificare a tichetului (stare, prioritate, repartizare), nu din vârsta lui.
    */
   faraMiscareDe7Zile: number;
+  /** Deschise, cu `asignat_employee_id` gol: coada le număra doar la „deschise". */
+  nerepartizate: number;
 }>;
 
 /**
@@ -382,7 +386,7 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
 
   const deschise = STATUSURI_DESCHISE_COADA;
 
-  const [totalDeschise, deAprobat, asteapta, restante] = await Promise.all([
+  const [totalDeschise, deAprobat, asteapta, restante, nerepartizate] = await Promise.all([
     db
       .from("tickets")
       .select("id", { count: "exact", head: true })
@@ -408,9 +412,16 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
       .is("deleted_at", null)
       .in("status", deschise)
       .lt("updated_at", acumMinus7),
+    db
+      .from("tickets")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .in("status", deschise)
+      .is("asignat_employee_id", null),
   ]);
 
-  for (const rezultat of [totalDeschise, deAprobat, asteapta, restante]) {
+  for (const rezultat of [totalDeschise, deAprobat, asteapta, restante, nerepartizate]) {
     if (rezultat.error !== null) throw rezultat.error;
   }
 
@@ -419,5 +430,6 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
     deAprobat: deAprobat.count ?? 0,
     asteaptaSolicitantul: asteapta.count ?? 0,
     faraMiscareDe7Zile: restante.count ?? 0,
+    nerepartizate: nerepartizate.count ?? 0,
   };
 }

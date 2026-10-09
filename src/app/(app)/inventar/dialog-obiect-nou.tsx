@@ -29,9 +29,15 @@ import { valoriObiect } from "./valori-obiect";
 interface Proprietati {
   readonly categorii: readonly OptiuneCategorie[];
   readonly deschisInitial?: boolean;
+  /** Din tichetul de echipament aprobat (`?denumire=`): caseta pornește cu denumirea cerută. */
+  readonly denumireInitiala?: string | null;
 }
 
-export function DialogObiectNou({ categorii, deschisInitial = false }: Proprietati): ReactElement {
+export function DialogObiectNou({
+  categorii,
+  deschisInitial = false,
+  denumireInitiala = null,
+}: Proprietati): ReactElement {
   const router = useRouter();
 
   async function trimite(date: FormData) {
@@ -57,7 +63,14 @@ export function DialogObiectNou({ categorii, deschisInitial = false }: Proprieta
         router.push(`/inventar/${obiect.id}`);
       }}
     >
-      {(stare, idc) => <CampuriObiect stare={stare} idc={idc} categorii={categorii} />}
+      {(stare, idc) => (
+        <CampuriObiect
+          stare={stare}
+          idc={idc}
+          categorii={categorii}
+          {...(denumireInitiala === null ? {} : { denumireInitiala })}
+        />
+      )}
     </FormularDialog>
   );
 }
