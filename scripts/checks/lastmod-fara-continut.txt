@@ -9,3 +9,4 @@
 b908ad3 aviz de listă tăiată pe foaie și condică — apare doar peste 60 de nume; textul implicit al paginilor neschimbat
 6153603 tipărirea uneltelor (B6, intrat în commitul lotului 4b de navigare): doar marcaje data-tipar și pagina A4 culcată; textul paginilor neschimbat
 b4ec9d6 aviz de parametri corectați pe foaie, condică și parcurs — apare doar la adrese invalide; textul implicit neschimbat
+e61594a 8 oct 2026: metadatele uneltelor mutate în seo-unelte.ts — titlul și descrierea neschimbate pe condică, parcurs, SSM, calculatorul de salariu și calculatorul de zile de concediu
