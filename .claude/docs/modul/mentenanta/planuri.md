@@ -17,8 +17,8 @@ citeste_daca:
   - "scadența unui plan nu se mișcă sau se mișcă singură → „Ce refuză baza tăcut”"
   - "amânarea e refuzată sau dispare → „Amânarea”"
   - "un plan pe contor arată „În regulă” deși utilajul e depășit → „Proiecția”"
-scris_pe: f3937f52a02b737ac62ef500b1d6b42e81e7640b
-scris_la: 2026-10-08
+scris_pe: d88200b8dc3f13fccad2ce8777662950d9c00eb8
+scris_la: 2026-10-09
 tags: [modul, operations]
 ---
 
@@ -35,12 +35,17 @@ necesară, temei legal și categorie legală (rezervată pentru M7).
 | `/mentenanta/planuri` (filtre, sortare, paginare) | `maintenance:read` team; „Plan nou” `update` team |
 | `/mentenanta/planuri/[id]`                        | `maintenance:read` team; acțiunile `update` team  |
 
-Lista: keyset pe `(urmatoarea_scadenta nulls last, id)` sau pe denumire; filtre SQL
-`echipament`, `tip`, `responsabil`, `activ` (`da` implicit în ecran, `nu`, `toate`),
-`scadenta` (`depasita` / `curand` 15 zile / `luna` 30 zile — doar pe zile; starea pe contor
-se calculează în TS din ultima citire). Pe rând: „Execută”, „Amână” (doar dacă are
-periodicitate în zile). Fișa: scadența pe zile și pe contor, proiecția, amânarea, datele,
-instrucțiunile ca listă, istoricul execuțiilor (`interventii` cu filtrul `plan`).
+Lista: keyset pe `(urmatoarea_scadenta nulls last, id)` sau pe denumire (`sort`:
+`scadenta`, implicit crescător, și `denumire`; o schimbare de sortare șterge `cursor`);
+filtre SQL `echipament`, `tip`, `responsabil`, `activ` (`da` implicit în ecran, `nu`,
+`toate`), `scadenta` — `depasita`, `curand` 15 zile, `luna` 30 zile și `actiune`
+(depășită SAU în `PRAG_MENTENANTA_AVERTIZARE_ZILE`, aceeași fereastră pe care o numără
+`cereActiune` pe tabloul din [[modul/mentenanta]]). Filtrul de scadență e doar pe zile:
+starea pe contor se calculează în TS din ultima citire, deci nu poate intra în `WHERE`.
+Pe rând: „Execută”, „Amână” (doar dacă are periodicitate în zile); „Plan nou” duce direct
+pe fișa planului creat. Fișa: scadența pe zile și pe contor, proiecția, amânarea, datele,
+instrucțiunile ca listă, istoricul execuțiilor (`interventii` cu filtrul `plan`), iar
+gesturile stau în `ActiuniPlan`, fiecare cu consecința scrisă în caseta de confirmare.
 
 ## Server Actions
 
@@ -71,16 +76,25 @@ instrucțiuni intră în `observatii` (`observatiiCuPasi`).
   înșiră. Ancora lipsă ⇒ ultima execuție sau azi. Oglinda în TS: `urmatoareaPeGrila`.
 - **Amânarea**: `urmatoarea_scadenta = greatest(calc, amanat_pana)`, `numar_amanari`
   crește la fiecare dată nouă; o intervenție **reușită** o șterge (`ssm_intervention_apply`),
-  una parțială/eșuată nu. Pe un plan **doar pe contor** amânarea e refuzată cu P0001
+  una parțială/eșuată nu. Motivul nu e doar o regulă de formular: `maintenance_plans_amanare_ck`
+  cere cel puțin 5 caractere pe `motiv_amanare` când `amanat_pana` e pus, deci o amânare
+  fără motiv pică cu 23514 (proba (3)). Pe un plan **doar pe contor** amânarea e refuzată cu P0001
   („…scadența pe contor se citește, nu se amână”) — butonul nici nu apare; un plan
   amânat trecut apoi doar pe contor își pierde amânarea tăcut (editarea nu e amânare).
 - **Semnătura citirii**: responsabilul fără `update` poate pune pe `citit_de_employee_id`
   doar fișa lui sau nimic — în politica `equipment_meters_insert` (0183), nu doar în
   `inregistreazaContor`; gestionarul alege orice angajat al firmei.
-- **Planul dezactivat sau șters** iese din `expirables` prin `maintenance_plan_exp`
-  (`is_active = deleted_at is null and activ`), deci și din alertele zilnice.
+- **Planul dezactivat sau șters** iese din `expirables` prin `maintenance_plan_exp` →
+  `plan_exp_sync` (0182), deci și din alertele zilnice. Tot acolo iese și un plan rămas
+  **activ** pe un echipament casat sau șters: `is_active` cere și starea utilajului, nu
+  doar `deleted_at is null and activ`.
+- **Filtrul de scadență ascunde planurile doar pe contor**: toate cele patru valori
+  compară `urmatoarea_scadenta`, care e NULL acolo, deci rândurile acelea dispar din
+  listă și din `total` fără nicio notă — pe ele se filtrează după `echipament`.
 - **Proiecția** (`proiectieScadentaContor`): ritm din ultimele 90 de zile, minimum 3
-  citiri pe cel puțin 7 zile; altfel `null` și ecranul spune de ce. Contorul necitit peste
+  citiri pe cel puțin 7 zile; altfel `null`. Dă `null` și când contorul n-a avansat între
+  prima și ultima citire (utilaj oprit), iar textul ecranului pune asta pe seama numărului
+  de citiri — explicația e mai îngustă decât cauza. Contorul necitit peste
   `prag_contor_necitit_zile` (setări) marchează estimarea „nesigură” și intră în panoul
   „Contoare necitite”.
 - **Responsabilul plecat**: `angajatiInactiviDintre` (status ≠ activ sau șters) dă

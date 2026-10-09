@@ -14,7 +14,7 @@ cai:
 tabele: [registru_documente]
 permisiuni: []
 capcane: []
-scris_pe: fc705346848ef5aaa3e15fc4d2e68593d718ba06
+scris_pe: d88200b8dc3f13fccad2ce8777662950d9c00eb8
 scris_la: 2026-10-09
 tags: [strat, navigare]
 ---
@@ -41,7 +41,9 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
    un clic întârziere.
 4. **În portal ținta e mereu `/portal/*`; în `(app)` niciodată.** Notificările nu se
    corectează în bază: se traduc la randare (`caleaInAplicatie` / `caleaDePortal`), vezi
-   [[modul/notificari]].
+   [[modul/notificari]]. O pagină „a mea" se traduce în lista din aplicație filtrată pe
+   fișa proprie, nu în lista plină: `/portal/kpi-ul-meu` → `/evaluari/kpi`, cu luna din
+   link dacă o avea, plus `&angajat=` — managerul evaluat lunar n-are portal.
 
 ## Primitivele, și unde locuiesc
 
@@ -51,8 +53,13 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
   barei de filtre. Listele pre-citesc id-urile și pun `.in("id", ids)`; mulțimea goală se
   exprimă printr-un UUID imposibil, nu prin `.in("id", [])`.
 - **Adresă pentru ce n-avea**: departament = `/departamente?departament=<id>`
-  (panoul se derivă din adresă, cu `replaceState`); punct de lucru =
-  `/puncte-lucru?punct=<id>#punct-<id>`; dosar de poprire = `#dosar-<id>`.
+  (panoul se derivă din adresă, cu `replaceState`); punct de lucru = fișa
+  `/puncte-lucru/[id]` (aceeași poartă ca lista, `departments:read` nenul; rândul pe
+  care RLS nu-l dă → 404), iar `/puncte-lucru?punct=<id>#punct-<id>` rămâne firimitura
+  înapoi și ținta din pontaj, echipament și afiș; dosar de poprire = `#dosar-<id>`.
+- **Nu orice parametru de intrare filtrează**: `?rol=` pe `/setari/membri` prepopulează
+  rolul în formularul de invitație (`rolInitial`), nu restrânge tabelul; un rol
+  necunoscut e ignorat, nu e eroare. De aici „Invită un cofondator" al panoului.
 - **Rândul evidențiat după acțiune**: `?nou=<id>` decis pe SERVER (`:target` nu se aprinde
   după o navigare din client) — pe carduri prin clasă, în `Tabel` prin `evidentiat` +
   `idRand` (inel și ancoră, în ambele randări: `<tr>` și cardul de telefon).
@@ -71,7 +78,10 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
   ([[modul/angajati/navigare]]); panoul departamentului primește porțile ca booleeni
   (`LegaturiPanou`) calculați pe server și construiește href-urile din id — funcțiile nu
   trec granița server→client. Vecinii din arbore (părinte, subordonate) se deschid în
-  același panou prin `laDeschidere`.
+  același panou prin `laDeschidere`. Fișa punctului de lucru numără echipamentele și
+  contractele active, cu cifra legată la lista-țintă pe `?punct_lucru=`. Un `Callout`
+  care explică o limită poartă drumul spre dovadă în `actiune`: nota despre mutarea
+  între departamente duce la `/organigrama`, dacă poarta trece.
 
 - **Jurnalul de audit ca țintă**: `IstoricModificari` (server, autonom) pe fișe →
   `/setari/audit?entity_id=<uuid>` (fără `entitate`: triggerele scriu numele tabelei,

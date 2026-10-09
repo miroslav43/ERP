@@ -29,8 +29,8 @@ citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
   - "casare, componente, contoare, responsabil → [[modul/mentenanta/echipamente]]; scadență, amânare, grilă fixă, proiecție → [[modul/mentenanta/planuri]]"
-scris_pe: f3937f52a02b737ac62ef500b1d6b42e81e7640b
-scris_la: 2026-10-08
+scris_pe: d88200b8dc3f13fccad2ce8777662950d9c00eb8
+scris_la: 2026-10-09
 tags: [modul]
 ---
 
@@ -61,9 +61,15 @@ calcul, amânare, proiecție pe contor, fișa planului — `0183`): [[modul/ment
 | `/mentenanta/setari`                                       | `maintenance:update` all  |
 
 Pragul `own` pe panou și pe sesizări e intenționat: **oricine poate sesiza o defecțiune**.
-Restul modulului — parcul de echipamente, planurile, intervențiile — cere `team`. Fila
-„Setări” din `nav-mentenanta` apare pe un boolean calculat în pagină, nu pe harta de
-permisiuni (componenta e client).
+Restul modulului — parcul de echipamente, planurile, intervențiile — cere `team`. Butoanele
+„Sesizare nouă” (panou, „Sesizările mele”, fișa echipamentului) se păzesc pe
+`maintenance:create`, nu mai apar necondiționat.
+
+Banda de file nu mai e un `nav-mentenanta` cu booleeni proprii: e `FileModul` cu
+`FILE_MENTENANTA` (`src/config/file-module.ts`), filtrată prin poarta rutei-ȚINTĂ
+(`poateDeschide`, `src/config/porti-ruta.ts`) — „Setări” apare exact cui i se deschide
+`/mentenanta/setari`, iar o bandă rămasă cu o singură filă nu se randează. Vezi
+[[strat/navigare]].
 
 Cele două formulare de creare sunt CASETE pe listele lor (`FormularDialog`, tiparul
 `?vehicul=nou` din [[modul/flota]]), nu pagini; butonul care le deschide se păzește pe
@@ -76,10 +82,10 @@ adresa veche. Echipamentul din QR se rezolvă pe server (`cautaEchipament`), vin
 `sesizare_deschisa` pentru avertismentul de duplicat, iar un id stricat ori un utilaj casat
 dau o bandă de atenție în casetă, nu 404. `/mentenanta/echipamente/nou` a fost șters.
 
-Preambulul paginilor cheamă `requireFeature` și `getPermissionMap` într-un `Promise.all`:
-sunt două citiri independente, iar refuzul lui `requireFeature` ajunge tot înaintea
-oricărui `can()`. Pe `/mentenanta` poarta se citește de două ori: `own` deschide pagina,
-`team` decide dacă se vede panoul de organizație sau doar `SesizarileMele`.
+Pe `/mentenanta` poarta se citește de două ori: `own` deschide pagina, `team` decide dacă
+se vede panoul de organizație sau doar `SesizarileMele`. Cifrele panoului duc la listele
+cu EXACT rândurile numărate (`/mentenanta/planuri?scadenta=actiune`,
+`/mentenanta/sesizari?deschise=da`, `/mentenanta/echipamente?iscir=da`).
 
 ## `create` NU e poarta pentru echipamente
 
@@ -95,8 +101,11 @@ sesizarea rămâne pe `maintenance:create` / `own`. — capcana #35
 
 ## Server Actions
 
-`src/app/(app)/mentenanta/actions.ts` (cele ale fluxului de sesizări sunt în
-`sesizari/actions.ts`, vezi [[modul/mentenanta/sesizari]]).
+`src/app/(app)/mentenanta/actions.ts`. Restul e împărțit pe subpagini: fluxul sesizării în
+`sesizari/actions.ts` ([[modul/mentenanta/sesizari]]), ciclul echipamentului în
+`echipamente/actions.ts` ([[modul/mentenanta/echipamente]]), gesturile de pe plan —
+`amanaPlan`, `comutaPlanActiv`, `stergePlan` — în `planuri/actions.ts`
+([[modul/mentenanta/planuri]]).
 
 | Funcție                                                       | Permisiune / minScope       |
 | ------------------------------------------------------------- | --------------------------- |
@@ -110,8 +119,11 @@ sesizarea rămâne pe `maintenance:create` / `own`. — capcana #35
 `cautaEchipament` e pe `create` / own fiindcă servește formularul de sesizare: cine poate
 raporta trebuie să poată găsi echipamentul, fără să vadă parcul. `rezolvaSesizare` și
 `inregistreazaContor` sunt pe `read` / own fiindcă le fac și tehnicianul atribuit, respectiv
-responsabilul utilajului; cine poate ce decide baza. Ciclul echipamentului (stare,
-ștergere, corecția citirilor, lot) e în `echipamente/actions.ts`.
+responsabilul utilajului; cine poate ce decide baza. `inregistreazaContor` recitește harta
+de permisiuni în handler: cine n-are `maintenance:update` / team nu poate reseta contorul
+(refuz explicat, nu 42501 sec) și **nu-și alege `citit_de_employee_id`** — se pune fișa lui
+principală, sau `null` dacă n-are fișă. Și politica o cere, nu doar acțiunea
+(`0183`) — v. [[modul/mentenanta/planuri]].
 
 `rezolvaSesizare` are **două scrieri**, în ordine obligatorie: întâi intervenția (legată de
 sesizare prin `fault_report_id`), apoi sesizarea cu `intervention_id`-ul ei — garda refuză
@@ -121,11 +133,17 @@ sesizare prin `fault_report_id`), apoi sesizarea cu `intervention_id`-ul ei — 
 
 `src/lib/queries/maintenance.ts`: `listeazaEchipamente`, `citesteEchipament`,
 `echipamenteDupaId`, `contoareEchipament`, `planuriEchipament`, `planuriScadente`,
-`ultimeleCitiriContor`, `interventii`, `citesteInterventie`, `sesizari` (filtre
-`atribuit`, `deschise`; fișa apelantului al treilea argument), `sesizariDeschise`,
-`citesteSesizare`, `autorizatiiIscir`, `angajatiAutorizati`, `angajatiDupaId`,
-`angajatiDupaUserId`, `optiuniAngajati`, `numarScadenteMentenanta`, plus cele ale
-fluxului de sesizări.
+`listeazaPlanuri`, `citestePlan`, `planuriDupaId`, `citiriPentruProiectie`,
+`ultimeleCitiriContor`, `ultimeleCitiriCuData`, `interventii` (filtrele `echipament` și
+`plan`), `citesteInterventie`, `sesizari` (filtre `atribuit`, `deschise`; fișa apelantului
+al treilea argument), `sesizariDeschise`, `citesteSesizare`, `autorizatiiIscir`,
+`angajatiAutorizati`, `angajatiDupaId`, `angajatiDupaUserId`, `angajatiInactiviDintre`,
+`optiuniAngajati`, `setariMentenanta`, `numelePunctuluiDeLucru`,
+`numarScadenteMentenanta`, plus cele ale fluxului de sesizări.
+
+`angajatiDupaId` citește și `deleted_at`, fiindcă `hrefFisa()` decide pe RÂND dacă numele
+devine link: o fișă ștearsă rămâne text, nu link spre 404. Paginarea planurilor e keyset
+NULABIL (`predicatKeysetNulabil`): un plan doar pe contor n-are `urmatoarea_scadenta`.
 
 Niciun filtru manual de scope: politicile din bucla lui `0011` și cele din `0181`
 restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()`, nu din
@@ -156,6 +174,20 @@ restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()
   citire nu sare peste citirea URMĂTOARE. Proba: `tests/rls/proba-mentenanta-integritate.sql`.
 - **Administratorul fără fișă poate sesiza**: `raportat_de_employee_id = null`, iar garda
   reține `raportat_de_user_id`.
+- **Avertismentul de duplicat EXISTĂ, linkul spre el nu întotdeauna.** `cautaEchipament`
+  găsește sesizarea deschisă cu clientul admin, dar întreabă a doua dată, cu clientul
+  OMULUI, dacă RLS i-o arată (`sesizare_deschisa.vizibila`). Fără flagul ăsta linkul ducea
+  în 404; cu `vizibila: false`, caseta spune „anunțați-l pe cel care a raportat-o”
+  (`sesizari/campuri-sesizare.tsx`).
+- **Un plan șters logic nu se mai editează — dar numai fiindcă acțiunea o cere.**
+  Politica de UPDATE pe `maintenance_plans` nu filtrează `deleted_at`, deci
+  `actualizeazaPlan` pune `.is("deleted_at", null)` explicit: fără el un apel direct îl
+  reactiva (`activ = true`), cu intrare de audit. Aceeași regulă în toate gesturile din
+  `planuri/actions.ts` (`0183`).
+- **Linkul spre sesizarea care a produs o oprire se desenează doar dacă sesizarea a venit
+  prin RLS.** Jurnalul de opriri se vede la `team`, sesizarea nu — când raportorul e din
+  afara echipei. Fișa echipamentului verifică apartenența la rândurile deja citite
+  (`echipamente/[id]/page.tsx`), nu doar `fault_report_id !== null`.
 
 ## Ce NU e aici
 
@@ -167,8 +199,15 @@ sunt la [[modul/ssm]], deși vin din aceeași migrare. Fluxul sesizării, cu act
 
 - Calculul scadenței unui plan: `src/domain/maintenance/`.
 - De ce un manager poate sesiza dar nu poate administra: [[rol/manager]].
-- Contractul exact al unei acțiuni: `src/app/(app)/mentenanta/actions-*.test.ts` și
-  `sesizari/actions.test.ts`, pe client Supabase fals. `actions-modul.test.ts` verifică
-  cheia `feature` a exporturilor din `actions.ts`.
-- Lotul 7h: planul leagă echipamentul și responsabilul, fișa echipamentului are „Sesizare nouă”, „Vezi toate” și ISCIR → SSM, contoarele și sesizările leagă utilajul, cronologia leagă echipamentul și sesizarea originală, titlul sesizării pe `maintenance:read`: [[strat/navigare]].
-- Lotul 7l: punctul de lucru pe nume pentru orice cititor (`numelePunctuluiDeLucru`) și „echipamentele locației”; respingerea ca duplicat alege din sesizările deschise ale utilajului: [[strat/navigare]].
+- Contractul exact al unei acțiuni: `src/app/(app)/mentenanta/actions-*.test.ts`,
+  `sesizari/actions.test.ts`, `planuri/actions.test.ts`, pe client Supabase fals.
+  `actions-modul.test.ts` verifică cheia `feature` a exporturilor din `actions.ts`.
+- Legăturile dintre ecrane, pe loturi (`docs/design/navigare-intre-module.md`),
+  toate în [[strat/navigare]]: 7h — planul leagă echipamentul și responsabilul, fișa are
+  „Sesizare nouă”, „Vezi toate” și ISCIR → SSM, contoarele și sesizările leagă utilajul,
+  cronologia leagă echipamentul și sesizarea originală; 7l — punctul de lucru pe nume
+  pentru orice cititor (`numelePunctuluiDeLucru`) și „echipamentele locației”, respingerea
+  ca duplicat alege dintre sesizările deschise ale utilajului. Lista de intervenții are
+  coloanele „Plan” și „Executant”, cu `?plan=` ca cheie EXTERNĂ a barei de filtre (pastilă
+  din `citestePlan`, altfel filtrul ar fi invizibil și de neșters), iar fișa echipamentului
+  poartă `IstoricModificari`.

@@ -15,8 +15,8 @@ citeste_daca:
   - "bula nu apare nicăieri → verifică ÎNTÂI cele două comutatoare, secțiunea „Ce refuză baza tăcut”"
   - "bula e în DOM dar nu se vede pe ecran → învelișul flotant s-a strâns la 0×0; același loc"
   - "o pastilă duce în 404 → imposibil prin construcție; citește „Lista închisă”"
-scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
-scris_la: 2026-09-24
+scris_pe: d88200b8dc3f13fccad2ce8777662950d9c00eb8
+scris_la: 2026-10-09
 tags: [modul, nucleu]
 ---
 
@@ -31,9 +31,6 @@ trimite; omul apasă. Asta scoate din discuție toată clasa de defecte „model
 butonul greșit”, și e motivul pentru care modulul n-are nicio Server Action.
 
 ## Lista închisă — de ce nu poate trimite într-un 404
-
-Miezul arhitecturii, și singurul lucru din pagina asta care nu se deduce din cod la o
-citire rapidă.
 
 Modelul **nu are voie să scrie o adresă**. Nu primește niciun href în prompt
 (`prompt.test.ts` verifică exact asta). Primește o listă de identificatori și poate doar
@@ -50,6 +47,11 @@ omului.
 ăsta” — nu se poate genera. Împotriva îmbătrânirii tăcute stă `destinatii.test.ts`:
 parcurge arborele de rute de pe disc și cere ca fiecare rută statică să fie ori în index,
 ori în `EXCLUSE` cu motiv scris.
+
+Un `href` poate purta și parametru de interogare, fiindcă unele formulare au devenit casete
+deschise din URL (`/mentenanta/echipamente?echipament=nou`). „Nu trimite în gol” compară
+doar **calea**; „fiecare rută e acoperită” compară `href`-ul **întreg** — deci pagina de
+redirect rămasă pe disc pentru autocolantele QR tipărite intră în `EXCLUSE`, cu motiv.
 
 ## Rute și cine ajunge
 
@@ -70,18 +72,20 @@ Zona nu se ia pe cuvânt de la client: rolul `employee` e forțat pe `portal`, r
 ## Filtrarea pe permisiuni
 
 `filtreaza.ts` taie din index tot ce omul nu poate deschide, cu **aceeași** `meetsScope`
-pe care o cheamă `buildNavigation()`. Nu e o copie a regulii: e regula. O a doua
-implementare ar fi divergat de meniu la prima ajustare de prag, iar asistentul ar fi
-început să ofere exact ce sidebar-ul ascunde.
+pe care o cheamă `buildNavigation()`. Nu e o copie a regulii: e regula — o a doua
+implementare ar fi divergat de meniu și ar fi oferit exact ce sidebar-ul ascunde.
 
-Ascunderea de aici nu e barieră de securitate — pagina verifică din nou, RLS respinge
-rândul oricum. E o barieră de **utilitate** (nu trimite pe cineva într-un ecran de refuz)
-și de **discreție** (enumerarea rutelor e o hartă a firmei).
+Ascunderea nu e barieră de securitate — pagina verifică din nou, RLS respinge rândul
+oricum. E barieră de **utilitate** (nu trimite într-un ecran de refuz) și de **discreție**
+(enumerarea rutelor e o hartă a firmei).
 
 `permission`-ul unei intrări e al **ecranului**, nu al modulului sub care stă în meniu.
 Când pagina arată un secret, poarta e a secretului: `pontaj.setari.coduri-qr` are filele
 vecine pe `attendance:update`, dar cere `departments:update` — cine vede codul QR poate
 ponta de oriunde. Se ia poarta reală a rutei, iar la îndoială cea strictă.
+
+`featureKey`-ul se ia la fel, de la ecran: `evaluari.kpi` stă sub „Evaluări” în meniu, dar
+pagina cere `requireFeature(…, "kpi")` — KPI e modul propriu, vândut separat.
 
 ## Uneltele de date
 
@@ -98,7 +102,7 @@ către contextul modelului, nu doar n-au intenție să ajungă acolo.
 `ContextUnealta` poartă două identități distincte: `userId` — contul — și `employeeId`,
 fișa lui de angajat, care poate lipsi. Ce e „al meu” se calculează din cont:
 `contoarePanou` cere `userId` ca să scoată din coada de concedii cererea proprie a celui
-care aprobă.
+care aprobă, și `role` fiindcă pașii de integrare se atribuie și pe rol, nu doar pe fișă.
 
 `cauta_om` întoarce și destinații **efemere** (`fisa.<uuid>`), valabile doar în răspunsul
 curent. Mulțimea rămâne închisă, doar că e închisă prin proveniență: acolo ajung numai
@@ -106,10 +110,9 @@ fișele întoarse de o citire pe care omul chiar avea dreptul să o facă.
 
 ## Citiri
 
-Niciuna nouă. Uneltele se sprijină exclusiv pe funcții existente din
-`src/lib/queries/portal.ts`, `src/lib/queries/panou.ts` și `src/lib/queries/employees.ts`.
-Un modul care nu adaugă interogări nu adaugă nici locuri noi în care izolarea între firme
-să poată fi greșită.
+Niciuna nouă, nici pentru coada de pași de integrare: uneltele se sprijină exclusiv pe
+funcții existente din `src/lib/queries/portal.ts`, `src/lib/queries/panou.ts` și
+`src/lib/queries/employees.ts` — zero locuri noi în care izolarea să poată fi greșită.
 
 ## Ce refuză baza tăcut
 
@@ -131,10 +134,10 @@ să poată fi greșită.
   listă de unelte inaccesibile e tot o hartă a aplicației.
 - **Învelișul flotant fără dimensiune explicită.** `zona-asistent.tsx` e un
   `popover="manual"`, iar foaia de stil a browserului dă oricărui popover deschis
-  `width/height: fit-content` — și acelea bat un `inset-0` care n-are dimensiune lângă el:
-  învelișul se strânge la 0×0 în colțul din stânga-sus, cu bulă cu tot. `h-full w-full`
-  nu e dublaj. În happy-dom foaia aceea nu există, deci randarea pare corectă oricum ai
-  scrie clasele; de-aia `zona-asistent.test.tsx` verifică **clasele**, nu geometria.
+  `width/height: fit-content` — care bate un `inset-0` fără dimensiune lângă el: învelișul
+  se strânge la 0×0 în colțul din stânga-sus, cu bulă cu tot. `h-full w-full` nu e dublaj.
+  În happy-dom foaia aia nu există, deci randarea pare corectă oricum ai scrie clasele;
+  de-aia `zona-asistent.test.tsx` verifică **clasele**, nu geometria.
 
 ## Ce se mișcă împreună
 
@@ -150,11 +153,10 @@ să poată fi greșită.
 - **`FEATURE_KEYS`** — cheia `asistent` e și în catalogul din bază. Landing-ul
   (`src/content/landing/ro.ts`) enumeră fiecare cheie, iar
   `src/content/landing/continut.test.ts` o cere.
-- **`ZonaToast`** — banda de notificări urcă peste bulă. Ambele stau pe `z-plutitor`, în
-  același colț; fără decalaj, un toast apare sub butonul rotund și nu se mai poate închide.
+- **`ZonaToast`** — banda de notificări urcă peste bulă: ambele stau pe `z-plutitor`, în
+  același colț, iar fără decalaj un toast apare sub butonul rotund și nu se mai închide.
   Decalajele sunt corelate de mână între `toast.tsx` și `zona-asistent.tsx`, iar cel al
-  bulei în portal e fixat ca valoare în `zona-asistent.test.tsx`: mutat pe o singură parte,
-  una o acoperă pe cealaltă.
+  bulei în portal e fixat în `zona-asistent.test.tsx`: mutat pe o parte, una o acoperă.
 - **Iconițele pastilelor** — `referinta-ruta.tsx` indexează `NAV_ITEMS` și
   `PORTAL_NAV_ITEMS` într-un tabel de modul, cu cheia `zonă:părinte`, în loc să caute la
   randare. Nu e optimizare: `react-hooks/static-components` respinge o componentă întoarsă
@@ -168,7 +170,7 @@ să poată fi greșită.
 - Niciun embedding și niciun depozit vectorial: corpusul intră întreg în prompt.
 - Niciun SDK de LLM și nicio librărie de markdown — vezi docblock-urile din
   `src/lib/asistent/openrouter.ts` și `src/lib/asistent/text.ts` pentru de ce.
-- Nicio persistență a conversației. Trăiește în memoria filei; layout-ul `(app)` nu se
+- Nicio persistență a conversației: trăiește în memoria filei, iar layout-ul `(app)` nu se
   re-randează la navigare, deci supraviețuiește saltului dintr-o pagină în alta.
 
 ## Când NU e suficientă pagina asta
