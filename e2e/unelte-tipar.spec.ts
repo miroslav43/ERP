@@ -52,10 +52,12 @@ const PAGINI: readonly {
     pagini: [1, 2],
   },
   {
+    // Din G7 (8 oct 2026), foaia are și alimentările și rezumatul lunii: trei tabele.
+    // Măsurat pe 9 oct 2026 cu page.pdf, local: 4 pagini, toate culcate.
     eticheta: "foaie de parcurs",
     cale: "/unelte/foaie-de-parcurs?luna=5&an=2027",
     culcat: true,
-    pagini: [1, 3],
+    pagini: [2, 4],
   },
   { eticheta: "fișa SSM", cale: "/unelte/fisa-instruire-ssm", culcat: true, pagini: [1, 3] },
   { eticheta: "fișa de evaluare", cale: "/unelte/fisa-evaluare", culcat: false, pagini: [1, 2] },

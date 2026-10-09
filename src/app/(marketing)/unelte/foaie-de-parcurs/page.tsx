@@ -17,7 +17,18 @@ import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { PrevizualizareDocument } from "../../_componente/previzualizare-document";
 import { AN_MAX, AN_MIN, avizeParametri, LUNI } from "../foaie-de-pontaj/foaie";
-import { construiesteFoaieParcurs, parametriFoaieParcurs } from "./model";
+import {
+  avizeFoaieParcurs,
+  CATEGORII,
+  COMBUSTIBILI,
+  construiesteFoaieParcurs,
+  ETICHETE_CATEGORIE,
+  ETICHETE_COMBUSTIBIL,
+  ETICHETE_UTILIZARE,
+  MAX_CURSE_PE_ZI,
+  parametriFoaieParcurs,
+  UTILIZARI,
+} from "./model";
 
 /**
  * Foaia de parcurs, gratuită.
@@ -26,9 +37,9 @@ import { construiesteFoaieParcurs, parametriFoaieParcurs } from "./model";
  * căutări pe lună, cu „word free download”, „pdf” și „excel” printre sugestii.
  * Formular GET, ca restul uneltelor: starea stă în adresă.
  *
- * Banda „La ce folosește” spune DOAR ce s-a verificat în Codul fiscal (art. 25
- * alin. (3) lit. l), forma consolidată la 2 oct 2026). Elementele minime ale
- * foii, din normele de aplicare, nu sunt afirmate: trimitem la contabil.
+ * Din 8 oct 2026 foaia are cele patru elemente minime din normele Codului
+ * fiscal (vezi `model.ts`), mai multe curse pe zi, alimentările, rezumatul
+ * lunii și un Excel cu formule.
  */
 export const metadata: Metadata = metadatePagina({
   titlu: "Foaie de parcurs: model Word, PDF și Excel",
@@ -47,31 +58,81 @@ const unul = (v: string | string[] | undefined): string | undefined =>
 const CLASA_CAMP =
   "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
 
+/** Parametrii pe care îi citește foaia; restul adresei se ignoră. */
+const CHEI = [
+  "an",
+  "luna",
+  "auto",
+  "marca",
+  "sofer",
+  "firma",
+  "cui",
+  "nr",
+  "categorie",
+  "combustibil",
+  "utilizare",
+  "norma",
+  "km",
+  "stoc",
+  "curse",
+] as const;
+
 const CAMPURI_TEXT = [
-  { nume: "auto", eticheta: "Nr. de înmatriculare", exemplu: "B-123-ABC" },
-  { nume: "marca", eticheta: "Marca și modelul", exemplu: "Dacia Logan" },
-  { nume: "sofer", eticheta: "Conducător auto", exemplu: "Radu Andrei" },
-  { nume: "firma", eticheta: "Firma (opțional)", exemplu: "" },
+  { nume: "auto", eticheta: "Nr. de înmatriculare", exemplu: "B-123-ABC", max: 120 },
+  { nume: "marca", eticheta: "Marca și modelul", exemplu: "Dacia Logan", max: 120 },
+  { nume: "sofer", eticheta: "Conducător auto", exemplu: "Radu Andrei", max: 120 },
+  { nume: "firma", eticheta: "Firma", exemplu: "Construct SRL", max: 120 },
+  { nume: "cui", eticheta: "CUI", exemplu: "RO12345678", max: 20 },
+  { nume: "nr", eticheta: "Foaia nr.", exemplu: "17", max: 20 },
+] as const;
+
+const CAMPURI_NUMERICE = [
+  {
+    nume: "norma",
+    eticheta: "Norma proprie de consum (l/100 km)",
+    exemplu: "6,5",
+    ajutor: "Norma firmei pentru mașina asta. La electrice, în kWh/100 km.",
+  },
+  {
+    nume: "km",
+    eticheta: "Km la bord la începutul lunii",
+    exemplu: "125.000",
+    ajutor: "Intră pe prima cursă, la plecare.",
+  },
+  {
+    nume: "stoc",
+    eticheta: "Combustibil în rezervor la început",
+    exemplu: "20",
+    ajutor: "În litri (kWh la electrice), pentru stocul de la sfârșitul lunii.",
+  },
 ] as const;
 
 export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) {
   const p = await searchParams;
   const q = new URLSearchParams();
-  for (const cheie of ["an", "luna", "auto", "marca", "sofer", "firma"]) {
+  for (const cheie of CHEI) {
     const v = unul(p[cheie]);
     if (v !== undefined && v !== "") q.set(cheie, v);
   }
   const ales = parametriFoaieParcurs(q);
   const document = construiesteFoaieParcurs(ales);
-  const avize = avizeParametri(
-    { an: q.get("an") ?? undefined, luna: q.get("luna") ?? undefined },
-    ales,
-  );
-  const valori: Readonly<Record<(typeof CAMPURI_TEXT)[number]["nume"], string>> = {
+  const avize = [
+    ...avizeParametri({ an: q.get("an") ?? undefined, luna: q.get("luna") ?? undefined }, ales),
+    ...avizeFoaieParcurs(q, ales),
+  ];
+  const valoriText: Readonly<Record<(typeof CAMPURI_TEXT)[number]["nume"], string>> = {
     auto: ales.nrAuto,
     marca: ales.marca,
     sofer: ales.sofer,
     firma: ales.firma,
+    cui: ales.cui,
+    nr: ales.nrFoaie,
+  };
+  const numar = (n: number | null) => (n === null ? "" : String(n).replace(".", ","));
+  const valoriNumerice: Readonly<Record<(typeof CAMPURI_NUMERICE)[number]["nume"], string>> = {
+    norma: numar(ales.norma),
+    km: ales.kmInitial === null ? "" : String(ales.kmInitial),
+    stoc: numar(ales.stocInitial),
   };
 
   return (
@@ -102,11 +163,6 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
               folosite exclusiv în activitatea firmei — art. 25 alin. (3) lit. l). Foaia de parcurs
               e documentul prin care firma arată, deplasare cu deplasare, unde a mers mașina și de
               ce.
-            </p>
-            <p>
-              Dacă mașina ta intră la deducere integrală și ce elemente minime cer normele de
-              aplicare pentru foaie stabilește contabilul firmei. Modelul de mai jos are coloanele
-              obișnuite: data, traseul, scopul și kilometrii.
             </p>
           </div>
         </Banda>
@@ -142,20 +198,78 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
               className={CLASA_CAMP}
             />
           </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[0.875rem] font-medium">Categoria vehiculului</span>
+            <select name="categorie" defaultValue={ales.categorie ?? ""} className={CLASA_CAMP}>
+              <option value="">de completat de mână</option>
+              {CATEGORII.map((c) => (
+                <option key={c} value={c}>
+                  {ETICHETE_CATEGORIE[c]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[0.875rem] font-medium">Combustibil</span>
+            <select name="combustibil" defaultValue={ales.combustibil ?? ""} className={CLASA_CAMP}>
+              <option value="">de completat de mână</option>
+              {COMBUSTIBILI.map((c) => (
+                <option key={c} value={c}>
+                  {ETICHETE_COMBUSTIBIL[c]}
+                </option>
+              ))}
+            </select>
+          </label>
           {CAMPURI_TEXT.map((c) => (
             <label key={c.nume} className="flex flex-col gap-1.5">
               <span className="text-[0.875rem] font-medium">{c.eticheta}</span>
               <input
                 type="text"
                 name={c.nume}
-                maxLength={120}
-                defaultValue={valori[c.nume]}
+                maxLength={c.max}
+                defaultValue={valoriText[c.nume]}
                 placeholder={c.exemplu}
                 className={CLASA_CAMP}
               />
             </label>
           ))}
-          <div className="flex items-end sm:col-span-2 lg:col-span-2">
+          {CAMPURI_NUMERICE.map((c) => (
+            <label key={c.nume} className="flex flex-col gap-1.5">
+              <span className="text-[0.875rem] font-medium">{c.eticheta}</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                name={c.nume}
+                maxLength={12}
+                defaultValue={valoriNumerice[c.nume]}
+                placeholder={c.exemplu}
+                className={CLASA_CAMP}
+              />
+              <span className="text-mk-text-slab text-[0.8125rem]">{c.ajutor}</span>
+            </label>
+          ))}
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className="text-[0.875rem] font-medium">Utilizarea vehiculului</span>
+            <select name="utilizare" defaultValue={ales.utilizare ?? ""} className={CLASA_CAMP}>
+              <option value="">de completat de mână</option>
+              {UTILIZARI.map((u) => (
+                <option key={u} value={u}>
+                  {ETICHETE_UTILIZARE[u]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[0.875rem] font-medium">Curse pe zi</span>
+            <select name="curse" defaultValue={String(ales.cursePeZi)} className={CLASA_CAMP}>
+              {Array.from({ length: MAX_CURSE_PE_ZI }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={String(n)}>
+                  {n === 1 ? "1 rând pe zi" : `${String(n)} rânduri pe zi`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end">
             <button
               type="submit"
               data-umami-event="parcurs-genereaza"
