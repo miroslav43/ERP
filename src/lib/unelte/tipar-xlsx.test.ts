@@ -54,6 +54,8 @@ describe("numele filelor", () => {
     expect(numeFilaSigur("popa ion", folosite)).toBe("popa ion (3)");
     expect(numeFilaSigur("Ana/Maria: [test]*?", folosite)).toBe("Ana Maria test");
     expect(numeFilaSigur("'Ion'", folosite)).toBe("Ion");
+    expect(numeFilaSigur("' 'Ilie", folosite)).toBe("Ilie");
+    expect(numeFilaSigur("Radu' '", folosite)).toBe("Radu");
     expect(numeFilaSigur("", folosite)).toBe("Fișă");
     expect(numeFilaSigur("History", folosite)).toBe("Fișă History");
     expect(numeFilaSigur("x".repeat(40), folosite)).toHaveLength(31);
@@ -69,6 +71,9 @@ describe("numele filelor", () => {
       "a/b\\c",
       "",
       "History",
+      // Apostroful ascuns după un spațiu: după tăierea de la capete, rămâne la capăt.
+      "' 'Ion",
+      "Popa Ion' '",
     ];
     for (const dorit of dorite) {
       expect(() => registru.addWorksheet(numeFilaSigur(dorit, folosite))).not.toThrow();

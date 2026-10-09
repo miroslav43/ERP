@@ -44,8 +44,9 @@ export function numeFilaSigur(dorit: string, folosite: Set<string>): string {
     .replace(/\s+/gu, " ")
     .trim()
     .slice(0, 31)
-    .replace(/^'+|'+$/gu, "")
-    .trim();
+    // Apostrofii și spațiile de la capete se scot împreună: „' 'Ion” scos doar de
+    // apostrofi rămânea „'Ion”, iar ExcelJS aruncă (ruta ar fi dat 500).
+    .replace(/^[\s']+|[\s']+$/gu, "");
   const baza = curat === "" ? "Fișă" : curat.toLowerCase() === "history" ? "Fișă History" : curat;
   let nume = baza;
   for (let k = 2; folosite.has(nume.toLowerCase()); k += 1) {
