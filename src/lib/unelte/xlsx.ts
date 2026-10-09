@@ -25,15 +25,19 @@ export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
   for (const p of d.paragrafe) fila.addRow([p]);
   fila.addRow([]);
 
-  if (d.coloane.length > 0) {
-    const antet = fila.addRow(d.coloane.map((c) => c.eticheta));
+  /** Antet aldin, cu rând nou la `\n`, apoi rândurile cu chenar subțire. */
+  const tabel = (
+    etichete: readonly string[],
+    randuri: readonly (readonly string[])[],
+    umbrite: readonly number[],
+  ) => {
+    const antet = fila.addRow([...etichete]);
     antet.font = { bold: true };
     // Etichetele cu `\n` (ziua deasupra literei) se afișează pe două rânduri.
     antet.alignment = { wrapText: true, vertical: "top" };
-    fila.views = [{ state: "frozen", ySplit: antet.number }];
-    for (const r of d.randuri) {
+    for (const r of randuri) {
       const rand = fila.addRow([...r]);
-      d.coloane.forEach((_, i) => {
+      etichete.forEach((_, i) => {
         const celula = rand.getCell(i + 1);
         celula.border = {
           top: { style: "hair" },
@@ -41,11 +45,31 @@ export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
           bottom: { style: "hair" },
           right: { style: "hair" },
         };
-        if (d.umbrite.includes(i)) {
+        if (umbrite.includes(i)) {
           celula.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6E9E6" } };
         }
       });
     }
+    return antet;
+  };
+
+  if (d.coloane.length > 0) {
+    const antet = tabel(
+      d.coloane.map((c) => c.eticheta),
+      d.randuri,
+      d.umbrite,
+    );
+    fila.views = [{ state: "frozen", ySplit: antet.number }];
+  }
+  for (const t of d.tabeleSuplimentare ?? []) {
+    if (t.coloane.length === 0) continue;
+    fila.addRow([]);
+    fila.addRow([t.titlu]).font = { bold: true };
+    tabel(
+      t.coloane.map((c) => c.eticheta),
+      t.randuri,
+      [],
+    );
   }
   fila.addRow([]);
   for (const n of d.note) fila.addRow([n]);

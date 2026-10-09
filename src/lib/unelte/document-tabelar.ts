@@ -26,6 +26,13 @@ export type Coloana = Readonly<{
   latime: number;
 }>;
 
+/** Un tabel după cel principal, cu coloanele lui. */
+export type TabelSuplimentar = Readonly<{
+  titlu: string;
+  coloane: readonly Coloana[];
+  randuri: readonly (readonly string[])[];
+}>;
+
 export type DocumentTabelar = Readonly<{
   titlu: string;
   subtitlu: string | null;
@@ -38,6 +45,12 @@ export type DocumentTabelar = Readonly<{
   randuri: readonly (readonly string[])[];
   /** Indicii coloanelor umbrite (weekend, sărbători). */
   umbrite: readonly number[];
+  /**
+   * Tabele mai mici, randate după cel principal și înaintea notelor, fiecare cu
+   * titlul și coloanele lui (alimentările și rezumatul foii de parcurs). Fără
+   * umbrire. Cheia lipsă = niciun tabel, deci celelalte unelte rămân neatinse.
+   */
+  tabeleSuplimentare?: readonly TabelSuplimentar[];
   note: readonly string[];
   /** Etichetele liniilor de semnătură, de la stânga la dreapta. */
   semnaturi: readonly string[];
@@ -148,22 +161,46 @@ export function curataText(text: string): string {
   return text.replace(RAND_NOU, "\n").replace(SPATIU_DE_CONTROL, " ").replace(INTERZISE, "");
 }
 
-/** Același document, cu fiecare text trecut prin `curataText`. Funcție pură. */
-export function curataDocument(d: DocumentTabelar): DocumentTabelar {
+/**
+ * Același document, cu `f` aplicată pe FIECARE text al lui: titlul, câmpurile,
+ * proza, etichetele de coloană, celulele, tabelele suplimentare, notele și
+ * semnăturile. Funcție pură.
+ *
+ * O singură listă a locurilor cu text, folosită de curățare și de glifele PDF:
+ * o cheie nouă a modelului (`tabeleSuplimentare`, 8 oct 2026) se adaugă aici o
+ * dată, nu în fiecare transformare, unde a doua ar fi uitat-o.
+ */
+export function mapeazaTexte(d: DocumentTabelar, f: (text: string) => string): DocumentTabelar {
+  const coloane = (lista: readonly Coloana[]) =>
+    lista.map((c) => ({ ...c, eticheta: f(c.eticheta) }));
+  const randuri = (lista: readonly (readonly string[])[]) =>
+    lista.map((rand) => rand.map((celula) => f(celula)));
   return {
     ...d,
-    titlu: curataText(d.titlu),
-    subtitlu: d.subtitlu === null ? null : curataText(d.subtitlu),
-    campuri: d.campuri.map((c) => ({
-      eticheta: curataText(c.eticheta),
-      valoare: curataText(c.valoare),
-    })),
-    paragrafe: d.paragrafe.map((p) => curataText(p)),
-    coloane: d.coloane.map((c) => ({ ...c, eticheta: curataText(c.eticheta) })),
-    randuri: d.randuri.map((rand) => rand.map((celula) => curataText(celula))),
-    note: d.note.map((n) => curataText(n)),
-    semnaturi: d.semnaturi.map((s) => curataText(s)),
+    titlu: f(d.titlu),
+    subtitlu: d.subtitlu === null ? null : f(d.subtitlu),
+    campuri: d.campuri.map((c) => ({ eticheta: f(c.eticheta), valoare: f(c.valoare) })),
+    paragrafe: d.paragrafe.map((p) => f(p)),
+    coloane: coloane(d.coloane),
+    randuri: randuri(d.randuri),
+    note: d.note.map((n) => f(n)),
+    semnaturi: d.semnaturi.map((s) => f(s)),
+    // `exactOptionalPropertyTypes`: cheia lipsește, nu e `undefined`.
+    ...(d.tabeleSuplimentare === undefined
+      ? {}
+      : {
+          tabeleSuplimentare: d.tabeleSuplimentare.map((t) => ({
+            titlu: f(t.titlu),
+            coloane: coloane(t.coloane),
+            randuri: randuri(t.randuri),
+          })),
+        }),
   };
+}
+
+/** Același document, cu fiecare text trecut prin `curataText`. Funcție pură. */
+export function curataDocument(d: DocumentTabelar): DocumentTabelar {
+  return mapeazaTexte(d, curataText);
 }
 
 /**

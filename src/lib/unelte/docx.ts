@@ -25,6 +25,7 @@ import {
   LINIE_GOALA,
   SEMNATURA_FISIER,
   textAntetRulant,
+  type Coloana,
   type DocumentTabelar,
 } from "./document-tabelar";
 
@@ -51,17 +52,12 @@ function subsol(): Footer {
 
 /** Un `DocumentTabelar` ca secțiune Word. Mărimile în `docx` sunt în jumătăți de punct: 16 = 8 pt. */
 function sectiune(d: DocumentTabelar): ISectionOptions {
-  const totalRelativ = d.coloane.reduce((s, c) => s + c.latime, 0) || 1;
-  const celula = (text: string, i: number, aldin: boolean) =>
+  /** `procent` = lățimea coloanei din tabelul ei; `umbrita` = weekend, sărbătoare. */
+  const celula = (text: string, procent: number, umbrita: boolean, aldin: boolean) =>
     new TableCell({
-      width: {
-        size: Math.round(((d.coloane[i]?.latime ?? 0) / totalRelativ) * 100),
-        type: WidthType.PERCENTAGE,
-      },
+      width: { size: procent, type: WidthType.PERCENTAGE },
       // `exactOptionalPropertyTypes`: cheia lipsește, nu e `undefined`.
-      ...(d.umbrite.includes(i)
-        ? { shading: { type: ShadingType.CLEAR, color: "auto", fill: "E6E9E6" } }
-        : {}),
+      ...(umbrita ? { shading: { type: ShadingType.CLEAR, color: "auto", fill: "E6E9E6" } } : {}),
       children: [
         new Paragraph({
           // `\n` din etichetă devine rând nou în celulă (antetul foii de pontaj).
@@ -80,6 +76,49 @@ function sectiune(d: DocumentTabelar): ISectionOptions {
     optiuni: Readonly<{ bold?: boolean; size?: number; color?: string }> = {},
   ) => new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text, ...optiuni })] });
 
+  /**
+   * Un tabel pe toată lățimea, cu antetul repetat pe fiecare pagină.
+   * `inaltimeRand` e doar a tabelului principal (rândul de semnătură al condicii).
+   */
+  const tabel = (
+    coloane: readonly Coloana[],
+    randuri: readonly (readonly string[])[],
+    umbrite: readonly number[],
+    inaltimeRand?: number,
+  ) => {
+    const totalRelativ = coloane.reduce((s, c) => s + c.latime, 0) || 1;
+    const procente = coloane.map((c) => Math.round((c.latime / totalRelativ) * 100));
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          tableHeader: true,
+          children: coloane.map((c, i) =>
+            celula(c.eticheta, procente[i] ?? 0, umbrite.includes(i), true),
+          ),
+        }),
+        ...randuri.map(
+          (r) =>
+            new TableRow({
+              // Un rând de semnătură rupt între două pagini nu mai e semnabil.
+              cantSplit: true,
+              ...(inaltimeRand === undefined
+                ? {}
+                : {
+                    height: {
+                      value: Math.round(inaltimeRand * TWIPI_PE_PUNCT),
+                      rule: HeightRule.ATLEAST,
+                    },
+                  }),
+              children: coloane.map((_, i) =>
+                celula(r[i] ?? "", procente[i] ?? 0, umbrite.includes(i), false),
+              ),
+            }),
+        ),
+      ],
+    });
+  };
+
   const copii: (Paragraph | Table)[] = [paragraf(d.titlu, { bold: true, size: 28 })];
   if (d.subtitlu !== null) copii.push(paragraf(d.subtitlu, { size: 18, color: "6B7280" }));
   for (const c of d.campuri) {
@@ -88,34 +127,11 @@ function sectiune(d: DocumentTabelar): ISectionOptions {
     );
   }
   for (const p of d.paragrafe) copii.push(paragraf(p, { size: 22 }));
-  if (d.coloane.length > 0) {
-    copii.push(
-      new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            tableHeader: true,
-            children: d.coloane.map((c, i) => celula(c.eticheta, i, true)),
-          }),
-          ...d.randuri.map(
-            (r) =>
-              new TableRow({
-                // Un rând de semnătură rupt între două pagini nu mai e semnabil.
-                cantSplit: true,
-                ...(d.inaltimeRand === undefined
-                  ? {}
-                  : {
-                      height: {
-                        value: Math.round(d.inaltimeRand * TWIPI_PE_PUNCT),
-                        rule: HeightRule.ATLEAST,
-                      },
-                    }),
-                children: d.coloane.map((_, i) => celula(r[i] ?? "", i, false)),
-              }),
-          ),
-        ],
-      }),
-    );
+  if (d.coloane.length > 0) copii.push(tabel(d.coloane, d.randuri, d.umbrite, d.inaltimeRand));
+  for (const t of d.tabeleSuplimentare ?? []) {
+    if (t.coloane.length === 0) continue;
+    copii.push(paragraf(""), paragraf(t.titlu, { bold: true, size: 20 }));
+    copii.push(tabel(t.coloane, t.randuri, []));
   }
   for (const n of d.note) copii.push(paragraf(n, { size: 16, color: "6B7280" }));
   if (d.semnaturi.length > 0) {

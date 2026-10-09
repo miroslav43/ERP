@@ -20,6 +20,7 @@ import {
   SEMNATURA_FISIER,
   textAntetRulant,
   textPagina,
+  type Coloana,
   type DocumentTabelar,
 } from "./document-tabelar";
 
@@ -42,6 +43,8 @@ const MARIME = 8;
 const INALT_RAND = 16;
 /** Spațiul păstrat sub ultimul rând pentru mențiunea din subsol. */
 const REZERVA_SUBSOL = 20;
+/** Un tabel suplimentar cu atâtea rânduri sau mai puține nu se rupe între pagini. */
+const RANDURI_TABEL_SCURT = 12;
 /** Mărimea textelor din margine: antetul rulant și numărul paginii. */
 const MARIME_MARGINE = 7;
 
@@ -96,10 +99,15 @@ function dimensiuni(d: DocumentTabelar): readonly [number, number] {
  * etichetă nu ajunge la „…”.
  */
 export function latimiColoane(d: DocumentTabelar): readonly number[] {
+  return latimiTabel(d, d.coloane);
+}
+
+/** Lățimile relative ale unui tabel al documentului, în puncte, pe toată lățimea utilă. */
+function latimiTabel(d: DocumentTabelar, coloane: readonly Coloana[]): readonly number[] {
   const [latime] = dimensiuni(d);
   const util = latime - 2 * MARGINE;
-  const total = d.coloane.reduce((s, c) => s + c.latime, 0);
-  return d.coloane.map((c) => (total === 0 ? 0 : (c.latime / total) * util));
+  const total = coloane.reduce((s, c) => s + c.latime, 0);
+  return coloane.map((c) => (total === 0 ? 0 : (c.latime / total) * util));
 }
 
 export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
@@ -185,7 +193,13 @@ function deseneaza(
    * se taie separat la lățimea coloanei. Un rând mai înalt decât textul lui
    * (condica, 22 pt) își centrează textul pe verticală.
    */
-  const rand = (celule: readonly string[], aldin: boolean, inaltMinim: number) => {
+  const rand = (
+    celule: readonly string[],
+    aldin: boolean,
+    inaltMinim: number,
+    latimiRand: readonly number[] = latimi,
+    umbrite: readonly number[] = d.umbrite,
+  ) => {
     const font = aldin ? fonturi.aldin : fonturi.normal;
     const linii = celule.map((c) => c.split("\n"));
     const nrLinii = Math.max(1, ...linii.map((l) => l.length));
@@ -193,8 +207,8 @@ function deseneaza(
     const inalt = Math.max(inaltMinim, inaltText);
     const sus = 11 + (inalt - inaltText) / 2;
     let x = MARGINE;
-    latimi.forEach((w, i) => {
-      if (d.umbrite.includes(i)) {
+    latimiRand.forEach((w, i) => {
+      if (umbrite.includes(i)) {
         pagina.drawRectangle({ x, y: y - inalt, width: w, height: inalt, color: UMBRA });
       }
       pagina.drawRectangle({
@@ -229,6 +243,28 @@ function deseneaza(
         rand(antet, true, INALT_RAND); // antetul se repetă pe fiecare pagină
       }
       rand(r, false, inaltCorp);
+    }
+  }
+
+  // Tabelele suplimentare: titlu, antet, rânduri. Unul scurt (cel mult
+  // `RANDURI_TABEL_SCURT`) nu se rupe între pagini: trece întreg pe pagina
+  // următoare. Unul lung cere măcar titlul, antetul și două rânduri deodată,
+  // ca titlul să nu rămână singur la capăt de pagină.
+  for (const t of d.tabeleSuplimentare ?? []) {
+    if (t.coloane.length === 0) continue;
+    const latimiT = latimiTabel(d, t.coloane);
+    const antetT = t.coloane.map((c) => c.eticheta);
+    const randuriCerute = t.randuri.length <= RANDURI_TABEL_SCURT ? t.randuri.length : 2;
+    y -= 10;
+    asiguraLoc(16 + INALT_RAND * (randuriCerute + 2));
+    scrie(t.titlu, 10, fonturi.aldin);
+    rand(antetT, true, INALT_RAND, latimiT, []);
+    for (const r of t.randuri) {
+      if (y - INALT_RAND < MARGINE + REZERVA_SUBSOL) {
+        paginaNoua();
+        rand(antetT, true, INALT_RAND, latimiT, []);
+      }
+      rand(r, false, INALT_RAND, latimiT, []);
     }
   }
 
