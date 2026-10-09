@@ -49,10 +49,29 @@ export type DocumentTabelar = Readonly<{
    * descărcare; rândul de jos al fișierului devine legătură spre ea.
    */
   sursa?: string;
+  /**
+   * Înălțimea minimă a unui rând din corpul tabelului, în puncte. Absentă = 16,
+   * cât încape un rând de text. Condica o ridică la 22: acolo se semnează de
+   * mână pe fiecare rând (auditul din 8 oct 2026 a măsurat 5,6 mm).
+   */
+  inaltimeRand?: number;
 }>;
 
 /** Textul rândului de jos, același în toate formatele. */
 export const SEMNATURA_FISIER = "Generat gratuit cu administrativo.ro";
+
+/**
+ * Rândul de sus de pe paginile 2+ (PDF) și din antetul Word: o foaie ruptă din
+ * teanc spune singură ce lună și ce firmă are.
+ */
+export function textAntetRulant(d: DocumentTabelar): string {
+  return d.subtitlu === null ? d.titlu : `${d.titlu} · ${d.subtitlu}`;
+}
+
+/** „Pagina 2 din 5”. Un document de o singură pagină nu primește număr. */
+export function textPagina(index: number, total: number): string | null {
+  return total <= 1 ? null : `Pagina ${String(index + 1)} din ${String(total)}`;
+}
 
 /**
  * Adresa spre care trimite rândul de jos al fișierului.

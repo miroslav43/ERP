@@ -1,6 +1,6 @@
 import "server-only";
 
-import { PDFName, PDFString, rgb, type PDFFont } from "pdf-lib";
+import { PDFName, PDFString, rgb, type PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
 
 import { ADRESA_SITE } from "@/content/landing/contact";
 
@@ -8,16 +8,18 @@ import {
   GRI,
   INALTIME_A4,
   LATIME_A4,
-  LINIE,
   MARGINE,
   NEGRU,
   pornesteDocument,
+  type Fonturi,
 } from "@/lib/pdf/document";
 
 import {
   adresaDinFisier,
   LINIE_GOALA,
   SEMNATURA_FISIER,
+  textAntetRulant,
+  textPagina,
   type DocumentTabelar,
 } from "./document-tabelar";
 
@@ -30,10 +32,20 @@ import {
  */
 
 const UMBRA = rgb(0.92, 0.93, 0.92);
+/**
+ * Chenarul tabelului. A fost `LINIE` (#D9DBE0, 0,5 pt): curat pe ecran, abia
+ * vizibil pe hârtie — iar condica și fișele se completează și se semnează pe
+ * liniile astea (auditul din 8 oct 2026).
+ */
+const CHENAR = rgb(0.45, 0.47, 0.5);
 const MARIME = 8;
 const INALT_RAND = 16;
 /** Spațiul păstrat sub ultimul rând pentru mențiunea din subsol. */
 const REZERVA_SUBSOL = 20;
+/** Mărimea textelor din margine: antetul rulant și numărul paginii. */
+const MARIME_MARGINE = 7;
+
+type Masurare = (font: PDFFont, marime: number) => (t: string) => number;
 
 /**
  * Taie textul la lățimea dată, cu „…” la final. `masoara` e injectat ca să fie testabil.
@@ -74,22 +86,43 @@ export function imparte(text: string, latime: number, masoara: (t: string) => nu
   return randuri.length > 0 ? randuri : [""];
 }
 
-export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
-  const { doc, fonturi } = await pornesteDocument(d.titlu, "Administrativo");
-  const [latime, inaltime] =
-    d.orientare === "peisaj" ? [INALTIME_A4, LATIME_A4] : [LATIME_A4, INALTIME_A4];
-  const util = latime - 2 * MARGINE;
-  const totalRelativ = d.coloane.reduce((s, c) => s + c.latime, 0);
-  const latimi = d.coloane.map((c) => (totalRelativ === 0 ? 0 : (c.latime / totalRelativ) * util));
+function dimensiuni(d: DocumentTabelar): readonly [number, number] {
+  return d.orientare === "peisaj" ? [INALTIME_A4, LATIME_A4] : [LATIME_A4, INALTIME_A4];
+}
 
-  let pagina = doc.addPage([latime, inaltime]);
-  let y = inaltime - MARGINE;
+/**
+ * Lățimea fiecărei coloane în puncte: lățimile relative, întinse pe lățimea
+ * utilă. Exportată ca testele uneltelor să verifice, pe fontul real, că nicio
+ * etichetă nu ajunge la „…”.
+ */
+export function latimiColoane(d: DocumentTabelar): readonly number[] {
+  const [latime] = dimensiuni(d);
+  const util = latime - 2 * MARGINE;
+  const total = d.coloane.reduce((s, c) => s + c.latime, 0);
+  return d.coloane.map((c) => (total === 0 ? 0 : (c.latime / total) * util));
+}
+
+export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
+  return randeazaPdfMultiplu([d]);
+}
+
+/**
+ * Mai multe documente într-un singur PDF, fiecare de la pagină nouă și cu
+ * numerotarea lui („Pagina 1 din 1” nu se scrie). Fontul se încorporează O
+ * DATĂ: lipite din PDF-uri separate, 60 de fișe ar fi purtat 60 de subseturi.
+ */
+export async function randeazaPdfMultiplu(
+  documente: readonly DocumentTabelar[],
+): Promise<Uint8Array> {
+  const primul = documente[0];
+  if (primul === undefined) throw new Error("Niciun document de randat.");
+  const { doc, fonturi } = await pornesteDocument(primul.titlu, "Administrativo");
 
   // Memorizat pe randare: la condică același nume apare pe fiecare zi lucrătoare,
   // iar fiecare măsurătoare e o așezare OpenType completă. Fără cache, 60 de nume
   // × 21 de zile costau ~2,4 s; cheile sunt mărginite de document.
   const masurate = new Map<string, number>();
-  const masoara = (font: PDFFont, marime: number) => (t: string) => {
+  const masoara: Masurare = (font, marime) => (t) => {
     const cheie = `${font === fonturi.aldin ? "a" : "n"}${String(marime)}|${t}`;
     let latimeText = masurate.get(cheie);
     if (latimeText === undefined) {
@@ -98,8 +131,30 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
     }
     return latimeText;
   };
+
+  for (const d of documente) deseneaza(doc, fonturi, masoara, d);
+  return doc.save();
+}
+
+function deseneaza(
+  doc: PDFDocument,
+  fonturi: Fonturi,
+  masoara: Masurare,
+  d: DocumentTabelar,
+): void {
+  const [latime, inaltime] = dimensiuni(d);
+  const util = latime - 2 * MARGINE;
+  const latimi = latimiColoane(d);
+  const inaltCorp = Math.max(INALT_RAND, d.inaltimeRand ?? INALT_RAND);
+
+  const pagini: PDFPage[] = [];
+  let pagina = doc.addPage([latime, inaltime]);
+  pagini.push(pagina);
+  let y = inaltime - MARGINE;
+
   const paginaNoua = () => {
     pagina = doc.addPage([latime, inaltime]);
+    pagini.push(pagina);
     y = inaltime - MARGINE;
   };
   const asiguraLoc = (necesar: number) => {
@@ -127,13 +182,16 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   /**
    * Un rând de tabel. Etichetele pot avea `\n` (antetul foii de pontaj pune
    * ziua deasupra literei): rândul crește cu numărul de linii, iar fiecare linie
-   * se taie separat la lățimea coloanei.
+   * se taie separat la lățimea coloanei. Un rând mai înalt decât textul lui
+   * (condica, 22 pt) își centrează textul pe verticală.
    */
-  const rand = (celule: readonly string[], aldin: boolean) => {
+  const rand = (celule: readonly string[], aldin: boolean, inaltMinim: number) => {
     const font = aldin ? fonturi.aldin : fonturi.normal;
     const linii = celule.map((c) => c.split("\n"));
     const nrLinii = Math.max(1, ...linii.map((l) => l.length));
-    const inalt = INALT_RAND + (nrLinii - 1) * (MARIME + 2);
+    const inaltText = INALT_RAND + (nrLinii - 1) * (MARIME + 2);
+    const inalt = Math.max(inaltMinim, inaltText);
+    const sus = 11 + (inalt - inaltText) / 2;
     let x = MARGINE;
     latimi.forEach((w, i) => {
       if (d.umbrite.includes(i)) {
@@ -144,13 +202,13 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
         y: y - inalt,
         width: w,
         height: inalt,
-        borderColor: LINIE,
+        borderColor: CHENAR,
         borderWidth: 0.5,
       });
       (linii[i] ?? [""]).forEach((linie, k) => {
         pagina.drawText(taie(linie, w - 4, masoara(font, MARIME)), {
           x: x + 2,
-          y: y - 11 - k * (MARIME + 2),
+          y: y - sus - k * (MARIME + 2),
           size: MARIME,
           font,
           color: NEGRU,
@@ -164,13 +222,13 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   if (d.coloane.length > 0) {
     const antet = d.coloane.map((c) => c.eticheta);
     asiguraLoc(INALT_RAND * 3);
-    rand(antet, true);
+    rand(antet, true, INALT_RAND);
     for (const r of d.randuri) {
-      if (y - INALT_RAND < MARGINE + REZERVA_SUBSOL) {
+      if (y - inaltCorp < MARGINE + REZERVA_SUBSOL) {
         paginaNoua();
-        rand(antet, true); // antetul se repetă pe fiecare pagină
+        rand(antet, true, INALT_RAND); // antetul se repetă pe fiecare pagină
       }
-      rand(r, false);
+      rand(r, false, inaltCorp);
     }
   }
 
@@ -203,14 +261,14 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   pagina.drawText(SEMNATURA_FISIER, {
     x: MARGINE,
     y: MARGINE / 2,
-    size: 7,
+    size: MARIME_MARGINE,
     font: fonturi.normal,
     color: GRI,
   });
   // Textul devine clicabil printr-o adnotare `Link` cu acțiune `URI`, întinsă
   // exact peste el. `pdf-lib` n-are un API pentru legături; dicționarul e cel
   // din specificația PDF (ISO 32000, 12.5.6.5).
-  const latimeText = fonturi.normal.widthOfTextAtSize(SEMNATURA_FISIER, 7);
+  const latimeText = fonturi.normal.widthOfTextAtSize(SEMNATURA_FISIER, MARIME_MARGINE);
   const legatura = doc.context.register(
     doc.context.obj({
       Type: "Annot",
@@ -226,5 +284,28 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   );
   pagina.node.set(PDFName.of("Annots"), doc.context.obj([legatura]));
 
-  return doc.save();
+  // Marginile se scriu la sfârșit: abia acum se știe câte pagini are documentul.
+  const masoaraMic = masoara(fonturi.normal, MARIME_MARGINE);
+  const antetRulant = taie(textAntetRulant(d), util, masoaraMic);
+  pagini.forEach((p, i) => {
+    if (i > 0) {
+      p.drawText(antetRulant, {
+        x: MARGINE,
+        y: inaltime - MARGINE / 2 - 4,
+        size: MARIME_MARGINE,
+        font: fonturi.normal,
+        color: GRI,
+      });
+    }
+    const numar = textPagina(i, pagini.length);
+    if (numar !== null) {
+      p.drawText(numar, {
+        x: latime - MARGINE - masoaraMic(numar),
+        y: MARGINE / 2,
+        size: MARIME_MARGINE,
+        font: fonturi.normal,
+        color: GRI,
+      });
+    }
+  });
 }
