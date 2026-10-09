@@ -153,6 +153,17 @@ describe("orele foii", () => {
     expect(textNorma(f)).toBe("21 de zile lucrătoare × 7:18 h = 153:18 h normă");
   });
 
+  it("înmulțirea afișată se verifică: ziua se rotunjește la minut ÎNAINTE de normă", () => {
+    // `ore=7.33` dintr-o adresă scrisă de mână: ziua se afișează 7:20 h. Cu
+    // rotunjirea doar pe total ieșea „× 7:20 h = 153:56 h”, iar 21 × 7:20 = 154:00.
+    expect(textNorma(construiesteFoaie(2026, 6, ["A"], 7.33))).toBe(
+      "21 de zile lucrătoare × 7:20 h = 154 h normă",
+    );
+    expect(textNorma(construiesteFoaie(2026, 6, ["A"], 7.99))).toBe(
+      "21 de zile lucrătoare × 7:59 h = 167:39 h normă",
+    );
+  });
+
   it("orele întregi rămân fără „:00”, jumătățile în ceas", () => {
     expect(oreFoaie(8)).toBe("8 h");
     expect(oreFoaie(7.5)).toBe("7:30 h");

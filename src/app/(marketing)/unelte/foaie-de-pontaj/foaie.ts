@@ -253,7 +253,9 @@ export function construiesteFoaie(
     oreZi,
     zileLucratoare,
     // În minute întregi, apoi înapoi în ore: 21 × 7,3 dădea 153,29999999999998.
-    normaLunara: Math.round(zileLucratoare * oreZi * 60) / 60,
+    // Ziua se rotunjește la minut ÎNAINTE de înmulțire, fiindcă textul normei
+    // afișează ziua rotunjită: altfel `ore=7.33` dădea „× 7:20 h = 153:56 h”.
+    normaLunara: (zileLucratoare * Math.round(oreZi * 60)) / 60,
   };
 }
 
