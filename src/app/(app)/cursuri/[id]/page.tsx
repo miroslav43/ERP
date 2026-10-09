@@ -9,13 +9,19 @@ import { Badge } from "@/components/ui/badge";
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { citesteCurs, lectiileCursului, materialeDisponibile } from "@/lib/queries/cursuri";
+import {
+  citesteCurs,
+  lectiileCursului,
+  materialeDisponibile,
+  sabloaneCuCursul,
+} from "@/lib/queries/cursuri";
 
 import { ConstructorCurs } from "./constructor-curs";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Curs" };
 
@@ -59,6 +65,17 @@ export default async function PaginaCurs({
       .neq("status", "anulat")
       .then((r) => r.count ?? 0),
   ]);
+
+  // Pașii de integrare legați de curs (0076): retragerea din publicare sau
+  // dezactivarea ar rupe tăcut un parcurs; aici se vede pe care.
+  const [sabloane, module] = await Promise.all([
+    sabloaneCuCursul(tenant.organizationId, cursId),
+    getEnabledFeatures(tenant.organizationId),
+  ]);
+  const poateDeschideSabloane = poateDeschide("/onboarding/sabloane/[id]", {
+    features: module,
+    permissions: permisiuni,
+  });
 
   return (
     <div className={`${LATIMI.lista} space-y-6`}>
@@ -137,6 +154,31 @@ export default async function PaginaCurs({
         numarInrolati={numarInrolati}
         poateEdita={poateEdita}
       />
+
+      {sabloane.length === 0 ? null : (
+        <section aria-labelledby="titlu-sabloane-integrare" className="space-y-2">
+          <h2 id="titlu-sabloane-integrare" className="text-sectiune font-medium">
+            Folosit în șabloanele de integrare
+          </h2>
+          <ul className="text-corp space-y-1">
+            {sabloane.map((s) => (
+              <li key={`${s.id}-${s.pas}`}>
+                {poateDeschideSabloane ? (
+                  <Link
+                    href={`/onboarding/sabloane/${s.id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {s.denumire}
+                  </Link>
+                ) : (
+                  s.denumire
+                )}
+                <span className="text-muted-foreground text-nota"> · pasul „{s.pas}”</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { Users } from "lucide-react";
 
 import { atribuieCurs } from "../../actions";
 import { intrareAtribuire } from "../../_formulare/citire";
+import Link from "next/link";
 
 interface Proprietati {
   readonly cursId: string;
@@ -138,7 +139,13 @@ export function FormularAtribuire({
                 />
                 <span className="flex-1">{angajat.nume}</span>
                 {areDeja ? (
-                  <span className="text-muted-foreground text-nota">Are deja cursul</span>
+                  // Drumul spre înrolarea lui: progres, termen, eventual anulare.
+                  <Link
+                    href={`/cursuri/${cursId}/stadiu?angajat=${angajat.id}`}
+                    className="text-muted-foreground text-nota underline-offset-2 hover:underline"
+                  >
+                    Are deja cursul
+                  </Link>
                 ) : null}
               </label>
             </li>

@@ -24,6 +24,9 @@ import { ETICHETE_MOTIV, ETICHETE_STATUS, TONURI_STATUS } from "../../etichete";
 import { AnulareInrolare } from "./anulare-inrolare";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import Link from "next/link";
+import { buton } from "@/components/ui/buton";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Stadiul cursului" };
 
@@ -55,6 +58,7 @@ export default async function PaginaStadiu({
   if (curs === null) notFound();
 
   const poateEdita = can(permisiuni, "courses:update", "team");
+  const poateAtribui = can(permisiuni, "courses:create", "team");
 
   // Filtrele vin din URL, ca indicatorii să poată trimite în lista DEJA
   // filtrată. `filtreDinUrl` cade pe implicit la orice intrare stricată.
@@ -106,7 +110,23 @@ export default async function PaginaStadiu({
       cheie: "stare",
       antet: "Stare",
       peTelefon: "insigna",
-      celula: (r) => <Badge ton={TONURI_STATUS[r.status]}>{ETICHETE_STATUS[r.status]}</Badge>,
+      celula: (r) => (
+        <>
+          <Badge ton={TONURI_STATUS[r.status]}>{ETICHETE_STATUS[r.status]}</Badge>
+          {/* Adeverința există din momentul finalizării (`course_completion_records`);
+              ruta se sprijină pe RLS, deci se deschide și din aplicația mare. */}
+          {r.status === "finalizat" ? (
+            <a
+              href={`/portal/cursurile-mele/${r.id}/adeverinta`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-muted-foreground text-nota relative ml-2 underline-offset-2 hover:underline"
+            >
+              Adeverință
+            </a>
+          ) : null}
+        </>
+      ),
     },
     {
       cheie: "progres",
@@ -139,7 +159,18 @@ export default async function PaginaStadiu({
       cheie: "motiv",
       antet: "Motiv",
       peTelefon: "ascuns",
-      celula: (r) => ETICHETE_MOTIV[r.motiv],
+      // Înrolarea din regulă duce la regulile cursului (aceeași poartă ca stadiul).
+      celula: (r) =>
+        r.motiv === "regula" ? (
+          <Link
+            href={`/cursuri/${cursId}/reguli`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {ETICHETE_MOTIV[r.motiv]}
+          </Link>
+        ) : (
+          ETICHETE_MOTIV[r.motiv]
+        ),
     },
     // Coloana apare doar pentru cine chiar poate anula: un buton stins pe
     // fiecare rând, pentru un rol care n-are dreptul, e zgomot pe toată lista.
@@ -171,6 +202,38 @@ export default async function PaginaStadiu({
           { eticheta: "Cursuri", href: "/cursuri" },
           { eticheta: curs.denumire, href: `/cursuri/${cursId}` },
           { eticheta: "Stadiu" },
+        ]}
+        {...(poateAtribui && curs.publicat
+          ? {
+              actiuni: (
+                <Link
+                  href={`/cursuri/${cursId}/atribuire`}
+                  className={buton({ varianta: "primar" })}
+                >
+                  Atribuie
+                </Link>
+              ),
+            }
+          : {})}
+      />
+
+      {/* Filtrele venite din indicatori sau din fișa angajatului, ca pastile cu „×". */}
+      <PastileFiltre
+        active={[
+          ...(filtre.status == null
+            ? []
+            : [{ cheie: "status", eticheta: `Stare: ${ETICHETE_STATUS[filtre.status]}` }]),
+          ...(filtre.doar_restante === "da"
+            ? [{ cheie: "doar_restante", eticheta: "Doar restanții" }]
+            : []),
+          ...(filtre.angajat == null
+            ? []
+            : [
+                {
+                  cheie: "angajat",
+                  eticheta: `Angajat: ${nume.get(filtre.angajat)?.nume ?? "ales"}`,
+                },
+              ]),
         ]}
       />
 

@@ -182,6 +182,15 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
           {/* Linkul îl pune `Tabel` pe coloana-titlu, din `href`-ul rândului. */}
           <span>{angajat.fullName}</span>
           <span className="text-muted-foreground text-nota ml-1.5 font-mono">{angajat.marca}</span>
+          {/* Totalurile anuale se descompun pe luni în istoricul de venituri. */}
+          {poateDeschideSalarizarea && angajat.exista ? (
+            <Link
+              href={`/salarizare/istoric-venituri?angajat=${angajat.employeeId}`}
+              className="text-muted-foreground text-nota relative ml-1.5 underline-offset-2 hover:underline"
+            >
+              pe luni
+            </Link>
+          ) : null}
         </>
       ),
     },
@@ -211,14 +220,34 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
       antet: "Ore supl.",
       numeric: true,
       peTelefon: "meta",
-      celula: (angajat) => formatOre(angajat.oreSuplimentare),
+      celula: (angajat) =>
+        poateDeschidePontajul && angajat.exista && angajat.oreSuplimentare > 0 ? (
+          <Link
+            href={`/pontaj?an=${String(an)}&angajat=${angajat.employeeId}`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {formatOre(angajat.oreSuplimentare)}
+          </Link>
+        ) : (
+          formatOre(angajat.oreSuplimentare)
+        ),
     },
     {
       cheie: "zile_co",
       antet: "Zile CO",
       numeric: true,
       peTelefon: "meta",
-      celula: (angajat) => formatZecimal(angajat.zileConcediuOdihna),
+      celula: (angajat) =>
+        poateDeschideConcediile && angajat.exista && angajat.zileConcediuOdihna > 0 ? (
+          <Link
+            href={`/concedii/echipa?employee_id=${angajat.employeeId}&de_la=${String(an)}-01-01&pana_la=${String(an)}-12-31`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {formatZecimal(angajat.zileConcediuOdihna)}
+          </Link>
+        ) : (
+          formatZecimal(angajat.zileConcediuOdihna)
+        ),
     },
     {
       cheie: "zile_medicale",
@@ -422,6 +451,26 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
                   {...(lunaEvidentiata === null ? {} : { evidentiaza: lunaEvidentiata })}
                 />
               </div>
+              {/* Graficul e `aria-hidden`; lunile lui au aici drum spre perioadă, și pentru tastatură. */}
+              {poateDeschideSalarizarea && statistici.perLuna.length > 0 ? (
+                <ul className="text-nota mt-3 flex flex-wrap gap-x-3 gap-y-1">
+                  {statistici.perLuna.map((l) => (
+                    <li key={l.periodId}>
+                      <Link
+                        href={`/salarizare/${l.periodId}`}
+                        className="underline-offset-2 hover:underline"
+                        aria-current={
+                          lunaEvidentiata !== null && formatMonthShort(l.luna) === lunaEvidentiata
+                            ? "true"
+                            : undefined
+                        }
+                      >
+                        {formatMonthShort(l.luna)}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </section>
 
             <section

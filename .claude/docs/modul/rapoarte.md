@@ -63,3 +63,4 @@ nimic — sumele sunt cele scrise de [[modul/salarizare]].
 
 - Cum se calculează sumele: [[modul/salarizare]] și `src/domain/payroll/`.
 - De ce o perioadă nu se recalculează: [[date/pontaj]].
+- Lunile graficului, celulele CO/ore și „pe luni” ca linkuri; intrarea din salarizare: [[strat/navigare]].

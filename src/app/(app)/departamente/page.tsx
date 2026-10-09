@@ -26,6 +26,7 @@ import type { DepartamentEcran, OptiuneAngajat, OptiuneDepartament } from "./tip
 import type { PersoanaPanou } from "./panou-departament";
 import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 import { getEnabledFeatures } from "@/lib/auth/features";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Departamente" };
 
@@ -209,16 +210,19 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
       <AntetPagina
         titlu="Departamente"
         descriere="Structura organizatorică, cu managerul și efectivul pe fiecare nivel."
-        {...(poateCrea
-          ? {
-              actiuni: (
-                <FormularDepartamentNou
-                  departamente={listaDepartamente}
-                  angajati={optiuniAngajati}
-                />
-              ),
-            }
-          : {})}
+        actiuni={
+          <span className="flex flex-wrap items-center gap-3">
+            {/* Cealaltă organigramă: cea MANAGERIALĂ, din `manager_employee_id`. */}
+            {poateDeschide("/organigrama", contextPorti) ? (
+              <Link href="/organigrama" className="text-nota underline-offset-2 hover:underline">
+                Ierarhia managerială
+              </Link>
+            ) : null}
+            {poateCrea ? (
+              <FormularDepartamentNou departamente={listaDepartamente} angajati={optiuniAngajati} />
+            ) : null}
+          </span>
+        }
       />
 
       {arbore.length === 0 && nerepartizati.length === 0 ? (

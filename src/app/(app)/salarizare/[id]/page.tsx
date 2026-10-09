@@ -30,6 +30,7 @@ import { ActiuniPerioada } from "./actiuni-perioada";
 import { RandAngajatDraft } from "./rand-angajat-draft";
 import { ButonDescarcare } from "@/components/incarcare/buton-descarcare";
 import { NumarRegistru } from "@/components/registru/numar-registru";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Perioadă de salarizare" };
 
@@ -182,6 +183,16 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           ]}
           entitateId={perioada.id}
         />
+        {poateDeschide("/rapoarte", { features: module, permissions: permisiuni }) ? (
+          <p className="text-muted-foreground text-nota">
+            <Link
+              href={`/rapoarte?an=${String(perioada.an)}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Raportul anului {perioada.an}
+            </Link>
+          </p>
+        ) : null}
         {/* Proveniența. Toate cifrele astea erau deja citite de
             `citestePerioada` și nu apărea niciuna: ecranul nu spunea nici când
             s-a calculat luna, nici peste ce pontaj, nici când s-a plătit. */}

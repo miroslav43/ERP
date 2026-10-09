@@ -1147,3 +1147,62 @@ export async function matriceConformitate(organizationId: string): Promise<Matri
 
   return { angajati: angajati.slice(0, 100), cursuri, celule };
 }
+
+/** Cursurile în care e folosit un material — ca o versiune nouă să știe pe cine afectează. */
+export async function cursuriCuMaterialul(
+  organizationId: string,
+  materialId: string,
+): Promise<readonly Readonly<{ id: string; denumire: string; publicat: boolean }>[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("course_items")
+    .select("course_id, courses!inner(id, denumire, publicat, deleted_at)")
+    .eq("organization_id", organizationId)
+    .eq("material_id", materialId)
+    .is("deleted_at", null)
+    .returns<
+      {
+        course_id: string;
+        courses: { id: string; denumire: string; publicat: boolean; deleted_at: string | null };
+      }[]
+    >();
+  if (error !== null) throw error;
+  const vazute = new Set<string>();
+  const rezultat: { id: string; denumire: string; publicat: boolean }[] = [];
+  for (const r of data ?? []) {
+    if (r.courses.deleted_at !== null || vazute.has(r.courses.id)) continue;
+    vazute.add(r.courses.id);
+    rezultat.push({ id: r.courses.id, denumire: r.courses.denumire, publicat: r.courses.publicat });
+  }
+  return rezultat.sort((a, b) => a.denumire.localeCompare(b.denumire, "ro"));
+}
+
+/** Șabloanele de integrare cu un pas legat de curs (`checklist_template_items.curs_id`, 0076). */
+export async function sabloaneCuCursul(
+  organizationId: string,
+  courseId: string,
+): Promise<readonly Readonly<{ id: string; denumire: string; pas: string }>[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("checklist_template_items")
+    .select("titlu, template_id, checklist_templates!inner(id, denumire, deleted_at)")
+    .eq("organization_id", organizationId)
+    .eq("curs_id", courseId)
+    .is("deleted_at", null)
+    .returns<
+      {
+        titlu: string;
+        template_id: string;
+        checklist_templates: { id: string; denumire: string; deleted_at: string | null };
+      }[]
+    >();
+  if (error !== null) throw error;
+  return (data ?? [])
+    .filter((r) => r.checklist_templates.deleted_at === null)
+    .map((r) => ({
+      id: r.checklist_templates.id,
+      denumire: r.checklist_templates.denumire,
+      pas: r.titlu,
+    }))
+    .sort((a, b) => a.denumire.localeCompare(b.denumire, "ro"));
+}

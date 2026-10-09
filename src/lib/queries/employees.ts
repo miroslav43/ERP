@@ -989,3 +989,26 @@ export async function functiiFolosite(organizationId: string): Promise<readonly 
   if (error !== null) throw error;
   return [...new Set((data ?? []).map((rand) => rand.functie))];
 }
+
+/**
+ * Câteva fișe după id, INCLUSIV inactive sau încetate — prin RLS, deci cine
+ * n-are `employees:read = all` nu le vede. Organigrama numește așa managerul
+ * care a ieșit din firmă, în loc de „manager inactiv sau șters".
+ */
+export async function fiseDupaId(
+  organizationId: string,
+  ids: readonly string[],
+): Promise<ReadonlyMap<string, Readonly<{ full_name: string; status: string }>>> {
+  if (ids.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, status")
+    .eq("organization_id", organizationId)
+    .in("id", [...ids])
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return new Map(
+    (data ?? []).map((r) => [r.id, { full_name: r.full_name ?? "—", status: r.status }]),
+  );
+}

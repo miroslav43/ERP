@@ -37,6 +37,8 @@ export interface StatisticaAngajat {
  * ștearsă logic după aceea.
  */
 export interface StatisticaLuna {
+  /** Perioada de salarizare din spatele lunii — ținta graficului. */
+  readonly periodId: string;
   readonly luna: number;
   readonly status: "draft" | "calculat" | "aprobat" | "inchis";
   readonly totalBrut: number;
@@ -277,6 +279,7 @@ export async function statisticiAnuale(
     if (lunar === undefined) return [];
     return [
       {
+        periodId: p.id,
         luna: p.luna,
         status: p.status,
         totalBrut: lunar.brut,

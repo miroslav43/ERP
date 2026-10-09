@@ -152,6 +152,7 @@ describe("statisticiAnuale", () => {
 
       expect(r.perLuna).toEqual([
         {
+          periodId: P_IAN,
           luna: 1,
           status: "aprobat",
           totalBrut: 9000,
@@ -159,6 +160,7 @@ describe("statisticiAnuale", () => {
           totalCostAngajator: 9000 * 1.0225,
         },
         {
+          periodId: P_FEB,
           luna: 2,
           status: "draft",
           totalBrut: 6500,

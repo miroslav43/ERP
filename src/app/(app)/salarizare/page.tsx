@@ -9,7 +9,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
 import { formatDate } from "@/lib/format/date";
@@ -23,6 +23,7 @@ import {
   numeLuna,
 } from "./etichete";
 import { FormularPerioadaNoua } from "./formular-perioada-noua";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Salarizare" };
 
@@ -30,10 +31,15 @@ export default async function PaginaSalarizare() {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "payroll"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Legătura de intrare spre rapoarte, prin poarta paginii-țintă (modul comercial separat).
+  const hrefRaport = poateDeschide("/rapoarte", { features: module, permissions: permisiuni })
+    ? `/rapoarte?an=${String(new Date().getFullYear())}`
+    : null;
 
   if (!can(permisiuni, "payroll:read", "all")) {
     return (
@@ -121,6 +127,11 @@ export default async function PaginaSalarizare() {
         // MAI MULT decât pagina asta — deci aceeași gardă ca „Setări”.
         actiuni={
           <>
+            {hrefRaport === null ? null : (
+              <Link href={hrefRaport} className={buton({ varianta: "secundar" })}>
+                Raportul anului
+              </Link>
+            )}
             {poateCrea ? (
               <Link href="/salarizare/istoric-venituri" className={buton({ varianta: "secundar" })}>
                 Istoric venituri

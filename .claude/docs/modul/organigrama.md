@@ -119,3 +119,4 @@ diferită de „n-are șef".
 
 - Schimbarea structurii: [[modul/departamente]].
 - Fișa individuală și încadrarea: [[modul/angajati]].
+- Rădăcinile cu manager nevizibil, managerul numit, rolul ca link, legătura spre `/departamente`: [[strat/navigare]].
