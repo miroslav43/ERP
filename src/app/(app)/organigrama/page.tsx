@@ -256,6 +256,14 @@ export default async function PaginaOrganigrama({
               ? "Ierarhia managerială a echipei dumneavoastră."
               : "Locul dumneavoastră în ierarhia managerială."
         } ${String(noduri.length)} ${noduri.length === 1 ? "fișă activă" : "fișe active"}.`}
+        actiuni={
+          <Link
+            href="/angajati?status=activ"
+            className="text-nota underline-offset-2 hover:underline"
+          >
+            Vezi fișele active
+          </Link>
+        }
       />
 
       {posibilTrunchiat ? (

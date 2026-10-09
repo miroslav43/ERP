@@ -326,6 +326,10 @@ export default async function PaginaPortal() {
               {soldPrincipal.in_asteptare > 0
                 ? ` · în așteptare ${soldPrincipal.in_asteptare.toLocaleString("ro-RO")}`
                 : null}
+              {" · "}
+              <Link href="/portal/concediile-mele" className="underline underline-offset-2">
+                concediile mele
+              </Link>
             </p>
             {/* Fiecare buton primar stă în cardul de care se leagă, iar cardul
                 apare doar când are ce cere: cursuri restante, sold de concediu,
@@ -393,7 +397,10 @@ export default async function PaginaPortal() {
               {suplimentareAzi > 0
                 ? `din care ${suplimentareAzi.toLocaleString("ro-RO")} suplimentare · `
                 : null}
-              Luna aceasta: {oreLuna.toLocaleString("ro-RO")} ore
+              Luna aceasta:{" "}
+              <Link href="/portal/pontajul-meu" className="underline underline-offset-2">
+                {oreLuna.toLocaleString("ro-RO")} ore
+              </Link>
               {suplimentareLuna > 0
                 ? ` · ${suplimentareLuna.toLocaleString("ro-RO")} suplimentare`
                 : null}
@@ -595,7 +602,13 @@ export default async function PaginaPortal() {
               Următoarea zi liberă
             </h2>
             <p className="text-foreground text-titlu mt-1 font-semibold">
-              {formatDate(ziLibera.data)}
+              {ziLibera.sursa === "concediu" && vedeConcedii ? (
+                <Link href="/portal/concediile-mele" className="underline-offset-2 hover:underline">
+                  {formatDate(ziLibera.data)}
+                </Link>
+              ) : (
+                formatDate(ziLibera.data)
+              )}
             </p>
             <p className="text-muted-foreground text-corp mt-1">
               {ziLibera.denumire}

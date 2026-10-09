@@ -18,6 +18,8 @@ import {
   sortareCeruta,
   type Directie,
 } from "./cursor";
+import { dataLimitaExpirare } from "@/domain/hr/contracte-expira";
+import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
 
 export interface RandVehicul {
   readonly id: string;
@@ -271,16 +273,55 @@ export async function listeazaVehicule(
    * copii ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai
    * ca o numărătoare care nu se potrivește cu lista — defectul reparat aici.
    */
+  // Conformitatea nu e o coloană: se derivă din documentele curente, cu
+  // ACELAȘI predicat ca `numarScadenteFlota` de pe panou. Id-urile se citesc
+  // întâi, ca `.in()` să se aplice și listei, și numărătorii.
+  const idDupaConformitate =
+    filtre.conformitate === null
+      ? null
+      : await (async (): Promise<readonly string[]> => {
+          const { data: documente } = await db
+            .from("vehicle_documents")
+            .select("vehicle_id, expira_la")
+            .eq("organization_id", organizationId)
+            .is("deleted_at", null)
+            .eq("este_curent", true);
+          const cuDocumente = new Set((documente ?? []).map((d) => d.vehicle_id));
+          if (filtre.conformitate === "expira") {
+            const limita = dataLimitaExpirare(PRAG_FLOTA_AVERTIZARE_ZILE);
+            return [
+              ...new Set(
+                (documente ?? [])
+                  .filter((d) => d.expira_la !== null && d.expira_la <= limita)
+                  .map((d) => d.vehicle_id),
+              ),
+            ];
+          }
+          const { data: vehicule } = await db
+            .from("vehicles")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .is("deleted_at", null);
+          return (vehicule ?? []).map((v) => v.id).filter((id) => !cuDocumente.has(id));
+        })();
   const filtreaza = <
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
       ilike: (c: string, v: string) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (idDupaConformitate !== null)
+      cu = cu.in(
+        "id",
+        idDupaConformitate.length === 0
+          ? ["00000000-0000-0000-0000-000000000000"]
+          : idDupaConformitate,
+      );
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.categorie !== null) cu = cu.eq("categorie", filtre.categorie);
     if (filtre.cauta !== null) cu = cu.ilike("nr_inmatriculare", `%${filtre.cauta}%`);

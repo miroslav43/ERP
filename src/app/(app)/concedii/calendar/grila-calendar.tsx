@@ -224,7 +224,13 @@ export function GrilaCalendar({ an, luna, zileHarta }: Proprietati) {
                           })}
                           {evenimente.length > 3 ? (
                             <li className="text-muted-foreground text-nota">
-                              +{evenimente.length - 3} altele
+                              {/* Restul absențelor zilei: lista echipei filtrată pe suprapunere. */}
+                              <Link
+                                href={`/concedii/echipa?de_la=${iso}&pana_la=${iso}`}
+                                className="underline-offset-2 hover:underline"
+                              >
+                                +{evenimente.length - 3} altele
+                              </Link>
                             </li>
                           ) : null}
                         </ul>

@@ -317,11 +317,14 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
       </Suspense>
 
       <PastileFiltre
-        active={
-          angajatFiltrat === null
+        active={[
+          ...(angajatFiltrat === null
             ? []
-            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
-        }
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]),
+          ...(filtreDinUrl(filtreFiseSchema, parametri).scadenta === null
+            ? []
+            : [{ cheie: "scadenta", eticheta: "Doar fișele de reînnoit" }]),
+        ]}
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>

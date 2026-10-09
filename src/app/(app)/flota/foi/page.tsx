@@ -251,6 +251,7 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
     listeazaVehicule(tenant.organizationId, {
       status: null,
       categorie: null,
+      conformitate: null,
       cauta: null,
       cursor: null,
       limita: 100,

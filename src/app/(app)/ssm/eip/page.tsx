@@ -266,11 +266,14 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
       {poateCrea ? <FormularEip angajati={angajati} /> : null}
 
       <PastileFiltre
-        active={
-          angajatFiltrat === null
+        active={[
+          ...(angajatFiltrat === null
             ? []
-            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
-        }
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]),
+          ...(filtreDinUrl(filtreEipSchema, parametri).scadenta === null
+            ? []
+            : [{ cheie: "scadenta", eticheta: "Doar de înlocuit sau expirate" }]),
+        ]}
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>

@@ -200,6 +200,10 @@ export const filtreTicheteSchema = z.object({
   solicitant_employee_id: uuid.optional(),
   department_id: uuid.optional(),
   cauta: z.string().trim().max(200).optional(),
+  /** Scurtături de pe tabloul cozii: toate statusurile „deschise" deodată. */
+  deschise: z.literal("da").optional(),
+  /** Deschise, neatinse de 7 zile — ACELAȘI predicat ca `rezumatCoada`. */
+  fara_miscare: z.literal("7").optional(),
 });
 export type FiltreTichete = z.infer<typeof filtreTicheteSchema>;
 

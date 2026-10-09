@@ -18,6 +18,8 @@ import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 
 import { RandCoada } from "./_components/rand-coada";
 import { coadaDinContoare, numarulDinAntet } from "./coada";
+import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
+import { todayInBucharest } from "@/lib/format/date";
 
 export const metadata: Metadata = { title: "Panou" };
 
@@ -78,6 +80,8 @@ export default async function PanouPage() {
   const totalDeRezolvat = numarulDinAntet(coada);
   const { scadente, firma } = contoare;
   const firmaGoala = firma.angajatiActivi === 0;
+  const contextPorti: ContextPorti = { features: module, permissions: permisiuni };
+  const aziIso = todayInBucharest();
   // Porțile ȚINTELOR din blocul „Pornire": `hr` n-are `organizations:*`, iar
   // managerul fără fișă n-are `departments:*` — ambii ajungeau în refuz.
   const poateEditaFirma = can(permisiuni, "organizations:update", "all");
@@ -121,7 +125,9 @@ export default async function PanouPage() {
           cheie: "flota",
           eticheta: "Documente de flotă",
           valoare: scadente.documenteFlota,
-          href: "/flota",
+          // Aceeași fereastră ca numărătoarea (`numarScadenteFlota`): vehiculele
+          // cu cel puțin un document curent care expiră.
+          href: "/flota?conformitate=expira",
           nota:
             scadente.documenteFlota === 0
               ? `Nimic în următoarele ${PRAG_PANOU_ZILE} de zile.`
@@ -133,7 +139,8 @@ export default async function PanouPage() {
           cheie: "contracte",
           eticheta: "Contracte care expiră",
           valoare: scadente.contracteDeterminate,
-          href: "/angajati",
+          // Lista filtrată pe ACELAȘI predicat (`contracte-expira.ts`).
+          href: "/angajati?contract=expira",
           nota:
             scadente.contracteDeterminate === 0
               ? "Niciunul pe durată determinată în fereastră."
@@ -336,7 +343,7 @@ export default async function PanouPage() {
                 valoare="Lipsesc"
                 esteCuvant
                 ton="pericol"
-                href="/flota"
+                href="/flota?conformitate=lipsa"
                 nota={
                   lipsuri === 1
                     ? "Un vehicul fără ITP, RCA sau asigurare."
@@ -367,9 +374,28 @@ export default async function PanouPage() {
             </h2>
           </header>
           <dl className="divide-border grid grid-cols-2 divide-x divide-y sm:grid-cols-4 sm:divide-y-0">
-            <Fapt valoare={firma.angajatiActivi} eticheta="angajați activi" />
-            <Fapt valoare={firma.inConcediu} eticheta="în concediu" />
-            <Fapt valoare={firma.departamente} eticheta="departamente" />
+            {/* Cifrele duc la lista care le numără — prin poarta paginii-ȚINTĂ.
+                „În concediu" include fișa proprie; /concedii/echipa o exclude,
+                deci lista poate avea cu un rând mai puțin decât cifra. */}
+            <Fapt
+              valoare={firma.angajatiActivi}
+              eticheta="angajați activi"
+              href={poateDeschide("/angajati", contextPorti) ? "/angajati?status=activ" : null}
+            />
+            <Fapt
+              valoare={firma.inConcediu}
+              eticheta="în concediu"
+              href={
+                poateDeschide("/concedii/echipa", contextPorti)
+                  ? `/concedii/echipa?status=aprobata&de_la=${aziIso}&pana_la=${aziIso}`
+                  : null
+              }
+            />
+            <Fapt
+              valoare={firma.departamente}
+              eticheta="departamente"
+              href={poateDeschide("/departamente", contextPorti) ? "/departamente" : null}
+            />
           </dl>
           {peProcente ? null : (
             <p className="border-border bg-surface text-foreground text-nota border-t px-4 py-2.5">
@@ -411,15 +437,30 @@ export default async function PanouPage() {
   );
 }
 
-function Fapt({ valoare, eticheta }: Readonly<{ valoare: number; eticheta: string }>) {
+function Fapt({
+  valoare,
+  eticheta,
+  href = null,
+}: Readonly<{ valoare: number; eticheta: string; href?: string | null }>) {
+  const continut = (
+    <>
+      <span className="text-foreground text-cifra block font-mono leading-none font-semibold tabular-nums">
+        {valoare}
+      </span>
+      <span className="text-muted-foreground text-nota mt-1 block">{eticheta}</span>
+    </>
+  );
   return (
     <div className="px-4 py-3">
       <dt className="sr-only">{eticheta}</dt>
       <dd>
-        <span className="text-foreground text-cifra block font-mono leading-none font-semibold tabular-nums">
-          {valoare}
-        </span>
-        <span className="text-muted-foreground text-nota mt-1 block">{eticheta}</span>
+        {href === null ? (
+          continut
+        ) : (
+          <Link href={href} className="hover:bg-surface -m-1 block rounded-sm p-1">
+            {continut}
+          </Link>
+        )}
       </dd>
     </div>
   );

@@ -87,6 +87,11 @@ export type SortareFoi = (typeof SORTARI_FOI)[number];
 export const filtreVehiculeSchema = z.object({
   status: optional(z.enum(STATUS_VEHICUL)),
   categorie: optional(z.enum(CATEGORII_VEHICUL)),
+  /**
+   * Filtru de INTRARE (de pe panou/insignă): `expira` = cu un document curent
+   * care expiră în fereastra panoului; `lipsa` = fără niciun document curent.
+   */
+  conformitate: optional(z.enum(["expira", "lipsa"])),
   cauta: optional(z.string().max(32)),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),

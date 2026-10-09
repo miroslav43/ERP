@@ -249,7 +249,7 @@ async function PanouOrganizatie({
           titlu="Planuri de mentenanță scadente"
           total={planuriInCoada.length}
           afisate={planuriScadenteAfisate.length}
-          href="/mentenanta/planuri"
+          href="/mentenanta/planuri?scadenta=actiune"
           etichetaHref="Vezi toate planurile"
           gol="Niciun plan activ nu e scadent sau în întârziere."
         >
@@ -303,7 +303,7 @@ async function PanouOrganizatie({
           titlu="Sesizări deschise"
           total={rezultatSesizari.total}
           afisate={sesizariAfisate.length}
-          href="/mentenanta/sesizari"
+          href="/mentenanta/sesizari?deschise=da"
           etichetaHref="Vezi toate sesizările"
           gol="Nicio sesizare deschisă în acest moment."
         >
@@ -519,7 +519,18 @@ function Panou({
       <h2 className="text-corp mb-2 flex items-center gap-2 font-semibold">
         <Icon aria-hidden="true" className="text-muted-foreground size-4" />
         <span className="min-w-0 flex-1">{titlu}</span>
-        <span className="text-muted-foreground shrink-0 tabular-nums">{total}</span>
+        {/* Cifra din antet duce la lista cu EXACT rândurile numărate, nu doar
+            peste 8 rânduri. */}
+        {href === undefined ? (
+          <span className="text-muted-foreground shrink-0 tabular-nums">{total}</span>
+        ) : (
+          <Link
+            href={href}
+            className="text-muted-foreground shrink-0 tabular-nums underline-offset-2 hover:underline"
+          >
+            {total}
+          </Link>
+        )}
       </h2>
       {areConținut ? (
         <ul className="divide-border divide-y">{children}</ul>

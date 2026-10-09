@@ -28,6 +28,7 @@ import {
 import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
 import { anDinUrl } from "@/lib/rute/parametri";
+import { deAprobat } from "@/lib/queries/leave";
 
 export const metadata: Metadata = { title: "Soldul de concediu" };
 
@@ -190,6 +191,12 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
       ? "team"
       : "own";
   const poateAproba = can(permisiuni, "leave:approve", "team");
+  // Fila „Aprobări" primea contorul doar pe /concedii și /concedii/echipa:
+  // aici, unde aterizează managerii, apărea fără număr. Aceeași citire ca pe
+  // ecranul de aprobări, doar pentru cine poate aproba.
+  const numarDeAprobat = poateAproba
+    ? (await deAprobat(tenant.organizationId, user.id)).sarcini.length
+    : 0;
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
   const poateConfigura = can(permisiuni, "leave:update", "all");
 
@@ -256,6 +263,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         }
         file={
           <NavConcedii
+            deAprobat={numarDeAprobat}
             poateVedeaEchipa={poateVedeaCalendar}
             poateAproba={poateAproba}
             poateVedeaCalendar={poateVedeaCalendar}

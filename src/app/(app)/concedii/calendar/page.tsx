@@ -32,6 +32,7 @@ import { PlanificatorConcedii, type RandAngajatPlanificator } from "./planificat
 import { VEDERI_CALENDAR, vedereDinParametru } from "./vedere";
 import { hrefFisa } from "@/lib/navigare/fisa";
 import { idFisaProprie } from "@/lib/queries/employees";
+import { deAprobat } from "@/lib/queries/leave";
 
 export const metadata: Metadata = { title: "Calendarul de concedii" };
 
@@ -71,6 +72,12 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
   }
 
   const poateAproba = can(permisiuni, "leave:approve", "team");
+  // Fila „Aprobări" primea contorul doar pe /concedii și /concedii/echipa:
+  // aici, unde aterizează managerii, apărea fără număr. Aceeași citire ca pe
+  // ecranul de aprobări, doar pentru cine poate aproba.
+  const numarDeAprobat = poateAproba
+    ? (await deAprobat(tenant.organizationId, user.id)).sarcini.length
+    : 0;
   const poateConfigura = can(permisiuni, "leave:update", "all");
   const parametri = await searchParams;
   const azi = todayInBucharest();
@@ -172,6 +179,7 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
           : {})}
         file={
           <NavConcedii
+            deAprobat={numarDeAprobat}
             poateVedeaEchipa={true}
             poateAproba={poateAproba}
             poateVedeaCalendar={true}

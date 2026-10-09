@@ -53,6 +53,7 @@ import {
   tiparContine,
   VALOARE_NULA,
 } from "./cursor";
+import { PRAG_MENTENANTA_AVERTIZARE_ZILE } from "@/domain/maintenance/scadente";
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
@@ -950,6 +951,10 @@ export async function listeazaPlanuri(
     }
     if (filtre.scadenta === "luna") {
       cu = cu.gte("urmatoarea_scadenta", azi).lte("urmatoarea_scadenta", plusZile(azi, 30));
+    }
+    // Panoul numără `in_intarziere` + `scadenta_apropiata` (15 zile): aceeași fereastră.
+    if (filtre.scadenta === "actiune") {
+      cu = cu.lte("urmatoarea_scadenta", plusZile(azi, PRAG_MENTENANTA_AVERTIZARE_ZILE));
     }
     return cu;
   };

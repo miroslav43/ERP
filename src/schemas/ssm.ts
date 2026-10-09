@@ -88,6 +88,8 @@ export const filtreFiseSchema = z.object({
   rezultat: optional(z.enum(REZULTATE_EXAMEN)),
   /** Filtru de INTRARE (din fișa angajatului). */
   angajat: optional(z.uuid()),
+  /** Filtru de INTRARE (de pe /ssm): doar fișele numărate de `contorFiseAptitudine`. */
+  scadenta: optional(z.literal("1")),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   sort: sortOptional,
@@ -108,6 +110,8 @@ export type FiltreAccidente = z.output<typeof filtreAccidenteSchema>;
 export const filtreStingatoareSchema = z.object({
   status: optional(z.enum(STATUS_STINGATOR)),
   cauta: optional(z.string().max(32)),
+  /** Filtru de INTRARE (de pe /ssm): stingătoarele numărate de `contorStingatoare`, pe obligație. */
+  scadenta: optional(z.enum(["verificare", "reincarcare", "proba"])),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   sort: sortOptional,
@@ -117,6 +121,8 @@ export type FiltreStingatoare = z.output<typeof filtreStingatoareSchema>;
 export const filtreEipSchema = z.object({
   /** Filtru de INTRARE (din fișa angajatului). */
   angajat: optional(z.uuid()),
+  /** Filtru de INTRARE (de pe /ssm): doar predările numărate de `contorEip`. */
+  scadenta: optional(z.literal("1")),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   sort: sortOptional,

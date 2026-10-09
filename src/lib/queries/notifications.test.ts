@@ -68,6 +68,14 @@ describe("listeazaNotificarile", () => {
     );
   });
 
+  it("`doarNecitite` filtrează pe `read_at` null — același predicat ca numărătoarea", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("notifications", "select", { data: [] });
+    await listeazaNotificarile(ORG_ID, USER_ID, true);
+    const [apel] = server.apeluri;
+    expect(areFiltru(apel, "is", "read_at", null)).toBe(true);
+  });
+
   it("cutie goală ⇒ listă goală", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("notifications", "select", { data: null });

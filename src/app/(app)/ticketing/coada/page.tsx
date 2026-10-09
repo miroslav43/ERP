@@ -97,15 +97,20 @@ async function Continut({
           (h) => h.get(filtre.solicitant_employee_id ?? "")?.full_name ?? null,
         ),
   ]);
-  const pastileIntrare =
-    filtre.solicitant_employee_id === undefined
+  const pastileIntrare = [
+    ...(filtre.solicitant_employee_id === undefined
       ? []
       : [
           {
             cheie: "solicitant_employee_id",
             eticheta: `Solicitant: ${solicitantFiltrat ?? "ales"}`,
           },
-        ];
+        ]),
+    ...(filtre.deschise === "da" ? [{ cheie: "deschise", eticheta: "Doar deschise" }] : []),
+    ...(filtre.fara_miscare === "7"
+      ? [{ cheie: "fara_miscare", eticheta: "Fără mișcare de 7 zile" }]
+      : []),
+  ];
 
   const catreStatus = (status: string): string =>
     adresaCu("/ticketing/coada", parametri, (p) => {
@@ -119,7 +124,16 @@ async function Continut({
     <>
       <PastileFiltre active={pastileIntrare} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Cifra eticheta="Deschise" valoare={rezumat.deschise} />
+        <Cifra
+          eticheta="Deschise"
+          valoare={rezumat.deschise}
+          href={adresaCu("/ticketing/coada", parametri, (p) => {
+            p.delete("status");
+            p.delete("fara_miscare");
+            p.delete("cursor");
+            p.set("deschise", "da");
+          })}
+        />
         {/* „De aprobat" spunea că cifra e a privitorului. Nu era: numără toate
             cererile aflate în aprobare, indiferent cine e managerul direct al
             solicitantului, iar dreptul de a decide îl verifică
@@ -135,7 +149,16 @@ async function Continut({
           valoare={rezumat.asteaptaSolicitantul}
           href={catreStatus("in_asteptare")}
         />
-        <Cifra eticheta="Fără mișcare de 7 zile" valoare={rezumat.faraMiscareDe7Zile} />
+        <Cifra
+          eticheta="Fără mișcare de 7 zile"
+          valoare={rezumat.faraMiscareDe7Zile}
+          href={adresaCu("/ticketing/coada", parametri, (p) => {
+            p.delete("status");
+            p.delete("deschise");
+            p.delete("cursor");
+            p.set("fara_miscare", "7");
+          })}
+        />
       </div>
 
       {randuri.length === 0 ? (

@@ -25,6 +25,7 @@ import { CardTipAdaptabil } from "./card-tip-adaptabil";
 import { TabelReguli } from "./tabel-reguli";
 import { FormularRegulaNoua } from "./formular-regula-noua";
 import { ButonAplicaDrepturi } from "./buton-aplica-drepturi";
+import { deAprobat } from "@/lib/queries/leave";
 
 export const metadata: Metadata = { title: "Setări concedii" };
 
@@ -60,7 +61,7 @@ function SelectorAnAplicare({ an }: { readonly an: number }) {
 }
 
 export default async function PaginaSetariConcedii({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -75,6 +76,9 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
   }
 
   const poateAproba = can(permisiuni, "leave:approve", "team");
+  const numarDeAprobat = poateAproba
+    ? (await deAprobat(tenant.organizationId, user.id)).sarcini.length
+    : 0;
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
 
   const parametri = await searchParams;
@@ -159,6 +163,7 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
         descriere="Regulile de mai jos se aplică AUTOMAT tuturor angajaților organizației. Tipurile reglementate legal (medical, maternitate, creștere copil, paternal, îngrijitor, donator de sânge) nu pot fi modificate din aplicație — durata lor vine direct din lege."
         file={
           <NavConcedii
+            deAprobat={numarDeAprobat}
             poateVedeaEchipa={poateVedeaCalendar}
             poateAproba={poateAproba}
             poateVedeaCalendar={poateVedeaCalendar}

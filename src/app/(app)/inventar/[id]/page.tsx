@@ -212,6 +212,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
         <Indicator
           eticheta="Predări"
           valoare={istoric.length}
+          {...(istoric.length > 0 ? { href: "#titlu-cronologie" } : {})}
           nota={
             istoric.length === 0
               ? "niciuna încă"
@@ -303,7 +304,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
         />
       </section>
 
-      <section aria-labelledby="titlu-cronologie" className={CLASA_SECTIUNE}>
+      <section aria-labelledby="titlu-cronologie" className={cn(CLASA_SECTIUNE, "scroll-mt-24")}>
         <h2 id="titlu-cronologie" className="text-sectiune font-medium">
           Cronologie
         </h2>

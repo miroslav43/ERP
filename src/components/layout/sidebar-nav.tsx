@@ -17,6 +17,8 @@ export type NavItemView = Readonly<{
   icon: ReactNode;
   /** Absent sau zero = fără badge. Un „0” afișat este zgomot, nu informație. */
   badgeCount?: number;
+  /** Lista cu EXACT rândurile numărate de insignă; absent = insigna e doar cifră. */
+  badgeHref?: string;
   children?: readonly Readonly<{ id: string; label: string; href: string }>[];
 }>;
 
@@ -129,6 +131,12 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                     title={colapsat ? element.label : undefined}
                     className={cn(
                       "rounded-control text-corp flex min-h-11 items-center gap-2.5 px-2 py-2 transition-colors md:min-h-0",
+                      contor !== undefined &&
+                        contor > 0 &&
+                        element.badgeHref !== undefined &&
+                        !colapsat
+                        ? "pr-9"
+                        : "",
                       activ
                         ? "bg-white/10 font-medium text-white"
                         : "text-white/70 hover:bg-white/5 hover:text-white",
@@ -138,24 +146,7 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                     <span className={cn("min-w-0 flex-1 truncate", colapsat ? "md:sr-only" : "")}>
                       {element.label}
                     </span>
-                    {contor !== undefined && contor > 0 ? (
-                      /*
-                        Pastila NU e aurie, deși a fost. Două motive, în ordinea
-                        importanței:
-                        1. auriul marchează pagina curentă, la doi pixeli
-                           distanță, pe același rând — două lucruri cu același
-                           semnal înseamnă zero semnale;
-                        2. `docs/design/stari-de-interactiune.md:149` o interzice
-                           explicit („auriu în badge — niciodată").
-                        Cât timp `badges: {}` era literal gol, defectul nu se
-                        vedea. Insignele sunt cablate acum, deci se vede.
-
-                        Când railul e restrâns, cifra NU dispare: se mută peste
-                        pictogramă. O coadă de aprobat care se ascunde odată cu
-                        eticheta e o coadă pe care nimeni n-o mai golește, iar
-                        starea restrânsă e persistată în cookie — cine a
-                        restrâns o dată o găsește așa la fiecare sesiune.
-                      */
+                    {contor !== undefined && contor > 0 && element.badgeHref === undefined ? (
                       <span
                         className={cn(
                           "text-nota shrink-0 rounded-full bg-white/15 px-1.5 font-mono font-semibold text-white tabular-nums",
@@ -176,6 +167,29 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                     */}
                     <SenzorLink eticheta={element.label.toLocaleLowerCase("ro-RO")} />
                   </Link>
+
+                  {/*
+                    Insigna cu țintă e link PROPRIU, frate al intrării (un `<a>`
+                    în alt `<a>` nu e permis): cifra duce la lista care o
+                    golește, numele intrării duce la modul. Poziționată peste
+                    marginea dreaptă a rândului, deci peste zona `pr-9` lăsată
+                    liberă de intrare.
+                  */}
+                  {contor !== undefined && contor > 0 && element.badgeHref !== undefined ? (
+                    <Link
+                      href={element.badgeHref}
+                      onClick={laNavigare}
+                      className={cn(
+                        "text-nota absolute z-10 rounded-full bg-white/15 px-1.5 font-mono font-semibold text-white tabular-nums hover:bg-white/30",
+                        colapsat
+                          ? "md:top-0.5 md:right-0.5 md:px-1 md:text-[0.625rem] md:leading-4"
+                          : "top-1/2 right-2 -translate-y-1/2",
+                      )}
+                    >
+                      {contor > 99 ? "99+" : contor}
+                      <span className="sr-only"> de rezolvat — deschide lista</span>
+                    </Link>
+                  ) : null}
 
                   {activ && !colapsat && (element.children?.length ?? 0) > 0 ? (
                     <ul className="mt-0.5 ml-6 flex flex-col gap-0.5 border-l border-white/15 pl-2">

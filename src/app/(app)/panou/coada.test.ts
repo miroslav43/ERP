@@ -43,7 +43,10 @@ describe("coadaDinContoare — un singur obiect duce direct la el", () => {
     expect(fara.find((i) => i.cheie === "concedii")?.href).toBe(
       "/concedii/echipa?status=trimisa,in_aprobare",
     );
-    expect(fara.find((i) => i.cheie === "tichete")?.href).toBe("/ticketing/coada");
+    // Contorul numără doar `in_aprobare`: lista e filtrată la fel.
+    expect(fara.find((i) => i.cheie === "tichete")?.href).toBe(
+      "/ticketing/coada?status=in_aprobare",
+    );
   });
 });
 

@@ -13,6 +13,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_SETARI } from "@/config/file-module";
+import Link from "next/link";
 export const metadata: Metadata = { title: "Datele firmei" };
 
 const ETICHETE_PLAN: Readonly<Record<string, string>> = {
@@ -168,6 +169,14 @@ export default async function SetariOrganizatiePage({
             </div>
           ))}
         </dl>
+        {/* Cifra locurilor e izolată fără cine le consumă: membrii, prin poarta paginii lor. */}
+        {scopeFor(permisiuni, "users:update") === "all" ? (
+          <p className="text-nota mt-2">
+            <Link href="/setari/membri" className="underline-offset-2 hover:underline">
+              Vezi membrii care ocupă locurile
+            </Link>
+          </p>
+        ) : null}
         <p className="text-muted-foreground text-corp mt-3">
           Planul, numărul de locuri și starea abonamentului se schimbă prin contract. Scrieți-ne
           dacă aveți nevoie de mai multe locuri sau de alt plan.

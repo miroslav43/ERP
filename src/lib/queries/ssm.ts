@@ -397,6 +397,7 @@ export async function fiseAptitudine(
 ): Promise<RezultatFise> {
   const db = await createServerSupabase();
   const sortare = sortareCeruta(filtre.sort, SORTARI_FISE, SORTARE_IMPLICITA_FISE);
+  const idScadente = filtre.scadenta === null ? null : await idFiseDeAtentionat(organizationId);
   const coloana = COLOANA_SORTARE_FISE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
@@ -424,11 +425,12 @@ export async function fiseAptitudine(
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
-    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    let cu = inSauNimic(q.eq("organization_id", organizationId).is("deleted_at", null), idScadente);
     if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
     if (filtre.angajat !== null) cu = cu.eq("employee_id", filtre.angajat);
     return cu;
@@ -716,6 +718,10 @@ export async function stingatoare(
 ): Promise<RezultatStingatoare> {
   const db = await createServerSupabase();
   const sortare = sortareCeruta(filtre.sort, SORTARI_STINGATOARE, SORTARE_IMPLICITA_STINGATOARE);
+  const idScadente =
+    filtre.scadenta === null
+      ? null
+      : await idStingatoareDeAtentionat(organizationId, filtre.scadenta);
   const coloana = COLOANA_SORTARE_STINGATOARE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
@@ -726,11 +732,12 @@ export async function stingatoare(
       neq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
       ilike: (c: string, v: string) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
-    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    let cu = inSauNimic(q.eq("organization_id", organizationId).is("deleted_at", null), idScadente);
     // Casatele ies din listă cât timp nu sunt cerute EXPLICIT prin filtru.
     //
     // `contorStingatoare` le exclude de la bun început (`.neq` mai jos, în acest
@@ -877,6 +884,7 @@ const COLOANE_EIP =
 export async function eip(organizationId: string, filtre: FiltreEip): Promise<RezultatEip> {
   const db = await createServerSupabase();
   const sortare = sortareCeruta(filtre.sort, SORTARI_EIP, SORTARE_IMPLICITA_EIP);
+  const idScadente = filtre.scadenta === null ? null : await idEipDeAtentionat(organizationId);
   const coloana = COLOANA_SORTARE_EIP[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
@@ -890,11 +898,15 @@ export async function eip(organizationId: string, filtre: FiltreEip): Promise<Re
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
-    const cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    const cu = inSauNimic(
+      q.eq("organization_id", organizationId).is("deleted_at", null),
+      idScadente,
+    );
     return filtre.angajat === null ? cu : cu.eq("employee_id", filtre.angajat);
   };
 
@@ -1128,6 +1140,106 @@ export async function contorStingatoare(organizationId: string): Promise<ContorS
   }
 
   return { verificare, reincarcare, probaPresiune };
+}
+
+/**
+ * Id-urile „de atenționat", pentru filtrele `?scadenta=` ale listelor.
+ *
+ * Numărătorile de pe /ssm (`contorFiseAptitudine`, `contorEip`,
+ * `contorStingatoare`) se calculează în JS, peste `stareScadentaSsm`, nu
+ * printr-un predicat SQL — deci lista nu le poate reproduce cu un `.lte()`.
+ * Se citesc întâi id-urile cu EXACT aceeași funcție, apoi intră în `.in()` pe
+ * listă și pe numărătoare: cifra de pe card și rândurile de sub ea nu pot
+ * diverge. Un `in` gol ar fi respins de PostgREST: un id imposibil dă lista goală.
+ */
+const ID_IMPOSIBIL_SSM = "00000000-0000-0000-0000-000000000000";
+
+function inSauNimic<Q extends { in: (c: string, v: readonly string[]) => Q }>(
+  q: Q,
+  ids: readonly string[] | null,
+): Q {
+  if (ids === null) return q;
+  return q.in("id", ids.length === 0 ? [ID_IMPOSIBIL_SSM] : ids);
+}
+
+async function idFiseDeAtentionat(organizationId: string): Promise<readonly string[]> {
+  const db = await createServerSupabase();
+  const azi = todayInBucharest();
+  const { data, error } = await db
+    .from("occupational_health_exams")
+    .select("id, employee_id, data_examinarii, valabil_pana")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("data_examinarii", { ascending: false })
+    .returns<
+      { id: string; employee_id: string; data_examinarii: string; valabil_pana: string | null }[]
+    >();
+  if (error !== null) throw error;
+  // Doar fișa CURENTĂ a fiecărui angajat, ca în `contorFiseAptitudine`.
+  const recente = new Map<string, { id: string; valabil_pana: string | null }>();
+  for (const rand of data ?? []) {
+    if (!recente.has(rand.employee_id)) recente.set(rand.employee_id, rand);
+  }
+  return [...recente.values()]
+    .filter((r) => esteDeAtentionat(stareScadentaSsm(true, r.valabil_pana, azi)))
+    .map((r) => r.id);
+}
+
+async function idEipDeAtentionat(organizationId: string): Promise<readonly string[]> {
+  const db = await createServerSupabase();
+  const azi = todayInBucharest();
+  const { data, error } = await db
+    .from("ppe_issuances")
+    .select("id, data_predarii, durata_utilizare_luni, data_inlocuirii, returnat_la")
+    .eq("organization_id", organizationId)
+    .is("returnat_la", null)
+    .is("deleted_at", null)
+    .returns<
+      {
+        id: string;
+        data_predarii: string;
+        durata_utilizare_luni: number | null;
+        data_inlocuirii: string | null;
+        returnat_la: string | null;
+      }[]
+    >();
+  if (error !== null) throw error;
+  return (data ?? [])
+    .filter((r) => {
+      const scadenta = scadentaEip(r.data_predarii, r.durata_utilizare_luni, r.data_inlocuirii);
+      return scadenta !== null && esteDeAtentionat(stareScadentaSsm(true, scadenta, azi));
+    })
+    .map((r) => r.id);
+}
+
+async function idStingatoareDeAtentionat(
+  organizationId: string,
+  obligatie: "verificare" | "reincarcare" | "proba",
+): Promise<readonly string[]> {
+  const db = await createServerSupabase();
+  const azi = todayInBucharest();
+  const { data, error } = await db
+    .from("fire_extinguishers")
+    .select(
+      "id, ultima_verificare, scadenta_verificare, ultima_reincarcare, scadenta_reincarcare, " +
+        "ultima_proba_presiune, scadenta_proba_presiune",
+    )
+    .eq("organization_id", organizationId)
+    .neq("status", "casat")
+    .is("deleted_at", null)
+    .returns<(RandStingatorScadente & { id: string })[]>();
+  if (error !== null) throw error;
+  return (data ?? [])
+    .filter((r) => {
+      const [ultima, scadenta] =
+        obligatie === "verificare"
+          ? [r.ultima_verificare, r.scadenta_verificare]
+          : obligatie === "reincarcare"
+            ? [r.ultima_reincarcare, r.scadenta_reincarcare]
+            : [r.ultima_proba_presiune, r.scadenta_proba_presiune];
+      return esteDeAtentionat(stareScadentaSsm(ultima !== null, scadenta, azi));
+    })
+    .map((r) => r.id);
 }
 
 interface RandFisaScadenta {

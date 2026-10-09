@@ -64,17 +64,22 @@ export default async function PaginaStadiu({
     curs: cursId,
     limita: 50,
   });
+  // Indicatorii se sprijină pe TOTALURI din bază, nu pe lista filtrată și
+  // tăiată la 50: pe `?status=finalizat`, „Înrolări" arăta doar finalizații.
+  const baza = { ...filtreInrolariSchema.parse({}), curs: cursId, limita: 5 };
+  const [totaluri, totalFinalizate, totalRestante] = await Promise.all([
+    listeazaInrolari(tenant.organizationId, baza).then((r) => r.total),
+    listeazaInrolari(tenant.organizationId, { ...baza, status: "finalizat" }).then((r) => r.total),
+    listeazaInrolari(tenant.organizationId, { ...baza, doar_restante: "da" }).then((r) => r.total),
+  ]);
   const nume = await numeAngajati(
     tenant.organizationId,
     randuri.map((r) => r.employee_id),
   );
 
   const azi = todayInBucharest();
-  const parcurse = randuri.filter((r) => r.status === "finalizat").length;
-  const restante = randuri.filter(
-    (r) =>
-      (r.status === "neinceput" || r.status === "in_curs") && r.termen !== null && r.termen < azi,
-  ).length;
+  const parcurse = totalFinalizate;
+  const restante = totalRestante;
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
     {
@@ -182,22 +187,23 @@ export default async function PaginaStadiu({
         */}
         <Indicator
           eticheta="Au parcurs"
-          valoare={textProgres(parcurse, randuri.length, "persoane")}
+          valoare={textProgres(parcurse, totaluri, "persoane")}
           esteCuvant
-          ton={parcurse === randuri.length && randuri.length > 0 ? "bun" : "neutru"}
+          ton={parcurse === totaluri && totaluri > 0 ? "bun" : "neutru"}
           {...(parcurse > 0 ? { href: `/cursuri/${cursId}/stadiu?status=finalizat` } : {})}
         />
         <Indicator
           eticheta="Restanți"
           valoare={String(restante)}
+          {...(restante > 0 ? { href: `/cursuri/${cursId}/stadiu?doar_restante=da` } : {})}
           ton={restante === 0 ? "bun" : "atentie"}
           nota={restante === 0 ? "Nimeni peste termen." : "Peste termenul de parcurgere."}
           {...(restante > 0 ? { href: `/cursuri/${cursId}/stadiu?doar_restante=da` } : {})}
         />
         <Indicator
           eticheta="Înrolări"
-          valoare={String(randuri.length)}
-          {...(randuri.length > 0 ? { href: `/cursuri/${cursId}/stadiu` } : {})}
+          valoare={String(totaluri)}
+          {...(totaluri > 0 ? { href: `/cursuri/${cursId}/stadiu` } : {})}
         />
       </section>
 

@@ -22,6 +22,7 @@ import {
   sortareCeruta,
   type Directie,
 } from "./cursor";
+import { PRAG_CONTRACTE_EXPIRA_ZILE, dataLimitaExpirare } from "@/domain/hr/contracte-expira";
 
 const EMBED_DEPARTAMENT = "department:departments!department_id(id, denumire)";
 
@@ -263,6 +264,30 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
           .eq("status", "activ")
           .is("deleted_at", null)
           .then(({ data }) => [...new Set((data ?? []).map((r) => r.employee_id))]);
+  // „Contracte care expiră" = ACELAȘI predicat ca `contorContracteCareExpira`
+  // de pe panou (fereastra din `contracte-expira.ts`): cifra și lista numără
+  // același lucru. Pe angajat, nu pe contract: două contracte ale aceluiași om
+  // fac un singur rând aici.
+  const idCuContractCareExpira =
+    filtre.contract === null
+      ? null
+      : await db
+          .from("employment_contracts")
+          .select("employee_id")
+          .eq("organization_id", organizationId)
+          .is("deleted_at", null)
+          .is("incetat_la", null)
+          .not("valabil_pana", "is", null)
+          .lte("valabil_pana", dataLimitaExpirare(PRAG_CONTRACTE_EXPIRA_ZILE))
+          .then(({ data }) => [...new Set((data ?? []).map((r) => r.employee_id))]);
+  const restrangeLa = (
+    ...liste: readonly (readonly string[] | null)[]
+  ): readonly string[] | null => {
+    const active = liste.filter((l): l is readonly string[] => l !== null);
+    if (active.length === 0) return null;
+    return active.reduce((acc, l) => acc.filter((id) => l.includes(id)));
+  };
+  const idRestranse = restrangeLa(idDoarLaPunct, idCuContractCareExpira);
   const filtreaza = <
     Q extends {
       eq: (c: string, v: string) => Q;
@@ -276,10 +301,10 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     // Un `in` gol ar fi respins de PostgREST; un id imposibil întoarce lista goală.
-    if (idDoarLaPunct !== null)
+    if (idRestranse !== null)
       cu = cu.in(
         "id",
-        idDoarLaPunct.length === 0 ? ["00000000-0000-0000-0000-000000000000"] : idDoarLaPunct,
+        idRestranse.length === 0 ? ["00000000-0000-0000-0000-000000000000"] : idRestranse,
       );
     if (scope === "own" && propriaFisaId !== null) cu = cu.eq("id", propriaFisaId);
     else if (scope === "team" && propriaFisaId !== null)

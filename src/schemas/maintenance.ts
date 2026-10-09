@@ -136,7 +136,8 @@ export const MODURI_CALCUL = ["flotant", "fix"] as const;
 export type ModCalcul = (typeof MODURI_CALCUL)[number];
 
 /** Filtrul de scadență al listei de planuri — pe data calendaristică, în SQL. */
-export const FILTRE_SCADENTA_PLAN = ["depasita", "curand", "luna"] as const;
+/** `actiune` = depășită SAU în următoarele 15 zile: exact ce numără panoul (`cereActiune`). */
+export const FILTRE_SCADENTA_PLAN = ["depasita", "curand", "luna", "actiune"] as const;
 export type FiltruScadentaPlan = (typeof FILTRE_SCADENTA_PLAN)[number];
 
 export const SORTARI_SESIZARI = ["raportat", "urgenta", "stare"] as const;

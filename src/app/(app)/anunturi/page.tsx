@@ -93,7 +93,9 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
     ? filtruDinAdresa(parametri["stare"])
     : FILTRU_IMPLICIT;
 
-  const vizibile = cuStare.filter((x) => potrivesteFiltru(x.stare, filtru));
+  const vizibile = cuStare.filter(
+    (x) => potrivesteFiltru(x.stare, filtru) && (filtru !== "necitite" || !citite.has(x.anunt.id)),
+  );
   const fixate = vizibile.filter((x) => x.anunt.fixat);
   const restul = vizibile.filter((x) => !x.anunt.fixat);
 
@@ -140,6 +142,8 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
                 { cheie: "active", eticheta: `Active ${String(contoare.active)}` },
                 { cheie: "ciorne", eticheta: `Ciorne ${String(contoare.ciorne)}` },
                 { cheie: "expirate", eticheta: `Expirate ${String(contoare.expirate)}` },
+                // Cifra din descriere („N nu sunt citite") are acum unde duce.
+                { cheie: "necitite", eticheta: `Necitite ${String(necitite)}` },
               ]}
             />
           ) : undefined

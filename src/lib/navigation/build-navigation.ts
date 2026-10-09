@@ -44,7 +44,7 @@ export type NavigationInput = Readonly<{
 export type NavGroupResult = Readonly<{
   id: NavGroupId;
   label: string;
-  items: readonly (NavItem & Readonly<{ badgeCount?: number }>)[];
+  items: readonly (NavItem & Readonly<{ badgeCount?: number; badgeHref?: string }>)[];
 }>;
 
 function esteVizibil(item: NavLink, input: NavigationInput): boolean {

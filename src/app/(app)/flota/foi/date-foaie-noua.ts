@@ -33,6 +33,7 @@ export async function dateFoaieNoua(organizationId: string): Promise<DateFoaieNo
     listeazaVehicule(organizationId, {
       status: "activ",
       categorie: null,
+      conformitate: null,
       cauta: null,
       cursor: null,
       limita: 100,

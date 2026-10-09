@@ -83,6 +83,12 @@ export type NavItem = NavLink &
     group: NavGroupId;
     order: number;
     badge?: BadgeSource;
+    /**
+     * Unde duce INSIGNA (nu intrarea): lista care conține exact rândurile
+     * numărate. Fără el, „5" de pe Concedii ducea pe „Cererile mele", unde
+     * cererile altora nu apar. Trece prin aceeași poartă ca intrarea.
+     */
+    badgeHref?: string;
     children?: readonly NavLink[];
   }>;
 
@@ -117,6 +123,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
       clicului; `Callout`-ul din `/pontaj/aprobare` e explicația de după el.
     */
     badge: "attendance_pending",
+    badgeHref: "/pontaj/aprobare",
   },
   {
     id: "concedii",
@@ -128,6 +135,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "leave:read",
     minScope: "own",
     badge: "leave_pending",
+    badgeHref: "/concedii/echipa?status=trimisa,in_aprobare",
     order: 30,
     children: [
       {
@@ -219,6 +227,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // `contoarePanou`): cine poate doar citi ar fi primit un număr care îl
     // cheamă undeva unde n-are ce apăsa.
     badge: "reges_pending",
+    badgeHref: "/reges?stare=de_transmis",
   },
   {
     id: "departamente",
@@ -364,6 +373,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "vehicles:read",
     minScope: "team",
     badge: "fleet_expiring",
+    badgeHref: "/flota?conformitate=expira",
     order: 70,
   },
   {
@@ -376,6 +386,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "maintenance:read",
     minScope: "team",
     badge: "maintenance_due",
+    badgeHref: "/mentenanta/planuri?scadenta=actiune",
     order: 80,
   },
   {

@@ -76,6 +76,7 @@ async function TabelAngajati({
       filtre.department_id !== null ||
       filtre.functie !== null ||
       filtre.punct_lucru !== null ||
+      filtre.contract !== null ||
       filtre.status !== null;
     return (
       <StareGoala

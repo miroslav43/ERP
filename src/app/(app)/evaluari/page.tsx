@@ -44,6 +44,7 @@ import { ETICHETE_STATUS_EVALUARE, TONURI_STATUS_EVALUARE, tonPunctaj } from "./
 import { FiltreEvaluari } from "./filtre-evaluari";
 import { FileModul } from "@/components/ui/file-modul";
 import { fileEvaluari } from "@/config/file-module";
+import { todayInBucharest } from "@/lib/format/date";
 
 export const metadata: Metadata = { title: "Evaluări" };
 
@@ -61,6 +62,7 @@ async function BandaIndicatori({ organizationId }: { readonly organizationId: st
   const i = await indicatoriEvaluari(organizationId, anul);
   const micaFirma = i.angajatiActivi < PRAG_PROCENTE;
 
+  const anulCurent = todayInBucharest().slice(0, 4);
   return (
     <section aria-labelledby="titlu-indicatori-evaluari" className="space-y-3">
       <h2
@@ -74,6 +76,12 @@ async function BandaIndicatori({ organizationId }: { readonly organizationId: st
           eticheta="Evaluări finalizate"
           valoare={i.finalizateAnulAcesta}
           nota={i.total === 0 ? "nicio evaluare încă" : `${String(i.total)} în total`}
+          // Același predicat ca numărătoarea: finalizate, cu data evaluării în anul curent.
+          {...(i.finalizateAnulAcesta > 0
+            ? {
+                href: `/evaluari?status=finalizat&de_la=${anulCurent}-01-01&pana_la=${anulCurent}-12-31`,
+              }
+            : {})}
         />
         <Indicator
           eticheta="Ciorne de terminat"

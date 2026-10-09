@@ -46,6 +46,7 @@ export const ETICHETE_FILTRU_SCADENTA_PLAN: Readonly<Record<FiltruScadentaPlan, 
   depasita: "Depășită",
   curand: "În următoarele 15 zile",
   luna: "În următoarele 30 de zile",
+  actiune: "Depășite sau în următoarele 15 zile",
 };
 
 export const ETICHETE_MARCAJ_CE: Readonly<Record<MarcajCe, string>> = {

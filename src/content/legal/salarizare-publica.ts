@@ -101,6 +101,9 @@ export function grilaDeducerePersonala(minim: number): readonly PragDeducerePers
   return praguri;
 }
 
+/** Art. 77 alin. (3): deducerea de bază se acordă până la minim + 2.000 de lei inclusiv. */
+export const PLAFON_DEDUCERE_PESTE_MINIM = PAS_LEI * PASI;
+
 function setariPentruMinim(minim: number, valabilDeLa: string): PayrollSettingsSnapshot {
   return {
     valabilDeLa,

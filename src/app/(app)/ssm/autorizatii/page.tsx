@@ -18,7 +18,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { angajatiDupaId, autorizatiiNominale } from "@/lib/queries/ssm";
-import { stareScadentaSsm } from "@/domain/ssm/scadente";
+import { esteDeAtentionat, stareScadentaSsm } from "@/domain/ssm/scadente";
 
 import { ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
@@ -35,6 +35,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 async function TabelAutorizatii({
   organizationId,
   angajat,
+  scadenta,
   poateActualiza,
   poateCrea,
   permisiuni,
@@ -42,12 +43,21 @@ async function TabelAutorizatii({
   readonly organizationId: string;
   /** `?angajat=`: doar autorizațiile unui om. */
   readonly angajat: string | null;
+  /** `?scadenta=1`: doar cele numărate de `contorAutorizatiiNominale` (același criteriu). */
+  readonly scadenta: boolean;
   readonly poateActualiza: boolean;
   /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
   readonly poateCrea: boolean;
   readonly permisiuni: PermissionMap;
 }) {
-  const autorizatii = await autorizatiiNominale(organizationId, { angajat });
+  const toate = await autorizatiiNominale(organizationId, { angajat });
+  const azi = todayInBucharest();
+  const autorizatii = scadenta
+    ? toate.filter(
+        (a) =>
+          a.suspendata_la === null && esteDeAtentionat(stareScadentaSsm(true, a.valabil_pana, azi)),
+      )
+    : toate;
 
   if (autorizatii.length === 0) {
     return (
@@ -68,7 +78,6 @@ async function TabelAutorizatii({
     organizationId,
     autorizatii.map((a) => a.employee_id),
   );
-  const azi = todayInBucharest();
 
   /**
    * Lista nu are paginare keyset — `autorizatiiNominale` citește nomenclatorul
@@ -211,6 +220,7 @@ export default async function PaginaAutorizatii({
       ? null
       : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
           ?.full_name ?? null);
+  const scadentaFiltrata = parametri["scadenta"] === "1";
 
   return (
     <div className="space-y-6">
@@ -234,17 +244,19 @@ export default async function PaginaAutorizatii({
       {poateCrea ? <FormularAutorizatie angajati={angajati} /> : null}
 
       <PastileFiltre
-        active={
-          angajatFiltrat === null
+        active={[
+          ...(angajatFiltrat === null
             ? []
-            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
-        }
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]),
+          ...(scadentaFiltrata ? [{ cheie: "scadenta", eticheta: "Doar de reînnoit" }] : []),
+        ]}
       />
 
       <Suspense fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelAutorizatii
           organizationId={tenant.organizationId}
           angajat={angajatFiltrat}
+          scadenta={scadentaFiltrata}
           poateActualiza={poateActualiza}
           poateCrea={poateCrea}
           permisiuni={permisiuni}

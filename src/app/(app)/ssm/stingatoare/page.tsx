@@ -277,7 +277,11 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
         }
       />
 
-      <FiltreStingatoare status={filtreCurente.status} cauta={filtreCurente.cauta} />
+      <FiltreStingatoare
+        status={filtreCurente.status}
+        cauta={filtreCurente.cauta}
+        scadenta={filtreCurente.scadenta}
+      />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelStingatoare

@@ -135,10 +135,11 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
       numar: coada.tichete,
       titlu: "Tichete care așteaptă decizia ta",
       detaliu: coada.tichete === 1 ? "tichet" : "tichete",
+      // Contorul numără DOAR `in_aprobare`: lista filtrată la fel.
       href:
         coada.tichete === 1 && coada.tichetUnicId !== null
           ? `/ticketing/${coada.tichetUnicId}`
-          : "/ticketing/coada",
+          : "/ticketing/coada?status=in_aprobare",
       actiune: "Deschide",
     });
   }
@@ -176,7 +177,8 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
       numar: coada.regesDeTransmis,
       titlu: "Evenimente de transmis în REGES",
       detaliu: coada.regesDeTransmis === 1 ? "eveniment" : "evenimente",
-      href: "/reges",
+      // Contorul numără „de transmis": lista filtrată la fel, nu „toate".
+      href: "/reges?stare=de_transmis",
       actiune: "Transmite",
       urgent: true,
     });

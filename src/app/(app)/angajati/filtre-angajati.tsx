@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
 import { STATUSURI_ANGAJAT, type FiltreAngajati as ValoriFiltre } from "@/schemas/employee";
 import { ETICHETE_STATUS } from "./etichete";
+import { PRAG_CONTRACTE_EXPIRA_ZILE } from "@/domain/hr/contracte-expira";
 
 /**
  * Filtrele listei de angajați.
@@ -89,6 +90,12 @@ function filtreActive(
       eticheta: punctLucru === null ? "Punct de lucru ales" : `Punct de lucru: ${punctLucru}`,
     });
   }
+  if (filtre.contract !== null) {
+    active.push({
+      cheie: "contract",
+      eticheta: `Contract care expiră în ${String(PRAG_CONTRACTE_EXPIRA_ZILE)} de zile`,
+    });
+  }
   return active;
 }
 
@@ -118,7 +125,7 @@ export function FiltreAngajati({
       <BaraFiltre
         active={filtreActive(filtre, departamente, punctLucru)}
         cheiProprii={[...CHEI_PROPRII]}
-        cheiExterne={["punct_lucru"]}
+        cheiExterne={["punct_lucru", "contract"]}
         textAplica="Aplică filtrele"
       >
         <div className="min-w-56 flex-1">

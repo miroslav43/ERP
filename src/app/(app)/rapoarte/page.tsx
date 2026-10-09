@@ -73,6 +73,10 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
   // Fișa cere `employees:read`; cu `team` (suprascriere) un angajat din afara
   // echipei dă 404, iar unul șters dă 404 pentru oricine.
   const poateDeschideFisa = can(permisiuni, "employees:read", "all");
+  // Orele suplimentare se verifică în foaia de pontaj; poarta paginii-țintă.
+  const poateDeschidePontajul =
+    module.has("attendance") && can(permisiuni, "attendance:read", "team");
+  const poateDeschideConcediile = module.has("leave") && can(permisiuni, "leave:read", "team");
 
   const parametri = await searchParams;
   const anulCurent = new Date().getFullYear();
@@ -353,6 +357,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             <Indicator
               eticheta="Venit brut anual"
               valoare={formatLei(statistici.totalVenitBrutAnual)}
+              {...(poateDeschideSalarizarea ? { href: `/salarizare?an=${String(an)}` } : {})}
               serie={
                 <Sparkline
                   titlu="Venit brut pe luni"
@@ -365,6 +370,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             <Indicator
               eticheta="Venit net anual"
               valoare={formatLei(statistici.totalVenitNetAnual)}
+              {...(poateDeschideSalarizarea ? { href: `/salarizare?an=${String(an)}` } : {})}
               serie={
                 <Sparkline titlu="Venit net pe luni" unitate="Lei" puncte={serieNet} latime={140} />
               }
@@ -373,6 +379,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
               eticheta="Cost total angajator"
               valoare={formatLei(costTotalAngajator)}
               nota="Brut plus contribuțiile datorate de firmă."
+              {...(poateDeschideSalarizarea ? { href: `/salarizare?an=${String(an)}` } : {})}
             />
             <Indicator
               eticheta="Tichete de masă"
@@ -381,9 +388,15 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             <Indicator
               eticheta="Ore suplimentare"
               valoare={formatOreCuUnitate(statistici.totalOreSuplimentare)}
+              {...(poateDeschidePontajul ? { href: `/pontaj?an=${String(an)}` } : {})}
             />
             <Indicator
               eticheta="Zile de concediu"
+              {...(poateDeschideConcediile
+                ? {
+                    href: `/concedii/echipa?status=aprobata&de_la=${String(an)}-01-01&pana_la=${String(an)}-12-31`,
+                  }
+                : {})}
               valoare={`${formatZecimal(statistici.totalZileConcediuOdihna)} odihnă · ${formatZecimal(statistici.totalZileConcediuMedical)} medical`}
             />
           </div>

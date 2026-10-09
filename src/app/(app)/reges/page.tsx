@@ -1,5 +1,6 @@
 // src/app/(app)/reges/page.tsx
 import { FileCheck2 } from "lucide-react";
+import Link from "next/link";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Callout } from "@/components/ui/callout";
@@ -92,6 +93,13 @@ export default async function PaginaReges(props: {
     stare: esteStare(stareBruta) ? stareBruta : "toate",
     angajat: angajatFiltrat,
   };
+  // Filtrul cozii de mesaje (din sumarul ei): una dintre stările mesajului sau nimic.
+  const mesajeBrut = parametri["mesaje"];
+  const mesajeFiltrate =
+    typeof mesajeBrut === "string" &&
+    (["de_transmis", "asteapta_raspuns", "esuat", "reusit"] as const).some((s) => s === mesajeBrut)
+      ? mesajeBrut
+      : null;
 
   const supabase = await createServerSupabase();
   const organizationId = idOrganizatie(tenant);
@@ -366,28 +374,41 @@ export default async function PaginaReges(props: {
       */}
       <section aria-label="Situația întregului registru" className="space-y-2">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {/* Fiecare fișă deschide filtrul de dedesubt care îi conține rândurile. */}
           {[
             {
               eticheta: "Întârziate",
               valoare: statistici.intarziate,
               clasa: CLASA_STARE["intarziat"],
+              stare: "intarziate",
             },
-            { eticheta: "Cu termen azi", valoare: statistici.astazi, clasa: CLASA_STARE["astazi"] },
+            {
+              eticheta: "Cu termen azi",
+              valoare: statistici.astazi,
+              clasa: CLASA_STARE["astazi"],
+              stare: "de_transmis",
+            },
             {
               eticheta: "În termen",
               valoare: statistici.inTermen,
               clasa: CLASA_STARE["in_termen"],
+              stare: "de_transmis",
             },
             {
               eticheta: "Transmise",
               valoare: statistici.transmise,
               clasa: CLASA_STARE["transmis"],
+              stare: "transmise",
             },
           ].map((fisa) => (
-            <div key={fisa.eticheta} className={`rounded-panou p-4 ${fisa.clasa ?? ""}`}>
+            <Link
+              key={fisa.eticheta}
+              href={`/reges?stare=${fisa.stare}`}
+              className={`rounded-panou block p-4 hover:underline ${fisa.clasa ?? ""}`}
+            >
               <p className="text-corp font-medium">{fisa.eticheta}</p>
               <p className="text-cifra font-semibold tabular-nums">{fisa.valoare}</p>
-            </div>
+            </Link>
           ))}
         </div>
         {filtre.stare === "toate" ? null : (
@@ -443,15 +464,50 @@ export default async function PaginaReges(props: {
       <section id="coada-mesaje" className="scroll-mt-24 space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-foreground font-medium">Mesaje către Inspecția Muncii</h2>
-          <p className="text-muted-foreground text-nota">
-            {coada.statistici.deTransmis} de transmis · {coada.statistici.asteapta} în așteptare ·{" "}
-            {coada.statistici.esuate} respinse · {coada.statistici.reusite} confirmate
+          {/* Sumarul e și filtrul cozii: respinsele, singurele care cer acțiune,
+              se izolează cu un clic. `?mesaje=` se aplică pe rândurile citite. */}
+          <p className="text-muted-foreground text-nota flex flex-wrap gap-x-2">
+            {(
+              [
+                ["de_transmis", coada.statistici.deTransmis, "de transmis"],
+                ["asteapta_raspuns", coada.statistici.asteapta, "în așteptare"],
+                ["esuat", coada.statistici.esuate, "respinse"],
+                ["reusit", coada.statistici.reusite, "confirmate"],
+              ] as const
+            ).map(([cheie, numar, eticheta], indice) => (
+              <span key={cheie}>
+                {indice === 0 ? "" : "· "}
+                <Link
+                  href={`/reges?${new URLSearchParams({
+                    ...(filtre.stare === "toate" ? {} : { stare: filtre.stare }),
+                    ...(filtre.angajat === null ? {} : { angajat: filtre.angajat }),
+                    mesaje: cheie,
+                  }).toString()}#coada-mesaje`}
+                  className={
+                    mesajeFiltrate === cheie
+                      ? "text-foreground font-medium underline"
+                      : "hover:underline"
+                  }
+                >
+                  {numar} {eticheta}
+                </Link>
+              </span>
+            ))}
+            {mesajeFiltrate === null ? null : (
+              <Link href="/reges#coada-mesaje" className="hover:underline">
+                · toate
+              </Link>
+            )}
           </p>
         </div>
         <Tabel
           caption="Coada de mesaje REGES-Online"
           coloane={COLOANE_MESAJE}
-          randuri={coada.randuri}
+          randuri={
+            mesajeFiltrate === null
+              ? coada.randuri
+              : coada.randuri.filter((m) => m.stare === mesajeFiltrate)
+          }
           cheieRand={(m) => m.id}
           // Rândul duce la detaliu: acolo se vede ce clasificare va pleca la ITM,
           // se corectează înainte de transmitere și se citește jurnalul apelurilor.

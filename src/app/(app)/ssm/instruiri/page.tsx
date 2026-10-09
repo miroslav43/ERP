@@ -62,6 +62,7 @@ async function Matrice({
         functie: null,
         status: "activ",
         punct_lucru: null,
+        contract: null,
         cursor: filtre.cursor,
         limita: filtre.limita,
         // Matricea de instruiri își impune propria ordine (angajat × tip), deci

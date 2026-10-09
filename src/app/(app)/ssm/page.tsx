@@ -218,36 +218,41 @@ export default async function PaginaSsm() {
           </>
         ) : null}
         <Card
-          href="/ssm/medicina-muncii"
+          href="/ssm/medicina-muncii?scadenta=1"
           icon={Stethoscope}
           titlu="Fișe de aptitudine"
           numar={fise}
         />
         <Card
-          href="/ssm/stingatoare"
+          href="/ssm/stingatoare?scadenta=verificare"
           icon={FireExtinguisher}
           titlu="Stingătoare — verificare"
           numar={stingatoare.verificare}
         />
         <Card
-          href="/ssm/stingatoare"
+          href="/ssm/stingatoare?scadenta=reincarcare"
           icon={FireExtinguisher}
           titlu="Stingătoare — reîncărcare"
           numar={stingatoare.reincarcare}
         />
         <Card
-          href="/ssm/stingatoare"
+          href="/ssm/stingatoare?scadenta=proba"
           icon={Thermometer}
           titlu="Stingătoare — probă de presiune"
           numar={stingatoare.probaPresiune}
         />
         <Card
-          href="/ssm/autorizatii"
+          href="/ssm/autorizatii?scadenta=1"
           icon={BadgeCheck}
           titlu="Autorizații nominale"
           numar={autorizatii}
         />
-        <Card href="/ssm/eip" icon={HardHat} titlu="Echipament de protecție (EIP)" numar={eip} />
+        <Card
+          href="/ssm/eip?scadenta=1"
+          icon={HardHat}
+          titlu="Echipament de protecție (EIP)"
+          numar={eip}
+        />
       </div>
     </div>
   );

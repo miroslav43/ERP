@@ -20,6 +20,7 @@ import { idFisaProprie } from "./employees";
 import { citesteTot } from "./citeste-tot";
 import { numarScadenteMentenanta } from "./maintenance";
 import { numarScadenteSsm } from "./ssm";
+import { PRAG_CONTRACTE_EXPIRA_ZILE } from "@/domain/hr/contracte-expira";
 
 /**
  * Citirile panoului principal.
@@ -482,7 +483,7 @@ export async function stareFirmeiAzi(organizationId: string): Promise<FirmaAzi> 
 }
 
 /** Fereastra în care o scadență devine „de rezolvat” pe panou. */
-export const PRAG_PANOU_ZILE = 30;
+export const PRAG_PANOU_ZILE = PRAG_CONTRACTE_EXPIRA_ZILE;
 
 type Porti = Readonly<{
   /** Utilizatorul curent. Contorul de concedii îl cere ca să-și excludă fișa. */

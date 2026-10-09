@@ -40,6 +40,8 @@ import { DialogVehiculNou } from "./dialog-vehicul-nou";
 import { FiltreVehicule } from "./filtre-vehicule";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_FLOTA } from "@/config/file-module";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
+import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
 
 export const metadata: Metadata = { title: "Parc auto" };
 
@@ -324,6 +326,7 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
   // poate adăuga: restul n-are caseta, deci nici nevoie de listă.
   const departamente = poateAdauga ? await departamentePentruVehicul(tenant.organizationId) : [];
 
+  const conformitateFiltrata = filtreDinUrl(filtreVehiculeSchema, parametri).conformitate;
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -348,6 +351,22 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
       />
 
       <FiltreVehicule parametri={parametri} />
+      {/* Filtrul de intrare de pe panou/insignă: pastilă, ca lista scurtă să nu pară goală. */}
+      <PastileFiltre
+        active={
+          conformitateFiltrata === null
+            ? []
+            : [
+                {
+                  cheie: "conformitate",
+                  eticheta:
+                    conformitateFiltrata === "expira"
+                      ? `Documente care expiră în ${String(PRAG_FLOTA_AVERTIZARE_ZILE)} de zile`
+                      : "Fără niciun document",
+                },
+              ]
+        }
+      />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={8} />}>
         <TabelVehicule

@@ -88,6 +88,19 @@ export type PaginaTichete = Readonly<{
  * Paginare keyset pe `created_at desc, id desc`, ca în restul aplicației:
  * offset-ul ar sări rânduri când apar tichete noi în timpul răsfoirii.
  */
+/** Statusurile „deschise" ale cozii — numărate de `rezumatCoada`, filtrate de `?deschise=da`. */
+export const STATUSURI_DESCHISE_COADA = [
+  "nou",
+  "in_aprobare",
+  "in_lucru",
+  "in_asteptare",
+  "redeschis",
+] as const;
+
+function acumMinusZile(zile: number): string {
+  return new Date(Date.now() - zile * 86_400_000).toISOString();
+}
+
 export async function listeazaTichete(
   organizationId: string,
   filtre: FiltreTichete,
@@ -124,6 +137,8 @@ export async function listeazaTichete(
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
       or: (f: string) => Q;
+      in: (c: string, v: readonly string[]) => Q;
+      lt: (c: string, v: string) => Q;
     },
   >(
     q: Q,
@@ -142,6 +157,10 @@ export async function listeazaTichete(
       cu = cu.eq("solicitant_employee_id", filtre.solicitant_employee_id);
     }
     if (filtre.department_id !== undefined) cu = cu.eq("department_id", filtre.department_id);
+    // Scurtăturile tabloului, pe ACELAȘI predicat ca `rezumatCoada`.
+    if (filtre.deschise === "da" || filtre.fara_miscare === "7")
+      cu = cu.in("status", [...STATUSURI_DESCHISE_COADA]);
+    if (filtre.fara_miscare === "7") cu = cu.lt("updated_at", acumMinusZile(7));
     if (cautare !== null) cu = cu.or(cautare);
     return cu;
   };
@@ -361,7 +380,7 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
   const db = await createServerSupabase();
   const acumMinus7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const deschise = ["nou", "in_aprobare", "in_lucru", "in_asteptare", "redeschis"] as const;
+  const deschise = STATUSURI_DESCHISE_COADA;
 
   const [totalDeschise, deAprobat, asteapta, restante] = await Promise.all([
     db
