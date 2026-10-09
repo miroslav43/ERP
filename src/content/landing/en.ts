@@ -933,6 +933,12 @@ export const EN: ContinutLanding = {
         href: "/unelte/cerere-concediu-de-odihna",
       },
       {
+        titlu: "Resignation letter",
+        text: "With the last day of notice counted in working days, plus the no-notice and mutual-agreement variants. In Romanian.",
+        formate: "PDF · Word",
+        href: "/unelte/cerere-demisie",
+      },
+      {
         titlu: "Annual leave entitlement calculator",
         text: "How many days of leave you are owed in a year, and how many in the year you join or leave.",
         formate: "Online",

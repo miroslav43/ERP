@@ -63,6 +63,12 @@ export const META_UNELTE: Readonly<Record<string, MetaUnealta>> = {
       "Câte zile lucrătoare sunt între două date, fără weekend și sărbători legale, sau ce dată e peste N zile lucrătoare. Pentru termene, preaviz și concedii.",
     termen: "calculator zile lucratoare",
   },
+  "/unelte/cerere-demisie": {
+    titlu: "Cerere de demisie: model Word, preaviz calculat",
+    descriere:
+      "Model de cerere de demisie cu preaviz calculat: ultima zi de lucru, fără weekend și sărbători. Și fără preaviz, în perioada de probă sau cu acordul părților.",
+    termen: "cerere demisie",
+  },
   "/unelte/foaie-de-parcurs": {
     // Titlul și descrierea scrise la G8 (cele patru elemente din normele fiscale).
     titlu: "Foaie de parcurs: model Word, PDF și Excel",

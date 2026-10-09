@@ -973,6 +973,12 @@ export const RO: ContinutLanding = {
         href: "/unelte/cerere-concediu-de-odihna",
       },
       {
+        titlu: "Cerere de demisie",
+        text: "Cu ultima zi de preaviz calculată în zile lucrătoare, plus variantele fără preaviz și prin acordul părților.",
+        formate: "PDF · Word",
+        href: "/unelte/cerere-demisie",
+      },
+      {
         titlu: "Calculator de zile de concediu",
         text: "Câte zile de concediu ți se cuvin pe an și cât din ele în anul angajării sau al plecării.",
         formate: "Online",

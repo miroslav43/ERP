@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 
-import { UNELTE } from "@/lib/unelte/registru";
+import { formatePentru, UNELTE } from "@/lib/unelte/registru";
 
 import { GET } from "./route";
 
@@ -59,8 +59,34 @@ describe("fișa de instruire SSM se descarcă doar în Word și PDF", () => {
     // evaluare pe rute statice, iar K8–K10 adaugă unelte noi. Fișa SSM poate
     // rămâne singura din `UNELTE`; atunci nu e nimic de verificat aici, iar
     // `formatePentru` e păzit de `registru.test.ts`.
-    const alta = Object.keys(UNELTE).find((s) => s !== "fisa-instruire-ssm");
+    const alta = Object.keys(UNELTE).find((s) => formatePentru(s).includes("xlsx"));
     const r = alta === undefined ? null : await cere(`/api/unelte/${alta}?format=xlsx`, alta);
     expect(r === null || r.status === 200, alta).toBe(true);
+  });
+});
+
+describe("cererea de demisie prin ruta comună", () => {
+  it("dă un PDF pentru o cerere obișnuită", async () => {
+    const r = await cere(
+      "/api/unelte/cerere-demisie?tip=preaviz&nume=Popescu%20Ana&depunere=2026-10-08&format=pdf",
+      "cerere-demisie",
+    );
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toBe("application/pdf");
+  });
+
+  it("un preaviz dincolo de calendar dă 400 cu motivul, nu un fișier", async () => {
+    const r = await cere(
+      "/api/unelte/cerere-demisie?tip=preaviz&depunere=2035-12-20&format=docx",
+      "cerere-demisie",
+    );
+    expect(r.status).toBe(400);
+    expect(await r.text()).toMatch(/2035/u);
+  });
+
+  it("Excel primește 400: scrisoarea n-are formă de foaie de calcul", async () => {
+    const r = await cere("/api/unelte/cerere-demisie?format=xlsx", "cerere-demisie");
+    expect(r.status).toBe(400);
+    expect(await r.text()).toBe("Unealta asta se descarcă doar în PDF sau Word.");
   });
 });

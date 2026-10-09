@@ -140,6 +140,10 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Unealtă gratuită: câte zile lucrătoare sunt între două date (ambele incluse) sau ce dată cade peste N zile lucrătoare (ziua de pornire nu se numără, ca la preaviz — RIL nr. 8/2024). Scade sâmbetele, duminicile și cele 17 sărbători legale din art. 139 Codul muncii, cu Paștele ortodox calculat; nu scade zilele libere din contractul colectiv. Exemplu: 20 de zile lucrătoare după 10 decembrie 2026 = 13 ianuarie 2027. Fără cont.",
   ],
   [
+    "/unelte/cerere-demisie",
+    "Unealtă gratuită: cerere de demisie gata de semnat, cu ultima zi de preaviz calculată în zile lucrătoare — preavizul e cel din contract, dar cel mult 20 de zile lucrătoare pentru funcțiile de execuție și 45 pentru cele de conducere (art. 81 alin. (4) Codul muncii); numărătoarea începe a doua zi după înregistrare (prin analogie cu RIL nr. 8/2024). Exemplu: înregistrată pe 8 octombrie 2026, cu 20 de zile, ultima zi e 5 noiembrie 2026. Plus demisia fără preaviz (art. 81 alin. (8)), încetarea în perioada de probă (art. 31 alin. (3)) și acordul părților (art. 55 lit. b)). Word sau PDF, fără cont.",
+  ],
+  [
     "/unelte/condica-de-prezenta",
     "Unealtă gratuită: condica de prezență pentru orice lună, pe program luni–vineri, luni–sâmbătă sau ture; un rând pe om pe fiecare zi, cu ora sosirii, ora plecării, pauza, orele lucrate și observațiile, iar zilele nelucrate marcate L sau SL. Antetul firmei (CUI, compartiment). Excel cu orele calculate și total pe angajat, Word sau PDF, fără cont. Plus răspunsul la „e obligatorie?” și amenda din art. 260 alin. (1) lit. m) Codul muncii.",
   ],

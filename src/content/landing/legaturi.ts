@@ -67,6 +67,18 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
       eticheta: "Cerere de concediu cu zilele lucrătoare calculate",
       href: "/unelte/cerere-concediu-de-odihna",
     },
+    { eticheta: "Cerere de demisie cu preaviz calculat", href: "/unelte/cerere-demisie" },
+  ],
+  "/unelte/cerere-demisie": [
+    {
+      eticheta: "Calculator de zile lucrătoare între două date",
+      href: "/unelte/calculator-zile-lucratoare",
+    },
+    {
+      eticheta: "Concediul de odihnă neefectuat la plecare",
+      href: "/ghid/concediu-de-odihna#neefectuat",
+    },
+    { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
   ],
   "/unelte/calculator-salariu": [
     { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },

@@ -103,6 +103,7 @@ export const PAGINI: readonly Pagina[] = [
     // 9 oct: cardul calculatorului de zile de concediu în banda de unelte (ro.ts/en.ts).
     // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
+    // 2026-10-09: cererea de demisie.
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -117,6 +118,7 @@ export const PAGINI: readonly Pagina[] = [
     // 9 oct: cardul calculatorului de zile de concediu în banda de unelte (ro.ts/en.ts).
     // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
+    // 2026-10-09: cererea de demisie.
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -330,6 +332,7 @@ export const PAGINI: readonly Pagina[] = [
     // Secțiunea I: nota fișei de evaluare — nota finală calculată, Excel cu formule.
     // 2026-10-09: hub-ul pe categorii (hub-unelte.ts).
     // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
+    // 2026-10-09: cererea de demisie.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -373,6 +376,16 @@ export const PAGINI: readonly Pagina[] = [
   {
     // 8 oct 2026: „calculator zile lucratoare intre doua date” (completarea automată).
     cale: "/unelte/calculator-zile-lucratoare",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    // 2026-10-09: cererea de demisie.
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    // 8 oct 2026: „model demisie”, „cerere demisie”, „preaviz demisie” (completarea automată).
+    cale: "/unelte/cerere-demisie",
     prioritate: 0.7,
     limba: "ro",
     traducere: null,

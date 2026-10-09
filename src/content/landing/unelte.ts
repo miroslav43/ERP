@@ -87,3 +87,14 @@ export const ANTET_CALCULATOR_ZILE_LUCRATOARE: AntetPagina = {
   titlu: "Calculator de zile lucrătoare",
   lead: "Câte zile lucrătoare sunt între două date sau ce dată cade peste un număr de zile lucrătoare: weekendurile și sărbătorile legale se scad singure, inclusiv Paștele ortodox și Rusaliile.",
 };
+
+/**
+ * Cererea de demisie: cea mai largă familie de căutări din zona HR măsurată
+ * pe 8 oct 2026 („model demisie”, „cerere demisie”, „preaviz demisie”).
+ * Diferențiatorul: ultima zi de preaviz, calculată pe zile lucrătoare.
+ */
+export const ANTET_CERERE_DEMISIE: AntetPagina = {
+  supratitlu: "Unealtă gratuită",
+  titlu: "Cerere de demisie",
+  lead: "Cererea de demisie gata de semnat, cu ultima zi de preaviz calculată în zile lucrătoare, fără weekenduri și sărbători. Plus variantele fără preaviz, în perioada de probă și prin acordul părților. Word sau PDF, fără cont.",
+};

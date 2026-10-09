@@ -10,6 +10,7 @@ import {
   ANTET_CALCULATOR_CONCEDIU,
   ANTET_CALCULATOR_ZILE_LUCRATOARE,
   ANTET_CERERE_CONCEDIU,
+  ANTET_CERERE_DEMISIE,
   ANTET_CONDICA,
   ANTET_FISA_EVALUARE,
   ANTET_FISA_SSM,
@@ -93,6 +94,19 @@ export const GRUPURI_HUB: readonly GrupHub[] = [
         "/unelte/calculator-zile-concediu",
         ANTET_CALCULATOR_CONCEDIU,
         "minimul legal, zile suplimentare, an lucrat parțial · fără cont",
+      ),
+    ],
+  },
+  {
+    id: "plecare",
+    supratitlu: "Plecare și adeverințe",
+    titlu: "Când omul pleacă sau cere o hârtie",
+    lead: "Demisia cu preavizul calculat și actele pe care le cere un salariat de la firmă.",
+    pagini: [
+      rand(
+        "/unelte/cerere-demisie",
+        ANTET_CERERE_DEMISIE,
+        "ultima zi de preaviz calculată · fără preaviz, probă, acord · Word, PDF",
       ),
     ],
   },

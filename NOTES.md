@@ -396,6 +396,16 @@ angajatorul s-o înregistreze, iar refuzul dă salariatului dreptul s-o dovedeas
 prin orice mijloc de probă. Până se construiește, demisia se înregistrează manual,
 din `/registru`.
 
+**Numărarea preavizului la demisie în unealta publică `/unelte/cerere-demisie`.**
+Preavizul curge din ziua următoare înregistrării și se împlinește în a N-a zi
+lucrătoare (sâmbetele, duminicile și sărbătorile din art. 139 scăzute). Regula e
+cea din RIL nr. 8/2024 (ÎCCJ, MO 573/19.06.2024), dată pentru preavizul la
+CONCEDIERE (art. 75 și art. 278 Codul muncii); pentru demisie (art. 81) o aplicăm
+prin analogie, iar pagina o spune. Analogia e confirmată de jurist (9 oct 2026),
+deci pagina se publică fără marcaj. Rămâne deschis, pentru fluxul din aplicație
+(nu pentru unealtă): dacă „ultima zi de preaviz” coincide cu data încetării
+înscrisă în REGES-ONLINE.
+
 ### Unelte publice — fișa de evaluare · `src/app/(marketing)/unelte/fisa-evaluare/lege.ts`
 
 Confirmat de jurist (9 oct 2026): rezumatul pașilor concedierii pentru necorespundere

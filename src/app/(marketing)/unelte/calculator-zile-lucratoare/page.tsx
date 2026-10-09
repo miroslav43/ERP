@@ -204,6 +204,10 @@ export default async function PaginaCalculatorZileLucratoare({ searchParams }: P
           <Link href="/unelte/cerere-concediu-de-odihna" className="underline underline-offset-4">
             cererea de concediu
           </Link>
+          ; pentru o demisie, ultima zi de preaviz o calculează{" "}
+          <Link href="/unelte/cerere-demisie" className="underline underline-offset-4">
+            cererea de demisie
+          </Link>
           .
         </p>
       </Banda>

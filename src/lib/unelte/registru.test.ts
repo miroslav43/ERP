@@ -20,7 +20,9 @@ describe("registrul uneltelor", () => {
 describe("formatele fiecărei unelte", () => {
   it("fișa SSM n-are Excel; restul au toate trei formatele", () => {
     expect(formatePentru("fisa-instruire-ssm")).toEqual(["pdf", "docx"]);
-    for (const slug of Object.keys(UNELTE).filter((s) => s !== "fisa-instruire-ssm")) {
+    expect(formatePentru("cerere-demisie")).toEqual(["pdf", "docx"]);
+    const restranse: readonly string[] = ["fisa-instruire-ssm", "cerere-demisie"];
+    for (const slug of Object.keys(UNELTE).filter((s) => !restranse.includes(s))) {
       expect(formatePentru(slug), slug).toEqual(FORMATE);
     }
     expect(formatePentru("constructor")).toEqual(FORMATE);
