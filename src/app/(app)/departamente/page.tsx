@@ -269,6 +269,9 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
               aprobare: poateDeschide("/pontaj/aprobare", contextPorti),
               tichete: poateDeschide("/ticketing/coada", contextPorti),
               organigrama: poateDeschide("/organigrama", contextPorti),
+              instruiri:
+                poateDeschide("/ssm/instruiri", contextPorti) &&
+                can(permisiuni, "employees:read", "team"),
             }}
           />
         </>

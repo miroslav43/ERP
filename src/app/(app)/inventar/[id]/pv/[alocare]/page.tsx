@@ -42,6 +42,9 @@ import { citesteObiect, istoricAlocari, numeleAngajatilor } from "@/lib/queries/
 
 import { ETICHETE_STARE } from "../../../etichete";
 import { ButonTiparPv } from "./buton-tipar";
+import type { ReactNode } from "react";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Proces-verbal de predare-primire" };
 
@@ -51,12 +54,15 @@ interface ProprietatiPagina {
 
 /** Un rând de date al procesului-verbal. Valorile lipsă se scriu „—”, nu se ascund:
  *  pe o hârtie semnată, un rând absent și un rând gol înseamnă lucruri diferite. */
-function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: string | null }>) {
+function Rand({
+  eticheta,
+  valoare,
+}: Readonly<{ eticheta: string; valoare: string | ReactNode | null }>) {
   return (
     <div className="border-border flex items-baseline justify-between gap-4 border-b py-1.5 last:border-0">
       <dt className="text-corp">{eticheta}</dt>
       <dd className="text-corp text-right font-medium">
-        {valoare === null || valoare.length === 0 ? "—" : valoare}
+        {valoare === null || valoare === "" ? "—" : valoare}
       </dd>
     </div>
   );
@@ -138,7 +144,19 @@ export default async function PaginaProcesVerbal({ params }: ProprietatiPagina) 
           <Rand eticheta="Predător (deținătorul evidenței)" valoare={numeFirma} />
           <Rand
             eticheta="Primitor"
-            valoare={angajat === null ? "—" : `${numeAngajat} (marca ${angajat.marca})`}
+            valoare={
+              angajat === null ? (
+                "—"
+              ) : (
+                <>
+                  {/* Pe ecran, primitorul duce la fișa lui; la tipărire e text. */}
+                  <LinkEntitate href={hrefFisa(angajat, permisiuni)} className="print:no-underline">
+                    {numeAngajat}
+                  </LinkEntitate>{" "}
+                  (marca {angajat.marca})
+                </>
+              )
+            }
           />
         </dl>
       </section>

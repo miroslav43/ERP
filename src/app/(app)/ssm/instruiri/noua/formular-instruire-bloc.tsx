@@ -75,14 +75,21 @@ export function FormularInstruireBloc({
   tipuri,
   angajati,
   totalAngajati,
+  tipImplicit = null,
+  angajatiImplicit = [],
 }: {
   readonly tipuri: readonly TipOptiune[];
   readonly angajati: readonly AngajatOptiune[];
   /** Câți angajați activi există CU ADEVĂRAT — lista de sus e tăiată la 500. */
   readonly totalAngajati: number;
+  /** Precompletarea din celula matricei (`?tip=`) sau din fila curentă (`?domeniu=`). */
+  readonly tipImplicit?: string | null;
+  readonly angajatiImplicit?: readonly string[];
 }) {
   const router = useRouter();
-  const [selectati, setSelectati] = useState<ReadonlySet<string>>(new Set());
+  const [selectati, setSelectati] = useState<ReadonlySet<string>>(
+    () => new Set(angajatiImplicit.filter((id) => angajati.some((a) => a.id === id))),
+  );
   const [cauta, setCauta] = useState("");
   const idCauta = useId();
 
@@ -172,7 +179,7 @@ export function FormularInstruireBloc({
                 erori={stare.erori["training_type_id"] ?? []}
               >
                 {(a) => (
-                  <select {...a} defaultValue={trimise["training_type_id"] ?? ""}>
+                  <select {...a} defaultValue={trimise["training_type_id"] ?? tipImplicit ?? ""}>
                     {tipuri.map((t) => (
                       <option key={t.id} value={t.id}>
                         [{ETICHETE_DOMENIU[t.domeniu]}] {t.denumire}

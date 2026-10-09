@@ -51,6 +51,8 @@ export type IntrareSarcini = Readonly<{
   anunturiNecitite: number;
   /** Când e unul singur: id-ul lui, ca sarcina să ducă direct la el. */
   anuntNecititUnicId?: string | null;
+  /** Obiecte predate omului pe care nu le-a confirmat încă (`confirmat_de_angajat_la` gol). */
+  prediriNeconfirmate?: number;
   azi: string;
 }>;
 
@@ -114,6 +116,22 @@ export function sarciniPortal(intrare: IntrareSarcini): readonly SarcinaPortal[]
         intrare.anuntNecititUnicId !== undefined
           ? `/portal/anunturi/${intrare.anuntNecititUnicId}`
           : "/portal/anunturi",
+      urgenta: false,
+    });
+  }
+
+  // Predarea nu notifică și meniul n-are insignă: fără rândul ăsta, omul afla
+  // că are de confirmat un obiect numai deschizând singur pagina.
+  if ((intrare.prediriNeconfirmate ?? 0) > 0) {
+    const n = intrare.prediriNeconfirmate ?? 0;
+    sarcini.push({
+      id: "predari",
+      eticheta:
+        n === 1
+          ? "Un obiect de confirmat în primire"
+          : `${String(n)} obiecte de confirmat în primire`,
+      detaliu: "Confirmarea spune că ați primit obiectul în starea scrisă în proces-verbal.",
+      href: "/portal/in-primirea-mea",
       urgenta: false,
     });
   }

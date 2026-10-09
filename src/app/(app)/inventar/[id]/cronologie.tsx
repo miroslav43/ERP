@@ -102,7 +102,9 @@ export function Cronologie({ evenimente, obiectId }: Proprietati): ReactElement 
                     href={`/inventar/${obiectId}/pv/${eveniment.alocareId}`}
                     className="underline-offset-2 hover:underline"
                   >
-                    proces-verbal
+                    {eveniment.fel === "returnare"
+                      ? "procesul-verbal al returnării"
+                      : "procesul-verbal al predării"}
                   </Link>
                 </>
               )}

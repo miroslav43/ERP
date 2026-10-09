@@ -146,3 +146,5 @@ Când un rol vede un ecran gol și nu știi dacă e RLS sau o listă chiar goal�
 empirică per rol, nu raționamentul. Când atingi politicile, citește migrarea
 `0010_inventory.sql` — ordinea secțiunilor și bucla de granturi nu se reproduc din
 memorie.
+
+- Lotul 7f: PV-ul și „Raportează o defecțiune” (`?obiect=`) de pe cardurile din primire (aplicație și portal), categoria ca filtru, cronologia leagă PV-ul fiecărui eveniment, predările neconfirmate ca sarcină în portal: [[strat/navigare]].

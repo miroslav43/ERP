@@ -12,6 +12,13 @@ const LINISTE: IntrareSarcini = {
 };
 
 describe("sarciniPortal", () => {
+  it("predările neconfirmate devin o sarcină care duce la „În primirea mea”", () => {
+    const [s] = sarciniPortal({ ...LINISTE, prediriNeconfirmate: 2 });
+    expect(s?.href).toBe("/portal/in-primirea-mea");
+    expect(s?.eticheta).toBe("2 obiecte de confirmat în primire");
+    expect(sarciniPortal({ ...LINISTE, prediriNeconfirmate: 0 })).toHaveLength(0);
+  });
+
   it("ziua fără nimic de făcut întoarce lista goală", () => {
     expect(sarciniPortal(LINISTE)).toEqual([]);
   });

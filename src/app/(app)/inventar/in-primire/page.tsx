@@ -1,13 +1,14 @@
 // src/app/(app)/inventar/in-primire/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
+import { poateDeschide } from "@/config/porti-ruta";
 import { PackageCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
@@ -24,10 +25,18 @@ export default async function PaginaInPrimire() {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "inventory"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Formularul de tichet se deschide pe obiect doar pentru cine îl poate deschide.
+  const hrefRaportare = poateDeschide("/ticketing/nou", {
+    features: module,
+    permissions: permisiuni,
+  })
+    ? "/ticketing/nou"
+    : null;
   const scope = scopeFor(permisiuni, "inventory:read");
 
   if (scope === null || scope === "none") {
@@ -98,6 +107,23 @@ export default async function PaginaInPrimire() {
                   <p className="text-muted-foreground text-corp mt-1">
                     Predat la {formatDateTime(rand.predat_la)} · Stare la predare:{" "}
                     {ETICHETE_STARE[rand.stare_la_predare]}
+                  </p>
+                  {/* Acțiunile rapide stau DEASUPRA linkului întins pe card (`relative`). */}
+                  <p className="text-nota relative mt-2 flex flex-wrap gap-x-3">
+                    <Link
+                      href={`/inventar/${rand.obiect.id}/pv/${rand.id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      Procesul-verbal
+                    </Link>
+                    {hrefRaportare === null ? null : (
+                      <Link
+                        href={`${hrefRaportare}?obiect=${rand.obiect.id}`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        Raportează o defecțiune
+                      </Link>
+                    )}
                   </p>
                   {rand.observatii !== null ? (
                     <p className="text-muted-foreground text-corp mt-1">

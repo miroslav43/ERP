@@ -17,7 +17,18 @@ import { FormularInstruireBloc } from "./formular-instruire-bloc";
 
 export const metadata: Metadata = { title: "Instruire nouă" };
 
-export default async function PaginaInstruireNoua() {
+export default async function PaginaInstruireNoua({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // Din celula matricei: `?angajat=&tip=`; din antet: `?domeniu=`.
+  const parametri = await searchParams;
+  const uuidSau = (v: string | string[] | undefined): string | null =>
+    typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v) ? v : null;
+  const angajatImplicit = uuidSau(parametri["angajat"]);
+  const tipImplicit = uuidSau(parametri["tip"]);
+  const domeniuImplicit = parametri["domeniu"] === "psi" ? "psi" : "ssm";
   await requireUser();
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
@@ -81,6 +92,8 @@ export default async function PaginaInstruireNoua() {
           marca: a.marca,
         }))}
         totalAngajati={totalAngajati ?? (angajati ?? []).length}
+        tipImplicit={tipImplicit ?? tipuri.find((t) => t.domeniu === domeniuImplicit)?.id ?? null}
+        angajatiImplicit={angajatImplicit === null ? [] : [angajatImplicit]}
       />
     </div>
   );

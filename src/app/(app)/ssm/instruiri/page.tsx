@@ -41,12 +41,18 @@ async function Matrice({
   scope,
   parametri,
   permisiuni,
+  departament,
+  poateCrea,
 }: {
   readonly organizationId: string;
   readonly userId: string;
   readonly scope: "team" | "all";
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly permisiuni: PermissionMap;
+  /** `?departament=<uuid>`: doar oamenii departamentului; `null` = toți. */
+  readonly departament: string | null;
+  /** `ssm:create` — celula Expirat/Lipsă devine link spre formularul precompletat. */
+  readonly poateCrea: boolean;
 }) {
   const filtre = filtreDinUrl(filtreInstruiriSchema, parametri);
   const propriaFisaId = await idFisaProprie(organizationId, userId);
@@ -58,7 +64,8 @@ async function Matrice({
       propriaFisaId,
       filtre: {
         q: filtre.q,
-        department_id: null,
+        // `?departament=<uuid>` din panoul departamentului: matricea echipei lui.
+        department_id: departament,
         functie: null,
         status: "activ",
         punct_lucru: null,
@@ -177,9 +184,21 @@ async function Matrice({
                   const stare = stareScadentaSsm(rand !== undefined, scadenta, azi);
                   return (
                     <td key={tip.id} className="px-4 py-3 whitespace-nowrap">
-                      <Scadenta treapta={treaptaSsm(stare, scadenta)}>
-                        {ETICHETE_SCADENTA[stare]}
-                      </Scadenta>
+                      {/* Golul se repară de aici: formularul precompletat cu omul și tipul. */}
+                      {poateCrea && (stare === "niciodata" || stare === "expirat") ? (
+                        <Link
+                          href={`/ssm/instruiri/noua?angajat=${angajat.id}&tip=${tip.id}`}
+                          className="rounded-xs underline-offset-2 hover:underline"
+                        >
+                          <Scadenta treapta={treaptaSsm(stare, scadenta)}>
+                            {ETICHETE_SCADENTA[stare]}
+                          </Scadenta>
+                        </Link>
+                      ) : (
+                        <Scadenta treapta={treaptaSsm(stare, scadenta)}>
+                          {ETICHETE_SCADENTA[stare]}
+                        </Scadenta>
+                      )}
                       {rand === undefined ? null : (
                         <span className="text-muted-foreground text-nota ml-2">
                           {formatDate(rand.data_instruirii)}
@@ -210,6 +229,8 @@ async function Matrice({
   );
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default async function PaginaInstruiri({ searchParams }: ProprietatiPagina) {
   const user = await requireUser();
   const { tenant } = await requireTenant();
@@ -230,6 +251,11 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
   }
 
   const parametri = await searchParams;
+
+  const departamentBrut = parametri["departament"];
+
+  const departamentFiltrat =
+    typeof departamentBrut === "string" && UUID_RE.test(departamentBrut) ? departamentBrut : null;
   // Gata garantat prin poarta de mai sus: scope-ul e mereu „team" sau „all".
   const scopeAngajati: "team" | "all" =
     scopeFor(permisiuni, "employees:read") === "all" ? "all" : "team";
@@ -243,7 +269,10 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
         {...(poateCrea
           ? {
               actiuni: (
-                <Link href="/ssm/instruiri/noua" className={buton({ varianta: "primar" })}>
+                <Link
+                  href={`/ssm/instruiri/noua?domeniu=${parametri["domeniu"] === "psi" ? "psi" : "ssm"}`}
+                  className={buton({ varianta: "primar" })}
+                >
                   <Plus aria-hidden="true" className="size-4" />
                   Instruire nouă
                 </Link>
@@ -271,6 +300,8 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
           scope={scopeAngajati}
           parametri={parametri}
           permisiuni={permisiuni}
+          departament={departamentFiltrat}
+          poateCrea={poateCrea}
         />
       </Suspense>
     </div>

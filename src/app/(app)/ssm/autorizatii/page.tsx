@@ -2,6 +2,7 @@
 import { treaptaSsm } from "@/domain/ssm/scadente";
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BadgeCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -9,10 +10,11 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { poateDeschide } from "@/config/porti-ruta";
 import { Badge } from "@/components/ui/badge";
 import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -39,6 +41,7 @@ async function TabelAutorizatii({
   poateActualiza,
   poateCrea,
   permisiuni,
+  poateDeschideEchipamente,
 }: {
   readonly organizationId: string;
   /** `?angajat=`: doar autorizațiile unui om. */
@@ -49,6 +52,8 @@ async function TabelAutorizatii({
   /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
   readonly poateCrea: boolean;
   readonly permisiuni: PermissionMap;
+  /** Poarta lui `/mentenanta/echipamente`: coloana „Echipamente ISCIR" leagă doar cu ea. */
+  readonly poateDeschideEchipamente: boolean;
 }) {
   const toate = await autorizatiiNominale(organizationId, { angajat });
   const azi = todayInBucharest();
@@ -112,6 +117,23 @@ async function TabelAutorizatii({
       ),
     },
     { cheie: "numar", antet: "Număr", peTelefon: "meta", celula: (a) => a.numar },
+    {
+      cheie: "echipamente",
+      antet: "Echipamente ISCIR",
+      peTelefon: "meta",
+      // Suspendarea lasă echipamentele fără responsabil autorizat: filtrul exista, drumul nu.
+      celula: (a) =>
+        poateDeschideEchipamente ? (
+          <Link
+            href={`/mentenanta/echipamente?responsabil=${a.employee_id}&iscir=da`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            ale titularului
+          </Link>
+        ) : (
+          "—"
+        ),
+    },
     { cheie: "emitent", antet: "Emitent", peTelefon: "meta", celula: (a) => a.emitent },
     {
       cheie: "valabil",
@@ -178,10 +200,15 @@ export default async function PaginaAutorizatii({
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "ssm"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  const poateDeschideEchipamente = poateDeschide("/mentenanta/echipamente", {
+    features: module,
+    permissions: permisiuni,
+  });
 
   if (!can(permisiuni, "ssm:read", "team")) {
     return (
@@ -260,6 +287,7 @@ export default async function PaginaAutorizatii({
           poateActualiza={poateActualiza}
           poateCrea={poateCrea}
           permisiuni={permisiuni}
+          poateDeschideEchipamente={poateDeschideEchipamente}
         />
       </Suspense>
     </div>

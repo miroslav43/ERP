@@ -199,9 +199,21 @@ async function TabelFise({
         const stare = stareScadentaSsm(true, f.valabil_pana, azi);
         return (
           <span className="whitespace-nowrap">
-            <Scadenta treapta={treaptaSsm(stare, f.valabil_pana)}>
-              {ETICHETE_SCADENTA[stare]}
-            </Scadenta>
+            {/* Fișa expirată se reînnoiește de aici: formularul precompletat cu omul. */}
+            {poateCrea && stare === "expirat" ? (
+              <Link
+                href={`/ssm/medicina-muncii/noua?angajat=${f.employee_id}`}
+                className="relative rounded-xs underline-offset-2 hover:underline"
+              >
+                <Scadenta treapta={treaptaSsm(stare, f.valabil_pana)}>
+                  {ETICHETE_SCADENTA[stare]}
+                </Scadenta>
+              </Link>
+            ) : (
+              <Scadenta treapta={treaptaSsm(stare, f.valabil_pana)}>
+                {ETICHETE_SCADENTA[stare]}
+              </Scadenta>
+            )}
             <span className="text-muted-foreground text-nota ml-2">
               {formatDate(f.valabil_pana)}
             </span>

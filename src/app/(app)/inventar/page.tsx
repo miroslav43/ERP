@@ -31,6 +31,7 @@ import { FiltreInventar } from "./filtre-inventar";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Inventar" };
 
@@ -193,8 +194,18 @@ async function TabelInventar({
       cheie: "categorie",
       antet: "Categorie",
       peTelefon: "meta",
+      // Filtrul `category_id` exista; celula era text.
       celula: (rand) =>
-        rand.category_id === null ? "—" : (numeCategorii.get(rand.category_id) ?? "—"),
+        rand.category_id === null ? (
+          "—"
+        ) : (
+          <Link
+            href={`/inventar?category_id=${rand.category_id}`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {numeCategorii.get(rand.category_id) ?? "—"}
+          </Link>
+        ),
     },
     {
       cheie: "circuit",

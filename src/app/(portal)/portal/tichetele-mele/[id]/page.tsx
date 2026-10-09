@@ -96,7 +96,13 @@ export default async function PaginaTichetulMeu({
 
         {tichet.obiect === null ? null : (
           <p className="text-muted-foreground border-border text-corp border-t pt-3">
-            Echipament: {tichet.obiect.denumire}
+            Echipament:{" "}
+            <Link
+              href={`/portal/in-primirea-mea#obiect-${tichet.obiect.id}`}
+              className="text-foreground underline-offset-2 hover:underline"
+            >
+              {tichet.obiect.denumire}
+            </Link>
             {tichet.obiect.numar_inventar === null
               ? null
               : ` · nr. inventar ${tichet.obiect.numar_inventar}`}

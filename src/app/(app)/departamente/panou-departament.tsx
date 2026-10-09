@@ -65,6 +65,8 @@ export type LegaturiPanou = Readonly<{
   aprobare: boolean;
   tichete: boolean;
   organigrama: boolean;
+  /** Matricea de instruiri filtrată pe departament (`ssm:read` + `employees:read`). */
+  instruiri: boolean;
 }>;
 
 export type PropsPanouDepartament = Readonly<{
@@ -338,6 +340,16 @@ export function PanouDepartament({
                   className="underline-offset-2 hover:underline"
                 >
                   Tichete
+                </Link>
+              </li>
+            ) : null}
+            {legaturi.instruiri ? (
+              <li>
+                <Link
+                  href={`/ssm/instruiri?departament=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Instruiri SSM
                 </Link>
               </li>
             ) : null}

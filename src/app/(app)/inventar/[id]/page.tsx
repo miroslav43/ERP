@@ -163,7 +163,19 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
             descriere={
               <>
                 Nr. inventar <span className="font-mono">{obiect.numar_inventar}</span>
-                {categorieNume === null ? " · Necategorizat" : ` · ${categorieNume}`}
+                {categorieNume === null || obiect.category_id === null ? (
+                  " · Necategorizat"
+                ) : (
+                  <>
+                    {" · "}
+                    <Link
+                      href={`/inventar?category_id=${obiect.category_id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {categorieNume}
+                    </Link>
+                  </>
+                )}
               </>
             }
             {...(poateScrie

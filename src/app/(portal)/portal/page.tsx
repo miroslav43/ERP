@@ -39,6 +39,7 @@ import { IndemnInstalare } from "./indemn-instalare";
 import { PontareRapida } from "./pontare-rapida";
 import { CONTEXT_GOL, contexteDestinatar } from "./notificarile-mele/context";
 import { caleaDePortal } from "./notificarile-mele/legaturi";
+import { inPrimireaMea } from "@/lib/queries/inventory";
 
 export const metadata: Metadata = { title: "Portalul meu" };
 
@@ -72,6 +73,7 @@ export default async function PaginaPortal() {
   const poatePontaZiua =
     moduleActive.has("attendance") && can(permisiuni, "attendance:create", "own");
   const vedeSalariu = moduleActive.has("payroll") && can(permisiuni, "payroll:read", "own");
+  const vedeInventar = moduleActive.has("inventory") && can(permisiuni, "inventory:read", "own");
 
   const [
     solduri,
@@ -86,6 +88,7 @@ export default async function PaginaPortal() {
     randPontare,
     fluturas,
     notificari,
+    inPrimire,
   ] = await Promise.all([
     vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
     vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
@@ -115,6 +118,7 @@ export default async function PaginaPortal() {
      * întâmplat, iar acasă era singurul loc unde nu ajungea nimic din ele.
      */
     listeazaNotificarile(tenant.organizationId, user.id),
+    vedeInventar ? inPrimireaMea(tenant.organizationId, fisa.id) : Promise.resolve([]),
   ]);
 
   /*
@@ -256,6 +260,7 @@ export default async function PaginaPortal() {
     peSaptamana: !peZi,
     anunturiNecitite: necitite.length,
     anuntNecititUnicId: necitite.length === 1 ? (necitite[0]?.id ?? null) : null,
+    prediriNeconfirmate: inPrimire.filter((r) => r.confirmat_de_angajat_la === null).length,
     azi,
   });
 

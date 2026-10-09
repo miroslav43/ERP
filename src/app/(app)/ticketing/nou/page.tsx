@@ -57,6 +57,10 @@ export default async function PaginaTichetNou({ searchParams }: ProprietatiPagin
   const obiecte = fisa === null ? [] : await listeazaObiecteleMele(fisa.id);
   const parametri = await searchParams;
   const modul = typeof parametri["modul"] === "string" ? parametri["modul"] : "";
+  // `?obiect=<id>`: doar un obiect pe care omul chiar îl are în primire.
+  const obiectBrut = parametri["obiect"];
+  const obiectImplicit =
+    typeof obiectBrut === "string" && obiecte.some((o) => o.id === obiectBrut) ? obiectBrut : null;
 
   return (
     <div className={cn(LATIMI.formular, "space-y-6")}>
@@ -65,7 +69,11 @@ export default async function PaginaTichetNou({ searchParams }: ProprietatiPagin
         descriere="Solicitările merg la managerul tău direct sau la administrator. Problemele din aplicație ajung direct la echipa care o dezvoltă."
       />
 
-      <FormularTichet obiecteAlocate={obiecte} modulCurent={modul} />
+      <FormularTichet
+        obiecteAlocate={obiecte}
+        modulCurent={modul}
+        obiectImplicit={obiectImplicit}
+      />
     </div>
   );
 }

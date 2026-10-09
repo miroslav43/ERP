@@ -13,7 +13,12 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { formatOraZi } from "@/lib/format/ore";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { angajatiDupaId, citesteAccident } from "@/lib/queries/ssm";
+import {
+  angajatiDupaId,
+  citesteAccident,
+  fiseAptitudineAngajat,
+  instruirileAngajatului,
+} from "@/lib/queries/ssm";
 import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
 
 import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "../../etichete";
@@ -56,6 +61,20 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
   );
   const angajat = accident.employee_id === null ? undefined : angajati.get(accident.employee_id);
   const poateActualiza = can(permisiuni, "ssm:update", "team");
+  // Situația SSM a victimei LA DATA producerii: ultima instruire și ultima
+  // fișă de aptitudine de dinainte de accident — întrebarea comisiei de cercetare.
+  const [instruiriVictima, fiseVictima] =
+    accident.employee_id === null
+      ? [[], []]
+      : await Promise.all([
+          instruirileAngajatului(tenant.organizationId, accident.employee_id),
+          fiseAptitudineAngajat(tenant.organizationId, accident.employee_id),
+        ]);
+  const ultimaInstruire =
+    instruiriVictima.find((i) => i.data_instruirii <= accident.data_producerii) ?? null;
+  const ultimaFisa = fiseVictima.find((f) => f.data_examinarii <= accident.data_producerii) ?? null;
+  const valabilaLaData = (panaLa: string | null): boolean =>
+    panaLa === null || panaLa >= accident.data_producerii;
 
   const termenOre = accident.termen_comunicare_ore ?? 24;
   const momentLimita = momentLimitaComunicareItm(
@@ -146,6 +165,57 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
           }
         />
       </section>
+
+      {accident.employee_id === null ? null : (
+        <section
+          aria-labelledby="titlu-situatie-ssm"
+          className="border-border rounded-panou border p-4"
+        >
+          <h2 id="titlu-situatie-ssm" className="text-corp font-medium">
+            Situația SSM la data producerii
+          </h2>
+          <dl className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Camp
+              eticheta="Ultima instruire de dinainte"
+              valoare={
+                ultimaInstruire === null
+                  ? "Nicio instruire înregistrată înainte de accident"
+                  : `${formatDate(ultimaInstruire.data_instruirii)}${
+                      valabilaLaData(ultimaInstruire.urmatoarea_scadenta)
+                        ? " · valabilă la data producerii"
+                        : ` · EXPIRATĂ din ${formatDate(ultimaInstruire.urmatoarea_scadenta ?? accident.data_producerii)}`
+                    }`
+              }
+            />
+            <Camp
+              eticheta="Ultima fișă de aptitudine de dinainte"
+              valoare={
+                ultimaFisa === null
+                  ? "Nicio fișă înregistrată înainte de accident"
+                  : `${formatDate(ultimaFisa.data_examinarii)}${
+                      valabilaLaData(ultimaFisa.valabil_pana)
+                        ? " · valabilă la data producerii"
+                        : ` · EXPIRATĂ din ${formatDate(ultimaFisa.valabil_pana ?? accident.data_producerii)}`
+                    }`
+              }
+            />
+          </dl>
+          <p className="text-nota mt-3 flex flex-wrap gap-x-3">
+            <Link
+              href={`/ssm/instruiri?angajat=${accident.employee_id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Instruirile lui
+            </Link>
+            <Link
+              href={`/ssm/medicina-muncii?angajat=${accident.employee_id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Fișele lui de aptitudine
+            </Link>
+          </p>
+        </section>
+      )}
 
       <section aria-label="Împrejurări" className="text-corp space-y-1">
         <p className="text-muted-foreground">Împrejurări:</p>
