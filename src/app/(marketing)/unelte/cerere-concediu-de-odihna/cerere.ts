@@ -1,4 +1,6 @@
 import { sarbatoriDupaZi } from "@/domain/calendar/sarbatori";
+import { todayInBucharest } from "@/lib/format/date";
+import { cuVirgula, faraCaractereDeControl } from "@/lib/unelte/text-curat";
 
 /**
  * Cererea de concediu de odihnă: intervalul, și câte zile consumă din sold.
@@ -20,10 +22,22 @@ import { sarbatoriDupaZi } from "@/domain/calendar/sarbatori";
  * regulamentul intern, deși art. 145 alin. (3) le exclude și pe acelea. Nu le
  * putem cunoaște: sunt ale fiecărei firme. Pagina o spune, în loc să dea un
  * număr care pare exact și nu e.
+ *
+ * ── CE REFUZĂ, DIN 8 OCT 2026 ─────────────────────────────────────────────
+ * Auditul live a găsit trei intrări transformate tăcut în documente: o dată
+ * din afara intervalului înlocuită cu implicitul (`de_la=2019-01-05` dădea o
+ * cerere pentru noiembrie 2026, cu 200), o cerere de „0 zile lucrătoare” pentru
+ * un weekend și ziua de azi luată în UTC. `citesteData` și verificarea din
+ * `construiesteCerere` le închid.
  */
 
-/** Limite de bun-simț, ca o adresă construită de mână să nu ceară anul 9999. */
-export const AN_MIN = 2020;
+/**
+ * Limitele anilor. AN_MIN e 2024, nu 2020: calendarul comun pune 6 și 7
+ * ianuarie în orice an, deși au intrat în art. 139 abia la 09.03.2023 (Legea
+ * 52/2023). Pentru 2020–2023 cererea ar fi scăzut două zile care atunci erau
+ * lucrătoare.
+ */
+export const AN_MIN = 2024;
 export const AN_MAX = 2035;
 /** Peste un an de concediu nu mai e o cerere, e o greșeală de tastare. */
 const MAX_ZILE_INTERVAL = 366;
@@ -65,10 +79,34 @@ function iso(data: Date): string {
   return `${String(data.getUTCFullYear()).padStart(4, "0")}-${String(data.getUTCMonth() + 1).padStart(2, "0")}-${String(data.getUTCDate()).padStart(2, "0")}`;
 }
 
+export type DataCitita = Readonly<{ data: string | null; problema: string | null }>;
+
 /**
- * Data din adresă, sau implicitul. Se validează și anul, nu doar forma: un
- * `1999-01-01` construit de mână ar trece de `dinIso` și ar cere sărbătorile
- * unui an pentru care n-avem nimic de spus.
+ * O dată din adresă, citită STRICT. Lipsa nu e o greșeală — `{ data: null,
+ * problema: null }`, iar apelantul pune implicitul. O valoare prezentă dar
+ * greșită e o greșeală și se spune, cu numele câmpului.
+ */
+export function citesteData(brut: string | undefined, eticheta: string): DataCitita {
+  const valoare = (brut ?? "").trim();
+  if (valoare === "") return { data: null, problema: null };
+  const data = dinIso(valoare);
+  if (data === null) {
+    return { data: null, problema: `${eticheta}: „${valoare.slice(0, 20)}” nu e o dată reală.` };
+  }
+  const an = data.getUTCFullYear();
+  if (an < AN_MIN || an > AN_MAX) {
+    return {
+      data: null,
+      problema: `${eticheta}: anul ${String(an)} e în afara intervalului ${String(AN_MIN)}–${String(AN_MAX)}.`,
+    };
+  }
+  return { data: iso(data), problema: null };
+}
+
+/**
+ * Data din adresă, sau implicitul — și pentru lipsă, și pentru o valoare
+ * greșită. Rămâne doar pentru pagina de dinainte de 8 oct 2026; taskul F14
+ * o șterge odată cu pagina veche. Codul nou folosește `citesteData`.
  */
 export function normalizeazaData(brut: string | undefined, implicit: string): string {
   const data = dinIso((brut ?? "").trim());
@@ -77,24 +115,46 @@ export function normalizeazaData(brut: string | undefined, implicit: string): st
   return an >= AN_MIN && an <= AN_MAX ? iso(data) : implicit;
 }
 
-/** Un câmp de text din adresă: fără rânduri noi, plafonat, fără spații la capete. */
+/**
+ * Un câmp de text din adresă: un singur rând, fără caractere de control, cu
+ * „ș”/„ț” cu virgulă, plafonat, fără spații la capete.
+ */
 export function normalizeazaText(brut: string | undefined, maxim = 120): string {
-  return (brut ?? "")
-    .replace(/[\r\n\t]+/gu, " ")
+  return cuVirgula(faraCaractereDeControl(brut ?? ""))
+    .replace(/\s+/gu, " ")
     .trim()
     .slice(0, maxim);
 }
 
-/** Ziua de azi, în UTC, ca `YYYY-MM-DD`. Punctul de pornire al formularului. */
+/**
+ * Ziua de azi în România, ca `YYYY-MM-DD`. Nu în UTC: între miezul nopții și
+ * 02:00–03:00 ora României, `new Date()` în UTC dădea ziua de ieri.
+ */
 export function aziIso(): string {
-  return iso(new Date());
+  return todayInBucharest();
 }
 
-/** Aceeași zi, mutată cu `n` zile. Folosit doar pentru implicitele formularului. */
+/** Aceeași zi, mutată cu `n` zile. */
 export function plusZile(isoData: string, n: number): string {
   const data = dinIso(isoData);
   if (data === null) return isoData;
   return iso(new Date(data.getTime() + n * ZI_MS));
+}
+
+/**
+ * Intervalul cu care se deschide formularul: prima zi de luni aflată la cel
+ * puțin 60 de zile de azi, până vineri în aceeași săptămână.
+ *
+ * 60, fiindcă art. 148 alin. (4) dă salariatului dreptul să ceară concediul cu
+ * cel puțin 60 de zile înainte; luni–vineri, fiindcă implicitul vechi (azi + 30)
+ * cădea pe 7 noiembrie 2026, o sâmbătă.
+ */
+export function intervalImplicit(azi: string): Readonly<{ deLa: string; panaLa: string }> {
+  const baza = dinIso(azi) ?? new Date(Date.UTC(AN_MIN, 0, 1));
+  const peste60 = new Date(baza.getTime() + 60 * ZI_MS);
+  const panaLaLuni = (8 - peste60.getUTCDay()) % 7;
+  const luni = new Date(peste60.getTime() + panaLaLuni * ZI_MS);
+  return { deLa: iso(luni), panaLa: iso(new Date(luni.getTime() + 4 * ZI_MS)) };
 }
 
 export function construiesteCerere(deLa: string, panaLa: string): Cerere {
@@ -146,5 +206,10 @@ export function construiesteCerere(deLa: string, panaLa: string): Cerere {
     zileLucratoare += 1;
   }
 
-  return { deLa, panaLa, zileCalendaristice, zileLucratoare, excluse, zileWeekend, problema: null };
+  // Numerele rămân, ca pagina să poată arăta de ce: „2 zile de weekend”.
+  const problema =
+    zileLucratoare === 0
+      ? "Intervalul nu conține nicio zi lucrătoare: toate zilele lui sunt de weekend sau sărbători legale."
+      : null;
+  return { deLa, panaLa, zileCalendaristice, zileLucratoare, excluse, zileWeekend, problema };
 }

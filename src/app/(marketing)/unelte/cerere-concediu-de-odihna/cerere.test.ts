@@ -1,6 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { construiesteCerere, normalizeazaData, normalizeazaText, plusZile } from "./cerere";
+import {
+  AN_MAX,
+  AN_MIN,
+  aziIso,
+  citesteData,
+  construiesteCerere,
+  intervalImplicit,
+  normalizeazaData,
+  normalizeazaText,
+  plusZile,
+} from "./cerere";
 
 /**
  * Ce apără fișierul: singura afirmație pe care unealta o face și pe care un
@@ -118,5 +128,85 @@ describe("cererea de concediu de odihnă", () => {
     expect(normalizeazaText("x".repeat(500)).length).toBe(120);
 
     expect(plusZile("2026-12-30", 3)).toBe("2027-01-02");
+  });
+});
+
+describe("intrările din adresă, citite strict (auditul din 8 oct 2026)", () => {
+  it("o dată lipsă nu e o greșeală: apelantul pune implicitul", () => {
+    expect(citesteData(undefined, "De la")).toEqual({ data: null, problema: null });
+    expect(citesteData("  ", "De la")).toEqual({ data: null, problema: null });
+  });
+
+  it("o dată bună trece neschimbată", () => {
+    expect(citesteData("2026-11-16", "De la")).toEqual({ data: "2026-11-16", problema: null });
+  });
+
+  it("o dată prezentă dar greșită e refuzată cu motiv, nu înlocuită cu implicitul", () => {
+    for (const brut of ["abc", "2026-02-30", "2026-13-01", "16.11.2026"]) {
+      const citita = citesteData(brut, "De la");
+      expect(citita.data, brut).toBeNull();
+      expect(citita.problema, brut).toMatch(/^De la: .*nu e o dată reală\.$/u);
+    }
+  });
+
+  it("anii din afara intervalului sunt refuzați, cu intervalul în mesaj", () => {
+    expect(citesteData("2036-01-05", "Până la").problema).toBe(
+      `Până la: anul 2036 e în afara intervalului ${String(AN_MIN)}–${String(AN_MAX)}.`,
+    );
+    expect(citesteData("2019-01-05", "De la").problema).toMatch(/2019/u);
+  });
+
+  it("anii 2020–2023 nu mai sunt acceptați: calendarul comun ar scădea 6 și 7 ianuarie", () => {
+    expect(AN_MIN).toBe(2024);
+    expect(citesteData("2023-01-06", "De la").problema).not.toBeNull();
+  });
+});
+
+describe("cererea fără nicio zi lucrătoare", () => {
+  it("un weekend singur nu e o cerere, dar numerele rămân pentru explicație", () => {
+    const c = construiesteCerere("2026-11-14", "2026-11-15");
+    expect(c.problema).toMatch(/nicio zi lucrătoare/u);
+    expect(c.zileWeekend).toBe(2);
+  });
+
+  it("o sărbătoare singură nu e o cerere", () => {
+    expect(construiesteCerere("2026-12-01", "2026-12-01").problema).toMatch(/nicio zi lucrătoare/u);
+  });
+
+  it("o zi lucrătoare lângă un weekend e o cerere", () => {
+    expect(construiesteCerere("2026-11-13", "2026-11-15").problema).toBeNull();
+  });
+});
+
+describe("textul din adresă", () => {
+  it("sedila devine virgulă", () => {
+    // Sedilele scrise ca escape-uri: `continut.test.ts` refuză sedila în stratul de marketing.
+    expect(normalizeazaText("\u015Fef de \u0163ar\u0103, \u015ETEFAN \u0162EPE\u015E")).toBe(
+      "șef de țară, ȘTEFAN ȚEPEȘ",
+    );
+  });
+
+  it("caracterele de control devin un singur spațiu", () => {
+    expect(normalizeazaText("Popa\u000BIon\u0001\u001FSRL")).toBe("Popa Ion SRL");
+  });
+});
+
+describe("ziua de azi și intervalul implicit", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("azi e ziua din România, nu din UTC", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-08T22:30:00Z")); // 01:30 pe 9 octombrie, ora României
+    expect(aziIso()).toBe("2026-10-09");
+  });
+
+  it("implicitul începe luni, la cel puțin 60 de zile, și se termină vineri", () => {
+    // 08.10.2026 + 60 = 07.12.2026, o luni; 09.10.2026 + 60 = 08.12.2026, o marți.
+    expect(intervalImplicit("2026-10-08")).toEqual({ deLa: "2026-12-07", panaLa: "2026-12-11" });
+    expect(intervalImplicit("2026-10-09")).toEqual({ deLa: "2026-12-14", panaLa: "2026-12-18" });
+    const implicit = intervalImplicit("2026-10-08");
+    expect(construiesteCerere(implicit.deLa, implicit.panaLa).zileLucratoare).toBe(5);
   });
 });
