@@ -78,4 +78,12 @@ describe("rândurile desfășurătorului", () => {
       197,
     ]);
   });
+
+  it("impozitul scutit spune temeiul", () => {
+    const r = calculeazaDinBrut(5000, { ...OPTIUNI_IMPLICITE, scutitImpozit: true });
+    expect(randuriDesfasurator(r).angajat.map((x) => [x.eticheta, x.valoare])).toContainEqual([
+      "Impozit pe venit — scutit, Codul fiscal art. 60 pct. 1",
+      0,
+    ]);
+  });
 });

@@ -19,7 +19,8 @@ function areOptiuniAlese(p: ParametriCalculator): boolean {
     p.optiuni.tichete.numar > 0 ||
     p.textTichet.trim() !== "" ||
     p.optiuni.oreZi < 8 ||
-    !p.optiuni.contributieMinima
+    !p.optiuni.contributieMinima ||
+    p.optiuni.scutitImpozit
   );
 }
 
@@ -168,6 +169,16 @@ export function Formular({ p }: { readonly p: ParametriCalculator }) {
               persoană cu dizabilități cu program redus prin lege, pensionar pentru limită de vârstă
               sau alt contract care ajunge la salariul minim (Codul fiscal art. 146 alin. (5^7))
             </span>
+          </label>
+          <label className="flex items-start gap-2 text-[0.9375rem] leading-[1.5]">
+            <input
+              type="checkbox"
+              name="handicap"
+              value="da"
+              defaultChecked={p.optiuni.scutitImpozit}
+              className="mt-1 size-4 shrink-0"
+            />
+            <span>Handicap grav sau accentuat: fără impozit pe salariu (art. 60 pct. 1)</span>
           </label>
         </div>
       </details>

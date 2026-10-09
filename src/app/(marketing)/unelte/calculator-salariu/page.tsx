@@ -322,7 +322,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
       <Banda inaltime="medie" supratitlu="Limitele" titlu="Ce nu calculează">
         <ul className="mt-6 max-w-[72ch] space-y-3">
           {[
-            "Scutirile pentru persoanele cu handicap și pentru cercetare-dezvoltare. Facilitățile pe sectoare de activitate nu se mai aplică veniturilor din 2025 (OUG 156/2024).",
+            "Scutirea pentru cercetare-dezvoltare (art. 60 pct. 3), care cere proiect și stat de plată separate. Facilitățile pe sectoare de activitate (construcții, agricultură, industria alimentară, IT) nu se mai aplică veniturilor din 2025 (OUG 156/2024).",
             "Sporurile, orele suplimentare și concediile din lună.",
           ].map((t) => (
             <li

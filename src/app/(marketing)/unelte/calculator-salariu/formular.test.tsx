@@ -71,4 +71,10 @@ describe("formularul calculatorului", () => {
     expect(c.querySelector<HTMLInputElement>('input[name="minim"]')?.value).toBe("nu");
     expect(c.querySelector("details")?.hasAttribute("open")).toBe(true);
   });
+
+  it("bifa de handicap rămâne bifată și deschide <details>", () => {
+    const c = randeaza({ handicap: "da" });
+    expect(c.querySelector<HTMLInputElement>('input[name="handicap"]')?.checked).toBe(true);
+    expect(c.querySelector("details")?.hasAttribute("open")).toBe(true);
+  });
 });

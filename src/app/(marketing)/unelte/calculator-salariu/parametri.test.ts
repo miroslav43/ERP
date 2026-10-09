@@ -77,6 +77,7 @@ describe("parametrii calculatorului de salariu", () => {
         tichete: { valoare: 0, numar: 0 },
         oreZi: 8,
         contributieMinima: true,
+        scutitImpozit: false,
       },
     });
   });
@@ -234,5 +235,15 @@ describe("timpul parțial, din adresă", () => {
     const sub = calculeazaDinParametri(q({ suma: "2000", ore: "4" }), AZI);
     expect([sub.subMinim, sub.minimLegal]).toEqual([true, 2163]);
     expect(calculeazaDinParametri(q({ suma: "2163", ore: "4" }), AZI).subMinim).toBe(false);
+  });
+});
+
+describe("scutirea pentru handicap, din adresă", () => {
+  it("handicap=da scutește de impozit; orice altă valoare nu", () => {
+    expect(parametriCalculator(q({ handicap: "da" }), AZI).optiuni.scutitImpozit).toBe(true);
+    expect(parametriCalculator(q({ handicap: "1" }), AZI).optiuni.scutitImpozit).toBe(false);
+    expect(calculeazaDinParametri(q({ suma: "5000", handicap: "da" }), AZI).rezultat?.net).toBe(
+      3250,
+    );
   });
 });

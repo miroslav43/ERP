@@ -56,7 +56,13 @@ export function randuriDesfasurator(r: RezultatSalariu): Desfasurare {
           ]
         : []),
       rand(etichetaDeducere(r), r.deducerePersonala, "info"),
-      rand("Impozit pe venit, 10%", r.impozit, "minus"),
+      rand(
+        r.impozitScutit
+          ? "Impozit pe venit — scutit, Codul fiscal art. 60 pct. 1"
+          : "Impozit pe venit, 10%",
+        r.impozit,
+        "minus",
+      ),
       rand("Salariu net", r.net, "total"),
       ...(r.tichete > 0
         ? [

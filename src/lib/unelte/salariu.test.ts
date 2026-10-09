@@ -484,3 +484,36 @@ describe("timpul parțial și contribuția minimă (Codul fiscal art. 146 alin. 
     });
   });
 });
+
+describe("scutirea de impozit pentru handicap grav sau accentuat (art. 60 pct. 1)", () => {
+  const H = { ...OPTIUNI_IMPLICITE, scutitImpozit: true };
+
+  it("brut 5.000: impozit 0, net 3.250; CAS, CASS și CAM rămân", () => {
+    // 5.000 − 1.250 − 500 − 0 = 3.250. CAM 113, cost 5.113 — neschimbat.
+    expect(calculeazaDinBrut(5000, H)).toMatchObject({
+      impozit: 0,
+      impozitScutit: true,
+      cas: 1250,
+      cass: 500,
+      net: 3250,
+      costTotal: 5113,
+    });
+  });
+
+  it("se cumulează cu suma scutită de la salariul minim: 4.325 → net 2.881", () => {
+    // Baza 4.125: 4.125 − 1.031 − 413 − 0 + 200 = 2.881.
+    expect(calculeazaDinBrut(4325, H).net).toBe(2881);
+  });
+
+  it("scutește și tichetele (venit salarial, art. 76 alin. (3) lit. h)): 5.000 + 20 × 45 → net 3.160", () => {
+    // 5.000 − 1.250 − 590 − 0 = 3.160.
+    expect(calculeazaDinBrut(5000, { ...H, tichete: { valoare: 45, numar: 20 } }).net).toBe(3160);
+  });
+
+  it("fără bifă, nimic nu se schimbă", () => {
+    expect(calculeazaDinBrut(5000, OPTIUNI_IMPLICITE)).toMatchObject({
+      impozit: 269,
+      impozitScutit: false,
+    });
+  });
+});

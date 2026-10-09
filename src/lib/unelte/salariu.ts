@@ -41,6 +41,8 @@ export type OptiuniSalariu = Readonly<{
    * `false` pentru excepțiile din art. 146 alin. (5^7).
    */
   contributieMinima: boolean;
+  /** Handicap grav sau accentuat: fără impozit pe salarii (Codul fiscal art. 60 pct. 1 lit. b)). */
+  scutitImpozit: boolean;
 }>;
 
 /** Normă întreagă, funcția de bază, fără persoane, în iulie–decembrie 2026. */
@@ -53,6 +55,7 @@ export const OPTIUNI_IMPLICITE: OptiuniSalariu = {
   tichete: { valoare: 0, numar: 0 },
   oreZi: 8,
   contributieMinima: true,
+  scutitImpozit: false,
 };
 
 export type RezultatSalariu = Readonly<{
@@ -65,6 +68,8 @@ export type RezultatSalariu = Readonly<{
   deducereSub26: number;
   deducereCopii: number;
   impozit: number;
+  /** Impozitul e zero prin scutire (art. 60 pct. 1), nu prin calcul. */
+  impozitScutit: boolean;
   /** Suma scoasă din baza de impozit și contribuții (OUG 89/2025 art. III); 0 când nu se aplică. */
   sumaNeimpozabila: number;
   /** Salariul net, în cont — fără tichete. */
@@ -102,6 +107,8 @@ function intrare(
       // Tichetele pe calea motorului, deci cu regimul din produs: impozabile, cu
       // CASS, fără CAS și fără CAM. Luna e o singură „zi” (vezi `attendance`), iar
       // motorul înmulțește valoarea pe tichet cu zilele lucrate: aici, cu 1.
+      // Art. 60 pct. 1: scutirea privește doar impozitul; CAS, CASS și CAM rămân.
+      cotaImpozit: o.scutitImpozit ? 0 : setari.cotaImpozit,
       valoareTichetMasa: tichete,
       ticheteImpozabile: true,
       ticheteSupuseCass: true,
@@ -233,6 +240,7 @@ export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): Rezult
     deducereSub26: d.sub26,
     deducereCopii: d.copii,
     impozit: r.impozit,
+    impozitScutit: o.scutitImpozit,
     sumaNeimpozabila: scutit,
     net: r.net + scutit,
     tichete,

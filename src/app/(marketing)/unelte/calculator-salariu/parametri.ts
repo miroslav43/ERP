@@ -126,6 +126,7 @@ function optiuniDin(q: URLSearchParams, azi: string, valoareTichet: number): Opt
     },
     oreZi: intreg(q.get("ore"), 8, 1, 8),
     contributieMinima: q.get("minim") !== "nu",
+    scutitImpozit: q.get("handicap") === "da",
   };
 }
 
