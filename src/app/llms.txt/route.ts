@@ -125,7 +125,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ["/unelte", "Uneltele gratuite, fără cont."],
   [
     "/unelte/foaie-de-pontaj",
-    "Unealtă gratuită: generează o foaie de pontaj lunară cu sărbătorile legale calculate, descărcabilă în PDF, Word sau Excel. Fără cont.",
+    "Unealtă gratuită: foaie de pontaj lunară cu sărbătorile legale calculate, colectivă sau câte o fișă individuală pe angajat cu ora de început și de sfârșit (art. 119 Codul muncii). Program luni–vineri, luni–sâmbătă sau ture, normă proprie pe angajat (timp parțial), codurile CO, CM, CFS, AN, D, L, SL, antetul firmei. Excel cu formule (ore, normă, COUNTIF pe coduri, A4 cu capul repetat), PDF sau Word. Fără cont.",
   ],
   [
     "/unelte/cerere-concediu-de-odihna",

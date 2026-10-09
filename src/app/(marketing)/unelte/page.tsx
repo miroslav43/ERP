@@ -43,7 +43,7 @@ const PAGINI = [
     href: "/unelte/foaie-de-pontaj",
     titlu: ANTET_FOAIE_PONTAJ.titlu,
     lead: ANTET_FOAIE_PONTAJ.lead,
-    nota: `${AN_MIN}–${AN_MAX} · până la ${MAX_ANGAJATI} de angajați · fără cont`,
+    nota: `${AN_MIN}–${AN_MAX} · colectivă sau individuală · normă pe angajat · Excel cu formule · până la ${MAX_ANGAJATI} de angajați`,
   },
   {
     href: "/unelte/condica-de-prezenta",

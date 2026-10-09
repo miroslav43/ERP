@@ -11,7 +11,7 @@ import type { AntetPagina } from "./tipuri";
 export const ANTET_FOAIE_PONTAJ: AntetPagina = {
   supratitlu: "Unealtă gratuită",
   titlu: "Foaie de pontaj lunar",
-  lead: "Model de foaie de pontaj lunar: alegi luna și scrii numele. Weekendurile și sărbătorile legale se marchează singure — inclusiv Paștele ortodox și zilele care depind de el. Se tipărește sau se descarcă în PDF, Word ori Excel, fără cont.",
+  lead: "Alegi luna și programul, scrii numele — cu norma fiecăruia, dacă lucrează cu timp parțial. Weekendurile și sărbătorile legale se marchează singure, inclusiv Paștele ortodox. Primești foaia colectivă sau câte o fișă pe om, cu ora de început și de sfârșit, în Excel cu formule, PDF sau Word, fără cont.",
 };
 
 /**
