@@ -119,6 +119,18 @@ describe("avizul și nota pentru lista tăiată", () => {
     expect(notaOmisi(citesteAngajati("Popa Ion"))).toBeNull();
   });
 
+  it("cu un singur nume pe dinafară, avizul și nota nu spun „ceilalți 1”", () => {
+    const lista = citesteAngajati(
+      Array.from({ length: 61 }, (_, i) => `Om ${String(i + 1)}`).join("\n"),
+    );
+    expect(avizAngajati(lista)).toEqual([
+      "Am păstrat primii 60 din 61 de angajați. Pentru ultimul, generează încă o foaie doar cu numele lui.",
+    ]);
+    expect(notaOmisi(lista)).toBe(
+      "Documentul cuprinde primii 60 din 61 de angajați trimiși; ultimul nu apare aici.",
+    );
+  });
+
   it("fără nimic tăiat, niciun aviz", () => {
     expect(avizAngajati(citesteAngajati("Popa Ion\nIlie Maria"))).toEqual([]);
   });

@@ -141,8 +141,13 @@ export function normalizeazaAngajati(brut: string | undefined): readonly string[
 export function avizAngajati(lista: ListaAngajati): readonly string[] {
   const avize: string[] = [];
   if (lista.omisi > 0) {
+    // Cu 61 de nume rămâne unul singur: „ceilalți 1” nu e românește.
+    const restul =
+      lista.omisi === 1
+        ? "Pentru ultimul, generează încă o foaie doar cu numele lui."
+        : `Pentru ceilalți ${String(lista.omisi)}, generează încă o foaie doar cu numele lor.`;
     avize.push(
-      `Am păstrat primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")}. Pentru ceilalți ${String(lista.omisi)}, generează încă o foaie doar cu numele lor.`,
+      `Am păstrat primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")}. ${restul}`,
     );
   }
   if (lista.scurtate === 1) {
@@ -158,7 +163,9 @@ export function avizAngajati(lista: ListaAngajati): readonly string[] {
 /** Nota din fișierul descărcat: fișierul circulă fără pagină, deci spune singur că lista e incompletă. */
 export function notaOmisi(lista: ListaAngajati): string | null {
   if (lista.omisi === 0) return null;
-  return `Documentul cuprinde primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")} trimiși; ceilalți ${String(lista.omisi)} nu apar aici.`;
+  const restul =
+    lista.omisi === 1 ? "ultimul nu apare aici" : `ceilalți ${String(lista.omisi)} nu apar aici`;
+  return `Documentul cuprinde primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")} trimiși; ${restul}.`;
 }
 
 export function construiesteFoaie(
