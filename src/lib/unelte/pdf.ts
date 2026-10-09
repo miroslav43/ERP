@@ -49,6 +49,10 @@ const REZERVA_SUBSOL = 20;
 const RANDURI_TABEL_SCURT = 12;
 /** Mărimea textelor din margine: antetul rulant și numărul paginii. */
 const MARIME_MARGINE = 7;
+/** Distanța dintre rândurile goale ale unei rubrici: cât să scrii de mână (~6,4 mm). */
+const RAND_SCRIS = 18;
+/** Linia de după „Data:”, scurtă: încape sub o semnătură dintr-un rând de trei. */
+const LINIE_SEMNATURA = "______________";
 
 type Masurare = (font: PDFFont, marime: number) => (t: string) => number;
 
@@ -109,6 +113,42 @@ export function imparte(text: string, latime: number, masoara: (t: string) => nu
   }
   if (curent !== "") randuri.push(curent);
   return randuri.length > 0 ? randuri : [""];
+}
+
+/**
+ * Ca `imparte`, pentru celulele care nu au voie să piardă text (coloanele cu
+ * `rupe`): un cuvânt mai lung decât coloana se rupe în bucăți care încap, nu
+ * se taie cu „…”. Bucățile se taie pe puncte de cod, nu pe unități UTF-16, ca
+ * să nu rămână jumătăți de pereche surogat.
+ */
+export function imparteCelula(
+  text: string,
+  latime: number,
+  masoara: (t: string) => number,
+): string[] {
+  const bucati = text
+    .split(/\s+/u)
+    .filter((c) => c !== "")
+    .flatMap((cuvant) => {
+      if (masoara(cuvant) <= latime) return [cuvant];
+      const caractere = Array.from(cuvant);
+      const rezultat: string[] = [];
+      let start = 0;
+      while (start < caractere.length) {
+        // Cel mai lung prefix care încape, prin căutare binară; măcar un caracter.
+        let jos = start + 1;
+        let sus = caractere.length;
+        while (jos < sus) {
+          const mijloc = Math.ceil((jos + sus) / 2);
+          if (masoara(caractere.slice(start, mijloc).join("")) <= latime) jos = mijloc;
+          else sus = mijloc - 1;
+        }
+        rezultat.push(caractere.slice(start, jos).join(""));
+        start = jos;
+      }
+      return rezultat;
+    });
+  return imparte(bucati.join(" "), latime, masoara);
 }
 
 function dimensiuni(d: DocumentTabelar): readonly [number, number] {
@@ -282,6 +322,43 @@ function deseneaza(
   for (const p of d.paragrafe) scrie(p, 10, fonturi.normal);
 
   /**
+   * Liniile fiecărei celule: `\n` rupe mereu; o coloană cu `rupe` rupe și pe cuvinte.
+   * Tabelele suplimentare și cele ale secțiunilor își dau lățimile și coloanele lor.
+   */
+  const liniiRand = (
+    celule: readonly string[],
+    font: PDFFont,
+    latimiRand: readonly number[] = latimi,
+    coloaneRand: readonly Coloana[] = d.coloane,
+  ) =>
+    latimiRand.map((w, i) =>
+      (celule[i] ?? "")
+        .split("\n")
+        .flatMap((linie) =>
+          coloaneRand[i]?.rupe === true
+            ? imparteCelula(linie, w - 4, masoara(font, MARIME))
+            : [linie],
+        ),
+    );
+  /** Înălțimea unui rând, înainte de desenare: paginarea trebuie s-o știe. */
+  const inaltimeCalculata = (
+    celule: readonly string[],
+    aldin: boolean,
+    inaltMinim: number,
+    latimiRand: readonly number[] = latimi,
+    coloaneRand: readonly Coloana[] = d.coloane,
+  ) => {
+    const linii = liniiRand(
+      celule,
+      aldin ? fonturi.aldin : fonturi.normal,
+      latimiRand,
+      coloaneRand,
+    );
+    const nrLinii = Math.max(1, ...linii.map((l) => l.length));
+    return Math.max(inaltMinim, INALT_RAND + (nrLinii - 1) * (MARIME + 2));
+  };
+
+  /**
    * Un rând de tabel. Etichetele pot avea `\n` (antetul foii de pontaj pune
    * ziua deasupra literei): rândul crește cu numărul de linii, iar fiecare linie
    * se taie separat la lățimea coloanei. Un rând mai înalt decât textul lui
@@ -294,9 +371,10 @@ function deseneaza(
     inaltMinim: number,
     latimiRand: readonly number[] = latimi,
     umbrite: readonly number[] = d.umbrite,
+    coloaneRand: readonly Coloana[] = d.coloane,
   ) => {
     const font = aldin ? fonturi.aldin : fonturi.normal;
-    const linii = celule.map((c) => c.split("\n"));
+    const linii = liniiRand(celule, font, latimiRand, coloaneRand);
     const nrLinii = Math.max(1, ...linii.map((l) => l.length));
     const inaltText = INALT_RAND + (nrLinii - 1) * (MARIME + 2);
     const inalt = Math.max(inaltMinim, inaltText);
@@ -339,13 +417,18 @@ function deseneaza(
   ) => {
     const antet = coloane.map((c) => c.eticheta);
     asiguraLoc(INALT_RAND * 3);
-    rand(antet, true, INALT_RAND, latimiRand, umbrite);
+    rand(antet, true, INALT_RAND, latimiRand, umbrite, coloane);
     for (const r of randuri) {
-      if (y - inaltMinim < MARGINE + REZERVA_SUBSOL) {
+      // Înălțimea reală a rândului, nu doar minimul: un criteriu rupt pe nouă
+      // rânduri cobora altfel în rezerva subsolului.
+      if (
+        y - inaltimeCalculata(r, false, inaltMinim, latimiRand, coloane) <
+        MARGINE + REZERVA_SUBSOL
+      ) {
         paginaNoua();
-        rand(antet, true, INALT_RAND, latimiRand, umbrite); // antetul se repetă pe fiecare pagină
+        rand(antet, true, INALT_RAND, latimiRand, umbrite, coloane); // antetul se repetă pe fiecare pagină
       }
-      rand(r, false, inaltMinim, latimiRand, umbrite);
+      rand(r, false, inaltMinim, latimiRand, umbrite, coloane);
     }
   };
 
@@ -418,13 +501,16 @@ function deseneaza(
     y -= 10;
     asiguraLoc(16 + INALT_RAND * (randuriCerute + 2));
     scrie(t.titlu, 10, fonturi.aldin);
-    rand(antetT, true, INALT_RAND, latimiT, []);
+    rand(antetT, true, INALT_RAND, latimiT, [], t.coloane);
     for (const r of t.randuri) {
-      if (y - INALT_RAND < MARGINE + REZERVA_SUBSOL) {
+      if (
+        y - inaltimeCalculata(r, false, INALT_RAND, latimiT, t.coloane) <
+        MARGINE + REZERVA_SUBSOL
+      ) {
         paginaNoua();
-        rand(antetT, true, INALT_RAND, latimiT, []);
+        rand(antetT, true, INALT_RAND, latimiT, [], t.coloane);
       }
-      rand(r, false, INALT_RAND, latimiT, []);
+      rand(r, false, INALT_RAND, latimiT, [], t.coloane);
     }
   }
 
@@ -479,8 +565,36 @@ function deseneaza(
   y -= 10;
   for (const n of d.note) scrie(n, 8, fonturi.normal, GRI);
 
+  for (const rubrica of d.rubrici ?? []) {
+    const paragrafeRubrica = rubrica.text.split("\n").filter((p) => p.trim() !== "");
+    const goale = paragrafeRubrica.length > 0 ? 1 : rubrica.randuriGoale;
+    // Rubrica goală nu se rupe între pagini: spațiul de deasupra (6), titlul
+    // (9 + 6) și rândurile ei (cel mult 4 × 18 pt) stau împreună. Textul
+    // completat se paginează ca proza.
+    asiguraLoc(21 + goale * RAND_SCRIS);
+    y -= 6;
+    scrie(rubrica.titlu, 9, fonturi.aldin);
+    // Ca la criterii: un link lung lipit fără spații se rupe, nu se taie cu „…”.
+    for (const p of paragrafeRubrica) {
+      for (const linie of imparteCelula(p, util, masoara(fonturi.normal, 9))) {
+        scrie(linie, 9, fonturi.normal);
+      }
+    }
+    for (let k = 0; k < goale; k += 1) {
+      asiguraLoc(RAND_SCRIS);
+      y -= RAND_SCRIS;
+      pagina.drawLine({
+        start: { x: MARGINE, y },
+        end: { x: MARGINE + util, y },
+        thickness: 0.5,
+        color: CHENAR,
+      });
+    }
+  }
+
   if (d.semnaturi.length > 0) {
-    asiguraLoc(50);
+    const cuData = d.dataLaSemnaturi === true;
+    asiguraLoc(cuData ? 64 : 50);
     y -= 30;
     const pas = util / d.semnaturi.length;
     d.semnaturi.forEach((eticheta, i) => {
@@ -492,8 +606,11 @@ function deseneaza(
         color: GRI,
       });
       text(taie(eticheta, pas - 24, masoara(fonturi.normal, 8)), x, y - 11, 8, fonturi.normal, GRI);
+      if (cuData) {
+        text(`Data: ${LINIE_SEMNATURA}`, x, y - 24, 8, fonturi.normal, GRI);
+      }
     });
-    y -= 20;
+    y -= cuData ? 34 : 20;
   }
 
   // Marginile se scriu la sfârșit: abia acum se știe câte pagini are documentul.

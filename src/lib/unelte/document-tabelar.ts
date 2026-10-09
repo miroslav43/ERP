@@ -24,6 +24,22 @@ export type Coloana = Readonly<{
   eticheta: string;
   /** Lățime RELATIVĂ; randările o transformă în procente din lățimea utilă. */
   latime: number;
+  /**
+   * În PDF, textul lung se rupe pe rânduri și rândul crește, în loc să se taie
+   * cu „…”. Fără el, tăierea rămâne (foaia de pontaj ține rânduri de aceeași
+   * înălțime). Auditul din 8 oct 2026 a găsit criteriile fișei de evaluare
+   * tăiate la ~60 de caractere, sub semnătura angajatului.
+   */
+  rupe?: boolean;
+}>;
+
+/** Text liber după note: titlu, textul completat și rânduri goale de scris de mână. */
+export type Rubrica = Readonly<{
+  titlu: string;
+  /** Poate fi gol; `\n` desparte paragrafele. */
+  text: string;
+  /** Rândurile goale când `text` e gol; cu text, rămâne unul singur. */
+  randuriGoale: number;
 }>;
 
 /** Un tabel după cel principal, cu coloanele lui. */
@@ -88,6 +104,13 @@ export type DocumentTabelar = Readonly<{
    * (auditul din 8 oct 2026). Lipsă = `titlu · subtitlu`.
    */
   antetRulant?: string;
+  /**
+   * Rubrici de text liber, după note și înaintea semnăturilor (fișa de
+   * evaluare: obiective, plan de dezvoltare, comentariile angajatului).
+   */
+  rubrici?: readonly Rubrica[];
+  /** Sub fiecare semnătură, un rând „Data: ____”. */
+  dataLaSemnaturi?: boolean;
 }>;
 
 /** Text cu titlu, urmat de rubrici de semnătură etichetate, pe un rând. */
@@ -252,6 +275,15 @@ export function mapeazaTexte(d: DocumentTabelar, f: (text: string) => string): D
         }),
     ...(d.sectiuni === undefined ? {} : { sectiuni: d.sectiuni.map((s) => mapeazaSectiune(s, f)) }),
     ...(d.antetRulant === undefined ? {} : { antetRulant: f(d.antetRulant) }),
+    ...(d.rubrici === undefined
+      ? {}
+      : {
+          rubrici: d.rubrici.map((r) => ({
+            ...r,
+            titlu: f(r.titlu),
+            text: f(r.text),
+          })),
+        }),
   };
 }
 
