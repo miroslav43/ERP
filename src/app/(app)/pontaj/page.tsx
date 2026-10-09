@@ -92,6 +92,7 @@ async function LunaIntreaga({
   poateAproba,
   poateVedeaConcedii,
   poateDeschideFisa,
+  poateDeschidePunct,
   config,
   limite,
   oreAsteptateLuna,
@@ -111,6 +112,8 @@ async function LunaIntreaga({
   readonly poateAproba: boolean;
   readonly poateVedeaConcedii: boolean;
   readonly poateDeschideFisa: boolean;
+  /** Sediul scanat din celulă devine link spre `/puncte-lucru` (poarta: `departments:read`). */
+  readonly poateDeschidePunct: boolean;
   readonly config: ConfigZi;
   /**
    * Limitele legale ale firmei, sau `null` când n-a configurat nimic. Foaia
@@ -128,6 +131,9 @@ async function LunaIntreaga({
     setariPontareRapida(organizationId),
   ]);
   const alegeSediul = seAlegeSediul(sedii.length, configPontareRapida(randPontare).verificare);
+  const sediiCuLegatura = poateDeschidePunct
+    ? sedii.map((s) => ({ ...s, href: `/puncte-lucru?punct=${s.id}#punct-${s.id}` }))
+    : sedii;
   const sarbatoriNationale = Object.fromEntries(nationale.map((z) => [z.data, z.denumire]));
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
   const liberSuplimentar = organizatie
@@ -158,7 +164,7 @@ async function LunaIntreaga({
       />
     ) : (
       <FoaieColectiva
-        sedii={sedii}
+        sedii={sediiCuLegatura}
         alegeSediul={alegeSediul}
         dataInceput={dataInceput}
         dataSfarsit={dataSfarsit}
@@ -240,7 +246,7 @@ async function LunaIntreaga({
   return (
     <>
       <FoaieColectiva
-        sedii={sedii}
+        sedii={sediiCuLegatura}
         alegeSediul={alegeSediul}
         dataInceput={dataInceput}
         dataSfarsit={dataSfarsit}
@@ -606,6 +612,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             can(permisiuni, "leave:read", "team")
           }
           poateDeschideFisa={can(permisiuni, "employees:read", "own")}
+          poateDeschidePunct={can(permisiuni, "departments:read", "own")}
           config={config}
           limite={limiteleFirmei(setari)}
           oreAsteptateLuna={oreAsteptateLuna}

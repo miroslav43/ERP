@@ -99,7 +99,7 @@ function areCaractereDeControl(s: string): boolean {
  * pe cutia poștală, de unde linkul tradus de aplicație îi duce mai departe.
  */
 const TIPAR_OBIECT_PROPRIU =
-  /^\/portal\/(?:concediile-mele|tichetele-mele|sesizari|integrarea-mea)\/[0-9a-fA-F-]{36}$/u;
+  /^\/portal\/(?:concediile-mele|tichetele-mele|sesizari|integrarea-mea|diurna-mea)\/[0-9a-fA-F-]{36}$/u;
 
 function caleDeDeschis(
   link: string | null,

@@ -27,13 +27,14 @@
  * vizibile) vine citit de `context.ts`, sub RLS.
  */
 import { poartaRutei, poateDeschide, type ContextPorti } from "@/config/porti-ruta";
-import { lunieaSaptamanii } from "@/domain/attendance/saptamana";
+import { lunieaSaptamanii, ziuaRomaneascaDinText } from "@/domain/attendance/saptamana";
 
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 const TIPAR_ZI_PORTAL = new RegExp(`^/portal/pontajul-meu/zi/(\\d{4}-\\d{2}-\\d{2})$`, "u");
 const TIPAR_LUNA_PORTAL = /^\/portal\/pontajul-meu\?an=(\d{4})&luna=(\d{1,2})$/u;
 const TIPAR_CURS_PORTAL = new RegExp(`^/portal/cursurile-mele/(${UUID})$`, "u");
 const TIPAR_CONCEDIU_PORTAL = new RegExp(`^/portal/concediile-mele/(${UUID})$`, "u");
+const TIPAR_DEPLASARE_PORTAL = new RegExp(`^/portal/diurna-mea/(${UUID})$`, "u");
 const TIPAR_ANUNT = new RegExp(`^/anunturi/(${UUID})$`, "u");
 const TIPAR_ANUNT_PORTAL = new RegExp(`^/portal/anunturi/(${UUID})$`, "u");
 
@@ -64,6 +65,8 @@ export type NotificareDeTradus = Readonly<{
   link: string | null;
   entity_type: string | null;
   entity_id: string | null;
+  /** Corpul: mementourile de pontaj (0166) numesc săptămâna doar aici. */
+  body?: string | null;
 }>;
 
 const TIPURI_SAPTAMANA = new Set([
@@ -117,6 +120,8 @@ export function caleaInAplicatie(n: NotificareDeTradus, ctx: ContextAplicatie): 
     }
     const concediuId = TIPAR_CONCEDIU_PORTAL.exec(link)?.[1];
     if (concediuId !== undefined) return prinPoarta(`/concedii/${concediuId}`, porti);
+    const deplasareId = TIPAR_DEPLASARE_PORTAL.exec(link)?.[1];
+    if (deplasareId !== undefined) return prinPoarta(`/diurna/${deplasareId}`, porti);
     if (link === "/portal/concediile-mele") return prinPoarta("/concedii", porti);
     if (link.startsWith("/portal/evaluarile-mele"))
       return prinPoarta(link.replace("/portal/evaluarile-mele", "/evaluari/ale-mele"), porti);
@@ -136,6 +141,15 @@ export function caleaInAplicatie(n: NotificareDeTradus, ctx: ContextAplicatie): 
       `/pontaj/aprobare?${anLuna(saptamana.saptamanaStart)}#saptamana-${n.entity_id}`,
       porti,
     );
+  }
+  // Mementourile de vineri–duminică: săptămâna e doar în corp („…din 05.10.2026"),
+  // iar entitatea e fișa omului. Fără ziua din corp, rămâne ruta fixă.
+  if (link === "/pontaj/saptamana" && n.entity_type === "attendance_week_submission_missing") {
+    const luni = ziuaRomaneascaDinText(n.body ?? null);
+    if (luni !== null) {
+      const propria = n.entity_id === null ? "" : `&angajat=${n.entity_id}`;
+      return prinPoarta(`/pontaj/saptamana?saptamana=${luni}${propria}`, porti);
+    }
   }
   if (link === "/pontaj/saptamana" && saptamana !== null) {
     return prinPoarta(

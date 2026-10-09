@@ -6,6 +6,7 @@
 import "server-only";
 
 import { createServerSupabase } from "@/lib/supabase/server";
+import { citesteTot } from "./citeste-tot";
 
 export interface RandAnunt {
   readonly id: string;
@@ -205,4 +206,54 @@ export async function numarAngajatiActivi(organizationId: string): Promise<numbe
     .is("deleted_at", null);
   if (error !== null) throw error;
   return count ?? 0;
+}
+
+/** Angajații activi cu cont — cei care POT confirma; lista lui „neconfirmat încă". */
+export async function angajatiCuCont(
+  organizationId: string,
+): Promise<readonly Readonly<{ id: string; full_name: string; deleted_at: string | null }>[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, deleted_at")
+    .eq("organization_id", organizationId)
+    .eq("status", "activ")
+    .not("user_id", "is", null)
+    .is("deleted_at", null)
+    .order("full_name")
+    .limit(1000);
+  if (error !== null) throw error;
+  // `full_name` e generat din prenume + nume și poate fi `null` în tip, nu în practică.
+  return (data ?? []).map((a) => ({ ...a, full_name: a.full_name ?? "—" }));
+}
+
+/**
+ * Câte confirmări are FIECARE anunț al firmei — pentru „Citit de X din Y" pe
+ * cardurile din lista de administrare.
+ *
+ * Prin `citesteTot`, nu printr-un singur `select`: 8 angajați × 200 de
+ * anunțuri trec de `max_rows = 1000`, iar tăierea e tăcută — cardurile ar fi
+ * arătat cifre mai mici pentru anunțurile vechi, fără nicio eroare.
+ */
+export async function numarConfirmariPeAnunt(
+  organizationId: string,
+): Promise<ReadonlyMap<string, number>> {
+  const db = await createServerSupabase();
+  const randuri = await citesteTot<{ id: string; announcement_id: string }>(
+    (dupa, pas) => {
+      let q = db
+        .from("announcement_reads")
+        .select("id, announcement_id")
+        .eq("organization_id", organizationId)
+        .order("id")
+        .limit(pas);
+      if (dupa !== null) q = q.gt("id", dupa);
+      return q;
+    },
+    (r) => r.id,
+    { nume: "confirmările de citire" },
+  );
+  const contor = new Map<string, number>();
+  for (const r of randuri) contor.set(r.announcement_id, (contor.get(r.announcement_id) ?? 0) + 1);
+  return contor;
 }

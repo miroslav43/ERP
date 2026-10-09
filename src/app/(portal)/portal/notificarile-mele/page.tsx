@@ -90,6 +90,7 @@ export default async function PaginaNotificarileMele() {
                 href={caleaDePortal(notificare.link, context, {
                   tip: notificare.entity_type,
                   id: notificare.entity_id,
+                  corp: notificare.body,
                 })}
               />
             </li>

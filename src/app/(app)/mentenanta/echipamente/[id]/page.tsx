@@ -73,6 +73,7 @@ import { FormularPlan } from "./formular-plan";
 import { IncarcareDocument } from "./incarcare-document";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Fișa echipamentului" };
 
@@ -399,10 +400,25 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           <Camp eticheta="Model" valoare={echipament.model ?? "—"} />
           <Camp eticheta="An fabricație" valoare={echipament.an_fabricatie?.toString() ?? "—"} />
           <Camp eticheta="Marcaj CE" valoare={ETICHETE_MARCAJ_CE[echipament.marcaj_ce]} />
-          <Camp
-            eticheta="Punct de lucru"
-            valoare={punctLucru?.nume ?? (echipament.punct_lucru_id === null ? "—" : "Setat")}
-          />
+          {punctLucru !== null &&
+          poateDeschide("/puncte-lucru", { features, permissions: permisiuni }) ? (
+            <div>
+              <dt className="text-muted-foreground text-nota">Punct de lucru</dt>
+              <dd className="text-corp font-medium">
+                <Link
+                  href={`/puncte-lucru?punct=${punctLucru.id}#punct-${punctLucru.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {punctLucru.nume}
+                </Link>
+              </dd>
+            </div>
+          ) : (
+            <Camp
+              eticheta="Punct de lucru"
+              valoare={punctLucru?.nume ?? (echipament.punct_lucru_id === null ? "—" : "Setat")}
+            />
+          )}
           <Camp eticheta="Locație" valoare={echipament.locatie ?? "—"} />
           <Camp eticheta="Departament" valoare={departament?.nume ?? "—"} />
           <Camp

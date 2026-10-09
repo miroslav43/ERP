@@ -29,6 +29,7 @@ function contoare(coada: CoadaPanou): ContoarePanou {
       contracteDeterminate: null,
     },
     firma: { angajatiActivi: 8, inConcediu: 0, departamente: 2 },
+    avizier: null,
   };
 }
 

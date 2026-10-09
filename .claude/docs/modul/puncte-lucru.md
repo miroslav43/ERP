@@ -13,8 +13,8 @@ capcane: [17]
 citeste_daca:
   - "cod de pontaj care nu mai merge după tipărire, sau eticheta butonului → secțiunea „Rotește” în cod"
   - "poartă de citire scrisă doar pe „none” → secțiunea „Rute”"
-scris_pe: 592cbf5b63e99ecbd46a87285dc6b2968523809e
-scris_la: 2026-10-03
+scris_pe: 9464e60307064ec5eacd03ce40769dc9c68ceb1b
+scris_la: 2026-10-09
 tags: [modul]
 ---
 
@@ -119,6 +119,12 @@ Codul și legătura cu pontajul vin din `0096_pontaj_rapid.sql`, nu din `0030`: 
 adăugat coloana `cod_pontaj` (token opac, între 16 și 64 de caractere) și
 `attendance_entries.punct_lucru_id`, care reține UNDE s-a pontat. Setările operaționale ale
 pontării — modul, verificarea, ora de start — sunt la [[modul/pontaj/setari]], nu aici.
+
+Adresa unui punct e `/puncte-lucru?punct=<id>#punct-<id>` (evidențiere pe server + ancoră);
+spre ea trimit fișa angajatului (punctul contractului principal, prin RLS: fără
+`departments:read` rândul spune „Setat"), fișa echipamentului, lista de coduri QR și sediul
+scanat din celula de pontaj (`SediuPontaj.href`, pus de pagină doar pentru cine poate
+deschide `/puncte-lucru`; în celulă e `target="_blank"`, fiindcă celula e un dialog modal).
 
 ## Când NU e suficientă pagina asta
 

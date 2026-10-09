@@ -58,7 +58,8 @@ export type BadgeSource =
   | "ssm_expiring"
   | "fleet_expiring"
   | "maintenance_due"
-  | "reges_pending";
+  | "reges_pending"
+  | "announcements_unread";
 
 export type NavLink = Readonly<{
   id: string;
@@ -432,6 +433,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
     featureKey: "announcements",
     permission: "announcements:read",
     minScope: "own",
+    badge: "announcements_unread",
+    badgeHref: "/anunturi?stare=necitite",
     order: 100,
   },
   {

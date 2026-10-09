@@ -28,6 +28,8 @@
  * `/concedii/<uuid>` ESTE EXCEPȚIA: vezi `ContextDestinatar` mai jos.
  */
 
+import { ziuaRomaneascaDinText } from "@/domain/attendance/saptamana";
+
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 
 const TIPAR_CONCEDIU = new RegExp(`^/concedii/(${UUID})$`, "u");
@@ -86,8 +88,15 @@ export type ContextDestinatar = Readonly<{
   saptamani?: ReadonlyMap<string, string>;
 }>;
 
-/** Obiectul notificării (`entity_type`/`entity_id`), când producătorul l-a scris. */
-export type EntitateNotificare = Readonly<{ tip: string | null; id: string | null }>;
+/**
+ * Obiectul notificării (`entity_type`/`entity_id`), când producătorul l-a
+ * scris; `corp` pentru mementourile care numesc săptămâna doar în text.
+ */
+export type EntitateNotificare = Readonly<{
+  tip: string | null;
+  id: string | null;
+  corp?: string | null;
+}>;
 
 const TIPAR_INTEGRARE = new RegExp(`^/onboarding/(${UUID})$`, "u");
 
@@ -159,6 +168,12 @@ export function caleaDePortal(
   ) {
     const start = context?.saptamani?.get(entitate.id);
     if (start !== undefined) return `/portal/pontajul-meu/saptamana?saptamana=${start}`;
+  }
+
+  // Mementourile de vineri–duminică (0166): săptămâna e doar în corp.
+  if (link === "/pontaj/saptamana" && entitate?.tip === "attendance_week_submission_missing") {
+    const luni = ziuaRomaneascaDinText(entitate.corp ?? null);
+    if (luni !== null) return `/portal/pontajul-meu/saptamana?saptamana=${luni}`;
   }
 
   // Integrarea: numai parcursul propriu are ecran în portal; pentru pasul

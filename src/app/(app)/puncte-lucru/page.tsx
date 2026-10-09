@@ -129,7 +129,7 @@ export default async function PaginaPuncteLucru({
     <div className="space-y-6">
       <AntetPagina
         titlu="Puncte de lucru"
-        descriere="Locațiile fizice ale companiei — sedii, fabrici, birouri. Relevante pentru pontaj (geofencing/terminale per locație) și parc auto."
+        descriere="Locațiile fizice ale companiei — sedii, fabrici, birouri. Fiecare punct leagă contractele, echipamentele și codul QR de pontare de la el."
         {...(poateCrea ? { actiuni: <FormularPunctLucruNou /> } : {})}
       />
 

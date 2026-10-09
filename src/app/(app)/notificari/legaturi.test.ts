@@ -55,6 +55,41 @@ describe("caleaInAplicatie — obiectul bate coada", () => {
     ).toBe(`/pontaj?an=2026&luna=10&angajat=${FISA}`);
   });
 
+  it("mementoul de pontaj deschide săptămâna numită în corp, pe fișa omului", () => {
+    expect(
+      caleaInAplicatie(
+        {
+          link: "/pontaj/saptamana",
+          entity_type: "attendance_week_submission_missing",
+          entity_id: FISA,
+          body: "Nu ați trimis încă planul de prezență pentru săptămâna din 05.10.2026.",
+        },
+        ctx(MANAGER),
+      ),
+    ).toBe(`/pontaj/saptamana?saptamana=2026-10-05&angajat=${FISA}`);
+    expect(
+      caleaInAplicatie(
+        {
+          link: "/pontaj/saptamana",
+          entity_type: "attendance_week_submission_missing",
+          entity_id: FISA,
+        },
+        ctx(MANAGER),
+      ),
+    ).toBe("/pontaj/saptamana");
+  });
+
+  it("deplasarea din portal duce la fișa deplasării, prin poartă", () => {
+    const cuDiurna: ContextPorti = {
+      features: new Set([...MANAGER.features, "per_diem"]),
+      permissions: new Map([...MANAGER.permissions, ["per_diem:read", "team"]]),
+    };
+    expect(caleaInAplicatie(notificare(`/portal/diurna-mea/${ID}`), ctx(cuDiurna))).toBe(
+      `/diurna/${ID}`,
+    );
+    expect(caleaInAplicatie(notificare(`/portal/diurna-mea/${ID}`), ctx(MANAGER))).toBeNull();
+  });
+
   it("fără săptămâna în context, rămâne coada, prin poartă", () => {
     expect(
       caleaInAplicatie(

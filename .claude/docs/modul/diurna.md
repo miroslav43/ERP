@@ -27,8 +27,8 @@ capcane: [14, 16, 17]
 citeste_daca:
   - "aprobare respinsă cu 42501 → [[rol/manager]]"
   - "diurnă care nu apare în statul de plată → [[modul/salarizare]]"
-scris_pe: 1db8a262e7f998f4096cbe32db00c079103712f3
-scris_la: 2026-09-24
+scris_pe: 9464e60307064ec5eacd03ce40769dc9c68ceb1b
+scris_la: 2026-10-09
 tags: [modul, hr]
 ---
 
@@ -184,6 +184,13 @@ Schimbarea ei se face printr-o politică nouă, cu istoric.
 sunt nomenclatoare globale. Ultimul e versionat prin `valabil_de_la`: o lege nouă înseamnă
 un rând nou acolo, nicio politică de firmă atinsă, iar versiunile deja scrise păstrează
 valorile copiate la momentul lor.
+
+Notificările deplasării (din 9 oct 2026, `actions.ts`): la trimitere, `anuntaAprobatorii`
+scrie o sarcină (`/diurna/<id>`) managerului direct și administratorilor firmei, fără
+expeditor și fără hr; la decizie, `anuntaProprietarul` scrie angajatului rezultatul pe
+`/portal/diurna-mea/<id>`. Ambele prin `service_role` (politica de INSERT lasă un
+utilizator să scrie doar pentru sine) și în `try/catch`: un INSERT picat se loghează,
+decizia rămâne dată — notificarea e un plus, nu poarta.
 
 ## Ce NU e aici
 

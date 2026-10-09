@@ -16,8 +16,14 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime, toBucharestDateString } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { idFisaProprie } from "@/lib/queries/employees";
-import { citesteAnunt, cititoriAnunt, numarAngajatiCuCont } from "@/lib/queries/announcements";
+import {
+  angajatiCuCont,
+  citesteAnunt,
+  cititoriAnunt,
+  numarAngajatiCuCont,
+} from "@/lib/queries/announcements";
 
+import { ActiuniAnunt } from "./actiuni-anunt";
 import { MarcheazaCitit } from "./marcheaza-citit";
 import { PublicaButon } from "./publica-buton";
 import { LinkEntitate } from "@/components/ui/link-entitate";
@@ -61,9 +67,19 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
   // activi: confirmarea se scrie din portal, iar un angajat fără `user_id` nu
   // se poate autentifica, deci nu poate confirma niciodată. Cu vechiul numitor,
   // „3 / 47” nu putea ajunge la 47 nici dacă toată lumea citea.
-  const [cititori, totalConturi] = poateAdministra
-    ? await Promise.all([cititoriAnunt(anunt.id), numarAngajatiCuCont(tenant.organizationId)])
-    : [null, null];
+  // Cine N-A confirmat: angajații cu cont minus cititorii. Doar pentru cine
+  // poate deschide fișele (`employees:read = all`): altfel ar fi nume fără
+  // drum, iar cifra „din Y" rămâne cifră.
+  const poateNumi = poateAdministra && can(permisiuni, "employees:read", "all");
+  const [cititori, totalConturi, cuCont] = poateAdministra
+    ? await Promise.all([
+        cititoriAnunt(anunt.id),
+        numarAngajatiCuCont(tenant.organizationId),
+        poateNumi ? angajatiCuCont(tenant.organizationId) : Promise.resolve(null),
+      ])
+    : [null, null, null];
+  const auCitit = new Set((cititori ?? []).map((c) => c.employee_id));
+  const neconfirmati = (cuCont ?? []).filter((a) => !auCitit.has(a.id));
 
   const expirare =
     anunt.expira_la === null
@@ -97,6 +113,19 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
               </Badge>
             ) : null}
             {!publicat && poateAdministra ? <PublicaButon id={anunt.id} /> : null}
+            {poateAdministra ? (
+              <ActiuniAnunt
+                anunt={{
+                  id: anunt.id,
+                  titlu: anunt.titlu,
+                  continut: anunt.continut,
+                  fixat: anunt.fixat,
+                  expira_la: anunt.expira_la,
+                }}
+                publicat={publicat}
+                activ={stare === "activ"}
+              />
+            ) : null}
           </>
         }
       />
@@ -145,10 +174,21 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
             <h2 id="cititori" className="text-sectiune font-semibold">
               Confirmări de citire
             </h2>
-            <p className="text-muted-foreground text-nota tabular-nums">
-              {cititori.length}
-              {totalConturi === null ? "" : ` din ${String(totalConturi)}`}
-            </p>
+            {/* Cifra „din Y" duce la cine lipsește, când lista există. */}
+            {neconfirmati.length > 0 ? (
+              <a
+                href="#neconfirmati"
+                className="text-muted-foreground text-nota tabular-nums underline-offset-2 hover:underline"
+              >
+                {cititori.length}
+                {totalConturi === null ? "" : ` din ${String(totalConturi)}`}
+              </a>
+            ) : (
+              <p className="text-muted-foreground text-nota tabular-nums">
+                {cititori.length}
+                {totalConturi === null ? "" : ` din ${String(totalConturi)}`}
+              </p>
+            )}
           </div>
 
           {totalConturi === null || totalConturi === 0 ? null : (
@@ -204,6 +244,32 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
               ))}
             </ul>
           )}
+        </section>
+      ) : null}
+
+      {publicat && neconfirmati.length > 0 ? (
+        <section aria-labelledby="neconfirmati" className="scroll-mt-24 space-y-3">
+          <h2 id="neconfirmati" className="text-sectiune font-semibold">
+            Neconfirmat încă
+          </h2>
+          <p className="text-muted-foreground text-nota">
+            {neconfirmati.length === 1
+              ? "Un angajat cu cont n-a deschis anunțul."
+              : `${String(neconfirmati.length)} angajați cu cont n-au deschis anunțul.`}
+          </p>
+          <ul className="divide-border border-border rounded-panou text-corp divide-y border">
+            {neconfirmati.map((a) => (
+              <li key={a.id} className="px-4 py-2">
+                <LinkEntitate
+                  href={hrefFisa({ id: a.id, deleted_at: a.deleted_at }, permisiuni)}
+                  className="min-w-0 truncate"
+                  clasaText="min-w-0 truncate"
+                >
+                  {a.full_name}
+                </LinkEntitate>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
     </div>

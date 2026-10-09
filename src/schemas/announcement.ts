@@ -16,3 +16,9 @@ export const anuntNouSchema = z.object({
 export type IntrareAnuntNou = z.output<typeof anuntNouSchema>;
 
 export const idAnuntSchema = z.object({ id: z.uuid() });
+
+/** Editarea: ce se poate schimba după scriere. Publicarea rămâne pe `publicaAnunt`. */
+export const anuntEditareSchema = anuntNouSchema
+  .omit({ publica_acum: true })
+  .extend({ id: z.uuid() });
+export type IntrareAnuntEditare = z.output<typeof anuntEditareSchema>;

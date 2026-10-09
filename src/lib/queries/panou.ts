@@ -14,7 +14,7 @@ import type { PermissionMap } from "@/lib/auth/permissions";
 import { citesteRezumatCredentiale } from "@/lib/reges/credentiale";
 import { createServerSupabase } from "@/lib/supabase/server";
 
-import { numarAngajatiActivi } from "./announcements";
+import { anunturiPublicate, idAnunturiCitite, numarAngajatiActivi } from "./announcements";
 import { pontajDeAprobat, type PontajDeAprobat } from "./attendance";
 import { idFisaProprie } from "./employees";
 import { citesteTot } from "./citeste-tot";
@@ -133,7 +133,25 @@ export type ContoarePanou = Readonly<{
   coada: CoadaPanou;
   scadente: ScadentePanou;
   firma: FirmaAzi;
+  /** Anunțuri active necitite de fișa proprie; `null` = modul oprit, fără drept sau fără fișă. */
+  avizier: Contor;
 }>;
+
+/**
+ * Insigna avizierului: anunțurile ACTIVE pe care fișa proprie nu le-a
+ * confirmat. Același predicat ca segmentul „Necitite" din `/anunturi`, unde
+ * duce insigna. Fără fișă (administrator invitat) nu există „citit", deci
+ * nici cifră.
+ */
+async function anunturiNecitite(organizationId: string, userId: string): Promise<Contor> {
+  const fisa = await idFisaProprie(organizationId, userId);
+  if (fisa === null) return null;
+  const [publicate, citite] = await Promise.all([
+    anunturiPublicate(organizationId, new Date().toISOString()),
+    idAnunturiCitite(organizationId, fisa),
+  ]);
+  return publicate.filter((a) => !citite.has(a.id)).length;
+}
 
 /** Ziua de azi în București, ca șir ISO. Comparațiile de date se fac pe șiruri. */
 function aziBucuresti(): string {
@@ -567,6 +585,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
    * contorului e cea a acțiunii, nu a listei.
    */
   const vedeReges = areModul(porti, "reges") && are(porti, "reges:transmit", "all");
+  const vedeAvizier = areModul(porti, "announcements") && are(porti, "announcements:read", "own");
 
   const [
     cereriConcediu,
@@ -581,6 +600,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     contracte,
     firma,
     regesDeTransmis,
+    avizier,
   ] = await Promise.all([
     vedeConcedii ? contorCereriConcediu(organizationId, porti.userId) : null,
     vedePontaj ? pontajDeAprobat(organizationId) : null,
@@ -601,6 +621,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     vedeContracte ? contorContracteCareExpira(organizationId, PRAG_PANOU_ZILE) : null,
     stareFirmeiAzi(organizationId),
     vedeReges ? contorRegesDeTransmis(organizationId) : null,
+    vedeAvizier ? anunturiNecitite(organizationId, porti.userId) : null,
   ]);
 
   const coada: CoadaPanou = {
@@ -625,6 +646,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
       contracteDeterminate: contracte,
     },
     firma,
+    avizier,
   };
 }
 
@@ -684,7 +706,8 @@ export function insigneMeniu(
     | "ssm_expiring"
     | "fleet_expiring"
     | "maintenance_due"
-    | "reges_pending",
+    | "reges_pending"
+    | "announcements_unread",
     number
   >
 > {
@@ -702,5 +725,6 @@ export function insigneMeniu(
   pune("fleet_expiring", contoare.scadente.documenteFlota);
   pune("maintenance_due", contoare.scadente.mentenanta);
   pune("reges_pending", contoare.coada.regesDeTransmis);
+  pune("announcements_unread", contoare.avizier);
   return insigne;
 }

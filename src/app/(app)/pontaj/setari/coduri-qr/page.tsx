@@ -154,7 +154,16 @@ export default async function PaginaCoduriQr() {
 
               <span className="min-w-0 flex-1 space-y-1">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-corp font-medium">{p.denumire}</span>
+                  {can(permisiuni, "departments:read", "own") ? (
+                    <Link
+                      href={`/puncte-lucru?punct=${p.id}#punct-${p.id}`}
+                      className="text-corp font-medium underline-offset-2 hover:underline"
+                    >
+                      {p.denumire}
+                    </Link>
+                  ) : (
+                    <span className="text-corp font-medium">{p.denumire}</span>
+                  )}
                   {p.activ ? null : <Badge ton="neutru">Inactiv</Badge>}
                 </span>
                 {p.url === null ? (

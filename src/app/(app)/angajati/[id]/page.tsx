@@ -402,6 +402,21 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const contractPrincipal =
     contracteActive.find((c) => !c.este_act_aditional) ?? contracteActive[0] ?? null;
   const contracteIstoric = angajat.contracts.filter((c) => c.status !== "activ");
+  // Punctul de lucru din contractul principal (0097), citit prin RLS: cine n-are
+  // `departments:read` primește `null`, iar rândul spune „Setat", fără nume.
+  const punctLucruId = contractPrincipal?.punct_lucru_id ?? null;
+  const punctLucru =
+    punctLucruId === null
+      ? null
+      : ((
+          await dbFisa
+            .from("puncte_lucru")
+            .select("id, denumire")
+            .eq("organization_id", tenant.organizationId)
+            .eq("id", punctLucruId)
+            .is("deleted_at", null)
+            .maybeSingle()
+        ).data ?? null);
 
   /*
    * Salariul ÎN VIGOARE azi. După un act adițional, contractul de bază rămâne
@@ -802,6 +817,26 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 </Link>
               </dd>
             </div>
+          )}
+          {/* Sensul angajat → punct de lucru lipsea cu totul de pe fișă. */}
+          {punctLucruId === null ? (
+            <Camp eticheta="Punct de lucru" valoare={null} />
+          ) : punctLucru !== null && poateDeschide("/puncte-lucru", contextPorti) ? (
+            <div>
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
+                Punct de lucru
+              </dt>
+              <dd className="text-corp mt-0.5">
+                <Link
+                  href={`/puncte-lucru?punct=${punctLucru.id}#punct-${punctLucru.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {punctLucru.denumire}
+                </Link>
+              </dd>
+            </div>
+          ) : (
+            <Camp eticheta="Punct de lucru" valoare={punctLucru?.denumire ?? "Setat"} />
           )}
         </dl>
       </section>

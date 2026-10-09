@@ -94,6 +94,114 @@ async function fisaDeplasarii(
   return data.employee_id;
 }
 
+/**
+ * Notificările deplasării — un plus, nu poarta (regula din `concedii/actions.ts`):
+ * un INSERT picat se loghează, trimiterea sau decizia rămâne dată.
+ *
+ * ⚠ service_role: politica de INSERT pe `notifications` (0144) lasă un
+ * utilizator să scrie doar pentru SINE sau cu `announcements:create`; aici se
+ * scrie pentru manager și pentru angajat. Fiecare citire e filtrată explicit pe
+ * `organization_id`, deci lotul nu iese din firmă.
+ *
+ * Destinatarii la trimitere: managerul direct (`per_diem:approve = team`) și
+ * administratorii firmei (`all`), fără cel care trimite și fără hr, care n-are
+ * `per_diem:approve`. Linkul e fișa deplasării, unde stă `DecizieDeplasare`.
+ */
+async function anuntaAprobatorii(
+  organizationId: string,
+  expeditorUserId: string,
+  tripId: string,
+  employeeId: string,
+): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const [fisa, admini] = await Promise.all([
+      admin
+        .from("employees")
+        .select("full_name, manager_employee_id")
+        .eq("organization_id", organizationId)
+        .eq("id", employeeId)
+        .maybeSingle(),
+      admin
+        .from("organization_members")
+        .select("user_id")
+        .eq("organization_id", organizationId)
+        .eq("role", "org_admin")
+        .eq("status", "active")
+        .is("deleted_at", null),
+    ]);
+    if (fisa.error !== null) throw fisa.error;
+    if (admini.error !== null) throw admini.error;
+    const destinatari = new Set((admini.data ?? []).map((m) => m.user_id));
+    const managerId = fisa.data?.manager_employee_id ?? null;
+    if (managerId !== null) {
+      const { data: manager, error } = await admin
+        .from("employees")
+        .select("user_id")
+        .eq("organization_id", organizationId)
+        .eq("id", managerId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (error !== null) throw error;
+      if (manager?.user_id != null) destinatari.add(manager.user_id);
+    }
+    destinatari.delete(expeditorUserId);
+    if (destinatari.size === 0) return;
+    const nume = fisa.data?.full_name ?? "Un angajat";
+    const { error } = await admin.from("notifications").insert(
+      [...destinatari].map((userId) => ({
+        organization_id: organizationId,
+        user_id: userId,
+        kind: "task" as const,
+        title: "Deplasare de aprobat",
+        body: `${nume} a trimis o deplasare spre aprobare.`,
+        link: `/diurna/${tripId}`,
+        entity_type: "business_trip",
+        entity_id: tripId,
+      })),
+    );
+    if (error !== null) throw error;
+  } catch (eroare) {
+    console.error("[diurna] notificarea aprobatorilor a eșuat", { tripId, eroare });
+  }
+}
+
+/** Decizia ajunge la cel care a cerut deplasarea, în portal, pe deplasarea lui. */
+async function anuntaProprietarul(
+  organizationId: string,
+  tripId: string,
+  employeeId: string,
+  decizie: "aprobata" | "respinsa",
+): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const { data: fisa, error } = await admin
+      .from("employees")
+      .select("user_id")
+      .eq("organization_id", organizationId)
+      .eq("id", employeeId)
+      .maybeSingle();
+    if (error !== null) throw error;
+    if (fisa?.user_id == null) return;
+    const aprobata = decizie === "aprobata";
+    const { error: eroareInsert } = await admin.from("notifications").insert({
+      organization_id: organizationId,
+      user_id: fisa.user_id,
+      kind: aprobata ? ("success" as const) : ("warning" as const),
+      title: aprobata ? "Deplasarea a fost aprobată" : "Deplasarea a fost respinsă",
+      body: aprobata
+        ? "Decontul se depune la întoarcere, din aceeași deplasare."
+        : "Deschideți deplasarea ca să vedeți ce trebuie corectat înainte de a o retrimite.",
+      link: `/portal/diurna-mea/${tripId}`,
+      entity_type: "business_trip",
+      entity_id: tripId,
+    });
+    if (eroareInsert !== null) throw eroareInsert;
+  } catch (eroare) {
+    console.error("[diurna] notificarea deciziei a eșuat", { tripId, eroare });
+  }
+}
+
 export const creeazaDeplasare = createAction({
   name: "per_diem.trip.create",
   feature: "per_diem",
@@ -196,7 +304,7 @@ export const trimiteDeplasare = createAction({
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .in("status", ["ciorna", "respinsa"])
-      .select("id")
+      .select("id, employee_id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     // Un UPDATE respins de clauza USING a RLS nu produce eroare — afectează
@@ -207,6 +315,7 @@ export const trimiteDeplasare = createAction({
         "Deplasarea nu mai poate fi trimisă spre aprobare: fie nu a fost găsită, fie starea ei s-a schimbat între timp.",
       );
     }
+    await anuntaAprobatorii(ctx.tenant.organizationId, ctx.user.id, data.id, data.employee_id);
     return { id: data.id };
   },
 });
@@ -277,7 +386,7 @@ export const decideDeplasare = createAction({
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("status", "in_aprobare")
-      .select("id")
+      .select("id, employee_id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     if (data === null) {
@@ -285,6 +394,7 @@ export const decideDeplasare = createAction({
         "Decizia nu a putut fi înregistrată: deplasarea nu mai este în aprobare — poate a fost deja decisă din altă parte.",
       );
     }
+    await anuntaProprietarul(ctx.tenant.organizationId, data.id, data.employee_id, input.decizie);
     return { id: data.id };
   },
 });

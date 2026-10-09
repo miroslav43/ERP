@@ -132,3 +132,20 @@ export function intervalDeTrimis(
   if (ascunsa || !complet) return { ora_inceput: null, ora_sfarsit: null };
   return { ora_inceput: zi.ora_inceput, ora_sfarsit: zi.ora_sfarsit };
 }
+
+/**
+ * Prima zi `ZZ.LL.AAAA` dintr-un text, ca ISO — sau `null`.
+ *
+ * Mementourile de pontaj (0166) numesc săptămâna doar în CORPUL mesajului
+ * („…pentru săptămâna din 05.10.2026.") și duc la `/pontaj/saptamana` fără
+ * parametru. Ziua se scoate de aici la randare, ca linkul să deschidă
+ * săptămâna numită, nu cea implicită a ecranului.
+ */
+export function ziuaRomaneascaDinText(text: string | null): string | null {
+  if (text === null) return null;
+  const m = /(\d{2})\.(\d{2})\.(\d{4})/u.exec(text);
+  if (m === null) return null;
+  const [, zi, luna, an] = m;
+  const iso = `${an ?? ""}-${luna ?? ""}-${zi ?? ""}`;
+  return Number.isNaN(new Date(`${iso}T00:00:00Z`).getTime()) ? null : iso;
+}

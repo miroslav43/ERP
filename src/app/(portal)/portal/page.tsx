@@ -656,6 +656,7 @@ export default async function PaginaPortal() {
                       caleaDePortal(notificare.link, contextNotificari, {
                         tip: notificare.entity_type,
                         id: notificare.entity_id,
+                        corp: notificare.body,
                       }) ?? "/portal/notificarile-mele"
                     }
                     className="bg-surface border-border hover:border-ring rounded-panou flex min-h-11 items-start justify-between gap-3 border p-3 transition-colors"

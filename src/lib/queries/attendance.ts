@@ -954,6 +954,8 @@ export interface SediuPontaj {
   readonly denumire: string;
   /** Sediul din contractul în vigoare al CELUI CONECTAT. */
   readonly din_contract: boolean;
+  /** Pagina punctului (`/puncte-lucru?punct=`), pusă de pagină doar pentru cine o poate deschide. */
+  readonly href?: string | null;
 }
 
 /**

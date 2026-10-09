@@ -164,10 +164,12 @@ export function CelulaZi({
   */
   const sediiAfisate =
     angajatId === null ? sedii : sedii.map((s) => ({ ...s, din_contract: false }));
-  const sediuScanat =
+  const sediulScanat =
     intrare?.punctLucruId == null
       ? null
-      : (sedii.find((s) => s.id === intrare.punctLucruId)?.denumire ?? "un sediu inactiv");
+      : (sedii.find((s) => s.id === intrare.punctLucruId) ?? null);
+  const sediuScanat =
+    intrare?.punctLucruId == null ? null : (sediulScanat?.denumire ?? "un sediu inactiv");
 
   const idTitlu = useId();
   const idOraInceput = useId();
@@ -460,7 +462,21 @@ export function CelulaZi({
         {/* Sediul zilei (0163): scanat = dovedit, deci doar se spune; altfel se alege. */}
         {!tipulPermiteSediu(tipPrezenta) ? null : sediuScanat !== null ? (
           <p className="text-muted-foreground text-corp">
-            Sediul: <span className="text-foreground">{sediuScanat}</span>, din codul QR scanat.
+            Sediul:{" "}
+            {sediulScanat?.href == null ? (
+              <span className="text-foreground">{sediuScanat}</span>
+            ) : (
+              // Fereastră nouă: celula e un dialog modal, o navigare în loc l-ar închide.
+              <a
+                href={sediulScanat.href}
+                target="_blank"
+                rel="noreferrer"
+                className="text-foreground underline-offset-2 hover:underline"
+              >
+                {sediuScanat}
+              </a>
+            )}
+            , din codul QR scanat.
           </p>
         ) : alegeSediul ? (
           <CampSediu

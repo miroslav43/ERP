@@ -40,6 +40,13 @@ describe("integrarea (0095) și săptămâna din entitate", () => {
     ).toBe("/portal/pontajul-meu/saptamana?saptamana=2026-10-05");
     expect(caleaDePortal("/pontaj/saptamana", cuSaptamana)).toBe("/portal/pontajul-meu/saptamana");
     expect(
+      caleaDePortal("/pontaj/saptamana", AL_MEU, {
+        tip: "attendance_week_submission_missing",
+        id: ID,
+        corp: "Nu ați trimis încă pontajul pentru săptămâna din 12.10.2026.",
+      }),
+    ).toBe("/portal/pontajul-meu/saptamana?saptamana=2026-10-12");
+    expect(
       caleaDePortal("/pontaj/saptamana", AL_MEU, { tip: "attendance_week_submission", id: ID }),
     ).toBe("/portal/pontajul-meu/saptamana");
   });

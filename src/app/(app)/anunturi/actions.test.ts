@@ -41,7 +41,14 @@ import {
   USER_ID,
 } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
-import { creeazaAnunt, marcheazaAnuntCitit, publicaAnunt } from "./actions";
+import {
+  actualizeazaAnunt,
+  creeazaAnunt,
+  marcheazaAnuntCitit,
+  publicaAnunt,
+  retrageAnunt,
+  stergeAnunt,
+} from "./actions";
 
 const ACUM = new Date("2026-09-15T08:30:00.000Z");
 const CAI = ["/anunturi", "/portal"];
@@ -311,5 +318,78 @@ describe("marcheazaAnuntCitit", () => {
     const r = await marcheazaAnuntCitit({ id: ID_1 });
 
     expect(r).toEqual({ ok: true, data: null });
+  });
+});
+
+describe("actualizeazaAnunt / retrageAnunt / stergeAnunt", () => {
+  it("scope `team` sub pragul `all`: INTERZIS la toate trei, fără nicio interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "team" } });
+    const r1 = await actualizeazaAnunt({
+      id: ID_1,
+      titlu: "T",
+      continut: "C",
+      fixat: false,
+      expira_la: null,
+    });
+    const r2 = await retrageAnunt({ id: ID_1 });
+    const r3 = await stergeAnunt({ id: ID_1 });
+    for (const r of [r1, r2, r3])
+      expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("editarea scrie cele patru coloane, pe id + organizație + neșters, cu `.select()`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "update", { data: { id: ID_1 } });
+    const r = await actualizeazaAnunt({
+      id: ID_1,
+      titlu: "  Inventar  ",
+      continut: "Luni.",
+      fixat: true,
+      expira_la: "2026-12-31T23:59:59+02:00",
+    });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [apel] = server.apeluriPe("announcements", "update");
+    expect(apel?.payload).toEqual({
+      titlu: "Inventar",
+      continut: "Luni.",
+      fixat: true,
+      expira_la: "2026-12-31T23:59:59+02:00",
+    });
+    expect(areFiltru(apel, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    expect(apel?.terminal).toBe("maybeSingle");
+    // Nicio notificare: corecția nu sună a doua oară telefoanele.
+    expect(server.apeluriPe("notifications")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual(CAI);
+  });
+
+  it("retragerea pune expirarea ACUM, doar pe un anunț publicat; golul e NEGASIT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "update", { data: { id: ID_1 } });
+    const r = await retrageAnunt({ id: ID_1 });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [apel] = server.apeluriPe("announcements", "update");
+    expect(apel?.payload).toEqual({ expira_la: ACUM.toISOString() });
+    expect(areFiltru(apel, "not", "publicat_la", "is")).toBe(true);
+
+    const { server: gol } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    gol.raspunde("announcements", "update", { data: null });
+    expect(await retrageAnunt({ id: ID_1 })).toMatchObject({
+      ok: false,
+      error: { code: "NEGASIT" },
+    });
+  });
+
+  it("ștergerea e logică: `deleted_at = acum`, prin UPDATE, cu `.select()`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "update", { data: { id: ID_1 } });
+    const r = await stergeAnunt({ id: ID_1 });
+    expect(r).toEqual({ ok: true, data: null });
+    const [apel] = server.apeluriPe("announcements", "update");
+    expect(apel?.payload).toEqual({ deleted_at: ACUM.toISOString() });
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+    expect(apel?.terminal).toBe("maybeSingle");
   });
 });

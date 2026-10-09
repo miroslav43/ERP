@@ -4,7 +4,7 @@ import { createAction } from "@/lib/actions/create-action";
 import { notFound } from "@/lib/actions/errors";
 import { idFisaProprie } from "@/lib/queries/employees";
 import type { ServerSupabase } from "@/lib/supabase/server";
-import { anuntNouSchema, idAnuntSchema } from "@/schemas/announcement";
+import { anuntEditareSchema, anuntNouSchema, idAnuntSchema } from "@/schemas/announcement";
 
 const CAI_REVALIDARE = ["/anunturi", "/portal"] as const;
 
@@ -141,6 +141,115 @@ export const marcheazaAnuntCitit = createAction({
       if (error.code === "23505") return null;
       throw error;
     }
+    return null;
+  },
+});
+
+/**
+ * Editarea — titlu, conținut, fixare, expirare — pe orice anunț neșters.
+ *
+ * Nu retrimite notificări: „Anunț nou" a plecat la publicare, iar o corecție
+ * de tastare n-are de ce să sune a doua oară telefonul fiecărui angajat.
+ * `.select()` după `.update()`: un UPDATE respins de `USING` atinge zero
+ * rânduri fără eroare, iar golul e NEGASIT, nu succes.
+ */
+export const actualizeazaAnunt = createAction({
+  name: "announcements.update",
+  feature: "announcements",
+  permission: "announcements:update",
+  minScope: "all",
+  input: anuntEditareSchema,
+  audit: {
+    action: "update",
+    entityType: "announcement",
+    entityId: (input) => input.id,
+    allow: ["id", "titlu", "fixat", "expira_la"],
+  },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    const { data, error } = await ctx.supabase
+      .from("announcements")
+      .update({
+        titlu: input.titlu,
+        continut: input.continut,
+        fixat: input.fixat,
+        expira_la: input.expira_la,
+      })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (error !== null) throw error;
+    if (data === null) throw notFound("Anunțul nu a fost găsit.");
+    return { id: data.id };
+  },
+});
+
+/**
+ * Retragerea de pe avizier: expirarea se pune ACUM. Anunțul iese de pe
+ * avizierul angajaților (politica cere `expira_la > now()`), dar rămâne pe
+ * fișă, cu confirmările strânse — exact ce se întâmplă la expirarea naturală.
+ * Doar pe un anunț publicat: o ciornă n-are de unde fi retrasă.
+ */
+export const retrageAnunt = createAction({
+  name: "announcements.retract",
+  feature: "announcements",
+  permission: "announcements:update",
+  minScope: "all",
+  input: idAnuntSchema,
+  audit: {
+    action: "update",
+    entityType: "announcement",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    const { data, error } = await ctx.supabase
+      .from("announcements")
+      .update({ expira_la: new Date().toISOString() })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .not("publicat_la", "is", null)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (error !== null) throw error;
+    if (data === null) throw notFound("Anunțul nu a fost găsit sau nu e publicat.");
+    return { id: data.id };
+  },
+});
+
+/**
+ * Ștergerea logică, în orice stare. Politica de UPDATE (0028:94-103) nu
+ * condiționează `deleted_at`, deci se face prin `announcements:update = all`,
+ * ca restul; nu există `announcements:delete` în `PERMISSION_KEYS`.
+ */
+export const stergeAnunt = createAction({
+  name: "announcements.delete",
+  feature: "announcements",
+  permission: "announcements:update",
+  minScope: "all",
+  input: idAnuntSchema,
+  audit: {
+    action: "delete",
+    entityType: "announcement",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    const { data, error } = await ctx.supabase
+      .from("announcements")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (error !== null) throw error;
+    if (data === null) throw notFound("Anunțul nu a fost găsit.");
     return null;
   },
 });
