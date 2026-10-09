@@ -46,6 +46,7 @@ export default async function PaginaNotificarileMele() {
     db,
     [tenant.organizationId],
     notificari.map((n) => n.link),
+    notificari.map((n) => ({ tip: n.entity_type, id: n.entity_id })),
   );
   const context = contexte.get(user.id) ?? CONTEXT_GOL;
 
@@ -86,7 +87,10 @@ export default async function PaginaNotificarileMele() {
             <li key={notificare.id}>
               <RandNotificare
                 notificare={notificare}
-                href={caleaDePortal(notificare.link, context)}
+                href={caleaDePortal(notificare.link, context, {
+                  tip: notificare.entity_type,
+                  id: notificare.entity_id,
+                })}
               />
             </li>
           ))}

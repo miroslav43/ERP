@@ -283,6 +283,7 @@ export default async function PaginaPortal() {
     await createServerSupabase(),
     [tenant.organizationId],
     ultimeleNotificari.map((n) => n.link),
+    ultimeleNotificari.map((n) => ({ tip: n.entity_type, id: n.entity_id })),
   );
   const contextNotificari = contexteNotificari.get(user.id) ?? CONTEXT_GOL;
 
@@ -652,8 +653,10 @@ export default async function PaginaPortal() {
                     href={
                       // Netraductibil ⇒ cutia poștală, ca la link null: nici 404,
                       // nici înapoi pe tablou.
-                      caleaDePortal(notificare.link, contextNotificari) ??
-                      "/portal/notificarile-mele"
+                      caleaDePortal(notificare.link, contextNotificari, {
+                        tip: notificare.entity_type,
+                        id: notificare.entity_id,
+                      }) ?? "/portal/notificarile-mele"
                     }
                     className="bg-surface border-border hover:border-ring rounded-panou flex min-h-11 items-start justify-between gap-3 border p-3 transition-colors"
                   >

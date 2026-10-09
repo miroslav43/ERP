@@ -59,6 +59,8 @@ type ConfigClientFals = {
   tichete?: readonly { id: string; solicitant_employee_id: string | null }[];
   /** `employees`: fișa → contul. */
   fise?: readonly { id: string; user_id: string | null }[];
+  /** Rolurile membrilor; lipsă = necunoscute, adică învelișul de angajat. */
+  membri?: readonly { id: string; user_id: string; organization_id: string; role: string }[];
 
   /* Curățenia și adâncimea cozii. */
   /** Rânduri terminale eligibile pentru ștergere. */
@@ -275,6 +277,9 @@ function clientFals(config: ConfigClientFals = {}) {
       }
       if (tabela === "employees") {
         return { select: (_c: string) => lantCitire(config.fise ?? []) };
+      }
+      if (tabela === "organization_members") {
+        return { select: (_c: string) => lantCitire(config.membri ?? []) };
       }
       throw new Error(`clientFals: tabelă neașteptată „${tabela}”.`);
     },

@@ -116,6 +116,7 @@ describe("genereazaEvenimenteReges", () => {
     fals.raspunde("reges_termene", "select", { data: [termen()] });
     fals.raspunde("reges_evenimente", "select", { data: [] });
     fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: { feature_key: "reges" } });
     fals.raspunde("organization_members", "select", { data: [] });
 
     const r = await genereazaEvenimenteReges({
@@ -165,6 +166,7 @@ describe("genereazaEvenimenteReges", () => {
       ],
     });
     fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: { feature_key: "reges" } });
     fals.raspunde("organization_members", "select", { data: [] });
 
     const r = await genereazaEvenimenteReges({
@@ -209,6 +211,7 @@ describe("genereazaEvenimenteReges", () => {
     fals.raspunde("reges_termene", "select", { data: [termen()] });
     fals.raspunde("reges_evenimente", "select", { data: [] });
     fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: { feature_key: "reges" } });
     fals.raspunde("organization_members", "select", { data: [] });
 
     const r = await genereazaEvenimenteReges({
@@ -231,6 +234,7 @@ describe("genereazaEvenimenteReges", () => {
     });
     fals.raspunde("reges_evenimente", "select", { data: [] });
     fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: { feature_key: "reges" } });
     fals.raspunde("organization_members", "select", { data: [] });
 
     await genereazaEvenimenteReges({
@@ -254,6 +258,7 @@ describe("genereazaEvenimenteReges", () => {
     });
     fals.raspunde("reges_evenimente", "select", { data: [] });
     fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: { feature_key: "reges" } });
     fals.raspunde("organization_members", "select", {
       data: [
         { user_id: "u-admin", role: "org_admin" },
@@ -280,9 +285,26 @@ describe("genereazaEvenimenteReges", () => {
       organization_id: ORG,
       kind: "task",
       title: "Aveți 2 evenimente de transmis în REGES",
-      link: "/reges",
+      link: "/reges?stare=de_transmis",
     });
     expect(String(anunturi[0]?.body)).toContain("2026-09-04");
+  });
+
+  it("cu modulul REGES oprit, evenimentul se scrie, dar nu se anunță nimeni", async () => {
+    const fals = clientFals();
+    fals.raspunde("reges_termene", "select", { data: [termen()] });
+    fals.raspunde("reges_evenimente", "select", { data: [] });
+    fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: null });
+    await genereazaEvenimenteReges({
+      supabase: fals.client,
+      organizationId: ORG,
+      userId: USER,
+      evenimente: [eveniment()],
+    });
+    expect(fals.apeluriPe("reges_evenimente").some((a) => a.operatie === "insert")).toBe(true);
+    expect(fals.apeluriPe("organization_members")).toHaveLength(0);
+    expect(fals.apeluriPe("notifications")).toHaveLength(0);
   });
 
   it("un singur eveniment: titlul la singular", async () => {
@@ -290,6 +312,7 @@ describe("genereazaEvenimenteReges", () => {
     fals.raspunde("reges_termene", "select", { data: [termen()] });
     fals.raspunde("reges_evenimente", "select", { data: [] });
     fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: { feature_key: "reges" } });
     fals.raspunde("organization_members", "select", { data: [{ user_id: "u", role: "hr" }] });
     fals.raspunde("notifications", "insert", { data: null });
     await genereazaEvenimenteReges({
@@ -307,6 +330,7 @@ describe("genereazaEvenimenteReges", () => {
     fals.raspunde("reges_termene", "select", { data: [termen()] });
     fals.raspunde("reges_evenimente", "select", { data: [] });
     fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: { feature_key: "reges" } });
     fals.raspunde("organization_members", "select", { data: [{ user_id: "u", role: "hr" }] });
     fals.raspunde("notifications", "insert", { error: eroarePostgrest("42501") });
 
@@ -326,6 +350,7 @@ describe("genereazaEvenimenteReges", () => {
     fals.raspunde("reges_termene", "select", { data: [termen()] });
     fals.raspunde("reges_evenimente", "select", { data: [] });
     fals.raspunde("reges_evenimente", "insert", { data: null });
+    fals.raspunde("organization_features", "select", { data: { feature_key: "reges" } });
     fals.raspunde("organization_members", "select", { error: eroarePostgrest("57014") });
     vi.mocked(console.error).mockClear();
 

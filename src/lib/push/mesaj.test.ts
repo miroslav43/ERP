@@ -51,6 +51,33 @@ describe("construiesteMesaj", () => {
     }
   });
 
+  it("pentru un rol din aplicația mare, doar obiectul propriu rămâne link; restul cade pe cutia poștală", () => {
+    const ID = "3f8c1d2e-1111-4222-8333-444455556666";
+    const alMeu = {
+      concediiProprii: new Set([ID]),
+      ticheteProprii: new Set<string>(),
+      sesizariProprii: new Set<string>(),
+    };
+    expect(
+      construiesteMesaj({ jeton: JETON, titlu: "X.", corp: null, link: "/pontaj", rol: "manager" })
+        .data.cale,
+    ).toBe("/portal/notificarile-mele");
+    expect(
+      construiesteMesaj({
+        jeton: JETON,
+        titlu: "X.",
+        corp: null,
+        link: `/concedii/${ID}`,
+        context: alMeu,
+        rol: "hr",
+      }).data.cale,
+    ).toBe(`/portal/concediile-mele/${ID}`);
+    expect(
+      construiesteMesaj({ jeton: JETON, titlu: "X.", corp: null, link: "/pontaj", rol: "employee" })
+        .data.cale,
+    ).toBe("/portal/pontajul-meu");
+  });
+
   it("lasă neatinsă o cale care e deja de portal", () => {
     for (const cale of ["/portal", "/portal/concediile-mele", "/portal/pontajul-meu/saptamana"]) {
       const mesaj = construiesteMesaj({ jeton: JETON, titlu: "X.", corp: null, link: cale });

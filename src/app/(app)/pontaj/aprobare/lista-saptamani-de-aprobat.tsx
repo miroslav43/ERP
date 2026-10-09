@@ -43,7 +43,10 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
   }
 
   return (
-    <li className="border-border rounded-panou space-y-3 border p-4">
+    <li
+      id={`saptamana-${sarcina.submisie.id}`}
+      className="border-border rounded-panou scroll-mt-24 space-y-3 border p-4"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="font-medium">{sarcina.angajat?.fullName ?? "Angajat necunoscut"}</p>

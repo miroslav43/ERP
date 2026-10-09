@@ -14,6 +14,12 @@ import { trimiteMarcheazaToateCitite } from "./actions";
 import { RandNotificare } from "./rand-notificare";
 import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 import Link from "next/link";
+import { getEnabledFeatures } from "@/lib/auth/features";
+import { getPermissionMap } from "@/lib/auth/permissions";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { contextAplicatie } from "./context";
+import { caleaInAplicatie } from "./legaturi";
 
 export const metadata: Metadata = { title: "Notificări" };
 
@@ -29,10 +35,21 @@ export default async function PaginaNotificari({
   // „100 necitite din 100” în timp ce pastila din bara de sus — care folosea
   // dintotdeauna `numaraNecitite` — scria 150. Două cifre pentru același lucru,
   // pe același ecran, iar cea mai mică era cea liniștitoare.
-  const [notificari, numarNecitite] = await Promise.all([
+  const [notificari, numarNecitite, permisiuni, module, fisaProprie] = await Promise.all([
     listeazaNotificarile(tenant.organizationId, user.id, doarNecitite),
     numaraNecitite(tenant.organizationId, user.id),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
+    idFisaProprie(tenant.organizationId, user.id),
   ]);
+  // Legăturile se TRADUC la randare (`caleaInAplicatie`): la obiect, nu la
+  // coadă; prin poarta paginii-țintă; fără drumuri de portal pentru rolurile
+  // din aplicație. Contextul se citește o dată pentru tot lotul, sub RLS.
+  const context = {
+    porti: { features: module, permissions: permisiuni },
+    fisaProprie,
+    ...(await contextAplicatie(await createServerSupabase(), tenant.organizationId, notificari)),
+  };
   const trunchiat = notificari.length >= LIMITA_LISTA_NOTIFICARI;
 
   return (
@@ -82,7 +99,10 @@ export default async function PaginaNotificari({
           <ul className="divide-border border-border rounded-panou divide-y border">
             {notificari.map((notificare) => (
               <li key={notificare.id}>
-                <RandNotificare notificare={notificare} />
+                <RandNotificare
+                  notificare={notificare}
+                  href={caleaInAplicatie(notificare, context)}
+                />
               </li>
             ))}
           </ul>

@@ -91,7 +91,26 @@ function areCaractereDeControl(s: string): boolean {
  * traduce — vezi `ContextDestinatar`. Omiterea lui e sigură prin construcție:
  * costă o aterizare directă, nu produce un 404.
  */
-function caleDeDeschis(link: string | null, context: ContextDestinatar | undefined): string {
+/**
+ * Rolurile din aplicația mare N-AU portal: layout-ul portalului îi trimite pe
+ * /panou, iar aplicația mobilă acceptă doar căi `/portal`. Pentru ei rămân
+ * valabile DOAR obiectele proprii (cererea mea, tichetul meu, sesizarea mea,
+ * integrarea mea), care au ecran în portal pentru oricine; orice altceva cade
+ * pe cutia poștală, de unde linkul tradus de aplicație îi duce mai departe.
+ */
+const TIPAR_OBIECT_PROPRIU =
+  /^\/portal\/(?:concediile-mele|tichetele-mele|sesizari|integrarea-mea)\/[0-9a-fA-F-]{36}$/u;
+
+function caleDeDeschis(
+  link: string | null,
+  context: ContextDestinatar | undefined,
+  rol: string | null | undefined,
+): string {
+  if (rol !== undefined && rol !== null && rol !== "employee") {
+    const tradusa =
+      link === null || areCaractereDeControl(link) ? null : caleaDePortal(link, context);
+    return tradusa !== null && TIPAR_OBIECT_PROPRIU.test(tradusa) ? tradusa : CALE_IMPLICITA;
+  }
   if (link === null) return CALE_IMPLICITA;
   if (!/^\/[^/\\]/.test(link)) return CALE_IMPLICITA;
   // Caractere de control, în plus față de forma din bază. `^\/[^/\\]` singur
@@ -119,13 +138,15 @@ export function construiesteMesaj(
     corp: string | null;
     link: string | null;
     context?: ContextDestinatar;
+    /** Rolul destinatarului în organizație; lipsă = necunoscut, tratat ca angajat. */
+    rol?: string | null;
   }>,
 ): MesajPush {
   return {
     to: args.jeton,
     title: args.titlu.slice(0, MAX_TITLU),
     body: (args.corp ?? "").slice(0, MAX_CORP),
-    data: { cale: caleDeDeschis(args.link, args.context) },
+    data: { cale: caleDeDeschis(args.link, args.context, args.rol) },
     sound: "default",
     // Canalul se creează în aplicație, la pornire. Android ignoră notificările
     // trimise pe un canal inexistent, fără nicio eroare la expeditor.

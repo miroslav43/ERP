@@ -80,7 +80,22 @@ export type ContextDestinatar = Readonly<{
   ticheteProprii: ReadonlySet<string>;
   /** Id-urile sesizărilor de defecțiune pe care destinatarul le-a RAPORTAT sau i-au fost ATRIBUITE. */
   sesizariProprii: ReadonlySet<string>;
+  /** Parcursurile de integrare ale destinatarului (el e subiectul). Opțional: apelanții vechi nu-l dau. */
+  integrariProprii?: ReadonlySet<string>;
+  /** Săptămâna de pontaj din spatele notificării: id submisie → `saptamana_start`. */
+  saptamani?: ReadonlyMap<string, string>;
 }>;
+
+/** Obiectul notificării (`entity_type`/`entity_id`), când producătorul l-a scris. */
+export type EntitateNotificare = Readonly<{ tip: string | null; id: string | null }>;
+
+const TIPAR_INTEGRARE = new RegExp(`^/onboarding/(${UUID})$`, "u");
+
+/** Id-ul parcursului dintr-un `/onboarding/<uuid>`, sau `null`. Vezi `idCerereDeConcediu`. */
+export function idIntegrare(link: string | null): string | null {
+  if (link === null) return null;
+  return TIPAR_INTEGRARE.exec(link)?.[1] ?? null;
+}
 
 /**
  * Id-ul cererii dintr-un `/concedii/<uuid>`, sau `null`.
@@ -127,8 +142,34 @@ const FIXE: Readonly<Record<string, string>> = {
   "/mentenanta/sesizari": "/portal/sesizari",
 };
 
-export function caleaDePortal(link: string | null, context?: ContextDestinatar): string | null {
+export function caleaDePortal(
+  link: string | null,
+  context?: ContextDestinatar,
+  entitate?: EntitateNotificare,
+): string | null {
   if (link === null || link.length === 0) return null;
+
+  // Decizia pe pontaj și mementourile cu săptămâna cunoscută: se deschide
+  // SĂPTĂMÂNA în cauză, nu cea implicită a ecranului. Fără entitate cunoscută
+  // rămâne ruta fixă de mai jos.
+  if (
+    link === "/pontaj/saptamana" &&
+    entitate?.tip === "attendance_week_submission" &&
+    entitate.id !== null
+  ) {
+    const start = context?.saptamani?.get(entitate.id);
+    if (start !== undefined) return `/portal/pontajul-meu/saptamana?saptamana=${start}`;
+  }
+
+  // Integrarea: numai parcursul propriu are ecran în portal; pentru pasul
+  // unui coleg rândul rămâne text — comentariul din 0095 presupunea greșit
+  // că portalul „o traduce" oricum.
+  const integrareId = idIntegrare(link);
+  if (integrareId !== null) {
+    return context?.integrariProprii?.has(integrareId) === true
+      ? `/portal/integrarea-mea/${integrareId}`
+      : null;
+  }
 
   // Deja o cale de portal: se lasă neatinsă.
   if (link === "/portal" || link.startsWith("/portal/")) return link;

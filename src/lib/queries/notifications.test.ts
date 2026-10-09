@@ -51,6 +51,8 @@ describe("listeazaNotificarile", () => {
       title: "Ai ceva de făcut",
       body: null,
       link: "/reges",
+      entity_type: null,
+      entity_id: null,
       read_at: null,
       created_at: "2026-09-15T08:00:00Z",
     };

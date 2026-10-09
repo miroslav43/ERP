@@ -15,6 +15,9 @@ export interface RandNotificare {
   readonly title: string;
   readonly body: string | null;
   readonly link: string | null;
+  /** Obiectul notificării, când producătorul l-a scris: baza traducerii la randare. */
+  readonly entity_type: string | null;
+  readonly entity_id: string | null;
   readonly read_at: string | null;
   readonly created_at: string;
 }
@@ -62,7 +65,7 @@ export async function listeazaNotificarile(
   const db = await createServerSupabase();
   let interogare = db
     .from("notifications")
-    .select("id, kind, title, body, link, read_at, created_at")
+    .select("id, kind, title, body, link, entity_type, entity_id, read_at, created_at")
     .eq("organization_id", organizationId)
     .eq("user_id", userId);
   if (doarNecitite) interogare = interogare.is("read_at", null);

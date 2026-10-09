@@ -7,6 +7,7 @@ cai:
   - "src/app/(portal)/portal/notificarile-mele/**"
   - "src/lib/queries/notifications.ts"
   - "src/lib/push/**"
+  - "src/lib/reges/genereaza-evenimente.ts"
   - "src/app/api/push/**"
   - "src/app/api/dispozitive/**"
   - "supabase/migrations/0001_kernel.sql"
@@ -15,8 +16,8 @@ cai:
 tabele: [notifications, notification_preferences, dispozitive_push, push_livrari]
 permisiuni: []
 capcane: [17, 39]
-scris_pe: 074209a31c682afb49b59c9e6b9989693e9f179e
-scris_la: 2026-10-02
+scris_pe: 4a7494c169d49b92dc1c538a5d42748cdeab5ea7
+scris_la: 2026-10-09
 tags: [modul]
 ---
 
@@ -75,6 +76,27 @@ client cade la build, nu în producție. `numaraNecitite` înghite eroarea și �
 pastila e ornament, iar o excepție acolo ar doborî antetul, deci navigarea.
 `listeazaNotificarile` aruncă, și taie la `LIMITA_LISTA_NOTIFICARI` — exportată tocmai ca
 ecranul să ȘTIE unde s-a oprit, altfel lungimea listei trece drept total.
+
+## Unde duce o notificare — se decide LA RANDARE, nu la scriere
+
+Producătorii (triggere, câteva acțiuni) scriu un `link` fix: coada în loc de cerere,
+`/pontaj/saptamana` fără săptămână, `/portal/...` pentru oricine și-a pontat ziua, `/reges`
+și la firmele fără modul. Rândul NU se corectează în bază; se traduce de două ori:
+
+- **Aplicația mare**: `notificari/legaturi.ts` (`caleaInAplicatie`, pur, testat) + `context.ts`
+  (o citire pe lot, sub RLS: săptămâni, înrolări, anunțuri încă vizibile). Obiectul
+  (`entity_type`/`entity_id`) bate coada; ținta trece prin poarta paginii-ȚINTĂ
+  (`poateDeschide`); ce nu se deschide devine `null` = text, nu refuz. Rută necunoscută
+  registrului = se lasă cum e.
+- **Portal**: `caleaDePortal(link, context, entitate)` — al treilea argument deschide
+  săptămâna exactă; `/onboarding/<id>` doar pentru parcursul propriu.
+- **Push**: `construiesteMesaj({ rol })` — pentru un rol din aplicația mare rămân link DOAR
+  obiectele proprii (`TIPAR_OBIECT_PROPRIU`); restul cade pe cutia poștală. `golesteCoada`
+  citește rolul din `organization_members` per dispozitiv.
+
+Producătorul REGES e singurul reparat la sursă: fără `organization_features.reges` nu
+scrie anunț (`genereaza-evenimente.ts`). Lipsesc încă senderii pentru deplasări, KPI,
+predări de inventar.
 
 ## Ce refuză baza tăcut
 
