@@ -16,10 +16,18 @@ import { formatDate } from "@/lib/format/date";
 import { ActiuniPoprire } from "./actiuni-poprire";
 import { FormularPoprireNoua } from "./formular-poprire-noua";
 import { LinkEntitate } from "@/components/ui/link-entitate";
+import { cn } from "@/lib/ui/cn";
 
 export const metadata: Metadata = { title: "Popriri" };
 
-export default async function PaginaPopriri() {
+export default async function PaginaPopriri({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?nou=<id>`: dosarul tocmai deschis, evidențiat pe server și derulat la `#dosar-<id>`.
+  const nouBrut = (await searchParams)["nou"];
+  const nouId = typeof nouBrut === "string" ? nouBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -78,7 +86,11 @@ export default async function PaginaPopriri() {
             return (
               <li
                 key={dosar.id}
-                className="border-border bg-surface rounded-panou shadow-ridicat border"
+                id={`dosar-${dosar.id}`}
+                className={cn(
+                  "border-border bg-surface rounded-panou shadow-ridicat scroll-mt-24 border",
+                  nouId === dosar.id && "ring-primary ring-2",
+                )}
               >
                 <div className="flex flex-wrap items-start gap-3 px-4 py-3">
                   <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">

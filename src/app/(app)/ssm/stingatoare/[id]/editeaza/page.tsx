@@ -12,6 +12,7 @@ import { idDinRuta } from "@/lib/rute/parametri";
 import { citesteStingator } from "@/lib/queries/ssm";
 
 import { FormularStingator } from "../../nou/formular-stingator";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Editează stingătorul" };
 
@@ -42,6 +43,14 @@ export default async function PaginaEditeazaStingator({ params }: ProprietatiPag
 
   return (
     <div className={`${LATIMI.formular} space-y-6`}>
+      <p className="text-muted-foreground text-corp">
+        <Link
+          href={`/ssm/stingatoare/${stingator.id}`}
+          className="underline-offset-2 hover:underline"
+        >
+          Stingătorul {stingator.cod}
+        </Link>
+      </p>
       <AntetPagina titlu={`Editează stingătorul ${stingator.cod}`} />
       <FormularStingator stingatorExistent={stingator} />
     </div>

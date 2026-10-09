@@ -57,6 +57,16 @@ export default async function PaginaSetariSalarizare() {
         fotografie proprie.
       </div>
 
+      {/* Calculul citește pragul orelor de noapte și regimul de lucru din
+          setările de PONTAJ: pagina asta nu le pomenea și nu le lega. */}
+      <p className="text-muted-foreground text-corp">
+        Pragul orelor de noapte și regimul de lucru vin din{" "}
+        <Link href="/pontaj/setari" className="underline underline-offset-2">
+          setările de pontaj
+        </Link>
+        ; calculul le citește de acolo.
+      </p>
+
       <FormularSetari setariCurente={curente} />
 
       {istoric.length === 0 ? null : (

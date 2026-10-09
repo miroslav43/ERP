@@ -32,6 +32,7 @@ interface ProprietatiPagina {
 }
 
 async function ListaMea({
+  hrefCoada,
   organizationId,
   userId,
   scope,
@@ -41,6 +42,8 @@ async function ListaMea({
   readonly userId: string;
   readonly scope: PermissionScope | null;
   readonly parametri: Record<string, string | string[] | undefined>;
+  /** `/ticketing/coada` dacă pagina se deschide pentru rolul curent. */
+  readonly hrefCoada: string | null;
 }) {
   const filtre = filtreDinUrl(filtreTicheteSchema, parametri);
 
@@ -88,7 +91,10 @@ async function ListaMea({
         fel="restrictionata"
         pictograma={LifeBuoy}
         titlu="Contul nu are fișă de personal"
-        descriere="Tichetele se leagă de fișa de angajat a solicitantului, iar contul dumneavoastră nu are una. Coada echipei rămâne accesibilă din meniu."
+        descriere="Tichetele se leagă de fișa de angajat a solicitantului, iar contul dumneavoastră nu are una."
+        {...(hrefCoada === null
+          ? {}
+          : { actiune: { eticheta: "Deschide coada echipei", href: hrefCoada } })}
       />
     );
   }
@@ -172,6 +178,7 @@ export default async function PaginaTichetelorMele({ searchParams }: Proprietati
           userId={utilizator.id}
           scope={scope}
           parametri={parametri}
+          hrefCoada={can(permisiuni, "tickets:read", "team") ? "/ticketing/coada" : null}
         />
       </Suspense>
     </div>

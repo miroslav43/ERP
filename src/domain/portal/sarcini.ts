@@ -49,6 +49,8 @@ export type IntrareSarcini = Readonly<{
   peSaptamana: boolean;
   /** Anunțuri publicate pe care omul nu le-a deschis. */
   anunturiNecitite: number;
+  /** Când e unul singur: id-ul lui, ca sarcina să ducă direct la el. */
+  anuntNecititUnicId?: string | null;
   azi: string;
 }>;
 
@@ -105,7 +107,13 @@ export function sarciniPortal(intrare: IntrareSarcini): readonly SarcinaPortal[]
           ? "Un anunț necitit"
           : `${intrare.anunturiNecitite.toLocaleString("ro-RO")} anunțuri necitite`,
       detaliu: null,
-      href: "/portal/anunturi",
+      // Un singur necitit: direct la obiect, nu la listă (încă un clic).
+      href:
+        intrare.anunturiNecitite === 1 &&
+        intrare.anuntNecititUnicId !== null &&
+        intrare.anuntNecititUnicId !== undefined
+          ? `/portal/anunturi/${intrare.anuntNecititUnicId}`
+          : "/portal/anunturi",
       urgenta: false,
     });
   }

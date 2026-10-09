@@ -221,6 +221,7 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
       </dl>
 
       <ActiuniPerioada
+        poateDeschideFisa={can(permisiuni, "employees:read", "all")}
         id={perioada.id}
         status={perioada.status}
         poateCalcula={poateCalcula}

@@ -8,6 +8,7 @@ import { FormularDialog } from "@/components/ui/formular-dialog";
 import { TIPURI_COMPONENTA_SALARIALA } from "@/schemas/salary-component";
 
 import { creeazaSablonComponenta } from "./actions";
+import { useRouter } from "next/navigation";
 
 const ETICHETE_TIP: Record<(typeof TIPURI_COMPONENTA_SALARIALA)[number], string> = {
   spor_procent: "Spor procentual (% din salariul de bază)",
@@ -48,6 +49,7 @@ async function trimite(fd: FormData) {
  * fiscal au surorile componentei pe care o adaugi.
  */
 export function FormularSablonComponentaNou() {
+  const router = useRouter();
   return (
     <FormularDialog
       declansator={{
@@ -59,6 +61,9 @@ export function FormularSablonComponentaNou() {
       marime="mare"
       actiune={trimite}
       mesajReusita="Șablonul a fost creat."
+      laReusita={({ id }) => {
+        router.push(`/salarizare/componente?nou=${id}#sablon-${id}`);
+      }}
       etichetaTrimite="Creează șablonul"
       textInCurs="Se creează…"
     >

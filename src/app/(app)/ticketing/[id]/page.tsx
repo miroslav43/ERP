@@ -40,6 +40,7 @@ import {
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
 import { legaturaSigura } from "@/config/porti-ruta";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Tichet" };
 
@@ -198,7 +199,16 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
         </div>
       )}
 
-      {asteaptaDecizia && <DecizieCerere ticketId={tichet.id} />}
+      {asteaptaDecizia && (
+        <DecizieCerere
+          ticketId={tichet.id}
+          hrefCoada={
+            poateDeschide("/ticketing/coada", { features: module, permissions: permisiuni })
+              ? "/ticketing/coada?status=in_aprobare"
+              : null
+          }
+        />
+      )}
 
       <section className="border-border bg-surface rounded-panou border p-4">
         <h2 className="text-foreground text-corp font-semibold">Detalii</h2>

@@ -14,6 +14,7 @@ import {
 import { estePeActiuni } from "@/lib/documents/bloc-firma";
 
 import { actualizeazaOrganizatia } from "./actions";
+import Link from "next/link";
 
 export type ValoriOrganizatie = Readonly<{
   name: string;
@@ -147,7 +148,14 @@ function Camp({
   );
 }
 
-export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrganizatie }>) {
+export function FormularOrganizatie({
+  initiale,
+  inapoi = null,
+}: Readonly<{
+  initiale: ValoriOrganizatie;
+  /** Unde se întoarce după salvare, când a venit de pe antetul documentelor. Validat de pagină. */
+  inapoi?: string | null;
+}>) {
   const [valori, setValori] = useState<ValoriOrganizatie>(initiale);
   const [stare, setStare] = useState<StareFormular>({
     mesaj: null,
@@ -300,6 +308,18 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
           className={`text-corp ${stare.esteEroare ? "text-danger" : "text-success"}`}
         >
           {stare.mesaj ?? ""}
+          {/* Cine a venit să repare antetul se întoarce la el, nu rămâne pe formular. */}
+          {inapoi !== null &&
+          stare.mesaj !== null &&
+          stare.mesaj !== undefined &&
+          !stare.esteEroare ? (
+            <>
+              {" "}
+              <Link href={inapoi} className="underline underline-offset-2">
+                Înapoi la antetul documentelor
+              </Link>
+            </>
+          ) : null}
         </p>
       </div>
     </form>

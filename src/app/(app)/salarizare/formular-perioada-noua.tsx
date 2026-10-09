@@ -7,6 +7,7 @@ import { Buton } from "@/components/ui/buton";
 
 import { creeazaPerioada } from "./actions";
 import { numeLuna } from "./etichete";
+import Link from "next/link";
 
 const LUNA_CURENTA = new Date();
 
@@ -77,6 +78,22 @@ export function FormularPerioadaNoua() {
       {eroare === null ? null : (
         <p role="alert" className="text-danger text-corp w-full">
           {eroare}
+          {/* Refuzul numește ecranul care îl repară: devine link. */}
+          {eroare.includes("modulul Pontaj") ? (
+            <>
+              {" "}
+              <Link href="/pontaj/perioade" className="underline underline-offset-2">
+                Perioadele de pontaj
+              </Link>
+            </>
+          ) : eroare.includes("Configurați-le") ? (
+            <>
+              {" "}
+              <Link href="/salarizare/setari" className="underline underline-offset-2">
+                Setări salarizare
+              </Link>
+            </>
+          ) : null}
         </p>
       )}
     </form>

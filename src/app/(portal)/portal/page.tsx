@@ -255,6 +255,7 @@ export default async function PaginaPortal() {
     zileNepontate: nepontate.length,
     peSaptamana: !peZi,
     anunturiNecitite: necitite.length,
+    anuntNecititUnicId: necitite.length === 1 ? (necitite[0]?.id ?? null) : null,
     azi,
   });
 

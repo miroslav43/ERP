@@ -41,7 +41,14 @@ function text(valoare: string | null): string {
   return valoare ?? "";
 }
 
-export default async function SetariOrganizatiePage() {
+export default async function SetariOrganizatiePage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // Validat STRICT: doar antetul documentelor poate cere întoarcerea.
+  const inapoi =
+    (await searchParams)["inapoi"] === "sabloane-documente" ? "/angajati/sabloane-documente" : null;
   const rezolvare = await resolveTenant();
   if (rezolvare.status === "neautentificat") {
     redirect(RUTA_AUTENTIFICARE);
@@ -167,7 +174,7 @@ export default async function SetariOrganizatiePage() {
         </p>
       </section>
 
-      <FormularOrganizatie initiale={initiale} />
+      <FormularOrganizatie initiale={initiale} inapoi={inapoi} />
     </div>
   );
 }

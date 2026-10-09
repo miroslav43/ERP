@@ -290,7 +290,19 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             }
             descriere={`Raportul se face din intrările de salarizare, iar acestea apar abia la calcul. Fără cifre: ${statistici.luniNecalculate.map(formatMonthShort).join(", ")}.`}
             {...(poateDeschideSalarizarea
-              ? { actiune: { eticheta: "Deschide salarizarea", href: "/salarizare" } }
+              ? {
+                  actiune: {
+                    // La perioada de CALCULAT, nu la lista perioadelor.
+                    eticheta:
+                      statistici.perioadeNecalculate.length === 1
+                        ? `Deschide perioada din ${formatMonthShort(statistici.perioadeNecalculate[0]?.luna ?? 1)}`
+                        : "Deschide salarizarea",
+                    href:
+                      statistici.perioadeNecalculate.length === 1
+                        ? `/salarizare/${statistici.perioadeNecalculate[0]?.id ?? ""}`
+                        : "/salarizare",
+                  },
+                }
               : {})}
           />
         )
@@ -317,9 +329,23 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
           {statistici.luniNecalculate.length === 0 ? null : (
             <Callout fel="informativ" titlu="Raportul nu acoperă tot anul">
               {`${String(statistici.perLuna.length)} ${statistici.perLuna.length === 1 ? "lună calculată" : "luni calculate"}. `}
+              {statistici.luniNecalculate.length === 1 ? "Luna " : "Lunile "}
+              {/* Fiecare lună duce la perioada ei, unde se face calculul. */}
+              {statistici.perioadeNecalculate.map((p, indice) => (
+                <span key={p.id}>
+                  {indice === 0 ? "" : ", "}
+                  {poateDeschideSalarizarea ? (
+                    <Link href={`/salarizare/${p.id}`} className="underline underline-offset-2">
+                      {formatMonthShort(p.luna)}
+                    </Link>
+                  ) : (
+                    formatMonthShort(p.luna)
+                  )}
+                </span>
+              ))}
               {statistici.luniNecalculate.length === 1
-                ? `Luna ${formatMonthShort(statistici.luniNecalculate[0] ?? 1)} are perioadă deschisă, dar niciun calcul, deci lipsește din toate cifrele și din grafice.`
-                : `Lunile ${statistici.luniNecalculate.map(formatMonthShort).join(", ")} au perioadă deschisă, dar niciun calcul, deci lipsesc din toate cifrele și din grafice.`}
+                ? " are perioadă deschisă, dar niciun calcul, deci lipsește din toate cifrele și din grafice."
+                : " au perioadă deschisă, dar niciun calcul, deci lipsesc din toate cifrele și din grafice."}
             </Callout>
           )}
 

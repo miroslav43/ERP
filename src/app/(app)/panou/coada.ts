@@ -68,7 +68,11 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
       numar: coada.cereriConcediu,
       titlu: "Cereri de concediu care așteaptă o decizie",
       detaliu: coada.cereriConcediu === 1 ? "cerere trimisă" : "cereri trimise",
-      href: "/concedii/echipa?status=trimisa,in_aprobare",
+      // O singură cerere: direct la ea, nu la o listă cu un rând.
+      href:
+        coada.cereriConcediu === 1 && coada.cerereUnicaId !== null
+          ? `/concedii/${coada.cerereUnicaId}`
+          : "/concedii/echipa?status=trimisa,in_aprobare",
       actiune: "Deschide",
     });
   }
@@ -131,7 +135,10 @@ export function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
       numar: coada.tichete,
       titlu: "Tichete care așteaptă decizia ta",
       detaliu: coada.tichete === 1 ? "tichet" : "tichete",
-      href: "/ticketing/coada",
+      href:
+        coada.tichete === 1 && coada.tichetUnicId !== null
+          ? `/ticketing/${coada.tichetUnicId}`
+          : "/ticketing/coada",
       actiune: "Deschide",
     });
   }

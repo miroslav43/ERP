@@ -26,6 +26,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { FilePlus2 } from "lucide-react";
 
 import { inregistreazaDocumentManual } from "./actions";
+import { useRouter } from "next/navigation";
+import { arataToast } from "@/components/ui/toast";
 
 /** Tipurile pe care le primește o firmă pe hârtie, cu eticheta lor în română. */
 const TIPURI = [
@@ -43,6 +45,7 @@ const TIPURI = [
 export function DialogDocumentPrimit({
   angajati,
 }: Readonly<{ angajati: readonly Readonly<{ id: string; nume: string }>[] }>) {
+  const router = useRouter();
   return (
     <FormularDialog
       declansator={{
@@ -54,7 +57,22 @@ export function DialogDocumentPrimit({
       descriere="Pentru documentele care ajung pe hârtie și nu au corespondent în aplicație — o demisie, o adresă de la inspectorat, o citație. Numărul se alocă la salvare și nu se mai poate schimba."
       etichetaTrimite="Înregistrează"
       textInCurs="Se alocă numărul…"
-      mesajReusita="Documentul a primit număr de înregistrare."
+      // Numărul alocat e singura informație care trebuie scrisă pe hârtie:
+      // se arată, nu se ascunde într-un toast fix. Rândul poate fi ascuns de
+      // filtrele curente, deci acțiunea îl caută după număr.
+      laReusita={({ numarAfisat }) => {
+        const numar = String(numarAfisat);
+        arataToast({
+          fel: "reusita",
+          text: `Documentul a primit numărul de înregistrare ${numar}.`,
+          actiune: {
+            eticheta: "Arată în registru",
+            onClick: () => {
+              router.push(`/registru?q=${encodeURIComponent(numar)}`);
+            },
+          },
+        });
+      }}
       actiune={async (date: FormData) =>
         inregistreazaDocumentManual({
           sens: String(date.get("sens") ?? "intrare"),

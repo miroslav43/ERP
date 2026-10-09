@@ -7,6 +7,7 @@ import { Camp } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { creeazaPoprire } from "./actions";
+import { useRouter } from "next/navigation";
 
 interface Angajat {
   readonly id: string;
@@ -52,6 +53,7 @@ async function trimite(fd: FormData) {
  * jumătate.
  */
 export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly Angajat[] }) {
+  const router = useRouter();
   return (
     <FormularDialog
       declansator={{
@@ -63,6 +65,9 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
       marime="mare"
       actiune={trimite}
       mesajReusita="Dosarul de poprire a fost deschis."
+      laReusita={({ id }) => {
+        router.push(`/salarizare/popriri?nou=${id}#dosar-${id}`);
+      }}
       etichetaTrimite="Deschide dosarul"
       textInCurs="Se salvează…"
     >

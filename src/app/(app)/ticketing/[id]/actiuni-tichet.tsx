@@ -17,6 +17,7 @@ import {
   schimbaStatusul,
   suprascriePrioritatea,
 } from "../actions";
+import { arataToast } from "@/components/ui/toast";
 
 function Mesaj({ text }: Readonly<{ text: string | null }>) {
   if (text === null) return null;
@@ -28,7 +29,14 @@ function Mesaj({ text }: Readonly<{ text: string | null }>) {
 }
 
 /** Decizia pe o cerere: aprobare fără motiv, respingere cu motiv obligatoriu. */
-export function DecizieCerere({ ticketId }: Readonly<{ ticketId: string }>) {
+export function DecizieCerere({
+  ticketId,
+  hrefCoada = null,
+}: Readonly<{
+  ticketId: string;
+  /** Coada cererilor rămase, dacă pagina se deschide pentru rolul curent. */
+  hrefCoada?: string | null;
+}>) {
   const router = useRouter();
   const [motiv, setMotiv] = useState("");
   const [respinge, setRespinge] = useState(false);
@@ -44,6 +52,22 @@ export function DecizieCerere({ ticketId }: Readonly<{ ticketId: string }>) {
         ...(motiv.trim() === "" ? {} : { motiv: motiv.trim() }),
       });
       if (raspuns.ok) {
+        // Caseta dispare după decizie; aprobatorul rămânea pe un tichet
+        // rezolvat, fără drum spre cererile rămase.
+        arataToast({
+          fel: "reusita",
+          text: aprobat ? "Cererea a fost aprobată." : "Cererea a fost respinsă.",
+          ...(hrefCoada === null
+            ? {}
+            : {
+                actiune: {
+                  eticheta: "Cererile rămase",
+                  onClick: () => {
+                    router.push(hrefCoada);
+                  },
+                },
+              }),
+        });
         router.refresh();
         return;
       }

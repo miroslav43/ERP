@@ -56,6 +56,16 @@ describe("sarciniPortal", () => {
     );
   });
 
+  it("un singur anunț necitit duce direct la el; mai multe duc la listă", () => {
+    expect(
+      sarciniPortal({ ...LINISTE, anunturiNecitite: 1, anuntNecititUnicId: "a1" })[0]?.href,
+    ).toBe("/portal/anunturi/a1");
+    expect(sarciniPortal({ ...LINISTE, anunturiNecitite: 1 })[0]?.href).toBe("/portal/anunturi");
+    expect(
+      sarciniPortal({ ...LINISTE, anunturiNecitite: 2, anuntNecititUnicId: "a1" })[0]?.href,
+    ).toBe("/portal/anunturi");
+  });
+
   it("pluralul poartă cifra", () => {
     expect(sarciniPortal({ ...LINISTE, zileNepontate: 4 })[0]?.eticheta).toBe(
       "4 zile nepontate luna aceasta",

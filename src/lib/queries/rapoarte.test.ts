@@ -96,6 +96,7 @@ describe("statisticiAnuale", () => {
       perLuna: [],
       luniInCiorna: [],
       luniNecalculate: [],
+      perioadeNecalculate: [],
       totalZileConcediuOdihna: 0,
       totalZileConcediuMedical: 0,
       totalVenitBrutAnual: 0,
@@ -171,6 +172,7 @@ describe("statisticiAnuale", () => {
       const r = await statisticiAnuale(ORG_ID, 2026);
       expect(r.luniInCiorna).toEqual([2]);
       expect(r.luniNecalculate).toEqual([3]);
+      expect(r.perioadeNecalculate.map((p) => p.luna)).toEqual([3]);
     });
 
     it("per angajat: sume anuale, ordonate după nume; angajatul șters rămâne, marcat", async () => {

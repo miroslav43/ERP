@@ -14,7 +14,23 @@ import { FormularFisa } from "./formular-fisa";
 
 export const metadata: Metadata = { title: "Fișă de aptitudine nouă" };
 
-export default async function PaginaFisaNoua() {
+const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default async function PaginaFisaNoua({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?angajat=<uuid>` preselectează omul; `?inapoi=fisa` (DOAR așa) întoarce pe
+  // fișa lui după salvare — validat strict, nu o adresă liberă din URL.
+  const parametri = await searchParams;
+  const angajatBrut = parametri["angajat"];
+  const angajatImplicit =
+    typeof angajatBrut === "string" && TIPAR_UUID.test(angajatBrut) ? angajatBrut : null;
+  const inapoi =
+    angajatImplicit !== null && parametri["inapoi"] === "fisa"
+      ? `/angajati/${angajatImplicit}#titlu-in-alte-module`
+      : null;
   await requireUser();
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
@@ -59,6 +75,8 @@ export default async function PaginaFisaNoua() {
           full_name: a.full_name,
           marca: a.marca,
         }))}
+        angajatImplicit={angajatImplicit}
+        inapoi={inapoi}
       />
     </div>
   );

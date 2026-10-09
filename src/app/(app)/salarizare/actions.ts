@@ -220,6 +220,7 @@ export const creeazaPerioada = createAction({
  */
 interface RandFluturasEmail extends SursaFluturas {
   readonly id: string;
+  readonly employee_id: string;
   readonly rest_de_plata: number;
   readonly zile_lucratoare_luna: number;
   readonly zile_lucrate: number;
@@ -239,7 +240,7 @@ interface RandFluturasEmail extends SursaFluturas {
 }
 
 const COLOANE_FLUTURAS_EMAIL =
-  "id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_warnings, " +
+  "id, employee_id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_warnings, " +
   "angajat:employees!employee_id(full_name, marca, email_serviciu, email_personal, functie)";
 
 function laSetariSnapshot(
@@ -1220,7 +1221,15 @@ export const trimiteFluturasii = createAction({
   handler: async (
     ctx,
     input,
-  ): Promise<Readonly<{ trimise: number; faraAdresa: number; esuate: number }>> => {
+  ): Promise<
+    Readonly<{
+      trimise: number;
+      faraAdresa: number;
+      esuate: number;
+      /** Cine n-are adresă: raportul spunea doar câți, nu și pe cine să corectezi. */
+      faraAdresaAngajati: readonly Readonly<{ id: string; nume: string }>[];
+    }>
+  > => {
     const { data: perioada, error: eroarePerioada } = await ctx.supabase
       .from("payroll_periods")
       .select("id, an, luna, status")
@@ -1257,11 +1266,13 @@ export const trimiteFluturasii = createAction({
     let trimise = 0;
     let faraAdresa = 0;
     let esuate = 0;
+    const faraAdresaAngajati: Array<Readonly<{ id: string; nume: string }>> = [];
 
     for (const rand of randuri ?? []) {
       const adresa = rand.angajat?.email_serviciu ?? rand.angajat?.email_personal ?? null;
       if (adresa === null || adresa.trim().length === 0) {
         faraAdresa += 1;
+        faraAdresaAngajati.push({ id: rand.employee_id, nume: rand.angajat?.full_name ?? "—" });
         continue;
       }
 
@@ -1320,6 +1331,6 @@ export const trimiteFluturasii = createAction({
       }
     }
 
-    return { trimise, faraAdresa, esuate };
+    return { trimise, faraAdresa, esuate, faraAdresaAngajati };
   },
 });

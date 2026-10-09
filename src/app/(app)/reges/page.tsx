@@ -440,7 +440,7 @@ export default async function PaginaReges(props: {
         />
       )}
 
-      <section className="space-y-3">
+      <section id="coada-mesaje" className="scroll-mt-24 space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-foreground font-medium">Mesaje către Inspecția Muncii</h2>
           <p className="text-muted-foreground text-nota">

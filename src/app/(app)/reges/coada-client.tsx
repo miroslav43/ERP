@@ -6,6 +6,7 @@ import { useId, useState, useTransition } from "react";
 
 import { Buton } from "@/components/ui/buton";
 import { anuleazaMesajul, pregatesteTransmiterea, transmiteMesajul } from "./actiuni-api";
+import { arataToast } from "@/components/ui/toast";
 
 type Mesaj = Readonly<{ fel: "eroare" | "succes"; text: string }>;
 
@@ -40,6 +41,19 @@ export function ButonPregateste(props: { readonly evenimentId: string }) {
               ? "Mesajele erau deja pregătite."
               : `S-au pregătit ${rezultat.data.mesaje} mesaje.`,
         });
+        // Mesajele apar în coada de mai jos; toastul cu acțiune duce la ea.
+        if (rezultat.data.mesaje > 0) {
+          arataToast({
+            fel: "reusita",
+            text: `S-au pregătit ${rezultat.data.mesaje} mesaje de transmis.`,
+            actiune: {
+              eticheta: "Vezi mesajele",
+              onClick: () => {
+                router.push("/reges?stare=de_transmis#coada-mesaje");
+              },
+            },
+          });
+        }
         router.refresh();
       } else {
         setMesaj({ fel: "eroare", text: rezultat.error.message });

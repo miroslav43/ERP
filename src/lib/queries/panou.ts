@@ -57,6 +57,8 @@ export type { PontajDeAprobat };
 
 export type CoadaPanou = Readonly<{
   cereriConcediu: Contor;
+  /** Când e o singură cerere: id-ul ei — rândul din coadă duce direct la obiect. */
+  cerereUnicaId: string | null;
   /**
    * `null` = modulul e stins sau rolul n-are dreptul de aprobare.
    *
@@ -77,6 +79,8 @@ export type CoadaPanou = Readonly<{
   deplasari: Contor;
   foiParcurs: Contor;
   tichete: Contor;
+  /** Când e un singur tichet: id-ul lui — rândul din coadă duce direct la obiect. */
+  tichetUnicId: string | null;
   /**
    * Anomaliile de kilometraj stăteau printre scadențe, deși n-au termen: un
    * contor de kilometraj sărit înapoi nu expiră, așteaptă pe cineva să confirme
@@ -194,6 +198,22 @@ export async function contorRegesDeTransmis(organizationId: string): Promise<num
  * și niciunul pe concedii; badge-ul `leave_pending` din meniu era declarat și
  * nealimentat tocmai fiindcă o numărătoare naivă ar fi fost greșită.
  */
+/**
+ * Numărul ȘI, când e exact unul, id-ul lui: pe firmele reale (8 angajați
+ * maximum) cazul tipic e „1 cerere", iar rândul din coadă duce atunci direct
+ * la obiect, nu la o listă cu un singur rând. `limit(2)` în loc de `head`:
+ * cel mult două rânduri, costul e același.
+ */
+export type ContorCuUnic = Readonly<{ numar: number; unicId: string | null }>;
+
+function unicDin(
+  count: number | null,
+  randuri: readonly Readonly<{ id: string }>[] | null,
+): ContorCuUnic {
+  const numar = count ?? 0;
+  return { numar, unicId: numar === 1 ? (randuri?.[0]?.id ?? null) : null };
+}
+
 export async function contorCereriConcediu(
   organizationId: string,
   /**
@@ -216,7 +236,7 @@ export async function contorCereriConcediu(
    * `aprobaPeLoc` o rezolvă oricum pe loc pentru cine are `leave:approve = all`.
    */
   userId: string,
-): Promise<number> {
+): Promise<ContorCuUnic> {
   const db = await createServerSupabase();
 
   // Aceeași funcție pe care o folosesc scope-urile „own"/„team" din tot
@@ -225,16 +245,16 @@ export async function contorCereriConcediu(
 
   let interogare = db
     .from("leave_requests")
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "exact" })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .in("status", ["trimisa", "in_aprobare"]);
   // Fără fișă proprie — administrator care nu e angajat — n-ai ce exclude.
   if (fisaMea !== null) interogare = interogare.neq("employee_id", fisaMea);
 
-  const { count, error } = await interogare;
+  const { data, count, error } = await interogare.limit(2);
   if (error !== null) throw error;
-  return count ?? 0;
+  return unicDin(count, data);
 }
 
 export async function contorDeplasari(organizationId: string): Promise<number> {
@@ -263,16 +283,17 @@ export async function contorFoiDeParcurs(organizationId: string): Promise<number
 }
 
 /** Tichete care așteaptă o decizie. */
-export async function contorTichete(organizationId: string): Promise<number> {
+export async function contorTichete(organizationId: string): Promise<ContorCuUnic> {
   const db = await createServerSupabase();
-  const { count, error } = await db
+  const { data, count, error } = await db
     .from("tickets")
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "exact" })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .eq("status", "in_aprobare");
+    .eq("status", "in_aprobare")
+    .limit(2);
   if (error !== null) throw error;
-  return count ?? 0;
+  return unicDin(count, data);
 }
 
 export type ScadenteFlota = Readonly<{
@@ -582,11 +603,13 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
   ]);
 
   const coada: CoadaPanou = {
-    cereriConcediu,
+    cereriConcediu: cereriConcediu === null ? null : cereriConcediu.numar,
+    cerereUnicaId: cereriConcediu?.unicId ?? null,
     pontaj,
     deplasari,
     foiParcurs,
-    tichete,
+    tichete: tichete === null ? null : tichete.numar,
+    tichetUnicId: tichete?.unicId ?? null,
     anomaliiKm: anomalii,
     regesDeTransmis,
   };

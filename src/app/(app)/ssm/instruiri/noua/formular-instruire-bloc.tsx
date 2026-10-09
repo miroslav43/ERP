@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
@@ -122,8 +122,10 @@ export function FormularInstruireBloc({
       return v === null ? null : Number(v);
     };
 
+    const tipAles = String(formular.get("training_type_id") ?? "");
+    domeniuTrimis.current = tipuri.find((t) => t.id === tipAles)?.domeniu ?? "ssm";
     return await inregistreazaInstruireBloc({
-      training_type_id: String(formular.get("training_type_id") ?? ""),
+      training_type_id: tipAles,
       data_instruirii: String(formular.get("data_instruirii") ?? ""),
       durata_ore: Number(formular.get("durata_ore") ?? 0),
       lector_employee_id: text("lector_employee_id"),
@@ -138,8 +140,11 @@ export function FormularInstruireBloc({
 
   // Stabil între randări: `laReusita` intră în lista de dependențe a efectului
   // din `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul.
+  // `router.push("/ssm/instruiri")` pierdea domeniul: o instruire PSI ateriza
+  // pe fila SSM. Domeniul tipului ales se reține la trimitere.
+  const domeniuTrimis = useRef<"ssm" | "psi">("ssm");
   const laReusita = useCallback(() => {
-    router.push("/ssm/instruiri");
+    router.push(`/ssm/instruiri?domeniu=${domeniuTrimis.current}`);
     router.refresh();
   }, [router]);
 

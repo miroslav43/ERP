@@ -83,6 +83,8 @@ type Angajat = {
 function rand(id: string, angajat: Partial<Angajat> | null) {
   return {
     id,
+    // Fișa angajatului: raportul „fără adresă" numește oamenii, cu drum spre ea.
+    employee_id: `e-${id}`,
     baza_salariu: 5000,
     suma_ore_suplimentare: 0,
     spor_noapte: 0,
@@ -192,7 +194,10 @@ describe("trimiteFluturasii", () => {
 
     const r = await trimiteFluturasii({ id: ID_1 });
 
-    expect(r).toEqual({ ok: true, data: { trimise: 0, faraAdresa: 0, esuate: 0 } });
+    expect(r).toEqual({
+      ok: true,
+      data: { trimise: 0, faraAdresa: 0, esuate: 0, faraAdresaAngajati: [] },
+    });
     const [perioada] = server.apeluriPe("payroll_periods");
     expect(areFiltru(perioada, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(perioada, "eq", "id", ID_1)).toBe(true);
@@ -215,7 +220,10 @@ describe("trimiteFluturasii", () => {
 
     const r = await trimiteFluturasii({ id: ID_1 });
 
-    expect(r).toEqual({ ok: true, data: { trimise: 2, faraAdresa: 0, esuate: 0 } });
+    expect(r).toEqual({
+      ok: true,
+      data: { trimise: 2, faraAdresa: 0, esuate: 0, faraAdresaAngajati: [] },
+    });
     const destinatari = vi.mocked(sendEmail).mock.calls.map(([m]) => m.to);
     expect(destinatari).toEqual(["ion@firma.ro", "ana@gmail.com"]);
   });
@@ -274,7 +282,20 @@ describe("trimiteFluturasii", () => {
 
     const r = await trimiteFluturasii({ id: ID_1 });
 
-    expect(r).toEqual({ ok: true, data: { trimise: 0, faraAdresa: 3, esuate: 0 } });
+    // Raportul spune și CINE n-are adresă (fără fișă în embed: „—").
+    expect(r).toEqual({
+      ok: true,
+      data: {
+        trimise: 0,
+        faraAdresa: 3,
+        esuate: 0,
+        faraAdresaAngajati: [
+          { id: "e-r1", nume: "Ion Pop" },
+          { id: "e-r2", nume: "Ion Pop" },
+          { id: "e-r3", nume: "—" },
+        ],
+      },
+    });
     expect(genereazaFluturas).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
   });
@@ -302,7 +323,10 @@ describe("trimiteFluturasii", () => {
 
     const r = await trimiteFluturasii({ id: ID_1 });
 
-    expect(r).toEqual({ ok: true, data: { trimise: 2, faraAdresa: 0, esuate: 2 } });
+    expect(r).toEqual({
+      ok: true,
+      data: { trimise: 2, faraAdresa: 0, esuate: 2, faraAdresaAngajati: [] },
+    });
     expect(vi.mocked(sendEmail).mock.calls.map(([m]) => m.to)).toEqual([
       "a@firma.ro",
       "b@firma.ro",

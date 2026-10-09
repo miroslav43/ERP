@@ -205,7 +205,7 @@ export function CardAntetDocumente({
           {poateEditaFirma ? (
             <>
               Completați-le în{" "}
-              <a href="/setari/organizatie" className="underline">
+              <a href="/setari/organizatie?inapoi=sabloane-documente" className="underline">
                 profilul firmei
               </a>
               .

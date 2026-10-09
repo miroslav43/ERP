@@ -8,6 +8,7 @@ import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
 import { propunePlecarea } from "../actiuni-api";
+import { arataToast } from "@/components/ui/toast";
 
 export type ContractEligibil = Readonly<{
   id: string;
@@ -45,6 +46,10 @@ export function FormularPropunere(props: {
       });
       if (rezultat.ok) {
         setDeschis(false);
+        arataToast({
+          fel: "reusita",
+          text: "Propunerea a fost pusă în coadă și pleacă la următoarea reconciliere.",
+        });
         router.refresh();
       } else {
         setMesaj(rezultat.error.message);

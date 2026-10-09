@@ -165,6 +165,14 @@ export default async function PaginaPonteazaCod({
           </p>
         ) : null}
       </section>
+      {/* Același drum ca pe /portal/ceas: după pontare, luna întreagă. */}
+      {can(permisiuni, "attendance:read", "own") ? (
+        <p>
+          <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
+            Vezi luna întreagă
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

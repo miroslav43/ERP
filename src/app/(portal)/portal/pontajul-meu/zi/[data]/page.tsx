@@ -78,9 +78,11 @@ export default async function PaginaZiPontaj({
     <AntetPagina titlu={formatDate(zi)} descriere="Pontajul dumneavoastră pe ziua aceasta." />
   );
 
+  // Luna ZILEI, nu luna curentă: o zi din luna trecută se întoarce acolo.
+  const hrefLunaZilei = `/portal/pontajul-meu?an=${zi.slice(0, 4)}&luna=${String(Number(zi.slice(5, 7)))}`;
   const inapoi = !poateVedeaLuna ? null : (
     <p>
-      <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
+      <Link href={hrefLunaZilei} className={buton({ varianta: "link" })}>
         Înapoi la pontajul meu
       </Link>
     </p>
@@ -220,7 +222,7 @@ export default async function PaginaZiPontaj({
       <FormularZi
         key={zi}
         data={zi}
-        dupaSalvare={poateVedeaLuna ? "/portal/pontajul-meu" : "/portal"}
+        dupaSalvare={poateVedeaLuna ? hrefLunaZilei : "/portal"}
         config={config}
         // Regula se calculează pentru ZIUA pontată, nu pentru azi: setările au
         // istoric, iar o versiune pusă în vigoare de luna viitoare nu se aplică

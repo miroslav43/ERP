@@ -214,7 +214,10 @@ export default async function PaginaSaptamanaPortal({
 
       {can(permisiuni, "attendance:read", "own") ? (
         <p>
-          <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
+          <Link
+            href={`/portal/pontajul-meu?an=${saptamanaStart.slice(0, 4)}&luna=${String(Number(saptamanaStart.slice(5, 7)))}`}
+            className={buton({ varianta: "link" })}
+          >
             Înapoi la pontajul meu
           </Link>
         </p>

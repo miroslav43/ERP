@@ -12,6 +12,7 @@ import { idFisaProprie } from "@/lib/queries/employees";
 import { citesteAnunt } from "@/lib/queries/announcements";
 
 import { MarcheazaCitit } from "@/app/(app)/anunturi/[id]/marcheaza-citit";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Anunț" };
 
@@ -45,6 +46,11 @@ export default async function PaginaAnuntPortal({ params }: ProprietatiPagina) {
 
   return (
     <div className="space-y-4 p-4">
+      <p className="text-muted-foreground text-corp">
+        <Link href="/portal/anunturi" className="underline-offset-2 hover:underline">
+          Anunțuri
+        </Link>
+      </p>
       <div>
         <h1 className="text-foreground text-titlu font-semibold">{anunt.titlu}</h1>
         <p className="text-muted-foreground text-nota mt-1">

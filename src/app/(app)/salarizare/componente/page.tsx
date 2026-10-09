@@ -12,6 +12,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 import { ActiuniSablonComponenta } from "./actiuni-sablon-componenta";
 import { FormularSablonComponentaNou } from "./formular-sablon-componenta-nou";
+import { cn } from "@/lib/ui/cn";
 
 export const metadata: Metadata = { title: "Sporuri și prime" };
 
@@ -36,7 +37,14 @@ interface RandSablon {
   readonly organization_id: string | null;
 }
 
-export default async function PaginaComponenteSalariale() {
+export default async function PaginaComponenteSalariale({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?nou=<id>`: șablonul tocmai creat, evidențiat pe server și derulat la `#sablon-<id>`.
+  const nouBrut = (await searchParams)["nou"];
+  const nouId = typeof nouBrut === "string" ? nouBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -93,7 +101,11 @@ export default async function PaginaComponenteSalariale() {
           {sabloane.map((sablon) => (
             <li
               key={sablon.id}
-              className="border-border bg-surface rounded-panou shadow-ridicat border"
+              id={`sablon-${sablon.id}`}
+              className={cn(
+                "border-border bg-surface rounded-panou shadow-ridicat scroll-mt-24 border",
+                nouId === sablon.id && "ring-primary ring-2",
+              )}
             >
               <div className="flex flex-wrap items-start gap-3 px-4 py-3">
                 <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
