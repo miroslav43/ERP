@@ -37,7 +37,10 @@ export type FelToast = "reusita" | "eroare" | "informativ";
 export type Toast = Readonly<{
   fel: FelToast;
   text: string;
-  /** „Anulează" pentru operațiunile reversibile. Ține notificarea deschisă. */
+  /**
+   * „Anulează" pentru operațiunile reversibile sau „Deschide X" după o
+   * creare. Ține notificarea deschisă până o închide omul.
+   */
   actiune?: Readonly<{ eticheta: string; onClick: () => void }>;
 }>;
 
@@ -175,11 +178,15 @@ export function ZonaToast({ zona = "app" }: Readonly<{ zona?: ZonaToastare }>): 
 function RandToast({ toast }: { toast: ToastAfisat }): ReactElement {
   const Pictograma = PICTOGRAMA[toast.fel];
 
+  // Eroarea NU se stinge; nici toastul cu ACȚIUNE: „Deschide cererea" care
+  // dispare după 6 s e o ușă care se închide înainte s-o vezi. Omul îl
+  // închide din X sau îl consumă apăsând acțiunea.
+  const areActiune = toast.actiune !== undefined;
   useEffect(() => {
-    if (toast.fel === "eroare") return;
+    if (toast.fel === "eroare" || areActiune) return;
     const t = setTimeout(() => inchideToast(toast.id), DURATA_MS);
     return () => clearTimeout(t);
-  }, [toast.id, toast.fel]);
+  }, [toast.id, toast.fel, areActiune]);
 
   return (
     <div

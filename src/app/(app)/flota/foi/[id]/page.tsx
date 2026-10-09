@@ -29,6 +29,9 @@ import { ActiuniFoaie } from "./actiuni-foaie";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
 import { legaturaSigura } from "@/config/porti-ruta";
+import { requireUser } from "@/lib/auth/current-user";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { DecizieFoaie } from "../../aprobari/decizie-foaie";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
 
@@ -40,6 +43,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
 
   const { tenant } = await requireTenant();
+  const utilizator = await requireUser();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni, module] = await Promise.all([
@@ -67,6 +71,18 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const vehicul = vehicule.get(foaie.vehicle_id);
   const sofer = foaie.employee_id === null ? undefined : soferi.get(foaie.employee_id);
   const poateScrie = can(permisiuni, "trip_sheets:update", "own");
+  // Decizia pe fișa foii (precedentul /concedii/[id]): aprobatorul venit din
+  // coadă sau din notificare decide aici. Propria foaie e refuzată de trigger;
+  // butoanele nu se arată deloc pentru ea.
+  const poateAproba = can(permisiuni, "trip_sheets:approve", "team");
+  const propriaFisaId =
+    poateAproba && foaie.status === "trimis"
+      ? await idFisaProprie(tenant.organizationId, utilizator.id)
+      : null;
+  const poateDecideAici =
+    poateAproba &&
+    foaie.status === "trimis" &&
+    (foaie.employee_id === null || propriaFisaId !== foaie.employee_id);
 
   // Titlul și subtitlul se compun ca text: `AntetPagina` cere `string`, iar
   // conținutul rămâne cuvânt cu cuvânt cel de dinainte.
@@ -336,6 +352,18 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           }
         />
       </section>
+
+      {poateDecideAici ? (
+        <section
+          aria-labelledby="titlu-decizie"
+          className="border-primary/30 bg-primary/5 rounded-panou border p-4"
+        >
+          <h2 id="titlu-decizie" className="text-sectiune mb-2 font-medium">
+            Decizia dvs.
+          </h2>
+          <DecizieFoaie id={foaie.id} />
+        </section>
+      ) : null}
 
       {poateScrie ? (
         <ActiuniFoaie

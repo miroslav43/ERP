@@ -11,6 +11,8 @@ import { FormularDialog } from "@/components/ui/formular-dialog";
 import type { ActionResult } from "@/lib/actions/types";
 
 import { creeazaFoaie } from "../actions";
+import { useRouter } from "next/navigation";
+import { arataToast } from "@/components/ui/toast";
 
 interface VehiculOptiune {
   readonly id: string;
@@ -134,12 +136,29 @@ export function DialogFoaieNoua({
    * sugestia se rescrie explicit, în același `onChange`.
    */
   const [kmPlecare, setKmPlecare] = useState(String(primulVehicul?.km_curent ?? 0));
+  const router = useRouter();
   const kmSugerat = date.vehicule.find((v) => v.id === vehiculId)?.km_curent ?? 0;
 
-  const laReusita = useCallback((): void => {
-    setVehiculId(primulVehicul?.id ?? "");
-    setKmPlecare(String(primulVehicul?.km_curent ?? 0));
-  }, [primulVehicul]);
+  const laReusita = useCallback(
+    ({ id }: { readonly id: string }): void => {
+      setVehiculId(primulVehicul?.id ?? "");
+      setKmPlecare(String(primulVehicul?.km_curent ?? 0));
+      // Se rămâne pe listă (vezi mai sus), dar pașii următori — alimentări,
+      // închidere — se fac pe fișa ciornei: toastul o deschide dintr-un clic
+      // și nu se stinge singur.
+      arataToast({
+        fel: "reusita",
+        text: "Foaia de parcurs a fost salvată ca ciornă.",
+        actiune: {
+          eticheta: "Deschide ciorna",
+          onClick: () => {
+            router.push(`/flota/foi/${id}`);
+          },
+        },
+      });
+    },
+    [primulVehicul, router],
+  );
 
   /*
    * Parc gol: NU un declanșator dezactivat.
@@ -183,7 +202,6 @@ export function DialogFoaieNoua({
       marime="mare"
       deschisInitial={deschisInitial}
       actiune={trimiteFoaia}
-      mesajReusita="Foaia de parcurs a fost salvată ca ciornă."
       etichetaTrimite="Salvează ciorna"
       textInCurs="Se salvează…"
       laReusita={laReusita}

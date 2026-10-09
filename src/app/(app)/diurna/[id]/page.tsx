@@ -38,6 +38,9 @@ import { FormularCheltuiala } from "./formular-cheltuiala";
 import { FormularEtapa } from "./formular-etapa";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { requireUser } from "@/lib/auth/current-user";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { DecizieDeplasare } from "../aprobari/decizie-deplasare";
 
 export const metadata: Metadata = { title: "Fișa deplasării" };
 
@@ -59,6 +62,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
 
   const { tenant } = await requireTenant();
+  const utilizator = await requireUser();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -115,6 +119,17 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const poateSterge = can(permisiuni, "per_diem:delete", "own") && deplasare.status === "ciorna";
   const poateAproba = can(permisiuni, "per_diem:approve", "team");
   const poateDeconta = poateAproba && deplasare.status === "aprobata";
+  // Decizia stă pe fișa obiectului (precedentul `DecizieAprobare` din
+  // /concedii/[id]): aprobatorul care ajunge aici din coadă sau din notificare
+  // nu mai e trimis înapoi pe /diurna/aprobari. Propria deplasare nu se
+  // decide — acțiunea o refuză oricum (`decideDeplasare`), deci butoanele nu
+  // se arată deloc, nu doar pică la clic.
+  const propriaFisaId =
+    poateAproba && deplasare.status === "in_aprobare"
+      ? await idFisaProprie(tenant.organizationId, utilizator.id)
+      : null;
+  const poateDecideAici =
+    poateAproba && deplasare.status === "in_aprobare" && propriaFisaId !== deplasare.employee_id;
   const poateAdaugaEtapa = poateScrie && editabila;
   // Cheltuielile sosesc DUPĂ deplasare, deci nu se leagă de „editabilă”. Din
   // „decontată” și „anulată” însă nu se mai iese (trigger P0001): un rând
@@ -356,6 +371,18 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           )}
         </dl>
       </section>
+
+      {poateDecideAici ? (
+        <section
+          aria-labelledby="titlu-decizie"
+          className="border-primary/30 bg-primary/5 rounded-panou border p-4"
+        >
+          <h2 id="titlu-decizie" className="text-sectiune mb-2 font-medium">
+            Decizia dvs.
+          </h2>
+          <DecizieDeplasare id={deplasare.id} status="in_aprobare" />
+        </section>
+      ) : null}
 
       <ActiuniDeplasare
         id={deplasare.id}

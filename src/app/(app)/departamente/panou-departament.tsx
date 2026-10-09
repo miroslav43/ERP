@@ -17,6 +17,7 @@ import { cheieCautare } from "@/lib/text/diacritice";
 import { clasaBifa } from "@/components/ui/camp";
 
 import { mutaAngajati } from "./actions";
+import { arataToast } from "@/components/ui/toast";
 
 /**
  * Panoul de lucru cu persoanele unui departament.
@@ -160,7 +161,31 @@ export function PanouDepartament({
       router.refresh();
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
+        return;
       }
+      // Panoul rămâne pe sursă; ținta tocmai aleasă e la un clic (panoul se
+      // derivă din `?departament=`, deci schimbarea adresei îl deschide).
+      const tintaAleasa =
+        departmentId === null ? null : departamente.find((d) => d.id === departmentId);
+      arataToast({
+        fel: "reusita",
+        text:
+          idUri.length === 1
+            ? "Persoana a fost mutată."
+            : `${String(idUri.length)} persoane au fost mutate.`,
+        ...(tintaAleasa === null || tintaAleasa === undefined
+          ? {}
+          : {
+              actiune: {
+                eticheta: `Deschide ${tintaAleasa.denumire}`,
+                onClick: () => {
+                  const p = new URLSearchParams(window.location.search);
+                  p.set("departament", tintaAleasa.id);
+                  window.history.replaceState(null, "", `?${p.toString()}`);
+                },
+              },
+            }),
+      });
     });
   }
 

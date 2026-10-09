@@ -9,7 +9,7 @@ import { Callout } from "@/components/ui/callout";
 import { Scadenta } from "@/components/ui/scadenta";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate, formatDateTime } from "@/lib/format/date";
@@ -21,6 +21,7 @@ import { NavConcedii } from "../nav-concedii";
 import { DecizieAprobare } from "./decizie-aprobare";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { poateDeschide } from "@/config/porti-ruta";
 
 /**
  * Câte zile îi mai rămân celui care cere — sub perioada cerută.
@@ -81,10 +82,16 @@ export default async function PaginaAprobariConcedii() {
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "leave"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Țintele toasturilor de după decizie, prin poarta paginii-ȚINTĂ: managerul
+  // nu deschide /reges, deci nu primește un buton spre un refuz.
+  const contextPorti = { features: module, permissions: permisiuni };
+  const hrefReges = poateDeschide("/reges", contextPorti) ? "/reges?stare=de_transmis" : null;
+  const hrefPontaj = poateDeschide("/pontaj", contextPorti) ? "/pontaj" : null;
 
   if (!can(permisiuni, "leave:approve", "team")) {
     return (
@@ -238,7 +245,11 @@ export default async function PaginaAprobariConcedii() {
                     </p>
                   )}
                 </div>
-                <DecizieAprobare taskId={sarcina.taskId} />
+                <DecizieAprobare
+                  taskId={sarcina.taskId}
+                  hrefReges={hrefReges}
+                  hrefPontaj={hrefPontaj}
+                />
               </div>
             </li>
           ))}

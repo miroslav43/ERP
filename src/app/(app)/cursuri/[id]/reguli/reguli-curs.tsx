@@ -369,6 +369,14 @@ export function ReguliCurs({
                       esuate === 0
                         ? `Cursul a fost atribuit la ${String(atribuite)} ${atribuite === 1 ? "persoană" : "persoane"}.`
                         : `Atribuit la ${String(atribuite)}; ${String(esuate)} au fost sărite.`,
+                    // Atribuirea manuală trimite la stadiu; cea prin reguli lăsa
+                    // omul pe pagina regulilor. Toastul cu acțiune nu se stinge.
+                    actiune: {
+                      eticheta: "Vedeți stadiul",
+                      onClick: () => {
+                        router.push(`/cursuri/${cursId}/stadiu`);
+                      },
+                    },
                   },
             );
             router.refresh();

@@ -24,6 +24,7 @@ import type { OptiuneAngajatKpi } from "@/lib/queries/kpi";
 
 import { numeLuna } from "./etichete";
 import { deschideLunaKpi } from "./actions";
+import Link from "next/link";
 
 export function DeschideLuna({
   angajati,
@@ -89,10 +90,44 @@ export function DeschideLuna({
 
               {faraFunctie.length > 0 ? (
                 <Callout fel="atentie" titlu="Unii angajați n-au funcție">
-                  {faraFunctie.length === 1
-                    ? `${faraFunctie[0]?.full_name ?? "Un angajat"} nu are funcție scrisă`
-                    : `${String(faraFunctie.length)} angajați nu au funcție scrisă`}
-                  , deci nu au set de indicatori. Completați-le funcția în fișă, apoi reveniți.
+                  {/* Fiecare nume duce la încadrarea din fișă (a venit prin RLS:
+                      sunt subordonații direcți). */}
+                  {faraFunctie.map((ang, indice) => (
+                    <span key={ang.id}>
+                      {indice === 0 ? "" : ", "}
+                      <Link
+                        href={`/angajati/${ang.id}#titlu-incadrare`}
+                        className="underline underline-offset-2"
+                      >
+                        {ang.full_name}
+                      </Link>
+                    </span>
+                  ))}{" "}
+                  {faraFunctie.length === 1 ? "nu are" : "nu au"} funcție scrisă, deci{" "}
+                  {faraFunctie.length === 1 ? "nu are" : "nu au"} set de indicatori. Completați
+                  funcția în fișă, apoi reveniți.
+                </Callout>
+              ) : null}
+              {/* Refuzurile acțiunii, cu drumul care le repară: luna deja
+                  deschisă e la un clic, iar setul lipsă se definește în Seturi. */}
+              {stare.eroareGenerala?.includes("deja deschisă") === true &&
+              (stare.valoriTrimise["employee_id"] ?? "") !== "" ? (
+                <Callout fel="informativ" titlu="Luna există deja">
+                  <Link
+                    href={`/evaluari/kpi?angajat=${stare.valoriTrimise["employee_id"] ?? ""}`}
+                    className="underline underline-offset-2"
+                  >
+                    Deschideți lunile acestui angajat
+                  </Link>
+                  .
+                </Callout>
+              ) : null}
+              {stare.eroareGenerala?.includes("set de indicatori") === true ? (
+                <Callout fel="informativ" titlu="Setul de indicatori lipsește">
+                  <Link href="/evaluari/kpi/seturi" className="underline underline-offset-2">
+                    Definiți setul pentru funcția angajatului
+                  </Link>
+                  , apoi reveniți.
                 </Callout>
               ) : null}
             </>

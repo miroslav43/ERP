@@ -7,7 +7,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { LinkDocumentConcediu } from "../link-document";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatAmount } from "@/lib/format/money";
@@ -26,6 +26,7 @@ import {
 import { ActiuniCerere } from "./actiuni-cerere";
 import { DecizieAprobare } from "../aprobari/decizie-aprobare";
 import { idDinRuta } from "@/lib/rute/parametri";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Detaliile cererii de concediu" };
 
@@ -49,10 +50,16 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "leave"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Țintele toasturilor de după decizie, prin poarta paginii-ȚINTĂ: managerul
+  // nu deschide /reges, deci nu primește un buton spre un refuz.
+  const contextPorti = { features: module, permissions: permisiuni };
+  const hrefReges = poateDeschide("/reges", contextPorti) ? "/reges?stare=de_transmis" : null;
+  const hrefPontaj = poateDeschide("/pontaj", contextPorti) ? "/pontaj" : null;
 
   if (!can(permisiuni, "leave:read", "own")) {
     return (
@@ -308,12 +315,13 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
           <h2 id="titlu-decizie" className="text-sectiune mb-3 font-medium">
             Cererea așteaptă decizia dumneavoastră
           </h2>
-          <DecizieAprobare taskId={sarcinaMea.id} />
+          <DecizieAprobare taskId={sarcinaMea.id} hrefReges={hrefReges} hrefPontaj={hrefPontaj} />
         </section>
       ) : null}
 
       {poateAnula ? (
         <ActiuniCerere
+          hrefReges={hrefReges}
           cerereId={cerere.id}
           esteCiorna={esteCiorna}
           esteAprobata={esteAprobata}

@@ -82,6 +82,14 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
       redimensionabil
       actiune={trimite}
       mesajReusita="Departamentul a fost creat."
+      // Panoul se derivă din `?departament=` (structura-interactiva.tsx), deci
+      // după creare se deschide pe departamentul nou: pasul firesc următor e
+      // repartizarea oamenilor. `replaceState` e urmărit de `useSearchParams`.
+      laReusita={({ id }) => {
+        const p = new URLSearchParams(window.location.search);
+        p.set("departament", id);
+        window.history.replaceState(null, "", `?${p.toString()}`);
+      }}
       etichetaTrimite="Creează departamentul"
       textInCurs="Se creează…"
     >

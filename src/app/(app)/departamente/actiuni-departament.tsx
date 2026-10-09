@@ -17,6 +17,7 @@ import {
   mutaDepartament,
   reactiveazaDepartament,
 } from "./actions";
+import Link from "next/link";
 
 /**
  * Acțiunile unui departament, din panoul lui.
@@ -284,6 +285,20 @@ export function ActiuniDepartament({
       {eroare === null ? null : (
         <p role="alert" className="text-danger text-nota">
           {eroare}
+          {/* Refuzul numără TOATE fișele neșterse, nu doar activii din card:
+              fără link, omul nu știe pe cine să mute. */}
+          {eroare.includes("angajați alocați") ? (
+            <>
+              {" "}
+              <Link
+                href={`/angajati?department_id=${departament.id}`}
+                className="underline underline-offset-2"
+              >
+                Vezi angajații departamentului
+              </Link>
+              .
+            </>
+          ) : null}
         </p>
       )}
     </div>

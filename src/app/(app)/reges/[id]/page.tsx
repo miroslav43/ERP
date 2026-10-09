@@ -22,6 +22,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { ETICHETE_OPERATIE, ETICHETE_STARE_MESAJ } from "../constante";
 import { FormularClasificare } from "./formular-clasificare";
 import { LinkEntitate } from "@/components/ui/link-entitate";
+import { ButonAnuleazaMesaj, ButonTransmite } from "../coada-client";
 
 export const metadata = { title: "REGES-Online — mesaj" };
 
@@ -64,6 +65,7 @@ export default async function PaginaMesajReges(props: { params: Promise<{ id: st
   }
   const poateEdita = meetsScope(scopeFor(permisiuni, "reges:update") ?? undefined, "all");
   const poateConfigura = meetsScope(scopeFor(permisiuni, "reges:configure") ?? undefined, "all");
+  const poateTransmite = meetsScope(scopeFor(permisiuni, "reges:transmit") ?? undefined, "all");
 
   const { id } = await props.params;
   const supabase = await createServerSupabase();
@@ -135,6 +137,38 @@ export default async function PaginaMesajReges(props: { params: Promise<{ id: st
             </>
           ) : null}
         </Callout>
+      ) : null}
+
+      {/*
+        Aceleași butoane ca în coadă, pe fișa mesajului: cine verifică un mesaj
+        aici (de pe fișa angajatului, din notificare) nu mai e trimis înapoi în
+        coadă ca să-l transmită. Condițiile sunt EXACT cele din /reges.
+      */}
+      {mesaj.stare === "de_transmis" && (poateTransmite || poateEdita) ? (
+        <section
+          aria-labelledby="titlu-actiuni-mesaj"
+          className="border-primary/30 bg-primary/5 rounded-panou border p-4"
+        >
+          <h2 id="titlu-actiuni-mesaj" className="text-sectiune mb-2 font-medium">
+            Acțiuni
+          </h2>
+          <div className="flex flex-wrap items-start gap-3">
+            {mesaj.tip === "salariat" && poateTransmite ? (
+              <ButonTransmite
+                mesajId={mesaj.id}
+                numeAngajat={mesaj.angajatNume ?? "salariat"}
+                transmisibil={mesaj.transmisibil}
+              />
+            ) : (
+              <span className="text-muted-foreground text-nota">
+                {mesaj.transmisibil
+                  ? "Pleacă la următoarea reconciliere."
+                  : "Așteaptă mesajul precedent."}
+              </span>
+            )}
+            {poateEdita ? <ButonAnuleazaMesaj mesajId={mesaj.id} /> : null}
+          </div>
+        </section>
       ) : null}
 
       {mesaj.stare === "de_transmis" && !mesaj.transmisibil ? (

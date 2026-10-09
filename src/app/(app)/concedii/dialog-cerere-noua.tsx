@@ -404,6 +404,7 @@ function FormularCerereNoua({
    * `Formular`, iar o funcție nouă la fiecare randare ar reporni efectul după
    * succes, adică ar afișa notificarea de două ori.
    */
+  const pentruAltcineva = persoanaVizata !== null && persoanaVizata !== employeeIdPropriu;
   const laReusita = useCallback(
     (data: CerereCreata): void => {
       /*
@@ -437,23 +438,44 @@ function FormularCerereNoua({
           text: `Concediul suspendă contractul de muncă. Suspendarea a fost înregistrată, iar evenimentul de transmis în REGES este pregătit — termenul este ${data.suspendare.termen}.`,
         });
       }
+      /*
+       * Cererea depusă PENTRU ALTCINEVA nu apare în lista pe care aterizezi
+       * („Cererile mele" filtrează pe fișa proprie): fără drum, omul n-are
+       * cum s-o verifice. Toastul cu acțiune nu se stinge singur.
+       */
+      if (pentruAltcineva) {
+        arataToast({
+          fel: "reusita",
+          text: "Cererea a fost înregistrată pentru persoana aleasă.",
+          actiune: {
+            eticheta: "Deschide cererea",
+            onClick: () => {
+              router.push(`/concedii/${data.id}`);
+            },
+          },
+        });
+      }
       laInchidere();
       router.refresh();
     },
-    [laInchidere, router],
+    [laInchidere, router, pentruAltcineva],
   );
 
   return (
     <Formular
       actiune={trimiteCererea}
       laReusita={laReusita}
-      mesajReusita={
-        intentia === "ciorna"
-          ? "Cererea a fost salvată ca ciornă."
-          : poateAprobaPeLoc
-            ? "Cererea a fost înregistrată și aprobată."
-            : "Cererea a fost trimisă spre aprobare."
-      }
+      // Pentru altcineva, confirmarea vine din `laReusita`, cu drum spre cerere.
+      {...(pentruAltcineva
+        ? {}
+        : {
+            mesajReusita:
+              intentia === "ciorna"
+                ? "Cererea a fost salvată ca ciornă."
+                : poateAprobaPeLoc
+                  ? "Cererea a fost înregistrată și aprobată."
+                  : "Cererea a fost trimisă spre aprobare.",
+          })}
       className="gap-6"
     >
       {(stare) => (

@@ -162,6 +162,7 @@ export default async function PaginaPolitica() {
           valoriLegale={valoriLegale}
           baremuri={baremuri}
           dateOcupate={politici.map((p) => p.valabil_de_la)}
+          hrefDeplasareNoua={can(permisiuni, "per_diem:create", "own") ? "/diurna/noua" : null}
         />
       ) : (
         <p className="text-muted-foreground text-corp">

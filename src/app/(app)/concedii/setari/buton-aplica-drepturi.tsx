@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 
 import { aplicaDrepturileConcediu } from "./actions";
+import { arataToast } from "@/components/ui/toast";
 
 export function ButonAplicaDrepturi({
   an,
@@ -30,6 +31,16 @@ export function ButonAplicaDrepturi({
         return;
       }
       setConfirma(false);
+      arataToast({
+        fel: "reusita",
+        text: `Au fost scrise ${String(nrModificari)} solduri pentru anul ${String(an)}.`,
+        actiune: {
+          eticheta: "Vezi soldurile",
+          onClick: () => {
+            router.push("/concedii/sold");
+          },
+        },
+      });
       router.refresh();
     });
   }
