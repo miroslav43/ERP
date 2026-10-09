@@ -5,8 +5,9 @@ import { constructorPentru, formatePentru, UNELTE } from "./registru";
 
 describe("registrul uneltelor", () => {
   it("găsește o unealtă înregistrată", () => {
-    // Nu foaia de parcurs: din 9 oct 2026 are rută statică (Excel pe formule).
-    expect(constructorPentru("fisa-evaluare")).toBeTypeOf("function");
+    // Nu foaia de parcurs și nici fișa de evaluare: din 9 oct 2026 au rute
+    // statice (Excel pe formule). Fișa SSM e singura rămasă pe ruta comună.
+    expect(constructorPentru("fisa-instruire-ssm")).toBeTypeOf("function");
   });
 
   it("registrul nu răspunde la cheile prototipului", () => {

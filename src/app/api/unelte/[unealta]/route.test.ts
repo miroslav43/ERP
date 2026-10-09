@@ -20,14 +20,17 @@ describe("ruta comună de descărcare", () => {
   });
 
   it("fișierul generat iese cu cache-control private, no-store", async () => {
-    // Condica are rută statică din E12; ruta comună se verifică pe o unealtă din `UNELTE`.
-    const r = await cere("/api/unelte/fisa-evaluare?format=pdf", "fisa-evaluare");
+    // Condica (E12) și fișa de evaluare (I7) au rute statice; ruta comună se
+    // verifică pe o unealtă rămasă în `UNELTE`.
+    const r = await cere("/api/unelte/fisa-instruire-ssm?format=pdf", "fisa-instruire-ssm");
     expect(r.status).toBe(200);
     expect(r.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it("formatul cu majuscule dă formatul cerut, nu PDF", async () => {
-    const r = await cere("/api/unelte/fisa-evaluare?format=DOCX", "fisa-evaluare");
+    // Fișa de evaluare are rută statică (secțiunea I) și propriul test de format;
+    // aici proba rămâne pe o unealtă servită de ruta comună.
+    const r = await cere("/api/unelte/fisa-instruire-ssm?format=DOCX", "fisa-instruire-ssm");
     expect(r.headers.get("content-type")).toContain("wordprocessingml");
   });
 });

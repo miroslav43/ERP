@@ -1,19 +1,18 @@
 import { fisaSsmDinParametri } from "@/app/(marketing)/unelte/fisa-instruire-ssm/model";
-import { fisaEvaluareDinParametri } from "@/app/(marketing)/unelte/fisa-evaluare/model";
 
 import { FORMATE, type DocumentTabelar, type Format } from "./document-tabelar";
 
 export type Constructor = (q: URLSearchParams) => DocumentTabelar;
 
 /**
- * Uneltele servite de `/api/unelte/[unealta]`. Patru NU sunt aici, fiindcă au
+ * Uneltele servite de `/api/unelte/[unealta]`. Cinci NU sunt aici, fiindcă au
  * rută statică, iar ruta statică are prioritate față de segmentul dinamic:
- * foaia de pontaj, condica și foaia de parcurs (Excel pe formule) și cererea
+ * foaia de pontaj, condica și foaia de parcurs (Excel pe formule), cererea
  * de concediu (o scrisoare, nu un formular tabelar —
- * `src/app/api/unelte/cerere-concediu/route.ts`).
+ * `src/app/api/unelte/cerere-concediu/route.ts`) și fișa de evaluare (Excel
+ * pe formule, `src/app/api/unelte/fisa-evaluare/route.ts`).
  */
 export const UNELTE: Readonly<Record<string, Constructor>> = {
-  "fisa-evaluare": fisaEvaluareDinParametri,
   "fisa-instruire-ssm": fisaSsmDinParametri,
 };
 
