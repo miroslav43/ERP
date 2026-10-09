@@ -1,5 +1,6 @@
 import {
   AlignmentType,
+  BorderStyle,
   Document,
   ExternalHyperlink,
   Footer,
@@ -11,6 +12,7 @@ import {
   Paragraph,
   ShadingType,
   Table,
+  TableBorders,
   TableCell,
   TableRow,
   TextRun,
@@ -263,7 +265,60 @@ function sectiune(d: DocumentTabelar): ISectionOptions {
   }
   for (const s of d.sectiuni ?? []) copii.push(...blocuriSectiune(s));
   for (const n of d.note) copii.push(paragraf(n, { size: 16, color: "6B7280" }));
-  if (d.semnaturi.length > 0) {
+  for (const rubrica of d.rubrici ?? []) {
+    copii.push(
+      new Paragraph({
+        spacing: { before: 200, after: 60 },
+        keepNext: true,
+        children: [new TextRun({ text: rubrica.titlu, bold: true, size: 18 })],
+      }),
+    );
+    const paragrafeRubrica = rubrica.text.split("\n").filter((p) => p.trim() !== "");
+    for (const p of paragrafeRubrica) copii.push(paragraf(p, { size: 18 }));
+    const goale = paragrafeRubrica.length > 0 ? 1 : rubrica.randuriGoale;
+    for (let k = 0; k < goale; k += 1) {
+      // Un rând de scris de mână: paragraf gol cu linie dedesubt, nu liniuțe care se rup.
+      copii.push(
+        new Paragraph({
+          spacing: { before: 240 },
+          border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "73787F", space: 1 } },
+          children: [],
+        }),
+      );
+    }
+  }
+  if (d.semnaturi.length > 0 && d.dataLaSemnaturi === true) {
+    // Semnăturile cu dată stau în coloane, ca „Data” să cadă sub semnătura ei.
+    const latime = Math.floor(100 / d.semnaturi.length);
+    const randSemnatura = (text: (eticheta: string) => string) =>
+      new TableRow({
+        cantSplit: true,
+        children: d.semnaturi.map(
+          (s) =>
+            new TableCell({
+              width: { size: latime, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  spacing: { before: 120 },
+                  children: [new TextRun({ text: text(s), size: 18 })],
+                }),
+              ],
+            }),
+        ),
+      });
+    copii.push(
+      paragraf(""),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: TableBorders.NONE,
+        rows: [
+          randSemnatura((s) => s),
+          randSemnatura(() => "Semnătura: ______________"),
+          randSemnatura(() => "Data: ______________"),
+        ],
+      }),
+    );
+  } else if (d.semnaturi.length > 0) {
     copii.push(
       paragraf(""),
       paragraf(d.semnaturi.map((s) => `${s}: ____________________`).join("        "), {

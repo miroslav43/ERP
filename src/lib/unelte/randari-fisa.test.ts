@@ -1,8 +1,11 @@
+import JSZip from "jszip";
 import { PDFDocument, PDFPage } from "pdf-lib";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { curataDocument, type DocumentTabelar } from "./document-tabelar";
+import { randeazaDocx } from "./docx";
 import { imparteCelula, randeazaPdf } from "./pdf";
+import { randeazaXlsx } from "./xlsx";
 
 /**
  * Câmpurile opționale ale documentului comun cerute de fișa de evaluare:
@@ -146,6 +149,35 @@ describe("PDF: fișa de evaluare", () => {
     const texte = await texteDesenate(vechi);
     expect(texte.filter((t) => t.startsWith("Data: "))).toEqual([]);
     expect(texte).not.toContain("Comentariile angajatului");
+  });
+});
+
+describe("Word: fișa de evaluare", () => {
+  it("rubricile și semnăturile în coloane, fiecare cu dată", async () => {
+    const zip = await JSZip.loadAsync(await randeazaDocx(FISA));
+    const xml = (await zip.file("word/document.xml")?.async("string")) ?? "";
+    expect(xml).toContain(CRITERIU_LUNG);
+    expect(xml).toContain("Comentariile angajatului");
+    expect(xml).toContain("Raport lunar");
+    expect(xml.match(/Data: _+/gu)).toHaveLength(3);
+    expect(xml.match(/Semnătura: _+/gu)).toHaveLength(3);
+  });
+
+  it("fără `dataLaSemnaturi`, semnăturile rămân pe un rând, ca înainte", async () => {
+    const zip = await JSZip.loadAsync(await randeazaDocx({ ...FISA, dataLaSemnaturi: false }));
+    const xml = (await zip.file("word/document.xml")?.async("string")) ?? "";
+    expect(xml).not.toMatch(/Data: _+/u);
+    expect(xml).toContain("Evaluator: ____________________");
+  });
+});
+
+describe("Excel comun: rubrici și dată", () => {
+  it("rubricile și rândul de dată apar și în foaia comună", async () => {
+    const zip = await JSZip.loadAsync(await randeazaXlsx(FISA));
+    const siruri = (await zip.file("xl/sharedStrings.xml")?.async("string")) ?? "";
+    expect(siruri).toContain("Comentariile angajatului");
+    expect(siruri).toContain("Raport lunar");
+    expect(siruri).toContain("Data: ______________");
   });
 });
 

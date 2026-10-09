@@ -84,7 +84,24 @@ export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
   }
   fila.addRow([]);
   for (const n of d.note) fila.addRow([n]);
+  for (const rubrica of d.rubrici ?? []) {
+    fila.addRow([]);
+    fila.addRow([rubrica.titlu]).font = { bold: true };
+    const paragrafeRubrica = rubrica.text.split("\n").filter((p) => p.trim() !== "");
+    for (const p of paragrafeRubrica) fila.addRow([p]);
+    const goale = paragrafeRubrica.length > 0 ? 1 : rubrica.randuriGoale;
+    for (let k = 0; k < goale; k += 1) {
+      const rand = fila.addRow([]);
+      rand.height = 20;
+      d.coloane.forEach((_, i) => {
+        rand.getCell(i + 1).border = { bottom: { style: "hair" } };
+      });
+    }
+  }
   if (d.semnaturi.length > 0) fila.addRow(d.semnaturi.map((s) => `${s}: ______________`));
+  if (d.semnaturi.length > 0 && d.dataLaSemnaturi === true) {
+    fila.addRow(d.semnaturi.map(() => "Data: ______________"));
+  }
   const semnatura = fila.addRow([
     { text: SEMNATURA_FISIER, hyperlink: adresaDinFisier(d, "xlsx", ADRESA_SITE) },
   ]);
