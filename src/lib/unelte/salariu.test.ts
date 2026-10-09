@@ -223,3 +223,81 @@ describe("net → brut nu coboară sub minimul legal și nu plafonează tăcut",
     }
   });
 });
+
+describe("deducerea personală suplimentară (art. 77 alin. (10))", () => {
+  const O = OPTIUNI_IMPLICITE;
+
+  it("sub 26 de ani, brut 5.000: deducere 562 + 649 = 1.211, net 3.046", () => {
+    // 15% × 4.325 = 648,75 → 649. Impozit (5.000 − 1.250 − 500 − 1.211) × 10% = 203,9 → 204.
+    // Net 5.000 − 1.250 − 500 − 204 = 3.046 (fără deducerea suplimentară: 2.981).
+    expect(calculeazaDinBrut(5000, { ...O, sub26: true })).toMatchObject({
+      deducereDeBaza: 562,
+      deducereSub26: 649,
+      deducerePersonala: 1211,
+      impozit: 204,
+      net: 3046,
+    });
+  });
+
+  it("sub 26 de ani se oprește la minim + 2.000: 6.325 o primește, 6.326 nu", () => {
+    // 6.325: deducerea de bază e 0% (pasul 40), cea suplimentară 649. CAS 1.581,25 → 1.581,
+    // CASS 632,50 → 633; impozit (6.325 − 1.581,25 − 632,5 − 649) × 10% = 346,225 → 346; net 3.765.
+    expect(calculeazaDinBrut(6325, { ...O, sub26: true })).toMatchObject({
+      deducereSub26: 649,
+      net: 3765,
+    });
+    // 6.326: nicio deducere. CAS 1.581,50 → 1.582; CASS 632,60 → 633;
+    // impozit (6.326 − 1.581,5 − 632,6) × 10% = 411,19 → 411; net 6.326 − 1.582 − 633 − 411 = 3.700.
+    expect(calculeazaDinBrut(6326, { ...O, sub26: true })).toMatchObject({
+      deducereSub26: 0,
+      net: 3700,
+    });
+  });
+
+  it("copiii la școală: 100 de lei pe copil, indiferent de venit — brut 8.000, un copil: net 4.690", () => {
+    // Peste minim + 2.000 nu există deducere de bază. Impozit (8.000 − 2.000 − 800 − 100) × 10% = 510;
+    // net 8.000 − 2.000 − 800 − 510 = 4.690 (fără copil: impozit 520, net 4.680).
+    expect(calculeazaDinBrut(8000, { ...O, copiiScoala: 1 })).toMatchObject({
+      deducereCopii: 100,
+      net: 4690,
+    });
+    expect(calculeazaDinBrut(8000, O).net).toBe(4680);
+  });
+
+  it("sub 26 de ani și doi copii, brut 5.000: 1.411 lei deducere, net 3.066", () => {
+    // 562 + 649 + 200 = 1.411. Impozit (5.000 − 1.250 − 500 − 1.411) × 10% = 183,9 → 184; net 3.066.
+    expect(calculeazaDinBrut(5000, { ...O, sub26: true, copiiScoala: 2 })).toMatchObject({
+      deducerePersonala: 1411,
+      net: 3066,
+    });
+  });
+
+  it("în afara funcției de bază, nicio deducere — nici cea suplimentară (alin. (1))", () => {
+    // 4.325 fără facilitate (cere funcția de bază): CAS 1.081,25 → 1.081; CASS 432,50 → 433;
+    // impozit (4.325 − 1.081,25 − 432,5) × 10% = 281,125 → 281; net 4.325 − 1.081 − 433 − 281 = 2.530.
+    expect(
+      calculeazaDinBrut(4325, { ...O, functieDeBaza: false, sub26: true, copiiScoala: 3 }),
+    ).toMatchObject({ deducerePersonala: 0, deducereSub26: 0, deducereCopii: 0, net: 2530 });
+  });
+
+  it("deducerea afișată nu trece de venitul impozabil (art. 77 alin. (2))", () => {
+    // 1.000 brut, 4 persoane: grila dă 45% × 4.325 = 1.946,25 → 1.946, dar venitul după CAS (250)
+    // și CASS (100) e 650. Impozitul e 0 oricum; acum și cifra afișată e 650.
+    expect(calculeazaDinBrut(1000, { ...O, persoane: 4 })).toMatchObject({
+      deducereDeBaza: 1946,
+      deducerePersonala: 650,
+      impozit: 0,
+      net: 650,
+    });
+  });
+
+  it("⚠ comportamentul de azi, de confirmat (NOTES.md §3): CAS și CASS NErotunjite în baza de impozit", () => {
+    // 4.453: deducere pasul 3, 18,5% × 4.325 = 800,125 → 800. (4.453 − 1.113,25 − 445,30 − 800) × 10%
+    // = 209,445 → 209. Cu CAS și CASS rotunjite întâi: 209,5 → 210. O schimbare trebuie să fie deliberată.
+    expect(dinBrut(4453, 0, true).impozit).toBe(209);
+  });
+
+  it("⚠ comportamentul de azi, de confirmat: 18% × 4.325 = 778,50 se rotunjește în sus, la 779", () => {
+    expect(dinBrut(4500, 0, true).deducerePersonala).toBe(779);
+  });
+});

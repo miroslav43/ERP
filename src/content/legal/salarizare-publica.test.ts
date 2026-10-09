@@ -8,6 +8,8 @@ import {
   PERIOADE_2026,
   perioadaPentruZi,
   SETARI_SALARIZARE_PUBLICE as S,
+  valoareDeducereDeBaza,
+  valoareDeducereSub26,
   valoriExpirate,
   VERIFICARE,
 } from "./salarizare-publica";
@@ -112,5 +114,36 @@ describe("cele două perioade ale lui 2026", () => {
     expect(perioadaPentruZi(toBucharestDateString(new Date("2026-06-30T22:30:00Z")))).toBe(
       "2026-2",
     );
+  });
+});
+
+describe("deducerile calculate direct, fără grilă", () => {
+  const dinGrila = (minim: number, persoane: number, venit: number) =>
+    [...grilaDeducerePersonala(minim)]
+      .filter(
+        (p) =>
+          persoane >= p.nrPersoaneIntretinereMin &&
+          (p.nrPersoaneIntretinereMax === null || persoane <= p.nrPersoaneIntretinereMax) &&
+          venit <= p.venitBrutMax,
+      )
+      .sort((a, b) => a.venitBrutMax - b.venitBrutMax)[0]?.valoare ?? 0;
+
+  it("deducerea de bază e pragul din grilă, pe fiecare leu și fiecare număr de persoane, în ambele perioade", () => {
+    for (const minim of [4050, 4325]) {
+      for (let persoane = 0; persoane <= 5; persoane += 1) {
+        for (let venit = minim - 3; venit <= minim + 2003; venit += 1) {
+          const unde = `${String(minim)}/${String(persoane)}/${String(venit)}`;
+          expect(valoareDeducereDeBaza(minim, persoane, venit), unde).toBe(
+            dinGrila(minim, persoane, venit),
+          );
+        }
+      }
+    }
+  });
+
+  it("sub 26 de ani: 15% din minim — 648,75 → 649 din iulie, 607,50 → 608 în ianuarie–iunie", () => {
+    // ⚠ Art. 66 Cod fiscal ar neglija 50 de bani: 607. Întrebare deschisă în NOTES.md §3.
+    expect(valoareDeducereSub26(4325)).toBe(649);
+    expect(valoareDeducereSub26(4050)).toBe(608);
   });
 });

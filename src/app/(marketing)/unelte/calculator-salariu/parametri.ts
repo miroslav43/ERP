@@ -93,6 +93,8 @@ function optiuniDin(q: URLSearchParams, azi: string): OptiuniSalariu {
     perioada: estePerioada(ceruta) ? ceruta : perioadaPentruZi(azi),
     persoane: intreg(q.get("persoane"), 0, 0, 4),
     functieDeBaza: q.get("baza") !== "nu",
+    sub26: q.get("sub26") === "da",
+    copiiScoala: intreg(q.get("copii"), 0, 0, 6),
   };
 }
 

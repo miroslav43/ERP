@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dinBrut } from "@/lib/unelte/salariu";
+import { calculeazaDinBrut, dinBrut, OPTIUNI_IMPLICITE } from "@/lib/unelte/salariu";
 
 import { randuriDesfasurator } from "./randuri";
 
@@ -30,5 +30,19 @@ describe("rândurile desfășurătorului", () => {
     const pesteMinim = randuriDesfasurator(dinBrut(4326, 0, true)).angajat.map((x) => x.eticheta);
     expect(laMinim).toContain(eticheta);
     expect(pesteMinim).not.toContain(eticheta);
+  });
+
+  it("deducerile suplimentare apar pe rânduri, iar totalul plafonat spune că e plafonat", () => {
+    const r = calculeazaDinBrut(5000, { ...OPTIUNI_IMPLICITE, sub26: true, copiiScoala: 2 });
+    const randuri = randuriDesfasurator(r).angajat.map((x) => [x.eticheta, x.valoare]);
+    expect(randuri).toContainEqual(["Deducere de bază", 562]);
+    expect(randuri).toContainEqual(["Deducere sub 26 de ani", 649]);
+    expect(randuri).toContainEqual(["Deducere pentru copiii înscriși la școală", 200]);
+    expect(randuri).toContainEqual(["Deducere personală, total", 1411]);
+    const mic = calculeazaDinBrut(1000, { ...OPTIUNI_IMPLICITE, persoane: 4 });
+    expect(randuriDesfasurator(mic).angajat.map((x) => [x.eticheta, x.valoare])).toContainEqual([
+      "Deducere personală, în limita venitului",
+      650,
+    ]);
   });
 });

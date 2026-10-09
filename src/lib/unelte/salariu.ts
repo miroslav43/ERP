@@ -1,7 +1,10 @@
 import {
+  DEDUCERE_COPIL_SCOALA,
   PERIOADE_2026,
   type Perioada,
   PLAFON_DEDUCERE_PESTE_MINIM,
+  valoareDeducereDeBaza,
+  valoareDeducereSub26,
 } from "@/content/legal/salarizare-publica";
 import { calculatePayrollEntry, type PayrollCalcInput } from "@/domain/payroll/calc";
 
@@ -25,6 +28,10 @@ export type OptiuniSalariu = Readonly<{
   /** 0–4; 4 înseamnă „4 și peste”, ca în tabelul art. 77 alin. (4). */
   persoane: number;
   functieDeBaza: boolean;
+  /** Până la 26 de ani: deducerea suplimentară de 15% din minim (art. 77 alin. (10) lit. a)). */
+  sub26: boolean;
+  /** Copii sub 18 ani înscriși la școală: 100 de lei fiecare (art. 77 alin. (10) lit. b)). */
+  copiiScoala: number;
 }>;
 
 /** Normă întreagă, funcția de bază, fără persoane, în iulie–decembrie 2026. */
@@ -32,13 +39,19 @@ export const OPTIUNI_IMPLICITE: OptiuniSalariu = {
   perioada: "2026-2",
   persoane: 0,
   functieDeBaza: true,
+  sub26: false,
+  copiiScoala: 0,
 };
 
 export type RezultatSalariu = Readonly<{
   brut: number;
   cas: number;
   cass: number;
+  /** Deducerea ACORDATĂ: suma celor trei de mai jos, în limita venitului impozabil (art. 77 alin. (2)). */
   deducerePersonala: number;
+  deducereDeBaza: number;
+  deducereSub26: number;
+  deducereCopii: number;
   impozit: number;
   /** Suma scoasă din baza de impozit și contribuții (OUG 89/2025 art. III); 0 când nu se aplică. */
   sumaNeimpozabila: number;
@@ -53,12 +66,26 @@ export const BRUT_MAX = 500_000;
 const margineste = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(v) ? v : min));
 
-function intrare(brutImpozabil: number, o: OptiuniSalariu): PayrollCalcInput {
+function intrare(brutImpozabil: number, o: OptiuniSalariu, deducere: number): PayrollCalcInput {
   const setari = PERIOADE_2026[o.perioada].setari;
   return {
-    // Deducerea personală se acordă numai la funcția de bază (art. 77 alin. (1)
-    // Cod fiscal). Motorul n-are noțiunea; în afara ei, grila e goală.
-    settings: o.functieDeBaza ? setari : { ...setari, deducerePersonala: [] },
+    // Deducerea o calculează `deduceri()` (art. 77, cu partea suplimentară, pe care
+    // grila motorului n-o are); motorul o primește ca un singur prag, valabil
+    // pentru orice venit. Funcția de bază se verifică tot în `deduceri()`.
+    settings: {
+      ...setari,
+      deducerePersonala:
+        deducere > 0
+          ? [
+              {
+                nrPersoaneIntretinereMin: 0,
+                nrPersoaneIntretinereMax: null,
+                venitBrutMax: Number.MAX_SAFE_INTEGER,
+                valoare: deducere,
+              },
+            ]
+          : [],
+    },
     contract: { salariuBaza: brutImpozabil, nrPersoaneIntretinere: o.persoane },
     // Luna întreagă, ca O SINGURĂ zi lucrătoare. Motorul împarte salariul la
     // zilele lucrătoare și îl înmulțește înapoi cu zilele lucrate; cu 21 de zile,
@@ -92,21 +119,49 @@ function sumaNeimpozabila(brut: number, o: OptiuniSalariu): number {
     : 0;
 }
 
+type Deduceri = Readonly<{ deBaza: number; sub26: number; copii: number }>;
+
+/**
+ * Deducerea personală, art. 77 Cod fiscal: cea de bază (alin. (4)) plus cea
+ * suplimentară (alin. (10)) — 15% din minim până la 26 de ani, pentru un venit de
+ * cel mult minim + 2.000 de lei, și 100 de lei pe copil înscris la școală,
+ * indiferent de venit. Toată se acordă numai la funcția de bază (alin. (1)).
+ */
+function deduceri(venitBrut: number, o: OptiuniSalariu): Deduceri {
+  if (!o.functieDeBaza) return { deBaza: 0, sub26: 0, copii: 0 };
+  const minim = PERIOADE_2026[o.perioada].salariuMinim;
+  return {
+    deBaza: valoareDeducereDeBaza(minim, o.persoane, venitBrut),
+    sub26:
+      o.sub26 && venitBrut <= minim + PLAFON_DEDUCERE_PESTE_MINIM ? valoareDeducereSub26(minim) : 0,
+    copii: DEDUCERE_COPIL_SCOALA * o.copiiScoala,
+  };
+}
+
 export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): RezultatSalariu {
   const b = Math.round(margineste(brut, BRUT_MIN, BRUT_MAX) * 100) / 100;
   const o: OptiuniSalariu = {
     ...optiuni,
     persoane: Math.round(margineste(optiuni.persoane, 0, 10)),
+    copiiScoala: Math.round(margineste(optiuni.copiiScoala, 0, 10)),
   };
   const scutit = sumaNeimpozabila(b, o);
+  const d = deduceri(b, o);
   // Motorul calculează impozitul și contribuțiile pe brutul FĂRĂ suma scutită;
   // omul primește însă tot brutul, deci suma scutită se adaugă înapoi la net.
-  const r = calculatePayrollEntry(intrare(b - scutit, o));
+  const r = calculatePayrollEntry(intrare(b - scutit, o, d.deBaza + d.sub26 + d.copii));
+  // Art. 77 alin. (2): deducerea se acordă „în limita venitului impozabil lunar”.
+  // Motorul o plafonează deja (baza de impozit nu coboară sub zero); aici se
+  // plafonează și cifra afișată — la 4,5 lei brut se afișa „Deducere 865 lei”.
+  const venitInainteDeDeducere = Math.max(0, b - scutit - r.cas - r.cass);
   return {
     brut: b,
     cas: r.cas,
     cass: r.cass,
-    deducerePersonala: r.deducerePersonala,
+    deducerePersonala: Math.min(r.deducerePersonala, venitInainteDeDeducere),
+    deducereDeBaza: d.deBaza,
+    deducereSub26: d.sub26,
+    deducereCopii: d.copii,
     impozit: r.impozit,
     sumaNeimpozabila: scutit,
     net: r.net + scutit,

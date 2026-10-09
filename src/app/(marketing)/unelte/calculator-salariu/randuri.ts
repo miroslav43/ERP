@@ -20,6 +20,14 @@ const rand = (eticheta: string, valoare: number, fel: FelRand): RandDesfasurator
   fel,
 });
 
+function etichetaDeducere(r: RezultatSalariu): string {
+  const calculata = r.deducereDeBaza + r.deducereSub26 + r.deducereCopii;
+  if (r.deducerePersonala < calculata) return "Deducere personală, în limita venitului";
+  return r.deducereSub26 > 0 || r.deducereCopii > 0
+    ? "Deducere personală, total"
+    : "Deducere personală";
+}
+
 export function randuriDesfasurator(r: RezultatSalariu): Desfasurare {
   return {
     angajat: [
@@ -29,7 +37,18 @@ export function randuriDesfasurator(r: RezultatSalariu): Desfasurare {
         : []),
       rand("CAS — pensie, 25%", r.cas, "minus"),
       rand("CASS — sănătate, 10%", r.cass, "minus"),
-      rand("Deducere personală", r.deducerePersonala, "info"),
+      ...(r.deducereSub26 > 0 || r.deducereCopii > 0
+        ? [
+            rand("Deducere de bază", r.deducereDeBaza, "info"),
+            ...(r.deducereSub26 > 0
+              ? [rand("Deducere sub 26 de ani", r.deducereSub26, "info")]
+              : []),
+            ...(r.deducereCopii > 0
+              ? [rand("Deducere pentru copiii înscriși la școală", r.deducereCopii, "info")]
+              : []),
+          ]
+        : []),
+      rand(etichetaDeducere(r), r.deducerePersonala, "info"),
       rand("Impozit pe venit, 10%", r.impozit, "minus"),
       rand("Salariu net", r.net, "total"),
     ],

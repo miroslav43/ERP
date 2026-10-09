@@ -293,7 +293,6 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
       <Banda inaltime="medie" supratitlu="Limitele" titlu="Ce nu calculează">
         <ul className="mt-6 max-w-[72ch] space-y-3">
           {[
-            "Deducerea personală suplimentară: 15% din salariul minim pentru cei sub 26 de ani și 100 de lei pentru fiecare copil înscris la școală — art. 77 alin. (10).",
             "Scutirile pentru persoanele cu handicap și tichetele de masă. Facilitățile pe sectoare de activitate nu se mai aplică veniturilor din 2025 (OUG 156/2024).",
             "Timpul parțial, sporurile, orele suplimentare și concediile din lună.",
           ].map((t) => (

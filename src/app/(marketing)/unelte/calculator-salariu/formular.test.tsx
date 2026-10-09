@@ -40,4 +40,13 @@ describe("formularul calculatorului", () => {
       [...c.querySelectorAll('select[name="perioada"] option')].map((o) => o.textContent),
     ).toEqual(["ianuarie–iunie 2026", "iulie–decembrie 2026"]);
   });
+
+  it("opțiunile suplimentare stau într-un <details>, deschis doar când una e aleasă", () => {
+    expect(randeaza({}).querySelector("details")?.hasAttribute("open")).toBe(false);
+    const c = randeaza({ sub26: "da", copii: "3" });
+    expect(c.querySelector("details")?.hasAttribute("open")).toBe(true);
+    expect(c.querySelector<HTMLInputElement>('input[name="sub26"]')?.checked).toBe(true);
+    expect(c.querySelector<HTMLInputElement>('input[name="sub26"]')?.value).toBe("da");
+    expect(c.querySelector<HTMLSelectElement>('select[name="copii"]')?.value).toBe("3");
+  });
 });

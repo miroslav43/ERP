@@ -66,7 +66,13 @@ describe("parametrii calculatorului de salariu", () => {
       eroare: null,
       rotunjita: false,
       din: "brut",
-      optiuni: { perioada: "2026-2", persoane: 0, functieDeBaza: true },
+      optiuni: {
+        perioada: "2026-2",
+        persoane: 0,
+        functieDeBaza: true,
+        sub26: false,
+        copiiScoala: 0,
+      },
     });
   });
 
@@ -156,5 +162,18 @@ describe("net → brut, din adresă", () => {
     expect(r.eroare).toBe(
       "Pentru un net de 300.000 lei ar trebui un brut de peste 500.000 lei, cât acoperă calculatorul.",
     );
+  });
+});
+
+describe("deducerile suplimentare, din adresă", () => {
+  it("sub26=da și copii=2 ajung în opțiuni; copiii sunt mărginiți la 6", () => {
+    const o = parametriCalculator(q({ sub26: "da", copii: "2" }), AZI).optiuni;
+    expect([o.sub26, o.copiiScoala]).toEqual([true, 2]);
+    expect(parametriCalculator(q({ copii: "40" }), AZI).optiuni.copiiScoala).toBe(6);
+    expect(parametriCalculator(q({ sub26: "1" }), AZI).optiuni.sub26).toBe(false);
+  });
+
+  it("5.000 brut, sub 26 de ani: net 3.046", () => {
+    expect(calculeazaDinParametri(q({ suma: "5000", sub26: "da" }), AZI).rezultat?.net).toBe(3046);
   });
 });

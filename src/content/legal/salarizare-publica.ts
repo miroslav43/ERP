@@ -25,9 +25,9 @@ import type { PayrollSettingsSnapshot, PragDeducerePersonala } from "@/domain/pa
  * 5.000 brut → 2.981 net) — vezi `src/lib/unelte/salariu.test.ts`.
  *
  * ── CE NU ACOPERĂ ─────────────────────────────────────────────────────────
- * Deducerea personală suplimentară (art. 77 alin. (10): sub 26 de ani, copii
- * înscriși la școală), facilitățile pe sectoare, tichetele, timpul parțial
- * (unde contribuțiile se datorează la minim). Pagina le spune pe față.
+ * Facilitățile pe sectoare (abrogate din 2025, OUG 156/2024), scutirea pentru
+ * cercetare-dezvoltare, sporurile și concediile. Pagina le spune pe față.
+ * Deducerea suplimentară (art. 77 alin. (10)) e acoperită din 9 oct 2026.
  *
  * Valabil pentru 2026, pe cele două perioade din `PERIOADE_2026`: la 1 ianuarie
  * 2027 facilitatea expiră (art. III alin. (6)) și valorile se reverifică.
@@ -103,6 +103,34 @@ export function grilaDeducerePersonala(minim: number): readonly PragDeducerePers
 
 /** Art. 77 alin. (3): deducerea de bază se acordă până la minim + 2.000 de lei inclusiv. */
 export const PLAFON_DEDUCERE_PESTE_MINIM = PAS_LEI * PASI;
+
+/**
+ * Deducerea de bază din art. 77 alin. (4), calculată direct pentru un venit.
+ * Dă aceeași valoare ca pragul din `grilaDeducerePersonala` care acoperă venitul
+ * (testat pe fiecare leu, în ambele perioade). `venitBrut` e venitul brut lunar
+ * din salarii; calculatorul include în el tichetele (⚠ NOTES.md §3).
+ */
+export function valoareDeducereDeBaza(minim: number, persoane: number, venitBrut: number): number {
+  if (venitBrut > minim + PLAFON_DEDUCERE_PESTE_MINIM) return 0;
+  const pas = venitBrut <= minim ? 0 : Math.ceil((venitBrut - minim) / PAS_LEI);
+  const baza = PROCENTE_BAZA[Math.min(4, Math.max(0, Math.round(persoane)))] ?? 0;
+  return Math.round((Math.round(minim * 100) * (baza - 5 * pas)) / 100_000);
+}
+
+/**
+ * Art. 77 alin. (10) lit. a): 15% din salariul minim, pentru cei de până la 26 de
+ * ani cu venituri din salarii de cel mult minim + 2.000 de lei. Rotunjită ca grila,
+ * cu 50 de bani în sus (⚠ art. 66: 607,50 → 607 sau 608; NOTES.md §3).
+ */
+export function valoareDeducereSub26(minim: number): number {
+  return Math.round((Math.round(minim * 100) * 150) / 100_000);
+}
+
+/**
+ * Art. 77 alin. (10) lit. b): 100 de lei pe lună pentru fiecare copil sub 18 ani
+ * înscris la școală, „indiferent de nivelul” veniturilor părintelui.
+ */
+export const DEDUCERE_COPIL_SCOALA = 100;
 
 function setariPentruMinim(minim: number, valabilDeLa: string): PayrollSettingsSnapshot {
   return {

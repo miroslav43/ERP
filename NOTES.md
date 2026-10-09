@@ -147,6 +147,29 @@ contribuții scutite — se schimbă frecvent, uneori retroactiv).
 ⚠️ Salariul minim de referință · pragurile de venit × număr de persoane în
 întreținere · procentele pe fiecare prag și intervalul de degresivitate.
 
+**Întrebări pentru contabil, din calculatorul public** (`/unelte/calculator-salariu`,
+auditul din 8 oct 2026). Codul nu se schimbă fără răspuns, iar testele din
+`src/lib/unelte/salariu.test.ts` marcate „⚠” fixează comportamentul de azi:
+
+- ⚠️ **Deducerea care cade exact pe 50 de bani.** `grilaDeducerePersonala` și
+  `valoareDeducereSub26` rotunjesc ,50 în SUS: 18% × 4.325 = 778,50 → 779;
+  15% × 4.050 = 607,50 → 608. Art. 66 Cod fiscal („Stabilirea sumelor fixe”)
+  neglijează fracțiunile „de până la 50 de bani inclusiv” → 778, respectiv 607.
+  N-am găsit text care să spună dacă art. 66 se aplică unei deduceri calculate
+  procentual. Exemplu: brut 4.476–4.525, fără persoane.
+- ⚠️ **„Cu vârsta de până la 26 de ani” (art. 77 alin. (10) lit. a)).** Textul nu
+  spune dacă luna în care omul împlinește 26 de ani mai intră. Calculatorul nu
+  decide: bifa citează legea, iar omul alege. De confirmat cu contabilul ce lună
+  e ultima cu deducerea suplimentară.
+- ⚠️ **CAS și CASS rotunjite sau nu în baza de impozit.** `calculatePayrollEntry`
+  (`src/domain/payroll/calc.ts`, `bazaImpozit`) scade CAS și CASS NErotunjite.
+  Brut 4.453: (4.453 − 1.113,25 − 445,30 − 800) × 10% = 209,445 → 209. Cu
+  contribuțiile rotunjite întâi (1.113 și 445, cum le declară D112) iese 209,5 →
+  210, sau 209 dacă art. 66 se aplică și impozitului. Art. 78 alin. (2) lit. a)
+  scade „contribuțiile … datorate”, iar OUG 59/2005 art. 1 rotunjește la leu
+  sumele datorate. Diferența e de 1 leu la ~3% din bruturi. Răspunsul mută și
+  statele de plată din aplicație, nu doar calculatorul.
+
 ### Tichete de masă · `payroll_settings`
 
 ⚠️ Valoarea maximă legală (se actualizează prin ordin) · regimul fiscal (ce
