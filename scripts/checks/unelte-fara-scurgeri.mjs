@@ -107,7 +107,15 @@ async function verificaUnealta(browser, cale, cuConsimtamant) {
     },
   );
   pagina.on("request", (cerere) => {
-    if (cerere.url().startsWith(BAZA)) {
+    // Fonturile și restul fișierelor statice din `/_next/static/` NU se
+    // judecă. Cloudflare trimite un `103 Early Hints` cu preload-urile lor
+    // ÎNAINTEA răspunsului 200, deci browserul le cere sub politica implicită
+    // (Referer complet), nu sub `strict-origin` din 200 — constatat pe 9 oct
+    // 2026, după deploy. Cererile ajung doar la Cloudflare (care vede oricum
+    // adresa, e chiar cererea) și la nginx, care taie query-ul din ORICE
+    // referer înainte de jurnal (`$adm_referer_jurnal`). Restul cererilor spre
+    // server (documente, RSC, API) rămân sub poartă.
+    if (cerere.url().startsWith(BAZA) && !cerere.url().startsWith(`${BAZA}/_next/static/`)) {
       const referer = cerere.headers()["referer"];
       if (referer !== undefined) referere.push({ faza, referer });
     }
@@ -119,8 +127,10 @@ async function verificaUnealta(browser, cale, cuConsimtamant) {
   await pagina.waitForTimeout(2500);
 
   faza = "completare";
+  // Doar câmpurile vizibile: calculatorul ține „tichet” într-o secțiune
+  // restrânsă, iar `fill` pe un câmp ascuns așteaptă până la timeout.
   const campuri = pagina.locator(
-    'form[method="get"] textarea, form[method="get"] input[type="text"]',
+    'form[method="get"] textarea:visible, form[method="get"] input[type="text"]:visible',
   );
   const numar = await campuri.count();
   for (let i = 0; i < numar; i += 1) await campuri.nth(i).fill(`${MARCAJ} ${String(i)}`);
@@ -139,6 +149,11 @@ async function verificaUnealta(browser, cale, cuConsimtamant) {
 
   await pagina.mouse.wheel(0, 4000);
   await pagina.waitForTimeout(1000);
+  // Faza „plecare”: hub-ul `/unelte` e o pagină CURATĂ, deci GA o măsoară
+  // legitim (page_view cu `dl=/unelte`). Se verifică doar că marcajul nu
+  // ajunge nici acolo (prin `dr`/referrer). Până pe 9 oct 2026 page_view-ul
+  // hub-ului era numărat ca „cerere GA după trimitere” — fals pozitiv.
+  faza = "plecare";
   await pagina.locator('a[href="/unelte"]').first().click();
   await pagina.waitForURL(`${BAZA}/unelte`);
   await pagina.waitForTimeout(2000);
@@ -162,6 +177,20 @@ async function verificaUnealta(browser, cale, cuConsimtamant) {
   for (const r of referere) {
     if (decodat(r.referer).includes(MARCAJ))
       probleme.add(`SCURGERE Referer (${r.faza}): ${r.referer.slice(0, 120)}`);
+  }
+  // GA pune pe fiecare cerere `_p`, identificatorul încărcării paginii. O
+  // cerere care sosește în faza „trimisa” dar poartă un `_p` văzut pe pagina
+  // curată e beacon-ul întârziat al documentului VECHI (`user_engagement` la
+  // descărcare), nu o măsurare a documentului cu valori. Fără distincția asta,
+  // poarta cădea intermitent pe o cursă de rețea (constatat pe 9 oct 2026).
+  const idPagina = (s) => /[?&]_p=([^&\s]+)/u.exec(s.text)?.[1];
+  const paginiCurate = new Set(
+    statistici.filter((s) => s.tip === "ga" && s.faza !== "trimisa").map(idPagina),
+  );
+  for (const s of statistici) {
+    if (s.tip === "ga" && s.faza === "trimisa" && paginiCurate.has(idPagina(s))) {
+      s.faza = "completare";
+    }
   }
   const numara = (f, t) => statistici.filter((s) => s.faza === f && s.tip === t).length;
   if (numara("curata", "ga") === 0)
