@@ -73,6 +73,12 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
   trec granița server→client. Vecinii din arbore (părinte, subordonate) se deschid în
   același panou prin `laDeschidere`.
 
+- **Jurnalul de audit ca țintă**: `IstoricModificari` (server, autonom) pe fișe →
+  `/setari/audit?entity_id=<uuid>` (fără `entitate`: triggerele scriu numele tabelei,
+  acțiunile literalul singular); `interogheazaJurnal` face `eq` pe un UUID complet.
+  În jurnal, autorul duce la `?actor=`, valorile-cheie străină din detalii la rândul lor
+  (`rutaValorii`), organizația (în consolă) la fișa firmei.
+
 ## Ce refuză tăcut
 
 - `scopeFor` întoarce `null` pentru permisiune absentă, nu `"none"`: porțile testează

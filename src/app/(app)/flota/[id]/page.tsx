@@ -45,6 +45,7 @@ import { DialogKilometraj } from "./dialog-kilometraj";
 import { DialogVehicul } from "./dialog-vehicul";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -529,6 +530,8 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           </p>
         )}
       </section>
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={vehicul.id} />
     </div>
   );
 }

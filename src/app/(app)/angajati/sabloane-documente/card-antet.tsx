@@ -13,6 +13,7 @@ import {
   randuriBlocFirma,
   type AntetOrganizatie,
   type PozitieAntet,
+  campuriLegaleLipsaChei,
 } from "@/lib/documents/bloc-firma";
 import {
   pregatesteSiglaDeUrcat,
@@ -69,6 +70,7 @@ export function CardAntetDocumente({
 
   const randuri = randuriBlocFirma({ ...antet, pozitie });
   const lipsa = campuriLegaleLipsa(antet);
+  const primaCheieLipsa = campuriLegaleLipsaChei(antet)[0] ?? null;
 
   const schimbaPozitia = useCallback(
     (noua: PozitieAntet) => {
@@ -205,7 +207,10 @@ export function CardAntetDocumente({
           {poateEditaFirma ? (
             <>
               Completați-le în{" "}
-              <a href="/setari/organizatie?inapoi=sabloane-documente" className="underline">
+              <a
+                href={`/setari/organizatie?inapoi=sabloane-documente${primaCheieLipsa === null ? "" : `#org-${primaCheieLipsa}`}`}
+                className="underline"
+              >
                 profilul firmei
               </a>
               .

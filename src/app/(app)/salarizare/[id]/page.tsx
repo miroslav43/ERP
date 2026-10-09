@@ -31,6 +31,7 @@ import { RandAngajatDraft } from "./rand-angajat-draft";
 import { ButonDescarcare } from "@/components/incarcare/buton-descarcare";
 import { NumarRegistru } from "@/components/registru/numar-registru";
 import { poateDeschide } from "@/config/porti-ruta";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Perioadă de salarizare" };
 
@@ -429,6 +430,8 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           }
         />
       )}
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={perioada.id} />
     </div>
   );
 }

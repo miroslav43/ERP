@@ -74,6 +74,7 @@ import { IncarcareDocument } from "./incarcare-document";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 import { poateDeschide } from "@/config/porti-ruta";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Fișa echipamentului" };
 
@@ -868,6 +869,8 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           </ul>
         )}
       </section>
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={echipament.id} />
     </div>
   );
 }

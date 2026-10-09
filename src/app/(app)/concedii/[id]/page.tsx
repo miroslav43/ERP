@@ -28,6 +28,7 @@ import { DecizieAprobare } from "../aprobari/decizie-aprobare";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { poateDeschide } from "@/config/porti-ruta";
 import { NumarRegistru } from "@/components/registru/numar-registru";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Detaliile cererii de concediu" };
 
@@ -331,6 +332,8 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
           poateAprobaPeLoc={can(permisiuni, "leave:approve", "all")}
         />
       ) : null}
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={cerere.id} />
     </div>
   );
 }

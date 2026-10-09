@@ -101,6 +101,10 @@ function reguliCareContribuie(
 interface RandAfisat {
   readonly tip: TipConcediu;
   readonly dreptAfisat: number;
+  readonly folosite: number;
+  readonly inAsteptare: number;
+  /** `null` = fără rând de sold încă (anul nu are drepturi aplicate). */
+  readonly ramase: number | null;
   readonly regulileOriginale: readonly RegulaConcediuRand[];
 }
 
@@ -172,6 +176,11 @@ export async function SectiuneConcedii({
   ).map(({ tip, sold }) => ({
     tip,
     dreptAfisat: sold?.drept_anual ?? tip.zile_implicite,
+    // Zilele consumate și rămase stăteau doar în `/concedii/sold`; fișa arăta
+    // numai dreptul, deci „câte mai are" cerea alt ecran.
+    folosite: sold?.folosite ?? 0,
+    inAsteptare: sold?.in_asteptare ?? 0,
+    ramase: sold?.ramase ?? null,
     regulileOriginale: poateVedeaRegulile
       ? reguliCareContribuie(
           configurare.reguli.filter((r) => r.leave_type_id === tip.id),
@@ -211,7 +220,7 @@ export async function SectiuneConcedii({
         )}
       </p>
       <ul className="space-y-2">
-        {randuri.map(({ tip, dreptAfisat, regulileOriginale }) => (
+        {randuri.map(({ tip, dreptAfisat, folosite, inAsteptare, ramase, regulileOriginale }) => (
           <li
             key={tip.id}
             className="border-border flex flex-wrap items-baseline justify-between gap-2 border-t pt-2 first:border-t-0 first:pt-0"
@@ -226,6 +235,13 @@ export async function SectiuneConcedii({
             </span>
             <span className="text-corp text-right">
               <span className="font-medium tabular-nums">{formatAmount(dreptAfisat)} zile</span>
+              {ramase === null ? null : (
+                <span className="text-muted-foreground text-nota ml-2 tabular-nums">
+                  · {formatAmount(folosite)} folosite
+                  {inAsteptare > 0 ? ` · ${formatAmount(inAsteptare)} în așteptare` : ""} ·{" "}
+                  {formatAmount(ramase)} rămase
+                </span>
+              )}
               {regulileOriginale.length === 0 ? null : (
                 <span className="text-muted-foreground text-nota ml-2">
                   ({formatAmount(tip.zile_implicite)} bază

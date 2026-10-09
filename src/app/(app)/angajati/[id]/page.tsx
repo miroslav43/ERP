@@ -95,6 +95,8 @@ import { DateLipsa } from "./date-lipsa";
 import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 import { SectiuneInAlteModule } from "./sectiune-in-alte-module";
 import { RedeschideEvaluare } from "./redeschide-evaluare";
+import { Callout } from "@/components/ui/callout";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -293,7 +295,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
       // de regenerare n-ar putea spune CE document e fiecare rând — `titlu` e
       // text liber, pe care firma îl poate schimba din editorul de șabloane.
       .select(
-        "id, titlu, numar_afisat, emis_la, anulat_la, template_id, hr_document_templates(cod)",
+        "id, titlu, numar_afisat, emis_la, anulat_la, template_id, contract_id, hr_document_templates(cod)",
       )
       .eq("organization_id", tenant.organizationId)
       .eq("employee_id", angajat.id)
@@ -380,6 +382,27 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     throw new Error("Nu am putut încărca documentele emise ale angajatului.");
   }
   const documenteEmise = documenteEmiseRes.data;
+  // Documentul activ emis pentru fiecare contract: cardul contractului îl leagă.
+  const documentContract = new Map<string, string>();
+  for (const d of documenteEmise) {
+    if (d.contract_id !== null && d.anulat_la === null && !documentContract.has(d.contract_id)) {
+      documentContract.set(d.contract_id, d.id);
+    }
+  }
+  // Fișa de cumul (`is_primary = false`) își leagă fișa principală a aceleiași persoane.
+  const fisaPrincipala =
+    angajat.is_primary || angajat.user_id === null
+      ? null
+      : ((
+          await dbFisa
+            .from("employees")
+            .select("id, full_name")
+            .eq("organization_id", tenant.organizationId)
+            .eq("user_id", angajat.user_id)
+            .eq("is_primary", true)
+            .is("deleted_at", null)
+            .maybeSingle()
+        ).data ?? null);
 
   const sabloaneEvaluare = sabloaneEvaluareBrute.map((s) => ({
     id: s.id,
@@ -496,6 +519,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
   const esteFisaProprie = angajat.user_id === utilizator.id;
   const contextPorti: ContextPorti = { features: module, permissions: permisiuni };
+  const poateDeschideListaAngajati = poateDeschide("/angajati", contextPorti);
   // La scope `team`, echipa exclude fișa proprie (`can_access_evaluation`,
   // 0170): butonul se vedea, iar inserarea era refuzată de RLS.
   const poateCreaEvaluareAici =
@@ -629,13 +653,49 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
              * rând gol — fără funcție, fără contract — și a fost deja ștearsă o
              * dată de pe baza reală, tocmai fiindcă părea rest de test.
              */
-            descriere={`${esteFisaProprie ? "Fișa dvs. · " : ""}Marca ${angajat.marca}${
-              angajat.functie !== null ? ` · ${angajat.functie}` : ""
-            }${angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}${
-              angajat.status === "candidat" && angajat.user_id !== null
-                ? " · Administrator, fără contract de muncă — devine salariat la primul contract"
-                : ""
-            }`}
+            firimituri={[
+              { eticheta: "Angajați", href: "/angajati" },
+              { eticheta: angajat.full_name },
+            ]}
+            descriere={
+              <>
+                {esteFisaProprie ? "Fișa dvs. · " : ""}Marca {angajat.marca}
+                {angajat.functie === null ? null : (
+                  <>
+                    {" · "}
+                    {/* Funcția și departamentul duc la oamenii lor, prin filtrele listei. */}
+                    {poateDeschideListaAngajati ? (
+                      <Link
+                        href={`/angajati?functie=${encodeURIComponent(angajat.functie)}&status=activ`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {angajat.functie}
+                      </Link>
+                    ) : (
+                      angajat.functie
+                    )}
+                  </>
+                )}
+                {angajat.department === null ? null : (
+                  <>
+                    {" · "}
+                    {poateDeschide("/departamente", contextPorti) ? (
+                      <Link
+                        href={`/departamente?departament=${angajat.department.id}`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {angajat.department.denumire}
+                      </Link>
+                    ) : (
+                      angajat.department.denumire
+                    )}
+                  </>
+                )}
+                {angajat.status === "candidat" && angajat.user_id !== null
+                  ? " · Administrator, fără contract de muncă — devine salariat la primul contract"
+                  : ""}
+              </>
+            }
             /*
               Ștergerea NU mai e aici. Antetul e locul lucrurilor pe care le
               faci des cu fișa deschisă — permisiuni, editare — iar ea era a
@@ -719,6 +779,16 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         Nu e „date personale": funcția e o decizie a firmei, nu un atribut al
         omului. De aceea secțiune separată, nu un al patrulea grup acolo.
       */}
+      {fisaPrincipala === null ? null : (
+        <Callout fel="informativ" titlu="Fișă de cumul de funcții">
+          Fișa asta e secundară: persoana are și o fișă principală,{" "}
+          <Link href={`/angajati/${fisaPrincipala.id}`} className="underline underline-offset-2">
+            {fisaPrincipala.full_name ?? "fișa principală"}
+          </Link>
+          , unde stau contul, concediile și evaluările.
+        </Callout>
+      )}
+
       <section aria-labelledby="titlu-incadrare" className={CLASA_SECTIUNE}>
         <h2 id="titlu-incadrare" className="text-sectiune mb-4 font-medium">
           Încadrare
@@ -754,14 +824,23 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           <div>
             <dt className="text-muted-foreground text-nota tracking-wide uppercase">Funcție</dt>
             <dd className="mt-0.5 flex flex-wrap items-baseline gap-2">
-              <span
-                className={cn(
-                  "text-corp",
-                  angajat.functie === null && "text-muted-foreground/70 italic",
-                )}
-              >
-                {angajat.functie ?? "Nedeclarată"}
-              </span>
+              {angajat.functie !== null && poateDeschideListaAngajati ? (
+                <Link
+                  href={`/angajati?functie=${encodeURIComponent(angajat.functie)}&status=activ`}
+                  className="text-corp underline-offset-2 hover:underline"
+                >
+                  {angajat.functie}
+                </Link>
+              ) : (
+                <span
+                  className={cn(
+                    "text-corp",
+                    angajat.functie === null && "text-muted-foreground/70 italic",
+                  )}
+                >
+                  {angajat.functie ?? "Nedeclarată"}
+                </span>
+              )}
               {/*
                 Codul COR lângă denumire, nu într-un câmp separat: el e ce se
                 declară la ITM, iar absența lui BLOCHEAZĂ exportul REVISAL
@@ -972,6 +1051,17 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                       {contract.este_act_aditional ? "Act adițional" : "Contract"} nr.{" "}
                       {contract.numar}
                     </span>
+                    {/* Documentul generat pentru contract (`hr_issued_documents.contract_id`). */}
+                    {documentContract.get(contract.id) === undefined ? null : (
+                      <a
+                        href={`/documente/${documentContract.get(contract.id) ?? ""}?format=pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-nota underline-offset-2 hover:underline"
+                      >
+                        Documentul (PDF)
+                      </a>
+                    )}
                     <span className="bg-success/12 text-success text-nota rounded-full px-2 py-0.5 font-medium">
                       {ETICHETE_CONTRACT[contract.status] ?? contract.status}
                     </span>
@@ -1022,6 +1112,16 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     <li key={contract.id} className="border-border rounded-control border p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">Contract nr. {contract.numar}</span>
+                        {documentContract.get(contract.id) === undefined ? null : (
+                          <a
+                            href={`/documente/${documentContract.get(contract.id) ?? ""}?format=pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-nota underline-offset-2 hover:underline"
+                          >
+                            Documentul (PDF)
+                          </a>
+                        )}
                         {contract.este_act_aditional ? (
                           <span className="bg-surface text-nota rounded-full px-2 py-0.5">
                             Act adițional
@@ -1089,6 +1189,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             ) : null
           ) : poateEditaAngajat ? (
             <FormularModificaSalariu
+              hrefSalarizare={poateDeschide("/salarizare", contextPorti) ? "/salarizare" : null}
               contractId={contractPrincipal.id}
               salariuActual={contractInVigoare?.salariuBaza ?? contractPrincipal.salariu_baza}
               azi={azi}
@@ -1277,9 +1378,25 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             <h2 id="titlu-evaluari" className="text-sectiune font-medium">
               Evaluări
             </h2>
-            {poateCreaEvaluareAici && sabloaneEvaluare.length > 0 ? (
-              <ButonEvaluareNoua employeeId={angajat.id} sabloane={sabloaneEvaluare} />
-            ) : null}
+            <span className="text-nota flex flex-wrap items-center gap-3">
+              {/* Secțiunea nu ducea nicăieri: nici la modul, nici la KPI-ul omului. */}
+              {poateDeschide("/evaluari", contextPorti) ? (
+                <Link href="/evaluari" className="underline-offset-2 hover:underline">
+                  Modulul de evaluări
+                </Link>
+              ) : null}
+              {poateDeschide("/evaluari/kpi", contextPorti) ? (
+                <Link
+                  href={`/evaluari/kpi?angajat=${angajat.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  KPI lunar
+                </Link>
+              ) : null}
+              {poateCreaEvaluareAici && sabloaneEvaluare.length > 0 ? (
+                <ButonEvaluareNoua employeeId={angajat.id} sabloane={sabloaneEvaluare} />
+              ) : null}
+            </span>
           </div>
 
           {evaluari.length === 0 ? (
@@ -1640,6 +1757,8 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           </div>
         </section>
       )}
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={angajat.id} />
     </div>
   );
 }

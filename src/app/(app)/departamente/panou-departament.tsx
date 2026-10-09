@@ -395,7 +395,10 @@ export function PanouDepartament({
             {...(poateInvita
               ? {
                   actiune: (
-                    <Link href="/setari/membri" className="text-nota font-medium underline">
+                    <Link
+                      href="/setari/membri?rol=org_admin"
+                      className="text-nota font-medium underline"
+                    >
                       Invită un cofondator
                     </Link>
                   ),

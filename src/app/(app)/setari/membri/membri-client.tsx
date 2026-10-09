@@ -44,6 +44,8 @@ export type RandInvitatie = Readonly<{
   email: string;
   role: string;
   expiraLa: string;
+  /** Fișa pentru care a fost trimisă; `nume` e `null` când privitorul n-o poate deschide. */
+  fisa: Readonly<{ id: string; nume: string | null }> | null;
 }>;
 
 const ETICHETE_STARE: Readonly<Record<string, string>> = {
@@ -71,9 +73,12 @@ export function PanouMembri({
   poateVedeaFise,
   poateAcordaPermisiuni,
   poateVedeaAudit,
+  rolInitial = "employee",
 }: Readonly<{
   membri: readonly RandMembru[];
   invitatii: readonly RandInvitatie[];
+  /** Rolul cu care pornește formularul de invitație (`?rol=`). */
+  rolInitial?: "org_admin" | "manager" | "hr" | "employee";
   /**
    * `users:create = all` — poarta lui `invitaMembru` și `revocaInvitatia`.
    * Pagina se deschide cu `users:update`; un membru cu `update` fără `create`
@@ -88,7 +93,7 @@ export function PanouMembri({
   poateVedeaAudit: boolean;
 }>) {
   const [email, setEmail] = useState("");
-  const [rol, setRol] = useState<"org_admin" | "manager" | "hr" | "employee">("employee");
+  const [rol, setRol] = useState<"org_admin" | "manager" | "hr" | "employee">(rolInitial);
   const [mesaj, setMesaj] = useState<Mesaj | null>(null);
   const [linkInvitatie, setLinkInvitatie] = useState<string | null>(null);
   const [inCurs, startTransition] = useTransition();
@@ -400,6 +405,16 @@ export function PanouMembri({
               >
                 <span className="text-foreground">{invitatie.email}</span>
                 <span className="text-muted-foreground">{etichetaRol(invitatie.role)}</span>
+                {invitatie.fisa === null ? null : invitatie.fisa.nume !== null && poateVedeaFise ? (
+                  <Link
+                    href={`/angajati/${invitatie.fisa.id}`}
+                    className="text-muted-foreground underline-offset-2 hover:underline"
+                  >
+                    pentru {invitatie.fisa.nume}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">pentru o fișă de angajat</span>
+                )}
                 <span className="text-muted-foreground">expiră la {invitatie.expiraLa}</span>
                 <Buton
                   varianta="distructiv"

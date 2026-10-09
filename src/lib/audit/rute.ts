@@ -70,3 +70,42 @@ export function rutaEntitatei(
   const href = construieste(entityId);
   return poateDeschide(href, context) ? href : null;
 }
+
+/** Cheile de legătură din `before`/`after` ale jurnalului → pagina rândului legat. */
+const RUTA_VALORII: Readonly<Record<string, (id: string) => string>> = {
+  employee_id: (id) => `/angajati/${id}`,
+  manager_employee_id: (id) => `/angajati/${id}`,
+  solicitant_employee_id: (id) => `/angajati/${id}`,
+  atribuit_employee_id: (id) => `/angajati/${id}`,
+  responsabil_employee_id: (id) => `/angajati/${id}`,
+  vehicle_id: (id) => `/flota/${id}`,
+  equipment_id: (id) => `/mentenanta/echipamente/${id}`,
+  course_id: (id) => `/cursuri/${id}`,
+  material_id: (id) => `/cursuri/biblioteca/${id}`,
+  item_id: (id) => `/inventar/${id}`,
+  inventory_item_id: (id) => `/inventar/${id}`,
+  leave_request_id: (id) => `/concedii/${id}`,
+  ticket_id: (id) => `/ticketing/${id}`,
+  period_id: (id) => `/salarizare/${id}`,
+  template_id: (id) => `/onboarding/sabloane/${id}`,
+  department_id: (id) => `/departamente?departament=${id}`,
+  punct_lucru_id: (id) => `/puncte-lucru?punct=${id}#punct-${id}`,
+};
+
+/**
+ * Valoarea unui câmp din detaliile evenimentului → pagina rândului pe care îl
+ * numește, sau `null`. Cheia e ultimul segment al căii (`settings.employee_id`
+ * e tot `employee_id`); valoarea trebuie să fie un UUID; poarta e a paginii-țintă.
+ */
+export function rutaValorii(
+  cale: readonly string[],
+  valoare: unknown,
+  context: ContextPorti,
+): string | null {
+  const cheie = cale[cale.length - 1];
+  if (cheie === undefined || typeof valoare !== "string" || !UUID.test(valoare)) return null;
+  const construieste = Object.hasOwn(RUTA_VALORII, cheie) ? RUTA_VALORII[cheie] : undefined;
+  if (construieste === undefined) return null;
+  const href = construieste(valoare);
+  return poateDeschide(href, context) ? href : null;
+}

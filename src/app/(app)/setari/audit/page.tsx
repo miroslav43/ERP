@@ -17,7 +17,7 @@ import {
 } from "@/config/routes";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_SETARI } from "@/config/file-module";
-import { rutaEntitatei } from "@/lib/audit/rute";
+import { rutaEntitatei, rutaValorii } from "@/lib/audit/rute";
 import { getEnabledFeatures } from "@/lib/auth/features";
 export const dynamic = "force-dynamic";
 
@@ -80,6 +80,9 @@ export default async function PaginaAuditOrganizatie({ searchParams }: Props) {
           mod="organizatie"
           rutaEntitate={(tip, id) =>
             rutaEntitatei(tip, id, { features: module, permissions: permisiuni })
+          }
+          rutaValoare={(cale, valoare) =>
+            rutaValorii(cale, valoare, { features: module, permissions: permisiuni })
           }
         />
       </Suspense>

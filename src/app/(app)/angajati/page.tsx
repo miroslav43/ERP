@@ -188,7 +188,18 @@ async function TabelAngajati({
       cheie: "functie",
       antet: "Funcție",
       peTelefon: "meta",
-      celula: (r) => r.functie ?? "—",
+      // „Cine mai are funcția asta": filtrul exista, celula era text.
+      celula: (r) =>
+        r.functie === null ? (
+          "—"
+        ) : (
+          <Link
+            href={`/angajati?functie=${encodeURIComponent(r.functie)}&status=activ`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {r.functie}
+          </Link>
+        ),
     },
     {
       cheie: "angajat_din",

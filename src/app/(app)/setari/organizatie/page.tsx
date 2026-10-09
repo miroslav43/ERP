@@ -14,6 +14,9 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_SETARI } from "@/config/file-module";
 import Link from "next/link";
+import { poateDeschide } from "@/config/porti-ruta";
+import { getEnabledFeatures } from "@/lib/auth/features";
+import { FEATURES, type FeatureKey } from "@/config/features";
 export const metadata: Metadata = { title: "Datele firmei" };
 
 const ETICHETE_PLAN: Readonly<Record<string, string>> = {
@@ -75,6 +78,16 @@ export default async function SetariOrganizatiePage({
   }
 
   const supabase = await createServerSupabase();
+  const [module, { count: membriActivi }] = await Promise.all([
+    getEnabledFeatures(rezolvare.tenant.organizationId),
+    supabase
+      .from("organization_members")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", rezolvare.tenant.organizationId)
+      .eq("status", "active")
+      .is("deleted_at", null),
+  ]);
+  const contextPorti = { features: module, permissions: permisiuni };
   const { data, error } = await supabase
     .from("organizations")
     .select(
@@ -128,7 +141,10 @@ export default async function SetariOrganizatiePage({
 
   const contract: readonly Readonly<{ eticheta: string; valoare: string }>[] = [
     { eticheta: "Plan", valoare: ETICHETE_PLAN[data.plan] ?? data.plan },
-    { eticheta: "Locuri contractate", valoare: String(data.seats_limit) },
+    {
+      eticheta: "Locuri contractate",
+      valoare: `${String(data.seats_limit)}${membriActivi === null ? "" : ` · ${String(membriActivi)} folosite`}`,
+    },
     {
       eticheta: "Stare abonament",
       valoare: ETICHETE_ABONAMENT[data.subscription_status] ?? data.subscription_status,
@@ -182,6 +198,73 @@ export default async function SetariOrganizatiePage({
           dacă aveți nevoie de mai multe locuri sau de alt plan.
         </p>
       </section>
+
+      {/*
+        Pasul „Porniți modulele" de pe panou trimitea aici, dar pagina n-avea
+        nicio secțiune de module: utilizatorul ajungea într-o fundătură.
+        Pornirea și oprirea rămân în consola de platformă; aici se VEDE.
+      */}
+      <section
+        id="module"
+        aria-labelledby="titlu-module"
+        className="border-border bg-surface rounded-panou scroll-mt-24 border p-4"
+      >
+        <h2 id="titlu-module" className="text-foreground text-corp font-medium">
+          Module pornite
+        </h2>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {Object.entries(FEATURES)
+            .sort(([, a], [, b]) => a.sortOrder - b.sortOrder)
+            .map(([cheie, meta]) => {
+              const pornit = module.has(cheie as FeatureKey);
+              return (
+                <li key={cheie} className="text-corp flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block size-2.5 rounded-full ${pornit ? "bg-success" : "bg-border"}`}
+                  />
+                  <span className={pornit ? "" : "text-muted-foreground"}>{meta.denumire}</span>
+                  {meta.isCore ? (
+                    <span className="text-muted-foreground text-nota">· nucleu</span>
+                  ) : null}
+                  <span className="sr-only">{pornit ? ", pornit" : ", oprit"}</span>
+                </li>
+              );
+            })}
+        </ul>
+        <p className="text-muted-foreground text-corp mt-3">
+          {module.size} din {Object.keys(FEATURES).length} pornite. Modulele se pornesc și se opresc
+          prin contract; scrieți-ne pentru o schimbare.
+        </p>
+      </section>
+
+      {/* Legăturile de context: unde se folosesc datele de aici și unde stau valorile înrudite. */}
+      <ul className="text-nota flex flex-wrap gap-x-4 gap-y-1">
+        {poateDeschide("/angajati/sabloane-documente", contextPorti) ? (
+          <li>
+            <Link
+              href="/angajati/sabloane-documente"
+              className="underline-offset-2 hover:underline"
+            >
+              Antetul documentelor, cu datele de mai jos
+            </Link>
+          </li>
+        ) : null}
+        {poateDeschide("/concedii/setari", contextPorti) ? (
+          <li>
+            <Link href="/concedii/setari" className="underline-offset-2 hover:underline">
+              Regulile de concediu (zilele implicite se propagă pe tipuri)
+            </Link>
+          </li>
+        ) : null}
+        {poateDeschide("/puncte-lucru", contextPorti) ? (
+          <li>
+            <Link href="/puncte-lucru" className="underline-offset-2 hover:underline">
+              Punctele de lucru (sediile secundare)
+            </Link>
+          </li>
+        ) : null}
+      </ul>
 
       <FormularOrganizatie initiale={initiale} inapoi={inapoi} />
     </div>

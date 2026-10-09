@@ -74,3 +74,5 @@ din `resolveTenant()`, `employees:read` la orice scope, clientul sub RLS (restr�
 singur la echipă sau la fișa proprie). Clientul așteaptă 200 ms după ultima tastă și
 folosește răspunsul doar dacă termenul lui e cel tastat acum. Testul:
 `src/app/(app)/actions.test.ts`.
+
+- Lotul 7e: antetul fișei leagă funcția (filtrul `?functie=`) și departamentul; firimituri cu numele; Concedii arată folosite/în așteptare/rămase; cardul de contract leagă documentul emis (`hr_issued_documents.contract_id`); fișa de cumul leagă fișa principală; „Istoricul modificărilor” (`IstoricModificari`, doar cu `audit:read`): [[strat/navigare]].

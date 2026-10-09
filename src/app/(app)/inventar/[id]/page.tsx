@@ -46,6 +46,7 @@ import { CardCustodie } from "./custodie";
 import { DialogObiect } from "./dialog-obiect";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Fișa obiectului de inventar" };
 
@@ -383,6 +384,8 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
           )}
         </section>
       )}
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={obiect.id} />
     </div>
   );
 }

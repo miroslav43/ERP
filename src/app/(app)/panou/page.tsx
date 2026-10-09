@@ -270,7 +270,7 @@ export default async function PanouPage() {
               titlu="Porniți modulele de care aveți nevoie"
               detaliu={`${module.size} din ${Object.keys(FEATURES).length} pornite. Pontajul și Concediile sunt cele mai folosite la început.`}
               {...(poateEditaFirma
-                ? { actiune: { eticheta: "Vezi modulele", href: "/setari/organizatie" } }
+                ? { actiune: { eticheta: "Vezi modulele", href: "/setari/organizatie#module" } }
                 : {})}
             />
           </ul>
