@@ -962,7 +962,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Cerere de concediu de odihnă",
-        text: "Cu zilele lucrătoare calculate, plus variantele fără plată și pentru evenimente familiale.",
+        text: "Cu zilele lucrătoare calculate și rubrica angajatorului, plus fără plată, paternal, îngrijitor, eveniment, formare și reprogramare.",
         formate: "PDF · Word",
         href: "/unelte/cerere-concediu-de-odihna",
       },

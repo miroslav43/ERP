@@ -33,7 +33,7 @@ export function ScrisoarePrevizualizata({ scrisoare: s }: { scrisoare: Scrisoare
       </div>
       <div className="mt-12 flex flex-wrap items-start justify-between gap-6">
         <p>{s.locSiData}</p>
-        <div className="min-w-[12rem] text-center">
+        <div className="ml-auto min-w-[12rem] text-center">
           <p>{s.semnatura}</p>
           <span aria-hidden="true" className="border-mk-text/50 mt-10 block border-b" />
         </div>

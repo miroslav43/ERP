@@ -20,6 +20,10 @@ import { Banda } from "../_componente/banda";
 import { Cadru } from "../_componente/cadru";
 import { ListaHub } from "../_componente/lista-hub";
 import { metadatePagina } from "../_componente/metadate";
+import {
+  AN_MAX as AN_MAX_CERERE,
+  AN_MIN as AN_MIN_CERERE,
+} from "./cerere-concediu-de-odihna/cerere";
 import { AN_MAX, AN_MIN, MAX_ANGAJATI } from "./foaie-de-pontaj/foaie";
 
 /**
@@ -56,7 +60,7 @@ const PAGINI = [
     href: "/unelte/cerere-concediu-de-odihna",
     titlu: ANTET_CERERE_CONCEDIU.titlu,
     lead: ANTET_CERERE_CONCEDIU.lead,
-    nota: `${AN_MIN}–${AN_MAX} · zilele lucrătoare calculate · fără cont`,
+    nota: `${AN_MIN_CERERE}–${AN_MAX_CERERE} · odihnă, fără plată, paternal, îngrijitor · Word, PDF`,
   },
   {
     href: "/unelte/calculator-zile-concediu",

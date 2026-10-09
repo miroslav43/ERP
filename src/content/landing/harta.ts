@@ -101,6 +101,7 @@ export const PAGINI: readonly Pagina[] = [
     // 6 oct: pagina de start refăcută — produsul pe ecrane reale, unelte, promisiuni (ro.ts).
     // 7 oct: catalogul de module, în cutii cu prima frază a fiecărui modul (benzi/acasa.tsx).
     // 9 oct: cardul calculatorului de zile de concediu în banda de unelte (ro.ts/en.ts).
+    // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -113,6 +114,7 @@ export const PAGINI: readonly Pagina[] = [
     // 6 oct: aceeași refacere, în en.ts.
     // 7 oct: același catalog, în engleză.
     // 9 oct: cardul calculatorului de zile de concediu în banda de unelte (ro.ts/en.ts).
+    // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
     actualizat: "2026-10-09",
     sectiune: "Principale",
   },
@@ -321,6 +323,7 @@ export const PAGINI: readonly Pagina[] = [
     // 9 oct: promisiunea de confidențialitate spusă exact, cu legătură spre politică.
     // 2026-10-09: nota calculatorului de salariu numește funcțiile noi.
     // 9 oct: al optulea rând, calculatorul de zile de concediu.
+    // 9 oct: nota cererii de concediu numește variantele.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -340,7 +343,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {

@@ -922,7 +922,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "Annual leave request",
-        text: "With the working days counted, plus unpaid and family-event versions.",
+        text: "With the working days counted and the employer's section, plus unpaid, paternity, carer's, family-event, training and rescheduling versions.",
         formate: "PDF · Word",
         href: "/unelte/cerere-concediu-de-odihna",
       },

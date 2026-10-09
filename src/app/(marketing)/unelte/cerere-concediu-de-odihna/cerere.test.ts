@@ -7,7 +7,6 @@ import {
   citesteData,
   construiesteCerere,
   intervalImplicit,
-  normalizeazaData,
   normalizeazaText,
   plusZile,
 } from "./cerere";
@@ -117,12 +116,7 @@ describe("cererea de concediu de odihnă", () => {
     expect(construiesteCerere("2026-01-01", "2027-06-01").problema).not.toBeNull();
   });
 
-  it("parametrii din adresă se normalizează, nu se cred pe cuvânt", () => {
-    expect(normalizeazaData("2026-07-15", "2026-01-01")).toBe("2026-07-15");
-    expect(normalizeazaData("1999-07-15", "2026-01-01")).toBe("2026-01-01");
-    expect(normalizeazaData("2026-02-31", "2026-01-01")).toBe("2026-01-01");
-    expect(normalizeazaData(undefined, "2026-01-01")).toBe("2026-01-01");
-
+  it("textul din adresă se normalizează, nu se crede pe cuvânt", () => {
     // Un rând nou strecurat prin adresă ar rupe documentul tipărit.
     expect(normalizeazaText("  Firma\nSRL  ")).toBe("Firma SRL");
     expect(normalizeazaText("x".repeat(500)).length).toBe(120);

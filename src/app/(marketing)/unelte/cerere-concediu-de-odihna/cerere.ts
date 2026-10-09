@@ -104,18 +104,6 @@ export function citesteData(brut: string | undefined, eticheta: string): DataCit
 }
 
 /**
- * Data din adresă, sau implicitul — și pentru lipsă, și pentru o valoare
- * greșită. Rămâne doar pentru pagina de dinainte de 8 oct 2026; taskul F14
- * o șterge odată cu pagina veche. Codul nou folosește `citesteData`.
- */
-export function normalizeazaData(brut: string | undefined, implicit: string): string {
-  const data = dinIso((brut ?? "").trim());
-  if (data === null) return implicit;
-  const an = data.getUTCFullYear();
-  return an >= AN_MIN && an <= AN_MAX ? iso(data) : implicit;
-}
-
-/**
  * Un câmp de text din adresă: un singur rând, fără caractere de control, cu
  * „ș”/„ț” cu virgulă, plafonat, fără spații la capete.
  */

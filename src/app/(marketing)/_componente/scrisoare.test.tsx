@@ -60,4 +60,12 @@ describe("previzualizarea scrisorii", () => {
     expect(getByText("Către: Exemplu SRL").className).toContain("text-right");
     expect(getByText("CERERE").className).toContain("text-center");
   });
+
+  it("semnătura rămâne în dreapta și când la 360 px coboară sub loc și dată", () => {
+    // Rândul are `flex-wrap`: pe ecran îngust, coloana semnăturii trece pe rândul
+    // următor și, fără `ml-auto`, cădea la stânga (verificarea headless din F14).
+    const citita = citesteCererea(new URLSearchParams(PARAMETRI), "2026-09-01");
+    const { getByText } = render(<ScrisoarePrevizualizata scrisoare={scrisoareaCererii(citita)} />);
+    expect(getByText("Semnătura salariatului").parentElement?.className).toContain("ml-auto");
+  });
 });

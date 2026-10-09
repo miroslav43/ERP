@@ -129,7 +129,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/unelte/cerere-concediu-de-odihna",
-    "Unealtă gratuită: cerere de concediu de odihnă gata de tipărit, cu zilele lucrătoare calculate — weekendurile și sărbătorile legale se scad, iar cele scoase se enumeră cu motivul. Plus variantele de concediu fără plată (art. 153) și zile libere pentru evenimente familiale (art. 152). Word sau PDF, fără cont.",
+    "Unealtă gratuită: cerere de concediu ca scrisoare de semnat, cu zilele lucrătoare calculate — weekendurile și sărbătorile legale se scad și se enumeră cu motivul; cu anul concediului, departamentul, fracțiunile (art. 148 alin. (5)), calendarul Paștelui pentru alte culte creștine (art. 139 alin. (2¹)) și rubrica angajatorului, cu „Se aprobă / Nu se aprobă” și soldul. Opt variante: odihnă, fără plată (art. 153), eveniment familial (art. 152), paternal (Legea 210/1999), îngrijitor (art. 152¹), formare profesională (art. 155–157), reprogramare (art. 149) și întrerupere (art. 151). Word sau PDF, fără cont.",
   ],
   [
     "/unelte/calculator-zile-concediu",
