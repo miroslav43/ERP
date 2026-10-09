@@ -4,7 +4,8 @@ import { constructorPentru } from "./registru";
 
 describe("registrul uneltelor", () => {
   it("găsește o unealtă înregistrată", () => {
-    expect(constructorPentru("foaie-de-parcurs")).toBeTypeOf("function");
+    // Nu foaia de parcurs: din 9 oct 2026 are rută statică (Excel pe formule).
+    expect(constructorPentru("fisa-evaluare")).toBeTypeOf("function");
   });
 
   it("registrul nu răspunde la cheile prototipului", () => {
