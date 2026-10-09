@@ -75,6 +75,8 @@ describe("parametrii calculatorului de salariu", () => {
         sub26: false,
         copiiScoala: 0,
         tichete: { valoare: 0, numar: 0 },
+        oreZi: 8,
+        contributieMinima: true,
       },
     });
   });
@@ -217,5 +219,20 @@ describe("tichetele de masă, din adresă", () => {
   it("5.000 brut și 20 de tichete de 45: net 2.771, cost 6.013", () => {
     const r = calculeazaDinParametri(q({ suma: "5000", tichet: "45", tichete: "20" }), AZI);
     expect([r.rezultat?.net, r.rezultat?.costTotal]).toEqual([2771, 6013]);
+  });
+});
+
+describe("timpul parțial, din adresă", () => {
+  it("ore=4 și minim=nu ajung în opțiuni; orele sunt mărginite la 1–8", () => {
+    const o = parametriCalculator(q({ ore: "4", minim: "nu" }), AZI).optiuni;
+    expect([o.oreZi, o.contributieMinima]).toEqual([4, false]);
+    expect(parametriCalculator(q({ ore: "12" }), AZI).optiuni.oreZi).toBe(8);
+    expect(parametriCalculator(q({ ore: "0" }), AZI).optiuni.oreZi).toBe(1);
+  });
+
+  it("2.000 brut la 4 ore e sub minimul de 2.163; 2.163 nu e", () => {
+    const sub = calculeazaDinParametri(q({ suma: "2000", ore: "4" }), AZI);
+    expect([sub.subMinim, sub.minimLegal]).toEqual([true, 2163]);
+    expect(calculeazaDinParametri(q({ suma: "2163", ore: "4" }), AZI).subMinim).toBe(false);
   });
 });

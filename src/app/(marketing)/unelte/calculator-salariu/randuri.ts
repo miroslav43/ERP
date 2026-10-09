@@ -68,6 +68,12 @@ export function randuriDesfasurator(r: RezultatSalariu): Desfasurare {
     angajator: [
       rand("Salariu brut", r.brut, "plus"),
       rand("CAM — contribuția asiguratorie pentru muncă, 2,25%", r.cam, "plus"),
+      ...(r.casSuportatAngajator > 0
+        ? [rand("CAS până la baza minimă, plătit de firmă", r.casSuportatAngajator, "plus")]
+        : []),
+      ...(r.cassSuportatAngajator > 0
+        ? [rand("CASS până la baza minimă, plătit de firmă", r.cassSuportatAngajator, "plus")]
+        : []),
       ...(r.tichete > 0 ? [rand("Tichete de masă", r.tichete, "plus")] : []),
       rand("Cost total pentru firmă", r.costTotal, "total"),
     ],

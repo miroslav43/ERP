@@ -103,6 +103,11 @@ describe("cele două perioade ale lui 2026", () => {
     ]);
   });
 
+  it("baza minimă de contribuții la timp parțial: minimul minus 300, respectiv 200 de lei (OUG 89/2025 art. III alin. (5))", () => {
+    expect(PERIOADE_2026["2026-1"].reducereBazaMinima).toBe(300);
+    expect(PERIOADE_2026["2026-2"].reducereBazaMinima).toBe(200);
+  });
+
   it("ziua alege perioada; după 31 decembrie 2026 valorile sunt expirate", () => {
     expect(perioadaPentruZi("2026-06-30")).toBe("2026-1");
     expect(perioadaPentruZi("2026-07-01")).toBe("2026-2");

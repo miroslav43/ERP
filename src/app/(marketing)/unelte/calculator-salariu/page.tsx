@@ -7,11 +7,12 @@ import { RO } from "@/content/landing/ro";
 import { ANTET_CALCULATOR } from "@/content/landing/unelte";
 import {
   FACILITATE_SALARIU_MINIM,
+  PERIOADE_2026,
   SALARIU_MINIM_BRUT_2026_IULIE,
   VERIFICARE,
 } from "@/content/legal/salarizare-publica";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
-import { dinBrut, dinNet } from "@/lib/unelte/salariu";
+import { bazaMinimaContributii, dinBrut, dinNet } from "@/lib/unelte/salariu";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -210,10 +211,22 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             </div>
             {subMinim && (
               <p className="border-mk-rigla mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]">
-                Brutul e sub salariul minim de {lei(minimLegal)}. Cu normă întreagă, salariul nu
-                poate fi mai mic; la timp parțial, CAS și CASS se datorează în general cel puțin la
-                nivelul salariului minim, cu excepțiile din Codul fiscal (de exemplu elevii și
-                studenții până la 26 de ani) — calculul de mai sus nu le aplică.
+                Brutul e sub minimul legal de {lei(minimLegal)} pentru{" "}
+                {parametri.optiuni.oreZi === 8
+                  ? "normă întreagă"
+                  : `${String(parametri.optiuni.oreZi)} ${parametri.optiuni.oreZi === 1 ? "oră" : "ore"} pe zi`}
+                : salariul minim orar e {PERIOADE_2026[parametri.optiuni.perioada].leiPeOra} lei (
+                {PERIOADE_2026[parametri.optiuni.perioada].actSalariuMinim}).
+              </p>
+            )}
+            {parametri.optiuni.oreZi < 8 && parametri.optiuni.contributieMinima && (
+              <p className="border-mk-rigla mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]">
+                La timp parțial, CAS și CASS se datorează cel puțin la baza minimă de{" "}
+                {lei(bazaMinimaContributii(parametri.optiuni))} — salariul minim diminuat cu{" "}
+                {PERIOADE_2026[parametri.optiuni.perioada].reducereBazaMinima} de lei (OUG 89/2025
+                art. III alin. (5)). Diferența o plătește firma, nu angajatul (Codul fiscal art. 146
+                alin. (5^9)), iar calculul de mai sus o include în cost. Excepțiile din alin. (5^7)
+                se aleg în „Mai multe opțiuni”.
               </p>
             )}
           </>
@@ -310,7 +323,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
         <ul className="mt-6 max-w-[72ch] space-y-3">
           {[
             "Scutirile pentru persoanele cu handicap și pentru cercetare-dezvoltare. Facilitățile pe sectoare de activitate nu se mai aplică veniturilor din 2025 (OUG 156/2024).",
-            "Timpul parțial, sporurile, orele suplimentare și concediile din lună.",
+            "Sporurile, orele suplimentare și concediile din lună.",
           ].map((t) => (
             <li
               key={t}
@@ -324,10 +337,10 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
             cifre de salariu (reauditul din 5 oct 2026). Fereastra de valabilitate
             vine din `VERIFICARE`: facilitatea expiră la 1 ianuarie 2027. */}
         <p className="border-mk-cerneala text-mk-text mt-8 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.6]">
-          Calculul e informativ, pentru un contract cu normă întreagă, fără sporuri și fără cazurile
-          din lista de mai sus; suma neimpozabilă de la salariul minim (OUG 89/2025) e inclusă.
-          Valorile sunt cele din perioada aleasă a lui 2026; pentru statul de plată, confirmă cu
-          contabilul firmei.
+          Calculul e informativ, pentru o lună întreagă lucrată, fără sporuri și fără cazurile din
+          lista de mai sus; suma neimpozabilă de la salariul minim (OUG 89/2025) e inclusă. Valorile
+          sunt cele din perioada aleasă a lui 2026; pentru statul de plată, confirmă cu contabilul
+          firmei.
         </p>
         <p className="text-mk-text-slab mt-8 text-[0.875rem]">
           Valorile verificate pe {formatDate(VERIFICARE.la)}, pe textele oficiale:{" "}

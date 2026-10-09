@@ -64,4 +64,18 @@ describe("rândurile desfășurătorului", () => {
     ]);
     expect(angajator.map((x) => x.eticheta)).toContain("Tichete de masă");
   });
+
+  it("la timp parțial, diferențele plătite de firmă apar în cost și desfășurătorul se închide", () => {
+    const r = calculeazaDinBrut(2163, { ...OPTIUNI_IMPLICITE, oreZi: 4 });
+    const { angajator } = randuriDesfasurator(r);
+    expect(suma(angajator, "plus")).toBe(r.costTotal);
+    expect(angajator.map((x) => [x.eticheta, x.valoare])).toContainEqual([
+      "CAS până la baza minimă, plătit de firmă",
+      490,
+    ]);
+    expect(angajator.map((x) => [x.eticheta, x.valoare])).toContainEqual([
+      "CASS până la baza minimă, plătit de firmă",
+      197,
+    ]);
+  });
 });

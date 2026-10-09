@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { calculeazaDinBrut, calculeazaDinNet, dinBrut, dinNet, OPTIUNI_IMPLICITE } from "./salariu";
+import {
+  brutMinimLegal,
+  calculeazaDinBrut,
+  calculeazaDinNet,
+  dinBrut,
+  dinNet,
+  OPTIUNI_IMPLICITE,
+} from "./salariu";
 
 describe("calculul public de salariu", () => {
   it("netul NU e strict monoton: la fiecare prag de 50 de lei scade cu cel mult 5 lei", () => {
@@ -380,5 +387,100 @@ describe("tichetele de masă", () => {
       const minim = bruturi.find((_, i) => (neturi[i] ?? 0) >= tinta);
       expect(calculeazaDinNet(tinta, o)?.rezultat.brut, String(tinta)).toBe(minim);
     }
+  });
+});
+
+describe("timpul parțial și contribuția minimă (Codul fiscal art. 146 alin. (5^6)–(5^9))", () => {
+  const P4 = { ...OPTIUNI_IMPLICITE, oreZi: 4 };
+
+  it("4 ore, brut 2.163: angajatul plătește pe brut, firma diferența până la 4.125 — cost 2.899", () => {
+    // Fără sumă scutită (cere normă întreagă). CAS 25% × 2.163 = 540,75 → 541; CASS 216,30 → 216.
+    // Deducere 20% × 4.325 = 865. Impozit (2.163 − 540,75 − 216,3 − 865) × 10% = 54,095 → 54.
+    // Net 2.163 − 541 − 216 − 54 = 1.352.
+    // Baza minimă 4.325 − 200 = 4.125: CAS minim 1.031,25 → 1.031, CASS minim 412,50 → 413.
+    // Firma: 1.031 − 541 = 490 și 413 − 216 = 197 (alin. (5^9)). CAM 2,25% × 2.163 = 48,67 → 49.
+    // Cost 2.163 + 49 + 490 + 197 = 2.899.
+    expect(calculeazaDinBrut(2163, P4)).toMatchObject({
+      sumaNeimpozabila: 0,
+      cas: 541,
+      cass: 216,
+      impozit: 54,
+      net: 1352,
+      casSuportatAngajator: 490,
+      cassSuportatAngajator: 197,
+      cam: 49,
+      costTotal: 2899,
+    });
+  });
+
+  it("cu o excepție din alin. (5^7), firma nu mai plătește diferența: cost 2.212", () => {
+    expect(calculeazaDinBrut(2163, { ...P4, contributieMinima: false })).toMatchObject({
+      net: 1352,
+      casSuportatAngajator: 0,
+      cassSuportatAngajator: 0,
+      costTotal: 2212,
+    });
+  });
+
+  it("în ianuarie–iunie, baza minimă e 3.750: la 2.025 brut, 4 ore, firma plătește 432 + 172", () => {
+    // CAS 506,25 → 506; CASS 202,50 → 203. Minim: 25% × 3.750 = 937,50 → 938; 10% × 3.750 = 375.
+    // Diferențe 938 − 506 = 432 și 375 − 203 = 172. Impozit (2.025 − 506,25 − 202,5 − 810) × 10%
+    // = 50,625 → 51; net 2.025 − 506 − 203 − 51 = 1.265. CAM 45,56 → 46; cost 2.025 + 46 + 432 + 172 = 2.675.
+    expect(calculeazaDinBrut(2025, { ...P4, perioada: "2026-1" })).toMatchObject({
+      casSuportatAngajator: 432,
+      cassSuportatAngajator: 172,
+      net: 1265,
+      costTotal: 2675,
+    });
+  });
+
+  it("la timp parțial, 4.325 nu primește suma scutită: net 2.616", () => {
+    // CAS 1.081,25 → 1.081; CASS 432,50 → 433; impozit (4.325 − 1.081,25 − 432,5 − 865) × 10% = 194,625 → 195;
+    // net 4.325 − 1.081 − 433 − 195 = 2.616 (la normă întreagă: 2.699).
+    expect(calculeazaDinBrut(4325, P4)).toMatchObject({
+      sumaNeimpozabila: 0,
+      net: 2616,
+      casSuportatAngajator: 0,
+    });
+  });
+
+  it("brutul minim legal e proporțional cu norma, rotunjit în sus la leu", () => {
+    expect(brutMinimLegal(P4)).toBe(2163); // 4.325 × 4 / 8 = 2.162,50
+    expect(brutMinimLegal({ ...OPTIUNI_IMPLICITE, oreZi: 6 })).toBe(3244); // 3.243,75
+    expect(brutMinimLegal({ ...P4, perioada: "2026-1" })).toBe(2025);
+    expect(brutMinimLegal(OPTIUNI_IMPLICITE)).toBe(4325);
+  });
+
+  it("net → brut la 4 ore nu coboară sub 2.163", () => {
+    expect(calculeazaDinNet(1000, P4)).toMatchObject({
+      ridicatLaMinim: true,
+      rezultat: { brut: 2163, net: 1352 },
+    });
+    expect(calculeazaDinNet(1353, P4)?.rezultat.brut).toBe(2164);
+  });
+
+  it("la normă întreagă, peste minim, firma nu plătește nicio diferență", () => {
+    for (const b of [4325, 4326, 5000]) {
+      expect(calculeazaDinBrut(b, OPTIUNI_IMPLICITE).casSuportatAngajator, String(b)).toBe(0);
+      expect(calculeazaDinBrut(b, OPTIUNI_IMPLICITE).cassSuportatAngajator, String(b)).toBe(0);
+    }
+  });
+
+  it("4 ore, brut 2.163 și 20 × 45 lei tichete: firma plătește 490 la CAS, dar doar 107 la CASS", () => {
+    // Review Focus 4. CAS 541 (fără tichete); CASS (2.163 + 900) × 10% = 306,30 → 306. Deducerea pe 3.063: 865.
+    // Impozit (2.163 − 540,75 − 306,3 − 865 + 900) × 10% = 135,095 → 135; net 2.163 − 541 − 306 − 135 = 1.181.
+    // Firma: 1.031 − 541 = 490 și 413 − 306 = 107. Cost 2.163 + 49 + 900 + 490 + 107 = 3.709.
+    expect(
+      calculeazaDinBrut(2163, {
+        ...OPTIUNI_IMPLICITE,
+        oreZi: 4,
+        tichete: { valoare: 45, numar: 20 },
+      }),
+    ).toMatchObject({
+      net: 1181,
+      casSuportatAngajator: 490,
+      cassSuportatAngajator: 107,
+      costTotal: 3709,
+    });
   });
 });

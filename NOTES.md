@@ -169,6 +169,13 @@ auditul din 8 oct 2026). Codul nu se schimbă fără răspuns, iar testele din
   scade „contribuțiile … datorate”, iar OUG 59/2005 art. 1 rotunjește la leu
   sumele datorate. Diferența e de 1 leu la ~3% din bruturi. Răspunsul mută și
   statele de plată din aplicație, nu doar calculatorul.
+- ⚠️ **Timp parțial: diferența până la baza minimă și impozitul angajatului.**
+  Calculatorul reține angajatului CAS și CASS pe brutul real, iar diferența până
+  la baza minimă (4.125 lei în iulie–decembrie 2026) o pune în costul firmei
+  (art. 146 alin. (5^9): „se suportă de către angajator … în numele
+  angajatului”). Baza de impozit a angajatului scade doar contribuțiile reținute,
+  iar diferența nu e tratată ca venit al lui. De confirmat ambele: 4 ore, brut
+  2.163 → impozit 54, net 1.352, firma plătește 490 + 197.
 
 ### Tichete de masă · `payroll_settings`
 

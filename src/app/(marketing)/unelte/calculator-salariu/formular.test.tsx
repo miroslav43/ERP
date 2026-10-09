@@ -63,4 +63,12 @@ describe("formularul calculatorului", () => {
     expect(c.querySelector('input[name="tichet"]')?.getAttribute("aria-invalid")).toBe("true");
     expect(c.querySelector('input[name="suma"]')?.getAttribute("aria-invalid")).toBe("false");
   });
+
+  it("norma și excepția de la contribuția minimă rămân alese și deschid <details>", () => {
+    const c = randeaza({ ore: "4", minim: "nu" });
+    expect(c.querySelector<HTMLSelectElement>('select[name="ore"]')?.value).toBe("4");
+    expect(c.querySelector<HTMLInputElement>('input[name="minim"]')?.checked).toBe(true);
+    expect(c.querySelector<HTMLInputElement>('input[name="minim"]')?.value).toBe("nu");
+    expect(c.querySelector("details")?.hasAttribute("open")).toBe(true);
+  });
 });

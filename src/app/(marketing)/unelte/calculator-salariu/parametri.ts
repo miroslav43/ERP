@@ -124,6 +124,8 @@ function optiuniDin(q: URLSearchParams, azi: string, valoareTichet: number): Opt
       valoare: valoareTichet,
       numar: intreg(q.get("tichete"), 0, 0, TICHETE_MAXIM_PE_LUNA),
     },
+    oreZi: intreg(q.get("ore"), 8, 1, 8),
+    contributieMinima: q.get("minim") !== "nu",
   };
 }
 

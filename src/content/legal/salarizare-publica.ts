@@ -188,6 +188,11 @@ export type ValoriPerioada = Readonly<{
   actSalariuMinim: string;
   /** OUG 89/2025 art. III alin. (1): suma scutită și plafonul de venit brut (fără tichete). */
   facilitate: Readonly<{ suma: number; plafonVenitBrut: number }>;
+  /**
+   * OUG 89/2025 art. III alin. (5): cu cât scade salariul minim folosit ca bază
+   * minimă de CAS și CASS (art. 146 alin. (5^6), art. 168 alin. (6^1)).
+   */
+  reducereBazaMinima: number;
   setari: PayrollSettingsSnapshot;
 }>;
 
@@ -203,6 +208,8 @@ export const PERIOADE_2026: Readonly<Record<Perioada, ValoriPerioada>> = {
     // OUG 89/2025 art. III alin. (1): 300 de lei pe lună pentru 1 ianuarie–30 iunie
     // 2026; lit. b): venit brut, fără tichete, de cel mult 4.300 de lei.
     facilitate: { suma: 300, plafonVenitBrut: 4300 },
+    // OUG 89/2025 art. III alin. (5) lit. a): baza minimă 4.050 − 300 = 3.750 de lei.
+    reducereBazaMinima: 300,
     setari: setariPentruMinim(SALARIU_MINIM_BRUT_2026_IANUARIE, "2026-01-01"),
   },
   "2026-2": {
@@ -217,6 +224,8 @@ export const PERIOADE_2026: Readonly<Record<Perioada, ValoriPerioada>> = {
       suma: FACILITATE_SALARIU_MINIM.suma,
       plafonVenitBrut: FACILITATE_SALARIU_MINIM.plafonVenitBrut,
     },
+    // Lit. b): 4.325 − 200 = 4.125 de lei.
+    reducereBazaMinima: 200,
     setari: SETARI_SALARIZARE_PUBLICE,
   },
 };

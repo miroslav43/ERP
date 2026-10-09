@@ -17,7 +17,9 @@ function areOptiuniAlese(p: ParametriCalculator): boolean {
     p.optiuni.sub26 ||
     p.optiuni.copiiScoala > 0 ||
     p.optiuni.tichete.numar > 0 ||
-    p.textTichet.trim() !== ""
+    p.textTichet.trim() !== "" ||
+    p.optiuni.oreZi < 8 ||
+    !p.optiuni.contributieMinima
   );
 }
 
@@ -139,6 +141,33 @@ export function Formular({ p }: { readonly p: ParametriCalculator }) {
                 </option>
               ))}
             </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={CLASA_ETICHETA}>Program de lucru</span>
+            <select name="ore" defaultValue={String(p.optiuni.oreZi)} className={CLASA_CAMP}>
+              <option value="8">normă întreagă, 8 ore pe zi</option>
+              {[7, 6, 5, 4, 3, 2, 1].map((ore) => (
+                <option key={ore} value={String(ore)}>
+                  {ore === 1
+                    ? "timp parțial, 1 oră pe zi"
+                    : `timp parțial, ${String(ore)} ore pe zi`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-start gap-2 text-[0.9375rem] leading-[1.5] sm:col-span-2">
+            <input
+              type="checkbox"
+              name="minim"
+              value="nu"
+              defaultChecked={!p.optiuni.contributieMinima}
+              className="mt-1 size-4 shrink-0"
+            />
+            <span>
+              Fără contribuția minimă: elev sau student până la 26 de ani, ucenic sub 18 ani,
+              persoană cu dizabilități cu program redus prin lege, pensionar pentru limită de vârstă
+              sau alt contract care ajunge la salariul minim (Codul fiscal art. 146 alin. (5^7))
+            </span>
           </label>
         </div>
       </details>

@@ -34,6 +34,13 @@ export type OptiuniSalariu = Readonly<{
   copiiScoala: number;
   /** Tichetele de masă din lună: valoarea unuia și câte (cel mult unul pe zi lucrată). */
   tichete: Readonly<{ valoare: number; numar: number }>;
+  /** Ore pe zi din contract, 1–8; 8 înseamnă normă întreagă. */
+  oreZi: number;
+  /**
+   * CAS și CASS cel puțin la baza minimă (art. 146 alin. (5^6), art. 168 alin. (6^1)).
+   * `false` pentru excepțiile din art. 146 alin. (5^7).
+   */
+  contributieMinima: boolean;
 }>;
 
 /** Normă întreagă, funcția de bază, fără persoane, în iulie–decembrie 2026. */
@@ -44,6 +51,8 @@ export const OPTIUNI_IMPLICITE: OptiuniSalariu = {
   sub26: false,
   copiiScoala: 0,
   tichete: { valoare: 0, numar: 0 },
+  oreZi: 8,
+  contributieMinima: true,
 };
 
 export type RezultatSalariu = Readonly<{
@@ -62,13 +71,17 @@ export type RezultatSalariu = Readonly<{
   net: number;
   /** Valoarea tichetelor de masă din lună, pe card. */
   tichete: number;
+  /** Diferența până la CAS-ul de la baza minimă, plătită de firmă „în numele angajatului” (art. 146 alin. (5^9)). */
+  casSuportatAngajator: number;
+  cassSuportatAngajator: number;
   cam: number;
-  /** Brut + CAM + tichete. */
+  /** Brut + CAM + tichete + diferențele de mai sus. */
   costTotal: number;
 }>;
 
 const BRUT_MIN = 1;
 export const BRUT_MAX = 500_000;
+const NORMA_INTREAGA = 8;
 
 const margineste = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(v) ? v : min));
@@ -132,9 +145,35 @@ function intrare(
  */
 function sumaNeimpozabila(brut: number, o: OptiuniSalariu): number {
   const v = PERIOADE_2026[o.perioada];
-  return o.functieDeBaza && brut === v.salariuMinim && brut <= v.facilitate.plafonVenitBrut
+  // Art. III alin. (1) cere „normă întreagă”: la timp parțial, nicio sumă scutită.
+  return o.oreZi >= NORMA_INTREAGA &&
+    o.functieDeBaza &&
+    brut === v.salariuMinim &&
+    brut <= v.facilitate.plafonVenitBrut
     ? v.facilitate.suma
     : 0;
+}
+
+/** Baza minimă de CAS și CASS: salariul minim al perioadei, diminuat (OUG 89/2025 art. III alin. (5)). */
+export function bazaMinimaContributii(o: OptiuniSalariu): number {
+  const v = PERIOADE_2026[o.perioada];
+  return v.salariuMinim - v.reducereBazaMinima;
+}
+
+/**
+ * Cât plătește firma peste ce i se reține angajatului, ca CAS și CASS să ajungă
+ * la baza minimă (art. 146 alin. (5^6) și (5^9), art. 168 alin. (6^1)). Pentru
+ * o lună întreagă cu contract activ, baza e minimul întreg, nu proporțional cu
+ * orele. La normă întreagă, peste minim, diferența e zero.
+ */
+function suportatDeAngajator(cas: number, cass: number, o: OptiuniSalariu) {
+  if (!o.contributieMinima) return { cas: 0, cass: 0 };
+  const baza = bazaMinimaContributii(o);
+  const setari = PERIOADE_2026[o.perioada].setari;
+  return {
+    cas: Math.max(0, Math.round(baza * setari.cotaCas) - cas),
+    cass: Math.max(0, Math.round(baza * setari.cotaCass) - cass),
+  };
 }
 
 /** Valoarea tichetelor din lună, la ban: 21 × 40,18 = 843,78. Zero dacă lipsește valoarea sau numărul. */
@@ -169,6 +208,7 @@ export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): Rezult
     ...optiuni,
     persoane: Math.round(margineste(optiuni.persoane, 0, 10)),
     copiiScoala: Math.round(margineste(optiuni.copiiScoala, 0, 10)),
+    oreZi: Math.round(margineste(optiuni.oreZi, 1, NORMA_INTREAGA)),
   };
   const scutit = sumaNeimpozabila(b, o);
   const tichete = valoareTichete(o);
@@ -182,6 +222,8 @@ export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): Rezult
   // Motorul o plafonează deja (baza de impozit nu coboară sub zero); aici se
   // plafonează și cifra afișată — la 4,5 lei brut se afișa „Deducere 865 lei”.
   const venitInainteDeDeducere = Math.max(0, b - scutit + tichete - r.cas - r.cass);
+  // ⚠ Diferența plătită de firmă nu intră în baza de impozit a angajatului (NOTES.md §3).
+  const suportat = suportatDeAngajator(r.cas, r.cass, o);
   return {
     brut: b,
     cas: r.cas,
@@ -194,8 +236,10 @@ export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): Rezult
     sumaNeimpozabila: scutit,
     net: r.net + scutit,
     tichete,
+    casSuportatAngajator: suportat.cas,
+    cassSuportatAngajator: suportat.cass,
     cam: r.camAngajator,
-    costTotal: b + r.camAngajator + tichete,
+    costTotal: b + r.camAngajator + tichete + suportat.cas + suportat.cass,
   };
 }
 
@@ -266,9 +310,15 @@ function celMaiMicBrut(tinta: number, optiuni: OptiuniSalariu): RezultatSalariu 
   return ales;
 }
 
-/** Brutul minim legal pentru opțiunile alese: salariul minim al perioadei, la normă întreagă. */
+/**
+ * Brutul minim legal pentru opțiunile alese: salariul minim al perioadei,
+ * proporțional cu orele din contract (minimul e stabilit „pentru un program
+ * normal de lucru”, cu valoare orară — HG 146/2026 art. 1, HG 1506/2024 art. 1),
+ * rotunjit în sus la leu: 4 ore → 2.162,50 → 2.163.
+ */
 export function brutMinimLegal(o: OptiuniSalariu): number {
-  return PERIOADE_2026[o.perioada].salariuMinim;
+  const ore = Math.round(margineste(o.oreZi, 1, NORMA_INTREAGA));
+  return Math.ceil((PERIOADE_2026[o.perioada].salariuMinim * ore) / NORMA_INTREAGA);
 }
 
 export type RezultatNet = Readonly<{
