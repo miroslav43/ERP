@@ -16,6 +16,7 @@ function Tabel({
   randuri,
   umbrite,
   inaltimeRand,
+  inalt = false,
 }: Readonly<{
   legenda: string;
   coloane: readonly Coloana[];
@@ -23,6 +24,8 @@ function Tabel({
   umbrite: readonly number[];
   /** Puncte tipografice, ca în PDF (fișa SSM: 28); lipsă = înălțimea implicită a rândului. */
   inaltimeRand?: number | undefined;
+  /** Rândurile înalte ale tabelului principal (scris de mână, semnătură): mai mult loc și pe ecran. */
+  inalt?: boolean;
 }>) {
   return (
     <div className="border-mk-rigla relative mt-4 overflow-x-auto border">
@@ -47,7 +50,7 @@ function Tabel({
               {coloane.map((c, j) => (
                 <td
                   key={`${String(j)}-${c.eticheta}`}
-                  className={`h-7 px-2 ${umbrite.includes(j) ? "bg-mk-rigla/20" : ""}`}
+                  className={`${inalt ? "h-10 py-1" : "h-7"} px-2 ${umbrite.includes(j) ? "bg-mk-rigla/20" : ""}`}
                   style={
                     inaltimeRand === undefined ? undefined : { height: `${String(inaltimeRand)}pt` }
                   }
@@ -74,6 +77,8 @@ export function PrevizualizareDocument({ document: brut }: { document: DocumentT
   // Același text ca în fișiere: un U+000B lipit din Word se vede pe ecran ca
   // spațiu, la fel ca în PDF și în Word (vezi `curataText`).
   const d = curataDocument(brut);
+  // Rândurile înalte din PDF (scris de mână, semnătură) au și pe ecran mai mult loc.
+  const inalt = (d.inaltimeRand ?? 0) > 20;
   // Documentele late (foaia de parcurs, fișa SSM) se tipăresc pe A4 culcat,
   // ca PDF-ul lor: vezi `@page peisaj` din globals.css.
   return (
@@ -101,7 +106,13 @@ export function PrevizualizareDocument({ document: brut }: { document: DocumentT
         </p>
       ))}
       {d.coloane.length > 0 && (
-        <Tabel legenda={d.titlu} coloane={d.coloane} randuri={d.randuri} umbrite={d.umbrite} />
+        <Tabel
+          legenda={d.titlu}
+          coloane={d.coloane}
+          randuri={d.randuri}
+          umbrite={d.umbrite}
+          inalt={inalt}
+        />
       )}
       {(d.tabeleSuplimentare ?? [])
         .filter((t) => t.coloane.length > 0)
@@ -119,6 +130,47 @@ export function PrevizualizareDocument({ document: brut }: { document: DocumentT
           {n}
         </p>
       ))}
+      {(d.rubrici ?? []).map((rubrica) => {
+        const paragrafe = rubrica.text.split("\n").filter((p) => p.trim() !== "");
+        const goale = paragrafe.length > 0 ? 1 : rubrica.randuriGoale;
+        return (
+          <div key={rubrica.titlu} className="mt-5" data-rubrica="">
+            <p className="text-[0.875rem] font-semibold">{rubrica.titlu}</p>
+            {paragrafe.map((p) => (
+              <p key={p} className="mt-1 max-w-[68ch] text-[0.875rem] leading-[1.6]">
+                {p}
+              </p>
+            ))}
+            {Array.from({ length: goale }, (_, k) => (
+              <div key={k} aria-hidden="true" className="border-mk-rigla h-7 border-b" />
+            ))}
+          </div>
+        );
+      })}
+      {/* Semnăturile din fișier, și pe ecran: auditul din 8 oct 2026 a găsit
+          previzualizarea oprită la note, deși PDF-ul și Word-ul le aveau. */}
+      {d.semnaturi.length > 0 && (
+        <div
+          className="mt-8 grid gap-6 text-[0.8125rem] sm:auto-cols-fr sm:grid-flow-col"
+          data-semnaturi=""
+        >
+          {d.semnaturi.map((s) => (
+            <div key={s}>
+              <div aria-hidden="true" className="border-mk-text-slab h-8 border-b" />
+              <p className="text-mk-text-slab mt-1">{s}</p>
+              {d.dataLaSemnaturi === true && (
+                <p className="text-mk-text-slab mt-1">
+                  Data:{" "}
+                  <span
+                    aria-hidden="true"
+                    className="border-mk-text-slab inline-block w-24 border-b"
+                  />
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </figure>
   );
 }
