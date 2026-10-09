@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { calculeazaDinParametri, citesteSuma, parametriCalculator } from "./parametri";
+import {
+  adresaPartajabila,
+  calculeazaDinParametri,
+  citesteSuma,
+  legaturaWhatsApp,
+  parametriCalculator,
+} from "./parametri";
 
 const q = (o: Record<string, string>) => new URLSearchParams(o);
 const AZI = "2026-10-08";
@@ -244,6 +250,53 @@ describe("scutirea pentru handicap, din adresă", () => {
     expect(parametriCalculator(q({ handicap: "1" }), AZI).optiuni.scutitImpozit).toBe(false);
     expect(calculeazaDinParametri(q({ suma: "5000", handicap: "da" }), AZI).rezultat?.net).toBe(
       3250,
+    );
+  });
+});
+
+describe("legătura de trimis", () => {
+  it("păstrează doar ce diferă de implicit, plus perioada, și se citește înapoi la fel, în altă zi", () => {
+    const p = parametriCalculator(
+      q({
+        suma: "5.000",
+        din: "net",
+        perioada: "2026-1",
+        persoane: "2",
+        baza: "nu",
+        sub26: "da",
+        copii: "1",
+        tichet: "40,18",
+        tichete: "21",
+        ore: "6",
+        minim: "nu",
+        handicap: "da",
+      }),
+      AZI,
+    );
+    const url = new URL(adresaPartajabila(p));
+    expect(url.pathname).toBe("/unelte/calculator-salariu");
+    expect(url.hash).toBe("#rezultat");
+    // Deschisă în martie 2027, legătura trebuie să arate tot ianuarie–iunie 2026, nu perioada zilei.
+    const inapoi = parametriCalculator(url.searchParams, "2027-03-01");
+    expect(inapoi.optiuni).toEqual(p.optiuni);
+    expect([inapoi.suma, inapoi.din]).toEqual([5000, "net"]);
+  });
+
+  it("calculul implicit are o legătură scurtă", () => {
+    const adresa = adresaPartajabila(parametriCalculator(new URLSearchParams(), AZI));
+    expect(adresa.endsWith("/unelte/calculator-salariu?suma=4325&perioada=2026-2#rezultat")).toBe(
+      true,
+    );
+  });
+
+  it("WhatsApp primește cifrele și legătura, codate", () => {
+    const r = calculeazaDinParametri(q({ suma: "5000" }), AZI);
+    if (r.rezultat === null) throw new Error("Calculul de control lipsește.");
+    const adresa = adresaPartajabila(r.parametri);
+    const wa = new URL(legaturaWhatsApp(r.rezultat, adresa));
+    expect(wa.origin).toBe("https://wa.me");
+    expect(wa.searchParams.get("text")).toBe(
+      `Calcul salariu: net 2.981 lei din brut 5.000 lei, cost pentru firmă 5.113 lei. ${adresa}`,
     );
   });
 });

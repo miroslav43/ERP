@@ -1,3 +1,4 @@
+import { ADRESA_SITE } from "@/content/landing/contact";
 import {
   estePerioada,
   PERIOADE_2026,
@@ -227,4 +228,35 @@ export function calculeazaDinParametri(q: URLSearchParams, azi: string): CalculC
     avertismente,
     expirat,
   };
+}
+
+/**
+ * Adresa de trimis pentru calculul curent: doar parametrii diferiți de implicit,
+ * plus perioada. Implicitul perioadei depinde de zi, iar o legătură trimisă în
+ * iunie trebuie să deschidă tot iunie și în iulie.
+ */
+export function adresaPartajabila(p: ParametriCalculator): string {
+  const o = p.optiuni;
+  const q = new URLSearchParams();
+  if (p.suma !== null) q.set("suma", String(p.suma));
+  if (p.din === "net") q.set("din", "net");
+  q.set("perioada", o.perioada);
+  if (o.persoane > 0) q.set("persoane", String(o.persoane));
+  if (!o.functieDeBaza) q.set("baza", "nu");
+  if (o.sub26) q.set("sub26", "da");
+  if (o.copiiScoala > 0) q.set("copii", String(o.copiiScoala));
+  if (o.tichete.valoare > 0 && o.tichete.numar > 0) {
+    q.set("tichet", String(o.tichete.valoare));
+    q.set("tichete", String(o.tichete.numar));
+  }
+  if (o.oreZi < 8) q.set("ore", String(o.oreZi));
+  if (!o.contributieMinima) q.set("minim", "nu");
+  if (o.scutitImpozit) q.set("handicap", "da");
+  return `${ADRESA_SITE}/unelte/calculator-salariu?${q.toString()}#rezultat`;
+}
+
+/** Legătura „Trimite pe WhatsApp”: un link `wa.me`, fără script, care merge și fără JavaScript. */
+export function legaturaWhatsApp(r: RezultatSalariu, adresa: string): string {
+  const text = `Calcul salariu: net ${lei(r.net)} din brut ${lei(r.brut)}, cost pentru firmă ${lei(r.costTotal)}. ${adresa}`;
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }

@@ -21,10 +21,11 @@ import { JsonLd } from "../../_componente/json-ld";
 import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { metadatePagina } from "../../_componente/metadate";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
+import { CopiazaLegatura } from "./copiaza-legatura";
 import { Desfasurator } from "./desfasurator";
 import { Formular } from "./formular";
 import { deLei, lei } from "./lei";
-import { calculeazaDinParametri } from "./parametri";
+import { adresaPartajabila, calculeazaDinParametri, legaturaWhatsApp } from "./parametri";
 import { impartireaCostului } from "./randuri";
 
 /**
@@ -223,6 +224,16 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
               <Desfasurator r={rezultat} />
             </div>
             <ImpartireaCostului r={rezultat} />
+            <CopiazaLegatura adresa={adresaPartajabila(parametri)} />
+            <a
+              href={legaturaWhatsApp(rezultat, adresaPartajabila(parametri))}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-umami-event="calculator-salariu-whatsapp"
+              className="mt-1 inline-block text-[0.9375rem] underline underline-offset-4"
+            >
+              Trimite calculul pe WhatsApp
+            </a>
             {subMinim && (
               <p className="border-mk-rigla mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]">
                 Brutul e sub minimul legal de {lei(minimLegal)} pentru{" "}
