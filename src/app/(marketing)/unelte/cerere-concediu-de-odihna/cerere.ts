@@ -1,4 +1,4 @@
-import { sarbatoriDupaZi } from "@/domain/calendar/sarbatori";
+import { sarbatoriDupaZiPentruCult, type CalendarPaste } from "@/domain/calendar/sarbatori-cult";
 import { todayInBucharest } from "@/lib/format/date";
 import { cuVirgula, faraCaractereDeControl } from "@/lib/unelte/text-curat";
 
@@ -157,7 +157,15 @@ export function intervalImplicit(azi: string): Readonly<{ deLa: string; panaLa: 
   return { deLa: iso(luni), panaLa: iso(new Date(luni.getTime() + 4 * ZI_MS)) };
 }
 
-export function construiesteCerere(deLa: string, panaLa: string): Cerere {
+/**
+ * `calendar` e calendarul Paștelui pentru salariat: `"gregorian"` pentru un cult
+ * creștin care îl serbează după calendarul gregorian — art. 139 alin. (2¹).
+ */
+export function construiesteCerere(
+  deLa: string,
+  panaLa: string,
+  calendar: CalendarPaste = "ortodox",
+): Cerere {
   const inceput = dinIso(deLa);
   const sfarsit = dinIso(panaLa);
   const gol = (problema: string): Cerere => ({
@@ -183,7 +191,7 @@ export function construiesteCerere(deLa: string, panaLa: string): Cerere {
   // pe un an presupus. Harta se construiește o dată, nu per zi.
   const sarbatori = new Map<string, string>();
   for (let an = inceput.getUTCFullYear(); an <= sfarsit.getUTCFullYear(); an += 1) {
-    for (const [zi, nume] of sarbatoriDupaZi(an)) sarbatori.set(zi, nume);
+    for (const [zi, nume] of sarbatoriDupaZiPentruCult(an, calendar)) sarbatori.set(zi, nume);
   }
 
   const excluse: ZiExclusa[] = [];

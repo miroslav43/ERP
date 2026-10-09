@@ -210,3 +210,40 @@ describe("ziua de azi și intervalul implicit", () => {
     expect(construiesteCerere(implicit.deLa, implicit.panaLa).zileLucratoare).toBe(5);
   });
 });
+
+describe("salariatul de alt cult creștin — art. 139 alin. (2¹)", () => {
+  it("în săptămâna Paștelui 2026 se scad datele cultului, nu cele ortodoxe", () => {
+    // 30.03–10.04.2026: două săptămâni, luni–vineri, fără alte sărbători.
+    const ortodox = construiesteCerere("2026-03-30", "2026-04-10");
+    const gregorian = construiesteCerere("2026-03-30", "2026-04-10", "gregorian");
+    expect(ortodox.zileLucratoare).toBe(9); // doar 10.04, Vinerea Mare ortodoxă
+    expect(gregorian.zileLucratoare).toBe(8); // 03.04 și 06.04
+    expect(gregorian.excluse.map((z) => z.data)).toEqual(["2026-04-03", "2026-04-06"]);
+  });
+
+  it("cazul din audit: 26.04–07.05.2027 are 8 zile ortodox și 10 gregorian", () => {
+    expect(construiesteCerere("2027-04-26", "2027-05-07").zileLucratoare).toBe(8);
+    expect(construiesteCerere("2027-04-26", "2027-05-07", "gregorian").zileLucratoare).toBe(10);
+  });
+
+  it("peste Anul Nou, fiecare an își ia Paștele din calendarul ales", () => {
+    // 28.12.2026–02.04.2027: Paștele gregorian 2027 e pe 28 martie, cel ortodox pe 2 mai.
+    const ortodox = construiesteCerere("2026-12-28", "2027-04-02");
+    const gregorian = construiesteCerere("2026-12-28", "2027-04-02", "gregorian");
+    expect(ortodox.zileLucratoare).toBe(67);
+    expect(gregorian.zileLucratoare).toBe(65);
+    expect(gregorian.excluse.map((z) => z.data)).toEqual([
+      "2027-01-01",
+      "2027-01-06",
+      "2027-01-07",
+      "2027-03-26",
+      "2027-03-29",
+    ]);
+  });
+
+  it("implicitul rămâne calendarul ortodox", () => {
+    expect(construiesteCerere("2026-03-30", "2026-04-10")).toEqual(
+      construiesteCerere("2026-03-30", "2026-04-10", "ortodox"),
+    );
+  });
+});
