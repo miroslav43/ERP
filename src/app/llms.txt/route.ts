@@ -149,7 +149,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/unelte/fisa-evaluare",
-    "Unealtă gratuită: fișa de evaluare a performanțelor profesionale, cu criteriile firmei (cel mult 15), pondere și notă pe fiecare. Plus ce spune Codul muncii: angajatorul stabilește obiectivele și criteriile (art. 40 alin. (1) lit. f)) și le comunică salariatului (art. 17 alin. (3) lit. e)). Word, PDF sau Excel.",
+    "Unealtă gratuită: fișa de evaluare a performanțelor profesionale — seturi de criterii pe tipuri de post (general, vânzări, producție, administrativ) sau criteriile firmei (cel mult 15), pondere în procente și notă de la 1 la 5 pe fiecare, nota finală ponderată și calificativul calculate (praguri implicite 4,50 / 3,50 / 2,50, modificabile), obiective, plan de dezvoltare, comentariile angajatului, semnături cu dată. Excel cu formule (SUMPRODUCT, validarea notelor, control că ponderile fac 100), Word sau PDF. Plus ce spune Codul muncii: angajatorul stabilește criteriile (art. 40 alin. (1) lit. f)), ele se comunică salariatului și se trec în contract (art. 17 alin. (3) lit. e) și (4)), schimbarea lor cere act adițional (art. 17 alin. (5)), procedura stă în regulamentul intern (art. 242 lit. i)), iar concedierea pentru necorespundere profesională cere evaluarea prealabilă (art. 63 alin. (2)).",
   ],
   [
     "/unelte/calculator-salariu",

@@ -67,7 +67,7 @@ export const ANTET_FISA_SSM: AntetPagina = {
 export const ANTET_FISA_EVALUARE: AntetPagina = {
   supratitlu: "Unealtă gratuită",
   titlu: "Fișa de evaluare a angajaților",
-  lead: "Fișa de evaluare a performanțelor profesionale, cu criteriile firmei, pondere și notă pe fiecare, plus semnăturile evaluatorului și ale angajatului. Descarci în Word, PDF sau Excel, fără cont.",
+  lead: "Alegi criteriile după post sau le scrii pe ale firmei, pui ponderea și nota, iar nota finală și calificativul se calculează singure. Cu obiective, plan de dezvoltare și semnături cu dată. Word, PDF sau Excel cu formule, fără cont.",
 };
 
 /** Calculatorul de salariu: cea mai mare cerere din cercetare (10.000–100.000 de căutări pe lună, Keyword Planner, 2 oct 2026). */

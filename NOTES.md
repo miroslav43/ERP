@@ -396,6 +396,16 @@ angajatorul s-o înregistreze, iar refuzul dă salariatului dreptul s-o dovedeas
 prin orice mijloc de probă. Până se construiește, demisia se înregistrează manual,
 din `/registru`.
 
+### Unelte publice — fișa de evaluare · `src/app/(marketing)/unelte/fisa-evaluare/lege.ts`
+
+Confirmat de jurist (9 oct 2026): rezumatul pașilor concedierii pentru necorespundere
+profesională de pe `/unelte/fisa-evaluare` — art. 61 lit. d), 62 alin. (1) și (3),
+63 alin. (2), 64, 75, 76, 78 și 268 alin. (1) lit. a) din Codul muncii, forma
+consolidată la 27.04.2026. Se publică fără marcaj de jurist; temeiurile rămân citate pe
+pagină și se reverifică la orice modificare a codului. Scala 1–5, media ponderată și
+pragurile calificativelor (4,50 / 3,50 / 2,50) sunt convenția din practică, nu lege;
+pagina și fișierul o spun.
+
 ### REVISAL · `revisal_config`
 
 ⚠️ Termenele de transmitere a elementelor CIM și a modificărilor · codurile de

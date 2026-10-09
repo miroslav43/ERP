@@ -325,6 +325,7 @@ export const PAGINI: readonly Pagina[] = [
     // 9 oct: al optulea rând, calculatorul de zile de concediu.
     // 9 oct: nota cererii de concediu numește variantele.
     // 9 oct: nota foii de parcurs numește cele 4 elemente din norme.
+    // Secțiunea I: nota fișei de evaluare — nota finală calculată, Excel cu formule.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -384,7 +385,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {

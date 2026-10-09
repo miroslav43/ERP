@@ -9,25 +9,36 @@ import { ANTET_FISA_EVALUARE } from "@/content/landing/unelte";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
-import { JsonLd } from "../../_componente/json-ld";
-import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { Descarcari } from "../../_componente/descarcari";
+import { JsonLd } from "../../_componente/json-ld";
 import { metadatePagina } from "../../_componente/metadate";
+import { nodUnealta } from "../../_componente/noduri-json-ld";
 import { PeAcelasiSubiect } from "../../_componente/pe-acelasi-subiect";
 import { PrevizualizareDocument } from "../../_componente/previzualizare-document";
-import { CRITERII_IMPLICITE, construiesteFisaEvaluare, parametriFisaEvaluare } from "./model";
+import { GrilaEvaluare } from "./grila-evaluare";
+import { PASI_CONCEDIERE, REGULI_EVALUARE, type RegulaLege } from "./lege";
+import { construiesteFisaEvaluare, MAX_RUBRICA, parametriFisaEvaluare } from "./model";
 
 /**
- * Fișa de evaluare a angajaților, gratuită.
+ * Fișa de evaluare a angajaților, gratuită, care calculează.
  *
- * „evaluare angajați codul muncii” e printre cele mai sugerate forme: banda „Ce
- * spune Codul muncii” răspunde la ea înainte de formular, cu cele două articole
- * verificate pe forma consolidată la 2 oct 2026.
+ * Auditul din 8 oct 2026 a dat-o „puțin peste un tabel Word”: promitea
+ * „pondere și notă”, dar nu se putea scrie niciuna, Excelul n-avea nicio
+ * formulă, PDF-ul tăia criteriile, iar pagina tăcea despre ce contează juridic.
+ * Acum: seturi de criterii pe post, ponderea și nota pe fiecare, nota finală și
+ * calificativul calculate pe loc și în Excel, rubricile pe care le are orice
+ * model serios și cele două benzi de lege, verificate pe forma consolidată la
+ * 27.04.2026 (`lege.ts`).
+ *
+ * `searchParams` e `Promise` în Next 16 (`node_modules/next/dist/docs/01-app/
+ * 03-api-reference/03-file-conventions/page.md`). Valorile repetate
+ * (`criteriu`, `pondere`, `nota`) vin ca tablou și se păstrează TOATE, inclusiv
+ * cele goale: pozițiile lor aliniază rândurile.
  */
 export const metadata: Metadata = metadatePagina({
-  titlu: "Fișa de evaluare a angajaților: model Word, PDF",
+  titlu: "Fișă de evaluare angajați, cu nota calculată",
   descriere:
-    "Fișa de evaluare a performanțelor profesionale, cu criteriile firmei, pondere și notă pe fiecare. Ce cere Codul muncii. Model gratuit în Word, PDF sau Excel.",
+    "Fișa de evaluare a angajaților: criterii pe tipuri de post, pondere, notă 1–5, nota finală și calificativul calculate. Excel cu formule, Word sau PDF.",
   cale: "/unelte/fisa-evaluare",
 });
 
@@ -35,8 +46,28 @@ type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }>;
 
-const unul = (v: string | string[] | undefined): string | undefined =>
-  Array.isArray(v) ? v[0] : v;
+/** Cheile pe care le citește `parametriFisaEvaluare`; restul adresei (UTM, `m`) nu intră. */
+const CHEI: ReadonlySet<string> = new Set([
+  "nume",
+  "functie",
+  "perioada",
+  "evaluator",
+  "firma",
+  "data",
+  "set",
+  "incarca",
+  "criteriu",
+  "pondere",
+  "nota",
+  "criterii",
+  "prag_fb",
+  "prag_b",
+  "prag_s",
+  "puncte_forte",
+  "de_imbunatatit",
+  "obiective",
+  "dezvoltare",
+]);
 
 const CLASA_CAMP =
   "border-mk-rigla bg-mk-hartie focus:border-mk-text rounded w-full border px-3 py-2.5 text-base";
@@ -49,12 +80,42 @@ const CAMPURI = [
   { nume: "firma", eticheta: "Firma (opțional)", exemplu: "" },
 ] as const;
 
+const RUBRICI = [
+  { nume: "puncte_forte", eticheta: "Puncte forte" },
+  { nume: "de_imbunatatit", eticheta: "De îmbunătățit" },
+  { nume: "obiective", eticheta: "Obiective pentru perioada următoare" },
+  { nume: "dezvoltare", eticheta: "Plan de dezvoltare (formare, îndrumare)" },
+] as const;
+
+function ListaLege({ reguli }: Readonly<{ reguli: readonly RegulaLege[] }>) {
+  return (
+    <dl className="border-mk-rigla/40 mt-6 border-t">
+      {reguli.map((r) => (
+        <div
+          key={r.tip}
+          className="border-mk-rigla/40 grid gap-1 border-b py-4 md:grid-cols-12 md:gap-8"
+        >
+          <dt className="font-mk-display text-[1rem] font-semibold md:col-span-3">{r.tip}</dt>
+          <dd className="text-mk-text-slab text-[0.9375rem] leading-[1.65] md:col-span-6">
+            {r.regula}
+          </dd>
+          <dd className="font-mk-date text-mk-text-slab text-[0.75rem] tracking-[0.04em] md:col-span-3">
+            {r.temei}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) {
   const p = await searchParams;
   const q = new URLSearchParams();
-  for (const cheie of ["nume", "functie", "perioada", "evaluator", "firma", "criterii"]) {
-    const v = unul(p[cheie]);
-    if (v !== undefined && v !== "") q.set(cheie, v);
+  for (const [cheie, valoare] of Object.entries(p)) {
+    if (!CHEI.has(cheie)) continue;
+    for (const v of Array.isArray(valoare) ? valoare : [valoare]) {
+      if (v !== undefined) q.append(cheie, v);
+    }
   }
   const ales = parametriFisaEvaluare(q);
   const document = construiesteFisaEvaluare(ales);
@@ -65,6 +126,13 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
     evaluator: ales.evaluator,
     firma: ales.firma,
   };
+  const valoriRubrici: Readonly<Record<(typeof RUBRICI)[number]["nume"], string>> = {
+    puncte_forte: ales.puncteForte,
+    de_imbunatatit: ales.deImbunatatit,
+    obiective: ales.obiective,
+    dezvoltare: ales.dezvoltare,
+  };
+  const rubriciCompletate = Object.values(valoriRubrici).some((v) => v !== "");
 
   return (
     <Cadru text={RO}>
@@ -86,26 +154,15 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
         />
       </div>
 
-      <div data-tipar="ascunde">
-        <Banda
-          inaltime="scurta"
-          supratitlu="Pe scurt"
-          titlu="Ce spune Codul muncii despre evaluare"
-        >
-          <div className="mt-4 max-w-[68ch] space-y-3 text-[0.9375rem] leading-[1.7]">
-            <p>
-              Codul muncii nu impune un model de fișă. Îi dă angajatorului dreptul să stabilească
-              obiectivele de performanță individuală și criteriile de evaluare a realizării lor —
-              art. 40 alin. (1) lit. f).
-            </p>
-            <p>
-              Criteriile trebuie însă comunicate salariatului: sunt printre elementele despre care
-              acesta e informat la angajare — art. 17 alin. (3) lit. e). O evaluare după criterii pe
-              care omul nu le-a primit e greu de susținut.
-            </p>
-          </div>
-        </Banda>
-      </div>
+      <Banda
+        inaltime="scurta"
+        supratitlu="Pe scurt"
+        titlu="Ce spune Codul muncii despre evaluare"
+        lead="Codul muncii nu dă un model de fișă pentru firmele private. Spune cine stabilește criteriile, unde se scriu și cum se schimbă. Rezumat după forma consolidată la 27 aprilie 2026."
+        data-tipar="ascunde"
+      >
+        <ListaLege reguli={REGULI_EVALUARE} />
+      </Banda>
 
       {/* Toată banda formularului rămâne pe ecran: altfel umplutura și rigla ei
           se tipăreau goale deasupra documentului. */}
@@ -129,19 +186,37 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
               />
             </label>
           ))}
-          <label className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
-            <span className="text-[0.875rem] font-medium">Criteriile firmei (opțional)</span>
-            <span className="text-mk-text-slab text-[0.8125rem]">
-              Câte unul pe rând, cel mult 15. Gol = lista de mai jos.
-            </span>
-            <textarea
-              name="criterii"
-              rows={4}
-              defaultValue={unul(p.criterii) ?? ""}
-              placeholder={CRITERII_IMPLICITE.join("\n")}
-              className={CLASA_CAMP}
-            />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[0.875rem] font-medium">Data evaluării (opțional)</span>
+            <input type="date" name="data" defaultValue={ales.data} className={CLASA_CAMP} />
           </label>
+
+          <GrilaEvaluare grila={ales.grila} set={ales.set} praguri={ales.praguri} />
+
+          <details className="sm:col-span-2 lg:col-span-3" open={rubriciCompletate}>
+            <summary className="cursor-pointer text-[0.875rem] font-medium">
+              Puncte forte, obiective și plan de dezvoltare (opțional)
+            </summary>
+            <p className="text-mk-text-slab mt-2 text-[0.8125rem]">
+              Goale, rămân rânduri de scris de mână. Rubrica „Comentariile angajatului” e mereu
+              goală: o completează el.
+            </p>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              {RUBRICI.map((r) => (
+                <label key={r.nume} className="flex flex-col gap-1.5">
+                  <span className="text-[0.875rem] font-medium">{r.eticheta}</span>
+                  <textarea
+                    name={r.nume}
+                    rows={3}
+                    maxLength={MAX_RUBRICA}
+                    defaultValue={valoriRubrici[r.nume]}
+                    className={CLASA_CAMP}
+                  />
+                </label>
+              ))}
+            </div>
+          </details>
+
           <div className="flex items-end">
             <button
               type="submit"
@@ -163,22 +238,37 @@ export default async function PaginaFisaEvaluare({ searchParams }: Proprietati) 
         <PrevizualizareDocument document={document} />
       </Banda>
 
-      <div data-tipar="ascunde">
-        <Banda
-          inaltime="scurta"
-          supratitlu="Fără hârtie"
-          titlu="Evaluările, cu istoric pe fiecare om"
-        >
-          <p className="text-mk-text-slab mt-4 max-w-[68ch] text-[0.9375rem] leading-[1.7]">
-            Criteriile firmei, evaluările de la an la an și cine le-a semnat, într-un singur loc.{" "}
-            <Link href="/module/evaluari" className="underline underline-offset-4">
-              Cum arată modulul de evaluări
-            </Link>
-            .
-          </p>
-          <PeAcelasiSubiect legaturi={LEGATURI_CONEXE["/unelte/fisa-evaluare"]} />
-        </Banda>
-      </div>
+      <Banda
+        inaltime="scurta"
+        supratitlu="Când evaluarea devine dovadă"
+        titlu="Concedierea pentru necorespundere profesională"
+        lead="E singurul motiv de concediere pentru care codul cere o evaluare înainte. Pașii, în ordine. Pentru un caz concret, vorbește cu juristul firmei."
+        data-tipar="ascunde"
+      >
+        <ListaLege reguli={PASI_CONCEDIERE} />
+      </Banda>
+
+      <Banda
+        inaltime="scurta"
+        supratitlu="Fără hârtie"
+        titlu="Evaluările, cu istoric pe fiecare om"
+        data-tipar="ascunde"
+      >
+        <p className="text-mk-text-slab mt-4 max-w-[68ch] text-[0.9375rem] leading-[1.7]">
+          În aplicație, criteriile, ponderile și scala devin un șablon pe care îl copiezi de la an
+          la an. Evaluarea finalizată se închide și rămâne în dosarul omului, iar angajatul și-o
+          citește în portal.
+        </p>
+        <p className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-[0.9375rem]">
+          <Link href="/module/evaluari" className="underline underline-offset-4">
+            Cum arată modulul de evaluări
+          </Link>
+          <Link href={RO.hero.ctaPrimar.href} className="underline underline-offset-4">
+            {RO.hero.ctaPrimar.eticheta}
+          </Link>
+        </p>
+        <PeAcelasiSubiect legaturi={LEGATURI_CONEXE["/unelte/fisa-evaluare"]} />
+      </Banda>
     </Cadru>
   );
 }

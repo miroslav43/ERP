@@ -84,7 +84,7 @@ const PAGINI = [
     href: "/unelte/fisa-evaluare",
     titlu: ANTET_FISA_EVALUARE.titlu,
     lead: ANTET_FISA_EVALUARE.lead,
-    nota: "criteriile firmei, pondere și notă · Word, PDF, Excel",
+    nota: "nota finală calculată · Excel cu formule, Word, PDF",
   },
   {
     href: "/unelte/calculator-salariu",
