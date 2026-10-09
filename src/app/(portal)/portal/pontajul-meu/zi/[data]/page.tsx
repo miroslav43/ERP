@@ -9,7 +9,7 @@ import { buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { ziDinRuta } from "@/lib/rute/parametri";
 import { formatDate } from "@/lib/format/date";
@@ -74,12 +74,24 @@ export default async function PaginaZiPontaj({
   ]);
   const existenta = zileLuna.find((z) => z.data === zi) ?? null;
 
-  const antet = (
-    <AntetPagina titlu={formatDate(zi)} descriere="Pontajul dumneavoastră pe ziua aceasta." />
-  );
-
   // Luna ZILEI, nu luna curentă: o zi din luna trecută se întoarce acolo.
   const hrefLunaZilei = `/portal/pontajul-meu?an=${zi.slice(0, 4)}&luna=${String(Number(zi.slice(5, 7)))}`;
+  const antet = (
+    <AntetPagina
+      // Firimitura „Pontajul meu” e link doar cu `attendance:read`; altfel text.
+      firimituri={[
+        poateVedeaLuna
+          ? { eticheta: "Pontajul meu", href: hrefLunaZilei }
+          : { eticheta: "Pontajul meu" },
+      ]}
+      titlu={formatDate(zi)}
+      descriere="Pontajul dumneavoastră pe ziua aceasta."
+    />
+  );
+  // Cererea din spatele zilei de concediu, prin poarta ei (modul + `leave:read`).
+  const poateDeschideConcediu =
+    (await getEnabledFeatures(tenant.organizationId)).has("leave") &&
+    can(permisiuni, "leave:read", "own");
   const inapoi = !poateVedeaLuna ? null : (
     <p>
       <Link href={hrefLunaZilei} className={buton({ varianta: "link" })}>
@@ -139,6 +151,18 @@ export default async function PaginaZiPontaj({
           </p>
           <p className="text-muted-foreground text-corp mt-1">
             Ziua vine din concediul aprobat și se modifică de acolo, nu din pontaj.
+            {existenta.leave_request_id !== null && poateDeschideConcediu ? (
+              <>
+                {" "}
+                <Link
+                  href={`/portal/concediile-mele/${existenta.leave_request_id}`}
+                  className="underline underline-offset-2"
+                >
+                  Deschide cererea
+                </Link>
+                .
+              </>
+            ) : null}
           </p>
         </div>
         {inapoi}

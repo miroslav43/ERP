@@ -67,6 +67,7 @@ export default async function PaginaTichetulMeu({
   return (
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
       <AntetPagina
+        firimituri={[{ eticheta: "Tichetele mele", href: "/portal/tichetele-mele" }]}
         titlu={tichet.titlu}
         descriere={`${tichet.numar_afisat} · ${ETICHETE_TIP[tichet.tip]} · deschis ${formatDateTime(
           tichet.created_at,

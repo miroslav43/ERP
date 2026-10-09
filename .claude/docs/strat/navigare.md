@@ -98,3 +98,8 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
   leagă cererile din „Zile speciale”, perioadele, aprobarea pentru managerul cu foaie
   read-only; dialogul zilei leagă fișa și săptămâna; ziua blocată din săptămâna proprie
   e link spre cerere; notificarea de zi respinsă duce la `/portal/pontajul-meu/zi/<data>`.
+- Portalul (lotul 7k): „De făcut” acoperă ziua respinsă, sesizările atribuite, predările și
+  pașii la colegi (`/portal/integrarea-mea/sarcini`, rută nouă; fișa parcursului se deschide
+  și responsabilului); „De finalizat” pentru ciorne și deplasări respinse; ziua de concediu
+  duce la cerere din zi, grilă, ceas și start; fluturașul leagă pontajul, concediile și
+  diurna din portal; detaliile au firimituri.

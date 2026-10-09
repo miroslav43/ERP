@@ -1,5 +1,6 @@
 // src/app/(portal)/portal/sesizari/echipamentele-mele.tsx
 import type { ReactElement } from "react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format/date";
@@ -23,10 +24,13 @@ export async function EchipamenteleMele({
   organizationId,
   fisaId,
   azi,
+  poateRaporta = false,
 }: Readonly<{
   organizationId: string;
   fisaId: string;
   azi: string;
+  /** `maintenance:create`: „Raportează o defecțiune” cu utilajul precompletat. */
+  poateRaporta?: boolean;
 }>): Promise<ReactElement | null> {
   const echipamente = await echipamenteleMele(organizationId, fisaId);
   if (echipamente.length === 0) return null;
@@ -74,12 +78,25 @@ export async function EchipamenteleMele({
                   ))}
                 </ul>
               )}
-              <DialogCitireRapida
-                echipament={{ id: e.id, cod: e.cod, denumire: e.denumire }}
-                fisaId={fisaId}
-                tipImplicit={tipImplicit}
-                azi={azi}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <DialogCitireRapida
+                  echipament={{ id: e.id, cod: e.cod, denumire: e.denumire }}
+                  fisaId={fisaId}
+                  tipImplicit={tipImplicit}
+                  azi={azi}
+                />
+                {/* Cardul avea doar citirea contorului; raportarea defecțiunii,
+                    cu utilajul precompletat, exista pe aceeași pagină
+                    (`?sesizare=noua&echipament=`) dar nu de aici. */}
+                {poateRaporta ? (
+                  <Link
+                    href={`/portal/sesizari?sesizare=noua&echipament=${e.id}`}
+                    className="text-nota underline-offset-2 hover:underline"
+                  >
+                    Raportează o defecțiune
+                  </Link>
+                ) : null}
+              </div>
             </li>
           );
         })}

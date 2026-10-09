@@ -186,7 +186,13 @@ export default async function PaginaCeas() {
         )}
         {stareCeas.fel === "alta_sursa" ? (
           <p className="text-muted-foreground text-corp">
-            Ziua de azi e deja înregistrată — din concediu, din foaia colectivă sau ca absență.
+            Ziua de azi e deja înregistrată — din concediu, din foaia colectivă sau ca absență.{" "}
+            {/* „Deja înregistrată” fără drum spre zi era o fundătură: ziua are
+                pagina ei, cu aceeași poartă ca ecranul ăsta. */}
+            <Link href={`/portal/pontajul-meu/zi/${azi}`} className="underline underline-offset-2">
+              Vezi ziua
+            </Link>
+            .
           </p>
         ) : null}
       </section>

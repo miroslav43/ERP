@@ -9,9 +9,10 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import type { RolResponsabil } from "@/schemas/checklist";
 import { formatDate } from "@/lib/format/date";
 import type { ProgresInstanta } from "@/lib/queries/checklist";
-import { listeazaInstante, progresInstante } from "@/lib/queries/checklist";
+import { listeazaInstante, progresInstante, sarcinileMele } from "@/lib/queries/checklist";
 import { fisaMea } from "@/lib/queries/portal";
 import { ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "@/app/(app)/onboarding/etichete";
 
@@ -61,6 +62,11 @@ export default async function PaginaIntegrareaMea() {
     randuri.length === 0
       ? new Map<string, ProgresInstanta>()
       : await progresInstante(randuri.map((r) => r.id));
+  // Pașii din parcursurile COLEGILOR pentru care sunt responsabil: au ecranul
+  // lor, legat de aici doar când există vreunul.
+  const pasiLaColegi = (
+    await sarcinileMele(tenant.organizationId, stare.fisa.id, tenant.role as RolResponsabil)
+  ).filter((s) => s.employee_id !== stare.fisa.id).length;
 
   return (
     <div className={`${LATIMI.lista} space-y-4 p-4`}>
@@ -68,6 +74,17 @@ export default async function PaginaIntegrareaMea() {
         titlu="Integrarea mea"
         descriere="Pașii de parcurs la angajare, la schimbarea funcției sau la plecare."
       />
+
+      {pasiLaColegi === 0 ? null : (
+        <p className="text-corp">
+          <Link href="/portal/integrarea-mea/sarcini" className="underline underline-offset-2">
+            {pasiLaColegi === 1
+              ? "Un pas vă revine în parcursul unui coleg"
+              : `${String(pasiLaColegi)} pași vă revin în parcursurile colegilor`}
+          </Link>
+          .
+        </p>
+      )}
 
       {randuri.length === 0 ? (
         <StareGoala

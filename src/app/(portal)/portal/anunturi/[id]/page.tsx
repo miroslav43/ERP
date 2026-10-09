@@ -9,7 +9,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { idFisaProprie } from "@/lib/queries/employees";
-import { citesteAnunt } from "@/lib/queries/announcements";
+import { anunturiPublicate, citesteAnunt, idAnunturiCitite } from "@/lib/queries/announcements";
 
 import { MarcheazaCitit } from "@/app/(app)/anunturi/[id]/marcheaza-citit";
 import Link from "next/link";
@@ -43,6 +43,16 @@ export default async function PaginaAnuntPortal({ params }: ProprietatiPagina) {
   if (anunt === null) notFound();
 
   const propriaFisaId = await idFisaProprie(tenant.organizationId, user.id);
+  // Următorul anunț necitit, ca omul să le parcurgă pe rând fără să se întoarcă
+  // în listă după fiecare. Aceleași două citiri ca pe ecranul de start.
+  const [publicate, citite] =
+    propriaFisaId === null
+      ? [[], new Set<string>()]
+      : await Promise.all([
+          anunturiPublicate(tenant.organizationId, new Date().toISOString()),
+          idAnunturiCitite(tenant.organizationId, propriaFisaId),
+        ]);
+  const urmatorulNecitit = publicate.find((a) => a.id !== anunt.id && !citite.has(a.id)) ?? null;
 
   return (
     <div className="space-y-4 p-4">
@@ -63,6 +73,17 @@ export default async function PaginaAnuntPortal({ params }: ProprietatiPagina) {
       </div>
 
       {propriaFisaId !== null ? <MarcheazaCitit id={anunt.id} /> : null}
+
+      {urmatorulNecitit === null ? null : (
+        <p className="text-corp">
+          <Link
+            href={`/portal/anunturi/${urmatorulNecitit.id}`}
+            className="underline underline-offset-2"
+          >
+            Următorul necitit: {urmatorulNecitit.titlu}
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

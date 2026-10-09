@@ -29,6 +29,7 @@ import {
   ETICHETE_ROL,
   ETICHETE_STATUS_ITEM,
   ETICHETE_TIP_DOVADA,
+  ETICHETE_VERIFICARE,
   TONURI_STATUS_ITEM,
 } from "../etichete";
 import { LinkEntitate } from "@/components/ui/link-entitate";
@@ -326,7 +327,12 @@ function PasRand({
 
       {automat ? (
         <p className="bg-surface text-muted-foreground rounded-control text-nota p-2">
-          Se bifează automat de sistem, pe baza altui modul.
+          {/* Care modul, nu „alt modul": omul trebuie să știe ce are de făcut
+              ca bifa să vină singură. */}
+          Se bifează automat de sistem
+          {pas.verificare_automata === null
+            ? "."
+            : `, când: ${ETICHETE_VERIFICARE[pas.verificare_automata].toLowerCase()}.`}
           {pas.curs_id !== null && hrefCurs !== null ? (
             <>
               {" "}

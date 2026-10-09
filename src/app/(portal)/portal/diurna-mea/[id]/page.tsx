@@ -94,6 +94,7 @@ export default async function PaginaDeplasareaMea({
   return (
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
       <AntetPagina
+        firimituri={[{ eticheta: "Diurna mea", href: "/portal/diurna-mea" }]}
         titlu={deplasare.scop}
         descriere={`${formatZiuaMomentului(deplasare.plecare_la)} – ${formatZiuaMomentului(deplasare.sosire_la)}${
           deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`

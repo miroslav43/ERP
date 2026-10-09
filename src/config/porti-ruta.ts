@@ -224,6 +224,7 @@ export const PORTI_PORTAL: readonly PoartaRuta[] = [
   p("/portal/instruirile-mele", "ssm", "ssm:read"),
   p("/portal/integrarea-mea", "onboarding", "checklists:read"),
   p("/portal/integrarea-mea/[id]", "onboarding", "checklists:read"),
+  p("/portal/integrarea-mea/sarcini", "onboarding", "checklists:read"),
   p("/portal/kpi-ul-meu", "kpi", "evaluations:read"),
   p("/portal/notificarile-mele", null, null),
   p("/portal/pontajul-meu", "attendance", "attendance:read"),

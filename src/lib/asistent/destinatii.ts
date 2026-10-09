@@ -1398,6 +1398,18 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Pașii tăi de integrare în firmă și ce mai ai de bifat.",
   },
   {
+    id: "portal.integrare.sarcini",
+    href: "/portal/integrarea-mea/sarcini",
+    eticheta: "Pașii mei la colegi",
+    zona: "portal",
+    parinte: "portal-integrare",
+    fila: null,
+    featureKey: "onboarding",
+    permission: "checklists:read",
+    minScope: "own",
+    descriere: "Pașii din parcursurile de integrare ale colegilor pentru care ești responsabil.",
+  },
+  {
     id: "portal.instruiri",
     href: "/portal/instruirile-mele",
     eticheta: "Dosarul meu SSM",

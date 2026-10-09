@@ -116,9 +116,17 @@ interface Proprietati {
   readonly zile: readonly ZiPontaj[];
   /** Ziua devine link către formularul ei doar când chiar se poate edita. */
   readonly poateEdita: boolean;
+  /** Poarta lui `/portal/concediile-mele/[id]`: „Din concediu” devine link spre cerere. */
+  readonly poateDeschideConcediu?: boolean;
 }
 
-export function GrilaLuna({ an, luna, zile, poateEdita }: Proprietati) {
+export function GrilaLuna({
+  an,
+  luna,
+  zile,
+  poateEdita,
+  poateDeschideConcediu = false,
+}: Proprietati) {
   const saptamani = construiesteSaptamani(an, luna);
   const peZi = new Map(zile.map((z) => [z.data, z]));
   const legenda = tipuriDinLuna(zile);
@@ -164,6 +172,13 @@ export function GrilaLuna({ an, luna, zile, poateEdita }: Proprietati) {
                       zi={zi}
                       data={iso}
                       intrare={intrare}
+                      hrefConcediu={
+                        poateDeschideConcediu &&
+                        intrare !== undefined &&
+                        intrare.leave_request_id !== null
+                          ? `/portal/concediile-mele/${intrare.leave_request_id}`
+                          : null
+                      }
                       /*
                        * Condiția era `intrare?.tip_zi === "lucratoare"` — adică
                        * ziua devenea clicabilă DOAR dacă avea deja un pontaj.
@@ -231,6 +246,7 @@ function CelulaLunii({
   intrare,
   editabila,
   motivBlocare,
+  hrefConcediu = null,
 }: {
   readonly zi: number;
   readonly data: string;
@@ -238,6 +254,8 @@ function CelulaLunii({
   readonly editabila: boolean;
   /** De ce nu se deschide ziua. `null` când se deschide. */
   readonly motivBlocare: string | null;
+  /** Cererea din spatele zilei de concediu; `null` = text. */
+  readonly hrefConcediu?: string | null;
 }) {
   const ore = intrare?.ore_lucrate ?? 0;
   const suplimentare = intrare?.ore_suplimentare ?? 0;
@@ -308,7 +326,16 @@ function CelulaLunii({
               și în textul citit de cititorul de ecran. */}
           {motivBlocare === null ? null : (
             <span className="text-muted-foreground text-nota mt-0.5 block">
-              {motivBlocare.startsWith("Zi aprobată") ? "Aprobată" : "Din concediu"}
+              {motivBlocare.startsWith("Zi aprobată") ? (
+                "Aprobată"
+              ) : hrefConcediu === null ? (
+                "Din concediu"
+              ) : (
+                // Ziua spunea „se modifică din Concediile mele" fără drum: acum e drumul.
+                <Link href={hrefConcediu} className="underline underline-offset-2">
+                  Din concediu
+                </Link>
+              )}
               <span className="sr-only"> — {motivBlocare}</span>
             </span>
           )}

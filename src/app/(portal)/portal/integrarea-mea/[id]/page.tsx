@@ -50,10 +50,21 @@ export default async function PaginaParcursulMeu({
 
   const instanta = await citesteInstanta(tenant.organizationId, instantaId);
   if (instanta === null) notFound();
-  if (instanta.employee_id !== stare.fisa.id) notFound();
 
-  const pasi = await pasiiInstantei(tenant.organizationId, instanta.id);
-  const features = await getEnabledFeatures(tenant.organizationId);
+  const [pasi, features] = await Promise.all([
+    pasiiInstantei(tenant.organizationId, instanta.id),
+    getEnabledFeatures(tenant.organizationId),
+  ]);
+  /*
+    Garda de proprietate, lărgită: parcursul e „al meu" ȘI când sunt
+    responsabil pe un pas din el. RLS îmi dă deja pașii aceia
+    (`checklist_instances_select_responsabil`), dar pagina răspundea 404 — deci
+    linkul din notificare și din „Pașii mei la colegi" ducea nicăieri. Pentru
+    oricine altcineva rămâne 404, nu 403: parcursul altuia nu există.
+  */
+  const esteAlMeu = instanta.employee_id === stare.fisa.id;
+  const suntResponsabil = pasi.some((pas) => pas.responsabil_employee_id === stare.fisa.id);
+  if (!esteAlMeu && !suntResponsabil) notFound();
 
   /*
    * Care pași se pot bifa — regula e strictă și vine din politică, nu din bun-simț.
@@ -88,6 +99,11 @@ export default async function PaginaParcursulMeu({
   return (
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
       <AntetPagina
+        firimituri={[
+          esteAlMeu
+            ? { eticheta: "Integrarea mea", href: "/portal/integrarea-mea" }
+            : { eticheta: "Pașii mei la colegi", href: "/portal/integrarea-mea/sarcini" },
+        ]}
         titlu={ETICHETE_TIP[instanta.tip]}
         descriere={`Din ${formatDate(instanta.data_referinta)} · ${facute.toLocaleString(
           "ro-RO",
@@ -120,8 +136,11 @@ export default async function PaginaParcursulMeu({
           Parcursul îl închide resursele umane. */}
 
       <p>
-        <Link href="/portal/integrarea-mea" className={buton({ varianta: "link" })}>
-          Înapoi la integrarea mea
+        <Link
+          href={esteAlMeu ? "/portal/integrarea-mea" : "/portal/integrarea-mea/sarcini"}
+          className={buton({ varianta: "link" })}
+        >
+          {esteAlMeu ? "Înapoi la integrarea mea" : "Înapoi la pașii mei la colegi"}
         </Link>
       </p>
     </div>

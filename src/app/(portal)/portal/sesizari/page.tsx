@@ -8,7 +8,7 @@ import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { fisaMea } from "@/lib/queries/portal";
@@ -98,10 +98,17 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "maintenance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Trimiterea spre „Tichetele IT" era text simplu; linkul trece prin poarta
+  // paginii-țintă (modulul de tichete pornit + `tickets:create`).
+  const hrefTichetNou =
+    module.has("ticketing") && can(permisiuni, "tickets:create", "own")
+      ? "/portal/tichetele-mele/nou"
+      : null;
 
   if (!can(permisiuni, "maintenance:read", "own")) {
     return (
@@ -182,6 +189,7 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
           organizationId={tenant.organizationId}
           fisaId={fisaId}
           azi={todayInBucharest()}
+          poateRaporta={poateRaporta}
         />
       )}
 
@@ -202,7 +210,13 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
           {...(poateRaporta
             ? { actiune: { eticheta: "Sesizare nouă", href: "/portal/sesizari?sesizare=noua" } }
             : {})}
-        />
+        >
+          {hrefTichetNou === null ? null : (
+            <Link href={hrefTichetNou} className="underline underline-offset-2">
+              Deschide un tichet IT
+            </Link>
+          )}
+        </StareGoala>
       ) : (
         <>
           {deLucrat.length > 0 ? (
@@ -232,7 +246,15 @@ export default async function PaginaSesizariPortal({ searchParams }: Proprietati
               </ul>
             )}
             <p className="text-muted-foreground text-nota">
-              Pentru calculator, imprimantă sau telefon, folosiți Tichetele IT.
+              Pentru calculator, imprimantă sau telefon, folosiți{" "}
+              {hrefTichetNou === null ? (
+                "Tichetele IT"
+              ) : (
+                <Link href={hrefTichetNou} className="underline underline-offset-2">
+                  Tichetele IT
+                </Link>
+              )}
+              .
             </p>
           </section>
 

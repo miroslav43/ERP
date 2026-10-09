@@ -8,7 +8,7 @@ import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
@@ -59,10 +59,19 @@ export default async function PaginaCerereaMea({
   // pentru cine n-o deține, cererea altcuiva nu există.
   if (cerere.employee_id !== stare.fisa.id) notFound();
 
-  const [zile, tipuri] = await Promise.all([
+  const [zile, tipuri, module] = await Promise.all([
     zileleCererii(cerere.id),
     tipuriConcediu(tenant.organizationId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Lunile în care zilele aprobate s-au sincronizat în pontaj — exact acolo
+  // verifică omul că au apărut. Doar cu modulul și dreptul de citire.
+  const luniPontaj =
+    cerere.status === "aprobata" &&
+    module.has("attendance") &&
+    can(permisiuni, "attendance:read", "own")
+      ? [...new Set(zile.map((z) => z.data.slice(0, 7)))].sort()
+      : [];
 
   const denumireTip = tipuri.get(cerere.leave_type_id)?.denumire ?? "Concediu";
   // Garda de proprietate de mai sus (404 pentru cererea altcuiva) face ca aici
@@ -75,6 +84,7 @@ export default async function PaginaCerereaMea({
   return (
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
       <AntetPagina
+        firimituri={[{ eticheta: "Concediile mele", href: "/portal/concediile-mele" }]}
         titlu={denumireTip}
         descriere={`${formatDate(cerere.data_inceput)} – ${formatDate(cerere.data_sfarsit)}`}
         actiuni={
@@ -135,6 +145,23 @@ export default async function PaginaCerereaMea({
           <h2 id="zile" className="text-foreground text-corp font-semibold">
             Zilele cererii
           </h2>
+          {luniPontaj.length === 0 ? null : (
+            <p className="text-muted-foreground text-nota">
+              Zilele apar în pontaj:{" "}
+              {luniPontaj.map((luna, indice) => (
+                <span key={luna}>
+                  {indice > 0 ? ", " : ""}
+                  <Link
+                    href={`/portal/pontajul-meu?an=${luna.slice(0, 4)}&luna=${String(Number(luna.slice(5, 7)))}`}
+                    className="underline underline-offset-2"
+                  >
+                    {formatDate(`${luna}-01`).slice(3)}
+                  </Link>
+                </span>
+              ))}
+              .
+            </p>
+          )}
           <ul className="divide-border border-border bg-surface rounded-panou divide-y border">
             {zile.map((zi) => (
               <li key={zi.data} className="flex items-center justify-between gap-3 px-4 py-2">
