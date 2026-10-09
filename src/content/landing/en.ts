@@ -940,7 +940,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "Safety training record",
-        text: "The individual record per Annex 11 to Government Decision 1425/2006, with the worker's details filled in.",
+        text: "The complete individual record per Annex 11 to Government Decision 1425/2006, with the worker's details filled in.",
         formate: "PDF · Word",
         href: "/unelte/fisa-instruire-ssm",
       },

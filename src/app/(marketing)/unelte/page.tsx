@@ -78,7 +78,7 @@ const PAGINI = [
     href: "/unelte/fisa-instruire-ssm",
     titlu: ANTET_FISA_SSM.titlu,
     lead: ANTET_FISA_SSM.lead,
-    nota: "după anexa 11 la HG 1425/2006 · Word, PDF",
+    nota: "toate rubricile anexei 11 la HG 1425/2006 · Word, PDF",
   },
   {
     href: "/unelte/fisa-evaluare",

@@ -980,7 +980,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Fișa de instruire SSM",
-        text: "Fișa individuală după anexa 11 la HG 1425/2006, cu datele lucrătorului completate.",
+        text: "Fișa individuală completă după anexa 11 la HG 1425/2006, cu datele lucrătorului completate.",
         formate: "PDF · Word",
         href: "/unelte/fisa-instruire-ssm",
       },

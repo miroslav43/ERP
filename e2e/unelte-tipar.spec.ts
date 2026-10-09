@@ -59,7 +59,7 @@ const PAGINI: readonly {
     culcat: true,
     pagini: [2, 4],
   },
-  { eticheta: "fișa SSM", cale: "/unelte/fisa-instruire-ssm", culcat: false, pagini: [3, 7] },
+  { eticheta: "fișa SSM", cale: "/unelte/fisa-instruire-ssm", culcat: false, pagini: [4, 6] },
   { eticheta: "fișa de evaluare", cale: "/unelte/fisa-evaluare", culcat: false, pagini: [1, 2] },
 ];
 
