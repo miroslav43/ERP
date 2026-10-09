@@ -17,6 +17,7 @@ import {
 import {
   adresaDinFisier,
   LINIE_GOALA,
+  mapeazaTexte,
   SEMNATURA_FISIER,
   textAntetRulant,
   textPagina,
@@ -110,6 +111,31 @@ function latimiTabel(d: DocumentTabelar, coloane: readonly Coloana[]): readonly 
   return coloane.map((c) => (total === 0 ? 0 : (c.latime / total) * util));
 }
 
+/**
+ * Caracterele pe care fontul nu le are devin „?”.
+ *
+ * DejaVu nu are emoji și nici ideograme: `pdf-lib` le desena ca glifa 0, adică
+ * un pătrățel gol, fără niciun semn că s-a pierdut ceva (auditul din 8 oct 2026,
+ * „Conducător auto: □□□X□”). Un „?” se vede și se poate corecta de mână.
+ * Selectorii de variantă (U+FE00–U+FE0F) care însoțesc emoji-urile se scot, ca
+ * „❤️” să dea un singur „?”, nu două. `are` e injectat ca să fie testabil.
+ */
+export function inlocuiesteGlifeLipsa(text: string, are: (cod: number) => boolean): string {
+  let rezultat = "";
+  for (const caracter of text) {
+    const cod = caracter.codePointAt(0) ?? 0;
+    if (cod >= 0xfe00 && cod <= 0xfe0f) continue;
+    rezultat += caracter === "\n" || are(cod) ? caracter : "?";
+  }
+  return rezultat;
+}
+
+/**
+ * Codurile pe care DejaVu le are în AMBELE grosimi, calculate o dată pe proces:
+ * `getCharacterSet()` întoarce ~5.900 de coduri și costă ~20 ms pe apel.
+ */
+let glifeComune: ReadonlySet<number> | null = null;
+
 export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
   return randeazaPdfMultiplu([d]);
 }
@@ -120,11 +146,19 @@ export async function randeazaPdf(d: DocumentTabelar): Promise<Uint8Array> {
  * DATĂ: lipite din PDF-uri separate, 60 de fișe ar fi purtat 60 de subseturi.
  */
 export async function randeazaPdfMultiplu(
-  documente: readonly DocumentTabelar[],
+  bruteDocumente: readonly DocumentTabelar[],
 ): Promise<Uint8Array> {
-  const primul = documente[0];
+  const primul = bruteDocumente[0];
   if (primul === undefined) throw new Error("Niciun document de randat.");
   const { doc, fonturi } = await pornesteDocument(primul.titlu, "Administrativo");
+  if (glifeComune === null) {
+    const aldin = new Set(fonturi.aldin.getCharacterSet());
+    glifeComune = new Set(fonturi.normal.getCharacterSet().filter((c) => aldin.has(c)));
+  }
+  const glife = glifeComune;
+  const documente = bruteDocumente.map((d) =>
+    mapeazaTexte(d, (t) => inlocuiesteGlifeLipsa(t, (c) => glife.has(c))),
+  );
 
   // Memorizat pe randare: la condică același nume apare pe fiecare zi lucrătoare,
   // iar fiecare măsurătoare e o așezare OpenType completă. Fără cache, 60 de nume
@@ -294,36 +328,34 @@ function deseneaza(
     y -= 20;
   }
 
-  pagina.drawText(SEMNATURA_FISIER, {
-    x: MARGINE,
-    y: MARGINE / 2,
-    size: MARIME_MARGINE,
-    font: fonturi.normal,
-    color: GRI,
-  });
-  // Textul devine clicabil printr-o adnotare `Link` cu acțiune `URI`, întinsă
-  // exact peste el. `pdf-lib` n-are un API pentru legături; dicționarul e cel
-  // din specificația PDF (ISO 32000, 12.5.6.5).
-  const latimeText = fonturi.normal.widthOfTextAtSize(SEMNATURA_FISIER, MARIME_MARGINE);
-  const legatura = doc.context.register(
-    doc.context.obj({
-      Type: "Annot",
-      Subtype: "Link",
-      Rect: [MARGINE, MARGINE / 2 - 2, MARGINE + latimeText, MARGINE / 2 + 8],
-      Border: [0, 0, 0],
-      A: {
-        Type: "Action",
-        S: "URI",
-        URI: PDFString.of(adresaDinFisier(d, "pdf", ADRESA_SITE)),
-      },
-    }),
-  );
-  pagina.node.set(PDFName.of("Annots"), doc.context.obj([legatura]));
-
   // Marginile se scriu la sfârșit: abia acum se știe câte pagini are documentul.
+  // Rândul de jos, cu legătura lui, stă pe FIECARE pagină. Până pe 8 oct 2026
+  // apărea doar pe ultima: o foaie de parcurs de patru pagini se capsează, se
+  // scanează și circulă pe bucăți. Textul devine clicabil printr-o adnotare
+  // `Link` cu acțiune `URI`, întinsă exact peste el. `pdf-lib` n-are un API
+  // pentru legături; dicționarul e cel din specificația PDF (ISO 32000, 12.5.6.5).
+  const latimeText = fonturi.normal.widthOfTextAtSize(SEMNATURA_FISIER, MARIME_MARGINE);
+  const adresa = adresaDinFisier(d, "pdf", ADRESA_SITE);
   const masoaraMic = masoara(fonturi.normal, MARIME_MARGINE);
   const antetRulant = taie(textAntetRulant(d), util, masoaraMic);
   pagini.forEach((p, i) => {
+    p.drawText(SEMNATURA_FISIER, {
+      x: MARGINE,
+      y: MARGINE / 2,
+      size: MARIME_MARGINE,
+      font: fonturi.normal,
+      color: GRI,
+    });
+    const legatura = doc.context.register(
+      doc.context.obj({
+        Type: "Annot",
+        Subtype: "Link",
+        Rect: [MARGINE, MARGINE / 2 - 2, MARGINE + latimeText, MARGINE / 2 + 8],
+        Border: [0, 0, 0],
+        A: { Type: "Action", S: "URI", URI: PDFString.of(adresa) },
+      }),
+    );
+    p.node.set(PDFName.of("Annots"), doc.context.obj([legatura]));
     if (i > 0) {
       p.drawText(antetRulant, {
         x: MARGINE,
