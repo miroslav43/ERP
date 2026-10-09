@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { TriangleAlert } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 import type { SerieAbsenteNemotivate } from "@/lib/queries/attendance";
 
 import { emiteSuspendareAbsente } from "./actions";
@@ -27,8 +28,11 @@ import { arataToast } from "@/components/ui/toast";
 export function AlertaAbsente({
   serii,
   hrefReges = null,
+  poateDeschideFisa = false,
 }: {
   readonly serii: readonly SerieAbsenteNemotivate[];
+  /** Seriile au venit prin RLS; cu `employees:read` numele duce la fișa (și contractul) omului. */
+  readonly poateDeschideFisa?: boolean;
   /** `/reges?stare=de_transmis` dacă pagina se deschide pentru rolul curent. */
   readonly hrefReges?: string | null;
 }) {
@@ -99,7 +103,13 @@ export function AlertaAbsente({
             className="border-hairline bg-suprafata rounded-control flex flex-col gap-2 border p-3"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-corp font-medium">{serie.numeAngajat}</span>
+              <span className="text-corp font-medium">
+                <LinkEntitate
+                  href={poateDeschideFisa ? `/angajati/${serie.employeeId}#titlu-contracte` : null}
+                >
+                  {serie.numeAngajat}
+                </LinkEntitate>
+              </span>
               <span className="text-corp-mic text-secundar tabular-nums">
                 {serie.zile} zile · {serie.dataInceput} → {serie.dataSfarsit}
               </span>

@@ -80,17 +80,26 @@ async function TabelPerioade({
       cheie: "luna",
       antet: "Luna",
       peTelefon: "titlu",
-      celula: (rand) =>
-        rand.perioada === null ? (
-          <span className="font-medium">{rand.eticheta}</span>
-        ) : (
+      // Luna duce la FOAIA ei (și lunile fără rând, care se pontează direct);
+      // detaliul loturilor rămâne al doilea link, doar când există rând.
+      celula: (rand) => (
+        <span className="flex flex-wrap items-baseline gap-x-2">
           <Link
-            href={`/pontaj/perioade/${rand.perioada.id}`}
+            href={`/pontaj?an=${String(an)}&luna=${String(rand.luna)}`}
             className="font-medium underline-offset-2 hover:underline"
           >
             {rand.eticheta}
           </Link>
-        ),
+          {rand.perioada === null ? null : (
+            <Link
+              href={`/pontaj/perioade/${rand.perioada.id}`}
+              className="text-muted-foreground text-nota underline-offset-2 hover:underline"
+            >
+              loturile
+            </Link>
+          )}
+        </span>
+      ),
     },
     {
       cheie: "interval",

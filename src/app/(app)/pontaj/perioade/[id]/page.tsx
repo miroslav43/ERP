@@ -9,6 +9,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { poateDeschide } from "@/config/porti-ruta";
 import { perioadaSalarizariiPentruPontaj } from "@/lib/queries/payroll";
@@ -154,6 +155,26 @@ export default async function PaginaPerioadaDetaliu({ params, searchParams }: Pr
             </Badge>
           }
         />
+        {/* Detaliul perioadei nu lega nici foaia lunii, nici arhiva: legătura
+            mergea doar dinspre ele spre el. */}
+        <nav aria-label="Legături" className="text-corp flex flex-wrap gap-x-4">
+          <Link
+            href={`/pontaj?an=${String(perioada.an)}&luna=${String(perioada.luna)}`}
+            className="underline-offset-2 hover:underline"
+          >
+            Foaia lunii
+          </Link>
+          {file.poateAproba ? (
+            <Link href={adresaAprobare("")} className="underline-offset-2 hover:underline">
+              Aprobarea lunii
+            </Link>
+          ) : null}
+          {poateDeschide("/pontaj/arhiva", { features: module, permissions: permisiuni }) ? (
+            <Link href="/pontaj/arhiva" className="underline-offset-2 hover:underline">
+              Arhiva
+            </Link>
+          ) : null}
+        </nav>
         {statDePlata === null ? null : (
           <p className="text-muted-foreground text-corp">
             <Link
@@ -256,15 +277,37 @@ export default async function PaginaPerioadaDetaliu({ params, searchParams }: Pr
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
                       <p className="font-medium">
-                        {lot.department_id === null
-                          ? "Toată organizația"
-                          : (hartaDepartamente.get(lot.department_id) ?? "Departament necunoscut")}
+                        {/* Departamentul lotului duce la ecranul de aprobare
+                            filtrat pe el; managerul care a aprobat, la fișa lui. */}
+                        {lot.department_id === null ? (
+                          "Toată organizația"
+                        ) : file.poateAproba ? (
+                          <Link
+                            href={adresaAprobare(lot.department_id)}
+                            className="underline-offset-2 hover:underline"
+                          >
+                            {hartaDepartamente.get(lot.department_id) ?? "Departament necunoscut"}
+                          </Link>
+                        ) : (
+                          (hartaDepartamente.get(lot.department_id) ?? "Departament necunoscut")
+                        )}
                       </p>
                       <p className="text-muted-foreground text-corp">
                         Aprobat la {formatDateTime(lot.aprobat_la)}
-                        {manager === undefined
-                          ? null
-                          : ` · ${manager.full_name} (${manager.marca})`}
+                        {manager === undefined || lot.manager_employee_id === null ? null : (
+                          <>
+                            {" · "}
+                            <LinkEntitate
+                              href={
+                                can(permisiuni, "employees:read", "own")
+                                  ? `/angajati/${lot.manager_employee_id}`
+                                  : null
+                              }
+                            >
+                              {manager.full_name} ({manager.marca})
+                            </LinkEntitate>
+                          </>
+                        )}
                       </p>
                       {lot.observatii === null ? null : (
                         <p className="text-muted-foreground text-corp">{lot.observatii}</p>

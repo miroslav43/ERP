@@ -311,6 +311,22 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
             ? `/pontaj?angajat=${fisaTinta}`
             : null
         }
+        // Ziua blocată de un concediu aprobat duce la cererea lui (poarta
+        // fișei de cerere); zilele sărite la salvare, la cererile din săptămână.
+        hrefConcedii={
+          poateDeschide("/concedii/[id]", contextPorti)
+            ? Object.fromEntries(
+                pontate
+                  .filter((z) => z.leave_request_id !== null)
+                  .map((z) => [z.data, `/concedii/${z.leave_request_id ?? ""}`]),
+              )
+            : {}
+        }
+        hrefConcediiProprii={
+          fisaTinta === propriaFisaId && poateDeschide("/concedii", contextPorti)
+            ? `/concedii?vedere=cereri&de_la=${saptamanaStart}&pana_la=${adaugaZile(saptamanaStart, 6)}`
+            : null
+        }
       />
     </div>
   );

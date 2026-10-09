@@ -2,9 +2,11 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 import { formatOraZi, formatOre } from "@/lib/format/ore";
 
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
@@ -13,11 +15,23 @@ import type { SarcinaSaptamanaDeAprobat } from "@/lib/queries/attendance";
 
 interface Proprietati {
   readonly sarcini: readonly SarcinaSaptamanaDeAprobat[];
+  /** `employees:read`: numele duce la fișă (sarcina a venit prin RLS). */
+  readonly poateDeschideFisa?: boolean;
+  /** Poarta fișei săptămânii: „Săptămâna din …” se deschide pe ore, pentru omul acela. */
+  readonly poateDeschideSaptamana?: boolean;
 }
 
 const ETICHETE_ZI = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"] as const;
 
-function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat }) {
+function RandSarcina({
+  sarcina,
+  poateDeschideFisa,
+  poateDeschideSaptamana,
+}: {
+  readonly sarcina: SarcinaSaptamanaDeAprobat;
+  readonly poateDeschideFisa: boolean;
+  readonly poateDeschideSaptamana: boolean;
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [respingere, setRespingere] = useState(false);
@@ -49,10 +63,36 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="font-medium">{sarcina.angajat?.fullName ?? "Angajat necunoscut"}</p>
+          <p className="font-medium">
+            <LinkEntitate
+              href={
+                poateDeschideFisa && sarcina.angajat !== null
+                  ? `/angajati/${sarcina.angajat.id}`
+                  : null
+              }
+            >
+              {sarcina.angajat?.fullName ?? "Angajat necunoscut"}
+            </LinkEntitate>
+          </p>
           <p className="text-muted-foreground text-nota">
-            Săptămâna din{" "}
-            {new Date(`${sarcina.submisie.saptamanaStart}T00:00:00Z`).toLocaleDateString("ro-RO")}
+            {poateDeschideSaptamana && sarcina.angajat !== null ? (
+              <Link
+                href={`/pontaj/saptamana?saptamana=${sarcina.submisie.saptamanaStart}&angajat=${sarcina.angajat.id}`}
+                className="underline-offset-2 hover:underline"
+              >
+                Săptămâna din{" "}
+                {new Date(`${sarcina.submisie.saptamanaStart}T00:00:00Z`).toLocaleDateString(
+                  "ro-RO",
+                )}
+              </Link>
+            ) : (
+              <>
+                Săptămâna din{" "}
+                {new Date(`${sarcina.submisie.saptamanaStart}T00:00:00Z`).toLocaleDateString(
+                  "ro-RO",
+                )}
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -141,7 +181,11 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
   );
 }
 
-export function ListaSaptamaniDeAprobat({ sarcini }: Proprietati) {
+export function ListaSaptamaniDeAprobat({
+  sarcini,
+  poateDeschideFisa = false,
+  poateDeschideSaptamana = false,
+}: Proprietati) {
   if (sarcini.length === 0) return null;
 
   return (
@@ -149,7 +193,12 @@ export function ListaSaptamaniDeAprobat({ sarcini }: Proprietati) {
       <h2 className="text-sectiune font-semibold">Planuri săptămânale de aprobat</h2>
       <ul className="space-y-3">
         {sarcini.map((sarcina) => (
-          <RandSarcina key={sarcina.taskId} sarcina={sarcina} />
+          <RandSarcina
+            key={sarcina.taskId}
+            sarcina={sarcina}
+            poateDeschideFisa={poateDeschideFisa}
+            poateDeschideSaptamana={poateDeschideSaptamana}
+          />
         ))}
       </ul>
     </div>

@@ -2,6 +2,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
@@ -109,6 +110,10 @@ interface Proprietati {
   readonly employeeId?: string | null;
   /** Foaia lunii (`/pontaj?angajat=`), dacă pagina se deschide pentru rolul curent. */
   readonly hrefPrezenta?: string | null;
+  /** Cererea de concediu din spatele fiecărei zile blocate (data ISO → `/concedii/<id>`). */
+  readonly hrefConcedii?: Readonly<Record<string, string>>;
+  /** Cererile proprii din săptămână, pentru zilele sărite la salvare; `null` = text. */
+  readonly hrefConcediiProprii?: string | null;
 }
 
 /** Cuvintele formularului, după ce ESTE: plan de prezență sau fișă de pontaj (0165). */
@@ -148,6 +153,8 @@ export function FormularSaptamana({
   lucreazaWeekendInitial,
   employeeId = null,
   hrefPrezenta = null,
+  hrefConcedii = {},
+  hrefConcediiProprii = null,
 }: Proprietati) {
   const t = peSaptamana ? TEXTE_PONTAJ : TEXTE_PLAN;
   const router = useRouter();
@@ -337,7 +344,17 @@ export function FormularSaptamana({
               explicație lângă ele se citesc ca o defecțiune, nu ca o regulă. */}
           {rand.blocata && rand.motivBlocare !== null ? (
             <span className="text-muted-foreground text-nota block font-normal">
-              {rand.motivBlocare}
+              {/* Motivul numea concediul fără drum spre el. */}
+              {hrefConcedii[rand.data] === undefined ? (
+                rand.motivBlocare
+              ) : (
+                <Link
+                  href={hrefConcedii[rand.data] ?? "#"}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {rand.motivBlocare}
+                </Link>
+              )}
             </span>
           ) : null}
         </>
@@ -538,6 +555,15 @@ export function FormularSaptamana({
                   .join(
                     ", ",
                   )} — fiindcă aveți concediu aprobat atunci. Restul săptămânii s-a salvat.`}
+            {hrefConcediiProprii === null ? null : (
+              <>
+                {" "}
+                <Link href={hrefConcediiProprii} className="underline underline-offset-2">
+                  Vezi cererile
+                </Link>
+                .
+              </>
+            )}
           </p>
         )}
 

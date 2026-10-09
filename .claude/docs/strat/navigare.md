@@ -94,3 +94,7 @@ permissions})` din `src/config/porti-ruta.ts` (modul activ + permisiunea paginii
   ambele sensuri): `src/config/porti-ruta.test.ts`.
 - Traducerea notificărilor și învelișul push după rol: [[modul/notificari]].
 - Fișa angajatului ca punct de plecare: [[modul/angajati/navigare]].
+- Pontajul (lotul 7j; pagina [[modul/pontaj]] e peste plafon și se sparge separat): foaia
+  leagă cererile din „Zile speciale”, perioadele, aprobarea pentru managerul cu foaie
+  read-only; dialogul zilei leagă fișa și săptămâna; ziua blocată din săptămâna proprie
+  e link spre cerere; notificarea de zi respinsă duce la `/portal/pontajul-meu/zi/<data>`.

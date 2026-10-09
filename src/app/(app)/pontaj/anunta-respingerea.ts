@@ -75,18 +75,16 @@ export async function anuntaRespingereaZilei(
     const userAngajat = angajat?.user_id ?? null;
     if (userAngajat === null) return false;
 
-    const an = Number(intrare.data.slice(0, 4));
-    const luna = Number(intrare.data.slice(5, 7));
-
     const { error: eroareNotificare } = await admin.from("notifications").insert({
       organization_id: organizationId,
       user_id: userAngajat,
       kind: "warning" as const,
       title: "O zi de pontaj a fost respinsă",
       body: `Ziua de ${formatDate(intrare.data)} a fost respinsă: ${motiv} Corectați-o din pontajul dumneavoastră.`,
-      // Direct pe luna zilei, nu pe pagina de start a pontajului: o notificare
-      // care cere o corecție trebuie să ducă la locul corecției.
-      link: `/portal/pontajul-meu?an=${String(an)}&luna=${String(luna)}`,
+      // Direct pe ZIUA de corectat, nu pe lună: ruta zilei există și e cea pe
+      // care o folosesc mementourile din 0103. Luna rămâne în `an`/`luna` doar
+      // pentru cititorii vechi ai corpului.
+      link: `/portal/pontajul-meu/zi/${intrare.data}`,
       entity_type: "attendance_entry",
       entity_id: entryId,
     });

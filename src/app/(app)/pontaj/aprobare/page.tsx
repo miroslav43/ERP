@@ -24,6 +24,7 @@ import {
   saptamaniDeAprobat,
 } from "@/lib/queries/attendance";
 import { filtreAprobareSchema } from "@/schemas/attendance";
+import { poateDeschide } from "@/config/porti-ruta";
 
 import { ButonSetariPontaj } from "../buton-setari";
 import { NavPontaj } from "../nav-pontaj";
@@ -48,8 +49,14 @@ async function ContinutAprobare({
   poateBloca,
   poateSincroniza,
   numarSaptamaniDeAprobat,
+  poateDeschideFisa,
+  poateDeschideFoaia,
 }: {
   readonly organizationId: string;
+  /** `employees:read`; rândurile au venit prin RLS, deci fișa se deschide per om. */
+  readonly poateDeschideFisa: boolean;
+  /** Poarta lui `/pontaj`: rândul omului din foaia lunii. */
+  readonly poateDeschideFoaia: boolean;
   readonly an: number;
   readonly luna: number;
   readonly periodId: string;
@@ -112,6 +119,10 @@ async function ContinutAprobare({
     .map(([id, rand]) => ({
       id,
       nume: rand.nume,
+      hrefFisa: poateDeschideFisa ? `/angajati/${id}` : null,
+      hrefFoaie: poateDeschideFoaia
+        ? `/pontaj?an=${String(an)}&luna=${String(luna)}&angajat=${id}`
+        : null,
       // Zilele, cronologic. Omul citește luna de sus în jos, nu în ordinea în
       // care PostgREST a nimerit să întoarcă rândurile.
       zile: [...rand.zile].sort((a, b) => a.data.localeCompare(b.data)),
@@ -217,6 +228,13 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
   const enabledFeatures = await getEnabledFeatures(tenant.organizationId);
   const poateSincroniza =
     can(permisiuni, "attendance:create", "all") && enabledFeatures.has("leave");
+  // Țintele de pe ecran, prin poarta fiecărei pagini: foaia lunii, detaliul
+  // perioadei (loturile deja aprobate), fișa omului, săptămâna lui.
+  const contextPorti = { features: enabledFeatures, permissions: permisiuni };
+  const poateDeschideFoaia = poateDeschide("/pontaj", contextPorti);
+  const poateDeschideFisa = can(permisiuni, "employees:read", "own");
+  const poateDeschideSaptamana =
+    poateDeschide("/pontaj/saptamana", contextPorti) && can(permisiuni, "attendance:read", "team");
 
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
@@ -260,7 +278,34 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
         file={<NavPontaj {...fileNav} />}
       />
 
-      <ListaSaptamaniDeAprobat sarcini={sarciniSaptamana} />
+      {/* Ecranul lucrează pe perioada lunii și n-o lega: nici detaliul ei (loturile
+          deja aprobate), nici foaia din care vin zilele. */}
+      {!poateDeschideFoaia && perioada === null ? null : (
+        <nav aria-label="Legături" className="text-corp flex flex-wrap gap-x-4">
+          {poateDeschideFoaia ? (
+            <Link
+              href={`/pontaj?an=${String(an)}&luna=${String(filtre.luna)}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Foaia lunii
+            </Link>
+          ) : null}
+          {perioada === null ? null : (
+            <Link
+              href={`/pontaj/perioade/${perioada.id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Loturile aprobate ale lunii
+            </Link>
+          )}
+        </nav>
+      )}
+
+      <ListaSaptamaniDeAprobat
+        sarcini={sarciniSaptamana}
+        poateDeschideFisa={poateDeschideFisa}
+        poateDeschideSaptamana={poateDeschideSaptamana}
+      />
 
       {alteLuni.length === 0 ? null : (
         <Callout fel="atentie" titlu="Alte luni au zile de aprobat">
@@ -366,6 +411,8 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
             poateBloca={poateBloca}
             poateSincroniza={poateSincroniza}
             numarSaptamaniDeAprobat={sarciniSaptamana.length}
+            poateDeschideFisa={poateDeschideFisa}
+            poateDeschideFoaia={poateDeschideFoaia}
           />
         </Suspense>
       )}

@@ -30,6 +30,7 @@ import type { SediuPontaj } from "@/lib/queries/attendance";
 import type { RandFoaie } from "./intrare-client";
 import { formatOre } from "@/lib/format/ore";
 import { LinkEntitate } from "@/components/ui/link-entitate";
+import { lunieaSaptamanii } from "@/domain/attendance/saptamana";
 
 interface Proprietati {
   readonly dataInceput: string;
@@ -46,6 +47,19 @@ interface Proprietati {
   readonly poateVedeaConcedii: boolean;
   /** `employees:read` — numele din foaie și din avertismente duc la fișă. */
   readonly poateDeschideFisa: boolean;
+  /** Fișa privitorului, între rândurile echipei: „Zile speciale” duce la cererile LUI, nu la echipă. */
+  readonly fisaProprieId: string | null;
+  /** `/concedii` pentru cererile proprii (modul + `leave:read`); `null` = text. */
+  readonly poateDeschideConcediiProprii: boolean;
+  /** `/pontaj/perioade?an=` pentru banda „perioada e blocată”; `null` = text. */
+  readonly hrefPerioade: string | null;
+  /**
+   * `/pontaj/aprobare?an=&luna=` pentru managerul cu foaia read-only
+   * (`create = own`, `approve = team`): celula „așteaptă decizia” îl duce acolo.
+   */
+  readonly hrefAprobare: string | null;
+  /** Poarta lui `/pontaj/saptamana`: dialogul zilei leagă fișa săptămânii. */
+  readonly poateDeschideSaptamana: boolean;
   /** Pragul de ore/zi al organizației — trecut mai departe la `CelulaZi`. */
   /** Parametrii de derivare a orelor, pauza de masă inclusă. */
   readonly config: ConfigZi;
@@ -156,8 +170,25 @@ export function FoaieColectiva({
   alegeSediul,
   poateVedeaConcedii,
   poateDeschideFisa,
+  fisaProprieId,
+  poateDeschideConcediiProprii,
+  hrefPerioade,
+  hrefAprobare,
+  poateDeschideSaptamana,
 }: Proprietati) {
   const [selectie, setSelectie] = useState<Selectie | null>(null);
+  /**
+   * Cererile de concediu ale omului din luna foii: rândul propriu merge la
+   * „Cererile mele”, al altcuiva la echipă, filtrată pe om și pe interval.
+   * Coloana „Zile speciale” arăta „Concediu: 3” fără drum spre cele trei cereri.
+   */
+  const hrefCereriPentru = (angajatId: string | null): string | null => {
+    const interval = `de_la=${dataInceput}&pana_la=${dataSfarsit}`;
+    if (angajatId === null || angajatId === fisaProprieId) {
+      return poateDeschideConcediiProprii ? `/concedii?vedere=cereri&${interval}` : null;
+    }
+    return poateVedeaConcedii ? `/concedii/echipa?employee_id=${angajatId}&${interval}` : null;
+  };
 
   const zile = useMemo(() => enumeraZile(dataInceput, dataSfarsit), [dataInceput, dataSfarsit]);
   const setNationale = useMemo(
@@ -267,8 +298,15 @@ export function FoaieColectiva({
         <p className="border-foreground/60 bg-surface text-foreground rounded-panou text-corp border p-3">
           Perioada este <strong>blocată</strong>
           {blocataLa === null ? "" : ` din ${new Date(blocataLa).toLocaleDateString("ro-RO")}`} —
-          foaia nu mai poate fi modificată. Redeschideți luna din „Perioade” dacă aveți nevoie de
-          corecții.
+          foaia nu mai poate fi modificată. Redeschideți luna din{" "}
+          {hrefPerioade === null ? (
+            "„Perioade”"
+          ) : (
+            <Link href={hrefPerioade} className="underline underline-offset-2">
+              „Perioade”
+            </Link>
+          )}{" "}
+          dacă aveți nevoie de corecții.
         </p>
       ) : null}
 
@@ -548,6 +586,14 @@ export function FoaieColectiva({
                         : CLASE_STARE_DECIZIE[stareDecizie];
 
                     if (needitabila) {
+                      // Managerul are foaia read-only (`create = own`), dar
+                      // decide (`approve = team`): celula care „așteaptă
+                      // decizia” îl duce în ecranul de aprobare, pe luna asta.
+                      const hrefDecizie =
+                        !poateEdita && stareDecizie === "de_decis" && !needitabilaDinConcediu
+                          ? hrefAprobare
+                          : null;
+                      const hrefCelula = hrefConcediu ?? hrefDecizie;
                       return (
                         <td
                           key={zi}
@@ -555,11 +601,12 @@ export function FoaieColectiva({
                           title={titlu}
                           className={`border-border text-nota border-r px-1 py-2 text-center ${clasaFundal}`}
                         >
-                          {hrefConcediu === null ? (
+                          {hrefCelula === null ? (
                             continut
                           ) : (
-                            // Ziua din concediu se corectează în Concedii: celula duce acolo.
-                            <Link href={hrefConcediu} className="block hover:underline">
+                            // Ziua din concediu se corectează în Concedii, cea
+                            // nedecisă în Aprobare: celula duce acolo.
+                            <Link href={hrefCelula} className="block hover:underline">
                               {continut}
                             </Link>
                           )}
@@ -597,9 +644,13 @@ export function FoaieColectiva({
                   </td>
                   <td className="px-2 py-2 text-right tabular-nums">{formatOre(totalNoapte)}</td>
                   <td className="text-muted-foreground text-nota px-2 py-2 text-left">
-                    {speciale.length === 0
-                      ? "—"
-                      : speciale.map((s) => `${ETICHETE_TIP_ZI[s.tip]}: ${s.numar}`).join(", ")}
+                    {speciale.length === 0 ? (
+                      "—"
+                    ) : (
+                      <LinkEntitate href={hrefCereriPentru(rand.angajatId)}>
+                        {speciale.map((s) => `${ETICHETE_TIP_ZI[s.tip]}: ${s.numar}`).join(", ")}
+                      </LinkEntitate>
+                    )}
                   </td>
                 </tr>
               );
@@ -677,6 +728,16 @@ export function FoaieColectiva({
           angajatId={selectie.angajatId}
           data={selectie.data}
           eticheta={`${selectie.eticheta} · ${new Date(`${selectie.data}T00:00:00Z`).toLocaleDateString("ro-RO")}`}
+          hrefFisa={
+            poateDeschideFisa && selectie.angajatId !== null
+              ? `/angajati/${selectie.angajatId}`
+              : null
+          }
+          hrefSaptamana={
+            poateDeschideSaptamana
+              ? `/pontaj/saptamana?saptamana=${lunieaSaptamanii(selectie.data)}${selectie.angajatId === null || selectie.angajatId === fisaProprieId ? "" : `&angajat=${selectie.angajatId}`}`
+              : null
+          }
           intrare={intrareSelectata}
           poateAproba={poateAproba}
           config={config}

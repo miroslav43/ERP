@@ -3,6 +3,8 @@
 import { useMemo, useState, type ReactElement } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
 
+import Link from "next/link";
+
 import { StareGoala } from "@/components/ui/stare-goala";
 import { clasaBifa } from "@/components/ui/camp";
 import { formatDate } from "@/lib/format/date";
@@ -26,6 +28,10 @@ export interface ZiDeAprobat {
 export interface RandAprobare {
   readonly id: string;
   readonly nume: string;
+  /** Fișa omului (`employees:read`, rândul a venit prin RLS); `null` = text. */
+  readonly hrefFisa: string | null;
+  /** Rândul lui din foaia lunii (`/pontaj?an=&luna=&angajat=`); `null` = text. */
+  readonly hrefFoaie: string | null;
   readonly zile: readonly ZiDeAprobat[];
 }
 
@@ -261,6 +267,23 @@ function GrupAngajat({
           )}
           <span className="truncate font-medium">{rand.nume}</span>
         </button>
+        {/* Numele era DOAR butonul care pliază zilele: nimic nu ducea la fișa
+            omului sau la rândul lui din foaie. Linkurile stau lângă buton, nu
+            în el — un link într-un buton e un control în alt control. */}
+        {rand.hrefFisa === null && rand.hrefFoaie === null ? null : (
+          <span className="text-nota flex shrink-0 gap-x-2">
+            {rand.hrefFisa === null ? null : (
+              <Link href={rand.hrefFisa} className="underline-offset-2 hover:underline">
+                fișa
+              </Link>
+            )}
+            {rand.hrefFoaie === null ? null : (
+              <Link href={rand.hrefFoaie} className="underline-offset-2 hover:underline">
+                foaia
+              </Link>
+            )}
+          </span>
+        )}
         <span className="text-muted-foreground text-nota tabular-nums">
           {bifate.length} din {idZile.length} {idZile.length === 1 ? "zi" : "zile"} ·{" "}
           {formatOre(ore)}

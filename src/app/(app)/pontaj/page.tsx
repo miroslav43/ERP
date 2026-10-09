@@ -93,6 +93,11 @@ async function LunaIntreaga({
   poateVedeaConcedii,
   poateDeschideFisa,
   poateDeschidePunct,
+  fisaProprieId,
+  poateDeschideConcediiProprii,
+  hrefPerioade,
+  hrefAprobare,
+  poateDeschideSaptamana,
   config,
   limite,
   oreAsteptateLuna,
@@ -114,6 +119,11 @@ async function LunaIntreaga({
   readonly poateDeschideFisa: boolean;
   /** Sediul scanat din celulă devine link spre `/puncte-lucru` (poarta: `departments:read`). */
   readonly poateDeschidePunct: boolean;
+  readonly fisaProprieId: string | null;
+  readonly poateDeschideConcediiProprii: boolean;
+  readonly hrefPerioade: string | null;
+  readonly hrefAprobare: string | null;
+  readonly poateDeschideSaptamana: boolean;
   readonly config: ConfigZi;
   /**
    * Limitele legale ale firmei, sau `null` când n-a configurat nimic. Foaia
@@ -178,6 +188,11 @@ async function LunaIntreaga({
         poateAproba={poateAproba}
         poateVedeaConcedii={poateVedeaConcedii}
         poateDeschideFisa={poateDeschideFisa}
+        fisaProprieId={fisaProprieId}
+        poateDeschideConcediiProprii={poateDeschideConcediiProprii}
+        hrefPerioade={hrefPerioade}
+        hrefAprobare={hrefAprobare}
+        poateDeschideSaptamana={poateDeschideSaptamana}
         config={config}
         limite={limite}
         oreAsteptateLuna={oreAsteptateLuna}
@@ -260,6 +275,11 @@ async function LunaIntreaga({
         poateAproba={poateAproba}
         poateVedeaConcedii={poateVedeaConcedii}
         poateDeschideFisa={poateDeschideFisa}
+        fisaProprieId={fisaProprieId}
+        poateDeschideConcediiProprii={poateDeschideConcediiProprii}
+        hrefPerioade={hrefPerioade}
+        hrefAprobare={hrefAprobare}
+        poateDeschideSaptamana={poateDeschideSaptamana}
         config={config}
         limite={limite}
         oreAsteptateLuna={oreAsteptateLuna}
@@ -466,6 +486,14 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             poateAproba={poateAproba}
             parametri={parametri}
             azi={azi}
+            poateDeschideConcediu={poateDeschideRuta("/concedii/[id]", {
+              features: moduleActive,
+              permissions: permisiuni,
+            })}
+            poateDeschideSaptamana={poateDeschideRuta("/pontaj/saptamana", {
+              features: moduleActive,
+              permissions: permisiuni,
+            })}
           />
         </Suspense>
       </div>
@@ -532,6 +560,17 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
    * `fisaMea` e o interogare pe index, iar rezultatul e memoizat pe cerere.
    */
   const fisaCelujCareSeUita = await fisaMea(tenant.organizationId, user.id);
+  // Țintele din foaie și din dialogul zilei, prin poarta fiecărei pagini-ȚINTĂ.
+  const contextPorti = { features: moduleActive, permissions: permisiuni };
+  const hrefPerioade = poateDeschideRuta("/pontaj/perioade", contextPorti)
+    ? `/pontaj/perioade?an=${String(an)}`
+    : null;
+  // Managerul citește echipa dar nu-i scrie ziua (0161): foaia lui e read-only,
+  // iar celula „așteaptă decizia” îl duce în Aprobare, pe luna asta.
+  const hrefAprobare =
+    !poateEdita && poateAproba && poateDeschideRuta("/pontaj/aprobare", contextPorti)
+      ? `/pontaj/aprobare?an=${String(an)}&luna=${String(filtre.luna)}`
+      : null;
 
   const seriiAbsente =
     perioada === null || !poateDeschide
@@ -560,7 +599,15 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       {fisaCelujCareSeUita.stare === "fara_fisa" ? (
         <Callout fel="informativ" titlu="Nu apăreți în foaia de pontaj">
           Contul dvs. administrează firma, dar nu are fișă de angajat, iar foaia listează doar
-          salariații. Dacă sunteți și angajat, înrolați-vă din „Angajați → Angajat nou”.
+          salariații. Dacă sunteți și angajat, înrolați-vă din{" "}
+          {poateDeschideRuta("/angajati/nou", contextPorti) ? (
+            <Link className="underline" href="/angajati/nou">
+              „Angajați → Angajat nou”
+            </Link>
+          ) : (
+            "„Angajați → Angajat nou”"
+          )}
+          .
         </Callout>
       ) : fisaCelujCareSeUita.stare === "ok" && fisaCelujCareSeUita.fisa.status === "candidat" ? (
         <Callout fel="informativ" titlu="Nu apăreți în foaia de pontaj">
@@ -575,6 +622,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
 
       <AlertaAbsente
         serii={seriiAbsente}
+        poateDeschideFisa={can(permisiuni, "employees:read", "own")}
         hrefReges={
           poateDeschideRuta("/reges", { features: moduleActive, permissions: permisiuni })
             ? "/reges?stare=de_transmis"
@@ -613,6 +661,11 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           }
           poateDeschideFisa={can(permisiuni, "employees:read", "own")}
           poateDeschidePunct={can(permisiuni, "departments:read", "own")}
+          fisaProprieId={fisaCelujCareSeUita.stare === "ok" ? fisaCelujCareSeUita.fisa.id : null}
+          poateDeschideConcediiProprii={poateDeschideRuta("/concedii", contextPorti)}
+          hrefPerioade={hrefPerioade}
+          hrefAprobare={hrefAprobare}
+          poateDeschideSaptamana={poateDeschideRuta("/pontaj/saptamana", contextPorti)}
           config={config}
           limite={limiteleFirmei(setari)}
           oreAsteptateLuna={oreAsteptateLuna}

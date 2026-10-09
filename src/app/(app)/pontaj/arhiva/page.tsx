@@ -80,10 +80,13 @@ interface RandArhiva extends Luna {
 async function TabelArhiva({
   organizationId,
   hrefRegistru,
+  hrefFoaie,
 }: {
   readonly organizationId: string;
   /** Poarta lui `/registru`: numărul de înregistrare devine link doar cu ea. */
   readonly hrefRegistru: boolean;
+  /** Poarta lui `/pontaj`: luna arhivată deschide foaia vie a lunii. */
+  readonly hrefFoaie: boolean;
 }) {
   const azi = todayInBucharest();
   const fereastra = fereastraLunilor(azi);
@@ -128,9 +131,22 @@ async function TabelArhiva({
       cheie: "luna",
       antet: "Luna",
       peTelefon: "titlu",
+      // Singurul link al rândului era „Excel”: din luna arhivată nu se putea
+      // deschide foaia vie. Numele lunii duce la ea.
       celula: (rand) => (
         <span className="font-medium">
-          {numeLuna(rand.luna)} {rand.an}
+          {hrefFoaie ? (
+            <Link
+              href={`/pontaj?an=${String(rand.an)}&luna=${String(rand.luna)}`}
+              className="underline-offset-2 hover:underline"
+            >
+              {numeLuna(rand.luna)} {rand.an}
+            </Link>
+          ) : (
+            <>
+              {numeLuna(rand.luna)} {rand.an}
+            </>
+          )}
           {rand.versiune !== null && rand.versiune > 1 ? (
             <span className="text-muted-foreground text-nota"> · versiunea {rand.versiune}</span>
           ) : null}
@@ -311,6 +327,7 @@ export default async function PaginaArhivaPontaj() {
             features: await getEnabledFeatures(tenant.organizationId),
             permissions: permisiuni,
           })}
+          hrefFoaie={can(permisiuni, "attendance:read", "own")}
         />
       </Suspense>
     </div>
