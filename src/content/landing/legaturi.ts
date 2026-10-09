@@ -21,6 +21,10 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
       href: "/ghid/concediu-de-odihna#zile-pe-an",
     },
     { eticheta: "Program de concedii: cerere, aprobare și sold", href: "/module/concedii" },
+    {
+      eticheta: "Câte zile de concediu ți se cuvin pe an",
+      href: "/unelte/calculator-zile-concediu",
+    },
     { eticheta: "Pentru firmele de servicii și birouri", href: "/domenii/servicii" },
   ],
   "/unelte/condica-de-prezenta": [

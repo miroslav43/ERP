@@ -536,7 +536,7 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-09",
     titluPagina: "Program de concedii: cerere, aprobare și sold",
     titluH1: "Program de concedii",
     metaDescriere:
@@ -612,6 +612,10 @@ export const FISE: readonly FisaModul[] = [
       {
         href: "/unelte/cerere-concediu-de-odihna",
         eticheta: "Cerere de concediu cu zilele calculate",
+      },
+      {
+        href: "/unelte/calculator-zile-concediu",
+        eticheta: "Câte zile de concediu ți se cuvin: calculator",
       },
     ],
     notaPermisiuni:
@@ -927,7 +931,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "kpi",
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-09",
     titluPagina: "KPI-uri: indicatori și ținte pe angajat",
     titluH1: "KPI-uri pe angajat",
     metaDescriere:
@@ -979,6 +983,9 @@ export const FISE: readonly FisaModul[] = [
         text: "Omul își vede propriile ținte și cum stă față de ele, fără să întrebe.",
       },
     ],
+    // 8 oct 2026: evaluarea anuală e pasul de după ținte; fișa de evaluare avea
+    // doar două pagini care trimiteau spre ea (`legaturi-unelte.test.ts`).
+    ghiduri: [{ href: "/unelte/fisa-evaluare", eticheta: "Fișa de evaluare anuală: model" }],
     nuFace: [
       "Nu culege singur valorile din alte programe. Realizările se completează sau se importă, nu vin automat.",
       "Nu are grafice de tendință pe mai mulți ani. Se lucrează pe luni, iar comparația se face lună cu lună.",

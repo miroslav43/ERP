@@ -258,6 +258,10 @@ export const CONCEDIU_ODIHNA: PaginaLege = {
       eticheta: "Unealtă: cerere de concediu cu zilele calculate",
       href: "/unelte/cerere-concediu-de-odihna",
     },
+    {
+      eticheta: "Unealtă: câte zile de concediu ți se cuvin într-un an",
+      href: "/unelte/calculator-zile-concediu",
+    },
     { eticheta: "Modulul Concedii: solduri, aprobări, calendar", href: "/module/concedii" },
     { eticheta: "Evidența orelor de muncă: art. 119", href: "/evidenta-orelor-de-munca" },
     {
