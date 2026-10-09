@@ -6,7 +6,7 @@ import { parametriCalculator } from "./parametri";
 
 const randeaza = (o: Record<string, string>) => {
   const p = parametriCalculator(new URLSearchParams(o), "2026-10-08");
-  return render(<Formular p={p} eroare={p.eroare} />).container;
+  return render(<Formular p={p} />).container;
 };
 
 describe("formularul calculatorului", () => {
@@ -48,5 +48,19 @@ describe("formularul calculatorului", () => {
     expect(c.querySelector<HTMLInputElement>('input[name="sub26"]')?.checked).toBe(true);
     expect(c.querySelector<HTMLInputElement>('input[name="sub26"]')?.value).toBe("da");
     expect(c.querySelector<HTMLSelectElement>('select[name="copii"]')?.value).toBe("3");
+  });
+
+  it("tichetele: valoarea scrisă rămâne în câmp, numărul în listă, iar <details> se deschide", () => {
+    const c = randeaza({ tichet: "40,18", tichete: "21" });
+    expect(c.querySelector<HTMLInputElement>('input[name="tichet"]')?.value).toBe("40,18");
+    expect(c.querySelector<HTMLSelectElement>('select[name="tichete"]')?.value).toBe("21");
+    expect(c.querySelectorAll('select[name="tichete"] option')).toHaveLength(24);
+    expect(c.querySelector("details")?.hasAttribute("open")).toBe(true);
+  });
+
+  it("eroarea de pe tichet marchează câmpul tichetului, nu suma", () => {
+    const c = randeaza({ suma: "5000", tichet: "abc", tichete: "20" });
+    expect(c.querySelector('input[name="tichet"]')?.getAttribute("aria-invalid")).toBe("true");
+    expect(c.querySelector('input[name="suma"]')?.getAttribute("aria-invalid")).toBe("false");
   });
 });

@@ -62,6 +62,10 @@ export const VERIFICARE = {
       eticheta: "OUG 59/2005 — rotunjirea la leu",
       href: "https://legislatie.just.ro/public/DetaliiDocument/62685",
     },
+    {
+      eticheta: "Legea 165/2018, art. 14 — valoarea maximă a tichetului de masă",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/202623",
+    },
   ],
 } as const;
 
@@ -131,6 +135,20 @@ export function valoareDeducereSub26(minim: number): number {
  * înscris la școală, „indiferent de nivelul” veniturilor părintelui.
  */
 export const DEDUCERE_COPIL_SCOALA = 100;
+
+/**
+ * Legea 165/2018 art. 14, forma consolidată din 01.12.2025 (modificat de Legea
+ * 201/2025): „Valoarea nominală a unui tichet de masă nu poate depăși suma de
+ * 45 lei.” Art. II din Legea 201/2025 o ține pe ianuarie–septembrie 2026; din
+ * octombrie 2026, art. 32 permite indexarea semestrială prin ordin comun
+ * (⚠ NOTES.md §3). Peste ea, calculatorul avertizează, nu refuză.
+ *
+ * Regimul fiscal, Codul fiscal (forma din 08.08.2026): venit salarial (art. 76
+ * alin. (3) lit. h)), fără CAS (art. 142 lit. r)), cu CASS (art. 157 alin. (1)
+ * lit. ț)), fără CAM (art. 220^4 alin. (2)), în afara plafonului OUG 89/2025
+ * (art. III alin. (1) lit. b)).
+ */
+export const TICHET_MASA_VALOARE_MAXIMA = 45;
 
 function setariPentruMinim(minim: number, valabilDeLa: string): PayrollSettingsSnapshot {
   return {

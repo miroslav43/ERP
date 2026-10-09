@@ -2,6 +2,7 @@ import {
   estePerioada,
   PERIOADE_2026,
   perioadaPentruZi,
+  TICHET_MASA_VALOARE_MAXIMA,
   valoriExpirate,
 } from "@/content/legal/salarizare-publica";
 import { parseAmount } from "@/lib/format/money";
@@ -69,15 +70,39 @@ export function citesteSuma(text: string): CitireSuma {
   return { ok: true, valoare, rotunjita: valoare !== n };
 }
 
+/** O lună are cel mult 23 de zile lucrătoare; tichetele sunt cel mult câte zile lucrate (Legea 165/2018 art. 12 alin. (2)). */
+export const TICHETE_MAXIM_PE_LUNA = 23;
+
+/** Valoarea unui tichet, cu bani („40,18”); câmpul gol înseamnă fără tichete. */
+function citesteTichet(text: string): CitireSuma {
+  const curat = text.replace(SPATII, "").replace(MONEDA, "");
+  const n = curat === "" ? null : parseAmount(curat);
+  if (n === null) {
+    return { ok: false, eroare: `Nu am înțeles valoarea tichetului „${text.trim()}”.` };
+  }
+  if (n < 0 || n > 100) {
+    return {
+      ok: false,
+      eroare: "Valoarea unui tichet de masă trebuie să fie între 0 și 100 de lei.",
+    };
+  }
+  return { ok: true, valoare: Math.round(n * 100) / 100, rotunjita: false };
+}
+
 export type ParametriCalculator = Readonly<{
   /** Textul din câmp, întors în formular așa cum l-a scris omul — și când n-a putut fi citit. */
   text: string;
   /** Suma citită, la leu; `null` când textul n-a putut fi citit. */
   suma: number | null;
+  /** Prima eroare de citire: a sumei, altfel a tichetului. */
   eroare: string | null;
+  /** Câmpul pe care îl privește `eroare`, ca formularul să-l marcheze pe el. */
+  campCuEroare: "suma" | "tichet" | null;
   /** Suma avea bani și a fost rotunjită la leu. */
   rotunjita: boolean;
   din: "brut" | "net";
+  /** Valoarea tichetului, cum a scris-o omul (câmpul gol: fără tichete). */
+  textTichet: string;
   optiuni: OptiuniSalariu;
 }>;
 
@@ -87,7 +112,7 @@ function intreg(text: string | null, implicit: number, min: number, max: number)
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : implicit;
 }
 
-function optiuniDin(q: URLSearchParams, azi: string): OptiuniSalariu {
+function optiuniDin(q: URLSearchParams, azi: string, valoareTichet: number): OptiuniSalariu {
   const ceruta = q.get("perioada");
   return {
     perioada: estePerioada(ceruta) ? ceruta : perioadaPentruZi(azi),
@@ -95,6 +120,10 @@ function optiuniDin(q: URLSearchParams, azi: string): OptiuniSalariu {
     functieDeBaza: q.get("baza") !== "nu",
     sub26: q.get("sub26") === "da",
     copiiScoala: intreg(q.get("copii"), 0, 0, 6),
+    tichete: {
+      valoare: valoareTichet,
+      numar: intreg(q.get("tichete"), 0, 0, TICHETE_MAXIM_PE_LUNA),
+    },
   };
 }
 
@@ -103,19 +132,28 @@ function optiuniDin(q: URLSearchParams, azi: string): OptiuniSalariu {
  *   când adresa n-o spune. E parametru, nu ceas citit aici, ca testele să fie fixe.
  */
 export function parametriCalculator(q: URLSearchParams, azi: string): ParametriCalculator {
-  const optiuni = optiuniDin(q, azi);
+  const textTichet = (q.get("tichet") ?? "").slice(0, 12);
+  const tichet: CitireSuma =
+    textTichet.trim() === ""
+      ? { ok: true, valoare: 0, rotunjita: false }
+      : citesteTichet(textTichet);
+  const optiuni = optiuniDin(q, azi, tichet.ok ? tichet.valoare : 0);
   const minim = PERIOADE_2026[optiuni.perioada].salariuMinim;
   const text = (q.get("suma") ?? "").slice(0, 20);
   const gol = text.trim() === "";
   const citire: CitireSuma = gol
     ? { ok: true, valoare: minim, rotunjita: false }
     : citesteSuma(text);
+  const eroareSuma = citire.ok ? null : citire.eroare;
+  const eroareTichet = tichet.ok ? null : tichet.eroare;
   return {
     text: gol ? String(minim) : text,
     suma: citire.ok ? citire.valoare : null,
-    eroare: citire.ok ? null : citire.eroare,
+    eroare: eroareSuma ?? eroareTichet,
+    campCuEroare: eroareSuma !== null ? "suma" : eroareTichet !== null ? "tichet" : null,
     rotunjita: citire.ok && citire.rotunjita,
     din: q.get("din") === "net" ? "net" : "brut",
+    textTichet,
     optiuni,
   };
 }
@@ -130,6 +168,8 @@ export type CalculCalculator = Readonly<{
   subMinim: boolean;
   /** Netul cerut era sub cel de la brutul minim legal; brutul afișat e minimul. */
   ridicatLaMinim: boolean;
+  /** Ce trebuie spus lângă un rezultat valid (un tichet peste maximul legal). */
+  avertismente: readonly string[];
   /** Ziua de azi e după ultima perioadă cu valori verificate (31 decembrie 2026). */
   expirat: boolean;
 }>;
@@ -138,6 +178,12 @@ export function calculeazaDinParametri(q: URLSearchParams, azi: string): CalculC
   const p = parametriCalculator(q, azi);
   const minimLegal = brutMinimLegal(p.optiuni);
   const expirat = valoriExpirate(azi);
+  const avertismente =
+    p.optiuni.tichete.valoare > TICHET_MASA_VALOARE_MAXIMA
+      ? [
+          `Legea 165/2018 (art. 14) limitează tichetul de masă la ${String(TICHET_MASA_VALOARE_MAXIMA)} de lei. Peste, diferența nu mai e tichet de masă, ci venit cu toate contribuțiile; calculul de mai sus o tratează totuși ca tichet.`,
+        ]
+      : [];
   const faraRezultat = (eroare: string | null): CalculCalculator => ({
     parametri: p,
     rezultat: null,
@@ -145,9 +191,10 @@ export function calculeazaDinParametri(q: URLSearchParams, azi: string): CalculC
     minimLegal,
     subMinim: false,
     ridicatLaMinim: false,
+    avertismente: [],
     expirat,
   });
-  if (p.suma === null) return faraRezultat(p.eroare);
+  if (p.eroare !== null || p.suma === null) return faraRezultat(p.eroare);
   if (p.din === "brut") {
     const rezultat = calculeazaDinBrut(p.suma, p.optiuni);
     return {
@@ -157,6 +204,7 @@ export function calculeazaDinParametri(q: URLSearchParams, azi: string): CalculC
       minimLegal,
       subMinim: rezultat.brut < minimLegal,
       ridicatLaMinim: false,
+      avertismente,
       expirat,
     };
   }
@@ -173,6 +221,7 @@ export function calculeazaDinParametri(q: URLSearchParams, azi: string): CalculC
     minimLegal,
     subMinim: r.rezultat.brut < minimLegal,
     ridicatLaMinim: r.ridicatLaMinim,
+    avertismente,
     expirat,
   };
 }

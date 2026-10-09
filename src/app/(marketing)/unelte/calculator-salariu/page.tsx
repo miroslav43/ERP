@@ -118,8 +118,16 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
   }
   // Ziua din România alege perioada implicită și spune când valorile au expirat.
   // Pagina e oricum dinamică (citește `searchParams`), deci ceasul nu se îngheață la build.
-  const { parametri, rezultat, eroare, minimLegal, subMinim, ridicatLaMinim, expirat } =
-    calculeazaDinParametri(q, todayInBucharest());
+  const {
+    parametri,
+    rezultat,
+    eroare,
+    minimLegal,
+    subMinim,
+    ridicatLaMinim,
+    avertismente,
+    expirat,
+  } = calculeazaDinParametri(q, todayInBucharest());
   const laMinim = dinBrut(SALARIU_MINIM_BRUT_2026_IULIE, 0, true);
 
   return (
@@ -145,7 +153,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
           `#rezultat`: după trimitere, pagina se deschide la rezultat, nu sus, pe
           formularul gol — pe telefon rezultatul cădea sub pliu (auditul din 7 oct).
         */}
-        <Formular p={parametri} eroare={eroare} />
+        <Formular p={parametri} />
       </Banda>
 
       <Banda
@@ -189,6 +197,14 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
                 {lei(minimLegal)}, deci acesta e brutul, iar netul real iese {lei(rezultat.net)}.
               </p>
             )}
+            {avertismente.map((a) => (
+              <p
+                key={a}
+                className="border-mk-cerneala mt-6 max-w-[68ch] border-l-2 pl-4 text-[0.9375rem] leading-[1.65]"
+              >
+                {a}
+              </p>
+            ))}
             <div className="mt-6">
               <Desfasurator r={rezultat} />
             </div>
@@ -293,7 +309,7 @@ export default async function PaginaCalculatorSalariu({ searchParams }: Propriet
       <Banda inaltime="medie" supratitlu="Limitele" titlu="Ce nu calculează">
         <ul className="mt-6 max-w-[72ch] space-y-3">
           {[
-            "Scutirile pentru persoanele cu handicap și tichetele de masă. Facilitățile pe sectoare de activitate nu se mai aplică veniturilor din 2025 (OUG 156/2024).",
+            "Scutirile pentru persoanele cu handicap și pentru cercetare-dezvoltare. Facilitățile pe sectoare de activitate nu se mai aplică veniturilor din 2025 (OUG 156/2024).",
             "Timpul parțial, sporurile, orele suplimentare și concediile din lună.",
           ].map((t) => (
             <li

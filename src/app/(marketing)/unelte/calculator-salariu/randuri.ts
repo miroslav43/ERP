@@ -36,7 +36,14 @@ export function randuriDesfasurator(r: RezultatSalariu): Desfasurare {
         ? [rand("Din care neimpozabil (OUG 89/2025)", r.sumaNeimpozabila, "info")]
         : []),
       rand("CAS — pensie, 25%", r.cas, "minus"),
-      rand("CASS — sănătate, 10%", r.cass, "minus"),
+      ...(r.tichete > 0
+        ? [rand("Din tichete de masă, în baza CASS și a impozitului", r.tichete, "info")]
+        : []),
+      rand(
+        r.tichete > 0 ? "CASS — sănătate, 10%, cu tichetele" : "CASS — sănătate, 10%",
+        r.cass,
+        "minus",
+      ),
       ...(r.deducereSub26 > 0 || r.deducereCopii > 0
         ? [
             rand("Deducere de bază", r.deducereDeBaza, "info"),
@@ -51,10 +58,17 @@ export function randuriDesfasurator(r: RezultatSalariu): Desfasurare {
       rand(etichetaDeducere(r), r.deducerePersonala, "info"),
       rand("Impozit pe venit, 10%", r.impozit, "minus"),
       rand("Salariu net", r.net, "total"),
+      ...(r.tichete > 0
+        ? [
+            rand("Tichete de masă, pe card", r.tichete, "plus"),
+            rand("Net și tichete, împreună", r.net + r.tichete, "total"),
+          ]
+        : []),
     ],
     angajator: [
       rand("Salariu brut", r.brut, "plus"),
       rand("CAM — contribuția asiguratorie pentru muncă, 2,25%", r.cam, "plus"),
+      ...(r.tichete > 0 ? [rand("Tichete de masă", r.tichete, "plus")] : []),
       rand("Cost total pentru firmă", r.costTotal, "total"),
     ],
   };

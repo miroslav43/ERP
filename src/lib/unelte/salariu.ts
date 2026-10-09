@@ -32,6 +32,8 @@ export type OptiuniSalariu = Readonly<{
   sub26: boolean;
   /** Copii sub 18 ani înscriși la școală: 100 de lei fiecare (art. 77 alin. (10) lit. b)). */
   copiiScoala: number;
+  /** Tichetele de masă din lună: valoarea unuia și câte (cel mult unul pe zi lucrată). */
+  tichete: Readonly<{ valoare: number; numar: number }>;
 }>;
 
 /** Normă întreagă, funcția de bază, fără persoane, în iulie–decembrie 2026. */
@@ -41,6 +43,7 @@ export const OPTIUNI_IMPLICITE: OptiuniSalariu = {
   functieDeBaza: true,
   sub26: false,
   copiiScoala: 0,
+  tichete: { valoare: 0, numar: 0 },
 };
 
 export type RezultatSalariu = Readonly<{
@@ -55,8 +58,12 @@ export type RezultatSalariu = Readonly<{
   impozit: number;
   /** Suma scoasă din baza de impozit și contribuții (OUG 89/2025 art. III); 0 când nu se aplică. */
   sumaNeimpozabila: number;
+  /** Salariul net, în cont — fără tichete. */
   net: number;
+  /** Valoarea tichetelor de masă din lună, pe card. */
+  tichete: number;
   cam: number;
+  /** Brut + CAM + tichete. */
   costTotal: number;
 }>;
 
@@ -66,7 +73,12 @@ export const BRUT_MAX = 500_000;
 const margineste = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(v) ? v : min));
 
-function intrare(brutImpozabil: number, o: OptiuniSalariu, deducere: number): PayrollCalcInput {
+function intrare(
+  brutImpozabil: number,
+  o: OptiuniSalariu,
+  deducere: number,
+  tichete: number,
+): PayrollCalcInput {
   const setari = PERIOADE_2026[o.perioada].setari;
   return {
     // Deducerea o calculează `deduceri()` (art. 77, cu partea suplimentară, pe care
@@ -74,6 +86,12 @@ function intrare(brutImpozabil: number, o: OptiuniSalariu, deducere: number): Pa
     // pentru orice venit. Funcția de bază se verifică tot în `deduceri()`.
     settings: {
       ...setari,
+      // Tichetele pe calea motorului, deci cu regimul din produs: impozabile, cu
+      // CASS, fără CAS și fără CAM. Luna e o singură „zi” (vezi `attendance`), iar
+      // motorul înmulțește valoarea pe tichet cu zilele lucrate: aici, cu 1.
+      valoareTichetMasa: tichete,
+      ticheteImpozabile: true,
+      ticheteSupuseCass: true,
       deducerePersonala:
         deducere > 0
           ? [
@@ -119,6 +137,13 @@ function sumaNeimpozabila(brut: number, o: OptiuniSalariu): number {
     : 0;
 }
 
+/** Valoarea tichetelor din lună, la ban: 21 × 40,18 = 843,78. Zero dacă lipsește valoarea sau numărul. */
+function valoareTichete(o: OptiuniSalariu): number {
+  const valoare = margineste(o.tichete.valoare, 0, 1000);
+  const numar = Math.round(margineste(o.tichete.numar, 0, 31));
+  return valoare > 0 && numar > 0 ? Math.round(valoare * numar * 100) / 100 : 0;
+}
+
 type Deduceri = Readonly<{ deBaza: number; sub26: number; copii: number }>;
 
 /**
@@ -146,14 +171,17 @@ export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): Rezult
     copiiScoala: Math.round(margineste(optiuni.copiiScoala, 0, 10)),
   };
   const scutit = sumaNeimpozabila(b, o);
-  const d = deduceri(b, o);
+  const tichete = valoareTichete(o);
+  // ⚠ Tichetele intră în venitul brut lunar al grilei (art. 76 alin. (3) lit. h));
+  // motorul produsului nu le pune acolo. Întrebare deschisă în NOTES.md §3.
+  const d = deduceri(b + tichete, o);
   // Motorul calculează impozitul și contribuțiile pe brutul FĂRĂ suma scutită;
   // omul primește însă tot brutul, deci suma scutită se adaugă înapoi la net.
-  const r = calculatePayrollEntry(intrare(b - scutit, o, d.deBaza + d.sub26 + d.copii));
+  const r = calculatePayrollEntry(intrare(b - scutit, o, d.deBaza + d.sub26 + d.copii, tichete));
   // Art. 77 alin. (2): deducerea se acordă „în limita venitului impozabil lunar”.
   // Motorul o plafonează deja (baza de impozit nu coboară sub zero); aici se
   // plafonează și cifra afișată — la 4,5 lei brut se afișa „Deducere 865 lei”.
-  const venitInainteDeDeducere = Math.max(0, b - scutit - r.cas - r.cass);
+  const venitInainteDeDeducere = Math.max(0, b - scutit + tichete - r.cas - r.cass);
   return {
     brut: b,
     cas: r.cas,
@@ -165,8 +193,9 @@ export function calculeazaDinBrut(brut: number, optiuni: OptiuniSalariu): Rezult
     impozit: r.impozit,
     sumaNeimpozabila: scutit,
     net: r.net + scutit,
+    tichete,
     cam: r.camAngajator,
-    costTotal: b + r.camAngajator,
+    costTotal: b + r.camAngajator + tichete,
   };
 }
 
@@ -190,9 +219,15 @@ function celMaiMicBrut(tinta: number, optiuni: OptiuniSalariu): RezultatSalariu 
   // cădere: net 3.715 cu 4 persoane întorcea 6.291 (net 3.788) în loc de 6.153,
   // adică 138 de lei de brut în plus (live, 8 oct 2026). Sub prag și peste el,
   // netul e aproape monoton, așa că se caută doar în partea care conține răspunsul.
+  // Tichetele intră în venitul grilei (vezi `calculeazaDinBrut`), deci pragul,
+  // socotit în brut, coboară cu valoarea lor: cu 20 × 45 lei, de la 6.325 la 5.425.
   const prag = Math.max(
     BRUT_MIN,
-    Math.floor(PERIOADE_2026[optiuni.perioada].salariuMinim + PLAFON_DEDUCERE_PESTE_MINIM),
+    Math.floor(
+      PERIOADE_2026[optiuni.perioada].salariuMinim +
+        PLAFON_DEDUCERE_PESTE_MINIM -
+        valoareTichete(optiuni),
+    ),
   );
   // Sub prag, netul e cel mai mare în ultimii lei dinaintea lui. O rotunjire de 50
   // de bani îl poate muta cu un leu (cu tichete, CASS 632,50 → 633 la 5.425 face

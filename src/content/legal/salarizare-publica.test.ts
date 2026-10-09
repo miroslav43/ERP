@@ -8,6 +8,7 @@ import {
   PERIOADE_2026,
   perioadaPentruZi,
   SETARI_SALARIZARE_PUBLICE as S,
+  TICHET_MASA_VALOARE_MAXIMA,
   valoareDeducereDeBaza,
   valoareDeducereSub26,
   valoriExpirate,
@@ -145,5 +146,14 @@ describe("deducerile calculate direct, fără grilă", () => {
     // ⚠ Art. 66 Cod fiscal ar neglija 50 de bani: 607. Întrebare deschisă în NOTES.md §3.
     expect(valoareDeducereSub26(4325)).toBe(649);
     expect(valoareDeducereSub26(4050)).toBe(608);
+  });
+});
+
+describe("tichetele de masă", () => {
+  it("valoarea maximă e 45 de lei (Legea 165/2018 art. 14, din Legea 201/2025)", () => {
+    expect(TICHET_MASA_VALOARE_MAXIMA).toBe(45);
+    expect(VERIFICARE.surse.map((s) => s.href)).toContain(
+      "https://legislatie.just.ro/Public/DetaliiDocument/202623",
+    );
   });
 });

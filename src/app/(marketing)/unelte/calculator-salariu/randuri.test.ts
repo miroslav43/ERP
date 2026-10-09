@@ -45,4 +45,23 @@ describe("rândurile desfășurătorului", () => {
       650,
     ]);
   });
+
+  it("cu tichete, ambele desfășurătoare se închid, iar tichetele apar pe card și în cost", () => {
+    const r = calculeazaDinBrut(5000, {
+      ...OPTIUNI_IMPLICITE,
+      tichete: { valoare: 45, numar: 20 },
+    });
+    const { angajat, angajator } = randuriDesfasurator(r);
+    expect(r.brut - suma(angajat, "minus")).toBe(r.net);
+    expect(suma(angajator, "plus")).toBe(r.costTotal);
+    expect(angajat.map((x) => [x.eticheta, x.valoare])).toContainEqual([
+      "Tichete de masă, pe card",
+      900,
+    ]);
+    expect(angajat.map((x) => [x.eticheta, x.valoare])).toContainEqual([
+      "Net și tichete, împreună",
+      3671,
+    ]);
+    expect(angajator.map((x) => x.eticheta)).toContain("Tichete de masă");
+  });
 });

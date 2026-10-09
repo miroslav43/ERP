@@ -1,6 +1,6 @@
 import { PERIOADE, PERIOADE_2026 } from "@/content/legal/salarizare-publica";
 
-import type { ParametriCalculator } from "./parametri";
+import { TICHETE_MAXIM_PE_LUNA, type ParametriCalculator } from "./parametri";
 
 /**
  * Formularul GET al calculatorului. Server, fără JavaScript: starea stă în
@@ -13,16 +13,15 @@ const CLASA_ETICHETA = "text-[0.875rem] font-medium";
 
 /** `<details>` se deschide singur când adresa are deja o opțiune suplimentară aleasă. */
 function areOptiuniAlese(p: ParametriCalculator): boolean {
-  return p.optiuni.sub26 || p.optiuni.copiiScoala > 0;
+  return (
+    p.optiuni.sub26 ||
+    p.optiuni.copiiScoala > 0 ||
+    p.optiuni.tichete.numar > 0 ||
+    p.textTichet.trim() !== ""
+  );
 }
 
-export function Formular({
-  p,
-  eroare,
-}: {
-  readonly p: ParametriCalculator;
-  readonly eroare: string | null;
-}) {
+export function Formular({ p }: { readonly p: ParametriCalculator }) {
   return (
     <form method="get" action="#rezultat" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <label className="flex flex-col gap-1.5">
@@ -33,8 +32,8 @@ export function Formular({
           name="suma"
           maxLength={20}
           defaultValue={p.text}
-          aria-invalid={eroare !== null}
-          aria-describedby={eroare !== null ? "eroare-suma" : undefined}
+          aria-invalid={p.campCuEroare === "suma"}
+          aria-describedby={p.campCuEroare === "suma" ? "eroare-suma" : undefined}
           className={CLASA_CAMP}
         />
       </label>
@@ -111,6 +110,34 @@ export function Formular({
               <option value="4">4 — 400 de lei</option>
               <option value="5">5 — 500 de lei</option>
               <option value="6">6 sau mai mulți — 600 de lei</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={CLASA_ETICHETA}>Valoarea unui tichet de masă (lei)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              name="tichet"
+              maxLength={12}
+              placeholder="ex. 45"
+              defaultValue={p.textTichet}
+              aria-invalid={p.campCuEroare === "tichet"}
+              aria-describedby={p.campCuEroare === "tichet" ? "eroare-suma" : undefined}
+              className={CLASA_CAMP}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={CLASA_ETICHETA}>Tichete în lună (cel mult câte zile lucrate)</span>
+            <select
+              name="tichete"
+              defaultValue={String(p.optiuni.tichete.numar)}
+              className={CLASA_CAMP}
+            >
+              {Array.from({ length: TICHETE_MAXIM_PE_LUNA + 1 }, (_, n) => (
+                <option key={n} value={String(n)}>
+                  {n === 0 ? "niciun tichet" : String(n)}
+                </option>
+              ))}
             </select>
           </label>
         </div>

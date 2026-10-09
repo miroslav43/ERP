@@ -176,6 +176,21 @@ auditul din 8 oct 2026). Codul nu se schimbă fără răspuns, iar testele din
 contribuții se aplică — schimbat de mai multe ori în ultimii ani) · plafonul
 lunar cumulat al veniturilor neimpozabile și **ordinea de includere** în el.
 
+Din calculatorul public (8 oct 2026; sursele reverificate pe 9 oct 2026):
+
+- ⚠️ **Tichetele în „venitul brut lunar” al grilei art. 77 alin. (4).**
+  Calculatorul public le include: art. 76 alin. (3) lit. h) le face venit
+  salarial, iar OUG 89/2025 art. III alin. (1) lit. b) le scoate explicit doar
+  din plafonul facilității, semn că implicit intră. Motorul produsului
+  (`cautaPragDeducere(…, brut)` în `src/domain/payroll/calc.ts`) NU le include.
+  Brut 5.000 + 20 × 45 lei: grila pe 5.900 dă 173 lei, pe 5.000 ar da 562 — 39 de
+  lei de impozit diferență. După răspuns, cele două se aliniază.
+- ⚠️ **Valoarea maximă după septembrie 2026.** Legea 165/2018 art. 14 spune 45 de
+  lei; art. II din Legea 201/2025 o ține până în septembrie 2026, apoi art. 32
+  permite indexarea prin ordin comun. N-am găsit ordinul pe legislatie.just.ro
+  pe 9 oct 2026 (forma consolidată tot din 01.12.2025). Calculatorul avertizează peste 45, nu refuză
+  (`TICHET_MASA_VALOARE_MAXIMA`).
+
 ### Timp de muncă · `attendance_settings`, `payroll_settings`
 
 ⚠️ Procent minim ore suplimentare · spor de noapte, interval nocturn, prag de ore

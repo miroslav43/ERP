@@ -64,14 +64,17 @@ describe("parametrii calculatorului de salariu", () => {
       text: "4325",
       suma: 4325,
       eroare: null,
+      campCuEroare: null,
       rotunjita: false,
       din: "brut",
+      textTichet: "",
       optiuni: {
         perioada: "2026-2",
         persoane: 0,
         functieDeBaza: true,
         sub26: false,
         copiiScoala: 0,
+        tichete: { valoare: 0, numar: 0 },
       },
     });
   });
@@ -175,5 +178,44 @@ describe("deducerile suplimentare, din adresă", () => {
 
   it("5.000 brut, sub 26 de ani: net 3.046", () => {
     expect(calculeazaDinParametri(q({ suma: "5000", sub26: "da" }), AZI).rezultat?.net).toBe(3046);
+  });
+});
+
+describe("tichetele de masă, din adresă", () => {
+  it("„45” și 20 de tichete ajung în opțiuni; „40,18” rămâne cu bani; numărul e mărginit la 23", () => {
+    expect(parametriCalculator(q({ tichet: "45", tichete: "20" }), AZI).optiuni.tichete).toEqual({
+      valoare: 45,
+      numar: 20,
+    });
+    expect(
+      parametriCalculator(q({ tichet: "40,18 lei", tichete: "21" }), AZI).optiuni.tichete,
+    ).toEqual({ valoare: 40.18, numar: 21 });
+    expect(parametriCalculator(q({ tichete: "99" }), AZI).optiuni.tichete.numar).toBe(23);
+  });
+
+  it("o valoare necitibilă oprește calculul, cu mesaj pe câmpul tichetului", () => {
+    const r = calculeazaDinParametri(q({ suma: "5000", tichet: "patruzeci", tichete: "20" }), AZI);
+    expect(r.rezultat).toBeNull();
+    expect(r.eroare).toBe("Nu am înțeles valoarea tichetului „patruzeci”.");
+    expect(r.parametri.campCuEroare).toBe("tichet");
+    expect(calculeazaDinParametri(q({ tichet: "250" }), AZI).eroare).toBe(
+      "Valoarea unui tichet de masă trebuie să fie între 0 și 100 de lei.",
+    );
+  });
+
+  it("peste 45 de lei: avertisment, nu refuz", () => {
+    const r = calculeazaDinParametri(q({ suma: "5000", tichet: "50", tichete: "20" }), AZI);
+    expect(r.rezultat).not.toBeNull();
+    expect(r.avertismente).toEqual([
+      "Legea 165/2018 (art. 14) limitează tichetul de masă la 45 de lei. Peste, diferența nu mai e tichet de masă, ci venit cu toate contribuțiile; calculul de mai sus o tratează totuși ca tichet.",
+    ]);
+    expect(
+      calculeazaDinParametri(q({ suma: "5000", tichet: "45", tichete: "20" }), AZI).avertismente,
+    ).toEqual([]);
+  });
+
+  it("5.000 brut și 20 de tichete de 45: net 2.771, cost 6.013", () => {
+    const r = calculeazaDinParametri(q({ suma: "5000", tichet: "45", tichete: "20" }), AZI);
+    expect([r.rezultat?.net, r.rezultat?.costTotal]).toEqual([2771, 6013]);
   });
 });

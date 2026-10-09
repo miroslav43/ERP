@@ -301,3 +301,84 @@ describe("deducerea personală suplimentară (art. 77 alin. (10))", () => {
     expect(dinBrut(4500, 0, true).deducerePersonala).toBe(779);
   });
 });
+
+describe("tichetele de masă", () => {
+  const O = OPTIUNI_IMPLICITE;
+  const T = { valoare: 45, numar: 20 };
+
+  it("brut 5.000 și 20 × 45 lei: CASS și impozit pe tichete, CAS și CAM nu — net 2.771, cost 6.013", () => {
+    // Tichete 900. CAS 25% × 5.000 = 1.250 (art. 142 lit. r): fără tichete). CASS 10% × 5.900 = 590
+    // (art. 157 alin. (1) lit. ț)). Deducerea pe venitul de 5.900 (⚠ tichetele incluse): minim + 1.575,
+    // pasul 32, 4% × 4.325 = 173. Impozit (5.000 − 1.250 − 590 − 173 + 900) × 10% = 388,7 → 389.
+    // Net în cont 5.000 − 1.250 − 590 − 389 = 2.771. CAM 2,25% × 5.000 = 112,50 → 113, fără tichete
+    // (art. 220^4 alin. (2)). Cost 5.000 + 113 + 900 = 6.013.
+    expect(calculeazaDinBrut(5000, { ...O, tichete: T })).toMatchObject({
+      tichete: 900,
+      cas: 1250,
+      cass: 590,
+      deducerePersonala: 173,
+      impozit: 389,
+      net: 2771,
+      cam: 113,
+      costTotal: 6013,
+    });
+  });
+
+  it("la salariul minim, tichetele nu strică facilitatea: plafonul OUG 89 le exclude", () => {
+    // Baza 4.125. CAS 1.031,25 → 1.031. CASS 10% × (4.125 + 900) = 502,50 → 503.
+    // Deducerea pe 5.225: pasul 18, 11% × 4.325 = 475,75 → 476.
+    // Impozit (4.125 − 1.031,25 − 502,5 − 476 + 900) × 10% = 301,525 → 302.
+    // Net 4.125 − 1.031 − 503 − 302 + 200 = 2.489. CAM 2,25% × 4.125 = 92,81 → 93; cost 4.325 + 93 + 900 = 5.318.
+    expect(calculeazaDinBrut(4325, { ...O, tichete: T })).toMatchObject({
+      sumaNeimpozabila: 200,
+      cass: 503,
+      deducerePersonala: 476,
+      impozit: 302,
+      net: 2489,
+      costTotal: 5318,
+    });
+  });
+
+  it("tichete cu bani: 21 × 40,18 = 843,78 lei, la ban", () => {
+    expect(calculeazaDinBrut(5000, { ...O, tichete: { valoare: 40.18, numar: 21 } }).tichete).toBe(
+      843.78,
+    );
+  });
+
+  it("net → brut ține cont de tichete: 2.771 în cont cere 5.000 brut", () => {
+    expect(calculeazaDinNet(2771, { ...O, tichete: T })?.rezultat.brut).toBe(5000);
+  });
+
+  it("cu tichete, pragul deducerii coboară în brut: 4 persoane, 20 × 45 lei — cel mai mic brut, pe toată plaja", () => {
+    // Venitul grilei e brut + 900, deci deducerea dispare la 5.426 de lei brut, nu la 6.326:
+    // netul cade de la 3.110 (5.425) la 3.002 (5.426). Cu pragul socotit fără tichete, simularea a dat 50 de ținte
+    // greșite între 2.900 și 3.400; de exemplu, 3.062 întorcea 5.527 în loc de 5.339.
+    const o = { ...O, persoane: 4, tichete: T };
+    const bruturi = Array.from({ length: 2400 }, (_, i) => 4325 + i);
+    const neturi = bruturi.map((b) => calculeazaDinBrut(b, o).net);
+    for (let tinta = 2900; tinta <= 3400; tinta += 7) {
+      const minim = bruturi.find((_, i) => (neturi[i] ?? 0) >= tinta);
+      expect(calculeazaDinNet(tinta, o)?.rezultat.brut, String(tinta)).toBe(minim);
+    }
+    // Chiar sub prag, rotunjirea mută netul cu un leu. 5.424: CASS (5.424 + 900) × 10% = 632,40 → 632,
+    // impozit (5.424 − 1.356 − 632,4 − 1.081 + 900) × 10% = 325,46 → 325, net 3.111.
+    // 5.425: CASS 632,50 → 633, impozit 325,525 → 326, net 3.110. Pentru 3.111, răspunsul e 5.424.
+    expect(calculeazaDinNet(3111, o)?.rezultat.brut).toBe(5424);
+  });
+
+  it("valoare fără număr sau număr fără valoare înseamnă fără tichete", () => {
+    expect(calculeazaDinBrut(5000, { ...O, tichete: { valoare: 45, numar: 0 } }).net).toBe(2981);
+    expect(calculeazaDinBrut(5000, { ...O, tichete: { valoare: 0, numar: 20 } }).net).toBe(2981);
+  });
+
+  it("tichete de 23 × 100 de lei: pragul deducerii (4.025) cade sub minim, iar net → brut rămâne legal și minim", () => {
+    // Review Focus 5: fereastra de cinci lei de sub prag cade sub minimul legal.
+    const o = { ...O, persoane: 4, tichete: { valoare: 100, numar: 23 } };
+    const bruturi = Array.from({ length: 4000 }, (_, i) => 4325 + i);
+    const neturi = bruturi.map((b) => calculeazaDinBrut(b, o).net);
+    for (let tinta = 2000; tinta <= 4000; tinta += 37) {
+      const minim = bruturi.find((_, i) => (neturi[i] ?? 0) >= tinta);
+      expect(calculeazaDinNet(tinta, o)?.rezultat.brut, String(tinta)).toBe(minim);
+    }
+  });
+});
