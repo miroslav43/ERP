@@ -74,7 +74,55 @@ export type DocumentTabelar = Readonly<{
    * mână pe fiecare rând (auditul din 8 oct 2026 a măsurat 5,6 mm).
    */
   inaltimeRand?: number;
+  /**
+   * Părțile de după tabelul principal, în ordine. Lipsă = niciuna, deci uneltele
+   * care nu le cer ies neschimbate. Le folosește fișa SSM: anexa 11 la HG
+   * 1425/2006 are trei puncte de text cu semnături, cinci tabele și două grupuri
+   * de casete de viză.
+   */
+  sectiuni?: readonly Sectiune[];
+  /**
+   * Rândul de sus de pe paginile 2+ și din antetul Word, când titlul și
+   * subtitlul nu spun destul. Fișa SSM pune aici numele lucrătorului: o foaie
+   * desprinsă dintr-o fișă de 4 pagini trebuie să poată fi atribuită omului ei
+   * (auditul din 8 oct 2026). Lipsă = `titlu · subtitlu`.
+   */
+  antetRulant?: string;
 }>;
+
+/** Text cu titlu, urmat de rubrici de semnătură etichetate, pe un rând. */
+export type SectiuneText = Readonly<{
+  tip: "text";
+  titlu: string | null;
+  paragrafe: readonly string[];
+  /** Fiecare etichetă primește o casetă cu loc de semnat sub ea. */
+  semnaturi: readonly string[];
+}>;
+
+/** Un tabel cu titlul lui; rândurile goale sunt locul de completat de mână. */
+export type SectiuneTabel = Readonly<{
+  tip: "tabel";
+  titlu: string;
+  coloane: readonly Coloana[];
+  randuri: readonly (readonly string[])[];
+  /** Ca `inaltimeRand` al documentului, dar doar pentru tabelul ăsta. Lipsă = 16 pt. */
+  inaltimeRand?: number;
+}>;
+
+/** Casete de viză (medicina muncii, psiholog), câte două pe rând. */
+export type SectiuneCasete = Readonly<{
+  tip: "casete";
+  titlu: string;
+  numar: number;
+  /** Capul fiecărei casete („Observații de specialitate”). */
+  rubrica: string;
+  /** Etichetele din josul casetei, de la stânga la dreapta. */
+  semnaturi: readonly string[];
+  /** Nota de sub casete (asteriscul din anexă), sau `null`. */
+  nota: string | null;
+}>;
+
+export type Sectiune = SectiuneText | SectiuneTabel | SectiuneCasete;
 
 /** Textul rândului de jos, același în toate formatele. */
 export const SEMNATURA_FISIER = "Generat gratuit cu administrativo.ro";
@@ -84,6 +132,7 @@ export const SEMNATURA_FISIER = "Generat gratuit cu administrativo.ro";
  * teanc spune singură ce lună și ce firmă are.
  */
 export function textAntetRulant(d: DocumentTabelar): string {
+  if (d.antetRulant !== undefined) return d.antetRulant;
   return d.subtitlu === null ? d.titlu : `${d.titlu} · ${d.subtitlu}`;
 }
 
@@ -169,8 +218,8 @@ export function curataText(text: string): string {
 
 /**
  * Același document, cu `f` aplicată pe FIECARE text al lui: titlul, câmpurile,
- * proza, etichetele de coloană, celulele, tabelele suplimentare, notele și
- * semnăturile. Funcție pură.
+ * proza, etichetele de coloană, celulele, tabelele suplimentare, secțiunile,
+ * antetul rulant, notele și semnăturile. Funcție pură.
  *
  * O singură listă a locurilor cu text, folosită de curățare și de glifele PDF:
  * o cheie nouă a modelului (`tabeleSuplimentare`, 8 oct 2026) se adaugă aici o
@@ -201,12 +250,47 @@ export function mapeazaTexte(d: DocumentTabelar, f: (text: string) => string): D
             randuri: randuri(t.randuri),
           })),
         }),
+    ...(d.sectiuni === undefined ? {} : { sectiuni: d.sectiuni.map((s) => mapeazaSectiune(s, f)) }),
+    ...(d.antetRulant === undefined ? {} : { antetRulant: f(d.antetRulant) }),
   };
+}
+
+/** O secțiune, cu `f` aplicată pe fiecare text al ei; numerele rămân. */
+export function mapeazaSectiune(s: Sectiune, f: (text: string) => string): Sectiune {
+  switch (s.tip) {
+    case "text":
+      return {
+        ...s,
+        titlu: s.titlu === null ? null : f(s.titlu),
+        paragrafe: s.paragrafe.map((p) => f(p)),
+        semnaturi: s.semnaturi.map((e) => f(e)),
+      };
+    case "tabel":
+      return {
+        ...s,
+        titlu: f(s.titlu),
+        coloane: s.coloane.map((c) => ({ ...c, eticheta: f(c.eticheta) })),
+        randuri: s.randuri.map((rand) => rand.map((celula) => f(celula))),
+      };
+    case "casete":
+      return {
+        ...s,
+        titlu: f(s.titlu),
+        rubrica: f(s.rubrica),
+        semnaturi: s.semnaturi.map((e) => f(e)),
+        nota: s.nota === null ? null : f(s.nota),
+      };
+  }
 }
 
 /** Același document, cu fiecare text trecut prin `curataText`. Funcție pură. */
 export function curataDocument(d: DocumentTabelar): DocumentTabelar {
   return mapeazaTexte(d, curataText);
+}
+
+/** O secțiune, cu fiecare text trecut prin `curataText`; numerele rămân. */
+export function curataSectiune(s: Sectiune): Sectiune {
+  return mapeazaSectiune(s, curataText);
 }
 
 /**
