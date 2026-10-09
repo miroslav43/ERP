@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
+import { metaUnealta } from "@/content/landing/seo-unelte";
 import { ANTET_FOAIE_PARCURS } from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
@@ -42,12 +43,7 @@ import {
  * fiscal (vezi `model.ts`), mai multe curse pe zi, alimentările, rezumatul
  * lunii și un Excel cu formule.
  */
-export const metadata: Metadata = metadatePagina({
-  titlu: "Foaie de parcurs: model Word, PDF și Excel",
-  descriere:
-    "Foaie de parcurs cu cele 4 elemente cerute de normele Codului fiscal: mai multe curse pe zi, alimentări, Excel cu formule. Gratuită, în Word și PDF, fără cont.",
-  cale: "/unelte/foaie-de-parcurs",
-});
+export const metadata: Metadata = metadatePagina(metaUnealta("/unelte/foaie-de-parcurs"));
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;

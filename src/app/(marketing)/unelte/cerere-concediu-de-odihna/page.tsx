@@ -5,10 +5,11 @@ import { Fragment, type ReactNode } from "react";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
+import { metaUnealta } from "@/content/landing/seo-unelte";
 import { ANTET_CERERE_CONCEDIU } from "@/content/landing/unelte";
 import { pasteGregorian } from "@/domain/calendar/paste-gregorian";
 import { pasteOrtodox } from "@/domain/calendar/paste-ortodox";
-import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { formatDate } from "@/lib/format/date";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
@@ -54,14 +55,7 @@ import { EVENIMENTE, EVENIMENTE_ORDINE, TIPURI_CERERE, VARIANTE } from "./varian
  * putem cunoaște — sunt ale fiecărei firme. Pagina o spune.
  */
 export function generateMetadata(): Metadata {
-  return metadatePagina({
-    // „Word/PDF gratuit” în titlu: 16 afișări pe poziția 6 și zero clicuri în
-    // Search Console (auditul de utilizare din 8 oct 2026). 48 de caractere.
-    titlu: `Cerere concediu de odihnă ${todayInBucharest().slice(0, 4)}, Word/PDF gratuit`,
-    descriere:
-      "Model gratuit de cerere de concediu de odihnă în Word sau PDF, cu zilele lucrătoare calculate. Plus fără plată, paternal, îngrijitor, eveniment. Fără cont.",
-    cale: PAGINA_CERERE,
-  });
+  return metadatePagina(metaUnealta("/unelte/cerere-concediu-de-odihna"));
 }
 
 type Proprietati = Readonly<{

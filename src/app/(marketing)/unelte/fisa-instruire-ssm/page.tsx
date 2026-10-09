@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
+import { metaUnealta } from "@/content/landing/seo-unelte";
 import { ANTET_FISA_SSM } from "@/content/landing/unelte";
 import { cuDe } from "@/content/legal/zile-libere";
 import { formatDate } from "@/lib/format/date";
@@ -40,12 +41,7 @@ import {
  * rubrică pentru ele, iar o dată tipărită în coloana „Data instruirii” ar
  * arăta ca o instruire făcută.
  */
-export const metadata: Metadata = metadatePagina({
-  titlu: "Fișa individuală de instruire SSM: model gratuit",
-  descriere:
-    "Fișa individuală de instruire SSM completă, după anexa 11 la HG 1425/2006: la angajare, periodică, suplimentară, testări, control medical. Word sau PDF.",
-  cale: "/unelte/fisa-instruire-ssm",
-});
+export const metadata: Metadata = metadatePagina(metaUnealta("/unelte/fisa-instruire-ssm"));
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;

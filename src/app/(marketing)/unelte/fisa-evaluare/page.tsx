@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
+import { metaUnealta } from "@/content/landing/seo-unelte";
 import { ANTET_FISA_EVALUARE } from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../../_componente/antet-secundar";
@@ -35,12 +36,7 @@ import { construiesteFisaEvaluare, MAX_RUBRICA, parametriFisaEvaluare } from "./
  * (`criteriu`, `pondere`, `nota`) vin ca tablou și se păstrează TOATE, inclusiv
  * cele goale: pozițiile lor aliniază rândurile.
  */
-export const metadata: Metadata = metadatePagina({
-  titlu: "Fișă de evaluare angajați, cu nota calculată",
-  descriere:
-    "Fișa de evaluare a angajaților: criterii pe tipuri de post, pondere, notă 1–5, nota finală și calificativul calculate. Excel cu formule, Word sau PDF.",
-  cale: "/unelte/fisa-evaluare",
-});
+export const metadata: Metadata = metadatePagina(metaUnealta("/unelte/fisa-evaluare"));
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ACOPERIRE_FOAIE, INTREBARI_FOAIE_PONTAJ } from "@/content/landing/intrebari-pontaj";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
+import { metaUnealta } from "@/content/landing/seo-unelte";
 import { ANTET_FOAIE_PONTAJ } from "@/content/landing/unelte";
 import { calendarulAnului, cuDe } from "@/content/legal/zile-libere";
 import { avertismentCui, MAX_COMPARTIMENT, MAX_CUI, MAX_FIRMA } from "@/lib/unelte/antet-firma";
@@ -62,12 +63,9 @@ import { TabelColectiv } from "./tabel-colectiv";
  * gata completată. Merge cu JavaScript oprit, iar descărcările sunt butoane de
  * trimitere spre `/api/unelte/foaie-de-pontaj` (vezi `Descarcari`).
  */
-export const metadata: Metadata = metadatePagina({
-  titlu: "Foaie de pontaj Excel cu formule, PDF și Word",
-  descriere:
-    "Foaie de pontaj pentru orice lună: colectivă sau individuală, cu ora de început și de sfârșit, normă pe angajat. Excel cu formule, PDF, Word, fără cont.",
-  cale: "/unelte/foaie-de-pontaj",
-});
+// Titlul și descrierea: `seo-unelte.ts` (8 oct 2026). „lunar” rămâne în titlu:
+// e singurul termen pentru care Google afișa pagina.
+export const metadata: Metadata = metadatePagina(metaUnealta("/unelte/foaie-de-pontaj"));
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ACOPERIRE_CONDICA, INTREBARI_CONDICA } from "@/content/landing/intrebari-pontaj";
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
+import { metaUnealta } from "@/content/landing/seo-unelte";
 import { ANTET_CONDICA } from "@/content/landing/unelte";
 import { avertismentCui, MAX_COMPARTIMENT, MAX_CUI, MAX_FIRMA } from "@/lib/unelte/antet-firma";
 
@@ -47,12 +48,7 @@ import { condicaDocument, parametriCondica } from "./model";
  * Formular GET: starea stă în adresă, pagina merge fără JavaScript, iar
  * descărcările sunt butoane de trimitere spre `/api/unelte/condica-de-prezenta`.
  */
-export const metadata: Metadata = metadatePagina({
-  titlu: "Condica de prezență: model Word, PDF și Excel",
-  descriere:
-    "Condica de prezență pentru orice lună, cu sâmbete și ture, ora sosirii și a plecării, pauza și orele calculate în Excel. Word, PDF sau Excel, gratuit.",
-  cale: "/unelte/condica-de-prezenta",
-});
+export const metadata: Metadata = metadatePagina(metaUnealta("/unelte/condica-de-prezenta"));
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;

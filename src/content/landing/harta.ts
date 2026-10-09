@@ -337,6 +337,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
+    // 2026-10-09: descrierea din rezultat rescrisă pe intenție (seo-unelte.ts).
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -345,6 +346,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
+    // 2026-10-09: descrierea din rezultat rescrisă pe intenție (seo-unelte.ts).
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
@@ -385,6 +387,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
+    // 2026-10-09: „model” în titlu (seo-unelte.ts).
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },

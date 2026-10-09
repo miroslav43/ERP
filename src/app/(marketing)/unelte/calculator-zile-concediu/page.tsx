@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
+import { metaUnealta } from "@/content/landing/seo-unelte";
 import { ANTET_CALCULATOR_CONCEDIU } from "@/content/landing/unelte";
 import { todayInBucharest } from "@/lib/format/date";
 
@@ -34,12 +35,7 @@ import { calculeaza, citesteCalculul, DREPT_MINIM, SUPLIMENT_MINIM } from "./cal
 const CALE = "/unelte/calculator-zile-concediu";
 
 export function generateMetadata(): Metadata {
-  return metadatePagina({
-    titlu: `Calculator zile de concediu de odihnă ${todayInBucharest().slice(0, 4)}`,
-    descriere:
-      "Câte zile de concediu de odihnă ți se cuvin în anul angajării sau al plecării: minimul legal, zilele suplimentare și calculul proporțional. Gratuit, fără cont.",
-    cale: CALE,
-  });
+  return metadatePagina(metaUnealta(CALE));
 }
 
 type Proprietati = Readonly<{

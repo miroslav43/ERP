@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { LEGATURI_CONEXE } from "@/content/landing/legaturi";
 import { RO } from "@/content/landing/ro";
+import { metaUnealta } from "@/content/landing/seo-unelte";
 import { ANTET_CALCULATOR } from "@/content/landing/unelte";
 import {
   FACILITATE_SALARIU_MINIM,
@@ -38,14 +39,9 @@ import { grilaBrutNet, grilaNetBrut, salariulMinim2026, type ColoanaSalariuMinim
  * (`src/lib/unelte/salariu.ts`), cu valorile din `salarizare-publica.ts`,
  * verificate pe textele oficiale și pe vectorii publicați (2.699 / 2.981 lei).
  */
-export const metadata: Metadata = metadatePagina({
-  // 7 oct 2026: titlul pe forma căutată („calcul salariu net”, 10K–100K pe lună),
-  // descrierea sub 160 de caractere (avea 183 și se tăia în rezultate).
-  titlu: "Calcul salariu net și brut 2026: calculator",
-  descriere:
-    "Calcul salariu net din brut și brut din net, 2026: CAS, CASS, impozit, deducerea pentru copii și sub 26 de ani, tichete de masă, timp parțial, cost firmă.",
-  cale: "/unelte/calculator-salariu",
-});
+// 7 oct 2026: titlul pe forma căutată („calcul salariu net”, 10K–100K pe lună),
+// descrierea sub 160 de caractere (avea 183 și se tăia în rezultate).
+export const metadata: Metadata = metadatePagina(metaUnealta("/unelte/calculator-salariu"));
 
 type Proprietati = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;
