@@ -22,6 +22,10 @@ describe("politica despre uneltele gratuite", () => {
   it("spune că GA tace pe pagina de unealtă cu valori completate", () => {
     expect(politica).toMatch(/nu trimite nimic la Google Analytics/u);
   });
+
+  it("pe /unelte, biblioteca GA abia după „Accept” (K12)", () => {
+    expect(politica).toMatch(/nu se încarcă deloc până nu apeși/u);
+  });
 });
 
 describe("promisiunea de pe /unelte", () => {

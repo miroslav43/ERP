@@ -2,6 +2,7 @@ import Script from "next/script";
 
 import { FUNCTIE_UMAMI } from "./adresa-analitice";
 import { BaraConsimtamant } from "./bara-consimtamant";
+import { BibliotecaGa } from "./biblioteca-ga";
 import { CHEIE_CONSIMTAMANT } from "./consimtamant";
 import { MasurareCitire } from "./masurare-citire";
 import { PornireGa } from "./pornire-ga";
@@ -28,6 +29,7 @@ import { PregatireUmami } from "./pregatire-umami";
  * Mecanismul e Consent Mode v2, forma pe care Google o documentează: refuzul e
  * IMPLICIT, iar biblioteca pornește oricum și trimite semnale fără cookie-uri
  * până când cineva acceptă. Nu se pierde nimic din ce se poate avea legal.
+ * Excepția, din 8 oct 2026: pe paginile uneltelor, biblioteca însăși vine abia după „Accept” (`biblioteca-ga.tsx`).
  *
  * ── DE CE `next/script`, DUPĂ CE DATELE STRUCTURATE FOLOSESC `<script>` NUD ─
  * Aici chiar se execută cod și contează CÂND. JSON-LD-ul din
@@ -136,10 +138,8 @@ export function Analitice() {
     <>
       {/* Rulează la parsare, înaintea bibliotecii. Ordinea e tot mecanismul. */}
       <script dangerouslySetInnerHTML={{ __html: CONSIMTAMANT_IMPLICIT }} />
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${ID_GA}`}
-        strategy="afterInteractive"
-      />
+      {/* Pe `/unelte*`, abia după „Accept” (`biblioteca-ga.tsx`); în rest, ca înainte. */}
+      <BibliotecaGa id={ID_GA} />
       {/* `js` + `config` dintr-un efect, cu poarta „fără date de formular în
           adresă” (`pornire-ga.tsx`, auditul din 8 oct 2026). */}
       <PornireGa id={ID_GA} />

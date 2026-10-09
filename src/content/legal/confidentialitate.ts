@@ -104,7 +104,7 @@ export const SECTIUNI_CONFIDENTIALITATE: readonly SectiuneLegala[] = [
     paragrafe: [
       "Sesiunea din aplicație folosește cookie-uri strict necesare pentru autentificare, care nu cer consimțământ. Plafonul lor e de 400 de zile; sesiunea propriu-zisă poate expira mai devreme, după setările de autentificare.",
       "Alegerea din bara de consimțământ se păstrează în stocarea locală a browserului, nu într-un cookie, până o ștergi.",
-      "Google Analytics 4 scrie cookie-urile _ga și _ga_ urmat de identificatorul proprietății, cu durata de doi ani, numai după ce apeși „Accept”. Până atunci, refuzul e implicit: biblioteca Google se încarcă totuși și trimite semnale fără cookie-uri, cum prevede modul de consimțământ al Google. Excepție: o pagină de unealtă deschisă cu valori completate nu trimite nimic la Google Analytics, nici după „Accept”.",
+      "Google Analytics 4 scrie cookie-urile _ga și _ga_ urmat de identificatorul proprietății, cu durata de doi ani, numai după ce apeși „Accept”. Până atunci, refuzul e implicit: biblioteca Google se încarcă totuși și trimite semnale fără cookie-uri, cum prevede modul de consimțământ al Google. Pe paginile uneltelor (administrativo.ro/unelte) biblioteca nu se încarcă deloc până nu apeși „Accept”. Excepție: o pagină de unealtă deschisă cu valori completate nu trimite nimic la Google Analytics, nici după „Accept”.",
       "Statistica proprie, pe serverul nostru, nu folosește cookie-uri și nu urmărește vizitatorii de la un site la altul. Primește adresa paginii fără valorile din formulare; din parametrii adresei păstrează doar pe cei de campanie (utm_…) și marcajul m, cu care ne recunoaștem propriile verificări.",
     ],
   },

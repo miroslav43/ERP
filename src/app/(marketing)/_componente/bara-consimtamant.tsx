@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { CHEIE_CONSIMTAMANT, type Alegere } from "./consimtamant";
+import { CHEIE_CONSIMTAMANT, EVENIMENT_CONSIMTAMANT, type Alegere } from "./consimtamant";
 
 /** Starea citită din browser: alegerea salvată, absența ei, sau „încă nu s-a citit”. */
 type Stare = Alegere | "nimic" | "necitit";
@@ -60,6 +60,8 @@ export function BaraConsimtamant() {
     gtag?.("consent", "update", {
       analytics_storage: raspuns === "acceptat" ? "granted" : "denied",
     });
+    // `BibliotecaGa` așteaptă alegerea pe paginile uneltelor (8 oct 2026).
+    window.dispatchEvent(new CustomEvent<Alegere>(EVENIMENT_CONSIMTAMANT, { detail: raspuns }));
   }
 
   // Trei motive de a nu apărea: alegerea nu s-a citit încă (inclusiv la randarea

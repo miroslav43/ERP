@@ -22,5 +22,15 @@
  */
 export const CHEIE_CONSIMTAMANT = "adm-consimtamant";
 
+/**
+ * Evenimentul de pe `window` la o alegere în bară, cu alegerea în `detail`.
+ *
+ * Îl ascultă `BibliotecaGa`: pe paginile uneltelor, `gtag.js` se încarcă abia
+ * după „Accept”, și trebuie să se încarce în aceeași vizită, nu la următoarea.
+ * Modul ăsta e neutru (fără directivă), deci constanta ajunge identică în
+ * ambele grafuri — vezi docblock-ul de sus.
+ */
+export const EVENIMENT_CONSIMTAMANT = "adm-consimtamant-ales";
+
 /** Cele două răspunsuri posibile. Orice altceva din stocare se ignoră. */
 export type Alegere = "acceptat" | "refuzat";
