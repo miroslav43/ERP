@@ -39,8 +39,6 @@ export type ParametriCondica = Readonly<{
   antet: AntetFirma;
   /** Nota pentru document când lista a trecut de 60 de nume; `null` altfel (B4). */
   notaAngajati: string | null;
-  /** Egal cu `antet.firma`. Rămâne doar cât pagina îl citește direct (până la E14). */
-  firma: string;
 }>;
 
 /** Intrările din adresă, cu aceleași limite ca foaia de pontaj. */
@@ -57,7 +55,6 @@ export function parametriCondica(q: URLSearchParams): ParametriCondica {
     program: normalizeazaProgram(q.get("program")),
     antet,
     notaAngajati: notaOmisi(linii.lista),
-    firma: antet.firma,
   };
 }
 
@@ -140,23 +137,4 @@ export function condicaDocument(p: ParametriCondica): DocumentTabelar {
 
 export function condicaDinParametri(q: URLSearchParams): DocumentTabelar {
   return condicaDocument(parametriCondica(q));
-}
-
-/** Semnătura lui B4, pe care o mai cheamă pagina până la E14. */
-export function construiesteCondica(
-  an: number,
-  luna: number,
-  angajati: readonly string[],
-  firma: string,
-  notaAngajati: string | null = null,
-): DocumentTabelar {
-  return condicaDocument({
-    an,
-    luna,
-    angajati,
-    program: "lv",
-    antet: { firma, cui: "", compartiment: "" },
-    notaAngajati,
-    firma,
-  });
 }

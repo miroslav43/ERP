@@ -35,7 +35,7 @@ export const ANTET_CERERE_CONCEDIU: AntetPagina = {
 export const ANTET_CONDICA: AntetPagina = {
   supratitlu: "Unealtă gratuită",
   titlu: "Condica de prezență",
-  lead: "Alege luna și scrie numele: primești condica cu fiecare zi lucrătoare, ora sosirii, ora plecării și semnătura. Sărbătorile legale se scot singure. Descarci în Word, PDF sau Excel, fără cont.",
+  lead: "Alege luna și programul, scrie numele: primești condica cu fiecare zi a lunii, ora sosirii, ora plecării, pauza și semnătura — și pentru sâmbete sau ture. Sărbătorile legale se marchează singure, iar în Excel orele lucrate se calculează. Word, PDF sau Excel, fără cont.",
 };
 
 /** Foaia de parcurs: „model”, „word”, „pdf” și „excel” sunt formele căutate (Keyword Planner, 2 oct 2026). */

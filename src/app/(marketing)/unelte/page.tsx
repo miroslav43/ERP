@@ -49,7 +49,7 @@ const PAGINI = [
     href: "/unelte/condica-de-prezenta",
     titlu: ANTET_CONDICA.titlu,
     lead: ANTET_CONDICA.lead,
-    nota: "ora sosirii și a plecării, pe fiecare zi lucrătoare · Word, PDF, Excel",
+    nota: "toate zilele, inclusiv ture · ore lucrate calculate în Excel · Word, PDF, Excel",
   },
   {
     href: "/unelte/cerere-concediu-de-odihna",
