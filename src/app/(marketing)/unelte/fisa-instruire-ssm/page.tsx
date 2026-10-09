@@ -149,6 +149,9 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
   };
   const angajareCompletata =
     Object.values(faze).some((v) => v !== "") || ales.admisNume !== "" || ales.admisFunctie !== "";
+  // Zilele ISO se compară ca șiruri. Aceeași zi e permisă: art. 90 alin. (1)
+  // cere doar ordinea. Fișa nu se corectează, omul decide.
+  const fazeInversate = ales.dataIg !== null && ales.dataLm !== null && ales.dataLm < ales.dataIg;
   const nrRanduri = randuriPeriodice(ales.periodicitate, ales.ani);
   // Prima instruire periodică se socotește de la ultima instruire la angajare.
   const start = ales.dataLm ?? ales.dataIg;
@@ -237,6 +240,12 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
               </fieldset>
             </div>
           </details>
+          {fazeInversate && (
+            <p role="status" className="max-w-[68ch] text-[0.875rem]">
+              Instruirea la locul de muncă se face după cea introductiv-generală (art. 90 alin.
+              (1)). Verifică datele de la punctele 1) și 2): fișa le scrie așa cum le-ai dat.
+            </p>
+          )}
 
           <fieldset className={CLASA_GRUP}>
             <legend className={CLASA_LEGENDA}>Rândurile de instruire periodică</legend>
@@ -264,6 +273,12 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
               Fișa va avea {nrRanduri === 1 ? "un rând" : cuDe(nrRanduri, "rânduri")} de instruire
               periodică și 6 pentru instruirea suplimentară, fiecare înalt de 1 cm.
             </p>
+            {ales.periodicitate === "anuala" && (
+              <p role="status" className="col-span-full max-w-[68ch] text-[0.875rem]">
+                Intervalul de 12 luni e permis doar personalului tehnico-administrativ (art. 96
+                alin. (3)); pentru ceilalți, cel mult 6 luni (art. 96 alin. (2¹)).
+              </p>
+            )}
           </fieldset>
 
           <div className="flex flex-wrap items-end gap-x-8 gap-y-4">

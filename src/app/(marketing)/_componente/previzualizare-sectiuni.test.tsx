@@ -74,6 +74,17 @@ describe("previzualizarea unui document cu secțiuni", () => {
     expect(text).toContain("* notă");
   });
 
+  it("rubricile de semnătură și casetele de viză nu se rup între foi la tipărire", () => {
+    // Tipărirea previzualizării din browser: o casetă tăiată între două foi nu
+    // se vede în numărătoarea de pagini din `e2e/unelte-tipar.spec.ts`, doar pe hârtie.
+    const { container } = render(<PrevizualizareDocument document={DOC} />);
+    const intregi = [...container.querySelectorAll(".break-inside-avoid")];
+    const cu = (inceput: string) =>
+      intregi.filter((e) => (e.textContent ?? "").startsWith(inceput));
+    expect(cu("Observații de specialitate")).toHaveLength(3);
+    expect(cu("Semnătura celui")).toHaveLength(2);
+  });
+
   it("un document fără secțiuni arată ca înainte", () => {
     const { container } = render(
       <PrevizualizareDocument

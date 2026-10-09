@@ -506,3 +506,21 @@ propriul fluturaș al angajatului, demo fără niciun contract de muncă).
 7. Doar 1 proiect Supabase din cele 4 planificate (dev/staging/test/prod).
 8. Parola de bază de date și cheia `service_role` au trecut prin conversație
    într-o sesiune anterioară — de rotit înainte de date reale.
+
+## Uneltele gratuite — datorie lăsată deliberat (planul din 8 oct 2026)
+
+Planul: `docs/superpowers/plans/2026-10-08-unelte/README.md`.
+
+- **Trei mecanisme pentru părțile de după tabelul principal** în
+  `DocumentTabelar` (`src/lib/unelte/document-tabelar.ts`): `tabeleSuplimentare`
+  (foaia de parcurs, G1), `sectiuni` (fișa SSM, H1) și, după I3, `rubrici`
+  (fișa de evaluare). Fiecare randare (PDF, Word, previzualizare) le desenează
+  pe toate, în ordinea în care au fost adăugate. Unificarea e o decizie a
+  utilizatorului, nu a executantului. Până atunci, o cheie nouă se adaugă și în
+  `mapeazaTexte`, altfel scapă de curățare și de glifele PDF.
+- **Fișa SSM nu are Excel**: `formatePentru` din `src/lib/unelte/registru.ts`
+  dă doar PDF și Word, iar `randeazaXlsx` aruncă pe orice document cu
+  `sectiuni`. O unealtă nouă cu secțiuni intră și ea în `FORMATE_RESTRANSE`.
+- **Word-ul fișei SSM n-a fost deschis în Word real** (mașina n-are
+  LibreOffice): testele verifică XML-ul (`trHeight`, `cantSplit`, `tblHeader`),
+  nu așezarea pe pagină.

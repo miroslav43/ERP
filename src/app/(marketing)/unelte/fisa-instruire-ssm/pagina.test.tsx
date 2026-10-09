@@ -109,6 +109,29 @@ describe("pagina fișei de instruire SSM", () => {
     expect(container.querySelector('a[href="/module/ssm"]')).not.toBeNull();
   });
 
+  it("periodicitatea anuală spune pe pagină cui i se aplică", async () => {
+    const aviz =
+      "Intervalul de 12 luni e permis doar personalului tehnico-administrativ (art. 96 alin. (3)); pentru ceilalți, cel mult 6 luni (art. 96 alin. (2¹)).";
+    expect((await cu({ periodicitate: "anuala" })).container.textContent).toContain(aviz);
+    expect((await cu({ periodicitate: "semestriala" })).container.textContent).not.toContain(aviz);
+  });
+
+  it("semnalează instruirea la locul de muncă datată înaintea celei introductiv-generale", async () => {
+    const aviz =
+      "Instruirea la locul de muncă se face după cea introductiv-generală (art. 90 alin. (1)).";
+    const inversat = await cu({ data_ig: "2026-10-06", data_lm: "2026-10-05" });
+    expect(inversat.container.querySelector('[role="status"]')?.textContent).toContain(aviz);
+    // Fișa rămâne descărcabilă: avizul nu blochează nimic.
+    expect(inversat.container.querySelectorAll('button[name="format"]')).toHaveLength(2);
+    for (const date of [
+      { data_ig: "2026-10-05", data_lm: "2026-10-06" },
+      { data_ig: "2026-10-05", data_lm: "2026-10-05" },
+      { data_lm: "2026-10-05" },
+    ]) {
+      expect((await cu(date)).container.textContent).not.toContain(aviz);
+    }
+  });
+
   it("titlul paginii are cel mult 48 de caractere", () => {
     const titlu = typeof metadata.title === "string" ? metadata.title : "";
     expect(titlu.length).toBeGreaterThan(0);

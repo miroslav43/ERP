@@ -143,7 +143,7 @@ function SectiuneHtml({ sectiune: s }: Readonly<{ sectiune: Sectiune }>) {
               {s.semnaturi.map((e) => (
                 <div
                   key={e}
-                  className="border-mk-rigla text-mk-text-slab min-h-16 border p-2 text-[0.75rem] sm:flex-1"
+                  className="border-mk-rigla text-mk-text-slab min-h-16 break-inside-avoid border p-2 text-[0.75rem] sm:flex-1"
                 >
                   {e}
                 </div>
@@ -172,7 +172,10 @@ function SectiuneHtml({ sectiune: s }: Readonly<{ sectiune: Sectiune }>) {
           <h3 className="text-[0.9375rem] font-semibold">{s.titlu}</h3>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {Array.from({ length: s.numar }, (_, i) => (
-              <div key={i} className="border-mk-rigla border p-3 text-[0.8125rem]">
+              <div
+                key={i}
+                className="border-mk-rigla break-inside-avoid border p-3 text-[0.8125rem]"
+              >
                 <p>{s.rubrica}</p>
                 <div className="border-mk-rigla/60 mt-5 border-b" />
                 <div className="border-mk-rigla/60 mt-5 border-b" />

@@ -181,6 +181,17 @@ describe("PDF cu secțiuni", () => {
     }
     expect(pdf.getPage(0).getHeight()).toBeGreaterThan(pdf.getPage(0).getWidth()); // portret
   });
+
+  it("taie antetul rulant la lățimea paginii când numele și firma sunt la plafon", async () => {
+    // Nume și firmă de câte 120 de caractere dau un antet de ~280; la 7 pt încap ~140.
+    const lung = `Fișă de instruire individuală SSM — ${"Popescu ".repeat(18)}— ${"Firma ".repeat(18)}`;
+    expect(lung.length).toBeGreaterThan(250);
+    const { s, texte } = sonda();
+    await randeazaPdf({ ...CU_SECTIUNI, antetRulant: lung }, s);
+    const antet = texte.find((t) => t.pagina === 2 && t.text.startsWith("Fișă de instruire"));
+    expect(antet?.text.endsWith("…")).toBe(true);
+    expect(antet?.text.length ?? 999).toBeLessThanOrEqual(160);
+  });
 });
 
 function eroriXml(xml: string): readonly string[] {
@@ -218,6 +229,15 @@ describe("Word cu secțiuni", () => {
     }
     expect(document).toContain("Semnătura celui care a verificat însușirea cunoștințelor");
     expect(document).toContain('w:orient="portrait"');
+  });
+
+  it("repetă antetul fiecărui tabel de secțiune pe pagina următoare", async () => {
+    // Word real nu rulează pe mașina asta; `tblHeader` e ce cere repetarea.
+    const zip = await JSZip.loadAsync(await randeazaDocx(CU_SECTIUNI));
+    const document = (await zip.file("word/document.xml")?.async("string")) ?? "";
+    const tabele = (CU_SECTIUNI.sectiuni ?? []).filter((s) => s.tip === "tabel").length;
+    expect(tabele).toBeGreaterThanOrEqual(2);
+    expect((document.match(/<w:tblHeader\/>/gu) ?? []).length).toBeGreaterThanOrEqual(tabele);
   });
 
   it("rămâne XML valid cu caractere de control în secțiuni", async () => {
