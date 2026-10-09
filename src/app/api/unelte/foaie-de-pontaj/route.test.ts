@@ -1,5 +1,7 @@
+import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { NextRequest } from "next/server";
+import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 
 import { GET } from "./route";
@@ -73,5 +75,64 @@ describe("ruta foii de pontaj", () => {
     expect((await cere("an=2026&luna=12&format=DOCX")).headers.get("content-type")).toContain(
       "wordprocessingml",
     );
+  });
+});
+
+const octetiDin = async (r: Response) => new Uint8Array(await r.arrayBuffer());
+
+/** Variantele, programul și antetul din E (auditul din 8 oct 2026). */
+describe("ruta foii de pontaj: variante, program, antet", () => {
+  it("fără format dă tot Excelul colectiv, cu formule", async () => {
+    const r = await cere("an=2026&luna=12&angajati=Popa%20Ion");
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toContain("spreadsheetml");
+    expect(r.headers.get("content-disposition")).toBe('attachment; filename="pontaj-2026-12.xlsx"');
+    const registru = new ExcelJS.Workbook();
+    await registru.xlsx.load((await octetiDin(r)).slice().buffer);
+    expect(registru.worksheets[0]?.getCell("AI7").formula).toBe("SUM(C7:AG7)");
+  });
+
+  it("varianta individuală în PDF: o pagină pe om, sub un singur fișier", async () => {
+    const r = await cere(
+      "an=2026&luna=12&varianta=individuala&format=pdf&angajati=Popa%20Ion%0AIlie%20Maria%20%7C%204%0ARadu%20Andrei",
+    );
+    expect(r.headers.get("content-disposition")).toBe(
+      'attachment; filename="fise-pontaj-2026-12.pdf"',
+    );
+    expect((await PDFDocument.load(await octetiDin(r))).getPageCount()).toBe(3);
+  });
+
+  it("varianta individuală în Word: o secțiune pe om", async () => {
+    const r = await cere(
+      "an=2026&luna=12&varianta=individuala&format=docx&angajati=Popa%20Ion%0AIlie%20Maria",
+    );
+    const zip = await JSZip.loadAsync(await octetiDin(r));
+    const xml = (await zip.file("word/document.xml")?.async("string")) ?? "";
+    expect(xml.match(/<w:sectPr/gu)).toHaveLength(2);
+  });
+
+  it("varianta individuală în Excel: o filă pe om", async () => {
+    const r = await cere("an=2026&luna=12&varianta=individuala&angajati=Popa%20Ion%0AIlie%20Maria");
+    const registru = new ExcelJS.Workbook();
+    await registru.xlsx.load((await octetiDin(r)).slice().buffer);
+    expect(registru.worksheets.map((f) => f.name)).toEqual(["Popa Ion", "Ilie Maria"]);
+  });
+
+  it("Word colectiv are antetul firmei, coloanele de total și sărbătorile marcate", async () => {
+    const r = await cere("an=2026&luna=12&format=docx&firma=Construct%20SRL&cui=14399840");
+    const zip = await JSZip.loadAsync(await octetiDin(r));
+    const xml = (await zip.file("word/document.xml")?.async("string")) ?? "";
+    expect(xml).toContain("Construct SRL · CUI 14399840");
+    expect(xml).toContain(">CFS<");
+    expect(xml).toContain(">noapte<");
+    expect(xml).toContain(">SL<");
+  });
+
+  it("programul pe ture ajunge în fișier", async () => {
+    const r = await cere("an=2026&luna=12&program=ture&angajati=Popa%20Ion");
+    const registru = new ExcelJS.Workbook();
+    await registru.xlsx.load((await octetiDin(r)).slice().buffer);
+    expect(registru.worksheets[0]?.getCell("C7").value).toBeNull(); // 1 dec: nimic dinainte
+    expect(String(registru.worksheets[0]?.getCell("A3").value)).toContain("toate zilele (ture)");
   });
 });
