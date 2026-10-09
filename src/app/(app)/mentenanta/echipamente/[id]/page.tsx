@@ -30,6 +30,7 @@ import {
   opririEchipament,
   optiuniAngajati,
   optiuniDepartamente,
+  numelePunctuluiDeLucru,
   optiuniEchipamente,
   planuriEchipament,
   sesizari,
@@ -150,7 +151,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
 
   // Selectoarele formularelor: funcții de citire cu limită explicită, nu
   // interogări inline — o listă tăiată tăcut la 1000 arată exact ca una întreagă.
-  const [angajatiGenerali, departamente, categorii, parinti, puncteRezultat, urluri] =
+  const [angajatiGenerali, departamente, categorii, parinti, puncteRezultat, urluri, numePunct] =
     await Promise.all([
       optiuniAngajati(tenant.organizationId),
       optiuniDepartamente(tenant.organizationId),
@@ -158,6 +159,11 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       poateScrie ? optiuniEchipamente(tenant.organizationId, echipament.id) : Promise.resolve([]),
       poateScrie ? optiuniPuncteLucru({}) : Promise.resolve(null),
       urlSemnate(documente),
+      // Numele punctului pentru cititorii fără drept de scriere: lista de
+      // opțiuni cere `maintenance:update`, deci managerul vedea „Setat".
+      echipament.punct_lucru_id !== null && !poateScrie
+        ? numelePunctuluiDeLucru(tenant.organizationId, echipament.punct_lucru_id)
+        : Promise.resolve(null),
     ]);
   const puncteLucru = puncteRezultat !== null && puncteRezultat.ok ? puncteRezultat.data : [];
   const departament =
@@ -167,7 +173,8 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
   const punctLucru =
     echipament.punct_lucru_id === null
       ? null
-      : (puncteLucru.find((p) => p.id === echipament.punct_lucru_id) ?? null);
+      : (puncteLucru.find((p) => p.id === echipament.punct_lucru_id) ??
+        (numePunct === null ? null : { id: echipament.punct_lucru_id, nume: numePunct }));
   const randParinte =
     echipament.parent_equipment_id === null ? null : parinte.get(echipament.parent_equipment_id);
 
@@ -420,6 +427,13 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                   className="underline-offset-2 hover:underline"
                 >
                   {punctLucru.nume}
+                </Link>
+                {/* Celelalte echipamente ale locației: lista are deja filtrul `?punct_lucru=`. */}
+                <Link
+                  href={`/mentenanta/echipamente?punct_lucru=${punctLucru.id}`}
+                  className="text-muted-foreground text-nota ml-2 font-normal underline-offset-2 hover:underline"
+                >
+                  echipamentele locației
                 </Link>
               </dd>
             </div>

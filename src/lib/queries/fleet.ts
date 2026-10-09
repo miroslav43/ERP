@@ -762,17 +762,35 @@ const PLAFON_POSTGREST = 1000;
 /** Câte anomalii se citesc deodată în coada de explicat. */
 export const PLAFON_ANOMALII = 200;
 
-export async function anomaliiNeconfirmate(organizationId: string): Promise<readonly Anomalie[]> {
+/** Anomalia cu șoferul foii care a produs-o: cine poate explica diferența. */
+export interface AnomalieCuSofer extends Anomalie {
+  readonly foaie: Readonly<{
+    employee_id: string;
+    sofer: AngajatRezumat | null;
+  }> | null;
+}
+
+/**
+ * Coada de explicat. Șoferul vine prin foaie: anomalia are `trip_sheet_id`, iar
+ * scopul ei e ca „cineva să o explice" — fără nume, patronul deschidea foaia
+ * ca să afle pe cine să întrebe (analiza 2026-10-08, flota-O4). Embedul
+ * to-one filtrat de RLS întoarce `null`, nu elimină rândul.
+ */
+export async function anomaliiNeconfirmate(
+  organizationId: string,
+): Promise<readonly AnomalieCuSofer[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("odometer_anomalies")
-    .select(COLOANE_ANOMALIE)
+    .select(
+      `${COLOANE_ANOMALIE}, foaie:trip_sheets!trip_sheet_id(employee_id, sofer:employees!employee_id(id, full_name, marca, deleted_at))`,
+    )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .is("confirmat_la", null)
     .order("created_at", { ascending: false })
     .limit(PLAFON_ANOMALII)
-    .returns<Anomalie[]>();
+    .returns<AnomalieCuSofer[]>();
 
   if (error !== null) throw error;
   return data ?? [];

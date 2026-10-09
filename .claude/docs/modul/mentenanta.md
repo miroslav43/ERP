@@ -171,3 +171,4 @@ sunt la [[modul/ssm]], deși vin din aceeași migrare. Fluxul sesizării, cu act
   `sesizari/actions.test.ts`, pe client Supabase fals. `actions-modul.test.ts` verifică
   cheia `feature` a exporturilor din `actions.ts`.
 - Lotul 7h: planul leagă echipamentul și responsabilul, fișa echipamentului are „Sesizare nouă”, „Vezi toate” și ISCIR → SSM, contoarele și sesizările leagă utilajul, cronologia leagă echipamentul și sesizarea originală, titlul sesizării pe `maintenance:read`: [[strat/navigare]].
+- Lotul 7l: punctul de lucru pe nume pentru orice cititor (`numelePunctuluiDeLucru`) și „echipamentele locației”; respingerea ca duplicat alege din sesizările deschise ale utilajului: [[strat/navigare]].

@@ -364,6 +364,11 @@ export function FisaSesizare({
             angajati={angajati}
             azi={azi}
             oprireDeschisa={oprireDeschisa !== null}
+            candidatiDuplicat={date.candidatiDuplicat.map((s) => ({
+              id: s.id,
+              numar: s.numar,
+              descriere: s.descriere,
+            }))}
           />
         </section>
       )}

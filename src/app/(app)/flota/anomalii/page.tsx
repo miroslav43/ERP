@@ -16,6 +16,8 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { anomaliiNeconfirmate, PLAFON_ANOMALII, vehiculeDupaId } from "@/lib/queries/fleet";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa, type HartaPermisiuni } from "@/lib/navigare/fisa";
 
 import { ETICHETE_TIP_ANOMALIE, TONURI_TIP_ANOMALIE } from "../etichete";
 import { ConfirmaAnomalie } from "./confirma-anomalie";
@@ -33,12 +35,15 @@ async function TabelAnomalii({
   organizationId,
   poateVedeaFoi,
   poateVedeaParcul,
+  permisiuni,
 }: {
   readonly organizationId: string;
   /** `trip_sheets:read`, poarta lui `/flota/foi/[id]`. */
   readonly poateVedeaFoi: boolean;
   /** `vehicles:read`, poarta lui `/flota/[id]`: numărul devine link. */
   readonly poateVedeaParcul: boolean;
+  /** Pentru `hrefFisa`: șoferul devine link per rând. */
+  readonly permisiuni: HartaPermisiuni;
 }) {
   const anomalii = await anomaliiNeconfirmate(organizationId);
 
@@ -101,6 +106,20 @@ async function TabelAnomalii({
           )}
         </>
       ),
+    },
+    {
+      // Cine poate explica diferența: șoferul foii, nu un vehicul.
+      cheie: "sofer",
+      antet: "Șofer",
+      peTelefon: "meta",
+      celula: (a) =>
+        a.foaie === null || a.foaie.sofer === null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <LinkEntitate href={hrefFisa(a.foaie.sofer, permisiuni)}>
+            {a.foaie.sofer.full_name ?? a.foaie.sofer.marca}
+          </LinkEntitate>
+        ),
     },
     {
       cheie: "tip",
@@ -205,6 +224,7 @@ export default async function PaginaAnomalii() {
           organizationId={tenant.organizationId}
           poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
           poateVedeaParcul={can(permisiuni, "vehicles:read", "own")}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

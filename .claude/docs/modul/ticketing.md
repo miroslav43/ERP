@@ -164,3 +164,4 @@ aprobarea merge la managerul lui direct.
 - Cine aprobă și de ce nu apare butonul: [[rol/manager]].
 - Obiectele alocate și stocul: [[modul/inventar]].
 - Lotul 7h: „Nerepartizate” și „Asignate mie” pe coadă, căutarea după număr, firimituri după proveniență (`?din=coada`), „Are deja în primire” pe cererile de echipament, cererea aprobată → obiect nou în inventar (`?obiect=nou&denumire=`): [[strat/navigare]].
+- Lotul 7l: „Duplicat al…” se alege din tichetele deschise de același tip; fișa arată originalul și duplicatele; modulul din bug → ruta lui: [[strat/navigare]].

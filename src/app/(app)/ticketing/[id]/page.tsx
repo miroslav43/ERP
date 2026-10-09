@@ -18,7 +18,11 @@ import {
   listeazaIstoricul,
   managerulDirectAl,
   listeazaObiecteleMele,
+  duplicateleTichetului,
+  candidatiOriginal,
 } from "@/lib/queries/ticketing";
+import { NAV_ITEMS } from "@/config/navigation";
+import { MarcheazaDuplicat } from "./marcheaza-duplicat";
 import { fisaProprie } from "@/lib/queries/portal";
 import { tranzitiiOferite, type StatusTichet } from "@/domain/ticketing/stari";
 import type { Prioritate } from "@/domain/ticketing/prioritate";
@@ -49,6 +53,22 @@ export const metadata: Metadata = { title: "Tichet" };
 interface ProprietatiPagina {
   readonly params: Promise<{ id: string }>;
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/**
+ * Ruta modulului din meniu, după eticheta pe care a capturat-o raportarea:
+ * `modulDinCale` scrie `item.label`, deci drumul înapoi e tot prin etichetă.
+ * Doar meniul aplicației — rutele de portal nu se deschid de aici.
+ */
+function hrefModul(eticheta: string | null): string | null {
+  if (eticheta === null) return null;
+  for (const intrare of NAV_ITEMS) {
+    if (intrare.label === eticheta) return intrare.href;
+    for (const copil of intrare.children ?? []) {
+      if (copil.label === eticheta) return copil.href;
+    }
+  }
+  return null;
 }
 
 function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: ReactNode | null }>) {
@@ -165,6 +185,17 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
       can(permisiuni, "tickets:approve", "team")) ||
       can(permisiuni, "tickets:approve", "all"));
 
+  // Legătura duplicat ↔ original, în ambele sensuri, plus candidații pentru
+  // marcare (doar operatorului, doar cât tichetul nu e el însuși un duplicat).
+  const idParinte = typeof tichet.parent_ticket_id === "string" ? tichet.parent_ticket_id : null;
+  const [original, duplicate, candidati] = await Promise.all([
+    idParinte === null ? Promise.resolve(null) : citesteTichetul(idParinte),
+    duplicateleTichetului(tichet.id),
+    poateOpera && idParinte === null
+      ? candidatiOriginal(tenant.organizationId, tichet.tip, tichet.id)
+      : Promise.resolve([]),
+  ]);
+  const rutaModul = hrefModul(tichet.modul);
   const drepturi = { esteSolicitant, poateAproba, poateOpera };
   const optiuni = tranzitiiOferite(tichet.status as StatusTichet, drepturi);
   const asteaptaDecizia = tichet.status === "in_aprobare" && poateAproba;
@@ -331,7 +362,51 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
             }
           />
           <Rand eticheta="Locație" valoare={tichet.locatie} />
-          <Rand eticheta="Modul" valoare={tichet.modul} />
+          <Rand
+            eticheta="Modul"
+            valoare={
+              rutaModul !== null && poateDeschide(rutaModul, contextPorti) ? (
+                <Link href={rutaModul} className="underline-offset-2 hover:underline">
+                  {tichet.modul}
+                </Link>
+              ) : (
+                tichet.modul
+              )
+            }
+          />
+          <Rand
+            eticheta="Duplicat al"
+            valoare={
+              original === null ? null : (
+                <Link
+                  href={`/ticketing/${original.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {original.numar_afisat} · {original.titlu}
+                </Link>
+              )
+            }
+          />
+          <Rand
+            eticheta={
+              duplicate.length === 1 ? "Un duplicat" : `${String(duplicate.length)} duplicate`
+            }
+            valoare={
+              duplicate.length === 0 ? null : (
+                <span className="flex flex-col items-end gap-0.5">
+                  {duplicate.map((d) => (
+                    <Link
+                      key={d.id}
+                      href={`/ticketing/${d.id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {d.numar_afisat} · {d.titlu}
+                    </Link>
+                  ))}
+                </span>
+              )
+            }
+          />
           <Rand eticheta="Ce s-a făcut" valoare={tichet.pasi_efectuati} />
           <Rand eticheta="Rezultat așteptat" valoare={tichet.rezultat_asteptat} />
           <Rand eticheta="Rezultat obținut" valoare={tichet.rezultat_obtinut} />
@@ -407,6 +482,7 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
             manuala={tichet.prioritate_manuala === true}
             motivCurent={tichet.prioritate_motiv}
           />
+          <MarcheazaDuplicat ticketId={tichet.id} candidati={candidati} />
         </section>
       )}
 

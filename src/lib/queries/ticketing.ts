@@ -433,3 +433,64 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
     nerepartizate: nerepartizate.count ?? 0,
   };
 }
+
+/** Un tichet legat de altul: duplicatul unui original, sau originalul însuși. */
+export interface TichetLegat {
+  readonly id: string;
+  readonly numar_afisat: string;
+  readonly titlu: string;
+  readonly status: string;
+}
+
+/**
+ * Duplicatele unui tichet (`parent_ticket_id` = el). `parent_ticket_id` se
+ * citea prin `*` și nu se afișa nicăieri: nici „Duplicat al …" pe copil, nici
+ * lista duplicatelor pe părinte (analiza 2026-10-08, ticketing-L16/P13).
+ */
+export async function duplicateleTichetului(parentId: string): Promise<readonly TichetLegat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("tickets")
+    .select("id, numar_afisat, titlu, status")
+    .eq("parent_ticket_id", parentId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(50)
+    .returns<TichetLegat[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+const STATUSURI_DESCHISE_TICHET: readonly StatusTichet[] = [
+  "nou",
+  "in_aprobare",
+  "in_lucru",
+  "in_asteptare",
+  "redeschis",
+];
+
+/**
+ * Candidații la „original" pentru marcarea ca duplicat: tichetele deschise de
+ * același tip, care nu sunt ele însele duplicate (acțiunea refuză lanțurile).
+ */
+export async function candidatiOriginal(
+  organizationId: string,
+  tip: TipTichet,
+  excludeId: string,
+): Promise<readonly TichetLegat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("tickets")
+    .select("id, numar_afisat, titlu, status")
+    .eq("organization_id", organizationId)
+    .eq("tip", tip)
+    .is("parent_ticket_id", null)
+    .is("deleted_at", null)
+    .in("status", STATUSURI_DESCHISE_TICHET)
+    .neq("id", excludeId)
+    .order("created_at", { ascending: false })
+    .limit(50)
+    .returns<TichetLegat[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}

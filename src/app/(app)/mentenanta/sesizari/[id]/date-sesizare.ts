@@ -19,6 +19,7 @@ import {
   type Oprire,
   type RandInterventie,
   type RandSesizare,
+  sesizariDeschise,
 } from "@/lib/queries/maintenance";
 import { fisaMea } from "@/lib/queries/portal";
 
@@ -48,6 +49,12 @@ export interface DateSesizare {
   readonly original: RandSesizare | null;
   /** Fișa principală a apelantului; `null` pentru un cont fără fișă. */
   readonly fisaId: string | null;
+  /**
+   * Sesizările deschise ale ACELUIAȘI utilaj, fără aceasta: candidații pentru
+   * „respinsă ca duplicat". Caseta cerea lipirea linkului originalului din bara
+   * de adrese (analiza 2026-10-08, mentenanta-L11/P12).
+   */
+  readonly candidatiDuplicat: readonly RandSesizare[];
 }
 
 export async function incarcaFisaSesizare(
@@ -69,6 +76,7 @@ export async function incarcaFisaSesizare(
     opriri,
     stareFisa,
     original,
+    deschise,
   ] = await Promise.all([
     // `equipment` cere `team` pentru un `employee` (capcana #27); acțiunea de
     // căutare, cu id exact, întoarce exact rândul, cu client admin filtrat pe
@@ -85,6 +93,7 @@ export async function incarcaFisaSesizare(
     sesizare.duplicat_al_id === null
       ? Promise.resolve(null)
       : citesteSesizare(organizationId, sesizare.duplicat_al_id),
+    sesizariDeschise(organizationId, 200),
   ]);
 
   const idFise = [
@@ -125,6 +134,9 @@ export async function incarcaFisaSesizare(
     numeUtilizatori,
     original,
     fisaId: stareFisa.stare === "ok" ? stareFisa.fisa.id : null,
+    candidatiDuplicat: deschise.randuri.filter(
+      (s) => s.equipment_id === sesizare.equipment_id && s.id !== sesizare.id,
+    ),
   };
 }
 

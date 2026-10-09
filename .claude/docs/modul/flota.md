@@ -196,3 +196,4 @@ e alt modul. Fișa șoferului: `[[modul/angajati]]`.
 - Scadențele centralizate: capcanele #19, #21 și #26, integral, prin
   `node .claude/skills/administrativo/scripts/capcana.mjs --nr 19`.
 - Lotul 7g: anomaliile duc la vehicul și la foaie, fișa vehiculului arată departamentul, foile de aprobat, anomaliile și „Foaie nouă pe acest vehicul” (`?vehicul=&foaie=noua`), coloana „Șofer” în parc, intrarea de rezervă „Foi de parcurs” pentru manager (`doarFara`): [[strat/navigare]].
+- Lotul 7l: coada de anomalii arată șoferul foii (`AnomalieCuSofer`), legat per rând: [[strat/navigare]].

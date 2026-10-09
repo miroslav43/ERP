@@ -1863,3 +1863,27 @@ export async function numarScadenteMentenanta(
 
   return planuri + iscir;
 }
+
+/**
+ * Numele unui punct de lucru, pentru fișa echipamentului.
+ *
+ * Fișa îl citea doar prin `optiuniPuncteLucru` (acțiune cu `maintenance:update`),
+ * deci managerul vedea „Setat" în loc de nume (analiza 2026-10-08,
+ * mentenanta-L6/P10). Politica `puncte_lucru_select` cere doar
+ * `departments:read`: pentru cine n-o are, rezultatul e `null`, fără eroare.
+ */
+export async function numelePunctuluiDeLucru(
+  organizationId: string,
+  id: string,
+): Promise<string | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("puncte_lucru")
+    .select("denumire")
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<{ denumire: string }>();
+  if (error !== null) throw error;
+  return data?.denumire ?? null;
+}

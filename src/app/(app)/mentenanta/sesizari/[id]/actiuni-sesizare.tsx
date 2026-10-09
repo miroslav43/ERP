@@ -81,6 +81,12 @@ interface Proprietati {
   readonly azi: string;
   /** Există o oprire deschisă în jurnal: caseta de rezolvare întreabă de când merge iar. */
   readonly oprireDeschisa: boolean;
+  /** Sesizările deschise ale aceluiași utilaj: „duplicat al…” se alege, nu se lipește. */
+  readonly candidatiDuplicat?: readonly Readonly<{
+    id: string;
+    numar: string;
+    descriere: string;
+  }>[];
 }
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/iu;
@@ -189,6 +195,7 @@ export function ActiuniSesizare({
   angajati,
   azi,
   oprireDeschisa,
+  candidatiDuplicat = [],
 }: Proprietati): ReactElement | null {
   const router = useRouter();
   const [motivTip, setMotivTip] = useState<string>("altul");
@@ -606,16 +613,43 @@ export function ActiuniSesizare({
                 )}
               </Camp>
               {motivTip === "duplicat" ? (
-                <Camp
-                  nume="duplicat_al"
-                  id={idc("duplicat")}
-                  eticheta="Sesizarea originală"
-                  obligatoriu
-                  ajutor="Lipiți linkul sesizării originale (din bara de adrese) sau identificatorul ei."
-                  erori={stare.erori["duplicat_al_id"] ?? []}
-                >
-                  {(a) => <input {...a} defaultValue={stare.valoriTrimise["duplicat_al"] ?? ""} />}
-                </Camp>
+                candidatiDuplicat.length > 0 ? (
+                  // Originalul se ALEGE dintre sesizările deschise ale aceluiași
+                  // utilaj; handlerul extrage oricum UUID-ul din valoare.
+                  <Camp
+                    nume="duplicat_al"
+                    id={idc("duplicat")}
+                    eticheta="Sesizarea originală"
+                    obligatoriu
+                    fel="select"
+                    ajutor="Sesizările încă deschise ale aceluiași utilaj."
+                    erori={stare.erori["duplicat_al_id"] ?? []}
+                  >
+                    {(a) => (
+                      <select {...a} defaultValue={stare.valoriTrimise["duplicat_al"] ?? ""}>
+                        <option value="">Alegeți sesizarea</option>
+                        {candidatiDuplicat.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.numar} · {c.descriere.slice(0, 60)}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Camp>
+                ) : (
+                  <Camp
+                    nume="duplicat_al"
+                    id={idc("duplicat")}
+                    eticheta="Sesizarea originală"
+                    obligatoriu
+                    ajutor="Utilajul n-are altă sesizare deschisă. Lipiți linkul sesizării originale (din bara de adrese) sau identificatorul ei."
+                    erori={stare.erori["duplicat_al_id"] ?? []}
+                  >
+                    {(a) => (
+                      <input {...a} defaultValue={stare.valoriTrimise["duplicat_al"] ?? ""} />
+                    )}
+                  </Camp>
+                )
               ) : null}
               <Camp
                 nume="motiv_respingere"
