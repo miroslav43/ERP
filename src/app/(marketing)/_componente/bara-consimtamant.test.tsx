@@ -75,6 +75,33 @@ describe("bara din primul cadru", () => {
     }
   });
 
+  it("intrat prin navigare soft (scriptul n-a rulat), fără alegere: bara cere singură atributul", async () => {
+    // Din `(auth)` spre `/`, layout-ul `(marketing)` se montează pe client, iar
+    // React nu execută un `<script>` inline randat pe client: atributul lipsește.
+    render(<BaraConsimtamant />);
+    await waitFor(() =>
+      expect(document.documentElement.getAttribute(ATRIBUT_CONSIMTAMANT)).toBe("cere"),
+    );
+  });
+
+  it("la alegere, atributul rămas pe <html> se scoate, ca la remontare bara să nu clipească", async () => {
+    ruleazaScriptul();
+    render(<BaraConsimtamant />);
+    (await screen.findByRole("button", { name: "Refuz" })).click();
+    await waitFor(() =>
+      expect(document.documentElement.getAttribute(ATRIBUT_CONSIMTAMANT)).toBeNull(),
+    );
+  });
+
+  it("cu alegerea salvată și atributul rămas dintr-o vizită anterioară, îl scoate la montare", async () => {
+    document.documentElement.setAttribute(ATRIBUT_CONSIMTAMANT, "cere");
+    localStorage.setItem(CHEIE_CONSIMTAMANT, "acceptat");
+    render(<BaraConsimtamant />);
+    await waitFor(() =>
+      expect(document.documentElement.getAttribute(ATRIBUT_CONSIMTAMANT)).toBeNull(),
+    );
+  });
+
   it("CSS-ul ascunde bara implicit și o arată doar sub atribut", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
     expect(css).toMatch(/\n\[data-bara-consimtamant\] \{\n {2}display: none;\n\}/u);

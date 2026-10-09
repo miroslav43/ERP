@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { CHEIE_CONSIMTAMANT, EVENIMENT_CONSIMTAMANT, type Alegere } from "./consimtamant";
+import {
+  ATRIBUT_CONSIMTAMANT,
+  CHEIE_CONSIMTAMANT,
+  EVENIMENT_CONSIMTAMANT,
+  type Alegere,
+} from "./consimtamant";
 
 /** Starea citită din browser: alegerea salvată, absența ei, sau „încă nu s-a citit”. */
 type Stare = Alegere | "nimic" | "necitit";
@@ -19,6 +24,22 @@ function citesteSalvat(): Stare {
     // ține minte nimic.
     return "nimic";
   }
+}
+
+/**
+ * Ține atributul de pe `<html>` (`ATRIBUT_CONSIMTAMANT`) la zi cu starea citită.
+ *
+ * De obicei îl pune scriptul de la parsare (`analitice.tsx`). Dar la o navigare
+ * soft dintr-un alt grup de rute — de pe `/autentificare` spre `/`, prin sigla —
+ * layout-ul `(marketing)` se montează pe client, iar React nu execută un
+ * `<script>` inline randat pe client: atributul ar lipsi, iar CSS-ul ar ține
+ * bara ascunsă pentru cineva care n-a ales nimic. Invers, după o alegere,
+ * atributul rămas ar arăta bara un cadru la fiecare remontare (revizuirea din
+ * 9 oct 2026).
+ */
+function sincronizeazaAtributul(cere: boolean) {
+  if (cere) document.documentElement.setAttribute(ATRIBUT_CONSIMTAMANT, "cere");
+  else document.documentElement.removeAttribute(ATRIBUT_CONSIMTAMANT);
 }
 
 export function BaraConsimtamant() {
@@ -43,12 +64,17 @@ export function BaraConsimtamant() {
   const [raspunsAcum, setRaspunsAcum] = useState<Alegere | null>(null);
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => setSalvat(citesteSalvat()));
+    const id = requestAnimationFrame(() => {
+      const citit = citesteSalvat();
+      sincronizeazaAtributul(citit === "nimic");
+      setSalvat(citit);
+    });
     return () => cancelAnimationFrame(id);
   }, []);
 
   function raspunde(raspuns: Alegere) {
     setRaspunsAcum(raspuns);
+    sincronizeazaAtributul(false);
     try {
       localStorage.setItem(CHEIE_CONSIMTAMANT, raspuns);
     } catch {

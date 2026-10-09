@@ -26,6 +26,12 @@ describe("politica despre uneltele gratuite", () => {
   it("pe /unelte, biblioteca GA abia după „Accept” (K12)", () => {
     expect(politica).toMatch(/nu se încarcă deloc până nu apeși/u);
   });
+
+  it("nu promite mai mult decât face codul: la o navigare din alt loc al sitului, GA e deja încărcat", () => {
+    // `BibliotecaGa` nu poate descărca o bibliotecă deja încărcată pe pagina
+    // precedentă (navigare soft spre /unelte). Revizuirea din 9 oct 2026.
+    expect(politica).toMatch(/de pe o altă pagină a sitului, unde se încărcase deja/u);
+  });
 });
 
 describe("promisiunea de pe /unelte", () => {
