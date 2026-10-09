@@ -207,3 +207,4 @@ subarbori de `manager_path`, și odată cu ei aprobările din concedii, pontaj �
 
 - Fișa individuală, încadrarea, CNP/IBAN: [[modul/angajati]].
 - Cine e „echipa mea" și de ce: [[modul/organigrama]], [[rol/manager]].
+- Railul panoului, vecinii din arbore și „rol de Angajat” ca link: [[strat/navigare]].

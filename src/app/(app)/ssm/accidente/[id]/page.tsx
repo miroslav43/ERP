@@ -21,6 +21,7 @@ import { BandaTermenItm } from "../../numaratoare-itm";
 import { FormularComunicareItm } from "./formular-comunicare-itm";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
+import { NumarRegistru } from "@/components/registru/numar-registru";
 
 export const metadata: Metadata = { title: "Accident de muncă" };
 
@@ -98,6 +99,8 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
           </Badge>
         }
       />
+      {/* Drumul înapoi spre registru: numărul de înregistrare, dacă există (prin RLS). */}
+      <NumarRegistru tenant={tenant} entitateTip="work_accidents" entitateId={accident.id} />
 
       {accident.comunicat_la_itm_la === null ? (
         <BandaTermenItm momentLimita={momentLimita.toISOString()} acumInitial={acum} />

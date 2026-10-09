@@ -45,6 +45,7 @@ export const TIPURI_CU_PARINTE = [
   "inventory_allocations",
   "payroll_entries",
   "per_diem_calculations",
+  "course_completion_records",
 ] as const;
 
 export type TipCuParinte = (typeof TIPURI_CU_PARINTE)[number];
@@ -67,7 +68,13 @@ const PE_ID: Readonly<Record<string, (id: string) => string>> = {
 
 /** Pagina părintelui, cu lista modulului drept cădere când părintele nu se vede. */
 const CU_PARINTE: Readonly<
-  Record<TipCuParinte, Readonly<{ pagina: (parinte: string, id: string) => string; lista: string }>>
+  Record<
+    TipCuParinte,
+    Readonly<{
+      pagina: (parinte: string, id: string, angajat: string | null) => string;
+      lista: string;
+    }>
+  >
 > = {
   vehicle_documents: { pagina: (p) => `/flota/${p}`, lista: "/flota" },
   fire_extinguisher_checks: { pagina: (p) => `/ssm/stingatoare/${p}`, lista: "/ssm/stingatoare" },
@@ -75,6 +82,12 @@ const CU_PARINTE: Readonly<
   inventory_allocations: { pagina: (p, id) => `/inventar/${p}/pv/${id}`, lista: "/inventar" },
   payroll_entries: { pagina: (p, id) => `/salarizare/${p}/${id}`, lista: "/salarizare" },
   per_diem_calculations: { pagina: (p) => `/diurna/${p}/decont`, lista: "/diurna" },
+  // Adeverința de absolvire: ecranul ei e stadiul cursului, pe angajatul ei.
+  course_completion_records: {
+    pagina: (p, _id, angajat) =>
+      angajat === null ? `/cursuri/${p}/stadiu` : `/cursuri/${p}/stadiu?angajat=${angajat}`,
+    lista: "/cursuri",
+  },
 };
 
 /** Documentele care trăiesc în fișa angajatului. Fără angajat cunoscut, n-au țintă. */
@@ -125,7 +138,7 @@ export function legaturaDocument({
     const { pagina, lista } = CU_PARINTE[entitateTip];
     return parinteId === null
       ? { href: lista, eticheta: DESCHIDE_LISTA, inFilaNoua: false }
-      : { href: pagina(parinteId, entitateId), eticheta: DESCHIDE, inFilaNoua: false };
+      : { href: pagina(parinteId, entitateId, angajatId), eticheta: DESCHIDE, inFilaNoua: false };
   }
 
   const laAngajat = din(LA_ANGAJAT, entitateTip);

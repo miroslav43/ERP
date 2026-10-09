@@ -27,6 +27,7 @@ import { ActiuniCerere } from "./actiuni-cerere";
 import { DecizieAprobare } from "../aprobari/decizie-aprobare";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { poateDeschide } from "@/config/porti-ruta";
+import { NumarRegistru } from "@/components/registru/numar-registru";
 
 export const metadata: Metadata = { title: "Detaliile cererii de concediu" };
 
@@ -169,6 +170,8 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
           </Badge>
         }
       />
+      {/* Drumul înapoi spre registru: numărul de înregistrare, dacă există (prin RLS). */}
+      <NumarRegistru tenant={tenant} entitateTip="leave_requests" entitateId={cerere.id} />
 
       <section aria-labelledby="titlu-rezumat" className="border-border rounded-panou border p-4">
         <h2 id="titlu-rezumat" className="text-sectiune mb-4 font-medium">

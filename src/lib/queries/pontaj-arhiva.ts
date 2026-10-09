@@ -45,6 +45,8 @@ export interface ArhivaLunaPontaj {
   readonly generat_la: string;
   /** Numărul din registrul de documente, sau `null` dacă nu e vizibil. */
   readonly numarAfisat: string | null;
+  /** Rândul din registru (`registru_documente.id`), pentru `/registru?an=&doc=`. */
+  readonly registruDocId: string | null;
 }
 
 export interface ArhivaCuContinut extends ArhivaLunaPontaj {
@@ -71,26 +73,34 @@ interface RandArhiva {
 }
 
 /** Numerele de registru pentru id-urile date, ca hartă. Lipsă = `null`. */
-async function numereDeRegistru(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {
+async function numereDeRegistru(
+  ids: readonly string[],
+): Promise<ReadonlyMap<string, Readonly<{ id: string; numarAfisat: string }>>> {
   if (ids.length === 0) return new Map();
 
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("registru_documente")
-    .select("entitate_id, numar_afisat")
+    .select("id, entitate_id, numar_afisat")
     .eq("entitate_tip", "pontaj_arhive_lunare")
     .in("entitate_id", [...ids])
-    .returns<{ entitate_id: string; numar_afisat: string }[]>();
+    .returns<{ id: string; entitate_id: string; numar_afisat: string }[]>();
   if (error !== null) throw error;
 
-  return new Map((data ?? []).map((r) => [r.entitate_id, r.numar_afisat]));
+  return new Map(
+    (data ?? []).map((r) => [r.entitate_id, { id: r.id, numarAfisat: r.numar_afisat }] as const),
+  );
 }
 
 function cuNumar(
   randuri: readonly RandArhiva[],
-  numere: ReadonlyMap<string, string>,
+  numere: ReadonlyMap<string, Readonly<{ id: string; numarAfisat: string }>>,
 ): readonly ArhivaLunaPontaj[] {
-  return randuri.map((r) => ({ ...r, numarAfisat: numere.get(r.id) ?? null }));
+  return randuri.map((r) => ({
+    ...r,
+    numarAfisat: numere.get(r.id)?.numarAfisat ?? null,
+    registruDocId: numere.get(r.id)?.id ?? null,
+  }));
 }
 
 /**
@@ -140,7 +150,11 @@ export async function arhivaPontajDupaId(
   if (data === null) return null;
 
   const numere = await numereDeRegistru([data.id]);
-  return { ...data, numarAfisat: numere.get(data.id) ?? null };
+  return {
+    ...data,
+    numarAfisat: numere.get(data.id)?.numarAfisat ?? null,
+    registruDocId: numere.get(data.id)?.id ?? null,
+  };
 }
 
 /**
@@ -179,5 +193,9 @@ export async function arhivePontajInInterval(
     .slice(0, MAX_LUNI_DOSAR);
 
   const numere = await numereDeRegistru(inInterval.map((r) => r.id));
-  return inInterval.map((r) => ({ ...r, numarAfisat: numere.get(r.id) ?? null }));
+  return inInterval.map((r) => ({
+    ...r,
+    numarAfisat: numere.get(r.id)?.numarAfisat ?? null,
+    registruDocId: numere.get(r.id)?.id ?? null,
+  }));
 }

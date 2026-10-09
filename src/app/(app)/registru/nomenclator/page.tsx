@@ -201,7 +201,17 @@ export default async function PaginaNomenclator({ searchParams }: ProprietatiPag
                     <td className="text-muted-foreground text-nota px-3 py-2 align-top">
                       {d.tipuri.length === 0
                         ? "—"
-                        : d.tipuri.map((t) => eticheteazaTipDocument(t)).join(", ")}
+                        : d.tipuri.map((t, i) => (
+                            <span key={t}>
+                              {i > 0 ? ", " : ""}
+                              <Link
+                                href={`/registru?an=${String(an)}&tip=${encodeURIComponent(t)}`}
+                                className="underline-offset-2 hover:underline"
+                              >
+                                {eticheteazaTipDocument(t)}
+                              </Link>
+                            </span>
+                          ))}
                     </td>
                     <td className="px-3 py-2 align-top whitespace-nowrap">{d.termenPastrare}</td>
                     <td className="px-3 py-2 text-right align-top font-mono whitespace-nowrap tabular-nums">

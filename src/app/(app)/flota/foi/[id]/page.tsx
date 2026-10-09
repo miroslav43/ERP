@@ -32,6 +32,7 @@ import { legaturaSigura } from "@/config/porti-ruta";
 import { requireUser } from "@/lib/auth/current-user";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { DecizieFoaie } from "../../aprobari/decizie-foaie";
+import { NumarRegistru } from "@/components/registru/numar-registru";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
 
@@ -198,6 +199,8 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
             </Badge>
           }
         />
+        {/* Drumul înapoi spre registru: numărul de înregistrare, dacă există (prin RLS). */}
+        <NumarRegistru tenant={tenant} entitateTip="trip_sheets" entitateId={foaie.id} />
       </div>
 
       {foaie.status === "respins" ? (

@@ -93,6 +93,10 @@ export default async function PaginaReges(props: {
     stare: esteStare(stareBruta) ? stareBruta : "toate",
     angajat: angajatFiltrat,
   };
+  // Filtrul de intrare din registrul de evenimente: mesajele UNUI eveniment.
+  const evenimentBrut = parametri["eveniment"];
+  const evenimentFiltrat =
+    typeof evenimentBrut === "string" && UUID_RE.test(evenimentBrut) ? evenimentBrut : null;
   // Filtrul cozii de mesaje (din sumarul ei): una dintre stările mesajului sau nimic.
   const mesajeBrut = parametri["mesaje"];
   const mesajeFiltrate =
@@ -120,6 +124,12 @@ export default async function PaginaReges(props: {
     citesteRezumatCredentiale(supabase, organizationId),
   ]);
 
+  const mesajePeEveniment = new Map<string, number>();
+  for (const m of coada.randuri) {
+    if (m.evenimentId !== null)
+      mesajePeEveniment.set(m.evenimentId, (mesajePeEveniment.get(m.evenimentId) ?? 0) + 1);
+  }
+
   /*
    * Fără credențiale, NIMIC nu poate pleca: fiecare drum către API trece prin
    * `citesteCredentiale` → `jetonValid`, iar amândouă refuză. Starea e sigură —
@@ -145,7 +155,17 @@ export default async function PaginaReges(props: {
         <span className="text-foreground">
           {ETICHETE_OPERATIE[m.operatie] ?? m.operatie}
           <span className="text-muted-foreground text-nota block">
-            {m.angajatNume ?? "—"}
+            {/* Numele vine din `numeDupaId`, deci e vizibil prin RLS când nu e `null`. */}
+            {m.angajatNume !== null && m.angajatId !== null && poateDeschideFisa ? (
+              <Link
+                href={`/angajati/${m.angajatId}`}
+                className="relative underline-offset-2 hover:underline"
+              >
+                {m.angajatNume}
+              </Link>
+            ) : (
+              (m.angajatNume ?? "—")
+            )}
             {m.contractNumar === null ? "" : ` · CIM ${m.contractNumar}`}
           </span>
         </span>
@@ -194,6 +214,11 @@ export default async function PaginaReges(props: {
               <ButonTransmite
                 mesajId={m.id}
                 numeAngajat={m.angajatNume ?? "salariat"}
+                hrefAngajat={
+                  poateDeschideFisa && m.angajatId !== null && m.angajatNume !== null
+                    ? `/angajati/${m.angajatId}`
+                    : null
+                }
                 transmisibil={m.transmisibil}
               />
             ) : (
@@ -240,7 +265,24 @@ export default async function PaginaReges(props: {
       cheie: "eveniment",
       antet: "Eveniment",
       peTelefon: "meta",
-      celula: (rand) => ETICHETE_TIP[rand.tip],
+      celula: (rand) => {
+        // Mesajele deja pregătite din evenimentul ăsta, din coada afișată (cele
+        // mai noi 200): legătura dintre registru și coadă lipsea în ambele sensuri.
+        const mesaje = mesajePeEveniment.get(rand.id) ?? 0;
+        return (
+          <>
+            {ETICHETE_TIP[rand.tip]}
+            {mesaje === 0 ? null : (
+              <Link
+                href={`/reges?eveniment=${rand.id}#coada-mesaje`}
+                className="text-muted-foreground text-nota relative block underline-offset-2 hover:underline"
+              >
+                {mesaje === 1 ? "un mesaj în coadă" : `${String(mesaje)} mesaje în coadă`}
+              </Link>
+            )}
+          </>
+        );
+      },
     },
     {
       cheie: "data",
@@ -503,11 +545,11 @@ export default async function PaginaReges(props: {
         <Tabel
           caption="Coada de mesaje REGES-Online"
           coloane={COLOANE_MESAJE}
-          randuri={
-            mesajeFiltrate === null
-              ? coada.randuri
-              : coada.randuri.filter((m) => m.stare === mesajeFiltrate)
-          }
+          randuri={coada.randuri.filter(
+            (m) =>
+              (mesajeFiltrate === null || m.stare === mesajeFiltrate) &&
+              (evenimentFiltrat === null || m.evenimentId === evenimentFiltrat),
+          )}
           cheieRand={(m) => m.id}
           // Rândul duce la detaliu: acolo se vede ce clasificare va pleca la ITM,
           // se corectează înainte de transmitere și se citește jurnalul apelurilor.

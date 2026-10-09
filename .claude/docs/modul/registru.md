@@ -196,3 +196,4 @@ de registru cere `drop function if exists` înainte de `create or replace` (capc
 - Ce e conectat azi: `select * from internal.registru_config_surse()`.
 - Documentele de personal care produc intrări: [[modul/angajati]].
 - ⚠️ Termenele de păstrare din nomenclatorul implicit sunt un punct de plecare, nu un aviz.
+- Numărul de registru pe documentele-sursă (`NumarRegistru`) și celulele-filtru: [[strat/navigare]].

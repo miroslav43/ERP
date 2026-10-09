@@ -41,6 +41,7 @@ import { hrefFisa } from "@/lib/navigare/fisa";
 import { requireUser } from "@/lib/auth/current-user";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { DecizieDeplasare } from "../aprobari/decizie-deplasare";
+import { NumarRegistru } from "@/components/registru/numar-registru";
 
 export const metadata: Metadata = { title: "Fișa deplasării" };
 
@@ -296,6 +297,8 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
             </div>
           }
         />
+        {/* Drumul înapoi spre registru: numărul de înregistrare, dacă există (prin RLS). */}
+        <NumarRegistru tenant={tenant} entitateTip="business_trips" entitateId={deplasare.id} />
       </div>
 
       <section aria-labelledby="titlu-rezumat" className="border-border rounded-panou border p-4">

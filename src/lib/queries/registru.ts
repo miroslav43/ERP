@@ -863,6 +863,16 @@ async function citesteParinte(
       if (error !== null) throw error;
       return data?.business_trip_id ?? null;
     }
+    case "course_completion_records": {
+      const { data, error } = await db
+        .from("course_completion_records")
+        .select("course_id")
+        .eq("organization_id", organizationId)
+        .eq("id", entitateId)
+        .maybeSingle();
+      if (error !== null) throw error;
+      return data?.course_id ?? null;
+    }
     default:
       return null;
   }
@@ -909,4 +919,43 @@ export async function citesteDocumentRegistru(
     conexate,
     parinteId,
   };
+}
+
+export interface NumarRegistru {
+  readonly id: string;
+  readonly an: number;
+  readonly numarAfisat: string;
+  readonly entitateTip: string;
+}
+
+/**
+ * Numerele de înregistrare ale unor documente-sursă, grupate pe `entitate_id`.
+ * Drumul INVERS față de `legaturaDocument`: de pe fișa documentului spre
+ * rândul lui din registru. Prin RLS: fără `registru:read` iese gol, nu eroare.
+ */
+export async function numereRegistruPentru(
+  organizationId: string,
+  entitateTipuri: readonly string[],
+  entitateIds: readonly string[],
+): Promise<ReadonlyMap<string, readonly NumarRegistru[]>> {
+  const harta = new Map<string, NumarRegistru[]>();
+  if (entitateTipuri.length === 0 || entitateIds.length === 0) return harta;
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("registru_documente")
+    .select("id, an, numar, numar_afisat, entitate_tip, entitate_id")
+    .eq("organization_id", organizationId)
+    .in("entitate_tip", [...entitateTipuri])
+    .in("entitate_id", [...entitateIds])
+    .is("deleted_at", null)
+    .order("an")
+    .order("numar");
+  if (error !== null) throw error;
+  for (const r of data ?? []) {
+    if (r.entitate_id === null) continue;
+    const lista = harta.get(r.entitate_id) ?? [];
+    lista.push({ id: r.id, an: r.an, numarAfisat: r.numar_afisat, entitateTip: r.entitate_tip });
+    harta.set(r.entitate_id, lista);
+  }
+  return harta;
 }

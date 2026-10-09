@@ -37,7 +37,14 @@ const ETICHETE_STARE: Record<string, string> = {
 
 const ETICHETE_FEL: Record<string, string> = { detasare: "Detașare", mutare: "Mutare" };
 
-export default async function PaginaPropuneriReges() {
+export default async function PaginaPropuneriReges({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?nou=<id>`: propunerea tocmai pusă în coadă, evidențiată pe server.
+  const nouBrut = (await searchParams)["nou"];
+  const nouId = typeof nouBrut === "string" ? nouBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -202,6 +209,8 @@ export default async function PaginaPropuneriReges() {
         {poatePropune ? <FormularPropunere contracte={contracte} temeiuri={temeiuri} /> : null}
         <Tabel
           randuri={trimise}
+          evidentiat={(p) => p.id === nouId}
+          idRand={(p) => `propunere-${p.id}`}
           coloane={COLOANE_COMUNE}
           cheieRand={(p) => p.id}
           // Rândul duce la mesajul din coadă (starea și răspunsul ITM), când există.

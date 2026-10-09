@@ -6,7 +6,7 @@ import { useCallback, useMemo } from "react";
 
 import { UserRoundX } from "lucide-react";
 
-import { PanouDepartament, type PersoanaPanou } from "./panou-departament";
+import { PanouDepartament, type LegaturiPanou, type PersoanaPanou } from "./panou-departament";
 import { VizualizareLista } from "./vizualizare-lista";
 import { VizualizareOrganigrama } from "./vizualizare-organigrama";
 import type { NodDepartament, OptiuneAngajat, OptiuneDepartament } from "./tipuri";
@@ -41,6 +41,10 @@ export type PropsStructuraInteractiva = Readonly<{
   poateEdita: boolean;
   poateMutaPersoane: boolean;
   poateInvita: boolean;
+  /** `users:update = all`: „rol de Angajat" devine link spre permisiunile șefului. */
+  poateSchimbaRoluri: boolean;
+  /** Porțile paginilor-țintă ale railului din panou (calculate pe server). */
+  legaturi: LegaturiPanou;
   vizualizare: "lista" | "organigrama";
 }>;
 
@@ -53,6 +57,8 @@ export function StructuraInteractiva({
   poateEdita,
   poateMutaPersoane,
   poateInvita,
+  poateSchimbaRoluri,
+  legaturi,
   vizualizare,
 }: PropsStructuraInteractiva) {
   /*
@@ -98,6 +104,14 @@ export function StructuraInteractiva({
   const esteNerepartizati = deschisId === NEREPARTIZATI;
 
   const persoanePanou = esteNerepartizati ? nerepartizati : (nodDeschis?.date.persoane ?? []);
+  // Vecinii din arbore: departamentul superior și subordonatele, pentru rail.
+  const parinte =
+    nodDeschis?.date.parent_id == null ? null : (dupaId.get(nodDeschis.date.parent_id) ?? null);
+  const subordonate = (nodDeschis?.copii ?? []).map((c) => ({
+    id: c.date.id,
+    denumire: c.date.denumire,
+    efectiv: c.efectivCumulat,
+  }));
   const idUriInPanou = new Set(persoanePanou.map((p) => p.id));
   const candidati = toatePersoanele.filter((p) => !idUriInPanou.has(p.id));
 
@@ -150,6 +164,7 @@ export function StructuraInteractiva({
           angajati={angajati}
           poateEdita={poateEdita}
           poateMutaPersoane={poateMutaPersoane}
+          poateSchimbaRoluri={poateSchimbaRoluri}
           laDeschiderePanou={setDeschisId}
         />
       )}
@@ -175,6 +190,10 @@ export function StructuraInteractiva({
         departamente={departamente}
         poateMuta={poateMutaPersoane}
         poateInvita={poateInvita}
+        legaturi={legaturi}
+        parinte={parinte === null ? null : { id: parinte.date.id, denumire: parinte.date.denumire }}
+        subordonate={subordonate}
+        laDeschidere={setDeschisId}
       />
     </>
   );

@@ -31,7 +31,9 @@ export function RandTabel({
   children,
   className = "",
   pastreazaDerularea = false,
+  id,
 }: {
+  readonly id?: string;
   /** `null` când rândul nu are nicio destinație (ex. entitatea legată e ascunsă de RLS) — rândul rămâne un `<tr>` simplu, fără click. */
   readonly href: string | null;
   readonly children: ReactNode;
@@ -83,6 +85,7 @@ export function RandTabel({
     // ZERO. Rândul avea `cursor-pointer` și niciun răspuns vizual la trecerea
     // mouse-ului. `surface` (#f2ede1) pe `background` (#faf7f0) se vede.
     <tr
+      {...(id === undefined ? {} : { id })}
       onClick={gestioneazaClick}
       aria-busy={inCurs || undefined}
       className={`hover:bg-surface ${claseStare} ${className}`}

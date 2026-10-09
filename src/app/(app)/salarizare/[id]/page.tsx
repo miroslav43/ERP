@@ -29,6 +29,7 @@ import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../e
 import { ActiuniPerioada } from "./actiuni-perioada";
 import { RandAngajatDraft } from "./rand-angajat-draft";
 import { ButonDescarcare } from "@/components/incarcare/buton-descarcare";
+import { NumarRegistru } from "@/components/registru/numar-registru";
 
 export const metadata: Metadata = { title: "Perioadă de salarizare" };
 
@@ -168,6 +169,18 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
               {ETICHETE_STATUS_PERIOADA[perioada.status] ?? perioada.status}
             </Badge>
           }
+        />
+        {/* Drumul înapoi spre registru: numărul de înregistrare, dacă există (prin RLS). */}
+        <NumarRegistru
+          tenant={tenant}
+          entitateTip={[
+            "payroll_periods",
+            "payroll_periods_bancar",
+            "payroll_periods_nota",
+            "payroll_periods_d112",
+            "payroll_periods_d112_rect",
+          ]}
+          entitateId={perioada.id}
         />
         {/* Proveniența. Toate cifrele astea erau deja citite de
             `citestePerioada` și nu apărea niciuna: ecranul nu spunea nici când

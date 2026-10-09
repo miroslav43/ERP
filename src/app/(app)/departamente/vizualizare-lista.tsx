@@ -60,6 +60,7 @@ function Card({
   angajati,
   poateEdita,
   poateMutaPersoane,
+  poateSchimbaRoluri,
   laDeschiderePanou,
 }: {
   readonly nod: NodDepartament;
@@ -67,6 +68,7 @@ function Card({
   readonly angajati: readonly OptiuneAngajat[];
   readonly poateEdita: boolean;
   readonly poateMutaPersoane: boolean;
+  readonly poateSchimbaRoluri: boolean;
   readonly laDeschiderePanou: (id: string) => void;
 }) {
   const d = nod.date;
@@ -123,12 +125,23 @@ function Card({
               apare uitându-te la el, nu scanând un tabel.
             */}
             {d.sefFaraRolDeManager ? (
-              <span
-                className="text-warning text-nota"
-                title="Conduce departamentul, dar în aplicație are rolul Angajat: nu vede pontajul echipei și nu îi poate aproba concediile. Rolul se schimbă de un administrator, din fișa lui → Permisiuni."
-              >
-                · rol de Angajat
-              </span>
+              poateSchimbaRoluri && d.manager_employee_id !== null ? (
+                // Ținta există: pagina de permisiuni a șefului, unde se schimbă rolul.
+                <Link
+                  href={`/angajati/${d.manager_employee_id}/permisiuni`}
+                  className="text-warning text-nota underline-offset-2 hover:underline"
+                  title="Conduce departamentul, dar în aplicație are rolul Angajat: nu vede pontajul echipei și nu îi poate aproba concediile. Deschide permisiunile lui."
+                >
+                  · rol de Angajat
+                </Link>
+              ) : (
+                <span
+                  className="text-warning text-nota"
+                  title="Conduce departamentul, dar în aplicație are rolul Angajat: nu vede pontajul echipei și nu îi poate aproba concediile. Rolul se schimbă de un administrator, din fișa lui → Permisiuni."
+                >
+                  · rol de Angajat
+                </span>
+              )
             ) : null}
           </span>
         </span>
@@ -195,6 +208,7 @@ export function VizualizareLista({
   angajati,
   poateEdita,
   poateMutaPersoane,
+  poateSchimbaRoluri,
   laDeschiderePanou,
 }: {
   readonly noduri: readonly NodDepartament[];
@@ -203,6 +217,7 @@ export function VizualizareLista({
   readonly angajati: readonly OptiuneAngajat[];
   readonly poateEdita: boolean;
   readonly poateMutaPersoane: boolean;
+  readonly poateSchimbaRoluri: boolean;
   readonly laDeschiderePanou: (id: string) => void;
 }) {
   return (
@@ -221,6 +236,7 @@ export function VizualizareLista({
             angajati={angajati}
             poateEdita={poateEdita}
             poateMutaPersoane={poateMutaPersoane}
+            poateSchimbaRoluri={poateSchimbaRoluri}
             laDeschiderePanou={laDeschiderePanou}
           />
           {nod.copii.length > 0 ? (
@@ -231,6 +247,7 @@ export function VizualizareLista({
               angajati={angajati}
               poateEdita={poateEdita}
               poateMutaPersoane={poateMutaPersoane}
+              poateSchimbaRoluri={poateSchimbaRoluri}
               laDeschiderePanou={laDeschiderePanou}
             />
           ) : null}

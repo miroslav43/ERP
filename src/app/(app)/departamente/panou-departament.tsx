@@ -58,9 +58,24 @@ export interface OptiuneDepartamentPanou {
   readonly activ: boolean;
 }
 
+/** Porțile paginilor-țintă ale railului — calculate pe server, prin `poateDeschide`. */
+export type LegaturiPanou = Readonly<{
+  angajati: boolean;
+  pontaj: boolean;
+  aprobare: boolean;
+  tichete: boolean;
+  organigrama: boolean;
+}>;
+
 export type PropsPanouDepartament = Readonly<{
   deschis: boolean;
   laInchidere: () => void;
+  legaturi: LegaturiPanou;
+  /** Departamentul superior din arbore; `null` la rădăcină sau la nerepartizați. */
+  parinte: Readonly<{ id: string; denumire: string }> | null;
+  subordonate: readonly Readonly<{ id: string; denumire: string; efectiv: number }>[];
+  /** Deschide alt departament în același panou (schimbă `?departament=`). */
+  laDeschidere: (id: string) => void;
   /** `users:update = all`, poarta lui `/setari/membri` — altfel „Invită un cofondator" duce în refuz. */
   poateInvita: boolean;
   /** `null` = panoul nerepartizaților. */
@@ -102,6 +117,10 @@ export function PanouDepartament({
   departamente,
   poateMuta,
   poateInvita,
+  legaturi,
+  parinte,
+  subordonate,
+  laDeschidere,
 }: PropsPanouDepartament) {
   const router = useRouter();
   const [cautare, setCautare] = useState("");
@@ -275,6 +294,95 @@ export function PanouDepartament({
           </p>
         )}
         {/*
+         * Railul: ce ține de departament în celelalte module, prefiltrat pe el.
+         * Filtrele existau (`?department_id=`, `?departament=`), dar nimic nu le
+         * prepopula de aici. Fiecare legătură a trecut pe server prin poarta
+         * paginii-ȚINTĂ; ce nu se poate deschide lipsește, nu duce în refuz.
+         */}
+        {departament === null ? null : (
+          <ul className="text-nota flex flex-wrap gap-x-3 gap-y-1">
+            {legaturi.angajati ? (
+              <li>
+                <Link
+                  href={`/angajati?department_id=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Lista angajaților
+                </Link>
+              </li>
+            ) : null}
+            {legaturi.pontaj ? (
+              <li>
+                <Link
+                  href={`/pontaj?departament=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Foaia de pontaj
+                </Link>
+              </li>
+            ) : null}
+            {legaturi.aprobare ? (
+              <li>
+                <Link
+                  href={`/pontaj/aprobare?departament=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Aprobări de pontaj
+                </Link>
+              </li>
+            ) : null}
+            {legaturi.tichete ? (
+              <li>
+                <Link
+                  href={`/ticketing/coada?department_id=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Tichete
+                </Link>
+              </li>
+            ) : null}
+          </ul>
+        )}
+        {/* Vecinii din arbore: panoul listează doar membrii direcți, dar cardul numără și subordonatele. */}
+        {departament !== null && (parinte !== null || subordonate.length > 0) ? (
+          <div className="text-nota space-y-1">
+            {parinte === null ? null : (
+              <p>
+                <span className="text-muted-foreground">Parte din: </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    laDeschidere(parinte.id);
+                  }}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {parinte.denumire}
+                </button>
+              </p>
+            )}
+            {subordonate.length === 0 ? null : (
+              <p>
+                <span className="text-muted-foreground">Subordonate: </span>
+                {subordonate.map((s, i) => (
+                  <span key={s.id}>
+                    {i > 0 ? ", " : ""}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        laDeschidere(s.id);
+                      }}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {s.denumire}
+                    </button>
+                    <span className="text-muted-foreground tabular-nums"> ({s.efectiv})</span>
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+        ) : null}
+        {/*
          * Mecanismul e corect și fără nota asta, dar invizibil: nimic din
          * ecranul de departamente nu spune că un cofondator se adaugă
          * INVITÂNDU-L, nu mutându-l. Câmpul de mai jos mută doar oameni care au
@@ -307,7 +415,18 @@ export function PanouDepartament({
          * omul care mută pe cineva crede că a mutat și drepturile de aprobare.
          */}
         {poateMuta ? (
-          <Callout fel="informativ">
+          <Callout
+            fel="informativ"
+            {...(legaturi.organigrama
+              ? {
+                  actiune: (
+                    <Link href="/organigrama" className="text-nota font-medium underline">
+                      Vezi ierarhia managerială
+                    </Link>
+                  ),
+                }
+              : {})}
+          >
             Mutarea între departamente nu schimbă cine vede pe cine. Drepturile de vizibilitate și
             de aprobare vin din managerul direct al fișei, nu din departament.
           </Callout>

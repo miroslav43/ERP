@@ -226,6 +226,8 @@ export interface RandMesaj {
   readonly angajatId: string | null;
   readonly angajatNume: string | null;
   readonly contractNumar: string | null;
+  /** Evenimentul din registru din care a fost pregătit (0087); `null` la mesajele fără eveniment. */
+  readonly evenimentId: string | null;
   /** Mesajul poate pleca: n-are dependență, sau dependența a primit referință. */
   readonly transmisibil: boolean;
 }
@@ -256,7 +258,7 @@ export async function interogheazaMesajeReges(
     .from("reges_mesaje")
     // prettier-ignore
     .select(
-      "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id",
+      "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id, eveniment_id",
     )
     .eq("organization_id", organizationId)
     .is("deleted_at", null);
@@ -313,6 +315,7 @@ export async function interogheazaMesajeReges(
       angajatId: m.employee_id,
       angajatNume: m.employee_id === null ? null : (numeDupaId.get(m.employee_id) ?? null),
       contractNumar: m.contract_id === null ? null : (numarDupaId.get(m.contract_id) ?? null),
+      evenimentId: m.eveniment_id,
       transmisibil:
         m.stare === "de_transmis" &&
         (m.depinde_de === null ||
@@ -597,7 +600,7 @@ export async function citesteDetaliuMesaj(
     .from("reges_mesaje")
     // prettier-ignore
     .select(
-      "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id",
+      "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id, eveniment_id",
     )
     .eq("id", mesajId)
     .eq("organization_id", organizationId)
@@ -655,6 +658,7 @@ export async function citesteDetaliuMesaj(
       angajatId: data.employee_id,
       angajatNume: angajat.data?.full_name ?? null,
       contractNumar: c?.numar ?? null,
+      evenimentId: data.eveniment_id,
       transmisibil:
         data.stare === "de_transmis" &&
         (data.depinde_de === null ||

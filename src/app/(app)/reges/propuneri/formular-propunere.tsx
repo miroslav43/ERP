@@ -46,6 +46,12 @@ export function FormularPropunere(props: {
       });
       if (rezultat.ok) {
         setDeschis(false);
+        // Rândul nou se evidențiază pe server (`?nou=`) și se derulează la ancoră.
+        window.history.replaceState(
+          null,
+          "",
+          `?nou=${rezultat.data.id}#propunere-${rezultat.data.id}`,
+        );
         arataToast({
           fel: "reusita",
           text: "Propunerea a fost pusă în coadă și pleacă la următoarea reconciliere.",

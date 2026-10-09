@@ -61,6 +61,7 @@ import { ETICHETE_SENS, TON_SENS, eticheteazaRezolvare, eticheteazaTipDocument }
 import { FiltreRegistru } from "./filtre-registru";
 import { comparaIndicative } from "./indicativ";
 import { PanouDocumentRegistru } from "./panou-document";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = {
   title: "Registrul documentelor",
@@ -166,6 +167,10 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
     return p.size === 0 ? "/registru" : `/registru?${p.toString()}`;
   }
   const hrefDocument = (id: string): string => adresa((p) => p.set("doc", id));
+  const poateDeschideFisa = poateDeschide("/angajati/[id]", {
+    features: module,
+    permissions: permisiuni,
+  });
 
   const continutDosar = new Map(nomenclator.map((d) => [d.indicativ, d.continut]));
   const numeAngajat = new Map(angajati.map((a) => [a.id, a.nume]));
@@ -193,7 +198,16 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
           cheie: grupare.cheie,
           antet: (cheie, primul) => {
             const n = contorGrup.get(cheie) ?? 0;
-            return `${grupare.eticheta(cheie, primul)} · ${n} ${n === 1 ? "document" : "documente"}`;
+            const text = `${grupare.eticheta(cheie, primul)} · ${String(n)} ${n === 1 ? "document" : "documente"}`;
+            // Pe angajat, cheia grupului E id-ul fișei: antetul duce la ea.
+            if (filtre.grup === "angajat" && cheie !== "" && poateDeschideFisa) {
+              return (
+                <Link href={`/angajati/${cheie}`} className="underline-offset-2 hover:underline">
+                  {text}
+                </Link>
+              );
+            }
+            return text;
           },
         };
 
@@ -244,7 +258,19 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
       antet: "Tip document",
       sortabil: true,
       peTelefon: "meta",
-      celula: (r) => eticheteazaTipDocument(r.tipDocument),
+      // Tipul e filtru la un clic: toate documentele de același fel, în anul ăsta.
+      celula: (r) => (
+        <Link
+          href={adresa((p) => {
+            p.set("tip", r.tipDocument);
+            p.delete("cursor");
+            p.delete("doc");
+          })}
+          className="relative underline-offset-2 hover:underline"
+        >
+          {eticheteazaTipDocument(r.tipDocument)}
+        </Link>
+      ),
     },
     {
       cheie: "continut",
@@ -503,6 +529,22 @@ export default async function PaginaRegistru({ searchParams }: ProprietatiPagina
           </p>
         ) : null}
       </div>
+
+      {/* Cine a venit din fișa angajatului are drumul înapoi aici; tabelul n-are coloana „Angajat". */}
+
+      {filtre.angajatId !== null && poateDeschideFisa ? (
+        <p className="text-muted-foreground text-nota">
+          Documentele lui{" "}
+          <Link
+            href={`/angajati/${filtre.angajatId}`}
+
+            className="text-foreground underline-offset-2 hover:underline"
+          >
+            {numeAngajat.get(filtre.angajatId) ?? "acestui angajat"}
+          </Link>
+          .
+        </p>
+      ) : null}
 
       <Tabel<RandRegistru>
         caption={`Registrul documentelor pe ${filtre.an}`}

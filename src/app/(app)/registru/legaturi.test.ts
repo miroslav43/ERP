@@ -73,11 +73,27 @@ describe("legaturaDocument", () => {
     ["inventory_allocations", `/inventar/${PARINTE}/pv/${ID}`],
     ["payroll_entries", `/salarizare/${PARINTE}/${ID}`],
     ["per_diem_calculations", `/diurna/${PARINTE}/decont`],
+    ["course_completion_records", `/cursuri/${PARINTE}/stadiu`],
   ])("%s cere părintele și îl folosește în adresă", (tip, href) => {
     expect(TIPURI_CU_PARINTE).toContain(tip);
     expect(
       legaturaDocument({ entitateTip: tip, entitateId: ID, parinteId: PARINTE, angajatId: null }),
     ).toEqual({ href, eticheta: "Deschide documentul", inFilaNoua: false });
+  });
+
+  it("adeverința de curs deschide stadiul cursului pe angajatul ei", () => {
+    expect(
+      legaturaDocument({
+        entitateTip: "course_completion_records",
+        entitateId: ID,
+        parinteId: PARINTE,
+        angajatId: ANG,
+      }),
+    ).toEqual({
+      href: `/cursuri/${PARINTE}/stadiu?angajat=${ANG}`,
+      eticheta: "Deschide documentul",
+      inFilaNoua: false,
+    });
   });
 
   it.each([
@@ -87,6 +103,7 @@ describe("legaturaDocument", () => {
     ["inventory_allocations", "/inventar"],
     ["payroll_entries", "/salarizare"],
     ["per_diem_calculations", "/diurna"],
+    ["course_completion_records", "/cursuri"],
   ])("%s fără părinte (ascuns de RLS) cade pe lista modulului", (tip, href) => {
     expect(
       legaturaDocument({ entitateTip: tip, entitateId: ID, parinteId: null, angajatId: null }),
@@ -121,7 +138,6 @@ describe("legaturaDocument", () => {
     "overtime_compensation",
     "work_permits",
     "contract_suspendari",
-    "course_completion_records",
     "invitations",
     "tabela_inventata",
     "",

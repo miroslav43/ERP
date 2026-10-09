@@ -101,6 +101,13 @@ export type PropsTabel<R> = Readonly<{
   randuri: readonly R[];
   cheieRand: (rand: R) => string;
   /**
+   * Rândul tocmai creat sau cel la care a trimis alt ecran (`?nou=<id>`):
+   * inel de evidențiere, decis pe server, nu `:target`. `idRand` îi dă și o
+   * ancoră, ca `#propunere-<id>` să deruleze la el.
+   */
+  evidentiat?: (rand: R) => boolean;
+  idRand?: (rand: R) => string;
+  /**
    * Face rândul apăsabil. Linkul accesibil stă în coloana `peTelefon="titlu"`.
    *
    * `null` pentru UN rând = rândul ăla rămâne text: entitatea legată e ascunsă
@@ -137,6 +144,8 @@ export function Tabel<R>({
   coloane,
   randuri,
   cheieRand,
+  evidentiat,
+  idRand,
   href,
   sortare,
   hrefSortare,
@@ -221,11 +230,23 @@ export function Tabel<R>({
                   )}
                 </td>
               ));
+              const clasaEvidentiere =
+                evidentiat?.(r) === true ? "ring-primary scroll-mt-24 ring-2 ring-inset" : "";
               const rand =
                 tinta === null ? (
-                  <tr>{continut}</tr>
+                  <tr
+                    {...(idRand === undefined ? {} : { id: idRand(r) })}
+                    className={clasaEvidentiere}
+                  >
+                    {continut}
+                  </tr>
                 ) : (
-                  <RandTabel href={tinta} pastreazaDerularea={pastreazaDerularea}>
+                  <RandTabel
+                    href={tinta}
+                    pastreazaDerularea={pastreazaDerularea}
+                    className={clasaEvidentiere}
+                    {...(idRand === undefined ? {} : { id: idRand(r) })}
+                  >
                     {continut}
                   </RandTabel>
                 );
@@ -272,6 +293,8 @@ export function Tabel<R>({
                 rand={r}
                 coloane={coloane}
                 pastreazaDerularea={pastreazaDerularea}
+                evidentiat={evidentiat?.(r) === true}
+                {...(idRand === undefined ? {} : { id: idRand(r) })}
                 {...(coloanaTitlu === undefined ? {} : { coloanaTitlu })}
                 {...(tinta === null ? {} : { href: tinta })}
               />
@@ -364,7 +387,11 @@ function CardRand<R>({
   coloanaTitlu,
   href,
   pastreazaDerularea,
+  evidentiat = false,
+  id,
 }: {
+  evidentiat?: boolean;
+  id?: string;
   rand: R;
   coloane: readonly Coloana<R>[];
   coloanaTitlu?: Coloana<R>;
@@ -383,7 +410,13 @@ function CardRand<R>({
   const actiuni = coloane.filter((c) => c.peTelefon === "actiuni");
 
   return (
-    <li className="relative flex min-h-14 items-start gap-3 px-4 py-3">
+    <li
+      {...(id === undefined ? {} : { id })}
+      className={cn(
+        "relative flex min-h-14 items-start gap-3 px-4 py-3",
+        evidentiat ? "ring-primary scroll-mt-24 ring-2 ring-inset" : "",
+      )}
+    >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-foreground text-corp font-medium">
