@@ -25,6 +25,7 @@ import {
   ETICHETE_CATEGORIE,
   ETICHETE_COMBUSTIBIL,
   ETICHETE_UTILIZARE,
+  EXEMPLU_COMPLETAT,
   MAX_CURSE_PE_ZI,
   parametriFoaieParcurs,
   UTILIZARI,
@@ -44,7 +45,7 @@ import {
 export const metadata: Metadata = metadatePagina({
   titlu: "Foaie de parcurs: model Word, PDF și Excel",
   descriere:
-    "Foaie de parcurs lunară gata de completat: fiecare zi, traseul, scopul deplasării, kilometrii la plecare și la sosire. Model gratuit în Word, PDF sau Excel.",
+    "Foaie de parcurs cu cele 4 elemente cerute de normele Codului fiscal: mai multe curse pe zi, alimentări, Excel cu formule. Gratuită, în Word și PDF, fără cont.",
   cale: "/unelte/foaie-de-parcurs",
 });
 
@@ -76,6 +77,36 @@ const CHEI = [
   "stoc",
   "curse",
 ] as const;
+
+/**
+ * Răspunsurile stau pe textul legii, verificat pe 8 oct 2026 pe formele
+ * consolidate de pe legislatie.just.ro: Codul fiscal (08.08.2026), normele HG
+ * 1/2016 (31.03.2026), OMFP 2634/2015 (01.08.2024). Ce nu spune legea textual
+ * (ce e „categoria de vehicul”) e spus ca atare și trecut în NOTES.md ⚠.
+ */
+const INTREBARI: readonly Readonly<{ q: string; a: string; href?: string }>[] = [
+  {
+    q: "Există un formular tipizat obligatoriu?",
+    a: "Nu. OMFP 2634/2015, ordinul cu modelele documentelor financiar-contabile, nu are un model de foaie de parcurs. Normele Codului fiscal cer conținutul, adică cele patru informații de mai sus, nu un anumit formular. Modelul de aici e pentru mașinile firmei: nu ține locul documentelor cerute în transportul rutier profesional de mărfuri sau de persoane, cum sunt înregistrările tahografului.",
+  },
+  {
+    q: "Ce înseamnă „categoria de vehicul”?",
+    a: "Normele cer categoria, dar n-o definesc. Foaia scrie de aceea două lucruri: tipul vehiculului (autoturism, autoutilitară și celelalte) și felul în care e folosit, cu temeiul din Codul fiscal, de exemplu „agent de vânzări — art. 298 alin. (3) lit. b)”. Încadrarea o face firma (pct. 68 alin. (8) din norme); dacă ai dubii, întreabă contabilul.",
+  },
+  {
+    q: "Cum trec norma de consum?",
+    a: "Normele cer „norma proprie de consum carburant pe kilometru parcurs”, deci norma firmei pentru mașina respectivă. Foaia o scrie în litri la 100 km și, alături, pe kilometru: 6,5 l/100 km înseamnă 0,065 l/km. Excel-ul înmulțește singur kilometrii fiecărei curse cu norma și, la sfârșitul lunii, pune stocul după normă lângă cel constatat la bord.",
+  },
+  {
+    q: "O foaie pe zi sau una pe lună?",
+    a: "Normele nu cer o anumită perioadă. Modelul e lunar, cu fiecare zi a lunii trecută deja. Dacă mașina face mai multe drumuri pe zi, cum face un agent de vânzări, alegi 2, 3 sau 4 rânduri pe zi, câte unul pe deplasare.",
+  },
+  {
+    q: "Cum arată o foaie completată?",
+    a: "Ca mai sus, cu mașina, norma și kilometrajul de început trecute. Poți deschide un exemplu completat pentru un agent de vânzări, cu două rânduri pe zi, apoi îl schimbi cu datele tale.",
+    href: EXEMPLU_COMPLETAT,
+  },
+];
 
 const CAMPURI_TEXT = [
   { nume: "auto", eticheta: "Nr. de înmatriculare", exemplu: "B-123-ABC", max: 120 },
@@ -156,13 +187,27 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
       </div>
 
       <div data-tipar="ascunde">
-        <Banda inaltime="scurta" supratitlu="Pe scurt" titlu="La ce folosește foaia de parcurs">
+        <Banda
+          inaltime="scurta"
+          supratitlu="Pe scurt"
+          titlu="Ce trebuie să conțină foaia ca să deduci cheltuiala"
+        >
           <div className="mt-4 max-w-[68ch] space-y-3 text-[0.9375rem] leading-[1.7]">
             <p>
-              Codul fiscal limitează la 50% deducerea cheltuielilor cu mașinile care nu sunt
-              folosite exclusiv în activitatea firmei — art. 25 alin. (3) lit. l). Foaia de parcurs
-              e documentul prin care firma arată, deplasare cu deplasare, unde a mers mașina și de
-              ce.
+              Normele Codului fiscal cer ca foaia de parcurs să cuprindă cel puțin patru informații:
+              HG 1/2016, titlul II pct. 16 alin. (2) pentru impozitul pe profit și titlul VII pct.
+              68 alin. (2) pentru TVA.
+            </p>
+            <ol className="list-decimal space-y-1 pl-6">
+              <li>categoria de vehicul utilizat;</li>
+              <li>scopul și locul deplasării;</li>
+              <li>kilometrii parcurși;</li>
+              <li>norma proprie de consum carburant pe kilometru parcurs.</li>
+            </ol>
+            <p>
+              Modelul de aici le are pe toate patru. Are și ce cere orice document justificativ
+              (OMFP 2634/2015, anexa 1 pct. 2–3): denumirea firmei, CUI-ul, numărul și data
+              întocmirii, semnăturile.
             </p>
           </div>
         </Banda>
@@ -294,17 +339,93 @@ export default async function PaginaFoaieParcurs({ searchParams }: Proprietati) 
       <div data-tipar="ascunde">
         <Banda
           inaltime="scurta"
+          supratitlu="Deducerea"
+          titlu="50% sau 100%: impozit pe profit și TVA"
+        >
+          <div className="mt-4 max-w-[68ch] space-y-3 text-[0.9375rem] leading-[1.7]">
+            <p>
+              Pentru o mașină de cel mult 3.500 kg și cel mult 9 scaune cu tot cu al șoferului,
+              folosită și în scop personal, firma deduce 50% din cheltuieli la impozitul pe profit
+              (art. 25 alin. (3) lit. l) din Codul fiscal) și 50% din TVA (art. 298 alin. (1)).
+              Amortizarea nu intră sub limita de la impozitul pe profit.
+            </p>
+            <p>
+              Deducerea e integrală când mașina e folosită exclusiv în activitatea firmei sau intră
+              într-una dintre categoriile din lege: servicii de urgență, pază și protecție,
+              curierat; agenți de vânzări și de achiziții; transport de persoane cu plată, inclusiv
+              taxi; servicii cu plată, închiriere, școli de șoferi; vehicule vândute ca marfă (art.
+              25 alin. (3) lit. l) pct. 1–5 și art. 298 alin. (3)).
+            </p>
+            <p>
+              Foaia de parcurs e dovada pentru deducerea integrală. Cine aplică deducerea de 50% nu
+              trebuie să dovedească folosirea mașinii cu foaia de parcurs, spun normele la TVA (pct.
+              68 alin. (4)). Peste 3.500 kg sau peste 9 scaune, limita de 50% nu se aplică (art. 298
+              alin. (2)).
+            </p>
+          </div>
+        </Banda>
+      </div>
+
+      <div data-tipar="ascunde">
+        <Banda
+          inaltime="medie"
+          supratitlu="Întrebări"
+          titlu="Ce se mai întreabă despre foaia de parcurs"
+        >
+          <div className="border-mk-rigla/40 mt-8 border-t">
+            {INTREBARI.map((r) => (
+              <div
+                key={r.q}
+                className="border-mk-rigla/40 grid gap-2 border-b py-5 md:grid-cols-12 md:gap-8"
+              >
+                <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
+                  {r.q}
+                </h3>
+                <div className="md:col-span-8">
+                  <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6]">{r.a}</p>
+                  {r.href !== undefined && (
+                    <a
+                      href={r.href}
+                      data-umami-event="parcurs-exemplu"
+                      className="mt-2 inline-block text-[0.9375rem] underline underline-offset-4"
+                    >
+                      Deschide exemplul completat
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Banda>
+      </div>
+
+      <div data-tipar="ascunde">
+        <Banda
+          inaltime="scurta"
           supratitlu="Fără hârtie"
           titlu="Mașinile firmei, într-un singur loc"
         >
           <p className="text-mk-text-slab mt-4 max-w-[68ch] text-[0.9375rem] leading-[1.7]">
             ITP-ul, RCA-ul, rovinieta și foile de parcurs ale fiecărei mașini, cu alertă înainte de
-            expirare.{" "}
-            <Link href="/module/flota" className="underline underline-offset-4">
-              Cum arată modulul de parc auto
-            </Link>
-            .
+            expirare. Kilometrajul de plecare se propune din foaia anterioară, un regres sau un salt
+            de kilometri se semnalează, iar consumul din alimentări se compară cu cel declarat al
+            mașinii. Șeful de echipă aprobă foile oamenilor lui.
           </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href={RO.hero.ctaPrimar.href}
+              data-umami-event="cta-foaie-parcurs"
+              className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
+            >
+              {RO.hero.ctaPrimar.eticheta}
+            </Link>
+            <Link
+              href="/module/flota"
+              className="border-mk-rigla hover:border-mk-text inline-flex h-12 items-center rounded border px-6 text-[0.9375rem] font-medium transition-colors"
+            >
+              Cum arată modulul Flotă
+            </Link>
+          </div>
           <PeAcelasiSubiect legaturi={LEGATURI_CONEXE["/unelte/foaie-de-parcurs"]} />
         </Banda>
       </div>

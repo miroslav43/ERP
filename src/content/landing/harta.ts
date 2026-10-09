@@ -324,6 +324,7 @@ export const PAGINI: readonly Pagina[] = [
     // 2026-10-09: nota calculatorului de salariu numește funcțiile noi.
     // 9 oct: al optulea rând, calculatorul de zile de concediu.
     // 9 oct: nota cererii de concediu numește variantele.
+    // 9 oct: nota foii de parcurs numește cele 4 elemente din norme.
     actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },

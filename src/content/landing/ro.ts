@@ -974,7 +974,7 @@ export const RO: ContinutLanding = {
       },
       {
         titlu: "Foaie de parcurs",
-        text: "Mașina, șoferul și luna: traseul, scopul deplasării și kilometrii.",
+        text: "Cele 4 elemente cerute de normele fiscale, mai multe curse pe zi, alimentări.",
         formate: "PDF · Word · Excel",
         href: "/unelte/foaie-de-parcurs",
       },

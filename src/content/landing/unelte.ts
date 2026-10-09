@@ -53,7 +53,7 @@ export const ANTET_CONDICA: AntetPagina = {
 export const ANTET_FOAIE_PARCURS: AntetPagina = {
   supratitlu: "Unealtă gratuită",
   titlu: "Foaie de parcurs",
-  lead: "Scrie mașina, șoferul și luna: primești foaia de parcurs cu fiecare zi, traseul, scopul deplasării și kilometrii la plecare și la sosire. Descarci în Word, PDF sau Excel, fără cont.",
+  lead: "Scrie mașina, șoferul și luna: primești foaia de parcurs cu cele patru elemente cerute de normele Codului fiscal, mai multe curse pe zi, alimentările și rezumatul lunii. Descarci în Word, PDF sau Excel cu formule, fără cont.",
 };
 
 /** Fișa individuală de instruire SSM, după anexa 11 la HG 1425/2006. */

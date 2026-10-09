@@ -470,6 +470,14 @@ export function construiesteFoaieParcurs(p: ParametriFoaieParcurs): DocumentTabe
   };
 }
 
+/**
+ * Exemplul completat de pe pagină: o mașină de agent de vânzări, două rânduri
+ * pe zi. Stă aici, nu în `page.tsx`: o pagină Next nu exportă altceva decât
+ * componenta și metadatele. Testul paginii verifică că exemplul nu dă niciun aviz.
+ */
+export const EXEMPLU_COMPLETAT =
+  "?an=2026&luna=10&auto=B-123-ABC&marca=Dacia%20Logan&sofer=Radu%20Andrei&firma=Construct%20SRL&cui=RO12345678&nr=17&categorie=autoturism&combustibil=motorina&utilizare=agent&norma=6%2C5&km=125000&stoc=20&curse=2#documentul";
+
 export function foaieParcursDinParametri(q: URLSearchParams): DocumentTabelar {
   return construiesteFoaieParcurs(parametriFoaieParcurs(q));
 }

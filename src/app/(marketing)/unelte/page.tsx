@@ -72,7 +72,7 @@ const PAGINI = [
     href: "/unelte/foaie-de-parcurs",
     titlu: ANTET_FOAIE_PARCURS.titlu,
     lead: ANTET_FOAIE_PARCURS.lead,
-    nota: "fiecare zi a lunii, traseu și kilometri · Word, PDF, Excel",
+    nota: "cele 4 elemente din normele fiscale · până la 4 curse pe zi · Excel cu formule",
   },
   {
     href: "/unelte/fisa-instruire-ssm",

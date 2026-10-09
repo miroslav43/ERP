@@ -317,6 +317,38 @@ devine obligatoriu · pragul pentru cota de angajare a persoanelor cu handicap �
 plata compensatorie · periodicitățile de verificare tehnică ISCIR · duratele de
 utilizare a echipamentului individual de protecție.
 
+### Foaia de parcurs · unealta publică `/unelte/foaie-de-parcurs`
+
+Fără tabelă: unealta nu citește și nu scrie în bază. Verificat pe 8 oct 2026 pe
+formele consolidate de pe legislatie.just.ro, descărcate cu `curl`:
+
+- Codul fiscal (`DetaliiDocument/171282`, consolidat la 08.08.2026): art. 25
+  alin. (3) lit. l) pct. 1–5 (50% la impozitul pe profit, ≤ 3.500 kg, ≤ 9 scaune,
+  fără amortizare) și art. 298 alin. (1)–(3) (50% la TVA, aceleași excepții, plus
+  închirierea și leasingul la lit. e)).
+- Normele HG 1/2016 (`DetaliiDocument/212504`, consolidat la 31.03.2026): titlul
+  II pct. 16 alin. (2) și titlul VII pct. 68 alin. (2) cer în foaia de parcurs
+  „cel puțin … categoria de vehicul utilizat, scopul și locul deplasării,
+  kilometrii parcurși, norma proprie de consum carburant pe kilometru parcurs”;
+  pct. 68 alin. (4): la deducerea de 50% nu se cere foaia; alin. (8): încadrarea
+  o face firma.
+- OMFP 2634/2015 (`DetaliiDocument/173682`, consolidat la 01.08.2024): fără model
+  de foaie de parcurs; anexa 1 pct. 2–3 cere numărul, data și CIF-ul pe orice
+  document justificativ.
+
+⚠️ **„Categoria de vehicul”** nu e definită în norme. Unealta scrie tipul
+vehiculului (lista din modulul Flotă) și, separat, utilizarea cu temeiul din
+art. 25/298. De confirmat cu contabilul dacă ANAF se așteaptă la categoria
+omologată (M1, N1) sau la categoria de utilizare.
+
+⚠️ Dacă lipsa unui singur element duce, singură, la pierderea deducerii: nicio
+soluție ANAF sau jurisprudență verificată.
+
+⚠️ Transportul rutier profesional (tahograf, FAZ, actele Ministerului
+Transporturilor): neverificat pe sursă primară; pagina spune doar că modelul nu
+le acoperă. Anexele OMFP au fost citite prin `DetaliiDocumentAfis`, care poate
+servi o formă veche (memoria `portal-legislativ-consolidari`).
+
 ### Retenție și arhivare · `retention_policies`
 
 ⚠️ Termenele de păstrare pentru statele de plată și documentele de vechime · pentru

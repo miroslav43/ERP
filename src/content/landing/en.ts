@@ -934,7 +934,7 @@ export const EN: ContinutLanding = {
       },
       {
         titlu: "Vehicle trip log",
-        text: "Vehicle, driver and month: the route, the purpose of each trip and the kilometres.",
+        text: "The four items the tax rules require, several trips a day, refuelling.",
         formate: "PDF · Word · Excel",
         href: "/unelte/foaie-de-parcurs",
       },

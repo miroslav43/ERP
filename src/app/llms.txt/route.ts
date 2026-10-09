@@ -141,7 +141,7 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   [
     "/unelte/foaie-de-parcurs",
-    "Unealtă gratuită: foaie de parcurs lunară pentru o mașină de serviciu — fiecare zi, traseul, scopul deplasării, kilometrii la plecare și la sosire. Word, PDF sau Excel, fără cont. Cu limita de 50% din art. 25 alin. (3) lit. l) Cod fiscal pentru mașinile folosite și personal.",
+    "Unealtă gratuită: foaie de parcurs lunară cu cele patru elemente minime din normele Codului fiscal (HG 1/2016, titlul II pct. 16 alin. (2) și titlul VII pct. 68 alin. (2)): categoria vehiculului, scopul și locul deplasării, kilometrii parcurși, norma proprie de consum. Până la 4 curse pe zi, alimentări, rezumatul lunii și Excel cu formule (km parcurși, consum după normă, stoc de combustibil). Plus limita de 50% pentru mașinile folosite și personal, la impozitul pe profit (art. 25 alin. (3) lit. l) Cod fiscal) și la TVA (art. 298), și excepțiile cu deducere integrală. Word, PDF sau Excel, fără cont.",
   ],
   [
     "/unelte/fisa-instruire-ssm",
