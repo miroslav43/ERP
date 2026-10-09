@@ -121,6 +121,12 @@ interface Proprietati {
    * (`leave:update = own`) în AccesRestrictionat.
    */
   readonly poateEditaRegulile: boolean;
+  /**
+   * „Vezi cererile": `/concedii/echipa?employee_id=` pentru altcineva,
+   * `/concedii` pentru fișa proprie (echipa exclude privitorul, leave.ts).
+   * `null` = pagina-țintă nu se deschide pentru rolul ăsta.
+   */
+  readonly hrefCereri: string | null;
 }
 
 export async function SectiuneConcedii({
@@ -134,6 +140,7 @@ export async function SectiuneConcedii({
   codCor,
   poateVedeaRegulile,
   poateEditaRegulile,
+  hrefCereri,
 }: Proprietati) {
   const anCurent = Number(todayInBucharest().slice(0, 4));
   const angajat: AngajatPentruDrept = {
@@ -193,6 +200,15 @@ export async function SectiuneConcedii({
             .
           </>
         ) : null}
+        {hrefCereri === null ? null : (
+          <>
+            {" "}
+            <Link href={hrefCereri} className="underline underline-offset-2">
+              Vezi cererile
+            </Link>
+            .
+          </>
+        )}
       </p>
       <ul className="space-y-2">
         {randuri.map(({ tip, dreptAfisat, regulileOriginale }) => (

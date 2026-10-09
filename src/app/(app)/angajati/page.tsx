@@ -14,7 +14,7 @@ import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
@@ -32,6 +32,7 @@ import { departamente as listaDepartamente } from "@/lib/queries/attendance";
 import { ETICHETE_ROL_CONT, TONURI_STATUS, etichetaStare, rolAdministrativ } from "./etichete";
 import { FiltreAngajati } from "./filtre-angajati";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Angajați" };
 
@@ -44,9 +45,17 @@ interface ProprietatiTabel {
   readonly scope: "own" | "team" | "all";
   readonly userId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  /** `departments:read` — denumirea departamentului devine link spre panoul lui. */
+  readonly hrefDepartamente: boolean;
 }
 
-async function TabelAngajati({ organizationId, scope, userId, parametri }: ProprietatiTabel) {
+async function TabelAngajati({
+  organizationId,
+  scope,
+  userId,
+  parametri,
+  hrefDepartamente,
+}: ProprietatiTabel) {
   // `filtreDinUrl`, nu `.parse()`: `/angajati?limita=abc` arunca ZodError
   // necaptat — un ecran de eroare pentru o adresă editată de mână sau pentru
   // un link vechi. Comportamentul așteptat e lista nefiltrată.
@@ -157,7 +166,22 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
       cheie: "departament",
       antet: "Departament",
       peTelefon: "meta",
-      celula: (r) => r.department?.denumire ?? "—",
+      // Denumirea duce la panoul departamentului, doar pentru cine poate
+      // deschide `/departamente`; linkul imbricat în rând rămâne apăsabil
+      // (`[&_a]:relative` din `Tabel`).
+      celula: (r) =>
+        r.department === null ? (
+          "—"
+        ) : hrefDepartamente ? (
+          <Link
+            href={`/departamente?departament=${r.department.id}`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {r.department.denumire}
+          </Link>
+        ) : (
+          r.department.denumire
+        ),
     },
     {
       cheie: "functie",
@@ -243,9 +267,10 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "nucleu"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
   const scope = scopeFor(permisiuni, "employees:read");
 
@@ -336,6 +361,10 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
           scope={scope}
           userId={utilizator.id}
           parametri={parametri}
+          hrefDepartamente={poateDeschide("/departamente", {
+            features: module,
+            permissions: permisiuni,
+          })}
         />
       </Suspense>
     </div>

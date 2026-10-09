@@ -29,8 +29,8 @@ capcane: [10, 11, 22, 30]
 citeste_daca:
   - "CNP/IBAN care nu se văd → [[rol/hr]]"
   - "coloană inexistentă la SELECT → [[date/pontaj]]"
-scris_pe: 26b9de685cdd0f50bf4947388e750faa6ddede74
-scris_la: 2026-08-30
+scris_pe: 6b8c5b371c99ccd786400dc3dbe8b901117c36c8
+scris_la: 2026-10-09
 tags: [modul, hr, nucleu]
 ---
 
@@ -183,10 +183,9 @@ pas nemontat, așa că eticheta nu poate fi citită din arbore. Enumerările afi
 traduc din `src/app/(app)/angajati/etichete.ts` (`ETICHETE_REGIM_SPECIAL`,
 `ETICHETE_DURATA_CONTRACT`), nu din valoarea brută a bazei.
 
-Pe fișa angajatului, citirile care depind doar de `angajat` pleacă într-un singur
-`Promise.all`, iar porțile `can(...)` se evaluează sincron înaintea lui — ele decid dacă
-o interogare pleacă deloc. O citire nouă intră în acel bloc, nu ca `await` separat, și
-refolosește clientul `dbFisa` creat o dată deasupra.
+## Navigarea dintre fișă și celelalte module
+
+Secțiunea „În alte module”, filtrele de intrare și paleta Ctrl+K: [[modul/angajati/navigare]].
 
 ## Ce NU e aici
 

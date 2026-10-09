@@ -92,6 +92,8 @@ import { SectiuneConcedii } from "./sectiune-concedii";
 import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
 import { InvitatieAngajat } from "./invitatie-angajat";
 import { DateLipsa } from "./date-lipsa";
+import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
+import { SectiuneInAlteModule } from "./sectiune-in-alte-module";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -233,6 +235,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     sefulDepartamentului,
     areFisaPostului,
     documenteFirma,
+    permiseMunca,
   ] = await Promise.all([
     // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
     scope === "all" ? citesteRezumatDateSensibile(tenant.organizationId, id) : null,
@@ -354,6 +357,17 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     // Documentele create de firmă, pentru caseta „Emite document". Aceeași
     // poartă ca regenerarea: emiterea cere `employees:create = all`.
     poateRegenera ? listeazaSabloanePersonalizate(dbFisa, tenant.organizationId) : [],
+    // Permisul de muncă (0097+): doar la scope `all`, ca datele de identitate.
+    scope === "all"
+      ? dbFisa
+          .from("work_permits")
+          .select("id, tip_permis, numar, emis_de, valabil_de_la, valabil_pana")
+          .eq("organization_id", tenant.organizationId)
+          .eq("employee_id", id)
+          .is("deleted_at", null)
+          .order("valabil_pana", { ascending: false })
+          .then(({ data }) => data ?? [])
+      : Promise.resolve([]),
   ]);
 
   // Aruncat, nu înghițit cu `?? []`: o listă goală din cauza unei erori arată
@@ -463,6 +477,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   })();
 
   const esteFisaProprie = angajat.user_id === utilizator.id;
+  const contextPorti: ContextPorti = { features: module, permissions: permisiuni };
   // La scope `team`, echipa exclude fișa proprie (`can_access_evaluation`,
   // 0170): butonul se vedea, iar inserarea era refuzată de RLS.
   const poateCreaEvaluareAici =
@@ -743,7 +758,25 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
               )}
             </dd>
           </div>
-          <Camp eticheta="Departament" valoare={angajat.department?.denumire ?? null} />
+          {/* Departamentul duce la panoul lui (`/departamente?departament=`),
+              doar pentru cine poate deschide pagina structurii. */}
+          {angajat.department !== null && poateDeschide("/departamente", contextPorti) ? (
+            <div>
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
+                Departament
+              </dt>
+              <dd className="text-corp mt-0.5">
+                <Link
+                  href={`/departamente?departament=${angajat.department.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {angajat.department.denumire}
+                </Link>
+              </dd>
+            </div>
+          ) : (
+            <Camp eticheta="Departament" valoare={angajat.department?.denumire ?? null} />
+          )}
           {/*
             Managerul DIRECT, adică ultima verigă a lanțului deja citit pentru
             sub-antet — nu o a doua interogare. Lanțul de deasupra arată tot
@@ -751,9 +784,42 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             iar „Nedesemnat" e informația care lipsea de pe fișă: fără manager
             direct, cererile lui nu ajung la nimeni.
           */}
-          <Camp eticheta="Manager direct" valoare={lantManageri.at(-1)?.full_name ?? null} />
+          {/* Aceeași persoană e deja link în lanțul de sub titlu (a venit prin
+              RLS); aici era text simplu — inconsecvență pe aceeași fișă. */}
+          {lantManageri.at(-1) === undefined ? (
+            <Camp eticheta="Manager direct" valoare={null} />
+          ) : (
+            <div>
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
+                Manager direct
+              </dt>
+              <dd className="text-corp mt-0.5">
+                <Link
+                  href={`/angajati/${lantManageri.at(-1)?.id ?? ""}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {lantManageri.at(-1)?.full_name}
+                </Link>
+              </dd>
+            </div>
+          )}
         </dl>
       </section>
+
+      {/*
+        Fișa ca punct de plecare: ce ține de om în celelalte module, cu un clic,
+        prefiltrat pe el. Cardurile apar doar unde pagina-țintă se deschide
+        pentru rolul ăsta (registrul porților), deci hr nu vede diurna și
+        managerul nu vede salarizarea — nu ca listă goală, ci deloc.
+      */}
+      <SectiuneInAlteModule
+        organizationId={tenant.organizationId}
+        angajat={{ id: angajat.id, full_name: angajat.full_name }}
+        permisiuni={permisiuni}
+        module={module}
+        esteFisaProprie={esteFisaProprie}
+        azi={azi}
+      />
 
       <section aria-labelledby="titlu-date-personale" className={CLASA_SECTIUNE}>
         <h2 id="titlu-date-personale" className="text-sectiune mb-4 font-medium">
@@ -836,9 +902,21 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="titlu-contracte" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-contracte" className="text-sectiune mb-4 font-medium">
-          Contracte
-        </h2>
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="titlu-contracte" className="text-sectiune font-medium">
+            Contracte
+          </h2>
+          {/* Contractele pleacă spre REGES; coada lui e la un clic, doar pentru
+              cine o poate deschide (modul activ + `reges:read = all`). */}
+          {poateDeschide("/reges", contextPorti) ? (
+            <Link
+              href={`/reges?angajat=${angajat.id}`}
+              className="text-nota underline-offset-2 hover:underline"
+            >
+              Mesajele REGES ale acestei fișe
+            </Link>
+          ) : null}
+        </div>
         {angajat.contracts.length === 0 ? (
           <StareGoala mesaj="Fișa nu are încă niciun contract. Adăugați contractul individual de muncă înainte de transmiterea în REVISAL." />
         ) : (
@@ -993,7 +1071,51 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         codCor={angajat.cod_cor}
         poateVedeaRegulile={poateVedeaRegulileConcediu}
         poateEditaRegulile={module.has("leave") && can(permisiuni, "leave:update", "all")}
+        hrefCereri={
+          esteFisaProprie
+            ? poateDeschide("/concedii", contextPorti)
+              ? "/concedii"
+              : null
+            : poateDeschide("/concedii/echipa", contextPorti)
+              ? `/concedii/echipa?employee_id=${angajat.id}`
+              : null
+        }
       />
+
+      {/*
+        Permisul de muncă (angajati-P9): se scria la înrolare în `work_permits`
+        și nu se afișa NICĂIERI — nici numărul, nici expirarea. Doar la scope
+        `all`, ca restul datelor de identitate.
+      */}
+      {permiseMunca.length === 0 ? null : (
+        <section aria-labelledby="titlu-permis-munca" className={CLASA_SECTIUNE}>
+          <h2 id="titlu-permis-munca" className="text-sectiune mb-4 font-medium">
+            Permis de muncă
+          </h2>
+          <ul className="space-y-2">
+            {permiseMunca.map((permis) => {
+              const expirat = permis.valabil_pana < azi;
+              return (
+                <li
+                  key={permis.id}
+                  className="border-border rounded-control flex flex-wrap items-baseline gap-x-3 gap-y-1 border p-3"
+                >
+                  <span className="font-medium">
+                    {permis.tip_permis} nr. {permis.numar}
+                  </span>
+                  <span className="text-muted-foreground text-nota">
+                    {permis.emis_de === null ? "" : `emis de ${permis.emis_de} · `}
+                    {formatDate(permis.valabil_de_la)} – {formatDate(permis.valabil_pana)}
+                  </span>
+                  <Badge ton={expirat ? "pericol" : "succes"}>
+                    {expirat ? "Expirat" : "Valabil"}
+                  </Badge>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {scope === "all" && arePayroll ? (
         <section aria-labelledby="titlu-scutiri" className={CLASA_SECTIUNE}>

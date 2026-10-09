@@ -8,6 +8,8 @@ import { z } from "zod";
 import { reimprospateazaAplicatia } from "@/lib/actions/reimprospatare";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { listUserOrganizations } from "@/lib/queries/organizations";
+import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { setOrganizationCookie, clearOrganizationCookie } from "@/lib/tenant/organization-cookie";
 import { POARTA_PORTAL_ACTIVA, RUTA_PUBLICA, rutaDupaAutentificare } from "@/config/routes";
 import type { AppRole } from "@/lib/tenant/types";
@@ -177,4 +179,46 @@ export async function deconecteaza(): Promise<void> {
   await clearOrganizationCookie();
   reimprospateazaAplicatia();
   redirect(RUTA_PUBLICA);
+}
+
+/**
+ * Căutarea de angajați din paleta Ctrl+K.
+ *
+ * Paleta căuta DOAR meniul și firmele; „deschide fișa lui Popescu" însemna
+ * meniu → Angajați → filtru. Aici: numele (sau marca) → `/angajati/<id>`.
+ *
+ * Organizația vine din tenant, niciodată din client. Permisiunea e
+ * `employees:read` la orice scope — RLS (`employees_select`) restrânge
+ * singură la echipă sau la fișa proprie, deci un manager primește doar
+ * oamenii lui, iar un cont fără drept primește lista goală, nu o eroare.
+ * Fără `createAdminSupabase`: exact RLS-ul e ce vrem aici.
+ */
+export async function cautaAngajatiPaleta(
+  interogare: string,
+): Promise<readonly Readonly<{ id: string; eticheta: string; href: string }>[]> {
+  const termen = interogare
+    .trim()
+    .replace(/[%_\\]/gu, " ")
+    .slice(0, 60);
+  if (termen.length < 2) return [];
+  const rezolvare = await resolveTenant();
+  if (rezolvare.status !== "ok") return [];
+  const { tenant } = rezolvare;
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  const scope = scopeFor(permisiuni, "employees:read");
+  if (scope === null || scope === "none") return [];
+  const db = await createServerSupabase();
+  const { data } = await db
+    .from("employees")
+    .select("id, full_name, marca, functie")
+    .eq("organization_id", tenant.organizationId)
+    .is("deleted_at", null)
+    .or(`full_name.ilike.%${termen}%,marca.ilike.%${termen}%`)
+    .order("full_name")
+    .limit(8);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    eticheta: `${r.full_name}${r.functie === null ? "" : ` · ${r.functie}`}`,
+    href: `/angajati/${r.id}`,
+  }));
 }

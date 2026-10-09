@@ -8,7 +8,7 @@ import { CommandPalette, type ElementPaleta } from "@/components/layout/command-
 import { MeniuCont, type OrganizatieComutator } from "@/components/layout/meniu-cont";
 import { SidebarTrigger } from "@/components/layout/sidebar";
 import { buildNavigation, type NavGroupResult } from "@/lib/navigation/build-navigation";
-import { tiparePermise } from "@/config/porti-ruta";
+import { poateDeschide, tiparePermise } from "@/config/porti-ruta";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { numaraNecitite } from "@/lib/queries/notifications";
@@ -145,7 +145,14 @@ export async function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
-        <CommandPalette elemente={elementePaleta} organizatii={organizatiiComutator} />
+        <CommandPalette
+          elemente={elementePaleta}
+          organizatii={organizatiiComutator}
+          cautaAngajati={poateDeschide("/angajati/[id]", {
+            features: module,
+            permissions: permisiuni,
+          })}
+        />
 
         <Link
           href="/notificari"

@@ -6,11 +6,12 @@ cai:
   - "src/app/(app)/profil/**"
   - "src/lib/queries/profile.ts"
   - "src/components/forms/formular-profil.tsx"
+  - "src/config/porti-ruta.ts"
 tabele: [profiles, organization_members]
 permisiuni: []
 capcane: [2]
-scris_pe: 6ea36c0fa56a1248da248d3e93af7ac1154915ee
-scris_la: 2026-09-26
+scris_pe: 6b8c5b371c99ccd786400dc3dbe8b901117c36c8
+scris_la: 2026-10-09
 tags: [modul]
 ---
 
@@ -26,9 +27,19 @@ deci trebuie să fie accesibil și cuiva care încă n-a ales o firmă sau a fos
 Nicio poartă de permisiune, niciun `requireFeature` — nu există cheie de permisiune pentru
 propriul cont dincolo de `users:read = own`, iar RLS întoarce oricum doar rândul propriu.
 
-Consecința pentru cine schimbă pagina: **nu se poate folosi `tenant.organizationId` aici**.
-Orice citire care are nevoie de organizație aparține fișei de angajat, adică portalului, nu
-paginii ăsteia.
+Consecința pentru cine schimbă pagina: **nu se poate folosi `requireTenant` aici**. Rail-ul
+„Ce ține de mine" (de mai jos) rezolvă firma SOFT, prin `resolveTenant()`, care întoarce o
+stare în loc să redirecteze; fără firmă aleasă rail-ul lipsește, profilul rămâne.
+
+## „Ce ține de mine"
+
+Rolurile din `(app)` (org_admin, hr, manager) n-au portal, iar ecranele lor personale
+erau împrăștiate prin filele fiecărui modul. Secțiunea leagă: fișa proprie
+(`idFisaProprie` + `/angajati/[id]`), pontajul propriu (`/pontaj/saptamana?angajat=` sau
+`/pontaj?angajat=`), `/concedii`, `/ticketing` (tichetele mele), `/inventar/in-primire`,
+`/notificari`. Fiecare link trece prin `poateDeschide()` din `src/config/porti-ruta.ts`:
+modul activ + permisiunea paginii-țintă. Nicio citire de date aici, doar porți și id-ul
+fișei.
 
 ## Citiri
 

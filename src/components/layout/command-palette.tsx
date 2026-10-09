@@ -6,9 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 
 import { useSemnalIncarcare } from "@/components/incarcare/use-incarcare";
 import { useRouter } from "next/navigation";
-import { Building2, Command, CornerDownLeft, Search, X } from "lucide-react";
+import { Building2, Command, CornerDownLeft, Search, User, X } from "lucide-react";
 
-import { comutaOrganizatiaDirect } from "@/app/(app)/actions";
+import { cautaAngajatiPaleta, comutaOrganizatiaDirect } from "@/app/(app)/actions";
 import type { OrganizatieComutator } from "@/components/layout/meniu-cont";
 
 export type ElementPaleta = Readonly<{
@@ -20,7 +20,13 @@ export type ElementPaleta = Readonly<{
 
 type Rezultat =
   | Readonly<{ tip: "navigare"; id: string; eticheta: string; grup: string; href: string }>
+  | Readonly<{ tip: "angajat"; id: string; eticheta: string; grup: string; href: string }>
   | Readonly<{ tip: "organizatie"; id: string; eticheta: string; grup: string }>;
+
+/** Cât așteaptă paleta după ultima tastă înainte să întrebe serverul. */
+const INTARZIERE_CAUTARE_MS = 200;
+/** Sub atâtea caractere nu se caută în bază: „a" ar potrivi pe toată lumea. */
+const MINIM_CARACTERE = 2;
 
 /** Id stabil per poziție — singura punte între `<input>` și rândul activ. */
 function idOptiune(indice: number): string {
@@ -30,9 +36,11 @@ function idOptiune(indice: number): string {
 type Props = Readonly<{
   elemente: readonly ElementPaleta[];
   organizatii: readonly OrganizatieComutator[];
+  /** `employees:read` la orice scope: paleta întreabă serverul după angajați. */
+  cautaAngajati?: boolean;
 }>;
 
-export function CommandPalette({ elemente, organizatii }: Props) {
+export function CommandPalette({ elemente, organizatii, cautaAngajati = false }: Props) {
   /**
    * `<dialog>` se conduce din STARE, nu prin apeluri imperative din handlere.
    *
@@ -51,6 +59,58 @@ export function CommandPalette({ elemente, organizatii }: Props) {
   const [interogare, setInterogare] = useState("");
   const [indiceActiv, setIndiceActiv] = useState(0);
   const [seComuta, startTransition] = useTransition();
+  /**
+   * Angajații găsiți pe server, ÎMPREUNĂ cu termenul pentru care au venit.
+   * Meniul se filtrează local, instantaneu; oamenii cer un drum la bază, deci
+   * vin cu întârziere și doar de la două caractere. Lista se folosește numai
+   * dacă termenul ei e cel tastat acum — așa un răspuns lent pentru „po" nu
+   * poate suprascrie rezultatele pentru „popescu", iar la o interogare nouă
+   * sau la închidere lista veche iese singură din calcul, fără un `setState`
+   * sincron în efect.
+   */
+  const [gasiti, setGasiti] = useState<
+    Readonly<{ termen: string; rezultate: readonly Rezultat[] }>
+  >({ termen: "", rezultate: [] });
+  const termenCautat = interogare.trim();
+  useEffect(() => {
+    if (!cautaAngajati || !deschis || termenCautat.length < MINIM_CARACTERE) return;
+    let activ = true;
+    const temporizator = window.setTimeout(() => {
+      void cautaAngajatiPaleta(termenCautat).then(
+        (rezultate) => {
+          if (!activ) return;
+          setGasiti({
+            termen: termenCautat,
+            rezultate: rezultate.map((g) => ({
+              tip: "angajat",
+              id: g.id,
+              eticheta: g.eticheta,
+              grup: "Angajat",
+              href: g.href,
+            })),
+          });
+        },
+        () => {
+          // O căutare picată nu e o eroare de pagină: paleta rămâne pe meniu.
+          if (activ) setGasiti({ termen: termenCautat, rezultate: [] });
+        },
+      );
+    }, INTARZIERE_CAUTARE_MS);
+    return () => {
+      activ = false;
+      window.clearTimeout(temporizator);
+    };
+  }, [termenCautat, cautaAngajati, deschis]);
+  const angajatiGasiti = useMemo<readonly Rezultat[]>(
+    () =>
+      cautaAngajati &&
+      deschis &&
+      gasiti.termen === termenCautat &&
+      termenCautat.length >= MINIM_CARACTERE
+        ? gasiti.rezultate
+        : [],
+    [cautaAngajati, deschis, gasiti, termenCautat],
+  );
 
   /*
     Paleta ÎȘI ÎNCHIDE dialogul înainte să pornească acțiunea (`inchide()` la
@@ -87,10 +147,13 @@ export function CommandPalette({ elemente, organizatii }: Props) {
     if (termen.length === 0) {
       return toate.slice(0, 12);
     }
-    return toate
-      .filter((rezultat) => cheieCautare(`${rezultat.eticheta} ${rezultat.grup}`).includes(termen))
-      .slice(0, 12);
-  }, [interogare, toate]);
+    const dinMeniu = toate.filter((rezultat) =>
+      cheieCautare(`${rezultat.eticheta} ${rezultat.grup}`).includes(termen),
+    );
+    // Oamenii după meniu: un nume de persoană nu se confundă cu o pagină, iar
+    // meniul e ce se caută cel mai des. Plafonul rămâne 12 în total.
+    return [...dinMeniu, ...angajatiGasiti].slice(0, 12);
+  }, [interogare, toate, angajatiGasiti]);
 
   const deschide = useCallback(() => {
     setInterogare("");
@@ -163,7 +226,7 @@ export function CommandPalette({ elemente, organizatii }: Props) {
       if (rezultat === undefined || seComuta) {
         return;
       }
-      if (rezultat.tip === "navigare") {
+      if (rezultat.tip === "navigare" || rezultat.tip === "angajat") {
         inchide();
         router.push(rezultat.href);
         return;
@@ -276,7 +339,7 @@ export function CommandPalette({ elemente, organizatii }: Props) {
         <div className="border-border flex shrink-0 items-center gap-2 border-b px-3">
           <Search aria-hidden="true" className="text-muted-foreground h-4 w-4 shrink-0" />
           <label htmlFor="paleta-cautare" className="sr-only">
-            Căutați în meniu și în organizațiile dumneavoastră
+            Căutați în meniu, între angajați și în organizațiile dumneavoastră
           </label>
           <input
             id="paleta-cautare"
@@ -302,7 +365,11 @@ export function CommandPalette({ elemente, organizatii }: Props) {
               setIndiceActiv(0);
             }}
             onKeyDown={laTastaLista}
-            placeholder="Căutați o pagină sau o organizație…"
+            placeholder={
+              cautaAngajati
+                ? "Căutați o pagină, un angajat sau o firmă…"
+                : "Căutați o pagină sau o organizație…"
+            }
             className="placeholder:text-muted-foreground text-corp h-11 w-full bg-transparent"
           />
           {/*
@@ -353,6 +420,8 @@ export function CommandPalette({ elemente, organizatii }: Props) {
               >
                 {rezultat.tip === "organizatie" ? (
                   <Building2 aria-hidden="true" className="text-primary h-4 w-4" />
+                ) : rezultat.tip === "angajat" ? (
+                  <User aria-hidden="true" className="text-primary h-4 w-4" />
                 ) : (
                   <CornerDownLeft aria-hidden="true" className="h-4 w-4" />
                 )}
