@@ -111,7 +111,9 @@ export default async function PaginaFisaSsm({ searchParams }: Proprietati) {
         </Banda>
       </div>
 
-      <Banda inaltime="scurta">
+      {/* Toată banda formularului rămâne pe ecran: altfel umplutura și rigla ei
+          se tipăreau goale deasupra documentului. */}
+      <Banda inaltime="scurta" data-tipar="ascunde">
         <form
           action="#documentul"
           method="get"

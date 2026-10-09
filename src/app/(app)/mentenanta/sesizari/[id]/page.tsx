@@ -58,6 +58,11 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
     <div className="mx-auto w-full max-w-3xl">
       <FisaSesizare
         date={date}
+        hrefRaporteazaDinNou={
+          can(permisiuni, "maintenance:create", "own")
+            ? `/mentenanta/sesizari/noua?echipament=${date.sesizare.equipment_id}`
+            : null
+        }
         zona="app"
         actor={actor}
         userId={user.id}

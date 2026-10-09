@@ -25,9 +25,18 @@ interface Proprietati {
   /** `null` = viewerul nu are `employees:read ≥ team`: input de identificator. */
   readonly angajati: readonly AngajatOptiune[] | null;
   readonly astazi: string;
+  /** Din `?sablon=` / `?angajat=`: preselecția, când vii de pe șablon sau de pe fișă. */
+  readonly sablonImplicit?: string | null;
+  readonly angajatImplicit?: string | null;
 }
 
-export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
+export function FormularInstanta({
+  sabloane,
+  angajati,
+  astazi,
+  sablonImplicit = null,
+  angajatImplicit = null,
+}: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -69,6 +78,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
           id={id.sablon}
           name="template_id"
           required
+          defaultValue={sablonImplicit ?? undefined}
           className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {sabloane.map((s) => (
@@ -89,6 +99,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
               id={id.angajat}
               name="employee_id"
               required
+              defaultValue={angajatImplicit ?? undefined}
               placeholder="id-ul angajatului"
               aria-describedby={`${id.angajat}-ajutor`}
               className="border-foreground/60 rounded-control text-corp border px-3 py-2"
@@ -103,6 +114,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
             id={id.angajat}
             name="employee_id"
             required
+            defaultValue={angajatImplicit ?? undefined}
             className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {angajati.map((a) => (

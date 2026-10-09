@@ -1108,6 +1108,21 @@ dialog[open]::backdrop {
   }
 
   /*
+   * Documentele late — foaia de pontaj cu 31 de coloane, foaia de parcurs, fișa
+   * SSM — se tipăresc pe A4 culcat, ca PDF-ul lor. Pe portret, tabelul foii de
+   * pontaj nu încape, iar containerul derulabil îl taie. Pagina cu nume se
+   * aplică doar foilor care conțin elementul marcat; restul rămâne portret.
+   * Chrome și Firefox o respectă; Safari ignoră `page` și tipărește portret.
+   */
+  @page peisaj {
+    size: A4 landscape;
+  }
+
+  [data-tipar-pagina="peisaj"] {
+    page: peisaj;
+  }
+
+  /*
    * Un rând de tabel rupt între două pagini e ilizibil într-un document cu
    * valoare juridică — procesul-verbal de predare-primire, decontul, fluturașul.
    * Antetul se repetă pe fiecare pagină: altfel coloanele de pe pagina a doua

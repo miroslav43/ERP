@@ -125,8 +125,11 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
     (scopAprobare === "all" || angajat !== undefined);
   // Politica dovezii n-are ramură de responsabil: fără subordonare, pagina
   // dovezii răspundea „nu există încă", cu o cauză falsă.
+  // Dovada există doar după finalizare: pe o instanță în curs sau anulată,
+  // linkul ducea la „Dovada nu există încă".
   const poateVedeaDovada =
-    scopeFor(permisiuni, "checklists:read") === "all" || angajat !== undefined;
+    instanta.finalizata_la !== null &&
+    (scopeFor(permisiuni, "checklists:read") === "all" || angajat !== undefined);
   const poateDeschideInventarul =
     module.has("inventory") && can(permisiuni, "inventory:read", "team");
 

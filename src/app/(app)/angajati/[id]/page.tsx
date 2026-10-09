@@ -1555,6 +1555,14 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {contractDeConcediat === null ? null : (
               <DialogConcediere
+                hrefReges={
+                  poateDeschide("/reges", contextPorti) ? `/reges?angajat=${angajat.id}` : null
+                }
+                hrefIesire={
+                  poateDeschide("/onboarding/noua", contextPorti)
+                    ? `/onboarding/noua?angajat=${angajat.id}`
+                    : null
+                }
                 contractId={contractDeConcediat.id}
                 numarContract={contractDeConcediat.numar}
                 nume={angajat.full_name}

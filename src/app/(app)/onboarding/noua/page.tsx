@@ -16,7 +16,16 @@ import { FormularInstanta } from "./formular-instanta";
 
 export const metadata: Metadata = { title: "Instanță de checklist nouă" };
 
-export default async function PaginaInstantaNoua() {
+const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function uuidDin(valoare: string | string[] | undefined): string | null {
+  return typeof valoare === "string" && TIPAR_UUID.test(valoare) ? valoare : null;
+}
+
+export default async function PaginaInstantaNoua({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -30,6 +39,13 @@ export default async function PaginaInstantaNoua() {
       <AccesRestrictionat mesaj="Pornirea unui checklist e rezervată celor care administrează integrarea angajaților. Solicitați dreptul necesar dacă aveți nevoie de el." />
     );
   }
+
+  // Preselecții din adresă (pagina șablonului, fișa angajatului): un UUID
+  // valid sau nimic. Un id necunoscut nu se potrivește cu nicio opțiune și
+  // selectul cade pe prima — fără eroare.
+  const parametri = await searchParams;
+  const sablonImplicit = uuidDin(parametri["sablon"]);
+  const angajatImplicit = uuidDin(parametri["angajat"]);
 
   const sabloane = await sabloaneActive(tenant.organizationId);
   if (sabloane.length === 0) {
@@ -65,7 +81,13 @@ export default async function PaginaInstantaNoua() {
         />
       </div>
 
-      <FormularInstanta sabloane={sabloane} angajati={angajati} astazi={todayInBucharest()} />
+      <FormularInstanta
+        sabloane={sabloane}
+        angajati={angajati}
+        astazi={todayInBucharest()}
+        sablonImplicit={sablonImplicit}
+        angajatImplicit={angajatImplicit}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { clientEnv } from "@/config/env";
 
 import { ButonTiparAfis } from "./buton-tipar";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Afiș de pontare" };
 
@@ -73,7 +74,14 @@ export default async function PaginaAfisPontare({
     return (
       <div className="mx-auto max-w-2xl space-y-4 p-4">
         <Callout fel="atentie" titlu="Punctul de lucru nu are încă un cod">
-          Generați codul din lista de puncte de lucru, apoi reveniți aici ca să tipăriți afișul.
+          Generați codul din lista de puncte de lucru, apoi reveniți aici ca să tipăriți afișul.{" "}
+          <Link
+            href={`/puncte-lucru?punct=${punct.id}#punct-${punct.id}`}
+            className="underline underline-offset-2"
+          >
+            Deschide punctul de lucru
+          </Link>
+          .
         </Callout>
       </div>
     );
@@ -137,6 +145,16 @@ export default async function PaginaAfisPontare({
         <p>
           Rotirea codului din lista de puncte de lucru invalidează afișele deja tipărite. Faceți-o
           dacă bănuiți că fotografia afișului a ieșit din firmă.
+        </p>
+        {/* Afișul era o fundătură: după tipărire, niciun drum înapoi (pe
+            telefon nu există nici firimitura). */}
+        <p>
+          <Link
+            href={`/puncte-lucru?punct=${punct.id}#punct-${punct.id}`}
+            className="underline underline-offset-2"
+          >
+            ← Înapoi la punctele de lucru
+          </Link>
         </p>
       </div>
     </div>

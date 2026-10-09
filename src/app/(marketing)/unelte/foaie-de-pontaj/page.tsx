@@ -98,7 +98,9 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
         />
       </div>
 
-      <Banda inaltime="scurta">
+      {/* Toată banda formularului rămâne pe ecran: altfel umplutura și rigla ei
+          se tipăreau goale deasupra documentului. */}
+      <Banda inaltime="scurta" data-tipar="ascunde">
         <form
           action="#documentul"
           method="get"
@@ -174,7 +176,7 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
       </Banda>
 
       <Banda id="documentul" inaltime="scurta">
-        <figure className="mk-foaie">
+        <figure className="mk-foaie" data-tipar-pagina="peisaj">
           <figcaption className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
             <p className="font-mk-date text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
               Foaie colectivă de prezență · {foaie.eticheta}

@@ -9,6 +9,7 @@ import { Buton } from "@/components/ui/buton";
 import type { SerieAbsenteNemotivate } from "@/lib/queries/attendance";
 
 import { emiteSuspendareAbsente } from "./actions";
+import { arataToast } from "@/components/ui/toast";
 
 /**
  * Seriile de absențe nemotivate care încă n-au o decizie de suspendare.
@@ -23,7 +24,14 @@ import { emiteSuspendareAbsente } from "./actions";
  * pontajul primește ore lucrate, adică atunci când aplicația află, prima, că
  * omul s-a întors.
  */
-export function AlertaAbsente({ serii }: { readonly serii: readonly SerieAbsenteNemotivate[] }) {
+export function AlertaAbsente({
+  serii,
+  hrefReges = null,
+}: {
+  readonly serii: readonly SerieAbsenteNemotivate[];
+  /** `/reges?stare=de_transmis` dacă pagina se deschide pentru rolul curent. */
+  readonly hrefReges?: string | null;
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [deschis, setDeschis] = useState<string | null>(null);
@@ -47,6 +55,25 @@ export function AlertaAbsente({ serii }: { readonly serii: readonly SerieAbsente
       }
       setDeschis(null);
       setSfarsit("");
+      // Seria dispare din ecran după decizie: fără mesaj, omul nu știe că a
+      // reușit și nici că evenimentul trebuie transmis în 3 zile lucrătoare.
+      const text =
+        rezultat.data.motiv ??
+        "Decizia de suspendare a fost emisă. Evenimentul de transmis în REGES este pregătit.";
+      arataToast(
+        hrefReges === null
+          ? { fel: "eroare", text }
+          : {
+              fel: "informativ",
+              text,
+              actiune: {
+                eticheta: "Deschide coada REGES",
+                onClick: () => {
+                  router.push(hrefReges);
+                },
+              },
+            },
+      );
       router.refresh();
     });
   }

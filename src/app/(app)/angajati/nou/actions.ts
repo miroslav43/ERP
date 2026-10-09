@@ -32,6 +32,10 @@ interface RezultatInrolare {
   readonly invitatieTrimisaLa: string | null;
   /** Denumirea șablonului de integrare pornit automat, sau `null`. */
   readonly checklistPornit: string | null;
+  /** Instanța pornită, ca ecranul să poată duce la ea. */
+  readonly checklistId: string | null;
+  /** Bunurile predate la pasul 5, cu alocarea lor — procesul-verbal e la `/inventar/<item>/pv/<alocare>`. */
+  readonly bunuriPredate: readonly Readonly<{ alocareId: string; itemId: string }>[];
   /**
    * Ce NU s-a putut face, deși înrolarea a reușit.
    *
@@ -447,6 +451,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     // trei eșuează, primul rămâne predat și al treilea se încearcă oricum.
     // Un singur try în jurul buclei ar fi transformat un eșec într-o listă
     // predată pe jumătate, fără să se vadă unde s-a rupt.
+    const bunuriPredate: Array<Readonly<{ alocareId: string; itemId: string }>> = [];
     for (const itemId of inventory_item_ids) {
       try {
         const predare = await predaObiect({
@@ -461,6 +466,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         // fără verificarea asta, try/catch-ul n-avea ce prinde, iar bunul
         // rămânea nepredat fără avertismentul de mai jos.
         if (!predare.ok) throw predare.error;
+        bunuriPredate.push({ alocareId: predare.data.id, itemId: predare.data.item_id });
       } catch (eroare) {
         avertismente.push(
           "Un bun de inventar nu a putut fi predat. Predați-l manual din fișa angajatului — poate fi nevoie de dreptul „inventar: modificare”.",
@@ -808,6 +814,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
      * a apăsat butonul.
      */
     let checklistPornit: string | null = null;
+    let checklistId: string | null = null;
     try {
       const { data: sabloane } = await db
         .from("checklist_templates")
@@ -832,19 +839,24 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
           );
         }
       } else {
-        const { error: eroareInstanta } = await db.from("checklist_instances").insert({
-          organization_id: ctx.tenant.organizationId,
-          template_id: ales.id,
-          employee_id: angajat.id,
-          data_referinta: valabil_de_la,
-          observatii: null,
-          // Triggerul `internal.checklist_pregateste_instanta` (BEFORE INSERT)
-          // suprascrie `tip` din șablon; valoarea de aici există doar ca să
-          // compileze, exact ca în `pornesteInstanta`.
-          tip: "onboarding",
-        });
+        const { data: instanta, error: eroareInstanta } = await db
+          .from("checklist_instances")
+          .insert({
+            organization_id: ctx.tenant.organizationId,
+            template_id: ales.id,
+            employee_id: angajat.id,
+            data_referinta: valabil_de_la,
+            observatii: null,
+            // Triggerul `internal.checklist_pregateste_instanta` (BEFORE INSERT)
+            // suprascrie `tip` din șablon; valoarea de aici există doar ca să
+            // compileze, exact ca în `pornesteInstanta`.
+            tip: "onboarding",
+          })
+          .select("id")
+          .single();
         if (eroareInstanta !== null) throw eroareInstanta;
         checklistPornit = ales.denumire;
+        checklistId = instanta.id;
       }
     } catch (eroare) {
       avertismente.push(
@@ -894,6 +906,8 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       documente,
       invitatieTrimisaLa,
       checklistPornit,
+      checklistId,
+      bunuriPredate,
       avertismente,
     };
   },

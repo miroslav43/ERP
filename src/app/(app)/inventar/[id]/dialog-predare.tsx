@@ -9,6 +9,7 @@ import { STARI_OBIECT } from "@/schemas/inventory";
 
 import { predaObiect } from "../actions";
 import { ETICHETE_STARE } from "../etichete";
+import { useRouter } from "next/navigation";
 
 /**
  * Predarea obiectului către un angajat.
@@ -40,6 +41,7 @@ interface Proprietati {
 }
 
 export function DialogPredare({ itemId, angajati }: Proprietati): ReactElement {
+  const router = useRouter();
   async function trimite(date: FormData) {
     return predaObiect({
       item_id: itemId,
@@ -68,6 +70,11 @@ export function DialogPredare({ itemId, angajati }: Proprietati): ReactElement {
       marime="mare"
       actiune={trimite}
       mesajReusita="Predarea a fost înregistrată."
+      // Caseta promite procesul-verbal: hârtia de semnat e pasul imediat
+      // următor, deci se deschide direct, nu după încă un clic.
+      laReusita={({ id, item_id }) => {
+        router.push(`/inventar/${item_id}/pv/${id}`);
+      }}
       etichetaTrimite="Înregistrează predarea"
       textInCurs="Se înregistrează…"
     >

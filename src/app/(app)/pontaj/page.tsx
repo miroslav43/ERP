@@ -60,6 +60,7 @@ import {
   vizualizareaCeruta,
   type Vizualizare,
 } from "./vizualizari";
+import { poateDeschide as poateDeschideRuta } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Pontaj" };
 
@@ -289,9 +290,10 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const { user, tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, moduleActive] = await Promise.all([
     requireFeature(tenant.organizationId, "attendance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   // `can(..., "own")` și nu `scopeFor(...) !== null`: scope-ul „none" e refuz
@@ -565,7 +567,14 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
         </Callout>
       ) : null}
 
-      <AlertaAbsente serii={seriiAbsente} />
+      <AlertaAbsente
+        serii={seriiAbsente}
+        hrefReges={
+          poateDeschideRuta("/reges", { features: moduleActive, permissions: permisiuni })
+            ? "/reges?stare=de_transmis"
+            : null
+        }
+      />
 
       {scope === "own" ? null : (
         <FiltrePontaj

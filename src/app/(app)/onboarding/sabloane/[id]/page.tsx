@@ -22,6 +22,7 @@ import {
 } from "../../etichete";
 import { AsistentSablon } from "../_componente/asistent-sablon";
 import { optiuniAsistent } from "../_componente/optiuni";
+import { buton } from "@/components/ui/buton";
 
 export const metadata: Metadata = { title: "Șablon de checklist" };
 
@@ -71,6 +72,18 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
         descriere={`${ETICHETE_TIP[sablon.tip]} · Valabil de la ${formatDate(sablon.valabil_de_la)}${
           sablon.valabil_pana_la === null ? "" : ` până la ${formatDate(sablon.valabil_pana_la)}`
         } · ${sablon.activ ? "Activ" : "Dezactivat"} · ${String(pasi.length)} pași`}
+        // Pasul firesc după ce vezi (sau tocmai ai creat) un șablon: pornești
+        // o instanță din el. Poarta e a paginii-țintă (`checklists:create` all).
+        actiuni={
+          sablon.activ && can(permisiuni, "checklists:create", "all") ? (
+            <Link
+              href={`/onboarding/noua?sablon=${sablon.id}`}
+              className={buton({ varianta: "primar" })}
+            >
+              Pornește o instanță
+            </Link>
+          ) : null
+        }
       />
     </div>
   );

@@ -20,6 +20,7 @@ import {
   EXPLICATII_MOD_CALCUL,
 } from "../../etichete";
 import { actualizeazaPlan, creeazaPlan } from "../../actions";
+import { useRouter } from "next/navigation";
 
 interface Optiune {
   readonly id: string;
@@ -95,6 +96,7 @@ export function FormularPlan({
   const editare = planExistent !== undefined;
   const [modCalcul, setModCalcul] = useState<string>(planExistent?.mod_calcul ?? "flotant");
 
+  const router = useRouter();
   const trimite = useCallback(
     async (formular: FormData) => {
       const gol = (cheie: string): string | null => {
@@ -162,6 +164,11 @@ export function FormularPlan({
       marime="mare"
       actiune={trimite}
       mesajReusita={editare ? "Planul a fost actualizat." : "Planul a fost salvat."}
+      // Planul nou se deschide (ca echipamentul nou), nu rămâne nevidențiat
+      // într-o listă: scadența și responsabilul se verifică pe fișa lui.
+      laReusita={(rezultat) => {
+        if (!editare && "id" in rezultat) router.push(`/mentenanta/planuri/${rezultat.id}`);
+      }}
       etichetaTrimite={editare ? "Salvează modificările" : "Salvează planul"}
       textInCurs="Se salvează…"
       laResetare={() => {

@@ -71,7 +71,7 @@ export default async function PaginaSarcini() {
             return (
               <li key={sarcina.id}>
                 <Link
-                  href={`/onboarding/${sarcina.instance_id}`}
+                  href={`/onboarding/${sarcina.instance_id}#pas-${sarcina.id}`}
                   className="bg-surface border-border hover:border-ring rounded-panou block border p-4 transition-colors"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">

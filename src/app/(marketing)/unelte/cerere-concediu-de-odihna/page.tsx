@@ -143,7 +143,9 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
         />
       </div>
 
-      <Banda inaltime="scurta">
+      {/* Toată banda formularului rămâne pe ecran: altfel umplutura și rigla ei
+          se tipăreau goale deasupra documentului. */}
+      <Banda inaltime="scurta" data-tipar="ascunde">
         <form
           action="#documentul"
           method="get"
@@ -350,8 +352,8 @@ export default async function PaginaCerereConcediu({ searchParams }: Proprietati
         )}
       </Banda>
 
-      {/* `Banda` nu primește atribute libere, deci marcajul de tipărire stă pe
-          învelișul ei — la fel ca la antet, mai sus. */}
+      {/* Marcajul de tipărire stă pe înveliș, la fel ca la antet, mai sus.
+          Din 8 oct 2026, `Banda` primește și ea `data-tipar`. */}
       <div data-tipar="ascunde">
         <Banda
           inaltime="medie"

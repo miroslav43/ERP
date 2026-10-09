@@ -1036,7 +1036,10 @@ export const aprobaPontajBloc = createAction({
   audit: {
     action: "update",
     entityType: "attendance_approval_batch",
-    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    entityId: (
+      _input,
+      data: Readonly<{ id: string; liniiAprobate: number; zileDeschise: number }>,
+    ) => data.id,
     // `observatii` NU intră în audit — vezi comentariul din `deschidePerioada`.
     allow: ["period_id", "department_id", "employee_ids"],
   },
@@ -1587,7 +1590,8 @@ export const emiteSuspendareAbsente = createAction({
   audit: {
     action: "create",
     entityType: "contract_suspendare",
-    entityId: (_input, data: Readonly<{ suspendareId: string | null }>) => data.suspendareId,
+    entityId: (_input, data: Readonly<{ suspendareId: string | null; motiv: string | null }>) =>
+      data.suspendareId,
     allow: ["employee_id", "data_inceput", "data_sfarsit"],
   },
   revalidate: [...CAI_REVALIDARE],

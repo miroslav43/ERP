@@ -11,8 +11,13 @@ export function PrevizualizareDocument({ document: brut }: { document: DocumentT
   // Același text ca în fișiere: un U+000B lipit din Word se vede pe ecran ca
   // spațiu, la fel ca în PDF și în Word (vezi `curataText`).
   const d = curataDocument(brut);
+  // Documentele late (foaia de parcurs, fișa SSM) se tipăresc pe A4 culcat,
+  // ca PDF-ul lor: vezi `@page peisaj` din globals.css.
   return (
-    <figure className="mk-foaie">
+    <figure
+      className="mk-foaie"
+      data-tipar-pagina={d.orientare === "peisaj" ? "peisaj" : undefined}
+    >
       <figcaption>
         <p className="font-mk-display text-[1.0625rem] font-semibold">{d.titlu}</p>
         {d.subtitlu !== null && <p className="text-mk-text-slab text-[0.875rem]">{d.subtitlu}</p>}

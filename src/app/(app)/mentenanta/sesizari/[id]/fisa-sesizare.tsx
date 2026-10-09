@@ -41,6 +41,8 @@ interface Proprietati {
   readonly azi: string;
   /** Momentul randării, ISO — pentru durata opririi deschise. */
   readonly acum: string;
+  /** Formularul de sesizare nouă, pe același utilaj; `null` = rolul nu-l deschide. */
+  readonly hrefRaporteazaDinNou?: string | null;
 }
 
 const ECHIPA = "Echipa de mentenanță";
@@ -52,6 +54,7 @@ const ECHIPA = "Echipa de mentenanță";
  */
 export function FisaSesizare({
   date,
+  hrefRaporteazaDinNou = null,
   zona,
   actor,
   userId,
@@ -328,6 +331,18 @@ export function FisaSesizare({
             : sesizare.status === "retrasa"
               ? "Raportorul a retras sesizarea; nu se mai intervine pe ea."
               : "Rezolvarea a fost confirmată; nu mai sunt acțiuni de făcut. Dacă defecțiunea reapare, se raportează una nouă."}
+          {/* „se raportează din nou" cere un buton, nu o plecare prin meniu. */}
+          {hrefRaporteazaDinNou === null ||
+          hrefRaporteazaDinNou === undefined ||
+          sesizare.status === "retrasa" ? null : (
+            <>
+              {" "}
+              <Link href={hrefRaporteazaDinNou} className="underline underline-offset-2">
+                Raportează din nou
+              </Link>
+              .
+            </>
+          )}
         </Callout>
       ) : (
         <section aria-labelledby="actiuni-sesizare" className="space-y-3">

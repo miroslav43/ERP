@@ -16,6 +16,7 @@ import { ETICHETE_TIP_PREZENTA } from "../etichete";
 import { formatDate } from "@/lib/format/date";
 import { ListaAvertismente } from "../lista-avertismente";
 import { trimiteSaptamanaPontaj } from "./actions";
+import { arataToast } from "@/components/ui/toast";
 
 /**
  * Un rând din descompunerea săptămânii: eticheta la stânga, cifra la dreapta.
@@ -106,6 +107,8 @@ interface Proprietati {
    * nu trebuie să afle că alegerea există.
    */
   readonly employeeId?: string | null;
+  /** Foaia lunii (`/pontaj?angajat=`), dacă pagina se deschide pentru rolul curent. */
+  readonly hrefPrezenta?: string | null;
 }
 
 /** Cuvintele formularului, după ce ESTE: plan de prezență sau fișă de pontaj (0165). */
@@ -144,6 +147,7 @@ export function FormularSaptamana({
   regulaFirmei,
   lucreazaWeekendInitial,
   employeeId = null,
+  hrefPrezenta = null,
 }: Proprietati) {
   const t = peSaptamana ? TEXTE_PONTAJ : TEXTE_PLAN;
   const router = useRouter();
@@ -248,6 +252,24 @@ export function FormularSaptamana({
       // adică exact când se recalculează.
       setAvertismente(rezultat.data.avertismente);
       setZileSarite(rezultat.data.zileSarite);
+      // Se rămâne pe formular (avertismentele stau lângă el), dar ce a intrat
+      // în foaia lunii e la un clic. Toastul cu acțiune nu se stinge singur.
+      arataToast({
+        fel: "reusita",
+        text: peSaptamana
+          ? "Pontajul săptămânii a fost trimis."
+          : "Planul săptămânii a fost salvat.",
+        ...(hrefPrezenta === null
+          ? {}
+          : {
+              actiune: {
+                eticheta: "Vezi foaia lunii",
+                onClick: () => {
+                  router.push(hrefPrezenta);
+                },
+              },
+            }),
+      });
       router.refresh();
     });
   }

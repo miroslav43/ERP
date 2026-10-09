@@ -23,16 +23,22 @@ import {
 
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../../etichete";
 import { fileDePontaj } from "../../file-pontaj";
+import { cn } from "@/lib/ui/cn";
 
 export const metadata: Metadata = { title: "Lotul de aprobare" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagina) {
+export default async function PaginaPerioadaDetaliu({ params, searchParams }: ProprietatiPagina) {
   // Un segment care nu e UUID nu poate desemna niciun rând: 404, nu 22P02.
   const id = idDinRuta((await params).id);
+  // `?lot=<id>`: lotul tocmai aprobat, evidențiat pe server (`:target` nu se
+  // aprinde după navigarea din client); `#lot-<id>` derulează la el.
+  const lotBrut = (await searchParams)["lot"];
+  const lotEvidentiat = typeof lotBrut === "string" ? lotBrut : null;
 
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
@@ -213,7 +219,14 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
                   ? undefined
                   : angajati.get(lot.manager_employee_id);
               return (
-                <li key={lot.id} className="border-border rounded-panou border p-4">
+                <li
+                  key={lot.id}
+                  id={`lot-${lot.id}`}
+                  className={cn(
+                    "border-border rounded-panou scroll-mt-24 border p-4",
+                    lotEvidentiat === lot.id && "ring-primary ring-2",
+                  )}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
                       <p className="font-medium">

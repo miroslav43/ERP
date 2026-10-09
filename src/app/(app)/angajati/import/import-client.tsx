@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import { LIMITA_FISIER_BYTES, verificaFisierImport } from "@/lib/import/excel";
-import { Buton } from "@/components/ui/buton";
+import { Buton, buton } from "@/components/ui/buton";
 import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { StareEroare } from "@/components/ui/stare-eroare";
@@ -17,6 +17,7 @@ import {
   aplicaImportAngajati as aplicaImportAngajatiBruta,
   pregatesteIncarcareaImportului as pregatesteIncarcareaImportuluiBruta,
 } from "./actions";
+import Link from "next/link";
 
 type EroareRand = { rand: number; camp: string; mesaj: string };
 /** Aceeași eroare poate apărea de două ori identic; cheia poartă și poziția. */
@@ -299,9 +300,14 @@ export function ImportAngajatiClient() {
             Import încheiat: {progres.reusite} fișe create, {esecuri.length} rânduri respinse la
             scriere.
           </p>
-          <Buton varianta="secundar" className="mt-3" onClick={descarcaRaport}>
-            Descarcă raportul complet
-          </Buton>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link href="/angajati" className={buton({ varianta: "primar" })}>
+              Vezi lista de angajați
+            </Link>
+            <Buton varianta="secundar" onClick={descarcaRaport}>
+              Descarcă raportul complet
+            </Buton>
+          </div>
         </div>
       )}
     </section>

@@ -122,7 +122,11 @@ export function PasChecklist({
   return (
     <ol className="space-y-2">
       {pasi.map((pas) => (
-        <li key={pas.id} className="border-border rounded-panou border p-3">
+        <li
+          key={pas.id}
+          id={`pas-${pas.id}`}
+          className="border-border rounded-panou scroll-mt-24 border p-3"
+        >
           <PasRand
             pas={pas}
             poateBifa={bifabile.has(pas.id)}

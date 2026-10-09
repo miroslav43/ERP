@@ -64,6 +64,11 @@ export default async function PaginaSesizareaMea({
     <div className={`${LATIMI.formular} p-4`}>
       <FisaSesizare
         date={date}
+        hrefRaporteazaDinNou={
+          can(permisiuni, "maintenance:create", "own")
+            ? `/portal/sesizari/noua?echipament=${date.sesizare.equipment_id}`
+            : null
+        }
         zona="portal"
         actor={actor}
         userId={user.id}

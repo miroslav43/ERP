@@ -276,6 +276,17 @@ export function AsistentSablon({
     arataToast({
       fel: "reusita",
       text: editare ? "Șablonul a fost salvat." : "Șablonul a fost creat.",
+      // Șablonul nou cere pasul următor; toastul cu acțiune nu se stinge.
+      ...(editare
+        ? {}
+        : {
+            actiune: {
+              eticheta: "Pornește o instanță",
+              onClick: () => {
+                router.push(`/onboarding/noua?sablon=${raspuns.data.id}`);
+              },
+            },
+          }),
     });
     router.push(`/onboarding/sabloane/${raspuns.data.id}`);
     router.refresh();

@@ -10,7 +10,7 @@ import { Callout } from "@/components/ui/callout";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { cn } from "@/lib/ui/cn";
 import { construiesteOrganigrama, type NodOrganigrama } from "@/domain/hr/organigrama";
-import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -87,10 +87,16 @@ function Arbore({
   noduri,
   nivel,
   roluri,
+  evidentiat,
+  poateEdita,
 }: {
   readonly noduri: readonly NodOrganigrama<NodManagerial>[];
   readonly nivel: number;
   readonly roluri: ReadonlyMap<string, string>;
+  /** `?angajat=<id>`: nodul la care a trimis alt ecran, evidențiat pe server. */
+  readonly evidentiat: string | null;
+  /** `employees:update` all: nodul cu manager dedus primește „Setează managerul". */
+  readonly poateEdita: boolean;
 }) {
   // Trunchiul care coboară din nodul părinte e punctat doar când TOATE muchiile
   // rândului sunt deduse. La un rând mixt el e parcurs și de o legătură reală.
@@ -106,11 +112,20 @@ function Arbore({
       {noduri.map((nod) => {
         const functie = etichetaFunctiei(nod.date, roluri);
         return (
-          <li key={nod.date.id} className={nod.implicit ? "og-implicit" : undefined}>
+          <li
+            key={nod.date.id}
+            id={`angajat-${nod.date.id}`}
+            className={cn("scroll-mt-24", nod.implicit && "og-implicit")}
+          >
             {/* Cardul rămâne apăsabil în întregime (linkul numelui se întinde
                 peste el), dar departamentul și funcția au linkurile LOR, deasupra
                 (`relative z-10`): un `<a>` în alt `<a>` nu e permis. */}
-            <div className="border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat relative flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center">
+            <div
+              className={cn(
+                "border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat relative flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center",
+                evidentiat === nod.date.id && "ring-primary ring-2",
+              )}
+            >
               <AvatarAngajat url={nod.date.avatar_url} nume={nod.date.full_name} marime="sm" />
               <Link
                 href={`/angajati/${nod.date.id}`}
@@ -147,6 +162,18 @@ function Arbore({
                   {nod.date.manager_employee_id === null
                     ? "manager nedesemnat"
                     : "manager inactiv sau șters"}
+                  {/* Corectarea pornește de aici și se întoarce tot aici, pe nod. */}
+                  {poateEdita ? (
+                    <>
+                      {" · "}
+                      <Link
+                        href={`/angajati/${nod.date.id}/editeaza?inapoi=organigrama`}
+                        className="relative z-10 not-italic hover:underline"
+                      >
+                        Setează managerul
+                      </Link>
+                    </>
+                  ) : null}
                 </span>
               ) : null}
               {nod.copii.length > 0 ? (
@@ -158,7 +185,13 @@ function Arbore({
               ) : null}
             </div>
             {nod.copii.length > 0 ? (
-              <Arbore noduri={nod.copii} nivel={nivel + 1} roluri={roluri} />
+              <Arbore
+                noduri={nod.copii}
+                nivel={nivel + 1}
+                roluri={roluri}
+                evidentiat={evidentiat}
+                poateEdita={poateEdita}
+              />
             ) : null}
           </li>
         );
@@ -167,8 +200,17 @@ function Arbore({
   );
 }
 
-export default async function PaginaOrganigrama() {
+export default async function PaginaOrganigrama({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const utilizator = await requireUser();
+  // `?angajat=<id>` (de pe fișă, după corectarea managerului): nodul evidențiat
+  // pe server — `:target` nu se aprinde după o navigare din client.
+  const parametriAdresa = await searchParams;
+  const angajatBrut = parametriAdresa["angajat"];
+  const evidentiat = typeof angajatBrut === "string" ? angajatBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -253,7 +295,13 @@ export default async function PaginaOrganigrama() {
       ) : (
         <div className="overflow-x-auto pb-4">
           <div className="w-fit min-w-full px-4">
-            <Arbore noduri={arbore} nivel={1} roluri={roluri} />
+            <Arbore
+              noduri={arbore}
+              nivel={1}
+              roluri={roluri}
+              evidentiat={evidentiat}
+              poateEdita={can(permisiuni, "employees:update", "all")}
+            />
           </div>
         </div>
       )}

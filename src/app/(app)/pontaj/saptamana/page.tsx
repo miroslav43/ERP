@@ -7,7 +7,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { angajatiPentruPontaj, idFisaProprie } from "@/lib/queries/employees";
@@ -35,6 +35,8 @@ import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 
 import { FormularSaptamana } from "./formular-saptamana";
 import { AlegeAngajat } from "./alege-angajat";
+import { poateDeschide } from "@/config/porti-ruta";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Planul săptămânii" };
 
@@ -46,10 +48,12 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
   const { user, tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, moduleActive] = await Promise.all([
     requireFeature(tenant.organizationId, "attendance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  const contextPorti = { features: moduleActive, permissions: permisiuni };
 
   if (!can(permisiuni, "attendance:create", "own")) {
     return (
@@ -235,7 +239,20 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       />
 
       {poateAlegeAngajat ? (
-        <AlegeAngajat angajati={angajati} selectat={fisaTinta} saptamanaStart={saptamanaStart} />
+        <div className="space-y-2">
+          <AlegeAngajat angajati={angajati} selectat={fisaTinta} saptamanaStart={saptamanaStart} />
+          {/* Omul ales a venit prin RLS (e în lista de opțiuni): fișa lui e la un clic. */}
+          {fisaTinta !== null && hrefFisa({ id: fisaTinta }, permisiuni) !== null ? (
+            <p className="text-nota">
+              <Link
+                href={hrefFisa({ id: fisaTinta }, permisiuni) ?? "#"}
+                className="underline-offset-2 hover:underline"
+              >
+                Fișa angajatului ales
+              </Link>
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       <nav aria-label="Alege săptămâna" className="flex flex-wrap items-center gap-3">
@@ -289,6 +306,11 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         regulaFirmei={rezumatRegulaPontaj(config, setari !== null)}
         lucreazaWeekendInitial={lucreazaWeekendInitial}
         employeeId={fisaTinta === propriaFisaId ? null : fisaTinta}
+        hrefPrezenta={
+          fisaTinta !== null && poateDeschide("/pontaj", contextPorti)
+            ? `/pontaj?angajat=${fisaTinta}`
+            : null
+        }
       />
     </div>
   );

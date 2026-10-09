@@ -7,6 +7,7 @@ import { Camp, clasaBifa } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 import { JUDETE } from "@/schemas/organization";
 import { creeazaPunctLucru } from "./actions";
+import { useRouter } from "next/navigation";
 
 /**
  * Punct de lucru nou, într-o casetă.
@@ -47,6 +48,7 @@ async function trimite(date: FormData) {
 }
 
 export function FormularPunctLucruNou() {
+  const router = useRouter();
   return (
     <FormularDialog
       declansator={{
@@ -58,6 +60,11 @@ export function FormularPunctLucruNou() {
       marime="mare"
       actiune={trimite}
       mesajReusita="Punctul de lucru a fost creat."
+      // Rândul nou, evidențiat pe server (`?punct=`) și derulat (`#punct-`),
+      // într-o listă altfel sortată alfabetic; pasul următor (codul QR) e pe el.
+      laReusita={({ id }) => {
+        router.push(`/puncte-lucru?punct=${id}#punct-${id}`);
+      }}
       etichetaTrimite="Creează punctul de lucru"
       textInCurs="Se creează…"
     >
