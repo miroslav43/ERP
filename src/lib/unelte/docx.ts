@@ -1,7 +1,12 @@
 import {
+  AlignmentType,
   Document,
   ExternalHyperlink,
+  Footer,
+  Header,
+  HeightRule,
   Packer,
+  PageNumber,
   PageOrientation,
   Paragraph,
   ShadingType,
@@ -10,6 +15,7 @@ import {
   TableRow,
   TextRun,
   WidthType,
+  type ISectionOptions,
 } from "docx";
 
 import { ADRESA_SITE } from "@/content/landing/contact";
@@ -18,11 +24,33 @@ import {
   adresaDinFisier,
   LINIE_GOALA,
   SEMNATURA_FISIER,
+  textAntetRulant,
   type DocumentTabelar,
 } from "./document-tabelar";
 
-/** `DocumentTabelar` → .docx. Mărimile în `docx` sunt în jumătăți de punct: 16 = 8 pt. */
-export async function randeazaDocx(d: DocumentTabelar): Promise<Uint8Array> {
+/** Înălțimile de rând din `docx` sunt în twipi: 20 pe punct. */
+const TWIPI_PE_PUNCT = 20;
+
+/** „Pagina X din Y”, pe secțiune: fiecare fișă din documentul cu mai multe se numără singură. */
+function subsol(): Footer {
+  return new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [
+          new TextRun({
+            children: ["Pagina ", PageNumber.CURRENT, " din ", PageNumber.TOTAL_PAGES_IN_SECTION],
+            size: 14,
+            color: "6B7280",
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+/** Un `DocumentTabelar` ca secțiune Word. Mărimile în `docx` sunt în jumătăți de punct: 16 = 8 pt. */
+function sectiune(d: DocumentTabelar): ISectionOptions {
   const totalRelativ = d.coloane.reduce((s, c) => s + c.latime, 0) || 1;
   const celula = (text: string, i: number, aldin: boolean) =>
     new TableCell({
@@ -71,7 +99,19 @@ export async function randeazaDocx(d: DocumentTabelar): Promise<Uint8Array> {
           }),
           ...d.randuri.map(
             (r) =>
-              new TableRow({ children: d.coloane.map((_, i) => celula(r[i] ?? "", i, false)) }),
+              new TableRow({
+                // Un rând de semnătură rupt între două pagini nu mai e semnabil.
+                cantSplit: true,
+                ...(d.inaltimeRand === undefined
+                  ? {}
+                  : {
+                      height: {
+                        value: Math.round(d.inaltimeRand * TWIPI_PE_PUNCT),
+                        rule: HeightRule.ATLEAST,
+                      },
+                    }),
+                children: d.coloane.map((_, i) => celula(r[i] ?? "", i, false)),
+              }),
           ),
         ],
       }),
@@ -99,22 +139,47 @@ export async function randeazaDocx(d: DocumentTabelar): Promise<Uint8Array> {
     }),
   );
 
+  return {
+    properties: {
+      // Prima pagină fără antet rulant: are deja titlul mare.
+      titlePage: true,
+      page: {
+        size: {
+          orientation:
+            d.orientare === "peisaj" ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
+        },
+      },
+    },
+    headers: {
+      default: new Header({
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: textAntetRulant(d), size: 14, color: "6B7280" })],
+          }),
+        ],
+      }),
+      first: new Header({ children: [new Paragraph({ children: [] })] }),
+    },
+    footers: { default: subsol(), first: subsol() },
+    children: copii,
+  };
+}
+
+/** Mai multe documente într-un singur .docx, câte o secțiune (deci pagină nouă) fiecare. */
+export async function randeazaDocxMultiplu(
+  documente: readonly DocumentTabelar[],
+): Promise<Uint8Array> {
+  const primul = documente[0];
+  if (primul === undefined) throw new Error("Niciun document de randat.");
   const document = new Document({
     creator: "Administrativo",
-    title: d.titlu,
-    sections: [
-      {
-        properties: {
-          page: {
-            size: {
-              orientation:
-                d.orientare === "peisaj" ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
-            },
-          },
-        },
-        children: copii,
-      },
-    ],
+    title: primul.titlu,
+    sections: documente.map((d) => sectiune(d)),
   });
   return new Uint8Array(await Packer.toBuffer(document));
+}
+
+/** `DocumentTabelar` → .docx. */
+export async function randeazaDocx(d: DocumentTabelar): Promise<Uint8Array> {
+  return randeazaDocxMultiplu([d]);
 }

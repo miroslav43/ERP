@@ -6,8 +6,8 @@ import {
   type DocumentTabelar,
   type Format,
 } from "./document-tabelar";
-import { randeazaDocx } from "./docx";
-import { randeazaPdf } from "./pdf";
+import { randeazaDocx, randeazaDocxMultiplu } from "./docx";
+import { randeazaPdf, randeazaPdfMultiplu } from "./pdf";
 import { randeazaXlsx } from "./xlsx";
 
 const TIP: Readonly<Record<Format, string>> = {
@@ -33,18 +33,40 @@ const RANDARI: Readonly<Record<Format, (d: DocumentTabelar) => Promise<Uint8Arra
 export const ANTET_CACHE_DESCARCARE = "private, no-store";
 
 /**
- * Fișierul ca răspuns de descărcare. `new Uint8Array(...)` copiază într-un
- * `ArrayBuffer` propriu: tipurile din `lib.dom` nu acceptă ca `BodyInit` un
- * `Uint8Array<ArrayBufferLike>`, iar `Buffer`-ul din `docx` e exact asta.
+ * Octeții unui fișier ca răspuns de descărcare. `new Uint8Array(...)` copiază
+ * într-un `ArrayBuffer` propriu: tipurile din `lib.dom` nu acceptă ca
+ * `BodyInit` un `Uint8Array<ArrayBufferLike>`, iar `Buffer`-ul din `docx` e
+ * exact asta.
+ *
+ * Exportată pentru rutele cu Excel propriu (foaia de pontaj, condica): ele își
+ * construiesc registrul cu formule, dar antetele trebuie să fie aceleași —
+ * inclusiv `private, no-store`, ca nicio rută să nu-și scrie singură antetul.
  */
-export async function raspunsDocument(d: DocumentTabelar, format: Format): Promise<Response> {
-  // Punctul unic de curățare pentru toate uneltele și toate formatele: vezi `curataText`.
-  const continut = await RANDARI[format](curataDocument(d));
+export function raspunsBinar(continut: Uint8Array, format: Format, numeFisier: string): Response {
   return new Response(new Uint8Array(continut), {
     headers: {
       "content-type": TIP[format],
-      "content-disposition": `attachment; filename="${numeFisierSigur(d.numeFisier)}.${format}"`,
+      "content-disposition": `attachment; filename="${numeFisierSigur(numeFisier)}.${format}"`,
       "cache-control": ANTET_CACHE_DESCARCARE,
     },
   });
+}
+
+export async function raspunsDocument(d: DocumentTabelar, format: Format): Promise<Response> {
+  // Punctul unic de curățare pentru toate uneltele și toate formatele: vezi `curataText`.
+  return raspunsBinar(await RANDARI[format](curataDocument(d)), format, d.numeFisier);
+}
+
+/** Mai multe documente (fișele individuale de pontaj) într-un singur PDF sau Word. */
+export async function raspunsDocumente(
+  documente: readonly DocumentTabelar[],
+  format: "pdf" | "docx",
+  numeFisier: string,
+): Promise<Response> {
+  // Aceeași curățare ca la un singur document: o fișă cu un nume lipit din Word
+  // (U+000B) nu are voie să strice tot fișierul cu 60 de fișe.
+  const curate = documente.map((d) => curataDocument(d));
+  const continut =
+    format === "pdf" ? await randeazaPdfMultiplu(curate) : await randeazaDocxMultiplu(curate);
+  return raspunsBinar(continut, format, numeFisier);
 }
