@@ -25,6 +25,7 @@ export function Banda({
   titlu,
   lead,
   aliniereTitlu = "stanga",
+  "data-tipar": tipar,
   children,
 }: {
   id?: string;
@@ -34,12 +35,19 @@ export function Banda({
   titlu?: string;
   lead?: string;
   aliniereTitlu?: "stanga" | "larg";
+  /**
+   * Convenția de tipărire a proiectului (globals.css, `@media print`). Până pe
+   * 8 oct 2026, `Banda` nu-l transmitea: `<Banda data-tipar="ascunde">` compila
+   * (atributele cu cratimă nu se verifică pe componente) și nu făcea nimic.
+   */
+  "data-tipar"?: "ascunde";
   children?: ReactNode;
 }) {
   const cerneala = fundal === "cerneala";
   return (
     <section
       id={id}
+      data-tipar={tipar}
       className={`scroll-mt-20 ${
         cerneala ? "mk-cerneala bg-mk-cerneala text-mk-text-inv" : "bg-mk-hartie text-mk-text"
       }`}

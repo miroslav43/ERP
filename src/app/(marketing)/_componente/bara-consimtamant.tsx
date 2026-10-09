@@ -70,6 +70,7 @@ export function BaraConsimtamant() {
     <div
       role="region"
       aria-label="Cookie-uri de analiză"
+      data-tipar="ascunde"
       className="mk-cerneala bg-mk-cerneala text-mk-text-inv fixed inset-x-0 bottom-0 z-50 border-t border-(--color-mk-rigla-inv)"
     >
       {/* Pe telefon, bara ocupa 180 px din 844 (21%) și acoperea captura de sub
