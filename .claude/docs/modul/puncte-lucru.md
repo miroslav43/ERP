@@ -8,13 +8,22 @@ cai:
   - "supabase/migrations/0030_onboarding_companie.sql"
   - "supabase/migrations/0096_pontaj_rapid.sql"
 tabele: [puncte_lucru, attendance_entries]
-permisiuni: [departments:read, departments:create, departments:update]
+permisiuni:
+  [
+    departments:read,
+    departments:create,
+    departments:update,
+    maintenance:read,
+    employees:read,
+    audit:read,
+  ]
 capcane: [17]
 citeste_daca:
   - "cod de pontaj care nu mai merge după tipărire, sau eticheta butonului → secțiunea „Rotește” în cod"
   - "poartă de citire scrisă doar pe „none” → secțiunea „Rute”"
-scris_pe: 9464e60307064ec5eacd03ce40769dc9c68ceb1b
-scris_la: 2026-10-09
+  - "legătură sau cifră care nu apare pe fișa unui punct → secțiunea „Rute”"
+scris_pe: ed4ad654d64120bfad37e146a32c8fbe4f6159f0
+scris_la: 2026-10-10
 tags: [modul]
 ---
 
@@ -33,6 +42,7 @@ o cheie inventată ar întoarce `none` — refuz tăcut.
 | Rută                      | Poartă                                                                                                                   |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `/puncte-lucru`           | `requireFeature(..., "nucleu")` + `departments:read`; scrierea cere `departments:create` / `departments:update` la `all` |
+| `/puncte-lucru/[id]`      | fișa punctului — aceeași poartă ca lista: `departments:read` nenul, nu `all`                                             |
 | `/puncte-lucru/[id]/afis` | afișul tipăribil, cu codul — cere `departments:update` la `all`, nu `:read`                                              |
 
 Poarta de citire a listei se scrie cu `scopeFor`, respinsă pe `null` **și** pe `"none"`:
@@ -46,8 +56,23 @@ un ecran gol în loc de `AccesRestrictionat`. Aceeași formă completă e în
 Afișul cere `departments:update`, nu `:read`, fiindcă poartă codul în clar, iar cine îl
 vede poate ponta de oriunde — e un secret operațional, nu o listă.
 
-Preambulul ambelor pagini pornește `requireFeature` și `getPermissionMap` prin
-`Promise.all` — citiri independente, pe tabele diferite. În `/puncte-lucru`, selectul de
+Fișa `/puncte-lucru/[id]` nu adaugă poartă proprie: aceeași `departments:read` ca lista,
+la fel înregistrată în `src/config/porti-ruta.ts`. Rândul vine prin politica de SELECT,
+deci pentru cine nu-l vede punctul **nu există**: `maybeSingle()` + `notFound()`, adică
+404, nu „interzis". Segmentul trece prin `idDinRuta` (`src/lib/rute/parametri.ts`), deci
+un `[id]` care nu e UUID dă tot 404, nu un 22P02 ieșit la suprafață ca eroare de server.
+Restul ecranului se ramifică pe permisiuni, nu pe poartă: acțiunile și rândul „Cod de
+pontare" — care spune doar `generat`, niciodată codul — cer `departments:update` la
+`all`; legătura spre echipamente cere feature-ul `maintenance` plus `maintenance:read` la
+`team`, cea spre angajați `employees:read = all`, cea spre codurile QR feature-ul
+`attendance` plus `departments:update`. Cifrele se numără cu `count` exact, pe același
+predicat ca lista-țintă, și DOAR unde linkul se afișează. „Istoricul modificărilor" își
+citește singur poarta — `audit:read` la `all` — și nu randează nimic sub ea; filtrul e
+`entity_id`, iar toate acțiunile modulului scriu acolo id-ul punctului.
+
+Preambulul celor trei pagini pornește `requireFeature` și `getPermissionMap` prin
+`Promise.all` — citiri independente, pe tabele diferite (pe listă și pe fișă, în același
+val pleacă și `getEnabledFeatures`). În `/puncte-lucru`, selectul de
 puncte pleacă în același val (înlănțuit doar de `createServerSupabase()`), iar `error` se
 verifică după poartă, ca înainte: `Promise.all` schimbă doar ordinea în timp a cererilor,
 nu ordinea deciziilor — respingerea lui `requireFeature` se propagă la fel ca înlănțuită.
@@ -58,6 +83,8 @@ nu ordinea deciziilor — respingerea lui `requireFeature` se propagă la fel ca
 e refuzat cu `INTERZIS` înainte de orice interogare. Contractul lor (poartă, payload,
 filtre, coduri de eroare) e fixat de `src/app/(app)/puncte-lucru/actions.test.ts`, pe
 clientul Supabase fals — care prinde un filtru de organizație lipsă, nu o politică greșită.
+`ActiuniPunctLucru` e același component pe listă și pe fișă, cu același `areCodPontaj` în
+loc de cod: o schimbare în el atinge ambele ecrane.
 
 | Funcție                                                                     | Permisiune           |
 | --------------------------------------------------------------------------- | -------------------- |
@@ -120,14 +147,17 @@ adăugat coloana `cod_pontaj` (token opac, între 16 și 64 de caractere) și
 `attendance_entries.punct_lucru_id`, care reține UNDE s-a pontat. Setările operaționale ale
 pontării — modul, verificarea, ora de start — sunt la [[modul/pontaj/setari]], nu aici.
 
-Adresa unui punct e `/puncte-lucru?punct=<id>#punct-<id>` (evidențiere pe server + ancoră);
-spre ea trimit fișa angajatului (punctul contractului principal, prin RLS: fără
-`departments:read` rândul spune „Setat"), fișa echipamentului, lista de coduri QR și sediul
-scanat din celula de pontaj (`SediuPontaj.href`, pus de pagină doar pentru cine poate
-deschide `/puncte-lucru`; în celulă e `target="_blank"`, fiindcă celula e un dialog modal).
+Punctul are două adrese, cu rosturi diferite. `/puncte-lucru/[id]` e fișa lui: o deschide
+numele din listă și, când codul lipsește, callout-ul afișului. Forma
+`/puncte-lucru?punct=<id>#punct-<id>` (evidențiere pe server + ancoră) rămâne „punctul ÎN
+listă" — o folosesc firimitura fișei, întoarcerile din afiș, fișa angajatului (punctul
+contractului principal, prin RLS: fără `departments:read` rândul spune „Setat"), fișa
+echipamentului, lista de coduri QR și sediul scanat din celula de pontaj
+(`SediuPontaj.href`, pus de pagină doar pentru cine poate deschide `/puncte-lucru`; în
+celulă e `target="_blank"`, fiindcă celula e un dialog modal).
 
 ## Când NU e suficientă pagina asta
 
 - Ce se întâmplă cu codul după scanare: [[modul/pontaj]].
 - Cealaltă axă a structurii: [[modul/departamente]].
-- Lotul 7n: fișa punctului de lucru `/puncte-lucru/[id]` (adresă, cod, legături numărate, acțiuni, afiș), legată din listă și din afiș: [[strat/navigare]].
+- De ce fiecare entitate capătă fișă proprie și cum se leagă firimiturile: [[strat/navigare]].
