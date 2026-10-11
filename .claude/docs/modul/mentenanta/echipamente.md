@@ -22,7 +22,18 @@ tabele:
     fault_reports,
     expirables,
   ]
-permisiuni: [maintenance:read, maintenance:update, maintenance:delete, maintenance:export]
+permisiuni:
+  [
+    maintenance:read,
+    maintenance:create,
+    maintenance:update,
+    maintenance:delete,
+    maintenance:export,
+    departments:read,
+    employees:read,
+    ssm:read,
+    audit:read,
+  ]
 feature: maintenance
 capcane: [17, 34, 35, 48, 52]
 neverificat:
@@ -31,8 +42,8 @@ citeste_daca:
   - "casarea sau ștergerea unui utilaj e refuzată → „Ce refuză baza tăcut”"
   - "un responsabil-angajat nu-și vede utilajul sau nu poate citi contorul → „Responsabilul”"
   - "o parte din citirile în lot intră și restul nu → „Server Actions”"
-scris_pe: 2b0ac3615f3fdc9a43fec6e817b48a569497d8a5
-scris_la: 2026-10-08
+scris_pe: a1aa3631cc8232b99c43c01452e5ad9f7addf859
+scris_la: 2026-10-11
 tags: [modul, operations]
 ---
 
@@ -54,6 +65,10 @@ observații. Stările: `in_functiune`, `in_reparatie`, `in_conservare`, `casat`.
 | `/api/export/mentenanta/echipamente`                                             | `maintenance:export` team                                                |
 | `/portal/sesizari` → „Echipamentele în grija mea”                                | responsabilul (RLS), citire prin `inregistreazaContor`                   |
 
+Pe cardul din portal, lângă citirea rapidă, „Raportează o defecțiune” duce la caseta de
+pe aceeași pagină cu utilajul precompletat — doar cu `maintenance:create` own
+(`poateRaporta`, calculat în pagină, implicit `false` în componentă).
+
 Ruta `/mentenanta/echipamente/nou` **nu mai există**: echipamentul nou e caseta de pe
 listă (`?echipament=nou`), iar „Adaugă unul la fel” o deschide precompletată din altă
 fișă (`?model=<id>`, fără cod, serie, părinte și stare). `FormData` → încărcătură trece
@@ -61,6 +76,21 @@ prin `valoriEchipament()`, testată separat, nu prin componentă.
 
 Pe fișa unui utilaj `casat` toate formularele dispar (`poateScrie && !casat`): rămân
 datele, istoricul, documentele și eticheta. Se redeschide doar cu „Schimbă starea”.
+
+Drumurile dinspre fișă se decid PER RÂND, nu pe pagină. Numele celui care a citit
+contorul, al executantului și al responsabilului de plan devin link prin
+`hrefFisaDinHarta`: absența din harta `angajatiDupaId` înseamnă rând ascuns de RLS, deci
+nume fără link. Punctul de lucru duce la `/puncte-lucru` și la celelalte echipamente ale
+locației doar cu `departments:read`, tipul de autorizare ISCIR la `/ssm/autorizatii` doar
+cu modulul `ssm` și `ssm:read` team, iar „Istoricul modificărilor”
+(`src/components/audit/istoric-modificari.tsx`) nu randează nimic fără poarta lui
+`/setari/audit` — fiecare prin `poateDeschide()`, nu prin booleeni scriși aici. Banda de
+file e cea a modulului, nu un `nav-mentenanta` cu booleeni proprii: [[modul/mentenanta]].
+
+Intervențiile și sesizările legate sunt citite cu `limita: 50`, deci au fiecare un „vezi
+toate” spre lista proprie filtrată pe utilaj (`?echipament=<id>`). „Sesizare nouă” pe
+antetul fișei cere `maintenance:create` own. Planul nou salvat deschide fișa lui
+(`laReusita` → `/mentenanta/planuri/[id]`), ca echipamentul nou.
 
 Eticheta QR codifică `/mentenanta/sesizari/noua?echipament=<id>` — forma autocolantelor
 deja lipite, păstrată ca redirect. Pe utilajele „folosite în afara sediului” eticheta
@@ -72,7 +102,8 @@ filtrată scoate casatele (din `?ids=` nu).
 `/mentenanta/contoare` listează doar ce are cel puțin o citire, restanțele primele, după
 `prag_contor_necitit_zile` din `maintenance_settings`; utilajele fără nicio citire stau
 separat, cu linkul spre fișă — prima citire fixează punctul de pornire al planurilor pe
-contor.
+contor. Codul fiecărui rând duce la secțiunea `contoare` a fișei (ancora `#contoare`), în
+lista read-only și în formularul de lot la fel.
 
 Secțiunea „Documente” a fișei ține cartea tehnică, certificatul CE și manualul în
 `maintenance_attachments` (bucket privat, URL-uri semnate scurt de `urlSemnate`);
@@ -135,6 +166,14 @@ acțiune): la lot decide politica de INSERT, nu harta de permisiuni.
   (`plan_exp_sync`, `iscir_exp_sync`), nu prin UPDATE pe planuri, iar `ssm_plan_calc`
   recalculează doar când i se schimbă intrările: o scadență restantă nu se mută în viitor
   când utilajul intră în reparație. — capcana #52
+- **Punctul de lucru se citea doar prin lista de opțiuni**, iar aceea cere
+  `maintenance:update`: fișa arăta „Setat” în loc de nume cuiva care doar citește. Numele
+  vine acum din `numelePunctuluiDeLucru` — o citire pe `puncte_lucru`, filtrată pe firmă
+  și pe rândul nești — făcută doar când lista lipsește.
+- **Linkul spre sesizarea unei opriri apare doar dacă sesizarea a venit prin RLS**:
+  oprirea se vede la scope `team`, sesizarea nu, când raportorul e din afara echipei — se
+  verifică în rândurile deja citite, altfel linkul ducea într-un refuz. Același test pe
+  caseta „Utilajul nu funcționează” și în istoricul opririlor.
 - **Ștergerea logică cere `maintenance:delete = all` în gardă** (nu doar în acțiune), iar
   un echipament șters nu se restaurează din aplicație.
 - **Exportul CSV** e un eveniment de audit (`log_audit_event`, `equipment`), plafonat la
