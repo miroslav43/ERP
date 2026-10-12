@@ -33,7 +33,7 @@ tabele:
 permisiuni: [vehicles:read, vehicles:export, trip_sheets:read]
 feature: fleet
 capcane: [2, 18]
-scris_pe: 0565c75422382af1d1b7b90add18de9556d5e4c1
+scris_pe: 720d889bc73823b4982d9a06ff3943418b96d9a7
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -120,7 +120,8 @@ acest traseu). Mutarea lui în `dependencies` e o schimbare de lockfile rămasă
    (`numeUnic`), ca două foi omonime să nu se suprascrie în arhivă.
 
 Modelul PDF al unei foi stă într-un singur loc, `modelFoaieDinDate`, folosit și de ruta
-foii singure (`[[modul/flota/foaia-zilnica]]`): instantaneul bate vehiculul de azi.
+foii singure (`[[modul/flota/foaia-zilnica]]`): instantaneul bate vehiculul de azi, iar
+alimentările și cursele se ordonează în model, nu în citire (embed-ul din pachet n-are `ORDER BY`).
 
 ## Ce se mișcă împreună
 
