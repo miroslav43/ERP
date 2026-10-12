@@ -349,6 +349,83 @@ Transporturilor): neverificat pe sursă primară; pagina spune doar că modelul 
 le acoperă. Anexele OMFP au fost citite prin `DetaliiDocumentAfis`, care poate
 servi o formă veche (memoria `portal-legislativ-consolidari`).
 
+### Flotă — fiscal · `vehicle_fiscal_regimes`, `vehicle_consumption_norms`, `organizations.regim_impozitare`
+
+Migrarea `0202_flota_fiscal.sql`. Verificat pe 12 oct 2026 pe formele consolidate
+de pe legislatie.just.ro, descărcate cu `curl` și citite ca text (memoria
+`portal-legislativ-consolidari`: `DetaliiDocumentAfis` poate servi o formă veche):
+Codul fiscal `DetaliiDocument/312601` (consolidarea din 08.08.2026) și HG 1/2016
+`DetaliiDocument/307847` (consolidarea din 31.03.2026).
+
+| Valoare / regulă din aplicație                                                              | Temei verificat                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 50% din cheltuieli, ≤ 3.500 kg, ≤ 9 scaune cu șoferul                                       | Codul fiscal art. 25 alin. (3) lit. l); la TVA art. 298 alin. (1)–(2)                                                                                                                                           |
+| Cele cinci excepții (`vehicle_exceptie_fiscala`)                                            | art. 25 alin. (3) lit. l) pct. 1–5: urgență/pază/curierat; agenți de vânzări și de achiziții; transport de persoane cu plată; servicii cu plată (închiriere, școli de șoferi); vehicule-marfă în scop comercial |
+| Foaia de parcurs cerută doar la deducerea integrală                                         | HG 1/2016 titlul II pct. 16 alin. (2) (impozit pe profit); titlul VII pct. 68 alin. (2) (TVA, vehicul exclusiv economic); pct. 68 alin. (4): cine aplică 50% nu face dovada cu foaia                            |
+| Încadrarea o face firma                                                                     | HG 1/2016 titlul VII pct. 68 alin. (8)                                                                                                                                                                          |
+| Folosința personală: neimpozabilă la 50%                                                    | Codul fiscal art. 76 alin. (4) lit. ț); HG 1/2016 titlul IV pct. 12 alin. (6) lit. a) teza finală                                                                                                               |
+| Folosința personală: neimpozabilă la micro / specific                                       | Codul fiscal art. 76 alin. (4) lit. ț^1) (vehiculele „prevăzute la art. 25 alin. (3) lit. l) care nu sunt utilizate exclusiv în scopul activității economice”)                                                  |
+| Avantajul în natură: 1,7% pe lună din valoarea de intrare, sau chiria vehiculului închiriat | HG 1/2016 titlul IV pct. 12 alin. (5) lit. a) (folosirea NUMAI în scop personal); alin. (6) lit. a): la folosința mixtă, proporțional cu kilometrii personali din total                                         |
+| Folosința personală a unui bun din patrimoniu e avantaj                                     | Codul fiscal art. 76 alin. (3) lit. a)                                                                                                                                                                          |
+
+**Unde stau valorile.** Spre deosebire de restul acestei secțiuni, trei valori legale
+sunt scrise în cod, cu temei în comentariu, nu în tabele cu `valabil_de_la`: 1,7%
+(`PROCENT_AVANTAJ_LUNAR`), pragurile de 3.500 kg și 9 locuri (`src/domain/fleet/fiscal.ts`
+și triggerul `internal.flota_fiscal_inainte`). Sunt text de lege stabil, nu cuantumuri
+indexate; o modificare a legii cere o editare de cod și o migrare nouă.
+
+**Ce NU face aplicația.** Avantajul în natură e doar SUGESTIE pe fișa angajatului
+(`payroll:read = all`): nimic nu se scrie pe statul de plată, iar componenta
+`beneficiu_natura` se adaugă de mână. Încadrarea vehiculului în regim o alege omul;
+baza refuză doar „peste 3.500 kg” pe un vehicul pe care îl știe ușor (fișa are masa
+și locurile), restul sunt avertismente.
+
+⚠️ **„Categoria vehiculului” de pe foaia de parcurs** (HG 1/2016 pct. 16 alin. (2):
+„categoria de vehicul utilizat”) nu e definită în norme. Foaia fixează la trimitere
+`vehicles.categorie` (tipul din fișă: autoturism, autoutilitară…). **Nu s-a decis**
+dacă ANAF se așteaptă la categoria omologată (M1, N1) sau la categoria de utilizare;
+nu există setare pentru asta. De confirmat cu contabilul, ca și la unealta publică de
+mai sus; dacă răspunsul e „omologată”, se adaugă o coloană pe `vehicles`.
+
+⚠️ **Regimul de impozitare al firmei** (micro / profit / specific) decide dacă se
+sugerează avantajul; coloana e opțională, iar nestabilită dă „incomplet”, nu un calcul.
+Rămâne de confirmat cu contabilul cum se tratează o firmă care trece de la micro la
+profit în mijlocul lunii: regimul firmei e cel curent, nu o serie istorică (spre deosebire de
+regimul vehiculului, care e pe perioade).
+
+⚠️ **Vehicul peste 3.500 kg / 9 locuri la o firmă micro sau pe impozit specific.** Planul
+cere „firmă non-micro” pentru sugestie, iar aplicația îl respectă (nicio sumă). Textul
+lit. ț^1) privește însă doar vehiculele „prevăzute la art. 25 alin. (3) lit. l)”, adică
+cele de până la 3.500 kg și 9 scaune: la un vehicul mai mare, scutirea nu rezultă
+literal. Ecranul spune asta lângă motiv; de confirmat cu contabilul.
+
+⚠️ **Lună parțială.** Norma dă 1,7% „pentru fiecare lună”, fără regulă pe zile. Sugestia
+e pe lună întreagă și ecranul arată intervalul alocării; proporționarea pe zile (sau pe
+kilometri personali, care nu se înregistrează nicăieri) se stabilește cu contabilul.
+Același text spune: alin. (5) privește folosirea NUMAI în scop personal, alin. (6)
+folosința mixtă (proporțional cu kilometrii personali).
+
+⚠️ **Leasingul operațional** se evaluează ca închiriere, la nivelul chiriei lunare
+completate de om (rata lunară); textul nu pomenește leasingul, deci e interpretare.
+
+⚠️ **Mașina personală folosită în interes de serviciu** (`comodat` sau
+`chirie_persoana_fizica`): aplicația reține proprietarul, chiria și contractul și NU
+sugerează avantaj (mașina nu e un bun al firmei pus la dispoziția angajatului). Tratamentul
+fiscal al decontului pe baza foii de parcurs (cheltuială deductibilă, regimul chiriei,
+impozitarea la persoana fizică) nu e verificat pe sursă primară.
+
+⚠️ **Foaia pentru vehiculele exceptate.** La TVA, pct. 68 alin. (7) cere foaia doar pentru
+art. 298 alin. (3) lit. a) (urgență, pază, curierat); pentru celelalte excepții admite „orice
+alte dovezi”. La impozitul pe profit, pct. 16 alin. (2) o cere general pentru deducerea
+integrală. Aplicația cere foaia pentru orice regim diferit de 50% (verdictul „fără foi”).
+La firma micro, impozitul nu depinde de deductibilitate, deci foaia contează doar la TVA.
+De confirmat cu contabilul cât de dur să fie verdictul.
+
+⚠️ **Regimul „exclusiv în scopul activității economice”** (art. 298 alin. (1) și pct. 68
+alin. (2)) cere ca vehiculul să nu aibă deloc folosință personală; aplicația îl acceptă
+alături de o alocare cu folosință personală, dar cu avertisment („deducerea integrală e
+expusă”). Dacă firma dovedește folosirea exclusivă, regimul rămâne al ei.
+
 ### Retenție și arhivare · `retention_policies`
 
 ⚠️ Termenele de păstrare pentru statele de plată și documentele de vechime · pentru

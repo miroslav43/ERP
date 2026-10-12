@@ -1,9 +1,15 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
   EXCEPTII_FISCALE,
+  LOCURI_MAXIME_LIMITARE,
+  MASA_MAXIMA_LIMITARE_KG,
   PROCENT_AVANTAJ_LUNAR,
   REGIMURI_FISCALE,
+  REGIMURI_IMPOZITARE,
   TITLURI_FOLOSINTA,
   avertismenteRegim,
   cereFoaie,
@@ -31,6 +37,41 @@ describe("nomenclatoarele", () => {
     expect(EXCEPTII_FISCALE).toHaveLength(5);
     expect(TITLURI_FOLOSINTA).toContain("comodat");
     expect(PROCENT_AVANTAJ_LUNAR).toBe(1.7);
+  });
+});
+
+describe("oglinda migrării 0202", () => {
+  const migrare = readFileSync(
+    join(process.cwd(), "supabase/migrations/0202_flota_fiscal.sql"),
+    "utf8",
+  );
+
+  /** Migrarea fără comentariile SQL: unele conțin paranteze (art. 25 alin. (3)). */
+  const faraComentarii = migrare.replace(/--[^\n]*/gu, "");
+
+  /** Valorile unui `create type … as enum (...)`. */
+  function valoriEnum(nume: string): string[] {
+    const potrivire = new RegExp(`create type public\\.${nume} as enum \\(([^)]*)\\)`, "u").exec(
+      faraComentarii,
+    );
+    if (potrivire === null) throw new Error(`enum-ul ${nume} lipsește din 0202`);
+    return [...(potrivire[1] ?? "").matchAll(/'([a-z0-9_]+)'/gu)].map((m) => m[1] as string);
+  }
+
+  it("cele patru enum-uri din domeniu sunt cele din bază, în aceeași ordine", () => {
+    expect(valoriEnum("vehicle_fiscal_regime")).toEqual([...REGIMURI_FISCALE]);
+    expect(valoriEnum("vehicle_exceptie_fiscala")).toEqual([...EXCEPTII_FISCALE]);
+    expect(valoriEnum("vehicle_titlu_folosinta")).toEqual([...TITLURI_FOLOSINTA]);
+    expect(valoriEnum("regim_impozitare")).toEqual([...REGIMURI_IMPOZITARE]);
+  });
+
+  it("pragurile legale din trigger sunt cele din domeniu", () => {
+    expect(migrare).toContain(`masa_maxima_kg <= ${String(MASA_MAXIMA_LIMITARE_KG)}`);
+    expect(migrare).toContain(`numar_locuri <= ${String(LOCURI_MAXIME_LIMITARE)}`);
+  });
+
+  it("norma are aceeași plajă ca instantaneul foii: peste 0, cel mult 300", () => {
+    expect(migrare).toContain("check (l_100km > 0 and l_100km <= 300)");
   });
 });
 

@@ -8,6 +8,7 @@ cai:
   - "src/schemas/fleet.ts"
   - "src/domain/fleet/**"
   - "src/app/(portal)/portal/masina-mea/**"
+  - "src/app/(app)/flota/fiscal/**"
 tabele:
   [
     vehicles,
@@ -17,6 +18,8 @@ tabele:
     trip_sheet_curse,
     trip_route_templates,
     fleet_settings,
+    vehicle_fiscal_regimes,
+    vehicle_consumption_norms,
     fuel_entries,
     odometer_anomalies,
   ]
@@ -34,8 +37,8 @@ feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
-  - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF → [[modul/flota/foaia-zilnica]]"
-  - "alerte de scadență, responsabil de flotă, notificări pe foaie, /flota/setari → [[modul/flota/alerte-si-setari]]"
+  - "curse, numărul FP, PDF, alerte de scadență, /flota/setari → [[modul/flota/foaia-zilnica]], [[modul/flota/alerte-si-setari]]"
+  - "regim fiscal, normă de consum, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]"
 scris_pe: 231c60b3569e3b9f140ed3b01614d70ad7bbef47
 scris_la: 2026-10-12
 tags: [modul, operations]
@@ -56,6 +59,7 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 | `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
 | `/flota/foi/sabloane`                | `trip_sheets:update` all — șabloanele de traseu (0197)              |
 | `/flota/setari`                      | `vehicles:update` all — responsabili, praguri (0198)                |
+| `/flota/fiscal`                      | `vehicles:read` all — regimul de deducere, luna fiscală (0202)      |
 | `/api/export/flota/foaie/[id]`       | `trip_sheets:read` own + RLS — PDF-ul foii (0197)                   |
 | `/portal/masina-mea*`                | `trip_sheets:read` own — portalul șoferului, din 0196               |
 
@@ -65,6 +69,10 @@ decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.
 **Șoferii** (0201): permisele (`driver_licenses`, HR fără parc), avizul medical,
 verificările încrucișate pe foaie și la predare, foaia legată de deplasare:
 `[[modul/flota/soferi]]`.
+
+**Fiscalul** (0202): regimul de deducere pe perioade, norma proprie de consum, regimul de
+impozitare al firmei și SUGESTIA de avantaj în natură (`actions-fiscal.ts`):
+`[[modul/flota/fiscal]]`.
 
 **Fișa vehiculului** (cine o modifică, coloana „Acțiuni” a documentelor, tipurile
 obligatorii și opționale): `[[modul/flota/documente-si-erori]]`.
