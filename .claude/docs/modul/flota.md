@@ -5,7 +5,9 @@ aliases: [fleet, vehicule, foi de parcurs]
 cai:
   - "src/app/(app)/flota/**"
   - "src/lib/queries/fleet.ts"
+  - "src/lib/queries/fleet-service.ts"
   - "src/schemas/fleet.ts"
+  - "src/schemas/fleet-service.ts"
   - "src/domain/fleet/**"
   - "src/app/(portal)/portal/masina-mea/**"
 tabele:
@@ -21,6 +23,9 @@ tabele:
     fleet_settings,
     fuel_entries,
     odometer_anomalies,
+    vehicle_service_plans,
+    vehicle_service_entries,
+    vehicle_expenses,
   ]
 permisiuni:
   [
@@ -36,9 +41,9 @@ feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
-  - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF → [[modul/flota/foaia-zilnica]]"
-  - "alerte de scadență, responsabil de flotă, notificări pe foaie, /flota/setari → [[modul/flota/alerte-si-setari]]"
-scris_pe: 8e5670130776a48bbe475b15c94d3472e46cebdc
+  - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]"
+  - "planuri de service, intervenții, costuri, anvelope → [[modul/flota/service-si-costuri]]; alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]"
+scris_pe: e001715de3ce8c5282c14974835c0ed3e668f0ed
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -90,10 +95,13 @@ vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 | `confirmaAnomalie`                                    | `vehicles:update` / team     |
 
 Cursele, retragerea, corectura și ștergerea ciornei, alimentările corectate și șabloanele
-de traseu (0197): `[[modul/flota/foaia-zilnica]]`. `salveazaSetariFlota` (`vehicles:update`
+de traseu (0197): `[[modul/flota/foaia-zilnica]]`.
+Planurile de service, intervențiile și cheltuielile (`actions-service.ts`, 0200):
+`[[modul/flota/service-si-costuri]]`. `salveazaSetariFlota` (`vehicles:update`
 / all, `actions-setari.ts`), jobul zilnic de scadențe și notificările foii (0198):
 `[[modul/flota/alerte-si-setari]]`. Tipurile de document (`actions-tipuri.ts`) și
-fișierele (`actions-fisiere.ts`, 0199): `[[modul/flota/documente-si-erori]]`.
+fișierele (`actions-fisiere.ts`, 0199): `[[modul/flota/documente-si-erori]]`. Ieșirea din parc (`status`,
+`motiv_iesire`) trece tot prin `actualizeazaVehicul`: aceeași pagină.
 
 **Kilometrajul de bord e obligatoriu la creare** (`numarObligatoriu`) și lipsește din
 modificare. Pe `default 0`, prima foaie trecea de orice verificare. `z.coerce.number()` nu
@@ -113,15 +121,6 @@ e logică, prin `deleted_at`: tabelele flotei primesc grant doar pe `select`, `i
 casetei „Foaie nouă" sunt fixate pe clientul fals: `actions-vehicule.test.ts`,
 `actions-foi.test.ts`, `erori-etichete.test.ts`, `foi/date-foaie-noua.test.ts`.
 
-**Ieșirea din parc trece prin `actualizeazaVehicul`** (`vehicule_insert` cere `status =
-'activ'`): `status` și `motiv_iesire` sunt doar în `actualizeazaVehiculSchema`, cu motiv
-obligatoriu la `vandut`/`casat`; `data_iesire` o pune baza. Ștergerea e pentru rândul care
-n-ar fi trebuit să existe; `vehicles_dupa` scoate scadențele din semafor.
-
-**Orele foilor sunt ora României.** `plecare_la`, `sosire_la` și `alimentat_la` trec prin
-`dataOraRomania` și ies în UTC; formularele umplu câmpul cu `oraRomanieiPentruCamp`. Cu
-`z.iso.datetime({ local: true })`, 15:00 tastat apărea 18:00.
-
 ## Citiri
 
 `src/lib/queries/fleet.ts` (marcat `import "server-only"`): `listeazaVehicule`,
@@ -131,7 +130,8 @@ n-ar fi trebuit să existe; `vehicles_dupa` scoate scadențele din semafor.
 `kmDePlecareSugerat`, `combustibilPeFoi`, `alimentarileFoii`, `anomaliiNeconfirmate`,
 `anomaliiPeFoi`, `curseleFoii`, `sabloaneTraseu`, `numeleContului`, `setariFlota`
 (implicitele când lipsește rândul), `candidatiResponsabiliFlota`, plus, pentru portal,
-`vehicululMeu` și `foileMele` (filtru explicit pe șofer).
+`vehicululMeu` și `foileMele` (filtru explicit pe șofer). Service, intervenții, cheltuieli și costuri stau în `fleet-service.ts`; `pragSaltVehicul`
+(un singur număr, pentru cine nu citește `fleet_settings`) în `fleet.ts`.
 
 ## Ce refuză baza tăcut
 

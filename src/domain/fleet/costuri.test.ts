@@ -14,6 +14,8 @@ describe("sumaLei", () => {
     // 0,1 + 0,2 = 0,30000000000000004 în virgulă mobilă; pe ecran trebuie 0,30.
     expect(sumaLei([0.1, 0.2])).toBe(0.3);
     expect(sumaLei([300.5, 15, 28.5])).toBe(344);
+    // 0,14 × 100 = 14,000000000000002: fără rotunjirea în bani, suma iese 0,15000000000000002.
+    expect(sumaLei([0.01, 0.14])).toBe(0.15);
   });
 
   it("ignoră valorile lipsă, nu le numără ca zero greșit", () => {

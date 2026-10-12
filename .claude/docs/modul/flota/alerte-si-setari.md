@@ -4,6 +4,7 @@ titlu: Flotă — setările, alertele de scadență și notificările foii
 aliases: [fleet_settings, conformitate zilnica, responsabil de flota, alerte flota, setari flota]
 cai:
   - "supabase/migrations/0198_flota_conformitate_zilnica.sql"
+  - "supabase/migrations/0200_flota_service_costuri.sql"
   - "src/app/(app)/flota/actions-setari.ts"
   - "src/app/(app)/flota/setari/**"
   - "src/domain/fleet/setari.ts"
@@ -14,7 +15,7 @@ tabele: [fleet_settings, alert_rules, compliance_alerts, alert_notifications, no
 permisiuni: [vehicles:read, vehicles:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 19]
-scris_pe: 00f07559fedbd72745fe0e6be3d631a2c6a2b6f4
+scris_pe: e001715de3ce8c5282c14974835c0ed3e668f0ed
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -35,11 +36,16 @@ implicitele coloanelor (1.500 km, 30/14/7), aceleași pe care le aplică baza �
 | --------------------- | ---------------------------------------------------------------------------- |
 | `responsabili`        | fișe de angajat; gol = toți `org_admin` activi                               |
 | `prag_salt_km`        | înlocuiește rezerva fixă din 0012; `vehicles.prag_salt_km` o bate pe vehicul |
-| `praguri_alerta_zile` | oglindite de trigger în `alert_rules` (`vehicle_document`, o versiune pe zi) |
+| `praguri_alerta_zile` | oglindite de trigger în `alert_rules` (`vehicle_document` și, din 0200, `vehicle_service`; o versiune pe zi) |
 
-Poarta: citire `vehicles:read` ≠ none (managerul și angajatul citesc — pragul explică
-anomaliile), scriere `vehicles:update = all`, deci doar `org_admin`. `super_admin` citește,
-nu scrie (politicile cer membru, ca la `vehicles`). `hr` nu vede nimic. Acțiunea
+Poarta: citirea ȘI scrierea cer `vehicles:update = all`, deci doar `org_admin`;
+`super_admin` citește, nu scrie (politicile cer membru, ca la `vehicles`). Managerul și
+angajatul citesc ZERO rânduri, fără eroare: citirea nu stă pe `vehicles:read`, pe care
+din F3 îl are orice angajat (`own`). Singurul cititor neadministrativ al aplicației e fișa
+vehiculului, care afișează pragul de salt: primește un singur număr, prin
+`public.flota_prag_salt_km(vehicul)` (gardată pe vizibilitatea vehiculului; `pragSaltVehicul`
+în `fleet.ts`). `setariFlota` întoarce implicitele cui nu citește tabela, nu valoarea
+firmei. `hr` nu vede nimic. Acțiunea
 `salveazaSetariFlota` (`actions-setari.ts`): select → INSERT la prima salvare, altfel UPDATE
 cu `.select()`; zero rânduri = CONFLICT, iar două prime salvări simultane cad pe
 `fleet_settings_org_uq` → CONFLICT (`traduEroareSetari`).
@@ -62,6 +68,12 @@ ca text („30, 14, 7”); `pragurileDinText` le ordonează descrescător, făr�
    `/flota?conformitate=expira`, dar `/flota` dacă vreun document e peste 30 de zile
    (filtrul arată doar `PRAG_FLOTA_AVERTIZARE_ZILE`, iar un prag de firmă de 60 le-ar
    ascunde); șoferul fără `team`/`all` → `/portal/masina-mea`.
+
+Din 0200 lista albă a rezumatului are și `vehicle_service` (planurile de service cu dată; formulare
+„scadent”, titlu cu „lucrări de service”, legătură spre `?fila=service` când tot rezumatul e de service), iar
+jobul cheamă și `internal.flota_memento_service` (alerta pe kilometri, anvelopele din
+noiembrie): `[[modul/flota/service-si-costuri]]`. Destinatarii vin dintr-un singur loc,
+`internal.flota_destinatari`.
 
 Destinatari: responsabilii (sau `org_admin`) + șoferul alocat, filtrați pe membru ACTIV și
 pe `internal.scope_membru(...,'vehicles','read') <> 'none'`. **Fiecare primește doar
@@ -93,8 +105,9 @@ rândul rămâne text — implicitul sigur al lui `caleaDePortal`.
 
 ## Probe
 
-`tests/rls/proba-flota-conformitate-zilnica.sql` (18 verificări: rezumat unic, idempotență,
-firma fără flotă, vizibilitate per destinatar, responsabilul cu team/own (12, 17, 18), scriere/refuz pe setări, pragul de salt,
-fluxul foii) și `izolare.sql` (l) „setările flotei”. Fixture-ul inserează fișele ÎNAINTEA
+`tests/rls/proba-flota-conformitate-zilnica.sql` (rezumat unic, idempotență, firma fără
+flotă, vizibilitate per destinatar, responsabilul cu team/own, scriere/refuz pe setări,
+citirea închisă managerului și angajatului, pragul de salt prin funcția îngustă, fluxul
+foii) și `izolare.sql` (l) „setările flotei”. Fixture-ul inserează fișele ÎNAINTEA
 membrilor: altfel 0083 îi creează administratorului o fișă și a doua lovește
 `employees_org_user_primary_uniq`.

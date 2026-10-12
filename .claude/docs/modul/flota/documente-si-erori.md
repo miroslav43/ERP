@@ -23,7 +23,7 @@ tabele:
 permisiuni: [vehicles:create, vehicles:update]
 feature: fleet
 capcane: [21]
-scris_pe: 0de8476f1e9933c03d12a117c990c672b017536d
+scris_pe: e001715de3ce8c5282c14974835c0ed3e668f0ed
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -56,6 +56,11 @@ rovinietei e decizia planului, nu o valoare legală confirmată (OG 15/2002 are 
 un document pe un tip neaplicabil trece. Un document pe un tip RETRAS de firmă se
 corectează fără să-și schimbe tipul: selectorul casetei primește și tipul lui
 (`tipuriPentruDocument`), altfel ar cădea pe „Alegeți tipul”.
+
+**Ieșirea din parc trece prin `actualizeazaVehicul`** (`vehicule_insert` cere `status =
+'activ'`): `status` și `motiv_iesire` sunt doar în `actualizeazaVehiculSchema`, cu motiv
+obligatoriu la `vandut`/`casat`; `data_iesire` o pune baza. Ștergerea e pentru rândul care
+n-ar fi trebuit să existe; `vehicles_dupa` scoate scadențele din semafor.
 
 ## Nomenclatorul firmei — `/flota/setari/documente`
 
@@ -107,8 +112,10 @@ lui, `traduEroareTipuri` (23505 pe `vdt_org_cod_uq` și „Codul „…” cu se
 ## Nomenclatorul de tipuri de document
 
 `vehicle_document_types` e o TABELĂ, nu un enum — ca primul client de transport să nu
-ceară o migrare de platformă. Din rândurile de platformă, **doar șapte sunt active** de la
-`0116`: ITP, RCA, CASCO, rovinietă, revizie, stingător, trusă medicală. Cele patru de
+ceară o migrare de platformă. Din rândurile de platformă sunt active doar cele care privesc orice mașină: ITP, RCA,
+CASCO, rovinietă, stingător, trusă medicală (din `0116`). Tipul `revizie` a fost retras
+de `0200`: revizia are acum planuri de service, cu kilometri și cost
+(`[[modul/flota/service-si-costuri]]`); documentele deja scrise pe el rămân. Cele patru de
 transport (licență, copie conformă, tahograf, ADR) au `activ = false` pe platformă; din
 0199 o firmă și le activează singură, din setări, fără să le vadă celelalte.
 

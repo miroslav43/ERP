@@ -17,7 +17,7 @@ tabele: [trip_sheets, trip_sheet_curse, trip_route_templates, fuel_entries]
 permisiuni: [trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 22, 23]
-scris_pe: 376052e0c8cbbb56c35b210dfda28d12158be879
+scris_pe: e001715de3ce8c5282c14974835c0ed3e668f0ed
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -115,6 +115,10 @@ HG 1/2016 pct. 16 și 68, OMFP 2634/2015 anexa 1 pct. 2–3), randarea în
 `src/lib/pdf/foaie-parcurs.ts`, peisaj, cu `deseneazaAntet`/`antetOrganizatie`. Documentul
 incomplet o spune sus (neaprobat, fără număr, fără normă, cursă fără loc). Nu se
 înregistrează a doua oară în registru: o face triggerul la trimitere.
+
+**Orele foilor sunt ora României.** `plecare_la`, `sosire_la` și `alimentat_la` trec prin
+`dataOraRomania` și ies în UTC; formularele umplu câmpul cu `oraRomanieiPentruCamp`. Cu
+`z.iso.datetime({ local: true })`, 15:00 tastat apărea 18:00.
 
 ## Probe
 

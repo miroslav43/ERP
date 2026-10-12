@@ -35,6 +35,9 @@
 -- (10) managerul, șoferul și `hr` NU scriu (42501 la INSERT, zero la UPDATE);
 -- (11) altă firmă nu vede nimic și nu scrie pe vehiculul acesta          [NEGATIVĂ];
 -- (12) administratorul scrie și citește cheltuieli                      [POZITIVĂ];
+-- (11b) `super_admin` (din `platform_admins`, fără apartenență la firmă) citește
+--      planurile, intervențiile și cheltuielile; NU scrie (politicile de scriere
+--      cer membru)                                                       [POZITIVĂ/NEGATIVĂ];
 -- Vizibilitatea în `expirables` (rescrierea lui `poate_vedea_expirabil`):
 -- (13) toate cele 15 ramuri (14 vechi + `vehicle_service`) răspund adevărat
 --      administratorului, un tip necunoscut fals; managerul vede `vehicle_service`
@@ -97,6 +100,7 @@ declare
   v_u_b      uuid := gen_random_uuid();   -- coleg fără mașină
   v_u_hr     uuid := gen_random_uuid();
   v_u_adm2   uuid := gen_random_uuid();
+  v_u_sa     uuid := gen_random_uuid();   -- super_admin de platformă
   v_e_adm    uuid := gen_random_uuid();
   v_e_mgr    uuid := gen_random_uuid();
   v_e_a      uuid := gen_random_uuid();
@@ -151,7 +155,9 @@ begin
     (v_u_a,    'fsv-a-'    || v_sufix || '@proba.test', now()),
     (v_u_b,    'fsv-b-'    || v_sufix || '@proba.test', now()),
     (v_u_hr,   'fsv-hr-'   || v_sufix || '@proba.test', now()),
-    (v_u_adm2, 'fsv-adm2-' || v_sufix || '@proba.test', now());
+    (v_u_adm2, 'fsv-adm2-' || v_sufix || '@proba.test', now()),
+    (v_u_sa,   'fsv-sa-'   || v_sufix || '@proba.test', now());
+  insert into public.platform_admins (user_id) values (v_u_sa);
   -- Fișele ÎNAINTEA rândurilor de membru (0083 îi creează singur administratorului o fișă).
   insert into public.employees (id, organization_id, marca, first_name, last_name,
                                 hired_on, status, user_id, manager_employee_id) values
@@ -495,6 +501,27 @@ begin
   else
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (11) altă firmă: citește % rânduri, refuzuri ok=%', v_n, v_ok;
+  end if;
+
+  -- (11b) super_admin: citește, nu scrie.
+  perform pg_temp.ca(v_u_sa);
+  v_n := pg_temp.cate(format('select 1 from public.vehicle_service_plans where organization_id = %L', v_org))
+       + pg_temp.cate(format('select 1 from public.vehicle_service_entries where organization_id = %L', v_org))
+       + pg_temp.cate(format('select 1 from public.vehicle_expenses where organization_id = %L', v_org));
+  v_r := pg_temp.rul(format($q$insert into public.vehicle_expenses
+      (organization_id, vehicle_id, categorie, data_cheltuielii, suma, created_by, updated_by)
+      values (%L, %L, 'parcare', %L, 5, %L, %L)$q$, v_org, v_va, v_azi, v_u_sa, v_u_sa));
+  v_ok := v_r like '42501%';
+  v_r := pg_temp.rul(format('update public.vehicle_service_plans set observatii = %L, updated_by = %L where id = %L',
+                            'rescris', v_u_sa, v_p1));
+  v_ok := v_ok and v_r = 'ok:0';
+  reset role;
+  select count(*) into v_n2 from public.vehicle_service_plans where id = v_p1 and observatii is null;
+  if v_n > 0 and v_ok and v_n2 = 1 then
+    raise notice '  ✓ (11b) super_admin citește (% rânduri) și nu scrie (42501 la INSERT, zero la UPDATE)', v_n;
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11b) super_admin: citește % rânduri, refuzuri ok=%, plan neatins=%', v_n, v_ok, v_n2;
   end if;
 
   -- ═══ Vizibilitatea în expirables ══════════════════════════════════════════
