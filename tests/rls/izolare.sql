@@ -4658,6 +4658,9 @@ declare
   v_mgr_user  uuid := pg_temp.id('mgr_user_alfa');
   v_hr_user   uuid := pg_temp.id('hr_user_alfa');
   v_sa_user   uuid := gen_random_uuid();       -- super_admin, creat în bloc
+  v_beta      uuid := pg_temp.id('beta');
+  v_adm_beta  uuid := pg_temp.id('admin_beta');
+  v_echip_beta uuid := gen_random_uuid();
   v_fr_fixt   uuid := pg_temp.id('fr_alfa');
   v_fisa_adm  uuid := pg_temp.id('mgr_alfa');   -- fișa administratorului (`user_id` = admin_alfa)
   v_teh_user  uuid := gen_random_uuid();
@@ -4686,6 +4689,20 @@ begin
   values (v_teh, v_alfa, 'M10-' || v_rand, 'Tudor', 'Tehnician', current_date - 400, 'activ', v_teh_user);
   insert into public.organization_members (organization_id, user_id, role, status, joined_at)
   values (v_alfa, v_teh_user, 'employee', 'active', now());
+
+  -- Firma STRĂINĂ, cu mentenanța pornită: fără ea, un refuz pe calea unui
+  -- echipament al ei ar veni din „modulul e stins”, nu din apartenență, iar
+  -- verificarea ar trece pentru alt motiv decât cel scris.
+  -- Fără `on conflict`: indexul unic e PARȚIAL (`where deleted_at is null`), iar
+  -- inferența lui pică la planificare (capcana #7).
+  update public.organization_features set enabled = true
+   where organization_id = v_beta and feature_key = 'maintenance' and deleted_at is null;
+  if not found then
+    insert into public.organization_features (organization_id, feature_key, enabled)
+    values (v_beta, 'maintenance', true);
+  end if;
+  insert into public.equipment (id, organization_id, cod, denumire)
+  values (v_echip_beta, v_beta, 'M10-B-' || v_rand, 'Utilajul firmei străine');
 
   -- ═══ 1. Administratorul scrie TOT catalogul [POZITIV] ═════════════════════
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
@@ -4777,6 +4794,25 @@ begin
     exception when others then
       v_esuate := v_esuate || format(E'\n  org_admin -> maintenance_attachments: %s (%s)', sqlerrm, sqlstate);
     end;
+
+    -- Obiectele din Storage: bucketul `org-mentenanta` are poarta lui
+    -- (`app.mentenanta_poate_fisier`), pe care nimic din (a)–(k) n-o atingea. Calea
+    -- e `{org}/{tip}/{id}/{fișier}`. Procesul-verbal urcă ÎNAINTEA intervenției, pe
+    -- un id generat în browser (rezervarea din 0210), deci ambele forme se probează.
+    begin
+      insert into storage.objects (bucket_id, name, owner)
+      values ('org-mentenanta', v_alfa::text || '/equipment/' || v_echip::text || '/' || v_rand || '.pdf', v_admin);
+      v_reusite := v_reusite || E'\n  org_admin -> storage org-mentenanta (documentul unui echipament existent)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> storage org-mentenanta (echipament): %s (%s)', sqlerrm, sqlstate);
+    end;
+    begin
+      insert into storage.objects (bucket_id, name, owner)
+      values ('org-mentenanta', v_alfa::text || '/intervention/' || gen_random_uuid()::text || '/pv-' || v_rand || '.pdf', v_admin);
+      v_reusite := v_reusite || E'\n  org_admin -> storage org-mentenanta (procesul-verbal al unei intervenții încă neînregistrate)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> storage org-mentenanta (rezervare): %s (%s)', sqlerrm, sqlstate);
+    end;
   end if;
   reset role;
 
@@ -4795,6 +4831,25 @@ begin
     exception when others then
       v_esuate := v_esuate || format(E'\n  employee (raportor) -> fault_reports (sesizare nouă): %s (%s)', sqlerrm, sqlstate);
     end;
+    -- Fotografia de la fața locului (camera telefonului, din portal): raportorul
+    -- urcă pe SESIZAREA LUI, nu pe parc — calea poartă tipul `fault_report`.
+    if v_sez is not null then
+      begin
+        insert into storage.objects (bucket_id, name, owner)
+        values ('org-mentenanta', v_alfa::text || '/fault_report/' || v_sez::text || '/foto-' || v_rand || '.jpg', v_rap_user);
+        v_reusite := v_reusite || E'\n  employee (raportor) -> storage org-mentenanta (fotografia sesizării lui)';
+      exception when others then
+        v_esuate := v_esuate || format(E'\n  employee (raportor) -> storage org-mentenanta (fotografie): %s (%s)', sqlerrm, sqlstate);
+      end;
+      -- Documentele echipamentului sunt ale gestionarului: același angajat nu urcă pe parc.
+      begin
+        insert into storage.objects (bucket_id, name, owner)
+        values ('org-mentenanta', v_alfa::text || '/equipment/' || v_echip::text || '/raportor-' || v_rand || '.pdf', v_rap_user);
+        v_scapate := v_scapate || E'\n  employee (raportor) -> storage org-mentenanta: a urcat un document pe ECHIPAMENT';
+      exception when insufficient_privilege then
+        v_reusite := v_reusite || E'\n  employee (raportor) -> storage org-mentenanta (echipament): refuzat corect (42501)';
+      end;
+    end if;
     reset role;
   end if;
 
@@ -5010,8 +5065,81 @@ begin
     exception when insufficient_privilege then
       v_reusite := v_reusite || E'\n  super_admin -> fault_reports: nu scrie (42501), ca așteptat';
     end;
+    -- Același principiu pe FIȘIERE. `app.mentenanta_poate_atasament` și
+    -- `app.mentenanta_poate_fisier` primeau platforma pe SCRIERE (ramura
+    -- `is_platform_admin()` cântărea la fel pentru `read` și `update`, iar
+    -- `has_permission` întoarce `all` pentru platformă), deci consola putea să
+    -- inserteze rânduri în `maintenance_attachments` și să urce obiecte în bucketul
+    -- unei firme client, în timp ce `equipment` și `fault_reports` o refuzau.
+    -- Celelalte buckete (`org-checklists`, `org-documents`) cer apartenența.
+    -- Găsit la revizia M10; reparat în `0212`.
+    begin
+      insert into public.maintenance_attachments
+        (organization_id, entity_type, entity_id, storage_path, denumire, tip, mime, marime_bytes, created_by)
+      values (v_alfa, 'equipment', v_echip, v_alfa::text || '/equipment/' || v_echip::text || '/platforma-' || v_rand || '.pdf',
+              'platforma.pdf', 'carte_tehnica', 'application/pdf', 10, v_sa_user);
+      v_scapate := v_scapate || E'\n  super_admin -> maintenance_attachments: a INSERAT într-o firmă client';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> maintenance_attachments: nu scrie (42501), ca așteptat';
+    end;
+    begin
+      insert into storage.objects (bucket_id, name, owner)
+      values ('org-mentenanta', v_alfa::text || '/equipment/' || v_echip::text || '/platforma-' || v_rand || '.pdf', v_sa_user);
+      v_scapate := v_scapate || E'\n  super_admin -> storage org-mentenanta: a URCAT pe un echipament al unei firme client';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> storage org-mentenanta (echipament): nu urcă (42501), ca așteptat';
+    end;
+    begin
+      insert into storage.objects (bucket_id, name, owner)
+      values ('org-mentenanta', v_alfa::text || '/intervention/' || gen_random_uuid()::text || '/platforma-' || v_rand || '.pdf', v_sa_user);
+      v_scapate := v_scapate || E'\n  super_admin -> storage org-mentenanta: a URCAT o rezervare de intervenție în firma client';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> storage org-mentenanta (rezervare): nu urcă (42501), ca așteptat';
+    end;
     reset role;
   end if;
+
+  -- ═══ 7. Firma străină: nici documentele, nici rândurile [NEGATIV + control] ═
+  -- Administratorul firmei ALFA nu atinge utilajul firmei BETA: nici rând în
+  -- `maintenance_attachments`, nici obiect în bucket. Controlul pozitiv: administratorul
+  -- firmei BETA, pe ACELEAȘI căi, trece — deci refuzul de mai sus vine din apartenență.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('org-mentenanta', v_beta::text || '/equipment/' || v_echip_beta::text || '/alfa-' || v_rand || '.pdf', v_admin);
+    v_scapate := v_scapate || E'\n  org_admin ALFA -> storage org-mentenanta: a URCAT sub utilajul firmei BETA';
+  exception when insufficient_privilege then
+    v_reusite := v_reusite || E'\n  org_admin ALFA -> storage org-mentenanta (firma BETA): refuzat (42501)';
+  end;
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('org-mentenanta', v_beta::text || '/intervention/' || gen_random_uuid()::text || '/alfa-' || v_rand || '.pdf', v_admin);
+    v_scapate := v_scapate || E'\n  org_admin ALFA -> storage org-mentenanta: a URCAT o rezervare de intervenție în firma BETA';
+  exception when insufficient_privilege then
+    v_reusite := v_reusite || E'\n  org_admin ALFA -> storage org-mentenanta (rezervare în BETA): refuzat (42501)';
+  end;
+  begin
+    insert into public.maintenance_attachments
+      (organization_id, entity_type, entity_id, storage_path, denumire, tip, mime, marime_bytes, created_by)
+    values (v_beta, 'equipment', v_echip_beta, v_beta::text || '/equipment/' || v_echip_beta::text || '/alfa-' || v_rand || '.pdf',
+            'alfa.pdf', 'carte_tehnica', 'application/pdf', 10, v_admin);
+    v_scapate := v_scapate || E'\n  org_admin ALFA -> maintenance_attachments: a INSERAT pe utilajul firmei BETA';
+  exception when insufficient_privilege then
+    v_reusite := v_reusite || E'\n  org_admin ALFA -> maintenance_attachments (firma BETA): refuzat (42501)';
+  end;
+  reset role;
+
+  perform set_config('request.jwt.claim.sub', v_adm_beta::text, true);
+  set local role authenticated;
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('org-mentenanta', v_beta::text || '/equipment/' || v_echip_beta::text || '/beta-' || v_rand || '.pdf', v_adm_beta);
+    v_reusite := v_reusite || E'\n  org_admin BETA -> storage org-mentenanta (utilajul lui): urcă — controlul refuzurilor de mai sus';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  org_admin BETA -> storage org-mentenanta (utilajul lui): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
 
   if v_scapate <> '' then
     perform pg_temp.esueaza(format(
@@ -5023,7 +5151,7 @@ begin
   end if;
 
   raise notice '(l) M10, scrieri reușite:%', v_reusite;
-  raise notice '(l) mentenanța M10: org_admin scrie echipamentul, contorul, planul, intervenția, oprirea și atașamentul, triază și atribuie; tehnicianul atribuit își duce sesizarea până la rezolvat, raportorul o confirmă; refuzurile (urgența, sesizarea altcuiva, nota internă, managerul, hr, super_admin la scriere) țin și super_admin citește ✓';
+  raise notice '(l) mentenanța M10: org_admin scrie echipamentul, contorul, planul, intervenția, oprirea și atașamentul (și urcă fișiere în bucket), triază și atribuie; tehnicianul atribuit își duce sesizarea până la rezolvat, raportorul o confirmă și urcă fotografia sesizării lui; refuzurile (urgența, sesizarea altcuiva, nota internă, documentele echipamentului pentru raportor, managerul, hr, super_admin la scriere — tabele ȘI Storage) țin și super_admin citește ✓';
 exception when others then
   reset role;
   perform pg_temp.esueaza(format('(l) verificarea M10 a mentenanței a eșuat: %s (%s)', sqlerrm, sqlstate));
