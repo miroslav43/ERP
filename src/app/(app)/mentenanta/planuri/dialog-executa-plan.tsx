@@ -11,6 +11,7 @@ import type { TipMentenanta } from "@/schemas/maintenance";
 
 import { inregistreazaInterventie } from "../actions";
 import { CampuriInterventie, type OptiuneInterventie } from "../interventii/campuri-interventie";
+import { useDocumentInterventie } from "../interventii/document-interventie";
 import { valoriInterventie } from "../interventii/valori-interventie";
 
 /**
@@ -45,6 +46,7 @@ export function DialogExecutaPlan({
   compact?: boolean;
   laReusita?: () => void;
 }>): ReactElement {
+  const { pregateste, uita } = useDocumentInterventie();
   const trimite = useCallback(
     async (formular: FormData) => {
       const valori = valoriInterventie(formular);
@@ -52,14 +54,22 @@ export function DialogExecutaPlan({
       pasi.forEach((_, i) => {
         if (formular.get(`pas_${String(i)}`) === "on") bifati.add(i);
       });
-      return await inregistreazaInterventie({
+      // PV-ul urcă înaintea intervenției (cazul 34): pe un plan de verificare
+      // legală, acțiunea refuză intervenția fără el.
+      const document = await pregateste(formular);
+      if (!document.ok) return document.rezultat;
+      const rezultat = await inregistreazaInterventie({
         ...valori,
+        id: document.id,
+        atasament: document.atasament,
         observatii: observatiiCuPasi(rezumatPasi(pasi, bifati), valori.observatii),
         plan_id: planId,
         equipment_id: equipmentId,
       });
+      if (rezultat.ok) uita();
+      return rezultat;
     },
-    [pasi, planId, equipmentId],
+    [pasi, planId, equipmentId, pregateste, uita],
   );
 
   const varianta: VariantaButon = compact ? "tertiar" : "primar";
@@ -116,6 +126,7 @@ export function DialogExecutaPlan({
             angajati={angajati}
             tipImplicit={tip}
             dataImplicita={azi}
+            document={{ obligatoriu: tip === "verificare_legala" }}
           />
         </div>
       )}

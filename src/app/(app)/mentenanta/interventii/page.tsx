@@ -23,15 +23,23 @@ import {
   echipamenteDupaId,
   interventii,
   angajatiDupaId,
+  optiuniAngajati,
+  optiuniEchipamente,
+  optiuniPlanuriActive,
   planuriDupaId,
+  PLAFON_TOTAL_INTERVENTII,
+  totalInterventii,
 } from "@/lib/queries/maintenance";
+import { todayInBucharest } from "@/lib/format/date";
 import { filtreInterventiiSchema } from "@/schemas/maintenance";
 
 import {
   ETICHETE_REZULTAT_INTERVENTIE,
   ETICHETE_TIP_MENTENANTA,
   TONURI_REZULTAT_INTERVENTIE,
+  textNumarat,
 } from "../etichete";
+import { DialogInterventieNoua } from "./dialog-interventie-noua";
 import { FiltreInterventiiForm } from "./filtre-interventii";
 import { FileModul } from "@/components/ui/file-modul";
 import { FILE_MENTENANTA } from "@/config/file-module";
@@ -54,7 +62,11 @@ async function TabelInterventii({
   readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreInterventiiSchema, parametri);
-  const { randuri, urmatorulCursor, total, sortare } = await interventii(organizationId, filtre);
+  // Pagina și totalul din subsol, pe ACELEAȘI filtre (`filtreazaInterventii`).
+  const [{ randuri, urmatorulCursor, total, sortare }, totaluri] = await Promise.all([
+    interventii(organizationId, filtre),
+    totalInterventii(organizationId, filtre),
+  ]);
   // Planul executat și executantul: rândul avea `plan_id` și `executant_employee_id`
   // citite, dar nicio coloană nu le arăta și nu le lega.
   const [planuri, executanti] = await Promise.all([
@@ -83,7 +95,10 @@ async function TabelInterventii({
       filtre.tip !== null ||
       filtre.rezultat !== null ||
       filtre.echipament !== null ||
-      filtre.plan !== null;
+      filtre.plan !== null ||
+      filtre.executant !== null ||
+      filtre.de_la !== null ||
+      filtre.pana_la !== null;
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -94,7 +109,7 @@ async function TabelInterventii({
         descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate intervențiile."
-            : "Intervențiile se adaugă din fișa fiecărui echipament, sau la rezolvarea unei sesizări."
+            : "Intervențiile se adaugă de aici, din fișa fiecărui echipament sau la rezolvarea unei sesizări."
         }
         {...(areFiltre
           ? {
@@ -108,6 +123,9 @@ async function TabelInterventii({
                   p.delete("rezultat");
                   p.delete("echipament");
                   p.delete("plan");
+                  p.delete("executant");
+                  p.delete("de_la");
+                  p.delete("pana_la");
                   p.delete("cursor");
                 }),
               },
@@ -122,10 +140,17 @@ async function TabelInterventii({
     randuri.map((r) => r.equipment_id),
   );
 
-  // Rândul NU e apăsabil în întregime, ca înainte: ținta lui e fișa
-  // echipamentului, iar echipamentul poate lipsi — RLS îl poate ascunde. Linkul
-  // rămâne exact acolo unde există ceva de deschis, în celula de echipament.
+  // Rândul e apăsabil (M6): ținta lui e fișa INTERVENȚIEI, care există mereu
+  // pentru cine vede lista (aceeași poartă). Titlul e numărul PV-ului; linkul
+  // spre echipament rămâne în celula lui, deasupra linkului rândului.
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "numar",
+      antet: "Număr",
+      latime: "ingusta",
+      peTelefon: "titlu",
+      celula: (i) => i.numar,
+    },
     {
       cheie: "data",
       antet: "Data",
@@ -137,7 +162,7 @@ async function TabelInterventii({
     {
       cheie: "echipament",
       antet: "Echipament",
-      peTelefon: "titlu",
+      peTelefon: "meta",
       celula: (i) => {
         const echipament = echipamente.get(i.equipment_id);
         return echipament === undefined ? (
@@ -145,7 +170,7 @@ async function TabelInterventii({
         ) : (
           <Link
             href={`/mentenanta/echipamente/${i.equipment_id}`}
-            className="underline-offset-2 hover:underline"
+            className="relative underline-offset-2 hover:underline"
           >
             {echipament.cod} — {echipament.denumire}
           </Link>
@@ -203,7 +228,8 @@ async function TabelInterventii({
       sortabil: true,
       numeric: true,
       peTelefon: "meta",
-      celula: (i) => formatLei(i.cost_total ?? i.cost_piese + i.cost_manopera),
+      celula: (i) =>
+        `${formatLei(i.cost_total ?? i.cost_piese + i.cost_manopera)}${i.acoperit_de_garantie ? " (garanție)" : ""}`,
     },
     {
       cheie: "rezultat",
@@ -225,6 +251,8 @@ async function TabelInterventii({
         coloane={coloane}
         randuri={randuri}
         cheieRand={(i) => i.id}
+        href={(i) => `/mentenanta/interventii/${i.id}`}
+        trunchiat={totaluri.trunchiat}
         sortare={sortare}
         hrefSortare={(s) =>
           adresa((p) => {
@@ -236,6 +264,17 @@ async function TabelInterventii({
         }
         gol={null}
       />
+      {/* Subsolul: totalul pe TOATE rândurile filtrate, nu doar pe pagina afișată. */}
+      <p className="text-corp" aria-live="polite">
+        Total pe filtrele alese: {textNumarat(totaluri.numar, "intervenție", "intervenții")} ·{" "}
+        <strong>{formatLei(totaluri.costTotal)}</strong>
+        {totaluri.costInGarantie > 0
+          ? `, din care ${formatLei(totaluri.costInGarantie)} acoperiți de garanție`
+          : ""}
+        {totaluri.trunchiat
+          ? ` — doar primele ${String(PLAFON_TOTAL_INTERVENTII)} rânduri; restrângeți perioada pentru cifra completă.`
+          : "."}
+      </p>
       <Paginare
         afisate={randuri.length}
         total={total}
@@ -281,29 +320,54 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
    * filtrul era invizibil ȘI de neșters — singura ieșire era linkul din starea
    * goală, care apare numai când lista chiar e goală.
    */
-  const [etichetaEchipament, etichetaPlan] = await Promise.all([
-    filtre.echipament === null
-      ? Promise.resolve(null)
-      : echipamenteDupaId(tenant.organizationId, [filtre.echipament]).then(
-          (m) => m.get(filtre.echipament ?? "")?.cod ?? null,
-        ),
-    // Același motiv ca mai sus: linkul „Vezi toate intervențiile planului” de pe
-    // fișa planului pune `plan=` în adresă, iar fără pastilă filtrul ar fi invizibil.
-    filtre.plan === null
-      ? Promise.resolve(null)
-      : citestePlan(tenant.organizationId, filtre.plan).then((p) => p?.denumire ?? null),
-  ]);
+  const poateAdauga = can(permisiuni, "maintenance:update", "team");
+  // Adresa casetei (`?interventie=noua`), ca la `?echipament=nou` din parc.
+  const deschideCaseta = parametri["interventie"] === "noua";
+
+  const [etichetaEchipament, etichetaPlan, executanti, echipamente, planuriActive] =
+    await Promise.all([
+      filtre.echipament === null
+        ? Promise.resolve(null)
+        : echipamenteDupaId(tenant.organizationId, [filtre.echipament]).then(
+            (m) => m.get(filtre.echipament ?? "")?.cod ?? null,
+          ),
+      // Același motiv ca mai sus: linkul „Vezi toate intervențiile planului” de pe
+      // fișa planului pune `plan=` în adresă, iar fără pastilă filtrul ar fi invizibil.
+      filtre.plan === null
+        ? Promise.resolve(null)
+        : citestePlan(tenant.organizationId, filtre.plan).then((p) => p?.denumire ?? null),
+      optiuniAngajati(tenant.organizationId),
+      poateAdauga ? optiuniEchipamente(tenant.organizationId) : Promise.resolve([]),
+      poateAdauga ? optiuniPlanuriActive(tenant.organizationId) : Promise.resolve([]),
+    ]);
 
   return (
     <div className="space-y-6">
       <AntetPagina
         titlu="Intervenții de mentenanță"
-        descriere="Istoricul intervențiilor, cu costurile lor. Se adaugă din fișa fiecărui echipament."
+        descriere="Istoricul intervențiilor, cu numărul procesului-verbal, piesele și costurile lor."
         file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
+        {...(poateAdauga
+          ? {
+              actiuni: (
+                // `key` legat de parametru: o navigare spre `?interventie=noua`
+                // rămâne pe aceeași rută, iar `deschisInitial` se citește la montare.
+                <DialogInterventieNoua
+                  key={deschideCaseta ? "interventie-noua" : "lista"}
+                  deschisInitial={deschideCaseta}
+                  echipamente={echipamente}
+                  planuri={planuriActive}
+                  angajati={executanti}
+                  azi={todayInBucharest()}
+                />
+              ),
+            }
+          : {})}
       />
 
       <FiltreInterventiiForm
         filtre={filtre}
+        executanti={executanti}
         {...(etichetaEchipament === null ? {} : { etichetaEchipament })}
         {...(etichetaPlan === null ? {} : { etichetaPlan })}
       />

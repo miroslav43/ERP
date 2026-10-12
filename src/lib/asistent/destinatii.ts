@@ -885,6 +885,21 @@ const INTRARI: readonly Intrare[] = [
     minScope: "team",
     descriere: "Adăugarea unui echipament în evidență.",
   },
+  // ── Mentenanță M6: caseta „Intervenție nouă” din listă ──
+  {
+    id: "mentenanta.interventii.noua",
+    href: "/mentenanta/interventii?interventie=noua",
+    eticheta: "Intervenție nouă",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: null,
+    featureKey: "maintenance",
+    permission: "maintenance:update",
+    minScope: "team",
+    descriere:
+      "Înregistrarea unei intervenții de mentenanță, cu procesul-verbal atașat la verificările legale.",
+  },
+  // ── sfârșit M6 ──
   {
     id: "mentenanta.interventii",
     href: "/mentenanta/interventii",

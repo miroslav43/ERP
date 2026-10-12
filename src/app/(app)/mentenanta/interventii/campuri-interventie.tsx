@@ -2,16 +2,24 @@
 
 import type { ReactElement } from "react";
 
-import { Camp } from "@/components/ui/camp";
+import { Camp, clasaBifa } from "@/components/ui/camp";
 import type { StareFormular } from "@/components/ui/formular";
+import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
 import {
+  LIMITA_DOCUMENT_MENTENANTA_BYTES,
+  MIME_DOCUMENT_MENTENANTA,
   REZULTATE_INTERVENTIE,
+  TIPURI_ATASAMENT_INTERVENTIE,
   TIPURI_MENTENANTA,
   type TipMentenanta,
 } from "@/schemas/maintenance";
 
-import { ETICHETE_REZULTAT_INTERVENTIE, ETICHETE_TIP_MENTENANTA } from "../etichete";
+import {
+  ETICHETE_REZULTAT_INTERVENTIE,
+  ETICHETE_TIP_ATASAMENT,
+  ETICHETE_TIP_MENTENANTA,
+} from "../etichete";
 
 export interface OptiuneInterventie {
   readonly id: string;
@@ -30,7 +38,21 @@ export interface ProprietatiCampuriInterventie<TData> {
   readonly tipImplicit?: TipMentenanta;
   /** Data pre-completată (ISO) — „Rezolvă” pune ziua de azi. */
   readonly dataImplicita?: string | undefined;
+  /**
+   * Valorile intervenției EXISTENTE, ca text (forma din `FormData`), pentru
+   * caseta de corectare. Ce s-a trimis deja are prioritate peste ele.
+   */
+  readonly existenta?: Readonly<Record<string, string>> | undefined;
+  /** Intervenția are linii de piese: `cost_piese` e calculat din ele (cazul 32). */
+  readonly costPieseDinLinii?: boolean | undefined;
+  /**
+   * Câmpul de document (PV, buletin, factură) urcat ÎNAINTE de trimitere.
+   * `obligatoriu`: verificare legală — acțiunea refuză fără PV/buletin (cazul 34).
+   */
+  readonly document?: Readonly<{ obligatoriu: boolean }> | undefined;
 }
+
+const ACCEPT_DOCUMENT = MIME_DOCUMENT_MENTENANTA.join(",");
 
 /**
  * Câmpurile unei intervenții de mentenanță, scrise o singură dată pentru trei
@@ -57,10 +79,22 @@ export function CampuriInterventie<TData>({
   planImplicit,
   tipImplicit = "corectiva",
   dataImplicita,
+  existenta,
+  costPieseDinLinii = false,
+  document,
 }: ProprietatiCampuriInterventie<TData>): ReactElement {
   // Formularul rămâne pe ecran după un refuz, deci repornește de la ce s-a
   // trimis; după reușită caseta se demontează și `trimise` nu mai contează.
-  const trimise: Readonly<Record<string, string>> = stare.data === null ? stare.valoriTrimise : {};
+  // Pe o corectare, valorile intervenției existente vin înaintea implicitelor.
+  const dinTrimitere: Readonly<Record<string, string>> =
+    stare.data === null ? stare.valoriTrimise : {};
+  const trimise: Readonly<Record<string, string>> = { ...existenta, ...dinTrimitere };
+  // O bifă nebifată lipsește din `FormData`: după o trimitere, absența ei
+  // înseamnă „nebifat”, nu „ia valoarea existentă”.
+  const acoperitImplicit =
+    Object.keys(dinTrimitere).length > 0
+      ? dinTrimitere["acoperit_de_garantie"] === "on"
+      : existenta?.["acoperit_de_garantie"] === "on";
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -192,6 +226,9 @@ export function CampuriInterventie<TData>({
         nume="cost_piese"
         id={idc("cost-piese")}
         eticheta="Cost piese (lei)"
+        {...(costPieseDinLinii
+          ? { ajutor: "Calculat din piese: se schimbă din lista de piese a intervenției." }
+          : {})}
         erori={stare.erori["cost_piese"] ?? []}
       >
         {(a) => (
@@ -200,6 +237,7 @@ export function CampuriInterventie<TData>({
             type="number"
             min="0"
             step="0.01"
+            readOnly={costPieseDinLinii}
             defaultValue={trimise["cost_piese"] ?? "0"}
           />
         )}
@@ -267,6 +305,88 @@ export function CampuriInterventie<TData>({
           />
         )}
       </Camp>
+
+      <Camp
+        nume="numar_document_furnizor"
+        id={idc("doc-furnizor")}
+        eticheta="Nr. document furnizor"
+        ajutor="Devizul, factura sau raportul de service, dacă există."
+        erori={stare.erori["numar_document_furnizor"] ?? []}
+      >
+        {(a) => (
+          <input {...a} maxLength={80} defaultValue={trimise["numar_document_furnizor"] ?? ""} />
+        )}
+      </Camp>
+
+      <Camp
+        nume="garantie_lucrare_pana"
+        id={idc("garantie-lucrare")}
+        eticheta="Garanția lucrării până la"
+        ajutor="O defecțiune nouă până atunci se cere întâi celui care a reparat."
+        erori={stare.erori["garantie_lucrare_pana"] ?? []}
+      >
+        {(a) => <input {...a} type="date" defaultValue={trimise["garantie_lucrare_pana"] ?? ""} />}
+      </Camp>
+
+      <div className="flex items-center gap-2 self-end pb-2">
+        <input
+          id={idc("acoperit-garantie")}
+          name="acoperit_de_garantie"
+          type="checkbox"
+          className={clasaBifa}
+          defaultChecked={acoperitImplicit}
+        />
+        <label htmlFor={idc("acoperit-garantie")} className="text-corp">
+          Costul e acoperit de garanție
+        </label>
+      </div>
+
+      {document === undefined ? null : (
+        <div className="grid gap-3 sm:col-span-2 sm:grid-cols-[14rem_1fr] lg:col-span-3">
+          <Camp
+            nume="document_tip"
+            id={idc("document-tip")}
+            eticheta="Tipul documentului"
+            fel="select"
+          >
+            {(a) => (
+              <select {...a} defaultValue={trimise["document_tip"] ?? "pv"}>
+                {TIPURI_ATASAMENT_INTERVENTIE.map((t) => (
+                  <option key={t} value={t}>
+                    {ETICHETE_TIP_ATASAMENT[t]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+          <div className="space-y-1">
+            <IncarcareFisier
+              nume="document"
+              eticheta={
+                document.obligatoriu
+                  ? "Procesul-verbal sau buletinul (obligatoriu)"
+                  : "Document (opțional)"
+              }
+              accept={ACCEPT_DOCUMENT}
+              maxOcteti={LIMITA_DOCUMENT_MENTENANTA_BYTES}
+              mesajPreaMare="Documentul depășește 25 MB."
+              mesajTipRespins="Acceptăm PDF, Word sau fotografii (JPG, PNG, WEBP, HEIC)."
+              textAlegere="Alege documentul"
+              etichetaScoate="Scoate documentul"
+              restrictii={
+                document.obligatoriu
+                  ? "O verificare legală se înregistrează cu PV-ul sau buletinul ei. PDF, Word sau fotografie, până în 25 MB."
+                  : "PDF, Word sau fotografie, până în 25 MB. Se urcă la salvare."
+              }
+            />
+            {(stare.erori["document"] ?? []).length > 0 ? (
+              <p role="alert" className="text-danger text-nota">
+                {stare.erori["document"]?.[0]}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       <Camp
         nume="observatii"

@@ -728,6 +728,8 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           coloane={coloaneInterventii}
           randuri={interventiiEchipament.randuri}
           cheieRand={(interventie) => interventie.id}
+          // Fișa intervenției (M6) are aceeași poartă ca fișa echipamentului.
+          href={(interventie) => `/mentenanta/interventii/${interventie.id}`}
           gol={
             <p className="text-muted-foreground text-corp">
               Nicio intervenție înregistrată pentru acest echipament.

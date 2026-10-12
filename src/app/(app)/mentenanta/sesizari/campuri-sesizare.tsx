@@ -7,6 +7,7 @@ import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import type { StareFormular } from "@/components/ui/formular";
+import { formatDate } from "@/lib/format/date";
 import { URGENTE_SESIZARE } from "@/schemas/maintenance";
 
 import { cautaEchipament, type EchipamentCautat } from "../actions";
@@ -91,6 +92,9 @@ export function CampuriSesizare<TData>({
   const idCauta = idc("cauta");
   const idEroareEchipament = idc("cauta-eroare");
   const duplicat = selectat?.sesizare_deschisa ?? null;
+  // Garanția (cazul 23): a reparației precedente sau a utilajului însuși.
+  const garantieLucrare = selectat?.garantie_lucrare ?? null;
+  const garantieUtilaj = selectat?.garantie_expira ?? null;
 
   return (
     <div className="space-y-5">
@@ -223,6 +227,21 @@ export function CampuriSesizare<TData>({
             "anunțați-l pe cel care a raportat-o sau pe tehnicianul care lucrează la ea."
           )}{" "}
           Dacă e altă problemă, trimiteți oricum — la triaj se pot lega.
+        </Callout>
+      ) : null}
+
+      {garantieLucrare !== null || garantieUtilaj !== null ? (
+        <Callout fel="informativ" titlu="Echipamentul e în garanție">
+          {garantieLucrare !== null ? (
+            <>
+              Reparația {garantieLucrare.numar} din {formatDate(garantieLucrare.data)} e în garanție
+              până la {formatDate(garantieLucrare.pana)}; cereți furnizorului remedierea.{" "}
+            </>
+          ) : null}
+          {garantieUtilaj !== null ? (
+            <>Garanția utilajului ține până la {formatDate(garantieUtilaj)}. </>
+          ) : null}
+          Trimiteți sesizarea oricum: responsabilul de mentenanță o duce la furnizor.
         </Callout>
       ) : null}
 

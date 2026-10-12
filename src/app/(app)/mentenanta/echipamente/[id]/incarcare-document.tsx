@@ -30,10 +30,18 @@ const TIPURI_DOCUMENT: readonly TipAtasament[] = TIPURI_ATASAMENT.filter((t) => 
 export function IncarcareDocument({
   entityType,
   entityId,
-}: Readonly<{ entityType: EntitateAtasament; entityId: string }>): ReactElement {
+  tipuri = TIPURI_DOCUMENT,
+  tipImplicit = "carte_tehnica",
+}: Readonly<{
+  entityType: EntitateAtasament;
+  entityId: string;
+  /** Tipurile oferite — pe o intervenție: PV, buletin, factură, altele. */
+  tipuri?: readonly TipAtasament[];
+  tipImplicit?: TipAtasament;
+}>): ReactElement {
   const router = useRouter();
   const id = useId();
-  const [tip, setTip] = useState<TipAtasament>("carte_tehnica");
+  const [tip, setTip] = useState<TipAtasament>(tipImplicit);
   const [runda, setRunda] = useState(0);
   const [problema, setProblema] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
@@ -86,7 +94,7 @@ export function IncarcareDocument({
               setTip(e.target.value as TipAtasament);
             }}
           >
-            {TIPURI_DOCUMENT.map((t) => (
+            {tipuri.map((t) => (
               <option key={t} value={t}>
                 {ETICHETE_TIP_ATASAMENT[t]}
               </option>

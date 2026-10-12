@@ -132,6 +132,10 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/mentenanta/echipamente/[id]/eticheta", "maintenance", "maintenance:read", "team"),
   p("/mentenanta/echipamente/etichete", "maintenance", "maintenance:read", "team"),
   p("/mentenanta/interventii", "maintenance", "maintenance:read", "team"),
+  // ── Mentenanță M6: fișa intervenției și procesul-verbal tipăribil ──
+  p("/mentenanta/interventii/[id]", "maintenance", "maintenance:read", "team"),
+  p("/mentenanta/interventii/[id]/proces-verbal", "maintenance", "maintenance:read", "team"),
+  // ── sfârșit M6 ──
   p("/mentenanta/planuri", "maintenance", "maintenance:read", "team"),
   p("/mentenanta/planuri/[id]", "maintenance", "maintenance:read", "team"),
   p("/mentenanta/sesizari", "maintenance", "maintenance:read"),

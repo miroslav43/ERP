@@ -440,6 +440,8 @@ export default async function PaginaPlan({ params }: ProprietatiPagina) {
           coloane={coloane}
           randuri={istoric.randuri}
           cheieRand={(i) => i.id}
+          // Fișa intervenției (M6) are aceeași poartă ca fișa planului.
+          href={(i) => `/mentenanta/interventii/${i.id}`}
           gol={
             <p className="text-muted-foreground text-corp">
               Nicio execuție încă. „Execută” înregistrează prima și mută scadența.
