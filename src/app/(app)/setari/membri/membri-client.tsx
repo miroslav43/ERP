@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 import { Copy, MailPlus, ShieldAlert } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { ButonConfirmare } from "@/components/ui/buton-confirmare";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { arataToast } from "@/components/ui/toast";
@@ -169,10 +170,15 @@ export function PanouMembri({
    * Nicio coloană nu e `sortabil`: lista de membri se citește întreagă, fără
    * cursor — o organizație are zeci de membri, nu mii.
    *
-   * Selectorul de rol și butonul de dezactivare stau pe `insigna`, nu pe
-   * `meta`: pe telefon, `meta` e un rând mărunt de text separat prin „·”, iar o
-   * comandă îngropată acolo nu se mai vede ca o comandă. Ca `insigna` ajung pe
-   * rândul de sus al cardului, lângă persoana pe care o privesc.
+   * Selectorul de rol stă pe `insigna`, nu pe `meta`: pe telefon, `meta` e un
+   * rând mărunt de text separat prin „·”, iar o comandă îngropată acolo nu se
+   * mai vede ca o comandă. Ca `insigna` ajunge pe rândul de sus al cardului,
+   * lângă persoana pe care o privește.
+   *
+   * Coloana de acțiuni stă însă pe `actiuni`: „Dezactivează” deschide un
+   * `<dialog>` de confirmare, iar `insigna` ajunge pe card într-un `<p>` —
+   * „<dialog> cannot be a descendant of <p>”, hidratarea ar cădea (regula din
+   * `tabel.tsx`, la `peTelefon`).
    */
   const coloaneMembri: readonly Coloana<RandMembru>[] = [
     {
@@ -240,7 +246,7 @@ export function PanouMembri({
       cheie: "actiuni",
       antet: "Acțiuni",
       latime: "ingusta",
-      peTelefon: "insigna",
+      peTelefon: "actiuni",
       celula: (membru) => (
         <span className="inline-flex flex-wrap items-center gap-2">
           {/* Permisiunile punctuale stau pe fișă; nimeni nu și le acordă sieși. */}
@@ -262,23 +268,34 @@ export function PanouMembri({
           ) : null}
           {membru.esteEu ? (
             <span className="text-muted-foreground text-nota">—</span>
+          ) : membru.status === "active" ? (
+            /*
+             * Dezactivarea cere confirmare, cu numele omului în titlu (QA oct
+             * 2026, ONB-029): îi ia accesul la firmă dintr-un clic. Reactivarea
+             * de mai jos rămâne directă — nu ia nimic nimănui.
+             */
+            <ButonConfirmare
+              eticheta="Dezactivează"
+              disabled={inCurs}
+              titlu={`Dezactivați accesul lui ${membru.nume ?? membru.email}?`}
+              consecinta="Nu se mai poate autentifica în firmă de la următoarea navigare; fișa de angajat și istoricul rămân. Se poate reactiva oricând."
+              etichetaConfirmare="Dezactivează accesul"
+              distructiv
+              executa={() => seteazaStareaMembrului({ memberId: membru.id, status: "inactive" })}
+              mesajReusita="Membrul a fost dezactivat."
+            />
           ) : (
             <Buton
               varianta="secundar"
               disabled={inCurs}
               onClick={() =>
                 ruleaza(
-                  seteazaStareaMembrului({
-                    memberId: membru.id,
-                    status: membru.status === "active" ? "inactive" : "active",
-                  }),
-                  membru.status === "active"
-                    ? "Membrul a fost dezactivat."
-                    : "Membrul a fost reactivat.",
+                  seteazaStareaMembrului({ memberId: membru.id, status: "active" }),
+                  "Membrul a fost reactivat.",
                 )
               }
             >
-              {membru.status === "active" ? "Dezactivează" : "Reactivează"}
+              Reactivează
             </Buton>
           )}
         </span>
@@ -416,19 +433,18 @@ export function PanouMembri({
                   <span className="text-muted-foreground">pentru o fișă de angajat</span>
                 )}
                 <span className="text-muted-foreground">expiră la {invitatie.expiraLa}</span>
-                <Buton
+                <ButonConfirmare
+                  eticheta="Revocă"
                   varianta="distructiv"
-                  disabled={inCurs || !poateInvita}
                   className="ml-auto"
-                  onClick={() =>
-                    ruleaza(
-                      revocaInvitatia({ invitationId: invitatie.id }),
-                      "Invitația a fost revocată.",
-                    )
-                  }
-                >
-                  Revocă
-                </Buton>
+                  disabled={inCurs || !poateInvita}
+                  titlu={`Revocați invitația pentru ${invitatie.email}?`}
+                  consecinta="Linkul trimis nu va mai funcționa. Puteți trimite o invitație nouă oricând."
+                  etichetaConfirmare="Revocă invitația"
+                  distructiv
+                  executa={() => revocaInvitatia({ invitationId: invitatie.id })}
+                  mesajReusita="Invitația a fost revocată."
+                />
               </li>
             ))}
           </ul>

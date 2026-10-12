@@ -185,6 +185,8 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
   // vizibil: omul acela nu apare pe niciun card și nu e nerepartizat, deci
   // scăderea l-ar fi numărat drept „repartizat" fără să existe undeva pe ecran.
   const repartizate = randuri.reduce((total, r) => total + r.persoane.length, 0);
+  const active = randuri.filter((r) => r.activ).length;
+  const inactive = randuri.length - active;
 
   const listaDepartamente: readonly OptiuneDepartament[] = randuri.map((r) => ({
     id: r.id,
@@ -245,9 +247,24 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
               cale="/departamente"
             />
             <p className="text-muted-foreground text-nota">
-              <span className="tabular-nums">{randuri.length}</span>{" "}
-              {randuri.length === 1 ? "departament" : "departamente"} ·{" "}
-              <span className="tabular-nums">{repartizate}</span>{" "}
+              {/*
+                Un departament dezactivat rămâne pe ecran (cu insigna lui), dar
+                „3 departamente” îl număra ca pe unul viu (QA oct 2026, ADM-013).
+                Cât timp toate sunt active, textul rămâne cel scurt.
+              */}
+              {inactive === 0 ? (
+                <>
+                  <span className="tabular-nums">{randuri.length}</span>{" "}
+                  {randuri.length === 1 ? "departament" : "departamente"}
+                </>
+              ) : (
+                <>
+                  <span className="tabular-nums">{active}</span> {active === 1 ? "activ" : "active"}{" "}
+                  · <span className="tabular-nums">{inactive}</span>{" "}
+                  {inactive === 1 ? "inactiv" : "inactive"}
+                </>
+              )}{" "}
+              · <span className="tabular-nums">{repartizate}</span>{" "}
               {repartizate === 1 ? "persoană repartizată" : "persoane repartizate"}
             </p>
           </div>

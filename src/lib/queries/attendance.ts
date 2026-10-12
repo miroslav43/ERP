@@ -639,6 +639,38 @@ export async function liniiDeAprobat(
   return { linii: adunate, trunchiat: true };
 }
 
+/**
+ * Câte linii ale perioadei mai așteaptă aprobarea — cifra din caseta de
+ * confirmare a blocării („3 linii rămân neaprobate”).
+ *
+ * Contor EXACT (`count: "exact", head: true`), nu `.select("period_id")`
+ * numărat în aplicație: acela se trunchiază tăcut la 1000 de rânduri
+ * (`max_rows`), iar un avertisment care spune „1000” când sunt 1400 e un
+ * avertisment fals.
+ *
+ * Cele trei excluderi — concedii, respinse, șterse — trebuie să rămână
+ * IDENTICE cu `liniiDeAprobat`: caseta de blocare și pagina de detalii a
+ * perioadei numără același lucru, altfel omul vede „3” într-un loc și „5” în
+ * celălalt și nu mai crede în niciunul.
+ */
+export async function numaraLiniiNeaprobate(
+  organizationId: string,
+  periodId: string,
+): Promise<number> {
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("attendance_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("period_id", periodId)
+    .is("approved_at", null)
+    .is("leave_request_id", null)
+    .is("respins_la", null)
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return count ?? 0;
+}
+
 // ── Departamente (pentru filtru — 0 rânduri ⇒ ascunde-l în UI) ──────────────
 
 export interface DepartamentPontaj {

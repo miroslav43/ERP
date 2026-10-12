@@ -93,6 +93,7 @@ import { SectiuneSalarizare } from "./sectiune-salarizare";
 import { TinteKpi } from "./tinte-kpi";
 import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
 import { InvitatieAngajat } from "./invitatie-angajat";
+import { alegeAdresaDeInvitatie } from "@/lib/invitatii/adresa";
 import { DateLipsa } from "./date-lipsa";
 import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 import { SectiuneInAlteModule } from "./sectiune-in-alte-module";
@@ -172,6 +173,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     scope === "all" ? null : await idFisaProprie(tenant.organizationId, utilizator.id);
   const angajat = await citesteAngajat(tenant.organizationId, id, scope, propriaFisaId);
   if (angajat === null) notFound();
+  // Aceeași regulă ca în `invitaAngajatul`: caseta de confirmare a invitației
+  // spune dinainte pe ce adresă pleacă (sau că se va tipări o fișă). Calcul
+  // pur, fără citire — `seTrimiteEmail` nu ajunge la client.
+  const adresaDeInvitatie = alegeAdresaDeInvitatie(angajat, tenant.slug);
 
   /*
    * ── UN SINGUR VAL, NU OPT ─────────────────────────────────────────────
@@ -1003,6 +1008,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     ? null
                     : { adresa: invitatiePendinte.email, expiraLa: invitatiePendinte.expires_at }
                 }
+                adresaPrevazuta={{ adresa: adresaDeInvitatie.adresa, fel: adresaDeInvitatie.fel }}
               />
             </div>
           ) : null}

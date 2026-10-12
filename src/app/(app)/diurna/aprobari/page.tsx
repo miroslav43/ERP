@@ -22,6 +22,7 @@ import {
 
 import { NavDiurna } from "../nav-diurna";
 import { ETICHETE_MIJLOC_TRANSPORT } from "../etichete";
+import { rezumatDecizie } from "../rezumat-decizie";
 import { DecizieDeplasare } from "./decizie-deplasare";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
@@ -117,7 +118,9 @@ function ListaGrup({
                     <p className="text-warning text-corp">Detașare transnațională</p>
                   ) : null}
                 </div>
-                <DecizieDeplasare id={r.id} status={status} />
+                {/* Aceleași valori ca pe card, gata formatate: caseta de
+                    confirmare repetă ce se decide, fără nicio citire în plus. */}
+                <DecizieDeplasare id={r.id} status={status} rezumat={rezumatDecizie(r, angajat)} />
               </div>
             </li>
           );

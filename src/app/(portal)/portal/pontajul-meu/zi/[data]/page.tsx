@@ -130,7 +130,7 @@ export default async function PaginaZiPontaj({
           fel="restrictionata"
           pictograma={Lock}
           titlu="Luna a fost blocată"
-          descriere="Luna e închisă definitiv, iar pontajul ei nu se mai poate modifica. Pentru o corectură, cereți responsabilului de pontaj să o deblocheze."
+          descriere="Luna a fost blocată de responsabilul de pontaj, iar pontajul ei nu se mai poate modifica. Pentru o corectură, cereți-i să o redeschidă."
         />
         {inapoi}
       </div>

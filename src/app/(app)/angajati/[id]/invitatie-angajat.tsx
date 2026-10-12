@@ -6,6 +6,9 @@ import { Mail, Printer, UserPlus } from "lucide-react";
 import { invitaAngajatul } from "@/app/(app)/angajati/actions";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
+import { ConfirmareActiune } from "@/components/ui/dialog";
+import { arataToast } from "@/components/ui/toast";
+import { formatZiuaMomentului } from "@/lib/format/date";
 
 /**
  * Invitarea unui angajat existent, cu fișa tipăribilă pentru cei fără e-mail.
@@ -20,6 +23,18 @@ import { Callout } from "@/components/ui/callout";
  * Acțiunea întoarce SVG-ul. Alternativa — o bibliotecă de QR în bundle-ul de
  * client — ar adăuga vreo 50 KB pe o pagină deschisă zilnic, pentru un buton
  * apăsat o dată în viața unui angajat.
+ *
+ * ── DE CE CONFIRMARE, ȘI CU ADRESA ÎN EA ────────────────────────────────────
+ * Invitația se emitea la un singur clic (QA oct 2026, HR-034): un e-mail
+ * plecat nu se mai retrage, iar pentru fișa fără adresă se creează un
+ * utilizator sintetic pe loc. `adresaPrevazuta` e calculată pe server cu
+ * aceeași regulă ca acțiunea (`alegeAdresaDeInvitatie`), ca omul să vadă
+ * ÎNAINTE pe ce adresă pleacă și dacă va avea de tipărit o foaie.
+ *
+ * ── DE CE `formatZiuaMomentului`, NU `toLocaleDateString` ──────────────────
+ * Expirarea e un `timestamptz`; formatată în fusul serverului (UTC) arăta
+ * „15.10” pentru un link valabil până pe „16.10 00:05” ora României — și cu
+ * riscul unui text diferit între server și browser la hidratare.
  */
 
 type Rezultat = Readonly<{
@@ -35,44 +50,62 @@ type Rezultat = Readonly<{
 /** Invitația deja plecată, dacă mai e în așteptare. */
 export type InvitatiePendinte = Readonly<{ adresa: string; expiraLa: string }>;
 
+/** Pe ce adresă AR pleca invitația — decisă pe server, cu regula acțiunii. */
+export type AdresaPrevazuta = Readonly<{
+  adresa: string;
+  fel: "personala" | "serviciu" | "sintetica";
+}>;
+
+function consecintaInvitatiei(adresa: AdresaPrevazuta, retrimitere: boolean): string {
+  const emitere =
+    adresa.fel === "sintetica"
+      ? `Fișa n-are e-mail: se creează utilizatorul ${adresa.adresa} și o fișă de tipărit, care apare o singură dată pe ecran.`
+      : `Se trimite un e-mail cu link de activare pe ${adresa.adresa}, valabil 7 zile.`;
+  return retrimitere ? `${emitere} Linkul trimis anterior nu va mai funcționa.` : emitere;
+}
+
 export function InvitatieAngajat({
   employeeId,
   numeAngajat,
   numeFirma,
   pendinte,
+  adresaPrevazuta,
 }: {
   readonly employeeId: string;
   readonly numeAngajat: string;
   readonly numeFirma: string;
   readonly pendinte: InvitatiePendinte | null;
+  readonly adresaPrevazuta: AdresaPrevazuta;
 }) {
   const [rezultat, setRezultat] = useState<Rezultat | null>(null);
-  const [eroare, setEroare] = useState<string | null>(null);
+  const [deschis, setDeschis] = useState(false);
   const [inCurs, porneste] = useTransition();
 
   function invita(): void {
-    setEroare(null);
     porneste(async () => {
       const raspuns = await invitaAngajatul({ id: employeeId });
       if (!raspuns.ok) {
-        setEroare(raspuns.error.message);
+        // Caseta rămâne deschisă: refuzul se citește cu adresa în față.
+        arataToast({ fel: "eroare", text: raspuns.error.message });
         return;
       }
+      setDeschis(false);
       setRezultat(raspuns.data);
     });
   }
 
   if (rezultat === null) {
+    const retrimitere = pendinte !== null;
     return (
       <div className="space-y-2">
         <Buton
           varianta="secundar"
-          inCurs={inCurs}
-          textInCurs={pendinte === null ? "Se creează invitația…" : "Se retrimite invitația…"}
-          onClick={invita}
+          onClick={() => {
+            setDeschis(true);
+          }}
         >
           <UserPlus aria-hidden="true" className="size-4" />
-          {pendinte === null ? "Invită în aplicație" : "Retrimite invitația"}
+          {retrimitere ? "Retrimite invitația" : "Invită în aplicație"}
         </Buton>
         {pendinte === null ? (
           <p className="text-muted-foreground text-nota">
@@ -89,20 +122,26 @@ export function InvitatieAngajat({
            */
           <p className="text-muted-foreground text-nota">
             Invitație trimisă pe <strong className="font-medium">{pendinte.adresa}</strong>, încă
-            neacceptată, valabilă până pe {new Date(pendinte.expiraLa).toLocaleDateString("ro-RO")}.
-            Retrimiterea emite un link nou; cel vechi nu mai funcționează.
+            neacceptată, valabilă până pe {formatZiuaMomentului(pendinte.expiraLa)}. Retrimiterea
+            emite un link nou; cel vechi nu mai funcționează.
           </p>
         )}
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-nota">
-            {eroare}
-          </p>
-        )}
+        <ConfirmareActiune
+          deschis={deschis}
+          laInchidere={() => {
+            setDeschis(false);
+          }}
+          titlu={retrimitere ? "Retrimiteți invitația?" : `Invitați ${numeAngajat} în aplicație?`}
+          consecinta={consecintaInvitatiei(adresaPrevazuta, retrimitere)}
+          etichetaConfirmare={retrimitere ? "Retrimite" : "Invită"}
+          inCurs={inCurs}
+          laConfirmare={invita}
+        />
       </div>
     );
   }
 
-  const expira = new Date(rezultat.expiraLa).toLocaleDateString("ro-RO");
+  const expira = formatZiuaMomentului(rezultat.expiraLa);
 
   return (
     <div className="space-y-3">

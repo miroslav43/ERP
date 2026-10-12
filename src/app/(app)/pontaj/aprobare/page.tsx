@@ -167,6 +167,10 @@ async function ContinutAprobare({
             status={status}
             poateDeschide={false}
             poateBloca={poateBloca}
+            // Toată perioada, înainte de filtrul pe departament — aceleași
+            // linii pe care le-ar număra `numaraLiniiNeaprobate`, deja citite.
+            // La `trunchiat`, cifra e sub cea reală, ca tot restul paginii.
+            liniiNeaprobate={linii.length}
           />
         </div>
       ) : null}

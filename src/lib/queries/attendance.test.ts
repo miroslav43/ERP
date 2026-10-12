@@ -27,6 +27,7 @@ import {
   liniiDeAprobat,
   listeazaAngajatiPontaj,
   listeazaPerioade,
+  numaraLiniiNeaprobate,
   totiAngajatiiPontaj,
   loturiPerioadei,
   pontajDeAprobat,
@@ -384,6 +385,39 @@ describe("liniiDeAprobat — citită până la capăt", () => {
     expect(r.trunchiat).toBe(true);
     expect(r.linii).toHaveLength(20000);
     expect(server.apeluri).toHaveLength(20);
+  });
+});
+
+describe("numaraLiniiNeaprobate — contorul din caseta de blocare", () => {
+  it("contor exact, cu EXACT cele șase filtre ale lui `liniiDeAprobat`", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { data: null, count: 3 });
+    const n = await numaraLiniiNeaprobate(ORG_ID, PERIOADA);
+    expect(n).toBe(3);
+    const [apel] = server.apeluri;
+    expect(apel?.tabela).toBe("attendance_entries");
+    expect(apel?.optiuni).toEqual({ count: "exact", head: true });
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "eq", "period_id", PERIOADA)).toBe(true);
+    // Aceleași excluderi ca în `liniiDeAprobat`: caseta și pagina de detalii
+    // trebuie să numere același lucru.
+    for (const col of ["approved_at", "leave_request_id", "respins_la", "deleted_at"]) {
+      expect(areFiltru(apel, "is", col, null)).toBe(true);
+    }
+    // Fără paginare: un contor nu se trunchiază la 1000.
+    expect(argumente(apel, "range")).toBeUndefined();
+  });
+
+  it("`count: null` ⇒ 0, nu NaN și nu null", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { data: null, count: null });
+    expect(await numaraLiniiNeaprobate(ORG_ID, PERIOADA)).toBe(0);
+  });
+
+  it("eroarea PostgREST se propagă", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { error: eroarePostgrest("42501") });
+    await expect(numaraLiniiNeaprobate(ORG_ID, PERIOADA)).rejects.toMatchObject({ code: "42501" });
   });
 });
 
