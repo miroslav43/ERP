@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   CalendarClock,
   Gauge,
+  Scale,
   ShieldAlert,
   UserX,
   Wrench,
@@ -20,7 +21,7 @@ import { buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
@@ -33,6 +34,7 @@ import {
   planuriScadente,
   sesizariDeschise,
   setariMentenanta,
+  stareRsvti,
   ultimeleCitiriContor,
   ultimeleCitiriCuData,
   type PlanMentenanta,
@@ -41,9 +43,19 @@ import { contorInvechit } from "@/domain/maintenance/proiectie";
 import {
   PRAG_MENTENANTA_AVERTIZARE_ZILE,
   cereActiune,
-  stareScadentaData,
   stareScadentaPlan,
 } from "@/domain/maintenance/scadente";
+import {
+  ETICHETE_STARE_AUTORIZATIE,
+  TREPTE_STARE_AUTORIZATIE,
+  cereAtentieAutorizatie,
+  etichetaTipIscir,
+  lipsesteRsvti,
+  stareAutorizatie,
+  termenAutorizatie,
+} from "@/domain/maintenance/iscir";
+import { categorieLegala } from "@/domain/maintenance/legal";
+import { poateDeschide } from "@/config/porti-ruta";
 import type { TipContor } from "@/schemas/maintenance";
 
 import {
@@ -77,14 +89,17 @@ async function PanouOrganizatie({
 }) {
   const azi = todayInBucharest();
 
-  const [rezultatPlanuri, rezultatSesizari, iscirBrute, rezultatEchipamente] = await Promise.all([
-    planuriScadente(organizationId),
-    // Limita e a PANOULUI, nu a filtrării: interogarea întoarce deja numai
-    // sesizările deschise, în ordinea corectă. Vezi `sesizariDeschise`.
-    sesizariDeschise(organizationId, MAXIM_PE_PANOU),
-    autorizatiiIscir(organizationId),
-    echipamenteCuProbleme(organizationId, MAXIM_PE_PANOU),
-  ]);
+  const [rezultatPlanuri, rezultatSesizari, iscirBrute, rezultatEchipamente, features] =
+    await Promise.all([
+      planuriScadente(organizationId),
+      // Limita e a PANOULUI, nu a filtrării: interogarea întoarce deja numai
+      // sesizările deschise, în ordinea corectă. Vezi `sesizariDeschise`.
+      sesizariDeschise(organizationId, MAXIM_PE_PANOU),
+      autorizatiiIscir(organizationId),
+      echipamenteCuProbleme(organizationId, MAXIM_PE_PANOU),
+      // Linkul spre setări trece prin poarta ȚINTEI (`poateDeschide`).
+      getEnabledFeatures(organizationId),
+    ]);
 
   /*
    * Citirile de contor se cer DUPĂ planuri, fiindcă depind de ele: numai
@@ -97,7 +112,7 @@ async function PanouOrganizatie({
   const idResponsabili = rezultatPlanuri.randuri
     .map((p) => p.responsabil_employee_id)
     .filter((id): id is string => id !== null);
-  const [citiri, citiriCuData, responsabiliInactivi, setari] = await Promise.all([
+  const [citiri, citiriCuData, responsabiliInactivi, setari, rsvti] = await Promise.all([
     ultimeleCitiriContor(
       organizationId,
       planuriCuContor.map((p) => p.equipment_id),
@@ -112,6 +127,8 @@ async function PanouOrganizatie({
     // și alertele lui pleacă în gol. Panoul îl scoate la vedere.
     angajatiInactiviDintre(organizationId, idResponsabili),
     setariMentenanta(organizationId),
+    // Cazul 41: echipamente ISCIR fără RSVTI activ în setări.
+    stareRsvti(organizationId),
   ]);
 
   const planuriDeReatribuit = rezultatPlanuri.randuri.filter(
@@ -174,12 +191,26 @@ async function PanouOrganizatie({
 
   const sesizariAfisate = rezultatSesizari.randuri;
 
-  const iscirInCoada = iscirBrute.filter(
-    (autorizatie) =>
-      autorizatie.suspendata_la === null &&
-      cereActiune(stareScadentaData(autorizatie.valabil_pana, azi)),
+  /*
+   * Semaforul M7 (`stareAutorizatie`): termenul e cel mai apropiat dintre
+   * valabilitate și VTP, iar rândurile înlocuite prin reînnoire nu vin deloc
+   * (`autorizatiiIscir` fără echipament le exclude). Același predicat ca
+   * `numarAutorizatiiIscirScadente` din insigna meniului: „min(a, b) ≤ L”.
+   */
+  const iscirInCoada = iscirBrute.filter((autorizatie) =>
+    cereAtentieAutorizatie(stareAutorizatie(autorizatie, azi)),
   );
   const iscirScadente = iscirInCoada.slice(0, MAXIM_PE_PANOU);
+
+  /*
+   * Panoul „Verificări legale scadente” (M7): planurile de tip
+   * `verificare_legala` din coada de mai sus, cu categoria și temeiul lor.
+   * Sunt numărate o singură dată în cifra de sus — panoul e o lentilă, nu o
+   * a doua sumă.
+   */
+  const verificariLegale = planuriInCoada.filter(({ plan }) => plan.tip === "verificare_legala");
+  const verificariLegaleAfisate = verificariLegale.slice(0, MAXIM_PE_PANOU);
+  const faraRsvti = lipsesteRsvti(rsvti);
 
   /*
    * Cifra de sus se calculează din ACELEAȘI rânduri ca listele de dedesubt, cu
@@ -237,7 +268,7 @@ async function PanouOrganizatie({
           </Link>{" "}
           ·{" "}
           <Link
-            href="/mentenanta/echipamente?iscir=da"
+            href="/mentenanta/iscir?stare=actiune"
             className="underline-offset-2 hover:underline"
           >
             {textNumarat(iscirInCoada.length, "autorizație ISCIR", "autorizații ISCIR")}
@@ -246,6 +277,25 @@ async function PanouOrganizatie({
           cunoscută.
         </p>
       </div>
+
+      {faraRsvti ? (
+        // Cazul 41: alertă, nu blocare. Fără RSVTI activ, verificările ISCIR
+        // nu le urmărește nimeni de specialitate.
+        <Callout fel="eroare" titlu="Lipsește responsabilul RSVTI">
+          Firma are {textNumarat(rsvti.echipamenteIscir, "echipament", "echipamente")} sub incidența
+          ISCIR,
+          {rsvti.rsvtiEmployeeId === null
+            ? " dar niciun RSVTI desemnat în setări. "
+            : " dar RSVTI-ul din setări nu mai e activ în firmă. "}
+          {poateDeschide("/mentenanta/setari", { features, permissions: permisiuni }) ? (
+            <Link href="/mentenanta/setari" className="underline underline-offset-2">
+              Desemnați RSVTI-ul în setările mentenanței.
+            </Link>
+          ) : (
+            "Cereți administratorului să desemneze RSVTI-ul în setările mentenanței."
+          )}
+        </Callout>
+      ) : null}
 
       {rezultatPlanuri.trunchiat ? (
         <Callout fel="atentie" titlu="Cifrele de mai sus sunt un minim">
@@ -455,32 +505,83 @@ async function PanouOrganizatie({
 
         <Panou
           icon={ShieldAlert}
-          titlu="Autorizații ISCIR ce expiră"
+          titlu="Autorizații ISCIR și VTP de reînnoit"
           total={iscirInCoada.length}
           afisate={iscirScadente.length}
-          gol="Nicio autorizație ISCIR nu expiră în curând."
+          href="/mentenanta/iscir?stare=actiune"
+          etichetaHref="Vezi autorizațiile ISCIR"
+          gol="Nicio autorizație ISCIR și nicio verificare tehnică nu expiră în curând."
         >
           {iscirScadente.map((autorizatie) => {
-            const stare = stareScadentaData(autorizatie.valabil_pana, azi);
+            const stare = stareAutorizatie(autorizatie, azi);
             return (
               <li key={autorizatie.id} className="flex items-start justify-between gap-3 py-2">
                 <div>
                   <Link
-                    href={`/mentenanta/echipamente/${autorizatie.equipment_id}`}
+                    href={`/mentenanta/echipamente/${autorizatie.equipment_id}#iscir`}
                     className="font-medium underline-offset-2 hover:underline"
                   >
                     {numeEchipament(autorizatie.equipment_id)}
                   </Link>
                   <p className="text-muted-foreground text-nota">
-                    {autorizatie.tip} · {autorizatie.numar}
+                    {etichetaTipIscir(autorizatie.tip)} · {autorizatie.numar ?? "evidența RSVTI"}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
+                  <Scadenta treapta={TREPTE_STARE_AUTORIZATIE[stare]}>
+                    {ETICHETE_STARE_AUTORIZATIE[stare]}
+                  </Scadenta>
+                  {/* Termenul care a produs starea: valabilitatea sau VTP-ul. */}
+                  <span className="text-muted-foreground text-nota">
+                    {termenAutorizatie(autorizatie) === autorizatie.valabil_pana
+                      ? `valabilă până la ${formatDate(autorizatie.valabil_pana)}`
+                      : `VTP la ${formatDate(termenAutorizatie(autorizatie))}`}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </Panou>
+
+        <Panou
+          icon={Scale}
+          titlu="Verificări legale scadente"
+          total={verificariLegale.length}
+          afisate={verificariLegaleAfisate.length}
+          href="/mentenanta/planuri?tip=verificare_legala&scadenta=actiune"
+          etichetaHref="Vezi verificările legale"
+          gol="Nicio verificare cerută de lege nu e scadentă sau în întârziere."
+        >
+          {verificariLegaleAfisate.map(({ plan, stare }) => {
+            const categorie = categorieLegala(plan.categorie_legala);
+            return (
+              <li key={plan.id} className="flex items-start justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <Link
+                    href={`/mentenanta/planuri/${plan.id}`}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {plan.denumire}
+                  </Link>
+                  <p className="text-muted-foreground text-nota">
+                    <Link
+                      href={`/mentenanta/echipamente/${plan.equipment_id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {numeEchipament(plan.equipment_id)}
+                    </Link>
+                    {categorie === null ? "" : ` · ${categorie.eticheta}`}
+                  </p>
+                  {plan.temei_legal === null ? null : (
+                    <p className="text-muted-foreground text-nota">{plan.temei_legal}</p>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                   <Scadenta treapta={TREPTE_MENTENANTA[stare]}>
                     {ETICHETE_STARE_SCADENTA[stare]}
                   </Scadenta>
                   <span className="text-muted-foreground text-nota">
-                    {formatDate(autorizatie.valabil_pana)}
+                    {termenPlan(plan, citiri)}
                   </span>
                 </div>
               </li>

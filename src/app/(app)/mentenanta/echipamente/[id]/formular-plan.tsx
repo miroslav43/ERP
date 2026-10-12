@@ -21,6 +21,8 @@ import {
 } from "../../etichete";
 import { actualizeazaPlan, creeazaPlan } from "../../actions";
 import { useRouter } from "next/navigation";
+import { CATEGORII_LEGALE, categorieLegala } from "@/domain/maintenance/legal";
+import { aplicaCategorieLegala } from "./precompletare-plan";
 
 interface Optiune {
   readonly id: string;
@@ -47,6 +49,19 @@ export interface PlanExistent {
   readonly cost_estimat: number | null;
   readonly oprire_necesara: boolean;
   readonly temei_legal: string | null;
+  /** Codul din `CATEGORII_LEGALE` (M7); opțional, ca apelanții vechi să compileze. */
+  readonly categorie_legala?: string | null;
+}
+
+/** Ce scrie sub selectorul de categorie: nota, cu ⚠ când temeiul n-a fost citit pe text. */
+function ajutorCategorie(cod: string): string {
+  const c = categorieLegala(cod === "" ? null : cod);
+  if (c === null) {
+    return "Alegeți o categorie ca să precompletați tipul, periodicitatea sugerată și temeiul. Scadența din procesul-verbal are prioritate.";
+  }
+  return c.verificat
+    ? `${c.nota} Scadența din procesul-verbal are prioritate față de calcul.`
+    : `⚠ Temei de confirmat cu juristul sau RSVTI. ${c.nota}`;
 }
 
 /** `?? ""` singur ar transforma un `0` legitim în câmp gol. */
@@ -95,6 +110,7 @@ export function FormularPlan({
 }) {
   const editare = planExistent !== undefined;
   const [modCalcul, setModCalcul] = useState<string>(planExistent?.mod_calcul ?? "flotant");
+  const [categorie, setCategorie] = useState<string>(planExistent?.categorie_legala ?? "");
 
   const router = useRouter();
   const trimite = useCallback(
@@ -129,6 +145,7 @@ export function FormularPlan({
         cost_estimat: cost === null ? null : Number(cost),
         oprire_necesara: formular.get("oprire_necesara") === "on",
         temei_legal: gol("temei_legal"),
+        categorie_legala: gol("categorie_legala"),
       };
 
       // Citirea de pornire se dă DOAR la creare. La editare nu se trimite
@@ -173,6 +190,7 @@ export function FormularPlan({
       textInCurs="Se salvează…"
       laResetare={() => {
         setModCalcul(planExistent?.mod_calcul ?? "flotant");
+        setCategorie(planExistent?.categorie_legala ?? "");
       }}
     >
       {(stare, idc) => {
@@ -231,6 +249,40 @@ export function FormularPlan({
                     maxLength={200}
                     defaultValue={trimise["denumire"] ?? planExistent?.denumire ?? ""}
                   />
+                )}
+              </Camp>
+
+              {/* Categoria legală (M7): alegerea ei PRECOMPLETEAZĂ tipul,
+                  periodicitatea sugerată și temeiul — omul le poate schimba
+                  după. Controlată doar ca ajutorul de dedesubt să urmeze
+                  alegerea; valoarea trimisă vine tot din `FormData`. */}
+              <Camp
+                nume="categorie_legala"
+                id={idc("categorie-legala")}
+                eticheta="Categorie legală"
+                fel="select"
+                className="sm:col-span-2 lg:col-span-3"
+                ajutor={ajutorCategorie(categorie)}
+                erori={stare.erori["categorie_legala"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    value={categorie}
+                    onChange={(e) => {
+                      setCategorie(e.target.value);
+                      if (e.target.form !== null) {
+                        aplicaCategorieLegala(e.target.form, e.target.value);
+                      }
+                    }}
+                  >
+                    <option value="">— (nu e o verificare cerută de lege)</option>
+                    {CATEGORII_LEGALE.map((c) => (
+                      <option key={c.cod} value={c.cod}>
+                        {c.verificat ? c.eticheta : `${c.eticheta} ⚠`}
+                      </option>
+                    ))}
+                  </select>
                 )}
               </Camp>
 

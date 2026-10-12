@@ -900,6 +900,21 @@ const INTRARI: readonly Intrare[] = [
       "Înregistrarea unei intervenții de mentenanță, cu procesul-verbal atașat la verificările legale.",
   },
   // ── sfârșit M6 ──
+  // ── Mentenanță M7: lista autorizațiilor ISCIR ──
+  {
+    id: "mentenanta.iscir",
+    href: "/mentenanta/iscir",
+    eticheta: "Autorizații ISCIR",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "ISCIR",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "team",
+    descriere:
+      "Autorizațiile ISCIR și verificările tehnice periodice ale utilajelor, cu ce expiră, ce e suspendat, RSVTI-ul și dosarul de control.",
+  },
+  // ── sfârșit M7 ──
   {
     id: "mentenanta.interventii",
     href: "/mentenanta/interventii",

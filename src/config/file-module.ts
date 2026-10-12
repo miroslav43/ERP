@@ -36,6 +36,9 @@ export const FILE_MENTENANTA: readonly FilaModul[] = [
   { href: "/mentenanta/contoare", eticheta: "Contoare" },
   { href: "/mentenanta/planuri", eticheta: "Planuri" },
   { href: "/mentenanta/interventii", eticheta: "Intervenții" },
+  // ── Mentenanță M7 ──
+  { href: "/mentenanta/iscir", eticheta: "ISCIR" },
+  // ── sfârșit M7 ──
   { href: "/mentenanta/sesizari", eticheta: "Sesizări" },
   { href: "/mentenanta/setari", eticheta: "Setări" },
 ];

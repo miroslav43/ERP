@@ -51,6 +51,7 @@ import {
   textNumarat,
 } from "../../etichete";
 import { ActiuniPlan } from "./actiuni-plan";
+import { categorieLegala } from "@/domain/maintenance/legal";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
 
@@ -224,6 +225,12 @@ export default async function PaginaPlan({ params }: ProprietatiPagina) {
     {
       eticheta: "Oprirea utilajului",
       valoare: plan.oprire_necesara ? "Necesară" : "Nu e necesară",
+    },
+    // M7: categoria legală precompletează planul; temeiul ⚠ e de confirmat.
+    {
+      eticheta: "Categorie legală",
+      valoare: categorieLegala(plan.categorie_legala)?.eticheta ?? null,
+      lat: true,
     },
     { eticheta: "Temei legal", valoare: plan.temei_legal, lat: true },
     { eticheta: "Amânări", valoare: String(plan.numar_amanari) },
