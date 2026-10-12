@@ -86,10 +86,15 @@ begin
   insert into public.departments (id, organization_id, cod, denumire)
   values (v_dep_alt, v_org_alta, 'ALT-' || v_sufix, 'Departament străin');
 
+  -- `pool = true` din 0196: garda de vehicul alocat (`foi_parcurs_inainte` §C1)
+  -- refuză cu P0001 foaia unui rol `own`/`team` pe o mașină care nu-i e
+  -- alocată. Proba de aici e despre RLS; pe pool, garda nu se aplică, deci
+  -- (3) și (4) rămân judecate de politici. Garda are proba ei:
+  -- `proba-flota-roluri.sql`.
   insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
-                               created_by, updated_by)
+                               pool, created_by, updated_by)
   values (v_vehicul, v_org, 'B' || (100 + (random() * 800)::int)::text || 'FLT', 'Dacia', 'Logan', 10000,
-          v_u_admin, v_u_admin);
+          true, v_u_admin, v_u_admin);
 
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   created_by, updated_by) values

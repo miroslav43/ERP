@@ -354,7 +354,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "fleet",
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-12",
     titluPagina: "Program de parc auto: ITP, RCA, rovinietă",
     titluH1: "Program de parc auto",
     metaDescriere:
@@ -371,8 +371,8 @@ export const FISE: readonly FisaModul[] = [
         cheie: "vehicles:read",
         orgAdmin: "all",
         hr: null,
-        manager: null,
-        angajat: null,
+        manager: "team",
+        angajat: "own",
       },
       {
         ce: "Adaugă o mașină",
@@ -396,15 +396,15 @@ export const FISE: readonly FisaModul[] = [
         orgAdmin: "all",
         hr: null,
         manager: "team",
-        angajat: null,
+        angajat: "own",
       },
       {
         ce: "Întocmește o foaie de parcurs",
         cheie: "trip_sheets:create",
         orgAdmin: "all",
         hr: null,
-        manager: null,
-        angajat: null,
+        manager: "own",
+        angajat: "own",
       },
       {
         ce: "Aprobă o foaie de parcurs",
@@ -419,14 +419,14 @@ export const FISE: readonly FisaModul[] = [
         cheie: "trip_sheets:update",
         orgAdmin: "all",
         hr: null,
-        manager: null,
-        angajat: null,
+        manager: "own",
+        angajat: "own",
       },
     ],
     cazDeUtilizare:
-      "Administratorul deschide lista de vehicule și vede semaforul pe fiecare: ITP-ul unei dube se aprinde galben cu trei săptămâni înainte de scadență, nu în ziua în care expiră. Programează revizia, iar data nouă rămâne pe mașină, nu pe șoferul care o conduce luna asta. Șoferii predau foile de parcurs cu kilometrajul și alimentările, iar consumul se vede pe vehicul, nu pe hârtii adunate într-un biblioraft. Șeful de echipă aprobă foile oamenilor lui și atât — mașinile, termenele și documentele lor le administrează doar administratorul organizației; HR n-are nimic aici. Când se schimbă șoferul, istoricul vehiculului nu se rupe, iar întrebarea „când s-a schimbat ultima dată distribuția” are un răspuns.",
+      "Administratorul deschide lista de vehicule și vede semaforul pe fiecare: ITP-ul unei dube se aprinde galben cu trei săptămâni înainte de scadență, nu în ziua în care expiră. Programează revizia, iar data nouă rămâne pe mașină, nu pe șoferul care o conduce luna asta. Șoferul își deschide în portal „Mașina mea”: vede mașina primită în folosință, cu termenele ei, își întocmește foaia de parcurs, trece alimentările și o trimite spre aprobare. Pe o mașină comună a firmei poate întocmi foaia fără să i se fi predat mașina, iar pe mașina colegului nu poate. Șeful de echipă își face propriile foi și le aprobă pe ale oamenilor lui, dar nu le completează în locul lor. Când se schimbă șoferul, istoricul vehiculului nu se rupe, iar întrebarea „când s-a schimbat ultima dată distribuția” are un răspuns.",
     notaPermisiuni:
-      "Parcul auto e cel mai închis modul din aplicație: mașinile le vede și le administrează doar administratorul organizației. HR nu are nimic aici, iar angajatul nu are nimic. Managerul face excepție doar pe foile de parcurs — le vede și le aprobă pe ale echipei lui, dar nu le poate întocmi. E aceeași separare ca la pontaj, între cine completează și cine confirmă.",
+      "Mașinile, termenele și documentele lor le administrează doar administratorul organizației. Angajatul își vede mașina primită în folosință și mașinile comune și își completează propriile foi de parcurs, nimic în plus. Managerul vede mașinile echipei lui, își face propriile foi și le aprobă pe ale echipei, dar nu poate scrie în foaia unui subordonat: poate doar s-o aprobe sau s-o respingă. HR nu are nimic aici. E aceeași separare ca la pontaj, între cine completează și cine confirmă.",
     legaturi: [
       {
         catre: "maintenance",

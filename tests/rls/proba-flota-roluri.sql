@@ -1,0 +1,514 @@
+-- tests/rls/proba-flota-roluri.sql
+--
+-- FLOTA, DUPĂ 0196: DREPTURILE PE ROLURI, PE SEED-UL REAL.
+--
+-- ── DE CE PE SEED, NU PE RÂNDURI DE FIRMĂ ───────────────────────────────────
+-- `proba-flota-integritate.sql` (0171) pune scope-uri pe ORGANIZAȚIE, ca să
+-- probeze combinații pe care seed-ul nu le avea. Aici nu se inserează niciun
+-- rând în `role_permissions`: proba judecă exact ce primesc cele cinci roluri
+-- dintr-o firmă nouă, adică matricea publicată pe pagina modulului.
+--
+-- ── CE VERIFICĂ ─────────────────────────────────────────────────────────────
+-- employee (Ana, mașina A alocată):
+--  (1) întocmește foaia pe mașina alocată                          [POZITIVĂ];
+--  (2) alimentează pe foaia proprie                                [POZITIVĂ];
+--  (3) își trimite foaia spre aprobare                             [POZITIVĂ];
+--  (4) NU alimentează și NU scrie pe foaia colegului;
+--  (5) NU întocmește pe mașina nealocată și non-pool, nici pe a colegului (P0001);
+--  (6) întocmește pe mașina pool                                   [POZITIVĂ];
+--  (7) NU întocmește foaia în numele colegului, nici pe pool (42501);
+--  (8) vede mașina ei și pool-ul, nu și mașina colegului           [POZITIVĂ];
+--  (9) NU întocmește pe mașina ei într-o zi dinaintea alocării (P0001);
+--  (10) NU își mută ciorna de pe pool pe mașina colegului (P0001);
+-- manager (Mihai, șef peste Ana și Bogdan, mașina M alocată):
+--  (11) își întocmește propria foaie                               [POZITIVĂ];
+--  (12) aprobă foaia trimisă a subordonatei                        [POZITIVĂ];
+--  (13) NU scrie ciorna subordonatului, NU i-o trimite, NU schimbă km la decizie (P0001);
+--  (14) NU întocmește foaia în numele subordonatului (42501);
+--  (15) vede mașinile echipei și pool-ul, nu și mașina fără șofer  [POZITIVĂ];
+-- hr:
+--  (16) nu vede nicio foaie și niciun vehicul și nu întocmește foi;
+-- org_admin:
+--  (17) întocmește o foaie pentru oricine, pe orice vehicul activ  [POZITIVĂ];
+-- Storage (`app.can_path`, rescrisă de 0196):
+--  (18) managerul citește calea foilor subordonatului, nu și a unui străin de echipă;
+--  (19) angajatul citește calea mașinii lui și a pool-ului, nu a mașinii colegului;
+--  (20) managerul citește calea mașinii subordonatului, nu și a mașinii fără șofer.
+--
+-- Rulare, pe bancul local (NICIODATĂ pe cloud):
+--   bash .claude/skills/administrativo/scripts/banc-migrare.sh
+\set ON_ERROR_STOP on
+\pset pager off
+
+do $$
+declare
+  v_sufix     text := left(replace(gen_random_uuid()::text, '-', ''), 8);
+  v_org       uuid := gen_random_uuid();
+  v_u_admin   uuid := gen_random_uuid();
+  v_u_mgr     uuid := gen_random_uuid();
+  v_u_a       uuid := gen_random_uuid();
+  v_u_b       uuid := gen_random_uuid();
+  v_u_hr      uuid := gen_random_uuid();
+  v_e_mgr     uuid := gen_random_uuid();
+  v_e_a       uuid := gen_random_uuid();
+  v_e_b       uuid := gen_random_uuid();
+  v_e_c       uuid := gen_random_uuid();
+  v_e_hr      uuid := gen_random_uuid();
+  v_v_a       uuid := gen_random_uuid();
+  v_v_b       uuid := gen_random_uuid();
+  v_v_m       uuid := gen_random_uuid();
+  v_v_pool    uuid := gen_random_uuid();
+  v_v_liber   uuid := gen_random_uuid();
+  v_foaie_a   uuid;
+  v_foaie_pool uuid;
+  v_foaie_b   uuid := gen_random_uuid();
+  v_foaie_b2  uuid := gen_random_uuid();
+  v_n         int;
+  v_status    text;
+  v_vazute    text;
+  v_poate     boolean;
+  v_esecuri   int := 0;
+begin
+  raise notice '';
+  raise notice '  PROBA „FLOTA — ROLURI" (0196)';
+  raise notice '  ─────────────────────────────────────────────────────────';
+
+  insert into public.organizations (id, slug, name, cui) values
+    (v_org, 'proba-flota-rol-' || v_sufix, 'Proba Roluri Flotă SRL',
+     'RO' || (83000000 + (random() * 900000)::int)::text);
+  insert into public.organization_features (organization_id, feature_key, enabled, activated_at)
+  select v_org, f.feature_key, true, now() from public.features f;
+
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_admin, 'rol-adm-' || v_sufix || '@proba.test', now()),
+    (v_u_mgr,   'rol-mgr-' || v_sufix || '@proba.test', now()),
+    (v_u_a,     'rol-a-'   || v_sufix || '@proba.test', now()),
+    (v_u_b,     'rol-b-'   || v_sufix || '@proba.test', now()),
+    (v_u_hr,    'rol-hr-'  || v_sufix || '@proba.test', now());
+  insert into public.organization_members (organization_id, user_id, role) values
+    (v_org, v_u_admin, 'org_admin'),
+    (v_org, v_u_mgr,   'manager'),
+    (v_org, v_u_a,     'employee'),
+    (v_org, v_u_b,     'employee'),
+    (v_org, v_u_hr,    'hr');
+
+  insert into public.employees (id, organization_id, marca, first_name, last_name,
+                                hired_on, status, user_id, manager_employee_id) values
+    (v_e_mgr, v_org, 'RL-M', 'Mihai',  'Manager', app.azi_local() - 500, 'activ', v_u_mgr, null);
+  insert into public.employees (id, organization_id, marca, first_name, last_name,
+                                hired_on, status, user_id, manager_employee_id) values
+    (v_e_a,  v_org, 'RL-A', 'Ana',    'Șofer',   app.azi_local() - 400, 'activ', v_u_a,  v_e_mgr),
+    (v_e_b,  v_org, 'RL-B', 'Bogdan', 'Șofer',   app.azi_local() - 400, 'activ', v_u_b,  v_e_mgr),
+    (v_e_c,  v_org, 'RL-C', 'Cristi', 'Străin',  app.azi_local() - 400, 'activ', null,   null),
+    (v_e_hr, v_org, 'RL-H', 'Horia',  'Personal',app.azi_local() - 400, 'activ', v_u_hr, null);
+
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_v_a,     v_org, 'B' || (100 + (random() * 800)::int)::text || 'RLA', 'Dacia', 'Logan',  10000, false, v_u_admin, v_u_admin),
+    (v_v_b,     v_org, 'B' || (100 + (random() * 800)::int)::text || 'RLB', 'Dacia', 'Duster', 20000, false, v_u_admin, v_u_admin),
+    (v_v_m,     v_org, 'B' || (100 + (random() * 800)::int)::text || 'RLM', 'Skoda', 'Octavia',30000, false, v_u_admin, v_u_admin),
+    (v_v_pool,  v_org, 'B' || (100 + (random() * 800)::int)::text || 'RLP', 'Dacia', 'Jogger', 40000, true,  v_u_admin, v_u_admin),
+    (v_v_liber, v_org, 'B' || (100 + (random() * 800)::int)::text || 'RLL', 'Ford',  'Transit',50000, false, v_u_admin, v_u_admin);
+
+  -- Alocările, din contextul de serviciu. Sincronizarea din 0173 pune șoferul
+  -- pe vehicul.
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by) values
+    (v_org, v_v_a, v_e_a,   now() - interval '10 days', v_u_admin, v_u_admin),
+    (v_org, v_v_b, v_e_b,   now() - interval '10 days', v_u_admin, v_u_admin),
+    (v_org, v_v_m, v_e_mgr, now() - interval '10 days', v_u_admin, v_u_admin);
+
+  -- Foile lui Bogdan, scrise de el (context de serviciu): o ciornă și una trimisă.
+  insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by) values
+    (v_foaie_b, v_org, v_v_b, v_e_b, now() - interval '6 hours', 20000, v_u_b, v_u_b);
+  insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  sosire_la, km_sosire, status, created_by, updated_by) values
+    (v_foaie_b2, v_org, v_v_b, v_e_b, now() - interval '30 hours', 20000,
+     now() - interval '28 hours', 20050, 'trimis', v_u_b, v_u_b);
+
+  -- ═══ employee ════════════════════════════════════════════════════════════
+
+  -- (1) foaia pe mașina alocată
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_a, v_e_a, now() - interval '3 hours', 10000, v_u_a, v_u_a)
+    returning id into v_foaie_a;
+    reset role;
+    raise notice '  ✓ (1) angajatul își întocmește foaia pe mașina alocată';
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (1) angajatul nu-și poate întocmi foaia: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (2) alimentarea pe foaia proprie
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     created_by, updated_by)
+    values (v_org, v_foaie_a, 30, 210, now() - interval '2 hours', v_u_a, v_u_a);
+    reset role;
+    raise notice '  ✓ (2) angajatul alimentează pe foaia proprie';
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (2) angajatul nu poate alimenta pe foaia proprie: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (3) trimiterea spre aprobare, cu rânduri NUMĂRATE
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets
+       set status = 'trimis', sosire_la = now() - interval '1 hour', km_sosire = 10120, updated_by = v_u_a
+     where id = v_foaie_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    select status into v_status from public.trip_sheets where id = v_foaie_a;
+    if v_n = 1 and v_status = 'trimis' then
+      raise notice '  ✓ (3) angajatul își trimite foaia spre aprobare';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (3) trimiterea: % rânduri, stare %', v_n, v_status;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (3) angajatul nu-și poate trimite foaia: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (4a) alimentarea pe foaia colegului
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     created_by, updated_by)
+    values (v_org, v_foaie_b, 30, 210, now() - interval '5 hours', v_u_a, v_u_a);
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (4a) angajatul a alimentat pe foaia colegului';
+  exception when insufficient_privilege then
+    reset role;
+    raise notice '  ✓ (4a) alimentarea pe foaia colegului e refuzată (42501)';
+  end;
+
+  -- (4b) scrierea foii colegului: USING o ascunde, zero rânduri
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  update public.trip_sheets set observatii = 'Scris de Ana.', updated_by = v_u_a where id = v_foaie_b;
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_n = 0 then
+    raise notice '  ✓ (4b) foaia colegului nu se scrie (zero rânduri)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (4b) angajatul a scris foaia colegului (% rânduri)', v_n;
+  end if;
+
+  -- (5a) mașina nealocată și non-pool
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_liber, v_e_a, now() - interval '3 hours', 50000, v_u_a, v_u_a);
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (5a) angajatul a întocmit foaie pe o mașină nealocată și non-pool';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (5a) mașina nealocată și non-pool e refuzată (P0001)';
+  end;
+
+  -- (5b) mașina colegului
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_b, v_e_a, now() - interval '3 hours', 20000, v_u_a, v_u_a);
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (5b) angajatul a întocmit foaie pe mașina colegului';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (5b) mașina colegului e refuzată (P0001)';
+  end;
+
+  -- (6) mașina pool
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_pool, v_e_a, now() - interval '50 minutes', 40000, v_u_a, v_u_a)
+    returning id into v_foaie_pool;
+    reset role;
+    raise notice '  ✓ (6) angajatul întocmește foaia pe mașina pool';
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (6) angajatul nu poate folosi mașina pool: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (7) foaia în numele colegului, chiar și pe pool
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_pool, v_e_b, now() - interval '40 minutes', 40000, v_u_a, v_u_a);
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (7) angajatul a întocmit o foaie în numele colegului';
+  exception when insufficient_privilege then
+    reset role;
+    raise notice '  ✓ (7) foaia în numele colegului e refuzată (42501)';
+  end;
+
+  -- (8) vizibilitatea vehiculelor
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  select string_agg(right(nr_inmatriculare, 3), ',' order by right(nr_inmatriculare, 3)) into v_vazute
+    from public.vehicles where organization_id = v_org and deleted_at is null;
+  reset role;
+  if v_vazute = 'RLA,RLP' then
+    raise notice '  ✓ (8) angajatul vede mașina lui și pool-ul (%)', v_vazute;
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (8) angajatul vede: % (așteptat RLA,RLP)', v_vazute;
+  end if;
+
+  -- (9) mașina proprie, dar într-o zi dinaintea alocării
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_a, v_e_a, now() - interval '20 days', 10200, v_u_a, v_u_a);
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (9) foaia dinaintea alocării a fost acceptată';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (9) foaia dinaintea alocării e refuzată (P0001)';
+  end;
+
+  -- (10) ciorna de pe pool, mutată pe mașina colegului
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set vehicle_id = v_v_b, updated_by = v_u_a where id = v_foaie_pool;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10) ciorna a fost mutată pe mașina colegului';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (10) ciorna nu se mută pe mașina colegului (P0001)';
+  end;
+
+  -- ═══ manager ═════════════════════════════════════════════════════════════
+
+  -- (11) propria foaie
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_m, v_e_mgr, now() - interval '3 hours', 30000, v_u_mgr, v_u_mgr);
+    reset role;
+    raise notice '  ✓ (11) managerul își întocmește propria foaie';
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11) managerul nu-și poate întocmi foaia: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (12) aprobarea foii trimise a subordonatei, cu rânduri numărate
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set status = 'aprobat', updated_by = v_u_mgr where id = v_foaie_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    select status into v_status from public.trip_sheets where id = v_foaie_a;
+    if v_n = 1 and v_status = 'aprobat' then
+      raise notice '  ✓ (12) managerul aprobă foaia subordonatei';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (12) aprobarea: % rânduri, stare %', v_n, v_status;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (12) managerul nu poate aproba: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (13a) scrierea ciornei subordonatului
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set km_plecare = 20010, updated_by = v_u_mgr where id = v_foaie_b;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (13a) managerul a rescris kilometrajul ciornei subordonatului';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (13a) managerul nu scrie ciorna subordonatului (P0001)';
+  end;
+
+  -- (13b) trimiterea ciornei subordonatului (MGR-017, acum în bază)
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets
+       set status = 'trimis', sosire_la = now() - interval '5 hours', km_sosire = 20100, updated_by = v_u_mgr
+     where id = v_foaie_b;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (13b) managerul a trimis ciorna subordonatului';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (13b) managerul nu trimite ciorna subordonatului (P0001)';
+  end;
+
+  -- (13c) decizia care strecoară o cifră
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set status = 'aprobat', km_sosire = 20090, updated_by = v_u_mgr
+     where id = v_foaie_b2;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (13c) managerul a schimbat kilometrajul odată cu aprobarea';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (13c) decizia nu schimbă cifrele foii (P0001)';
+  end;
+
+  -- (14) foaia în numele subordonatului
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_pool, v_e_b, now() - interval '30 minutes', 40000, v_u_mgr, v_u_mgr);
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (14) managerul a întocmit o foaie în numele subordonatului';
+  exception when insufficient_privilege then
+    reset role;
+    raise notice '  ✓ (14) foaia în numele subordonatului e refuzată (42501)';
+  end;
+
+  -- (15) vizibilitatea vehiculelor pe echipă
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select string_agg(right(nr_inmatriculare, 3), ',' order by right(nr_inmatriculare, 3)) into v_vazute
+    from public.vehicles where organization_id = v_org and deleted_at is null;
+  reset role;
+  if v_vazute = 'RLA,RLB,RLM,RLP' then
+    raise notice '  ✓ (15) managerul vede mașinile echipei și pool-ul (%)', v_vazute;
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (15) managerul vede: % (așteptat RLA,RLB,RLM,RLP)', v_vazute;
+  end if;
+
+  -- ═══ hr ══════════════════════════════════════════════════════════════════
+
+  -- (16) nimic pe flotă
+  perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
+  set local role authenticated;
+  select (select count(*) from public.trip_sheets where organization_id = v_org)
+       + (select count(*) from public.vehicles where organization_id = v_org) into v_n;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_pool, v_e_hr, now() - interval '20 minutes', 40000, v_u_hr, v_u_hr);
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (16) hr a întocmit o foaie de parcurs';
+  exception when insufficient_privilege then
+    reset role;
+    if v_n = 0 then
+      raise notice '  ✓ (16) hr nu vede nimic pe flotă și nu întocmește foi (42501)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (16) hr vede % rânduri de flotă', v_n;
+    end if;
+  end;
+
+  -- ═══ org_admin ═══════════════════════════════════════════════════════════
+
+  -- (17) orice șofer, orice vehicul activ, fără alocare
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_liber, v_e_b, now() - interval '3 hours', 50000, v_u_admin, v_u_admin);
+    reset role;
+    raise notice '  ✓ (17) org_admin întocmește foaia pentru oricine, fără alocare';
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (17) org_admin nu poate întocmi foaia: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- ═══ Storage: app.can_path ═══════════════════════════════════════════════
+
+  -- (18) căile foilor: subordonatul da, străinul de echipă nu
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select app.can_path(v_org::text || '/trip_sheets/' || v_e_a::text || '/bon.jpg', 'read')
+         and not app.can_path(v_org::text || '/trip_sheets/' || v_e_c::text || '/bon.jpg', 'read')
+    into v_poate;
+  reset role;
+  if v_poate then
+    raise notice '  ✓ (18) managerul citește foile subordonatei, nu și ale străinului de echipă';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (18) can_path pe trip_sheets la scope team nu se uită la entitate';
+  end if;
+
+  -- (19) căile vehiculelor pentru angajat
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  select app.can_path(v_org::text || '/vehicles/' || v_v_a::text || '/itp.pdf', 'read')
+         and app.can_path(v_org::text || '/vehicles/' || v_v_pool::text || '/itp.pdf', 'read')
+         and not app.can_path(v_org::text || '/vehicles/' || v_v_b::text || '/itp.pdf', 'read')
+    into v_poate;
+  reset role;
+  if v_poate then
+    raise notice '  ✓ (19) angajatul citește calea mașinii lui și a pool-ului, nu a colegului';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (19) can_path pe vehicles la scope own';
+  end if;
+
+  -- (20) căile vehiculelor pentru manager
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select app.can_path(v_org::text || '/vehicles/' || v_v_b::text || '/itp.pdf', 'read')
+         and not app.can_path(v_org::text || '/vehicles/' || v_v_liber::text || '/itp.pdf', 'read')
+    into v_poate;
+  reset role;
+  if v_poate then
+    raise notice '  ✓ (20) managerul citește calea mașinii subordonatului, nu a mașinii fără șofer';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (20) can_path pe vehicles la scope team nu se uită la entitate';
+  end if;
+
+  raise notice '  ─────────────────────────────────────────────────────────';
+  if v_esecuri > 0 then
+    raise exception 'PROBA FLOTA ROLURI: % verificări picate', v_esecuri;
+  end if;
+  raise notice '  TOATE cele 24 de verificări au trecut.';
+  raise notice '';
+end;
+$$;

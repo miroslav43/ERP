@@ -4275,6 +4275,135 @@ exception when others then
   perform pg_temp.esueaza(format('(m) verificarea KPI a eșuat: %s (%s)', sqlerrm, sqlstate));
 end $$;
 
+-- ═══ ÎNCEPUT BLOC: flota pe roluri (0196) ═══════════════════════════════════
+-- (l), continuare — șoferii își fac singuri foile (0196)
+--
+-- Din 0196, `employee` are `trip_sheets` read/create/update = own și
+-- `vehicles:read = own`, iar `manager` are `vehicles:read = team` și
+-- `trip_sheets` create/update = own. Fiecare scriere de mai jos e una pe care
+-- ecranul „Mașina mea” o face în numele rolului; dacă vreo politică sau garda
+-- de vehicul alocat ar refuza-o, rolul n-ar putea lucra, iar (a)-(k) ar trece
+-- verzi. Rânduri NUMĂRATE, nu doar excepții prinse.
+--
+-- Vehiculele sunt ale blocului: `veh_alfa` e șters logic de blocul de documente
+-- de mai sus, iar o mașină ștearsă nu primește foi.
+do $$
+declare
+  v_alfa     uuid := pg_temp.id('alfa');
+  v_admin    uuid := pg_temp.id('admin_alfa');
+  v_emp      uuid := pg_temp.id('emp_alfa');
+  v_ang      uuid := pg_temp.id('ang_alfa');
+  v_mgr      uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang  uuid := pg_temp.id('mgr2_alfa');
+  v_sub      uuid := pg_temp.id('sub_alfa');
+  v_veh_ang  uuid := gen_random_uuid();
+  v_veh_mgr  uuid := gen_random_uuid();
+  v_veh_sub  uuid := gen_random_uuid();
+  v_veh_pool uuid := gen_random_uuid();
+  v_foaie    uuid;
+  v_ciorna_sub uuid;
+  v_n        int;
+  v_refuzat  boolean;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_veh_ang,  v_alfa, 'CJ' || left(replace(v_veh_ang::text, '-', ''), 5) || 'RA',  'Dacia', 'Logan',  7000, false, v_admin, v_admin),
+    (v_veh_mgr,  v_alfa, 'CJ' || left(replace(v_veh_mgr::text, '-', ''), 5) || 'RM',  'Skoda', 'Superb', 8000, false, v_admin, v_admin),
+    (v_veh_sub,  v_alfa, 'CJ' || left(replace(v_veh_sub::text, '-', ''), 5) || 'RS',  'Dacia', 'Duster', 9000, false, v_admin, v_admin),
+    (v_veh_pool, v_alfa, 'CJ' || left(replace(v_veh_pool::text, '-', ''), 5) || 'RP', 'Dacia', 'Jogger', 6000, true,  v_admin, v_admin);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by) values
+    (v_alfa, v_veh_ang, v_ang,     now() - interval '15 days', v_admin, v_admin),
+    (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '15 days', v_admin, v_admin),
+    (v_alfa, v_veh_sub, v_sub,     now() - interval '15 days', v_admin, v_admin);
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_sub, v_sub, now() - interval '4 hours', 9000, v_admin, v_admin)
+  returning id into v_ciorna_sub;
+
+  -- 1) `employee` își întocmește foaia pe mașina alocată.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_ang, v_ang, now() - interval '3 hours', 7000, v_emp, v_emp)
+  returning id into v_foaie;
+  reset role;
+  if v_foaie is null then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu-și poate întocmi foaia pe mașina alocată');
+  end if;
+
+  -- 2) …alimentează pe ea…
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     created_by, updated_by)
+    values (v_alfa, v_foaie, 25, 180, now() - interval '2 hours', v_emp, v_emp)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu alimentează pe foaia proprie');
+  end if;
+
+  -- 3) …și o trimite spre aprobare.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with trimise as (
+    update public.trip_sheets
+       set status = 'trimis', sosire_la = now() - interval '1 hour', km_sosire = 7090, updated_by = v_emp
+     where id = v_foaie and organization_id = v_alfa
+    returning 1
+  ) select count(*) into v_n from trimise;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza(format(
+      '(l) REFUZ TĂCUT: `employee` și-a trimis foaia, dar UPDATE-ul a afectat %s rânduri', v_n));
+  end if;
+
+  -- 4) `manager` își întocmește propria foaie, pe mașina lui și pe pool.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_alfa, v_veh_mgr,  v_mgr_ang, now() - interval '3 hours', 8000, v_mgr, v_mgr),
+           (v_alfa, v_veh_pool, v_mgr_ang, now() - interval '1 hour',  6000, v_mgr, v_mgr)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 2 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `manager` nu-și poate întocmi propriile foi');
+  end if;
+
+  -- 5) `manager` vede mașina subordonatului (vehicles:read = team) și pool-ul.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicles where id in (v_veh_sub, v_veh_pool, v_veh_mgr);
+  reset role;
+  if v_n <> 3 then
+    perform pg_temp.esueaza(format(
+      '(l) FALS-NEGATIV: `manager` vede %s din cele 3 mașini (a lui, a subordonatului, pool)', v_n));
+  end if;
+
+  -- 6) Contra-proba: aprobatorul NU scrie ciorna subordonatului (0196 §C2).
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set km_plecare = 9010, updated_by = v_mgr where id = v_ciorna_sub;
+    v_refuzat := false;
+  exception when raise_exception then
+    v_refuzat := true;
+  end;
+  reset role;
+  if not v_refuzat then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a rescris ciorna subordonatului prin ramura de aprobare');
+  end if;
+
+  raise notice '(l) flota pe roluri: angajatul întocmește, alimentează și trimite; managerul își face foile și vede echipa ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: flota pe roluri (0196) ════════════════════════════════════
+
 
 rollback;
 

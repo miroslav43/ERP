@@ -103,8 +103,9 @@ const RUTE: readonly Ruta[] = [
   {
     cale: "/flota",
     titlu: "Parc auto",
-    poarta: "fleet · vehicles:read own (doar org_admin)",
-    asteptari: DOAR_ADMIN,
+    // ── flota pe roluri (0196): managerul are vehicles:read = team ──
+    poarta: "fleet · vehicles:read own (org_admin all, manager team din 0196; hr nimic)",
+    asteptari: { org_admin: CONTINUT, hr: ACCES, manager: CONTINUT },
   },
   {
     cale: "/inventar",
