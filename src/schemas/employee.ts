@@ -651,17 +651,29 @@ function valideazaReguliContract(
   ctx: z.core.$RefinementCtx,
 ): void {
   /*
-   * Coerența celor două norme: ziua înmulțită cu cele cinci zile lucrătoare nu
-   * poate depăși săptămâna. Prinde „8 ore/zi, 20 ore/săptămână" (ar fi 40),
-   * lasă „6 ore/zi, 30 ore/săptămână". Mesajul stă pe `norma_ore_zi`, câmpul
-   * care se completează de obicei al doilea.
+   * Coerența celor două norme: o zi nu poate depăși săptămâna. Prinde
+   * „8 ore/zi, 4 ore/săptămână”, inversiunea tipică a celor două câmpuri.
+   *
+   * NU „zi × 5 ≤ săptămână” (regula din 8baf375e): timpul parțial se poate
+   * lucra în zile întregi, dar în mai puțin de cinci zile pe săptămână
+   * (art. 103–105 Codul muncii) — 8 h/zi în trei zile = 24 h, sau sâmbăta și
+   * duminica = 16 h. Regula veche le refuza și forța o normă zilnică falsă
+   * (3,2 h/zi), care ajungea în REGES și în pragul de salariu minim.
+   *
+   * Nici plafon superior („săptămână ≤ zi × 7” sau „× 6”): repartizarea
+   * inegală a timpului de muncă (art. 113 alin. 2) face ca norma zilnică din
+   * contract să nu fie neapărat cea a fiecărei zile, deci o limită de felul
+   * ăsta n-ar fi sigur legală. Plafoanele rămân pe câmpuri: 8 h/zi
+   * (art. 112) și 48 h/săptămână (art. 114).
+   *
+   * Mesajul stă pe `norma_ore_zi`, câmpul care se completează de obicei al
+   * doilea.
    */
-  if (valoare.norma_ore_zi * 5 > valoare.norma_ore_saptamana) {
+  if (valoare.norma_ore_zi > valoare.norma_ore_saptamana) {
     ctx.addIssue({
       code: "custom",
       path: ["norma_ore_zi"],
-      message:
-        "Norma zilnică înmulțită cu 5 zile lucrătoare depășește norma săptămânală. Corectați una dintre ele.",
+      message: "Norma zilnică nu poate depăși norma săptămânală. Corectați una dintre ele.",
     });
   }
   if (valoare.contract_duration === "determinat" && valoare.valabil_pana === null) {

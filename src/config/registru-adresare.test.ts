@@ -58,7 +58,7 @@ const REGULI: readonly Regula[] = [
     siInIdentificatori: true,
     nume: "persoana a doua singular — se scrie la „dumneavoastră”",
     tipar: new RegExp(
-      `${I}(tău|tăi|tale|ta|îți|ți-am|ți-a|le-ai|ai ales|ai nevoie|ai acces|ai găsit|ai trimis|ai deschis|ai timp|ai deja|ai făcut|poți|vrei|deschizi|completezi|creezi|închizi|încarci|primești|intri)${S}`,
+      `${I}(tău|tăi|tale|ta|îți|ți-am|ți-a|le-ai|ai ales|ai nevoie|ai acces|ai găsit|ai trimis|ai deschis|ai timp|ai deja|ai făcut|poți|vrei|deschizi|completezi|creezi|închizi|încarci|primești|intri|accepți|scrie-ți)${S}`,
       "giu",
     ),
   },
@@ -166,7 +166,13 @@ function incalcari(): string[] {
       // zeci.
       const suspect = REGULI.some((regula) => {
         regula.tipar.lastIndex = 0;
-        return regula.tipar.test(text);
+        const gasit = regula.tipar.test(text);
+        // Tiparul e global: `test()` lasă `lastIndex` după potrivire, iar
+        // `matchAll` de mai jos pornește clona de acolo. Pe fragmente scurte
+        // (mesajele Zod) începea după capătul lor și nu găsea nimic — așa a
+        // scăpat „Scrie-ți prenumele.” din `inregistrare/schema.ts`.
+        regula.tipar.lastIndex = 0;
+        return gasit;
       });
       if (!suspect) continue;
       const sursa = ts.createSourceFile(

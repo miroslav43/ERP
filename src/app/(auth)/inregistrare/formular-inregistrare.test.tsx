@@ -126,7 +126,7 @@ describe("FormularInregistrare — validarea pe client", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Trebuie să accepți termenii ca să putem crea contul."),
+        screen.getByText("Trebuie să acceptați termenii ca să putem crea contul."),
       ).toBeDefined();
     });
     expect(inregistreazaFirma).not.toHaveBeenCalled();
@@ -139,10 +139,10 @@ describe("FormularInregistrare — validarea pe client", () => {
     await trimite();
 
     await waitFor(() => {
-      expect(screen.getByText("Scrie denumirea firmei.")).toBeDefined();
+      expect(screen.getByText("Completați denumirea firmei.")).toBeDefined();
     });
-    expect(screen.getByText("Scrie-ți prenumele.")).toBeDefined();
-    expect(screen.getByText("Scrie-ți numele de familie.")).toBeDefined();
+    expect(screen.getByText("Completați prenumele.")).toBeDefined();
+    expect(screen.getByText("Completați numele de familie.")).toBeDefined();
     expect(inregistreazaFirma).not.toHaveBeenCalled();
   });
 

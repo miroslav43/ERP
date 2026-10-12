@@ -380,6 +380,33 @@ describe("telefonOptional", () => {
     expect(telefonOptional.parse("123456")).toBe("123456");
   });
 
+  /*
+   * Scrieri românești uzuale (QA integrare L4): bara oblică între prefix și
+   * număr și interiorul pe telefonul de serviciu. Fără ele, o fișă veche care
+   * le avea nu se mai putea salva la nicio altă modificare.
+   */
+  it("acceptă bara oblică între prefix și număr", () => {
+    expect(telefonOptional.parse("0722/123.456")).toBe("0722/123.456");
+    expect(telefonOptional.parse("0256/123456")).toBe("0256/123456");
+  });
+
+  it("acceptă un interior la final", () => {
+    expect(telefonOptional.parse("0256 123 456 int. 12")).toBe("0256 123 456 int. 12");
+    expect(telefonOptional.parse("0256 123 456 int 123")).toBe("0256 123 456 int 123");
+    expect(telefonOptional.parse("0256 123 456, interior 7")).toBe("0256 123 456, interior 7");
+    expect(telefonOptional.parse("0256/123456 Int.12")).toBe("0256/123456 Int.12");
+    expect(telefonOptional.parse("+40 256 123 456 ext. 4501")).toBe("+40 256 123 456 ext. 4501");
+  });
+
+  it("interiorul nu deschide ușa literelor oriunde", () => {
+    expect(() => telefonOptional.parse("int. 12")).toThrow();
+    expect(() => telefonOptional.parse("0256 int. 123 456")).toThrow();
+    expect(() => telefonOptional.parse("0256 123 456 int.")).toThrow();
+    expect(() => telefonOptional.parse("0256 123 456 int. abc")).toThrow();
+    expect(() => telefonOptional.parse("0256 123 456 interioare 2")).toThrow();
+    expect(() => telefonOptional.parse("0256 123 456 int. 12".padEnd(33, "3"))).toThrow();
+  });
+
   it("mesajul e în română și spune ce e permis", () => {
     const r = telefonOptional.safeParse("abc");
     expect(r.success).toBe(false);

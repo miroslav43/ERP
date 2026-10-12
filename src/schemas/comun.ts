@@ -78,8 +78,21 @@ export const textOptional = (maxim: number) =>
     .transform((v) => (v === null || v.length === 0 ? null : v));
 
 /**
+ * Numărul propriu-zis (cel puțin 6 caractere din cifre, spații și `+ ( ) - . /`),
+ * urmat opțional de un interior: „int.”, „int”, „interior” sau „ext.”, apoi
+ * 1–6 cifre, la FINAL. Literele sunt permise doar în cuvântul ăsta, nu oriunde.
+ */
+const TIPAR_TELEFON = /^[0-9+()\s./-]{6,}?(?:[\s,]*(?:int(?:erior)?|ext)\.?\s*[0-9]{1,6})?$/iu;
+
+/**
  * Un număr de telefon opțional, cu regula LAXĂ din `qa/spec.md` §1.1: cifre,
- * spații și semnele `+ ( ) - .`, între 6 și 32 de caractere.
+ * spații și semnele `+ ( ) - . /`, plus un interior la final („int. 12”),
+ * între 6 și 32 de caractere în total.
+ *
+ * Bara oblică („0722/123.456”) și interiorul pe telefonul de serviciu sunt
+ * scrieri românești uzuale. Fără ele, o fișă veche care le avea nu se mai
+ * putea salva la nicio altă modificare: `actualizeazaAngajatSchema` trimite
+ * toate telefoanele odată cu orice câmp (QA integrare, lotul L4).
  *
  * NU e `telefonSchema` din `organization.ts` (strict românească, pentru
  * înregistrare și bun-venit): un angajat, un contact de urgență sau un profil
@@ -94,8 +107,8 @@ export const telefonOptional = z
   .default(null)
   .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
   .refine(
-    (valoare) => valoare === null || /^[0-9+()\s.\-]{6,32}$/u.test(valoare),
-    "Numărul de telefon poate conține doar cifre, spații și semnele + ( ) - . și are între 6 și 32 de caractere.",
+    (valoare) => valoare === null || (valoare.length <= 32 && TIPAR_TELEFON.test(valoare)),
+    "Numărul de telefon poate conține doar cifre, spații și semnele + ( ) - . /, cu un interior la final (de exemplu „int. 12”), și are între 6 și 32 de caractere.",
   );
 
 /**

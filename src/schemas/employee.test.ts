@@ -194,11 +194,11 @@ describe("inroleazaAngajatSchema — normă, examen, telefon", () => {
     ).toBe(true);
   });
 
-  it("coerență: 8 ore pe zi cu 20 pe săptămână depășește săptămâna — issue pe `norma_ore_zi`", () => {
+  it("coerență: 8 ore pe zi cu 4 pe săptămână — ziua depășește săptămâna, issue pe `norma_ore_zi`", () => {
     const r = inroleazaAngajatSchema.safeParse({
       ...INROLARE,
       norma_ore_zi: 8,
-      norma_ore_saptamana: 20,
+      norma_ore_saptamana: 4,
     });
     expect(r.success).toBe(false);
     if (r.success) return;
@@ -213,6 +213,39 @@ describe("inroleazaAngajatSchema — normă, examen, telefon", () => {
     ).toBe(true);
   });
 
+  /*
+   * Timp parțial lucrat în zile întregi, dar în mai puțin de cinci zile pe
+   * săptămână (art. 103–105 Codul muncii). Regula veche („zi × 5 ≤ săptămână”)
+   * le refuza și forța o normă zilnică falsă (3,2 h/zi), care ajungea în REGES.
+   */
+  it.each([
+    [8, 24, "trei zile"],
+    [8, 16, "sâmbăta și duminica"],
+    [8, 32, "patru zile"],
+    [8, 20, "8 + 8 + 4"],
+    [4, 4, "o singură zi de 4 ore"],
+  ])("timp parțial: %d h/zi cu %d h/săptămână (%s) — acceptat", (zi, saptamana) => {
+    const r = inroleazaAngajatSchema.safeParse({
+      ...INROLARE,
+      norma_ore_zi: zi,
+      norma_ore_saptamana: saptamana,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("timp parțial și pe contractul de bază: 8 h/zi cu 24 h/săptămână — acceptat", () => {
+    const r = creeazaContractSchema.safeParse({
+      employee_id: "55555555-5555-4555-8555-555555555555",
+      numar: "12/2026",
+      data_contract: "2026-09-28",
+      valabil_de_la: "2026-10-01",
+      salariu_baza: 4000,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 24,
+    });
+    expect(r.success).toBe(true);
+  });
+
   it("coerență și pe contractul de bază", () => {
     const r = creeazaContractSchema.safeParse({
       employee_id: "55555555-5555-4555-8555-555555555555",
@@ -221,7 +254,7 @@ describe("inroleazaAngajatSchema — normă, examen, telefon", () => {
       valabil_de_la: "2026-10-01",
       salariu_baza: 4000,
       norma_ore_zi: 8,
-      norma_ore_saptamana: 20,
+      norma_ore_saptamana: 4,
     });
     expect(r.success).toBe(false);
     if (r.success) return;
