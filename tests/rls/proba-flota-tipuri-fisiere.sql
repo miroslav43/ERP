@@ -26,7 +26,9 @@
 -- (12) șoferul urcă bonul pe ciorna lui [POZITIVĂ]; nu pe foaia colegului și
 --      nu pe o foaie trimisă; administratorul altei firme nu urcă nimic aici;
 -- (13) citirea: șoferul vede scanarea mașinii lui [POZITIVĂ], colegul fără
---      mașină și hr nu; managerul vede bonul foii subordonatei   [POZITIVĂ].
+--      mașină și hr nu; managerul vede bonul foii subordonatei   [POZITIVĂ];
+-- (14) managerul își atașează bonul pe ciorna LUI (trip_sheets:update own)
+--      [POZITIVĂ], dar nu pe ciorna subordonatei.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -50,6 +52,10 @@ declare
   v_v_a       uuid := gen_random_uuid();
   v_v_b       uuid := gen_random_uuid();
   v_v_b2      uuid := gen_random_uuid();   -- vehiculul firmei B
+  v_v_m       uuid := gen_random_uuid();   -- mașina managerului (14)
+  v_foaie_m   uuid;
+  v_alim_m    uuid;
+  v_cale_m    text;
   v_foaie_a   uuid;
   v_foaie_b   uuid;
   v_alim_a    uuid;
@@ -521,11 +527,60 @@ begin
     raise notice '  ✓ (13) citirea: șoferul și managerul văd ce le aparține; colegul și hr nu';
   end if;
 
+  -- ── (14) managerul: bonul pe ciorna LUI, nu pe a subordonatei ────────────
+  -- `trip_sheets:update = own` (F3, 0196): își face propriile foi, deci își
+  -- atașează și bonul; foaia Anei e tot ciornă, dar nu e a lui.
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
+                               created_by, updated_by)
+  values (v_v_m, v_org, 'B' || (100 + (random() * 800)::int)::text || 'TPM', 'Skoda', 'Octavia',
+          40000, v_u_adm, v_u_adm);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la,
+                                          created_by, updated_by)
+  values (v_org, v_v_m, v_e_mgr, now() - interval '20 days', v_u_adm, v_u_adm);
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_m, v_e_mgr, now() - interval '3 hours', 40000, v_u_mgr, v_u_mgr)
+    returning id into v_foaie_m;
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     created_by, updated_by)
+    values (v_org, v_foaie_m, 40, 290, now() - interval '2 hours', v_u_mgr, v_u_mgr)
+    returning id into v_alim_m;
+    v_cale_m := v_org::text || '/trip_sheets/' || v_foaie_m::text || '/m1-bon.jpg';
+    insert into storage.objects (bucket_id, name, owner) values ('org-flota', v_cale_m, v_u_mgr);
+    update public.fuel_entries set fisier_bon_path = v_cale_m, updated_by = v_u_mgr
+     where id = v_alim_m;
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n <> 1 then
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (14) FALS-NEGATIV: managerul nu-și leagă bonul (% rânduri)', v_n;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (14) FALS-NEGATIV: managerul nu-și atașează bonul: % (%)', sqlerrm, sqlstate;
+  end;
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('org-flota', v_org::text || '/trip_sheets/' || v_foaie_a::text || '/m2-bon.jpg', v_u_mgr);
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (14) FALS-POZITIV: managerul a urcat un bon pe ciorna subordonatei';
+  exception when insufficient_privilege then
+    reset role;
+    raise notice '  ✓ (14) managerul își atașează bonul pe ciorna lui, nu pe a subordonatei';
+  end;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA TIPURI ȘI FIȘIERE: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 13 verificări au trecut.';
+  raise notice '  TOATE cele 14 verificări au trecut.';
   raise notice '';
 end;
 $$;

@@ -4692,7 +4692,8 @@ end $$;
 --
 -- `org_admin` activează un tip de platformă pentru firmă, își creează un tip
 -- propriu, înregistrează un document pe el, îi urcă scanarea și o leagă de rând.
--- `employee` urcă poza bonului pe ciorna lui și o leagă de alimentare. Fiecare
+-- `employee` și `manager` urcă poza bonului pe ciorna lor și o leagă de
+-- alimentare. Fiecare
 -- e un gest pe care ecranul îl face; un refuz de politică ar lăsa rolul fără
 -- ecran, iar (a)–(k) ar trece verzi. Rânduri NUMĂRATE.
 do $$
@@ -4703,6 +4704,9 @@ declare
   v_ang     uuid := pg_temp.id('ang_alfa');
   v_veh     uuid := gen_random_uuid();
   v_pool    uuid := gen_random_uuid();
+  v_mgr     uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang uuid := pg_temp.id('mgr2_alfa');
+  v_veh_mgr uuid := gen_random_uuid();
   v_tip     uuid;
   v_doc     uuid;
   v_foaie   uuid;
@@ -4786,7 +4790,36 @@ begin
     perform pg_temp.esueaza(format('(l) `employee` pe bon: urcate×10+legate = %s, așteptat 11', v_n));
   end if;
 
-  raise notice '(l) tipurile de document per firmă și fișierele flotei: org_admin activează, creează, urcă scanarea; employee urcă bonul ✓';
+  -- 5) `manager` (`trip_sheets:update = own`, 0196) urcă bonul pe ciorna LUI.
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_veh_mgr, v_alfa, 'CJ' || left(replace(v_veh_mgr::text, '-', ''), 5) || 'TM', 'Skoda', 'Octavia', 6000, false, v_admin, v_admin);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by)
+  values (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '10 days', v_admin, v_admin);
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '1 hour', 6000, v_mgr, v_mgr)
+  returning id into v_foaie;
+  insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                   created_by, updated_by)
+  values (v_alfa, v_foaie, 30, 220, now() - interval '30 minutes', v_mgr, v_mgr)
+  returning id into v_alim;
+  v_cale := v_alfa::text || '/trip_sheets/' || v_foaie::text || '/' || gen_random_uuid()::text || '-bon.jpg';
+  with urcate as (
+    insert into storage.objects (bucket_id, name, owner) values ('org-flota', v_cale, v_mgr) returning 1
+  ) select count(*) into v_n from urcate;
+  with legate as (
+    update public.fuel_entries set fisier_bon_path = v_cale, updated_by = v_mgr
+     where id = v_alim returning 1
+  ) select v_n * 10 + count(*) into v_n from legate;
+  reset role;
+  if v_n <> 11 then
+    perform pg_temp.esueaza(format('(l) `manager` pe bonul propriu: urcate×10+legate = %s, așteptat 11', v_n));
+  end if;
+
+  raise notice '(l) tipurile de document per firmă și fișierele flotei: org_admin activează, creează, urcă scanarea; employee și manager urcă bonul ✓';
 end $$;
 -- ═══ SFÂRȘIT BLOC: tipurile de document și fișierele flotei (0199) ═══════════
 

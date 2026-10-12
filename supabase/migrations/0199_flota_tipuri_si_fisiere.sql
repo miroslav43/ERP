@@ -76,8 +76,10 @@ comment on column public.vehicle_document_types.categorii_aplicabile is
 comment on column public.vehicle_document_types.masa_max_kg is
   'Masa maximă autorizată (kg) până la care se cere tipul (0199). NULL = fără plafon. Un vehicul fără masă completată e tratat ca aplicabil.';
 
--- Seed de platformă. Rovinieta privește vehiculele de până la 3,5 t (peste se
--- plătește tariful de utilizare pe alt document); trusa și stingătorul sunt
+-- Seed de platformă. Plafonul rovinietei la 3,5 t e decizia planului aprobat pe
+-- 7 oct, NU o valoare legală verificată: ⚠ de confirmat de jurist (OG 15/2002
+-- are și categorii de rovinietă peste 3,5 t). Dacă se infirmă, plafonul se
+-- scoate printr-o migrare ulterioară, fără cod nou. Trusa și stingătorul sunt
 -- dotări ale autovehiculului, nu ale remorcii.
 update public.vehicle_document_types
    set masa_max_kg = 3500, updated_at = now()
