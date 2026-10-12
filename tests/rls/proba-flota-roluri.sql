@@ -144,6 +144,8 @@ begin
     (v_org, v_v_b, v_e_b,   now() - interval '10 days', v_u_admin, v_u_admin),
     (v_org, v_v_m, v_e_mgr, now() - interval '10 days', v_u_admin, v_u_admin);
 
+  -- Din 0197 un vehicul are o singură foaie activă pe zi: foile de pe același
+  -- vehicul (mai ales pool-ul) stau pe zile diferite, la distanță de o zi.
   -- Foile lui Bogdan, scrise de el (context de serviciu): o ciornă și una trimisă.
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   created_by, updated_by) values
@@ -538,13 +540,13 @@ begin
   -- pool, plus o foaie pe subordonat întocmită DE manager (stare moștenită).
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   sosire_la, km_sosire, status, created_by, updated_by) values
-    (v_foaie_m1, v_org, v_v_pool, v_e_mgr, now() - interval '50 hours', 40000,
-     now() - interval '49 hours', 40030, 'trimis', v_u_mgr, v_u_mgr),
-    (v_foaie_m3, v_org, v_v_pool, v_e_b,   now() - interval '46 hours', 40000,
-     now() - interval '45 hours', 40030, 'trimis', v_u_mgr, v_u_mgr);
+    (v_foaie_m1, v_org, v_v_pool, v_e_mgr, now() - interval '10 days', 40000,
+     now() - interval '10 days' + interval '1 hour', 40030, 'trimis', v_u_mgr, v_u_mgr),
+    (v_foaie_m3, v_org, v_v_pool, v_e_b,   now() - interval '8 days', 40000,
+     now() - interval '8 days' + interval '1 hour', 40030, 'trimis', v_u_mgr, v_u_mgr);
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   created_by, updated_by) values
-    (v_foaie_m2, v_org, v_v_pool, v_e_mgr, now() - interval '48 hours', 40000, v_u_mgr, v_u_mgr);
+    (v_foaie_m2, v_org, v_v_pool, v_e_mgr, now() - interval '9 days', 40000, v_u_mgr, v_u_mgr);
 
   -- (21) un singur UPDATE: foaia proprie trimisă devine a subordonatului, aprobată
   perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
@@ -605,7 +607,7 @@ begin
   -- serviciu (politica de INSERT le rezervă motorului).
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   created_by, updated_by) values
-    (v_foaie_bp, v_org, v_v_pool, v_e_b, now() - interval '44 hours', 41000, v_u_b, v_u_b);
+    (v_foaie_bp, v_org, v_v_pool, v_e_b, now() - interval '7 days', 41000, v_u_b, v_u_b);
   insert into public.odometer_anomalies (id, organization_id, vehicle_id, trip_sheet_id,
                                          km_asteptat, km_declarat, tip) values
     (v_anom_b, v_org, v_v_pool, v_foaie_bp,   40000, 45000, 'salt'),
@@ -666,7 +668,7 @@ begin
   -- ca singurul motiv de refuz să fie foaia aprobată de pe care pleacă.
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   created_by, updated_by) values
-    (v_foaie_x, v_org, v_v_pool, v_e_a, now() - interval '4 hours', 40000, v_u_a, v_u_a);
+    (v_foaie_x, v_org, v_v_pool, v_e_a, now() - interval '6 days', 40000, v_u_a, v_u_a);
   perform set_config('request.jwt.claim.sub', v_u_a::text, true);
   set local role authenticated;
   begin

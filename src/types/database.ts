@@ -13024,12 +13024,144 @@ export type Database = {
           },
         ]
       }
+      trip_route_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          de_la_loc: string
+          deleted_at: string | null
+          denumire: string
+          id: string
+          km_estimat: number | null
+          organization_id: string
+          pana_la_loc: string
+          scop: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          de_la_loc: string
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          km_estimat?: number | null
+          organization_id: string
+          pana_la_loc: string
+          scop: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          de_la_loc?: string
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          km_estimat?: number | null
+          organization_id?: string
+          pana_la_loc?: string
+          scop?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_route_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_sheet_curse: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          de_la_loc: string | null
+          deleted_at: string | null
+          id: string
+          km_parcursi: number | null
+          km_plecare: number
+          km_sosire: number | null
+          observatii: string | null
+          ordine: number
+          organization_id: string
+          pana_la_loc: string | null
+          plecare_la: string
+          scop: string | null
+          sosire_la: string | null
+          trip_sheet_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          de_la_loc?: string | null
+          deleted_at?: string | null
+          id?: string
+          km_parcursi?: number | null
+          km_plecare: number
+          km_sosire?: number | null
+          observatii?: string | null
+          ordine?: number
+          organization_id: string
+          pana_la_loc?: string | null
+          plecare_la: string
+          scop?: string | null
+          sosire_la?: string | null
+          trip_sheet_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          de_la_loc?: string | null
+          deleted_at?: string | null
+          id?: string
+          km_parcursi?: number | null
+          km_plecare?: number
+          km_sosire?: number | null
+          observatii?: string | null
+          ordine?: number
+          organization_id?: string
+          pana_la_loc?: string | null
+          plecare_la?: string
+          scop?: string | null
+          sosire_la?: string | null
+          trip_sheet_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_sheet_curse_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_sheet_curse_trip_sheet_id_fkey"
+            columns: ["trip_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "trip_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_sheets: {
         Row: {
           aprobat_de: string | null
           aprobat_la: string | null
           created_at: string
           created_by: string | null
+          data: string | null
           deleted_at: string | null
           employee_id: string
           id: string
@@ -13037,6 +13169,7 @@ export type Database = {
           km_plecare: number
           km_sosire: number | null
           motiv_respingere: string | null
+          norma_l_100km: number | null
           numar: string | null
           observatii: string | null
           organization_id: string
@@ -13049,12 +13182,18 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           vehicle_id: string
+          vehicul_categorie:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
+          vehicul_combustibil: Database["public"]["Enums"]["fuel_type"] | null
+          vehicul_nr: string | null
         }
         Insert: {
           aprobat_de?: string | null
           aprobat_la?: string | null
           created_at?: string
           created_by?: string | null
+          data?: string | null
           deleted_at?: string | null
           employee_id: string
           id?: string
@@ -13062,6 +13201,7 @@ export type Database = {
           km_plecare: number
           km_sosire?: number | null
           motiv_respingere?: string | null
+          norma_l_100km?: number | null
           numar?: string | null
           observatii?: string | null
           organization_id: string
@@ -13074,12 +13214,18 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           vehicle_id: string
+          vehicul_categorie?:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
+          vehicul_combustibil?: Database["public"]["Enums"]["fuel_type"] | null
+          vehicul_nr?: string | null
         }
         Update: {
           aprobat_de?: string | null
           aprobat_la?: string | null
           created_at?: string
           created_by?: string | null
+          data?: string | null
           deleted_at?: string | null
           employee_id?: string
           id?: string
@@ -13087,6 +13233,7 @@ export type Database = {
           km_plecare?: number
           km_sosire?: number | null
           motiv_respingere?: string | null
+          norma_l_100km?: number | null
           numar?: string | null
           observatii?: string | null
           organization_id?: string
@@ -13099,6 +13246,11 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           vehicle_id?: string
+          vehicul_categorie?:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
+          vehicul_combustibil?: Database["public"]["Enums"]["fuel_type"] | null
+          vehicul_nr?: string | null
         }
         Relationships: [
           {

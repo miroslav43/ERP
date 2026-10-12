@@ -564,6 +564,21 @@ begin
   values (v_alfa, (select val from t_ids where cheie='trip_alfa'), 40.50, 320.00, now() - interval '90 minutes', 'Stație de test Alfa', v_admin_alfa, v_admin_alfa),
          (v_beta, (select val from t_ids where cheie='trip_beta'), 40.50, 320.00, now() - interval '90 minutes', 'Stație de test Beta', v_admin_beta, v_admin_beta);
 
+  -- ═══ ÎNCEPUT BLOC: fixture foaia zilnică (0197) ═══════════════════════════
+  -- O cursă pe fiecare foaie (aceleași ore și kilometri ca antetul, deci
+  -- agregatele nu se mișcă) și câte un șablon de traseu per firmă.
+  insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la, de_la_loc,
+                                       pana_la_loc, scop, km_plecare, km_sosire, created_by, updated_by)
+  select t.organization_id, t.id, t.plecare_la, t.sosire_la, 'Sediu', 'Client', t.scop,
+         t.km_plecare, t.km_sosire, t.created_by, t.updated_by
+    from public.trip_sheets t
+   where t.id in ((select val from t_ids where cheie='trip_alfa'), (select val from t_ids where cheie='trip_beta'));
+  insert into public.trip_route_templates (organization_id, denumire, de_la_loc, pana_la_loc, scop, km_estimat,
+                                           created_by, updated_by)
+  values (v_alfa, 'Sediu — Client Alfa', 'Sediu', 'Client', 'Livrare', 25, v_admin_alfa, v_admin_alfa),
+         (v_beta, 'Sediu — Client Beta', 'Sediu', 'Client', 'Livrare', 25, v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture foaia zilnică (0197) ═══════════════════════════
+
   -- ── Faza 7 (migrarea 0011): SSM, PSI, medicina muncii, ISCIR, mentenanță ────
   -- `ssm_legal_parameters`, `ssm_training_types` și `ssm_training_type_periods`
   -- se seedează SINGURE la crearea organizației (trg organizations_ssm_seed,
@@ -2232,8 +2247,10 @@ begin
    where organization_id = v_alfa and deleted_at is null limit 1;
   insert into public.trip_sheets (organization_id, vehicle_id, employee_id,
                                   plecare_la, km_plecare, sosire_la, km_sosire, status)
-  values (v_alfa, v_veh_sub, v_sub_alfa, now() - interval '2 hours', 1000,
-          now() - interval '1 hour', 1120, 'trimis')
+  -- Cu două zile în urmă, nu azi: din 0197 vehiculul are o singură foaie activă
+  -- pe zi, iar azi are deja foaia fixture-ului (`trip_alfa`).
+  values (v_alfa, v_veh_sub, v_sub_alfa, now() - interval '50 hours', 1000,
+          now() - interval '49 hours', 1120, 'trimis')
   returning id into v_foaie_sub;
 
   -- 1) `super_admin` comută un modul. `org_admin` are doar `features:read`,
@@ -4403,6 +4420,174 @@ begin
   raise notice '(l) flota pe roluri: angajatul întocmește, alimentează și trimite; managerul își face foile și vede echipa ✓';
 end $$;
 -- ═══ SFÂRȘIT BLOC: flota pe roluri (0196) ════════════════════════════════════
+
+-- ═══ ÎNCEPUT BLOC: foaia zilnică cu curse (0197) ═════════════════════════════
+-- (l), continuare — cursele, retragerea și retrimiterea (0197)
+--
+-- Din 0197 foaia e ziua vehiculului, cu curse, iar copiii (curse, alimentări)
+-- se scriu doar pe ciornă. Fiecare scriere de mai jos e una pe care ecranul o
+-- face pentru rolul care o are; dacă paritatea stării ar bloca și drumul
+-- legitim (ciornă → trimis → retras → corectat → retrimis → aprobat), rolurile
+-- n-ar putea lucra, iar refuzurile din probe ar trece verzi. Rânduri NUMĂRATE.
+do $$
+declare
+  v_alfa     uuid := pg_temp.id('alfa');
+  v_admin    uuid := pg_temp.id('admin_alfa');
+  v_emp      uuid := pg_temp.id('emp_alfa');
+  v_ang      uuid := pg_temp.id('ang_alfa');
+  v_mgr      uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang  uuid := pg_temp.id('mgr2_alfa');
+  v_veh_ang  uuid := gen_random_uuid();
+  v_veh_mgr  uuid := gen_random_uuid();
+  v_zi       date := app.azi_local() - 3;
+  v_foaie    uuid;
+  v_foaie_m  uuid;
+  v_cursa    uuid;
+  v_n        int;
+  v_numar    text;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_veh_ang, v_alfa, 'CJ' || left(replace(v_veh_ang::text, '-', ''), 5) || 'ZA', 'Dacia', 'Logan',  4000, false, v_admin, v_admin),
+    (v_veh_mgr, v_alfa, 'CJ' || left(replace(v_veh_mgr::text, '-', ''), 5) || 'ZM', 'Skoda', 'Superb', 5000, false, v_admin, v_admin);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by) values
+    (v_alfa, v_veh_ang, v_ang,     now() - interval '15 days', v_admin, v_admin),
+    (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '15 days', v_admin, v_admin);
+
+  -- 1) `employee`: foaia zilei, o cursă, o alimentare, trimiterea.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_ang, v_ang, (v_zi::timestamp + interval '08:00') at time zone 'Europe/Bucharest', 4000, v_emp, v_emp)
+  returning id into v_foaie;
+  with inserate as (
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la, de_la_loc,
+                                         pana_la_loc, scop, km_plecare, km_sosire, created_by, updated_by)
+    values (v_alfa, v_foaie, (v_zi::timestamp + interval '08:00') at time zone 'Europe/Bucharest',
+            (v_zi::timestamp + interval '09:30') at time zone 'Europe/Bucharest',
+            'Sediu', 'Client', 'Livrare', 4000, 4060, v_emp, v_emp)
+    returning id
+  ) select count(*), max(id::text)::uuid into v_n, v_cursa from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu adaugă o cursă pe ciorna proprie');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     created_by, updated_by)
+    values (v_alfa, v_foaie, 20, 150, (v_zi::timestamp + interval '09:00') at time zone 'Europe/Bucharest', v_emp, v_emp)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu alimentează pe ciorna proprie');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with trimise as (
+    update public.trip_sheets set status = 'trimis', updated_by = v_emp
+     where id = v_foaie and organization_id = v_alfa
+    returning numar
+  ) select count(*), max(numar) into v_n, v_numar from trimise;
+  reset role;
+  if v_n <> 1 or v_numar is null then
+    perform pg_temp.esueaza(format(
+      '(l) REFUZ TĂCUT: `employee` și-a trimis foaia zilei: %s rânduri, numărul %s', v_n, v_numar));
+  end if;
+
+  -- 2) …o retrage, corectează cursa pe ciornă și o retrimite.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with retrase as (
+    update public.trip_sheets set status = 'draft', updated_by = v_emp where id = v_foaie returning 1
+  ) select count(*) into v_n from retrase;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `employee` nu-și retrage foaia trimisă în ciornă');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with corectate as (
+    update public.trip_sheet_curse set km_sosire = 4065, scop = 'Livrare și retur', updated_by = v_emp
+     where id = v_cursa returning 1
+  ) select count(*) into v_n from corectate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `employee` nu-și corectează cursa pe ciornă');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with trimise as (
+    update public.trip_sheets set status = 'trimis', updated_by = v_emp where id = v_foaie returning numar, km_sosire
+  ) select count(*) into v_n from trimise where numar = v_numar and km_sosire = 4065;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: retrimiterea foii corectate nu păstrează numărul sau cifrele');
+  end if;
+
+  -- 3) `org_admin` o aprobă (approve = all, nu e foaia lui).
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with aprobate as (
+    update public.trip_sheets set status = 'aprobat', updated_by = v_admin where id = v_foaie returning 1
+  ) select count(*) into v_n from aprobate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `org_admin` nu aprobă foaia zilei a angajatului');
+  end if;
+
+  -- 4) `manager`: foaia proprie și cursa ei.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_mgr, v_mgr_ang, (v_zi::timestamp + interval '10:00') at time zone 'Europe/Bucharest', 5000, v_mgr, v_mgr)
+  returning id into v_foaie_m;
+  with inserate as (
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la, de_la_loc,
+                                         pana_la_loc, scop, km_plecare, km_sosire, created_by, updated_by)
+    values (v_alfa, v_foaie_m, (v_zi::timestamp + interval '10:00') at time zone 'Europe/Bucharest',
+            (v_zi::timestamp + interval '11:00') at time zone 'Europe/Bucharest',
+            'Sediu', 'Primărie', 'Avize', 5000, 5020, v_mgr, v_mgr)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `manager` nu adaugă o cursă pe foaia proprie');
+  end if;
+
+  -- 5) `org_admin`: un șablon de traseu al firmei, citit apoi de angajat.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.trip_route_templates (organization_id, denumire, de_la_loc, pana_la_loc, scop,
+                                             km_estimat, created_by, updated_by)
+    values (v_alfa, 'Sediu — Primărie ' || left(replace(gen_random_uuid()::text, '-', ''), 6),
+            'Sediu', 'Primărie', 'Avize', 12, v_admin, v_admin)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu creează un șablon de traseu');
+  end if;
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.trip_route_templates where organization_id = v_alfa;
+  reset role;
+  if v_n < 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu vede șabloanele de traseu ale firmei');
+  end if;
+
+  raise notice '(l) foaia zilnică: angajatul scrie cursa, alimentează, trimite, retrage, corectează, retrimite; administratorul aprobă; managerul își scrie cursele ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: foaia zilnică cu curse (0197) ═════════════════════════════
 
 
 rollback;

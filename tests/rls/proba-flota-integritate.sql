@@ -96,10 +96,11 @@ begin
   values (v_vehicul, v_org, 'B' || (100 + (random() * 800)::int)::text || 'FLT', 'Dacia', 'Logan', 10000,
           true, v_u_admin, v_u_admin);
 
+  -- Zile diferite: din 0197 vehiculul are o singură foaie activă pe zi.
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   created_by, updated_by) values
-    (v_foaie_a, v_org, v_vehicul, v_e_a, now() - interval '5 hours', 10000, v_u_a, v_u_a),
-    (v_foaie_b, v_org, v_vehicul, v_e_b, now() - interval '4 hours', 10000, v_u_b, v_u_b);
+    (v_foaie_a, v_org, v_vehicul, v_e_a, now() - interval '5 days', 10000, v_u_a, v_u_a),
+    (v_foaie_b, v_org, v_vehicul, v_e_b, now() - interval '4 days', 10000, v_u_b, v_u_b);
 
   -- (1) alimentare pe foaia proprie
   perform set_config('request.jwt.claim.sub', v_u_a::text, true);
@@ -152,7 +153,7 @@ begin
   begin
     insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                     created_by, updated_by)
-    values (v_org, v_vehicul, v_e_a, now() - interval '1 hour', 10000, v_u_mgr, v_u_mgr);
+    values (v_org, v_vehicul, v_e_a, now() - interval '3 days', 10000, v_u_mgr, v_u_mgr);
     reset role;
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (4) managerul a întocmit o foaie în numele subordonatului (read = team, create = own)';
