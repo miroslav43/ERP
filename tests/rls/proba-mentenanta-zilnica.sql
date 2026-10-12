@@ -504,3 +504,45 @@ begin
       v_n, v_titlu;
   end if;
 end $$;
+
+-- ═══ (13) Garanția nu-și repetă codul ═════════════════════════════════════════
+-- Eticheta din `expirables` a garanției (0182) începe deja cu codul utilajului
+-- („Garanție GAR-1 — Strung”); prefixul „cod · ” al rezumatului îl dubla:
+-- „GAR-1 · Garanție GAR-1 — Strung”. Planurile și ISCIR-ul păstrează prefixul,
+-- fiindcă eticheta lor nu numește utilajul.
+do $$
+declare
+  v_sufix text := left(replace(gen_random_uuid()::text, '-', ''), 8);
+  v_org   uuid := gen_random_uuid();
+  v_u_adm uuid := gen_random_uuid();
+  v_echip uuid := gen_random_uuid();
+  v_azi   date := app.azi_local();
+  v_corp  text;
+  v_cod   text;
+begin
+  v_cod := 'GAR-' || v_sufix;
+  insert into public.organizations (id, slug, name, cui, status) values
+    (v_org, 'proba-mzg-' || v_sufix, 'Proba Garanție SRL', 'RO' || (88500000 + (random() * 90000)::int)::text, 'active');
+  insert into public.organization_features (organization_id, feature_key, enabled, activated_at)
+  select v_org, f.feature_key, true, now() from public.features f;
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_adm, 'mzg-adm-' || v_sufix || '@proba.test', now());
+  insert into public.employees (organization_id, marca, first_name, last_name, hired_on, status, user_id) values
+    (v_org, 'MZG-A', 'Ana', 'Admin', v_azi - 900, 'activ', v_u_adm);
+  insert into public.organization_members (organization_id, user_id, role) values (v_org, v_u_adm, 'org_admin');
+  insert into public.equipment (id, organization_id, cod, denumire, garantie_expira)
+  values (v_echip, v_org, v_cod, 'Strung', v_azi + 5);
+
+  perform internal.genereaza_alerte(v_org);
+  perform internal.mentenanta_rezumat(v_org);
+  select min(body) into v_corp from public.notifications
+   where organization_id = v_org and user_id = v_u_adm and entity_type = 'maintenance_rezumat';
+
+  raise notice '';
+  if v_corp like '%Garanție ' || v_cod || ' — Strung%'
+     and (length(v_corp) - length(replace(v_corp, v_cod, ''))) / length(v_cod) = 1 then
+    raise notice '  ✓ (13) garanția apare cu codul o singură dată — „%”', v_corp;
+  else
+    raise exception 'PROBA „MENTENANȚA ZILNICĂ" (13): corpul „%” (codul trebuie să apară o dată)', v_corp;
+  end if;
+end $$;

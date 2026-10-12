@@ -525,6 +525,37 @@ describe("pregatesteFisier", () => {
       ).toBe(true);
     });
 
+    it("multe obiecte vechi ⇒ legăturile se citesc pe bucăți, ca URL-ul lui `.in()` să rămână scurt", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+      semneaza(server);
+      const nume = Array.from({ length: 60 }, (_, i) => `vechi-${String(i).padStart(2, "0")}.jpg`);
+      admin.raspundeStocare(BUCKET, "list", {
+        data: nume.map((n, i) => ({ id: `o${String(i)}`, name: n, created_at: ACUM_2_ZILE })),
+      });
+      // Primul obiect e legat; celelalte 59 sunt orfane.
+      admin.raspunde("maintenance_attachments", "select", {
+        data: [{ storage_path: `${FOLDER}/vechi-00.jpg` }],
+      });
+      admin.raspunde("maintenance_attachments", "select", { data: [] });
+      admin.raspunde("maintenance_attachments", "select", { data: [] });
+      admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+      const r = await pregatesteFisier(poza);
+
+      expect(r.ok).toBe(true);
+      const citiri = admin.apeluriPe("maintenance_attachments", "select");
+      expect(citiri.length).toBeGreaterThan(1);
+      for (const c of citiri) {
+        const filtru = c.filtre.find((f) => f.metoda === "in" && f.argumente[0] === "storage_path");
+        const valori = filtru?.argumente[1];
+        expect(Array.isArray(valori)).toBe(true);
+        expect((valori as readonly string[]).length).toBeLessThanOrEqual(25);
+      }
+      const sterse = admin.apeluriStocare.find((a) => a.metoda === "remove")?.argumente[0];
+      expect(sterse).toHaveLength(59);
+      expect(sterse).not.toContain(`${FOLDER}/vechi-00.jpg`);
+    });
+
     it("niciun obiect vechi ⇒ nicio citire de rânduri și nicio ștergere", async () => {
       const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
       semneaza(server);

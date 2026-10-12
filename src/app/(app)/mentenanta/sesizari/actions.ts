@@ -348,6 +348,9 @@ function prefixCale(organizationId: string, entityType: string, entityId: string
  */
 const VARSTA_ORFAN_MS = 24 * 60 * 60 * 1000;
 
+/** Câte căi intră într-un `.in()` al citirii legăturilor (URL scurt). Neexportată, ca mai sus. */
+const BUCATA_LEGATURI = 25;
+
 /**
  * Curățarea încărcărilor NECONFIRMATE din folderul unei entități (M9, cazul 12):
  * obiectele mai vechi de 24 h pentru care pasul 3 n-a scris niciodată rândul —
@@ -393,16 +396,22 @@ async function curataOrfaniiEntitatii(
       .map((o) => `${folder}/${o.name}`);
     if (vechi.length === 0) return 0;
 
-    const { data: legate, error: eroareLegate } = await admin
-      .from("maintenance_attachments")
-      .select("storage_path")
-      .eq("organization_id", organizationId)
-      .eq("entity_type", entityType)
-      .eq("entity_id", entityId)
-      .in("storage_path", vechi);
-    if (eroareLegate !== null) return 0;
-
-    const cunoscute = new Set((legate ?? []).map((r) => r.storage_path));
+    // Pe bucăți: `.in()` pleacă în URL-ul cererii GET, iar o cale are ~200 de
+    // caractere; 100 de căi ar trece de limita de antet a gateway-ului, eroarea
+    // ar fi înghițită mai jos și curățenia ar tăcea pe entitatea aceea pentru
+    // totdeauna.
+    const cunoscute = new Set<string>();
+    for (let i = 0; i < vechi.length; i += BUCATA_LEGATURI) {
+      const { data: legate, error: eroareLegate } = await admin
+        .from("maintenance_attachments")
+        .select("storage_path")
+        .eq("organization_id", organizationId)
+        .eq("entity_type", entityType)
+        .eq("entity_id", entityId)
+        .in("storage_path", vechi.slice(i, i + BUCATA_LEGATURI));
+      if (eroareLegate !== null) return 0;
+      for (const r of legate ?? []) cunoscute.add(r.storage_path);
+    }
     const orfani = vechi.filter((cale) => !cunoscute.has(cale));
     if (orfani.length === 0) return 0;
 

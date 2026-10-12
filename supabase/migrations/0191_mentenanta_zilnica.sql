@@ -327,7 +327,10 @@ begin
            a.id as alert_id,
            case when a.status = 'expirat' then 1 else 5 end as rang,
            x.expires_at::text as ordine,
-           coalesce(q.cod || ' · ', '') || x.label || ' — ' ||
+           -- Eticheta garanției (0182) numește deja utilajul („Garanție COD —
+           -- denumire”); prefixul ar dubla codul. Planul și ISCIR-ul nu-l numesc.
+           case when x.entity_type = 'equipment' then '' else coalesce(q.cod || ' · ', '') end
+             || x.label || ' — ' ||
              case when a.status = 'expirat'
                   then 'depășită din ' || to_char(x.expires_at, 'DD.MM.YYYY')
                   else 'scadentă pe ' || to_char(x.expires_at, 'DD.MM.YYYY') end as eticheta,
