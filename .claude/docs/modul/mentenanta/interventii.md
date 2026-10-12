@@ -24,7 +24,7 @@ citeste_daca:
   - "intervenția nu se anulează sau „Rezolvată” pare legată de una anulată → „Ce refuză baza tăcut”"
   - "o verificare legală nu se salvează sau PV-ul nu urcă → „Procesul-verbal înaintea intervenției”"
   - "costul pieselor nu e cel tastat → „Piesele”"
-scris_pe: 265369638b6f93ef6668b05e37d47890e12836ee
+scris_pe: 998374fb285a15c246da9c35df28324beddaa207
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -92,6 +92,16 @@ O verificare legală (tipul intervenției SAU tipul planului; nu și la rezultat
 Obiectul unei încercări eșuate se șterge cu clientul admin numai dacă niciun rând din
 `maintenance_attachments` nu-l folosește. O retrimitere după refuz refolosește id-ul și
 calea dacă fișierul e același (nume, mărime, dată); 23505 pe id = trimitere dublă.
+O casetă închisă fără trimitere (sau un fișier schimbat, cu id nou) lasă o rezervare
+abandonată: `pregatesteFisier` pe `intervention` mătură, la fiecare rezervare nouă din
+firmă, folderele `{org}/intervention/{id}` al căror id nu există în organizație —
+doar obiectele de peste 24 h fără rând (`curataRezervarileAbandonate`).
+
+**Nici corectura nu ocolește PV-ul**: `actualizeazaInterventie` cere PV/buletin deja
+atașat când intervenția DEVINE verificare legală făcută (tip schimbat pe
+`verificare_legala`, sau `amanata` → alt rezultat pe un plan legal). Rândurile vechi,
+deja făcute fără PV, rămân corectabile (cazul 46). Ștergerea ultimului PV al unei
+verificări legale NU e păzită încă (faza M7).
 
 ## Piesele
 
