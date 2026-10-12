@@ -230,3 +230,62 @@ export function traduEroareTipuri(error: unknown): never {
   }
   traduEroare(error);
 }
+
+// ═══ ÎNCEPUT BLOC: service, costuri, anvelope (0200) ═════════════════════════
+
+/**
+ * Traducerea pentru planuri de service, intervenții și cheltuieli (0200).
+ *
+ * În casetele de service vehiculul e un câmp ASCUNS (fișa îl știe), deci
+ * „Vehiculul ales nu există…” rămâne mesaj general, nu o eroare pe un câmp care
+ * nu se vede — aceeași capcană ca la alocări. Mesajele noi au ș/ț corecte.
+ */
+const CAMPURI_SERVICE: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Data ultimei intervenții/u, ["baza_data"]],
+  [/^Planul ales nu aparține/u, ["plan_id"]],
+  [/^Data intervenției/u, ["data_interventiei"]],
+  [/^Data cheltuielii/u, ["data_cheltuielii"]],
+];
+
+/** Câmpul (câmpurile) unui CHECK al celor trei tabele, după numele constrângerii din mesaj. */
+const CHECK_SERVICE: readonly (readonly [string, string, string])[] = [
+  ["vsp_interval_ck", "interval_km", "Alegeți cel puțin un interval: în kilometri sau în luni."],
+  [
+    "vse_anvelope_ck",
+    "anvelope_montate",
+    "Anvelopele montate se aleg doar la o intervenție de tip „Anvelope”.",
+  ],
+  [
+    "vex_litri_ck",
+    "litri",
+    "Litrii se completează doar la „Combustibil fără foaie”, și trebuie să fie pozitivi.",
+  ],
+  ["vex_suma_ck", "suma", "Suma trebuie să fie mai mare decât zero."],
+  ["vse_costuri_ck", "cost_piese", "Costurile nu pot fi negative."],
+];
+
+export function traduEroareService(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" && error.message.includes("vsp_vehicul_denumire_uq")) {
+      const mesaj = "Vehiculul are deja un plan cu această denumire.";
+      throw invalidInput(mesaj, { denumire: [mesaj] });
+    }
+    if (error.code === "23514") {
+      const check = CHECK_SERVICE.find(([nume]) => error.message.includes(nume));
+      if (check !== undefined) {
+        const [, camp, mesaj] = check;
+        throw invalidInput(mesaj, { [camp]: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_SERVICE.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}
+// ═══ SFÂRȘIT BLOC: service, costuri, anvelope (0200) ══════════════════════════
