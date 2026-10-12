@@ -1,7 +1,7 @@
 // src/app/(app)/flota/foi/date-foaie-noua.ts
 import "server-only";
 
-import { listeazaVehicule } from "@/lib/queries/fleet";
+import { listeazaVehicule, vehicululMeu } from "@/lib/queries/fleet";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import type { DateFoaieNoua } from "./dialog-foaie-noua";
@@ -26,7 +26,39 @@ import type { DateFoaieNoua } from "./dialog-foaie-noua";
  * filtrată în client — altfel prima pagină de 100 de vehicule ar putea fi
  * formată numai din mașini casate.
  */
-export async function dateFoaieNoua(organizationId: string): Promise<DateFoaieNoua> {
+/**
+ * Cine e șoferul foii noi.
+ *
+ * `ales`: cu `trip_sheets:create = all`, administratorul alege din toți
+ * angajații activi, pe orice vehicul din parc.
+ *
+ * `propriu` (0196): sub `all`, șoferul e cel conectat, iar baza primește foaia
+ * doar pe mașina alocată lui sau pe una din pool
+ * (`internal.foi_parcurs_inainte` §C1). Caseta oferă exact mulțimea asta, nu
+ * tot ce poate CITI rolul: un manager vede și mașinile echipei, dar o foaie pe
+ * ele ar fi refuzată cu P0001. `fisaId` null = cont fără fișă principală, deci
+ * fără nicio mașină.
+ */
+export type SoferFoaieNoua =
+  Readonly<{ fel: "ales" }> | Readonly<{ fel: "propriu"; fisaId: string | null }>;
+
+export async function dateFoaieNoua(
+  organizationId: string,
+  sofer: SoferFoaieNoua = { fel: "ales" },
+): Promise<DateFoaieNoua> {
+  if (sofer.fel === "propriu") {
+    if (sofer.fisaId === null) return { vehicule: [], angajati: null };
+    const { alocate, pool } = await vehicululMeu(organizationId, sofer.fisaId);
+    return {
+      vehicule: [...alocate, ...pool].map((v) => ({
+        id: v.id,
+        nr_inmatriculare: v.nr_inmatriculare,
+        km_curent: v.km_curent,
+      })),
+      angajati: null,
+    };
+  }
+
   const db = await createServerSupabase();
 
   const [parcul, angajati] = await Promise.all([

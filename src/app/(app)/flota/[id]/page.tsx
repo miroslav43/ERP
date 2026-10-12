@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { Scadenta } from "@/components/ui/scadenta";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
@@ -49,6 +49,7 @@ import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
 import { IstoricModificari } from "@/components/audit/istoric-modificari";
 import { poateDeschide } from "@/config/porti-ruta";
+import { idFisaProprie } from "@/lib/queries/employees";
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -74,7 +75,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   // Un segment care nu e UUID nu poate desemna niciun rând: 404, nu 22P02.
   const id = idDinRuta((await params).id);
 
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni, module] = await Promise.all([
@@ -116,7 +117,15 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       : (departamente.find((d) => d.id === vehicul.department_id) ?? null);
   // Railul: ce așteaptă pe vehiculul ăsta — foi trimise, anomalii — și foaia nouă pe el.
   const poateVedeaFoiVehicul = can(permisiuni, "trip_sheets:read", "own");
-  const [foiTrimise, anomaliiVehicul] = await Promise.all([
+  /*
+   * „Foaie nouă pe acest vehicul”: sub `trip_sheets:create = all` (managerul,
+   * din 0196), baza primește foaia doar pe pool sau pe mașina alocată celui
+   * conectat (`foi_parcurs_inainte` §C1). Managerul vede și mașinile echipei,
+   * iar pe ele butonul ar fi dus sigur într-un P0001.
+   */
+  const poateCreaFoi = can(permisiuni, "trip_sheets:create", "own");
+  const creeazaPeOrice = scopeFor(permisiuni, "trip_sheets:create") === "all";
+  const [foiTrimise, anomaliiVehicul, fisaProprie] = await Promise.all([
     poateVedeaFoiVehicul
       ? listeazaFoi(tenant.organizationId, {
           status: "trimis",
@@ -132,7 +141,15 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           (a) => a.filter((x) => x.vehicle_id === vehicul.id).length,
         )
       : Promise.resolve(0),
+    poateCreaFoi && !creeazaPeOrice && !vehicul.pool
+      ? idFisaProprie(tenant.organizationId, user.id)
+      : Promise.resolve(null),
   ]);
+  const poateFoaiePeVehicul =
+    poateCreaFoi &&
+    (creeazaPeOrice ||
+      vehicul.pool ||
+      (vehicul.employee_id !== null && vehicul.employee_id === fisaProprie));
   const azi = todayInBucharest();
   const alocareDeschisa = alocari.find((a) => a.pana_la === null);
   // Un vehicul vândut sau casat nu se mai predă: baza refuză oricum, iar
@@ -426,7 +443,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                 </Link>
               ) : null}
               {vehicul.status === "activ" &&
-              can(permisiuni, "trip_sheets:create", "own") &&
+              poateFoaiePeVehicul &&
               poateDeschide("/flota/foi", contextPorti) ? (
                 <Link
                   href={`/flota/foi?vehicul=${vehicul.id}&foaie=noua`}

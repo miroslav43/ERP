@@ -881,3 +881,84 @@ export async function vehiculeDupaId(
   if (error !== null) throw error;
   return new Map((data ?? []).map((v) => [v.id, v]));
 }
+
+// ── Portalul șoferului: „Mașina mea” (0196) ─────────────────────────────────
+//
+// Aici, spre deosebire de restul fișierului, filtrul pe ȘOFER e explicit. Regula
+// e cea din antetul lui `src/lib/queries/portal.ts`: portalul poate fi deschis
+// și de cineva cu `vehicles:read = all` (un administrator care e și șofer), iar
+// fără filtru „mașinile mele” ar fi tot parcul.
+
+export interface VehiculeleMele {
+  /** Vehiculele alocate acum șoferului (`vehicles.employee_id`, derivatul alocării deschise). */
+  readonly alocate: readonly RandVehicul[];
+  /** Mașinile comune ale firmei, pe care oricine cu drept de foaie poate întocmi foi. */
+  readonly pool: readonly RandVehicul[];
+}
+
+/** Câte mașini comune arată portalul. Un pool mai mare nu e „mașina mea”. */
+export const PLAFON_POOL_PORTAL = 50;
+
+/**
+ * Mașina (sau mașinile) cu care șoferul poate pleca la drum: cea alocată lui și
+ * cele din pool. Numai vehiculele din parc (`status = activ`): o foaie pe o
+ * mașină vândută sau casată o refuză oricum `foi_parcurs_inainte`.
+ */
+export async function vehicululMeu(
+  organizationId: string,
+  employeeId: string,
+): Promise<VehiculeleMele> {
+  const db = await createServerSupabase();
+  const [alocate, pool] = await Promise.all([
+    db
+      .from("vehicles")
+      .select(COLOANE_VEHICUL_LISTA)
+      .eq("organization_id", organizationId)
+      .eq("employee_id", employeeId)
+      .eq("status", "activ")
+      .is("deleted_at", null)
+      .order("nr_inmatriculare", { ascending: true })
+      .limit(20)
+      .returns<RandVehicul[]>(),
+    db
+      .from("vehicles")
+      .select(COLOANE_VEHICUL_LISTA)
+      .eq("organization_id", organizationId)
+      .eq("pool", true)
+      .eq("status", "activ")
+      .is("deleted_at", null)
+      .order("nr_inmatriculare", { ascending: true })
+      .limit(PLAFON_POOL_PORTAL)
+      .returns<RandVehicul[]>(),
+  ]);
+  if (alocate.error !== null) throw alocate.error;
+  if (pool.error !== null) throw pool.error;
+
+  // Un vehicul alocat care e și pool apare o singură dată, la „alocate”.
+  const idAlocate = new Set((alocate.data ?? []).map((v) => v.id));
+  return {
+    alocate: alocate.data ?? [],
+    pool: (pool.data ?? []).filter((v) => !idAlocate.has(v.id)),
+  };
+}
+
+/**
+ * Foile ȘOFERULUI, cele mai noi întâi, cu cursor keyset.
+ *
+ * E `listeazaFoi` cu filtrul pe șofer fixat: aceeași paginare, aceeași
+ * numărătoare, deci nicio a doua copie a predicatului keyset care să poată
+ * diverge.
+ */
+export async function foileMele(
+  organizationId: string,
+  employeeId: string,
+  pagina: Readonly<{ cursor: string | null; limita: number }>,
+): Promise<RezultatFoi> {
+  return listeazaFoi(organizationId, {
+    status: null,
+    vehicul: null,
+    sofer: employeeId,
+    cursor: pagina.cursor,
+    limita: pagina.limita,
+  });
+}

@@ -17,6 +17,7 @@ import { formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { angajatiDupaId, listeazaFoi, listeazaVehicule, vehiculeDupaId } from "@/lib/queries/fleet";
+import { fisaMea } from "@/lib/queries/portal";
 import { filtreFoiSchema } from "@/schemas/fleet";
 
 import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
@@ -226,7 +227,7 @@ async function TabelFoi({
 }
 
 export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -242,6 +243,9 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
 
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "trip_sheets:create", "own");
+  // Sub `all` (managerul, din 0196), șoferul foii e chiar cel conectat, iar
+  // caseta oferă doar mașina lui și pool-ul — vezi `SoferFoaieNoua`.
+  const creeazaPentruOricine = scopeFor(permisiuni, "trip_sheets:create") === "all";
   const scope = scopeFor(permisiuni, "trip_sheets:read");
   // `/flota/foi/noua` a dispărut; parametrul deschide caseta care i-a luat locul.
   const deschideCaseta = parametri["foaie"] === "noua";
@@ -269,7 +273,16 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
       cursor: null,
       limita: 100,
     }),
-    poateCrea ? dateFoaieNoua(tenant.organizationId) : Promise.resolve(null),
+    !poateCrea
+      ? Promise.resolve(null)
+      : creeazaPentruOricine
+        ? dateFoaieNoua(tenant.organizationId)
+        : fisaMea(tenant.organizationId, user.id).then((stare) =>
+            dateFoaieNoua(tenant.organizationId, {
+              fel: "propriu",
+              fisaId: stare.stare === "ok" ? stare.fisa.id : null,
+            }),
+          ),
   ]);
 
   // Filtrul de intrare din fișa angajatului: numele pastilei, citit sub RLS.

@@ -9,7 +9,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/ui/callout";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
@@ -71,15 +71,26 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
 
   const vehicul = vehicule.get(foaie.vehicle_id);
   const sofer = foaie.employee_id === null ? undefined : soferi.get(foaie.employee_id);
-  const poateScrie = can(permisiuni, "trip_sheets:update", "own");
+  const poateScrieUndeva = can(permisiuni, "trip_sheets:update", "own");
+  const scrieOricare = scopeFor(permisiuni, "trip_sheets:update") === "all";
   // Decizia pe fișa foii (precedentul /concedii/[id]): aprobatorul venit din
   // coadă sau din notificare decide aici. Propria foaie e refuzată de trigger;
   // butoanele nu se arată deloc pentru ea.
   const poateAproba = can(permisiuni, "trip_sheets:approve", "team");
   const propriaFisaId =
-    poateAproba && foaie.status === "trimis"
+    (poateAproba && foaie.status === "trimis") || (poateScrieUndeva && !scrieOricare)
       ? await idFisaProprie(tenant.organizationId, utilizator.id)
       : null;
+  /*
+   * Închiderea, alimentarea și redeschiderea: doar pe foaia PROPRIE, sub `all`.
+   * Din 0196 managerul are `trip_sheets:update = own` și vede foile echipei;
+   * fără condiția pe șofer, formularele ar fi apărut și pe foaia subordonatului,
+   * iar baza le-ar fi refuzat (`foi_parcurs_inainte` §C2: aprobatorul doar
+   * decide). Un buton care duce sigur într-un refuz e un defect de ecran.
+   */
+  const poateScrie =
+    poateScrieUndeva &&
+    (scrieOricare || (foaie.employee_id !== null && foaie.employee_id === propriaFisaId));
   const poateDecideAici =
     poateAproba &&
     foaie.status === "trimis" &&

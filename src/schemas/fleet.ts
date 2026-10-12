@@ -298,7 +298,14 @@ export const stergeDocumentSchema = z.object({
  */
 export const foaieNouaSchema = z.object({
   vehicle_id: z.uuid(),
-  employee_id: z.uuid(),
+  /**
+   * Șoferul foii. `null` = „eu”: din 0196, cine are `trip_sheets:create` sub
+   * `all` (angajatul, managerul) nu alege șoferul, `creeazaFoaie` îl rezolvă pe
+   * server ca fișa proprie. Un id trimis de un asemenea rol trebuie să fie chiar
+   * fișa lui; altfel acțiunea refuză înainte de bază. Cu scope `all`, câmpul e
+   * obligatoriu, verificat tot în acțiune.
+   */
+  employee_id: z.uuid("Alegeți șoferul.").nullable().default(null),
   plecare_la: dataOraRomania("plecării"),
   km_plecare: z.coerce
     .number("Scrieți kilometrajul la plecare, în km.")

@@ -92,6 +92,8 @@ describe("creeazaFoaie", () => {
       rol: "employee",
       permisiuni: { "trip_sheets:create": "own" },
     });
+    // Sub `all`, șoferul e fișa PROPRIE (0196): aici e chiar ID_2 din payload.
+    server.raspunde("employees", "select", { data: { id: ID_2 } });
     server.raspunde("trip_sheets", "insert", { data: { id: ID_3 } });
 
     const r = await creeazaFoaie(foaie());
@@ -114,11 +116,11 @@ describe("creeazaFoaie", () => {
     for (const camp of ["numar", "trimis_la", "aprobat_de", "aprobat_la", "km_parcursi"]) {
       expect(apel?.payload).not.toHaveProperty(camp);
     }
-    expect(caiRevalidate()).toEqual(["/flota/foi"]);
+    expect(caiRevalidate()).toEqual(["/flota/foi", "/portal", "/portal/masina-mea"]);
   });
 
   it("regresul de kilometraj (P0001) ajunge pe `km_plecare`, cu cifrele bazei", async () => {
-    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:create": "own" } });
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:create": "all" } });
     const mesaj =
       "Kilometrajul de plecare (9000 km) este mai mic decât ultimul kilometraj cunoscut al vehiculului (10000 km).";
     server.raspunde("trip_sheets", "insert", { error: eroarePostgrest("P0001", mesaj) });
@@ -138,6 +140,96 @@ describe("creeazaFoaie", () => {
     if (r.ok) return;
     expect(r.error.fieldErrors).toHaveProperty("km_plecare");
     expect(server.apeluri).toHaveLength(0);
+  });
+});
+
+describe("creeazaFoaie — șoferul (0196)", () => {
+  it("sub `all`, fără șofer trimis: foaia e pe fișa PRINCIPALĂ proprie", async () => {
+    const { server } = configureazaActiunea({
+      rol: "employee",
+      permisiuni: { "trip_sheets:create": "own" },
+    });
+    server.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("trip_sheets", "insert", { data: { id: ID_3 } });
+
+    const r = await creeazaFoaie(foaie({ employee_id: null }));
+
+    expect(r).toEqual({ ok: true, data: { id: ID_3 } });
+    const [fisa] = server.apeluriPe("employees");
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "user_id", USER_ID)).toBe(true);
+    // `app.current_employee_id` cere fișa principală; o secundară ar cădea pe RLS.
+    expect(areFiltru(fisa, "eq", "is_primary", true)).toBe(true);
+    expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
+    expect(server.apeluriPe("trip_sheets")[0]?.payload).toMatchObject({ employee_id: ID_2 });
+  });
+
+  it("sub `all`, cu fișa ALTCUIVA trimisă: CONFLICT, fără scriere", async () => {
+    const { server } = configureazaActiunea({
+      rol: "manager",
+      permisiuni: { "trip_sheets:create": "own" },
+    });
+    server.raspunde("employees", "select", { data: { id: ID_3 } });
+
+    const r = await creeazaFoaie(foaie({ employee_id: ID_2 }));
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (!r.ok) expect(r.error.message).toContain("doar pentru dumneavoastră");
+    expect(server.apeluriPe("trip_sheets")).toHaveLength(0);
+  });
+
+  it("sub `all`, cont fără fișă principală: CONFLICT, fără scriere", async () => {
+    const { server } = configureazaActiunea({
+      rol: "employee",
+      permisiuni: { "trip_sheets:create": "own" },
+    });
+    server.raspunde("employees", "select", { data: null });
+
+    const r = await creeazaFoaie(foaie({ employee_id: null }));
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("trip_sheets")).toHaveLength(0);
+  });
+
+  it("cu `all`, fără șofer: VALIDARE pe `employee_id`, fără nicio interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:create": "all" } });
+
+    const r = await creeazaFoaie(foaie({ employee_id: null }));
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", fieldErrors: { employee_id: ["Alegeți șoferul."] } },
+    });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("cu `all`, șoferul ales intră cum e, fără căutarea fișei proprii", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:create": "all" } });
+    server.raspunde("trip_sheets", "insert", { data: { id: ID_3 } });
+
+    const r = await creeazaFoaie(foaie({ employee_id: ID_2 }));
+
+    expect(r).toEqual({ ok: true, data: { id: ID_3 } });
+    expect(server.apeluriPe("employees")).toHaveLength(0);
+    expect(server.apeluriPe("trip_sheets")[0]?.payload).toMatchObject({ employee_id: ID_2 });
+  });
+
+  it("vehiculul nealocat și non-pool (P0001 din 0196) ajunge pe `vehicle_id`", async () => {
+    const { server } = configureazaActiunea({
+      rol: "employee",
+      permisiuni: { "trip_sheets:create": "own" },
+    });
+    const mesaj =
+      "Vehiculul ales nu vă este alocat în ziua plecării și nu este o mașină comună (pool). Foaia se întocmește pe vehiculul primit în folosință sau pe unul din pool.";
+    server.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("trip_sheets", "insert", { error: eroarePostgrest("P0001", mesaj) });
+
+    const r = await creeazaFoaie(foaie({ employee_id: null }));
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", fieldErrors: { vehicle_id: [mesaj] } },
+    });
   });
 });
 
@@ -174,7 +266,13 @@ describe("trimiteFoaie", () => {
     expect(areFiltru(anomalii, "eq", "trip_sheet_id", ID_1)).toBe(true);
     expect(areFiltru(anomalii, "eq", "tip", "salt")).toBe(true);
     expect(areFiltru(anomalii, "is", "confirmat_la", null)).toBe(true);
-    expect(caiRevalidate()).toEqual(["/flota/foi", "/flota/aprobari"]);
+    expect(caiRevalidate()).toEqual([
+      "/flota/foi",
+      "/flota/aprobari",
+      "/portal",
+      "/portal/masina-mea",
+      `/portal/masina-mea/foi/${ID_1}`,
+    ]);
   });
 
   it("cu salt de kilometraj: foaia se salvează, iar avertismentul spune cifrele", async () => {
@@ -244,7 +342,13 @@ describe("decideFoaie", () => {
     expect(areFiltru(apel, "eq", "id", ID_1)).toBe(true);
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(apel?.selectDupaScriere).toBeDefined();
-    expect(caiRevalidate()).toEqual(["/flota/foi", "/flota/aprobari"]);
+    expect(caiRevalidate()).toEqual([
+      "/flota/foi",
+      "/flota/aprobari",
+      "/portal",
+      "/portal/masina-mea",
+      `/portal/masina-mea/foi/${ID_1}`,
+    ]);
   });
 
   it("respingerea scrie motivul", async () => {
@@ -311,7 +415,12 @@ describe("adaugaAlimentare", () => {
       updated_by: USER_ID,
     });
     expect(apel?.payload).not.toHaveProperty("pret_litru");
-    expect(caiRevalidate()).toEqual(["/flota/foi"]);
+    expect(caiRevalidate()).toEqual([
+      "/flota/foi",
+      "/portal",
+      "/portal/masina-mea",
+      `/portal/masina-mea/foi/${ID_1}`,
+    ]);
   });
 
   it.each([
@@ -454,7 +563,13 @@ describe("redeschideFoaie", () => {
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(apel?.selectDupaScriere).toBeDefined();
-    expect(caiRevalidate()).toEqual(["/flota/foi", `/flota/foi/${ID_1}`]);
+    expect(caiRevalidate()).toEqual([
+      "/flota/foi",
+      `/flota/foi/${ID_1}`,
+      "/portal",
+      "/portal/masina-mea",
+      `/portal/masina-mea/foi/${ID_1}`,
+    ]);
   });
 
   it("zero rânduri (nu mai e respinsă sau e a altcuiva): CONFLICT", async () => {
@@ -463,5 +578,23 @@ describe("redeschideFoaie", () => {
     const r = await redeschideFoaie({ id: ID_1 });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     expect(caiRevalidate()).toEqual([]);
+  });
+});
+
+describe("trimiteFoaie — foaia subordonatului (0196 §C2)", () => {
+  it("managerul care închide foaia subordonatului primește refuzul bazei, ca CONFLICT", async () => {
+    const { server } = configureazaActiunea({
+      rol: "manager",
+      permisiuni: { "trip_sheets:update": "own" },
+    });
+    const mesaj =
+      "Foaia de parcurs a unui coleg se poate doar aproba sau respinge, după ce a fost trimisă. O completează și o trimite șoferul ei.";
+    server.raspunde("trip_sheets", "update", { error: eroarePostgrest("P0001", mesaj) });
+
+    const r = await trimiteFoaie({ id: ID_1, sosire_la: "2026-09-14T18:00", km_sosire: "10720" });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT", message: mesaj } });
+    // Refuzul nu trece mai departe la căutarea anomaliilor: n-a fost nicio scriere.
+    expect(server.apeluriPe("odometer_anomalies")).toHaveLength(0);
   });
 });

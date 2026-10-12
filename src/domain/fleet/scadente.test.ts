@@ -9,6 +9,7 @@ import type { TreaptaScadenta } from "@/domain/scadente";
 
 import {
   PRAG_FLOTA_AVERTIZARE_ZILE,
+  semaforVehicul,
   stareScadentaFlota,
   stareScadentaVehicul,
   type StareScadentaFlota,
@@ -115,5 +116,50 @@ describe("vocabularul flotei", () => {
     const intrari = ["2026-06-14", "2026-06-15", "2026-07-15", "2027-01-01", null];
     const rezultate = new Set(intrari.map((d) => stareScadentaFlota(d, AZI)));
     expect([...rezultate].sort()).toEqual(["curand", "expirat", "in_regula", "lipsa"]);
+  });
+});
+
+describe("semaforVehicul", () => {
+  const RCA = "tip-rca";
+  const ITP = "tip-itp";
+  const ROVINIETA = "tip-rovinieta";
+  const obligatorii = [RCA, ITP] as const;
+
+  it("tipul obligatoriu FĂRĂ document dă `lipsa`, chiar dacă restul e în regulă", () => {
+    const s = semaforVehicul(
+      [{ document_type_id: ITP, expira_la: "2027-06-01" }],
+      obligatorii,
+      AZI,
+    );
+    expect(s).toEqual({ treapta: "lipsa", tipId: RCA, expiraLa: null });
+  });
+
+  it("un document neobligatoriu expirat urcă treapta (rovinieta se vede)", () => {
+    const s = semaforVehicul(
+      [
+        { document_type_id: RCA, expira_la: "2027-01-01" },
+        { document_type_id: ITP, expira_la: "2027-02-01" },
+        { document_type_id: ROVINIETA, expira_la: "2026-06-01" },
+      ],
+      obligatorii,
+      AZI,
+    );
+    expect(s).toEqual({ treapta: "expirat", tipId: ROVINIETA, expiraLa: "2026-06-01" });
+  });
+
+  it("purtătorul treptei e documentul cu termenul cel mai apropiat de pe aceeași treaptă", () => {
+    const s = semaforVehicul(
+      [
+        { document_type_id: RCA, expira_la: "2026-07-10" },
+        { document_type_id: ITP, expira_la: "2026-06-20" },
+      ],
+      obligatorii,
+      AZI,
+    );
+    expect(s).toEqual({ treapta: "curand", tipId: ITP, expiraLa: "2026-06-20" });
+  });
+
+  it("fără nomenclator obligatoriu și fără documente: `lipsa`, purtător necunoscut", () => {
+    expect(semaforVehicul([], [], AZI)).toEqual({ treapta: "lipsa", tipId: null, expiraLa: null });
   });
 });
