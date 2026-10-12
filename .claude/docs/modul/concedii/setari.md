@@ -106,7 +106,10 @@ angajat, un tip și un an:
   iar grilele se adună peste ele.
 - **Lunile lucrate** se numără cu luna de intrare și cea de ieșire ÎNTREGI (08.10 → 3 luni),
   ancorate pe `valabil_de_la` al contractului de bază cu `hired_on` ca rezervă, respectiv
-  pe `employees.terminated_on` cu `incetat_la` ca rezervă. Suspendările nu scad lunile.
+  pe `employees.terminated_on` cu `incetat_la` ca rezervă. Un `terminated_on` anterior
+  ancorei se IGNORĂ: la reangajare pe aceeași fișă, `creeazaContract` reactivează fișa fără
+  să-l golească, iar încetarea veche ar fi dat 0 zile în anul reangajării și în toți anii
+  următori (ancora e atunci contractul NOU). Suspendările nu scad lunile.
 - **Rotunjirea** urmează `leave_types.mod_rotunjire_acumulare` și se aplică DOAR la an
   parțial: 21 × 3/12 = 5,25 → 6 (`zi_in_sus`), 5 (`zi_in_jos`), 5 (`matematic`). O bază
   fracționară configurată deliberat (20,5) rămâne neatinsă pe anul întreg.

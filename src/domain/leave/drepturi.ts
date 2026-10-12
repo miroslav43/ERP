@@ -213,6 +213,29 @@ export function luniLucrateInAn(start: Date, sfarsit: Date | null, an: number): 
 }
 
 /**
+ * Sfârșitul perioadei lucrate, pentru `luniLucrateInAn` (`null` = încă în
+ * efectiv). `employees.terminated_on` are întâietate, cu `incetat_la` al
+ * contractului de bază ca rezervă — DAR numai dacă nu e anterior ancorei
+ * (`valabil_de_la` al contractului de bază ales, rezervă `hired_on`).
+ *
+ * De ce condiția: la reangajare pe aceeași fișă, `creeazaContract` reactivează
+ * fișa fără să golească `terminated_on` scris la încetarea contractului vechi.
+ * Fără ea, contractul nou ar începe DUPĂ sfârșit și omul ar primi 0 zile în anul
+ * reangajării și în toți anii următori.
+ *
+ * Oglinda lui `v_sfarsit` din `app.drept_concediu` (0192).
+ */
+export function sfarsitPerioadaLucrata(
+  ancora: Date | null,
+  terminatedOn: Date | null,
+  incetatLa: Date | null,
+): Date | null {
+  const incetareaFiseiConteaza =
+    terminatedOn !== null && (ancora === null || terminatedOn.getTime() >= ancora.getTime());
+  return incetareaFiseiConteaza ? terminatedOn : incetatLa;
+}
+
+/**
  * Dreptul PROPORȚIONAL cu lunile lucrate: `dreptIntreg × luni / 12`, rotunjit
  * după modul tipului de concediu. Anul întreg (12 luni) întoarce dreptul
  * neatins — nici rotunjirea nu se aplică, ca o bază fracționară configurată

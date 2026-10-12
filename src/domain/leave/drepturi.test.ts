@@ -6,6 +6,7 @@ import {
   calculeazaDreptProportional,
   luniLucrateInAn,
   regulileAplicabile,
+  sfarsitPerioadaLucrata,
   type AngajatPentruDrept,
   type RegulaConcediu,
 } from "./drepturi";
@@ -219,6 +220,49 @@ describe("luniLucrateInAn", () => {
 
   it("respinge un an în afara intervalului valid", () => {
     expect(() => luniLucrateInAn(zi(2026, 1, 1), null, 1999)).toThrow(RangeError);
+  });
+});
+
+/*
+ * Sfârșitul perioadei lucrate — aceleași cazuri ca (4) și (9) din
+ * `tests/rls/proba-concediu-proportional.sql`. Reangajarea: `creeazaContract`
+ * reactivează fișa fără să golească `terminated_on` scris la încetarea
+ * contractului vechi, deci data aceea e anterioară ancorei contractului nou.
+ */
+describe("sfarsitPerioadaLucrata", () => {
+  it("încetarea din fișă are întâietate când cade după ancoră", () => {
+    expect(sfarsitPerioadaLucrata(zi(2026, 1, 15), zi(2026, 6, 30), zi(2026, 7, 31))).toEqual(
+      zi(2026, 6, 30),
+    );
+  });
+
+  it("fără încetare în fișă, rezerva e `incetat_la` al contractului", () => {
+    expect(sfarsitPerioadaLucrata(zi(2026, 1, 15), null, zi(2026, 6, 30))).toEqual(zi(2026, 6, 30));
+  });
+
+  it("încă în efectiv: fără sfârșit", () => {
+    expect(sfarsitPerioadaLucrata(zi(2026, 10, 8), null, null)).toBeNull();
+  });
+
+  it("reangajat: încetarea veche, anterioară contractului nou, se ignoră", () => {
+    expect(sfarsitPerioadaLucrata(zi(2026, 4, 1), zi(2025, 9, 30), null)).toBeNull();
+  });
+
+  it("reangajat: anul reangajării numără lunile contractului nou (aprilie → 9 luni)", () => {
+    const inceput = zi(2026, 4, 1);
+    const sfarsit = sfarsitPerioadaLucrata(inceput, zi(2025, 9, 30), null);
+    expect(luniLucrateInAn(inceput, sfarsit, 2026)).toBe(9);
+    expect(luniLucrateInAn(inceput, sfarsit, 2027)).toBe(12);
+  });
+
+  it("reangajat în același an: încetarea veche nu anulează contractul nou", () => {
+    const inceput = zi(2026, 6, 1);
+    const sfarsit = sfarsitPerioadaLucrata(inceput, zi(2026, 3, 31), null);
+    expect(luniLucrateInAn(inceput, sfarsit, 2026)).toBe(7);
+  });
+
+  it("fără ancoră, încetarea din fișă rămâne", () => {
+    expect(sfarsitPerioadaLucrata(null, zi(2026, 6, 30), null)).toEqual(zi(2026, 6, 30));
   });
 });
 

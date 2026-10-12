@@ -19,6 +19,7 @@ import {
 import {
   luniLucrateInAn,
   regulileAplicabile,
+  sfarsitPerioadaLucrata,
   type AngajatPentruDrept,
   type RegulaConcediu,
 } from "@/domain/leave/drepturi";
@@ -182,11 +183,17 @@ export async function SectiuneConcedii({
   /*
    * Aceeași ancoră ca în `app.drept_concediu` (0192): începutul e
    * `valabil_de_la` al contractului de bază, cu `hired_on` ca rezervă;
-   * sfârșitul e `terminated_on`, cu `incetat_la` ca rezervă. Fără nicio dată
-   * de început, baza consideră anul întreg — la fel și aici.
+   * sfârșitul e `terminated_on`, cu `incetat_la` ca rezervă — dar un
+   * `terminated_on` anterior ancorei (rămas de la contractul vechi al unui om
+   * reangajat) se ignoră. Fără nicio dată de început, baza consideră anul
+   * întreg — la fel și aici.
    */
   const inceputPerioada = laData(contractDeBaza?.valabilDeLa ?? hiredOn);
-  const sfarsitPerioada = laData(terminatedOn ?? contractDeBaza?.incetatLa ?? null);
+  const sfarsitPerioada = sfarsitPerioadaLucrata(
+    inceputPerioada,
+    laData(terminatedOn),
+    laData(contractDeBaza?.incetatLa ?? null),
+  );
   const luniLucrate =
     inceputPerioada === null ? 12 : luniLucrateInAn(inceputPerioada, sfarsitPerioada, anCurent);
 

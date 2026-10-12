@@ -13,8 +13,9 @@
 -- ┌ DECIZIILE (orchestratorul valului 2, 12 oct 2026) ─────────────────────────
 -- │ • zilele din contractul de bază sunt BAZA per angajat; grilele se adună peste;
 -- │ • ancora perioadei e `employment_contracts.valabil_de_la` al contractului de
--- │   bază, cu `employees.hired_on` ca rezervă; sfârșitul e `employees.terminated_on`,
--- │   cu `incetat_la` ca rezervă;
+-- │   bază curent (la reangajare: contractul NOU), cu `employees.hired_on` ca
+-- │   rezervă; sfârșitul e `employees.terminated_on` — ignorat când e anterior
+-- │   ancorei (rămas de la contractul vechi) —, cu `incetat_la` ca rezervă;
 -- │ • luna de intrare și luna de ieșire se numără ÎNTREGI (ca în calculatorul
 -- │   public): 08.10 → 3 luni → 20 × 3/12 = 5;
 -- │ • proporția se aplică la TOATE tipurile cu `scade_din_sold = true`; cele cu
@@ -68,6 +69,7 @@ declare
   v_zile_contract  smallint;
   v_contract_de_la date;
   v_contract_pana  date;
+  v_ancora         date;
   v_inceput        date;
   v_sfarsit        date;
   v_luni           integer;
@@ -147,11 +149,21 @@ begin
   end if;
 
   -- Lunile lucrate în an: luna de intrare și cea de ieșire, întregi.
-  v_inceput := greatest(
-    coalesce(v_contract_de_la, v_hired_on, make_date(p_an, 1, 1)),
-    make_date(p_an, 1, 1)
+  v_ancora := coalesce(v_contract_de_la, v_hired_on);
+  v_inceput := greatest(coalesce(v_ancora, make_date(p_an, 1, 1)), make_date(p_an, 1, 1));
+  -- `terminated_on` contează doar dacă nu e anterior ancorei: la reangajare pe
+  -- aceeași fișă, `creeazaContract` reactivează fișa fără să-l golească, iar
+  -- încetarea contractului VECHI ar tăia contractul nou la 0 luni, în anul
+  -- reangajării și în toți anii următori. Rezerva e `incetat_la` al
+  -- contractului ales. Oglinda: `sfarsitPerioadaLucrata` din drepturi.ts.
+  v_sfarsit := least(
+    coalesce(
+      case when v_ancora is null or v_terminated_on >= v_ancora then v_terminated_on end,
+      v_contract_pana,
+      v_referinta
+    ),
+    v_referinta
   );
-  v_sfarsit := least(coalesce(v_terminated_on, v_contract_pana, v_referinta), v_referinta);
   v_luni := case
     when v_inceput > v_sfarsit then 0
     else (extract(month from v_sfarsit) - extract(month from v_inceput) + 1)::integer
@@ -180,8 +192,8 @@ comment on function app.drept_concediu(uuid, uuid, uuid, integer) is
   'Dreptul anual pe un tip de concediu: baza (zilele contractului de bază pentru odihnă, '
   'altfel leave_types.zile_implicite) + grilele cumulative valabile la 31 decembrie, '
   'înmulțite cu lunile lucrate în an / 12 (luna de intrare și de ieșire întregi; ancora: '
-  'valabil_de_la al contractului de bază, rezervă hired_on; sfârșit: terminated_on, rezervă '
-  'incetat_la) și rotunjite după mod_rotunjire_acumulare doar la an parțial. Tipurile cu '
+  'valabil_de_la al contractului de bază, rezervă hired_on; sfârșit: terminated_on dacă nu e '
+  'anterior ancorei, rezervă incetat_la) și rotunjite după mod_rotunjire_acumulare doar la an parțial. Tipurile cu '
   'scade_din_sold = false nu se proporționalizează. Nu scrie nimic — folosită de '
   'internal.asigura_sold, public.aplica_drepturi_concediu și public.drepturile_mele_concediu.';
 

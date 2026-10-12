@@ -21,7 +21,10 @@
 --     rând `drept_initial` cu delta 5 — override-ul e ignorat      [POZITIVĂ];
 -- (7) sold vechi 20 → `aplica_drepturi_concediu(p_simulare = true)` propune 20 → 5;
 -- (8) tipul `medical` (`scade_din_sold = false`) rămâne 183, inclusiv prin
---     `drepturile_mele_concediu`, care arată și odihna la 5.
+--     `drepturile_mele_concediu`, care arată și odihna la 5;
+-- (9) reangajat pe aceeași fișă (contract încetat în 2025, contract nou din
+--     01.04.2026, `terminated_on` vechi rămas pe fișă) → 15 în 2026, 20 în
+--     2027, 14 în 2025 pe primul contract; soldul semănat la reangajare = 15.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -56,6 +59,7 @@ declare
   v_e_iesit   uuid := gen_random_uuid();  -- 15.01.2026 – 30.06.2026
   v_e_vechime uuid := gen_random_uuid();  -- intrat 01.01.2020, cod COR 241103
   v_e_sold    uuid := gen_random_uuid();  -- intrat 08.10.2026, cu sold vechi 20
+  v_e_reang   uuid := gen_random_uuid();  -- 03.02.2025 – 30.09.2025, reangajat 01.04.2026
   v_poz       uuid := gen_random_uuid();
   v_odihna    uuid;
   v_medical   uuid;
@@ -99,13 +103,22 @@ begin
 
   -- Fișa din toamnă e legată de contul administratorului, ca (8) să poată
   -- chema `drepturile_mele_concediu` (care caută fișa după `auth.uid()`).
+  -- Inserarea în `organization_members` i-a creat deja o fișă proprie (0099),
+  -- iar `employees_org_user_primary_uniq` (0004) refuză a doua fișă legată de
+  -- același cont: o dezlegăm pe cea automată înainte.
+  update public.employees set user_id = null
+   where organization_id = v_org and user_id = v_u_admin;
+
   insert into public.employees (id, organization_id, marca, first_name, last_name,
                                 hired_on, terminated_on, status, user_id, cod_cor) values
     (v_e_toamna,  v_org, 'P-01', 'Toma',   'Toamnă',  date '2026-10-08', null,              'activ', v_u_admin, null),
     (v_e_vechi,   v_org, 'P-02', 'Vasile', 'Vechi',   date '2025-03-01', null,              'activ', null,      null),
     (v_e_iesit,   v_org, 'P-03', 'Ioana',  'Ieșită',  date '2026-01-15', date '2026-06-30', 'activ', null,      null),
     (v_e_vechime, v_org, 'P-04', 'Victor', 'Vechime', date '2020-01-01', null,              'activ', null,      '241103'),
-    (v_e_sold,    v_org, 'P-05', 'Sorin',  'Sold',    date '2026-10-08', null,              'activ', null,      null);
+    (v_e_sold,    v_org, 'P-05', 'Sorin',  'Sold',    date '2026-10-08', null,              'activ', null,      null),
+    -- Reangajat pe ACEEAȘI fișă: `terminated_on` rămâne de la contractul vechi,
+    -- fiindcă `creeazaContract` reactivează fișa fără să-l golească.
+    (v_e_reang,   v_org, 'P-06', 'Radu',   'Reangajat', date '2025-02-03', date '2025-09-30', 'activ', null,    null);
 
   insert into public.employment_contracts
     (organization_id, employee_id, numar, data_contract, valabil_de_la, salariu_baza,
@@ -114,7 +127,9 @@ begin
     (v_org, v_e_vechi,   'P-2/2025', date '2025-03-01', date '2025-03-01', 5000, 20, 'activ',   null),
     (v_org, v_e_iesit,   'P-3/2026', date '2026-01-15', date '2026-01-15', 5000, 20, 'incetat', date '2026-06-30'),
     (v_org, v_e_vechime, 'P-4/2020', date '2020-01-01', date '2020-01-01', 5000, 20, 'activ',   null),
-    (v_org, v_e_sold,    'P-5/2026', date '2026-10-08', date '2026-10-08', 5000, 20, 'activ',   null);
+    (v_org, v_e_sold,    'P-5/2026', date '2026-10-08', date '2026-10-08', 5000, 20, 'activ',   null),
+    (v_org, v_e_reang,   'P-6/2025', date '2025-02-03', date '2025-02-03', 5000, 20, 'incetat', date '2025-09-30'),
+    (v_org, v_e_reang,   'P-7/2026', date '2026-04-01', date '2026-04-01', 5000, 20, 'activ',   null);
 
   -- ═══ (1) Intrat pe 08.10.2026: 3 luni → 20 × 3/12 = 5 ═══════════════════
   v_drept := app.drept_concediu(v_org, v_e_toamna, v_odihna, 2026);
@@ -278,12 +293,49 @@ begin
     raise warning '  ✗ (8b) portalul arată medical %, odihnă % (așteptat 183, 5)', v_drept, v_nou;
   end if;
 
+  -- ═══ (9) Reangajat pe aceeași fișă: `terminated_on` vechi nu anulează ═════
+  -- contractul nou. Ancora e contractul NOU (01.04.2026); încetarea din
+  -- 30.09.2025 e anterioară ei, deci se ignoră. Vechimea de la 03.02.2025 nu
+  -- atinge grila de 3 ani nici la 31.12.2027.
+  v_drept := app.drept_concediu(v_org, v_e_reang, v_odihna, 2026);
+  if not pg_temp.verifica('(9a) reangajat din 01.04.2026, 9 luni', v_drept, 15) then
+    v_esecuri := v_esecuri + 1;
+  end if;
+  v_drept := app.drept_concediu(v_org, v_e_reang, v_odihna, 2027);
+  if not pg_temp.verifica('(9b) reangajat, anul următor întreg', v_drept, 20) then
+    v_esecuri := v_esecuri + 1;
+  end if;
+  -- Anul primului contract rămâne pe el: februarie–septembrie = 8 luni →
+  -- 13,33 → 14 (`zi_in_sus`); contractul nou nu începuse încă.
+  v_drept := app.drept_concediu(v_org, v_e_reang, v_odihna, 2025);
+  if not pg_temp.verifica('(9c) primul contract, 2025, 8 luni', v_drept, 14) then
+    v_esecuri := v_esecuri + 1;
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    perform public.seed_leave_balances(v_e_reang, 2026);
+    reset role;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (9d) org_admin nu a putut semăna soldul reangajatului: % (%)', sqlerrm, sqlstate;
+  end;
+  select b.drept_anual into v_drept
+    from public.leave_balances b
+   where b.organization_id = v_org and b.employee_id = v_e_reang
+     and b.leave_type_id = v_odihna and b.an = 2026 and b.deleted_at is null;
+  if not pg_temp.verifica('(9d) soldul semănat la reangajare', coalesce(v_drept, -1), 15) then
+    v_esecuri := v_esecuri + 1;
+  end if;
+
   -- ── verdict ───────────────────────────────────────────────────────────────
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA CONCEDIULUI PROPORȚIONAL: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 8 verificări au trecut.';
+  raise notice '  TOATE cele 9 verificări au trecut.';
   raise notice '';
 end;
 $$;
