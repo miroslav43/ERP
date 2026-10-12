@@ -7,11 +7,11 @@ cai:
   - "src/lib/queries/profile.ts"
   - "src/components/forms/formular-profil.tsx"
   - "src/config/porti-ruta.ts"
-tabele: [profiles, organization_members]
+tabele: [profiles, organization_members, employees]
 permisiuni: []
 capcane: [2]
-scris_pe: 6b8c5b371c99ccd786400dc3dbe8b901117c36c8
-scris_la: 2026-10-09
+scris_pe: ed4ad654d64120bfad37e146a32c8fbe4f6159f0
+scris_la: 2026-10-10
 tags: [modul]
 ---
 
@@ -39,7 +39,11 @@ erau împrăștiate prin filele fiecărui modul. Secțiunea leagă: fișa propri
 `/pontaj?angajat=`), `/concedii`, `/ticketing` (tichetele mele), `/inventar/in-primire`,
 `/notificari`. Fiecare link trece prin `poateDeschide()` din `src/config/porti-ruta.ts`:
 modul activ + permisiunea paginii-țintă. Nicio citire de date aici, doar porți și id-ul
-fișei.
+fișei — `getPermissionMap`, `getEnabledFeatures` și `idFisaProprie` pleacă într-un
+`Promise.all`, iar rail-ul întreg pleacă în paralel cu `citesteProfilPropriu`.
+
+Cele două linkuri legate de fișă — fișa proprie și pontajul — cer `idFisaProprie` nenul;
+pontajul alege `/pontaj/saptamana` când poarta lui trece, altfel cade pe `/pontaj`.
 
 ## Citiri
 
@@ -80,6 +84,12 @@ refuză embed-ul fără FK. Aceeași lipsă e documentată la `rolurileConturilo
   `toateAvatarurile` trec prin `citesteTot` (cursor keyset, aruncă la plafon în loc să
   tacă). Un `.select()` simplu pus în locul lui readuce capcana, iar simptomul e un
   avatar lipsă, nu o eroare. — capcana #2
+- **Un cont fără fișă de angajat pierde tăcut două linkuri din rail.** `idFisaProprie`
+  întoarce `null` — nu o eroare — când nu există `employees` activ cu `user_id`-ul
+  contului în firma aleasă, iar fișa proprie și pontajul pur și simplu nu se randează.
+  Cazul e legitim (invitația `fara_fisa`), deci nu se tratează ca defect; dar cine
+  raportează „mi-a dispărut pontajul din profil" verifică mai întâi fișa, nu poarta.
+  — `src/app/(app)/profil/page.tsx`
 
 ## Ce NU e aici
 
