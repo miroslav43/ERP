@@ -4750,6 +4750,28 @@ begin
     perform pg_temp.esueaza('(l) REFUZ TĂCUT LA CITIRE: `manager` nu vede permisul subordonatului');
   end if;
 
+  -- Cazul negativ: fără el, o politică `using (true)` ar trece blocul.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.driver_licenses (organization_id, employee_id, numar, categorii, expira_la)
+    values (v_alfa, pg_temp.id('mgr2_alfa'), 'MGR000', array['B'], current_date + 100);
+    reset role;
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` (read = team) a înregistrat un permis');
+  exception when insufficient_privilege then
+    reset role;
+  end;
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with schimbate as (
+    update public.driver_licenses set expira_la = current_date + 9000
+     where organization_id = v_alfa and employee_id = v_ang returning 1
+  ) select count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `employee` (read = own) și-a modificat permisul');
+  end if;
+
   perform set_config('request.jwt.claim.sub', v_emp::text, true);
   set local role authenticated;
   select count(*) into v_n from public.driver_licenses

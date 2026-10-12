@@ -26,7 +26,9 @@
 -- (16) foaia nu se leagă de deplasarea altui angajat (P0001);
 -- (17) foaia nu se leagă de deplasarea altei firme (P0001);
 -- (18) org_admin vede scadența permisului în lista de conformitate   [POZITIVĂ];
--- (19) ștergerea logică a permisului scoate scadența din `expirables` [POZITIVĂ].
+-- (19) ștergerea logică a permisului scoate scadența din `expirables` [POZITIVĂ];
+-- (20) super_admin (platform_admins, NU membru) citește permisele și faptele
+--      firmei [POZITIVĂ] — consola de platformă; nu scrie în numele firmei.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
@@ -45,6 +47,7 @@ declare
   v_u_hr      uuid := gen_random_uuid();
   v_u_mgr     uuid := gen_random_uuid();
   v_u_ang     uuid := gen_random_uuid();
+  v_u_sa      uuid := gen_random_uuid();
   v_e_mgr     uuid := gen_random_uuid();
   v_e_ang     uuid := gen_random_uuid();
   v_e_coleg   uuid := gen_random_uuid();
@@ -437,11 +440,27 @@ begin
       exists (select 1 from public.expirables x where x.entity_id = v_permis_c and x.deleted_at is null);
   end if;
 
+  -- (20) super_admin
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_sa, 'sof-sa-' || v_sufix || '@proba.test', now());
+  insert into public.platform_admins (user_id) values (v_u_sa);
+  perform set_config('request.jwt.claim.sub', v_u_sa::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.driver_licenses where organization_id = v_org and deleted_at is null;
+  select count(*) into v_m from public.verificari_soferi(v_org, array[v_e_ang, v_e_coleg], v_zi);
+  reset role;
+  if v_n = 1 and v_m = 2 then
+    raise notice '  ✓ (20) super_admin citește permisul activ și faptele ambilor șoferi';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (20) super_admin: % permise active, % rânduri de fapte', v_n, v_m;
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA ȘOFERI: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 19 verificări au trecut.';
+  raise notice '  TOATE cele 20 de verificări au trecut.';
   raise notice '';
 end;
 $$;
