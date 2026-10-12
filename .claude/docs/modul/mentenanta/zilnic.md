@@ -15,7 +15,7 @@ citeste_daca:
   - "cineva nu primește rezumatul, îl primește dublat sau vede ceva ce nu-i aparține → „Cine primește ce”"
   - "pragurile salvate în setări nu schimbă alertele → „Ce refuză baza tăcut”"
   - "fișiere rămase în bucket fără rând → „Curățarea încărcărilor”"
-scris_pe: 7986b70c6691c438ae6cec27d9eb91698726036b
+scris_pe: 4bbead505155adbf5463dbf7aa65289dc2d9f95e
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -50,7 +50,8 @@ arhivată, cu abonamentul `canceled`/`expired` sau cu `maintenance` oprit e săr
 | oprire de peste 3 zile          | `equipment_opriri` deschisă, fără intervenție legată                                  | responsabilul utilajului                                 |
 
 Utilajele casate, în conservare sau șterse nu produc elemente pe contor; ISCIR-ul în
-conservare rămâne, ca în `0182`.
+conservare rămâne, ca în `0182`. Rândul unei scadențe începe cu codul utilajului, în afară
+de garanție, a cărei etichetă din `0182` îl conține deja (proba (13)).
 
 ## Cine primește ce
 
@@ -93,7 +94,8 @@ iar `pg_net` nu e activat. Curățarea o face `pregatesteFisier`
 (`mentenanta/sesizari/actions.ts`), după ce semnarea pe clientul utilizatorului a
 trecut: listează folderul entității prin clientul admin și șterge prin API obiectele mai
 vechi de 24 h fără rând în `maintenance_attachments` (rândurile șterse logic țin
-obiectul în viață). Orice eroare e înghițită. Un orfan pe o entitate la care nu se mai
+obiectul în viață). Legăturile se citesc câte 25 de căi pe cerere: `.in()` pleacă în
+URL, iar o listă întreagă ar depăși limita gateway-ului. Orice eroare e înghițită. Un orfan pe o entitate la care nu se mai
 încarcă nimic rămâne până la următoarea încărcare acolo.
 
 ## Setări
