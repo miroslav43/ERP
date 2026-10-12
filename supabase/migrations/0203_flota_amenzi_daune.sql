@@ -414,6 +414,21 @@ begin
        or old.stadiu = 'primita' then
       new.desemnat_la := now();
     end if;
+  elsif new.stadiu = 'contestata' then
+    -- Contestată ÎNAINTE de răspuns: obligația de a comunica șoferul autorității
+    -- (art. 39 alin. (1)) rămâne, iar termenul rămâne în `expirables`. Omul
+    -- desemnează șoferul și marchează răspunsul FĂRĂ să schimbe stadiul (de aici
+    -- nu există tranziție înapoi spre „șofer desemnat”). Un răspuns fără șofer
+    -- nu are ce comunica.
+    if new.raspuns_trimis_la is not null and new.sofer_desemnat_id is null then
+      raise exception using errcode = 'P0001',
+        message = 'Alegeți șoferul pe care îl comunicați autorității.';
+    end if;
+    if new.sofer_desemnat_id is null then
+      new.desemnat_la := null;
+    elsif tg_op = 'INSERT' or old.sofer_desemnat_id is distinct from new.sofer_desemnat_id then
+      new.desemnat_la := now();
+    end if;
   end if;
   if new.stadiu = 'raspuns_trimis' and new.raspuns_trimis_la is null then
     raise exception using errcode = 'P0001',

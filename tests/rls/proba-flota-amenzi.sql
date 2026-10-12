@@ -21,6 +21,9 @@
 -- (12) amenda plătită e închisă: orice UPDATE dă P0001                  [POZITIVĂ + NEGATIVĂ];
 -- (13) anularea cere motiv: P0001 fără, o rând cu                       [POZITIVĂ];
 -- (14) ștergerea logică: doar amenda încă neatinsă                      [POZITIVĂ + NEGATIVĂ];
+-- (14c) amenda contestată ÎNAINTE de răspuns: termenul rămâne în expirables,
+--      șoferul se desemnează și răspunsul se marchează fără a pierde stadiul
+--      „contestată”; un răspuns fără șofer e refuzat                    [POZITIVĂ + NEGATIVĂ];
 -- Cine conducea (`app.sofer_la` / `public.sofer_sugerat`)
 -- (15) fără foaie, sugestia vine din alocarea deschisă la acel moment  [POZITIVĂ];
 -- (16) linia de foaie care acoperă momentul bate alocarea              [POZITIVĂ];
@@ -129,6 +132,7 @@ declare
   v_f2        uuid;
   v_f3        uuid;
   v_f4        uuid;
+  v_f5        uuid;
   v_inc       uuid;
   v_inc2      uuid;
   v_acc       uuid;
@@ -440,6 +444,58 @@ begin
     $q$update public.vehicle_fines set deleted_at = now() where id = %L$q$, v_f4));
   v_esecuri := v_esecuri + pg_temp.verifica('14b', v_text like 'P0001:O amendă aflată în lucru%',
     'amenda cu șofer desemnat nu se șterge, se anulează (P0001)', v_text);
+
+  -- (14c) amenda contestată ÎNAINTE de răspuns: obligația față de autoritate
+  -- rămâne (art. 39 alin. (1)), deci termenul rămâne în expirables, iar omul
+  -- poate încă desemna șoferul și marca răspunsul FĂRĂ ca stadiul „contestată”
+  -- să se piardă. Un răspuns fără șofer e refuzat.
+  insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta, primita_la,
+                                    termen_raspuns, created_by, updated_by)
+  values (v_org, v_veh, 'PV-F5', pg_temp.la(v_zi - 2, '13:00'), 'Staționare neregulamentară', v_zi - 1,
+          v_zi + 5, v_u_admin, v_u_admin)
+  returning id into v_f5;
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_fines set stadiu = 'contestata' where id = %L$q$, v_f5));
+  v_n := pg_temp.numara(v_u_admin, format(
+    $q$select count(*) from public.expirables where entity_type = 'vehicle_fine' and entity_id = %L
+       and deleted_at is null and expires_at = %L$q$, v_f5, v_zi + 5));
+  v_esecuri := v_esecuri + pg_temp.verifica('14c-1', v_text = 'ok:1' and v_n = 1,
+    'primită → contestată (fără răspuns): termenul RĂMÂNE în expirables', v_text || ' / ' || v_n);
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_fines set raspuns_trimis_la = %L where id = %L$q$, v_zi, v_f5));
+  v_esecuri := v_esecuri + pg_temp.verifica('14c-2', v_text like 'P0001:Alegeți șoferul%',
+    'răspuns marcat pe o amendă contestată fără șofer desemnat: refuzat (P0001)', v_text);
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_fines set sofer_desemnat_id = %L where id = %L$q$, v_e_ang, v_f5));
+  select stadiu::text, sofer_desemnat_id, desemnat_la into v_stadiu, v_sofer, v_desemnat
+    from public.vehicle_fines where id = v_f5;
+  v_esecuri := v_esecuri + pg_temp.verifica('14c-3',
+    v_text = 'ok:1' and v_stadiu = 'contestata' and v_sofer = v_e_ang and v_desemnat is not null,
+    'șoferul se desemnează și pe o amendă contestată; stadiul rămâne „contestată”, momentul îl pune baza',
+    format('%s / %s / %s', v_text, v_stadiu, v_desemnat));
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_fines set raspuns_trimis_la = %L, raspuns_numar = ' IES-14 ' where id = %L$q$,
+    v_zi, v_f5));
+  v_n := pg_temp.numara(v_u_admin, format(
+    $q$select count(*) from public.expirables where entity_type = 'vehicle_fine' and entity_id = %L
+       and deleted_at is null$q$, v_f5));
+  select stadiu::text, raspuns_numar into v_stadiu, v_numar from public.vehicle_fines where id = v_f5;
+  v_esecuri := v_esecuri + pg_temp.verifica('14c-4',
+    v_text = 'ok:1' and v_n = 0 and v_stadiu = 'contestata' and v_numar = 'IES-14',
+    'răspunsul marcat pe amenda contestată scoate termenul din expirables; stadiul rămâne „contestată”',
+    format('%s / expirables %s / %s / %s', v_text, v_n, v_stadiu, v_numar));
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_fines set sofer_desemnat_id = %L where id = %L$q$, v_e_coleg, v_f5));
+  v_esecuri := v_esecuri + pg_temp.verifica('14c-5', v_text like 'P0001:După trimiterea răspunsului%',
+    'după răspuns, șoferul unei amenzi contestate nu se mai schimbă (P0001)', v_text);
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_fines set stadiu = 'sofer_desemnat' where id = %L$q$, v_f5));
+  v_esecuri := v_esecuri + pg_temp.verifica('14c-6', v_text like 'P0001:Amenda nu poate trece din stadiul „contestată”%',
+    'contestată nu se întoarce în „șofer desemnat” (matricea de tranziții rămâne)', v_text);
+  v_text := pg_temp.ruleaza(v_u_hr, format(
+    $q$update public.vehicle_fines set raspuns_trimis_la = null where id = %L$q$, v_f5));
+  v_esecuri := v_esecuri + pg_temp.verifica('14c-7', v_text = 'ok:0',
+    'hr nu poate atinge amenda contestată (zero rânduri)', v_text);
 
   -- (19) ceilalți din firmă
   v_n := pg_temp.numara(v_u_hr, format('select count(*) from public.vehicle_fines where organization_id = %L', v_org))
