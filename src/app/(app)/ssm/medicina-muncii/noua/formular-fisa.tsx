@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
@@ -46,6 +46,9 @@ export function FormularFisa({
   readonly inapoi?: string | null;
 }) {
   const router = useRouter();
+  // Doar pentru `min` pe „valabilă până la": selectorul de dată al browserului
+  // nu mai oferă zile dinaintea examinării. Validarea rămâne în schemă.
+  const [dataExaminarii, setDataExaminarii] = useState("");
 
   async function trimite(formular: FormData) {
     const text = (cheie: string) => {
@@ -129,7 +132,12 @@ export function FormularFisa({
                 erori={stare.erori["data_examinarii"] ?? []}
               >
                 {(a) => (
-                  <input {...a} type="date" defaultValue={trimise["data_examinarii"] ?? ""} />
+                  <input
+                    {...a}
+                    type="date"
+                    defaultValue={trimise["data_examinarii"] ?? ""}
+                    onChange={(e) => setDataExaminarii(e.currentTarget.value)}
+                  />
                 )}
               </Camp>
 
@@ -155,7 +163,14 @@ export function FormularFisa({
                 eticheta="Valabilă până la"
                 erori={stare.erori["valabil_pana"] ?? []}
               >
-                {(a) => <input {...a} type="date" defaultValue={trimise["valabil_pana"] ?? ""} />}
+                {(a) => (
+                  <input
+                    {...a}
+                    type="date"
+                    {...(dataExaminarii === "" ? {} : { min: dataExaminarii })}
+                    defaultValue={trimise["valabil_pana"] ?? ""}
+                  />
+                )}
               </Camp>
 
               <Camp nume="medic" eticheta="Medic" erori={stare.erori["medic"] ?? []}>

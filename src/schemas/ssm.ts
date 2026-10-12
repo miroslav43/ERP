@@ -180,22 +180,38 @@ export type InstruireBloc = z.output<typeof instruireBlocSchema>;
  * Fișa de aptitudine. NU are câmp de diagnostic și NU trimite `observatii` —
  * art. 9 GDPR: se stochează doar rezultatul aptitudinii, niciodată motivul.
  */
-export const fisaAptitudineSchema = z.object({
-  employee_id: z.uuid(),
-  tip: z.enum(TIPURI_EXAMEN),
-  data_examinarii: z.iso.date(),
-  medic: textOptional(120),
-  unitate_medicala: textOptional(160),
-  rezultat: z.enum(REZULTATE_EXAMEN),
-  valabil_pana: dataOptionala,
-  numar_fisa: textOptional(64),
-  cost: numarOptional({
-    min: 0,
-    max: 1_000_000,
-    mesaj: "Costul trebuie să fie un număr.",
-    interval: "Costul este între 0 și 1.000.000.",
-  }),
-});
+export const fisaAptitudineSchema = z
+  .object({
+    employee_id: z.uuid(),
+    tip: z.enum(TIPURI_EXAMEN),
+    data_examinarii: z.iso.date(),
+    medic: textOptional(120),
+    unitate_medicala: textOptional(160),
+    rezultat: z.enum(REZULTATE_EXAMEN),
+    valabil_pana: dataOptionala,
+    numar_fisa: textOptional(64),
+    cost: numarOptional({
+      min: 0,
+      max: 1_000_000,
+      mesaj: "Costul trebuie să fie un număr.",
+      interval: "Costul este între 0 și 1.000.000.",
+    }),
+  })
+  /*
+   * O fișă „valabilă până" înaintea examinării era deja expirată când s-a
+   * scris și intra direct în raportul de expirări (QA 8 oct 2026, HR-017).
+   * Aceeași regulă e oglindită în `inroleazaAngajatSchema`, fiindcă înrolarea
+   * inserează aceeași fișă. Comparația e lexicografică pe AAAA-LL-ZZ.
+   */
+  .superRefine((v, ctx) => {
+    if (v.valabil_pana !== null && v.valabil_pana < v.data_examinarii) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["valabil_pana"],
+        message: "Valabilitatea nu poate fi anterioară datei examinării.",
+      });
+    }
+  });
 export type FisaAptitudine = z.output<typeof fisaAptitudineSchema>;
 
 /** NU conține `termen_comunicare_ore`: triggerul îl completează din parametrii legali. */
