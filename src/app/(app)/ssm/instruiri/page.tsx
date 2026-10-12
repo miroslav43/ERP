@@ -150,7 +150,7 @@ async function Matrice({
    */
   return (
     <>
-      <div className="border-border rounded-panou overflow-x-auto border">
+      <div className="border-border rounded-panou relative overflow-x-auto border">
         <table className="text-corp w-full">
           <caption className="sr-only">
             Matricea de instruiri {ETICHETE_DOMENIU[filtre.domeniu]}, angajați × tipuri.

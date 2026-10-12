@@ -598,8 +598,8 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           s-a găsit în ea. Pusă dedesubt, ar fi citită după ce a renunțat. */}
       {fisaCelujCareSeUita.stare === "fara_fisa" ? (
         <Callout fel="informativ" titlu="Nu apăreți în foaia de pontaj">
-          Contul dvs. administrează firma, dar nu are fișă de angajat, iar foaia listează doar
-          salariații. Dacă sunteți și angajat, înrolați-vă din{" "}
+          Contul dumneavoastră administrează firma, dar nu are fișă de angajat, iar foaia listează
+          doar salariații. Dacă sunteți și angajat, înrolați-vă din{" "}
           {poateDeschideRuta("/angajati/nou", contextPorti) ? (
             <Link className="underline" href="/angajati/nou">
               „Angajați → Angajat nou”
@@ -611,10 +611,10 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
         </Callout>
       ) : fisaCelujCareSeUita.stare === "ok" && fisaCelujCareSeUita.fisa.status === "candidat" ? (
         <Callout fel="informativ" titlu="Nu apăreți în foaia de pontaj">
-          Fișa dvs. e „candidat” — administrator fără contract de muncă — iar foaia listează doar
-          salariații. Dacă sunteți și angajat al firmei, adăugați-vă contractul din{" "}
+          Fișa dumneavoastră e „candidat” — administrator fără contract de muncă — iar foaia
+          listează doar salariații. Dacă sunteți și angajat al firmei, adăugați-vă contractul din{" "}
           <Link className="underline" href={`/angajati/${fisaCelujCareSeUita.fisa.id}`}>
-            fișa dvs.
+            fișa dumneavoastră
           </Link>
           ; fișa devine activă în aceeași operațiune.
         </Callout>

@@ -88,6 +88,18 @@ export function formatDate(value: DateString): string {
 }
 
 /**
+ * Un interval de zile: `"02.11.2026 – 04.11.2026"`, cu linie de pauză scurtă.
+ *
+ * Aceeași zi la ambele capete se scrie o singură dată (`"26.10.2026"`) — un
+ * concediu de o zi apărea ca „26.10.2026 – 26.10.2026” (QA, oct 2026).
+ */
+export function formatInterval(inceput: DateString, sfarsit: DateString): string {
+  const a = formatDate(inceput);
+  const b = formatDate(sfarsit);
+  return a === b ? a : `${a} – ${b}`;
+}
+
+/**
  * Ziua românească a unui moment în timp → `"09.10.2026"`.
  *
  * Pentru `timestamptz` (`publicat_la`, `created_at`, `plecare_la`): întâi

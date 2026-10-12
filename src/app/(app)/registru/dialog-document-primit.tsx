@@ -23,6 +23,7 @@
 import { FormularDialog } from "@/components/ui/formular-dialog";
 import { Camp } from "@/components/ui/camp";
 import { Combobox } from "@/components/ui/combobox";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { FilePlus2 } from "lucide-react";
 
 import { inregistreazaDocumentManual } from "./actions";
@@ -234,11 +235,10 @@ export function DialogDocumentPrimit({
                 : { erori: stare.erori["data_document_emitent"] })}
             >
               {(atribute) => (
-                <input
+                <IntrareData
                   {...atribute}
                   id={idc("data_document_emitent")}
-                  type="date"
-                  defaultValue={stare.valoriTrimise["data_document_emitent"] ?? ""}
+                  implicit={stare.valoriTrimise["data_document_emitent"] ?? ""}
                 />
               )}
             </Camp>

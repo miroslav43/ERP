@@ -52,3 +52,25 @@ export function faraDiacritice(text: string): string {
 export function cheieCautare(text: string): string {
   return faraDiacritice(text).toLowerCase();
 }
+
+/*
+ * Cheile sunt scrise cu secvențe `\u`, nu ca litere: poarta
+ * `scripts/checks/sedile.mjs` refuză sedila în liniile de cod din `src/`.
+ */
+const CU_VIRGULA: Readonly<Record<string, string>> = {
+  "\u015F": "ș",
+  "\u015E": "Ș",
+  "\u0163": "ț",
+  "\u0162": "Ț",
+};
+
+/**
+ * „ş”, „ţ” (cu sedilă, U+015F/U+0163 și majusculele) → „ș”, „ț” (cu virgulă).
+ *
+ * Mutată aici din `src/lib/unelte/text-curat.ts`, care o re-exportă: acela
+ * trage după el modelul uneltelor publice și n-are ce căuta, de pildă, în
+ * traducerea erorilor de flotă (mesajele P0001 vechi din bază au sedilă).
+ */
+export function cuVirgula(text: string): string {
+  return text.replace(/[\u015E\u015F\u0162\u0163]/gu, (litera) => CU_VIRGULA[litera] ?? litera);
+}

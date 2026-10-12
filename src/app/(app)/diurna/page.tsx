@@ -98,6 +98,8 @@ async function TabelDeplasari({
   arataAngajat,
   permisiuni,
   hrefPolitica,
+  poateAdauga,
+  faraPolitica,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
@@ -105,6 +107,10 @@ async function TabelDeplasari({
   readonly permisiuni: PermissionMap;
   /** Pagina politicii, pentru rândurile fără politică valabilă; `null` fără drept. */
   readonly hrefPolitica: string | null;
+  /** `per_diem:create` la `own` — starea goală oferă „Deplasare nouă". */
+  readonly poateAdauga: boolean;
+  /** Nicio politică valabilă AZI: starea goală trimite întâi spre politică. */
+  readonly faraPolitica: boolean;
 }) {
   const filtre = filtreDinUrl(filtreDeplasariSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaDeplasari(
@@ -136,17 +142,46 @@ async function TabelDeplasari({
       p.delete("angajat");
       p.delete("cursor");
     });
+    if (areFiltre) {
+      return (
+        <StareGoala
+          fel="filtrata"
+          pictograma={Plane}
+          titlu="Niciun rezultat pentru filtrele alese"
+          descriere="Ștergeți filtrele ca să vedeți toate deplasările."
+          actiune={{ eticheta: "Șterge filtrele", href: faraFiltre }}
+        />
+      );
+    }
+    // Starea inițială are o ieșire pe fiecare ramură (UX-037): textul îndemna
+    // „Adăugați prima deplasare", dar fără politică valabilă butonul din antet
+    // e ascuns, iar nimic nu spunea că politica e PRIMUL pas.
+    const initiala: Readonly<{ descriere: string; actiune?: { eticheta: string; href: string } }> =
+      faraPolitica && hrefPolitica !== null
+        ? {
+            descriere:
+              "Pasul 1 din 2: configurați politica de diurnă a firmei — astăzi nu e valabilă niciuna. Abia apoi se poate înregistra prima deplasare.",
+            actiune: { eticheta: "Configurează politica", href: hrefPolitica },
+          }
+        : faraPolitica && poateAdauga
+          ? {
+              descriere:
+                "Deplasările noi se pot înregistra după ce administratorul configurează politica de diurnă.",
+            }
+          : poateAdauga
+            ? {
+                descriere:
+                  "Adăugați prima deplasare în interes de serviciu ca să urmăriți diurna și decontul.",
+                actiune: { eticheta: "Deplasare nouă", href: "/diurna/noua" },
+              }
+            : { descriere: "Nicio deplasare nu v-a fost înregistrată încă." };
     return (
       <StareGoala
-        fel={areFiltre ? "filtrata" : "initiala"}
+        fel="initiala"
         pictograma={Plane}
-        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio deplasare înregistrată"}
-        descriere={
-          areFiltre
-            ? "Ștergeți filtrele ca să vedeți toate deplasările."
-            : "Adăugați prima deplasare în interes de serviciu ca să urmăriți diurna și decontul."
-        }
-        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } } : {})}
+        titlu="Nicio deplasare înregistrată"
+        descriere={initiala.descriere}
+        {...(initiala.actiune === undefined ? {} : { actiune: initiala.actiune })}
       />
     );
   }
@@ -384,6 +419,8 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
           arataAngajat={scope === "team" || scope === "all"}
           permisiuni={permisiuni}
           hrefPolitica={poateConfiguraPolitica ? "/diurna/politica" : null}
+          poateAdauga={poateAdauga}
+          faraPolitica={faraPolitica}
         />
       </Suspense>
     </div>

@@ -6,7 +6,7 @@
 // filtrul pe starea curentă din UPDATE, `.select()` după scriere, zero rânduri
 // tratat ca eroare și căile revalidate.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -41,6 +41,7 @@ import {
   ORG_ID,
   USER_ID,
 } from "@/lib/teste/actiune";
+import { OCTETI_PDF, OCTETI_PNG, OCTETI_ZEROURI, octetiUrcati } from "@/lib/teste/octeti";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import {
   actualizeazaSesizare,
@@ -683,6 +684,10 @@ describe("pregatesteFisier", () => {
   });
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("confirmaFisier", () => {
   const intrare = {
     entity_type: "fault_report",
@@ -691,6 +696,17 @@ describe("confirmaFisier", () => {
     denumire: "Poză defect",
     tip: "manual",
   } as const;
+
+  /** Capul obiectului, citit printr-un URL semnat sub sesiunea apelantului. */
+  function capulUrcat(
+    server: ReturnType<typeof configureazaActiunea>["server"],
+    octeti: Uint8Array,
+  ) {
+    server.raspundeStocare(BUCKET, "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(octeti);
+  }
 
   it.each([
     ["alt id de entitate", `${ORG_ID}/fault_report/${ID_2}/x.jpg`],
@@ -720,9 +736,24 @@ describe("confirmaFisier", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
   });
 
+  it("fotografie de zerouri declarată PNG: VALIDARE după conținut, niciun INSERT", async () => {
+    const { server } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+    server.raspundeStocare(BUCKET, "info", { data: { size: 1024, contentType: "image/png" } });
+    capulUrcat(server, OCTETI_ZEROURI);
+
+    const r = await confirmaFisier(intrare);
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", message: expect.stringContaining("conținutul tipului declarat") },
+    });
+    expect(server.apeluriPe("maintenance_attachments")).toHaveLength(0);
+  });
+
   it("pe sesizare: mărimea și tipul din Storage, `tip` forțat la `foto`", async () => {
     const { server } = configureazaActiunea({ permisiuni: CITIRE_OWN });
     server.raspundeStocare(BUCKET, "info", { data: { size: 2048, contentType: "image/png" } });
+    capulUrcat(server, OCTETI_PNG);
     server.raspunde("maintenance_attachments", "insert", { data: { id: ID_3 } });
 
     const r = await confirmaFisier(intrare);
@@ -742,7 +773,10 @@ describe("confirmaFisier", () => {
     });
     expect(apel?.selectDupaScriere).toBe("id");
     expect(apel?.terminal).toBe("single");
-    expect(server.apeluriStocare[0]?.argumente[0]).toBe(intrare.cale);
+    expect(server.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "info", argumente: [intrare.cale] },
+      { bucket: BUCKET, metoda: "createSignedUrl", argumente: [intrare.cale, 60] },
+    ]);
     expect(caiRevalidate()).toEqual(
       expect.arrayContaining([`/mentenanta/sesizari/${ID_1}`, `/portal/sesizari/${ID_1}`]),
     );
@@ -754,6 +788,7 @@ describe("confirmaFisier", () => {
     server.raspundeStocare(BUCKET, "info", {
       data: { size: 4096, contentType: "application/pdf" },
     });
+    capulUrcat(server, OCTETI_PDF);
     server.raspunde("maintenance_attachments", "insert", { data: { id: ID_3 } });
 
     const r = await confirmaFisier({

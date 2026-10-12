@@ -35,6 +35,16 @@ import { useSemnalPanaLaRuta } from "@/components/incarcare/use-incarcare";
  * de mai jos le dă înapoi copiilor ca `defaultValue`. Formularul își reia forma
  * exactă în care a fost trimis.
  *
+ * Selecturile sunt excepția și se pun la loc de mână, după refuz (efectul de
+ * mai jos): `<input>` și `<textarea>` își iau noul `defaultValue` fiindcă React
+ * îl sincronizează ca atribut, dar pe `<select>` react-dom îl aplică DOAR la
+ * montare sau când se schimbă `multiple`. Iar un select CONTROLAT primește de
+ * la React doar `selected`, nu și `defaultSelected`, deci `form.reset()` de
+ * după acțiune îl duce pe PRIMA opțiune — „Eu însumi” în loc de angajatul ales,
+ * Austria în loc de Germania (ADM-036). Selecturile FĂRĂ `name` (controlate,
+ * cu valoarea trimisă prin JSON ascuns) se pun la loc separat, după ORICE
+ * rezultat — al doilea efect cu selecturi.
+ *
  * ── PRECEDENȚA ERORILOR ───────────────────────────────────────────────────
  * Un câmp poate avea două surse de eroare: serverul (`fieldErrors`) și
  * validarea de client (react-hook-form, în 17 fișiere). Regula, scrisă o dată
@@ -75,6 +85,16 @@ export type PropsFormular<TData> = Readonly<{
   children: (stare: StareFormular<TData>) => ReactNode;
 }>;
 
+function valoriAlese(select: HTMLSelectElement): ReadonlySet<string> {
+  return new Set(Array.from(select.selectedOptions, (o) => o.value));
+}
+
+/** Scrie în DOM opțiunile alese — în afara componentei, fiindcă e DOM, nu stare. */
+function puneLaLoc(select: HTMLSelectElement, alese: ReadonlySet<string>): void {
+  if (!select.isConnected) return;
+  for (const optiune of select.options) optiune.selected = alese.has(optiune.value);
+}
+
 export function Formular<TData>({
   actiune,
   id,
@@ -84,6 +104,8 @@ export function Formular<TData>({
   children,
 }: PropsFormular<TData>): ReactElement {
   const ref = useRef<HTMLFormElement | null>(null);
+  /** Selecturile fără `name` și ce arătau la trimitere — vezi efectul lor. */
+  const selecturiFaraNume = useRef(new Map<HTMLSelectElement, ReadonlySet<string>>());
 
   const [stare, trimite, inCurs] = useActionState<StareInterna<TData>, FormData>(
     async (_precedent, date) => {
@@ -92,6 +114,10 @@ export function Formular<TData>({
       const valori: Record<string, string> = {};
       for (const [cheie, valoare] of date.entries()) {
         if (typeof valoare === "string") valori[cheie] = valoare;
+      }
+      selecturiFaraNume.current.clear();
+      for (const select of ref.current?.querySelectorAll("select") ?? []) {
+        if (select.name === "") selecturiFaraNume.current.set(select, valoriAlese(select));
       }
       const rezultat = await actiune(date);
       return { rezultat, valori };
@@ -126,6 +152,44 @@ export function Formular<TData>({
       ? rezultat.error.message
       : null;
 
+  // Selecturile NU urmează `defaultValue` după montare (vezi comentariul de
+  // sus), iar `form.reset()` rulează în faza de mutații a aceluiași commit cu
+  // rezultatul acțiunii, ÎNAINTEA efectelor — deci aici DOM-ul e deja resetat
+  // și se poate pune la loc din `valori`. Doar la refuz: la reușită resetarea
+  // e dorită (dialogurile „adaugă încă unul”). O valoare care nu mai e printre
+  // opțiuni (opțiuni condiționate de alt câmp) rămâne pe implicit, ca azi.
+  useEffect(() => {
+    if (rezultat === null || rezultat.ok || ref.current === null) return;
+    for (const select of ref.current.querySelectorAll("select")) {
+      const valoare = stare.valori[select.name];
+      if (valoare === undefined) continue;
+      if (Array.from(select.options).some((o) => o.value === valoare)) select.value = valoare;
+    }
+    // `stare.valori` se schimbă odată cu `rezultat`: sunt același obiect de stare.
+  }, [rezultat]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Selecturile FĂRĂ `name` nu ajung în `FormData`, deci efectul de mai sus nu
+  // are de unde să le știe valoarea. Sunt, prin construcție, controlate: starea
+  // React e adevărul, iar valoarea pleacă pe alt drum (constructorul de șablon
+  // de evaluare și foaia lunară de KPI trimit JSON într-un `<input hidden>`).
+  // `form.reset()` le duce totuși pe prima opțiune — și la refuz, și la REUȘITĂ
+  // — iar React nu le mai atinge până nu se schimbă `value`: ecranul arăta
+  // „nenotat” peste note salvate (QA, oct 2026).
+  //
+  // Valoarea se fotografiază la trimitere (în acțiune, înainte de `await`) și
+  // se ține la zi la fiecare `change` cât durează acțiunea; se pune la loc când
+  // vine rezultatul, ORICARE ar fi el. Cu `name`, selecturile rămân pe regula de
+  // sus: puse la loc doar la refuz, fiindcă la reușită resetarea e dorită.
+  // Dacă `laReusita` schimbă starea, React rescrie selectul după noi, cu noua
+  // valoare — efectul ăsta nu se luptă cu el.
+  // Nu s-a folosit evenimentul `reset`: în browser vine ÎNAINTE de golire, dar
+  // happy-dom îl trimite DUPĂ, deci regula n-ar fi putut fi testată.
+  useEffect(() => {
+    if (rezultat === null) return;
+    for (const [select, alese] of selecturiFaraNume.current) puneLaLoc(select, alese);
+    selecturiFaraNume.current.clear();
+  }, [rezultat]);
+
   // Focusul merge pe primul câmp invalid. Fără asta, pe un formular de 30 de
   // câmpuri mesajul poate fi sub linia de plutire, iar ecranul pare inert.
   useEffect(() => {
@@ -146,6 +210,14 @@ export function Formular<TData>({
       // cu texte pe care nu le controlăm, și oprește trimiterea înainte ca Zod
       // să apuce să spună ceva mai bun în română.
       noValidate
+      // Ține la zi fotografia selecturilor fără `name` dacă omul le schimbă
+      // cât timp acțiunea încă rulează.
+      onChange={(e) => {
+        const tinta = e.target;
+        if (tinta instanceof HTMLSelectElement && selecturiFaraNume.current.has(tinta)) {
+          selecturiFaraNume.current.set(tinta, valoriAlese(tinta));
+        }
+      }}
       className={cn("flex flex-col gap-4", className)}
     >
       {eroareGenerala === null ? null : <Callout fel="eroare">{eroareGenerala}</Callout>}

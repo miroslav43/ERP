@@ -16,11 +16,16 @@ import { estePeActiuni } from "@/lib/documents/bloc-firma";
 import { actualizeazaOrganizatia } from "./actions";
 import Link from "next/link";
 
+/**
+ * Fără `cui`: nu e un câmp al formularului. Garda `internal.guard_organizations`
+ * îl readuce la valoarea veche fără eroare, deci un câmp editabil ar raporta
+ * „salvat” pentru o scriere refuzată (ADM-039). Se afișează în pagină, în caseta
+ * „Date de contract”, alături de plan și locuri.
+ */
 export type ValoriOrganizatie = Readonly<{
   name: string;
   legal_name: string;
   forma_juridica: string;
-  cui: string;
   platitor_tva: boolean;
   reg_com: string;
   adresa: string;
@@ -53,7 +58,6 @@ const ETICHETE: Readonly<Record<CheiText, string>> = {
   name: "Denumire comercială",
   legal_name: "Denumire legală",
   forma_juridica: "Formă juridică",
-  cui: "CUI",
   reg_com: "Nr. Registrul Comerțului",
   adresa: "Adresă",
   judet: "Județ",
@@ -96,7 +100,6 @@ const ORDINE: readonly CheiText[] = [
   "name",
   "legal_name",
   "forma_juridica",
-  "cui",
   "reg_com",
   "reprezentant_legal",
   "functie_reprezentant_legal",

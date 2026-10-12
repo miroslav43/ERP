@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { formatInterval, todayInBucharest } from "@/lib/format/date";
+import { textZile } from "@/lib/format/numar";
 import { anDinUrl } from "@/lib/rute/parametri";
 import {
   cererileMele,
@@ -160,10 +161,10 @@ export default async function PaginaConcediileMele({ searchParams }: Proprietati
                         {tipuri.get(c.leave_type_id)?.denumire ?? "Concediu"}
                       </p>
                       <p className="text-muted-foreground text-corp">
-                        {formatDate(c.data_inceput)} – {formatDate(c.data_sfarsit)}
+                        {formatInterval(c.data_inceput, c.data_sfarsit)}
                         {c.zile_lucratoare === null
                           ? null
-                          : ` · ${c.zile_lucratoare.toLocaleString("ro-RO")} zile lucrătoare`}
+                          : ` · ${textZile(c.zile_lucratoare, "zi lucrătoare", "zile lucrătoare")}`}
                       </p>
                     </div>
                     <Badge className="shrink-0" ton={TONURI_STATUS_CERERE[c.status] ?? "neutru"}>

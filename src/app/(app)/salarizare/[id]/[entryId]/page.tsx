@@ -5,7 +5,8 @@ import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
-import { buton } from "@/components/ui/buton";
+import { Buton, buton } from "@/components/ui/buton";
+import { ButonDescarcare } from "@/components/incarcare/buton-descarcare";
 import { numeLuna } from "../../etichete";
 import { Fluturas } from "@/components/payroll/fluturas";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
@@ -110,6 +111,16 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
       : inregistrare.calc_warnings.map((w) =>
           hrefAvertisment(w.cod, contextFluturas, contextPorti),
         );
+  /*
+   * ADM-034: ruta `fluturas` refuză cu 409 în `text/plain` cât timp statul nu
+   * e aprobat, iar butonul era un `<a href>` activ în starea „Calculat" —
+   * refuzul ÎNLOCUIA ecranul cu o pagină albă cu o propoziție. Starea se
+   * cunoaște aici, deci butonul se dezactivează pe ea; descărcarea trece prin
+   * `fetch` (`ButonDescarcare`), ca un refuz venit totuși (altcineva a
+   * redeschis perioada între timp) să ajungă în notificare, nu în locul paginii.
+   */
+  const pdfDisponibil =
+    perioada !== null && (perioada.status === "aprobat" || perioada.status === "inchis");
 
   return (
     <div className={`${LATIMI.detaliu} space-y-6`}>
@@ -187,12 +198,24 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
         }
       />
 
-      <a
-        href={`/api/export/salarizare/fluturas?inregistrare=${inregistrare.id}`}
-        className={buton({ varianta: "secundar" })}
-      >
-        Descarcă fluturașul (PDF)
-      </a>
+      {pdfDisponibil ? (
+        <ButonDescarcare
+          href={`/api/export/salarizare/fluturas?inregistrare=${inregistrare.id}`}
+          eticheta="fluturașul"
+          numeImplicit="fluturas.pdf"
+        >
+          Descarcă fluturașul (PDF)
+        </ButonDescarcare>
+      ) : (
+        <div className="space-y-2">
+          <Buton varianta="secundar" disabled>
+            Descarcă fluturașul (PDF)
+          </Buton>
+          <p className="text-muted-foreground text-corp">
+            Fluturașul PDF devine disponibil după aprobarea statului de plată.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

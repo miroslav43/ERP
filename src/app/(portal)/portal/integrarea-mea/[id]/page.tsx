@@ -12,6 +12,7 @@ import { pasEsteGata } from "@/schemas/checklist";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { formatDate } from "@/lib/format/date";
+import { acordSubstantiv, formatNumar } from "@/lib/format/numar";
 import { citesteInstanta, pasiiInstantei } from "@/lib/queries/checklist";
 import { fisaMea } from "@/lib/queries/portal";
 import { PasChecklist } from "@/app/(app)/onboarding/[id]/pas-checklist";
@@ -105,9 +106,9 @@ export default async function PaginaParcursulMeu({
             : { eticheta: "Pașii mei la colegi", href: "/portal/integrarea-mea/sarcini" },
         ]}
         titlu={ETICHETE_TIP[instanta.tip]}
-        descriere={`Din ${formatDate(instanta.data_referinta)} · ${facute.toLocaleString(
-          "ro-RO",
-        )} din ${pasi.length.toLocaleString("ro-RO")} pași`}
+        descriere={`Din ${formatDate(instanta.data_referinta)} · ${formatNumar(facute)} din ${formatNumar(
+          pasi.length,
+        )} ${acordSubstantiv(pasi.length, "pas", "pași")}`}
         actiuni={
           <span className="border-border text-muted-foreground text-nota shrink-0 rounded border px-2 py-0.5">
             {ETICHETE_STATUS_INSTANTA[instanta.status]}

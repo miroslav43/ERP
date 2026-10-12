@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { citesteDepozit, scrieDepozit } from "./depozit";
+import { citesteDepozit, scrieDepozit, stergeDepozit } from "./depozit-sesiune";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -10,7 +10,7 @@ afterEach(() => {
 
 /**
  * Garda de formă e un parametru OBLIGATORIU al lui `citesteDepozit` — vezi
- * motivarea din `depozit.ts`. Testele o dau explicit, ca orice apelant.
+ * motivarea din `depozit-sesiune.ts`. Testele o dau explicit, ca orice apelant.
  */
 const esteNumarat = (x: unknown): x is { n: number } =>
   typeof x === "object" && x !== null && typeof (x as { n?: unknown }).n === "number";
@@ -38,9 +38,21 @@ describe("depozitul de sesiune", () => {
       setItem: () => {
         throw new Error("blocat");
       },
+      removeItem: () => {
+        throw new Error("blocat");
+      },
     });
     expect(() => scrieDepozit("proba", { n: 1 })).not.toThrow();
+    expect(() => stergeDepozit("proba")).not.toThrow();
     expect(citesteDepozit("proba", { n: 9 }, esteNumarat)).toEqual({ n: 9 });
+  });
+
+  it("ștergerea lasă cheia goală și nu atinge alte chei", () => {
+    scrieDepozit("proba", { n: 1 });
+    scrieDepozit("alta", { n: 2 });
+    stergeDepozit("proba");
+    expect(window.sessionStorage.getItem("proba")).toBeNull();
+    expect(citesteDepozit("alta", { n: 0 }, esteNumarat)).toEqual({ n: 2 });
   });
 
   /**
@@ -73,8 +85,15 @@ describe("depozitul de sesiune", () => {
      * regresia se vede.
      */
     const { readFileSync } = await import("node:fs");
-    const sursa = readFileSync("src/demo/depozit.ts", "utf8");
+    const sursa = readFileSync("src/lib/ui/depozit-sesiune.ts", "utf8");
     expect(sursa).toMatch(/esteValid: \(x: unknown\) => x is T,/);
     expect(sursa).not.toMatch(/esteValid\?/);
+  });
+
+  it("stratul demo re-exportă helper-ul, deci vechii apelanți nu se schimbă", async () => {
+    const demo = await import("@/demo/depozit");
+    expect(demo.citesteDepozit).toBe(citesteDepozit);
+    expect(demo.scrieDepozit).toBe(scrieDepozit);
+    expect(demo.CHEIE_CONCEDII).toBe("vitrina.concedii");
   });
 });

@@ -1,18 +1,17 @@
 // src/app/(platform)/super-admin/jurnal-audit/page.tsx
-import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { JurnalAudit } from "@/components/audit/jurnal-audit";
 import { ScheletAudit } from "@/components/audit/schelet-audit";
-import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { metadataPlatforma, requirePlatformAdmin } from "@/lib/auth/platform";
 import { cheieFiltre, parseazaFiltre } from "@/lib/queries/audit";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Jurnal de audit",
-  description: "Evenimentele înregistrate pe toate organizațiile din platformă.",
-};
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda
+// (PRM-007). Descrierea a căzut odată cu metadatele statice: și ea numea
+// „toate organizațiile din platformă” oricui deschidea adresa.
+export const generateMetadata = metadataPlatforma("Jurnal de audit");
 
 /**
  * Calea proprie a paginii, transmisă mai jos ca să-și construiască linkurile de

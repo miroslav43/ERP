@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { Fragment, type ReactElement, type ReactNode } from "react";
 
+import { textNumarat } from "@/lib/format/numar";
 import { cn } from "@/lib/ui/cn";
 
 import { RandTabel } from "../data/rand-tabel";
@@ -91,6 +92,13 @@ export type Coloana<R> = Readonly<{
    * exact eroarea asta („<dialog> cannot be a descendant of <p>”).
    */
   peTelefon?: "titlu" | "insigna" | "meta" | "ascuns" | "actiuni";
+  /**
+   * Doar pentru `meta`: numele scris înaintea valorii în card („Rămase: 20”).
+   * Pe desktop antetul coloanei spune ce e cifra; în card, metadatele sunt o
+   * listă separată prin „·” și mai multe cifre la rând nu se mai disting
+   * (UX-011: „730,00 · 0,00 · 0,00 · 0,00”). Absent = doar valoarea, ca până acum.
+   */
+  etichetaTelefon?: string;
   celula: (rand: R) => ReactNode;
 }>;
 
@@ -178,13 +186,16 @@ export function Tabel<R>({
     <div className={cn("flex flex-col gap-2", className)}>
       {trunchiat === true ? (
         <p className="border-warning/40 bg-warning/12 text-foreground rounded-panou text-nota border px-3 py-2">
-          Lista e tăiată la primele {randuri.length} de rânduri. Restrângeți filtrele ca să vedeți
-          restul.
+          {`Lista e tăiată la primele ${textNumarat(randuri.length, "rând", "rânduri")}.`}{" "}
+          Restrângeți filtrele ca să vedeți restul.
         </p>
       ) : null}
 
       {/* ── PESTE md: TABEL ─────────────────────────────────────────────── */}
-      <div className="border-border rounded-panou hidden overflow-x-auto border md:block">
+      {/* `relative`: antetul ascuns (`sr-only`, adică `position: absolute`) are
+          aici blocul conținător; altfel poziția lui statică, într-o coloană
+          îndepărtată, întinde pagina, nu doar containerul (UX-005). */}
+      <div className="border-border rounded-panou relative hidden overflow-x-auto border md:block">
         <table className="text-corp w-full text-left">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-surface border-border border-b">
@@ -453,6 +464,7 @@ function CardRand<R>({
                     ·
                   </span>
                 ) : null}
+                {c.etichetaTelefon !== undefined ? `${c.etichetaTelefon}: ` : null}
                 {c.celula(rand)}
               </span>
             ))}

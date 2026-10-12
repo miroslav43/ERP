@@ -16,6 +16,7 @@ import { ConfirmareActiune } from "@/components/ui/dialog";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { arataToast } from "@/components/ui/toast";
 import { clasaBifa, clasaControl } from "@/components/ui/camp";
+import { textNumarat } from "@/lib/format/numar";
 import type { AngajatOptiune } from "@/lib/queries/cursuri";
 import { Users } from "lucide-react";
 
@@ -78,7 +79,7 @@ export function FormularAtribuire({
         fel: esuate === 0 ? "reusita" : "informativ",
         text:
           esuate === 0
-            ? `Cursul a fost atribuit la ${String(atribuite)} ${atribuite === 1 ? "persoană" : "persoane"}.`
+            ? `Cursul a fost atribuit la ${textNumarat(atribuite, "persoană", "persoane")}.`
             : `Atribuit la ${String(atribuite)}; ${String(esuate)} au fost sărite (aveau deja cursul).`,
       });
       setAlesi(new Set());
@@ -163,7 +164,9 @@ export function FormularAtribuire({
             setConfirma(true);
           }}
         >
-          Atribuie la {alesi.size} {alesi.size === 1 ? "persoană" : "persoane"}
+          {/* Un singur șir: în butonul `inline-flex`, nodul de text format doar
+              din spațiu cădea din numele accesibil („0persoane”, QA MGR-020). */}
+          {`Atribuie la ${textNumarat(alesi.size, "persoană", "persoane")}`}
         </Buton>
       </BaraActiuni>
 

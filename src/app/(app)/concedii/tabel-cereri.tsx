@@ -12,8 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Paginare } from "@/components/ui/paginare";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatAmount } from "@/lib/format/money";
-import { formatDate } from "@/lib/format/date";
+import { textZile } from "@/lib/format/numar";
+import { formatInterval } from "@/lib/format/date";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { listeazaCereri, type RandCerere } from "@/lib/queries/leave";
 import { filtreCereriSchema, type VizualizareCereri } from "@/schemas/leave";
@@ -196,14 +196,14 @@ export async function TabelCereri({
       antet: "Perioadă",
       sortabil: true,
       peTelefon: "meta",
-      celula: (cerere) => `${formatDate(cerere.data_inceput)} – ${formatDate(cerere.data_sfarsit)}`,
+      celula: (cerere) => formatInterval(cerere.data_inceput, cerere.data_sfarsit),
     },
     {
       cheie: "zile",
       antet: "Zile lucrătoare",
       numeric: true,
       peTelefon: "meta",
-      celula: (cerere) => `${formatAmount(cerere.zile_lucratoare)} zile`,
+      celula: (cerere) => textZile(cerere.zile_lucratoare),
     },
     {
       cheie: "stare",

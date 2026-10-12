@@ -132,7 +132,8 @@ export function FormularPunctLucruNou() {
               <input
                 {...a}
                 type="text"
-                maxLength={10}
+                inputMode="numeric"
+                maxLength={6}
                 defaultValue={stare.valoriTrimise["cod_postal"] ?? ""}
               />
             )}

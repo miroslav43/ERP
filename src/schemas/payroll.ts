@@ -1,6 +1,8 @@
 // src/schemas/payroll.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 const RE_DATA = /^\d{4}-\d{2}-\d{2}$/u;
 
 const cota = (eticheta: string) =>
@@ -30,7 +32,7 @@ export const pragDeducereSchema = z
 export type IntrarePragDeducere = z.output<typeof pragDeducereSchema>;
 
 export const setariSalarizareSchema = z.object({
-  valabil_de_la: z.string().regex(RE_DATA, "Data trebuie să fie în formatul AAAA-LL-ZZ."),
+  valabil_de_la: z.string().regex(RE_DATA, "Introduceți data (zz.ll.aaaa)."),
   cota_cas: cota("Cota CAS"),
   cota_cass: cota("Cota CASS"),
   cota_impozit: cota("Cota de impozit"),
@@ -156,14 +158,17 @@ export const poprireSchema = z
     suma_totala: z.coerce.number().positive("Suma totală de recuperat trebuie să fie pozitivă."),
     suma_lunara: z.coerce.number().positive("Suma lunară de reținut trebuie să fie pozitivă."),
     prioritate: z.coerce.number().int().min(1).max(1000).default(100),
-    data_inceput: z.string().trim().regex(RE_DATA, "Data de început trebuie scrisă AAAA-LL-ZZ."),
+    data_inceput: z.string().trim().regex(RE_DATA, "Introduceți data de început (zz.ll.aaaa)."),
     data_sfarsit: z
       .string()
       .trim()
       .nullable()
       .default(null)
       .transform((v) => (v === null || v.length === 0 ? null : v))
-      .refine((v) => v === null || RE_DATA.test(v), "Data de sfârșit trebuie scrisă AAAA-LL-ZZ."),
+      .refine(
+        (v) => v === null || RE_DATA.test(v),
+        "Introduceți o dată de sfârșit validă (zz.ll.aaaa).",
+      ),
     observatii: z.string().trim().max(1000).nullable().default(null),
   })
   .superRefine((valoare, ctx) => {

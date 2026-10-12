@@ -27,7 +27,7 @@ import { PasChecklist } from "./pas-checklist";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
 
-export const metadata: Metadata = { title: "Detaliile checklistului" };
+export const metadata: Metadata = { title: "Parcurs de integrare" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
@@ -48,7 +48,7 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta checklisturile de integrare. Solicitați administratorului organizației rolul potrivit." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta parcursurile de integrare. Solicitați administratorului organizației rolul potrivit." />
     );
   }
 
@@ -146,13 +146,13 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
       <div className="space-y-1">
         <p className="text-muted-foreground text-corp">
           <Link href="/onboarding" className="underline-offset-2 hover:underline">
-            Onboarding
+            Integrare angajați
           </Link>
         </p>
         <AntetPagina
           titlu={
             angajat === undefined ? (
-              "Checklist"
+              "Parcurs"
             ) : (
               <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
                 {angajat.full_name ?? angajat.marca} ({angajat.marca})
@@ -220,7 +220,7 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
             Bunuri nereturnate
           </h2>
           <p className="text-foreground text-corp mt-1">
-            Checklistul poate fi finalizat doar după ce toate sunt returnate
+            Parcursul poate fi finalizat doar după ce toate sunt returnate
             {poateDeschideInventarul ? (
               <>
                 {" "}

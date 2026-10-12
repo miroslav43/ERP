@@ -2,8 +2,8 @@
 import { FileText } from "lucide-react";
 import type { ReactElement } from "react";
 
-import { marimeCitibila } from "@/components/ui/incarcare-fisier";
 import { formatDateTime } from "@/lib/format/date";
+import { marimeCitibila } from "@/lib/format/marime";
 import type { Atasament } from "@/lib/queries/maintenance";
 
 import { ETICHETE_TIP_ATASAMENT } from "../../etichete";

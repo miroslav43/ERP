@@ -19,6 +19,7 @@ import { formatDate } from "@/lib/format/date";
 import { citesteDetaliuMesaj, idOrganizatie, type RandApel } from "@/lib/queries/reges";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { ETICHETE_OPERATIE, ETICHETE_STARE_MESAJ } from "../constante";
 import { FormularClasificare } from "./formular-clasificare";
 import { LinkEntitate } from "@/components/ui/link-entitate";
@@ -67,7 +68,8 @@ export default async function PaginaMesajReges(props: { params: Promise<{ id: st
   const poateConfigura = meetsScope(scopeFor(permisiuni, "reges:configure") ?? undefined, "all");
   const poateTransmite = meetsScope(scopeFor(permisiuni, "reges:transmit") ?? undefined, "all");
 
-  const { id } = await props.params;
+  const { id: idBrut } = await props.params;
+  const id = idDinRuta(idBrut);
   const supabase = await createServerSupabase();
   const detaliu = await citesteDetaliuMesaj(supabase, idOrganizatie(tenant), id);
   if (detaliu === null) notFound();

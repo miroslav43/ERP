@@ -133,6 +133,16 @@ describe("creeazaEvaluare", () => {
     expect(apel?.selectDupaScriere).toBe("id, employee_id");
   });
 
+  // QA 8 oct 2026, HR-029: o evaluare „din 2030" se salva ca și cum ar fi avut loc.
+  it("data la mai mult de un an în viitor: VALIDARE pe `data_evaluarii`, fără interogare pe șablon", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const r = await creeazaEvaluare(intrareNoua({ data_evaluarii: "2030-01-01" }));
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.["data_evaluarii"]?.[0]).toContain("un an în viitor");
+    expect(server.apeluriPe("evaluation_templates")).toHaveLength(0);
+  });
+
   it("șablonul nu mai există: NEGASIT, fără INSERT", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     server.raspunde("evaluation_templates", "select", { data: null });
@@ -457,6 +467,18 @@ describe("planificaEvaluari", () => {
     const r = await planificaEvaluari(formular([ANGAJAT]));
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
     expect(server.apeluri).toHaveLength(0);
+  });
+
+  // QA 8 oct 2026, HR-029: o evaluare „din 2030" se programa și apărea în listă.
+  it("data la mai mult de un an în viitor: VALIDARE pe `data_evaluarii`, fără interogare pe șablon", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS_CREARE });
+    const f = formular([ANGAJAT]);
+    f.set("data_evaluarii", "2030-01-01");
+    const r = await planificaEvaluari(f);
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.["data_evaluarii"]?.[0]).toContain("un an în viitor");
+    expect(server.apeluriPe("evaluation_templates")).toHaveLength(0);
   });
 
   it("niciun angajat bifat: VALIDARE pe `employee_ids`", async () => {

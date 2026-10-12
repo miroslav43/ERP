@@ -21,6 +21,7 @@ import {
 import { mesajCamp } from "./erori-formular";
 import { CautaCor } from "@/components/cauta-cor";
 import { DepartamentNou } from "./departament-nou";
+import { IntrareDataFormular } from "./intrare-data-formular";
 import { PachetSalarial, type SablonSalarial } from "./pachet-salarial";
 
 export const CAMPURI_PAS_3 = [
@@ -271,7 +272,9 @@ export function Pas3Contract({
             obligatoriu
             erori={mesajCamp(errors.data_contract)}
           >
-            {(atribute) => <input {...atribute} type="date" {...register("data_contract")} />}
+            {(atribute) => (
+              <IntrareDataFormular control={control} nume="data_contract" atribute={atribute} />
+            )}
           </Camp>
           <Camp
             nume="valabil_de_la"
@@ -280,7 +283,9 @@ export function Pas3Contract({
             erori={mesajCamp(errors.valabil_de_la)}
             ajutor="Începutul legal al acestui contract. Merge la REGES și în contractul generat."
           >
-            {(atribute) => <input {...atribute} type="date" {...register("valabil_de_la")} />}
+            {(atribute) => (
+              <IntrareDataFormular control={control} nume="valabil_de_la" atribute={atribute} />
+            )}
           </Camp>
           <Camp
             nume="hired_on"
@@ -289,7 +294,9 @@ export function Pas3Contract({
             erori={mesajCamp(errors.hired_on)}
             ajutor="Se completează singură din „Angajat de la”. Schimbați-o doar la reangajare sau la preluare prin transfer — din ea se calculează vechimea și adeverințele."
           >
-            {(atribute) => <input {...atribute} type="date" {...register("hired_on")} />}
+            {(atribute) => (
+              <IntrareDataFormular control={control} nume="hired_on" atribute={atribute} />
+            )}
           </Camp>
           <Camp
             nume="contract_duration"
@@ -315,7 +322,9 @@ export function Pas3Contract({
                 obligatoriu
                 erori={mesajCamp(errors.valabil_pana)}
               >
-                {(atribute) => <input {...atribute} type="date" {...register("valabil_pana")} />}
+                {(atribute) => (
+                  <IntrareDataFormular control={control} nume="valabil_pana" atribute={atribute} />
+                )}
               </Camp>
               <Camp
                 nume="motiv_determinat"
@@ -353,7 +362,7 @@ export function Pas3Contract({
                 type="number"
                 step="0.5"
                 min={0.5}
-                max={12}
+                max={8}
                 {...register("norma_ore_zi")}
               />
             )}
@@ -511,6 +520,7 @@ export function Pas3Contract({
           <Camp
             nume="zile_concediu_anual"
             eticheta="Zile de concediu de odihnă anual"
+            obligatoriu
             erori={mesajCamp(errors.zile_concediu_anual)}
             ajutor="Implicit conform politicii organizației — modificabil aici doar pentru acest angajat."
           >

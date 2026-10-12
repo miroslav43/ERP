@@ -28,6 +28,7 @@ import {
   CHECKLIST_TIP,
   salveazaSablonSchema,
 } from "@/schemas/checklist";
+import { textNumarat } from "@/lib/format/numar";
 
 import { salveazaSablon } from "../../actions";
 import {
@@ -281,7 +282,7 @@ export function AsistentSablon({
         ? {}
         : {
             actiune: {
-              eticheta: "Pornește o instanță",
+              eticheta: "Pornește un parcurs",
               onClick: () => {
                 router.push(`/onboarding/noua?sablon=${raspuns.data.id}`);
               },
@@ -678,8 +679,7 @@ export function AsistentSablon({
             {stare.denumire === "" ? "Șablon fără denumire" : stare.denumire}
           </h2>
           <p className="text-muted-foreground text-corp">
-            {ETICHETE_TIP[stare.tip]} · {stare.etape.length} etape · {total} pași ·{" "}
-            {stare.activ ? "activ" : "dezactivat"}
+            {`${ETICHETE_TIP[stare.tip]} · ${textNumarat(stare.etape.length, "etapă", "etape")} · ${textNumarat(total, "pas", "pași")} · ${stare.activ ? "activ" : "dezactivat"}`}
           </p>
           {total === 0 ? (
             <p role="alert" className="text-danger text-corp">

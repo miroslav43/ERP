@@ -29,14 +29,18 @@ import {
   configurareConcedii,
   coduriIndemnizatieMedicala,
   deAprobat,
+  dreptDinRand,
   grupeazaSoldDupaAngajat,
   imperecheazaSold,
   istoricSold,
   lantulAprobarii,
   listeazaCereri,
+  numarCereriInAsteptareLuna,
   numarDeAprobat,
   previzualizeazaDrepturi,
+  ramaseDinRand,
   soldAnual,
+  tipuriAfisateInSold,
   varianteConcediu,
   zileleCererii,
   zileNelucratoare,
@@ -350,6 +354,12 @@ describe("imperecheazaSold și grupeazaSoldDupaAngajat", () => {
     expect(imperecheazaSold([], [sold(FISA, "odihna")])).toEqual([]);
   });
 
+  it("primește dreptul calculat pe tip, când e dat", () => {
+    const randuri = imperecheazaSold([tip("odihna"), tip("studii")], [], new Map([["odihna", 5]]));
+    expect(randuri[0]?.dreptCalculat).toBe(5);
+    expect(randuri[1]?.dreptCalculat).toBeUndefined();
+  });
+
   it("grupează pe angajat, în ordinea primei apariții", () => {
     const a1 = sold("a", "odihna");
     const b1 = sold("b", "odihna");
@@ -359,6 +369,88 @@ describe("imperecheazaSold și grupeazaSoldDupaAngajat", () => {
     expect(harta.get("a")).toEqual([a1, a2]);
     expect(harta.get("b")).toEqual([b1]);
     expect(grupeazaSoldDupaAngajat([]).size).toBe(0);
+  });
+
+  /*
+    UX-011: coloana „Rămase” arăta textul „fără mișcări în acest an” în locul
+    cifrei pentru orice tip fără rând de sold — deci dreptul de 730 de zile al
+    concediului de creștere a copilului nu se vedea ca rest. `/concedii` avea
+    formula ei, inline; acum amândouă ecranele o cheamă pe aceasta.
+  */
+  it("ramaseDinRand: fără rând de sold, tip cu durată fixă ⇒ zilele implicite, ca cifră", () => {
+    const crestere: TipConcediu = {
+      ...tip("crestere_copil"),
+      zile_implicite: 730,
+      scade_din_sold: false,
+    };
+    expect(ramaseDinRand({ tip: crestere, sold: null })).toBe(730);
+    expect(dreptDinRand({ tip: crestere, sold: null })).toBe(730);
+  });
+
+  /*
+    QA oct 2026: după 0193 dreptul de odihnă vine din zilele CONTRACTULUI plus
+    grile, × lunile lucrate / 12. Fără rând de sold, ecranul arăta implicitul
+    tipului (20/21) — un angajat cu 25 de zile pe contract, sau unul intrat în
+    octombrie (5 zile), vedea altă cifră decât portalul pentru același an.
+  */
+  it("ramaseDinRand: fără rând de sold, cu dreptul calculat de bază ⇒ dreptul calculat", () => {
+    const rand = { tip: tip("odihna"), sold: null, dreptCalculat: 5 };
+    expect(ramaseDinRand(rand)).toBe(5);
+    expect(dreptDinRand(rand)).toBe(5);
+  });
+
+  it("ramaseDinRand: fără rând și fără drept calculat, pe un tip care scade din sold ⇒ necunoscut, nu implicitul", () => {
+    const rand = { tip: { ...tip("odihna"), zile_implicite: 20 }, sold: null };
+    expect(ramaseDinRand(rand)).toBeNull();
+    expect(dreptDinRand(rand)).toBeNull();
+  });
+
+  it("ramaseDinRand: rândul de sold bate dreptul calculat", () => {
+    const s: SoldTip = { ...sold(FISA, "odihna"), drept_anual: 21, ramase: 9 };
+    const rand = { tip: tip("odihna"), sold: s, dreptCalculat: 5 };
+    expect(ramaseDinRand(rand)).toBe(9);
+    expect(dreptDinRand(rand)).toBe(21);
+  });
+
+  it("ramaseDinRand: `ramase` lipsă ⇒ drept + reportate − folosite − în așteptare", () => {
+    const s: SoldTip = {
+      ...sold(FISA, "odihna"),
+      drept_anual: 21,
+      reportate: 3,
+      folosite: 5,
+      in_asteptare: 2,
+      ramase: null,
+    };
+    expect(ramaseDinRand({ tip: tip("odihna"), sold: s })).toBe(17);
+  });
+
+  it("ramaseDinRand: `ramase` din bază (coloană generată) se ia întocmai", () => {
+    const s: SoldTip = { ...sold(FISA, "odihna"), ramase: 12.5 };
+    expect(ramaseDinRand({ tip: tip("odihna"), sold: s })).toBe(12.5);
+  });
+});
+
+/*
+  UX-011: `/concedii/sold` lista 13 tipuri pentru fiecare angajat (creștere
+  copil, adopție, deces, donator de sânge…), iar răspunsul la „câte zile de
+  odihnă mai am?” cerea derulare printre 13 × N rânduri. Implicit rămân doar
+  tipurile care scad din sold; restul, la cerere.
+*/
+describe("tipuriAfisateInSold", () => {
+  const odihna = tip("odihna");
+  const deces: TipConcediu = { ...tip("deces"), scade_din_sold: false };
+  const crestere: TipConcediu = { ...tip("crestere_copil"), scade_din_sold: false };
+
+  it("implicit: doar tipurile care scad din sold", () => {
+    expect(tipuriAfisateInSold([deces, odihna, crestere], false)).toEqual([odihna]);
+  });
+
+  it("cu „toate”: toate tipurile, în ordinea primită", () => {
+    expect(tipuriAfisateInSold([deces, odihna, crestere], true)).toEqual([deces, odihna, crestere]);
+  });
+
+  it("niciun tip nu scade din sold ⇒ toate, nu o listă goală", () => {
+    expect(tipuriAfisateInSold([deces, crestere], false)).toEqual([deces, crestere]);
   });
 });
 
@@ -867,5 +959,42 @@ describe("cereriCareOcupaZile", () => {
     await expect(cereriCareOcupaZile(ORG_ID, 2026, 2026)).rejects.toMatchObject({
       code: "57014",
     });
+  });
+});
+
+// ── numarCereriInAsteptareLuna ──────────────────────────────────────────────
+//
+// Pre-verificarea calculului de salarii (HR-027): exact predicatul triggerului
+// de pe `payroll_periods` (0026:328-335), ca refuzul să vină ÎNAINTE de
+// scrierea rândurilor, nu după.
+
+describe("numarCereriInAsteptareLuna", () => {
+  it("numără doar `trimisa`/`in_aprobare` — fără `aprobata` — care ating luna, pe ambele capete", async () => {
+    server.raspunde("leave_requests", "select", { count: 3 });
+
+    expect(await numarCereriInAsteptareLuna(ORG_ID, "2026-08-01", "2026-08-31")).toBe(3);
+
+    const [apel] = server.apeluriPe("leave_requests");
+    expect(apel?.coloane).toBe("id");
+    expect(apel?.optiuni).toEqual({ count: "exact", head: true });
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "in", "status", ["trimisa", "in_aprobare"])).toBe(true);
+    // Suprapunere de intervale: începe cel târziu la sfârșitul lunii ȘI se
+    // termină cel devreme la începutul ei.
+    expect(areFiltru(apel, "lte", "data_inceput", "2026-08-31")).toBe(true);
+    expect(areFiltru(apel, "gte", "data_sfarsit", "2026-08-01")).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+  });
+
+  it("`count` null ⇒ 0", async () => {
+    server.raspunde("leave_requests", "select", { count: null });
+    expect(await numarCereriInAsteptareLuna(ORG_ID, "2026-08-01", "2026-08-31")).toBe(0);
+  });
+
+  it("eroarea se propagă — un zero fals ar lăsa calculul să treacă", async () => {
+    server.raspunde("leave_requests", "select", { error: eroarePostgrest("57014") });
+    await expect(
+      numarCereriInAsteptareLuna(ORG_ID, "2026-08-01", "2026-08-31"),
+    ).rejects.toMatchObject({ code: "57014" });
   });
 });

@@ -122,6 +122,14 @@ describe("statisticiAnuale", () => {
     expect(areFiltru(apel, "order", "luna", { ascending: true })).toBe(true);
   });
 
+  /*
+   * HR-027: cifrele unei luni în ciornă NU intră în raport. Fie e o perioadă
+   * redeschisă (cifrele vechi se vor schimba la recalculare), fie sunt rânduri
+   * orfane lăsate de un calcul refuzat de trigger după ce RPC-ul scrisese deja
+   * — în ambele cazuri ecranul perioadei le ascunde, iar raportul le aduna.
+   * Citirea rămâne una singură, peste toate perioadele, ca să se poată deosebi
+   * „ciornă cu cifre vechi" de „necalculată"; doar acumularea e condiționată.
+   */
   describe("cu trei luni: aprobată, redeschisă în ciornă, necalculată", () => {
     beforeEach(() => {
       server.raspunde("payroll_periods", "select", {
@@ -147,7 +155,7 @@ describe("statisticiAnuale", () => {
       });
     });
 
-    it("seria lunară cuprinde doar lunile cu cifre, cu totalurile din intrări", async () => {
+    it("seria lunară cuprinde doar lunile cu cifre VALABILE — ciorna redeschisă iese", async () => {
       const r = await statisticiAnuale(ORG_ID, 2026);
 
       expect(r.perLuna).toEqual([
@@ -159,66 +167,106 @@ describe("statisticiAnuale", () => {
           totalNet: 5400,
           totalCostAngajator: 9000 * 1.0225,
         },
-        {
-          periodId: P_FEB,
-          luna: 2,
-          status: "draft",
-          totalBrut: 6500,
-          totalNet: 3900,
-          totalCostAngajator: 6500 * 1.0225,
-        },
       ]);
     });
 
-    it("luna redeschisă cu cifre e „în ciornă”; luna fără nicio intrare e „necalculată”", async () => {
+    it("luna redeschisă cu cifre e „în ciornă” ȘI „necalculată”; luna fără nicio intrare doar „necalculată”", async () => {
       const r = await statisticiAnuale(ORG_ID, 2026);
+      // Ciorna e semnalată separat (cifrele ei vechi există, dar sunt excluse)…
       expect(r.luniInCiorna).toEqual([2]);
-      expect(r.luniNecalculate).toEqual([3]);
-      expect(r.perioadeNecalculate.map((p) => p.luna)).toEqual([3]);
+      // …și intră între lunile fără calcul valabil, ca ecranul să ducă la ea.
+      expect(r.luniNecalculate).toEqual([2, 3]);
+      expect(r.perioadeNecalculate).toEqual([
+        { id: P_FEB, luna: 2 },
+        { id: P_MAR, luna: 3 },
+      ]);
     });
 
-    it("per angajat: sume anuale, ordonate după nume; angajatul șters rămâne, marcat", async () => {
+    it("per angajat: doar din lunile valabile; cine avea rând doar în ciornă dispare", async () => {
       const r = await statisticiAnuale(ORG_ID, 2026);
 
       expect(r.perAngajat.map((a) => [a.fullName, a.marca])).toEqual([
         ["Ana Dan", "1"],
-        ["Angajat șters", "—"],
         ["Bogdan Ene", "2"],
       ]);
-      // Linkul spre fișă are nevoie să știe că rândul șters n-are țintă.
-      expect(r.perAngajat.map((a) => a.exista)).toEqual([true, false, true]);
+      expect(r.perAngajat.map((a) => a.exista)).toEqual([true, true]);
       const bogdan = r.perAngajat.find((a) => a.employeeId === "ang-b");
       expect(bogdan).toEqual({
         employeeId: "ang-b",
         fullName: "Bogdan Ene",
         marca: "2",
         exista: true,
-        zileConcediuOdihna: 2,
-        zileConcediuMedical: 4,
-        venitBrutAnual: 10500,
-        venitNetAnual: 6300,
-        ticheteNumar: 40,
-        ticheteValoare: 1600,
-        oreSuplimentare: 6,
+        zileConcediuOdihna: 1,
+        zileConcediuMedical: 2,
+        venitBrutAnual: 5000,
+        venitNetAnual: 3000,
+        ticheteNumar: 20,
+        ticheteValoare: 800,
+        oreSuplimentare: 3,
       });
     });
 
-    it("totalurile anuale însumează toate intrările, iar costul vine din același rând", async () => {
+    it("totalurile anuale însumează doar lunile valabile, iar costul vine din același rând", async () => {
       const r = await statisticiAnuale(ORG_ID, 2026);
 
       expect(r).toMatchObject({
         an: 2026,
-        totalZileConcediuOdihna: 4,
-        totalZileConcediuMedical: 8,
-        totalVenitBrutAnual: 15500,
-        totalVenitNetAnual: 9300,
-        totalTicheteNumar: 80,
-        totalTicheteValoare: 3200,
-        totalOreSuplimentare: 12,
+        totalZileConcediuOdihna: 2,
+        totalZileConcediuMedical: 4,
+        totalVenitBrutAnual: 9000,
+        totalVenitNetAnual: 5400,
+        totalTicheteNumar: 40,
+        totalTicheteValoare: 1600,
+        totalOreSuplimentare: 6,
       });
-      expect(r.totalCostAngajatorAnual).toBeCloseTo(15500 * 1.0225, 6);
+      expect(r.totalCostAngajatorAnual).toBeCloseTo(9000 * 1.0225, 6);
       // Costul nu poate fi sub brut când vine din aceleași rânduri.
       expect(r.totalCostAngajatorAnual).toBeGreaterThanOrEqual(r.totalVenitBrutAnual);
+    });
+
+    it("angajatul șters rămâne, marcat, când are rând într-o lună valabilă", async () => {
+      // Fixtura de mai sus îl are doar în ciornă; aici primește și un rând în
+      // ianuarie, ca regula „rămâne, marcat” să fie verificată pe drumul nou.
+      server = configureazaActiunea().server;
+      server.raspunde("payroll_periods", "select", {
+        data: [
+          { id: P_IAN, luna: 1, status: "aprobat" },
+          { id: P_FEB, luna: 2, status: "draft" },
+        ],
+      });
+      server.raspunde("payroll_entries", "select", {
+        data: [intrare("e1", P_IAN, "ang-sters", 1000), intrare("e4", P_FEB, "ang-sters", 1000)],
+      });
+      server.raspunde("employees", "select", { data: [] });
+
+      const r = await statisticiAnuale(ORG_ID, 2026);
+
+      expect(r.perAngajat).toHaveLength(1);
+      expect(r.perAngajat[0]).toMatchObject({
+        fullName: "Angajat șters",
+        marca: "—",
+        exista: false,
+        venitBrutAnual: 1000,
+      });
+    });
+
+    it("o ciornă FĂRĂ rânduri e doar necalculată, nu și „în ciornă”", async () => {
+      server = configureazaActiunea().server;
+      server.raspunde("payroll_periods", "select", {
+        data: [
+          { id: P_IAN, luna: 1, status: "aprobat" },
+          { id: P_FEB, luna: 2, status: "draft" },
+        ],
+      });
+      server.raspunde("payroll_entries", "select", { data: [intrare("e1", P_IAN, "ang-a", 4000)] });
+      server.raspunde("employees", "select", {
+        data: [{ id: "ang-a", full_name: "Ana Dan", marca: "1" }],
+      });
+
+      const r = await statisticiAnuale(ORG_ID, 2026);
+
+      expect(r.luniInCiorna).toEqual([]);
+      expect(r.luniNecalculate).toEqual([2]);
     });
 
     it("intrările se citesc doar calculate, din perioadele anului, în organizația curentă", async () => {

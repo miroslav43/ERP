@@ -1,27 +1,19 @@
 // src/app/(app)/ticketing/nou/formular-tichet.tsx
 "use client";
 
-import { useId, useRef, useState, useTransition } from "react";
+import { useCallback, useId, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp, clasaBifa } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
+import type { ActionResult } from "@/lib/actions/types";
 import { TIPURI_TICHET, type TipTichet } from "@/domain/ticketing/stari";
 import type { ObiectAlocat } from "@/lib/queries/ticketing";
 import { DESCRIERI_TIP, ETICHETE_TIP } from "../etichete";
 import { creeazaTichet } from "../actions";
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-control border border-border bg-background px-3 py-2 text-corp text-foreground";
-const CLASA_ETICHETA = "block text-corp font-medium text-foreground";
-
-function Eroare({ mesaj }: Readonly<{ mesaj: string | undefined }>) {
-  if (mesaj === undefined) return null;
-  return (
-    <p role="alert" className="text-danger text-nota mt-1">
-      {mesaj}
-    </p>
-  );
-}
+type TichetCreat = Readonly<{ id: string }>;
 
 /**
  * Un formular per tip, nu unul generic cu câmpuri ascunse. Tipul se alege
@@ -50,9 +42,6 @@ export function FormularTichet({
   const router = useRouter();
   const id = useId();
   const [tip, setTip] = useState<TipTichet | null>(obiectImplicit === null ? null : "defectiune");
-  const [erori, setErori] = useState<Readonly<Record<string, readonly string[]>> | null>(null);
-  const [eroareGenerala, setEroareGenerala] = useState<string | null>(null);
-  const [inCurs, porneste] = useTransition();
 
   /*
    * ── PIERDEREA DE DATE PE CARE O OPREȘTE ────────────────────────────────────
@@ -67,13 +56,19 @@ export function FormularTichet({
    * `defaultValue` la remontare. Un utilizator care se răzgândește de două ori
    * își regăsește și câmpurile specifice primului tip: cheile sunt numele
    * câmpurilor, iar ele nu se ciocnesc între tipuri.
+   *
+   * A doua pierdere, găsită de QA pe ambele rute (ANG-022, MGR-014): un refuz
+   * de validare golea formularul, fiindcă React 19 îl resetează după
+   * `<form action>`. O oprește `<Formular>`, cu `valoriTrimise`. Cele două
+   * mecanisme se înlănțuie: fotografia e sursa până la prima trimitere, apoi
+   * `valoriTrimise` — iar fotografia următoare se face din DOM-ul deja
+   * restaurat, deci nu se pierde nimic nici la „Schimbă tipul" de după refuz.
    */
-  const formularRef = useRef<HTMLFormElement>(null);
   const [pastrate, setPastrate] = useState<Readonly<Record<string, string>>>({});
   const pastrat = (nume: string, implicit = ""): string => pastrate[nume] ?? implicit;
 
-  const schimbaTipul = () => {
-    const formular = formularRef.current;
+  const schimbaTipul = (e: MouseEvent<HTMLButtonElement>) => {
+    const formular = e.currentTarget.form;
     if (formular !== null) {
       const fotografie: Record<string, string> = {};
       for (const [cheie, valoare] of new FormData(formular).entries()) {
@@ -89,10 +84,17 @@ export function FormularTichet({
     setTip(null);
   };
 
+  const laReusita = useCallback(
+    (tichet: TichetCreat) => {
+      router.push(`${prefixCale}/${tichet.id}`);
+    },
+    [router, prefixCale],
+  );
+
   if (tip === null) {
     return (
       <div className="space-y-3">
-        <p className="text-muted-foreground text-corp">Ce fel de solicitare deschizi?</p>
+        <p className="text-muted-foreground text-corp">Ce fel de solicitare deschideți?</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {TIPURI_TICHET.map((t) => (
             <button
@@ -110,10 +112,7 @@ export function FormularTichet({
     );
   }
 
-  const trimite = (fd: FormData) => {
-    setErori(null);
-    setEroareGenerala(null);
-
+  const trimite = async (fd: FormData): Promise<ActionResult<TichetCreat>> => {
     // Contextul de diagnostic se citește din browser, nu din formular:
     // angajatul nu trebuie să știe ce e un user agent.
     const context =
@@ -132,273 +131,222 @@ export function FormularTichet({
     if (tip === "defectiune") brut["blocheaza_activitatea"] = fd.get("blocheaza") === "on";
     if (context !== undefined) brut["context"] = context;
 
-    porneste(async () => {
-      const raspuns = await creeazaTichet(brut);
-      if (raspuns.ok) {
-        router.push(`${prefixCale}/${raspuns.data.id}`);
-        return;
-      }
-      setErori(raspuns.error.fieldErrors ?? null);
-      setEroareGenerala(raspuns.error.message);
-    });
+    return creeazaTichet(brut);
   };
 
-  const e = (camp: string) => erori?.[camp]?.[0];
-
   return (
-    <form ref={formularRef} action={trimite} className="space-y-5" noValidate>
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-foreground text-corp font-medium">{ETICHETE_TIP[tip]}</p>
-        <Buton varianta="link" onClick={schimbaTipul}>
-          Schimbă tipul
-        </Buton>
-      </div>
+    <Formular actiune={trimite} laReusita={laReusita}>
+      {(stare) => {
+        // Până la prima trimitere, sursa e fotografia de la „Schimbă tipul";
+        // după, ce s-a trimis ultima dată.
+        const trimis = Object.keys(stare.valoriTrimise).length > 0;
+        const v = (nume: string, implicit = ""): string =>
+          trimis ? (stare.valoriTrimise[nume] ?? "") : pastrat(nume, implicit);
+        const erori = (nume: string): readonly string[] => stare.erori[nume] ?? [];
 
-      {eroareGenerala !== null && (
-        <p
-          role="alert"
-          className="border-border bg-surface text-danger rounded-control text-corp border p-3"
-        >
-          {eroareGenerala}
-        </p>
-      )}
+        return (
+          <>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-foreground text-corp font-medium">{ETICHETE_TIP[tip]}</p>
+              <Buton varianta="link" onClick={schimbaTipul}>
+                Schimbă tipul
+              </Buton>
+            </div>
 
-      <div>
-        <label htmlFor={`${id}-titlu`} className={CLASA_ETICHETA}>
-          Titlu *
-        </label>
-        <input
-          id={`${id}-titlu`}
-          name="titlu"
-          defaultValue={pastrat("titlu")}
-          className={CLASA_CAMP}
-          maxLength={200}
-        />
-        <Eroare mesaj={e("titlu")} />
-      </div>
+            <Camp nume="titlu" eticheta="Titlu" obligatoriu erori={erori("titlu")}>
+              {(a) => <input {...a} defaultValue={v("titlu")} maxLength={200} />}
+            </Camp>
 
-      {tip === "software" && (
-        <>
-          <div>
-            <label htmlFor={`${id}-aplicatie`} className={CLASA_ETICHETA}>
-              Ce aplicație *
-            </label>
-            <input
-              id={`${id}-aplicatie`}
-              name="aplicatie"
-              defaultValue={pastrat("aplicatie")}
-              placeholder="Adobe Photoshop"
-              className={CLASA_CAMP}
-            />
-            <Eroare mesaj={e("aplicatie")} />
-          </div>
-          <div>
-            <label htmlFor={`${id}-licente`} className={CLASA_ETICHETA}>
-              Număr de licențe *
-            </label>
-            <input
-              id={`${id}-licente`}
-              name="numar_licente"
-              type="number"
-              min={1}
-              defaultValue={pastrat("numar_licente", "1")}
-              className={CLASA_CAMP}
-            />
-            <Eroare mesaj={e("numar_licente")} />
-          </div>
-          <div>
-            <label htmlFor={`${id}-motiv`} className={CLASA_ETICHETA}>
-              De ce îți este necesară
-            </label>
-            <textarea
-              id={`${id}-motiv`}
-              name="motiv_necesitate"
-              defaultValue={pastrat("motiv_necesitate")}
-              rows={2}
-              className={CLASA_CAMP}
-            />
-          </div>
-        </>
-      )}
-
-      {tip === "hardware" && (
-        <>
-          <div>
-            <label htmlFor={`${id}-hw`} className={CLASA_ETICHETA}>
-              Ce echipament *
-            </label>
-            <input
-              id={`${id}-hw`}
-              name="denumire_hardware"
-              defaultValue={pastrat("denumire_hardware")}
-              placeholder="Monitor 27 inch"
-              className={CLASA_CAMP}
-            />
-            <Eroare mesaj={e("denumire_hardware")} />
-          </div>
-          <div>
-            <label htmlFor={`${id}-livrare`} className={CLASA_ETICHETA}>
-              Unde se livrează *
-            </label>
-            <select
-              id={`${id}-livrare`}
-              name="loc_livrare"
-              defaultValue={pastrat("loc_livrare", "birou")}
-              className={CLASA_CAMP}
-            >
-              <option value="birou">La birou</option>
-              <option value="domiciliu">La domiciliu</option>
-            </select>
-            <Eroare mesaj={e("loc_livrare")} />
-          </div>
-          <div>
-            <label htmlFor={`${id}-adresa`} className={CLASA_ETICHETA}>
-              Adresa de livrare
-            </label>
-            <input
-              id={`${id}-adresa`}
-              name="adresa_livrare"
-              defaultValue={pastrat("adresa_livrare")}
-              className={CLASA_CAMP}
-            />
-            <p className="text-muted-foreground text-nota mt-1">
-              Obligatorie doar dacă echipamentul se livrează la domiciliu.
-            </p>
-            <Eroare mesaj={e("adresa_livrare")} />
-          </div>
-        </>
-      )}
-
-      {tip === "defectiune" && (
-        <>
-          <div>
-            <label htmlFor={`${id}-obiect`} className={CLASA_ETICHETA}>
-              Ce s-a stricat *
-            </label>
-            {obiecteAlocate.length === 0 ? (
-              <p className="border-border text-muted-foreground rounded-control text-corp mt-1 border border-dashed p-3">
-                Nu ai niciun obiect de inventar în primire. Dacă ceva ți-a fost dat și nu apare
-                aici, cere-i administratorului să-l înregistreze în inventar întâi.
-              </p>
-            ) : (
-              <select
-                id={`${id}-obiect`}
-                name="inventory_item_id"
-                defaultValue={pastrat("inventory_item_id", obiectImplicit ?? "")}
-                className={CLASA_CAMP}
-              >
-                <option value="">— Alege —</option>
-                {obiecteAlocate.map((obiect) => (
-                  <option key={obiect.id} value={obiect.id}>
-                    {obiect.denumire}
-                    {obiect.numar_inventar === null ? "" : ` · ${obiect.numar_inventar}`}
-                    {obiect.serie === null ? "" : ` · seria ${obiect.serie}`}
-                  </option>
-                ))}
-              </select>
+            {tip === "software" && (
+              <>
+                <Camp
+                  nume="aplicatie"
+                  eticheta="Ce aplicație"
+                  obligatoriu
+                  erori={erori("aplicatie")}
+                >
+                  {(a) => (
+                    <input {...a} defaultValue={v("aplicatie")} placeholder="Adobe Photoshop" />
+                  )}
+                </Camp>
+                <Camp
+                  nume="numar_licente"
+                  eticheta="Număr de licențe"
+                  obligatoriu
+                  erori={erori("numar_licente")}
+                >
+                  {(a) => (
+                    <input {...a} type="number" min={1} defaultValue={v("numar_licente", "1")} />
+                  )}
+                </Camp>
+                <Camp
+                  nume="motiv_necesitate"
+                  eticheta="De ce vă este necesară"
+                  fel="textarea"
+                  erori={erori("motiv_necesitate")}
+                >
+                  {(a) => <textarea {...a} defaultValue={v("motiv_necesitate")} rows={2} />}
+                </Camp>
+              </>
             )}
-            <Eroare mesaj={e("inventory_item_id")} />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              id={`${id}-blocheaza`}
-              name="blocheaza"
-              type="checkbox"
-              defaultChecked={pastrat("blocheaza") === "on"}
-              className="size-4"
-            />
-            <label htmlFor={`${id}-blocheaza`} className="text-foreground text-corp">
-              Nu îmi pot face treaba din cauza asta
-            </label>
-          </div>
-          <div>
-            <label htmlFor={`${id}-locatie`} className={CLASA_ETICHETA}>
-              Unde se află echipamentul
-            </label>
-            <input
-              id={`${id}-locatie`}
-              name="locatie"
-              defaultValue={pastrat("locatie")}
-              placeholder="Etaj 2, birou 12"
-              className={CLASA_CAMP}
-            />
-          </div>
-        </>
-      )}
 
-      {tip === "bug_erp" && (
-        <>
-          <div>
-            <label htmlFor={`${id}-modul`} className={CLASA_ETICHETA}>
-              Unde s-a întâmplat *
-            </label>
-            <input
-              id={`${id}-modul`}
-              name="modul"
-              defaultValue={pastrat("modul", modulCurent)}
-              className={CLASA_CAMP}
-            />
-            <Eroare mesaj={e("modul")} />
-          </div>
-          <div>
-            <label htmlFor={`${id}-pasi`} className={CLASA_ETICHETA}>
-              Ce ai făcut *
-            </label>
-            <textarea
-              id={`${id}-pasi`}
-              name="pasi_efectuati"
-              defaultValue={pastrat("pasi_efectuati")}
-              rows={3}
-              className={CLASA_CAMP}
-            />
-            <Eroare mesaj={e("pasi_efectuati")} />
-          </div>
-          <div>
-            <label htmlFor={`${id}-asteptat`} className={CLASA_ETICHETA}>
-              Ce te așteptai să se întâmple *
-            </label>
-            <textarea
-              id={`${id}-asteptat`}
-              name="rezultat_asteptat"
-              defaultValue={pastrat("rezultat_asteptat")}
-              rows={2}
-              className={CLASA_CAMP}
-            />
-            <Eroare mesaj={e("rezultat_asteptat")} />
-          </div>
-          <div>
-            <label htmlFor={`${id}-obtinut`} className={CLASA_ETICHETA}>
-              Ce s-a întâmplat de fapt *
-            </label>
-            <textarea
-              id={`${id}-obtinut`}
-              name="rezultat_obtinut"
-              defaultValue={pastrat("rezultat_obtinut")}
-              rows={2}
-              className={CLASA_CAMP}
-            />
-            <Eroare mesaj={e("rezultat_obtinut")} />
-          </div>
-        </>
-      )}
+            {tip === "hardware" && (
+              <>
+                <Camp
+                  nume="denumire_hardware"
+                  eticheta="Ce echipament"
+                  obligatoriu
+                  erori={erori("denumire_hardware")}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      defaultValue={v("denumire_hardware")}
+                      placeholder="Monitor 27 inch"
+                    />
+                  )}
+                </Camp>
+                <Camp
+                  nume="loc_livrare"
+                  eticheta="Unde se livrează"
+                  fel="select"
+                  obligatoriu
+                  erori={erori("loc_livrare")}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={v("loc_livrare", "birou")}>
+                      <option value="birou">La birou</option>
+                      <option value="domiciliu">La domiciliu</option>
+                    </select>
+                  )}
+                </Camp>
+                <Camp
+                  nume="adresa_livrare"
+                  eticheta="Adresa de livrare"
+                  ajutor="Obligatorie doar dacă echipamentul se livrează la domiciliu."
+                  erori={erori("adresa_livrare")}
+                >
+                  {(a) => <input {...a} defaultValue={v("adresa_livrare")} />}
+                </Camp>
+              </>
+            )}
 
-      <div>
-        <label htmlFor={`${id}-descriere`} className={CLASA_ETICHETA}>
-          Detalii *
-        </label>
-        <textarea
-          id={`${id}-descriere`}
-          name="descriere"
-          defaultValue={pastrat("descriere")}
-          rows={4}
-          className={CLASA_CAMP}
-        />
-        <Eroare mesaj={e("descriere")} />
-      </div>
+            {tip === "defectiune" && (
+              <>
+                {obiecteAlocate.length === 0 ? (
+                  <div className="flex flex-col">
+                    <p className="text-foreground text-corp mb-1 block font-medium">
+                      Ce s-a stricat
+                    </p>
+                    <p className="border-border text-muted-foreground rounded-control text-corp border border-dashed p-3">
+                      Nu aveți niciun obiect de inventar în primire. Dacă ceva v-a fost dat și nu
+                      apare aici, cereți-i administratorului să-l înregistreze în inventar întâi.
+                    </p>
+                    {erori("inventory_item_id").length === 0 ? null : (
+                      <p role="alert" className="text-danger text-nota mt-1">
+                        {erori("inventory_item_id").join(" ")}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <Camp
+                    nume="inventory_item_id"
+                    eticheta="Ce s-a stricat"
+                    fel="select"
+                    obligatoriu
+                    erori={erori("inventory_item_id")}
+                  >
+                    {(a) => (
+                      <select {...a} defaultValue={v("inventory_item_id", obiectImplicit ?? "")}>
+                        <option value="">— Alege —</option>
+                        {obiecteAlocate.map((obiect) => (
+                          <option key={obiect.id} value={obiect.id}>
+                            {obiect.denumire}
+                            {obiect.numar_inventar === null ? "" : ` · ${obiect.numar_inventar}`}
+                            {obiect.serie === null ? "" : ` · seria ${obiect.serie}`}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Camp>
+                )}
+                {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA
+                    controlului, iar la o casetă de bifat eticheta stă după. */}
+                <div className="flex items-center gap-2">
+                  <input
+                    id={`${id}-blocheaza`}
+                    name="blocheaza"
+                    type="checkbox"
+                    defaultChecked={
+                      (trimis ? stare.valoriTrimise["blocheaza"] : pastrat("blocheaza")) === "on"
+                    }
+                    className={clasaBifa}
+                  />
+                  <label htmlFor={`${id}-blocheaza`} className="text-foreground text-corp">
+                    Nu îmi pot face treaba din cauza asta
+                  </label>
+                </div>
+                <Camp nume="locatie" eticheta="Unde se află echipamentul" erori={erori("locatie")}>
+                  {(a) => (
+                    <input {...a} defaultValue={v("locatie")} placeholder="Etaj 2, birou 12" />
+                  )}
+                </Camp>
+              </>
+            )}
 
-      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se trimite…">
-        Trimite tichetul
-      </Buton>
-    </form>
+            {tip === "bug_erp" && (
+              <>
+                <Camp nume="modul" eticheta="Unde s-a întâmplat" obligatoriu erori={erori("modul")}>
+                  {(a) => <input {...a} defaultValue={v("modul", modulCurent)} />}
+                </Camp>
+                <Camp
+                  nume="pasi_efectuati"
+                  eticheta="Ce ați făcut"
+                  fel="textarea"
+                  obligatoriu
+                  erori={erori("pasi_efectuati")}
+                >
+                  {(a) => <textarea {...a} defaultValue={v("pasi_efectuati")} rows={3} />}
+                </Camp>
+                <Camp
+                  nume="rezultat_asteptat"
+                  eticheta="Ce te așteptai să se întâmple"
+                  fel="textarea"
+                  obligatoriu
+                  erori={erori("rezultat_asteptat")}
+                >
+                  {(a) => <textarea {...a} defaultValue={v("rezultat_asteptat")} rows={2} />}
+                </Camp>
+                <Camp
+                  nume="rezultat_obtinut"
+                  eticheta="Ce s-a întâmplat de fapt"
+                  fel="textarea"
+                  obligatoriu
+                  erori={erori("rezultat_obtinut")}
+                >
+                  {(a) => <textarea {...a} defaultValue={v("rezultat_obtinut")} rows={2} />}
+                </Camp>
+              </>
+            )}
+
+            <Camp
+              nume="descriere"
+              eticheta="Detalii"
+              fel="textarea"
+              obligatoriu
+              erori={erori("descriere")}
+            >
+              {(a) => <textarea {...a} defaultValue={v("descriere")} rows={4} />}
+            </Camp>
+
+            <div>
+              <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se trimite…">
+                Trimite tichetul
+              </Buton>
+            </div>
+          </>
+        );
+      }}
+    </Formular>
   );
 }

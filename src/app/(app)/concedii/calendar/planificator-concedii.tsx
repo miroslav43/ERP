@@ -121,7 +121,7 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
       <div className="border-border rounded-panou relative overflow-x-auto border">
         {/*
           Lățimea minimă e CALCULATĂ, nu aleasă: coloana de nume plus o coloană
-          de 2rem pentru fiecare zi a lunii afișate. Februarie are 28, martie
+          de 1,75rem pentru fiecare zi a lunii afișate. Februarie are 28, martie
           31 — o constantă ar fi fost greșită într-una dintre ele.
 
           Fără ea, `min-w-8` de pe celule nu ajunge: algoritmul automat de tabel
@@ -132,23 +132,30 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
           `w-full` PESTE minim, nu în locul lui, și cele două nu se bat cap în
           cap: `width: 100%` se aplică doar cât timp e mai mare decât minimul,
           iar sub el minimul câștigă. Fără `w-full`, tabelul se oprea la lățimea
-          lui firească — 11rem plus 2rem pe zi, adică 1136 px pentru o lună de
-          30 de zile — și lăsa restul chenarului gol: pe un ecran de laptop,
+          lui firească — 10rem plus 1,75rem pe zi, adică 1000 px pentru o lună
+          de 30 de zile — și lăsa restul chenarului gol: pe un ecran de laptop,
           aproape 500 px de pânză goală, cu marginea desenată în jurul ei.
           `table-fixed` decide UNDE se duce lățimea în plus. Cu algoritmul
           automat se ducea toată în singura coloană fără lățime cerută — cea de
           nume, care se umfla la peste 500 px lângă zile rămase la 32, adică
           exact pe dos față de ce folosește. Cu repartiția fixă, coloana de nume
-          ia cele 11rem scrise pe ea, iar restul se împarte EGAL între zile.
+          ia cele 10rem scrise pe ea, iar restul se împarte EGAL între zile.
 
           Cele două valori nu se bat cap în cap, se completează: la minim,
-          fiecare zi iese fix 2rem — `(11rem + n·2rem) - 11rem`, împărțit la n —
-          adică pragul de dinainte, iar peste minim zilele cresc împreună.
+          fiecare zi iese fix 1,75rem — `(10rem + n·1,75rem) - 10rem`, împărțit
+          la n — adică pragul de dinainte, iar peste minim zilele cresc împreună.
           Pastilele de concediu (`w-full` în celulă) cresc odată cu ele.
+
+          De ce 10rem + 1,75rem și nu 11rem + 2rem, cât era (UX-013): la 1440 px,
+          containerul are 1134 px (1440 − 256 meniu − 48 `md:p-6`), iar
+          octombrie dădea 176 + 31·32 = 1168 px — ziua 31 stătea sub marginea
+          dreaptă. Acum 160 + 31·28 = 1028 px. Sub 1,75rem nu se coboară: la
+          28 px antetul „Ma/10” încă încape, mai jos nu. La un laptop de 1280 px
+          o lună de 31 de zile tot derulează puțin, dar ÎN container.
         */}
         <table
           className="w-full table-fixed border-separate border-spacing-0"
-          style={{ minWidth: `calc(11rem + ${String(zile.length)} * 2rem)` }}
+          style={{ minWidth: `calc(10rem + ${String(zile.length)} * 1.75rem)` }}
         >
           <caption className="sr-only">
             Planificatorul lunar al concediilor: câte un rând pentru fiecare angajat și câte o
@@ -163,7 +170,7 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
               */}
               <th
                 scope="col"
-                className="border-border bg-surface text-muted-foreground text-nota sticky left-0 z-30 w-44 border-r border-b px-2 py-1.5 text-left font-medium"
+                className="border-border bg-surface text-muted-foreground text-nota sticky left-0 z-30 w-40 border-r border-b px-2 py-1.5 text-left font-medium"
               >
                 Angajat
               </th>
@@ -175,7 +182,7 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
                     scope="col"
                     // Nicio lățime pe coloana de zi, și nu e o omisiune: sub
                     // `table-fixed`, coloanele fără lățime cerută împart egal
-                    // ce rămâne după cele 11rem ale numelui. Podeaua de 2rem pe
+                    // ce rămâne după cele 10rem ale numelui. Podeaua de 1,75rem pe
                     // zi — sub care cifra se lipea de chenar și caseta de
                     // culoare devenea un fir, măsurat pe 390 px — o ține acum
                     // `minWidth`-ul TABELULUI, nu un minim pe fiecare celulă.
@@ -206,9 +213,14 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
               <tr key={angajat.id}>
                 <th
                   scope="row"
-                  className="border-border bg-background text-corp sticky left-0 z-20 min-w-44 border-r border-b px-2 py-1 text-left font-normal"
+                  className="border-border bg-background text-corp sticky left-0 z-20 min-w-40 border-r border-b px-2 py-1 text-left font-normal"
                 >
-                  <Link href={angajat.hrefCereri} className="block truncate hover:underline">
+                  {/* `title`: numele trunchiat se citește întreg la hover (UX-013). */}
+                  <Link
+                    href={angajat.hrefCereri}
+                    className="block truncate hover:underline"
+                    title={angajat.nume}
+                  >
                     {angajat.nume}
                   </Link>
                   <span className="text-muted-foreground text-nota block">
@@ -282,7 +294,7 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
               exemplu e a primului tip de pe ecran, ca semnul să fie recunoscut. */}
           <span className="flex items-center gap-1.5">
             <SemnLegenda culoare={legenda[0]?.tipCuloare ?? "#14213d"} stare="in_aprobare" />
-            hașurat = cerere încă neaprobată
+            Hașurat = cerere încă neaprobată
           </span>
         </div>
       )}

@@ -1,13 +1,17 @@
 // src/app/(portal)/_components/iconite.ts
 import {
   CalendarDays,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   FileText,
+  Gauge,
+  GraduationCap,
   HardHat,
   House,
   LifeBuoy,
   Megaphone,
+  Network,
   Package,
   Receipt,
   Wrench,
@@ -40,6 +44,10 @@ export const ICONITE: Readonly<Record<string, LucideIcon>> = {
   "portal-tichete": LifeBuoy,
   "portal-diurna": Receipt,
   "portal-integrare": ClipboardList,
+  "portal-cursuri": GraduationCap,
+  "portal-kpi": Gauge,
+  "portal-evaluari": ClipboardCheck,
+  "portal-echipa": Network,
 };
 
 /** Rezervă pentru o intrare adăugată în meniu și uitată aici. */

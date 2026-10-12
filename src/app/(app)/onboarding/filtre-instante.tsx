@@ -2,6 +2,7 @@
 // Server Component: fără stare, fără handler, fără JavaScript trimis în browser.
 // Trimiterea și pastilele stau în `BaraFiltre`.
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { formatDate } from "@/lib/format/date";
 import {
   CHECKLIST_INSTANTA_STATUS,
@@ -153,12 +154,11 @@ export function FiltreInstante({ angajati, filtre, numeSablon = null }: Propriet
         <label htmlFor="filtru-instante-de-la" className="text-corp font-medium">
           De la
         </label>
-        <input
+        <IntrareData
           key={filtre.de_la ?? ""}
           id="filtru-instante-de-la"
           name="de_la"
-          type="date"
-          defaultValue={filtre.de_la ?? ""}
+          implicit={filtre.de_la ?? ""}
           className={CLASA_CONTROL}
         />
       </div>
@@ -167,12 +167,11 @@ export function FiltreInstante({ angajati, filtre, numeSablon = null }: Propriet
         <label htmlFor="filtru-instante-pana-la" className="text-corp font-medium">
           Până la
         </label>
-        <input
+        <IntrareData
           key={filtre.pana_la ?? ""}
           id="filtru-instante-pana-la"
           name="pana_la"
-          type="date"
-          defaultValue={filtre.pana_la ?? ""}
+          implicit={filtre.pana_la ?? ""}
           className={CLASA_CONTROL}
         />
       </div>

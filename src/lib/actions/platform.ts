@@ -11,6 +11,8 @@ import "server-only";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+// Harta globală a mesajelor Zod în română (vezi `src/schemas/mesaje-zod.ts`).
+import "@/schemas/mesaje-zod";
 
 import { ActionDenied, isPostgrestError, mapPostgrestError } from "@/lib/actions/errors";
 import type {

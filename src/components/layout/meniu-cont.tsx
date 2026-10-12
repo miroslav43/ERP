@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { comutaOrganizatiaDirect, deconecteaza } from "@/app/(app)/actions";
 import { RandTrimite } from "@/components/incarcare/rand-trimite";
+import { useInchidereDetails } from "@/components/ui/use-inchidere-details";
 import type { AppRole } from "@/lib/tenant/types";
 
 /** Rândul din lista de firme a meniului de cont și din paleta de comenzi. */
@@ -76,6 +77,9 @@ export function MeniuCont({
 
   const [lucreaza, setLucreaza] = useState(false);
   const panou = useRef<HTMLDetailsElement | null>(null);
+  // Escape și clicul în afară îl închid (UX-041): nativ, `<details>` se închide
+  // doar din propriul `summary` și rămânea peste butoanele paginii.
+  useInchidereDetails(panou);
 
   // Panoul se închide de îndată ce ceva a pornit: rămas deschis, ar sta peste un
   // ecran care încă arată firma veche, iar omul nu poate ști dacă a apăsat.
@@ -89,7 +93,9 @@ export function MeniuCont({
         <UserRound aria-hidden="true" className="size-5 shrink-0" />
         {/* Numele dispare sub `sm`, unde antetul are patru ținte de 44 px și
             niciun pixel în plus. Ținta rămâne aceeași; doar eticheta cade. */}
-        <span className="hidden max-w-40 truncate sm:inline">{nume}</span>
+        <span title={nume} className="hidden max-w-40 truncate sm:inline">
+          {nume}
+        </span>
         <ChevronDown aria-hidden="true" className="size-4 shrink-0 opacity-80" />
         <span className="sr-only">Contul meu</span>
       </summary>
@@ -98,11 +104,15 @@ export function MeniuCont({
           ține peste conținut, dar sub antetul care l-a deschis. */}
       <div className="border-border bg-background rounded-panou shadow-plutitor z-meniu absolute right-0 mt-1 w-72 border p-1">
         <div className="border-border border-b px-3 py-2">
-          <p className="text-foreground text-corp truncate font-medium">{nume}</p>
+          <p title={nume} className="text-foreground text-corp truncate font-medium">
+            {nume}
+          </p>
           {/* E-mailul apare doar când numele NU e chiar el — altfel același
               șir s-ar repeta pe două rânduri. */}
           {utilizator.fullName !== null ? (
-            <p className="text-muted-foreground text-nota truncate">{utilizator.email}</p>
+            <p title={utilizator.email} className="text-muted-foreground text-nota truncate">
+              {utilizator.email}
+            </p>
           ) : null}
           {/* Rolul e AL FIRMEI CURENTE, nu al contului: același om poate fi
               administrator într-o firmă și angajat în alta, iar meniul e chiar

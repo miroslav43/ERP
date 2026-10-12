@@ -1,17 +1,14 @@
 // src/schemas/profile.ts
 // Validarea pentru profilul propriu — nu ține de nicio organizație, deci nu
-// împarte schema cu niciun modul de business.
+// împarte schema cu niciun modul de business. Împarte însă ajutoarele comune
+// (`telefonOptional` din `./comun`) și politica de parolă (`parolaSchema` din
+// `./auth`): un număr de telefon sau o parolă nu au altă regulă aici decât în
+// restul aplicației.
 
 import { z } from "zod";
 
-const textOptional = (maxim: number) =>
-  z
-    .string()
-    .trim()
-    .max(maxim, `Textul nu poate depăși ${String(maxim)} de caractere.`)
-    .nullable()
-    .default(null)
-    .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare));
+import { parolaSchema } from "./auth";
+import { telefonOptional } from "./comun";
 
 export const schemaProfilPropriu = z.object({
   full_name: z
@@ -19,14 +16,19 @@ export const schemaProfilPropriu = z.object({
     .trim()
     .min(1, "Numele nu poate fi gol.")
     .max(200, "Numele nu poate depăși 200 de caractere."),
-  phone: textOptional(30),
+  phone: telefonOptional,
 });
 
 export type IntrareProfilPropriu = z.output<typeof schemaProfilPropriu>;
 
+/**
+ * Parola nouă din cont: 12–72 de caractere, ca la invitație și la resetare.
+ * Până la 8 oct 2026 pragul era 8 (QA, ANG-030) — un cont deschis cu o parolă
+ * de 12 putea coborî la 8 din profil.
+ */
 export const schemaParolaNoua = z
   .object({
-    parola_noua: z.string().min(8, "Parola trebuie să aibă cel puțin 8 caractere."),
+    parola_noua: parolaSchema,
     confirma_parola: z.string(),
   })
   .refine((valori) => valori.parola_noua === valori.confirma_parola, {

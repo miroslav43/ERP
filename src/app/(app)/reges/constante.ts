@@ -49,7 +49,7 @@ export const OPTIUNI_STARE: readonly {
 
 export const marcheazaTransmisSchema = z.object({
   evenimentId: z.uuid("Evenimentul selectat nu este valid."),
-  transmisLa: z.iso.date("Introduceți data transmiterii în formatul AAAA-LL-ZZ."),
+  transmisLa: z.iso.date("Introduceți data transmiterii (zz.ll.aaaa)."),
   numarInregistrare: z
     .string()
     .trim()
@@ -194,8 +194,8 @@ export const propunePlecareSchema = z.object({
     .min(2, "Completați CUI-ul angajatorului destinație.")
     .max(20, "CUI-ul este prea lung."),
   numeDestinatie: z.string().trim().max(200, "Denumirea este prea lungă.").optional(),
-  dataInceput: z.iso.date("Introduceți data de început în formatul AAAA-LL-ZZ."),
-  dataSfarsit: z.iso.date("Introduceți data de sfârșit în formatul AAAA-LL-ZZ.").optional(),
+  dataInceput: z.iso.date("Introduceți data de început (zz.ll.aaaa)."),
+  dataSfarsit: z.iso.date("Introduceți data de sfârșit (zz.ll.aaaa).").optional(),
   temeiLegal: z
     .string()
     .trim()

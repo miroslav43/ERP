@@ -105,7 +105,7 @@ async function ListaMea({
         fel="initiala"
         pictograma={LifeBuoy}
         titlu="Niciun tichet deschis"
-        descriere="Când ai nevoie de software, de un echipament, ți s-a stricat ceva sau ai găsit o problemă în aplicație, deschide un tichet."
+        descriere="Când aveți nevoie de un program, de un echipament, când s-a stricat ceva sau ați găsit o problemă în aplicație, deschideți un tichet."
         actiune={{ eticheta: "Deschide un tichet", href: "/ticketing/nou" }}
       />
     );
@@ -159,7 +159,7 @@ export default async function PaginaTichetelorMele({ searchParams }: Proprietati
     <div className="space-y-6">
       <AntetPagina
         titlu="Tichetele mele"
-        descriere="Cererile și problemele pe care le-ai trimis către IT, cu starea fiecăreia."
+        descriere="Cererile și problemele pe care le-ați trimis către IT, cu starea fiecăreia."
         file={<FileModul eticheta="Navigare ticketing" file={FILE_TICKETING} tenant={tenant} />}
         {...(faraFisa
           ? {}

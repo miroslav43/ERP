@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 
-import { formatAmount } from "@/lib/format/money";
+import { formatNumar, textZile } from "@/lib/format/numar";
 import { todayInBucharest } from "@/lib/format/date";
 import { ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
 import {
@@ -17,7 +17,9 @@ import {
   type TipConcediu,
 } from "@/lib/queries/leave";
 import {
+  luniLucrateInAn,
   regulileAplicabile,
+  sfarsitPerioadaLucrata,
   type AngajatPentruDrept,
   type RegulaConcediu,
 } from "@/domain/leave/drepturi";
@@ -106,12 +108,29 @@ interface RandAfisat {
   /** `null` = fără rând de sold încă (anul nu are drepturi aplicate). */
   readonly ramase: number | null;
   readonly regulileOriginale: readonly RegulaConcediuRand[];
+  /** Baza explicată: zilele de pe contract pentru odihnă, altfel `zile_implicite`. */
+  readonly bazaAfisata: number;
+  /** Lunile lucrate în an când sunt sub 12 (și tipul scade din sold); altfel `null`. */
+  readonly luniProportie: number | null;
+}
+
+/**
+ * Contractul de BAZĂ după care `app.drept_concediu` (0193) ancorează anul:
+ * zilele lui sunt baza dreptului de odihnă, iar `valabil_de_la` / `incetat_la`
+ * delimitează lunile lucrate. Fără contract, baza cade pe `hired_on`.
+ */
+export interface ContractDeBazaPentruConcediu {
+  readonly zileConcediuAnual: number;
+  readonly valabilDeLa: string;
+  readonly incetatLa: string | null;
 }
 
 interface Proprietati {
   readonly organizationId: string;
   readonly employeeId: string;
   readonly hiredOn: string | null;
+  readonly terminatedOn: string | null;
+  readonly contractDeBaza: ContractDeBazaPentruConcediu | null;
   readonly dataNasterii: string | null;
   readonly conditiiMunca: string;
   readonly gradHandicap: string | null;
@@ -139,6 +158,8 @@ export async function SectiuneConcedii({
   organizationId,
   employeeId,
   hiredOn,
+  terminatedOn,
+  contractDeBaza,
   dataNasterii,
   conditiiMunca,
   gradHandicap,
@@ -158,6 +179,23 @@ export async function SectiuneConcedii({
     departmentId,
     codCor,
   };
+
+  /*
+   * Aceeași ancoră ca în `app.drept_concediu` (0193): începutul e
+   * `valabil_de_la` al contractului de bază, cu `hired_on` ca rezervă;
+   * sfârșitul e `terminated_on`, cu `incetat_la` ca rezervă — dar un
+   * `terminated_on` anterior ancorei (rămas de la contractul vechi al unui om
+   * reangajat) se ignoră. Fără nicio dată de început, baza consideră anul
+   * întreg — la fel și aici.
+   */
+  const inceputPerioada = laData(contractDeBaza?.valabilDeLa ?? hiredOn);
+  const sfarsitPerioada = sfarsitPerioadaLucrata(
+    inceputPerioada,
+    laData(terminatedOn),
+    laData(contractDeBaza?.incetatLa ?? null),
+  );
+  const luniLucrate =
+    inceputPerioada === null ? 12 : luniLucrateInAn(inceputPerioada, sfarsitPerioada, anCurent);
 
   const [{ tipuri, solduri }, configurare] = await Promise.all([
     soldAnual(organizationId, anCurent),
@@ -191,6 +229,13 @@ export async function SectiuneConcedii({
           anCurent,
         )
       : [],
+    // Pentru odihnă baza e cea de pe contract (HR-031), nu implicitul tipului.
+    bazaAfisata:
+      tip.key === "odihna" && contractDeBaza !== null
+        ? contractDeBaza.zileConcediuAnual
+        : tip.zile_implicite,
+    // Doar tipurile care scad din sold se proporționalizează; medicalul rămâne 183.
+    luniProportie: tip.scade_din_sold && luniLucrate < 12 ? luniLucrate : null,
   }));
 
   return (
@@ -232,43 +277,54 @@ export async function SectiuneConcedii({
         )}
       </p>
       <ul className="space-y-2">
-        {randuri.map(({ tip, dreptAfisat, folosite, inAsteptare, ramase, regulileOriginale }) => (
-          <li
-            key={tip.id}
-            className="border-border flex flex-wrap items-baseline justify-between gap-2 border-t pt-2 first:border-t-0 first:pt-0"
-          >
-            <span className="text-corp flex items-center gap-2">
-              <span
-                className="inline-block size-2.5 rounded-full"
-                style={{ backgroundColor: tip.culoare }}
-                aria-hidden="true"
-              />
-              {tip.denumire}
-            </span>
-            <span className="text-corp text-right">
-              <span className="font-medium tabular-nums">{formatAmount(dreptAfisat)} zile</span>
-              {ramase === null ? null : (
-                <span className="text-muted-foreground text-nota ml-2 tabular-nums">
-                  · {formatAmount(folosite)} folosite
-                  {inAsteptare > 0 ? ` · ${formatAmount(inAsteptare)} în așteptare` : ""} ·{" "}
-                  {formatAmount(ramase)} rămase
-                </span>
-              )}
-              {regulileOriginale.length === 0 ? null : (
-                <span className="text-muted-foreground text-nota ml-2">
-                  ({formatAmount(tip.zile_implicite)} bază
-                  {regulileOriginale
-                    .map(
-                      (r) =>
-                        ` + ${formatAmount(r.zile_suplimentare)} ${descrieRegula(r, hartaDepartamente)}`,
-                    )
-                    .join("")}
-                  )
-                </span>
-              )}
-            </span>
-          </li>
-        ))}
+        {randuri.map(
+          ({
+            tip,
+            dreptAfisat,
+            folosite,
+            inAsteptare,
+            ramase,
+            regulileOriginale,
+            bazaAfisata,
+            luniProportie,
+          }) => (
+            <li
+              key={tip.id}
+              className="border-border flex flex-wrap items-baseline justify-between gap-2 border-t pt-2 first:border-t-0 first:pt-0"
+            >
+              <span className="text-corp flex items-center gap-2">
+                <span
+                  className="inline-block size-2.5 rounded-full"
+                  style={{ backgroundColor: tip.culoare }}
+                  aria-hidden="true"
+                />
+                {tip.denumire}
+              </span>
+              <span className="text-corp text-right">
+                <span className="font-medium tabular-nums">{textZile(dreptAfisat)}</span>
+                {ramase === null ? null : (
+                  <span className="text-muted-foreground text-nota ml-2 tabular-nums">
+                    · {formatNumar(folosite)} folosite
+                    {inAsteptare > 0 ? ` · ${formatNumar(inAsteptare)} în așteptare` : ""} ·{" "}
+                    {formatNumar(ramase)} rămase
+                  </span>
+                )}
+                {regulileOriginale.length === 0 && luniProportie === null ? null : (
+                  <span className="text-muted-foreground text-nota ml-2">
+                    ({formatNumar(bazaAfisata)} bază
+                    {regulileOriginale
+                      .map(
+                        (r) =>
+                          ` + ${formatNumar(r.zile_suplimentare)} ${descrieRegula(r, hartaDepartamente)}`,
+                      )
+                      .join("")}
+                    {luniProportie === null ? "" : ` × ${String(luniProportie)}/12 luni`})
+                  </span>
+                )}
+              </span>
+            </li>
+          ),
+        )}
       </ul>
     </section>
   );

@@ -24,15 +24,43 @@ const PRODUCTIE = "d-productie";
 const VANZARI = "d-vanzari";
 
 const ANGAJATI: readonly OptiuneAngajat[] = [
-  { id: "e-1", full_name: "Pop Radu", departamentId: VANZARI, departamentDenumire: "Vânzări" },
-  { id: "e-2", full_name: "Marin Elena", departamentId: null, departamentDenumire: null },
+  {
+    id: "e-1",
+    full_name: "Pop Radu",
+    departamentId: VANZARI,
+    departamentDenumire: "Vânzări",
+    conduceDepartamentulCurent: false,
+  },
+  {
+    id: "e-2",
+    full_name: "Marin Elena",
+    departamentId: null,
+    departamentDenumire: null,
+    conduceDepartamentulCurent: false,
+  },
   {
     id: "e-3",
     full_name: "Nistor Vlad",
     departamentId: PRODUCTIE,
     departamentDenumire: "Producție",
+    conduceDepartamentulCurent: false,
   },
-  { id: "e-4", full_name: "Barbu Alexandra", departamentId: "d-ascuns", departamentDenumire: null },
+  {
+    id: "e-4",
+    full_name: "Barbu Alexandra",
+    departamentId: "d-ascuns",
+    departamentDenumire: null,
+    conduceDepartamentulCurent: false,
+  },
+  // Membru în „Vânzări” ȘI managerul lui: mutarea îl scoate din departament, iar
+  // triggerul `internal.sef_iese_din_departament` (0143) golește acolo managerul.
+  {
+    id: "e-5",
+    full_name: "Ionescu Dan",
+    departamentId: VANZARI,
+    departamentDenumire: "Vânzări",
+    conduceDepartamentulCurent: true,
+  },
 ];
 
 function randeaza(managerInitial: string | null = null, departamentId: string | null = PRODUCTIE) {
@@ -104,5 +132,25 @@ describe("CampManager", () => {
     randeaza("e-4");
     expect(bifa()).not.toBeNull();
     expect(screen.getByText(/alt departament/u)).toBeTruthy();
+  });
+
+  it("pentru un manager care CONDUCE departamentul din care pleacă, spune că acela rămâne fără manager", () => {
+    // Consecința triggerului `internal.sef_iese_din_departament` (0143): cine e
+    // scos din departamentul pe care îl conduce nu-l mai conduce. Bifa rămâne
+    // pornită — QA a cerut avertisment, nu blocaj (ADM-014) — dar efectul se
+    // spune ÎNAINTE de apăsare, nu se descoperă pe card, după.
+    randeaza("e-5");
+    expect(bifa()).not.toBeNull();
+    expect(bifa()?.defaultChecked).toBe(true);
+    expect(screen.getByText(/rămâne fără manager/u)).toBeTruthy();
+    expect(screen.getByText(/Este și managerul departamentului „Vânzări”/u)).toBeTruthy();
+  });
+
+  it("pentru un membru simplu din alt departament NU vorbește despre manager rămas", () => {
+    // Propoziția ar fi falsă: departamentul lui are alt șef, sau niciunul, iar
+    // mutarea nu atinge `departments.manager_employee_id` acolo.
+    randeaza("e-1");
+    expect(bifa()).not.toBeNull();
+    expect(screen.queryByText(/rămâne fără manager/u)).toBeNull();
   });
 });

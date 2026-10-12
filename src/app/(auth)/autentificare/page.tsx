@@ -1,9 +1,10 @@
 // src/app/(auth)/autentificare/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { caleInterna, param } from "@/schemas/auth";
+import { COOKIE_EMAIL_AUTENTIFICARE, caleInterna, param } from "@/schemas/auth";
 import { autentificarePrinParola } from "./actions";
 import { ButoaneAutentificare } from "./_componente/butoane-autentificare";
 
@@ -41,6 +42,13 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
   if (data.user) redirect(catre);
 
   const eroare = MESAJE[param(parametri.eroare) ?? ""] ?? null;
+  // E-mailul tastat la încercarea eșuată (ONB-023), lăsat de acțiune într-un
+  // cookie de 60 s. Se citește DOAR cu `?eroare=` în URL: o vizită proaspătă
+  // nu are de ce să pornească cu adresa cuiva care a greșit parola mai devreme.
+  // O pagină server nu poate șterge cookie-ul; `maxAge: 60` și
+  // `path: /autentificare` îl fac inofensiv.
+  const emailPastrat =
+    eroare === null ? null : ((await cookies()).get(COOKIE_EMAIL_AUTENTIFICARE)?.value ?? null);
   const stare = param(parametri.stare);
   const linkTrimis = stare === "link-trimis";
   // Ecranul pe care ajunge cineva imediat după ce și-a creat contul din
@@ -96,6 +104,7 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
             autoComplete="username"
             required
             inputMode="email"
+            defaultValue={emailPastrat ?? ""}
             className={CLASA_CAMP}
           />
         </div>

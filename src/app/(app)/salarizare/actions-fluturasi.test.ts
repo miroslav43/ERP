@@ -246,6 +246,8 @@ describe("trimiteFluturasii", () => {
     });
     // Jurnalul de e-mail se scrie prin clientul de platformă, nu prin cel al utilizatorului.
     expect(mesaj.db).toBe(admin.client);
+    // ...dar rândul poartă firma din sesiune, ca jurnalul să poată fi filtrat pe ea.
+    expect(mesaj.organizationId).toBe(ORG_ID);
     const [atasament] = mesaj.atasamente ?? [];
     expect(atasament?.filename).toMatch(/^fluturas-august-2026-7.*\.pdf$/u);
     expect(atasament?.contentBase64).toBe(Buffer.from(PDF).toString("base64"));

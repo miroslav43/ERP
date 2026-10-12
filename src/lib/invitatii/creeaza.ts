@@ -19,6 +19,7 @@ import type { EmailDb } from "@/lib/email/send";
 import type { ServerSupabase } from "@/lib/supabase/server";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 
+import { numaraLocuri } from "./locuri";
 import { potrivesteInvitatia } from "./potrivire";
 
 /** Șapte zile: destul cât să prindă un concediu scurt, nu cât să fie uitat. */
@@ -138,9 +139,14 @@ export async function creeazaInvitatie(parametri: ParametriInvitatie): Promise<I
   // Locul e verificat doar pentru o invitație NOUĂ: cea retrimisă e deja
   // numărată în `pendinte`, iar refuzul ar fi lovit exact firma ajunsă la
   // plafon, adică pe cea care nu mai poate nici măcar retrimite.
+  // Aritmetica stă în `locuri.ts`, ca ecranul de membri să numere identic.
   if (
     potrivire.fel === "creeaza" &&
-    (membriActivi ?? 0) + pendinte.length >= organizatie.seats_limit
+    numaraLocuri({
+      membriActivi: membriActivi ?? 0,
+      invitatiiPendinte: pendinte.length,
+      limita: organizatie.seats_limit,
+    }).plin
   ) {
     throw limitExceeded(
       `Ați atins limita de ${String(organizatie.seats_limit)} locuri. Dezactivați un membru sau extindeți contractul.`,
@@ -184,6 +190,7 @@ export async function creeazaInvitatie(parametri: ParametriInvitatie): Promise<I
       db: parametri.dbEmail ?? db,
       destinatar: email,
       organizatie: organizatie.name,
+      organizationId,
       invitatDe: parametri.invitatDe,
       rol: parametri.rol,
       token,

@@ -4,20 +4,34 @@
  * Previzualizarea CLIENT-SIDE a dreptului anual de concediu al unui angajat,
  * pe un tip de concediu, pentru un an dat.
  *
- * Replică EXACT `app.drept_concediu` (supabase/migrations/0035_reguli_concediu.sql):
- * bază (`leave_types.zile_implicite`) + suma CUMULATIVĂ a grilelor active,
- * valabile la 31 decembrie din anul dat. Data de referință e fixă — nu
- * depinde de ceasul sistemului, ca rezultatul să fie reproductibil oricând
- * (esențial pentru previzualizarea din `/concedii/setari`, care compară
- * „vechi" cu „nou" pe fiecare angajat).
+ * Replică EXACT `app.drept_concediu`, în forma din
+ * `supabase/migrations/0193_concediu_proportional_cu_lunile.sql`, în trei pași:
+ *
+ *   1. dreptul ÎNTREG = bază + suma CUMULATIVĂ a grilelor active, valabile la
+ *      31 decembrie din anul dat (`calculeazaDreptAnual`). Baza e
+ *      `employment_contracts.zile_concediu_anual` de pe contractul de bază
+ *      pentru `odihna`, altfel `leave_types.zile_implicite` — apelantul alege
+ *      ce trimite ca `zileImplicite`;
+ *   2. lunile lucrate în an (`luniLucrateInAn`): luna de intrare și cea de
+ *      ieșire se numără ÎNTREGI, ca în calculatorul public;
+ *   3. dreptul PROPORȚIONAL = întreg × luni / 12, rotunjit după
+ *      `leave_types.mod_rotunjire_acumulare` DOAR la an parțial
+ *      (`calculeazaDreptProportional`). Tipurile cu `scade_din_sold = false`
+ *      nu se proporționalizează — apelantul nu cheamă pasul 3 pentru ele.
+ *
+ * Data de referință e fixă — nu depinde de ceasul sistemului, ca rezultatul
+ * să fie reproductibil oricând (esențial pentru previzualizarea din
+ * `/concedii/setari`, care compară „vechi" cu „nou" pe fiecare angajat).
  *
  * Vechimea se calculează din `employees.hired_on` — nu există un câmp
  * separat de „vechime în muncă anterioară”; grilele de vechime se raportează
  * la vechimea în ACEASTĂ firmă.
  *
- * Funcție PURĂ: regulile și datele angajatului se primesc ca parametri,
+ * Funcții PURE: regulile și datele angajatului se primesc ca parametri,
  * citite o singură dată pe server.
  */
+
+import { rotunjesteZileConcediu, type ModRotunjire } from "./sold";
 
 export type CriteriuGrila =
   "vechime" | "conditii_munca" | "grad_handicap" | "varsta_sub_18" | "departament" | "functie";
@@ -164,4 +178,83 @@ export function calculeazaDreptAnual(
     0,
   );
   return Math.round((zileImplicite + suplimentar) * 100) / 100;
+}
+
+function verificaAnul(an: number): void {
+  if (!Number.isInteger(an) || an < 2000 || an > 2199) {
+    throw new RangeError("Anul trebuie să fie un număr întreg între 2000 și 2199.");
+  }
+}
+
+/**
+ * Lunile lucrate în anul `an` de un om încadrat de la `start` până la
+ * `sfarsit` (`null` = încă în efectiv).
+ *
+ * Luna de intrare și luna de ieșire se numără ÎNTREGI, indiferent de ziua din
+ * lună — 08.10 → 3 luni (octombrie, noiembrie, decembrie), ca în
+ * `calculeazaAcumulareProportionala` și în calculatorul public. Practica unor
+ * firme („≥ 15 zile lucrate = lună întreagă") NU e implementată: ar da 2 luni
+ * pentru o intrare pe 20 octombrie. Intervalul care nu atinge anul dă 0.
+ *
+ * Oglinda lui `v_luni` din `app.drept_concediu` (0193):
+ * `extract(month from v_sfarsit) - extract(month from v_inceput) + 1`.
+ */
+export function luniLucrateInAn(start: Date, sfarsit: Date | null, an: number): number {
+  verificaAnul(an);
+  if (Number.isNaN(start.getTime()) || (sfarsit !== null && Number.isNaN(sfarsit.getTime()))) {
+    throw new RangeError("Data de început sau de sfârșit este invalidă.");
+  }
+  const primaZi = Date.UTC(an, 0, 1);
+  const ultimaZi = Date.UTC(an, 11, 31);
+  const inceput = Math.max(start.getTime(), primaZi);
+  const final = Math.min(sfarsit === null ? ultimaZi : sfarsit.getTime(), ultimaZi);
+  if (inceput > final) return 0;
+  return new Date(final).getUTCMonth() - new Date(inceput).getUTCMonth() + 1;
+}
+
+/**
+ * Sfârșitul perioadei lucrate, pentru `luniLucrateInAn` (`null` = încă în
+ * efectiv). `employees.terminated_on` are întâietate, cu `incetat_la` al
+ * contractului de bază ca rezervă — DAR numai dacă nu e anterior ancorei
+ * (`valabil_de_la` al contractului de bază ales, rezervă `hired_on`).
+ *
+ * De ce condiția: la reangajare pe aceeași fișă, `creeazaContract` reactivează
+ * fișa fără să golească `terminated_on` scris la încetarea contractului vechi.
+ * Fără ea, contractul nou ar începe DUPĂ sfârșit și omul ar primi 0 zile în anul
+ * reangajării și în toți anii următori.
+ *
+ * Oglinda lui `v_sfarsit` din `app.drept_concediu` (0193).
+ */
+export function sfarsitPerioadaLucrata(
+  ancora: Date | null,
+  terminatedOn: Date | null,
+  incetatLa: Date | null,
+): Date | null {
+  const incetareaFiseiConteaza =
+    terminatedOn !== null && (ancora === null || terminatedOn.getTime() >= ancora.getTime());
+  return incetareaFiseiConteaza ? terminatedOn : incetatLa;
+}
+
+/**
+ * Dreptul PROPORȚIONAL cu lunile lucrate: `dreptIntreg × luni / 12`, rotunjit
+ * după modul tipului de concediu. Anul întreg (12 luni) întoarce dreptul
+ * neatins — nici rotunjirea nu se aplică, ca o bază fracționară configurată
+ * deliberat (20,5) să nu se schimbe de la sine.
+ *
+ * Oglinda cozii din `app.drept_concediu` (0193): `round(x * luni / 12.0, 2)`,
+ * apoi `ceil`/`floor`/`round` după `mod_rotunjire_acumulare`.
+ */
+export function calculeazaDreptProportional(
+  dreptIntreg: number,
+  luniLucrate: number,
+  mod: ModRotunjire,
+): number {
+  if (!Number.isFinite(dreptIntreg) || dreptIntreg < 0) {
+    throw new RangeError("Dreptul anual de concediu nu poate fi negativ.");
+  }
+  if (!Number.isInteger(luniLucrate) || luniLucrate < 0 || luniLucrate > 12) {
+    throw new RangeError("Lunile lucrate într-un an sunt un număr întreg între 0 și 12.");
+  }
+  if (luniLucrate === 12) return dreptIntreg;
+  return rotunjesteZileConcediu((dreptIntreg * luniLucrate) / 12, mod);
 }

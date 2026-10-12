@@ -99,6 +99,21 @@ describe("rândurile", () => {
     expect(celula(container, 0, 30)).toBeDefined();
   });
 
+  it("o lună de 31 de zile încape la 1440 px: 10rem de nume + 1,75rem pe zi (UX-013)", () => {
+    // Cu 11rem + 31·2rem = 1168 px, într-un container de 1134 px (1440 − 256
+    // meniu − 48 `md:p-6`), ziua 31 stătea sub marginea dreaptă. 10rem +
+    // 31·1,75rem = 1028 px încape.
+    deseneaza({});
+    expect(screen.getByRole("table").style.minWidth).toBe("calc(10rem + 31 * 1.75rem)");
+  });
+
+  it("numele trunchiat se citește întreg la hover (UX-013)", () => {
+    deseneaza({});
+    expect(screen.getByRole("link", { name: "Ionescu Ana" }).getAttribute("title")).toBe(
+      "Ionescu Ana",
+    );
+  });
+
   it("spune că nu are rânduri, în loc să arate un tabel gol", () => {
     render(<PlanificatorConcedii zile={ZILE} angajati={[]} celule={{}} azi="2026-03-10" />);
     expect(screen.getByText(/nu are rânduri/u)).toBeDefined();
@@ -210,18 +225,25 @@ describe("legenda", () => {
     });
     expect(screen.getAllByText("Concediu de odihnă")).toHaveLength(1);
     expect(screen.getAllByText("Concediu medical")).toHaveLength(1);
-    expect(screen.getByText(/hașurat/u)).toBeDefined();
+    expect(screen.getByText(/hașurat/iu)).toBeDefined();
     // Semnele de legendă stau în afara tabelului.
     expect(
       within(container)
-        .getByText(/hașurat/u)
+        .getByText(/hașurat/iu)
         .closest("table"),
     ).toBeNull();
   });
 
+  it("explicația hașurii începe cu majusculă, ca restul legendei (UX-013)", () => {
+    deseneaza({
+      [cheieCelula("e2", "2026-03-09")]: [inAprobare(MEDICAL, "Concediu medical")],
+    });
+    expect(screen.getByText(/^Hașurat = cerere încă neaprobată$/u)).toBeDefined();
+  });
+
   it("nu desenează nicio legendă pentru o lună fără absențe", () => {
     deseneaza({});
-    expect(screen.queryByText(/hașurat/u)).toBeNull();
+    expect(screen.queryByText(/hașurat/iu)).toBeNull();
     expect(screen.getByText(/Nicio absență/u)).toBeDefined();
   });
 });

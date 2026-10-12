@@ -199,7 +199,12 @@ export function AsistentAngajatNou({
   useEffect(() => {
     const camp = campDeFocusat.current;
     if (camp === null) return;
-    const element = refFormular.current?.querySelector<HTMLElement>(`[name="${CSS.escape(camp)}"]`);
+    // Câmpurile de dată (`IntrareDataFormular`) n-au `name`: caseta vizibilă
+    // poartă doar `id`-ul lui `<Camp>`, `camp-<nume>`. Fără a doua căutare,
+    // focusul pe o dată greșită n-ar nimeri nimic.
+    const element =
+      refFormular.current?.querySelector<HTMLElement>(`[name="${CSS.escape(camp)}"]`) ??
+      refFormular.current?.querySelector<HTMLElement>(`#${CSS.escape(`camp-${camp}`)}`);
     element?.focus();
     element?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [cerereFocus]);
@@ -325,7 +330,7 @@ export function AsistentAngajatNou({
           ) : null}
           {rezultat.checklistPornit !== null ? (
             <li className="text-muted-foreground">
-              Checklistul de integrare{" "}
+              Parcursul de integrare{" "}
               {rezultat.checklistId === null ? (
                 <span className="text-foreground">„{rezultat.checklistPornit}”</span>
               ) : (
@@ -427,14 +432,14 @@ export function AsistentAngajatNou({
                         Creează un șablon
                       </Link>
                     </>
-                  ) : avertisment.includes("Integrare → Instanță nouă") ? (
+                  ) : avertisment.includes("Integrare → Parcurs nou") ? (
                     <>
                       {" "}
                       <Link
                         href={`/onboarding/noua?angajat=${rezultat.id}`}
                         className="underline underline-offset-2"
                       >
-                        Pornește checklistul
+                        Pornește parcursul
                       </Link>
                     </>
                   ) : null}

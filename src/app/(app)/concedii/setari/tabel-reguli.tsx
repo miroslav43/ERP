@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { formatAmount } from "@/lib/format/money";
+import { formatNumar } from "@/lib/format/numar";
 import { formatDate } from "@/lib/format/date";
 import { ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
 import type {
@@ -115,7 +115,7 @@ export function TabelReguli({
       numeric: true,
       peTelefon: "meta",
       celula: (regula) => (
-        <span className="font-medium">+{formatAmount(regula.zile_suplimentare)}</span>
+        <span className="font-medium">+{formatNumar(regula.zile_suplimentare)}</span>
       ),
     },
     {

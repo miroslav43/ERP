@@ -89,7 +89,7 @@ export const creeazaSesizare = createAction({
       );
       if (!can(permisiuni, "maintenance:update", "team")) {
         throw businessRule(
-          "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+          "Contul dumneavoastră nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
         );
       }
       raportorId = null;

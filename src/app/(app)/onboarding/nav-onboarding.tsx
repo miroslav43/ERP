@@ -15,13 +15,13 @@ export function NavOnboarding() {
   const cale = usePathname();
 
   const file = [
-    { href: "/onboarding", eticheta: "Instanțe" },
+    { href: "/onboarding", eticheta: "Parcursuri" },
     { href: "/onboarding/sarcinile-mele", eticheta: "Sarcinile mele" },
     { href: "/onboarding/sabloane", eticheta: "Șabloane" },
   ] as const;
 
   return (
-    <BandaFile eticheta="Navigare onboarding">
+    <BandaFile eticheta="Navigare integrare">
       {file.map((fila) => {
         const activ = fila.href === "/onboarding" ? cale === fila.href : cale.startsWith(fila.href);
         return (

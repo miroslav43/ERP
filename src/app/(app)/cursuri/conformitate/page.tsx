@@ -245,7 +245,7 @@ export default async function PaginaConformitate({
 
           {/* Laptop: matricea propriu-zisă. La opt angajați și șase cursuri
               încape întreagă, fără derulare — avantajul scării mici. */}
-          <div className="hidden overflow-x-auto md:block">
+          <div className="relative hidden overflow-x-auto md:block">
             <table className="w-full border-collapse">
               <caption className="sr-only">
                 Matricea de conformitate: angajați pe rânduri, cursuri obligatorii pe coloane.

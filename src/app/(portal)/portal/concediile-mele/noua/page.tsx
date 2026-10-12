@@ -117,6 +117,10 @@ export default async function PaginaCerereNouaPortal() {
           liberSuplimentar={liberSuplimentar}
           zileRecuperare={zileRecuperare}
           soldPeTip={soldPeTip}
+          // Pentru refuzul de ecran (0 zile, înainte de angajare) și pentru
+          // avertismentul de trecut; serverul rămâne judecătorul (ANG-010/011).
+          azi={todayInBucharest()}
+          angajatDin={stare.fisa.hired_on}
         />
       )}
 

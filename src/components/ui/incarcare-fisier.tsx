@@ -4,6 +4,7 @@
 import { AlertCircle, Paperclip, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 
+import { marimeCitibila } from "@/lib/format/marime";
 import { cn } from "@/lib/ui/cn";
 
 import { buton, Buton } from "./buton";
@@ -88,31 +89,9 @@ import { buton, Buton } from "./buton";
  * Serverul rămâne singura autoritate — clientul e doar politicos.
  */
 
-/** 1024, nu 1000. `import-client.tsx:212` calculează deja limita cu 1024; dacă
- * ecranul scrie „20 MB” cu o bază și verifică cu alta, un fișier de 20,3 MB e
- * respins de un ecran care tocmai i-a promis că încape. */
-const PAS = 1024;
-
-/** Simboluri SI, identice în orice limbă — deci nu sunt conținut traductibil. */
-const UNITATI = ["B", "kB", "MB", "GB"] as const;
-
-/** „2,4 MB”. Zecimală doar sub 10: „9,4 MB” ajută la decizie, „9,43 MB” nu. */
-export function marimeCitibila(octeti: number): string {
-  let valoare = Math.max(0, octeti);
-  let treapta = 0;
-  while (valoare >= PAS && treapta < UNITATI.length - 1) {
-    valoare /= PAS;
-    treapta += 1;
-  }
-  const zecimale = treapta === 0 || valoare >= 10 ? 0 : 1;
-  // `minimumFractionDigits: 0`, nu `zecimale`: altfel un fișier de fix 1 MB se
-  // scrie „1,0 MB”, iar zecimala aia sugerează o precizie care nu există.
-  const cifre = valoare.toLocaleString("ro-RO", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: zecimale,
-  });
-  return `${cifre} ${UNITATI[treapta] ?? UNITATI[0]}`;
-}
+// `marimeCitibila` stă în `@/lib/format/marime`, fără directivă, și NU se
+// re-exportă de aici: importată din acest modul de un Server Component, ar fi o
+// referință client, iar apelul ar arunca la randare (12 oct 2026).
 
 /**
  * Verifică un fișier față de atributul `accept`, cu aceleași reguli ca

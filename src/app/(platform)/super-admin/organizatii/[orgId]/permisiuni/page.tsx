@@ -3,11 +3,15 @@ import { notFound } from "next/navigation";
 import { RotateCw, ShieldCheck } from "lucide-react";
 
 import { buton } from "@/components/ui/buton";
-import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { metadataPlatforma, requirePlatformAdmin } from "@/lib/auth/platform";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { ETICHETE_ROL, ROLURI_APLICATIE, type RolAplicatie } from "@/schemas/membership";
 
 import { CULORI_SCOPE, ETICHETE_SCOPE } from "../../../_lib/platform";
+
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Permisiuni · Panou de platformă");
 
 type Scope = "none" | "own" | "team" | "all";
 
@@ -31,7 +35,8 @@ function cheieCelula(permisiune: string, rol: RolAplicatie): string {
 
 export default async function PaginaPermisiuni({ params }: { params: Promise<{ orgId: string }> }) {
   await requirePlatformAdmin();
-  const { orgId } = await params;
+  const { orgId: orgIdBrut } = await params;
+  const orgId = idDinRuta(orgIdBrut);
   const supabase = await createServerSupabase();
 
   const [rezOrg, rezImplicite, rezSuprascrise] = await Promise.all([
@@ -153,7 +158,7 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
         Matricea rămâne scrisă de mână; ecran îngust = derulare orizontală, ca
         orice tabel încrucișat.
       */}
-      <div className="border-border bg-surface overflow-x-auto rounded-xl border">
+      <div className="border-border bg-surface relative overflow-x-auto rounded-xl border">
         <table className="w-full min-w-[52rem] border-collapse">
           <caption className="sr-only">
             Matricea permisiunilor pentru organizația {org.name}. Rândurile marcate au valori

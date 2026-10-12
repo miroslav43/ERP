@@ -9,7 +9,7 @@
 // testul canonic (`salarizare/actions.test.ts`); aici doar permisiunea și
 // handlerul.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -56,8 +56,11 @@ import {
   ORG_ID,
   USER_ID,
 } from "@/lib/teste/actiune";
+import { OCTETI_PDF, OCTETI_ZEROURI, octetiUrcati } from "@/lib/teste/octeti";
 import { areFiltru, eroarePostgrest, type ClientFals } from "@/lib/teste/supabase-fals";
 import { creeazaCerereConcediu } from "./actions";
+
+const BUCKET = "org-documents";
 
 const FISA = ID_2;
 const TIP = ID_3;
@@ -89,8 +92,8 @@ const tipOdihna = (extra: Record<string, unknown> = {}) => ({
 });
 
 /** Fișa proprie, citită cu clientul admin (rolul `employee` nu-și vede fișa prin RLS). */
-function fisaProprie(admin: ClientFals, id: string | null = FISA) {
-  admin.raspunde("employees", "select", { data: id === null ? null : { id } });
+function fisaProprie(admin: ClientFals, id: string | null = FISA, hiredOn: string | null = null) {
+  admin.raspunde("employees", "select", { data: id === null ? null : { id, hired_on: hiredOn } });
 }
 
 /** Sărbătorile anului: naționale și ale organizației. */
@@ -115,11 +118,26 @@ function trimitereCurata(server: ClientFals, ramase: number | null = 21) {
   server.raspunde("leave_requests", "insert", { data: { id: CERERE, zile_lucratoare: 5 } });
 }
 
+/** Documentul atașat există în Storage, cu tipul măsurat și capul dat. */
+function documentUrcat(
+  server: ClientFals,
+  masurat = { size: 4321, contentType: "application/pdf" },
+  octeti: Uint8Array = OCTETI_PDF,
+) {
+  server.raspundeStocare(BUCKET, "info", { data: masurat });
+  server.raspundeStocare(BUCKET, "createSignedUrl", { data: { signedUrl: "https://semnat/obj" } });
+  octetiUrcati(octeti);
+}
+
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   colaboratori.sincronizeazaZileleDeConcediu.mockReset();
   colaboratori.declaraSuspendareaContractului.mockReset();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("creeazaCerereConcediu — autorizare și fișa țintă", () => {
@@ -226,12 +244,14 @@ describe("creeazaCerereConcediu — autorizare și fișa țintă", () => {
 });
 
 describe("creeazaCerereConcediu — documentul atașat", () => {
-  it("calea din dosarul propriu e acceptată și ajunge în rând", async () => {
+  const cale = `${ORG_ID}/leave/${FISA}/abc-certificat.pdf`;
+
+  it("calea din dosarul propriu, cu un PDF adevărat în Storage, e acceptată și ajunge în rând", async () => {
     const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
     fisaProprie(admin);
+    documentUrcat(server);
     server.raspunde("leave_types", "select", { data: tipOdihna() });
     server.raspunde("leave_requests", "insert", { data: { id: CERERE, zile_lucratoare: 5 } });
-    const cale = `${ORG_ID}/leave/${FISA}/abc-certificat.pdf`;
 
     const r = await creeazaCerereConcediu(intrare({ atasament_path: cale }));
 
@@ -239,6 +259,81 @@ describe("creeazaCerereConcediu — documentul atașat", () => {
     expect(server.apeluriPe("leave_requests", "insert")[0]?.payload).toMatchObject({
       atasament_path: cale,
     });
+    // Obiectul e măsurat și capul lui citit SUB SESIUNEA ANGAJATULUI, nu prin admin.
+    expect(server.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "info", argumente: [cale] },
+      { bucket: BUCKET, metoda: "createSignedUrl", argumente: [cale, 60] },
+    ]);
+    expect(admin.apeluriStocare).toHaveLength(0);
+  });
+
+  it("fără atașament: nu se atinge Storage deloc", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    server.raspunde("leave_requests", "insert", { data: { id: CERERE, zile_lucratoare: 5 } });
+
+    const r = await creeazaCerereConcediu(intrare());
+
+    expect(r.ok).toBe(true);
+    expect(server.apeluriStocare).toHaveLength(0);
+  });
+
+  it("atașament ale cărui octeți nu sunt PDF (ANG-014): VALIDARE pe `atasament_path`, obiectul e șters prin clientul de serviciu, nicio inserare", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    documentUrcat(server, { size: 1024, contentType: "application/pdf" }, OCTETI_ZEROURI);
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+    const r = await creeazaCerereConcediu(intrare({ atasament_path: cale }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("atasament_path");
+    expect(r.error.message).toContain("conținutul tipului declarat");
+    expect(admin.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "remove", argumente: [[cale]] },
+    ]);
+    expect(server.apeluriPe("leave_types")).toHaveLength(0);
+    expect(server.apeluriPe("leave_requests")).toHaveLength(0);
+  });
+
+  it("atașament urcat cu un tip nepermis (deși browserul a declarat PDF): VALIDARE cu mesajul tipului, obiectul e șters", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspundeStocare(BUCKET, "info", {
+      data: { size: 10, contentType: "application/x-msdownload" },
+    });
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+    const r = await creeazaCerereConcediu(intrare({ atasament_path: cale }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("atasament_path");
+    expect(r.error.message).toContain("Acceptăm doar");
+    expect(admin.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "remove", argumente: [[cale]] },
+    ]);
+    expect(server.apeluriPe("leave_requests")).toHaveLength(0);
+  });
+
+  it("atașament dispărut din Storage: VALIDARE pe `atasament_path`, nicio inserare, nicio ștergere", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspundeStocare(BUCKET, "info", { error: { message: "Object not found" } });
+
+    const r = await creeazaCerereConcediu(intrare({ atasament_path: cale }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("atasament_path");
+    expect(r.error.message).toContain("nu mai este disponibil");
+    expect(admin.apeluriStocare).toHaveLength(0);
+    expect(server.apeluriPe("leave_requests")).toHaveLength(0);
   });
 
   it.each([
@@ -420,7 +515,7 @@ describe("creeazaCerereConcediu — verificările de la trimitere", () => {
 
     expect(r).toMatchObject({
       ok: false,
-      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 2,00 zile") },
+      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 2 zile.") },
     });
     expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
   });
@@ -436,7 +531,7 @@ describe("creeazaCerereConcediu — verificările de la trimitere", () => {
 
     expect(r).toMatchObject({
       ok: false,
-      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 1,00 zile") },
+      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 1 zi.") },
     });
   });
 
@@ -494,7 +589,8 @@ describe("creeazaCerereConcediu — verificările de la trimitere", () => {
       error: {
         code: "CONFLICT",
         message: expect.stringMatching(
-          /plafon legal de 10,00 zile.*7,00 sunt deja folosite în 2026.*cu 2,00 zile/u,
+          // Zilele nu sunt bani: fără „,00” (QA ANG-016).
+          /plafon legal de 10 zile pe an\. Folosite deja în 2026: 7 zile\. .*cu 2 zile\./u,
         ),
       },
     });
@@ -575,6 +671,129 @@ describe("creeazaCerereConcediu — verificările de la trimitere", () => {
     const r = await creeazaCerereConcediu(intrare({ trimite: true }));
 
     expect(r.ok).toBe(true);
+  });
+});
+
+/*
+  Perioada care nu poate pleca (ANG-010, ANG-011, HR-009).
+
+  Zero zile lucrătoare treceau de sold trivial și ajungeau la aprobator; o
+  perioadă dinaintea angajării nu era verificată deloc — niciun fișier din
+  modul nu citea `hired_on`. Ciorna rămâne nevalidată, deliberat: predicatul lui
+  `recalc_sold` numără doar `trimisa` și `in_aprobare`.
+*/
+describe("creeazaCerereConcediu — perioada care nu poate pleca", () => {
+  /** Sâmbătă 11 – duminică 12 iulie 2026. */
+  const WEEKEND = { data_inceput: "2026-07-11", data_sfarsit: "2026-07-12" };
+
+  it("trimitere doar pe weekend: CONFLICT „nicio zi lucrătoare”, fără INSERT și fără sold", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    sarbatori(server);
+
+    const r = await creeazaCerereConcediu(intrare({ ...WEEKEND, trimite: true }));
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("nicio zi lucrătoare") },
+    });
+    expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
+    // Refuzul vine ÎNAINTEA soldului: 0 zile ar fi trecut trivial de el.
+    expect(server.apeluriPe("leave_balances")).toHaveLength(0);
+  });
+
+  it("trimitere doar pe sărbători legale: CONFLICT la fel", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    // Luni 6 iulie declarată sărbătoare: singura zi a cererii.
+    sarbatori(server, ["2026-07-06"]);
+
+    const r = await creeazaCerereConcediu(
+      intrare({ data_inceput: "2026-07-06", data_sfarsit: "2026-07-06", trimite: true }),
+    );
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("nicio zi lucrătoare") },
+    });
+    expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
+  });
+
+  it("perioadă care începe înaintea angajării: CONFLICT cu data de pe fișă, fără INSERT", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin, FISA, "2026-07-08");
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    sarbatori(server);
+
+    const r = await creeazaCerereConcediu(intrare({ trimite: true }));
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("08.07.2026") },
+    });
+    expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
+    expect(server.apeluriPe("leave_balances")).toHaveLength(0);
+  });
+
+  it("perioadă care începe chiar în ziua angajării trece", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin, FISA, "2026-07-06");
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    trimitereCurata(server);
+
+    const r = await creeazaCerereConcediu(intrare({ trimite: true }));
+
+    expect(r).toMatchObject({ ok: true });
+  });
+
+  it("ciorna cu 0 zile se salvează: regula e doar la trimitere", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    server.raspunde("leave_requests", "insert", { data: { id: CERERE, zile_lucratoare: 0 } });
+
+    const r = await creeazaCerereConcediu(intrare(WEEKEND));
+
+    expect(r).toMatchObject({ ok: true, data: { zileLucratoare: 0 } });
+    expect(server.apeluriPe("leave_requests", "insert")[0]?.payload).toMatchObject({
+      status: "ciorna",
+    });
+  });
+
+  it("scope `all` cu trimitere: data angajării se citește pe angajatul ALES, filtrată pe organizație", async () => {
+    const { server, admin } = configureazaActiunea({
+      rol: "hr",
+      permisiuni: { "leave:create": "all" },
+    });
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    sarbatori(server);
+    admin.raspunde("employees", "select", { data: { hired_on: "2026-07-08" } });
+
+    const r = await creeazaCerereConcediu(intrare({ employee_id: ALT_ANGAJAT, trimite: true }));
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("08.07.2026") },
+    });
+    const [fisa] = admin.apeluriPe("employees", "select");
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "id", ALT_ANGAJAT)).toBe(true);
+    expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
+    expect(areFiltru(fisa, "eq", "user_id")).toBe(false);
+    expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
+  });
+
+  it("fișă fără dată de angajare: verificarea angajării se sare, restul rămâne", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin, FISA, null);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    trimitereCurata(server);
+
+    const r = await creeazaCerereConcediu(intrare({ trimite: true }));
+
+    expect(r).toMatchObject({ ok: true });
   });
 });
 

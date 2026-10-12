@@ -227,20 +227,32 @@ export type FiltreSesizari = z.output<typeof filtreSesizariSchema>;
  * (golite de trigger dacă responsabilul are deja autorizație), fie ar declanșa P0001
  * (garda nu are cum să valideze un `derogare_acordata_de` scris manual).
  */
+const MESAJ_AN_FABRICATIE = "Anul de fabricație este între 1900 și 2200.";
+
 export const echipamentSchema = z.object({
-  cod: z.string().trim().min(1).max(60),
-  denumire: z.string().trim().min(1).max(200),
+  cod: z.string().trim().min(1, "Introduceți codul echipamentului.").max(60),
+  denumire: z.string().trim().min(1, "Introduceți denumirea echipamentului.").max(200),
   serie: z.string().trim().max(120).nullable().default(null),
   producator: z.string().trim().max(120).nullable().default(null),
   model: z.string().trim().max(120).nullable().default(null),
-  an_fabricatie: z.coerce.number().int().min(1900).max(2200).nullable().default(null),
+  an_fabricatie: z.coerce
+    .number()
+    .int()
+    .min(1900, MESAJ_AN_FABRICATIE)
+    .max(2200, MESAJ_AN_FABRICATIE)
+    .nullable()
+    .default(null),
   locatie: z.string().trim().max(200).nullable().default(null),
   department_id: z.uuid().nullable().default(null),
   responsabil_employee_id: z.uuid().nullable().default(null),
   status: z.enum(STATUS_ECHIPAMENT).default("in_functiune"),
   este_iscir: z.boolean().default(false),
   tip_autorizare_necesara: z.string().trim().max(80).nullable().default(null),
-  valoare_achizitie: z.coerce.number().min(0).nullable().default(null),
+  valoare_achizitie: z.coerce
+    .number()
+    .min(0, "Valoarea de achiziție nu poate fi negativă.")
+    .nullable()
+    .default(null),
   data_punerii_in_functiune: z.iso.date().nullable().default(null),
   // ── 0182: ciclul de viață ──
   categorie: z.string().trim().max(80).nullable().default(null),
@@ -375,8 +387,17 @@ const campuriPlan = z.object({
   equipment_id: z.uuid("Echipamentul selectat nu este valid."),
   denumire: z.string().trim().min(1).max(200),
   tip: z.enum(TIPURI_MENTENANTA).default("preventiva"),
-  periodicitate_zile: z.coerce.number().int().min(1).nullable().default(null),
-  periodicitate_contor: z.coerce.number().min(0.01).nullable().default(null),
+  periodicitate_zile: z.coerce
+    .number()
+    .int()
+    .min(1, "Periodicitatea este de cel puțin o zi.")
+    .nullable()
+    .default(null),
+  periodicitate_contor: z.coerce
+    .number()
+    .min(0.01, "Periodicitatea pe contor trebuie să fie mai mare decât zero.")
+    .nullable()
+    .default(null),
   tip_contor: enumOptional(TIPURI_CONTOR, "Alegeți tipul de contor din listă."),
   ultima_executie: z.iso.date().nullable().default(null),
   ultima_citire_contor: z.coerce.number().min(0).nullable().default(null),
@@ -807,14 +828,32 @@ export type InregistreazaOprireInput = z.output<typeof inregistreazaOprireSchema
 
 // ── Setări ──────────────────────────────────────────────────────────────────
 
+const MESAJ_INCHIDERE_AUTOMATA = "Închiderea automată se face după 1–90 de zile.";
+const MESAJ_ORE_PE_ZI = "Orele de funcționare pe zi sunt între 0,5 și 24.";
+const MESAJ_ZILE_PE_SAPTAMANA = "Zilele pe săptămână sunt între 1 și 7.";
+
 export const setariMentenantaSchema = z.object({
   responsabili: z.array(z.uuid()).max(20).default([]),
   rsvti_employee_id: z.uuid().nullable().default(null),
-  inchidere_automata_zile: z.coerce.number().int().min(1).max(90).default(5),
+  inchidere_automata_zile: z.coerce
+    .number()
+    .int()
+    .min(1, MESAJ_INCHIDERE_AUTOMATA)
+    .max(90, MESAJ_INCHIDERE_AUTOMATA)
+    .default(5),
   prag_avertizare_zile: z.coerce.number().int().min(1).max(365).default(15),
   prag_contor_necitit_zile: z.coerce.number().int().min(1).max(365).default(30),
-  ore_functionare_pe_zi: z.coerce.number().min(0.5).max(24).default(8),
-  zile_pe_saptamana: z.coerce.number().int().min(1).max(7).default(5),
+  ore_functionare_pe_zi: z.coerce
+    .number()
+    .min(0.5, MESAJ_ORE_PE_ZI)
+    .max(24, MESAJ_ORE_PE_ZI)
+    .default(8),
+  zile_pe_saptamana: z.coerce
+    .number()
+    .int()
+    .min(1, MESAJ_ZILE_PE_SAPTAMANA)
+    .max(7, MESAJ_ZILE_PE_SAPTAMANA)
+    .default(5),
   cost_ora_oprire: z.coerce.number().min(0).nullable().default(null),
   // Pragurile rezumatului zilnic (0191): 1–8 valori, fiecare 1–365 zile — exact
   // `maintenance_settings_praguri_ck`. Dublurile și ordinea nu sunt erori: se

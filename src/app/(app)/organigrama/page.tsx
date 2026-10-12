@@ -381,7 +381,7 @@ export default async function PaginaOrganigrama({
           }
         />
       ) : (
-        <div className="overflow-x-auto pb-4">
+        <div className="relative overflow-x-auto pb-4">
           <div className="w-fit min-w-full px-4">
             <Arbore
               noduri={arbore}

@@ -299,6 +299,31 @@
   background-image: var(--hasura);
 }
 
+/*
+ * Umbra de derulare a railului (UX-001): la 900 px înălțime, „Financiar” și
+ * „Administrare” stăteau sub pliu fără niciun indiciu că meniul continuă.
+ *
+ * Zero JavaScript, tehnica celor patru fundaluri: două UMBRE lipite de
+ * marginile containerului (`scroll`) și două ACOPERIRI navy lipite de capetele
+ * conținutului (`local`), care se mișcă odată cu el. Cât timp ești sus,
+ * acoperirea de sus stă peste umbra de sus; derulezi, acoperirea pleacă și
+ * umbra rămâne. Jos, simetric. Umbra se vede DOAR când chiar mai e conținut
+ * dincolo de margine.
+ *
+ * Acoperirile sunt `--color-primary` fiindcă railul e navy: pe alt fundal,
+ * utilitatea ar desena dungi. Fundalurile stau sub copii, deci rândul activ
+ * (`bg-white/10`, translucid) nu le ascunde și nu e ascuns de ele.
+ */
+@utility umbra-derulare {
+  background:
+    linear-gradient(var(--color-primary) 30%, transparent) top / 100% 40px no-repeat local,
+    linear-gradient(transparent, var(--color-primary) 70%) bottom / 100% 40px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 0.55), transparent) top / 100% 14px
+      no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 0.55), transparent) bottom / 100% 14px
+      no-repeat scroll;
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);
@@ -476,8 +501,15 @@ dialog[open] {
 }
 
 /* Caseta urcă. Pe telefon e foaie lipită de marginea de jos, deci mișcarea de
-   jos în sus e și direcția din care apare. */
-dialog:not([data-panou="lateral"]) {
+   jos în sus e și direcția din care apare.
+
+   Deplasarea stă pe starea ÎNCHISĂ (`:not([open])`), nu pe dialog în general:
+   `dialog:not([data-panou="lateral"])` are specificitate 0,2,1, mai mare decât
+   `dialog[open]` (0,1,1), deci bătea `translate: none` și TOATE casetele
+   deschise rămâneau permanent cu 8 px mai jos (pe telefon, foaia lipită de jos
+   își pierdea 8 px din subsol). Intrarea pornește din `@starting-style`,
+   ieșirea din `:not([open])`. */
+dialog:not([open]):not([data-panou="lateral"]) {
   translate: 0 0.5rem;
 }
 @starting-style {
@@ -489,8 +521,13 @@ dialog:not([data-panou="lateral"]) {
 
 /* Panoul lateral vine dinspre marginea lui, nu de jos. `1rem`, nu lățimea
    întreagă: un panou care traversează tot ecranul la fiecare deschidere obosește
-   după a treia oară. */
-dialog[data-panou="lateral"] {
+   după a treia oară.
+
+   Tot pe starea închisă (ONB-037): `dialog[data-panou="lateral"]` are aceeași
+   specificitate ca `dialog[open]` (0,1,1) și e scris DUPĂ el, deci ordinea
+   sursei îl făcea câștigător — panoul deschis rămânea deplasat 16 px la dreapta
+   (`right` = 1456 la 1440), cu butonul „Închide” tăiat. */
+dialog:not([open])[data-panou="lateral"] {
   translate: 1rem 0;
 }
 @starting-style {

@@ -9,6 +9,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { citesteAngajatPentruEditare, colegiPentruManager } from "@/lib/queries/employees";
 
@@ -22,7 +23,8 @@ interface ProprietatiPagina {
 }
 
 export default async function PaginaEditeazaAngajat({ params, searchParams }: ProprietatiPagina) {
-  const { id } = await params;
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.

@@ -3,6 +3,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+// `z.flattenError` propriu, fără createAction: harta de mesaje se încarcă explicit.
+import "@/schemas/mesaje-zod";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/lib/actions/types";

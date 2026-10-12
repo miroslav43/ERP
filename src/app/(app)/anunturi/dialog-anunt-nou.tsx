@@ -10,6 +10,7 @@ import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 import { IntrareData } from "@/components/ui/intrare-data";
+import { arataToast } from "@/components/ui/toast";
 import type { ActionResult } from "@/lib/actions/types";
 import { sfarsitulZileiRomania } from "@/domain/announcements/anunt";
 import { todayInBucharest } from "@/lib/format/date";
@@ -45,9 +46,16 @@ import { creeazaAnunt } from "./actions";
  * ── DE CE „PUBLICĂ" NU MAI E BUTONUL DIN STÂNGA ───────────────────────────
  * Vechea bară punea „Publică" primul și „Salvează ca ciornă" al doilea, ambele
  * fără confirmare. Publicarea trimite o notificare fiecărui membru activ al
- * firmei (`anunataMembrii`) și e ireversibilă din interfață: nu există
- * „retrage". Rămâne acțiunea primară, dar ultima în ordinea de citire, unde
- * stau acțiunile primare peste tot în produs.
+ * firmei (`anunataMembrii`), iar notificările nu se mai întorc: „Retrage" de
+ * pe fișă scoate anunțul de pe avizier, dar telefoanele au sunat deja. Rămâne
+ * acțiunea primară, dar ultima în ordinea de citire, unde stau acțiunile
+ * primare peste tot în produs.
+ *
+ * ── DE CE TOAST ÎNAINTE DE NAVIGARE ───────────────────────────────────────
+ * Fișa pe care aterizează administratorul își marchează singură citirea și
+ * scrie „Confirmat citit." — textul altei acțiuni, luat de QA drept
+ * confirmarea publicării (ADM-029). Toast-ul numește ce s-a întâmplat de
+ * fapt; `arataToast` e un magazin global, deci supraviețuiește `router.push`.
  */
 export function DialogAnuntNou() {
   const router = useRouter();
@@ -75,6 +83,10 @@ export function DialogAnuntNou() {
   const laReusita = useCallback(
     (data: { id: string }): void => {
       setDeschis(false);
+      arataToast({
+        fel: "reusita",
+        text: publica.current ? "Anunțul a fost publicat." : "Ciorna a fost salvată.",
+      });
       router.push(`/anunturi/${data.id}`);
     },
     [router],

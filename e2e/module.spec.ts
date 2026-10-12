@@ -147,7 +147,7 @@ const RUTE: readonly Ruta[] = [
   { cale: "/notificari", titlu: "Notificări", poarta: "fără permisiune", asteptari: TOTI },
   {
     cale: "/onboarding",
-    titlu: "Onboarding",
+    titlu: "Integrare angajați",
     poarta: "onboarding · checklists:read own",
     asteptari: TOTI,
   },

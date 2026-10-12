@@ -9,6 +9,9 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+// Schemă inline cu `z.flattenError` propriu, fără createAction: harta de
+// mesaje în română se încarcă explicit.
+import "@/schemas/mesaje-zod";
 
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";

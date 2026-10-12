@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   autorulPoateRetrage,
   conflictDeEchipa,
+  perioadaInTrecut,
+  refuzulPerioadei,
   verificaPlafonAnual,
   verificaSold,
   verificaSuprapunere,
@@ -191,5 +193,75 @@ describe("autorulPoateRetrage", () => {
     // dar „2027-01-05" > el. Ordinea pe `YYYY-MM-DD` le prinde pe amândouă.
     expect(autorulPoateRetrage("aprobata", "2027-01-05", AZI)).toBe(true);
     expect(autorulPoateRetrage("aprobata", "2026-01-05", AZI)).toBe(false);
+  });
+});
+
+/*
+  Perioada care nu POATE pleca spre aprobare (ANG-010, ANG-011, HR-009).
+
+  O cerere doar pe weekend sau doar pe sărbători are zero zile lucrătoare:
+  trecea de sold trivial (0 ≤ orice) și ajungea la aprobator fără rost. O
+  cerere care începe înaintea angajării cere concediu pentru zile în care omul
+  nu era al firmei. Trecutul NU e aici: concediul medical se depune după, iar
+  baza are deja plafonul de doi ani.
+*/
+describe("refuzulPerioadei", () => {
+  const ANGAJAT_DIN = "2026-07-08";
+
+  it("zero zile lucrătoare ⇒ „fara_zile_lucratoare”", () => {
+    expect(
+      refuzulPerioadei({ dataInceput: "2026-07-11", zileLucratoare: 0, angajatDin: ANGAJAT_DIN }),
+    ).toBe("fara_zile_lucratoare");
+  });
+
+  it("început înaintea angajării ⇒ „inainte_de_angajare”", () => {
+    expect(
+      refuzulPerioadei({ dataInceput: "2026-07-06", zileLucratoare: 3, angajatDin: ANGAJAT_DIN }),
+    ).toBe("inainte_de_angajare");
+  });
+
+  it("când sunt amândouă, prima câștigă — zilele se repară înaintea datei", () => {
+    expect(
+      refuzulPerioadei({ dataInceput: "2026-07-04", zileLucratoare: 0, angajatDin: ANGAJAT_DIN }),
+    ).toBe("fara_zile_lucratoare");
+  });
+
+  it("o perioadă bună trece", () => {
+    expect(
+      refuzulPerioadei({ dataInceput: "2026-07-08", zileLucratoare: 3, angajatDin: ANGAJAT_DIN }),
+    ).toBeNull();
+    expect(
+      refuzulPerioadei({ dataInceput: "2026-07-20", zileLucratoare: 5, angajatDin: ANGAJAT_DIN }),
+    ).toBeNull();
+  });
+
+  it("fără dată de angajare pe fișă, verificarea angajării se sare", () => {
+    expect(
+      refuzulPerioadei({ dataInceput: "2020-01-01", zileLucratoare: 1, angajatDin: null }),
+    ).toBe(null);
+  });
+
+  it("fără dată de angajare, zero zile rămân refuzate", () => {
+    expect(
+      refuzulPerioadei({ dataInceput: "2026-07-11", zileLucratoare: 0, angajatDin: null }),
+    ).toBe("fara_zile_lucratoare");
+  });
+});
+
+describe("perioadaInTrecut", () => {
+  const AZI = "2026-07-15";
+
+  it("o perioadă care a început ieri e în trecut", () => {
+    expect(perioadaInTrecut("2026-07-14", AZI)).toBe(true);
+  });
+
+  it("o perioadă care începe azi sau mâine nu e în trecut", () => {
+    expect(perioadaInTrecut(AZI, AZI)).toBe(false);
+    expect(perioadaInTrecut("2026-07-16", AZI)).toBe(false);
+  });
+
+  it("compară pe an, nu doar pe zi și lună", () => {
+    expect(perioadaInTrecut("2025-12-31", AZI)).toBe(true);
+    expect(perioadaInTrecut("2027-01-01", AZI)).toBe(false);
   });
 });

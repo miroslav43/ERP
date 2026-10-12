@@ -12,7 +12,7 @@ import { todayInBucharest } from "@/lib/format/date";
 import { AsistentSablon } from "../_componente/asistent-sablon";
 import { optiuniAsistent } from "../_componente/optiuni";
 
-export const metadata: Metadata = { title: "Șablon de checklist nou" };
+export const metadata: Metadata = { title: "Șablon de parcurs nou" };
 
 export default async function PaginaSablonNou() {
   const { tenant } = await requireTenant();

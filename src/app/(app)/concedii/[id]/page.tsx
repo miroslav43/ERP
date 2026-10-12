@@ -12,8 +12,8 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatAmount } from "@/lib/format/money";
-import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
+import { formatNumar } from "@/lib/format/numar";
+import { formatDate, formatDateTime, formatInterval, todayInBucharest } from "@/lib/format/date";
 import { citesteCerere, lantulAprobarii, zileleCererii } from "@/lib/queries/leave";
 import { fisaMea } from "@/lib/queries/portal";
 import { hrefFisa } from "@/lib/navigare/fisa";
@@ -266,7 +266,7 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
         firimituri={[
           parinte,
           {
-            eticheta: `${formatDate(cerere.data_inceput)} – ${formatDate(cerere.data_sfarsit)}`,
+            eticheta: formatInterval(cerere.data_inceput, cerere.data_sfarsit),
           },
         ]}
         titlu={tip?.denumire ?? "Cerere de concediu"}
@@ -280,7 +280,7 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
                 {" · "}
               </>
             ) : null}
-            {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)}
+            {formatInterval(cerere.data_inceput, cerere.data_sfarsit)}
           </>
         }
         actiuni={
@@ -315,7 +315,7 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
             <dt className="text-muted-foreground text-nota tracking-wide uppercase">
               Zile lucrătoare
             </dt>
-            <dd className="text-corp mt-0.5">{formatAmount(cerere.zile_lucratoare)}</dd>
+            <dd className="text-corp mt-0.5">{formatNumar(cerere.zile_lucratoare)}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground text-nota tracking-wide uppercase">

@@ -172,7 +172,7 @@ export const FEATURES: Readonly<Record<FeatureKey, FeatureMeta>> = {
     sortOrder: 130,
   },
   ticketing: {
-    denumire: "Ticketing IT",
+    denumire: "Tichete IT",
     icon: LifeBuoy,
     grup: "operations",
     isCore: false,

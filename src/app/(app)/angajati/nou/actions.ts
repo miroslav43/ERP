@@ -8,6 +8,7 @@ import { businessRule } from "@/lib/actions/errors";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
 import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/inrolare";
+import { adaugaZile } from "@/domain/attendance/saptamana";
 import { alegeSablon } from "@/domain/checklist/potrivire-sablon";
 import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
 import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
@@ -52,6 +53,9 @@ interface RezultatInrolare {
    */
   readonly avertismente: readonly string[];
 }
+
+/** Peste atâtea zile în urmă, începerea contractului primește avertismentul de retroactivitate. */
+const PRAG_RETROACTIV_ZILE = 30;
 
 const CAMPURI_ANGAJAT = [
   "last_name",
@@ -177,6 +181,46 @@ async function membruCuAdresa(
   return { userId: profil.id, rol: membru.role, fisaExistenta: fisa?.marca ?? null };
 }
 
+/**
+ * Vestea către membrul existent că are, de acum, o fișă de angajat legată de
+ * contul lui. Fără ea, omul descoperă legarea din întâmplare — observația
+ * revizuirii de securitate a lotului G4 (REPORT §9b, pe ONB-030).
+ *
+ * Prin clientul admin DELIBERAT: se scrie pentru ALT utilizator, iar politica
+ * `notifications_insert` (0144) cere pentru asta `announcements:create`, pe
+ * care `hr` nu-l are. Filtrul pe firmă e explicit; destinatarul vine din
+ * `membruCuAdresa`, care l-a găsit deja ca membru ACTIV al aceleiași firme.
+ *
+ * Linkul urmează rolul: un `employee` își vede fișa în portal, la profil;
+ * un manager sau un administrator o deschide din aplicația mare (registrul
+ * din `notificari/legaturi.ts` nu traduce `/portal/profilul-meu`, deci pentru
+ * ei ar rămâne text). Best-effort: un INSERT picat nu desface înrolarea.
+ */
+async function anuntaLegareaFisei(
+  organizationId: string,
+  userId: string,
+  employeeId: string,
+  rol: string,
+  actor: string,
+): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const { error } = await admin.from("notifications").insert({
+      organization_id: organizationId,
+      user_id: userId,
+      kind: "info" as const,
+      title: "Fișa dumneavoastră de angajat a fost creată",
+      body: `${actor} a creat fișa și a legat-o de contul dumneavoastră; datele și contractul se văd în profil.`,
+      link: rol === "employee" ? "/portal/profilul-meu" : `/angajati/${employeeId}`,
+      entity_type: "employee",
+      entity_id: employeeId,
+    });
+    if (error !== null) throw error;
+  } catch (eroare) {
+    console.error("[angajati] notificarea legării fișei a eșuat", { employeeId, eroare });
+  }
+}
+
 export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, RezultatInrolare>({
   name: "employees.enroll",
   permission: "employees:create",
@@ -201,11 +245,28 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     const db = ctx.supabase;
     const avertismente: string[] = [];
 
+    /*
+     * Angajarea retroactivă nu se refuză — hârtiile de săptămâna trecută sunt
+     * curente, iar o firmă care migrează în aplicație își înrolează oamenii
+     * cu contractele lor vechi. Dar peste 30 de zile în urmă nu mai e
+     * „săptămâna trecută": REGES cere transmiterea cu o zi înainte de
+     * începerea activității, iar pontajul și concediile de până acum nu
+     * există. Până la 8 oct 2026 (QA, HR-030) nimic nu semnala asta.
+     */
+    if (input.valabil_de_la < adaugaZile(todayInBucharest(), -PRAG_RETROACTIV_ZILE)) {
+      avertismente.push(
+        `Contractul începe la ${formatDate(input.valabil_de_la)}, în trecut: transmiterea la REGES apare deja întârziată, iar pontajul și concediile de până acum nu există.`,
+      );
+    }
+
     await refuzaSubSalariulMinim(
       ctx.tenant.organizationId,
       input.valabil_de_la,
       input.salariu_baza,
-      input.norma_ore_zi,
+      {
+        normaOreZi: input.norma_ore_zi,
+        normaOreSaptamana: input.norma_ore_saptamana,
+      },
     );
 
     const { data: marca, error: eroareMarca } = await db.rpc("urmatoarea_marca", {
@@ -385,7 +446,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       if (numar !== null) {
         // Numărul l-a ales omul: nu se realocă pe la spatele lui.
         throw businessRule(
-          `Numărul de contract „${numar}” este deja folosit în firma ta. Alegeți altul sau lăsați câmpul gol.`,
+          `Numărul de contract „${numar}” este deja folosit în această firmă. Alegeți altul sau lăsați câmpul gol.`,
         );
       }
       numarContract = null; // alocat automat: reluăm cu următorul din contor
@@ -410,11 +471,14 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       throw businessRule("Contractul a fost creat, dar activarea lui a fost respinsă.");
     }
 
+    // Fără `p_zile_odihna_override` (ignorat din 0193): contractul e deja activ
+    // la momentul apelului, deci `app.drept_concediu` citește singur zilele de
+    // pe el și le proporționalizează cu lunile lucrate în an. Override-ul
+    // rescria dreptul abia calculat cu valoarea întreagă.
     const anulAngajarii = Number(valabil_de_la.slice(0, 4));
     const { error: eroareSold } = await db.rpc("seed_leave_balances", {
       p_employee: angajat.id,
       p_an: anulAngajarii,
-      p_zile_odihna_override: zile_concediu_anual,
     });
     if (eroareSold !== null) throw eroareSold;
 
@@ -766,6 +830,13 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         avertismente.push(
           `Adresa ${adresaInvitatie} aparține unui membru existent al firmei (${membruExistent.rol}): fișa a fost legată de contul lui, fără invitație nouă.`,
         );
+        await anuntaLegareaFisei(
+          ctx.tenant.organizationId,
+          membruExistent.userId,
+          angajat.id,
+          membruExistent.rol,
+          ctx.user.fullName ?? ctx.user.email,
+        );
       }
     } else {
       try {
@@ -835,7 +906,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         // `feature_on`): avertismentul ar trimite spre un meniu care nu există.
         if (ctx.features.has("onboarding")) {
           avertismente.push(
-            "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun checklist. Creați unul din Integrare → Șabloane.",
+            "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun parcurs. Creați unul din Integrare → Șabloane.",
           );
         }
       } else {
@@ -860,7 +931,9 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       }
     } catch (eroare) {
       avertismente.push(
-        "Checklistul de integrare nu a putut fi pornit. Îl puteți porni din Integrare → Instanță nouă.",
+        // Cuplat cu `asistent-angajat-nou.tsx`, care caută „Integrare → Parcurs
+        // nou” ca să arate linkul de pornire; testul din `actions.test.ts` le leagă.
+        "Parcursul de integrare nu a putut fi pornit. Îl puteți porni din Integrare → Parcurs nou.",
       );
       console.error("[integrare] checklistul nu a putut fi pornit la înrolare", {
         employeeId: angajat.id,

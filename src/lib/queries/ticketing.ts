@@ -38,8 +38,12 @@ export function limitaDinUrl(brut: string | string[] | undefined): number {
   return (MARIMI_PAGINA as readonly number[]).includes(numar) ? numar : LIMITA_PAGINA;
 }
 
+// `asignat_employee_id` și ca Coloană BRUTĂ, pe lângă embed: pentru solicitant,
+// `employees_select` (scope `own`) ascunde rândul operatorului, deci embed-ul
+// `asignat` vine NULL deși tichetul e repartizat. Coloana brută spune „e
+// cineva pe el”, embed-ul spune „cine” — când rolul are voie să afle.
 const COLOANE_LISTA = `
-  id, numar_afisat, tip, titlu, status, prioritate, created_at, updated_at,
+  id, numar_afisat, tip, titlu, status, prioritate, created_at, updated_at, asignat_employee_id,
   solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name, deleted_at),
   asignat:employees!tickets_asignat_employee_id_fkey (id, full_name, deleted_at)
 ` as const;
@@ -53,6 +57,7 @@ export type RandTichet = Readonly<{
   prioritate: Prioritate;
   created_at: string;
   updated_at: string;
+  asignat_employee_id: string | null;
   solicitant: Readonly<{ id: string; full_name: string; deleted_at: string | null }> | null;
   asignat: Readonly<{ id: string; full_name: string; deleted_at: string | null }> | null;
 }>;

@@ -428,7 +428,7 @@ export const setariPontajSchema = z.object({
   valabil_de_la: z
     .string("Alegeți data de la care se aplică versiunea.")
     .min(1, "Alegeți data de la care se aplică versiunea.")
-    .regex(/^\d{4}-\d{2}-\d{2}$/u, "Data trebuie să fie AAAA-LL-ZZ."),
+    .regex(/^\d{4}-\d{2}-\d{2}$/u, "Introduceți o dată validă (zz.ll.aaaa)."),
   ore_pe_zi: numarObligatoriu({
     min: 0.5,
     max: 24,

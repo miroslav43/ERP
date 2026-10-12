@@ -97,8 +97,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </div>
 
         <p className="text-muted-foreground text-nota mt-6 text-center text-balance">
-          Angajații intră pe invitație, de la administratorul firmei lor. Dacă înregistrezi o firmă
-          nouă, contul îl creezi singur.
+          Angajații intră pe invitație, de la administratorul firmei lor. Dacă înregistrați o firmă
+          nouă, contul îl creați singur.
         </p>
       </main>
     </div>
