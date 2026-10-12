@@ -851,6 +851,21 @@ const INTRARI: readonly Intrare[] = [
       "Responsabilii de flotă care primesc alertele de scadență și foile de aprobat, zilele de dinainte de expirare la care pleacă alertele și pragul de salt al kilometrajului.",
   },
   // ═══ SFÂRȘIT BLOC: flota, setările (0198) ═══
+  // ═══ ÎNCEPUT BLOC: flota, fiscalul (0202) ═══
+  {
+    id: "flota.fiscal",
+    href: "/flota/fiscal",
+    eticheta: "Fiscal parc auto",
+    zona: "app",
+    parinte: "flota",
+    fila: "Fiscal",
+    featureKey: "fleet",
+    permission: "vehicles:read",
+    minScope: "all",
+    descriere:
+      "Regimul de deducere al vehiculelor (50% sau integral), luna fiscală cu vehiculele fără foi de parcurs, normele proprii de consum și regimul de impozitare al firmei.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, fiscalul (0202) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {

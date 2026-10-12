@@ -8,11 +8,13 @@ import {
   avertismenteRegim,
   cereFoaie,
   esteMasinaPersonala,
+  mutaLuna,
   perioadaLa,
   procentDeducere,
   proportiePeKm,
   regimSugerat,
   sugereazaAvantaj,
+  ultimaZiALunii,
   verdictLuna,
   type FapteAvantaj,
   type LunaVehicul,
@@ -291,5 +293,22 @@ describe("proportiePeKm", () => {
     expect(proportiePeKm(1445, 10, 0)).toBeNull();
     expect(proportiePeKm(1445, -1, 100)).toBeNull();
     expect(proportiePeKm(1445, 200, 100)).toBeNull();
+  });
+});
+
+describe("luna paginii fiscale", () => {
+  it("mutaLuna trece peste granița anului în ambele sensuri", () => {
+    expect(mutaLuna("2026-10", 1)).toBe("2026-11");
+    expect(mutaLuna("2026-12", 1)).toBe("2027-01");
+    expect(mutaLuna("2026-01", -1)).toBe("2025-12");
+    expect(mutaLuna("2026-03", -14)).toBe("2025-01");
+    expect(mutaLuna("2026-03", 0)).toBe("2026-03");
+  });
+
+  it("ultimaZiALunii știe lunile scurte și anul bisect", () => {
+    expect(ultimaZiALunii("2026-02")).toBe("2026-02-28");
+    expect(ultimaZiALunii("2028-02")).toBe("2028-02-29");
+    expect(ultimaZiALunii("2026-04")).toBe("2026-04-30");
+    expect(ultimaZiALunii("2026-12")).toBe("2026-12-31");
   });
 });

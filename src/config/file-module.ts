@@ -19,6 +19,9 @@ export const FILE_FLOTA: readonly FilaModul[] = [
   // 0198: responsabilii, pragul de salt și pragurile de alertă; fila apare doar
   // pentru `vehicles:update = all`, poarta politicilor `fleet_settings`.
   { href: "/flota/setari", eticheta: "Setări" },
+  // 0202: regimul fiscal al vehiculelor și luna fiscală; fila apare doar pentru
+  // `vehicles:read = all`, poarta politicilor tabelelor fiscale.
+  { href: "/flota/fiscal", eticheta: "Fiscal" },
 ];
 
 export function fileEvaluari(contoare: Readonly<{ sabloane?: number }> = {}): readonly FilaModul[] {

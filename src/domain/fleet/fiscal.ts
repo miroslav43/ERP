@@ -397,3 +397,21 @@ export function proportiePeKm(
   if (!(kmTotali > 0) || !(kmPersonali >= 0) || kmPersonali > kmTotali) return null;
   return bani((valoareLunara * kmPersonali) / kmTotali);
 }
+
+// ── Luna paginii fiscale ────────────────────────────────────────────────────
+
+/** `AAAA-LL` mutată cu `delta` luni (negativ = înapoi). Intrarea e validă (vezi `lunaDinParametru`). */
+export function mutaLuna(luna: string, delta: number): string {
+  const [an, lunaNr] = luna.split("-").map(Number) as [number, number];
+  const total = an * 12 + (lunaNr - 1) + delta;
+  const anNou = Math.floor(total / 12);
+  const lunaNoua = (total % 12) + 1;
+  return `${String(anNou).padStart(4, "0")}-${String(lunaNoua).padStart(2, "0")}`;
+}
+
+/** Ultima zi a lunii `AAAA-LL`, ca `AAAA-LL-ZZ`. */
+export function ultimaZiALunii(luna: string): string {
+  const [an, lunaNr] = luna.split("-").map(Number) as [number, number];
+  const zi = new Date(Date.UTC(an, lunaNr, 0)).getUTCDate();
+  return `${luna}-${String(zi).padStart(2, "0")}`;
+}

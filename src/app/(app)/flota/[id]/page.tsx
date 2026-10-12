@@ -53,6 +53,9 @@ import { poateDeschide } from "@/config/porti-ruta";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { AvertismenteSofer } from "../avertismente-sofer";
 import { cuAvertismente } from "../avertismente-optiuni";
+// ── început bloc: fiscalul vehiculului (0202, F10) ──
+import { SectiuneFiscalaVehicul } from "../fiscal/sectiune-fiscala-vehicul";
+// ── sfârșit bloc: fiscalul vehiculului ──
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -643,6 +646,20 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           </p>
         )}
       </section>
+      {/* ── început bloc: fiscalul vehiculului (0202, F10) ──
+          Regimul de deducere și norma proprie de consum. Poarta e `vehicles:read
+          = all`, ca politicile tabelelor: managerul și angajatul văd vehiculul,
+          nu și fiscalul lui. */}
+      {can(permisiuni, "vehicles:read", "all") ? (
+        <SectiuneFiscalaVehicul
+          vehicul={vehicul}
+          organizationId={tenant.organizationId}
+          poateAdministra={poateAdministra}
+          angajati={angajati}
+          azi={azi}
+        />
+      ) : null}
+      {/* ── sfârșit bloc: fiscalul vehiculului ── */}
       {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
       <IstoricModificari tenant={tenant} entityId={vehicul.id} />
     </div>
