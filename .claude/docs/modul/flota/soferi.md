@@ -66,8 +66,8 @@ cu ramură proprie în `app.poate_vedea_expirabil`. Rezumatul zilnic al flotei r
 `vehicle_document` (lista albă din 0198 nu s-a lărgit).
 
 **Funcția are DOUĂ rescrieri paralele pe ramuri diferite.** 0201 o rescrie de la 0011 și
-adaugă `driver_license`; traseul F7 (`0200_flota_service_costuri.sql`) o rescrie tot de la
-0011 și adaugă `vehicle_service`. 0201 rulează după 0200, deci forma de aici poartă
+adaugă `driver_license`; traseul F7 (service, migrarea 0200, ramura `lucru/flota-continuare`) o
+rescrie tot de la 0011 și adaugă `vehicle_service`. 0201 rulează după 0200, deci forma de aici poartă
 AMBELE ramuri (`vehicle_service` e inertă fără 0200), iar blocul de verificare și proba
 (27) o păzesc: fără ea, scadențele de service ar fi dispărut tăcut din lista de
 conformitate. Orice `entity_type` nou pornește de la forma din 0201.
