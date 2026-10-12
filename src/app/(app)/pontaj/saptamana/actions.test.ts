@@ -233,6 +233,30 @@ describe("trimiteSaptamanaPontaj", () => {
       zile: [{ ...LUNI, ora_inceput: "17:00", ora_sfarsit: "08:00" }],
     });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    // HR-015: data în formatul românesc, nu ISO.
+    if (r.ok) throw new Error("Era așteptat un refuz.");
+    expect(r.error.message).toContain("13.07.2026");
+    expect(r.error.message).not.toContain("2026-07-13");
+    expect(server.apeluriRpc.some((a) => a.nume === "trimite_saptamana_pontaj")).toBe(false);
+  });
+
+  it("două zile inversate ⇒ un singur mesaj cu ambele date, fără RPC", async () => {
+    // HR-015: a doua zi greșită apărea abia după ce o reparai pe prima.
+    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    server.raspunde("attendance_settings", "select", { data: null });
+    const r = await trimiteSaptamanaPontaj({
+      saptamana_start: "2026-07-13",
+      status: "trimisa",
+      zile: [
+        { ...LUNI, ora_inceput: "17:00", ora_sfarsit: "08:00" },
+        { ...LUNI, data: "2026-07-14", ora_inceput: "08:30", ora_sfarsit: "08:30" },
+      ],
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    if (r.ok) throw new Error("Era așteptat un refuz.");
+    expect(r.error.message).toBe(
+      "Pe 13.07.2026 și 14.07.2026, ora de ieșire trebuie să fie după ora de intrare, în aceeași zi.",
+    );
     expect(server.apeluriRpc.some((a) => a.nume === "trimite_saptamana_pontaj")).toBe(false);
   });
 

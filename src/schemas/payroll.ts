@@ -32,7 +32,7 @@ export const pragDeducereSchema = z
 export type IntrarePragDeducere = z.output<typeof pragDeducereSchema>;
 
 export const setariSalarizareSchema = z.object({
-  valabil_de_la: z.string().regex(RE_DATA, "Data trebuie să fie în formatul AAAA-LL-ZZ."),
+  valabil_de_la: z.string().regex(RE_DATA, "Introduceți data (zz.ll.aaaa)."),
   cota_cas: cota("Cota CAS"),
   cota_cass: cota("Cota CASS"),
   cota_impozit: cota("Cota de impozit"),

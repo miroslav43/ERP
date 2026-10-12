@@ -259,10 +259,7 @@ export const cheltuialaNouaSchema = z.object({
   business_trip_id: z.uuid(),
   tip: z.enum(TIPURI_CHELTUIALA),
   descriere: textOptional(500),
-  data_cheltuielii: z
-    .string()
-    .trim()
-    .regex(RE_DATA, "Data cheltuielii trebuie scrisă în formatul AAAA-LL-ZZ."),
+  data_cheltuielii: z.string().trim().regex(RE_DATA, "Introduceți data cheltuielii (zz.ll.aaaa)."),
   suma: z.coerce.number().positive("Suma trebuie să fie mai mare decât zero."),
   moneda: z
     .string()
@@ -317,7 +314,7 @@ export const politicaNouaSchema = z
     acorda_diurna_ziua_trecerii: z.coerce.boolean().default(true),
     regula_tara_trecere: z.enum(REGULI_TRECERE_FRONTIERA).default("tara_sosire"),
     tarif_km_auto_personal: z.coerce.number().min(0, "Tariful pe kilometru nu poate fi negativ."),
-    valabil_de_la: z.string().trim().regex(RE_DATA, "Data trebuie scrisă în formatul AAAA-LL-ZZ."),
+    valabil_de_la: z.string().trim().regex(RE_DATA, "Introduceți data (zz.ll.aaaa)."),
     observatii: textOptional(2000),
   })
   .superRefine((valoare, ctx) => {

@@ -9,7 +9,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 import { lunieaSaptamanii } from "@/domain/attendance/saptamana";
-import { todayInBucharest } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { scrieSaptamanaInPontaj } from "./scrie-pontajul";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
 import { refuzaCandAprobareaEStinsa } from "../aprobarea-firmei";
@@ -23,6 +23,12 @@ const CAI_REVALIDARE = [
   "/portal/pontajul-meu",
   "/portal/pontajul-meu/saptamana",
 ] as const;
+
+/** „13.07.2026”, „13.07.2026 și 14.07.2026”, „13.07.2026, 14.07.2026 și 15.07.2026”. */
+function enumerare(elemente: readonly string[]): string {
+  if (elemente.length <= 1) return elemente.join("");
+  return `${elemente.slice(0, -1).join(", ")} și ${elemente.at(-1) ?? ""}`;
+}
 
 /**
  * Singurul drum de scriere pentru angajat: apelează `trimite_saptamana_pontaj`
@@ -96,13 +102,21 @@ export const trimiteSaptamanaPontaj = createAction<
         return { zi: { ...zi, ora_inceput: null, ora_sfarsit: null, ore_planificate: 0 } };
       }
       const derivate = oreleZilei(zi.ora_inceput, zi.ora_sfarsit, config);
-      if (derivate === null) {
-        throw businessRule(
-          `Pe ${zi.data}, ora de ieșire trebuie să fie după ora de intrare, în aceeași zi.`,
-        );
-      }
+      if (derivate === null) return { zi, inversata: true as const };
       return { zi: { ...zi, ore_planificate: derivate.lucrate }, derivate };
     });
+
+    // HR-015: TOATE zilele inversate într-un singur mesaj, cu data românească.
+    // Înainte, a doua zi greșită apărea abia după ce o reparai pe prima.
+    // `zi.data` e `z.iso.date()` în schemă, deci `formatDate` nu aruncă.
+    const zileInversate = derivatePeZi.flatMap((d) =>
+      d.inversata === true ? [formatDate(d.zi.data)] : [],
+    );
+    if (zileInversate.length > 0) {
+      throw businessRule(
+        `Pe ${enumerare(zileInversate)}, ora de ieșire trebuie să fie după ora de intrare, în aceeași zi.`,
+      );
+    }
     const zile = derivatePeZi.map((d) => d.zi);
 
     const { data, error } = await ctx.supabase.rpc("trimite_saptamana_pontaj", {

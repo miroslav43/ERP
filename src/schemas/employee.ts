@@ -76,16 +76,13 @@ const dataOptionala = z
   .nullable()
   .default(null)
   .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
-  .refine(
-    (valoare) => valoare === null || RE_DATA.test(valoare),
-    "Data trebuie scrisă în formatul AAAA-LL-ZZ.",
-  );
+  .refine((valoare) => valoare === null || RE_DATA.test(valoare), "Introduceți data (zz.ll.aaaa).");
 
 const dataObligatorie = (camp: string) =>
   z
     .string(`Câmpul „${camp}” este obligatoriu.`)
     .trim()
-    .regex(RE_DATA, `Câmpul „${camp}” trebuie completat în formatul AAAA-LL-ZZ.`);
+    .regex(RE_DATA, `Introduceți data în câmpul „${camp}” (zz.ll.aaaa).`);
 
 const uuidOptional = z
   .string()

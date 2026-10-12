@@ -178,7 +178,7 @@ export const raspunsCriteriuSchema = z.object({
 const dataIso = z
   .string()
   .trim()
-  .regex(/^\d{4}-\d{2}-\d{2}$/u, "Data trebuie scrisă în formatul AAAA-LL-ZZ.");
+  .regex(/^\d{4}-\d{2}-\d{2}$/u, "Introduceți data (zz.ll.aaaa).");
 
 /** `2026-10-12` → `2027-10-12`; pe șirul AAAA-LL-ZZ, comparația e lexicografică. */
 const plusUnAn = (zi: string): string => `${String(Number(zi.slice(0, 4)) + 1)}${zi.slice(4)}`;

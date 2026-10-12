@@ -91,6 +91,6 @@ describe.each(cazuri)("%s — data_evaluarii", (_nume, schema, intrare) => {
     expect(r.success).toBe(false);
     if (r.success) return;
     const issue = r.error.issues.find((i) => i.path[0] === "data_evaluarii");
-    expect(issue?.message).toContain("AAAA-LL-ZZ");
+    expect(issue?.message).toContain("zz.ll.aaaa");
   });
 });
