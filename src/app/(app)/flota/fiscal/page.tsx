@@ -186,7 +186,7 @@ export default async function PaginaFiscalFlota({ searchParams }: ProprietatiPag
     <div className="space-y-6">
       <AntetPagina
         titlu="Fiscal parc auto"
-        descriere="Regimul de deducere al fiecărui vehicul și ce cere el de la foile de parcurs, luna judecată pe zile, plus regimul de impozitare al firmei."
+        descriere="Regimul de deducere al fiecărui vehicul și ce cere el de la foile de parcurs, luna cu zilele numărate după regimul în vigoare, plus regimul de impozitare al firmei."
         file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
 
@@ -271,8 +271,9 @@ export default async function PaginaFiscalFlota({ searchParams }: ProprietatiPag
           }
         />
         <p className="text-muted-foreground text-nota">
-          Zilele se numără după regimul în vigoare în fiecare zi. O foaie aprobată acoperă ziua ei;
-          ciornele și foile trimise apar ca neaprobate, iar cele respinse nu se numără.
+          Zilele se numără după regimul în vigoare în fiecare zi, dar foile se numără pe luna
+          întreagă: „Fără foi” înseamnă nicio foaie în lună, nu o zi fără foaie. Ciornele și foile
+          trimise apar ca neaprobate, iar cele respinse nu se numără.
         </p>
       </section>
     </div>

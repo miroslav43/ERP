@@ -22,7 +22,7 @@ tabele: [vehicle_fiscal_regimes, vehicle_consumption_norms, organizations, trip_
 permisiuni: [vehicles:read, vehicles:update, organizations:update, payroll:read]
 feature: fleet
 capcane: [17, 23]
-scris_pe: 96603783d8bc2414f7a2756ed6fdf00d1a84d166
+scris_pe: 51ceab6ccd4023aeb1acc659894c409f6d67a9f1
 scris_la: 2026-10-12
 tags: [modul, operations, fiscal]
 ---
@@ -62,8 +62,9 @@ SECURITY DEFINER proprie, nu printr-un drept pe vehicule.
   ziua foii (`internal.foi_parcurs_numerotare`, rescrisă de la forma din 0197), altfel
   cade pe `consum_mediu_declarat`. Foile deja trimise își păstrează norma din instantaneu.
 - **Luna fiscală** (`public.flota_fiscal_luna`, SECURITY INVOKER): zilele lunii cu
-  deducere integrală, norma, foile aprobate și neaprobate. Verdictul („deducere integrală
-  fără nicio foaie”) îl dă domeniul pur, `verdictLuna` — nu SQL-ul.
+  deducere integrală, norma, foile aprobate și neaprobate. Zilele se numără pe zile, **foile
+  pe luna întreagă** (⚠ în `NOTES.md`). Verdictul („deducere integrală fără nicio foaie”) îl
+  dă domeniul pur, `verdictLuna` — nu SQL-ul.
 - **Avantajul în natură** (`public.avantaj_natura_flota`, SECURITY DEFINER pe
   `payroll:read = all`): alocările cu folosință personală ale unui om într-o lună și faptele
   vehiculului. Ce se sugerează decide `sugereazaAvantaj`: 1,7% din valoarea de intrare sau
@@ -82,8 +83,11 @@ SECURITY DEFINER proprie, nu printr-un drept pe vehicule.
   coloanele platformei.
 - **Două perioade în aceeași zi pe vehicul** dau 23505 pe `vfr_vehicul_de_la_uq` /
   `vcn_vehicul_de_la_uq`, traduse pe `valabil_de_la`. Regimul „peste 3.500 kg” pe un
-  vehicul pe care fișa îl știe ușor dă P0001 pe `regim`; invers (50% la un vehicul greu) e
-  doar avertisment pe ecran, fiindcă e prudent, nu riscant.
+  vehicul pe care fișa îl știe ușor dă P0001 pe `regim`, **doar la INSERT/UPDATE de conținut,
+  nu și la ștergerea logică** (`new.deleted_at is null`): fișa se poate completa după ce
+  regimul a fost pus pe o fișă incompletă, iar corectura „șterge + perioadă nouă” nu trebuie
+  să cadă exact pe rândul greșit (proba (18)). Invers (50% la un vehicul greu) e doar
+  avertisment pe ecran, fiindcă e prudent, nu riscant.
 - **`created_by` și `updated_by` se trimit explicit** la INSERT (capcana #23), ca la restul
   tabelelor flotei; fără ele, 42501.
 

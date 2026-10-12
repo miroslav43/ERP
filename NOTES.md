@@ -421,6 +421,13 @@ integrală. Aplicația cere foaia pentru orice regim diferit de 50% (verdictul �
 La firma micro, impozitul nu depinde de deductibilitate, deci foaia contează doar la TVA.
 De confirmat cu contabilul cât de dur să fie verdictul.
 
+⚠️ **Verdictul lunii numără foile pe luna întreagă, nu pe zile.** `flota_fiscal_luna`
+numără zilele cu deducere integrală după regimul fiecărei zile, dar foile aprobate și
+neaprobate pe toată luna: „Fără foi” înseamnă nicio foaie în lună. La o lună mixtă (50%, apoi
+integral), o foaie din zilele de 50% acoperă în verdict și zilele cu deducere integrală. E un
+semnal de control, nu o dovadă zi cu zi; dacă contabilul cere acoperirea pe zile, foile se
+leagă de regimul zilei lor (schimbare în funcția SQL, cu tipuri regenerate).
+
 ⚠️ **Regimul „exclusiv în scopul activității economice”** (art. 298 alin. (1) și pct. 68
 alin. (2)) cere ca vehiculul să nu aibă deloc folosință personală; aplicația îl acceptă
 alături de o alocare cu folosință personală, dar cu avertisment („deducerea integrală e

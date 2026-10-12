@@ -206,8 +206,12 @@ function foi(n: number, singular: string, plural: string): string {
 }
 
 /**
- * Riscul fiscal al lunii pe un vehicul. Foaia contează doar în zilele cu
- * deducere integrală; acolo, fără foaie aprobată, deducerea nu are justificare.
+ * Riscul fiscal al lunii pe un vehicul. Zilele se numără după regimul în
+ * vigoare în fiecare zi, dar FOILE se numără pe luna întreagă (`public.
+ * flota_fiscal_luna` nu le leagă de zile): „fără foi” înseamnă nicio foaie în
+ * lună, iar la o lună mixtă (50% apoi integral) o foaie din zilele de 50%
+ * acoperă în verdict și zilele cu deducere integrală. Verdictul e deci un
+ * semnal de control, nu o dovadă zi cu zi (⚠ în NOTES.md, „Flotă — fiscal”).
  */
 export function verdictLuna(r: LunaVehicul): VerdictLuna {
   const faraRegim =

@@ -20,7 +20,7 @@ permisiuni:
   [driver_licenses:read, driver_licenses:create, driver_licenses:update, trip_sheets:update]
 feature: fleet
 capcane: [17, 19, 26]
-scris_pe: 231c60b3569e3b9f140ed3b01614d70ad7bbef47
+scris_pe: 51ceab6ccd4023aeb1acc659894c409f6d67a9f1
 scris_la: 2026-10-12
 tags: [modul, operations, hr]
 ---
@@ -64,6 +64,13 @@ pe angajat din 0011). `minScope` e `own` în acțiuni: judecă baza, pe angajat.
 Scadența intră în `expirables` (`entity_type = 'driver_license'`, responsabil = șoferul),
 cu ramură proprie în `app.poate_vedea_expirabil`. Rezumatul zilnic al flotei rămâne pe
 `vehicle_document` (lista albă din 0198 nu s-a lărgit).
+
+**Funcția are DOUĂ rescrieri paralele pe ramuri diferite.** 0201 o rescrie de la 0011 și
+adaugă `driver_license`; traseul F7 (`0200_flota_service_costuri.sql`) o rescrie tot de la
+0011 și adaugă `vehicle_service`. 0201 rulează după 0200, deci forma de aici poartă
+AMBELE ramuri (`vehicle_service` e inertă fără 0200), iar blocul de verificare și proba
+(27) o păzesc: fără ea, scadențele de service ar fi dispărut tăcut din lista de
+conformitate. Orice `entity_type` nou pornește de la forma din 0201.
 
 ## Avizul medical — `app.stare_aviz_sofer` (SECURITY DEFINER, art. 9 GDPR)
 
@@ -121,4 +128,4 @@ Diurna: `deplasareNouaSchema` primește `vehicle_id`, doar pe `auto_serviciu`/`m
 (oglinda lui `business_trips_vehicul_ck`). Corectura (`actualizeazaDeplasare`) nu-l
 șterge când formularul nu-l are; îl golește doar când transportul nu mai e cu mașina.
 
-Probă: `tests/rls/proba-flota-soferi.sql` (26: (21)–(26) sunt cele de securitate) și izolarea `(l)` „permisele șoferilor”.
+Probă: `tests/rls/proba-flota-soferi.sql` (27: (21)–(26) sunt cele de securitate, (27) păzește ramura `vehicle_service`) și izolarea `(l)` „permisele șoferilor”.
