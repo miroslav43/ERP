@@ -23,7 +23,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 import { codificaCursor, decodificaCursor, predicatKeyset } from "./cursor";
 
-/** Stadiile în care răspunsul către autoritate n-a plecat încă. */
+/**
+ * Stadiile în care răspunsul către autoritate POATE să nu fi plecat. Nu ajunge
+ * singură: o amendă contestată după ce răspunsul a plecat are tot stadiul
+ * „contestată”, deci filtrul „de răspuns” cere și `raspuns_trimis_la` gol
+ * (oglinda lui `internal.amenzi_scadenta` și a lui `verdictTermen`).
+ */
 const STADII_DE_RASPUNS: readonly StadiuAmenda[] = ["primita", "sofer_desemnat", "contestata"];
 /** Stadiile incidentului neînchis. */
 const STADII_INCIDENT_DESCHISE: readonly StadiuIncident[] = STADII_INCIDENT.filter(
@@ -57,7 +62,10 @@ const COLOANE_AMENDA =
   "id, vehicle_id, numar_pv, data_pv, constatata_la, locul, fapta, autoritate, suma, primita_la, " +
   "termen_raspuns, stadiu, sofer_desemnat_id, desemnat_la, raspuns_trimis_la, raspuns_numar, motiv, observatii";
 
-/** `de_raspuns` = primită, șofer desemnat sau contestată; `null` = toate. */
+/**
+ * `de_raspuns` = primită, șofer desemnat sau contestată, cu răspunsul încă
+ * neplecat; `null` = toate.
+ */
 export type FiltruStadiuAmenda = StadiuAmenda | "de_raspuns" | null;
 
 export interface FiltreAmenzi {
@@ -90,8 +98,9 @@ export async function listeazaAmenzi(
     q: Q,
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
-    if (filtre.stadiu === "de_raspuns") cu = cu.in("stadiu", STADII_DE_RASPUNS);
-    else if (filtre.stadiu !== null) cu = cu.eq("stadiu", filtre.stadiu);
+    if (filtre.stadiu === "de_raspuns") {
+      cu = cu.in("stadiu", STADII_DE_RASPUNS).is("raspuns_trimis_la", null);
+    } else if (filtre.stadiu !== null) cu = cu.eq("stadiu", filtre.stadiu);
     if (filtre.vehicul !== null) cu = cu.eq("vehicle_id", filtre.vehicul);
     return cu;
   };
@@ -161,7 +170,8 @@ export async function rezumatAmenzi(organizationId: string, azi: string): Promis
       .select("id", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
-      .in("stadiu", STADII_DE_RASPUNS);
+      .in("stadiu", STADII_DE_RASPUNS)
+      .is("raspuns_trimis_la", null);
   const [toate, depasite] = await Promise.all([deschise(), deschise().lt("termen_raspuns", azi)]);
   if (toate.error !== null) throw toate.error;
   if (depasite.error !== null) throw depasite.error;

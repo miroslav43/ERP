@@ -48,8 +48,9 @@ function text(valoare: string | string[] | undefined): string | undefined {
 }
 
 /**
- * Amenzile primite pe vehiculele firmei (0203, F11): cele de răspuns primele,
- * cu termenul numărat în zile, și stadiul fiecăreia.
+ * Amenzile primite pe vehiculele firmei (0203, F11): cele mai noi întâi (după
+ * momentul faptei), cu termenul numărat în zile și stadiul fiecăreia; filtrul
+ * „De răspuns” le izolează pe cele al căror răspuns n-a plecat încă.
  *
  * Poarta e `vehicle_fines:read = all`, EXACT poarta politicii
  * `vehicle_fines_select`. Cheia e seedată doar pentru `org_admin` și

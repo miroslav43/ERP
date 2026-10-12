@@ -32,10 +32,20 @@ type Proprietati = Readonly<{
         incident: RandIncident;
         /** Cercetările SSM pe care apelantul le poate citi; gol = fără acces SSM. */
         cercetari: readonly CercetareSsm[];
+        /**
+         * Cercetarea legată ACUM de incident, dacă apelantul o poate citi. Lista
+         * `cercetari` e limitată și trece prin RLS-ul SSM, deci poate să n-o
+         * cuprindă: fără opțiunea ei, salvarea ar șterge legătura pe tăcute.
+         */
+        cercetareLegata?: CercetareSsm | null;
         /** Șoferul sugerat de `app.sofer_la`, când incidentul n-are încă unul. */
         sugestieSoferId: string | null;
       }>
   );
+
+function etichetaCercetare(c: CercetareSsm): string {
+  return `${c.numar_intern ?? "fără număr"} — ${c.data_producerii}, ${c.locul}`;
+}
 
 function etichetaSofer(s: OptiuneSofer): string {
   const marca = s.marca === null ? "" : ` (${s.marca})`;
@@ -49,6 +59,16 @@ function etichetaSofer(s: OptiuneSofer): string {
  */
 export function DialogIncident(props: Proprietati): ReactElement {
   const corectura = props.fel === "corectura" ? props.incident : null;
+  const cercetari = props.fel === "corectura" ? props.cercetari : [];
+  const cercetareLegata = props.fel === "corectura" ? (props.cercetareLegata ?? null) : null;
+  // Legăturile existente care nu mai sunt în listele de alegere trebuie păstrate:
+  // un `<select defaultValue>` fără opțiunea potrivită cade pe prima opțiune
+  // („fără legătură”) și ar șterge legătura la o simplă corectură de descriere.
+  const cercetareLipsa =
+    corectura?.work_accident_id != null &&
+    !cercetari.some((c) => c.id === corectura.work_accident_id);
+  const soferLipsa =
+    corectura?.sofer_id != null && !props.soferi.some((s) => s.id === corectura.sofer_id);
 
   async function trimite(date: FormData) {
     const comune = {
@@ -200,6 +220,11 @@ export function DialogIncident(props: Proprietati): ReactElement {
                 }
               >
                 <option value="">— Nu se știe —</option>
+                {soferLipsa && corectura?.sofer_id != null ? (
+                  <option value={corectura.sofer_id}>
+                    Șoferul legat acum (nu mai apare în listă)
+                  </option>
+                ) : null}
                 {props.soferi.map((s) => (
                   <option key={s.id} value={s.id}>
                     {etichetaSofer(s)}
@@ -319,13 +344,18 @@ export function DialogIncident(props: Proprietati): ReactElement {
                     }
                   >
                     <option value="">— Fără legătură —</option>
-                    {props.fel === "corectura"
-                      ? props.cercetari.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.numar_intern ?? "fără număr"} — {c.data_producerii}, {c.locul}
-                          </option>
-                        ))
-                      : null}
+                    {cercetareLipsa && corectura?.work_accident_id != null ? (
+                      <option value={corectura.work_accident_id}>
+                        {cercetareLegata === null
+                          ? "Cercetarea legată acum (indisponibilă pentru contul dumneavoastră)"
+                          : etichetaCercetare(cercetareLegata)}
+                      </option>
+                    ) : null}
+                    {cercetari.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {etichetaCercetare(c)}
+                      </option>
+                    ))}
                   </select>
                 )}
               </Camp>

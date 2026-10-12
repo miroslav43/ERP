@@ -16,6 +16,7 @@ import {
   NOTA_RECUPERARE,
   TEMEI_ART_39,
   amendaInchisa,
+  raspunsInAsteptare,
   textSugestie,
   verdictTermen,
 } from "@/domain/fleet/amenzi";
@@ -70,8 +71,11 @@ export default async function PaginaAmenda({ params }: ProprietatiPagina) {
   const poateScrisoare = can(permisiuni, "employees:read", "all");
   const azi = todayInBucharest();
   const inchisa = amendaInchisa(amenda.stadiu);
-  const poateDesemna =
-    poateScrie && (amenda.stadiu === "primita" || amenda.stadiu === "sofer_desemnat");
+  // Răspunsul către autoritate n-a plecat: desemnarea și răspunsul rămân posibile
+  // și pe o amendă CONTESTATĂ înainte de răspuns (obligația din art. 39 nu
+  // dispare prin contestare). Aceeași noțiune ca a termenului și a scadențelor.
+  const deRaspuns = raspunsInAsteptare(amenda.stadiu, amenda.raspuns_trimis_la);
+  const poateDesemna = poateScrie && deRaspuns;
 
   const [vehicule, soferi, sugestie, optiuniSoferi] = await Promise.all([
     vehiculeDupaId(tenant.organizationId, [amenda.vehicle_id]),
@@ -92,8 +96,14 @@ export default async function PaginaAmenda({ params }: ProprietatiPagina) {
     sugestie === null
       ? null
       : (optiuniSoferi.find((s) => s.id === sugestie.employee_id)?.full_name ?? null);
-  const verdict = verdictTermen(amenda.termen_raspuns, amenda.stadiu, azi);
+  const verdict = verdictTermen(
+    amenda.termen_raspuns,
+    amenda.stadiu,
+    azi,
+    amenda.raspuns_trimis_la,
+  );
   const areSofer = amenda.sofer_desemnat_id !== null;
+  const poateTrimite = poateScrie && deRaspuns && areSofer;
 
   return (
     <div className="space-y-6">
@@ -239,18 +249,14 @@ export default async function PaginaAmenda({ params }: ProprietatiPagina) {
           {areSofer && poateScrisoare ? (
             <a
               href={`/api/export/flota/amenzi/${amenda.id}/scrisoare`}
-              className={buton({
-                varianta: amenda.stadiu === "sofer_desemnat" ? "primar" : "secundar",
-              })}
+              className={buton({ varianta: deRaspuns ? "primar" : "secundar" })}
             >
               <FileDown aria-hidden="true" className="size-4" />
               Descarcă scrisoarea (PDF)
             </a>
           ) : null}
 
-          {poateScrie && amenda.stadiu === "sofer_desemnat" ? (
-            <DialogRaspuns amendaId={amenda.id} azi={azi} />
-          ) : null}
+          {poateTrimite ? <DialogRaspuns amendaId={amenda.id} azi={azi} /> : null}
         </div>
 
         {areSofer && !poateScrisoare ? (

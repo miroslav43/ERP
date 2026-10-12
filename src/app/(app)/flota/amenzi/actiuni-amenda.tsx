@@ -231,7 +231,7 @@ export function ButoaneStadiuAmenda({
           eticheta="Marchează contestată"
           pictograma={<Gavel aria-hidden="true" className="size-4" />}
           titlu="Amenda a fost contestată?"
-          consecinta="Marcați contestată amenda împotriva căreia s-a formulat plângere. Termenul de răspuns către autoritate rămâne în scadențe până trimiteți răspunsul."
+          consecinta="Marcați contestată amenda împotriva căreia s-a formulat plângere. Termenul de răspuns către autoritate rămâne în scadențe până trimiteți răspunsul, iar șoferul se poate desemna și răspunsul se poate marca și după ce amenda e contestată."
           etichetaConfirmare="Marchează contestată"
           mesajReusita="Amenda a fost marcată contestată."
           executa={() => schimbaStadiulAmenzii({ id: amendaId, stadiu: "contestata" })}

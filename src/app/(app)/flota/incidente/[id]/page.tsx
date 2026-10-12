@@ -111,6 +111,7 @@ export default async function PaginaIncident({ params }: ProprietatiPagina) {
                   incident={incident}
                   soferi={optiuniSoferi}
                   cercetari={cercetari}
+                  cercetareLegata={cercetare}
                   sugestieSoferId={sugestie?.employee_id ?? null}
                 />
               ),

@@ -244,6 +244,25 @@ describe("desemneazaSofer", () => {
     expect(areFiltru(scriere, "in", "stadiu", ["primita", "sofer_desemnat"])).toBe(true);
     expect(areFiltru(scriere, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(scriere?.selectDupaScriere).toBe("id");
+    // Calea obișnuită nu face a doua încercare.
+    expect(server.apeluriPe("vehicle_fines", "update")).toHaveLength(1);
+  });
+
+  it("amenda contestată ÎNAINTE de răspuns: a doua încercare pune doar șoferul, stadiul rămâne „contestată”", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_fines:update": "all" } });
+    server.raspunde("vehicle_fines", "update", { data: null });
+    server.raspunde("vehicle_fines", "update", { data: { id: ID_1 } });
+
+    const r = await desemneazaSofer({ id: ID_1, employee_id: SOFER });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [, a_doua] = server.apeluriPe("vehicle_fines", "update");
+    expect(a_doua?.payload).toEqual({ sofer_desemnat_id: SOFER, updated_by: USER_ID });
+    expect(areFiltru(a_doua, "eq", "stadiu", "contestata")).toBe(true);
+    expect(areFiltru(a_doua, "is", "raspuns_trimis_la", null)).toBe(true);
+    expect(areFiltru(a_doua, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(a_doua, "is", "deleted_at", null)).toBe(true);
+    expect(a_doua?.selectDupaScriere).toBe("id");
   });
 
   it("șoferul altei firmei (23503) ajunge pe `employee_id`", async () => {
@@ -258,11 +277,13 @@ describe("desemneazaSofer", () => {
     });
   });
 
-  it("amenda a trecut între timp în alt stadiu (zero rânduri) = CONFLICT", async () => {
+  it("amenda a trecut între timp în alt stadiu (zero rânduri la ambele încercări) = CONFLICT", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicle_fines:update": "all" } });
+    server.raspunde("vehicle_fines", "update", { data: null });
     server.raspunde("vehicle_fines", "update", { data: null });
     const r = await desemneazaSofer({ id: ID_1, employee_id: SOFER });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("vehicle_fines", "update")).toHaveLength(2);
   });
 
   it("un șofer lipsă se oprește în schemă, pe `employee_id`", async () => {
@@ -323,6 +344,31 @@ describe("trimiteRaspuns", () => {
     expect(areFiltru(scriere, "eq", "stadiu", "sofer_desemnat")).toBe(true);
     expect(areFiltru(scriere, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(scriere?.selectDupaScriere).toBe("id");
+    expect(server.apeluriPe("vehicle_fines", "update")).toHaveLength(1);
+  });
+
+  it("amenda contestată ÎNAINTE de răspuns: a doua încercare scrie răspunsul și lasă stadiul „contestată”", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_fines:update": "all" } });
+    server.raspunde("vehicle_fines", "update", { data: null });
+    server.raspunde("vehicle_fines", "update", { data: { id: ID_1 } });
+
+    const r = await trimiteRaspuns({
+      id: ID_1,
+      raspuns_trimis_la: "2026-10-12",
+      raspuns_numar: "IES-9",
+    });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [, a_doua] = server.apeluriPe("vehicle_fines", "update");
+    expect(a_doua?.payload).toEqual({
+      raspuns_trimis_la: "2026-10-12",
+      raspuns_numar: "IES-9",
+      updated_by: USER_ID,
+    });
+    expect(areFiltru(a_doua, "eq", "stadiu", "contestata")).toBe(true);
+    expect(areFiltru(a_doua, "is", "raspuns_trimis_la", null)).toBe(true);
+    expect(areFiltru(a_doua, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(a_doua?.selectDupaScriere).toBe("id");
   });
 
   it("data din viitor (P0001) ajunge pe `raspuns_trimis_la`", async () => {
@@ -336,11 +382,25 @@ describe("trimiteRaspuns", () => {
     });
   });
 
-  it("fără șofer desemnat (zero rânduri) = CONFLICT, nu succes tăcut", async () => {
+  it("fără șofer desemnat în așteptare (zero rânduri la ambele încercări) = CONFLICT, nu succes tăcut", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "vehicle_fines:update": "all" } });
+    server.raspunde("vehicle_fines", "update", { data: null });
     server.raspunde("vehicle_fines", "update", { data: null });
     const r = await trimiteRaspuns({ id: ID_1, raspuns_trimis_la: "2026-10-12" });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("vehicle_fines", "update")).toHaveLength(2);
+  });
+
+  it("amenda contestată fără șofer: baza refuză (P0001) și mesajul ajunge pe `employee_id`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "vehicle_fines:update": "all" } });
+    const mesaj = "Alegeți șoferul pe care îl comunicați autorității.";
+    server.raspunde("vehicle_fines", "update", { data: null });
+    server.raspunde("vehicle_fines", "update", { error: eroarePostgrest("P0001", mesaj) });
+    const r = await trimiteRaspuns({ id: ID_1, raspuns_trimis_la: "2026-10-12" });
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", fieldErrors: { employee_id: [mesaj] } },
+    });
   });
 });
 

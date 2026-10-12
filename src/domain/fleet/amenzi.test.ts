@@ -20,6 +20,7 @@ import {
   modelScrisoareDesemnare,
   poateTrece,
   raspunsDeTrimis,
+  raspunsInAsteptare,
   stadiiUrmatoareIncident,
   textSugestie,
   verdictTermen,
@@ -82,6 +83,17 @@ describe("tranzițiile amenzii", () => {
       "sofer_desemnat",
       "contestata",
     ]);
+  });
+
+  it("răspunsul e în așteptare doar cât n-a plecat: stadiul nu ajunge, o amendă contestată după răspuns nu mai e de răspuns", () => {
+    expect(raspunsInAsteptare("primita", null)).toBe(true);
+    expect(raspunsInAsteptare("sofer_desemnat", null)).toBe(true);
+    expect(raspunsInAsteptare("contestata", null)).toBe(true);
+    // Contestată DUPĂ răspuns (răspuns trimis → contestată): data rămâne în rând.
+    expect(raspunsInAsteptare("contestata", "2026-09-28")).toBe(false);
+    expect(raspunsInAsteptare("raspuns_trimis", "2026-09-28")).toBe(false);
+    expect(raspunsInAsteptare("platita", null)).toBe(false);
+    expect(raspunsInAsteptare("anulata", null)).toBe(false);
   });
 
   it("fiecare stadiu are etichetă în română, cu diacritice cu virgulă", () => {

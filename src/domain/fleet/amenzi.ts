@@ -81,6 +81,17 @@ export function raspunsDeTrimis(stadiu: StadiuAmenda): boolean {
   return stadiu === "primita" || stadiu === "sofer_desemnat" || stadiu === "contestata";
 }
 
+/**
+ * Răspunsul e încă în așteptare: stadiul îl mai cere ȘI n-a plecat. Stadiul
+ * singur nu ajunge, fiindcă „răspuns trimis → contestată” păstrează data
+ * răspunsului în rând (oglinda lui `internal.amenzi_scadenta`). Din această
+ * funcție vin butoanele de desemnare și de răspuns, termenul și numerele de
+ * deasupra listei: toate trebuie să spună același lucru.
+ */
+export function raspunsInAsteptare(stadiu: StadiuAmenda, raspunsTrimisLa: string | null): boolean {
+  return raspunsTrimisLa === null && raspunsDeTrimis(stadiu);
+}
+
 export type TonTermen = "pericol" | "atentie" | "neutru";
 export type StareTermen =
   "fara_termen" | "nu_se_aplica" | "depasit" | "astazi" | "aproape" | "in_termen";
@@ -119,7 +130,7 @@ export function verdictTermen(
 ): VerdictTermen {
   // Răspunsul a plecat deja (chiar dacă amenda a fost apoi contestată): termenul
   // nu mai curge. Oglinda lui `internal.amenzi_scadenta`.
-  if (raspunsTrimisLa !== null || !raspunsDeTrimis(stadiu)) {
+  if (!raspunsInAsteptare(stadiu, raspunsTrimisLa)) {
     return { stare: "nu_se_aplica", zile: null, eticheta: "Nu mai e de răspuns", ton: "neutru" };
   }
   if (termen === null) {

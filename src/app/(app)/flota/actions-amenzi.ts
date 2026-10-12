@@ -196,8 +196,24 @@ export const desemneazaSofer = createAction({
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroareAmenzi(error);
-    if (data === null) throw businessRule(MESAJ_STADIU_AMENDA);
-    return { id: data.id };
+    if (data !== null) return { id: data.id };
+
+    // Amenda contestată ÎNAINTE ca răspunsul să fi plecat: termenul rămâne în
+    // scadențe (`internal.amenzi_scadenta`), deci omul trebuie să poată încă
+    // desemna șoferul. Stadiul „contestată” nu se pierde: se scrie doar șoferul.
+    const contestata = await ctx.supabase
+      .from("vehicle_fines")
+      .update({ sofer_desemnat_id: input.employee_id, updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("stadiu", "contestata")
+      .is("raspuns_trimis_la", null)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (contestata.error !== null) traduEroareAmenzi(contestata.error);
+    if (contestata.data === null) throw businessRule(MESAJ_STADIU_AMENDA);
+    return { id: contestata.data.id };
   },
 });
 
@@ -259,12 +275,33 @@ export const trimiteRaspuns = createAction({
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroareAmenzi(error);
-    if (data === null) {
+    if (data !== null) return { id: data.id };
+
+    // Amenda contestată ÎNAINTE de răspuns: obligația față de autoritate rămâne
+    // (art. 39 alin. (1)), deci răspunsul se poate marca și așa. Stadiul rămâne
+    // „contestată”; data răspunsului scoate termenul din scadențe. Dacă n-are
+    // șofer desemnat, baza refuză (P0001), iar mesajul ajunge pe `employee_id`.
+    const contestata = await ctx.supabase
+      .from("vehicle_fines")
+      .update({
+        raspuns_trimis_la: input.raspuns_trimis_la,
+        raspuns_numar: input.raspuns_numar,
+        updated_by: ctx.user.id,
+      })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("stadiu", "contestata")
+      .is("raspuns_trimis_la", null)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (contestata.error !== null) traduEroareAmenzi(contestata.error);
+    if (contestata.data === null) {
       throw businessRule(
-        "Răspunsul nu s-a putut marca: amenda nu mai are un șofer desemnat în așteptare, sau nu aveți dreptul s-o modificați. Reîncărcați pagina.",
+        "Răspunsul nu s-a putut marca: amenda nu mai are un răspuns în așteptare, sau nu aveți dreptul s-o modificați. Reîncărcați pagina.",
       );
     }
-    return { id: data.id };
+    return { id: contestata.data.id };
   },
 });
 

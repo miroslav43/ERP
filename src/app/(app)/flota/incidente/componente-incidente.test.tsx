@@ -210,6 +210,61 @@ describe("DialogIncident — corectura", () => {
     expect(camp(/Șoferul de atunci/).value).toBe(ANA);
   });
 
+  it("legătura SSM existentă, ieșită din listă (modul oprit, peste primele 100), NU se pierde la salvare", async () => {
+    // Fără opțiunea ei, `<select defaultValue>` cade pe „— Fără legătură —” și
+    // formularul trimite „”: o simplă corectură de descriere ar șterge legătura.
+    const LEGATA = "e5e5e5e5-5555-4555-8555-555555555555";
+    render(
+      <DialogIncident
+        fel="corectura"
+        incident={{ ...INCIDENT, work_accident_id: LEGATA }}
+        soferi={SOFERI}
+        cercetari={[]}
+        sugestieSoferId={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Corectează detaliile/ }));
+    expect(camp(/Cercetarea SSM/).value).toBe(LEGATA);
+    fireEvent.change(camp(/^Descrierea/), { target: { value: "Zgâriere aripă stângă" } });
+    await trimite();
+
+    expect(actualizeazaIncident).toHaveBeenCalledTimes(1);
+    expect(actualizeazaIncident.mock.calls[0]?.[0]).toMatchObject({ work_accident_id: LEGATA });
+  });
+
+  it("legătura SSM citibilă, dar în afara listei, apare cu numărul cercetării", () => {
+    render(
+      <DialogIncident
+        fel="corectura"
+        incident={{ ...INCIDENT, work_accident_id: CERCETARE }}
+        soferi={SOFERI}
+        cercetari={[]}
+        cercetareLegata={CERCETARI[0] ?? null}
+        sugestieSoferId={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Corectează detaliile/ }));
+    expect(camp(/Cercetarea SSM/).value).toBe(CERCETARE);
+    expect(screen.getByRole("option", { name: /AM-1 — 2026-10-11, Parcare/ })).toBeTruthy();
+  });
+
+  it("șoferul legat, care nu mai e în listă, NU se pierde la salvare", async () => {
+    const PLECAT = "f6f6f6f6-6666-4666-8666-666666666666";
+    render(
+      <DialogIncident
+        fel="corectura"
+        incident={{ ...INCIDENT, sofer_id: PLECAT }}
+        soferi={SOFERI}
+        cercetari={[]}
+        sugestieSoferId={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Corectează detaliile/ }));
+    expect(camp(/Șoferul de atunci/).value).toBe(PLECAT);
+    await trimite();
+    expect(actualizeazaIncident.mock.calls[0]?.[0]).toMatchObject({ sofer_id: PLECAT });
+  });
+
   it("fără acces SSM (listă goală), selectorul spune de ce nu oferă nimic", () => {
     render(
       <DialogIncident
