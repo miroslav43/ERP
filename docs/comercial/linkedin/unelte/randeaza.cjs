@@ -9,10 +9,12 @@ const { lanseaza } = require("./chromium.cjs");
   for (const f of fs
     .readdirSync(path.join(__dirname, "export"))
     .filter((f) => f.endsWith(".html"))) {
-    const banner = f.startsWith("Banner");
-    const p = await b.newPage({
-      viewport: { width: banner ? 1128 : 1080, height: banner ? 191 : 1350 },
-    });
+    const [width, height] = f.startsWith("Banner")
+      ? [1128, 191]
+      : f.startsWith("Facebook")
+        ? [1640, 624]
+        : [1080, 1350];
+    const p = await b.newPage({ viewport: { width, height } });
     await p.goto("file://" + path.join(__dirname, "export", f), { waitUntil: "networkidle" });
     await p.evaluate(() => document.fonts.ready);
     await p.screenshot({ path: path.join(__dirname, "png", f.replace(".html", ".png")) });

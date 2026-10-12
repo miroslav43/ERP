@@ -5,13 +5,18 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const cache = path.join(os.homedir(), ".cache", "ms-playwright");
+const mac = process.platform === "darwin";
+const cache = mac
+  ? path.join(os.homedir(), "Library", "Caches", "ms-playwright")
+  : path.join(os.homedir(), ".cache", "ms-playwright");
 const shell = fs
   .readdirSync(cache)
   .filter((d) => d.startsWith("chromium_headless_shell-"))
   .sort()
   .pop();
-const executablePath = path.join(cache, shell, "chrome-linux", "headless_shell");
+const executablePath = mac
+  ? path.join(cache, shell, "chrome-headless-shell-mac-arm64", "chrome-headless-shell")
+  : path.join(cache, shell, "chrome-linux", "headless_shell");
 
 const pnpm = path.join(__dirname, "../../../../node_modules/.pnpm");
 const core = fs
