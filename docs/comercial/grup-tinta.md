@@ -106,14 +106,14 @@ cererile.”_
 > mașinilor sunt notate într-un caiet. Iar laptopul cu care a plecat un fost
 > angajat nu-l mai știe nimeni.
 >
-> Problema nu e niciuna dintre aceste sarcini în sine. Problema e că sunt șapte
+> Problema nu e niciuna dintre aceste sarcini în sine. Problema e că sunt șase
 > locuri care nu vorbesc între ele, și omul de la birou le leagă de mână, în
 > fiecare lună.
 >
 > Administrativo le pune în același loc. Concediul aprobat apare singur pe
-> pontaj, intră în salariu și, dacă suspendă contractul, pregătește singur declarația
-> pentru REGES. Diurna
-> din deplasare intră în salariu cu partea neimpozabilă deja calculată. Când
+> pontaj, intră în salariu și, dacă suspendă contractul, pregătește singur
+> declarația pentru REGES. Diurna din deplasare intră în salariu cu partea
+> neimpozabilă deja calculată. Când
 > pleacă un om, aplicația știe ce laptop, ce mașină și ce cursuri are. Nimeni nu
 > mai tastează același lucru de trei ori.
 >
