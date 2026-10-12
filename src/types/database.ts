@@ -6270,8 +6270,12 @@ export type Database = {
           emitent: string
           equipment_id: string
           id: string
-          numar: string
+          inlocuita_de_id: string | null
+          motiv_suspendare: string | null
+          numar: string | null
           organization_id: string
+          reactivata_la: string | null
+          regim: Database["public"]["Enums"]["iscir_regim"]
           scadenta_verificare_tehnica: string | null
           suspendata_la: string | null
           tip: string
@@ -6288,8 +6292,12 @@ export type Database = {
           emitent?: string
           equipment_id: string
           id?: string
-          numar: string
+          inlocuita_de_id?: string | null
+          motiv_suspendare?: string | null
+          numar?: string | null
           organization_id: string
+          reactivata_la?: string | null
+          regim?: Database["public"]["Enums"]["iscir_regim"]
           scadenta_verificare_tehnica?: string | null
           suspendata_la?: string | null
           tip: string
@@ -6306,8 +6314,12 @@ export type Database = {
           emitent?: string
           equipment_id?: string
           id?: string
-          numar?: string
+          inlocuita_de_id?: string | null
+          motiv_suspendare?: string | null
+          numar?: string | null
           organization_id?: string
+          reactivata_la?: string | null
+          regim?: Database["public"]["Enums"]["iscir_regim"]
           scadenta_verificare_tehnica?: string | null
           suspendata_la?: string | null
           tip?: string
@@ -6321,6 +6333,13 @@ export type Database = {
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iscir_authorizations_inlocuita_de_fkey"
+            columns: ["inlocuita_de_id"]
+            isOneToOne: false
+            referencedRelation: "iscir_authorizations"
             referencedColumns: ["id"]
           },
           {
@@ -14052,6 +14071,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      reinnoieste_autorizatie_iscir: {
+        Args: {
+          p_autorizatie: string
+          p_conditii?: string | null
+          p_emis_la?: string | null
+          p_emitent?: string | null
+          p_numar?: string | null
+          p_scadenta_verificare_tehnica?: string | null
+          p_valabil_pana: string
+        }
+        Returns: string
+      }
       sedii_pentru_pontaj: {
         Args: { p_organization_id: string }
         Returns: {
@@ -14301,6 +14332,7 @@ export type Database = {
       inventory_item_stare: "nou" | "bun" | "uzat" | "defect"
       inventory_item_status: "in_stoc" | "alocat" | "in_reparatie" | "casat"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
+      iscir_regim: "inregistrat" | "neinregistrat_rsvti"
       kpi_indicator_tip: "masurat" | "apreciat"
       kpi_sens: "crestere" | "descrestere"
       leave_accrual_event:
@@ -14859,6 +14891,7 @@ export const Constants = {
       inventory_item_stare: ["nou", "bun", "uzat", "defect"],
       inventory_item_status: ["in_stoc", "alocat", "in_reparatie", "casat"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
+      iscir_regim: ["inregistrat", "neinregistrat_rsvti"],
       kpi_indicator_tip: ["masurat", "apreciat"],
       kpi_sens: ["crestere", "descrestere"],
       leave_accrual_event: [

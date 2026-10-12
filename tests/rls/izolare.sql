@@ -4489,6 +4489,142 @@ exception when others then
 end $$;
 -- ── sfârșit M6 ───────────────────────────────────────────────────────────────
 
+-- ── Mentenanță M7 (0193) ─────────────────────────────────────────────────────
+-- (l), continuare — autorizațiile ISCIR: regim, suspendare, reînnoire
+--
+-- Administratorul înregistrează o evidență RSVTI fără număr (cazul 42), o
+-- suspendă cu motiv și ridică suspendarea (`reactivata_la` o pune garda),
+-- o reînnoiește prin `public.reinnoieste_autorizatie_iscir` (SECURITY INVOKER,
+-- deci exact politicile lui) și anulează reînnoirea ștergând-o logic — rândul
+-- vechi revine. `manager`, `hr` și `employee` n-au `maintenance:update`:
+-- refuz la INSERT, ZERO rânduri la UPDATE, refuz la reînnoire. `super_admin`
+-- citește. Se numără rândurile, nu se ascultă erorile (capcana 17).
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_echip  uuid := pg_temp.id('equip_alfa');
+  v_aut    uuid;
+  v_nou    uuid;
+  v_rol_user uuid;
+  v_sa     uuid := gen_random_uuid();
+  v_react  date;
+  v_inloc  uuid;
+  v_reinnoit boolean;
+  n        int;
+begin
+  -- 1. org_admin: evidența RSVTI fără număr trece (CHECK-ul cere numărul doar la `inregistrat`).
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.iscir_authorizations (organization_id, equipment_id, regim, numar, tip, valabil_pana)
+  values (v_alfa, v_echip, 'neinregistrat_rsvti', null, 'stivuitor', current_date + 200)
+  returning id into v_aut;
+  reset role;
+  if v_aut is null then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate înregistra evidența RSVTI fără număr');
+  end if;
+
+  -- 2. Suspendarea cu motiv, apoi ridicarea ei.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.iscir_authorizations
+       set suspendata_la = current_date, motiv_suspendare = 'PV RSVTI: frâna necorespunzătoare.'
+     where id = v_aut and suspendata_la is null returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(l) ⚠ REFUZ TĂCUT: `org_admin` nu a putut suspenda autorizația (zero rânduri)');
+  end if;
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.iscir_authorizations set suspendata_la = null
+     where id = v_aut and suspendata_la is not null returning reactivata_la)
+  select count(*), max(reactivata_la) into n, v_react from m;
+  reset role;
+  if n <> 1 or v_react is distinct from app.azi_local() then
+    perform pg_temp.esueaza(format('(l) ridicarea suspendării: %s rânduri, reactivata_la = %s', n, v_react));
+  end if;
+
+  -- 3. Reînnoirea prin funcție (rând nou + legătura pe cel vechi), apoi anularea ei.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  v_nou := public.reinnoieste_autorizatie_iscir(v_aut, current_date + 700);
+  select inlocuita_de_id into v_inloc from public.iscir_authorizations where id = v_aut;
+  reset role;
+  if v_nou is null or v_inloc is distinct from v_nou then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: reînnoirea de către org_admin: nou=%s, legătura=%s', v_nou, v_inloc));
+  end if;
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.iscir_authorizations set deleted_at = now()
+     where id = v_nou and deleted_at is null returning 1)
+  select count(*) into n from m;
+  select inlocuita_de_id into v_inloc from public.iscir_authorizations where id = v_aut;
+  reset role;
+  if n <> 1 or v_inloc is not null then
+    perform pg_temp.esueaza(format('(l) ștergerea reînnoirii: %s rânduri, rândul vechi legat de %s (așteptat 1 și null)', n, v_inloc));
+  end if;
+
+  -- 4. manager, hr, employee: fără `maintenance:update`.
+  foreach v_rol_user in array array[pg_temp.id('mgr_user_alfa'), pg_temp.id('hr_user_alfa'), pg_temp.id('emp_alfa')] loop
+    perform set_config('request.jwt.claim.sub', v_rol_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.iscir_authorizations (organization_id, equipment_id, regim, tip, valabil_pana)
+      values (v_alfa, v_echip, 'neinregistrat_rsvti', 'stivuitor', current_date + 100);
+      reset role;
+      perform pg_temp.esueaza(format('(l) FALS-POZITIV: %s a înregistrat o autorizație ISCIR', v_rol_user));
+    exception when insufficient_privilege then
+      reset role;
+    end;
+    set local role authenticated;
+    with m as (
+      update public.iscir_authorizations
+         set suspendata_la = current_date, motiv_suspendare = 'Nepermis de rol.'
+       where id = v_aut returning 1)
+    select count(*) into n from m;
+    reset role;
+    if n <> 0 then
+      perform pg_temp.esueaza(format('(l) FALS-POZITIV: %s a suspendat o autorizație ISCIR', v_rol_user));
+    end if;
+    set local role authenticated;
+    -- Steagul, nu `esueaza` în blocul protejat: garda ar prinde-o ca P0001.
+    v_reinnoit := true;
+    begin
+      perform public.reinnoieste_autorizatie_iscir(v_aut, current_date + 900);
+    exception when insufficient_privilege or raise_exception then
+      -- managerul vede rândul și e oprit de `app.can` (42501); hr și employee
+      -- nu-l văd deloc, deci funcția spune „nu vă este accesibilă” (P0001).
+      v_reinnoit := false;
+    end;
+    reset role;
+    if v_reinnoit then
+      perform pg_temp.esueaza(format('(l) FALS-POZITIV: %s a reînnoit o autorizație ISCIR', v_rol_user));
+    end if;
+  end loop;
+
+  -- 5. super_admin citește autorizațiile firmei.
+  insert into auth.users (id, email) values (v_sa, 'platforma-m7-' || left(v_sa::text, 8) || '@test.test');
+  insert into public.platform_admins (user_id) values (v_sa);
+  perform set_config('request.jwt.claim.sub', v_sa::text, true);
+  set local role authenticated;
+  select count(*) into n from public.iscir_authorizations where organization_id = v_alfa;
+  reset role;
+  if n = 0 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: super_admin nu vede autorizațiile ISCIR');
+  end if;
+
+  raise notice '(l) autorizațiile ISCIR: org_admin înregistrează fără număr (RSVTI), suspendă, ridică suspendarea, reînnoiește și anulează reînnoirea; manager, hr și employee sunt refuzați; super_admin citește ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) verificarea autorizațiilor ISCIR a eșuat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+-- ── sfârșit M7 ───────────────────────────────────────────────────────────────
+
 
 rollback;
 
