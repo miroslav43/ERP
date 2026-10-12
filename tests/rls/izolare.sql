@@ -4657,6 +4657,7 @@ declare
   v_rap       uuid := pg_temp.id('ang_alfa');
   v_mgr_user  uuid := pg_temp.id('mgr_user_alfa');
   v_hr_user   uuid := pg_temp.id('hr_user_alfa');
+  v_sa_user   uuid := gen_random_uuid();       -- super_admin, creat în bloc
   v_fr_fixt   uuid := pg_temp.id('fr_alfa');
   v_fisa_adm  uuid := pg_temp.id('mgr_alfa');   -- fișa administratorului (`user_id` = admin_alfa)
   v_teh_user  uuid := gen_random_uuid();
@@ -4973,6 +4974,43 @@ begin
     else
       v_scapate := v_scapate || E'\n  hr -> vede sesizările mentenanței';
     end if;
+
+    -- `super_admin` (`platform_admins`, niciodată în `organization_members`): consola
+    -- de platformă CITEȘTE mentenanța firmelor client, nu o scrie. Stabilit empiric pe
+    -- banc (nu dedus din seed): citirea trece prin `app.is_platform_admin()`, scrierea
+    -- nu are ramură pentru platformă și cade cu 42501.
+    insert into auth.users (id, email) values (v_sa_user, 'platforma-m10-' || v_rand || '@test.test');
+    insert into public.platform_admins (user_id) values (v_sa_user);
+    perform set_config('request.jwt.claim.sub', v_sa_user::text, true);
+    set local role authenticated;
+    select count(*) into n from public.fault_reports where id = v_sez;
+    if n <> 1 then
+      v_esuate := v_esuate || E'\n  super_admin -> fault_reports: nu citește sesizarea unei firme client';
+    end if;
+    select count(*) into n from public.equipment where id = v_echip;
+    if n <> 1 then
+      v_esuate := v_esuate || E'\n  super_admin -> equipment: nu citește utilajul unei firme client';
+    end if;
+    if n = 1 then
+      v_reusite := v_reusite || E'\n  super_admin -> fault_reports + equipment: citește';
+    end if;
+    begin
+      insert into public.equipment (organization_id, cod, denumire)
+      values (v_alfa, 'M10-SA-' || v_rand, 'Utilaj scris de platformă');
+      v_scapate := v_scapate || E'\n  super_admin -> equipment: a INSERAT într-o firmă client';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> equipment: nu scrie (42501), ca așteptat';
+    end;
+    begin
+      update public.fault_reports set descriere = 'Rescrisă de platformă' where id = v_sez;
+      get diagnostics n = row_count;
+      if n <> 0 then
+        v_scapate := v_scapate || format(E'\n  super_admin -> fault_reports: a rescris %s rânduri', n);
+      end if;
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> fault_reports: nu scrie (42501), ca așteptat';
+    end;
+    reset role;
   end if;
 
   if v_scapate <> '' then
@@ -4985,7 +5023,7 @@ begin
   end if;
 
   raise notice '(l) M10, scrieri reușite:%', v_reusite;
-  raise notice '(l) mentenanța M10: org_admin scrie echipamentul, contorul, planul, intervenția, oprirea și atașamentul, triază și atribuie; tehnicianul atribuit își duce sesizarea până la rezolvat, raportorul o confirmă; refuzurile (urgența, sesizarea altcuiva, nota internă, managerul, hr) ține ✓';
+  raise notice '(l) mentenanța M10: org_admin scrie echipamentul, contorul, planul, intervenția, oprirea și atașamentul, triază și atribuie; tehnicianul atribuit își duce sesizarea până la rezolvat, raportorul o confirmă; refuzurile (urgența, sesizarea altcuiva, nota internă, managerul, hr, super_admin la scriere) țin și super_admin citește ✓';
 exception when others then
   reset role;
   perform pg_temp.esueaza(format('(l) verificarea M10 a mentenanței a eșuat: %s (%s)', sqlerrm, sqlstate));
