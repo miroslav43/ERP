@@ -15,7 +15,7 @@ citeste_daca:
   - "cineva nu primește rezumatul, îl primește dublat sau vede ceva ce nu-i aparține → „Cine primește ce”"
   - "pragurile salvate în setări nu schimbă alertele → „Ce refuză baza tăcut”"
   - "fișiere rămase în bucket fără rând → „Curățarea încărcărilor”"
-scris_pe: af0af97b541c0f50b65218aae6a77545406acbc7
+scris_pe: 7986b70c6691c438ae6cec27d9eb91698726036b
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -80,7 +80,11 @@ e `/mentenanta` pentru cine are `maintenance:read` ≥ team (citit prin
   managerul atinge zero rânduri. Un `super_admin` atinge și el zero: politica de UPDATE
   din `0181` n-are ramură de platformă. — capcana #17
 - **Nu se cheamă `internal.curata_alerte`**: lucrează pe toată firma și ar închide alertele
-  Flotei din jobul altui modul.
+  Flotei din jobul altui modul. Consecința: un prag `nou` rămâne `nou` și după scadență,
+  iar alerta unei scadențe vechi rămâne și ea. Rezumatul ia deci doar alertele cu
+  `due_date = expires_at` ale scadenței curente, `nou` doar cât scadența e în viitor și
+  `expirat` doar după — altfel un destinatar nou primea planul numărat și „depășit”, și
+  „apropiat” (proba (12)).
 
 ## Curățarea încărcărilor
 
@@ -98,7 +102,14 @@ obiectul în viață). Orice eroare e înghițită. Un orfan pe o entitate la ca
 („30, 14, 7”), tăiat de `bucatiPraguri` și validat de `setariMentenantaSchema` — 1–8
 valori, fiecare 1–365 zile, normalizate descrescător (`normalizeazaPraguri`), aceleași
 limite ca `maintenance_settings_praguri_ck`. Fișierul `"use server"` nu exportă
-constanta de vârstă a orfanilor (capcana #39).
+constanta de vârstă a orfanilor (capcana #39). Pragurile intră în `audit.allow` al
+acțiunii (și în auditul de bază al tabelei, din `0181`).
+
+Rândurile de setări de dinainte de `0191` au primit, la migrare, pragurile pe care
+motorul le aplica deja unui plan (regula `maintenance_plan`/`'*'` a firmei, altfel
+`praguri_implicite()`); unde diferă de 30/14/7, triggerul a scris și regulile specifice.
+Astfel câmpul arată ce se aplică, nu default-ul coloanei. Excepția: o regulă `'*'` cu un
+prag peste 365 nu încape în CHECK — firma aceea rămâne pe ea până la prima salvare.
 
 ## Când NU e suficientă pagina asta
 
