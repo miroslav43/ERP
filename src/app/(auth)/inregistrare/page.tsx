@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 
 import { ScriptUmami } from "@/app/(marketing)/_componente/analitice";
+import { type ParametriPagina, sursaDinParametri } from "@/lib/unelte/masurare";
 
 import { FormularInregistrare } from "./formular-inregistrare";
 
@@ -19,10 +20,18 @@ import { FormularInregistrare } from "./formular-inregistrare";
  */
 export const metadata: Metadata = { title: "Creează contul firmei" };
 
-export default function PaginaInregistrare() {
+/**
+ * `searchParams` face pagina dinamică; costul e o randare pe cerere, pe o pagină
+ * vizitată de câteva ori pe săptămână. Sursa e doar un slug din hartă — nimic
+ * din ce scrie vizitatorul nu trece pe aici.
+ */
+export default async function PaginaInregistrare({
+  searchParams,
+}: Readonly<{ searchParams: Promise<ParametriPagina> }>) {
+  const sursa = sursaDinParametri(await searchParams);
   return (
     <>
-      <FormularInregistrare />
+      <FormularInregistrare sursa={sursa} />
       {/*
         Măsurarea, DOAR aici, nu pe tot grupul `(auth)`: alături stă
         `/invitatie/[token]`, iar o vizualizare de pagină de acolo ar duce

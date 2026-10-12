@@ -7,6 +7,8 @@ import { FormularDialog } from "@/components/ui/formular-dialog";
 import { arataToast } from "@/components/ui/toast";
 
 import { formatLei } from "@/lib/format/money";
+import { useRouter } from "next/navigation";
+
 import { modificaSalariulContractului } from "../actions";
 
 /**
@@ -23,6 +25,8 @@ import { modificaSalariulContractului } from "../actions";
  */
 
 interface Proprietati {
+  /** `/salarizare`, doar pentru cine o poate deschide (modul + drept, calculat pe server). */
+  readonly hrefSalarizare?: string | null;
   readonly contractId: string;
   /** Salariul ÎN VIGOARE azi — al ultimului act adițional, dacă există. */
   readonly salariuActual: number;
@@ -31,11 +35,13 @@ interface Proprietati {
 }
 
 export function FormularModificaSalariu({
+  hrefSalarizare = null,
   contractId,
   salariuActual,
   azi,
   primaZiLunaUrmatoare,
 }: Proprietati) {
+  const router = useRouter();
   /** Cheile obiectului sunt EXACT cele din `modificaSalariuContractSchema`. */
   async function trimite(date: FormData) {
     return modificaSalariulContractului({
@@ -62,6 +68,17 @@ export function FormularModificaSalariu({
             data.document === null
               ? `Actul adițional nr. ${data.numar} a fost înregistrat.`
               : `Actul adițional nr. ${data.numar} a fost înregistrat; documentul ${data.document} e în dosar.`,
+          // Salariul nou intră în fluturașul lunii viitoare: drumul spre salarizare, la un clic.
+          ...(hrefSalarizare === null
+            ? {}
+            : {
+                actiune: {
+                  eticheta: "Deschide salarizarea",
+                  onClick: () => {
+                    router.push(hrefSalarizare);
+                  },
+                },
+              }),
         });
         for (const avertisment of data.avertismente) {
           arataToast({ fel: "informativ", text: avertisment });

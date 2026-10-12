@@ -19,6 +19,7 @@ import {
   reactiveazaPunctLucru,
   rotesteCodPontaj,
 } from "./actions";
+import { arataToast } from "@/components/ui/toast";
 
 /**
  * Acțiunile unui rând din lista punctelor de lucru: editarea și dezactivarea.
@@ -106,6 +107,20 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
         setEroare(rezultat.error.message);
         return;
       }
+      // Când codul exista deja, ecranul rămâne identic după rotire: fără
+      // mesaj, omul nu știe că a reușit și nici că afișele vechi au murit.
+      arataToast({
+        fel: "reusita",
+        text: punct.areCodPontaj
+          ? "Cod nou generat. Afișele tipărite cu codul vechi nu mai sunt valabile."
+          : "Codul QR a fost generat.",
+        actiune: {
+          eticheta: "Afișul de tipărit",
+          onClick: () => {
+            router.push(`/puncte-lucru/${punct.id}/afis`);
+          },
+        },
+      });
       router.refresh();
     });
   }

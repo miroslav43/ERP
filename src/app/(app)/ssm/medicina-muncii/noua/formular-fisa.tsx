@@ -34,7 +34,17 @@ interface AngajatOptiune {
  * `nume` din fiecare `<Camp>` e cheia din `fisaAptitudineSchema`, literă cu
  * literă. Schema nu are `observatii` și nu are diagnostic — nici formularul.
  */
-export function FormularFisa({ angajati }: { readonly angajati: readonly AngajatOptiune[] }) {
+export function FormularFisa({
+  angajati,
+  angajatImplicit = null,
+  inapoi = null,
+}: {
+  readonly angajati: readonly AngajatOptiune[];
+  /** Din `?angajat=`: omul deja ales, când formularul se deschide de pe fișa lui. */
+  readonly angajatImplicit?: string | null;
+  /** Unde se întoarce după salvare; `null` = lista generală. Validat de pagină. */
+  readonly inapoi?: string | null;
+}) {
   const router = useRouter();
 
   async function trimite(formular: FormData) {
@@ -60,9 +70,9 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
   // Stabil între randări: `laReusita` intră în lista de dependențe a efectului
   // din `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul.
   const laReusita = useCallback(() => {
-    router.push("/ssm/medicina-muncii");
+    router.push(inapoi ?? "/ssm/medicina-muncii");
     router.refresh();
-  }, [router]);
+  }, [router, inapoi]);
 
   return (
     <Formular actiune={trimite} laReusita={laReusita} mesajReusita="Fișa a fost salvată.">
@@ -84,7 +94,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
                 erori={stare.erori["employee_id"] ?? []}
               >
                 {(a) => (
-                  <select {...a} defaultValue={trimise["employee_id"] ?? ""}>
+                  <select {...a} defaultValue={trimise["employee_id"] ?? angajatImplicit ?? ""}>
                     {/* Opțiune goală, PRIMA: fără ea browserul selecta singur
                         primul om din listă, iar `required` nu bloca nimic —
                         există o valoare aleasă. O apăsare distrată scria o fișă de aptitudine — date de sănătate, art. 9 GDPR — pe

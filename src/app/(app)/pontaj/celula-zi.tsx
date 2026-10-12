@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
@@ -31,6 +32,10 @@ interface Proprietati {
   readonly data: string;
   readonly eticheta: string;
   readonly intrare: IntrareZiClient | null;
+  /** Fișa omului din titlu; `null` = fără drept sau rând propriu. */
+  readonly hrefFisa?: string | null;
+  /** Fișa săptămânii zilei; `null` = pagina nu se deschide pentru rol. */
+  readonly hrefSaptamana?: string | null;
   /**
    * Intervalul tras pe grila orară, pentru o zi care încă n-are unul — sau
    * pentru una căreia omul tocmai i-l redefinește prin tragere.
@@ -95,6 +100,8 @@ export function CelulaZi({
   data,
   eticheta,
   intrare,
+  hrefFisa = null,
+  hrefSaptamana = null,
   oraInceputInitiala,
   oraSfarsitInitiala,
   poateSterge,
@@ -164,10 +171,12 @@ export function CelulaZi({
   */
   const sediiAfisate =
     angajatId === null ? sedii : sedii.map((s) => ({ ...s, din_contract: false }));
-  const sediuScanat =
+  const sediulScanat =
     intrare?.punctLucruId == null
       ? null
-      : (sedii.find((s) => s.id === intrare.punctLucruId)?.denumire ?? "un sediu inactiv");
+      : (sedii.find((s) => s.id === intrare.punctLucruId) ?? null);
+  const sediuScanat =
+    intrare?.punctLucruId == null ? null : (sediulScanat?.denumire ?? "un sediu inactiv");
 
   const idTitlu = useId();
   const idOraInceput = useId();
@@ -345,6 +354,22 @@ export function CelulaZi({
         <h2 id={idTitlu} className="text-sectiune font-semibold">
           {eticheta}
         </h2>
+        {/* Titlul era „Nume (marcă) · dată” fără niciun drum: nici spre fișa
+            omului, nici spre săptămâna din care face parte ziua. */}
+        {hrefFisa === null && hrefSaptamana === null ? null : (
+          <p className="text-nota -mt-2 flex flex-wrap gap-x-3">
+            {hrefFisa === null ? null : (
+              <Link href={hrefFisa} className="underline-offset-2 hover:underline">
+                Fișa angajatului
+              </Link>
+            )}
+            {hrefSaptamana === null ? null : (
+              <Link href={hrefSaptamana} className="underline-offset-2 hover:underline">
+                Săptămâna, pe ore
+              </Link>
+            )}
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -460,7 +485,21 @@ export function CelulaZi({
         {/* Sediul zilei (0163): scanat = dovedit, deci doar se spune; altfel se alege. */}
         {!tipulPermiteSediu(tipPrezenta) ? null : sediuScanat !== null ? (
           <p className="text-muted-foreground text-corp">
-            Sediul: <span className="text-foreground">{sediuScanat}</span>, din codul QR scanat.
+            Sediul:{" "}
+            {sediulScanat?.href == null ? (
+              <span className="text-foreground">{sediuScanat}</span>
+            ) : (
+              // Fereastră nouă: celula e un dialog modal, o navigare în loc l-ar închide.
+              <a
+                href={sediulScanat.href}
+                target="_blank"
+                rel="noreferrer"
+                className="text-foreground underline-offset-2 hover:underline"
+              >
+                {sediuScanat}
+              </a>
+            )}
+            , din codul QR scanat.
           </p>
         ) : alegeSediul ? (
           <CampSediu

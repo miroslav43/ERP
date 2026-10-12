@@ -31,6 +31,8 @@ import { FormularLink } from "./formular-link";
 import { IncarcareVersiune } from "./incarcare-versiune";
 import { FormularMaterialEditare } from "./formular-material-editare";
 import { PrevizualizareVersiune } from "./previzualizare-versiune";
+import Link from "next/link";
+import { cursuriCuMaterialul } from "@/lib/queries/cursuri";
 
 export const metadata: Metadata = { title: "Material" };
 
@@ -60,7 +62,10 @@ export default async function PaginaMaterial({
 
   const poateIncarca = can(permisiuni, "courses:create", "team");
   const poateEdita = can(permisiuni, "courses:update", "team");
-  const versiuni = await versiunileMaterialului(tenant.organizationId, materialId);
+  const [versiuni, folositIn] = await Promise.all([
+    versiunileMaterialului(tenant.organizationId, materialId),
+    cursuriCuMaterialul(tenant.organizationId, materialId),
+  ]);
 
   /*
    * Testul aparține VERSIUNII curente, nu materialului: dovada de parcurgere
@@ -272,6 +277,32 @@ export default async function PaginaMaterial({
           />
         </section>
       ) : null}
+
+      {/* Înainte de o versiune nouă sau de o schimbare de treaptă, omul trebuie
+          să știe pe cine afectează: lecțiile se leagă de material prin `course_items`. */}
+      <section aria-labelledby="titlu-folosit-in" className="space-y-2">
+        <h2 id="titlu-folosit-in" className="text-sectiune font-medium">
+          Folosit în
+        </h2>
+        {folositIn.length === 0 ? (
+          <p className="text-muted-foreground text-corp">
+            Niciun curs nu folosește încă materialul.
+          </p>
+        ) : (
+          <ul className="text-corp flex flex-wrap gap-x-4 gap-y-1">
+            {folositIn.map((c) => (
+              <li key={c.id}>
+                <Link href={`/cursuri/${c.id}`} className="underline-offset-2 hover:underline">
+                  {c.denumire}
+                </Link>
+                {c.publicat ? null : (
+                  <span className="text-muted-foreground text-nota"> · ciornă</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section aria-labelledby="titlu-versiuni" className="space-y-3">
         <h2 id="titlu-versiuni" className="text-sectiune font-medium">

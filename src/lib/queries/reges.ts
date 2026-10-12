@@ -28,9 +28,16 @@ export interface FiltreReges {
   readonly stare: FiltruStare;
   readonly tip: TipEvenimentReges | "toate";
   readonly limita: number;
+  /** Filtru de INTRARE (din fișa angajatului): evenimentele și mesajele unui singur om. */
+  readonly angajat: string | null;
 }
 
-export const FILTRE_IMPLICITE: FiltreReges = { stare: "toate", tip: "toate", limita: 100 };
+export const FILTRE_IMPLICITE: FiltreReges = {
+  stare: "toate",
+  tip: "toate",
+  limita: 100,
+  angajat: null,
+};
 
 export interface RandReges {
   readonly id: string;
@@ -46,6 +53,8 @@ export interface RandReges {
   readonly eroare: string | null;
   readonly angajatId: string;
   readonly angajatNume: string;
+  /** `false` = fișa e ștearsă sau ascunsă de RLS („Angajat șters"): linkul n-are țintă. */
+  readonly angajatVizibil: boolean;
   readonly angajatMarca: string;
   readonly contractNumar: string | null;
 }
@@ -130,6 +139,7 @@ export async function interogheazaEvenimenteReges(
     .limit(filtre.limita);
 
   if (filtre.tip !== "toate") cerere = cerere.eq("event_type", filtre.tip);
+  if (filtre.angajat !== null) cerere = cerere.eq("employee_id", filtre.angajat);
   if (filtre.stare === "transmise") {
     cerere = cerere.in("status", STATUSURI_TRANSMISE);
   } else if (filtre.stare === "de_transmis" || filtre.stare === "intarziate") {
@@ -184,6 +194,7 @@ export async function interogheazaEvenimenteReges(
       eroare: eveniment.eroare,
       angajatId: eveniment.employee_id,
       angajatNume: angajat?.full_name ?? "Angajat șters",
+      angajatVizibil: angajat !== undefined,
       angajatMarca: angajat?.marca ?? "—",
       contractNumar:
         eveniment.contract_id === null ? null : (numarContract.get(eveniment.contract_id) ?? null),
@@ -215,6 +226,8 @@ export interface RandMesaj {
   readonly angajatId: string | null;
   readonly angajatNume: string | null;
   readonly contractNumar: string | null;
+  /** Evenimentul din registru din care a fost pregătit (0087); `null` la mesajele fără eveniment. */
+  readonly evenimentId: string | null;
   /** Mesajul poate pleca: n-are dependență, sau dependența a primit referință. */
   readonly transmisibil: boolean;
 }
@@ -238,15 +251,19 @@ export async function interogheazaMesajeReges(
   supabase: ServerSupabase,
   organizationId: string,
   limita = 200,
+  /** Filtru de intrare: doar mesajele unui angajat (din fișa lui). */
+  angajat: string | null = null,
 ): Promise<Readonly<{ randuri: readonly RandMesaj[]; statistici: StatisticiMesaje }>> {
-  const { data, error } = await supabase
+  let cerere = supabase
     .from("reges_mesaje")
     // prettier-ignore
     .select(
-      "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id",
+      "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id, eveniment_id",
     )
     .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+    .is("deleted_at", null);
+  if (angajat !== null) cerere = cerere.eq("employee_id", angajat);
+  const { data, error } = await cerere
     .order("created_at", { ascending: false })
     .order("ordine", { ascending: true })
     .limit(limita);
@@ -298,6 +315,7 @@ export async function interogheazaMesajeReges(
       angajatId: m.employee_id,
       angajatNume: m.employee_id === null ? null : (numeDupaId.get(m.employee_id) ?? null),
       contractNumar: m.contract_id === null ? null : (numarDupaId.get(m.contract_id) ?? null),
+      evenimentId: m.eveniment_id,
       transmisibil:
         m.stare === "de_transmis" &&
         (m.depinde_de === null ||
@@ -366,6 +384,10 @@ export interface RandPropunere {
   readonly primitaLa: string | null;
   readonly raspunsLa: string | null;
   readonly observatii: string | null;
+  /** Mesajul din coadă al propunerii TRIMISE; `null` la cele primite sau nepuse încă în coadă. */
+  readonly mesajId: string | null;
+  /** Salariatul nostru (prin contract), doar la propunerile trimise și doar dacă RLS îl arată. */
+  readonly employeeId: string | null;
 }
 
 export async function interogheazaPropuneriReges(
@@ -377,7 +399,7 @@ export async function interogheazaPropuneriReges(
     .from("reges_propuneri")
     // prettier-ignore
     .select(
-      "id, directie, fel, stare, angajator_partener_nume, angajator_partener_cui, salariat_nume, salariat_cnp_last4, data_inceput, data_sfarsit, temei_legal, primita_la, raspuns_la, observatii",
+      "id, directie, fel, stare, angajator_partener_nume, angajator_partener_cui, salariat_nume, salariat_cnp_last4, data_inceput, data_sfarsit, temei_legal, primita_la, raspuns_la, observatii, contract_id, mesaj_id",
     )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
@@ -385,7 +407,25 @@ export async function interogheazaPropuneriReges(
     .limit(limita);
   if (error !== null) throw error;
 
+  // Salariatul propunerii trimise e al nostru, prin contract: se rezolvă sub
+  // RLS, ca fișa să fie legată doar când se poate deschide.
+  const idContracte = [
+    ...new Set(
+      (data ?? []).map((p) => p.contract_id).filter((c): c is string => typeof c === "string"),
+    ),
+  ];
+  const angajatPeContract = new Map<string, string>();
+  if (idContracte.length > 0) {
+    const { data: contracte } = await supabase
+      .from("employment_contracts")
+      .select("id, employee_id")
+      .in("id", idContracte);
+    for (const c of contracte ?? []) angajatPeContract.set(c.id, c.employee_id);
+  }
+
   return (data ?? []).map((p) => ({
+    mesajId: p.mesaj_id ?? null,
+    employeeId: p.contract_id === null ? null : (angajatPeContract.get(p.contract_id) ?? null),
     id: p.id,
     directie: p.directie,
     fel: p.fel,
@@ -560,7 +600,7 @@ export async function citesteDetaliuMesaj(
     .from("reges_mesaje")
     // prettier-ignore
     .select(
-      "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id",
+      "id, tip, operatie, stare, ordine, depinde_de, message_id, response_id, referinta_id, rezultat_cod, rezultat_mesaj, eroare, incercari, trimis_la, raspuns_la, created_at, employee_id, contract_id, eveniment_id",
     )
     .eq("id", mesajId)
     .eq("organization_id", organizationId)
@@ -618,6 +658,7 @@ export async function citesteDetaliuMesaj(
       angajatId: data.employee_id,
       angajatNume: angajat.data?.full_name ?? null,
       contractNumar: c?.numar ?? null,
+      evenimentId: data.eveniment_id,
       transmisibil:
         data.stare === "de_transmis" &&
         (data.depinde_de === null ||

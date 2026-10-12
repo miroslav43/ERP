@@ -77,6 +77,7 @@ export default async function PaginaAtribuire({
         termenZile={curs.termen_zile}
         angajati={angajati}
         deja={active}
+        poateVedeaAngajati={can(permisiuni, "employees:read", "own")}
       />
     </div>
   );

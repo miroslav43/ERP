@@ -12,6 +12,21 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 import { ActiuniSablonComponenta } from "./actiuni-sablon-componenta";
 import { FormularSablonComponentaNou } from "./formular-sablon-componenta-nou";
+import { cn } from "@/lib/ui/cn";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { todayInBucharest } from "@/lib/format/date";
+
+/** O componentă activă azi, cu fișa (prin RLS) a angajatului care o are. */
+interface ComponentaAtribuita {
+  readonly component_type_id: string;
+  readonly employee_id: string;
+  readonly angajat: Readonly<{
+    full_name: string | null;
+    marca: string;
+    deleted_at: string | null;
+  }> | null;
+}
 
 export const metadata: Metadata = { title: "Sporuri și prime" };
 
@@ -36,7 +51,14 @@ interface RandSablon {
   readonly organization_id: string | null;
 }
 
-export default async function PaginaComponenteSalariale() {
+export default async function PaginaComponenteSalariale({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?nou=<id>`: șablonul tocmai creat, evidențiat pe server și derulat la `#sablon-<id>`.
+  const nouBrut = (await searchParams)["nou"];
+  const nouId = typeof nouBrut === "string" ? nouBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -73,6 +95,32 @@ export default async function PaginaComponenteSalariale() {
 
   const sabloane = data ?? [];
 
+  /*
+    Cine are fiecare șablon. Descrierea paginii spune că șabloanele „se
+    asociază angajaților de pe fișa fiecăruia", dar un șablon nu arăta nici
+    câți, nici care angajați îl au: înainte să-i schimbi regimul fiscal nu
+    puteai vedea pe cine afectează (analiza 2026-10-08, salarizare-L17/P13).
+    Doar componentele valabile azi; fișa se leagă per rând, prin `hrefFisa`.
+  */
+  const azi = todayInBucharest();
+  const { data: atribuiri } = await db
+    .from("salary_components")
+    .select(
+      "component_type_id, employee_id, angajat:employees!employee_id(full_name, marca, deleted_at)",
+    )
+    .eq("organization_id", tenant.organizationId)
+    .is("deleted_at", null)
+    .lte("valabil_de_la", azi)
+    .or(`valabil_pana.is.null,valabil_pana.gte.${azi}`)
+    .returns<ComponentaAtribuita[]>();
+  const angajatiPeSablon = new Map<string, ComponentaAtribuita[]>();
+  for (const atribuire of atribuiri ?? []) {
+    const existente = angajatiPeSablon.get(atribuire.component_type_id) ?? [];
+    if (!existente.some((e) => e.employee_id === atribuire.employee_id)) {
+      angajatiPeSablon.set(atribuire.component_type_id, [...existente, atribuire]);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -93,7 +141,11 @@ export default async function PaginaComponenteSalariale() {
           {sabloane.map((sablon) => (
             <li
               key={sablon.id}
-              className="border-border bg-surface rounded-panou shadow-ridicat border"
+              id={`sablon-${sablon.id}`}
+              className={cn(
+                "border-border bg-surface rounded-panou shadow-ridicat scroll-mt-24 border",
+                nouId === sablon.id && "ring-primary ring-2",
+              )}
             >
               <div className="flex flex-wrap items-start gap-3 px-4 py-3">
                 <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
@@ -123,6 +175,41 @@ export default async function PaginaComponenteSalariale() {
                     {sablon.intra_in_baza_cass ? "intră în baza CASS" : "nu intră în baza CASS"}
                     {sablon.cod_revisal !== null ? ` · cod REVISAL ${sablon.cod_revisal}` : ""}
                   </p>
+                  {(() => {
+                    const cineIlAre = angajatiPeSablon.get(sablon.id) ?? [];
+                    if (cineIlAre.length === 0) {
+                      return (
+                        <p className="text-muted-foreground text-nota mt-1">
+                          Niciun angajat nu-l are în prezent.
+                        </p>
+                      );
+                    }
+                    return (
+                      <p className="text-nota mt-1">
+                        <span className="text-muted-foreground">
+                          {cineIlAre.length === 1
+                            ? "Un angajat îl are: "
+                            : `${String(cineIlAre.length)} angajați îl au: `}
+                        </span>
+                        {cineIlAre.map((atribuire, indice) => (
+                          <span key={atribuire.employee_id}>
+                            {indice > 0 ? ", " : ""}
+                            <LinkEntitate
+                              href={hrefFisa(
+                                {
+                                  id: atribuire.employee_id,
+                                  deleted_at: atribuire.angajat?.deleted_at ?? null,
+                                },
+                                permisiuni,
+                              )}
+                            >
+                              {atribuire.angajat?.full_name ?? atribuire.angajat?.marca ?? "—"}
+                            </LinkEntitate>
+                          </span>
+                        ))}
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
               {poateEdita && sablon.organization_id !== null ? (

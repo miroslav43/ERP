@@ -9,6 +9,8 @@ import { IntrareData } from "@/components/ui/intrare-data";
 import { todayInBucharest } from "@/lib/format/date";
 
 import { inceteazaContract } from "../actions";
+import { useRouter } from "next/navigation";
+import { arataToast } from "@/components/ui/toast";
 
 /**
  * Concedierea, ca un singur gest, la finalul fișei.
@@ -42,6 +44,10 @@ import { inceteazaContract } from "../actions";
  */
 
 interface Proprietati {
+  /** `/reges?angajat=<id>` dacă pagina se deschide pentru rolul curent. */
+  readonly hrefReges?: string | null;
+  /** `/onboarding/noua?angajat=<id>` dacă parcursurile se pot porni. */
+  readonly hrefIesire?: string | null;
   readonly contractId: string;
   readonly numarContract: string;
   readonly nume: string;
@@ -60,7 +66,10 @@ export function DialogConcediere({
   nume,
   marca,
   valabilDeLa,
+  hrefReges = null,
+  hrefIesire = null,
 }: Proprietati) {
+  const router = useRouter();
   /** Cheile obiectului sunt EXACT cele din `incetareContractSchema`. */
   async function trimite(date: FormData) {
     return inceteazaContract({
@@ -84,6 +93,35 @@ export function DialogConcediere({
       marime="mare"
       actiune={trimite}
       mesajReusita={`${nume} a fost scos din efectiv.`}
+      // După încetare, cele două drumuri care altfel se uită: evenimentul de
+      // transmis în REGES (termen legal) și parcursul de ieșire (predarea
+      // bunurilor, revocarea accesului). Toasturile cu acțiune nu se sting.
+      laReusita={() => {
+        if (hrefReges !== null) {
+          arataToast({
+            fel: "informativ",
+            text: "Evenimentul de încetare așteaptă transmiterea în REGES.",
+            actiune: {
+              eticheta: "Deschide coada REGES",
+              onClick: () => {
+                router.push(hrefReges);
+              },
+            },
+          });
+        }
+        if (hrefIesire !== null) {
+          arataToast({
+            fel: "informativ",
+            text: "Bunurile și accesele se închid printr-un parcurs de ieșire.",
+            actiune: {
+              eticheta: "Pornește parcursul de ieșire",
+              onClick: () => {
+                router.push(hrefIesire);
+              },
+            },
+          });
+        }
+      }}
       etichetaTrimite="Confirmă concedierea"
       variantaTrimite="distructiv"
       textInCurs="Se înregistrează…"

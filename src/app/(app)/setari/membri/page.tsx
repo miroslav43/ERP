@@ -7,12 +7,18 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
-import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_SETARI } from "@/config/file-module";
 export const metadata: Metadata = { title: "Membri și invitații" };
 
-export default async function SetariMembriPage() {
+export default async function SetariMembriPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const rezolvare = await resolveTenant();
   if (rezolvare.status === "neautentificat") {
     redirect(RUTA_AUTENTIFICARE);
@@ -55,7 +61,7 @@ export default async function SetariMembriPage() {
       .order("role", { ascending: true }),
     supabase
       .from("invitations")
-      .select("id, email, role, expires_at")
+      .select("id, email, role, expires_at, employee_id")
       .eq("organization_id", tenant.organizationId)
       .eq("status", "pending")
       .order("expires_at", { ascending: true }),
@@ -89,6 +95,24 @@ export default async function SetariMembriPage() {
 
   const profilDupaId = new Map((profiluriRezultat.data ?? []).map((p) => [p.id, p] as const));
 
+  // Fișa PRINCIPALĂ a fiecărui membru, doar pentru cine o poate deschide pe a
+  // oricui: lista administrează accesul, dar omul din spatele contului are o
+  // fișă, și de acolo se ajunge la permisiunile lui punctuale.
+  const poateVedeaFise = can(permisiuni, "employees:read", "all");
+  const fisaDupaUser = new Map<string, string>();
+  if (poateVedeaFise && idUtilizatori.length > 0) {
+    const { data: fise } = await supabase
+      .from("employees")
+      .select("id, user_id")
+      .eq("organization_id", tenant.organizationId)
+      .in("user_id", idUtilizatori)
+      .eq("is_primary", true)
+      .is("deleted_at", null);
+    for (const f of fise ?? []) {
+      if (f.user_id !== null && !fisaDupaUser.has(f.user_id)) fisaDupaUser.set(f.user_id, f.id);
+    }
+  }
+
   const membri: readonly RandMembru[] = (membriRezultat.data ?? []).map((rand) => {
     const profil = rand.user_id === null ? undefined : profilDupaId.get(rand.user_id);
     // `full_name` e opțional în `profiles`: un membru invitat care nu și-a
@@ -102,23 +126,58 @@ export default async function SetariMembriPage() {
       status: rand.status,
       jobTitle: rand.job_title,
       esteEu: rand.id === tenant.memberId,
+      userId: rand.user_id,
+      fisaId: rand.user_id === null ? null : (fisaDupaUser.get(rand.user_id) ?? null),
     };
   });
 
+  // Fișa pentru care a fost trimisă invitația (0099), numită doar pentru cine o poate deschide.
+  const idFiseInvitate = (invitatiiRezultat.data ?? [])
+    .map((r) => r.employee_id)
+    .filter((id): id is string => id !== null);
+  const numeFiseInvitate = new Map<string, string>();
+  if (poateVedeaFise && idFiseInvitate.length > 0) {
+    const { data: fiseInvitate } = await supabase
+      .from("employees")
+      .select("id, full_name")
+      .eq("organization_id", tenant.organizationId)
+      .in("id", idFiseInvitate)
+      .is("deleted_at", null);
+    for (const f of fiseInvitate ?? []) numeFiseInvitate.set(f.id, f.full_name ?? "—");
+  }
   const invitatii: readonly RandInvitatie[] = (invitatiiRezultat.data ?? []).map((rand) => ({
     id: rand.id,
     email: rand.email,
     role: rand.role,
     expiraLa: formatDateTime(new Date(rand.expires_at)),
+    fisa:
+      rand.employee_id === null
+        ? null
+        : { id: rand.employee_id, nume: numeFiseInvitate.get(rand.employee_id) ?? null },
   }));
+  // `?rol=org_admin` (din panoul departamentului „Conducerea"): formularul pornește pe rolul cerut.
+  const rolBrut = (await searchParams)["rol"];
+  const rolInitial =
+    rolBrut === "org_admin" || rolBrut === "manager" || rolBrut === "hr" || rolBrut === "employee"
+      ? rolBrut
+      : "employee";
 
   return (
     <div className="flex flex-col gap-6">
       <AntetPagina
         titlu="Membri și invitații"
+        file={<FileModul eticheta="Navigare setări" file={FILE_SETARI} tenant={tenant} />}
         descriere={`Persoanele care au acces la ${tenant.name}. Rolul stabilește ce module și ce date poate vedea fiecare.`}
       />
-      <PanouMembri membri={membri} invitatii={invitatii} />
+      <PanouMembri
+        membri={membri}
+        invitatii={invitatii}
+        rolInitial={rolInitial}
+        poateInvita={can(permisiuni, "users:create", "all")}
+        poateVedeaFise={poateVedeaFise}
+        poateAcordaPermisiuni={can(permisiuni, "roles:update", "all")}
+        poateVedeaAudit={can(permisiuni, "audit:read", "all")}
+      />
     </div>
   );
 }

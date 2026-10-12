@@ -97,6 +97,8 @@ export interface RandEvaluare {
   readonly angajat: string | null;
   readonly marca: string | null;
   readonly sablon: string | null;
+  /** Pentru linkul spre lista filtrată pe șablon; `null` când șablonul e șters. */
+  readonly template_id: string | null;
   readonly data_evaluarii: string;
   readonly status: StatusEvaluare;
   readonly punctaj: Punctaj;
@@ -198,6 +200,7 @@ export async function listeazaEvaluari(
       angajat: b.employee?.full_name ?? null,
       marca: b.employee?.marca ?? null,
       sablon: b.template?.denumire ?? null,
+      template_id: b.template?.id ?? null,
       data_evaluarii: b.data_evaluarii,
       status: b.status,
       punctaj: calculeazaScor(criterii, raspunsuri),

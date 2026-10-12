@@ -36,6 +36,7 @@ function intrare(peste: Partial<IntrareZiClient> = {}): IntrareZiClient {
     punctLucruId: null,
     punctLucruDeclaratId: null,
     esteDinConcediu: false,
+    leaveRequestId: null,
     aprobat: false,
     respins: false,
     motivRespingere: null,

@@ -17,7 +17,10 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
   const navigare = text.antet.navigare;
 
   return (
-    <header className="border-mk-rigla bg-mk-hartie/95 sticky top-0 z-40 border-b backdrop-blur">
+    <header
+      data-tipar="ascunde"
+      className="border-mk-rigla bg-mk-hartie/95 sticky top-0 z-40 border-b backdrop-blur"
+    >
       <div className="max-w-mk mx-auto flex h-16 w-full items-center justify-between gap-4 px-[clamp(1rem,4vw,2.5rem)]">
         <Link
           href={acasa}

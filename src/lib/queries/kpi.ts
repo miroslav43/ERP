@@ -613,3 +613,25 @@ export function tintaEfectivaAfisata(
   const abatere = abateri.get(indicator.id);
   return abatere ?? indicator.tinta_implicita;
 }
+
+/**
+ * Țintele proprii ale unui angajat, cu id-ul rândului: `indicator_id` →
+ * `{ id, tinta }`. `setPentruAngajat` întoarce doar valoarea (`abateri`), iar
+ * `stergeTintaKpi` cere id-ul rândului — fără el, ținta se putea pune, dar nu
+ * scoate (analiza 2026-10-08, evaluari-L14/P11).
+ */
+export async function tinteleAngajatului(
+  organizationId: string,
+  employeeId: string,
+): Promise<ReadonlyMap<string, Readonly<{ id: string; tinta: number }>>> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("kpi_tinte_angajat")
+    .select("id, indicator_id, tinta")
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .returns<{ id: string; indicator_id: string; tinta: number }[]>();
+  if (error !== null) throw error;
+  return new Map((data ?? []).map((t) => [t.indicator_id, { id: t.id, tinta: t.tinta }]));
+}

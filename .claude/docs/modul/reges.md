@@ -230,3 +230,4 @@ scris per firmă de `creeazaSporAngajator`, cu unicitate pe `(organization_id, t
 - Forma unui mesaj și clientul HTTP: `src/lib/reges/`.
 - Termenele legale: `reges_termene`, plus `NOTES.md` — valorile ⚠ cer confirmarea unui
   jurist înainte de a fi folosite în calcul real.
+- Numele din coadă, `?eveniment=` și „N mesaje în coadă”, rândul nou din propuneri: [[strat/navigare]].

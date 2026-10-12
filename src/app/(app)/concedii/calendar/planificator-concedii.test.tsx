@@ -27,17 +27,31 @@ const ODIHNA = "#2563EB";
 const MEDICAL = "#DC2626";
 
 const ANGAJATI: readonly RandAngajatPlanificator[] = [
-  { id: "e1", nume: "Ionescu Ana", marca: "A-001" },
-  { id: "e2", nume: "Popa Ion", marca: "A-002" },
+  {
+    id: "e1",
+    nume: "Ionescu Ana",
+    marca: "A-001",
+    hrefCereri: "/concedii/echipa?employee_id=e1",
+    hrefFisa: "/angajati/e1",
+  },
+  {
+    id: "e2",
+    nume: "Popa Ion",
+    marca: "A-002",
+    hrefCereri: "/concedii?vedere=cereri",
+    hrefFisa: null,
+  },
 ];
 
 const aprobata = (culoare: string, denumire: string): AbsentaCelula => ({
+  cerereId: `cerere-${denumire}`,
   tipId: denumire,
   tipDenumire: denumire,
   tipCuloare: culoare,
   stare: "aprobata",
 });
 const inAprobare = (culoare: string, denumire: string): AbsentaCelula => ({
+  cerereId: `cerere-${denumire}`,
   tipId: denumire,
   tipDenumire: denumire,
   tipCuloare: culoare,

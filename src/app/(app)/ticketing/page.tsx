@@ -22,6 +22,8 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 
 import { adresaCu } from "./adresa";
 import { TabelTichete } from "./tabel-tichete";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_TICKETING } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Tichetele mele" };
 
@@ -30,6 +32,7 @@ interface ProprietatiPagina {
 }
 
 async function ListaMea({
+  hrefCoada,
   organizationId,
   userId,
   scope,
@@ -39,6 +42,8 @@ async function ListaMea({
   readonly userId: string;
   readonly scope: PermissionScope | null;
   readonly parametri: Record<string, string | string[] | undefined>;
+  /** `/ticketing/coada` dacă pagina se deschide pentru rolul curent. */
+  readonly hrefCoada: string | null;
 }) {
   const filtre = filtreDinUrl(filtreTicheteSchema, parametri);
 
@@ -86,7 +91,10 @@ async function ListaMea({
         fel="restrictionata"
         pictograma={LifeBuoy}
         titlu="Contul nu are fișă de personal"
-        descriere="Tichetele se leagă de fișa de angajat a solicitantului, iar contul dumneavoastră nu are una. Coada echipei rămâne accesibilă din meniu."
+        descriere="Tichetele se leagă de fișa de angajat a solicitantului, iar contul dumneavoastră nu are una."
+        {...(hrefCoada === null
+          ? {}
+          : { actiune: { eticheta: "Deschide coada echipei", href: hrefCoada } })}
       />
     );
   }
@@ -142,17 +150,26 @@ export default async function PaginaTichetelorMele({ searchParams }: Proprietati
   }
 
   const parametri = await searchParams;
+  // Un `org_admin` fără fișă de personal nu poate fi solicitant: „Tichet nou"
+  // l-ar fi dus la un formular refuzat la trimitere (`fisaMea`).
+  const faraFisa =
+    scope !== "own" && (await idFisaProprie(tenant.organizationId, utilizator.id)) === null;
 
   return (
     <div className="space-y-6">
       <AntetPagina
         titlu="Tichetele mele"
         descriere="Cererile și problemele pe care le-ai trimis către IT, cu starea fiecăreia."
-        actiuni={
-          <Link href="/ticketing/nou" className={buton({ varianta: "primar" })}>
-            Tichet nou
-          </Link>
-        }
+        file={<FileModul eticheta="Navigare ticketing" file={FILE_TICKETING} tenant={tenant} />}
+        {...(faraFisa
+          ? {}
+          : {
+              actiuni: (
+                <Link href="/ticketing/nou" className={buton({ varianta: "primar" })}>
+                  Tichet nou
+                </Link>
+              ),
+            })}
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
@@ -161,6 +178,7 @@ export default async function PaginaTichetelorMele({ searchParams }: Proprietati
           userId={utilizator.id}
           scope={scope}
           parametri={parametri}
+          hrefCoada={can(permisiuni, "tickets:read", "team") ? "/ticketing/coada" : null}
         />
       </Suspense>
     </div>

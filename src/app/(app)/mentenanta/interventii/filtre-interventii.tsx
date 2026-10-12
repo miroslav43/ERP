@@ -19,7 +19,7 @@ import { ETICHETE_REZULTAT_INTERVENTIE, ETICHETE_TIP_MENTENANTA } from "../etich
  * și de interogare, dar fără câmp în formular: o listă venită dintr-un link pe
  * echipament se lărgea tăcut la toată organizația.
  */
-const CHEI_EXTERNE = ["echipament"] as const;
+const CHEI_EXTERNE = ["echipament", "plan"] as const;
 
 const CHEI_PROPRII = ["tip", "rezultat"] as const;
 
@@ -27,6 +27,8 @@ export type PropsFiltreInterventii = Readonly<{
   /** Filtrele DEJA validate de pagină, ca pastilele să nu arate valori inventate. */
   /** Codul echipamentului filtrat, când filtrul e pus din afara barei. */
   etichetaEchipament?: string;
+  /** Denumirea planului filtrat — linkul „Vezi toate intervențiile planului” de pe fișa planului. */
+  etichetaPlan?: string;
   filtre: Pick<FiltreInterventii, "tip" | "rezultat">;
 }>;
 
@@ -38,6 +40,7 @@ export type PropsFiltreInterventii = Readonly<{
 export function FiltreInterventiiForm({
   filtre,
   etichetaEchipament,
+  etichetaPlan,
 }: PropsFiltreInterventii): ReactElement {
   const active: FiltruActiv[] = [];
   if (filtre.tip !== null) {
@@ -58,6 +61,9 @@ export function FiltreInterventiiForm({
    */
   if (etichetaEchipament !== undefined) {
     active.push({ cheie: "echipament", eticheta: `Echipament: ${etichetaEchipament}` });
+  }
+  if (etichetaPlan !== undefined) {
+    active.push({ cheie: "plan", eticheta: `Plan: ${etichetaPlan}` });
   }
 
   return (

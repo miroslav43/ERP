@@ -83,6 +83,8 @@ export type SortareDeplasari = (typeof SORTARI_DEPLASARI)[number];
 
 export const filtreDeplasariSchema = z.object({
   status: optional(z.enum(STATUSURI_DEPLASARE)),
+  /** Filtru de INTRARE (din fișa angajatului), nu câmp în bară: „deplasările lui X". */
+  angajat: optional(z.uuid()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   /**

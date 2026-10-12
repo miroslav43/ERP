@@ -49,6 +49,20 @@ export type IntrareSarcini = Readonly<{
   peSaptamana: boolean;
   /** Anunțuri publicate pe care omul nu le-a deschis. */
   anunturiNecitite: number;
+  /** Când e unul singur: id-ul lui, ca sarcina să ducă direct la el. */
+  anuntNecititUnicId?: string | null;
+  /** Obiecte predate omului pe care nu le-a confirmat încă (`confirmat_de_angajat_la` gol). */
+  prediriNeconfirmate?: number;
+  /**
+   * Zilele de pontaj RESPINSE de aprobator (`respins_la` nenul), ISO. Cer o
+   * corecție, dar `zileNepontate` le sare — ziua e scrisă — deci cardul spunea
+   * „tot e la zi" exact când nu era.
+   */
+  zileRespinse?: readonly string[];
+  /** Sesizări de defecțiune atribuite omului ca tehnician, încă deschise. */
+  sesizariDeRezolvat?: number;
+  /** Pași din parcursurile de integrare ale colegilor pentru care e responsabil. */
+  pasiLaColegi?: number;
   azi: string;
 }>;
 
@@ -79,6 +93,27 @@ export function sarciniPortal(intrare: IntrareSarcini): readonly SarcinaPortal[]
     });
   }
 
+  const respinse = intrare.zileRespinse ?? [];
+  if (respinse.length > 0) {
+    const [prima] = respinse;
+    sarcini.push({
+      id: "pontaj-respins",
+      eticheta:
+        respinse.length === 1
+          ? "O zi de pontaj respinsă, de corectat"
+          : `${String(respinse.length)} zile de pontaj respinse, de corectat`,
+      detaliu:
+        "Aprobatorul a cerut o corecție; ziua rămâne așa cum ați declarat-o până o rescrieți.",
+      // O singură zi: direct la ea; mai multe: luna primei, unde sunt marcate.
+      href:
+        respinse.length === 1 && prima !== undefined
+          ? `/portal/pontajul-meu/zi/${prima}`
+          : `/portal/pontajul-meu?an=${prima?.slice(0, 4) ?? ""}&luna=${String(Number(prima?.slice(5, 7) ?? "0"))}`,
+      // Respingerea e o cerere explicită a cuiva, nu o restanță care se adună.
+      urgenta: true,
+    });
+  }
+
   if (intrare.zileNepontate > 0) {
     sarcini.push({
       id: "pontaj",
@@ -105,7 +140,57 @@ export function sarciniPortal(intrare: IntrareSarcini): readonly SarcinaPortal[]
           ? "Un anunț necitit"
           : `${intrare.anunturiNecitite.toLocaleString("ro-RO")} anunțuri necitite`,
       detaliu: null,
-      href: "/portal/anunturi",
+      // Un singur necitit: direct la obiect, nu la listă (încă un clic).
+      href:
+        intrare.anunturiNecitite === 1 &&
+        intrare.anuntNecititUnicId !== null &&
+        intrare.anuntNecititUnicId !== undefined
+          ? `/portal/anunturi/${intrare.anuntNecititUnicId}`
+          : "/portal/anunturi",
+      urgenta: false,
+    });
+  }
+
+  // Predarea nu notifică și meniul n-are insignă: fără rândul ăsta, omul afla
+  // că are de confirmat un obiect numai deschizând singur pagina.
+  if ((intrare.prediriNeconfirmate ?? 0) > 0) {
+    const n = intrare.prediriNeconfirmate ?? 0;
+    sarcini.push({
+      id: "predari",
+      eticheta:
+        n === 1
+          ? "Un obiect de confirmat în primire"
+          : `${String(n)} obiecte de confirmat în primire`,
+      detaliu: "Confirmarea spune că ați primit obiectul în starea scrisă în proces-verbal.",
+      href: "/portal/in-primirea-mea",
+      urgenta: false,
+    });
+  }
+
+  const sesizari = intrare.sesizariDeRezolvat ?? 0;
+  if (sesizari > 0) {
+    sarcini.push({
+      id: "sesizari",
+      eticheta:
+        sesizari === 1
+          ? "O sesizare de defecțiune de rezolvat"
+          : `${String(sesizari)} sesizări de defecțiune de rezolvat`,
+      detaliu: "V-au fost atribuite ca tehnician.",
+      href: "/portal/sesizari",
+      urgenta: false,
+    });
+  }
+
+  const pasi = intrare.pasiLaColegi ?? 0;
+  if (pasi > 0) {
+    sarcini.push({
+      id: "integrare-colegi",
+      eticheta:
+        pasi === 1
+          ? "Un pas de integrare la un coleg"
+          : `${String(pasi)} pași de integrare la colegi`,
+      detaliu: "Sunteți responsabil pe ei în parcursul colegului.",
+      href: "/portal/integrarea-mea/sarcini",
       urgenta: false,
     });
   }

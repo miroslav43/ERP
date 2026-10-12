@@ -11,7 +11,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate } from "@/lib/format/date";
+import { formatZiuaMomentului } from "@/lib/format/date";
 import { ticheteleMele } from "@/lib/queries/ticketing";
 import { fisaMea } from "@/lib/queries/portal";
 import {
@@ -88,7 +88,7 @@ export default async function PaginaTicheteleMele() {
                     <p className="text-foreground text-corp font-medium">{tichet.titlu}</p>
                     <p className="text-muted-foreground text-nota mt-0.5">
                       <span className="font-mono">{tichet.numar_afisat}</span> ·{" "}
-                      {ETICHETE_TIP[tichet.tip]} · {formatDate(tichet.created_at)}
+                      {ETICHETE_TIP[tichet.tip]} · {formatZiuaMomentului(tichet.created_at)}
                     </p>
                   </div>
                   <Badge ton={TONURI_STATUS[tichet.status]} className="shrink-0">

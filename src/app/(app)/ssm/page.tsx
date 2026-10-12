@@ -173,6 +173,9 @@ export default async function PaginaSsm() {
   ]);
   const ssm = instruiri.find((c) => c.domeniu === "ssm")?.deAtentionat ?? 0;
   const psi = instruiri.find((c) => c.domeniu === "psi")?.deAtentionat ?? 0;
+  // Aceeași poartă dublă ca fila „Instruiri": pagina cere și `employees:read`.
+  const poateVedeaInstruiri =
+    can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team");
 
   return (
     <div className="space-y-6">
@@ -198,44 +201,58 @@ export default async function PaginaSsm() {
       {/* Șase carduri SEPARATE: instruirile SSM și PSI sunt obligații legale
           distincte, cu periodicități proprii — NICIODATĂ însumate. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {poateVedeaInstruiri ? (
+          <>
+            <Card
+              href="/ssm/instruiri?domeniu=ssm"
+              icon={GraduationCap}
+              titlu="Instruiri SSM"
+              numar={ssm}
+            />
+            <Card
+              href="/ssm/instruiri?domeniu=psi"
+              icon={Flame}
+              titlu="Instruiri PSI"
+              numar={psi}
+            />
+          </>
+        ) : null}
         <Card
-          href="/ssm/instruiri?domeniu=ssm"
-          icon={GraduationCap}
-          titlu="Instruiri SSM"
-          numar={ssm}
-        />
-        <Card href="/ssm/instruiri?domeniu=psi" icon={Flame} titlu="Instruiri PSI" numar={psi} />
-        <Card
-          href="/ssm/medicina-muncii"
+          href="/ssm/medicina-muncii?scadenta=1"
           icon={Stethoscope}
           titlu="Fișe de aptitudine"
           numar={fise}
         />
         <Card
-          href="/ssm/stingatoare"
+          href="/ssm/stingatoare?scadenta=verificare"
           icon={FireExtinguisher}
           titlu="Stingătoare — verificare"
           numar={stingatoare.verificare}
         />
         <Card
-          href="/ssm/stingatoare"
+          href="/ssm/stingatoare?scadenta=reincarcare"
           icon={FireExtinguisher}
           titlu="Stingătoare — reîncărcare"
           numar={stingatoare.reincarcare}
         />
         <Card
-          href="/ssm/stingatoare"
+          href="/ssm/stingatoare?scadenta=proba"
           icon={Thermometer}
           titlu="Stingătoare — probă de presiune"
           numar={stingatoare.probaPresiune}
         />
         <Card
-          href="/ssm/autorizatii"
+          href="/ssm/autorizatii?scadenta=1"
           icon={BadgeCheck}
           titlu="Autorizații nominale"
           numar={autorizatii}
         />
-        <Card href="/ssm/eip" icon={HardHat} titlu="Echipament de protecție (EIP)" numar={eip} />
+        <Card
+          href="/ssm/eip?scadenta=1"
+          icon={HardHat}
+          titlu="Echipament de protecție (EIP)"
+          numar={eip}
+        />
       </div>
     </div>
   );

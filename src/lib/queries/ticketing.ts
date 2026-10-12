@@ -40,8 +40,8 @@ export function limitaDinUrl(brut: string | string[] | undefined): number {
 
 const COLOANE_LISTA = `
   id, numar_afisat, tip, titlu, status, prioritate, created_at, updated_at,
-  solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name),
-  asignat:employees!tickets_asignat_employee_id_fkey (id, full_name)
+  solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name, deleted_at),
+  asignat:employees!tickets_asignat_employee_id_fkey (id, full_name, deleted_at)
 ` as const;
 
 export type RandTichet = Readonly<{
@@ -53,8 +53,8 @@ export type RandTichet = Readonly<{
   prioritate: Prioritate;
   created_at: string;
   updated_at: string;
-  solicitant: Readonly<{ id: string; full_name: string }> | null;
-  asignat: Readonly<{ id: string; full_name: string }> | null;
+  solicitant: Readonly<{ id: string; full_name: string; deleted_at: string | null }> | null;
+  asignat: Readonly<{ id: string; full_name: string; deleted_at: string | null }> | null;
 }>;
 
 export type PaginaTichete = Readonly<{
@@ -88,6 +88,19 @@ export type PaginaTichete = Readonly<{
  * Paginare keyset pe `created_at desc, id desc`, ca în restul aplicației:
  * offset-ul ar sări rânduri când apar tichete noi în timpul răsfoirii.
  */
+/** Statusurile „deschise" ale cozii — numărate de `rezumatCoada`, filtrate de `?deschise=da`. */
+export const STATUSURI_DESCHISE_COADA = [
+  "nou",
+  "in_aprobare",
+  "in_lucru",
+  "in_asteptare",
+  "redeschis",
+] as const;
+
+function acumMinusZile(zile: number): string {
+  return new Date(Date.now() - zile * 86_400_000).toISOString();
+}
+
 export async function listeazaTichete(
   organizationId: string,
   filtre: FiltreTichete,
@@ -124,6 +137,8 @@ export async function listeazaTichete(
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
       or: (f: string) => Q;
+      in: (c: string, v: readonly string[]) => Q;
+      lt: (c: string, v: string) => Q;
     },
   >(
     q: Q,
@@ -138,7 +153,16 @@ export async function listeazaTichete(
     if (filtre.asignat_employee_id !== undefined) {
       cu = cu.eq("asignat_employee_id", filtre.asignat_employee_id);
     }
+    if (filtre.solicitant_employee_id !== undefined) {
+      cu = cu.eq("solicitant_employee_id", filtre.solicitant_employee_id);
+    }
     if (filtre.department_id !== undefined) cu = cu.eq("department_id", filtre.department_id);
+    // Scurtăturile tabloului, pe ACELAȘI predicat ca `rezumatCoada`.
+    if (filtre.deschise === "da" || filtre.fara_miscare === "7")
+      cu = cu.in("status", [...STATUSURI_DESCHISE_COADA]);
+    if (filtre.fara_miscare === "7") cu = cu.lt("updated_at", acumMinusZile(7));
+    if (filtre.nerepartizate === "da")
+      cu = cu.in("status", [...STATUSURI_DESCHISE_COADA]).is("asignat_employee_id", null);
     if (cautare !== null) cu = cu.or(cautare);
     return cu;
   };
@@ -191,9 +215,9 @@ export async function listeazaTichete(
 
 const COLOANE_FISA = `
   *,
-  solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name, department_id),
-  asignat:employees!tickets_asignat_employee_id_fkey (id, full_name),
-  aprobator:employees!tickets_aprobat_de_employee_id_fkey (id, full_name),
+  solicitant:employees!tickets_solicitant_employee_id_fkey (id, full_name, department_id, deleted_at),
+  asignat:employees!tickets_asignat_employee_id_fkey (id, full_name, deleted_at),
+  aprobator:employees!tickets_aprobat_de_employee_id_fkey (id, full_name, deleted_at),
   obiect:inventory_items (id, denumire, numar_inventar, serie, model, garantie_expira)
 ` as const;
 
@@ -249,7 +273,7 @@ export async function listeazaComentariile(ticketId: string) {
   // `ticket_comments_select` le ascunde solicitantului.
   const { data, error } = await db
     .from("ticket_comments")
-    .select("id, continut, intern, created_at, autor:employees (id, full_name)")
+    .select("id, continut, intern, created_at, autor:employees (id, full_name, deleted_at)")
     .eq("ticket_id", ticketId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -347,6 +371,8 @@ export type RezumatCoada = Readonly<{
    * modificare a tichetului (stare, prioritate, repartizare), nu din vârsta lui.
    */
   faraMiscareDe7Zile: number;
+  /** Deschise, cu `asignat_employee_id` gol: coada le număra doar la „deschise". */
+  nerepartizate: number;
 }>;
 
 /**
@@ -358,9 +384,9 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
   const db = await createServerSupabase();
   const acumMinus7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const deschise = ["nou", "in_aprobare", "in_lucru", "in_asteptare", "redeschis"] as const;
+  const deschise = STATUSURI_DESCHISE_COADA;
 
-  const [totalDeschise, deAprobat, asteapta, restante] = await Promise.all([
+  const [totalDeschise, deAprobat, asteapta, restante, nerepartizate] = await Promise.all([
     db
       .from("tickets")
       .select("id", { count: "exact", head: true })
@@ -386,9 +412,16 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
       .is("deleted_at", null)
       .in("status", deschise)
       .lt("updated_at", acumMinus7),
+    db
+      .from("tickets")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .in("status", deschise)
+      .is("asignat_employee_id", null),
   ]);
 
-  for (const rezultat of [totalDeschise, deAprobat, asteapta, restante]) {
+  for (const rezultat of [totalDeschise, deAprobat, asteapta, restante, nerepartizate]) {
     if (rezultat.error !== null) throw rezultat.error;
   }
 
@@ -397,5 +430,67 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
     deAprobat: deAprobat.count ?? 0,
     asteaptaSolicitantul: asteapta.count ?? 0,
     faraMiscareDe7Zile: restante.count ?? 0,
+    nerepartizate: nerepartizate.count ?? 0,
   };
+}
+
+/** Un tichet legat de altul: duplicatul unui original, sau originalul însuși. */
+export interface TichetLegat {
+  readonly id: string;
+  readonly numar_afisat: string;
+  readonly titlu: string;
+  readonly status: string;
+}
+
+/**
+ * Duplicatele unui tichet (`parent_ticket_id` = el). `parent_ticket_id` se
+ * citea prin `*` și nu se afișa nicăieri: nici „Duplicat al …" pe copil, nici
+ * lista duplicatelor pe părinte (analiza 2026-10-08, ticketing-L16/P13).
+ */
+export async function duplicateleTichetului(parentId: string): Promise<readonly TichetLegat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("tickets")
+    .select("id, numar_afisat, titlu, status")
+    .eq("parent_ticket_id", parentId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(50)
+    .returns<TichetLegat[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+const STATUSURI_DESCHISE_TICHET: readonly StatusTichet[] = [
+  "nou",
+  "in_aprobare",
+  "in_lucru",
+  "in_asteptare",
+  "redeschis",
+];
+
+/**
+ * Candidații la „original" pentru marcarea ca duplicat: tichetele deschise de
+ * același tip, care nu sunt ele însele duplicate (acțiunea refuză lanțurile).
+ */
+export async function candidatiOriginal(
+  organizationId: string,
+  tip: TipTichet,
+  excludeId: string,
+): Promise<readonly TichetLegat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("tickets")
+    .select("id, numar_afisat, titlu, status")
+    .eq("organization_id", organizationId)
+    .eq("tip", tip)
+    .is("parent_ticket_id", null)
+    .is("deleted_at", null)
+    .in("status", STATUSURI_DESCHISE_TICHET)
+    .neq("id", excludeId)
+    .order("created_at", { ascending: false })
+    .limit(50)
+    .returns<TichetLegat[]>();
+  if (error !== null) throw error;
+  return data ?? [];
 }

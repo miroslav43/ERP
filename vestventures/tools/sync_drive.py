@@ -41,6 +41,9 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 FOLDER = "19A22Z9YUyuTqEWHt2lwKg9hRYeABvdpS"
+# Subfolderul pe care îl vede investitorul (linkul din câmpul „data room"). Conține DOAR
+# fișierele marcate „data room" mai jos; README-ul și răspunsurile din formular rămân în FOLDER.
+DATA_ROOM = "15DkKrJ3SzL07r69CoC3Tlvd1vaSKj6gM"
 CHEIE = Path("~/.config/claude-seo/service_account.json").expanduser()
 RADACINA = Path(__file__).resolve().parent.parent
 STARE = Path(__file__).resolve().parent / "drive-ids.json"
@@ -52,12 +55,15 @@ DOC = "application/vnd.google-apps.document"
 SHEET = "application/vnd.google-apps.spreadsheet"
 
 # cale locală → (titlu pe Drive, tipul conținutului, tipul Google în care se convertește sau None)
+# Un sufix „#ceva" în cheie permite același fișier local în două locuri de pe Drive.
 FISIERE = {
-    "pitch-deck.pdf": ("01 · Pitch deck.pdf", PDF, None),
-    "financial-model.xlsx": ("02 · Financial model", XLSX, SHEET),
-    "business-plan.pdf": ("03 · Business plan.pdf", PDF, None),
-    "roadmap.pdf": ("04 · Roadmap.pdf", PDF, None),
-    "product-mockups.pdf": ("06 · Product screenshots.pdf", PDF, None),
+    "data-room/read-me-first.pdf": ("00 · READ ME FIRST.pdf", PDF, None),  # data room
+    "pitch-deck.pdf": ("01 · Pitch deck.pdf", PDF, None),  # data room
+    "financial-model.xlsx#data-room": ("02 · Financial model.xlsx", XLSX, None),  # data room, XLSX original
+    "financial-model.xlsx": ("02 · Financial model", XLSX, SHEET),  # intern, ca Google Sheet
+    "business-plan.pdf": ("03 · Business plan.pdf", PDF, None),  # data room
+    "roadmap.pdf": ("04 · Roadmap.pdf", PDF, None),  # data room
+    "product-mockups.pdf": ("05 · Product screenshots.pdf", PDF, None),  # data room
     "form-answers.md": ("07 · Răspunsuri formular (EN)", MD, DOC),
     "media/demo-video-script.md": ("08 · Demo video script", MD, DOC),
     "README.md": ("00 · Citește-mă (RO)", MD, DOC),
@@ -73,7 +79,7 @@ def main() -> int:
     esuate = []
 
     for cale, (titlu, tip, google) in FISIERE.items():
-        sursa = RADACINA / cale
+        sursa = RADACINA / cale.split("#")[0]
         media = MediaFileUpload(str(sursa), mimetype=tip, resumable=True)
         try:
             if cale in ids:

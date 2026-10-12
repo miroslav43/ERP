@@ -7,8 +7,45 @@ import { describe, expect, it } from "vitest";
 import {
   actualizeazaAngajatSchema,
   CAMPURI_EDITABILE_ANGAJAT,
+  creeazaContractSchema,
+  modificaSalariuContractSchema,
   mutaAngajatiSchema,
 } from "./employee";
+
+describe("salariul de bază pe contract și act adițional", () => {
+  // Un contract de muncă fără salariu nu există; 0 lei trecea (QA 8 oct 2026,
+  // HR-021: act adițional de 0 lei „activ"). Pragul firmei se verifică în
+  // acțiune, cu setările; aici doar că suma e pozitivă.
+  const CONTRACT = {
+    employee_id: "55555555-5555-4555-8555-555555555555",
+    numar: "12/2026",
+    data_contract: "2026-09-28",
+    valabil_de_la: "2026-10-01",
+  };
+
+  it("contract nou cu salariu 0: respins pe câmp", () => {
+    const r = creeazaContractSchema.safeParse({ ...CONTRACT, salariu_baza: 0 });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues.some((i) => i.path.includes("salariu_baza"))).toBe(true);
+  });
+
+  it("contract nou cu salariu pozitiv: acceptat", () => {
+    expect(creeazaContractSchema.safeParse({ ...CONTRACT, salariu_baza: 1 }).success).toBe(true);
+  });
+
+  it("act adițional cu salariu 0: respins pe câmp", () => {
+    const r = modificaSalariuContractSchema.safeParse({
+      contract_id: "55555555-5555-4555-8555-555555555555",
+      salariu_baza: 0,
+      valabil_de_la: "2026-11-01",
+      data_act: "2026-10-20",
+    });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues.some((i) => i.path.includes("salariu_baza"))).toBe(true);
+  });
+});
 
 /**
  * Poarta care apără fișa de personal de o ștergere tăcută.

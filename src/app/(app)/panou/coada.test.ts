@@ -8,12 +8,15 @@ import { coadaDinContoare, numarulDinAntet } from "./coada";
 /** Contori toți pe `1`, ca fiecare să producă exact un rând de un element. */
 const TOTI_PE_UNU: CoadaPanou = {
   cereriConcediu: 1,
+  cerereUnicaId: null,
+  tichetUnicId: null,
   pontaj: { zile: 1, fise: 0, luni: [{ an: 2026, luna: 9, zile: 1 }] },
   deplasari: 1,
   foiParcurs: 1,
   tichete: 1,
   anomaliiKm: 1,
   regesDeTransmis: 1,
+  pasiIntegrare: 1,
 };
 
 function contoare(coada: CoadaPanou): ContoarePanou {
@@ -27,8 +30,30 @@ function contoare(coada: CoadaPanou): ContoarePanou {
       contracteDeterminate: null,
     },
     firma: { angajatiActivi: 8, inConcediu: 0, departamente: 2 },
+    avizier: null,
   };
 }
+
+describe("coadaDinContoare — un singur obiect duce direct la el", () => {
+  it("cererea unică și tichetul unic au href-ul obiectului; fără id, lista", () => {
+    const cu = coadaDinContoare(
+      contoare({ ...TOTI_PE_UNU, cerereUnicaId: "c1", tichetUnicId: "t1" }),
+    );
+    expect(cu.find((i) => i.cheie === "concedii")?.href).toBe("/concedii/c1");
+    expect(cu.find((i) => i.cheie === "tichete")?.href).toBe("/ticketing/t1");
+    const fara = coadaDinContoare(contoare(TOTI_PE_UNU));
+    expect(fara.find((i) => i.cheie === "concedii")?.href).toBe(
+      "/concedii/echipa?status=trimisa,in_aprobare",
+    );
+    // Contorul numără doar `in_aprobare`: lista e filtrată la fel.
+    expect(fara.find((i) => i.cheie === "tichete")?.href).toBe(
+      "/ticketing/coada?status=in_aprobare",
+    );
+  });
+});
+
+/** Cheile care sunt CONTORI: id-urile obiectului unic nu produc rânduri. */
+const CONTORI = Object.keys(TOTI_PE_UNU).filter((cheie) => !cheie.endsWith("Id"));
 
 describe("coadaDinContoare", () => {
   /*
@@ -43,12 +68,12 @@ describe("coadaDinContoare", () => {
    */
   it("produce un rând pentru FIECARE contor din coadă", () => {
     const intrari = coadaDinContoare(contoare(TOTI_PE_UNU));
-    expect(intrari).toHaveLength(Object.keys(TOTI_PE_UNU).length);
+    expect(intrari).toHaveLength(CONTORI.length);
   });
 
   it("cifra din antet e suma rândurilor, nu a contorilor", () => {
     const intrari = coadaDinContoare(contoare(TOTI_PE_UNU));
-    expect(numarulDinAntet(intrari)).toBe(Object.keys(TOTI_PE_UNU).length);
+    expect(numarulDinAntet(intrari)).toBe(CONTORI.length);
   });
 
   /* `null` = modulul e stins sau rolul n-are permisiunea: nu se vede, nu se numără. */
@@ -56,19 +81,28 @@ describe("coadaDinContoare", () => {
     const intrari = coadaDinContoare(
       contoare({ ...TOTI_PE_UNU, deplasari: null, foiParcurs: 0, tichete: null }),
     );
-    expect(intrari.map((i) => i.cheie)).toEqual(["concedii", "pontaj", "anomalii", "reges"]);
-    expect(numarulDinAntet(intrari)).toBe(4);
+    expect(intrari.map((i) => i.cheie)).toEqual([
+      "concedii",
+      "pontaj",
+      "integrare",
+      "anomalii",
+      "reges",
+    ]);
+    expect(numarulDinAntet(intrari)).toBe(5);
   });
 
   it("coada goală dă zero, nu un rând gol", () => {
     const goala: CoadaPanou = {
       cereriConcediu: 0,
+      cerereUnicaId: null,
+      tichetUnicId: null,
       pontaj: null,
       deplasari: 0,
       foiParcurs: 0,
       tichete: 0,
       anomaliiKm: 0,
       regesDeTransmis: 0,
+      pasiIntegrare: 0,
     };
     expect(coadaDinContoare(contoare(goala))).toHaveLength(0);
     expect(numarulDinAntet([])).toBe(0);

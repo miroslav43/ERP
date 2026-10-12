@@ -50,6 +50,7 @@ const [lista, numarare] = [0, 1];
 const filtre = (m: Partial<FiltreInventar> = {}): FiltreInventar => ({
   q: null,
   numar: null,
+  angajat: null,
   status: null,
   stare: null,
   category_id: null,
@@ -188,7 +189,9 @@ describe("alocariDeschise", () => {
         },
       ],
     });
-    db.raspunde("employees", "select", { data: [{ id: ID_3, full_name: "Ion", marca: "M-3" }] });
+    db.raspunde("employees", "select", {
+      data: [{ id: ID_3, full_name: "Ion", marca: "M-3", deleted_at: null }],
+    });
 
     const r = await alocariDeschise(ORG_ID, [ID_1, ID_2]);
 
@@ -197,6 +200,7 @@ describe("alocariDeschise", () => {
       itemId: ID_1,
       employeeId: ID_3,
       angajatNume: "Ion",
+      angajat: { id: ID_3, deleted_at: null },
       angajatMarca: "M-3",
       predatLa: "2026-09-01T07:00:00Z",
       confirmatDeAngajatLa: null,

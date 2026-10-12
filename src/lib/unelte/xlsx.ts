@@ -4,8 +4,19 @@ import { ADRESA_SITE } from "@/content/landing/contact";
 
 import { adresaDinFisier, SEMNATURA_FISIER, type DocumentTabelar } from "./document-tabelar";
 
-/** `DocumentTabelar` → .xlsx, pe o singură filă, cu antetul tabelului înghețat. */
+/**
+ * `DocumentTabelar` → .xlsx, pe o singură filă, cu antetul tabelului înghețat.
+ *
+ * Secțiunile (`sectiuni`, fișa SSM) NU au formă de foaie de calcul: casetele de
+ * viză și cele șapte tabele cu lățimi diferite nu încap pe o grilă de coloane.
+ * Unealta care le are se descarcă doar în PDF și Word (`formatePentru` din
+ * `registru.ts`); aici se aruncă, ca o unealtă nouă să nu piardă tăcut jumătate
+ * din document într-un Excel.
+ */
 export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
+  if ((d.sectiuni?.length ?? 0) > 0) {
+    throw new Error("Documentul are secțiuni, iar Excelul nu le randează.");
+  }
   const registru = new ExcelJS.Workbook();
   registru.creator = "Administrativo";
   registru.title = d.titlu;
@@ -25,15 +36,19 @@ export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
   for (const p of d.paragrafe) fila.addRow([p]);
   fila.addRow([]);
 
-  if (d.coloane.length > 0) {
-    const antet = fila.addRow(d.coloane.map((c) => c.eticheta));
+  /** Antet aldin, cu rând nou la `\n`, apoi rândurile cu chenar subțire. */
+  const tabel = (
+    etichete: readonly string[],
+    randuri: readonly (readonly string[])[],
+    umbrite: readonly number[],
+  ) => {
+    const antet = fila.addRow([...etichete]);
     antet.font = { bold: true };
     // Etichetele cu `\n` (ziua deasupra literei) se afișează pe două rânduri.
     antet.alignment = { wrapText: true, vertical: "top" };
-    fila.views = [{ state: "frozen", ySplit: antet.number }];
-    for (const r of d.randuri) {
+    for (const r of randuri) {
       const rand = fila.addRow([...r]);
-      d.coloane.forEach((_, i) => {
+      etichete.forEach((_, i) => {
         const celula = rand.getCell(i + 1);
         celula.border = {
           top: { style: "hair" },
@@ -41,15 +56,52 @@ export async function randeazaXlsx(d: DocumentTabelar): Promise<Uint8Array> {
           bottom: { style: "hair" },
           right: { style: "hair" },
         };
-        if (d.umbrite.includes(i)) {
+        if (umbrite.includes(i)) {
           celula.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6E9E6" } };
         }
       });
     }
+    return antet;
+  };
+
+  if (d.coloane.length > 0) {
+    const antet = tabel(
+      d.coloane.map((c) => c.eticheta),
+      d.randuri,
+      d.umbrite,
+    );
+    fila.views = [{ state: "frozen", ySplit: antet.number }];
+  }
+  for (const t of d.tabeleSuplimentare ?? []) {
+    if (t.coloane.length === 0) continue;
+    fila.addRow([]);
+    fila.addRow([t.titlu]).font = { bold: true };
+    tabel(
+      t.coloane.map((c) => c.eticheta),
+      t.randuri,
+      [],
+    );
   }
   fila.addRow([]);
   for (const n of d.note) fila.addRow([n]);
+  for (const rubrica of d.rubrici ?? []) {
+    fila.addRow([]);
+    fila.addRow([rubrica.titlu]).font = { bold: true };
+    const paragrafeRubrica = rubrica.text.split("\n").filter((p) => p.trim() !== "");
+    for (const p of paragrafeRubrica) fila.addRow([p]);
+    const goale = paragrafeRubrica.length > 0 ? 1 : rubrica.randuriGoale;
+    for (let k = 0; k < goale; k += 1) {
+      const rand = fila.addRow([]);
+      rand.height = 20;
+      d.coloane.forEach((_, i) => {
+        rand.getCell(i + 1).border = { bottom: { style: "hair" } };
+      });
+    }
+  }
   if (d.semnaturi.length > 0) fila.addRow(d.semnaturi.map((s) => `${s}: ______________`));
+  if (d.semnaturi.length > 0 && d.dataLaSemnaturi === true) {
+    fila.addRow(d.semnaturi.map(() => "Data: ______________"));
+  }
   const semnatura = fila.addRow([
     { text: SEMNATURA_FISIER, hyperlink: adresaDinFisier(d, "xlsx", ADRESA_SITE) },
   ]);

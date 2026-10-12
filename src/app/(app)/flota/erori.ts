@@ -69,3 +69,59 @@ const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
 function campurileMesajului(mesaj: string): readonly string[] {
   return CAMPURI_DUPA_MESAJ.find(([re]) => re.test(mesaj))?.[1] ?? [];
 }
+
+/**
+ * Traducerea pentru alocări (0173), separată de cea a foilor.
+ *
+ * În caseta de predare, vehiculul e un câmp ASCUNS. Harta de mai sus ar pune
+ * „Vehiculul …” pe `vehicle_id`, adică pe o casetă care nu se vede, iar
+ * mesajul s-ar pierde sub „Corectați câmpurile marcate”. Aici, ce nu ține de un
+ * câmp vizibil rămâne mesaj general. Mesajele din 0173 sunt scrise cu ș/ț
+ * corecte, deci tiparele le folosesc direct.
+ */
+const CAMPURI_ALOCARE: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Alocarea începe/u, ["de_la"]],
+  [/^Alocarea se încheie/u, ["pana_la"]],
+  [/^Angajatul ales/u, ["employee_id"]],
+];
+
+export function traduEroareAlocare(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23P01") {
+      // `va_fara_suprapunere`. `details` conține uuid-urile și intervalele brute,
+      // inutile pentru om, deci nu se propagă.
+      throw invalidInput(
+        "Vehiculul era deja alocat cuiva în acest interval. Alegeți alt moment al predării.",
+        {
+          de_la: [
+            "Vehiculul era deja alocat cuiva în acest interval. Alegeți alt moment al predării.",
+          ],
+        },
+      );
+    }
+    if (error.code === "23514") {
+      // Predarea închide alocarea deschisă cu `km_restituire = km_predare` nou.
+      // Dacă cifra e sub kilometrajul predării anterioare, cade `va_km_ck`, iar
+      // caseta precompletează `km_curent`, care poate rămâne în urmă. Cheia e
+      // pusă pe ambele câmpuri de km: fiecare casetă îl are pe al ei vizibil.
+      if (error.message.includes("va_km_ck")) {
+        const mesaj =
+          "Kilometrajul e mai mic decât cel de la predarea anterioară. Verificați cifra de la bord.";
+        throw invalidInput(mesaj, { km_predare: [mesaj], km_restituire: [mesaj] });
+      }
+      if (error.message.includes("va_interval_ck")) {
+        const mesaj = "Restituirea trebuie să fie după momentul predării.";
+        throw invalidInput(mesaj, { pana_la: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_ALOCARE.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}

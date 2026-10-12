@@ -1,4 +1,5 @@
 // src/app/(app)/salarizare/popriri/page.tsx
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Gavel } from "lucide-react";
 
@@ -15,10 +16,28 @@ import { formatDate } from "@/lib/format/date";
 
 import { ActiuniPoprire } from "./actiuni-poprire";
 import { FormularPoprireNoua } from "./formular-poprire-noua";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { cn } from "@/lib/ui/cn";
 
 export const metadata: Metadata = { title: "Popriri" };
 
-export default async function PaginaPopriri() {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default async function PaginaPopriri({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?nou=<id>`: dosarul tocmai deschis, evidențiat pe server și derulat la `#dosar-<id>`.
+  const parametri = await searchParams;
+  const nouBrut = parametri["nou"];
+  const nouId = typeof nouBrut === "string" ? nouBrut : null;
+  // `?angajat=<id>`: filtru de INTRARE, de pe fișa angajatului. Lista n-avea
+  // nicio adresă pe om, deci de pe fișă nu se putea trimite nimeni la
+  // dosarele lui anume (analiza 2026-10-08, salarizare-L14).
+  const angajatBrut = parametri["angajat"];
+  const angajatFiltrat =
+    typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -39,7 +58,7 @@ export default async function PaginaPopriri() {
   const poateEdita = can(permisiuni, "payroll:update", "all");
 
   const db = await createServerSupabase();
-  const [dosare, { data: angajati }] = await Promise.all([
+  const [toateDosarele, { data: angajati }] = await Promise.all([
     dosarePopriri(tenant.organizationId),
     db
       .from("employees")
@@ -51,6 +70,17 @@ export default async function PaginaPopriri() {
       .returns<{ id: string; full_name: string | null; marca: string }[]>(),
   ]);
 
+  const dosare =
+    angajatFiltrat === null
+      ? toateDosarele
+      : toateDosarele.filter((d) => d.employee_id === angajatFiltrat);
+  const numeFiltrat =
+    angajatFiltrat === null
+      ? null
+      : (toateDosarele.find((d) => d.employee_id === angajatFiltrat)?.angajat?.full_name ??
+        angajati?.find((a) => a.id === angajatFiltrat)?.full_name ??
+        "angajatul ales");
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -59,12 +89,30 @@ export default async function PaginaPopriri() {
         {...(poateCrea ? { actiuni: <FormularPoprireNoua angajati={angajati ?? []} /> } : {})}
       />
 
+      {angajatFiltrat === null ? null : (
+        <p className="border-border bg-surface rounded-panou text-corp border px-4 py-2">
+          Doar dosarele pentru <strong>{numeFiltrat}</strong>.{" "}
+          <Link href="/salarizare/popriri" className="underline underline-offset-2">
+            Toate dosarele
+          </Link>
+          .
+        </p>
+      )}
+
       {dosare.length === 0 ? (
         <StareGoala
           fel="initiala"
           pictograma={Gavel}
-          titlu="Niciun dosar de poprire"
-          descriere="Când primiți o adresă de înființare a popririi de la un executor judecătoresc, deschideți aici dosarul — reținerea intră automat în calculul salarial."
+          titlu={
+            angajatFiltrat === null
+              ? "Niciun dosar de poprire"
+              : "Niciun dosar pentru acest angajat"
+          }
+          descriere={
+            angajatFiltrat === null
+              ? "Când primiți o adresă de înființare a popririi de la un executor judecătoresc, deschideți aici dosarul — reținerea intră automat în calculul salarial."
+              : "Angajatul ales n-are niciun dosar de poprire, activ sau stins."
+          }
         />
       ) : (
         <ul className="space-y-3">
@@ -77,7 +125,11 @@ export default async function PaginaPopriri() {
             return (
               <li
                 key={dosar.id}
-                className="border-border bg-surface rounded-panou shadow-ridicat border"
+                id={`dosar-${dosar.id}`}
+                className={cn(
+                  "border-border bg-surface rounded-panou shadow-ridicat scroll-mt-24 border",
+                  nouId === dosar.id && "ring-primary ring-2",
+                )}
               >
                 <div className="flex flex-wrap items-start gap-3 px-4 py-3">
                   <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
@@ -85,7 +137,17 @@ export default async function PaginaPopriri() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{dosar.angajat?.full_name ?? "—"}</span>
+                      <span className="font-medium">
+                        <LinkEntitate
+                          href={
+                            dosar.angajat !== null && can(permisiuni, "employees:read", "all")
+                              ? `/angajati/${dosar.employee_id}`
+                              : null
+                          }
+                        >
+                          {dosar.angajat?.full_name ?? "—"}
+                        </LinkEntitate>
+                      </span>
                       <span className="text-muted-foreground text-nota font-mono">
                         {dosar.angajat?.marca ?? ""}
                       </span>

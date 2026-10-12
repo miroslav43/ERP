@@ -81,7 +81,12 @@ describe("indexul de destinații față de arborele de rute", () => {
 
   it("nu conține nicio destinație către o pagină care nu mai există", () => {
     const peDisc = new Set(RUTE_PE_DISC);
-    const fantome = DESTINATII.filter((d) => !peDisc.has(d.href)).map((d) => `${d.id} → ${d.href}`);
+    // Se compară CALEA, fără query string: casetele care au înlocuit rutele
+    // `/nou` se deschid din URL (`/mentenanta/echipamente?echipament=nou`), iar
+    // destinația lor legitimă e lista cu parametrul, nu o pagină proprie.
+    const fantome = DESTINATII.filter((d) => !peDisc.has(d.href.split("?")[0] ?? d.href)).map(
+      (d) => `${d.id} → ${d.href}`,
+    );
     expect(fantome, "Destinații care trimit în gol — pagina a fost mutată sau ștearsă.").toEqual(
       [],
     );

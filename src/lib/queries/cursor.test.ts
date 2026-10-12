@@ -13,6 +13,38 @@ import {
   VALOARE_NULA,
 } from "./cursor";
 
+describe("predicatKeyset — coloana de departajare", () => {
+  // Registrul departajează pe `numar`, nu pe `id`: cu anul fixat, numărul e unic
+  // ȘI e ordinea registrului, deci rândurile din aceeași zi rămân în ordinea
+  // în care au fost înregistrate. Un uuid ca departajator le-ar amesteca.
+  it("departajatorul se poate alege; implicit rămâne `id`", () => {
+    expect(
+      predicatKeyset("data_inregistrare", { valoare: "2026-09-02", id: "437" }, "desc", "numar"),
+    ).toBe(
+      'data_inregistrare.lt."2026-09-02",and(data_inregistrare.eq."2026-09-02",numar.lt."437")',
+    );
+    expect(predicatKeyset("full_name", { valoare: "Ionescu", id: "abc" }, "asc")).toBe(
+      'full_name.gt."Ionescu",and(full_name.eq."Ionescu",id.gt."abc")',
+    );
+  });
+
+  it("varianta nulabilă folosește același departajator și după o valoare, și după NULL", () => {
+    expect(
+      predicatKeysetNulabil("indicativ_dosar", { valoare: "II.5", id: "12" }, "asc", "numar"),
+    ).toBe(
+      'indicativ_dosar.gt."II.5",and(indicativ_dosar.eq."II.5",numar.gt."12"),indicativ_dosar.is.null',
+    );
+    expect(
+      predicatKeysetNulabil(
+        "indicativ_dosar",
+        { valoare: VALOARE_NULA, id: "12" },
+        "desc",
+        "numar",
+      ),
+    ).toBe('and(indicativ_dosar.is.null,numar.lt."12")');
+  });
+});
+
 describe("predicatKeysetNulabil", () => {
   it("după o valoare: keyset-ul obișnuit, plus toate NULL-urile de la coadă", () => {
     expect(predicatKeysetNulabil("termen", { valoare: "2026-10-05", id: "a" }, "asc")).toBe(

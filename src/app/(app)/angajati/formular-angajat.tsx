@@ -94,6 +94,8 @@ interface Proprietati {
   readonly departamente: readonly Optiune[];
   readonly colegi: readonly Coleg[];
   readonly angajat: AngajatDeEditat;
+  /** Unde se întoarce după salvare, când nu pe fișă (ex. organigrama, pe nod). Validat de pagină. */
+  readonly inapoi?: string | null;
 }
 
 /**
@@ -208,7 +210,7 @@ function optiuniActIdentitate(actual: string | null): readonly TipActIdentitate[
   return cunoscut ? [...oferite, actual as TipActIdentitate] : oferite;
 }
 
-export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) {
+export function FormularAngajat({ departamente, colegi, angajat, inapoi = null }: Proprietati) {
   const router = useRouter();
 
   const trimite = useCallback(
@@ -220,9 +222,9 @@ export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) 
   // `Formular`. O funcție nouă la fiecare randare ar reporni efectul după
   // `router.refresh()`, iar notificarea ar apărea de două ori.
   const laReusita = useCallback(() => {
-    router.push(`/angajati/${angajat.id}`);
+    router.push(inapoi ?? `/angajati/${angajat.id}`);
     router.refresh();
-  }, [router, angajat.id]);
+  }, [router, angajat.id, inapoi]);
 
   return (
     <Formular

@@ -92,33 +92,34 @@ def style_all(ws):
 
 # (name, label, Base, Conservative, Upside, unit, number format, note)
 SCENARIO_DRIVERS = [
-    ("PilotPractices", "Accountant practices that join the pilot", 6, 3, 10, "practices", NUM,
-     "Pilot offers 10 places, sign-up until 15 Nov 2026 (administrativo.ro/pentru-contabili). Zero signed on 6 Oct 2026 -> base assumes 6. ASSUMPTION."),
-    ("PilotFirmsPerPractice", "Client companies per pilot practice", 2, 1.5, 2.5, "firms", NUM1,
+    ("PilotPractices", "Accountant practices that join the pilot", 8, 6, 10, "practices", NUM,
+     "Pilot offers 10 places, sign-up until 15 Nov 2026 (administrativo.ro/pentru-contabili). Zero signed on 6 Oct 2026 (2 qualified conversations) "
+     "-> base assumes 8, conservative 6. ASSUMPTION."),
+    ("PilotFirmsPerPractice", "Client companies per pilot practice", 2.25, 2, 2.5, "firms", NUM1,
      "Pilot allows 1-3 client companies per practice (administrativo.ro/pentru-contabili). ASSUMPTION within that range."),
-    ("PilotConv", "Pilot company -> paying customer (Apr 2027)", 0.50, 0.33, 0.70, "%", PCT,
+    ("PilotConv", "Pilot company -> paying customer (Apr 2027)", 0.60, 0.50, 0.70, "%", PCT,
      "Pilot is free until 31 Mar 2027 (administrativo.ro/pentru-contabili). Conversion not observed yet. ASSUMPTION."),
-    ("NewPartnersY1", "New accountant partners per month, year 1 (full-time partner manager)", 2, 1, 3, "per month", NUM1,
+    ("NewPartnersY1", "New accountant partners per month, year 1 (full-time partner manager)", 2.5, 2, 3, "per month", NUM1,
      "Signed by the partner manager from in_PartnerStart; rate for a FULL-TIME manager, scaled by in_SalesFTE while the role is part-time "
      "(until in_SalesFullStart). ASSUMPTION (~18,400 practices in RO: CECCAR 2025 report, as reported)."),
-    ("NewPartnersY2", "New accountant partners per month, year 2", 3, 1.5, 5, "per month", NUM1, "ASSUMPTION."),
-    ("NewPartnersY3", "New accountant partners per month, year 3", 4, 2, 6, "per month", NUM1, "ASSUMPTION."),
-    ("RefRate", "Firms referred per active partner per month", 0.20, 0.12, 0.30, "firms", '0.00',
-     "0.20 = one referral every 5 months per partner. No sourced figure for clients per accountant. ASSUMPTION."),
-    ("RefConv", "Referred firm -> paying customer", 0.50, 0.40, 0.60, "%", PCT, "ASSUMPTION (warm referral by the firm's own accountant)."),
-    ("OrganicY1", "Organic / SEO / direct trials per month, year 1", 4, 2, 8, "trials", NUM1,
+    ("NewPartnersY2", "New accountant partners per month, year 2", 4, 3, 5, "per month", NUM1, "ASSUMPTION."),
+    ("NewPartnersY3", "New accountant partners per month, year 3", 5, 4, 6, "per month", NUM1, "ASSUMPTION."),
+    ("RefRate", "Firms referred per active partner per month", 0.25, 0.20, 0.30, "firms", '0.00',
+     "0.25 = one referral every 4 months per partner. No sourced figure for clients per accountant. ASSUMPTION."),
+    ("RefConv", "Referred firm -> paying customer", 0.55, 0.50, 0.60, "%", PCT, "ASSUMPTION (warm referral by the firm's own accountant)."),
+    ("OrganicY1", "Organic / SEO / direct trials per month, year 1", 6, 4, 8, "trials", NUM1,
      "Web traffic today ~7 genuine visitors/month, 201 GSC impressions since 2 Sep 2026 (pre-launch). ASSUMPTION."),
-    ("OrganicY2", "Organic / SEO / direct trials per month, year 2", 12, 6, 20, "trials", NUM1, "ASSUMPTION."),
-    ("OrganicY3", "Organic / SEO / direct trials per month, year 3", 20, 10, 35, "trials", NUM1, "ASSUMPTION."),
-    ("TrialConv", "Trial -> paying customer (after free month)", 0.25, 0.15, 0.30, "%", PCT,
+    ("OrganicY2", "Organic / SEO / direct trials per month, year 2", 16, 12, 20, "trials", NUM1, "ASSUMPTION."),
+    ("OrganicY3", "Organic / SEO / direct trials per month, year 3", 27, 20, 35, "trials", NUM1, "ASSUMPTION."),
+    ("TrialConv", "Trial -> paying customer (after free month)", 0.275, 0.25, 0.30, "%", PCT,
      "First month free for every configuration (administrativo.ro price list). ASSUMPTION, no observed data."),
-    ("CostPerTrial", "Paid marketing cost per trial", 80, 120, 60, "EUR", EUR, "Google/LinkedIn, REGES-Online keywords. ASSUMPTION."),
-    ("Churn", "Monthly logo churn", 0.03, 0.05, 0.02, "% / month", PCT,
-     "ChartMogul median 6.1%/mo for ARPA < US$25; our ARPA ~US$50 sits in a better band. 3% base / 5% conservative / 2% upside: ASSUMPTION, to be tested in the pilot."),
-    ("PriceInc", "Annual list-price / upsell increase (from year 2)", 0.05, 0.00, 0.08, "% / year", PCT, "ASSUMPTION."),
-    ("DevStart", "Month the developer is hired", 25, 31, 19, "model month", NUM,
-     "AFTER the seed: seed raise starts at 100 paying customers (in_M100), ~5-6 months to close. Base Jan 2029; Upside Jul 2028 "
-     "(100 customers sooner); Conservative Jul 2029 (seed trigger not reached - deliberately late). Not funded by the pre-seed. ASSUMPTION."),
+    ("CostPerTrial", "Paid marketing cost per trial", 70, 80, 60, "EUR", EUR, "Google/LinkedIn, REGES-Online keywords. ASSUMPTION."),
+    ("Churn", "Monthly logo churn", 0.025, 0.03, 0.02, "% / month", PCT,
+     "ChartMogul median 6.1%/mo for ARPA < US$25; our ARPA ~US$50 sits in a better band. 2.5% base / 3% conservative / 2% upside: ASSUMPTION, to be tested in the pilot."),
+    ("PriceInc", "Annual list-price / upsell increase (from year 2)", 0.065, 0.05, 0.08, "% / year", PCT, "ASSUMPTION."),
+    ("DevStart", "Month the developer is hired", 25, 25, 19, "model month", NUM,
+     "AFTER the seed: seed conversations start at 100 paying customers (in_M100) or earlier, ~5-6 months to close. Base and Conservative Jan 2029; "
+     "Upside Jul 2028 (100 customers sooner). Not funded by the pre-seed. ASSUMPTION."),
 ]
 
 # Plain inputs: (name, label, value, unit, number format, note).  Section rows are ("#", title).
@@ -138,9 +139,9 @@ INPUTS = [
     ("FundingMonth", "Month the round is received", 1, "model month", NUM, "ASSUMPTION; see StartDate."),
     ("OpeningCash", "Cash in the company before the round", 0, "EUR", EUR, "[TO CONFIRM] by the founders. Set to 0 (prudent)."),
     ("#", "Round (key levers)"),
-    ("VVTicket", "Vest Ventures accelerator ticket", 150000, "EUR", EUR,
+    ("VVTicket", "Vest Ventures accelerator ticket", 100000, "EUR", EUR,
      "VV Accelerator ticket EUR 10k-200k, de minimis (vestventures.vc/en/programs-terms). "
-     "EUR 150k requested, inside the range; Vest Ventures is the only investor in this round."),
+     "EUR 100k requested, inside the range; Vest Ventures is the only investor in this round."),
     ("PreMoney", "Pre-money valuation", 1250000, "EUR", EUR,
      "Founders' proposal. We found no sourced RO/CEE pre-seed valuation benchmark."),
     ("#", "Pricing (list prices, RON/month, final - seller not VAT-registered)"),
@@ -164,18 +165,21 @@ INPUTS = [
      "Romanian 'contribuția asiguratorie pentru muncă' 2.25% - legal value [TO CONFIRM] by accountant."),
     ("Raise", "Annual salary increase (from year 2)", 0.05, "%", PCT, "ASSUMPTION."),
     ("SalFounder", "Co-founder gross salary (each, 2 people)", 1000, "EUR/month", EUR,
-     "Both co-founders full time from close, on a deliberately lean pre-seed salary (~RON 5,000 gross) to stretch the runway; "
+     "Both co-founders full time from close; paid from in_FounderPayStart on a deliberately lean pre-seed salary (~RON 5,000 gross); "
      "kept at this level in the model (only the annual raise applies). ASSUMPTION - no sourced salary benchmark."),
+    ("FounderPayStart", "Co-founders paid from", 13, "model month", NUM,
+     "Jan 2028. In year 1 both co-founders work full time without a salary (unpaid directors), so the EUR 100k round reaches the "
+     "seed trigger. Lower pay is not an option: EUR 1,000 gross is just above the Romanian minimum wage for a full-time contract."),
     ("SalSales", "Partner & sales manager (accountant channel) gross, full-time equivalent", 2000, "EUR/month", EUR,
      "ASSUMPTION (no sourced salary benchmark). Paid pro rata to in_SalesFTE while part-time."),
     ("SalesStart", "Partner & sales manager start month", 3, "model month", NUM, "ASSUMPTION."),
     ("SalesFTE", "Partner & sales manager share of full time until full-time start", 0.5, "FTE", PCT,
-     "Half time in year 1 to fit the EUR 150k round. Partner signings scale with it (new partners/month x FTE): fewer sales hours = fewer partners. ASSUMPTION."),
+     "Half time in year 1 to fit the EUR 100k round. Partner signings scale with it (new partners/month x FTE): fewer sales hours = fewer partners. ASSUMPTION."),
     ("SalesFullStart", "Partner & sales manager full time from", 13, "model month", NUM, "Jan 2028, after the first year of channel data. ASSUMPTION."),
     ("SalSupport", "Customer onboarding & support specialist (HR/payroll background) gross, full-time equivalent", 1400, "EUR/month", EUR,
      "ASSUMPTION. Paid pro rata to in_SupportFTE while part-time."),
-    ("SupportStart", "Onboarding & support specialist start month", 7, "model month", NUM,
-     "Founders onboard the pilot companies (Apr 2027); the specialist starts part-time around 30 paying customers. ASSUMPTION."),
+    ("SupportStart", "Onboarding & support specialist start month", 9, "model month", NUM,
+     "Founders onboard the pilot companies (Apr 2027) and the first paying firms; the specialist starts part-time just after 30 paying customers. ASSUMPTION."),
     ("SupportFTE", "Onboarding & support specialist share of full time until full-time start", 0.5, "FTE", PCT, "ASSUMPTION."),
     ("SupportFullStart", "Onboarding & support specialist full time from", 25, "model month", NUM,
      "With the seed (same month as the base-case developer hire). ASSUMPTION."),
@@ -189,11 +193,12 @@ INPUTS = [
     ("MktY1", "Marketing budget, year 1", 1500, "EUR/month", EUR, "ASSUMPTION."),
     ("MktY2", "Marketing budget, year 2", 2500, "EUR/month", EUR, "ASSUMPTION."),
     ("MktY3", "Marketing budget, year 3", 3500, "EUR/month", EUR, "ASSUMPTION."),
-    ("Travel", "Travel to accounting practices, accountant events", 300, "EUR/month", EUR,
-     "Founders' internal cost estimate (accountant sales), trimmed to fit the EUR 150k round: local Timiș/West Region practices first, few paid events."),
-    ("Office", "Coworking desk(s) in Timiș county", 200, "EUR/month", EUR, "VV requires an operating site in the West Region (vestventures.vc/en/programs-terms). ASSUMPTION."),
+    ("Travel", "Travel to accounting practices, accountant events", 200, "EUR/month", EUR,
+     "Founders' internal cost estimate (accountant sales), trimmed to fit the EUR 100k round: local Timiș/West Region practices first, no paid events."),
+    ("Office", "Coworking desk in Timiș county", 100, "EUR/month", EUR,
+     "VV requires an operating site in the West Region (vestventures.vc/en/programs-terms). One flexible coworking desk. ASSUMPTION."),
     ("Insurance", "Professional liability insurance", 100, "EUR/month", EUR, "Founders' internal cost estimate (EUR 1,200/yr)."),
-    ("Admin", "Bookkeeping, bank, admin", 200, "EUR/month", EUR, "ASSUMPTION."),
+    ("Admin", "Bookkeeping, bank, admin", 150, "EUR/month", EUR, "ASSUMPTION."),
     ("Contingency", "Contingency on all costs", 0.05, "%", PCT, "ASSUMPTION."),
     ("#", "One-off legal, validation and compliance (EUR, spread evenly from start to end month)"),
     ("LegalAmt", "Legal: round documents, T&C, DPA, IP assignment to the SRL", 5000, "EUR", EUR, "Founders' internal cost estimate (EUR 3,500 minimal) + round paperwork."),
@@ -207,8 +212,9 @@ INPUTS = [
     ("A11yStart", "  start month", 5, "model month", NUM, ""),
     ("A11yEnd", "  end month", 6, "model month", NUM, ""),
     ("PentestAmt", "External penetration test", 6000, "EUR", EUR, "Founders' internal cost estimate ('~EUR 6,000')."),
-    ("PentestStart", "  start month", 12, "model month", NUM, "Dec 2027: before the year-2 scale-up and before seed due diligence."),
-    ("PentestEnd", "  end month", 12, "model month", NUM, ""),
+    ("PentestStart", "  start month", 26, "model month", NUM,
+     "Feb 2029: funded by the seed, not by the pre-seed. Until then: automated security tests, RLS isolation checks and nightly code review."),
+    ("PentestEnd", "  end month", 26, "model month", NUM, ""),
     ("#", "Tax"),
     ("TaxRegime", "Tax regime (1 = micro-enterprise on revenue, 2 = profit tax)", 1, "1 / 2", NUM,
      "[TO CONFIRM] with accountant: micro-enterprise eligibility (revenue threshold, CAEN, shareholder tests) for the SRL."),
@@ -560,8 +566,8 @@ class Model:
         salpt = lambda gross, start, fte, full_start: (lambda m, c: (f"=IF({c}$3>={start},{gross}*IF({c}$3>={full_start},1,{fte})"
                                                                      f"*(1+in_CAM)*(1+in_Raise)^({c}$5-1),0)"))
         fte_of = lambda c, start, fte, full_start: f"IF({c}$3>={start},IF({c}$3>={full_start},1,{fte}),0)"
-        self.mrow(ws, 8, "founder1", "Co-founder - Miroslav Maletici (role [TO CONFIRM])", "EUR", sal("in_SalFounder", 1), EUR)
-        self.mrow(ws, 9, "founder2", "Co-founder - Răzvan Pervulescu (role [TO CONFIRM])", "EUR", sal("in_SalFounder", 1), EUR)
+        self.mrow(ws, 8, "founder1", "Co-founder & CEO - Miroslav Maletici (unpaid in year 1)", "EUR", sal("in_SalFounder", "in_FounderPayStart"), EUR)
+        self.mrow(ws, 9, "founder2", "Co-founder & CTO - Răzvan Pervulescu (unpaid in year 1)", "EUR", sal("in_SalFounder", "in_FounderPayStart"), EUR)
         self.mrow(ws, 10, "sales", "Partner & sales manager (accountant channel; part-time first)", "EUR",
                   salpt("in_SalSales", "in_SalesStart", "in_SalesFTE", "in_SalesFullStart"), EUR)
         self.mrow(ws, 11, "support", "Customer onboarding & support specialist (part-time first)", "EUR",
@@ -751,7 +757,7 @@ class Model:
         R = lambda k: self.r("Costs", k)
         cats = [
             ("Product & engineering (2 co-founders full time)", [R("founder1"), R("founder2"), R("dev")],
-             "Both co-founders full time on lean salaries; the developer is hired after the seed (in_DevStart), outside this horizon in the base case. "
+             "Both co-founders full time, unpaid until in_FounderPayStart, then on lean salaries; the developer is hired after the seed (in_DevStart), outside this horizon in the base case. "
              "REGES-Online, payroll validation fixes, billing, mobile store release."),
             ("Accountant channel & sales (partner manager, travel, commissions)", [R("sales"), R("travel"), R("comm")],
              "Partner manager (half time in year 1, full time from in_SalesFullStart) signing accounting practices; 20% x 6-month commissions."),
@@ -790,9 +796,9 @@ class Model:
             c = ws.cell(row=j + 1, column=i, value=h)
             c.font, c.fill = HDR, HDR_FILL
         cumcost, runmin = rng("P&L & Cash", 24), rng("P&L & Cash", 28)
-        tests = [("Smaller Vest Ventures ticket", 100000),
+        tests = [("Smaller Vest Ventures ticket", 75000),
                  ("Proposed round", "=in_Round"),
-                 ("Vest Ventures maximum accelerator ticket", 200000)]
+                 ("Larger ticket, same lean plan", 150000)]
         for i, (lbl, v) in enumerate(tests):
             rr = j + 2 + i
             ws[f"A{rr}"], ws[f"B{rr}"] = lbl, v
@@ -821,13 +827,13 @@ class Model:
              '&TEXT(in_CashLow,"#,##0")&"; break-even in model month "&in_Breakeven&".")'),
             '="Next milestone (seed readiness) inside the runway: 100 paying firms by model month "&in_M100&", payroll validated, REGES-Online in daily use, accountant channel repeatable."',
             ('="Why this size: the round funds the path to the seed trigger (100 paying firms, model month "&in_M100&") with "&in_RunwayPlan&'
-             '" months of runway on plan, on a lean cost plan: co-founders at €"&TEXT(in_SalFounder,"#,##0")&'
+             '" months of runway on plan, on a lean cost plan: co-founders unpaid until model month "&in_FounderPayStart&", then €"&TEXT(in_SalFounder,"#,##0")&'
              '" gross, partner manager at "&TEXT(in_SalesFTE,"0%")&" until model month "&in_SalesFullStart&" (partner signings scaled to the manager\'s hours), '
              'support specialist at "&TEXT(in_SupportFTE,"0%")&" from model month "&in_SupportStart&", developer after the seed (model month "&in_DevStart&")."'),
             (f'="A smaller ticket (€"&TEXT(B{t100},"#,##0")&") gives "&C{t100}&" months with zero revenue and "&D{t100}&" on plan"&'
              f'IF(AND(ISNUMBER(D{t100}),ISNUMBER(in_M100)),IF(D{t100}<in_M100," - cash runs out before the seed trigger."," - with little margin before the seed trigger."),".")'),
-            (f'="The Vest Ventures maximum (€"&TEXT(B{t200},"#,##0")&") buys "&C{t200}&" months with zero revenue and "&D{t200}&'
-             f'" on plan: more runway than the lean plan needs to reach the seed trigger."'),
+            (f'="A larger ticket (€"&TEXT(B{t200},"#,##0")&") would buy "&C{t200}&" months with zero revenue and "&D{t200}&'
+             f'" on plan on the same lean plan: more than the plan needs, so we ask for the smallest ticket that reaches the seed trigger."'),
         ]
         for k, f in enumerate(lines):
             ws[f"A{j + 1 + k}"] = f
@@ -930,7 +936,7 @@ class Model:
             "Prices above 20 employees are not published; larger firms are modelled at list price.",
             "No billing integration exists in code yet; payment fees are an assumption.",
             "Salaries, conversion rates and partner productivity are founders' assumptions (no external source).",
-            "Lean pre-seed cost plan: co-founders on lean salaries, partner manager and support specialist part-time first "
+            "Lean pre-seed cost plan: co-founders unpaid in year 1 and on lean salaries after, partner manager and support specialist part-time first "
             "(partner signings scaled to the manager's hours), developer hired only after the seed.",
             "[TO CONFIRM]: legal entity and registered office (VV requires Arad, Caraș-Severin, Hunedoara or Timiș), tax regime, social parts.",
             "Sheets: Assumptions -> Revenue -> Costs -> P&L & Cash -> Unit economics; Scenarios; Use of funds; Sources.",

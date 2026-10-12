@@ -21,7 +21,16 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
       href: "/ghid/concediu-de-odihna#zile-pe-an",
     },
     { eticheta: "Program de concedii: cerere, aprobare și sold", href: "/module/concedii" },
+    {
+      eticheta: "Câte zile de concediu ți se cuvin pe an",
+      href: "/unelte/calculator-zile-concediu",
+    },
+    {
+      eticheta: "Zile lucrătoare între două date: calculator",
+      href: "/unelte/calculator-zile-lucratoare",
+    },
     { eticheta: "Pentru firmele de servicii și birouri", href: "/domenii/servicii" },
+    { eticheta: "Programarea anuală a concediilor, în Excel", href: "/unelte/programare-concedii" },
   ],
   "/unelte/condica-de-prezenta": [
     { eticheta: "Ce cere art. 119 la evidența orelor", href: "/evidenta-orelor-de-munca" },
@@ -44,6 +53,48 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
     { eticheta: "KPI-uri: indicatori și ținte pe angajat", href: "/module/kpi" },
     { eticheta: "Pentru firmele de servicii și birouri", href: "/domenii/servicii" },
   ],
+  "/unelte/calculator-zile-concediu": [
+    { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
+    {
+      eticheta: "Cerere de concediu cu zilele calculate",
+      href: "/unelte/cerere-concediu-de-odihna",
+    },
+    { eticheta: "Program de concedii: cerere, aprobare și sold", href: "/module/concedii" },
+  ],
+  "/unelte/calculator-zile-lucratoare": [
+    { eticheta: "Zilele libere legale și zilele lucrătoare pe luni", href: "/ghid/zile-libere" },
+    { eticheta: "Foaie de pontaj lunar, gratuită", href: "/unelte/foaie-de-pontaj" },
+    {
+      eticheta: "Cerere de concediu cu zilele lucrătoare calculate",
+      href: "/unelte/cerere-concediu-de-odihna",
+    },
+    { eticheta: "Cerere de demisie cu preaviz calculat", href: "/unelte/cerere-demisie" },
+  ],
+  "/unelte/cerere-demisie": [
+    {
+      eticheta: "Calculator de zile lucrătoare între două date",
+      href: "/unelte/calculator-zile-lucratoare",
+    },
+    {
+      eticheta: "Concediul de odihnă neefectuat la plecare",
+      href: "/ghid/concediu-de-odihna#neefectuat",
+    },
+    { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+    { eticheta: "Adeverință de salariat: model", href: "/unelte/adeverinta-salariat" },
+  ],
+  "/unelte/programare-concedii": [
+    { eticheta: "Concediul de odihnă: zile, programare, report", href: "/ghid/concediu-de-odihna" },
+    {
+      eticheta: "Câte zile de concediu ți se cuvin pe an",
+      href: "/unelte/calculator-zile-concediu",
+    },
+    { eticheta: "Zilele libere legale și zilele lucrătoare pe luni", href: "/ghid/zile-libere" },
+  ],
+  "/unelte/adeverinta-salariat": [
+    { eticheta: "REGES-ONLINE: termene și amenzi", href: "/reges-online" },
+    { eticheta: "Evidența angajaților: fișe, roluri și audit", href: "/module/nucleu" },
+    { eticheta: "Cerere de demisie cu preaviz calculat", href: "/unelte/cerere-demisie" },
+  ],
   "/unelte/calculator-salariu": [
     { eticheta: "Salariul minim pe economie în 2026", href: "/ghid/salariu-minim-pe-economie" },
     { eticheta: "Program de salarizare: calculul salariilor", href: "/module/salarizare" },
@@ -52,6 +103,10 @@ export const LEGATURI_CONEXE: Readonly<Record<string, readonly Legatura[]>> = {
   "/unelte/foaie-de-pontaj": [
     { eticheta: "Program de pontaj cu ora de început și de sfârșit", href: "/module/pontaj" },
     { eticheta: "Zilele libere legale și zilele lucrătoare pe luni", href: "/ghid/zile-libere" },
+    {
+      eticheta: "Calculator de zile lucrătoare între două date",
+      href: "/unelte/calculator-zile-lucratoare",
+    },
     { eticheta: "Pontaj de pe telefon, fără instalare", href: "/pontaj-pe-telefon" },
   ],
   "/comparatie/excel": [

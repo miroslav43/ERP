@@ -7,8 +7,8 @@ import { PackageX } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
@@ -17,12 +17,15 @@ import {
   bunuriNereturnate,
   citesteInstanta,
   pasiiInstantei,
+  citesteSablon,
 } from "@/lib/queries/checklist";
 import { fisaMea } from "@/lib/queries/portal";
 
 import { TONURI_STATUS_INSTANTA, ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "../etichete";
 import { ActiuniInstanta } from "./actiuni-instanta";
 import { PasChecklist } from "./pas-checklist";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Detaliile checklistului" };
 
@@ -37,9 +40,10 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "onboarding"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "checklists:read", "own")) {
@@ -52,13 +56,26 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
   if (instanta === null) notFound();
 
   const pasi = await pasiiInstantei(tenant.organizationId, instanta.id);
+  const sablon = await citesteSablon(tenant.organizationId, instanta.template_id);
 
   const poateVedeaAngajati = can(permisiuni, "employees:read", "team");
-  const angajat = poateVedeaAngajati
-    ? (await angajatiDupaId(tenant.organizationId, [instanta.employee_id])).get(
+  // Subiectul ȘI responsabilii pașilor, dintr-o singură citire sub RLS: cine nu
+  // vine înapoi rămâne eticheta de tip („Managerul direct"), fără nume și link.
+  const fise = poateVedeaAngajati
+    ? await angajatiDupaId(tenant.organizationId, [
         instanta.employee_id,
+        ...pasi.map((p) => p.responsabil_employee_id).filter((id): id is string => id !== null),
+      ])
+    : new Map<string, never>();
+  const angajat = fise.get(instanta.employee_id);
+  const responsabili = Object.fromEntries(
+    [...fise.values()]
+      .filter(
+        (f) =>
+          f.id !== instanta.employee_id || pasi.some((p) => p.responsabil_employee_id === f.id),
       )
-    : undefined;
+      .map((f) => [f.id, { nume: f.full_name ?? f.marca, href: hrefFisa(f, permisiuni) }] as const),
+  );
 
   // Bifare = poate gestiona orice pas al echipei (scope „team"/„all") SAU e
   // responsabilul desemnat al pasului.
@@ -97,8 +114,24 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
   // stătea seedată și moartă din 0002. Ecranul trebuie să ceară exact ce cer
   // acum `finalizeazaInstanta` și `anuleazaInstanta`, altfel butonul apare și
   // acțiunea îl refuză.
+  // La scope `team`, politica de UPDATE cere și `is_manager_of(subiect)`: un
+  // manager care vede instanța doar ca RESPONSABIL de pas primea butoanele și
+  // un refuz cu zero rânduri. `angajat !== undefined` e dovada că subiectul s-a
+  // citit prin `manager_path`, deci e în subordine.
+  const scopAprobare = scopeFor(permisiuni, "checklists:approve");
   const poateGestiona =
-    can(permisiuni, "checklists:approve", "team") && instanta.status === "in_curs";
+    can(permisiuni, "checklists:approve", "team") &&
+    instanta.status === "in_curs" &&
+    (scopAprobare === "all" || angajat !== undefined);
+  // Politica dovezii n-are ramură de responsabil: fără subordonare, pagina
+  // dovezii răspundea „nu există încă", cu o cauză falsă.
+  // Dovada există doar după finalizare: pe o instanță în curs sau anulată,
+  // linkul ducea la „Dovada nu există încă".
+  const poateVedeaDovada =
+    instanta.finalizata_la !== null &&
+    (scopeFor(permisiuni, "checklists:read") === "all" || angajat !== undefined);
+  const poateDeschideInventarul =
+    module.has("inventory") && can(permisiuni, "inventory:read", "team");
 
   // Vizibil MEREU pentru cine are dreptul (politica din 0014 cere
   // `checklists:update ≥ team`) — nu doar lângă butonul „Finalizează".
@@ -118,13 +151,42 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
         </p>
         <AntetPagina
           titlu={
-            angajat === undefined
-              ? "Checklist"
-              : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`
+            angajat === undefined ? (
+              "Checklist"
+            ) : (
+              <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                {angajat.full_name ?? angajat.marca} ({angajat.marca})
+              </LinkEntitate>
+            )
           }
-          descriere={`${ETICHETE_TIP[instanta.tip]} · Referință ${formatDate(
-            instanta.data_referinta,
-          )} · Ciclul ${instanta.ciclu}`}
+          descriere={
+            <>
+              {ETICHETE_TIP[instanta.tip]} · Referință {formatDate(instanta.data_referinta)} ·
+              Ciclul {instanta.ciclu}
+              {angajat === undefined ? null : (
+                <>
+                  {" · "}
+                  <Link
+                    href={`/onboarding?angajat=${instanta.employee_id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    toate parcursurile lui
+                  </Link>
+                </>
+              )}
+              {sablon === null ? null : (
+                <>
+                  {" · "}
+                  <Link
+                    href={`/onboarding/sabloane/${instanta.template_id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    șablon: {sablon.denumire}
+                  </Link>
+                </>
+              )}
+            </>
+          }
           actiuni={
             <Badge ton={TONURI_STATUS_INSTANTA[instanta.status]}>
               {ETICHETE_STATUS_INSTANTA[instanta.status]}
@@ -158,17 +220,38 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
             Bunuri nereturnate
           </h2>
           <p className="text-foreground text-corp mt-1">
-            Checklistul poate fi finalizat doar după ce toate sunt returnate în modulul{" "}
-            <Link href="/inventar" className="underline underline-offset-2">
-              Inventar
-            </Link>
+            Checklistul poate fi finalizat doar după ce toate sunt returnate
+            {poateDeschideInventarul ? (
+              <>
+                {" "}
+                în modulul{" "}
+                <Link
+                  href={`/inventar?angajat=${instanta.employee_id}`}
+                  className="underline underline-offset-2"
+                >
+                  Inventar
+                </Link>
+              </>
+            ) : (
+              " de către responsabilul de inventar"
+            )}
             .
           </p>
           <ul className="text-foreground text-corp mt-2 space-y-1">
             {bunuri.map((b) => (
               <li key={b.id}>
-                {b.item.denumire} ({b.item.numar_inventar}) — în primire din{" "}
-                {formatDateTime(b.predat_la)}
+                {/* Returnarea se face de pe fișa obiectului; fără drept pe inventar rămâne text. */}
+                {poateDeschideInventarul ? (
+                  <Link
+                    href={`/inventar/${b.item.id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {b.item.denumire} ({b.item.numar_inventar})
+                  </Link>
+                ) : (
+                  `${b.item.denumire} (${b.item.numar_inventar})`
+                )}{" "}
+                — în primire din {formatDateTime(b.predat_la)}
               </li>
             ))}
           </ul>
@@ -179,19 +262,30 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
         <h2 id="titlu-pasi" className="text-sectiune font-semibold">
           Pași
         </h2>
-        <PasChecklist pasi={pasi} idPasuriBifabile={idPasuriBifabile} />
+        <PasChecklist
+          pasi={pasi}
+          idPasuriBifabile={idPasuriBifabile}
+          responsabili={responsabili}
+          hrefCurs={
+            module.has("courses") && can(permisiuni, "courses:read", "team")
+              ? (cursId) => `/cursuri/${cursId}/stadiu?angajat=${instanta.employee_id}`
+              : null
+          }
+        />
       </section>
 
       {poateGestiona ? <ActiuniInstanta instantaId={instanta.id} /> : null}
 
-      <p className="text-muted-foreground text-corp">
-        <Link
-          href={`/onboarding/${instanta.id}/dovada`}
-          className="underline-offset-2 hover:underline"
-        >
-          Vezi dovada de parcurgere
-        </Link>
-      </p>
+      {poateVedeaDovada ? (
+        <p className="text-muted-foreground text-corp">
+          <Link
+            href={`/onboarding/${instanta.id}/dovada`}
+            className="underline-offset-2 hover:underline"
+          >
+            Vezi dovada de parcurgere
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

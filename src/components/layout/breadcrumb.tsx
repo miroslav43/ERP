@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
 import { NAV_ITEMS } from "@/config/navigation";
+import { tiparulCaii } from "@/config/porti-ruta";
 
 /**
  * Etichetele segmentelor care NU sunt destinații de meniu.
@@ -79,28 +80,19 @@ const SEGMENTE: Readonly<Record<string, string>> = {
 };
 
 /**
- * Rutele despre care ȘTIM că au pagină, deci care pot fi linkuri.
+ * Care firimitură e link se decide pe SERVER, din registrul porților de rută
+ * (`src/config/porti-ruta.ts`): `Topbar` calculează tiparele pe care rolul
+ * curent le poate deschide, cu modulele active, și le dă componentei ca listă.
+ * Aici rămâne doar potrivirea căii cu un tipar.
  *
- * `NAV_ITEMS` e sursa (părinți + copii), plus cele două ecrane la care se
- * ajunge din antet, nu din meniu. Orice alt prefix se randează ca TEXT.
- *
- * Motivul e concret, nu de principiu: `/setari` e un prefix din `(app)` fără
- * `page.tsx`, parcurs zilnic, fiindcă `href`-ul lui de meniu e
- * `/setari/organizatie`. Firimitura „Setări" era link către `/setari`, adică un
- * 404 garantat — și, cum `(app)` n-are `not-found.tsx`, un 404 care iese cu
- * totul din învelișul navy.
- *
- * `/evaluari` era al doilea astfel de prefix. Are pagină acum, iar `href`-ul lui
- * de meniu o arată, deci intră aici prin `NAV_ITEMS` ca orice altă rută. Lista
- * nu s-a scurtat cu o excepție scrisă de mână; s-a scurtat fiindcă excepția a
- * dispărut.
+ * Înainte, lista era `NAV_ITEMS` plus două rute scrise de mână, iar un segment
+ * UUID devenea link ori de câte ori părintele era rută de meniu. Două defecte
+ * ieșeau de aici: `/puncte-lucru/<uuid>` nu are pagină (doar `/afis`), deci
+ * firimitura „Detaliu" de pe afiș era un 404 garantat; iar „Parc auto" era link
+ * și pentru managerul fără `vehicles:read`, care ateriza în
+ * `AccesRestrictionat`. Registrul știe ambele lucruri: ce rute au pagină și ce
+ * poartă are fiecare.
  */
-const RUTE_CU_PAGINA: ReadonlySet<string> = new Set<string>([
-  "/profil",
-  "/notificari",
-  ...NAV_ITEMS.flatMap((item) => [item.href, ...(item.children ?? []).map((copil) => copil.href)]),
-]);
-
 /** Eticheta unei rute care e destinație de meniu — scrisă o singură dată, în `NAV_ITEMS`. */
 const ETICHETE_RUTA: ReadonlyMap<string, string> = new Map(
   NAV_ITEMS.flatMap((item) => [
@@ -143,7 +135,7 @@ function tradu(segment: string, href: string): string {
  * curentă. Diferența dintre „unde ai fost" și „unde ești" rămâne vizibilă fără
  * să coboare vreo treaptă sub prag.
  */
-export function Breadcrumb() {
+export function Breadcrumb({ tiparePermise }: Readonly<{ tiparePermise: readonly string[] }>) {
   const cale = usePathname();
   const segmente = cale.split("/").filter((segment) => segment.length > 0);
 
@@ -157,11 +149,8 @@ export function Breadcrumb() {
         {segmente.map((segment, indice) => {
           const href = `/${segmente.slice(0, indice + 1).join("/")}`;
           const esteUltim = indice === segmente.length - 1;
-          // Un segment de detaliu (`/angajati/<uuid>`) e o pagină reală în tot
-          // proiectul, dar numai sub un modul care e el însuși o rută cunoscută.
-          const parinte = `/${segmente.slice(0, indice).join("/")}`;
-          const esteLink =
-            RUTE_CU_PAGINA.has(href) || (TIPAR_UUID.test(segment) && RUTE_CU_PAGINA.has(parinte));
+          // Link doar spre o pagină care există ȘI pe care rolul o poate deschide.
+          const esteLink = tiparulCaii(href, tiparePermise) !== null;
           return (
             <li key={href} className="flex min-w-0 items-center gap-1">
               {indice > 0 ? (

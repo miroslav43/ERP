@@ -14,8 +14,11 @@ import {
   redeschidePerioada,
   trimiteFluturasii,
 } from "../actions";
+import Link from "next/link";
 
 interface Proprietati {
+  /** `employees:read` all: numele fără adresă devin linkuri spre fișă. */
+  readonly poateDeschideFisa?: boolean;
   readonly id: string;
   readonly status: string;
   readonly poateCalcula: boolean;
@@ -46,6 +49,7 @@ type ActiuneDeConfirmat = "aproba" | "inchide" | "trimite" | "redeschide";
  * ascuns evită round-trip-ul inutil și mesajul confuz.
  */
 export function ActiuniPerioada({
+  poateDeschideFisa = false,
   id,
   status,
   poateCalcula,
@@ -59,6 +63,9 @@ export function ActiuniPerioada({
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const [raportTrimitere, setRaportTrimitere] = useState<string | null>(null);
+  const [faraAdresaAngajati, setFaraAdresaAngajati] = useState<
+    readonly Readonly<{ id: string; nume: string }>[]
+  >([]);
   /*
    * Cele trei acțiuni ireversibile ale ecranului. Produsul avea ZERO confirmări
    * pentru douăzeci de acțiuni ireversibile, iar astea trei sunt cele mai
@@ -85,11 +92,12 @@ export function ActiuniPerioada({
         setEroare(rezultat.error.message);
         return;
       }
-      const { trimise, faraAdresa, esuate } = rezultat.data;
+      const { trimise, faraAdresa, esuate, faraAdresaAngajati } = rezultat.data;
       const parti = [`${String(trimise)} trimise`];
       if (faraAdresa > 0) parti.push(`${String(faraAdresa)} fără adresă de e-mail`);
       if (esuate > 0) parti.push(`${String(esuate)} eșuate`);
       setRaportTrimitere(`Fluturași: ${parti.join(", ")}.`);
+      setFaraAdresaAngajati(faraAdresaAngajati);
       router.refresh();
     });
   }
@@ -200,12 +208,43 @@ export function ActiuniPerioada({
       {raportTrimitere === null ? null : (
         <p aria-live="polite" className="text-muted-foreground text-corp w-full">
           {raportTrimitere}
+          {/* „N fără adresă" nu spunea CINE: numele, cu drum spre fișă. */}
+          {faraAdresaAngajati.length === 0 ? null : (
+            <>
+              {" "}
+              Fără adresă:{" "}
+              {faraAdresaAngajati.map((a, indice) => (
+                <span key={a.id}>
+                  {indice === 0 ? "" : ", "}
+                  {poateDeschideFisa ? (
+                    <Link
+                      href={`/angajati/${a.id}#titlu-date-personale`}
+                      className="underline underline-offset-2"
+                    >
+                      {a.nume}
+                    </Link>
+                  ) : (
+                    a.nume
+                  )}
+                </span>
+              ))}
+              .
+            </>
+          )}
         </p>
       )}
 
       {eroare === null ? null : (
         <p role="alert" className="text-danger text-corp w-full">
           {eroare}
+          {eroare.includes("cea mai avantajoasă") ? (
+            <>
+              {" "}
+              <Link href="/salarizare/setari" className="underline underline-offset-2">
+                Setări salarizare
+              </Link>
+            </>
+          ) : null}
         </p>
       )}
 

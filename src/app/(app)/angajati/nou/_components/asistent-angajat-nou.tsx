@@ -95,6 +95,8 @@ interface RezultatSucces {
   readonly documente: readonly DocumentEmis[];
   readonly invitatieTrimisaLa: string | null;
   readonly checklistPornit: string | null;
+  readonly checklistId: string | null;
+  readonly bunuriPredate: readonly Readonly<{ alocareId: string; itemId: string }>[];
   readonly avertismente: readonly string[];
 }
 
@@ -248,6 +250,8 @@ export function AsistentAngajatNou({
         documente: raspuns.data.documente,
         invitatieTrimisaLa: raspuns.data.invitatieTrimisaLa,
         checklistPornit: raspuns.data.checklistPornit,
+        checklistId: raspuns.data.checklistId,
+        bunuriPredate: raspuns.data.bunuriPredate,
         avertismente: raspuns.data.avertismente,
       });
       return;
@@ -322,7 +326,36 @@ export function AsistentAngajatNou({
           {rezultat.checklistPornit !== null ? (
             <li className="text-muted-foreground">
               Checklistul de integrare{" "}
-              <span className="text-foreground">„{rezultat.checklistPornit}”</span> a pornit.
+              {rezultat.checklistId === null ? (
+                <span className="text-foreground">„{rezultat.checklistPornit}”</span>
+              ) : (
+                <Link
+                  href={`/onboarding/${rezultat.checklistId}`}
+                  className="text-foreground underline underline-offset-2"
+                >
+                  „{rezultat.checklistPornit}”
+                </Link>
+              )}{" "}
+              a pornit.
+            </li>
+          ) : null}
+          {rezultat.bunuriPredate.length > 0 ? (
+            <li className="text-muted-foreground">
+              {rezultat.bunuriPredate.length === 1
+                ? "Un bun a fost predat; procesul-verbal de predare-primire: "
+                : `${String(rezultat.bunuriPredate.length)} bunuri au fost predate; procesele-verbale: `}
+              {rezultat.bunuriPredate.map((bun, indice) => (
+                <span key={bun.alocareId}>
+                  {indice === 0 ? "" : ", "}
+                  <Link
+                    href={`/inventar/${bun.itemId}/pv/${bun.alocareId}`}
+                    className="text-foreground underline underline-offset-2"
+                  >
+                    PV {String(indice + 1)}
+                  </Link>
+                </span>
+              ))}
+              .
             </li>
           ) : null}
         </ul>
@@ -381,7 +414,31 @@ export function AsistentAngajatNou({
               {rezultat.avertismente.map((avertisment, indice) => (
                 // Cheia include indicele: două documente pot eșua pe aceeași
                 // variabilă lipsă și produc mesaje identice.
-                <li key={`${String(indice)}-${avertisment}`}>{avertisment}</li>
+                <li key={`${String(indice)}-${avertisment}`}>
+                  {avertisment}
+                  {/* Drumul prin meniu („Integrare → …") devine un link. */}
+                  {avertisment.includes("Integrare → Șabloane") ? (
+                    <>
+                      {" "}
+                      <Link
+                        href="/onboarding/sabloane/nou"
+                        className="underline underline-offset-2"
+                      >
+                        Creează un șablon
+                      </Link>
+                    </>
+                  ) : avertisment.includes("Integrare → Instanță nouă") ? (
+                    <>
+                      {" "}
+                      <Link
+                        href={`/onboarding/noua?angajat=${rezultat.id}`}
+                        className="underline underline-offset-2"
+                      >
+                        Pornește checklistul
+                      </Link>
+                    </>
+                  ) : null}
+                </li>
               ))}
             </ul>
           </Callout>

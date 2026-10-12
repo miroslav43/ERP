@@ -6,6 +6,7 @@ import { Ban, Check } from "lucide-react";
 
 import { anuleazaInstanta, finalizeazaInstanta } from "../actions";
 import { Buton } from "@/components/ui/buton";
+import { arataToast } from "@/components/ui/toast";
 
 const LUNGIME_MINIMA_MOTIV = 5;
 
@@ -25,6 +26,18 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
         setEroare(rezultat.error.message);
         return;
       }
+      // Dovada de parcurgere e REZULTATUL acțiunii: la un clic, nu un link
+      // discret la subsol. Toastul cu acțiune nu se stinge singur.
+      arataToast({
+        fel: "reusita",
+        text: "Checklistul a fost finalizat.",
+        actiune: {
+          eticheta: "Vezi dovada de parcurgere",
+          onClick: () => {
+            router.push(`/onboarding/${instantaId}/dovada`);
+          },
+        },
+      });
       router.refresh();
     });
   }

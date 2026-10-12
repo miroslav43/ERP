@@ -39,6 +39,12 @@ import { IndemnInstalare } from "./indemn-instalare";
 import { PontareRapida } from "./pontare-rapida";
 import { CONTEXT_GOL, contexteDestinatar } from "./notificarile-mele/context";
 import { caleaDePortal } from "./notificarile-mele/legaturi";
+import { inPrimireaMea } from "@/lib/queries/inventory";
+import { deplasarileMele } from "@/lib/queries/per-diem";
+import { sarcinileMele } from "@/lib/queries/checklist";
+import type { RolResponsabil } from "@/schemas/checklist";
+import { numeleEchipamentelorMele } from "@/app/(app)/mentenanta/actions";
+import { esteDeschisa } from "@/domain/maintenance/sesizari";
 
 export const metadata: Metadata = { title: "Portalul meu" };
 
@@ -72,6 +78,11 @@ export default async function PaginaPortal() {
   const poatePontaZiua =
     moduleActive.has("attendance") && can(permisiuni, "attendance:create", "own");
   const vedeSalariu = moduleActive.has("payroll") && can(permisiuni, "payroll:read", "own");
+  const vedeInventar = moduleActive.has("inventory") && can(permisiuni, "inventory:read", "own");
+  const vedeDiurna = moduleActive.has("per_diem") && can(permisiuni, "per_diem:read", "own");
+  const vedeSesizari =
+    moduleActive.has("maintenance") && can(permisiuni, "maintenance:read", "own");
+  const vedeIntegrare = moduleActive.has("onboarding") && can(permisiuni, "checklists:read", "own");
 
   const [
     solduri,
@@ -86,6 +97,10 @@ export default async function PaginaPortal() {
     randPontare,
     fluturas,
     notificari,
+    inPrimire,
+    deplasari,
+    sesizariRezultat,
+    pasiIntegrare,
   ] = await Promise.all([
     vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
     vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
@@ -115,6 +130,17 @@ export default async function PaginaPortal() {
      * întâmplat, iar acasă era singurul loc unde nu ajungea nimic din ele.
      */
     listeazaNotificarile(tenant.organizationId, user.id),
+    vedeInventar ? inPrimireaMea(tenant.organizationId, fisa.id) : Promise.resolve([]),
+    // Deplasările respinse sau în ciornă n-aveau niciun drum de pe ecranul de
+    // start: „Așteaptă răspuns" filtra doar trimisa/in_aprobare și nu citea
+    // deloc diurna.
+    vedeDiurna ? deplasarileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
+    // Aceeași acțiune ca pagina de sesizări: cifra din „De făcut" vine din
+    // lista spre care duce, nu dintr-un count() separat.
+    vedeSesizari ? numeleEchipamentelorMele({}) : Promise.resolve(null),
+    vedeIntegrare
+      ? sarcinileMele(tenant.organizationId, fisa.id, tenant.role as RolResponsabil)
+      : Promise.resolve([]),
   ]);
 
   /*
@@ -249,14 +275,32 @@ export default async function PaginaPortal() {
       )
     : [];
 
+  const sesizariDeRezolvat =
+    sesizariRezultat !== null && sesizariRezultat.ok
+      ? sesizariRezultat.data.filter(
+          (s) => s.atribuit_employee_id === fisa.id && esteDeschisa(s.status),
+        ).length
+      : 0;
   const sarcini = sarciniPortal({
     cursuriDeFacut: restante.deFacut,
     termenCursuri: restante.celMaiApropiatTermen,
     zileNepontate: nepontate.length,
     peSaptamana: !peZi,
     anunturiNecitite: necitite.length,
+    anuntNecititUnicId: necitite.length === 1 ? (necitite[0]?.id ?? null) : null,
+    prediriNeconfirmate: inPrimire.filter((r) => r.confirmat_de_angajat_la === null).length,
+    // Ziua respinsă e scrisă, deci `zileNepontate` o sare; aici cere corecția.
+    zileRespinse: zile.filter((z) => z.respins_la !== null).map((z) => z.data),
+    sesizariDeRezolvat,
+    pasiLaColegi: pasiIntegrare.filter((s) => s.employee_id !== fisa.id).length,
     azi,
   });
+  // Ce a rămas NEFINALIZAT de om: ciorne de concediu, deplasări în ciornă sau
+  // respinse. Nu „așteaptă răspuns" — așteaptă gestul LUI.
+  const cereriCiorna = cereri.filter((c) => c.status === "ciorna");
+  const deplasariDeFinalizat = deplasari.filter(
+    (d) => d.status === "ciorna" || d.status === "respinsa",
+  );
 
   /*
    * Următoarea zi liberă. Calcul pur, zero interogări: sărbătorile vin din
@@ -282,6 +326,7 @@ export default async function PaginaPortal() {
     await createServerSupabase(),
     [tenant.organizationId],
     ultimeleNotificari.map((n) => n.link),
+    ultimeleNotificari.map((n) => ({ tip: n.entity_type, id: n.entity_id })),
   );
   const contextNotificari = contexteNotificari.get(user.id) ?? CONTEXT_GOL;
 
@@ -325,6 +370,10 @@ export default async function PaginaPortal() {
               {soldPrincipal.in_asteptare > 0
                 ? ` · în așteptare ${soldPrincipal.in_asteptare.toLocaleString("ro-RO")}`
                 : null}
+              {" · "}
+              <Link href="/portal/concediile-mele" className="underline underline-offset-2">
+                concediile mele
+              </Link>
             </p>
             {/* Fiecare buton primar stă în cardul de care se leagă, iar cardul
                 apare doar când are ce cere: cursuri restante, sold de concediu,
@@ -384,6 +433,16 @@ export default async function PaginaPortal() {
               <p className="mt-1 text-4xl font-semibold tabular-nums">
                 {oreAzi.toLocaleString("ro-RO")} ore
               </p>
+            ) : ziDeAzi !== null && ziDeAzi.leave_request_id !== null && vedeConcedii ? (
+              // Ziua de concediu duce la cererea ei, nu rămâne o etichetă.
+              <p className="text-titlu mt-1 font-semibold">
+                <Link
+                  href={`/portal/concediile-mele/${ziDeAzi.leave_request_id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {etichetaZiDeAzi}
+                </Link>
+              </p>
             ) : (
               <p className="text-titlu mt-1 font-semibold">{etichetaZiDeAzi}</p>
             )}
@@ -392,7 +451,10 @@ export default async function PaginaPortal() {
               {suplimentareAzi > 0
                 ? `din care ${suplimentareAzi.toLocaleString("ro-RO")} suplimentare · `
                 : null}
-              Luna aceasta: {oreLuna.toLocaleString("ro-RO")} ore
+              Luna aceasta:{" "}
+              <Link href="/portal/pontajul-meu" className="underline underline-offset-2">
+                {oreLuna.toLocaleString("ro-RO")} ore
+              </Link>
               {suplimentareLuna > 0
                 ? ` · ${suplimentareLuna.toLocaleString("ro-RO")} suplimentare`
                 : null}
@@ -524,6 +586,59 @@ export default async function PaginaPortal() {
           )}
         </section>
 
+        {cereriCiorna.length === 0 && deplasariDeFinalizat.length === 0 ? null : (
+          <section aria-labelledby="de-finalizat" className="space-y-2">
+            <h2 id="de-finalizat" className="text-foreground text-corp font-semibold">
+              De finalizat
+            </h2>
+            <ul className="space-y-2">
+              {cereriCiorna.slice(0, 3).map((cerere) => (
+                <li key={cerere.id}>
+                  <Link
+                    href={`/portal/concediile-mele/${cerere.id}`}
+                    className="bg-surface border-border hover:border-ring rounded-panou flex items-start justify-between gap-3 border p-3 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-foreground text-corp font-medium">
+                        {tipuri.get(cerere.leave_type_id)?.denumire ?? "Concediu"}
+                      </p>
+                      <p className="text-muted-foreground text-corp">
+                        {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)} ·
+                        ciornă netrimisă
+                      </p>
+                    </div>
+                    <Badge className="shrink-0" ton="ciorna">
+                      {ETICHETE_STATUS_CERERE[cerere.status] ?? cerere.status}
+                    </Badge>
+                  </Link>
+                </li>
+              ))}
+              {deplasariDeFinalizat.slice(0, 3).map((deplasare) => (
+                <li key={deplasare.id}>
+                  <Link
+                    href={`/portal/diurna-mea/${deplasare.id}`}
+                    className="bg-surface border-border hover:border-ring rounded-panou flex items-start justify-between gap-3 border p-3 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-foreground text-corp font-medium">{deplasare.scop}</p>
+                      <p className="text-muted-foreground text-corp">
+                        Deplasare din {formatDate(deplasare.plecare_la.slice(0, 10))} ·{" "}
+                        {deplasare.status === "ciorna" ? "ciornă netrimisă" : "respinsă"}
+                      </p>
+                    </div>
+                    <Badge
+                      className="shrink-0"
+                      ton={deplasare.status === "ciorna" ? "ciorna" : "pericol"}
+                    >
+                      {deplasare.status === "ciorna" ? "Ciornă" : "Respinsă"}
+                    </Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {inAsteptare.length === 0 ? null : (
           <section aria-labelledby="asteapta" className="space-y-2">
             <h2 id="asteapta" className="text-foreground text-corp font-semibold">
@@ -594,7 +709,21 @@ export default async function PaginaPortal() {
               Următoarea zi liberă
             </h2>
             <p className="text-foreground text-titlu mt-1 font-semibold">
-              {formatDate(ziLibera.data)}
+              {ziLibera.sursa === "concediu" && vedeConcedii ? (
+                // Direct la cererea din spatele zilei, nu la listă.
+                <Link
+                  href={
+                    ziLibera.cerereId === undefined
+                      ? "/portal/concediile-mele"
+                      : `/portal/concediile-mele/${ziLibera.cerereId}`
+                  }
+                  className="underline-offset-2 hover:underline"
+                >
+                  {formatDate(ziLibera.data)}
+                </Link>
+              ) : (
+                formatDate(ziLibera.data)
+              )}
             </p>
             <p className="text-muted-foreground text-corp mt-1">
               {ziLibera.denumire}
@@ -638,8 +767,11 @@ export default async function PaginaPortal() {
                     href={
                       // Netraductibil ⇒ cutia poștală, ca la link null: nici 404,
                       // nici înapoi pe tablou.
-                      caleaDePortal(notificare.link, contextNotificari) ??
-                      "/portal/notificarile-mele"
+                      caleaDePortal(notificare.link, contextNotificari, {
+                        tip: notificare.entity_type,
+                        id: notificare.entity_id,
+                        corp: notificare.body,
+                      }) ?? "/portal/notificarile-mele"
                     }
                     className="bg-surface border-border hover:border-ring rounded-panou flex min-h-11 items-start justify-between gap-3 border p-3 transition-colors"
                   >

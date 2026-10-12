@@ -60,6 +60,7 @@ function Card({
   angajati,
   poateEdita,
   poateMutaPersoane,
+  poateSchimbaRoluri,
   laDeschiderePanou,
 }: {
   readonly nod: NodDepartament;
@@ -67,6 +68,7 @@ function Card({
   readonly angajati: readonly OptiuneAngajat[];
   readonly poateEdita: boolean;
   readonly poateMutaPersoane: boolean;
+  readonly poateSchimbaRoluri: boolean;
   readonly laDeschiderePanou: (id: string) => void;
 }) {
   const d = nod.date;
@@ -85,7 +87,17 @@ function Card({
 
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-corp font-medium">{d.denumire}</span>
+            {/* Numele deschide panoul: până acum singurul declanșator era
+                butonul mic cu efectivul, un control pe care nimeni nu-l ghicea. */}
+            <button
+              type="button"
+              onClick={() => {
+                laDeschiderePanou(d.id);
+              }}
+              className="text-corp hover:text-primary rounded-control text-left font-medium underline-offset-2 hover:underline"
+            >
+              {d.denumire}
+            </button>
             {/* Codul e opțional (0139) — fără el rândul rămâne pe denumire, la fel ca la centrul de cost de mai jos. */}
             {d.cod === null ? null : (
               <span className="text-muted-foreground text-nota font-mono">{d.cod}</span>
@@ -113,17 +125,37 @@ function Card({
               apare uitându-te la el, nu scanând un tabel.
             */}
             {d.sefFaraRolDeManager ? (
-              <span
-                className="text-warning text-nota"
-                title="Conduce departamentul, dar în aplicație are rolul Angajat: nu vede pontajul echipei și nu îi poate aproba concediile. Rolul se schimbă de un administrator, din fișa lui → Permisiuni."
-              >
-                · rol de Angajat
-              </span>
+              poateSchimbaRoluri && d.manager_employee_id !== null ? (
+                // Ținta există: pagina de permisiuni a șefului, unde se schimbă rolul.
+                <Link
+                  href={`/angajati/${d.manager_employee_id}/permisiuni`}
+                  className="text-warning text-nota underline-offset-2 hover:underline"
+                  title="Conduce departamentul, dar în aplicație are rolul Angajat: nu vede pontajul echipei și nu îi poate aproba concediile. Deschide permisiunile lui."
+                >
+                  · rol de Angajat
+                </Link>
+              ) : (
+                <span
+                  className="text-warning text-nota"
+                  title="Conduce departamentul, dar în aplicație are rolul Angajat: nu vede pontajul echipei și nu îi poate aproba concediile. Rolul se schimbă de un administrator, din fișa lui → Permisiuni."
+                >
+                  · rol de Angajat
+                </span>
+              )
             ) : null}
           </span>
         </span>
 
-        <StivaAvatare persoane={d.persoane} />
+        <button
+          type="button"
+          onClick={() => {
+            laDeschiderePanou(d.id);
+          }}
+          className="rounded-control shrink-0"
+        >
+          <span className="sr-only">Deschide lista persoanelor</span>
+          <StivaAvatare persoane={d.persoane} />
+        </button>
 
         <button
           type="button"
@@ -176,6 +208,7 @@ export function VizualizareLista({
   angajati,
   poateEdita,
   poateMutaPersoane,
+  poateSchimbaRoluri,
   laDeschiderePanou,
 }: {
   readonly noduri: readonly NodDepartament[];
@@ -184,6 +217,7 @@ export function VizualizareLista({
   readonly angajati: readonly OptiuneAngajat[];
   readonly poateEdita: boolean;
   readonly poateMutaPersoane: boolean;
+  readonly poateSchimbaRoluri: boolean;
   readonly laDeschiderePanou: (id: string) => void;
 }) {
   return (
@@ -202,6 +236,7 @@ export function VizualizareLista({
             angajati={angajati}
             poateEdita={poateEdita}
             poateMutaPersoane={poateMutaPersoane}
+            poateSchimbaRoluri={poateSchimbaRoluri}
             laDeschiderePanou={laDeschiderePanou}
           />
           {nod.copii.length > 0 ? (
@@ -212,6 +247,7 @@ export function VizualizareLista({
               angajati={angajati}
               poateEdita={poateEdita}
               poateMutaPersoane={poateMutaPersoane}
+              poateSchimbaRoluri={poateSchimbaRoluri}
               laDeschiderePanou={laDeschiderePanou}
             />
           ) : null}

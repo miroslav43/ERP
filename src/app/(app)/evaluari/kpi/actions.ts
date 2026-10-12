@@ -19,6 +19,8 @@ import {
   stergeTintaKpiSchema,
   type IndicatorKpiIntrare,
 } from "@/schemas/kpi";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { anuntaLunaKpiInchisa } from "../anunta-evaluarea";
 
 /**
  * Scrierile KPI-ului lunar.
@@ -559,11 +561,18 @@ interface ValoareExistenta {
 async function citesteLunaDraft(
   ctx: ActionContext,
   id: string,
-): Promise<Readonly<{ employee_id: string; valori: readonly ValoareExistenta[] }>> {
+): Promise<
+  Readonly<{
+    employee_id: string;
+    valori: readonly ValoareExistenta[];
+    an: number | null;
+    luna: number | null;
+  }>
+> {
   const { data, error } = await ctx.supabase
     .from("kpi_evaluari_lunare")
     .select(
-      `id, employee_id, status,
+      `id, employee_id, status, an, luna,
        valori:kpi_valori(id, cod, tip, sens, pondere, scala_max, tinta, realizat, nota)`,
     )
     .eq("id", id)
@@ -574,6 +583,8 @@ async function citesteLunaDraft(
       id: string;
       employee_id: string;
       status: "draft" | "finalizat";
+      an: number | null;
+      luna: number | null;
       valori: ValoareExistenta[] | null;
     }>();
   if (error !== null) throw mapPostgrestError(error, ctx.requestId);
@@ -581,7 +592,12 @@ async function citesteLunaDraft(
   if (data.status === "finalizat") {
     throw businessRule("Luna e finalizată și nu se mai redeschide.");
   }
-  return { employee_id: data.employee_id, valori: data.valori ?? [] };
+  return {
+    employee_id: data.employee_id,
+    valori: data.valori ?? [],
+    an: data.an ?? null,
+    luna: data.luna ?? null,
+  };
 }
 
 /**
@@ -712,7 +728,7 @@ export const finalizeazaLunaKpi = createAction<
   },
   revalidate: (_input, data) => caiLuna(data.id, data.employee_id),
   handler: async (ctx, input) => {
-    const { employee_id, valori } = await citesteLunaDraft(ctx, input.id);
+    const { employee_id, valori, an, luna } = await citesteLunaDraft(ctx, input.id);
 
     // O lună finalizată fără nicio valoare e o semnătură pe o foaie goală —
     // aceeași regulă ca la evaluarea anuală.
@@ -739,6 +755,15 @@ export const finalizeazaLunaKpi = createAction<
         "Luna nu a fost închisă: fie a închis-o altcineva între timp, fie nu aveți dreptul. Reîncărcați pagina.",
       );
     }
+    // Angajatul află scorul pe luna lui din portal — un plus, nu poarta.
+    await anuntaLunaKpiInchisa(
+      createAdminSupabase(),
+      ctx.tenant.organizationId,
+      input.id,
+      employee_id,
+      an,
+      luna,
+    );
     return { id: input.id, employee_id };
   },
 });

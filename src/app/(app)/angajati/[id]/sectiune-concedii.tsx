@@ -101,6 +101,10 @@ function reguliCareContribuie(
 interface RandAfisat {
   readonly tip: TipConcediu;
   readonly dreptAfisat: number;
+  readonly folosite: number;
+  readonly inAsteptare: number;
+  /** `null` = fără rând de sold încă (anul nu are drepturi aplicate). */
+  readonly ramase: number | null;
   readonly regulileOriginale: readonly RegulaConcediuRand[];
 }
 
@@ -115,6 +119,20 @@ interface Proprietati {
   readonly codCor: string | null;
   /** `leave:read = all` — fără el se văd cifrele, dar nu și motivul lor. */
   readonly poateVedeaRegulile: boolean;
+  /**
+   * `leave:update = all` + modulul activ — poarta lui `/concedii/setari`.
+   * Linkul „Editați regulile" era necondiționat și îl trimitea pe manager
+   * (`leave:update = own`) în AccesRestrictionat.
+   */
+  readonly poateEditaRegulile: boolean;
+  /**
+   * „Vezi cererile": `/concedii/echipa?employee_id=` pentru altcineva,
+   * `/concedii` pentru fișa proprie (echipa exclude privitorul, leave.ts).
+   * `null` = pagina-țintă nu se deschide pentru rolul ăsta.
+   */
+  readonly hrefCereri: string | null;
+  /** Soldul lui pe `/concedii/sold#angajat-<id>`; `null` = pagina nu se deschide pentru rol. */
+  readonly hrefSold: string | null;
 }
 
 export async function SectiuneConcedii({
@@ -127,6 +145,9 @@ export async function SectiuneConcedii({
   departmentId,
   codCor,
   poateVedeaRegulile,
+  poateEditaRegulile,
+  hrefCereri,
+  hrefSold,
 }: Proprietati) {
   const anCurent = Number(todayInBucharest().slice(0, 4));
   const angajat: AngajatPentruDrept = {
@@ -158,6 +179,11 @@ export async function SectiuneConcedii({
   ).map(({ tip, sold }) => ({
     tip,
     dreptAfisat: sold?.drept_anual ?? tip.zile_implicite,
+    // Zilele consumate și rămase stăteau doar în `/concedii/sold`; fișa arăta
+    // numai dreptul, deci „câte mai are" cerea alt ecran.
+    folosite: sold?.folosite ?? 0,
+    inAsteptare: sold?.in_asteptare ?? 0,
+    ramase: sold?.ramase ?? null,
     regulileOriginale: poateVedeaRegulile
       ? reguliCareContribuie(
           configurare.reguli.filter((r) => r.leave_type_id === tip.id),
@@ -176,14 +202,37 @@ export async function SectiuneConcedii({
         Concedii
       </h2>
       <p className="text-muted-foreground text-corp mb-4">
-        Dreptul anual pentru {String(anCurent)}, rezultat din regula companiei.{" "}
-        <Link href="/concedii/setari" className="underline underline-offset-2">
-          Editați regulile
-        </Link>
-        .
+        Dreptul anual pentru {String(anCurent)}, rezultat din regula companiei.
+        {poateEditaRegulile ? (
+          <>
+            {" "}
+            <Link href="/concedii/setari" className="underline underline-offset-2">
+              Editați regulile
+            </Link>
+            .
+          </>
+        ) : null}
+        {hrefCereri === null ? null : (
+          <>
+            {" "}
+            <Link href={hrefCereri} className="underline underline-offset-2">
+              Vezi cererile
+            </Link>
+            .
+          </>
+        )}
+        {hrefSold === null ? null : (
+          <>
+            {" "}
+            <Link href={hrefSold} className="underline underline-offset-2">
+              Soldul și istoricul lui
+            </Link>
+            .
+          </>
+        )}
       </p>
       <ul className="space-y-2">
-        {randuri.map(({ tip, dreptAfisat, regulileOriginale }) => (
+        {randuri.map(({ tip, dreptAfisat, folosite, inAsteptare, ramase, regulileOriginale }) => (
           <li
             key={tip.id}
             className="border-border flex flex-wrap items-baseline justify-between gap-2 border-t pt-2 first:border-t-0 first:pt-0"
@@ -198,6 +247,13 @@ export async function SectiuneConcedii({
             </span>
             <span className="text-corp text-right">
               <span className="font-medium tabular-nums">{formatAmount(dreptAfisat)} zile</span>
+              {ramase === null ? null : (
+                <span className="text-muted-foreground text-nota ml-2 tabular-nums">
+                  · {formatAmount(folosite)} folosite
+                  {inAsteptare > 0 ? ` · ${formatAmount(inAsteptare)} în așteptare` : ""} ·{" "}
+                  {formatAmount(ramase)} rămase
+                </span>
+              )}
               {regulileOriginale.length === 0 ? null : (
                 <span className="text-muted-foreground text-nota ml-2">
                   ({formatAmount(tip.zile_implicite)} bază

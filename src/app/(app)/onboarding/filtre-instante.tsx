@@ -29,6 +29,8 @@ interface Proprietati {
    * formular altceva decât ce s-a filtrat de fapt.
    */
   readonly filtre: ValoriFiltre;
+  /** Denumirea șablonului din `?sablon=`, pentru pastilă; `null` = filtru absent sau șablon nevizibil. */
+  readonly numeSablon?: string | null;
 }
 
 /**
@@ -46,7 +48,7 @@ function numeAngajat(angajat: AngajatOptiune): string {
   return `${angajat.full_name ?? angajat.marca} (${angajat.marca})`;
 }
 
-export function FiltreInstante({ angajati, filtre }: Proprietati) {
+export function FiltreInstante({ angajati, filtre, numeSablon = null }: Proprietati) {
   // `status` e o listă în adresă („in_curs,finalizata”), dar selectul are o
   // singură valoare: îl deschidem doar când adresa poartă exact una.
   const statusAles = filtre.status?.length === 1 ? (filtre.status[0] ?? "") : "";
@@ -75,9 +77,12 @@ export function FiltreInstante({ angajati, filtre }: Proprietati) {
   if (filtre.pana_la !== null) {
     active.push({ cheie: "pana_la", eticheta: `Până la: ${formatDate(filtre.pana_la)}` });
   }
+  if (filtre.sablon !== null) {
+    active.push({ cheie: "sablon", eticheta: `Șablon: ${numeSablon ?? "ales"}` });
+  }
 
   return (
-    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII}>
+    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII} cheiExterne={["sablon"]}>
       <div className="flex flex-col gap-1">
         <label htmlFor="filtru-instante-tip" className="text-corp font-medium">
           Tip

@@ -37,6 +37,7 @@ const TOATE_MODULELE: ReadonlySet<FeatureKey> = new Set<FeatureKey>([
   "employee_portal",
   "evaluations",
   "ticketing",
+  "kpi",
   "asistent",
 ]);
 

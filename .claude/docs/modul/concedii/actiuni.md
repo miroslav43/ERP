@@ -19,12 +19,13 @@ tabele:
     employment_contracts,
     contract_suspendari,
     reges_evenimente,
+    attendance_entries,
   ]
 permisiuni: [leave:read, leave:create, leave:update, leave:approve]
 feature: leave
-capcane: [2, 11, 17, 33]
-scris_pe: 5e61f1319db78905cd113ccce7700c8da2fd7d16
-scris_la: 2026-09-21
+capcane: [2, 3, 11, 17, 33]
+scris_pe: 81081549cb2cb8ebe26b396c7e7ea56df1678591
+scris_la: 2026-10-07
 tags: [modul, hr]
 ---
 
@@ -47,25 +48,40 @@ trunchi, [[modul/concedii]], fiindcă acolo se ajunge dintr-un bug. Configurarea
 | `pregatesteIncarcareDocumentConcediu` | `leave:create` / own   |
 | `linkDocumentConcediu`                | `leave:read` / own     |
 
-`decideCerere` întoarce `{ id, zilePastrate, suspendare }`, nu doar identificatorul
-cererii, iar `revalidate` își declară tipul explicit pe forma asta. `zilePastrate` e
-numărul de zile de concediu peste care exista deja o linie de pontaj scrisă de om;
+`decideCerere` întoarce `{ id, zileInlocuite, suspendare }`, nu doar identificatorul
+cererii, iar `revalidate` își declară tipul explicit pe forma asta. `zileInlocuite` e
+numărul de zile peste care exista deja o linie de pontaj scrisă de om și pe care concediul
+aprobat le-a TRECUT pe concediu în foaia de prezență — ziua se rescrie, nu se păstrează
+(era `zilePastrate`, cu înțelesul exact invers, până pe 6 oct 2026);
 `suspendare` e un `RezultatSuspendare` — v. „Ce refuză baza tăcut" din [[modul/concedii]]
 pentru amândouă. `creeazaCerereConcediu` și `trimiteCerere` le poartă pe amândouă în
 `CerereTrimisa`, lângă `aprobataInstant`, fiindcă pot aproba pe loc prin `aprobaPeLoc`;
-când n-au aprobat nimic, `zilePastrate` e `0` și `suspendare` e constanta `FARA_SUSPENDARE`
+când n-au aprobat nimic, `zileInlocuite` e `0` și `suspendare` e constanta `FARA_SUSPENDARE`
 (`ceruta: false`), citită de ecran ca „nimic de arătat".
 
-Cine adaugă un apelant nou trebuie să le **afișeze pe amândouă**: e singurul loc în care
-cineva care poate repara se uită la ecran, iar cele două eșecuri sunt independente — al
-doilea n-are voie să-l ascundă pe primul. Azi le arată `DecizieAprobare`
+Numărul vine din `sincronizeazaConcediulAprobat`, care întoarce DOAR câmpul `inlocuite` al
+lui `RezultatSincronizare` (`src/app/(app)/pontaj/sincronizare-concediu.ts`). Celelalte
+trei — `create`, `actualizate` și mai ales `pastrate`, adică zilele pe care UPDATE-ul le-a
+ratat tăcut fiindcă erau deja aprobate — **nu ies pe drumul concediilor**; se văd numai
+prin butonul de sincronizare din `/pontaj`. Un `0` întors aici înseamnă deci „nicio zi
+înlocuită SAU sincronizarea n-a rulat SAU au fost zile pe care baza le-a refuzat tăcut".
+
+Cine adaugă un apelant nou trebuie să le **afișeze pe amândouă** (`zileInlocuite` și
+`suspendare`): primul spune că aprobatorul tocmai a schimbat pontajul altcuiva, al doilea
+că a rămas un termen legal de respectat; sunt independente, iar al doilea n-are voie să-l
+ascundă pe primul. E singurul loc în care cineva care poate repara se uită la ecran. Azi
+le arată `DecizieAprobare`
 (`aprobari/decizie-aprobare.tsx`, folosită și de `/concedii/[id]`), ca listă de `atentii`
 cu `role="alert"` care supraviețuiește închiderii panoului, `ActiuniCerere`
 (`[id]/actiuni-cerere.tsx`, folosită și de portal) și `DialogCerereNoua`, prin toast-uri
 separate. `formular-cerere.tsx` din portal nu: trece rezultatul prin `Formular`, care
-păstrează doar `id`-ul, pentru navigare. În plus, `decideCerere` îi scrie angajatului o
-notificare în `notifications`, cu clientul admin, filtrat pe organizație. Notificarea e un
-plus, nu poarta: dacă INSERT-ul cade, eșecul se loghează și aprobarea rămâne dată.
+păstrează doar `id`-ul, pentru navigare. În plus, când `inlocuite > 0` și fișa are cont de
+utilizator, `sincronizeazaConcediulAprobat` îi scrie angajatului o notificare în
+`notifications`, cu clientul admin, filtrat pe organizație: `kind: "info"`, „Zile pontate
+trecute pe concediu", cu link spre `/portal/pontajul-meu` — el a pontat zilele alea, deci
+trebuie să afle că i s-a schimbat foaia. Nu mai e un `warning` despre suprapunere, fiindcă
+nu mai are nimic de verificat cu responsabilul de pontaj. Notificarea e un plus, nu poarta:
+dacă INSERT-ul cade, eșecul se loghează și aprobarea rămâne dată.
 
 **Declararea suspendării de contract stă în fișier propriu.**
 `src/app/(app)/concedii/suspendare-contract.ts` exportă `declaraSuspendareaContractului`
@@ -95,11 +111,13 @@ prin `caleInPrefix` (`src/lib/documents/cale.ts`), nu prin `startsWith`: pe lân
 fișei se cer segmente curate — cad segmentul gol, `.`, `..`, formele lor
 procent-codificate, `\` și caracterele de control, fiindcă normalizarea unei căi se
 întâmplă abia la `fetch`, adică după ce ea a fost deja scrisă în rând.
-`linkDocumentConcediu` face drumul invers — citește RÂNDUL cu
-clientul utilizatorului, ca RLS să decidă cine vede cererea, și abia calea din rândul
-întors se semnează, pentru un minut. Componentele `incarcare-document.tsx` și
-`link-document.tsx` stau în `src/app/(app)/concedii/`; prima e folosită și de formularul
-din portal, deci se schimbă pentru amândouă ecranele deodată.
+`linkDocumentConcediu` face drumul invers — citește RÂNDUL cu clientul utilizatorului, ca
+RLS să decidă cine vede cererea, și abia calea din rândul întors se semnează, pentru un
+minut. Eroarea citirii se scrie `throw traduEroare(error)`: `traduEroare` din `./erori`
+ÎNTOARCE eroarea, n-o aruncă (capcana #3), iar fără `throw` o citire căzută aluneca în
+ramura „document lipsă" de mai jos și ieșea pe ecran ca `notFound`. Componentele
+`incarcare-document.tsx` și `link-document.tsx` stau în `src/app/(app)/concedii/`; prima e
+folosită și de formularul din portal, deci se schimbă pentru amândouă ecranele deodată.
 
 ## Citiri
 

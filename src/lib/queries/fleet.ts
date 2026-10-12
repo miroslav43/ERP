@@ -18,6 +18,8 @@ import {
   sortareCeruta,
   type Directie,
 } from "./cursor";
+import { dataLimitaExpirare } from "@/domain/hr/contracte-expira";
+import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
 
 export interface RandVehicul {
   readonly id: string;
@@ -30,6 +32,8 @@ export interface RandVehicul {
   readonly km_curent: number;
   readonly employee_id: string | null;
   readonly department_id: string | null;
+  /** Mașină comună, fără șofer fix (0173). */
+  readonly pool: boolean;
   readonly status: StatusVehicul;
   readonly prag_salt_km: number | null;
   readonly data_iesire: string | null;
@@ -165,6 +169,8 @@ export interface AngajatRezumat {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  /** Pentru `hrefFisa()`: fișa ștearsă rămâne cu nume în istoric, fără link. */
+  readonly deleted_at: string | null;
 }
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
@@ -226,7 +232,7 @@ export type FiltreFoiCitire = Omit<FiltreFoi, "sort"> & { readonly sort?: string
 
 const COLOANE_VEHICUL_LISTA =
   "id, nr_inmatriculare, marca, model, categorie, tip_combustibil, an_fabricatie, " +
-  "km_curent, employee_id, department_id, status, prag_salt_km, data_iesire, " +
+  "km_curent, employee_id, department_id, pool, status, prag_salt_km, data_iesire, " +
   "consum_mediu_declarat";
 
 const COLOANE_FOAIE =
@@ -267,16 +273,55 @@ export async function listeazaVehicule(
    * copii ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai
    * ca o numărătoare care nu se potrivește cu lista — defectul reparat aici.
    */
+  // Conformitatea nu e o coloană: se derivă din documentele curente, cu
+  // ACELAȘI predicat ca `numarScadenteFlota` de pe panou. Id-urile se citesc
+  // întâi, ca `.in()` să se aplice și listei, și numărătorii.
+  const idDupaConformitate =
+    filtre.conformitate === null
+      ? null
+      : await (async (): Promise<readonly string[]> => {
+          const { data: documente } = await db
+            .from("vehicle_documents")
+            .select("vehicle_id, expira_la")
+            .eq("organization_id", organizationId)
+            .is("deleted_at", null)
+            .eq("este_curent", true);
+          const cuDocumente = new Set((documente ?? []).map((d) => d.vehicle_id));
+          if (filtre.conformitate === "expira") {
+            const limita = dataLimitaExpirare(PRAG_FLOTA_AVERTIZARE_ZILE);
+            return [
+              ...new Set(
+                (documente ?? [])
+                  .filter((d) => d.expira_la !== null && d.expira_la <= limita)
+                  .map((d) => d.vehicle_id),
+              ),
+            ];
+          }
+          const { data: vehicule } = await db
+            .from("vehicles")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .is("deleted_at", null);
+          return (vehicule ?? []).map((v) => v.id).filter((id) => !cuDocumente.has(id));
+        })();
   const filtreaza = <
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
       ilike: (c: string, v: string) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (idDupaConformitate !== null)
+      cu = cu.in(
+        "id",
+        idDupaConformitate.length === 0
+          ? ["00000000-0000-0000-0000-000000000000"]
+          : idDupaConformitate,
+      );
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.categorie !== null) cu = cu.eq("categorie", filtre.categorie);
     if (filtre.cauta !== null) cu = cu.ilike("nr_inmatriculare", `%${filtre.cauta}%`);
@@ -367,6 +412,108 @@ export async function scadenteCurente(
   return data ?? [];
 }
 
+// ── Alocări (0173) ──────────────────────────────────────────────────────────
+
+export interface AlocareVehicul {
+  readonly id: string;
+  readonly employee_id: string;
+  readonly de_la: string;
+  readonly pana_la: string | null;
+  readonly folosinta_personala: boolean;
+  readonly km_predare: number | null;
+  readonly km_restituire: number | null;
+  readonly observatii: string | null;
+  /**
+   * Embed-ul pe `employees` urmează politica ANGAJAȚILOR, nu a flotei: cine
+   * vede vehiculul fără `employees:read` primește `null`, fără eroare
+   * (capcana 18). Ecranul scrie atunci „—”, nu un nume inventat.
+   */
+  /** `null` = RLS a ascuns fișa pentru cine privește; atunci numele nu devine link. */
+  readonly sofer: Readonly<{
+    full_name: string;
+    marca: string | null;
+    deleted_at: string | null;
+  }> | null;
+}
+
+/**
+ * Istoricul alocărilor unui vehicul, cel mai recent primul.
+ *
+ * Fără paginare: o mașină schimbă șoferul de câteva ori pe an, iar cea mai
+ * mare firmă are 8 angajați. Plafonul de 200 protejează totuși ecranul de un
+ * import greșit; peste el, PostgREST ar trunchia tăcut la 1000.
+ */
+export async function alocarileVehiculului(
+  organizationId: string,
+  vehiculId: string,
+): Promise<readonly AlocareVehicul[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("vehicle_assignments")
+    .select(
+      "id, employee_id, de_la, pana_la, folosinta_personala, km_predare, km_restituire, " +
+        "observatii, sofer:employees!employee_id(full_name, marca, deleted_at)",
+    )
+    .eq("organization_id", organizationId)
+    .eq("vehicle_id", vehiculId)
+    .is("deleted_at", null)
+    .order("de_la", { ascending: false })
+    .limit(200)
+    .returns<AlocareVehicul[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export interface OptiuneAngajat {
+  readonly id: string;
+  readonly full_name: string;
+  readonly marca: string | null;
+}
+
+/** Angajații activi, pentru selectorul de predare. */
+export async function angajatiPentruAlocare(
+  organizationId: string,
+): Promise<readonly OptiuneAngajat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca")
+    .eq("organization_id", organizationId)
+    .eq("status", "activ")
+    .is("deleted_at", null)
+    .order("full_name")
+    .limit(500)
+    .returns<OptiuneAngajat[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export interface OptiuneDepartamentFlota {
+  readonly id: string;
+  readonly denumire: string;
+}
+
+/** Departamentele active, pentru selectorul de pe fișa vehiculului. */
+export async function departamentePentruVehicul(
+  organizationId: string,
+): Promise<readonly OptiuneDepartamentFlota[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("departments")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("denumire")
+    .limit(500)
+    .returns<OptiuneDepartamentFlota[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 export async function documenteleVehiculului(
   vehiculId: string,
 ): Promise<readonly DocumentVehicul[]> {
@@ -437,6 +584,7 @@ export async function listeazaFoi(
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.vehicul !== null) cu = cu.eq("vehicle_id", filtre.vehicul);
+    if (filtre.sofer !== null) cu = cu.eq("employee_id", filtre.sofer);
     return cu;
   };
 
@@ -614,17 +762,35 @@ const PLAFON_POSTGREST = 1000;
 /** Câte anomalii se citesc deodată în coada de explicat. */
 export const PLAFON_ANOMALII = 200;
 
-export async function anomaliiNeconfirmate(organizationId: string): Promise<readonly Anomalie[]> {
+/** Anomalia cu șoferul foii care a produs-o: cine poate explica diferența. */
+export interface AnomalieCuSofer extends Anomalie {
+  readonly foaie: Readonly<{
+    employee_id: string;
+    sofer: AngajatRezumat | null;
+  }> | null;
+}
+
+/**
+ * Coada de explicat. Șoferul vine prin foaie: anomalia are `trip_sheet_id`, iar
+ * scopul ei e ca „cineva să o explice" — fără nume, patronul deschidea foaia
+ * ca să afle pe cine să întrebe (analiza 2026-10-08, flota-O4). Embedul
+ * to-one filtrat de RLS întoarce `null`, nu elimină rândul.
+ */
+export async function anomaliiNeconfirmate(
+  organizationId: string,
+): Promise<readonly AnomalieCuSofer[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("odometer_anomalies")
-    .select(COLOANE_ANOMALIE)
+    .select(
+      `${COLOANE_ANOMALIE}, foaie:trip_sheets!trip_sheet_id(employee_id, sofer:employees!employee_id(id, full_name, marca, deleted_at))`,
+    )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .is("confirmat_la", null)
     .order("created_at", { ascending: false })
     .limit(PLAFON_ANOMALII)
-    .returns<Anomalie[]>();
+    .returns<AnomalieCuSofer[]>();
 
   if (error !== null) throw error;
   return data ?? [];
@@ -687,7 +853,7 @@ export async function angajatiDupaId(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", unice)
     .returns<AngajatRezumat[]>();

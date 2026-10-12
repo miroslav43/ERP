@@ -232,7 +232,14 @@ describe("intrariLuna și angajatiPontajDupaId", () => {
 });
 
 describe("listeazaAngajatiPontaj — cursor keyset", () => {
-  const FILTRE = { luna: 7, departament: null, cauta: null, cursor: null, limita: 2 };
+  const FILTRE = {
+    luna: 7,
+    departament: null,
+    cauta: null,
+    angajat: null,
+    cursor: null,
+    limita: 2,
+  };
   const ang = (id: string, full_name: string) => ({
     id,
     marca: "1",
@@ -324,7 +331,7 @@ describe("totiAngajatiiPontaj — foaia întreagă, fără paginare pe ecran", (
     server.raspunde("employees", "select", { data: plina });
     server.raspunde("employees", "select", { data: [ang(ID_3, "Zamfir")] });
 
-    const r = await totiAngajatiiPontaj(ORG_ID, { departament: ID_2, cauta: "a" });
+    const r = await totiAngajatiiPontaj(ORG_ID, { departament: ID_2, cauta: "a", angajat: null });
 
     expect(r.trunchiat).toBe(false);
     expect(r.randuri).toHaveLength(501);

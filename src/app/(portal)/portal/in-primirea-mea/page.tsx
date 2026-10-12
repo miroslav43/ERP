@@ -1,12 +1,14 @@
 // src/app/(portal)/portal/in-primirea-mea/page.tsx
 import type { Metadata } from "next";
+import Link from "next/link";
+import { poateDeschide } from "@/config/porti-ruta";
 import { PackageCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { inPrimireaMea } from "@/lib/queries/inventory";
@@ -22,10 +24,16 @@ export default async function PaginaInPrimireaMea() {
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "inventory"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Formularul de tichet se deschide pe obiect doar pentru cine îl poate deschide.
+  const poateRaporta = poateDeschide("/portal/tichetele-mele/nou", {
+    features: module,
+    permissions: permisiuni,
+  });
 
   if (!can(permisiuni, "inventory:read", "own")) {
     return (
@@ -66,7 +74,11 @@ export default async function PaginaInPrimireaMea() {
       ) : (
         <ul className="space-y-2">
           {randuri.map((rand) => (
-            <li key={rand.id} className="bg-surface border-border rounded-panou border p-4">
+            <li
+              key={rand.id}
+              id={`obiect-${rand.obiect.id}`}
+              className="bg-surface border-border rounded-panou scroll-mt-24 border p-4"
+            >
               <p className="text-foreground text-corp font-medium">{rand.obiect.denumire}</p>
               <p className="text-muted-foreground text-nota mt-0.5">
                 Nr. inventar <span className="font-mono">{rand.obiect.numar_inventar}</span>
@@ -80,7 +92,15 @@ export default async function PaginaInPrimireaMea() {
                 <p className="text-muted-foreground text-corp mt-1">{rand.observatii}</p>
               )}
 
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {!poateRaporta ? null : (
+                  <Link
+                    href={`/portal/tichetele-mele/nou?obiect=${rand.obiect.id}`}
+                    className="text-nota underline-offset-2 hover:underline"
+                  >
+                    Raportează o defecțiune
+                  </Link>
+                )}
                 {rand.confirmat_de_angajat_la === null ? (
                   <ButonConfirmare alocareId={rand.id} />
                 ) : (

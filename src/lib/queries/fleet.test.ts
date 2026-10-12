@@ -57,6 +57,7 @@ const [lista, numarare] = [0, 1];
 const filtreVehicule = (m: Partial<FiltreVehiculeCitire> = {}): FiltreVehiculeCitire => ({
   status: null,
   categorie: null,
+  conformitate: null,
   cauta: null,
   cursor: null,
   limita: 2,
@@ -66,6 +67,7 @@ const filtreVehicule = (m: Partial<FiltreVehiculeCitire> = {}): FiltreVehiculeCi
 const filtreFoi = (m: Partial<FiltreFoiCitire> = {}): FiltreFoiCitire => ({
   status: null,
   vehicul: null,
+  sofer: null,
   cursor: null,
   limita: 2,
   ...m,

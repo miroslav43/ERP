@@ -11,7 +11,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime, formatZiuaMomentului } from "@/lib/format/date";
 import {
   baremeleTarilor,
   cheltuielile,
@@ -94,8 +94,9 @@ export default async function PaginaDeplasareaMea({
   return (
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
       <AntetPagina
+        firimituri={[{ eticheta: "Diurna mea", href: "/portal/diurna-mea" }]}
         titlu={deplasare.scop}
-        descriere={`${formatDate(deplasare.plecare_la)} – ${formatDate(deplasare.sosire_la)}${
+        descriere={`${formatZiuaMomentului(deplasare.plecare_la)} – ${formatZiuaMomentului(deplasare.sosire_la)}${
           deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`
         }`}
         actiuni={
@@ -138,7 +139,18 @@ export default async function PaginaDeplasareaMea({
                   </p>
                   <p className="text-muted-foreground text-nota">
                     {formatDate(cheltuiala.data_cheltuielii)}
+                    {/* Starea deciziei lipsea: angajatul nu vedea că o cheltuială i-a fost respinsă. */}
+                    {cheltuiala.aprobata_la === null
+                      ? cheltuiala.motiv_respingere === null
+                        ? " · în așteptare"
+                        : " · respinsă"
+                      : cheltuiala.aprobata
+                        ? " · aprobată"
+                        : " · respinsă"}
                   </p>
+                  {cheltuiala.motiv_respingere === null ? null : (
+                    <p className="text-danger text-nota">Motiv: {cheltuiala.motiv_respingere}</p>
+                  )}
                 </div>
                 <span className="text-foreground text-corp shrink-0 font-medium tabular-nums">
                   {cheltuiala.suma.toLocaleString("ro-RO")} {cheltuiala.moneda}
@@ -169,6 +181,17 @@ export default async function PaginaDeplasareaMea({
           caleDupaStergere="/portal/diurna-mea"
         />
       ) : null}
+
+      {/* Decontul propriu, de tipărit: trăia doar în aplicația mare, unde
+          angajatul e redirecționat în portal, deci n-avea spre ce lega. */}
+      <p>
+        <Link
+          href={`/portal/diurna-mea/${deplasare.id}/decont`}
+          className={buton({ varianta: "secundar" })}
+        >
+          Decontul, de tipărit
+        </Link>
+      </p>
 
       <p>
         <Link href="/portal/diurna-mea" className={buton({ varianta: "link" })}>

@@ -26,6 +26,7 @@ import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
 import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { NumaratoareItm } from "../numaratoare-itm";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Accidente de muncă" };
 
@@ -36,9 +37,12 @@ interface ProprietatiPagina {
 async function TabelAccidente({
   organizationId,
   parametri,
+  poateCrea,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  /** `ssm:create` — poarta paginii de creare; managerul (doar `read`) ajungea în refuz din starea goală. */
+  readonly poateCrea: boolean;
 }) {
   const filtre = filtreDinUrl(filtreAccidenteSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await accidente(organizationId, filtre);
@@ -55,11 +59,11 @@ async function TabelAccidente({
             ? "Ștergeți filtrele ca să vedeți toate accidentele."
             : "Registrul de accidente e gol — sperăm să rămână așa."
         }
-        actiune={
-          areFiltre
-            ? { eticheta: "Șterge filtrele", href: "/ssm/accidente" }
-            : { eticheta: "Înregistrează un accident", href: "/ssm/accidente/nou" }
-        }
+        {...(areFiltre
+          ? { actiune: { eticheta: "Șterge filtrele", href: "/ssm/accidente" } }
+          : poateCrea
+            ? { actiune: { eticheta: "Înregistrează un accident", href: "/ssm/accidente/nou" } }
+            : {})}
       />
     );
   }
@@ -198,6 +202,13 @@ export default async function PaginaAccidente({ searchParams }: ProprietatiPagin
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
+  // Filtrul de intrare din fișa angajatului: pastilă cu nume, citit sub RLS.
+  const angajatFiltrat = filtreDinUrl(filtreAccidenteSchema, parametri).angajat;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -227,8 +238,20 @@ export default async function PaginaAccidente({ searchParams }: ProprietatiPagin
         }
       />
 
+      <PastileFiltre
+        active={
+          angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]
+        }
+      />
+
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
-        <TabelAccidente organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelAccidente
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateCrea={poateCrea}
+        />
       </Suspense>
     </div>
   );

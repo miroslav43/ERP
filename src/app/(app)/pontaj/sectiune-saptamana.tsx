@@ -57,6 +57,8 @@ export async function SectiuneSaptamana({
   poateAproba,
   parametri,
   azi,
+  poateDeschideConcediu = false,
+  poateDeschideSaptamana = false,
 }: {
   readonly organizationId: string;
   readonly userId: string;
@@ -66,6 +68,10 @@ export async function SectiuneSaptamana({
   readonly poateAproba: boolean;
   readonly parametri: ParametriAdresa;
   readonly azi: string;
+  /** Poarta lui `/concedii/[id]`: ziua din concediu duce la cererea ei. */
+  readonly poateDeschideConcediu?: boolean;
+  /** Poarta lui `/pontaj/saptamana`: ziua blocată „pe săptămână” duce la fișa săptămânii. */
+  readonly poateDeschideSaptamana?: boolean;
 }) {
   const saptamanaSfarsit = adaugaZile(saptamanaStart, 6);
   const anInceput = Number(saptamanaStart.slice(0, 4));
@@ -178,6 +184,15 @@ export async function SectiuneSaptamana({
     const tipCalendar = tipZiAutomat(data, setNationale, setRecuperare, setLiber);
     const sarbatoare = denumiriSarbatori.get(data) ?? null;
 
+    // Drumul blocării, prin poarta paginii-țintă (calculată de pagină).
+    const hrefBlocare = !sePonteazaZiua
+      ? poateDeschideSaptamana
+        ? `/pontaj/saptamana?saptamana=${saptamanaStart}`
+        : null
+      : dinConcediu && intrare?.leaveRequestId && poateDeschideConcediu
+        ? `/concedii/${intrare.leaveRequestId}`
+        : null;
+
     return {
       data,
       zi: NUME_ZILE[index] ?? "",
@@ -187,6 +202,7 @@ export async function SectiuneSaptamana({
       nelucratoare: sarbatoare ?? (tipCalendar === "weekend" ? "Weekend" : null),
       editabila,
       motivBlocare,
+      hrefBlocare,
     };
   });
 

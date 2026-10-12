@@ -11,6 +11,8 @@ import { FormularDialog } from "@/components/ui/formular-dialog";
 import type { ActionResult } from "@/lib/actions/types";
 
 import { creeazaFoaie } from "../actions";
+import { useRouter } from "next/navigation";
+import { arataToast } from "@/components/ui/toast";
 
 interface VehiculOptiune {
   readonly id: string;
@@ -109,11 +111,22 @@ async function trimiteFoaia(date: FormData): Promise<ActionResult<FoaieCreata>> 
 interface Proprietati {
   readonly date: DateFoaieNoua;
   readonly deschisInitial?: boolean;
+  /** `vehicles:read`, poarta lui `/flota` — fără el, „Adăugați întâi un vehicul" ducea în refuz. */
+  readonly poateVedeaParcul?: boolean;
+  /** `?vehicul=<id>` din pagina filtrată sau din fișa vehiculului: caseta pornește pe el. */
+  readonly vehiculInitial?: string | null;
 }
 
-export function DialogFoaieNoua({ date, deschisInitial = false }: Proprietati): ReactElement {
+export function DialogFoaieNoua({
+  date,
+  deschisInitial = false,
+  poateVedeaParcul = false,
+  vehiculInitial = null,
+}: Proprietati): ReactElement {
   const parcGol = date.vehicule.length === 0;
-  const primulVehicul = date.vehicule[0];
+  const primulVehicul =
+    (vehiculInitial === null ? undefined : date.vehicule.find((v) => v.id === vehiculInitial)) ??
+    date.vehicule[0];
 
   const [vehiculId, setVehiculId] = useState(primulVehicul?.id ?? "");
 
@@ -128,12 +141,29 @@ export function DialogFoaieNoua({ date, deschisInitial = false }: Proprietati): 
    * sugestia se rescrie explicit, în același `onChange`.
    */
   const [kmPlecare, setKmPlecare] = useState(String(primulVehicul?.km_curent ?? 0));
+  const router = useRouter();
   const kmSugerat = date.vehicule.find((v) => v.id === vehiculId)?.km_curent ?? 0;
 
-  const laReusita = useCallback((): void => {
-    setVehiculId(primulVehicul?.id ?? "");
-    setKmPlecare(String(primulVehicul?.km_curent ?? 0));
-  }, [primulVehicul]);
+  const laReusita = useCallback(
+    ({ id }: { readonly id: string }): void => {
+      setVehiculId(primulVehicul?.id ?? "");
+      setKmPlecare(String(primulVehicul?.km_curent ?? 0));
+      // Se rămâne pe listă (vezi mai sus), dar pașii următori — alimentări,
+      // închidere — se fac pe fișa ciornei: toastul o deschide dintr-un clic
+      // și nu se stinge singur.
+      arataToast({
+        fel: "reusita",
+        text: "Foaia de parcurs a fost salvată ca ciornă.",
+        actiune: {
+          eticheta: "Deschide ciorna",
+          onClick: () => {
+            router.push(`/flota/foi/${id}`);
+          },
+        },
+      });
+    },
+    [primulVehicul, router],
+  );
 
   /*
    * Parc gol: NU un declanșator dezactivat.
@@ -153,11 +183,16 @@ export function DialogFoaieNoua({ date, deschisInitial = false }: Proprietati): 
    * la fiecare randare.
    */
   if (parcGol) {
-    return (
+    return poateVedeaParcul ? (
       <Link href="/flota" className={buton({ varianta: "secundar" })}>
         <FilePlus2 aria-hidden="true" className="size-4" />
         Adăugați întâi un vehicul
       </Link>
+    ) : (
+      <p className="text-muted-foreground text-corp">
+        Nu aveți niciun vehicul alocat; foaia se poate deschide abia după ce responsabilul de flotă
+        vă alocă unul.
+      </p>
     );
   }
 
@@ -172,7 +207,6 @@ export function DialogFoaieNoua({ date, deschisInitial = false }: Proprietati): 
       marime="mare"
       deschisInitial={deschisInitial}
       actiune={trimiteFoaia}
-      mesajReusita="Foaia de parcurs a fost salvată ca ciornă."
       etichetaTrimite="Salvează ciorna"
       textInCurs="Se salvează…"
       laReusita={laReusita}

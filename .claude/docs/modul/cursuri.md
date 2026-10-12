@@ -178,3 +178,4 @@ Regulile de atribuire (`0078`) există pentru un singur caz, dar acela contează
 
 - Ecranul angajatului și adeverința: `src/app/(portal)/portal/cursurile-mele/`.
 - Instruirile SSM, care sunt alt modul cu altă lege: [[modul/ssm]].
+- „Folosit în” pe material și pe curs, adeverința din stadiu, `?arata=probleme`: [[strat/navigare]].

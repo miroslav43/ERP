@@ -46,6 +46,8 @@ export type PropsCardAnunt = Readonly<{
   stare: StareAnunt;
   /** `false` pentru cine n-are fișă de angajat — nu există „citit" fără cine. */
   necitit: boolean;
+  /** Confirmările strânse / angajații cu cont; doar pentru cine administrează avizierul. */
+  confirmari?: Readonly<{ citite: number; din: number }> | null;
 }>;
 
 /** Ziua românească a unui moment. `expira_la` e ora 23:59:59 — minutul e zgomot. */
@@ -69,7 +71,7 @@ function metadate(anunt: PropsCardAnunt["anunt"], stare: StareAnunt): string {
   }
 }
 
-export function CardAnunt({ anunt, stare, necitit }: PropsCardAnunt): ReactElement {
+export function CardAnunt({ anunt, stare, necitit, confirmari }: PropsCardAnunt): ReactElement {
   return (
     <li
       className={cn(
@@ -114,6 +116,16 @@ export function CardAnunt({ anunt, stare, necitit }: PropsCardAnunt): ReactEleme
           </p>
 
           <p className="text-muted-foreground text-nota mt-2">{metadate(anunt, stare)}</p>
+          {/* Progresul confirmărilor pe card: administratorul nu mai deschide
+              anunțurile unul câte unul ca să afle care au fost citite. */}
+          {confirmari === undefined ||
+          confirmari === null ||
+          stare === "ciorna" ||
+          stare === "programat" ? null : (
+            <p className="text-muted-foreground text-nota mt-1 tabular-nums">
+              Citit de {confirmari.citite} din {confirmari.din}
+            </p>
+          )}
         </div>
 
         {necitit ? (

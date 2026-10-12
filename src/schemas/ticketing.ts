@@ -196,8 +196,16 @@ export const filtreTicheteSchema = z.object({
   status: z.enum(STATUSURI_TICHET).optional(),
   prioritate: z.enum(PRIORITATI).optional(),
   asignat_employee_id: uuid.optional(),
+  /** Filtru de INTRARE pe coadă (din fișa angajatului). „Tichetele mele" rămâne pe argumentul separat `doarSolicitant`. */
+  solicitant_employee_id: uuid.optional(),
   department_id: uuid.optional(),
   cauta: z.string().trim().max(200).optional(),
+  /** Scurtături de pe tabloul cozii: toate statusurile „deschise" deodată. */
+  deschise: z.literal("da").optional(),
+  /** Deschise, neatinse de 7 zile — ACELAȘI predicat ca `rezumatCoada`. */
+  fara_miscare: z.literal("7").optional(),
+  /** Deschise, fără nimeni atribuit — scurtătura „Nerepartizate" a cozii. */
+  nerepartizate: z.literal("da").optional(),
 });
 export type FiltreTichete = z.infer<typeof filtreTicheteSchema>;
 

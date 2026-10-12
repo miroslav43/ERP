@@ -794,6 +794,7 @@ type AngajatBrut = Readonly<{
   full_name: string;
   department_id: string | null;
   cod_cor: string | null;
+  deleted_at: string | null;
 }>;
 
 export async function angajatiPentruAtribuire(
@@ -825,17 +826,21 @@ export async function angajatiPentruAtribuire(
 export async function numeAngajati(
   organizationId: string,
   ids: readonly string[],
-): Promise<ReadonlyMap<string, string>> {
+): Promise<ReadonlyMap<string, Readonly<{ nume: string; deleted_at: string | null }>>> {
   if (ids.length === 0) return new Map();
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name")
+    .select("id, full_name, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", [...new Set(ids)].slice(0, 500))
-    .returns<Pick<AngajatBrut, "id" | "full_name">[]>();
+    .returns<Pick<AngajatBrut, "id" | "full_name" | "deleted_at">[]>();
   if (error !== null) throw error;
-  return new Map((data ?? []).map((a) => [a.id, a.full_name || "—"]));
+  // Prezența în hartă = rândul a trecut de RLS pentru cine privește; `deleted_at`
+  // e pentru `hrefFisa()`: fișa ștearsă rămâne cu nume în istoric, fără link.
+  return new Map(
+    (data ?? []).map((a) => [a.id, { nume: a.full_name || "—", deleted_at: a.deleted_at }]),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1141,4 +1146,63 @@ export async function matriceConformitate(organizationId: string): Promise<Matri
   }
 
   return { angajati: angajati.slice(0, 100), cursuri, celule };
+}
+
+/** Cursurile în care e folosit un material — ca o versiune nouă să știe pe cine afectează. */
+export async function cursuriCuMaterialul(
+  organizationId: string,
+  materialId: string,
+): Promise<readonly Readonly<{ id: string; denumire: string; publicat: boolean }>[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("course_items")
+    .select("course_id, courses!inner(id, denumire, publicat, deleted_at)")
+    .eq("organization_id", organizationId)
+    .eq("material_id", materialId)
+    .is("deleted_at", null)
+    .returns<
+      {
+        course_id: string;
+        courses: { id: string; denumire: string; publicat: boolean; deleted_at: string | null };
+      }[]
+    >();
+  if (error !== null) throw error;
+  const vazute = new Set<string>();
+  const rezultat: { id: string; denumire: string; publicat: boolean }[] = [];
+  for (const r of data ?? []) {
+    if (r.courses.deleted_at !== null || vazute.has(r.courses.id)) continue;
+    vazute.add(r.courses.id);
+    rezultat.push({ id: r.courses.id, denumire: r.courses.denumire, publicat: r.courses.publicat });
+  }
+  return rezultat.sort((a, b) => a.denumire.localeCompare(b.denumire, "ro"));
+}
+
+/** Șabloanele de integrare cu un pas legat de curs (`checklist_template_items.curs_id`, 0076). */
+export async function sabloaneCuCursul(
+  organizationId: string,
+  courseId: string,
+): Promise<readonly Readonly<{ id: string; denumire: string; pas: string }>[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("checklist_template_items")
+    .select("titlu, template_id, checklist_templates!inner(id, denumire, deleted_at)")
+    .eq("organization_id", organizationId)
+    .eq("curs_id", courseId)
+    .is("deleted_at", null)
+    .returns<
+      {
+        titlu: string;
+        template_id: string;
+        checklist_templates: { id: string; denumire: string; deleted_at: string | null };
+      }[]
+    >();
+  if (error !== null) throw error;
+  return (data ?? [])
+    .filter((r) => r.checklist_templates.deleted_at === null)
+    .map((r) => ({
+      id: r.checklist_templates.id,
+      denumire: r.checklist_templates.denumire,
+      pas: r.titlu,
+    }))
+    .sort((a, b) => a.denumire.localeCompare(b.denumire, "ro"));
 }

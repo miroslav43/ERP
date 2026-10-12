@@ -15,7 +15,7 @@ BAZA VERIFICATĂ: adm_p_oper (24 migrări, 103 tabele). Fiecare coloană de mai 
        eslint.config îl permite doar în src/**/actions.ts, src/app/api/**/route.ts, scripts/**)
    src/app/(app)/flota/{page,loading,error}.tsx + {etichete,erori,actions}.ts
                                            + {filtre-vehicule,nav-flota}.tsx
-   src/app/(app)/flota/[id]/{page,loading,error}.tsx + {formular-document,actiuni-vehicul}.tsx
+   src/app/(app)/flota/[id]/{page,loading,error}.tsx + {dialog-document-nou,dialog-document}.tsx
    src/app/(app)/flota/foi/{page,loading,error,filtre-foi}.tsx
    src/app/(app)/flota/foi/noua/{page,formular-foaie}.tsx
    src/app/(app)/flota/foi/[id]/{page,loading,error,actiuni-foaie,formular-alimentare}.tsx

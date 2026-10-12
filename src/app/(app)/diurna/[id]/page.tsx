@@ -10,7 +10,7 @@ import { buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime, oraRomanieiPentruCamp } from "@/lib/format/date";
 import { formatAmount, formatLei } from "@/lib/format/money";
@@ -36,6 +36,13 @@ import { ActiuniDeplasare } from "./actiuni-deplasare";
 import { Etape } from "./etape";
 import { FormularCheltuiala } from "./formular-cheltuiala";
 import { FormularEtapa } from "./formular-etapa";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { requireUser } from "@/lib/auth/current-user";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { DecizieDeplasare } from "../aprobari/decizie-deplasare";
+import { NumarRegistru } from "@/components/registru/numar-registru";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Fișa deplasării" };
 
@@ -57,12 +64,15 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
 
   const { tenant } = await requireTenant();
+  const utilizator = await requireUser();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "per_diem"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  const contextPorti = { features: module, permissions: permisiuni };
 
   if (!can(permisiuni, "per_diem:read", "own")) {
     return (
@@ -113,6 +123,17 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const poateSterge = can(permisiuni, "per_diem:delete", "own") && deplasare.status === "ciorna";
   const poateAproba = can(permisiuni, "per_diem:approve", "team");
   const poateDeconta = poateAproba && deplasare.status === "aprobata";
+  // Decizia stă pe fișa obiectului (precedentul `DecizieAprobare` din
+  // /concedii/[id]): aprobatorul care ajunge aici din coadă sau din notificare
+  // nu mai e trimis înapoi pe /diurna/aprobari. Propria deplasare nu se
+  // decide — acțiunea o refuză oricum (`decideDeplasare`), deci butoanele nu
+  // se arată deloc, nu doar pică la clic.
+  const propriaFisaId =
+    poateAproba && deplasare.status === "in_aprobare"
+      ? await idFisaProprie(tenant.organizationId, utilizator.id)
+      : null;
+  const poateDecideAici =
+    poateAproba && deplasare.status === "in_aprobare" && propriaFisaId !== deplasare.employee_id;
   const poateAdaugaEtapa = poateScrie && editabila;
   // Cheltuielile sosesc DUPĂ deplasare, deci nu se leagă de „editabilă”. Din
   // „decontată” și „anulată” însă nu se mai iese (trigger P0001): un rând
@@ -214,7 +235,20 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   // Sub titlu rămâne doar CINE; unde și când stau în Rezumat, pe primul rând,
   // unde se văd ca date, nu ca o propoziție lungă.
   const descriereDeplasare =
-    angajat === undefined ? undefined : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+    angajat === undefined ? undefined : (
+      <>
+        <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+          {angajat.full_name ?? "—"} ({angajat.marca})
+        </LinkEntitate>
+        {" · "}
+        <Link
+          href={`/diurna?angajat=${deplasare.employee_id}`}
+          className="underline-offset-2 hover:underline"
+        >
+          alte deplasări
+        </Link>
+      </>
+    );
 
   const plecare = new Date(deplasare.plecare_efectiva_la ?? deplasare.plecare_la);
   const sosire = new Date(deplasare.sosire_efectiva_la ?? deplasare.sosire_la);
@@ -266,6 +300,8 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
             </div>
           }
         />
+        {/* Drumul înapoi spre registru: numărul de înregistrare, dacă există (prin RLS). */}
+        <NumarRegistru tenant={tenant} entitateTip="business_trips" entitateId={deplasare.id} />
       </div>
 
       <section aria-labelledby="titlu-rezumat" className="border-border rounded-panou border p-4">
@@ -342,6 +378,18 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
         </dl>
       </section>
 
+      {poateDecideAici ? (
+        <section
+          aria-labelledby="titlu-decizie"
+          className="border-primary/30 bg-primary/5 rounded-panou border p-4"
+        >
+          <h2 id="titlu-decizie" className="text-sectiune mb-2 font-medium">
+            Decizia dvs.
+          </h2>
+          <DecizieDeplasare id={deplasare.id} status="in_aprobare" />
+        </section>
+      ) : null}
+
       <ActiuniDeplasare
         id={deplasare.id}
         poateTrimite={poateTrimite}
@@ -353,6 +401,29 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
         <h2 id="titlu-traseu" className="text-sectiune font-medium">
           Traseu și calculul diurnei
         </h2>
+        {/* Regula din spatele sumei și foaia în care ar trebui să apară zilele. */}
+        <p className="text-muted-foreground text-nota flex flex-wrap gap-x-3">
+          <span>
+            Politica aplicată:{" "}
+            {politica === null ? (
+              "niciuna valabilă la data plecării"
+            ) : poateDeschide("/diurna/politica", contextPorti) ? (
+              <Link href="/diurna/politica" className="underline-offset-2 hover:underline">
+                „{politica.denumire}”
+              </Link>
+            ) : (
+              `„${politica.denumire}”`
+            )}
+          </span>
+          {arataAngajat && poateDeschide("/pontaj", contextPorti) ? (
+            <Link
+              href={`/pontaj?an=${deplasare.plecare_la.slice(0, 4)}&luna=${String(Number(deplasare.plecare_la.slice(5, 7)))}&angajat=${deplasare.employee_id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Pontajul lunii plecării
+            </Link>
+          ) : null}
+        </p>
         <Etape
           deplasare={deplasare}
           etape={etapeTrip}

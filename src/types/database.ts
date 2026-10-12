@@ -4454,6 +4454,8 @@ export type Database = {
       equipment: {
         Row: {
           an_fabricatie: number | null
+          casat_la: string | null
+          categorie: string | null
           cod: string
           created_at: string
           created_by: string | null
@@ -4465,13 +4467,22 @@ export type Database = {
           derogare_acordata_la: string | null
           derogare_motiv: string | null
           este_iscir: boolean
+          folosit_in_afara_sediului: boolean
+          garantie_expira: string | null
           id: string
           locatie: string | null
+          marcaj_ce: string
           model: string | null
+          motiv_casare: string | null
+          observatii: string | null
           organization_id: string
+          parent_equipment_id: string | null
           producator: string | null
+          punct_lucru_id: string | null
           responsabil_employee_id: string | null
+          risc_specific: boolean
           serie: string | null
+          service_garantie: string | null
           status: Database["public"]["Enums"]["equipment_status"]
           tip_autorizare_necesara: string | null
           updated_at: string
@@ -4480,6 +4491,8 @@ export type Database = {
         }
         Insert: {
           an_fabricatie?: number | null
+          casat_la?: string | null
+          categorie?: string | null
           cod: string
           created_at?: string
           created_by?: string | null
@@ -4491,13 +4504,22 @@ export type Database = {
           derogare_acordata_la?: string | null
           derogare_motiv?: string | null
           este_iscir?: boolean
+          folosit_in_afara_sediului?: boolean
+          garantie_expira?: string | null
           id?: string
           locatie?: string | null
+          marcaj_ce?: string
           model?: string | null
+          motiv_casare?: string | null
+          observatii?: string | null
           organization_id: string
+          parent_equipment_id?: string | null
           producator?: string | null
+          punct_lucru_id?: string | null
           responsabil_employee_id?: string | null
+          risc_specific?: boolean
           serie?: string | null
+          service_garantie?: string | null
           status?: Database["public"]["Enums"]["equipment_status"]
           tip_autorizare_necesara?: string | null
           updated_at?: string
@@ -4506,6 +4528,8 @@ export type Database = {
         }
         Update: {
           an_fabricatie?: number | null
+          casat_la?: string | null
+          categorie?: string | null
           cod?: string
           created_at?: string
           created_by?: string | null
@@ -4517,13 +4541,22 @@ export type Database = {
           derogare_acordata_la?: string | null
           derogare_motiv?: string | null
           este_iscir?: boolean
+          folosit_in_afara_sediului?: boolean
+          garantie_expira?: string | null
           id?: string
           locatie?: string | null
+          marcaj_ce?: string
           model?: string | null
+          motiv_casare?: string | null
+          observatii?: string | null
           organization_id?: string
+          parent_equipment_id?: string | null
           producator?: string | null
+          punct_lucru_id?: string | null
           responsabil_employee_id?: string | null
+          risc_specific?: boolean
           serie?: string | null
+          service_garantie?: string | null
           status?: Database["public"]["Enums"]["equipment_status"]
           tip_autorizare_necesara?: string | null
           updated_at?: string
@@ -4544,6 +4577,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_parent_equipment_id_fkey"
+            columns: ["parent_equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_punct_lucru_fk"
+            columns: ["punct_lucru_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "puncte_lucru"
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "equipment_responsabil_employee_id_fkey"
@@ -4630,6 +4677,86 @@ export type Database = {
           },
         ]
       }
+      equipment_opriri: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          equipment_id: string
+          fault_report_id: string | null
+          id: string
+          inceput: string
+          intervention_id: string | null
+          motiv: string | null
+          organization_id: string
+          sfarsit: string | null
+          tip: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          equipment_id: string
+          fault_report_id?: string | null
+          id?: string
+          inceput: string
+          intervention_id?: string | null
+          motiv?: string | null
+          organization_id: string
+          sfarsit?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          equipment_id?: string
+          fault_report_id?: string | null
+          id?: string
+          inceput?: string
+          intervention_id?: string | null
+          motiv?: string | null
+          organization_id?: string
+          sfarsit?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_opriri_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_opriri_fault_report_id_fkey"
+            columns: ["fault_report_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_opriri_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_opriri_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evacuation_drills: {
         Row: {
           created_at: string
@@ -4709,8 +4836,8 @@ export type Database = {
           created_by: string | null
           criterii: Json
           deleted_at: string | null
-          derivat_din: string | null
           denumire: string
+          derivat_din: string | null
           descriere: string | null
           id: string
           organization_id: string | null
@@ -4724,8 +4851,8 @@ export type Database = {
           created_by?: string | null
           criterii?: Json
           deleted_at?: string | null
-          derivat_din?: string | null
           denumire: string
+          derivat_din?: string | null
           descriere?: string | null
           id?: string
           organization_id?: string | null
@@ -4739,8 +4866,8 @@ export type Database = {
           created_by?: string | null
           criterii?: Json
           deleted_at?: string | null
-          derivat_din?: string | null
           denumire?: string
+          derivat_din?: string | null
           descriere?: string | null
           id?: string
           organization_id?: string | null
@@ -4749,6 +4876,13 @@ export type Database = {
           versiune?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "evaluation_templates_derivat_din_fkey"
+            columns: ["derivat_din"]
+            isOneToOne: false
+            referencedRelation: "evaluation_templates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "evaluation_templates_organization_id_fkey"
             columns: ["organization_id"]
@@ -4824,20 +4958,148 @@ export type Database = {
           },
         ]
       }
+      fault_report_comments: {
+        Row: {
+          autor_employee_id: string | null
+          autor_user_id: string | null
+          continut: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          fault_report_id: string
+          id: string
+          intern: boolean
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          autor_employee_id?: string | null
+          autor_user_id?: string | null
+          continut: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          fault_report_id: string
+          id?: string
+          intern?: boolean
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          autor_employee_id?: string | null
+          autor_user_id?: string | null
+          continut?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          fault_report_id?: string
+          id?: string
+          intern?: boolean
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fault_report_comments_autor_employee_id_fkey"
+            columns: ["autor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_report_comments_fault_report_id_fkey"
+            columns: ["fault_report_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_report_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fault_report_history: {
+        Row: {
+          actor_user_id: string | null
+          camp: string
+          created_at: string
+          fault_report_id: string
+          id: string
+          motiv: string | null
+          organization_id: string
+          valoare_noua: string | null
+          valoare_veche: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          camp: string
+          created_at?: string
+          fault_report_id: string
+          id?: string
+          motiv?: string | null
+          organization_id: string
+          valoare_noua?: string | null
+          valoare_veche?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          camp?: string
+          created_at?: string
+          fault_report_id?: string
+          id?: string
+          motiv?: string | null
+          organization_id?: string
+          valoare_noua?: string | null
+          valoare_veche?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fault_report_history_fault_report_id_fkey"
+            columns: ["fault_report_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_report_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fault_reports: {
         Row: {
+          atribuit_employee_id: string | null
+          atribuit_la: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
           descriere: string
+          duplicat_al_id: string | null
           equipment_id: string
           id: string
+          inchis_la: string | null
           intervention_id: string | null
+          motiv_redeschidere: string | null
           motiv_respingere: string | null
+          motiv_respingere_tip: string | null
+          nota_rezolvare: string | null
+          numar: string
           opreste_functionarea: boolean
           organization_id: string
           raportat_de_employee_id: string | null
+          raportat_de_user_id: string | null
           raportat_la: string
+          redeschisa_de_ori: number
           rezolvat_la: string | null
           status: Database["public"]["Enums"]["fault_status"]
           updated_at: string
@@ -4845,18 +5107,28 @@ export type Database = {
           urgenta: Database["public"]["Enums"]["fault_urgency"]
         }
         Insert: {
+          atribuit_employee_id?: string | null
+          atribuit_la?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           descriere: string
+          duplicat_al_id?: string | null
           equipment_id: string
           id?: string
+          inchis_la?: string | null
           intervention_id?: string | null
+          motiv_redeschidere?: string | null
           motiv_respingere?: string | null
+          motiv_respingere_tip?: string | null
+          nota_rezolvare?: string | null
+          numar?: string
           opreste_functionarea?: boolean
           organization_id: string
           raportat_de_employee_id?: string | null
+          raportat_de_user_id?: string | null
           raportat_la?: string
+          redeschisa_de_ori?: number
           rezolvat_la?: string | null
           status?: Database["public"]["Enums"]["fault_status"]
           updated_at?: string
@@ -4864,18 +5136,28 @@ export type Database = {
           urgenta?: Database["public"]["Enums"]["fault_urgency"]
         }
         Update: {
+          atribuit_employee_id?: string | null
+          atribuit_la?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           descriere?: string
+          duplicat_al_id?: string | null
           equipment_id?: string
           id?: string
+          inchis_la?: string | null
           intervention_id?: string | null
+          motiv_redeschidere?: string | null
           motiv_respingere?: string | null
+          motiv_respingere_tip?: string | null
+          nota_rezolvare?: string | null
+          numar?: string
           opreste_functionarea?: boolean
           organization_id?: string
           raportat_de_employee_id?: string | null
+          raportat_de_user_id?: string | null
           raportat_la?: string
+          redeschisa_de_ori?: number
           rezolvat_la?: string | null
           status?: Database["public"]["Enums"]["fault_status"]
           updated_at?: string
@@ -4883,6 +5165,20 @@ export type Database = {
           urgenta?: Database["public"]["Enums"]["fault_urgency"]
         }
         Relationships: [
+          {
+            foreignKeyName: "fault_reports_atribuit_employee_id_fkey"
+            columns: ["atribuit_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_reports_duplicat_al_id_fkey"
+            columns: ["duplicat_al_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fault_reports_equipment_id_fkey"
             columns: ["equipment_id"]
@@ -7159,6 +7455,65 @@ export type Database = {
           },
         ]
       }
+      maintenance_attachments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          entity_id: string
+          entity_type: string
+          id: string
+          marime_bytes: number | null
+          mime: string | null
+          organization_id: string
+          storage_path: string
+          tip: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          marime_bytes?: number | null
+          mime?: string | null
+          organization_id: string
+          storage_path: string
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          marime_bytes?: number | null
+          mime?: string | null
+          organization_id?: string
+          storage_path?: string
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_interventions: {
         Row: {
           citire_contor: number | null
@@ -7174,6 +7529,7 @@ export type Database = {
           equipment_id: string
           executant_employee_id: string | null
           executant_extern: string | null
+          fault_report_id: string | null
           id: string
           observatii: string | null
           oprire_minute: number | null
@@ -7200,6 +7556,7 @@ export type Database = {
           equipment_id: string
           executant_employee_id?: string | null
           executant_extern?: string | null
+          fault_report_id?: string | null
           id?: string
           observatii?: string | null
           oprire_minute?: number | null
@@ -7226,6 +7583,7 @@ export type Database = {
           equipment_id?: string
           executant_employee_id?: string | null
           executant_extern?: string | null
+          fault_report_id?: string | null
           id?: string
           observatii?: string | null
           oprire_minute?: number | null
@@ -7254,6 +7612,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "maintenance_interventions_fault_report_id_fkey"
+            columns: ["fault_report_id"]
+            isOneToOne: false
+            referencedRelation: "fault_reports"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "maintenance_interventions_org_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -7272,17 +7637,27 @@ export type Database = {
       maintenance_plans: {
         Row: {
           activ: boolean
+          amanat_pana: string | null
+          categorie_legala: string | null
+          cost_estimat: number | null
           created_at: string
           created_by: string | null
+          data_ancora: string | null
           deleted_at: string | null
           denumire: string
+          durata_estimata_ore: number | null
           equipment_id: string
           id: string
           instructiuni: string | null
+          mod_calcul: string
+          motiv_amanare: string | null
+          numar_amanari: number
+          oprire_necesara: boolean
           organization_id: string
           periodicitate_contor: number | null
           periodicitate_zile: number | null
           responsabil_employee_id: string | null
+          temei_legal: string | null
           tip: Database["public"]["Enums"]["maintenance_kind"]
           tip_contor: Database["public"]["Enums"]["meter_kind"] | null
           ultima_citire_contor: number | null
@@ -7294,17 +7669,27 @@ export type Database = {
         }
         Insert: {
           activ?: boolean
+          amanat_pana?: string | null
+          categorie_legala?: string | null
+          cost_estimat?: number | null
           created_at?: string
           created_by?: string | null
+          data_ancora?: string | null
           deleted_at?: string | null
           denumire: string
+          durata_estimata_ore?: number | null
           equipment_id: string
           id?: string
           instructiuni?: string | null
+          mod_calcul?: string
+          motiv_amanare?: string | null
+          numar_amanari?: number
+          oprire_necesara?: boolean
           organization_id: string
           periodicitate_contor?: number | null
           periodicitate_zile?: number | null
           responsabil_employee_id?: string | null
+          temei_legal?: string | null
           tip?: Database["public"]["Enums"]["maintenance_kind"]
           tip_contor?: Database["public"]["Enums"]["meter_kind"] | null
           ultima_citire_contor?: number | null
@@ -7316,17 +7701,27 @@ export type Database = {
         }
         Update: {
           activ?: boolean
+          amanat_pana?: string | null
+          categorie_legala?: string | null
+          cost_estimat?: number | null
           created_at?: string
           created_by?: string | null
+          data_ancora?: string | null
           deleted_at?: string | null
           denumire?: string
+          durata_estimata_ore?: number | null
           equipment_id?: string
           id?: string
           instructiuni?: string | null
+          mod_calcul?: string
+          motiv_amanare?: string | null
+          numar_amanari?: number
+          oprire_necesara?: boolean
           organization_id?: string
           periodicitate_contor?: number | null
           periodicitate_zile?: number | null
           responsabil_employee_id?: string | null
+          temei_legal?: string | null
           tip?: Database["public"]["Enums"]["maintenance_kind"]
           tip_contor?: Database["public"]["Enums"]["meter_kind"] | null
           ultima_citire_contor?: number | null
@@ -7354,6 +7749,75 @@ export type Database = {
           {
             foreignKeyName: "maintenance_plans_responsabil_employee_id_fkey"
             columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_settings: {
+        Row: {
+          cost_ora_oprire: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          inchidere_automata_zile: number
+          ore_functionare_pe_zi: number
+          organization_id: string
+          prag_avertizare_zile: number
+          prag_contor_necitit_zile: number
+          responsabili: string[]
+          rsvti_employee_id: string | null
+          updated_at: string
+          updated_by: string | null
+          zile_pe_saptamana: number
+        }
+        Insert: {
+          cost_ora_oprire?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          inchidere_automata_zile?: number
+          ore_functionare_pe_zi?: number
+          organization_id: string
+          prag_avertizare_zile?: number
+          prag_contor_necitit_zile?: number
+          responsabili?: string[]
+          rsvti_employee_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile_pe_saptamana?: number
+        }
+        Update: {
+          cost_ora_oprire?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          inchidere_automata_zile?: number
+          ore_functionare_pe_zi?: number
+          organization_id?: string
+          prag_avertizare_zile?: number
+          prag_contor_necitit_zile?: number
+          responsabili?: string[]
+          rsvti_employee_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile_pe_saptamana?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_settings_rsvti_employee_id_fkey"
+            columns: ["rsvti_employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -11014,6 +11478,7 @@ export type Database = {
       registru_documente: {
         Row: {
           an: number
+          angajat_id: string | null
           anulat_la: string | null
           compartiment: string | null
           conexat_la: string | null
@@ -11048,6 +11513,7 @@ export type Database = {
         }
         Insert: {
           an: number
+          angajat_id?: string | null
           anulat_la?: string | null
           compartiment?: string | null
           conexat_la?: string | null
@@ -11082,6 +11548,7 @@ export type Database = {
         }
         Update: {
           an?: number
+          angajat_id?: string | null
           anulat_la?: string | null
           compartiment?: string | null
           conexat_la?: string | null
@@ -11115,6 +11582,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "registru_documente_angajat_id_fkey"
+            columns: ["angajat_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registru_documente_conexat_la_fkey"
             columns: ["conexat_la"]
@@ -12650,6 +13124,82 @@ export type Database = {
           },
         ]
       }
+      vehicle_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          de_la: string
+          deleted_at: string | null
+          employee_id: string
+          folosinta_personala: boolean
+          id: string
+          km_predare: number | null
+          km_restituire: number | null
+          observatii: string | null
+          organization_id: string
+          pana_la: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          de_la: string
+          deleted_at?: string | null
+          employee_id: string
+          folosinta_personala?: boolean
+          id?: string
+          km_predare?: number | null
+          km_restituire?: number | null
+          observatii?: string | null
+          organization_id: string
+          pana_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          de_la?: string
+          deleted_at?: string | null
+          employee_id?: string
+          folosinta_personala?: boolean
+          id?: string
+          km_predare?: number | null
+          km_restituire?: number | null
+          observatii?: string | null
+          organization_id?: string
+          pana_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_assignments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_assignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_document_types: {
         Row: {
           activ: boolean
@@ -12821,6 +13371,7 @@ export type Database = {
           numar_locuri: number | null
           observatii: string | null
           organization_id: string
+          pool: boolean
           prag_salt_km: number | null
           status: Database["public"]["Enums"]["vehicle_status"]
           tip_combustibil: Database["public"]["Enums"]["fuel_type"]
@@ -12852,6 +13403,7 @@ export type Database = {
           numar_locuri?: number | null
           observatii?: string | null
           organization_id: string
+          pool?: boolean
           prag_salt_km?: number | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           tip_combustibil?: Database["public"]["Enums"]["fuel_type"]
@@ -12883,6 +13435,7 @@ export type Database = {
           numar_locuri?: number | null
           observatii?: string | null
           organization_id?: string
+          pool?: boolean
           prag_salt_km?: number | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           tip_combustibil?: Database["public"]["Enums"]["fuel_type"]
@@ -13190,6 +13743,7 @@ export type Database = {
       }
       inregistreaza_document_manual: {
         Args: {
+          p_angajat_id?: string | null
           p_continut_rezumat: string
           p_data_document_emitent?: string | null
           p_emitent?: string | null
@@ -13357,6 +13911,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      sedii_pentru_pontaj: {
+        Args: { p_organization_id: string }
+        Returns: {
+          denumire: string
+          din_contract: boolean
+          id: string
+        }[]
+      }
       seed_leave_balances: {
         Args: {
           p_an: number
@@ -13372,14 +13934,6 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
-      }
-      sedii_pentru_pontaj: {
-        Args: { p_organization_id: string }
-        Returns: {
-          din_contract: boolean
-          denumire: string
-          id: string
-        }[]
       }
       seteaza_zile_concediu_implicit: {
         Args: { p_organization_id: string; p_zile: number }
@@ -13572,7 +14126,15 @@ export type Database = {
         | "industrie_alimentara"
         | "persoana_handicap"
         | "cercetare_dezvoltare"
-      fault_status: "nou" | "in_analiza" | "in_lucru" | "rezolvat" | "respins"
+      fault_status:
+        | "nou"
+        | "in_analiza"
+        | "in_lucru"
+        | "in_asteptare"
+        | "rezolvat"
+        | "inchis"
+        | "respins"
+        | "retrasa"
       fault_urgency: "scazuta" | "medie" | "ridicata" | "critica"
       feature_group:
         | "core"
@@ -13639,7 +14201,11 @@ export type Database = {
         | "varsta_copil"
         | "alta"
       locale_code: "ro-RO" | "en-US"
-      maintenance_kind: "preventiva" | "predictiva" | "corectiva"
+      maintenance_kind:
+        | "preventiva"
+        | "predictiva"
+        | "corectiva"
+        | "verificare_legala"
       maintenance_result: "reusita" | "partiala" | "esuata" | "amanata"
       medical_payer: "angajator" | "fnuass" | "mixt"
       member_status: "active" | "suspended" | "inactive"
@@ -13803,6 +14369,7 @@ export type Database = {
         | "parcare"
         | "alta"
       trip_sheet_status: "draft" | "trimis" | "aprobat" | "respins"
+      varianta_pontaj: "zilnic" | "saptamanal"
       vehicle_category:
         | "autoturism"
         | "autoutilitara"
@@ -13815,7 +14382,6 @@ export type Database = {
         | "motocicleta"
         | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
-      varianta_pontaj: "zilnic" | "saptamanal"
       verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
@@ -14115,7 +14681,16 @@ export const Constants = {
         "persoana_handicap",
         "cercetare_dezvoltare",
       ],
-      fault_status: ["nou", "in_analiza", "in_lucru", "rezolvat", "respins"],
+      fault_status: [
+        "nou",
+        "in_analiza",
+        "in_lucru",
+        "in_asteptare",
+        "rezolvat",
+        "inchis",
+        "respins",
+        "retrasa",
+      ],
       fault_urgency: ["scazuta", "medie", "ridicata", "critica"],
       feature_group: [
         "core",
@@ -14189,7 +14764,12 @@ export const Constants = {
         "alta",
       ],
       locale_code: ["ro-RO", "en-US"],
-      maintenance_kind: ["preventiva", "predictiva", "corectiva"],
+      maintenance_kind: [
+        "preventiva",
+        "predictiva",
+        "corectiva",
+        "verificare_legala",
+      ],
       maintenance_result: ["reusita", "partiala", "esuata", "amanata"],
       medical_payer: ["angajator", "fnuass", "mixt"],
       member_status: ["active", "suspended", "inactive"],
@@ -14369,6 +14949,7 @@ export const Constants = {
         "alta",
       ],
       trip_sheet_status: ["draft", "trimis", "aprobat", "respins"],
+      varianta_pontaj: ["zilnic", "saptamanal"],
       vehicle_category: [
         "autoturism",
         "autoutilitara",
@@ -14382,7 +14963,6 @@ export const Constants = {
         "altele",
       ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
-      varianta_pontaj: ["zilnic", "saptamanal"],
       verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },

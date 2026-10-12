@@ -21,14 +21,62 @@ import { cheieCelula, type AbsentaCelula } from "@/domain/leave/planificator";
 import type { RandAngajatPlanificator } from "@/app/(app)/concedii/calendar/planificator-concedii";
 
 export const ANGAJATI: readonly RandAngajatPlanificator[] = [
-  { id: "d1", nume: "Popescu Ion", marca: "A-001" },
-  { id: "d2", nume: "Ionescu Ana", marca: "A-002" },
-  { id: "d3", nume: "Marin Vasile", marca: "A-003" },
-  { id: "d4", nume: "Dobre Elena", marca: "A-004" },
-  { id: "d5", nume: "Stan Mihai", marca: "A-005" },
-  { id: "d6", nume: "Radu Cristina", marca: "A-006" },
-  { id: "d7", nume: "Neagu Andrei", marca: "A-007" },
-  { id: "d8", nume: "Toma Gabriela", marca: "A-008" },
+  {
+    id: "d1",
+    nume: "Popescu Ion",
+    marca: "A-001",
+    hrefCereri: "/concedii/echipa?employee_id=d1",
+    hrefFisa: "/angajati/d1",
+  },
+  {
+    id: "d2",
+    nume: "Ionescu Ana",
+    marca: "A-002",
+    hrefCereri: "/concedii/echipa?employee_id=d2",
+    hrefFisa: "/angajati/d2",
+  },
+  {
+    id: "d3",
+    nume: "Marin Vasile",
+    marca: "A-003",
+    hrefCereri: "/concedii/echipa?employee_id=d3",
+    hrefFisa: "/angajati/d3",
+  },
+  {
+    id: "d4",
+    nume: "Dobre Elena",
+    marca: "A-004",
+    hrefCereri: "/concedii/echipa?employee_id=d4",
+    hrefFisa: "/angajati/d4",
+  },
+  {
+    id: "d5",
+    nume: "Stan Mihai",
+    marca: "A-005",
+    hrefCereri: "/concedii/echipa?employee_id=d5",
+    hrefFisa: "/angajati/d5",
+  },
+  {
+    id: "d6",
+    nume: "Radu Cristina",
+    marca: "A-006",
+    hrefCereri: "/concedii/echipa?employee_id=d6",
+    hrefFisa: "/angajati/d6",
+  },
+  {
+    id: "d7",
+    nume: "Neagu Andrei",
+    marca: "A-007",
+    hrefCereri: "/concedii/echipa?employee_id=d7",
+    hrefFisa: "/angajati/d7",
+  },
+  {
+    id: "d8",
+    nume: "Toma Gabriela",
+    marca: "A-008",
+    hrefCereri: "/concedii/echipa?employee_id=d8",
+    hrefFisa: "/angajati/d8",
+  },
 ];
 
 export const TIPURI: readonly Readonly<{ id: string; denumire: string; culoare: string }>[] = [
@@ -102,6 +150,7 @@ export function absenteLunii(azi: string): Readonly<Record<string, readonly Abse
     for (let zi = absenta.deLaZiuaLunii; zi <= Math.min(absenta.panaLaZiuaLunii, ultima); zi += 1) {
       const cheie = cheieCelula(absenta.employeeId, ziuaIso(an, luna, zi));
       const celula: AbsentaCelula = {
+        cerereId: `demo-${absenta.employeeId}-${tip.id}`,
         tipId: tip.id,
         tipDenumire: tip.denumire,
         tipCuloare: tip.culoare,

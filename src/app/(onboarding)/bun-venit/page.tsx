@@ -95,7 +95,9 @@ export default async function PaginaBunVenit() {
     ...(firma?.oras ? { oras: firma.oras } : {}),
     ...(firma?.sector ? { sector: firma.sector } : {}),
 
-    // Obligatorii în schemă, invizibile în interfață.
+    // Nu mai sunt cerute de `completeazaFirmaSchema` (QA 8 oct 2026, ONB-010:
+    // `owner_telefon` n-are câmp aici și bloca finalizarea). Rămân ca valori
+    // implicite inofensive pentru forma completă a formularului; validarea le taie.
     owner_nume: numeProprietar || emailProprietar,
     owner_prenume: prenumeProprietar || emailProprietar,
     owner_email: emailProprietar,

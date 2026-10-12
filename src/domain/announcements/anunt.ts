@@ -129,13 +129,14 @@ function decalajRomania(zi: string): string {
  * răspund la aceeași întrebare — „ce am scris și firma încă nu vede". Pastila
  * de pe card le desparte oricum; segmentul nu are de ce.
  */
-export type FiltruStareAnunt = "toate" | "active" | "ciorne" | "expirate";
+export type FiltruStareAnunt = "toate" | "active" | "ciorne" | "expirate" | "necitite";
 
 export const FILTRE_STARE: readonly FiltruStareAnunt[] = [
   "toate",
   "active",
   "ciorne",
   "expirate",
+  "necitite",
 ] as const;
 
 export const FILTRU_IMPLICIT: FiltruStareAnunt = "toate";
@@ -156,13 +157,17 @@ export function potrivesteFiltru(stare: StareAnunt, filtru: FiltruStareAnunt): b
       return stare === "ciorna" || stare === "programat";
     case "expirate":
       return stare === "expirat";
+    // Necitirea nu e o stare a anunțului, ci a PRIVITORULUI: pagina o
+    // decide din `announcement_reads`; aici se trec doar cele active.
+    case "necitite":
+      return stare === "activ";
   }
 }
 
 /** Câte anunțuri sunt în fiecare segment — cifra de pe eticheta comutatorului. */
 export function numaraPeStari(
   stari: readonly StareAnunt[],
-): Readonly<Record<FiltruStareAnunt, number>> {
+): Readonly<Record<Exclude<FiltruStareAnunt, "necitite">, number>> {
   return {
     toate: stari.length,
     active: stari.filter((s) => potrivesteFiltru(s, "active")).length,

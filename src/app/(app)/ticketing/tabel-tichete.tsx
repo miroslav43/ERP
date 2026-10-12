@@ -1,4 +1,5 @@
 // src/app/(app)/ticketing/tabel-tichete.tsx
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { formatDateTime } from "@/lib/format/date";
@@ -11,6 +12,7 @@ import {
   TONURI_PRIORITATE,
   TONURI_STATUS,
 } from "./etichete";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 /**
  * Tabelul e același pe „Tichetele mele” și pe „Coada echipei”; diferă doar ce
@@ -27,16 +29,26 @@ export function TabelTichete({
   randuri,
   aratSolicitantul = false,
   aratAsignatul = false,
+  legaturaFisa = () => null,
+  dinCoada = false,
 }: Readonly<{
   randuri: readonly RandTichet[];
   aratSolicitantul?: boolean;
   aratAsignatul?: boolean;
+  /** Fișa solicitantului, decisă de pagină (RLS + `deleted_at` + drept); implicit nimic. */
+  legaturaFisa?: (angajat: RandTichet["solicitant"]) => string | null;
+  /** Rândurile deschise din coadă poartă `?din=coada` pentru firimitura fișei. */
+  readonly dinCoada?: boolean;
 }>) {
   const coloanaSolicitant: Coloana<RandTichet> = {
     cheie: "solicitant",
     antet: "Solicitant",
     peTelefon: "meta",
-    celula: (tichet) => tichet.solicitant?.full_name ?? "—",
+    celula: (tichet) => (
+      <LinkEntitate href={legaturaFisa(tichet.solicitant)}>
+        {tichet.solicitant?.full_name ?? "—"}
+      </LinkEntitate>
+    ),
   };
 
   /*
@@ -55,7 +67,13 @@ export function TabelTichete({
       tichet.asignat === null ? (
         <span className="text-muted-foreground">Nerepartizat</span>
       ) : (
-        tichet.asignat.full_name
+        // Filtrul există în schemă (`asignat_employee_id`); numele duce la el.
+        <Link
+          href={`/ticketing/coada?asignat_employee_id=${tichet.asignat.id}`}
+          className="relative underline-offset-2 hover:underline"
+        >
+          {tichet.asignat.full_name}
+        </Link>
       ),
   };
 
@@ -115,7 +133,8 @@ export function TabelTichete({
       coloane={coloane}
       randuri={randuri}
       cheieRand={(tichet) => tichet.id}
-      href={(tichet) => `/ticketing/${tichet.id}`}
+      // Proveniența rămâne în adresă: firimitura fișei duce înapoi de unde a venit omul.
+      href={(tichet) => `/ticketing/${tichet.id}${dinCoada ? "?din=coada" : ""}`}
       // Golul e tratat de fiecare dintre cele două pagini care folosesc
       // componenta, cu propriul text: „Niciun tichet deschis” pe lista proprie,
       // „Nimic în coadă” pe coada echipei.

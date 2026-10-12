@@ -1,23 +1,25 @@
-import { cerereDinParametri } from "@/app/(marketing)/unelte/cerere-concediu-de-odihna/cerere-document";
-import { condicaDinParametri } from "@/app/(marketing)/unelte/condica-de-prezenta/model";
-import { foaieParcursDinParametri } from "@/app/(marketing)/unelte/foaie-de-parcurs/model";
+import { adeverintaDinParametri } from "@/app/(marketing)/unelte/adeverinta-salariat/model";
+import { demisieDinParametri } from "@/app/(marketing)/unelte/cerere-demisie/model";
 import { fisaSsmDinParametri } from "@/app/(marketing)/unelte/fisa-instruire-ssm/model";
-import { fisaEvaluareDinParametri } from "@/app/(marketing)/unelte/fisa-evaluare/model";
+import { programareDinParametri } from "@/app/(marketing)/unelte/programare-concedii/model";
 
-import type { DocumentTabelar } from "./document-tabelar";
+import { FORMATE, type DocumentTabelar, type Format } from "./document-tabelar";
 
 export type Constructor = (q: URLSearchParams) => DocumentTabelar;
 
 /**
- * Uneltele servite de `/api/unelte/[unealta]`. Foaia de pontaj NU e aici: are
- * ruta ei statică, cu Excel pe formule, iar ruta statică are prioritate.
+ * Uneltele servite de `/api/unelte/[unealta]`. Cinci NU sunt aici, fiindcă au
+ * rută statică, iar ruta statică are prioritate față de segmentul dinamic:
+ * foaia de pontaj, condica și foaia de parcurs (Excel pe formule), cererea
+ * de concediu (o scrisoare, nu un formular tabelar —
+ * `src/app/api/unelte/cerere-concediu/route.ts`) și fișa de evaluare (Excel
+ * pe formule, `src/app/api/unelte/fisa-evaluare/route.ts`).
  */
 export const UNELTE: Readonly<Record<string, Constructor>> = {
-  "fisa-evaluare": fisaEvaluareDinParametri,
   "fisa-instruire-ssm": fisaSsmDinParametri,
-  "foaie-de-parcurs": foaieParcursDinParametri,
-  "cerere-concediu": cerereDinParametri,
-  "condica-de-prezenta": condicaDinParametri,
+  "cerere-demisie": demisieDinParametri,
+  "programare-concedii": programareDinParametri,
+  "adeverinta-salariat": adeverintaDinParametri,
 };
 
 /**
@@ -27,4 +29,21 @@ export const UNELTE: Readonly<Record<string, Constructor>> = {
  */
 export function constructorPentru(slug: string): Constructor | undefined {
   return Object.hasOwn(UNELTE, slug) ? UNELTE[slug] : undefined;
+}
+
+/**
+ * Formatele unei unelte, când nu sunt toate trei. Fișa SSM n-are Excel: are
+ * secțiuni (casete de viză, șapte tabele), pe care `randeazaXlsx` nu le poate
+ * așeza, iar pagina și lista uneltelor promit doar Word și PDF.
+ */
+const FORMATE_RESTRANSE: Readonly<Record<string, readonly Format[]>> = {
+  "fisa-instruire-ssm": ["pdf", "docx"],
+  // Scrisoare, fără tabel: o foaie de calcul ar ieși goală (K8).
+  "cerere-demisie": ["pdf", "docx"],
+  // Scrisoare, fără tabel, ca cererea de demisie (K10).
+  "adeverinta-salariat": ["pdf", "docx"],
+};
+
+export function formatePentru(slug: string): readonly Format[] {
+  return Object.hasOwn(FORMATE_RESTRANSE, slug) ? (FORMATE_RESTRANSE[slug] ?? FORMATE) : FORMATE;
 }

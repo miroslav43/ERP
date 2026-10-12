@@ -28,10 +28,13 @@
  * `/concedii/<uuid>` ESTE EXCEPȚIA: vezi `ContextDestinatar` mai jos.
  */
 
+import { ziuaRomaneascaDinText } from "@/domain/attendance/saptamana";
+
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 
 const TIPAR_CONCEDIU = new RegExp(`^/concedii/(${UUID})$`, "u");
 const TIPAR_TICHET = new RegExp(`^/ticketing/(${UUID})$`, "u");
+const TIPAR_SESIZARE = new RegExp(`^/mentenanta/sesizari/(${UUID})$`, "u");
 
 /**
  * Ce știe apelantul despre DESTINATARUL notificării — nu despre link.
@@ -61,7 +64,14 @@ const TIPAR_TICHET = new RegExp(`^/ticketing/(${UUID})$`, "u");
  * zero astfel de rânduri; se tratează totuși aici, fiindcă în ziua în care e
  * cablat defectul apare gata făcut, iar cine îl cablează n-are de unde ști.
  *
- * IMPLICITUL E SIGUR. Fără context, niciuna din cele două nu se traduce: rândul
+ * `/mentenanta/sesizari/<uuid>` (0181) E A TREIA DIN ACEEAȘI CLASĂ:
+ * `fault_reports_notifica` o trimite RAPORTORULUI la fiecare schimbare de stare
+ * și TEHNICIANULUI atribuit la atribuire — amândoi pot fi angajați de portal,
+ * iar `portal/sesizari/[id]` are gardă de proprietate (raportor sau tehnician).
+ * Responsabilii de mentenanță primesc aceeași legătură la o sesizare nouă; ei
+ * sunt în aplicația mare și nu trec pe aici.
+ *
+ * IMPLICITUL E SIGUR. Fără context, niciuna din cele trei nu se traduce: rândul
  * cade pe cutia poștală, unde mesajul se citește oricum întreg. Un apelant
  * viitor care uită să dea contextul pierde o aterizare bună; nu produce un 404.
  */
@@ -70,7 +80,31 @@ export type ContextDestinatar = Readonly<{
   concediiProprii: ReadonlySet<string>;
   /** Id-urile tichetelor IT al căror SOLICITANT e destinatarul. */
   ticheteProprii: ReadonlySet<string>;
+  /** Id-urile sesizărilor de defecțiune pe care destinatarul le-a RAPORTAT sau i-au fost ATRIBUITE. */
+  sesizariProprii: ReadonlySet<string>;
+  /** Parcursurile de integrare ale destinatarului (el e subiectul). Opțional: apelanții vechi nu-l dau. */
+  integrariProprii?: ReadonlySet<string>;
+  /** Săptămâna de pontaj din spatele notificării: id submisie → `saptamana_start`. */
+  saptamani?: ReadonlyMap<string, string>;
 }>;
+
+/**
+ * Obiectul notificării (`entity_type`/`entity_id`), când producătorul l-a
+ * scris; `corp` pentru mementourile care numesc săptămâna doar în text.
+ */
+export type EntitateNotificare = Readonly<{
+  tip: string | null;
+  id: string | null;
+  corp?: string | null;
+}>;
+
+const TIPAR_INTEGRARE = new RegExp(`^/onboarding/(${UUID})$`, "u");
+
+/** Id-ul parcursului dintr-un `/onboarding/<uuid>`, sau `null`. Vezi `idCerereDeConcediu`. */
+export function idIntegrare(link: string | null): string | null {
+  if (link === null) return null;
+  return TIPAR_INTEGRARE.exec(link)?.[1] ?? null;
+}
 
 /**
  * Id-ul cererii dintr-un `/concedii/<uuid>`, sau `null`.
@@ -88,6 +122,12 @@ export function idCerereDeConcediu(link: string | null): string | null {
 export function idTichet(link: string | null): string | null {
   if (link === null) return null;
   return TIPAR_TICHET.exec(link)?.[1] ?? null;
+}
+
+/** Id-ul sesizării dintr-un `/mentenanta/sesizari/<uuid>`, sau `null`. Vezi mai sus. */
+export function idSesizare(link: string | null): string | null {
+  if (link === null) return null;
+  return TIPAR_SESIZARE.exec(link)?.[1] ?? null;
 }
 
 /**
@@ -108,10 +148,43 @@ const FIXE: Readonly<Record<string, string>> = {
   "/anunturi": "/portal/anunturi",
   "/concedii": "/portal/concediile-mele",
   "/pontaj": "/portal/pontajul-meu",
+  "/mentenanta/sesizari": "/portal/sesizari",
 };
 
-export function caleaDePortal(link: string | null, context?: ContextDestinatar): string | null {
+export function caleaDePortal(
+  link: string | null,
+  context?: ContextDestinatar,
+  entitate?: EntitateNotificare,
+): string | null {
   if (link === null || link.length === 0) return null;
+
+  // Decizia pe pontaj și mementourile cu săptămâna cunoscută: se deschide
+  // SĂPTĂMÂNA în cauză, nu cea implicită a ecranului. Fără entitate cunoscută
+  // rămâne ruta fixă de mai jos.
+  if (
+    link === "/pontaj/saptamana" &&
+    entitate?.tip === "attendance_week_submission" &&
+    entitate.id !== null
+  ) {
+    const start = context?.saptamani?.get(entitate.id);
+    if (start !== undefined) return `/portal/pontajul-meu/saptamana?saptamana=${start}`;
+  }
+
+  // Mementourile de vineri–duminică (0166): săptămâna e doar în corp.
+  if (link === "/pontaj/saptamana" && entitate?.tip === "attendance_week_submission_missing") {
+    const luni = ziuaRomaneascaDinText(entitate.corp ?? null);
+    if (luni !== null) return `/portal/pontajul-meu/saptamana?saptamana=${luni}`;
+  }
+
+  // Integrarea: numai parcursul propriu are ecran în portal; pentru pasul
+  // unui coleg rândul rămâne text — comentariul din 0095 presupunea greșit
+  // că portalul „o traduce" oricum.
+  const integrareId = idIntegrare(link);
+  if (integrareId !== null) {
+    return context?.integrariProprii?.has(integrareId) === true
+      ? `/portal/integrarea-mea/${integrareId}`
+      : null;
+  }
 
   // Deja o cale de portal: se lasă neatinsă.
   if (link === "/portal" || link.startsWith("/portal/")) return link;
@@ -133,6 +206,13 @@ export function caleaDePortal(link: string | null, context?: ContextDestinatar):
   if (idTichetul !== null) {
     return context?.ticheteProprii.has(idTichetul) === true
       ? `/portal/tichetele-mele/${idTichetul}`
+      : null;
+  }
+
+  const idSesizarea = idSesizare(link);
+  if (idSesizarea !== null) {
+    return context?.sesizariProprii.has(idSesizarea) === true
+      ? `/portal/sesizari/${idSesizarea}`
       : null;
   }
 

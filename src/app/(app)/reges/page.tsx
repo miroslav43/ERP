@@ -1,5 +1,6 @@
 // src/app/(app)/reges/page.tsx
 import { FileCheck2 } from "lucide-react";
+import Link from "next/link";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Callout } from "@/components/ui/callout";
@@ -33,10 +34,13 @@ import {
 import { ActiuniEveniment, ButonExport } from "./actiuni-client";
 import { ButonAnuleazaMesaj, ButonPregateste, ButonTransmite } from "./coada-client";
 import { NavReges } from "./nav-reges";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata = { title: "REGES-Online — evidența evenimentelor" };
 
 const STARI_VALIDE: readonly FiltruStare[] = ["toate", "intarziate", "de_transmis", "transmise"];
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function esteStare(valoare: string | undefined): valoare is FiltruStare {
   return valoare !== undefined && STARI_VALIDE.includes(valoare as FiltruStare);
@@ -71,11 +75,35 @@ export default async function PaginaReges(props: {
   const poatePregati = meetsScope(scopeFor(permisiuni, "reges:create") ?? undefined, "all");
   const poateTransmite = meetsScope(scopeFor(permisiuni, "reges:transmit") ?? undefined, "all");
   const poateExporta = meetsScope(scopeFor(permisiuni, "reges:export") ?? undefined, "all");
+  // Rândul duce la fișă doar pentru cine o poate deschide pe a ORICUI: cu
+  // `employees:read = team` (suprascriere), salariații din afara echipei dau 404.
+  const poateDeschideFisa = meetsScope(scopeFor(permisiuni, "employees:read") ?? undefined, "all");
   const poateConfigura = meetsScope(scopeFor(permisiuni, "reges:configure") ?? undefined, "all");
 
   const parametri = await props.searchParams;
   const stareBruta = Array.isArray(parametri["stare"]) ? parametri["stare"][0] : parametri["stare"];
-  const filtre = { ...FILTRE_IMPLICITE, stare: esteStare(stareBruta) ? stareBruta : "toate" };
+  // Filtrul de intrare din fișa angajatului: un UUID sau nimic.
+  const angajatBrut = Array.isArray(parametri["angajat"])
+    ? parametri["angajat"][0]
+    : parametri["angajat"];
+  const angajatFiltrat =
+    typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
+  const filtre = {
+    ...FILTRE_IMPLICITE,
+    stare: esteStare(stareBruta) ? stareBruta : "toate",
+    angajat: angajatFiltrat,
+  };
+  // Filtrul de intrare din registrul de evenimente: mesajele UNUI eveniment.
+  const evenimentBrut = parametri["eveniment"];
+  const evenimentFiltrat =
+    typeof evenimentBrut === "string" && UUID_RE.test(evenimentBrut) ? evenimentBrut : null;
+  // Filtrul cozii de mesaje (din sumarul ei): una dintre stările mesajului sau nimic.
+  const mesajeBrut = parametri["mesaje"];
+  const mesajeFiltrate =
+    typeof mesajeBrut === "string" &&
+    (["de_transmis", "asteapta_raspuns", "esuat", "reusit"] as const).some((s) => s === mesajeBrut)
+      ? mesajeBrut
+      : null;
 
   const supabase = await createServerSupabase();
   const organizationId = idOrganizatie(tenant);
@@ -86,7 +114,7 @@ export default async function PaginaReges(props: {
   // paralel cu celelalte două, nu un rând în plus de latență.
   const [{ randuri, statistici, azi }, coada, propuneri, credentiale] = await Promise.all([
     interogheazaEvenimenteReges(supabase, organizationId, filtre),
-    interogheazaMesajeReges(supabase, organizationId),
+    interogheazaMesajeReges(supabase, organizationId, 200, angajatFiltrat),
     interogheazaPropuneriReges(supabase, organizationId),
     /*
      * Doar ca să știm DACĂ modulul e legat de Inspecția Muncii — nu ce chei
@@ -95,6 +123,12 @@ export default async function PaginaReges(props: {
      */
     citesteRezumatCredentiale(supabase, organizationId),
   ]);
+
+  const mesajePeEveniment = new Map<string, number>();
+  for (const m of coada.randuri) {
+    if (m.evenimentId !== null)
+      mesajePeEveniment.set(m.evenimentId, (mesajePeEveniment.get(m.evenimentId) ?? 0) + 1);
+  }
 
   /*
    * Fără credențiale, NIMIC nu poate pleca: fiecare drum către API trece prin
@@ -121,7 +155,17 @@ export default async function PaginaReges(props: {
         <span className="text-foreground">
           {ETICHETE_OPERATIE[m.operatie] ?? m.operatie}
           <span className="text-muted-foreground text-nota block">
-            {m.angajatNume ?? "—"}
+            {/* Numele vine din `numeDupaId`, deci e vizibil prin RLS când nu e `null`. */}
+            {m.angajatNume !== null && m.angajatId !== null && poateDeschideFisa ? (
+              <Link
+                href={`/angajati/${m.angajatId}`}
+                className="relative underline-offset-2 hover:underline"
+              >
+                {m.angajatNume}
+              </Link>
+            ) : (
+              (m.angajatNume ?? "—")
+            )}
             {m.contractNumar === null ? "" : ` · CIM ${m.contractNumar}`}
           </span>
         </span>
@@ -170,6 +214,11 @@ export default async function PaginaReges(props: {
               <ButonTransmite
                 mesajId={m.id}
                 numeAngajat={m.angajatNume ?? "salariat"}
+                hrefAngajat={
+                  poateDeschideFisa && m.angajatId !== null && m.angajatNume !== null
+                    ? `/angajati/${m.angajatId}`
+                    : null
+                }
                 transmisibil={m.transmisibil}
               />
             ) : (
@@ -216,7 +265,24 @@ export default async function PaginaReges(props: {
       cheie: "eveniment",
       antet: "Eveniment",
       peTelefon: "meta",
-      celula: (rand) => ETICHETE_TIP[rand.tip],
+      celula: (rand) => {
+        // Mesajele deja pregătite din evenimentul ăsta, din coada afișată (cele
+        // mai noi 200): legătura dintre registru și coadă lipsea în ambele sensuri.
+        const mesaje = mesajePeEveniment.get(rand.id) ?? 0;
+        return (
+          <>
+            {ETICHETE_TIP[rand.tip]}
+            {mesaje === 0 ? null : (
+              <Link
+                href={`/reges?eveniment=${rand.id}#coada-mesaje`}
+                className="text-muted-foreground text-nota relative block underline-offset-2 hover:underline"
+              >
+                {mesaje === 1 ? "un mesaj în coadă" : `${String(mesaje)} mesaje în coadă`}
+              </Link>
+            )}
+          </>
+        );
+      },
     },
     {
       cheie: "data",
@@ -325,6 +391,22 @@ export default async function PaginaReges(props: {
       />
 
       {bannerNeconectat}
+      <PastileFiltre
+        active={
+          angajatFiltrat === null
+            ? []
+            : [
+                {
+                  cheie: "angajat",
+                  eticheta: `Doar: ${
+                    randuri.find((r) => r.angajatId === angajatFiltrat)?.angajatNume ??
+                    coada.randuri.find((m) => m.angajatId === angajatFiltrat)?.angajatNume ??
+                    "angajatul ales"
+                  }`,
+                },
+              ]
+        }
+      />
 
       {/*
         Cifrele se numără în bază, pe tot registrul, nu peste rândurile afișate:
@@ -334,28 +416,41 @@ export default async function PaginaReges(props: {
       */}
       <section aria-label="Situația întregului registru" className="space-y-2">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {/* Fiecare fișă deschide filtrul de dedesubt care îi conține rândurile. */}
           {[
             {
               eticheta: "Întârziate",
               valoare: statistici.intarziate,
               clasa: CLASA_STARE["intarziat"],
+              stare: "intarziate",
             },
-            { eticheta: "Cu termen azi", valoare: statistici.astazi, clasa: CLASA_STARE["astazi"] },
+            {
+              eticheta: "Cu termen azi",
+              valoare: statistici.astazi,
+              clasa: CLASA_STARE["astazi"],
+              stare: "de_transmis",
+            },
             {
               eticheta: "În termen",
               valoare: statistici.inTermen,
               clasa: CLASA_STARE["in_termen"],
+              stare: "de_transmis",
             },
             {
               eticheta: "Transmise",
               valoare: statistici.transmise,
               clasa: CLASA_STARE["transmis"],
+              stare: "transmise",
             },
           ].map((fisa) => (
-            <div key={fisa.eticheta} className={`rounded-panou p-4 ${fisa.clasa ?? ""}`}>
+            <Link
+              key={fisa.eticheta}
+              href={`/reges?stare=${fisa.stare}`}
+              className={`rounded-panou block p-4 hover:underline ${fisa.clasa ?? ""}`}
+            >
               <p className="text-corp font-medium">{fisa.eticheta}</p>
               <p className="text-cifra font-semibold tabular-nums">{fisa.valoare}</p>
-            </div>
+            </Link>
           ))}
         </div>
         {filtre.stare === "toate" ? null : (
@@ -396,7 +491,9 @@ export default async function PaginaReges(props: {
           coloane={coloane}
           randuri={randuri}
           cheieRand={(rand) => rand.id}
-          href={(rand) => `/angajati/${rand.angajatId}`}
+          href={(rand) =>
+            poateDeschideFisa && rand.angajatVizibil ? `/angajati/${rand.angajatId}` : null
+          }
           densitate="compact"
           gol={null}
           // Citirea taie la `filtre.limita` rânduri, fără să spună. Într-un
@@ -406,18 +503,53 @@ export default async function PaginaReges(props: {
         />
       )}
 
-      <section className="space-y-3">
+      <section id="coada-mesaje" className="scroll-mt-24 space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-foreground font-medium">Mesaje către Inspecția Muncii</h2>
-          <p className="text-muted-foreground text-nota">
-            {coada.statistici.deTransmis} de transmis · {coada.statistici.asteapta} în așteptare ·{" "}
-            {coada.statistici.esuate} respinse · {coada.statistici.reusite} confirmate
+          {/* Sumarul e și filtrul cozii: respinsele, singurele care cer acțiune,
+              se izolează cu un clic. `?mesaje=` se aplică pe rândurile citite. */}
+          <p className="text-muted-foreground text-nota flex flex-wrap gap-x-2">
+            {(
+              [
+                ["de_transmis", coada.statistici.deTransmis, "de transmis"],
+                ["asteapta_raspuns", coada.statistici.asteapta, "în așteptare"],
+                ["esuat", coada.statistici.esuate, "respinse"],
+                ["reusit", coada.statistici.reusite, "confirmate"],
+              ] as const
+            ).map(([cheie, numar, eticheta], indice) => (
+              <span key={cheie}>
+                {indice === 0 ? "" : "· "}
+                <Link
+                  href={`/reges?${new URLSearchParams({
+                    ...(filtre.stare === "toate" ? {} : { stare: filtre.stare }),
+                    ...(filtre.angajat === null ? {} : { angajat: filtre.angajat }),
+                    mesaje: cheie,
+                  }).toString()}#coada-mesaje`}
+                  className={
+                    mesajeFiltrate === cheie
+                      ? "text-foreground font-medium underline"
+                      : "hover:underline"
+                  }
+                >
+                  {numar} {eticheta}
+                </Link>
+              </span>
+            ))}
+            {mesajeFiltrate === null ? null : (
+              <Link href="/reges#coada-mesaje" className="hover:underline">
+                · toate
+              </Link>
+            )}
           </p>
         </div>
         <Tabel
           caption="Coada de mesaje REGES-Online"
           coloane={COLOANE_MESAJE}
-          randuri={coada.randuri}
+          randuri={coada.randuri.filter(
+            (m) =>
+              (mesajeFiltrate === null || m.stare === mesajeFiltrate) &&
+              (evenimentFiltrat === null || m.evenimentId === evenimentFiltrat),
+          )}
           cheieRand={(m) => m.id}
           // Rândul duce la detaliu: acolo se vede ce clasificare va pleca la ITM,
           // se corectează înainte de transmitere și se citește jurnalul apelurilor.

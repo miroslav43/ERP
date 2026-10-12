@@ -89,11 +89,47 @@ type RandCoada = {
  * `/concedii/<uuid>` rămân netraduse, iar notificarea aterizează în cutia
  * poștală. Omul primește mesajul; pierde doar un tap.
  */
+/**
+ * Rolul destinatarului per dispozitiv: învelișul push se alege după el (vezi
+ * `caleDeDeschis` din mesaj.ts). O citire picată lasă rolul necunoscut, adică
+ * tratare ca angajat — comportamentul de dinainte.
+ */
+async function roluriPeDispozitiv(
+  db: AdminSupabase,
+  dispozitive: readonly { id: string; user_id: string; organization_id: string }[],
+): Promise<ReadonlyMap<string, string>> {
+  const roluri = new Map<string, string>();
+  if (dispozitive.length === 0) return roluri;
+  // ⚠ service_role, ca restul funcției; filtrul e perechea (organizație, utilizator)
+  // a dispozitivelor din lotul propriu.
+  const { data, error } = await db
+    .from("organization_members")
+    .select("user_id, organization_id, role")
+    .in("organization_id", [...new Set(dispozitive.map((d) => d.organization_id))])
+    .in("user_id", [...new Set(dispozitive.map((d) => d.user_id))])
+    .is("deleted_at", null);
+  if (error !== null) {
+    logEsecScriere("citirea rolurilor pentru învelișul push a eșuat", error);
+    return roluri;
+  }
+  const peMembru = new Map((data ?? []).map((m) => [`${m.organization_id}:${m.user_id}`, m.role]));
+  for (const d of dispozitive) {
+    const rol = peMembru.get(`${d.organization_id}:${d.user_id}`);
+    if (rol !== undefined) roluri.set(d.id, rol);
+  }
+  return roluri;
+}
+
+type ContexteSiRoluri = Readonly<{
+  contexte: ReadonlyMap<string, ContextDestinatar>;
+  roluri: ReadonlyMap<string, string>;
+}>;
+
 async function contextePeDispozitiv(
   db: AdminSupabase,
   randuri: readonly RandCoada[],
-): Promise<ReadonlyMap<string, ContextDestinatar>> {
-  const goale = new Map<string, ContextDestinatar>();
+): Promise<ContexteSiRoluri> {
+  const goale: ContexteSiRoluri = { contexte: new Map(), roluri: new Map() };
   const dispozitiveIds = [...new Set(randuri.map((r) => r.dispozitiv_id))];
 
   // ⚠ service_role: OCOLEȘTE RLS, ca tot restul funcției `golesteCoada`.
@@ -112,13 +148,21 @@ async function contextePeDispozitiv(
   const dispozitive = data ?? [];
   if (dispozitive.length === 0) return goale;
 
-  const contexte = await contexteDestinatar(
-    db,
-    [...new Set(dispozitive.map((d) => d.organization_id))],
-    randuri.map((r) => r.link),
-  );
+  const [contexte, roluri] = await Promise.all([
+    contexteDestinatar(
+      db,
+      [...new Set(dispozitive.map((d) => d.organization_id))],
+      randuri.map((r) => r.link),
+    ),
+    roluriPeDispozitiv(db, dispozitive),
+  ]);
 
-  return new Map(dispozitive.map((d) => [d.id, contexte.get(d.user_id) ?? CONTEXT_GOL] as const));
+  return {
+    contexte: new Map(
+      dispozitive.map((d) => [d.id, contexte.get(d.user_id) ?? CONTEXT_GOL] as const),
+    ),
+    roluri,
+  };
 }
 
 function logEsecScriere(context: string, eroare: { message: string }): void {
@@ -213,7 +257,7 @@ export async function golesteCoada(
     };
   }
 
-  const contexte = await contextePeDispozitiv(db, randuri);
+  const { contexte, roluri } = await contextePeDispozitiv(db, randuri);
 
   const rezultate = await trimiteLot(
     randuri.map((r) =>
@@ -223,6 +267,7 @@ export async function golesteCoada(
         corp: r.corp,
         link: r.link,
         context: contexte.get(r.dispozitiv_id) ?? CONTEXT_GOL,
+        rol: roluri.get(r.dispozitiv_id) ?? null,
       }),
     ),
   );

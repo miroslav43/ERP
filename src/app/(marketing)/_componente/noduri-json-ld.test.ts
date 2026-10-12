@@ -22,6 +22,31 @@ describe("nodUnealta", () => {
       dateModified: dataPaginii("/unelte/calculator-salariu"),
     });
   });
+
+  it("cu imagine, are `ImageObject` cu adresa absolută; fără, nu are cheia", () => {
+    const cu = nodUnealta({
+      cale: "/unelte/cerere-demisie",
+      nume: "Cerere de demisie",
+      descriere: "Descriere.",
+      imagine: {
+        url: "/capturi/unelte/x-1200.webp",
+        latime: 1200,
+        inaltime: 1200,
+        descriere: "Alt.",
+      },
+    });
+    expect(cu).toMatchObject({
+      image: {
+        "@type": "ImageObject",
+        url: `${ADRESA_SITE}/capturi/unelte/x-1200.webp`,
+        width: 1200,
+        height: 1200,
+        caption: "Alt.",
+      },
+    });
+    const fara = nodUnealta({ cale: "/unelte/calculator-salariu", nume: "C", descriere: "D." });
+    expect("image" in fara).toBe(false);
+  });
 });
 
 describe("nodArticol", () => {

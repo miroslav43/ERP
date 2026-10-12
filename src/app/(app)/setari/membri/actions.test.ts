@@ -77,7 +77,7 @@ describe("invitaMembru", () => {
   });
 
   it("dă invitației organizația din sesiune, rolul, autorul și momentul cererii", async () => {
-    const { server } = configureazaActiunea({ permisiuni: CREARE });
+    const { server, admin } = configureazaActiunea({ permisiuni: CREARE });
     const creata = {
       id: ID_1,
       email: "ana@firma.ro",
@@ -94,6 +94,11 @@ describe("invitaMembru", () => {
     const [parametri] = creeazaInvitatie.mock.calls[0] as [Record<string, unknown>];
     expect(parametri).toMatchObject({
       db: server.client,
+      // Jurnalul de e-mail (`email_log`) are INSERT/UPDATE revocate pentru
+      // `authenticated` (0001, 0016): prin clientul de sesiune, `sendEmail` cădea
+      // la primul pas și NICIO invitație emisă din aplicație nu pleca (QA 8 oct
+      // 2026, ADM-031). Scrierea în jurnal merge prin clientul admin.
+      dbEmail: admin.client,
       organizationId: ORG_ID,
       email: "ana@firma.ro",
       rol: "hr",

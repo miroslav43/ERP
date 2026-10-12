@@ -98,6 +98,8 @@ type Fals = ReturnType<typeof configureazaActiunea>["server"];
 
 /** Calea minimă: fără e-mail, fără pași opționali, fără șablon de integrare. */
 function programeazaInrolarea(server: Fals, sabloane: unknown[] = []) {
+  // Salariul minim al firmei, citit înaintea oricărei scrieri (nicio setare = fără prag).
+  server.raspunde("payroll_settings", "select", { data: [] });
   server.raspundeRpc("urmatoarea_marca", { data: "0001" });
   server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
   server.raspundeRpc("hr_write_sensitive", { data: null });
@@ -123,6 +125,20 @@ describe("inroleazaAngajat", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
     expect(server.apeluri).toHaveLength(0);
     expect(server.apeluriRpc.filter((a) => a.nume !== "log_audit_event")).toHaveLength(0);
+  });
+
+  it("sub salariul minim configurat de firmă: VALIDARE pe `salariu_baza`, fără nicio scriere", async () => {
+    // Înrolarea cu 100 lei și 12 h/zi trecea fără avertisment (QA 8 oct 2026, HR-030).
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: 4050 }] });
+
+    const r = await inroleazaAngajat({ ...INTRARE, salariu_baza: 100 });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("4.050");
+    expect(server.apeluriPe("employees")).toHaveLength(0);
+    expect(server.apeluriRpc.filter((a) => a.nume === "urmatoarea_marca")).toHaveLength(0);
   });
 
   it("succes: fișă activă cu marca din contor și actul DERIVAT din REGES; contract alocat automat, apoi activat", async () => {
@@ -218,6 +234,7 @@ describe("inroleazaAngajat", () => {
 
   it("numărul ales de om e deja folosit: CONFLICT care îl numește, fără realocare", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspundeRpc("urmatoarea_marca", { data: "0001" });
     server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
     server.raspundeRpc("hr_write_sensitive", { data: null });
@@ -236,6 +253,7 @@ describe("inroleazaAngajat", () => {
 
   it("numărul alocat automat a fost luat între timp: realocă și reîncearcă", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspundeRpc("urmatoarea_marca", { data: "0001" });
     server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
     server.raspundeRpc("hr_write_sensitive", { data: null });
@@ -258,6 +276,7 @@ describe("inroleazaAngajat", () => {
 
   it("23505 pe ALT index decât numărul: nu se reîncearcă (n-ar arde numere din registru)", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspundeRpc("urmatoarea_marca", { data: "0001" });
     server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
     server.raspundeRpc("hr_write_sensitive", { data: null });
@@ -274,6 +293,7 @@ describe("inroleazaAngajat", () => {
 
   it("cinci numere la rând luate: CONFLICT „numerotarea e ocupată”", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspundeRpc("urmatoarea_marca", { data: "0001" });
     server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
     server.raspundeRpc("hr_write_sensitive", { data: null });
@@ -292,6 +312,7 @@ describe("inroleazaAngajat", () => {
 
   it("activarea contractului respinsă tăcut: CONFLICT, nu „angajat înrolat”", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspundeRpc("urmatoarea_marca", { data: "0001" });
     server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
     server.raspundeRpc("hr_write_sensitive", { data: null });
@@ -321,6 +342,7 @@ describe("inroleazaAngajat", () => {
 
   it("punctul de lucru a dispărut: CONFLICT, contractul nu se creează", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspundeRpc("urmatoarea_marca", { data: "0001" });
     server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
     server.raspundeRpc("hr_write_sensitive", { data: null });
@@ -371,8 +393,9 @@ describe("inroleazaAngajat", () => {
   });
 
   it("cu e-mail personal: invitația pleacă pe adresa fișei, cu rolul `employee`", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
     programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: null });
     f.invitatie.mockResolvedValue({ email: "ion@exemplu.ro", emailTrimis: true });
 
     const r = await inroleazaAngajat({ ...INTRARE, email_personal: "Ion@Exemplu.ro" });
@@ -383,12 +406,55 @@ describe("inroleazaAngajat", () => {
       email: "ion@exemplu.ro",
       rol: "employee",
       employeeId: ID_1,
+      // Jurnalul de e-mail se scrie prin clientul admin (vezi setari/membri).
+      dbEmail: admin.client,
     });
   });
 
-  it("invitația eșuează: înrolarea rămâne reușită, cu avertisment", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+  it("e-mailul e al unui membru EXISTENT al firmei: fișa se leagă de contul lui, fără invitație", async () => {
+    // Ordinea „întâi membru, apoi fișă" lăsa fișa fără cont pentru totdeauna:
+    // invitația nouă nu putea fi acceptată de un membru deja activ („nu mai
+    // este validă"), iar interfața n-avea nicio legare manuală (QA 8 oct 2026,
+    // ONB-030: manager cu echipă goală, angajat „fără fișă").
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
     programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: { id: ID_3 } });
+    admin.raspunde("organization_members", "select", { data: { id: ID_2, role: "manager" } });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("employees", "update", { data: { id: ID_1 } });
+
+    const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
+
+    expect(r).toMatchObject({ ok: true, data: { invitatieTrimisaLa: null } });
+    if (!r.ok) return;
+    expect(f.invitatie).not.toHaveBeenCalled();
+    const legare = server.apeluriPe("employees", "update").at(-1);
+    expect(legare?.payload).toEqual({ user_id: ID_3 });
+    expect(areFiltru(legare, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(legare, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(r.data.avertismente.some((a) => a.includes("legat"))).toBe(true);
+  });
+
+  it("membru existent care are DEJA o fișă principală: nu se leagă, se explică", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: { id: ID_3 } });
+    admin.raspunde("organization_members", "select", { data: { id: ID_2, role: "hr" } });
+    admin.raspunde("employees", "select", { data: { id: ID_2, marca: "0004" } });
+
+    const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
+
+    expect(r).toMatchObject({ ok: true, data: { invitatieTrimisaLa: null } });
+    if (!r.ok) return;
+    expect(f.invitatie).not.toHaveBeenCalled();
+    expect(server.apeluriPe("employees", "update")).toHaveLength(0);
+    expect(r.data.avertismente.some((a) => a.includes("0004"))).toBe(true);
+  });
+
+  it("invitația eșuează: înrolarea rămâne reușită, cu avertisment", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: null });
     f.invitatie.mockRejectedValue(new Error("fără drept"));
     const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
     expect(r.ok).toBe(true);
@@ -434,6 +500,7 @@ describe("inroleazaAngajat", () => {
 
   it("soldul de concediu nu se poate semăna: înrolarea eșuează, fără documente și fără invitație", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [] });
     server.raspundeRpc("urmatoarea_marca", { data: "0001" });
     server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
     server.raspundeRpc("hr_write_sensitive", { data: null });
@@ -576,8 +643,9 @@ describe("inroleazaAngajat", () => {
   });
 
   it("invitația creată, dar e-mailul n-a plecat: nicio adresă raportată, avertisment de retrimitere", async () => {
-    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
     programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: null });
     f.invitatie.mockResolvedValue({ email: "ion@exemplu.ro", emailTrimis: false });
 
     const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });

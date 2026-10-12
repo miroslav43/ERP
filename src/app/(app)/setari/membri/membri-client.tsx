@@ -1,6 +1,8 @@
 // src/app/(app)/setari/membri/membri-client.tsx
 "use client";
 
+import Link from "next/link";
+
 import { useState, useTransition } from "react";
 import { Copy, MailPlus, ShieldAlert } from "lucide-react";
 
@@ -20,6 +22,7 @@ import {
   seteazaStareaMembrului,
 } from "./actions";
 import type { InvitatieCreata } from "./actions";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 
 export type RandMembru = Readonly<{
   id: string;
@@ -30,6 +33,10 @@ export type RandMembru = Readonly<{
   status: string;
   jobTitle: string | null;
   esteEu: boolean;
+  /** Contul (pentru „Activitate" din jurnal); `null` la invitațiile neacceptate. */
+  userId: string | null;
+  /** Fișa principală de angajat, dacă există și se poate deschide; altfel `null`. */
+  fisaId: string | null;
 }>;
 
 export type RandInvitatie = Readonly<{
@@ -37,6 +44,8 @@ export type RandInvitatie = Readonly<{
   email: string;
   role: string;
   expiraLa: string;
+  /** Fișa pentru care a fost trimisă; `nume` e `null` când privitorul n-o poate deschide. */
+  fisa: Readonly<{ id: string; nume: string | null }> | null;
 }>;
 
 const ETICHETE_STARE: Readonly<Record<string, string>> = {
@@ -60,9 +69,31 @@ function linkDinToken(token: string): string {
 export function PanouMembri({
   membri,
   invitatii,
-}: Readonly<{ membri: readonly RandMembru[]; invitatii: readonly RandInvitatie[] }>) {
+  poateInvita,
+  poateVedeaFise,
+  poateAcordaPermisiuni,
+  poateVedeaAudit,
+  rolInitial = "employee",
+}: Readonly<{
+  membri: readonly RandMembru[];
+  invitatii: readonly RandInvitatie[];
+  /** Rolul cu care pornește formularul de invitație (`?rol=`). */
+  rolInitial?: "org_admin" | "manager" | "hr" | "employee";
+  /**
+   * `users:create = all` — poarta lui `invitaMembru` și `revocaInvitatia`.
+   * Pagina se deschide cu `users:update`; un membru cu `update` fără `create`
+   * (suprascriere 0063) completa formularul și era refuzat la trimitere.
+   */
+  poateInvita: boolean;
+  /** `employees:read = all` — numele devine link spre fișă, iar lipsa fișei se spune. */
+  poateVedeaFise: boolean;
+  /** `roles:update = all` — „Permisiuni" pe rândul membrului (niciodată pe al meu). */
+  poateAcordaPermisiuni: boolean;
+  /** `audit:read = all` — „Activitate" → jurnalul filtrat pe cont. */
+  poateVedeaAudit: boolean;
+}>) {
   const [email, setEmail] = useState("");
-  const [rol, setRol] = useState<"org_admin" | "manager" | "hr" | "employee">("employee");
+  const [rol, setRol] = useState<"org_admin" | "manager" | "hr" | "employee">(rolInitial);
   const [mesaj, setMesaj] = useState<Mesaj | null>(null);
   const [linkInvitatie, setLinkInvitatie] = useState<string | null>(null);
   const [inCurs, startTransition] = useTransition();
@@ -150,10 +181,17 @@ export function PanouMembri({
       peTelefon: "titlu",
       celula: (membru) => (
         <>
-          <span className="text-foreground block">{membru.nume ?? membru.email}</span>
+          <span className="text-foreground block">
+            <LinkEntitate href={membru.fisaId === null ? null : `/angajati/${membru.fisaId}`}>
+              {membru.nume ?? membru.email}
+            </LinkEntitate>
+          </span>
           {membru.nume === null ? null : (
             <span className="text-muted-foreground text-nota block">{membru.email}</span>
           )}
+          {poateVedeaFise && membru.fisaId === null ? (
+            <span className="text-muted-foreground text-nota block">fără fișă de angajat</span>
+          ) : null}
           {membru.jobTitle === null ? null : (
             <span className="text-muted-foreground text-nota">{membru.jobTitle}</span>
           )}
@@ -203,28 +241,48 @@ export function PanouMembri({
       antet: "Acțiuni",
       latime: "ingusta",
       peTelefon: "insigna",
-      celula: (membru) =>
-        membru.esteEu ? (
-          <span className="text-muted-foreground text-nota">—</span>
-        ) : (
-          <Buton
-            varianta="secundar"
-            disabled={inCurs}
-            onClick={() =>
-              ruleaza(
-                seteazaStareaMembrului({
-                  memberId: membru.id,
-                  status: membru.status === "active" ? "inactive" : "active",
-                }),
-                membru.status === "active"
-                  ? "Membrul a fost dezactivat."
-                  : "Membrul a fost reactivat.",
-              )
-            }
-          >
-            {membru.status === "active" ? "Dezactivează" : "Reactivează"}
-          </Buton>
-        ),
+      celula: (membru) => (
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {/* Permisiunile punctuale stau pe fișă; nimeni nu și le acordă sieși. */}
+          {poateAcordaPermisiuni && membru.fisaId !== null && !membru.esteEu ? (
+            <Link
+              href={`/angajati/${membru.fisaId}/permisiuni`}
+              className="text-nota underline-offset-2 hover:underline"
+            >
+              Permisiuni
+            </Link>
+          ) : null}
+          {poateVedeaAudit && membru.userId !== null ? (
+            <Link
+              href={`/setari/audit?actor=${membru.userId}`}
+              className="text-nota underline-offset-2 hover:underline"
+            >
+              Activitate
+            </Link>
+          ) : null}
+          {membru.esteEu ? (
+            <span className="text-muted-foreground text-nota">—</span>
+          ) : (
+            <Buton
+              varianta="secundar"
+              disabled={inCurs}
+              onClick={() =>
+                ruleaza(
+                  seteazaStareaMembrului({
+                    memberId: membru.id,
+                    status: membru.status === "active" ? "inactive" : "active",
+                  }),
+                  membru.status === "active"
+                    ? "Membrul a fost dezactivat."
+                    : "Membrul a fost reactivat.",
+                )
+              }
+            >
+              {membru.status === "active" ? "Dezactivează" : "Reactivează"}
+            </Buton>
+          )}
+        </span>
+      ),
     },
   ];
 
@@ -237,44 +295,51 @@ export function PanouMembri({
         <h2 id="titlu-invita" className="text-foreground text-corp font-medium">
           Invitați un coleg
         </h2>
-        <form onSubmit={invita} className="mt-3 flex flex-wrap items-end gap-3" noValidate>
-          <div className="flex min-w-56 flex-1 flex-col gap-1">
-            <label htmlFor="invita-email" className="text-muted-foreground text-corp">
-              Adresă de e-mail
-            </label>
-            <input
-              id="invita-email"
-              type="email"
-              required
-              value={email}
-              onChange={(eveniment) => setEmail(eveniment.target.value)}
-              className="border-border bg-background text-foreground rounded-control text-corp h-9 border px-3"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="invita-rol" className="text-muted-foreground text-corp">
-              Rol
-            </label>
-            <select
-              id="invita-rol"
-              value={rol}
-              onChange={(eveniment) =>
-                setRol(eveniment.target.value as "org_admin" | "manager" | "hr" | "employee")
-              }
-              className="border-border bg-background text-foreground rounded-control text-corp h-9 border px-2"
-            >
-              {ROLURI.map((element) => (
-                <option key={element.valoare} value={element.valoare}>
-                  {element.eticheta}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se trimite…">
-            <MailPlus aria-hidden="true" className="h-4 w-4" />
-            Trimite invitația
-          </Buton>
-        </form>
+        {!poateInvita ? (
+          <p className="text-muted-foreground text-corp mt-2">
+            Invitațiile le trimite un administrator al firmei; contul dumneavoastră poate doar
+            consulta lista.
+          </p>
+        ) : (
+          <form onSubmit={invita} className="mt-3 flex flex-wrap items-end gap-3" noValidate>
+            <div className="flex min-w-56 flex-1 flex-col gap-1">
+              <label htmlFor="invita-email" className="text-muted-foreground text-corp">
+                Adresă de e-mail
+              </label>
+              <input
+                id="invita-email"
+                type="email"
+                required
+                value={email}
+                onChange={(eveniment) => setEmail(eveniment.target.value)}
+                className="border-border bg-background text-foreground rounded-control text-corp h-9 border px-3"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="invita-rol" className="text-muted-foreground text-corp">
+                Rol
+              </label>
+              <select
+                id="invita-rol"
+                value={rol}
+                onChange={(eveniment) =>
+                  setRol(eveniment.target.value as "org_admin" | "manager" | "hr" | "employee")
+                }
+                className="border-border bg-background text-foreground rounded-control text-corp h-9 border px-2"
+              >
+                {ROLURI.map((element) => (
+                  <option key={element.valoare} value={element.valoare}>
+                    {element.eticheta}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se trimite…">
+              <MailPlus aria-hidden="true" className="h-4 w-4" />
+              Trimite invitația
+            </Buton>
+          </form>
+        )}
 
         <p
           role="status"
@@ -340,10 +405,20 @@ export function PanouMembri({
               >
                 <span className="text-foreground">{invitatie.email}</span>
                 <span className="text-muted-foreground">{etichetaRol(invitatie.role)}</span>
+                {invitatie.fisa === null ? null : invitatie.fisa.nume !== null && poateVedeaFise ? (
+                  <Link
+                    href={`/angajati/${invitatie.fisa.id}`}
+                    className="text-muted-foreground underline-offset-2 hover:underline"
+                  >
+                    pentru {invitatie.fisa.nume}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">pentru o fișă de angajat</span>
+                )}
                 <span className="text-muted-foreground">expiră la {invitatie.expiraLa}</span>
                 <Buton
                   varianta="distructiv"
-                  disabled={inCurs}
+                  disabled={inCurs || !poateInvita}
                   className="ml-auto"
                   onClick={() =>
                     ruleaza(

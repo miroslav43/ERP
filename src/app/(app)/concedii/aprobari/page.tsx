@@ -9,7 +9,7 @@ import { Callout } from "@/components/ui/callout";
 import { Scadenta } from "@/components/ui/scadenta";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate, formatDateTime } from "@/lib/format/date";
@@ -19,6 +19,9 @@ import { oreParaTermen, treaptaTermenDecizie } from "@/domain/leave/termen-aprob
 import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
 import { DecizieAprobare } from "./decizie-aprobare";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { poateDeschide } from "@/config/porti-ruta";
 
 /**
  * Câte zile îi mai rămân celui care cere — sub perioada cerută.
@@ -79,10 +82,16 @@ export default async function PaginaAprobariConcedii() {
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "leave"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Țintele toasturilor de după decizie, prin poarta paginii-ȚINTĂ: managerul
+  // nu deschide /reges, deci nu primește un buton spre un refuz.
+  const contextPorti = { features: module, permissions: permisiuni };
+  const hrefReges = poateDeschide("/reges", contextPorti) ? "/reges?stare=de_transmis" : null;
+  const hrefPontaj = poateDeschide("/pontaj", contextPorti) ? "/pontaj" : null;
 
   if (!can(permisiuni, "leave:approve", "team")) {
     return (
@@ -186,16 +195,36 @@ export default async function PaginaAprobariConcedii() {
                       }}
                       aria-hidden="true"
                     />
-                    {sarcina.angajat === null
-                      ? "Angajat"
-                      : `${sarcina.angajat.fullName} (${sarcina.angajat.marca})`}
+                    {/* Titlul duce la cerere; numele, separat, la fișa omului
+                        (doar dacă RLS a întors-o: `angajat !== null`). */}
+                    <Link
+                      href={`/concedii/${sarcina.cerere.id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {sarcina.tip?.denumire ?? "Concediu"}
+                    </Link>
                     {" · "}
-                    {sarcina.tip?.denumire ?? "Concediu"}
+                    <LinkEntitate href={hrefFisa(sarcina.angajat, permisiuni)}>
+                      {sarcina.angajat === null
+                        ? "Angajat"
+                        : `${sarcina.angajat.fullName} (${sarcina.angajat.marca})`}
+                    </LinkEntitate>
                   </p>
                   <p className="text-muted-foreground text-corp mt-1">
                     {formatDate(sarcina.cerere.dataInceput)} –{" "}
                     {formatDate(sarcina.cerere.dataSfarsit)} ·{" "}
                     {formatAmount(sarcina.cerere.zileLucratoare)} zile lucrătoare
+                    {poateVedeaCalendar ? (
+                      <>
+                        {" · "}
+                        <Link
+                          href={`/concedii/calendar?an=${sarcina.cerere.dataInceput.slice(0, 4)}&luna=${String(Number(sarcina.cerere.dataInceput.slice(5, 7)))}&vedere=planificator`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          cine mai lipsește atunci
+                        </Link>
+                      </>
+                    ) : null}
                   </p>
                   <SoldulCererii
                     ramase={
@@ -215,14 +244,12 @@ export default async function PaginaAprobariConcedii() {
                       </span>
                     </p>
                   )}
-                  <Link
-                    href={`/concedii/${sarcina.cerere.id}`}
-                    className="text-primary text-nota mt-1 inline-block underline-offset-2 hover:underline"
-                  >
-                    Vezi cererea completă
-                  </Link>
                 </div>
-                <DecizieAprobare taskId={sarcina.taskId} />
+                <DecizieAprobare
+                  taskId={sarcina.taskId}
+                  hrefReges={hrefReges}
+                  hrefPontaj={hrefPontaj}
+                />
               </div>
             </li>
           ))}

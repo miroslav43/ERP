@@ -8,6 +8,9 @@
 // iar aici contează ce face ACȚIUNEA cu rezultatul lor — ce blochează, ce
 // trimite bazei, ce numără.
 
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
@@ -897,5 +900,65 @@ describe("calculeazaPerioada — eroare la citirea primelor sau reținerilor", (
     });
     expect(server.apeluriRpc.map((a) => a.nume)).not.toContain("payroll_scrie_rezultate");
     expect(server.apeluriPe("payroll_periods", "update")).toHaveLength(0);
+  });
+});
+
+/**
+ * Ultima migrare care (re)definește `payroll_scrie_rezultate` — cea în vigoare
+ * după aplicarea tuturor, în ordinea numerelor.
+ */
+function functiaDeScriereInVigoare(): string {
+  const dir = join(process.cwd(), "supabase/migrations");
+  const definitii = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((f) => readFileSync(join(dir, f), "utf8"))
+    .filter((sql) => /create or replace function public\.payroll_scrie_rezultate/i.test(sql));
+  const ultima = definitii.at(-1);
+  if (ultima === undefined) throw new Error("Nicio migrare nu definește payroll_scrie_rezultate.");
+  return ultima;
+}
+
+const potriviri = (text: string, re: RegExp): ReadonlySet<string | undefined> =>
+  new Set([...text.matchAll(re)].map((m) => m[1]));
+
+describe("calculeazaPerioada — contractul cu `payroll_scrie_rezultate`", () => {
+  // 0054–0060 au adăugat 13 coloane pe care acțiunea le trimite, dar funcția
+  // le ignora tăcut: `rest_de_plata` rămânea 0, iar fișierul bancar plătea 0.
+  it("fiecare cheie trimisă e cerută, actualizată ȘI inserată de funcția în vigoare", async () => {
+    const server = pregateste();
+    programeazaScrierea(server);
+
+    await calculeazaPerioada({ id: ID_1 });
+
+    const trimise = Object.keys(randuriScrise(server)[0] ?? {}).sort();
+    expect(trimise.length).toBeGreaterThan(40);
+
+    const sql = functiaDeScriereInVigoare();
+    const cerute = potriviri(
+      /v_chei\s+text\[\]\s*:=\s*array\[([\s\S]*?)\];/i.exec(sql)?.[1] ?? "",
+      /'([a-z_]+)'/g,
+    );
+    const actualizate = potriviri(
+      /\bset\b([\s\S]*?)\bfrom intrari i\b/i.exec(sql)?.[1] ?? "",
+      /([a-z_]+)\s*=\s*i\./g,
+    );
+    const inserate = potriviri(
+      /insert into public\.payroll_entries\s*\(([\s\S]*?)\)\s*select/i.exec(sql)?.[1] ?? "",
+      /([a-z_]+)/g,
+    );
+
+    expect(
+      trimise.filter((k) => !cerute.has(k)),
+      "chei necerute în v_chei",
+    ).toEqual([]);
+    expect(
+      trimise.filter((k) => k !== "employee_id" && !actualizate.has(k)),
+      "chei ignorate de UPDATE",
+    ).toEqual([]);
+    expect(
+      trimise.filter((k) => !inserate.has(k)),
+      "chei ignorate de INSERT",
+    ).toEqual([]);
   });
 });

@@ -27,6 +27,7 @@ import {
   setariPontaj,
   setariPontareRapida,
   totiAngajatiiPontaj,
+  angajatiPontajDupaId,
 } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { zileLucratoareLuna } from "@/lib/queries/payroll";
@@ -59,6 +60,7 @@ import {
   vizualizareaCeruta,
   type Vizualizare,
 } from "./vizualizari";
+import { poateDeschide as poateDeschideRuta } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Pontaj" };
 
@@ -88,6 +90,14 @@ async function LunaIntreaga({
   utilizatorEticheta,
   poateEdita,
   poateAproba,
+  poateVedeaConcedii,
+  poateDeschideFisa,
+  poateDeschidePunct,
+  fisaProprieId,
+  poateDeschideConcediiProprii,
+  hrefPerioade,
+  hrefAprobare,
+  poateDeschideSaptamana,
   config,
   limite,
   oreAsteptateLuna,
@@ -105,6 +115,15 @@ async function LunaIntreaga({
   readonly utilizatorEticheta: string;
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
+  readonly poateVedeaConcedii: boolean;
+  readonly poateDeschideFisa: boolean;
+  /** Sediul scanat din celulă devine link spre `/puncte-lucru` (poarta: `departments:read`). */
+  readonly poateDeschidePunct: boolean;
+  readonly fisaProprieId: string | null;
+  readonly poateDeschideConcediiProprii: boolean;
+  readonly hrefPerioade: string | null;
+  readonly hrefAprobare: string | null;
+  readonly poateDeschideSaptamana: boolean;
   readonly config: ConfigZi;
   /**
    * Limitele legale ale firmei, sau `null` când n-a configurat nimic. Foaia
@@ -122,6 +141,9 @@ async function LunaIntreaga({
     setariPontareRapida(organizationId),
   ]);
   const alegeSediul = seAlegeSediul(sedii.length, configPontareRapida(randPontare).verificare);
+  const sediiCuLegatura = poateDeschidePunct
+    ? sedii.map((s) => ({ ...s, href: `/puncte-lucru?punct=${s.id}#punct-${s.id}` }))
+    : sedii;
   const sarbatoriNationale = Object.fromEntries(nationale.map((z) => [z.data, z.denumire]));
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
   const liberSuplimentar = organizatie
@@ -152,7 +174,7 @@ async function LunaIntreaga({
       />
     ) : (
       <FoaieColectiva
-        sedii={sedii}
+        sedii={sediiCuLegatura}
         alegeSediul={alegeSediul}
         dataInceput={dataInceput}
         dataSfarsit={dataSfarsit}
@@ -164,6 +186,13 @@ async function LunaIntreaga({
         liberSuplimentar={liberSuplimentar}
         poateEdita={poateEdita}
         poateAproba={poateAproba}
+        poateVedeaConcedii={poateVedeaConcedii}
+        poateDeschideFisa={poateDeschideFisa}
+        fisaProprieId={fisaProprieId}
+        poateDeschideConcediiProprii={poateDeschideConcediiProprii}
+        hrefPerioade={hrefPerioade}
+        hrefAprobare={hrefAprobare}
+        poateDeschideSaptamana={poateDeschideSaptamana}
         config={config}
         limite={limite}
         oreAsteptateLuna={oreAsteptateLuna}
@@ -175,7 +204,8 @@ async function LunaIntreaga({
   const { randuri: angajati, trunchiat } = await totiAngajatiiPontaj(organizationId, filtre);
 
   if (angajati.length === 0) {
-    const areFiltre = filtre.departament !== null || filtre.cauta !== null;
+    const areFiltre =
+      filtre.departament !== null || filtre.cauta !== null || filtre.angajat !== null;
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -231,7 +261,7 @@ async function LunaIntreaga({
   return (
     <>
       <FoaieColectiva
-        sedii={sedii}
+        sedii={sediiCuLegatura}
         alegeSediul={alegeSediul}
         dataInceput={dataInceput}
         dataSfarsit={dataSfarsit}
@@ -243,6 +273,13 @@ async function LunaIntreaga({
         liberSuplimentar={liberSuplimentar}
         poateEdita={poateEdita}
         poateAproba={poateAproba}
+        poateVedeaConcedii={poateVedeaConcedii}
+        poateDeschideFisa={poateDeschideFisa}
+        fisaProprieId={fisaProprieId}
+        poateDeschideConcediiProprii={poateDeschideConcediiProprii}
+        hrefPerioade={hrefPerioade}
+        hrefAprobare={hrefAprobare}
+        poateDeschideSaptamana={poateDeschideSaptamana}
         config={config}
         limite={limite}
         oreAsteptateLuna={oreAsteptateLuna}
@@ -265,7 +302,11 @@ function peZiDinRanduri(randuri: readonly RandFoaie[]): Readonly<Record<string, 
   const peZi: Record<string, OmZi[]> = {};
   for (const rand of randuri) {
     for (const [data, intrare] of Object.entries(rand.intrari)) {
-      (peZi[data] ??= []).push({ eticheta: rand.eticheta, intrare });
+      (peZi[data] ??= []).push({
+        eticheta: rand.eticheta,
+        intrare,
+        hrefFisa: rand.angajatId === null ? null : `/angajati/${rand.angajatId}`,
+      });
     }
   }
   return peZi;
@@ -275,9 +316,10 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const { user, tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, moduleActive] = await Promise.all([
     requireFeature(tenant.organizationId, "attendance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   // `can(..., "own")` și nu `scopeFor(...) !== null`: scope-ul „none" e refuz
@@ -444,6 +486,14 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             poateAproba={poateAproba}
             parametri={parametri}
             azi={azi}
+            poateDeschideConcediu={poateDeschideRuta("/concedii/[id]", {
+              features: moduleActive,
+              permissions: permisiuni,
+            })}
+            poateDeschideSaptamana={poateDeschideRuta("/pontaj/saptamana", {
+              features: moduleActive,
+              permissions: permisiuni,
+            })}
           />
         </Suspense>
       </div>
@@ -510,11 +560,34 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
    * `fisaMea` e o interogare pe index, iar rezultatul e memoizat pe cerere.
    */
   const fisaCelujCareSeUita = await fisaMea(tenant.organizationId, user.id);
+  // Țintele din foaie și din dialogul zilei, prin poarta fiecărei pagini-ȚINTĂ.
+  const contextPorti = { features: moduleActive, permissions: permisiuni };
+  const hrefPerioade = poateDeschideRuta("/pontaj/perioade", contextPorti)
+    ? `/pontaj/perioade?an=${String(an)}`
+    : null;
+  // Managerul citește echipa dar nu-i scrie ziua (0161): foaia lui e read-only,
+  // iar celula „așteaptă decizia” îl duce în Aprobare, pe luna asta.
+  const hrefAprobare =
+    !poateEdita && poateAproba && poateDeschideRuta("/pontaj/aprobare", contextPorti)
+      ? `/pontaj/aprobare?an=${String(an)}&luna=${String(filtre.luna)}`
+      : null;
 
   const seriiAbsente =
     perioada === null || !poateDeschide
       ? []
       : await absenteNemotivateFaraDecizie(tenant.organizationId, perioada.id);
+
+  // Filtrul de intrare din fișa angajatului: numele pastilei, citit sub RLS.
+  const angajatFiltrat =
+    filtre.angajat === null
+      ? null
+      : {
+          id: filtre.angajat,
+          nume:
+            (await angajatiPontajDupaId(tenant.organizationId, [filtre.angajat])).get(
+              filtre.angajat,
+            )?.full_name ?? null,
+        };
 
   return (
     <div className="space-y-6">
@@ -526,7 +599,15 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       {fisaCelujCareSeUita.stare === "fara_fisa" ? (
         <Callout fel="informativ" titlu="Nu apăreți în foaia de pontaj">
           Contul dvs. administrează firma, dar nu are fișă de angajat, iar foaia listează doar
-          salariații. Dacă sunteți și angajat, înrolați-vă din „Angajați → Angajat nou”.
+          salariații. Dacă sunteți și angajat, înrolați-vă din{" "}
+          {poateDeschideRuta("/angajati/nou", contextPorti) ? (
+            <Link className="underline" href="/angajati/nou">
+              „Angajați → Angajat nou”
+            </Link>
+          ) : (
+            "„Angajați → Angajat nou”"
+          )}
+          .
         </Callout>
       ) : fisaCelujCareSeUita.stare === "ok" && fisaCelujCareSeUita.fisa.status === "candidat" ? (
         <Callout fel="informativ" titlu="Nu apăreți în foaia de pontaj">
@@ -539,7 +620,15 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
         </Callout>
       ) : null}
 
-      <AlertaAbsente serii={seriiAbsente} />
+      <AlertaAbsente
+        serii={seriiAbsente}
+        poateDeschideFisa={can(permisiuni, "employees:read", "own")}
+        hrefReges={
+          poateDeschideRuta("/reges", { features: moduleActive, permissions: permisiuni })
+            ? "/reges?stare=de_transmis"
+            : null
+        }
+      />
 
       {scope === "own" ? null : (
         <FiltrePontaj
@@ -548,6 +637,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           departament={filtre.departament}
           cauta={filtre.cauta}
           departamente={listaDepartamente}
+          angajat={angajatFiltrat}
         />
       )}
 
@@ -565,6 +655,17 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           utilizatorEticheta={user.fullName ?? user.email}
           poateEdita={poateEdita}
           poateAproba={poateAproba}
+          poateVedeaConcedii={
+            (await getEnabledFeatures(tenant.organizationId)).has("leave") &&
+            can(permisiuni, "leave:read", "team")
+          }
+          poateDeschideFisa={can(permisiuni, "employees:read", "own")}
+          poateDeschidePunct={can(permisiuni, "departments:read", "own")}
+          fisaProprieId={fisaCelujCareSeUita.stare === "ok" ? fisaCelujCareSeUita.fisa.id : null}
+          poateDeschideConcediiProprii={poateDeschideRuta("/concedii", contextPorti)}
+          hrefPerioade={hrefPerioade}
+          hrefAprobare={hrefAprobare}
+          poateDeschideSaptamana={poateDeschideRuta("/pontaj/saptamana", contextPorti)}
           config={config}
           limite={limiteleFirmei(setari)}
           oreAsteptateLuna={oreAsteptateLuna}

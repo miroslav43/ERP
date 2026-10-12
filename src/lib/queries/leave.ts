@@ -697,6 +697,7 @@ export interface AngajatEmbedCalendar {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  readonly deleted_at: string | null;
 }
 
 export interface TipEmbedCalendar {
@@ -708,6 +709,8 @@ export interface TipEmbedCalendar {
 export interface RandZiCalendar {
   readonly data: string;
   readonly status: StatusCerere;
+  /** Ziua duce la cererea ei: pastila din grilă și caseta din planificator sunt linkuri. */
+  readonly leave_request_id: string;
   readonly cerere: Readonly<{
     readonly employee_id: string;
     readonly leave_type_id: string;
@@ -742,7 +745,7 @@ export async function calendarLunii(
   const { data, error } = await db
     .from("leave_request_days")
     .select(
-      "data, status, cerere:leave_requests!leave_request_id(employee_id, leave_type_id, angajat:employees!employee_id(id, full_name, marca), tip:leave_types!leave_requests_leave_type_id_fkey(id, denumire, culoare))",
+      "data, status, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, leave_type_id, angajat:employees!employee_id(id, full_name, marca, deleted_at), tip:leave_types!leave_requests_leave_type_id_fkey(id, denumire, culoare))",
     )
     .eq("organization_id", organizationId)
     .eq("este_lucratoare", true)
@@ -1111,6 +1114,8 @@ export async function varianteConcediu(): Promise<readonly VariantaConcediu[]> {
 // ── Zilele deja prinse în cereri ────────────────────────────────────────────
 
 export interface CerereOcupata {
+  /** Cererea însăși: mesajul de suprapunere din casetă o leagă, nu doar o numește. */
+  readonly id: string;
   readonly employee_id: string;
   readonly data_inceput: string;
   readonly data_sfarsit: string;
@@ -1146,7 +1151,7 @@ export async function cereriCareOcupaZile(
   const { data, error } = await db
     .from("leave_requests")
     .select(
-      "employee_id, data_inceput, data_sfarsit, status, tip:leave_types!leave_type_id(denumire)",
+      "id, employee_id, data_inceput, data_sfarsit, status, tip:leave_types!leave_type_id(denumire)",
     )
     .eq("organization_id", organizationId)
     .in("status", ["trimisa", "in_aprobare", "aprobata"])
@@ -1156,6 +1161,7 @@ export async function cereriCareOcupaZile(
     .order("data_inceput", { ascending: true })
     .returns<
       {
+        id: string;
         employee_id: string;
         data_inceput: string;
         data_sfarsit: string;
@@ -1166,6 +1172,7 @@ export async function cereriCareOcupaZile(
   if (error !== null) throw error;
 
   return (data ?? []).map((r) => ({
+    id: r.id,
     employee_id: r.employee_id,
     data_inceput: r.data_inceput,
     data_sfarsit: r.data_sfarsit,

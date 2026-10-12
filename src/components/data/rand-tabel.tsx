@@ -30,11 +30,21 @@ export function RandTabel({
   href,
   children,
   className = "",
+  pastreazaDerularea = false,
+  id,
 }: {
+  readonly id?: string;
   /** `null` când rândul nu are nicio destinație (ex. entitatea legată e ascunsă de RLS) — rândul rămâne un `<tr>` simplu, fără click. */
   readonly href: string | null;
   readonly children: ReactNode;
   readonly className?: string;
+  /**
+   * Pentru rândurile care deschid un panou peste ACEEAȘI pagină (`?doc=…`):
+   * App Router derulează segmentul schimbat în vizor, deci de pe rândul 40 omul
+   * ar fi ajuns înapoi sus, cu panoul deschis peste un tabel pe care nu-l mai
+   * recunoștea. `scroll: false` lasă lista unde era.
+   */
+  readonly pastreazaDerularea?: boolean;
 }) {
   const router = useRouter();
   // Cele două hook-uri stau ÎNAINTEA ieșirii devreme de mai jos. `href === null`
@@ -51,7 +61,11 @@ export function RandTabel({
 
   function gestioneazaClick(evenimet: MouseEvent<HTMLTableRowElement>): void {
     const tinta = evenimet.target as HTMLElement;
-    if (tinta.closest("a, button, input, select, textarea, label")) return;
+    // `dialog`, `details`, `summary`: un panou deschis dintr-o celulă `actiuni`
+    // se randează ÎN rând; un clic în el (sau pe un `<summary>` pliabil) nu e
+    // o cerere de navigare.
+    if (tinta.closest("a, button, input, select, textarea, label, dialog, details, summary"))
+      return;
     // Al doilea clic cât timp primul încă navighează ar pune o a doua sursă în
     // depozitar, iar componenta e demontată de chiar navigarea pe care a
     // pornit-o: a doua ar rămâne aprinsă până la `PLAFON_TARE`, 30 de secunde.
@@ -59,7 +73,9 @@ export function RandTabel({
     // Corp-EXPRESIE, nu bloc: `router.push` întoarce `void` în aplicație, dar
     // React 19 ține tranziția deschisă dacă i se întoarce o promisiune. Forma
     // asta rămâne corectă dacă Next ajunge vreodată să întoarcă una.
-    porneste(() => router.push(destinatie));
+    porneste(() =>
+      pastreazaDerularea ? router.push(destinatie, { scroll: false }) : router.push(destinatie),
+    );
   }
 
   const claseStare = inCurs ? "opacity-60 cursor-wait" : "cursor-pointer";
@@ -69,6 +85,7 @@ export function RandTabel({
     // ZERO. Rândul avea `cursor-pointer` și niciun răspuns vizual la trecerea
     // mouse-ului. `surface` (#f2ede1) pe `background` (#faf7f0) se vede.
     <tr
+      {...(id === undefined ? {} : { id })}
       onClick={gestioneazaClick}
       aria-busy={inCurs || undefined}
       className={`hover:bg-surface ${claseStare} ${className}`}

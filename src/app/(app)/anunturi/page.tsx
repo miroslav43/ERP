@@ -18,7 +18,13 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idFisaProprie } from "@/lib/queries/employees";
-import { idAnunturiCitite, LIMITA_ANUNTURI, listeazaAnunturi } from "@/lib/queries/announcements";
+import {
+  idAnunturiCitite,
+  LIMITA_ANUNTURI,
+  listeazaAnunturi,
+  numarAngajatiCuCont,
+  numarConfirmariPeAnunt,
+} from "@/lib/queries/announcements";
 
 import { CardAnunt } from "./card-anunt";
 import { DialogAnuntNou } from "./dialog-anunt-nou";
@@ -71,10 +77,17 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
     listeazaAnunturi(tenant.organizationId),
     idFisaProprie(tenant.organizationId, user.id),
   ]);
-  const citite =
+  const [citite, confirmari, conturi] = await Promise.all([
     propriaFisaId === null
-      ? new Set<string>()
-      : await idAnunturiCitite(tenant.organizationId, propriaFisaId);
+      ? Promise.resolve(new Set<string>())
+      : idAnunturiCitite(tenant.organizationId, propriaFisaId),
+    poateAdministra ? numarConfirmariPeAnunt(tenant.organizationId) : Promise.resolve(null),
+    poateAdministra ? numarAngajatiCuCont(tenant.organizationId) : Promise.resolve(null),
+  ]);
+  const confirmariAle = (id: string) =>
+    confirmari === null || conturi === null
+      ? null
+      : { citite: confirmari.get(id) ?? 0, din: conturi };
 
   /*
    * Starea și filtrarea se fac ÎN MEMORIE, nu în interogare. Lista e deja
@@ -87,13 +100,19 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
   const cuStare = anunturi.map((anunt) => ({ anunt, stare: stareAnunt(anunt, acum) }));
   const contoare = numaraPeStari(cuStare.map((x) => x.stare));
 
-  // Filtrul e al administratorului: RLS îi arată angajatului doar anunțurile
-  // active, deci pentru el toate cele patru segmente ar da aceeași listă.
+  // Filtrul pe stări e al administratorului: RLS îi arată angajatului doar
+  // anunțurile active, deci pentru el toate cele patru segmente ar da aceeași
+  // listă. „Necitite" e însă al PRIVITORULUI — insigna din meniu duce aici pe
+  // orice rol.
   const filtru: FiltruStareAnunt = poateAdministra
     ? filtruDinAdresa(parametri["stare"])
-    : FILTRU_IMPLICIT;
+    : parametri["stare"] === "necitite"
+      ? "necitite"
+      : FILTRU_IMPLICIT;
 
-  const vizibile = cuStare.filter((x) => potrivesteFiltru(x.stare, filtru));
+  const vizibile = cuStare.filter(
+    (x) => potrivesteFiltru(x.stare, filtru) && (filtru !== "necitite" || !citite.has(x.anunt.id)),
+  );
   const fixate = vizibile.filter((x) => x.anunt.fixat);
   const restul = vizibile.filter((x) => !x.anunt.fixat);
 
@@ -109,7 +128,10 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
       <AntetPagina
         titlu="Anunțuri"
         descriere={descriere}
-        actiuni={poateAdministra ? <DialogAnuntNou /> : undefined}
+        // Poarta ACȚIUNII (`creeazaAnunt` cere `announcements:create = all`), nu a
+        // administrării: un membru cu `update` fără `create` vedea butonul și era
+        // refuzat la trimitere.
+        actiuni={can(permisiuni, "announcements:create", "all") ? <DialogAnuntNou /> : undefined}
         file={
           poateAdministra && anunturi.length > 0 ? (
             <ComutatorVizualizare
@@ -137,6 +159,8 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
                 { cheie: "active", eticheta: `Active ${String(contoare.active)}` },
                 { cheie: "ciorne", eticheta: `Ciorne ${String(contoare.ciorne)}` },
                 { cheie: "expirate", eticheta: `Expirate ${String(contoare.expirate)}` },
+                // Cifra din descriere („N nu sunt citite") are acum unde duce.
+                { cheie: "necitite", eticheta: `Necitite ${String(necitite)}` },
               ]}
             />
           ) : undefined
@@ -176,6 +200,7 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
                     anunt={anunt}
                     stare={stare}
                     necitit={stare === "activ" && propriaFisaId !== null && !citite.has(anunt.id)}
+                    confirmari={confirmariAle(anunt.id)}
                   />
                 ))}
               </ul>
@@ -195,6 +220,7 @@ export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina
                     anunt={anunt}
                     stare={stare}
                     necitit={stare === "activ" && propriaFisaId !== null && !citite.has(anunt.id)}
+                    confirmari={confirmariAle(anunt.id)}
                   />
                 ))}
               </ul>

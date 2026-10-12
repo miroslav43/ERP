@@ -2,6 +2,7 @@
 import { treaptaSsm } from "@/domain/ssm/scadente";
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BadgeCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -9,32 +10,59 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { poateDeschide } from "@/config/porti-ruta";
 import { Badge } from "@/components/ui/badge";
 import { Scadenta } from "@/components/ui/scadenta";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
+import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { angajatiDupaId, autorizatiiNominale } from "@/lib/queries/ssm";
-import { stareScadentaSsm } from "@/domain/ssm/scadente";
+import { esteDeAtentionat, stareScadentaSsm } from "@/domain/ssm/scadente";
 
 import { ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FormularAutorizatie } from "./formular-autorizatie";
 import { SuspendareAutorizatie } from "./suspendare-autorizatie";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Autorizații nominale" };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function TabelAutorizatii({
   organizationId,
+  angajat,
+  scadenta,
   poateActualiza,
+  poateCrea,
+  permisiuni,
+  poateDeschideEchipamente,
 }: {
   readonly organizationId: string;
+  /** `?angajat=`: doar autorizațiile unui om. */
+  readonly angajat: string | null;
+  /** `?scadenta=1`: doar cele numărate de `contorAutorizatiiNominale` (același criteriu). */
+  readonly scadenta: boolean;
   readonly poateActualiza: boolean;
+  /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
+  readonly poateCrea: boolean;
+  readonly permisiuni: PermissionMap;
+  /** Poarta lui `/mentenanta/echipamente`: coloana „Echipamente ISCIR" leagă doar cu ea. */
+  readonly poateDeschideEchipamente: boolean;
 }) {
-  const autorizatii = await autorizatiiNominale(organizationId);
+  const toate = await autorizatiiNominale(organizationId, { angajat });
+  const azi = todayInBucharest();
+  const autorizatii = scadenta
+    ? toate.filter(
+        (a) =>
+          a.suspendata_la === null && esteDeAtentionat(stareScadentaSsm(true, a.valabil_pana, azi)),
+      )
+    : toate;
 
   if (autorizatii.length === 0) {
     return (
@@ -42,7 +70,11 @@ async function TabelAutorizatii({
         fel="initiala"
         pictograma={BadgeCheck}
         titlu="Nicio autorizație nominală înregistrată"
-        descriere="Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
+        descriere={
+          poateCrea
+            ? "Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
+            : "Nicio autorizație nominală nu e înregistrată încă. Le adaugă responsabilul SSM."
+        }
       />
     );
   }
@@ -51,7 +83,6 @@ async function TabelAutorizatii({
     organizationId,
     autorizatii.map((a) => a.employee_id),
   );
-  const azi = todayInBucharest();
 
   /**
    * Lista nu are paginare keyset — `autorizatiiNominale` citește nomenclatorul
@@ -65,7 +96,11 @@ async function TabelAutorizatii({
       peTelefon: "titlu",
       celula: (a) => {
         const angajat = angajati.get(a.employee_id);
-        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+        return (
+          <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+            {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+          </LinkEntitate>
+        );
       },
     },
     {
@@ -82,6 +117,23 @@ async function TabelAutorizatii({
       ),
     },
     { cheie: "numar", antet: "Număr", peTelefon: "meta", celula: (a) => a.numar },
+    {
+      cheie: "echipamente",
+      antet: "Echipamente ISCIR",
+      peTelefon: "meta",
+      // Suspendarea lasă echipamentele fără responsabil autorizat: filtrul exista, drumul nu.
+      celula: (a) =>
+        poateDeschideEchipamente ? (
+          <Link
+            href={`/mentenanta/echipamente?responsabil=${a.employee_id}&iscir=da`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            ale titularului
+          </Link>
+        ) : (
+          "—"
+        ),
+    },
     { cheie: "emitent", antet: "Emitent", peTelefon: "meta", celula: (a) => a.emitent },
     {
       cheie: "valabil",
@@ -139,15 +191,24 @@ async function TabelAutorizatii({
   );
 }
 
-export default async function PaginaAutorizatii() {
+export default async function PaginaAutorizatii({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireUser();
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "ssm"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  const poateDeschideEchipamente = poateDeschide("/mentenanta/echipamente", {
+    features: module,
+    permissions: permisiuni,
+  });
 
   if (!can(permisiuni, "ssm:read", "team")) {
     return (
@@ -176,6 +237,18 @@ export default async function PaginaAutorizatii() {
     angajati = data ?? [];
   }
 
+  // Filtrul de intrare din fișa angajatului: un UUID sau nimic; numele, sub RLS.
+  const parametri = await searchParams;
+  const angajatBrut = parametri["angajat"];
+  const angajatFiltrat =
+    typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
+  const scadentaFiltrata = parametri["scadenta"] === "1";
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -197,8 +270,25 @@ export default async function PaginaAutorizatii() {
 
       {poateCrea ? <FormularAutorizatie angajati={angajati} /> : null}
 
+      <PastileFiltre
+        active={[
+          ...(angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]),
+          ...(scadentaFiltrata ? [{ cheie: "scadenta", eticheta: "Doar de reînnoit" }] : []),
+        ]}
+      />
+
       <Suspense fallback={<Schelet forma="tabel" coloane={6} />}>
-        <TabelAutorizatii organizationId={tenant.organizationId} poateActualiza={poateActualiza} />
+        <TabelAutorizatii
+          organizationId={tenant.organizationId}
+          angajat={angajatFiltrat}
+          scadenta={scadentaFiltrata}
+          poateActualiza={poateActualiza}
+          poateCrea={poateCrea}
+          permisiuni={permisiuni}
+          poateDeschideEchipamente={poateDeschideEchipamente}
+        />
       </Suspense>
     </div>
   );

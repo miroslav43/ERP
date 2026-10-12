@@ -183,3 +183,17 @@ export function campuriLegaleLipsa(antet: AntetOrganizatie): readonly string[] {
   }
   return lipsa;
 }
+
+/** Aceleași lipsuri, ca CHEI de câmp — pentru ancora `#org-<cheie>` din formularul firmei. */
+export function campuriLegaleLipsaChei(antet: AntetOrganizatie): readonly string[] {
+  const lipsa: string[] = [];
+  if (gol(antet.formaJuridica)) lipsa.push("forma_juridica");
+  if (gol(antet.cui)) lipsa.push("cui");
+  if (gol(antet.regCom)) lipsa.push("reg_com");
+  if (gol(antet.adresa)) lipsa.push("adresa");
+  if (antet.capitalSocial === null) lipsa.push("capital_social");
+  else if (estePeActiuni(antet.formaJuridica) && antet.capitalVarsat === null) {
+    lipsa.push("capital_social_varsat");
+  }
+  return lipsa;
+}

@@ -43,6 +43,10 @@ export default async function PaginaTichetNouPortal({
   const obiecte = await listeazaObiecteleMele(stare.fisa.id);
   const parametri = await searchParams;
   const modul = typeof parametri["modul"] === "string" ? parametri["modul"] : "";
+  // `?obiect=<id>`: doar un obiect pe care omul chiar îl are în primire.
+  const obiectBrut = parametri["obiect"];
+  const obiectImplicit =
+    typeof obiectBrut === "string" && obiecte.some((o) => o.id === obiectBrut) ? obiectBrut : null;
 
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
@@ -54,6 +58,7 @@ export default async function PaginaTichetNouPortal({
       <FormularTichet
         obiecteAlocate={obiecte}
         modulCurent={modul}
+        obiectImplicit={obiectImplicit}
         prefixCale="/portal/tichetele-mele"
       />
 

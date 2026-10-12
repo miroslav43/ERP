@@ -22,9 +22,12 @@
 
 import { FormularDialog } from "@/components/ui/formular-dialog";
 import { Camp } from "@/components/ui/camp";
+import { Combobox } from "@/components/ui/combobox";
 import { FilePlus2 } from "lucide-react";
 
 import { inregistreazaDocumentManual } from "./actions";
+import { useRouter } from "next/navigation";
+import { arataToast } from "@/components/ui/toast";
 
 /** Tipurile pe care le primește o firmă pe hârtie, cu eticheta lor în română. */
 const TIPURI = [
@@ -39,7 +42,10 @@ const TIPURI = [
   ["decizie_interna", "Decizie internă a conducerii"],
 ] as const;
 
-export function DialogDocumentPrimit() {
+export function DialogDocumentPrimit({
+  angajati,
+}: Readonly<{ angajati: readonly Readonly<{ id: string; nume: string }>[] }>) {
+  const router = useRouter();
   return (
     <FormularDialog
       declansator={{
@@ -51,7 +57,22 @@ export function DialogDocumentPrimit() {
       descriere="Pentru documentele care ajung pe hârtie și nu au corespondent în aplicație — o demisie, o adresă de la inspectorat, o citație. Numărul se alocă la salvare și nu se mai poate schimba."
       etichetaTrimite="Înregistrează"
       textInCurs="Se alocă numărul…"
-      mesajReusita="Documentul a primit număr de înregistrare."
+      // Numărul alocat e singura informație care trebuie scrisă pe hârtie:
+      // se arată, nu se ascunde într-un toast fix. Rândul poate fi ascuns de
+      // filtrele curente, deci acțiunea îl caută după număr.
+      laReusita={({ numarAfisat }) => {
+        const numar = String(numarAfisat);
+        arataToast({
+          fel: "reusita",
+          text: `Documentul a primit numărul de înregistrare ${numar}.`,
+          actiune: {
+            eticheta: "Arată în registru",
+            onClick: () => {
+              router.push(`/registru?q=${encodeURIComponent(numar)}`);
+            },
+          },
+        });
+      }}
       actiune={async (date: FormData) =>
         inregistreazaDocumentManual({
           sens: String(date.get("sens") ?? "intrare"),
@@ -63,6 +84,7 @@ export function DialogDocumentPrimit() {
           numar_file: String(date.get("numar_file") ?? ""),
           numar_anexe: String(date.get("numar_anexe") ?? ""),
           punct_lucru_id: "",
+          angajat_id: String(date.get("angajat_id") ?? ""),
         })
       }
     >
@@ -132,6 +154,42 @@ export function DialogDocumentPrimit() {
               />
             )}
           </Camp>
+
+          {/*
+            0184: legătura spre salariat. Opțională — o adresă de la inspectorat
+            n-are angajat — dar o demisie are, iar fără ea rândul nu apare în
+            fișa omului și nu se filtrează după el.
+          */}
+          {angajati.length === 0 ? null : (
+            <Camp
+              nume="angajat_id"
+              eticheta="Salariatul la care se referă"
+              ajutor="Dacă documentul e al unui angajat — demisie, certificat, cerere — rândul se leagă de fișa lui."
+              {...(stare.erori["angajat_id"] === undefined
+                ? {}
+                : { erori: stare.erori["angajat_id"] })}
+            >
+              {(atribute) => (
+                <Combobox
+                  id={idc("angajat_id")}
+                  name="angajat_id"
+                  valoareInitiala={stare.valoriTrimise["angajat_id"] ?? ""}
+                  placeholder="Fără salariat"
+                  textFaraRezultate="Niciun angajat cu numele acesta."
+                  optiuni={[
+                    { valoare: "", eticheta: "Fără salariat" },
+                    ...angajati.map((a) => ({ valoare: a.id, eticheta: a.nume })),
+                  ]}
+                  {...(atribute["aria-describedby"] === undefined
+                    ? {}
+                    : { "aria-describedby": atribute["aria-describedby"] })}
+                  {...(atribute["aria-invalid"] === undefined
+                    ? {}
+                    : { "aria-invalid": atribute["aria-invalid"] })}
+                />
+              )}
+            </Camp>
+          )}
 
           <Camp
             nume="emitent"

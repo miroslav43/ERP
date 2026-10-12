@@ -87,6 +87,13 @@ const COZI: readonly Readonly<{
     referinta: "reges",
   },
   {
+    cheie: "pasiIntegrare",
+    numar: (c) => c.pasiIntegrare,
+    singular: "un pas de integrare care îți revine",
+    plural: "pași de integrare care îți revin",
+    referinta: "onboarding.sarcini",
+  },
+  {
     cheie: "anomaliiKm",
     numar: (c) => c.anomaliiKm,
     singular: "o anomalie de kilometraj",
@@ -100,6 +107,7 @@ const areCifra = (contor: Contor): contor is number => contor !== null && contor
 async function executa(context: ContextUnealta): Promise<RezultatUnealta> {
   const contoare = await contoarePanou(context.organizationId, {
     userId: context.userId,
+    role: context.role,
     features: context.features,
     permissions: context.permisiuni,
   });

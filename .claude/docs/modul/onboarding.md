@@ -198,3 +198,4 @@ sesiunea care livra invitațiile. Convenția e să-ți redenumești **propria** 
 - Ce verifică fiecare acțiune înainte de bază: `actions-instante.test.ts`,
   `actions-sabloane.test.ts`, `actions-dovezi.test.ts`, `erori.test.ts` — pe clientul
   Supabase fals, deci nu țin loc de `tests/rls/`.
+- Bunurile nereturnate → fișa obiectului, `?sablon=` pe instanțe, șablonul citit numește cursul/materialul/responsabilul, rândul „Pași de integrare” din panou: [[strat/navigare]].

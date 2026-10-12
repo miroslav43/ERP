@@ -58,7 +58,8 @@ export type BadgeSource =
   | "ssm_expiring"
   | "fleet_expiring"
   | "maintenance_due"
-  | "reges_pending";
+  | "reges_pending"
+  | "announcements_unread";
 
 export type NavLink = Readonly<{
   id: string;
@@ -83,7 +84,19 @@ export type NavItem = NavLink &
     group: NavGroupId;
     order: number;
     badge?: BadgeSource;
+    /**
+     * Unde duce INSIGNA (nu intrarea): lista care conține exact rândurile
+     * numărate. Fără el, „5" de pe Concedii ducea pe „Cererile mele", unde
+     * cererile altora nu apar. Trece prin aceeași poartă ca intrarea.
+     */
+    badgeHref?: string;
     children?: readonly NavLink[];
+    /**
+     * Intrare de REZERVĂ: apare doar când intrarea numită aici NU e vizibilă.
+     * Managerul n-are `vehicles:read`, deci nu vede „Parc auto" — dar are foi de
+     * parcurs de aprobat, și singurul lui drum era coada panoului.
+     */
+    doarFara?: string;
   }>;
 
 export const NAV_ITEMS: readonly NavItem[] = [
@@ -117,6 +130,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
       clicului; `Callout`-ul din `/pontaj/aprobare` e explicația de după el.
     */
     badge: "attendance_pending",
+    badgeHref: "/pontaj/aprobare",
   },
   {
     id: "concedii",
@@ -128,6 +142,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "leave:read",
     minScope: "own",
     badge: "leave_pending",
+    badgeHref: "/concedii/echipa?status=trimisa,in_aprobare",
     order: 30,
     children: [
       {
@@ -219,6 +234,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // `contoarePanou`): cine poate doar citi ar fi primit un număr care îl
     // cheamă undeva unde n-are ce apăsa.
     badge: "reges_pending",
+    badgeHref: "/reges?stare=de_transmis",
   },
   {
     id: "departamente",
@@ -269,6 +285,24 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "evaluations:read",
     minScope: "team",
     order: 48,
+  },
+  /*
+   * KPI e modul PROPRIU din 0123, vândut separat de Evaluări. Până aici,
+   * singura intrare spre `/evaluari/kpi` era fila din pagina de evaluări — adică
+   * o firmă care cumpărase doar KPI n-avea niciun drum din meniu. La o firmă cu
+   * ambele, intrarea dublează fila; e prețul corect pentru un modul care poate
+   * sta singur.
+   */
+  {
+    id: "kpi",
+    label: "KPI lunar",
+    href: "/evaluari/kpi",
+    icon: Gauge,
+    group: "personal",
+    featureKey: "kpi",
+    permission: "evaluations:read",
+    minScope: "team",
+    order: 49,
   },
   {
     id: "onboarding",
@@ -346,7 +380,20 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "vehicles:read",
     minScope: "team",
     badge: "fleet_expiring",
+    badgeHref: "/flota?conformitate=expira",
     order: 70,
+  },
+  {
+    id: "flota-foi",
+    label: "Foi de parcurs",
+    href: "/flota/foi",
+    icon: Car,
+    group: "resurse",
+    featureKey: "fleet",
+    permission: "trip_sheets:read",
+    minScope: "team",
+    order: 71,
+    doarFara: "flota",
   },
   {
     id: "mentenanta",
@@ -358,6 +405,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "maintenance:read",
     minScope: "team",
     badge: "maintenance_due",
+    badgeHref: "/mentenanta/planuri?scadenta=actiune",
     order: 80,
   },
   {
@@ -403,6 +451,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
     featureKey: "announcements",
     permission: "announcements:read",
     minScope: "own",
+    badge: "announcements_unread",
+    badgeHref: "/anunturi?stare=necitite",
     order: 100,
   },
   {
@@ -452,7 +502,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: "financiar",
     featureKey: "payroll",
     permission: "payroll:read",
-    minScope: "team",
+    // `all`, exact poarta lui `/salarizare`: cu `team` (posibil printr-o
+    // suprascriere per membru) intrarea și scurtătura de pe panou duceau în refuz.
+    minScope: "all",
     order: 110,
   },
   {

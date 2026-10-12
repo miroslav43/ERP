@@ -536,7 +536,8 @@ export const FISE: readonly FisaModul[] = [
   },
   {
     cheie: "leave",
-    actualizat: "2026-10-07",
+    // 2026-10-09: legătura spre programarea concediilor, în ghiduri.
+    actualizat: "2026-10-09",
     titluPagina: "Program de concedii: cerere, aprobare și sold",
     titluH1: "Program de concedii",
     metaDescriere:
@@ -612,6 +613,14 @@ export const FISE: readonly FisaModul[] = [
       {
         href: "/unelte/cerere-concediu-de-odihna",
         eticheta: "Cerere de concediu cu zilele calculate",
+      },
+      {
+        href: "/unelte/calculator-zile-concediu",
+        eticheta: "Câte zile de concediu ți se cuvin: calculator",
+      },
+      {
+        href: "/unelte/programare-concedii",
+        eticheta: "Programarea concediilor de odihnă: model Excel",
       },
     ],
     notaPermisiuni:
@@ -769,7 +778,9 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "reges",
-    actualizat: "2026-10-07",
+    // 2026-10-09: legătura spre cererea de demisie, în ghiduri.
+    // 2026-10-09: și spre adeverința de salariat.
+    actualizat: "2026-10-09",
     // „REGES-Online: …" e începutul titlului de pe `/reges-online` (ghidul de
     // termene); modulul ține intenția comercială (2 oct 2026).
     titluPagina: "Program REGES-Online (ex-Revisal), direct la ITM",
@@ -856,6 +867,8 @@ export const FISE: readonly FisaModul[] = [
     ghiduri: [
       { href: "/reges-online", eticheta: "REGES-ONLINE: termene și amenzi" },
       { href: "/ghid/control-itm", eticheta: "Ce se cere la un control ITM" },
+      { href: "/unelte/cerere-demisie", eticheta: "Cerere de demisie: model cu preaviz calculat" },
+      { href: "/unelte/adeverinta-salariat", eticheta: "Adeverință de salariat: model gratuit" },
     ],
     nuFace: [
       "Nu trimite singur datele cu CNP: mesajele cu datele salariatului se compun din fișa angajatului și așteaptă până le trimite cineva cu drept de transmitere. Mesajele de contract, fără date personale, pot pleca și automat, odată cu trimiterile periodice ale aplicației.",
@@ -927,7 +940,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "kpi",
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-09",
     titluPagina: "KPI-uri: indicatori și ținte pe angajat",
     titluH1: "KPI-uri pe angajat",
     metaDescriere:
@@ -979,6 +992,9 @@ export const FISE: readonly FisaModul[] = [
         text: "Omul își vede propriile ținte și cum stă față de ele, fără să întrebe.",
       },
     ],
+    // 8 oct 2026: evaluarea anuală e pasul de după ținte; fișa de evaluare avea
+    // doar două pagini care trimiteau spre ea (`legaturi-unelte.test.ts`).
+    ghiduri: [{ href: "/unelte/fisa-evaluare", eticheta: "Fișa de evaluare anuală: model" }],
     nuFace: [
       "Nu culege singur valorile din alte programe. Realizările se completează sau se importă, nu vin automat.",
       "Nu are grafice de tendință pe mai mulți ani. Se lucrează pe luni, iar comparația se face lună cu lună.",

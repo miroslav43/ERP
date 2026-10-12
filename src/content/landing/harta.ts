@@ -100,7 +100,13 @@ export const PAGINI: readonly Pagina[] = [
     // banda de prețuri duce spre ofertă peste 20 de angajați (auditul SEO).
     // 6 oct: pagina de start refăcută — produsul pe ecrane reale, unelte, promisiuni (ro.ts).
     // 7 oct: catalogul de module, în cutii cu prima frază a fiecărui modul (benzi/acasa.tsx).
-    actualizat: "2026-10-07",
+    // 9 oct: cardul calculatorului de zile de concediu în banda de unelte (ro.ts/en.ts).
+    // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
+    // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
+    // 2026-10-09: cererea de demisie.
+    // 2026-10-09: programarea concediilor.
+    // 2026-10-09: adeverința de salariat.
+    actualizat: "2026-10-09",
     sectiune: "Principale",
   },
   {
@@ -111,7 +117,13 @@ export const PAGINI: readonly Pagina[] = [
     // 2 oct: banda de prețuri duce spre ofertă (en.ts — poarta nu vede textele).
     // 6 oct: aceeași refacere, în en.ts.
     // 7 oct: același catalog, în engleză.
-    actualizat: "2026-10-07",
+    // 9 oct: cardul calculatorului de zile de concediu în banda de unelte (ro.ts/en.ts).
+    // 9 oct: cardul cererii de concediu numește cele opt variante (ro.ts/en.ts).
+    // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
+    // 2026-10-09: cererea de demisie.
+    // 2026-10-09: programarea concediilor.
+    // 2026-10-09: adeverința de salariat.
+    actualizat: "2026-10-09",
     sectiune: "Principale",
   },
   {
@@ -316,19 +328,31 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.5,
     limba: "ro",
     traducere: null,
-    // 6 oct: titlul și descrierea numesc toate cele șapte unelte.
-    actualizat: "2026-10-07",
+    // 9 oct: promisiunea de confidențialitate spusă exact, cu legătură spre politică.
+    // 2026-10-09: nota calculatorului de salariu numește funcțiile noi.
+    // 9 oct: al optulea rând, calculatorul de zile de concediu.
+    // 9 oct: nota cererii de concediu numește variantele.
+    // 9 oct: nota foii de parcurs numește cele 4 elemente din norme.
+    // Secțiunea I: nota fișei de evaluare — nota finală calculată, Excel cu formule.
+    // 2026-10-09: hub-ul pe categorii (hub-unelte.ts).
+    // 2026-10-09: calculatorul de zile lucrătoare în lista de unelte.
+    // 2026-10-09: cererea de demisie.
+    // 2026-10-09: programarea concediilor.
+    // 2026-10-09: adeverința de salariat.
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   // 5 oct 2026: toate uneltele primesc nodul `WebApplication`, a cărui
   // `dateModified` e chiar data de aici (`dataPaginii`); calculatorul, și nota
   // „informativ". Data se mută în același commit cu schimbarea paginii.
+  // 2026-10-09: îndemn după document, cu sursa uneltei în adresa de înregistrare.
   {
     cale: "/unelte/foaie-de-pontaj",
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    // 2026-10-09: descrierea din rezultat rescrisă pe intenție (seo-unelte.ts).
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {
@@ -336,7 +360,26 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    // 2026-10-09: descrierea din rezultat rescrisă pe intenție (seo-unelte.ts).
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    // 8 oct 2026: „programare concedii de odihna 2026 excel” (completarea automată) și auditul din 7 oct.
+    cale: "/unelte/programare-concedii",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    // 2026-10-09: modelul completat, cu captură.
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    cale: "/unelte/calculator-zile-concediu",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {
@@ -344,7 +387,37 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    // 8 oct 2026: „calculator zile lucratoare intre doua date” (completarea automată).
+    cale: "/unelte/calculator-zile-lucratoare",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    // 2026-10-09: cererea de demisie.
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    // 8 oct 2026: „model demisie”, „cerere demisie”, „preaviz demisie” (completarea automată).
+    cale: "/unelte/cerere-demisie",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    // 2026-10-09: modelul completat, cu captură.
+    actualizat: "2026-10-09",
+    sectiune: "Unelte și comparații",
+  },
+  {
+    // 8 oct 2026: „adeverinta de salariat” și formele pe destinație (completarea automată).
+    cale: "/unelte/adeverinta-salariat",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    // 2026-10-09: modelul completat, cu captură.
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {
@@ -352,7 +425,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {
@@ -360,7 +433,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    // 2026-10-09: modelul completat, cu captură.
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {
@@ -368,7 +442,8 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    // 2026-10-09: „model” în titlu (seo-unelte.ts); modelul completat, cu captură.
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {
@@ -376,7 +451,7 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.7,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-09",
     sectiune: "Unelte și comparații",
   },
   {
@@ -434,7 +509,10 @@ export const PAGINI: readonly Pagina[] = [
     prioritate: 0.3,
     limba: "ro",
     traducere: null,
-    actualizat: "2026-10-07",
+    // 9 oct: uneltele gratuite, jurnalul de acces, excepția GA (secțiunile 2, 3, 8);
+    // tot 9 oct: pe /unelte, biblioteca GA abia după „Accept” (secțiunea 8).
+    // 2026-10-09: numărarea pe server a uneltelor, în secțiunea 8.
+    actualizat: "2026-10-09",
     sectiune: "Legal",
   },
 ];

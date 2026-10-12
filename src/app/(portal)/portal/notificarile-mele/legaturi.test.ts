@@ -1,21 +1,69 @@
 import { describe, expect, it } from "vitest";
 
-import { caleaDePortal, idCerereDeConcediu, idTichet, type ContextDestinatar } from "./legaturi";
+import {
+  caleaDePortal,
+  idCerereDeConcediu,
+  idSesizare,
+  idTichet,
+  type ContextDestinatar,
+} from "./legaturi";
 
 const ID = "3f8c1d2e-1111-4222-8333-444455556666";
 const ALT_ID = "9a7b6c5d-2222-4333-8444-555566667777";
 
-/** Destinatarul deține cererea `ID` și tichetul `ID`, nimic altceva. */
+/** Destinatarul deține cererea `ID`, tichetul `ID` și sesizarea `ID`, nimic altceva. */
 const AL_MEU: ContextDestinatar = {
   concediiProprii: new Set([ID]),
   ticheteProprii: new Set([ID]),
+  sesizariProprii: new Set([ID]),
 };
 
 /** Destinatarul nu deține nimic — HR, aprobator, manager. */
 const AL_ALTCUIVA: ContextDestinatar = {
   concediiProprii: new Set<string>(),
   ticheteProprii: new Set<string>(),
+  sesizariProprii: new Set<string>(),
 };
+
+describe("integrarea (0095) și săptămâna din entitate", () => {
+  it("parcursul propriu se traduce; al altcuiva rămâne text; săptămâna cunoscută se deschide exact", () => {
+    const cuIntegrare: ContextDestinatar = { ...AL_MEU, integrariProprii: new Set([ID]) };
+    expect(caleaDePortal(`/onboarding/${ID}`, cuIntegrare)).toBe(`/portal/integrarea-mea/${ID}`);
+    expect(caleaDePortal(`/onboarding/${ALT_ID}`, cuIntegrare)).toBeNull();
+    expect(caleaDePortal(`/onboarding/${ID}`, AL_ALTCUIVA)).toBeNull();
+    const cuSaptamana: ContextDestinatar = { ...AL_MEU, saptamani: new Map([[ID, "2026-10-05"]]) };
+    expect(
+      caleaDePortal("/pontaj/saptamana", cuSaptamana, {
+        tip: "attendance_week_submission",
+        id: ID,
+      }),
+    ).toBe("/portal/pontajul-meu/saptamana?saptamana=2026-10-05");
+    expect(caleaDePortal("/pontaj/saptamana", cuSaptamana)).toBe("/portal/pontajul-meu/saptamana");
+    expect(
+      caleaDePortal("/pontaj/saptamana", AL_MEU, {
+        tip: "attendance_week_submission_missing",
+        id: ID,
+        corp: "Nu ați trimis încă pontajul pentru săptămâna din 12.10.2026.",
+      }),
+    ).toBe("/portal/pontajul-meu/saptamana?saptamana=2026-10-12");
+    expect(
+      caleaDePortal("/pontaj/saptamana", AL_MEU, { tip: "attendance_week_submission", id: ID }),
+    ).toBe("/portal/pontajul-meu/saptamana");
+  });
+});
+
+describe("sesizarea de defecțiune (0181)", () => {
+  it("se traduce doar pentru raportor sau tehnicianul atribuit; responsabilii rămân în aplicație", () => {
+    expect(caleaDePortal(`/mentenanta/sesizari/${ID}`, AL_MEU)).toBe(`/portal/sesizari/${ID}`);
+    expect(caleaDePortal(`/mentenanta/sesizari/${ID}`, AL_ALTCUIVA)).toBeNull();
+    expect(caleaDePortal(`/mentenanta/sesizari/${ALT_ID}`, AL_MEU)).toBeNull();
+    expect(caleaDePortal(`/mentenanta/sesizari/${ID}`)).toBeNull();
+    expect(caleaDePortal("/mentenanta/sesizari")).toBe("/portal/sesizari");
+    expect(idSesizare(`/mentenanta/sesizari/${ID}`)).toBe(ID);
+    expect(idSesizare("/mentenanta/sesizari")).toBeNull();
+    expect(idSesizare(null)).toBeNull();
+  });
+});
 
 describe("caleaDePortal", () => {
   it("traduce legăturile care nu depind de destinatar", () => {

@@ -12,7 +12,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Scadenta } from "@/components/ui/scadenta";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -26,6 +26,9 @@ import { stareScadentaSsm } from "@/domain/ssm/scadente";
 import { ETICHETE_DOMENIU, ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FiltreInstruiri } from "./filtre-instruiri";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { CelulaInstruire } from "./celula-instruire";
 
 export const metadata: Metadata = { title: "Instruiri SSM/PSI" };
 
@@ -38,11 +41,22 @@ async function Matrice({
   userId,
   scope,
   parametri,
+  permisiuni,
+  departament,
+  poateCrea,
+  poateConfirma,
 }: {
   readonly organizationId: string;
   readonly userId: string;
   readonly scope: "team" | "all";
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly permisiuni: PermissionMap;
+  /** `?departament=<uuid>`: doar oamenii departamentului; `null` = toți. */
+  readonly departament: string | null;
+  /** `ssm:create` — celula Expirat/Lipsă devine link spre formularul precompletat. */
+  readonly poateCrea: boolean;
+  /** `ssm:update` — „Confirmă semnătura” în previzualizarea celulei. */
+  readonly poateConfirma: boolean;
 }) {
   const filtre = filtreDinUrl(filtreInstruiriSchema, parametri);
   const propriaFisaId = await idFisaProprie(organizationId, userId);
@@ -54,9 +68,12 @@ async function Matrice({
       propriaFisaId,
       filtre: {
         q: filtre.q,
-        department_id: null,
+        // `?departament=<uuid>` din panoul departamentului: matricea echipei lui.
+        department_id: departament,
         functie: null,
         status: "activ",
+        punct_lucru: null,
+        contract: null,
         cursor: filtre.cursor,
         limita: filtre.limita,
         // Matricea de instruiri își impune propria ordine (angajat × tip), deci
@@ -161,7 +178,9 @@ async function Matrice({
             {angajati.map((angajat) => (
               <tr key={angajat.id} className="hover:bg-surface">
                 <td className="bg-background sticky left-0 px-4 py-3 font-medium whitespace-nowrap">
-                  {angajat.full_name}
+                  <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                    {angajat.full_name}
+                  </LinkEntitate>
                 </td>
                 {tipuri.map((tip) => {
                   const rand = celeMaiRecente.get(cheieMatrice(angajat.id, tip.id));
@@ -169,14 +188,36 @@ async function Matrice({
                   const stare = stareScadentaSsm(rand !== undefined, scadenta, azi);
                   return (
                     <td key={tip.id} className="px-4 py-3 whitespace-nowrap">
-                      <Scadenta treapta={treaptaSsm(stare, scadenta)}>
-                        {ETICHETE_SCADENTA[stare]}
-                      </Scadenta>
-                      {rand === undefined ? null : (
+                      {/* Golul se repară de aici: formularul precompletat cu omul și tipul. */}
+                      {poateCrea && (stare === "niciodata" || stare === "expirat") ? (
+                        <Link
+                          href={`/ssm/instruiri/noua?angajat=${angajat.id}&tip=${tip.id}`}
+                          className="rounded-xs underline-offset-2 hover:underline"
+                        >
+                          <Scadenta treapta={treaptaSsm(stare, scadenta)}>
+                            {ETICHETE_SCADENTA[stare]}
+                          </Scadenta>
+                        </Link>
+                      ) : rand === undefined ? (
+                        <Scadenta treapta={treaptaSsm(stare, scadenta)}>
+                          {ETICHETE_SCADENTA[stare]}
+                        </Scadenta>
+                      ) : (
+                        // Instruirea existentă se deschide pe loc: durata, scadența,
+                        // semnătura — și confirmarea ei, pentru cine are dreptul.
+                        <CelulaInstruire instruire={rand} poateConfirma={poateConfirma}>
+                          <Scadenta treapta={treaptaSsm(stare, scadenta)}>
+                            {ETICHETE_SCADENTA[stare]}
+                          </Scadenta>
+                        </CelulaInstruire>
+                      )}
+                      {rand !== undefined &&
+                      poateCrea &&
+                      (stare === "niciodata" || stare === "expirat") ? (
                         <span className="text-muted-foreground text-nota ml-2">
                           {formatDate(rand.data_instruirii)}
                         </span>
-                      )}
+                      ) : null}
                     </td>
                   );
                 })}
@@ -202,6 +243,8 @@ async function Matrice({
   );
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default async function PaginaInstruiri({ searchParams }: ProprietatiPagina) {
   const user = await requireUser();
   const { tenant } = await requireTenant();
@@ -222,6 +265,11 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
   }
 
   const parametri = await searchParams;
+
+  const departamentBrut = parametri["departament"];
+
+  const departamentFiltrat =
+    typeof departamentBrut === "string" && UUID_RE.test(departamentBrut) ? departamentBrut : null;
   // Gata garantat prin poarta de mai sus: scope-ul e mereu „team" sau „all".
   const scopeAngajati: "team" | "all" =
     scopeFor(permisiuni, "employees:read") === "all" ? "all" : "team";
@@ -235,7 +283,10 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
         {...(poateCrea
           ? {
               actiuni: (
-                <Link href="/ssm/instruiri/noua" className={buton({ varianta: "primar" })}>
+                <Link
+                  href={`/ssm/instruiri/noua?domeniu=${parametri["domeniu"] === "psi" ? "psi" : "ssm"}`}
+                  className={buton({ varianta: "primar" })}
+                >
                   <Plus aria-hidden="true" className="size-4" />
                   Instruire nouă
                 </Link>
@@ -261,7 +312,11 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
           organizationId={tenant.organizationId}
           userId={user.id}
           scope={scopeAngajati}
+          poateConfirma={can(permisiuni, "ssm:update", "team")}
           parametri={parametri}
+          permisiuni={permisiuni}
+          departament={departamentFiltrat}
+          poateCrea={poateCrea}
         />
       </Suspense>
     </div>

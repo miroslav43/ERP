@@ -1,7 +1,7 @@
 // src/components/ui/tabel.tsx
 import Link from "next/link";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
-import type { ReactElement, ReactNode } from "react";
+import { Fragment, type ReactElement, type ReactNode } from "react";
 
 import { cn } from "@/lib/ui/cn";
 
@@ -39,6 +39,17 @@ import { SenzorLink } from "@/components/incarcare/senzor-link";
  * angajatului — deci se cere explicit.
  */
 export type Sortare = Readonly<{ cheie: string; directie: "asc" | "desc" }>;
+
+/**
+ * Gruparea rândurilor: un rând de antet înaintea fiecărui grup, în ACELAȘI
+ * corp de tabel — nu un `Tabel` per grup, care ar repeta `<thead>`, `caption`
+ * și `aria-sort`. Rândurile trebuie să vină deja ordonate după cheie; aici se
+ * detectează doar schimbarea ei.
+ */
+export type Grupare<R> = Readonly<{
+  cheie: (rand: R) => string;
+  antet: (cheie: string, primul: R) => ReactNode;
+}>;
 
 export type Coloana<R> = Readonly<{
   cheie: string;
@@ -89,8 +100,22 @@ export type PropsTabel<R> = Readonly<{
   coloane: readonly Coloana<R>[];
   randuri: readonly R[];
   cheieRand: (rand: R) => string;
-  /** Face rândul apăsabil. Linkul accesibil stă în coloana `peTelefon="titlu"`. */
-  href?: (rand: R) => string;
+  /**
+   * Rândul tocmai creat sau cel la care a trimis alt ecran (`?nou=<id>`):
+   * inel de evidențiere, decis pe server, nu `:target`. `idRand` îi dă și o
+   * ancoră, ca `#propunere-<id>` să deruleze la el.
+   */
+  evidentiat?: (rand: R) => boolean;
+  idRand?: (rand: R) => string;
+  /**
+   * Face rândul apăsabil. Linkul accesibil stă în coloana `peTelefon="titlu"`.
+   *
+   * `null` pentru UN rând = rândul ăla rămâne text: entitatea legată e ascunsă
+   * de RLS, ștearsă, sau rolul n-o poate deschide (`legaturaSigura` din
+   * `porti-ruta.ts`). Înainte, singura alegere era „toate rândurile apăsabile
+   * sau niciunul", iar listele cu drepturi parțiale trimiteau în refuz.
+   */
+  href?: (rand: R) => string | null;
   sortare?: Sortare;
   /** Construiește adresa pentru o sortare nouă. Fără ea, antetele nu sortează. */
   hrefSortare?: (s: Sortare) => string;
@@ -105,6 +130,12 @@ export type PropsTabel<R> = Readonly<{
    * e mai rea decât o eroare.
    */
   trunchiat?: boolean;
+  grupare?: Grupare<R>;
+  /**
+   * Rândul deschide un panou peste ACEEAȘI pagină (`?doc=…`): navigarea nu
+   * derulează la începutul listei. Vezi `RandTabel`.
+   */
+  pastreazaDerularea?: boolean;
   className?: string;
 }>;
 
@@ -113,6 +144,8 @@ export function Tabel<R>({
   coloane,
   randuri,
   cheieRand,
+  evidentiat,
+  idRand,
   href,
   sortare,
   hrefSortare,
@@ -120,6 +153,8 @@ export function Tabel<R>({
   gol,
   subsol,
   trunchiat,
+  grupare,
+  pastreazaDerularea = false,
   className,
 }: PropsTabel<R>): ReactElement {
   if (randuri.length === 0) return <>{gol}</>;
@@ -127,6 +162,17 @@ export function Tabel<R>({
   const celula = densitate === "compact" ? "px-3 py-2" : "px-4 py-3";
   // Aceeași coloană poartă linkul în ambele marcaje — vezi nota de mai jos.
   const coloanaTitlu = coloane.find((c) => c.peTelefon === "titlu") ?? coloane[0];
+  const derulare = pastreazaDerularea ? { scroll: false } : {};
+
+  // Antetul de grup se calculează ÎNAINTE de randare, nu cu o variabilă mutată
+  // în `.map()`: React Compiler respinge mutația unei valori din afara randării.
+  const cuAntet = randuri.map((r, i) => {
+    if (grupare === undefined) return { r, antet: null };
+    const cheie = grupare.cheie(r);
+    const precedent = i === 0 ? undefined : randuri[i - 1];
+    const nou = precedent === undefined || grupare.cheie(precedent) !== cheie;
+    return { r, antet: nou ? grupare.antet(cheie, r) : null };
+  });
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
@@ -155,7 +201,8 @@ export function Tabel<R>({
             </tr>
           </thead>
           <tbody className="divide-border divide-y">
-            {randuri.map((r) => {
+            {cuAntet.map(({ r, antet }) => {
+              const tinta = href === undefined ? null : href(r);
               const continut = coloane.map((c) => (
                 <td
                   key={c.cheie}
@@ -166,7 +213,7 @@ export function Tabel<R>({
                     c.latime === "ingusta" ? "w-px whitespace-nowrap" : "",
                   )}
                 >
-                  {href === undefined || c !== coloanaTitlu ? (
+                  {tinta === null || c !== coloanaTitlu ? (
                     c.celula(r)
                   ) : (
                     // `RandTabel` face rândul apăsabil, dar e DOAR `onClick` pe
@@ -177,18 +224,50 @@ export function Tabel<R>({
                     // presupune pus de apelant. Aici e apelantul.
                     // `closest("a, …")` din `RandTabel` oprește navigarea
                     // dublă la clic.
-                    <Link href={href(r)} className="hover:underline">
+                    <Link href={tinta} className="hover:underline" {...derulare}>
                       {c.celula(r)}
                     </Link>
                   )}
                 </td>
               ));
-              return href === undefined ? (
-                <tr key={cheieRand(r)}>{continut}</tr>
-              ) : (
-                <RandTabel key={cheieRand(r)} href={href(r)}>
-                  {continut}
-                </RandTabel>
+              const clasaEvidentiere =
+                evidentiat?.(r) === true ? "ring-primary scroll-mt-24 ring-2 ring-inset" : "";
+              const rand =
+                tinta === null ? (
+                  <tr
+                    {...(idRand === undefined ? {} : { id: idRand(r) })}
+                    className={clasaEvidentiere}
+                  >
+                    {continut}
+                  </tr>
+                ) : (
+                  <RandTabel
+                    href={tinta}
+                    pastreazaDerularea={pastreazaDerularea}
+                    className={clasaEvidentiere}
+                    {...(idRand === undefined ? {} : { id: idRand(r) })}
+                  >
+                    {continut}
+                  </RandTabel>
+                );
+              return (
+                <Fragment key={cheieRand(r)}>
+                  {antet === null ? null : (
+                    <tr>
+                      <th
+                        scope="rowgroup"
+                        colSpan={coloane.length}
+                        className={cn(
+                          celula,
+                          "bg-surface text-eticheta text-foreground text-left font-semibold tracking-wide uppercase",
+                        )}
+                      >
+                        {antet}
+                      </th>
+                    </tr>
+                  )}
+                  {rand}
+                </Fragment>
               );
             })}
           </tbody>
@@ -201,15 +280,27 @@ export function Tabel<R>({
           telefon o bară de derulare orizontală — zero dintre ele aveau vreun
           tratament pentru ecran îngust. */}
       <ul className="border-border rounded-panou divide-border divide-y border md:hidden">
-        {randuri.map((r) => (
-          <CardRand
-            key={cheieRand(r)}
-            rand={r}
-            coloane={coloane}
-            {...(coloanaTitlu === undefined ? {} : { coloanaTitlu })}
-            {...(href === undefined ? {} : { href: href(r) })}
-          />
-        ))}
+        {cuAntet.map(({ r, antet }) => {
+          const tinta = href === undefined ? null : href(r);
+          return (
+            <Fragment key={cheieRand(r)}>
+              {antet === null ? null : (
+                <li className="bg-surface text-eticheta text-foreground px-4 py-2 font-semibold tracking-wide uppercase">
+                  {antet}
+                </li>
+              )}
+              <CardRand
+                rand={r}
+                coloane={coloane}
+                pastreazaDerularea={pastreazaDerularea}
+                evidentiat={evidentiat?.(r) === true}
+                {...(idRand === undefined ? {} : { id: idRand(r) })}
+                {...(coloanaTitlu === undefined ? {} : { coloanaTitlu })}
+                {...(tinta === null ? {} : { href: tinta })}
+              />
+            </Fragment>
+          );
+        })}
       </ul>
     </div>
   );
@@ -295,11 +386,17 @@ function CardRand<R>({
   coloane,
   coloanaTitlu,
   href,
+  pastreazaDerularea,
+  evidentiat = false,
+  id,
 }: {
+  evidentiat?: boolean;
+  id?: string;
   rand: R;
   coloane: readonly Coloana<R>[];
   coloanaTitlu?: Coloana<R>;
   href?: string;
+  pastreazaDerularea: boolean;
 }): ReactElement {
   const titlu = coloanaTitlu;
   const insigne = coloane.filter((c) => c.peTelefon === "insigna");
@@ -313,7 +410,13 @@ function CardRand<R>({
   const actiuni = coloane.filter((c) => c.peTelefon === "actiuni");
 
   return (
-    <li className="relative flex min-h-14 items-start gap-3 px-4 py-3">
+    <li
+      {...(id === undefined ? {} : { id })}
+      className={cn(
+        "relative flex min-h-14 items-start gap-3 px-4 py-3",
+        evidentiat ? "ring-primary scroll-mt-24 ring-2 ring-inset" : "",
+      )}
+    >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-foreground text-corp font-medium">
@@ -322,7 +425,11 @@ function CardRand<R>({
             ) : (
               // Linkul acoperă tot cardul: o singură oprire de tabulare, o
               // țintă de dimensiunea rândului.
-              <Link href={href} className="after:absolute after:inset-0 hover:underline">
+              <Link
+                href={href}
+                className="after:absolute after:inset-0 hover:underline"
+                {...(pastreazaDerularea ? { scroll: false } : {})}
+              >
                 {titlu?.celula(rand)}
               </Link>
             )}
@@ -334,7 +441,11 @@ function CardRand<R>({
           ))}
         </div>
         {meta.length === 0 ? null : (
-          <p className="text-muted-foreground text-nota mt-1 flex flex-wrap items-center gap-x-1.5">
+          // `[&_a]:relative`: un link secundar din meta (numele angajatului,
+          // vehiculul) trebuie să stea DEASUPRA linkului care acoperă tot
+          // cardul (`after:inset-0`), altfel clicul pe el deschide rândul.
+          // Verificat în browser, nu în DOM: în jsdom ambele primesc clicul.
+          <p className="text-muted-foreground text-nota mt-1 flex flex-wrap items-center gap-x-1.5 [&_a]:relative">
             {meta.map((c, i) => (
               <span key={c.cheie} className={c.numeric === true ? "tabular-nums" : ""}>
                 {i > 0 ? (

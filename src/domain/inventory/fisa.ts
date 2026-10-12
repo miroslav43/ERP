@@ -105,6 +105,8 @@ export type Custodie =
       fel: "alocat";
       alocareId: string;
       detinator: string | null;
+      /** Fișa deținătorului, sau `null` când nu se poate deschide. Calculat de pagină. */
+      hrefDetinator: string | null;
       predatLa: string;
       stareLaPredare: StareObiect;
       confirmatLa: string | null;
@@ -122,6 +124,7 @@ export function custodie(
   obiect: ObiectCustodie,
   alocareDeschisa: AlocareCustodie | null,
   detinator: string | null,
+  hrefDetinator: string | null = null,
 ): Custodie {
   /*
     Alocarea bate statusul. Inclusiv pentru un obiect marcat `casat`: dacă
@@ -134,6 +137,7 @@ export function custodie(
       fel: "alocat",
       alocareId: alocareDeschisa.id,
       detinator,
+      hrefDetinator,
       predatLa: alocareDeschisa.predat_la,
       stareLaPredare: alocareDeschisa.stare_la_predare,
       confirmatLa: alocareDeschisa.confirmat_de_angajat_la,
@@ -160,6 +164,10 @@ export type EvenimentFisa = Readonly<{
   moment: string | null;
   /** Numele angajatului la predare/returnare; `null` în rest. */
   angajat: string | null;
+  /** Fișa lui, dacă se poate deschide; `null` în rest. */
+  hrefAngajat: string | null;
+  /** Alocarea din spatele evenimentului — pentru PV; `null` la înregistrare și casare. */
+  alocareId: string | null;
   /** Starea fizică consemnată în acel moment. */
   stare: StareObiect | null;
 }>;
@@ -193,16 +201,20 @@ export function evenimenteFisa(
   obiect: ObiectCronologie,
   istoric: readonly AlocareCronologie[],
   nume: ReadonlyMap<string, string | null>,
+  hrefuri: ReadonlyMap<string, string | null> = new Map(),
 ): readonly EvenimentFisa[] {
   const puncte: EvenimentFisa[] = [];
 
   for (const alocare of istoric) {
     const angajat = nume.get(alocare.employee_id) ?? null;
+    const hrefAngajat = hrefuri.get(alocare.employee_id) ?? null;
     puncte.push({
       cheie: `${alocare.id}·predare`,
       fel: "predare",
       moment: alocare.predat_la,
       angajat,
+      hrefAngajat,
+      alocareId: alocare.id,
       stare: alocare.stare_la_predare,
     });
     if (alocare.returnat_la !== null) {
@@ -211,6 +223,8 @@ export function evenimenteFisa(
         fel: "returnare",
         moment: alocare.returnat_la,
         angajat,
+        hrefAngajat,
+        alocareId: alocare.id,
         stare: alocare.stare_la_returnare,
       });
     }
@@ -221,6 +235,8 @@ export function evenimenteFisa(
     fel: "inregistrare",
     moment: obiect.created_at,
     angajat: null,
+    hrefAngajat: null,
+    alocareId: null,
     stare: null,
   });
 
@@ -238,6 +254,8 @@ export function evenimenteFisa(
       fel: "casare",
       moment: null,
       angajat: null,
+      hrefAngajat: null,
+      alocareId: null,
       stare: null,
     });
   }

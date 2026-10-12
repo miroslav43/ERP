@@ -24,7 +24,7 @@ import {
   type CriteriuSablonIntrare,
 } from "@/schemas/evaluation";
 
-import { anuntaEvaluareaFinalizata } from "./anunta-evaluarea";
+import { anuntaEvaluareaFinalizata, anuntaEvaluatorii } from "./anunta-evaluarea";
 
 /**
  * ── DE CE `revalidate` E DECLARAT, NU CHEMAT ──────────────────────────────
@@ -509,23 +509,33 @@ export const planificaEvaluari = createAction<
       // reconstruiască ecranul.
       const raspunsuri = caJson(aliniazaRaspunsuri(criterii, []));
       const instantaneu = caJson(criterii);
-      const { error } = await ctx.supabase.from("employee_evaluations").insert(
-        deCreat.map((employeeId) => ({
-          organization_id: ctx.tenant.organizationId,
-          employee_id: employeeId,
-          template_id: input.template_id,
-          evaluator_id: ctx.user.id,
-          data_evaluarii: input.data_evaluarii,
-          raspunsuri,
-          criterii_sablon: instantaneu,
-          versiune_sablon: sablon.versiune,
-          concluzie: null,
-          status: "draft" as const,
-          created_by: ctx.user.id,
-          updated_by: ctx.user.id,
-        })),
-      );
+      const { data: create, error } = await ctx.supabase
+        .from("employee_evaluations")
+        .insert(
+          deCreat.map((employeeId) => ({
+            organization_id: ctx.tenant.organizationId,
+            employee_id: employeeId,
+            template_id: input.template_id,
+            evaluator_id: ctx.user.id,
+            data_evaluarii: input.data_evaluarii,
+            raspunsuri,
+            criterii_sablon: instantaneu,
+            versiune_sablon: sablon.versiune,
+            concluzie: null,
+            status: "draft" as const,
+            created_by: ctx.user.id,
+            updated_by: ctx.user.id,
+          })),
+        )
+        .select("id, employee_id");
       if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+      // Managerul direct al fiecăruia află că are de notat — un plus, nu poarta.
+      await anuntaEvaluatorii(
+        createAdminSupabase(),
+        ctx.tenant.organizationId,
+        ctx.user.id,
+        (create ?? []).map((r) => ({ id: r.id, employee_id: r.employee_id })),
+      );
     }
 
     return { create: deCreat.length, sarite: auDeja.size };

@@ -11,7 +11,7 @@ import { Paginare } from "@/components/ui/paginare";
 import { Scadenta } from "@/components/ui/scadenta";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
@@ -22,7 +22,13 @@ import {
 } from "@/domain/fleet/scadente";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { listeazaVehicule, scadenteCurente, tipuriDocument } from "@/lib/queries/fleet";
+import {
+  departamentePentruVehicul,
+  listeazaVehicule,
+  scadenteCurente,
+  tipuriDocument,
+  angajatiDupaId,
+} from "@/lib/queries/fleet";
 import { filtreVehiculeSchema } from "@/schemas/fleet";
 
 import {
@@ -33,7 +39,12 @@ import {
 } from "./etichete";
 import { DialogVehiculNou } from "./dialog-vehicul-nou";
 import { FiltreVehicule } from "./filtre-vehicule";
-import { NavFlota } from "./nav-flota";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_FLOTA } from "@/config/file-module";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
+import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Parc auto" };
 
@@ -45,15 +56,22 @@ async function TabelVehicule({
   organizationId,
   parametri,
   poateAdauga,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateAdauga: boolean;
+  /** Harta permisiunilor: șoferul devine link doar prin `hrefFisa`. */
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreVehiculeSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaVehicule(
     organizationId,
     filtre,
+  );
+  const soferi = await angajatiDupaId(
+    organizationId,
+    randuri.map((v) => v.employee_id).filter((id): id is string => id !== null),
   );
 
   /**
@@ -194,6 +212,21 @@ async function TabelVehicule({
       ),
     },
     {
+      cheie: "sofer",
+      antet: "Șofer",
+      peTelefon: "meta",
+      // Lista citea `employee_id` și nu-l afișa: cine are mașina se afla deschizând fiecare fișă.
+      celula: (v) => {
+        const sofer = v.employee_id === null ? undefined : soferi.get(v.employee_id);
+        if (v.employee_id === null) return v.pool ? "pool" : "—";
+        return (
+          <LinkEntitate href={hrefFisa(sofer, permisiuni)}>
+            {sofer?.full_name ?? sofer?.marca ?? "—"}
+          </LinkEntitate>
+        );
+      },
+    },
+    {
       cheie: "categorie",
       antet: "Categorie",
       peTelefon: "meta",
@@ -314,7 +347,11 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
   // mai jos forțează remontarea casetei — o navigare pe ACEEAȘI rută păstrează
   // altfel starea clientului, iar caseta n-ar mai apărea.
   const deschideCaseta = parametri["vehicul"] === "nou";
+  // Selectorul de departament din caseta „Vehicul nou”. Citit doar pentru cine
+  // poate adăuga: restul n-are caseta, deci nici nevoie de listă.
+  const departamente = poateAdauga ? await departamentePentruVehicul(tenant.organizationId) : [];
 
+  const conformitateFiltrata = filtreDinUrl(filtreVehiculeSchema, parametri).conformitate;
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -330,26 +367,38 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
                 <DialogVehiculNou
                   key={deschideCaseta ? "vehicul-nou" : "listă"}
                   deschisInitial={deschideCaseta}
+                  departamente={departamente}
                 />
               ),
             }
           : {})}
-        file={
-          <NavFlota
-            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
-          />
-        }
+        file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
 
       <FiltreVehicule parametri={parametri} />
+      {/* Filtrul de intrare de pe panou/insignă: pastilă, ca lista scurtă să nu pară goală. */}
+      <PastileFiltre
+        active={
+          conformitateFiltrata === null
+            ? []
+            : [
+                {
+                  cheie: "conformitate",
+                  eticheta:
+                    conformitateFiltrata === "expira"
+                      ? `Documente care expiră în ${String(PRAG_FLOTA_AVERTIZARE_ZILE)} de zile`
+                      : "Fără niciun document",
+                },
+              ]
+        }
+      />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={8} />}>
         <TabelVehicule
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateAdauga={poateAdauga}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

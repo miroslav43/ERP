@@ -125,31 +125,51 @@ export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ["/unelte", "Uneltele gratuite, fără cont."],
   [
     "/unelte/foaie-de-pontaj",
-    "Unealtă gratuită: generează o foaie de pontaj lunară cu sărbătorile legale calculate, descărcabilă în PDF, Word sau Excel. Fără cont.",
+    "Unealtă gratuită: foaie de pontaj lunară cu sărbătorile legale calculate, colectivă sau câte o fișă individuală pe angajat cu ora de început și de sfârșit (art. 119 Codul muncii). Program luni–vineri, luni–sâmbătă sau ture, normă proprie pe angajat (timp parțial), codurile CO, CM, CFS, AN, D, L, SL, antetul firmei. Excel cu formule (ore, normă, COUNTIF pe coduri, A4 cu capul repetat), PDF sau Word. Fără cont.",
   ],
   [
     "/unelte/cerere-concediu-de-odihna",
-    "Unealtă gratuită: cerere de concediu de odihnă gata de tipărit, cu zilele lucrătoare calculate — weekendurile și sărbătorile legale se scad, iar cele scoase se enumeră cu motivul. Plus variantele de concediu fără plată (art. 153) și zile libere pentru evenimente familiale (art. 152). Word sau PDF, fără cont.",
+    "Unealtă gratuită: cerere de concediu ca scrisoare de semnat, cu zilele lucrătoare calculate — weekendurile și sărbătorile legale se scad și se enumeră cu motivul; cu anul concediului, departamentul, fracțiunile (art. 148 alin. (5)), calendarul Paștelui pentru alte culte creștine (art. 139 alin. (2¹)) și rubrica angajatorului, cu „Se aprobă / Nu se aprobă” și soldul. Opt variante: odihnă, fără plată (art. 153), eveniment familial (art. 152), paternal (Legea 210/1999), îngrijitor (art. 152¹), formare profesională (art. 155–157), reprogramare (art. 149) și întrerupere (art. 151). Word sau PDF, fără cont.",
+  ],
+  [
+    "/unelte/calculator-zile-concediu",
+    "Unealtă gratuită: câte zile de concediu de odihnă se cuvin într-un an — minimul de 20 de zile lucrătoare (art. 145 alin. (1) Codul muncii), zilele suplimentare de cel puțin 3 (art. 147) și estimarea proporțională pentru anul angajării sau al plecării, prezentată ca practică, nu ca regulă legală. Fără cont.",
+  ],
+  [
+    "/unelte/calculator-zile-lucratoare",
+    "Unealtă gratuită: câte zile lucrătoare sunt între două date (ambele incluse) sau ce dată cade peste N zile lucrătoare (ziua de pornire nu se numără, ca la preaviz — RIL nr. 8/2024). Scade sâmbetele, duminicile și cele 17 sărbători legale din art. 139 Codul muncii, cu Paștele ortodox calculat; nu scade zilele libere din contractul colectiv. Exemplu: 20 de zile lucrătoare după 10 decembrie 2026 = 13 ianuarie 2027. Fără cont.",
+  ],
+  [
+    "/unelte/cerere-demisie",
+    "Unealtă gratuită: cerere de demisie gata de semnat, cu ultima zi de preaviz calculată în zile lucrătoare — preavizul e cel din contract, dar cel mult 20 de zile lucrătoare pentru funcțiile de execuție și 45 pentru cele de conducere (art. 81 alin. (4) Codul muncii); numărătoarea începe a doua zi după înregistrare (prin analogie cu RIL nr. 8/2024). Exemplu: înregistrată pe 8 octombrie 2026, cu 20 de zile, ultima zi e 5 noiembrie 2026. Plus demisia fără preaviz (art. 81 alin. (8)), încetarea în perioada de probă (art. 31 alin. (3)) și acordul părților (art. 55 lit. b)). Word sau PDF, fără cont.",
+  ],
+  [
+    "/unelte/programare-concedii",
+    "Unealtă gratuită: programarea anuală a concediilor de odihnă — un rând pe salariat, o coloană pe lună, cu zilele lucrătoare ale fiecărei luni în antet (2027: 18 în ianuarie, 23 în martie, 252 pe an) și sărbătorile legale care cad în zile lucrătoare. Programarea se face până la sfârșitul anului pentru anul următor, cu consultarea sindicatului sau a reprezentanților salariaților (art. 148 alin. (1) Codul muncii); la fracționare, cel puțin 10 zile lucrătoare neîntrerupte (alin. (5)). Excel, Word sau PDF, fără cont.",
+  ],
+  [
+    "/unelte/adeverinta-salariat",
+    "Unealtă gratuită: adeverință de salariat — funcția, tipul și durata contractului, norma, data angajării, opțional salariul de bază și destinația („pentru a-i servi la…”), după art. 34 alin. (5) Codul muncii (angajatorul e obligat s-o elibereze la cerere). Formularul nu cere CNP-ul, care rămâne de completat de mână. Word sau PDF, fără cont.",
   ],
   [
     "/unelte/condica-de-prezenta",
-    "Unealtă gratuită: condica de prezență pentru orice lună, cu un rând pe om pe fiecare zi lucrătoare, ora sosirii, ora plecării și semnătura. Word, PDF sau Excel, fără cont. Plus răspunsul la „e obligatorie?” (art. 119 Codul muncii).",
+    "Unealtă gratuită: condica de prezență pentru orice lună, pe program luni–vineri, luni–sâmbătă sau ture; un rând pe om pe fiecare zi, cu ora sosirii, ora plecării, pauza, orele lucrate și observațiile, iar zilele nelucrate marcate L sau SL. Antetul firmei (CUI, compartiment). Excel cu orele calculate și total pe angajat, Word sau PDF, fără cont. Plus răspunsul la „e obligatorie?” și amenda din art. 260 alin. (1) lit. m) Codul muncii.",
   ],
   [
     "/unelte/foaie-de-parcurs",
-    "Unealtă gratuită: foaie de parcurs lunară pentru o mașină de serviciu — fiecare zi, traseul, scopul deplasării, kilometrii la plecare și la sosire. Word, PDF sau Excel, fără cont. Cu limita de 50% din art. 25 alin. (3) lit. l) Cod fiscal pentru mașinile folosite și personal.",
+    "Unealtă gratuită: foaie de parcurs lunară cu cele patru elemente minime din normele Codului fiscal (HG 1/2016, titlul II pct. 16 alin. (2) și titlul VII pct. 68 alin. (2)): categoria vehiculului, scopul și locul deplasării, kilometrii parcurși, norma proprie de consum. Până la 4 curse pe zi, alimentări, rezumatul lunii și Excel cu formule (km parcurși, consum după normă, stoc de combustibil). Plus limita de 50% pentru mașinile folosite și personal, la impozitul pe profit (art. 25 alin. (3) lit. l) Cod fiscal) și la TVA (art. 298), și excepțiile cu deducere integrală. Word, PDF sau Excel, fără cont.",
   ],
   [
     "/unelte/fisa-instruire-ssm",
-    "Unealtă gratuită: fișa individuală de instruire SSM după anexa 11 la normele HG 1425/2006 — instruirea introductiv-generală, la locul de muncă, periodică și suplimentară, cu cele trei semnături. Plus regulile: minimum o oră pe fiecare fază, stabilită prin programul firmei (art. 80¹), fișa pe hârtie sau în format electronic (art. 81), periodica la cel mult 6 luni sau 12 pentru TESA (art. 96), suplimentara după 30 de zile lucrătoare de absență (art. 98). Word sau PDF.",
+    "Unealtă gratuită: fișa individuală de instruire SSM completă, după anexa 11 la normele HG 1425/2006 — instruirea introductiv-generală, la locul de muncă și admiterea la lucru, cu rubrici de semnătură etichetate; instruirea periodică (rânduri pentru periodicitatea și anii aleși) și suplimentară; rezultatele testărilor; accidentele de muncă; sancțiunile; casetele de control medical și de testare psihologică. Antet cu numele pe fiecare pagină și „Pagina x din y”. Plus regulile: minimum o oră pe fiecare fază (art. 80¹), cine face fiecare instruire (art. 85, 91, 96), periodica la cel mult 6 luni sau 12 pentru TESA (art. 96), cele șapte cazuri de suplimentară (art. 98), fișa pe hârtie sau electronic, cu semnătură electronică (art. 81, 81¹), păstrată cu copia fișei de aptitudini (art. 81 alin. (4)). Word sau PDF.",
   ],
   [
     "/unelte/fisa-evaluare",
-    "Unealtă gratuită: fișa de evaluare a performanțelor profesionale, cu criteriile firmei (cel mult 15), pondere și notă pe fiecare. Plus ce spune Codul muncii: angajatorul stabilește obiectivele și criteriile (art. 40 alin. (1) lit. f)) și le comunică salariatului (art. 17 alin. (3) lit. e)). Word, PDF sau Excel.",
+    "Unealtă gratuită: fișa de evaluare a performanțelor profesionale — seturi de criterii pe tipuri de post (general, vânzări, producție, administrativ) sau criteriile firmei (cel mult 15), pondere în procente și notă de la 1 la 5 pe fiecare, nota finală ponderată și calificativul calculate (praguri implicite 4,50 / 3,50 / 2,50, modificabile), obiective, plan de dezvoltare, comentariile angajatului, semnături cu dată. Excel cu formule (SUMPRODUCT, validarea notelor, control că ponderile fac 100), Word sau PDF. Plus ce spune Codul muncii: angajatorul stabilește criteriile (art. 40 alin. (1) lit. f)), ele se comunică salariatului și se trec în contract (art. 17 alin. (3) lit. e) și (4)), schimbarea lor cere act adițional (art. 17 alin. (5)), procedura stă în regulamentul intern (art. 242 lit. i)), iar concedierea pentru necorespundere profesională cere evaluarea prealabilă (art. 63 alin. (2)).",
   ],
   [
     "/unelte/calculator-salariu",
-    "Unealtă gratuită: calculator de salariu net din brut și brut din net, la valorile din iulie–decembrie 2026 — salariul minim de 4.325 lei (HG 146/2026), cei 200 de lei neimpozabili la salariul minim (OUG 89/2025 art. III), deducerea personală din art. 77, CAS 25%, CASS 10%, impozit 10%, CAM 2,25%, sume rotunjite la leu. Exemple: 4.325 brut → 2.699 net; 5.000 brut → 2.981 net.",
+    "Unealtă gratuită: calculator de salariu net din brut și brut din net, pentru ianuarie–iunie 2026 (salariul minim de 4.050 lei, HG 1506/2024, cu 300 de lei neimpozabili) și iulie–decembrie 2026 (4.325 lei, HG 146/2026, cu 200 de lei neimpozabili; OUG 89/2025 art. III). Deducerea personală din art. 77, inclusiv 15% din minim până la 26 de ani și 100 de lei pe copil înscris la școală; tichetele de masă (impozit și CASS, fără CAS și CAM); timpul parțial, cu baza minimă de contribuții plătită de firmă; scutirea pentru handicap grav sau accentuat; CAS 25%, CASS 10%, impozit 10%, CAM 2,25%, costul total pentru firmă, sume rotunjite la leu. Legătura spre calcul se poate trimite. Exemple: 4.050 lei brut în ianuarie–iunie → 2.574 lei net; 4.325 lei brut → 2.699 lei net; 5.000 lei brut → 2.981 lei net.",
   ],
   ["/comparatie", "Comparațiile cu felul în care se lucrează azi."],
   [

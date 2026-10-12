@@ -350,8 +350,8 @@ describe("rezumatCoada", () => {
     vi.useRealTimers();
   });
 
-  it("patru numărători `head`, fiecare pe organizație și nesterse", async () => {
-    for (const count of [12, 3, 2, 5]) server.raspunde("tickets", "select", { count });
+  it("cinci numărători `head`, fiecare pe organizație și nesterse", async () => {
+    for (const count of [12, 3, 2, 5, 4]) server.raspunde("tickets", "select", { count });
 
     const r = await rezumatCoada(ORG_ID);
 
@@ -360,15 +360,16 @@ describe("rezumatCoada", () => {
       deAprobat: 3,
       asteaptaSolicitantul: 2,
       faraMiscareDe7Zile: 5,
+      nerepartizate: 4,
     });
     const apeluri = server.apeluriPe("tickets");
-    expect(apeluri).toHaveLength(4);
+    expect(apeluri).toHaveLength(5);
     for (const apel of apeluri) {
       expect(apel.optiuni).toEqual({ count: "exact", head: true });
       expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
       expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
     }
-    const [deschise, deAprobat, asteapta, restante] = apeluri;
+    const [deschise, deAprobat, asteapta, restante, nerepartizate] = apeluri;
     expect(areFiltru(deschise, "in", "status", DESCHISE)).toBe(true);
     expect(areFiltru(deAprobat, "eq", "status", "in_aprobare")).toBe(true);
     expect(areFiltru(asteapta, "eq", "status", "in_asteptare")).toBe(true);
@@ -376,15 +377,19 @@ describe("rezumatCoada", () => {
     // Restanța se măsoară din ultima atingere, nu din deschidere.
     expect(areFiltru(restante, "lt", "updated_at", "2026-07-08T12:00:00.000Z")).toBe(true);
     expect(areFiltru(restante, "lt", "created_at")).toBe(false);
+    // Nerepartizatele sunt deschise ȘI fără nimeni atribuit — același predicat ca filtrul `?nerepartizate=da`.
+    expect(areFiltru(nerepartizate, "in", "status", DESCHISE)).toBe(true);
+    expect(areFiltru(nerepartizate, "is", "asignat_employee_id", null)).toBe(true);
   });
 
   it("numărători lipsă ⇒ 0", async () => {
-    for (let i = 0; i < 4; i += 1) server.raspunde("tickets", "select", { count: null });
+    for (let i = 0; i < 5; i += 1) server.raspunde("tickets", "select", { count: null });
     expect(await rezumatCoada(ORG_ID)).toEqual({
       deschise: 0,
       deAprobat: 0,
       asteaptaSolicitantul: 0,
       faraMiscareDe7Zile: 0,
+      nerepartizate: 0,
     });
   });
 
@@ -392,6 +397,7 @@ describe("rezumatCoada", () => {
     server.raspunde("tickets", "select", { count: 1 });
     server.raspunde("tickets", "select", { count: 1 });
     server.raspunde("tickets", "select", { error: eroarePostgrest("57014") });
+    server.raspunde("tickets", "select", { count: 1 });
     server.raspunde("tickets", "select", { count: 1 });
     await expect(rezumatCoada(ORG_ID)).rejects.toMatchObject({ code: "57014" });
   });

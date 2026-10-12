@@ -6,7 +6,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { formatOraZi, formatOre } from "@/lib/format/ore";
@@ -17,7 +17,8 @@ import {
 } from "@/lib/queries/attendance";
 
 import { FormularSetariPontaj } from "../formular-setari-pontaj";
-import { NavSetariPontaj } from "../nav-setari";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_SETARI_PONTAJ } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Regulile de timp" };
 
@@ -25,9 +26,10 @@ export default async function PaginaReguliPontaj() {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "attendance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "attendance:update", "all")) {
@@ -54,7 +56,13 @@ export default async function PaginaReguliPontaj() {
         <AntetPagina
           titlu="Setări pontaj"
           descriere="Parametrii după care ies orele: normă, pauze, repausuri."
-          file={<NavSetariPontaj />}
+          file={
+            <FileModul
+              eticheta="Navigare setări pontaj"
+              file={FILE_SETARI_PONTAJ}
+              tenant={tenant}
+            />
+          }
         />
       </div>
 
@@ -82,7 +90,10 @@ export default async function PaginaReguliPontaj() {
         <RegulaInVigoare setari={curente} />
       )}
 
-      <FormularSetariPontaj setariCurente={curente} />
+      <FormularSetariPontaj
+        setariCurente={curente}
+        poateVedeaSalarizare={module.has("payroll") && can(permisiuni, "payroll:update", "all")}
+      />
 
       {istoric.length <= 1 ? null : (
         <section

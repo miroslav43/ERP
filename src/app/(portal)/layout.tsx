@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { getEnabledFeatures } from "@/lib/auth/features";
-import { getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { buildPortalNavigation } from "@/lib/navigation/build-portal-navigation";
 import { numaraNecitite } from "@/lib/queries/notifications";
@@ -126,7 +126,8 @@ export default async function PortalLayout({ children }: { children: ReactNode }
           {/* Scris explicit pentru angajat („ca angajatul să nu fie pus să-l
               aleagă" — comentariul din componentă), dar montat până acum doar în
               învelișul de administrare, unde angajatul n-are ce căuta. */}
-          {features.has("ticketing") ? (
+          {/* Și permisiunea, nu doar modulul: ținta cere `tickets:create = own`. */}
+          {features.has("ticketing") && can(permisiuni, "tickets:create", "own") ? (
             <RaporteazaProblema caleFormular="/portal/tichetele-mele/nou" zona="portal" />
           ) : null}
         </main>

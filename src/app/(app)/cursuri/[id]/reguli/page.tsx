@@ -76,6 +76,7 @@ export default async function PaginaReguli({
         departamente={tinte.departamente}
         angajati={angajati}
         poateEdita={poateEdita}
+        poateVedeaAngajati={can(permisiuni, "employees:read", "own")}
       />
     </div>
   );

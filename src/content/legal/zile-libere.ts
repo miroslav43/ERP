@@ -323,6 +323,10 @@ export const ZILE_LIBERE: PaginaLege = {
       eticheta: "Cerere de concediu cu zilele lucrătoare calculate",
       href: "/unelte/cerere-concediu-de-odihna",
     },
+    {
+      eticheta: "Calculator: zile lucrătoare între două date",
+      href: "/unelte/calculator-zile-lucratoare",
+    },
     { eticheta: "Ore suplimentare: limita și plata", href: "/ghid/ore-suplimentare" },
     { eticheta: "Program de pontaj cu sărbătorile marcate singur", href: "/module/pontaj" },
   ],

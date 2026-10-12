@@ -383,6 +383,9 @@ describe("interogheazaPropuneriReges / propuneriDeRaspuns", () => {
       primitaLa: "2026-09-14T10:00:00Z",
       raspunsLa: null,
       observatii: null,
+      // Fără contract și fără mesaj în coadă: nici fișă, nici rând clicabil.
+      mesajId: null,
+      employeeId: null,
     });
     const [apel] = db.apeluri;
     expect(areFiltru(apel, "eq", "organization_id", ORG)).toBe(true);

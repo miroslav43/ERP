@@ -15,6 +15,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 import { businessRule, limitExceeded, notFound } from "@/lib/actions/errors";
 import { trimiteEmailInvitatie } from "@/lib/email/invitations";
+import type { EmailDb } from "@/lib/email/send";
 import type { ServerSupabase } from "@/lib/supabase/server";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 
@@ -27,6 +28,16 @@ export type RolInvitabil = "org_admin" | "manager" | "hr" | "employee";
 
 export type ParametriInvitatie = Readonly<{
   db: ServerSupabase;
+  /**
+   * Clientul cu care se scrie JURNALUL de e-mail (`email_log`). Tabela are
+   * INSERT/UPDATE revocate pentru `authenticated` (0001, 0016) — apărare în
+   * adâncime pentru un jurnal care trebuie să fie append-only. Prin clientul de
+   * sesiune, `sendEmail` cădea la primul pas, cu „permission denied for table
+   * email_log", iar NICIO invitație emisă din aplicație nu pleca; omul vedea doar
+   * „e-mailul nu a plecat" (QA 8 oct 2026, ADM-031). Apelantul, o Server Action,
+   * dă aici `createAdminSupabase()`. Lipsă = se încearcă prin `db`, ca înainte.
+   */
+  dbEmail?: EmailDb;
   organizationId: string;
   email: string;
   rol: RolInvitabil;
@@ -170,7 +181,7 @@ export async function creeazaInvitatie(parametri: ParametriInvitatie): Promise<I
   }
   try {
     await trimiteEmailInvitatie({
-      db,
+      db: parametri.dbEmail ?? db,
       destinatar: email,
       organizatie: organizatie.name,
       invitatDe: parametri.invitatDe,

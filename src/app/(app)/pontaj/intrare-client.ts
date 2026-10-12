@@ -46,6 +46,8 @@ export interface IntrareZiClient {
   /** Sediul DECLARAT în formular (0163). `null` = cel din contract. */
   readonly punctLucruDeclaratId: string | null;
   readonly esteDinConcediu: boolean;
+  /** Cererea din Concedii care a scris ziua — celula o leagă; `null` altfel. */
+  readonly leaveRequestId: string | null;
   /** Aprobată în pontaj SAU proiectată dintr-un concediu aprobat. */
   readonly aprobat: boolean;
   readonly respins: boolean;
@@ -75,6 +77,7 @@ export function intrareaClient(intrare: IntrarePontaj): IntrareZiClient {
     punctLucruId: intrare.punct_lucru_id,
     punctLucruDeclaratId: intrare.punct_lucru_declarat_id,
     esteDinConcediu: intrare.leave_request_id !== null,
+    leaveRequestId: intrare.leave_request_id,
     // Ziua din concediu e deja decisă, în Concedii: aprobarea pontajului o
     // exclude (`liniiDeAprobat`), deci `approved_at` rămâne gol pe veci. Un rând
     // viu cu `leave_request_id` înseamnă concediu aprobat — anularea îl retrage

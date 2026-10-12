@@ -2,27 +2,39 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { QrCode } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
 import {
   angajatiAutorizati,
   angajatiDupaId,
+  atasamente,
   autorizatiiIscir,
+  categoriiEchipamente,
   citesteEchipament,
   contoareEchipament,
+  copiiEchipament,
+  echipamenteDupaId,
   interventii,
+  opririEchipament,
+  optiuniAngajati,
+  optiuniDepartamente,
+  numelePunctuluiDeLucru,
+  optiuniEchipamente,
   planuriEchipament,
   sesizari,
+  urlSemnate,
 } from "@/lib/queries/maintenance";
 import {
   stareScadentaData,
@@ -31,13 +43,16 @@ import {
 } from "@/domain/maintenance/scadente";
 import { Scadenta } from "@/components/ui/scadenta";
 
+import { formatDurataMinute, minuteIntre } from "../../durata";
 import {
+  ETICHETE_MARCAJ_CE,
   ETICHETE_REZULTAT_INTERVENTIE,
   ETICHETE_STARE_SCADENTA,
   ETICHETE_STATUS_ECHIPAMENT,
   ETICHETE_STATUS_SESIZARE,
   ETICHETE_TIP_CONTOR,
   ETICHETE_TIP_MENTENANTA,
+  ETICHETE_TIP_OPRIRE,
   ETICHETE_URGENTA_SESIZARE,
   TONURI_REZULTAT_INTERVENTIE,
   TONURI_STATUS_ECHIPAMENT,
@@ -46,21 +61,26 @@ import {
   formatContor,
   formatPeriodicitate,
 } from "../../etichete";
+import { optiuniPuncteLucru } from "../actions";
+import { ActiuniCitire } from "./actiuni-citire";
 import { ButonEditeazaEchipament } from "./buton-editeaza-echipament";
+import { ButonSchimbaStarea } from "./buton-schimba-starea";
+import { ButonStergeEchipament } from "./buton-sterge-echipament";
+import { DocumenteEchipament } from "./documente-echipament";
 import { FormularContor } from "./formular-contor";
 import { FormularInterventie } from "./formular-interventie";
 import { FormularIscir } from "./formular-iscir";
 import { FormularPlan } from "./formular-plan";
+import { IncarcareDocument } from "./incarcare-document";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
+import { poateDeschide } from "@/config/porti-ruta";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Fișa echipamentului" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
-}
-
-interface Optiune {
-  readonly id: string;
-  readonly nume: string;
 }
 
 export default async function PaginaEchipament({ params }: ProprietatiPagina) {
@@ -84,58 +104,79 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
   if (echipament === null) notFound();
 
   const azi = todayInBucharest();
+  const acum = new Date().toISOString();
   const poateScrie = can(permisiuni, "maintenance:update", "team");
+  const poateSterge = can(permisiuni, "maintenance:delete", "all");
 
-  const [contoare, planuri, interventiiEchipament, sesizariEchipament, autorizatii, features] =
-    await Promise.all([
-      contoareEchipament(echipament.id),
-      planuriEchipament(echipament.id),
-      interventii(tenant.organizationId, {
-        tip: null,
-        rezultat: null,
-        echipament: echipament.id,
-        cursor: null,
-        limita: 50,
-      }),
-      sesizari(tenant.organizationId, {
-        status: null,
-        urgenta: null,
-        echipament: echipament.id,
-        cursor: null,
-        limita: 50,
-      }),
-      autorizatiiIscir(tenant.organizationId, echipament.id),
-      getEnabledFeatures(tenant.organizationId),
-    ]);
-
-  const db = await createServerSupabase();
-  const [{ data: angajatiOrg }, { data: departamenteOrg }] = await Promise.all([
-    db
-      .from("employees")
-      .select("id, full_name")
-      .eq("organization_id", tenant.organizationId)
-      .is("deleted_at", null)
-      .order("full_name", { ascending: true }),
-    db
-      .from("departments")
-      .select("id, denumire")
-      .eq("organization_id", tenant.organizationId)
-      .is("deleted_at", null)
-      .order("denumire", { ascending: true }),
+  const [
+    contoare,
+    planuri,
+    interventiiEchipament,
+    sesizariEchipament,
+    autorizatii,
+    features,
+    componente,
+    documente,
+    opriri,
+    parinte,
+  ] = await Promise.all([
+    contoareEchipament(tenant.organizationId, echipament.id),
+    planuriEchipament(tenant.organizationId, echipament.id),
+    interventii(tenant.organizationId, {
+      tip: null,
+      rezultat: null,
+      echipament: echipament.id,
+      plan: null,
+      cursor: null,
+      limita: 50,
+    }),
+    sesizari(tenant.organizationId, {
+      status: null,
+      urgenta: null,
+      echipament: echipament.id,
+      atribuit: null,
+      deschise: null,
+      cursor: null,
+      limita: 50,
+    }),
+    autorizatiiIscir(tenant.organizationId, echipament.id),
+    getEnabledFeatures(tenant.organizationId),
+    copiiEchipament(tenant.organizationId, echipament.id),
+    atasamente(tenant.organizationId, "equipment", echipament.id),
+    opririEchipament(tenant.organizationId, echipament.id, 20),
+    echipament.parent_equipment_id === null
+      ? Promise.resolve(new Map())
+      : echipamenteDupaId(tenant.organizationId, [echipament.parent_equipment_id]),
   ]);
 
-  const angajatiGenerali: readonly Optiune[] = (angajatiOrg ?? []).map((a) => ({
-    id: a.id,
-    nume: a.full_name ?? "—",
-  }));
-  const departamente: readonly Optiune[] = (departamenteOrg ?? []).map((d) => ({
-    id: d.id,
-    nume: d.denumire,
-  }));
+  // Selectoarele formularelor: funcții de citire cu limită explicită, nu
+  // interogări inline — o listă tăiată tăcut la 1000 arată exact ca una întreagă.
+  const [angajatiGenerali, departamente, categorii, parinti, puncteRezultat, urluri, numePunct] =
+    await Promise.all([
+      optiuniAngajati(tenant.organizationId),
+      optiuniDepartamente(tenant.organizationId),
+      categoriiEchipamente(tenant.organizationId),
+      poateScrie ? optiuniEchipamente(tenant.organizationId, echipament.id) : Promise.resolve([]),
+      poateScrie ? optiuniPuncteLucru({}) : Promise.resolve(null),
+      urlSemnate(documente),
+      // Numele punctului pentru cititorii fără drept de scriere: lista de
+      // opțiuni cere `maintenance:update`, deci managerul vedea „Setat".
+      echipament.punct_lucru_id !== null && !poateScrie
+        ? numelePunctuluiDeLucru(tenant.organizationId, echipament.punct_lucru_id)
+        : Promise.resolve(null),
+    ]);
+  const puncteLucru = puncteRezultat !== null && puncteRezultat.ok ? puncteRezultat.data : [];
   const departament =
     echipament.department_id === null
       ? null
       : (departamente.find((d) => d.id === echipament.department_id) ?? null);
+  const punctLucru =
+    echipament.punct_lucru_id === null
+      ? null
+      : (puncteLucru.find((p) => p.id === echipament.punct_lucru_id) ??
+        (numePunct === null ? null : { id: echipament.punct_lucru_id, nume: numePunct }));
+  const randParinte =
+    echipament.parent_equipment_id === null ? null : parinte.get(echipament.parent_equipment_id);
 
   // Pentru echipamentele ISCIR cu tip de autorizare cunoscut, selectorul de
   // responsabil se alimentează cu angajații EFECTIV autorizați — nu lista
@@ -165,6 +206,12 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
   const numeAngajati = await angajatiDupaId(tenant.organizationId, idAngajatiNecesari);
   const numeleAngajatului = (idAngajat: string | null) =>
     idAngajat === null ? "—" : (numeAngajati.get(idAngajat)?.full_name ?? "—");
+  // Numele legat de fișă, doar când rândul a venit prin RLS și fișa se deschide.
+  const angajatLegat = (idAngajat: string | null) => (
+    <LinkEntitate href={hrefFisaDinHarta(idAngajat, numeAngajati, permisiuni)}>
+      {numeleAngajatului(idAngajat)}
+    </LinkEntitate>
+  );
 
   // Ultima citire cunoscută pe fiecare tip de contor — pentru semaforul
   // planurilor cu periodicitate pe contor. `contoare` e deja ordonat descrescător.
@@ -174,13 +221,10 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
   }
 
   const planuriActive = planuri.filter((p) => p.activ);
+  const oprireDeschisa = opriri.find((o) => o.sfarsit === null) ?? null;
+  const inGarantie = echipament.garantie_expira !== null && echipament.garantie_expira >= azi;
+  const casat = echipament.status === "casat";
 
-  /*
-   * Fără sortare pe niciunul dintre cele două tabele: ambele citiri sunt
-   * secțiuni ale unei fișe — contoarele se citesc întregi, iar intervențiile cu
-   * o limită fixă de 50. Un antet care pare sortabil și nu face nimic e mai rău
-   * decât unul care nu pare.
-   */
   const coloaneContoare: readonly Coloana<(typeof contoare)[number]>[] = [
     {
       cheie: "tip",
@@ -200,8 +244,6 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       antet: "Citire",
       numeric: true,
       peTelefon: "meta",
-      // „1284” fără unitate și fără separator de mii nu se compară pe verticală,
-      // iar pe cardul de sub 768px coloana „Tip” nici nu mai stă alături.
       celula: (citire) => formatContor(citire.citire, citire.tip),
     },
     {
@@ -215,7 +257,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       cheie: "citit_de",
       antet: "Citit de",
       peTelefon: "meta",
-      celula: (citire) => numeleAngajatului(citire.citit_de_employee_id),
+      celula: (citire) => angajatLegat(citire.citit_de_employee_id),
     },
     {
       cheie: "observatii",
@@ -223,6 +265,17 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       peTelefon: "meta",
       celula: (citire) => citire.observatii ?? "—",
     },
+    ...(poateScrie && !casat
+      ? [
+          {
+            cheie: "actiuni",
+            antet: "",
+            latime: "ingusta",
+            peTelefon: "actiuni",
+            celula: (citire) => <ActiuniCitire citire={citire} />,
+          } satisfies Coloana<(typeof contoare)[number]>,
+        ]
+      : []),
   ];
 
   const coloaneInterventii: readonly Coloana<(typeof interventiiEchipament.randuri)[number]>[] = [
@@ -250,7 +303,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       antet: "Executant",
       peTelefon: "meta",
       celula: (interventie) =>
-        interventie.executant_extern ?? numeleAngajatului(interventie.executant_employee_id),
+        interventie.executant_extern ?? angajatLegat(interventie.executant_employee_id),
     },
     {
       cheie: "cost",
@@ -279,27 +332,117 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           <Link href="/mentenanta/echipamente" className="underline-offset-2 hover:underline">
             Echipamente
           </Link>
+          {randParinte === null || randParinte === undefined ? null : (
+            <>
+              {" / "}
+              <Link
+                href={`/mentenanta/echipamente/${randParinte.id}`}
+                className="underline-offset-2 hover:underline"
+              >
+                {randParinte.cod}
+              </Link>
+            </>
+          )}
         </p>
         <AntetPagina
           titlu={echipament.cod}
-          descriere={echipament.denumire}
+          descriere={`${echipament.denumire}${echipament.categorie === null ? "" : ` · ${echipament.categorie}`}`}
           actiuni={
-            <Badge ton={TONURI_STATUS_ECHIPAMENT[echipament.status]}>
-              {ETICHETE_STATUS_ECHIPAMENT[echipament.status]}
-            </Badge>
+            <span className="flex flex-wrap items-center justify-end gap-1">
+              {/* Lista de sesizări acceptă precompletarea; de aici lipsea drumul. */}
+              {can(permisiuni, "maintenance:create", "own") ? (
+                <Link
+                  href={`/mentenanta/sesizari?sesizare=noua&echipament=${echipament.id}`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  Sesizare nouă
+                </Link>
+              ) : null}
+              <Badge ton={TONURI_STATUS_ECHIPAMENT[echipament.status]}>
+                {ETICHETE_STATUS_ECHIPAMENT[echipament.status]}
+              </Badge>
+              {oprireDeschisa !== null ? (
+                <Badge ton="pericol" cuAvertisment>
+                  Oprit de {formatDurataMinute(minuteIntre(oprireDeschisa.inceput, null, acum))}
+                </Badge>
+              ) : null}
+              {inGarantie ? (
+                <Badge ton="neutru">
+                  În garanție până la{" "}
+                  {echipament.garantie_expira === null
+                    ? ""
+                    : formatDate(echipament.garantie_expira)}
+                </Badge>
+              ) : null}
+            </span>
           }
         />
       </div>
+
+      {casat ? (
+        <Callout fel="neutru" titlu="Echipament casat">
+          Casat la {echipament.casat_la === null ? "—" : formatDate(echipament.casat_la)}
+          {echipament.motiv_casare === null ? "." : `: ${echipament.motiv_casare}`} Planurile sunt
+          inactive, iar autorizațiile au ieșit din scadențe. Fișa rămâne pentru istoric.
+        </Callout>
+      ) : null}
+
+      {/* Linkul doar spre o sesizare pe care RLS o întoarce: oprirea se vede la
+          scope `team`, sesizarea nu, când raportorul e din afara echipei. */}
+      {oprireDeschisa !== null &&
+      oprireDeschisa.fault_report_id !== null &&
+      sesizariEchipament.randuri.some((s) => s.id === oprireDeschisa.fault_report_id) ? (
+        <Callout fel="atentie" titlu="Utilajul nu funcționează">
+          Oprit din {formatDateTime(oprireDeschisa.inceput)} (
+          {ETICHETE_TIP_OPRIRE[oprireDeschisa.tip]}
+          ).{" "}
+          <Link
+            href={`/mentenanta/sesizari/${oprireDeschisa.fault_report_id}`}
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            Deschideți sesizarea
+          </Link>{" "}
+          ca să vedeți ce s-a făcut și cine lucrează la ea.
+        </Callout>
+      ) : null}
 
       <section aria-labelledby="identificare" className="space-y-3">
         <h2 id="identificare" className="text-sectiune font-semibold">
           Identificare
         </h2>
         <dl className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Camp eticheta="Categorie" valoare={echipament.categorie ?? "—"} />
           <Camp eticheta="Serie" valoare={echipament.serie ?? "—"} />
           <Camp eticheta="Producător" valoare={echipament.producator ?? "—"} />
           <Camp eticheta="Model" valoare={echipament.model ?? "—"} />
           <Camp eticheta="An fabricație" valoare={echipament.an_fabricatie?.toString() ?? "—"} />
+          <Camp eticheta="Marcaj CE" valoare={ETICHETE_MARCAJ_CE[echipament.marcaj_ce]} />
+          {punctLucru !== null &&
+          poateDeschide("/puncte-lucru", { features, permissions: permisiuni }) ? (
+            <div>
+              <dt className="text-muted-foreground text-nota">Punct de lucru</dt>
+              <dd className="text-corp font-medium">
+                <Link
+                  href={`/puncte-lucru?punct=${punctLucru.id}#punct-${punctLucru.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {punctLucru.nume}
+                </Link>
+                {/* Celelalte echipamente ale locației: lista are deja filtrul `?punct_lucru=`. */}
+                <Link
+                  href={`/mentenanta/echipamente?punct_lucru=${punctLucru.id}`}
+                  className="text-muted-foreground text-nota ml-2 font-normal underline-offset-2 hover:underline"
+                >
+                  echipamentele locației
+                </Link>
+              </dd>
+            </div>
+          ) : (
+            <Camp
+              eticheta="Punct de lucru"
+              valoare={punctLucru?.nume ?? (echipament.punct_lucru_id === null ? "—" : "Setat")}
+            />
+          )}
           <Camp eticheta="Locație" valoare={echipament.locatie ?? "—"} />
           <Camp eticheta="Departament" valoare={departament?.nume ?? "—"} />
           <Camp
@@ -320,13 +463,45 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
               echipament.valoare_achizitie === null ? "—" : formatLei(echipament.valoare_achizitie)
             }
           />
+          <Camp
+            eticheta="Garanție"
+            valoare={
+              echipament.garantie_expira === null
+                ? "—"
+                : `${inGarantie ? "până la" : "expirată la"} ${formatDate(echipament.garantie_expira)}`
+            }
+          />
+          <Camp eticheta="Service în garanție" valoare={echipament.service_garantie ?? "—"} />
+          <Camp eticheta="Risc specific" valoare={echipament.risc_specific ? "Da" : "Nu"} />
+          <Camp
+            eticheta="Folosit în afara sediului"
+            valoare={echipament.folosit_in_afara_sediului ? "Da" : "Nu"}
+          />
           <Camp eticheta="Sub incidența ISCIR" valoare={echipament.este_iscir ? "Da" : "Nu"} />
           {echipament.este_iscir ? (
-            <Camp
-              eticheta="Tip autorizare necesară"
-              valoare={echipament.tip_autorizare_necesara ?? "—"}
-            />
+            poateDeschide("/ssm/autorizatii", { features, permissions: permisiuni }) &&
+            echipament.tip_autorizare_necesara !== null ? (
+              <div>
+                <dt className="text-muted-foreground text-nota">Tip autorizare necesară</dt>
+                <dd className="text-corp font-medium">
+                  <Link href="/ssm/autorizatii" className="underline-offset-2 hover:underline">
+                    {echipament.tip_autorizare_necesara}
+                  </Link>
+                </dd>
+              </div>
+            ) : (
+              <Camp
+                eticheta="Tip autorizare necesară"
+                valoare={echipament.tip_autorizare_necesara ?? "—"}
+              />
+            )
           ) : null}
+          {echipament.observatii === null ? null : (
+            <div className="sm:col-span-2 lg:col-span-4">
+              <dt className="text-muted-foreground text-nota">Observații</dt>
+              <dd className="text-corp whitespace-pre-wrap">{echipament.observatii}</dd>
+            </div>
+          )}
           {echipament.derogare_motiv !== null ? (
             <div className="sm:col-span-2 lg:col-span-4">
               <dt className="text-muted-foreground text-nota">Derogare ISCIR acordată</dt>
@@ -340,35 +515,102 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           ) : null}
         </dl>
 
-        {poateScrie ? (
-          <div>
-            <ButonEditeazaEchipament
-              echipament={{
-                id: echipament.id,
-                cod: echipament.cod,
-                denumire: echipament.denumire,
-                serie: echipament.serie,
-                producator: echipament.producator,
-                model: echipament.model,
-                an_fabricatie: echipament.an_fabricatie,
-                locatie: echipament.locatie,
-                department_id: echipament.department_id,
-                responsabil_employee_id: echipament.responsabil_employee_id,
-                status: echipament.status,
-                este_iscir: echipament.este_iscir,
-                tip_autorizare_necesara: echipament.tip_autorizare_necesara,
-                valoare_achizitie: echipament.valoare_achizitie,
-                data_punerii_in_functiune: echipament.data_punerii_in_functiune,
-                derogare_motiv: echipament.derogare_motiv,
-              }}
-              angajati={angajatiPentruResponsabil}
-              departamente={departamente}
-              ssmActiv={features.has("ssm")}
-              poateDerogare={can(permisiuni, "maintenance:update", "all")}
+        <div className="flex flex-wrap items-center gap-2">
+          {poateScrie ? (
+            <>
+              <ButonEditeazaEchipament
+                echipament={{
+                  id: echipament.id,
+                  cod: echipament.cod,
+                  denumire: echipament.denumire,
+                  serie: echipament.serie,
+                  producator: echipament.producator,
+                  model: echipament.model,
+                  an_fabricatie: echipament.an_fabricatie,
+                  locatie: echipament.locatie,
+                  department_id: echipament.department_id,
+                  responsabil_employee_id: echipament.responsabil_employee_id,
+                  status: echipament.status,
+                  este_iscir: echipament.este_iscir,
+                  tip_autorizare_necesara: echipament.tip_autorizare_necesara,
+                  valoare_achizitie: echipament.valoare_achizitie,
+                  data_punerii_in_functiune: echipament.data_punerii_in_functiune,
+                  derogare_motiv: echipament.derogare_motiv,
+                  categorie: echipament.categorie,
+                  punct_lucru_id: echipament.punct_lucru_id,
+                  garantie_expira: echipament.garantie_expira,
+                  service_garantie: echipament.service_garantie,
+                  parent_equipment_id: echipament.parent_equipment_id,
+                  marcaj_ce: echipament.marcaj_ce,
+                  risc_specific: echipament.risc_specific,
+                  folosit_in_afara_sediului: echipament.folosit_in_afara_sediului,
+                  observatii: echipament.observatii,
+                }}
+                angajati={angajatiPentruResponsabil}
+                departamente={departamente}
+                puncteLucru={puncteLucru}
+                parinti={parinti}
+                categorii={categorii}
+                ssmActiv={features.has("ssm")}
+                poateDerogare={can(permisiuni, "maintenance:update", "all")}
+              />
+              <ButonSchimbaStarea
+                echipamentId={echipament.id}
+                statusCurent={echipament.status}
+                azi={azi}
+              />
+              {/* Cinci stivuitoare identice se introduc din cinci clicuri: caseta
+                  de pe listă se deschide cu câmpurile acestei fișe, fără cod și
+                  fără serie (amândouă unice pe utilaj). */}
+              <Link
+                href={`/mentenanta/echipamente?echipament=nou&model=${echipament.id}`}
+                className={buton({ varianta: "tertiar" })}
+              >
+                Adaugă unul la fel
+              </Link>
+            </>
+          ) : null}
+          <Link
+            href={`/mentenanta/echipamente/${echipament.id}/eticheta`}
+            className={buton({ varianta: "tertiar" })}
+          >
+            <QrCode aria-hidden="true" className="size-4" />
+            Etichetă QR
+          </Link>
+          {poateSterge ? (
+            <ButonStergeEchipament
+              echipamentId={echipament.id}
+              cod={echipament.cod}
+              planuri={planuri.length}
+              citiri={contoare.length}
             />
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </section>
+
+      {componente.length === 0 ? null : (
+        <section aria-labelledby="componente" className="space-y-3">
+          <h2 id="componente" className="text-sectiune font-semibold">
+            Componente
+          </h2>
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {componente.map((c) => (
+              <li key={c.id} className="border-border rounded-panou border p-3">
+                <Link
+                  href={`/mentenanta/echipamente/${c.id}`}
+                  className="font-medium underline-offset-2 hover:underline"
+                >
+                  {c.cod} — {c.denumire}
+                </Link>
+                <p className="text-muted-foreground text-nota">
+                  {ETICHETE_STATUS_ECHIPAMENT[c.status]}
+                  {c.categorie === null ? "" : ` · ${c.categorie}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="contoare" className="space-y-3">
         <h2 id="contoare" className="text-sectiune font-semibold">
@@ -386,7 +628,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
             </p>
           }
         />
-        {poateScrie ? (
+        {poateScrie && !casat ? (
           <FormularContor equipmentId={echipament.id} angajati={angajatiGenerali} />
         ) : null}
       </section>
@@ -421,21 +663,22 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                 >
                   <div>
                     <p className="font-medium">
-                      {plan.denumire}
+                      <Link
+                        href={`/mentenanta/planuri/${plan.id}`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {plan.denumire}
+                      </Link>
                       {!plan.activ ? (
                         <span className="text-muted-foreground text-nota ml-2">(inactiv)</span>
                       ) : null}
                     </p>
                     <p className="text-muted-foreground text-nota">
                       {ETICHETE_TIP_MENTENANTA[plan.tip]} · Responsabil:{" "}
-                      {numeleAngajatului(plan.responsabil_employee_id)}
+                      {angajatLegat(plan.responsabil_employee_id)}
                     </p>
                     <p className="text-muted-foreground text-nota">{formatPeriodicitate(plan)}</p>
-                    {/* `FormularPlan` își poartă singur butonul de declanșare
-                        de când e casetă: `ButonEditeazaPlan`, învelișul care
-                        ținea starea „deschis/închis" pentru fiecare plan din
-                        listă, n-a mai avut ce face și a fost șters. */}
-                    {poateScrie ? (
+                    {poateScrie && !casat ? (
                       <div className="mt-2">
                         <FormularPlan
                           equipmentId={echipament.id}
@@ -460,7 +703,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
             })}
           </ul>
         )}
-        {poateScrie ? (
+        {poateScrie && !casat ? (
           <FormularPlan equipmentId={echipament.id} angajati={angajatiGenerali} />
         ) : null}
       </section>
@@ -469,6 +712,17 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         <h2 id="interventii" className="text-sectiune font-semibold">
           Istoricul intervențiilor
         </h2>
+
+        {/* Istoricul e tăiat la 50: lista filtrată pe utilaj are tot restul. */}
+
+        <p className="text-nota">
+          <Link
+            href={`/mentenanta/interventii?echipament=${echipament.id}`}
+            className="underline-offset-2 hover:underline"
+          >
+            Vezi toate intervențiile pe acest utilaj
+          </Link>
+        </p>
         <Tabel
           caption="Intervențiile de mentenanță înregistrate pe acest echipament."
           coloane={coloaneInterventii}
@@ -480,13 +734,65 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
             </p>
           }
         />
-        {poateScrie ? (
+        {poateScrie && !casat ? (
           <FormularInterventie
             equipmentId={echipament.id}
             planuri={planuriActive.map((p) => ({ id: p.id, nume: p.denumire }))}
             angajati={angajatiGenerali}
           />
         ) : null}
+      </section>
+
+      <section aria-labelledby="opriri" className="space-y-3">
+        <h2 id="opriri" className="text-sectiune font-semibold">
+          Jurnalul opririlor
+        </h2>
+        {opriri.length === 0 ? (
+          <p className="text-muted-foreground text-corp">
+            Nicio oprire înregistrată. Sesizările care opresc utilajul și intervențiile cu timp de
+            oprire scriu aici singure.
+          </p>
+        ) : (
+          <ul className="border-border divide-border rounded-panou divide-y border">
+            {opriri.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
+                <div>
+                  <p className="text-corp font-medium">
+                    {formatDateTime(o.inceput)}
+                    {o.sfarsit === null ? " — în curs" : ` — ${formatDateTime(o.sfarsit)}`}
+                  </p>
+                  <p className="text-muted-foreground text-nota">
+                    {ETICHETE_TIP_OPRIRE[o.tip]}
+                    {o.motiv === null ? "" : ` · ${o.motiv}`}
+                    {o.fault_report_id === null ||
+                    !sesizariEchipament.randuri.some((s) => s.id === o.fault_report_id) ? null : (
+                      <>
+                        {" · "}
+                        <Link
+                          href={`/mentenanta/sesizari/${o.fault_report_id}`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          sesizarea
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <Badge ton={o.sfarsit === null ? "pericol" : "neutru"}>
+                  {formatDurataMinute(minuteIntre(o.inceput, o.sfarsit, acum))}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="documente" className="space-y-3">
+        <h2 id="documente" className="text-sectiune font-semibold">
+          Documente
+        </h2>
+        <DocumenteEchipament atasamente={documente} urluri={urluri} poateSterge={poateScrie} />
+        {poateScrie ? <IncarcareDocument entityType="equipment" entityId={echipament.id} /> : null}
       </section>
 
       <section aria-labelledby="iscir" className="space-y-3">
@@ -501,14 +807,6 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           <ul className="space-y-2">
             {autorizatii.map((autorizatie) => {
               const stare = stareScadentaData(autorizatie.valabil_pana, azi);
-              /*
-               * `scadenta_verificare_tehnica` și `conditii` erau SELECTATE de
-               * `autorizatiiIscir` și nu ajungeau pe ecran. Verificarea tehnică
-               * periodică e o scadență legală distinctă de valabilitatea
-               * autorizației: o autorizație valabilă până în 2028 cu verificarea
-               * expirată luna trecută scoate utilajul din legalitate la fel de
-               * sigur ca una expirată.
-               */
               const stareVerificare = stareScadentaData(
                 autorizatie.scadenta_verificare_tehnica,
                 azi,
@@ -519,9 +817,6 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                 <li
                   key={autorizatie.id}
                   className={`rounded-panou flex flex-wrap items-start justify-between gap-3 border p-3 ${
-                    // Suspendarea era un fragment de text de 12px lipit după
-                    // emitent, pentru starea care spune că utilajul nu are voie
-                    // să funcționeze. Rândul întreg o poartă acum.
                     suspendata ? "border-danger/40 bg-danger/8" : "border-border"
                   }`}
                 >
@@ -576,13 +871,22 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
             })}
           </ul>
         )}
-        {poateScrie ? <FormularIscir equipmentId={echipament.id} /> : null}
+        {poateScrie && !casat ? <FormularIscir equipmentId={echipament.id} /> : null}
       </section>
 
       <section aria-labelledby="sesizari-legate" className="space-y-3">
         <h2 id="sesizari-legate" className="text-sectiune font-semibold">
           Sesizări legate
         </h2>
+
+        <p className="text-nota">
+          <Link
+            href={`/mentenanta/sesizari?echipament=${echipament.id}`}
+            className="underline-offset-2 hover:underline"
+          >
+            Vezi toate sesizările pe acest utilaj
+          </Link>
+        </p>
         {sesizariEchipament.randuri.length === 0 ? (
           <p className="text-muted-foreground text-corp">
             Nicio sesizare înregistrată pentru acest echipament.
@@ -599,6 +903,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                     href={`/mentenanta/sesizari/${sesizare.id}`}
                     className="font-medium underline-offset-2 hover:underline"
                   >
+                    <span className="text-muted-foreground tabular-nums">{sesizare.numar}</span>{" "}
                     {sesizare.descriere}
                   </Link>
                   <p className="text-muted-foreground text-nota">
@@ -619,6 +924,8 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           </ul>
         )}
       </section>
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={echipament.id} />
     </div>
   );
 }

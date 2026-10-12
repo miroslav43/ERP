@@ -17,6 +17,7 @@ import { cheieCautare } from "@/lib/text/diacritice";
 import { clasaBifa } from "@/components/ui/camp";
 
 import { mutaAngajati } from "./actions";
+import { arataToast } from "@/components/ui/toast";
 
 /**
  * Panoul de lucru cu persoanele unui departament.
@@ -57,9 +58,28 @@ export interface OptiuneDepartamentPanou {
   readonly activ: boolean;
 }
 
+/** Porțile paginilor-țintă ale railului — calculate pe server, prin `poateDeschide`. */
+export type LegaturiPanou = Readonly<{
+  angajati: boolean;
+  pontaj: boolean;
+  aprobare: boolean;
+  tichete: boolean;
+  organigrama: boolean;
+  /** Matricea de instruiri filtrată pe departament (`ssm:read` + `employees:read`). */
+  instruiri: boolean;
+}>;
+
 export type PropsPanouDepartament = Readonly<{
   deschis: boolean;
   laInchidere: () => void;
+  legaturi: LegaturiPanou;
+  /** Departamentul superior din arbore; `null` la rădăcină sau la nerepartizați. */
+  parinte: Readonly<{ id: string; denumire: string }> | null;
+  subordonate: readonly Readonly<{ id: string; denumire: string; efectiv: number }>[];
+  /** Deschide alt departament în același panou (schimbă `?departament=`). */
+  laDeschidere: (id: string) => void;
+  /** `users:update = all`, poarta lui `/setari/membri` — altfel „Invită un cofondator" duce în refuz. */
+  poateInvita: boolean;
   /** `null` = panoul nerepartizaților. */
   departament: OptiuneDepartamentPanou | null;
   /**
@@ -73,6 +93,12 @@ export type PropsPanouDepartament = Readonly<{
    * cerut-o.
    */
   managerId: string | null;
+  /**
+   * Embed-ul managerului, cu trei stări: rând → nume legat; `null` cu
+   * `managerId` → „în afara echipei tale" (RLS l-a ascuns, fișa nu s-ar
+   * deschide); ambele `null` → nedesemnat.
+   */
+  manager: Readonly<{ full_name: string }> | null;
   persoane: readonly PersoanaPanou[];
   /** Cine poate fi adus aici: toți ceilalți angajați activi. */
   candidati: readonly PersoanaPanou[];
@@ -87,10 +113,16 @@ export function PanouDepartament({
   laInchidere,
   departament,
   managerId,
+  manager,
   persoane,
   candidati,
   departamente,
   poateMuta,
+  poateInvita,
+  legaturi,
+  parinte,
+  subordonate,
+  laDeschidere,
 }: PropsPanouDepartament) {
   const router = useRouter();
   const [cautare, setCautare] = useState("");
@@ -150,7 +182,31 @@ export function PanouDepartament({
       router.refresh();
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
+        return;
       }
+      // Panoul rămâne pe sursă; ținta tocmai aleasă e la un clic (panoul se
+      // derivă din `?departament=`, deci schimbarea adresei îl deschide).
+      const tintaAleasa =
+        departmentId === null ? null : departamente.find((d) => d.id === departmentId);
+      arataToast({
+        fel: "reusita",
+        text:
+          idUri.length === 1
+            ? "Persoana a fost mutată."
+            : `${String(idUri.length)} persoane au fost mutate.`,
+        ...(tintaAleasa === null || tintaAleasa === undefined
+          ? {}
+          : {
+              actiune: {
+                eticheta: `Deschide ${tintaAleasa.denumire}`,
+                onClick: () => {
+                  const p = new URLSearchParams(window.location.search);
+                  p.set("departament", tintaAleasa.id);
+                  window.history.replaceState(null, "", `?${p.toString()}`);
+                },
+              },
+            }),
+      });
     });
   }
 
@@ -225,6 +281,119 @@ export function PanouDepartament({
   return (
     <PanouLateral deschis={deschis} laInchidere={inchide} titlu={titlu} descriere={descriere}>
       <div className="space-y-4">
+        {departament === null ? null : (
+          <p className="text-corp">
+            <span className="text-muted-foreground">Manager: </span>
+            {managerId === null ? (
+              <span className="text-muted-foreground italic">nedesemnat</span>
+            ) : manager === null ? (
+              <span className="text-muted-foreground italic">în afara echipei dumneavoastră</span>
+            ) : (
+              <Link href={`/angajati/${managerId}`} className="hover:text-primary font-medium">
+                {manager.full_name}
+              </Link>
+            )}
+          </p>
+        )}
+        {/*
+         * Railul: ce ține de departament în celelalte module, prefiltrat pe el.
+         * Filtrele existau (`?department_id=`, `?departament=`), dar nimic nu le
+         * prepopula de aici. Fiecare legătură a trecut pe server prin poarta
+         * paginii-ȚINTĂ; ce nu se poate deschide lipsește, nu duce în refuz.
+         */}
+        {departament === null ? null : (
+          <ul className="text-nota flex flex-wrap gap-x-3 gap-y-1">
+            {legaturi.angajati ? (
+              <li>
+                <Link
+                  href={`/angajati?department_id=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Lista angajaților
+                </Link>
+              </li>
+            ) : null}
+            {legaturi.pontaj ? (
+              <li>
+                <Link
+                  href={`/pontaj?departament=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Foaia de pontaj
+                </Link>
+              </li>
+            ) : null}
+            {legaturi.aprobare ? (
+              <li>
+                <Link
+                  href={`/pontaj/aprobare?departament=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Aprobări de pontaj
+                </Link>
+              </li>
+            ) : null}
+            {legaturi.tichete ? (
+              <li>
+                <Link
+                  href={`/ticketing/coada?department_id=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Tichete
+                </Link>
+              </li>
+            ) : null}
+            {legaturi.instruiri ? (
+              <li>
+                <Link
+                  href={`/ssm/instruiri?departament=${departament.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Instruiri SSM
+                </Link>
+              </li>
+            ) : null}
+          </ul>
+        )}
+        {/* Vecinii din arbore: panoul listează doar membrii direcți, dar cardul numără și subordonatele. */}
+        {departament !== null && (parinte !== null || subordonate.length > 0) ? (
+          <div className="text-nota space-y-1">
+            {parinte === null ? null : (
+              <p>
+                <span className="text-muted-foreground">Parte din: </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    laDeschidere(parinte.id);
+                  }}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {parinte.denumire}
+                </button>
+              </p>
+            )}
+            {subordonate.length === 0 ? null : (
+              <p>
+                <span className="text-muted-foreground">Subordonate: </span>
+                {subordonate.map((s, i) => (
+                  <span key={s.id}>
+                    {i > 0 ? ", " : ""}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        laDeschidere(s.id);
+                      }}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {s.denumire}
+                    </button>
+                    <span className="text-muted-foreground tabular-nums"> ({s.efectiv})</span>
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+        ) : null}
         {/*
          * Mecanismul e corect și fără nota asta, dar invizibil: nimic din
          * ecranul de departamente nu spune că un cofondator se adaugă
@@ -235,11 +404,18 @@ export function PanouDepartament({
           <Callout
             fel="informativ"
             titlu="Conducerea firmei"
-            actiune={
-              <Link href="/setari/membri" className="text-nota font-medium underline">
-                Invită un cofondator
-              </Link>
-            }
+            {...(poateInvita
+              ? {
+                  actiune: (
+                    <Link
+                      href="/setari/membri?rol=org_admin"
+                      className="text-nota font-medium underline"
+                    >
+                      Invită un cofondator
+                    </Link>
+                  ),
+                }
+              : {})}
           >
             Administratorii intră aici automat: invită pe cineva cu rolul „Administrator” și apare
             singur în listă. Poți aduce aici, cu câmpul de mai jos, și asociați sau directori care
@@ -254,7 +430,18 @@ export function PanouDepartament({
          * omul care mută pe cineva crede că a mutat și drepturile de aprobare.
          */}
         {poateMuta ? (
-          <Callout fel="informativ">
+          <Callout
+            fel="informativ"
+            {...(legaturi.organigrama
+              ? {
+                  actiune: (
+                    <Link href="/organigrama" className="text-nota font-medium underline">
+                      Vezi ierarhia managerială
+                    </Link>
+                  ),
+                }
+              : {})}
+          >
             Mutarea între departamente nu schimbă cine vede pe cine. Drepturile de vizibilitate și
             de aprobare vin din managerul direct al fișei, nu din departament.
           </Callout>
@@ -331,6 +518,12 @@ export function PanouDepartament({
                       <span className="text-muted-foreground text-nota block truncate">
                         <span className="font-mono">{p.marca}</span>
                         {p.functie === null ? "" : ` · ${p.functie}`}
+                        {p.id === managerId ? (
+                          <>
+                            {" "}
+                            <Badge ton="neutru">Manager</Badge>
+                          </>
+                        ) : null}
                       </span>
                       {/*
                        * Statusul se arată doar când NU e „activ". Persoanele

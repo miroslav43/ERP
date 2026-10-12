@@ -14,6 +14,7 @@
 // opt oameni e o minciună cu trei zecimale: un singur om mută cifra cu 12,5
 // puncte.
 
+import Link from "next/link";
 import type { Metadata } from "next";
 import { ShieldCheck } from "lucide-react";
 
@@ -36,6 +37,8 @@ import { textProgres, treaptaTermen, treaptaValabilitate } from "@/domain/cursur
 import type { TreaptaScadenta } from "@/domain/scadente";
 
 import { NavCursuri } from "../nav-cursuri";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Conformitate" };
 
@@ -78,7 +81,14 @@ function textCelula(celula: CelulaConformitate | undefined): string {
   return celula.termen === null ? "În curs" : formatDate(celula.termen);
 }
 
-export default async function PaginaConformitate() {
+export default async function PaginaConformitate({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?arata=probleme`: doar oamenii cu cel puțin o celulă lipsă, expirată sau
+  // critică — ținta cifrelor din antet, care altfel n-aveau drum.
+  const doarProbleme = (await searchParams)["arata"] === "probleme";
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -93,6 +103,17 @@ export default async function PaginaConformitate() {
   }
 
   const { angajati, cursuri, celule } = await matriceConformitate(tenant.organizationId);
+  // Celula duce la stadiul cursului filtrat pe om; „Neatribuit" duce la
+  // atribuire, dar numai pentru cine poate atribui (`courses:create`).
+  const poateAtribui = can(permisiuni, "courses:create", "team");
+  const hrefCelula = (
+    cursId: string,
+    angajatId: string,
+    celula: CelulaConformitate | undefined,
+  ): string =>
+    celula === undefined && poateAtribui
+      ? `/cursuri/${cursId}/atribuire`
+      : `/cursuri/${cursId}/stadiu?angajat=${angajatId}`;
   const azi = todayInBucharest();
 
   /*
@@ -111,6 +132,7 @@ export default async function PaginaConformitate() {
   let laZi = 0;
   let lipsa = 0;
   let critic = 0;
+  const cuProbleme = new Set<string>();
   for (const angajat of angajati) {
     for (const curs of cursuri) {
       const celula = celule.get(cheieCelula(angajat.id, curs.id));
@@ -125,10 +147,16 @@ export default async function PaginaConformitate() {
        * obișnuit, nu marginal.
        */
       if (esteLaZi(celula, treapta)) laZi += 1;
-      else if (treapta === "lipsa") lipsa += 1;
-      else if (treapta === "expirat" || treapta === "critic") critic += 1;
+      else if (treapta === "lipsa") {
+        lipsa += 1;
+        cuProbleme.add(angajat.id);
+      } else if (treapta === "expirat" || treapta === "critic") {
+        critic += 1;
+        cuProbleme.add(angajat.id);
+      }
     }
   }
+  const angajatiAfisati = doarProbleme ? angajati.filter((a) => cuProbleme.has(a.id)) : angajati;
 
   return (
     <div className={`${LATIMI.lista} space-y-6`}>
@@ -162,7 +190,9 @@ export default async function PaginaConformitate() {
           }
           actiune={
             cursuri.length > 0
-              ? { eticheta: "Deschideți lista de angajați", href: "/angajati" }
+              ? can(permisiuni, "employees:read", "own")
+                ? { eticheta: "Deschideți lista de angajați", href: "/angajati" }
+                : { eticheta: "Vedeți cursurile", href: "/cursuri" }
               : primul === undefined
                 ? { eticheta: "Vedeți cursurile", href: "/cursuri" }
                 : {
@@ -177,11 +207,9 @@ export default async function PaginaConformitate() {
       ) : (
         <>
           {/*
-            Indicatorii de aici rămân fără `href`, spre deosebire de cei din
-            `stadiu`. Nu din neglijență: nu există nicio listă filtrată către
-            care să trimită — conformitatea e o matrice, iar detaliul util e
-            celula, nu o sublistă. O cifră cu drum inventat e mai rea decât una
-            fără drum: promite o filtrare care nu există.
+            „Neatribuite" și „Expirate" duc la matricea restrânsă la oamenii cu
+            probleme (`?arata=probleme`): nu e o sublistă inventată, e aceeași
+            matrice, cu rândurile fără nimic de rezolvat ascunse.
           */}
           <section aria-label="Rezumat" className="grid gap-3 sm:grid-cols-3">
             <Indicator
@@ -195,13 +223,25 @@ export default async function PaginaConformitate() {
               valoare={String(lipsa)}
               ton={lipsa === 0 ? "bun" : "atentie"}
               nota={lipsa === 0 ? "Toată lumea are ce-i trebuie." : "Cursuri obligatorii nedate."}
+              {...(lipsa > 0 ? { href: "/cursuri/conformitate?arata=probleme" } : {})}
             />
             <Indicator
               eticheta="Expirate sau pe ultima sută"
               valoare={String(critic)}
               ton={critic === 0 ? "bun" : "pericol"}
+              {...(critic > 0 ? { href: "/cursuri/conformitate?arata=probleme" } : {})}
             />
           </section>
+
+          {doarProbleme ? (
+            <p className="text-muted-foreground text-nota">
+              Doar {String(angajatiAfisati.length)}{" "}
+              {angajatiAfisati.length === 1 ? "persoană" : "persoane"} cu situații de rezolvat.{" "}
+              <Link href="/cursuri/conformitate" className="underline-offset-2 hover:underline">
+                Arată pe toată lumea
+              </Link>
+            </p>
+          ) : null}
 
           {/* Laptop: matricea propriu-zisă. La opt angajați și șase cursuri
               încape întreagă, fără derulare — avantajul scării mici. */}
@@ -224,24 +264,33 @@ export default async function PaginaConformitate() {
                       scope="col"
                       className="border-border text-eticheta border-b p-2 text-start uppercase"
                     >
-                      {curs.denumire}
+                      <Link href={`/cursuri/${curs.id}/stadiu`} className="hover:underline">
+                        {curs.denumire}
+                      </Link>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {angajati.map((angajat) => (
+                {angajatiAfisati.map((angajat) => (
                   <tr key={angajat.id}>
                     <th scope="row" className="border-border border-b p-2 text-start font-medium">
-                      {angajat.nume}
+                      <LinkEntitate href={hrefFisa({ id: angajat.id }, permisiuni)}>
+                        {angajat.nume}
+                      </LinkEntitate>
                     </th>
                     {cursuri.map((curs) => {
                       const celula = celule.get(cheieCelula(angajat.id, curs.id));
                       return (
                         <td key={curs.id} className="border-border border-b p-2">
-                          <Scadenta treapta={treaptaCelula(celula, azi)}>
-                            {textCelula(celula)}
-                          </Scadenta>
+                          <Link
+                            href={hrefCelula(curs.id, angajat.id, celula)}
+                            className="inline-block underline-offset-2 hover:underline"
+                          >
+                            <Scadenta treapta={treaptaCelula(celula, azi)}>
+                              {textCelula(celula)}
+                            </Scadenta>
+                          </Link>
                         </td>
                       );
                     })}
@@ -253,9 +302,13 @@ export default async function PaginaConformitate() {
 
           {/* Telefon: un card per ANGAJAT, cu lista lui de cursuri. */}
           <ul className="space-y-3 md:hidden">
-            {angajati.map((angajat) => (
+            {angajatiAfisati.map((angajat) => (
               <li key={angajat.id} className="bg-surface border-border rounded-panou border p-3">
-                <p className="font-medium">{angajat.nume}</p>
+                <p className="font-medium">
+                  <LinkEntitate href={hrefFisa({ id: angajat.id }, permisiuni)}>
+                    {angajat.nume}
+                  </LinkEntitate>
+                </p>
                 <ul className="mt-2 space-y-1">
                   {cursuri.map((curs) => {
                     const celula = celule.get(cheieCelula(angajat.id, curs.id));
@@ -264,10 +317,20 @@ export default async function PaginaConformitate() {
                         key={curs.id}
                         className="flex flex-wrap items-center justify-between gap-2"
                       >
-                        <span className="text-corp">{curs.denumire}</span>
-                        <Scadenta treapta={treaptaCelula(celula, azi)}>
-                          {textCelula(celula)}
-                        </Scadenta>
+                        <Link
+                          href={`/cursuri/${curs.id}/stadiu`}
+                          className="text-corp hover:underline"
+                        >
+                          {curs.denumire}
+                        </Link>
+                        <Link
+                          href={hrefCelula(curs.id, angajat.id, celula)}
+                          className="inline-block underline-offset-2 hover:underline"
+                        >
+                          <Scadenta treapta={treaptaCelula(celula, azi)}>
+                            {textCelula(celula)}
+                          </Scadenta>
+                        </Link>
                       </li>
                     );
                   })}

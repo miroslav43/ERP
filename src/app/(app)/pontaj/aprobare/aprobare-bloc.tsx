@@ -10,6 +10,7 @@ import { ConfirmareActiune } from "@/components/ui/dialog";
 
 import { aprobaPontajBloc, respingePontajBloc, sincronizeazaConcediile } from "../actions";
 import { textSincronizare } from "../buton-sincronizare-concedii";
+import { arataToast } from "@/components/ui/toast";
 
 interface Proprietati {
   readonly periodId: string;
@@ -159,6 +160,23 @@ export function AprobareBloc({
         return;
       }
       setObservatii("");
+      // Lista se golește prin refresh: fără mesaj, aprobarea părea că n-a
+      // făcut nimic. Lotul e la un clic, evidențiat pe pagina perioadei.
+      arataToast({
+        fel: "reusita",
+        text:
+          rezultat.data.liniiAprobate === 1
+            ? "O linie de pontaj a fost aprobată."
+            : `${String(rezultat.data.liniiAprobate)} linii de pontaj au fost aprobate.`,
+        actiune: {
+          eticheta: "Vezi lotul",
+          onClick: () => {
+            router.push(
+              `/pontaj/perioade/${periodId}?lot=${rezultat.data.id}#lot-${rezultat.data.id}`,
+            );
+          },
+        },
+      });
       router.refresh();
     });
   }

@@ -11,7 +11,11 @@ import { STATUS_VEHICUL } from "@/schemas/fleet";
 import type { StatusVehicul } from "@/schemas/fleet";
 
 import { actualizeazaVehicul } from "../actions";
-import { CampuriVehicul, type ValoriInitialeVehicul } from "../campuri-vehicul";
+import {
+  CampuriVehicul,
+  type OptiuneDepartament,
+  type ValoriInitialeVehicul,
+} from "../campuri-vehicul";
 import { ETICHETE_STATUS_VEHICUL } from "../etichete";
 import { valoriVehicul } from "../valori-vehicul";
 
@@ -39,9 +43,8 @@ interface Proprietati {
       id: string;
       status: StatusVehicul;
       motiv_iesire: string | null;
-      employee_id: string | null;
-      department_id: string | null;
     }>;
+  readonly departamente: readonly OptiuneDepartament[];
 }
 
 const IESE_DIN_PARC: ReadonlySet<StatusVehicul> = new Set<StatusVehicul>(["vandut", "casat"]);
@@ -122,7 +125,7 @@ function StareaVehiculului<TData>({
   );
 }
 
-export function DialogVehicul({ vehicul }: Proprietati): ReactElement {
+export function DialogVehicul({ vehicul, departamente }: Proprietati): ReactElement {
   async function trimite(date: FormData) {
     return actualizeazaVehicul({
       id: vehicul.id,
@@ -149,15 +152,11 @@ export function DialogVehicul({ vehicul }: Proprietati): ReactElement {
     >
       {(stare, idc) => (
         <>
-          {/* Alocarea curentă călătorește nevăzută: fără ea, orice salvare a
-              fișei ar șterge un șofer sau un departament setat altundeva.
-              Vezi `valori-vehicul.ts`. */}
-          <input type="hidden" name="employee_id" value={vehicul.employee_id ?? ""} />
-          <input type="hidden" name="department_id" value={vehicul.department_id ?? ""} />
-
+          {/* Șoferul nu mai călătorește prin câmp ascuns: din 0173 se schimbă
+              doar prin alocare, iar acțiunea nu-l mai trimite. */}
           <StareaVehiculului stare={stare} idc={idc} vehicul={vehicul} />
 
-          <CampuriVehicul stare={stare} idc={idc} vehicul={vehicul} />
+          <CampuriVehicul stare={stare} idc={idc} vehicul={vehicul} departamente={departamente} />
         </>
       )}
     </FormularDialog>

@@ -10,8 +10,8 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
@@ -20,10 +20,14 @@ import { angajatiDupaId, listeazaFoi, listeazaVehicule, vehiculeDupaId } from "@
 import { filtreFoiSchema } from "@/schemas/fleet";
 
 import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
-import { NavFlota } from "../nav-flota";
 import { dateFoaieNoua } from "./date-foaie-noua";
 import { DialogFoaieNoua } from "./dialog-foaie-noua";
 import { FiltreFoi } from "./filtre-foi";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_FLOTA } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { legaturaSigura } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Foi de parcurs" };
 
@@ -34,10 +38,16 @@ interface ProprietatiPagina {
 async function TabelFoi({
   organizationId,
   parametri,
+  permisiuni,
+  poateCrea,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly permisiuni: PermissionMap;
+  /** `trip_sheets:create`: starea goală pe un vehicul oferă foaia nouă. */
+  readonly poateCrea: boolean;
 }) {
+  const moduleActive = await getEnabledFeatures(organizationId);
   const filtre = filtreDinUrl(filtreFoiSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaFoi(organizationId, filtre);
 
@@ -52,7 +62,7 @@ async function TabelFoi({
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.status !== null || filtre.vehicul !== null;
+    const areFiltre = filtre.status !== null || filtre.vehicul !== null || filtre.sofer !== null;
     // Ca la /flota: se scot DOAR cheile de filtrare. Un `href="/flota/foi"` sec
     // ar fi luat cu el și sortarea coloanelor, și mărimea paginii.
     const faraFiltre = adresa((p) => {
@@ -70,7 +80,17 @@ async function TabelFoi({
             ? "Ștergeți filtrele ca să vedeți toate foile."
             : "Înregistrați prima cursă ca să puteți justifica consumul de combustibil."
         }
-        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } } : {})}
+        {...(filtre.vehicul !== null && poateCrea
+          ? {
+              // Omul a venit din fișa vehiculului: prima foaie se pornește de aici, pe el.
+              actiune: {
+                eticheta: "Foaie nouă pe acest vehicul",
+                href: `/flota/foi?vehicul=${filtre.vehicul}&foaie=noua`,
+              },
+            }
+          : areFiltre
+            ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } }
+            : {})}
       />
     );
   }
@@ -105,7 +125,22 @@ async function TabelFoi({
       peTelefon: "meta",
       // „—” și nu gol: absența poate însemna și lipsa dreptului de a vedea
       // vehiculul, nu doar lipsa datei.
-      celula: (f) => vehicule.get(f.vehicle_id)?.nr_inmatriculare ?? "—",
+      celula: (f) => (
+        // Rândul duce la foaie; vehiculul are linkul lui, doar pentru cine
+        // poate deschide fișa vehiculului (managerul n-are `vehicles:*`).
+        <LinkEntitate
+          href={
+            vehicule.has(f.vehicle_id)
+              ? legaturaSigura(`/flota/${f.vehicle_id}`, {
+                  features: moduleActive,
+                  permissions: permisiuni,
+                })
+              : null
+          }
+        >
+          {vehicule.get(f.vehicle_id)?.nr_inmatriculare ?? "—"}
+        </LinkEntitate>
+      ),
     },
     {
       cheie: "sofer",
@@ -115,7 +150,9 @@ async function TabelFoi({
         const sofer = f.employee_id === null ? undefined : soferi.get(f.employee_id);
         return (
           <>
-            {sofer?.full_name ?? "—"}
+            <LinkEntitate href={hrefFisa(sofer, permisiuni)}>
+              {sofer?.full_name ?? "—"}
+            </LinkEntitate>
             {sofer === undefined ? null : (
               <span className="text-muted-foreground"> · {sofer.marca}</span>
             )}
@@ -227,12 +264,21 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
     listeazaVehicule(tenant.organizationId, {
       status: null,
       categorie: null,
+      conformitate: null,
       cauta: null,
       cursor: null,
       limita: 100,
     }),
     poateCrea ? dateFoaieNoua(tenant.organizationId) : Promise.resolve(null),
   ]);
+
+  // Filtrul de intrare din fișa angajatului: numele pastilei, citit sub RLS.
+  const soferFiltrat = filtreDinUrl(filtreFoiSchema, parametri).sofer;
+  const numeSoferFiltrat =
+    soferFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [soferFiltrat])).get(soferFiltrat)
+          ?.full_name ?? null);
 
   return (
     <div className="space-y-6">
@@ -255,22 +301,23 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
                   key={deschideCaseta ? "foaie-noua" : "listă"}
                   date={dateFoaie}
                   deschisInitial={deschideCaseta}
+                  vehiculInitial={filtreDinUrl(filtreFoiSchema, parametri).vehicul}
+                  poateVedeaParcul={can(permisiuni, "vehicles:read", "own")}
                 />
               ),
             })}
-        file={
-          <NavFlota
-            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
-          />
-        }
+        file={<FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />}
       />
 
-      <FiltreFoi parametri={parametri} vehicule={vehiculeFiltru} />
+      <FiltreFoi parametri={parametri} vehicule={vehiculeFiltru} numeSofer={numeSoferFiltrat} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
-        <TabelFoi organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelFoi
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          permisiuni={permisiuni}
+          poateCrea={poateCrea}
+        />
       </Suspense>
     </div>
   );

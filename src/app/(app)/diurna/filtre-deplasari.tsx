@@ -26,6 +26,8 @@ import { ETICHETE_STATUS_DEPLASARE } from "./etichete";
 export type PropsFiltreDeplasari = Readonly<{
   /** `await searchParams` din pagină — aceeași sursă pe care o citește tabelul. */
   parametri: Record<string, string | string[] | undefined>;
+  /** Numele din `?angajat=`, rezolvat de pagină sub RLS; `null` = necunoscut sau absent. */
+  numeAngajat?: string | null;
 }>;
 
 /**
@@ -34,7 +36,10 @@ export type PropsFiltreDeplasari = Readonly<{
  */
 const CHEI_PROPRII = ["status"] as const;
 
-export function FiltreDeplasari({ parametri }: PropsFiltreDeplasari): ReactElement {
+export function FiltreDeplasari({
+  parametri,
+  numeAngajat = null,
+}: PropsFiltreDeplasari): ReactElement {
   // Aceeași citire ca a tabelului: dacă adresa e nevalidă, bara și lista de sub
   // ea arată aceeași interpretare, nu două.
   const filtre = filtreDinUrl(filtreDeplasariSchema, parametri);
@@ -46,9 +51,14 @@ export function FiltreDeplasari({ parametri }: PropsFiltreDeplasari): ReactEleme
       eticheta: `Stare: ${ETICHETE_STATUS_DEPLASARE[filtre.status]}`,
     });
   }
+  // Filtrul de intrare se vede ca pastilă și se poate șterge, dar nu are câmp
+  // în bară: se alege de pe fișa omului, nu de aici.
+  if (filtre.angajat !== null) {
+    active.push({ cheie: "angajat", eticheta: `Angajat: ${numeAngajat ?? "ales"}` });
+  }
 
   return (
-    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII}>
+    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII} cheiExterne={["angajat"]}>
       <Camp nume="status" eticheta="Stare" fel="select" className="w-full sm:w-56">
         {(atribute) => (
           // `key` legat de valoarea din adresă: un `<select>` necontrolat își

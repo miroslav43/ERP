@@ -11,7 +11,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
@@ -21,6 +21,7 @@ import {
   categorii,
   listeazaObiecte,
   rezumatInventar,
+  numeleAngajatilor,
 } from "@/lib/queries/inventory";
 import { filtreInventarSchema } from "@/schemas/inventory";
 
@@ -28,6 +29,9 @@ import { DialogObiectNou } from "./dialog-obiect-nou";
 import { ETICHETE_STARE, ETICHETE_STATUS, TONURI_STARE, TONURI_STATUS } from "./etichete";
 import { FiltreInventar } from "./filtre-inventar";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Inventar" };
 
@@ -46,6 +50,7 @@ interface ProprietatiTabel {
   readonly categorii: readonly OptiuneCategorie[];
   /** Doar `inventory:update = all` poate adăuga — starea goală nu oferă altora un drum închis. */
   readonly poateScrie: boolean;
+  readonly permisiuni: PermissionMap;
 }
 
 /**
@@ -102,6 +107,7 @@ async function TabelInventar({
   parametri,
   categorii: listaCategorii,
   poateScrie,
+  permisiuni,
 }: ProprietatiTabel) {
   const filtre = filtreDinUrl(filtreInventarSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaObiecte(
@@ -115,7 +121,8 @@ async function TabelInventar({
       filtre.numar !== null ||
       filtre.status !== null ||
       filtre.stare !== null ||
-      filtre.category_id !== null;
+      filtre.category_id !== null ||
+      filtre.angajat !== null;
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -187,8 +194,18 @@ async function TabelInventar({
       cheie: "categorie",
       antet: "Categorie",
       peTelefon: "meta",
+      // Filtrul `category_id` exista; celula era text.
       celula: (rand) =>
-        rand.category_id === null ? "—" : (numeCategorii.get(rand.category_id) ?? "—"),
+        rand.category_id === null ? (
+          "—"
+        ) : (
+          <Link
+            href={`/inventar?category_id=${rand.category_id}`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {numeCategorii.get(rand.category_id) ?? "—"}
+          </Link>
+        ),
     },
     {
       cheie: "circuit",
@@ -208,7 +225,16 @@ async function TabelInventar({
       cheie: "detinut_de",
       antet: "Deținut de",
       peTelefon: "meta",
-      celula: (rand) => detinatori.get(rand.id)?.angajatNume ?? "—",
+      celula: (rand) => {
+        const detinator = detinatori.get(rand.id);
+        return detinator === undefined ? (
+          "—"
+        ) : (
+          <LinkEntitate href={hrefFisa(detinator.angajat, permisiuni)}>
+            {detinator.angajatNume ?? "—"}
+          </LinkEntitate>
+        );
+      },
     },
     {
       cheie: "valoare",
@@ -282,6 +308,13 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
   // Aceleași filtre pe care le vede lista: bara le arată în câmpuri și ca pastile.
   const filtre = filtreDinUrl(filtreInventarSchema, parametri);
 
+  // Numele pentru pastila „În primirea lui: X" — citit sub RLS.
+  const numeAngajatFiltrat =
+    filtre.angajat === null
+      ? null
+      : ((await numeleAngajatilor(tenant.organizationId, [filtre.angajat])).get(filtre.angajat)
+          ?.full_name ?? null);
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -305,6 +338,11 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
                   key={deschideCaseta ? "obiect-nou" : "lista"}
                   categorii={listaCategorii}
                   deschisInitial={deschideCaseta}
+                  denumireInitiala={
+                    typeof parametri["denumire"] === "string"
+                      ? parametri["denumire"].slice(0, 200)
+                      : null
+                  }
                 />
               ),
             }
@@ -317,7 +355,7 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
         </Suspense>
       ) : null}
 
-      <FiltreInventar categorii={listaCategorii} filtre={filtre} />
+      <FiltreInventar categorii={listaCategorii} filtre={filtre} numeAngajat={numeAngajatFiltrat} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelInventar
@@ -325,6 +363,7 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
           parametri={parametri}
           categorii={listaCategorii}
           poateScrie={poateScrie}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

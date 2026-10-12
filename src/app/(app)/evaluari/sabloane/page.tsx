@@ -1,4 +1,5 @@
 // src/app/(app)/evaluari/sabloane/page.tsx
+import Link from "next/link";
 import type { Metadata } from "next";
 import { ClipboardCheck } from "lucide-react";
 
@@ -13,8 +14,9 @@ import { listeazaSabloane } from "@/lib/queries/evaluari";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
 import { ButonSablonNou } from "../_components/constructor-sablon";
-import { FileEvaluari } from "../_components/file-evaluari";
 import { ActiuniSablonEvaluare } from "./actiuni-sablon-evaluare";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Șabloane de evaluare" };
 
@@ -53,7 +55,13 @@ export default async function PaginaSabloaneEvaluare() {
       <AntetPagina
         titlu="Șabloane de evaluare"
         descriere="Seturi de criterii reutilizabile. Se aplică din „Evaluare nouă” sau de pe fișa angajatului, iar evaluarea păstrează criteriile de la momentul completării."
-        file={<FileEvaluari activa="sabloane" nrSabloane={sabloane.length} />}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari({ sabloane: sabloane.length })}
+            tenant={tenant}
+          />
+        }
         {...(poateScrie ? { actiuni: <ButonSablonNou /> } : {})}
       />
 
@@ -128,11 +136,19 @@ export default async function PaginaSabloaneEvaluare() {
                       {sablon.criterii.length === 1 ? "criteriu" : "criterii"}
                       {ponderi.arePonderi ? " · cu ponderi" : " · criterii egale"}
                       {" · "}
-                      {sablon.nrEvaluari === 0
-                        ? "nefolosit încă"
-                        : sablon.nrEvaluari === 1
-                          ? "folosit într-o evaluare"
-                          : `folosit în ${String(sablon.nrEvaluari)} evaluări`}
+                      {sablon.nrEvaluari === 0 ? (
+                        "nefolosit încă"
+                      ) : (
+                        // Lista are deja filtrul pe șablon; cifra duce la el.
+                        <Link
+                          href={`/evaluari?template_id=${sablon.id}`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          {sablon.nrEvaluari === 1
+                            ? "folosit într-o evaluare"
+                            : `folosit în ${String(sablon.nrEvaluari)} evaluări`}
+                        </Link>
+                      )}
                     </p>
                   </div>
                 </div>

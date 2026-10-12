@@ -1,6 +1,22 @@
 // src/schemas/fleet.ts
 import { z } from "zod";
-import { dataOraRomania, optional } from "./comun";
+import { dataOraRomania, numarObligatoriu, numarOptional, optional } from "./comun";
+
+/**
+ * Kilometrajul de bord, obligatoriu.
+ *
+ * NU `z.coerce.number()`: pe `""` și pe `null` acela dă `0`, adică exact
+ * vehiculul „cu 0 km” pe care regula asta îl închide. `numarObligatoriu` scoate
+ * golul ÎNAINTE de coerciție și îl raportează ca lipsă.
+ */
+const kmBord = numarObligatoriu({
+  min: 0,
+  max: 5_000_000,
+  intreg: true,
+  lipsa: "Scrieți kilometrajul de la bord, în km.",
+  mesaj: "Kilometrajul se scrie în cifre.",
+  interval: "Kilometrajul se scrie în km întregi, între 0 și 5.000.000.",
+});
 
 /**
  * Valorile enumerate vin din `0012_fleet.sql`. Sunt scrise aici ca uniuni
@@ -71,6 +87,11 @@ export type SortareFoi = (typeof SORTARI_FOI)[number];
 export const filtreVehiculeSchema = z.object({
   status: optional(z.enum(STATUS_VEHICUL)),
   categorie: optional(z.enum(CATEGORII_VEHICUL)),
+  /**
+   * Filtru de INTRARE (de pe panou/insignă): `expira` = cu un document curent
+   * care expiră în fereastra panoului; `lipsa` = fără niciun document curent.
+   */
+  conformitate: optional(z.enum(["expira", "lipsa"])),
   cauta: optional(z.string().max(32)),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
@@ -82,6 +103,8 @@ export type FiltreVehicule = z.output<typeof filtreVehiculeSchema>;
 export const filtreFoiSchema = z.object({
   status: optional(z.enum(STATUS_FOAIE)),
   vehicul: optional(z.uuid()),
+  /** Filtru de INTRARE (din fișa angajatului): foile unui șofer. */
+  sofer: optional(z.uuid()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   sort: optional(z.string().max(40)),
@@ -120,15 +143,55 @@ const campuriVehicul = {
   an_fabricatie: z.coerce.number().int().min(1900).max(2200).nullable().default(null),
   culoare: z.string().trim().max(40).nullable().default(null),
   consum_mediu_declarat: z.coerce.number().min(0).max(300).nullable().default(null),
-  employee_id: z.uuid().nullable().default(null),
+  // Masa maximă autorizată decide ce documente se cer: rovinieta privește doar
+  // vehiculele de până la 3,5 t, peste se plătește TollRo.
+  capacitate_cilindrica: numarOptional({
+    min: 0,
+    max: 30_000,
+    intreg: true,
+    mesaj: "Scrieți capacitatea cilindrică în cm³.",
+    interval: "Capacitatea cilindrică se scrie în cm³ întregi, cel mult 30.000.",
+  }),
+  masa_maxima_kg: numarOptional({
+    min: 1,
+    max: 100_000,
+    intreg: true,
+    mesaj: "Scrieți masa maximă autorizată în kg.",
+    interval: "Masa se scrie în kg întregi, între 1 și 100.000.",
+  }),
+  numar_locuri: numarOptional({
+    min: 1,
+    max: 200,
+    intreg: true,
+    mesaj: "Scrieți numărul de locuri.",
+    interval: "Numărul de locuri e un întreg între 1 și 200.",
+  }),
+  // `employee_id` NU e aici din 0173: șoferul se schimbă doar prin alocare
+  // (`alocaVehicul`), iar baza refuză scrierea directă cu P0001.
   department_id: z.uuid().nullable().default(null),
+  pool: z.boolean().default(false),
   data_achizitie: z.iso.date().nullable().default(null),
   valoare_achizitie: z.coerce.number().min(0).nullable().default(null),
   prag_salt_km: z.coerce.number().int().min(10).max(100000).nullable().default(null),
   observatii: z.string().trim().max(2000).nullable().default(null),
 };
 
-export const vehiculNouSchema = z.object(campuriVehicul);
+/**
+ * `km_curent` e OBLIGATORIU la creare și există DOAR aici.
+ *
+ * Coloana are `default 0`. Cât timp formularul nu o trimitea, orice vehicul
+ * intra cu 0 km. Prima foaie de parcurs trecea atunci de orice verificare:
+ * triggerul de regres compară cu `greatest(ultima foaie aprobată, km_curent)`,
+ * iar cel de salt cere o bază strict pozitivă. O mașină cumpărată la 87.000 km
+ * accepta pe prima foaie orice cifră.
+ *
+ * La MODIFICARE nu apare. Kilometrajul îl ridică aprobarea foilor, iar
+ * corectura stă în `corecteazaKilometrajSchema`, cu motiv auditat.
+ */
+export const vehiculNouSchema = z.object({
+  ...campuriVehicul,
+  km_curent: kmBord,
+});
 export type VehiculNou = z.output<typeof vehiculNouSchema>;
 
 /**
@@ -165,6 +228,22 @@ export const actualizeazaVehiculSchema = z
 export type ActualizeazaVehicul = z.output<typeof actualizeazaVehiculSchema>;
 
 export const stergeVehiculSchema = z.object({ id: z.uuid() });
+
+/**
+ * Corectura kilometrajului: cifra greșită de la creare sau un bord schimbat.
+ *
+ * Motivul e obligatoriu și ajunge în audit. Kilometrajul e baza verificării
+ * foilor de parcurs, deci cine îl mută trebuie să spună de ce.
+ */
+export const corecteazaKilometrajSchema = z.object({
+  id: z.uuid(),
+  km_curent: kmBord,
+  motiv: z
+    .string()
+    .trim()
+    .min(5, "Scrieți de ce se corectează kilometrajul.")
+    .max(300, "Motivul are cel mult 300 de caractere."),
+});
 
 /**
  * `numar` a fost scos din formular și din tabel.
@@ -238,7 +317,54 @@ export const trimiteFoaieSchema = z.object({
     .number("Scrieți kilometrajul la sosire, în km.")
     .int("Kilometrajul se scrie în km întregi.")
     .min(0, "Kilometrajul nu poate fi negativ."),
+  // Observațiile de la închidere: ce s-a întâmplat pe drum. Înainte, coloana
+  // exista în bază, dar niciun formular n-o scria.
+  observatii: z.string().trim().max(1000).nullable().default(null),
 });
+
+// ── Alocări (0173) ──────────────────────────────────────────────────────────
+
+/**
+ * Predarea vehiculului unui șofer.
+ *
+ * `de_la` e ora României, ca la foi. O alocare nu începe în viitor: nimic n-ar
+ * activa-o la ora ei, deci baza o refuză. Predarea către alt om închide
+ * singură alocarea deschisă, în bază, cu `km_predare` ca restituire.
+ */
+export const alocareSchema = z.object({
+  vehicle_id: z.uuid(),
+  employee_id: z.uuid("Alegeți șoferul căruia i se predă vehiculul."),
+  de_la: dataOraRomania("predării"),
+  km_predare: numarOptional({
+    min: 0,
+    max: 5_000_000,
+    intreg: true,
+    mesaj: "Scrieți kilometrajul la predare, în km.",
+    interval: "Kilometrajul se scrie în km întregi.",
+  }),
+  folosinta_personala: z.boolean().default(false),
+  observatii: z.string().trim().max(1000).nullable().default(null),
+});
+export type Alocare = z.output<typeof alocareSchema>;
+
+export const incheieAlocareSchema = z.object({
+  id: z.uuid(),
+  vehicle_id: z.uuid(),
+  pana_la: dataOraRomania("restituirii"),
+  km_restituire: numarOptional({
+    min: 0,
+    max: 5_000_000,
+    intreg: true,
+    mesaj: "Scrieți kilometrajul la restituire, în km.",
+    interval: "Kilometrajul se scrie în km întregi.",
+  }),
+  observatii: z.string().trim().max(1000).nullable().default(null),
+});
+
+export const stergeAlocareSchema = z.object({ id: z.uuid(), vehicle_id: z.uuid() });
+
+/** Foaia respinsă se întoarce în ciornă, ca șoferul s-o corecteze și s-o retrimită. */
+export const redeschideFoaieSchema = z.object({ id: z.uuid() });
 
 export const decizieFoaieSchema = z.object({
   id: z.uuid(),
@@ -257,7 +383,14 @@ export const alimentareSchema = z.object({
     .number("Scrieți costul alimentării, în lei.")
     .min(0, "Costul nu poate fi negativ."),
   statie: z.string().trim().max(120).nullable().default(null),
-  numar_bon: z.string().trim().max(64).nullable().default(null),
+  // 60, nu 64: `fuel_bon_len` din bază taie la 60. Diferența dădea 23514 în
+  // engleză pentru un bon de 61-64 de caractere.
+  numar_bon: z
+    .string()
+    .trim()
+    .max(60, "Numărul bonului are cel mult 60 de caractere.")
+    .nullable()
+    .default(null),
   alimentat_la: dataOraRomania("alimentării"),
   plin: z.boolean().default(false),
   observatii: z.string().trim().max(500).nullable().default(null),

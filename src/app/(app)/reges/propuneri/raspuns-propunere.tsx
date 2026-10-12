@@ -6,6 +6,7 @@ import { useId, useState, useTransition } from "react";
 
 import { Buton } from "@/components/ui/buton";
 import { raspundePropunerii } from "../actiuni-api";
+import { arataToast } from "@/components/ui/toast";
 
 export function RaspunsPropunere(props: {
   readonly propunereId: string;
@@ -30,6 +31,14 @@ export function RaspunsPropunere(props: {
       });
       if (rezultat.ok) {
         setDeschis(null);
+        // Răspunsul nu se mai poate retrage: se confirmă explicit.
+        arataToast({
+          fel: "reusita",
+          text:
+            raspuns === "acceptata"
+              ? "Propunerea a fost acceptată. Răspunsul pleacă la Inspecția Muncii și nu se mai poate retrage."
+              : "Propunerea a fost respinsă. Răspunsul pleacă la Inspecția Muncii și nu se mai poate retrage.",
+        });
         router.refresh();
       } else {
         setMesaj(rezultat.error.message);

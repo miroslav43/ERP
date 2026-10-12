@@ -15,6 +15,9 @@ export interface RandNotificare {
   readonly title: string;
   readonly body: string | null;
   readonly link: string | null;
+  /** Obiectul notificării, când producătorul l-a scris: baza traducerii la randare. */
+  readonly entity_type: string | null;
+  readonly entity_id: string | null;
   readonly read_at: string | null;
   readonly created_at: string;
 }
@@ -56,13 +59,17 @@ export async function numaraNecitite(organizationId: string, userId: string): Pr
 export async function listeazaNotificarile(
   organizationId: string,
   userId: string,
+  /** `?doar=necitite`: lista arată EXACT ce numără antetul (`numaraNecitite`). */
+  doarNecitite = false,
 ): Promise<readonly RandNotificare[]> {
   const db = await createServerSupabase();
-  const { data, error } = await db
+  let interogare = db
     .from("notifications")
-    .select("id, kind, title, body, link, read_at, created_at")
+    .select("id, kind, title, body, link, entity_type, entity_id, read_at, created_at")
     .eq("organization_id", organizationId)
-    .eq("user_id", userId)
+    .eq("user_id", userId);
+  if (doarNecitite) interogare = interogare.is("read_at", null);
+  const { data, error } = await interogare
     .order("created_at", { ascending: false })
     .limit(LIMITA_LISTA_NOTIFICARI)
     .returns<RandNotificare[]>();

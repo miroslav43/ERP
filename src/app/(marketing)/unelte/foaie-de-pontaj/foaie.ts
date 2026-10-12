@@ -1,4 +1,7 @@
+import { cuDe } from "@/content/legal/zile-libere";
 import { sarbatoriDupaZi } from "@/domain/calendar/sarbatori";
+import { formatOre } from "@/lib/format/ore";
+import { curataText } from "@/lib/unelte/document-tabelar";
 
 /**
  * Construcția unei foi de pontaj goale, pentru o lună anume.
@@ -75,23 +78,148 @@ export function normalizeazaOre(brut: string | undefined): number {
   return Number.isFinite(n) && n > 0 && n <= 24 ? n : 8;
 }
 
+export type ListaAngajati = Readonly<{
+  /** Numele de pe foaie: cel mult `MAX_ANGAJATI`, fiecare cel mult `MAX_LUNGIME_NUME`. Gol ⇒ 10 rânduri goale. */
+  nume: readonly string[];
+  /** Câte nume nevide avea câmpul, înainte de plafon. */
+  total: number;
+  /** Câte nume au rămas pe dinafară din cauza plafonului de `MAX_ANGAJATI`. */
+  omisi: number;
+  /** Câte dintre numele păstrate au fost scurtate la `MAX_LUNGIME_NUME`. */
+  scurtate: number;
+}>;
+
 /**
- * Numele din câmpul de text, câte unul pe rând.
+ * Despărțitorul dintre angajați: DOAR rândul nou.
+ *
+ * Până pe 8 oct 2026 despărțeau și virgula, și punctul și virgula. Pagina spune
+ * „câte un nume pe rând”, dar „Popescu, Ion” ieșea ca doi angajați, iar „&amp;”
+ * se rupea la „;” (auditul din 8 oct 2026). O coloană copiată din Excel vine
+ * deja cu un nume pe rând. O listă scrisă cu virgule se rescrie o dată, pe când
+ * un nume rupt în doi nu se vede până la semnătură. Tabul vertical (U+000B,
+ * rândul manual din Word), NEL și separatorii Unicode sunt tot rând nou.
+ */
+const RAND_NOU_INTRE_NUME = /\r\n|[\n\r\v\f\u{85}\u{2028}\u{2029}]/u;
+
+/**
+ * Numele din câmpul de text, câte unul pe rând, plus ce s-a pierdut pe drum.
  *
  * Când lista e goală se întorc rânduri goale numerotate: foaia are rost și
  * necompletată — se tipărește și se scrie de mână, ceea ce e chiar felul în care
  * o va folosi jumătate dintre cei care o descarcă.
  */
+export function citesteAngajati(brut: string | undefined): ListaAngajati {
+  const toate = (brut ?? "")
+    .split(RAND_NOU_INTRE_NUME)
+    // `curataText` scoate spațiile de lățime zero (un rând care le conține doar
+    // pe ele nu mai trece drept nume) și face din tab un spațiu: „Popa⇥Ion”,
+    // două coloane din Excel, devine „Popa Ion”.
+    .map((linie) => curataText(linie).replace(/\s+/gu, " ").trim())
+    .filter((linie) => linie.length > 0);
+  // Plafon și pe lungimea unui nume, nu doar pe numărul lor: un „nume” de mii de
+  // caractere costa secunde de CPU la PDF.
+  const pastrate = toate.slice(0, MAX_ANGAJATI);
+  const nume = pastrate.map((linie) => linie.slice(0, MAX_LUNGIME_NUME));
+  return {
+    nume: nume.length > 0 ? nume : Array.from({ length: 10 }, () => ""),
+    total: toate.length,
+    omisi: toate.length - pastrate.length,
+    scurtate: pastrate.filter((linie) => linie.length > MAX_LUNGIME_NUME).length,
+  };
+}
+
+/** Doar numele de pe foaie; vezi `citesteAngajati`. */
 export function normalizeazaAngajati(brut: string | undefined): readonly string[] {
-  const linii = (brut ?? "")
-    .split(/[\n,;]/)
-    // Plafon și pe lungimea unui nume, nu doar pe numărul lor: un „nume” de mii de
-    // caractere (un rând de Excel lipit cu tab-uri) costa secunde de CPU la PDF.
-    .map((x) => x.trim().slice(0, MAX_LUNGIME_NUME))
-    .filter((x) => x.length > 0)
-    .slice(0, MAX_ANGAJATI);
-  if (linii.length > 0) return linii;
-  return Array.from({ length: 10 }, () => "");
+  return citesteAngajati(brut).nume;
+}
+
+/**
+ * Ce s-a pierdut din listă, spus pe pagină. Plafonul de 60 rămâne (o adresă
+ * mai lungă de ~8 KB cade la Cloudflare, iar 60 de nume înseamnă deja trei
+ * pagini A4 culcate), dar nu mai e tăcut: cu 70 de nume, foaia avea 60 de
+ * rânduri și nimic nu spunea asta (auditul din 8 oct 2026).
+ */
+export function avizAngajati(lista: ListaAngajati): readonly string[] {
+  const avize: string[] = [];
+  if (lista.omisi > 0) {
+    // Cu 61 de nume rămâne unul singur: „ceilalți 1” nu e românește.
+    const restul =
+      lista.omisi === 1
+        ? "Pentru ultimul, generează încă o foaie doar cu numele lui."
+        : `Pentru ceilalți ${String(lista.omisi)}, generează încă o foaie doar cu numele lor.`;
+    avize.push(
+      `Am păstrat primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")}. ${restul}`,
+    );
+  }
+  if (lista.scurtate === 1) {
+    avize.push(`Un nume avea peste ${cuDe(MAX_LUNGIME_NUME, "caractere")} și l-am scurtat.`);
+  } else if (lista.scurtate > 1) {
+    avize.push(
+      `${cuDe(lista.scurtate, "nume")} aveau peste ${cuDe(MAX_LUNGIME_NUME, "caractere")} și le-am scurtat.`,
+    );
+  }
+  return avize;
+}
+
+/** Nota din fișierul descărcat: fișierul circulă fără pagină, deci spune singur că lista e incompletă. */
+export function notaOmisi(lista: ListaAngajati): string | null {
+  if (lista.omisi === 0) return null;
+  const restul =
+    lista.omisi === 1 ? "ultimul nu apare aici" : `ceilalți ${String(lista.omisi)} nu apar aici`;
+  return `Documentul cuprinde primii ${String(MAX_ANGAJATI)} din ${cuDe(lista.total, "angajați")} trimiși; ${restul}.`;
+}
+
+export type ParametriBruti = Readonly<{
+  an?: string | undefined;
+  luna?: string | undefined;
+  ore?: string | undefined;
+}>;
+
+function prezent(brut: string | undefined): brut is string {
+  return brut !== undefined && brut.trim() !== "";
+}
+
+/** Textul primit, scurtat: o adresă lungă nu se reproduce întreagă pe pagină. */
+function citat(brut: string): string {
+  const t = brut.trim();
+  return t.length > 24 ? `${t.slice(0, 24)}…` : t;
+}
+
+/**
+ * Ce s-a corectat din adresă, spus în cuvinte, cu valoarea folosită de fapt.
+ *
+ * Ruta de descărcare rămâne TOLERANTĂ: un link vechi sau tăiat dă tot un fișier,
+ * nu o pagină text/plain de eroare. Pagina însă spune ce a schimbat; altfel omul
+ * primea foaia altei luni, cu numele de fișier al acelei luni (auditul din 8 oct 2026).
+ *
+ * Compară cu `Number`, nu cu `parseInt`: „2e1” trece prin `parseInt` drept 2 și
+ * dădea februarie fără niciun semn. La ore, valoarea folosită vine din
+ * `normalizeazaOre`, ca avizul să nu spună „8” când foaia e pe 7:30.
+ */
+export function avizeParametri(
+  brut: ParametriBruti,
+  ales: Readonly<{ an: number; luna: number }>,
+): readonly string[] {
+  const avize: string[] = [];
+  if (prezent(brut.an) && Number(brut.an.trim()) !== ales.an) {
+    avize.push(
+      `Anul „${citat(brut.an)}” nu e un an între ${String(AN_MIN)} și ${String(AN_MAX)}; am folosit ${String(ales.an)}.`,
+    );
+  }
+  if (prezent(brut.luna) && Number(brut.luna.trim()) !== ales.luna) {
+    avize.push(
+      `Luna „${citat(brut.luna)}” nu e între 1 și 12; am folosit ${LUNI[ales.luna - 1] ?? ""}.`,
+    );
+  }
+  if (prezent(brut.ore)) {
+    const folosit = normalizeazaOre(brut.ore);
+    if (Number(brut.ore.trim().replace(",", ".")) !== folosit) {
+      avize.push(
+        `Orele pe zi „${citat(brut.ore)}” nu sunt un număr între 0 și 24; am folosit ${oreFoaie(folosit)}.`,
+      );
+    }
+  }
+  return avize;
 }
 
 export function construiesteFoaie(
@@ -124,6 +252,24 @@ export function construiesteFoaie(
     angajati,
     oreZi,
     zileLucratoare,
-    normaLunara: zileLucratoare * oreZi,
+    // În minute întregi, apoi înapoi în ore: 21 × 7,3 dădea 153,29999999999998.
+    // Ziua se rotunjește la minut ÎNAINTE de înmulțire, fiindcă textul normei
+    // afișează ziua rotunjită: altfel `ore=7.33` dădea „× 7:20 h = 153:56 h”.
+    normaLunara: (zileLucratoare * Math.round(oreZi * 60)) / 60,
   };
+}
+
+/**
+ * Orele foii, în ceas: `8` → „8 h”, `7.5` → „7:30 h”, `153.3` → „153:18 h”.
+ *
+ * Regula produsului (`src/lib/format/ore.ts`): fără „8,5 ore” și fără „7.5”.
+ * Orele întregi rămân fără „:00”, ca pe foaia de hârtie.
+ */
+export function oreFoaie(ore: number): string {
+  return `${formatOre(ore).replace(/:00$/u, "")} h`;
+}
+
+/** „21 de zile lucrătoare × 8 h = 168 h normă”: același text pe pagină, în PDF, Word și Excel. */
+export function textNorma(foaie: Foaie): string {
+  return `${cuDe(foaie.zileLucratoare, "zile lucrătoare")} × ${oreFoaie(foaie.oreZi)} = ${oreFoaie(foaie.normaLunara)} normă`;
 }

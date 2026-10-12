@@ -14,7 +14,7 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/ui/callout";
 import { Scadenta } from "@/components/ui/scadenta";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -32,6 +32,9 @@ import {
   TONURI_REZULTAT_EXAMEN,
 } from "../etichete";
 import { NavSsm } from "../nav-ssm";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Medicina muncii" };
 
@@ -53,7 +56,13 @@ interface ProprietatiPagina {
  * Restricțiile le scrie singur triggerul `internal.ssm_exam_sync` la fiecare
  * rezultat diferit de „apt", deci banda se umple fără nicio acțiune nouă.
  */
-async function BandaRestrictii({ organizationId }: { readonly organizationId: string }) {
+async function BandaRestrictii({
+  organizationId,
+  permisiuni,
+}: {
+  readonly organizationId: string;
+  readonly permisiuni: PermissionMap;
+}) {
   const restrictii = await restrictiiActive(organizationId);
   if (restrictii.length === 0) return null;
 
@@ -73,7 +82,9 @@ async function BandaRestrictii({ organizationId }: { readonly organizationId: st
           return (
             <li key={r.id}>
               <span className="font-medium">
-                {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+                <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                  {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+                </LinkEntitate>
               </span>
               {" · "}
               {r.restrictie}
@@ -102,9 +113,14 @@ async function BandaRestrictii({ organizationId }: { readonly organizationId: st
 async function TabelFise({
   organizationId,
   parametri,
+  poateCrea,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  /** `ssm:create` — poarta paginii de creare; managerul (doar `read`) ajungea în refuz din starea goală. */
+  readonly poateCrea: boolean;
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreFiseSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await fiseAptitudine(organizationId, filtre);
@@ -116,7 +132,9 @@ async function TabelFise({
         pictograma={Stethoscope}
         titlu="Nicio fișă de aptitudine înregistrată"
         descriere="Adăugați prima fișă ca să urmăriți valabilitatea controalelor medicale periodice."
-        actiune={{ eticheta: "Fișă nouă", href: "/ssm/medicina-muncii/noua" }}
+        {...(poateCrea
+          ? { actiune: { eticheta: "Fișă nouă", href: "/ssm/medicina-muncii/noua" } }
+          : {})}
       />
     );
   }
@@ -144,7 +162,11 @@ async function TabelFise({
       peTelefon: "titlu",
       celula: (f) => {
         const angajat = angajati.get(f.employee_id);
-        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+        return (
+          <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+            {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+          </LinkEntitate>
+        );
       },
     },
     {
@@ -177,9 +199,21 @@ async function TabelFise({
         const stare = stareScadentaSsm(true, f.valabil_pana, azi);
         return (
           <span className="whitespace-nowrap">
-            <Scadenta treapta={treaptaSsm(stare, f.valabil_pana)}>
-              {ETICHETE_SCADENTA[stare]}
-            </Scadenta>
+            {/* Fișa expirată se reînnoiește de aici: formularul precompletat cu omul. */}
+            {poateCrea && stare === "expirat" ? (
+              <Link
+                href={`/ssm/medicina-muncii/noua?angajat=${f.employee_id}`}
+                className="relative rounded-xs underline-offset-2 hover:underline"
+              >
+                <Scadenta treapta={treaptaSsm(stare, f.valabil_pana)}>
+                  {ETICHETE_SCADENTA[stare]}
+                </Scadenta>
+              </Link>
+            ) : (
+              <Scadenta treapta={treaptaSsm(stare, f.valabil_pana)}>
+                {ETICHETE_SCADENTA[stare]}
+              </Scadenta>
+            )}
             <span className="text-muted-foreground text-nota ml-2">
               {formatDate(f.valabil_pana)}
             </span>
@@ -254,6 +288,13 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
+  // Filtrul de intrare din fișa angajatului: pastilă cu nume, citit sub RLS.
+  const angajatFiltrat = filtreDinUrl(filtreFiseSchema, parametri).angajat;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -284,11 +325,27 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
       />
 
       <Suspense fallback={null}>
-        <BandaRestrictii organizationId={tenant.organizationId} />
+        <BandaRestrictii organizationId={tenant.organizationId} permisiuni={permisiuni} />
       </Suspense>
 
+      <PastileFiltre
+        active={[
+          ...(angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]),
+          ...(filtreDinUrl(filtreFiseSchema, parametri).scadenta === null
+            ? []
+            : [{ cheie: "scadenta", eticheta: "Doar fișele de reînnoit" }]),
+        ]}
+      />
+
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
-        <TabelFise organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelFise
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateCrea={poateCrea}
+          permisiuni={permisiuni}
+        />
       </Suspense>
     </div>
   );

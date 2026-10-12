@@ -11,6 +11,7 @@ import { formatOre } from "@/lib/format/ore";
 
 import { textZile } from "../etichete";
 import type { PoliticaRand } from "@/lib/queries/per-diem";
+import Link from "next/link";
 
 /**
  * Previzualizarea „N zile × valoare = total”, ÎNAINTE de trimitere.
@@ -35,6 +36,7 @@ export function PrevizualizareDiurna({
   cursDiurna,
   politica,
   baremuri,
+  hrefPolitica = null,
 }: {
   readonly plecareLa: string;
   readonly sosireLa: string;
@@ -42,6 +44,8 @@ export function PrevizualizareDiurna({
   readonly cursDiurna: number | null;
   readonly politica: PoliticaRand | null;
   readonly baremuri: readonly BaremTara[];
+  /** Pagina politicii aplicate; `null` = privitorul n-o poate deschide. */
+  readonly hrefPolitica?: string | null;
 }) {
   const rezultat = useMemo(() => {
     if (politica === null) return null;
@@ -109,7 +113,7 @@ export function PrevizualizareDiurna({
   if (sume.zileTotal === 0) {
     return (
       <div className="text-foreground text-corp space-y-1">
-        <LiniePolitica politica={politica} />
+        <LiniePolitica politica={politica} href={hrefPolitica ?? null} />
         <p>
           <strong>0 zile de diurnă</strong> — deplasarea durează {formatOre(durataOre)} h, sub
           pragul de {formatOre(politica.prag_ore_minim)} h din politică.
@@ -122,7 +126,7 @@ export function PrevizualizareDiurna({
 
   return (
     <div className="text-foreground text-corp space-y-1">
-      <LiniePolitica politica={politica} />
+      <LiniePolitica politica={politica} href={hrefPolitica ?? null} />
       {sume.baremLipsa ? (
         <p>
           <strong>{textZile(sume.zileTotal)}</strong> — lipsește baremul de diurnă pentru țara
@@ -161,11 +165,24 @@ export function PrevizualizareDiurna({
  * număr azi și altul mâine, dacă între timp intra în vigoare o versiune nouă,
  * fără ca ecranul să spună de ce.
  */
-function LiniePolitica({ politica }: { readonly politica: PoliticaRand }) {
+function LiniePolitica({
+  politica,
+  href,
+}: {
+  readonly politica: PoliticaRand;
+  readonly href: string | null;
+}) {
   return (
     <p className="text-muted-foreground text-nota">
-      Calculat cu politica „{politica.denumire}”, valabilă de la{" "}
-      {formatDate(politica.valabil_de_la)}
+      Calculat cu politica{" "}
+      {href === null ? (
+        `„${politica.denumire}”`
+      ) : (
+        <Link href={href} className="underline-offset-2 hover:underline">
+          „{politica.denumire}”
+        </Link>
+      )}
+      , valabilă de la {formatDate(politica.valabil_de_la)}
       {politica.valabil_pana === null ? "" : ` până la ${formatDate(politica.valabil_pana)}`}.
     </p>
   );

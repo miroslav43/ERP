@@ -16,10 +16,13 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { anomaliiNeconfirmate, PLAFON_ANOMALII, vehiculeDupaId } from "@/lib/queries/fleet";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa, type HartaPermisiuni } from "@/lib/navigare/fisa";
 
 import { ETICHETE_TIP_ANOMALIE, TONURI_TIP_ANOMALIE } from "../etichete";
-import { NavFlota } from "../nav-flota";
 import { ConfirmaAnomalie } from "./confirma-anomalie";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_FLOTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Anomalii de kilometraj" };
 
@@ -28,7 +31,20 @@ function cuSemn(valoare: number): string {
   return `${valoare < 0 ? "−" : "+"}${Math.abs(valoare).toLocaleString("ro-RO")}`;
 }
 
-async function TabelAnomalii({ organizationId }: { readonly organizationId: string }) {
+async function TabelAnomalii({
+  organizationId,
+  poateVedeaFoi,
+  poateVedeaParcul,
+  permisiuni,
+}: {
+  readonly organizationId: string;
+  /** `trip_sheets:read`, poarta lui `/flota/foi/[id]`. */
+  readonly poateVedeaFoi: boolean;
+  /** `vehicles:read`, poarta lui `/flota/[id]`: numărul devine link. */
+  readonly poateVedeaParcul: boolean;
+  /** Pentru `hrefFisa`: șoferul devine link per rând. */
+  readonly permisiuni: HartaPermisiuni;
+}) {
   const anomalii = await anomaliiNeconfirmate(organizationId);
 
   if (anomalii.length === 0) {
@@ -66,11 +82,21 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
       peTelefon: "titlu",
       celula: (a) => (
         <>
-          {vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—"}
+          {/* Kilometrajul se corectează pe fișa vehiculului: numărul duce acolo. */}
+          {poateVedeaParcul && vehicule.has(a.vehicle_id) ? (
+            <Link
+              href={`/flota/${a.vehicle_id}`}
+              className="relative underline-offset-2 hover:underline"
+            >
+              {vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—"}
+            </Link>
+          ) : (
+            (vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—")
+          )}
           {/* `trip_sheet_id` era citit din bază și nefolosit: ca să afli ce cursă
               a produs diferența trebuia să mergi la /flota/foi și să cauți după
               dată — iar acolo nici filtru pe vehicul nu exista. */}
-          {a.trip_sheet_id === null ? null : (
+          {a.trip_sheet_id === null || !poateVedeaFoi ? null : (
             <Link
               href={`/flota/foi/${a.trip_sheet_id}`}
               className="text-muted-foreground text-nota block underline-offset-2 hover:underline"
@@ -80,6 +106,20 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
           )}
         </>
       ),
+    },
+    {
+      // Cine poate explica diferența: șoferul foii, nu un vehicul.
+      cheie: "sofer",
+      antet: "Șofer",
+      peTelefon: "meta",
+      celula: (a) =>
+        a.foaie === null || a.foaie.sofer === null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <LinkEntitate href={hrefFisa(a.foaie.sofer, permisiuni)}>
+            {a.foaie.sofer.full_name ?? a.foaie.sofer.marca}
+          </LinkEntitate>
+        ),
     },
     {
       cheie: "tip",
@@ -129,6 +169,10 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
       coloane={coloane}
       randuri={anomalii}
       cheieRand={(a) => a.id}
+      // Rândul duce la foaia care a produs diferența; linkul mic rămâne pentru tastatură.
+      href={(a) =>
+        a.trip_sheet_id !== null && poateVedeaFoi ? `/flota/foi/${a.trip_sheet_id}` : null
+      }
       // Citirea are o limită fixă și PostgREST taie tăcut: o coadă plină rămânea
       // o coadă care pare golită.
       trunchiat={anomalii.length >= PLAFON_ANOMALII}
@@ -170,17 +214,18 @@ export default async function PaginaAnomalii() {
                 odometru nu poate da înapoi.
               </span>
             </p>
-            <NavFlota
-              poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-              poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-              poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
-            />
+            <FileModul eticheta="Navigare parc auto" file={FILE_FLOTA} tenant={tenant} />
           </>
         }
       />
 
       <Suspense fallback={<Schelet forma="tabel" coloane={7} />}>
-        <TabelAnomalii organizationId={tenant.organizationId} />
+        <TabelAnomalii
+          organizationId={tenant.organizationId}
+          poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
+          poateVedeaParcul={can(permisiuni, "vehicles:read", "own")}
+          permisiuni={permisiuni}
+        />
       </Suspense>
     </div>
   );

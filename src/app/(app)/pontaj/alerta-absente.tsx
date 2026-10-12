@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { TriangleAlert } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { LinkEntitate } from "@/components/ui/link-entitate";
 import type { SerieAbsenteNemotivate } from "@/lib/queries/attendance";
 
 import { emiteSuspendareAbsente } from "./actions";
+import { arataToast } from "@/components/ui/toast";
 
 /**
  * Seriile de absențe nemotivate care încă n-au o decizie de suspendare.
@@ -23,7 +25,17 @@ import { emiteSuspendareAbsente } from "./actions";
  * pontajul primește ore lucrate, adică atunci când aplicația află, prima, că
  * omul s-a întors.
  */
-export function AlertaAbsente({ serii }: { readonly serii: readonly SerieAbsenteNemotivate[] }) {
+export function AlertaAbsente({
+  serii,
+  hrefReges = null,
+  poateDeschideFisa = false,
+}: {
+  readonly serii: readonly SerieAbsenteNemotivate[];
+  /** Seriile au venit prin RLS; cu `employees:read` numele duce la fișa (și contractul) omului. */
+  readonly poateDeschideFisa?: boolean;
+  /** `/reges?stare=de_transmis` dacă pagina se deschide pentru rolul curent. */
+  readonly hrefReges?: string | null;
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [deschis, setDeschis] = useState<string | null>(null);
@@ -47,6 +59,25 @@ export function AlertaAbsente({ serii }: { readonly serii: readonly SerieAbsente
       }
       setDeschis(null);
       setSfarsit("");
+      // Seria dispare din ecran după decizie: fără mesaj, omul nu știe că a
+      // reușit și nici că evenimentul trebuie transmis în 3 zile lucrătoare.
+      const text =
+        rezultat.data.motiv ??
+        "Decizia de suspendare a fost emisă. Evenimentul de transmis în REGES este pregătit.";
+      arataToast(
+        hrefReges === null
+          ? { fel: "eroare", text }
+          : {
+              fel: "informativ",
+              text,
+              actiune: {
+                eticheta: "Deschide coada REGES",
+                onClick: () => {
+                  router.push(hrefReges);
+                },
+              },
+            },
+      );
       router.refresh();
     });
   }
@@ -72,7 +103,13 @@ export function AlertaAbsente({ serii }: { readonly serii: readonly SerieAbsente
             className="border-hairline bg-suprafata rounded-control flex flex-col gap-2 border p-3"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-corp font-medium">{serie.numeAngajat}</span>
+              <span className="text-corp font-medium">
+                <LinkEntitate
+                  href={poateDeschideFisa ? `/angajati/${serie.employeeId}#titlu-contracte` : null}
+                >
+                  {serie.numeAngajat}
+                </LinkEntitate>
+              </span>
               <span className="text-corp-mic text-secundar tabular-nums">
                 {serie.zile} zile · {serie.dataInceput} → {serie.dataSfarsit}
               </span>

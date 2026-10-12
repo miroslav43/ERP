@@ -122,6 +122,7 @@ export async function dateCerereNoua(
     // Eticheta se compune AICI, nu în client: e text de interfață, iar stratul
     // de citiri n-are voie să importe din arborele de rute.
     concediiExistente: ocupate.map((c) => ({
+      cerereId: c.id,
       employeeId: c.employee_id,
       dataInceput: c.data_inceput,
       dataSfarsit: c.data_sfarsit,

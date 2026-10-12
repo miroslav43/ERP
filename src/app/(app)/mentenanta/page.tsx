@@ -3,7 +3,15 @@ import { TREPTE_MENTENANTA } from "@/domain/maintenance/scadente";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { AlertTriangle, CalendarClock, ShieldAlert, Wrench, type LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  Gauge,
+  ShieldAlert,
+  UserX,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -11,21 +19,25 @@ import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Scadenta } from "@/components/ui/scadenta";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
   angajatiDupaId,
+  angajatiInactiviDintre,
   autorizatiiIscir,
   cheieContor,
+  echipamenteCuProbleme,
   echipamenteDupaId,
   planuriScadente,
   sesizariDeschise,
+  setariMentenanta,
   ultimeleCitiriContor,
+  ultimeleCitiriCuData,
   type PlanMentenanta,
 } from "@/lib/queries/maintenance";
+import { contorInvechit } from "@/domain/maintenance/proiectie";
 import {
   PRAG_MENTENANTA_AVERTIZARE_ZILE,
   cereActiune,
@@ -37,6 +49,7 @@ import type { TipContor } from "@/schemas/maintenance";
 import {
   ETICHETE_STARE_SCADENTA,
   ETICHETE_STATUS_ECHIPAMENT,
+  ETICHETE_TIP_CONTOR,
   ETICHETE_URGENTA_SESIZARE,
   TONURI_STATUS_ECHIPAMENT,
   TONURI_URGENTA_SESIZARE,
@@ -44,46 +57,24 @@ import {
   formatContor,
   textNumarat,
 } from "./etichete";
-import { NavMentenanta } from "./nav-mentenanta";
 import { SesizarileMele } from "./sesizarile-mele";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Mentenanță" };
 
 /** Câte rânduri intră într-un panou. Restul se numără în antet, nu dispar tăcut. */
 const MAXIM_PE_PANOU = 8;
 
-interface EchipamentProblema {
-  readonly id: string;
-  readonly cod: string;
-  readonly denumire: string;
-  readonly status: "in_reparatie" | "in_conservare" | "casat";
-}
-
-interface RezultatEchipamenteProblema {
-  readonly randuri: readonly EchipamentProblema[];
-  readonly total: number;
-}
-
-/** Echipamentele care nu sunt „în funcțiune” — inline, doar pentru panoul de organizație. */
-async function echipamenteCuProbleme(organizationId: string): Promise<RezultatEchipamenteProblema> {
-  const db = await createServerSupabase();
-  // `count: "exact"` pe ACEEAȘI interogare: numărul din antetul panoului trebuie
-  // să respecte aceleași politici RLS ca rândurile de sub el.
-  const { data, error, count } = await db
-    .from("equipment")
-    .select("id, cod, denumire, status", { count: "exact" })
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .neq("status", "in_functiune")
-    .order("cod", { ascending: true })
-    .limit(MAXIM_PE_PANOU)
-    .returns<EchipamentProblema[]>();
-  if (error !== null) throw error;
-  const randuri = data ?? [];
-  return { randuri, total: count ?? randuri.length };
-}
-
-async function PanouOrganizatie({ organizationId }: { readonly organizationId: string }) {
+async function PanouOrganizatie({
+  organizationId,
+  permisiuni,
+}: {
+  readonly organizationId: string;
+  readonly permisiuni: PermissionMap;
+}) {
   const azi = todayInBucharest();
 
   const [rezultatPlanuri, rezultatSesizari, iscirBrute, rezultatEchipamente] = await Promise.all([
@@ -92,7 +83,7 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
     // sesizările deschise, în ordinea corectă. Vezi `sesizariDeschise`.
     sesizariDeschise(organizationId, MAXIM_PE_PANOU),
     autorizatiiIscir(organizationId),
-    echipamenteCuProbleme(organizationId),
+    echipamenteCuProbleme(organizationId, MAXIM_PE_PANOU),
   ]);
 
   /*
@@ -103,11 +94,54 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
   const planuriCuContor = rezultatPlanuri.randuri.filter(
     (p) => p.tip_contor !== null && p.urmatoarea_scadenta_contor !== null,
   );
-  const citiri = await ultimeleCitiriContor(
-    organizationId,
-    planuriCuContor.map((p) => p.equipment_id),
-    planuriCuContor.map((p) => p.tip_contor).filter((tip): tip is TipContor => tip !== null),
+  const idResponsabili = rezultatPlanuri.randuri
+    .map((p) => p.responsabil_employee_id)
+    .filter((id): id is string => id !== null);
+  const [citiri, citiriCuData, responsabiliInactivi, setari] = await Promise.all([
+    ultimeleCitiriContor(
+      organizationId,
+      planuriCuContor.map((p) => p.equipment_id),
+      planuriCuContor.map((p) => p.tip_contor).filter((tip): tip is TipContor => tip !== null),
+    ),
+    // Aceleași contoare, CU data citirii: pentru „necitit de N zile”.
+    ultimeleCitiriCuData(
+      organizationId,
+      planuriCuContor.map((p) => p.equipment_id),
+    ),
+    // Responsabilul plecat din firmă nu dă nicio eroare: planul rămâne al lui
+    // și alertele lui pleacă în gol. Panoul îl scoate la vedere.
+    angajatiInactiviDintre(organizationId, idResponsabili),
+    setariMentenanta(organizationId),
+  ]);
+
+  const planuriDeReatribuit = rezultatPlanuri.randuri.filter(
+    (p) =>
+      p.responsabil_employee_id !== null && responsabiliInactivi.has(p.responsabil_employee_id),
   );
+
+  /*
+   * Contoarele pe care stau planuri și care n-au mai fost citite peste pragul
+   * din setări (sau deloc). Un plan „la 500 de ore” cu contorul necitit de două
+   * luni e „În regulă” pe hârtie și depășit în hală — fără citire, starea pe
+   * contor nu poate spune nimic.
+   */
+  const contoareNecitite = [
+    ...new Map(
+      planuriCuContor
+        .filter(
+          (p): p is PlanMentenanta & { readonly tip_contor: TipContor } => p.tip_contor !== null,
+        )
+        .map((p) => [cheieContor(p.equipment_id, p.tip_contor), p] as const),
+    ).values(),
+  ]
+    .map((p) => {
+      const tip = p.tip_contor as TipContor;
+      const ultima = citiriCuData.get(cheieContor(p.equipment_id, tip)) ?? null;
+      return { equipmentId: p.equipment_id, tip, ultima };
+    })
+    .filter((c) =>
+      contorInvechit(c.ultima?.data_citirii ?? null, azi, setari.prag_contor_necitit_zile),
+    );
 
   /*
    * `stareScadentaPlan`, NU `stareScadentaData`.
@@ -160,17 +194,22 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
    */
   const numarScadente = planuriInCoada.length + iscirInCoada.length;
 
+  const deReatribuitAfisate = planuriDeReatribuit.slice(0, MAXIM_PE_PANOU);
+  const contoareNecititeAfisate = contoareNecitite.slice(0, MAXIM_PE_PANOU);
+
   const idEchipamente = [
     ...planuriScadenteAfisate.map(({ plan }) => plan.equipment_id),
     ...sesizariAfisate.map((s) => s.equipment_id),
     ...iscirScadente.map((a) => a.equipment_id),
+    ...deReatribuitAfisate.map((p) => p.equipment_id),
+    ...contoareNecititeAfisate.map((c) => c.equipmentId),
   ];
   const [echipamente, responsabili] = await Promise.all([
     echipamenteDupaId(organizationId, idEchipamente),
     angajatiDupaId(
       organizationId,
-      planuriScadenteAfisate
-        .map(({ plan }) => plan.responsabil_employee_id)
+      [...planuriScadenteAfisate.map(({ plan }) => plan), ...deReatribuitAfisate]
+        .map((plan) => plan.responsabil_employee_id)
         .filter((id): id is string => id !== null),
     ),
   ]);
@@ -190,9 +229,21 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
         </p>
         <p className="text-3xl font-semibold tabular-nums">{numarScadente}</p>
         <p className="text-muted-foreground text-nota">
-          {textNumarat(planuriInCoada.length, "plan de mentenanță", "planuri de mentenanță")} ·{" "}
-          {textNumarat(iscirInCoada.length, "autorizație ISCIR", "autorizații ISCIR")}, scadente sau
-          în întârziere. Planurile pe contor intră și ele, cu ultima citire cunoscută.
+          <Link
+            href="/mentenanta/planuri?scadenta=actiune"
+            className="underline-offset-2 hover:underline"
+          >
+            {textNumarat(planuriInCoada.length, "plan de mentenanță", "planuri de mentenanță")}
+          </Link>{" "}
+          ·{" "}
+          <Link
+            href="/mentenanta/echipamente?iscir=da"
+            className="underline-offset-2 hover:underline"
+          >
+            {textNumarat(iscirInCoada.length, "autorizație ISCIR", "autorizații ISCIR")}
+          </Link>
+          , scadente sau în întârziere. Planurile pe contor intră și ele, cu ultima citire
+          cunoscută.
         </p>
       </div>
 
@@ -210,24 +261,41 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
           titlu="Planuri de mentenanță scadente"
           total={planuriInCoada.length}
           afisate={planuriScadenteAfisate.length}
-          href="/mentenanta/planuri"
+          href="/mentenanta/planuri?scadenta=actiune"
           etichetaHref="Vezi toate planurile"
           gol="Niciun plan activ nu e scadent sau în întârziere."
         >
           {planuriScadenteAfisate.map(({ plan, stare }) => (
             <li key={plan.id} className="flex items-start justify-between gap-3 py-2">
               <div>
+                {/* Planul duce la fișa PLANULUI (Execută, Amână); echipamentul are linkul lui mai jos. */}
                 <Link
-                  href={`/mentenanta/echipamente/${plan.equipment_id}`}
+                  href={`/mentenanta/planuri/${plan.id}`}
                   className="font-medium underline-offset-2 hover:underline"
                 >
                   {plan.denumire}
                 </Link>
                 <p className="text-muted-foreground text-nota">
-                  {numeEchipament(plan.equipment_id)}
-                  {plan.responsabil_employee_id !== null
-                    ? ` · ${responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—"}`
-                    : ""}
+                  <Link
+                    href={`/mentenanta/echipamente/${plan.equipment_id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {numeEchipament(plan.equipment_id)}
+                  </Link>
+                  {plan.responsabil_employee_id !== null ? (
+                    <>
+                      {" · "}
+                      <LinkEntitate
+                        href={hrefFisaDinHarta(
+                          plan.responsabil_employee_id,
+                          responsabili,
+                          permisiuni,
+                        )}
+                      >
+                        {responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—"}
+                      </LinkEntitate>
+                    </>
+                  ) : null}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1 text-right">
@@ -247,7 +315,7 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
           titlu="Sesizări deschise"
           total={rezultatSesizari.total}
           afisate={sesizariAfisate.length}
-          href="/mentenanta/sesizari"
+          href="/mentenanta/sesizari?deschise=da"
           etichetaHref="Vezi toate sesizările"
           gol="Nicio sesizare deschisă în acest moment."
         >
@@ -260,6 +328,15 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                 >
                   {numeEchipament(sesizare.equipment_id)}
                 </Link>
+                {/* Eticheta e utilajul, dar linkul duce la sesizare: fișa utilajului are drumul ei. */}
+                {can(permisiuni, "maintenance:read", "team") ? (
+                  <Link
+                    href={`/mentenanta/echipamente/${sesizare.equipment_id}`}
+                    className="text-muted-foreground text-nota ml-2 underline-offset-2 hover:underline"
+                  >
+                    fișa utilajului
+                  </Link>
+                ) : null}
                 <p className="text-muted-foreground text-nota">{sesizare.descriere}</p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
@@ -301,6 +378,80 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
             </li>
           ))}
         </Panou>
+
+        {planuriDeReatribuit.length > 0 ? (
+          <Panou
+            icon={UserX}
+            titlu="Planuri de reatribuit"
+            total={planuriDeReatribuit.length}
+            afisate={deReatribuitAfisate.length}
+            href="/mentenanta/planuri"
+            etichetaHref="Vezi toate planurile"
+            gol="Toate planurile au un responsabil activ."
+          >
+            {deReatribuitAfisate.map((plan) => (
+              <li key={plan.id} className="flex items-start justify-between gap-3 py-2">
+                <div>
+                  <Link
+                    href={`/mentenanta/planuri/${plan.id}`}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {plan.denumire}
+                  </Link>
+                  <p className="text-muted-foreground text-nota">
+                    <Link
+                      href={`/mentenanta/echipamente/${plan.equipment_id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {numeEchipament(plan.equipment_id)}
+                    </Link>
+                  </p>
+                </div>
+                <span className="text-muted-foreground text-nota shrink-0 text-right">
+                  {plan.responsabil_employee_id === null
+                    ? "—"
+                    : (responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—")}
+                  <br />
+                  nu mai e activ
+                </span>
+              </li>
+            ))}
+          </Panou>
+        ) : null}
+
+        {contoareNecitite.length > 0 ? (
+          <Panou
+            icon={Gauge}
+            titlu={`Contoare necitite de peste ${textNumarat(setari.prag_contor_necitit_zile, "zi", "zile")}`}
+            total={contoareNecitite.length}
+            afisate={contoareNecititeAfisate.length}
+            href="/mentenanta/contoare"
+            etichetaHref="Deschide contoarele"
+            gol="Toate contoarele cu plan au citiri recente."
+          >
+            {contoareNecititeAfisate.map((c) => (
+              <li
+                key={cheieContor(c.equipmentId, c.tip)}
+                className="flex items-start justify-between gap-3 py-2"
+              >
+                <div>
+                  <Link
+                    href={`/mentenanta/echipamente/${c.equipmentId}`}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {numeEchipament(c.equipmentId)}
+                  </Link>
+                  <p className="text-muted-foreground text-nota">{ETICHETE_TIP_CONTOR[c.tip]}</p>
+                </div>
+                <span className="text-muted-foreground text-nota shrink-0 text-right">
+                  {c.ultima === null
+                    ? "nicio citire"
+                    : `ultima: ${formatDate(c.ultima.data_citirii)}`}
+                </span>
+              </li>
+            ))}
+          </Panou>
+        ) : null}
 
         <Panou
           icon={ShieldAlert}
@@ -389,7 +540,18 @@ function Panou({
       <h2 className="text-corp mb-2 flex items-center gap-2 font-semibold">
         <Icon aria-hidden="true" className="text-muted-foreground size-4" />
         <span className="min-w-0 flex-1">{titlu}</span>
-        <span className="text-muted-foreground shrink-0 tabular-nums">{total}</span>
+        {/* Cifra din antet duce la lista cu EXACT rândurile numărate, nu doar
+            peste 8 rânduri. */}
+        {href === undefined ? (
+          <span className="text-muted-foreground shrink-0 tabular-nums">{total}</span>
+        ) : (
+          <Link
+            href={href}
+            className="text-muted-foreground shrink-0 tabular-nums underline-offset-2 hover:underline"
+          >
+            {total}
+          </Link>
+        )}
       </h2>
       {areConținut ? (
         <ul className="divide-border divide-y">{children}</ul>
@@ -428,10 +590,11 @@ export default async function PaginaMentenanta() {
   // minScope „team”, deci nu-l vede. Vede DOAR sesizările proprii, nu panoul
   // de organizație.
   if (!can(permisiuni, "maintenance:read", "team")) {
-    return <SesizarileMele />;
+    return <SesizarileMele poateRaporta={can(permisiuni, "maintenance:create", "own")} />;
   }
 
   const poateAdaugaEchipament = can(permisiuni, "maintenance:update", "team");
+  const poateRaporta = can(permisiuni, "maintenance:create", "own");
 
   return (
     <div className="space-y-6">
@@ -439,21 +602,32 @@ export default async function PaginaMentenanta() {
         titlu="Mentenanță"
         descriere="Echipamente, planuri de mentenanță, intervenții și sesizări de defecțiune."
         actiuni={
+          // Ambele deschid casete pe listele lor (`?sesizare=noua`,
+          // `?echipament=nou`): rutele `/noua` și `/nou` nu mai există ca
+          // pagini — vezi `dialog-sesizare-noua.tsx` și `dialog-echipament-nou.tsx`.
           <>
-            <Link href="/mentenanta/sesizari/noua" className={buton({ varianta: "secundar" })}>
-              Sesizare nouă
-            </Link>
+            {poateRaporta ? (
+              <Link
+                href="/mentenanta/sesizari?sesizare=noua"
+                className={buton({ varianta: "secundar" })}
+              >
+                Sesizare nouă
+              </Link>
+            ) : null}
             {poateAdaugaEchipament ? (
-              <Link href="/mentenanta/echipamente/nou" className={buton({ varianta: "primar" })}>
+              <Link
+                href="/mentenanta/echipamente?echipament=nou"
+                className={buton({ varianta: "primar" })}
+              >
                 Echipament nou
               </Link>
             ) : null}
           </>
         }
-        file={<NavMentenanta />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
-      <PanouOrganizatie organizationId={tenant.organizationId} />
+      <PanouOrganizatie organizationId={tenant.organizationId} permisiuni={permisiuni} />
     </div>
   );
 }

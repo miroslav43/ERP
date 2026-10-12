@@ -1,4 +1,4 @@
-"""Pagina-kit a lotului 1: textele din docs/comercial/linkedin/lot-01.md,
+"""Pagina-kit a lotului curent: textele din docs/comercial/linkedin/lot-<NN>.md,
 fișierele din livrare/, previzualizările din png/."""
 
 import html
@@ -9,14 +9,16 @@ import shutil
 
 RAD = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.join(RAD, "kit")
-LOT = os.path.join(RAD, "..", "lot-01.md")
+LOT = os.path.join(RAD, "..", "lot-02.md")
+PREFIX = "L2-"
 
+shutil.rmtree(KIT, ignore_errors=True)
 os.makedirs(os.path.join(KIT, "fisiere"), exist_ok=True)
 os.makedirs(os.path.join(KIT, "previzualizari"), exist_ok=True)
 for f in os.listdir(os.path.join(RAD, "livrare")):
     shutil.copy(os.path.join(RAD, "livrare", f), os.path.join(KIT, "fisiere", f))
 for f in os.listdir(os.path.join(RAD, "png")):
-    if f.startswith("L1-") or f.startswith("Banner"):
+    if f.startswith(PREFIX):
         shutil.copy(os.path.join(RAD, "png", f), os.path.join(KIT, "previzualizari", f))
 
 sursa = open(LOT).read()
@@ -70,10 +72,24 @@ def alt_slideuri(text):
 
 
 POSTARI = {
-    "1": {"fisier": "administrativo-t4-01-sase-obligatii.pdf", "prev": [f"L1-01-s{i}.png" for i in range(1, 9)], "titlu_doc": "6 lucruri de avut la zi", "tip": "carusel"},
-    "2": {"fisier": "administrativo-t4-02-diurna.png", "prev": ["L1-02.png"], "tip": "imagine"},
-    "3": {"fisier": "administrativo-t4-03-pilot-contabili.pdf", "prev": [f"L1-03-s{i}.png" for i in range(1, 8)], "titlu_doc": "Pilotul pentru contabili", "tip": "carusel"},
-    "4": {"fisier": "administrativo-t4-04-reges-ziua-dinainte.png", "prev": ["L1-04.png"], "tip": "imagine"},
+    "5": {"fisier": "administrativo-t4-05-sarbatori-weekend.png", "prev": ["L2-05.png"], "tip": "imagine"},
+    "6": {"fisier": "administrativo-t4-06-punti-2027.pdf", "prev": [f"L2-06-s{i}.png" for i in range(1, 9)], "titlu_doc": "Punțile din 2027", "tip": "carusel"},
+    "7": {"fisier": "administrativo-t4-07-capcana-1-leu.png", "prev": ["L2-07.png"], "tip": "imagine"},
+    "8": {"fisier": "administrativo-t4-08-reges-api.pdf", "prev": [f"L2-08-s{i}.png" for i in range(1, 8)], "titlu_doc": "REGES prin API: 5 canale, nu 1", "tip": "carusel"},
+    "9": {"fisier": "administrativo-t4-09-concediu-noiembrie.png", "prev": ["L2-09.png"], "tip": "imagine"},
+    "10": {"fisier": "administrativo-t4-10-concediu-18-luni.png", "prev": ["L2-10.png"], "tip": "imagine"},
+    "11": {"fisier": "administrativo-t4-11-control-itm.pdf", "prev": [f"L2-11-s{i}.png" for i in range(1, 9)], "titlu_doc": "Control ITM: 8 documente", "tip": "carusel"},
+    "12": {"fisier": "administrativo-t4-12-mituri.pdf", "prev": [f"L2-12-s{i}.png" for i in range(1, 9)], "titlu_doc": "6 lucruri care nu sunt în lege", "tip": "carusel"},
+    "13": {"fisier": "administrativo-t4-13-paste-calculat.pdf", "prev": [f"L2-13-s{i}.png" for i in range(1, 8)], "titlu_doc": "Paștele, calculat", "tip": "carusel"},
+    "14": {"fisier": "administrativo-t4-14-spor-noapte.png", "prev": ["L2-14.png"], "tip": "imagine"},
+    "15": {"fisier": "administrativo-t4-15-ore-suplimentare.png", "prev": ["L2-15.png"], "tip": "imagine"},
+    "16": {"fisier": "administrativo-t4-16-zero-randuri.pdf", "prev": [f"L2-16-s{i}.png" for i in range(1, 8)], "titlu_doc": "0 rânduri: cum se țin separat firmele", "tip": "carusel"},
+    "17": {"fisier": "administrativo-t4-17-indemnizatie.png", "prev": ["L2-17.png"], "tip": "imagine"},
+    "18": {"fisier": "administrativo-t4-18-zile-lucratoare-2027.png", "prev": ["L2-18.png"], "tip": "imagine"},
+    "19": {"fisier": "administrativo-t4-19-doua-amenzi.png", "prev": ["L2-19.png"], "tip": "imagine"},
+    "20": {"fisier": None, "prev": [], "tip": "sondaj"},
+    "21": {"fisier": "administrativo-t4-21-ingrijitor.png", "prev": ["L2-21.png"], "tip": "imagine"},
+    "22": {"fisier": "administrativo-t4-22-24-luni.png", "prev": ["L2-22.png"], "tip": "imagine"},
 }
 
 date = []
@@ -92,6 +108,7 @@ for s in sectiuni:
         "avertismente": avertismente(s),
         "alt": alt_unic(s),
         "alt_slideuri": alt_slideuri(s),
+        "sondaj": " ".join(m.group(1).split()) if (m := re.search(r"\*\*Sondajul\*\* (.+?)\n\n", s, re.S)) else "",
         **p,
     })
 
@@ -105,10 +122,24 @@ def buton_copiere(id_):
 def card(p):
     subiect = p["antet"].split(" · ", 2)[-1] if p["antet"].count(" · ") >= 2 else p["antet"]
     titluri = {
-        "1": "Șase lucruri de avut la zi",
-        "2": "Diurna: 57,50 lei nu e scris în nicio lege",
-        "3": "Lansarea pilotului pentru contabili",
-        "4": "REGES: contractul pleacă în ziua dinainte",
+        "5": "2027: 8 din 17 sărbători cad în weekend",
+        "6": "Punțile din 2027: 11 zile de concediu, 33 libere",
+        "7": "Mărirea de 1 leu care scade netul cu 85 de lei",
+        "8": "REGES prin API: 5 canale, nu 1",
+        "9": "Concediul din noiembrie: 8 zile, nu 10",
+        "10": "Concediul nu „expiră” după 18 luni",
+        "11": "Control ITM: 8 documente, comparate",
+        "12": "6 lucruri care „se știu” și nu sunt în lege",
+        "13": "Paștele din 2035, calculat, nu căutat",
+        "14": "Tura până la 23:00: zero spor de noapte",
+        "15": "Ore suplimentare: nicio limită pe lună",
+        "16": "0 rânduri: datele unei firme, la alta",
+        "17": "Indemnizația de concediu: media pe 3 luni",
+        "18": "2027 pe luni: 252 de zile lucrătoare",
+        "19": "20.000 sau 40.000 de lei: două amenzi",
+        "20": "Sondaj: cum țineți evidența orelor?",
+        "21": "Concediul de îngrijitor: 5 zile pe an",
+        "22": "Salariul minim, cel mult 24 de luni",
     }
     avert = "".join(f'<li>{e(a)}</li>' for a in p["avertismente"])
     avert_html = f'<ul class="avertismente">{avert}</ul>' if avert else ""
@@ -116,11 +147,20 @@ def card(p):
         f'<img src="previzualizari/{f}" alt="{e(dict(p["alt_slideuri"]).get(i + 1, p["alt"]))}" loading="lazy" width="1080" height="1350">'
         for i, f in enumerate(p["prev"])
     )
-    tip_eticheta = f'carusel · {len(p["prev"])} slide-uri · PDF' if p["tip"] == "carusel" else "imagine · PNG"
+    tip_eticheta = {"carusel": f'carusel · {len(p["prev"])} slide-uri · PDF', "imagine": "imagine · PNG", "sondaj": "sondaj · fără fișier"}[p["tip"]]
     cum_urci = (
         f'<p class="nota">Pe LinkedIn: <b>Adaugă un document</b>, alegi PDF-ul, iar titlul documentului e <span class="mono">„{e(p["titlu_doc"])}”</span>.</p>'
         if p["tip"] == "carusel"
         else f'<p class="nota">Pe LinkedIn: <b>Adaugă o fotografie</b>, apoi <b>Text alternativ</b> — textul de mai jos.</p>'
+    )
+    if p["tip"] == "sondaj":
+        cum_urci = f'<div class="sondaj"><p class="eticheta">Sondajul, de completat în LinkedIn</p><p class="textbloc mic">{e(p["sondaj"])}</p></div>'
+    vizual = (
+        f'''<div class="derulare" tabindex="0" aria-label="Previzualizare postarea {p['nr']}">{prev}</div>
+<button type="button" class="btn-descarca" data-fisier="{p['fisier']}">Descarcă {e(p['fisier'].rsplit('.', 1)[1].upper())}</button>
+<p class="stare" role="status" aria-live="polite"></p>'''
+        if p["fisier"]
+        else ""
     )
     alt_bloc = ""
     if p["tip"] == "imagine":
@@ -144,9 +184,7 @@ def card(p):
 {alt_bloc}
 </div>
 <div class="coloana-vizual">
-<div class="derulare" tabindex="0" aria-label="Previzualizare postarea {p['nr']}">{prev}</div>
-<button type="button" class="btn-descarca" data-fisier="{p['fisier']}">Descarcă {e(p['fisier'].rsplit('.', 1)[1].upper())}</button>
-<p class="stare" role="status" aria-live="polite"></p>
+{vizual}
 {cum_urci}
 </div>
 </div>
@@ -155,7 +193,7 @@ def card(p):
 
 carduri = "\n".join(card(p) for p in date)
 
-pagina = f"""<title>Kit LinkedIn · lotul 1</title>
+pagina = f"""<title>Kit LinkedIn · lotul 2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans+Condensed:wght@500;600;700&amp;family=Fira+Mono:wght@400;500&amp;family=Fira+Sans:wght@400;500&amp;display=swap">
 <style>
@@ -193,6 +231,7 @@ h2 {{ font-size: 1.6rem; font-weight: 600; line-height: 1.15; }}
 .banda span.we {{ background: repeating-linear-gradient(45deg, var(--rigla) 0 1px, transparent 1px 7px); }}
 .intro {{ display: flex; flex-direction: column; gap: 14px; }}
 .intro p {{ margin: 0; max-width: 65ch; color: var(--slab); }}
+.sondaj {{ display: flex; flex-direction: column; gap: 6px; }}
 .saptamana0 {{ border-top: 2px solid var(--rigla); padding-top: 20px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }}
 .saptamana0 ol {{ margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }}
 .saptamana0 img {{ width: 100%; height: auto; border: 1px solid var(--linie); display: block; }}
@@ -223,7 +262,8 @@ button:focus-visible, .derulare:focus-visible {{ outline: 2px solid var(--text);
 .cuprins {{ display: flex; flex-wrap: wrap; gap: 8px 20px; font-family: var(--mono); font-size: 13px; }}
 .cuprins a {{ color: var(--text); }}
 @media (max-width: 760px) {{
-  .grila, .saptamana0 {{ grid-template-columns: minmax(0, 1fr); }}
+  .grila, .sondaj {{ display: flex; flex-direction: column; gap: 6px; }}
+.saptamana0 {{ grid-template-columns: minmax(0, 1fr); }}
 }}
 @media (prefers-reduced-motion: reduce) {{ * {{ scroll-behavior: auto !important; }} }}
 </style>
@@ -232,27 +272,10 @@ button:focus-visible, .derulare:focus-visible {{ outline: 2px solid var(--text);
 <section class="intro">
 <div class="banda" aria-hidden="true"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span class="we">S</span><span class="we">D</span></div>
 <p class="mono">Administrativo · LinkedIn · trimestrul 4</p>
-<h1>Lotul 1: patru postări, 29 septembrie – 8 octombrie</h1>
-<p>Pentru fiecare postare: textul, primul comentariu cu linkul, hashtag-urile și fișierul de urcat. Linkul merge în <b>primul comentariu</b>, nu în postare. Planșele sunt și pe pânza Claude Design „LinkedIn T4 — Administrativo”.</p>
+<h1>Lotul 2: seria de reach, 15 postări, 12 – 30 octombrie</h1>
+<p>O postare pe zi lucrătoare, la 8:30, plus trei rezerve (#20–#22). Fiecare e făcută ca să fie salvată sau trimisă unui coleg: o cifră surprinzătoare, un calendar de folosit, un mit demontat. Pentru fiecare: textul, primul comentariu cu linkul, hashtag-urile și fișierul de urcat. Linkul merge în <b>primul comentariu</b>, nu în postare.</p>
+<p>Rezervele înlocuiesc o postare care și-a pierdut ziua. Dacă vreți două postări într-o zi, a doua se pune la 16:00, la cel puțin 7 ore după prima, ca să nu-și ia reach-ul una alteia.</p>
 <nav class="cuprins" aria-label="Postări">{"".join(f'<a href="#p{p["nr"]}">#{p["nr"]} · {e(p["ziua"])}</a>' for p in date)}</nav>
-</section>
-
-<section class="saptamana0" aria-labelledby="s0">
-<div class="coloana-text">
-<h2 id="s0">Săptămâna 0, până pe 28 septembrie</h2>
-<ol>
-<li>Bannerul de mai jos pe pagina de firmă (1128×191).</li>
-<li>Descrierea paginii și situl <span class="mono">administrativo.ro</span>.</li>
-<li>Pe profilul tău: experiența curentă legată de pagină.</li>
-<li>Invitații de urmărire către conexiuni — contabilii întâi.</li>
-<li>O postare de anunț de pe profil, care redistribuie pagina.</li>
-</ol>
-</div>
-<div class="coloana-vizual">
-<img src="previzualizari/Banner.png" alt="Bannerul paginii: grila unei foi de pontaj cu zile colorate, iar în dreapta numele Administrativo și rândul „pontaj, concedii, REGES-Online, pentru firmele mici”." width="1128" height="191">
-<button type="button" class="btn-descarca" data-fisier="administrativo-banner-1128x191.png">Descarcă bannerul</button>
-<p class="stare" role="status" aria-live="polite"></p>
-</div>
 </section>
 
 {carduri}
@@ -320,7 +343,7 @@ button:focus-visible, .derulare:focus-visible {{ outline: 2px solid var(--text);
 </script>
 """
 
-open(os.path.join(KIT, "kit-linkedin-lot1.html"), "w").write(pagina)
+open(os.path.join(KIT, "kit-linkedin.html"), "w").write(pagina)
 fisiere = {}
 for d in ("fisiere", "previzualizari"):
     for f in sorted(os.listdir(os.path.join(KIT, d))):

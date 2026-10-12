@@ -10,7 +10,7 @@ import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -24,6 +24,9 @@ import { filtreEipSchema } from "@/schemas/ssm";
 import { NavSsm } from "../nav-ssm";
 import { ConfirmarePrimireEip, ReturnareEip } from "./actiuni-eip";
 import { FormularEip } from "./formular-eip";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
 
 export const metadata: Metadata = { title: "Echipament individual de protecție" };
 
@@ -35,8 +38,13 @@ async function TabelEip({
   organizationId,
   parametri,
   poateActualiza,
+  poateCrea,
+  permisiuni,
 }: {
   readonly organizationId: string;
+  /** Formularul „de mai sus" există doar cu `ssm:create`; altfel textul trimitea spre nimic. */
+  readonly poateCrea: boolean;
+  readonly permisiuni: PermissionMap;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateActualiza: boolean;
 }) {
@@ -49,7 +57,11 @@ async function TabelEip({
         fel="initiala"
         pictograma={HardHat}
         titlu="Niciun echipament predat"
-        descriere="Predați primul echipament individual de protecție folosind formularul de mai sus."
+        descriere={
+          poateCrea
+            ? "Predați primul echipament individual de protecție folosind formularul de mai sus."
+            : "Niciun echipament de protecție nu a fost predat încă. Predarea o înregistrează responsabilul SSM."
+        }
       />
     );
   }
@@ -77,7 +89,11 @@ async function TabelEip({
       peTelefon: "titlu",
       celula: (e) => {
         const angajat = angajati.get(e.employee_id);
-        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+        return (
+          <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+            {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+          </LinkEntitate>
+        );
       },
     },
     {
@@ -221,6 +237,13 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
     angajati = data ?? [];
   }
 
+  // Filtrul de intrare din fișa angajatului: pastilă cu nume, citit sub RLS.
+  const angajatFiltrat = filtreDinUrl(filtreEipSchema, parametri).angajat;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -242,11 +265,24 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
 
       {poateCrea ? <FormularEip angajati={angajati} /> : null}
 
+      <PastileFiltre
+        active={[
+          ...(angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]),
+          ...(filtreDinUrl(filtreEipSchema, parametri).scadenta === null
+            ? []
+            : [{ cheie: "scadenta", eticheta: "Doar de înlocuit sau expirate" }]),
+        ]}
+      />
+
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelEip
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateActualiza={poateActualiza}
+          poateCrea={poateCrea}
+          permisiuni={permisiuni}
         />
       </Suspense>
     </div>

@@ -10,8 +10,12 @@
 // favorite și supraviețuiește lui „înapoi".
 import type { Metadata } from "next";
 
+import Link from "next/link";
+import { CalendarPlus } from "lucide-react";
+
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -30,6 +34,9 @@ import { GrilaCalendar, type EvenimentZiCalendar } from "./grila-calendar";
 import { NavigareLuna } from "./navigare-luna";
 import { PlanificatorConcedii, type RandAngajatPlanificator } from "./planificator-concedii";
 import { VEDERI_CALENDAR, vedereDinParametru } from "./vedere";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { deAprobat } from "@/lib/queries/leave";
 
 export const metadata: Metadata = { title: "Calendarul de concedii" };
 
@@ -54,7 +61,7 @@ function parametrulNumeric(valoare: string | string[] | undefined): number | nul
 }
 
 export default async function PaginaCalendarConcedii({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { user, tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -69,6 +76,12 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
   }
 
   const poateAproba = can(permisiuni, "leave:approve", "team");
+  // Fila „Aprobări" primea contorul doar pe /concedii și /concedii/echipa:
+  // aici, unde aterizează managerii, apărea fără număr. Aceeași citire ca pe
+  // ecranul de aprobări, doar pentru cine poate aproba.
+  const numarDeAprobat = poateAproba
+    ? (await deAprobat(tenant.organizationId, user.id)).sarcini.length
+    : 0;
   const poateConfigura = can(permisiuni, "leave:update", "all");
   const parametri = await searchParams;
   const azi = todayInBucharest();
@@ -108,6 +121,7 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
     const tipCuloare = tip?.culoare ?? "#94a3b8";
 
     const eveniment: EvenimentZiCalendar = {
+      cerereId: rand.leave_request_id,
       employeeLabel:
         angajat === null ? "Angajat" : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`,
       tipDenumire,
@@ -120,6 +134,7 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
 
     const cheie = cheieCelula(rand.cerere.employee_id, rand.data);
     const absenta: AbsentaCelula = {
+      cerereId: rand.leave_request_id,
       tipId: rand.cerere.leave_type_id,
       tipDenumire,
       tipCuloare,
@@ -137,10 +152,23 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
     nelucratoare.organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
     nelucratoare.organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
   );
+  // Rândurile planificatorului vin din `employees` sub RLS, deci fișa fiecăruia
+  // se deschide pentru cine privește; rândul propriu duce la „Cererile mele".
+  const fisaMea = await idFisaProprie(tenant.organizationId, user.id);
+  // „Cerere nouă" exista doar pe „Cererile mele"; de pe calendar — prima
+  // pagină a managerului — trebuia schimbată fila ca să depui una. Caseta stă
+  // pe lista proprie, deschisă direct prin `?cerere=noua`; cine are
+  // `leave:create = all` poate alege acolo și pe altcineva.
+  const poateCerere =
+    can(permisiuni, "leave:create", "own") &&
+    (fisaMea !== null || can(permisiuni, "leave:create", "all"));
   const randuriAngajati: readonly RandAngajatPlanificator[] = angajatiRanduri.map((a) => ({
     id: a.id,
     nume: a.full_name ?? a.marca,
     marca: a.marca,
+    hrefCereri:
+      a.id === fisaMea ? "/concedii?vedere=cereri" : `/concedii/echipa?employee_id=${a.id}`,
+    hrefFisa: hrefFisa({ id: a.id, deleted_at: null }, permisiuni),
   }));
 
   const lunaAnterioara =
@@ -156,11 +184,24 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
       <AntetPagina
         titlu="Calendarul de concedii"
         descriere={`${descriereVedere} ${formatMonthYear(anCurent, luna)}.`}
-        {...(poateConfigura
-          ? { actiuni: <ButonSetariConcedii poateConfigura={poateConfigura} /> }
+        {...(poateConfigura || poateCerere
+          ? {
+              actiuni: (
+                <>
+                  <ButonSetariConcedii poateConfigura={poateConfigura} />
+                  {poateCerere ? (
+                    <Link href="/concedii?cerere=noua" className={buton({ varianta: "primar" })}>
+                      <CalendarPlus aria-hidden="true" className="size-4" />
+                      Cerere nouă
+                    </Link>
+                  ) : null}
+                </>
+              ),
+            }
           : {})}
         file={
           <NavConcedii
+            deAprobat={numarDeAprobat}
             poateVedeaEchipa={true}
             poateAproba={poateAproba}
             poateVedeaCalendar={true}

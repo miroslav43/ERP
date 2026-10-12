@@ -24,6 +24,8 @@ interface Proprietati {
   readonly departament: string | null;
   readonly cauta: string | null;
   readonly departamente: readonly Departament[];
+  /** `?angajat=` cu numele rezolvat; filtru de intrare, fără câmp în bară. */
+  readonly angajat?: Readonly<{ id: string; nume: string | null }> | null;
 }
 
 const LUNI_ETICHETE = [
@@ -59,7 +61,14 @@ const CLASA_CONTROL = "border-foreground/60 rounded-control text-corp border px-
  * randează deloc — un filtru care nu ar întoarce niciodată o alegere e mai
  * rău decât lipsa lui.
  */
-export function FiltrePontaj({ an, luna, departament, cauta, departamente }: Proprietati) {
+export function FiltrePontaj({
+  an,
+  luna,
+  departament,
+  cauta,
+  departamente,
+  angajat = null,
+}: Proprietati) {
   const azi = todayInBucharest();
   const anImplicit = Number(azi.slice(0, 4));
   const lunaImplicita = Number(azi.slice(5, 7));
@@ -83,10 +92,13 @@ export function FiltrePontaj({ an, luna, departament, cauta, departamente }: Pro
       eticheta: `Departament: ${ales?.denumire ?? "necunoscut"}`,
     });
   }
+  if (angajat !== null) {
+    active.push({ cheie: "angajat", eticheta: `Angajat: ${angajat.nume ?? "ales"}` });
+  }
   if (cauta !== null) active.push({ cheie: "cauta", eticheta: `Angajat: ${cauta}` });
 
   return (
-    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII}>
+    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII} cheiExterne={["angajat"]}>
       <div className="flex flex-col gap-1">
         <label htmlFor="filtru-pontaj-an" className="text-corp font-medium">
           An

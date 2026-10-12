@@ -14,12 +14,15 @@ import type { PermissionMap } from "@/lib/auth/permissions";
 import { citesteRezumatCredentiale } from "@/lib/reges/credentiale";
 import { createServerSupabase } from "@/lib/supabase/server";
 
-import { numarAngajatiActivi } from "./announcements";
+import { anunturiPublicate, idAnunturiCitite, numarAngajatiActivi } from "./announcements";
 import { pontajDeAprobat, type PontajDeAprobat } from "./attendance";
 import { idFisaProprie } from "./employees";
 import { citesteTot } from "./citeste-tot";
 import { numarScadenteMentenanta } from "./maintenance";
 import { numarScadenteSsm } from "./ssm";
+import { PRAG_CONTRACTE_EXPIRA_ZILE } from "@/domain/hr/contracte-expira";
+import { sarcinileMele } from "./checklist";
+import type { RolResponsabil } from "@/schemas/checklist";
 
 /**
  * Citirile panoului principal.
@@ -57,6 +60,8 @@ export type { PontajDeAprobat };
 
 export type CoadaPanou = Readonly<{
   cereriConcediu: Contor;
+  /** Când e o singură cerere: id-ul ei — rândul din coadă duce direct la obiect. */
+  cerereUnicaId: string | null;
   /**
    * `null` = modulul e stins sau rolul n-are dreptul de aprobare.
    *
@@ -77,6 +82,8 @@ export type CoadaPanou = Readonly<{
   deplasari: Contor;
   foiParcurs: Contor;
   tichete: Contor;
+  /** Când e un singur tichet: id-ul lui — rândul din coadă duce direct la obiect. */
+  tichetUnicId: string | null;
   /**
    * Anomaliile de kilometraj stăteau printre scadențe, deși n-au termen: un
    * contor de kilometraj sărit înapoi nu expiră, așteaptă pe cineva să confirme
@@ -94,6 +101,8 @@ export type CoadaPanou = Readonly<{
    * pe care nimeni n-are motiv să-l deschidă în ziua în care s-a întâmplat ceva.
    */
   regesDeTransmis: Contor;
+  /** Pașii de integrare deschiși care îmi revin (ca fișă sau ca rol); `null` = modul stins sau fără drept. */
+  pasiIntegrare: Contor;
 }>;
 
 /** Ce are termen. `lipsa` e o treaptă proprie, mai gravă decât „expiră curând”. */
@@ -128,7 +137,40 @@ export type ContoarePanou = Readonly<{
   coada: CoadaPanou;
   scadente: ScadentePanou;
   firma: FirmaAzi;
+  /** Anunțuri active necitite de fișa proprie; `null` = modul oprit, fără drept sau fără fișă. */
+  avizier: Contor;
 }>;
+
+/**
+ * Insigna avizierului: anunțurile ACTIVE pe care fișa proprie nu le-a
+ * confirmat. Același predicat ca segmentul „Necitite" din `/anunturi`, unde
+ * duce insigna. Fără fișă (administrator invitat) nu există „citit", deci
+ * nici cifră.
+ */
+/**
+ * Pașii de integrare deschiși care îmi revin — același predicat ca
+ * `/onboarding/sarcinile-mele` (`sarcinileMele`), unde duce rândul.
+ * Comentariul de acolo promitea un „contor din panou" care nu exista.
+ */
+async function pasiiDeIntegrareAiMei(
+  organizationId: string,
+  userId: string,
+  role: AppRole,
+): Promise<Contor> {
+  const fisa = await idFisaProprie(organizationId, userId);
+  const sarcini = await sarcinileMele(organizationId, fisa, role as RolResponsabil);
+  return sarcini.length;
+}
+
+async function anunturiNecitite(organizationId: string, userId: string): Promise<Contor> {
+  const fisa = await idFisaProprie(organizationId, userId);
+  if (fisa === null) return null;
+  const [publicate, citite] = await Promise.all([
+    anunturiPublicate(organizationId, new Date().toISOString()),
+    idAnunturiCitite(organizationId, fisa),
+  ]);
+  return publicate.filter((a) => !citite.has(a.id)).length;
+}
 
 /** Ziua de azi în București, ca șir ISO. Comparațiile de date se fac pe șiruri. */
 function aziBucuresti(): string {
@@ -194,6 +236,22 @@ export async function contorRegesDeTransmis(organizationId: string): Promise<num
  * și niciunul pe concedii; badge-ul `leave_pending` din meniu era declarat și
  * nealimentat tocmai fiindcă o numărătoare naivă ar fi fost greșită.
  */
+/**
+ * Numărul ȘI, când e exact unul, id-ul lui: pe firmele reale (8 angajați
+ * maximum) cazul tipic e „1 cerere", iar rândul din coadă duce atunci direct
+ * la obiect, nu la o listă cu un singur rând. `limit(2)` în loc de `head`:
+ * cel mult două rânduri, costul e același.
+ */
+export type ContorCuUnic = Readonly<{ numar: number; unicId: string | null }>;
+
+function unicDin(
+  count: number | null,
+  randuri: readonly Readonly<{ id: string }>[] | null,
+): ContorCuUnic {
+  const numar = count ?? 0;
+  return { numar, unicId: numar === 1 ? (randuri?.[0]?.id ?? null) : null };
+}
+
 export async function contorCereriConcediu(
   organizationId: string,
   /**
@@ -216,7 +274,7 @@ export async function contorCereriConcediu(
    * `aprobaPeLoc` o rezolvă oricum pe loc pentru cine are `leave:approve = all`.
    */
   userId: string,
-): Promise<number> {
+): Promise<ContorCuUnic> {
   const db = await createServerSupabase();
 
   // Aceeași funcție pe care o folosesc scope-urile „own"/„team" din tot
@@ -225,16 +283,16 @@ export async function contorCereriConcediu(
 
   let interogare = db
     .from("leave_requests")
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "exact" })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .in("status", ["trimisa", "in_aprobare"]);
   // Fără fișă proprie — administrator care nu e angajat — n-ai ce exclude.
   if (fisaMea !== null) interogare = interogare.neq("employee_id", fisaMea);
 
-  const { count, error } = await interogare;
+  const { data, count, error } = await interogare.limit(2);
   if (error !== null) throw error;
-  return count ?? 0;
+  return unicDin(count, data);
 }
 
 export async function contorDeplasari(organizationId: string): Promise<number> {
@@ -263,16 +321,17 @@ export async function contorFoiDeParcurs(organizationId: string): Promise<number
 }
 
 /** Tichete care așteaptă o decizie. */
-export async function contorTichete(organizationId: string): Promise<number> {
+export async function contorTichete(organizationId: string): Promise<ContorCuUnic> {
   const db = await createServerSupabase();
-  const { count, error } = await db
+  const { data, count, error } = await db
     .from("tickets")
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "exact" })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .eq("status", "in_aprobare");
+    .eq("status", "in_aprobare")
+    .limit(2);
   if (error !== null) throw error;
-  return count ?? 0;
+  return unicDin(count, data);
 }
 
 export type ScadenteFlota = Readonly<{
@@ -461,11 +520,13 @@ export async function stareFirmeiAzi(organizationId: string): Promise<FirmaAzi> 
 }
 
 /** Fereastra în care o scadență devine „de rezolvat” pe panou. */
-export const PRAG_PANOU_ZILE = 30;
+export const PRAG_PANOU_ZILE = PRAG_CONTRACTE_EXPIRA_ZILE;
 
 type Porti = Readonly<{
   /** Utilizatorul curent. Contorul de concedii îl cere ca să-și excludă fișa. */
   userId: string;
+  /** Rolul din organizație: pașii de integrare se atribuie și pe rol. */
+  role: AppRole;
   features: ReadonlySet<FeatureKey>;
   /**
    * Harta întreagă, cum o dă `getPermissionMap`. `scope = "none"` e refuz
@@ -545,6 +606,8 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
    * contorului e cea a acțiunii, nu a listei.
    */
   const vedeReges = areModul(porti, "reges") && are(porti, "reges:transmit", "all");
+  const vedeAvizier = areModul(porti, "announcements") && are(porti, "announcements:read", "own");
+  const vedeIntegrare = areModul(porti, "onboarding") && are(porti, "checklists:read", "own");
 
   const [
     cereriConcediu,
@@ -559,6 +622,8 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     contracte,
     firma,
     regesDeTransmis,
+    avizier,
+    pasiIntegrare,
   ] = await Promise.all([
     vedeConcedii ? contorCereriConcediu(organizationId, porti.userId) : null,
     vedePontaj ? pontajDeAprobat(organizationId) : null,
@@ -579,16 +644,21 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     vedeContracte ? contorContracteCareExpira(organizationId, PRAG_PANOU_ZILE) : null,
     stareFirmeiAzi(organizationId),
     vedeReges ? contorRegesDeTransmis(organizationId) : null,
+    vedeAvizier ? anunturiNecitite(organizationId, porti.userId) : null,
+    vedeIntegrare ? pasiiDeIntegrareAiMei(organizationId, porti.userId, porti.role) : null,
   ]);
 
   const coada: CoadaPanou = {
-    cereriConcediu,
+    cereriConcediu: cereriConcediu === null ? null : cereriConcediu.numar,
+    cerereUnicaId: cereriConcediu?.unicId ?? null,
     pontaj,
     deplasari,
     foiParcurs,
-    tichete,
+    tichete: tichete === null ? null : tichete.numar,
+    tichetUnicId: tichete?.unicId ?? null,
     anomaliiKm: anomalii,
     regesDeTransmis,
+    pasiIntegrare,
   };
 
   return {
@@ -601,6 +671,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
       contracteDeterminate: contracte,
     },
     firma,
+    avizier,
   };
 }
 
@@ -640,7 +711,7 @@ export const contoarePanouPentru = cache(
       getEnabledFeatures(organizationId),
       getPermissionMap(organizationId, role, memberId),
     ]);
-    return contoarePanou(organizationId, { userId, features, permissions });
+    return contoarePanou(organizationId, { userId, role, features, permissions });
   },
 );
 
@@ -660,7 +731,8 @@ export function insigneMeniu(
     | "ssm_expiring"
     | "fleet_expiring"
     | "maintenance_due"
-    | "reges_pending",
+    | "reges_pending"
+    | "announcements_unread",
     number
   >
 > {
@@ -678,5 +750,6 @@ export function insigneMeniu(
   pune("fleet_expiring", contoare.scadente.documenteFlota);
   pune("maintenance_due", contoare.scadente.mentenanta);
   pune("reges_pending", contoare.coada.regesDeTransmis);
+  pune("announcements_unread", contoare.avizier);
   return insigne;
 }

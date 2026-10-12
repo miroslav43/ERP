@@ -78,6 +78,10 @@ export const EXCLUSE: Readonly<Record<string, string>> = {
     "Se ajunge la ea din banda de instalare a portalului, nu prin navigare; a trimite pe cineva acolo din senin n-are înțeles.",
   "/registru/listare":
     "Vederea de tipar a registrului, deschisă în filă nouă din butonul „Listează registrul”. Fără filtrele alese în arhivă nu înseamnă nimic, iar trimis direct ar da o listare pe anul curent, fără context — destinația utilă e /registru.",
+  "/mentenanta/sesizari/noua":
+    "Redirect păstrat pentru autocolantele QR tipărite pe utilaje (`?echipament=`); formularul e caseta de pe /mentenanta/sesizari, destinația indexată e `mentenanta.sesizari.noua`.",
+  "/portal/sesizari/noua":
+    "Redirect păstrat pentru aceleași autocolante QR, pe partea de portal; destinația indexată e `portal.sesizari.noua`, caseta de pe /portal/sesizari.",
 };
 
 const INTRARI: readonly Intrare[] = [
@@ -488,7 +492,7 @@ const INTRARI: readonly Intrare[] = [
     zona: "app",
     parinte: "evaluari",
     fila: "KPI lunar",
-    featureKey: "evaluations",
+    featureKey: "kpi",
     permission: "evaluations:read",
     minScope: "team",
     descriere:
@@ -501,7 +505,7 @@ const INTRARI: readonly Intrare[] = [
     zona: "app",
     parinte: "evaluari",
     fila: "KPI lunar",
-    featureKey: "evaluations",
+    featureKey: "kpi",
     permission: "evaluations:read",
     minScope: "team",
     descriere:
@@ -844,8 +848,34 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Echipamentele și utilajele aflate în evidență, cu istoricul lor.",
   },
   {
+    id: "mentenanta.echipamente.etichete",
+    href: "/mentenanta/echipamente/etichete",
+    eticheta: "Etichete QR pentru echipamente",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "Echipamente",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "team",
+    descriere:
+      "Etichetele QR de lipit pe utilaje, pentru lista filtrată; scanate, deschid sesizarea de defecțiune.",
+  },
+  {
+    id: "mentenanta.contoare",
+    href: "/mentenanta/contoare",
+    eticheta: "Contoare",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "Contoare",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "team",
+    descriere:
+      "Citirile de contor ale tuturor echipamentelor, cu cele necitite de mult și câmpuri pentru citirile noi în lot.",
+  },
+  {
     id: "mentenanta.echipamente.nou",
-    href: "/mentenanta/echipamente/nou",
+    href: "/mentenanta/echipamente?echipament=nou",
     eticheta: "Echipament nou",
     zona: "app",
     parinte: "mentenanta",
@@ -892,8 +922,21 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Defecțiunile raportate de colegi, de preluat și rezolvat.",
   },
   {
+    id: "mentenanta.setari",
+    href: "/mentenanta/setari",
+    eticheta: "Setări mentenanță",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "Setări",
+    featureKey: "maintenance",
+    permission: "maintenance:update",
+    minScope: "all",
+    descriere:
+      "Cine primește sesizările, închiderea automată, pragurile de avertizare și programul de lucru al utilajelor.",
+  },
+  {
     id: "mentenanta.sesizari.noua",
-    href: "/mentenanta/sesizari/noua",
+    href: "/mentenanta/sesizari?sesizare=noua",
     eticheta: "Sesizare nouă",
     zona: "app",
     parinte: "mentenanta",
@@ -1355,6 +1398,18 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Pașii tăi de integrare în firmă și ce mai ai de bifat.",
   },
   {
+    id: "portal.integrare.sarcini",
+    href: "/portal/integrarea-mea/sarcini",
+    eticheta: "Pașii mei la colegi",
+    zona: "portal",
+    parinte: "portal-integrare",
+    fila: null,
+    featureKey: "onboarding",
+    permission: "checklists:read",
+    minScope: "own",
+    descriere: "Pașii din parcursurile de integrare ale colegilor pentru care ești responsabil.",
+  },
+  {
     id: "portal.instruiri",
     href: "/portal/instruirile-mele",
     eticheta: "Dosarul meu SSM",
@@ -1416,7 +1471,7 @@ const INTRARI: readonly Intrare[] = [
   },
   {
     id: "portal.sesizari.noua",
-    href: "/portal/sesizari/noua",
+    href: "/portal/sesizari?sesizare=noua",
     eticheta: "Sesizare nouă",
     zona: "portal",
     parinte: "portal-sesizari",

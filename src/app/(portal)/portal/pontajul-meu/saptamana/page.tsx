@@ -150,6 +150,12 @@ export default async function PaginaSaptamanaPortal({
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
       <AntetPagina
+        // „Pontajul meu” e link doar cu `attendance:read`; altfel text.
+        firimituri={[
+          can(permisiuni, "attendance:read", "own")
+            ? { eticheta: "Pontajul meu", href: "/portal/pontajul-meu" }
+            : { eticheta: "Pontajul meu" },
+        ]}
         titlu={peSaptamana ? "Pontajul săptămânii" : "Planul săptămânii"}
         descriere={
           peSaptamana
@@ -212,11 +218,16 @@ export default async function PaginaSaptamanaPortal({
         lucreazaWeekendInitial={lucreazaWeekendInitial}
       />
 
-      <p>
-        <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
-          Înapoi la pontajul meu
-        </Link>
-      </p>
+      {can(permisiuni, "attendance:read", "own") ? (
+        <p>
+          <Link
+            href={`/portal/pontajul-meu?an=${saptamanaStart.slice(0, 4)}&luna=${String(Number(saptamanaStart.slice(5, 7)))}`}
+            className={buton({ varianta: "link" })}
+          >
+            Înapoi la pontajul meu
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

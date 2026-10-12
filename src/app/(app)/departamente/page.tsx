@@ -24,6 +24,9 @@ import { FormularDepartamentNou } from "./formular-departament-nou";
 import { StructuraInteractiva } from "./structura-interactiva";
 import type { DepartamentEcran, OptiuneAngajat, OptiuneDepartament } from "./tipuri";
 import type { PersoanaPanou } from "./panou-departament";
+import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
+import { getEnabledFeatures } from "@/lib/auth/features";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Departamente" };
 
@@ -87,7 +90,7 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
       ? null
       : await idFisaProprie(tenant.organizationId, user.id);
 
-  const [structura, angajati, rolurileMembrilor, avataruri] = await Promise.all([
+  const [structura, angajati, rolurileMembrilor, avataruri, module] = await Promise.all([
     structuraDepartamentelor(tenant.organizationId),
     angajatiPentruStructura(tenant.organizationId, scopeAngajati ?? "none", propriaFisaId),
     rolurilePeUtilizator(tenant.organizationId),
@@ -97,7 +100,10 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
     // însă filtrată pe ORGANIZAȚIE — `app.shares_org` din `profiles_select`
     // se uită la toate organizațiile autorului cererii, nu doar la asta.
     toateAvatarurile(tenant.organizationId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Legăturile din panou trec prin poarta paginii-ȚINTĂ, nu a structurii.
+  const contextPorti: ContextPorti = { features: module, permissions: permisiuni };
 
   const denumirePeDepartament = new Map(structura.map((d) => [d.id, d.denumire]));
 
@@ -130,7 +136,9 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
   for (const persoana of persoane) {
     const departmentId = departamentPeAngajat.get(persoana.id) ?? null;
     if (departmentId === null) {
-      nerepartizati.push(persoana);
+      // Banda se prezintă drept „angajați ACTIVI fără departament": cei încetați
+      // sau arhivați n-au unde fi repartizați și umflau cifra.
+      if (persoana.esteActiv) nerepartizati.push(persoana);
       continue;
     }
     const lista = persoanePeDepartament.get(departmentId);
@@ -202,16 +210,19 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
       <AntetPagina
         titlu="Departamente"
         descriere="Structura organizatorică, cu managerul și efectivul pe fiecare nivel."
-        {...(poateCrea
-          ? {
-              actiuni: (
-                <FormularDepartamentNou
-                  departamente={listaDepartamente}
-                  angajati={optiuniAngajati}
-                />
-              ),
-            }
-          : {})}
+        actiuni={
+          <span className="flex flex-wrap items-center gap-3">
+            {/* Cealaltă organigramă: cea MANAGERIALĂ, din `manager_employee_id`. */}
+            {poateDeschide("/organigrama", contextPorti) ? (
+              <Link href="/organigrama" className="text-nota underline-offset-2 hover:underline">
+                Ierarhia managerială
+              </Link>
+            ) : null}
+            {poateCrea ? (
+              <FormularDepartamentNou departamente={listaDepartamente} angajati={optiuniAngajati} />
+            ) : null}
+          </span>
+        }
       />
 
       {arbore.length === 0 && nerepartizati.length === 0 ? (
@@ -250,6 +261,18 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
             angajati={optiuniAngajati}
             poateEdita={poateEdita}
             poateMutaPersoane={poateMutaPersoane}
+            poateInvita={can(permisiuni, "users:update", "all")}
+            poateSchimbaRoluri={can(permisiuni, "users:update", "all")}
+            legaturi={{
+              angajati: poateDeschide("/angajati", contextPorti),
+              pontaj: poateDeschide("/pontaj", contextPorti),
+              aprobare: poateDeschide("/pontaj/aprobare", contextPorti),
+              tichete: poateDeschide("/ticketing/coada", contextPorti),
+              organigrama: poateDeschide("/organigrama", contextPorti),
+              instruiri:
+                poateDeschide("/ssm/instruiri", contextPorti) &&
+                can(permisiuni, "employees:read", "team"),
+            }}
           />
         </>
       )}

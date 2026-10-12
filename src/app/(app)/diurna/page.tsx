@@ -14,7 +14,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime, todayInBucharest } from "@/lib/format/date";
@@ -37,6 +37,8 @@ import { filtreDeplasariSchema } from "@/schemas/per-diem";
 import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE, textZile } from "./etichete";
 import { FiltreDeplasari } from "./filtre-deplasari";
 import { NavDiurna } from "./nav-diurna";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Deplasări" };
 
@@ -94,10 +96,15 @@ async function TabelDeplasari({
   organizationId,
   parametri,
   arataAngajat,
+  permisiuni,
+  hrefPolitica,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly arataAngajat: boolean;
+  readonly permisiuni: PermissionMap;
+  /** Pagina politicii, pentru rândurile fără politică valabilă; `null` fără drept. */
+  readonly hrefPolitica: string | null;
 }) {
   const filtre = filtreDinUrl(filtreDeplasariSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaDeplasari(
@@ -120,12 +127,13 @@ async function TabelDeplasari({
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.status !== null;
+    const areFiltre = filtre.status !== null || filtre.angajat !== null;
     // „Șterge filtrele” scoate DOAR cheile de filtrare, aceleași pe care le
     // administrează `<FiltreDeplasari>`. Un `href="/diurna"` sec ar fi luat cu
     // el și sortarea, și mărimea paginii — exact defectul reparat în bară.
     const faraFiltre = adresa((p) => {
       p.delete("status");
+      p.delete("angajat");
       p.delete("cursor");
     });
     return (
@@ -174,7 +182,13 @@ async function TabelDeplasari({
           peTelefon: "meta",
           celula: (r) => {
             const angajat = angajati.get(r.employee_id);
-            return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+            return angajat === undefined ? (
+              "—"
+            ) : (
+              <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                {angajat.full_name ?? "—"} ({angajat.marca})
+              </LinkEntitate>
+            );
           },
         },
       ]
@@ -224,7 +238,13 @@ async function TabelDeplasari({
         const sumar = sumarDeplasare(r, politiciDupaData, baremuri, salvate.get(r.id));
         return (
           <>
-            {sumar.text}
+            {sumar.text === "fără politică valabilă" && hrefPolitica !== null ? (
+              <Link href={hrefPolitica} className="relative underline-offset-2 hover:underline">
+                {sumar.text}
+              </Link>
+            ) : (
+              sumar.text
+            )}
             {sumar.estimare ? (
               <span className="text-muted-foreground text-nota ml-1">(estimare)</span>
             ) : null}
@@ -305,6 +325,14 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
    */
   const faraPolitica = politicaCurenta === null;
 
+  // Numele pentru pastila „Angajat: X" — citit sub RLS; un id străin rămâne „ales".
+  const filtreUrl = filtreDinUrl(filtreDeplasariSchema, parametri);
+  const numeAngajatFiltrat =
+    filtreUrl.angajat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [filtreUrl.angajat])).get(filtreUrl.angajat)
+          ?.full_name ?? null);
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -347,13 +375,15 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
         </Callout>
       ) : null}
 
-      <FiltreDeplasari parametri={parametri} />
+      <FiltreDeplasari parametri={parametri} numeAngajat={numeAngajatFiltrat} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelDeplasari
           organizationId={tenant.organizationId}
           parametri={parametri}
           arataAngajat={scope === "team" || scope === "all"}
+          permisiuni={permisiuni}
+          hrefPolitica={poateConfiguraPolitica ? "/diurna/politica" : null}
         />
       </Suspense>
     </div>

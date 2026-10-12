@@ -23,12 +23,13 @@ import { ETICHETE_CATEGORIE, ETICHETE_COMBUSTIBIL } from "./etichete";
  * cere literal `status = 'activ'`: un vehicul nu poate intra direct „vândut".
  * Caseta de modificare le randează ea, deasupra acestor câmpuri.
  *
- * `km_curent` — îl ridică triggerul la aprobarea unei foi de parcurs. Editabil
- * din formular, ar fi a doua sursă pentru aceeași cifră.
+ * `km_curent` la MODIFICARE — îl ridică triggerul la aprobarea unei foi de
+ * parcurs; corectura are casetă proprie, cu motiv. La CREARE însă e obligatoriu
+ * (`cuKilometraj`): fără el, mașina intra cu 0 km și prima foaie trecea de orice
+ * verificare.
  *
- * `employee_id` / `department_id` — nu există încă selector. Caseta de
- * modificare le trimite prin câmpuri ascunse ca să nu le șteargă; vezi
- * `valori-vehicul.ts`.
+ * `employee_id` — din 0173 e derivatul alocării deschise. Se schimbă din
+ * secțiunea „Alocări” a fișei, cu istoric, nu de aici.
  */
 export interface ValoriInitialeVehicul {
   readonly nr_inmatriculare: string;
@@ -40,17 +41,31 @@ export interface ValoriInitialeVehicul {
   readonly an_fabricatie: number | null;
   readonly culoare: string | null;
   readonly consum_mediu_declarat: number | null;
+  readonly capacitate_cilindrica: number | null;
+  readonly masa_maxima_kg: number | null;
+  readonly numar_locuri: number | null;
   readonly data_achizitie: string | null;
   readonly valoare_achizitie: number | null;
   readonly prag_salt_km: number | null;
   readonly observatii: string | null;
+  readonly department_id: string | null;
+  readonly pool: boolean;
+}
+
+export interface OptiuneDepartament {
+  readonly id: string;
+  readonly denumire: string;
 }
 
 export interface ProprietatiCampuriVehicul<TData> {
   readonly stare: StareFormular<TData>;
   readonly idc: (sufix: string) => string;
+  /** Departamentele active ale firmei, pentru selector. */
+  readonly departamente: readonly OptiuneDepartament[];
   /** Vehiculul care se modifică. Absent la adăugare. */
   readonly vehicul?: ValoriInitialeVehicul | undefined;
+  /** Câmpul de kilometraj — doar la adăugare. */
+  readonly cuKilometraj?: boolean;
 }
 
 /** `?? ""` singur ar transforma un `0` legitim în câmp gol. */
@@ -62,11 +77,35 @@ export function CampuriVehicul<TData>({
   stare,
   idc,
   vehicul,
+  departamente,
+  cuKilometraj = false,
 }: ProprietatiCampuriVehicul<TData>): ReactElement {
   const trimis = stare.valoriTrimise;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {cuKilometraj ? (
+        <Camp
+          nume="km_curent"
+          id={idc("km_curent")}
+          eticheta="Kilometraj la bord"
+          obligatoriu
+          ajutor="Cifra de pe bord azi. De la ea pornește verificarea foilor de parcurs."
+          erori={stare.erori["km_curent"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="number"
+              min="0"
+              step="1"
+              inputMode="numeric"
+              defaultValue={trimis["km_curent"] ?? ""}
+            />
+          )}
+        </Camp>
+      ) : null}
+
       <Camp
         nume="nr_inmatriculare"
         id={idc("nr_inmatriculare")}
@@ -222,6 +261,106 @@ export function CampuriVehicul<TData>({
             max="300"
             step="0.1"
             defaultValue={trimis["consum_mediu_declarat"] ?? cifra(vehicul?.consum_mediu_declarat)}
+          />
+        )}
+      </Camp>
+
+      <Camp
+        nume="department_id"
+        id={idc("department_id")}
+        eticheta="Departament"
+        fel="select"
+        ajutor="Pentru rapoarte și costuri pe departament."
+        erori={stare.erori["department_id"] ?? []}
+      >
+        {(a) => (
+          <select {...a} defaultValue={trimis["department_id"] ?? vehicul?.department_id ?? ""}>
+            <option value="">— Niciunul —</option>
+            {/* Departamentul curent poate fi dezactivat sau șters între timp și
+                atunci lipsește din listă. Fără opțiunea asta, selectul ar cădea
+                pe „Niciunul”, iar orice salvare a fișei, făcută pentru cu
+                totul altceva, ar șterge tăcut departamentul. */}
+            {vehicul?.department_id !== undefined &&
+            vehicul.department_id !== null &&
+            !departamente.some((d) => d.id === vehicul.department_id) ? (
+              <option value={vehicul.department_id}>Departamentul actual (inactiv)</option>
+            ) : null}
+            {departamente.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.denumire}
+              </option>
+            ))}
+          </select>
+        )}
+      </Camp>
+
+      <label className="text-corp flex items-center gap-2 self-end pb-2">
+        <input
+          type="checkbox"
+          name="pool"
+          className="size-4"
+          // O bifă nebifată nu apare deloc în `FormData`. După un refuz,
+          // absența ei e o alegere, nu o lipsă de date: altfel bifa debifată de
+          // om ar reveni bifată.
+          defaultChecked={
+            Object.keys(trimis).length === 0 ? (vehicul?.pool ?? false) : trimis["pool"] === "on"
+          }
+        />
+        Mașină comună (pool), fără șofer fix
+      </label>
+
+      <Camp
+        nume="masa_maxima_kg"
+        id={idc("masa_maxima_kg")}
+        eticheta="Masă maximă autorizată (kg)"
+        ajutor="Din talon, rubrica F.2. Decide dacă mașina are nevoie de rovinietă."
+        erori={stare.erori["masa_maxima_kg"] ?? []}
+      >
+        {(a) => (
+          <input
+            {...a}
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            defaultValue={trimis["masa_maxima_kg"] ?? cifra(vehicul?.masa_maxima_kg)}
+          />
+        )}
+      </Camp>
+
+      <Camp
+        nume="capacitate_cilindrica"
+        id={idc("capacitate_cilindrica")}
+        eticheta="Capacitate cilindrică (cm³)"
+        erori={stare.erori["capacitate_cilindrica"] ?? []}
+      >
+        {(a) => (
+          <input
+            {...a}
+            type="number"
+            min="0"
+            step="1"
+            inputMode="numeric"
+            defaultValue={trimis["capacitate_cilindrica"] ?? cifra(vehicul?.capacitate_cilindrica)}
+          />
+        )}
+      </Camp>
+
+      <Camp
+        nume="numar_locuri"
+        id={idc("numar_locuri")}
+        eticheta="Număr de locuri"
+        erori={stare.erori["numar_locuri"] ?? []}
+      >
+        {(a) => (
+          <input
+            {...a}
+            type="number"
+            min="1"
+            max="200"
+            step="1"
+            inputMode="numeric"
+            defaultValue={trimis["numar_locuri"] ?? cifra(vehicul?.numar_locuri)}
           />
         )}
       </Camp>

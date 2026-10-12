@@ -11,7 +11,7 @@ export function Subsol({ text }: { text: ContinutLanding }) {
   const an = new Date().getFullYear();
 
   return (
-    <footer className="mk-cerneala bg-mk-cerneala text-mk-text-inv">
+    <footer data-tipar="ascunde" className="mk-cerneala bg-mk-cerneala text-mk-text-inv">
       <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] py-16">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-4">

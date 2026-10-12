@@ -6,11 +6,12 @@ cai:
   - "src/app/(app)/profil/**"
   - "src/lib/queries/profile.ts"
   - "src/components/forms/formular-profil.tsx"
-tabele: [profiles, organization_members]
+  - "src/config/porti-ruta.ts"
+tabele: [profiles, organization_members, employees]
 permisiuni: []
 capcane: [2]
-scris_pe: 6ea36c0fa56a1248da248d3e93af7ac1154915ee
-scris_la: 2026-09-26
+scris_pe: ed4ad654d64120bfad37e146a32c8fbe4f6159f0
+scris_la: 2026-10-10
 tags: [modul]
 ---
 
@@ -26,9 +27,23 @@ deci trebuie să fie accesibil și cuiva care încă n-a ales o firmă sau a fos
 Nicio poartă de permisiune, niciun `requireFeature` — nu există cheie de permisiune pentru
 propriul cont dincolo de `users:read = own`, iar RLS întoarce oricum doar rândul propriu.
 
-Consecința pentru cine schimbă pagina: **nu se poate folosi `tenant.organizationId` aici**.
-Orice citire care are nevoie de organizație aparține fișei de angajat, adică portalului, nu
-paginii ăsteia.
+Consecința pentru cine schimbă pagina: **nu se poate folosi `requireTenant` aici**. Rail-ul
+„Ce ține de mine" (de mai jos) rezolvă firma SOFT, prin `resolveTenant()`, care întoarce o
+stare în loc să redirecteze; fără firmă aleasă rail-ul lipsește, profilul rămâne.
+
+## „Ce ține de mine"
+
+Rolurile din `(app)` (org_admin, hr, manager) n-au portal, iar ecranele lor personale
+erau împrăștiate prin filele fiecărui modul. Secțiunea leagă: fișa proprie
+(`idFisaProprie` + `/angajati/[id]`), pontajul propriu (`/pontaj/saptamana?angajat=` sau
+`/pontaj?angajat=`), `/concedii`, `/ticketing` (tichetele mele), `/inventar/in-primire`,
+`/notificari`. Fiecare link trece prin `poateDeschide()` din `src/config/porti-ruta.ts`:
+modul activ + permisiunea paginii-țintă. Nicio citire de date aici, doar porți și id-ul
+fișei — `getPermissionMap`, `getEnabledFeatures` și `idFisaProprie` pleacă într-un
+`Promise.all`, iar rail-ul întreg pleacă în paralel cu `citesteProfilPropriu`.
+
+Cele două linkuri legate de fișă — fișa proprie și pontajul — cer `idFisaProprie` nenul;
+pontajul alege `/pontaj/saptamana` când poarta lui trece, altfel cade pe `/pontaj`.
 
 ## Citiri
 
@@ -69,6 +84,12 @@ refuză embed-ul fără FK. Aceeași lipsă e documentată la `rolurileConturilo
   `toateAvatarurile` trec prin `citesteTot` (cursor keyset, aruncă la plafon în loc să
   tacă). Un `.select()` simplu pus în locul lui readuce capcana, iar simptomul e un
   avatar lipsă, nu o eroare. — capcana #2
+- **Un cont fără fișă de angajat pierde tăcut două linkuri din rail.** `idFisaProprie`
+  întoarce `null` — nu o eroare — când nu există `employees` activ cu `user_id`-ul
+  contului în firma aleasă, iar fișa proprie și pontajul pur și simplu nu se randează.
+  Cazul e legitim (invitația `fara_fisa`), deci nu se tratează ca defect; dar cine
+  raportează „mi-a dispărut pontajul din profil" verifică mai întâi fișa, nu poarta.
+  — `src/app/(app)/profil/page.tsx`
 
 ## Ce NU e aici
 

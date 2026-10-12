@@ -21,6 +21,8 @@ interface SablonOptiune {
 interface Proprietati {
   readonly employeeId: string;
   readonly sabloane: readonly SablonOptiune[];
+  /** `payroll:read`, poarta paginii `/salarizare/componente`. */
+  readonly poateDeschideComponente?: boolean;
 }
 
 /**
@@ -35,7 +37,11 @@ interface Proprietati {
  * Ca la celelalte formulare ale fișei, `Formular` aduce erorile pe câmp și
  * păstrează ce s-a scris la refuz — vezi `formular-contract-nou.tsx`.
  */
-export function FormularComponentaSalariala({ employeeId, sabloane }: Proprietati) {
+export function FormularComponentaSalariala({
+  employeeId,
+  sabloane,
+  poateDeschideComponente = false,
+}: Proprietati) {
   const [sablonAlesId, setSablonAlesId] = useState(sabloane[0]?.id ?? "");
 
   const sablonAles = sabloane.find((s) => s.id === sablonAlesId) ?? null;
@@ -45,10 +51,19 @@ export function FormularComponentaSalariala({ employeeId, sabloane }: Proprietat
     return (
       <p className="text-muted-foreground text-corp">
         Niciun șablon de spor sau primă definit încă.{" "}
-        <Link href="/salarizare/componente" className="text-primary underline underline-offset-2">
-          Creați unul
-        </Link>{" "}
-        înainte de a-l putea asocia unui angajat.
+        {poateDeschideComponente ? (
+          <>
+            <Link
+              href="/salarizare/componente"
+              className="text-primary underline underline-offset-2"
+            >
+              Creați unul
+            </Link>{" "}
+            înainte de a-l putea asocia unui angajat.
+          </>
+        ) : (
+          "Se definesc în Salarizare → Sporuri și prime înainte de a putea fi asociate unui angajat."
+        )}
       </p>
     );
   }

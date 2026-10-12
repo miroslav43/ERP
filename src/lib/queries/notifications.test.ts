@@ -51,6 +51,8 @@ describe("listeazaNotificarile", () => {
       title: "Ai ceva de făcut",
       body: null,
       link: "/reges",
+      entity_type: null,
+      entity_id: null,
       read_at: null,
       created_at: "2026-09-15T08:00:00Z",
     };
@@ -66,6 +68,14 @@ describe("listeazaNotificarile", () => {
         { metoda: "limit", argumente: [LIMITA_LISTA_NOTIFICARI] },
       ]),
     );
+  });
+
+  it("`doarNecitite` filtrează pe `read_at` null — același predicat ca numărătoarea", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("notifications", "select", { data: [] });
+    await listeazaNotificarile(ORG_ID, USER_ID, true);
+    const [apel] = server.apeluri;
+    expect(areFiltru(apel, "is", "read_at", null)).toBe(true);
   });
 
   it("cutie goală ⇒ listă goală", async () => {

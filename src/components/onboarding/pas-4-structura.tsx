@@ -35,7 +35,7 @@ export function Pas4Structura({ formular, idFormular }: Proprietati) {
           Punct de lucru principal
         </legend>
         <p className="text-muted-foreground text-corp">
-          Relevant pentru pontaj (geofencing/terminale per locație) și parc auto. Alte puncte de
+          Apare în contracte, la pontajul prin cod QR și pe fișele echipamentelor. Alte puncte de
           lucru se adaugă ulterior.
         </p>
         <Camp

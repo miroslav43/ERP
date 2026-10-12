@@ -9,6 +9,7 @@ import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 
 import { anuleazaCerere, trimiteCerere } from "../actions";
+import { arataToast } from "@/components/ui/toast";
 
 /**
  * Ce se poate face cu o cerere de pe fișa ei.
@@ -27,11 +28,14 @@ import { anuleazaCerere, trimiteCerere } from "../actions";
  * subînțelege.
  */
 export function ActiuniCerere({
+  hrefReges = null,
   cerereId,
   esteCiorna = false,
   esteAprobata = false,
   poateAprobaPeLoc = false,
 }: {
+  /** `/reges?stare=de_transmis` dacă pagina se deschide pentru rolul curent; altfel `null`. */
+  readonly hrefReges?: string | null;
   readonly cerereId: string;
   /** Numai o ciornă se poate trimite; restul stărilor n-au buton de trimitere. */
   readonly esteCiorna?: boolean;
@@ -62,13 +66,11 @@ export function ActiuniCerere({
    * Ține de STARE, nu de o notificare trecătoare: cine aprobă tocmai a
    * schimbat pontajul cuiva, iar asta trebuie să rămână pe ecran până o citește.
    */
-  const [zileInlocuite, setZileInlocuite] = useState(0);
   /**
    * Ce a rămas de făcut pentru declararea suspendării, când concediul o produce.
    * Aceeași natură ca `zileInlocuite`: stare, nu notificare trecătoare — de
    * partea cealaltă a tăcerii e o contravenție per salariat.
    */
-  const [suspendare, setSuspendare] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
 
   function trimite(): void {
@@ -80,13 +82,38 @@ export function ActiuniCerere({
         setEroare(rezultat.error.message);
         return;
       }
-      setZileInlocuite(rezultat.data.zileInlocuite);
-      setSuspendare(
+      // Avertismentele în toasturi, nu în stare locală: după `router.refresh()`
+      // componenta poate dispărea (cererea nu mai e ciornă) cu tot cu ele.
+      if (rezultat.data.zileInlocuite > 0) {
+        arataToast({
+          fel: "informativ",
+          text:
+            rezultat.data.zileInlocuite === 1
+              ? "O zi din acest concediu era deja pontată ca lucrată și a fost trecută pe concediu în foaia de prezență."
+              : `${String(rezultat.data.zileInlocuite)} zile din acest concediu erau deja pontate ca lucrate și au fost trecute pe concediu în foaia de prezență.`,
+        });
+      }
+      const textSuspendare =
         rezultat.data.suspendare.motiv ??
-          (rezultat.data.suspendare.declarata && rezultat.data.suspendare.termen !== null
-            ? `Suspendarea a fost înregistrată, iar evenimentul de transmis în REGES este pregătit — termenul este ${rezultat.data.suspendare.termen}.`
-            : null),
-      );
+        (rezultat.data.suspendare.declarata && rezultat.data.suspendare.termen !== null
+          ? `Suspendarea a fost înregistrată, iar evenimentul de transmis în REGES este pregătit — termenul este ${rezultat.data.suspendare.termen}.`
+          : null);
+      if (textSuspendare !== null) {
+        arataToast(
+          hrefReges === null
+            ? { fel: "eroare", text: textSuspendare }
+            : {
+                fel: "informativ",
+                text: textSuspendare,
+                actiune: {
+                  eticheta: "Deschide coada REGES",
+                  onClick: () => {
+                    router.push(hrefReges);
+                  },
+                },
+              },
+        );
+      }
       router.refresh();
     });
   }
@@ -186,23 +213,11 @@ export function ActiuniCerere({
       {/* Aprobarea pe loc scrie imediat zilele în pontaj și trece pe concediu
           zilele pe care angajatul le pontase deja ca lucrate. Se spune, fiindcă
           cine aprobă tocmai a schimbat foaia de prezență a cuiva. */}
-      {zileInlocuite === 0 ? null : (
-        <Callout fel="informativ" titlu="Zile pontate trecute pe concediu">
-          {zileInlocuite === 1
-            ? "O zi din acest concediu era deja pontată ca lucrată și a fost trecută pe concediu în foaia de prezență."
-            : `${String(zileInlocuite)} zile din acest concediu erau deja pontate ca lucrate și au fost trecute pe concediu în foaia de prezență.`}
-        </Callout>
-      )}
 
       {/* Concediile care suspendă contractul (fără plată, creștere copil,
           paternal, acomodare) se declară la Inspecția Muncii cel târziu în ziua
           anterioară începerii. Aprobarea le pregătește singură evenimentul; ce
           se spune aici e dacă a reușit sau a rămas de făcut de mână. */}
-      {suspendare === null ? null : (
-        <Callout fel="atentie" titlu="Suspendarea contractului se declară în REGES">
-          {suspendare}
-        </Callout>
-      )}
     </div>
   );
 }

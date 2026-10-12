@@ -1,13 +1,13 @@
 // src/components/layout/topbar.tsx
 import { contoarePanouPentru, insigneMeniu } from "@/lib/queries/panou";
-import Link from "next/link";
-import { Bell } from "lucide-react";
+import { Clopotel } from "./clopotel";
 
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { CommandPalette, type ElementPaleta } from "@/components/layout/command-palette";
 import { MeniuCont, type OrganizatieComutator } from "@/components/layout/meniu-cont";
 import { SidebarTrigger } from "@/components/layout/sidebar";
 import { buildNavigation, type NavGroupResult } from "@/lib/navigation/build-navigation";
+import { poateDeschide, tiparePermise } from "@/config/porti-ruta";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { numaraNecitite } from "@/lib/queries/notifications";
@@ -92,6 +92,9 @@ export async function Topbar() {
     badges: insigneMeniu(contoare),
   });
   const elementePaleta = elementePentruPaleta(navigatie);
+  // Aceleași module și aceeași hartă ca meniul: firimiturile leagă exact ce
+  // poate deschide omul, nu ce există pe disc.
+  const rutePermise = tiparePermise({ features: module, permissions: permisiuni });
 
   const organizatiiComutator: readonly OrganizatieComutator[] = organizatii.map((organizatie) => ({
     id: organizatie.id,
@@ -137,29 +140,22 @@ export async function Topbar() {
       {/* Firimiturile repetă pe telefon ceea ce `<h1>`-ul paginii spune 40 px
           mai jos, și consumă exact lățimea care lipsește. */}
       <div className="hidden min-w-0 md:flex">
-        <Breadcrumb />
+        <Breadcrumb tiparePermise={rutePermise} />
       </div>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
-        <CommandPalette elemente={elementePaleta} organizatii={organizatiiComutator} />
+        <CommandPalette
+          elemente={elementePaleta}
+          organizatii={organizatiiComutator}
+          cautaAngajati={poateDeschide("/angajati/[id]", {
+            features: module,
+            permissions: permisiuni,
+          })}
+        />
 
-        <Link
-          href="/notificari"
-          aria-label={
-            necitite > 0 ? `Notificări: ${necitite} necitite` : "Notificări: niciuna necitită"
-          }
-          className="rounded-control relative inline-flex size-11 items-center justify-center text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <Bell aria-hidden="true" className="h-5 w-5" />
-          {necitite > 0 ? (
-            /* `text-danger-foreground`, nu `text-primary-foreground`: cele două
-               au azi aceeași valoare (#faf7f0), deci greșeala nu se vedea — dar
-               tokenul spune pe ce fundal stă textul, iar acesta stă pe roșu. */
-            <span className="bg-danger text-danger-foreground absolute top-1.5 right-1.5 min-w-4 rounded-full px-1 font-mono text-[10px] leading-4 font-semibold tabular-nums">
-              {necitite > 99 ? "99+" : necitite}
-            </span>
-          ) : null}
-        </Link>
+        {/* Clopoțelul deschide ultimele cinci necitite, traduse la obiect;
+            „Toate notificările” rămâne dedesubt. Vezi `clopotel.tsx`. */}
+        <Clopotel necitite={necitite} />
 
         <MeniuCont
           utilizator={utilizator}

@@ -162,6 +162,8 @@ export interface AngajatRezumat {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  /** Pentru `hrefFisa()`: o fișă ștearsă logic rămâne în istoric, dar fără link. */
+  readonly deleted_at: string | null;
 }
 
 const COLOANE_POLITICA =
@@ -430,6 +432,7 @@ export async function listeazaDeplasari(
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.angajat !== null) cu = cu.eq("employee_id", filtre.angajat);
     return cu;
   };
 
@@ -571,7 +574,7 @@ export async function angajatiDupaId(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", unice)
     .returns<AngajatRezumat[]>();

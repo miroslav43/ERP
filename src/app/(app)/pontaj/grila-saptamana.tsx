@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 
 import { formatOre } from "@/lib/format/ore";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
@@ -70,6 +71,11 @@ export interface ZiGrila {
   readonly editabila: boolean;
   /** De ce nu se poate ponta ziua asta. Text gata scris, intră în numele accesibil. */
   readonly motivBlocare: string | null;
+  /**
+   * Unde se repară blocarea: cererea de concediu care a scris ziua, ori fișa
+   * săptămânii când firma se pontează pe săptămână. `null` = n-are drum.
+   */
+  readonly hrefBlocare?: string | null;
 }
 
 interface Proprietati {
@@ -370,10 +376,23 @@ function ColoanaZi({
           onPointerCancel={onPointerCancel}
           onClick={onClick}
         />
-      ) : (
+      ) : // Motivul stătea doar în `title`, invizibil la atingere și la tastatură,
+      // iar ziua numea un ecran („Pontajul săptămânii”, concediul) fără drum.
+      // Cu drum, toată celula e linkul; fără, rămâne ca înainte.
+      zi.hrefBlocare === null || zi.hrefBlocare === undefined ? (
         <div aria-disabled="true" className="absolute inset-0" title={zi.motivBlocare ?? undefined}>
           <span className="sr-only">{numeAccesibil(zi, null)}</span>
         </div>
+      ) : (
+        <Link
+          href={zi.hrefBlocare}
+          className="absolute inset-0"
+          title={zi.motivBlocare ?? undefined}
+        >
+          <span className="sr-only">
+            {numeAccesibil(zi, null)} — {zi.motivBlocare ?? "deschide"}
+          </span>
+        </Link>
       )}
     </div>
   );

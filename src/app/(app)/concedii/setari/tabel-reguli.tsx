@@ -2,6 +2,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
@@ -49,10 +50,13 @@ export function TabelReguli({
   reguli,
   tipuri,
   departamente,
+  poateDeschideDepartament = false,
 }: {
   readonly reguli: readonly RegulaConcediuRand[];
   readonly tipuri: readonly TipConcediuConfigurabil[];
   readonly departamente: readonly OptiuneNomenclator[];
+  /** Poarta lui `/departamente`, calculată pe server: criteriul „Departament: X" devine link. */
+  readonly poateDeschideDepartament?: boolean;
 }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
@@ -86,9 +90,24 @@ export function TabelReguli({
       cheie: "criteriu",
       antet: "Criteriu",
       peTelefon: "meta",
-      celula: (regula) => (
-        <span className="text-muted-foreground">{descrieCriteriu(regula, hartaDepartamente)}</span>
-      ),
+      celula: (regula) =>
+        regula.tip_criteriu === "departament" &&
+        regula.department_id !== null &&
+        poateDeschideDepartament ? (
+          <span className="text-muted-foreground">
+            Departament:{" "}
+            <Link
+              href={`/departamente?departament=${regula.department_id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              {hartaDepartamente.get(regula.department_id) ?? "—"}
+            </Link>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">
+            {descrieCriteriu(regula, hartaDepartamente)}
+          </span>
+        ),
     },
     {
       cheie: "zile",

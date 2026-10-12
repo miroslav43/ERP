@@ -6,7 +6,7 @@ import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Fluturas } from "@/components/payroll/fluturas";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { fisaMea } from "@/lib/queries/portal";
 import {
@@ -26,9 +26,10 @@ export default async function PaginaSalariulMeu() {
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "payroll"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "payroll:read", "own")) {
@@ -89,6 +90,25 @@ export default async function PaginaSalariulMeu() {
             bonusuri={bonusuri}
             retineri={retineri}
             perioada={perioada}
+            // Zilele, orele și diurna duc la ecranele LOR din portal, prin
+            // poarta fiecăruia: cine contestă o zi găsește luna fără s-o caute.
+            hrefPontaj={
+              perioada !== null &&
+              module.has("attendance") &&
+              can(permisiuni, "attendance:read", "own")
+                ? `/portal/pontajul-meu?an=${String(perioada.an)}&luna=${String(perioada.luna)}`
+                : null
+            }
+            hrefConcedii={
+              module.has("leave") && can(permisiuni, "leave:read", "own")
+                ? "/portal/concediile-mele"
+                : null
+            }
+            hrefDiurna={
+              module.has("per_diem") && can(permisiuni, "per_diem:read", "own")
+                ? "/portal/diurna-mea"
+                : null
+            }
           />
 
           <a

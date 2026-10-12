@@ -46,10 +46,23 @@ describe("sarbatoriLegale — aceeași listă ca în calendarul național", () =
   // Două liste și două implementări ale Paștelui ortodox: REGES (+13 zile fix)
   // și `domain/calendar`. Ambele spun că oglindesc seed-ul `public_holidays`.
   // Azi coincid; testul păzește prima modificare făcută doar într-una din ele.
-  it.each(Array.from({ length: 16 }, (_, i) => 2020 + i))("anul %i", (an) => {
+  // De la 2016, nu de la 2020: altfel n-ar vedea regulile din 2016 (24 ianuarie,
+  // 1 iunie) și din 2018 (Vinerea Mare), iar REGES are configurări valabile din 2018.
+  it.each(Array.from({ length: 20 }, (_, i) => 2016 + i))("anul %i", (an) => {
     const reges = new Set(sarbatoriLegale(an));
     const calendar = new Set(sarbatoriAnului(an).map((s) => s.data.toISOString().slice(0, 10)));
     expect(reges).toEqual(calendar);
+  });
+
+  it("6 ianuarie 2023 era zi lucrătoare; 6 ianuarie 2025 nu mai e", () => {
+    // 05.01.2023 joi + 1 → vineri 06.01.2023 (Legea 52/2023 abia din 09.03.2023).
+    expect(deplaseazaZileLucratoare("2023-01-05", 1, construiesteCalendar(2023, 2023))).toBe(
+      "2023-01-06",
+    );
+    // 03.01.2025 vineri + 1 → peste weekend, 6 și 7 ianuarie → miercuri 08.01.2025.
+    expect(deplaseazaZileLucratoare("2025-01-03", 1, construiesteCalendar(2025, 2025))).toBe(
+      "2025-01-08",
+    );
   });
 
   it("2026 are 16 zile libere distincte: 1 iunie e și Ziua Copilului, și a doua zi de Rusalii", () => {

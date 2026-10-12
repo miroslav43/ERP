@@ -18,6 +18,10 @@ type Props = Readonly<{
   filtre: FiltreAudit;
   /** 'platforma' = toate organizațiile (super-admin); 'organizatie' = tenantul curent. */
   mod: "platforma" | "organizatie";
+  /** Ruta obiectului fiecărui rând, calculată de pagina tenantului; lipsește în consolă. */
+  rutaEntitate?: (entityType: string | null, entityId: string | null) => string | null;
+  /** Valorile-cheie străină din detalii, legate de pagina tenantului; lipsește în consolă. */
+  rutaValoare?: (cale: readonly string[], valoare: unknown) => string | null;
 }>;
 
 /**
@@ -38,7 +42,7 @@ const clasaLink = buton({ varianta: "secundar" });
 const href = (cale: string, interogare: string): string =>
   interogare === "" ? cale : `${cale}?${interogare}`;
 
-export async function JurnalAudit({ cale, filtre, mod }: Props) {
+export async function JurnalAudit({ cale, filtre, mod, rutaEntitate, rutaValoare }: Props) {
   const client = await createServerSupabase();
   const arataOrganizatia = mod === "platforma";
   const organizatii = arataOrganizatia ? await listeazaOrganizatiiPentruFiltru(client) : null;
@@ -101,7 +105,17 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
               </ButonDescarcare>
             </div>
 
-            <TabelAudit randuri={rezultat.randuri} arataOrganizatia={arataOrganizatia} />
+            <TabelAudit
+              randuri={rezultat.randuri}
+              arataOrganizatia={arataOrganizatia}
+              {...(rutaEntitate === undefined ? {} : { rutaEntitate })}
+              {...(rutaValoare === undefined ? {} : { rutaValoare })}
+              // Autorul → toate acțiunile lui, în același jurnal (filtrul `actor` exista, fără drum).
+              hrefActor={(actorId) => href(cale, `actor=${actorId}`)}
+              {...(arataOrganizatia
+                ? { hrefOrganizatie: (orgId: string) => `/super-admin/organizatii/${orgId}` }
+                : {})}
+            />
 
             <nav aria-label="Paginare jurnal" className="flex flex-wrap items-center gap-3">
               {filtre.cursor !== null ? (

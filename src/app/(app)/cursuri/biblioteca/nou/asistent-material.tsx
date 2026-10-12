@@ -734,6 +734,16 @@ export function AsistentMaterial() {
               Deschideți materialul
               <ExternalLink className="size-4" aria-hidden="true" />
             </Buton>
+            {/* „Puneți materialul într-un curs" cere un drum spre curs. Aceeași
+                poartă ca pagina asta (`courses:create`). */}
+            <Buton
+              varianta="secundar"
+              onClick={() => {
+                router.push("/cursuri/nou");
+              }}
+            >
+              Creează un curs
+            </Buton>
             <Buton
               varianta="secundar"
               onClick={() => {

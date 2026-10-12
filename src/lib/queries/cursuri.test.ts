@@ -547,17 +547,18 @@ describe("angajații", () => {
   it("numeAngajati: identificatorii se deduplică și se plafonează la 500", async () => {
     server.raspunde("employees", "select", {
       data: [
-        { id: ID_1, full_name: "Ana" },
-        { id: ID_2, full_name: "" },
+        { id: ID_1, full_name: "Ana", deleted_at: null },
+        { id: ID_2, full_name: "", deleted_at: "2026-01-01T00:00:00Z" },
       ],
     });
     const ids = [ID_1, ID_1, ID_2, ...Array.from({ length: 600 }, (_, i) => `id-${String(i)}`)];
 
     const r = await numeAngajati(ORG_ID, ids);
 
+    // `deleted_at` vine cu numele: fișa ștearsă rămâne în stadiu, dar fără link.
     expect([...r]).toEqual([
-      [ID_1, "Ana"],
-      [ID_2, "—"],
+      [ID_1, { nume: "Ana", deleted_at: null }],
+      [ID_2, { nume: "—", deleted_at: "2026-01-01T00:00:00Z" }],
     ]);
     const [apel] = server.apeluriPe("employees");
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);

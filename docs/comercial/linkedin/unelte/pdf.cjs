@@ -7,15 +7,25 @@ const { lanseaza } = require("./chromium.cjs");
 
 const S = __dirname;
 const CARUSELURI = {
-  "administrativo-t4-01-sase-obligatii.pdf": [1, 2, 3, 4, 5, 6, 7, 8].map(
-    (i) => `L1-01-s${i}.html`,
-  ),
-  "administrativo-t4-03-pilot-contabili.pdf": [1, 2, 3, 4, 5, 6, 7].map((i) => `L1-03-s${i}.html`),
+  "administrativo-t4-06-punti-2027.pdf": [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `L2-06-s${i}.html`),
+  "administrativo-t4-08-reges-api.pdf": [1, 2, 3, 4, 5, 6, 7].map((i) => `L2-08-s${i}.html`),
+  "administrativo-t4-11-control-itm.pdf": [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `L2-11-s${i}.html`),
+  "administrativo-t4-12-mituri.pdf": [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `L2-12-s${i}.html`),
+  "administrativo-t4-13-paste-calculat.pdf": [1, 2, 3, 4, 5, 6, 7].map((i) => `L2-13-s${i}.html`),
+  "administrativo-t4-16-zero-randuri.pdf": [1, 2, 3, 4, 5, 6, 7].map((i) => `L2-16-s${i}.html`),
 };
 const UNICE = {
-  "L1-02.png": "administrativo-t4-02-diurna.png",
-  "L1-04.png": "administrativo-t4-04-reges-ziua-dinainte.png",
-  "Banner.png": "administrativo-banner-1128x191.png",
+  "L2-05.png": "administrativo-t4-05-sarbatori-weekend.png",
+  "L2-07.png": "administrativo-t4-07-capcana-1-leu.png",
+  "L2-09.png": "administrativo-t4-09-concediu-noiembrie.png",
+  "L2-10.png": "administrativo-t4-10-concediu-18-luni.png",
+  "L2-14.png": "administrativo-t4-14-spor-noapte.png",
+  "L2-15.png": "administrativo-t4-15-ore-suplimentare.png",
+  "L2-17.png": "administrativo-t4-17-indemnizatie.png",
+  "L2-18.png": "administrativo-t4-18-zile-lucratoare-2027.png",
+  "L2-19.png": "administrativo-t4-19-doua-amenzi.png",
+  "L2-21.png": "administrativo-t4-21-ingrijitor.png",
+  "L2-22.png": "administrativo-t4-22-24-luni.png",
 };
 
 const citeste = (f) => fs.readFileSync(path.join(S, "export", f), "utf8");

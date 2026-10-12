@@ -157,6 +157,8 @@ export const filtreInstanteSchema = z.object({
   tip: optional(z.enum(CHECKLIST_TIP)),
   status: listaStatusuriOptionala,
   angajat: optional(z.uuid()),
+  /** Filtru de intrare din pagina șablonului: parcursurile pornite din el. */
+  sablon: optional(z.uuid()),
   de_la: optional(z.iso.date()),
   pana_la: optional(z.iso.date()),
   cursor: optional(z.string().max(256)),

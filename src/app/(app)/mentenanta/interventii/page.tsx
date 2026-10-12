@@ -11,14 +11,20 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { echipamenteDupaId, interventii } from "@/lib/queries/maintenance";
+import {
+  citestePlan,
+  echipamenteDupaId,
+  interventii,
+  angajatiDupaId,
+  planuriDupaId,
+} from "@/lib/queries/maintenance";
 import { filtreInterventiiSchema } from "@/schemas/maintenance";
 
 import {
@@ -26,8 +32,11 @@ import {
   ETICHETE_TIP_MENTENANTA,
   TONURI_REZULTAT_INTERVENTIE,
 } from "../etichete";
-import { NavMentenanta } from "../nav-mentenanta";
 import { FiltreInterventiiForm } from "./filtre-interventii";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Intervenții de mentenanță" };
 
@@ -38,12 +47,26 @@ interface ProprietatiPagina {
 async function TabelInterventii({
   organizationId,
   parametri,
+  permisiuni,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly permisiuni: PermissionMap;
 }) {
   const filtre = filtreDinUrl(filtreInterventiiSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await interventii(organizationId, filtre);
+  // Planul executat și executantul: rândul avea `plan_id` și `executant_employee_id`
+  // citite, dar nicio coloană nu le arăta și nu le lega.
+  const [planuri, executanti] = await Promise.all([
+    planuriDupaId(
+      organizationId,
+      randuri.map((r) => r.plan_id),
+    ),
+    angajatiDupaId(
+      organizationId,
+      randuri.map((r) => r.executant_employee_id).filter((id): id is string => id !== null),
+    ),
+  ]);
 
   /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
   function adresa(schimba: (p: URLSearchParams) => void): string {
@@ -56,7 +79,11 @@ async function TabelInterventii({
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.tip !== null || filtre.rezultat !== null || filtre.echipament !== null;
+    const areFiltre =
+      filtre.tip !== null ||
+      filtre.rezultat !== null ||
+      filtre.echipament !== null ||
+      filtre.plan !== null;
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -80,6 +107,7 @@ async function TabelInterventii({
                   p.delete("tip");
                   p.delete("rezultat");
                   p.delete("echipament");
+                  p.delete("plan");
                   p.delete("cursor");
                 }),
               },
@@ -136,6 +164,38 @@ async function TabelInterventii({
       antet: "Descriere",
       peTelefon: "meta",
       celula: (i) => i.descriere,
+    },
+    {
+      cheie: "plan",
+      antet: "Plan",
+      peTelefon: "meta",
+      celula: (i) => {
+        if (i.plan_id === null) return "—";
+        const plan = planuri.get(i.plan_id);
+        return plan === undefined ? (
+          "plan șters"
+        ) : (
+          <Link
+            href={`/mentenanta/planuri/${i.plan_id}`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {plan.denumire}
+          </Link>
+        );
+      },
+    },
+    {
+      cheie: "executant",
+      antet: "Executant",
+      peTelefon: "meta",
+      celula: (i) =>
+        i.executant_extern ?? (
+          <LinkEntitate href={hrefFisaDinHarta(i.executant_employee_id, executanti, permisiuni)}>
+            {i.executant_employee_id === null
+              ? "—"
+              : (executanti.get(i.executant_employee_id)?.full_name ?? "—")}
+          </LinkEntitate>
+        ),
     },
     {
       cheie: "cost",
@@ -221,28 +281,39 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
    * filtrul era invizibil ȘI de neșters — singura ieșire era linkul din starea
    * goală, care apare numai când lista chiar e goală.
    */
-  const etichetaEchipament =
+  const [etichetaEchipament, etichetaPlan] = await Promise.all([
     filtre.echipament === null
-      ? null
-      : ((await echipamenteDupaId(tenant.organizationId, [filtre.echipament])).get(
-          filtre.echipament,
-        )?.cod ?? null);
+      ? Promise.resolve(null)
+      : echipamenteDupaId(tenant.organizationId, [filtre.echipament]).then(
+          (m) => m.get(filtre.echipament ?? "")?.cod ?? null,
+        ),
+    // Același motiv ca mai sus: linkul „Vezi toate intervențiile planului” de pe
+    // fișa planului pune `plan=` în adresă, iar fără pastilă filtrul ar fi invizibil.
+    filtre.plan === null
+      ? Promise.resolve(null)
+      : citestePlan(tenant.organizationId, filtre.plan).then((p) => p?.denumire ?? null),
+  ]);
 
   return (
     <div className="space-y-6">
       <AntetPagina
         titlu="Intervenții de mentenanță"
         descriere="Istoricul intervențiilor, cu costurile lor. Se adaugă din fișa fiecărui echipament."
-        file={<NavMentenanta />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
       <FiltreInterventiiForm
         filtre={filtre}
         {...(etichetaEchipament === null ? {} : { etichetaEchipament })}
+        {...(etichetaPlan === null ? {} : { etichetaPlan })}
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
-        <TabelInterventii organizationId={tenant.organizationId} parametri={parametri} />
+        <TabelInterventii
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          permisiuni={permisiuni}
+        />
       </Suspense>
     </div>
   );

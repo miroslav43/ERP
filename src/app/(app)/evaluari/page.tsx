@@ -39,10 +39,12 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { filtreEvaluariSchema } from "@/schemas/evaluation";
 
 import { ButonContinuaCiorna } from "../angajati/[id]/formular-evaluare-noua";
-import { FileEvaluari } from "./_components/file-evaluari";
 import { PlanificareEvaluari } from "./_components/planificare-evaluari";
 import { ETICHETE_STATUS_EVALUARE, TONURI_STATUS_EVALUARE, tonPunctaj } from "./etichete";
 import { FiltreEvaluari } from "./filtre-evaluari";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
+import { todayInBucharest } from "@/lib/format/date";
 
 export const metadata: Metadata = { title: "Evaluări" };
 
@@ -60,6 +62,7 @@ async function BandaIndicatori({ organizationId }: { readonly organizationId: st
   const i = await indicatoriEvaluari(organizationId, anul);
   const micaFirma = i.angajatiActivi < PRAG_PROCENTE;
 
+  const anulCurent = todayInBucharest().slice(0, 4);
   return (
     <section aria-labelledby="titlu-indicatori-evaluari" className="space-y-3">
       <h2
@@ -73,6 +76,12 @@ async function BandaIndicatori({ organizationId }: { readonly organizationId: st
           eticheta="Evaluări finalizate"
           valoare={i.finalizateAnulAcesta}
           nota={i.total === 0 ? "nicio evaluare încă" : `${String(i.total)} în total`}
+          // Același predicat ca numărătoarea: finalizate, cu data evaluării în anul curent.
+          {...(i.finalizateAnulAcesta > 0
+            ? {
+                href: `/evaluari?status=finalizat&de_la=${anulCurent}-01-01&pana_la=${anulCurent}-12-31`,
+              }
+            : {})}
         />
         <Indicator
           eticheta="Ciorne de terminat"
@@ -159,11 +168,14 @@ async function ListaEvaluari({
   parametri,
   poateEvalua,
   poateNota,
+  poateCreaSabloane,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateEvalua: boolean;
   readonly poateNota: boolean;
+  /** `evaluations:update = all`, poarta butonului „Șablon nou"; managerul (team) ajungea pe o pagină fără el. */
+  readonly poateCreaSabloane: boolean;
 }) {
   const filtre = filtreDinUrl(filtreEvaluariSchema, parametri);
   const [{ randuri, urmatorulCursor, total, sortare }, sabloane] = await Promise.all([
@@ -208,7 +220,21 @@ async function ListaEvaluari({
       cheie: "sablon",
       antet: "Șablon",
       peTelefon: "meta",
-      celula: (e) => e.sablon ?? "Șablon șters",
+      celula: (e) =>
+        e.template_id === null ? (
+          (e.sablon ?? "Șablon șters")
+        ) : (
+          // Același filtru pe care îl are bara: lista se restrânge la șablon.
+          <Link
+            href={adresa((p) => {
+              p.set("template_id", e.template_id ?? "");
+              p.delete("cursor");
+            })}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {e.sablon ?? "Șablon șters"}
+          </Link>
+        ),
     },
     {
       cheie: "data",
@@ -258,7 +284,15 @@ async function ListaEvaluari({
       // îngustează la echipă (`can_access_evaluation`). Finalizata se vede pe
       // fișa angajatului; redeschiderea ei rămâne acolo.
       celula: (e) =>
-        e.status === "draft" && poateNota ? (
+        e.status === "finalizat" && e.angajat !== null ? (
+          // Finalizata trăiește pe fișa angajatului, cu ancoră pe rândul ei.
+          <Link
+            href={`/angajati/${e.employee_id}#evaluare-${e.id}`}
+            className="underline-offset-2 hover:underline"
+          >
+            Vezi
+          </Link>
+        ) : e.status === "draft" && poateNota ? (
           <ButonContinuaCiorna
             employeeId={e.employee_id}
             sabloane={[]}
@@ -309,7 +343,7 @@ async function ListaEvaluari({
                   }),
                 },
               }
-            : sabloane.length === 0
+            : sabloane.length === 0 && poateCreaSabloane
               ? { actiune: { eticheta: "Creează un șablon", href: "/evaluari/sabloane" } }
               : {})}
         />
@@ -371,7 +405,13 @@ export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina
       <AntetPagina
         titlu="Evaluări"
         descriere="Evaluările angajaților, cu punctajul calculat din criteriile șablonului folosit la completare."
-        file={<FileEvaluari activa="evaluari" />}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari()}
+            tenant={tenant}
+          />
+        }
         {...(poateEvalua
           ? {
               actiuni: (
@@ -397,6 +437,7 @@ export default async function PaginaEvaluari({ searchParams }: ProprietatiPagina
           parametri={parametri}
           poateEvalua={poateEvalua}
           poateNota={can(permisiuni, "evaluations:update", "team")}
+          poateCreaSabloane={can(permisiuni, "evaluations:update", "all")}
         />
       </Suspense>
     </div>

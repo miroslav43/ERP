@@ -35,3 +35,28 @@ program salarizare	/module/salarizare
 program salarii	/module/salarizare
 aplicatie pontaj angajati	/pontaj-pe-telefon
 program pontaj angajati	/module/pontaj
+calculator zile concediu de odihna	/unelte/calculator-zile-concediu
+calculator zile concediu odihna	/unelte/calculator-zile-concediu
+cerere concediu de odihna pdf	/unelte/cerere-concediu-de-odihna
+cerere concediu de odihna o zi	/unelte/cerere-concediu-de-odihna
+condica de prezenta pdf	/unelte/condica-de-prezenta
+foaie de parcurs model completat	/unelte/foaie-de-parcurs
+foaie de parcurs excel	/unelte/foaie-de-parcurs
+foaie colectiva de pontaj pdf	/unelte/foaie-de-pontaj
+calculator zile lucratoare	/unelte/calculator-zile-lucratoare
+calculator zile lucratoare intre doua date	/unelte/calculator-zile-lucratoare
+zile lucratoare intre doua date	/unelte/calculator-zile-lucratoare
+cate zile lucratoare sunt intre doua date	/unelte/calculator-zile-lucratoare
+cerere demisie	/unelte/cerere-demisie
+model demisie	/unelte/cerere-demisie
+cerere demisie fara preaviz	/unelte/cerere-demisie
+preaviz demisie zile lucratoare sau calendaristice	/unelte/cerere-demisie
+model demisie cu acordul partilor	/unelte/cerere-demisie
+programare concedii de odihna	/unelte/programare-concedii
+programare concedii de odihna excel	/unelte/programare-concedii
+planificare concedii odihna excel	/unelte/programare-concedii
+planificarea concediului de odihna	/unelte/programare-concedii
+adeverinta de salariat model	/unelte/adeverinta-salariat
+adeverinta de salariat	/unelte/adeverinta-salariat
+adeverinta de salariat model word	/unelte/adeverinta-salariat
+adeverinta de salariat pentru medicul de familie	/unelte/adeverinta-salariat

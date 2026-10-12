@@ -6,7 +6,12 @@ import type { PayrollSettingsSnapshot, PragDeducerePersonala } from "@/domain/pa
  * ── VERIFICATE PE 3 OCT 2026, PE TEXTELE OFICIALE ─────────────────────────
  * Citite cu `curl` în Portalul Legislativ (forme consolidate):
  *  - salariul minim 4.325 lei din 1 iulie 2026 — HG 146/2026, MO nr. 196 din
- *    13 martie 2026;
+ *    13 martie 2026; art. 2 abrogă HG 1506/2024 la aceeași dată;
+ *  - (reverificat pe 9 oct 2026) salariul minim 4.050 lei din 1 ianuarie 2025 până la 30 iunie
+ *    2026, 165,334 ore, 24,496 lei/oră — HG 1506/2024 art. 1, MO 1185 din
+ *    28 noiembrie 2024;
+ *  - (reverificat pe 9 oct 2026) suma scutită în ianuarie–iunie 2026: 300 lei, plafon 4.300 lei
+ *    — OUG 89/2025 art. III alin. (1), forma consolidată din 16.08.2026;
  *  - CAS 25% (art. 138), CASS 10% (art. 156), impozit 10% (art. 64 și 78),
  *    CAM 2,25% (art. 220^3) — Codul fiscal, doc. 171282;
  *  - grila deducerii personale de bază — Codul fiscal art. 77 alin. (3)–(4);
@@ -20,22 +25,30 @@ import type { PayrollSettingsSnapshot, PragDeducerePersonala } from "@/domain/pa
  * 5.000 brut → 2.981 net) — vezi `src/lib/unelte/salariu.test.ts`.
  *
  * ── CE NU ACOPERĂ ─────────────────────────────────────────────────────────
- * Deducerea personală suplimentară (art. 77 alin. (10): sub 26 de ani, copii
- * înscriși la școală), facilitățile pe sectoare, tichetele, timpul parțial
- * (unde contribuțiile se datorează la minim). Pagina le spune pe față.
+ * Facilitățile pe sectoare (abrogate din 2025, OUG 156/2024), scutirea pentru
+ * cercetare-dezvoltare, sporurile și concediile. Pagina le spune pe față.
+ * Deducerea suplimentară (art. 77 alin. (10)) e acoperită din 9 oct 2026.
  *
- * Valabil pentru iulie–decembrie 2026: la 1 ianuarie 2027 facilitatea expiră
- * (art. III alin. (6)) și valorile se reverifică.
+ * Valabil pentru 2026, pe cele două perioade din `PERIOADE_2026`: la 1 ianuarie
+ * 2027 facilitatea expiră (art. III alin. (6)) și valorile se reverifică.
+ * `valoriExpirate()` face pagina să spună asta din prima zi a lui 2027.
  */
 
 export const SALARIU_MINIM_BRUT_2026_IULIE = 4325;
 
+/** HG 1506/2024 art. 1: în vigoare de la 1 ianuarie 2025 până la 30 iunie 2026 (abrogată de HG 146/2026 art. 2). */
+export const SALARIU_MINIM_BRUT_2026_IANUARIE = 4050;
+
 export const VERIFICARE = {
-  la: "2026-10-03",
+  la: "2026-10-09",
   surse: [
     {
       eticheta: "HG 146/2026 — salariul minim",
       href: "https://legislatie.just.ro/Public/DetaliiDocumentAfis/308231",
+    },
+    {
+      eticheta: "HG 1506/2024 — salariul minim până la 30 iunie 2026",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/291450",
     },
     {
       eticheta: "Codul fiscal, forma consolidată",
@@ -48,6 +61,10 @@ export const VERIFICARE = {
     {
       eticheta: "OUG 59/2005 — rotunjirea la leu",
       href: "https://legislatie.just.ro/public/DetaliiDocument/62685",
+    },
+    {
+      eticheta: "Legea 165/2018, art. 14 — valoarea maximă a tichetului de masă",
+      href: "https://legislatie.just.ro/Public/DetaliiDocument/202623",
     },
   ],
 } as const;
@@ -88,19 +105,146 @@ export function grilaDeducerePersonala(minim: number): readonly PragDeducerePers
   return praguri;
 }
 
-export const SETARI_SALARIZARE_PUBLICE: PayrollSettingsSnapshot = {
-  valabilDeLa: "2026-07-01",
-  cotaCas: 0.25,
-  cotaCass: 0.1,
-  cotaImpozit: 0.1,
-  cotaCamAngajator: 0.0225,
-  normaZilnicaOre: 8,
-  procentSporNoapte: 0.25,
-  procentSporWeekend: 0,
-  procentOreSuplimentare: 0.75,
-  valoareTichetMasa: 0,
-  ticheteImpozabile: false,
-  deducerePersonala: grilaDeducerePersonala(SALARIU_MINIM_BRUT_2026_IULIE),
-  rotunjireLei: true,
-  salariuMinimBrut: SALARIU_MINIM_BRUT_2026_IULIE,
+/** Art. 77 alin. (3): deducerea de bază se acordă până la minim + 2.000 de lei inclusiv. */
+export const PLAFON_DEDUCERE_PESTE_MINIM = PAS_LEI * PASI;
+
+/**
+ * Deducerea de bază din art. 77 alin. (4), calculată direct pentru un venit.
+ * Dă aceeași valoare ca pragul din `grilaDeducerePersonala` care acoperă venitul
+ * (testat pe fiecare leu, în ambele perioade). `venitBrut` e venitul brut lunar
+ * din salarii; calculatorul include în el tichetele (⚠ NOTES.md §3).
+ */
+export function valoareDeducereDeBaza(minim: number, persoane: number, venitBrut: number): number {
+  if (venitBrut > minim + PLAFON_DEDUCERE_PESTE_MINIM) return 0;
+  const pas = venitBrut <= minim ? 0 : Math.ceil((venitBrut - minim) / PAS_LEI);
+  const baza = PROCENTE_BAZA[Math.min(4, Math.max(0, Math.round(persoane)))] ?? 0;
+  return Math.round((Math.round(minim * 100) * (baza - 5 * pas)) / 100_000);
+}
+
+/**
+ * Art. 77 alin. (10) lit. a): 15% din salariul minim, pentru cei de până la 26 de
+ * ani cu venituri din salarii de cel mult minim + 2.000 de lei. Rotunjită ca grila,
+ * cu 50 de bani în sus (⚠ art. 66: 607,50 → 607 sau 608; NOTES.md §3).
+ */
+export function valoareDeducereSub26(minim: number): number {
+  return Math.round((Math.round(minim * 100) * 150) / 100_000);
+}
+
+/**
+ * Art. 77 alin. (10) lit. b): 100 de lei pe lună pentru fiecare copil sub 18 ani
+ * înscris la școală, „indiferent de nivelul” veniturilor părintelui.
+ */
+export const DEDUCERE_COPIL_SCOALA = 100;
+
+/**
+ * Legea 165/2018 art. 14, forma consolidată din 01.12.2025 (modificat de Legea
+ * 201/2025): „Valoarea nominală a unui tichet de masă nu poate depăși suma de
+ * 45 lei.” Art. II din Legea 201/2025 o ține pe ianuarie–septembrie 2026; din
+ * octombrie 2026, art. 32 permite indexarea semestrială prin ordin comun
+ * (⚠ NOTES.md §3). Peste ea, calculatorul avertizează, nu refuză.
+ *
+ * Regimul fiscal, Codul fiscal (forma din 08.08.2026): venit salarial (art. 76
+ * alin. (3) lit. h)), fără CAS (art. 142 lit. r)), cu CASS (art. 157 alin. (1)
+ * lit. ț)), fără CAM (art. 220^4 alin. (2)), în afara plafonului OUG 89/2025
+ * (art. III alin. (1) lit. b)).
+ */
+export const TICHET_MASA_VALOARE_MAXIMA = 45;
+
+function setariPentruMinim(minim: number, valabilDeLa: string): PayrollSettingsSnapshot {
+  return {
+    valabilDeLa,
+    cotaCas: 0.25,
+    cotaCass: 0.1,
+    cotaImpozit: 0.1,
+    cotaCamAngajator: 0.0225,
+    normaZilnicaOre: 8,
+    procentSporNoapte: 0.25,
+    procentSporWeekend: 0,
+    procentOreSuplimentare: 0.75,
+    valoareTichetMasa: 0,
+    ticheteImpozabile: false,
+    deducerePersonala: grilaDeducerePersonala(minim),
+    rotunjireLei: true,
+    salariuMinimBrut: minim,
+  };
+}
+
+export const SETARI_SALARIZARE_PUBLICE: PayrollSettingsSnapshot = setariPentruMinim(
+  SALARIU_MINIM_BRUT_2026_IULIE,
+  "2026-07-01",
+);
+
+/** Cele două perioade ale lui 2026. Cheia e și valoarea din adresă (`?perioada=`). */
+export type Perioada = "2026-1" | "2026-2";
+
+export type ValoriPerioada = Readonly<{
+  eticheta: string;
+  valabilDeLa: string;
+  valabilPana: string;
+  salariuMinim: number;
+  /** Text, nu număr: se afișează, nu se calculează cu el. */
+  oreLunaMedie: string;
+  leiPeOra: string;
+  actSalariuMinim: string;
+  /** OUG 89/2025 art. III alin. (1): suma scutită și plafonul de venit brut (fără tichete). */
+  facilitate: Readonly<{ suma: number; plafonVenitBrut: number }>;
+  /**
+   * OUG 89/2025 art. III alin. (5): cu cât scade salariul minim folosit ca bază
+   * minimă de CAS și CASS (art. 146 alin. (5^6), art. 168 alin. (6^1)).
+   */
+  reducereBazaMinima: number;
+  setari: PayrollSettingsSnapshot;
+}>;
+
+export const PERIOADE_2026: Readonly<Record<Perioada, ValoriPerioada>> = {
+  "2026-1": {
+    eticheta: "ianuarie–iunie 2026",
+    valabilDeLa: "2026-01-01",
+    valabilPana: "2026-06-30",
+    salariuMinim: SALARIU_MINIM_BRUT_2026_IANUARIE,
+    oreLunaMedie: "165,334",
+    leiPeOra: "24,496",
+    actSalariuMinim: "HG 1506/2024",
+    // OUG 89/2025 art. III alin. (1): 300 de lei pe lună pentru 1 ianuarie–30 iunie
+    // 2026; lit. b): venit brut, fără tichete, de cel mult 4.300 de lei.
+    facilitate: { suma: 300, plafonVenitBrut: 4300 },
+    // OUG 89/2025 art. III alin. (5) lit. a): baza minimă 4.050 − 300 = 3.750 de lei.
+    reducereBazaMinima: 300,
+    setari: setariPentruMinim(SALARIU_MINIM_BRUT_2026_IANUARIE, "2026-01-01"),
+  },
+  "2026-2": {
+    eticheta: "iulie–decembrie 2026",
+    valabilDeLa: FACILITATE_SALARIU_MINIM.valabilDeLa,
+    valabilPana: FACILITATE_SALARIU_MINIM.valabilPana,
+    salariuMinim: SALARIU_MINIM_BRUT_2026_IULIE,
+    oreLunaMedie: "166,667",
+    leiPeOra: "25,949",
+    actSalariuMinim: "HG 146/2026",
+    facilitate: {
+      suma: FACILITATE_SALARIU_MINIM.suma,
+      plafonVenitBrut: FACILITATE_SALARIU_MINIM.plafonVenitBrut,
+    },
+    // Lit. b): 4.325 − 200 = 4.125 de lei.
+    reducereBazaMinima: 200,
+    setari: SETARI_SALARIZARE_PUBLICE,
+  },
 };
+
+export const PERIOADE: readonly Perioada[] = ["2026-1", "2026-2"];
+
+export function estePerioada(v: string | null): v is Perioada {
+  return v === "2026-1" || v === "2026-2";
+}
+
+/**
+ * Perioada în care cade o zi `AAAA-LL-ZZ` (ziua din România, `todayInBucharest()`).
+ * După 31 decembrie 2026 rămâne a doua jumătate a lui 2026; `valoriExpirate` o
+ * spune pe față, în loc să prezinte valorile vechi drept actuale.
+ */
+export function perioadaPentruZi(zi: string): Perioada {
+  return zi < PERIOADE_2026["2026-2"].valabilDeLa ? "2026-1" : "2026-2";
+}
+
+export function valoriExpirate(zi: string): boolean {
+  return zi > PERIOADE_2026["2026-2"].valabilPana;
+}

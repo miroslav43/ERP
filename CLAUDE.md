@@ -36,11 +36,13 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build
 **NU include `build`.**
 
 Build-ul rămâne singurul care prinde granița server/client în general — dar
-cazul care a costat cel mai mult, un fișier `"use server"` care exportă o
-constantă, are de la 5 sept 2026 poartă proprie: `pnpm check:server`
-(`scripts/checks/use-server-exports.mjs`). O prinde în două secunde, cu fișier
-și linie, în loc de trei minute și un jurnal de „Collecting page data" —
-fiindcă `tsc`, `eslint` ȘI `vitest` tac toate trei. Vezi capcana 39.
+cele două cazuri care au costat cel mai mult au poartă proprie, `pnpm check:server`:
+un fișier `"use server"` care exportă o constantă (din 5 sept 2026,
+`scripts/checks/use-server-exports.mjs`, capcana 39) și un fișier `"use client"`
+care importă o VALOARE dintr-un modul `server-only`, direct sau prin lanț (din
+8 oct 2026, `scripts/checks/client-imports-server-only.mjs`, capcana 53). Le
+prinde în câteva secunde, cu fișier și lanț, în loc de cinci minute de build în
+CI — fiindcă `tsc`, `eslint` ȘI `vitest` tac toate trei.
 Numărătoarea pe loc: `grep -rl '^"use server"' src/ | wc -l`.
 
 Nu declara nimic „gata” fără ieșirea comenzilor. În Faza 2, proiectul a fost

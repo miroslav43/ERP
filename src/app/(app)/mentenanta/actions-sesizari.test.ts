@@ -125,6 +125,36 @@ describe("creeazaSesizare", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
+  it("administratorul fără fișă de angajat raportează totuși: INSERT cu raportor null", async () => {
+    // Patronul sau contabilul extern cu rol `org_admin`: politica din 0150
+    // acceptă `raportat_de_employee_id = null` pentru cine are `create ≥ team`,
+    // iar SELECT-ul de după INSERT trece pe `read ≥ team`.
+    const { server, admin } = configureazaActiunea({
+      rol: "org_admin",
+      permisiuni: { "maintenance:create": "all", "maintenance:update": "all" },
+    });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("fault_reports", "insert", { data: { id: ID_3 } });
+
+    const r = await creeazaSesizare(sesizare);
+
+    expect(r).toEqual({ ok: true, data: { id: ID_3 } });
+    const [insert] = server.apeluriPe("fault_reports");
+    expect(insert?.payload).toMatchObject({ raportat_de_employee_id: null, equipment_id: ID_1 });
+    expect(insert?.selectDupaScriere).toBe("id");
+  });
+
+  it("un manager fără fișă și fără `maintenance:update` rămâne la CONFLICT", async () => {
+    const { server, admin } = configureazaActiunea({
+      rol: "manager",
+      permisiuni: { "maintenance:create": "all", "maintenance:read": "team" },
+    });
+    admin.raspunde("employees", "select", { data: null });
+    const r = await creeazaSesizare(sesizare);
+    expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluriPe("fault_reports")).toHaveLength(0);
+  });
+
   it("eroarea la căutarea fișei nu ajunge la INSERT", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: SESIZARE });
     admin.raspunde("employees", "select", { error: eroarePostgrest("57014") });
@@ -157,16 +187,75 @@ describe("cautaEchipament", () => {
     const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: SESIZARE });
     const rand = { id: ID_1, cod: "BT-1", denumire: "Bandă", locatie: "Hala 1" };
     admin.raspunde("equipment", "select", { data: rand });
+    admin.raspunde("fault_reports", "select", { data: [] });
 
     const r = await cautaEchipament({ q: ` ${ID_1.toUpperCase()} ` });
 
-    expect(r).toEqual({ ok: true, data: [rand] });
+    expect(r).toEqual({ ok: true, data: [{ ...rand, sesizare_deschisa: null }] });
     expect(server.apeluriPe("equipment")).toHaveLength(0);
     const [apel] = admin.apeluriPe("equipment");
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(apel, "eq", "id", ID_1.toUpperCase())).toBe(true);
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
     expect(apel?.terminal).toBe("maybeSingle");
+  });
+
+  it("fiecare echipament găsit vine cu cea mai veche sesizare DESCHISĂ pe el (avertismentul de duplicat), citită cu admin pe organizație", async () => {
+    const { admin, server } = configureazaActiunea({ rol: "employee", permisiuni: SESIZARE });
+    admin.raspunde("equipment", "select", {
+      data: [
+        { id: ID_1, cod: "BT-1", denumire: "Bandă", locatie: null },
+        { id: ID_2, cod: "PR-2", denumire: "Presă", locatie: null },
+      ],
+    });
+    admin.raspunde("fault_reports", "select", {
+      data: [
+        { id: ID_3, numar: "SZ-2026-0003", equipment_id: ID_1 },
+        { id: ID_2, numar: "SZ-2026-0009", equipment_id: ID_1 },
+      ],
+    });
+    // Vizibilitatea se întreabă cu clientul OMULUI: aici RLS îi arată sesizarea.
+    server.raspunde("fault_reports", "select", { data: [{ id: ID_3 }] });
+
+    const r = await cautaEchipament({ q: "banda" });
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data[0]?.sesizare_deschisa).toEqual({
+      id: ID_3,
+      numar: "SZ-2026-0003",
+      vizibila: true,
+    });
+    expect(r.data[1]?.sesizare_deschisa).toBeNull();
+    const [vizibilitate] = server.apeluriPe("fault_reports");
+    expect(areFiltru(vizibilitate, "in", "id", [ID_3])).toBe(true);
+    const [sesizari] = admin.apeluriPe("fault_reports");
+    expect(areFiltru(sesizari, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(sesizari, "in", "equipment_id", [ID_1, ID_2])).toBe(true);
+    expect(areFiltru(sesizari, "is", "deleted_at", null)).toBe(true);
+    expect(
+      areFiltru(sesizari, "in", "status", ["nou", "in_analiza", "in_lucru", "in_asteptare"]),
+    ).toBe(true);
+  });
+
+  it("sesizarea pe care RLS n-o arată rămâne cu `vizibila: false` — linkul nu se desenează", async () => {
+    const { admin, server } = configureazaActiunea({ rol: "employee", permisiuni: SESIZARE });
+    admin.raspunde("equipment", "select", {
+      data: [{ id: ID_1, cod: "BT-1", denumire: "Bandă", locatie: null }],
+    });
+    admin.raspunde("fault_reports", "select", {
+      data: [{ id: ID_3, numar: "SZ-2026-0003", equipment_id: ID_1 }],
+    });
+    server.raspunde("fault_reports", "select", { data: [] });
+
+    const r = await cautaEchipament({ q: "banda" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data[0]?.sesizare_deschisa).toEqual({
+      id: ID_3,
+      numar: "SZ-2026-0003",
+      vizibila: false,
+    });
   });
 
   it("UUID fără rând (alt tenant sau șters): listă goală", async () => {
@@ -234,7 +323,11 @@ describe("cautaEchipament", () => {
 describe("numeleEchipamentelorMele", () => {
   const rand = (id: string, equipmentId: string) => ({
     id,
+    numar: "SZ-2026-0001",
     equipment_id: equipmentId,
+    raportat_de_employee_id: ID_2,
+    raportat_de_user_id: null,
+    atribuit_employee_id: null,
     descriere: "Defect",
     urgenta: "medie",
     status: "nou",
@@ -260,6 +353,10 @@ describe("numeleEchipamentelorMele", () => {
     expect(r.data).toHaveLength(2);
     expect(r.data[0]).toEqual({
       id: ID_1,
+      numar: "SZ-2026-0001",
+      raportat_de_employee_id: ID_2,
+      raportat_de_user_id: null,
+      atribuit_employee_id: null,
       descriere: "Defect",
       urgenta: "medie",
       status: "nou",

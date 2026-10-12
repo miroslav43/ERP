@@ -45,6 +45,8 @@ import { Cronologie } from "./cronologie";
 import { CardCustodie } from "./custodie";
 import { DialogObiect } from "./dialog-obiect";
 import { idDinRuta } from "@/lib/rute/parametri";
+import { hrefFisaDinHarta } from "@/lib/navigare/fisa";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Fișa obiectului de inventar" };
 
@@ -120,6 +122,13 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
     alocareDeschisa === null
       ? null
       : (angajati.get(alocareDeschisa.employee_id)?.full_name ?? null),
+    alocareDeschisa === null
+      ? null
+      : hrefFisaDinHarta(alocareDeschisa.employee_id, angajati, permisiuni),
+  );
+  // Fișa fiecărui om din cronologie: doar cei întorși de RLS și neșterși.
+  const hrefuriFise = new Map(
+    [...angajati.keys()].map((id) => [id, hrefFisaDinHarta(id, angajati, permisiuni)] as const),
   );
   const poateCasa = poateScrie && stareCustodie.fel !== "alocat" && obiect.status !== "casat";
 
@@ -154,7 +163,19 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
             descriere={
               <>
                 Nr. inventar <span className="font-mono">{obiect.numar_inventar}</span>
-                {categorieNume === null ? " · Necategorizat" : ` · ${categorieNume}`}
+                {categorieNume === null || obiect.category_id === null ? (
+                  " · Necategorizat"
+                ) : (
+                  <>
+                    {" · "}
+                    <Link
+                      href={`/inventar?category_id=${obiect.category_id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {categorieNume}
+                    </Link>
+                  </>
+                )}
               </>
             }
             {...(poateScrie
@@ -204,6 +225,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
         <Indicator
           eticheta="Predări"
           valoare={istoric.length}
+          {...(istoric.length > 0 ? { href: "#titlu-cronologie" } : {})}
           nota={
             istoric.length === 0
               ? "niciuna încă"
@@ -295,7 +317,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
         />
       </section>
 
-      <section aria-labelledby="titlu-cronologie" className={CLASA_SECTIUNE}>
+      <section aria-labelledby="titlu-cronologie" className={cn(CLASA_SECTIUNE, "scroll-mt-24")}>
         <h2 id="titlu-cronologie" className="text-sectiune font-medium">
           Cronologie
         </h2>
@@ -304,7 +326,10 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
             ? "Obiectul nu a fost încă predat nimănui. Fiecare predare și fiecare returnare apar aici, cu procesul-verbal."
             : "Fiecare predare și fiecare returnare, de la cea mai recentă."}
         </p>
-        <Cronologie evenimente={evenimenteFisa(obiect, istoric, numeNume)} />
+        <Cronologie
+          evenimente={evenimenteFisa(obiect, istoric, numeNume, hrefuriFise)}
+          obiectId={obiect.id}
+        />
         {istoric.length === 0 ? null : (
           <ul className="border-border mt-5 flex flex-wrap gap-x-4 gap-y-1 border-t pt-4">
             {istoric.map((alocare) => (
@@ -371,6 +396,8 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
           )}
         </section>
       )}
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={obiect.id} />
     </div>
   );
 }

@@ -14,7 +14,7 @@ import { Sparkline } from "@/components/grafice/sparkline";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
 import { formatOre, formatOreCuUnitate } from "@/lib/format/ore";
@@ -49,9 +49,10 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "rapoarte"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "payroll:read", "all")) {
@@ -66,7 +67,16 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
    * `hr` fără `payroll:create` primea altfel o instrucțiune pe care n-o putea
    * executa.
    */
-  const poateDeschideSalarizarea = can(permisiuni, "payroll:create", "all");
+  // Rapoartele se cumpără și fără Salarizare (0123): fără modul, `/salarizare` e 404.
+  const poateDeschideSalarizarea =
+    module.has("payroll") && can(permisiuni, "payroll:create", "all");
+  // Fișa cere `employees:read`; cu `team` (suprascriere) un angajat din afara
+  // echipei dă 404, iar unul șters dă 404 pentru oricine.
+  const poateDeschideFisa = can(permisiuni, "employees:read", "all");
+  // Orele suplimentare se verifică în foaia de pontaj; poarta paginii-țintă.
+  const poateDeschidePontajul =
+    module.has("attendance") && can(permisiuni, "attendance:read", "team");
+  const poateDeschideConcediile = module.has("leave") && can(permisiuni, "leave:read", "team");
 
   const parametri = await searchParams;
   const anulCurent = new Date().getFullYear();
@@ -169,10 +179,18 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
       peTelefon: "titlu",
       celula: (angajat) => (
         <>
-          <Link href={`/angajati/${angajat.employeeId}`} className="text-primary hover:underline">
-            {angajat.fullName}
-          </Link>
+          {/* Linkul îl pune `Tabel` pe coloana-titlu, din `href`-ul rândului. */}
+          <span>{angajat.fullName}</span>
           <span className="text-muted-foreground text-nota ml-1.5 font-mono">{angajat.marca}</span>
+          {/* Totalurile anuale se descompun pe luni în istoricul de venituri. */}
+          {poateDeschideSalarizarea && angajat.exista ? (
+            <Link
+              href={`/salarizare/istoric-venituri?angajat=${angajat.employeeId}`}
+              className="text-muted-foreground text-nota relative ml-1.5 underline-offset-2 hover:underline"
+            >
+              pe luni
+            </Link>
+          ) : null}
         </>
       ),
     },
@@ -202,14 +220,34 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
       antet: "Ore supl.",
       numeric: true,
       peTelefon: "meta",
-      celula: (angajat) => formatOre(angajat.oreSuplimentare),
+      celula: (angajat) =>
+        poateDeschidePontajul && angajat.exista && angajat.oreSuplimentare > 0 ? (
+          <Link
+            href={`/pontaj?an=${String(an)}&angajat=${angajat.employeeId}`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {formatOre(angajat.oreSuplimentare)}
+          </Link>
+        ) : (
+          formatOre(angajat.oreSuplimentare)
+        ),
     },
     {
       cheie: "zile_co",
       antet: "Zile CO",
       numeric: true,
       peTelefon: "meta",
-      celula: (angajat) => formatZecimal(angajat.zileConcediuOdihna),
+      celula: (angajat) =>
+        poateDeschideConcediile && angajat.exista && angajat.zileConcediuOdihna > 0 ? (
+          <Link
+            href={`/concedii/echipa?employee_id=${angajat.employeeId}&de_la=${String(an)}-01-01&pana_la=${String(an)}-12-31`}
+            className="relative underline-offset-2 hover:underline"
+          >
+            {formatZecimal(angajat.zileConcediuOdihna)}
+          </Link>
+        ) : (
+          formatZecimal(angajat.zileConcediuOdihna)
+        ),
     },
     {
       cheie: "zile_medicale",
@@ -285,7 +323,19 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             }
             descriere={`Raportul se face din intrările de salarizare, iar acestea apar abia la calcul. Fără cifre: ${statistici.luniNecalculate.map(formatMonthShort).join(", ")}.`}
             {...(poateDeschideSalarizarea
-              ? { actiune: { eticheta: "Deschide salarizarea", href: "/salarizare" } }
+              ? {
+                  actiune: {
+                    // La perioada de CALCULAT, nu la lista perioadelor.
+                    eticheta:
+                      statistici.perioadeNecalculate.length === 1
+                        ? `Deschide perioada din ${formatMonthShort(statistici.perioadeNecalculate[0]?.luna ?? 1)}`
+                        : "Deschide salarizarea",
+                    href:
+                      statistici.perioadeNecalculate.length === 1
+                        ? `/salarizare/${statistici.perioadeNecalculate[0]?.id ?? ""}`
+                        : "/salarizare",
+                  },
+                }
               : {})}
           />
         )
@@ -312,9 +362,23 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
           {statistici.luniNecalculate.length === 0 ? null : (
             <Callout fel="informativ" titlu="Raportul nu acoperă tot anul">
               {`${String(statistici.perLuna.length)} ${statistici.perLuna.length === 1 ? "lună calculată" : "luni calculate"}. `}
+              {statistici.luniNecalculate.length === 1 ? "Luna " : "Lunile "}
+              {/* Fiecare lună duce la perioada ei, unde se face calculul. */}
+              {statistici.perioadeNecalculate.map((p, indice) => (
+                <span key={p.id}>
+                  {indice === 0 ? "" : ", "}
+                  {poateDeschideSalarizarea ? (
+                    <Link href={`/salarizare/${p.id}`} className="underline underline-offset-2">
+                      {formatMonthShort(p.luna)}
+                    </Link>
+                  ) : (
+                    formatMonthShort(p.luna)
+                  )}
+                </span>
+              ))}
               {statistici.luniNecalculate.length === 1
-                ? `Luna ${formatMonthShort(statistici.luniNecalculate[0] ?? 1)} are perioadă deschisă, dar niciun calcul, deci lipsește din toate cifrele și din grafice.`
-                : `Lunile ${statistici.luniNecalculate.map(formatMonthShort).join(", ")} au perioadă deschisă, dar niciun calcul, deci lipsesc din toate cifrele și din grafice.`}
+                ? " are perioadă deschisă, dar niciun calcul, deci lipsește din toate cifrele și din grafice."
+                : " au perioadă deschisă, dar niciun calcul, deci lipsesc din toate cifrele și din grafice."}
             </Callout>
           )}
 
@@ -322,6 +386,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             <Indicator
               eticheta="Venit brut anual"
               valoare={formatLei(statistici.totalVenitBrutAnual)}
+              {...(poateDeschideSalarizarea ? { href: `/salarizare?an=${String(an)}` } : {})}
               serie={
                 <Sparkline
                   titlu="Venit brut pe luni"
@@ -334,6 +399,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             <Indicator
               eticheta="Venit net anual"
               valoare={formatLei(statistici.totalVenitNetAnual)}
+              {...(poateDeschideSalarizarea ? { href: `/salarizare?an=${String(an)}` } : {})}
               serie={
                 <Sparkline titlu="Venit net pe luni" unitate="Lei" puncte={serieNet} latime={140} />
               }
@@ -342,6 +408,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
               eticheta="Cost total angajator"
               valoare={formatLei(costTotalAngajator)}
               nota="Brut plus contribuțiile datorate de firmă."
+              {...(poateDeschideSalarizarea ? { href: `/salarizare?an=${String(an)}` } : {})}
             />
             <Indicator
               eticheta="Tichete de masă"
@@ -350,9 +417,15 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             <Indicator
               eticheta="Ore suplimentare"
               valoare={formatOreCuUnitate(statistici.totalOreSuplimentare)}
+              {...(poateDeschidePontajul ? { href: `/pontaj?an=${String(an)}` } : {})}
             />
             <Indicator
               eticheta="Zile de concediu"
+              {...(poateDeschideConcediile
+                ? {
+                    href: `/concedii/echipa?status=aprobata&de_la=${String(an)}-01-01&pana_la=${String(an)}-12-31`,
+                  }
+                : {})}
               valoare={`${formatZecimal(statistici.totalZileConcediuOdihna)} odihnă · ${formatZecimal(statistici.totalZileConcediuMedical)} medical`}
             />
           </div>
@@ -378,6 +451,26 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
                   {...(lunaEvidentiata === null ? {} : { evidentiaza: lunaEvidentiata })}
                 />
               </div>
+              {/* Graficul e `aria-hidden`; lunile lui au aici drum spre perioadă, și pentru tastatură. */}
+              {poateDeschideSalarizarea && statistici.perLuna.length > 0 ? (
+                <ul className="text-nota mt-3 flex flex-wrap gap-x-3 gap-y-1">
+                  {statistici.perLuna.map((l) => (
+                    <li key={l.periodId}>
+                      <Link
+                        href={`/salarizare/${l.periodId}`}
+                        className="underline-offset-2 hover:underline"
+                        aria-current={
+                          lunaEvidentiata !== null && formatMonthShort(l.luna) === lunaEvidentiata
+                            ? "true"
+                            : undefined
+                        }
+                      >
+                        {formatMonthShort(l.luna)}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </section>
 
             <section
@@ -408,6 +501,11 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             coloane={coloane}
             randuri={statistici.perAngajat}
             cheieRand={(angajat) => angajat.employeeId}
+            // Rândul duce la fișă doar când se poate deschide: angajatul șters sau
+            // un drept sub `all` ar fi dat 404.
+            href={(angajat) =>
+              poateDeschideFisa && angajat.exista ? `/angajati/${angajat.employeeId}` : null
+            }
             gol={null}
             subsol={
               <tr>

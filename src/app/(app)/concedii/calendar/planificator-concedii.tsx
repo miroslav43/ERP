@@ -21,6 +21,7 @@
 // Casetele nu conțin text, deci nu se pune problema contrastului cerneală/fundal
 // din `@/domain/leave/contrast` — dar au nevoie de un contur ca să nu dispară
 // culorile deschise pe crem, iar conturul e din token, nu derivat din culoare.
+import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import {
@@ -39,6 +40,10 @@ export interface RandAngajatPlanificator {
   readonly id: string;
   readonly nume: string;
   readonly marca: string;
+  /** Cererile omului: `/concedii/echipa?employee_id=` sau, pentru rândul propriu, `/concedii?vedere=cereri`. */
+  readonly hrefCereri: string;
+  /** Fișa, dacă rolul o poate deschide; altfel `null`. */
+  readonly hrefFisa: string | null;
 }
 
 interface Proprietati {
@@ -203,8 +208,20 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
                   scope="row"
                   className="border-border bg-background text-corp sticky left-0 z-20 min-w-44 border-r border-b px-2 py-1 text-left font-normal"
                 >
-                  <span className="block truncate">{angajat.nume}</span>
-                  <span className="text-muted-foreground text-nota block">{angajat.marca}</span>
+                  <Link href={angajat.hrefCereri} className="block truncate hover:underline">
+                    {angajat.nume}
+                  </Link>
+                  <span className="text-muted-foreground text-nota block">
+                    {angajat.marca}
+                    {angajat.hrefFisa === null ? null : (
+                      <>
+                        {" · "}
+                        <Link href={angajat.hrefFisa} className="hover:underline">
+                          fișa
+                        </Link>
+                      </>
+                    )}
+                  </span>
                 </th>
                 {zile.map((zi) => {
                   const absente = celule[cheieCelula(angajat.id, zi.iso)] ?? [];
@@ -229,17 +246,19 @@ export function PlanificatorConcedii({ zile, angajati, celule, azi }: Proprietat
                       title={descriere}
                       className={`border-border border-r border-b p-0.5 ${zi.nelucratoare ? "bg-surface" : ""}`}
                     >
-                      <span
-                        aria-hidden="true"
-                        className={`border-foreground/20 block h-5 w-full rounded-[2px] border ${
-                          absenta.stare === "aprobata" ? "" : "bg-background"
-                        }`}
-                        style={stilCaseta(absenta.tipCuloare, absenta.stare)}
-                      />
-                      {/* `title` nu apare la atingere și nu se citește la
-                          tastatură: pe telefon tipul și starea ar fi
-                          inaccesibile. Aceeași lecție ca în grila lunară. */}
-                      <span className="sr-only">{descriere}</span>
+                      {/* Caseta e link spre cerere; `title` nu apare la atingere
+                          și nu se citește la tastatură, deci descrierea intră
+                          în numele accesibil al linkului. */}
+                      <Link href={`/concedii/${absenta.cerereId}`} className="block">
+                        <span
+                          aria-hidden="true"
+                          className={`border-foreground/20 block h-5 w-full rounded-[2px] border ${
+                            absenta.stare === "aprobata" ? "" : "bg-background"
+                          }`}
+                          style={stilCaseta(absenta.tipCuloare, absenta.stare)}
+                        />
+                        <span className="sr-only">{descriere}</span>
+                      </Link>
                     </td>
                   );
                 })}

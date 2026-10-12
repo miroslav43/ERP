@@ -39,6 +39,9 @@ import { etichetaLuna, numeLuna } from "@/lib/excel/foaie-colectiva";
 import { ButonSetariPontaj } from "../buton-setari";
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
+import Link from "next/link";
+import { poateDeschide } from "@/config/porti-ruta";
+import { getEnabledFeatures } from "@/lib/auth/features";
 
 export const metadata: Metadata = { title: "Arhiva pontajului" };
 
@@ -65,6 +68,7 @@ function fereastraLunilor(azi: string): readonly Luna[] {
 interface RandArhiva extends Luna {
   readonly id: string | null;
   readonly numarAfisat: string | null;
+  readonly registruDocId: string | null;
   readonly generatLa: string | null;
   readonly numarAngajati: number | null;
   readonly totalOre: number | null;
@@ -73,7 +77,17 @@ interface RandArhiva extends Luna {
   readonly esteLunaCurenta: boolean;
 }
 
-async function TabelArhiva({ organizationId }: { readonly organizationId: string }) {
+async function TabelArhiva({
+  organizationId,
+  hrefRegistru,
+  hrefFoaie,
+}: {
+  readonly organizationId: string;
+  /** Poarta lui `/registru`: numărul de înregistrare devine link doar cu ea. */
+  readonly hrefRegistru: boolean;
+  /** Poarta lui `/pontaj`: luna arhivată deschide foaia vie a lunii. */
+  readonly hrefFoaie: boolean;
+}) {
   const azi = todayInBucharest();
   const fereastra = fereastraLunilor(azi);
   const ceaMaiVeche = fereastra[fereastra.length - 1];
@@ -89,6 +103,7 @@ async function TabelArhiva({ organizationId }: { readonly organizationId: string
       ...l,
       id: a?.id ?? null,
       numarAfisat: a?.numarAfisat ?? null,
+      registruDocId: a?.registruDocId ?? null,
       generatLa: a?.generat_la ?? null,
       numarAngajati: a?.numar_angajati ?? null,
       totalOre: a?.total_ore ?? null,
@@ -116,9 +131,22 @@ async function TabelArhiva({ organizationId }: { readonly organizationId: string
       cheie: "luna",
       antet: "Luna",
       peTelefon: "titlu",
+      // Singurul link al rândului era „Excel”: din luna arhivată nu se putea
+      // deschide foaia vie. Numele lunii duce la ea.
       celula: (rand) => (
         <span className="font-medium">
-          {numeLuna(rand.luna)} {rand.an}
+          {hrefFoaie ? (
+            <Link
+              href={`/pontaj?an=${String(rand.an)}&luna=${String(rand.luna)}`}
+              className="underline-offset-2 hover:underline"
+            >
+              {numeLuna(rand.luna)} {rand.an}
+            </Link>
+          ) : (
+            <>
+              {numeLuna(rand.luna)} {rand.an}
+            </>
+          )}
           {rand.versiune !== null && rand.versiune > 1 ? (
             <span className="text-muted-foreground text-nota"> · versiunea {rand.versiune}</span>
           ) : null}
@@ -129,9 +157,17 @@ async function TabelArhiva({ organizationId }: { readonly organizationId: string
       cheie: "numar",
       antet: "Nr. înregistrare",
       peTelefon: "meta",
-      celula: (rand) => (
-        <span className="text-muted-foreground tabular-nums">{rand.numarAfisat ?? "—"}</span>
-      ),
+      celula: (rand) =>
+        rand.numarAfisat !== null && rand.registruDocId !== null && hrefRegistru ? (
+          <Link
+            href={`/registru?an=${String(rand.an)}&doc=${rand.registruDocId}`}
+            className="text-muted-foreground tabular-nums underline-offset-2 hover:underline"
+          >
+            {rand.numarAfisat}
+          </Link>
+        ) : (
+          <span className="text-muted-foreground tabular-nums">{rand.numarAfisat ?? "—"}</span>
+        ),
     },
     {
       cheie: "arhivat",
@@ -285,7 +321,14 @@ export default async function PaginaArhivaPontaj() {
       <FormularDosar fereastra={fereastra} />
 
       <Suspense fallback={<Schelet forma="tabel" coloane={7} />}>
-        <TabelArhiva organizationId={tenant.organizationId} />
+        <TabelArhiva
+          organizationId={tenant.organizationId}
+          hrefRegistru={poateDeschide("/registru", {
+            features: await getEnabledFeatures(tenant.organizationId),
+            permissions: permisiuni,
+          })}
+          hrefFoaie={can(permisiuni, "attendance:read", "own")}
+        />
       </Suspense>
     </div>
   );

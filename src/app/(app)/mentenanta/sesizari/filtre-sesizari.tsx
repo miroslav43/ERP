@@ -2,6 +2,7 @@
 import type { ReactElement } from "react";
 
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
+import { clasaBifa } from "@/components/ui/camp";
 import { STATUSURI_SESIZARE, URGENTE_SESIZARE, type FiltreSesizari } from "@/schemas/maintenance";
 
 import { ETICHETE_STATUS_SESIZARE, ETICHETE_URGENTA_SESIZARE } from "../etichete";
@@ -17,13 +18,22 @@ import { ETICHETE_STATUS_SESIZARE, ETICHETE_URGENTA_SESIZARE } from "../etichete
  */
 const CHEI_EXTERNE = ["echipament"] as const;
 
-const CHEI_PROPRII = ["status", "urgenta"] as const;
+const CHEI_PROPRII = ["status", "urgenta", "atribuit", "deschise"] as const;
+
+export interface OptiuneTehnician {
+  readonly id: string;
+  readonly nume: string;
+}
 
 export type PropsFiltreSesizari = Readonly<{
   /** Filtrele DEJA validate de pagină, ca pastilele să nu arate valori inventate. */
+  filtre: Pick<FiltreSesizari, "status" | "urgenta" | "atribuit" | "deschise">;
   /** Codul echipamentului filtrat, când filtrul e pus din afara barei. */
   etichetaEchipament?: string;
-  filtre: Pick<FiltreSesizari, "status" | "urgenta">;
+  /** Tehnicienii din selector; gol pentru cine nu poate gestiona (rămân „mie”/„nimeni”). */
+  tehnicieni: readonly OptiuneTehnician[];
+  /** Apelantul are fișă: altfel „Atribuite mie” n-are pe cine să caute. */
+  areFisa: boolean;
 }>;
 
 /**
@@ -34,16 +44,30 @@ export type PropsFiltreSesizari = Readonly<{
 export function FiltreSesizariForm({
   filtre,
   etichetaEchipament,
+  tehnicieni,
+  areFisa,
 }: PropsFiltreSesizari): ReactElement {
   const active: FiltruActiv[] = [];
   if (filtre.status !== null) {
     active.push({ cheie: "status", eticheta: `Stare: ${ETICHETE_STATUS_SESIZARE[filtre.status]}` });
+  }
+  if (filtre.deschise === "da" && filtre.status === null) {
+    active.push({ cheie: "deschise", eticheta: "Doar deschise" });
   }
   if (filtre.urgenta !== null) {
     active.push({
       cheie: "urgenta",
       eticheta: `Urgență: ${ETICHETE_URGENTA_SESIZARE[filtre.urgenta]}`,
     });
+  }
+  if (filtre.atribuit !== null) {
+    const eticheta =
+      filtre.atribuit === "mie"
+        ? "Atribuite mie"
+        : filtre.atribuit === "nimeni"
+          ? "Neatribuite"
+          : `Tehnician: ${tehnicieni.find((t) => t.id === filtre.atribuit)?.nume ?? "ales"}`;
+    active.push({ cheie: "atribuit", eticheta });
   }
 
   /*
@@ -55,6 +79,8 @@ export function FiltreSesizariForm({
   if (etichetaEchipament !== undefined) {
     active.push({ cheie: "echipament", eticheta: `Echipament: ${etichetaEchipament}` });
   }
+
+  const clasaSelect = "border-foreground/60 rounded-control text-corp border px-3 py-2";
 
   return (
     <BaraFiltre active={active} cheiProprii={CHEI_PROPRII} cheiExterne={CHEI_EXTERNE}>
@@ -70,7 +96,7 @@ export function FiltreSesizariForm({
           id="filtru-sesizari-status"
           name="status"
           defaultValue={filtre.status ?? ""}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
+          className={clasaSelect}
         >
           <option value="">Toate</option>
           {STATUSURI_SESIZARE.map((s) => (
@@ -90,7 +116,7 @@ export function FiltreSesizariForm({
           id="filtru-sesizari-urgenta"
           name="urgenta"
           defaultValue={filtre.urgenta ?? ""}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
+          className={clasaSelect}
         >
           <option value="">Toate</option>
           {URGENTE_SESIZARE.map((u) => (
@@ -99,6 +125,43 @@ export function FiltreSesizariForm({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="filtru-sesizari-atribuit" className="text-corp font-medium">
+          Tehnician
+        </label>
+        <select
+          key={filtre.atribuit ?? ""}
+          id="filtru-sesizari-atribuit"
+          name="atribuit"
+          defaultValue={filtre.atribuit ?? ""}
+          className={clasaSelect}
+        >
+          <option value="">Oricare</option>
+          {areFisa ? <option value="mie">Atribuite mie</option> : null}
+          <option value="nimeni">Neatribuite</option>
+          {tehnicieni.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.nume}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex items-center gap-2 self-end pb-2">
+        <input
+          key={filtre.deschise ?? ""}
+          id="filtru-sesizari-deschise"
+          name="deschise"
+          type="checkbox"
+          value="da"
+          defaultChecked={filtre.deschise === "da"}
+          className={clasaBifa}
+        />
+        <label htmlFor="filtru-sesizari-deschise" className="text-corp">
+          Doar deschise
+        </label>
       </div>
     </BaraFiltre>
   );

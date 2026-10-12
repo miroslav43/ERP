@@ -11,9 +11,17 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/current-user";
+import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { getPermissionMap } from "@/lib/auth/permissions";
+import { getEnabledFeatures } from "@/lib/auth/features";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { listeazaNotificarile } from "@/lib/queries/notifications";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { isPostgrestError, mapPostgrestError } from "@/lib/actions/errors";
 import type { ActionError, ActionResult } from "@/lib/actions/types";
+
+import { contextAplicatie } from "./context";
+import { caleaInAplicatie } from "./legaturi";
 
 const esec = (error: ActionError): ActionResult<never> => ({ ok: false, error });
 
@@ -115,4 +123,61 @@ export async function marcheazaToateNotificarileCitite(): Promise<ActionResult<n
 
   reimprospateazaCutiaPostala();
   return { ok: true, data: null };
+}
+
+export type NotificareRecenta = Readonly<{
+  id: string;
+  title: string;
+  created_at: string;
+  /** Obiectul notificării, tradus la fel ca pe `/notificari`; `null` = doar lista. */
+  href: string | null;
+}>;
+
+/**
+ * Ultimele cinci necitite, pentru previzualizarea de la clopoțel.
+ *
+ * Se cer LA DESCHIDERE, nu în antet: antetul se randează pe fiecare navigare,
+ * iar lista — cu traducerea linkurilor la obiect, care citește context sub RLS
+ * — ar fi costat un val de rețea pe fiecare pagină, pentru un meniu deschis
+ * rar. Aceeași traducere ca pe `/notificari`, din aceleași funcții.
+ */
+export async function citesteNotificarileRecente(): Promise<
+  ActionResult<readonly NotificareRecenta[]>
+> {
+  const requestId = randomUUID();
+  try {
+    const { user, tenant } = await requireTenant();
+    const [notificari, permisiuni, module, fisaProprie] = await Promise.all([
+      listeazaNotificarile(tenant.organizationId, user.id, true),
+      getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+      getEnabledFeatures(tenant.organizationId),
+      idFisaProprie(tenant.organizationId, user.id),
+    ]);
+    const recente = notificari.slice(0, 5);
+    const context = {
+      porti: { features: module, permissions: permisiuni },
+      fisaProprie,
+      ...(await contextAplicatie(await createServerSupabase(), tenant.organizationId, recente)),
+    };
+    return {
+      ok: true,
+      data: recente.map((n) => ({
+        id: n.id,
+        title: n.title,
+        created_at: n.created_at,
+        href: caleaInAplicatie(n, context),
+      })),
+    };
+  } catch (eroare) {
+    return esec(
+      isPostgrestError(eroare)
+        ? mapPostgrestError(eroare, requestId)
+        : {
+            code: "EROARE_INTERNA",
+            message: `Notificările nu au putut fi citite. Cod de referință: ${requestId}`,
+            fieldErrors: null,
+            requestId,
+          },
+    );
+  }
 }

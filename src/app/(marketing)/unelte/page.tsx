@@ -3,16 +3,8 @@ import type { Metadata } from "next";
 
 import Link from "next/link";
 
+import { GRUPURI_HUB } from "@/content/landing/hub-unelte";
 import { RO } from "@/content/landing/ro";
-import {
-  ANTET_CALCULATOR,
-  ANTET_CERERE_CONCEDIU,
-  ANTET_CONDICA,
-  ANTET_FISA_EVALUARE,
-  ANTET_FISA_SSM,
-  ANTET_FOAIE_PARCURS,
-  ANTET_FOAIE_PONTAJ,
-} from "@/content/landing/unelte";
 
 import { AntetSecundar } from "../_componente/antet-secundar";
 import { Banda } from "../_componente/banda";
@@ -38,51 +30,6 @@ export const metadata: Metadata = metadatePagina({
   cale: "/unelte",
 });
 
-const PAGINI = [
-  {
-    href: "/unelte/foaie-de-pontaj",
-    titlu: ANTET_FOAIE_PONTAJ.titlu,
-    lead: ANTET_FOAIE_PONTAJ.lead,
-    nota: `${AN_MIN}–${AN_MAX} · până la ${MAX_ANGAJATI} de angajați · fără cont`,
-  },
-  {
-    href: "/unelte/condica-de-prezenta",
-    titlu: ANTET_CONDICA.titlu,
-    lead: ANTET_CONDICA.lead,
-    nota: "ora sosirii și a plecării, pe fiecare zi lucrătoare · Word, PDF, Excel",
-  },
-  {
-    href: "/unelte/cerere-concediu-de-odihna",
-    titlu: ANTET_CERERE_CONCEDIU.titlu,
-    lead: ANTET_CERERE_CONCEDIU.lead,
-    nota: `${AN_MIN}–${AN_MAX} · zilele lucrătoare calculate · fără cont`,
-  },
-  {
-    href: "/unelte/foaie-de-parcurs",
-    titlu: ANTET_FOAIE_PARCURS.titlu,
-    lead: ANTET_FOAIE_PARCURS.lead,
-    nota: "fiecare zi a lunii, traseu și kilometri · Word, PDF, Excel",
-  },
-  {
-    href: "/unelte/fisa-instruire-ssm",
-    titlu: ANTET_FISA_SSM.titlu,
-    lead: ANTET_FISA_SSM.lead,
-    nota: "după anexa 11 la HG 1425/2006 · Word, PDF",
-  },
-  {
-    href: "/unelte/fisa-evaluare",
-    titlu: ANTET_FISA_EVALUARE.titlu,
-    lead: ANTET_FISA_EVALUARE.lead,
-    nota: "criteriile firmei, pondere și notă · Word, PDF, Excel",
-  },
-  {
-    href: "/unelte/calculator-salariu",
-    titlu: ANTET_CALCULATOR.titlu,
-    lead: ANTET_CALCULATOR.lead,
-    nota: "net din brut și brut din net · valorile din iulie 2026",
-  },
-];
-
 /*
  * Scurtătura spre luna curentă NU poartă parametri. Pagina asta e prerandată
  * static, iar un `new Date()` la nivel de modul îngheța luna la data build-ului:
@@ -102,25 +49,45 @@ export default function PaginaUnelte() {
           { eticheta: "Unelte", href: "/unelte" },
         ]}
       />
-      <Banda inaltime="medie" supratitlu="Toate uneltele" titlu="Gata de folosit">
-        <ListaHub pagini={PAGINI} />
-        <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <p className="font-mk-date text-mk-text-slab text-[0.6875rem] tracking-[0.14em] uppercase">
-            Sari direct la
-          </p>
+      <Banda inaltime="scurta" supratitlu="Toate uneltele" titlu="Gata de folosit">
+        {/* Cuprinsul categoriilor: pe telefon, a patra categorie e la trei
+            ecrane distanță. Ancorele sunt `id`-urile benzilor de mai jos. */}
+        <nav aria-label="Categoriile de unelte" className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+          {GRUPURI_HUB.map((g) => (
+            <a
+              key={g.id}
+              href={`#${g.id}`}
+              className="text-[0.9375rem] underline underline-offset-4"
+            >
+              {g.supratitlu}
+            </a>
+          ))}
           <Link
             href="/unelte/foaie-de-pontaj"
             className="text-[0.9375rem] underline underline-offset-4"
           >
             Foaia de pontaj a lunii curente
           </Link>
-        </div>
+        </nav>
       </Banda>
+
+      {GRUPURI_HUB.map((g) => (
+        <Banda
+          key={g.id}
+          id={g.id}
+          inaltime="scurta"
+          supratitlu={g.supratitlu}
+          titlu={g.titlu}
+          lead={g.lead}
+        >
+          <ListaHub pagini={g.pagini} />
+        </Banda>
+      ))}
 
       <Banda
         inaltime="medie"
         supratitlu="Ce au în comun"
-        titlu="Fără cont, fără abonament, fără să rețină ceva"
+        titlu="Fără cont, fără plată, fără să păstrăm ce scrii"
         lead="Sunt aceleași funcții care lucrează în aplicație, scoase separat pentru cine are nevoie de un document o singură dată."
       >
         {/* Până la 7 oct 2026 banda descria doar foaia de pontaj, de când era
@@ -133,12 +100,30 @@ export default function PaginaUnelte() {
             ortodox, deci anii viitori ies corect fără să-i actualizeze cineva. Foaia de pontaj ia
             până la {MAX_ANGAJATI} de oameni pe o pagină.
           </p>
+          {/* Până la 8 oct 2026 banda promitea că uneltele nu păstrează nimic din
+              ce completezi, iar numele din formular plecau la Google Analytics,
+              la Umami și în jurnalele serverului. Fraza de acum descrie ce face
+              codul după reparație. Vechea formulare NU se citează aici:
+              `confidentialitate.test.ts` caută textul ei în fișier. */}
           <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
             Documentele se tipăresc direct sau se descarcă în Word, PDF sau Excel, după unealtă.
-            Niciuna nu cere cont sau adresă de e-mail și niciuna nu reține ce scrii: alegerile stau
-            în adresa paginii, iar dacă o pui la favorite, revii la aceeași configurație. Ce nu fac:
-            nu țin minte lunile trecute și nu leagă documentele între ele — pentru asta e nevoie de
-            evidența din aplicație, unde ziua are oră de început și de sfârșit.
+            Niciuna nu cere cont sau adresă de e-mail. Ce completezi nu se salvează la noi:
+            documentul se face pe loc și nu intră în nicio bază de date, iar statisticile de
+            vizitare și jurnalul serverului înregistrează doar ce unealtă ai deschis, fără valorile
+            din câmpuri. Valorile stau în adresa paginii, ca s-o poți pune la favorite și să revii
+            la aceeași configurație. Asta înseamnă că rămân în istoricul browserului tău și pleacă
+            odată cu linkul, dacă îl trimiți cuiva.{" "}
+            <Link
+              href="/legal/confidentialitate#sectiunea-2"
+              className="underline underline-offset-4"
+            >
+              Detaliile, în politica de confidențialitate
+            </Link>
+            .
+          </p>
+          <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
+            Ce nu fac: nu țin minte lunile trecute și nu leagă documentele între ele — pentru asta e
+            nevoie de evidența din aplicație, unde ziua are oră de început și de sfârșit.
           </p>
         </div>
       </Banda>

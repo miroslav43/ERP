@@ -33,12 +33,14 @@ export type PropsFiltreFoi = Readonly<{
    * ăla câmpul nu se randează deloc.
    */
   vehicule: readonly VehiculOptiune[];
+  /** Numele din `?sofer=`, rezolvat de pagină sub RLS. */
+  numeSofer?: string | null;
 }>;
 
 /** Exact cheile pe care le administrează bara. Nici una în plus, nici una în minus. */
 const CHEI_PROPRII = ["status", "vehicul"] as const;
 
-export function FiltreFoi({ parametri, vehicule }: PropsFiltreFoi): ReactElement {
+export function FiltreFoi({ parametri, vehicule, numeSofer = null }: PropsFiltreFoi): ReactElement {
   const filtre = filtreDinUrl(filtreFoiSchema, parametri);
   const numarVehicul = new Map(vehicule.map((v) => [v.id, v.nr_inmatriculare]));
 
@@ -55,8 +57,12 @@ export function FiltreFoi({ parametri, vehicule }: PropsFiltreFoi): ReactElement
     });
   }
 
+  if (filtre.sofer !== null) {
+    active.push({ cheie: "sofer", eticheta: `Șofer: ${numeSofer ?? "ales"}` });
+  }
+
   return (
-    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII}>
+    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII} cheiExterne={["sofer"]}>
       <Camp nume="status" eticheta="Stare" fel="select" className="w-full sm:w-56">
         {(atribute) => (
           // `key` legat de valoarea din adresă: un control necontrolat își ia

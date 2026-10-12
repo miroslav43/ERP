@@ -8,6 +8,7 @@ import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
 import { propunePlecarea } from "../actiuni-api";
+import { arataToast } from "@/components/ui/toast";
 
 export type ContractEligibil = Readonly<{
   id: string;
@@ -45,6 +46,16 @@ export function FormularPropunere(props: {
       });
       if (rezultat.ok) {
         setDeschis(false);
+        // Rândul nou se evidențiază pe server (`?nou=`) și se derulează la ancoră.
+        window.history.replaceState(
+          null,
+          "",
+          `?nou=${rezultat.data.id}#propunere-${rezultat.data.id}`,
+        );
+        arataToast({
+          fel: "reusita",
+          text: "Propunerea a fost pusă în coadă și pleacă la următoarea reconciliere.",
+        });
         router.refresh();
       } else {
         setMesaj(rezultat.error.message);

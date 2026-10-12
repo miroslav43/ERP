@@ -11,8 +11,8 @@ tabele: [announcements, announcement_reads, notifications]
 permisiuni: [announcements:read, announcements:create, announcements:update]
 feature: announcements
 capcane: [2, 17]
-scris_pe: a2cdfa5180b0b036c983f85f493fe74846b2909c
-scris_la: 2026-10-06
+scris_pe: 9464e60307064ec5eacd03ce40769dc9c68ceb1b
+scris_la: 2026-10-09
 tags: [modul]
 ---
 
@@ -48,7 +48,16 @@ departament".
 | --------------------- | ---------------------------- |
 | `creeazaAnunt`        | `announcements:create` / all |
 | `publicaAnunt`        | `announcements:update` / all |
+| `actualizeazaAnunt`   | `announcements:update` / all |
+| `retrageAnunt`        | `announcements:update` / all |
+| `stergeAnunt`         | `announcements:update` / all |
 | `marcheazaAnuntCitit` | `announcements:read` / own   |
+
+`actualizeazaAnunt` NU retrimite notificări (corecția nu sună a doua oară telefoanele).
+`retrageAnunt` pune `expira_la = now()` doar pe un anunț publicat — anunțul iese de pe
+avizier și rămâne pe fișă, cu confirmările. `stergeAnunt` e `deleted_at` prin UPDATE, în
+orice stare: politica de UPDATE nu condiționează `deleted_at`, iar `announcements:delete`
+nu există în `PERMISSION_KEYS`. Toate trei stau în `[id]/actiuni-anunt.tsx`.
 
 `marcheazaAnuntCitit` e singura acțiune din modul pe care o poate chema un angajat — de
 aceea e pe `read`, nu pe `update`: confirmarea de citire nu e o modificare a anunțului.
@@ -117,6 +126,14 @@ nu doar tăietura — `src/lib/queries/announcements.test.ts` verifică ambele.
   înseamnă conflict, nu succes. — capcana #17
 
 ## Ce se mișcă împreună
+
+Cifrele privitorului: insigna din meniu (`announcements_unread`, din `contoarePanou.avizier`)
+numără anunțurile ACTIVE neconfirmate de fișa proprie și duce la `/anunturi?stare=necitite`,
+segment acceptat pe orice rol. Cardurile din listă arată „Citit de X din Y"
+(`numarConfirmariPeAnunt`, prin `citesteTot`: 8 angajați × 200 de anunțuri trec de
+`max_rows`). Pe fișă, cifra „din Y" duce la „Neconfirmat încă" (`angajatiCuCont` minus
+cititorii) doar cu `employees:read = all`. Anunțul expirat deschis dintr-o notificare veche
+cade pe `[id]/not-found.tsx` (aplicație și portal), nu în 404-ul rădăcină.
 
 Publicarea face fanout în `notifications` (`0001_kernel.sql`). Poarta de acolo verifică
 explicit `announcements:create` pentru cine scrie o notificare în numele altui utilizator —

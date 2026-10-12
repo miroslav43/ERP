@@ -184,6 +184,19 @@ export function PlanificareEvaluari({
                     ? "Evaluarea a fost creată. O găsiți în listă."
                     : `Au fost create ${String(rezultat.create)} evaluări. Le găsiți în listă.`
                   : `Au fost create ${String(rezultat.create)} evaluări; ${String(rezultat.sarite)} angajați aveau deja una de completat pe acest șablon și au fost săriți.`,
+              // Lista rămânea nefiltrată, cu ciornele noi amestecate; filtrul
+              // pe stare le arată pe toate cele de completat. Toastul cu
+              // acțiune nu se stinge singur.
+              ...(rezultat.create === 0
+                ? {}
+                : {
+                    actiune: {
+                      eticheta: "Vezi ciornele",
+                      onClick: () => {
+                        router.push("/evaluari?status=draft");
+                      },
+                    },
+                  }),
             });
             router.refresh();
           }}

@@ -2,7 +2,11 @@
 import { celMaiBunContrast, cernealaPentruFundal, PRAG_TEXT_MIC } from "@/domain/leave/contrast";
 import type { StatusCerere } from "@/schemas/leave";
 
+import Link from "next/link";
+
 export interface EvenimentZiCalendar {
+  /** Pastila duce la cerere. */
+  readonly cerereId: string;
   readonly employeeLabel: string;
   readonly tipDenumire: string;
   readonly tipCuloare: string;
@@ -184,10 +188,24 @@ export function GrilaCalendar({ an, luna, zileHarta }: Proprietati) {
                   }
                   const iso = ziIso(an, luna, zi);
                   const evenimente = zileHarta[iso] ?? [];
+                  // Aceeași listă pe care o adună grila: stările care ocupă
+                  // ziua (trimisă, în aprobare, aprobată), nu și respinsele
+                  // ori anulatele, care în grilă nu apar.
+                  const hrefZi = `/concedii/echipa?de_la=${iso}&pana_la=${iso}&status=trimisa,in_aprobare,aprobata`;
                   return (
                     <td key={iso} className="border-border h-24 border align-top">
                       <div className="p-1.5">
-                        <span className="text-muted-foreground text-nota font-medium">{zi}</span>
+                        {evenimente.length === 0 ? (
+                          <span className="text-muted-foreground text-nota font-medium">{zi}</span>
+                        ) : (
+                          <Link
+                            href={hrefZi}
+                            aria-label={`${String(zi)}: ${String(evenimente.length)} ${evenimente.length === 1 ? "absență" : "absențe"}, vezi lista`}
+                            className="text-muted-foreground text-nota font-medium underline-offset-2 hover:underline"
+                          >
+                            {zi}
+                          </Link>
+                        )}
                         <ul className="mt-1 space-y-0.5">
                           {evenimente.slice(0, 3).map((eveniment, indexEveniment) => {
                             const aprobata = eveniment.status === "aprobata";
@@ -200,7 +218,12 @@ export function GrilaCalendar({ an, luna, zileHarta }: Proprietati) {
                                 className={`text-nota truncate rounded px-1 py-0.5 ${clasa}`}
                                 style={stil}
                               >
-                                {eveniment.employeeLabel}
+                                <Link
+                                  href={`/concedii/${eveniment.cerereId}`}
+                                  className="hover:underline"
+                                >
+                                  {eveniment.employeeLabel}
+                                </Link>
                                 {/* `title` nu apare la atingere și nu se citește
                                     la tastatură: pe telefon, tipul și starea
                                     erau pur și simplu inaccesibile. Textul
@@ -215,7 +238,10 @@ export function GrilaCalendar({ an, luna, zileHarta }: Proprietati) {
                           })}
                           {evenimente.length > 3 ? (
                             <li className="text-muted-foreground text-nota">
-                              +{evenimente.length - 3} altele
+                              {/* Restul absențelor zilei: lista echipei filtrată pe suprapunere. */}
+                              <Link href={hrefZi} className="underline-offset-2 hover:underline">
+                                +{evenimente.length - 3} altele
+                              </Link>
                             </li>
                           ) : null}
                         </ul>

@@ -10,18 +10,20 @@ import { Callout } from "@/components/ui/callout";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { cn } from "@/lib/ui/cn";
 import { construiesteOrganigrama, type NodOrganigrama } from "@/domain/hr/organigrama";
-import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import {
   arboreleManagerial,
+  fiseDupaId,
   idFisaProprie,
   toateRolurileConturilor,
   type NodManagerial,
 } from "@/lib/queries/employees";
 
 import { ETICHETE_ROL_CONT, rolAdministrativ } from "../angajati/etichete";
+import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Organigramă" };
 
@@ -87,10 +89,24 @@ function Arbore({
   noduri,
   nivel,
   roluri,
+  evidentiat,
+  poateEdita,
+  scope,
+  manageriAscunsi,
+  poateSchimbaRoluri,
 }: {
   readonly noduri: readonly NodOrganigrama<NodManagerial>[];
   readonly nivel: number;
   readonly roluri: ReadonlyMap<string, string>;
+  /** `?angajat=<id>`: nodul la care a trimis alt ecran, evidențiat pe server. */
+  readonly evidentiat: string | null;
+  /** `employees:update` all: nodul cu manager dedus primește „Setează managerul". */
+  readonly poateEdita: boolean;
+  readonly scope: string;
+  /** Managerii rădăcinilor care NU sunt printre fișele active: numiți, nu doar „inactiv sau șters". */
+  readonly manageriAscunsi: ReadonlyMap<string, Readonly<{ full_name: string; status: string }>>;
+  /** `users:update` all: eticheta de rol duce la pagina de permisiuni. */
+  readonly poateSchimbaRoluri: boolean;
 }) {
   // Trunchiul care coboară din nodul părinte e punctat doar când TOATE muchiile
   // rândului sunt deduse. La un rând mixt el e parcurs și de o legătură reală.
@@ -105,24 +121,99 @@ function Arbore({
     <ul className={cn(nivel === 1 ? "og-radacina" : "og-ramura", totImplicit && "og-implicit")}>
       {noduri.map((nod) => {
         const functie = etichetaFunctiei(nod.date, roluri);
+        // Rădăcină cu manager pe fișă, dar nevizibil ca fișă activă: aceeași
+        // consecință ca legătura dedusă (nimeni nu-i aprobă nimic), deci același
+        // marcaj. Doar sub `all` — sub `team` managerul poate fi pur și simplu
+        // în afara echipei.
+        const managerAscuns =
+          !nod.implicit && nivel === 1 && scope === "all" && nod.date.manager_employee_id !== null;
+        const managerNumit =
+          nod.date.manager_employee_id === null
+            ? null
+            : (manageriAscunsi.get(nod.date.manager_employee_id) ?? null);
         return (
-          <li key={nod.date.id} className={nod.implicit ? "og-implicit" : undefined}>
-            <Link
-              href={`/angajati/${nod.date.id}`}
-              className="border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center"
+          <li
+            key={nod.date.id}
+            id={`angajat-${nod.date.id}`}
+            className={cn("scroll-mt-24", nod.implicit && "og-implicit")}
+          >
+            {/* Cardul rămâne apăsabil în întregime (linkul numelui se întinde
+                peste el), dar departamentul și funcția au linkurile LOR, deasupra
+                (`relative z-10`): un `<a>` în alt `<a>` nu e permis. */}
+            <div
+              className={cn(
+                "border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat relative flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center",
+                evidentiat === nod.date.id && "ring-primary ring-2",
+              )}
             >
               <AvatarAngajat url={nod.date.avatar_url} nume={nod.date.full_name} marime="sm" />
-              <span className="text-corp leading-tight font-medium">{nod.date.full_name}</span>
+              <Link
+                href={`/angajati/${nod.date.id}`}
+                className="text-corp leading-tight font-medium after:absolute after:inset-0"
+              >
+                {nod.date.full_name}
+              </Link>
               <span className="text-muted-foreground text-nota font-mono">{nod.date.marca}</span>
               <span className="text-muted-foreground text-nota leading-tight">
-                <span className={functie.derivat ? "italic" : undefined}>{functie.text}</span>
-                {nod.date.department === null ? "" : ` · ${nod.date.department.denumire}`}
+                {functie.derivat && poateSchimbaRoluri ? (
+                  // Eticheta e derivată din rolul de cont: duce unde se schimbă rolul.
+                  <Link
+                    href={`/angajati/${nod.date.id}/permisiuni`}
+                    className="relative z-10 italic hover:underline"
+                  >
+                    {functie.text}
+                  </Link>
+                ) : nod.date.functie === null || functie.derivat ? (
+                  <span className={functie.derivat ? "italic" : undefined}>{functie.text}</span>
+                ) : (
+                  <Link
+                    href={`/angajati?functie=${encodeURIComponent(nod.date.functie)}&status=activ`}
+                    className="relative z-10 hover:underline"
+                  >
+                    {functie.text}
+                  </Link>
+                )}
+                {nod.date.department === null ? null : (
+                  <>
+                    {" · "}
+                    <Link
+                      href={`/angajati?department_id=${nod.date.department.id}&status=activ`}
+                      className="relative z-10 hover:underline"
+                    >
+                      {nod.date.department.denumire}
+                    </Link>
+                  </>
+                )}
               </span>
-              {nod.implicit ? (
+              {nod.implicit || managerAscuns ? (
                 <span className="text-muted-foreground text-nota border-border/70 w-full border-t pt-1.5 leading-tight italic">
-                  {nod.date.manager_employee_id === null
-                    ? "manager nedesemnat"
-                    : "manager inactiv sau șters"}
+                  {nod.date.manager_employee_id === null ? (
+                    "manager nedesemnat"
+                  ) : managerNumit === null ? (
+                    "manager inactiv sau șters"
+                  ) : (
+                    <>
+                      manager {managerNumit.status === "activ" ? "din afara ierarhiei" : "inactiv"}:{" "}
+                      <Link
+                        href={`/angajati/${nod.date.manager_employee_id}`}
+                        className="relative z-10 hover:underline"
+                      >
+                        {managerNumit.full_name}
+                      </Link>
+                    </>
+                  )}
+                  {/* Corectarea pornește de aici și se întoarce tot aici, pe nod. */}
+                  {poateEdita ? (
+                    <>
+                      {" · "}
+                      <Link
+                        href={`/angajati/${nod.date.id}/editeaza?inapoi=organigrama`}
+                        className="relative z-10 not-italic hover:underline"
+                      >
+                        Setează managerul
+                      </Link>
+                    </>
+                  ) : null}
                 </span>
               ) : null}
               {nod.copii.length > 0 ? (
@@ -132,9 +223,18 @@ function Arbore({
                   <span className="sr-only">subordonați direcți</span>
                 </span>
               ) : null}
-            </Link>
+            </div>
             {nod.copii.length > 0 ? (
-              <Arbore noduri={nod.copii} nivel={nivel + 1} roluri={roluri} />
+              <Arbore
+                noduri={nod.copii}
+                nivel={nivel + 1}
+                roluri={roluri}
+                evidentiat={evidentiat}
+                poateEdita={poateEdita}
+                scope={scope}
+                manageriAscunsi={manageriAscunsi}
+                poateSchimbaRoluri={poateSchimbaRoluri}
+              />
             ) : null}
           </li>
         );
@@ -143,16 +243,27 @@ function Arbore({
   );
 }
 
-export default async function PaginaOrganigrama() {
+export default async function PaginaOrganigrama({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const utilizator = await requireUser();
+  // `?angajat=<id>` (de pe fișă, după corectarea managerului): nodul evidențiat
+  // pe server — `:target` nu se aprinde după o navigare din client.
+  const parametriAdresa = await searchParams;
+  const angajatBrut = parametriAdresa["angajat"];
+  const evidentiat = typeof angajatBrut === "string" ? angajatBrut : null;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "nucleu"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
   const scope = scopeFor(permisiuni, "employees:read");
+  const contextPorti: ContextPorti = { features: module, permissions: permisiuni };
 
   if (scope === null || scope === "none") {
     return (
@@ -179,6 +290,20 @@ export default async function PaginaOrganigrama() {
 
   const posibilTrunchiat = noduri.length >= PLAFON_RANDURI;
 
+  // Managerii rădăcinilor care nu sunt printre fișele active (inactivi, încetați
+  // sau în afara scope-ului): se citesc O DATĂ, ca nodul să-i poată numi.
+  const idNoduri = new Set(noduri.map((n) => n.id));
+  const manageriAscunsi =
+    scope === "all"
+      ? await fiseDupaId(
+          tenant.organizationId,
+          arbore
+            .map((n) => n.date.manager_employee_id)
+            .filter((id): id is string => id !== null && !idNoduri.has(id)),
+        )
+      : new Map<string, Readonly<{ full_name: string; status: string }>>();
+  const poateCreaAngajat = can(permisiuni, "employees:create", "all");
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -190,6 +315,22 @@ export default async function PaginaOrganigrama() {
               ? "Ierarhia managerială a echipei dumneavoastră."
               : "Locul dumneavoastră în ierarhia managerială."
         } ${String(noduri.length)} ${noduri.length === 1 ? "fișă activă" : "fișe active"}.`}
+        actiuni={
+          <span className="text-nota flex flex-wrap gap-x-3 gap-y-1">
+            <Link href="/angajati?status=activ" className="underline-offset-2 hover:underline">
+              Vezi fișele active
+            </Link>
+            {/* Cealaltă organigramă a produsului: cea STRUCTURALĂ, din `parent_id`. */}
+            {poateDeschide("/departamente", contextPorti) ? (
+              <Link
+                href="/departamente?vizualizare=organigrama"
+                className="underline-offset-2 hover:underline"
+              >
+                Organigrama departamentelor
+              </Link>
+            ) : null}
+          </span>
+        }
       />
 
       {posibilTrunchiat ? (
@@ -197,8 +338,11 @@ export default async function PaginaOrganigrama() {
           Baza a întors {String(noduri.length)} de fișe, plafonul unei singure cereri. Peste această
           limită lipsesc oameni, iar cine avea drept manager pe cineva rămas afară apare aici ca și
           cum n-ar avea manager deloc — deci și ierarhia afișată e greșită, nu doar parțială.
-          Folosiți lista de angajați, filtrată pe departament, până când ecranul primește o limită
-          proprie.
+          Folosiți{" "}
+          <Link href="/angajati?status=activ" className="underline underline-offset-2">
+            lista de angajați
+          </Link>
+          , filtrată pe departament, până când ecranul primește o limită proprie.
         </Callout>
       ) : administrator !== null && atasatiImplicit > 0 ? (
         <Callout fel="informativ" titlu="Legături deduse, nu configurate">
@@ -215,7 +359,8 @@ export default async function PaginaOrganigrama() {
         <Callout fel="informativ">
           {String(radaciniFaraManagerVizibil)} persoane apar drept rădăcini fiindcă managerul lor
           direct nu e printre fișele active — fișă inactivă, plecată din firmă, sau manager
-          nedesemnat. Corectați managerul direct pe fișa fiecăreia ca să intre în ierarhie.
+          nedesemnat. Nodurile lor sunt marcate mai jos, cu managerul numit unde se mai găsește;
+          corectați managerul direct pe fișa fiecăreia ca să intre în ierarhie.
         </Callout>
       ) : null}
 
@@ -224,12 +369,30 @@ export default async function PaginaOrganigrama() {
           fel="initiala"
           pictograma={Users}
           titlu="Nimic de afișat"
-          descriere="Ierarhia se completează pe măsură ce fișele angajaților primesc un manager direct."
+          descriere={
+            noduri.length === 0
+              ? "Organigrama se desenează din fișele active ale angajaților. Nu există încă niciuna."
+              : "Ierarhia se completează pe măsură ce fișele angajaților primesc un manager direct."
+          }
+          actiune={
+            noduri.length === 0 && poateCreaAngajat
+              ? { eticheta: "Adaugă primul angajat", href: "/angajati/nou" }
+              : { eticheta: "Vezi lista de angajați", href: "/angajati" }
+          }
         />
       ) : (
         <div className="overflow-x-auto pb-4">
           <div className="w-fit min-w-full px-4">
-            <Arbore noduri={arbore} nivel={1} roluri={roluri} />
+            <Arbore
+              noduri={arbore}
+              nivel={1}
+              roluri={roluri}
+              evidentiat={evidentiat}
+              poateEdita={can(permisiuni, "employees:update", "all")}
+              scope={scope}
+              manageriAscunsi={manageriAscunsi}
+              poateSchimbaRoluri={can(permisiuni, "users:update", "all")}
+            />
           </div>
         </div>
       )}

@@ -1,11 +1,12 @@
 // src/app/(app)/departamente/structura-interactiva.tsx
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useMemo } from "react";
 
 import { UserRoundX } from "lucide-react";
 
-import { PanouDepartament, type PersoanaPanou } from "./panou-departament";
+import { PanouDepartament, type LegaturiPanou, type PersoanaPanou } from "./panou-departament";
 import { VizualizareLista } from "./vizualizare-lista";
 import { VizualizareOrganigrama } from "./vizualizare-organigrama";
 import type { NodDepartament, OptiuneAngajat, OptiuneDepartament } from "./tipuri";
@@ -39,6 +40,11 @@ export type PropsStructuraInteractiva = Readonly<{
   angajati: readonly OptiuneAngajat[];
   poateEdita: boolean;
   poateMutaPersoane: boolean;
+  poateInvita: boolean;
+  /** `users:update = all`: „rol de Angajat" devine link spre permisiunile șefului. */
+  poateSchimbaRoluri: boolean;
+  /** Porțile paginilor-țintă ale railului din panou (calculate pe server). */
+  legaturi: LegaturiPanou;
   vizualizare: "lista" | "organigrama";
 }>;
 
@@ -50,9 +56,32 @@ export function StructuraInteractiva({
   angajati,
   poateEdita,
   poateMutaPersoane,
+  poateInvita,
+  poateSchimbaRoluri,
+  legaturi,
   vizualizare,
 }: PropsStructuraInteractiva) {
-  const [deschisId, setDeschisId] = useState<string | null>(null);
+  /*
+   * Panoul deschis se derivă din ADRESĂ (`?departament=<id>` sau
+   * `?departament=nerepartizati`), nu dintr-un `useState`: așa are un link pe
+   * care îl poate trimite orice alt modul, supraviețuiește reîncărcării și se
+   * închide cu butonul „înapoi". Scrierea se face cu `history.replaceState`,
+   * pe care `useSearchParams` îl urmărește fără un drum la server.
+   */
+  const parametri = useSearchParams();
+  const brut = parametri.get("departament");
+  const deschisId = brut === null ? null : brut === "nerepartizati" ? NEREPARTIZATI : brut;
+  const setDeschisId = useCallback((id: string | null): void => {
+    const p = new URLSearchParams(window.location.search);
+    if (id === null) p.delete("departament");
+    else p.set("departament", id === NEREPARTIZATI ? "nerepartizati" : id);
+    const interogare = p.toString();
+    window.history.replaceState(
+      null,
+      "",
+      interogare === "" ? window.location.pathname : `?${interogare}`,
+    );
+  }, []);
 
   /** Toate nodurile, aplatizate, ca panoul să găsească departamentul din O(1). */
   const dupaId = useMemo(() => {
@@ -69,12 +98,20 @@ export function StructuraInteractiva({
 
   const inchide = useCallback((): void => {
     setDeschisId(null);
-  }, []);
+  }, [setDeschisId]);
 
   const nodDeschis = deschisId === null ? null : (dupaId.get(deschisId) ?? null);
   const esteNerepartizati = deschisId === NEREPARTIZATI;
 
   const persoanePanou = esteNerepartizati ? nerepartizati : (nodDeschis?.date.persoane ?? []);
+  // Vecinii din arbore: departamentul superior și subordonatele, pentru rail.
+  const parinte =
+    nodDeschis?.date.parent_id == null ? null : (dupaId.get(nodDeschis.date.parent_id) ?? null);
+  const subordonate = (nodDeschis?.copii ?? []).map((c) => ({
+    id: c.date.id,
+    denumire: c.date.denumire,
+    efectiv: c.efectivCumulat,
+  }));
   const idUriInPanou = new Set(persoanePanou.map((p) => p.id));
   const candidati = toatePersoanele.filter((p) => !idUriInPanou.has(p.id));
 
@@ -127,12 +164,14 @@ export function StructuraInteractiva({
           angajati={angajati}
           poateEdita={poateEdita}
           poateMutaPersoane={poateMutaPersoane}
+          poateSchimbaRoluri={poateSchimbaRoluri}
           laDeschiderePanou={setDeschisId}
         />
       )}
 
       <PanouDepartament
-        deschis={deschisId !== null}
+        // Un id necunoscut (străin sau ascuns de RLS) lasă panoul închis.
+        deschis={esteNerepartizati || nodDeschis !== null}
         laInchidere={inchide}
         departament={
           esteNerepartizati || nodDeschis === null
@@ -145,10 +184,16 @@ export function StructuraInteractiva({
               }
         }
         managerId={esteNerepartizati ? null : (nodDeschis?.date.manager_employee_id ?? null)}
+        manager={esteNerepartizati ? null : (nodDeschis?.date.manager ?? null)}
         persoane={persoanePanou}
         candidati={candidati}
         departamente={departamente}
         poateMuta={poateMutaPersoane}
+        poateInvita={poateInvita}
+        legaturi={legaturi}
+        parinte={parinte === null ? null : { id: parinte.date.id, denumire: parinte.date.denumire }}
+        subordonate={subordonate}
+        laDeschidere={setDeschisId}
       />
     </>
   );

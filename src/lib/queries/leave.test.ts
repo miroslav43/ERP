@@ -824,6 +824,7 @@ describe("cereriCareOcupaZile", () => {
     server.raspunde("leave_requests", "select", {
       data: [
         {
+          id: "c1",
           employee_id: FISA,
           data_inceput: "2026-07-06",
           data_sfarsit: "2026-07-10",
@@ -831,6 +832,7 @@ describe("cereriCareOcupaZile", () => {
           tip: { denumire: "Odihnă" },
         },
         {
+          id: "c2",
           employee_id: FISA,
           data_inceput: "2026-12-30",
           data_sfarsit: "2026-12-31",
@@ -844,6 +846,7 @@ describe("cereriCareOcupaZile", () => {
 
     expect(r.map((c) => c.denumire)).toEqual(["Odihnă", "Concediu"]);
     expect(r[0]).toEqual({
+      id: "c1",
       employee_id: FISA,
       data_inceput: "2026-07-06",
       data_sfarsit: "2026-07-10",

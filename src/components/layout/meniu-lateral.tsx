@@ -72,6 +72,7 @@ export async function MeniuLateral({
       // `exactOptionalPropertyTypes`: o cheie absentă nu este același lucru cu
       // una setată pe `undefined`, deci o omitem în loc să o setăm.
       ...(item.badgeCount === undefined ? {} : { badgeCount: item.badgeCount }),
+      ...(item.badgeHref === undefined ? {} : { badgeHref: item.badgeHref }),
       ...(item.children === undefined
         ? {}
         : {

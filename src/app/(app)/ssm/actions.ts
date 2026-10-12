@@ -552,3 +552,41 @@ export const nomenclatorInstruiri = createAction({
     return data ?? [];
   },
 });
+
+/**
+ * Confirmarea semnăturii pe o instruire.
+ *
+ * `ssm_trainings.semnatura_confirmata` exista din 0011, iar portalul îi
+ * spunea angajatului „verificați cu responsabilul SSM" — dar nicio acțiune nu
+ * o scria, deci responsabilul n-avea ce face (analiza 2026-10-08, ssm-L19).
+ * `.select()` după `.update()`: un rând respins de `USING` e zero rânduri
+ * fără eroare, deci golul e refuz, nu reușită.
+ */
+export const confirmaSemnaturaInstruire = createAction({
+  name: "ssm.training.confirmSignature",
+  feature: "ssm",
+  permission: "ssm:update",
+  minScope: "team",
+  input: z.object({ id: z.uuid("Instruirea selectată nu este validă.") }),
+  audit: {
+    action: "update",
+    entityType: "ssm_training",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: ["/ssm", "/ssm/instruiri", "/portal/instruirile-mele"],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("ssm_trainings")
+      .update({ semnatura_confirmata: true })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) throw notFound("Instruirea nu a fost găsită sau nu aveți acces la ea.");
+    return { id: data.id };
+  },
+});

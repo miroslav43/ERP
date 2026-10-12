@@ -143,3 +143,55 @@ describe("sarbatoriDupaZi", () => {
     expect(sarbatoriDupaZi(2026).size).toBe(16);
   });
 });
+
+/**
+ * Lista din art. 139 alin. (1) s-a schimbat prin lege. Datele vin din mențiunile
+ * formei consolidate a Codului muncii (legislatie.just.ro, DetaliiDocument/128647,
+ * consolidarea din 27.04.2026, citită pe 8 oct 2026):
+ *   · 24 ianuarie — „la 16-10-2016” (Legea 176/2016 rescrie alin. (1));
+ *   · 1 iunie — „la 21-11-2016” (Legea 220/2016);
+ *   · Vinerea Mare — „la 16-03-2018” (Legea 64/2018);
+ *   · 6 și 7 ianuarie — „la 09-03-2023” (Legea 52/2023, MO 186/06.03.2023).
+ * Datele Paștelui (2017: 16 aprilie, 2018: 8 aprilie) sunt scrise de mână.
+ */
+describe("sarbatoriAnului — lista se schimbă prin lege", () => {
+  const are = (an: number, zi: string) => sarbatoriAnului(an).some((s) => iso(s.data) === zi);
+
+  it("6 și 7 ianuarie lipsesc în 2022 și 2023, apar din 2024", () => {
+    expect(are(2022, "2022-01-06")).toBe(false);
+    expect(are(2022, "2022-01-07")).toBe(false);
+    // Legea a intrat în vigoare în martie 2023: ianuarie 2023 era încă lucrător.
+    expect(are(2023, "2023-01-06")).toBe(false);
+    expect(are(2024, "2024-01-06")).toBe(true);
+    expect(are(2024, "2024-01-07")).toBe(true);
+  });
+
+  it("Vinerea Mare apare din 2018, Ziua Copilului și 24 ianuarie din 2017", () => {
+    expect(are(2017, "2017-04-14")).toBe(false);
+    expect(are(2018, "2018-04-06")).toBe(true);
+    expect(are(2016, "2016-06-01")).toBe(false);
+    expect(are(2017, "2017-06-01")).toBe(true);
+    expect(are(2016, "2016-01-24")).toBe(false);
+    expect(are(2017, "2017-01-24")).toBe(true);
+  });
+
+  it.each([
+    [2016, 12],
+    [2017, 14],
+    [2018, 15],
+    [2022, 15],
+    [2023, 15],
+    [2024, 17],
+  ])("în %i sunt %i sărbători", (an, numar) => {
+    expect(sarbatoriAnului(an)).toHaveLength(numar);
+  });
+
+  it("obiectele întoarse nu poartă câmpul intern de intrare în vigoare", () => {
+    const boboteaza = sarbatoriAnului(2026).find((s) => s.denumire === "Bobotează");
+    expect(boboteaza !== undefined && Object.keys(boboteaza).sort()).toEqual([
+      "data",
+      "denumire",
+      "tip",
+    ]);
+  });
+});

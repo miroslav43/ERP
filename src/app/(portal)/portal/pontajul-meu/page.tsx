@@ -10,7 +10,7 @@ import { buton } from "@/components/ui/buton";
 import { ComutatorVizualizare } from "@/components/ui/comutator-vizualizare";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatMonthYear, todayInBucharest } from "@/lib/format/date";
 import { formatOraZi, formatOre } from "@/lib/format/ore";
@@ -213,7 +213,16 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
           </section>
 
           {vizualizare === "calendar" ? (
-            <GrilaLuna an={an} luna={luna} zile={zile} poateEdita={poateEditaZiua} />
+            <GrilaLuna
+              an={an}
+              luna={luna}
+              zile={zile}
+              poateEdita={poateEditaZiua}
+              poateDeschideConcediu={
+                (await getEnabledFeatures(tenant.organizationId)).has("leave") &&
+                can(permisiuni, "leave:read", "own")
+              }
+            />
           ) : (
             <ul className="space-y-2">
               {zile.map((z) => (

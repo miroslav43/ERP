@@ -67,6 +67,16 @@ export function FormularSablon({
           text: esteNou
             ? "Documentul a fost creat. Îl puteți emite din fișa oricărui angajat, secțiunea Documente."
             : "Șablonul a fost salvat.",
+          ...(esteNou
+            ? {
+                actiune: {
+                  eticheta: "Deschide lista de angajați",
+                  onClick: () => {
+                    router.push("/angajati");
+                  },
+                },
+              }
+            : {}),
         });
         router.push("/angajati/sabloane-documente");
         router.refresh();

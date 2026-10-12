@@ -53,6 +53,8 @@ export interface OptiuneCategorie {
 }
 
 export interface ProprietatiCampuriObiect<TData> {
+  /** Denumirea precompletată la crearea din tichet. */
+  readonly denumireInitiala?: string;
   readonly stare: StareFormular<TData>;
   readonly idc: (sufix: string) => string;
   readonly categorii: readonly OptiuneCategorie[];
@@ -70,6 +72,7 @@ export function CampuriObiect<TData>({
   idc,
   categorii,
   obiect,
+  denumireInitiala,
 }: ProprietatiCampuriObiect<TData>): ReactElement {
   const trimis = stare.valoriTrimise;
 
@@ -87,7 +90,7 @@ export function CampuriObiect<TData>({
             {...a}
             type="text"
             maxLength={200}
-            defaultValue={trimis["denumire"] ?? obiect?.denumire ?? ""}
+            defaultValue={trimis["denumire"] ?? obiect?.denumire ?? denumireInitiala ?? ""}
           />
         )}
       </Camp>

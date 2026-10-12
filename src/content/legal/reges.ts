@@ -241,6 +241,10 @@ export const REGES: PaginaLege = {
   legaturiConexe: [
     { eticheta: "Cum se transmite din Administrativo", href: "/module/reges" },
     { eticheta: "Evidența orelor de muncă (art. 119)", href: "/evidenta-orelor-de-munca" },
+    {
+      eticheta: "Adeverință de salariat (art. 34 alin. (5)): model",
+      href: "/unelte/adeverinta-salariat",
+    },
   ],
 
   surse: [

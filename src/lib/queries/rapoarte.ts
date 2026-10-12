@@ -14,6 +14,8 @@ export interface StatisticaAngajat {
   readonly employeeId: string;
   readonly fullName: string;
   readonly marca: string;
+  /** `false` = fișa e ștearsă sau ascunsă de RLS; numele e „Angajat șters", linkul n-are țintă. */
+  readonly exista: boolean;
   readonly zileConcediuOdihna: number;
   readonly zileConcediuMedical: number;
   readonly venitBrutAnual: number;
@@ -35,6 +37,8 @@ export interface StatisticaAngajat {
  * ștearsă logic după aceea.
  */
 export interface StatisticaLuna {
+  /** Perioada de salarizare din spatele lunii — ținta graficului. */
+  readonly periodId: string;
   readonly luna: number;
   readonly status: "draft" | "calculat" | "aprobat" | "inchis";
   readonly totalBrut: number;
@@ -70,6 +74,8 @@ export interface StatisticiOrganizatie {
    * există un rezultat care se poate schimba, aici nu există niciun rezultat.
    */
   readonly luniNecalculate: readonly number[];
+  /** Aceleași luni, cu id-ul perioadei: ecranul duce la perioada de calculat, nu la listă. */
+  readonly perioadeNecalculate: readonly Readonly<{ id: string; luna: number }>[];
   readonly totalZileConcediuOdihna: number;
   readonly totalZileConcediuMedical: number;
   readonly totalVenitBrutAnual: number;
@@ -166,6 +172,7 @@ export async function statisticiAnuale(
       perLuna: [],
       luniInCiorna: [],
       luniNecalculate: [],
+      perioadeNecalculate: [],
       totalZileConcediuOdihna: 0,
       totalZileConcediuMedical: 0,
       totalVenitBrutAnual: 0,
@@ -246,6 +253,7 @@ export async function statisticiAnuale(
       employeeId: rand.employee_id,
       fullName: nume?.full_name ?? "Angajat șters",
       marca: nume?.marca ?? "—",
+      exista: nume !== undefined,
       zileConcediuOdihna: 0,
       zileConcediuMedical: 0,
       venitBrutAnual: 0,
@@ -271,6 +279,7 @@ export async function statisticiAnuale(
     if (lunar === undefined) return [];
     return [
       {
+        periodId: p.id,
         luna: p.luna,
         status: p.status,
         totalBrut: lunar.brut,
@@ -281,7 +290,10 @@ export async function statisticiAnuale(
   });
 
   const luniInCiorna = perLuna.filter((l) => l.status === "draft").map((l) => l.luna);
-  const luniNecalculate = randuriPerioada.filter((p) => !perPerioada.has(p.id)).map((p) => p.luna);
+  const perioadeNecalculate = randuriPerioada
+    .filter((p) => !perPerioada.has(p.id))
+    .map((p) => ({ id: p.id, luna: p.luna }));
+  const luniNecalculate = perioadeNecalculate.map((p) => p.luna);
 
   const perAngajat = [...perAngajatMap.values()].sort((a, b) =>
     a.fullName.localeCompare(b.fullName),
@@ -314,6 +326,7 @@ export async function statisticiAnuale(
     perLuna,
     luniInCiorna,
     luniNecalculate,
+    perioadeNecalculate,
     totalCostAngajatorAnual: perLuna.reduce((s, l) => s + l.totalCostAngajator, 0),
     ...totaluri,
   };

@@ -35,7 +35,7 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { PROGRAM_SI_VERSIUNE } from "@/config/versiune";
 import {
   citesteExercitiu,
-  listeazaRegistru,
+  listeazaRegistruComplet,
   MAX_RANDURI_EXPORT,
   parseazaFiltre,
 } from "@/lib/queries/registru";
@@ -85,10 +85,13 @@ export default async function PaginaListareRegistru({ searchParams }: Proprietat
   }
 
   const brute = await searchParams;
-  const filtre = { ...parseazaFiltre(brute), cursor: null, limita: MAX_RANDURI_EXPORT };
+  // Sortarea și gruparea din ecran nu privesc listarea: registrul se citește
+  // cronologic, pe `numar`, și ÎNTREG — în pagini de 1000, nu cu un `limit`
+  // pe care `max_rows` l-ar fi tăiat tăcut la 1000.
+  const filtre = { ...parseazaFiltre(brute), sort: null, grup: null, cursor: null };
 
   const [pagina, exercitiu] = await Promise.all([
-    listeazaRegistru(tenant.organizationId, filtre),
+    listeazaRegistruComplet(tenant.organizationId, filtre),
     citesteExercitiu(tenant.organizationId, filtre.an),
   ]);
 
@@ -105,7 +108,7 @@ export default async function PaginaListareRegistru({ searchParams }: Proprietat
   // unde noul e sus. „În ordinea primirii lor", art. 9.
   const randuri = [...pagina.randuri].sort((a, b) => a.numar - b.numar);
 
-  const trunchiat = pagina.total > randuri.length;
+  const trunchiat = pagina.trunchiat;
 
   return (
     <div className="mx-auto max-w-[1400px] bg-white p-6 text-black print:p-0">
@@ -168,8 +171,8 @@ export default async function PaginaListareRegistru({ searchParams }: Proprietat
 
       {trunchiat ? (
         <p className="mb-3 border border-black p-2 text-xs font-semibold">
-          Atenție: registrul filtrat are {pagina.total} înregistrări, iar listarea aceasta conține
-          primele {randuri.length}. Restrânge perioada și listează pe bucăți, ca evidența să fie
+          Atenție: listarea aceasta conține doar primele {MAX_RANDURI_EXPORT} înregistrări ale
+          registrului filtrat. Restrânge perioada și listează pe bucăți, ca evidența să fie
           completă.
         </p>
       ) : null}

@@ -1,4 +1,5 @@
 // src/components/audit/tabel-audit.tsx
+import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 import { Fragment } from "react";
 
@@ -15,6 +16,17 @@ import type { RandJurnal } from "@/lib/queries/audit";
 import { formatDateTime } from "@/lib/format/date";
 type Props = Readonly<{
   randuri: readonly RandJurnal[];
+  /**
+   * Ruta obiectului unui rând, decisă de pagină (modul + drept); în consola de
+   * platformă nu se trimite, iar entitatea rămâne text.
+   */
+  rutaEntitate?: (entityType: string | null, entityId: string | null) => string | null;
+  /** Pagina rândului numit de o valoare din detalii (`employee_id` → fișă); pagina decide poarta. */
+  rutaValoare?: (cale: readonly string[], valoare: unknown) => string | null;
+  /** „Tot ce a făcut persoana asta": jurnalul filtrat pe cont. */
+  hrefActor?: (actorId: string) => string;
+  /** În consola de platformă: fișa firmei. */
+  hrefOrganizatie?: (organizationId: string) => string;
   arataOrganizatia: boolean;
 }>;
 
@@ -26,8 +38,26 @@ const ETICHETE_TIP: Readonly<Record<string, string>> = {
 
 const clasaCelula = "px-3 py-2 align-top text-corp text-foreground";
 
-function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
+function Detaliu({
+  rand,
+  rutaValoare,
+}: Readonly<{
+  rand: RandJurnal;
+  rutaValoare: (cale: readonly string[], valoare: unknown) => string | null;
+}>) {
   const modificari = comparaPayload(rand.before, rand.after);
+  // Cheile străine (`employee_id`, `vehicle_id`…) apăreau ca UUID brut; aici
+  // valoarea devine link spre rândul legat, când pagina-țintă se deschide.
+  const valoare = (cale: readonly string[], v: unknown, text: string) => {
+    const href = rutaValoare(cale, v);
+    return href === null ? (
+      text
+    ) : (
+      <Link href={href} className="underline-offset-2 hover:underline">
+        {text}
+      </Link>
+    );
+  };
   return (
     <details className="group">
       {/* Clasa avea `focus:` fără niciun utilitar după prefix — reziduul unui
@@ -85,10 +115,18 @@ function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
                   ) : null}
                 </p>
                 <p className="text-muted-foreground mt-1 break-words">
-                  <span className="line-through">{formateazaValoare(modificare.inainte)}</span>
+                  <span className="line-through">
+                    {valoare(
+                      modificare.cale,
+                      modificare.inainte,
+                      formateazaValoare(modificare.inainte),
+                    )}
+                  </span>
                   <span aria-hidden="true"> → </span>
                   <span className="sr-only"> devine </span>
-                  <span className="text-foreground">{formateazaValoare(modificare.dupa)}</span>
+                  <span className="text-foreground">
+                    {valoare(modificare.cale, modificare.dupa, formateazaValoare(modificare.dupa))}
+                  </span>
                 </p>
               </li>
             ))}
@@ -99,7 +137,14 @@ function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
   );
 }
 
-export function TabelAudit({ randuri, arataOrganizatia }: Props) {
+export function TabelAudit({
+  randuri,
+  arataOrganizatia,
+  rutaEntitate = () => null,
+  rutaValoare = () => null,
+  hrefActor,
+  hrefOrganizatie,
+}: Props) {
   const numarColoane = arataOrganizatia ? 6 : 5;
   return (
     <div className="border-border rounded-panou overflow-x-auto border">
@@ -171,23 +216,55 @@ export function TabelAudit({ randuri, arataOrganizatia }: Props) {
                   {formatDateTime(new Date(rand.createdAt))}
                 </td>
                 {arataOrganizatia ? (
-                  <td className={clasaCelula}>{rand.organizationName ?? "—"}</td>
+                  <td className={clasaCelula}>
+                    {rand.organizationId !== null && hrefOrganizatie !== undefined ? (
+                      <Link
+                        href={hrefOrganizatie(rand.organizationId)}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {rand.organizationName ?? "—"}
+                      </Link>
+                    ) : (
+                      (rand.organizationName ?? "—")
+                    )}
+                  </td>
                 ) : null}
                 <td className={clasaCelula}>
-                  <span className="block">{rand.actorNume ?? "Sistem"}</span>
+                  {rand.actorId !== null && hrefActor !== undefined ? (
+                    <Link
+                      href={hrefActor(rand.actorId)}
+                      className="block underline-offset-2 hover:underline"
+                      title="Toate acțiunile acestui cont"
+                    >
+                      {rand.actorNume ?? "Sistem"}
+                    </Link>
+                  ) : (
+                    <span className="block">{rand.actorNume ?? "Sistem"}</span>
+                  )}
                   <span className="text-muted-foreground text-nota block">
                     {rand.actorEmail ?? (rand.actorId === null ? "acțiune automată" : "—")}
                   </span>
                 </td>
                 <td className={clasaCelula}>{etichetaActiune(rand.action)}</td>
-                <td className={clasaCelula}>{etichetaEntitate(rand.entityType)}</td>
+                <td className={clasaCelula}>
+                  {(() => {
+                    const href = rutaEntitate(rand.entityType, rand.entityId);
+                    return href === null ? (
+                      etichetaEntitate(rand.entityType)
+                    ) : (
+                      <Link href={href} className="underline-offset-2 hover:underline">
+                        {etichetaEntitate(rand.entityType)}
+                      </Link>
+                    );
+                  })()}
+                </td>
                 <td className={clasaCelula}>
                   <Badge ton={tonStatus(rand.status)}>{etichetaStatus(rand.status)}</Badge>
                 </td>
               </tr>
               <tr className="border-border/50 border-t">
                 <td colSpan={numarColoane} className="px-3 pb-3">
-                  <Detaliu rand={rand} />
+                  <Detaliu rand={rand} rutaValoare={rutaValoare} />
                 </td>
               </tr>
             </Fragment>

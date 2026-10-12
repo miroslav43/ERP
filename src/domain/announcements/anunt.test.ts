@@ -112,6 +112,7 @@ describe("filtruDinAdresa", () => {
   it("acceptă doar segmentele cunoscute", () => {
     expect(filtruDinAdresa("ciorne")).toBe("ciorne");
     expect(filtruDinAdresa("expirate")).toBe("expirate");
+    expect(filtruDinAdresa("necitite")).toBe("necitite");
   });
 
   it("cade pe „toate” pentru orice altceva", () => {

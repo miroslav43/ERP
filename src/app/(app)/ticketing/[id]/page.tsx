@@ -1,21 +1,28 @@
 // src/app/(app)/ticketing/[id]/page.tsx
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import {
   citesteTichetul,
   listeazaComentariile,
   listeazaIstoricul,
   managerulDirectAl,
+  listeazaObiecteleMele,
+  duplicateleTichetului,
+  candidatiOriginal,
 } from "@/lib/queries/ticketing";
+import { NAV_ITEMS } from "@/config/navigation";
+import { MarcheazaDuplicat } from "./marcheaza-duplicat";
 import { fisaProprie } from "@/lib/queries/portal";
 import { tranzitiiOferite, type StatusTichet } from "@/domain/ticketing/stari";
 import type { Prioritate } from "@/domain/ticketing/prioritate";
@@ -36,14 +43,35 @@ import {
   Repartizare,
   SchimbaStatus,
 } from "./actiuni-tichet";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { legaturaSigura } from "@/config/porti-ruta";
+import { poateDeschide } from "@/config/porti-ruta";
 
 export const metadata: Metadata = { title: "Tichet" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ id: string }>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: string | null }>) {
+/**
+ * Ruta modulului din meniu, după eticheta pe care a capturat-o raportarea:
+ * `modulDinCale` scrie `item.label`, deci drumul înapoi e tot prin etichetă.
+ * Doar meniul aplicației — rutele de portal nu se deschid de aici.
+ */
+function hrefModul(eticheta: string | null): string | null {
+  if (eticheta === null) return null;
+  for (const intrare of NAV_ITEMS) {
+    if (intrare.label === eticheta) return intrare.href;
+    for (const copil of intrare.children ?? []) {
+      if (copil.label === eticheta) return copil.href;
+    }
+  }
+  return null;
+}
+
+function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: ReactNode | null }>) {
   if (valoare === null || valoare === "") return null;
   return (
     <div className="border-border flex items-baseline justify-between gap-4 border-b py-2 last:border-0">
@@ -102,13 +130,16 @@ function contextDiagnostic(
   });
 }
 
-export default async function PaginaTichet({ params }: ProprietatiPagina) {
+export default async function PaginaTichet({ params, searchParams }: ProprietatiPagina) {
+  // `?din=coada`: omul a venit din coada echipei, nu din „Tichetele mele".
+  const dinCoada = (await searchParams)["din"] === "coada";
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "ticketing"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "tickets:read", "own")) {
@@ -134,14 +165,37 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
 
   const esteSolicitant = fisa !== null && fisa.id === tichet.solicitant_employee_id;
   const poateOpera = can(permisiuni, "tickets:update", "all");
+  const contextPorti = { features: module, permissions: permisiuni };
+  // Ce are solicitantul deja în primire: aprobatorul decidea o cerere de echipament orbește.
+  const inPrimireaSolicitantului =
+    (tichet.tip === "hardware" || tichet.tip === "defectiune") &&
+    (poateOpera || can(permisiuni, "tickets:approve", "team")) &&
+    poateDeschide("/inventar", contextPorti)
+      ? await listeazaObiecteleMele(tichet.solicitant_employee_id)
+      : [];
   // Aceeași regulă ca în `internal.tickets_valideaza_tranzitia`: managerul
   // direct sau patronul, dar niciodată solicitantul. Aici doar decidem ce
   // butoane arătăm; baza verifică din nou la scriere.
   const poateAproba =
     !esteSolicitant &&
-    ((fisa !== null && managerulSolicitantului === fisa.id) ||
+    // Managerul direct decide doar dacă ARE `tickets:approve` (acțiunea îl cere
+    // la `team`): un `hr` șef direct primea butoanele și refuzul.
+    ((fisa !== null &&
+      managerulSolicitantului === fisa.id &&
+      can(permisiuni, "tickets:approve", "team")) ||
       can(permisiuni, "tickets:approve", "all"));
 
+  // Legătura duplicat ↔ original, în ambele sensuri, plus candidații pentru
+  // marcare (doar operatorului, doar cât tichetul nu e el însuși un duplicat).
+  const idParinte = typeof tichet.parent_ticket_id === "string" ? tichet.parent_ticket_id : null;
+  const [original, duplicate, candidati] = await Promise.all([
+    idParinte === null ? Promise.resolve(null) : citesteTichetul(idParinte),
+    duplicateleTichetului(tichet.id),
+    poateOpera && idParinte === null
+      ? candidatiOriginal(tenant.organizationId, tichet.tip, tichet.id)
+      : Promise.resolve([]),
+  ]);
+  const rutaModul = hrefModul(tichet.modul);
   const drepturi = { esteSolicitant, poateAproba, poateOpera };
   const optiuni = tranzitiiOferite(tichet.status as StatusTichet, drepturi);
   const asteaptaDecizia = tichet.status === "in_aprobare" && poateAproba;
@@ -153,8 +207,22 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
           comun locul lor e slotul de acțiuni, la dreapta — la fel ca pe fișa
           obiectului de inventar și pe cea a deplasării. */}
       <AntetPagina
+        firimituri={[
+          dinCoada && poateDeschide("/ticketing/coada", contextPorti)
+            ? { eticheta: "Coada echipei", href: "/ticketing/coada" }
+            : { eticheta: "Tichetele mele", href: "/ticketing" },
+          { eticheta: tichet.numar_afisat },
+        ]}
         titlu={tichet.titlu}
-        descriere={`${ETICHETE_TIP[tichet.tip]} · deschis de ${tichet.solicitant?.full_name ?? "—"} la ${formatDateTime(tichet.created_at)}`}
+        descriere={
+          <>
+            {ETICHETE_TIP[tichet.tip]} · deschis de{" "}
+            <LinkEntitate href={hrefFisa(tichet.solicitant, permisiuni)}>
+              {tichet.solicitant?.full_name ?? "—"}
+            </LinkEntitate>{" "}
+            la {formatDateTime(tichet.created_at)}
+          </>
+        }
         actiuni={
           <>
             <span className="text-muted-foreground text-corp font-mono">{tichet.numar_afisat}</span>
@@ -181,7 +249,16 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
         </div>
       )}
 
-      {asteaptaDecizia && <DecizieCerere ticketId={tichet.id} />}
+      {asteaptaDecizia && (
+        <DecizieCerere
+          ticketId={tichet.id}
+          hrefCoada={
+            poateDeschide("/ticketing/coada", { features: module, permissions: permisiuni })
+              ? "/ticketing/coada?status=in_aprobare"
+              : null
+          }
+        />
+      )}
 
       <section className="border-border bg-surface rounded-panou border p-4">
         <h2 className="text-foreground text-corp font-semibold">Detalii</h2>
@@ -194,7 +271,52 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             valoare={tichet.numar_licente === null ? null : String(tichet.numar_licente)}
           />
           <Rand eticheta="Motivul necesității" valoare={tichet.motiv_necesitate} />
-          <Rand eticheta="Echipament cerut" valoare={tichet.denumire_hardware} />
+          <Rand
+            eticheta="Echipament cerut"
+            valoare={
+              tichet.denumire_hardware !== null &&
+              // Cererea a trecut de decizie: din „în lucru" încolo echipamentul se cumpără și se înregistrează.
+              !["nou", "in_aprobare", "respins", "anulat"].includes(tichet.status) &&
+              can(permisiuni, "inventory:update", "all") &&
+              poateDeschide("/inventar", contextPorti) ? (
+                <>
+                  {tichet.denumire_hardware}{" "}
+                  <Link
+                    href={`/inventar?obiect=nou&denumire=${encodeURIComponent(tichet.denumire_hardware)}`}
+                    className="text-nota underline-offset-2 hover:underline"
+                  >
+                    Înregistrează-l în inventar
+                  </Link>
+                </>
+              ) : (
+                tichet.denumire_hardware
+              )
+            }
+          />
+          {inPrimireaSolicitantului.length === 0 ? null : (
+            <Rand
+              eticheta="Are deja în primire"
+              valoare={
+                <span className="flex flex-wrap justify-end gap-x-2">
+                  {inPrimireaSolicitantului.map((o, i) => (
+                    <span key={o.id}>
+                      {i > 0 ? "· " : ""}
+                      {poateDeschide("/inventar/[id]", contextPorti) ? (
+                        <Link
+                          href={`/inventar/${o.id}`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          {o.denumire}
+                        </Link>
+                      ) : (
+                        o.denumire
+                      )}
+                    </span>
+                  ))}
+                </span>
+              }
+            />
+          )}
           <Rand
             eticheta="Livrare"
             valoare={
@@ -209,9 +331,24 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
           <Rand
             eticheta="Obiectul stricat"
             valoare={
-              tichet.obiect === null
-                ? null
-                : `${tichet.obiect.denumire}${tichet.obiect.numar_inventar === null ? "" : ` · ${tichet.obiect.numar_inventar}`}`
+              tichet.obiect === null ? null : (
+                <>
+                  <LinkEntitate
+                    href={legaturaSigura(`/inventar/${tichet.obiect.id}`, {
+                      features: module,
+                      permissions: permisiuni,
+                    })}
+                  >
+                    {tichet.obiect.denumire}
+                    {tichet.obiect.numar_inventar === null
+                      ? ""
+                      : ` · ${tichet.obiect.numar_inventar}`}
+                  </LinkEntitate>
+                  {tichet.obiect.garantie_expira === null
+                    ? ""
+                    : ` · garanție până la ${formatDate(tichet.obiect.garantie_expira)}`}
+                </>
+              )
             }
           />
           <Rand
@@ -225,7 +362,51 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             }
           />
           <Rand eticheta="Locație" valoare={tichet.locatie} />
-          <Rand eticheta="Modul" valoare={tichet.modul} />
+          <Rand
+            eticheta="Modul"
+            valoare={
+              rutaModul !== null && poateDeschide(rutaModul, contextPorti) ? (
+                <Link href={rutaModul} className="underline-offset-2 hover:underline">
+                  {tichet.modul}
+                </Link>
+              ) : (
+                tichet.modul
+              )
+            }
+          />
+          <Rand
+            eticheta="Duplicat al"
+            valoare={
+              original === null ? null : (
+                <Link
+                  href={`/ticketing/${original.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {original.numar_afisat} · {original.titlu}
+                </Link>
+              )
+            }
+          />
+          <Rand
+            eticheta={
+              duplicate.length === 1 ? "Un duplicat" : `${String(duplicate.length)} duplicate`
+            }
+            valoare={
+              duplicate.length === 0 ? null : (
+                <span className="flex flex-col items-end gap-0.5">
+                  {duplicate.map((d) => (
+                    <Link
+                      key={d.id}
+                      href={`/ticketing/${d.id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {d.numar_afisat} · {d.titlu}
+                    </Link>
+                  ))}
+                </span>
+              )
+            }
+          />
           <Rand eticheta="Ce s-a făcut" valoare={tichet.pasi_efectuati} />
           <Rand eticheta="Rezultat așteptat" valoare={tichet.rezultat_asteptat} />
           <Rand eticheta="Rezultat obținut" valoare={tichet.rezultat_obtinut} />
@@ -233,13 +414,27 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             eticheta="Cost estimat"
             valoare={tichet.cost_estimat === null ? null : `${tichet.cost_estimat} RON`}
           />
-          <Rand eticheta="Asignat" valoare={tichet.asignat?.full_name ?? null} />
+          <Rand
+            eticheta="Asignat"
+            valoare={
+              tichet.asignat === null ? null : (
+                <LinkEntitate href={hrefFisa(tichet.asignat, permisiuni)}>
+                  {tichet.asignat.full_name}
+                </LinkEntitate>
+              )
+            }
+          />
           <Rand
             eticheta="Decizie"
             valoare={
-              tichet.decizie_la === null
-                ? null
-                : `${tichet.aprobator?.full_name ?? "—"} · ${formatDateTime(tichet.decizie_la)}`
+              tichet.decizie_la === null ? null : (
+                <>
+                  <LinkEntitate href={hrefFisa(tichet.aprobator, permisiuni)}>
+                    {tichet.aprobator?.full_name ?? "—"}
+                  </LinkEntitate>
+                  {` · ${formatDateTime(tichet.decizie_la)}`}
+                </>
+              )
             }
           />
         </dl>
@@ -287,6 +482,7 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             manuala={tichet.prioritate_manuala === true}
             motivCurent={tichet.prioritate_motiv}
           />
+          <MarcheazaDuplicat ticketId={tichet.id} candidati={candidati} />
         </section>
       )}
 
@@ -306,7 +502,9 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
               >
                 <p className="text-muted-foreground text-nota flex flex-wrap items-center gap-2">
                   <span className="text-foreground font-medium">
-                    {comentariu.autor?.full_name ?? "—"}
+                    <LinkEntitate href={hrefFisa(comentariu.autor, permisiuni)}>
+                      {comentariu.autor?.full_name ?? "—"}
+                    </LinkEntitate>
                   </span>
                   {formatDateTime(comentariu.created_at)}
                   {comentariu.intern && (

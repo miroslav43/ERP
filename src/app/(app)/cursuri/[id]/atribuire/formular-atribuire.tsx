@@ -21,6 +21,7 @@ import { Users } from "lucide-react";
 
 import { atribuieCurs } from "../../actions";
 import { intrareAtribuire } from "../../_formulare/citire";
+import Link from "next/link";
 
 interface Proprietati {
   readonly cursId: string;
@@ -29,9 +30,18 @@ interface Proprietati {
   readonly angajati: readonly AngajatOptiune[];
   /** Cine are deja cursul în curs sau parcurs: nu se re-atribuie din greșeală. */
   readonly deja: readonly string[];
+  /** `employees:read`, poarta lui `/angajati` — fără el, lista goală nu promite un drum închis. */
+  readonly poateVedeaAngajati?: boolean;
 }
 
-export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja }: Proprietati) {
+export function FormularAtribuire({
+  cursId,
+  denumire,
+  termenZile,
+  angajati,
+  deja,
+  poateVedeaAngajati = false,
+}: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [cauta, setCauta] = useState("");
@@ -84,7 +94,9 @@ export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja
         pictograma={Users}
         titlu="Niciun angajat activ"
         descriere="Adăugați întâi angajați, apoi le puteți atribui cursuri."
-        actiune={{ eticheta: "Deschideți lista de angajați", href: "/angajati" }}
+        {...(poateVedeaAngajati
+          ? { actiune: { eticheta: "Deschideți lista de angajați", href: "/angajati" } }
+          : {})}
       />
     );
   }
@@ -127,7 +139,13 @@ export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja
                 />
                 <span className="flex-1">{angajat.nume}</span>
                 {areDeja ? (
-                  <span className="text-muted-foreground text-nota">Are deja cursul</span>
+                  // Drumul spre înrolarea lui: progres, termen, eventual anulare.
+                  <Link
+                    href={`/cursuri/${cursId}/stadiu?angajat=${angajat.id}`}
+                    className="text-muted-foreground text-nota underline-offset-2 hover:underline"
+                  >
+                    Are deja cursul
+                  </Link>
                 ) : null}
               </label>
             </li>

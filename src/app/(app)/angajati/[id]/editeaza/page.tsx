@@ -18,9 +18,10 @@ export const metadata: Metadata = { title: "Editează fișa angajatului" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagina) {
+export default async function PaginaEditeazaAngajat({ params, searchParams }: ProprietatiPagina) {
   const { id } = await params;
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
@@ -73,7 +74,17 @@ export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagin
           descriere="Toate câmpurile afișate pe fișă se completează aici. CNP-ul și IBAN-ul rămân neschimbate dacă lăsați câmpurile goale."
         />
       </div>
-      <FormularAngajat departamente={departamente.data ?? []} colegi={colegi} angajat={angajat} />
+      <FormularAngajat
+        departamente={departamente.data ?? []}
+        colegi={colegi}
+        angajat={angajat}
+        // Validat STRICT: doar organigrama poate cere întoarcerea, pe nodul omului.
+        inapoi={
+          (await searchParams)["inapoi"] === "organigrama"
+            ? `/organigrama?angajat=${angajat.id}#angajat-${angajat.id}`
+            : null
+        }
+      />
     </div>
   );
 }

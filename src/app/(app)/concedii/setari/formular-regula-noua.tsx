@@ -317,7 +317,11 @@ export function FormularRegulaNoua({
         )}
         {reusit ? (
           <p role="status" className="text-foreground text-corp">
-            Grilă adăugată. Aplicați drepturile mai jos ca să ajungă la angajați.
+            Grilă adăugată.{" "}
+            <a href="#aplicare" className="underline underline-offset-2">
+              Aplicați drepturile
+            </a>{" "}
+            ca să ajungă la angajați.
           </p>
         ) : null}
       </div>

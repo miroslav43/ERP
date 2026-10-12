@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/ui/callout";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
@@ -26,6 +26,13 @@ import {
 
 import { ETICHETE_STATUS_FOAIE, formatConsum, TONURI_STATUS_FOAIE } from "../../etichete";
 import { ActiuniFoaie } from "./actiuni-foaie";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { legaturaSigura } from "@/config/porti-ruta";
+import { requireUser } from "@/lib/auth/current-user";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { DecizieFoaie } from "../../aprobari/decizie-foaie";
+import { NumarRegistru } from "@/components/registru/numar-registru";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
 
@@ -37,11 +44,13 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
 
   const { tenant } = await requireTenant();
+  const utilizator = await requireUser();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "fleet"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "trip_sheets:read", "own")) {
@@ -63,15 +72,51 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const vehicul = vehicule.get(foaie.vehicle_id);
   const sofer = foaie.employee_id === null ? undefined : soferi.get(foaie.employee_id);
   const poateScrie = can(permisiuni, "trip_sheets:update", "own");
+  // Decizia pe fișa foii (precedentul /concedii/[id]): aprobatorul venit din
+  // coadă sau din notificare decide aici. Propria foaie e refuzată de trigger;
+  // butoanele nu se arată deloc pentru ea.
+  const poateAproba = can(permisiuni, "trip_sheets:approve", "team");
+  const propriaFisaId =
+    poateAproba && foaie.status === "trimis"
+      ? await idFisaProprie(tenant.organizationId, utilizator.id)
+      : null;
+  const poateDecideAici =
+    poateAproba &&
+    foaie.status === "trimis" &&
+    (foaie.employee_id === null || propriaFisaId !== foaie.employee_id);
 
   // Titlul și subtitlul se compun ca text: `AntetPagina` cere `string`, iar
   // conținutul rămâne cuvânt cu cuvânt cel de dinainte.
   const titlu = `${vehicul?.nr_inmatriculare ?? "Vehicul indisponibil"}${
     foaie.numar === null ? "" : ` · ${foaie.numar}`
   }`;
-  const descriere = `${formatDateTime(new Date(foaie.plecare_la))}${
-    foaie.sosire_la === null ? "" : ` – ${formatDateTime(new Date(foaie.sosire_la))}`
-  }${sofer === undefined ? "" : ` · ${sofer.full_name ?? sofer.marca}`}`;
+  const descriere = (
+    <>
+      {formatDateTime(new Date(foaie.plecare_la))}
+      {foaie.sosire_la === null ? "" : ` – ${formatDateTime(new Date(foaie.sosire_la))}`}
+      {sofer === undefined ? null : (
+        <>
+          {" · "}
+          <LinkEntitate href={hrefFisa(sofer, permisiuni)}>
+            {sofer.full_name ?? sofer.marca}
+          </LinkEntitate>
+        </>
+      )}
+      {vehicul === undefined ? null : (
+        <>
+          {" · "}
+          <LinkEntitate
+            href={legaturaSigura(`/flota/${foaie.vehicle_id}`, {
+              features: module,
+              permissions: permisiuni,
+            })}
+          >
+            fișa vehiculului
+          </LinkEntitate>
+        </>
+      )}
+    </>
+  );
 
   const litriTotali = alimentari.reduce((s, a) => s + a.litri, 0);
   const costTotal = alimentari.reduce((s, a) => s + a.cost, 0);
@@ -97,6 +142,22 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
       antet: "Stație",
       peTelefon: "meta",
       celula: (a) => a.statie ?? "—",
+    },
+    {
+      // „Plin” contează la consum: între două plinuri, litrii alimentați sunt
+      // exact cât s-a consumat. Fără marcaj, cifra de consum e o estimare.
+      cheie: "bon",
+      antet: "Bon",
+      peTelefon: "meta",
+      celula: (a) => (
+        <>
+          {a.numar_bon ?? "—"}
+          {a.plin ? <span className="text-muted-foreground"> · plin</span> : null}
+          {a.observatii === null ? null : (
+            <span className="text-muted-foreground block text-xs">{a.observatii}</span>
+          )}
+        </>
+      ),
     },
     {
       cheie: "litri",
@@ -138,6 +199,8 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
             </Badge>
           }
         />
+        {/* Drumul înapoi spre registru: numărul de înregistrare, dacă există (prin RLS). */}
+        <NumarRegistru tenant={tenant} entitateTip="trip_sheets" entitateId={foaie.id} />
       </div>
 
       {foaie.status === "respins" ? (
@@ -282,7 +345,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           }
           subsol={
             <tr>
-              <td className="px-4 py-3" colSpan={2}>
+              <td className="px-4 py-3" colSpan={3}>
                 Total
               </td>
               <td className="px-4 py-3 text-right tabular-nums">{litriTotali.toFixed(2)}</td>
@@ -292,6 +355,18 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           }
         />
       </section>
+
+      {poateDecideAici ? (
+        <section
+          aria-labelledby="titlu-decizie"
+          className="border-primary/30 bg-primary/5 rounded-panou border p-4"
+        >
+          <h2 id="titlu-decizie" className="text-sectiune mb-2 font-medium">
+            Decizia dvs.
+          </h2>
+          <DecizieFoaie id={foaie.id} />
+        </section>
+      ) : null}
 
       {poateScrie ? (
         <ActiuniFoaie

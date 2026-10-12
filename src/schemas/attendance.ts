@@ -111,6 +111,8 @@ export const filtrePontajSchema = z.object({
   luna: z.coerce.number().int().min(1).max(12).default(lunaImplicita),
   departament: optional(z.uuid()),
   cauta: optional(z.string().max(60)),
+  /** Filtru de INTRARE (din fișa angajatului): foaia unui singur om. */
+  angajat: optional(z.uuid()),
   // Fără `cursor`/`limita`: foaia arată toți angajații, în cutia ei cu
   // derulare (`totiAngajatiiPontaj`). Plafonul `max_rows` e ținut în citiri.
 });

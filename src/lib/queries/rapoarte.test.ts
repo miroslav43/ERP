@@ -96,6 +96,7 @@ describe("statisticiAnuale", () => {
       perLuna: [],
       luniInCiorna: [],
       luniNecalculate: [],
+      perioadeNecalculate: [],
       totalZileConcediuOdihna: 0,
       totalZileConcediuMedical: 0,
       totalVenitBrutAnual: 0,
@@ -151,6 +152,7 @@ describe("statisticiAnuale", () => {
 
       expect(r.perLuna).toEqual([
         {
+          periodId: P_IAN,
           luna: 1,
           status: "aprobat",
           totalBrut: 9000,
@@ -158,6 +160,7 @@ describe("statisticiAnuale", () => {
           totalCostAngajator: 9000 * 1.0225,
         },
         {
+          periodId: P_FEB,
           luna: 2,
           status: "draft",
           totalBrut: 6500,
@@ -171,6 +174,7 @@ describe("statisticiAnuale", () => {
       const r = await statisticiAnuale(ORG_ID, 2026);
       expect(r.luniInCiorna).toEqual([2]);
       expect(r.luniNecalculate).toEqual([3]);
+      expect(r.perioadeNecalculate.map((p) => p.luna)).toEqual([3]);
     });
 
     it("per angajat: sume anuale, ordonate după nume; angajatul șters rămâne, marcat", async () => {
@@ -181,11 +185,14 @@ describe("statisticiAnuale", () => {
         ["Angajat șters", "—"],
         ["Bogdan Ene", "2"],
       ]);
+      // Linkul spre fișă are nevoie să știe că rândul șters n-are țintă.
+      expect(r.perAngajat.map((a) => a.exista)).toEqual([true, false, true]);
       const bogdan = r.perAngajat.find((a) => a.employeeId === "ang-b");
       expect(bogdan).toEqual({
         employeeId: "ang-b",
         fullName: "Bogdan Ene",
         marca: "2",
+        exista: true,
         zileConcediuOdihna: 2,
         zileConcediuMedical: 4,
         venitBrutAnual: 10500,

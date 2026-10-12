@@ -170,11 +170,14 @@ describe("tonurile", () => {
     expect(TONURI_URGENTA_SESIZARE.scazuta).toBe("neutru");
   });
 
-  it("succesul sesizării e numai „rezolvat”; „în lucru” rămâne atenție", () => {
+  it("succesul sesizării e „rezolvat” și „închis”; „în lucru” și „în așteptare” rămân atenție", () => {
     const deSucces = STATUSURI_SESIZARE.filter((s) => TONURI_STATUS_SESIZARE[s] === "succes");
-    expect(deSucces).toEqual(["rezolvat"]);
+    expect(deSucces).toEqual(["rezolvat", "inchis"]);
     expect(TONURI_STATUS_SESIZARE.in_lucru).toBe("atentie");
+    expect(TONURI_STATUS_SESIZARE.in_asteptare).toBe("atentie");
     expect(TONURI_STATUS_SESIZARE.respins).toBe("pericol");
+    // Retrasă nu e nici reușită, nici eșec: raportorul a renunțat.
+    expect(TONURI_STATUS_SESIZARE.retrasa).toBe("neutru");
   });
 
   it("intervenția: doar reușita e succes, doar eșuata e pericol, cea parțială cere atenție", () => {

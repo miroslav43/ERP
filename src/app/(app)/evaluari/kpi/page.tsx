@@ -28,17 +28,22 @@ import { idFisaProprie } from "@/lib/queries/employees";
 import { angajatiPentruKpi, listeazaLuniKpi, type RandKpi } from "@/lib/queries/kpi";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
-import { FileEvaluari } from "../_components/file-evaluari";
-
 import { DeschideLuna } from "./deschide-luna";
 import { ETICHETE_STATUS_KPI, TONURI_STATUS_KPI, numeLuna, tonKpi } from "./etichete";
 import { SelectorPerioada } from "./selector-perioada";
+import { FileModul } from "@/components/ui/file-modul";
+import { fileEvaluari } from "@/config/file-module";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
+import { angajatiDupaId } from "@/lib/queries/checklist";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "KPI lunar" };
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Un parametru de URL e text străin: orice nu e număr în interval cade pe implicit. */
 function intreg(brut: string | string[] | undefined, min: number, max: number): number | null {
@@ -53,17 +58,23 @@ async function ListaLuni({
   an,
   luna,
   cursor,
+  angajat,
+  status,
 }: {
   readonly organizationId: string;
   readonly an: number;
   readonly luna: number;
   readonly cursor: string | null;
+  /** `?angajat=`: toate lunile unui om, indiferent de an și lună. */
+  readonly angajat: string | null;
+  /** `?status=`: doar lunile în lucru sau doar cele închise. */
+  readonly status: "draft" | "finalizat" | null;
 }) {
   const { randuri, urmatorulCursor, total } = await listeazaLuniKpi(organizationId, {
-    an,
-    luna,
-    status: null,
-    employee_id: null,
+    an: angajat === null ? an : null,
+    luna: angajat === null ? luna : null,
+    status,
+    employee_id: angajat,
     sort: null,
     cursor,
     limita: 25,
@@ -125,7 +136,11 @@ async function ListaLuni({
   return (
     <div className="space-y-4">
       <Tabel
-        caption={`Lunile de KPI din ${numeLuna(an, luna)}`}
+        caption={
+          angajat === null
+            ? `Lunile de KPI din ${numeLuna(an, luna)}`
+            : "Lunile de KPI ale angajatului"
+        }
         coloane={coloane}
         randuri={randuri}
         cheieRand={(r) => r.id}
@@ -134,8 +149,13 @@ async function ListaLuni({
           <StareGoala
             fel="filtrata"
             pictograma={Gauge}
-            titlu={`Nicio lună deschisă în ${numeLuna(an, luna)}`}
+            titlu={
+              angajat === null
+                ? `Nicio lună deschisă în ${numeLuna(an, luna)}`
+                : "Nicio lună de KPI pentru acest angajat"
+            }
             descriere="Deschideți luna pentru un subordonat direct, din butonul de sus. Liniile se preiau din setul funcției lui."
+            actiune={{ eticheta: "Seturile de indicatori", href: "/evaluari/kpi/seturi" }}
           />
         }
       />
@@ -146,6 +166,7 @@ async function ListaLuni({
         limita={25}
         construiesteHref={({ cursor: c, limita }) => {
           const p = new URLSearchParams({ an: String(an), luna: String(luna) });
+          if (angajat !== null) p.set("angajat", angajat);
           p.set("limita", String(limita));
           if (c !== null) p.set("cursor", c);
           return `/evaluari/kpi?${p.toString()}`;
@@ -174,6 +195,18 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
   const luna = intreg(parametri["luna"], 1, 12) ?? acum.getMonth() + 1;
   const cursorBrut = parametri["cursor"];
   const cursor = typeof cursorBrut === "string" ? cursorBrut : null;
+  // Filtrul de intrare din fișa angajatului sau din luna lui: un UUID, altfel nimic.
+  const angajatBrut = parametri["angajat"];
+  const angajatFiltrat =
+    typeof angajatBrut === "string" && UUID_RE.test(angajatBrut) ? angajatBrut : null;
+  // Filtrul de stare, din fișa angajatului sau din notificări; altceva = toate.
+  const statusBrut = parametri["status"];
+  const statusFiltrat = statusBrut === "draft" || statusBrut === "finalizat" ? statusBrut : null;
+  const numeAngajatFiltrat =
+    angajatFiltrat === null
+      ? null
+      : ((await angajatiDupaId(tenant.organizationId, [angajatFiltrat])).get(angajatFiltrat)
+          ?.full_name ?? null);
 
   const poateEvalua = can(permisiuni, "evaluations:create", "team");
   // Scope `all` (hr, org_admin) vede toată firma; managerul, doar subordonații
@@ -187,19 +220,57 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
       <AntetPagina
         titlu="KPI lunar"
         descriere="Indicatorii lunari ai echipei, cu ținta pusă pe funcție și ajustată pe om. Angajatul își vede luna în lucru din portal."
-        file={<FileEvaluari activa="kpi" />}
-        {...(poateEvalua
-          ? { actiuni: <DeschideLuna angajati={angajati} an={an} luna={luna} /> }
-          : {})}
+        file={
+          <FileModul
+            eticheta="Secțiunile modulului de evaluări"
+            file={fileEvaluari()}
+            tenant={tenant}
+          />
+        }
+        actiuni={
+          <span className="flex flex-wrap items-center gap-3">
+            {/* Pagina seturilor era orfană: nimic din modul nu ducea la ea. */}
+            <Link
+              href="/evaluari/kpi/seturi"
+              className="text-nota underline-offset-2 hover:underline"
+            >
+              Seturile de indicatori
+            </Link>
+            {poateEvalua ? <DeschideLuna angajati={angajati} an={an} luna={luna} /> : null}
+          </span>
+        }
       />
 
       <SelectorPerioada an={an} luna={luna} />
+
+      <PastileFiltre
+        active={[
+          ...(angajatFiltrat === null
+            ? []
+            : [{ cheie: "angajat", eticheta: `Angajat: ${numeAngajatFiltrat ?? "ales"}` }]),
+          ...(statusFiltrat === null
+            ? []
+            : [
+                {
+                  cheie: "status",
+                  eticheta: statusFiltrat === "draft" ? "Stare: în lucru" : "Stare: închise",
+                },
+              ]),
+        ]}
+      />
 
       <Suspense
         key={`${String(an)}-${String(luna)}-${cursor ?? ""}`}
         fallback={<Schelet forma="tabel" randuri={8} coloane={5} />}
       >
-        <ListaLuni organizationId={tenant.organizationId} an={an} luna={luna} cursor={cursor} />
+        <ListaLuni
+          organizationId={tenant.organizationId}
+          an={an}
+          luna={luna}
+          cursor={cursor}
+          angajat={angajatFiltrat}
+          status={statusFiltrat}
+        />
       </Suspense>
     </div>
   );

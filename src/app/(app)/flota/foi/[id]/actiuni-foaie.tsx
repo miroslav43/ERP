@@ -8,16 +8,24 @@ import { Camp } from "@/components/ui/camp";
 import { oraRomanieiPentruCamp } from "@/lib/format/date";
 import type { StatusFoaie } from "@/schemas/fleet";
 
-import { adaugaAlimentare, trimiteFoaie } from "../../actions";
+import { adaugaAlimentare, redeschideFoaie, trimiteFoaie } from "../../actions";
 
 type Erori = Readonly<Record<string, readonly string[]>>;
 
 /**
- * Închiderea cursei și alimentările.
+ * Închiderea cursei, alimentările și redeschiderea foii respinse.
  *
  * O foaie aprobată nu se mai atinge: triggerul o refuză, cu mesaj în română.
  * Ascundem formularele ca omul să nu apese degeaba, dar regula rămâne în bază —
  * ascunderea nu e barieră.
+ *
+ * Ce arată fiecare stare urmează EXACT tranzițiile din
+ * `internal.foi_parcurs_inainte`, nu o aproximare a lor:
+ *   - `draft`: închiderea și alimentările;
+ *   - `trimis`: doar alimentările (`alimentari_inainte` le acceptă până la decizie);
+ *   - `respins`: doar „Redeschide”. Din `respins` baza nu permite trimiterea
+ *     directă, iar alimentările le refuză. Înainte, ecranul arăta aici ambele
+ *     formulare și amândouă cădeau cu P0001.
  *
  * Fiecare formular își ține propriile erori pe câmp: refuzurile triggerelor
  * (kilometraj mai mic, alimentare în afara cursei) sosesc prin `fieldErrors`
@@ -48,8 +56,11 @@ export function ActiuniFoaie({
   const [eroareAlimentare, setEroareAlimentare] = useState<string | null>(null);
   const [eroriAlimentare, setEroriAlimentare] = useState<Erori>({});
   const [avertisment, setAvertisment] = useState<string | null>(null);
+  const [seRedeschide, pornesteRedeschiderea] = useTransition();
+  const [eroareRedeschidere, setEroareRedeschidere] = useState<string | null>(null);
 
-  const sePoateModifica = status === "draft" || status === "respins";
+  const sePoateInchide = status === "draft";
+  const sePoateAlimenta = status === "draft" || status === "trimis";
   const plecareCamp = oraRomanieiPentruCamp(plecareLa);
   const sosireCamp = sosireLa === null ? null : oraRomanieiPentruCamp(sosireLa);
 
@@ -75,7 +86,12 @@ export function ActiuniFoaie({
     }
     setEroareInchidere(null);
     porneste(async () => {
-      const rezultat = await trimiteFoaie({ id, sosire_la: sosire, km_sosire: Number(km) });
+      const rezultat = await trimiteFoaie({
+        id,
+        sosire_la: sosire,
+        km_sosire: Number(km),
+        observatii: String(formular.get("observatii") ?? "").trim() || null,
+      });
       if (!rezultat.ok) {
         setEroriInchidere(rezultat.error.fieldErrors ?? {});
         setEroareInchidere(
@@ -121,10 +137,10 @@ export function ActiuniFoaie({
         litri: Number(litri),
         cost: Number(cost),
         statie: String(formular.get("statie") ?? "").trim() || null,
-        numar_bon: null,
+        numar_bon: String(formular.get("numar_bon") ?? "").trim() || null,
         alimentat_la: cand,
-        plin: false,
-        observatii: null,
+        plin: formular.get("plin") === "on",
+        observatii: String(formular.get("observatii") ?? "").trim() || null,
       });
       if (!rezultat.ok) {
         setEroriAlimentare(rezultat.error.fieldErrors ?? {});
@@ -133,6 +149,18 @@ export function ActiuniFoaie({
             ? rezultat.error.message
             : "Corectați câmpurile marcate.",
         );
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function redeschide(): void {
+    setEroareRedeschidere(null);
+    pornesteRedeschiderea(async () => {
+      const rezultat = await redeschideFoaie({ id });
+      if (!rezultat.ok) {
+        setEroareRedeschidere(rezultat.error.message);
         return;
       }
       router.refresh();
@@ -150,7 +178,29 @@ export function ActiuniFoaie({
         </p>
       )}
 
-      {sePoateModifica ? (
+      {status === "respins" ? (
+        <div className="border-border rounded-panou flex flex-wrap items-center gap-3 border p-4">
+          <p className="text-corp grow">
+            Foaia a fost respinsă. Redeschideți-o ca ciornă, corectați-o și trimiteți-o din nou.
+          </p>
+          <Buton
+            type="button"
+            varianta="primar"
+            inCurs={seRedeschide}
+            textInCurs="Se redeschide…"
+            onClick={redeschide}
+          >
+            Redeschide foaia
+          </Buton>
+          {eroareRedeschidere === null ? null : (
+            <p role="alert" className="text-danger text-corp w-full">
+              {eroareRedeschidere}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {sePoateInchide ? (
         <form
           action={inchide}
           noValidate
@@ -185,6 +235,17 @@ export function ActiuniFoaie({
           >
             {(a) => <input {...a} type="number" min={kmPlecare} />}
           </Camp>
+          <Camp
+            nume="observatii"
+            id="foaie-observatii"
+            eticheta="Observații"
+            fel="textarea"
+            ajutor="Ce s-a întâmplat pe drum: ocoluri, opriri, defecte. Gol = rămân cele de la plecare."
+            className="sm:col-span-3"
+            erori={eroriInchidere["observatii"] ?? []}
+          >
+            {(a) => <textarea {...a} maxLength={1000} rows={2} />}
+          </Camp>
           <div className="flex flex-wrap items-end gap-3">
             <Buton type="submit" varianta="primar" inCurs={seInchide} textInCurs="Se trimite…">
               Trimite spre aprobare
@@ -198,7 +259,7 @@ export function ActiuniFoaie({
         </form>
       ) : null}
 
-      {status === "aprobat" ? null : (
+      {!sePoateAlimenta ? null : (
         <form
           action={alimenteaza}
           noValidate
@@ -252,6 +313,28 @@ export function ActiuniFoaie({
           >
             {(a) => <input {...a} maxLength={120} />}
           </Camp>
+          <Camp
+            nume="numar_bon"
+            id="alimentare-bon"
+            eticheta="Număr bon"
+            ajutor="Același bon nu se poate trece de două ori pe foaie."
+            erori={eroriAlimentare["numar_bon"] ?? []}
+          >
+            {(a) => <input {...a} maxLength={60} />}
+          </Camp>
+          <Camp
+            nume="observatii"
+            id="alimentare-observatii"
+            eticheta="Observații"
+            className="sm:col-span-2"
+            erori={eroriAlimentare["observatii"] ?? []}
+          >
+            {(a) => <input {...a} maxLength={500} />}
+          </Camp>
+          <label className="text-corp flex items-center gap-2 self-end pb-2">
+            <input type="checkbox" name="plin" className="size-4" />
+            Plin făcut
+          </label>
           <div className="flex flex-wrap items-center gap-3 sm:col-span-4">
             <Buton
               type="submit"

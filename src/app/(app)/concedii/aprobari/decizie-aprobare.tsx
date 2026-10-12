@@ -8,10 +8,21 @@ import { Check, X } from "lucide-react";
 import { Buton } from "@/components/ui/buton";
 
 import { decideCerere } from "../actions";
+import { arataToast } from "@/components/ui/toast";
 
 const LUNGIME_MINIMA_MOTIV = 5;
 
-export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
+export function DecizieAprobare({
+  taskId,
+  hrefReges = null,
+  hrefPontaj = null,
+}: {
+  readonly taskId: string;
+  /** `/reges?stare=de_transmis` dacă pagina se deschide pentru rolul curent; altfel `null`. */
+  readonly hrefReges?: string | null;
+  /** `/pontaj` dacă pagina se deschide pentru rolul curent; altfel `null`. */
+  readonly hrefPontaj?: string | null;
+}) {
   const router = useRouter();
   const [panou, setPanou] = useState<"inchis" | "aprobare" | "respingere">("inchis");
   const [comentariu, setComentariu] = useState("");
@@ -24,7 +35,6 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
    * două lucruri de reparat deodată — zile pontate dublu ȘI o declarație de
    * suspendare nepregătită — iar al doilea nu are voie să-l ascundă pe primul.
    */
-  const [atentii, setAtentii] = useState<readonly string[]>([]);
 
   const idComentariu = useId();
   const idMotiv = useId();
@@ -53,13 +63,30 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
        * concediu în foaia de prezență (concediul de urgență, cerut pentru o zi
        * deja pontată). Aprobatorul tocmai a schimbat pontajul cuiva, deci află.
        */
-      const adunate: string[] = [];
+      /*
+       * Avertismentele pleacă în TOASTURI, nu în starea locală: la
+       * `router.refresh()` sarcina iese din coadă și componenta dispare cu
+       * tot cu ele. Toastul cu acțiune nu se stinge singur și duce la locul
+       * unde se vede efectul (foaia de pontaj, coada REGES).
+       */
       if (rezultat.data.zileInlocuite > 0) {
-        adunate.push(
-          rezultat.data.zileInlocuite === 1
-            ? "O zi din concediu era deja pontată ca lucrată și a fost trecută pe concediu în foaia de prezență."
-            : `${String(rezultat.data.zileInlocuite)} zile din concediu erau deja pontate ca lucrate și au fost trecute pe concediu în foaia de prezență.`,
-        );
+        arataToast({
+          fel: "informativ",
+          text:
+            rezultat.data.zileInlocuite === 1
+              ? "O zi din concediu era deja pontată ca lucrată și a fost trecută pe concediu în foaia de prezență."
+              : `${String(rezultat.data.zileInlocuite)} zile din concediu erau deja pontate ca lucrate și au fost trecute pe concediu în foaia de prezență.`,
+          ...(hrefPontaj === null
+            ? {}
+            : {
+                actiune: {
+                  eticheta: "Vezi foaia de pontaj",
+                  onClick: () => {
+                    router.push(hrefPontaj);
+                  },
+                },
+              }),
+        });
       }
       /*
        * Concediul care suspendă contractul se declară la Inspecția Muncii cel
@@ -69,35 +96,39 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
        * respectat și că evenimentul îl așteaptă în REGES, nepregătit.
        */
       const { suspendare } = rezultat.data;
-      if (suspendare.motiv !== null) {
-        adunate.push(suspendare.motiv);
-      } else if (suspendare.declarata && suspendare.termen !== null) {
-        adunate.push(
-          `Concediul suspendă contractul de muncă. Suspendarea a fost înregistrată, iar evenimentul de transmis în REGES este pregătit — termenul este ${suspendare.termen}.`,
+      const textSuspendare =
+        suspendare.motiv !== null
+          ? suspendare.motiv
+          : suspendare.declarata && suspendare.termen !== null
+            ? `Concediul suspendă contractul de muncă. Suspendarea a fost înregistrată, iar evenimentul de transmis în REGES este pregătit — termenul este ${suspendare.termen}.`
+            : null;
+      if (textSuspendare !== null) {
+        // Fără drum spre REGES (rolul nu-l deschide), mesajul rămâne ca
+        // „eroare": e singurul fel care nu se stinge singur, iar ratarea
+        // termenului e contravenție per salariat.
+        arataToast(
+          hrefReges === null
+            ? { fel: "eroare", text: textSuspendare }
+            : {
+                fel: "informativ",
+                text: textSuspendare,
+                actiune: {
+                  eticheta: "Deschide coada REGES",
+                  onClick: () => {
+                    router.push(hrefReges);
+                  },
+                },
+              },
         );
       }
-      setAtentii(adunate);
       setPanou("inchis");
       router.refresh();
     });
   }
 
-  const avertisment =
-    atentii.length === 0 ? null : (
-      <div
-        role="alert"
-        className="border-warning/40 bg-warning/12 text-foreground rounded-control text-corp mb-2 flex flex-col gap-2 border p-3"
-      >
-        {atentii.map((text) => (
-          <p key={text}>{text}</p>
-        ))}
-      </div>
-    );
-
   if (panou === "inchis") {
     return (
       <div>
-        {avertisment}
         <div className="flex flex-wrap gap-2">
           <Buton
             varianta="primar"
@@ -124,7 +155,6 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
 
   return (
     <div className="border-border rounded-control space-y-2 border p-3">
-      {avertisment}
       <div>
         <label htmlFor={idComentariu} className="text-nota block font-medium">
           Comentariu (opțional)

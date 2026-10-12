@@ -199,6 +199,10 @@ export const filtreAngajatiSchema = z.object({
    */
   functie: textOptional(160),
   status: enumOptional(STATUSURI_ANGAJAT, "Statusul din filtru nu este valid."),
+  /** Filtru de INTRARE (de pe un punct de lucru): angajații cu contract ACTIV acolo. */
+  punct_lucru: uuidOptional,
+  /** Filtru de INTRARE (de pe panou): contracte determinate care expiră în fereastră. */
+  contract: enumOptional(["expira"] as const, "Filtrul de contract nu este valid."),
   cursor: textOptional(400),
   limita: numarCuImplicit({
     min: 5,
@@ -583,12 +587,15 @@ const corpContractSchema = z.object({
   functie: textOptional(160),
   cod_cor: codCorOptional,
   conditii_munca: z.enum(CONDITII_MUNCA).default("normale"),
+  // Minimum 1, nu 0: un contract de muncă fără salariu nu există, iar 0 lei
+  // trecea (QA 8 oct 2026, HR-021). Pragul firmei (salariul minim) se verifică
+  // în acțiune, cu `verificaSalariulMinim`, fiindcă cere setările de salarizare.
   salariu_baza: numarObligatoriu({
-    min: 0,
+    min: 1,
     max: 100_000_000,
     lipsa: "Salariul de bază este obligatoriu.",
     mesaj: "Salariul de bază trebuie să fie un număr.",
-    interval: "Salariul de bază este între 0 și 100.000.000.",
+    interval: "Salariul de bază trebuie să fie mai mare decât zero (cel mult 100.000.000).",
   }),
   moneda: z
     .string()
@@ -1058,11 +1065,11 @@ export const modificaSalariuContractSchema = z
   .object({
     contract_id: z.uuid("Contractul selectat nu este valid."),
     salariu_baza: numarObligatoriu({
-      min: 0,
+      min: 1,
       max: 100_000_000,
       lipsa: "Salariul de bază este obligatoriu.",
       mesaj: "Salariul de bază trebuie să fie un număr.",
-      interval: "Salariul de bază este între 0 și 100.000.000.",
+      interval: "Salariul de bază trebuie să fie mai mare decât zero (cel mult 100.000.000).",
     }),
     valabil_de_la: dataObligatorie("Se aplică de la"),
     data_act: dataObligatorie("Data actului adițional"),

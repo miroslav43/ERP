@@ -9,7 +9,7 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
 import { formatDate, formatDateTime } from "@/lib/format/date";
@@ -19,6 +19,7 @@ import {
   citestePerioada,
   listeazaInregistrari,
   primeSiRetineriPerioada,
+  angajatiFaraIban,
   type RandInregistrare,
   type RandPrimaPerioada,
   type RandRetinerePerioada,
@@ -29,6 +30,9 @@ import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../e
 import { ActiuniPerioada } from "./actiuni-perioada";
 import { RandAngajatDraft } from "./rand-angajat-draft";
 import { ButonDescarcare } from "@/components/incarcare/buton-descarcare";
+import { NumarRegistru } from "@/components/registru/numar-registru";
+import { poateDeschide } from "@/config/porti-ruta";
+import { IstoricModificari } from "@/components/audit/istoric-modificari";
 
 export const metadata: Metadata = { title: "Perioadă de salarizare" };
 
@@ -42,9 +46,10 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "payroll"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "payroll:read", "all")) {
@@ -67,6 +72,10 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const poateModifica = can(permisiuni, "payroll:update", "all");
   const poateAproba = can(permisiuni, "payroll:approve", "all");
   const poateExporta = can(permisiuni, "payroll:export", "all");
+  // Porțile ȚINTELOR: pontajul e modul opțional cu cheie proprie, iar fișa
+  // angajatului cere `employees:read = all` ca să se deschidă pentru oricine.
+  const poateVedeaPontajul = module.has("attendance") && can(permisiuni, "attendance:read", "team");
+  const poateDeschideFisa = can(permisiuni, "employees:read", "all");
 
   const personalDraft =
     perioada.status === "draft" && poateCalcula
@@ -96,6 +105,14 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
     perioada.status === "draft" && poateCalcula
       ? await primeSiRetineriPerioada(tenant.organizationId, perioada.id)
       : { prime: [], retineri: [] };
+  // Cine n-are IBAN, ÎNAINTE de descărcarea fișierului bancar, cu drum spre
+  // fișa unde se completează. Doar pentru cine poate exporta și deschide fișa.
+  const faraIban =
+    (perioada.status === "aprobat" || perioada.status === "inchis") &&
+    poateExporta &&
+    poateDeschideFisa
+      ? await angajatiFaraIban(tenant.organizationId, perioada.id)
+      : [];
 
   const primePeAngajat = new Map<string, RandPrimaPerioada[]>();
   for (const p of prime) {
@@ -146,7 +163,23 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
       peTelefon: "meta",
       celula: (r) => formatLei(r.cost_total_angajator),
     },
+    {
+      // Care fluturași au probleme — înainte de „Aprobă", nu după ce i-ai
+      // deschis pe toți. Cifra vine din `calc_warnings`, numărate la citire.
+      cheie: "avertismente",
+      antet: "Atenționări",
+      peTelefon: "insigna",
+      celula: (r) =>
+        r.avertismente === 0 ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <Badge ton="atentie" cuAvertisment>
+            {r.avertismente === 1 ? "1 atenționare" : `${String(r.avertismente)} atenționări`}
+          </Badge>
+        ),
+    },
   ];
+  const fluturasiCuAvertismente = inregistrari.filter((r) => r.avertismente > 0).length;
 
   return (
     <div className="space-y-6">
@@ -164,6 +197,28 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
             </Badge>
           }
         />
+        {/* Drumul înapoi spre registru: numărul de înregistrare, dacă există (prin RLS). */}
+        <NumarRegistru
+          tenant={tenant}
+          entitateTip={[
+            "payroll_periods",
+            "payroll_periods_bancar",
+            "payroll_periods_nota",
+            "payroll_periods_d112",
+            "payroll_periods_d112_rect",
+          ]}
+          entitateId={perioada.id}
+        />
+        {poateDeschide("/rapoarte", { features: module, permissions: permisiuni }) ? (
+          <p className="text-muted-foreground text-nota">
+            <Link
+              href={`/rapoarte?an=${String(perioada.an)}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Raportul anului {perioada.an}
+            </Link>
+          </p>
+        ) : null}
         {/* Proveniența. Toate cifrele astea erau deja citite de
             `citestePerioada` și nu apărea niciuna: ecranul nu spunea nici când
             s-a calculat luna, nici peste ce pontaj, nici când s-a plătit. */}
@@ -180,13 +235,17 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           ]
             .filter((bucata) => bucata !== null)
             .join(" · ") || "Perioadă în ciornă, încă necalculată."}
-          {" · "}
-          <Link
-            href={`/pontaj/perioade/${perioada.attendance_period_id}`}
-            className="underline-offset-2 hover:underline"
-          >
-            pontajul lunii
-          </Link>
+          {poateVedeaPontajul ? (
+            <>
+              {" · "}
+              <Link
+                href={`/pontaj/perioade/${perioada.attendance_period_id}`}
+                className="underline-offset-2 hover:underline"
+              >
+                pontajul lunii
+              </Link>
+            </>
+          ) : null}
         </p>
       </div>
 
@@ -212,6 +271,7 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
       </dl>
 
       <ActiuniPerioada
+        poateDeschideFisa={can(permisiuni, "employees:read", "all")}
         id={perioada.id}
         status={perioada.status}
         poateCalcula={poateCalcula}
@@ -229,7 +289,8 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
         }}
       />
 
-      {perioada.status !== "aprobat" && perioada.status !== "inchis" ? null : (
+      {/* Toate descărcările cer `payroll:export`: fără el, patru butoane cu 403. */}
+      {(perioada.status !== "aprobat" && perioada.status !== "inchis") || !poateExporta ? null : (
         <section aria-label="Livrabile" className="border-border rounded-panou border p-4">
           <h2 className="text-corp mb-1 font-medium">Livrabile</h2>
           <p className="text-muted-foreground text-nota mb-3">
@@ -239,6 +300,36 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
             audit. Declarația 112 conține CNP-ul fiecărui asigurat, deci cere aceleași drepturi;
             contabilul o validează cu DUKIntegrator înainte de depunere.
           </p>
+          {/* Fișierul bancar decriptează IBAN-ul, iar D112 conține CNP-ul: rutele
+              cer `employees:read = all` pe lângă `payroll:export`. Fără el,
+              butoanele erau două refuzuri în așteptare. */}
+          {poateDeschideFisa ? null : (
+            <p className="text-muted-foreground text-nota mb-3">
+              Fișierul bancar și declarația 112 cer și dreptul de citire a datelor de identitate ale
+              angajaților; rolul dumneavoastră nu-l are.
+            </p>
+          )}
+          {faraIban.length === 0 ? null : (
+            <p className="text-warning text-corp mb-3">
+              {faraIban.length === 1
+                ? "Un angajat n-are IBAN"
+                : `${String(faraIban.length)} angajați n-au IBAN`}
+              {" și "}
+              {faraIban.length === 1 ? "lipsește" : "lipsesc"} din fișierul bancar:{" "}
+              {faraIban.map((a, indice) => (
+                <span key={a.id}>
+                  {indice === 0 ? "" : ", "}
+                  <Link
+                    href={`/angajati/${a.id}#titlu-date-personale`}
+                    className="underline underline-offset-2"
+                  >
+                    {a.nume}
+                  </Link>
+                </span>
+              ))}
+              .
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             {/*
               Butoane, nu `<a href>`. Rutele astea fac un tur de bază per angajat
@@ -249,13 +340,15 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
               nimănui; prin `fetch` ajung în notificare. Vezi
               `components/incarcare/buton-descarcare.tsx`.
             */}
-            <ButonDescarcare
-              href={`/api/export/salarizare/bancar?perioada=${perioada.id}`}
-              eticheta="fișierul bancar"
-              numeImplicit="salarii.xml"
-            >
-              Fișier bancar (SEPA)
-            </ButonDescarcare>
+            {poateDeschideFisa ? (
+              <ButonDescarcare
+                href={`/api/export/salarizare/bancar?perioada=${perioada.id}`}
+                eticheta="fișierul bancar"
+                numeImplicit="salarii.xml"
+              >
+                Fișier bancar (SEPA)
+              </ButonDescarcare>
+            ) : null}
             <ButonDescarcare
               href={`/api/export/salarizare/nota?perioada=${perioada.id}`}
               eticheta="nota contabilă"
@@ -270,13 +363,15 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
             >
               Stat de plată (PDF)
             </ButonDescarcare>
-            <ButonDescarcare
-              href={`/api/export/salarizare/d112?perioada=${perioada.id}`}
-              eticheta="declarația 112"
-              numeImplicit="d112.xml"
-            >
-              Declarația 112 (XML)
-            </ButonDescarcare>
+            {poateDeschideFisa ? (
+              <ButonDescarcare
+                href={`/api/export/salarizare/d112?perioada=${perioada.id}`}
+                eticheta="declarația 112"
+                numeImplicit="d112.xml"
+              >
+                Declarația 112 (XML)
+              </ButonDescarcare>
+            ) : null}
           </div>
         </section>
       )}
@@ -320,12 +415,16 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
               <ul className="mt-3 space-y-1">
                 {faraContract.map((a) => (
                   <li key={a.employee_id}>
-                    <Link
-                      href={`/angajati/${a.employee_id}`}
-                      className="underline underline-offset-2"
-                    >
-                      {a.full_name || "(fără nume)"}
-                    </Link>{" "}
+                    {poateDeschideFisa ? (
+                      <Link
+                        href={`/angajati/${a.employee_id}`}
+                        className="underline underline-offset-2"
+                      >
+                        {a.full_name || "(fără nume)"}
+                      </Link>
+                    ) : (
+                      <span>{a.full_name || "(fără nume)"}</span>
+                    )}{" "}
                     <span className="text-muted-foreground">marca {a.marca}</span>
                   </li>
                 ))}
@@ -339,6 +438,12 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
               pictograma={Users}
               titlu="Perioada nu a fost încă calculată"
               descriere="Nu există încă niciun angajat cu contract aplicabil lunii. Completați contractele, apoi apăsați „Calculează” pentru a genera fluturașii pe baza pontajului blocat al lunii."
+              // Drumul spre contracte: lista angajaților, prin poarta ei. Când
+              // firma n-are niciun angajat activ, lista „fără contract" e goală
+              // și butonul ăsta e singurul care duce undeva.
+              {...(poateDeschide("/angajati", { features: module, permissions: permisiuni })
+                ? { actiune: { eticheta: "Deschide angajații", href: "/angajati" } }
+                : {})}
             />
           ) : (
             <section aria-labelledby="ajustari-ciorna" className="space-y-2">
@@ -358,6 +463,9 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
                       periodId={perioada.id}
                       employeeId={a.employee_id}
                       nume={a.full_name || a.marca}
+                      hrefFisa={
+                        poateDeschideFisa ? `/angajati/${a.employee_id}#titlu-contracte` : null
+                      }
                       salariuBaza={a.salariu_baza}
                       prime={primePeAngajat.get(a.employee_id) ?? []}
                       retineri={retineriPeAngajat.get(a.employee_id) ?? []}
@@ -370,23 +478,35 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           )}
         </>
       ) : (
-        <Tabel
-          caption={`Fluturașii perioadei ${numeLuna(perioada.luna)} ${String(perioada.an)}`}
-          coloane={coloane}
-          randuri={inregistrari}
-          cheieRand={(r) => r.id}
-          href={(r) => `/salarizare/${perioada.id}/${r.id}`}
-          trunchiat={registru.trunchiat}
-          gol={
-            <StareGoala
-              fel="initiala"
-              pictograma={Receipt}
-              titlu="Niciun fluturaș în perioadă"
-              descriere="Perioada a fost calculată, dar nu are nicio înregistrare. Verificați dacă există angajați activi cu contract activ în luna respectivă."
-            />
-          }
-        />
+        <>
+          {fluturasiCuAvertismente === 0 ? null : (
+            <p className="text-warning text-corp">
+              {fluturasiCuAvertismente === 1
+                ? "Un fluturaș are atenționări de calcul"
+                : `${String(fluturasiCuAvertismente)} fluturași au atenționări de calcul`}
+              ; deschideți-i din coloana „Atenționări” înainte de aprobare.
+            </p>
+          )}
+          <Tabel
+            caption={`Fluturașii perioadei ${numeLuna(perioada.luna)} ${String(perioada.an)}`}
+            coloane={coloane}
+            randuri={inregistrari}
+            cheieRand={(r) => r.id}
+            href={(r) => `/salarizare/${perioada.id}/${r.id}`}
+            trunchiat={registru.trunchiat}
+            gol={
+              <StareGoala
+                fel="initiala"
+                pictograma={Receipt}
+                titlu="Niciun fluturaș în perioadă"
+                descriere="Perioada a fost calculată, dar nu are nicio înregistrare. Verificați dacă există angajați activi cu contract activ în luna respectivă."
+              />
+            }
+          />
+        </>
       )}
+      {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
+      <IstoricModificari tenant={tenant} entityId={perioada.id} />
     </div>
   );
 }

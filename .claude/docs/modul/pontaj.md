@@ -28,8 +28,13 @@ permisiuni:
     attendance:create,
     attendance:update,
     attendance:approve,
+    attendance:export,
     departments:update,
+    departments:read,
     employees:update,
+    employees:read,
+    leave:read,
+    payroll:update,
   ]
 feature: attendance
 capcane: [2, 6, 7, 9, 17]
@@ -37,8 +42,8 @@ citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
   - "zi respinsă pentru contract suspendat → [[modul/reges]]"
-scris_pe: 9bcef48615294790f0c04bd5416cda7105bee151
-scris_la: 2026-09-19
+scris_pe: bd516e390b0ca4dbe758079da30184b7288ceeb5
+scris_la: 2026-10-12
 tags: [modul, hr]
 ---
 
@@ -50,7 +55,9 @@ completat de mână prin `salveazaZiPontaj`), **săptămâna planificată**
 (`attendance_week_submissions`, trimisă de angajat și decisă de manager) și
 **pontarea rapidă** (`0096_pontaj_rapid.sql` — ceas „Am intrat"/„Am ieșit" sau
 confirmarea zilei standard, apăsate din portal, scrise tot în `attendance_entries` cu
-`sursa = pontare_rapida`).
+`sursa = pontare_rapida`). Care dintre ele îi e deschisă angajatului o decide **varianta
+de pontaj** a firmei (`setari_pontare_rapida.varianta_pontaj`, 0165): pe `zilnic` toate
+trei, pe `saptamanal` doar fișa săptămânii.
 
 ## Paginile modulului
 
@@ -60,24 +67,34 @@ Pagina asta e trunchiul; restul s-a spart pe subarborele de rute
 | Pagină                     | Ce ține                                                                                                              |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | [[modul/pontaj/actiuni]]   | Server Actions, citirile din `queries/attendance.ts`, ce se mișcă împreună la o schimbare de formă a zilei de pontaj |
-| [[modul/pontaj/saptamana]] | planul săptămânal, RPC-ul care face `delete` + reinserare, legătura plan ↔ fapt                                      |
-| [[modul/pontaj/setari]]    | pontarea rapidă (0115), aprobarea ca alegere a firmei (0118), limitele legale                                        |
+| [[modul/pontaj/saptamana]] | fișa săptămânii — plan sau pontaj, după variantă: RPC-ul cu `delete` + reinserare, scrierea în pontaj, plan ↔ fapt   |
+| [[modul/pontaj/setari]]    | pontarea rapidă (0115), varianta de pontaj (0165), aprobarea ca alegere a firmei (0118), limitele legale             |
 
 ## Rute și cine ajunge
 
-| Rută                       | Poartă                                                                                                         |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `/pontaj`                  | `attendance:read` cu scope citit prin `scopeFor`; butoanele cer `create` own/all, `approve` team, `update` all |
-| `/pontaj?vizualizare=…`    | aceeași poartă; vezi „Cele trei vizualizări" mai jos                                                           |
-| `/pontaj/aprobare`         | `attendance:approve` team; blocarea cere `all`                                                                 |
-| `/pontaj/perioade`         | `attendance:approve` team/all, `attendance:create` all                                                         |
-| `/pontaj/perioade/[id]`    | `attendance:read` team                                                                                         |
-| `/pontaj/saptamana`        | `attendance:create` own; decizia cere `approve` team                                                           |
-| `/pontaj/setari`           | `attendance:update` all — fila **Pontarea**: `mod_pontare_rapida`, `verificare_pontare`, `program_start`       |
-| `/pontaj/setari/reguli`    | `attendance:update` all — fila **Regulile de timp**: parametrii juridici versionați                            |
-| `/pontaj/setari/coduri-qr` | `departments:update` all — fila **Coduri QR**: poarta SECRETULUI, ca afișul din `puncte-lucru`                 |
+| Rută                       | Poartă                                                                                                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/pontaj`                  | `attendance:read` cu scope citit prin `scopeFor`; `approve` team și `update` all pentru butoanele lor; scrierea are DOUĂ porți, mai jos                                       |
+| `/pontaj?vizualizare=…`    | aceeași poartă; vezi „Cele trei vizualizări" mai jos                                                                                                                          |
+| `/pontaj?angajat=…`        | aceeași poartă; filtru de INTRARE pe un singur om, vezi „Unde duce fiecare nume"                                                                                              |
+| `/pontaj/aprobare`         | `attendance:approve` team; blocarea cere `all`; ancora `#saptamana-<id>` pentru notificări                                                                                    |
+| `/pontaj/arhiva`           | `attendance:export` **all** — aceeași cheie ca `pontaj_arhive_lunare_select` (0134), nu `attendance:read`: un manager cu `read = team` ar deschide o listă goală, fără eroare |
+| `/pontaj/perioade`         | `attendance:approve` team/all, `attendance:create` all                                                                                                                        |
+| `/pontaj/perioade/[id]`    | `attendance:read` team                                                                                                                                                        |
+| `/pontaj/saptamana`        | `attendance:create` own; decizia cere `approve` team; titlul, săptămâna implicită (`saptamanaImplicita`) și navigarea înainte (`existaSaptamanaUrmatoare`) depind de variantă |
+| `/pontaj/setari`           | `attendance:update` all — fila **Pontarea**: `varianta_pontaj`, `mod_pontare_rapida`, `verificare_pontare`, `program_start`                                                   |
+| `/pontaj/setari/reguli`    | `attendance:update` all — fila **Regulile de timp**: parametrii juridici versionați                                                                                           |
+| `/pontaj/setari/coduri-qr` | `departments:update` all — fila **Coduri QR**: poarta SECRETULUI, ca afișul din `puncte-lucru`                                                                                |
 
 Toate trec întâi prin `requireFeature(tenant.organizationId, "attendance")`.
+
+**Două porți de scriere, nu una.** `poatePontaSine` e `attendance:create` la `own` —
+butonul „Pontează-te" din antet (duce în `/pontaj/saptamana`) și grila proprie.
+`poateEdita` e FOAIA: `create` la SCOPE-UL DE CITIRE. Un `manager` citește `team` dar
+creează doar `own` (0161), deci foaia colectivă îi rămâne read-only, exact ca RLS — cu o
+singură poartă, celulele subordonaților ar fi devenit apăsabile și ar fi răspuns cu
+refuz. „Sincronizează concediile aprobate" (`ButonSincronizareConcedii`, mutat în antetul
+foii, lângă cel din `/pontaj/aprobare`) cere `create` la `all` ȘI modulul `leave`.
 
 **Codurile QR nu se deschid cu cheia pontajului.** Fila `/pontaj/setari/coduri-qr` cere
 `departments:update` la `all`, ca afișul din `puncte-lucru/[id]/afis`: cine vede codul poate
@@ -92,6 +109,52 @@ rol ar fi căpătat un buton care duce la un refuz.
 `attendance_periods` îl creează `internal.pontaj_perioada_lunii` la prima scriere, deci nu
 mai există „lună nedeschisă" care să refuze pontajul. Rândul lipsă se citește într-un singur
 loc, `stareaLunii` (`src/domain/attendance/luna.ts`); singura stare care refuză e `blocata`.
+
+## Varianta de pontaj: pe zi sau pe săptămână
+
+`setari_pontare_rapida.varianta_pontaj` (`0165_pontaj_varianta_saptamanala.sql`), implicit
+`zilnic`, citită în SQL de `internal.pontaj_varianta`. Pe `saptamanal`, fișa săptămânii e
+SINGURA cale prin care omul se pontează: ceasul, confirmarea zilei, dialogul `CelulaZi` și
+tragerea pe grilă nu mai scriu. Întrebarea se pune o singură dată, cu `sePonteazaPeZi`
+(`pontare-rapida.ts`), ca niciun ecran să nu rămână cu un buton pe care serverul îl
+refuză; filele o primesc prin `varianta` din `fileDePontaj`, iar „Planul săptămânii"
+devine „Pontajul săptămânii".
+
+Refuzul e scris de două ori, deliberat: `refuzaZiuaInVariantaSaptamanala` în
+`salveazaZiPontaj`/`stergeZiPontaj` și în `pregatirePontareRapida`, plus triggerul BEFORE
+`internal.pontaj_doar_pe_saptamana` ca plasă pentru orice cale care ocolește acțiunile —
+politicile din `0013` lasă un `employee` să scrie direct prin PostgREST. Triggerul ridică
+**P0001 cu ACELAȘI text**, nu 42501, fiindcă mesajul spune ce are de făcut omul. Scapă:
+contextul de serviciu, `attendance:create = all` (responsabilul de pontaj corectează în
+continuare foaia colectivă — varianta privește cum se pontează OMUL, nu corecturile),
+rândurile de concediu și UPDATE-urile care ating doar decizia. Portița pe
+`leave_request_id`, coloană scrisă de CLIENT, a fost strânsă de
+`0166_pontaj_saptamanal_fara_portita_concediu.sql`.
+
+Fișa devine pontaj prin `scrieSaptamanaInPontaj` — la aprobare, sau pe loc la trimiterea
+care se închide singură (0167). Scrierea e best-effort, fiindcă aprobarea e deja
+înregistrată când se ajunge la ea, deci plasa zilnică
+`internal.recupereaza_saptamani_fara_pontaj` (0169) reface ce a căzut și anunță ce nu se
+poate deriva în SQL. Zilele unei luni `blocata` nu se scriu niciodată: clientul admin e
+scutit de triggerul lunii, deci garda stă în cod. Restul: [[modul/pontaj/saptamana]].
+
+## Sediul zilei: scanat ≠ declarat
+
+Două coloane cu sensuri diferite (`0163_pontaj_sediu_declarat.sql`):
+`attendance_entries.punct_lucru_id` e SCANAT din codul QR (0096), adică dovadă, iar
+`punct_lucru_declarat_id` e ales de om în formular și nu dovedește nimic. Sediul efectiv =
+scanat ?? declarat ?? cel din contract, iar `null` pe declarat înseamnă „cel din
+contract", nu „necunoscut" — de aceea prima opțiune din `CampSediu` e VALOAREA GOALĂ și
+doar numește sediul contractului. Regulile stau o singură dată, în
+`src/domain/attendance/sediu.ts` (`seAlegeSediul`, `tipulPermiteSediu`, `sediulDeTrimis`,
+`etichetaSediului`): le aplică două formulare și o acțiune.
+
+Se întreabă doar unde întrebarea are sens: cel puțin două sedii și verificare ≠ `cod_qr`
+(acolo sediul vine din scanare). Lista vine din `sediiPentruPontaj`, care cheamă RPC-ul
+`public.sedii_pentru_pontaj` — `puncte_lucru_select` cere `departments:read`, pe care
+`employee` nu-l are, iar el e tocmai cel care completează ziua; funcția întoarce doar id,
+denumire și `din_contract`, niciodată `cod_pontaj`. `din_contract` e al CELUI CONECTAT,
+deci pe ziua altcuiva se stinge, ca să nu numească sediul greșit.
 
 ## Cele trei vizualizări ale lui `/pontaj`
 
@@ -114,6 +177,8 @@ Enumul și opțiunile stau în `vizualizari.ts`; comutarea folosește primitiva
   e 06:00–22:00, lărgită de `intervalulGrilei` cât să cuprindă orice intrare din afara ei.
   Tragerea e doar cu mausul: pe telefon `touch-action: none` ar bloca derularea paginii,
   deci acolo atingerea deschide dialogul cu intervalul propus — aceeași cale ca tastatura.
+  În varianta `saptamanal` grila rămâne de CITIT, dar nu se mai trage pe ea
+  (`sePonteazaZiua` din `sectiune-saptamana.tsx`), iar motivul se scrie pe celulă.
 - **`luna`** — calendar de 7 coloane cu TOȚI angajații, max 3 pe zi plus „+N alții"
   (citibili prin `sr-only`, nu prin `title`). Server Component pur, needitabil.
 - **`lista`** — foaia colectivă, neschimbată.
@@ -127,6 +192,51 @@ produce un interval pe care `oreleZilei` îl acceptă.
 Săptămâna se ancorează în luna din adresă (`an`+`luna`), iar comutatorul completează
 cheia care lipsește în cealaltă direcție — altfel comutarea ar sări în altă perioadă
 decât cea de pe ecran.
+
+## Unde duce fiecare nume
+
+Regula e a stratului, nu a modulului: **un link trece prin poarta paginii-ȚINTĂ**
+(`poateDeschide`, din registrul porților de rută), iar numele unei entități devine link
+PER RÂND (`LinkEntitate`, `hrefFisa`) — [[strat/navigare]]. Ce e al pontajului:
+
+| De pe ecran                                       | Unde duce, cu ce poartă                                                                                                                                                                                        |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| nume, în foaie / calendar / avertismente / loturi | `/angajati/<id>` — `employees:read` nenul                                                                                                                                                                      |
+| „Zile speciale" din foaie                         | cererile omului, pe intervalul foii: rândul propriu la `/concedii?vedere=cereri&de_la=&pana_la=` (poarta lui `/concedii`), al altuia la `/concedii/echipa?employee_id=…` (modulul `leave` + `leave:read` team) |
+| celulă completată din concediu                    | `/concedii/<leaveRequestId>` — id-ul e nou pe `IntrareZiClient`, lângă `esteDinConcediu`                                                                                                                       |
+| celulă „așteaptă decizia", pe foaie read-only     | `/pontaj/aprobare?an=&luna=` — doar pentru cine NU poate edita dar aprobă, adică managerul din 0161                                                                                                            |
+| banda „perioada este blocată"                     | `/pontaj/perioade?an=`                                                                                                                                                                                         |
+| sediul SCANAT, din dialogul zilei                 | `/puncte-lucru?punct=&#punct-`, în fereastră NOUĂ: celula e un dialog modal, o navigare în loc l-ar închide. `SediuPontaj.href` îl pune pagina, doar cu `departments:read`                                     |
+| luna, din `/pontaj/perioade` și din arhivă        | foaia ei, `/pontaj?an=&luna=`; „loturile" rămâne al doilea link, doar unde există rând în `attendance_periods`                                                                                                 |
+| numărul de înregistrare al arhivei                | `/registru?an=&doc=<registruDocId>` — `registru_documente.id`, nou lângă `numarAfisat`                                                                                                                         |
+| detaliul perioadei                                | `/salarizare/<id>` al statului calculat peste pontajul ăsta (`perioadaSalarizariiPentruPontaj`), foaia, arhiva și fișa managerului care a aprobat lotul                                                        |
+
+Două porți care nu sunt cele evidente: `hr` are `attendance:read = all` dar
+`approve = none`, deci tot ce duce în `/pontaj/aprobare` din detaliul perioadei trece prin
+`file.poateAproba` (permisiunea ȘI alegerea firmei, 0118) — altfel îl trimitea în refuz; iar
+fila **Coduri QR** se stinge singură, fiindcă `FileModul` filtrează `FILE_SETARI_PONTAJ`
+(`src/config/file-module.ts`) prin poarta FIECĂREI file. `NavSetariPontaj` nu mai există, și
+nici condițiile scrise de mână în cele trei pagini de setări.
+
+`?angajat=<uuid>` e filtru de INTRARE: validat în `filtrePontajSchema`, aplicat în
+`listeazaAngajatiPontaj`, cu pastilă prin `cheiExterne` (n-are câmp în bară) și numele citit
+cu `angajatiPontajDupaId`. Intră prin el salarizarea, diurna, rapoartele, fișa angajatului,
+profilul și notificările, deci lista lui goală se citește „filtrată", nu „pustie".
+
+După o scriere care golește ecranul, mesajul e un toast CU ACȚIUNE: aprobarea în bloc spune
+câte linii au intrat (`liniiAprobate`) și duce la lotul evidențiat, `?lot=<id>#lot-<id>`,
+aprins pe SERVER fiindcă `:target` nu se aprinde după o navigare din client. Când ținta nu se
+deschide pentru rol, textul pleacă cu `fel: "eroare"` (alerta de absențe, fără `/reges`):
+un toast cu acțiune sau de eroare nu se stinge singur, iar termenul de transmitere nu trebuie
+să dispară de pe ecran în șase secunde.
+
+Ziua blocată din grila săptămânii e și ea un drum (`hrefBlocare`): concediul care a scris-o,
+ori fișa săptămânii în varianta `saptamanal`; motivul intră în numele accesibil, fiindcă în
+`title` era invizibil la atingere și la tastatură. Mementoul de săptămână lipsă (0166) numește
+ziua doar în CORPUL notificării — `ziuaRomaneascaDinText` (`domain/attendance/saptamana.ts`)
+o scoate, ca linkul să deschidă săptămâna numită, nu implicita ecranului. Respingerea unei
+zile duce la ZIUA de corectat, `/portal/pontajul-meu/zi/<data>` (`anuntaRespingereaZilei`),
+nu la luna ei.
 
 ## Ce refuză baza tăcut
 
@@ -151,7 +261,8 @@ decât cea de pe ecran.
   tăcut peste `max_rows`. Din 6 oct 2026 nu mai există „Pagina următoare" (foaia are
   derulare proprie): `totiAngajatiiPontaj` urmează cursorul keyset în pagini de 500, iar
   `intrariLuna` cere pontajul în bucăți de 30 de angajați (30 × 31 = 930), în paralel.
-  — capcana #2
+  Bucla se oprește la 20 de pagini și o SPUNE pe ecran (`trunchiat` → `Callout`), ca
+  tăierea să nu fie tăcută. — capcana #2
 - **O zi deschisă și neînchisă nu poate fi aprobată**: constrângerea
   `attendance_entries_aprobare_zi_incheiata_ck` (`0096_pontaj_rapid.sql`) cere ca
   `approved_at` să fie null cât timp există `ora_inceput` fără `ora_sfarsit`. 23514 NU e
@@ -159,6 +270,24 @@ decât cea de pe ecran.
   filtrează zilele în curs înainte, le numără și întoarce `zileDeschise`. Constrângerea e
   plasa de sub filtru, nu invers; fără ea, „Am ieșit" de după aprobare e respins tăcut de
   `USING`. — capcana #17
+- **Sediul declarat pe o zi care nu e la birou** cade pe
+  `attendance_entries_punct_declarat_ck` (0163): coloana cere `tip_prezenta` null sau
+  `birou`. 23514 NU e tradus, deci `sediulDeTrimis` stinge alegerea înainte de a o trimite
+  — omul a ales un sediu, apoi a comutat pe homeoffice, și nu are ce să citească într-o
+  eroare de bază. Acțiunea verifică încă o dată că sediul e al firmei și ACTIV: FK-ul
+  compus `attendance_entries_punct_declarat_fk` prinde sediul străin, nu pe cel dezactivat
+  între deschiderea formularului și salvare.
+- **Ziua din concediu are `approved_at` gol pe veci**: aprobarea pontajului o EXCLUDE
+  (`liniiDeAprobat`, iar `aprobaPerioada` filtrează `leave_request_id is null`), fiindcă
+  decizia s-a luat deja în Concedii. Citită după `approved_at`, purta în foaie punctul
+  „așteaptă decizia" pe care nimeni nu-l mai putea stinge, deci `intrareaClient` o citește
+  aprobată când are `leave_request_id`.
+- **Sincronizarea concediilor ÎNLOCUIEȘTE ziua pontată**, nu o mai păstrează: un concediu
+  de urgență peste o zi deja pontată se plătea și ca muncă, și ca zi scăzută din sold. Se
+  rescrie ACELAȘI rând, golit de interval, sediu și decizie (`ZI_LUCRATA_GOLITA`), iar
+  dovada rămâne în `audit_logs`. De aici `inlocuite` în rezultat; `pastrate` înseamnă acum
+  UPDATE cu zero rânduri — ziua fusese aprobată între timp, iar `attendance_entries_update`
+  o refuză celui fără `attendance:approve`. — capcana #17
 - **`intrariProprii` NU filtrează pe `employee_id`** — se bazează pe RLS. Corect pentru
   un `employee`, dar pentru scope `all` (`hr`, `org_admin`) RLS nu îngustează nimic, deci
   funcția întoarce pontajul ÎNTREGII firme. Orice ecran „al meu" trebuie să rezolve fișa

@@ -49,6 +49,8 @@ declare
   v_rand     jsonb;
   v_actor    uuid;
   v_nr       int;
+  v_rest     numeric;
+  v_baza_cas numeric;
   v_atinse   int;
   v_esecuri  int := 0;
 begin
@@ -207,6 +209,15 @@ begin
     'zile_sarbatoare_lucrate', 0, 'ore_repaus', 0, 'ore_sarbatoare', 0,
     'spor_repaus', 0, 'spor_sarbatoare', 0
   );
+  -- Cele 13 chei din 0187 — în al doilea obiect: `jsonb_build_object` acceptă
+  -- cel mult 100 de argumente, iar rândul întreg are 108.
+  v_rand := v_rand || jsonb_build_object(
+    'baza_cas', 5000, 'baza_cass', 5000, 'indemnizatie_co', 0,
+    'indemnizatie_cm_angajator', 0, 'indemnizatie_cm_fnuass', 0,
+    'zile_cm_angajator', 0, 'zile_cm_fnuass', 0, 'baza_zilnica_cm', 0,
+    'ore_supl_compensate', 0, 'avantaje_natura', 0,
+    'diurna_neimpozabila', 0, 'diurna_impozabila', 0, 'rest_de_plata', 2925
+  );
 
   -- ═══ (6) Motorul scrie [POZITIVĂ] ═════════════════════════════════════════
   perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
@@ -214,12 +225,15 @@ begin
   begin
     perform public.payroll_scrie_rezultate(v_perioada, jsonb_build_array(v_rand));
     reset role;
-    select count(*) into v_nr from public.payroll_entries where period_id = v_perioada;
-    if v_nr = 1 then
-      raise notice '  ✓ (6) `payroll_scrie_rezultate` scrie rândul de salariu';
+    select count(*), max(rest_de_plata), max(baza_cas)
+      into v_nr, v_rest, v_baza_cas
+      from public.payroll_entries where period_id = v_perioada;
+    if v_nr = 1 and v_rest = 2925 and v_baza_cas = 5000 then
+      raise notice '  ✓ (6) `payroll_scrie_rezultate` scrie rândul, cu restul de plată și baza CAS';
     else
       v_esecuri := v_esecuri + 1;
-      raise warning '  ✗ (6) motorul n-a scris nimic (% rânduri)', v_nr;
+      raise warning '  ✗ (6) % rânduri, rest_de_plata = %, baza_cas = % (așteptat 1, 2925, 5000)',
+        v_nr, v_rest, v_baza_cas;
     end if;
   exception when others then
     reset role;

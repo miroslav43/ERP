@@ -89,6 +89,8 @@ export const filtreInventarSchema = z.object({
   status: enumOptional(STATUSURI_OBIECT, "Statusul din filtru nu este valid."),
   stare: enumOptional(STARI_OBIECT, "Starea din filtru nu este validă."),
   category_id: uuidOptional,
+  /** Filtru de INTRARE (din fișa angajatului): obiectele aflate acum în primirea lui. */
+  angajat: uuidOptional,
   cursor: textOptional(400),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   /** Forma din URL: `denumire` crescător, `-denumire` descrescător. */

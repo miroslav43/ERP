@@ -96,6 +96,7 @@ export default async function PaginaSabloaneDocumente() {
         // întoarsă de RLS cu zero rânduri și fără eroare — deci vede cardul, nu
         // comenzile.
         poateEdita={can(permisiuni, "branding:update", "all")}
+        poateEditaFirma={can(permisiuni, "organizations:update", "all")}
       />
 
       <Callout fel="atentie" titlu="Textele nu sunt avizate juridic">

@@ -11,6 +11,8 @@ import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/i
 import { alegeSablon } from "@/domain/checklist/potrivire-sablon";
 import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
 import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { refuzaSubSalariulMinim } from "@/lib/contracte/prag-salariu";
 import { stergeLogic } from "@/lib/supabase/sterge-logic";
 import { salveazaCiornaInrolareSchema, inroleazaAngajatSchema } from "@/schemas/employee";
 import { predaObiect } from "@/app/(app)/inventar/actions";
@@ -30,6 +32,10 @@ interface RezultatInrolare {
   readonly invitatieTrimisaLa: string | null;
   /** Denumirea șablonului de integrare pornit automat, sau `null`. */
   readonly checklistPornit: string | null;
+  /** Instanța pornită, ca ecranul să poată duce la ea. */
+  readonly checklistId: string | null;
+  /** Bunurile predate la pasul 5, cu alocarea lor — procesul-verbal e la `/inventar/<item>/pv/<alocare>`. */
+  readonly bunuriPredate: readonly Readonly<{ alocareId: string; itemId: string }>[];
   /**
    * Ce NU s-a putut face, deși înrolarea a reușit.
    *
@@ -126,6 +132,51 @@ function textAtribuiri(text: string | null): readonly string[] {
     .filter((linie) => linie.length > 0);
 }
 
+/**
+ * Membrul ACTIV al firmei care folosește adresa dată, sau `null`.
+ *
+ * `fisaExistenta` = marca fișei principale pe care contul o are deja (un cont
+ * are cel mult una: `employees_org_user_primary_uniq`). Clientul admin, cu
+ * filtru explicit pe firmă — vezi comentariul de la apel.
+ */
+async function membruCuAdresa(
+  organizationId: string,
+  email: string,
+): Promise<Readonly<{ userId: string; rol: string; fisaExistenta: string | null }> | null> {
+  const admin = createAdminSupabase();
+  // `profiles.email` e citext: egalitatea e deja insensibilă la majuscule.
+  const { data: profil, error: eroareProfil } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (eroareProfil !== null) throw eroareProfil;
+  if (profil === null) return null;
+
+  const { data: membru, error: eroareMembru } = await admin
+    .from("organization_members")
+    .select("id, role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", profil.id)
+    .eq("status", "active")
+    .maybeSingle();
+  if (eroareMembru !== null) throw eroareMembru;
+  if (membru === null) return null;
+
+  const { data: fisa, error: eroareFisa } = await admin
+    .from("employees")
+    .select("id, marca")
+    .eq("organization_id", organizationId)
+    .eq("user_id", profil.id)
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (eroareFisa !== null) throw eroareFisa;
+
+  return { userId: profil.id, rol: membru.role, fisaExistenta: fisa?.marca ?? null };
+}
+
 export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, RezultatInrolare>({
   name: "employees.enroll",
   permission: "employees:create",
@@ -149,6 +200,13 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
   handler: async (ctx, input): Promise<RezultatInrolare> => {
     const db = ctx.supabase;
     const avertismente: string[] = [];
+
+    await refuzaSubSalariulMinim(
+      ctx.tenant.organizationId,
+      input.valabil_de_la,
+      input.salariu_baza,
+      input.norma_ore_zi,
+    );
 
     const { data: marca, error: eroareMarca } = await db.rpc("urmatoarea_marca", {
       p_organization_id: ctx.tenant.organizationId,
@@ -393,6 +451,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     // trei eșuează, primul rămâne predat și al treilea se încearcă oricum.
     // Un singur try în jurul buclei ar fi transformat un eșec într-o listă
     // predată pe jumătate, fără să se vadă unde s-a rupt.
+    const bunuriPredate: Array<Readonly<{ alocareId: string; itemId: string }>> = [];
     for (const itemId of inventory_item_ids) {
       try {
         const predare = await predaObiect({
@@ -407,6 +466,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         // fără verificarea asta, try/catch-ul n-avea ce prinde, iar bunul
         // rămânea nepredat fără avertismentul de mai jos.
         if (!predare.ok) throw predare.error;
+        bunuriPredate.push({ alocareId: predare.data.id, itemId: predare.data.item_id });
       } catch (eroare) {
         avertismente.push(
           "Un bun de inventar nu a putut fi predat. Predați-l manual din fișa angajatului — poate fi nevoie de dreptul „inventar: modificare”.",
@@ -668,14 +728,53 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
      * tipăribilă cu cod QR apare pe ecran în clipa creării.
      */
     const adresaInvitatie = adresaRealaDinFisa(fisa);
+    /*
+     * Adresa aparține unui MEMBRU EXISTENT al firmei? Atunci nu se invită, se
+     * LEAGĂ. Ordinea „întâi contul din Setări → Membri, apoi fișa" producea o
+     * invitație pe care membrul activ n-o putea accepta („nu mai este validă")
+     * și o fișă fără cont pentru totdeauna, fără nicio legare manuală în
+     * interfață (QA 8 oct 2026, ONB-030). Citirea trece prin clientul admin
+     * DELIBERAT: `profiles` și `organization_members` ale altora nu sunt
+     * vizibile sub RLS oricărui rol cu `employees:create`; filtrul pe firmă e
+     * explicit și singura scriere, `user_id`, pleacă prin clientul de sesiune.
+     */
+    const membruExistent =
+      adresaInvitatie === null
+        ? null
+        : await membruCuAdresa(ctx.tenant.organizationId, adresaInvitatie);
     if (adresaInvitatie === null) {
       avertismente.push(
         "Angajatul nu are e-mail, deci nu i s-a trimis nicio invitație. Deschideți fișa lui și apăsați „Invită în aplicație”: primește un nume de utilizator și o fișă de tipărit, cu cod QR.",
       );
+    } else if (membruExistent !== null) {
+      if (membruExistent.fisaExistenta !== null) {
+        avertismente.push(
+          `Adresa ${adresaInvitatie} aparține unui membru care are deja fișa ${membruExistent.fisaExistenta}. Fișa nouă nu a fost legată de cont și nu s-a trimis nicio invitație.`,
+        );
+      } else {
+        const { data: legata, error: eroareLegare } = await db
+          .from("employees")
+          .update({ user_id: membruExistent.userId })
+          .eq("id", angajat.id)
+          .eq("organization_id", ctx.tenant.organizationId)
+          .select("id")
+          .maybeSingle();
+        if (eroareLegare !== null) throw eroareLegare;
+        if (legata === null) {
+          throw businessRule("Fișa nu a putut fi legată de contul existent.");
+        }
+        avertismente.push(
+          `Adresa ${adresaInvitatie} aparține unui membru existent al firmei (${membruExistent.rol}): fișa a fost legată de contul lui, fără invitație nouă.`,
+        );
+      }
     } else {
       try {
         const invitatie = await creeazaInvitatie({
           db,
+          // Ocolește RLS DELIBERAT, doar pentru jurnalul de e-mail (`email_log`
+          // are INSERT/UPDATE revocate pentru `authenticated`; fără jurnal nu
+          // pleacă nimic). Organizația e cea din sesiune.
+          dbEmail: createAdminSupabase(),
           organizationId: ctx.tenant.organizationId,
           email: adresaInvitatie,
           rol: "employee",
@@ -715,6 +814,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
      * a apăsat butonul.
      */
     let checklistPornit: string | null = null;
+    let checklistId: string | null = null;
     try {
       const { data: sabloane } = await db
         .from("checklist_templates")
@@ -731,23 +831,32 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       });
 
       if (ales === null) {
-        avertismente.push(
-          "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun checklist. Creați unul din Integrare → Șabloane.",
-        );
+        // Fără modulul Integrare, șabloanele vin oricum zero (politica cere
+        // `feature_on`): avertismentul ar trimite spre un meniu care nu există.
+        if (ctx.features.has("onboarding")) {
+          avertismente.push(
+            "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun checklist. Creați unul din Integrare → Șabloane.",
+          );
+        }
       } else {
-        const { error: eroareInstanta } = await db.from("checklist_instances").insert({
-          organization_id: ctx.tenant.organizationId,
-          template_id: ales.id,
-          employee_id: angajat.id,
-          data_referinta: valabil_de_la,
-          observatii: null,
-          // Triggerul `internal.checklist_pregateste_instanta` (BEFORE INSERT)
-          // suprascrie `tip` din șablon; valoarea de aici există doar ca să
-          // compileze, exact ca în `pornesteInstanta`.
-          tip: "onboarding",
-        });
+        const { data: instanta, error: eroareInstanta } = await db
+          .from("checklist_instances")
+          .insert({
+            organization_id: ctx.tenant.organizationId,
+            template_id: ales.id,
+            employee_id: angajat.id,
+            data_referinta: valabil_de_la,
+            observatii: null,
+            // Triggerul `internal.checklist_pregateste_instanta` (BEFORE INSERT)
+            // suprascrie `tip` din șablon; valoarea de aici există doar ca să
+            // compileze, exact ca în `pornesteInstanta`.
+            tip: "onboarding",
+          })
+          .select("id")
+          .single();
         if (eroareInstanta !== null) throw eroareInstanta;
         checklistPornit = ales.denumire;
+        checklistId = instanta.id;
       }
     } catch (eroare) {
       avertismente.push(
@@ -797,6 +906,8 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       documente,
       invitatieTrimisaLa,
       checklistPornit,
+      checklistId,
+      bunuriPredate,
       avertismente,
     };
   },

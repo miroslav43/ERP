@@ -27,10 +27,13 @@ export type ZiLibera = Readonly<{
   data: string;
   denumire: string;
   sursa: SursaZiLibera;
+  /** Cererea de concediu din spatele zilei, când apelantul a dat-o; cardul o leagă. */
+  cerereId?: string;
 }>;
 
 /** Partea care contează dintr-o cerere deja citită. */
 export interface CerereCitita {
+  readonly id?: string;
   readonly data_inceput: string;
   readonly status: string;
 }
@@ -67,6 +70,7 @@ export function urmatoareaZiLibera(azi: string, cereri: readonly CerereCitita[])
       data: c.data_inceput,
       denumire: "Concediu aprobat",
       sursa: "concediu",
+      ...(c.id === undefined ? {} : { cerereId: c.id }),
     }))
     .sort((a, b) => a.data.localeCompare(b.data))[0];
 

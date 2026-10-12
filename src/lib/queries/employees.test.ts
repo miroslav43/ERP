@@ -45,6 +45,8 @@ const filtre = (modificari: Partial<FiltreAngajati> = {}): FiltreAngajati => ({
   department_id: null,
   functie: null,
   status: null,
+  punct_lucru: null,
+  contract: null,
   cursor: null,
   limita: 2,
   sort: null,

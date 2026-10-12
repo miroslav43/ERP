@@ -1,8 +1,12 @@
 import Script from "next/script";
 
+import { FUNCTIE_UMAMI } from "./adresa-analitice";
 import { BaraConsimtamant } from "./bara-consimtamant";
-import { CHEIE_CONSIMTAMANT } from "./consimtamant";
+import { BibliotecaGa } from "./biblioteca-ga";
+import { ATRIBUT_CONSIMTAMANT, CHEIE_CONSIMTAMANT } from "./consimtamant";
 import { MasurareCitire } from "./masurare-citire";
+import { PornireGa } from "./pornire-ga";
+import { PregatireUmami } from "./pregatire-umami";
 
 /**
  * Măsurarea paginilor publice.
@@ -25,6 +29,7 @@ import { MasurareCitire } from "./masurare-citire";
  * Mecanismul e Consent Mode v2, forma pe care Google o documentează: refuzul e
  * IMPLICIT, iar biblioteca pornește oricum și trimite semnale fără cookie-uri
  * până când cineva acceptă. Nu se pierde nimic din ce se poate avea legal.
+ * Excepția, din 8 oct 2026: pe paginile uneltelor, biblioteca însăși vine abia după „Accept” (`biblioteca-ga.tsx`).
  *
  * ── DE CE `next/script`, DUPĂ CE DATELE STRUCTURATE FOLOSESC `<script>` NUD ─
  * Aici chiar se execută cod și contează CÂND. JSON-LD-ul din
@@ -33,6 +38,7 @@ import { MasurareCitire } from "./masurare-citire";
  * ÎNAINTE ca `gtag.js` să se încarce — de aceea e un `<script>` obișnuit, care
  * rulează la parsare, iar biblioteca vine `afterInteractive`, adică mai târziu.
  * Inversate, cookie-ul ar fi deja scris când sosește refuzul.
+ * Pornirea (`js` + `config`) nu mai e script inline din 8 oct 2026: vezi `pornire-ga.tsx`.
  */
 export const ID_GA = "G-ZH3T2BSNJK";
 
@@ -42,8 +48,10 @@ export const ID_GA = "G-ZH3T2BSNJK";
  * Se scrie o singură dată, aici, ca șirul cheii de stocare să nu existe în două
  * locuri. `try`/`catch` fiindcă `localStorage` ARUNCĂ, nu întoarce null, în
  * fereastră privată și când browserul are stocarea blocată.
+ *
+ * Din 8 oct 2026 pune și `data-consimtamant="cere"` pe `<html>` când nu există o alegere: bara se arată din CSS, din primul cadru (`globals.css`).
  */
-const CONSIMTAMANT_IMPLICIT = `
+export const CONSIMTAMANT_IMPLICIT = `
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('consent','default',{
@@ -53,18 +61,14 @@ gtag('consent','default',{
   analytics_storage:'denied',
   wait_for_update:500
 });
-try{
-  if(localStorage.getItem('${CHEIE_CONSIMTAMANT}')==='acceptat'){
-    gtag('consent','update',{analytics_storage:'granted'});
-  }
-}catch(e){}
-`;
-
-const PORNIRE_GA = `
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', '${ID_GA}');
+var alegere=null;
+try{alegere=localStorage.getItem('${CHEIE_CONSIMTAMANT}');}catch(e){}
+if(alegere==='acceptat'){
+  gtag('consent','update',{analytics_storage:'granted'});
+}
+if(alegere!=='acceptat'&&alegere!=='refuzat'){
+  document.documentElement.setAttribute('${ATRIBUT_CONSIMTAMANT}','cere');
+}
 `;
 
 /**
@@ -109,18 +113,28 @@ export function ScriptUmami() {
     return null;
   }
   return (
-    <Script
-      src={UMAMI_SRC}
-      data-website-id={UMAMI_ID}
-      data-domains="administrativo.ro"
-      data-do-not-track="true"
-      // LCP, CLS, INP măsurate la vizitatorii reali. CrUX nu publică nimic
-      // pentru un sit cu traficul ăsta, iar PageSpeed e o simulare de laborator;
-      // altă sursă de teren nu există.
-      data-performance="true"
-      strategy="afterInteractive"
-      defer
-    />
+    <>
+      {/* Funcția numită în `data-before-send` trebuie să existe înainte ca
+          scriptul să trimită ceva. */}
+      <PregatireUmami />
+      <Script
+        src={UMAMI_SRC}
+        data-website-id={UMAMI_ID}
+        data-domains="administrativo.ro"
+        data-do-not-track="true"
+        // LCP, CLS, INP măsurate la vizitatorii reali. CrUX nu publică nimic
+        // pentru un sit cu traficul ăsta, iar PageSpeed e o simulare de laborator;
+        // altă sursă de teren nu există.
+        data-performance="true"
+        // Fără query string în `url` și `referrer`: formularele uneltelor sunt
+        // GET, deci acolo stau numele angajaților (auditul din 8 oct 2026).
+        // Umami taie singur; funcția pune înapoi doar campania (`utm_*`, `m`).
+        data-exclude-search="true"
+        data-before-send={FUNCTIE_UMAMI}
+        strategy="afterInteractive"
+        defer
+      />
+    </>
   );
 }
 
@@ -129,13 +143,11 @@ export function Analitice() {
     <>
       {/* Rulează la parsare, înaintea bibliotecii. Ordinea e tot mecanismul. */}
       <script dangerouslySetInnerHTML={{ __html: CONSIMTAMANT_IMPLICIT }} />
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${ID_GA}`}
-        strategy="afterInteractive"
-      />
-      <Script id="ga-pornire" strategy="afterInteractive">
-        {PORNIRE_GA}
-      </Script>
+      {/* Pe `/unelte*`, abia după „Accept” (`biblioteca-ga.tsx`); în rest, ca înainte. */}
+      <BibliotecaGa id={ID_GA} />
+      {/* `js` + `config` dintr-un efect, cu poarta „fără date de formular în
+          adresă” (`pornire-ga.tsx`, auditul din 8 oct 2026). */}
+      <PornireGa id={ID_GA} />
       {/*
         Aceeași componentă ca pe `/inregistrare`. Atributele scriptului —
         `data-domains`, `data-do-not-track` — se scriu într-un singur loc:

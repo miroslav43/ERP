@@ -89,7 +89,11 @@ describe("creeazaPlan", () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
     server.raspunde("maintenance_plans", "insert", { data: { id: ID_3 } });
 
-    const r = await creeazaPlan({ ...plan, urmatoarea_scadenta: "2027-01-01" });
+    const r = await creeazaPlan({
+      ...plan,
+      ultima_citire_contor: "3200",
+      urmatoarea_scadenta: "2027-01-01",
+    });
 
     expect(r).toEqual({ ok: true, data: { id: ID_3 } });
     const [apel] = server.apeluriPe("maintenance_plans");
@@ -100,6 +104,8 @@ describe("creeazaPlan", () => {
       periodicitate_zile: 365,
       periodicitate_contor: 500,
       tip_contor: "ore",
+      // Citirea de pornire intră DOAR la creare — de aici pleacă scadența pe contor.
+      ultima_citire_contor: 3200,
       activ: true,
     });
     for (const coloana of SCADENTE_PLAN) expect(apel?.payload).not.toHaveProperty(coloana);
@@ -156,7 +162,12 @@ describe("actualizeazaPlan", () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
     server.raspunde("maintenance_plans", "update", { data: { id: ID_3 } });
 
-    const r = await actualizeazaPlan({ ...plan, id: ID_3, activ: false });
+    const r = await actualizeazaPlan({
+      ...plan,
+      id: ID_3,
+      activ: false,
+      ultima_citire_contor: null,
+    });
 
     expect(r).toEqual({ ok: true, data: { id: ID_3 } });
     const [apel] = server.apeluriPe("maintenance_plans");
@@ -164,6 +175,10 @@ describe("actualizeazaPlan", () => {
     expect(apel?.payload).not.toHaveProperty("id");
     expect(apel?.payload).toMatchObject({ activ: false, denumire: "Revizie anuală" });
     for (const coloana of SCADENTE_PLAN) expect(apel?.payload).not.toHaveProperty(coloana);
+    // DEFECTUL reparat în 0180/M1: formularul trimitea `ultima_citire_contor:
+    // null` la orice editare, UPDATE-ul o scria, iar triggerul recalcula
+    // scadența pe contor de la zero. Acum coloana nu intră deloc în UPDATE.
+    expect(apel?.payload).not.toHaveProperty("ultima_citire_contor");
     expect(areFiltru(apel, "eq", "id", ID_3)).toBe(true);
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(apel?.selectDupaScriere).toBeDefined();

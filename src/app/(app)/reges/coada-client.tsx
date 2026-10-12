@@ -6,6 +6,7 @@ import { useId, useState, useTransition } from "react";
 
 import { Buton } from "@/components/ui/buton";
 import { anuleazaMesajul, pregatesteTransmiterea, transmiteMesajul } from "./actiuni-api";
+import { arataToast } from "@/components/ui/toast";
 
 type Mesaj = Readonly<{ fel: "eroare" | "succes"; text: string }>;
 
@@ -40,6 +41,19 @@ export function ButonPregateste(props: { readonly evenimentId: string }) {
               ? "Mesajele erau deja pregătite."
               : `S-au pregătit ${rezultat.data.mesaje} mesaje.`,
         });
+        // Mesajele apar în coada de mai jos; toastul cu acțiune duce la ea.
+        if (rezultat.data.mesaje > 0) {
+          arataToast({
+            fel: "reusita",
+            text: `S-au pregătit ${rezultat.data.mesaje} mesaje de transmis.`,
+            actiune: {
+              eticheta: "Vezi mesajele",
+              onClick: () => {
+                router.push("/reges?stare=de_transmis#coada-mesaje");
+              },
+            },
+          });
+        }
         router.refresh();
       } else {
         setMesaj({ fel: "eroare", text: rezultat.error.message });
@@ -68,6 +82,8 @@ export function ButonPregateste(props: { readonly evenimentId: string }) {
 export function ButonTransmite(props: {
   readonly mesajId: string;
   readonly numeAngajat: string;
+  /** Fișa salariatului, când cel care transmite o poate deschide — „Verifică fișa" înainte de a apăsa. */
+  readonly hrefAngajat?: string | null;
   readonly transmisibil: boolean;
 }) {
   const router = useRouter();
@@ -100,8 +116,20 @@ export function ButonTransmite(props: {
       {confirma ? (
         <div className="bg-surface rounded-control space-y-2 p-3">
           <p className="text-foreground text-nota">
-            Fișa lui {props.numeAngajat} pleacă la Inspecția Muncii. O corecție ulterioară rămâne
-            vizibilă în istoricul lor.
+            Fișa lui{" "}
+            {props.hrefAngajat == null ? (
+              props.numeAngajat
+            ) : (
+              <a
+                href={props.hrefAngajat}
+                target="_blank"
+                rel="noreferrer"
+                className="underline-offset-2 hover:underline"
+              >
+                {props.numeAngajat}
+              </a>
+            )}{" "}
+            pleacă la Inspecția Muncii. O corecție ulterioară rămâne vizibilă în istoricul lor.
           </p>
           <div className="flex gap-2">
             <Buton varianta="primar" onClick={trimite} disabled={inCurs}>

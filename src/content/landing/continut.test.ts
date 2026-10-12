@@ -1346,6 +1346,8 @@ describe("furnizorii externi sunt numiți în documentele legale", () => {
       "fontul imaginii Open Graph, descărcat de server la generare; nu trimite date de vizitator",
     "legislatie.just.ro":
       "legătură în afară către textul de lege, pe care o apasă cititorul; nu primește date de la noi",
+    "wa.me":
+      "legătura „Trimite pe WhatsApp” din calculatorul de salariu, pe care o apasă cititorul; textul e calculul de pe pagină, nu date de la noi",
   };
 
   it("fiecare host extern apelat din cod e numit sau scutit cu motiv", async () => {

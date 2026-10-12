@@ -103,4 +103,30 @@ describe("RandTabel", () => {
     expect(surseCurente()).toHaveLength(0);
     expect(screen.getByRole("row").getAttribute("aria-busy")).toBeNull();
   });
+
+  /**
+   * Un rând care deschide un panou peste ACEEAȘI pagină (`?doc=…` în registru)
+   * nu trebuie să sară la începutul listei: App Router derulează segmentul
+   * schimbat în vizor, iar de pe rândul 40 omul ajungea înapoi sus, cu panoul
+   * deschis peste un tabel pe care nu-l mai recunoștea.
+   */
+  it("cu `pastreazaDerularea`, navigarea cere `scroll: false`", () => {
+    render(
+      <table>
+        <tbody>
+          <RandTabel href="/registru?doc=1" pastreazaDerularea>
+            <td>Ionescu Ana</td>
+          </RandTabel>
+        </tbody>
+      </table>,
+    );
+    fireEvent.click(screen.getByText("Ionescu Ana"));
+    expect(push).toHaveBeenCalledWith("/registru?doc=1", { scroll: false });
+  });
+
+  it("fără `pastreazaDerularea`, navigarea rămâne cea obișnuită", () => {
+    randeaza("/angajati/1");
+    fireEvent.click(screen.getByText("Ionescu Ana"));
+    expect(push).toHaveBeenCalledWith("/angajati/1");
+  });
 });

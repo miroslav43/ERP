@@ -29,12 +29,14 @@ export type DosarEditabil = Readonly<{
 export function DialogDosar({ dosar }: { readonly dosar: DosarEditabil }) {
   return (
     <FormularDialog
+      // La `marime: "iconita"`, `eticheta` E pictograma (contractul din
+      // `formular-dialog.tsx`): dată ca text, ieșea din butonul de 36 px și se
+      // suprapunea peste coloana vecină — „Modifică dosarul II.5" peste contor.
       declansator={{
-        eticheta: `Modifică dosarul ${dosar.indicativ}`,
+        eticheta: <Pencil aria-hidden="true" className="size-4" />,
         varianta: "tertiar",
         marime: "iconita",
         "aria-label": `Modifică dosarul ${dosar.indicativ}`,
-        pictograma: <Pencil aria-hidden="true" className="size-4" />,
       }}
       titlu={`Dosarul ${dosar.indicativ}`}
       descriere="Nomenclatorul livrat de aplicație e un punct de plecare. Art. 11 spune că se întocmește de fiecare firmă pentru documentele proprii."

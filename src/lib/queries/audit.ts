@@ -41,6 +41,7 @@ const COLOANE =
 export const LIMITA_IMPLICITA = 50;
 export const LIMITA_MAXIMA = 200;
 export const MAX_RANDURI_EXPORT = 5000;
+const UUID_COMPLET = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGINA_EXPORT = 500;
 
 export type FiltreAudit = Readonly<{
@@ -384,7 +385,13 @@ export const interogheazaJurnal = async (
     interogare = interogare.eq("status", filtre.status);
   }
   if (filtre.entitate !== null) interogare = interogare.eq("entity_type", filtre.entitate);
-  if (filtre.entityId !== null) interogare = interogare.ilike("entity_id", `%${filtre.entityId}%`);
+  // Un UUID complet se caută EXACT: `ilike` cu `%…%` pe un index de egalitate
+  // citea toată tabela, iar „Istoricul modificărilor" de pe fișe trimite mereu id-ul întreg.
+  if (filtre.entityId !== null) {
+    interogare = UUID_COMPLET.test(filtre.entityId)
+      ? interogare.eq("entity_id", filtre.entityId)
+      : interogare.ilike("entity_id", `%${filtre.entityId}%`);
+  }
 
   const cursor = decodificaCursor(filtre.cursor);
   if (cursor !== null) {

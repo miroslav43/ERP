@@ -1,51 +1,262 @@
-import { SALARIU_MINIM_BRUT_2026_IULIE } from "@/content/legal/salarizare-publica";
+import { ADRESA_SITE } from "@/content/landing/contact";
+import {
+  estePerioada,
+  PERIOADE_2026,
+  perioadaPentruZi,
+  TICHET_MASA_VALOARE_MAXIMA,
+  valoriExpirate,
+} from "@/content/legal/salarizare-publica";
 import { parseAmount } from "@/lib/format/money";
-import { dinBrut, dinNet, type RezultatSalariu } from "@/lib/unelte/salariu";
+import {
+  BRUT_MAX,
+  brutMinimLegal,
+  calculeazaDinBrut,
+  calculeazaDinNet,
+  type OptiuniSalariu,
+  type RezultatSalariu,
+} from "@/lib/unelte/salariu";
+
+import { lei } from "./lei";
 
 /**
  * Intrările calculatorului din adresă, normalizate, și calculul lor.
  *
  * Formular GET, ca restul uneltelor: starea stă în adresă, pagina merge fără
  * JavaScript, iar un link de forma `?suma=5000` se poate trimite cuiva.
+ *
+ * O sumă care nu se poate citi NU se înlocuiește cu salariul minim: până pe
+ * 8 oct 2026, „5000 lei” și „abc” afișau calculul pentru 4.325 de lei, fără
+ * niciun mesaj. Acum pagina spune ce n-a înțeles și nu arată alt calcul.
  */
 
+/** Plafonul calculatorului, pe lună. */
+export const SUMA_MAX = 500_000;
+
+export type CitireSuma =
+  | Readonly<{ ok: true; valoare: number; rotunjita: boolean }>
+  | Readonly<{ ok: false; eroare: string }>;
+
+// „5.000”, „12.500”, „1.250.000”: punctul desparte miile, așa scrie orice român
+// și așa afișează pagina însăși. `parseAmount` e partajat cu restul aplicației
+// și citește un punct singur ca zecimal; regula de aici e doar a calculatorului,
+// unde o sumă de salariu cu trei zecimale nu există.
+const MII_CU_PUNCT = /^\d{1,3}(?:\.\d{3})+$/u;
+// „5,000”, de pe o tastatură englezească: tot mii, din același motiv.
+const MII_CU_VIRGULA = /^\d{1,3}(?:,\d{3})+$/u;
+// Spațiile (și cel neîntrerupt, din Excel) plus caracterele invizibile din copy-paste.
+const SPATII = /[\s  ​⁠﻿]/gu;
+const MONEDA = /(?:lei|ron)$/iu;
+
+export function citesteSuma(text: string): CitireSuma {
+  const curat = text.replace(SPATII, "").replace(MONEDA, "");
+  const fara = MII_CU_PUNCT.test(curat)
+    ? curat.replace(/\./gu, "")
+    : MII_CU_VIRGULA.test(curat)
+      ? curat.replace(/,/gu, "")
+      : curat;
+  const n = fara === "" ? null : parseAmount(fara);
+  if (n === null) {
+    return {
+      ok: false,
+      eroare: `Nu am înțeles suma „${text.trim().slice(0, 20)}”. Scrie-o ca 5000 sau 5.000.`,
+    };
+  }
+  // Calculatorul lucrează în lei întregi: impozitul și contribuțiile se
+  // rotunjesc la leu (OUG 59/2005), iar desfășurătorul trebuie să se închidă.
+  const valoare = Math.round(n);
+  if (valoare < 1) return { ok: false, eroare: "Suma trebuie să fie de cel puțin 1 leu." };
+  if (valoare > SUMA_MAX) {
+    return { ok: false, eroare: "Calculatorul merge până la 500.000 de lei pe lună." };
+  }
+  return { ok: true, valoare, rotunjita: valoare !== n };
+}
+
+/** O lună are cel mult 23 de zile lucrătoare; tichetele sunt cel mult câte zile lucrate (Legea 165/2018 art. 12 alin. (2)). */
+export const TICHETE_MAXIM_PE_LUNA = 23;
+
+/** Valoarea unui tichet, cu bani („40,18”); câmpul gol înseamnă fără tichete. */
+function citesteTichet(text: string): CitireSuma {
+  const curat = text.replace(SPATII, "").replace(MONEDA, "");
+  const n = curat === "" ? null : parseAmount(curat);
+  if (n === null) {
+    return { ok: false, eroare: `Nu am înțeles valoarea tichetului „${text.trim()}”.` };
+  }
+  if (n < 0 || n > 100) {
+    return {
+      ok: false,
+      eroare: "Valoarea unui tichet de masă trebuie să fie între 0 și 100 de lei.",
+    };
+  }
+  return { ok: true, valoare: Math.round(n * 100) / 100, rotunjita: false };
+}
+
 export type ParametriCalculator = Readonly<{
-  suma: number;
+  /** Textul din câmp, întors în formular așa cum l-a scris omul — și când n-a putut fi citit. */
+  text: string;
+  /** Suma citită, la leu; `null` când textul n-a putut fi citit. */
+  suma: number | null;
+  /** Prima eroare de citire: a sumei, altfel a tichetului. */
+  eroare: string | null;
+  /** Câmpul pe care îl privește `eroare`, ca formularul să-l marcheze pe el. */
+  campCuEroare: "suma" | "tichet" | null;
+  /** Suma avea bani și a fost rotunjită la leu. */
+  rotunjita: boolean;
   din: "brut" | "net";
-  /** 0–4; 4 înseamnă „4 și peste”, ca în tabelul art. 77 alin. (4). */
-  persoane: number;
-  functieDeBaza: boolean;
+  /** Valoarea tichetului, cum a scris-o omul (câmpul gol: fără tichete). */
+  textTichet: string;
+  optiuni: OptiuniSalariu;
 }>;
 
-const SUMA_MAX = 500_000;
+/** Un întreg din adresă, mărginit; `implicit` când lipsește sau nu e număr. */
+function intreg(text: string | null, implicit: number, min: number, max: number): number {
+  const n = Number.parseInt(text ?? "", 10);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : implicit;
+}
 
-export function parametriCalculator(q: URLSearchParams): ParametriCalculator {
-  const brut = parseAmount((q.get("suma") ?? "").slice(0, 20));
-  const suma =
-    brut === null || !Number.isFinite(brut) || brut <= 0
-      ? SALARIU_MINIM_BRUT_2026_IULIE
-      : Math.min(SUMA_MAX, Math.round(brut * 100) / 100);
-  const persoane = Number.parseInt(q.get("persoane") ?? "", 10);
+function optiuniDin(q: URLSearchParams, azi: string, valoareTichet: number): OptiuniSalariu {
+  const ceruta = q.get("perioada");
   return {
-    suma,
-    din: q.get("din") === "net" ? "net" : "brut",
-    persoane: Number.isFinite(persoane) ? Math.min(4, Math.max(0, persoane)) : 0,
+    perioada: estePerioada(ceruta) ? ceruta : perioadaPentruZi(azi),
+    persoane: intreg(q.get("persoane"), 0, 0, 4),
     functieDeBaza: q.get("baza") !== "nu",
+    sub26: q.get("sub26") === "da",
+    copiiScoala: intreg(q.get("copii"), 0, 0, 6),
+    tichete: {
+      valoare: valoareTichet,
+      numar: intreg(q.get("tichete"), 0, 0, TICHETE_MAXIM_PE_LUNA),
+    },
+    oreZi: intreg(q.get("ore"), 8, 1, 8),
+    contributieMinima: q.get("minim") !== "nu",
+    scutitImpozit: q.get("handicap") === "da",
+  };
+}
+
+/**
+ * @param azi Ziua curentă în România (`todayInBucharest()`), care alege perioada
+ *   când adresa n-o spune. E parametru, nu ceas citit aici, ca testele să fie fixe.
+ */
+export function parametriCalculator(q: URLSearchParams, azi: string): ParametriCalculator {
+  const textTichet = (q.get("tichet") ?? "").slice(0, 12);
+  const tichet: CitireSuma =
+    textTichet.trim() === ""
+      ? { ok: true, valoare: 0, rotunjita: false }
+      : citesteTichet(textTichet);
+  const optiuni = optiuniDin(q, azi, tichet.ok ? tichet.valoare : 0);
+  const minim = PERIOADE_2026[optiuni.perioada].salariuMinim;
+  const text = (q.get("suma") ?? "").slice(0, 20);
+  const gol = text.trim() === "";
+  const citire: CitireSuma = gol
+    ? { ok: true, valoare: minim, rotunjita: false }
+    : citesteSuma(text);
+  const eroareSuma = citire.ok ? null : citire.eroare;
+  const eroareTichet = tichet.ok ? null : tichet.eroare;
+  return {
+    text: gol ? String(minim) : text,
+    suma: citire.ok ? citire.valoare : null,
+    eroare: eroareSuma ?? eroareTichet,
+    campCuEroare: eroareSuma !== null ? "suma" : eroareTichet !== null ? "tichet" : null,
+    rotunjita: citire.ok && citire.rotunjita,
+    din: q.get("din") === "net" ? "net" : "brut",
+    textTichet,
+    optiuni,
   };
 }
 
 export type CalculCalculator = Readonly<{
   parametri: ParametriCalculator;
-  rezultat: RezultatSalariu;
-  /** Brut sub salariul minim: calculul cu normă întreagă nu se aplică (vezi pagina). */
+  /** `null` când nu există un calcul pentru cifra cerută; motivul e în `eroare`. */
+  rezultat: RezultatSalariu | null;
+  eroare: string | null;
+  /** Brutul minim legal pentru opțiunile alese: pragul lui `subMinim`. */
+  minimLegal: number;
   subMinim: boolean;
+  /** Netul cerut era sub cel de la brutul minim legal; brutul afișat e minimul. */
+  ridicatLaMinim: boolean;
+  /** Ce trebuie spus lângă un rezultat valid (un tichet peste maximul legal). */
+  avertismente: readonly string[];
+  /** Ziua de azi e după ultima perioadă cu valori verificate (31 decembrie 2026). */
+  expirat: boolean;
 }>;
 
-export function calculeazaDinParametri(q: URLSearchParams): CalculCalculator {
-  const p = parametriCalculator(q);
-  const rezultat =
-    p.din === "net"
-      ? dinNet(p.suma, p.persoane, p.functieDeBaza)
-      : dinBrut(p.suma, p.persoane, p.functieDeBaza);
-  return { parametri: p, rezultat, subMinim: rezultat.brut < SALARIU_MINIM_BRUT_2026_IULIE };
+export function calculeazaDinParametri(q: URLSearchParams, azi: string): CalculCalculator {
+  const p = parametriCalculator(q, azi);
+  const minimLegal = brutMinimLegal(p.optiuni);
+  const expirat = valoriExpirate(azi);
+  const avertismente =
+    p.optiuni.tichete.valoare > TICHET_MASA_VALOARE_MAXIMA
+      ? [
+          `Legea 165/2018 (art. 14) limitează tichetul de masă la ${String(TICHET_MASA_VALOARE_MAXIMA)} de lei. Peste, diferența nu mai e tichet de masă, ci venit cu toate contribuțiile; calculul de mai sus o tratează totuși ca tichet.`,
+        ]
+      : [];
+  const faraRezultat = (eroare: string | null): CalculCalculator => ({
+    parametri: p,
+    rezultat: null,
+    eroare,
+    minimLegal,
+    subMinim: false,
+    ridicatLaMinim: false,
+    avertismente: [],
+    expirat,
+  });
+  if (p.eroare !== null || p.suma === null) return faraRezultat(p.eroare);
+  if (p.din === "brut") {
+    const rezultat = calculeazaDinBrut(p.suma, p.optiuni);
+    return {
+      parametri: p,
+      rezultat,
+      eroare: null,
+      minimLegal,
+      subMinim: rezultat.brut < minimLegal,
+      ridicatLaMinim: false,
+      avertismente,
+      expirat,
+    };
+  }
+  const r = calculeazaDinNet(p.suma, p.optiuni);
+  if (r === null) {
+    return faraRezultat(
+      `Pentru un net de ${lei(p.suma)} ar trebui un brut de peste ${lei(BRUT_MAX)}, cât acoperă calculatorul.`,
+    );
+  }
+  return {
+    parametri: p,
+    rezultat: r.rezultat,
+    eroare: null,
+    minimLegal,
+    subMinim: r.rezultat.brut < minimLegal,
+    ridicatLaMinim: r.ridicatLaMinim,
+    avertismente,
+    expirat,
+  };
+}
+
+/**
+ * Adresa de trimis pentru calculul curent: doar parametrii diferiți de implicit,
+ * plus perioada. Implicitul perioadei depinde de zi, iar o legătură trimisă în
+ * iunie trebuie să deschidă tot iunie și în iulie.
+ */
+export function adresaPartajabila(p: ParametriCalculator): string {
+  const o = p.optiuni;
+  const q = new URLSearchParams();
+  if (p.suma !== null) q.set("suma", String(p.suma));
+  if (p.din === "net") q.set("din", "net");
+  q.set("perioada", o.perioada);
+  if (o.persoane > 0) q.set("persoane", String(o.persoane));
+  if (!o.functieDeBaza) q.set("baza", "nu");
+  if (o.sub26) q.set("sub26", "da");
+  if (o.copiiScoala > 0) q.set("copii", String(o.copiiScoala));
+  if (o.tichete.valoare > 0 && o.tichete.numar > 0) {
+    q.set("tichet", String(o.tichete.valoare));
+    q.set("tichete", String(o.tichete.numar));
+  }
+  if (o.oreZi < 8) q.set("ore", String(o.oreZi));
+  if (!o.contributieMinima) q.set("minim", "nu");
+  if (o.scutitImpozit) q.set("handicap", "da");
+  return `${ADRESA_SITE}/unelte/calculator-salariu?${q.toString()}#rezultat`;
+}
+
+/** Legătura „Trimite pe WhatsApp”: un link `wa.me`, fără script, care merge și fără JavaScript. */
+export function legaturaWhatsApp(r: RezultatSalariu, adresa: string): string {
+  const text = `Calcul salariu: net ${lei(r.net)} din brut ${lei(r.brut)}, cost pentru firmă ${lei(r.costTotal)}. ${adresa}`;
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }

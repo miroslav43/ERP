@@ -15,6 +15,10 @@ import {
   RUTA_AUTENTIFICARE,
   RUTA_DUPA_AUTENTIFICARE,
 } from "@/config/routes";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_SETARI } from "@/config/file-module";
+import { rutaEntitatei, rutaValorii } from "@/lib/audit/rute";
+import { getEnabledFeatures } from "@/lib/auth/features";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -35,7 +39,10 @@ export default async function PaginaAuditOrganizatie({ searchParams }: Props) {
   if (rezolvare.status !== "ok") redirect(RUTA_DUPA_AUTENTIFICARE);
 
   const { tenant } = rezolvare;
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  const [permisiuni, module] = await Promise.all([
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
+  ]);
   const scope = scopeFor(permisiuni, "audit:read");
 
   // `none` este refuz explicit, la fel ca orice scope mai mic decât `all` (S3).
@@ -62,11 +69,22 @@ export default async function PaginaAuditOrganizatie({ searchParams }: Props) {
     <div className={`${LATIMI.lista} space-y-6`}>
       <AntetPagina
         titlu="Jurnal de audit"
+        file={<FileModul eticheta="Navigare setări" file={FILE_SETARI} tenant={tenant} />}
         descriere={`Ce s-a întâmplat în ${tenant.name}: cine, ce și când. Înregistrările nu pot fi modificate sau șterse.`}
       />
 
       <Suspense key={cheieFiltre(filtre)} fallback={<ScheletAudit />}>
-        <JurnalAudit cale={CALE} filtre={filtre} mod="organizatie" />
+        <JurnalAudit
+          cale={CALE}
+          filtre={filtre}
+          mod="organizatie"
+          rutaEntitate={(tip, id) =>
+            rutaEntitatei(tip, id, { features: module, permissions: permisiuni })
+          }
+          rutaValoare={(cale, valoare) =>
+            rutaValorii(cale, valoare, { features: module, permissions: permisiuni })
+          }
+        />
       </Suspense>
     </div>
   );

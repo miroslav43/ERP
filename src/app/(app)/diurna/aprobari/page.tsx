@@ -8,16 +8,23 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { formatAmount, formatLei } from "@/lib/format/money";
-import { angajatiDupaId, listeazaDeplasari, type RandDeplasare } from "@/lib/queries/per-diem";
+import {
+  angajatiDupaId,
+  listeazaDeplasari,
+  type AngajatRezumat,
+  type RandDeplasare,
+} from "@/lib/queries/per-diem";
 
 import { NavDiurna } from "../nav-diurna";
 import { ETICHETE_MIJLOC_TRANSPORT } from "../etichete";
 import { DecizieDeplasare } from "./decizie-deplasare";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { hrefFisa } from "@/lib/navigare/fisa";
 
 export const metadata: Metadata = { title: "Deplasări de aprobat" };
 
@@ -26,11 +33,13 @@ function ListaGrup({
   randuri,
   angajati,
   status,
+  permisiuni,
 }: {
   readonly titlu: string;
   readonly randuri: readonly RandDeplasare[];
-  readonly angajati: ReadonlyMap<string, Readonly<{ full_name: string | null; marca: string }>>;
+  readonly angajati: ReadonlyMap<string, AngajatRezumat>;
   readonly status: "in_aprobare" | "aprobata";
+  readonly permisiuni: PermissionMap;
 }) {
   if (randuri.length === 0) return null;
 
@@ -50,10 +59,24 @@ function ListaGrup({
                     <Link href={`/diurna/${r.id}`} className="underline-offset-2 hover:underline">
                       {r.scop}
                     </Link>
+                    {/* „Marchează decontată" închide un decont pe care aprobatorul nu-l vedea. */}
+                    {status === "aprobata" ? (
+                      <>
+                        {" · "}
+                        <Link
+                          href={`/diurna/${r.id}/decont`}
+                          className="text-muted-foreground text-nota underline-offset-2 hover:underline"
+                        >
+                          decontul
+                        </Link>
+                      </>
+                    ) : null}
                     {angajat === undefined ? null : (
                       <span className="text-muted-foreground">
-                        {" "}
-                        · {angajat.full_name ?? "—"} ({angajat.marca})
+                        {" · "}
+                        <LinkEntitate href={hrefFisa(angajat, permisiuni)}>
+                          {angajat.full_name ?? "—"} ({angajat.marca})
+                        </LinkEntitate>
                       </span>
                     )}
                   </p>
@@ -104,10 +127,26 @@ function ListaGrup({
   );
 }
 
-async function ListaDeAprobat({ organizationId }: { readonly organizationId: string }) {
+async function ListaDeAprobat({
+  organizationId,
+  permisiuni,
+}: {
+  readonly organizationId: string;
+  readonly permisiuni: PermissionMap;
+}) {
   const [inAprobare, aprobate] = await Promise.all([
-    listeazaDeplasari(organizationId, { status: "in_aprobare", cursor: null, limita: 100 }),
-    listeazaDeplasari(organizationId, { status: "aprobata", cursor: null, limita: 100 }),
+    listeazaDeplasari(organizationId, {
+      status: "in_aprobare",
+      angajat: null,
+      cursor: null,
+      limita: 100,
+    }),
+    listeazaDeplasari(organizationId, {
+      status: "aprobata",
+      angajat: null,
+      cursor: null,
+      limita: 100,
+    }),
   ]);
 
   if (inAprobare.randuri.length === 0 && aprobate.randuri.length === 0) {
@@ -131,12 +170,14 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
         randuri={inAprobare.randuri}
         angajati={angajati}
         status="in_aprobare"
+        permisiuni={permisiuni}
       />
       <ListaGrup
         titlu="Aprobate — de decontat"
         randuri={aprobate.randuri}
         angajati={angajati}
         status="aprobata"
+        permisiuni={permisiuni}
       />
     </div>
   );
@@ -166,7 +207,7 @@ export default async function PaginaAprobari() {
       />
 
       <Suspense fallback={<Schelet forma="lista" />}>
-        <ListaDeAprobat organizationId={tenant.organizationId} />
+        <ListaDeAprobat organizationId={tenant.organizationId} permisiuni={permisiuni} />
       </Suspense>
     </div>
   );

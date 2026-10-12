@@ -39,14 +39,17 @@ export function FormularTichet({
   obiecteAlocate,
   modulCurent,
   prefixCale = "/ticketing",
+  obiectImplicit = null,
 }: Readonly<{
   obiecteAlocate: readonly ObiectAlocat[];
   modulCurent: string;
   prefixCale?: string;
+  /** `?obiect=<id>` din cardul „În primirea mea": tipul sare direct la defecțiune, pe obiectul ăla. */
+  obiectImplicit?: string | null;
 }>) {
   const router = useRouter();
   const id = useId();
-  const [tip, setTip] = useState<TipTichet | null>(null);
+  const [tip, setTip] = useState<TipTichet | null>(obiectImplicit === null ? null : "defectiune");
   const [erori, setErori] = useState<Readonly<Record<string, readonly string[]>> | null>(null);
   const [eroareGenerala, setEroareGenerala] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
@@ -281,7 +284,7 @@ export function FormularTichet({
               <select
                 id={`${id}-obiect`}
                 name="inventory_item_id"
-                defaultValue={pastrat("inventory_item_id")}
+                defaultValue={pastrat("inventory_item_id", obiectImplicit ?? "")}
                 className={CLASA_CAMP}
               >
                 <option value="">— Alege —</option>

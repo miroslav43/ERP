@@ -24,6 +24,7 @@ import {
   listeazaInstante,
   progresInstante,
   type AngajatRezumat,
+  citesteSablon,
 } from "@/lib/queries/checklist";
 import { filtreInstanteSchema } from "@/schemas/checklist";
 
@@ -225,6 +226,10 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
   const angajati = poateVedeaAngajati ? await angajatiActivi(tenant.organizationId) : null;
   // Aceleași filtre pe care le vede lista: bara le arată în câmpuri și ca pastile.
   const filtre = filtreDinUrl(filtreInstanteSchema, parametri);
+  const numeSablon =
+    filtre.sablon === null
+      ? null
+      : ((await citesteSablon(tenant.organizationId, filtre.sablon))?.denumire ?? null);
 
   return (
     <div className="space-y-6">
@@ -248,7 +253,7 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
         file={<NavOnboarding />}
       />
 
-      <FiltreInstante angajati={angajati} filtre={filtre} />
+      <FiltreInstante angajati={angajati} filtre={filtre} numeSablon={numeSablon} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelInstante

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 // src/app/(app)/cursuri/[id]/constructor-curs.tsx
 //
 // ── GESTUL CEL MAI FRECVENT E LA UN CLIC ──────────────────────────────────
@@ -124,7 +126,14 @@ export function ConstructorCurs({
                     {i + 1}.
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{lectie.titlu}</p>
+                    <p className="font-medium">
+                      <Link
+                        href={`/cursuri/biblioteca/${lectie.material_id}`}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {lectie.titlu}
+                      </Link>
+                    </p>
                     <p className="text-muted-foreground text-nota mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span>{ETICHETE_FEL[lectie.fel]}</span>
                       <span aria-hidden="true">·</span>
@@ -137,9 +146,12 @@ export function ConstructorCurs({
                       )}
                       {lectie.obligatoriu ? null : <Badge ton="neutru">Opțională</Badge>}
                       {lectie.are_versiune ? null : (
-                        <Badge ton="pericol" cuAvertisment>
-                          Fără conținut
-                        </Badge>
+                        // Problema se repară pe pagina materialului: insigna duce acolo.
+                        <Link href={`/cursuri/biblioteca/${lectie.material_id}`}>
+                          <Badge ton="pericol" cuAvertisment>
+                            {poateEdita ? "Fără conținut · încărcați" : "Fără conținut"}
+                          </Badge>
+                        </Link>
                       )}
                     </p>
                   </div>
@@ -296,7 +308,14 @@ export function ConstructorCurs({
                       <Film className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{material.titlu}</p>
+                      <p className="truncate font-medium">
+                        <Link
+                          href={`/cursuri/biblioteca/${material.id}`}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          {material.titlu}
+                        </Link>
+                      </p>
                       <p className="text-muted-foreground text-nota">
                         {ETICHETE_TREAPTA[material.treapta_dovada]}
                         {/* Motivul, scris lângă butonul stins — nu doar în

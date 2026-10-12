@@ -39,10 +39,29 @@ import {
 } from "../../../(app)/evaluari/kpi/etichete";
 
 import { FaraFisa } from "../fara-fisa";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "KPI-ul meu" };
 
-export default async function PaginaKpiulMeu() {
+export default async function PaginaKpiulMeu({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `?an=&luna=`: o lună încheiată, deschisă din istoric sau din notificarea
+  // de închidere; altfel luna curentă.
+  const parametri = await searchParams;
+  const anCerut = Number(parametri["an"]);
+  const lunaCeruta = Number(parametri["luna"]);
+  const perioadaCeruta =
+    Number.isInteger(anCerut) &&
+    anCerut >= 2000 &&
+    anCerut <= 2100 &&
+    Number.isInteger(lunaCeruta) &&
+    lunaCeruta >= 1 &&
+    lunaCeruta <= 12
+      ? { an: anCerut, luna: lunaCeruta }
+      : null;
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
@@ -63,8 +82,9 @@ export default async function PaginaKpiulMeu() {
   if (stare.stare !== "ok") return <FaraFisa stare={stare} numeOrganizatie={tenant.name} />;
 
   const acum = new Date();
-  const an = acum.getFullYear();
-  const lunaCurenta = acum.getMonth() + 1;
+  const an = perioadaCeruta?.an ?? acum.getFullYear();
+  const lunaCurenta = perioadaCeruta?.luna ?? acum.getMonth() + 1;
+  const esteLunaDeAcum = perioadaCeruta === null;
   const { luna, serie, aplicabil } = await kpiAngajat(
     tenant.organizationId,
     stare.fisa.id,
@@ -72,7 +92,7 @@ export default async function PaginaKpiulMeu() {
     lunaCurenta,
   );
 
-  // Seria de sub luna curentă: lunile ÎNCHEIATE, fără cea afișată sus.
+  // Seria de sub luna afișată: lunile ÎNCHEIATE, fără cea afișată sus.
   const istoric = serie.filter((p) => !(p.an === an && p.luna === lunaCurenta));
 
   if (luna === null && aplicabil.set === null) {
@@ -104,7 +124,20 @@ export default async function PaginaKpiulMeu() {
       {/* ── Luna în curs ───────────────────────────────────────────────── */}
       <section className="border-foreground/15 bg-card space-y-3 rounded-lg border p-4">
         <header className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-medium">{numeLuna(an, lunaCurenta)}</h2>
+          <h2 className="font-medium">
+            {numeLuna(an, lunaCurenta)}
+            {esteLunaDeAcum ? null : (
+              <>
+                {" "}
+                <Link
+                  href="/portal/kpi-ul-meu"
+                  className="text-muted-foreground text-nota font-normal underline-offset-2 hover:underline"
+                >
+                  Înapoi la luna curentă
+                </Link>
+              </>
+            )}
+          </h2>
           {luna === null ? (
             <Badge ton="neutru">Neîncepută</Badge>
           ) : (
@@ -198,7 +231,13 @@ export default async function PaginaKpiulMeu() {
           <ul className="divide-foreground/10 border-foreground/15 divide-y rounded-lg border">
             {istoric.map((p) => (
               <li key={p.id} className="flex items-center gap-3 p-3">
-                <span className="font-medium">{numeLuna(p.an, p.luna)}</span>
+                {/* Luna încheiată se deschide în locul celei de sus: liniile, țintele, concluzia. */}
+                <Link
+                  href={`/portal/kpi-ul-meu?an=${String(p.an)}&luna=${String(p.luna)}`}
+                  className="font-medium underline-offset-2 hover:underline"
+                >
+                  {numeLuna(p.an, p.luna)}
+                </Link>
                 <Badge ton={TONURI_STATUS_KPI[p.status]}>{ETICHETE_STATUS_KPI[p.status]}</Badge>
                 <span className="ms-auto font-semibold tabular-nums">
                   {p.scor_procent === null ? "—" : `${String(p.scor_procent)} %`}

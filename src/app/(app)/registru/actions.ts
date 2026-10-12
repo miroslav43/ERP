@@ -60,6 +60,7 @@ export const inregistreazaDocumentManual = createAction({
       p_numar_file: input.numar_file,
       p_numar_anexe: input.numar_anexe,
       p_punct_lucru_id: input.punct_lucru_id,
+      p_angajat_id: input.angajat_id,
     });
     if (error !== null) traduEroare(error);
 

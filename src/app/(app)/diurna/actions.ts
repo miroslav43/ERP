@@ -3,8 +3,9 @@
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/errors";
+import { businessRule, invalidInput, isPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import type { ServerSupabase } from "@/lib/supabase/server";
 import {
   cheltuialaNouaSchema,
   decizieCheltuialaSchema,
@@ -53,6 +54,152 @@ async function fisaProprie(organizationId: string, userId: string): Promise<stri
     );
   }
   return data.id;
+}
+
+/** Ca `fisaProprie`, dar `null` când contul n-are fișă (un administrator pur). */
+async function fisaProprieSauNull(organizationId: string, userId: string): Promise<string | null> {
+  const admin = createAdminSupabase();
+  const { data, error } = await admin
+    .from("employees")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw error;
+  return data?.id ?? null;
+}
+
+/**
+ * Fișa pe care stă deplasarea, citită PRIN RLS: dacă apelantul n-o vede, n-o
+ * poate nici trimite, nici decide. Decide „e a mea sau a altcuiva" — singura
+ * întrebare pe care politicile n-o pun: `is_manager_of` include propria fișă
+ * în „echipă", iar `business_trips_update` lasă aprobatorul să schimbe orice
+ * coloană, inclusiv `status`-ul unei ciorne care nu e a lui.
+ */
+async function fisaDeplasarii(
+  supabase: ServerSupabase,
+  organizationId: string,
+  id: string,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("business_trips")
+    .select("employee_id")
+    .eq("id", id)
+    .eq("organization_id", organizationId)
+    .maybeSingle<{ readonly employee_id: string }>();
+  if (error !== null) traduEroare(error);
+  if (data === null) throw notFound("Deplasarea nu a fost găsită.");
+  return data.employee_id;
+}
+
+/**
+ * Notificările deplasării — un plus, nu poarta (regula din `concedii/actions.ts`):
+ * un INSERT picat se loghează, trimiterea sau decizia rămâne dată.
+ *
+ * ⚠ service_role: politica de INSERT pe `notifications` (0144) lasă un
+ * utilizator să scrie doar pentru SINE sau cu `announcements:create`; aici se
+ * scrie pentru manager și pentru angajat. Fiecare citire e filtrată explicit pe
+ * `organization_id`, deci lotul nu iese din firmă.
+ *
+ * Destinatarii la trimitere: managerul direct (`per_diem:approve = team`) și
+ * administratorii firmei (`all`), fără cel care trimite și fără hr, care n-are
+ * `per_diem:approve`. Linkul e fișa deplasării, unde stă `DecizieDeplasare`.
+ */
+async function anuntaAprobatorii(
+  organizationId: string,
+  expeditorUserId: string,
+  tripId: string,
+  employeeId: string,
+): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const [fisa, admini] = await Promise.all([
+      admin
+        .from("employees")
+        .select("full_name, manager_employee_id")
+        .eq("organization_id", organizationId)
+        .eq("id", employeeId)
+        .maybeSingle(),
+      admin
+        .from("organization_members")
+        .select("user_id")
+        .eq("organization_id", organizationId)
+        .eq("role", "org_admin")
+        .eq("status", "active")
+        .is("deleted_at", null),
+    ]);
+    if (fisa.error !== null) throw fisa.error;
+    if (admini.error !== null) throw admini.error;
+    const destinatari = new Set((admini.data ?? []).map((m) => m.user_id));
+    const managerId = fisa.data?.manager_employee_id ?? null;
+    if (managerId !== null) {
+      const { data: manager, error } = await admin
+        .from("employees")
+        .select("user_id")
+        .eq("organization_id", organizationId)
+        .eq("id", managerId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (error !== null) throw error;
+      if (manager?.user_id != null) destinatari.add(manager.user_id);
+    }
+    destinatari.delete(expeditorUserId);
+    if (destinatari.size === 0) return;
+    const nume = fisa.data?.full_name ?? "Un angajat";
+    const { error } = await admin.from("notifications").insert(
+      [...destinatari].map((userId) => ({
+        organization_id: organizationId,
+        user_id: userId,
+        kind: "task" as const,
+        title: "Deplasare de aprobat",
+        body: `${nume} a trimis o deplasare spre aprobare.`,
+        link: `/diurna/${tripId}`,
+        entity_type: "business_trip",
+        entity_id: tripId,
+      })),
+    );
+    if (error !== null) throw error;
+  } catch (eroare) {
+    console.error("[diurna] notificarea aprobatorilor a eșuat", { tripId, eroare });
+  }
+}
+
+/** Decizia ajunge la cel care a cerut deplasarea, în portal, pe deplasarea lui. */
+async function anuntaProprietarul(
+  organizationId: string,
+  tripId: string,
+  employeeId: string,
+  decizie: "aprobata" | "respinsa",
+): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const { data: fisa, error } = await admin
+      .from("employees")
+      .select("user_id")
+      .eq("organization_id", organizationId)
+      .eq("id", employeeId)
+      .maybeSingle();
+    if (error !== null) throw error;
+    if (fisa?.user_id == null) return;
+    const aprobata = decizie === "aprobata";
+    const { error: eroareInsert } = await admin.from("notifications").insert({
+      organization_id: organizationId,
+      user_id: fisa.user_id,
+      kind: aprobata ? ("success" as const) : ("warning" as const),
+      title: aprobata ? "Deplasarea a fost aprobată" : "Deplasarea a fost respinsă",
+      body: aprobata
+        ? "Decontul se depune la întoarcere, din aceeași deplasare."
+        : "Deschideți deplasarea ca să vedeți ce trebuie corectat înainte de a o retrimite.",
+      link: `/portal/diurna-mea/${tripId}`,
+      entity_type: "business_trip",
+      entity_id: tripId,
+    });
+    if (eroareInsert !== null) throw eroareInsert;
+  } catch (eroare) {
+    console.error("[diurna] notificarea deciziei a eșuat", { tripId, eroare });
+  }
 }
 
 export const creeazaDeplasare = createAction({
@@ -136,13 +283,28 @@ export const trimiteDeplasare = createAction({
   },
   revalidate: ["/diurna", "/diurna/aprobari", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // Sub `all`, doar propria deplasare pleacă spre aprobare. Managerul are
+    // `per_diem:update = own` (0154), dar politica îl lăsa să treacă prin ramura
+    // de aprobare și să trimită ciorna unui subordonat (QA 8 oct 2026, MGR-017).
+    if (ctx.scope !== "all") {
+      const [aMea, aDeplasarii] = await Promise.all([
+        fisaProprie(ctx.tenant.organizationId, ctx.user.id),
+        fisaDeplasarii(ctx.supabase, ctx.tenant.organizationId, input.id),
+      ]);
+      if (aMea !== aDeplasarii) {
+        throw businessRule(
+          "Puteți trimite spre aprobare doar propria deplasare. Ciorna unui coleg o trimite el însuși.",
+        );
+      }
+    }
+
     const { data, error } = await ctx.supabase
       .from("business_trips")
       .update({ status: "in_aprobare" })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .in("status", ["ciorna", "respinsa"])
-      .select("id")
+      .select("id, employee_id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     // Un UPDATE respins de clauza USING a RLS nu produce eroare — afectează
@@ -153,6 +315,7 @@ export const trimiteDeplasare = createAction({
         "Deplasarea nu mai poate fi trimisă spre aprobare: fie nu a fost găsită, fie starea ei s-a schimbat între timp.",
       );
     }
+    await anuntaAprobatorii(ctx.tenant.organizationId, ctx.user.id, data.id, data.employee_id);
     return { id: data.id };
   },
 });
@@ -204,13 +367,26 @@ export const decideDeplasare = createAction({
   },
   revalidate: ["/diurna", "/diurna/aprobari", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // Nimeni nu-și decide propria deplasare — nici managerul, al cărui scope
+    // `team` îl cuprinde și pe el (QA 8 oct 2026, MGR-015). La concedii
+    // excluderea stă în lanțul de aprobare; diurna n-are lanț, deci stă aici.
+    const [aMea, aDeplasarii] = await Promise.all([
+      fisaProprieSauNull(ctx.tenant.organizationId, ctx.user.id),
+      fisaDeplasarii(ctx.supabase, ctx.tenant.organizationId, input.id),
+    ]);
+    if (aMea !== null && aMea === aDeplasarii) {
+      throw businessRule(
+        "Nu vă puteți aproba sau respinge propria deplasare. Decizia o ia managerul dumneavoastră direct.",
+      );
+    }
+
     const { data, error } = await ctx.supabase
       .from("business_trips")
       .update({ status: input.decizie })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("status", "in_aprobare")
-      .select("id")
+      .select("id, employee_id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     if (data === null) {
@@ -218,6 +394,7 @@ export const decideDeplasare = createAction({
         "Decizia nu a putut fi înregistrată: deplasarea nu mai este în aprobare — poate a fost deja decisă din altă parte.",
       );
     }
+    await anuntaProprietarul(ctx.tenant.organizationId, data.id, data.employee_id, input.decizie);
     return { id: data.id };
   },
 });

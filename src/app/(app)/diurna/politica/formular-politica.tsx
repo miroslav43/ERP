@@ -17,6 +17,7 @@ import { REGULI_TRECERE_FRONTIERA } from "@/schemas/per-diem";
 import { creeazaPolitica } from "../actions";
 import { ETICHETE_REGULA_TRECERE } from "../etichete";
 import { BaremuriTari, type RandBaremAfisat } from "./baremuri-tari";
+import Link from "next/link";
 
 /** Monedele care apar primele în lista diurnei externe; restul vin din țări. */
 const MONEDE_UZUALE = ["EUR", "USD", "GBP", "CHF"] as const;
@@ -50,12 +51,15 @@ export function FormularPolitica({
   valoriLegale,
   baremuri,
   dateOcupate,
+  hrefDeplasareNoua = null,
 }: {
   readonly tari: readonly Tara[];
   readonly valoriLegale: readonly ValoriLegaleDiurna[];
   readonly baremuri: readonly RandBaremAfisat[];
   /** `valabil_de_la` al versiunilor existente — o singură versiune pe zi. */
   readonly dateOcupate: readonly string[];
+  /** `/diurna/noua` când rolul poate crea deplasări: cine vine de acolo se întoarce. */
+  readonly hrefDeplasareNoua?: string | null;
 }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
@@ -458,6 +462,15 @@ export function FormularPolitica({
           <p role="status" className="text-foreground text-corp">
             Versiune salvată. Deplasările plecate de la {formatDate(valabilDeLa)} încolo se
             calculează cu ea.
+            {hrefDeplasareNoua === null ? null : (
+              <>
+                {" "}
+                <Link href={hrefDeplasareNoua} className="underline underline-offset-2">
+                  Deplasare nouă
+                </Link>
+                .
+              </>
+            )}
           </p>
         ) : null}
       </div>

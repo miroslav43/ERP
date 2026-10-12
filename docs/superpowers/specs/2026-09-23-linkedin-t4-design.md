@@ -82,6 +82,13 @@ face o singură dată, în contul de cabinet, nu de două ori.
 
 ## 2. Calendarul
 
+> **Revizie, 8 oct 2026 (Miro):** de la lotul 2, ținta trece de pe vânzare pe
+> **reach organic**: o postare pe zi lucrătoare, doar pagina de firmă, culise
+> tehnice fără povestea uneltelor de construcție, pilotul o singură dată, într-un
+> P.S. Lotul 2 (`docs/comercial/linkedin/lot-02.md`, #5–#22, 12–30 oct) înlocuiește
+> rândurile #5–#12 de mai jos. Restul calendarului rămâne rezervor de subiecte, nu
+> program. Starea curentă: `docs/comercial/linkedin/README.md`.
+
 **C** = carusel 6–8 slide-uri, marți · **I** = imagine unică, joi ·
 ★ = îndemn spre pilot · ⧗ = dependență · ↺ = mutată de pe o zi nepotrivită.
 

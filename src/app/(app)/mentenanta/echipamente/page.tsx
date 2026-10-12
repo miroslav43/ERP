@@ -1,8 +1,8 @@
 // src/app/(app)/mentenanta/echipamente/page.tsx
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
-import { Wrench, WrenchIcon } from "lucide-react";
+import Link from "next/link";
+import { Download, QrCode, Wrench, WrenchIcon } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -13,16 +13,28 @@ import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { listeazaEchipamente } from "@/lib/queries/maintenance";
+import {
+  categoriiEchipamente,
+  citesteEchipament,
+  listeazaEchipamente,
+  opririDeschise,
+  optiuniAngajati,
+  optiuniDepartamente,
+  optiuniEchipamente,
+} from "@/lib/queries/maintenance";
 import { filtreEchipamenteSchema } from "@/schemas/maintenance";
 
 import { ETICHETE_STATUS_ECHIPAMENT, TONURI_STATUS_ECHIPAMENT } from "../etichete";
-import { NavMentenanta } from "../nav-mentenanta";
+import { optiuniPuncteLucru } from "./actions";
+import { DialogEchipamentNou } from "./dialog-echipament-nou";
 import { FiltreEchipamenteForm } from "./filtre-echipamente";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_MENTENANTA } from "@/config/file-module";
 
 export const metadata: Metadata = { title: "Echipamente" };
 
@@ -30,31 +42,56 @@ interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
+/** Adresa fostei rute `/mentenanta/echipamente/nou`, acum caseta de pe listă. */
+const ADRESA_ECHIPAMENT_NOU = "/mentenanta/echipamente?echipament=nou";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+const CHEI_FILTRE = [
+  "cauta",
+  "status",
+  "categorie",
+  "punct_lucru",
+  "iscir",
+  "responsabil",
+  "cursor",
+] as const;
+
+/** Parametrii curenți, ca șir de interogare — pentru export și pentru etichete. */
+function sirParametri(parametri: Record<string, string | string[] | undefined>): string {
+  const p = new URLSearchParams();
+  for (const [cheie, valoare] of Object.entries(parametri)) {
+    if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+  }
+  return p.toString();
+}
+
 async function TabelEchipamente({
   organizationId,
   parametri,
+  poateAdauga,
+  azi,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly poateAdauga: boolean;
+  readonly azi: string;
 }) {
   const filtre = filtreDinUrl(filtreEchipamenteSchema, parametri);
-  const { randuri, urmatorulCursor, total, sortare } = await listeazaEchipamente(
-    organizationId,
-    filtre,
-  );
+  const [{ randuri, urmatorulCursor, total, sortare }, opriri] = await Promise.all([
+    listeazaEchipamente(organizationId, filtre),
+    opririDeschise(organizationId),
+  ]);
 
   /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
   function adresa(schimba: (p: URLSearchParams) => void): string {
-    const p = new URLSearchParams();
-    for (const [cheie, valoare] of Object.entries(parametri)) {
-      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
-    }
+    const p = new URLSearchParams(sirParametri(parametri));
     schimba(p);
     return p.size === 0 ? "/mentenanta/echipamente" : `/mentenanta/echipamente?${p.toString()}`;
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.status !== null || filtre.cauta !== null;
+    const areFiltre = CHEI_FILTRE.some((c) => c !== "cursor" && filtre[c] !== null);
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -71,17 +108,14 @@ async function TabelEchipamente({
           ? {
               actiune: {
                 eticheta: "Șterge filtrele",
-                // Nu `/mentenanta/echipamente` gol: butonul ăsta șterge FILTRELE,
-                // nu ordinea aleasă din antet și nici mărimea de pagină. Aceleași
-                // chei ca ale barei, plus cursorul, care n-are ce continua.
                 href: adresa((p) => {
-                  p.delete("cauta");
-                  p.delete("status");
-                  p.delete("cursor");
+                  for (const c of CHEI_FILTRE) p.delete(c);
                 }),
               },
             }
-          : {})}
+          : poateAdauga
+            ? { actiune: { eticheta: "Adaugă echipament", href: ADRESA_ECHIPAMENT_NOU } }
+            : {})}
       />
     );
   }
@@ -103,6 +137,12 @@ async function TabelEchipamente({
       celula: (e) => e.denumire,
     },
     {
+      cheie: "categorie",
+      antet: "Categorie",
+      peTelefon: "meta",
+      celula: (e) => e.categorie ?? "—",
+    },
+    {
       cheie: "locatie",
       antet: "Locație",
       peTelefon: "meta",
@@ -112,8 +152,6 @@ async function TabelEchipamente({
       cheie: "iscir",
       antet: "ISCIR",
       latime: "ingusta",
-      // Pictogramă fără text: nu are ce spune pe cardul de telefon, unde
-      // rândul mărunt e o înșiruire de valori citite cu voce tare.
       peTelefon: "ascuns",
       celula: (e) =>
         e.este_iscir ? (
@@ -127,11 +165,24 @@ async function TabelEchipamente({
       antet: "Stare",
       sortabil: true,
       peTelefon: "insigna",
-      celula: (e) => (
-        <Badge ton={TONURI_STATUS_ECHIPAMENT[e.status]}>
-          {ETICHETE_STATUS_ECHIPAMENT[e.status]}
-        </Badge>
-      ),
+      celula: (e) => {
+        const oprire = opriri.get(e.id);
+        return (
+          <span className="flex flex-wrap gap-1">
+            <Badge ton={TONURI_STATUS_ECHIPAMENT[e.status]}>
+              {ETICHETE_STATUS_ECHIPAMENT[e.status]}
+            </Badge>
+            {oprire !== undefined ? (
+              <Badge ton="pericol" cuAvertisment>
+                Oprit
+              </Badge>
+            ) : null}
+            {e.garantie_expira !== null && e.garantie_expira >= azi ? (
+              <Badge ton="neutru">Garanție până la {formatDate(e.garantie_expira)}</Badge>
+            ) : null}
+          </span>
+        );
+      },
     },
   ];
 
@@ -192,28 +243,103 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
   // parametrii bruți ar putea scrie o pastilă cu o valoare inventată din URL.
   const filtre = filtreDinUrl(filtreEchipamenteSchema, parametri);
   const poateAdauga = can(permisiuni, "maintenance:update", "team");
+  const poateExporta = can(permisiuni, "maintenance:export", "team");
+
+  // Ținute în afara lui `filtreEchipamenteSchema`: nu sunt filtre ale listei, ci
+  // adresa fostei rute `/mentenanta/echipamente/nou` (`?echipament=nou`) și
+  // fișa după care se copiază câmpurile („Adaugă unul la fel", `?model=<id>`).
+  const deschideCaseta = parametri["echipament"] === "nou";
+  const modelBrut = typeof parametri["model"] === "string" ? parametri["model"] : null;
+  const modelId = modelBrut !== null && UUID.test(modelBrut) ? modelBrut : null;
+
+  // Selectoarele barei de filtre (toți cititorii) și ale casetei (cine adaugă).
+  // Punctele de lucru vin prin acțiune cu client admin: politica lor cere
+  // `departments:read`, pe care un responsabil de mentenanță poate să nu-l aibă.
+  const [categorii, angajati, puncteRezultat] = await Promise.all([
+    categoriiEchipamente(tenant.organizationId),
+    optiuniAngajati(tenant.organizationId),
+    poateAdauga ? optiuniPuncteLucru({}) : Promise.resolve(null),
+  ]);
+  const puncteLucru = puncteRezultat !== null && puncteRezultat.ok ? puncteRezultat.data : [];
+
+  const [departamente, features, model, parinti] = poateAdauga
+    ? await Promise.all([
+        optiuniDepartamente(tenant.organizationId),
+        getEnabledFeatures(tenant.organizationId),
+        modelId === null
+          ? Promise.resolve(null)
+          : citesteEchipament(tenant.organizationId, modelId),
+        optiuniEchipamente(tenant.organizationId),
+      ])
+    : [[], new Set<string>(), null, []];
+
+  const interogare = sirParametri(parametri);
 
   return (
     <div className="space-y-6">
       <AntetPagina
         titlu="Echipamente"
-        descriere="Parcul de echipamente al organizației, cu starea și acoperirea ISCIR."
+        descriere="Parcul de echipamente al organizației, cu starea, garanția și acoperirea ISCIR."
         {...(poateAdauga
           ? {
               actiuni: (
-                <Link href="/mentenanta/echipamente/nou" className={buton({ varianta: "primar" })}>
-                  Echipament nou
-                </Link>
+                /*
+                  `key` legat de parametri, nu de conținut: o navigare spre
+                  `?echipament=nou` rămâne pe ACEEAȘI rută, deci React n-ar remonta
+                  componenta și `deschisInitial` n-ar mai fi citit a doua oară.
+                */
+                <DialogEchipamentNou
+                  key={deschideCaseta ? `echipament-nou:${modelId ?? ""}` : "lista"}
+                  deschisInitial={deschideCaseta}
+                  angajati={angajati}
+                  departamente={departamente}
+                  puncteLucru={puncteLucru}
+                  parinti={parinti}
+                  categorii={categorii}
+                  ssmActiv={features.has("ssm")}
+                  poateDerogare={can(permisiuni, "maintenance:update", "all")}
+                  {...(model === null ? {} : { model })}
+                />
               ),
             }
           : {})}
-        file={<NavMentenanta />}
+        file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
 
-      <FiltreEchipamenteForm filtre={filtre} />
+      <FiltreEchipamenteForm
+        filtre={filtre}
+        categorii={categorii}
+        puncteLucru={puncteLucru}
+        responsabili={angajati}
+      />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
-        <TabelEchipamente organizationId={tenant.organizationId} parametri={parametri} />
+      {/* Exportul și etichetele lucrează pe LISTA FILTRATĂ: aceleași chei de URL. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href={`/mentenanta/echipamente/etichete${interogare === "" ? "" : `?${interogare}`}`}
+          className={buton({ varianta: "tertiar" })}
+        >
+          <QrCode aria-hidden="true" className="size-4" />
+          Tipărește etichetele QR
+        </Link>
+        {poateExporta ? (
+          <a
+            href={`/api/export/mentenanta/echipamente${interogare === "" ? "" : `?${interogare}`}`}
+            className={buton({ varianta: "tertiar" })}
+          >
+            <Download aria-hidden="true" className="size-4" />
+            Export CSV
+          </a>
+        ) : null}
+      </div>
+
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
+        <TabelEchipamente
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateAdauga={poateAdauga}
+          azi={todayInBucharest()}
+        />
       </Suspense>
     </div>
   );

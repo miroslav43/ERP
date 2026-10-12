@@ -12,30 +12,48 @@ import "server-only";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
 import { cereActiune, stareScadentaPlan } from "@/domain/maintenance/scadente";
+import { STARI_DESCHISE_SESIZARE } from "@/domain/maintenance/sesizari";
 import type {
+  EntitateAtasament,
   FiltreEchipamente,
   FiltreInterventii,
   FiltreSesizari,
+  MarcajCe,
+  MotivRespingere,
   RezultatInterventie,
   SortareEchipamente,
   SortareInterventii,
+  SortarePlanuri,
   SortareSesizari,
+  FiltrePlanuri,
+  ModCalcul,
   StatusEchipament,
   StatusSesizare,
+  TipAtasament,
   TipContor,
   TipMentenanta,
+  TipOprire,
   UrgentaSesizare,
 } from "@/schemas/maintenance";
-import { SORTARI_ECHIPAMENTE, SORTARI_INTERVENTII, SORTARI_SESIZARI } from "@/schemas/maintenance";
+import {
+  SORTARI_ECHIPAMENTE,
+  SORTARI_INTERVENTII,
+  SORTARI_PLANURI,
+  SORTARI_SESIZARI,
+  TIPURI_CONTOR,
+} from "@/schemas/maintenance";
 
 import {
   codificaCursor,
   decodificaCursor,
   predicatKeyset,
+  predicatKeysetNulabil,
   sortareCeruta,
   type Directie,
   tiparContine,
+  VALOARE_NULA,
 } from "./cursor";
+import { PRAG_MENTENANTA_AVERTIZARE_ZILE } from "@/domain/maintenance/scadente";
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
@@ -61,6 +79,13 @@ export interface RandEchipament {
   readonly este_iscir: boolean;
   readonly tip_autorizare_necesara: string | null;
   readonly data_punerii_in_functiune: string | null;
+  // 0182
+  readonly categorie: string | null;
+  readonly punct_lucru_id: string | null;
+  readonly garantie_expira: string | null;
+  readonly parent_equipment_id: string | null;
+  readonly casat_la: string | null;
+  readonly folosit_in_afara_sediului: boolean;
 }
 
 export interface RezultatEchipamente {
@@ -80,6 +105,12 @@ export interface Echipament extends RandEchipament {
   readonly derogare_motiv: string | null;
   readonly derogare_acordata_de: string | null;
   readonly derogare_acordata_la: string | null;
+  // 0182
+  readonly service_garantie: string | null;
+  readonly motiv_casare: string | null;
+  readonly observatii: string | null;
+  readonly marcaj_ce: MarcajCe;
+  readonly risc_specific: boolean;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -110,6 +141,17 @@ export interface PlanMentenanta {
   readonly responsabil_employee_id: string | null;
   readonly instructiuni: string | null;
   readonly activ: boolean;
+  // 0183
+  readonly mod_calcul: ModCalcul;
+  readonly data_ancora: string | null;
+  readonly amanat_pana: string | null;
+  readonly motiv_amanare: string | null;
+  readonly numar_amanari: number;
+  readonly durata_estimata_ore: number | null;
+  readonly cost_estimat: number | null;
+  readonly oprire_necesara: boolean;
+  readonly temei_legal: string | null;
+  readonly categorie_legala: string | null;
 }
 
 export interface RandInterventie {
@@ -142,8 +184,10 @@ export interface RezultatInterventii {
 
 export interface RandSesizare {
   readonly id: string;
+  readonly numar: string;
   readonly equipment_id: string;
   readonly raportat_de_employee_id: string | null;
+  readonly raportat_de_user_id: string | null;
   readonly descriere: string;
   readonly urgenta: UrgentaSesizare;
   readonly status: StatusSesizare;
@@ -151,8 +195,84 @@ export interface RandSesizare {
   readonly opreste_functionarea: boolean;
   readonly intervention_id: string | null;
   readonly rezolvat_la: string | null;
+  readonly inchis_la: string | null;
   readonly motiv_respingere: string | null;
+  readonly motiv_respingere_tip: MotivRespingere | null;
+  readonly atribuit_employee_id: string | null;
+  readonly atribuit_la: string | null;
+  readonly redeschisa_de_ori: number;
+  readonly motiv_redeschidere: string | null;
+  readonly duplicat_al_id: string | null;
+  readonly nota_rezolvare: string | null;
 }
+
+export interface ComentariuSesizare {
+  readonly id: string;
+  readonly autor_employee_id: string | null;
+  readonly autor_user_id: string | null;
+  readonly continut: string;
+  readonly intern: boolean;
+  readonly created_at: string;
+}
+
+export interface IstoricSesizare {
+  readonly id: string;
+  readonly actor_user_id: string | null;
+  readonly camp: string;
+  readonly valoare_veche: string | null;
+  readonly valoare_noua: string | null;
+  readonly motiv: string | null;
+  readonly created_at: string;
+}
+
+export interface Atasament {
+  readonly id: string;
+  readonly entity_type: EntitateAtasament;
+  readonly entity_id: string;
+  readonly storage_path: string;
+  readonly denumire: string;
+  readonly tip: TipAtasament;
+  readonly mime: string | null;
+  readonly marime_bytes: number | null;
+  readonly created_by: string | null;
+  readonly created_at: string;
+}
+
+export interface Oprire {
+  readonly id: string;
+  readonly equipment_id: string;
+  readonly inceput: string;
+  readonly sfarsit: string | null;
+  readonly tip: TipOprire;
+  readonly motiv: string | null;
+  readonly fault_report_id: string | null;
+  readonly intervention_id: string | null;
+}
+
+export interface SetariMentenanta {
+  readonly id: string | null;
+  readonly responsabili: readonly string[];
+  readonly rsvti_employee_id: string | null;
+  readonly inchidere_automata_zile: number;
+  readonly prag_avertizare_zile: number;
+  readonly prag_contor_necitit_zile: number;
+  readonly ore_functionare_pe_zi: number;
+  readonly zile_pe_saptamana: number;
+  readonly cost_ora_oprire: number | null;
+}
+
+/** Implicitele din `default`-urile tabelei `maintenance_settings` (0181) — identice. */
+export const SETARI_MENTENANTA_IMPLICITE: SetariMentenanta = {
+  id: null,
+  responsabili: [],
+  rsvti_employee_id: null,
+  inchidere_automata_zile: 5,
+  prag_avertizare_zile: 15,
+  prag_contor_necitit_zile: 30,
+  ore_functionare_pe_zi: 8,
+  zile_pe_saptamana: 5,
+  cost_ora_oprire: null,
+};
 
 export interface RezultatSesizari {
   readonly randuri: readonly RandSesizare[];
@@ -184,6 +304,27 @@ export interface AngajatAutorizat {
 export interface AngajatRezumat {
   readonly id: string;
   readonly full_name: string | null;
+  /** Pentru `hrefFisa()`: fișa ștearsă rămâne cu nume în istoric, fără link. */
+  readonly deleted_at: string | null;
+}
+
+/** Planurile după id, pentru coloana „Plan" a intervențiilor; cele șterse lipsesc din hartă. */
+export async function planuriDupaId(
+  organizationId: string,
+  ids: readonly (string | null)[],
+): Promise<ReadonlyMap<string, Readonly<{ id: string; denumire: string }>>> {
+  const unice = [...new Set(ids.filter((id): id is string => id !== null))];
+  if (unice.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_plans")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .in("id", unice)
+    .is("deleted_at", null)
+    .returns<{ id: string; denumire: string }[]>();
+  if (error !== null) throw error;
+  return new Map((data ?? []).map((p) => [p.id, p]));
 }
 
 /**
@@ -265,7 +406,8 @@ export type FiltreSesizariCitire = Omit<FiltreSesizari, "sort"> & {
 
 const COLOANE_ECHIPAMENT_LISTA =
   "id, cod, denumire, serie, producator, model, an_fabricatie, locatie, department_id, " +
-  "responsabil_employee_id, status, este_iscir, tip_autorizare_necesara, data_punerii_in_functiune";
+  "responsabil_employee_id, status, este_iscir, tip_autorizare_necesara, data_punerii_in_functiune, " +
+  "categorie, punct_lucru_id, garantie_expira, parent_equipment_id, casat_la, folosit_in_afara_sediului";
 
 const COLOANE_INTERVENTIE =
   "id, plan_id, equipment_id, tip, data, ora_start, durata_ore, executant_employee_id, " +
@@ -273,8 +415,10 @@ const COLOANE_INTERVENTIE =
   "oprire_minute, citire_contor, observatii";
 
 const COLOANE_SESIZARE =
-  "id, equipment_id, raportat_de_employee_id, descriere, urgenta, status, raportat_la, " +
-  "opreste_functionarea, intervention_id, rezolvat_la, motiv_respingere";
+  "id, numar, equipment_id, raportat_de_employee_id, raportat_de_user_id, descriere, urgenta, " +
+  "status, raportat_la, opreste_functionarea, intervention_id, rezolvat_la, inchis_la, " +
+  "motiv_respingere, motiv_respingere_tip, atribuit_employee_id, atribuit_la, redeschisa_de_ori, " +
+  "motiv_redeschidere, duplicat_al_id, nota_rezolvare";
 
 // ── Echipamente ──────────────────────────────────────────────────────────
 
@@ -327,6 +471,12 @@ export async function listeazaEchipamente(
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.categorie !== null) cu = cu.eq("categorie", filtre.categorie);
+    if (filtre.punct_lucru !== null) cu = cu.eq("punct_lucru_id", filtre.punct_lucru);
+    if (filtre.responsabil !== null) cu = cu.eq("responsabil_employee_id", filtre.responsabil);
+    // `eq` cu boolean: PostgREST acceptă `este_iscir=eq.true`; `is` ar fi tot
+    // corect, dar `eq` ține filtrul în aceeași familie cu restul.
+    if (filtre.iscir === "da") cu = cu.eq("este_iscir", "true");
     if (filtre.cauta !== null) {
       const termen = filtre.cauta.replace(/[,()*"]/gu, "");
       cu = cu.or(`cod.ilike.${tiparContine(termen)},denumire.ilike.${tiparContine(termen)}`);
@@ -382,7 +532,8 @@ export async function citesteEchipament(
     .from("equipment")
     .select(
       `${COLOANE_ECHIPAMENT_LISTA}, valoare_achizitie, derogare_motiv, derogare_acordata_de, ` +
-        "derogare_acordata_la, created_at, updated_at",
+        "derogare_acordata_la, service_garantie, motiv_casare, observatii, marcaj_ce, " +
+        "risc_specific, created_at, updated_at",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
@@ -413,15 +564,250 @@ export async function echipamenteDupaId(
   return new Map((data ?? []).map((e) => [e.id, e]));
 }
 
+// ── Echipamente: ciclul de viață (0182) ──────────────────────────────────────
+
+/**
+ * Categoriile folosite deja în organizație — pentru `<datalist>`-ul câmpului
+ * și pentru filtrul listei. PostgREST n-are DISTINCT, deci se citesc valorile și
+ * se deduplică aici; plafonul e cel al parcului (sub 1000 pe orice firmă reală).
+ */
+export async function categoriiEchipamente(organizationId: string): Promise<readonly string[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment")
+    .select("categorie")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .not("categorie", "is", null)
+    .order("categorie", { ascending: true })
+    .limit(1000)
+    .returns<{ readonly categorie: string | null }[]>();
+  if (error !== null) throw error;
+  return [...new Set((data ?? []).map((r) => r.categorie).filter((c): c is string => c !== null))];
+}
+
+/** Componentele unui echipament (copiii direcți), pentru secțiunea de pe fișă. */
+export async function copiiEchipament(
+  organizationId: string,
+  parentId: string,
+): Promise<readonly RandEchipament[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment")
+    .select(COLOANE_ECHIPAMENT_LISTA)
+    .eq("organization_id", organizationId)
+    .eq("parent_equipment_id", parentId)
+    .is("deleted_at", null)
+    .order("cod", { ascending: true })
+    .limit(200)
+    .returns<RandEchipament[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/** Echipamentele ca opțiuni de selector (părinte, filtre), fără cel exclus. */
+export async function optiuniEchipamente(
+  organizationId: string,
+  faraId: string | null = null,
+): Promise<readonly OptiuneSelect[]> {
+  const db = await createServerSupabase();
+  let interogare = db
+    .from("equipment")
+    .select("id, cod, denumire")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .neq("status", "casat")
+    .order("cod", { ascending: true })
+    .limit(LIMITA_OPTIUNI);
+  if (faraId !== null) interogare = interogare.neq("id", faraId);
+  const { data, error } =
+    await interogare.returns<
+      { readonly id: string; readonly cod: string; readonly denumire: string }[]
+    >();
+  if (error !== null) throw error;
+  return (data ?? []).map((e) => ({ id: e.id, nume: `${e.cod} — ${e.denumire}` }));
+}
+
+/**
+ * Echipamentele în grija unei fișe (responsabilul), pentru portal. Sub RLS,
+ * responsabilul-angajat vede exact rândurile astea (0182), deci citirea merge
+ * pe clientul utilizatorului.
+ */
+export async function echipamenteleMele(
+  organizationId: string,
+  fisaId: string,
+): Promise<readonly RandEchipament[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment")
+    .select(COLOANE_ECHIPAMENT_LISTA)
+    .eq("organization_id", organizationId)
+    .eq("responsabil_employee_id", fisaId)
+    .is("deleted_at", null)
+    .neq("status", "casat")
+    .order("cod", { ascending: true })
+    .limit(200)
+    .returns<RandEchipament[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export interface UltimaCitire {
+  readonly citire: number;
+  readonly data_citirii: string;
+}
+
+/**
+ * Ultima citire CU DATA ei, per (echipament, tip) — pentru pagina „Contoare”,
+ * unde contează și de când nu s-a mai citit. Aceeași paginare pe `equipment_id`
+ * ca `ultimeleCitiriContor`; cheia hărții e `cheieContor`.
+ */
+export async function ultimeleCitiriCuData(
+  organizationId: string,
+  equipmentIds: readonly string[],
+): Promise<ReadonlyMap<string, UltimaCitire>> {
+  const idUnice = [...new Set(equipmentIds)];
+  if (idUnice.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const ultima = new Map<string, UltimaCitire>();
+
+  await Promise.all(
+    TIPURI_CONTOR.map(async (tip) => {
+      let dupaId: string | null = null;
+      for (let pagina = 0; pagina < MAXIM_PAGINI_CONTOARE; pagina += 1) {
+        let interogare = db
+          .from("equipment_meters")
+          .select("equipment_id, tip, citire, data_citirii")
+          .eq("organization_id", organizationId)
+          .eq("tip", tip)
+          .in("equipment_id", idUnice)
+          .is("deleted_at", null)
+          .order("equipment_id", { ascending: true })
+          .order("data_citirii", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(LIMITA_PAGINA_CONTOARE);
+        if (dupaId !== null) interogare = interogare.gt("equipment_id", dupaId);
+        const { data, error } =
+          await interogare.returns<(RandUltimaCitire & { readonly data_citirii: string })[]>();
+        if (error !== null) throw error;
+        const randuri = data ?? [];
+        for (const rand of randuri) {
+          const cheie = cheieContor(rand.equipment_id, rand.tip);
+          if (!ultima.has(cheie)) {
+            ultima.set(cheie, { citire: rand.citire, data_citirii: rand.data_citirii });
+          }
+        }
+        if (randuri.length < LIMITA_PAGINA_CONTOARE) break;
+        const ultimulRand = randuri.at(-1);
+        if (ultimulRand === undefined) break;
+        dupaId = ultimulRand.equipment_id;
+      }
+    }),
+  );
+  return ultima;
+}
+
+export interface EchipamentProblema {
+  readonly id: string;
+  readonly cod: string;
+  readonly denumire: string;
+  readonly status: "in_reparatie" | "in_conservare" | "casat";
+}
+
+export interface RezultatEchipamenteProblema {
+  readonly randuri: readonly EchipamentProblema[];
+  /** Câte echipamente nu sunt „în funcțiune”, după politici — nu câte s-au citit. */
+  readonly total: number;
+}
+
+/**
+ * Echipamentele care NU sunt „în funcțiune”, pentru panoul de organizație.
+ *
+ * `count: "exact"` pe ACEEAȘI interogare: numărul din antetul panoului trebuie
+ * să respecte aceleași politici RLS ca rândurile de sub el. Trăia inline în
+ * `mentenanta/page.tsx`; stă aici ca `coloane.test.ts` să-i vadă coloanele și
+ * ca panoul și rapoartele să numere la fel.
+ */
+export async function echipamenteCuProbleme(
+  organizationId: string,
+  limita: number,
+): Promise<RezultatEchipamenteProblema> {
+  const db = await createServerSupabase();
+  const { data, error, count } = await db
+    .from("equipment")
+    .select("id, cod, denumire, status", { count: "exact" })
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .neq("status", "in_functiune")
+    .order("cod", { ascending: true })
+    .limit(limita)
+    .returns<EchipamentProblema[]>();
+  if (error !== null) throw error;
+  const randuri = data ?? [];
+  return { randuri, total: count ?? randuri.length };
+}
+
+// ── Selectoare ──────────────────────────────────────────────────────────────
+
+export interface OptiuneSelect {
+  readonly id: string;
+  readonly nume: string;
+}
+
+/** Sub `max_rows = 1000`; cea mai mare firmă reală are opt angajați. */
+const LIMITA_OPTIUNI = 500;
+
+/**
+ * Angajații organizației pentru selectoarele „Responsabil”, „Citit de”,
+ * „Executant” — id și nume, sortați, cu limită explicită.
+ *
+ * Trăia ca interogare inline, fără limită, în două pagini. O limită ratată nu
+ * dă eroare: PostgREST taie la 1000 și selectorul arată o listă subtil
+ * incompletă. Aici limita e scrisă și sortarea e stabilă.
+ */
+export async function optiuniAngajati(organizationId: string): Promise<readonly OptiuneSelect[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("full_name", { ascending: true })
+    .limit(LIMITA_OPTIUNI)
+    .returns<AngajatRezumat[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((a) => ({ id: a.id, nume: a.full_name ?? "—" }));
+}
+
+export async function optiuniDepartamente(
+  organizationId: string,
+): Promise<readonly OptiuneSelect[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("departments")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .limit(LIMITA_OPTIUNI)
+    .returns<Array<{ id: string; denumire: string }>>();
+  if (error !== null) throw error;
+  return (data ?? []).map((d) => ({ id: d.id, nume: d.denumire }));
+}
+
 // ── Contoare ────────────────────────────────────────────────────────────
 
-export async function contoareEchipament(equipmentId: string): Promise<readonly CitireContor[]> {
+export async function contoareEchipament(
+  organizationId: string,
+  equipmentId: string,
+): Promise<readonly CitireContor[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("equipment_meters")
     .select(
       "id, tip, citire, data_citirii, resetare_contor, sursa, citit_de_employee_id, observatii",
     )
+    .eq("organization_id", organizationId)
     .eq("equipment_id", equipmentId)
     .is("deleted_at", null)
     .order("data_citirii", { ascending: false })
@@ -437,13 +823,19 @@ export async function contoareEchipament(equipmentId: string): Promise<readonly 
 const COLOANE_PLAN =
   "id, equipment_id, denumire, tip, periodicitate_zile, periodicitate_contor, tip_contor, " +
   "ultima_executie, ultima_citire_contor, urmatoarea_scadenta, urmatoarea_scadenta_contor, " +
-  "responsabil_employee_id, instructiuni, activ";
+  "responsabil_employee_id, instructiuni, activ, mod_calcul, data_ancora, amanat_pana, " +
+  "motiv_amanare, numar_amanari, durata_estimata_ore, cost_estimat, oprire_necesara, " +
+  "temei_legal, categorie_legala";
 
-export async function planuriEchipament(equipmentId: string): Promise<readonly PlanMentenanta[]> {
+export async function planuriEchipament(
+  organizationId: string,
+  equipmentId: string,
+): Promise<readonly PlanMentenanta[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("maintenance_plans")
     .select(COLOANE_PLAN)
+    .eq("organization_id", organizationId)
     .eq("equipment_id", equipmentId)
     .is("deleted_at", null)
     .order("denumire", { ascending: true })
@@ -492,6 +884,188 @@ export async function planuriScadente(organizationId: string): Promise<RezultatP
     total: count ?? randuri.length,
     trunchiat: count !== null && count > randuri.length,
   };
+}
+
+// ── Planuri: lista paginată, fișa, proiecția (0183) ─────────────────────────
+
+export type FiltrePlanuriCitire = Omit<FiltrePlanuri, "sort"> & {
+  readonly sort?: string | null;
+};
+
+export interface RezultatPlanuri {
+  readonly randuri: readonly PlanMentenanta[];
+  readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortarePlanuri; directie: Directie }>;
+}
+
+const COLOANA_SORTARE_PLAN: Readonly<Record<SortarePlanuri, string>> = {
+  scadenta: "urmatoarea_scadenta",
+  denumire: "denumire",
+};
+const SORTARE_IMPLICITA_PLANURI = { cheie: "scadenta", directie: "asc" } as const;
+
+/** Ziua ISO de peste `zile` zile față de `azi`. */
+function plusZile(azi: string, zile: number): string {
+  const d = new Date(`${azi}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + zile);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Lista planurilor, paginată keyset pe (`urmatoarea_scadenta` cu NULL la coadă,
+ * `id`) sau pe denumire, cu filtrele în SQL. Filtrul de scadență e pe DATĂ:
+ * starea pe contor se calculează în TypeScript, din ultima citire, deci nu
+ * poate intra într-un `WHERE` — ecranul o spune.
+ */
+export async function listeazaPlanuri(
+  organizationId: string,
+  filtre: FiltrePlanuriCitire,
+  azi: string,
+): Promise<RezultatPlanuri> {
+  const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_PLANURI, SORTARE_IMPLICITA_PLANURI);
+  const coloana = COLOANA_SORTARE_PLAN[sortare.cheie];
+  const crescator = sortare.directie === "asc";
+
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string | boolean) => Q;
+      is: (c: string, v: null) => Q;
+      lt: (c: string, v: string) => Q;
+      gte: (c: string, v: string) => Q;
+      lte: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.responsabil !== null) cu = cu.eq("responsabil_employee_id", filtre.responsabil);
+    if (filtre.activ === "da") cu = cu.eq("activ", true);
+    if (filtre.activ === "nu") cu = cu.eq("activ", false);
+    if (filtre.scadenta === "depasita") cu = cu.lt("urmatoarea_scadenta", azi);
+    if (filtre.scadenta === "curand") {
+      cu = cu.gte("urmatoarea_scadenta", azi).lte("urmatoarea_scadenta", plusZile(azi, 15));
+    }
+    if (filtre.scadenta === "luna") {
+      cu = cu.gte("urmatoarea_scadenta", azi).lte("urmatoarea_scadenta", plusZile(azi, 30));
+    }
+    // Panoul numără `in_intarziere` + `scadenta_apropiata` (15 zile): aceeași fereastră.
+    if (filtre.scadenta === "actiune") {
+      cu = cu.lte("urmatoarea_scadenta", plusZile(azi, PRAG_MENTENANTA_AVERTIZARE_ZILE));
+    }
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("maintenance_plans").select(COLOANE_PLAN))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
+    .limit(filtre.limita + 1);
+
+  if (filtre.cursor !== null) {
+    const c = decodificaCursor(filtre.cursor);
+    if (c !== null) {
+      // Scadența poate fi NULL (plan doar pe contor): keyset nulabil.
+      interogare = interogare.or(
+        sortare.cheie === "scadenta"
+          ? predicatKeysetNulabil(coloana, c, sortare.directie)
+          : predicatKeyset(coloana, c, sortare.directie),
+      );
+    }
+  }
+
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<PlanMentenanta[]>(),
+    filtreaza(db.from("maintenance_plans").select("id", { count: "exact", head: true })),
+  ]);
+  if (rezultat.error !== null) throw rezultat.error;
+  if (numarare.error !== null) throw numarare.error;
+
+  const toate = rezultat.data ?? [];
+  const areUrmatoarea = toate.length > filtre.limita;
+  const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
+  const ultim = randuri.at(-1);
+  return {
+    randuri,
+    urmatorulCursor:
+      areUrmatoarea && ultim !== undefined
+        ? codificaCursor({
+            valoare:
+              sortare.cheie === "scadenta"
+                ? (ultim.urmatoarea_scadenta ?? VALOARE_NULA)
+                : ultim.denumire,
+            id: ultim.id,
+          })
+        : null,
+    total: numarare.count ?? randuri.length,
+    sortare,
+  };
+}
+
+export async function citestePlan(
+  organizationId: string,
+  id: string,
+): Promise<PlanMentenanta | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_plans")
+    .select(COLOANE_PLAN)
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<PlanMentenanta>();
+  if (error !== null) throw error;
+  return data;
+}
+
+export interface CitireScurta {
+  readonly data: string;
+  readonly citire: number;
+}
+
+/** Citirile unui contor de la o dată încoace — intrarea lui `proiectieScadentaContor`. */
+export async function citiriPentruProiectie(
+  organizationId: string,
+  equipmentId: string,
+  tip: TipContor,
+  deLa: string,
+): Promise<readonly CitireScurta[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment_meters")
+    .select("data_citirii, citire")
+    .eq("organization_id", organizationId)
+    .eq("equipment_id", equipmentId)
+    .eq("tip", tip)
+    .is("deleted_at", null)
+    .gte("data_citirii", deLa)
+    .order("data_citirii", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(500)
+    .returns<{ readonly data_citirii: string; readonly citire: number }[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((r) => ({ data: r.data_citirii, citire: r.citire }));
+}
+
+/** Dintre fișele date, cele care NU mai sunt active — responsabilii „de reatribuit”. */
+export async function angajatiInactiviDintre(
+  organizationId: string,
+  ids: readonly string[],
+): Promise<ReadonlySet<string>> {
+  const unice = [...new Set(ids)];
+  if (unice.length === 0) return new Set();
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .in("id", unice)
+    .or("status.neq.activ,deleted_at.not.is.null")
+    .returns<{ readonly id: string }[]>();
+  if (error !== null) throw error;
+  return new Set((data ?? []).map((r) => r.id));
 }
 
 // ── Ultima citire de contor, pe (echipament, tip) ──────────────────────────
@@ -644,6 +1218,7 @@ export async function interventii(
     if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
     if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
     if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+    if (filtre.plan !== null) cu = cu.eq("plan_id", filtre.plan);
     return cu;
   };
 
@@ -711,9 +1286,18 @@ export async function citesteInterventie(
 
 // ── Sesizări ────────────────────────────────────────────────────────────
 
+/** Un uuid care nu există: pentru „sesizările mele” când apelantul n-are fișă, lista e goală, nu întreagă. */
+const NICIO_FISA = "00000000-0000-4000-8000-000000000000";
+
+/**
+ * Lista de sesizări. `fisaMea` e fișa apelantului, pentru filtrul `atribuit=mie`:
+ * citirea nu poate ști singură cine întreabă, iar un `mie` fără fișă trebuie să
+ * dea zero rânduri, nu toate rândurile — de aici și `NICIO_FISA`.
+ */
 export async function sesizari(
   organizationId: string,
   filtre: FiltreSesizariCitire,
+  fisaMea: string | null = null,
 ): Promise<RezultatSesizari> {
   const db = await createServerSupabase();
   const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_SESIZARI, SORTARE_IMPLICITA_SESIZARI);
@@ -730,14 +1314,19 @@ export async function sesizari(
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    else if (filtre.deschise === "da") cu = cu.in("status", STARI_DESCHISE_SESIZARE);
     if (filtre.urgenta !== null) cu = cu.eq("urgenta", filtre.urgenta);
     if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+    if (filtre.atribuit === "nimeni") cu = cu.is("atribuit_employee_id", null);
+    else if (filtre.atribuit === "mie") cu = cu.eq("atribuit_employee_id", fisaMea ?? NICIO_FISA);
+    else if (filtre.atribuit !== null) cu = cu.eq("atribuit_employee_id", filtre.atribuit);
     return cu;
   };
 
@@ -777,11 +1366,11 @@ export async function sesizari(
 }
 
 /**
- * Statusurile care ÎNCĂ cer o acțiune — complementul lui `rezolvat`/`respins`.
- * Scris ca listă, nu ca negație, ca să fie o alegere explicită: un status nou
- * adăugat în `fault_status` n-ar trebui să intre tăcut în coada de dimineață.
+ * Statusurile care ÎNCĂ cer o acțiune — lista explicită din domeniu
+ * (`STARI_DESCHISE_SESIZARE`), nu o negație: un status nou adăugat în
+ * `fault_status` n-ar trebui să intre tăcut în coada de dimineață.
  */
-const STATUSURI_DESCHISE: readonly StatusSesizare[] = ["nou", "in_analiza", "in_lucru"];
+const STATUSURI_DESCHISE: readonly StatusSesizare[] = STARI_DESCHISE_SESIZARE;
 
 export interface RezultatSesizariDeschise {
   readonly randuri: readonly RandSesizare[];
@@ -911,13 +1500,262 @@ export async function angajatiDupaId(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name")
+    .select("id, full_name, deleted_at")
     .eq("organization_id", organizationId)
     .in("id", unice)
     .returns<AngajatRezumat[]>();
 
   if (error !== null) throw error;
   return new Map((data ?? []).map((a) => [a.id, a]));
+}
+
+/**
+ * Fișele după CONTUL de utilizator — pentru istoricul și comentariile sesizării,
+ * care rețin `actor_user_id`/`autor_user_id` (un administrator fără fișă are
+ * doar cont). Cheia hărții e `user_id`. Sub RLS, un `employee` vede doar fișa
+ * lui: numele lipsă se afișează ca „Echipa de mentenanță", nu ca eroare.
+ */
+export async function angajatiDupaUserId(
+  organizationId: string,
+  userIds: readonly string[],
+): Promise<ReadonlyMap<string, AngajatRezumat>> {
+  const unice = [...new Set(userIds)];
+  if (unice.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, user_id")
+    .eq("organization_id", organizationId)
+    .in("user_id", unice)
+    .is("deleted_at", null)
+    .order("is_primary", { ascending: false })
+    .returns<(AngajatRezumat & { readonly user_id: string | null })[]>();
+
+  if (error !== null) throw error;
+  const harta = new Map<string, AngajatRezumat>();
+  for (const a of data ?? []) {
+    // Prima fișă (cea principală, sortată în față) câștigă.
+    if (a.user_id !== null && !harta.has(a.user_id)) {
+      harta.set(a.user_id, { id: a.id, full_name: a.full_name, deleted_at: null });
+    }
+  }
+  return harta;
+}
+
+// ── Sesizări: cronologie, comentarii, atașamente, opriri (0181) ─────────────
+
+export async function comentariiSesizare(
+  organizationId: string,
+  faultReportId: string,
+): Promise<readonly ComentariuSesizare[]> {
+  const db = await createServerSupabase();
+  // Notele interne le filtrează RLS, nu noi: `fault_report_comments_select` le
+  // ascunde raportorului. Aici se citește tot ce lasă politica.
+  const { data, error } = await db
+    .from("fault_report_comments")
+    .select("id, autor_employee_id, autor_user_id, continut, intern, created_at")
+    .eq("organization_id", organizationId)
+    .eq("fault_report_id", faultReportId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(500)
+    .returns<ComentariuSesizare[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function istoricSesizare(
+  organizationId: string,
+  faultReportId: string,
+): Promise<readonly IstoricSesizare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fault_report_history")
+    .select("id, actor_user_id, camp, valoare_veche, valoare_noua, motiv, created_at")
+    .eq("organization_id", organizationId)
+    .eq("fault_report_id", faultReportId)
+    .order("created_at", { ascending: true })
+    .limit(500)
+    .returns<IstoricSesizare[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/** Bucketul privat al modulului (0181). Politicile lui proprii decid cine citește ce. */
+export const BUCKET_MENTENANTA = "org-mentenanta";
+
+export async function atasamente(
+  organizationId: string,
+  entityType: EntitateAtasament,
+  entityId: string,
+): Promise<readonly Atasament[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_attachments")
+    .select(
+      "id, entity_type, entity_id, storage_path, denumire, tip, mime, marime_bytes, created_by, created_at",
+    )
+    .eq("organization_id", organizationId)
+    .eq("entity_type", entityType)
+    .eq("entity_id", entityId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(100)
+    .returns<Atasament[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * URL-uri semnate de descărcare pentru o listă de atașamente — pe clientul
+ * utilizatorului, deci sub politicile bucketului: cine n-are voie primește
+ * `null`, nu un link. Zece minute, cât ține o pagină deschisă.
+ */
+export async function urlSemnate(
+  randuri: readonly Atasament[],
+): Promise<ReadonlyMap<string, string>> {
+  if (randuri.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const { data, error } = await db.storage.from(BUCKET_MENTENANTA).createSignedUrls(
+    randuri.map((a) => a.storage_path),
+    600,
+  );
+  if (error !== null || data === null) return new Map();
+  const harta = new Map<string, string>();
+  for (const semnat of data) {
+    const cale: string | null = semnat.path;
+    const url: string | null = semnat.signedUrl;
+    if (cale !== null && url !== null && url.length > 0 && semnat.error === null) {
+      harta.set(cale, url);
+    }
+  }
+  return harta;
+}
+
+export async function opririSesizare(
+  organizationId: string,
+  faultReportId: string,
+): Promise<readonly Oprire[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment_opriri")
+    .select("id, equipment_id, inceput, sfarsit, tip, motiv, fault_report_id, intervention_id")
+    .eq("organization_id", organizationId)
+    .eq("fault_report_id", faultReportId)
+    .is("deleted_at", null)
+    .order("inceput", { ascending: false })
+    .limit(20)
+    .returns<Oprire[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function opririEchipament(
+  organizationId: string,
+  equipmentId: string,
+  limita: number,
+): Promise<readonly Oprire[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment_opriri")
+    .select("id, equipment_id, inceput, sfarsit, tip, motiv, fault_report_id, intervention_id")
+    .eq("organization_id", organizationId)
+    .eq("equipment_id", equipmentId)
+    .is("deleted_at", null)
+    .order("inceput", { ascending: false })
+    .limit(limita)
+    .returns<Oprire[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * Opririle încă deschise ale organizației, pe echipament — de aici se derivă
+ * „Oprit” pe listă și pe panou. `equipment.status` NU se schimbă automat (vezi
+ * 0181, §5): jurnalul e singura sursă.
+ */
+export async function opririDeschise(organizationId: string): Promise<ReadonlyMap<string, Oprire>> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("equipment_opriri")
+    .select("id, equipment_id, inceput, sfarsit, tip, motiv, fault_report_id, intervention_id")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("sfarsit", null)
+    .order("inceput", { ascending: true })
+    .limit(500)
+    .returns<Oprire[]>();
+  if (error !== null) throw error;
+  // Prima oprire deschisă câștigă: e cea mai veche, deci cea care spune de când stă utilajul.
+  const harta = new Map<string, Oprire>();
+  for (const o of data ?? []) if (!harta.has(o.equipment_id)) harta.set(o.equipment_id, o);
+  return harta;
+}
+
+/** Sesizarea deschisă cea mai veche pe un echipament — avertismentul de duplicat la raportare. */
+export async function sesizareDeschisaPeEchipament(
+  organizationId: string,
+  equipmentId: string,
+): Promise<RandSesizare | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fault_reports")
+    .select(COLOANE_SESIZARE)
+    .eq("organization_id", organizationId)
+    .eq("equipment_id", equipmentId)
+    .is("deleted_at", null)
+    .in("status", STARI_DESCHISE_SESIZARE)
+    .order("raportat_la", { ascending: true })
+    .limit(1)
+    .maybeSingle<RandSesizare>();
+  if (error !== null) throw error;
+  return data;
+}
+
+/** Sesizările atribuite fișei date, încă deschise — „de lucrat” pentru tehnician. */
+export async function sesizariAtribuite(
+  organizationId: string,
+  fisaId: string,
+  limita: number,
+): Promise<readonly RandSesizare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fault_reports")
+    .select(COLOANE_SESIZARE)
+    .eq("organization_id", organizationId)
+    .eq("atribuit_employee_id", fisaId)
+    .is("deleted_at", null)
+    .in("status", STARI_DESCHISE_SESIZARE)
+    .order("opreste_functionarea", { ascending: false })
+    .order("urgenta", { ascending: false })
+    .order("raportat_la", { ascending: true })
+    .limit(limita)
+    .returns<RandSesizare[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+// ── Setări (0181) ───────────────────────────────────────────────────────────
+
+/**
+ * Setările modulului, cu implicitele completate. Lipsa rândului nu e o eroare:
+ * o firmă care n-a deschis niciodată pagina de setări are exact valorile din
+ * `default`-urile tabelei.
+ */
+export async function setariMentenanta(organizationId: string): Promise<SetariMentenanta> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_settings")
+    .select(
+      "id, responsabili, rsvti_employee_id, inchidere_automata_zile, prag_avertizare_zile, " +
+        "prag_contor_necitit_zile, ore_functionare_pe_zi, zile_pe_saptamana, cost_ora_oprire",
+    )
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .maybeSingle<SetariMentenanta>();
+  if (error !== null) throw error;
+  return data ?? SETARI_MENTENANTA_IMPLICITE;
 }
 
 // ── Badge de navigare ────────────────────────────────────────────────────
@@ -1024,4 +1862,28 @@ export async function numarScadenteMentenanta(
   ).length;
 
   return planuri + iscir;
+}
+
+/**
+ * Numele unui punct de lucru, pentru fișa echipamentului.
+ *
+ * Fișa îl citea doar prin `optiuniPuncteLucru` (acțiune cu `maintenance:update`),
+ * deci managerul vedea „Setat" în loc de nume (analiza 2026-10-08,
+ * mentenanta-L6/P10). Politica `puncte_lucru_select` cere doar
+ * `departments:read`: pentru cine n-o are, rezultatul e `null`, fără eroare.
+ */
+export async function numelePunctuluiDeLucru(
+  organizationId: string,
+  id: string,
+): Promise<string | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("puncte_lucru")
+    .select("denumire")
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<{ denumire: string }>();
+  if (error !== null) throw error;
+  return data?.denumire ?? null;
 }

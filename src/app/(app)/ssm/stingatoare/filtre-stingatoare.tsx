@@ -31,9 +31,12 @@ import { ETICHETE_STATUS_STINGATOR } from "../etichete";
 export function FiltreStingatoare({
   status,
   cauta,
+  scadenta = null,
 }: {
   readonly status: StatusStingator | null;
   readonly cauta: string | null;
+  /** Filtru de INTRARE (de pe /ssm): obligația scadentă; fără câmp, doar pastilă. */
+  readonly scadenta?: "verificare" | "reincarcare" | "proba" | null;
 }): ReactElement {
   // Pastilele poartă DENUMIREA stării, nu valoarea din bază: „Stare: În
   // service”, nu „status=in_service”.
@@ -42,10 +45,23 @@ export function FiltreStingatoare({
     ...(status === null
       ? []
       : [{ cheie: "status", eticheta: `Stare: ${ETICHETE_STATUS_STINGATOR[status]}` }]),
+    ...(scadenta === null
+      ? []
+      : [
+          {
+            cheie: "scadenta",
+            eticheta:
+              scadenta === "verificare"
+                ? "Verificare scadentă"
+                : scadenta === "reincarcare"
+                  ? "Reîncărcare scadentă"
+                  : "Probă de presiune scadentă",
+          },
+        ]),
   ];
 
   return (
-    <BaraFiltre active={active} cheiProprii={["cauta", "status"]}>
+    <BaraFiltre active={active} cheiProprii={["cauta", "status"]} cheiExterne={["scadenta"]}>
       <Camp nume="cauta" eticheta="Cod stingător" className="w-full sm:w-56">
         {(atribute) => (
           <input {...atribute} key={cauta ?? ""} type="search" defaultValue={cauta ?? ""} />

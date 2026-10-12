@@ -9,7 +9,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { limitaDinUrl, listeazaTichete, rezumatCoada } from "@/lib/queries/ticketing";
@@ -18,6 +18,12 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 
 import { adresaCu } from "../adresa";
 import { TabelTichete } from "../tabel-tichete";
+import { FileModul } from "@/components/ui/file-modul";
+import { FILE_TICKETING } from "@/config/file-module";
+import { hrefFisa } from "@/lib/navigare/fisa";
+import { PastileFiltre } from "@/components/ui/pastile-filtre";
+import { angajatiDupaId } from "@/lib/queries/checklist";
+import { idFisaProprie } from "@/lib/queries/employees";
 
 export const metadata: Metadata = { title: "Coada de tichete" };
 
@@ -67,9 +73,14 @@ function Cifra({
 async function Continut({
   organizationId,
   parametri,
+  permisiuni,
+  fisaProprie,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly permisiuni: PermissionMap;
+  /** Fișa privitorului: scurtătura „Asignate mie"; `null` = cont fără fișă. */
+  readonly fisaProprie: string | null;
 }) {
   const filtre = filtreDinUrl(filtreTicheteSchema, parametri);
   const cursor = typeof parametri["cursor"] === "string" ? parametri["cursor"] : null;
@@ -80,10 +91,43 @@ async function Continut({
   // coada, tabelul arăta primele douăzeci și cinci de rânduri, iar între cele
   // două nu exista niciun drum. Acum cifra din paginare și cifrele de sus vin
   // din aceleași filtre, iar restul rândurilor au unde să fie deschise.
-  const [rezumat, { randuri, urmatorulCursor, total }] = await Promise.all([
+  const [rezumat, { randuri, urmatorulCursor, total }, solicitantFiltrat] = await Promise.all([
     rezumatCoada(organizationId),
     listeazaTichete(organizationId, filtre, cursor, null, limita),
+    // Numele pentru pastila filtrului de intrare, citit sub RLS.
+    filtre.solicitant_employee_id === undefined
+      ? Promise.resolve(null)
+      : angajatiDupaId(organizationId, [filtre.solicitant_employee_id]).then(
+          (h) => h.get(filtre.solicitant_employee_id ?? "")?.full_name ?? null,
+        ),
   ]);
+  const pastileIntrare = [
+    ...(filtre.solicitant_employee_id === undefined
+      ? []
+      : [
+          {
+            cheie: "solicitant_employee_id",
+            eticheta: `Solicitant: ${solicitantFiltrat ?? "ales"}`,
+          },
+        ]),
+    ...(filtre.deschise === "da" ? [{ cheie: "deschise", eticheta: "Doar deschise" }] : []),
+    ...(filtre.nerepartizate === "da"
+      ? [{ cheie: "nerepartizate", eticheta: "Nerepartizate" }]
+      : []),
+    ...(filtre.asignat_employee_id === undefined
+      ? []
+      : [
+          {
+            cheie: "asignat_employee_id",
+            eticheta:
+              filtre.asignat_employee_id === fisaProprie ? "Asignate mie" : "Asignate cuiva",
+          },
+        ]),
+    ...(filtre.cauta === undefined ? [] : [{ cheie: "cauta", eticheta: `Caută: ${filtre.cauta}` }]),
+    ...(filtre.fara_miscare === "7"
+      ? [{ cheie: "fara_miscare", eticheta: "Fără mișcare de 7 zile" }]
+      : []),
+  ];
 
   const catreStatus = (status: string): string =>
     adresaCu("/ticketing/coada", parametri, (p) => {
@@ -95,8 +139,18 @@ async function Continut({
 
   return (
     <>
+      <PastileFiltre active={pastileIntrare} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Cifra eticheta="Deschise" valoare={rezumat.deschise} />
+        <Cifra
+          eticheta="Deschise"
+          valoare={rezumat.deschise}
+          href={adresaCu("/ticketing/coada", parametri, (p) => {
+            p.delete("status");
+            p.delete("fara_miscare");
+            p.delete("cursor");
+            p.set("deschise", "da");
+          })}
+        />
         {/* „De aprobat" spunea că cifra e a privitorului. Nu era: numără toate
             cererile aflate în aprobare, indiferent cine e managerul direct al
             solicitantului, iar dreptul de a decide îl verifică
@@ -112,12 +166,74 @@ async function Continut({
           valoare={rezumat.asteaptaSolicitantul}
           href={catreStatus("in_asteptare")}
         />
-        <Cifra eticheta="Fără mișcare de 7 zile" valoare={rezumat.faraMiscareDe7Zile} />
+        <Cifra
+          eticheta="Fără mișcare de 7 zile"
+          valoare={rezumat.faraMiscareDe7Zile}
+          href={adresaCu("/ticketing/coada", parametri, (p) => {
+            p.delete("status");
+            p.delete("deschise");
+            p.delete("cursor");
+            p.set("fara_miscare", "7");
+          })}
+        />
+        <Cifra
+          eticheta="Nerepartizate"
+          valoare={rezumat.nerepartizate}
+          href={adresaCu("/ticketing/coada", parametri, (p) => {
+            p.delete("status");
+            p.delete("deschise");
+            p.delete("fara_miscare");
+            p.delete("cursor");
+            p.set("nerepartizate", "da");
+          })}
+        />
       </div>
+
+      {/* Întrebarea pentru care se deschide coada: „ale mele sau nerepartizate" — și căutarea după număr. */}
+      <form
+        action="/ticketing/coada"
+        method="get"
+        className="text-nota flex flex-wrap items-center gap-3"
+      >
+        {fisaProprie === null ? null : (
+          <Link
+            href={adresaCu("/ticketing/coada", parametri, (p) => {
+              p.delete("cursor");
+              p.delete("nerepartizate");
+              p.set("asignat_employee_id", fisaProprie);
+            })}
+            className="underline-offset-2 hover:underline"
+          >
+            Asignate mie
+          </Link>
+        )}
+        <label className="flex items-center gap-2">
+          <span className="text-muted-foreground">Caută</span>
+          <input
+            type="search"
+            name="cauta"
+            defaultValue={filtre.cauta ?? ""}
+            placeholder="număr sau titlu"
+            className="border-foreground/60 rounded-control text-corp h-9 border px-3"
+          />
+        </label>
+        <button
+          type="submit"
+          className="border-foreground/60 rounded-control hover:bg-background border px-2.5 py-1 font-medium"
+        >
+          Filtrează
+        </button>
+      </form>
 
       {randuri.length === 0 ? (
         <StareGoala
-          fel={filtre.status === undefined && filtre.cauta === undefined ? "initiala" : "filtrata"}
+          fel={
+            filtre.status === undefined &&
+            filtre.cauta === undefined &&
+            filtre.solicitant_employee_id === undefined
+              ? "initiala"
+              : "filtrata"
+          }
           pictograma={LifeBuoy}
           titlu="Nimic în coadă"
           descriere="Tichetele echipei apar aici pe măsură ce sunt deschise."
@@ -127,7 +243,13 @@ async function Continut({
         />
       ) : (
         <div className="flex flex-col gap-4">
-          <TabelTichete randuri={randuri} aratSolicitantul aratAsignatul />
+          <TabelTichete
+            randuri={randuri}
+            aratSolicitantul
+            aratAsignatul
+            legaturaFisa={(angajat) => hrefFisa(angajat, permisiuni)}
+            dinCoada
+          />
           <Paginare
             afisate={randuri.length}
             total={total}
@@ -148,7 +270,7 @@ async function Continut({
 }
 
 export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -171,10 +293,16 @@ export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
       <AntetPagina
         titlu="Coada de tichete"
         descriere="Tichetele la care ai acces, cu cererile care așteaptă decizia ta."
+        file={<FileModul eticheta="Navigare ticketing" file={FILE_TICKETING} tenant={tenant} />}
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
-        <Continut organizationId={tenant.organizationId} parametri={parametri} />
+        <Continut
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          permisiuni={permisiuni}
+          fisaProprie={await idFisaProprie(tenant.organizationId, user.id)}
+        />
       </Suspense>
     </div>
   );

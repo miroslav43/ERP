@@ -9,7 +9,11 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { LinkEntitate } from "@/components/ui/link-entitate";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
+import { poateDeschide } from "@/config/porti-ruta";
+import { perioadaSalarizariiPentruPontaj } from "@/lib/queries/payroll";
+import { ETICHETE_STATUS_PERIOADA as ETICHETE_STATUS_SALARIZARE } from "@/app/(app)/salarizare/etichete";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime, formatMonthYear } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
@@ -22,23 +26,31 @@ import {
 } from "@/lib/queries/attendance";
 
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../../etichete";
+import { fileDePontaj } from "../../file-pontaj";
+import { cn } from "@/lib/ui/cn";
 
 export const metadata: Metadata = { title: "Lotul de aprobare" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagina) {
+export default async function PaginaPerioadaDetaliu({ params, searchParams }: ProprietatiPagina) {
   // Un segment care nu e UUID nu poate desemna niciun rând: 404, nu 22P02.
   const id = idDinRuta((await params).id);
+  // `?lot=<id>`: lotul tocmai aprobat, evidențiat pe server (`:target` nu se
+  // aprinde după navigarea din client); `#lot-<id>` derulează la el.
+  const lotBrut = (await searchParams)["lot"];
+  const lotEvidentiat = typeof lotBrut === "string" ? lotBrut : null;
 
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "attendance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   // `attendance_batches_select` cere `attendance:read ≥ team`.
@@ -47,15 +59,29 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
       <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta loturile de aprobare ale pontajului. Această secțiune este rezervată managerilor și personalului de resurse umane." />
     );
   }
+  // `hr` are `attendance:read = all` și `approve = none`: linkurile spre
+  // `/pontaj/aprobare` îl duceau în refuz. Aceeași poartă ca fila din bandă.
+  const file = await fileDePontaj(tenant.organizationId, permisiuni);
 
   const perioada = await citestePerioadaDupaId(tenant.organizationId, id);
   if (perioada === null) notFound();
 
-  const [loturi, { linii: liniiNeaprobate, trunchiat }, departamenteList] = await Promise.all([
-    loturiPerioadei(tenant.organizationId, id),
-    liniiDeAprobat(tenant.organizationId, id),
-    departamente(tenant.organizationId),
-  ]);
+  // Statul de plată calculat peste pontajul ăsta: legătura mergea într-un
+  // singur sens (salarizarea lega pontajul, pontajul nu lega salarizarea).
+  // Doar prin poarta lui `/salarizare`; citirea trece oricum prin RLS.
+  const poateVedeaSalarizarea = poateDeschide("/salarizare", {
+    features: module,
+    permissions: permisiuni,
+  });
+  const [loturi, { linii: liniiNeaprobate, trunchiat }, departamenteList, statDePlata] =
+    await Promise.all([
+      loturiPerioadei(tenant.organizationId, id),
+      liniiDeAprobat(tenant.organizationId, id),
+      departamente(tenant.organizationId),
+      poateVedeaSalarizarea
+        ? perioadaSalarizariiPentruPontaj(tenant.organizationId, id)
+        : Promise.resolve(null),
+    ]);
 
   const idManageri = loturi
     .map((l) => l.manager_employee_id)
@@ -129,6 +155,37 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
             </Badge>
           }
         />
+        {/* Detaliul perioadei nu lega nici foaia lunii, nici arhiva: legătura
+            mergea doar dinspre ele spre el. */}
+        <nav aria-label="Legături" className="text-corp flex flex-wrap gap-x-4">
+          <Link
+            href={`/pontaj?an=${String(perioada.an)}&luna=${String(perioada.luna)}`}
+            className="underline-offset-2 hover:underline"
+          >
+            Foaia lunii
+          </Link>
+          {file.poateAproba ? (
+            <Link href={adresaAprobare("")} className="underline-offset-2 hover:underline">
+              Aprobarea lunii
+            </Link>
+          ) : null}
+          {poateDeschide("/pontaj/arhiva", { features: module, permissions: permisiuni }) ? (
+            <Link href="/pontaj/arhiva" className="underline-offset-2 hover:underline">
+              Arhiva
+            </Link>
+          ) : null}
+        </nav>
+        {statDePlata === null ? null : (
+          <p className="text-muted-foreground text-corp">
+            <Link
+              href={`/salarizare/${statDePlata.id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              Statul de plată al lunii
+            </Link>{" "}
+            ({(ETICHETE_STATUS_SALARIZARE[statDePlata.status] ?? statDePlata.status).toLowerCase()})
+          </p>
+        )}
       </div>
 
       <section
@@ -158,12 +215,16 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
                 key={grup.departamentId}
                 className="flex items-baseline justify-between gap-4 py-2"
               >
-                <Link
-                  href={adresaAprobare(grup.departamentId)}
-                  className="text-corp underline-offset-2 hover:underline"
-                >
-                  {grup.denumire}
-                </Link>
+                {file.poateAproba ? (
+                  <Link
+                    href={adresaAprobare(grup.departamentId)}
+                    className="text-corp underline-offset-2 hover:underline"
+                  >
+                    {grup.denumire}
+                  </Link>
+                ) : (
+                  <span className="text-corp">{grup.denumire}</span>
+                )}
                 <span className="text-muted-foreground text-nota tabular-nums">
                   {grup.zile} {grup.zile === 1 ? "zi" : "zile"} · {grup.angajati}{" "}
                   {grup.angajati === 1 ? "angajat" : "angajați"}
@@ -173,13 +234,15 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
           </ul>
         )}
 
-        <p className="text-muted-foreground text-corp mt-3">
-          Fiecare departament duce în{" "}
-          <Link href={adresaAprobare("")} className="underline-offset-2 hover:underline">
-            ecranul de aprobare
-          </Link>
-          , deschis direct pe luna asta.
-        </p>
+        {file.poateAproba ? (
+          <p className="text-muted-foreground text-corp mt-3">
+            Fiecare departament duce în{" "}
+            <Link href={adresaAprobare("")} className="underline-offset-2 hover:underline">
+              ecranul de aprobare
+            </Link>
+            , deschis direct pe luna asta.
+          </p>
+        ) : null}
       </section>
 
       <section aria-labelledby="titlu-loturi" className="space-y-3">
@@ -203,19 +266,48 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
                   ? undefined
                   : angajati.get(lot.manager_employee_id);
               return (
-                <li key={lot.id} className="border-border rounded-panou border p-4">
+                <li
+                  key={lot.id}
+                  id={`lot-${lot.id}`}
+                  className={cn(
+                    "border-border rounded-panou scroll-mt-24 border p-4",
+                    lotEvidentiat === lot.id && "ring-primary ring-2",
+                  )}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
                       <p className="font-medium">
-                        {lot.department_id === null
-                          ? "Toată organizația"
-                          : (hartaDepartamente.get(lot.department_id) ?? "Departament necunoscut")}
+                        {/* Departamentul lotului duce la ecranul de aprobare
+                            filtrat pe el; managerul care a aprobat, la fișa lui. */}
+                        {lot.department_id === null ? (
+                          "Toată organizația"
+                        ) : file.poateAproba ? (
+                          <Link
+                            href={adresaAprobare(lot.department_id)}
+                            className="underline-offset-2 hover:underline"
+                          >
+                            {hartaDepartamente.get(lot.department_id) ?? "Departament necunoscut"}
+                          </Link>
+                        ) : (
+                          (hartaDepartamente.get(lot.department_id) ?? "Departament necunoscut")
+                        )}
                       </p>
                       <p className="text-muted-foreground text-corp">
                         Aprobat la {formatDateTime(lot.aprobat_la)}
-                        {manager === undefined
-                          ? null
-                          : ` · ${manager.full_name} (${manager.marca})`}
+                        {manager === undefined || lot.manager_employee_id === null ? null : (
+                          <>
+                            {" · "}
+                            <LinkEntitate
+                              href={
+                                can(permisiuni, "employees:read", "own")
+                                  ? `/angajati/${lot.manager_employee_id}`
+                                  : null
+                              }
+                            >
+                              {manager.full_name} ({manager.marca})
+                            </LinkEntitate>
+                          </>
+                        )}
                       </p>
                       {lot.observatii === null ? null : (
                         <p className="text-muted-foreground text-corp">{lot.observatii}</p>

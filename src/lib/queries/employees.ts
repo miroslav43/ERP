@@ -22,6 +22,7 @@ import {
   sortareCeruta,
   type Directie,
 } from "./cursor";
+import { PRAG_CONTRACTE_EXPIRA_ZILE, dataLimitaExpirare } from "@/domain/hr/contracte-expira";
 
 const EMBED_DEPARTAMENT = "department:departments!department_id(id, denumire)";
 
@@ -90,6 +91,8 @@ export interface ContractAngajat {
   readonly norma_ore_zi: number;
   readonly incetat_la: string | null;
   readonly motiv_incetare: string | null;
+  /** Punctul de lucru al contractului (0097); `null` = nedeclarat. */
+  readonly punct_lucru_id: string | null;
 }
 
 export interface DocumentAngajat {
@@ -250,17 +253,61 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
    * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
    * numărătoare care nu se potrivește cu lista — defectul reparat aici.
    */
+  // „Angajații de la punctul X" = cei cu contract ACTIV pe punctul ăla. Id-urile
+  // se citesc întâi, ca același `.in()` să se aplice și listei, și numărătorii.
+  const idDoarLaPunct =
+    filtre.punct_lucru === null
+      ? null
+      : await db
+          .from("employment_contracts")
+          .select("employee_id")
+          .eq("organization_id", organizationId)
+          .eq("punct_lucru_id", filtre.punct_lucru)
+          .eq("status", "activ")
+          .is("deleted_at", null)
+          .then(({ data }) => [...new Set((data ?? []).map((r) => r.employee_id))]);
+  // „Contracte care expiră" = ACELAȘI predicat ca `contorContracteCareExpira`
+  // de pe panou (fereastra din `contracte-expira.ts`): cifra și lista numără
+  // același lucru. Pe angajat, nu pe contract: două contracte ale aceluiași om
+  // fac un singur rând aici.
+  const idCuContractCareExpira =
+    filtre.contract === null
+      ? null
+      : await db
+          .from("employment_contracts")
+          .select("employee_id")
+          .eq("organization_id", organizationId)
+          .is("deleted_at", null)
+          .is("incetat_la", null)
+          .not("valabil_pana", "is", null)
+          .lte("valabil_pana", dataLimitaExpirare(PRAG_CONTRACTE_EXPIRA_ZILE))
+          .then(({ data }) => [...new Set((data ?? []).map((r) => r.employee_id))]);
+  const restrangeLa = (
+    ...liste: readonly (readonly string[] | null)[]
+  ): readonly string[] | null => {
+    const active = liste.filter((l): l is readonly string[] => l !== null);
+    if (active.length === 0) return null;
+    return active.reduce((acc, l) => acc.filter((id) => l.includes(id)));
+  };
+  const idRestranse = restrangeLa(idDoarLaPunct, idCuContractCareExpira);
   const filtreaza = <
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
       ilike: (c: string, v: string) => Q;
       contains: (c: string, v: readonly string[]) => Q;
+      in: (c: string, v: readonly string[]) => Q;
     },
   >(
     q: Q,
   ): Q => {
     let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    // Un `in` gol ar fi respins de PostgREST; un id imposibil întoarce lista goală.
+    if (idRestranse !== null)
+      cu = cu.in(
+        "id",
+        idRestranse.length === 0 ? ["00000000-0000-0000-0000-000000000000"] : idRestranse,
+      );
     if (scope === "own" && propriaFisaId !== null) cu = cu.eq("id", propriaFisaId);
     else if (scope === "team" && propriaFisaId !== null)
       cu = cu.contains("manager_path", [propriaFisaId]);
@@ -348,7 +395,7 @@ export async function citesteAngajat(
        ${EMBED_DEPARTAMENT}, ${COLOANE_FUNCTIE},
        contracts:employment_contracts!employee_id(id, numar, data_contract, valabil_de_la, valabil_pana,
          contract_duration, norma_ore_saptamana, norma_ore_zi, salariu_baza, moneda, work_mode, status,
-         este_act_aditional, parent_contract_id, incetat_la, motiv_incetare),
+         este_act_aditional, parent_contract_id, incetat_la, motiv_incetare, punct_lucru_id),
        documents:employee_documents!employee_id(id, titlu, data_document, valabil_pana, confidential)`,
     )
     .eq("organization_id", organizationId)
@@ -577,7 +624,8 @@ export interface NodManagerial {
    */
   readonly user_id: string | null;
   readonly avatar_url: string | null;
-  readonly department: { readonly denumire: string } | null;
+  /** Cu `id`: departamentul de pe card duce la lista de angajați filtrată pe el. */
+  readonly department: { readonly id: string; readonly denumire: string } | null;
   readonly functie: string | null;
 }
 
@@ -940,4 +988,27 @@ export async function functiiFolosite(organizationId: string): Promise<readonly 
     .returns<{ functie: string }[]>();
   if (error !== null) throw error;
   return [...new Set((data ?? []).map((rand) => rand.functie))];
+}
+
+/**
+ * Câteva fișe după id, INCLUSIV inactive sau încetate — prin RLS, deci cine
+ * n-are `employees:read = all` nu le vede. Organigrama numește așa managerul
+ * care a ieșit din firmă, în loc de „manager inactiv sau șters".
+ */
+export async function fiseDupaId(
+  organizationId: string,
+  ids: readonly string[],
+): Promise<ReadonlyMap<string, Readonly<{ full_name: string; status: string }>>> {
+  if (ids.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, status")
+    .eq("organization_id", organizationId)
+    .in("id", [...ids])
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return new Map(
+    (data ?? []).map((r) => [r.id, { full_name: r.full_name ?? "—", status: r.status }]),
+  );
 }

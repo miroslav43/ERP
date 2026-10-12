@@ -233,6 +233,20 @@ async function anuntaDeTransmis(
   evenimente: readonly { readonly event_type: string; readonly termen_transmitere: string }[],
 ): Promise<void> {
   try {
+    // Evenimentele se scriu și la firmele cu modulul REGES oprit (contractul
+    // s-a schimbat, registrul trebuie să-l știe), dar anunțul ar duce într-un
+    // ecran refuzat de `requireFeature`. Fără modul: fără anunț.
+    const { data: modul, error: eroareModul } = await supabase
+      .from("organization_features")
+      .select("feature_key")
+      .eq("organization_id", organizationId)
+      .eq("feature_key", "reges")
+      .eq("enabled", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareModul !== null) throw eroareModul;
+    if (modul === null) return;
+
     const { data: membri, error } = await supabase
       .from("organization_members")
       .select("user_id, role")
@@ -264,7 +278,9 @@ async function anuntaDeTransmis(
           primulTermen === null
             ? "Deschideți REGES-Online și pregătiți transmiterea."
             : `Cel mai apropiat termen: ${primulTermen}. Netransmiterea în termen este contravenție, separat pentru fiecare salariat.`,
-        link: "/reges",
+        // Coada de transmis, nu rădăcina modulului: ecranul se deschide pe
+        // rândurile pe care anunțul le numără.
+        link: "/reges?stare=de_transmis",
         entity_type: "reges_eveniment",
         entity_id: null,
       })),
