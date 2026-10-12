@@ -45,6 +45,16 @@ export const autentificareSchema = z.object({
 
 export const linkMagicSchema = z.object({ email: emailSchema });
 
+/**
+ * Cookie-ul prin care `/autentificare` își primește înapoi e-mailul după un
+ * eșec (ONB-023): `<form action>` resetează câmpurile, iar pagina nu primește
+ * de la acțiune decât URL-ul de redirect. E-mailul NU merge în URL — ar ajunge
+ * în jurnalele nginx și în istoric — ci aici, httpOnly, 60 s, pe
+ * `path: /autentificare`. Stă în fișierul de scheme fiindcă `actions.ts` e
+ * `"use server"` și nu poate exporta constante (capcana 39).
+ */
+export const COOKIE_EMAIL_AUTENTIFICARE = "autentificare_email" as const;
+
 export const resetareParolaSchema = z.object({ email: emailSchema });
 
 export const parolaNouaSchema = z
