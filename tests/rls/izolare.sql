@@ -732,6 +732,15 @@ begin
          (v_beta, v_admin_beta, 'contor_necitit', (select val from t_ids where cheie='equip_beta'));
   -- ── sfârșit M9 ──────────────────────────────────────────────────────────────
 
+  -- ── Mentenanță M6 (0192): liniile de piese ale intervenției ────────────────
+  -- Câte o linie pe intervenția de test a fiecărei firme; triggerul de sumă
+  -- rescrie `cost_piese`, deci (c) vede și intervenția atinsă din nou.
+  insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate, pret_unitar)
+  select i.organization_id, i.id, 'Filtru de ulei', 2, 45.50
+    from public.maintenance_interventions i
+   where i.organization_id in (v_alfa, v_beta) and i.descriere = 'Intervenție de test';
+  -- ── sfârșit M6 ──────────────────────────────────────────────────────────────
+
   -- ── Faza 3b (migrarea 0013): pontaj ─────────────────────────────────────────
   insert into t_ids
   select 'aper_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
@@ -4333,6 +4342,93 @@ exception when others then
   perform pg_temp.esueaza(format('(l) verificarea pragurilor de mentenanță a eșuat: %s (%s)', sqlerrm, sqlstate));
 end $$;
 -- ── sfârșit M9 ───────────────────────────────────────────────────────────────
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — Mentenanță M6 (0192): intervenția completă
+--
+-- Administratorul corectează intervenția, îi adaugă și îi șterge logic o linie
+-- de piese (suma o rescrie triggerul, sub definer) și o anulează; managerul
+-- (`maintenance:update` absent) e refuzat la piese și la editare. Se numără
+-- rândurile, nu se ascultă erorile (capcana 17).
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  v_int    uuid;
+  v_piesa  uuid;
+  v_cost   numeric;
+  n        int;
+begin
+  select i.id into v_int from public.maintenance_interventions i
+   where i.organization_id = v_alfa and i.descriere = 'Intervenție de test' and i.deleted_at is null;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate, pret_unitar)
+  values (v_alfa, v_int, 'Garnitură', 4, 12.25) returning id into v_piesa;
+  with m as (
+    update public.maintenance_interventions set observatii = 'Corectat de administrator.', cost_piese = 1
+     where id = v_int and deleted_at is null returning cost_piese)
+  select count(*), max(cost_piese) into n, v_cost from m;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate corecta o intervenție');
+  end if;
+  -- 2 × 45,50 (fixture) + 4 × 12,25 = 140: suma tastată (1) e suprascrisă.
+  if v_cost <> 140 then
+    perform pg_temp.esueaza(format('(l) liniile de piese nu câștigă peste suma tastată: cost_piese = %s, așteptat 140', v_cost));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_intervention_parts set deleted_at = now()
+     where id = v_piesa and deleted_at is null returning 1)
+  select count(*) into n from m;
+  reset role;
+  select cost_piese into v_cost from public.maintenance_interventions where id = v_int;
+  if n <> 1 or v_cost <> 91 then
+    perform pg_temp.esueaza(format('(l) ștergerea liniei de piese: %s rânduri, cost_piese = %s (așteptat 1 și 91)', n, v_cost));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate)
+    values (v_alfa, v_int, 'Piesă a managerului', 1);
+    reset role;
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a adăugat o linie de piese');
+  exception when insufficient_privilege then
+    null;
+  end;
+  with m as (
+    update public.maintenance_interventions set observatii = 'Managerul'
+     where id = v_int returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 0 then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a editat o intervenție');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_interventions set deleted_at = now()
+     where id = v_int and deleted_at is null returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate anula o intervenție');
+  end if;
+
+  raise notice '(l) intervențiile: org_admin corectează, ține piesele (suma o face baza) și anulează; managerul e refuzat ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) verificarea intervențiilor a eșuat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+-- ── sfârșit M6 ───────────────────────────────────────────────────────────────
 
 
 rollback;

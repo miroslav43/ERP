@@ -7514,8 +7514,75 @@ export type Database = {
           },
         ]
       }
+      maintenance_intervention_parts: {
+        Row: {
+          cantitate: number
+          cod: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          intervention_id: string
+          organization_id: string
+          pret_unitar: number
+          unitate: string
+          updated_at: string
+          updated_by: string | null
+          valoare: number | null
+        }
+        Insert: {
+          cantitate: number
+          cod?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          intervention_id: string
+          organization_id: string
+          pret_unitar?: number
+          unitate?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number | null
+        }
+        Update: {
+          cantitate?: number
+          cod?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          intervention_id?: string
+          organization_id?: string
+          pret_unitar?: number
+          unitate?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_intervention_parts_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_intervention_parts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_interventions: {
         Row: {
+          acoperit_de_garantie: boolean
           citire_contor: number | null
           cost_manopera: number
           cost_piese: number
@@ -7530,7 +7597,10 @@ export type Database = {
           executant_employee_id: string | null
           executant_extern: string | null
           fault_report_id: string | null
+          garantie_lucrare_pana: string | null
           id: string
+          numar: string
+          numar_document_furnizor: string | null
           observatii: string | null
           oprire_minute: number | null
           ora_start: string | null
@@ -7543,6 +7613,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          acoperit_de_garantie?: boolean
           citire_contor?: number | null
           cost_manopera?: number
           cost_piese?: number
@@ -7557,7 +7628,10 @@ export type Database = {
           executant_employee_id?: string | null
           executant_extern?: string | null
           fault_report_id?: string | null
+          garantie_lucrare_pana?: string | null
           id?: string
+          numar?: string
+          numar_document_furnizor?: string | null
           observatii?: string | null
           oprire_minute?: number | null
           ora_start?: string | null
@@ -7570,6 +7644,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          acoperit_de_garantie?: boolean
           citire_contor?: number | null
           cost_manopera?: number
           cost_piese?: number
@@ -7584,7 +7659,10 @@ export type Database = {
           executant_employee_id?: string | null
           executant_extern?: string | null
           fault_report_id?: string | null
+          garantie_lucrare_pana?: string | null
           id?: string
+          numar?: string
+          numar_document_furnizor?: string | null
           observatii?: string | null
           oprire_minute?: number | null
           ora_start?: string | null
