@@ -821,6 +821,21 @@ const INTRARI: readonly Intrare[] = [
     descriere:
       "Kilometrajele care nu se leagă între două foi consecutive, de confirmat sau corectat.",
   },
+  // ═══ ÎNCEPUT BLOC: flota, șabloanele de traseu (0197) ═══
+  {
+    id: "flota.sabloane",
+    href: "/flota/foi/sabloane",
+    eticheta: "Șabloane de traseu",
+    zona: "app",
+    parinte: "flota",
+    fila: "Șabloane de traseu",
+    featureKey: "fleet",
+    permission: "trip_sheets:update",
+    minScope: "all",
+    descriere:
+      "Rutele pe care mașinile firmei le fac des, din care șoferii își adaugă cursele pe foaia de parcurs.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, șabloanele de traseu (0197) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {

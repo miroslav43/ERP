@@ -14,6 +14,8 @@ export const FILE_FLOTA: readonly FilaModul[] = [
   { href: "/flota/foi", eticheta: "Foi de parcurs" },
   { href: "/flota/aprobari", eticheta: "De aprobat" },
   { href: "/flota/anomalii", eticheta: "Anomalii de kilometraj" },
+  // 0197: rutele recurente; fila apare doar pentru `trip_sheets:update = all`.
+  { href: "/flota/foi/sabloane", eticheta: "Șabloane de traseu" },
 ];
 
 export function fileEvaluari(contoare: Readonly<{ sabloane?: number }> = {}): readonly FilaModul[] {

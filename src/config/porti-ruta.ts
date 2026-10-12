@@ -121,6 +121,7 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/flota/aprobari", "fleet", "trip_sheets:approve", "team"),
   p("/flota/foi", "fleet", "trip_sheets:read"),
   p("/flota/foi/[id]", "fleet", "trip_sheets:read"),
+  p("/flota/foi/sabloane", "fleet", "trip_sheets:update", "all"),
   p("/inventar", "inventory", "inventory:read"),
   p("/inventar/[id]", "inventory", "inventory:read"),
   p("/inventar/[id]/pv/[alocare]", "inventory", "inventory:read"),
