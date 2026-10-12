@@ -31,8 +31,8 @@ capcane: [17, 35, 50, 51]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
-  - "casare, componente, contoare → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; PV, piese, anulare → [[modul/mentenanta/interventii]]; ISCIR, VTP, RSVTI → [[modul/mentenanta/iscir]]"
-scris_pe: 1987444ae9a1397966ee1ad7d32fc285402c9d79
+  - "casare, componente, contoare → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; PV, piese, anulare → [[modul/mentenanta/interventii]]; ISCIR, VTP, RSVTI → [[modul/mentenanta/iscir]]; cost, disponibilitate, MTBF → [[modul/mentenanta/rapoarte]]"
+scris_pe: 90b341e6cfbe34e5201bfacc5f610812c0fdfa3f
 scris_la: 2026-10-12
 tags: [modul]
 ---
@@ -53,6 +53,8 @@ setări — `0191`): [[modul/mentenanta/zilnic]]. Intervenția completă (număr
 corectare, anulare, procesul-verbal, garanția lucrării — `0192`):
 [[modul/mentenanta/interventii]]. ISCIR și verificările legale (regim RSVTI, suspendare,
 reînnoire, categoriile legale, dosarul de control — `0193`): [[modul/mentenanta/iscir]].
+Raportul pe perioadă (costuri, disponibilitate, MTTR/MTBF, „la timp”, CSV — M8, fără
+migrare): [[modul/mentenanta/rapoarte]].
 
 ## Rute și cine ajunge
 
@@ -68,6 +70,7 @@ reînnoire, categoriile legale, dosarul de control — `0193`): [[modul/mentenan
 | `/mentenanta/interventii?interventie=noua` (casetă)        | `maintenance:update` team |
 | `/mentenanta/contoare`, `/mentenanta/echipamente/etichete` | `maintenance:read` team   |
 | `/mentenanta/iscir`                                        | `maintenance:read` team   |
+| `/mentenanta/rapoarte` (perioadă, CSV `export` team)       | `maintenance:read` team   |
 | `/mentenanta/setari`                                       | `maintenance:update` all  |
 
 Pragul `own` pe panou și pe sesizări e intenționat: **oricine poate sesiza o defecțiune**.
@@ -91,8 +94,8 @@ adresa veche. Echipamentul din QR se rezolvă pe server (`cautaEchipament`), vin
 dau o bandă de atenție în casetă, nu 404. `/mentenanta/echipamente/nou` a fost șters.
 
 Pe `/mentenanta` poarta se citește de două ori: `own` deschide pagina, `team` decide dacă
-se vede panoul de organizație sau doar `SesizarileMele`. Cifrele panoului duc la listele
-cu EXACT rândurile numărate (`/mentenanta/planuri?scadenta=actiune`,
+se vede panoul de organizație sau doar `SesizarileMele`. Cifrele panoului (`Indicator`, din
+M8) duc la listele cu EXACT rândurile numărate (`/mentenanta/planuri?scadenta=actiune`,
 `/mentenanta/sesizari?deschise=da`, `/mentenanta/iscir?stare=actiune`). Din M7 panoul
 are și „Verificări legale scadente” și alerta „Lipsește responsabilul RSVTI” (cazul 41).
 
@@ -195,10 +198,8 @@ restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()
   `actualizeazaPlan` pune `.is("deleted_at", null)` explicit: fără el un apel direct îl
   reactiva (`activ = true`), cu intrare de audit. Aceeași regulă în toate gesturile din
   `planuri/actions.ts` (`0183`).
-- **Linkul spre sesizarea care a produs o oprire se desenează doar dacă sesizarea a venit
-  prin RLS.** Jurnalul de opriri se vede la `team`, sesizarea nu — când raportorul e din
-  afara echipei. Fișa echipamentului verifică apartenența la rândurile deja citite
-  (`echipamente/[id]/page.tsx`), nu doar `fault_report_id !== null`.
+- **Linkul spre sesizarea unei opriri** se desenează doar dacă sesizarea a venit prin RLS —
+  v. [[modul/mentenanta/echipamente]].
 
 ## Ce NU e aici
 
