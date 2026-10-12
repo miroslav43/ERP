@@ -11,11 +11,13 @@ import { createAdminSupabase, type AdminSupabase } from "@/lib/supabase/admin";
 import type { ActionContext } from "@/lib/actions/types";
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import {
+  refuzulPerioadei,
   verificaPlafonAnual,
   verificaSold,
   verificaSuprapunere,
   type IntervalConcediu,
 } from "@/domain/leave/verificari";
+import { formatDate } from "@/lib/format/date";
 import { formatAmount } from "@/lib/format/money";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
@@ -95,6 +97,30 @@ async function fisaTinta(ctx: ActionContext, cerut: string | null): Promise<stri
 }
 
 /**
+ * Data angajării de pe fișa pe care se face cererea (ANG-010).
+ *
+ * Clientul ADMIN, cu filtru explicit pe organizație, din același motiv ca la
+ * `fisaTinta` și la citirea fișei proprii din `creeazaCerereConcediu`:
+ * `employees_select` (0005_hr_rls.sql) nu lasă rolul `employee` să-și citească
+ * fișa, iar aici trebuie o singură cale pentru ambele scope-uri. Se citește o
+ * coloană, nu rândul. Fișa negăsită dă `null` — adică „nu se verifică”, la fel
+ * ca un `hired_on` lăsat gol de import; apartenența la organizație o verifică
+ * oricum RLS și triggerul BEFORE la scriere.
+ */
+async function dataAngajarii(ctx: ActionContext, employeeId: string): Promise<string | null> {
+  const admin = createAdminSupabase();
+  const { data, error } = await admin
+    .from("employees")
+    .select("hired_on")
+    .eq("organization_id", ctx.tenant.organizationId)
+    .eq("id", employeeId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw error;
+  return data?.hired_on ?? null;
+}
+
+/**
  * Calea primită de la client NU se crede pe cuvânt.
  *
  * Poarta de Storage (`storage_objects_insert`) păzește SCRIEREA fișierului, nu
@@ -138,6 +164,8 @@ interface CerereDeVerificat {
   readonly denumirePlafon: string;
   readonly dataInceput: string;
   readonly dataSfarsit: string;
+  /** `employees.hired_on` al fișei cererii; `null` = fără verificarea angajării. */
+  readonly angajatDin: string | null;
 }
 
 /**
@@ -174,6 +202,27 @@ async function verificaInainteDeTrimitere(
     liberSuplimentar,
     zileRecuperare,
   );
+
+  // ÎNAINTEA soldului, deliberat (ANG-010, ANG-011, HR-009): zero zile ar trece
+  // trivial de el (0 ≤ orice) și ar ajunge la aprobator fără rost. Trecutul NU
+  // se refuză aici — concediul medical e retroactiv prin natura lui, iar baza
+  // are deja plafonul de doi ani (0009_leave.sql).
+  const refuz = refuzulPerioadei({
+    dataInceput: cerere.dataInceput,
+    zileLucratoare,
+    angajatDin: cerere.angajatDin,
+  });
+  if (refuz === "fara_zile_lucratoare") {
+    throw businessRule(
+      "Perioada aleasă nu conține nicio zi lucrătoare: cuprinde doar zile de weekend sau sărbători legale. Alegeți alte date.",
+    );
+  }
+  if (refuz === "inainte_de_angajare") {
+    const data = cerere.angajatDin === null ? "de pe fișă" : formatDate(cerere.angajatDin);
+    throw businessRule(
+      `Perioada începe înainte de data angajării (${data}). Corectați data de început.`,
+    );
+  }
 
   if (cerere.tip.scade_din_sold) {
     const { data: sold, error: eroareSold } = await ctx.supabase
@@ -572,6 +621,9 @@ export const creeazaCerereConcediu = createAction({
     }
 
     let employeeId = input.employee_id;
+    // Data angajării: din aceeași citire pentru fișa proprie; pentru fișa
+    // aleasă explicit se cere separat, doar la trimitere (`dataAngajarii`).
+    let angajatDin: string | null = null;
     if (employeeId === null) {
       // Fișa proprie via clientul admin: rolul `employee` are
       // `employees:read = none`, deci clientul autentificat al utilizatorului
@@ -580,7 +632,7 @@ export const creeazaCerereConcediu = createAction({
       const admin = createAdminSupabase();
       const { data: fisa, error: eroareFisa } = await admin
         .from("employees")
-        .select("id")
+        .select("id, hired_on")
         .eq("organization_id", ctx.tenant.organizationId)
         .eq("user_id", ctx.user.id)
         .eq("is_primary", true)
@@ -593,6 +645,7 @@ export const creeazaCerereConcediu = createAction({
         );
       }
       employeeId = fisa.id;
+      angajatDin = fisa.hired_on ?? null;
     }
 
     // Documentul urcat înaintea cererii trebuie să stea în dosarul ACESTUI
@@ -669,6 +722,8 @@ export const creeazaCerereConcediu = createAction({
         denumirePlafon,
         dataInceput: input.data_inceput,
         dataSfarsit: input.data_sfarsit,
+        angajatDin:
+          input.employee_id === null ? angajatDin : await dataAngajarii(ctx, input.employee_id),
       });
     }
 
@@ -958,6 +1013,8 @@ export const trimiteCerere = createAction({
       denumirePlafon,
       dataInceput: cerere.data_inceput,
       dataSfarsit: cerere.data_sfarsit,
+      // Pe fișa CERERII, nu a celui care apasă: cu scope `all` pot diferi.
+      angajatDin: await dataAngajarii(ctx, cerere.employee_id),
     });
 
     // `.eq("status", "ciorna")` NU e redundant cu verificarea de mai sus: între

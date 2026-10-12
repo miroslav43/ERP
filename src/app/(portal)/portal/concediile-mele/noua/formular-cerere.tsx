@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import { tipImplicitConcediu } from "@/domain/leave/tip-implicit";
+import { perioadaInTrecut, refuzulPerioadei } from "@/domain/leave/verificari";
 import { creeazaCerereConcediu } from "@/app/(app)/concedii/actions";
 import { IncarcareDocumentConcediu } from "@/app/(app)/concedii/incarcare-document";
 import { Buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import { IntrareData } from "@/components/ui/intrare-data";
 import type { ActionResult } from "@/lib/actions/types";
+import { formatDate } from "@/lib/format/date";
 import { formatAmount } from "@/lib/format/money";
 
 /**
@@ -100,6 +103,8 @@ export function FormularCererePortal({
   liberSuplimentar,
   zileRecuperare,
   soldPeTip,
+  azi,
+  angajatDin,
 }: {
   readonly tipuri: readonly TipConcediu[];
   readonly coduriMedicale: readonly CodMedical[];
@@ -108,6 +113,10 @@ export function FormularCererePortal({
   readonly liberSuplimentar: readonly string[];
   readonly zileRecuperare: readonly string[];
   readonly soldPeTip: Readonly<Record<string, number>>;
+  /** Ziua de azi din `todayInBucharest()`, pentru avertismentul de trecut. */
+  readonly azi: string;
+  /** `employees.hired_on`; `null` = fără verificarea angajării pe ecran. */
+  readonly angajatDin: string | null;
 }) {
   const router = useRouter();
 
@@ -155,6 +164,24 @@ export function FormularCererePortal({
   const ramase = tip === null ? null : (soldPeTip[tip.id] ?? null);
   const dupaCerere =
     ramase === null || previzualizare === null ? null : ramase - previzualizare.zileLucratoare;
+
+  /*
+    Refuzul de ecran (ANG-010, ANG-011): aceeași regulă pură pe care o aplică
+    `verificaInainteDeTrimitere` pe server — 0 zile lucrătoare sau început
+    înaintea angajării. Aici doar dezactivează trimiterea și spune de ce;
+    ciorna rămâne posibilă. Trecutul e DOAR avertisment: concediul medical se
+    depune după ce s-a întâmplat.
+  */
+  const refuzTrimitere =
+    previzualizare === null
+      ? null
+      : refuzulPerioadei({
+          dataInceput,
+          zileLucratoare: previzualizare.zileLucratoare,
+          angajatDin,
+        });
+  const inTrecut = dataInceput.length > 0 && perioadaInTrecut(dataInceput, azi);
+  const dataAngajarii = angajatDin === null ? null : formatDate(angajatDin);
 
   /**
    * Numele din `FormData` sunt EXACT cheile lui `creeazaCerereSchema`
@@ -456,12 +483,26 @@ export function FormularCererePortal({
             </div>
           )}
 
+          {refuzTrimitere === null ? null : (
+            <Callout fel="eroare" titlu="Cererea nu poate fi trimisă">
+              {refuzTrimitere === "fara_zile_lucratoare"
+                ? "Perioada aleasă nu conține nicio zi lucrătoare: cuprinde doar zile de weekend sau sărbători legale. Alegeți alte date."
+                : `Perioada începe înainte de data angajării (${dataAngajarii ?? ""}). Corectați data de început.`}
+            </Callout>
+          )}
+          {refuzTrimitere === null && inTrecut ? (
+            <Callout fel="atentie" titlu="Perioada a început deja">
+              Cererea retroactivă e permisă (de exemplu concediu medical), dar aprobatorul o va
+              vedea ca atare.
+            </Callout>
+          ) : null}
+
           <div className="flex flex-col gap-2 sm:flex-row">
             <Buton
               type="submit"
               varianta="primar"
               className="flex-1"
-              disabled={tipuri.length === 0}
+              disabled={tipuri.length === 0 || refuzTrimitere !== null}
               inCurs={stare.inCurs}
               textInCurs="Se trimite…"
               onClick={() => {

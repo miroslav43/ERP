@@ -27,10 +27,30 @@ import { etichetaSediului } from "@/domain/attendance/sediu";
 import type { SediuPontaj } from "@/lib/queries/attendance";
 // Tipurile au plecat într-un `.ts` simplu: le importă și serverul, și clientul,
 // iar maparea din `attendance_entries` are acolo teste. Vezi `intrare-client.ts`.
-import type { RandFoaie } from "./intrare-client";
+import type { IntrareZiClient, RandFoaie } from "./intrare-client";
 import { formatOre } from "@/lib/format/ore";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { lunieaSaptamanii } from "@/domain/attendance/saptamana";
+import {
+  conteazaInTotaluri,
+  totalurileZilelor,
+  type ZiDeTotalizat,
+} from "@/domain/attendance/totaluri";
+
+/**
+ * Intrarea foii, în forma pe care o totalizează domeniul (HR-013): ziua
+ * respinsă iese din „Ore”, „Supl.” și „Noapte”. Cele trei adunări de mai jos
+ * — pe coloană, pe rând și totalul general — trec toate prin aceeași regulă,
+ * ca cifrele să se poată compara între ele și cu portalul.
+ */
+function laTotal(intrare: IntrareZiClient): ZiDeTotalizat {
+  return {
+    oreLucrate: intrare.oreLucrate,
+    oreSuplimentare: intrare.oreSuplimentare,
+    oreNoapte: intrare.oreNoapte,
+    respinsa: intrare.respins,
+  };
+}
 
 interface Proprietati {
   readonly dataInceput: string;
@@ -249,6 +269,8 @@ export function FoaieColectiva({
     for (const zi of zile) harta.set(zi, 0);
     for (const rand of randuri) {
       for (const [zi, intrare] of Object.entries(rand.intrari)) {
+        // Ziua respinsă e „tăiată” în legendă și iese și din cifre (HR-013).
+        if (!conteazaInTotaluri(laTotal(intrare))) continue;
         harta.set(zi, (harta.get(zi) ?? 0) + intrare.oreLucrate);
       }
     }
@@ -265,13 +287,14 @@ export function FoaieColectiva({
    * a 25 de rânduri.
    */
   const totaluriGenerale = useMemo(() => {
-    let suplimentare = 0;
-    let noapte = 0;
+    // Orele trec prin regula domeniului (HR-013): ziua respinsă nu intră.
+    // Zilele speciale rămân numărate toate — sunt zile, nu ore.
+    const { suplimentare, noapte } = totalurileZilelor(
+      randuri.flatMap((rand) => Object.values(rand.intrari).map(laTotal)),
+    );
     const speciale = new Map<TipZi, number>();
     for (const rand of randuri) {
       for (const intrare of Object.values(rand.intrari)) {
-        suplimentare += intrare.oreSuplimentare;
-        noapte += intrare.oreNoapte;
         if (CATEGORII_SPECIALE.includes(intrare.tipZi)) {
           speciale.set(intrare.tipZi, (speciale.get(intrare.tipZi) ?? 0) + 1);
         }
@@ -421,9 +444,12 @@ export function FoaieColectiva({
           <tbody className="divide-border divide-y">
             {randuri.map((rand) => {
               const intrari = Object.values(rand.intrari);
-              const totalOre = intrari.reduce((s, i) => s + i.oreLucrate, 0);
-              const totalSuplimentar = intrari.reduce((s, i) => s + i.oreSuplimentare, 0);
-              const totalNoapte = intrari.reduce((s, i) => s + i.oreNoapte, 0);
+              // Aceeași regulă ca totalul general și coloanele (HR-013).
+              const {
+                lucrate: totalOre,
+                suplimentare: totalSuplimentar,
+                noapte: totalNoapte,
+              } = totalurileZilelor(intrari.map(laTotal));
               const speciale = CATEGORII_SPECIALE.map((tip) => ({
                 tip,
                 numar: intrari.filter((i) => i.tipZi === tip).length,

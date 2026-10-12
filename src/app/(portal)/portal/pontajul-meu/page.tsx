@@ -18,6 +18,8 @@ import { anDinUrl } from "@/lib/rute/parametri";
 import { pontajulMeu, fisaMea } from "@/lib/queries/portal";
 import { setariPontareRapida } from "@/lib/queries/attendance";
 import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
+import { totalurileZilelor, ziDeTotalizat } from "@/domain/attendance/totaluri";
+import { refuzulZilei } from "@/domain/attendance/zi-de-pontat";
 
 import { ETICHETE_TIP_ZI } from "../etichete";
 
@@ -102,14 +104,8 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
   const peZi = sePonteazaPeZi(configPontareRapida(randPontare));
   const poateEditaZiua = poatePlanifica && peZi;
 
-  const total = zile.reduce(
-    (s, z) => ({
-      lucrate: s.lucrate + (z.ore_lucrate ?? 0),
-      suplimentare: s.suplimentare + (z.ore_suplimentare ?? 0),
-      noapte: s.noapte + (z.ore_noapte ?? 0),
-    }),
-    { lucrate: 0, suplimentare: 0, noapte: 0 },
-  );
+  // Aceeași regulă ca în foaia colectivă (HR-013): ziua respinsă iese din totaluri.
+  const total = totalurileZilelor(zile.map(ziDeTotalizat));
 
   // Navigarea între luni se face pe șiruri de dată, nu pe `Date`: ziua 1 a lunii
   // convertită în `Date` alunecă peste graniță în funcție de fus.
@@ -218,6 +214,10 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
               luna={luna}
               zile={zile}
               poateEdita={poateEditaZiua}
+              // Ziua din viitor și cea dinaintea angajării nu se deschid:
+              // `salveazaZiPontaj` le refuză (ANG-004, ANG-005).
+              azi={azi}
+              angajatDin={stare.fisa.hired_on}
               poateDeschideConcediu={
                 (await getEnabledFeatures(tenant.organizationId)).has("leave") &&
                 can(permisiuni, "leave:read", "own")
@@ -232,7 +232,14 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
                       ecran care explică refuzul, ceea ce e corect — dar un rând
                       care nu reacționează spune mai bine „nu e nimic de făcut
                       aici". */}
-                  <ZiRand data={z.data} editabila={poateEditaZiua && z.tip_zi === "lucratoare"}>
+                  <ZiRand
+                    data={z.data}
+                    editabila={
+                      poateEditaZiua &&
+                      z.tip_zi === "lucratoare" &&
+                      refuzulZilei(z.data, azi, stare.fisa.hired_on) === null
+                    }
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-foreground text-corp font-medium">

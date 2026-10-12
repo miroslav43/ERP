@@ -377,6 +377,12 @@ function FormularCerereNoua({
       ? (soldPropriu[tip.id] ?? null)
       : null;
 
+  // Zero zile lucrătoare (HR-009): „Trimite spre aprobare” se dezactivează,
+  // ciorna rămâne posibilă. Verificarea față de data angajării rămâne doar pe
+  // server — lista `angajati` nu poartă `hired_on`; mesajul acțiunii vine pe
+  // canalul de eroare al formularului.
+  const faraZileLucratoare = previzualizare !== null && previzualizare.zileLucratoare === 0;
+
   /**
    * Numele din `FormData` sunt EXACT cheile lui `creeazaCerereSchema`
    * (`src/schemas/leave.ts`): `employee_id`, `leave_type_id`, `data_inceput`,
@@ -783,10 +789,13 @@ function FormularCerereNoua({
               </p>
             ) : (
               <>
-                <p>
+                <p className={faraZileLucratoare ? "text-danger font-medium" : undefined}>
                   Cererea consumă{" "}
                   <strong>{formatAmount(previzualizare.zileLucratoare)} zile lucrătoare</strong> din{" "}
                   {previzualizare.zileCalendaristice} zile calendaristice.
+                  {faraZileLucratoare
+                    ? " Perioada nu conține nicio zi lucrătoare — doar weekend sau sărbători legale — și nu poate fi trimisă spre aprobare."
+                    : null}
                 </p>
                 {tip !== null && !tip.scade_din_sold ? (
                   <p className="text-muted-foreground text-nota mt-1">
@@ -826,6 +835,7 @@ function FormularCerereNoua({
             <Buton
               type="submit"
               varianta="primar"
+              disabled={faraZileLucratoare}
               inCurs={stare.inCurs}
               textInCurs={poateAprobaPeLoc ? "Se înregistrează…" : "Se trimite…"}
               onClick={() => {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CLASE_TIP_ZI, CODURI_TIP_ZI, ETICHETE_TIP_ZI } from "@/app/(app)/pontaj/etichete";
 import { formatOre } from "@/lib/format/ore";
 import { construiesteSaptamani, ziIso } from "@/domain/calendar/grila-lunara";
+import { refuzulZilei, type MotivRefuzZi } from "@/domain/attendance/zi-de-pontat";
 import type { ZiPontaj } from "@/lib/queries/portal";
 
 /**
@@ -49,6 +50,16 @@ const ZILE_SAPTAMANA = [
 const CODURI: Readonly<Record<string, string | undefined>> = CODURI_TIP_ZI;
 const CLASE: Readonly<Record<string, string | undefined>> = CLASE_TIP_ZI;
 const ETICHETE: Readonly<Record<string, string | undefined>> = ETICHETE_TIP_ZI;
+
+/**
+ * De ce ziua nu e legătură, în două cuvinte, pentru cititorul de ecran. Celula
+ * rămâne vizual neschimbată: o zi care n-a venit încă nu e un defect de
+ * afișat, doar nu se deschide (ANG-004, ANG-005).
+ */
+const ETICHETE_REFUZ: Readonly<Record<MotivRefuzZi, string>> = {
+  viitor: "zi din viitor",
+  inainte_de_angajare: "înainte de angajare",
+};
 
 /**
  * Tipurile care apar EFECTIV în luna afișată, în ordinea etichetei.
@@ -116,6 +127,14 @@ interface Proprietati {
   readonly zile: readonly ZiPontaj[];
   /** Ziua devine link către formularul ei doar când chiar se poate edita. */
   readonly poateEdita: boolean;
+  /**
+   * Ziua de azi, din `todayInBucharest()`: zilele de după ea nu se deschid —
+   * `salveazaZiPontaj` le refuză (ANG-004). Primită, nu citită aici: grila e
+   * pură și se testează cu o zi fixă.
+   */
+  readonly azi: string;
+  /** `employees.hired_on`: zilele dinaintea ei nu se deschid (ANG-005). `null` = fără verificare. */
+  readonly angajatDin: string | null;
   /** Poarta lui `/portal/concediile-mele/[id]`: „Din concediu” devine link spre cerere. */
   readonly poateDeschideConcediu?: boolean;
 }
@@ -125,6 +144,8 @@ export function GrilaLuna({
   luna,
   zile,
   poateEdita,
+  azi,
+  angajatDin,
   poateDeschideConcediu = false,
 }: Proprietati) {
   const saptamani = construiesteSaptamani(an, luna);
@@ -166,12 +187,16 @@ export function GrilaLuna({
                   }
                   const iso = ziIso(an, luna, zi);
                   const intrare = peZi.get(iso);
+                  // Ziua din viitor sau dinaintea angajării nu se deschide,
+                  // oricare i-ar fi rândul: acțiunea o refuză (ANG-004/005).
+                  const refuz = poateEdita ? refuzulZilei(iso, azi, angajatDin) : null;
                   return (
                     <CelulaLunii
                       key={iso}
                       zi={zi}
                       data={iso}
                       intrare={intrare}
+                      refuz={refuz}
                       hrefConcediu={
                         poateDeschideConcediu &&
                         intrare !== undefined &&
@@ -193,8 +218,8 @@ export function GrilaLuna({
                        * (`salveazaZiPontaj` o refuză explicit). O zi fără rând
                        * nu e blocată de nimic — e chiar cazul obișnuit.
                        */
-                      editabila={ziuaSePoateDeschide(poateEdita, intrare)}
-                      motivBlocare={motivulBlocarii(poateEdita, intrare)}
+                      editabila={refuz === null && ziuaSePoateDeschide(poateEdita, intrare)}
+                      motivBlocare={refuz === null ? motivulBlocarii(poateEdita, intrare) : null}
                     />
                   );
                 })}
@@ -246,6 +271,7 @@ function CelulaLunii({
   intrare,
   editabila,
   motivBlocare,
+  refuz = null,
   hrefConcediu = null,
 }: {
   readonly zi: number;
@@ -254,6 +280,8 @@ function CelulaLunii({
   readonly editabila: boolean;
   /** De ce nu se deschide ziua. `null` când se deschide. */
   readonly motivBlocare: string | null;
+  /** Ziua nu se pontează deloc (viitor, înainte de angajare); `null` altfel. */
+  readonly refuz?: MotivRefuzZi | null;
   /** Cererea din spatele zilei de concediu; `null` = text. */
   readonly hrefConcediu?: string | null;
 }) {
@@ -309,6 +337,7 @@ function CelulaLunii({
       {intrare === undefined ? null : (
         <span className="sr-only"> · {ETICHETE[intrare.tip_zi] ?? intrare.tip_zi}</span>
       )}
+      {refuz === null ? null : <span className="sr-only"> · {ETICHETE_REFUZ[refuz]}</span>}
     </>
   );
 

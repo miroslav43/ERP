@@ -89,8 +89,8 @@ const tipOdihna = (extra: Record<string, unknown> = {}) => ({
 });
 
 /** Fișa proprie, citită cu clientul admin (rolul `employee` nu-și vede fișa prin RLS). */
-function fisaProprie(admin: ClientFals, id: string | null = FISA) {
-  admin.raspunde("employees", "select", { data: id === null ? null : { id } });
+function fisaProprie(admin: ClientFals, id: string | null = FISA, hiredOn: string | null = null) {
+  admin.raspunde("employees", "select", { data: id === null ? null : { id, hired_on: hiredOn } });
 }
 
 /** Sărbătorile anului: naționale și ale organizației. */
@@ -575,6 +575,129 @@ describe("creeazaCerereConcediu — verificările de la trimitere", () => {
     const r = await creeazaCerereConcediu(intrare({ trimite: true }));
 
     expect(r.ok).toBe(true);
+  });
+});
+
+/*
+  Perioada care nu poate pleca (ANG-010, ANG-011, HR-009).
+
+  Zero zile lucrătoare treceau de sold trivial și ajungeau la aprobator; o
+  perioadă dinaintea angajării nu era verificată deloc — niciun fișier din
+  modul nu citea `hired_on`. Ciorna rămâne nevalidată, deliberat: predicatul lui
+  `recalc_sold` numără doar `trimisa` și `in_aprobare`.
+*/
+describe("creeazaCerereConcediu — perioada care nu poate pleca", () => {
+  /** Sâmbătă 11 – duminică 12 iulie 2026. */
+  const WEEKEND = { data_inceput: "2026-07-11", data_sfarsit: "2026-07-12" };
+
+  it("trimitere doar pe weekend: CONFLICT „nicio zi lucrătoare”, fără INSERT și fără sold", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    sarbatori(server);
+
+    const r = await creeazaCerereConcediu(intrare({ ...WEEKEND, trimite: true }));
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("nicio zi lucrătoare") },
+    });
+    expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
+    // Refuzul vine ÎNAINTEA soldului: 0 zile ar fi trecut trivial de el.
+    expect(server.apeluriPe("leave_balances")).toHaveLength(0);
+  });
+
+  it("trimitere doar pe sărbători legale: CONFLICT la fel", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    // Luni 6 iulie declarată sărbătoare: singura zi a cererii.
+    sarbatori(server, ["2026-07-06"]);
+
+    const r = await creeazaCerereConcediu(
+      intrare({ data_inceput: "2026-07-06", data_sfarsit: "2026-07-06", trimite: true }),
+    );
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("nicio zi lucrătoare") },
+    });
+    expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
+  });
+
+  it("perioadă care începe înaintea angajării: CONFLICT cu data de pe fișă, fără INSERT", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin, FISA, "2026-07-08");
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    sarbatori(server);
+
+    const r = await creeazaCerereConcediu(intrare({ trimite: true }));
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("08.07.2026") },
+    });
+    expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
+    expect(server.apeluriPe("leave_balances")).toHaveLength(0);
+  });
+
+  it("perioadă care începe chiar în ziua angajării trece", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin, FISA, "2026-07-06");
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    trimitereCurata(server);
+
+    const r = await creeazaCerereConcediu(intrare({ trimite: true }));
+
+    expect(r).toMatchObject({ ok: true });
+  });
+
+  it("ciorna cu 0 zile se salvează: regula e doar la trimitere", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    server.raspunde("leave_requests", "insert", { data: { id: CERERE, zile_lucratoare: 0 } });
+
+    const r = await creeazaCerereConcediu(intrare(WEEKEND));
+
+    expect(r).toMatchObject({ ok: true, data: { zileLucratoare: 0 } });
+    expect(server.apeluriPe("leave_requests", "insert")[0]?.payload).toMatchObject({
+      status: "ciorna",
+    });
+  });
+
+  it("scope `all` cu trimitere: data angajării se citește pe angajatul ALES, filtrată pe organizație", async () => {
+    const { server, admin } = configureazaActiunea({
+      rol: "hr",
+      permisiuni: { "leave:create": "all" },
+    });
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    sarbatori(server);
+    admin.raspunde("employees", "select", { data: { hired_on: "2026-07-08" } });
+
+    const r = await creeazaCerereConcediu(intrare({ employee_id: ALT_ANGAJAT, trimite: true }));
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("08.07.2026") },
+    });
+    const [fisa] = admin.apeluriPe("employees", "select");
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "id", ALT_ANGAJAT)).toBe(true);
+    expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
+    expect(areFiltru(fisa, "eq", "user_id")).toBe(false);
+    expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
+  });
+
+  it("fișă fără dată de angajare: verificarea angajării se sare, restul rămâne", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin, FISA, null);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    trimitereCurata(server);
+
+    const r = await creeazaCerereConcediu(intrare({ trimite: true }));
+
+    expect(r).toMatchObject({ ok: true });
   });
 });
 

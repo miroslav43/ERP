@@ -1,7 +1,7 @@
 // src/app/(portal)/portal/pontajul-meu/zi/[data]/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { CalendarOff, Lock } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
@@ -12,7 +12,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { ziDinRuta } from "@/lib/rute/parametri";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
   citestePerioada,
   sediiPentruPontaj,
@@ -24,6 +24,7 @@ import { stareaLunii } from "@/domain/attendance/luna";
 import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 import { lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { seAlegeSediul } from "@/domain/attendance/sediu";
+import { meritaPontata, mesajRefuzZi, refuzulZilei } from "@/domain/attendance/zi-de-pontat";
 import type { TipPrezenta } from "@/schemas/attendance";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import { rezumatRegulaPontaj } from "@/app/(app)/pontaj/etichete";
@@ -170,6 +171,30 @@ export default async function PaginaZiPontaj({
     );
   }
 
+  /*
+    Ziua care nu se pontează (ANG-004, ANG-005): din viitor sau dinaintea
+    angajării. Același tipar ca luna blocată: refuzul se dă ÎNAINTE de formular,
+    nu după drumul la server — `salveazaZiPontaj` o refuză oricum, cu același
+    text, dar un buton care duce sigur în eroare e un defect de ecran.
+  */
+  const motivRefuz = refuzulZilei(zi, todayInBucharest(), stare.fisa.hired_on);
+  if (motivRefuz !== null) {
+    return (
+      <div className={`${LATIMI.formular} space-y-4 p-4`}>
+        {antet}
+        <StareGoala
+          fel="restrictionata"
+          pictograma={CalendarOff}
+          titlu={
+            motivRefuz === "viitor" ? "Ziua nu a venit încă" : "Nu erați angajat la această dată"
+          }
+          descriere={mesajRefuzZi(motivRefuz, stare.fisa.hired_on)}
+        />
+        {inapoi}
+      </div>
+    );
+  }
+
   // Parametrii după care se derivă ziua din interval. Aceleași valori de
   // rezervă ca în `/pontaj/page.tsx` și în `salveazaZiPontaj`: absența
   // setărilor e normală (nu există seed pentru `attendance_settings`), iar
@@ -218,9 +243,29 @@ export default async function PaginaZiPontaj({
     pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
   };
 
+  /*
+    Zi nelucrătoare pentru firmă (ANG-006): weekend sau sărbătoare legală într-o
+    firmă care a declarat că nu lucrează atunci. Avertismentul de DUPĂ salvare
+    există (`zi_de_repaus_lucrata`, `limite-legale.ts`); ăsta e cel de
+    dinainte, ca omul să nu afle abia după ce a scris ziua. Nu blochează — o
+    sâmbătă chiar lucrată se pontează, cu spor — și tace fără rândul de setări,
+    ca `meritaPontata`: nu inventăm o politică pentru o firmă necunoscută.
+  */
+  const ziNelucratoare =
+    setari !== null &&
+    !meritaPontata(zi, {
+      lucreazaWeekend: setari.lucreaza_weekend,
+      lucreazaSarbatori: setari.lucreaza_sarbatori,
+    });
+
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
       {antet}
+      {ziNelucratoare ? (
+        <Callout fel="atentie" titlu="Zi nelucrătoare pentru firmă">
+          Orele se înregistrează, iar responsabilul de pontaj va vedea avertismentul.
+        </Callout>
+      ) : null}
       {/*
         Motivul respingerii, la locul corecției.
 

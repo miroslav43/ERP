@@ -25,6 +25,7 @@ import {
 } from "@/lib/queries/portal";
 import { citesteFluturasulPropriu, perioadaInregistrarii } from "@/lib/queries/payroll";
 import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
+import { totalurileZilelor, ziDeTotalizat } from "@/domain/attendance/totaluri";
 import { zileNepontate } from "@/domain/attendance/zile-nepontate";
 import { configPontareRapida, sePonteazaPeZi } from "@/domain/attendance/pontare-rapida";
 import { urmatoareaZiLibera, zilePanaLa } from "@/domain/calendar/urmatoarea-zi-libera";
@@ -184,8 +185,12 @@ export default async function PaginaPortal() {
   const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));
   const intervalPropus =
     pontare.programStart === null ? null : intervalulPropus(pontare.programStart, configZi);
-  const oreLuna = zile.reduce((total, z) => total + (z.ore_lucrate ?? 0), 0);
-  const suplimentareLuna = zile.reduce((total, z) => total + (z.ore_suplimentare ?? 0), 0);
+  // Aceeași regulă ca în foaia colectivă și în „Pontajul meu” (HR-013): ziua
+  // respinsă de aprobator nu intră în „Luna aceasta” — i se cere o corecție,
+  // nu i se numără orele.
+  const { lucrate: oreLuna, suplimentare: suplimentareLuna } = totalurileZilelor(
+    zile.map(ziDeTotalizat),
+  );
 
   /*
    * Se lucrează azi? `meritaPontata` a păzit până acum doar CULOAREA cardului —
