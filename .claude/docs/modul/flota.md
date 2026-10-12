@@ -16,6 +16,7 @@ tabele:
     trip_sheets,
     trip_sheet_curse,
     trip_route_templates,
+    fleet_settings,
     fuel_entries,
     odometer_anomalies,
   ]
@@ -34,8 +35,8 @@ capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
   - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF → [[modul/flota/foaia-zilnica]]"
-  - "42501 la salvarea unui vehicul → capcana #23"
-scris_pe: 376052e0c8cbbb56c35b210dfda28d12158be879
+  - "alerte de scadență, responsabil de flotă, notificări pe foaie, /flota/setari → [[modul/flota/alerte-si-setari]]"
+scris_pe: 477405adb844def658fa265d593eda9deecac429
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -54,21 +55,15 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 | `/flota/foi`, `/flota/foi/[id]`      | `trip_sheets:read`/`update` own                                     |
 | `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
 | `/flota/foi/sabloane`                | `trip_sheets:update` all — șabloanele de traseu (0197)              |
+| `/flota/setari`                      | `vehicles:update` all — responsabili, praguri (0198)                |
 | `/api/export/flota/foaie/[id]`       | `trip_sheets:read` own + RLS — PDF-ul foii (0197)                   |
 | `/portal/masina-mea*`                | `trip_sheets:read` own — portalul șoferului, din 0196               |
 
 Drepturile pe roluri (0196), garda de vehicul alocat sau pool, regula „aprobatorul doar
 decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.
 
-**Fișa vehiculului nu e doar de citit.** Modificarea și ștergerea stau amândouă în spatele
-lui `vehicles:update` all — `poateAdministra` din `[id]/page.tsx`, poarta cerută de
-`vehicule_update` în bază. Sub ea intră și corectura documentelor din coloana „Acțiuni”.
-Pe un rând fără document, aceeași coloană are „+” (`vehicles:create`, cu tipul
-preselectat); „Document nou” din capul secțiunii deschide aceeași casetă fără tip (panoul
-permanent de sub tabel a fost scos). Pentru cine nu poate nici una, nici alta, coloana
-lipsește cu totul. Tabelul listează TOATE tipurile: obligatoriile întâi (roșu „Lipsește”
-când n-au document), apoi opționalele (pastilă neutră „Neînregistrat” — lipsa lor nu e o
-problemă); un document fără dată de expirare e „Fără scadență”, nu „Lipsește”.
+**Fișa vehiculului** (cine o modifică, coloana „Acțiuni” a documentelor, tipurile
+obligatorii și opționale): `[[modul/flota/documente-si-erori]]`.
 
 **Vehiculul nou și foaia nouă NU au rută**: casete pe listă, deschise prin parametru
 (`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
@@ -92,7 +87,9 @@ vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 | `confirmaAnomalie`                                    | `vehicles:update` / team     |
 
 Cursele, retragerea, corectura și ștergerea ciornei, alimentările corectate și șabloanele
-de traseu (0197): `[[modul/flota/foaia-zilnica]]`.
+de traseu (0197): `[[modul/flota/foaia-zilnica]]`. `salveazaSetariFlota` (`vehicles:update`
+/ all, `actions-setari.ts`), jobul zilnic de scadențe și notificările foii (0198):
+`[[modul/flota/alerte-si-setari]]`.
 
 **Kilometrajul de bord e obligatoriu la creare** (`numarObligatoriu`) și lipsește din
 modificare. Pe `default 0`, prima foaie trecea de orice verificare. `z.coerce.number()` nu
@@ -127,7 +124,8 @@ n-ar fi trebuit să existe; `vehicles_dupa` scoate scadențele din semafor.
 `citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`, `tipuriDocument`,
 `listeazaFoi` (filtre și pe `data`), `citesteFoaie` (cu instantaneul vehiculului),
 `kmDePlecareSugerat`, `combustibilPeFoi`, `alimentarileFoii`, `anomaliiNeconfirmate`,
-`anomaliiPeFoi`, `curseleFoii`, `sabloaneTraseu`, `numeleContului`, plus, pentru portal,
+`anomaliiPeFoi`, `curseleFoii`, `sabloaneTraseu`, `numeleContului`, `setariFlota`
+(implicitele când lipsește rândul), `candidatiResponsabiliFlota`, plus, pentru portal,
 `vehicululMeu` și `foileMele` (filtru explicit pe șofer).
 
 ## Ce refuză baza tăcut

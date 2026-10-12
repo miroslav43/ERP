@@ -19,6 +19,18 @@ tags: [modul, operations]
 
 Extrasă din `[[modul/flota]]`, ca pagina principală să rămână sub plafon.
 
+## Fișa vehiculului
+
+**Fișa vehiculului nu e doar de citit.** Modificarea și ștergerea stau amândouă în spatele
+lui `vehicles:update` all — `poateAdministra` din `[id]/page.tsx`, poarta cerută de
+`vehicule_update` în bază. Sub ea intră și corectura documentelor din coloana „Acțiuni”.
+Pe un rând fără document, aceeași coloană are „+” (`vehicles:create`, cu tipul
+preselectat); „Document nou” din capul secțiunii deschide aceeași casetă fără tip (panoul
+permanent de sub tabel a fost scos). Pentru cine nu poate nici una, nici alta, coloana
+lipsește cu totul. Tabelul listează TOATE tipurile: obligatoriile întâi (roșu „Lipsește”
+când n-au document), apoi opționalele (pastilă neutră „Neînregistrat” — lipsa lor nu e o
+problemă); un document fără dată de expirare e „Fără scadență”, nu „Lipsește”.
+
 ## Erori traduse
 
 `src/app/(app)/flota/erori.ts` acoperă `23505`, `22012`, `22003` și `P0001`, iar pentru
