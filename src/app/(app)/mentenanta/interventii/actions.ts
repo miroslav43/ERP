@@ -2,13 +2,14 @@
 "use server";
 
 import { createAction } from "@/lib/actions/create-action";
-import { notFound } from "@/lib/actions/errors";
+import { invalidInput, notFound } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
   actualizeazaInterventieSchema,
   anuleazaInterventieSchema,
   piesaNouaSchema,
   stergePiesaSchema,
+  TIPURI_ATASAMENT_PV,
 } from "@/schemas/maintenance";
 
 import { traduEroare } from "../erori";
@@ -78,11 +79,64 @@ export const actualizeazaInterventie = createAction({
   handler: async (ctx, input): Promise<InterventieAtinsa> => {
     const { id, ...campuri } = input;
     const db = await createServerSupabase();
+    const organizationId = ctx.tenant.organizationId;
+
+    // Cazul 34 nu se ocolește prin corectare: o verificare legală înregistrată
+    // „amânată” (fără PV) și trecută apoi pe „reușită”, sau o intervenție
+    // retipizată „verificare legală”, ar ajunge în registru drept făcută fără
+    // document. Se cere PV-ul doar la TRANZIȚIE: rândurile vechi, deja făcute
+    // fără PV, rămân corectabile (cazul 46).
+    const { data: inainte, error: eroareCitire } = await db
+      .from("maintenance_interventions")
+      .select("tip, rezultat, plan_id")
+      .eq("id", id)
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareCitire !== null) throw eroareCitire;
+    if (inainte === null) {
+      throw notFound("Intervenția nu a fost găsită, a fost anulată sau nu vă este accesibilă.");
+    }
+    const tipLegalInainte = inainte.tip === "verificare_legala";
+    const facutaInainte = inainte.rezultat !== "amanata";
+    if (campuri.rezultat !== "amanata" && !(tipLegalInainte && facutaInainte)) {
+      let planLegal = false;
+      if (inainte.plan_id !== null) {
+        const { data: plan, error: eroarePlan } = await db
+          .from("maintenance_plans")
+          .select("tip")
+          .eq("id", inainte.plan_id)
+          .eq("organization_id", organizationId)
+          .maybeSingle();
+        if (eroarePlan !== null) throw eroarePlan;
+        planLegal = plan?.tip === "verificare_legala";
+      }
+      const legalaDupa = campuri.tip === "verificare_legala" || planLegal;
+      const legalaInainte = (tipLegalInainte || planLegal) && facutaInainte;
+      if (legalaDupa && !legalaInainte) {
+        const { count, error: eroarePv } = await db
+          .from("maintenance_attachments")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId)
+          .eq("entity_type", "intervention")
+          .eq("entity_id", id)
+          .in("tip", [...TIPURI_ATASAMENT_PV])
+          .is("deleted_at", null);
+        if (eroarePv !== null) throw eroarePv;
+        if ((count ?? 0) === 0) {
+          const camp = facutaInainte ? "tip" : "rezultat";
+          const mesaj =
+            "O verificare legală se trece ca făcută doar cu procesul-verbal sau buletinul ei atașat. Încărcați-l întâi pe fișa intervenției.";
+          throw invalidInput(mesaj, { [camp]: [mesaj] });
+        }
+      }
+    }
+
     const { data, error } = await db
       .from("maintenance_interventions")
       .update(campuri)
       .eq("id", id)
-      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("organization_id", organizationId)
       .is("deleted_at", null)
       .select("id, equipment_id, plan_id")
       .maybeSingle();

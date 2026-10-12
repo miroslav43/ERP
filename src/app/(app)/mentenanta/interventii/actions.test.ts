@@ -92,9 +92,13 @@ describe("poarta și modulul", () => {
   });
 });
 
+/** Rândul de dinainte de corectare: corectura verifică PV-ul doar la o tranziție (cazul 34). */
+const RAND_INAINTE = { tip: "preventiva", rezultat: "reusita", plan_id: null } as const;
+
 describe("actualizeazaInterventie", () => {
   it("UPDATE pe intervenția vie a organizației, fără id/plan/echipament/număr în payload; `.select()` după", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("maintenance_interventions", "select", { data: RAND_INAINTE });
     server.raspunde("maintenance_interventions", "update", {
       data: { id: ID_1, equipment_id: ID_2, plan_id: ID_3 },
     });
@@ -137,14 +141,118 @@ describe("actualizeazaInterventie", () => {
 
   it("zero rânduri (anulată între timp, altă firmă): NEGASIT, nimic revalidat", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("maintenance_interventions", "select", { data: RAND_INAINTE });
     server.raspunde("maintenance_interventions", "update", { data: null });
     const r = await actualizeazaInterventie(corectura);
     expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
     expect(caiRevalidate()).toEqual([]);
   });
 
+  it("intervenția nu se vede la citire (anulată, altă firmă): NEGASIT, niciun UPDATE", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("maintenance_interventions", "select", { data: null });
+    const r = await actualizeazaInterventie(corectura);
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    const [citire] = server.apeluriPe("maintenance_interventions", "select");
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
+    expect(server.apeluriPe("maintenance_interventions", "update")).toHaveLength(0);
+  });
+
+  // Cazul 34 nu se ocolește prin corectare: înregistrarea cere PV-ul, deci o
+  // verificare legală „amânată” (fără PV) trecută apoi pe „reușită”, sau o
+  // intervenție oarecare retipizată „verificare legală”, ar ajunge în registru
+  // drept făcută fără document.
+  describe("verificarea legală devenită „făcută” prin corectare (cazul 34)", () => {
+    it("tipul schimbat pe `verificare_legala`, fără PV/buletin ⇒ VALIDARE pe `tip`, niciun UPDATE", async () => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_interventions", "select", { data: RAND_INAINTE });
+      server.raspunde("maintenance_attachments", "select", { data: null, count: 0 });
+
+      const r = await actualizeazaInterventie({ ...corectura, tip: "verificare_legala" });
+
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      if (!r.ok) expect(r.error.fieldErrors).toHaveProperty("tip");
+      const [atasamente] = server.apeluriPe("maintenance_attachments", "select");
+      expect(areFiltru(atasamente, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(atasamente, "eq", "entity_type", "intervention")).toBe(true);
+      expect(areFiltru(atasamente, "eq", "entity_id", ID_1)).toBe(true);
+      expect(areFiltru(atasamente, "in", "tip", ["pv", "buletin"])).toBe(true);
+      expect(areFiltru(atasamente, "is", "deleted_at", null)).toBe(true);
+      expect(server.apeluriPe("maintenance_interventions", "update")).toHaveLength(0);
+    });
+
+    it("„amânată” → „reușită” pe un plan de verificare legală, fără PV ⇒ VALIDARE pe `rezultat`", async () => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_interventions", "select", {
+        data: { tip: "preventiva", rezultat: "amanata", plan_id: ID_3 },
+      });
+      server.raspunde("maintenance_plans", "select", { data: { tip: "verificare_legala" } });
+      server.raspunde("maintenance_attachments", "select", { data: null, count: 0 });
+
+      const r = await actualizeazaInterventie(corectura);
+
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      if (!r.ok) expect(r.error.fieldErrors).toHaveProperty("rezultat");
+      const [plan] = server.apeluriPe("maintenance_plans", "select");
+      expect(areFiltru(plan, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(plan, "eq", "id", ID_3)).toBe(true);
+      expect(server.apeluriPe("maintenance_interventions", "update")).toHaveLength(0);
+    });
+
+    it("aceeași tranziție, cu PV-ul deja urcat pe fișă ⇒ corectura trece", async () => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_interventions", "select", {
+        data: { tip: "preventiva", rezultat: "amanata", plan_id: ID_3 },
+      });
+      server.raspunde("maintenance_plans", "select", { data: { tip: "verificare_legala" } });
+      server.raspunde("maintenance_attachments", "select", { data: null, count: 1 });
+      server.raspunde("maintenance_interventions", "update", {
+        data: { id: ID_1, equipment_id: ID_2, plan_id: ID_3 },
+      });
+
+      const r = await actualizeazaInterventie(corectura);
+
+      expect(r.ok).toBe(true);
+      expect(server.apeluriPe("maintenance_interventions", "update")).toHaveLength(1);
+    });
+
+    it("o verificare legală veche, deja „reușită”, se corectează fără PV (cazul 46: nu se cere retroactiv)", async () => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_interventions", "select", {
+        data: { tip: "verificare_legala", rezultat: "reusita", plan_id: null },
+      });
+      server.raspunde("maintenance_interventions", "update", {
+        data: { id: ID_1, equipment_id: ID_2, plan_id: null },
+      });
+
+      const r = await actualizeazaInterventie({ ...corectura, tip: "verificare_legala" });
+
+      expect(r.ok).toBe(true);
+      expect(server.apeluriPe("maintenance_attachments")).toHaveLength(0);
+    });
+
+    it("rezultatul rămâne „amânată” ⇒ PV-ul nu se cere", async () => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_interventions", "select", { data: RAND_INAINTE });
+      server.raspunde("maintenance_interventions", "update", {
+        data: { id: ID_1, equipment_id: ID_2, plan_id: null },
+      });
+
+      const r = await actualizeazaInterventie({
+        ...corectura,
+        tip: "verificare_legala",
+        rezultat: "amanata",
+      });
+
+      expect(r.ok).toBe(true);
+      expect(server.apeluriPe("maintenance_attachments")).toHaveLength(0);
+    });
+  });
+
   it("garda din bază (P0001) ajunge la om cu mesajul ei", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("maintenance_interventions", "select", { data: RAND_INAINTE });
     const mesaj = "Sesizarea de care ține o intervenție nu se schimbă prin editare.";
     server.raspunde("maintenance_interventions", "update", {
       error: eroarePostgrest("P0001", mesaj),
