@@ -25,7 +25,7 @@ describe("valoriVehicul", () => {
    * legate de un `name` real — dacă inputul dispare din nou, aici nu se vede,
    * dar cel puțin maparea rămâne una singură, verificată.
    */
-  it("citește toate cele optsprezece câmpuri ale schemei", () => {
+  it("citește toate cele nouăsprezece câmpuri ale schemei", () => {
     const valori = valoriVehicul(
       formular({
         ...MINIM,
@@ -39,6 +39,7 @@ describe("valoriVehicul", () => {
         data_achizitie: "2020-03-15",
         valoare_achizitie: "42500",
         prag_salt_km: "800",
+        anvelope_montate: "iarna",
         observatii: "Cauciucuri de iarnă în portbagaj.",
       }),
     );
@@ -58,6 +59,7 @@ describe("valoriVehicul", () => {
       numar_locuri: 5,
       department_id: null,
       pool: false,
+      anvelope_montate: "iarna",
       data_achizitie: "2020-03-15",
       valoare_achizitie: 42500,
       prag_salt_km: 800,

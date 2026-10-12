@@ -30,6 +30,8 @@ export type ValoriVehicul = Readonly<{
   numar_locuri: number | null;
   department_id: string | null;
   pool: boolean;
+  /** Șirul gol = „necunoscut”: schema îl transformă în NULL. */
+  anvelope_montate: string;
   data_achizitie: string | null;
   valoare_achizitie: number | null;
   prag_salt_km: number | null;
@@ -69,6 +71,7 @@ export function valoriVehicul(date: FormData): ValoriVehicul {
     numar_locuri: numarSauNull(date, "numar_locuri"),
     department_id: textSauNull(date, "department_id"),
     pool: date.get("pool") === "on",
+    anvelope_montate: text(date, "anvelope_montate"),
     data_achizitie: textSauNull(date, "data_achizitie"),
     valoare_achizitie: numarSauNull(date, "valoare_achizitie"),
     prag_salt_km: numarSauNull(date, "prag_salt_km"),

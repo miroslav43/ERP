@@ -821,6 +821,66 @@ const INTRARI: readonly Intrare[] = [
     descriere:
       "Kilometrajele care nu se leagă între două foi consecutive, de confirmat sau corectat.",
   },
+  // ═══ ÎNCEPUT BLOC: flota, șabloanele de traseu (0197) ═══
+  {
+    id: "flota.sabloane",
+    href: "/flota/foi/sabloane",
+    eticheta: "Șabloane de traseu",
+    zona: "app",
+    parinte: "flota",
+    fila: "Șabloane de traseu",
+    featureKey: "fleet",
+    permission: "trip_sheets:update",
+    minScope: "all",
+    descriere:
+      "Rutele pe care mașinile firmei le fac des, din care șoferii își adaugă cursele pe foaia de parcurs.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, șabloanele de traseu (0197) ═══
+  // ═══ ÎNCEPUT BLOC: flota, setările (0198) ═══
+  {
+    id: "flota.setari",
+    href: "/flota/setari",
+    eticheta: "Setări parc auto",
+    zona: "app",
+    parinte: "flota",
+    fila: "Setări",
+    featureKey: "fleet",
+    permission: "vehicles:update",
+    minScope: "all",
+    descriere:
+      "Responsabilii de flotă care primesc alertele de scadență și foile de aprobat, zilele de dinainte de expirare la care pleacă alertele și pragul de salt al kilometrajului.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, setările (0198) ═══
+  // ═══ ÎNCEPUT BLOC: flota, tipurile de document (0199) ═══
+  {
+    id: "flota.tipuri-document",
+    href: "/flota/setari/documente",
+    eticheta: "Tipuri de document ale parcului auto",
+    zona: "app",
+    parinte: "flota",
+    fila: "Tipuri de document",
+    featureKey: "fleet",
+    permission: "vehicles:update",
+    minScope: "all",
+    descriere:
+      "Ce documente ține firma pentru vehicule și care sunt obligatorii: activarea licenței de transport, a tahografului sau a ADR-ului, tipurile proprii firmei, documentele care nu se cer remorcilor.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, tipurile de document (0199) ═══
+  // ═══ ÎNCEPUT BLOC: flota, rapoartele (F8) ═══
+  {
+    id: "flota.rapoarte",
+    href: "/flota/rapoarte",
+    eticheta: "Rapoarte parc auto",
+    zona: "app",
+    parinte: "flota",
+    fila: "Rapoarte",
+    featureKey: "fleet",
+    permission: "vehicles:read",
+    minScope: "all",
+    descriere:
+      "Costul pe vehicul, consumul real față de norma proprie și kilometrii pe șofer, pe lună, din foile aprobate, cu Excelul și pachetul lunar (foile aprobate în PDF) pentru contabil.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, rapoartele (F8) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {
@@ -1421,6 +1481,32 @@ const INTRARI: readonly Intrare[] = [
     minScope: "own",
     descriere: "Anunțarea unei deplasări, cu destinația și perioada.",
   },
+  // ── început bloc: flota pe roluri (0196) ──
+  {
+    id: "portal.masina",
+    href: "/portal/masina-mea",
+    eticheta: "Mașina mea",
+    zona: "portal",
+    parinte: "portal-masina",
+    fila: null,
+    featureKey: "fleet",
+    permission: "trip_sheets:read",
+    minScope: "own",
+    descriere: "Mașina primită în folosință, termenele ei și foile tale de parcurs.",
+  },
+  {
+    id: "portal.masina.foaie-noua",
+    href: "/portal/masina-mea?foaie=noua",
+    eticheta: "Foaie de parcurs nouă",
+    zona: "portal",
+    parinte: "portal-masina",
+    fila: null,
+    featureKey: "fleet",
+    permission: "trip_sheets:create",
+    minScope: "own",
+    descriere: "Întocmirea foii de parcurs pe mașina ta sau pe una din mașinile comune.",
+  },
+  // ── sfârșit bloc: flota pe roluri (0196) ──
   {
     id: "portal.cursuri",
     href: "/portal/cursurile-mele",

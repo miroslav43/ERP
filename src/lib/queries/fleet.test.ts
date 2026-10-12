@@ -32,8 +32,10 @@ import {
   listeazaFoi,
   listeazaVehicule,
   PLAFON_ANOMALII,
+  pragSaltVehicul,
   scadenteCurente,
   tipuriDocument,
+  urlSemnateFlota,
   vehiculeDupaId,
   type FiltreFoiCitire,
   type FiltreVehiculeCitire,
@@ -68,6 +70,8 @@ const filtreFoi = (m: Partial<FiltreFoiCitire> = {}): FiltreFoiCitire => ({
   status: null,
   vehicul: null,
   sofer: null,
+  de_la: null,
+  pana_la: null,
   cursor: null,
   limita: 2,
   ...m,
@@ -224,13 +228,68 @@ describe("documentele vehiculelor", () => {
     );
   });
 
-  it("tipurile de document NU se filtrează pe organizație (cele de platformă au NULL)", async () => {
-    db.raspunde("vehicle_document_types", "select", { data: [{ id: ID_1, cod: "ITP" }] });
-    expect(await tipuriDocument()).toHaveLength(1);
-    const [apel] = db.apeluri;
-    expect(areFiltru(apel, "eq", "organization_id")).toBe(false);
-    expect(areFiltru(apel, "eq", "activ", true)).toBe(true);
-    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+  it("tipurile de document: platforma ȘI ale firmei, explicit, cu setarea firmei aplicată (0199)", async () => {
+    const tip = (id: string, cod: string, activ: boolean, org: string | null = null) => ({
+      id,
+      organization_id: org,
+      cod,
+      denumire: cod.toUpperCase(),
+      descriere: null,
+      cere_expirare: true,
+      obligatoriu: false,
+      ordine: 10,
+      activ,
+      categorii_aplicabile: null,
+      masa_max_kg: null,
+    });
+    db.raspunde("vehicle_document_types", "select", {
+      data: [tip(ID_1, "rca", true), tip(ID_2, "adr", false), tip(ID_3, "casco", true)],
+    });
+    db.raspunde("vehicle_document_type_setari", "select", {
+      data: [
+        { document_type_id: ID_2, activ: true, obligatoriu: true },
+        { document_type_id: ID_3, activ: false, obligatoriu: false },
+      ],
+    });
+
+    const tipuri = await tipuriDocument(ORG_ID);
+
+    // ADR (retras din platformă) e activ pentru firmă; CASCO, retras de firmă, nu.
+    expect(tipuri.map((t) => t.cod).sort()).toEqual(["adr", "rca"]);
+    expect(tipuri.find((t) => t.cod === "adr")?.obligatoriu).toBe(true);
+    const [apelTipuri, apelSetari] = db.apeluri;
+    // Membrul a două firme nu vede tipurile proprii ale celeilalte.
+    expect(predicatOr(apelTipuri)).toBe(`organization_id.is.null,organization_id.eq.${ORG_ID}`);
+    expect(areFiltru(apelTipuri, "eq", "activ", true)).toBe(false);
+    expect(areFiltru(apelTipuri, "is", "deleted_at", null)).toBe(true);
+    expect(areFiltru(apelSetari, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apelSetari, "is", "deleted_at", null)).toBe(true);
+  });
+
+  it("URL-urile semnate ale flotei: o cerere, căi unice, cine n-are voie primește lipsă", async () => {
+    db.raspundeStocare("org-flota", "createSignedUrls", {
+      data: [
+        { path: "a/vehicles/b/c.pdf", signedUrl: "https://s/1", error: null },
+        { path: "a/trip_sheets/b/d.jpg", signedUrl: "", error: "Object not found" },
+      ],
+    });
+    const harta = await urlSemnateFlota([
+      "a/vehicles/b/c.pdf",
+      null,
+      "a/vehicles/b/c.pdf",
+      "a/trip_sheets/b/d.jpg",
+    ]);
+    expect([...harta.entries()]).toEqual([["a/vehicles/b/c.pdf", "https://s/1"]]);
+    expect(db.apeluriStocare).toHaveLength(1);
+    expect(db.apeluriStocare[0]?.argumente).toEqual([
+      ["a/vehicles/b/c.pdf", "a/trip_sheets/b/d.jpg"],
+      600,
+    ]);
+  });
+
+  it("fără căi, nicio cerere la Storage", async () => {
+    expect((await urlSemnateFlota([null])).size).toBe(0);
+    expect(db.apeluriStocare).toHaveLength(0);
   });
 });
 
@@ -437,3 +496,29 @@ describe("rezolvarea id-urilor", () => {
     expect(areFiltru(db.apeluri[0], "is", "deleted_at", null)).toBe(true);
   });
 });
+
+// ═══ ÎNCEPUT BLOC: pragul de salt al unui vehicul (0198, revizuire) ═══════════
+describe("pragSaltVehicul", () => {
+  it("cheamă funcția îngustă cu id-ul vehiculului și întoarce numărul", async () => {
+    db.raspundeRpc("flota_prag_salt_km", { data: 900 });
+    expect(await pragSaltVehicul(ID_1)).toBe(900);
+    expect(db.apeluriRpc).toEqual([
+      { nume: "flota_prag_salt_km", argumente: { p_vehicle_id: ID_1 } },
+    ]);
+    // Nu atinge tabela de setări: managerul și șoferul n-au voie la ea.
+    expect(db.apeluriPe("fleet_settings")).toHaveLength(0);
+  });
+
+  it("vehicul invizibil: NULL, nu eroare", async () => {
+    db.raspundeRpc("flota_prag_salt_km", { data: null });
+    expect(await pragSaltVehicul(ID_2)).toBeNull();
+  });
+
+  it("o eroare a bazei se propagă", async () => {
+    db.raspundeRpc("flota_prag_salt_km", {
+      error: eroarePostgrest("42883", "function does not exist"),
+    });
+    await expect(pragSaltVehicul(ID_1)).rejects.toMatchObject({ code: "42883" });
+  });
+});
+// ═══ SFÂRȘIT BLOC: pragul de salt al unui vehicul ═════════════════════════════

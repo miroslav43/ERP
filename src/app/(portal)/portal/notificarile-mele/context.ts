@@ -35,6 +35,7 @@ import type { ServerSupabase } from "@/lib/supabase/server";
 
 import {
   idCerereDeConcediu,
+  idFoaieDeParcurs,
   idIntegrare,
   idSesizare,
   idTichet,
@@ -102,6 +103,9 @@ export async function contexteDestinatar(
   const tichetIds = [...new Set(linkuri.map(idTichet).filter((x) => x !== null))];
   const sesizareIds = [...new Set(linkuri.map(idSesizare).filter((x) => x !== null))];
   const integrareIds = [...new Set(linkuri.map(idIntegrare).filter((x) => x !== null))];
+  // ── început bloc: flota, notificările foii (0198) ──
+  const foaieIds = [...new Set(linkuri.map(idFoaieDeParcurs).filter((x) => x !== null))];
+  // ── sfârșit bloc: flota, notificările foii (0198) ──
   const saptamanaIds = [
     ...new Set(
       entitati
@@ -115,12 +119,13 @@ export async function contexteDestinatar(
     tichetIds.length === 0 &&
     sesizareIds.length === 0 &&
     integrareIds.length === 0 &&
-    saptamanaIds.length === 0
+    saptamanaIds.length === 0 &&
+    foaieIds.length === 0
   ) {
     return goale;
   }
 
-  const [cereri, tichete, sesizari, integrari, saptamani] = await Promise.all([
+  const [cereri, tichete, sesizari, integrari, saptamani, foi] = await Promise.all([
     cerereIds.length === 0
       ? null
       : db
@@ -161,6 +166,17 @@ export async function contexteDestinatar(
           .in("organization_id", organizationIds)
           .in("id", saptamanaIds)
           .is("deleted_at", null),
+    // ── început bloc: flota, notificările foii (0198) ──
+    // Proprietarul de portal al foii e ȘOFERUL ei (`employee_id`).
+    foaieIds.length === 0
+      ? null
+      : db
+          .from("trip_sheets")
+          .select("id, employee_id")
+          .in("organization_id", organizationIds)
+          .in("id", foaieIds)
+          .is("deleted_at", null),
+    // ── sfârșit bloc: flota, notificările foii (0198) ──
   ]);
 
   if (cereri?.error != null) {
@@ -177,6 +193,9 @@ export async function contexteDestinatar(
   }
   if (saptamani?.error != null) {
     console.error(`[context-notificari] citirea săptămânilor a eșuat: ${saptamani.error.message}.`);
+  }
+  if (foi?.error != null) {
+    console.error(`[context-notificari] citirea foilor de parcurs a eșuat: ${foi.error.message}.`);
   }
 
   const perechiCereri = (cereri?.data ?? []).map((r) => [r.id, r.employee_id] as const);
@@ -197,6 +216,7 @@ export async function contexteDestinatar(
   const perechiSaptamani = (saptamani?.data ?? []).map(
     (r) => [r.id, r.employee_id, r.saptamana_start] as const,
   );
+  const perechiFoi = (foi?.data ?? []).map((r) => [r.id, r.employee_id] as const);
 
   const fise = [
     ...new Set(
@@ -205,6 +225,7 @@ export async function contexteDestinatar(
         ...perechiTichete,
         ...perechiSesizari,
         ...perechiIntegrari,
+        ...perechiFoi,
         ...perechiSaptamani.map(([id, fisa]) => [id, fisa] as const),
       ].map(([, fisa]) => fisa),
     ),
@@ -216,6 +237,7 @@ export async function contexteDestinatar(
     tichete: Set<string>;
     sesizari: Set<string>;
     integrari: Set<string>;
+    foi: Set<string>;
     saptamani: Map<string, string>;
   };
   const rezultat = new Map<string, Seturi>();
@@ -227,6 +249,7 @@ export async function contexteDestinatar(
         tichete: new Set<string>(),
         sesizari: new Set<string>(),
         integrari: new Set<string>(),
+        foi: new Set<string>(),
         saptamani: new Map<string, string>(),
       };
       rezultat.set(userId, intrare);
@@ -236,7 +259,7 @@ export async function contexteDestinatar(
   const adauga = (
     fisaId: string,
     entitateId: string,
-    fel: "concedii" | "tichete" | "sesizari" | "integrari",
+    fel: "concedii" | "tichete" | "sesizari" | "integrari" | "foi",
   ): void => {
     const userId = utilizatori.get(fisaId);
     if (userId === undefined) return;
@@ -249,6 +272,7 @@ export async function contexteDestinatar(
   for (const [sesizareId, userId] of sesizariPeUtilizator)
     intrarea(userId).sesizari.add(sesizareId);
   for (const [instantaId, fisaId] of perechiIntegrari) adauga(fisaId, instantaId, "integrari");
+  for (const [foaieId, fisaId] of perechiFoi) adauga(fisaId, foaieId, "foi");
   for (const [submisieId, fisaId, start] of perechiSaptamani) {
     const userId = utilizatori.get(fisaId);
     if (userId !== undefined) intrarea(userId).saptamani.set(submisieId, start);
@@ -262,6 +286,7 @@ export async function contexteDestinatar(
         ticheteProprii: seturi.tichete,
         sesizariProprii: seturi.sesizari,
         integrariProprii: seturi.integrari,
+        foiProprii: seturi.foi,
         saptamani: seturi.saptamani,
       },
     ]),

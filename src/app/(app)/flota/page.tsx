@@ -16,9 +16,9 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
-  stareScadentaFlota,
-  stareScadentaVehicul,
-  type StareScadentaFlota,
+  semaforVehicul,
+  tipuriObligatoriiPentru,
+  type SemaforVehicul,
 } from "@/domain/fleet/scadente";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
@@ -125,64 +125,34 @@ async function TabelVehicule({
 
   const [scadente, tipuri] = await Promise.all([
     scadenteCurente(randuri.map((v) => v.id)),
-    tipuriDocument(),
+    tipuriDocument(organizationId),
   ]);
   const azi = todayInBucharest();
   const denumireTip = new Map(tipuri.map((t) => [t.id, t.denumire]));
-  const tipuriObligatorii = tipuri.filter((t) => t.obligatoriu);
 
   /*
    * ── DE CE NU MAI E „CEA MAI APROPIATĂ SCADENȚĂ” ──────────────────────────
    * Vechiul calcul lua prima dată de expirare dintre documentele EXISTENTE ale
-   * vehiculului. Un vehicul fără RCA deloc, dar cu ITP valabil doi ani, ieșea
-   * „În regulă”: tipul obligatoriu fără document nu are niciun rând în
-   * `vehicle_documents`, deci nu putea intra niciodată în comparație. Semaforul
-   * arăta verde exact în cazul cel mai grav — și numai fișa vehiculului, care
-   * listează TIPURILE, spunea adevărul.
+   * vehiculului, iar un vehicul fără RCA deloc ieșea „În regulă”. Acum se
+   * pornește de la nomenclator, în `semaforVehicul` (`@/domain/fleet/scadente`),
+   * aceeași funcție pe care o folosește portalul („Mașina mea”, 0196) — două
+   * copii ale calculului ar fi arătat șoferului verde unde administratorul
+   * vede roșu.
    *
-   * Acum se pornește de la nomenclator: fiecare tip obligatoriu contribuie cu
-   * data lui sau cu `null`, iar în flotă `null` înseamnă `lipsa` — treapta cea
-   * mai gravă, deasupra lui `expirat`. Documentele neobligatorii pe care
-   * vehiculul chiar le are rămân în calcul: o rovinietă expirată se vede.
+   * Obligatoriile sunt ale VEHICULULUI (0199): o remorcă nu cere trusă, un
+   * camion de 12 t nu cere rovinietă, iar firma își activează sau retrage
+   * tipurile (`tipuriObligatoriiPentru`, peste valorile efective ale firmei).
    */
-  const semafor = new Map<
-    string,
-    Readonly<{ treapta: StareScadentaFlota; tipId: string | null; expiraLa: string | null }>
-  >();
-
-  for (const v of randuri) {
-    const aleLui = scadente.filter((s) => s.vehicle_id === v.id);
-    const dupaTip = new Map(aleLui.map((s) => [s.document_type_id, s]));
-
-    const intrari: readonly Readonly<{ tipId: string; expiraLa: string | null }>[] = [
-      ...tipuriObligatorii.map((t) => ({
-        tipId: t.id,
-        expiraLa: dupaTip.get(t.id)?.expira_la ?? null,
-      })),
-      ...aleLui
-        .filter((s) => !tipuriObligatorii.some((t) => t.id === s.document_type_id))
-        .map((s) => ({ tipId: s.document_type_id, expiraLa: s.expira_la })),
-    ];
-
-    const treapta = stareScadentaVehicul(
-      intrari.map((i) => i.expiraLa),
-      azi,
-    );
-
-    // Ce document POARTĂ treapta: dintre cele care sunt pe aceeași treaptă, cel
-    // cu termenul cel mai apropiat. Fără el, coloana „Document” ar fi numit un
-    // act care nu are legătură cu culoarea de alături.
-    const purtator =
-      intrari
-        .filter((i) => stareScadentaFlota(i.expiraLa, azi) === treapta)
-        .sort((a, b) => (a.expiraLa ?? "").localeCompare(b.expiraLa ?? ""))[0] ?? null;
-
-    semafor.set(v.id, {
-      treapta,
-      tipId: purtator?.tipId ?? null,
-      expiraLa: purtator?.expiraLa ?? null,
-    });
-  }
+  const semafor = new Map<string, SemaforVehicul>(
+    randuri.map((v) => [
+      v.id,
+      semaforVehicul(
+        scadente.filter((s) => s.vehicle_id === v.id),
+        tipuriObligatoriiPentru(v, tipuri),
+        azi,
+      ),
+    ]),
+  );
 
   /**
    * Pastila de scadență, tipul documentului și data lui erau înghesuite într-o

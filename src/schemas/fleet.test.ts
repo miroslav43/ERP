@@ -4,8 +4,10 @@ import { z } from "zod";
 
 import {
   alimentareSchema,
+  cursaSchema,
   documentVehiculSchema,
   foaieNouaSchema,
+  setariFlotaSchema,
   trimiteFoaieSchema,
   vehiculNouSchema,
 } from "./fleet";
@@ -26,10 +28,18 @@ describe("orele din parcul auto sunt ora României", () => {
     expect(foaie.plecare_la).toBe("2026-12-03T05:30:00.000Z");
   });
 
-  it("sosirea și alimentarea, vara ⇒ trei ore în urmă", () => {
+  it("sosirea cursei și alimentarea, vara ⇒ trei ore în urmă", () => {
     expect(
-      trimiteFoaieSchema.parse({ id: ID, sosire_la: "2026-07-01T18:00", km_sosire: 1200 })
-        .sosire_la,
+      cursaSchema.parse({
+        trip_sheet_id: ID,
+        plecare_la: "2026-07-01T16:00",
+        sosire_la: "2026-07-01T18:00",
+        de_la_loc: "Sediu",
+        pana_la_loc: "Client",
+        scop: "Livrare",
+        km_plecare: "1100",
+        km_sosire: "1200",
+      }).sosire_la,
     ).toBe("2026-07-01T15:00:00.000Z");
     expect(
       alimentareSchema.parse({
@@ -124,5 +134,103 @@ describe("mesajele vehiculului și ale documentului sunt românești", () => {
       cost: -20,
     });
     expect(erori["cost"]).toEqual(["Costul nu poate fi negativ."]);
+  });
+});
+
+describe("foaia zilnică (0197)", () => {
+  const cursa = (m: Record<string, unknown> = {}) => ({
+    trip_sheet_id: ID,
+    plecare_la: "2026-10-05T08:00",
+    sosire_la: "2026-10-05T09:00",
+    de_la_loc: "Sediu",
+    pana_la_loc: "Depozit",
+    scop: "Aprovizionare",
+    km_plecare: "10000",
+    km_sosire: "10040",
+    ...m,
+  });
+
+  it("trimiterea nu mai poartă sosirea: o dau cursele", () => {
+    const r = trimiteFoaieSchema.parse({ id: ID, sosire_la: "2026-07-01T18:00", km_sosire: 1 });
+    expect(r).toEqual({ id: ID, observatii: null });
+  });
+
+  it("o cursă în desfășurare: sosirea goală, kilometrajul gol", () => {
+    const r = cursaSchema.parse(cursa({ sosire_la: "", km_sosire: "" }));
+    expect(r.sosire_la).toBeNull();
+    expect(r.km_sosire).toBeNull();
+    expect(r.km_plecare).toBe(10000);
+    expect(r.sablon_id).toBeNull();
+  });
+
+  it("sosirea se completează întreagă: ora fără km și km fără oră sunt refuzate pe câmp", () => {
+    const faraKm = cursaSchema.safeParse(cursa({ km_sosire: "" }));
+    expect(faraKm.error?.issues.map((i) => i.path[0])).toEqual(["km_sosire"]);
+    const faraOra = cursaSchema.safeParse(cursa({ sosire_la: "" }));
+    expect(faraOra.error?.issues.map((i) => i.path[0])).toEqual(["sosire_la"]);
+  });
+
+  it("km la sosire nu poate fi sub cel de la plecare", () => {
+    const r = cursaSchema.safeParse(cursa({ km_sosire: "9990" }));
+    expect(r.error?.issues[0]?.message).toBe(
+      "Kilometrajul la sosire trebuie să fie mai mare decât cel de la plecare.",
+    );
+  });
+
+  it("locul și scopul sunt obligatorii, cu mesaj în română (HG 1/2016 pct. 16)", () => {
+    const r = cursaSchema.safeParse(cursa({ de_la_loc: "  ", scop: "" }));
+    const mesaje = Object.fromEntries((r.error?.issues ?? []).map((i) => [i.path[0], i.message]));
+    expect(mesaje).toEqual({
+      de_la_loc: "Scrieți locul de plecare al cursei.",
+      scop: "Scrieți scopul cursei.",
+    });
+  });
+
+  it("kilometrajul gol la plecare spune „lipsește”, nu 0 km", () => {
+    const r = cursaSchema.safeParse(cursa({ km_plecare: "" }));
+    expect(r.error?.issues[0]?.message).toBe("Scrieți kilometrajul la plecare, în km.");
+  });
+});
+
+describe("setările flotei (0198)", () => {
+  const ID2 = "55555555-5555-4555-8555-555555555555";
+
+  it("textul pragurilor devine lista din bază: descrescător, fără dubluri", () => {
+    const r = setariFlotaSchema.parse({
+      responsabili: [ID, ID2, ID],
+      prag_salt_km: "800",
+      praguri_alerta_zile: "7, 30, 14, 7",
+    });
+    expect(r).toEqual({
+      responsabili: [ID, ID2],
+      prag_salt_km: 800,
+      praguri_alerta_zile: [30, 14, 7],
+    });
+  });
+
+  it("fără responsabili: lista goală (toți administratorii), nu o eroare", () => {
+    const r = setariFlotaSchema.parse({ prag_salt_km: 1500, praguri_alerta_zile: [30] });
+    expect(r.responsabili).toEqual([]);
+  });
+
+  it.each([
+    ["", "Scrieți cel puțin un prag"],
+    ["30, două", "cifre întregi"],
+    ["400", "între 1 și 365"],
+    ["0, 7", "între 1 și 365"],
+    ["1 2 3 4 5 6 7 8 9", "Cel mult 8"],
+  ])("pragurile „%s” sunt refuzate pe câmp: %s", (text, mesaj) => {
+    const r = setariFlotaSchema.safeParse({ prag_salt_km: 1500, praguri_alerta_zile: text });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const eroare = r.error.issues.find((i) => i.path[0] === "praguri_alerta_zile");
+    expect(eroare?.message).toContain(mesaj);
+  });
+
+  it.each([[""], ["49"], ["100001"], ["12,5"]])("pragul de salt „%s” nu trece", (prag) => {
+    const r = setariFlotaSchema.safeParse({ prag_salt_km: prag, praguri_alerta_zile: "30" });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues[0]?.path).toEqual(["prag_salt_km"]);
   });
 });

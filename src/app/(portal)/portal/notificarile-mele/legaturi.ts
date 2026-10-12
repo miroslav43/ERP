@@ -12,6 +12,10 @@
  *   `/pontaj/saptamana` — `0042_pontaj_saptamanal_notificari.sql:103,137`;
  *   `/ticketing/<uuid>` — `0046_ticketing_it_reguli.sql:101`, către solicitant;
  *   `/anunturi/<uuid>`  — `(app)/anunturi/actions.ts`, la publicare.
+ *   `/flota/foi/<uuid>` — `0198_flota_conformitate_zilnica.sql`, la decizia pe
+ *                          foaia lui (doar pentru șofer, vezi `idFoaieDeParcurs`);
+ *   `/portal/masina-mea` — tot 0198, rezumatul de scadențe al șoferului; e deja
+ *                          cale de portal.
  *
  * Netradusă, fiecare devine un clic care îl scoate din portal și îl aduce înapoi
  * pe ecranul de start: angajatul citește „Cererea a fost respinsă”, apasă, și
@@ -86,6 +90,10 @@ export type ContextDestinatar = Readonly<{
   integrariProprii?: ReadonlySet<string>;
   /** Săptămâna de pontaj din spatele notificării: id submisie → `saptamana_start`. */
   saptamani?: ReadonlyMap<string, string>;
+  // ── început bloc: flota, notificările foii (0198) ──
+  /** Foile de parcurs al căror ȘOFER e destinatarul. Opțional: apelanții vechi nu-l dau. */
+  foiProprii?: ReadonlySet<string>;
+  // ── sfârșit bloc: flota, notificările foii (0198) ──
 }>;
 
 /**
@@ -129,6 +137,22 @@ export function idSesizare(link: string | null): string | null {
   if (link === null) return null;
   return TIPAR_SESIZARE.exec(link)?.[1] ?? null;
 }
+
+// ── început bloc: flota, notificările foii (0198) ──
+/**
+ * `/flota/foi/<uuid>` (0198, `foi_parcurs_notifica`) E A PATRA DIN CLASA
+ * concediilor: aceeași legătură pleacă la APROBATORI când foaia e trimisă și la
+ * ȘOFER când e aprobată sau respinsă, iar `portal/masina-mea/foi/[id]` are
+ * gardă de proprietate (foaia altcuiva dă 404). Se traduce doar pentru șofer.
+ */
+const TIPAR_FOAIE = new RegExp(`^/flota/foi/(${UUID})$`, "u");
+
+/** Id-ul foii dintr-un `/flota/foi/<uuid>`, sau `null`. Vezi `idCerereDeConcediu`. */
+export function idFoaieDeParcurs(link: string | null): string | null {
+  if (link === null) return null;
+  return TIPAR_FOAIE.exec(link)?.[1] ?? null;
+}
+// ── sfârșit bloc: flota, notificările foii (0198) ──
 
 /**
  * Legăturile care se traduc doar uitându-te la ele.
@@ -215,6 +239,13 @@ export function caleaDePortal(
       ? `/portal/sesizari/${idSesizarea}`
       : null;
   }
+
+  // ── început bloc: flota, notificările foii (0198) ──
+  const idFoaia = idFoaieDeParcurs(link);
+  if (idFoaia !== null) {
+    return context?.foiProprii?.has(idFoaia) === true ? `/portal/masina-mea/foi/${idFoaia}` : null;
+  }
+  // ── sfârșit bloc: flota, notificările foii (0198) ──
 
   for (const regula of REGULI) {
     const potrivire = regula.tipar.exec(link);

@@ -20,6 +20,15 @@ import {
 } from "./cursor";
 import { dataLimitaExpirare } from "@/domain/hr/contracte-expira";
 import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
+import { PRAG_SALT_IMPLICIT_KM, PRAGURI_ALERTA_IMPLICITE } from "@/domain/fleet/setari";
+import type { CursaFoaie, SablonTraseu } from "@/domain/fleet/foaie";
+import {
+  aplicaSetariTipuri,
+  type SetareTip,
+  type TipBrut,
+  type TipEfectiv,
+} from "@/domain/fleet/tipuri-document";
+import { BUCKET_FLOTA } from "@/domain/fleet/fisiere";
 
 export interface RandVehicul {
   readonly id: string;
@@ -29,6 +38,12 @@ export interface RandVehicul {
   readonly categorie: CategorieVehicul;
   readonly tip_combustibil: Combustibil;
   readonly an_fabricatie: number | null;
+  /**
+   * Urcată în rândul de LISTĂ din 0199: categoria și masa decid ce documente
+   * sunt obligatorii (`tipuriObligatoriiPentru`), deci semaforul listei are
+   * nevoie de ea pentru fiecare rând.
+   */
+  readonly masa_maxima_kg: number | null;
   readonly km_curent: number;
   readonly employee_id: string | null;
   readonly department_id: string | null;
@@ -62,12 +77,13 @@ export interface Vehicul extends RandVehicul {
   readonly vin: string | null;
   readonly culoare: string | null;
   readonly capacitate_cilindrica: number | null;
-  readonly masa_maxima_kg: number | null;
   readonly numar_locuri: number | null;
   readonly valoare_achizitie: number | null;
   readonly data_achizitie: string | null;
   readonly motiv_iesire: string | null;
   readonly observatii: string | null;
+  /** Anvelopele montate (0200); `null` = necunoscut. */
+  readonly anvelope_montate: "vara" | "iarna" | "all_season" | null;
   readonly created_at: string;
 }
 
@@ -78,20 +94,21 @@ export interface DocumentVehicul {
   readonly valabil_de_la: string | null;
   readonly expira_la: string | null;
   readonly cost: number | null;
+  /** Scanarea, în bucketul `org-flota` (0199); `null` = neîncărcată. */
   readonly fisier_path: string | null;
+  readonly fisier_nume: string | null;
   readonly este_curent: boolean;
   readonly observatii: string | null;
+  readonly created_at: string;
 }
 
-export interface TipDocument {
-  readonly id: string;
-  readonly cod: string;
-  readonly denumire: string;
-  readonly descriere: string | null;
-  readonly cere_expirare: boolean;
-  readonly obligatoriu: boolean;
-  readonly ordine: number;
-}
+/**
+ * Tipul de document cu valorile EFECTIVE ale firmei (0199): setarea ei pe un
+ * tip de platformă bate `activ`/`obligatoriu` ale platformei. Calculul e în
+ * `aplicaSetariTipuri` (`@/domain/fleet/tipuri-document`), aceeași regulă ca
+ * `internal.vdoc_inainte`.
+ */
+export type TipDocument = TipEfectiv;
 
 /** Scadența cea mai apropiată a unui vehicul, pentru semaforul din listă. */
 export interface ScadentaVehicul {
@@ -105,6 +122,8 @@ export interface RandFoaie {
   readonly vehicle_id: string;
   readonly employee_id: string | null;
   readonly numar: string | null;
+  /** Ziua foii (0197), `AAAA-LL-ZZ`, generată de bază din prima plecare. */
+  readonly data: string;
   readonly plecare_la: string;
   readonly sosire_la: string | null;
   readonly km_plecare: number | null;
@@ -130,6 +149,16 @@ export interface RandFoaie {
 export interface Foaie extends RandFoaie {
   readonly observatii: string | null;
   readonly motiv_respingere: string | null;
+  readonly aprobat_de: string | null;
+  /**
+   * Instantaneul vehiculului la trimitere (0197): pe foaia trimisă sau aprobată
+   * se citesc DE AICI, nu din `vehicles` — documentul nu se schimbă retroactiv,
+   * iar aprobatorul fără drept pe vehicul l-ar vedea altfel „indisponibil”.
+   */
+  readonly vehicul_nr: string | null;
+  readonly vehicul_categorie: CategorieVehicul | null;
+  readonly vehicul_combustibil: Combustibil | null;
+  readonly norma_l_100km: number | null;
 }
 
 export interface RezultatFoi {
@@ -141,6 +170,7 @@ export interface RezultatFoi {
 
 export interface Alimentare {
   readonly id: string;
+  readonly trip_sheet_id: string;
   readonly litri: number;
   readonly cost: number;
   readonly pret_litru: number | null;
@@ -149,6 +179,8 @@ export interface Alimentare {
   readonly alimentat_la: string;
   readonly plin: boolean;
   readonly observatii: string | null;
+  /** Poza bonului, în bucketul `org-flota` (0199); `null` = neatașată. */
+  readonly fisier_bon_path: string | null;
 }
 
 export interface Anomalie {
@@ -232,11 +264,11 @@ export type FiltreFoiCitire = Omit<FiltreFoi, "sort"> & { readonly sort?: string
 
 const COLOANE_VEHICUL_LISTA =
   "id, nr_inmatriculare, marca, model, categorie, tip_combustibil, an_fabricatie, " +
-  "km_curent, employee_id, department_id, pool, status, prag_salt_km, data_iesire, " +
+  "masa_maxima_kg, km_curent, employee_id, department_id, pool, status, prag_salt_km, data_iesire, " +
   "consum_mediu_declarat";
 
 const COLOANE_FOAIE =
-  "id, vehicle_id, employee_id, numar, plecare_la, sosire_la, km_plecare, km_sosire, " +
+  "id, vehicle_id, employee_id, numar, data, plecare_la, sosire_la, km_plecare, km_sosire, " +
   "km_parcursi, traseu, scop, status, trimis_la, aprobat_la";
 
 // ── Vehicule ────────────────────────────────────────────────────────────────
@@ -373,9 +405,9 @@ export async function citesteVehicul(organizationId: string, id: string): Promis
   const { data, error } = await db
     .from("vehicles")
     .select(
-      `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, masa_maxima_kg, ` +
+      `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, ` +
         "numar_locuri, valoare_achizitie, data_achizitie, " +
-        "motiv_iesire, observatii, created_at",
+        "motiv_iesire, observatii, anvelope_montate, created_at",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
@@ -522,7 +554,7 @@ export async function documenteleVehiculului(
     .from("vehicle_documents")
     .select(
       "id, document_type_id, emitent, valabil_de_la, expira_la, cost, " +
-        "fisier_path, este_curent, observatii",
+        "fisier_path, fisier_nume, este_curent, observatii, created_at",
     )
     .eq("vehicle_id", vehiculId)
     .is("deleted_at", null)
@@ -533,27 +565,77 @@ export async function documenteleVehiculului(
   return data ?? [];
 }
 
-/**
- * Nomenclatorul de tipuri de document.
- *
- * FĂRĂ filtru pe `organization_id`: rândurile de platformă îl au NULL și sunt
- * vizibile tuturor. Un filtru pe organizație ar fi ascuns cele unsprezece tipuri
- * implicite — ITP, RCA, casco, rovinietă, revizie, extinctor, trusă medicală,
- * licență de transport, copie conformă, tahograf, ADR — adică exact pe cele pe
- * care le folosește oricine.
- */
-export async function tipuriDocument(): Promise<readonly TipDocument[]> {
-  const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("vehicle_document_types")
-    .select("id, cod, denumire, descriere, cere_expirare, obligatoriu, ordine")
-    .eq("activ", true)
-    .is("deleted_at", null)
-    .order("ordine", { ascending: true })
-    .returns<TipDocument[]>();
+const COLOANE_TIP_DOCUMENT =
+  "id, organization_id, cod, denumire, descriere, cere_expirare, obligatoriu, ordine, activ, " +
+  "categorii_aplicabile, masa_max_kg";
 
-  if (error !== null) throw error;
-  return data ?? [];
+/**
+ * Nomenclatorul ÎNTREG al firmei: tipurile de platformă și cele proprii, active
+ * sau nu, cu setările firmei aplicate (0199). Pentru `/flota/setari/documente`.
+ *
+ * Filtrul pe organizație e `organization_id is null OR = firma`, explicit: din
+ * 0020, `vdt_select` lasă oricui rândurile de platformă, iar unui om membru în
+ * două firme i-ar fi arătat și tipurile proprii ale celeilalte.
+ */
+export async function nomenclatorDocumente(
+  organizationId: string,
+): Promise<readonly TipDocument[]> {
+  const db = await createServerSupabase();
+  const [tipuri, setari] = await Promise.all([
+    db
+      .from("vehicle_document_types")
+      .select(COLOANE_TIP_DOCUMENT)
+      .or(`organization_id.is.null,organization_id.eq.${organizationId}`)
+      .is("deleted_at", null)
+      .order("ordine", { ascending: true })
+      .limit(500)
+      .returns<TipBrut[]>(),
+    db
+      .from("vehicle_document_type_setari")
+      .select("document_type_id, activ, obligatoriu")
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .limit(500)
+      .returns<SetareTip[]>(),
+  ]);
+
+  if (tipuri.error !== null) throw tipuri.error;
+  if (setari.error !== null) throw setari.error;
+  return aplicaSetariTipuri(tipuri.data ?? [], setari.data ?? []);
+}
+
+/**
+ * Tipurile DISPONIBILE firmei: cele active după setarea ei (0199). Un tip de
+ * transport retras din platformă (0116) apare dacă firma l-a activat; unul
+ * retras de firmă dispare, deși rămâne activ pentru celelalte.
+ */
+export async function tipuriDocument(organizationId: string): Promise<readonly TipDocument[]> {
+  const toate = await nomenclatorDocumente(organizationId);
+  return toate.filter((t) => t.activ);
+}
+
+/**
+ * URL-uri semnate de descărcare pentru fișierele flotei (scanări, bonuri), pe
+ * clientul UTILIZATORULUI: politica `flota_objects_select` decide, iar cine n-are
+ * voie primește lipsă, nu un link. Zece minute, cât ține o pagină deschisă.
+ */
+export async function urlSemnateFlota(
+  cai: readonly (string | null)[],
+): Promise<ReadonlyMap<string, string>> {
+  const unice = [...new Set(cai.filter((c): c is string => c !== null && c.length > 0))];
+  if (unice.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const { data, error } = await db.storage.from(BUCKET_FLOTA).createSignedUrls(unice, 600);
+  if (error !== null) return new Map();
+  const harta = new Map<string, string>();
+  for (const semnat of data) {
+    const cale: string | null = semnat.path;
+    const url: string | null = semnat.signedUrl;
+    if (cale !== null && url !== null && url.length > 0 && semnat.error === null) {
+      harta.set(cale, url);
+    }
+  }
+  return harta;
 }
 
 // ── Foi de parcurs ──────────────────────────────────────────────────────────
@@ -577,6 +659,8 @@ export async function listeazaFoi(
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
+      gte: (c: string, v: string) => Q;
+      lte: (c: string, v: string) => Q;
     },
   >(
     q: Q,
@@ -585,6 +669,10 @@ export async function listeazaFoi(
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.vehicul !== null) cu = cu.eq("vehicle_id", filtre.vehicul);
     if (filtre.sofer !== null) cu = cu.eq("employee_id", filtre.sofer);
+    // Pe `data` (ziua foii, 0197), nu pe `plecare_la`: „foile din 1–15
+    // octombrie” sunt zile calendaristice românești, nu momente UTC.
+    if (filtre.de_la !== null) cu = cu.gte("data", filtre.de_la);
+    if (filtre.pana_la !== null) cu = cu.lte("data", filtre.pana_la);
     return cu;
   };
 
@@ -627,7 +715,10 @@ export async function citesteFoaie(organizationId: string, id: string): Promise<
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("trip_sheets")
-    .select(`${COLOANE_FOAIE}, observatii, motiv_respingere`)
+    .select(
+      `${COLOANE_FOAIE}, observatii, motiv_respingere, aprobat_de, vehicul_nr, ` +
+        "vehicul_categorie, vehicul_combustibil, norma_l_100km",
+    )
     .eq("organization_id", organizationId)
     .eq("id", id)
     .is("deleted_at", null)
@@ -742,7 +833,10 @@ export async function alimentarileFoii(foaieId: string): Promise<readonly Alimen
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("fuel_entries")
-    .select("id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, observatii")
+    .select(
+      "id, trip_sheet_id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, " +
+        "observatii, fisier_bon_path",
+    )
     .eq("trip_sheet_id", foaieId)
     .is("deleted_at", null)
     .order("alimentat_la", { ascending: true })
@@ -880,4 +974,271 @@ export async function vehiculeDupaId(
 
   if (error !== null) throw error;
   return new Map((data ?? []).map((v) => [v.id, v]));
+}
+
+// ── Portalul șoferului: „Mașina mea” (0196) ─────────────────────────────────
+//
+// Aici, spre deosebire de restul fișierului, filtrul pe ȘOFER e explicit. Regula
+// e cea din antetul lui `src/lib/queries/portal.ts`: portalul poate fi deschis
+// și de cineva cu `vehicles:read = all` (un administrator care e și șofer), iar
+// fără filtru „mașinile mele” ar fi tot parcul.
+
+export interface VehiculeleMele {
+  /** Vehiculele alocate acum șoferului (`vehicles.employee_id`, derivatul alocării deschise). */
+  readonly alocate: readonly RandVehicul[];
+  /** Mașinile comune ale firmei, pe care oricine cu drept de foaie poate întocmi foi. */
+  readonly pool: readonly RandVehicul[];
+}
+
+/** Câte mașini comune arată portalul. Un pool mai mare nu e „mașina mea”. */
+export const PLAFON_POOL_PORTAL = 50;
+
+/**
+ * Mașina (sau mașinile) cu care șoferul poate pleca la drum: cea alocată lui și
+ * cele din pool. Numai vehiculele din parc (`status = activ`): o foaie pe o
+ * mașină vândută sau casată o refuză oricum `foi_parcurs_inainte`.
+ */
+export async function vehicululMeu(
+  organizationId: string,
+  employeeId: string,
+): Promise<VehiculeleMele> {
+  const db = await createServerSupabase();
+  const [alocate, pool] = await Promise.all([
+    db
+      .from("vehicles")
+      .select(COLOANE_VEHICUL_LISTA)
+      .eq("organization_id", organizationId)
+      .eq("employee_id", employeeId)
+      .eq("status", "activ")
+      .is("deleted_at", null)
+      .order("nr_inmatriculare", { ascending: true })
+      .limit(20)
+      .returns<RandVehicul[]>(),
+    db
+      .from("vehicles")
+      .select(COLOANE_VEHICUL_LISTA)
+      .eq("organization_id", organizationId)
+      .eq("pool", true)
+      .eq("status", "activ")
+      .is("deleted_at", null)
+      .order("nr_inmatriculare", { ascending: true })
+      .limit(PLAFON_POOL_PORTAL)
+      .returns<RandVehicul[]>(),
+  ]);
+  if (alocate.error !== null) throw alocate.error;
+  if (pool.error !== null) throw pool.error;
+
+  // Un vehicul alocat care e și pool apare o singură dată, la „alocate”.
+  const idAlocate = new Set((alocate.data ?? []).map((v) => v.id));
+  return {
+    alocate: alocate.data ?? [],
+    pool: (pool.data ?? []).filter((v) => !idAlocate.has(v.id)),
+  };
+}
+
+/**
+ * Foile ȘOFERULUI, cele mai noi întâi, cu cursor keyset.
+ *
+ * E `listeazaFoi` cu filtrul pe șofer fixat: aceeași paginare, aceeași
+ * numărătoare, deci nicio a doua copie a predicatului keyset care să poată
+ * diverge.
+ */
+export async function foileMele(
+  organizationId: string,
+  employeeId: string,
+  pagina: Readonly<{ cursor: string | null; limita: number }>,
+): Promise<RezultatFoi> {
+  return listeazaFoi(organizationId, {
+    status: null,
+    vehicul: null,
+    sofer: employeeId,
+    de_la: null,
+    pana_la: null,
+    cursor: pagina.cursor,
+    limita: pagina.limita,
+  });
+}
+
+// ── Cursele foii zilnice și șabloanele de traseu (0197) ─────────────────────
+
+/** O cursă, cu observațiile ei. Forma pură e `CursaFoaie` din domeniu. */
+export interface Cursa extends CursaFoaie {
+  readonly trip_sheet_id: string;
+  readonly observatii: string | null;
+}
+
+/**
+ * Câte curse citește o foaie. O zi de curier are câteva zeci; plafonul stă
+ * mult sub `max_rows = 1000`, care ar tăia TĂCUT, iar pagina spune când e atins.
+ */
+export const PLAFON_CURSE_FOAIE = 200;
+
+/** Cursele foii, în ordinea zilei. Vizibilitatea o dă `curse_select` (după foaie). */
+export async function curseleFoii(
+  organizationId: string,
+  foaieId: string,
+): Promise<readonly Cursa[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("trip_sheet_curse")
+    .select(
+      "id, trip_sheet_id, ordine, plecare_la, sosire_la, de_la_loc, pana_la_loc, scop, " +
+        "km_plecare, km_sosire, km_parcursi, observatii",
+    )
+    .eq("organization_id", organizationId)
+    .eq("trip_sheet_id", foaieId)
+    .is("deleted_at", null)
+    .order("plecare_la", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(PLAFON_CURSE_FOAIE)
+    .returns<Cursa[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/** Câte șabloane arată caseta. O firmă are câteva rute recurente, nu sute. */
+export const PLAFON_SABLOANE = 100;
+
+/** Șabloanele de traseu ale firmei, după denumire. Le citește oricine întocmește foi. */
+export async function sabloaneTraseu(organizationId: string): Promise<readonly SablonTraseu[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("trip_route_templates")
+    .select("id, denumire, de_la_loc, pana_la_loc, scop, km_estimat")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .limit(PLAFON_SABLOANE)
+    .returns<SablonTraseu[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * Numele unui cont (aprobatorul foii), pentru documentul tipărit.
+ *
+ * Fără `organizationId`: profilul e al CONTULUI, nu al firmei. Vizibilitatea o
+ * dă `profiles_select` (același cont sau o firmă comună), deci un aprobator din
+ * altă firmă n-are cum să apară. `null` = profilul nu e vizibil sau nu are nume.
+ */
+export async function numeleContului(userId: string): Promise<string | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", userId)
+    .maybeSingle<{ full_name: string | null; email: string }>();
+  if (error !== null) throw error;
+  if (data === null) return null;
+  const nume = data.full_name?.trim() ?? "";
+  return nume.length > 0 ? nume : data.email;
+}
+
+// ── Setările flotei (0198) ──────────────────────────────────────────────────
+
+/** Setările flotei, cum le folosește baza. `id: null` = firma n-are încă rândul. */
+export interface SetariFlota {
+  readonly id: string | null;
+  /** Fișe de angajat. Gol = toți administratorii organizației. */
+  readonly responsabili: readonly string[];
+  readonly prag_salt_km: number;
+  /** Zile înainte de scadență, descrescător. */
+  readonly praguri_alerta_zile: readonly number[];
+}
+
+/**
+ * Setările flotei ale firmei. Lipsa rândului NU e o eroare: firma folosește
+ * implicitele coloanelor (1.500 km, 30/14/7), aceleași pe care le aplică baza
+ * (`setari.test.ts` le fixează). Le citește DOAR cine administrează parcul
+ * (`fleet_settings_select`, `vehicles:update = all`, de la revizuirea pe 0198:
+ * înainte, orice `employee` cu `vehicles:read = own` primea responsabilii și
+ * pragurile); pentru restul, zero rânduri și tot implicitele — nu un ecran
+ * gol, dar și NU valoarea firmei. Cine are nevoie de pragul unui vehicul vizibil
+ * folosește `pragSaltVehicul`.
+ */
+export async function setariFlota(organizationId: string): Promise<SetariFlota> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fleet_settings")
+    .select("id, responsabili, prag_salt_km, praguri_alerta_zile")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .maybeSingle<{
+      id: string;
+      responsabili: string[];
+      prag_salt_km: number;
+      praguri_alerta_zile: number[];
+    }>();
+  if (error !== null) throw error;
+  if (data === null) {
+    return {
+      id: null,
+      responsabili: [],
+      prag_salt_km: PRAG_SALT_IMPLICIT_KM,
+      praguri_alerta_zile: PRAGURI_ALERTA_IMPLICITE,
+    };
+  }
+  return data;
+}
+
+/**
+ * Pragul de salt EFECTIV al unui vehicul (al lui, apoi al firmei, apoi
+ * implicitul), pentru cine nu citește `fleet_settings`: fișa vehiculului îl
+ * afișează și managerului (team) sau șoferului (own). Calea e funcția
+ * `public.flota_prag_salt_km` (0198), care întoarce un singur număr și doar
+ * pentru un vehicul vizibil apelantului; altfel `null` (fără eroare), iar fișa
+ * spune „din setările flotei” fără cifră.
+ */
+export async function pragSaltVehicul(vehicleId: string): Promise<number | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db.rpc("flota_prag_salt_km", { p_vehicle_id: vehicleId });
+  if (error !== null) throw error;
+  // Tipul generat spune `number`; funcția întoarce NULL pentru un vehicul
+  // invizibil, iar PostgREST îl dă ca `null`.
+  const prag: number | null = data;
+  return prag;
+}
+
+/** Un angajat care poate fi bifat ca responsabil de flotă. */
+export interface CandidatResponsabil {
+  readonly id: string;
+  readonly full_name: string | null;
+  readonly marca: string | null;
+  /** Fără cont, fișa nu primește nimic: notificările merg la un utilizator. */
+  readonly user_id: string | null;
+  readonly status: string;
+}
+
+/** Câți candidați arată formularul. Firmele reale au zeci de angajați, nu sute. */
+export const PLAFON_CANDIDATI_RESPONSABILI = 500;
+
+/**
+ * Candidații la responsabil de flotă: angajații activi, plus responsabilii deja
+ * aleși care între timp nu mai sunt activi — altfel bifa lor ar dispărea din
+ * formular și o salvare i-ar scoate tăcut din listă.
+ *
+ * `alesi` vin din `fleet_settings.responsabili` (uuid-uri din bază), deci pot
+ * intra în predicatul `or` fără ghilimelare.
+ */
+export async function candidatiResponsabiliFlota(
+  organizationId: string,
+  alesi: readonly string[],
+): Promise<readonly CandidatResponsabil[]> {
+  const db = await createServerSupabase();
+  const unici = [...new Set(alesi)].filter((id) => /^[0-9a-f-]{36}$/iu.test(id));
+  const interogare = db
+    .from("employees")
+    .select("id, full_name, marca, user_id, status")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null);
+  const filtrata =
+    unici.length === 0
+      ? interogare.eq("status", "activ")
+      : interogare.or(`status.eq.activ,id.in.(${unici.join(",")})`);
+  const { data, error } = await filtrata
+    .order("full_name")
+    .limit(PLAFON_CANDIDATI_RESPONSABILI)
+    .returns<CandidatResponsabil[]>();
+  if (error !== null) throw error;
+  return data ?? [];
 }

@@ -29,7 +29,13 @@ interface AngajatOptiune {
 /** Contractul pe care îl onorează `date-foaie-noua.ts`, citit pe server. */
 export interface DateFoaieNoua {
   readonly vehicule: readonly VehiculOptiune[];
-  readonly angajati: readonly AngajatOptiune[];
+  /**
+   * `null` = șoferul e chiar cel conectat (0196): sub `trip_sheets:create =
+   * all`, `creeazaFoaie` rezolvă fișa proprie pe server, deci selectorul nici
+   * nu se randează. O listă goală ar fi însemnat altceva — „firma n-are
+   * angajați activi” — și ar fi blocat formularul.
+   */
+  readonly angajati: readonly AngajatOptiune[] | null;
 }
 
 type FoaieCreata = Readonly<{ id: string }>;
@@ -79,7 +85,9 @@ async function trimiteFoaia(date: FormData): Promise<ActionResult<FoaieCreata>> 
 
   return creeazaFoaie({
     vehicle_id: String(date.get("vehicle_id") ?? ""),
-    employee_id: String(date.get("employee_id") ?? ""),
+    // Câmp absent = „eu” (selectorul nu se randează sub `all`); câmp gol =
+    // administratorul n-a ales, iar `z.uuid()` refuză șirul gol pe câmp.
+    employee_id: date.has("employee_id") ? String(date.get("employee_id") ?? "") : null,
     plecare_la: plecareLa,
     // `km_plecare` pleacă text: `z.coerce.number().int()` îl convertește, exact
     // ca înainte, iar un `Number()` aici ar transforma golul în 0 mai devreme.
@@ -115,6 +123,12 @@ interface Proprietati {
   readonly poateVedeaParcul?: boolean;
   /** `?vehicul=<id>` din pagina filtrată sau din fișa vehiculului: caseta pornește pe el. */
   readonly vehiculInitial?: string | null;
+  /**
+   * Unde duce „Deschide ciorna” din toast: `/flota/foi` în aplicație,
+   * `/portal/masina-mea/foi` în portal. Text, nu funcție: proprietățile unei
+   * componente client venite dintr-un Server Component trebuie serializabile.
+   */
+  readonly bazaFoaie?: string;
 }
 
 export function DialogFoaieNoua({
@@ -122,8 +136,12 @@ export function DialogFoaieNoua({
   deschisInitial = false,
   poateVedeaParcul = false,
   vehiculInitial = null,
+  bazaFoaie = "/flota/foi",
 }: Proprietati): ReactElement {
   const parcGol = date.vehicule.length === 0;
+  // Copie locală: îngustarea lui `date.angajati` nu supraviețuiește funcției de
+  // randare a casetei, care e apelată mai târziu.
+  const angajati = date.angajati;
   const primulVehicul =
     (vehiculInitial === null ? undefined : date.vehicule.find((v) => v.id === vehiculInitial)) ??
     date.vehicule[0];
@@ -157,12 +175,12 @@ export function DialogFoaieNoua({
         actiune: {
           eticheta: "Deschide ciorna",
           onClick: () => {
-            router.push(`/flota/foi/${id}`);
+            router.push(`${bazaFoaie}/${id}`);
           },
         },
       });
     },
-    [primulVehicul, router],
+    [bazaFoaie, primulVehicul, router],
   );
 
   /*
@@ -190,8 +208,8 @@ export function DialogFoaieNoua({
       </Link>
     ) : (
       <p className="text-muted-foreground text-corp">
-        Nu aveți niciun vehicul alocat; foaia se poate deschide abia după ce responsabilul de flotă
-        vă alocă unul.
+        Nu aveți niciun vehicul alocat și firma nu are mașini comune; foaia se poate deschide abia
+        după ce responsabilul de flotă vă alocă una.
       </p>
     );
   }
@@ -202,8 +220,8 @@ export function DialogFoaieNoua({
         eticheta: "Foaie nouă",
         pictograma: <FilePlus2 aria-hidden="true" className="size-4" />,
       }}
-      titlu="Foaie de parcurs nouă"
-      descriere="Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului. Verificați-l înainte de salvare: unul mai mic decât ultimul e refuzat de sistem."
+      titlu="Foaia zilei"
+      descriere="O foaie pe vehicul și zi: după salvare adăugați pe ea cursele zilei. Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului; unul mai mic e refuzat de sistem."
       marime="mare"
       deschisInitial={deschisInitial}
       actiune={trimiteFoaia}
@@ -241,38 +259,41 @@ export function DialogFoaieNoua({
             )}
           </Camp>
 
-          <Camp
-            nume="employee_id"
-            id={idc("employee_id")}
-            eticheta="Șofer"
-            fel="select"
-            obligatoriu
-            erori={stare.erori["employee_id"] ?? []}
-          >
-            {(a) => (
-              <select {...a} defaultValue={stare.valoriTrimise["employee_id"] ?? ""}>
-                {/*
-                  Fără opțiunea goală, `defaultValue=""` nu se potrivește cu
-                  nimic și browserul alege PRIMUL angajat după `full_name`.
-                  Câmpul e `obligatoriu`, dar nu putea rămâne gol: foaia se
-                  înregistra pe un om care n-a fost în cursă, iar kilometrii și
-                  consumul i se atribuiau. Cu opțiunea goală, `z.uuid()` refuză
-                  șirul gol și mesajul ajunge pe câmp prin `stare.erori`.
-                */}
-                <option value="">Alegeți șoferul</option>
-                {date.angajati.map((ang) => (
-                  <option key={ang.id} value={ang.id}>
-                    {ang.full_name ?? ang.marca} ({ang.marca})
-                  </option>
-                ))}
-              </select>
-            )}
-          </Camp>
+          {angajati === null ? null : (
+            <Camp
+              nume="employee_id"
+              id={idc("employee_id")}
+              eticheta="Șofer"
+              fel="select"
+              obligatoriu
+              erori={stare.erori["employee_id"] ?? []}
+            >
+              {(a) => (
+                <select {...a} defaultValue={stare.valoriTrimise["employee_id"] ?? ""}>
+                  {/*
+                    Fără opțiunea goală, `defaultValue=""` nu se potrivește cu
+                    nimic și browserul alege PRIMUL angajat după `full_name`.
+                    Câmpul e `obligatoriu`, dar nu putea rămâne gol: foaia se
+                    înregistra pe un om care n-a fost în cursă, iar kilometrii și
+                    consumul i se atribuiau. Cu opțiunea goală, `z.uuid()` refuză
+                    șirul gol și mesajul ajunge pe câmp prin `stare.erori`.
+                  */}
+                  <option value="">Alegeți șoferul</option>
+                  {angajati.map((ang) => (
+                    <option key={ang.id} value={ang.id}>
+                      {ang.full_name ?? ang.marca} ({ang.marca})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Camp>
+          )}
 
           <Camp
             nume="plecare_la"
             id={idc("plecare_la")}
             eticheta="Plecare"
+            ajutor="Ziua plecării e ziua foii. Prima cursă îi poate muta ora, nu și ziua."
             obligatoriu
             erori={stare.erori["plecare_la"] ?? []}
           >
@@ -309,7 +330,7 @@ export function DialogFoaieNoua({
           <Camp
             nume="traseu"
             id={idc("traseu")}
-            eticheta="Traseu"
+            eticheta="Traseul pe scurt"
             className="sm:col-span-2"
             erori={stare.erori["traseu"] ?? []}
           >
@@ -326,7 +347,7 @@ export function DialogFoaieNoua({
           <Camp
             nume="scop"
             id={idc("scop")}
-            eticheta="Scopul deplasării"
+            eticheta="Scopul zilei"
             className="sm:col-span-2"
             erori={stare.erori["scop"] ?? []}
           >

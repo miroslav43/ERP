@@ -91,3 +91,120 @@ export function stareScadentaVehicul(
     return RANG[stare] > RANG[ceaMaiGrava] ? stare : ceaMaiGrava;
   }, "in_regula");
 }
+
+/** Scadența curentă a unui document, cum o citește `scadenteCurente`. */
+export interface ScadentaDocument {
+  readonly document_type_id: string;
+  readonly expira_la: string | null;
+}
+
+/** Semaforul unui vehicul: treapta și documentul care o POARTĂ. */
+export interface SemaforVehicul {
+  readonly treapta: StareScadentaFlota;
+  /** Tipul documentului care ține vehiculul pe treapta asta; `null` dacă nu e niciunul. */
+  readonly tipId: string | null;
+  readonly expiraLa: string | null;
+}
+
+/**
+ * Semaforul unui vehicul, pornind de la NOMENCLATOR, nu de la documentele
+ * existente.
+ *
+ * Calculul stătea în `flota/page.tsx`; portalul („Mașina mea”, 0196) avea
+ * nevoie de exact aceeași treaptă, iar a doua copie scrisă în altă pagină e
+ * felul în care șoferul ar fi văzut verde unde administratorul vede roșu.
+ *
+ * Fiecare tip obligatoriu contribuie cu data lui sau cu `null` (adică `lipsa`):
+ * un vehicul fără RCA deloc, dar cu ITP valabil, nu iese „În regulă”.
+ * Documentele neobligatorii pe care vehiculul chiar le are rămân în calcul: o
+ * rovinietă expirată se vede.
+ *
+ * @param scadente Documentele CURENTE ale vehiculului (`este_curent = true`).
+ * @param tipuriObligatorii Id-urile tipurilor obligatorii din nomenclator.
+ * @param azi Ziua curentă (Europe/Bucharest).
+ */
+export function semaforVehicul(
+  scadente: readonly ScadentaDocument[],
+  tipuriObligatorii: readonly string[],
+  azi: string,
+): SemaforVehicul {
+  const dupaTip = new Map(scadente.map((s) => [s.document_type_id, s]));
+  const intrari: readonly Readonly<{ tipId: string; expiraLa: string | null }>[] = [
+    ...tipuriObligatorii.map((tipId) => ({
+      tipId,
+      expiraLa: dupaTip.get(tipId)?.expira_la ?? null,
+    })),
+    ...scadente
+      .filter((s) => !tipuriObligatorii.includes(s.document_type_id))
+      .map((s) => ({ tipId: s.document_type_id, expiraLa: s.expira_la })),
+  ];
+
+  const treapta = stareScadentaVehicul(
+    intrari.map((i) => i.expiraLa),
+    azi,
+  );
+
+  // Ce document POARTĂ treapta: dintre cele de pe aceeași treaptă, cel cu
+  // termenul cel mai apropiat. Fără el, „Document” ar numi un act fără
+  // legătură cu culoarea de alături.
+  const purtator =
+    [...intrari]
+      .filter((i) => stareScadentaFlota(i.expiraLa, azi) === treapta)
+      .sort((a, b) => (a.expiraLa ?? "").localeCompare(b.expiraLa ?? ""))[0] ?? null;
+
+  return { treapta, tipId: purtator?.tipId ?? null, expiraLa: purtator?.expiraLa ?? null };
+}
+
+/** Ce decide aplicabilitatea unui tip de document: categoria și masa (0199). */
+export interface VehiculPentruTipuri {
+  readonly categorie: string;
+  /** Masa maximă autorizată, în kg; `null` = necompletată. */
+  readonly masa_maxima_kg: number | null;
+}
+
+/** Tipul de document, cât îi trebuie aplicabilității și obligativității. */
+export interface TipAplicabil {
+  readonly id: string;
+  /** Obligativitatea EFECTIVĂ a firmei (setarea ei bate valoarea platformei). */
+  readonly obligatoriu: boolean;
+  /** `null` = orice categorie. */
+  readonly categorii_aplicabile: readonly string[] | null;
+  /** `null` = fără plafon de masă. */
+  readonly masa_max_kg: number | null;
+}
+
+/**
+ * Se cere tipul ăsta vehiculului ăsta? Categoria trebuie să fie în listă (când
+ * lista există), iar masa sub plafon (când plafonul există).
+ *
+ * Masa NECOMPLETATĂ lasă tipul aplicabil. Invers, un vehicul introdus fără masă
+ * n-ar fi cerut niciodată rovinieta — o cerință stinsă tăcut, de o rubrică
+ * goală. „Lipsește” îl trimite pe om să completeze masa sau documentul.
+ *
+ * Aplicabilitatea decide doar ce se aprinde roșu: baza nu refuză un document pe
+ * un tip neaplicabil (0199, notele de proiectare).
+ */
+export function tipSeAplica(vehicul: VehiculPentruTipuri, tip: TipAplicabil): boolean {
+  if (tip.categorii_aplicabile !== null && !tip.categorii_aplicabile.includes(vehicul.categorie)) {
+    return false;
+  }
+  if (tip.masa_max_kg !== null && vehicul.masa_maxima_kg !== null) {
+    return vehicul.masa_maxima_kg <= tip.masa_max_kg;
+  }
+  return true;
+}
+
+/**
+ * Id-urile tipurilor OBLIGATORII pentru un vehicul anume, în ordinea primită.
+ *
+ * Înainte, lista de obligatorii era aceeași pentru tot parcul (`obligatoriu`
+ * global), deci o remorcă ieșea „Lipsește” la trusa medicală, iar un camion de
+ * 12 t la rovinietă. Folosită de listă (`flota/page.tsx`), de fișă și de
+ * portal, ca toate trei să aprindă aceeași culoare.
+ */
+export function tipuriObligatoriiPentru(
+  vehicul: VehiculPentruTipuri,
+  tipuri: readonly TipAplicabil[],
+): string[] {
+  return tipuri.filter((t) => t.obligatoriu && tipSeAplica(vehicul, t)).map((t) => t.id);
+}

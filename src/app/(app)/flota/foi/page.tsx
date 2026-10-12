@@ -13,10 +13,11 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDateTime } from "@/lib/format/date";
+import { formatDate } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { angajatiDupaId, listeazaFoi, listeazaVehicule, vehiculeDupaId } from "@/lib/queries/fleet";
+import { fisaMea } from "@/lib/queries/portal";
 import { filtreFoiSchema } from "@/schemas/fleet";
 
 import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
@@ -62,12 +63,19 @@ async function TabelFoi({
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.status !== null || filtre.vehicul !== null || filtre.sofer !== null;
+    const areFiltre =
+      filtre.status !== null ||
+      filtre.vehicul !== null ||
+      filtre.sofer !== null ||
+      filtre.de_la !== null ||
+      filtre.pana_la !== null;
     // Ca la /flota: se scot DOAR cheile de filtrare. Un `href="/flota/foi"` sec
     // ar fi luat cu el și sortarea coloanelor, și mărimea paginii.
     const faraFiltre = adresa((p) => {
       p.delete("status");
       p.delete("vehicul");
+      p.delete("de_la");
+      p.delete("pana_la");
       p.delete("cursor");
     });
     return (
@@ -118,12 +126,21 @@ async function TabelFoi({
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
     {
+      // Foaia e ziua unui vehicul (0197): ziua și numărul ei. Sortarea rămâne
+      // pe prima plecare, cu care ziua merge mereu împreună.
       cheie: "plecare",
-      antet: "Plecare",
+      antet: "Ziua",
       sortabil: true,
       latime: "ingusta",
       peTelefon: "titlu",
-      celula: (f) => formatDateTime(new Date(f.plecare_la)),
+      celula: (f) => (
+        <>
+          {formatDate(f.data)}
+          {f.numar === null ? null : (
+            <span className="text-muted-foreground block text-xs">{f.numar}</span>
+          )}
+        </>
+      ),
     },
     {
       cheie: "vehicul",
@@ -232,7 +249,7 @@ async function TabelFoi({
 }
 
 export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -248,6 +265,9 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
 
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "trip_sheets:create", "own");
+  // Sub `all` (managerul, din 0196), șoferul foii e chiar cel conectat, iar
+  // caseta oferă doar mașina lui și pool-ul — vezi `SoferFoaieNoua`.
+  const creeazaPentruOricine = scopeFor(permisiuni, "trip_sheets:create") === "all";
   const scope = scopeFor(permisiuni, "trip_sheets:read");
   // `/flota/foi/noua` a dispărut; parametrul deschide caseta care i-a luat locul.
   const deschideCaseta = parametri["foaie"] === "noua";
@@ -275,7 +295,16 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
       cursor: null,
       limita: 100,
     }),
-    poateCrea ? dateFoaieNoua(tenant.organizationId) : Promise.resolve(null),
+    !poateCrea
+      ? Promise.resolve(null)
+      : creeazaPentruOricine
+        ? dateFoaieNoua(tenant.organizationId)
+        : fisaMea(tenant.organizationId, user.id).then((stare) =>
+            dateFoaieNoua(tenant.organizationId, {
+              fel: "propriu",
+              fisaId: stare.stare === "ok" ? stare.fisa.id : null,
+            }),
+          ),
   ]);
 
   // Filtrul de intrare din fișa angajatului: numele pastilei, citit sub RLS.

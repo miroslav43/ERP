@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
 import { Camp } from "@/components/ui/camp";
+import { formatDate } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { filtreFoiSchema, STATUS_FOAIE } from "@/schemas/fleet";
 
@@ -38,7 +39,7 @@ export type PropsFiltreFoi = Readonly<{
 }>;
 
 /** Exact cheile pe care le administrează bara. Nici una în plus, nici una în minus. */
-const CHEI_PROPRII = ["status", "vehicul"] as const;
+const CHEI_PROPRII = ["status", "vehicul", "de_la", "pana_la"] as const;
 
 export function FiltreFoi({ parametri, vehicule, numeSofer = null }: PropsFiltreFoi): ReactElement {
   const filtre = filtreDinUrl(filtreFoiSchema, parametri);
@@ -59,6 +60,13 @@ export function FiltreFoi({ parametri, vehicule, numeSofer = null }: PropsFiltre
 
   if (filtre.sofer !== null) {
     active.push({ cheie: "sofer", eticheta: `Șofer: ${numeSofer ?? "ales"}` });
+  }
+  // Intervalul de ZILE ale foilor (0197, `trip_sheets.data`).
+  if (filtre.de_la !== null) {
+    active.push({ cheie: "de_la", eticheta: `De la ${formatDate(filtre.de_la)}` });
+  }
+  if (filtre.pana_la !== null) {
+    active.push({ cheie: "pana_la", eticheta: `Până la ${formatDate(filtre.pana_la)}` });
   }
 
   return (
@@ -93,6 +101,27 @@ export function FiltreFoi({ parametri, vehicule, numeSofer = null }: PropsFiltre
           )}
         </Camp>
       )}
+
+      <Camp nume="de_la" eticheta="De la ziua" className="w-full sm:w-44">
+        {(atribute) => (
+          <input
+            {...atribute}
+            type="date"
+            key={filtre.de_la ?? ""}
+            defaultValue={filtre.de_la ?? ""}
+          />
+        )}
+      </Camp>
+      <Camp nume="pana_la" eticheta="Până la ziua" className="w-full sm:w-44">
+        {(atribute) => (
+          <input
+            {...atribute}
+            type="date"
+            key={filtre.pana_la ?? ""}
+            defaultValue={filtre.pana_la ?? ""}
+          />
+        )}
+      </Camp>
     </BaraFiltre>
   );
 }

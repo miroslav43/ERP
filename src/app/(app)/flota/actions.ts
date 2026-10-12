@@ -2,10 +2,12 @@
 "use server";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, notFound } from "@/lib/actions/errors";
+import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
+  actualizeazaAlimentareSchema,
   actualizeazaDocumentSchema,
+  actualizeazaFoaieSchema,
   actualizeazaVehiculSchema,
   alimentareSchema,
   alocareSchema,
@@ -17,7 +19,10 @@ import {
   documentVehiculSchema,
   foaieNouaSchema,
   redeschideFoaieSchema,
+  retrageFoaieSchema,
+  stergeAlimentareSchema,
   stergeDocumentSchema,
+  stergeFoaieSchema,
   stergeVehiculSchema,
   trimiteFoaieSchema,
   vehiculNouSchema,
@@ -533,6 +538,57 @@ export const stergeDocument = createAction({
   },
 });
 
+/**
+ * Rutele portalului atinse de orice mișcare pe o foaie (0196, „Mașina mea”).
+ *
+ * Șoferul își urmărește foile din portal. Fără căile astea, își închide foaia
+ * și se întoarce la o listă în care apare tot „în curs”: nu e o eroare, e
+ * cache-ul de Router, iar tăcerea lui e felul în care defectul trece de
+ * review (aceeași regulă ca `CAI_PORTAL_DIURNA` din `diurna/actions.ts`).
+ */
+const CAI_PORTAL_MASINA: readonly string[] = ["/portal", "/portal/masina-mea"];
+
+/**
+ * Fișa PRINCIPALĂ a apelantului, sau `null` când contul n-are una.
+ *
+ * Principala, nu prima găsită: `app.current_employee_id` (prin care trec
+ * ramurile `own` ale politicilor de flotă) o cere pe ea. O fișă secundară ar
+ * trece de acțiune și ar cădea pe `foi_insert` cu 42501, adică „nu aveți
+ * dreptul” pentru un om care tocmai a primit dreptul.
+ *
+ * Citită prin clientul utilizatorului, fără ocolirea RLS: din 0023 angajatul
+ * își vede propria fișă (`employees:read = own`), iar echipa managerului îl
+ * include pe el însuși.
+ */
+async function fisaProprieFoaie(organizationId: string, userId: string): Promise<string | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .maybeSingle<{ readonly id: string }>();
+  if (error !== null) throw error;
+  return data?.id ?? null;
+}
+
+/**
+ * Foaia nouă, ca ciornă.
+ *
+ * ── CINE E ȘOFERUL (0196) ───────────────────────────────────────────────────
+ * Cu `trip_sheets:create = all` (administratorul), șoferul se alege din listă.
+ * Sub `all` (angajatul și managerul, `own`), nu se alege: e fișa proprie,
+ * rezolvată AICI, pe server. Un id trimis din client care nu e chiar fișa
+ * apelantului e o foaie în numele altcuiva și se refuză înainte de bază —
+ * `foi_insert` ar refuza-o oricum (`app.poate_crea_foaie`), dar cu 42501, adică
+ * un „nu aveți dreptul” care nu spune ce anume.
+ *
+ * Vehiculul îl judecă baza: sub `all`, `internal.foi_parcurs_inainte` cere o
+ * mașină `pool` sau una alocată șoferului în ziua plecării (P0001 pe
+ * `vehicle_id`, prin `traduEroare`).
+ */
 export const creeazaFoaie = createAction({
   name: "fleet.trip.create",
   feature: "fleet",
@@ -553,8 +609,29 @@ export const creeazaFoaie = createAction({
       "observatii",
     ],
   },
-  revalidate: ["/flota/foi"],
+  revalidate: ["/flota/foi", ...CAI_PORTAL_MASINA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    let soferId: string;
+    if (ctx.scope === "all") {
+      if (input.employee_id === null) {
+        throw invalidInput("Alegeți șoferul.", { employee_id: ["Alegeți șoferul."] });
+      }
+      soferId = input.employee_id;
+    } else {
+      const proprie = await fisaProprieFoaie(ctx.tenant.organizationId, ctx.user.id);
+      if (proprie === null) {
+        throw businessRule(
+          "Contul dumneavoastră nu este legat de o fișă de angajat principală în această organizație. Foaia de parcurs se întocmește pe fișa șoferului; contactați administratorul.",
+        );
+      }
+      if (input.employee_id !== null && input.employee_id !== proprie) {
+        throw businessRule(
+          "Puteți întocmi foi de parcurs doar pentru dumneavoastră. Foaia unui coleg o întocmește el însuși.",
+        );
+      }
+      soferId = proprie;
+    }
+
     const db = await createServerSupabase();
     // NU se trimit: `status` (WITH CHECK cere „draft"), `numar`, `trimis_la`,
     // `aprobat_de`, `aprobat_la`, `km_parcursi` (GENERATED ALWAYS).
@@ -562,6 +639,7 @@ export const creeazaFoaie = createAction({
       .from("trip_sheets")
       .insert({
         ...input,
+        employee_id: soferId,
         organization_id: ctx.tenant.organizationId,
         status: "draft",
         created_by: ctx.user.id,
@@ -575,6 +653,14 @@ export const creeazaFoaie = createAction({
   },
 });
 
+/**
+ * Trimiterea foii zilnice spre aprobare.
+ *
+ * Din 0197 nu se mai trimit ora și kilometrajul de sosire: le dă ultima cursă,
+ * iar antetul le agregă în bază. Baza refuză trimiterea unei foi fără curse,
+ * cu o cursă neîncheiată sau cu o alimentare rămasă în afara curselor, verifică regresul de kilometraj și pune numărul
+ * `FP-AAAA-NNNNN` și instantaneul vehiculului.
+ */
 export const trimiteFoaie = createAction({
   name: "fleet.trip.submit",
   feature: "fleet",
@@ -585,21 +671,26 @@ export const trimiteFoaie = createAction({
     action: "update",
     entityType: "trip_sheet",
     entityId: (input) => input.id,
-    allow: ["id", "sosire_la", "km_sosire", "observatii"],
+    allow: ["id", "observatii"],
   },
-  revalidate: ["/flota/foi", "/flota/aprobari"],
+  revalidate: (input) => [
+    "/flota/foi",
+    `/flota/foi/${input.id}`,
+    "/flota/aprobari",
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.id}`,
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string; anomalie: string | null }>> => {
     const db = await createServerSupabase();
     // `.select()` obligatoriu: `foi_update` cere `poate_scrie_foaie` SAU
     // aprobare pe echipă. Un șofer care încearcă să închidă foaia altcuiva e
     // respins de `USING` — ZERO rânduri, FĂRĂ eroare (capcana 17), iar ecranul
-    // ar raporta cursa închisă.
+    // ar raporta cursa închisă. `.eq("status", "draft")`: retrimiterea unei
+    // foi deja trimise nu e o a doua trimitere, ci un nimic (0197 §D1).
     const { data: foaieInchisa, error } = await db
       .from("trip_sheets")
       .update({
         status: "trimis",
-        sosire_la: input.sosire_la,
-        km_sosire: input.km_sosire,
         // Câmp gol la închidere = nimic de adăugat, nu „șterge ce era”. Nota
         // pusă la întocmire rămâne.
         ...(input.observatii === null ? {} : { observatii: input.observatii }),
@@ -607,11 +698,15 @@ export const trimiteFoaie = createAction({
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "draft")
+      .is("deleted_at", null)
       .select("id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     if (foaieInchisa === null) {
-      throw businessRule("Foaia de parcurs nu a putut fi închisă. Verificați dreptul de acces.");
+      throw businessRule(
+        "Foaia de parcurs nu a putut fi trimisă: nu mai e ciornă sau nu aveți dreptul de a o modifica. Reîncărcați pagina.",
+      );
     }
 
     // Un REGRES de kilometraj a fost deja refuzat de trigger, cu P0001 — nu
@@ -662,7 +757,12 @@ export const redeschideFoaie = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: (input) => ["/flota/foi", `/flota/foi/${input.id}`],
+  revalidate: (input) => [
+    "/flota/foi",
+    `/flota/foi/${input.id}`,
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.id}`,
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     const { data, error } = await db
@@ -689,6 +789,150 @@ export const redeschideFoaie = createAction({
   },
 });
 
+/**
+ * Retragerea unei foi TRIMISE în ciornă, ca șoferul s-o corecteze (0197).
+ *
+ * Pe o foaie trimisă baza nu mai lasă nimic altceva: nici cursele, nici
+ * alimentările, nici antetul. Retragerea e singura cale spre o corectură, iar
+ * retrimiterea refăcută reface și verificarea de regres a kilometrajului.
+ * Numărul foii rămâne același.
+ */
+export const retrageFoaie = createAction({
+  name: "fleet.trip.withdraw",
+  feature: "fleet",
+  permission: "trip_sheets:update",
+  minScope: "own",
+  input: retrageFoaieSchema,
+  audit: {
+    action: "update",
+    entityType: "trip_sheet",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: (input) => [
+    "/flota/foi",
+    `/flota/foi/${input.id}`,
+    "/flota/aprobari",
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.id}`,
+  ],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("trip_sheets")
+      .update({ status: "draft", updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "trimis")
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Foaia nu a putut fi retrasă: nu mai e în aprobare (poate a fost deja decisă) sau nu aveți dreptul de a o modifica. Reîncărcați pagina.",
+      );
+    }
+    return { id: data.id };
+  },
+});
+
+/**
+ * Corectura antetului unei ciorne: traseul pe scurt, scopul zilei,
+ * observațiile — și, pe o foaie încă FĂRĂ curse, ora și kilometrajul de
+ * plecare. Cu curse, baza refuză ora și kilometrajul scrise direct (le dă
+ * prima cursă), deci acțiunea nici nu le trimite când sunt `null`.
+ */
+export const actualizeazaFoaie = createAction({
+  name: "fleet.trip.update",
+  feature: "fleet",
+  permission: "trip_sheets:update",
+  minScope: "own",
+  input: actualizeazaFoaieSchema,
+  audit: {
+    action: "update",
+    entityType: "trip_sheet",
+    entityId: (input) => input.id,
+    allow: ["id", "plecare_la", "km_plecare", "traseu", "scop", "observatii"],
+  },
+  revalidate: (input) => [
+    "/flota/foi",
+    `/flota/foi/${input.id}`,
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.id}`,
+  ],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("trip_sheets")
+      .update({
+        traseu: input.traseu,
+        scop: input.scop,
+        observatii: input.observatii,
+        ...(input.plecare_la === null ? {} : { plecare_la: input.plecare_la }),
+        ...(input.km_plecare === null ? {} : { km_plecare: input.km_plecare }),
+        updated_by: ctx.user.id,
+      })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "draft")
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Foaia nu a putut fi modificată: nu mai e ciornă sau nu aveți dreptul de a o modifica. Reîncărcați pagina.",
+      );
+    }
+    return { id: data.id };
+  },
+});
+
+/**
+ * Ștergerea logică a unei CIORNE. Foaia trimisă se retrage întâi, cea
+ * aprobată se stornează doar de responsabilul flotei — iar ștergerea, odată
+ * făcută, nu se mai întoarce (0197 §D2).
+ */
+export const stergeFoaie = createAction({
+  name: "fleet.trip.delete",
+  feature: "fleet",
+  permission: "trip_sheets:update",
+  minScope: "own",
+  input: stergeFoaieSchema,
+  audit: {
+    action: "delete",
+    entityType: "trip_sheet",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: (input) => [
+    "/flota/foi",
+    `/flota/foi/${input.id}`,
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.id}`,
+  ],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("trip_sheets")
+      .update({ deleted_at: new Date().toISOString(), updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "draft")
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Foaia nu a putut fi ștearsă: doar o ciornă se șterge. O foaie trimisă se retrage întâi în ciornă.",
+      );
+    }
+    return { id: data.id };
+  },
+});
+
 export const decideFoaie = createAction({
   name: "fleet.trip.decide",
   feature: "fleet",
@@ -703,7 +947,12 @@ export const decideFoaie = createAction({
     entityId: (input) => input.id,
     allow: ["id", "decizie", "motiv_respingere"],
   },
-  revalidate: ["/flota/foi", "/flota/aprobari"],
+  revalidate: (input) => [
+    "/flota/foi",
+    "/flota/aprobari",
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.id}`,
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     if (input.decizie === "respins" && (input.motiv_respingere ?? "").trim().length === 0) {
       throw businessRule(
@@ -762,7 +1011,11 @@ export const adaugaAlimentare = createAction({
       "observatii",
     ],
   },
-  revalidate: ["/flota/foi"],
+  revalidate: (input) => [
+    "/flota/foi",
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.trip_sheet_id}`,
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     // `pret_litru` e GENERATED ALWAYS — nu se trimite. Din 0018 e calculată cu
@@ -780,6 +1033,101 @@ export const adaugaAlimentare = createAction({
       .single();
     if (error !== null) traduEroare(error);
 
+    return { id: data.id };
+  },
+});
+
+/**
+ * Corectura unei alimentări. Din 0197 doar pe ciornă: pe o foaie trimisă
+ * aprobatorul se uită la litrii ăștia (§D1), iar pe una aprobată sunt document.
+ * Mutarea pe altă foaie o refuză baza; `trip_sheet_id` servește doar filtrului.
+ */
+export const actualizeazaAlimentare = createAction({
+  name: "fleet.fuel.update",
+  feature: "fleet",
+  permission: "trip_sheets:update",
+  minScope: "own",
+  input: actualizeazaAlimentareSchema,
+  audit: {
+    action: "update",
+    entityType: "fuel_entry",
+    entityId: (input) => input.id,
+    allow: [
+      "id",
+      "trip_sheet_id",
+      "litri",
+      "cost",
+      "statie",
+      "numar_bon",
+      "alimentat_la",
+      "plin",
+      "observatii",
+    ],
+  },
+  revalidate: (input) => [
+    "/flota/foi",
+    `/flota/foi/${input.trip_sheet_id}`,
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.trip_sheet_id}`,
+  ],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { id, trip_sheet_id, ...campuri } = input;
+    const { data, error } = await db
+      .from("fuel_entries")
+      .update({ ...campuri, updated_by: ctx.user.id })
+      .eq("id", id)
+      .eq("trip_sheet_id", trip_sheet_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Alimentarea nu a putut fi modificată: a fost ștearsă între timp sau nu aveți dreptul de a o modifica.",
+      );
+    }
+    return { id: data.id };
+  },
+});
+
+/** Ștergerea logică a unei alimentări de pe ciornă. Nu se mai întoarce (0197 §D2). */
+export const stergeAlimentare = createAction({
+  name: "fleet.fuel.delete",
+  feature: "fleet",
+  permission: "trip_sheets:update",
+  minScope: "own",
+  input: stergeAlimentareSchema,
+  audit: {
+    action: "delete",
+    entityType: "fuel_entry",
+    entityId: (input) => input.id,
+    allow: ["id", "trip_sheet_id"],
+  },
+  revalidate: (input) => [
+    "/flota/foi",
+    `/flota/foi/${input.trip_sheet_id}`,
+    ...CAI_PORTAL_MASINA,
+    `/portal/masina-mea/foi/${input.trip_sheet_id}`,
+  ],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("fuel_entries")
+      .update({ deleted_at: new Date().toISOString(), updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("trip_sheet_id", input.trip_sheet_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Alimentarea nu a putut fi ștearsă: a fost deja ștearsă sau nu aveți dreptul de a o modifica.",
+      );
+    }
     return { id: data.id };
   },
 });

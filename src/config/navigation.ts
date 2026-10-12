@@ -91,8 +91,10 @@ export type NavItem = NavLink &
     children?: readonly NavLink[];
     /**
      * Intrare de REZERVĂ: apare doar când intrarea numită aici NU e vizibilă.
-     * Managerul n-are `vehicles:read`, deci nu vede „Parc auto" — dar are foi de
-     * parcurs de aprobat, și singurul lui drum era coada panoului.
+     * Exemplul ei: un rol cu foi de parcurs de aprobat, dar fără `vehicles:read`,
+     * nu vede „Parc auto", iar singurul lui drum era coada panoului. Din 0196
+     * managerul are `vehicles:read = team`, deci rezerva rămâne pentru firmele
+     * care i-au închis vehiculele din pagina de permisiuni.
      */
     doarFara?: string;
   }>;
@@ -746,6 +748,26 @@ export const PORTAL_NAV_ITEMS: readonly PortalNavItem[] = [
     exact: false,
     prioritateBara: 7,
   },
+  // ── început bloc: flota pe roluri (0196) ──
+  {
+    id: "portal-masina",
+    label: "Mașina mea",
+    href: "/portal/masina-mea",
+    icon: Car,
+    group: "munca",
+    featureKey: "fleet",
+    // `own` din 0196: șoferul își vede și își întocmește propriile foi. Poarta
+    // e pe foi, nu pe `vehicles:read`: o firmă poate închide vehiculele unui rol
+    // și lăsa foile, iar ecranul spune atunci doar „Niciun vehicul alocat”.
+    permission: "trip_sheets:read",
+    minScope: "own",
+    order: 36,
+    exact: false,
+    // Fără slot pe bara de jos: cele patru rămân la pontaj, concedii, salariu
+    // și cursuri. Șoferul ajunge aici din „Mai multe” sau din notificare.
+    prioritateBara: null,
+  },
+  // ── sfârșit bloc: flota pe roluri (0196) ──
   {
     id: "portal-integrare",
     label: "Integrarea mea",

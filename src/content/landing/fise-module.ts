@@ -354,14 +354,14 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "fleet",
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-12",
     titluPagina: "Program de parc auto: ITP, RCA, rovinietă",
     titluH1: "Program de parc auto",
     metaDescriere:
       "Program de parc auto: ITP, RCA și rovinieta fiecărei mașini, cu semafor înainte de scadență, plus foi de parcurs cu kilometraj și alimentări.",
     intro: [
       "Un termen ratat la o mașină oprește mașina. ITP, RCA, rovinieta, tahograful și licența de transport au fiecare data lui, pe fiecare vehicul, iar ținute în capul unei singure persoane devin indisponibile exact când acea persoană e în concediu.",
-      "Fiecare vehicul poartă termenele lui, cu semafor care se aprinde înainte de scadență, nu la ea. Foile de parcurs rețin kilometrajul și alimentările, iar consumul rezultat se poate compara cu ce arată bonurile — nu e o cifră introdusă de mână care iese mereu bine.",
+      "Fiecare vehicul poartă termenele lui, cu semafor care se aprinde înainte de scadență, nu la ea. Foaia de parcurs e ziua mașinii, cu fiecare cursă pe rândul ei: de unde, până unde, în ce scop și câți kilometri. Primește număr la trimitere și se descarcă în PDF, cu norma de consum și cu cine a aprobat-o. Consumul rezultat se poate compara cu ce arată bonurile — nu e o cifră introdusă de mână care iese mereu bine.",
       "Istoricul rămâne pe mașină, nu pe șofer. Când se schimbă șoferul, evidența vehiculului nu se rupe, iar întrebarea „când s-a schimbat ultima dată distribuția la mașina asta” are răspuns și peste doi ani.",
       "Modulul se pornește cu toate termenele introduse, nu cu jumătate. Un semafor care arată verde fiindcă datele lipsesc e mai periculos decât niciun semafor — ajunge să fie crezut, iar prima scadență ratată e cea despre care nimeni nu știa că există.",
     ],
@@ -371,8 +371,8 @@ export const FISE: readonly FisaModul[] = [
         cheie: "vehicles:read",
         orgAdmin: "all",
         hr: null,
-        manager: null,
-        angajat: null,
+        manager: "team",
+        angajat: "own",
       },
       {
         ce: "Adaugă o mașină",
@@ -396,15 +396,15 @@ export const FISE: readonly FisaModul[] = [
         orgAdmin: "all",
         hr: null,
         manager: "team",
-        angajat: null,
+        angajat: "own",
       },
       {
         ce: "Întocmește o foaie de parcurs",
         cheie: "trip_sheets:create",
         orgAdmin: "all",
         hr: null,
-        manager: null,
-        angajat: null,
+        manager: "own",
+        angajat: "own",
       },
       {
         ce: "Aprobă o foaie de parcurs",
@@ -419,14 +419,24 @@ export const FISE: readonly FisaModul[] = [
         cheie: "trip_sheets:update",
         orgAdmin: "all",
         hr: null,
+        manager: "own",
+        angajat: "own",
+      },
+      // ── început bloc: exportul flotei (F8) ──
+      {
+        ce: "Exportă raportul lunii și pachetul pentru contabil",
+        cheie: "vehicles:export",
+        orgAdmin: "all",
+        hr: null,
         manager: null,
         angajat: null,
       },
+      // ── sfârșit bloc: exportul flotei (F8) ──
     ],
     cazDeUtilizare:
-      "Administratorul deschide lista de vehicule și vede semaforul pe fiecare: ITP-ul unei dube se aprinde galben cu trei săptămâni înainte de scadență, nu în ziua în care expiră. Programează revizia, iar data nouă rămâne pe mașină, nu pe șoferul care o conduce luna asta. Șoferii predau foile de parcurs cu kilometrajul și alimentările, iar consumul se vede pe vehicul, nu pe hârtii adunate într-un biblioraft. Șeful de echipă aprobă foile oamenilor lui și atât — mașinile, termenele și documentele lor le administrează doar administratorul organizației; HR n-are nimic aici. Când se schimbă șoferul, istoricul vehiculului nu se rupe, iar întrebarea „când s-a schimbat ultima dată distribuția” are un răspuns.",
+      "Administratorul deschide lista de vehicule și vede semaforul pe fiecare: ITP-ul unei dube se aprinde galben cu trei săptămâni înainte de scadență, nu în ziua în care expiră. Semaforul cere fiecărei mașini doar ce i se aplică: remorca nu are nevoie de trusă medicală, iar plafonul de masă al rovinietei se aplică singur. Firma își alege din setări documentele pe care le ține, inclusiv licența de transport sau tahograful, și își adaugă tipuri proprii. Copia poliței sau a certificatului ITP stă scanată pe fișa mașinii, iar șoferul fotografiază bonul de alimentare direct de pe telefon. În fiecare dimineață, responsabilul de flotă ales de firmă primește o singură notificare cu toate documentele care expiră, iar șoferul pe cele ale mașinii lui. Programează revizia, iar data nouă rămâne pe mașină, nu pe șoferul care o conduce luna asta. Planul de service numără după kilometri, după timp sau după cel care vine primul: scadența pe dată primește alerte înainte de termen, iar pe kilometri pleacă o alertă când se apropie ținta și una când a fost depășită, fiecare o singură dată. Fiecare intervenție, cu piese și manoperă, și fiecare parcare sau taxă de drum rămân pe fișa mașinii, iar costul total, costul pe kilometru și consumul real se văd pe ultimele 3, 6 sau 12 luni ori pe tot istoricul. În noiembrie, responsabilul de flotă și șoferul primesc o notificare pentru mașinile rămase pe anvelope de vară. Șoferul își deschide în portal „Mașina mea”: vede mașina primită în folosință, cu termenele ei, își întocmește foaia de parcurs, trece alimentările și o trimite spre aprobare. Pe o mașină comună a firmei poate întocmi foaia fără să i se fi predat mașina, iar pe mașina colegului nu poate. Șeful de echipă își face propriile foi și le aprobă pe ale oamenilor lui, dar nu le completează în locul lor; foaia trimisă îi apare ca notificare, iar decizia ajunge înapoi la șofer, cu motivul respingerii. La sfârșitul lunii, administratorul deschide Rapoartele: costul pe vehicul, consumul real față de norma de pe foaie și kilometrii pe șofer, socotite numai din foile aprobate, cu foile încă neaprobate arătate separat. Pentru contabil, administratorul descarcă dintr-un clic un pachet cu PDF-ul fiecărei foi aprobate și Excelul cu totalurile lunii; o lună cu peste 200 de foi se descarcă pe fiecare mașină. Când se schimbă șoferul, istoricul vehiculului nu se rupe, iar întrebarea „când s-a schimbat ultima dată distribuția” are un răspuns.",
     notaPermisiuni:
-      "Parcul auto e cel mai închis modul din aplicație: mașinile le vede și le administrează doar administratorul organizației. HR nu are nimic aici, iar angajatul nu are nimic. Managerul face excepție doar pe foile de parcurs — le vede și le aprobă pe ale echipei lui, dar nu le poate întocmi. E aceeași separare ca la pontaj, între cine completează și cine confirmă.",
+      "Mașinile, termenele și documentele lor le administrează doar administratorul organizației. Tot el scrie planurile de service, intervențiile și cheltuielile; managerul le vede pentru mașinile echipei lui, iar angajatul nu le vede. Rapoartele lunare și exportul pentru contabil îi aparțin tot administratorului: pe jumătate din foi, cifrele ar ieși greșite fără nicio eroare, așa că managerul nu le vede. Angajatul își vede mașina primită în folosință și mașinile comune și își completează propriile foi de parcurs, nimic în plus. Managerul vede mașinile echipei lui, își face propriile foi și le aprobă pe ale echipei, dar nu poate scrie în foaia unui subordonat: poate doar s-o aprobe sau s-o respingă. HR nu are nimic aici. E aceeași separare ca la pontaj, între cine completează și cine confirmă.",
     legaturi: [
       {
         catre: "maintenance",

@@ -220,6 +220,15 @@ export const PERMISSION_KEYS = [
   "vehicles:read",
   "vehicles:create",
   "vehicles:update",
+  // ── început bloc: exportul flotei (F8) ──
+  // Seedată din 0002_authz.sql pentru `super_admin` și `org_admin` (scope `all`),
+  // prin produsul cartezian de acțiuni; niciun alt rol n-o are, deci nu a trebuit
+  // nicio migrare. Păzește exportul XLSX și pachetul lunar pentru contabil
+  // (`/api/export/flota*`). Poarta e `export`, nu `read`: exportul e al ÎNTREGII
+  // flote, iar un `manager` cu `vehicles:read = team` ar fi primit un fișier cu
+  // jumătate din cifre, fără nicio eroare.
+  "vehicles:export",
+  // ── sfârșit bloc: exportul flotei (F8) ──
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

@@ -21,9 +21,10 @@
  *    jurnalul e append-only prin trigger. A publica „administratorul poate
  *    modifica jurnalul" ar contrazice exact ce vinde banda de dedesubt.
  *
- * 3. Foile de parcurs stau pe rând separat de parcul auto. Managerul n-are
- *    niciun drept pe `vehicles`, dar are `trip_sheets` pe echipă — un singur
- *    rând „Parc auto | manager | —" ar fi fost fals prin omisiune.
+ * 3. Foile de parcurs stau pe rând separat de parcul auto. Din 0196 managerul
+ *    vede vehiculele echipei, iar angajatul doar mașina lui și pool-ul; foile
+ *    le vede fiecare pe ale lui, managerul pe ale echipei. Un singur rând „Parc
+ *    auto" ar fi amestecat două domenii diferite.
  *
  * 4. Mentenanța (12 oct 2026) arată doar CITIREA, ca toate celelalte rânduri.
  *    Dreptul de a deschide o sesizare e mai larg decât cel de citire
@@ -97,12 +98,12 @@ export const MATRICE: readonly RandMatrice[] = [
   {
     resursa: "trip_sheets",
     eticheta: "Foi de parcurs",
-    domenii: { org_admin: "all", hr: "none", manager: "team", employee: "none" },
+    domenii: { org_admin: "all", hr: "none", manager: "team", employee: "own" },
   },
   {
     resursa: "vehicles",
     eticheta: "Parc auto",
-    domenii: { org_admin: "all", hr: "none", manager: "none", employee: "none" },
+    domenii: { org_admin: "all", hr: "none", manager: "team", employee: "own" },
   },
   {
     resursa: "compliance",

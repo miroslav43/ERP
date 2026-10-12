@@ -86,15 +86,21 @@ begin
   insert into public.departments (id, organization_id, cod, denumire)
   values (v_dep_alt, v_org_alta, 'ALT-' || v_sufix, 'Departament străin');
 
+  -- `pool = true` din 0196: garda de vehicul alocat (`foi_parcurs_inainte` §C1)
+  -- refuză cu P0001 foaia unui rol `own`/`team` pe o mașină care nu-i e
+  -- alocată. Proba de aici e despre RLS; pe pool, garda nu se aplică, deci
+  -- (3) și (4) rămân judecate de politici. Garda are proba ei:
+  -- `proba-flota-roluri.sql`.
   insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
-                               created_by, updated_by)
+                               pool, created_by, updated_by)
   values (v_vehicul, v_org, 'B' || (100 + (random() * 800)::int)::text || 'FLT', 'Dacia', 'Logan', 10000,
-          v_u_admin, v_u_admin);
+          true, v_u_admin, v_u_admin);
 
+  -- Zile diferite: din 0197 vehiculul are o singură foaie activă pe zi.
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   created_by, updated_by) values
-    (v_foaie_a, v_org, v_vehicul, v_e_a, now() - interval '5 hours', 10000, v_u_a, v_u_a),
-    (v_foaie_b, v_org, v_vehicul, v_e_b, now() - interval '4 hours', 10000, v_u_b, v_u_b);
+    (v_foaie_a, v_org, v_vehicul, v_e_a, now() - interval '5 days', 10000, v_u_a, v_u_a),
+    (v_foaie_b, v_org, v_vehicul, v_e_b, now() - interval '4 days', 10000, v_u_b, v_u_b);
 
   -- (1) alimentare pe foaia proprie
   perform set_config('request.jwt.claim.sub', v_u_a::text, true);
@@ -147,7 +153,7 @@ begin
   begin
     insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                     created_by, updated_by)
-    values (v_org, v_vehicul, v_e_a, now() - interval '1 hour', 10000, v_u_mgr, v_u_mgr);
+    values (v_org, v_vehicul, v_e_a, now() - interval '3 days', 10000, v_u_mgr, v_u_mgr);
     reset role;
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (4) managerul a întocmit o foaie în numele subordonatului (read = team, create = own)';

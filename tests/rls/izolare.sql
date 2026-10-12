@@ -564,6 +564,62 @@ begin
   values (v_alfa, (select val from t_ids where cheie='trip_alfa'), 40.50, 320.00, now() - interval '90 minutes', 'Stație de test Alfa', v_admin_alfa, v_admin_alfa),
          (v_beta, (select val from t_ids where cheie='trip_beta'), 40.50, 320.00, now() - interval '90 minutes', 'Stație de test Beta', v_admin_beta, v_admin_beta);
 
+  -- ═══ ÎNCEPUT BLOC: fixture foaia zilnică (0197) ═══════════════════════════
+  -- O cursă pe fiecare foaie (aceleași ore și kilometri ca antetul, deci
+  -- agregatele nu se mișcă) și câte un șablon de traseu per firmă.
+  insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la, de_la_loc,
+                                       pana_la_loc, scop, km_plecare, km_sosire, created_by, updated_by)
+  select t.organization_id, t.id, t.plecare_la, t.sosire_la, 'Sediu', 'Client', t.scop,
+         t.km_plecare, t.km_sosire, t.created_by, t.updated_by
+    from public.trip_sheets t
+   where t.id in ((select val from t_ids where cheie='trip_alfa'), (select val from t_ids where cheie='trip_beta'));
+  insert into public.trip_route_templates (organization_id, denumire, de_la_loc, pana_la_loc, scop, km_estimat,
+                                           created_by, updated_by)
+  values (v_alfa, 'Sediu — Client Alfa', 'Sediu', 'Client', 'Livrare', 25, v_admin_alfa, v_admin_alfa),
+         (v_beta, 'Sediu — Client Beta', 'Sediu', 'Client', 'Livrare', 25, v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture foaia zilnică (0197) ═══════════════════════════
+
+  -- ═══ ÎNCEPUT BLOC: fixture setările flotei (0198) ═════════════════════════
+  -- Câte un rând de setări per firmă, cu responsabilul din aceeași firmă.
+  insert into public.fleet_settings (organization_id, responsabili, prag_salt_km, praguri_alerta_zile,
+                                     created_by, updated_by)
+  values (v_alfa, array[(select val from t_ids where cheie='ang_alfa')], 1200, array[30, 14, 7], v_admin_alfa, v_admin_alfa),
+         (v_beta, array[(select val from t_ids where cheie='ang_beta')], 1200, array[30, 14, 7], v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture setările flotei (0198) ═════════════════════════
+
+  -- ═══ ÎNCEPUT BLOC: fixture tipurile de document per firmă (0199) ══════════
+  -- Câte o setare per firmă pe un tip de PLATFORMĂ (ADR, retras în 0116):
+  -- fiecare firmă și-l activează pentru ea, fără să-l vadă cealaltă.
+  insert into public.vehicle_document_type_setari (organization_id, document_type_id, activ, obligatoriu,
+                                                   created_by, updated_by)
+  select o.org, vdt.id, true, false, o.admin, o.admin
+    from public.vehicle_document_types vdt
+   cross join (values (v_alfa, v_admin_alfa), (v_beta, v_admin_beta)) as o(org, admin)
+   where vdt.cod = 'adr' and vdt.organization_id is null and vdt.deleted_at is null;
+  -- ═══ SFÂRȘIT BLOC: fixture tipurile de document per firmă (0199) ══════════
+
+  -- ═══ ÎNCEPUT BLOC: fixture service, costuri, anvelope (0200) ══════════════
+  -- Un plan, o intervenție (legată de plan) și o cheltuială per firmă, pe
+  -- vehiculul firmei (veh_alfa / veh_beta). Verificarea (c) cere rânduri în
+  -- AMBELE organizații în fiecare tabelă cu organization_id.
+  insert into public.vehicle_service_plans (organization_id, vehicle_id, denumire, interval_km, interval_luni,
+                                            baza_data, baza_km, created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='veh_alfa'), 'Revizie (test)', 10000, 12,
+          app.azi_local() - 30, 900, v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='veh_beta'), 'Revizie (test)', 10000, 12,
+          app.azi_local() - 30, 900, v_admin_beta, v_admin_beta);
+  insert into public.vehicle_service_entries (organization_id, vehicle_id, plan_id, data_interventiei, km, tip,
+                                              descriere, cost_piese, cost_manopera, created_by, updated_by)
+  select p.organization_id, p.vehicle_id, p.id, app.azi_local() - 1, 1000, 'revizie', 'Revizie (test)', 100, 50,
+         p.created_by, p.updated_by
+    from public.vehicle_service_plans p
+   where p.organization_id in (v_alfa, v_beta);
+  insert into public.vehicle_expenses (organization_id, vehicle_id, categorie, data_cheltuielii, suma,
+                                       created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='veh_alfa'), 'parcare', app.azi_local() - 1, 12, v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='veh_beta'), 'parcare', app.azi_local() - 1, 12, v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture service, costuri, anvelope (0200) ══════════════
+
   -- ── Faza 7 (migrarea 0011): SSM, PSI, medicina muncii, ISCIR, mentenanță ────
   -- `ssm_legal_parameters`, `ssm_training_types` și `ssm_training_type_periods`
   -- se seedează SINGURE la crearea organizației (trg organizations_ssm_seed,
@@ -2256,8 +2312,10 @@ begin
    where organization_id = v_alfa and deleted_at is null limit 1;
   insert into public.trip_sheets (organization_id, vehicle_id, employee_id,
                                   plecare_la, km_plecare, sosire_la, km_sosire, status)
-  values (v_alfa, v_veh_sub, v_sub_alfa, now() - interval '2 hours', 1000,
-          now() - interval '1 hour', 1120, 'trimis')
+  -- Cu două zile în urmă, nu azi: din 0197 vehiculul are o singură foaie activă
+  -- pe zi, iar azi are deja foaia fixture-ului (`trip_alfa`).
+  values (v_alfa, v_veh_sub, v_sub_alfa, now() - interval '50 hours', 1000,
+          now() - interval '49 hours', 1120, 'trimis')
   returning id into v_foaie_sub;
 
   -- 1) `super_admin` comută un modul. `org_admin` are doar `features:read`,
@@ -5157,6 +5215,612 @@ exception when others then
   perform pg_temp.esueaza(format('(l) verificarea M10 a mentenanței a eșuat: %s (%s)', sqlerrm, sqlstate));
 end $$;
 -- ── sfârșit M10 ──────────────────────────────────────────────────────────────
+
+-- ═══ ÎNCEPUT BLOC: flota pe roluri (0196) ═══════════════════════════════════
+-- (l), continuare — șoferii își fac singuri foile (0196)
+--
+-- Din 0196, `employee` are `trip_sheets` read/create/update = own și
+-- `vehicles:read = own`, iar `manager` are `vehicles:read = team` și
+-- `trip_sheets` create/update = own. Fiecare scriere de mai jos e una pe care
+-- ecranul „Mașina mea” o face în numele rolului; dacă vreo politică sau garda
+-- de vehicul alocat ar refuza-o, rolul n-ar putea lucra, iar (a)-(k) ar trece
+-- verzi. Rânduri NUMĂRATE, nu doar excepții prinse.
+--
+-- Vehiculele sunt ale blocului: `veh_alfa` e șters logic de blocul de documente
+-- de mai sus, iar o mașină ștearsă nu primește foi.
+do $$
+declare
+  v_alfa     uuid := pg_temp.id('alfa');
+  v_admin    uuid := pg_temp.id('admin_alfa');
+  v_emp      uuid := pg_temp.id('emp_alfa');
+  v_ang      uuid := pg_temp.id('ang_alfa');
+  v_mgr      uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang  uuid := pg_temp.id('mgr2_alfa');
+  v_sub      uuid := pg_temp.id('sub_alfa');
+  v_veh_ang  uuid := gen_random_uuid();
+  v_veh_mgr  uuid := gen_random_uuid();
+  v_veh_sub  uuid := gen_random_uuid();
+  v_veh_pool uuid := gen_random_uuid();
+  v_foaie    uuid;
+  v_ciorna_sub uuid;
+  v_n        int;
+  v_refuzat  boolean;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_veh_ang,  v_alfa, 'CJ' || left(replace(v_veh_ang::text, '-', ''), 5) || 'RA',  'Dacia', 'Logan',  7000, false, v_admin, v_admin),
+    (v_veh_mgr,  v_alfa, 'CJ' || left(replace(v_veh_mgr::text, '-', ''), 5) || 'RM',  'Skoda', 'Superb', 8000, false, v_admin, v_admin),
+    (v_veh_sub,  v_alfa, 'CJ' || left(replace(v_veh_sub::text, '-', ''), 5) || 'RS',  'Dacia', 'Duster', 9000, false, v_admin, v_admin),
+    (v_veh_pool, v_alfa, 'CJ' || left(replace(v_veh_pool::text, '-', ''), 5) || 'RP', 'Dacia', 'Jogger', 6000, true,  v_admin, v_admin);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by) values
+    (v_alfa, v_veh_ang, v_ang,     now() - interval '15 days', v_admin, v_admin),
+    (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '15 days', v_admin, v_admin),
+    (v_alfa, v_veh_sub, v_sub,     now() - interval '15 days', v_admin, v_admin);
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_sub, v_sub, now() - interval '4 hours', 9000, v_admin, v_admin)
+  returning id into v_ciorna_sub;
+
+  -- 1) `employee` își întocmește foaia pe mașina alocată.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_ang, v_ang, now() - interval '3 hours', 7000, v_emp, v_emp)
+  returning id into v_foaie;
+  reset role;
+  if v_foaie is null then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu-și poate întocmi foaia pe mașina alocată');
+  end if;
+
+  -- 2) …alimentează pe ea…
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     created_by, updated_by)
+    values (v_alfa, v_foaie, 25, 180, now() - interval '2 hours', v_emp, v_emp)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu alimentează pe foaia proprie');
+  end if;
+
+  -- 3) …și o trimite spre aprobare (din 0197, cu cursa zilei: sosirea o dă ea).
+  -- Cursa se oprește la -2 h: de acolo șoferul are cursa foii din fixture, iar
+  -- un om nu conduce două mașini deodată. Alimentarea de la -2 h rămâne în foaie.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la,
+                                       de_la_loc, pana_la_loc, scop, km_plecare, km_sosire,
+                                       created_by, updated_by)
+  values (v_alfa, v_foaie, now() - interval '3 hours', now() - interval '2 hours',
+          'Sediu', 'Client', 'Livrare', 7000, 7090, v_emp, v_emp);
+  with trimise as (
+    update public.trip_sheets
+       set status = 'trimis', updated_by = v_emp
+     where id = v_foaie and organization_id = v_alfa
+    returning 1
+  ) select count(*) into v_n from trimise;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza(format(
+      '(l) REFUZ TĂCUT: `employee` și-a trimis foaia, dar UPDATE-ul a afectat %s rânduri', v_n));
+  end if;
+
+  -- 4) `manager` își întocmește propria foaie, pe mașina lui și pe pool.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_alfa, v_veh_mgr,  v_mgr_ang, now() - interval '3 hours', 8000, v_mgr, v_mgr),
+           (v_alfa, v_veh_pool, v_mgr_ang, now() - interval '1 hour',  6000, v_mgr, v_mgr)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 2 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `manager` nu-și poate întocmi propriile foi');
+  end if;
+
+  -- 5) `manager` vede mașina subordonatului (vehicles:read = team) și pool-ul.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicles where id in (v_veh_sub, v_veh_pool, v_veh_mgr);
+  reset role;
+  if v_n <> 3 then
+    perform pg_temp.esueaza(format(
+      '(l) FALS-NEGATIV: `manager` vede %s din cele 3 mașini (a lui, a subordonatului, pool)', v_n));
+  end if;
+
+  -- 6) Contra-proba: aprobatorul NU scrie ciorna subordonatului (0196 §C2).
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set km_plecare = 9010, updated_by = v_mgr where id = v_ciorna_sub;
+    v_refuzat := false;
+  exception when raise_exception then
+    v_refuzat := true;
+  end;
+  reset role;
+  if not v_refuzat then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a rescris ciorna subordonatului prin ramura de aprobare');
+  end if;
+
+  raise notice '(l) flota pe roluri: angajatul întocmește, alimentează și trimite; managerul își face foile și vede echipa ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: flota pe roluri (0196) ════════════════════════════════════
+
+-- ═══ ÎNCEPUT BLOC: foaia zilnică cu curse (0197) ═════════════════════════════
+-- (l), continuare — cursele, retragerea și retrimiterea (0197)
+--
+-- Din 0197 foaia e ziua vehiculului, cu curse, iar copiii (curse, alimentări)
+-- se scriu doar pe ciornă. Fiecare scriere de mai jos e una pe care ecranul o
+-- face pentru rolul care o are; dacă paritatea stării ar bloca și drumul
+-- legitim (ciornă → trimis → retras → corectat → retrimis → aprobat), rolurile
+-- n-ar putea lucra, iar refuzurile din probe ar trece verzi. Rânduri NUMĂRATE.
+do $$
+declare
+  v_alfa     uuid := pg_temp.id('alfa');
+  v_admin    uuid := pg_temp.id('admin_alfa');
+  v_emp      uuid := pg_temp.id('emp_alfa');
+  v_ang      uuid := pg_temp.id('ang_alfa');
+  v_mgr      uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang  uuid := pg_temp.id('mgr2_alfa');
+  v_veh_ang  uuid := gen_random_uuid();
+  v_veh_mgr  uuid := gen_random_uuid();
+  v_zi       date := app.azi_local() - 3;
+  v_foaie    uuid;
+  v_foaie_m  uuid;
+  v_cursa    uuid;
+  v_n        int;
+  v_numar    text;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_veh_ang, v_alfa, 'CJ' || left(replace(v_veh_ang::text, '-', ''), 5) || 'ZA', 'Dacia', 'Logan',  4000, false, v_admin, v_admin),
+    (v_veh_mgr, v_alfa, 'CJ' || left(replace(v_veh_mgr::text, '-', ''), 5) || 'ZM', 'Skoda', 'Superb', 5000, false, v_admin, v_admin);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by) values
+    (v_alfa, v_veh_ang, v_ang,     now() - interval '15 days', v_admin, v_admin),
+    (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '15 days', v_admin, v_admin);
+
+  -- 1) `employee`: foaia zilei, o cursă, o alimentare, trimiterea.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_ang, v_ang, (v_zi::timestamp + interval '08:00') at time zone 'Europe/Bucharest', 4000, v_emp, v_emp)
+  returning id into v_foaie;
+  with inserate as (
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la, de_la_loc,
+                                         pana_la_loc, scop, km_plecare, km_sosire, created_by, updated_by)
+    values (v_alfa, v_foaie, (v_zi::timestamp + interval '08:00') at time zone 'Europe/Bucharest',
+            (v_zi::timestamp + interval '09:30') at time zone 'Europe/Bucharest',
+            'Sediu', 'Client', 'Livrare', 4000, 4060, v_emp, v_emp)
+    returning id
+  ) select count(*), max(id::text)::uuid into v_n, v_cursa from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu adaugă o cursă pe ciorna proprie');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     created_by, updated_by)
+    values (v_alfa, v_foaie, 20, 150, (v_zi::timestamp + interval '09:00') at time zone 'Europe/Bucharest', v_emp, v_emp)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu alimentează pe ciorna proprie');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with trimise as (
+    update public.trip_sheets set status = 'trimis', updated_by = v_emp
+     where id = v_foaie and organization_id = v_alfa
+    returning numar
+  ) select count(*), max(numar) into v_n, v_numar from trimise;
+  reset role;
+  if v_n <> 1 or v_numar is null then
+    perform pg_temp.esueaza(format(
+      '(l) REFUZ TĂCUT: `employee` și-a trimis foaia zilei: %s rânduri, numărul %s', v_n, v_numar));
+  end if;
+
+  -- 2) …o retrage, corectează cursa pe ciornă și o retrimite.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with retrase as (
+    update public.trip_sheets set status = 'draft', updated_by = v_emp where id = v_foaie returning 1
+  ) select count(*) into v_n from retrase;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `employee` nu-și retrage foaia trimisă în ciornă');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with corectate as (
+    update public.trip_sheet_curse set km_sosire = 4065, scop = 'Livrare și retur', updated_by = v_emp
+     where id = v_cursa returning 1
+  ) select count(*) into v_n from corectate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `employee` nu-și corectează cursa pe ciornă');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with trimise as (
+    update public.trip_sheets set status = 'trimis', updated_by = v_emp where id = v_foaie returning numar, km_sosire
+  ) select count(*) into v_n from trimise where numar = v_numar and km_sosire = 4065;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: retrimiterea foii corectate nu păstrează numărul sau cifrele');
+  end if;
+
+  -- 3) `org_admin` o aprobă (approve = all, nu e foaia lui).
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with aprobate as (
+    update public.trip_sheets set status = 'aprobat', updated_by = v_admin where id = v_foaie returning 1
+  ) select count(*) into v_n from aprobate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `org_admin` nu aprobă foaia zilei a angajatului');
+  end if;
+
+  -- 4) `manager`: foaia proprie și cursa ei.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_mgr, v_mgr_ang, (v_zi::timestamp + interval '10:00') at time zone 'Europe/Bucharest', 5000, v_mgr, v_mgr)
+  returning id into v_foaie_m;
+  with inserate as (
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la, de_la_loc,
+                                         pana_la_loc, scop, km_plecare, km_sosire, created_by, updated_by)
+    values (v_alfa, v_foaie_m, (v_zi::timestamp + interval '10:00') at time zone 'Europe/Bucharest',
+            (v_zi::timestamp + interval '11:00') at time zone 'Europe/Bucharest',
+            'Sediu', 'Primărie', 'Avize', 5000, 5020, v_mgr, v_mgr)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `manager` nu adaugă o cursă pe foaia proprie');
+  end if;
+
+  -- 5) `org_admin`: un șablon de traseu al firmei, citit apoi de angajat.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.trip_route_templates (organization_id, denumire, de_la_loc, pana_la_loc, scop,
+                                             km_estimat, created_by, updated_by)
+    values (v_alfa, 'Sediu — Primărie ' || left(replace(gen_random_uuid()::text, '-', ''), 6),
+            'Sediu', 'Primărie', 'Avize', 12, v_admin, v_admin)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu creează un șablon de traseu');
+  end if;
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.trip_route_templates where organization_id = v_alfa;
+  reset role;
+  if v_n < 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu vede șabloanele de traseu ale firmei');
+  end if;
+
+  raise notice '(l) foaia zilnică: angajatul scrie cursa, alimentează, trimite, retrage, corectează, retrimite; administratorul aprobă; managerul își scrie cursele ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: foaia zilnică cu curse (0197) ═════════════════════════════
+
+-- ═══ ÎNCEPUT BLOC: setările flotei (0198) ════════════════════════════════════
+-- (l), continuare — setările flotei și pragurile de alertă (0198)
+--
+-- `org_admin` (vehicles:update = all) schimbă responsabilii, pragul de salt și
+-- pragurile; pragurile ajung în `alert_rules` prin trigger, deși `org_admin`
+-- n-ar trece el însuși prin politica de acolo dacă i s-ar lua `compliance:*`.
+-- `manager` (vehicles:read = team) și `employee` (own) NU le văd și nu le scriu:
+-- zero rânduri, fără eroare (constatarea revizuirii pe 0198: o citire pe
+-- `vehicles:read <> 'none'` le dădea responsabilii și pragurile oricărui
+-- angajat). Pragul unui vehicul vizibil li se dă DOAR prin
+-- `public.flota_prag_salt_km`. Rânduri NUMĂRATE.
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_emp    uuid := pg_temp.id('emp_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang uuid := pg_temp.id('mgr2_alfa');
+  v_n      int;
+  v_praguri int[];
+begin
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with schimbate as (
+    update public.fleet_settings
+       set responsabili = array[v_mgr_ang], prag_salt_km = 900, praguri_alerta_zile = array[7, 45, 21],
+           updated_by = v_admin
+     where organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_n from schimbate;
+  -- Cazul pozitiv al citirii (0198, revizuire): restrângerea politicii nu are
+  -- voie să-l lase pe administrator fără ecranul de setări.
+  select v_n * 10 + count(*) into v_n from public.fleet_settings where organization_id = v_alfa;
+  reset role;
+  if v_n <> 11 then
+    perform pg_temp.esueaza(format('(l) REFUZ TĂCUT: `org_admin` schimbă×10+citește setările flotei = %s, așteptat 11', v_n));
+  end if;
+
+  select ar.praguri_zile into v_praguri
+    from public.alert_rules ar
+   where ar.organization_id = v_alfa and ar.entity_type = 'vehicle_document' and ar.kind = '*'
+     and ar.deleted_at is null and ar.valabil_de_la = app.azi_local();
+  if v_praguri is distinct from array[45, 21, 7] then
+    perform pg_temp.esueaza(format('(l) pragurile flotei nu au ajuns în alert_rules (am găsit %s)', v_praguri));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.fleet_settings where organization_id = v_alfa;
+  if v_n <> 0 then
+    reset role;
+    perform pg_temp.esueaza('(l) DEZVĂLUIRE: `manager` citește setările flotei (responsabili, praguri)');
+  end if;
+  with schimbate as (
+    update public.fleet_settings set prag_salt_km = 5000, updated_by = v_mgr
+     where organization_id = v_alfa returning 1
+  ) select count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a schimbat setările flotei');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.fleet_settings where organization_id = v_alfa;
+  with schimbate as (
+    update public.fleet_settings set prag_salt_km = 5000, updated_by = v_emp
+     where organization_id = v_alfa returning 1
+  ) select v_n * 10 + count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) `employee` pe setările flotei: citire×10+scriere = %s, așteptat 0', v_n));
+  end if;
+
+  raise notice '(l) setările flotei: org_admin le scrie și pragurile ajung în alert_rules; manager și employee nu le văd și nu le scriu ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: setările flotei (0198) ════════════════════════════════════
+
+-- ═══ ÎNCEPUT BLOC: tipurile de document și fișierele flotei (0199) ═══════════
+-- (l), continuare — tipurile de document per firmă și fișierele (0199)
+--
+-- `org_admin` activează un tip de platformă pentru firmă, își creează un tip
+-- propriu, înregistrează un document pe el, îi urcă scanarea și o leagă de rând.
+-- `employee` și `manager` urcă poza bonului pe ciorna lor și o leagă de
+-- alimentare. Fiecare
+-- e un gest pe care ecranul îl face; un refuz de politică ar lăsa rolul fără
+-- ecran, iar (a)–(k) ar trece verzi. Rânduri NUMĂRATE.
+do $$
+declare
+  v_alfa    uuid := pg_temp.id('alfa');
+  v_admin   uuid := pg_temp.id('admin_alfa');
+  v_emp     uuid := pg_temp.id('emp_alfa');
+  v_ang     uuid := pg_temp.id('ang_alfa');
+  v_veh     uuid := gen_random_uuid();
+  v_pool    uuid := gen_random_uuid();
+  v_mgr     uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang uuid := pg_temp.id('mgr2_alfa');
+  v_veh_mgr uuid := gen_random_uuid();
+  v_tip     uuid;
+  v_doc     uuid;
+  v_foaie   uuid;
+  v_alim    uuid;
+  v_cale    text;
+  v_n       int;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_veh,  v_alfa, 'CJ' || left(replace(v_veh::text, '-', ''), 5) || 'TD',  'Dacia', 'Logan',  4000, false, v_admin, v_admin),
+    (v_pool, v_alfa, 'CJ' || left(replace(v_pool::text, '-', ''), 5) || 'TP', 'Dacia', 'Jogger', 5000, true,  v_admin, v_admin);
+
+  -- 1) org_admin activează tahograful (retras în 0116) pentru firmă.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.vehicle_document_type_setari (organization_id, document_type_id, activ, obligatoriu)
+    select v_alfa, t.id, true, true from public.vehicle_document_types t
+     where t.cod = 'tahograf' and t.organization_id is null and t.deleted_at is null
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu activează un tip de platformă pentru firmă');
+  end if;
+
+  -- 2) …își creează un tip propriu și înregistrează documentul pe el…
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.vehicle_document_types (organization_id, cod, denumire, obligatoriu,
+                                             categorii_aplicabile, created_by, updated_by)
+  values (v_alfa, 'autorizatie_l_' || left(replace(v_veh::text, '-', ''), 6), 'Autorizație (l)', true,
+          array['autoturism']::public.vehicle_category[], v_admin, v_admin)
+  returning id into v_tip;
+  insert into public.vehicle_documents (organization_id, vehicle_id, document_type_id, expira_la,
+                                        created_by, updated_by)
+  values (v_alfa, v_veh, v_tip, current_date + 200, v_admin, v_admin)
+  returning id into v_doc;
+  reset role;
+  if v_doc is null then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu înregistrează documentul pe tipul propriu');
+  end if;
+
+  -- 3) …îi urcă scanarea în bucket și o leagă de rând.
+  v_cale := v_alfa::text || '/vehicles/' || v_veh::text || '/' || gen_random_uuid()::text || '-autorizatie.pdf';
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with urcate as (
+    insert into storage.objects (bucket_id, name, owner) values ('org-flota', v_cale, v_admin) returning 1
+  ) select count(*) into v_n from urcate;
+  with legate as (
+    update public.vehicle_documents set fisier_path = v_cale, fisier_nume = 'autorizatie.pdf', updated_by = v_admin
+     where id = v_doc returning 1
+  ) select v_n * 10 + count(*) into v_n from legate;
+  reset role;
+  if v_n <> 11 then
+    perform pg_temp.esueaza(format('(l) `org_admin` pe scanare: urcate×10+legate = %s, așteptat 11', v_n));
+  end if;
+
+  -- 4) `employee` urcă bonul pe ciorna lui (pe mașina pool) și îl leagă.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_pool, v_ang, now() - interval '1 hour', 5000, v_emp, v_emp)
+  returning id into v_foaie;
+  insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                   created_by, updated_by)
+  values (v_alfa, v_foaie, 20, 150, now() - interval '30 minutes', v_emp, v_emp)
+  returning id into v_alim;
+  v_cale := v_alfa::text || '/trip_sheets/' || v_foaie::text || '/' || gen_random_uuid()::text || '-bon.jpg';
+  with urcate as (
+    insert into storage.objects (bucket_id, name, owner) values ('org-flota', v_cale, v_emp) returning 1
+  ) select count(*) into v_n from urcate;
+  with legate as (
+    update public.fuel_entries set fisier_bon_path = v_cale, updated_by = v_emp
+     where id = v_alim returning 1
+  ) select v_n * 10 + count(*) into v_n from legate;
+  reset role;
+  if v_n <> 11 then
+    perform pg_temp.esueaza(format('(l) `employee` pe bon: urcate×10+legate = %s, așteptat 11', v_n));
+  end if;
+
+  -- 5) `manager` (`trip_sheets:update = own`, 0196) urcă bonul pe ciorna LUI.
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_veh_mgr, v_alfa, 'CJ' || left(replace(v_veh_mgr::text, '-', ''), 5) || 'TM', 'Skoda', 'Octavia', 6000, false, v_admin, v_admin);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by)
+  values (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '10 days', v_admin, v_admin);
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '1 hour', 6000, v_mgr, v_mgr)
+  returning id into v_foaie;
+  insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                   created_by, updated_by)
+  values (v_alfa, v_foaie, 30, 220, now() - interval '30 minutes', v_mgr, v_mgr)
+  returning id into v_alim;
+  v_cale := v_alfa::text || '/trip_sheets/' || v_foaie::text || '/' || gen_random_uuid()::text || '-bon.jpg';
+  with urcate as (
+    insert into storage.objects (bucket_id, name, owner) values ('org-flota', v_cale, v_mgr) returning 1
+  ) select count(*) into v_n from urcate;
+  with legate as (
+    update public.fuel_entries set fisier_bon_path = v_cale, updated_by = v_mgr
+     where id = v_alim returning 1
+  ) select v_n * 10 + count(*) into v_n from legate;
+  reset role;
+  if v_n <> 11 then
+    perform pg_temp.esueaza(format('(l) `manager` pe bonul propriu: urcate×10+legate = %s, așteptat 11', v_n));
+  end if;
+
+  raise notice '(l) tipurile de document per firmă și fișierele flotei: org_admin activează, creează, urcă scanarea; employee și manager urcă bonul ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: tipurile de document și fișierele flotei (0199) ═══════════
+
+-- ═══ ÎNCEPUT BLOC: service, costuri, anvelope (0200) ═════════════════════════
+-- (l), continuare — service, costuri și anvelope (0200)
+--
+-- `org_admin` (vehicles:update = all) creează un plan de service, înregistrează o
+-- intervenție legată de el (care ridică kilometrajul și mută planul) și o
+-- cheltuială, apoi le citește. `manager` (vehicles:read = team) le CITEȘTE pe cele
+-- ale mașinii lui, dar nu scrie; `employee` (own) nu le vede deloc. Fiecare e un
+-- gest pe care ecranul îl face; un refuz de politică ar lăsa administratorul fără
+-- fila „Service”, iar (a)–(k) ar trece verzi. Rânduri NUMĂRATE.
+do $$
+declare
+  v_alfa    uuid := pg_temp.id('alfa');
+  v_admin   uuid := pg_temp.id('admin_alfa');
+  v_emp     uuid := pg_temp.id('emp_alfa');
+  v_mgr     uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang uuid := pg_temp.id('mgr2_alfa');
+  v_veh     uuid := gen_random_uuid();
+  v_plan    uuid;
+  v_n       int;
+  v_km      int;
+  v_urm     int;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
+                               created_by, updated_by) values
+    (v_veh, v_alfa, 'CJ' || left(replace(v_veh::text, '-', ''), 5) || 'SV', 'Dacia', 'Duster', 30000, v_admin, v_admin);
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by)
+  values (v_alfa, v_veh, v_mgr_ang, now() - interval '20 days', v_admin, v_admin);
+
+  -- 1) `org_admin` scrie planul, intervenția și cheltuiala.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.vehicle_service_plans (organization_id, vehicle_id, denumire, interval_km, interval_luni,
+                                            baza_data, baza_km, created_by, updated_by)
+  values (v_alfa, v_veh, 'Revizie periodică', 10000, 12, app.azi_local() - 60, 28000, v_admin, v_admin)
+  returning id into v_plan;
+  insert into public.vehicle_service_entries (organization_id, vehicle_id, plan_id, data_interventiei, km, tip,
+                                              descriere, cost_piese, cost_manopera, created_by, updated_by)
+  values (v_alfa, v_veh, v_plan, app.azi_local() - 1, 31000, 'revizie', 'Ulei și filtre', 250, 150, v_admin, v_admin);
+  insert into public.vehicle_expenses (organization_id, vehicle_id, categorie, data_cheltuielii, suma,
+                                       created_by, updated_by)
+  values (v_alfa, v_veh, 'parcare', app.azi_local() - 1, 20, v_admin, v_admin);
+  select count(*) into v_n from public.vehicle_service_plans where vehicle_id = v_veh;
+  select v_n * 100 + count(*) * 10 into v_n from public.vehicle_service_entries where vehicle_id = v_veh and cost_total = 400;
+  select v_n + count(*) into v_n from public.vehicle_expenses where vehicle_id = v_veh;
+  reset role;
+  select km_curent into v_km from public.vehicles where id = v_veh;
+  select urmatorii_km into v_urm from public.vehicle_service_plans where id = v_plan;
+  if v_n <> 111 or v_km <> 31000 or v_urm <> 41000 then
+    perform pg_temp.esueaza(format(
+      '(l) REFUZ TĂCUT: `org_admin` pe service: planuri×100+intervenții×10+cheltuieli = %s (111), km_curent %s (31000), ținta %s (41000)',
+      v_n, v_km, v_urm));
+  end if;
+
+  -- 2) `manager` citește mașina lui (1+1+1) și nu scrie.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_service_plans where vehicle_id = v_veh;
+  select v_n * 100 + count(*) * 10 into v_n from public.vehicle_service_entries where vehicle_id = v_veh;
+  select v_n + count(*) into v_n from public.vehicle_expenses where vehicle_id = v_veh;
+  reset role;
+  if v_n <> 111 then
+    perform pg_temp.esueaza(format('(l) REFUZ TĂCUT LA CITIRE: `manager` pe service-ul mașinii lui = %s, așteptat 111', v_n));
+  end if;
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with schimbate as (
+    update public.vehicle_service_plans set observatii = 'rescris', updated_by = v_mgr where id = v_plan returning 1
+  ) select count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a modificat un plan de service');
+  end if;
+
+  -- 3) `employee` nu vede nimic din service și costuri.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select (select count(*) from public.vehicle_service_plans)
+       + (select count(*) from public.vehicle_service_entries)
+       + (select count(*) from public.vehicle_expenses) into v_n;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) DEZVĂLUIRE: `employee` citește %s rânduri de service și costuri', v_n));
+  end if;
+
+  raise notice '(l) service, costuri, anvelope: org_admin scrie plan, intervenție și cheltuială (km_curent urcă, ținta se mută); manager le citește pe ale mașinii lui; employee nu vede nimic ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: service, costuri, anvelope (0200) ═════════════════════════
 
 
 rollback;

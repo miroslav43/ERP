@@ -6,12 +6,20 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
+import { ConfirmareActiune } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
+import { arataToast } from "@/components/ui/toast";
 import type { ActionResult } from "@/lib/actions/types";
 import { oraRomanieiPentruCamp } from "@/lib/format/date";
 import type { StatusFoaie } from "@/schemas/fleet";
 
-import { adaugaAlimentare, redeschideFoaie, trimiteFoaie } from "../../actions";
+import {
+  adaugaAlimentare,
+  redeschideFoaie,
+  retrageFoaie,
+  stergeFoaie,
+  trimiteFoaie,
+} from "../../actions";
 
 type FoaieInchisa = Readonly<{ id: string; anomalie: string | null }>;
 type AlimentareAdaugata = Readonly<{ id: string }>;
@@ -36,7 +44,7 @@ function refuzDeClient(
 }
 
 /** Casetele fiecărui formular — ce NU e aici n-are unde să-și arate eroarea. */
-const CAMPURI_INCHIDERE: ReadonlySet<string> = new Set(["sosire_la", "km_sosire", "observatii"]);
+const CAMPURI_INCHIDERE: ReadonlySet<string> = new Set(["observatii"]);
 const CAMPURI_ALIMENTARE: ReadonlySet<string> = new Set([
   "alimentat_la",
   "litri",
@@ -79,19 +87,18 @@ function ErorileFaraCamp({
 }
 
 /**
- * Închiderea cursei, alimentările și redeschiderea foii respinse.
+ * Trimiterea, retragerea, redeschiderea și ștergerea foii zilnice, plus
+ * alimentările.
  *
- * O foaie aprobată nu se mai atinge: triggerul o refuză, cu mesaj în română.
- * Ascundem formularele ca omul să nu apese degeaba, dar regula rămâne în bază —
- * ascunderea nu e barieră.
- *
- * Ce arată fiecare stare urmează EXACT tranzițiile din
- * `internal.foi_parcurs_inainte`, nu o aproximare a lor:
- *   - `draft`: închiderea și alimentările;
- *   - `trimis`: doar alimentările (`alimentari_inainte` le acceptă până la decizie);
+ * Ce arată fiecare stare urmează EXACT regulile din
+ * `internal.foi_parcurs_inainte` după 0197 (§D1), nu o aproximare a lor:
+ *   - `draft`: trimiterea, alimentarea, ștergerea ciornei;
+ *   - `trimis`: doar „Retrage în ciornă”. Baza nu mai lasă nimic altceva pe o
+ *     foaie în aprobare — nici alimentări, nici curse —, ca aprobatorul să
+ *     semneze cifrele pe care le vede;
  *   - `respins`: doar „Redeschide”. Din `respins` baza nu permite trimiterea
- *     directă, iar alimentările le refuză. Înainte, ecranul arăta aici ambele
- *     formulare și amândouă cădeau cu P0001.
+ *     directă și nicio corectură înainte de revenirea în ciornă.
+ * Ascunderea nu e barieră: regula rămâne în bază.
  *
  * ── DE CE `<Formular>`, NU `<form action>` BRUT ───────────────────────────
  * React 19 resetează un formular cu câmpuri necontrolate după ORICE acțiune de
@@ -102,62 +109,67 @@ function ErorileFaraCamp({
  * `valoriTrimise`, pe care câmpurile le reiau ca `defaultValue`.
  *
  * Fiecare formular e un `<Formular>` propriu, cu starea și erorile lui: un
- * refuz la alimentare nu înroșește sosirea, iar butonul „Adaugă alimentarea”
- * nu se blochează cât timp se trimite foaia. Refuzurile triggerelor
- * (kilometraj mai mic, alimentare în afara cursei) sosesc prin `fieldErrors` —
- * vezi `flota/erori.ts` — și înroșesc caseta vinovată. Orele se arată și se
- * trimit în ora României (`oraRomanieiPentruCamp` / `dataOraRomania`).
+ * refuz la alimentare nu înroșește trimiterea, iar butonul „Adaugă alimentarea”
+ * nu se blochează cât timp se trimite foaia. Orele se arată și se trimit în ora
+ * României (`oraRomanieiPentruCamp` / `dataOraRomania`).
+ *
+ * Trimiterea nu mai cere sosirea: o dau cursele (0197). Un refuz al bazei la
+ * trimitere (cursă neîncheiată, regres de kilometraj) se arată ca TEXT, nu „pe
+ * câmp”: câmpurile vinovate sunt în casetele curselor, nu în formularul ăsta.
+ * `flota/erori.ts` le pune totuși pe câmpul lor (`km_plecare`, `vehicle_id`), iar
+ * `<Formular>` ascunde mesajul general când există o cheie — de aici
+ * `ErorileFaraCamp`, care le spune întregi sub titlu.
  */
 export function ActiuniFoaie({
   id,
   status,
-  kmPlecare,
   plecareLa,
   sosireLa,
+  areCurse,
+  bazaFoi,
 }: {
   readonly id: string;
   readonly status: StatusFoaie;
-  readonly kmPlecare: number;
   readonly plecareLa: string;
   readonly sosireLa: string | null;
+  /** Foaia are cel puțin o cursă. Fără ele baza refuză trimiterea. */
+  readonly areCurse: boolean;
+  /** Unde duce lista după ștergerea ciornei: `/flota/foi` sau `/portal/masina-mea`. */
+  readonly bazaFoi: string;
 }) {
   const router = useRouter();
   const [avertisment, setAvertisment] = useState<string | null>(null);
   // Redeschiderea e un buton, nu un formular: rămâne pe `useTransition`.
   const [seRedeschide, pornesteRedeschiderea] = useTransition();
   const [eroareRedeschidere, setEroareRedeschidere] = useState<string | null>(null);
+  const [seSterge, pornesteStergerea] = useTransition();
+  const [confirmaStergerea, setConfirmaStergerea] = useState(false);
 
-  const sePoateInchide = status === "draft";
-  const sePoateAlimenta = status === "draft" || status === "trimis";
+  const sePoateTrimite = status === "draft";
+  // 0197 §D1: alimentările urmează starea foii, deci doar pe ciornă.
+  const sePoateAlimenta = status === "draft";
   const plecareCamp = oraRomanieiPentruCamp(plecareLa);
   const sosireCamp = sosireLa === null ? null : oraRomanieiPentruCamp(sosireLa);
 
   /*
-   * Regulile pe care baza le refuză oricum se spun în client, pe câmp, înainte
-   * de round-trip. Refuzul are forma unui `ActionResult`, deci `<Formular>` îl
-   * tratează identic cu unul venit de la server: erori lângă câmp, valori
-   * păstrate.
+   * Trimiterea nu are reguli de client în afară de „există curse”: ora și
+   * kilometrajul zilei vin din curse, iar restul îl judecă baza. Refuzul are
+   * forma unui `ActionResult`, deci `<Formular>` îl tratează identic cu unul
+   * venit de la server: eroare lângă câmp, valori păstrate.
    */
   async function inchide(formular: FormData): Promise<ActionResult<FoaieInchisa>> {
-    const sosire = String(formular.get("sosire_la") ?? "");
-    const km = String(formular.get("km_sosire") ?? "").trim();
-    const lipsa: Record<string, string[]> = {};
-    if (sosire.length === 0) lipsa.sosire_la = ["Completați data și ora sosirii."];
-    else if (sosire <= plecareCamp) {
-      lipsa.sosire_la = ["Sosirea trebuie să fie după plecare."];
+    setAvertisment(null);
+    if (!areCurse) {
+      return refuzDeClient({
+        curse: [
+          "Adăugați cursele zilei (de unde, până unde, scopul și kilometrii) înainte de a trimite foaia.",
+        ],
+      });
     }
-    if (km.length === 0) lipsa.km_sosire = ["Scrieți kilometrajul la sosire, în km."];
-    else if (Number(km) <= kmPlecare) {
-      lipsa.km_sosire = [
-        `Kilometrajul la sosire trebuie să fie mai mare decât cel de la plecare (${kmPlecare.toLocaleString("ro-RO")} km).`,
-      ];
-    }
-    if (Object.keys(lipsa).length > 0) return refuzDeClient(lipsa);
-
+    // Mesajul bazei rămâne întreg: „Încheiați toate cursele…”, „Kilometrajul de
+    // plecare (9000 km) este mai mic…”. Câmpul lui nu e în formularul ăsta.
     return await trimiteFoaie({
       id,
-      sosire_la: sosire,
-      km_sosire: Number(km),
       observatii: String(formular.get("observatii") ?? "").trim() || null,
     });
   }
@@ -221,12 +233,28 @@ export function ActiuniFoaie({
   function redeschide(): void {
     setEroareRedeschidere(null);
     pornesteRedeschiderea(async () => {
-      const rezultat = await redeschideFoaie({ id });
+      // Aceeași casetă pentru cele două drumuri înapoi în ciornă: din
+      // `respins` (redeschiderea) și din `trimis` (retragerea).
+      const rezultat =
+        status === "trimis" ? await retrageFoaie({ id }) : await redeschideFoaie({ id });
       if (!rezultat.ok) {
         setEroareRedeschidere(rezultat.error.message);
         return;
       }
       router.refresh();
+    });
+  }
+
+  function sterge(): void {
+    pornesteStergerea(async () => {
+      const rezultat = await stergeFoaie({ id });
+      if (!rezultat.ok) {
+        arataToast({ fel: "eroare", text: rezultat.error.message });
+        return;
+      }
+      setConfirmaStergerea(false);
+      arataToast({ fel: "reusita", text: "Ciorna a fost ștearsă." });
+      router.push(bazaFoi);
     });
   }
 
@@ -241,19 +269,21 @@ export function ActiuniFoaie({
         </p>
       )}
 
-      {status === "respins" ? (
+      {status === "respins" || status === "trimis" ? (
         <div className="border-border rounded-panou flex flex-wrap items-center gap-3 border p-4">
           <p className="text-corp grow">
-            Foaia a fost respinsă. Redeschideți-o ca ciornă, corectați-o și trimiteți-o din nou.
+            {status === "respins"
+              ? "Foaia a fost respinsă. Redeschideți-o ca ciornă, corectați-o și trimiteți-o din nou."
+              : "Foaia așteaptă aprobarea și nu se mai modifică. Dacă ați greșit ceva, retrageți-o în ciornă, corectați-o și trimiteți-o din nou; numărul ei rămâne același."}
           </p>
           <Buton
             type="button"
-            varianta="primar"
+            varianta={status === "respins" ? "primar" : "secundar"}
             inCurs={seRedeschide}
-            textInCurs="Se redeschide…"
+            textInCurs={status === "respins" ? "Se redeschide…" : "Se retrage…"}
             onClick={redeschide}
           >
-            Redeschide foaia
+            {status === "respins" ? "Redeschide foaia" : "Retrage în ciornă"}
           </Buton>
           {eroareRedeschidere === null ? null : (
             <p role="alert" className="text-danger text-corp w-full">
@@ -263,7 +293,7 @@ export function ActiuniFoaie({
         </div>
       ) : null}
 
-      {sePoateInchide ? (
+      {sePoateTrimite ? (
         <Formular
           actiune={inchide}
           laReusita={laInchidere}
@@ -276,61 +306,29 @@ export function ActiuniFoaie({
               stare.data === null ? stare.valoriTrimise : {};
             return (
               <>
-                <p className="text-corp font-medium">Închide cursa și trimite spre aprobare</p>
+                <p className="text-corp font-medium">Trimite foaia zilei spre aprobare</p>
+                <p className="text-muted-foreground text-corp">
+                  Ora și kilometrajul zilei vin din curse. După trimitere foaia primește număr și nu
+                  se mai modifică decât retrasă în ciornă.
+                </p>
                 <ErorileFaraCamp erori={stare.erori} campuri={CAMPURI_INCHIDERE} />
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Camp
-                    nume="sosire_la"
-                    id="foaie-sosire"
-                    eticheta="Sosire"
-                    obligatoriu
-                    erori={stare.erori["sosire_la"] ?? []}
-                  >
-                    {(a) => (
-                      <input
-                        {...a}
-                        type="datetime-local"
-                        min={plecareCamp}
-                        defaultValue={trimise["sosire_la"] ?? sosireCamp ?? ""}
-                      />
-                    )}
-                  </Camp>
-                  <Camp
-                    nume="km_sosire"
-                    id="foaie-km-sosire"
-                    eticheta="Kilometraj la sosire"
-                    obligatoriu
-                    ajutor={`La plecare: ${kmPlecare.toLocaleString("ro-RO")} km.`}
-                    erori={stare.erori["km_sosire"] ?? []}
-                  >
-                    {(a) => (
-                      <input
-                        {...a}
-                        type="number"
-                        min={kmPlecare}
-                        defaultValue={trimise["km_sosire"] ?? ""}
-                      />
-                    )}
-                  </Camp>
-                  <Camp
-                    nume="observatii"
-                    id="foaie-observatii"
-                    eticheta="Observații"
-                    fel="textarea"
-                    ajutor="Ce s-a întâmplat pe drum: ocoluri, opriri, defecte. Gol = rămân cele de la plecare."
-                    className="sm:col-span-3"
-                    erori={stare.erori["observatii"] ?? []}
-                  >
-                    {(a) => (
-                      <textarea
-                        {...a}
-                        maxLength={1000}
-                        rows={2}
-                        defaultValue={trimise["observatii"] ?? ""}
-                      />
-                    )}
-                  </Camp>
-                </div>
+                <Camp
+                  nume="observatii"
+                  id="foaie-observatii"
+                  eticheta="Observații"
+                  fel="textarea"
+                  ajutor="Ce s-a întâmplat pe drum: ocoluri, opriri, defecte. Gol = rămân cele de la plecare."
+                  erori={stare.erori["observatii"] ?? []}
+                >
+                  {(a) => (
+                    <textarea
+                      {...a}
+                      maxLength={1000}
+                      rows={2}
+                      defaultValue={trimise["observatii"] ?? ""}
+                    />
+                  )}
+                </Camp>
                 <div className="flex flex-wrap items-end gap-3">
                   <Buton
                     type="submit"
@@ -340,12 +338,34 @@ export function ActiuniFoaie({
                   >
                     Trimite spre aprobare
                   </Buton>
+                  <Buton
+                    type="button"
+                    varianta="tertiar"
+                    onClick={() => {
+                      setConfirmaStergerea(true);
+                    }}
+                  >
+                    Șterge ciorna
+                  </Buton>
                 </div>
               </>
             );
           }}
         </Formular>
       ) : null}
+
+      <ConfirmareActiune
+        deschis={confirmaStergerea}
+        laInchidere={() => {
+          setConfirmaStergerea(false);
+        }}
+        titlu="Ștergeți ciorna?"
+        consecinta="Foaia, cu cursele și alimentările ei, iese din listă și nu se mai poate readuce. Ziua rămâne liberă pentru o foaie nouă pe acest vehicul."
+        etichetaConfirmare="Șterge ciorna"
+        distructiv
+        inCurs={seSterge}
+        laConfirmare={sterge}
+      />
 
       {!sePoateAlimenta ? null : (
         <Formular actiune={alimenteaza} className="border-border rounded-panou border p-4">

@@ -103,9 +103,35 @@ const RUTE: readonly Ruta[] = [
   {
     cale: "/flota",
     titlu: "Parc auto",
-    poarta: "fleet · vehicles:read own (doar org_admin)",
+    // ── flota pe roluri (0196): managerul are vehicles:read = team ──
+    poarta: "fleet · vehicles:read own (org_admin all, manager team din 0196; hr nimic)",
+    asteptari: { org_admin: CONTINUT, hr: ACCES, manager: CONTINUT },
+  },
+  // ── început bloc: setările flotei (0198) ──
+  {
+    cale: "/flota/setari",
+    titlu: "Setări parc auto",
+    poarta: "fleet · vehicles:update all (doar org_admin; cere 0198 aplicată)",
     asteptari: DOAR_ADMIN,
   },
+  // ── sfârșit bloc: setările flotei (0198) ──
+  // ── început bloc: rapoartele flotei (F8) ──
+  {
+    cale: "/flota/rapoarte",
+    titlu: "Rapoarte parc auto",
+    poarta:
+      "fleet · vehicles:read all + trip_sheets:read all (doar org_admin; managerul are `team`)",
+    asteptari: DOAR_ADMIN,
+  },
+  // ── sfârșit bloc: rapoartele flotei (F8) ──
+  // ── început bloc: tipurile de document ale flotei (0199) ──
+  {
+    cale: "/flota/setari/documente",
+    titlu: "Tipuri de document",
+    poarta: "fleet · vehicles:update all (doar org_admin; cere 0199 aplicată)",
+    asteptari: DOAR_ADMIN,
+  },
+  // ── sfârșit bloc: tipurile de document ale flotei (0199) ──
   {
     cale: "/inventar",
     titlu: "Inventar",

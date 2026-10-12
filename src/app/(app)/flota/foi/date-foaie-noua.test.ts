@@ -92,4 +92,38 @@ describe("dateFoaieNoua", () => {
     expect(r.vehicule).toEqual([]);
     expect(r.angajati).toEqual([{ id: ID_3, full_name: null, marca: "M-1" }]);
   });
+
+  it("șoferul propriu (0196): mașina alocată lui și pool-ul, fără lista de angajați", async () => {
+    db.raspunde("vehicles", "select", {
+      data: [{ ...vehicul(ID_1, "B123ABC", 10500), employee_id: ID_3 }],
+    });
+    db.raspunde("vehicles", "select", {
+      data: [
+        { ...vehicul(ID_1, "B123ABC", 10500), pool: true },
+        { ...vehicul(ID_2, "CJ01POL", 2300), pool: true },
+      ],
+    });
+
+    const r = await dateFoaieNoua(ORG_ID, { fel: "propriu", fisaId: ID_3 });
+
+    // Alocata apare o singură dată, chiar dacă e și pool.
+    expect(r).toEqual({
+      vehicule: [
+        { id: ID_1, nr_inmatriculare: "B123ABC", km_curent: 10500 },
+        { id: ID_2, nr_inmatriculare: "CJ01POL", km_curent: 2300 },
+      ],
+      angajati: null,
+    });
+    const [alocate, pool] = db.apeluriPe("vehicles");
+    expect(areFiltru(alocate, "eq", "employee_id", ID_3)).toBe(true);
+    expect(areFiltru(alocate, "eq", "status", "activ")).toBe(true);
+    expect(areFiltru(pool, "eq", "pool", true)).toBe(true);
+    expect(db.apeluriPe("employees")).toHaveLength(0);
+  });
+
+  it("șoferul propriu fără fișă: nicio mașină, nicio citire", async () => {
+    const r = await dateFoaieNoua(ORG_ID, { fel: "propriu", fisaId: null });
+    expect(r).toEqual({ vehicule: [], angajati: null });
+    expect(db.apeluri).toHaveLength(0);
+  });
 });

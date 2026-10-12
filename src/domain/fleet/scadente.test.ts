@@ -9,8 +9,11 @@ import type { TreaptaScadenta } from "@/domain/scadente";
 
 import {
   PRAG_FLOTA_AVERTIZARE_ZILE,
+  semaforVehicul,
   stareScadentaFlota,
   stareScadentaVehicul,
+  tipSeAplica,
+  tipuriObligatoriiPentru,
   type StareScadentaFlota,
 } from "./scadente";
 
@@ -115,5 +118,120 @@ describe("vocabularul flotei", () => {
     const intrari = ["2026-06-14", "2026-06-15", "2026-07-15", "2027-01-01", null];
     const rezultate = new Set(intrari.map((d) => stareScadentaFlota(d, AZI)));
     expect([...rezultate].sort()).toEqual(["curand", "expirat", "in_regula", "lipsa"]);
+  });
+});
+
+describe("semaforVehicul", () => {
+  const RCA = "tip-rca";
+  const ITP = "tip-itp";
+  const ROVINIETA = "tip-rovinieta";
+  const obligatorii = [RCA, ITP] as const;
+
+  it("tipul obligatoriu FĂRĂ document dă `lipsa`, chiar dacă restul e în regulă", () => {
+    const s = semaforVehicul(
+      [{ document_type_id: ITP, expira_la: "2027-06-01" }],
+      obligatorii,
+      AZI,
+    );
+    expect(s).toEqual({ treapta: "lipsa", tipId: RCA, expiraLa: null });
+  });
+
+  it("un document neobligatoriu expirat urcă treapta (rovinieta se vede)", () => {
+    const s = semaforVehicul(
+      [
+        { document_type_id: RCA, expira_la: "2027-01-01" },
+        { document_type_id: ITP, expira_la: "2027-02-01" },
+        { document_type_id: ROVINIETA, expira_la: "2026-06-01" },
+      ],
+      obligatorii,
+      AZI,
+    );
+    expect(s).toEqual({ treapta: "expirat", tipId: ROVINIETA, expiraLa: "2026-06-01" });
+  });
+
+  it("purtătorul treptei e documentul cu termenul cel mai apropiat de pe aceeași treaptă", () => {
+    const s = semaforVehicul(
+      [
+        { document_type_id: RCA, expira_la: "2026-07-10" },
+        { document_type_id: ITP, expira_la: "2026-06-20" },
+      ],
+      obligatorii,
+      AZI,
+    );
+    expect(s).toEqual({ treapta: "curand", tipId: ITP, expiraLa: "2026-06-20" });
+  });
+
+  it("fără nomenclator obligatoriu și fără documente: `lipsa`, purtător necunoscut", () => {
+    expect(semaforVehicul([], [], AZI)).toEqual({ treapta: "lipsa", tipId: null, expiraLa: null });
+  });
+});
+
+describe("tipSeAplica și tipuriObligatoriiPentru (0199)", () => {
+  const ROVINIETA = {
+    id: "rovinieta",
+    obligatoriu: true,
+    categorii_aplicabile: null,
+    masa_max_kg: 3500,
+  } as const;
+  const TRUSA = {
+    id: "trusa",
+    obligatoriu: true,
+    categorii_aplicabile: ["autoturism", "camion"],
+    masa_max_kg: null,
+  } as const;
+  const CASCO = { id: "casco", obligatoriu: false, categorii_aplicabile: null, masa_max_kg: null };
+  const RCA = { id: "rca", obligatoriu: true, categorii_aplicabile: null, masa_max_kg: null };
+  const TIPURI = [ROVINIETA, TRUSA, CASCO, RCA] as const;
+
+  it("un tip fără restricții se aplică oricărui vehicul", () => {
+    expect(tipSeAplica({ categorie: "remorca", masa_maxima_kg: 40_000 }, RCA)).toBe(true);
+  });
+
+  it("rovinieta nu se cere peste 3.500 kg, dar se cere exact la 3.500", () => {
+    expect(tipSeAplica({ categorie: "camion", masa_maxima_kg: 12_000 }, ROVINIETA)).toBe(false);
+    expect(tipSeAplica({ categorie: "autoutilitara", masa_maxima_kg: 3500 }, ROVINIETA)).toBe(true);
+  });
+
+  it("masa necompletată NU stinge cerința: vehiculul rămâne aplicabil", () => {
+    // Altfel un vehicul introdus fără masă ar ieși verde la rovinietă la
+    // nesfârșit, tăcut — exact „lipsa” care nu se aprinde niciodată singură.
+    expect(tipSeAplica({ categorie: "autoturism", masa_maxima_kg: null }, ROVINIETA)).toBe(true);
+  });
+
+  it("trusa nu se cere la o categorie din afara listei (remorca)", () => {
+    expect(tipSeAplica({ categorie: "remorca", masa_maxima_kg: 750 }, TRUSA)).toBe(false);
+    expect(tipSeAplica({ categorie: "autoturism", masa_maxima_kg: 1500 }, TRUSA)).toBe(true);
+  });
+
+  it("obligatoriile unei remorci nu mai cer trusa", () => {
+    expect(tipuriObligatoriiPentru({ categorie: "remorca", masa_maxima_kg: 750 }, TIPURI)).toEqual([
+      "rovinieta",
+      "rca",
+    ]);
+  });
+
+  it("obligatoriile unui camion greu nu mai cer rovinieta; opționalele nu apar", () => {
+    expect(
+      tipuriObligatoriiPentru({ categorie: "camion", masa_maxima_kg: 12_000 }, TIPURI),
+    ).toEqual(["trusa", "rca"]);
+  });
+
+  it("un autoturism le cere pe toate obligatoriile", () => {
+    expect(
+      tipuriObligatoriiPentru({ categorie: "autoturism", masa_maxima_kg: 1400 }, TIPURI),
+    ).toEqual(["rovinieta", "trusa", "rca"]);
+  });
+
+  it("semaforul remorcii fără trusă nu mai e „lipsa” fals", () => {
+    const remorca = { categorie: "remorca", masa_maxima_kg: 750 } as const;
+    const s = semaforVehicul(
+      [
+        { document_type_id: "rovinieta", expira_la: "2027-01-01" },
+        { document_type_id: "rca", expira_la: "2027-01-01" },
+      ],
+      tipuriObligatoriiPentru(remorca, TIPURI),
+      AZI,
+    );
+    expect(s.treapta).toBe("in_regula");
   });
 });

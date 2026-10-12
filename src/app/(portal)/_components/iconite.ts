@@ -1,6 +1,7 @@
 // src/app/(portal)/_components/iconite.ts
 import {
   CalendarDays,
+  Car,
   ClipboardCheck,
   ClipboardList,
   Clock,
@@ -48,6 +49,7 @@ export const ICONITE: Readonly<Record<string, LucideIcon>> = {
   "portal-kpi": Gauge,
   "portal-evaluari": ClipboardCheck,
   "portal-echipa": Network,
+  "portal-masina": Car,
 };
 
 /** Rezervă pentru o intrare adăugată în meniu și uitată aici. */
