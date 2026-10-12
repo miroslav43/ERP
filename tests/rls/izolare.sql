@@ -587,6 +587,17 @@ begin
          (v_beta, array[(select val from t_ids where cheie='ang_beta')], 1200, array[30, 14, 7], v_admin_beta, v_admin_beta);
   -- ═══ SFÂRȘIT BLOC: fixture setările flotei (0198) ═════════════════════════
 
+  -- ═══ ÎNCEPUT BLOC: fixture permisele șoferilor (0201) ═════════════════════
+  -- Câte un permis per firmă, pe angajatul fixture-ului. Categoriile trec prin
+  -- normalizarea triggerului (`b` → `B`).
+  insert into public.driver_licenses (organization_id, employee_id, numar, categorii, eliberat_la, expira_la,
+                                      created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'PA' || v_sufix, array['b'], current_date - 400,
+          current_date + 900, v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'PB' || v_sufix, array['B', 'C'], current_date - 400,
+          current_date + 900, v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture permisele șoferilor (0201) ═════════════════════
+
   -- ── Faza 7 (migrarea 0011): SSM, PSI, medicina muncii, ISCIR, mentenanță ────
   -- `ssm_legal_parameters`, `ssm_training_types` și `ssm_training_type_periods`
   -- se seedează SINGURE la crearea organizației (trg organizations_ssm_seed,
@@ -4675,6 +4686,83 @@ begin
   raise notice '(l) setările flotei: org_admin le scrie și pragurile ajung în alert_rules; manager și employee le citesc, nu le scriu ✓';
 end $$;
 -- ═══ SFÂRȘIT BLOC: setările flotei (0198) ════════════════════════════════════
+
+-- ═══ ÎNCEPUT BLOC: permisele șoferilor (0201) ════════════════════════════════
+-- (l), continuare — permisele de conducere și faptele verificărilor (0201)
+--
+-- `hr` și `org_admin` (driver_licenses = all) înregistrează și reînnoiesc
+-- permise; `manager` (read = team) îl CITEȘTE pe al subordonatului; `employee`
+-- (read = own) îl citește pe al lui și își citește faptele verificărilor.
+-- Rânduri NUMĂRATE: un UPDATE respins de USING nu ridică eroare.
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_hr     uuid := pg_temp.id('hr_user_alfa');
+  v_emp    uuid := pg_temp.id('emp_alfa');
+  v_ang    uuid := pg_temp.id('ang_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  v_sub    uuid := pg_temp.id('sub_alfa');
+  v_n      int;
+begin
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  with inserate as (
+    insert into public.driver_licenses (organization_id, employee_id, numar, categorii, expira_la)
+    values (v_alfa, v_sub, 'SUB' || left(v_sub::text, 6), array['B'], current_date + 500)
+    returning 1
+  ) select count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `hr` nu înregistrează permisul unui angajat');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  with schimbate as (
+    update public.driver_licenses set expira_la = current_date + 700
+     where organization_id = v_alfa and employee_id = v_sub and deleted_at is null
+    returning 1
+  ) select count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `hr` nu reînnoiește permisul');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with schimbate as (
+    update public.driver_licenses set categorii = array['B', 'BE']
+     where organization_id = v_alfa and employee_id = v_ang and deleted_at is null
+    returning 1
+  ) select count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `org_admin` nu modifică permisul unui angajat');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.driver_licenses
+   where organization_id = v_alfa and employee_id = v_sub and deleted_at is null;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT LA CITIRE: `manager` nu vede permisul subordonatului');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.driver_licenses
+   where organization_id = v_alfa and employee_id = v_ang and deleted_at is null;
+  select v_n * 10 + count(*) into v_n from public.verificari_soferi(v_alfa, array[v_ang], current_date);
+  reset role;
+  if v_n <> 11 then
+    perform pg_temp.esueaza(format('(l) `employee`: permis propriu×10 + fapte proprii = %s, așteptat 11', v_n));
+  end if;
+
+  raise notice '(l) permisele șoferilor: hr și org_admin scriu, managerul citește echipa, angajatul își citește permisul și faptele ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: permisele șoferilor (0201) ════════════════════════════════
 
 
 rollback;

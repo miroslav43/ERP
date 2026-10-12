@@ -3335,6 +3335,72 @@ export type Database = {
           },
         ]
       }
+      driver_licenses: {
+        Row: {
+          categorii: string[]
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          eliberat_la: string | null
+          employee_id: string
+          expira_la: string
+          fisier_path: string | null
+          id: string
+          numar: string
+          observatii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          categorii: string[]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          eliberat_la?: string | null
+          employee_id: string
+          expira_la: string
+          fisier_path?: string | null
+          id?: string
+          numar: string
+          observatii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          categorii?: string[]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          eliberat_la?: string | null
+          employee_id?: string
+          expira_la?: string
+          fisier_path?: string | null
+          id?: string
+          numar?: string
+          observatii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_licenses_angajat_fk"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "driver_licenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_log: {
         Row: {
           created_at: string
@@ -13206,6 +13272,7 @@ export type Database = {
         Row: {
           aprobat_de: string | null
           aprobat_la: string | null
+          business_trip_id: string | null
           created_at: string
           created_by: string | null
           data: string | null
@@ -13238,6 +13305,7 @@ export type Database = {
         Insert: {
           aprobat_de?: string | null
           aprobat_la?: string | null
+          business_trip_id?: string | null
           created_at?: string
           created_by?: string | null
           data?: string | null
@@ -13270,6 +13338,7 @@ export type Database = {
         Update: {
           aprobat_de?: string | null
           aprobat_la?: string | null
+          business_trip_id?: string | null
           created_at?: string
           created_by?: string | null
           data?: string | null
@@ -13300,6 +13369,13 @@ export type Database = {
           vehicul_nr?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "trip_sheets_business_trip_id_fkey"
+            columns: ["business_trip_id"]
+            isOneToOne: false
+            referencedRelation: "business_trips"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trip_sheets_employee_id_fkey"
             columns: ["employee_id"]
@@ -14169,6 +14245,23 @@ export type Database = {
         Returns: Json
       }
       urmatoarea_marca: { Args: { p_organization_id: string }; Returns: string }
+      verificari_soferi: {
+        Args: {
+          p_employee_ids: string[]
+          p_organization_id: string
+          p_zi: string
+        }
+        Returns: {
+          aviz: string
+          concediu: string
+          contract_incetat: boolean
+          delegatie: boolean
+          employee_id: string
+          permis_categorii: string[]
+          permis_exista: boolean
+          permis_expira_la: string
+        }[]
+      }
     }
     Enums: {
       app_role: "super_admin" | "org_admin" | "manager" | "hr" | "employee"
