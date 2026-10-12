@@ -38,8 +38,8 @@ permisiuni:
   ]
 feature: fleet
 capcane: [17, 19, 23, 26]
-scris_pe: ec9568fcbeab06b7dd95012886be0260278a0cac
-scris_la: 2026-10-12
+scris_pe: 172da17f6038e5f5e695a4ea2a2f514419318da8
+scris_la: 2026-10-13
 tags: [modul, operations, legal]
 ---
 
@@ -61,7 +61,8 @@ nimic de la șofer**.
 
 Cheile sunt seedate doar pentru `org_admin` și `super_admin`: decizia 3 a planului (HR doar
 permisele șoferilor) rămâne, iar o firmă poate acorda cheile lui HR printr-o suprascriere.
-`manager` și `employee` nu văd nimic, nici amenzile din echipa lor. Dacă o firmă acordă cheile
+`manager` și `employee` nu văd nimic, nici amenzile din echipa lor. Matricea publică de pe
+pagina de prezentare (`matrice-roluri.ts`) are două rânduri pentru ele, doar `org_admin` = all. Dacă o firmă acordă cheile
 `create` lui HR, HR primește prin sugestie și cine conducea ce vehicul (`app.sofer_la` judecă după cheie). Casetele „Amendă nouă” și
 „Incident nou” se deschid prin parametru (`?amenda=noua`, `?incident=nou`), ca la parc.
 
@@ -80,6 +81,12 @@ permisele șoferilor) rămâne, iar o firmă poate acorda cheile lui HR printr-o
 Fiecare tranziție adaugă stadiul de plecare ca filtru (`.eq` sau `.in`) și `.select()` după:
 zero rânduri e CONFLICT, nu succes. Plecările permise se calculează din matricea
 `TRANZITII_AMENDA` din domeniu, aceeași ca a bazei.
+
+**Excepția cu două încercări:** `desemneazaSofer` și `trimiteRaspuns` încearcă întâi calea
+obișnuită (care schimbă stadiul), iar la zero rânduri o a doua, pe amenda `contestata` cu
+`raspuns_trimis_la` gol, care scrie doar șoferul / data răspunsului și lasă stadiul în pace.
+Altfel o amendă marcată „contestată” înainte de răspuns rămânea cu termenul în scadențe și
+fără nicio cale de a-l închide.
 
 ## Citiri
 
@@ -103,6 +110,14 @@ zero rânduri e CONFLICT, nu succes. Plecările permise se calculează din matri
   `expirables` (`vehicle_fine`, `termen_raspuns`) DOAR cât răspunsul n-a plecat; la „răspuns
   trimis” dispare (și nu revine dacă amenda e apoi contestată), la fel la plătită sau anulată,
   iar alertele deschise se închid singure. — capcana #19
+- **„Răspuns în așteptare” = stadiul îl cere ȘI `raspuns_trimis_la` e gol**
+  (`raspunsInAsteptare` în domeniu). Stadiul singur minte: „răspuns trimis → contestată”
+  păstrează data. Din aceeași noțiune vin butoanele fișei, `verdictTermen`, filtrul „De
+  răspuns” și numerele de deasupra listei, oglinda lui `internal.amenzi_scadenta`. O amendă
+  contestată ÎNAINTE de răspuns păstrează termenul (obligația din art. 39 nu dispare prin
+  contestare): șoferul se desemnează și răspunsul se marchează fără ca stadiul „contestată”
+  să se piardă (trigger: răspuns fără șofer = P0001; după răspuns, înghețarea obișnuită). De
+  la „contestată” nu există tranziție înapoi spre „șofer desemnat” (proba 14c).
 - **`app.poate_vedea_expirabil` a fost rescrisă integral** (rândul `vehicle_fine` cere
   `vehicle_fines:read` all). Orice `entity_type` nou pornește de la forma din 0203, care
   poartă și `driver_license` (0201) și `vehicle_service` (ramura F7): fără ele, scadențele
