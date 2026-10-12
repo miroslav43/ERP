@@ -7755,6 +7755,66 @@ export type Database = {
           },
         ]
       }
+      maintenance_rezumat_trimis: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          entity_id: string
+          id: string
+          notification_id: string | null
+          organization_id: string
+          tip: string
+          trimis_in: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          entity_id: string
+          id?: string
+          notification_id?: string | null
+          organization_id: string
+          tip: string
+          trimis_in?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          entity_id?: string
+          id?: string
+          notification_id?: string | null
+          organization_id?: string
+          tip?: string
+          trimis_in?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_rezumat_trimis_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_rezumat_trimis_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_settings: {
         Row: {
           cost_ora_oprire: number | null
@@ -7767,6 +7827,7 @@ export type Database = {
           organization_id: string
           prag_avertizare_zile: number
           prag_contor_necitit_zile: number
+          praguri_alerta_zile: number[]
           responsabili: string[]
           rsvti_employee_id: string | null
           updated_at: string
@@ -7784,6 +7845,7 @@ export type Database = {
           organization_id: string
           prag_avertizare_zile?: number
           prag_contor_necitit_zile?: number
+          praguri_alerta_zile?: number[]
           responsabili?: string[]
           rsvti_employee_id?: string | null
           updated_at?: string
@@ -7801,6 +7863,7 @@ export type Database = {
           organization_id?: string
           prag_avertizare_zile?: number
           prag_contor_necitit_zile?: number
+          praguri_alerta_zile?: number[]
           responsabili?: string[]
           rsvti_employee_id?: string | null
           updated_at?: string

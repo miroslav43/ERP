@@ -724,6 +724,14 @@ begin
   values (v_alfa, array[(select val from t_ids where cheie='mgr_alfa')]),
          (v_beta, array[(select val from t_ids where cheie='mgr_beta')]);
 
+  -- ── Mentenanță M9 (0191): registrul rezumatului zilnic ─────────────────────
+  -- Scris doar de jobul de noapte; aici, un rând per firmă, ca (c) să poată
+  -- dovedi că administratorul Alfa nu vede rândul lui Beta.
+  insert into public.maintenance_rezumat_trimis (organization_id, user_id, tip, entity_id)
+  values (v_alfa, v_admin_alfa, 'contor_necitit', (select val from t_ids where cheie='equip_alfa')),
+         (v_beta, v_admin_beta, 'contor_necitit', (select val from t_ids where cheie='equip_beta'));
+  -- ── sfârșit M9 ──────────────────────────────────────────────────────────────
+
   -- ── Faza 3b (migrarea 0013): pontaj ─────────────────────────────────────────
   insert into t_ids
   select 'aper_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
@@ -4274,6 +4282,57 @@ exception when others then
   reset role;
   perform pg_temp.esueaza(format('(m) verificarea KPI a eșuat: %s (%s)', sqlerrm, sqlstate));
 end $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — Mentenanță M9 (0191): pragurile rezumatului zilnic
+--
+-- Pragurile stau pe `maintenance_settings` (`maintenance:update = all`, deci
+-- doar `org_admin`), iar triggerul le oglindește în `alert_rules`, a cărei
+-- politică cere `compliance:*`. Dacă triggerul ar scrie cu drepturile
+-- apelantului, salvarea legitimă a administratorului ar cădea pe politica
+-- altui modul. Se numără rândurile (capcana 17), nu se ascultă erorile.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  n        int;
+begin
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_settings set praguri_alerta_zile = array[21, 3]
+     where organization_id = v_alfa and deleted_at is null returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate schimba pragurile de alertă ale mentenanței');
+  end if;
+  select count(*) into n from public.alert_rules
+   where organization_id = v_alfa and deleted_at is null and praguri_zile = array[21, 3]
+     and entity_type in ('maintenance_plan', 'iscir_authorization', 'equipment');
+  if n <> 3 then
+    perform pg_temp.esueaza(format('(l) pragurile salvate n-au ajuns în alert_rules (%s din 3)', n));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_settings set praguri_alerta_zile = array[1]
+     where organization_id = v_alfa returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 0 then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a schimbat pragurile de alertă ale firmei');
+  end if;
+
+  raise notice '(l) pragurile mentenanței: org_admin le scrie și ajung în alert_rules, managerul e refuzat ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) verificarea pragurilor de mentenanță a eșuat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+-- ── sfârșit M9 ───────────────────────────────────────────────────────────────
 
 
 rollback;
