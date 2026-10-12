@@ -30,6 +30,9 @@
 --  (19) managerul NU adaugă o cursă pe ciorna subordonatului (42501);
 --  (20) administratorul creează un șablon, șoferul îl citește, dar nu scrie unul;
 --  (21) `hr` nu vede nicio cursă și niciun șablon; `super_admin` vede cursele.
+-- Revizia F4 (santinela):
+--  (22) foaia rămasă fără curse (ultima ștearsă) nu se trimite: P0001;
+--  (23) alimentarea rămasă în afara curselor, după mutarea cursei, oprește trimiterea: P0001.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -662,11 +665,98 @@ begin
     raise warning '  ✗ (21) hr vede % rânduri, super_admin % curse', v_n, v_km;
   end if;
 
+  -- ═══ Revizia F4: trimiterea cere cursele zilei ════════════════════════════
+
+  -- (22) Bogdan adaugă o cursă și o șterge: antetul păstrează orele și km ei,
+  -- dar foaia nu mai are nicio linie. Trimiterea trebuie refuzată — altfel se
+  -- aprobă un document justificativ fără loc și fără scop.
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_b, v_e_b, pg_temp.la(v_zi - 3, '08:00'), 20200, v_u_b, v_u_b)
+    returning id into v_foaie_p;
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la,
+                                         de_la_loc, pana_la_loc, scop, km_plecare, km_sosire,
+                                         created_by, updated_by)
+    values (v_org, v_foaie_p, pg_temp.la(v_zi - 3, '08:00'), pg_temp.la(v_zi - 3, '09:00'),
+            'Sediu', 'Client', 'Livrare', 20200, 20230, v_u_b, v_u_b)
+    returning id into v_cm;
+    update public.trip_sheet_curse set deleted_at = now(), updated_by = v_u_b where id = v_cm;
+    reset role;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (22) pregătirea: % (%)', sqlerrm, sqlstate;
+  end;
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set status = 'trimis', updated_by = v_u_b where id = v_foaie_p;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (22) foaia fără nicio cursă a fost trimisă spre aprobare';
+  exception when raise_exception then
+    reset role;
+    if sqlerrm like 'Adăugați cursele zilei%' then
+      raise notice '  ✓ (22) foaia rămasă fără curse nu se trimite (P0001)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (22) refuzat din alt motiv: %', sqlerrm;
+    end if;
+  end;
+
+  -- (23) o alimentare scrisă în intervalul curselor, apoi cursa mutată mai
+  -- târziu: alimentarea rămâne în afara foii. Trimiterea o prinde.
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_v_b, v_e_b, pg_temp.la(v_zi - 4, '08:00'), 20200, v_u_b, v_u_b)
+    returning id into v_foaie_p;
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la,
+                                         de_la_loc, pana_la_loc, scop, km_plecare, km_sosire,
+                                         created_by, updated_by)
+    values (v_org, v_foaie_p, pg_temp.la(v_zi - 4, '08:00'), pg_temp.la(v_zi - 4, '09:00'),
+            'Sediu', 'Client', 'Livrare', 20200, 20230, v_u_b, v_u_b)
+    returning id into v_cm;
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     created_by, updated_by)
+    values (v_org, v_foaie_p, 20, 140, pg_temp.la(v_zi - 4, '08:30'), v_u_b, v_u_b);
+    update public.trip_sheet_curse
+       set plecare_la = pg_temp.la(v_zi - 4, '10:00'), sosire_la = pg_temp.la(v_zi - 4, '11:00'),
+           updated_by = v_u_b
+     where id = v_cm;
+    reset role;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (23) pregătirea: % (%)', sqlerrm, sqlstate;
+  end;
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set status = 'trimis', updated_by = v_u_b where id = v_foaie_p;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (23) foaia cu o alimentare în afara curselor a fost trimisă';
+  exception when raise_exception then
+    reset role;
+    if sqlerrm like 'O alimentare de pe foaie este în afara intervalului curselor%' then
+      raise notice '  ✓ (23) alimentarea rămasă în afara curselor oprește trimiterea (P0001)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (23) refuzat din alt motiv: %', sqlerrm;
+    end if;
+  end;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA FOAIA ZILNICĂ: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 24 de verificări au trecut.';
+  raise notice '  TOATE cele 26 de verificări au trecut.';
   raise notice '';
 end;
 $$;

@@ -344,6 +344,7 @@ declare
   v_deschise integer := 0;
   v_prima   record;
   v_ultima  record;
+  v_alim_afara timestamptz;
   -- Coloanele pe care le poate schimba decizia unui aprobator. Restul rândului
   -- e al șoferului. `km_parcursi` și `data` sunt GENERATED: valoarea lor din
   -- NEW, într-un trigger BEFORE, nu e cea finală, deci nu intră în comparație.
@@ -567,17 +568,37 @@ begin
         message = format('Nu se poate trece foaia de parcurs din starea „%s" în starea „%s".', old.status, new.status);
     end if;
 
-    -- 0197 §A: foaia zilnică se trimite cu cursele ei încheiate. O foaie fără
-    -- curse (cele de dinainte de 0197 au primit una la backfill) se trimite
-    -- doar cu sosirea completată în antet, ca înainte.
+    -- 0197 §A: foaia zilnică se trimite cu cursele ei, încheiate. Fără nicio
+    -- cursă activă nu se trimite deloc, oricât de completă ar părea sosirea
+    -- din antet: ștergerea ultimei curse lasă antetul cu orele și kilometrii
+    -- ei (agregatele se rescriu doar cât există curse), iar o foaie fără linii
+    -- n-are locul și scopul cerute de HG 1/2016 pct. 16 alin. (2). Foile de
+    -- dinainte de 0197 au primit fiecare o cursă la backfill.
     if new.status = 'trimis' and v_curse > 0 and v_deschise > 0 then
       raise exception using errcode = 'P0001',
         message = 'Încheiați toate cursele (ora și kilometrajul la sosire) înainte de a trimite foaia spre aprobare.';
     end if;
-    if new.status = 'trimis' and v_curse = 0 and not app.is_service_context()
-       and (new.km_sosire is null or new.sosire_la is null) then
+    if new.status = 'trimis' and v_curse = 0 and not app.is_service_context() then
       raise exception using errcode = 'P0001',
         message = 'Adăugați cursele zilei (de unde, până unde, scopul și kilometrii) înainte de a trimite foaia spre aprobare.';
+    end if;
+    -- Alimentările se verifică pe interval doar la propria scriere; o cursă
+    -- mutată după aceea le poate lăsa în afara foii. Trimiterea e ultima
+    -- poartă înainte ca aprobatorul să le semneze.
+    if new.status = 'trimis' and not app.is_service_context() then
+      select f.alimentat_la into v_alim_afara
+        from public.fuel_entries f
+       where f.trip_sheet_id = new.id
+         and f.deleted_at is null
+         and (f.alimentat_la < new.plecare_la
+              or (new.sosire_la is not null and f.alimentat_la > new.sosire_la))
+       order by f.alimentat_la
+       limit 1;
+      if found then
+        raise exception using errcode = 'P0001',
+          message = format('O alimentare de pe foaie este în afara intervalului curselor (alimentarea din %s). Corectați data alimentării sau cursele, apoi trimiteți foaia din nou.',
+                           pg_catalog.to_char(v_alim_afara at time zone 'Europe/Bucharest', 'DD.MM.YYYY HH24:MI'));
+      end if;
     end if;
 
     if new.status in ('trimis', 'aprobat') and (new.km_sosire is null or new.sosire_la is null) then

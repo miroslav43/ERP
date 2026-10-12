@@ -4363,12 +4363,19 @@ begin
     perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu alimentează pe foaia proprie');
   end if;
 
-  -- 3) …și o trimite spre aprobare.
+  -- 3) …și o trimite spre aprobare (din 0197, cu cursa zilei: sosirea o dă ea).
+  -- Cursa se oprește la -2 h: de acolo șoferul are cursa foii din fixture, iar
+  -- un om nu conduce două mașini deodată. Alimentarea de la -2 h rămâne în foaie.
   perform set_config('request.jwt.claim.sub', v_emp::text, true);
   set local role authenticated;
+  insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la,
+                                       de_la_loc, pana_la_loc, scop, km_plecare, km_sosire,
+                                       created_by, updated_by)
+  values (v_alfa, v_foaie, now() - interval '3 hours', now() - interval '2 hours',
+          'Sediu', 'Client', 'Livrare', 7000, 7090, v_emp, v_emp);
   with trimise as (
     update public.trip_sheets
-       set status = 'trimis', sosire_la = now() - interval '1 hour', km_sosire = 7090, updated_by = v_emp
+       set status = 'trimis', updated_by = v_emp
      where id = v_foaie and organization_id = v_alfa
     returning 1
   ) select count(*) into v_n from trimise;

@@ -363,6 +363,13 @@ begin
   set local role authenticated;
   begin
     update public.trip_sheets set km_plecare = 10100, updated_by = v_u_a where id = v_trimisa;
+    -- Revizia F4: foaia se trimite doar cu cursele ei. Cursa repetă antetul,
+    -- deci agregatele nu schimbă nimic din ce verifică proba.
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la,
+                                         de_la_loc, pana_la_loc, scop, km_plecare, km_sosire,
+                                         created_by, updated_by)
+    values (v_org, v_trimisa, now() - interval '6 days', now() - interval '6 days' + interval '2 hours',
+            'Sediu', 'Client', 'Livrare', 10100, 10180, v_u_a, v_u_a);
     update public.trip_sheets set status = 'trimis', updated_by = v_u_a where id = v_trimisa;
     get diagnostics v_n = row_count;
     reset role;

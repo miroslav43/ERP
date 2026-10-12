@@ -657,8 +657,8 @@ export const creeazaFoaie = createAction({
  * Trimiterea foii zilnice spre aprobare.
  *
  * Din 0197 nu se mai trimit ora și kilometrajul de sosire: le dă ultima cursă,
- * iar antetul le agregă în bază. Baza refuză trimiterea unei foi fără curse sau
- * cu o cursă neîncheiată, verifică regresul de kilometraj și pune numărul
+ * iar antetul le agregă în bază. Baza refuză trimiterea unei foi fără curse,
+ * cu o cursă neîncheiată sau cu o alimentare rămasă în afara curselor, verifică regresul de kilometraj și pune numărul
  * `FP-AAAA-NNNNN` și instantaneul vehiculului.
  */
 export const trimiteFoaie = createAction({

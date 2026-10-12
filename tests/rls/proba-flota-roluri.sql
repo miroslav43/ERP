@@ -193,8 +193,14 @@ begin
   perform set_config('request.jwt.claim.sub', v_u_a::text, true);
   set local role authenticated;
   begin
+    -- Revizia F4: foaia se trimite doar cu cursele ei; sosirea o dă cursa.
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la,
+                                         de_la_loc, pana_la_loc, scop, km_plecare, km_sosire,
+                                         created_by, updated_by)
+    values (v_org, v_foaie_a, now() - interval '3 hours', now() - interval '1 hour',
+            'Sediu', 'Client', 'Livrare', 10000, 10120, v_u_a, v_u_a);
     update public.trip_sheets
-       set status = 'trimis', sosire_la = now() - interval '1 hour', km_sosire = 10120, updated_by = v_u_a
+       set status = 'trimis', updated_by = v_u_a
      where id = v_foaie_a;
     get diagnostics v_n = row_count;
     reset role;

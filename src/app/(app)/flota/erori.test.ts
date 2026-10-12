@@ -143,6 +143,8 @@ describe("traduEroare — 0197, cursele foii zilnice", () => {
     "Foaia de parcurs este respinsă și nu se mai modifică așa. Redeschideți-o în ciornă, corectați-o și trimiteți-o din nou.",
     "Încheiați toate cursele (ora și kilometrajul la sosire) înainte de a trimite foaia spre aprobare.",
     "Adăugați cursele zilei (de unde, până unde, scopul și kilometrii) înainte de a trimite foaia spre aprobare.",
+    // Revizia F4: la trimitere, pe caseta de trimitere nu există câmpul datei.
+    "O alimentare de pe foaie este în afara intervalului curselor (alimentarea din 10.10.2026 08:30). Corectați data alimentării sau cursele, apoi trimiteți foaia din nou.",
     "Alimentările se modifică doar cât foaia de parcurs este ciornă. Retrageți-o sau redeschideți-o în ciornă, apoi corectați-o.",
     "Alimentarea a fost ștearsă și nu se mai modifică. Adăugați-o din nou dacă e cazul.",
     "Cursele se modifică doar cât foaia de parcurs este ciornă. Retrageți-o sau redeschideți-o în ciornă, apoi corectați-o.",
