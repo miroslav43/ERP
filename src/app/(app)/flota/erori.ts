@@ -64,6 +64,10 @@ const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
   [/^Cantitatea de combustibil/u, ["litri"]],
   [/^Vehiculul/u, ["vehicle_id"]],
   [/^.oferul selectat/u, ["employee_id"]],
+  // 0196 §C3: mutarea foii pe un șofer pentru care apelantul n-are drept de
+  // scriere. Niciun ecran nu mută azi o foaie; tiparul e aici ca un viitor
+  // formular de corectură să primească mesajul pe câmp, nu sub buton.
+  [/^Foaia se poate muta doar pe un șofer/u, ["employee_id"]],
 ];
 
 function campurileMesajului(mesaj: string): readonly string[] {

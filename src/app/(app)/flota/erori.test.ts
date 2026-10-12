@@ -29,10 +29,25 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
       ["sosire_la", "km_sosire"],
     ],
     ["Şoferul selectat nu aparţine organizaţiei dumneavoastră.", ["employee_id"]],
+    // 0196: mesajele noi, cu ș/ț corecte.
+    [
+      "Vehiculul ales nu vă este alocat în ziua plecării și nu este o mașină comună (pool). Foaia se întocmește pe vehiculul primit în folosință sau pe unul din pool.",
+      ["vehicle_id"],
+    ],
+    ["Foaia se poate muta doar pe un șofer pentru care aveți drept de întocmire.", ["employee_id"]],
   ])("%s", (mesaj, campuri) => {
     const eroare = prinde(p0001(mesaj));
     expect(Object.keys(eroare.fieldErrors ?? {})).toEqual(campuri);
     expect(eroare.fieldErrors?.[campuri[0] ?? ""]).toEqual([mesaj]);
+  });
+
+  it.each([
+    "Nu puteți aproba o foaie întocmită de dumneavoastră.",
+    "Foaia de parcurs a unui coleg se poate doar aproba sau respinge, după ce a fost trimisă. O completează și o trimite șoferul ei.",
+  ])("0196, fără câmp: %s", (mesaj) => {
+    const eroare = prinde(p0001(mesaj));
+    expect(eroare.fieldErrors).toBeNull();
+    expect(eroare.message).toBe(mesaj);
   });
 
   it("un refuz fără câmp rămâne mesaj general, neschimbat", () => {
