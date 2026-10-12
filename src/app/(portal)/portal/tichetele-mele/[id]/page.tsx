@@ -14,11 +14,14 @@ import { idDinRuta } from "@/lib/rute/parametri";
 import { formatDateTime } from "@/lib/format/date";
 import { citesteTichetul, listeazaComentariile } from "@/lib/queries/ticketing";
 import { fisaMea } from "@/lib/queries/portal";
-import { FormularComentariu } from "@/app/(app)/ticketing/[id]/actiuni-tichet";
+import { tranzitiiSolicitantului } from "@/domain/ticketing/stari";
+import { FormularComentariu, SchimbaStatus } from "@/app/(app)/ticketing/[id]/actiuni-tichet";
 import {
+  ETICHETE_ACTIUNE_SOLICITANT,
   ETICHETE_PRIORITATE,
   ETICHETE_STATUS,
   ETICHETE_TIP,
+  responsabilulTichetului,
   TONURI_PRIORITATE,
   TONURI_STATUS,
 } from "@/app/(app)/ticketing/etichete";
@@ -26,6 +29,20 @@ import {
 import { FaraFisa } from "../../fara-fisa";
 
 export const metadata: Metadata = { title: "Tichetul meu" };
+
+/**
+ * De ce i se oferă solicitantului butoanele, în starea curentă. Impersonal:
+ * registrul „tu/dumneavoastră” al modulului e o lucrare separată.
+ */
+function introSolicitant(status: string): string | null {
+  if (status === "rezolvat") {
+    return "Echipa a marcat tichetul ca rezolvat. Dacă problema persistă, redeschideți-l.";
+  }
+  if (status === "inchis") {
+    return "Tichetul este închis. Se poate redeschide dacă problema a reapărut.";
+  }
+  return null;
+}
 
 export default async function PaginaTichetulMeu({
   params,
@@ -64,6 +81,11 @@ export default async function PaginaTichetulMeu({
 
   const comentarii = await listeazaComentariile(tichet.id);
 
+  // Garda de mai sus garantează că omul E solicitantul, deci drepturile nu se
+  // mai calculează: lista e cea a solicitantului, iar baza verifică oricum.
+  const optiuni = tranzitiiSolicitantului(tichet.status);
+  const intro = introSolicitant(tichet.status);
+
   return (
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
       <AntetPagina
@@ -79,15 +101,24 @@ export default async function PaginaTichetulMeu({
         }
       />
 
+      {/* Motivul ajungea la solicitant doar prin notificare; pagina lui arăta
+          „Respins” și atât, deși `citesteTichetul` întoarce coloana (MGR-009). */}
+      {tichet.status === "respins" && tichet.motiv_respingere !== null && (
+        <div className="border-border bg-surface rounded-control border p-3">
+          <p className="text-foreground text-corp font-medium">Motivul respingerii</p>
+          <p className="text-muted-foreground text-corp mt-1">{tichet.motiv_respingere}</p>
+        </div>
+      )}
+
       <section className="bg-surface border-border rounded-panou space-y-3 border p-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge ton={TONURI_PRIORITATE[tichet.prioritate]}>
             {ETICHETE_PRIORITATE[tichet.prioritate]}
           </Badge>
+          {/* Pe coloana brută, nu pe embed: rândul operatorului e ascuns de
+              `employees_select`, dar tichetul E repartizat (FLX-004). */}
           <span className="text-muted-foreground text-nota">
-            {tichet.asignat === null
-              ? "Neatribuit încă"
-              : `În lucru la ${tichet.asignat.full_name}`}
+            {responsabilulTichetului(tichet.asignat_employee_id, tichet.asignat?.full_name ?? null)}
           </span>
         </div>
 
@@ -110,6 +141,15 @@ export default async function PaginaTichetulMeu({
           </p>
         )}
       </section>
+
+      {/* Solicitantul confirmă rezolvarea sau o contestă (FLX-003). Doar din
+          `rezolvat`/`inchis` — `tranzitiiSolicitantului`, nu `tranzitiiOferite`. */}
+      <SchimbaStatus
+        ticketId={tichet.id}
+        optiuni={optiuni}
+        etichete={ETICHETE_ACTIUNE_SOLICITANT}
+        {...(intro === null ? {} : { intro })}
+      />
 
       <section aria-labelledby="discutie" className="space-y-2">
         <h2 id="discutie" className="text-foreground text-corp font-semibold">

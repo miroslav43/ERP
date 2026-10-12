@@ -2,12 +2,14 @@
 import { describe, expect, it } from "vitest";
 import {
   cereAprobare,
+  esteDecizie,
   poateSchimbaStatusul,
   statusInitial,
   STATUSURI_TICHET,
   tranzitiePermisa,
   tranzitiiOferite,
   tranzitiiPosibile,
+  tranzitiiSolicitantului,
   type DrepturiActor,
 } from "./stari";
 
@@ -145,6 +147,49 @@ describe("ce se oferă în interfață", () => {
   it("unui străin nu i se oferă nimic", () => {
     for (const status of STATUSURI_TICHET) {
       expect(tranzitiiOferite(status, STRAIN), status).toEqual([]);
+    }
+  });
+});
+
+describe("decizia asupra unei cereri", () => {
+  it("e doar ieșirea din „în aprobare” spre „în lucru” sau „respins”", () => {
+    expect(esteDecizie("in_aprobare", "in_lucru")).toBe(true);
+    expect(esteDecizie("in_aprobare", "respins")).toBe(true);
+  });
+
+  it("anularea unei cereri și prelucrarea obișnuită nu sunt decizii", () => {
+    expect(esteDecizie("in_aprobare", "anulat")).toBe(false);
+    expect(esteDecizie("nou", "in_lucru")).toBe(false);
+    expect(esteDecizie("redeschis", "in_lucru")).toBe(false);
+    expect(esteDecizie("respins", "redeschis")).toBe(false);
+  });
+});
+
+describe("ce i se oferă solicitantului în portal", () => {
+  it("pe un tichet rezolvat: confirmă sau redeschide", () => {
+    expect(tranzitiiSolicitantului("rezolvat")).toEqual(["inchis", "redeschis"]);
+  });
+
+  it("pe un tichet închis: doar redeschide", () => {
+    expect(tranzitiiSolicitantului("inchis")).toEqual(["redeschis"]);
+  });
+
+  it("nimic în restul stărilor — nici anularea, nici redeschiderea unei cereri respinse", () => {
+    // `respins → redeschis` e permis în domeniu și în bază, dar ocolește
+    // reaprobarea; `anulat` e definitiv și ar cere o confirmare. Portalul nu
+    // le oferă — deliberat mai îngust decât `tranzitiiOferite`.
+    for (const status of STATUSURI_TICHET) {
+      if (status === "rezolvat" || status === "inchis") continue;
+      expect(tranzitiiSolicitantului(status), status).toEqual([]);
+    }
+  });
+
+  it("nu oferă niciodată ceva ce domeniul ar refuza solicitantului", () => {
+    for (const status of STATUSURI_TICHET) {
+      const oferite = tranzitiiOferite(status, SOLICITANT);
+      for (const catre of tranzitiiSolicitantului(status)) {
+        expect(oferite, `${status} → ${catre}`).toContain(catre);
+      }
     }
   });
 });

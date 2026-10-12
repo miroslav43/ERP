@@ -30,6 +30,34 @@ export const ETICHETE_STATUS: Readonly<Record<StatusTichet, string>> = {
   redeschis: "Redeschis",
 };
 
+/**
+ * Eticheta BUTONULUI pe care îl apasă solicitantul, nu a stării în care ajunge
+ * tichetul. „Închis” pe un buton nu spune nimănui că e confirmarea rezolvării;
+ * „Confirm rezolvarea” da. Hartă parțială: solicitantul n-are verb pentru
+ * fiecare stare, iar `SchimbaStatus` cade pe `ETICHETE_STATUS` unde lipsește.
+ */
+export const ETICHETE_ACTIUNE_SOLICITANT: Readonly<Partial<Record<StatusTichet, string>>> = {
+  inchis: "Confirm rezolvarea",
+  redeschis: "Redeschide tichetul",
+  anulat: "Anulează tichetul",
+};
+
+/**
+ * Cine se ocupă de tichet, așa cum o poate spune pagina solicitantului.
+ *
+ * Coloana brută `asignat_employee_id` se vede prin politica tichetelor; rândul
+ * operatorului din `employees` NU — angajatul are `employees:read = own`, deci
+ * embed-ul `asignat` vine NULL deși tichetul E repartizat. Pagina confunda
+ * „embed NULL” cu „nerepartizat” și scria „Neatribuit încă” în toate stările
+ * (FLX-004). Numele operatorului rămâne nevizibil fără o funcție `security
+ * definer`; textul e alternativa acceptată explicit în constatare.
+ */
+export function responsabilulTichetului(asignatId: string | null, nume: string | null): string {
+  if (asignatId === null) return "Neatribuit încă";
+  if (nume === null) return "Preluat de echipa de suport";
+  return `În lucru la ${nume}`;
+}
+
 export const TONURI_STATUS: Readonly<Record<StatusTichet, TonStare>> = {
   // Tichet deschis, dar neluat încă de nimeni — „neînceput”, nu „în lucru”.
   nou: "ciorna",

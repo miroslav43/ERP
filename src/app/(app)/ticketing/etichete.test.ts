@@ -10,10 +10,12 @@ import { STATUSURI_TICHET, TIPURI_TICHET } from "@/domain/ticketing/stari";
 
 import {
   DESCRIERI_TIP,
+  ETICHETE_ACTIUNE_SOLICITANT,
   ETICHETE_CAMP,
   ETICHETE_PRIORITATE,
   ETICHETE_STATUS,
   ETICHETE_TIP,
+  responsabilulTichetului,
   TONURI_PRIORITATE,
   TONURI_STATUS,
 } from "./etichete";
@@ -57,6 +59,57 @@ describe("etichetele", () => {
 
   it("istoricul are etichete pentru câmpurile scrise de trigger și de suprascriere", () => {
     expect(ETICHETE_CAMP).toMatchObject({ status: "Stare", prioritate: "Prioritate" });
+  });
+});
+
+describe("verbele solicitantului", () => {
+  // Eticheta BUTONULUI, nu a stării: „Confirm rezolvarea”, nu „Închis”. Harta
+  // e parțială — solicitantul nu are verb pentru fiecare stare.
+  it("cheile sunt stări cunoscute", () => {
+    const cunoscute = new Set<string>(STATUSURI_TICHET);
+    for (const cheie of Object.keys(ETICHETE_ACTIUNE_SOLICITANT)) {
+      expect(cunoscute.has(cheie), cheie).toBe(true);
+    }
+  });
+
+  it.each(Object.entries(ETICHETE_ACTIUNE_SOLICITANT))(
+    "`%s` are text omenesc, fără sedilă",
+    (cheie, eticheta) => {
+      expect(eticheta).toBeDefined();
+      expect(eticheta?.trim().length).toBeGreaterThan(0);
+      expect(eticheta).not.toBe(cheie);
+      expect(eticheta).not.toMatch(/_/u);
+      expect(eticheta).not.toMatch(/[şţŞŢ]/u);
+    },
+  );
+
+  it("verbul diferă de numele stării — un buton spune ce FACI, nu unde ajungi", () => {
+    for (const [cheie, eticheta] of Object.entries(ETICHETE_ACTIUNE_SOLICITANT)) {
+      expect(eticheta, cheie).not.toBe(ETICHETE_STATUS[cheie as keyof typeof ETICHETE_STATUS]);
+    }
+    expect(ETICHETE_ACTIUNE_SOLICITANT.inchis).toBe("Confirm rezolvarea");
+    expect(ETICHETE_ACTIUNE_SOLICITANT.redeschis).toBe("Redeschide tichetul");
+  });
+});
+
+describe("responsabilul tichetului, văzut de solicitant", () => {
+  it("fără asignat: neatribuit", () => {
+    expect(responsabilulTichetului(null, null)).toBe("Neatribuit încă");
+  });
+
+  // Angajatul are `employees:read = own`: coloana `asignat_employee_id` o vede,
+  // dar rândul operatorului din `employees` nu — embed-ul vine NULL. Asta nu
+  // înseamnă „nerepartizat”; pagina spunea exact asta (FLX-004).
+  it("asignat fără nume vizibil: preluat de echipă, nu „neatribuit”", () => {
+    expect(responsabilulTichetului("11111111-1111-4111-8111-111111111111", null)).toBe(
+      "Preluat de echipa de suport",
+    );
+  });
+
+  it("asignat cu nume: numele", () => {
+    const text = responsabilulTichetului("11111111-1111-4111-8111-111111111111", "Pop Ana");
+    expect(text).toContain("Pop Ana");
+    expect(text).not.toMatch(/[şţŞŢ]/u);
   });
 });
 
