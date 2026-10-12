@@ -851,6 +851,21 @@ const INTRARI: readonly Intrare[] = [
       "Responsabilii de flotă care primesc alertele de scadență și foile de aprobat, zilele de dinainte de expirare la care pleacă alertele și pragul de salt al kilometrajului.",
   },
   // ═══ SFÂRȘIT BLOC: flota, setările (0198) ═══
+  // ═══ ÎNCEPUT BLOC: flota, tipurile de document (0199) ═══
+  {
+    id: "flota.tipuri-document",
+    href: "/flota/setari/documente",
+    eticheta: "Tipuri de document ale parcului auto",
+    zona: "app",
+    parinte: "flota",
+    fila: "Tipuri de document",
+    featureKey: "fleet",
+    permission: "vehicles:update",
+    minScope: "all",
+    descriere:
+      "Ce documente ține firma pentru vehicule și care sunt obligatorii: activarea licenței de transport, a tahografului sau a ADR-ului, tipurile proprii firmei, documentele care nu se cer remorcilor.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, tipurile de document (0199) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {

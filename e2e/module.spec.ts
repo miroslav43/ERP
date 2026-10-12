@@ -115,6 +115,14 @@ const RUTE: readonly Ruta[] = [
     asteptari: DOAR_ADMIN,
   },
   // ── sfârșit bloc: setările flotei (0198) ──
+  // ── început bloc: tipurile de document ale flotei (0199) ──
+  {
+    cale: "/flota/setari/documente",
+    titlu: "Tipuri de document",
+    poarta: "fleet · vehicles:update all (doar org_admin; cere 0199 aplicată)",
+    asteptari: DOAR_ADMIN,
+  },
+  // ── sfârșit bloc: tipurile de document ale flotei (0199) ──
   {
     cale: "/inventar",
     titlu: "Inventar",
