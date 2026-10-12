@@ -1,12 +1,27 @@
 "use server";
 
+import { expirareInTrecut } from "@/domain/announcements/anunt";
 import { createAction } from "@/lib/actions/create-action";
-import { notFound } from "@/lib/actions/errors";
+import { invalidInput, notFound } from "@/lib/actions/errors";
 import { idFisaProprie } from "@/lib/queries/employees";
 import type { ServerSupabase } from "@/lib/supabase/server";
 import { anuntEditareSchema, anuntNouSchema, idAnuntSchema } from "@/schemas/announcement";
 
+import { traduEroare } from "./erori";
+
 const CAI_REVALIDARE = ["/anunturi", "/portal"] as const;
+
+/**
+ * Regula de ceas pe care schema (pură, fără `new Date()`) n-o poate purta:
+ * caseta are `min = azi`, iar acțiunea nu lasă ce caseta nu lasă. Aruncă
+ * ÎNAINTE de orice interogare, pe câmp, ca `<Camp nume="expira_la">` să
+ * primească mesajul — nu Callout-ul generic cu cod de referință (ADM-029).
+ */
+function refuzaExpirareaTrecuta(expira_la: string | null, acum: Date): void {
+  if (!expirareInTrecut(expira_la, acum)) return;
+  const mesaj = "Data de expirare nu poate fi în trecut.";
+  throw invalidInput(mesaj, { expira_la: [mesaj] });
+}
 
 /**
  * Trimite câte o notificare fiecărui membru activ — infrastructura exista deja
@@ -54,6 +69,8 @@ export const creeazaAnunt = createAction({
   audit: { action: "create", entityType: "announcement", allow: ["titlu", "fixat"] },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
+    refuzaExpirareaTrecuta(input.expira_la, ctx.now);
+
     const { data, error } = await ctx.supabase
       .from("announcements")
       .insert({
@@ -66,7 +83,7 @@ export const creeazaAnunt = createAction({
       })
       .select("id")
       .single<{ id: string }>();
-    if (error !== null) throw error;
+    if (error !== null) traduEroare(error);
 
     if (input.publica_acum) {
       await anunataMembrii(ctx.supabase, ctx.tenant.organizationId, data.id, input.titlu);
@@ -91,7 +108,8 @@ export const publicaAnunt = createAction({
       .eq("organization_id", ctx.tenant.organizationId)
       .select("id, titlu")
       .maybeSingle<{ id: string; titlu: string }>();
-    if (error !== null) throw error;
+    // O ciornă veche cu expirarea deja trecută cade pe `announcements_expirare_ck`.
+    if (error !== null) traduEroare(error);
     if (data === null) throw notFound("Anunțul nu a fost găsit.");
 
     await anunataMembrii(ctx.supabase, ctx.tenant.organizationId, data.id, data.titlu);
@@ -167,6 +185,8 @@ export const actualizeazaAnunt = createAction({
   },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
+    refuzaExpirareaTrecuta(input.expira_la, ctx.now);
+
     const { data, error } = await ctx.supabase
       .from("announcements")
       .update({
@@ -180,7 +200,8 @@ export const actualizeazaAnunt = createAction({
       .is("deleted_at", null)
       .select("id")
       .maybeSingle<{ id: string }>();
-    if (error !== null) throw error;
+    // `expira_la <= publicat_la` trece de regula de ceas, dar nu de bază.
+    if (error !== null) traduEroare(error);
     if (data === null) throw notFound("Anunțul nu a fost găsit.");
     return { id: data.id };
   },
@@ -215,7 +236,8 @@ export const retrageAnunt = createAction({
       .is("deleted_at", null)
       .select("id")
       .maybeSingle<{ id: string }>();
-    if (error !== null) throw error;
+    // Pe un anunț programat, `now() < publicat_la` cade pe `announcements_expirare_ck`.
+    if (error !== null) traduEroare(error);
     if (data === null) throw notFound("Anunțul nu a fost găsit sau nu e publicat.");
     return { id: data.id };
   },

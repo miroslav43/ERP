@@ -180,6 +180,46 @@ describe("creeazaAnunt", () => {
     await creeazaAnunt(ANUNT);
     expect(caiRevalidate()).toEqual(CAI);
   });
+
+  it("expirarea în trecut: VALIDARE pe câmpul `expira_la`, fără nicio scriere", async () => {
+    // ADM-029: „Expiră la” = 01.01.2020 dădea mesajul generic cu cod de
+    // referință, de la `announcements_expirare_ck`, fără câmp marcat.
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:create": "all" } });
+    server.raspunde("announcements", "insert", { data: { id: ID_1 } });
+
+    const r = await creeazaAnunt({ ...ANUNT, expira_la: "2020-01-01T23:59:59+02:00" });
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDARE",
+        fieldErrors: { expira_la: ["Data de expirare nu poate fi în trecut."] },
+      },
+    });
+    expect(server.apeluriPe("announcements")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("expirarea la sfârșitul zilei de azi trece: „azi” nu e în trecut", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:create": "all" } });
+    server.raspunde("announcements", "insert", { data: { id: ID_1 } });
+    // ACUM e 2026-09-15 11:30 ora României; caseta trimite 23:59:59 al zilei.
+    const r = await creeazaAnunt({ ...ANUNT, expira_la: "2026-09-15T23:59:59+03:00" });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+  });
+
+  it.each([
+    ["titlu", "a".repeat(201), "Titlul are cel mult 200 de caractere."],
+    ["continut", "a".repeat(10_001), "Conținutul are cel mult 10 000 de caractere."],
+  ])("%s peste limită: VALIDARE cu mesaj românesc pe câmp", async (camp, valoare, mesaj) => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:create": "all" } });
+    const r = await creeazaAnunt({ ...ANUNT, [camp]: valoare });
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", fieldErrors: { [camp]: [mesaj] } },
+    });
+    expect(server.apeluri).toHaveLength(0);
+  });
 });
 
 describe("publicaAnunt", () => {
@@ -235,6 +275,32 @@ describe("publicaAnunt", () => {
     server.raspunde("organization_members", "select", { data: [] });
     await publicaAnunt({ id: ID_1 });
     expect(caiRevalidate()).toEqual(CAI);
+  });
+
+  it("ciornă veche cu expirare trecută (23514 pe `announcements_expirare_ck`): VALIDARE pe câmp, fără notificări", async () => {
+    // Zod nu vede `expira_la` aici — îl respinge baza. Fără traducere, omul
+    // primea „Datele nu respectă regulile de validare. Cod de referință: …”.
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "update", {
+      error: eroarePostgrest(
+        "23514",
+        'new row for relation "announcements" violates check constraint "announcements_expirare_ck"',
+      ),
+    });
+
+    const r = await publicaAnunt({ id: ID_1 });
+
+    expect(r).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDARE",
+        message: "Data de expirare trebuie să fie după data publicării.",
+        fieldErrors: { expira_la: ["Data de expirare trebuie să fie după data publicării."] },
+      },
+    });
+    expect(server.apeluriPe("organization_members")).toHaveLength(0);
+    expect(server.apeluriPe("notifications")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
   });
 });
 
@@ -363,6 +429,55 @@ describe("actualizeazaAnunt / retrageAnunt / stergeAnunt", () => {
     // Nicio notificare: corecția nu sună a doua oară telefoanele.
     expect(server.apeluriPe("notifications")).toHaveLength(0);
     expect(caiRevalidate()).toEqual(CAI);
+  });
+
+  it("editarea cu expirare în trecut: VALIDARE pe câmpul `expira_la`, fără UPDATE", async () => {
+    // Aceeași regulă ca la creare: caseta are `min = azi`, iar acțiunea nu
+    // lasă ce caseta nu lasă.
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "update", { data: { id: ID_1 } });
+    const r = await actualizeazaAnunt({
+      id: ID_1,
+      titlu: "Inventar",
+      continut: "Luni.",
+      fixat: false,
+      expira_la: "2020-01-01T23:59:59+02:00",
+    });
+    expect(r).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDARE",
+        fieldErrors: { expira_la: ["Data de expirare nu poate fi în trecut."] },
+      },
+    });
+    expect(server.apeluriPe("announcements")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("editarea cu `expira_la <= publicat_la` (23514 din bază): VALIDARE pe câmp, fără revalidare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "update", {
+      error: eroarePostgrest(
+        "23514",
+        'new row for relation "announcements" violates check constraint "announcements_expirare_ck"',
+      ),
+    });
+    const r = await actualizeazaAnunt({
+      id: ID_1,
+      titlu: "Inventar",
+      continut: "Luni.",
+      fixat: false,
+      expira_la: "2026-12-31T23:59:59+02:00",
+    });
+    expect(r).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDARE",
+        message: "Data de expirare trebuie să fie după data publicării.",
+        fieldErrors: { expira_la: ["Data de expirare trebuie să fie după data publicării."] },
+      },
+    });
+    expect(caiRevalidate()).toEqual([]);
   });
 
   it("retragerea pune expirarea ACUM, doar pe un anunț publicat; golul e NEGASIT", async () => {

@@ -46,6 +46,21 @@ export function esteAscunsAngajatilor(stare: StareAnunt): boolean {
 }
 
 /**
+ * Termenul ales a trecut deja? Regula de validare din spatele lui
+ * „Data de expirare nu poate fi în trecut.” — pe creare și pe editare.
+ *
+ * Fără termen (`null`) nu e nimic în trecut. Granița e `<=`, aceeași ca în
+ * `stareAnunt`: la secunda exactă, politica (`expira_la > now()`) deja ascunde
+ * anunțul, deci o expirare „chiar acum” ar naște un anunț mort din prima clipă.
+ * Caseta trimite `sfarsitulZileiRomania(zi)` — 23:59:59 al zilei alese — deci
+ * „azi” trece, „ieri” nu.
+ */
+export function expirareInTrecut(expira_la: string | null, acum: Date): boolean {
+  if (expira_la === null) return false;
+  return new Date(expira_la).getTime() <= acum.getTime();
+}
+
+/**
  * Cât din conținut intră în card.
  *
  * 180 de caractere ≈ două rânduri pe coloana de citire a produsului. Mai mult

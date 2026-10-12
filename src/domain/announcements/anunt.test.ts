@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { toBucharestDateString } from "@/lib/format/date";
 
 import {
+  expirareInTrecut,
   extrasAnunt,
   filtruDinAdresa,
   numaraPeStari,
@@ -14,6 +15,28 @@ import {
 } from "./anunt";
 
 const ACUM = new Date("2026-08-30T12:00:00.000Z");
+
+describe("expirareInTrecut", () => {
+  it("fără termen nu e în trecut", () => {
+    expect(expirareInTrecut(null, ACUM)).toBe(false);
+  });
+
+  it("o zi demult trecută e în trecut", () => {
+    expect(expirareInTrecut("2020-01-01T23:59:59+02:00", ACUM)).toBe(true);
+  });
+
+  /**
+   * Aceeași graniță ca în `stareAnunt`: la secunda exactă, baza (`expira_la >
+   * now()`) deja ascunde anunțul, deci o expirare „chiar acum" e una trecută.
+   */
+  it("momentul exact egal cu acum e deja în trecut", () => {
+    expect(expirareInTrecut(ACUM.toISOString(), ACUM)).toBe(true);
+  });
+
+  it("sfârșitul zilei de azi (ce trimite caseta pentru „azi”) NU e în trecut", () => {
+    expect(expirareInTrecut(sfarsitulZileiRomania(toBucharestDateString(ACUM)), ACUM)).toBe(false);
+  });
+});
 
 describe("stareAnunt", () => {
   it("fără dată de publicare e ciornă, indiferent de expirare", () => {
