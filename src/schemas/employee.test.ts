@@ -169,6 +169,9 @@ describe("inroleazaAngajatSchema — normă, examen, telefon", () => {
     data_contract: "2026-01-01",
     valabil_de_la: "2026-01-01",
     salariu_baza: 4000,
+    // Obligatoriu la înrolare din 0193 (concediul proporțional): asistentul îl
+    // precompletează din firmă, deci un formular real îl trimite mereu.
+    zile_concediu_anual: 20,
   };
 
   it("fixture-ul de bază trece", () => {
