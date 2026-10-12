@@ -23,7 +23,7 @@ import {
   type RandVehicul,
 } from "@/lib/queries/fleet";
 import { fisaMea } from "@/lib/queries/portal";
-import { semaforVehicul } from "@/domain/fleet/scadente";
+import { semaforVehicul, tipuriObligatoriiPentru } from "@/domain/fleet/scadente";
 import { filtreFoiSchema } from "@/schemas/fleet";
 import {
   ETICHETE_SCADENTA,
@@ -80,7 +80,7 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
       ? vehicululMeu(tenant.organizationId, fisaId)
       : Promise.resolve({ alocate: [], pool: [] }),
     foileMele(tenant.organizationId, fisaId, { cursor: pagina.cursor, limita: pagina.limita }),
-    poateVedeaMasina ? tipuriDocument() : Promise.resolve([]),
+    poateVedeaMasina ? tipuriDocument(tenant.organizationId) : Promise.resolve([]),
   ]);
 
   const toateMasinile: readonly RandVehicul[] = [...masini.alocate, ...masini.pool];
@@ -99,7 +99,6 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
   ]);
   const azi = todayInBucharest();
   const denumireTip = new Map(tipuri.map((t) => [t.id, t.denumire]));
-  const obligatorii = tipuri.filter((t) => t.obligatoriu).map((t) => t.id);
 
   function adresa(cursor: string | null, limita: number): string {
     const p = new URLSearchParams();
@@ -154,7 +153,8 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
             {masini.alocate.map((v) => {
               const semafor = semaforVehicul(
                 scadente.filter((s) => s.vehicle_id === v.id),
-                obligatorii,
+                // Obligatoriile mașinii LUI (0199), ca pe /flota: aceeași culoare.
+                tipuriObligatoriiPentru(v, tipuri),
                 azi,
               );
               return (

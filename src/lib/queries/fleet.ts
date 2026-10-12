@@ -22,6 +22,13 @@ import { dataLimitaExpirare } from "@/domain/hr/contracte-expira";
 import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
 import { PRAG_SALT_IMPLICIT_KM, PRAGURI_ALERTA_IMPLICITE } from "@/domain/fleet/setari";
 import type { CursaFoaie, SablonTraseu } from "@/domain/fleet/foaie";
+import {
+  aplicaSetariTipuri,
+  type SetareTip,
+  type TipBrut,
+  type TipEfectiv,
+} from "@/domain/fleet/tipuri-document";
+import { BUCKET_FLOTA } from "@/domain/fleet/fisiere";
 
 export interface RandVehicul {
   readonly id: string;
@@ -31,6 +38,12 @@ export interface RandVehicul {
   readonly categorie: CategorieVehicul;
   readonly tip_combustibil: Combustibil;
   readonly an_fabricatie: number | null;
+  /**
+   * Urcată în rândul de LISTĂ din 0199: categoria și masa decid ce documente
+   * sunt obligatorii (`tipuriObligatoriiPentru`), deci semaforul listei are
+   * nevoie de ea pentru fiecare rând.
+   */
+  readonly masa_maxima_kg: number | null;
   readonly km_curent: number;
   readonly employee_id: string | null;
   readonly department_id: string | null;
@@ -64,7 +77,6 @@ export interface Vehicul extends RandVehicul {
   readonly vin: string | null;
   readonly culoare: string | null;
   readonly capacitate_cilindrica: number | null;
-  readonly masa_maxima_kg: number | null;
   readonly numar_locuri: number | null;
   readonly valoare_achizitie: number | null;
   readonly data_achizitie: string | null;
@@ -80,20 +92,21 @@ export interface DocumentVehicul {
   readonly valabil_de_la: string | null;
   readonly expira_la: string | null;
   readonly cost: number | null;
+  /** Scanarea, în bucketul `org-flota` (0199); `null` = neîncărcată. */
   readonly fisier_path: string | null;
+  readonly fisier_nume: string | null;
   readonly este_curent: boolean;
   readonly observatii: string | null;
+  readonly created_at: string;
 }
 
-export interface TipDocument {
-  readonly id: string;
-  readonly cod: string;
-  readonly denumire: string;
-  readonly descriere: string | null;
-  readonly cere_expirare: boolean;
-  readonly obligatoriu: boolean;
-  readonly ordine: number;
-}
+/**
+ * Tipul de document cu valorile EFECTIVE ale firmei (0199): setarea ei pe un
+ * tip de platformă bate `activ`/`obligatoriu` ale platformei. Calculul e în
+ * `aplicaSetariTipuri` (`@/domain/fleet/tipuri-document`), aceeași regulă ca
+ * `internal.vdoc_inainte`.
+ */
+export type TipDocument = TipEfectiv;
 
 /** Scadența cea mai apropiată a unui vehicul, pentru semaforul din listă. */
 export interface ScadentaVehicul {
@@ -164,6 +177,8 @@ export interface Alimentare {
   readonly alimentat_la: string;
   readonly plin: boolean;
   readonly observatii: string | null;
+  /** Poza bonului, în bucketul `org-flota` (0199); `null` = neatașată. */
+  readonly fisier_bon_path: string | null;
 }
 
 export interface Anomalie {
@@ -247,7 +262,7 @@ export type FiltreFoiCitire = Omit<FiltreFoi, "sort"> & { readonly sort?: string
 
 const COLOANE_VEHICUL_LISTA =
   "id, nr_inmatriculare, marca, model, categorie, tip_combustibil, an_fabricatie, " +
-  "km_curent, employee_id, department_id, pool, status, prag_salt_km, data_iesire, " +
+  "masa_maxima_kg, km_curent, employee_id, department_id, pool, status, prag_salt_km, data_iesire, " +
   "consum_mediu_declarat";
 
 const COLOANE_FOAIE =
@@ -388,7 +403,7 @@ export async function citesteVehicul(organizationId: string, id: string): Promis
   const { data, error } = await db
     .from("vehicles")
     .select(
-      `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, masa_maxima_kg, ` +
+      `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, ` +
         "numar_locuri, valoare_achizitie, data_achizitie, " +
         "motiv_iesire, observatii, created_at",
     )
@@ -537,7 +552,7 @@ export async function documenteleVehiculului(
     .from("vehicle_documents")
     .select(
       "id, document_type_id, emitent, valabil_de_la, expira_la, cost, " +
-        "fisier_path, este_curent, observatii",
+        "fisier_path, fisier_nume, este_curent, observatii, created_at",
     )
     .eq("vehicle_id", vehiculId)
     .is("deleted_at", null)
@@ -548,27 +563,77 @@ export async function documenteleVehiculului(
   return data ?? [];
 }
 
-/**
- * Nomenclatorul de tipuri de document.
- *
- * FĂRĂ filtru pe `organization_id`: rândurile de platformă îl au NULL și sunt
- * vizibile tuturor. Un filtru pe organizație ar fi ascuns cele unsprezece tipuri
- * implicite — ITP, RCA, casco, rovinietă, revizie, extinctor, trusă medicală,
- * licență de transport, copie conformă, tahograf, ADR — adică exact pe cele pe
- * care le folosește oricine.
- */
-export async function tipuriDocument(): Promise<readonly TipDocument[]> {
-  const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("vehicle_document_types")
-    .select("id, cod, denumire, descriere, cere_expirare, obligatoriu, ordine")
-    .eq("activ", true)
-    .is("deleted_at", null)
-    .order("ordine", { ascending: true })
-    .returns<TipDocument[]>();
+const COLOANE_TIP_DOCUMENT =
+  "id, organization_id, cod, denumire, descriere, cere_expirare, obligatoriu, ordine, activ, " +
+  "categorii_aplicabile, masa_max_kg";
 
-  if (error !== null) throw error;
-  return data ?? [];
+/**
+ * Nomenclatorul ÎNTREG al firmei: tipurile de platformă și cele proprii, active
+ * sau nu, cu setările firmei aplicate (0199). Pentru `/flota/setari/documente`.
+ *
+ * Filtrul pe organizație e `organization_id is null OR = firma`, explicit: din
+ * 0020, `vdt_select` lasă oricui rândurile de platformă, iar unui om membru în
+ * două firme i-ar fi arătat și tipurile proprii ale celeilalte.
+ */
+export async function nomenclatorDocumente(
+  organizationId: string,
+): Promise<readonly TipDocument[]> {
+  const db = await createServerSupabase();
+  const [tipuri, setari] = await Promise.all([
+    db
+      .from("vehicle_document_types")
+      .select(COLOANE_TIP_DOCUMENT)
+      .or(`organization_id.is.null,organization_id.eq.${organizationId}`)
+      .is("deleted_at", null)
+      .order("ordine", { ascending: true })
+      .limit(500)
+      .returns<TipBrut[]>(),
+    db
+      .from("vehicle_document_type_setari")
+      .select("document_type_id, activ, obligatoriu")
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .limit(500)
+      .returns<SetareTip[]>(),
+  ]);
+
+  if (tipuri.error !== null) throw tipuri.error;
+  if (setari.error !== null) throw setari.error;
+  return aplicaSetariTipuri(tipuri.data ?? [], setari.data ?? []);
+}
+
+/**
+ * Tipurile DISPONIBILE firmei: cele active după setarea ei (0199). Un tip de
+ * transport retras din platformă (0116) apare dacă firma l-a activat; unul
+ * retras de firmă dispare, deși rămâne activ pentru celelalte.
+ */
+export async function tipuriDocument(organizationId: string): Promise<readonly TipDocument[]> {
+  const toate = await nomenclatorDocumente(organizationId);
+  return toate.filter((t) => t.activ);
+}
+
+/**
+ * URL-uri semnate de descărcare pentru fișierele flotei (scanări, bonuri), pe
+ * clientul UTILIZATORULUI: politica `flota_objects_select` decide, iar cine n-are
+ * voie primește lipsă, nu un link. Zece minute, cât ține o pagină deschisă.
+ */
+export async function urlSemnateFlota(
+  cai: readonly (string | null)[],
+): Promise<ReadonlyMap<string, string>> {
+  const unice = [...new Set(cai.filter((c): c is string => c !== null && c.length > 0))];
+  if (unice.length === 0) return new Map();
+  const db = await createServerSupabase();
+  const { data, error } = await db.storage.from(BUCKET_FLOTA).createSignedUrls(unice, 600);
+  if (error !== null) return new Map();
+  const harta = new Map<string, string>();
+  for (const semnat of data) {
+    const cale: string | null = semnat.path;
+    const url: string | null = semnat.signedUrl;
+    if (cale !== null && url !== null && url.length > 0 && semnat.error === null) {
+      harta.set(cale, url);
+    }
+  }
+  return harta;
 }
 
 // ── Foi de parcurs ──────────────────────────────────────────────────────────
@@ -767,7 +832,8 @@ export async function alimentarileFoii(foaieId: string): Promise<readonly Alimen
   const { data, error } = await db
     .from("fuel_entries")
     .select(
-      "id, trip_sheet_id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, observatii",
+      "id, trip_sheet_id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, " +
+        "observatii, fisier_bon_path",
     )
     .eq("trip_sheet_id", foaieId)
     .is("deleted_at", null)

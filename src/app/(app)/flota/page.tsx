@@ -15,7 +15,11 @@ import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
-import { semaforVehicul, type SemaforVehicul } from "@/domain/fleet/scadente";
+import {
+  semaforVehicul,
+  tipuriObligatoriiPentru,
+  type SemaforVehicul,
+} from "@/domain/fleet/scadente";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
 import {
@@ -121,11 +125,10 @@ async function TabelVehicule({
 
   const [scadente, tipuri] = await Promise.all([
     scadenteCurente(randuri.map((v) => v.id)),
-    tipuriDocument(),
+    tipuriDocument(organizationId),
   ]);
   const azi = todayInBucharest();
   const denumireTip = new Map(tipuri.map((t) => [t.id, t.denumire]));
-  const tipuriObligatorii = tipuri.filter((t) => t.obligatoriu).map((t) => t.id);
 
   /*
    * ── DE CE NU MAI E „CEA MAI APROPIATĂ SCADENȚĂ” ──────────────────────────
@@ -135,13 +138,17 @@ async function TabelVehicule({
    * aceeași funcție pe care o folosește portalul („Mașina mea”, 0196) — două
    * copii ale calculului ar fi arătat șoferului verde unde administratorul
    * vede roșu.
+   *
+   * Obligatoriile sunt ale VEHICULULUI (0199): o remorcă nu cere trusă, un
+   * camion de 12 t nu cere rovinietă, iar firma își activează sau retrage
+   * tipurile (`tipuriObligatoriiPentru`, peste valorile efective ale firmei).
    */
   const semafor = new Map<string, SemaforVehicul>(
     randuri.map((v) => [
       v.id,
       semaforVehicul(
         scadente.filter((s) => s.vehicle_id === v.id),
-        tipuriObligatorii,
+        tipuriObligatoriiPentru(v, tipuri),
         azi,
       ),
     ]),

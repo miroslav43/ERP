@@ -22,11 +22,13 @@ import {
   citesteVehicul,
   departamentePentruVehicul,
   documenteleVehiculului,
-  tipuriDocument,
+  nomenclatorDocumente,
   listeazaFoi,
   anomaliiNeconfirmate,
   setariFlota,
+  urlSemnateFlota,
 } from "@/lib/queries/fleet";
+import { tipSeAplica, tipuriObligatoriiPentru } from "@/domain/fleet/scadente";
 import type { AlocareVehicul, DocumentVehicul, TipDocument } from "@/lib/queries/fleet";
 
 import {
@@ -46,6 +48,7 @@ import { DialogDocument } from "./dialog-document";
 import { DialogDocumentNou } from "./dialog-document-nou";
 import { DialogKilometraj } from "./dialog-kilometraj";
 import { DialogVehicul } from "./dialog-vehicul";
+import { IncarcareFisierFlota } from "../incarcare-fisier-flota";
 import { LinkEntitate } from "@/components/ui/link-entitate";
 import { hrefFisa } from "@/lib/navigare/fisa";
 import { IstoricModificari } from "@/components/audit/istoric-modificari";
@@ -70,6 +73,8 @@ interface ProprietatiPagina {
 interface RandDocument {
   readonly tip: TipDocument;
   readonly documentul: DocumentVehicul | null;
+  /** Obligatoriu pentru VEHICULUL ăsta (categorie, masă, setarea firmei — 0199). */
+  readonly obligatoriu: boolean;
 }
 
 export default async function PaginaVehicul({ params }: ProprietatiPagina) {
@@ -102,9 +107,11 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
 
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
-  const [documente, tipuri, alocari, angajati, departamente, setari] = await Promise.all([
+  const [documente, nomenclator, alocari, angajati, departamente, setari] = await Promise.all([
     documenteleVehiculului(vehicul.id),
-    tipuriDocument(),
+    // Nomenclatorul ÎNTREG al firmei (0199): un document pe un tip retras între
+    // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
+    nomenclatorDocumente(tenant.organizationId),
     alocarileVehiculului(tenant.organizationId, vehicul.id),
     poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
     // Și pentru cine doar citește: departamentul vehiculului se AFIȘA nicăieri.
@@ -245,8 +252,14 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   ];
   const poateVedeaFoi = can(permisiuni, "trip_sheets:read", "own");
 
+  const tipuri = nomenclator.filter((t) => t.activ);
   const curente = documente.filter((d) => d.este_curent);
   const dupaTip = new Map(curente.map((d) => [d.document_type_id, d]));
+  const tipDupaId = new Map(nomenclator.map((t) => [t.id, t]));
+  // Linkurile de descărcare, semnate sub sesiunea omului: cine nu vede
+  // vehiculul nu primește link (politica `flota_objects_select`, 0199).
+  const urlFisiere = await urlSemnateFlota(documente.map((d) => d.fisier_path));
+  const obligatoriiVehicul = new Set(tipuriObligatoriiPentru(vehicul, nomenclator));
 
   // Se listează TOATE tipurile, nu documentele: un tip obligatoriu fără
   // document trebuie să apară ca „Lipsește”, roșu — altfel absența unui RCA
@@ -254,9 +267,23 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   // să vadă ce MAI poate înregistra, dar fără roșu: un opțional lipsă nu e o
   // problemă. Obligatoriile întâi, apoi opționalele, fiecare grup în ordinea
   // nomenclatorului (`ordine`).
-  const randuriDocumente: readonly RandDocument[] = [...tipuri]
-    .sort((a, b) => Number(b.obligatoriu) - Number(a.obligatoriu) || a.ordine - b.ordine)
-    .map((tip) => ({ tip, documentul: dupaTip.get(tip.id) ?? null }));
+  //
+  // Din 0199 „obligatoriu” e al VEHICULULUI, nu al tipului: o remorcă nu cere
+  // trusă, un camion greu nu cere rovinietă. Un tip care nu i se aplică (sau pe
+  // care firma l-a retras) nu produce rând — decât dacă vehiculul chiar are un
+  // document pe el, care rămâne vizibil și corectabil.
+  const randuriDocumente: readonly RandDocument[] = nomenclator
+    .filter((tip) => dupaTip.has(tip.id) || (tip.activ && tipSeAplica(vehicul, tip)))
+    .map((tip) => ({
+      tip,
+      documentul: dupaTip.get(tip.id) ?? null,
+      obligatoriu: obligatoriiVehicul.has(tip.id),
+    }))
+    .sort((a, b) => Number(b.obligatoriu) - Number(a.obligatoriu) || a.tip.ordine - b.tip.ordine);
+
+  // Istoricul: documentele înlocuite de o reînnoire (nu mai sunt curente), cele
+  // mai noi primele. Datele vin deja din `documenteleVehiculului`.
+  const istoric = documente.filter((d) => !d.este_curent);
 
   // Fără sortare din antet: lista de tipuri nu are cursor, se citește întreagă.
   const coloaneDocumente: readonly Coloana<RandDocument>[] = [
@@ -267,7 +294,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       celula: (rand) => (
         <>
           {rand.tip.denumire}
-          {rand.tip.obligatoriu ? (
+          {rand.obligatoriu ? (
             <span className="text-muted-foreground text-nota ml-1">(obligatoriu)</span>
           ) : null}
           {/* Observațiile stau sub denumire, nu într-o coloană a lor: șapte
@@ -320,6 +347,15 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       },
     },
     {
+      // Scanarea (0199). Link semnat doar pentru cine vede vehiculul; un fișier
+      // pe care Storage nu-l mai are apare „indisponibil”, nu ca link mort.
+      cheie: "fisier",
+      antet: "Fișier",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (rand) => <LinkFisier documentul={rand.documentul} urluri={urlFisiere} />,
+    },
+    {
       cheie: "stare",
       antet: "Stare",
       peTelefon: "insigna",
@@ -327,7 +363,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         // Un tip OPȚIONAL fără document nu e o scadență ratată: pastilă
         // neutră, nu roșu. Un document înregistrat fără dată de expirare (tipul
         // nu cere una) e „fără scadență”, nu „lipsește”.
-        if (rand.documentul === null && !rand.tip.obligatoriu) {
+        if (rand.documentul === null && !rand.obligatoriu) {
           return <Badge ton="neutru">Neînregistrat</Badge>;
         }
         if (rand.documentul !== null && rand.documentul.expira_la === null) {
@@ -375,6 +411,15 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                     denumireTip={rand.tip.denumire}
                     tipuri={tipuri}
                   />
+                  <IncarcareFisierFlota
+                    tinta={{
+                      fel: "scanare",
+                      documentId: rand.documentul.id,
+                      vehiculId: vehicul.id,
+                    }}
+                    descriere={rand.tip.denumire}
+                    areFisier={rand.documentul.fisier_path !== null}
+                  />
                   <ButonStergeDocument
                     documentId={rand.documentul.id}
                     vehiculId={vehicul.id}
@@ -391,6 +436,45 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           } satisfies Coloana<RandDocument>,
         ]
       : []),
+  ];
+
+  const coloaneIstoric: readonly Coloana<DocumentVehicul>[] = [
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "titlu",
+      celula: (d) => tipDupaId.get(d.document_type_id)?.denumire ?? "Tip retras",
+    },
+    {
+      cheie: "perioada",
+      antet: "Valabil",
+      peTelefon: "meta",
+      celula: (d) =>
+        `${d.valabil_de_la === null ? "—" : formatDate(d.valabil_de_la)} – ${
+          d.expira_la === null ? "fără scadență" : formatDate(d.expira_la)
+        }`,
+    },
+    {
+      cheie: "emitent",
+      antet: "Emitent",
+      peTelefon: "meta",
+      celula: (d) => d.emitent ?? "—",
+    },
+    {
+      cheie: "cost",
+      antet: "Cost",
+      numeric: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (d) => (d.cost === null ? "—" : formatLei(d.cost)),
+    },
+    {
+      cheie: "fisier",
+      antet: "Fișier",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (d) => <LinkFisier documentul={d} urluri={urlFisiere} />,
+    },
   ];
 
   return (
@@ -622,8 +706,55 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           </p>
         )}
       </section>
+
+      {istoric.length === 0 ? null : (
+        <section aria-labelledby="istoric-documente" className="space-y-3">
+          <h2 id="istoric-documente" className="text-sectiune font-semibold">
+            Istoricul documentelor
+          </h2>
+          <p className="text-muted-foreground text-corp">
+            Documentele înlocuite la reînnoire. Rămân aici, cu scanarea lor, ca dovadă pentru
+            perioada în care au fost valabile.
+          </p>
+          <Tabel
+            caption="Documentele anterioare ale vehiculului, cele mai noi primele."
+            coloane={coloaneIstoric}
+            randuri={istoric}
+            cheieRand={(d) => d.id}
+            gol={null}
+          />
+        </section>
+      )}
       {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
       <IstoricModificari tenant={tenant} entityId={vehicul.id} />
     </div>
+  );
+}
+
+/**
+ * Linkul spre scanarea unui document: URL semnat, zece minute, în tab nou.
+ * `fisier_path` fără URL înseamnă că Storage nu l-a semnat (obiect lipsă sau
+ * fără drept) — se spune, nu se lasă un link care dă 404.
+ */
+function LinkFisier({
+  documentul,
+  urluri,
+}: Readonly<{
+  documentul: DocumentVehicul | null;
+  urluri: ReadonlyMap<string, string>;
+}>) {
+  if (documentul?.fisier_path === null || documentul?.fisier_path === undefined) return "—";
+  const url = urluri.get(documentul.fisier_path);
+  if (url === undefined) return <span className="text-muted-foreground">indisponibil</span>;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline-offset-2 hover:underline"
+      aria-label={`Deschide scanarea${documentul.fisier_nume === null ? "" : ` ${documentul.fisier_nume}`} (filă nouă)`}
+    >
+      Deschide
+    </a>
   );
 }

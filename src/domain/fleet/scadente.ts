@@ -154,3 +154,57 @@ export function semaforVehicul(
 
   return { treapta, tipId: purtator?.tipId ?? null, expiraLa: purtator?.expiraLa ?? null };
 }
+
+/** Ce decide aplicabilitatea unui tip de document: categoria și masa (0199). */
+export interface VehiculPentruTipuri {
+  readonly categorie: string;
+  /** Masa maximă autorizată, în kg; `null` = necompletată. */
+  readonly masa_maxima_kg: number | null;
+}
+
+/** Tipul de document, cât îi trebuie aplicabilității și obligativității. */
+export interface TipAplicabil {
+  readonly id: string;
+  /** Obligativitatea EFECTIVĂ a firmei (setarea ei bate valoarea platformei). */
+  readonly obligatoriu: boolean;
+  /** `null` = orice categorie. */
+  readonly categorii_aplicabile: readonly string[] | null;
+  /** `null` = fără plafon de masă. */
+  readonly masa_max_kg: number | null;
+}
+
+/**
+ * Se cere tipul ăsta vehiculului ăsta? Categoria trebuie să fie în listă (când
+ * lista există), iar masa sub plafon (când plafonul există).
+ *
+ * Masa NECOMPLETATĂ lasă tipul aplicabil. Invers, un vehicul introdus fără masă
+ * n-ar fi cerut niciodată rovinieta — o cerință stinsă tăcut, de o rubrică
+ * goală. „Lipsește” îl trimite pe om să completeze masa sau documentul.
+ *
+ * Aplicabilitatea decide doar ce se aprinde roșu: baza nu refuză un document pe
+ * un tip neaplicabil (0199, notele de proiectare).
+ */
+export function tipSeAplica(vehicul: VehiculPentruTipuri, tip: TipAplicabil): boolean {
+  if (tip.categorii_aplicabile !== null && !tip.categorii_aplicabile.includes(vehicul.categorie)) {
+    return false;
+  }
+  if (tip.masa_max_kg !== null && vehicul.masa_maxima_kg !== null) {
+    return vehicul.masa_maxima_kg <= tip.masa_max_kg;
+  }
+  return true;
+}
+
+/**
+ * Id-urile tipurilor OBLIGATORII pentru un vehicul anume, în ordinea primită.
+ *
+ * Înainte, lista de obligatorii era aceeași pentru tot parcul (`obligatoriu`
+ * global), deci o remorcă ieșea „Lipsește” la trusa medicală, iar un camion de
+ * 12 t la rovinietă. Folosită de listă (`flota/page.tsx`), de fișă și de
+ * portal, ca toate trei să aprindă aceeași culoare.
+ */
+export function tipuriObligatoriiPentru(
+  vehicul: VehiculPentruTipuri,
+  tipuri: readonly TipAplicabil[],
+): string[] {
+  return tipuri.filter((t) => t.obligatoriu && tipSeAplica(vehicul, t)).map((t) => t.id);
+}

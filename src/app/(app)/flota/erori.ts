@@ -195,3 +195,38 @@ export function traduEroareSetari(error: unknown): never {
   }
   traduEroare(error);
 }
+
+/**
+ * Traducerea pentru nomenclatorul firmei (0199): tipurile proprii și setarea pe
+ * tipurile de platformă. Mesajele noi au ș/ț corecte; cel din 0018 §F6
+ * („Codul … Alegeţi alt cod”) e cu sedilă, deci tiparul ocolește litera.
+ */
+export function traduEroareTipuri(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" && error.message.includes("vdt_org_cod_uq")) {
+      const mesaj = "Firma are deja un tip de document cu această denumire.";
+      throw invalidInput(mesaj, { denumire: [mesaj] });
+    }
+    if (error.code === "23505" && error.message.includes("vdts_org_tip_uq")) {
+      throw businessRule(
+        "Setarea tipului a fost salvată între timp de altcineva. Reîncărcați pagina și reluați modificarea.",
+      );
+    }
+    if (error.code === "23514") {
+      if (error.message.includes("vdt_masa_ck")) {
+        const mesaj = "Masa se scrie în kg întregi, între 1 și 100.000.";
+        throw invalidInput(mesaj, { masa_max_kg: [mesaj] });
+      }
+      if (error.message.includes("vdt_denumire_len")) {
+        const mesaj = "Denumirea are între 2 și 120 de caractere.";
+        throw invalidInput(mesaj, { denumire: [mesaj] });
+      }
+    }
+    if (error.code === "P0001" && /^Codul „/u.test(error.message)) {
+      const mesaj =
+        "Denumirea se suprapune cu un tip din nomenclatorul comun. Activați-l pe acela sau alegeți altă denumire.";
+      throw invalidInput(mesaj, { denumire: [mesaj] });
+    }
+  }
+  traduEroare(error);
+}

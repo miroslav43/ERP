@@ -622,3 +622,97 @@ export const setariFlotaSchema = z.object({
   praguri_alerta_zile: praguriAlerta,
 });
 export type SetariFlotaInput = z.output<typeof setariFlotaSchema>;
+
+// ── Tipurile de document și fișierele (0199) ────────────────────────────────
+
+/**
+ * Setarea firmei pe un tip DE PLATFORMĂ: îl activează, îl retrage sau îi
+ * schimbă obligativitatea, doar pentru ea. Baza refuză setarea pe un tip
+ * propriu (P0001) și stinge obligativitatea unui tip retras.
+ */
+export const setareTipDocumentSchema = z.object({
+  document_type_id: z.uuid(),
+  activ: z.boolean(),
+  obligatoriu: z.boolean(),
+});
+export type SetareTipDocumentInput = z.output<typeof setareTipDocumentSchema>;
+
+/**
+ * Categoriile cărora li se cere tipul. Lista goală înseamnă „oricare” și se
+ * trimite ca `null`: `vdt_categorii_ck` refuză un tablou gol, iar un tip
+ * cerut „niciunei categorii” n-ar avea sens.
+ */
+const categoriiAplicabile = z
+  .array(z.enum(CATEGORII_VEHICUL))
+  .max(CATEGORII_VEHICUL.length)
+  .nullable()
+  .default(null)
+  .transform((v) => (v === null || v.length === 0 ? null : [...new Set(v)]));
+
+const campuriTipPropriu = {
+  denumire: z
+    .string()
+    .trim()
+    .min(2, "Denumirea are cel puțin 2 caractere.")
+    .max(120, "Denumirea are cel mult 120 de caractere."),
+  descriere: z
+    .string()
+    .trim()
+    .max(500, "Descrierea are cel mult 500 de caractere.")
+    .nullable()
+    .default(null),
+  cere_expirare: z.boolean().default(true),
+  obligatoriu: z.boolean().default(false),
+  categorii_aplicabile: categoriiAplicabile,
+  masa_max_kg: numarOptional({
+    min: 1,
+    max: 100_000,
+    intreg: true,
+    mesaj: "Scrieți masa maximă în kg.",
+    interval: "Masa se scrie în kg întregi, între 1 și 100.000.",
+  }),
+};
+
+/** Tip de document PROPRIU firmei. Codul se calculează din denumire (`codDinDenumire`). */
+export const tipDocumentPropriuSchema = z.object(campuriTipPropriu);
+export type TipDocumentPropriuInput = z.output<typeof tipDocumentPropriuSchema>;
+
+/** Modificarea unui tip propriu. Codul NU se schimbă: e `kind`-ul scadențelor deja scrise. */
+export const actualizeazaTipDocumentSchema = z.object({
+  id: z.uuid(),
+  activ: z.boolean(),
+  ...campuriTipPropriu,
+});
+export type ActualizeazaTipDocumentInput = z.output<typeof actualizeazaTipDocumentSchema>;
+
+/** Pasul 1 din 3 al încărcării: ce declară browserul, verificat iar la pasul 3. */
+const fisierDeclarat = {
+  numeFisier: z.string().min(1).max(255),
+  dimensiune: z.number().int().positive(),
+  mime: z.string().min(3).max(120),
+};
+
+export const pregatesteScanareSchema = z.object({
+  document_id: z.uuid(),
+  vehicle_id: z.uuid(),
+  ...fisierDeclarat,
+});
+
+export const confirmaScanareSchema = z.object({
+  document_id: z.uuid(),
+  vehicle_id: z.uuid(),
+  cale: z.string().min(1).max(400),
+  numeFisier: z.string().min(1).max(255),
+});
+
+export const pregatesteBonSchema = z.object({
+  alimentare_id: z.uuid(),
+  trip_sheet_id: z.uuid(),
+  ...fisierDeclarat,
+});
+
+export const confirmaBonSchema = z.object({
+  alimentare_id: z.uuid(),
+  trip_sheet_id: z.uuid(),
+  cale: z.string().min(1).max(400),
+});
