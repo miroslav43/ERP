@@ -1,6 +1,6 @@
 "use server";
 
-import { expirareInTrecut } from "@/domain/announcements/anunt";
+import { expirareInTrecut, expirareLaEditare } from "@/domain/announcements/anunt";
 import { createAction } from "@/lib/actions/create-action";
 import { invalidInput, notFound } from "@/lib/actions/errors";
 import { idFisaProprie } from "@/lib/queries/employees";
@@ -165,6 +165,8 @@ export const marcheazaAnuntCitit = createAction({
 
 /**
  * Editarea — titlu, conținut, fixare, expirare — pe orice anunț neșters.
+ * Expirarea se scrie (și se verifică față de ceas) doar dacă ziua ei s-a
+ * schimbat: un anunț expirat sau retras se corectează la text și rămâne așa.
  *
  * Nu retrimite notificări: „Anunț nou" a plecat la publicare, iar o corecție
  * de tastare n-are de ce să sune a doua oară telefonul fiecărui angajat.
@@ -185,7 +187,22 @@ export const actualizeazaAnunt = createAction({
   },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
-    refuzaExpirareaTrecuta(input.expira_la, ctx.now);
+    // Valoarea stocată decide dacă omul a ATINS expirarea: regula de ceas se
+    // aplică doar atunci, iar o zi neatinsă nu se rescrie (`expirareLaEditare`).
+    // Fără citire, un anunț expirat sau retras nu se mai putea corecta la text
+    // fără să fie repus pe avizier.
+    const { data: existent, error: eroareCitire } = await ctx.supabase
+      .from("announcements")
+      .select("expira_la")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{ expira_la: string | null }>();
+    if (eroareCitire !== null) throw eroareCitire;
+    if (existent === null) throw notFound("Anunțul nu a fost găsit.");
+
+    const decizie = expirareLaEditare(input.expira_la, existent.expira_la, ctx.now);
+    if (decizie.fel === "in_trecut") refuzaExpirareaTrecuta(input.expira_la, ctx.now);
 
     const { data, error } = await ctx.supabase
       .from("announcements")
@@ -193,7 +210,7 @@ export const actualizeazaAnunt = createAction({
         titlu: input.titlu,
         continut: input.continut,
         fixat: input.fixat,
-        expira_la: input.expira_la,
+        ...(decizie.fel === "scrie" ? { expira_la: decizie.valoare } : {}),
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)

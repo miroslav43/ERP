@@ -3,6 +3,8 @@
 // și ce lasă să treacă filtrul din adresă. Fără I/O și fără ceas — `acum` vine
 // ca argument, ca peste tot în `src/domain`.
 
+import { toBucharestDateString } from "@/lib/format/date";
+
 /**
  * Cele patru stări ale unui anunț.
  *
@@ -58,6 +60,47 @@ export function esteAscunsAngajatilor(stare: StareAnunt): boolean {
 export function expirareInTrecut(expira_la: string | null, acum: Date): boolean {
   if (expira_la === null) return false;
   return new Date(expira_la).getTime() <= acum.getTime();
+}
+
+/** Ce face editarea cu coloana `expira_la`. */
+export type DecizieExpirare =
+  | Readonly<{ fel: "pastreaza" }>
+  | Readonly<{ fel: "scrie"; valoare: string | null }>
+  | Readonly<{ fel: "in_trecut" }>;
+
+/**
+ * Expirarea la EDITARE: regula de ceas se aplică doar când omul a schimbat-o.
+ *
+ * ── DE CE COMPARAȚIA E PE ZI, NU PE MOMENT ────────────────────────────────
+ * Caseta lucrează cu zile: precompletează ziua stocată și trimite 23:59:59 al
+ * ei (`sfarsitulZileiRomania`). Un anunț retras la 10:00 are în bază 10:00, iar
+ * caseta întoarce 23:59:59 — alt moment, aceeași zi pe care omul n-a atins-o.
+ * Pe moment, orice editare ar fi părut o schimbare a expirării.
+ *
+ * ── DE CE „NESCHIMBAT” ÎNSEAMNĂ „NU SE SCRIE” ─────────────────────────────
+ * - Anunț expirat sau retras ieri, corectat azi la text: ziua trimisă e în
+ *   trecut, dar n-a ales-o nimeni acum — refuzul îl obliga să golească data
+ *   sau să pună una viitoare, adică să repună anunțul pe avizierul tuturor.
+ * - Anunț retras AZI, corectat tot azi: 23:59:59 al zilei e în viitor, deci
+ *   regula de ceas tăcea, dar scrierea lui ar fi anulat tăcut retragerea până
+ *   la miezul nopții. Păstrând valoarea stocată, retragerea rămâne exactă.
+ *
+ * Golirea datei sau o zi viitoare nouă rămân scrieri explicite: acolo omul a
+ * cerut chiar repunerea pe avizier.
+ */
+export function expirareLaEditare(
+  trimisa: string | null,
+  stocata: string | null,
+  acum: Date,
+): DecizieExpirare {
+  if (aceeasiZi(trimisa, stocata)) return { fel: "pastreaza" };
+  if (expirareInTrecut(trimisa, acum)) return { fel: "in_trecut" };
+  return { fel: "scrie", valoare: trimisa };
+}
+
+function aceeasiZi(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) return a === b;
+  return toBucharestDateString(new Date(a)) === toBucharestDateString(new Date(b));
 }
 
 /**

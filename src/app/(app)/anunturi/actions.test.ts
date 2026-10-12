@@ -406,6 +406,7 @@ describe("actualizeazaAnunt / retrageAnunt / stergeAnunt", () => {
 
   it("editarea scrie cele patru coloane, pe id + organizație + neșters, cu `.select()`", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "select", { data: { expira_la: null } });
     server.raspunde("announcements", "update", { data: { id: ID_1 } });
     const r = await actualizeazaAnunt({
       id: ID_1,
@@ -426,15 +427,22 @@ describe("actualizeazaAnunt / retrageAnunt / stergeAnunt", () => {
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
     expect(apel?.terminal).toBe("maybeSingle");
+    const [citire] = server.apeluriPe("announcements", "select");
+    expect(areFiltru(citire, "eq", "id", ID_1)).toBe(true);
+    expect(areFiltru(citire, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(citire, "is", "deleted_at", null)).toBe(true);
     // Nicio notificare: corecția nu sună a doua oară telefoanele.
     expect(server.apeluriPe("notifications")).toHaveLength(0);
     expect(caiRevalidate()).toEqual(CAI);
   });
 
-  it("editarea cu expirare în trecut: VALIDARE pe câmpul `expira_la`, fără UPDATE", async () => {
-    // Aceeași regulă ca la creare: caseta are `min = azi`, iar acțiunea nu
-    // lasă ce caseta nu lasă.
+  it("editarea care MUTĂ expirarea pe o zi trecută: VALIDARE pe câmpul `expira_la`, fără UPDATE", async () => {
+    // Aceeași regulă ca la creare, dar doar când omul a schimbat ziua: caseta
+    // are `min = azi`, iar acțiunea nu lasă ce caseta nu lasă.
     const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "select", {
+      data: { expira_la: "2026-12-31T23:59:59+02:00" },
+    });
     server.raspunde("announcements", "update", { data: { id: ID_1 } });
     const r = await actualizeazaAnunt({
       id: ID_1,
@@ -450,12 +458,95 @@ describe("actualizeazaAnunt / retrageAnunt / stergeAnunt", () => {
         fieldErrors: { expira_la: ["Data de expirare nu poate fi în trecut."] },
       },
     });
-    expect(server.apeluriPe("announcements")).toHaveLength(0);
+    expect(server.apeluriPe("announcements", "update")).toHaveLength(0);
+    expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("anunț EXPIRAT, editat doar la text (ziua de expirare neatinsă): reușită, rămâne expirat", async () => {
+    // Expirat pe 10 septembrie; ACUM e 15. Caseta precompletează ziua veche și
+    // trimite 23:59:59 al ei — în trecut, dar NESCHIMBAT. Altfel singurele
+    // ieșiri erau golirea datei sau una viitoare, ambele repun anunțul pe avizier.
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "select", {
+      data: { expira_la: "2026-09-10T20:59:59+00:00" },
+    });
+    server.raspunde("announcements", "update", { data: { id: ID_1 } });
+    const r = await actualizeazaAnunt({
+      id: ID_1,
+      titlu: "Inventar",
+      continut: "Luni, nu marți.",
+      fixat: false,
+      expira_la: "2026-09-10T23:59:59+03:00",
+    });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [apel] = server.apeluriPe("announcements", "update");
+    // `expira_la` lipsește din payload: baza păstrează exact valoarea veche.
+    expect(apel?.payload).toEqual({ titlu: "Inventar", continut: "Luni, nu marți.", fixat: false });
+    expect(caiRevalidate()).toEqual(CAI);
+  });
+
+  it("anunț RETRAS azi, editat în aceeași zi: momentul retragerii rămâne, nu devine 23:59:59", async () => {
+    // Retras la 10:00 ora României (07:00Z); ACUM e 11:30. Caseta precompletează
+    // „azi” și trimite sfârșitul zilei — în viitor, deci regula de ceas tăcea,
+    // dar scrierea lui ar fi readus tăcut anunțul pe avizier până la miezul nopții.
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "select", {
+      data: { expira_la: "2026-09-15T07:00:00+00:00" },
+    });
+    server.raspunde("announcements", "update", { data: { id: ID_1 } });
+    const r = await actualizeazaAnunt({
+      id: ID_1,
+      titlu: "Inventar",
+      continut: "Luni.",
+      fixat: true,
+      expira_la: "2026-09-15T23:59:59+03:00",
+    });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [apel] = server.apeluriPe("announcements", "update");
+    expect(apel?.payload).not.toHaveProperty("expira_la");
+  });
+
+  it("anunț expirat, cu expirarea golită explicit: se scrie `null` (repus pe avizier, cerut de om)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "select", {
+      data: { expira_la: "2026-09-10T20:59:59+00:00" },
+    });
+    server.raspunde("announcements", "update", { data: { id: ID_1 } });
+    const r = await actualizeazaAnunt({
+      id: ID_1,
+      titlu: "Inventar",
+      continut: "Luni.",
+      fixat: false,
+      expira_la: null,
+    });
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    const [apel] = server.apeluriPe("announcements", "update");
+    expect(apel?.payload).toEqual({
+      titlu: "Inventar",
+      continut: "Luni.",
+      fixat: false,
+      expira_la: null,
+    });
+  });
+
+  it("anunțul negăsit la citirea dinaintea editării: NEGASIT, fără UPDATE", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "select", { data: null });
+    const r = await actualizeazaAnunt({
+      id: ID_1,
+      titlu: "Inventar",
+      continut: "Luni.",
+      fixat: false,
+      expira_la: null,
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("announcements", "update")).toHaveLength(0);
     expect(caiRevalidate()).toEqual([]);
   });
 
   it("editarea cu `expira_la <= publicat_la` (23514 din bază): VALIDARE pe câmp, fără revalidare", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "announcements:update": "all" } });
+    server.raspunde("announcements", "select", { data: { expira_la: null } });
     server.raspunde("announcements", "update", {
       error: eroarePostgrest(
         "23514",

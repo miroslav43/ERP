@@ -144,9 +144,11 @@ export function ActiuniAnunt({
           laInchidere={inchideEditarea}
           titlu="Editează anunțul"
           descriere={
-            publicat
+            activ
               ? "Modificarea se vede imediat pe avizier. Nu se trimite o notificare nouă."
-              : "Ciorna rămâne nepublicată până apăsați „Publică acum”."
+              : publicat
+                ? "Anunțul rămâne în afara avizierului cât timp nu schimbați data de expirare. Golirea ei sau o zi viitoare îl repun pe avizier."
+                : "Ciorna rămâne nepublicată până apăsați „Publică acum”."
           }
           marime="mare"
         >
