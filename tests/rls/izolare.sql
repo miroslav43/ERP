@@ -4359,6 +4359,10 @@ declare
   v_int    uuid;
   v_piesa  uuid;
   v_cost   numeric;
+  v_rol_user uuid;
+  v_sa     uuid := gen_random_uuid();
+  v_sa_interv boolean;
+  v_sa_piesa  boolean;
   n        int;
 begin
   select i.id into v_int from public.maintenance_interventions i
@@ -4412,6 +4416,61 @@ begin
     perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a editat o intervenție');
   end if;
 
+  -- hr și employee: n-au `maintenance:update` — refuz la piese, zero rânduri la editare.
+  foreach v_rol_user in array array[pg_temp.id('hr_user_alfa'), pg_temp.id('emp_alfa')] loop
+    perform set_config('request.jwt.claim.sub', v_rol_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate)
+      values (v_alfa, v_int, 'Piesă nepermisă', 1);
+      -- Ajuns aici, rândul a trecut de politică: scurgere.
+      reset role;
+      perform pg_temp.esueaza('(l) FALS-POZITIV: hr/employee a adăugat o linie de piese');
+    exception when insufficient_privilege then
+      reset role;
+    end;
+    set local role authenticated;
+    with m as (
+      update public.maintenance_interventions set observatii = 'Nepermis'
+       where id = v_int returning 1)
+    select count(*) into n from m;
+    reset role;
+    if n <> 0 then
+      perform pg_temp.esueaza('(l) FALS-POZITIV: hr/employee a editat o intervenție');
+    end if;
+  end loop;
+
+  -- super_admin: citește liniile (politica SELECT începe cu platforma), iar la
+  -- scriere se poartă EXACT ca pe intervenții (aceeași formă de politică).
+  insert into auth.users (id, email) values (v_sa, 'platforma-m6-' || left(v_sa::text, 8) || '@test.test');
+  insert into public.platform_admins (user_id) values (v_sa);
+  perform set_config('request.jwt.claim.sub', v_sa::text, true);
+  set local role authenticated;
+  select count(*) into n from public.maintenance_intervention_parts where organization_id = v_alfa;
+  reset role;
+  if n = 0 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: super_admin nu vede liniile de piese');
+  end if;
+  set local role authenticated;
+  begin
+    insert into public.maintenance_interventions (organization_id, equipment_id, data, descriere)
+    values (v_alfa, pg_temp.id('equip_alfa'), current_date, 'Intervenția platformei');
+    v_sa_interv := true;
+  exception when insufficient_privilege then
+    v_sa_interv := false;
+  end;
+  begin
+    insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate)
+    values (v_alfa, v_int, 'Piesa platformei', 1);
+    v_sa_piesa := true;
+  exception when insufficient_privilege then
+    v_sa_piesa := false;
+  end;
+  reset role;
+  if v_sa_interv is distinct from v_sa_piesa then
+    perform pg_temp.esueaza(format('(l) super_admin: intervenție=%s, piesă=%s — politicile au divergat', v_sa_interv, v_sa_piesa));
+  end if;
+
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
   set local role authenticated;
   with m as (
@@ -4423,7 +4482,7 @@ begin
     perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate anula o intervenție');
   end if;
 
-  raise notice '(l) intervențiile: org_admin corectează, ține piesele (suma o face baza) și anulează; managerul e refuzat ✓';
+  raise notice '(l) intervențiile: org_admin corectează, ține piesele (suma o face baza) și anulează; manager, hr și employee sunt refuzați; super_admin citește piesele ✓';
 exception when others then
   reset role;
   perform pg_temp.esueaza(format('(l) verificarea intervențiilor a eșuat: %s (%s)', sqlerrm, sqlstate));
