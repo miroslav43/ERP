@@ -96,3 +96,20 @@ export function codDinDenumire(denumire: string): string {
   const cod = cuLitera.length < 2 ? "tip_propriu" : cuLitera;
   return cod.slice(0, COD_MAXIM).replace(/_+$/u, "");
 }
+
+/**
+ * Tipurile din selectorul unui document EXISTENT: cele active ale firmei, plus
+ * tipul documentului însuși, când acela a fost retras între timp.
+ *
+ * Fără el, un document CASCO rămas pe fișă după ce firma a retras CASCO nu se
+ * mai putea corecta: `<select defaultValue>` nu-și găsea opțiunea, cădea pe
+ * „Alegeți tipul”, iar salvarea cerea alt tip. Baza permite corectura cât
+ * timp tipul nu se schimbă (`vdoc_inainte` verifică disponibilitatea doar la
+ * schimbarea tipului, 0199 §4); ecranul trebuie să permită același lucru.
+ */
+export function tipuriPentruDocument<T extends Readonly<{ id: string; activ: boolean }>>(
+  nomenclator: readonly T[],
+  tipDocumentId: string,
+): T[] {
+  return nomenclator.filter((t) => t.activ || t.id === tipDocumentId);
+}

@@ -223,6 +223,11 @@ describe("pregatesteBon și confirmaBon", () => {
     const [scriere] = server.apeluriPe("fuel_entries", "update");
     expect(scriere?.payload).toEqual({ fisier_bon_path: cale, updated_by: USER_ID });
     expect(areFiltru(scriere, "eq", "trip_sheet_id", ID_2)).toBe(true);
+    // Filtrul de firmă pe scriere, nu doar pe calea verificată înainte: fără el,
+    // o alimentare a altei firme (id ghicit) s-ar lega de bonul ăsta dacă RLS-ul
+    // ar slăbi vreodată.
+    expect(areFiltru(scriere, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(scriere, "eq", "id", ID_1)).toBe(true);
     expect(scriere?.selectDupaScriere).toBe("id");
     expect(caiRevalidate()).toEqual([
       `/flota/foi/${ID_2}`,

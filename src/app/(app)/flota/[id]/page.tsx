@@ -29,6 +29,7 @@ import {
   urlSemnateFlota,
 } from "@/lib/queries/fleet";
 import { tipSeAplica, tipuriObligatoriiPentru } from "@/domain/fleet/scadente";
+import { tipuriPentruDocument } from "@/domain/fleet/tipuri-document";
 import type { AlocareVehicul, DocumentVehicul, TipDocument } from "@/lib/queries/fleet";
 
 import {
@@ -409,7 +410,10 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                     vehiculId={vehicul.id}
                     documentul={rand.documentul}
                     denumireTip={rand.tip.denumire}
-                    tipuri={tipuri}
+                    // Plus tipul documentului, dacă firma l-a retras între timp:
+                    // altfel selectorul cade pe „Alegeți tipul”, iar corectura
+                    // cere mutarea pe alt tip (baza o permite fără schimbare).
+                    tipuri={tipuriPentruDocument(nomenclator, rand.documentul.document_type_id)}
                   />
                   <IncarcareFisierFlota
                     tinta={{

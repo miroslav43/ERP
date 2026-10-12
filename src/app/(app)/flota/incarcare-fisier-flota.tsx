@@ -176,7 +176,7 @@ export function IncarcareFisierFlota({ tinta, descriere, areFisier }: Proprietat
           </div>
           {areFisier ? (
             <p className="text-muted-foreground text-nota">
-              Fișierul nou îl înlocuiește pe cel de acum; cel vechi rămâne în arhivă.
+              Fișierul nou îl înlocuiește pe cel de acum.
             </p>
           ) : null}
         </div>

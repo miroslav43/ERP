@@ -110,6 +110,22 @@ describe("IncarcareFisierFlota", () => {
     expect(actiuni.pregatesteBon).not.toHaveBeenCalled();
   });
 
+  it("la înlocuire nu promite o arhivă pe care niciun ecran n-o arată", async () => {
+    // Confirmarea rescrie `fisier_path`; obiectul vechi rămâne orfan în
+    // bucket, fără niciun link spre el. „Rămâne în arhivă” era o promisiune.
+    render(
+      <IncarcareFisierFlota
+        tinta={{ fel: "scanare", documentId: DOC, vehiculId: VEH }}
+        descriere="Asigurare RCA"
+        areFisier
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Înlocuiește scanarea: Asigurare RCA/u }),
+    );
+    expect(screen.getByText(/înlocuiește pe cel de acum/u).textContent).not.toMatch(/arhiv/u);
+  });
+
   it("refuzul de la semnare se arată în casetă, fără urcare și fără confirmare", async () => {
     actiuni.pregatesteBon.mockResolvedValue({
       ok: false,

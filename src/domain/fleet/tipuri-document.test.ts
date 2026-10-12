@@ -1,7 +1,12 @@
 // src/domain/fleet/tipuri-document.test.ts
 import { describe, expect, it } from "vitest";
 
-import { aplicaSetariTipuri, codDinDenumire, type TipBrut } from "./tipuri-document";
+import {
+  aplicaSetariTipuri,
+  codDinDenumire,
+  tipuriPentruDocument,
+  type TipBrut,
+} from "./tipuri-document";
 
 const ORG = "org-1";
 
@@ -97,5 +102,30 @@ describe("codDinDenumire", () => {
 
   it("o denumire fără nicio literă latină dă totuși un cod valid", () => {
     expect(codDinDenumire("—")).toMatch(/^[a-z][a-z0-9_]{1,48}$/u);
+  });
+});
+
+describe("tipuriPentruDocument", () => {
+  const ITP = { id: "itp", activ: true };
+  const RCA = { id: "rca", activ: true };
+  const CASCO_RETRAS = { id: "casco", activ: false };
+  const nomenclator = [ITP, RCA, CASCO_RETRAS];
+
+  it("un document pe un tip activ primește doar tipurile active", () => {
+    expect(tipuriPentruDocument(nomenclator, "rca").map((t) => t.id)).toEqual(["itp", "rca"]);
+  });
+
+  it("un document pe un tip RETRAS își păstrează tipul în listă, ca să se poată corecta fără să-l schimbe", () => {
+    // Fără el, `<select defaultValue>` nu găsește opțiunea, cade pe „Alegeți
+    // tipul”, iar documentul nu se mai poate salva decât mutat pe alt tip.
+    expect(tipuriPentruDocument(nomenclator, "casco").map((t) => t.id)).toEqual([
+      "itp",
+      "rca",
+      "casco",
+    ]);
+  });
+
+  it("un id necunoscut nu adaugă nimic", () => {
+    expect(tipuriPentruDocument(nomenclator, "lipsa").map((t) => t.id)).toEqual(["itp", "rca"]);
   });
 });
