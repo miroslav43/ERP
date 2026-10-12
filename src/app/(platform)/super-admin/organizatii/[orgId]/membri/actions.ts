@@ -5,6 +5,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+// `z.flattenError` propriu, fără createAction: harta de mesaje se încarcă explicit.
+import "@/schemas/mesaje-zod";
 
 import type { ActionResult } from "@/lib/actions/types";
 import { requirePlatformAdmin } from "@/lib/auth/platform";

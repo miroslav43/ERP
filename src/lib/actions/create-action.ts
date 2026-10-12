@@ -4,6 +4,9 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
+// Harta globală a mesajelor Zod în română, încărcată ÎNAINTE de pasul 5:
+// acoperă și schemele inline din acțiuni, care nu trec prin `src/schemas/`.
+import "@/schemas/mesaje-zod";
 import { RANK } from "@/config/permissions";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";

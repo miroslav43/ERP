@@ -954,7 +954,7 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
           valabil_pana: z
             .string()
             .trim()
-            .regex(RE_DATA, "Data de expirare trebuie scrisă AAAA-LL-ZZ."),
+            .regex(RE_DATA, "Introduceți data de expirare (zz.ll.aaaa)."),
         }),
       )
       .max(10, "Cel mult 10 autorizații la înrolare.")
@@ -1205,18 +1205,24 @@ export const persoanaIntretinereSchema = z
       .nullable()
       .default(null)
       .transform((v) => (v === null || v.length === 0 ? null : v))
-      .refine((v) => v === null || RE_DATA.test(v), "Data nașterii trebuie scrisă AAAA-LL-ZZ."),
+      .refine(
+        (v) => v === null || RE_DATA.test(v),
+        "Introduceți o dată a nașterii validă (zz.ll.aaaa).",
+      ),
     in_intretinere_de_la: z
       .string()
       .trim()
-      .regex(RE_DATA, "Data de la care e în întreținere trebuie scrisă AAAA-LL-ZZ."),
+      .regex(RE_DATA, "Introduceți data de la care e în întreținere (zz.ll.aaaa)."),
     in_intretinere_pana_la: z
       .string()
       .trim()
       .nullable()
       .default(null)
       .transform((v) => (v === null || v.length === 0 ? null : v))
-      .refine((v) => v === null || RE_DATA.test(v), "Data de sfârșit trebuie scrisă AAAA-LL-ZZ."),
+      .refine(
+        (v) => v === null || RE_DATA.test(v),
+        "Introduceți o dată de sfârșit validă (zz.ll.aaaa).",
+      ),
     observatii: z.string().trim().max(500).nullable().default(null),
   })
   .superRefine((valoare, ctx) => {

@@ -102,6 +102,12 @@ describe("consimțământul de mutare a managerului", () => {
     ).toBe(true);
   });
 
+  it("ADM-009: denumirea de 214 caractere are mesaj românesc cu limita", () => {
+    const rezultat = creeazaDepartamentSchema.safeParse({ ...MINIM, denumire: "D".repeat(214) });
+    expect(rezultat.success).toBe(false);
+    expect(rezultat.error?.issues[0]?.message).toBe("Denumirea nu poate depăși 160 de caractere.");
+  });
+
   it("ajunge și în schema de actualizare, derivată din cea de creare", () => {
     const rezultat = actualizeazaDepartamentSchema.parse({
       id: "0d4d3d1e-1f2b-4c3a-9e5f-6a7b8c9d0e1f",

@@ -1,5 +1,6 @@
 // src/schemas/punct-lucru.ts
 import { z } from "zod";
+import "./mesaje-zod";
 import { codPostalOptional } from "@/schemas/comun";
 import { judetSchema } from "@/schemas/organization";
 

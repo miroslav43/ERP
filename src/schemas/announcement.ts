@@ -1,6 +1,8 @@
 // src/schemas/announcement.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 export const anuntNouSchema = z.object({
   titlu: z
     .string()

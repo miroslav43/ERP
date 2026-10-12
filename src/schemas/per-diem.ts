@@ -133,7 +133,10 @@ export const deplasareNouaSchema = z
       mesaj: "Kilometrii parcurși trebuie să fie un număr.",
       interval: "Kilometrii parcurși sunt între 0 și 1.000.000.",
     }),
-    avans_acordat: z.coerce.number().min(0).default(0),
+    avans_acordat: z.coerce
+      .number("Avansul trebuie să fie un număr.")
+      .min(0, "Avansul nu poate fi negativ.")
+      .default(0),
     moneda_avans: z
       .string()
       .trim()

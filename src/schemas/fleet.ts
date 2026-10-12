@@ -121,26 +121,44 @@ export type FiltreFoi = z.output<typeof filtreFoiSchema>;
  * tăcut la prima modificare — iar cea care contează e a bazei, fiindcă indexul
  * unic se aplică peste valoarea normalizată de ea.
  */
+const MESAJ_VIN = "VIN-ul are 11–17 caractere (fără I, O, Q).";
+const MESAJ_AN_FABRICATIE = "Anul de fabricație este între 1900 și 2200.";
+
 const campuriVehicul = {
-  nr_inmatriculare: z.string().trim().min(3).max(16),
-  marca: z.string().trim().min(1).max(60),
-  model: z.string().trim().min(1).max(60),
+  nr_inmatriculare: z
+    .string()
+    .trim()
+    .min(3, "Introduceți numărul de înmatriculare.")
+    .max(16, "Numărul de înmatriculare nu poate depăși 16 caractere."),
+  marca: z.string().trim().min(1, "Introduceți marca.").max(60),
+  model: z.string().trim().min(1, "Introduceți modelul.").max(60),
   // VIN-ul nu conține I, O sau Q — au fost scoase din standard tocmai ca să nu
-  // se confunde cu 1 și 0.
+  // se confunde cu 1 și 0. Mesajul stă de DOUĂ ori, ca la `enumOptional` din
+  // `./comun`: pe regulă (ramura) și pe uniune (nivelul ei), ca niciuna dintre
+  // căi să nu scape un text generic.
   vin: z
-    .union([
-      z
-        .string()
-        .trim()
-        .regex(/^[A-HJ-NPR-Z0-9]{11,17}$/iu),
-      z.literal(""),
-    ])
+    .union(
+      [
+        z
+          .string()
+          .trim()
+          .regex(/^[A-HJ-NPR-Z0-9]{11,17}$/iu, MESAJ_VIN),
+        z.literal(""),
+      ],
+      MESAJ_VIN,
+    )
     .transform((v) => (v === "" ? null : v.toUpperCase()))
     .nullable()
     .default(null),
   categorie: z.enum(CATEGORII_VEHICUL).default("autoturism"),
   tip_combustibil: z.enum(COMBUSTIBILI).default("motorina"),
-  an_fabricatie: z.coerce.number().int().min(1900).max(2200).nullable().default(null),
+  an_fabricatie: z.coerce
+    .number()
+    .int()
+    .min(1900, MESAJ_AN_FABRICATIE)
+    .max(2200, MESAJ_AN_FABRICATIE)
+    .nullable()
+    .default(null),
   culoare: z.string().trim().max(40).nullable().default(null),
   consum_mediu_declarat: z.coerce.number().min(0).max(300).nullable().default(null),
   // Masa maximă autorizată decide ce documente se cer: rovinieta privește doar
@@ -258,7 +276,7 @@ const campuriDocument = {
   emitent: z.string().trim().max(120).nullable().default(null),
   valabil_de_la: z.iso.date().nullable().default(null),
   expira_la: z.iso.date().nullable().default(null),
-  cost: z.coerce.number().min(0).nullable().default(null),
+  cost: z.coerce.number().min(0, "Costul nu poate fi negativ.").nullable().default(null),
   observatii: z.string().trim().max(1000).nullable().default(null),
 };
 

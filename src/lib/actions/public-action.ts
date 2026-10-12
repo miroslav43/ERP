@@ -2,6 +2,8 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+// Harta globală a mesajelor Zod în română (vezi `src/schemas/mesaje-zod.ts`).
+import "@/schemas/mesaje-zod";
 import { createServerSupabase, type ServerSupabase } from "@/lib/supabase/server";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 import { readRequestMeta, type RequestMeta } from "./audit";

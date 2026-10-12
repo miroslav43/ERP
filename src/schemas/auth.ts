@@ -1,6 +1,8 @@
 // src/schemas/auth.ts
 import { z } from "zod";
 
+import "./mesaje-zod";
+
 /**
  * Cale internă. `//evil.com` și `/\evil.com` sunt URL-uri ABSOLUTE pentru browser
  * (protocol-relative), deci un simplu `startsWith("/")` nu este suficient.

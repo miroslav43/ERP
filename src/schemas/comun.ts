@@ -34,6 +34,11 @@
 
 import { z } from "zod";
 
+// Harta mesajelor în română se încarcă de aici pentru toate schemele care
+// importă ajutoarele. NU se mută `z.config` în fișierul ăsta: el trage
+// nomenclatorul COR, pe care schemele de client fără `./comun` nu-l vor.
+import "./mesaje-zod";
+
 import { codCorExista } from "@/domain/hr/cor-nomenclator";
 
 import { momentDinOraRomaniei } from "@/lib/format/date";

@@ -1,6 +1,6 @@
 // src/schemas/ssm.ts
 import { z } from "zod";
-import { numarOptional } from "./comun";
+import { numarObligatoriu, numarOptional } from "./comun";
 import { optional } from "./comun";
 
 /**
@@ -158,9 +158,17 @@ const dataOptionala = z
  * periodicitatea legală configurată în `ssm_training_type_periods`.
  */
 export const instruireBlocSchema = z.object({
-  training_type_id: z.uuid(),
-  data_instruirii: z.iso.date(),
-  durata_ore: z.coerce.number().min(0).max(999),
+  training_type_id: z.uuid("Alegeți tipul instruirii."),
+  data_instruirii: z.iso.date("Introduceți data instruirii."),
+  // Obligatoriu și fără coerciție pe gol: `z.coerce.number()` făcea din „” un
+  // 0, iar instruirea se salva „0:00 h” fără niciun cuvânt (ADM-018).
+  durata_ore: numarObligatoriu({
+    min: 0,
+    max: 999,
+    lipsa: "Introduceți durata instruirii (ex. 2:00).",
+    mesaj: "Durata se scrie în ore și minute (ex. 2:00).",
+    interval: "Durata este între 0 și 999 de ore.",
+  }),
   lector_employee_id: uuidOptional,
   lector_extern: textOptional(120),
   tematica: textOptional(2000),
@@ -182,9 +190,9 @@ export type InstruireBloc = z.output<typeof instruireBlocSchema>;
  */
 export const fisaAptitudineSchema = z
   .object({
-    employee_id: z.uuid(),
+    employee_id: z.uuid("Alegeți angajatul."),
     tip: z.enum(TIPURI_EXAMEN),
-    data_examinarii: z.iso.date(),
+    data_examinarii: z.iso.date("Introduceți data examinării."),
     medic: textOptional(120),
     unitate_medicala: textOptional(160),
     rezultat: z.enum(REZULTATE_EXAMEN),
@@ -218,7 +226,7 @@ export type FisaAptitudine = z.output<typeof fisaAptitudineSchema>;
 export const accidentNouSchema = z.object({
   numar_intern: textOptional(64),
   employee_id: uuidOptional,
-  data_producerii: z.iso.date(),
+  data_producerii: z.iso.date("Introduceți data producerii accidentului."),
   ora_producerii: z
     .union([z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/u), z.literal(""), z.undefined()])
     .transform((v) => (v === "" || v === undefined ? null : v))
@@ -227,7 +235,12 @@ export const accidentNouSchema = z.object({
   locul: z.string().trim().min(1, "Locul este obligatoriu.").max(200),
   imprejurari: z.string().trim().min(1, "Împrejurările sunt obligatorii.").max(4000),
   tip: z.enum(TIPURI_ACCIDENT),
-  zile_incapacitate: z.coerce.number().int().min(0).max(3650).default(0),
+  zile_incapacitate: z.coerce
+    .number()
+    .int()
+    .min(0, "Zilele de incapacitate nu pot fi negative.")
+    .max(3650)
+    .default(0),
 });
 export type AccidentNou = z.output<typeof accidentNouSchema>;
 
@@ -240,9 +253,13 @@ export type ComunicaItm = z.output<typeof comunicaItmSchema>;
 
 export const finalizeazaCercetareSchema = z.object({
   id: z.uuid(),
-  cercetare_finalizata_la: z.iso.date(),
+  cercetare_finalizata_la: z.iso.date("Introduceți data finalizării cercetării."),
   urmari: textOptional(2000),
-  zile_incapacitate: z.coerce.number().int().min(0).max(3650),
+  zile_incapacitate: z.coerce
+    .number()
+    .int()
+    .min(0, "Zilele de incapacitate nu pot fi negative.")
+    .max(3650),
 });
 export type FinalizeazaCercetare = z.output<typeof finalizeazaCercetareSchema>;
 
@@ -280,9 +297,9 @@ export type ActualizeazaStingator = z.output<typeof actualizeazaStingatorSchema>
  * prin el, scadențele) pe `fire_extinguishers` — fără un al doilea UPDATE.
  */
 export const verificareStingatorSchema = z.object({
-  extinguisher_id: z.uuid(),
+  extinguisher_id: z.uuid("Alegeți stingătorul."),
   tip_verificare: z.enum(TIPURI_VERIFICARE_STINGATOR),
-  data: z.iso.date(),
+  data: z.iso.date("Introduceți data verificării."),
   executant: textOptional(120),
   firma_autorizata: textOptional(160),
   rezultat: z.enum(REZULTATE_VERIFICARE_STINGATOR).default("conform"),
@@ -298,12 +315,12 @@ export type VerificareStingator = z.output<typeof verificareStingatorSchema>;
 
 /** NU conține `data_inlocuirii`: triggerul `internal.ssm_ppe_calc` o calculează. */
 export const eipSchema = z.object({
-  employee_id: z.uuid(),
+  employee_id: z.uuid("Alegeți angajatul."),
   articol: z.string().trim().min(1, "Articolul este obligatoriu.").max(160),
   cod_articol: textOptional(64),
   cantitate: z.coerce.number().positive().max(1000).default(1),
   unitate: z.string().trim().min(1).max(20).default("buc"),
-  data_predarii: z.iso.date(),
+  data_predarii: z.iso.date("Introduceți data predării."),
   durata_utilizare_luni: z.coerce
     .number()
     .int()
@@ -323,13 +340,13 @@ export const eipSchema = z.object({
 export type EipInput = z.output<typeof eipSchema>;
 
 export const autorizatieNominalaSchema = z.object({
-  employee_id: z.uuid(),
+  employee_id: z.uuid("Alegeți angajatul."),
   tip: z.string().trim().min(1, "Tipul autorizației este obligatoriu.").max(80),
   grupa: textOptional(40),
   numar: z.string().trim().min(1, "Numărul autorizației este obligatoriu.").max(64),
   emitent: z.string().trim().min(1, "Emitentul este obligatoriu.").max(160),
   emis_la: dataOptionala,
-  valabil_pana: z.iso.date(),
+  valabil_pana: z.iso.date("Introduceți data până la care e valabilă autorizația."),
   suspendata_la: dataOptionala,
   observatii: textOptional(1000),
 });
