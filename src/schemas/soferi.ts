@@ -42,7 +42,10 @@ const dataOptionala = z
 const categorii = z
   .array(z.string().trim(), "Alegeți cel puțin o categorie de permis.")
   .min(1, "Alegeți cel puțin o categorie de permis.")
-  .max(CATEGORII_PERMIS.length)
+  .max(
+    CATEGORII_PERMIS.length,
+    "Lista de categorii este mai lungă decât cea de pe permisul de conducere.",
+  )
   .transform((lista) =>
     lista.map((c) => CATEGORII_PERMIS.find((k) => k.toUpperCase() === c.toUpperCase()) ?? c),
   )

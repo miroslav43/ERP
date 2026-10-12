@@ -16,7 +16,8 @@ cai:
   - "src/schemas/soferi.ts"
   - "tests/rls/proba-flota-soferi.sql"
 tabele: [driver_licenses, trip_sheets, business_trips, expirables, occupational_health_exams]
-permisiuni: [driver_licenses:read, driver_licenses:create, driver_licenses:update, trip_sheets:update]
+permisiuni:
+  [driver_licenses:read, driver_licenses:create, driver_licenses:update, trip_sheets:update]
 feature: fleet
 capcane: [17, 19, 26]
 scris_pe: 231c60b3569e3b9f140ed3b01614d70ad7bbef47
@@ -33,13 +34,13 @@ permisul expirat, avizul lipsă, concediul sau contractul încetat nu refuză ni
 
 ## Cine ce poate
 
-| Rol         | `driver_licenses`                           |
-| ----------- | ------------------------------------------- |
-| `org_admin` | read/create/update = all                    |
-| `hr`        | read/create/update = all — **fără parc**    |
-| `manager`   | read = team                                 |
-| `employee`  | read = own                                  |
-| super_admin | citește (consola); nu scrie, nu e membru    |
+| Rol         | `driver_licenses`                        |
+| ----------- | ---------------------------------------- |
+| `org_admin` | read/create/update = all                 |
+| `hr`        | read/create/update = all — **fără parc** |
+| `manager`   | read = team                              |
+| `employee`  | read = own                               |
+| super_admin | citește (consola); nu scrie, nu e membru |
 
 Cheie proprie, nu `vehicles:*`: decizia 3 a planului dă HR-ului permisele și avizele,
 nu mașinile și nici foile (proba (10): `hr` vede zero vehicule). Nicio cheie `delete`:

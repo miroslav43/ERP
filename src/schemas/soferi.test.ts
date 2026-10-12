@@ -32,6 +32,20 @@ describe("permisNouSchema", () => {
     if (!r.success) expect(r.error.issues[0]?.path).toEqual(["categorii"]);
   });
 
+  it("refuză o listă mai lungă decât cea din lege, cu mesaj în română", () => {
+    const r = permisNouSchema.safeParse({
+      ...valid,
+      categorii: Array.from({ length: 19 }, () => "B"),
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0]?.path).toEqual(["categorii"]);
+      expect(r.error.issues[0]?.message).toBe(
+        "Lista de categorii este mai lungă decât cea de pe permisul de conducere.",
+      );
+    }
+  });
+
   it("cere cel puțin o categorie", () => {
     const r = permisNouSchema.safeParse({ ...valid, categorii: [] });
     expect(r.success).toBe(false);
