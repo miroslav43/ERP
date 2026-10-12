@@ -228,6 +228,10 @@ export const PORTI_PORTAL: readonly PoartaRuta[] = [
   p("/portal/integrarea-mea/[id]", "onboarding", "checklists:read"),
   p("/portal/integrarea-mea/sarcini", "onboarding", "checklists:read"),
   p("/portal/kpi-ul-meu", "kpi", "evaluations:read"),
+  // ── început bloc: flota pe roluri (0196) ──
+  p("/portal/masina-mea", "fleet", "trip_sheets:read"),
+  p("/portal/masina-mea/foi/[id]", "fleet", "trip_sheets:read"),
+  // ── sfârșit bloc: flota pe roluri (0196) ──
   p("/portal/notificarile-mele", null, null),
   p("/portal/pontajul-meu", "attendance", "attendance:read"),
   p("/portal/pontajul-meu/saptamana", "attendance", "attendance:create"),

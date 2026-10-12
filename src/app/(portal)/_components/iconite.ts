@@ -1,6 +1,7 @@
 // src/app/(portal)/_components/iconite.ts
 import {
   CalendarDays,
+  Car,
   ClipboardList,
   Clock,
   FileText,
@@ -40,6 +41,7 @@ export const ICONITE: Readonly<Record<string, LucideIcon>> = {
   "portal-tichete": LifeBuoy,
   "portal-diurna": Receipt,
   "portal-integrare": ClipboardList,
+  "portal-masina": Car,
 };
 
 /** Rezervă pentru o intrare adăugată în meniu și uitată aici. */

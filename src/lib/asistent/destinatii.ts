@@ -1373,6 +1373,32 @@ const INTRARI: readonly Intrare[] = [
     minScope: "own",
     descriere: "Anunțarea unei deplasări, cu destinația și perioada.",
   },
+  // ── început bloc: flota pe roluri (0196) ──
+  {
+    id: "portal.masina",
+    href: "/portal/masina-mea",
+    eticheta: "Mașina mea",
+    zona: "portal",
+    parinte: "portal-masina",
+    fila: null,
+    featureKey: "fleet",
+    permission: "trip_sheets:read",
+    minScope: "own",
+    descriere: "Mașina primită în folosință, termenele ei și foile tale de parcurs.",
+  },
+  {
+    id: "portal.masina.foaie-noua",
+    href: "/portal/masina-mea?foaie=noua",
+    eticheta: "Foaie de parcurs nouă",
+    zona: "portal",
+    parinte: "portal-masina",
+    fila: null,
+    featureKey: "fleet",
+    permission: "trip_sheets:create",
+    minScope: "own",
+    descriere: "Întocmirea foii de parcurs pe mașina ta sau pe una din mașinile comune.",
+  },
+  // ── sfârșit bloc: flota pe roluri (0196) ──
   {
     id: "portal.cursuri",
     href: "/portal/cursurile-mele",
