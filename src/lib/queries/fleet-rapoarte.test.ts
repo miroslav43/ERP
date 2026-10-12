@@ -23,6 +23,7 @@ import {
   foiAprobateDetaliate,
   foiAprobateLuna,
   foiNeaprobateLuna,
+  incarcaPachetLunar,
   incarcaRaportLunar,
   numarFoiAprobateLuna,
   PLAFON_FOI_PACHET,
@@ -320,6 +321,66 @@ describe("incarcaRaportLunar", () => {
       .apeluriPe("vehicles")
       .map((a) => (a.filtre.find((f) => f.metoda === "in")?.argumente[1] as string[]).length);
     expect(feliiIn.sort((a, b) => b - a)).toEqual([100, 50]);
+  });
+});
+
+describe("incarcaPachetLunar", () => {
+  const APROBATOR = "99999999-9999-4999-8999-999999999990";
+
+  it("foile întregi, raportul pe ele și numele de care au nevoie PDF-urile", async () => {
+    const detaliata = {
+      ...foaie(ID_1),
+      km_plecare: 1000,
+      km_sosire: 1100,
+      observatii: null,
+      trimis_la: "2026-09-02T15:00:00Z",
+      aprobat_de: APROBATOR,
+      aprobat_la: "2026-09-03T08:00:00Z",
+      vehicul_categorie: "autoturism",
+      curse: [],
+    };
+    db.raspunde("trip_sheets", "select", { data: [detaliata] });
+    db.raspunde("trip_sheets", "select", { data: [] });
+    db.raspunde("vehicle_service_entries", "select", { data: [] });
+    db.raspunde("vehicle_expenses", "select", { data: [] });
+    db.raspunde("vehicle_documents", "select", { data: [] });
+    // Etichetele raportului și datele PDF-urilor sunt două citiri ale acelorași tabele.
+    const vehicul = {
+      id: ID_1,
+      nr_inmatriculare: "B100ABC",
+      categorie: "autoturism",
+      tip_combustibil: "motorina",
+      consum_mediu_declarat: 7,
+    };
+    db.raspunde("vehicles", "select", { data: [vehicul] });
+    db.raspunde("vehicles", "select", { data: [vehicul] });
+    const angajat = { id: SOFER, full_name: "Popescu Ion", marca: "M1", deleted_at: null };
+    db.raspunde("employees", "select", { data: [angajat] });
+    db.raspunde("employees", "select", { data: [angajat] });
+    db.raspunde("profiles", "select", { data: { full_name: "Ionescu Maria", email: "m@x.ro" } });
+
+    const p = await incarcaPachetLunar(ORG_ID, "2026-09", null);
+
+    expect(p.foi).toHaveLength(1);
+    // Raportul se calculează pe EXACT foile din pachet: o a doua citire a foilor n-are loc.
+    expect(db.apeluriPe("trip_sheets").filter((a) => a.coloane?.includes("curse:"))).toHaveLength(1);
+    expect(p.raport.totaluri.foi).toBe(1);
+    expect(p.vehicule.get(ID_1)?.nr_inmatriculare).toBe("B100ABC");
+    expect(p.soferi.get(SOFER)).toBe("Popescu Ion");
+    expect(p.aprobatori.get(APROBATOR)).toBe("Ionescu Maria");
+    const profil = db.apeluriPe("profiles")[0];
+    expect(areFiltru(profil, "eq", "id", APROBATOR)).toBe(true);
+  });
+
+  it("fără foi nu se cer nume: nicio interogare de profiluri", async () => {
+    db.raspunde("trip_sheets", "select", { data: [] });
+    db.raspunde("trip_sheets", "select", { data: [] });
+    db.raspunde("vehicle_service_entries", "select", { data: [] });
+    db.raspunde("vehicle_expenses", "select", { data: [] });
+    db.raspunde("vehicle_documents", "select", { data: [] });
+    const p = await incarcaPachetLunar(ORG_ID, "2026-09", null);
+    expect(p.foi).toEqual([]);
+    expect(db.apeluriPe("profiles")).toHaveLength(0);
   });
 });
 

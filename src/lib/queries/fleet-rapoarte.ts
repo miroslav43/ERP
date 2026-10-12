@@ -31,15 +31,22 @@ import {
 } from "@/domain/fleet/rapoarte";
 import type { CursaFoaie } from "@/domain/fleet/foaie";
 import { createServerSupabase } from "@/lib/supabase/server";
+import type { CategorieVehicul, Combustibil } from "@/schemas/fleet";
 
 import { citesteTot } from "./citeste-tot";
-import { angajatiDupaId, vehiculeDupaId } from "./fleet";
+import { angajatiDupaId, numeleContului, vehiculeDupaId, type RandVehicul } from "./fleet";
 
 /**
  * Câte foi poate cuprinde un pachet lunar. Fiecare foaie e un PDF generat în
  * cererea HTTP; peste plafon ruta refuză cu un mesaj, nu se întrerupe la mijloc.
+ *
+ * 200, nu mai mult: măsurat pe 12 oct 2026, 200 de foi cu câte cinci curse durează
+ * ~38 s și ies ~4,5 MB (~190 ms pe PDF, în cea mai mare parte încorporarea
+ * fonturilor). `proxy_read_timeout` pe `/api/export/` e 120 s, dar Cloudflare taie
+ * la 100 s (524) — un plafon de 400 ar fi trecut de ambele pe un server încărcat.
+ * Peste plafon se descarcă pe vehicul (o lună de vehicul are cel mult ~31 de foi).
  */
-export const PLAFON_FOI_PACHET = 400;
+export const PLAFON_FOI_PACHET = 200;
 
 /** Câte foi aduce o pagină din citirea detaliată: curse și alimentări vin în același răspuns. */
 const PAS_FOI_DETALIATE = 100;
@@ -86,6 +93,8 @@ export async function foiAprobateLuna(
 
 /** Alimentarea cu ce trebuie tipărit pe foaie. */
 export interface AlimentareDetaliata extends AlimentareRaport {
+  /** Coloana e `not null`: aici, spre deosebire de raport, costul nu lipsește niciodată. */
+  readonly cost: number;
   readonly alimentat_la: string;
   readonly statie: string | null;
   readonly numar_bon: string | null;
@@ -93,8 +102,9 @@ export interface AlimentareDetaliata extends AlimentareRaport {
 }
 
 /** Foaia aprobată cu tot ce cere PDF-ul ei: curse, alimentări, aprobarea. */
-export interface FoaieDetaliata extends Omit<FoaieRaport, "alimentari"> {
+export interface FoaieDetaliata extends Omit<FoaieRaport, "alimentari" | "vehicul_combustibil"> {
   readonly alimentari: readonly AlimentareDetaliata[];
+  readonly vehicul_combustibil: Combustibil | null;
   readonly curse: readonly CursaFoaie[];
   readonly km_plecare: number | null;
   readonly km_sosire: number | null;
@@ -102,7 +112,7 @@ export interface FoaieDetaliata extends Omit<FoaieRaport, "alimentari"> {
   readonly trimis_la: string | null;
   readonly aprobat_de: string | null;
   readonly aprobat_la: string | null;
-  readonly vehicul_categorie: string | null;
+  readonly vehicul_categorie: CategorieVehicul | null;
 }
 
 export const COLOANE_FOAIE_DETALIATA =
@@ -371,4 +381,47 @@ export async function incarcaRaportLunar(
     totalCost: totaluriCost(costuri),
     registru: registruFoi(foi, vehicule, soferi),
   };
+}
+
+// ── Pachetul lunar ──────────────────────────────────────────────────────────
+
+export interface PachetLunar {
+  readonly raport: RaportLunar;
+  readonly foi: readonly FoaieDetaliata[];
+  /** Vehiculele foilor, pentru foile fără instantaneu (vehiculul de azi). */
+  readonly vehicule: ReadonlyMap<string, RandVehicul>;
+  readonly soferi: EtichetaSoferi;
+  /** Numele aprobatorilor, după id-ul contului. */
+  readonly aprobatori: ReadonlyMap<string, string>;
+}
+
+/**
+ * Tot ce cere pachetul lunar: foile întregi, raportul calculat pe EXACT aceleași
+ * foi (Excelul din arhivă trebuie să listeze ce conțin PDF-urile) și numele de
+ * pe documente. Apelantul verifică înainte `numarFoiAprobateLuna` față de
+ * `PLAFON_FOI_PACHET`: citirea asta aduce tot ce găsește.
+ */
+export async function incarcaPachetLunar(
+  organizationId: string,
+  luna: string,
+  vehicul: string | null,
+): Promise<PachetLunar> {
+  const foi = await foiAprobateDetaliate(organizationId, intervalLuna(luna), vehicul);
+  const raport = await incarcaRaportLunar(organizationId, luna, vehicul, foi);
+
+  const idAprobatori = [...new Set(foi.map((f) => f.aprobat_de).filter((id) => id !== null))];
+  const [vehicule, soferi, nume] = await Promise.all([
+    inFelii(
+      foi.map((f) => f.vehicle_id),
+      (felie) => vehiculeDupaId(organizationId, felie),
+    ),
+    etichetaSoferi(
+      organizationId,
+      foi.map((f) => f.employee_id).filter((id): id is string => id !== null),
+    ),
+    Promise.all(idAprobatori.map(async (id) => [id, await numeleContului(id)] as const)),
+  ]);
+  const aprobatori = new Map<string, string>();
+  for (const [id, numeCont] of nume) if (numeCont !== null) aprobatori.set(id, numeCont);
+  return { raport, foi, vehicule, soferi, aprobatori };
 }

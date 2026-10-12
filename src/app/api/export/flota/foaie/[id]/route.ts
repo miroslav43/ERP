@@ -23,8 +23,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { numeFisier } from "@/lib/pdf/document";
 import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
 import { genereazaFoaieParcurs } from "@/lib/pdf/foaie-parcurs";
-import { formatDate, formatDateTime, oraInBucharest } from "@/lib/format/date";
-import { modelFoaieParcurs } from "@/domain/fleet/foaie";
+import { formatDateTime } from "@/lib/format/date";
+import { modelFoaieDinDate } from "@/lib/pdf/foaie-din-date";
 import {
   alimentarileFoii,
   angajatiDupaId,
@@ -33,7 +33,6 @@ import {
   numeleContului,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
-import { ETICHETE_CATEGORIE, ETICHETE_COMBUSTIBIL } from "@/app/(app)/flota/etichete";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -70,33 +69,17 @@ export async function GET(_cerere: Request, { params }: ProprietatiRuta): Promis
     angajatiDupaId(tenant.organizationId, foaie.employee_id === null ? [] : [foaie.employee_id]),
     foaie.aprobat_de === null ? Promise.resolve(null) : numeleContului(foaie.aprobat_de),
   ]);
-  const vehicul = vehicule.get(foaie.vehicle_id);
   const sofer = foaie.employee_id === null ? undefined : soferi.get(foaie.employee_id);
-  const categorie = foaie.vehicul_categorie ?? vehicul?.categorie ?? null;
-  const combustibil = foaie.vehicul_combustibil ?? vehicul?.tip_combustibil ?? null;
-  const areInstantaneu = foaie.vehicul_nr !== null;
 
-  const model = modelFoaieParcurs({
-    numar: foaie.numar,
-    data: foaie.data,
-    status: foaie.status,
-    vehiculNr: foaie.vehicul_nr ?? vehicul?.nr_inmatriculare ?? "—",
-    vehiculCategorie: categorie === null ? null : ETICHETE_CATEGORIE[categorie],
-    vehiculCombustibil: combustibil === null ? null : ETICHETE_COMBUSTIBIL[combustibil],
-    normaL100km: areInstantaneu ? foaie.norma_l_100km : (vehicul?.consum_mediu_declarat ?? null),
-    unitate: combustibil === "electric" ? "kWh" : "l",
+  // Vehiculul din instantaneul de la trimitere, nu de azi: regula e în
+  // `modelFoaieDinDate`, aceeași pe care o folosește pachetul lunar.
+  const model = modelFoaieDinDate({
+    foaie,
+    vehicul: vehicule.get(foaie.vehicle_id),
     sofer: sofer?.full_name ?? sofer?.marca ?? "—",
-    kmPlecare: foaie.km_plecare,
-    kmSosire: foaie.km_sosire,
-    observatii: foaie.observatii,
-    trimisLa: foaie.trimis_la,
-    aprobatDe: aprobator,
-    aprobatLa: foaie.aprobat_la,
+    aprobator,
     curse,
     alimentari,
-    ora: (moment) => oraInBucharest(new Date(moment)),
-    dataSiOra: (moment) => formatDateTime(new Date(moment)),
-    ziua: formatDate,
   });
 
   const db = await createServerSupabase();
