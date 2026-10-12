@@ -402,6 +402,141 @@ Transporturilor): neverificat pe sursă primară; pagina spune doar că modelul 
 le acoperă. Anexele OMFP au fost citite prin `DetaliiDocumentAfis`, care poate
 servi o formă veche (memoria `portal-legislativ-consolidari`).
 
+### Flotă — fiscal · `vehicle_fiscal_regimes`, `vehicle_consumption_norms`, `organizations.regim_impozitare`
+
+Migrarea `0202_flota_fiscal.sql`. Verificat pe 12 oct 2026 pe formele consolidate
+de pe legislatie.just.ro, descărcate cu `curl` și citite ca text (memoria
+`portal-legislativ-consolidari`: `DetaliiDocumentAfis` poate servi o formă veche):
+Codul fiscal `DetaliiDocument/312601` (consolidarea din 08.08.2026) și HG 1/2016
+`DetaliiDocument/307847` (consolidarea din 31.03.2026).
+
+| Valoare / regulă din aplicație                                                              | Temei verificat                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 50% din cheltuieli, ≤ 3.500 kg, ≤ 9 scaune cu șoferul                                       | Codul fiscal art. 25 alin. (3) lit. l); la TVA art. 298 alin. (1)–(2)                                                                                                                                           |
+| Cele cinci excepții (`vehicle_exceptie_fiscala`)                                            | art. 25 alin. (3) lit. l) pct. 1–5: urgență/pază/curierat; agenți de vânzări și de achiziții; transport de persoane cu plată; servicii cu plată (închiriere, școli de șoferi); vehicule-marfă în scop comercial |
+| Foaia de parcurs cerută doar la deducerea integrală                                         | HG 1/2016 titlul II pct. 16 alin. (2) (impozit pe profit); titlul VII pct. 68 alin. (2) (TVA, vehicul exclusiv economic); pct. 68 alin. (4): cine aplică 50% nu face dovada cu foaia                            |
+| Încadrarea o face firma                                                                     | HG 1/2016 titlul VII pct. 68 alin. (8)                                                                                                                                                                          |
+| Folosința personală: neimpozabilă la 50%                                                    | Codul fiscal art. 76 alin. (4) lit. ț); HG 1/2016 titlul IV pct. 12 alin. (6) lit. a) teza finală                                                                                                               |
+| Folosința personală: neimpozabilă la micro / specific                                       | Codul fiscal art. 76 alin. (4) lit. ț^1) (vehiculele „prevăzute la art. 25 alin. (3) lit. l) care nu sunt utilizate exclusiv în scopul activității economice”)                                                  |
+| Avantajul în natură: 1,7% pe lună din valoarea de intrare, sau chiria vehiculului închiriat | HG 1/2016 titlul IV pct. 12 alin. (5) lit. a) (folosirea NUMAI în scop personal); alin. (6) lit. a): la folosința mixtă, proporțional cu kilometrii personali din total                                         |
+| Folosința personală a unui bun din patrimoniu e avantaj                                     | Codul fiscal art. 76 alin. (3) lit. a)                                                                                                                                                                          |
+
+**Unde stau valorile.** Spre deosebire de restul acestei secțiuni, trei valori legale
+sunt scrise în cod, cu temei în comentariu, nu în tabele cu `valabil_de_la`: 1,7%
+(`PROCENT_AVANTAJ_LUNAR`), pragurile de 3.500 kg și 9 locuri (`src/domain/fleet/fiscal.ts`
+și triggerul `internal.flota_fiscal_inainte`). Sunt text de lege stabil, nu cuantumuri
+indexate; o modificare a legii cere o editare de cod și o migrare nouă.
+
+**Ce NU face aplicația.** Avantajul în natură e doar SUGESTIE pe fișa angajatului
+(`payroll:read = all`): nimic nu se scrie pe statul de plată, iar componenta
+`beneficiu_natura` se adaugă de mână. Încadrarea vehiculului în regim o alege omul;
+baza refuză doar „peste 3.500 kg” pe un vehicul pe care îl știe ușor (fișa are masa
+și locurile), restul sunt avertismente.
+
+⚠️ **„Categoria vehiculului” de pe foaia de parcurs** (HG 1/2016 pct. 16 alin. (2):
+„categoria de vehicul utilizat”) nu e definită în norme. Foaia fixează la trimitere
+`vehicles.categorie` (tipul din fișă: autoturism, autoutilitară…). **Nu s-a decis**
+dacă ANAF se așteaptă la categoria omologată (M1, N1) sau la categoria de utilizare;
+nu există setare pentru asta. De confirmat cu contabilul, ca și la unealta publică de
+mai sus; dacă răspunsul e „omologată”, se adaugă o coloană pe `vehicles`.
+
+⚠️ **Regimul de impozitare al firmei** (micro / profit / specific) decide dacă se
+sugerează avantajul; coloana e opțională, iar nestabilită dă „incomplet”, nu un calcul.
+Rămâne de confirmat cu contabilul cum se tratează o firmă care trece de la micro la
+profit în mijlocul lunii: regimul firmei e cel curent, nu o serie istorică (spre deosebire de
+regimul vehiculului, care e pe perioade).
+
+⚠️ **Vehicul peste 3.500 kg / 9 locuri la o firmă micro sau pe impozit specific.** Planul
+cere „firmă non-micro” pentru sugestie, iar aplicația îl respectă (nicio sumă). Textul
+lit. ț^1) privește însă doar vehiculele „prevăzute la art. 25 alin. (3) lit. l)”, adică
+cele de până la 3.500 kg și 9 scaune: la un vehicul mai mare, scutirea nu rezultă
+literal. Ecranul spune asta lângă motiv; de confirmat cu contabilul.
+
+⚠️ **Lună parțială.** Norma dă 1,7% „pentru fiecare lună”, fără regulă pe zile. Sugestia
+e pe lună întreagă și ecranul arată intervalul alocării; proporționarea pe zile (sau pe
+kilometri personali, care nu se înregistrează nicăieri) se stabilește cu contabilul.
+Același text spune: alin. (5) privește folosirea NUMAI în scop personal, alin. (6)
+folosința mixtă (proporțional cu kilometrii personali).
+
+⚠️ **Leasingul operațional** se evaluează ca închiriere, la nivelul chiriei lunare
+completate de om (rata lunară); textul nu pomenește leasingul, deci e interpretare.
+
+⚠️ **Mașina personală folosită în interes de serviciu** (`comodat` sau
+`chirie_persoana_fizica`): aplicația reține proprietarul, chiria și contractul și NU
+sugerează avantaj (mașina nu e un bun al firmei pus la dispoziția angajatului). Tratamentul
+fiscal al decontului pe baza foii de parcurs (cheltuială deductibilă, regimul chiriei,
+impozitarea la persoana fizică) nu e verificat pe sursă primară.
+
+⚠️ **Foaia pentru vehiculele exceptate.** La TVA, pct. 68 alin. (7) cere foaia doar pentru
+art. 298 alin. (3) lit. a) (urgență, pază, curierat); pentru celelalte excepții admite „orice
+alte dovezi”. La impozitul pe profit, pct. 16 alin. (2) o cere general pentru deducerea
+integrală. Aplicația cere foaia pentru orice regim diferit de 50% (verdictul „fără foi”).
+La firma micro, impozitul nu depinde de deductibilitate, deci foaia contează doar la TVA.
+De confirmat cu contabilul cât de dur să fie verdictul.
+
+⚠️ **Verdictul lunii numără foile pe luna întreagă, nu pe zile.** `flota_fiscal_luna`
+numără zilele cu deducere integrală după regimul fiecărei zile, dar foile aprobate și
+neaprobate pe toată luna: „Fără foi” înseamnă nicio foaie în lună. La o lună mixtă (50%, apoi
+integral), o foaie din zilele de 50% acoperă în verdict și zilele cu deducere integrală. E un
+semnal de control, nu o dovadă zi cu zi; dacă contabilul cere acoperirea pe zile, foile se
+leagă de regimul zilei lor (schimbare în funcția SQL, cu tipuri regenerate).
+
+⚠️ **Regimul „exclusiv în scopul activității economice”** (art. 298 alin. (1) și pct. 68
+alin. (2)) cere ca vehiculul să nu aibă deloc folosință personală; aplicația îl acceptă
+alături de o alocare cu folosință personală, dar cu avertisment („deducerea integrală e
+expusă”). Dacă firma dovedește folosirea exclusivă, regimul rămâne al ei.
+
+### Flotă — amenzi și daune · `vehicle_fines`, `vehicle_incidents`
+
+Migrarea `0203_flota_amenzi_daune.sql`. Verificat pe 12 oct 2026 pe formele consolidate
+de pe legislatie.just.ro, descărcate cu `curl` și citite ca text (memoria
+`portal-legislativ-consolidari`): OUG 195/2002 `DetaliiDocument/311629` (consolidarea din
+01.07.2026, id luat din lista „istoric consolidări” a `DetaliiDocument/74028`) și Codul
+muncii `DetaliiDocument/304539` (consolidarea din 18.12.2025).
+
+| Valoare / regulă din aplicație                                                          | Temei verificat                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Firma comunică datele șoferului „în termenul indicat în cuprinsul solicitării”          | OUG 195/2002 art. 39 alin. (1) (proprietarul sau deținătorul mandatat, la solicitarea poliției rutiere sau locale); aplicația NU are termen implicit: `termen_raspuns` îl scrie omul |
+| Conținutul comunicării: nume, prenume, CNP, domiciliu sau reședință, serie și număr act | art. 39 alin. (2) (pașaport și datele de eliberare pentru străini); scrisoarea de răspuns le cere                                                                                    |
+| Necomunicarea este contravenție                                                         | art. 105 pct. 10 (persoane juridice, clasa a V-a de sancțiuni); art. 102 alin. (1) pct. 14 (persoane fizice, clasa a IV-a)                                                           |
+| Reținerea din salariu cu titlu de daune: doar cu hotărâre definitivă și irevocabilă     | Codul muncii art. 169 alin. (2); alin. (4): reținerile cumulate nu depășesc lunar jumătate din salariul net                                                                          |
+| Răspunderea patrimonială; recuperarea prin acordul părților                             | art. 254 alin. (1)–(4): notă de constatare și evaluare, termen de cel puțin 30 de zile de la comunicare, cel mult 5 salarii minime brute pe economie                                 |
+
+**Ce NU face aplicația.** Nu recuperează nimic de la șofer, nu reține nimic din salariu, nu
+calculează plafonul de 5 salarii minime și nu ține nota de constatare. Pagina amenzilor și a
+incidentelor o spune pe ecran (`NOTA_RECUPERARE`, `src/domain/fleet/amenzi.ts`). Scrisoarea de
+răspuns se generează, dar o trimite omul, iar „răspuns trimis” îl marchează tot omul.
+
+⚠️ **Solicitarea electronică.** Art. 39 alin. (4): solicitarea comunicată prin mijloc
+electronic se consideră comunicată în 5 zile de la punerea la dispoziție. Aplicația NU
+calculează termenul din regula asta; omul copiază termenul din document. De confirmat cu
+juristul dacă firma primește solicitări prin platforme electronice și de când curge termenul.
+
+⚠️ **Nota din portal la art. 39 alin. (1).** Portalul pomenește o decizie de respingere
+(`HP nr. 374/2025`, Monitorul Oficial nr. 34 din 19 ianuarie 2026) legată de alineat. Nu am
+citit-o și nu schimbă textul consolidat folosit aici; de confirmat cu juristul dacă
+interpretarea alineatului s-a mișcat.
+
+⚠️ **Contestarea procesului-verbal.** Stadiul „contestată” e doar un marcaj. Termenele
+plângerii și ale plății la jumătatea minimului (OG 2/2001) NU au fost verificate pe sursă și
+nu sunt calculate nicăieri. De confirmat cu juristul înainte de a promite o scadență pentru ele.
+
+⚠️ **Cine poate fi desemnat.** Aplicația nu verifică la desemnare permisul, avizul medical sau
+contractul șoferului (le arată doar pe foaia de parcurs, ca avertismente). Sugestia din foaie
+sau alocare e sugestie: omul care semnează scrisoarea răspunde de exactitatea ei.
+
+⚠️ **Tratamentul fiscal** al amenzii plătite de firmă (deductibilitate, impozitarea unei
+eventuale sume refuzate șoferului) NU e verificat. Aplicația nu înregistrează nicio plată.
+
+⚠️ **Datele personale din scrisoare.** CNP-ul se citește prin `hr_read_sensitive` (audit la
+fiecare apel). Scrisoarea invocă pe document art. 6 alin. (1) lit. c) din Regulamentul (UE)
+2016/679 (obligație legală) ca bază de comunicare; formularea e a aplicației, nu a unui jurist.
+De confirmat cu DPO-ul sau juristul firmei.
+
+⚠️ **Dauna și asigurările.** Termenele de notificare a asigurătorului (RCA, CASCO), franșizele
+și regresul asigurătorului NU sunt implementate și nu au fost verificate. Incidentul ține doar
+stadiile, costul estimat și final, despăgubirea primită, asigurătorul și numărul dosarului.
+
 ### Retenție și arhivare · `retention_policies`
 
 ⚠️ Termenele de păstrare pentru statele de plată și documentele de vechime · pentru

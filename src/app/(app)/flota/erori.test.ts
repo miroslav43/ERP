@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ActionDenied } from "@/lib/actions/errors";
 import { cuVirgula } from "@/lib/text/diacritice";
 
-import { traduEroare, traduEroareAlocare } from "./erori";
+import { traduEroare, traduEroareAlocare, traduEroareFiscal } from "./erori";
 
 function p0001(message: string) {
   return { code: "P0001", message, details: "", hint: "", name: "PostgrestError" };
@@ -209,5 +209,72 @@ describe("traduEroare — 0197, cursele foii zilnice", () => {
       name: "PostgrestError",
     });
     expect(eroare.message).toMatch(/Există deja un vehicul/);
+  });
+});
+
+/**
+ * 0202: fiscalul flotei. Mesajele P0001 sunt copiate din `flota_fiscal_inainte`
+ * (cu cifrele din `format()` completate), iar numele restricțiilor din CHECK-urile
+ * și indexurile tabelelor `vehicle_fiscal_regimes` / `vehicle_consumption_norms`.
+ */
+describe("traduEroareFiscal — 0202", () => {
+  function prindeFiscal(error: unknown): ActionDenied {
+    try {
+      traduEroareFiscal(error);
+    } catch (e) {
+      if (e instanceof ActionDenied) return e;
+      throw e;
+    }
+    throw new Error("traduEroareFiscal n-a aruncat");
+  }
+
+  it.each([
+    [
+      "Regimul „peste 3.500 kg sau peste 9 locuri” nu se potrivește: fișa vehiculului are 2200 kg și 5 locuri. Corectați fișa sau alegeți alt regim.",
+      ["regim"],
+    ],
+    ["Data de la care se aplică poate fi cel mult peste un an.", ["valabil_de_la"]],
+    ["Data deciziei interne nu poate fi în viitor.", ["decizie_data"]],
+  ])("P0001 pe câmp: %s", (mesaj, campuri) => {
+    const eroare = prindeFiscal(p0001(mesaj));
+    expect(Object.keys(eroare.fieldErrors ?? {})).toEqual(campuri);
+    expect(eroare.message).toBe(mesaj);
+  });
+
+  it.each([
+    "Rândul a fost șters și nu se mai modifică. Adăugați unul nou.",
+    "Rândul nu se mută pe alt vehicul. Ștergeți-l și adăugați-l pe vehiculul corect.",
+    "Vehiculul ales nu aparține organizației dumneavoastră.",
+  ])("P0001 fără câmp rămâne mesaj general: %s", (mesaj) => {
+    const eroare = prindeFiscal(p0001(mesaj));
+    expect(eroare.fieldErrors).toBeNull();
+    expect(eroare.message).toBe(mesaj);
+  });
+
+  it.each([
+    ["23505", "vfr_vehicul_de_la_uq", "valabil_de_la", /are deja un regim fiscal/],
+    ["23505", "vcn_vehicul_de_la_uq", "valabil_de_la", /are deja o normă de consum/],
+    ["23503", "vfr_proprietar_fk", "proprietar_employee_id", /nu aparține organizației/],
+    ["23514", "vfr_exceptie_ck", "exceptie", /Categoria exceptată/],
+    ["23514", "vfr_proprietar_ck", "proprietar_employee_id", /mașina personală/],
+    ["23514", "vfr_chirie_ck", "chirie_lunara", /Chiria se completează/],
+    ["23514", "vfr_motiv_ck", "motiv", /între 3 și 1\.000/],
+    ["23514", "vcn_l_100km_ck", "l_100km", /0,01 și 300/],
+  ])("%s pe %s ajunge pe `%s`", (cod, restrictie, camp, tipar) => {
+    const eroare = prindeFiscal({
+      code: cod,
+      message: `violates constraint "${restrictie}"`,
+      details: "",
+      hint: "",
+      name: "PostgrestError",
+    });
+    expect(Object.keys(eroare.fieldErrors ?? {})).toEqual([camp]);
+    expect(eroare.message).toMatch(tipar);
+  });
+
+  it("o eroare necunoscută cade pe traducerea generală", () => {
+    expect(() => {
+      traduEroareFiscal(new Error("altceva"));
+    }).toThrow();
   });
 });

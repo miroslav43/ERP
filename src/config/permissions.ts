@@ -46,9 +46,9 @@ export function meetsScope(granted: PermissionScope | undefined, min: MinScope):
  * compară acum cele două liste și eșuează dacă diverg din nou.
  *
  * Resurse: announcements, attendance, audit, branding, checklists, compliance,
- * courses, departments, employees, features, inventory, leave, maintenance,
+ * courses, departments, driver_licenses, employees, features, inventory, leave, maintenance,
  * organizations, payroll, per_diem, reges, registru, reports, roles, ssm,
- * trip_sheets, users, vehicles.
+ * trip_sheets, users, vehicle_fines, vehicle_incidents, vehicles.
  * Acțiuni: read, create, update, delete, approve, export, transmit, configure.
  */
 export const PERMISSION_KEYS = [
@@ -100,6 +100,14 @@ export const PERMISSION_KEYS = [
   "departments:create",
   "departments:update",
   "departments:delete",
+  // ── ÎNCEPUT BLOC: permisele șoferilor (0201, flota F9) ──
+  // Cheie proprie, nu `vehicles:*`: decizia 3 a planului flotei dă HR-ului
+  // permisele și avizele șoferilor, NU parcul. Fără `delete` — ștergerea e
+  // logică, prin `update`, iar o cheie citită de nicio politică ar fi decor.
+  "driver_licenses:read",
+  "driver_licenses:create",
+  "driver_licenses:update",
+  // ── SFÂRȘIT BLOC: permisele șoferilor ──
   "employees:read",
   "employees:create",
   "employees:update",
@@ -229,6 +237,18 @@ export const PERMISSION_KEYS = [
   // jumătate din cifre, fără nicio eroare.
   "vehicles:export",
   // ── sfârșit bloc: exportul flotei (F8) ──
+  // ── ÎNCEPUT BLOC: amenzi și daune (0203, flota F11) ──
+  // Chei proprii, nu `vehicles:*`: amenzile și incidentele le văd doar cei care
+  // le administrează (`org_admin`); o firmă care vrea ca HR să le ducă îi
+  // acordă cheile printr-o suprascriere. Fără `delete` — ștergerea e logică,
+  // prin `update`.
+  "vehicle_fines:read",
+  "vehicle_fines:create",
+  "vehicle_fines:update",
+  "vehicle_incidents:read",
+  "vehicle_incidents:create",
+  "vehicle_incidents:update",
+  // ── SFÂRȘIT BLOC: amenzi și daune ──
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

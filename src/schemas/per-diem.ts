@@ -114,9 +114,11 @@ function anInInterval(dataISO: string): boolean {
  * cu clientul admin, exact ca la cererile de concediu (`employees:read =
  * none` pentru rolul `employee` blochează orice altă cale).
  *
- * `vehicle_id` nu apare aici: legarea de un vehicul din flotă e opțională și
- * modulul de flotă poate fi dezactivat — pragul de implementare al acestei
- * faze lasă câmpul mereu `null`, coloană nullable care nu blochează nimic.
+ * `vehicle_id` (flota F9, 0201): mașina de serviciu cu care se face
+ * deplasarea, opțională — modulul de flotă poate fi oprit, iar formularul
+ * arată selectorul doar când există vehicule de ales. Are sens doar pe
+ * `auto_serviciu`/`mixt` (`business_trips_vehicul_ck`, 0015); garda de firmă
+ * e `internal.valideaza_deplasare` (0159).
  */
 export const deplasareNouaSchema = z
   .object({
@@ -127,6 +129,7 @@ export const deplasareNouaSchema = z
     plecare_la: dataOraRomania("plecării"),
     sosire_la: dataOraRomania("sosirii"),
     mijloc_transport: z.enum(MIJLOACE_TRANSPORT, "Alegeți mijlocul de transport din listă."),
+    vehicle_id: uuidOptional,
     km_parcursi: numarOptional({
       min: 0,
       max: 1_000_000,
@@ -181,6 +184,18 @@ export const deplasareNouaSchema = z
         code: "custom",
         path: ["sosire_la"],
         message: "Data de sosire trebuie să fie după data de plecare.",
+      });
+    }
+    if (
+      valoare.vehicle_id !== null &&
+      valoare.mijloc_transport !== "auto_serviciu" &&
+      valoare.mijloc_transport !== "mixt"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["vehicle_id"],
+        message:
+          "Vehiculul de serviciu se alege doar pentru transportul cu auto de serviciu sau mixt.",
       });
     }
     if (valoare.avans_acordat > 0 && valoare.moneda_avans === null) {

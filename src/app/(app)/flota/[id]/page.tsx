@@ -61,6 +61,11 @@ import { hrefFisa } from "@/lib/navigare/fisa";
 import { IstoricModificari } from "@/components/audit/istoric-modificari";
 import { poateDeschide } from "@/config/porti-ruta";
 import { idFisaProprie } from "@/lib/queries/employees";
+import { AvertismenteSofer } from "../avertismente-sofer";
+import { cuAvertismente } from "../avertismente-optiuni";
+// ── început bloc: fiscalul vehiculului (0202, F10) ──
+import { SectiuneFiscalaVehicul } from "../fiscal/sectiune-fiscala-vehicul";
+// ── sfârșit bloc: fiscalul vehiculului ──
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
@@ -184,6 +189,16 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   // Un vehicul vândut sau casat nu se mai predă: baza refuză oricum, iar
   // butonul n-ar face decât să ducă omul spre un P0001.
   const vehiculInParc = vehicul.status !== "vandut" && vehicul.status !== "casat";
+  // ── flota F9 (0201): permisul și avizul, lângă numele din selectorul de predare.
+  const vehiculPermis = {
+    categorie: vehicul.categorie,
+    masa_maxima_kg: vehicul.masa_maxima_kg,
+    numar_locuri: vehicul.numar_locuri,
+  };
+  const angajatiPredare =
+    poateAdministra && vehiculInParc
+      ? await cuAvertismente(tenant.organizationId, angajati, azi, vehiculPermis)
+      : angajati;
 
   const coloaneAlocari: readonly Coloana<AlocareVehicul>[] = [
     {
@@ -709,7 +724,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
                   soferCurent={
                     alocareDeschisa === undefined ? null : (alocareDeschisa.sofer?.full_name ?? "—")
                   }
-                  angajati={angajati}
+                  angajati={angajatiPredare}
                 />
               ) : null}
             </div>
@@ -738,6 +753,15 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
                 </>
               )}
             </p>
+            {/* flota F9 (0201): verificările șoferului de acum, fără să blocheze nimic. */}
+            <AvertismenteSofer
+              organizationId={tenant.organizationId}
+              employeeId={alocareDeschisa?.employee_id ?? null}
+              zi={azi}
+              momentul="azi"
+              vehicul={vehiculPermis}
+              titlu="De verificat la șoferul de acum"
+            />
             <Tabel
               caption="Cine a avut vehiculul, de când până când, cu kilometrajul la predare și la restituire."
               coloane={coloaneAlocari}
@@ -795,6 +819,21 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
               />
             </section>
           )}
+
+          {/* ── început bloc: fiscalul vehiculului (0202, F10) ──
+              Regimul de deducere și norma proprie de consum. Poarta e `vehicles:read
+              = all`, ca politicile tabelelor: managerul și angajatul văd vehiculul,
+              nu și fiscalul lui. */}
+          {can(permisiuni, "vehicles:read", "all") ? (
+            <SectiuneFiscalaVehicul
+              vehicul={vehicul}
+              organizationId={tenant.organizationId}
+              poateAdministra={poateAdministra}
+              angajati={angajati}
+              azi={azi}
+            />
+          ) : null}
+          {/* ── sfârșit bloc: fiscalul vehiculului ── */}
         </>
       ) : null}
       {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}

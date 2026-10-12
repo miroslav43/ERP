@@ -15,6 +15,13 @@ import { creeazaDeplasare } from "../actions";
 import { ETICHETE_MIJLOC_TRANSPORT } from "../etichete";
 import { PrevizualizareDiurna } from "./previzualizare-diurna";
 
+interface VehiculOptiune {
+  readonly id: string;
+  readonly nr_inmatriculare: string;
+  readonly marca: string;
+  readonly model: string;
+}
+
 interface Angajat {
   readonly id: string;
   readonly full_name: string;
@@ -62,7 +69,7 @@ function textSauNull(date: FormData, cheie: string): string | null {
 /**
  * Numele din `FormData` sunt EXACT cheile lui `deplasareNouaSchema`
  * (`src/schemas/per-diem.ts`): `employee_id`, `scop`, `country_id`,
- * `localitate`, `plecare_la`, `sosire_la`, `mijloc_transport`, `avans_acordat`,
+ * `localitate`, `plecare_la`, `sosire_la`, `mijloc_transport`, `vehicle_id`, `avans_acordat`,
  * `moneda_avans`, `curs_diurna`, `observatii`, `detasare_transnationala`,
  * `stat_gazda_country_id`, `salariu_minim_stat_gazda`, `moneda_salariu_minim`.
  * Fără potrivirea asta, `fieldErrors` întors de acțiune n-ar mai găsi niciun
@@ -87,6 +94,8 @@ async function trimiteDeplasarea(date: FormData): Promise<ActionResult<Deplasare
     plecare_la: plecareLa,
     sosire_la: sosireLa,
     mijloc_transport: String(date.get("mijloc_transport") ?? ""),
+    // Flota F9: lipsește din `FormData` când selectorul nu se randează.
+    vehicle_id: textSauNull(date, "vehicle_id"),
     km_parcursi: null,
     avans_acordat: String(date.get("avans_acordat") ?? ""),
     moneda_avans: textSauNull(date, "moneda_avans"),
@@ -126,6 +135,7 @@ export function FormularDeplasare({
   prefixCale = "/diurna",
   angajatImplicit = null,
   hrefPolitica = null,
+  vehicule = [],
 }: {
   readonly tari: readonly Tara[];
   /** Versiunea de referință: dă țara internă implicită și rămâne rezerva. */
@@ -142,6 +152,11 @@ export function FormularDeplasare({
   readonly angajatImplicit?: string | null;
   /** Pagina politicii, pentru rândul „Calculat cu politica…"; `null` fără drept. */
   readonly hrefPolitica?: string | null;
+  /**
+   * Flota F9 (0201): mașinile de serviciu din care se alege `vehicle_id`. Goală
+   * (flota oprită, fără drept pe vehicule) = selectorul nu apare.
+   */
+  readonly vehicule?: readonly VehiculOptiune[];
 }) {
   const router = useRouter();
   const idDetasare = useId();
@@ -332,6 +347,29 @@ export function FormularDeplasare({
                   </select>
                 )}
               </Camp>
+
+              {/* Flota F9 (0201): mașina de serviciu, opțională. Baza o primește
+                  doar pe auto de serviciu sau mixt; schema spune asta pe câmp. */}
+              {vehicule.length === 0 ? null : (
+                <Camp
+                  nume="vehicle_id"
+                  eticheta="Vehiculul de serviciu (opțional)"
+                  fel="select"
+                  ajutor="Doar pentru transportul cu auto de serviciu sau mixt."
+                  erori={stare.erori["vehicle_id"] ?? []}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={stare.valoriTrimise["vehicle_id"] ?? ""}>
+                      <option value="">Fără vehicul din parc</option>
+                      {vehicule.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.nr_inmatriculare} · {v.marca} {v.model}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
+              )}
 
               {taraEsteInterna ? null : (
                 <Camp

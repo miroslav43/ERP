@@ -296,3 +296,207 @@ export function traduEroareService(error: unknown): never {
   traduEroare(error);
 }
 // ═══ SFÂRȘIT BLOC: service, costuri, anvelope (0200) ══════════════════════════
+
+// ── ÎNCEPUT BLOC: permisele șoferilor și foaia legată de deplasare (0201, F9) ──
+
+/**
+ * Refuzurile triggerului `internal.permise_inainte` (0201), pe câmpul lor.
+ * Mesajele sunt scrise cu ș/ț corecte, deci tiparele le folosesc direct.
+ */
+const CAMPURI_PERMIS: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Categoria „/u, ["categorii"]],
+  [/^Alegeți cel puțin o categorie/u, ["categorii"]],
+  [/^Numărul permisului/u, ["numar"]],
+  [/^Data eliberării permisului/u, ["eliberat_la"]],
+];
+
+export function traduEroarePermis(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" && error.message.includes("driver_licenses_angajat_uq")) {
+      throw businessRule(
+        "Angajatul are deja un permis de conducere înregistrat. Reînnoirea se face pe același permis: modificați-l.",
+      );
+    }
+    if (error.code === "23503" && error.message.includes("driver_licenses_angajat_fk")) {
+      throw businessRule("Angajatul ales nu aparține organizației dumneavoastră.");
+    }
+    if (error.code === "23514") {
+      if (error.message.includes("driver_licenses_interval_ck")) {
+        const mesaj = "Valabilitatea permisului nu se poate încheia înainte de data eliberării.";
+        throw invalidInput(mesaj, { expira_la: [mesaj] });
+      }
+      if (error.message.includes("driver_licenses_categorii_ck")) {
+        const mesaj = "Una dintre categorii nu există pe permisul de conducere românesc.";
+        throw invalidInput(mesaj, { categorii: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_PERMIS.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}
+
+/**
+ * Legarea foii de o deplasare (`internal.foi_deplasare_garda`, 0201): orice
+ * refuz al gărzii ține de selectorul de deplasare.
+ */
+export function traduEroareDeplasare(error: unknown): never {
+  if (
+    isPostgrestError(error) &&
+    error.code === "P0001" &&
+    /^Deplasarea aleasă/u.test(error.message)
+  ) {
+    const mesaj = error.message.slice(0, 300);
+    throw invalidInput(mesaj, { business_trip_id: [mesaj] });
+  }
+  traduEroare(error);
+}
+// ── SFÂRȘIT BLOC: permisele șoferilor ──
+
+// ── ÎNCEPUT BLOC: fiscalul flotei (0202, F10) ──
+
+/**
+ * Restricțiile tabelelor fiscale (0202), pe câmpul lor. Schema le prinde
+ * înaintea bazei; ajung aici doar dacă limitele diverg sau la o cursă.
+ */
+const RESTRICTII_FISCAL: readonly (readonly [string, string, string])[] = [
+  [
+    "vfr_vehicul_de_la_uq",
+    "valabil_de_la",
+    "Vehiculul are deja un regim fiscal care începe în ziua aceasta. Ștergeți-l întâi sau alegeți altă zi.",
+  ],
+  [
+    "vcn_vehicul_de_la_uq",
+    "valabil_de_la",
+    "Vehiculul are deja o normă de consum care începe în ziua aceasta. Ștergeți-o întâi sau alegeți altă zi.",
+  ],
+  [
+    "vfr_proprietar_fk",
+    "proprietar_employee_id",
+    "Angajatul ales nu aparține organizației dumneavoastră.",
+  ],
+  [
+    "vfr_exceptie_ck",
+    "exceptie",
+    "Categoria exceptată se alege doar, și obligatoriu, la regimul „categorie exceptată”.",
+  ],
+  [
+    "vfr_proprietar_ck",
+    "proprietar_employee_id",
+    "Proprietarul se alege doar, și obligatoriu, la mașina personală.",
+  ],
+  [
+    "vfr_chirie_ck",
+    "chirie_lunara",
+    "Chiria se completează doar la vehiculul închiriat sau cu chirie.",
+  ],
+  ["vfr_motiv_ck", "motiv", "Motivul are între 3 și 1.000 de caractere."],
+  ["vcn_l_100km_ck", "l_100km", "Norma e între 0,01 și 300 de litri la 100 km."],
+];
+
+/** Mesajele P0001 ale lui `internal.flota_fiscal_inainte` (ș/ț corecte). */
+const CAMPURI_FISCAL: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Regimul „peste 3\.500 kg/u, ["regim"]],
+  [/^Data de la care se aplică/u, ["valabil_de_la"]],
+  [/^Data deciziei interne/u, ["decizie_data"]],
+];
+
+export function traduEroareFiscal(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" || error.code === "23503" || error.code === "23514") {
+      const restrictie = RESTRICTII_FISCAL.find(([nume]) => error.message.includes(nume));
+      if (restrictie !== undefined) {
+        const [, camp, mesaj] = restrictie;
+        throw invalidInput(mesaj, { [camp]: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_FISCAL.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}
+// ── SFÂRȘIT BLOC: fiscalul flotei ──
+
+// ── ÎNCEPUT BLOC: amenzi și daune (0203, F11) ──
+
+/**
+ * Restricțiile tabelelor `vehicle_fines` / `vehicle_incidents` (0203), pe
+ * câmpul lor. Schema le prinde înaintea bazei; ajung aici doar dacă limitele
+ * diverg sau la o cursă.
+ */
+const RESTRICTII_AMENZI: readonly (readonly [string, string, string])[] = [
+  [
+    "vf_numar_uq",
+    "numar_pv",
+    "Amenda cu acest număr este deja înregistrată pe vehiculul ales. Deschideți-o din listă.",
+  ],
+  ["vf_sofer_fk", "employee_id", "Angajatul ales nu aparține organizației dumneavoastră."],
+  ["vi_sofer_fk", "sofer_id", "Angajatul ales nu aparține organizației dumneavoastră."],
+  ["vf_numar_ck", "numar_pv", "Numărul procesului-verbal are între 1 și 60 de caractere."],
+  ["vf_fapta_ck", "fapta", "Fapta constatată are între 3 și 500 de caractere."],
+  ["vf_suma_ck", "suma", "Suma e între 0 și 1.000.000 lei."],
+  ["vf_motiv_ck", "motiv", "Motivul are cel mult 500 de caractere."],
+  ["vf_anulata_ck", "motiv", "Scrieți motivul anulării."],
+  ["vi_descriere_ck", "descriere", "Descrierea are între 3 și 2.000 de caractere."],
+  [
+    "vi_asigurator_stadiu_ck",
+    "asigurator",
+    "Scrieți numele asigurătorului la care ați înregistrat dauna.",
+  ],
+];
+
+/** Mesajele P0001 ale `internal.amenzi_inainte` și `internal.incidente_inainte` (ș/ț corecte). */
+const CAMPURI_AMENZI: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Scrieți numărul procesului-verbal/u, ["numar_pv"]],
+  [/^Scrieți fapta constatată/u, ["fapta"]],
+  [/^Vehiculul ales/u, ["vehicle_id"]],
+  [/^Momentul faptei/u, ["constatata_la"]],
+  [/^Procesul-verbal nu poate fi încheiat/u, ["data_pv"]],
+  [/^Data primirii/u, ["primita_la"]],
+  [/^Termenul de răspuns/u, ["termen_raspuns"]],
+  [/^Alegeți șoferul pe care/u, ["employee_id"]],
+  [/^Scrieți data la care a plecat răspunsul/u, ["raspuns_trimis_la"]],
+  [/^Data trimiterii răspunsului/u, ["raspuns_trimis_la"]],
+  [/^Scrieți motivul anulării/u, ["motiv"]],
+  [/^Descrieți incidentul/u, ["descriere"]],
+  [/^Momentul incidentului/u, ["produs_la"]],
+  [/^Cercetarea SSM aleasă/u, ["work_accident_id"]],
+  [/^Scrieți numele asigurătorului/u, ["asigurator"]],
+  [/^Scrieți costul final/u, ["cost_final"]],
+];
+
+export function traduEroareAmenzi(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" || error.code === "23503" || error.code === "23514") {
+      const restrictie = RESTRICTII_AMENZI.find(([nume]) => error.message.includes(nume));
+      if (restrictie !== undefined) {
+        const [, camp, mesaj] = restrictie;
+        throw invalidInput(mesaj, { [camp]: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_AMENZI.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      // Refuzurile de stadiu („nu poate trece din…”, „este închisă…”) nu țin de
+      // un câmp: rămân mesaj general, cu cifrele din bază.
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}
+// ── SFÂRȘIT BLOC: amenzi și daune ──

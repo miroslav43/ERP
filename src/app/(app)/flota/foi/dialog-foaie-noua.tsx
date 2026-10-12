@@ -24,6 +24,8 @@ interface AngajatOptiune {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
+  /** Flota F9 (0201): „permis expirat, aviz lipsă”, lângă nume. Nu blochează. */
+  readonly avertisment?: string | null;
 }
 
 /** Contractul pe care îl onorează `date-foaie-noua.ts`, citit pe server. */
@@ -282,6 +284,7 @@ export function DialogFoaieNoua({
                   {angajati.map((ang) => (
                     <option key={ang.id} value={ang.id}>
                       {ang.full_name ?? ang.marca} ({ang.marca})
+                      {ang.avertisment == null ? "" : ` — ${ang.avertisment}`}
                     </option>
                   ))}
                 </select>

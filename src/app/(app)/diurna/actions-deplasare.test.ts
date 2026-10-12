@@ -585,6 +585,71 @@ describe("deconteazaDeplasare", () => {
   });
 });
 
+// ── ÎNCEPUT BLOC: vehiculul de serviciu (flota F9, 0201) ──
+describe("vehiculul deplasării", () => {
+  it("cu auto de serviciu, vehiculul ales ajunge în INSERT și în audit", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:create": "own" } });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "insert", { data: { id: ID_1 } });
+
+    const r = await creeazaDeplasare(
+      deplasare({ mijloc_transport: "auto_serviciu", vehicle_id: ID_3 }),
+    );
+    await asteaptaDupa();
+
+    expect(r).toEqual({ ok: true, data: { id: ID_1 } });
+    expect(server.apeluriPe("business_trips", "insert")[0]?.payload).toMatchObject({
+      mijloc_transport: "auto_serviciu",
+      vehicle_id: ID_3,
+    });
+    expect(server.audituri()[0]?.p_after).toHaveProperty("vehicle_id", ID_3);
+  });
+
+  it("fără vehicul ales, `vehicle_id` pleacă `null`", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:create": "own" } });
+    admin.raspunde("employees", "select", { data: { id: ID_2 } });
+    server.raspunde("business_trips", "insert", { data: { id: ID_1 } });
+
+    await creeazaDeplasare(deplasare({ mijloc_transport: "auto_serviciu", vehicle_id: "" }));
+
+    expect(server.apeluriPe("business_trips", "insert")[0]?.payload).toMatchObject({
+      vehicle_id: null,
+    });
+  });
+
+  it("vehiculul pe tren: VALIDARE pe `vehicle_id`, nimic scris", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:create": "own" } });
+
+    const r = await creeazaDeplasare(deplasare({ mijloc_transport: "tren", vehicle_id: ID_3 }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("vehicle_id");
+    expect(server.apeluri).toHaveLength(0);
+    expect(admin.apeluri).toHaveLength(0);
+  });
+
+  it("corectura fără vehicul în formular NU dezleagă mașina", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "per_diem:update": "own" } });
+    server.raspunde("business_trips", "update", { data: { id: ID_1 } });
+
+    await actualizeazaDeplasare({ id: ID_1, ...deplasare({ mijloc_transport: "auto_serviciu" }) });
+
+    expect(server.apeluriPe("business_trips")[0]?.payload).not.toHaveProperty("vehicle_id");
+  });
+
+  it("corectura pe alt mijloc de transport desface legătura (altfel 23514)", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "per_diem:update": "own" } });
+    server.raspunde("business_trips", "update", { data: { id: ID_1 } });
+
+    await actualizeazaDeplasare({ id: ID_1, ...deplasare({ mijloc_transport: "tren" }) });
+
+    expect(server.apeluriPe("business_trips")[0]?.payload).toMatchObject({ vehicle_id: null });
+  });
+});
+// ── SFÂRȘIT BLOC: vehiculul de serviciu ──
+
 describe("actualizeazaDeplasare", () => {
   it("fără `per_diem:update`: INTERZIS", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "per_diem:read": "all" } });

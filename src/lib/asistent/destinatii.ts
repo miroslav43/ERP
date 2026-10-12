@@ -881,6 +881,49 @@ const INTRARI: readonly Intrare[] = [
       "Costul pe vehicul, consumul real față de norma proprie și kilometrii pe șofer, pe lună, din foile aprobate, cu Excelul și pachetul lunar (foile aprobate în PDF) pentru contabil.",
   },
   // ═══ SFÂRȘIT BLOC: flota, rapoartele (F8) ═══
+  // ═══ ÎNCEPUT BLOC: flota, fiscalul (0202) ═══
+  {
+    id: "flota.fiscal",
+    href: "/flota/fiscal",
+    eticheta: "Fiscal parc auto",
+    zona: "app",
+    parinte: "flota",
+    fila: "Fiscal",
+    featureKey: "fleet",
+    permission: "vehicles:read",
+    minScope: "all",
+    descriere:
+      "Regimul de deducere al vehiculelor (50% sau integral), luna fiscală cu vehiculele fără foi de parcurs, normele proprii de consum și regimul de impozitare al firmei.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, fiscalul (0202) ═══
+  // ═══ ÎNCEPUT BLOC: flota, amenzi și daune (0203) ═══
+  {
+    id: "flota.amenzi",
+    href: "/flota/amenzi",
+    eticheta: "Amenzi",
+    zona: "app",
+    parinte: "flota",
+    fila: "Amenzi",
+    featureKey: "fleet",
+    permission: "vehicle_fines:read",
+    minScope: "all",
+    descriere:
+      "Amenzile primite pe vehiculele firmei: termenul de răspuns către autoritate, șoferul desemnat (OUG 195/2002 art. 39), scrisoarea de răspuns și stadiul fiecărei amenzi.",
+  },
+  {
+    id: "flota.incidente",
+    href: "/flota/incidente",
+    eticheta: "Incidente și daune",
+    zona: "app",
+    parinte: "flota",
+    fila: "Incidente",
+    featureKey: "fleet",
+    permission: "vehicle_incidents:read",
+    minScope: "all",
+    descriere:
+      "Accidente, avarii, furturi și vandalism pe vehicule: stadiile dosarului de daună, costul, despăgubirea de la asigurător și legătura cu cercetarea SSM.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, amenzi și daune (0203) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {

@@ -31,6 +31,7 @@ import {
   TONURI_STATUS_FOAIE,
 } from "@/app/(app)/flota/etichete";
 import { DialogFoaieNoua } from "@/app/(app)/flota/foi/dialog-foaie-noua";
+import { PermisSofer } from "@/app/(app)/flota/permis-sofer";
 
 import { FaraFisa } from "../fara-fisa";
 
@@ -199,6 +200,23 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
           </div>
         )}
       </section>
+
+      {/* ── ÎNCEPUT BLOC: permisul meu (flota F9, 0201) ──
+          Șoferul își citește permisul și avizul (`driver_licenses:read = own`);
+          le scrie HR-ul, pe fișa lui. */}
+      {can(permisiuni, "driver_licenses:read", "own") ? (
+        <PermisSofer
+          organizationId={tenant.organizationId}
+          employeeId={fisaId}
+          numeAngajat={stare.fisa.full_name ?? stare.fisa.marca}
+          azi={azi}
+          poateCrea={false}
+          poateModifica={false}
+          titlu="Permisul meu"
+          className="bg-surface border-border rounded-panou border p-4"
+        />
+      ) : null}
+      {/* ── SFÂRȘIT BLOC: permisul meu ── */}
 
       <section aria-labelledby="titlu-foi" className="space-y-3">
         <h2 id="titlu-foi" className="text-sectiune font-semibold">

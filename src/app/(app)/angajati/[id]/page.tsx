@@ -101,6 +101,10 @@ import { SectiuneInAlteModule } from "./sectiune-in-alte-module";
 import { RedeschideEvaluare } from "./redeschide-evaluare";
 import { Callout } from "@/components/ui/callout";
 import { IstoricModificari } from "@/components/audit/istoric-modificari";
+import { PermisSofer } from "@/app/(app)/flota/permis-sofer";
+// ── început bloc: avantajul în natură din mașina de serviciu (flota F10, 0202) ──
+import { SugestieAvantajAuto } from "@/app/(app)/flota/fiscal/sugestie-avantaj-auto";
+// ── sfârșit bloc: avantajul în natură ──
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -1287,6 +1291,20 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         />
       ) : null}
 
+      {/* ── ÎNCEPUT BLOC: avantajul în natură din mașina de serviciu (flota F10, 0202) ──
+          SUGESTIE pentru cine face statul de plată (`payroll:read = all`, aceeași
+          poartă ca secțiunea de mai sus): nu scrie nimic, componenta „Beneficiu în
+          natură” se adaugă de mână. Cu flota oprită nu se montează. */}
+      {module.has("fleet") && poateDeschide("/salarizare", contextPorti) ? (
+        <SugestieAvantajAuto
+          organizationId={tenant.organizationId}
+          employeeId={angajat.id}
+          azi={azi}
+          className={CLASA_SECTIUNE}
+        />
+      ) : null}
+      {/* ── SFÂRȘIT BLOC: avantajul în natură ── */}
+
       <SectiuneConcedii
         organizationId={tenant.organizationId}
         employeeId={angajat.id}
@@ -1319,6 +1337,23 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
               : `/concedii/sold#angajat-${angajat.id}`
         }
       />
+
+      {/* ── ÎNCEPUT BLOC: permisul de conducere (flota F9, 0201) ──
+          HR și administratorul îl scriu, managerul îl citește pe al echipei
+          (`driver_licenses`, cheie proprie: HR primește permisele, nu parcul).
+          Doar cu modulul de flotă pornit — acolo trăiesc foile care îl citesc. */}
+      {module.has("fleet") && can(permisiuni, "driver_licenses:read", "own") ? (
+        <PermisSofer
+          organizationId={tenant.organizationId}
+          employeeId={angajat.id}
+          numeAngajat={angajat.full_name ?? angajat.marca}
+          azi={azi}
+          poateCrea={can(permisiuni, "driver_licenses:create", "own")}
+          poateModifica={can(permisiuni, "driver_licenses:update", "own")}
+          className={CLASA_SECTIUNE}
+        />
+      ) : null}
+      {/* ── SFÂRȘIT BLOC: permisul de conducere ── */}
 
       {/*
         Permisul de muncă (angajati-P9): se scria la înrolare în `work_permits`

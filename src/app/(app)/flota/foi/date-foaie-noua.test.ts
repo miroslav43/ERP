@@ -45,6 +45,7 @@ describe("dateFoaieNoua", () => {
     db.raspunde("employees", "select", {
       data: [{ id: ID_3, full_name: "Ion Popescu", marca: "M-7", status: "activ" }],
     });
+    db.raspundeRpc("verificari_soferi", { data: [] });
 
     const r = await dateFoaieNoua(ORG_ID);
 
@@ -53,7 +54,7 @@ describe("dateFoaieNoua", () => {
         { id: ID_1, nr_inmatriculare: "B123ABC", km_curent: 10500 },
         { id: ID_2, nr_inmatriculare: "CJ01XYZ", km_curent: 2300 },
       ],
-      angajati: [{ id: ID_3, full_name: "Ion Popescu", marca: "M-7" }],
+      angajati: [{ id: ID_3, full_name: "Ion Popescu", marca: "M-7", avertisment: null }],
     });
 
     const [listaVehicule] = db.apeluriPe("vehicles");
@@ -86,11 +87,48 @@ describe("dateFoaieNoua", () => {
     db.raspunde("employees", "select", {
       data: [{ id: ID_3, full_name: null, marca: "M-1" }],
     });
+    db.raspundeRpc("verificari_soferi", { data: [] });
 
     const r = await dateFoaieNoua(ORG_ID);
 
     expect(r.vehicule).toEqual([]);
-    expect(r.angajati).toEqual([{ id: ID_3, full_name: null, marca: "M-1" }]);
+    expect(r.angajati).toEqual([{ id: ID_3, full_name: null, marca: "M-1", avertisment: null }]);
+  });
+
+  // ── flota F9 (0201): verificările șoferului, lângă nume ──
+  it("șoferul cu permisul expirat și fără aviz rămâne în listă, cu eticheta scurtă", async () => {
+    db.raspunde("vehicles", "select", { data: [] });
+    db.raspunde("vehicles", "select", { count: 0 });
+    db.raspunde("employees", "select", {
+      data: [{ id: ID_3, full_name: "Ion Popescu", marca: "M-7" }],
+    });
+    db.raspundeRpc("verificari_soferi", {
+      data: [
+        {
+          employee_id: ID_3,
+          concediu: null,
+          contract_incetat: false,
+          permis_exista: true,
+          permis_expira_la: "2020-01-01",
+          permis_categorii: ["B"],
+          aviz: "lipsa",
+          delegatie: null,
+        },
+      ],
+    });
+
+    const r = await dateFoaieNoua(ORG_ID);
+
+    expect(r.angajati).toEqual([
+      {
+        id: ID_3,
+        full_name: "Ion Popescu",
+        marca: "M-7",
+        avertisment: "permis expirat, aviz lipsă",
+      },
+    ]);
+    const [apel] = db.apeluriRpc;
+    expect(apel?.argumente).toMatchObject({ p_organization_id: ORG_ID, p_employee_ids: [ID_3] });
   });
 
   it("șoferul propriu (0196): mașina alocată lui și pool-ul, fără lista de angajați", async () => {

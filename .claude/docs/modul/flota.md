@@ -11,6 +11,7 @@ cai:
   - "src/domain/fleet/**"
   - "src/app/(portal)/portal/masina-mea/**"
   - "src/app/api/export/flota/**"
+  - "src/app/(app)/flota/fiscal/**"
 tabele:
   [
     vehicles,
@@ -22,6 +23,10 @@ tabele:
     trip_sheet_curse,
     trip_route_templates,
     fleet_settings,
+    vehicle_fiscal_regimes,
+    vehicle_consumption_norms,
+    vehicle_fines,
+    vehicle_incidents,
     fuel_entries,
     odometer_anomalies,
     vehicle_service_plans,
@@ -45,6 +50,7 @@ citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
   - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]"
   - "service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]"
+  - "regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]]"
 scris_pe: 720d889bc73823b4982d9a06ff3943418b96d9a7
 scris_la: 2026-10-12
 tags: [modul, operations]
@@ -66,6 +72,8 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 | `/flota/foi/sabloane`                   | `trip_sheets:update` all — șabloanele de traseu (0197)                   |
 | `/flota/setari`                         | `vehicles:update` all — responsabili, praguri (0198)                     |
 | `/flota/setari/documente`               | `vehicles:update` all — tipurile de document ale firmei (0199)           |
+| `/flota/fiscal`                         | `vehicles:read` all — regimul de deducere, luna fiscală (0202)           |
+| `/flota/amenzi`, `/flota/incidente`     | `vehicle_fines`/`vehicle_incidents` read all (0203)                      |
 | `/api/export/flota/foaie/[id]`          | `trip_sheets:read` own + RLS — PDF-ul foii (0197)                        |
 | `/flota/rapoarte`, `/api/export/flota*` | `vehicles:read` + `trip_sheets:read` la `all`; export: `vehicles:export` |
 | `/portal/masina-mea*`                   | `trip_sheets:read` own — portalul șoferului, din 0196                    |
@@ -76,8 +84,21 @@ Rapoartele lunare, Excelul și pachetul pentru contabil (F8, fără migrare):
 Drepturile pe roluri (0196), garda de vehicul alocat sau pool, regula „aprobatorul doar
 decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.
 
-**Fișa vehiculului, nomenclatorul firmei și fișierele** (obligatoriile pe vehicul,
-setarea pe tip, scanarea, poza bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
+**Șoferii** (0201): permisele (`driver_licenses`, HR fără parc), avizul medical,
+verificările încrucișate pe foaie și la predare, foaia legată de deplasare:
+`[[modul/flota/soferi]]`.
+
+**Amenzile și dauna** (0203): termenul de răspuns, șoferul desemnat, scrisoarea de la art. 39
+(cere și `employees:read` all, pentru CNP), incidentul cu stadii; recuperarea de la șofer
+NU e automată: `[[modul/flota/amenzi-si-daune]]`.
+
+**Fiscalul** (0202): regimul de deducere pe perioade, norma proprie de consum, regimul de
+impozitare al firmei și SUGESTIA de avantaj în natură (`actions-fiscal.ts`):
+`[[modul/flota/fiscal]]`.
+
+**Fișa vehiculului, nomenclatorul firmei și fișierele** (cine o modifică, coloana „Acțiuni”
+a documentelor, obligatoriile și opționalele pe vehicul, setarea pe tip, scanarea, poza
+bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
 
 **Vehiculul nou și foaia nouă NU au rută**: casete pe listă, deschise prin parametru
 (`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
@@ -217,7 +238,7 @@ erorile și `useTransition`-ul lui, ca o eroare la alimentare să nu înroșeasc
 ## Ce NU e aici
 
 Mentenanța vehiculelor (plan, intervenții, ITP) e modul separat. Diurna pentru deplasări
-e alt modul. Fișa șoferului: `[[modul/angajati]]`.
+e alt modul (vehiculul deplasării: `[[modul/flota/soferi]]`). Fișa șoferului: `[[modul/angajati]]`.
 
 ## Când NU e suficientă pagina asta
 
