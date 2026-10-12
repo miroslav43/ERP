@@ -4036,6 +4036,11 @@ const ECHIPAMENTE = [
     departament: DEPARTAMENT.productie,
     responsabil: null,
     status: "casat",
+    // Din `0182`, un echipament CASAT cere motiv scris (trigger, P0001) — fără el,
+    // INSERT-ul pe o bază nouă cade, iar pe cea veche UPDATE-ul trece doar fiindcă
+    // starea nu se schimbă.
+    motivCasare: "Uzură avansată; reparația nu mai e rentabilă, iar piesele nu se mai produc.",
+    casatLa: "2026-03-01",
     valoare: 4200,
     dinData: "2010-05-01",
   },
@@ -4338,6 +4343,8 @@ async function mentenanta() {
       department_id: e.departament,
       responsabil_employee_id: e.responsabil === null ? null : ANGAJAT[e.responsabil],
       status: e.status,
+      motiv_casare: e.motivCasare ?? null,
+      casat_la: e.casatLa ?? null,
       este_iscir: e.iscir === true,
       tip_autorizare_necesara: e.autorizare ?? null,
       valoare_achizitie: e.valoare,
@@ -4462,6 +4469,423 @@ async function mentenanta() {
     },
   );
   console.log("  · iscir_authorizations: 1 (stivuitorul, scadentă apropiată)");
+}
+
+// ── Mentenanță: fluxul sesizării, opriri, piese, amânări, reînnoire, setări ──
+
+/*
+ * ── DE CE E O ETAPĂ SEPARATĂ ──────────────────────────────────────────────
+ * `mentenanta()` de mai sus pune parcul, planurile, intervențiile și sesizările
+ * așa cum le știa modulul înainte de planul „Mentenanță completă" (7 oct 2026).
+ * Etapa de aici adaugă ce au adus migrările `0181`–`0211`: tehnician atribuit,
+ * comentarii (și o notă internă), jurnal de opriri, linii de piese, o amânare de
+ * plan, o autorizație ISCIR reînnoită și setările firmei.
+ *
+ * ── POARTA REALĂ ──────────────────────────────────────────────────────────
+ * Ca toate etapele de aici, ȘI aceasta e poarta triggerelor: scrie prin
+ * `service_role`, deci trece prin `app.is_service_context()`, nu prin politicile
+ * unui om. A prins deja, în alte etape, două defecte de producție într-o zi.
+ *
+ * ── NU CERE TOATE MIGRĂRILE ───────────────────────────────────────────────
+ * Baza ținută (aceeași pentru dezvoltare și producție) primește migrările pe
+ * rând, cu confirmare separată. Fiecare secțiune își verifică întâi tabela sau
+ * coloana și se SARE, cu mesaj, dacă lipsește — în loc să cadă cu 42703 în
+ * mijlocul etapei. După ce o migrare se aplică, se rulează din nou:
+ *
+ *   node scripts/demo/populeaza.mjs mentenanta mentenantaFlux
+ *
+ * Idempotentă: fiecare rând trece prin `asigura()` pe o cheie naturală, iar
+ * secțiunile care mută starea (amânarea, reînnoirea) se uită întâi dacă e deja
+ * făcut — altfel `numar_amanari` ar crește la fiecare rulare.
+ */
+
+/** Codurile unei erori pentru un tabel sau o coloană care încă nu există în bază. */
+const COD_OBIECT_LIPSA = new Set(["42P01", "42703", "PGRST205", "PGRST204"]);
+
+/** `true` dacă tabela (cu coloanele cerute) există în baza la care e conectat scriptul. */
+async function existaInBaza(tabela, coloane = "id") {
+  const { error } = await db.from(tabela).select(coloane).limit(1);
+  if (error === null) return true;
+  if (COD_OBIECT_LIPSA.has(error.code)) return false;
+  verifica(`sondare ${tabela}`, { error });
+  return false;
+}
+
+/** Id-ul unui rând al firmei demo, după o cheie naturală; aruncă dacă nu e EXACT unul. */
+async function idulDe(tabela, filtre) {
+  let q = db.from(tabela).select("id").eq("organization_id", ORG);
+  for (const [c, v] of Object.entries(filtre)) q = q.eq(c, v);
+  const { data, error } = await q.limit(2);
+  verifica(`citire ${tabela}`, { error });
+  if (data.length !== 1) {
+    throw new Error(`${tabela}: ${String(data.length)} rânduri pentru ${JSON.stringify(filtre)}`);
+  }
+  return data[0].id;
+}
+
+/** Ziua României de azi, plus `zile`, ca `AAAA-LL-ZZ` (aceeași zi ca `app.azi_local()`). */
+function ziPeste(zile) {
+  const azi = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Bucharest" }).format(new Date());
+  const [a, l, z] = azi.split("-").map(Number);
+  return new Date(Date.UTC(a, l - 1, z + zile)).toISOString().slice(0, 10);
+}
+
+/**
+ * Setările modulului. `responsabili` primește sesizările noi și rezumatul
+ * zilnic; `rsvti` e responsabilul cu verificarea instalațiilor sub presiune.
+ * Pragurile de alertă (30/14/7) sunt cele implicite din `0191`, scrise explicit.
+ */
+const SETARI_MENTENANTA = {
+  responsabili: [ANGAJAT.pop],
+  rsvti_employee_id: ANGAJAT.pop,
+  inchidere_automata_zile: 5,
+  prag_avertizare_zile: 15,
+  prag_contor_necitit_zile: 30,
+  ore_functionare_pe_zi: 8,
+  zile_pe_saptamana: 5,
+  cost_ora_oprire: 450,
+};
+
+/**
+ * Cine lucrează fiecare sesizare. Pop are cont (manager), deci vede și lucrează
+ * sesizările lui din aplicație; Stan nu are (operator, nu folosește aplicația),
+ * deci atribuirea către el nu trimite nicio notificare. ECH-005 rămâne NEATRIBUITĂ
+ * dinadins: panoul și rezumatul zilnic au astfel ce arăta la „fără tehnician".
+ */
+const ATRIBUIRI = [
+  { echipament: "ECH-001", la: "2026-08-18T17:11:00+03:00", tehnician: "pop" },
+  { echipament: "ECH-002", la: "2026-08-30T09:15:00+03:00", tehnician: "pop" },
+  { echipament: "ECH-004", la: "2026-09-01T08:00:00+03:00", tehnician: "pop" },
+  { echipament: "ECH-003", la: "2026-08-25T11:00:00+03:00", tehnician: "stan" },
+];
+
+/**
+ * Discuția de pe sesizări. `intern: true` e nota gestionarului, invizibilă
+ * raportorului prin RLS (nu doar în interfață). Orele sunt puse explicit:
+ * altfel toate comentariile ar purta ora rulării scriptului.
+ */
+const COMENTARII = [
+  {
+    echipament: "ECH-002",
+    la: "2026-08-30T09:15:00+03:00",
+    autor: "dumitrescu",
+    cand: "2026-08-30T09:40:00+03:00",
+    text: "Frâna de mână nu ține nici pe pantă mică; am oprit stivuitorul și l-am lăsat pe rampa din spate.",
+  },
+  {
+    echipament: "ECH-002",
+    la: "2026-08-30T09:15:00+03:00",
+    autor: "pop",
+    cand: "2026-08-31T08:10:00+03:00",
+    text: "Preiau eu sesizarea: cer ofertă de la service-ul Linde pentru reglarea frânei de parcare.",
+  },
+  {
+    echipament: "ECH-004",
+    la: "2026-09-01T08:00:00+03:00",
+    autor: "pop",
+    cand: "2026-09-01T09:05:00+03:00",
+    text: "Presa e oprită și marcată cu etichetă de interzicere a pornirii, până la schimbarea cilindrului.",
+  },
+  {
+    echipament: "ECH-004",
+    la: "2026-09-01T08:00:00+03:00",
+    autor: "ionescu",
+    cand: "2026-09-02T11:30:00+03:00",
+    text: "Am comandat cilindrul principal; livrarea e estimată în cinci zile lucrătoare.",
+  },
+  {
+    echipament: "ECH-004",
+    la: "2026-09-01T08:00:00+03:00",
+    autor: "ionescu",
+    intern: true,
+    cand: "2026-09-02T11:45:00+03:00",
+    text: "Verificăm dacă piesa mai e în garanție la furnizor, înainte să acceptăm devizul.",
+  },
+];
+
+/**
+ * Jurnalul de opriri. Cele DESCHISE ale sesizărilor cu „oprește funcționarea"
+ * (ECH-002, ECH-004) le scrie singur triggerul `fault_reports_oprire`, la
+ * rescrierea sesizărilor din etapa `mentenanta`; aici sunt doar cele ÎNCHISE,
+ * legate de intervenții, care dau disponibilității și MTTR-ului ceva de calculat.
+ */
+const OPRIRI = [
+  {
+    echipament: "ECH-001",
+    inceput: "2026-08-13T08:00:00+03:00",
+    sfarsit: "2026-08-13T11:30:00+03:00",
+    tip: "neplanificata",
+    motiv: "Zgomot anormal la pornire; rulmentul motorului a fost înlocuit.",
+    interventie: { cheie: "id", id: INTERVENTIE_EXISTENTA },
+  },
+  {
+    echipament: "ECH-002",
+    inceput: "2026-07-01T07:00:00+03:00",
+    sfarsit: "2026-07-01T15:00:00+03:00",
+    tip: "planificata",
+    motiv: "Revizia tehnică de 1800 de ore, făcută de service-ul Linde.",
+    interventie: { cheie: "data", data: "2026-07-01" },
+  },
+  {
+    echipament: "ECH-007",
+    inceput: "2025-10-05T09:00:00+03:00",
+    sfarsit: "2025-10-05T13:00:00+03:00",
+    tip: "planificata",
+    motiv: "Curățarea arzătorului și verificarea emisiilor.",
+    interventie: { cheie: "data", data: "2025-10-05" },
+  },
+];
+
+/**
+ * Liniile de piese. Sumele sunt EXACT costurile de piese din `INTERVENTII`
+ * (200, 450, 380, 120): triggerul `maintenance_intervention_parts_suma`
+ * rescrie `cost_piese` din linii, iar `mentenanta()` îl scrie înapoi ca sumă
+ * manuală — dacă cifrele nu coincid, costul intervenției sare la fiecare rulare.
+ */
+const PIESE = [
+  {
+    echipament: "ECH-001",
+    interventie: { cheie: "id", id: INTERVENTIE_EXISTENTA },
+    denumire: "Rulment motor 6309-2RS",
+    cod: "SKF-6309-2RS",
+    cantitate: 1,
+    pret: 200,
+  },
+  {
+    echipament: "ECH-001",
+    interventie: { cheie: "data", data: "2026-06-15" },
+    denumire: "Ulei compresor Kaeser Sigma S-460, canistră 5 l",
+    cod: "KS-S460-5",
+    cantitate: 1,
+    pret: 380,
+  },
+  {
+    echipament: "ECH-001",
+    interventie: { cheie: "data", data: "2026-06-15" },
+    denumire: "Filtru de aer",
+    cod: "KS-FA-19",
+    cantitate: 1,
+    pret: 70,
+  },
+  {
+    echipament: "ECH-002",
+    interventie: { cheie: "data", data: "2026-07-01" },
+    denumire: "Set plăcuțe de frână",
+    cantitate: 2,
+    pret: 110,
+  },
+  {
+    echipament: "ECH-002",
+    interventie: { cheie: "data", data: "2026-07-01" },
+    denumire: "Lubrifiant pentru lanțul de ridicare",
+    unitate: "l",
+    cantitate: 4,
+    pret: 40,
+  },
+  {
+    echipament: "ECH-007",
+    interventie: { cheie: "data", data: "2025-10-05" },
+    denumire: "Set garnituri arzător",
+    cantitate: 1,
+    pret: 120,
+  },
+];
+
+async function mentenantaFlux() {
+  console.log("── Mentenanță: fluxul sesizării");
+
+  const echipament = {};
+  for (const e of ECHIPAMENTE) echipament[e.cod] = await idulDe("equipment", { cod: e.cod });
+
+  const sesizare = async (cod, la) =>
+    idulDe("fault_reports", { equipment_id: echipament[cod], raportat_la: la });
+  const interventie = async (cod, ref) =>
+    ref.cheie === "id"
+      ? ref.id
+      : idulDe("maintenance_interventions", { equipment_id: echipament[cod], data: ref.data });
+
+  // ── setările firmei (0181; pragurile, din 0191) ───────────────────────────
+  if (await existaInBaza("maintenance_settings", "responsabili")) {
+    const cuPraguri = await existaInBaza("maintenance_settings", "praguri_alerta_zile");
+    await asigura(
+      "maintenance_settings",
+      { organization_id: ORG },
+      {
+        ...SETARI_MENTENANTA,
+        ...(cuPraguri ? { praguri_alerta_zile: [30, 14, 7] } : {}),
+        ...AUTOR,
+      },
+    );
+    console.log("  · maintenance_settings: responsabil și RSVTI Pop, 450 lei pe ora de oprire");
+  } else {
+    console.log("  · SĂRIT maintenance_settings: lipsește 0181 din bază");
+  }
+
+  // ── tehnicianul atribuit (0181) ───────────────────────────────────────────
+  if (await existaInBaza("fault_reports", "atribuit_employee_id")) {
+    for (const a of ATRIBUIRI) {
+      const id = await sesizare(a.echipament, a.la);
+      const { error } = await db
+        .from("fault_reports")
+        .update({ atribuit_employee_id: ANGAJAT[a.tehnician] })
+        .eq("organization_id", ORG)
+        .eq("id", id);
+      verifica(`atribuire ${a.echipament}`, { error });
+    }
+    console.log(
+      `  · fault_reports: ${String(ATRIBUIRI.length)} atribuite (ECH-005 rămâne neatribuită)`,
+    );
+  } else {
+    console.log("  · SĂRIT atribuirile: lipsește 0181 din bază");
+  }
+
+  // ── comentarii și nota internă (0181) ─────────────────────────────────────
+  if (await existaInBaza("fault_report_comments", "intern")) {
+    for (const c of COMENTARII) {
+      const sesizareId = await sesizare(c.echipament, c.la);
+      await asigura(
+        "fault_report_comments",
+        { organization_id: ORG, fault_report_id: sesizareId, continut: c.text },
+        {
+          autor_employee_id: ANGAJAT[c.autor],
+          // Doar patru dintre cei opt au cont; ceilalți rămân fără `autor_user_id`.
+          autor_user_id: CONT[c.autor] ?? null,
+          intern: c.intern === true,
+          created_at: c.cand,
+          ...AUTOR,
+        },
+      );
+    }
+    console.log(`  · fault_report_comments: ${String(COMENTARII.length)} (una internă)`);
+  } else {
+    console.log("  · SĂRIT comentariile: lipsește 0181 din bază");
+  }
+
+  // ── jurnalul de opriri (0181) ─────────────────────────────────────────────
+  if (await existaInBaza("equipment_opriri", "intervention_id")) {
+    for (const o of OPRIRI) {
+      await asigura(
+        "equipment_opriri",
+        { organization_id: ORG, equipment_id: echipament[o.echipament], inceput: o.inceput },
+        {
+          sfarsit: o.sfarsit,
+          tip: o.tip,
+          motiv: o.motiv,
+          intervention_id: await interventie(o.echipament, o.interventie),
+          ...AUTOR,
+        },
+      );
+    }
+    console.log(
+      `  · equipment_opriri: ${String(OPRIRI.length)} închise (cele deschise vin din sesizări)`,
+    );
+  } else {
+    console.log("  · SĂRIT opririle: lipsește 0181 din bază");
+  }
+
+  // ── liniile de piese (0210) ───────────────────────────────────────────────
+  if (await existaInBaza("maintenance_intervention_parts", "pret_unitar")) {
+    for (const p of PIESE) {
+      await asigura(
+        "maintenance_intervention_parts",
+        {
+          organization_id: ORG,
+          intervention_id: await interventie(p.echipament, p.interventie),
+          denumire: p.denumire,
+        },
+        {
+          cod: p.cod ?? null,
+          cantitate: p.cantitate,
+          unitate: p.unitate ?? "buc",
+          pret_unitar: p.pret,
+          ...AUTOR,
+        },
+      );
+    }
+    console.log(
+      `  · maintenance_intervention_parts: ${String(PIESE.length)} linii (sumele = costurile de piese)`,
+    );
+  } else {
+    console.log("  · SĂRIT piesele: lipsește 0210 din bază");
+  }
+
+  // ── amânarea unui plan (0183) ─────────────────────────────────────────────
+  if (await existaInBaza("maintenance_plans", "amanat_pana")) {
+    const planId = await idulDe("maintenance_plans", {
+      equipment_id: echipament["ECH-001"],
+      denumire: "Verificare presiune și supapă de siguranță",
+    });
+    const { data: plan, error } = await db
+      .from("maintenance_plans")
+      .select("amanat_pana, numar_amanari")
+      .eq("id", planId)
+      .single();
+    verifica("citire plan amânat", { error });
+    // Doar dacă planul n-a fost amânat deja: fiecare valoare nouă a lui
+    // `amanat_pana` crește `numar_amanari`, deci o rulare repetată ar umfla cifra.
+    if (plan.amanat_pana === null && plan.numar_amanari === 0) {
+      const { error: eroareAmanare } = await db
+        .from("maintenance_plans")
+        .update({
+          amanat_pana: ziPeste(10),
+          motiv_amanare:
+            "Compresorul rămâne în funcțiune până la livrarea supapei noi; verificarea se reprogramează după montaj.",
+        })
+        .eq("id", planId);
+      verifica("amânare plan", { error: eroareAmanare });
+      console.log("  · maintenance_plans: planul supapei amânat cu 10 zile (o amânare)");
+    } else {
+      console.log("  · maintenance_plans: planul supapei e deja amânat");
+    }
+  } else {
+    console.log("  · SĂRIT amânarea: lipsește 0183 din bază");
+  }
+
+  // ── autorizația ISCIR reînnoită (0211) ────────────────────────────────────
+  if (await existaInBaza("iscir_authorizations", "inlocuita_de_id")) {
+    const { data: veche, error } = await db
+      .from("iscir_authorizations")
+      .select("id, inlocuita_de_id, equipment_id, regim, tip, emitent")
+      .eq("organization_id", ORG)
+      .eq("numar", "RSVTI-2025-1187")
+      .single();
+    verifica("citire autorizație ISCIR", { error });
+    if (veche.inlocuita_de_id === null) {
+      /*
+       * Reînnoirea reală trece prin `public.reinnoieste_autorizatie_iscir`, care
+       * cere un utilizator (`auth.uid()`), iar scriptul n-are unul. În context de
+       * serviciu garda `iscir_garda` lasă scrierile directe, așa că rezultatul e
+       * același: rând nou, apoi rândul vechi legat de el prin `inlocuita_de_id`.
+       * Ordinea contează — întâi rândul nou, ca legătura să aibă încotro arăta.
+       */
+      const nouaId = await asigura(
+        "iscir_authorizations",
+        { organization_id: ORG, numar: "RSVTI-2026-0931" },
+        {
+          equipment_id: veche.equipment_id,
+          regim: veche.regim,
+          tip: veche.tip,
+          emitent: veche.emitent,
+          emis_la: "2026-09-12",
+          valabil_pana: "2027-09-12",
+          scadenta_verificare_tehnica: "2027-09-12",
+          conditii:
+            "Reînnoirea verificării tehnice periodice a stivuitorului, efectuată de responsabilul RSVTI autorizat.",
+          ...AUTOR,
+        },
+      );
+      const { error: eroareLegare } = await db
+        .from("iscir_authorizations")
+        .update({ inlocuita_de_id: nouaId })
+        .eq("id", veche.id);
+      verifica("legare autorizație înlocuită", { error: eroareLegare });
+      console.log("  · iscir_authorizations: RSVTI-2025-1187 reînnoită prin RSVTI-2026-0931");
+    } else {
+      console.log("  · iscir_authorizations: autorizația stivuitorului e deja reînnoită");
+    }
+  } else {
+    console.log("  · SĂRIT reînnoirea ISCIR: lipsește 0211 din bază");
+  }
 }
 
 // ── Diurnă ──────────────────────────────────────────────────────────────────
@@ -4858,6 +5282,8 @@ const ETAPE = {
   evaluari,
   kpi,
   mentenanta,
+  // După `mentenanta`: citește parcul, intervențiile și sesizările pe care le pune ea.
+  mentenantaFlux,
   diurna,
 };
 
