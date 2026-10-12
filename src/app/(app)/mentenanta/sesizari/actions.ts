@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import type { ActionContext } from "@/lib/actions/types";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/types/database";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
@@ -55,8 +56,9 @@ import { traduEroare } from "../erori";
 // loc, verificat de `tests/rls/proba-sesizari-roluri.sql`, nu în două.
 //
 // Triajul (`trieazaSesizare`) și rezolvarea (`rezolvaSesizare`) rămân în
-// `../actions.ts`; aici nu e nevoie de clientul admin, deci fișierul nu-l
-// importă.
+// `../actions.ts`. Clientul admin apare o singură dată, în
+// `curataOrfaniiEntitatii` (0191): ștergerea fizică din bucket n-are politică
+// pentru `authenticated`, deci nu se poate face altfel.
 
 const CAI_SESIZARE = (id: string): readonly string[] => [
   "/mentenanta",
@@ -341,6 +343,78 @@ function prefixCale(organizationId: string, entityType: string, entityId: string
 }
 
 /**
+ * De la ce vârstă un obiect fără rând în `maintenance_attachments` e orfan.
+ * Neexportată: un fișier `"use server"` exportă doar funcții async (capcana 39).
+ */
+const VARSTA_ORFAN_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Curățarea încărcărilor NECONFIRMATE din folderul unei entități (M9, cazul 12):
+ * obiectele mai vechi de 24 h pentru care pasul 3 n-a scris niciodată rândul —
+ * fereastra închisă între `PUT` și `confirmaFisier`, o confirmare refuzată.
+ *
+ * DE CE AICI și nu în jobul de noapte: `delete from storage.objects` scoate doar
+ * metadatele, iar fișierul rămâne în spațiul de stocare, de negăsit; `pg_net` nu
+ * e activat, deci jobul SQL n-are cum chema API-ul de Storage. Aici rulează prin
+ * API, la următoarea încărcare pe aceeași entitate.
+ *
+ * DE CE `createAdminSupabase`: bucketul `org-mentenanta` n-are politică DELETE
+ * pentru `authenticated` (0181, „ștergerea trece prin service_role”). Granița de
+ * tenant e prefixul `{org}/{entity_type}/{entity_id}`, construit din
+ * `ctx.tenant.organizationId`, iar citirea rândurilor filtrează explicit pe
+ * organizație; se cheamă DOAR după ce semnarea pe clientul utilizatorului a
+ * trecut, adică după ce politica bucketului i-a recunoscut dreptul pe folder.
+ *
+ * Rândurile șterse logic CONTEAZĂ ca legături: documentele legale nu se șterg
+ * fizic (`stergeFisier` lasă obiectul). Orice eroare e înghițită: curățenia nu
+ * are voie să blocheze încărcarea omului.
+ */
+async function curataOrfaniiEntitatii(
+  organizationId: string,
+  entityType: string,
+  entityId: string,
+): Promise<number> {
+  try {
+    const admin = createAdminSupabase();
+    const folder = prefixCale(organizationId, entityType, entityId).slice(0, -1);
+    const { data: obiecte, error } = await admin.storage
+      .from(BUCKET_MENTENANTA)
+      .list(folder, { limit: 100 });
+    if (error !== null) return 0;
+
+    const prag = Date.now() - VARSTA_ORFAN_MS;
+    const vechi = (obiecte ?? [])
+      .filter((o) => {
+        // Subfolderele vin cu `id` null; nu sunt obiecte ale acestei entități.
+        if (o.id === null || o.created_at === null) return false;
+        const creat = Date.parse(o.created_at);
+        return Number.isFinite(creat) && creat < prag;
+      })
+      .map((o) => `${folder}/${o.name}`);
+    if (vechi.length === 0) return 0;
+
+    const { data: legate, error: eroareLegate } = await admin
+      .from("maintenance_attachments")
+      .select("storage_path")
+      .eq("organization_id", organizationId)
+      .eq("entity_type", entityType)
+      .eq("entity_id", entityId)
+      .in("storage_path", vechi);
+    if (eroareLegate !== null) return 0;
+
+    const cunoscute = new Set((legate ?? []).map((r) => r.storage_path));
+    const orfani = vechi.filter((cale) => !cunoscute.has(cale));
+    if (orfani.length === 0) return 0;
+
+    const { error: eroareStergere } = await admin.storage.from(BUCKET_MENTENANTA).remove(orfani);
+    return eroareStergere === null ? orfani.length : 0;
+  } catch (eroare) {
+    console.warn("[mentenanta] curățarea încărcărilor neconfirmate a eșuat", eroare);
+    return 0;
+  }
+}
+
+/**
  * Pasul 1 din 3: semnează calea de încărcare, pe clientul UTILIZATORULUI.
  * `createSignedUploadUrl` verifică politica bucketului (`mentenanta_objects_insert`)
  * sub sesiunea apelantului, deci un străin nu primește URL. Octeții urcă apoi
@@ -388,6 +462,7 @@ export const pregatesteFisier = createAction({
         "Nu am putut pregăti încărcarea fișierului. Verificați că aveți dreptul de a adăuga fișiere aici și încercați din nou.",
       );
     }
+    await curataOrfaniiEntitatii(ctx.tenant.organizationId, input.entity_type, input.entity_id);
     return { cale, urlSemnat: data.signedUrl };
   },
 });

@@ -54,6 +54,7 @@ import {
   VALOARE_NULA,
 } from "./cursor";
 import { PRAG_MENTENANTA_AVERTIZARE_ZILE } from "@/domain/maintenance/scadente";
+import { PRAGURI_ALERTA_IMPLICITE } from "@/domain/maintenance/praguri";
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
@@ -259,9 +260,11 @@ export interface SetariMentenanta {
   readonly ore_functionare_pe_zi: number;
   readonly zile_pe_saptamana: number;
   readonly cost_ora_oprire: number | null;
+  /** Pragurile rezumatului zilnic, în zile înainte de scadență (0191). */
+  readonly praguri_alerta_zile: readonly number[];
 }
 
-/** Implicitele din `default`-urile tabelei `maintenance_settings` (0181) — identice. */
+/** Implicitele din `default`-urile tabelei `maintenance_settings` (0181, 0191) — identice. */
 export const SETARI_MENTENANTA_IMPLICITE: SetariMentenanta = {
   id: null,
   responsabili: [],
@@ -272,6 +275,7 @@ export const SETARI_MENTENANTA_IMPLICITE: SetariMentenanta = {
   ore_functionare_pe_zi: 8,
   zile_pe_saptamana: 5,
   cost_ora_oprire: null,
+  praguri_alerta_zile: PRAGURI_ALERTA_IMPLICITE,
 };
 
 export interface RezultatSesizari {
@@ -1749,7 +1753,8 @@ export async function setariMentenanta(organizationId: string): Promise<SetariMe
     .from("maintenance_settings")
     .select(
       "id, responsabili, rsvti_employee_id, inchidere_automata_zile, prag_avertizare_zile, " +
-        "prag_contor_necitit_zile, ore_functionare_pe_zi, zile_pe_saptamana, cost_ora_oprire",
+        "prag_contor_necitit_zile, ore_functionare_pe_zi, zile_pe_saptamana, cost_ora_oprire, " +
+        "praguri_alerta_zile",
     )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)

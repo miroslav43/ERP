@@ -465,7 +465,7 @@ describe("pregatesteFisier", () => {
   });
 
   it("eroare la semnare ⇒ CONFLICT", async () => {
-    const { server } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+    const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
     server.raspunde("maintenance_attachments", "select", { count: 0 });
     server.raspundeStocare(BUCKET, "createSignedUploadUrl", {
       error: { message: "Politica bucketului a refuzat." },
@@ -474,6 +474,90 @@ describe("pregatesteFisier", () => {
     const r = await pregatesteFisier(poza);
 
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    // Fără drept pe folder, nici curățenie: clientul admin nu se atinge.
+    expect(admin.apeluriStocare).toHaveLength(0);
+  });
+
+  describe("curățarea încărcărilor neconfirmate (M9)", () => {
+    const FOLDER = `${ORG_ID}/fault_report/${ID_1}`;
+    const ACUM_2_ZILE = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    const ACUM_O_ORA = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+    function semneaza(server: ReturnType<typeof configureazaActiunea>["server"]): void {
+      server.raspunde("maintenance_attachments", "select", { count: 0 });
+      server.raspundeStocare(BUCKET, "createSignedUploadUrl", {
+        data: { signedUrl: "https://x/semnat", path: "p", token: "t" },
+      });
+    }
+
+    it("șterge DOAR obiectele vechi de peste 24 h fără rând; cele legate și cele recente rămân", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+      semneaza(server);
+      admin.raspundeStocare(BUCKET, "list", {
+        data: [
+          { id: "o1", name: "orfan.jpg", created_at: ACUM_2_ZILE },
+          { id: "o2", name: "legat.jpg", created_at: ACUM_2_ZILE },
+          { id: "o3", name: "recent.jpg", created_at: ACUM_O_ORA },
+          { id: null, name: "subfolder", created_at: null },
+        ],
+      });
+      admin.raspunde("maintenance_attachments", "select", {
+        data: [{ storage_path: `${FOLDER}/legat.jpg` }],
+      });
+      admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+      const r = await pregatesteFisier(poza);
+
+      expect(r.ok).toBe(true);
+      expect(admin.apeluriStocare.map((a) => a.metoda)).toEqual(["list", "remove"]);
+      expect(admin.apeluriStocare[0]?.argumente[0]).toBe(FOLDER);
+      expect(admin.apeluriStocare[1]?.argumente[0]).toEqual([`${FOLDER}/orfan.jpg`]);
+
+      const [legaturi] = admin.apeluriPe("maintenance_attachments", "select");
+      expect(areFiltru(legaturi, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(legaturi, "eq", "entity_type", "fault_report")).toBe(true);
+      expect(areFiltru(legaturi, "eq", "entity_id", ID_1)).toBe(true);
+      // Rândurile șterse logic țin obiectul în viață: fără filtru pe `deleted_at`.
+      expect(areFiltru(legaturi, "is", "deleted_at")).toBe(false);
+      expect(
+        areFiltru(legaturi, "in", "storage_path", [`${FOLDER}/orfan.jpg`, `${FOLDER}/legat.jpg`]),
+      ).toBe(true);
+    });
+
+    it("niciun obiect vechi ⇒ nicio citire de rânduri și nicio ștergere", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+      semneaza(server);
+      admin.raspundeStocare(BUCKET, "list", {
+        data: [{ id: "o3", name: "recent.jpg", created_at: ACUM_O_ORA }],
+      });
+
+      const r = await pregatesteFisier(poza);
+
+      expect(r.ok).toBe(true);
+      expect(admin.apeluriStocare.map((a) => a.metoda)).toEqual(["list"]);
+      expect(admin.apeluri).toHaveLength(0);
+    });
+
+    it("listarea eșuează ⇒ încărcarea merge mai departe, fără ștergere", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+      semneaza(server);
+      admin.raspundeStocare(BUCKET, "list", { error: { message: "Storage indisponibil." } });
+
+      const r = await pregatesteFisier(poza);
+
+      expect(r).toMatchObject({ ok: true, data: { urlSemnat: "https://x/semnat" } });
+      expect(admin.apeluriStocare.map((a) => a.metoda)).toEqual(["list"]);
+    });
+
+    it("o excepție în curățenie nu strică încărcarea", async () => {
+      const { server } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+      semneaza(server);
+      // Niciun răspuns programat pe admin: clientul fals respinge promisiunea.
+
+      const r = await pregatesteFisier(poza);
+
+      expect(r.ok).toBe(true);
+    });
   });
 });
 
@@ -726,6 +810,39 @@ describe("salveazaSetariMentenanta", () => {
     server.raspunde("maintenance_settings", "update", { data: null });
     const r = await salveazaSetariMentenanta({});
     expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+  });
+
+  it("pragurile de alertă: implicit 30/14/7; dublurile și ordinea se normalizează", async () => {
+    const { server } = configureazaActiunea({ permisiuni: SETARI });
+    server.raspunde("maintenance_settings", "select", { data: { id: ID_2 } });
+    server.raspunde("maintenance_settings", "update", { data: { id: ID_2 } });
+    server.raspunde("maintenance_settings", "select", { data: null });
+    server.raspunde("maintenance_settings", "insert", { data: { id: ID_3 } });
+
+    await salveazaSetariMentenanta({ praguri_alerta_zile: ["7", "30", "7", "3"] });
+    await salveazaSetariMentenanta({});
+
+    expect(server.apeluriPe("maintenance_settings", "update")[0]?.payload).toMatchObject({
+      praguri_alerta_zile: [30, 7, 3],
+    });
+    expect(server.apeluriPe("maintenance_settings", "insert")[0]?.payload).toMatchObject({
+      praguri_alerta_zile: [30, 14, 7],
+    });
+  });
+
+  it.each([
+    ["gol", []],
+    ["nenumeric", ["30", "abc"]],
+    ["zero", ["0"]],
+    ["peste un an", ["400"]],
+    ["fracționar", ["7.5"]],
+    ["nouă praguri", ["1", "2", "3", "4", "5", "6", "7", "8", "9"]],
+  ])("prag de alertă %s ⇒ VALIDARE pe câmp, zero apeluri", async (_caz, praguri) => {
+    const { server } = configureazaActiunea({ permisiuni: SETARI });
+    const r = await salveazaSetariMentenanta({ praguri_alerta_zile: praguri });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (!r.ok) expect(r.error.fieldErrors).toHaveProperty("praguri_alerta_zile");
+    expect(server.apeluri).toHaveLength(0);
   });
 
   it("`inchidere_automata_zile: 0` ⇒ VALIDARE, zero apeluri", async () => {

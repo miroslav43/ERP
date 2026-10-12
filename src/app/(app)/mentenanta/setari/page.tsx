@@ -44,7 +44,7 @@ export default async function PaginaSetariMentenanta() {
     <div className="space-y-6">
       <AntetPagina
         titlu="Setări mentenanță"
-        descriere="Cine primește sesizările, termenele de închidere și avertizare, programul de lucru al utilajelor."
+        descriere="Cine primește sesizările și rezumatul zilnic, termenele de închidere și avertizare, programul de lucru al utilajelor."
         file={<FileModul eticheta="Navigare mentenanță" file={FILE_MENTENANTA} tenant={tenant} />}
       />
       <div className={`${LATIMI.formular}`}>

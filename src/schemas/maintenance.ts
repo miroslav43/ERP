@@ -7,6 +7,13 @@
 // schemele să poată valida și intrarea brută din URL, unde totul e `string`.
 
 import { z } from "zod";
+import {
+  MAXIM_PRAGURI_ALERTA,
+  normalizeazaPraguri,
+  PRAG_ALERTA_MAXIM_ZILE,
+  PRAGURI_ALERTA_IMPLICITE,
+} from "@/domain/maintenance/praguri";
+
 import { enumOptional, optional } from "./comun";
 
 export const STATUS_ECHIPAMENT = [
@@ -661,6 +668,24 @@ export const setariMentenantaSchema = z.object({
   ore_functionare_pe_zi: z.coerce.number().min(0.5).max(24).default(8),
   zile_pe_saptamana: z.coerce.number().int().min(1).max(7).default(5),
   cost_ora_oprire: z.coerce.number().min(0).nullable().default(null),
+  // Pragurile rezumatului zilnic (0191): 1–8 valori, fiecare 1–365 zile — exact
+  // `maintenance_settings_praguri_ck`. Dublurile și ordinea nu sunt erori: se
+  // normalizează descrescător, ca în `alert_rules`.
+  praguri_alerta_zile: z
+    .array(
+      z.coerce
+        .number("Fiecare prag trebuie să fie un număr de zile.")
+        .int("Pragurile sunt zile întregi.")
+        .min(1, "Un prag are cel puțin o zi.")
+        .max(
+          PRAG_ALERTA_MAXIM_ZILE,
+          `Un prag are cel mult ${String(PRAG_ALERTA_MAXIM_ZILE)} de zile.`,
+        ),
+    )
+    .min(1, "Alegeți cel puțin un prag de alertă.")
+    .max(MAXIM_PRAGURI_ALERTA, `Cel mult ${String(MAXIM_PRAGURI_ALERTA)} praguri de alertă.`)
+    .default([...PRAGURI_ALERTA_IMPLICITE])
+    .transform(normalizeazaPraguri),
 });
 export type SetariMentenantaInput = z.output<typeof setariMentenantaSchema>;
 
