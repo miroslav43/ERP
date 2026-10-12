@@ -13,6 +13,8 @@ tabele:
     vehicles,
     vehicle_assignments,
     vehicle_documents,
+    vehicle_document_types,
+    vehicle_document_type_setari,
     trip_sheets,
     trip_sheet_curse,
     trip_route_templates,
@@ -36,7 +38,7 @@ citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
   - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF → [[modul/flota/foaia-zilnica]]"
   - "alerte de scadență, responsabil de flotă, notificări pe foaie, /flota/setari → [[modul/flota/alerte-si-setari]]"
-scris_pe: 477405adb844def658fa265d593eda9deecac429
+scris_pe: 8e5670130776a48bbe475b15c94d3472e46cebdc
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -56,14 +58,15 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 | `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
 | `/flota/foi/sabloane`                | `trip_sheets:update` all — șabloanele de traseu (0197)              |
 | `/flota/setari`                      | `vehicles:update` all — responsabili, praguri (0198)                |
+| `/flota/setari/documente`            | `vehicles:update` all — tipurile de document ale firmei (0199)      |
 | `/api/export/flota/foaie/[id]`       | `trip_sheets:read` own + RLS — PDF-ul foii (0197)                   |
 | `/portal/masina-mea*`                | `trip_sheets:read` own — portalul șoferului, din 0196               |
 
 Drepturile pe roluri (0196), garda de vehicul alocat sau pool, regula „aprobatorul doar
 decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.
 
-**Fișa vehiculului** (cine o modifică, coloana „Acțiuni” a documentelor, tipurile
-obligatorii și opționale): `[[modul/flota/documente-si-erori]]`.
+**Fișa vehiculului, nomenclatorul firmei și fișierele** (obligatoriile pe vehicul,
+setarea pe tip, scanarea, poza bonului, `org-flota`): `[[modul/flota/documente-si-erori]]`.
 
 **Vehiculul nou și foaia nouă NU au rută**: casete pe listă, deschise prin parametru
 (`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
@@ -89,7 +92,8 @@ vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 Cursele, retragerea, corectura și ștergerea ciornei, alimentările corectate și șabloanele
 de traseu (0197): `[[modul/flota/foaia-zilnica]]`. `salveazaSetariFlota` (`vehicles:update`
 / all, `actions-setari.ts`), jobul zilnic de scadențe și notificările foii (0198):
-`[[modul/flota/alerte-si-setari]]`.
+`[[modul/flota/alerte-si-setari]]`. Tipurile de document (`actions-tipuri.ts`) și
+fișierele (`actions-fisiere.ts`, 0199): `[[modul/flota/documente-si-erori]]`.
 
 **Kilometrajul de bord e obligatoriu la creare** (`numarObligatoriu`) și lipsește din
 modificare. Pe `default 0`, prima foaie trecea de orice verificare. `z.coerce.number()` nu
@@ -122,7 +126,8 @@ n-ar fi trebuit să existe; `vehicles_dupa` scoate scadențele din semafor.
 
 `src/lib/queries/fleet.ts` (marcat `import "server-only"`): `listeazaVehicule`,
 `citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`, `tipuriDocument`,
-`listeazaFoi` (filtre și pe `data`), `citesteFoaie` (cu instantaneul vehiculului),
+`nomenclatorDocumente` (tot, cu setarea firmei), `tipuriDocument(org)` (doar active),
+`urlSemnateFlota`, `listeazaFoi` (filtre și pe `data`), `citesteFoaie` (cu instantaneul vehiculului),
 `kmDePlecareSugerat`, `combustibilPeFoi`, `alimentarileFoii`, `anomaliiNeconfirmate`,
 `anomaliiPeFoi`, `curseleFoii`, `sabloaneTraseu`, `numeleContului`, `setariFlota`
 (implicitele când lipsește rândul), `candidatiResponsabiliFlota`, plus, pentru portal,
@@ -174,13 +179,17 @@ Citește secțiunea asta înainte de orice scriere în modul.
   `trip_sheets.km_parcursi` și `data` (0197), `trip_sheet_curse.km_parcursi`,
   `fuel_entries.pret_litru`, `odometer_anomalies.diferenta`. La fel, `aprobat_de`/
   `aprobat_la`, `confirmat_de`, `numar` și instantaneul vehiculului le scrie baza. — capcana #22
+- **Tipul de document se judecă pe setarea FIRMEI** (0199): un tip de platformă retras
+  pentru ea dă P0001 la un document nou, iar unul retras din platformă (transportul, 0116) trece dacă firma l-a activat. Calea scanării și a bonului trebuie să stea în
+  folderul entității (P0001); bonul se urcă doar pe ciornă. Proba:
+  `tests/rls/proba-flota-tipuri-fisiere.sql`.
 - **O foaie activă pe vehicul și zi** (0197): a doua dă 23505 pe `ts_vehicul_zi_uq`, tradus
   pe `plecare_la`; nu „vehicul cu același număr”.
 
-## Erori traduse și nomenclatorul de documente
+## Erori traduse
 
-În `[[modul/flota/documente-si-erori]]`: P0001 pe câmp, harta separată a alocărilor,
-SEDILA din mesajele 0012/0018, tipurile de document active și coloana `numar`.
+În `[[modul/flota/documente-si-erori]]`: P0001 pe câmp, hărțile separate (alocări,
+setări, tipuri), SEDILA din mesajele 0012/0018.
 
 ## Ce se mișcă împreună
 
