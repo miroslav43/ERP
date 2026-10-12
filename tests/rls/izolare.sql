@@ -598,6 +598,22 @@ begin
           current_date + 900, v_admin_beta, v_admin_beta);
   -- ═══ SFÂRȘIT BLOC: fixture permisele șoferilor (0201) ═════════════════════
 
+  -- ═══ ÎNCEPUT BLOC: fixture fiscalul flotei (0202) ═════════════════════════
+  -- Câte un regim fiscal și o normă de consum pe vehiculul fiecărei firme.
+  insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, motiv,
+                                             created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='veh_alfa'), current_date - 60, 'limitat_50',
+          'Folosit și în interes personal', v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='veh_beta'), current_date - 60, 'integral_exclusiv_economic',
+          'Exclusiv pentru livrări', v_admin_beta, v_admin_beta);
+  insert into public.vehicle_consumption_norms (organization_id, vehicle_id, valabil_de_la, l_100km, decizie_numar,
+                                                decizie_data, created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='veh_alfa'), current_date - 60, 6.5, 'D-1', current_date - 61,
+          v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='veh_beta'), current_date - 60, 7.0, 'D-1', current_date - 61,
+          v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture fiscalul flotei (0202) ═════════════════════════
+
   -- ── Faza 7 (migrarea 0011): SSM, PSI, medicina muncii, ISCIR, mentenanță ────
   -- `ssm_legal_parameters`, `ssm_training_types` și `ssm_training_type_periods`
   -- se seedează SINGURE la crearea organizației (trg organizations_ssm_seed,
@@ -4785,6 +4801,131 @@ begin
   raise notice '(l) permisele șoferilor: hr și org_admin scriu, managerul citește echipa, angajatul își citește permisul și faptele ✓';
 end $$;
 -- ═══ SFÂRȘIT BLOC: permisele șoferilor (0201) ════════════════════════════════
+
+-- ═══ ÎNCEPUT BLOC: fiscalul flotei (0202) ════════════════════════════════════
+-- (l), continuare — regimul fiscal, norma de consum, regimul de impozitare și
+-- sugestia de avantaj în natură (0202)
+--
+-- `org_admin` (vehicles:update = all, organizations:update) le scrie; `hr`
+-- (payroll = all) NU vede parcul, dar află faptele avantajului; `manager` și
+-- `employee` nu văd regimul. Rânduri NUMĂRATE.
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_hr     uuid := pg_temp.id('hr_user_alfa');
+  v_emp    uuid := pg_temp.id('emp_alfa');
+  v_ang    uuid := pg_temp.id('ang_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  v_veh    uuid;
+  v_n      int;
+  v_regim  text;
+begin
+  -- Vehicul propriu: cel din fixture e șters logic de un bloc anterior.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.vehicles (organization_id, nr_inmatriculare, marca, model, km_curent, valoare_achizitie,
+                               created_by, updated_by)
+  values (v_alfa, 'CJ' || upper(left(md5(random()::text), 6)) || 'F', 'Dacia', 'Duster', 100, 80000, v_admin, v_admin)
+  returning id into v_veh;
+  with inserate as (
+    insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, exceptie, motiv)
+    values (v_alfa, v_veh, current_date, 'exceptat_categorie', 'agenti_vanzari_achizitii', 'Mașina agentului de vânzări')
+    returning 1
+  ) select count(*) into v_n from inserate;
+  with inserate as (
+    insert into public.vehicle_consumption_norms (organization_id, vehicle_id, valabil_de_la, l_100km)
+    values (v_alfa, v_veh, current_date - 10, 6.9), (v_alfa, v_veh, current_date - 5, 7.2)
+    returning 1
+  ) select v_n * 10 + count(*) into v_n from inserate;
+  with schimbate as (
+    update public.vehicle_consumption_norms set deleted_at = now()
+     where organization_id = v_alfa and vehicle_id = v_veh and valabil_de_la = current_date - 5
+       and deleted_at is null
+    returning 1
+  ) select v_n * 10 + count(*) into v_n from schimbate;
+  with schimbate as (
+    update public.organizations set regim_impozitare = 'profit' where id = v_alfa returning 1
+  ) select v_n * 10 + count(*) into v_n from schimbate;
+  with inserate as (
+    insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, folosinta_personala,
+                                            km_predare, created_by, updated_by)
+    values (v_alfa, v_veh, v_ang, now() - interval '1 day', true, 100, v_admin, v_admin)
+    returning 1
+  ) select v_n * 10 + count(*) into v_n from inserate;
+  reset role;
+  if v_n <> 12111 then
+    perform pg_temp.esueaza(format('(l) `org_admin` pe fiscalul flotei: regim, norme, ștergere, impozitare, alocare = %s, așteptat 12111', v_n));
+  end if;
+
+  -- hr: nu vede regimul (parcul nu e al lui), dar află faptele avantajului.
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_fiscal_regimes where organization_id = v_alfa;
+  select a.regim::text into v_regim from public.avantaj_natura_flota(v_alfa, v_ang, current_date) a limit 1;
+  select v_n * 10 + count(*) into v_n from public.avantaj_natura_flota(v_alfa, v_ang, current_date);
+  reset role;
+  if v_n <> 1 or v_regim is distinct from 'exceptat_categorie' then
+    perform pg_temp.esueaza(format('(l) `hr`: regimuri×10 + fapte de avantaj = %s (regim %s), așteptat 1 (exceptat_categorie)', v_n, v_regim));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, motiv)
+    values (v_alfa, v_veh, current_date - 1, 'limitat_50', 'Încercare hr');
+    reset role;
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `hr` a scris regimul fiscal al unui vehicul');
+  exception when insufficient_privilege then
+    reset role;
+  end;
+
+  -- manager: vede vehiculul echipei în luna fiscală, dar fără regim; nu scrie.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_consumption_norms where organization_id = v_alfa;
+  select v_n * 10 + count(*) into v_n from public.avantaj_natura_flota(v_alfa, v_ang, current_date);
+  select v_n * 10 + count(*) into v_n from public.flota_fiscal_luna(v_alfa, current_date) f where f.regim is not null;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) FALS-POZITIV: `manager` vede datele fiscale (normă×100 + avantaj×10 + regim = %s)', v_n));
+  end if;
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.vehicle_consumption_norms (organization_id, vehicle_id, valabil_de_la, l_100km)
+    values (v_alfa, v_veh, current_date - 2, 9);
+    reset role;
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a scris o normă de consum');
+  exception when insufficient_privilege then
+    reset role;
+  end;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.avantaj_natura_flota(v_alfa, v_ang, current_date);
+  with schimbate as (
+    update public.vehicle_fiscal_regimes set motiv = 'Încercare angajat'
+     where organization_id = v_alfa returning 1
+  ) select v_n * 10 + count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) FALS-POZITIV: `employee` pe fiscal (avantaj×10 + scriere = %s)', v_n));
+  end if;
+
+  -- org_admin: luna fiscală îi arată regimul vehiculului.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.flota_fiscal_luna(v_alfa, current_date) f
+   where f.vehicle_id = v_veh and f.regim = 'exceptat_categorie' and f.norma_l_100km = 6.9;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza(format('(l) REFUZ TĂCUT: `org_admin` nu-și vede luna fiscală (%s rânduri)', v_n));
+  end if;
+
+  raise notice '(l) fiscalul flotei: org_admin scrie regimul, norma și impozitarea; hr află doar avantajul; manager și employee nu văd regimul ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: fiscalul flotei (0202) ════════════════════════════════════
 
 
 rollback;

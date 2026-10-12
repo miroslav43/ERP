@@ -8878,6 +8878,9 @@ export type Database = {
           plan: Database["public"]["Enums"]["plan_type"]
           platitor_tva: boolean
           reg_com: string | null
+          regim_impozitare:
+            | Database["public"]["Enums"]["regim_impozitare"]
+            | null
           reprezentant_legal: string | null
           seats_limit: number
           sector: string | null
@@ -8924,6 +8927,9 @@ export type Database = {
           plan?: Database["public"]["Enums"]["plan_type"]
           platitor_tva?: boolean
           reg_com?: string | null
+          regim_impozitare?:
+            | Database["public"]["Enums"]["regim_impozitare"]
+            | null
           reprezentant_legal?: string | null
           seats_limit?: number
           sector?: string | null
@@ -8970,6 +8976,9 @@ export type Database = {
           plan?: Database["public"]["Enums"]["plan_type"]
           platitor_tva?: boolean
           reg_com?: string | null
+          regim_impozitare?:
+            | Database["public"]["Enums"]["regim_impozitare"]
+            | null
           reprezentant_legal?: string | null
           seats_limit?: number
           sector?: string | null
@@ -13475,6 +13484,69 @@ export type Database = {
           },
         ]
       }
+      vehicle_consumption_norms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          decizie_data: string | null
+          decizie_numar: string | null
+          deleted_at: string | null
+          id: string
+          l_100km: number
+          observatii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          decizie_data?: string | null
+          decizie_numar?: string | null
+          deleted_at?: string | null
+          id?: string
+          l_100km: number
+          observatii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          decizie_data?: string | null
+          decizie_numar?: string | null
+          deleted_at?: string | null
+          id?: string
+          l_100km?: number
+          observatii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_consumption_norms_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_consumption_norms_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_document_types: {
         Row: {
           activ: boolean
@@ -13619,6 +13691,94 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_fiscal_regimes: {
+        Row: {
+          chirie_lunara: number | null
+          contract_data: string | null
+          contract_numar: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          exceptie:
+            | Database["public"]["Enums"]["vehicle_exceptie_fiscala"]
+            | null
+          id: string
+          motiv: string
+          organization_id: string
+          proprietar_employee_id: string | null
+          regim: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          titlu_folosinta: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          vehicle_id: string
+        }
+        Insert: {
+          chirie_lunara?: number | null
+          contract_data?: string | null
+          contract_numar?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          exceptie?:
+            | Database["public"]["Enums"]["vehicle_exceptie_fiscala"]
+            | null
+          id?: string
+          motiv: string
+          organization_id: string
+          proprietar_employee_id?: string | null
+          regim: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          titlu_folosinta?: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          vehicle_id: string
+        }
+        Update: {
+          chirie_lunara?: number | null
+          contract_data?: string | null
+          contract_numar?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          exceptie?:
+            | Database["public"]["Enums"]["vehicle_exceptie_fiscala"]
+            | null
+          id?: string
+          motiv?: string
+          organization_id?: string
+          proprietar_employee_id?: string | null
+          regim?: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          titlu_folosinta?: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_fiscal_regimes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_fiscal_regimes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vfr_proprietar_fk"
+            columns: ["proprietar_employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
           },
         ]
       }
@@ -13939,6 +14099,25 @@ export type Database = {
           ramase_dupa: number
         }[]
       }
+      avantaj_natura_flota: {
+        Args: {
+          p_employee_id: string
+          p_luna: string
+          p_organization_id: string
+        }
+        Returns: {
+          assignment_id: string
+          chirie_lunara: number
+          de_la: string
+          pana_la: string
+          regim: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          regim_impozitare: Database["public"]["Enums"]["regim_impozitare"]
+          titlu_folosinta: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          valoare_intrare: number
+          vehicle_id: string
+          vehicul_nr: string
+        }[]
+      }
       checklist_salveaza_sablon: { Args: { p_sablon: Json }; Returns: string }
       consume_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
@@ -13962,6 +14141,31 @@ export type Database = {
           scade_din_sold: boolean
           temei_legal: string
           zile: number
+        }[]
+      }
+      flota_fiscal_luna: {
+        Args: { p_luna: string; p_organization_id: string }
+        Returns: {
+          categorie: Database["public"]["Enums"]["vehicle_category"]
+          exceptie: Database["public"]["Enums"]["vehicle_exceptie_fiscala"]
+          foi_aprobate: number
+          foi_neaprobate: number
+          km_aprobati: number
+          marca: string
+          masa_maxima_kg: number
+          model: string
+          norma_de_la: string
+          norma_l_100km: number
+          nr_inmatriculare: string
+          numar_locuri: number
+          regim: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          regim_de_la: string
+          status: Database["public"]["Enums"]["vehicle_status"]
+          titlu_folosinta: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          vehicle_id: string
+          zile_fara_regim: number
+          zile_integral: number
+          zile_luna: number
         }[]
       }
       hr_read_sensitive: {
@@ -14608,6 +14812,7 @@ export type Database = {
         | "contract"
         | "propunere_detasare"
         | "propunere_mutare"
+      regim_impozitare: "micro" | "profit" | "specific"
       registru_sens: "intrare" | "iesire" | "intern"
       registru_stare_exercitiu: "deschis" | "inchis"
       salary_component_kind:
@@ -14673,7 +14878,25 @@ export type Database = {
         | "utilaj"
         | "motocicleta"
         | "altele"
+      vehicle_exceptie_fiscala:
+        | "urgenta_paza_curierat"
+        | "agenti_vanzari_achizitii"
+        | "transport_persoane_plata"
+        | "servicii_plata"
+        | "marfa_comerciala"
+      vehicle_fiscal_regime:
+        | "limitat_50"
+        | "integral_exclusiv_economic"
+        | "exceptat_categorie"
+        | "peste_3500_sau_9_locuri"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
+      vehicle_titlu_folosinta:
+        | "proprietate"
+        | "leasing_financiar"
+        | "leasing_operational"
+        | "inchiriat"
+        | "comodat"
+        | "chirie_persoana_fizica"
       verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
@@ -15182,6 +15405,7 @@ export const Constants = {
         "propunere_detasare",
         "propunere_mutare",
       ],
+      regim_impozitare: ["micro", "profit", "specific"],
       registru_sens: ["intrare", "iesire", "intern"],
       registru_stare_exercitiu: ["deschis", "inchis"],
       salary_component_kind: [
@@ -15254,7 +15478,28 @@ export const Constants = {
         "motocicleta",
         "altele",
       ],
+      vehicle_exceptie_fiscala: [
+        "urgenta_paza_curierat",
+        "agenti_vanzari_achizitii",
+        "transport_persoane_plata",
+        "servicii_plata",
+        "marfa_comerciala",
+      ],
+      vehicle_fiscal_regime: [
+        "limitat_50",
+        "integral_exclusiv_economic",
+        "exceptat_categorie",
+        "peste_3500_sau_9_locuri",
+      ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
+      vehicle_titlu_folosinta: [
+        "proprietate",
+        "leasing_financiar",
+        "leasing_operational",
+        "inchiriat",
+        "comodat",
+        "chirie_persoana_fizica",
+      ],
       verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },
