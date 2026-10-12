@@ -7,6 +7,7 @@ cai:
   - "src/lib/queries/fleet.ts"
   - "src/schemas/fleet.ts"
   - "src/domain/fleet/**"
+  - "src/app/(portal)/portal/masina-mea/**"
 tabele:
   [vehicles, vehicle_assignments, vehicle_documents, trip_sheets, fuel_entries, odometer_anomalies]
 permisiuni:
@@ -22,11 +23,11 @@ permisiuni:
 feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
-  - "vehicul care nu apare în listă → [[rol/manager]]"
+  - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
   - "42501 la salvarea unui vehicul → capcana #23"
   - "tip de document care lipsește din listă → 0116, cele patru de transport sunt activ=false"
-scris_pe: c2cf6c8f968d9b2a0a3121ba02ff74a4b97f3c6d
-scris_la: 2026-10-07
+scris_pe: 06086dd260a0cce4cafa725b74bd095393819297
+scris_la: 2026-10-12
 tags: [modul, operations]
 ---
 
@@ -43,6 +44,10 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 | `/flota`, `/flota/[id]`              | `vehicles:read` own; creare cere `vehicles:create` all              |
 | `/flota/foi`, `/flota/foi/[id]`      | `trip_sheets:read`/`update` own                                     |
 | `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
+| `/portal/masina-mea*`                | `trip_sheets:read` own — portalul șoferului, din 0196               |
+
+Drepturile pe roluri (0196), garda de vehicul alocat sau pool, regula „aprobatorul doar
+decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.
 
 **Fișa vehiculului nu e doar de citit.** Modificarea și ștergerea stau amândouă în spatele
 lui `vehicles:update` all — `poateAdministra` din `[id]/page.tsx`, poarta cerută de
@@ -74,7 +79,7 @@ P0001 o foaie pe un vehicul vândut sau casat.
 | `corecteazaKilometraj`                                | `vehicles:update` / all      |
 | `alocaVehicul`, `incheieAlocarea`, `stergeAlocarea`   | `vehicles:update` / all      |
 | `actualizeazaDocument`, `stergeDocument`              | `vehicles:update` / all      |
-| `creeazaFoaie`                                        | `trip_sheets:create` / own   |
+| `creeazaFoaie` (șoferul sub `all` = fișa proprie)     | `trip_sheets:create` / own   |
 | `trimiteFoaie`, `redeschideFoaie`, `adaugaAlimentare` | `trip_sheets:update` / own   |
 | `decideFoaie`                                         | `trip_sheets:approve` / team |
 | `confirmaAnomalie`                                    | `vehicles:update` / team     |
@@ -114,18 +119,19 @@ pune `internal.vehicles_normalizeaza` din `status` și o golește la întoarcere
 `src/lib/queries/fleet.ts` (marcat `import "server-only"`): `listeazaVehicule`,
 `citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`, `tipuriDocument`,
 `listeazaFoi`, `citesteFoaie`, `kmDePlecareSugerat`, `combustibilPeFoi`,
-`alimentarileFoii`, `anomaliiNeconfirmate`, `anomaliiPeFoi`.
+`alimentarileFoii`, `anomaliiNeconfirmate`, `anomaliiPeFoi`, plus, pentru portal,
+`vehicululMeu` și `foileMele` (filtru explicit pe șofer).
 
 ## Ce refuză baza tăcut
 
 Citește secțiunea asta înainte de orice scriere în modul.
 
-- **`manager` nu are NICIO permisiune `vehicles:*`.** Pe `/flota/foi` și
-  `/flota/aprobari`, embed-ul `vehicles!vehicle_id` vine **NULL, fără eroare**. Tipează
-  câmpul `| null` și afișează „—". Nu compensa cu `createAdminSupabase` — ESLint nu-l
-  permite în pagini. În plus, un vehicul cu `employee_id` NULL e invizibil pentru oricine
-  nu are `vehicles:read = all`. De aceea caseta „Foaie nouă" devine link spre parcul auto
-  când lista vine goală — un buton dezactivat n-ar spune de ce. — capcana #18
+- **Un vehicul fără șofer și fără `pool` e invizibil sub `vehicles:read` own/team.**
+  Managerul vede, din 0196, mașinile echipei și pool-ul; angajatul, mașina lui și
+  pool-ul. Pe o foaie de pe o mașină care nu mai e a șoferului, embed-ul
+  `vehicles!vehicle_id` vine **NULL, fără eroare**: tipează câmpul `| null` și afișează
+  „—". Nu compensa cu `createAdminSupabase`. Caseta „Foaie nouă" devine explicație sau
+  link spre parc când lista vine goală. — capcana #18
 - **Semaforul de scadențe NU se citește din `expirables`.** Politica de acolo cere ȘI
   dreptul pe vehicul ȘI `compliance:read`, pe care în seed îl au doar `super_admin` și
   `org_admin`. Pentru `hr`, `manager` și `employee` tabela întoarce **zero rânduri,
