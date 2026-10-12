@@ -200,12 +200,28 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
   // `departamentCurent` e denumirea, deja calculată mai sus — inclusiv „alt
   // departament" pentru unul ascuns de RLS; `departamentPeAngajat` dă id-ul, iar
   // comparația din formular se face pe el, niciodată pe denumire.
-  const optiuniAngajati: readonly OptiuneAngajat[] = persoane.map((p) => ({
-    id: p.id,
-    full_name: p.full_name,
-    departamentId: departamentPeAngajat.get(p.id) ?? null,
-    departamentDenumire: p.departamentCurent,
-  }));
+  //
+  // `conduceDepartamentulCurent`: omul e și `manager_employee_id` al departamentului
+  // în care e membru acum. Mutarea îl scoate de acolo, iar triggerul
+  // `internal.sef_iese_din_departament` (0143) golește managerul acelui
+  // departament — formularul spune efectul ÎNAINTE de apăsare. Vine din
+  // `structura`, deja citită; un departament ascuns de RLS nu e în ea, deci
+  // câmpul rămâne `false` (se spune ce se știe, ca la „alt departament").
+  const condusDe = new Map(
+    structura.flatMap((d) =>
+      d.manager_employee_id === null ? [] : [[d.manager_employee_id, d.id] as const],
+    ),
+  );
+  const optiuniAngajati: readonly OptiuneAngajat[] = persoane.map((p) => {
+    const departamentId = departamentPeAngajat.get(p.id) ?? null;
+    return {
+      id: p.id,
+      full_name: p.full_name,
+      departamentId,
+      departamentDenumire: p.departamentCurent,
+      conduceDepartamentulCurent: departamentId !== null && condusDe.get(p.id) === departamentId,
+    };
+  });
 
   return (
     <div className="space-y-6">
