@@ -11,6 +11,7 @@ import {
   etichetaCamp,
   etichetaEntitate,
   etichetaStatus,
+  etichetaValoare,
 } from "@/lib/audit/etichete";
 import type { RandJurnal } from "@/lib/queries/audit";
 import { formatDateTime } from "@/lib/format/date";
@@ -37,6 +38,14 @@ const ETICHETE_TIP: Readonly<Record<string, string>> = {
 };
 
 const clasaCelula = "px-3 py-2 align-top text-corp text-foreground";
+
+/**
+ * „Sistem” doar când rândul chiar n-are actor. Un actor al cărui profil nu e
+ * vizibil sub RLS (alt cont de platformă, membru plecat) e tot un om, nu o
+ * acțiune automată (FLX-006).
+ */
+const numeActor = (rand: RandJurnal): string =>
+  rand.actorNume ?? (rand.actorId === null ? "Sistem" : "Cont fără profil vizibil");
 
 function Detaliu({
   rand,
@@ -119,13 +128,17 @@ function Detaliu({
                     {valoare(
                       modificare.cale,
                       modificare.inainte,
-                      formateazaValoare(modificare.inainte),
+                      formateazaValoare(etichetaValoare(modificare.cale, modificare.inainte)),
                     )}
                   </span>
                   <span aria-hidden="true"> → </span>
                   <span className="sr-only"> devine </span>
                   <span className="text-foreground">
-                    {valoare(modificare.cale, modificare.dupa, formateazaValoare(modificare.dupa))}
+                    {valoare(
+                      modificare.cale,
+                      modificare.dupa,
+                      formateazaValoare(etichetaValoare(modificare.cale, modificare.dupa)),
+                    )}
                   </span>
                 </p>
               </li>
@@ -236,10 +249,10 @@ export function TabelAudit({
                       className="block underline-offset-2 hover:underline"
                       title="Toate acțiunile acestui cont"
                     >
-                      {rand.actorNume ?? "Sistem"}
+                      {numeActor(rand)}
                     </Link>
                   ) : (
-                    <span className="block">{rand.actorNume ?? "Sistem"}</span>
+                    <span className="block">{numeActor(rand)}</span>
                   )}
                   <span className="text-muted-foreground text-nota block">
                     {rand.actorEmail ?? (rand.actorId === null ? "acțiune automată" : "—")}
