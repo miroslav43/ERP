@@ -12,11 +12,18 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { consumLa100Km } from "@/domain/fleet/consum";
-import { alimentarileFoii, anomaliiPeFoi, citesteFoaie, vehiculeDupaId } from "@/lib/queries/fleet";
+import {
+  alimentarileFoii,
+  anomaliiPeFoi,
+  citesteFoaie,
+  curseleFoii,
+  sabloaneTraseu,
+  vehiculeDupaId,
+} from "@/lib/queries/fleet";
 import { fisaMea } from "@/lib/queries/portal";
 import {
   ETICHETE_STATUS_FOAIE,
@@ -24,6 +31,10 @@ import {
   TONURI_STATUS_FOAIE,
 } from "@/app/(app)/flota/etichete";
 import { ActiuniFoaie } from "@/app/(app)/flota/foi/[id]/actiuni-foaie";
+import { ButonStergePeFoaie } from "@/app/(app)/flota/foi/[id]/buton-sterge-pe-foaie";
+import { DialogAlimentare } from "@/app/(app)/flota/foi/[id]/dialog-alimentare";
+import { DialogAntetFoaie } from "@/app/(app)/flota/foi/[id]/dialog-antet-foaie";
+import { SectiuneCurse } from "@/app/(app)/flota/foi/[id]/sectiune-curse";
 
 import { FaraFisa } from "../../../fara-fisa";
 
@@ -34,8 +45,8 @@ interface ProprietatiPagina {
 }
 
 /**
- * Foaia șoferului, în portal: cifrele, alimentările, închiderea și
- * redeschiderea după respingere. Corespondentul lui `/flota/foi/[id]`, fără
+ * Foaia șoferului, în portal: cursele zilei (0197), alimentările, trimiterea,
+ * retragerea și redeschiderea după respingere. Corespondentul lui `/flota/foi/[id]`, fără
  * decizie (nimeni nu-și aprobă propria foaie) și fără legături spre fișele pe
  * care angajatul nu le poate deschide.
  *
@@ -66,13 +77,17 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
   const foaie = await citesteFoaie(tenant.organizationId, id);
   if (foaie === null || foaie.employee_id !== stare.fisa.id) notFound();
 
-  const [alimentari, vehicule, anomalii] = await Promise.all([
+  const [alimentari, vehicule, anomalii, curse] = await Promise.all([
     alimentarileFoii(foaie.id),
     vehiculeDupaId(tenant.organizationId, [foaie.vehicle_id]),
     anomaliiPeFoi(tenant.organizationId, [foaie.id]),
+    curseleFoii(tenant.organizationId, foaie.id),
   ]);
   const vehicul = vehicule.get(foaie.vehicle_id);
   const poateScrie = can(permisiuni, "trip_sheets:update", "own");
+  // 0197 §D1: cursele, alimentările și antetul se scriu doar pe ciornă.
+  const editabil = poateScrie && foaie.status === "draft";
+  const sabloane = editabil ? await sabloaneTraseu(tenant.organizationId) : [];
 
   const litriTotali = alimentari.reduce((s, a) => s + a.litri, 0);
   const costTotal = alimentari.reduce((s, a) => s + a.cost, 0);
@@ -112,6 +127,26 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
       peTelefon: "meta",
       celula: (a) => formatLei(a.cost),
     },
+    ...(editabil
+      ? ([
+          {
+            cheie: "actiuni",
+            antet: "Acțiuni",
+            peTelefon: "actiuni",
+            celula: (a: (typeof alimentari)[number]) => (
+              <span className="flex justify-end gap-1">
+                <DialogAlimentare foaieId={foaie.id} alimentare={a} />
+                <ButonStergePeFoaie
+                  fel="alimentare"
+                  id={a.id}
+                  foaieId={foaie.id}
+                  descriere={`${String(a.litri)} l, ${formatDateTime(new Date(a.alimentat_la))}`}
+                />
+              </span>
+            ),
+          },
+        ] satisfies Coloana<(typeof alimentari)[number]>[])
+      : []),
   ];
 
   return (
@@ -123,16 +158,33 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
           </Link>
         </p>
         <AntetPagina
-          titlu={`${vehicul?.nr_inmatriculare ?? "Vehicul indisponibil"}${
+          titlu={`${foaie.vehicul_nr ?? vehicul?.nr_inmatriculare ?? "Vehicul indisponibil"}${
             foaie.numar === null ? "" : ` · ${foaie.numar}`
           }`}
-          descriere={`${formatDateTime(new Date(foaie.plecare_la))}${
-            foaie.sosire_la === null ? "" : ` – ${formatDateTime(new Date(foaie.sosire_la))}`
-          }`}
+          descriere={`Foaia zilei ${formatDate(foaie.data)}`}
           actiuni={
-            <Badge ton={TONURI_STATUS_FOAIE[foaie.status]} className="shrink-0">
-              {ETICHETE_STATUS_FOAIE[foaie.status]}
-            </Badge>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Badge ton={TONURI_STATUS_FOAIE[foaie.status]}>
+                {ETICHETE_STATUS_FOAIE[foaie.status]}
+              </Badge>
+              <a
+                href={`/api/export/flota/foaie/${foaie.id}`}
+                className="text-corp underline underline-offset-2"
+              >
+                Descarcă PDF
+              </a>
+              {editabil ? (
+                <DialogAntetFoaie
+                  foaieId={foaie.id}
+                  areCurse={curse.length > 0}
+                  plecareLa={foaie.plecare_la}
+                  kmPlecare={foaie.km_plecare}
+                  traseu={foaie.traseu}
+                  scop={foaie.scop}
+                  observatii={foaie.observatii}
+                />
+              ) : null}
+            </div>
           }
         />
       </div>
@@ -167,6 +219,14 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
           </Callout>
         );
       })}
+
+      <SectiuneCurse
+        foaieId={foaie.id}
+        curse={curse}
+        editabil={editabil}
+        kmPlecareFoaie={foaie.km_plecare ?? 0}
+        sabloane={sabloane}
+      />
 
       <section aria-label="Kilometraj și consum" className="border-border rounded-panou border p-4">
         <ListaDefinitii
@@ -242,6 +302,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
               </td>
               <td className="px-4 py-3 text-right tabular-nums">{litriTotali.toFixed(2)}</td>
               <td className="px-4 py-3 text-right tabular-nums">{formatLei(costTotal)}</td>
+              {editabil ? <td className="px-4 py-3" /> : null}
             </tr>
           }
         />
@@ -251,9 +312,10 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
         <ActiuniFoaie
           id={foaie.id}
           status={foaie.status}
-          kmPlecare={foaie.km_plecare ?? 0}
           plecareLa={foaie.plecare_la}
           sosireLa={foaie.sosire_la}
+          areCurse={curse.length > 0}
+          bazaFoi="/portal/masina-mea"
         />
       ) : null}
     </div>

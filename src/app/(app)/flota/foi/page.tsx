@@ -13,7 +13,7 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor, type PermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDateTime } from "@/lib/format/date";
+import { formatDate } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { angajatiDupaId, listeazaFoi, listeazaVehicule, vehiculeDupaId } from "@/lib/queries/fleet";
@@ -63,12 +63,19 @@ async function TabelFoi({
   }
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.status !== null || filtre.vehicul !== null || filtre.sofer !== null;
+    const areFiltre =
+      filtre.status !== null ||
+      filtre.vehicul !== null ||
+      filtre.sofer !== null ||
+      filtre.de_la !== null ||
+      filtre.pana_la !== null;
     // Ca la /flota: se scot DOAR cheile de filtrare. Un `href="/flota/foi"` sec
     // ar fi luat cu el și sortarea coloanelor, și mărimea paginii.
     const faraFiltre = adresa((p) => {
       p.delete("status");
       p.delete("vehicul");
+      p.delete("de_la");
+      p.delete("pana_la");
       p.delete("cursor");
     });
     return (
@@ -113,12 +120,21 @@ async function TabelFoi({
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
     {
+      // Foaia e ziua unui vehicul (0197): ziua și numărul ei. Sortarea rămâne
+      // pe prima plecare, cu care ziua merge mereu împreună.
       cheie: "plecare",
-      antet: "Plecare",
+      antet: "Ziua",
       sortabil: true,
       latime: "ingusta",
       peTelefon: "titlu",
-      celula: (f) => formatDateTime(new Date(f.plecare_la)),
+      celula: (f) => (
+        <>
+          {formatDate(f.data)}
+          {f.numar === null ? null : (
+            <span className="text-muted-foreground block text-xs">{f.numar}</span>
+          )}
+        </>
+      ),
     },
     {
       cheie: "vehicul",

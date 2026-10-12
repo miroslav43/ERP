@@ -220,8 +220,8 @@ export function DialogFoaieNoua({
         eticheta: "Foaie nouă",
         pictograma: <FilePlus2 aria-hidden="true" className="size-4" />,
       }}
-      titlu="Foaie de parcurs nouă"
-      descriere="Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului. Verificați-l înainte de salvare: unul mai mic decât ultimul e refuzat de sistem."
+      titlu="Foaia zilei"
+      descriere="O foaie pe vehicul și zi: după salvare adăugați pe ea cursele zilei. Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului; unul mai mic e refuzat de sistem."
       marime="mare"
       deschisInitial={deschisInitial}
       actiune={trimiteFoaia}
@@ -293,6 +293,7 @@ export function DialogFoaieNoua({
             nume="plecare_la"
             id={idc("plecare_la")}
             eticheta="Plecare"
+            ajutor="Ziua plecării e ziua foii. Prima cursă îi poate muta ora, nu și ziua."
             obligatoriu
             erori={stare.erori["plecare_la"] ?? []}
           >
@@ -329,7 +330,7 @@ export function DialogFoaieNoua({
           <Camp
             nume="traseu"
             id={idc("traseu")}
-            eticheta="Traseu"
+            eticheta="Traseul pe scurt"
             className="sm:col-span-2"
             erori={stare.erori["traseu"] ?? []}
           >
@@ -346,7 +347,7 @@ export function DialogFoaieNoua({
           <Camp
             nume="scop"
             id={idc("scop")}
-            eticheta="Scopul deplasării"
+            eticheta="Scopul zilei"
             className="sm:col-span-2"
             erori={stare.erori["scop"] ?? []}
           >
