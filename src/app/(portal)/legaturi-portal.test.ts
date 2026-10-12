@@ -35,11 +35,15 @@ const RADACINA = join(process.cwd(), "src", "app", "(portal)");
  *   `<video src>` și în `<iframe src>`, cerută de zeci de ori pe vizionare, nu
  *   navigată de om. Ruta rezolvă tenantul și citește versiunea SUB RLS; dacă
  *   rândul nu vine, răspunde 404, nu 403.
+ * · `/api/export/flota/foaie/` — foaia de parcurs proprie, în PDF (0197). Ca la
+ *   fluturaș, ruta cere doar `trip_sheets:read` own, iar `foi_select`,
+ *   `curse_select` și `alimentari_select` aleg rândurile; foaia altcuiva dă 404.
  */
 const IESIRI_PERMISE: readonly string[] = [
   "/documente/",
   "/api/export/salarizare/fluturas",
   "/api/materiale/",
+  "/api/export/flota/foaie/",
 ];
 
 function fisiereSursa(director: string): readonly string[] {
