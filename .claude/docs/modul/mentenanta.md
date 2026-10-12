@@ -13,12 +13,14 @@ cai:
   - "supabase/migrations/0182_echipamente_ciclu.sql"
   - "supabase/migrations/0183_planuri_scadente.sql"
   - "supabase/migrations/0191_mentenanta_zilnica.sql"
+  - "supabase/migrations/0192_mentenanta_interventii_complete.sql"
 tabele:
   [
     equipment,
     equipment_meters,
     maintenance_plans,
     maintenance_interventions,
+    maintenance_intervention_parts,
     fault_reports,
     iscir_authorizations,
   ]
@@ -29,9 +31,9 @@ capcane: [17, 35, 50, 51]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
-  - "casare, componente, contoare, responsabil → [[modul/mentenanta/echipamente]]; scadență, amânare, grilă fixă, proiecție → [[modul/mentenanta/planuri]]"
-scris_pe: d88200b8dc3f13fccad2ce8777662950d9c00eb8
-scris_la: 2026-10-09
+  - "casare, componente, contoare → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; PV, piese, anulare → [[modul/mentenanta/interventii]]"
+scris_pe: 265369638b6f93ef6668b05e37d47890e12836ee
+scris_la: 2026-10-12
 tags: [modul]
 ---
 
@@ -47,7 +49,9 @@ echipamentului (casare, componente, garanție, contoare în lot, etichete QR, re
 — `0182`) are și el una: [[modul/mentenanta/echipamente]]. Planurile și scadențele (mod de
 calcul, amânare, proiecție pe contor, fișa planului — `0183`): [[modul/mentenanta/planuri]].
 Jobul de dimineață (alerte, rezumatul per destinatar, închiderea automată, pragurile din
-setări — `0191`): [[modul/mentenanta/zilnic]].
+setări — `0191`): [[modul/mentenanta/zilnic]]. Intervenția completă (număr PV, piese,
+corectare, anulare, procesul-verbal, garanția lucrării — `0192`):
+[[modul/mentenanta/interventii]].
 
 ## Rute și cine ajunge
 
@@ -59,7 +63,8 @@ setări — `0191`): [[modul/mentenanta/zilnic]].
 | `/mentenanta/echipamente`, `/mentenanta/echipamente/[id]`  | `maintenance:read` team   |
 | `/mentenanta/echipamente?echipament=nou` (casetă)          | `maintenance:update` team |
 | `/mentenanta/planuri`, `/mentenanta/planuri/[id]`          | `maintenance:read` team   |
-| `/mentenanta/interventii`                                  | `maintenance:read` team   |
+| `/mentenanta/interventii`, `/mentenanta/interventii/[id]`  | `maintenance:read` team   |
+| `/mentenanta/interventii?interventie=noua` (casetă)        | `maintenance:update` team |
 | `/mentenanta/contoare`, `/mentenanta/echipamente/etichete` | `maintenance:read` team   |
 | `/mentenanta/setari`                                       | `maintenance:update` all  |
 
@@ -204,12 +209,5 @@ sunt la [[modul/ssm]], deși vin din aceeași migrare.
 - Contractul exact al unei acțiuni: `src/app/(app)/mentenanta/actions-*.test.ts`,
   `sesizari/actions.test.ts`, `planuri/actions.test.ts`, pe client Supabase fals.
   `actions-modul.test.ts` verifică cheia `feature` a exporturilor din `actions.ts`.
-- Legăturile dintre ecrane, pe loturi (`docs/design/navigare-intre-module.md`),
-  toate în [[strat/navigare]]: 7h — planul leagă echipamentul și responsabilul, fișa are
-  „Sesizare nouă”, „Vezi toate” și ISCIR → SSM, contoarele și sesizările leagă utilajul,
-  cronologia leagă echipamentul și sesizarea originală; 7l — punctul de lucru pe nume
-  pentru orice cititor (`numelePunctuluiDeLucru`) și „echipamentele locației”, respingerea
-  ca duplicat alege dintre sesizările deschise ale utilajului. Lista de intervenții are
-  coloanele „Plan” și „Executant”, cu `?plan=` ca cheie EXTERNĂ a barei de filtre (pastilă
-  din `citestePlan`, altfel filtrul ar fi invizibil și de neșters), iar fișa echipamentului
-  poartă `IstoricModificari`.
+- Legăturile dintre ecrane, pe loturi (`docs/design/navigare-intre-module.md`, lotul 7h
+  și 7l): [[strat/navigare]]. Lista de intervenții: [[modul/mentenanta/interventii]].
