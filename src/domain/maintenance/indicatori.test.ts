@@ -9,6 +9,7 @@ import {
   contoareCuPlan,
   fereastraCitire,
   formatOreIndicator,
+  formatOreProgram,
   formatProcent,
   imparte,
   normalizeazaPerioada,
@@ -87,6 +88,14 @@ describe("împărțirea fără numitor zero", () => {
     expect(formatProcent(0.875)).toBe("87,5 %");
     expect(formatOreIndicator(3.25)).toBe("3,3 h");
     expect(formatOreIndicator(72)).toBe("3 zile");
+  });
+
+  // Revizia M8: orele de PROGRAM nu sunt zile calendaristice — 352 h de program
+  // sunt 44 de zile de lucru de câte 8 h, nu „14,7 zile”.
+  it("orele de program rămân în ore", () => {
+    expect(formatOreProgram(null)).toBe("—");
+    expect(formatOreProgram(352)).toBe("352 h");
+    expect(formatOreProgram(171.25)).toBe("171,3 h");
   });
 });
 
@@ -425,6 +434,107 @@ describe("calculeazaRaport — opriri, disponibilitate, MTTR, MTBF", () => {
     // 28–30 sept: luni–miercuri.
     expect(r.echipamente.find((e) => e.equipmentId === "e3")?.oreProgram).toBe(24);
   });
+
+  // ── Revizia M8: opririle suprapuse și opririle din afara parcului ──
+  it("două opriri suprapuse pe același echipament se numără o dată (sesizare duplicată)", () => {
+    const r = calculeazaRaport(
+      intrare({
+        opriri: [
+          // Marți 8 sept, 09:00–13:00 și 11:00–15:00 ora României: împreună 6 h, nu 8.
+          {
+            id: "o1",
+            equipment_id: "e1",
+            inceput: "2026-09-08T06:00:00Z",
+            sfarsit: "2026-09-08T10:00:00Z",
+            tip: "neplanificata",
+          },
+          {
+            id: "o2",
+            equipment_id: "e1",
+            inceput: "2026-09-08T08:00:00Z",
+            sfarsit: "2026-09-08T12:00:00Z",
+            tip: "neplanificata",
+          },
+        ],
+      }),
+    );
+    const e1 = r.echipamente.find((e) => e.equipmentId === "e1");
+    expect(e1?.oreOprire).toBe(6);
+    expect(e1?.opririNeplanificate).toBe(1);
+    expect(r.totaluri.mttrOre).toBe(6);
+  });
+
+  it("două opriri în aceeași zi nu scad mai mult decât programul zilei", () => {
+    const r = calculeazaRaport(
+      intrare({
+        opriri: [
+          {
+            id: "o1",
+            equipment_id: "e1",
+            inceput: "2026-09-08T03:00:00Z",
+            sfarsit: "2026-09-08T09:00:00Z",
+            tip: "neplanificata",
+          },
+          {
+            id: "o2",
+            equipment_id: "e1",
+            inceput: "2026-09-08T12:00:00Z",
+            sfarsit: "2026-09-08T18:00:00Z",
+            tip: "planificata",
+          },
+        ],
+      }),
+    );
+    expect(r.echipamente.find((e) => e.equipmentId === "e1")?.oreOprire).toBe(8);
+  });
+
+  it("oprirea rămasă deschisă după casare nu se numără după casare, iar cea din afara parcului nu intră în total", () => {
+    const r = calculeazaRaport(
+      intrare({
+        echipamente: [
+          {
+            id: "e1",
+            cod: "E1",
+            denumire: "Casat înainte",
+            valoare_achizitie: null,
+            casat_la: "2026-08-01",
+            data_punerii_in_functiune: null,
+          },
+          {
+            id: "e2",
+            cod: "E2",
+            denumire: "Casat în 4 sept",
+            valoare_achizitie: null,
+            casat_la: "2026-09-04",
+            data_punerii_in_functiune: null,
+          },
+        ],
+        opriri: [
+          {
+            id: "o1",
+            equipment_id: "e1",
+            inceput: "2026-09-10T06:00:00Z",
+            sfarsit: "2026-09-10T10:00:00Z",
+            tip: "neplanificata",
+          },
+          // Joi 3 sept 09:00, deschisă: joi 8 h + vineri 8 h, apoi echipamentul e casat.
+          {
+            id: "o2",
+            equipment_id: "e2",
+            inceput: "2026-09-03T06:00:00Z",
+            sfarsit: null,
+            tip: "neplanificata",
+          },
+        ],
+      }),
+    );
+    const e2 = r.echipamente.find((e) => e.equipmentId === "e2");
+    expect(e2?.oreProgram).toBe(32);
+    expect(e2?.oreOprire).toBe(16);
+    expect(e2?.disponibilitate).toBeCloseTo(0.5);
+    expect(r.totaluri.oreOprire).toBe(16);
+    expect(r.totaluri.disponibilitate).toBeCloseTo(0.5);
+  });
 });
 
 describe("calculeazaRaport — planuri", () => {
@@ -443,6 +553,9 @@ describe("calculeazaRaport — planuri", () => {
     urmatoarea_scadenta: "2026-11-01",
     tip_contor: null,
     urmatoarea_scadenta_contor: null,
+    mod_calcul: "flotant",
+    data_ancora: null,
+    amanat_pana: null,
     ...extra,
   });
 
@@ -462,8 +575,8 @@ describe("calculeazaRaport — planuri", () => {
         ],
       }),
     );
-    expect(r.totaluri.planuriLaTimp).toEqual({ laTimp: 1, evaluate: 2, rata: 0.5 });
-    expect(r.totaluri.legaleLaTimp).toEqual({ laTimp: 0, evaluate: 1, rata: 0 });
+    expect(r.totaluri.planuriLaTimp).toEqual({ laTimp: 1, evaluate: 2, rata: 0.5, restante: 0 });
+    expect(r.totaluri.legaleLaTimp).toEqual({ laTimp: 0, evaluate: 1, rata: 0, restante: 0 });
     expect(r.totaluri.zileDepasire).toMatchObject({ total: 11, maxim: 11, numar: 1 });
   });
 
@@ -477,7 +590,7 @@ describe("calculeazaRaport — planuri", () => {
         ],
       }),
     );
-    expect(r.totaluri.planuriLaTimp).toEqual({ laTimp: 0, evaluate: 1, rata: 0 });
+    expect(r.totaluri.planuriLaTimp).toEqual({ laTimp: 0, evaluate: 1, rata: 0, restante: 0 });
   });
 
   it("fără execuții evaluabile, procentul e „—”", () => {
@@ -497,6 +610,50 @@ describe("calculeazaRaport — planuri", () => {
       }),
     );
     expect(r.totaluri.zileDepasire).toEqual({ total: 10, maxim: 10, numar: 1 });
+    // Revizia M8: verificarea depășită și neexecutată NU e „la timp”.
+    expect(r.totaluri.legaleLaTimp).toEqual({ laTimp: 0, evaluate: 1, rata: 0, restante: 1 });
+  });
+
+  // ── Revizia M8 ──
+  it("planul activ depășit și neexecutat intră în procent ca neexecutat la timp", () => {
+    const r = calculeazaRaport(
+      intrare({
+        planuri: [
+          plan("p1", { urmatoarea_scadenta: "2026-09-20" }),
+          // Scadența după capătul perioadei: nu era încă depășit.
+          plan("p2", { urmatoarea_scadenta: "2026-10-05" }),
+          plan("p3", { urmatoarea_scadenta: "2026-09-01", activ: false }),
+        ],
+        executiiPlanuri: [
+          { id: "a", plan_id: "p2", data: "2026-08-10", citire_contor: null },
+          { id: "b", plan_id: "p2", data: "2026-09-05", citire_contor: null },
+        ],
+      }),
+    );
+    expect(r.totaluri.planuriLaTimp).toEqual({ laTimp: 1, evaluate: 2, rata: 0.5, restante: 1 });
+  });
+
+  it("planul pe grilă fixă se judecă față de grilă, nu față de execuția precedentă", () => {
+    const r = calculeazaRaport(
+      intrare({
+        planuri: [
+          plan("p1", {
+            tip: "verificare_legala",
+            mod_calcul: "fix",
+            data_ancora: "2026-07-01",
+            periodicitate_zile: 30,
+          }),
+        ],
+        executiiPlanuri: [
+          // Grila: 1 iul, 31 iul, 30 aug, 29 sept. După 5 aug, scadența e 30 aug.
+          { id: "a", plan_id: "p1", data: "2026-08-05", citire_contor: null },
+          // 3 sept: flotant ar fi la timp (5 aug + 30 = 4 sept), pe grilă e cu 4 zile întârziere.
+          { id: "b", plan_id: "p1", data: "2026-09-03", citire_contor: null },
+        ],
+      }),
+    );
+    expect(r.totaluri.legaleLaTimp).toEqual({ laTimp: 0, evaluate: 1, rata: 0, restante: 0 });
+    expect(r.totaluri.zileDepasire).toMatchObject({ total: 4, maxim: 4, numar: 1 });
   });
 
   it("contoarele cu plan: doar active, pe contor, fiecare pereche o dată", () => {
@@ -522,7 +679,22 @@ describe("calculeazaRaport — planuri", () => {
       }),
     );
     expect(r.amanari.map((p) => p.id)).toEqual(["p2", "p1"]);
-    expect(r.totaluri.amanari).toEqual({ planuri: 2, total: 4 });
+    expect(r.totaluri.amanari).toEqual({ planuri: 2, total: 4, inCurs: 0 });
+  });
+
+  // Revizia M8: `numar_amanari` e istoric (0183 nu-l golește la execuție);
+  // amânarea ÎN CURS e `amanat_pana`, pe care execuția reușită o șterge.
+  it("amânările în curs sunt planurile active cu `amanat_pana`, nu cele cu contor nenul", () => {
+    const r = calculeazaRaport(
+      intrare({
+        planuri: [
+          plan("p1", { numar_amanari: 2, amanat_pana: "2026-10-20" }),
+          plan("p2", { numar_amanari: 3 }),
+          plan("p3", { numar_amanari: 1, amanat_pana: "2026-10-20", activ: false }),
+        ],
+      }),
+    );
+    expect(r.totaluri.amanari).toEqual({ planuri: 2, total: 5, inCurs: 1 });
   });
 });
 

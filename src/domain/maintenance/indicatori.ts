@@ -13,9 +13,12 @@
  * ── CE E RECONSTITUIT, NU CITIT ───────────────────────────────────────────
  * Baza nu păstrează scadența de la momentul execuției. „La timp” se judecă din
  * execuția REUȘITĂ precedentă a aceluiași plan + periodicitatea lui (zile și/sau
- * contor); prima execuție cunoscută nu se poate judeca și nu intră în procent.
+ * contor); un plan `fix` (0183) se judecă față de GRILA lui din `data_ancora`,
+ * ca în `internal.ssm_plan_calc`. Prima execuție cunoscută nu se poate judeca.
+ * Un plan activ încă depășit la capătul perioadei, neexecutat, intră în procent
+ * ca nefăcut la timp (`restante`) — altfel un plan uitat ar lăsa „100 %”.
  * O execuție făcută după o amânare apare întârziată față de calcul — amânările
- * se raportează separat, cu `numar_amanari` (cazul 27).
+ * se raportează separat (cazul 27).
  *
  * ── ORELE DE PROGRAM ──────────────────────────────────────────────────────
  * Programul e al FIRMEI (`maintenance_settings`): `ore_functionare_pe_zi` în
@@ -26,7 +29,13 @@
  * program; e o aproximare declarată.
  */
 import { momentDinOraRomaniei, toBucharestDateString } from "@/lib/format/date";
-import type { StatusSesizare, TipContor, TipMentenanta, TipOprire } from "@/schemas/maintenance";
+import type {
+  ModCalcul,
+  StatusSesizare,
+  TipContor,
+  TipMentenanta,
+  TipOprire,
+} from "@/schemas/maintenance";
 
 import { contorInvechit } from "./proiectie";
 
@@ -91,6 +100,14 @@ export function formatOreIndicator(ore: number | null): string {
     return `${ZECIMALA.format(zile)} ${zile === 1 ? "zi" : "zile"}`;
   }
   return `${ZECIMALA.format(ore)} h`;
+}
+
+/**
+ * „352 h” sau „—”: ore de PROGRAM (MTBF, orele de program și de oprire), care
+ * nu se convertesc în zile — 352 h de program sunt 44 de zile de lucru, nu 14,7.
+ */
+export function formatOreProgram(ore: number | null): string {
+  return ore === null ? "—" : `${ZECIMALA.format(ore)} h`;
 }
 
 function rotunjeste(x: number): number {
@@ -239,6 +256,11 @@ export interface PlanRaport {
   readonly urmatoarea_scadenta: string | null;
   readonly tip_contor: TipContor | null;
   readonly urmatoarea_scadenta_contor: number | null;
+  /** `flotant` = de la ultima execuție; `fix` = pe grila din `data_ancora` (0183). */
+  readonly mod_calcul: ModCalcul;
+  readonly data_ancora: string | null;
+  /** Amânarea ÎN CURS; execuția reușită o golește. `numar_amanari` rămâne, e istoric. */
+  readonly amanat_pana: string | null;
 }
 
 export interface SesizareRaport {
@@ -318,8 +340,11 @@ export interface RandPareto {
 
 export interface Proportie {
   readonly laTimp: number;
+  /** Execuțiile judecate + planurile restante. */
   readonly evaluate: number;
   readonly rata: number | null;
+  /** Planurile active încă depășite la capătul perioadei, fără execuție: nefăcute la timp. */
+  readonly restante: number;
 }
 
 export interface TotaluriRaport {
@@ -341,7 +366,15 @@ export interface TotaluriRaport {
   readonly planuriLaTimp: Proportie;
   readonly legaleLaTimp: Proportie;
   readonly zileDepasire: { readonly total: number; readonly maxim: number; readonly numar: number };
-  readonly amanari: { readonly planuri: number; readonly total: number };
+  /**
+   * `planuri`/`total`: planurile active cu amânări și suma lor — ISTORIC, contorul
+   * nu se golește la execuție (0183). `inCurs`: planurile active amânate acum.
+   */
+  readonly amanari: {
+    readonly planuri: number;
+    readonly total: number;
+    readonly inCurs: number;
+  };
   readonly costOpriri: number | null;
 }
 
@@ -349,7 +382,7 @@ export interface RaportMentenanta {
   readonly echipamente: readonly RandEchipamentIndicatori[];
   readonly paretoSesizari: readonly RandPareto[];
   readonly paretoCost: readonly RandPareto[];
-  /** Planurile active cu amânări în curs, cele mai amânate primele. */
+  /** Planurile active amânate vreodată, cele mai amânate primele. */
   readonly amanari: readonly PlanRaport[];
   /** Echipamentele peste `PRAG_COST_VALOARE_INLOCUIRE`. */
   readonly semnaleInlocuire: readonly string[];
@@ -357,6 +390,74 @@ export interface RaportMentenanta {
 }
 
 // ── Opririle ────────────────────────────────────────────────────────────────
+
+/** Un interval de oprire, în milisecunde UTC; `deschis` = încă fără sfârșit. */
+interface IntervalOprire {
+  start: number;
+  sfarsit: number;
+  deschis: boolean;
+}
+
+/**
+ * Opririle unui echipament, unite acolo unde se suprapun. Două sesizări pe
+ * același utilaj oprit (cazul 1, „Trimite oricum”) deschid două opriri pentru
+ * ACEEAȘI pană: numărate separat, ar scădea orele de două ori și ar dubla
+ * căderile din MTBF.
+ */
+function unesteOpriri(
+  opriri: readonly Pick<OprireRaport, "inceput" | "sfarsit">[],
+  acum: string,
+): readonly IntervalOprire[] {
+  const lista = opriri
+    .map((o) => ({
+      start: Date.parse(o.inceput),
+      sfarsit: Date.parse(o.sfarsit ?? acum),
+      deschis: o.sfarsit === null,
+    }))
+    .filter((i) => Number.isFinite(i.start) && Number.isFinite(i.sfarsit) && i.sfarsit >= i.start)
+    .sort((a, b) => a.start - b.start);
+  const unite: IntervalOprire[] = [];
+  for (const i of lista) {
+    const ultim = unite.at(-1);
+    if (ultim !== undefined && i.start <= ultim.sfarsit) {
+      ultim.sfarsit = Math.max(ultim.sfarsit, i.sfarsit);
+      ultim.deschis = ultim.deschis || i.deschis;
+    } else {
+      unite.push({ ...i });
+    }
+  }
+  return unite;
+}
+
+/**
+ * Orele în PROGRAM ale unor intervale care NU se suprapun, în `fereastra`: pe
+ * fiecare zi de program, cel mult `orePeZi` în total — două opriri de câte
+ * 6 h în aceeași zi de 8 h scad 8, nu 12.
+ */
+function oreInProgram(
+  intervale: readonly Pick<IntervalOprire, "start" | "sfarsit">[],
+  fereastra: Perioada,
+  program: Pick<ProgramLucru, "orePeZi" | "zilePeSaptamana">,
+): number {
+  const minim = inceputZi(fereastra.deLa);
+  const maxim = inceputZi(plusZile(fereastra.panaLa, 1));
+  const peZi = new Map<string, number>();
+  for (const interval of intervale) {
+    const start = Math.max(interval.start, minim);
+    const sfarsit = Math.min(interval.sfarsit, maxim);
+    if (!Number.isFinite(start) || !Number.isFinite(sfarsit) || sfarsit <= start) continue;
+    const ultimaZi = toBucharestDateString(new Date(sfarsit - 1));
+    for (let zi = toBucharestDateString(new Date(start)); zi <= ultimaZi; zi = plusZile(zi, 1)) {
+      if (!esteZiDeProgram(zi, program.zilePeSaptamana)) continue;
+      const a = Math.max(start, inceputZi(zi));
+      const b = Math.min(sfarsit, inceputZi(plusZile(zi, 1)));
+      if (b > a) peZi.set(zi, (peZi.get(zi) ?? 0) + (b - a) / ORA_MS);
+    }
+  }
+  let ore = 0;
+  for (const h of peZi.values()) ore += Math.min(h, program.orePeZi);
+  return ore;
+}
 
 /**
  * Orele unei opriri care cad în PROGRAM, în interiorul perioadei: pe fiecare zi
@@ -368,22 +469,7 @@ export function oreOprireInProgram(
   program: Pick<ProgramLucru, "orePeZi" | "zilePeSaptamana">,
   acum: string,
 ): number {
-  const start = Math.max(Date.parse(oprire.inceput), inceputZi(perioada.deLa));
-  const sfarsit = Math.min(
-    Date.parse(oprire.sfarsit ?? acum),
-    inceputZi(plusZile(perioada.panaLa, 1)),
-  );
-  if (!Number.isFinite(start) || !Number.isFinite(sfarsit) || sfarsit <= start) return 0;
-
-  let ore = 0;
-  const ultimaZi = toBucharestDateString(new Date(sfarsit - 1));
-  for (let zi = toBucharestDateString(new Date(start)); zi <= ultimaZi; zi = plusZile(zi, 1)) {
-    if (!esteZiDeProgram(zi, program.zilePeSaptamana)) continue;
-    const a = Math.max(start, inceputZi(zi));
-    const b = Math.min(sfarsit, inceputZi(plusZile(zi, 1)));
-    if (b > a) ore += Math.min((b - a) / ORA_MS, program.orePeZi);
-  }
-  return ore;
+  return oreInProgram(unesteOpriri([oprire], acum), perioada, program);
 }
 
 /** Ziua românească a unui moment ISO. */
@@ -471,6 +557,20 @@ interface JudecataExecutie {
   readonly legal: boolean;
 }
 
+/**
+ * Scadența pe zile de după o execuție, ca în `internal.ssm_plan_calc` (0183):
+ * `flotant` = execuția + periodicitatea; `fix` = primul punct al grilei din
+ * `data_ancora` aflat DUPĂ execuție (o revizie „în prima zi a trimestrului”
+ * rămâne pe grilă și când s-a făcut cu întârziere). Ziua calculului e luată ca
+ * ziua execuției — baza nu ține minte când a fost înregistrată.
+ */
+function scadentaDupa(plan: PlanRaport, executie: string, periodicitate: number): string {
+  if (plan.mod_calcul !== "fix") return plusZile(executie, periodicitate);
+  const baza = plan.data_ancora ?? executie;
+  const pasi = Math.max(0, Math.ceil(zileIntre(baza, plusZile(executie, 1)) / periodicitate));
+  return plusZile(baza, pasi * periodicitate);
+}
+
 /** Execuțiile din perioadă care au o execuție precedentă, judecate față de ea. */
 function judecaExecutii(
   executii: readonly ExecutiePlan[],
@@ -498,7 +598,7 @@ function judecaExecutii(
       let zileIntarziere = 0;
       if (plan.periodicitate_zile !== null && plan.periodicitate_zile > 0) {
         evaluata = true;
-        const scadenta = plusZile(precedenta.data, plan.periodicitate_zile);
+        const scadenta = scadentaDupa(plan, precedenta.data, plan.periodicitate_zile);
         if (curenta.data > scadenta) {
           laTimp = false;
           zileIntarziere = zileIntre(scadenta, curenta.data);
@@ -523,9 +623,10 @@ function judecaExecutii(
   return judecati;
 }
 
-function proportie(judecati: readonly JudecataExecutie[]): Proportie {
+function proportie(judecati: readonly JudecataExecutie[], restante: number): Proportie {
   const laTimp = judecati.filter((j) => j.laTimp).length;
-  return { laTimp, evaluate: judecati.length, rata: imparte(laTimp, judecati.length) };
+  const evaluate = judecati.length + restante;
+  return { laTimp, evaluate, rata: imparte(laTimp, evaluate), restante };
 }
 
 // ── Raportul ────────────────────────────────────────────────────────────────
@@ -548,9 +649,11 @@ export function calculeazaRaport(intrare: IntrareRaport): RaportMentenanta {
 
   // ── Echipamentele din parc și orele lor de program ──
   const oreProgram = new Map<string, number>();
+  const inParc = new Map<string, Perioada>();
   for (const e of intrare.echipamente) {
     const fereastra = perioadaInParc(e, perioada);
     if (fereastra === null) continue;
+    inParc.set(e.id, fereastra);
     oreProgram.set(e.id, zileDeProgram(fereastra, program.zilePeSaptamana) * program.orePeZi);
   }
   const valoare = new Map(intrare.echipamente.map((e) => [e.id, e.valoare_achizitie] as const));
@@ -595,21 +698,38 @@ export function calculeazaRaport(intrare: IntrareRaport): RaportMentenanta {
     .filter((h) => h >= 0);
 
   // ── Opriri ──
+  // Doar pe fereastra din parc a echipamentului: oprirea lăsată deschisă la
+  // casare ar scădea altfel programul unor zile în care utilajul nu mai există,
+  // iar opririle unui echipament din afara parcului n-au program din care să scadă.
+  const opririPeEchipament = new Map<string, OprireRaport[]>();
+  for (const o of intrare.opriri) {
+    const lista = opririPeEchipament.get(o.equipment_id) ?? [];
+    lista.push(o);
+    opririPeEchipament.set(o.equipment_id, lista);
+  }
   const oreOprire = new Map<string, number>();
   const oreNeplanificate = new Map<string, number>();
   const caderi = new Map<string, number>();
   const durateReparatie: number[] = [];
-  for (const o of intrare.opriri) {
-    const ore = oreOprireInProgram(o, perioada, program, acum);
-    oreOprire.set(o.equipment_id, (oreOprire.get(o.equipment_id) ?? 0) + ore);
-    if (o.tip !== "neplanificata") continue;
-    oreNeplanificate.set(o.equipment_id, (oreNeplanificate.get(o.equipment_id) ?? 0) + ore);
-    if (inPerioada(ziua(o.inceput), perioada)) {
-      caderi.set(o.equipment_id, (caderi.get(o.equipment_id) ?? 0) + 1);
-    }
-    if (o.sfarsit !== null && inPerioada(ziua(o.sfarsit), perioada)) {
-      const h = oreIntre(o.inceput, o.sfarsit);
-      if (h >= 0) durateReparatie.push(h);
+  for (const [id, lista] of opririPeEchipament) {
+    const fereastra = inParc.get(id);
+    if (fereastra === undefined) continue;
+    oreOprire.set(id, oreInProgram(unesteOpriri(lista, acum), fereastra, program));
+    const neplanificate = unesteOpriri(
+      lista.filter((o) => o.tip === "neplanificata"),
+      acum,
+    );
+    oreNeplanificate.set(id, oreInProgram(neplanificate, fereastra, program));
+    for (const interval of neplanificate) {
+      if (inPerioada(toBucharestDateString(new Date(interval.start)), fereastra)) {
+        caderi.set(id, (caderi.get(id) ?? 0) + 1);
+      }
+      if (
+        !interval.deschis &&
+        inPerioada(toBucharestDateString(new Date(interval.sfarsit)), perioada)
+      ) {
+        durateReparatie.push((interval.sfarsit - interval.start) / ORA_MS);
+      }
     }
   }
 
@@ -672,6 +792,12 @@ export function calculeazaRaport(intrare: IntrareRaport): RaportMentenanta {
       )
       .map((p) => zileIntre(p.urmatoarea_scadenta as string, referinta)),
   ].filter((z) => z > 0);
+  // Planurile active încă depășite pe ZILE la capătul perioadei, fără execuție
+  // de atunci (execuția reușită ar fi mutat scadența dincolo de ea).
+  const restante = intrare.planuri.filter(
+    (p) => p.activ && p.urmatoarea_scadenta !== null && p.urmatoarea_scadenta < referinta,
+  );
+  const restanteLegale = restante.filter((p) => p.tip === "verificare_legala").length;
   const amanate = intrare.planuri
     .filter((p) => p.activ && p.numar_amanari > 0)
     .sort((a, b) => b.numar_amanari - a.numar_amanari || a.denumire.localeCompare(b.denumire));
@@ -722,8 +848,8 @@ export function calculeazaRaport(intrare: IntrareRaport): RaportMentenanta {
         total: dinPerioada.length,
         rata: imparte(repetate, dinPerioada.length),
       },
-      planuriLaTimp: proportie(judecati),
-      legaleLaTimp: proportie(legale),
+      planuriLaTimp: proportie(judecati, restante.length),
+      legaleLaTimp: proportie(legale, restanteLegale),
       zileDepasire: {
         total: depasiri.reduce((s, z) => s + z, 0),
         maxim: depasiri.length === 0 ? 0 : Math.max(...depasiri),
@@ -732,6 +858,7 @@ export function calculeazaRaport(intrare: IntrareRaport): RaportMentenanta {
       amanari: {
         planuri: amanate.length,
         total: amanate.reduce((s, p) => s + p.numar_amanari, 0),
+        inCurs: intrare.planuri.filter((p) => p.activ && p.amanat_pana !== null).length,
       },
       costOpriri: costOra === null ? null : rotunjeste(sumaOprire * costOra),
     },
