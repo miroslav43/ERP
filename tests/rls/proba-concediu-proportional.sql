@@ -1,6 +1,6 @@
 -- tests/rls/proba-concediu-proportional.sql
 --
--- DREPTUL DE CONCEDIU PROPORȚIONAL CU LUNILE LUCRATE, DUPĂ 0192.
+-- DREPTUL DE CONCEDIU PROPORȚIONAL CU LUNILE LUCRATE, DUPĂ 0193.
 --
 -- ── DE CE EXISTĂ FIȘIERUL ───────────────────────────────────────────────────
 -- Un angajat intrat pe 08.10.2026 primea 20 de zile întregi pe 2026 (QA 8 oct
@@ -70,7 +70,7 @@ declare
   v_esecuri   int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „CONCEDIU PROPORȚIONAL CU LUNILE LUCRATE" (0192)';
+  raise notice '  PROBA „CONCEDIU PROPORȚIONAL CU LUNILE LUCRATE" (0193)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   -- ── fixture ───────────────────────────────────────────────────────────────

@@ -371,7 +371,7 @@ export const asigneaza = createAction({
     if (input.asignat_employee_id !== null) {
       // Cheia străină `tickets.asignat_employee_id` nu e compusă cu
       // `organization_id`, deci baza ar primi și fișa altei firme, iar
-      // triggerul de repartizare (0191 §3) ar căuta acolo destinatarul.
+      // triggerul de repartizare (0192 §3) ar căuta acolo destinatarul.
       // Admin, fiindcă operatorul poate fi un membru `employee` cu
       // `tickets:update = all`, care prin RLS își vede doar propria fișă;
       // filtrul explicit pe organizația tenantului ține locul RLS-ului.

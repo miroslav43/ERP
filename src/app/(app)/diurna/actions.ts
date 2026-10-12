@@ -173,7 +173,7 @@ async function anuntaAprobatorii(
  * rândurile `task` scrise de `anuntaAprobatorii`. Fără asta, contorul de
  * necitite al managerului ținea la nesfârșit „Deplasare de aprobat" pentru
  * deplasări deja decise (QA 8 oct 2026, MGR-021 / FLX-011). Deplasările n-au
- * `approval_tasks`, deci triggerul generic din 0191 nu le prinde.
+ * `approval_tasks`, deci triggerul generic din 0192 nu le prinde.
  *
  * Fără `.select()`, deliberat: zero rânduri înseamnă că nimeni n-avea
  * notificarea (aprobatorul a decis din listă, fără clopoțel), nu un refuz —

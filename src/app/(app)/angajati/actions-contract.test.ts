@@ -162,7 +162,7 @@ describe("creeazaContract", () => {
     expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(fisa?.selectDupaScriere).toBeDefined();
     // Zilele explicite ajung pe contract; `seed_leave_balances` NU mai primește
-    // override — `app.drept_concediu` (0192) le citește din contractul activ și
+    // override — `app.drept_concediu` (0193) le citește din contractul activ și
     // le proporționalizează cu lunile lucrate, iar override-ul ar anula calculul.
     const [insert] = server.apeluriPe("employment_contracts", "insert");
     expect(insert?.payload).toMatchObject({ zile_concediu_anual: 25 });

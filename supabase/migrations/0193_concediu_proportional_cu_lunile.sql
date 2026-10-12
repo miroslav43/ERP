@@ -1,4 +1,4 @@
--- supabase/migrations/0192_concediu_proportional_cu_lunile.sql
+-- supabase/migrations/0193_concediu_proportional_cu_lunile.sql
 -- Dreptul de concediu: baza din contract, proporțional cu lunile lucrate în an.
 --
 -- ┌ CE REPARĂ (QA 8 oct 2026: HR-007, HR-031, HR-023) ──────────────────────────
@@ -255,7 +255,7 @@ $$;
 
 comment on function public.seed_leave_balances(uuid, integer, numeric) is
   'Însămânțează soldurile anului pentru toate tipurile active ale firmei angajatului, prin '
-  'internal.asigura_sold. p_zile_odihna_override e IGNORAT din 0192: dreptul se calculează '
+  'internal.asigura_sold. p_zile_odihna_override e IGNORAT din 0193: dreptul se calculează '
   'din contractul de bază în app.drept_concediu, proporțional cu lunile lucrate.';
 
 revoke all on function public.seed_leave_balances(uuid, integer, numeric) from public, anon;

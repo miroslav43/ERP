@@ -468,7 +468,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       throw businessRule("Contractul a fost creat, dar activarea lui a fost respinsă.");
     }
 
-    // Fără `p_zile_odihna_override` (ignorat din 0192): contractul e deja activ
+    // Fără `p_zile_odihna_override` (ignorat din 0193): contractul e deja activ
     // la momentul apelului, deci `app.drept_concediu` citește singur zilele de
     // pe el și le proporționalizează cu lunile lucrate în an. Override-ul
     // rescria dreptul abia calculat cu valoarea întreagă.

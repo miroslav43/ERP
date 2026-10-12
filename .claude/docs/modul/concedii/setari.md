@@ -6,7 +6,7 @@ cai:
   - "src/app/(app)/concedii/setari/**"
   - "supabase/migrations/0035_reguli_concediu.sql"
   - "supabase/migrations/0037_fix_grile_pe_tip_reglementat.sql"
-  - "supabase/migrations/0192_concediu_proportional_cu_lunile.sql"
+  - "supabase/migrations/0193_concediu_proportional_cu_lunile.sql"
 tabele: [leave_types, leave_type_variants, leave_entitlement_rules, leave_balances, organizations]
 permisiuni: [leave:read, leave:create, leave:update]
 feature: leave
@@ -95,7 +95,7 @@ mișcă soldul lasă omul să creadă că n-a avut efect. `seteazaZileConcediuIm
 
 ## Cum se calculează dreptul unui an
 
-`app.drept_concediu` (rescrisă în `0192_concediu_proportional_cu_lunile.sql`) dă, pe un
+`app.drept_concediu` (rescrisă în `0193_concediu_proportional_cu_lunile.sql`) dă, pe un
 angajat, un tip și un an:
 
 > (baza + grilele valabile la 31 decembrie) × lunile lucrate în an / 12
@@ -135,7 +135,7 @@ numărul de rânduri atinse. Aceeași funcție SQL, două straturi: cine mută p
 în `actions.ts` pune o poartă de scriere pe o citire și ascunde butonul de cine avea voie
 doar să se uite.
 
-**Soldurile deja scrise nu se rescriu de migrare.** După 0192, un intrat din toamnă cu
+**Soldurile deja scrise nu se rescriu de migrare.** După 0193, un intrat din toamnă cu
 sold 20 rămâne la 20 pe `/concedii/sold` până când HR deschide „Aplică drepturile” pe anul
 respectiv: previzualizarea arată `drept_vechi 20 → drept_nou 5`, iar cine a consumat deja
 mai mult decât noul drept apare cu `ramase_dupa` negativ (permis de 0017: HR poate duce

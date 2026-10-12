@@ -480,7 +480,7 @@ describe("decideDeplasare", () => {
   it("decizia închide notificările „de aprobat” ale aprobatorilor, în firma curentă", async () => {
     // QA 8 oct 2026, MGR-021 / FLX-011: contorul de necitite ținea la nesfârșit
     // „Deplasare de aprobat" pentru deplasări deja decise. Deplasările n-au
-    // `approval_tasks`, deci triggerul generic din 0191 nu le prinde — se
+    // `approval_tasks`, deci triggerul generic din 0192 nu le prinde — se
     // închid de aici, best-effort, fără `.select()`: zero rânduri înseamnă că
     // nimeni n-avea notificarea, nu un refuz.
     const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:approve": "all" } });

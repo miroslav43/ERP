@@ -1,4 +1,4 @@
--- supabase/migrations/0191_notificari_fluxuri_lipsa.sql
+-- supabase/migrations/0192_notificari_fluxuri_lipsa.sql
 --
 -- NOTIFICĂRILE CARE LIPSEAU DIN FLUXURI, ȘI CELE CARE RĂMÂNEAU „DE APROBAT”.
 --

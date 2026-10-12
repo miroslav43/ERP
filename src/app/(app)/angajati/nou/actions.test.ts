@@ -240,7 +240,7 @@ describe("inroleazaAngajat", () => {
     expect(activare?.selectDupaScriere).toBeDefined();
 
     // Fără `p_zile_odihna_override`: contractul e deja activ când se seamănă
-    // soldul, iar `app.drept_concediu` (0192) citește zilele direct din el și
+    // soldul, iar `app.drept_concediu` (0193) citește zilele direct din el și
     // le proporționalizează cu lunile lucrate. Override-ul ar fi anulat calculul.
     expect(server.apeluriRpc.find((a) => a.nume === "seed_leave_balances")?.argumente).toEqual({
       p_employee: ID_1,

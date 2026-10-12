@@ -1,6 +1,6 @@
 -- tests/rls/proba-notificari-fluxuri.sql
 --
--- NOTIFICĂRILE FLUXURILOR, DUPĂ 0191 (W2-03: FLX-005, FLX-011, MGR-021).
+-- NOTIFICĂRILE FLUXURILOR, DUPĂ 0192 (W2-03: FLX-005, FLX-011, MGR-021).
 --
 -- ── CE VERIFICĂ, PE RÂND ────────────────────────────────────────────────────
 -- (1) cererea de concediu trimisă ⇒ `approval` la manager; decizia pe
@@ -55,7 +55,7 @@ declare
   v_esecuri   int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „NOTIFICĂRILE FLUXURILOR" (0191)';
+  raise notice '  PROBA „NOTIFICĂRILE FLUXURILOR" (0192)';
   raise notice '  ─────────────────────────────────────';
 
   -- ── fixture ───────────────────────────────────────────────────────────────
@@ -321,7 +321,7 @@ begin
 
   -- ═══ (9) asignat din ALTĂ firmă ⇒ nicio notificare peste graniță ═════════
   -- Cheia străină `tickets.asignat_employee_id` nu e compusă cu
-  -- `organization_id`, iar triggerele 0191 sunt SECURITY DEFINER: fără filtrul
+  -- `organization_id`, iar triggerele 0192 sunt SECURITY DEFINER: fără filtrul
   -- pe firmă, ID-ul fișei străine ar scrie în clopoțelul utilizatorului străin
   -- (și numele lui în notificarea solicitantului).
   insert into public.organizations (id, slug, name, cui) values

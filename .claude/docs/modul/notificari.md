@@ -96,7 +96,7 @@ Producătorii (triggere, câteva acțiuni) scriu un `link` fix: coada în loc de
 
 Producătorul REGES e singurul reparat la sursă: fără `organization_features.reges` nu
 scrie anunț (`genereaza-evenimente.ts`). Lipsesc încă senderii pentru KPI și predări de
-inventar. Au sender din W2-03 (`0191_notificari_fluxuri_lipsa.sql` + TS lângă producător):
+inventar. Au sender din W2-03 (`0192_notificari_fluxuri_lipsa.sql` + TS lângă producător):
 diurna (trimitere, decizie pe deplasare și pe cheltuială), pontajul lunar (zi respinsă, zi
 aprobată, bloc — una per angajat pe lună, `pontaj/anunta-*.ts`), tichetele (repartizare,
 comentarii publice — triggere) și legarea fișei de un membru existent la înrolare.

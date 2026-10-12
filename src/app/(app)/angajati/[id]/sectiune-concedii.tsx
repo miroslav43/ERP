@@ -115,7 +115,7 @@ interface RandAfisat {
 }
 
 /**
- * Contractul de BAZĂ după care `app.drept_concediu` (0192) ancorează anul:
+ * Contractul de BAZĂ după care `app.drept_concediu` (0193) ancorează anul:
  * zilele lui sunt baza dreptului de odihnă, iar `valabil_de_la` / `incetat_la`
  * delimitează lunile lucrate. Fără contract, baza cade pe `hired_on`.
  */
@@ -181,7 +181,7 @@ export async function SectiuneConcedii({
   };
 
   /*
-   * Aceeași ancoră ca în `app.drept_concediu` (0192): începutul e
+   * Aceeași ancoră ca în `app.drept_concediu` (0193): începutul e
    * `valabil_de_la` al contractului de bază, cu `hired_on` ca rezervă;
    * sfârșitul e `terminated_on`, cu `incetat_la` ca rezervă — dar un
    * `terminated_on` anterior ancorei (rămas de la contractul vechi al unui om

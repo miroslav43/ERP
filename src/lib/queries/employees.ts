@@ -94,7 +94,7 @@ export interface ContractAngajat {
   /** Punctul de lucru al contractului (0097); `null` = nedeclarat. */
   readonly punct_lucru_id: string | null;
   /**
-   * Baza dreptului de odihnă al angajatului (0192): `app.drept_concediu` o
+   * Baza dreptului de odihnă al angajatului (0193): `app.drept_concediu` o
    * citește de pe contractul de bază, nu din `leave_types.zile_implicite`.
    */
   readonly zile_concediu_anual: number;

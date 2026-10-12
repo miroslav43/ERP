@@ -269,7 +269,7 @@ celor ortodoxe, deci unealta numără datele ortodoxe ca zile lucrătoare pentru
 **Fără regulă legală:** proporția „drept ÷ 12 × lunile lucrate” din
 `/unelte/calculator-zile-concediu` — practică, nu articol (ca la `leave_types`).
 
-⚠️ Din `0192_concediu_proportional_cu_lunile.sql` (12 oct 2026) aceeași proporție
+⚠️ Din `0193_concediu_proportional_cu_lunile.sql` (12 oct 2026) aceeași proporție
 e REGULA PRODUSULUI, nu doar a calculatorului public: `app.drept_concediu` dă
 dreptul anului ca (zilele contractului de bază + grile) × lunile lucrate / 12, cu
 luna de intrare și cea de ieșire numărate întregi, rotunjit după

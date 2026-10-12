@@ -195,7 +195,7 @@ describe("asigneaza", () => {
   });
 
   it("angajat din altă firmă (sau inexistent): NEGASIT, iar tichetul nu se atinge", async () => {
-    // Un ID de fișă străin pe tichet ar face triggerul de repartizare (0191 §3)
+    // Un ID de fișă străin pe tichet ar face triggerul de repartizare (0192 §3)
     // să caute un destinatar în afara firmei. Acțiunea îl oprește înainte.
     const { server, admin } = configureazaActiunea({ permisiuni: OPERARE });
     admin.raspunde("employees", "select", { data: null });

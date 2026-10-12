@@ -510,7 +510,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const contracteDeBazaActive = contracteActive.filter((c) => !c.este_act_aditional);
 
   /*
-   * Contractul de bază după care `app.drept_concediu` (0192) calculează
+   * Contractul de bază după care `app.drept_concediu` (0193) calculează
    * dreptul de odihnă: cel ACTIV, altfel cel mai recent (un angajat încetat
    * are încă un sold de explicat). Aceeași alegere ca `order by (status =
    * 'activ') desc, valabil_de_la desc limit 1` din funcția SQL.

@@ -5,7 +5,7 @@
  * pe un tip de concediu, pentru un an dat.
  *
  * Replică EXACT `app.drept_concediu`, în forma din
- * `supabase/migrations/0192_concediu_proportional_cu_lunile.sql`, în trei pași:
+ * `supabase/migrations/0193_concediu_proportional_cu_lunile.sql`, în trei pași:
  *
  *   1. dreptul ÎNTREG = bază + suma CUMULATIVĂ a grilelor active, valabile la
  *      31 decembrie din anul dat (`calculeazaDreptAnual`). Baza e
@@ -196,7 +196,7 @@ function verificaAnul(an: number): void {
  * firme („≥ 15 zile lucrate = lună întreagă") NU e implementată: ar da 2 luni
  * pentru o intrare pe 20 octombrie. Intervalul care nu atinge anul dă 0.
  *
- * Oglinda lui `v_luni` din `app.drept_concediu` (0192):
+ * Oglinda lui `v_luni` din `app.drept_concediu` (0193):
  * `extract(month from v_sfarsit) - extract(month from v_inceput) + 1`.
  */
 export function luniLucrateInAn(start: Date, sfarsit: Date | null, an: number): number {
@@ -223,7 +223,7 @@ export function luniLucrateInAn(start: Date, sfarsit: Date | null, an: number): 
  * Fără ea, contractul nou ar începe DUPĂ sfârșit și omul ar primi 0 zile în anul
  * reangajării și în toți anii următori.
  *
- * Oglinda lui `v_sfarsit` din `app.drept_concediu` (0192).
+ * Oglinda lui `v_sfarsit` din `app.drept_concediu` (0193).
  */
 export function sfarsitPerioadaLucrata(
   ancora: Date | null,
@@ -241,7 +241,7 @@ export function sfarsitPerioadaLucrata(
  * neatins — nici rotunjirea nu se aplică, ca o bază fracționară configurată
  * deliberat (20,5) să nu se schimbe de la sine.
  *
- * Oglinda cozii din `app.drept_concediu` (0192): `round(x * luni / 12.0, 2)`,
+ * Oglinda cozii din `app.drept_concediu` (0193): `round(x * luni / 12.0, 2)`,
  * apoi `ceil`/`floor`/`round` după `mod_rotunjire_acumulare`.
  */
 export function calculeazaDreptProportional(

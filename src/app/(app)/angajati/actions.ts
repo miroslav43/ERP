@@ -554,7 +554,7 @@ export const creeazaContract = createAction({
     // Numai la contractul propriu-zis, nu la actele adiționale: un act adițional
     // modifică un contract deja activ, iar soldul e deja semănat.
     //
-    // Fără `p_zile_odihna_override` (ignorat din 0192): contractul e deja activ
+    // Fără `p_zile_odihna_override` (ignorat din 0193): contractul e deja activ
     // aici, deci `app.drept_concediu` citește singur zilele de pe el și le
     // proporționalizează cu lunile lucrate în an. Override-ul rescria dreptul
     // abia calculat cu valoarea întreagă.
