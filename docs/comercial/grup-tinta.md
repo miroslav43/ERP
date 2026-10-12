@@ -98,6 +98,22 @@ doar hârtii pentru ITM — și pentru asta există deja un contabil. Noi mergem
 fiecare angajat care își cere singur concediul scoate o sarcină de pe masa
 HR-ului.”_
 
+### Pitch-ul vorbit (~40 de secunde)
+
+> Nu vindem tuturor IMM-urilor. Un sistem de HR funcționează doar acolo unde
+> oamenii îl folosesc singuri.
+>
+> Țintim firmele de birou cu 10–150 de angajați: IT, contabilitate, consultanță,
+> arhitectură, agenții, clinici private. Au un singur om care face HR „printre
+> altele", iar pontajul, concediile și REGES-ul stau în Excel și pe email.
+>
+> La ele, fiecare angajat care își cere singur concediul sau își vede singur
+> fluturașul scoate o sarcină de pe masa biroului. Din prima lună.
+>
+> Sunt aproximativ 15.000 de firme în România, o piață de circa 15 milioane de
+> euro pe an. Iar drumul spre ele trece prin contabil: un singur contabil ne
+> deschide ușa la zeci de firme.
+
 ## 6. Cum recunoaștem un client bun (calificarea la primul apel)
 
 1. Între 10 și 150 de angajați.
