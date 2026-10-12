@@ -1305,6 +1305,7 @@ export const trimiteFluturasii = createAction({
           // ale acțiunii nu trimit de două ori același fluturaș, dar fiecare
           // angajat își primește pe al lui.
           entityId: rand.id,
+          organizationId: ctx.tenant.organizationId,
           template: "fluturas",
           data: {
             nume: rand.angajat?.full_name ?? "coleg",

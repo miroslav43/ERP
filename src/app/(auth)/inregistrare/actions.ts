@@ -126,6 +126,7 @@ export const inregistreazaFirma = createPublicAction({
         db: createAdminSupabase(),
         destinatar: input.email,
         organizatie: input.firma,
+        organizationId,
         invitatDe: "Administrativo",
         rol: "org_admin",
         token,

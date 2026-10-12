@@ -31,6 +31,8 @@ export type TrimiteInvitatieInput = Readonly<{
   destinatar: string;
   /** Denumirea organizației, așa cum o vede destinatarul. */
   organizatie: string;
+  /** Firma care invită — o invitație aparține mereu unei firme; ajunge în `email_log`. */
+  organizationId: string;
   /** Cine a trimis invitația — apare în email ca să nu pară nesolicitat. */
   invitatDe: string;
   rol: AppRole;
@@ -49,6 +51,7 @@ export async function trimiteEmailInvitatie(
     db: input.db,
     to: input.destinatar,
     entityId: input.invitationId,
+    organizationId: input.organizationId,
     template: "invitatie",
     data: {
       organizatie: input.organizatie,

@@ -184,6 +184,7 @@ export async function creeazaInvitatie(parametri: ParametriInvitatie): Promise<I
       db: parametri.dbEmail ?? db,
       destinatar: email,
       organizatie: organizatie.name,
+      organizationId,
       invitatDe: parametri.invitatDe,
       rol: parametri.rol,
       token,

@@ -132,6 +132,9 @@ export async function trimiteLinkMagic(formData: FormData): Promise<void> {
       db: admin,
       to: validat.data.email,
       entityId: link.data.user.id,
+      // Linkul magic e al contului, nu al unei firme — același motiv ca la
+      // resetarea parolei; rândul din jurnal rămâne vizibil doar platformei.
+      organizationId: null,
       template: "link-magic",
       data: {
         tokenHash: link.data.properties.hashed_token,

@@ -1,6 +1,6 @@
 // src/app/(platform)/super-admin/organizatii/[orgId]/page.tsx
 import Link from "next/link";
-import { SlidersHorizontal, UserPlus } from "lucide-react";
+import { Mail, SlidersHorizontal, UserPlus } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { buton } from "@/components/ui/buton";
@@ -283,6 +283,14 @@ export default async function PaginaFisaOrganizatie({
               ))}
             </ul>
           )}
+          {/* Intrarea naturală în jurnalul de e-mail filtrat pe firma asta. */}
+          <Link
+            href={`/super-admin/emailuri?org=${organizatie.id}`}
+            className={cn(buton({ varianta: "secundar" }), "mt-4")}
+          >
+            <Mail aria-hidden="true" className="size-4" />
+            E-mailurile firmei
+          </Link>
         </section>
       </div>
     </div>
