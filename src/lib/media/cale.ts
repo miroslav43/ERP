@@ -74,17 +74,27 @@ export const RESTRICTII_INCARCARE: Readonly<Record<FelMaterial, string>> = {
     "MP4 (H.264/AAC) sau WebM, până la 200 MB. Peste ~15 minute de film, folosiți un link extern.",
 };
 
+/**
+ * Motivul respingerii pe TIP, unul singur pentru câmp (`mesajTipRespins` pe
+ * `IncarcareFisier`) și pentru verificarea de după (`verificaMaterial`).
+ *
+ * Fără mesajul pe câmp, `motivRespingerii` nu verifică tipul deloc și un .exe
+ * trece de „Alegeți fișierul" ca acceptat; omul afla abia după ce rândul
+ * materialului fusese creat (ADM-016).
+ */
+export const MESAJ_TIP_RESPINS: Readonly<Record<FelMaterial, string>> = {
+  pdf: "Acceptăm doar fișiere PDF.",
+  video:
+    "Acceptăm doar filme MP4 sau WebM. Un fișier .mov de iPhone nu se redă în toate browserele.",
+};
+
 export function verificaMaterial(
   fel: FelMaterial,
   mime: string,
   dimensiune: number,
 ): string | null {
   const acceptate: readonly string[] = fel === "pdf" ? MIME_PDF : MIME_VIDEO;
-  if (!acceptate.includes(mime)) {
-    return fel === "pdf"
-      ? "Acceptăm doar fișiere PDF."
-      : "Acceptăm doar filme MP4 sau WebM. Un fișier .mov de iPhone nu se redă în toate browserele.";
-  }
+  if (!acceptate.includes(mime)) return MESAJ_TIP_RESPINS[fel];
   if (dimensiune <= 0) return "Fișierul selectat este gol.";
   const limita = fel === "pdf" ? LIMITA_PDF_BYTES : LIMITA_VIDEO_BYTES;
   if (dimensiune > limita) {
