@@ -263,6 +263,25 @@ F12e nu are migrare.
 
 ---
 
+## 0. Deciziile luate de Miro (12 oct 2026, 14:05) — ÎNCHID cele patru decizii blocante
+
+1. **Migrările (B1): un lot la final.** Agenții nu împing niciodată pe main. Orchestratorul strânge
+   F3–F11, mentenanța și F12 pe ramura de integrare, apoi prezintă fiecare migrare (rezumat + sha256),
+   iar Miro dă câte un „da” pe fiecare, într-o singură sesiune. Abia după aceea vine push-ul.
+2. **OCR pe bon (B2): da, cu ZDR, pe modulul asistent.** (i) Funcția există doar la firmele cu modulul
+   asistent activ (comutatorul îl pune platforma); (ii) `provider.zdr: true`, fără `temperature`;
+   (iii) se acceptă endpoint-urile Vertex global din afara UE, pe SCC, ca la chat. Avizul juristului pe
+   acordul cu clientul se cere ÎNAINTE de livrare, iar apelul real pe staging (R4) e obligatoriu.
+3. **HR care conduce (B3, F12c D9): da, ramură îngustă „doar ce e al lui”.** Omul fără `vehicles:read`
+   vede PV-urile la care e parte și vehiculul alocat LUI („Mașina mea”), nimic din restul parcului.
+   E o abatere asumată de la decizia 3 din 7 oct. Se face în 0212, cu probă pozitivă și negativă pe hr.
+4. **Exportul Saga/WinMentor (B4, F12g D7): livrat complet, etichetat „verificat pe documentație,
+   neîncercat”**, fără promisiune comercială. Un contabil îl importă într-o bază de test înainte de
+   primul client.
+
+Implicită confirmată (F3): `super_admin` nu întocmește foi de parcurs în firmele-client (nu e în
+`organization_members`, prin design). Celelalte 67 de implicite din §4 se aplică așa cum sunt scrise.
+
 ## 4. Deciziile pentru Miro (deduplicate)
 
 Specificațiile pun **72 de întrebări**. Șase dintre ele au fost contopite în trei decizii
