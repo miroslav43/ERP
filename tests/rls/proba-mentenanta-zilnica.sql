@@ -29,6 +29,9 @@
 --      și ajung în `alert_rules` pe cele trei tipuri ale modulului; managerul
 --      e refuzat (zero rânduri); un prag 0 e refuzat (23514)      [POZITIVĂ]
 -- (10) jobul nu a eșuat pe nicio firmă din bază
+-- (11) responsabilii din setări SCOȘI din firmă (membru `inactive` sau șters
+--      logic), cu fișa încă legată de cont, NU primesc rezumatul; cum toți au
+--      plecat, rezumatul ajunge la `org_admin`, nu la nimeni        [POZITIVĂ]
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -379,4 +382,66 @@ begin
     raise exception 'PROBA „MENTENANȚA ZILNICĂ": % verificări picate', v_esecuri;
   end if;
   raise notice '  PROBA „MENTENANȚA ZILNICĂ": toate verificările au trecut.';
+end $$;
+
+-- ═══ (11) Responsabilii plecați din firmă ══════════════════════════════════
+-- Bloc separat, pe o firmă proprie: `internal.mentenanta_responsabili` lua
+-- `employees.user_id` din setări fără să verifice `organization_members`, deci
+-- un fost responsabil primea coduri de utilaje și descrierile sesizărilor
+-- critice (și prin push). Aceeași funcție alimentează nota internă și
+-- atribuirea din 0181.
+do $$
+declare
+  v_sufix   text := left(replace(gen_random_uuid()::text, '-', ''), 8);
+  v_org     uuid := gen_random_uuid();
+  v_u_adm   uuid := gen_random_uuid();
+  v_u_inact uuid := gen_random_uuid();  -- membru `inactive`
+  v_u_sters uuid := gen_random_uuid();  -- membru șters logic
+  v_e_adm   uuid := gen_random_uuid();
+  v_e_inact uuid := gen_random_uuid();
+  v_e_sters uuid := gen_random_uuid();
+  v_echip   uuid := gen_random_uuid();
+  v_azi     date := app.azi_local();
+  v_plecati integer;
+  v_admin   integer;
+  v_resp    integer;
+begin
+  insert into public.organizations (id, slug, name, cui, status) values
+    (v_org, 'proba-mzp-' || v_sufix, 'Proba Plecați SRL', 'RO' || (88300000 + (random() * 90000)::int)::text, 'active');
+  insert into public.organization_features (organization_id, feature_key, enabled, activated_at)
+  select v_org, f.feature_key, true, now() from public.features f;
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_adm,   'mzp-adm-'   || v_sufix || '@proba.test', now()),
+    (v_u_inact, 'mzp-inact-' || v_sufix || '@proba.test', now()),
+    (v_u_sters, 'mzp-sters-' || v_sufix || '@proba.test', now());
+  insert into public.employees (id, organization_id, marca, first_name, last_name, hired_on, status, user_id) values
+    (v_e_adm,   v_org, 'MZP-A', 'Ana',   'Admin',   v_azi - 900, 'activ', v_u_adm),
+    (v_e_inact, v_org, 'MZP-I', 'Ion',   'Plecat',  v_azi - 800, 'activ', v_u_inact),
+    (v_e_sters, v_org, 'MZP-S', 'Sorin', 'Scos',    v_azi - 700, 'activ', v_u_sters);
+  insert into public.organization_members (organization_id, user_id, role, status, deleted_at) values
+    (v_org, v_u_adm,   'org_admin', 'active',   null),
+    (v_org, v_u_inact, 'manager',   'inactive', null),
+    (v_org, v_u_sters, 'employee',  'active',   now());
+  insert into public.maintenance_settings (organization_id, responsabili)
+  values (v_org, array[v_e_inact, v_e_sters]);
+
+  insert into public.equipment (id, organization_id, cod, denumire) values (v_echip, v_org, 'PLC-' || v_sufix, 'Presă');
+  insert into public.fault_reports (organization_id, equipment_id, raportat_de_employee_id, descriere, urgenta, raportat_la)
+  values (v_org, v_echip, v_e_adm, 'Presa a luat foc la panou.', 'critica', now() - interval '30 hours');
+
+  select count(*) into v_resp from internal.mentenanta_responsabili(v_org) r where r.user_id in (v_u_inact, v_u_sters);
+  perform internal.mentenanta_rezumat(v_org);
+
+  select count(*) into v_plecati from public.notifications
+   where organization_id = v_org and entity_type = 'maintenance_rezumat' and user_id in (v_u_inact, v_u_sters);
+  select count(*) into v_admin from public.notifications
+   where organization_id = v_org and entity_type = 'maintenance_rezumat' and user_id = v_u_adm;
+
+  raise notice '';
+  if v_plecati = 0 and v_resp = 0 and v_admin = 1 then
+    raise notice '  ✓ (11) responsabilii plecați nu primesc nimic; rezumatul ajunge la org_admin';
+  else
+    raise exception 'PROBA „MENTENANȚA ZILNICĂ" (11): plecații sunt destinatari % ori, au primit % rezumate; org_admin a primit % (așteptat 0/0/1)',
+      v_resp, v_plecati, v_admin;
+  end if;
 end $$;

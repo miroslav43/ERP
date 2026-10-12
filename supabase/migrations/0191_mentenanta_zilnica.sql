@@ -21,6 +21,10 @@
 --      3. `internal.sesizari_inchide_rezolvate(org)` — „rezolvat” neconfirmat
 --         trece în „închis” după `inchidere_automata_zile`; garda din 0181 scrie
 --         în istoric „Închisă automat…” (cazul 8).
+--  · REPARĂ `internal.mentenanta_responsabili` (0181): responsabilii din setări
+--    trebuie să fie MEMBRI ACTIVI ai firmei; plecații nu mai primesc nimic —
+--    nici rezumatul, nici, pe producție, notificările de sesizare nouă,
+--    atribuire și notă internă din 0181, care cheamă aceeași funcție.
 --  · Destinatarii: responsabilii din setări (sau, fără ei, toți `org_admin` —
 --    `internal.mentenanta_responsabili`) primesc TOT; responsabilul planului și
 --    al echipamentului primesc doar ce ține de ale lor; RSVTI-ul din setări
@@ -142,6 +146,51 @@ as $$
     when p_x = trunc(p_x) then trunc(p_x)::bigint::text
     else replace(round(p_x, 1)::text, '.', ',')
   end;
+$$;
+
+-- Destinatarii alertelor și ai sesizărilor noi — RESCRISĂ de la forma din 0181
+-- (singura anterioară), cu aceeași semnătură. DEFECT REPARAT: ramura din setări
+-- lua `employees.user_id` fără să întrebe `organization_members`, deci un
+-- responsabil scos din firmă (membru `inactive`/`suspended` sau șters logic),
+-- cu fișa încă legată de cont, primea rezumatul zilnic, notificările de
+-- sesizare nouă, de atribuire și nota internă (0181:805, 0181:897) — coduri de
+-- utilaje și descrieri de defecte, și prin push (0122). `notifications_select`
+-- cere doar `user_id = auth.uid()`, deci notificarea îi rămânea vizibilă.
+-- Acum cere membru ACTIV și neșters în aceeași firmă, pe ambele ramuri, iar
+-- rezerva spre `org_admin` lucrează pe lista FILTRATĂ: dacă toți responsabilii
+-- din setări au plecat, alertele ajung la administratori, nu la nimeni.
+create or replace function internal.mentenanta_responsabili(p_org uuid)
+returns table (user_id uuid)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with setari as (
+    select s.responsabili
+      from public.maintenance_settings s
+     where s.organization_id = p_org and s.deleted_at is null
+     limit 1
+  ),
+  din_setari as (
+    select e.user_id
+      from setari s
+      cross join lateral unnest(s.responsabili) as r(employee_id)
+      join public.employees e on e.id = r.employee_id
+      join public.organization_members m
+        on m.organization_id = p_org
+       and m.user_id = e.user_id
+       and m.status = 'active'
+       and m.deleted_at is null
+     where e.organization_id = p_org and e.deleted_at is null and e.user_id is not null
+  )
+  select user_id from din_setari
+  union
+  select m.user_id
+    from public.organization_members m
+   where m.organization_id = p_org and m.role = 'org_admin' and m.status = 'active'
+     and m.deleted_at is null
+     and not exists (select 1 from din_setari);
 $$;
 
 -- ============================================================
@@ -599,6 +648,8 @@ end $$;
 -- ============================================================
 -- 8. Drepturi pe funcții
 -- ============================================================
+-- Ca în 0181: fără EXECUT pentru nimeni în afara proprietarului (triggerele definer).
+revoke all on function internal.mentenanta_responsabili(uuid) from public, anon, authenticated;
 revoke all on function internal.mentenanta_numarat(integer, text, text) from public, anon, authenticated;
 revoke all on function internal.mentenanta_cifra(numeric) from public, anon, authenticated;
 revoke all on function internal.mentenanta_setari_praguri() from public, anon, authenticated;
@@ -656,6 +707,10 @@ begin
   if not exists (select 1 from pg_trigger where tgname = 'maintenance_settings_praguri'
                   and tgrelid = 'public.maintenance_settings'::regclass) then
     v_lipsa := v_lipsa || 'triggerul maintenance_settings_praguri';
+  end if;
+  if position('organization_members' in pg_get_functiondef('internal.mentenanta_responsabili(uuid)'::regprocedure)) = 0
+     or pg_get_functiondef('internal.mentenanta_responsabili(uuid)'::regprocedure) !~ 'm\.deleted_at is null' then
+    v_lipsa := v_lipsa || 'internal.mentenanta_responsabili cu filtrul pe membri activi';
   end if;
   if to_regprocedure('internal.mentenanta_zilnica()') is null then
     v_lipsa := v_lipsa || 'internal.mentenanta_zilnica()';

@@ -54,8 +54,10 @@ conservare rămâne, ca în `0182`.
 
 ## Cine primește ce
 
-**Gestionarii** sunt `internal.mentenanta_responsabili(org)`: fișele bifate în setări,
-iar fără ele toți `org_admin` activi. Ei primesc tot. Ceilalți primesc **doar** elementele
+**Gestionarii** sunt `internal.mentenanta_responsabili(org)`: fișele bifate în setări
+al căror cont e MEMBRU ACTIV și neșters al firmei, iar fără niciuna validă toți `org_admin`
+activi. Din `0191`; înainte, un responsabil scos din firmă cu fișa încă legată de cont
+primea alertele (și cele din `0181`: sesizare nouă, atribuire, notă internă). Ei primesc tot. Ceilalți primesc **doar** elementele
 legate de planurile și utilajele lor — un coleg fără legătură nu primește nimic. Linkul
 e `/mentenanta` pentru cine are `maintenance:read` ≥ team (citit prin
 `internal.scope_membru`, cu suprascrierile pe membru din `0189`) și `/portal/sesizari`
