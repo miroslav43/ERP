@@ -28,8 +28,9 @@
  * 4. Mentenanța (12 oct 2026) arată doar CITIREA, ca toate celelalte rânduri.
  *    Dreptul de a deschide o sesizare e mai larg decât cel de citire
  *    (`maintenance:create = all` pentru manager și angajat: oricine sesizează un
- *    utilaj), iar angajatul atribuit ca tehnician lucrează sesizarea LUI indiferent
- *    de rol — nici una dintre cele două nu încape într-o celulă de citire, deci
+ *    utilaj), iar angajatul atribuit ca tehnician lucrează sesizarea LUI fără drept
+ *    de actualizare (excepție: HR-ul, fără acces la modul) — nici una dintre cele
+ *    două nu încape într-o celulă de citire, deci
  *    stau în fișa modulului (`fise-module.ts`, cheia `maintenance`), unde sunt
  *    spuse pe față. Angajatul `own` vede sesizările lui și ce i s-a atribuit, nu
  *    parcul de echipamente.
