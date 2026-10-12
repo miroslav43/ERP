@@ -81,22 +81,50 @@ cea de pe hârtie. 1% din ea = 150 de clienți ≈ 770.000 RON/an.
 
 > **Pentru cine construim**
 >
-> **Firmele de birou cu 10–150 de angajați** — IT, contabilitate și consultanță,
-> arhitectură și inginerie, agenții, call-center, clinici private.
+> **Firmele cu 10–150 de angajați care au un birou** — IT, contabilitate și
+> consultanță, arhitectură și inginerie, agenții, clinici private, distribuție.
 >
-> Au un om care face HR printre altele, angajați care lucrează zilnic pe
-> calculator, și țin pontajul, concediile și REGES-ul în Excel și pe email.
+> Un singur om ține toată administrația: pontajul în Excel, concediile pe
+> WhatsApp, REGES-ul pe site-ul ITM, dosarele SSM în dulap, mașinile într-un
+> caiet, laptopurile într-un tabel pe care nu-l mai actualizează nimeni.
 >
-> **~15.000 de firme în România · ~15 mil. € pe an**
+> **~15.000 de firme în România · ~15 mil. € pe an** ⚠
 >
-> Nu toate IMM-urile: alegem firmele în care **angajații folosesc singuri
-> sistemul**, iar biroul câștigă timp din prima lună.
+> Nu toate IMM-urile: alegem firmele în care **angajații lucrează pe calculator
+> sau pe telefon** și pot folosi singuri sistemul.
 
-Notă pentru vorbitor (ce spui, nu ce scrii): _„Am exclus intenționat
-micro-firmele și firmele cu muncitori pe teren. Acolo nu vindem un portal, vindem
-doar hârtii pentru ITM — și pentru asta există deja un contabil. Noi mergem unde
-fiecare angajat care își cere singur concediul scoate o sarcină de pe masa
-HR-ului.”_
+Notă pentru vorbitor: _„Am exclus intenționat micro-firmele și firmele fără
+niciun om la birou. Acolo nu are cine să lucreze în aplicație. Noi mergem unde
+există un birou care ține firma în ordine, cu angajați care își pot face singuri
+cererile.”_
+
+### Pitch-ul vorbit (~60 de secunde)
+
+> Gândiți-vă la o firmă de 40 de oameni. Are o singură persoană care ține toată
+> administrația. Pontajul îl ține în Excel, concediile le primește pe WhatsApp,
+> contractele le trece de mână în REGES. Dosarele SSM stau în dulap, ITP-urile
+> mașinilor sunt notate într-un caiet. Iar laptopul cu care a plecat un fost
+> angajat nu-l mai știe nimeni.
+>
+> Problema nu e niciuna dintre aceste sarcini în sine. Problema e că sunt șase
+> locuri care nu vorbesc între ele, și omul de la birou le leagă de mână, în
+> fiecare lună.
+>
+> Administrativo le pune în același loc. Concediul aprobat apare singur pe
+> pontaj, intră în salariu și, dacă suspendă contractul, pregătește singur
+> declarația pentru REGES. Diurna din deplasare intră în salariu cu partea
+> neimpozabilă deja calculată. Când
+> pleacă un om, aplicația știe ce laptop, ce mașină și ce cursuri are. Nimeni nu
+> mai tastează același lucru de trei ori.
+>
+> Nu vindem oricui. Țintim firmele cu 10–150 de angajați care au un birou, iar
+> angajații lucrează pe calculator sau pe telefon: IT, contabilitate,
+> consultanță, arhitectură, agenții, clinici, distribuție. La ele, angajatul își
+> cere singur concediul și își vede singur fluturașul. Biroul doar aprobă.
+>
+> Sunt în jur de 15.000 de astfel de firme în România. Abonamentul pe o lună
+> costă cam cât o zi de muncă a omului de la birou. Iar drumul spre ele trece
+> prin contabil: un contabil lucrează cu zeci de firme deodată.
 
 ## 6. Cum recunoaștem un client bun (calificarea la primul apel)
 
