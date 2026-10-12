@@ -228,7 +228,12 @@ begin
     -- Singura contradicție pe care baza o refuză: deducerea integrală pe motiv
     -- de masă sau locuri, la un vehicul despre care ȘTIE că e ușor. Inversul
     -- (50% la un vehicul greu) e prudent, nu riscant: ecranul doar avertizează.
-    if new.regim = 'peste_3500_sau_9_locuri'
+    -- NU și la ștergerea logică (`new.deleted_at is not null`): corectura e
+    -- „șterge + perioadă nouă”, iar fișa vehiculului poate fi completată
+    -- între timp; fără excepția asta, exact rândul greșit n-ar mai putea fi
+    -- șters (revizia F10).
+    if new.deleted_at is null
+       and new.regim = 'peste_3500_sau_9_locuri'
        and v_vehicul.masa_maxima_kg is not null and v_vehicul.masa_maxima_kg <= 3500
        and v_vehicul.numar_locuri is not null and v_vehicul.numar_locuri <= 9 then
       raise exception using errcode = 'P0001',

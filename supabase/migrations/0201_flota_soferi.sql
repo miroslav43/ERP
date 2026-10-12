@@ -267,6 +267,16 @@ create trigger permise_scadenta
 -- ============================================================
 -- Rescriere INTEGRALĂ de la forma ultimă (0011 §8), plus `driver_license`.
 -- Fără ramura nouă, rândul ar fi căzut pe `else false`: invizibil oricui.
+--
+-- ATENȚIE, două trasee paralele rescriu aceeași funcție: traseul F7 (service,
+-- 0200_flota_service_costuri.sql, ramura `lucru/flota-continuare`) adaugă
+-- `vehicle_service`. Migrările se aplică în ordinea numelor, deci 0201 rulează
+-- DUPĂ 0200 și i-ar fi șters ramura tăcut (scadențele de service ar fi dispărut
+-- din lista de conformitate, fără nicio eroare). De aceea forma de aici are
+-- AMBELE ramuri noi; `vehicle_service` e copiată NESCHIMBATĂ din 0200 (același
+-- drept ca `vehicle_document`) și e inertă cât timp 0200 nu există (nimic nu
+-- scrie acel `entity_type`; coloana e `text`). O migrare viitoare care adaugă
+-- un `entity_type` pornește de la ACEASTA.
 create or replace function app.poate_vedea_expirabil(p_organization_id uuid, p_entity_type text)
 returns boolean language sql stable security definer set search_path = '' as $$
   select case p_entity_type
@@ -275,7 +285,9 @@ returns boolean language sql stable security definer set search_path = '' as $$
     when 'work_permit'              then app.can(p_organization_id,'employees','read','team')
     when 'employment_contract'      then app.can(p_organization_id,'employees','read','team')
     when 'vehicle_document'         then app.feature_on(p_organization_id,'fleet')       and app.can(p_organization_id,'vehicles','read','team')
-    when 'equipment'                then app.feature_on(p_organization_id,'maintenance') and app.can(p_organization_id,'maintenance','read','team')
+    -- Din 0200 (F7): scadențele planurilor de service, același drept ca documentele.
+    when 'vehicle_service'          then app.feature_on(p_organization_id,'fleet')       and app.can(p_organization_id,'vehicles','read','team')
+    when 'equipment'              then app.feature_on(p_organization_id,'maintenance') and app.can(p_organization_id,'maintenance','read','team')
     when 'fire_extinguisher'        then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'ssm','read','team')
     when 'ssm_training'             then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'ssm','read','team')
     when 'environmental_permit'     then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'compliance','read','team')
@@ -631,6 +643,7 @@ begin
     v_lipsa := v_lipsa || 'triggerul foi_deplasare_garda';
   end if;
   if position('driver_license' in pg_get_functiondef('app.poate_vedea_expirabil(uuid,text)'::regprocedure)) = 0
+     or position('vehicle_service' in pg_get_functiondef('app.poate_vedea_expirabil(uuid,text)'::regprocedure)) = 0
      or position('ppe_issuance' in pg_get_functiondef('app.poate_vedea_expirabil(uuid,text)'::regprocedure)) = 0 then
     v_lipsa := v_lipsa || 'app.poate_vedea_expirabil cu toate ramurile';
   end if;

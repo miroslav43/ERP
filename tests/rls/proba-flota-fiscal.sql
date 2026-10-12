@@ -29,7 +29,15 @@
 --      employee și super_admin (nu e membru) sunt refuzați (42501) la INSERT pe
 --      ambele tabele, iar `organizations.regim_impozitare` se schimbă doar cu
 --      `organizations:update`: hr, manager, employee = ZERO rânduri (refuz tăcut
---      cerut de USING), nu eroare.
+--      cerut de USING), nu eroare;
+-- (18) corectura: regimul „peste 3.500 kg” pus pe o fișă incompletă se poate
+--      șterge după ce fișa a fost completată (vehicul ușor), iar perioada de
+--      înlocuire intră în aceeași zi [POZITIVĂ];
+-- (19) șoferul (employee) își trimite singur foaia, iar norma proprie, dintr-o tabelă
+--      pe care el nu o vede, ajunge în instantaneu: trigger-ul DEFINER nu cere
+--      drepturi pe tabela de norme rolului care trimite [POZITIVĂ];
+-- (20) firma străină: administratorul unei firme nu citește și nu șterge fiscalul
+--      altei firme, nici prin tabele, nici prin cele două funcții (zero rânduri).
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
@@ -58,6 +66,7 @@ declare
   v_regim     uuid;
   v_foaie     uuid;
   v_foaie2    uuid;
+  v_foaie3    uuid;
   v_zi        date := app.azi_local();
   -- O lună încheiată: nimic din probă nu cere o dată din viitor.
   v_luna      date := (date_trunc('month', app.azi_local()) - interval '2 months')::date;
@@ -488,11 +497,124 @@ begin
     raise warning '  ✗ (17) refuzate %, reușite %, UPDATE organizations reușite %', v_n, v_m, v_k;
   end if;
 
+  -- (18) corectura prevăzută: regimul greșit se șterge și se înlocuiește în aceeași
+  --      zi, chiar dacă fișa vehiculului a fost completată între timp. Triggerul
+  --      refuza ștergerea logică (UPDATE) pe motivul „peste 3.500 kg pe un
+  --      vehicul ușor”, deși regimul rămâne neschimbat pe rândul șters: exact
+  --      rândul greșit nu mai putea fi corectat (revizia F10).
+  v_n := 0;
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    -- Fișa e incompletă (masa și locurile necunoscute): încadrarea trece.
+    insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, motiv,
+                                               created_by, updated_by)
+    values (v_org, v_veh_fara, v_luna + 20, 'peste_3500_sau_9_locuri', 'Fișă incompletă', v_u_admin, v_u_admin)
+    returning id into v_regim;
+    v_n := v_n + 1;
+    -- Se completează fișa: 1.800 kg, 5 locuri (vehicul ușor).
+    update public.vehicles set masa_maxima_kg = 1800, numar_locuri = 5, updated_by = v_u_admin
+     where id = v_veh_fara;
+    get diagnostics v_k = row_count;
+    v_n := v_n + 10 * v_k;
+    -- Ștergerea logică a încadrării greșite.
+    with sterse as (
+      update public.vehicle_fiscal_regimes set deleted_at = now(), updated_by = v_u_admin
+       where id = v_regim and deleted_at is null returning 1
+    ) select v_n + 100 * count(*)::int into v_n from sterse;
+    -- Perioada de înlocuire, în aceeași zi.
+    insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, motiv,
+                                               created_by, updated_by)
+    values (v_org, v_veh_fara, v_luna + 20, 'limitat_50', 'Corectură', v_u_admin, v_u_admin);
+    v_n := v_n + 1000;
+    reset role;
+    if v_n = 1111 then
+      raise notice '  ✓ (18) regimul greșit se șterge chiar după completarea fișei, iar perioada de înlocuire intră în aceeași zi';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (18) cod %, așteptat 1111', v_n;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (18) corectura nu merge (cod parțial %): % (%)', v_n, sqlerrm, sqlstate;
+  end;
+
+  -- (19) rolul care chiar trimite foi: șoferul, cu norma lui proprie în instantaneu
+  v_k := 0;
+  v_m := -1;
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  begin
+    insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                    created_by, updated_by)
+    values (v_org, v_veh, v_e_ang, (v_zi_foaie + 2 + time '07:30') at time zone 'Europe/Bucharest', 10060,
+            v_u_ang, v_u_ang)
+    returning id into v_foaie3;
+    insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la, de_la_loc,
+                                         pana_la_loc, scop, km_plecare, km_sosire, created_by, updated_by)
+    values (v_org, v_foaie3, (v_zi_foaie + 2 + time '08:00') at time zone 'Europe/Bucharest',
+            (v_zi_foaie + 2 + time '09:00') at time zone 'Europe/Bucharest',
+            'Sediu', 'Client', 'Livrare', 10060, 10120, v_u_ang, v_u_ang);
+    with trimise as (
+      update public.trip_sheets set status = 'trimis', updated_by = v_u_ang where id = v_foaie3 returning 1
+    ) select count(*) into v_k from trimise;
+    select count(*) into v_m from public.vehicle_consumption_norms where organization_id = v_org;
+    reset role;
+    select norma_l_100km into v_norma from public.trip_sheets where id = v_foaie3;
+    if v_k = 1 and v_m = 0 and v_norma = 8.10 then
+      raise notice '  ✓ (19) șoferul își trimite foaia; norma lui proprie (8,10) intră în instantaneu, deși tabela de norme îi e invizibilă';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (19) trimise %, norme vizibile șoferului %, norma instantaneului %', v_k, v_m, v_norma;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (19) șoferul nu și-a putut trimite foaia: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (20) firma străină: fiscalul altei firme rămâne invizibil și neatins
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, folosinta_personala,
+                                          km_predare, created_by, updated_by)
+  values (v_org_alta, v_veh_strain, v_e_strain, (v_luna - 20)::timestamp at time zone 'Europe/Bucharest', true,
+          1000, v_u_admin, v_u_admin);
+  insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, motiv,
+                                             created_by, updated_by)
+  values (v_org_alta, v_veh_strain, v_luna - 30, 'integral_exclusiv_economic', 'Altă firmă', v_u_admin, v_u_admin)
+  returning id into v_regim;
+  insert into public.vehicle_consumption_norms (organization_id, vehicle_id, valabil_de_la, l_100km,
+                                                created_by, updated_by)
+  values (v_org_alta, v_veh_strain, v_luna - 30, 5.5, v_u_admin, v_u_admin);
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_fiscal_regimes where organization_id = v_org_alta;
+  select v_n + count(*) into v_n from public.vehicle_consumption_norms where organization_id = v_org_alta;
+  select v_n + count(*) into v_n from public.flota_fiscal_luna(v_org_alta, v_luna);
+  select v_n + count(*) into v_n from public.avantaj_natura_flota(v_org_alta, v_e_strain, v_luna);
+  with sterse as (
+    update public.vehicle_fiscal_regimes set deleted_at = now() where id = v_regim returning 1
+  ) select v_n + count(*) into v_n from sterse;
+  with sterse as (
+    update public.vehicle_consumption_norms set deleted_at = now() where organization_id = v_org_alta returning 1
+  ) select v_n + count(*) into v_n from sterse;
+  reset role;
+  -- Rândul străin există și e încă activ: dovada că UPDATE-ul n-a atins nimic
+  -- (altfel un zero „fals” ar fi putut veni din fixture-ul lipsă).
+  select count(*) into v_m from public.vehicle_fiscal_regimes
+   where id = v_regim and deleted_at is null;
+  if v_n = 0 and v_m = 1 then
+    raise notice '  ✓ (20) firma străină: zero rânduri prin tabele și funcții, iar UPDATE-ul de ștergere afectează zero rânduri';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (20) rânduri străine vizibile sau șterse: %, regimul străin încă activ: %', v_n, v_m;
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA FISCAL: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 17 verificări au trecut.';
+  raise notice '  TOATE cele 20 de verificări au trecut.';
   raise notice '';
 end;
 $$;

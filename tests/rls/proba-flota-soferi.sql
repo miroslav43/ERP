@@ -41,7 +41,12 @@
 -- (25) angajatul își vede avizul exact (`ssm:read = own`) [POZITIVĂ], dar al
 --      colegului nu (null);
 -- (26) avizul valabil iese „apt”, fără alarmă falsă, și pentru managerul fără
---      `ssm:read`.
+--      `ssm:read`;
+-- (27) integrarea cu traseul F7 (service): rescrierea lui `app.poate_vedea_expirabil`
+--      din 0201 păstrează ramura `vehicle_service` din 0200, altfel scadențele de
+--      service ar fi dispărut tăcut din lista de conformitate: org_admin vede
+--      service, permis și document de vehicul; hr vede permisul, nu și parcul
+--      [POZITIVĂ + NEGATIVĂ].
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
@@ -580,11 +585,31 @@ begin
     raise warning '  ✗ (26) avizul valabil a ieșit %', v_text;
   end if;
 
+  -- (27) ramura `vehicle_service` (F7, 0200) nu se pierde în rescrierea din 0201
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  v_n := app.poate_vedea_expirabil(v_org, 'vehicle_service')::int
+       + 10 * app.poate_vedea_expirabil(v_org, 'driver_license')::int
+       + 100 * app.poate_vedea_expirabil(v_org, 'vehicle_document')::int;
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
+  set local role authenticated;
+  v_m := app.poate_vedea_expirabil(v_org, 'vehicle_service')::int
+       + 10 * app.poate_vedea_expirabil(v_org, 'driver_license')::int
+       + 100 * app.poate_vedea_expirabil(v_org, 'vehicle_document')::int;
+  reset role;
+  if v_n = 111 and v_m = 10 then
+    raise notice '  ✓ (27) lista de conformitate păstrează service-ul (F7): org_admin 111, hr 010 (permisul da, parcul nu)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (27) org_admin %, așteptat 111; hr %, așteptat 10', v_n, v_m;
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA ȘOFERI: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 26 de verificări au trecut.';
+  raise notice '  TOATE cele 27 de verificări au trecut.';
   raise notice '';
 end;
 $$;
