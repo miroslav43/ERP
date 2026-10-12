@@ -14,7 +14,8 @@
 -- (6)  desemnarea fără șofer: P0001;
 -- (7)  salt peste desemnare (primită → răspuns trimis): P0001;
 -- (8)  retragerea desemnării golește șoferul                             [POZITIVĂ];
--- (9)  desemnare → răspuns trimis; scadența dispare din `expirables`    [POZITIVĂ];
+-- (9)  desemnare → răspuns trimis; scadența dispare din `expirables`, iar o
+--      contestare ulterioară nu o readuce                              [POZITIVĂ];
 -- (10) după răspuns, șoferul desemnat nu se mai schimbă: P0001;
 -- (11) data răspunsului în viitor: P0001;
 -- (12) amenda plătită e închisă: orice UPDATE dă P0001                  [POZITIVĂ + NEGATIVĂ];
@@ -367,13 +368,22 @@ begin
   v_esecuri := v_esecuri + pg_temp.verifica('11', v_text like 'P0001:Data trimiterii răspunsului%',
     'data răspunsului în viitor e refuzată (P0001)', v_text);
 
+  -- (9c) contestată DUPĂ răspuns nu readuce termenul trecut în expirables
+  v_text := pg_temp.ruleaza(v_u_admin, format(
+    $q$update public.vehicle_fines set stadiu = 'contestata' where id = %L$q$, v_f1));
+  v_n := pg_temp.numara(v_u_admin, format(
+    $q$select count(*) from public.expirables where entity_type = 'vehicle_fine' and entity_id = %L
+       and deleted_at is null$q$, v_f1));
+  v_esecuri := v_esecuri + pg_temp.verifica('9c', v_text = 'ok:1' and v_n = 0,
+    'răspuns trimis → contestată: termenul trecut NU revine în expirables', v_text || ' / ' || v_n);
+
   -- (12) amenda plătită e închisă
   v_text := pg_temp.ruleaza(v_u_admin, format(
     $q$update public.vehicle_fines set stadiu = 'platita' where id = %L$q$, v_f1));
   v_m := pg_temp.numara(v_u_admin, format(
     $q$select count(*) from public.vehicle_fines where id = %L and stadiu = 'platita'$q$, v_f1));
   v_esecuri := v_esecuri + pg_temp.verifica('12a', v_text = 'ok:1' and v_m = 1,
-    'răspuns trimis → plătită', v_text);
+    'contestată → plătită', v_text);
   v_text := pg_temp.ruleaza(v_u_admin, format(
     $q$update public.vehicle_fines set observatii = 'Rescriere' where id = %L$q$, v_f1));
   v_esecuri := v_esecuri + pg_temp.verifica('12b', v_text like 'P0001:Amenda este plătită%',

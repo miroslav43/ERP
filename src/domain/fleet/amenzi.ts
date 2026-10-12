@@ -115,8 +115,11 @@ export function verdictTermen(
   termen: string | null,
   stadiu: StadiuAmenda,
   azi: string,
+  raspunsTrimisLa: string | null = null,
 ): VerdictTermen {
-  if (!raspunsDeTrimis(stadiu)) {
+  // Răspunsul a plecat deja (chiar dacă amenda a fost apoi contestată): termenul
+  // nu mai curge. Oglinda lui `internal.amenzi_scadenta`.
+  if (raspunsTrimisLa !== null || !raspunsDeTrimis(stadiu)) {
     return { stare: "nu_se_aplica", zile: null, eticheta: "Nu mai e de răspuns", ton: "neutru" };
   }
   if (termen === null) {
@@ -299,6 +302,33 @@ export interface ModelScrisoare {
   readonly lipsuri: readonly string[];
   readonly note: readonly string[];
   readonly numeFisier: string;
+}
+
+export interface AdreseSofer {
+  readonly adresa_strada: string | null;
+  readonly adresa_oras: string | null;
+  readonly adresa_judet: string | null;
+  readonly adresa_resedinta_strada: string | null;
+  readonly adresa_resedinta_oras: string | null;
+  readonly adresa_resedinta_judet: string | null;
+}
+
+function alipeste(...parti: readonly (string | null)[]): string | null {
+  const nevide = parti.map((p) => p?.trim() ?? "").filter((p) => p !== "");
+  return nevide.length === 0 ? null : nevide.join(", ");
+}
+
+/**
+ * Adresa pentru scrisoare: „domiciliul sau reședința” (art. 39 alin. (2)).
+ * Domiciliul are întâietate; reședința intră doar când domiciliul lipsește cu
+ * totul. `null` = fișa n-are nicio adresă, iar scrisoarea lasă linie de
+ * completat.
+ */
+export function adresaPentruScrisoare(d: AdreseSofer): string | null {
+  return (
+    alipeste(d.adresa_strada, d.adresa_oras, d.adresa_judet) ??
+    alipeste(d.adresa_resedinta_strada, d.adresa_resedinta_oras, d.adresa_resedinta_judet)
+  );
 }
 
 function plin(valoare: string | null): string | null {

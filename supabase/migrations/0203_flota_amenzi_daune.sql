@@ -434,8 +434,9 @@ end;
 $$;
 
 -- Termenul de răspuns în lista de conformitate. AFTER, ca să vadă rândul
--- final. Cât răspunsul n-a plecat (primită, șofer desemnat, contestată), cu
--- scadența; după aceea scadența dispare (alertele deschise se închid singure).
+-- final. Cât răspunsul n-a plecat (primită, șofer desemnat, contestată fără
+-- răspuns trimis), cu scadența; după aceea scadența dispare (alertele
+-- deschise se închid singure).
 create or replace function internal.amenzi_scadenta()
 returns trigger
 language plpgsql
@@ -456,6 +457,8 @@ begin
     left('Răspuns la amenda ' || new.numar_pv || ' — ' || coalesce(v_nr, 'vehicul'), 200),
     case when new.deleted_at is null
               and new.stadiu in ('primita', 'sofer_desemnat', 'contestata')
+              -- „Contestată” după ce răspunsul a plecat NU readuce un termen trecut.
+              and new.raspuns_trimis_la is null
          then new.termen_raspuns end,
     'vehicle_fines',
     null,

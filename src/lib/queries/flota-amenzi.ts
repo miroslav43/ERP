@@ -253,6 +253,44 @@ export async function vehiculePentruAmenzi(
   return data ?? [];
 }
 
+export interface DatePersonaleSofer {
+  readonly full_name: string | null;
+  readonly marca: string | null;
+  readonly adresa_strada: string | null;
+  readonly adresa_oras: string | null;
+  readonly adresa_judet: string | null;
+  readonly adresa_resedinta_strada: string | null;
+  readonly adresa_resedinta_oras: string | null;
+  readonly adresa_resedinta_judet: string | null;
+  readonly tip_act_identitate: string | null;
+  readonly serie_act: string | null;
+  readonly numar_act: string | null;
+}
+
+/**
+ * Datele personale cerute de art. 39 alin. (2) (fără CNP, care trece doar
+ * prin `hr_read_sensitive`), citite prin RLS-ul fișei de angajat. Doar ruta
+ * scrisorii le cere, după ce a verificat `employees:read = all`.
+ */
+export async function datePersonaleSofer(
+  organizationId: string,
+  employeeId: string,
+): Promise<DatePersonaleSofer | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select(
+      "full_name, marca, adresa_strada, adresa_oras, adresa_judet, adresa_resedinta_strada, " +
+        "adresa_resedinta_oras, adresa_resedinta_judet, tip_act_identitate, serie_act, numar_act",
+    )
+    .eq("organization_id", organizationId)
+    .eq("id", employeeId)
+    .is("deleted_at", null)
+    .maybeSingle<DatePersonaleSofer>();
+  if (error !== null) throw error;
+  return data;
+}
+
 // ── Incidente ───────────────────────────────────────────────────────────────
 
 export interface RandIncident {

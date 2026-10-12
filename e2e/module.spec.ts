@@ -123,6 +123,20 @@ const RUTE: readonly Ruta[] = [
     asteptari: DOAR_ADMIN,
   },
   // ── sfârșit bloc: fiscalul flotei (0202) ──
+  // ── început bloc: amenzi și daune (0203) ──
+  {
+    cale: "/flota/amenzi",
+    titlu: "Amenzi",
+    poarta: "fleet · vehicle_fines:read all (doar org_admin; cere 0203 aplicată)",
+    asteptari: DOAR_ADMIN,
+  },
+  {
+    cale: "/flota/incidente",
+    titlu: "Incidente și daune",
+    poarta: "fleet · vehicle_incidents:read all (doar org_admin; cere 0203 aplicată)",
+    asteptari: DOAR_ADMIN,
+  },
+  // ── sfârșit bloc: amenzi și daune (0203) ──
   {
     cale: "/inventar",
     titlu: "Inventar",

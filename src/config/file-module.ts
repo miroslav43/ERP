@@ -22,6 +22,11 @@ export const FILE_FLOTA: readonly FilaModul[] = [
   // 0202: regimul fiscal al vehiculelor și luna fiscală; fila apare doar pentru
   // `vehicles:read = all`, poarta politicilor tabelelor fiscale.
   { href: "/flota/fiscal", eticheta: "Fiscal" },
+  // 0203: amenzile primite pe vehicule și incidentele / dauna; filele apar doar
+  // pentru `vehicle_fines:read = all` / `vehicle_incidents:read = all`, poarta
+  // politicilor lor (seedate doar pentru `org_admin`).
+  { href: "/flota/amenzi", eticheta: "Amenzi" },
+  { href: "/flota/incidente", eticheta: "Incidente" },
 ];
 
 export function fileEvaluari(contoare: Readonly<{ sabloane?: number }> = {}): readonly FilaModul[] {

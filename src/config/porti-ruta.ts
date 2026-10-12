@@ -129,6 +129,13 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   // Poarta politicilor `vehicle_fiscal_regimes_select` / `vehicle_consumption_norms_select`.
   p("/flota/fiscal", "fleet", "vehicles:read", "all"),
   // ── sfârșit bloc: fiscalul flotei (0202) ──
+  // ── început bloc: amenzi și daune (0203) ──
+  // Poarta politicilor `vehicle_fines_select` / `vehicle_incidents_select`.
+  p("/flota/amenzi", "fleet", "vehicle_fines:read", "all"),
+  p("/flota/amenzi/[id]", "fleet", "vehicle_fines:read", "all"),
+  p("/flota/incidente", "fleet", "vehicle_incidents:read", "all"),
+  p("/flota/incidente/[id]", "fleet", "vehicle_incidents:read", "all"),
+  // ── sfârșit bloc: amenzi și daune (0203) ──
   p("/inventar", "inventory", "inventory:read"),
   p("/inventar/[id]", "inventory", "inventory:read"),
   p("/inventar/[id]/pv/[alocare]", "inventory", "inventory:read"),

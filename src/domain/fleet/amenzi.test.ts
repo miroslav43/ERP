@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  adresaPentruScrisoare,
   ETICHETE_STADIU_AMENDA,
   ETICHETE_STADIU_INCIDENT,
   NOTA_RECUPERARE,
@@ -137,6 +138,14 @@ describe("verdictTermen", () => {
       expect(v.stare).toBe("nu_se_aplica");
       expect(v.zile).toBeNull();
     }
+  });
+
+  it("amenda contestată DUPĂ răspuns nu readuce un termen trecut", () => {
+    const v = verdictTermen("2026-10-01", "contestata", azi, "2026-09-28");
+    expect(v.stare).toBe("nu_se_aplica");
+    expect(v.zile).toBeNull();
+    // Contestată fără răspuns trimis rămâne de răspuns.
+    expect(verdictTermen("2026-10-01", "contestata", azi, null).stare).toBe("depasit");
   });
 
   it("trece corect peste schimbarea orei de vară (zile calendaristice)", () => {
@@ -298,5 +307,45 @@ describe("modelScrisoareDesemnare", () => {
     const m = modelScrisoareDesemnare(intrare);
     const tot = [m.titlu, m.destinatar, m.referinta, ...m.paragrafe, ...m.note].join("\n");
     expect(tot).not.toMatch(/[şţŞŢ]/u);
+  });
+});
+
+describe("adresaPentruScrisoare", () => {
+  const goala = {
+    adresa_strada: null,
+    adresa_oras: null,
+    adresa_judet: null,
+    adresa_resedinta_strada: null,
+    adresa_resedinta_oras: null,
+    adresa_resedinta_judet: null,
+  };
+
+  it("domiciliul are întâietate față de reședință", () => {
+    expect(
+      adresaPentruScrisoare({
+        ...goala,
+        adresa_strada: "Str. Teiului 4",
+        adresa_oras: "Ploiești",
+        adresa_judet: "Prahova",
+        adresa_resedinta_oras: "București",
+      }),
+    ).toBe("Str. Teiului 4, Ploiești, Prahova");
+  });
+
+  it("fără domiciliu, reședința ține locul", () => {
+    expect(
+      adresaPentruScrisoare({
+        ...goala,
+        adresa_resedinta_strada: "Calea Victoriei 1",
+        adresa_resedinta_oras: "București",
+      }),
+    ).toBe("Calea Victoriei 1, București");
+  });
+
+  it("părțile goale sau cu spații se sar; fără nicio adresă, null", () => {
+    expect(adresaPentruScrisoare({ ...goala, adresa_strada: "  ", adresa_oras: "Cluj" })).toBe(
+      "Cluj",
+    );
+    expect(adresaPentruScrisoare(goala)).toBeNull();
   });
 });
