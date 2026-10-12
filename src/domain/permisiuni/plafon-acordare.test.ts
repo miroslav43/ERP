@@ -5,7 +5,12 @@
 // subordonatului „Salarizare — Citire = Toată firma” dintr-un dropdown.
 import { describe, expect, it } from "vitest";
 
-import { incapeInPlafon, plafonulAcordarii } from "./plafon-acordare";
+import {
+  implicitulRolului,
+  incapeInPlafon,
+  plafonulAcordarii,
+  poateReveniLaRol,
+} from "./plafon-acordare";
 
 describe("plafonulAcordarii", () => {
   it("`roles:update = all`: fără plafon, orice cheie până la `all`", () => {
@@ -41,5 +46,57 @@ describe("incapeInPlafon", () => {
     expect(incapeInPlafon("team", "team")).toBe(true);
     expect(incapeInPlafon("all", "team")).toBe(false);
     expect(incapeInPlafon("own", "none")).toBe(false);
+  });
+});
+
+describe("implicitulRolului", () => {
+  const ORG = "00000000-0000-4000-8000-000000000001";
+
+  it("fără niciun rând: `null` (rolul nu dă nimic)", () => {
+    expect(implicitulRolului([])).toBeNull();
+  });
+
+  it("doar implicitul global: el", () => {
+    expect(implicitulRolului([{ organization_id: null, scope: "all" }])).toBe("all");
+  });
+
+  it("rândul organizației bate implicitul global, indiferent de ordine", () => {
+    expect(
+      implicitulRolului([
+        { organization_id: null, scope: "all" },
+        { organization_id: ORG, scope: "none" },
+      ]),
+    ).toBe("none");
+    expect(
+      implicitulRolului([
+        { organization_id: ORG, scope: "own" },
+        { organization_id: null, scope: "all" },
+      ]),
+    ).toBe("own");
+  });
+});
+
+// Ștergerea unei suprascrieri NU e neutră: dreptul cade pe implicitul rolului.
+// Un refuz explicit pus de administrator (`payroll:read = none` pe un `hr`,
+// al cărui rol dă `all`) retras de manager i-ar redeschide subordonatului toate
+// salariile — mai mult decât are managerul.
+describe("poateReveniLaRol", () => {
+  it("rolul dă mai mult decât plafonul: nu", () => {
+    expect(poateReveniLaRol("all", "none")).toBe(false);
+    expect(poateReveniLaRol("all", "team")).toBe(false);
+  });
+
+  it("rolul dă cel mult plafonul: da", () => {
+    expect(poateReveniLaRol("team", "team")).toBe(true);
+    expect(poateReveniLaRol("own", "team")).toBe(true);
+  });
+
+  it("rolul nu dă nimic (`null` sau `none`): da, chiar fără plafon", () => {
+    expect(poateReveniLaRol(null, "none")).toBe(true);
+    expect(poateReveniLaRol("none", "none")).toBe(true);
+  });
+
+  it("administratorul (`all`) n-are plafon", () => {
+    expect(poateReveniLaRol("all", "all")).toBe(true);
   });
 });

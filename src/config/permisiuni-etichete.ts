@@ -64,8 +64,8 @@ export const ETICHETE_RESURSE: Readonly<Record<ResursaPermisiune, EtichetaResurs
     modul: null,
   },
   checklists: {
-    nume: "Integrare angajați (liste de verificare)",
-    descriere: "Parcursurile de integrare a angajaților noi și pașii lor.",
+    nume: "Parcursuri",
+    descriere: "Parcursurile de integrare a angajaților noi și de plecare din firmă, cu pașii lor.",
     modul: "onboarding",
   },
   // Ascunsă fiindcă AZI nicio pagină nu citește tabelele pe care le păzește —
@@ -169,7 +169,7 @@ export const ETICHETE_RESURSE: Readonly<Record<ResursaPermisiune, EtichetaResurs
     modul: "ssm",
   },
   tickets: {
-    nume: "Ticketing IT",
+    nume: "Tichete IT",
     descriere: "Solicitările de asistență IT și rezolvarea lor.",
     modul: "ticketing",
   },

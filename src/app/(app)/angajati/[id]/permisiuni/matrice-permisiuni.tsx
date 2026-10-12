@@ -7,7 +7,7 @@ import { useSemnalIncarcare } from "@/components/incarcare/use-incarcare";
 import { useRouter } from "next/navigation";
 
 import type { PermissionScope } from "@/config/permissions";
-import { incapeInPlafon } from "@/domain/permisiuni/plafon-acordare";
+import { incapeInPlafon, poateReveniLaRol } from "@/domain/permisiuni/plafon-acordare";
 
 import { suprascriePermisiunea } from "./actions";
 
@@ -136,6 +136,10 @@ export function MatricePermisiuni({
                 const idCamp = `${idBaza}-${rand.cheie}`;
                 const valoare = rand.suprascris ?? "implicit";
                 const modificat = rand.suprascris !== null;
+                // Retragerea cade pe implicitul rolului, deci trece prin același
+                // plafon (0197). Fără suprascriere, „Ca la rol” e chiar valoarea
+                // curentă: n-are ce depăși.
+                const revenireBlocata = modificat && !poateReveniLaRol(rand.implicit, rand.plafon);
                 return (
                   <li
                     key={rand.cheie}
@@ -151,6 +155,12 @@ export function MatricePermisiuni({
                         Rolul dă: {rand.implicit === null ? "nimic" : ETICHETE_SCOPE[rand.implicit]}
                         {modificat ? " · suprascris" : null}
                       </p>
+                      {revenireBlocata && poateScrie ? (
+                        <p className="text-muted-foreground text-nota">
+                          Revenirea la rol i-ar da mai mult decât aveți dumneavoastră. O poate face
+                          un administrator al organizației.
+                        </p>
+                      ) : null}
                     </div>
                     {/*
                     Un `<select>` dezactivat arată la fel ca unul fără drept de
@@ -173,7 +183,9 @@ export function MatricePermisiuni({
                         (modificat ? "border-primary text-foreground" : "border-foreground/40")
                       }
                     >
-                      <option value="implicit">Ca la rol</option>
+                      <option value="implicit" disabled={revenireBlocata}>
+                        Ca la rol
+                      </option>
                       {OPTIUNI.map((scope) => (
                         <option
                           key={scope}

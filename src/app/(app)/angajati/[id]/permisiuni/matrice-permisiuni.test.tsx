@@ -147,6 +147,49 @@ describe("MatricePermisiuni", () => {
     });
   });
 
+  // Retragerea cade pe implicitul rolului: un `hr` cu `payroll:read = none` pus
+  // de administrator ar reveni la `all`. Managerul fără salarizare nu poate.
+  it("„Ca la rol” e inactivă când implicitul rolului depășește plafonul, și spune de ce", () => {
+    const { container } = render(
+      <MatricePermisiuni
+        memberId="11111111-1111-4111-8111-111111111111"
+        randuri={[
+          rand("payroll:read", "all", "none", "none"),
+          rand("leave:approve", "team", "none", "team"),
+        ]}
+        poateScrie
+      />,
+    );
+    const caLaRol = (cheie: string) =>
+      container.querySelector<HTMLOptionElement>(
+        `li[data-cheie="${cheie}"] option[value="implicit"]`,
+      );
+
+    expect(caLaRol("payroll:read")?.disabled).toBe(true);
+    expect(container.querySelector('li[data-cheie="payroll:read"]')?.textContent ?? "").toContain(
+      "Revenirea la rol i-ar da mai mult decât aveți dumneavoastră",
+    );
+    expect(caLaRol("leave:approve")?.disabled).toBe(false);
+    expect(
+      container.querySelector('li[data-cheie="leave:approve"]')?.textContent ?? "",
+    ).not.toContain("Revenirea la rol");
+  });
+
+  it("fără suprascriere, „Ca la rol” rămâne activă (e chiar valoarea curentă)", () => {
+    const { container } = render(
+      <MatricePermisiuni
+        memberId="11111111-1111-4111-8111-111111111111"
+        randuri={[rand("payroll:read", "all", null, "none")]}
+        poateScrie
+      />,
+    );
+    expect(
+      container.querySelector<HTMLOptionElement>(
+        'li[data-cheie="payroll:read"] option[value="implicit"]',
+      )?.disabled,
+    ).toBe(false);
+  });
+
   it("o suprascriere existentă peste plafon rămâne afișată ca valoare", () => {
     render(
       <MatricePermisiuni

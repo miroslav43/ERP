@@ -160,12 +160,124 @@ describe("suprascriePermisiunea", () => {
       expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
     });
 
-    it("retragerea trece și fără cheie", async () => {
+    it("retragerea trece și fără cheie, când rolul membrului nu dă nimic pe ea", async () => {
       const { server } = configureazaActiunea({ permisiuni: { "roles:update": "team" } });
       server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
+      server.raspunde("organization_members", "select", { data: { role: "employee" } });
+      server.raspunde("role_permissions", "select", { data: [] });
       server.raspundeRpc("sterge_logic", { data: [ID_2] });
       const r = await suprascriePermisiunea(intrare(null));
       expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
+    });
+
+    // Retragerea NU e neutră: dreptul cade pe implicitul rolului membrului. Un
+    // `payroll:read = none` pus de administrator pe un `hr` (rolul dă `all`),
+    // retras de un manager fără salarizare, îi redeschidea subordonatului toate
+    // salariile — ce 0197 voia să închidă, pe calea retragerii.
+    describe("retragerea („ca la rol”) cade pe implicitul rolului", () => {
+      const intrareSalarii = { memberId: ID_1, cheie: "payroll:read", scope: null };
+
+      it("implicitul rolului peste plafon: INTERZIS cu mesaj, fără nicio ștergere", async () => {
+        const { server } = configureazaActiunea({ permisiuni: { "roles:update": "team" } });
+        server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
+        server.raspunde("organization_members", "select", { data: { role: "hr" } });
+        server.raspunde("role_permissions", "select", {
+          data: [{ organization_id: null, scope: "all" }],
+        });
+
+        const r = await suprascriePermisiunea(intrareSalarii);
+
+        expect(r).toMatchObject({
+          ok: false,
+          error: {
+            code: "INTERZIS",
+            message:
+              "Nu puteți readuce această permisiune la valoarea rolului: rolul îi dă mai mult decât aveți dumneavoastră. Restricția o poate retrage un administrator al organizației.",
+          },
+        });
+        expect(server.apeluriRpc.filter((a) => a.nume === "sterge_logic")).toHaveLength(0);
+        expect(caiRevalidate()).toEqual([]);
+      });
+
+      it("citește implicitul rolului MEMBRULUI, pe cheie, fără rândurile de membru", async () => {
+        const { server } = configureazaActiunea({ permisiuni: { "roles:update": "team" } });
+        server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
+        server.raspunde("organization_members", "select", { data: { role: "hr" } });
+        server.raspunde("role_permissions", "select", {
+          data: [{ organization_id: null, scope: "all" }],
+        });
+
+        await suprascriePermisiunea(intrareSalarii);
+
+        const [membru] = server.apeluriPe("organization_members");
+        expect(areFiltru(membru, "eq", "id", ID_1)).toBe(true);
+        expect(areFiltru(membru, "eq", "organization_id", ORG_ID)).toBe(true);
+        expect(areFiltru(membru, "is", "deleted_at", null)).toBe(true);
+        const [, implicit] = server.apeluriPe("role_permissions", "select");
+        expect(areFiltru(implicit, "eq", "role", "hr")).toBe(true);
+        expect(areFiltru(implicit, "is", "member_id", null)).toBe(true);
+        expect(areFiltru(implicit, "eq", "resource", "payroll")).toBe(true);
+        expect(areFiltru(implicit, "eq", "action", "read")).toBe(true);
+        expect(areFiltru(implicit, "is", "deleted_at", null)).toBe(true);
+        expect(
+          areFiltru(implicit, "or", `organization_id.eq.${ORG_ID},organization_id.is.null`),
+        ).toBe(true);
+      });
+
+      it("rândul organizației bate implicitul global: dacă el nu dă nimic, retragerea trece", async () => {
+        const { server } = configureazaActiunea({ permisiuni: { "roles:update": "team" } });
+        server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
+        server.raspunde("organization_members", "select", { data: { role: "hr" } });
+        server.raspunde("role_permissions", "select", {
+          data: [
+            { organization_id: null, scope: "all" },
+            { organization_id: ORG_ID, scope: "none" },
+          ],
+        });
+        server.raspundeRpc("sterge_logic", { data: [ID_2] });
+
+        const r = await suprascriePermisiunea(intrareSalarii);
+
+        expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
+      });
+
+      it("implicitul rolului încape în plafon: retragerea trece", async () => {
+        const { server } = configureazaActiunea({
+          permisiuni: { "roles:update": "team", "payroll:read": "team" },
+        });
+        server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
+        server.raspunde("organization_members", "select", { data: { role: "employee" } });
+        server.raspunde("role_permissions", "select", {
+          data: [{ organization_id: null, scope: "own" }],
+        });
+        server.raspundeRpc("sterge_logic", { data: [ID_2] });
+
+        const r = await suprascriePermisiunea(intrareSalarii);
+
+        expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
+      });
+
+      it("membrul nu mai e în organizație: CONFLICT, fără nicio ștergere", async () => {
+        const { server } = configureazaActiunea({ permisiuni: { "roles:update": "team" } });
+        server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
+        server.raspunde("organization_members", "select", { data: null });
+
+        const r = await suprascriePermisiunea(intrareSalarii);
+
+        expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+        expect(server.apeluriRpc.filter((a) => a.nume === "sterge_logic")).toHaveLength(0);
+      });
+
+      it("`roles:update = all`: fără plafon, deci fără citirea implicitului", async () => {
+        const { server } = configureazaActiunea({ permisiuni: { "roles:update": "all" } });
+        server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
+        server.raspundeRpc("sterge_logic", { data: [ID_2] });
+
+        const r = await suprascriePermisiunea(intrareSalarii);
+
+        expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
+        expect(server.apeluriPe("organization_members")).toHaveLength(0);
+      });
     });
 
     it("`roles:update = all`: fără plafon", async () => {

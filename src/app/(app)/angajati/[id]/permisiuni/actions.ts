@@ -4,8 +4,15 @@
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
-import { incapeInPlafon, plafonulAcordarii } from "@/domain/permisiuni/plafon-acordare";
+import type { PermissionScope } from "@/config/permissions";
+import {
+  implicitulRolului,
+  incapeInPlafon,
+  plafonulAcordarii,
+  poateReveniLaRol,
+} from "@/domain/permisiuni/plafon-acordare";
 import { businessRule, forbidden } from "@/lib/actions/errors";
+import type { ActionContext } from "@/lib/actions/types";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { ROLURI_ATRIBUIBILE, schimbaRolul } from "@/lib/membri/schimba-rol";
 import { stergeLogic } from "@/lib/supabase/sterge-logic";
@@ -100,18 +107,14 @@ export const suprascriePermisiunea = createAction({
     // toate salariile (v. `plafon-acordare.ts`). Poarta reală e în bază (0197);
     // verificarea de aici dă mesajul. `getPermissionMap` e memorat pe cerere,
     // deci e aceeași hartă pe care a citit-o deja `createAction`.
-    if (input.scope !== null) {
-      const permisiuni = await getPermissionMap(
-        ctx.tenant.organizationId,
-        ctx.tenant.role,
-        ctx.tenant.memberId,
-      );
-      const plafon = plafonulAcordarii(ctx.scope, scopeFor(permisiuni, input.cheie));
-      if (!incapeInPlafon(input.scope, plafon)) {
-        throw forbidden(
-          "Nu puteți acorda pe această permisiune mai mult decât aveți dumneavoastră.",
-        );
-      }
+    const permisiuni = await getPermissionMap(
+      ctx.tenant.organizationId,
+      ctx.tenant.role,
+      ctx.tenant.memberId,
+    );
+    const plafon = plafonulAcordarii(ctx.scope, scopeFor(permisiuni, input.cheie));
+    if (input.scope !== null && !incapeInPlafon(input.scope, plafon)) {
+      throw forbidden("Nu puteți acorda pe această permisiune mai mult decât aveți dumneavoastră.");
     }
 
     // Actualizare-apoi-inserare, NU `.upsert()`: `role_permissions_uq` e index
@@ -132,6 +135,20 @@ export const suprascriePermisiunea = createAction({
     if (input.scope === null) {
       // Retragere = ștergere logică. Nicio politică DELETE în tot proiectul.
       if (existent.data === null) return { memberId: input.memberId };
+      // Retragerea NU e neutră: membrul cade pe implicitul rolului, deci și
+      // „ca la rol” trece prin plafon. Altfel un `payroll:read = none` pus de
+      // administrator pe un `hr` (rolul dă `all`), retras de un manager fără
+      // salarizare, îi redeschidea subordonatului toate salariile. Poarta reală
+      // e WITH CHECK-ul din 0197 (`app.implicitul_rolului_membrului`); aici,
+      // mesajul. Fără plafon (`all`) nu e nimic de comparat, deci nici de citit.
+      if (plafon !== "all") {
+        const implicit = await implicitulMembrului(ctx, input.memberId, resource, action);
+        if (!poateReveniLaRol(implicit, plafon)) {
+          throw forbidden(
+            "Nu puteți readuce această permisiune la valoarea rolului: rolul îi dă mai mult decât aveți dumneavoastră. Restricția o poate retrage un administrator al organizației.",
+          );
+        }
+      }
       // Prin `stergeLogic`, nu `update({ deleted_at })`: politica SELECT ascunde
       // rândul șters, iar UPDATE-ul direct pica mereu cu 42501 (0164).
       const { data, error } = await stergeLogic(ctx.supabase, "role_permissions", [
@@ -195,3 +212,40 @@ export const suprascriePermisiunea = createAction({
     return { memberId: input.memberId };
   },
 });
+
+/**
+ * Ce ar avea membrul fără suprascrierea lui: rândurile de ROL (fără
+ * `member_id`) ale rolului lui, pe cheia dată — al organizației bate globalul
+ * (`implicitulRolului`). Aceeași socoteală ca pagina și ca
+ * `app.implicitul_rolului_membrului` din 0197.
+ */
+async function implicitulMembrului(
+  ctx: ActionContext,
+  memberId: string,
+  resource: string,
+  action: string,
+): Promise<PermissionScope | null> {
+  const membru = await ctx.supabase
+    .from("organization_members")
+    .select("role")
+    .eq("id", memberId)
+    .eq("organization_id", ctx.tenant.organizationId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (membru.error !== null) throw membru.error;
+  if (membru.data === null) {
+    throw businessRule("Membrul nu a fost găsit în această organizație.");
+  }
+
+  const randuri = await ctx.supabase
+    .from("role_permissions")
+    .select("organization_id, scope")
+    .eq("role", membru.data.role)
+    .is("member_id", null)
+    .eq("resource", resource)
+    .eq("action", action)
+    .or(`organization_id.eq.${ctx.tenant.organizationId},organization_id.is.null`)
+    .is("deleted_at", null);
+  if (randuri.error !== null) throw randuri.error;
+  return implicitulRolului(randuri.data ?? []);
+}

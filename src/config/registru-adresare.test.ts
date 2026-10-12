@@ -26,6 +26,10 @@ const TINTE = [
   "src/components",
   "src/lib/asistent/destinatii.ts",
   "src/lib/incarcare/stiati-ca.ts",
+  // Etichetele matricei de permisiuni: textul lor ajunge pe ecran prin pagina
+  // de server, deci nu se vede în `src/app` (au scăpat „Ticketing IT” și
+  // „liste de verificare”).
+  "src/config/permisiuni-etichete.ts",
 ];
 
 // Granițe de cuvânt conștiente de diacritice: `\b` din JS tratează „ț” ca
@@ -67,6 +71,10 @@ const REGULI: readonly Regula[] = [
     nume: "„instanță” — se scrie „parcurs”",
     tipar: new RegExp(`${I}[Ii]nstanț(ă|e|a|ei|ele|elor)${S}`, "gu"),
   },
+  {
+    nume: "„liste de verificare” — se scrie „parcurs”",
+    tipar: new RegExp(`${I}list(ă|e|a|ele|elor) de verificare${S}`, "giu"),
+  },
   { nume: "„Ticketing IT” — se scrie „Tichete IT”", tipar: /Ticketing IT/gu },
   {
     nume: "„Ieșire din organizație” — se scrie „Plecare din firmă”",
@@ -79,6 +87,12 @@ const REGULI: readonly Regula[] = [
 const EXCEPTII: readonly { readonly fisier: string; readonly fragment: string }[] = [
   // „instanța” = tribunalul, în registrul de documente primite.
   { fisier: "src/app/(app)/registru/dialog-document-primit.tsx", fragment: "instanț" },
+  // Lista de verificare a unui plan de MENTENANȚĂ (pașii unei intervenții), nu
+  // un parcurs de integrare: glosarul o interzice doar pentru Integrare.
+  {
+    fisier: "src/app/(app)/mentenanta/planuri/dialog-executa-plan.tsx",
+    fragment: "lista de verificare",
+  },
 ];
 
 function fisiere(cale: string): string[] {
@@ -165,6 +179,12 @@ function incalcari(): string[] {
       for (const fragment of fragmenteDeText(sursa)) {
         for (const regula of REGULI) {
           if (fragment.identificator && regula.siInIdentificatori !== true) continue;
+          // `matchAll` clonează tiparul CU tot cu `lastIndex`, iar `.test()`-ul
+          // din filtrul de mai sus l-a lăsat după prima potrivire din fișier.
+          // Fără resetare, regula care a declanșat filtrul pornea, în fiecare
+          // fragment scurt, de la o poziție de dincolo de capătul lui — și tăcea
+          // tocmai în fișierul în care găsise ceva.
+          regula.tipar.lastIndex = 0;
           for (const potrivire of fragment.text.matchAll(regula.tipar)) {
             const exceptat = EXCEPTII.some(
               (e) => e.fisier === cale && potrivire[0].toLowerCase().includes(e.fragment),
