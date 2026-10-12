@@ -24,14 +24,10 @@ import {
   type EtichetaSoferi,
   type EtichetaVehicule,
   type FoaieRaport,
+  type FoiNeaprobate,
   type IntervalLuna,
-  type RandConsum,
-  type RandCost,
-  type RandRegistru,
-  type RandSofer,
+  type RaportLunar,
   type SurseCost,
-  type TotalCost,
-  type TotaluriLuna,
 } from "@/domain/fleet/rapoarte";
 import type { CursaFoaie } from "@/domain/fleet/foaie";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -171,12 +167,6 @@ export async function numarFoiAprobateLuna(
 }
 
 // ── Foile care NU intră în cifre ────────────────────────────────────────────
-
-export interface FoiNeaprobate {
-  readonly ciorne: number;
-  readonly trimise: number;
-  readonly respinse: number;
-}
 
 /**
  * Câte foi ale lunii nu sunt (încă) aprobate: ciorne, trimise spre aprobare,
@@ -327,20 +317,6 @@ async function etichetaSoferi(
 }
 
 // ── Raportul lunii ──────────────────────────────────────────────────────────
-
-export interface RaportLunar {
-  readonly luna: string;
-  readonly interval: IntervalLuna;
-  /** `null` = toată flota. */
-  readonly vehicul: string | null;
-  readonly totaluri: TotaluriLuna;
-  readonly foiNeaprobate: FoiNeaprobate;
-  readonly consum: readonly RandConsum[];
-  readonly soferi: readonly RandSofer[];
-  readonly costuri: readonly RandCost[];
-  readonly totalCost: TotalCost;
-  readonly registru: readonly RandRegistru[];
-}
 
 /**
  * Raportul unei luni, compus din citirile de mai sus și din funcțiile pure ale

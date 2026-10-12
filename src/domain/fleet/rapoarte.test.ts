@@ -235,10 +235,6 @@ describe("kmPeSofer", () => {
     expect(randuri[0]?.employeeId).toBeNull();
   });
 
-  it("litrii șoferului vin din alimentările foilor lui", () => {
-    const foi = [foaie("f1", { alimentari: [{ litri: 12.5, cost: 90 }] })];
-    expect(kmPeSofer(foi, SOFERI)[0]?.litri).toBe(12.5);
-  });
 });
 
 describe("costPeVehicul", () => {
@@ -404,5 +400,11 @@ describe("registruFoi", () => {
       norma: 7,
     });
     expect(randuri[2]?.consumReal).toBeCloseTo(10, 5);
+    expect(randuri.map((r) => r.unitate)).toEqual(["l", "l", "l"]);
+  });
+
+  it("foaia vehiculului electric spune kWh pe rândul ei", () => {
+    const [rand] = registruFoi([foaie("f1", { vehicul_combustibil: "electric" })], VEHICULE, SOFERI);
+    expect(rand?.unitate).toBe("kWh");
   });
 });

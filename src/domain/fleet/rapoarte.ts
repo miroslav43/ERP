@@ -240,7 +240,6 @@ export interface RandSofer {
   /** Vehicule distincte conduse în lună. */
   readonly vehicule: number;
   readonly km: number;
-  readonly litri: number;
 }
 
 /**
@@ -261,7 +260,6 @@ export function kmPeSofer(
         zile: new Set(deLaSofer.map((f) => f.data)).size,
         vehicule: new Set(deLaSofer.map((f) => f.vehicle_id)).size,
         km: deLaSofer.reduce((s, f) => s + km(f), 0),
-        litri: sumaLei(deLaSofer.map(litriFoaie)),
       };
     },
   );
@@ -367,6 +365,7 @@ export interface RandRegistru {
   readonly sofer: string;
   readonly km: number;
   readonly litri: number;
+  readonly unitate: "l" | "kWh";
   readonly costCombustibil: number;
   readonly consumReal: number | null;
   readonly norma: number | null;
@@ -392,6 +391,7 @@ export function registruFoi(
       sofer: etichetaSofer(f.employee_id, soferi),
       km: km(f),
       litri,
+      unitate: f.vehicul_combustibil === "electric" ? ("kWh" as const) : ("l" as const),
       costCombustibil: costFoaie(f),
       consumReal: consumLa100Km(litri, km(f)),
       norma: f.norma_l_100km,
@@ -406,4 +406,27 @@ export function registruFoi(
     }
     return a.vehicul.localeCompare(b.vehicul) || (a.id < b.id ? -1 : 1);
   });
+}
+
+// ── Raportul lunii, întreg ──────────────────────────────────────────────────
+
+/** Foile lunii care NU intră în cifre: un total mic nu trebuie luat drept consum mic. */
+export interface FoiNeaprobate {
+  readonly ciorne: number;
+  readonly trimise: number;
+  readonly respinse: number;
+}
+
+export interface RaportLunar {
+  readonly luna: string;
+  readonly interval: IntervalLuna;
+  /** `null` = toată flota. */
+  readonly vehicul: string | null;
+  readonly totaluri: TotaluriLuna;
+  readonly foiNeaprobate: FoiNeaprobate;
+  readonly consum: readonly RandConsum[];
+  readonly soferi: readonly RandSofer[];
+  readonly costuri: readonly RandCost[];
+  readonly totalCost: TotalCost;
+  readonly registru: readonly RandRegistru[];
 }
