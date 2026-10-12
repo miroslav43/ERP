@@ -42,6 +42,12 @@ const fmtLitri = (n: number): string => `${n.toLocaleString("ro-RO")} l`;
  * aceeași perioadă. Fără foi aprobate, cifra lipsește (și se spune de ce), nu
  * devine „0 lei/km”. Combustibilul cumpărat fără foaie e în total, dar nu
  * intră în consum: n-are kilometri cu care să fie pereche.
+ *
+ * `vedeToateFoile` = `trip_sheets:read = all`. Managerul vede service-ul și
+ * cheltuielile oricărui vehicul vizibil, dar foile doar ale șoferilor echipei
+ * lui (RLS le taie tăcut): cifrele derivate din foi (combustibil, kilometri,
+ * cost pe km, consum) ar fi PARȚIALE și ar arăta ca totalul vehiculului, deci
+ * nu se calculează și ecranul spune de ce.
  */
 export async function FilaCosturi({
   organizationId,
@@ -49,6 +55,7 @@ export async function FilaCosturi({
   azi,
   perioada,
   poateAdministra,
+  vedeToateFoile,
   cursor,
 }: Readonly<{
   organizationId: string;
@@ -56,11 +63,12 @@ export async function FilaCosturi({
   azi: string;
   perioada: PerioadaCosturi;
   poateAdministra: boolean;
+  vedeToateFoile: boolean;
   cursor: string | null;
 }>): Promise<ReactElement> {
   const deLa = perioada === "tot" ? null : dataDeLaLuni(azi, Number(perioada));
   const [costuri, pagina] = await Promise.all([
-    costuriVehicul(organizationId, vehiculId, deLa, azi),
+    costuriVehicul(organizationId, vehiculId, deLa, azi, vedeToateFoile),
     cheltuieliVehicul(organizationId, vehiculId, { cursor, limita: LIMITA_IMPLICITA_PAGINA }),
   ]);
 
@@ -135,7 +143,7 @@ export async function FilaCosturi({
       : []),
   ];
 
-  const faraFoi = costuri.foi.numar === 0;
+  const faraFoi = costuri.foiIncluse && costuri.foi.numar === 0;
 
   return (
     <div className="space-y-6">
@@ -162,15 +170,19 @@ export async function FilaCosturi({
         </div>
         <p className="text-muted-foreground text-corp">
           {deLa === null ? "De la început" : `De la ${formatDate(deLa)}`} până la {formatDate(azi)}.
-          Totalul adună service-ul, combustibilul de pe foile aprobate, cheltuielile fără foaie și
-          documentele (RCA, ITP, rovinietă) cu valabilitatea începută în perioadă.
+          {costuri.foiIncluse
+            ? "Totalul adună service-ul, combustibilul de pe foile aprobate, cheltuielile fără foaie și documentele (RCA, ITP, rovinietă) cu valabilitatea începută în perioadă."
+            : "Totalul adună service-ul, cheltuielile fără foaie și documentele (RCA, ITP, rovinietă) cu valabilitatea începută în perioadă. Combustibilul de pe foi nu e inclus."}
         </p>
         <div className="border-border rounded-panou border p-4">
           <ListaDefinitii
             coloane={4}
-            textNecompletat="Fără foi aprobate"
+            textNecompletat={costuri.foiIncluse ? "Fără foi aprobate" : "Nu se afișează"}
             definitii={[
-              { eticheta: "Cost total", valoare: formatLei(costuri.total) },
+              {
+                eticheta: costuri.foiIncluse ? "Cost total" : "Cost total (fără foi)",
+                valoare: formatLei(costuri.total),
+              },
               {
                 eticheta: "Cost pe kilometru",
                 valoare: costuri.costPeKm === null ? null : `${formatLei(costuri.costPeKm)} / km`,
@@ -181,12 +193,12 @@ export async function FilaCosturi({
               },
               {
                 eticheta: "Kilometri pe foi aprobate",
-                valoare: faraFoi ? null : `${fmtKm(costuri.foi.km)} km`,
+                valoare: faraFoi || !costuri.foiIncluse ? null : `${fmtKm(costuri.foi.km)} km`,
               },
               { eticheta: "Service", valoare: formatLei(costuri.service.total) },
               {
                 eticheta: "Combustibil pe foi",
-                valoare: formatLei(costuri.foi.costCombustibil),
+                valoare: costuri.foiIncluse ? formatLei(costuri.foi.costCombustibil) : null,
               },
               { eticheta: "Cheltuieli fără foaie", valoare: formatLei(costuri.cheltuieli.total) },
               { eticheta: "Documente", valoare: formatLei(costuri.documente.total) },
@@ -199,6 +211,14 @@ export async function FilaCosturi({
             aleasă nu există niciuna.
           </p>
         ) : null}
+        {costuri.foiIncluse ? null : (
+          <p className="text-muted-foreground text-corp">
+            Contul dumneavoastră vede doar foile șoferilor din echipă, iar vehiculul poate fi condus
+            și de alții. De aceea combustibilul de pe foi, kilometrii, costul pe kilometru și
+            consumul nu se afișează: ar ieși mai mici sau mai mari decât în realitate. Le vede
+            administratorul parcului.
+          </p>
+        )}
       </section>
 
       {costuri.service.peTip.length === 0 && costuri.cheltuieli.peCategorie.length === 0 ? null : (

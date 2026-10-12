@@ -31,6 +31,10 @@
 -- Drepturile (rânduri numărate):
 --  (8) managerul (team) citește planurile, intervențiile și cheltuielile mașinii
 --      echipei lui, NU pe cele ale unui vehicul pe care nu-l vede;
+--  (8b) foile NU se văd ca service-ul: pe aceeași mașină a echipei, managerul vede
+--      doar foaia șoferului din echipa lui, administratorul pe amândouă — de
+--      aceea fila Costuri nu arată cost pe km și consum cui nu citește TOATE foile
+--      (altfel cifra ar fi parțială, fără nicio eroare)                  [NEGATIVĂ];
 --  (9) șoferul (own), colegul fără mașină și `hr` citesc ZERO rânduri  [NEGATIVĂ];
 -- (10) managerul, șoferul și `hr` NU scriu (42501 la INSERT, zero la UPDATE);
 -- (11) altă firmă nu vede nimic și nu scrie pe vehiculul acesta          [NEGATIVĂ];
@@ -437,6 +441,28 @@ begin
   else
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (8) planuri VA=% (2), VB=% (0); intervenții×100+VB×10+cheltuieli = % (403)', v_n, v_n2, v_n3;
+  end if;
+
+  -- (8b) Premisa fișei „Costuri”: service-ul, cheltuielile și documentele sunt
+  -- COMPLETE pentru orice mașină vizibilă, dar foile se taie după șoferul lor.
+  -- Pe VA (mașina echipei) stau două foi: a Anei (în echipa managerului) și a
+  -- colegei de la personal (în afara ei). Insert în context de serviciu.
+  select km_curent into v_k from public.vehicles where id = v_va;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by) values
+    (v_org, v_va, v_e_a,  now() - interval '3 hours',  v_k, v_u_a,  v_u_a),
+    (v_org, v_va, v_e_hr, now() - interval '30 hours', v_k, v_u_hr, v_u_hr);
+  perform pg_temp.ca(v_u_mgr);
+  v_n := pg_temp.cate(format('select 1 from public.trip_sheets where vehicle_id = %L', v_va));
+  reset role;
+  perform pg_temp.ca(v_u_adm);
+  v_n2 := pg_temp.cate(format('select 1 from public.trip_sheets where vehicle_id = %L', v_va));
+  reset role;
+  if v_n = 1 and v_n2 = 2 then
+    raise notice '  ✓ (8b) pe aceeași mașină managerul vede 1 foaie (a echipei), administratorul 2: costul pe km nu se poate calcula pentru manager';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (8b) foi pe VA: manager=% (1), administrator=% (2)', v_n, v_n2;
   end if;
 
   -- (9) Șoferul (own), colegul fără mașină, hr: zero rânduri din toate trei.

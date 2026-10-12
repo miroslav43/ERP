@@ -8,6 +8,7 @@ import {
   LIMITE_SERVICE,
   scadentaPlan,
   stareaPlanului,
+  ultimaEfectiva,
   urmatoareaScadenta,
   type PlanPentruStare,
 } from "./service";
@@ -80,6 +81,66 @@ const plan = (parti: Partial<PlanPentruStare> = {}): PlanPentruStare => ({
   urmatorii_km: null,
   prag_avertizare_km: 1000,
   ...parti,
+});
+
+describe("ultimaEfectiva", () => {
+  // Planul din bază: baza 15.01 la 40.000 km, dar o intervenție legată din 01.09
+  // la 45.000 km a mutat ultima (triggerul `vsp_inainte`).
+  const dinIntrare = {
+    baza_data: "2026-01-15",
+    baza_km: 40000,
+    ultima_data: "2026-09-01",
+    ultimii_km: 45000,
+  } as const;
+
+  it("fără plan existent (creare), ultima e baza introdusă", () => {
+    expect(ultimaEfectiva({ data: "2026-03-01", km: 41000 }, null)).toEqual({
+      data: "2026-03-01",
+      km: 41000,
+    });
+  });
+
+  it("intervenția legată rămâne în joc cât timp baza nouă e mai veche decât ea", () => {
+    expect(ultimaEfectiva({ data: "2026-01-15", km: 40000 }, dinIntrare)).toEqual({
+      data: "2026-09-01",
+      km: 45000,
+    });
+    expect(ultimaEfectiva({ data: "2025-06-01", km: 30000 }, dinIntrare)).toEqual({
+      data: "2026-09-01",
+      km: 45000,
+    });
+  });
+
+  it("o bază mai nouă decât intervenția o înlocuiește", () => {
+    expect(ultimaEfectiva({ data: "2026-10-01", km: 46000 }, dinIntrare)).toEqual({
+      data: "2026-10-01",
+      km: 46000,
+    });
+  });
+
+  it("pereche (dată, km): aceeași zi, câștigă kilometrii mai mulți", () => {
+    expect(ultimaEfectiva({ data: "2026-09-01", km: 44000 }, dinIntrare)).toEqual({
+      data: "2026-09-01",
+      km: 45000,
+    });
+    expect(ultimaEfectiva({ data: "2026-09-01", km: 45500 }, dinIntrare)).toEqual({
+      data: "2026-09-01",
+      km: 45500,
+    });
+  });
+
+  it("planul fără nicio intervenție legată (ultima = baza) urmează baza nouă, și în jos", () => {
+    const faraIntrari = {
+      baza_data: "2026-01-15",
+      baza_km: 40000,
+      ultima_data: "2026-01-15",
+      ultimii_km: 40000,
+    } as const;
+    expect(ultimaEfectiva({ data: "2025-12-01", km: 38000 }, faraIntrari)).toEqual({
+      data: "2025-12-01",
+      km: 38000,
+    });
+  });
 });
 
 describe("stareaPlanului", () => {

@@ -204,6 +204,12 @@ export interface CosturiVehicul {
   /** `deLa` nul = tot istoricul. Capetele sunt incluse. */
   readonly deLa: string | null;
   readonly panaLa: string;
+  /**
+   * `false` când cititorul nu vede TOATE foile vehiculului (managerul vede doar
+   * foile șoferilor echipei lui): foile n-au fost citite, iar totalul, costul pe
+   * km și consumul nu le conțin. Ecranul spune asta, nu pune „0”.
+   */
+  readonly foiIncluse: boolean;
   readonly service: Readonly<{
     numar: number;
     total: number;
@@ -255,12 +261,20 @@ interface RandDocument {
  *
  * Foile se aduc cu alimentările în același răspuns (embed pe `trip_sheet_id`),
  * ca lista de id-uri a foilor să nu ajungă într-un `.in()` cât o carte.
+ *
+ * `cuFoi` = cititorul are `trip_sheets:read = all`. Service-ul, cheltuielile și
+ * documentele se citesc sub `vehicles:read >= team` + vehicul vizibil, adică
+ * COMPLETE pentru orice vehicul pe care îl deschizi; foile și alimentările se
+ * citesc sub `trip_sheets:read`, iar la `team` RLS le taie TĂCUT la șoferii
+ * echipei. Un cost pe km împărțit la kilometri parțiali iese umflat, fără
+ * eroare, așa că fără `cuFoi` foile nu se interoghează deloc.
  */
 export async function costuriVehicul(
   organizationId: string,
   vehiculId: string,
   deLa: string | null,
   panaLa: string,
+  cuFoi: boolean,
 ): Promise<CosturiVehicul> {
   const db = await createServerSupabase();
 
@@ -297,24 +311,26 @@ export async function costuriVehicul(
       (r) => r.id,
       { nume: "cheltuieli de vehicul" },
     ),
-    citesteTot<RandFoaie>(
-      (dupa, pas) => {
-        let q = db
-          .from("trip_sheets")
-          .select("id, km_parcursi, alimentari:fuel_entries!trip_sheet_id(litri, cost)")
-          .eq("organization_id", organizationId)
-          .eq("vehicle_id", vehiculId)
-          .eq("status", "aprobat")
-          .is("deleted_at", null)
-          .is("alimentari.deleted_at", null)
-          .lte("data", panaLa);
-        if (deLa !== null) q = q.gte("data", deLa);
-        if (dupa !== null) q = q.gt("id", dupa);
-        return q.order("id", { ascending: true }).limit(pas).returns<RandFoaie[]>();
-      },
-      (r) => r.id,
-      { nume: "foi aprobate" },
-    ),
+    cuFoi
+      ? citesteTot<RandFoaie>(
+          (dupa, pas) => {
+            let q = db
+              .from("trip_sheets")
+              .select("id, km_parcursi, alimentari:fuel_entries!trip_sheet_id(litri, cost)")
+              .eq("organization_id", organizationId)
+              .eq("vehicle_id", vehiculId)
+              .eq("status", "aprobat")
+              .is("deleted_at", null)
+              .is("alimentari.deleted_at", null)
+              .lte("data", panaLa);
+            if (deLa !== null) q = q.gte("data", deLa);
+            if (dupa !== null) q = q.gt("id", dupa);
+            return q.order("id", { ascending: true }).limit(pas).returns<RandFoaie[]>();
+          },
+          (r) => r.id,
+          { nume: "foi aprobate" },
+        )
+      : Promise.resolve<RandFoaie[]>([]),
     citesteTot<RandDocument>(
       (dupa, pas) => {
         let q = db
@@ -353,6 +369,7 @@ export async function costuriVehicul(
   return {
     deLa,
     panaLa,
+    foiIncluse: cuFoi,
     service: {
       numar: servicii.length,
       total: serviceTotal,

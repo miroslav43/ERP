@@ -175,6 +175,28 @@ describe("DialogPlanService — corectură", () => {
     expect((screen.getByLabelText(/Planul e activ/u) as HTMLInputElement).checked).toBe(true);
   });
 
+  it("previzualizarea ține cont de intervenția legată, ca triggerul: la deschidere arată scadența din bază", () => {
+    deschide();
+    // Baza e 15.01.2026 / 40.000 km, dar intervenția legată din 01.09.2026 la
+    // 45.000 km a mutat ultima: 12 luni → 01.09.2027, +10.000 km → 55.000 km.
+    const text = screen.getByTestId("previzualizare-scadenta").textContent;
+    expect(text).toContain("01.09.2027");
+    expect(text).toContain("55.000 km");
+  });
+
+  it("o bază mai nouă decât intervenția legată trece înaintea ei în previzualizare", () => {
+    deschide();
+    fireEvent.change(screen.getByLabelText(/Ultima intervenție — data/u), {
+      target: { value: "2026-10-01" },
+    });
+    fireEvent.change(screen.getByLabelText(/Ultima intervenție — kilometraj/u), {
+      target: { value: "46000" },
+    });
+    const text = screen.getByTestId("previzualizare-scadenta").textContent;
+    expect(text).toContain("01.10.2027");
+    expect(text).toContain("56.000 km");
+  });
+
   it("oprirea planului pleacă ca `activ: false`; id-ul și vehiculul sunt în încărcătură", async () => {
     deschide();
     fireEvent.click(screen.getByLabelText(/Planul e activ/u));

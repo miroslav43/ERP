@@ -261,8 +261,8 @@ export async function FilaService({
           ) : null}
         </div>
         <p className="text-muted-foreground text-corp">
-          Scadența pe dată apare în semaforul de conformitate și primește alerte; cea pe kilometri
-          trimite o alertă înainte de țintă.
+          Scadența pe dată primește alerte înainte de termen și intră în rezumatul de dimineață; cea
+          pe kilometri trimite o alertă când se apropie ținta și una când a fost depășită.
         </p>
         <Tabel
           caption="Planurile de service ale vehiculului, cu ultima intervenție, următoarea scadență și starea ei."

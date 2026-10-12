@@ -674,6 +674,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
           azi={azi}
           perioada={filtreFila.perioada}
           poateAdministra={poateAdministra}
+          vedeToateFoile={can(permisiuni, "trip_sheets:read", "all")}
           cursor={filtreFila.cursor}
         />
       ) : null}

@@ -6,7 +6,7 @@ import { useState, type ReactElement } from "react";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 import type { StareFormular } from "@/components/ui/formular";
-import { scadentaPlan, urmatoareaScadenta } from "@/domain/fleet/service";
+import { scadentaPlan, ultimaEfectiva, urmatoareaScadenta } from "@/domain/fleet/service";
 import type { PlanService } from "@/lib/queries/fleet-service";
 import { TIPURI_SERVICE } from "@/schemas/fleet-service";
 
@@ -20,8 +20,9 @@ import { valoriPlan, valoriPlanActualizat } from "./valori-service";
  * ── CE ARATĂ LA FINAL ────────────────────────────────────────────────────────
  * „Următoarea scadență” se calculează AICI, din cele patru câmpuri, cu aceeași
  * regulă ca triggerul `vsp_inainte` (`urmatoareaScadenta`), ca omul să vadă
- * înainte de salvare ce a ales. Intervențiile legate pot muta apoi ultima
- * dată, deci cifra reală o dă baza; aici e doar previzualizarea.
+ * înainte de salvare ce a ales. La corectură, intervențiile legate de plan
+ * (cunoscute din `ultima_*` a planului, vezi `ultimaEfectiva`) intră în calcul
+ * ca în trigger; cifra reală o dă oricum baza, aici e doar previzualizarea.
  *
  * ── DE CE `baza_*` ȘI NU „ultima” ────────────────────────────────────────────
  * `ultima_data` / `ultimii_km` se derivă în bază (cea mai recentă dintre bază și
@@ -69,9 +70,11 @@ function CampuriPlan({
     (iKm !== null || iLuni !== null)
       ? scadentaPlan(
           (() => {
+            // Ca triggerul: intervențiile legate de plan pot fi peste baza introdusă.
+            const ultima = ultimaEfectiva({ data: baza, km }, plan ?? null);
             const s = urmatoareaScadenta({
-              ultimaData: baza,
-              ultimiiKm: km,
+              ultimaData: ultima.data,
+              ultimiiKm: ultima.km,
               intervalKm: iKm,
               intervalLuni: iLuni,
             });
@@ -306,7 +309,7 @@ export function DialogPlanService({ vehiculId, kmCurent, azi, plan }: Proprietat
             }
       }
       titlu={plan === undefined ? "Plan de service nou" : `Modifică „${plan.denumire}”`}
-      descriere="Planul spune când e următoarea lucrare: după kilometri, după timp, sau după cel care vine primul. Scadența pe dată apare în semaforul de conformitate; cea pe kilometri trimite o alertă înainte de țintă."
+      descriere="Planul spune când e următoarea lucrare: după kilometri, după timp, sau după cel care vine primul. Scadența pe dată primește alerte înainte de termen; cea pe kilometri trimite o alertă când se apropie ținta."
       marime="mare"
       actiune={trimite}
       mesajReusita={plan === undefined ? "Planul a fost adăugat." : "Planul a fost salvat."}

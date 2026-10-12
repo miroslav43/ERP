@@ -56,6 +56,39 @@ export function urmatoareaScadenta(e: EntrareScadenta): Scadenta {
   };
 }
 
+export type ZiSiKm = Readonly<{ data: string; km: number }>;
+
+/** Planul așa cum e în bază: baza introdusă de om și ultima derivată de trigger. */
+export type PlanCuUltima = Readonly<{
+  baza_data: string;
+  baza_km: number;
+  ultima_data: string;
+  ultimii_km: number;
+}>;
+
+/** Perechea (dată, km) se compară întâi pe dată, apoi pe kilometri, ca în `vsp_inainte`. */
+function peste(a: ZiSiKm, b: ZiSiKm): boolean {
+  return a.data > b.data || (a.data === b.data && a.km > b.km);
+}
+
+/**
+ * Ultima intervenție așa cum o va calcula triggerul `vsp_inainte` la salvare:
+ * cea mai recentă pereche (dată, km) dintre BAZA introdusă acum și intervențiile
+ * vii legate de plan.
+ *
+ * Caseta de corectură nu primește intervențiile, ci planul din bază. Dacă ultima
+ * lui e strict peste baza lui veche, ea vine dintr-o intervenție legată și
+ * rămâne în joc oricum s-ar schimba baza; altfel nicio intervenție legată nu e
+ * peste bază, iar baza nouă câștigă, chiar dacă e mai veche. Fără ea, caseta ar
+ * promite o scadență mai veche decât cea pe care o scrie baza.
+ */
+export function ultimaEfectiva(baza: ZiSiKm, plan: PlanCuUltima | null): ZiSiKm {
+  if (plan === null) return baza;
+  const intrareLegata: ZiSiKm = { data: plan.ultima_data, km: plan.ultimii_km };
+  const bazaVeche: ZiSiKm = { data: plan.baza_data, km: plan.baza_km };
+  return peste(intrareLegata, bazaVeche) && peste(intrareLegata, baza) ? intrareLegata : baza;
+}
+
 export type StarePlan = "oprit" | "fara_scadenta" | "in_regula" | "curand" | "depasit";
 
 export type PlanPentruStare = Readonly<{

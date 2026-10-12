@@ -169,7 +169,7 @@ describe("costuriVehicul", () => {
 
   it("adună cele patru surse, cost pe km din foile aprobate și consumul real", async () => {
     programeaza();
-    const r = await costuriVehicul(ORG_ID, ID_1, "2026-01-01", "2026-10-12");
+    const r = await costuriVehicul(ORG_ID, ID_1, "2026-01-01", "2026-10-12", true);
 
     expect(r.service).toMatchObject({ numar: 2, total: 1050, piese: 500, manopera: 550 });
     expect(r.service.peTip.map((t) => [t.categorie, t.suma])).toEqual([
@@ -192,7 +192,7 @@ describe("costuriVehicul", () => {
 
   it("fiecare sursă are firma, vehiculul, rândurile vii și perioada pe coloana ei de dată", async () => {
     programeaza();
-    await costuriVehicul(ORG_ID, ID_1, "2026-01-01", "2026-10-12");
+    await costuriVehicul(ORG_ID, ID_1, "2026-01-01", "2026-10-12", true);
 
     const surse: readonly (readonly [string, string])[] = [
       ["vehicle_service_entries", "data_interventiei"],
@@ -216,7 +216,7 @@ describe("costuriVehicul", () => {
 
   it("tot istoricul: fără limita de jos", async () => {
     programeaza();
-    await costuriVehicul(ORG_ID, ID_1, null, "2026-10-12");
+    await costuriVehicul(ORG_ID, ID_1, null, "2026-10-12", true);
     for (const tabela of [
       "vehicle_service_entries",
       "vehicle_expenses",
@@ -242,9 +242,42 @@ describe("costuriVehicul", () => {
     });
     db.raspunde("trip_sheets", "select", { data: [] });
     db.raspunde("vehicle_documents", "select", { data: [] });
-    const r = await costuriVehicul(ORG_ID, ID_1, null, "2026-10-12");
+    const r = await costuriVehicul(ORG_ID, ID_1, null, "2026-10-12", true);
     expect(r.total).toBe(15);
     expect(r.costPeKm).toBeNull();
     expect(r.consumReal).toBeNull();
+  });
+  it("fără dreptul de a citi TOATE foile: foile nu se interoghează, iar cifrele derivate din ele lipsesc", async () => {
+    // Managerul vede service-ul și cheltuielile oricărui vehicul vizibil, dar
+    // RLS pe `trip_sheets` îi arată doar foile șoferilor echipei lui. Un cost pe
+    // km împărțit la kilometri PARȚIALI ar ieși umflat, fără eroare și fără
+    // avertisment, deci foile nu intră deloc în calcul (și nici în total).
+    db.raspunde("vehicle_service_entries", "select", {
+      data: [{ id: ID_1, tip: "revizie", cost_piese: 300, cost_manopera: 450, cost_total: 750 }],
+    });
+    db.raspunde("vehicle_expenses", "select", {
+      data: [{ id: ID_1, categorie: "parcare", suma: 15, litri: null }],
+    });
+    db.raspunde("vehicle_documents", "select", { data: [{ id: ID_1, cost: 200.5 }] });
+    // Un răspuns programat pe foi, ca să se vadă că NU e citit.
+    db.raspunde("trip_sheets", "select", {
+      data: [{ id: ID_1, km_parcursi: 400, alimentari: [{ litri: 30, cost: 220 }] }],
+    });
+
+    const r = await costuriVehicul(ORG_ID, ID_1, null, "2026-10-12", false);
+
+    expect(db.apeluriPe("trip_sheets")).toHaveLength(0);
+    expect(r.foiIncluse).toBe(false);
+    expect(r.foi).toEqual({ numar: 0, km: 0, litri: 0, costCombustibil: 0 });
+    expect(r.total).toBe(965.5);
+    expect(r.costPeKm).toBeNull();
+    expect(r.consumReal).toBeNull();
+  });
+
+  it("cu dreptul de a citi toate foile, foile intră și se marchează incluse", async () => {
+    programeaza();
+    const r = await costuriVehicul(ORG_ID, ID_1, null, "2026-10-12", true);
+    expect(r.foiIncluse).toBe(true);
+    expect(db.apeluriPe("trip_sheets")).toHaveLength(1);
   });
 });
