@@ -6,12 +6,15 @@ import { notFound } from "next/navigation";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
+import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { cn } from "@/lib/ui/cn";
+import { descriePermisiunea, ordineaPermisiunii } from "@/config/permisiuni-etichete";
 import { PERMISSION_KEYS, type PermissionScope } from "@/config/permissions";
-import { citesteAngajat } from "@/lib/queries/employees";
+import { citesteAngajat, idFisaProprie } from "@/lib/queries/employees";
 
 import { etichetaRol } from "@/lib/membri/etichete";
 
@@ -35,8 +38,15 @@ export default async function PaginaPermisiuniMembru({
   const { id } = await params;
   const employeeId = idDinRuta(id);
 
+  const utilizator = await requireUser();
   const { tenant } = await requireTenant();
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Același preambul ca fișa (`angajati/[id]/page.tsx`): trei citiri
+  // independente, în paralel.
+  const [, permisiuni, module] = await Promise.all([
+    requireFeature(tenant.organizationId, "nucleu"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
+  ]);
 
   // `roles:update` la prag `team` — pragul cel mai mic care deschide ecranul.
   // Cine are doar `team` va fi oprit de RLS pe fiecare membru din afara echipei;
@@ -50,11 +60,26 @@ export default async function PaginaPermisiuniMembru({
   }
 
   const scopeAcordare = scopeFor(permisiuni, "roles:update");
+
+  // Citirea fișei, exact ca pe fișă. Până aici al patrulea argument era `null`
+  // fix, iar `citesteAngajat` întoarce `null` pentru orice scope diferit de `all`
+  // fără fișa proprie a cititorului — deci managerul, care are legitim
+  // `roles:update = team` și vede linkul pe fișa subordonatului, primea 404
+  // (QA PRM-004, MGR-003). Un ne-subordonat rămâne 404, ca pe fișă: nu
+  // confirmăm existența fișelor din afara echipei.
+  const scopeCitire = scopeFor(permisiuni, "employees:read");
+  // `none` explicit tratat ca absența: altfel `citesteAngajat` n-ar adăuga niciun
+  // filtru și decizia ar cădea tăcut pe RLS.
+  if (scopeCitire === null || scopeCitire === "none") {
+    return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta fișele de personal." />;
+  }
+  const propriaFisaId =
+    scopeCitire === "all" ? null : await idFisaProprie(tenant.organizationId, utilizator.id);
   const angajat = await citesteAngajat(
     tenant.organizationId,
     employeeId,
-    scopeFor(permisiuni, "employees:read") ?? "own",
-    null,
+    scopeCitire,
+    propriaFisaId,
   );
   if (angajat === null) notFound();
 
@@ -141,16 +166,30 @@ export default async function PaginaPermisiuniMembru({
     // nimeni să nu-și poată crește drepturile prin interpuși. Ascunsă, nu doar
     // refuzată: un rând care pică mereu e un rând care pare stricat.
     .filter((cheie) => !cheie.startsWith("roles:"))
-    .map((cheie) => {
-      const [resursa, actiune] = cheie.split(":");
-      return {
-        cheie,
-        resursa: resursa ?? cheie,
-        actiune: actiune ?? "",
-        implicit: dinRol.get(cheie) ?? null,
-        suprascris: alese.get(cheie) ?? null,
-      };
-    });
+    .map((cheie) => ({ cheie, d: descriePermisiunea(cheie), suprascris: alese.get(cheie) ?? null }))
+    // Se ascund și rândurile care n-ar schimba nimic pe ecran: resursele pe care
+    // nicio pagină nu le citește (`ascunsa`) și cele ale modulelor dezactivate
+    // pentru firmă. EXCEPȚIE: o suprascriere deja existentă rămâne vizibilă, ca
+    // să poată fi retrasă — altfel ar sta în bază fără nicio cale de a o vedea.
+    .filter(
+      ({ d, suprascris }) =>
+        suprascris !== null || (!d.ascunsa && (d.modul === null || module.has(d.modul))),
+    )
+    // Nucleul întâi, apoi modulele în ordinea catalogului; sortarea e stabilă,
+    // deci acțiunile aceleiași resurse rămân în ordinea din `permissions.ts`.
+    .sort((a, b) => ordineaPermisiunii(a.cheie) - ordineaPermisiunii(b.cheie))
+    .map(({ cheie, d, suprascris }) => ({
+      cheie,
+      resursa: d.resursa,
+      actiune: d.actiune,
+      grup: d.grup,
+      etichetaResursa: d.etichetaResursa,
+      descriereResursa: d.descriereResursa,
+      etichetaActiune: d.etichetaActiune,
+      descriere: d.descriere,
+      implicit: dinRol.get(cheie) ?? null,
+      suprascris,
+    }));
 
   const numarSuprascrieri = randuri.filter((r) => r.suprascris !== null).length;
 

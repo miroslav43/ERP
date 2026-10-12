@@ -21,8 +21,22 @@ import { suprascriePermisiunea } from "./actions";
 
 export interface RandPermisiune {
   readonly cheie: string;
+  /** Cheia stabilă a grupării; nu se afișează. */
   readonly resursa: string;
   readonly actiune: string;
+  /**
+   * Etichetele vin GATA din pagina de server (`descriePermisiunea`), ca
+   * dicționarul să nu intre în pachetul de client. Cheia brută nu se mai
+   * afișează (QA UX-016, ADM-012): rămâne doar în `data-cheie`.
+   */
+  /** Denumirea modulului, sau „Nucleu”. */
+  readonly grup: string;
+  readonly etichetaResursa: string;
+  readonly descriereResursa: string;
+  /** Ex.: „Aprobare”. */
+  readonly etichetaActiune: string;
+  /** Fraza întreagă, ex.: „Aprobă sau respinge cereri de concediu.” */
+  readonly descriere: string;
   /** Ce dă rolul, fără nicio suprascriere. `null` = nimic. */
   readonly implicit: PermissionScope | null;
   /** Ce s-a decis pentru acest membru. `null` = fără suprascriere. */
@@ -75,7 +89,8 @@ export function MatricePermisiuni({
   }
 
   // Grupate pe resursă: nimeni nu caută „inventory:update" printre 68 de rânduri
-  // plate, dar toată lumea caută „inventar".
+  // plate, dar toată lumea caută „inventar". Gruparea rămâne pe cheia stabilă;
+  // titlul vine din etichete. Ordinea o dă pagina (nucleul, apoi modulele).
   const peResursa = new Map<string, RandPermisiune[]>();
   for (const rand of randuri) {
     const grup = peResursa.get(rand.resursa) ?? [];
@@ -95,60 +110,76 @@ export function MatricePermisiuni({
         </p>
       )}
 
-      {[...peResursa.entries()].map(([resursa, grup]) => (
-        <section key={resursa} className="space-y-2">
-          <h2 className="text-foreground text-corp font-semibold">{resursa}</h2>
-          <ul className="divide-border border-border rounded-panou divide-y border">
-            {grup.map((rand) => {
-              const idCamp = `${idBaza}-${rand.cheie}`;
-              const valoare = rand.suprascris ?? "implicit";
-              const modificat = rand.suprascris !== null;
-              return (
-                <li
-                  key={rand.cheie}
-                  className="flex flex-wrap items-center justify-between gap-3 p-3"
-                >
-                  <div className="min-w-0">
-                    <label htmlFor={idCamp} className="text-foreground text-corp font-medium">
-                      {rand.actiune}
-                    </label>
-                    <p className="text-muted-foreground text-nota">
-                      Rolul dă: {rand.implicit === null ? "nimic" : ETICHETE_SCOPE[rand.implicit]}
-                      {modificat ? " · suprascris" : null}
-                    </p>
-                  </div>
-                  {/*
+      {[...peResursa.entries()].map(([resursa, grup]) => {
+        const primul = grup[0];
+        if (primul === undefined) return null;
+        // „Pontaj”, nu „Pontaj — Pontaj”; dar „Parc auto — Foi de parcurs”.
+        const titlu =
+          primul.grup === primul.etichetaResursa
+            ? primul.grup
+            : `${primul.grup} — ${primul.etichetaResursa}`;
+        return (
+          <section key={resursa} className="space-y-2">
+            <div>
+              <h2 className="text-foreground text-corp font-semibold">{titlu}</h2>
+              <p className="text-muted-foreground text-nota">{primul.descriereResursa}</p>
+            </div>
+            <ul className="divide-border border-border rounded-panou divide-y border">
+              {grup.map((rand) => {
+                const idCamp = `${idBaza}-${rand.cheie}`;
+                const valoare = rand.suprascris ?? "implicit";
+                const modificat = rand.suprascris !== null;
+                return (
+                  <li
+                    key={rand.cheie}
+                    data-cheie={rand.cheie}
+                    className="flex flex-wrap items-center justify-between gap-3 p-3"
+                  >
+                    <div className="min-w-0">
+                      <label htmlFor={idCamp} className="text-foreground text-corp font-medium">
+                        {rand.etichetaActiune}
+                      </label>
+                      <p className="text-foreground text-nota">{rand.descriere}</p>
+                      <p className="text-muted-foreground text-nota">
+                        Rolul dă: {rand.implicit === null ? "nimic" : ETICHETE_SCOPE[rand.implicit]}
+                        {modificat ? " · suprascris" : null}
+                      </p>
+                    </div>
+                    {/*
                     Un `<select>` dezactivat arată la fel ca unul fără drept de
                     scriere: gri, inert. Rotița de lângă el e singurul lucru care
                     deosebește „se salvează" de „nu ai voie".
                   */}
-                  {inLucru === rand.cheie ? <Rotita className="text-primary self-center" /> : null}
-                  <select
-                    id={idCamp}
-                    value={valoare}
-                    aria-busy={inLucru === rand.cheie ? true : undefined}
-                    disabled={!poateScrie || inLucru === rand.cheie}
-                    onChange={(e) => {
-                      schimba(rand.cheie, e.target.value);
-                    }}
-                    className={
-                      "rounded-control text-corp disabled:bg-surface disabled:text-muted-foreground min-h-11 border px-3 py-2 disabled:cursor-not-allowed " +
-                      (modificat ? "border-primary text-foreground" : "border-foreground/40")
-                    }
-                  >
-                    <option value="implicit">Ca la rol</option>
-                    {OPTIUNI.map((scope) => (
-                      <option key={scope} value={scope}>
-                        {ETICHETE_SCOPE[scope]}
-                      </option>
-                    ))}
-                  </select>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
+                    {inLucru === rand.cheie ? (
+                      <Rotita className="text-primary self-center" />
+                    ) : null}
+                    <select
+                      id={idCamp}
+                      value={valoare}
+                      aria-busy={inLucru === rand.cheie ? true : undefined}
+                      disabled={!poateScrie || inLucru === rand.cheie}
+                      onChange={(e) => {
+                        schimba(rand.cheie, e.target.value);
+                      }}
+                      className={
+                        "rounded-control text-corp disabled:bg-surface disabled:text-muted-foreground min-h-11 border px-3 py-2 disabled:cursor-not-allowed " +
+                        (modificat ? "border-primary text-foreground" : "border-foreground/40")
+                      }
+                    >
+                      <option value="implicit">Ca la rol</option>
+                      {OPTIUNI.map((scope) => (
+                        <option key={scope} value={scope}>
+                          {ETICHETE_SCOPE[scope]}
+                        </option>
+                      ))}
+                    </select>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
     </div>
   );
 }
