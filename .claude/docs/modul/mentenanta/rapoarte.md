@@ -33,7 +33,7 @@ citeste_daca:
   - "o cifră din raport pare prea mică sau „—” → „Ce refuză baza tăcut”"
   - "„la timp”, disponibilitatea sau MTBF nu se potrivesc cu socoteala de mână → „Cum se calculează”"
   - "CSV-ul diferă de ecran → „Exportul”"
-scris_pe: 90b341e6cfbe34e5201bfacc5f610812c0fdfa3f
+scris_pe: 36afdf0905a3aaa8dbce09cd7877a04b6219058a
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -43,8 +43,8 @@ tags: [modul, operations]
 Extrasă din [[modul/mentenanta]] (M8, fără migrare). Raportul pe perioadă: costuri pe
 echipament, disponibilitate, timpi de reparație și de rezolvare, defecte repetate, planuri
 și verificări legale făcute la timp, amânări, citiri restante. Panoul `/mentenanta` și-a
-mutat cifrele de sus pe `Indicator` (planuri, ISCIR, sesizări, echipamente oprite), fiecare
-cu linkul spre lista cu exact rândurile numărate.
+mutat cifrele de sus pe `Indicator` (planuri, ISCIR, sesizări, echipamente în reparație sau
+în conservare — casatele nu, `echipamenteCuProbleme`), fiecare cu linkul spre lista lui.
 
 ## Rute și cine ajunge
 
@@ -81,20 +81,27 @@ fără milisecunde: punctul ar rupe filtrul `or=` al opririlor.
   de scurtă e perioada, împărțit la `valoare_achizitie`; strict peste
   `PRAG_COST_VALOARE_INLOCUIRE` = semnal de înlocuire. Fără valoare: „—”, fără semnal.
 - **Program**: `ore_functionare_pe_zi` în primele `zile_pe_saptamana` zile (luni = 1), din
-  setări. O oprire numără pe fiecare zi de program cel mult orele zilei. Echipamentul
-  intră în parc de la punerea în funcțiune și iese la casare.
+  setări. Echipamentul intră în parc de la punerea în funcțiune și iese la casare; opririle
+  lui se taie la aceeași fereastră (oprirea lăsată deschisă la casare nu mai scade nimic
+  după ea), iar ale unui echipament din afara parcului nu intră deloc. Opririle aceluiași
+  echipament se UNESC unde se suprapun (sesizare duplicată), iar plafonul de ore pe zi e al
+  echipamentului, nu al opririi. Orele de program și MTBF se scriu în ore, nu în zile.
 - **Disponibilitate** = 1 − ore de oprire (toate tipurile) / ore de program. **MTTR**: media
-  opririlor NEPLANIFICATE încheiate în perioadă, în ore calendaristice. **MTBF**: ore de
-  program fără oprirea neplanificată / opririle neplanificate începute în perioadă.
+  opririlor NEPLANIFICATE (unite) încheiate în perioadă, în ore calendaristice. **MTBF**: ore
+  de program fără oprirea neplanificată / opririle neplanificate (unite) începute în perioadă.
   **Costul opririlor**: ore de oprire în program × `cost_ora_oprire`; nesetat = „—” și link
   spre setări.
 - **Sesizări**: fără `respins` și `retrasa`. Defect repetat = altă sesizare pe același
   echipament în cele `ZILE_DEFECT_REPETAT` zile dinainte (de aceea se citește și înaintea
   perioadei). Timpii de atribuire și de rezolvare: de la `raportat_la`.
 - **La timp** e RECONSTITUIT: baza nu păstrează scadența de la execuție. O execuție reușită
-  din perioadă se judecă față de execuția reușită precedentă a planului + periodicitatea
-  (zile și/sau contor); prima execuție cunoscută nu intră în procent. Execuția după o
-  amânare iese întârziată — amânările se raportează separat (`numar_amanari`, cazul 27).
+  din perioadă se judecă față de execuția reușită precedentă + periodicitatea (zile și/sau
+  contor); planul `fix` față de grila din `data_ancora` (`urmatoareaPeGrila`, ca
+  `ssm_plan_calc`). Prima execuție cunoscută nu intră în procent. Planul activ încă depășit
+  pe zile la capătul perioadei intră ca nefăcut la timp (`restante`), altfel un plan uitat
+  lăsa „100 %”. Execuția după o amânare iese întârziată.
+- **Amânări**: „Planuri amânate acum” = planuri active cu `amanat_pana`. `numar_amanari` e
+  ISTORIC: execuția reușită golește `amanat_pana`, nu și contorul (0183; cazul 27).
 - **Zile de depășire** (verificări legale): întârzierile execuțiilor + verificările active
   încă depășite la capătul perioadei. **Citiri restante**: starea de AZI, aceeași regulă
   ca panoul (`contoareCuPlan` + `contorInvechit`).

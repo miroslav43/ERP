@@ -32,7 +32,7 @@ citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
   - "casare, componente, contoare → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; PV, piese, anulare → [[modul/mentenanta/interventii]]; ISCIR, VTP, RSVTI → [[modul/mentenanta/iscir]]; cost, disponibilitate, MTBF → [[modul/mentenanta/rapoarte]]"
-scris_pe: 90b341e6cfbe34e5201bfacc5f610812c0fdfa3f
+scris_pe: 36afdf0905a3aaa8dbce09cd7877a04b6219058a
 scris_la: 2026-10-12
 tags: [modul]
 ---
