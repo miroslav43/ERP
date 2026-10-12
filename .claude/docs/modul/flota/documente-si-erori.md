@@ -23,7 +23,7 @@ tabele:
 permisiuni: [vehicles:create, vehicles:update]
 feature: fleet
 capcane: [21]
-scris_pe: 8e5670130776a48bbe475b15c94d3472e46cebdc
+scris_pe: 0de8476f1e9933c03d12a117c990c672b017536d
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -49,9 +49,13 @@ documentelor” arată rândurile înlocuite la reînnoire, cu scanarea lor.
 **„Obligatoriu” e al vehiculului, nu al tipului** (0199). `tipuriObligatoriiPentru`
 (`src/domain/fleet/scadente.ts`) filtrează după `categorii_aplicabile` și `masa_max_kg`;
 lista, fișa și portalul o cheamă toate trei, ca să aprindă aceeași culoare. Seed-ul:
-rovinieta până la 3.500 kg, trusa și stingătorul fără remorcă și semiremorcă. Masa
-necompletată lasă tipul aplicabil (rovinieta „Lipsește” până se completează masa).
-Aplicabilitatea NU blochează scrierea — un document pe un tip neaplicabil trece.
+rovinieta până la 3.500 kg, trusa și stingătorul fără remorcă și semiremorcă. ⚠ Plafonul
+rovinietei e decizia planului, nu o valoare legală confirmată (OG 15/2002 are categorii
+și peste 3,5 t): de confirmat de jurist. Masa necompletată lasă tipul aplicabil
+(rovinieta „Lipsește” până se completează masa). Aplicabilitatea NU blochează scrierea —
+un document pe un tip neaplicabil trece. Un document pe un tip RETRAS de firmă se
+corectează fără să-și schimbe tipul: selectorul casetei primește și tipul lui
+(`tipuriPentruDocument`), altfel ar cădea pe „Alegeți tipul”.
 
 ## Nomenclatorul firmei — `/flota/setari/documente`
 
