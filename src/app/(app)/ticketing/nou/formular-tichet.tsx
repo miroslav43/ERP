@@ -94,7 +94,7 @@ export function FormularTichet({
   if (tip === null) {
     return (
       <div className="space-y-3">
-        <p className="text-muted-foreground text-corp">Ce fel de solicitare deschizi?</p>
+        <p className="text-muted-foreground text-corp">Ce fel de solicitare deschideți?</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {TIPURI_TICHET.map((t) => (
             <button
@@ -181,7 +181,7 @@ export function FormularTichet({
                 </Camp>
                 <Camp
                   nume="motiv_necesitate"
-                  eticheta="De ce îți este necesară"
+                  eticheta="De ce vă este necesară"
                   fel="textarea"
                   erori={erori("motiv_necesitate")}
                 >
@@ -239,8 +239,8 @@ export function FormularTichet({
                       Ce s-a stricat
                     </p>
                     <p className="border-border text-muted-foreground rounded-control text-corp border border-dashed p-3">
-                      Nu ai niciun obiect de inventar în primire. Dacă ceva ți-a fost dat și nu
-                      apare aici, cere-i administratorului să-l înregistreze în inventar întâi.
+                      Nu aveți niciun obiect de inventar în primire. Dacă ceva v-a fost dat și nu
+                      apare aici, cereți-i administratorului să-l înregistreze în inventar întâi.
                     </p>
                     {erori("inventory_item_id").length === 0 ? null : (
                       <p role="alert" className="text-danger text-nota mt-1">
@@ -301,7 +301,7 @@ export function FormularTichet({
                 </Camp>
                 <Camp
                   nume="pasi_efectuati"
-                  eticheta="Ce ai făcut"
+                  eticheta="Ce ați făcut"
                   fel="textarea"
                   obligatoriu
                   erori={erori("pasi_efectuati")}

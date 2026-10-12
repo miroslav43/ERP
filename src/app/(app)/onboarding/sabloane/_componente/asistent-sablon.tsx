@@ -282,7 +282,7 @@ export function AsistentSablon({
         ? {}
         : {
             actiune: {
-              eticheta: "Pornește o instanță",
+              eticheta: "Pornește un parcurs",
               onClick: () => {
                 router.push(`/onboarding/noua?sablon=${raspuns.data.id}`);
               },

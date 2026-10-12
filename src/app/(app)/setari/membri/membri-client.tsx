@@ -210,7 +210,7 @@ export function PanouMembri({
       peTelefon: "insigna",
       celula: (membru) =>
         membru.esteEu ? (
-          <span className="text-muted-foreground">{etichetaRol(membru.role)} (dvs.)</span>
+          <span className="text-muted-foreground">{etichetaRol(membru.role)} (dumneavoastră)</span>
         ) : (
           <>
             <label htmlFor={`rol-${membru.id}`} className="sr-only">

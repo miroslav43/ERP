@@ -130,7 +130,7 @@ export const atribuieSesizare = createAction({
       tehnician = await fisaProprie(ctx);
       if (tehnician === null) {
         throw businessRule(
-          "Contul dvs. nu e legat de o fișă de angajat, deci nu vă puteți atribui sesizarea. Alegeți un tehnician din listă.",
+          "Contul dumneavoastră nu e legat de o fișă de angajat, deci nu vă puteți atribui sesizarea. Alegeți un tehnician din listă.",
         );
       }
     }
@@ -278,7 +278,7 @@ export const actualizeazaSesizare = createAction({
       // alege, filtrul de aici e doar „încă deschisă".
       [...STARI_DESCHISE_SESIZARE],
       { descriere: input.descriere, urgenta: input.urgenta },
-      "Sesizarea nu se mai poate modifica: e închisă, sau a fost preluată și descrierea nu mai e a dvs. de schimbat.",
+      "Sesizarea nu se mai poate modifica: e închisă, sau a fost preluată și descrierea nu mai e a dumneavoastră de schimbat.",
     ),
 });
 

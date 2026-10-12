@@ -133,7 +133,7 @@ export const salveazaSablonDocument = createAction<
         .maybeSingle();
       if (error !== null) throw businessRule("Șablonul nu a putut fi salvat.");
       // Un UPDATE respins de `USING` afectează zero rânduri, fără eroare.
-      if (data === null) throw notFound("Șablonul nu mai există sau nu îți este accesibil.");
+      if (data === null) throw notFound("Șablonul nu mai există sau nu vă este accesibil.");
       return { id: data.id };
     }
 

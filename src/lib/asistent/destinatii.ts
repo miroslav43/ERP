@@ -97,7 +97,7 @@ const INTRARI: readonly Intrare[] = [
     permission: null,
     minScope: "own",
     descriere:
-      "Cifrele zilei, ce așteaptă semnătura ta și scadențele apropiate. Prima pagină după autentificare.",
+      "Cifrele zilei, ce așteaptă semnătura dumneavoastră și scadențele apropiate. Prima pagină după autentificare.",
   },
   {
     id: "notificari",
@@ -121,7 +121,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: null,
     permission: null,
     minScope: "own",
-    descriere: "Datele contului tău: nume, e-mail, parolă.",
+    descriere: "Datele contului dumneavoastră: nume, e-mail, parolă.",
   },
 
   // ── Pontaj ─────────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "attendance",
     permission: "attendance:approve",
     minScope: "team",
-    descriere: "Pontajele echipei care așteaptă decizia ta, aprobabile în lot.",
+    descriere: "Pontajele echipei care așteaptă decizia dumneavoastră, aprobabile în lot.",
   },
   {
     id: "pontaj.arhiva",
@@ -244,7 +244,7 @@ const INTRARI: readonly Intrare[] = [
     permission: "leave:read",
     minScope: "own",
     descriere:
-      "Cererile de concediu — ale tale, iar cu drepturi de echipă și ale celorlalți. De aici se depune o cerere nouă.",
+      "Cererile de concediu — ale dumneavoastră, iar cu drepturi de echipă și ale celorlalți. De aici se depune o cerere nouă.",
   },
   {
     id: "concedii.sold",
@@ -256,7 +256,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "leave",
     permission: "leave:read",
     minScope: "own",
-    descriere: "Câte zile ți se cuvin pe anul curent, câte ai consumat și câte îți mai rămân.",
+    descriere: "Câte zile vi se cuvin pe anul curent, câte ați consumat și câte vă mai rămân.",
   },
   {
     id: "concedii.aprobari",
@@ -268,7 +268,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "leave",
     permission: "leave:approve",
     minScope: "team",
-    descriere: "Cererile de concediu care așteaptă decizia ta.",
+    descriere: "Cererile de concediu care așteaptă decizia dumneavoastră.",
   },
   {
     id: "concedii.echipa",
@@ -280,7 +280,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "leave",
     permission: "leave:read",
     minScope: "team",
-    descriere: "Concediile oamenilor din echipa ta, ca listă.",
+    descriere: "Concediile oamenilor din echipa dumneavoastră, ca listă.",
   },
   {
     id: "concedii.calendar",
@@ -483,7 +483,7 @@ const INTRARI: readonly Intrare[] = [
     permission: "evaluations:read",
     minScope: "own",
     descriere:
-      "Propriile tale evaluări finalizate — nota pe fiecare criteriu, concluzia evaluatorului și cum ai evoluat de la o evaluare la alta.",
+      "Propriile dumneavoastră evaluări finalizate — nota pe fiecare criteriu, concluzia evaluatorului și cum ați evoluat de la o evaluare la alta.",
   },
   {
     id: "evaluari.kpi",
@@ -519,7 +519,7 @@ const INTRARI: readonly Intrare[] = [
     eticheta: "Parcursuri de integrare",
     zona: "app",
     parinte: "onboarding",
-    fila: "Instanțe",
+    fila: "Parcursuri",
     featureKey: "onboarding",
     permission: "checklists:read",
     minScope: "own",
@@ -540,7 +540,7 @@ const INTRARI: readonly Intrare[] = [
   {
     id: "onboarding.sabloane",
     href: "/onboarding/sabloane",
-    eticheta: "Șabloane de checklist",
+    eticheta: "Șabloane de parcurs",
     zona: "app",
     parinte: "onboarding",
     fila: "Șabloane",
@@ -571,7 +571,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "onboarding",
     permission: "checklists:read",
     minScope: "own",
-    descriere: "Pașii de integrare care îți revin ție, din parcursurile altora.",
+    descriere: "Pașii de integrare care vă revin, din parcursurile altora.",
   },
 
   // ── Cursuri ────────────────────────────────────────────────────────────────
@@ -806,7 +806,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "fleet",
     permission: "trip_sheets:approve",
     minScope: "team",
-    descriere: "Foile de parcurs care așteaptă aprobarea ta.",
+    descriere: "Foile de parcurs care așteaptă aprobarea dumneavoastră.",
   },
   {
     id: "flota.anomalii",
@@ -987,7 +987,7 @@ const INTRARI: readonly Intrare[] = [
     descriere: "Avizierul firmei: anunțurile publicate, ciornele și cele programate.",
   },
 
-  // ── Ticketing IT ───────────────────────────────────────────────────────────
+  // ── Tichete IT ─────────────────────────────────────────────────────────────
   {
     id: "ticketing",
     href: "/ticketing",
@@ -998,7 +998,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "ticketing",
     permission: "tickets:read",
     minScope: "own",
-    descriere: "Tichetele IT pe care le-ai deschis tu, cu răspunsurile primite.",
+    descriere: "Tichetele IT pe care le-ați deschis, cu răspunsurile primite.",
   },
   {
     id: "ticketing.nou",
@@ -1135,7 +1135,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "per_diem",
     permission: "per_diem:approve",
     minScope: "team",
-    descriere: "Deplasările și deconturile care așteaptă decizia ta.",
+    descriere: "Deplasările și deconturile care așteaptă decizia dumneavoastră.",
   },
   {
     id: "diurna.politica",
@@ -1237,7 +1237,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "attendance",
     permission: "attendance:read",
     minScope: "own",
-    descriere: "Orele tale pe luna curentă, zi cu zi, cu totalul lunar.",
+    descriere: "Orele dumneavoastră pe luna curentă, zi cu zi, cu totalul lunar.",
   },
   {
     id: "portal.pontaj.saptamana",
@@ -1285,7 +1285,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "leave",
     permission: "leave:read",
     minScope: "own",
-    descriere: "Cererile tale de concediu, starea fiecăreia și zilele care ți-au rămas.",
+    descriere: "Cererile dumneavoastră de concediu, starea fiecăreia și zilele care v-au rămas.",
   },
   {
     id: "portal.concedii.noua",
@@ -1309,7 +1309,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "payroll",
     permission: "payroll:read",
     minScope: "own",
-    descriere: "Fluturașii tăi de salariu, lună de lună, cu descărcare în PDF.",
+    descriere: "Fluturașii dumneavoastră de salariu, lună de lună, cu descărcare în PDF.",
   },
   {
     id: "portal.kpi",
@@ -1322,7 +1322,7 @@ const INTRARI: readonly Intrare[] = [
     permission: "evaluations:read",
     minScope: "own",
     descriere:
-      "Indicatorii tăi lunari: ce ținte ai, cât ai realizat și scorul lunii — inclusiv luna în curs, cât timp managerul încă o completează.",
+      "Indicatorii dumneavoastră lunari: ce ținte aveți, cât ați realizat și scorul lunii — inclusiv luna în curs, cât timp managerul încă o completează.",
   },
   {
     id: "portal.evaluari",
@@ -1335,7 +1335,7 @@ const INTRARI: readonly Intrare[] = [
     permission: "evaluations:read",
     minScope: "own",
     descriere:
-      "Evaluările tale finalizate de manager: nota pe fiecare criteriu, comentariile, concluzia și evoluția în timp.",
+      "Evaluările dumneavoastră finalizate de manager: nota pe fiecare criteriu, comentariile, concluzia și evoluția în timp.",
   },
   {
     id: "portal.documente",
@@ -1347,7 +1347,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "employee_portal",
     permission: "employees:read",
     minScope: "own",
-    descriere: "Adeverințele și actele emise pe numele tău, de descărcat.",
+    descriere: "Adeverințele și actele emise pe numele dumneavoastră, de descărcat.",
   },
   {
     id: "portal.diurna",
@@ -1359,7 +1359,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "per_diem",
     permission: "per_diem:read",
     minScope: "own",
-    descriere: "Deplasările tale și diurna cuvenită pe fiecare.",
+    descriere: "Deplasările dumneavoastră și diurna cuvenită pe fiecare.",
   },
   {
     id: "portal.diurna.noua",
@@ -1383,7 +1383,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "courses",
     permission: "courses:read",
     minScope: "own",
-    descriere: "Cursurile care îți sunt atribuite, cu lecțiile și testele lor.",
+    descriere: "Cursurile care vă sunt atribuite, cu lecțiile și testele lor.",
   },
   {
     id: "portal.integrare",
@@ -1395,7 +1395,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "onboarding",
     permission: "checklists:read",
     minScope: "own",
-    descriere: "Pașii tăi de integrare în firmă și ce mai ai de bifat.",
+    descriere: "Pașii dumneavoastră de integrare în firmă și ce mai aveți de bifat.",
   },
   {
     id: "portal.integrare.sarcini",
@@ -1419,7 +1419,8 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "ssm",
     permission: "ssm:read",
     minScope: "own",
-    descriere: "Instruirile tale de securitate, fișa de aptitudine și echipamentul primit.",
+    descriere:
+      "Instruirile dumneavoastră de securitate, fișa de aptitudine și echipamentul primit.",
   },
   {
     id: "portal.in-primire",
@@ -1443,7 +1444,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "nucleu",
     permission: "employees:read",
     minScope: "own",
-    descriere: "Colegii din echipa ta, cu datele lor de contact de serviciu.",
+    descriere: "Colegii din echipa dumneavoastră, cu datele lor de contact de serviciu.",
   },
   {
     id: "portal.anunturi",
@@ -1467,7 +1468,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "maintenance",
     permission: "maintenance:read",
     minScope: "own",
-    descriere: "Defecțiunile pe care le-ai raportat și stadiul rezolvării.",
+    descriere: "Defecțiunile pe care le-ați raportat și stadiul rezolvării.",
   },
   {
     id: "portal.sesizari.noua",
@@ -1491,7 +1492,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "ticketing",
     permission: "tickets:read",
     minScope: "own",
-    descriere: "Tichetele tale către echipa IT, cu răspunsurile primite.",
+    descriere: "Tichetele dumneavoastră către echipa IT, cu răspunsurile primite.",
   },
   {
     id: "portal.tichete.nou",
@@ -1527,7 +1528,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: null,
     permission: null,
     minScope: "own",
-    descriere: "Datele tale de contact și parola contului.",
+    descriere: "Datele dumneavoastră de contact și parola contului.",
   },
 ];
 

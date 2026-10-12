@@ -66,7 +66,7 @@ export default async function PaginaTichetNou({ searchParams }: ProprietatiPagin
     <div className={cn(LATIMI.formular, "space-y-6")}>
       <AntetPagina
         titlu="Tichet nou"
-        descriere="Solicitările merg la managerul tău direct sau la administrator. Problemele din aplicație ajung direct la echipa care o dezvoltă."
+        descriere="Solicitările merg la managerul dumneavoastră direct sau la administrator. Problemele din aplicație ajung la echipa care o dezvoltă."
       />
 
       <FormularTichet

@@ -90,7 +90,7 @@ export default function LayoutInrolare({ children }: { children: ReactNode }) {
               href={`mailto:${CONTACT.email}`}
               className="text-muted-foreground hover:text-foreground text-corp underline-offset-4 transition hover:underline"
             >
-              Ai nevoie de ajutor?
+              Aveți nevoie de ajutor?
             </a>
             <form action={deconecteaza}>
               {/* `varianta="tertiar"` + clasele proprii: discret, ca pe ecranul

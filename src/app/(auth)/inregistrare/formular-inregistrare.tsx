@@ -112,11 +112,11 @@ export function FormularInregistrare({ sursa = null }: Readonly<{ sursa?: string
       <div role="status">
         <h1 className="text-primary text-sectiune font-semibold">Contul e creat</h1>
         <p className="text-corp mt-3 leading-relaxed">
-          Ți-am trimis un e-mail la <strong className="font-medium">{trimisLa}</strong>, cu linkul
-          prin care intri prima dată. Linkul e valabil șapte zile.
+          V-am trimis un e-mail la <strong className="font-medium">{trimisLa}</strong>, cu linkul
+          prin care intrați prima dată. Linkul e valabil șapte zile.
         </p>
         <p className="text-muted-foreground text-corp mt-3 leading-relaxed">
-          Nu ajunge? Verifică și în spam. Dacă tot nu apare în câteva minute, scrie-ne și îl
+          Nu ajunge? Verificați și în spam. Dacă tot nu apare în câteva minute, scrieți-ne și îl
           retrimitem — adresa e în subsolul paginii de start.
         </p>
         <p className="text-corp mt-6">
@@ -132,7 +132,7 @@ export function FormularInregistrare({ sursa = null }: Readonly<{ sursa?: string
     <>
       <h1 className="text-primary text-sectiune font-semibold">Creează contul firmei</h1>
       <p className="text-muted-foreground text-corp mt-1">
-        Șase câmpuri. Restul datelor firmei le completezi înăuntru, când ai timp.
+        Șase câmpuri. Restul datelor firmei le completați înăuntru, când aveți timp.
       </p>
 
       <Formular actiune={trimite} laReusita={laReusita} className="mt-6">
@@ -199,8 +199,8 @@ export function FormularInregistrare({ sursa = null }: Readonly<{ sursa?: string
               </div>
               <Camp
                 nume="email"
-                eticheta="Adresa ta de e-mail"
-                ajutor="Aici primești linkul de acces."
+                eticheta="Adresa dumneavoastră de e-mail"
+                ajutor="Aici primiți linkul de acces."
                 obligatoriu
                 erori={erori["email"] ?? []}
               >
@@ -296,7 +296,7 @@ export function FormularInregistrare({ sursa = null }: Readonly<{ sursa?: string
           odată cu trecerea la înregistrare self-serve; fără linkul ăsta, ar fi
           rămas o pagină fără nicio intrare. */}
       <p className="text-muted-foreground text-corp mt-6">
-        Ai deja cont?{" "}
+        Aveți deja cont?{" "}
         <Link href="/autentificare" className="rounded underline">
           Autentifică-te
         </Link>

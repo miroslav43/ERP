@@ -263,7 +263,7 @@ export function FormularLuna({
         laInchidere={() => {
           setDeConfirmat(false);
         }}
-        titlu={`Închizi luna pentru ${luna.angajat ?? "angajat"}?`}
+        titlu={`Închideți luna pentru ${luna.angajat ?? "angajat"}?`}
         consecinta="Luna închisă NU se mai redeschide — nici de administrator. Salvați întâi ce ați modificat: închiderea nu salvează liniile."
         etichetaConfirmare="Închide luna"
         distructiv

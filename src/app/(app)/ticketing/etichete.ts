@@ -23,7 +23,9 @@ export const ETICHETE_STATUS: Readonly<Record<StatusTichet, string>> = {
   in_aprobare: "În aprobare",
   respins: "Respins",
   in_lucru: "În lucru",
-  in_asteptare: "Așteaptă răspunsul tău",
+  // Impersonal: aceeași etichetă o vede solicitantul în portal și operatorul în
+  // coadă (glosar: etichetele de stare nu se adresează nimănui).
+  in_asteptare: "Așteaptă solicitantul",
   rezolvat: "Rezolvat",
   inchis: "Închis",
   anulat: "Anulat",
@@ -66,7 +68,7 @@ export const TONURI_STATUS: Readonly<Record<StatusTichet, TonStare>> = {
   // „În lucru” e atenție, nu succes: lucrul e început, nu terminat.
   in_lucru: "atentie",
   // Era deliberat cel mai vizibil status, fiindcă e singurul în care mingea e la
-  // solicitant. Distincția o poartă acum CUVÂNTUL („Așteaptă răspunsul tău”), nu
+  // solicitant. Distincția o poartă acum CUVÂNTUL („Așteaptă solicitantul”), nu
   // o nuanță proprie de portocaliu.
   in_asteptare: "atentie",
   rezolvat: "succes",

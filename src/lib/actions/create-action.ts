@@ -155,7 +155,7 @@ export function createAction<TSchema extends z.ZodType, TData>(
     if (def.feature !== undefined && !features.has(def.feature)) {
       return refuza(
         "MODUL_DEZACTIVAT",
-        "Modulul necesar acestei operațiuni nu este activ pentru organizația dvs.",
+        "Modulul necesar acestei operațiuni nu este activ pentru organizația dumneavoastră.",
         tenant.organizationId,
       );
     }

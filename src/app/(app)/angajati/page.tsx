@@ -150,7 +150,7 @@ async function TabelAngajati({
         <>
           <span className="font-medium">{r.full_name}</span>
           {r.user_id === userId ? (
-            <span className="text-accent text-nota ml-2">(fișa dvs.)</span>
+            <span className="text-accent text-nota ml-2">(fișa dumneavoastră)</span>
           ) : null}
           {r.is_primary ? null : (
             <span className="text-muted-foreground text-nota ml-2">(cumul de funcții)</span>

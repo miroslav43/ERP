@@ -80,7 +80,7 @@ describe("GET /documente/[id]", () => {
     server.raspunde("hr_issued_documents", "select", { data: null });
     const r = await cere();
     expect(r.status).toBe(404);
-    expect(await r.text()).toBe("Documentul nu a fost găsit sau nu îți este accesibil.");
+    expect(await r.text()).toBe("Documentul nu a fost găsit sau nu vă este accesibil.");
     expect(falsuriPdf.antetOrganizatie).not.toHaveBeenCalled();
   });
 
@@ -93,7 +93,7 @@ describe("GET /documente/[id]", () => {
       params: Promise.resolve({ id: "abc" }),
     });
     expect(r.status).toBe(404);
-    expect(await r.text()).toBe("Documentul nu a fost găsit sau nu îți este accesibil.");
+    expect(await r.text()).toBe("Documentul nu a fost găsit sau nu vă este accesibil.");
     expect(server.apeluri).toHaveLength(0);
     expect(falsuriPdf.antetOrganizatie).not.toHaveBeenCalled();
   });

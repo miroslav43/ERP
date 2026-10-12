@@ -53,8 +53,10 @@ describe("etichetele", () => {
     expect(new Set(valori).size).toBe(valori.length);
   });
 
-  it("`in_asteptare` spune că mingea e la solicitant", () => {
-    expect(ETICHETE_STATUS.in_asteptare).toBe("Așteaptă răspunsul tău");
+  it("`in_asteptare` spune că mingea e la solicitant, impersonal", () => {
+    // O văd și solicitantul (portal), și operatorul (coadă): „răspunsul tău”
+    // îi spunea operatorului că el trebuie să răspundă.
+    expect(ETICHETE_STATUS.in_asteptare).toBe("Așteaptă solicitantul");
   });
 
   it("istoricul are etichete pentru câmpurile scrise de trigger și de suprascriere", () => {

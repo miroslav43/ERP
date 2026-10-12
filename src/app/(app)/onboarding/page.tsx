@@ -33,7 +33,7 @@ import { TONURI_STATUS_INSTANTA, ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "
 import { FiltreInstante } from "./filtre-instante";
 import { NavOnboarding } from "./nav-onboarding";
 
-export const metadata: Metadata = { title: "Onboarding" };
+export const metadata: Metadata = { title: "Integrare angajați" };
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -67,11 +67,11 @@ async function TabelInstante({
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
         pictograma={ClipboardList}
-        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun checklist pornit încă"}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun parcurs pornit încă"}
         descriere={
           areFiltre
-            ? "Ștergeți filtrele ca să vedeți toate instanțele."
-            : "Porniți un checklist de integrare sau de ieșire pentru un angajat, dintr-un șablon."
+            ? "Ștergeți filtrele ca să vedeți toate parcursurile."
+            : "Porniți un parcurs de integrare sau de ieșire pentru un angajat, dintr-un șablon."
         }
         {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/onboarding" } } : {})}
       />
@@ -167,7 +167,7 @@ async function TabelInstante({
   return (
     <div className="flex flex-col gap-4">
       <Tabel
-        caption="Instanțele de checklist la care aveți acces."
+        caption="Parcursurile la care aveți acces."
         coloane={coloane}
         randuri={randuri}
         cheieRand={(r) => r.id}
@@ -215,7 +215,7 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
   // aici, deși meniul cere „team" pentru a arăta fila.
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta checklisturile de integrare. Solicitați administratorului organizației rolul potrivit." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta parcursurile de integrare. Solicitați administratorului organizației rolul potrivit." />
     );
   }
 
@@ -235,18 +235,18 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
   return (
     <div className="space-y-6">
       <AntetPagina
-        titlu="Onboarding"
+        titlu="Integrare angajați"
         descriere={
           scope === "all" || scope === "team"
-            ? "Checklisturile de integrare și de ieșire ale organizației, cu progresul lor."
-            : "Checklistul dvs. de integrare, cu progresul lui."
+            ? "Parcursurile de integrare și de ieșire ale organizației, cu progresul lor."
+            : "Parcursul dumneavoastră de integrare, cu progresul lui."
         }
         {...(poatePorni
           ? {
               actiuni: (
                 <Link href="/onboarding/noua" className={buton({ varianta: "primar" })}>
                   <ListChecks aria-hidden="true" className="size-4" />
-                  Instanță nouă
+                  Pornește un parcurs
                 </Link>
               ),
             }

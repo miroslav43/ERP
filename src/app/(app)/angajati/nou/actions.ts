@@ -443,7 +443,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       if (numar !== null) {
         // Numărul l-a ales omul: nu se realocă pe la spatele lui.
         throw businessRule(
-          `Numărul de contract „${numar}” este deja folosit în firma ta. Alegeți altul sau lăsați câmpul gol.`,
+          `Numărul de contract „${numar}” este deja folosit în această firmă. Alegeți altul sau lăsați câmpul gol.`,
         );
       }
       numarContract = null; // alocat automat: reluăm cu următorul din contor
@@ -903,7 +903,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         // `feature_on`): avertismentul ar trimite spre un meniu care nu există.
         if (ctx.features.has("onboarding")) {
           avertismente.push(
-            "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun checklist. Creați unul din Integrare → Șabloane.",
+            "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun parcurs. Creați unul din Integrare → Șabloane.",
           );
         }
       } else {
@@ -928,7 +928,9 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       }
     } catch (eroare) {
       avertismente.push(
-        "Checklistul de integrare nu a putut fi pornit. Îl puteți porni din Integrare → Instanță nouă.",
+        // Cuplat cu `asistent-angajat-nou.tsx`, care caută „Integrare → Parcurs
+        // nou” ca să arate linkul de pornire; testul din `actions.test.ts` le leagă.
+        "Parcursul de integrare nu a putut fi pornit. Îl puteți porni din Integrare → Parcurs nou.",
       );
       console.error("[integrare] checklistul nu a putut fi pornit la înrolare", {
         employeeId: angajat.id,

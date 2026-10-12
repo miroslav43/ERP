@@ -56,9 +56,9 @@ export function AlegerePatronAngajat({
         Sunteți și angajat al firmei?
       </legend>
       <p className="text-corp-mic text-secundar">
-        La majoritatea firmelor mici, administratorul are și contract de muncă. Contul dvs. poate
-        administra aplicația oricum — întrebarea decide doar dacă vă puteți și ponta, cere concediu
-        și apărea pe statul de plată.
+        La majoritatea firmelor mici, administratorul are și contract de muncă. Contul dumneavoastră
+        poate administra aplicația oricum — întrebarea decide doar dacă vă puteți și ponta, cere
+        concediu și apărea pe statul de plată.
       </p>
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -71,7 +71,7 @@ export function AlegerePatronAngajat({
         >
           <span className="block font-medium">Da, sunt și angajat</span>
           <span className="text-corp-mic text-secundar block">
-            După finalizare vă ducem direct la înrolarea dvs., cu numele deja completat.
+            După finalizare vă ducem direct la înrolarea dumneavoastră, cu numele deja completat.
           </span>
         </button>
 
@@ -85,7 +85,7 @@ export function AlegerePatronAngajat({
           <span className="block font-medium">Nu, doar administrez</span>
           <span className="text-corp-mic text-secundar block">
             Administrator pe contract de mandat. E o stare la fel de validă; vă puteți răzgândi
-            oricând din fișa dvs.
+            oricând din fișa dumneavoastră.
           </span>
         </button>
       </div>

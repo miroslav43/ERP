@@ -160,7 +160,7 @@ export function FormularInstanta({
 
       <div className="flex flex-wrap items-center gap-3">
         <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se pornește…">
-          Pornește checklistul
+          Pornește parcursul
         </Buton>
         {eroare === null ? null : (
           <p role="alert" className="text-danger text-corp">

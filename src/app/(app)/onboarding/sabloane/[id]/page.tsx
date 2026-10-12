@@ -26,7 +26,7 @@ import { optiuniAsistent } from "../_componente/optiuni";
 import { buton } from "@/components/ui/buton";
 import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 
-export const metadata: Metadata = { title: "Șablon de checklist" };
+export const metadata: Metadata = { title: "Șablon de parcurs" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
@@ -47,7 +47,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de checklist. Solicitați administratorului organizației rolul potrivit." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de parcurs. Solicitați administratorului organizației rolul potrivit." />
     );
   }
 
@@ -92,7 +92,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
                 href={`/onboarding/noua?sablon=${sablon.id}`}
                 className={buton({ varianta: "primar" })}
               >
-                Pornește o instanță
+                Pornește un parcurs
               </Link>
             ) : null}
           </span>

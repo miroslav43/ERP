@@ -457,7 +457,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
   {
     id: "ticketing",
-    label: "Ticketing IT",
+    label: "Tichete IT",
     href: "/ticketing",
     icon: LifeBuoy,
     group: "resurse",

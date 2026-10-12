@@ -22,7 +22,7 @@ const raspunsText = (mesaj: string, status: number): Response =>
  * să fie indistinct de rândul inexistent. Înainte, `/documente/abc` ajungea la
  * Postgres, 22P02 cădea în ramura de eroare și ruta răspundea 500 (PRM-003).
  */
-const MESAJ_NEGASIT = "Documentul nu a fost găsit sau nu îți este accesibil.";
+const MESAJ_NEGASIT = "Documentul nu a fost găsit sau nu vă este accesibil.";
 
 interface ProprietatiRuta {
   readonly params: Promise<{ readonly id: string }>;

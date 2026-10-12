@@ -212,7 +212,7 @@ export const finalizeazaInstanta = createAction({
     if (error !== null) traduEroare(error);
     if (data === null) {
       throw businessRule(
-        "Checklistul nu a putut fi finalizat: fie nu mai există, fie nu aveți dreptul asupra lui.",
+        "Parcursul nu a putut fi finalizat: fie nu mai există, fie nu aveți dreptul asupra lui.",
       );
     }
 
@@ -255,7 +255,7 @@ export const anuleazaInstanta = createAction({
     if (error !== null) traduEroare(error);
     if (data === null) {
       throw businessRule(
-        "Checklistul nu a putut fi anulat: fie nu mai există, fie nu aveți dreptul asupra lui.",
+        "Parcursul nu a putut fi anulat: fie nu mai există, fie nu aveți dreptul asupra lui.",
       );
     }
 

@@ -330,7 +330,7 @@ export function AsistentAngajatNou({
           ) : null}
           {rezultat.checklistPornit !== null ? (
             <li className="text-muted-foreground">
-              Checklistul de integrare{" "}
+              Parcursul de integrare{" "}
               {rezultat.checklistId === null ? (
                 <span className="text-foreground">„{rezultat.checklistPornit}”</span>
               ) : (
@@ -432,14 +432,14 @@ export function AsistentAngajatNou({
                         Creează un șablon
                       </Link>
                     </>
-                  ) : avertisment.includes("Integrare → Instanță nouă") ? (
+                  ) : avertisment.includes("Integrare → Parcurs nou") ? (
                     <>
                       {" "}
                       <Link
                         href={`/onboarding/noua?angajat=${rezultat.id}`}
                         className="underline underline-offset-2"
                       >
-                        Pornește checklistul
+                        Pornește parcursul
                       </Link>
                     </>
                   ) : null}

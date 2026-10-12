@@ -549,7 +549,7 @@ export function CelulaZi({
             <legend className="text-corp px-1 font-medium">Decizia pe ziua asta</legend>
             <p className="text-muted-foreground text-corp mb-2">
               {intrare.aprobat
-                ? "Ziua e aprobată. O poți respinge dacă ai găsit o problemă."
+                ? "Ziua e aprobată. O puteți respinge dacă ați găsit o problemă."
                 : "Ziua nu e încă decisă. Aprobarea în bloc, din ecranul de aprobări, decide toată luna deodată."}
             </p>
 

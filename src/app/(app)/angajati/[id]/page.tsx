@@ -707,7 +707,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             ]}
             descriere={
               <>
-                {esteFisaProprie ? "Fișa dvs. · " : ""}Marca {angajat.marca}
+                {esteFisaProprie ? "Fișa dumneavoastră · " : ""}Marca {angajat.marca}
                 {angajat.functie === null ? null : (
                   <>
                     {" · "}
@@ -1796,7 +1796,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     href={`/onboarding/noua?angajat=${angajat.id}`}
                     className="text-foreground underline-offset-2 hover:underline"
                   >
-                    Pornește checklistul de ieșire
+                    Pornește parcursul de ieșire
                   </Link>
                   , dacă nu există deja.
                 </>

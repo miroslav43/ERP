@@ -126,7 +126,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
   if (fisaTinta === null && !poateAlegeAngajat) {
     return (
       <AccesRestrictionat
-        mesaj={`Contul dvs. nu este legat de o fișă de angajat principală în această organizație, deci nu are o săptămână proprie de ${peSaptamana ? "pontat" : "planificat"}. Cereți-i administratorului să vă creeze fișa.`}
+        mesaj={`Contul dumneavoastră nu este legat de o fișă de angajat principală în această organizație, deci nu are o săptămână proprie de ${peSaptamana ? "pontat" : "planificat"}. Cereți-i administratorului să vă creeze fișa.`}
       />
     );
   }

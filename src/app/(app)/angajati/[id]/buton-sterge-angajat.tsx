@@ -98,7 +98,7 @@ export function ButonStergeAngajat({
             </Buton>
           }
         >
-          <Callout fel="eroare" titlu="Nu poți șterge fișa, pentru că:">
+          <Callout fel="eroare" titlu="Fișa nu se poate șterge, pentru că:">
             <ul className="mt-1 list-disc space-y-1 ps-5">
               {motive.map((motiv) => (
                 <li key={motiv}>{motiv}</li>

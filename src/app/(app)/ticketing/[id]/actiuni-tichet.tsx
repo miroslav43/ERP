@@ -77,7 +77,9 @@ export function DecizieCerere({
 
   return (
     <div className="border-border bg-surface rounded-panou space-y-3 border p-4">
-      <p className="text-foreground text-corp font-medium">Cererea așteaptă decizia ta</p>
+      <p className="text-foreground text-corp font-medium">
+        Cererea așteaptă decizia dumneavoastră
+      </p>
 
       {respinge ? (
         <>

@@ -40,7 +40,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta checklisturile de integrare. Solicitați administratorului organizației rolul potrivit." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta parcursurile de integrare. Solicitați administratorului organizației rolul potrivit." />
     );
   }
 
@@ -57,14 +57,14 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
       <div className={`${LATIMI.formular} space-y-6`}>
         <p className="text-muted-foreground text-corp print:hidden">
           <Link href={`/onboarding/${id}`} className="underline-offset-2 hover:underline">
-            Înapoi la checklist
+            Înapoi la parcurs
           </Link>
         </p>
         <StareGoala
           fel="initiala"
           pictograma={FileCheck}
           titlu="Dovada nu există încă"
-          descriere="Dovada se generează automat la finalizarea checklistului. Reveniți după ce toți pașii obligatorii sunt bifați."
+          descriere="Dovada se generează automat la finalizarea parcursului. Reveniți după ce toți pașii obligatorii sunt bifați."
         />
       </div>
     );
@@ -84,7 +84,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
     <div className={`bg-background ${LATIMI.formular} space-y-6 text-black`}>
       <div className="flex items-center justify-between print:hidden">
         <Link href={`/onboarding/${id}`} className="text-corp underline-offset-2 hover:underline">
-          Înapoi la checklist
+          Înapoi la parcurs
         </Link>
         <ButonTiparire />
       </div>
@@ -94,7 +94,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
           structura lui nu se rescrie pentru o singură proprietate. */}
       <AntetPagina
         className="border-foreground/60 gap-1 border-b pb-4 print:break-inside-avoid"
-        titlu="Dovadă de parcurgere a checklistului"
+        titlu="Dovada parcursului"
         file={
           <div className="space-y-1">
             <p className="text-corp">
@@ -120,7 +120,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
       />
 
       <table className="text-corp w-full border-collapse">
-        <caption className="sr-only">Pașii checklistului, așa cum erau la finalizare.</caption>
+        <caption className="sr-only">Pașii parcursului, așa cum erau la finalizare.</caption>
         <thead>
           <tr className="border-foreground/60 border-b text-left">
             <th scope="col" className="py-2 pr-2 font-medium">

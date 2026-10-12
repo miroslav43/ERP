@@ -776,7 +776,11 @@ describe("inroleazaAngajat", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.data.checklistPornit).toBeNull();
-    expect(r.data.avertismente.some((a) => a.includes("Checklistul"))).toBe(true);
+    expect(r.data.avertismente.some((a) => a.includes("Parcursul de integrare"))).toBe(true);
+    // Șirul exact pe care îl caută `asistent-angajat-nou.tsx` ca să arate
+    // linkul „Pornește parcursul”: dacă se schimbă doar într-o parte, linkul
+    // dispare tăcut.
+    expect(r.data.avertismente.some((a) => a.includes("Integrare → Parcurs nou"))).toBe(true);
   });
 
   it("avertismentele generatorului de documente ajung în rezultatul înrolării", async () => {

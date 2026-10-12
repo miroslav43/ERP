@@ -94,7 +94,7 @@ async function fisaTinta(ctx: ActionContext, cerut: string | null): Promise<stri
   if (error !== null) throw error;
   if (data === null) {
     throw businessRule(
-      "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+      "Contul dumneavoastră nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
     );
   }
   return data.id;
@@ -691,7 +691,7 @@ export const creeazaCerereConcediu = createAction({
       if (eroareFisa !== null) throw eroareFisa;
       if (fisa === null) {
         throw businessRule(
-          "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+          "Contul dumneavoastră nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
         );
       }
       employeeId = fisa.id;
@@ -879,7 +879,7 @@ export const anuleazaCerere = createAction({
     if (eroareFisa !== null) throw eroareFisa;
     if (fisa === null && ctx.scope !== "all") {
       throw businessRule(
-        "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+        "Contul dumneavoastră nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
       );
     }
     const fisaProprie: string | null = fisa?.id ?? null;
@@ -1174,7 +1174,7 @@ export const decideCerere = createAction({
     if (eroareFisa !== null) throw eroareFisa;
     if (fisaAprobator === null) {
       throw businessRule(
-        "Contul dvs. nu este legat de o fișă de angajat principală în această organizație, așa că baza de date nu vă poate identifica drept aprobator. Contactați administratorul.",
+        "Contul dumneavoastră nu este legat de o fișă de angajat principală în această organizație, așa că baza de date nu vă poate identifica drept aprobator. Contactați administratorul.",
       );
     }
 

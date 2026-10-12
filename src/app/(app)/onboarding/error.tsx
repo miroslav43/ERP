@@ -10,7 +10,5 @@ export default function Eroare({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
-  return (
-    <StareEroare eroare={error} reincearca={retry} titlu="Onboarding-ul nu a putut fi afișat" />
-  );
+  return <StareEroare eroare={error} reincearca={retry} titlu="Integrarea nu a putut fi afișată" />;
 }

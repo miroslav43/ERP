@@ -35,7 +35,7 @@ export default async function SetariMembriPage({
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   if (scopeFor(permisiuni, "users:update") !== "all") {
     return (
-      <AccesRestrictionat mesaj="Lista membrilor și invitațiile pot fi consultate doar de administratorii organizației. Cere-i administratorului tău dreptul necesar dacă ai nevoie de el." />
+      <AccesRestrictionat mesaj="Lista membrilor și invitațiile pot fi consultate doar de administratorii organizației. Solicitați administratorului dreptul necesar dacă aveți nevoie de el." />
     );
   }
 

@@ -256,7 +256,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         descriere={
           scope === "own"
             ? "Soldul dumneavoastră de zile de concediu, pe tip."
-            : "Soldul de zile de concediu al angajaților vizibili pentru dvs., pe tip."
+            : "Soldul de zile de concediu al angajaților vizibili pentru dumneavoastră, pe tip."
         }
         actiuni={
           <>

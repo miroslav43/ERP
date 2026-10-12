@@ -64,7 +64,7 @@ async function fisaMea(organizationId: string, userId: string): Promise<string> 
   if (error !== null) throw error;
   if (data === null) {
     throw businessRule(
-      "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+      "Contul dumneavoastră nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
     );
   }
   return data.id;

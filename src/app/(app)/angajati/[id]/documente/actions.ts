@@ -73,7 +73,7 @@ async function verificaAngajatul(ctx: ActionContext, employeeId: string): Promis
     .eq("organization_id", ctx.tenant.organizationId)
     .is("deleted_at", null)
     .maybeSingle();
-  if (data === null) throw notFound("Fișa de angajat nu există sau nu îți este accesibilă.");
+  if (data === null) throw notFound("Fișa de angajat nu există sau nu vă este accesibilă.");
 }
 
 export const pregatesteIncarcareDocument = createAction({
@@ -234,7 +234,7 @@ export const linkDescarcareDocument = createAction({
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
       .maybeSingle();
-    if (data === null) throw notFound("Documentul nu există sau nu îți este accesibil.");
+    if (data === null) throw notFound("Documentul nu există sau nu vă este accesibil.");
 
     const { data: semnat, error } = await ctx.supabase.storage
       .from(BUCKET_DOCUMENTE)

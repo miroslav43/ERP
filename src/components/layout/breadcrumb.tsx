@@ -93,20 +93,31 @@ const SEGMENTE: Readonly<Record<string, string>> = {
  * `AccesRestrictionat`. Registrul știe ambele lucruri: ce rute au pagină și ce
  * poartă are fiecare.
  */
-/** Eticheta unei rute care e destinație de meniu — scrisă o singură dată, în `NAV_ITEMS`. */
-const ETICHETE_RUTA: ReadonlyMap<string, string> = new Map(
-  NAV_ITEMS.flatMap((item) => [
-    [item.href, item.label] as const,
-    ...(item.children ?? []).map((copil) => [copil.href, copil.label] as const),
-  ]),
-);
+/**
+ * Eticheta unei rute care e destinație de meniu — scrisă o singură dată, în
+ * `NAV_ITEMS`.
+ *
+ * Copiii intră ÎNAINTEA părinților, ca părintele să-i suprascrie când au același
+ * href: prima filă a unui modul („Tichetele mele”, „Cereri”) are href-ul
+ * modulului, iar firimitura trebuie să numească modulul („Tichete IT”,
+ * „Concedii”), nu fila (UX-034: „Tichetele mele › Coada echipei”).
+ */
+const ETICHETE_RUTA: ReadonlyMap<string, string> = new Map([
+  ...NAV_ITEMS.flatMap((item) =>
+    (item.children ?? []).map((copil) => [copil.href, copil.label] as const),
+  ),
+  ...NAV_ITEMS.map((item) => [item.href, item.label] as const),
+]);
+
+/** Eticheta de meniu a unei rute, sau `undefined` dacă ruta nu e în meniu. */
+export const etichetaRutei = (href: string): string | undefined => ETICHETE_RUTA.get(href);
 
 const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function tradu(segment: string, href: string): string {
   // Eticheta rutei bate eticheta segmentului: „/concedii/sold" e „Soldul
   // zilelor" fiindcă așa scrie în meniu, nu fiindcă am ghicit din slug.
-  const dinMeniu = ETICHETE_RUTA.get(href);
+  const dinMeniu = etichetaRutei(href);
   if (dinMeniu !== undefined) {
     return dinMeniu;
   }

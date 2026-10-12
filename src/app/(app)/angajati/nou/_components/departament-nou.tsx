@@ -74,7 +74,7 @@ export function DepartamentNou({
       return;
     }
     if (codCurat.length === 0) {
-      setEroare("Codul nu poate fi gol. Scrieți-l dvs. dacă denumirea nu produce unul.");
+      setEroare("Codul nu poate fi gol. Scrieți-l dumneavoastră dacă denumirea nu produce unul.");
       return;
     }
     setEroare(null);

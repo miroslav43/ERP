@@ -369,7 +369,7 @@ export async function SectiuneInAlteModule({
     ];
     const golSsm =
       ssmPoateFiAscuns && randuriSsm.length === 0 && nrInstruiri + nrEip + nrAutorizatii === 0
-        ? "Fără date vizibile: SSM-ul se vede doar pentru echipa dvs."
+        ? "Fără date vizibile: SSM-ul se vede doar pentru echipa dumneavoastră."
         : "Fără fișă de aptitudine și fără restricții.";
     carduri.push({
       cheie: "ssm",
@@ -529,8 +529,8 @@ export async function SectiuneInAlteModule({
         În alte module
       </h2>
       <p className="text-muted-foreground text-nota mb-4">
-        Ce ține de {esteFisaProprie ? "dvs." : "această persoană"} în restul aplicației. Apar doar
-        modulele pe care le puteți deschide.
+        Ce ține de {esteFisaProprie ? "dumneavoastră" : "această persoană"} în restul aplicației.
+        Apar doar modulele pe care le puteți deschide.
       </p>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {carduri.map((card) => (

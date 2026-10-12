@@ -25,7 +25,7 @@ async function userIdAngajat(ctx: ActionContext, employeeId: string): Promise<st
     .eq("organization_id", ctx.tenant.organizationId)
     .is("deleted_at", null)
     .maybeSingle();
-  if (data === null) throw notFound("Fișa de angajat nu există sau nu îți este accesibilă.");
+  if (data === null) throw notFound("Fișa de angajat nu există sau nu vă este accesibilă.");
   if (data.user_id === null) {
     throw businessRule("Acest angajat nu are cont în portal — nu i se poate atașa o fotografie.");
   }

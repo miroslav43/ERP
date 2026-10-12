@@ -227,7 +227,7 @@ async function TabelSesizari({
           return (
             <span className={s.atribuit_employee_id === fisaId ? "font-medium" : undefined}>
               <LinkEntitate href={hrefFisaDinHarta(s.atribuit_employee_id, tehnicieni, permisiuni)}>
-                {s.atribuit_employee_id === fisaId ? `${nume} (dvs.)` : nume}
+                {s.atribuit_employee_id === fisaId ? `${nume} (dumneavoastră)` : nume}
               </LinkEntitate>
             </span>
           );
