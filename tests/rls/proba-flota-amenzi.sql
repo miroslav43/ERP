@@ -24,7 +24,8 @@
 -- Cine conducea (`app.sofer_la` / `public.sofer_sugerat`)
 -- (15) fără foaie, sugestia vine din alocarea deschisă la acel moment  [POZITIVĂ];
 -- (16) linia de foaie care acoperă momentul bate alocarea              [POZITIVĂ];
--- (17) în afara liniei, tot alocarea; foaia respinsă nu face dovadă;
+-- (17) în afara liniei, tot alocarea; foaia respinsă nu face dovadă; cursa fără
+--      sosire acoperă restul zilei foii, nu și ziua următoare;
 -- (18) hr, manager, employee și org_admin-ul altei firme primesc zero rânduri;
 -- Drepturi
 -- (19) hr, manager, employee: nu văd, nu scriu (42501 / zero rânduri);
@@ -134,6 +135,7 @@ declare
   v_acc_alta  uuid;
   v_foaie     uuid;
   v_foaie_r   uuid;
+  v_foaie_o   uuid;
   v_numar     text;
   v_text      text;
   v_n         bigint;
@@ -300,6 +302,27 @@ begin
   v_esecuri := v_esecuri + pg_temp.verifica('17', v_m = 1 and v_n = 1,
     'în afara liniei și pe o foaie respinsă, sugestia revine la alocare',
     format('afară din linie %s, foaie respinsă %s', v_m, v_n));
+
+  -- (17b) o cursă fără sosire (încă pe drum) acoperă restul zilei foii, nu și ziua următoare
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_org, v_veh, v_e_ang, pg_temp.la(v_zi - 2, '08:00'), 10080, v_u_admin, v_u_admin)
+  returning id into v_foaie_o;
+  insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la,
+                                       de_la_loc, pana_la_loc, scop, km_plecare, created_by, updated_by)
+  values (v_org, v_foaie_o, pg_temp.la(v_zi - 2, '08:00'), 'Sediu', 'Client', 'Livrare', 10080,
+          v_u_admin, v_u_admin);
+  v_m := pg_temp.numara(v_u_admin, format(
+    $q$select count(*) from public.sofer_sugerat(%L, %L, %L) s
+       where s.employee_id = %L and s.sursa = 'foaie' and s.referinta_id = %L$q$,
+    v_org, v_veh, pg_temp.la(v_zi - 2, '15:00'), v_e_ang, v_foaie_o));
+  v_n := pg_temp.numara(v_u_admin, format(
+    $q$select count(*) from public.sofer_sugerat(%L, %L, %L) s
+       where s.employee_id = %L and s.sursa = 'alocare'$q$,
+    v_org, v_veh, pg_temp.la(v_zi - 1, '03:00'), v_e_coleg));
+  v_esecuri := v_esecuri + pg_temp.verifica('17b', v_m = 1 and v_n = 1,
+    'cursa fără sosire acoperă restul zilei foii (foaie), iar a doua zi sugestia revine la alocare',
+    format('în ziua foii %s, a doua zi %s', v_m, v_n));
 
   -- (18) ceilalți primesc zero rânduri
   v_n := pg_temp.numara(v_u_hr, format('select count(*) from public.sofer_sugerat(%L, %L, %L)',
