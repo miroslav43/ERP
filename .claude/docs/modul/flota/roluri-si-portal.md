@@ -40,9 +40,10 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
 ## Ce refuză baza tăcut sau cu P0001
 
 - **Pool-ul se vede, nu se administrează.** Sub `vehicles:read` own/team, un vehicul cu
-  `pool = true` intră în listă, documente și anomalii (`app.poate_vedea_vehicul` cu trei
-  argumente și `app.poate_vedea_vehicul_dupa_id`). Forma cu două argumente rămâne pentru
-  `alocari_select`.
+  `pool = true` intră în listă și în documente (`app.poate_vedea_vehicul` cu trei
+  argumente și `app.poate_vedea_vehicul_dupa_id`). Anomaliile NU urmează pool-ul: se văd
+  după șoferul vehiculului sau după foaia pe care s-au produs, deci anomalia colegului pe
+  mașina comună rămâne a lui. Forma cu două argumente rămâne pentru `alocari_select`.
 - **Foaia sub `all` cere mașina potrivită.** `internal.foi_parcurs_inainte` refuză cu
   P0001 („Vehiculul ales nu vă este alocat…”) o foaie pe un vehicul care nu e pool și nu
   are o alocare a șoferului în ziua plecării (ora României). Aceeași regulă la UPDATE,
@@ -52,6 +53,10 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
   care vede foaia). Când apelantul nu poate scrie foaia pe `trip_sheets:update`, triggerul
   admite doar `trimis` → `aprobat`/`respins`, cu motivul; orice altă coloană schimbată dă
   P0001. Managerul nu trimite, nu redeschide și nu rescrie foaia subordonatului.
+- **Foaia nu se mută pe alt șofer decât cu drept de scriere pe șoferul NOU** (§C3, din
+  revizia de securitate): altfel o foaie proprie trimisă devenea, într-un singur UPDATE,
+  foaia aprobată a unui subordonat. Tot de acolo: sub `approve` ≠ `all`, nimeni nu aprobă
+  o foaie întocmită (`created_by`) de el însuși.
 - **Foaia în numele altcuiva** sub `own` cade pe `foi_insert` (`app.poate_crea_foaie`) cu 42501. `creeazaFoaie` o refuză înainte, cu CONFLICT și text clar.
 - **Storage.** `app.can_path` verifică entitatea la `team` și `own` și pe `trip_sheets`
   (segmentul 3 = fișa șoferului) și pe `vehicles` (segmentul 3 = vehiculul, proprietar =

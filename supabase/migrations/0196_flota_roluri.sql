@@ -26,7 +26,12 @@
 --    verificările de mai jos privesc apelantul, prin `app.has_permission`,
 --    care avea deja precedența membrului.
 --
--- B. VEHICULELE POOL devin vizibile oricui are `vehicles:read` cel puțin `own`.
+-- B. VEHICULELE POOL devin vizibile oricui are `vehicles:read` cel puțin `own`,
+--    împreună cu DOCUMENTELE lor (ITP, RCA, rovinietă): sunt actele de bord ale
+--    mașinii pe care șoferul o poate lua, deci decizie asumată. ANOMALIILE de
+--    kilometraj NU urmează pool-ul: o anomalie e o suspiciune pe foaia unui
+--    om anume. Se văd după vehicul fără ramura de pool SAU după foaia pe care
+--    s-au produs (revizia de securitate).
 --    `app.poate_vedea_vehicul(org, șofer)` primește geamăna cu trei argumente
 --    (`…, pool`) pentru politica de pe `vehicles`, și
 --    `app.poate_vedea_vehicul_dupa_id(org, vehicul)` pentru tabelele copil
@@ -53,6 +58,14 @@
 --        când apelantul NU poate scrie foaia pe dreptul de scriere, singura
 --        schimbare permisă e decizia, `trimis` → `aprobat`/`respins`, cu
 --        motivul ei. Orice altă coloană schimbată dă P0001.
+--
+--    C3. (revizia de securitate, înainte de aplicare) C2 judecă foaia VECHE.
+--        Fără C3, un manager își lua foaia proprie trimisă și, într-un singur
+--        UPDATE, o muta pe un subordonat și o aproba: USING trecea pe foaia
+--        veche, WITH CHECK pe ramura de aprobare, iar garda „nu vă puteți
+--        aproba singur” compara șoferul NOU. Acum mutarea foii pe alt șofer
+--        cere dreptul de scriere și pe șoferul NOU, iar aprobarea unei foi
+--        întocmite de cel care aprobă e refuzată sub `approve = all`.
 --
 -- D. `app.can_path` (forma ultimă: 0144 §5). La `team`, orice resursă în afară
 --    de `employees`/`leave` trecea cu `true`. Acum `trip_sheets` (segmentul 3 =
@@ -224,6 +237,9 @@ create policy vdoc_select on public.vehicle_documents
     )
   );
 
+-- Anomaliile: vehiculul fără ramura de pool (exact vizibilitatea dinainte de
+-- 0196) SAU foaia pe care s-a produs anomalia. Pe un pool, șoferul își vede
+-- anomalia de pe foaia proprie, nu și pe ale colegilor.
 drop policy if exists anomalii_select on public.odometer_anomalies;
 create policy anomalii_select on public.odometer_anomalies
   for select to authenticated
@@ -232,7 +248,11 @@ create policy anomalii_select on public.odometer_anomalies
     or (
       organization_id = any ((select app.current_org_ids())::uuid[])
       and app.feature_on(organization_id, 'fleet')
-      and app.poate_vedea_vehicul_dupa_id(organization_id, vehicle_id)
+      and (
+        app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false)
+        or (trip_sheet_id is not null
+            and app.poate_vedea_foaie(organization_id, app.foaie_sofer(trip_sheet_id)))
+      )
     )
   );
 
@@ -267,6 +287,17 @@ begin
       raise exception using errcode = 'P0001',
         message = 'Foaia de parcurs a unui coleg se poate doar aproba sau respinge, după ce a fost trimisă. O completează și o trimite șoferul ei.';
     end if;
+  end if;
+
+  -- 0196 §C3: C2 judecă foaia VECHE. Mutarea foii pe alt șofer cere dreptul
+  -- de scriere și pe șoferul NOU, altfel foaia proprie trimisă devenea, într-un
+  -- singur UPDATE, foaia aprobată a unui subordonat.
+  if tg_op = 'UPDATE'
+     and not app.is_service_context()
+     and new.employee_id is distinct from old.employee_id
+     and not app.poate_scrie_foaie(new.organization_id, new.employee_id) then
+    raise exception using errcode = 'P0001',
+      message = 'Foaia se poate muta doar pe un șofer pentru care aveți drept de întocmire.';
   end if;
 
   select * into v_vehicul from public.vehicles v
@@ -392,6 +423,13 @@ begin
            and app.has_permission(new.organization_id, 'trip_sheets', 'approve') <> 'all' then
           raise exception using errcode = 'P0001',
             message = 'Nu vă puteţi aproba singur propria foaie de parcurs.';
+        end if;
+        -- 0196 §C3, apărare în adâncime: nici foaia întocmită de cel care
+        -- aprobă, oricare ar fi șoferul ei.
+        if old.created_by = (select auth.uid())
+           and app.has_permission(new.organization_id, 'trip_sheets', 'approve') <> 'all' then
+          raise exception using errcode = 'P0001',
+            message = 'Nu puteți aproba o foaie întocmită de dumneavoastră.';
         end if;
         new.aprobat_de := (select auth.uid());
       end if;
@@ -553,6 +591,8 @@ commit;
 --   0173.
 -- * C1 nu verifică dacă apelantul VEDE vehiculul: triggerul e SECURITY DEFINER,
 --   iar regula e despre dreptul de a conduce mașina, nu de a o citi.
+-- * C3 nu se aplică lui `org_admin` (update = all, approve = all): el poate
+--   întocmi o foaie pentru un șofer și o poate aproba.
 -- * C2 se sprijină pe `app.poate_scrie_foaie` (0016), filtrul pe `update`. Un
 --   `org_admin` (update = all) nu e atins. Contextul de serviciu (seed,
 --   importuri, psql) nu e atins de niciuna dintre gărzi.

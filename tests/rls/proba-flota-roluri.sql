@@ -34,6 +34,12 @@
 --  (18) managerul citește calea foilor subordonatului, nu și a unui străin de echipă;
 --  (19) angajatul citește calea mașinii lui și a pool-ului, nu a mașinii colegului;
 --  (20) managerul citește calea mașinii subordonatului, nu și a mașinii fără șofer.
+-- Revizia de securitate (0196, înainte de aplicare):
+--  (21) managerul NU își mută foaia trimisă pe subordonat aprobând-o în același UPDATE (P0001);
+--  (22) nici în doi pași: mutarea ciornei proprii pe subordonat e refuzată (P0001);
+--  (23) managerul NU aprobă o foaie întocmită de el, chiar dacă e pe subordonat (P0001);
+--  (24) angajatul vede mașina pool, dar NU anomalia de pe foaia colegului pe ea,
+--       și vede anomalia de pe propria foaie                            [POZITIVĂ].
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -63,6 +69,12 @@ declare
   v_foaie_pool uuid;
   v_foaie_b   uuid := gen_random_uuid();
   v_foaie_b2  uuid := gen_random_uuid();
+  v_foaie_m1  uuid := gen_random_uuid();
+  v_foaie_m2  uuid := gen_random_uuid();
+  v_foaie_m3  uuid := gen_random_uuid();
+  v_foaie_bp  uuid := gen_random_uuid();
+  v_anom_b    uuid := gen_random_uuid();
+  v_anom_a    uuid := gen_random_uuid();
   v_n         int;
   v_status    text;
   v_vazute    text;
@@ -504,11 +516,103 @@ begin
     raise warning '  ✗ (20) can_path pe vehicles la scope team nu se uită la entitate';
   end if;
 
+  -- ═══ Revizia de securitate ═══════════════════════════════════════════════
+
+  -- Foile managerului (context de serviciu): una trimisă și o ciornă, ambele pe
+  -- pool, plus o foaie pe subordonat întocmită DE manager (stare moștenită).
+  insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  sosire_la, km_sosire, status, created_by, updated_by) values
+    (v_foaie_m1, v_org, v_v_pool, v_e_mgr, now() - interval '50 hours', 40000,
+     now() - interval '49 hours', 40030, 'trimis', v_u_mgr, v_u_mgr),
+    (v_foaie_m3, v_org, v_v_pool, v_e_b,   now() - interval '46 hours', 40000,
+     now() - interval '45 hours', 40030, 'trimis', v_u_mgr, v_u_mgr);
+  insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by) values
+    (v_foaie_m2, v_org, v_v_pool, v_e_mgr, now() - interval '48 hours', 40000, v_u_mgr, v_u_mgr);
+
+  -- (21) un singur UPDATE: foaia proprie trimisă devine a subordonatului, aprobată
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set employee_id = v_e_b, status = 'aprobat', updated_by = v_u_mgr
+     where id = v_foaie_m1;
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 0 then
+      raise notice '  ✓ (21) foaia proprie nu devine aprobată pe subordonat (zero rânduri)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (21) managerul și-a aprobat foaia mutând-o pe subordonat';
+    end if;
+  exception when raise_exception or insufficient_privilege then
+    reset role;
+    raise notice '  ✓ (21) foaia proprie nu devine aprobată pe subordonat (%)', sqlstate;
+  end;
+
+  -- (22) primul din cei doi pași: mutarea ciornei pe subordonat
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set employee_id = v_e_b, updated_by = v_u_mgr where id = v_foaie_m2;
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 0 then
+      raise notice '  ✓ (22) ciorna proprie nu se mută pe subordonat (zero rânduri)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (22) managerul și-a mutat ciorna pe subordonat';
+    end if;
+  exception when raise_exception or insufficient_privilege then
+    reset role;
+    raise notice '  ✓ (22) ciorna proprie nu se mută pe subordonat (%)', sqlstate;
+  end;
+
+  -- (23) aprobarea unei foi întocmite de el, pe subordonat
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set status = 'aprobat', updated_by = v_u_mgr where id = v_foaie_m3;
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 0 then
+      raise notice '  ✓ (23) foaia întocmită de manager nu se aprobă de el (zero rânduri)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (23) managerul a aprobat o foaie întocmită de el însuși';
+    end if;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (23) foaia întocmită de manager nu se aprobă de el (P0001)';
+  end;
+
+  -- (24) anomaliile pe pool: a colegului nu, a mea da. Inserate din contextul de
+  -- serviciu (politica de INSERT le rezervă motorului).
+  insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by) values
+    (v_foaie_bp, v_org, v_v_pool, v_e_b, now() - interval '44 hours', 41000, v_u_b, v_u_b);
+  insert into public.odometer_anomalies (id, organization_id, vehicle_id, trip_sheet_id,
+                                         km_asteptat, km_declarat, tip) values
+    (v_anom_b, v_org, v_v_pool, v_foaie_bp,   40000, 45000, 'salt'),
+    (v_anom_a, v_org, v_v_pool, v_foaie_pool, 40000, 46000, 'salt');
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicles where id = v_v_pool;
+  select string_agg(case id when v_anom_a then 'a mea' when v_anom_b then 'a colegului' end, ',' order by id = v_anom_b)
+    into v_vazute
+    from public.odometer_anomalies where id in (v_anom_a, v_anom_b);
+  reset role;
+  if v_n = 1 and v_vazute = 'a mea' then
+    raise notice '  ✓ (24) angajatul vede pool-ul și anomalia lui, nu și a colegului';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (24) pool vizibil: %, anomalii văzute: %', v_n, v_vazute;
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA ROLURI: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 24 de verificări au trecut.';
+  raise notice '  TOATE cele 28 de verificări au trecut.';
   raise notice '';
 end;
 $$;
