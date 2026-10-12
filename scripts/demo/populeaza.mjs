@@ -4326,6 +4326,10 @@ const SESIZARI = [
 async function mentenanta() {
   console.log("── Mentenanță");
 
+  // `motiv_casare` / `casat_la` vin din `0182`. Pe o bază fără ea scriem fără ele:
+  // altfel întreaga etapă ar cădea cu 42703 pe primul echipament.
+  const cuCasare = await existaInBaza("equipment", "motiv_casare");
+
   const echipament = {};
   for (const e of ECHIPAMENTE) {
     const cheie =
@@ -4343,8 +4347,7 @@ async function mentenanta() {
       department_id: e.departament,
       responsabil_employee_id: e.responsabil === null ? null : ANGAJAT[e.responsabil],
       status: e.status,
-      motiv_casare: e.motivCasare ?? null,
-      casat_la: e.casatLa ?? null,
+      ...(cuCasare ? { motiv_casare: e.motivCasare ?? null, casat_la: e.casatLa ?? null } : {}),
       este_iscir: e.iscir === true,
       tip_autorizare_necesara: e.autorizare ?? null,
       valoare_achizitie: e.valoare,
