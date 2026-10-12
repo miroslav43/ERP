@@ -11,6 +11,8 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import { BUCKET_AVATARE, caleAvatar, verificaAvatar } from "@/lib/avatar/cale";
 import { caleInPrefix } from "@/lib/documents/cale";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { citestePrimiiOcteti } from "@/lib/storage/primii-octeti";
+import { MESAJ_CONTINUT_NEPOTRIVIT, potrivesteSemnatura } from "@/lib/storage/semnatura";
 import type { ActionContext } from "@/lib/actions/types";
 
 const idAngajat = z.object({ employeeId: z.uuid() });
@@ -73,15 +75,24 @@ export const salveazaAvatarAngajat = createAction({
   handler: async (ctx: ActionContext, input) => {
     const userId = await userIdAngajat(ctx, input.employeeId);
     const masurat = await masoaraObiectul(ctx.supabase, BUCKET_AVATARE, input.cale);
-    const problemaFisier =
-      masurat === null
-        ? "Fotografia încărcată nu mai este disponibilă. Reluați încărcarea."
-        : verificaAvatar(masurat.mime, masurat.octeti);
+    if (masurat === null) {
+      throw businessRule("Fotografia încărcată nu mai este disponibilă. Reluați încărcarea.");
+    }
+    const problemaFisier = verificaAvatar(masurat.mime, masurat.octeti);
     if (problemaFisier !== null) throw businessRule(problemaFisier);
 
     if (!caleInPrefix(input.cale, `${userId}/`)) {
       throw businessRule("Calea fișierului nu corespunde acestui angajat.");
     }
+
+    // Tipul măsurat e tot antetul declarat la urcare; ce E fișierul se vede în
+    // primii lui octeți. Obiectul respins rămâne în bucket, ca orice poză
+    // veche (0029): nu există politică DELETE pe `storage.objects`.
+    const octeti = await citestePrimiiOcteti(ctx.supabase, BUCKET_AVATARE, input.cale);
+    if (octeti === null || !potrivesteSemnatura(masurat.mime, octeti)) {
+      throw businessRule(MESAJ_CONTINUT_NEPOTRIVIT);
+    }
+
     const { error } = await ctx.supabase.rpc("set_member_avatar", {
       p_organization_id: ctx.tenant.organizationId,
       p_user_id: userId,

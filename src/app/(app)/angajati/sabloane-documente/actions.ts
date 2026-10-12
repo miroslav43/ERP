@@ -7,6 +7,8 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { BUCKET_BRANDING } from "@/lib/pdf/antet-organizatie";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { citestePrimiiOcteti } from "@/lib/storage/primii-octeti";
+import { MESAJ_CONTINUT_NEPOTRIVIT, potrivesteSemnatura } from "@/lib/storage/semnatura";
 import { stergeLogic } from "@/lib/supabase/sterge-logic";
 import { curataHtml, variabileFolosite } from "@/lib/documents/curata-html";
 import {
@@ -461,6 +463,14 @@ export const salveazaSigla = createAction<typeof salveazaSiglaSchema, BrandingSa
     }
     if (!(SIGLA_MIME_ACCEPTAT as readonly string[]).includes(masurat.mime)) {
       throw businessRule("Sigla trebuie să fie PNG sau JPEG.");
+    }
+
+    // Tipul măsurat e tot antetul declarat la urcare; ce E fișierul se vede în
+    // primii lui octeți. Aici contează dublu: `pdf-lib` nu poate încorpora
+    // altceva decât PNG/JPEG adevărate, iar sigla ar dispărea tăcut din PDF.
+    const octeti = await citestePrimiiOcteti(ctx.supabase, BUCKET_BRANDING, input.cale);
+    if (octeti === null || !potrivesteSemnatura(masurat.mime, octeti)) {
+      throw businessRule(MESAJ_CONTINUT_NEPOTRIVIT);
     }
 
     return scrieBranding(

@@ -15,6 +15,8 @@ import { requireUser } from "@/lib/auth/current-user";
 import { BUCKET_AVATARE, caleAvatar, verificaAvatar } from "@/lib/avatar/cale";
 import { caleInPrefix } from "@/lib/documents/cale";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { citestePrimiiOcteti } from "@/lib/storage/primii-octeti";
+import { MESAJ_CONTINUT_NEPOTRIVIT, potrivesteSemnatura } from "@/lib/storage/semnatura";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { schemaParolaNoua, schemaProfilPropriu } from "@/schemas/profile";
 import { isPostgrestError, mapPostgrestError } from "./errors";
@@ -173,12 +175,30 @@ export async function salveazaAvatarulPropriu(rawInput: unknown): Promise<Action
   // Fotografia REALĂ, nu cea declarată la pasul de pregătire: tokenul semnat nu
   // fixează nici tipul, nici mărimea, deci după el se putea urca orice.
   const masurat = await masoaraObiectul(db, BUCKET_AVATARE, parsat.data.cale);
-  const problemaFisier =
-    masurat === null
-      ? "Fotografia încărcată nu mai este disponibilă. Reluați încărcarea."
-      : verificaAvatar(masurat.mime, masurat.octeti);
+  if (masurat === null) {
+    return esec({
+      code: "VALIDARE",
+      message: "Fotografia încărcată nu mai este disponibilă. Reluați încărcarea.",
+      fieldErrors: null,
+      requestId,
+    });
+  }
+  const problemaFisier = verificaAvatar(masurat.mime, masurat.octeti);
   if (problemaFisier !== null) {
     return esec({ code: "VALIDARE", message: problemaFisier, fieldErrors: null, requestId });
+  }
+
+  // Tipul măsurat e tot antetul declarat la urcare; ce E fișierul se vede în
+  // primii lui octeți, citiți sub sesiunea proprie. Obiectul respins rămâne în
+  // bucket, ca orice poză veche (0029): nu există politică DELETE.
+  const octeti = await citestePrimiiOcteti(db, BUCKET_AVATARE, parsat.data.cale);
+  if (octeti === null || !potrivesteSemnatura(masurat.mime, octeti)) {
+    return esec({
+      code: "VALIDARE",
+      message: MESAJ_CONTINUT_NEPOTRIVIT,
+      fieldErrors: null,
+      requestId,
+    });
   }
 
   const { error } = await db

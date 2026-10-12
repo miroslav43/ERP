@@ -5,7 +5,7 @@
 // ale lui `createAction` sunt verificate în testul canonic
 // (`salarizare/actions.test.ts`).
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -39,6 +39,7 @@ import {
   ORG_ID,
   USER_ID,
 } from "@/lib/teste/actiune";
+import { OCTETI_PNG, OCTETI_ZEROURI, octetiUrcati } from "@/lib/teste/octeti";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import { pregatesteIncarcareAvatarAngajat, salveazaAvatarAngajat } from "./avatar-actions";
 import { asociazaComponenta, incheieComponentaAngajat } from "./componente-actions";
@@ -119,13 +120,25 @@ describe("pregatesteIncarcareAvatarAngajat", () => {
   });
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("salveazaAvatarAngajat", () => {
   const PERMIS = { "users:update": "all" } as const;
   const cale = `${CONT_ANGAJAT}/abc-poza.png`;
 
-  function programeaza(server: ReturnType<typeof configureazaActiunea>["server"]) {
+  /** Contul angajatului, obiectul măsurat, apoi capul lui citit sub sesiunea apelantului. */
+  function programeaza(
+    server: ReturnType<typeof configureazaActiunea>["server"],
+    octeti: Uint8Array = OCTETI_PNG,
+  ) {
     server.raspunde("employees", "select", { data: { user_id: CONT_ANGAJAT } });
     server.raspundeStocare("avatars", "info", { data: { size: 1000, contentType: "image/png" } });
+    server.raspundeStocare("avatars", "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(octeti);
   }
 
   it("users:update sub `all` (team): INTERZIS", async () => {
@@ -149,6 +162,10 @@ describe("salveazaAvatarAngajat", () => {
       p_user_id: CONT_ANGAJAT,
       p_avatar_path: cale,
     });
+    expect(server.apeluriStocare).toEqual([
+      { bucket: "avatars", metoda: "info", argumente: [cale] },
+      { bucket: "avatars", metoda: "createSignedUrl", argumente: [cale, 60] },
+    ]);
     expect(caiRevalidate()).toEqual([
       `/angajati/${ID_1}`,
       "/organigrama",
@@ -191,6 +208,17 @@ describe("salveazaAvatarAngajat", () => {
     const r = await salveazaAvatarAngajat({ employeeId: ID_1, cale });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     expect(caiRevalidate()).toEqual([]);
+  });
+
+  it("zerouri urcate cu antet `image/png`: CONFLICT după conținut, fără RPC", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server, OCTETI_ZEROURI);
+    const r = await salveazaAvatarAngajat({ employeeId: ID_1, cale });
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("conținutul tipului declarat") },
+    });
+    expect(server.apeluriRpc.filter((a) => a.nume === "set_member_avatar")).toHaveLength(0);
   });
 });
 

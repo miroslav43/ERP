@@ -33,7 +33,11 @@ import {
   construiesteCaleDocument,
   prefixCaleDocument,
   caleInPrefix,
+  verificaDocument,
 } from "@/lib/documents/cale";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { citestePrimiiOcteti } from "@/lib/storage/primii-octeti";
+import { MESAJ_CONTINUT_NEPOTRIVIT, potrivesteSemnatura } from "@/lib/storage/semnatura";
 import {
   sincronizeazaZileleDeConcediu,
   type TipZiPontaj,
@@ -139,6 +143,52 @@ function verificaCaleaDocumentului(
     throw invalidInput("Documentul atașat nu aparține acestei cereri.", {
       atasament_path: ["Cale invalidă."],
     });
+  }
+}
+
+/**
+ * Nici conținutul documentului nu se crede pe cuvânt.
+ *
+ * Până la 12 oct 2026, cererea verifica doar CALEA atașamentului: un fișier
+ * de 200 de octeți plini de zerouri, declarat `application/pdf` de browser,
+ * ajungea „Document justificativ” al unui concediu medical (ANG-014). Aici se
+ * citește ce a ajuns CHIAR în Storage — mărimea și tipul (`masoaraObiectul`),
+ * apoi primii octeți (`citestePrimiiOcteti`), comparați cu semnătura tipului
+ * măsurat. Totul sub sesiunea apelantului: RLS-ul de Storage decide dacă își
+ * poate citi înapoi propriul fișier.
+ *
+ * Se cheamă DUPĂ `verificaCaleaDocumentului` (calea e deja sub prefixul fișei)
+ * și ÎNAINTE de orice citire a tipului de concediu — un atașament fals nu
+ * merită un drum la bază. Un singur punct acoperă ambele ecrane (portalul și
+ * dialogul de resurse umane); amândouă afișează deja erorile de pe
+ * `atasament_path` în `IncarcareDocumentConcediu`.
+ */
+async function verificaDocumentulAtasat(ctx: ActionContext, cale: string | null): Promise<void> {
+  if (cale === null || cale.trim().length === 0) return;
+
+  const masurat = await masoaraObiectul(ctx.supabase, BUCKET_DOCUMENTE, cale);
+  if (masurat === null) {
+    const mesaj = "Documentul atașat nu mai este disponibil. Încărcați-l din nou.";
+    throw invalidInput(mesaj, { atasament_path: [mesaj] });
+  }
+
+  const problema = verificaDocument(masurat.mime, masurat.octeti);
+  const octeti =
+    problema === null ? await citestePrimiiOcteti(ctx.supabase, BUCKET_DOCUMENTE, cale) : null;
+  if (problema !== null || octeti === null || !potrivesteSemnatura(masurat.mime, octeti)) {
+    /*
+     * Fișierul nu e ce pretinde: iese din bucket, ca să nu rămână un obiect
+     * orfan pe care nimeni nu-l mai revendică.
+     *
+     * DE CE ocolim RLS: `storage.objects` NU are politică DELETE
+     * (0002_authz.sql, finalul secțiunii 9 — ștergerea trece prin
+     * service_role), deci cu clientul utilizatorului nu se poate șterge nimic.
+     * Calea a trecut deja `caleInPrefix` pe prefixul organizației și al fișei,
+     * deci nu poate atinge alt tenant.
+     */
+    await createAdminSupabase().storage.from(BUCKET_DOCUMENTE).remove([cale]);
+    const mesaj = problema ?? MESAJ_CONTINUT_NEPOTRIVIT;
+    throw invalidInput(mesaj, { atasament_path: [mesaj] });
   }
 }
 
@@ -649,8 +699,10 @@ export const creeazaCerereConcediu = createAction({
     }
 
     // Documentul urcat înaintea cererii trebuie să stea în dosarul ACESTUI
-    // angajat. Poarta de Storage a păzit scrierea fișierului, nu referința.
+    // angajat. Poarta de Storage a păzit scrierea fișierului, nu referința —
+    // și nici conținutul lui, care se verifică imediat după.
     verificaCaleaDocumentului(ctx.tenant.organizationId, employeeId, input.atasament_path);
+    await verificaDocumentulAtasat(ctx, input.atasament_path);
 
     // ── (2) Tipul de concediu ───────────────────────────────────────────────
     const { data: tip, error: eroareTip } = await ctx.supabase

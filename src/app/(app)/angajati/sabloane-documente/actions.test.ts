@@ -4,7 +4,7 @@
 // antetul firmei (poziție, siglă). Straturile comune ale lui `createAction`
 // sunt verificate în testul canonic (`salarizare/actions.test.ts`).
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -37,6 +37,7 @@ import {
   ORG_ID,
   USER_ID,
 } from "@/lib/teste/actiune";
+import { OCTETI_PNG, OCTETI_ZEROURI, octetiUrcati } from "@/lib/teste/octeti";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import {
   creeazaSablonPersonalizat,
@@ -554,6 +555,10 @@ describe("pregatesteSigla", () => {
   });
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("salveazaSigla", () => {
   const PERMIS = { "branding:update": "all" } as const;
   const cale = `${ORG_ID}/branding/logo/${ID_1}.png`;
@@ -566,6 +571,14 @@ describe("salveazaSigla", () => {
     );
   }
 
+  /** Capul obiectului, citit printr-un URL semnat sub sesiunea apelantului. */
+  function capulUrcat(server: Fals, octeti: Uint8Array) {
+    server.raspundeStocare(BUCKET, "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(octeti);
+  }
+
   it("branding:update sub `all` (team): INTERZIS", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "branding:update": "team" } });
     const r = await salveazaSigla({ cale });
@@ -576,13 +589,17 @@ describe("salveazaSigla", () => {
   it("succes: verifică obiectul real și scrie calea, cu sigla pornită pe documente", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });
     programeaza(server, { size: 2000, contentType: "image/png" });
+    capulUrcat(server, OCTETI_PNG);
     server.raspunde("organization_branding", "select", { data: { organization_id: ORG_ID } });
     server.raspunde("organization_branding", "update", { data: { organization_id: ORG_ID } });
 
     const r = await salveazaSigla({ cale });
 
     expect(r).toEqual({ ok: true, data: { organizationId: ORG_ID } });
-    expect(server.apeluriStocare[0]).toMatchObject({ bucket: BUCKET, metoda: "info" });
+    expect(server.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "info", argumente: [cale] },
+      { bucket: BUCKET, metoda: "createSignedUrl", argumente: [cale, 60] },
+    ]);
     expect(server.apeluriPe("organization_branding", "update")[0]?.payload).toMatchObject({
       logo_light_path: cale,
       antet_arata_logo: true,
@@ -614,6 +631,18 @@ describe("salveazaSigla", () => {
     programeaza(server, masurat);
     const r = await salveazaSigla({ cale });
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("zerouri urcate cu antet `image/png`: CONFLICT după conținut, fără scriere", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server, { size: 1024, contentType: "image/png" });
+    capulUrcat(server, OCTETI_ZEROURI);
+    const r = await salveazaSigla({ cale });
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: expect.stringContaining("conținutul tipului declarat") },
+    });
     expect(server.apeluri).toHaveLength(0);
   });
 });

@@ -14,6 +14,8 @@ import {
 } from "@/lib/documents/cale";
 import { adunaContextInrolare } from "@/lib/documents/context-angajat";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { citestePrimiiOcteti } from "@/lib/storage/primii-octeti";
+import { MESAJ_CONTINUT_NEPOTRIVIT, potrivesteSemnatura } from "@/lib/storage/semnatura";
 import {
   coduriEligibile,
   genereazaDocumenteInrolare,
@@ -167,6 +169,31 @@ export const salveazaDocument = createAction({
     }
     const problema = verificaDocument(masurat.mime, masurat.octeti);
     if (problema !== null) throw invalidInput(problema, { cale: [problema] });
+
+    /*
+     * Tipul MĂSURAT e tot antetul `content-type` cu care s-a urcat — declarat
+     * de client. Un fișier de 1024 de zerouri numit `.pdf` trecea până aici și
+     * ajungea în dosar ca „Confidențial” (HR-003). Ce E fișierul se vede abia
+     * în primii lui octeți, citiți din obiectul real sub sesiunea apelantului.
+     *
+     * Cheia e `fisier`, nu `cale`: formularul are `<Camp nume="fisier">`, iar
+     * `cale` nu are niciun câmp vizibil pe care mesajul să poată sta.
+     */
+    const octeti = await citestePrimiiOcteti(ctx.supabase, BUCKET_DOCUMENTE, input.cale);
+    if (octeti === null || !potrivesteSemnatura(masurat.mime, octeti)) {
+      /*
+       * Fișierul nu e ce pretinde: iese din bucket, ca să nu rămână un obiect
+       * orfan pe care nimeni nu-l mai revendică.
+       *
+       * DE CE ocolim RLS: `storage.objects` NU are politică DELETE
+       * (0002_authz.sql, finalul secțiunii 9 — ștergerea trece prin
+       * service_role), deci cu clientul utilizatorului nu se poate șterge
+       * nimic. Calea a trecut deja `caleInPrefix` pe prefixul organizației și
+       * al angajatului, deci nu poate atinge alt tenant.
+       */
+      await createAdminSupabase().storage.from(BUCKET_DOCUMENTE).remove([input.cale]);
+      throw invalidInput(MESAJ_CONTINUT_NEPOTRIVIT, { fisier: [MESAJ_CONTINUT_NEPOTRIVIT] });
+    }
 
     const { data, error } = await ctx.supabase
       .from("employee_documents")

@@ -5,7 +5,7 @@
 // regenerare). Straturile comune ale lui `createAction` sunt verificate în
 // testul canonic (`salarizare/actions.test.ts`).
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -52,6 +52,7 @@ import {
   ORG_ID,
   USER_ID,
 } from "@/lib/teste/actiune";
+import { OCTETI_PDF, OCTETI_ZEROURI, octetiUrcati } from "@/lib/teste/octeti";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import {
   anuleazaDocumentEmis,
@@ -72,6 +73,10 @@ beforeEach(() => {
   doc.aduna.mockReset();
   doc.genereaza.mockReset();
   doc.personalizat.mockReset();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 type Fals = ReturnType<typeof configureazaActiunea>["server"];
@@ -141,9 +146,22 @@ describe("salveazaDocument", () => {
     vizibilAngajatului: false,
   };
 
-  function programeaza(server: Fals, masurat = { size: 4321, contentType: "application/pdf" }) {
+  /**
+   * Drumul până la insert: fișa vie, obiectul măsurat, apoi capul lui citit
+   * printr-un URL semnat sub sesiunea apelantului (`octeti` e ce întoarce
+   * `fetch`).
+   */
+  function programeaza(
+    server: Fals,
+    masurat = { size: 4321, contentType: "application/pdf" },
+    octeti: Uint8Array = OCTETI_PDF,
+  ) {
     server.raspunde("employees", "select", { data: { id: ID_1 } });
     server.raspundeStocare(BUCKET, "info", { data: masurat });
+    server.raspundeStocare(BUCKET, "createSignedUrl", {
+      data: { signedUrl: "https://semnat/obj" },
+    });
+    octetiUrcati(octeti);
   }
 
   it("employees:update sub `team` (own): INTERZIS", async () => {
@@ -179,7 +197,48 @@ describe("salveazaDocument", () => {
     expect(areFiltru(fisa, "eq", "id", ID_1)).toBe(true);
     expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
+    // Capul fișierului se citește din obiectul REAL, sub sesiunea apelantului.
+    expect(server.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "info", argumente: [intrare.cale] },
+      { bucket: BUCKET, metoda: "createSignedUrl", argumente: [intrare.cale, 60] },
+    ]);
     expect(server.neconsumate()).toEqual([]);
+  });
+
+  it("fișier de zerouri declarat PDF (HR-003): VALIDARE pe `fisier`, obiectul e șters prin clientul de serviciu, niciun insert", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    programeaza(server, { size: 1024, contentType: "application/pdf" }, OCTETI_ZEROURI);
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+    const r = await salveazaDocument(intrare);
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("fisier");
+    expect(r.error.message).toContain("conținutul tipului declarat");
+    expect(admin.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "remove", argumente: [[intrare.cale]] },
+    ]);
+    expect(server.apeluriPe("employee_documents", "insert")).toHaveLength(0);
+  });
+
+  it("Storage nu poate semna citirea capului: tratat ca fișier nevalid, obiectul se curăță, niciun insert", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("employees", "select", { data: { id: ID_1 } });
+    server.raspundeStocare(BUCKET, "info", {
+      data: { size: 4321, contentType: "application/pdf" },
+    });
+    server.raspundeStocare(BUCKET, "createSignedUrl", { error: { message: "refuzat" } });
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+    const r = await salveazaDocument(intrare);
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(admin.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "remove", argumente: [[intrare.cale]] },
+    ]);
+    expect(server.apeluriPe("employee_documents", "insert")).toHaveLength(0);
   });
 
   it("fișă inexistentă sau invizibilă: NEGASIT, nicio măsurare, niciun insert", async () => {

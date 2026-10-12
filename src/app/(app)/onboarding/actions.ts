@@ -5,6 +5,8 @@ import { createAction } from "@/lib/actions/create-action";
 import type { ActionContext } from "@/lib/actions/types";
 import { caleInPrefix } from "@/lib/documents/cale";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { citestePrimiiOcteti } from "@/lib/storage/primii-octeti";
+import { MESAJ_CONTINUT_NEPOTRIVIT, potrivesteSemnatura } from "@/lib/storage/semnatura";
 import {
   BUCKET_CHECKLISTS,
   construiesteCaleDovada,
@@ -383,6 +385,15 @@ export const salveazaDovada = createAction({
     const problemaFisier = verificaDovada({ size: masurat.octeti, type: masurat.mime });
     if (problemaFisier !== null) {
       throw invalidInput(problemaFisier.mesaj, { cale: [problemaFisier.mesaj] });
+    }
+
+    // Tipul măsurat e tot antetul declarat la urcare; ce E fișierul se vede în
+    // primii lui octeți, citiți din obiect sub sesiunea apelantului. Obiectul
+    // respins rămâne în bucket, ca orice dovadă înlocuită: nu există politică
+    // DELETE pe `storage.objects`, iar modulul nu ocolește RLS pentru asta.
+    const octeti = await citestePrimiiOcteti(ctx.supabase, BUCKET_CHECKLISTS, input.cale);
+    if (octeti === null || !potrivesteSemnatura(masurat.mime, octeti)) {
+      throw invalidInput(MESAJ_CONTINUT_NEPOTRIVIT, { cale: [MESAJ_CONTINUT_NEPOTRIVIT] });
     }
 
     const { data, error } = await ctx.supabase

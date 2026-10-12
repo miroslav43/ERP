@@ -9,7 +9,7 @@
 // testul canonic (`salarizare/actions.test.ts`); aici doar permisiunea și
 // handlerul.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -56,8 +56,11 @@ import {
   ORG_ID,
   USER_ID,
 } from "@/lib/teste/actiune";
+import { OCTETI_PDF, OCTETI_ZEROURI, octetiUrcati } from "@/lib/teste/octeti";
 import { areFiltru, eroarePostgrest, type ClientFals } from "@/lib/teste/supabase-fals";
 import { creeazaCerereConcediu } from "./actions";
+
+const BUCKET = "org-documents";
 
 const FISA = ID_2;
 const TIP = ID_3;
@@ -115,11 +118,26 @@ function trimitereCurata(server: ClientFals, ramase: number | null = 21) {
   server.raspunde("leave_requests", "insert", { data: { id: CERERE, zile_lucratoare: 5 } });
 }
 
+/** Documentul atașat există în Storage, cu tipul măsurat și capul dat. */
+function documentUrcat(
+  server: ClientFals,
+  masurat = { size: 4321, contentType: "application/pdf" },
+  octeti: Uint8Array = OCTETI_PDF,
+) {
+  server.raspundeStocare(BUCKET, "info", { data: masurat });
+  server.raspundeStocare(BUCKET, "createSignedUrl", { data: { signedUrl: "https://semnat/obj" } });
+  octetiUrcati(octeti);
+}
+
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   colaboratori.sincronizeazaZileleDeConcediu.mockReset();
   colaboratori.declaraSuspendareaContractului.mockReset();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("creeazaCerereConcediu — autorizare și fișa țintă", () => {
@@ -226,12 +244,14 @@ describe("creeazaCerereConcediu — autorizare și fișa țintă", () => {
 });
 
 describe("creeazaCerereConcediu — documentul atașat", () => {
-  it("calea din dosarul propriu e acceptată și ajunge în rând", async () => {
+  const cale = `${ORG_ID}/leave/${FISA}/abc-certificat.pdf`;
+
+  it("calea din dosarul propriu, cu un PDF adevărat în Storage, e acceptată și ajunge în rând", async () => {
     const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
     fisaProprie(admin);
+    documentUrcat(server);
     server.raspunde("leave_types", "select", { data: tipOdihna() });
     server.raspunde("leave_requests", "insert", { data: { id: CERERE, zile_lucratoare: 5 } });
-    const cale = `${ORG_ID}/leave/${FISA}/abc-certificat.pdf`;
 
     const r = await creeazaCerereConcediu(intrare({ atasament_path: cale }));
 
@@ -239,6 +259,81 @@ describe("creeazaCerereConcediu — documentul atașat", () => {
     expect(server.apeluriPe("leave_requests", "insert")[0]?.payload).toMatchObject({
       atasament_path: cale,
     });
+    // Obiectul e măsurat și capul lui citit SUB SESIUNEA ANGAJATULUI, nu prin admin.
+    expect(server.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "info", argumente: [cale] },
+      { bucket: BUCKET, metoda: "createSignedUrl", argumente: [cale, 60] },
+    ]);
+    expect(admin.apeluriStocare).toHaveLength(0);
+  });
+
+  it("fără atașament: nu se atinge Storage deloc", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspunde("leave_types", "select", { data: tipOdihna() });
+    server.raspunde("leave_requests", "insert", { data: { id: CERERE, zile_lucratoare: 5 } });
+
+    const r = await creeazaCerereConcediu(intrare());
+
+    expect(r.ok).toBe(true);
+    expect(server.apeluriStocare).toHaveLength(0);
+  });
+
+  it("atașament ale cărui octeți nu sunt PDF (ANG-014): VALIDARE pe `atasament_path`, obiectul e șters prin clientul de serviciu, nicio inserare", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    documentUrcat(server, { size: 1024, contentType: "application/pdf" }, OCTETI_ZEROURI);
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+    const r = await creeazaCerereConcediu(intrare({ atasament_path: cale }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("atasament_path");
+    expect(r.error.message).toContain("conținutul tipului declarat");
+    expect(admin.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "remove", argumente: [[cale]] },
+    ]);
+    expect(server.apeluriPe("leave_types")).toHaveLength(0);
+    expect(server.apeluriPe("leave_requests")).toHaveLength(0);
+  });
+
+  it("atașament urcat cu un tip nepermis (deși browserul a declarat PDF): VALIDARE cu mesajul tipului, obiectul e șters", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspundeStocare(BUCKET, "info", {
+      data: { size: 10, contentType: "application/x-msdownload" },
+    });
+    admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+    const r = await creeazaCerereConcediu(intrare({ atasament_path: cale }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("atasament_path");
+    expect(r.error.message).toContain("Acceptăm doar");
+    expect(admin.apeluriStocare).toEqual([
+      { bucket: BUCKET, metoda: "remove", argumente: [[cale]] },
+    ]);
+    expect(server.apeluriPe("leave_requests")).toHaveLength(0);
+  });
+
+  it("atașament dispărut din Storage: VALIDARE pe `atasament_path`, nicio inserare, nicio ștergere", async () => {
+    const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: PROPRIU });
+    fisaProprie(admin);
+    server.raspundeStocare(BUCKET, "info", { error: { message: "Object not found" } });
+
+    const r = await creeazaCerereConcediu(intrare({ atasament_path: cale }));
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.code).toBe("VALIDARE");
+    expect(r.error.fieldErrors).toHaveProperty("atasament_path");
+    expect(r.error.message).toContain("nu mai este disponibil");
+    expect(admin.apeluriStocare).toHaveLength(0);
+    expect(server.apeluriPe("leave_requests")).toHaveLength(0);
   });
 
   it.each([

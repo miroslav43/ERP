@@ -105,33 +105,10 @@ export function verificaSubtitrare(mime: string, dimensiune: number): string | n
 }
 
 /**
- * Semnăturile de început de fișier („magic bytes").
- *
- * MIME-ul trimis de formular e cel declarat de browser — un HTML redenumit
- * `.mp4` îl raportează cum vrea cel care încarcă. Verificarea reală se face pe
- * server, citind primii octeți ai obiectului DEJA încărcat, înainte de a scrie
- * rândul. La nepotrivire obiectul se șterge și rândul se refuză.
+ * Semnăturile de început de fișier („magic bytes") au plecat în
+ * `src/lib/storage/semnatura.ts`, de unde le folosesc toate cele șapte căi de
+ * încărcare, nu doar cursurile. Re-exportul rămâne pentru apelanții de aici.
+ * (Nu se putea extinde pe loc: fișierul ăsta importă `slugFisier` din
+ * `documents/cale.ts`, iar dosarul și concediile ar fi importat invers — ciclu.)
  */
-export function potrivesteSemnatura(mime: string, primiiOcteti: Uint8Array): boolean {
-  const are = (offset: number, ...octeti: number[]): boolean =>
-    octeti.every((o, i) => primiiOcteti[offset + i] === o);
-
-  switch (mime) {
-    case "application/pdf":
-      // "%PDF"
-      return are(0, 0x25, 0x50, 0x44, 0x46);
-    case "video/mp4":
-      // "ftyp" la offset 4, în caseta de tip a containerului ISO-BMFF.
-      return are(4, 0x66, 0x74, 0x79, 0x70);
-    case "video/webm":
-      // Antetul EBML.
-      return are(0, 0x1a, 0x45, 0xdf, 0xa3);
-    case "text/vtt": {
-      // "WEBVTT", eventual după marca de ordine a octeților UTF-8.
-      const start = are(0, 0xef, 0xbb, 0xbf) ? 3 : 0;
-      return are(start, 0x57, 0x45, 0x42, 0x56, 0x54, 0x54);
-    }
-    default:
-      return false;
-  }
-}
+export { potrivesteSemnatura } from "@/lib/storage/semnatura";
