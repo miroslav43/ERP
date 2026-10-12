@@ -13,7 +13,7 @@ cai:
   - "supabase/migrations/0182_echipamente_ciclu.sql"
   - "supabase/migrations/0183_planuri_scadente.sql"
   - "supabase/migrations/0191_mentenanta_zilnica.sql"
-  - "supabase/migrations/0192_mentenanta_interventii_complete.sql"
+  - "supabase/migrations/0210_mentenanta_interventii_complete.sql"
 tabele:
   [
     equipment,
@@ -50,9 +50,9 @@ echipamentului (casare, componente, garanție, contoare în lot, etichete QR, re
 calcul, amânare, proiecție pe contor, fișa planului — `0183`): [[modul/mentenanta/planuri]].
 Jobul de dimineață (alerte, rezumatul per destinatar, închiderea automată, pragurile din
 setări — `0191`): [[modul/mentenanta/zilnic]]. Intervenția completă (număr PV, piese,
-corectare, anulare, procesul-verbal, garanția lucrării — `0192`):
+corectare, anulare, procesul-verbal, garanția lucrării — `0210`):
 [[modul/mentenanta/interventii]]. ISCIR și verificările legale (regim RSVTI, suspendare,
-reînnoire, categoriile legale, dosarul de control — `0193`): [[modul/mentenanta/iscir]].
+reînnoire, categoriile legale, dosarul de control — `0211`): [[modul/mentenanta/iscir]].
 Raportul pe perioadă (costuri, disponibilitate, MTTR/MTBF, „la timp”, CSV — M8, fără
 migrare): [[modul/mentenanta/rapoarte]].
 
@@ -182,7 +182,7 @@ restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()
 - **Scadența pe contor pornește de la contorul real** (0180): planul nou fără
   `ultima_citire_contor` ia ultima citire a echipamentului; schema de editare OMITE coloana.
 - **Autorizația ISCIR are rândurile ei în `expirables`** (0180): `kind` fix, nu `tip`-ul
-  liber; suspendarea, planul dezactivat și (din 0193) rândul înlocuit prin reînnoire ies
+  liber; suspendarea, planul dezactivat și (din 0211) rândul înlocuit prin reînnoire ies
   din scadențe — v. [[modul/mentenanta/iscir]].
 - **O intervenție pe planul altui echipament e refuzată** cu P0001 (0180); o corecție de
   citire nu sare peste citirea URMĂTOARE. Proba: `tests/rls/proba-mentenanta-integritate.sql`.

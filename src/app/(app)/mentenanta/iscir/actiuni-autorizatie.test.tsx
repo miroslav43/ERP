@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  *  · reînnoirea trimite id-ul rândului VECHI și datele documentului nou, fără
  *    tip/regim (le moștenește rândul nou), cu numărul vechi precompletat;
  *  · suspendarea trimite data și motivul; ridicarea ei trece prin confirmare;
- *  · corectarea unei autorizații cu tip scris liber (dinainte de 0193) păstrează
+ *  · corectarea unei autorizații cu tip scris liber (dinainte de 0211) păstrează
  *    tipul vechi, nu îl schimbă tăcut în primul din listă;
  *  · confirmarea ștergerii spune consecința: o reînnoire ștearsă readuce
  *    autorizația anterioară.

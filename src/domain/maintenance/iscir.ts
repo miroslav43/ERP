@@ -1,6 +1,6 @@
 // src/domain/maintenance/iscir.ts
 /**
- * Autorizațiile ISCIR (M7, 0193): lista de tipuri, semaforul, legătura cu
+ * Autorizațiile ISCIR (M7, 0211): lista de tipuri, semaforul, legătura cu
  * categoriile de verificări legale și alerta RSVTI. Funcții pure, fără I/O.
  *
  * ── AVERTIZARE, NU BLOCARE ────────────────────────────────────────────────
@@ -10,7 +10,7 @@
  * ști dacă PV-ul nou e deja în sertar.
  *
  * ── `tip` RĂMÂNE TEXT ─────────────────────────────────────────────────────
- * Rândurile dinainte de 0193 au tipul scris liber („Macara capră 5t”), iar
+ * Rândurile dinainte de 0211 au tipul scris liber („Macara capră 5t”), iar
  * coloana nu are CHECK. Lista de mai jos e cea pe care o oferă formularul;
  * `etichetaTipIscir` arată textul vechi așa cum e.
  */

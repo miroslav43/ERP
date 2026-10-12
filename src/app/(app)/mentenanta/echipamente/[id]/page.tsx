@@ -233,7 +233,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
   const oprireDeschisa = opriri.find((o) => o.sfarsit === null) ?? null;
   const inGarantie = echipament.garantie_expira !== null && echipament.garantie_expira >= azi;
   const casat = echipament.status === "casat";
-  // M7 (0193): rândul înlocuit prin reînnoire e istoric — nu are semafor și
+  // M7 (0211): rândul înlocuit prin reînnoire e istoric — nu are semafor și
   // nici gesturi; se arată doar în „Istoricul reînnoirilor”.
   const autorizatiiCurente = autorizatii.filter((a) => a.inlocuita_de_id === null);
   const autorizatiiInlocuite = autorizatii.filter((a) => a.inlocuita_de_id !== null);

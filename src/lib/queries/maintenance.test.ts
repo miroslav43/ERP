@@ -577,7 +577,7 @@ describe("autorizații ISCIR și angajați autorizați", () => {
   });
 });
 
-describe("autorizații ISCIR — M7 (0193)", () => {
+describe("autorizații ISCIR — M7 (0211)", () => {
   const aut = (id: string, valabil: string) => ({
     id,
     equipment_id: ID_1,
@@ -730,7 +730,7 @@ describe("numarScadenteMentenanta", () => {
     expect(areFiltru(iscir, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(iscir, "is", "suspendata_la", null)).toBe(true);
     expect(areFiltru(iscir, "is", "deleted_at", null)).toBe(true);
-    // 0193 (M7): rândul înlocuit prin reînnoire e istoric, iar termenul e cel
+    // 0211 (M7): rândul înlocuit prin reînnoire e istoric, iar termenul e cel
     // mai apropiat dintre valabilitate și VTP — un VTP scadent numără și el.
     expect(areFiltru(iscir, "is", "inlocuita_de_id", null)).toBe(true);
     expect(

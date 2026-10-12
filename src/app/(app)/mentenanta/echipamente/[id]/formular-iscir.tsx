@@ -18,7 +18,7 @@ import { valoriAutorizatie } from "../../iscir/valori-autorizatie";
  * condițiile. `<Formular>` ține starea în `useActionState` și dă valorile
  * înapoi prin `valoriTrimise`; fiecare `fieldErrors` stă lângă câmpul lui.
  *
- * ── M7 (0193) ─────────────────────────────────────────────────────────────
+ * ── M7 (0211) ─────────────────────────────────────────────────────────────
  * Câmpurile sunt cele din `iscir/campuri-autorizatie.tsx`, comune cu caseta
  * „Corectează”: regimul (echipament sub prag, în evidența RSVTI, fără număr —
  * cazul 42) și tipul din listă (`TIPURI_ISCIR`), nu text liber. Corectarea,

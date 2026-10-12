@@ -58,7 +58,7 @@ describe("traduEroare (mentenanță)", () => {
     );
   });
 
-  // Mesajele gărzilor din 0192 (M6): încap întregi, cu numărul sesizării în ele.
+  // Mesajele gărzilor din 0210 (M6): încap întregi, cu numărul sesizării în ele.
   it.each([
     [
       "Intervenția a rezolvat sesizarea SZ-2026-000123. Redeschideți întâi sesizarea SZ-2026-000123, apoi anulați intervenția.",
@@ -75,7 +75,7 @@ describe("traduEroare (mentenanță)", () => {
     [
       "Intervenția nu există în această organizație sau a fost anulată. Piesele nu se mai pot modifica.",
     ],
-  ])("P0001 din 0192 ajunge întreg: %s", (mesaj) => {
+  ])("P0001 din 0210 ajunge întreg: %s", (mesaj) => {
     expect(mesaj.length).toBeLessThanOrEqual(300);
     expect(prinde(() => traduEroare(eroarePostgrest("P0001", mesaj)))).toMatchObject({
       code: "CONFLICT",
@@ -83,21 +83,21 @@ describe("traduEroare (mentenanță)", () => {
     });
   });
 
-  // Mesajele P0001 din 0193 (M7, ISCIR), citite din migrare, nu copiate: un
+  // Mesajele P0001 din 0211 (M7, ISCIR), citite din migrare, nu copiate: un
   // mesaj nou adăugat în gardă intră singur în probă. Fiecare încape întreg și
   // se termină cu punct.
   const mesaje0193 = [
     ...readFileSync(
-      join(process.cwd(), "supabase/migrations/0193_mentenanta_iscir_conformitate.sql"),
+      join(process.cwd(), "supabase/migrations/0211_mentenanta_iscir_conformitate.sql"),
       "utf8",
     ).matchAll(/errcode = 'P0001',\s*message = '((?:[^']|'')+)'/gu),
   ].map((m) => (m[1] ?? "").replaceAll("''", "'"));
 
-  it("0193 are mesaje P0001 de verificat", () => {
+  it("0211 are mesaje P0001 de verificat", () => {
     expect(mesaje0193.length).toBeGreaterThanOrEqual(8);
   });
 
-  it.each(mesaje0193.map((m) => [m]))("P0001 din 0193 ajunge întreg: %s", (mesaj) => {
+  it.each(mesaje0193.map((m) => [m]))("P0001 din 0211 ajunge întreg: %s", (mesaj) => {
     expect(mesaj.length).toBeLessThanOrEqual(300);
     expect(mesaj.endsWith(".")).toBe(true);
     expect(prinde(() => traduEroare(eroarePostgrest("P0001", mesaj)))).toMatchObject({

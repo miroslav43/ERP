@@ -13,7 +13,7 @@ import {
 
 import { traduEroare } from "../erori";
 
-// Gesturile de pe autorizația ISCIR (0193, M7): corectarea, suspendarea cu
+// Gesturile de pe autorizația ISCIR (0211, M7): corectarea, suspendarea cu
 // motiv, ridicarea suspendării, reînnoirea ca rând nou, ștergerea logică.
 // Înregistrarea rămâne în `../actions.ts` (`adaugaAutorizatieIscir`).
 //
@@ -90,7 +90,7 @@ export const actualizeazaAutorizatie = createAction({
 
 /**
  * Suspendarea, cu motiv (minimum 5 caractere, cerut și de gardă). Scoate
- * autorizația din scadențe și din coada panoului (0182/0193). Tranziția se
+ * autorizația din scadențe și din coada panoului (0182/0211). Tranziția se
  * păzește în UPDATE: o autorizație deja suspendată întoarce zero rânduri.
  */
 export const suspendaAutorizatie = createAction({
@@ -169,7 +169,7 @@ export const reactiveazaAutorizatie = createAction({
 
 /**
  * Reînnoirea (cazul 40): rând nou, legat de cel vechi prin `inlocuita_de_id`.
- * Trece prin `public.reinnoieste_autorizatie_iscir` (SECURITY INVOKER, 0193):
+ * Trece prin `public.reinnoieste_autorizatie_iscir` (SECURITY INVOKER, 0211):
  * doar așa rândul vechi se marchează ÎNAINTEA inserării celui nou, ceea ce
  * permite păstrarea numărului de înregistrare. Politicile apelantului se aplică
  * întocmai; funcția întoarce id-ul rândului nou.

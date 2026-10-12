@@ -4,7 +4,7 @@
 --
 -- ── DE CE EXISTĂ FIȘIERUL ───────────────────────────────────────────────────
 -- M8 nu are migrare: raportul citește tabelele modulului cu politicile lor de
--- azi (0011, 0181–0193). Dar un raport e o AGREGARE, iar o agregare peste
+-- azi (0011, 0181–0183, 0191, 0210, 0211). Dar un raport e o AGREGARE, iar o agregare peste
 -- rânduri lipsă arată corect — „Cost suportat: 0 lei” e o cifră, nu o eroare.
 -- Testele aplicației rulează pe un client fals și nu văd politicile; ce rânduri
 -- primește fiecare rol se AFLĂ rulând, cu EXACT coloanele cerute de

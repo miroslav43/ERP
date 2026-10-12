@@ -44,7 +44,7 @@ describe("TIPURI_ISCIR", () => {
     for (const t of TIPURI_ISCIR) expect(ETICHETE_TIP_ISCIR[t].length).toBeGreaterThan(2);
   });
 
-  it("un tip liber vechi (rândurile dinainte de 0193) se afișează așa cum e", () => {
+  it("un tip liber vechi (rândurile dinainte de 0211) se afișează așa cum e", () => {
     expect(etichetaTipIscir("macara")).toBe(ETICHETE_TIP_ISCIR.macara);
     expect(etichetaTipIscir("Macara capră 5t")).toBe("Macara capră 5t");
   });

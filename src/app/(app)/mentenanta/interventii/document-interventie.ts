@@ -9,7 +9,7 @@
 // intervenția ar exista o clipă fără el — iar o încărcare eșuată ar lăsa-o așa
 // definitiv. Calea fișierului poartă id-ul intervenției, generat AICI
 // (`crypto.randomUUID()`); baza tratează un id încă nefolosit ca rezervare
-// (`app.mentenanta_poate_fisier`, 0192), iar acțiunea scrie intervenția cu
+// (`app.mentenanta_poate_fisier`, 0210), iar acțiunea scrie intervenția cu
 // exact acel id și leagă rândul atașamentului.
 //
 // ── REÎNCERCAREA ───────────────────────────────────────────────────────────

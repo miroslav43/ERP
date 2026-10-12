@@ -10,7 +10,7 @@ cai:
   - "src/lib/pdf/dosar-control.ts"
   - "src/domain/maintenance/iscir.ts"
   - "src/domain/maintenance/legal.ts"
-  - "supabase/migrations/0193_mentenanta_iscir_conformitate.sql"
+  - "supabase/migrations/0211_mentenanta_iscir_conformitate.sql"
   - "tests/rls/proba-iscir.sql"
 tabele:
   [iscir_authorizations, maintenance_plans, maintenance_settings, expirables, registru_documente]
@@ -28,7 +28,7 @@ tags: [modul, operations]
 
 # Mentenanță — ISCIR și verificări legale
 
-Extrasă din [[modul/mentenanta]]. Din `0193` (faza M7) o autorizație ISCIR are
+Extrasă din [[modul/mentenanta]]. Din `0211` (faza M7) o autorizație ISCIR are
 **regim** (`inregistrat` cu număr, sau `neinregistrat_rsvti` — echipament sub pragul de
 înregistrare, ținut doar în evidența RSVTI, fără număr; cazul 42), **suspendare cu motiv**
 și **reînnoire ca rând nou** legat prin `inlocuita_de_id`. Nimic nu blochează utilajul:
@@ -62,7 +62,7 @@ apoi cheamă `public.reinnoieste_autorizatie_iscir`.
 ## Citiri
 
 `listeazaAutorizatiiIscir` (keyset pe `valabil_pana`, apoi `id`; filtre `stare`, `regim`,
-`tip`, `echipament`), `tipuriAutorizatiiIscir` (și tipurile scrise liber înainte de 0193),
+`tip`, `echipament`), `tipuriAutorizatiiIscir` (și tipurile scrise liber înainte de 0211),
 `stareRsvti` (echipamente `este_iscir` necasate vs. RSVTI-ul din setări, activ),
 `autorizatiiIscir` — fără echipament doar rândurile curente, pe echipament și istoricul.
 

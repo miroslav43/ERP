@@ -1,12 +1,12 @@
 // src/app/(app)/mentenanta/iscir/valori-autorizatie.ts
 /**
- * Din `FormData` în intrarea acțiunilor ISCIR (M7, 0193). Pur, fără React —
+ * Din `FormData` în intrarea acțiunilor ISCIR (M7, 0211). Pur, fără React —
  * îl folosesc caseta „Autorizație ISCIR nouă” de pe fișa echipamentului și
  * casetele „Corectează” / „Reînnoiește” din `actiuni-autorizatie.tsx`.
  *
  * Câmpurile goale pleacă `null` (sau lipsă, pentru valabilitate, ca schema să
  * spună „Completați data…” pe câmpul ei); emitentul gol devine „ISCIR”, ca la
- * înregistrarea dinainte de 0193. Validarea rămâne a schemei de pe server.
+ * înregistrarea dinainte de 0211. Validarea rămâne a schemei de pe server.
  */
 
 function citeste(formular: FormData, cheie: string): string | null {

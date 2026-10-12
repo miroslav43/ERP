@@ -732,7 +732,7 @@ begin
          (v_beta, v_admin_beta, 'contor_necitit', (select val from t_ids where cheie='equip_beta'));
   -- ── sfârșit M9 ──────────────────────────────────────────────────────────────
 
-  -- ── Mentenanță M6 (0192): liniile de piese ale intervenției ────────────────
+  -- ── Mentenanță M6 (0210): liniile de piese ale intervenției ────────────────
   -- Câte o linie pe intervenția de test a fiecărei firme; triggerul de sumă
   -- rescrie `cost_piese`, deci (c) vede și intervenția atinsă din nou.
   insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate, pret_unitar)
@@ -4344,7 +4344,7 @@ end $$;
 -- ── sfârșit M9 ───────────────────────────────────────────────────────────────
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- (l), continuare — Mentenanță M6 (0192): intervenția completă
+-- (l), continuare — Mentenanță M6 (0210): intervenția completă
 --
 -- Administratorul corectează intervenția, îi adaugă și îi șterge logic o linie
 -- de piese (suma o rescrie triggerul, sub definer) și o anulează; managerul
@@ -4489,7 +4489,7 @@ exception when others then
 end $$;
 -- ── sfârșit M6 ───────────────────────────────────────────────────────────────
 
--- ── Mentenanță M7 (0193) ─────────────────────────────────────────────────────
+-- ── Mentenanță M7 (0211) ─────────────────────────────────────────────────────
 -- (l), continuare — autorizațiile ISCIR: regim, suspendare, reînnoire
 --
 -- Administratorul înregistrează o evidență RSVTI fără număr (cazul 42), o

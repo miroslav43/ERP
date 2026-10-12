@@ -176,7 +176,7 @@ export interface RandInterventie {
   readonly oprire_minute: number | null;
   readonly citire_contor: number | null;
   readonly observatii: string | null;
-  // M6 (0192)
+  // M6 (0210)
   readonly numar: string;
   readonly fault_report_id: string | null;
   readonly numar_document_furnizor: string | null;
@@ -184,7 +184,7 @@ export interface RandInterventie {
   readonly acoperit_de_garantie: boolean;
 }
 
-/** O linie de piese a unei intervenții (0192). `valoare` e GENERATĂ în bază. */
+/** O linie de piese a unei intervenții (0210). `valoare` e GENERATĂ în bază. */
 export interface PiesaInterventie {
   readonly id: string;
   readonly intervention_id: string;
@@ -308,7 +308,7 @@ export interface RezultatSesizari {
 export interface AutorizatieIscir {
   readonly id: string;
   readonly equipment_id: string;
-  /** `null` doar în regimul `neinregistrat_rsvti` (0193, cazul 42). */
+  /** `null` doar în regimul `neinregistrat_rsvti` (0211, cazul 42). */
   readonly numar: string | null;
   readonly tip: string;
   readonly emitent: string;
@@ -317,7 +317,7 @@ export interface AutorizatieIscir {
   readonly scadenta_verificare_tehnica: string | null;
   readonly conditii: string | null;
   readonly suspendata_la: string | null;
-  // 0193
+  // 0211
   readonly regim: RegimIscir;
   readonly motiv_suspendare: string | null;
   readonly reactivata_la: string | null;
@@ -2184,7 +2184,7 @@ async function numarAutorizatiiIscirScadente(
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .is("suspendata_la", null)
-    // 0193: rândul înlocuit e istoric; termenul e cel mai apropiat dintre
+    // 0211: rândul înlocuit e istoric; termenul e cel mai apropiat dintre
     // valabilitate și VTP (`termenAutorizatie`) — „min(a, b) ≤ L” ⇔ „a ≤ L sau b ≤ L”.
     .is("inlocuita_de_id", null)
     .or(`valabil_pana.lte.${lim},scadenta_verificare_tehnica.lte.${lim}`);

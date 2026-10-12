@@ -21,7 +21,7 @@ import { CampuriAutorizatie } from "./campuri-autorizatie";
 import { valoriAutorizatie, valoriReinnoire } from "./valori-autorizatie";
 
 /**
- * Gesturile de pe o autorizație ISCIR CURENTĂ (M7, 0193): Corectează,
+ * Gesturile de pe o autorizație ISCIR CURENTĂ (M7, 0211): Corectează,
  * Reînnoiește, Suspendă / Ridică suspendarea, Șterge. Fișa echipamentului nu
  * le randează fără `maintenance:update`/team și nici pe un rând înlocuit
  * (istoric: garda din bază l-ar refuza oricum).

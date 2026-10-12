@@ -329,7 +329,7 @@ utilizare a echipamentului individual de protecție.
 
 ### Verificări legale în mentenanță · `src/domain/maintenance/legal.ts`, `iscir.ts`
 
-Fără tabelă de valori: categoriile (M7, migrarea `0193`) sunt o listă în cod care
+Fără tabelă de valori: categoriile (M7, migrarea `0211`) sunt o listă în cod care
 PRECOMPLETEAZĂ planul (tip `verificare_legala`, periodicitatea sugerată, temeiul)
 și dă un maxim pentru AVERTISMENT. Nimic nu se blochează, iar **scadența din
 procesul-verbal are prioritate față de calcul**: prescripțiile dau un maxim, data

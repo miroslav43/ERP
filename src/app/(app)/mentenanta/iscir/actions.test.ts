@@ -1,6 +1,6 @@
 // src/app/(app)/mentenanta/iscir/actions.test.ts
 //
-// Gesturile de pe autorizația ISCIR (M7, 0193): corectarea, suspendarea,
+// Gesturile de pe autorizația ISCIR (M7, 0211): corectarea, suspendarea,
 // ridicarea suspendării, reînnoirea, ștergerea. Ce refuză garda din bază
 // (rândul înlocuit, mutarea pe alt echipament, suspendarea fără motiv) se
 // verifică în `tests/rls/proba-iscir.sql`; aici: poarta, filtrele de tranziție,

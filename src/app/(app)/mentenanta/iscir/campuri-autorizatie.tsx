@@ -13,7 +13,7 @@ import {
 } from "@/domain/maintenance/iscir";
 
 /**
- * Câmpurile autorizației ISCIR (M7, 0193), comune casetei „Autorizație ISCIR
+ * Câmpurile autorizației ISCIR (M7, 0211), comune casetei „Autorizație ISCIR
  * nouă” și casetei „Corectează”.
  *
  * ── REGIMUL (cazul 42) ────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ import {
  * `valoriTrimise` să le poată repune după un refuz.
  *
  * ── TIPUL RĂMÂNE TEXT ─────────────────────────────────────────────────────
- * Lista vine din `TIPURI_ISCIR`. O autorizație dinainte de 0193 are tipul scris
+ * Lista vine din `TIPURI_ISCIR`. O autorizație dinainte de 0211 are tipul scris
  * liber („Macara capră 5t”): la corectare, valoarea veche apare ca opțiune
  * proprie, ca salvarea să n-o schimbe pe tăcute.
  */

@@ -1,6 +1,6 @@
 -- tests/rls/proba-iscir.sql
 --
--- AUTORIZAȚIILE ISCIR (0193): REGIM, SUSPENDARE, REÎNNOIRE, ȘTERGERE, IZOLARE.
+-- AUTORIZAȚIILE ISCIR (0211): REGIM, SUSPENDARE, REÎNNOIRE, ȘTERGERE, IZOLARE.
 --
 -- ── DE CE EXISTĂ FIȘIERUL ───────────────────────────────────────────────────
 -- Cine poate scrie ce se AFLĂ rulând, nu deducând. Jumătate din verificări sunt
@@ -61,7 +61,7 @@ declare
   v_esecuri  int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „AUTORIZAȚII ISCIR" (0193)';
+  raise notice '  PROBA „AUTORIZAȚII ISCIR" (0211)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   -- ── fixture ───────────────────────────────────────────────────────────────

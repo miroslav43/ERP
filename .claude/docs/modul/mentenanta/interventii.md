@@ -7,7 +7,7 @@ cai:
   - "src/app/(app)/mentenanta/fisiere.ts"
   - "src/app/(app)/mentenanta/echipamente/[id]/formular-interventie.tsx"
   - "src/app/(app)/mentenanta/planuri/dialog-executa-plan.tsx"
-  - "supabase/migrations/0192_mentenanta_interventii_complete.sql"
+  - "supabase/migrations/0210_mentenanta_interventii_complete.sql"
   - "tests/rls/proba-interventii.sql"
 tabele:
   [
@@ -31,7 +31,7 @@ tags: [modul, operations]
 
 # Mentenanță — intervenții
 
-Extrasă din [[modul/mentenanta]]. Din `0192` (faza M6) o intervenție are număr propriu
+Extrasă din [[modul/mentenanta]]. Din `0210` (faza M6) o intervenție are număr propriu
 `PV-AAAA-NNNN` (prin `document_sequences`, tipul `pv_interventie`, dat de trigger la
 INSERT; rândurile vechi l-au primit retroactiv, în ordinea datei), numărul documentului
 furnizorului, garanția lucrării (`garantie_lucrare_pana`), bifa „acoperit de garanție” și
@@ -82,7 +82,7 @@ O verificare legală (tipul intervenției SAU tipul planului; nu și la rezultat
 
 1. browserul generează id-ul intervenției și urcă fișierul pe
    `{org}/intervention/{id}/…` (`useDocumentInterventie`, `document-interventie.ts`);
-2. `app.mentenanta_poate_fisier` (rescrisă în `0192`) tratează un id de intervenție
+2. `app.mentenanta_poate_fisier` (rescrisă în `0210`) tratează un id de intervenție
    care nu există în NICIO firmă drept rezervare — doar pentru cine are
    `maintenance:update` în organizația din cale; un id existent în altă firmă cade pe
    ramura veche și e refuzat;

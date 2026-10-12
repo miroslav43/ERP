@@ -1,6 +1,6 @@
 // src/app/(app)/mentenanta/interventii/actions.test.ts
 //
-// Gesturile de pe intervenție (M6, 0192): corectarea, anularea, liniile de
+// Gesturile de pe intervenție (M6, 0210): corectarea, anularea, liniile de
 // piese. Ce refuză garda din bază (anularea intervenției care a rezolvat o
 // sesizare, schimbarea echipamentului) se verifică în
 // `tests/rls/proba-interventii.sql`; aici: poarta, filtrele, `.select()` după

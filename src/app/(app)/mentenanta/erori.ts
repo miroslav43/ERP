@@ -20,7 +20,7 @@ import { businessRule, isPostgrestError } from "@/lib/actions/errors";
  * le-ar înlocui pe toate cu „Operațiunea a fost respinsă de o regulă a
  * sistemului” — omul n-ar afla nici cifra, nici pasul următor.
  *
- * Garda autorizației ISCIR din 0193 (M7) scrie la fel: rândul înlocuit prin
+ * Garda autorizației ISCIR din 0211 (M7) scrie la fel: rândul înlocuit prin
  * reînnoire, legătura pusă de mână, mutarea pe alt echipament, suspendarea fără
  * motiv sau în viitor, reînnoirea dublă. `erori.test.ts` le citește din migrare
  * și verifică pe fiecare că trece întreg și se termină cu punct.

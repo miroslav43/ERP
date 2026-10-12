@@ -1,4 +1,4 @@
--- supabase/migrations/0193_mentenanta_iscir_conformitate.sql
+-- supabase/migrations/0211_mentenanta_iscir_conformitate.sql
 --
 -- MENTENANȚĂ, FAZA M7: ISCIR ȘI VERIFICĂRILE LEGALE.
 --
@@ -61,7 +61,7 @@ begin
 end $$;
 
 comment on type public.iscir_regim is
-  'inregistrat = echipament înregistrat la ISCIR, cu număr de autorizație; neinregistrat_rsvti = sub pragul de înregistrare, ținut în evidența RSVTI (0193).';
+  'inregistrat = echipament înregistrat la ISCIR, cu număr de autorizație; neinregistrat_rsvti = sub pragul de înregistrare, ținut în evidența RSVTI (0211).';
 
 alter table public.iscir_authorizations
   add column if not exists regim            public.iscir_regim not null default 'inregistrat',
@@ -95,7 +95,7 @@ alter table public.iscir_authorizations
     check (inlocuita_de_id is null or inlocuita_de_id <> id);
 
 comment on column public.iscir_authorizations.inlocuita_de_id is
-  'Rândul care a înlocuit-o prin reînnoire (0193). Rândul înlocuit iese din scadențe și rămâne istoric; se pune doar prin public.reinnoieste_autorizatie_iscir.';
+  'Rândul care a înlocuit-o prin reînnoire (0211). Rândul înlocuit iese din scadențe și rămâne istoric; se pune doar prin public.reinnoieste_autorizatie_iscir.';
 comment on column public.iscir_authorizations.reactivata_la is
   'Ziua ultimei ridicări a suspendării. O pune garda (internal.iscir_garda), nu clientul.';
 
@@ -271,7 +271,7 @@ end $$;
 -- 5. Registrul: doar autorizațiile înregistrate la ISCIR
 -- ============================================================
 -- Argumentele sunt EXACT cele din catalog (`pg_get_triggerdef` pe bancul cu
--- 0192): harta 0142, rândul `iscir_authorizations`. Se adaugă doar `when`.
+-- 0210): harta 0142, rândul `iscir_authorizations`. Se adaugă doar `when`.
 drop trigger if exists zz_iscir_authorizations_registru on public.iscir_authorizations;
 create trigger zz_iscir_authorizations_registru
   after insert on public.iscir_authorizations
@@ -359,7 +359,7 @@ begin
 end $$;
 
 comment on function public.reinnoieste_autorizatie_iscir(uuid, date, text, text, date, date, text) is
-  'Reînnoirea unei autorizații ISCIR (0193): marchează rândul vechi înlocuit și inserează rândul nou, în aceeași tranzacție. SECURITY INVOKER — politicile apelantului se aplică întocmai.';
+  'Reînnoirea unei autorizații ISCIR (0211): marchează rândul vechi înlocuit și inserează rândul nou, în aceeași tranzacție. SECURITY INVOKER — politicile apelantului se aplică întocmai.';
 
 -- ============================================================
 -- 7. Drepturi pe funcții
@@ -423,7 +423,7 @@ begin
     v_lipsa := v_lipsa || 'anon poate reînnoi';
   end if;
   if array_length(v_lipsa, 1) > 0 then
-    raise exception 'Migrarea 0193 e incompletă: %', array_to_string(v_lipsa, '; ');
+    raise exception 'Migrarea 0211 e incompletă: %', array_to_string(v_lipsa, '; ');
   end if;
 end $$;
 

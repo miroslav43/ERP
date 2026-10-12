@@ -747,7 +747,7 @@ async function curataIncarcareaNefolosita(organizationId: string, cale: string):
  * ── PROCESUL-VERBAL, ÎNAINTEA INTERVENȚIEI (M6, cazul 34) ──────────────────
  * O verificare legală (tipul ei sau tipul planului) nu se înregistrează fără
  * PV sau buletin. Fișierul urcă din browser ÎNAINTE de trimitere, pe calea
- * `{org}/intervention/{id}/…`, cu `id` generat în browser (0192 îl tratează ca
+ * `{org}/intervention/{id}/…`, cu `id` generat în browser (0210 îl tratează ca
  * rezervare); acțiunea măsoară obiectul REAL (`masoaraObiectul`), apoi scrie
  * intervenția cu acel `id` și rândul atașamentului. Regula stă aici, nu într-un
  * trigger: atașamentul se inserează DUPĂ intervenție, deci baza n-ar avea cum
@@ -1149,7 +1149,7 @@ export const adaugaAutorizatieIscir = createAction({
     allow: ["equipment_id", "regim", "numar", "tip", "emitent", "emis_la", "valabil_pana"],
   },
   // Și panoul: afișează autorizațiile care expiră, deci o autorizație nouă
-  // trebuie să-i schimbe lista. Și lista ISCIR (0193, M7). Reînnoirea are
+  // trebuie să-i schimbe lista. Și lista ISCIR (0211, M7). Reînnoirea are
   // acțiunea ei, în `iscir/actions.ts`.
   revalidate: (input) => [
     `/mentenanta/echipamente/${input.equipment_id}`,

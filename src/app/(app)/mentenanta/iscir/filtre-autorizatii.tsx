@@ -24,7 +24,7 @@ const CHEI_PROPRII = ["stare", "regim", "tip"] as const;
 /**
  * Bara de filtre a listei ISCIR (M7). Server Component, ca bara intervențiilor:
  * fără stare și fără handler, deci fără `"use client"`. Opțiunile „Tip” sunt
- * tipurile FOLOSITE în firmă — și cele scrise liber înainte de 0193.
+ * tipurile FOLOSITE în firmă — și cele scrise liber înainte de 0211.
  */
 export function FiltreAutorizatiiForm({
   filtre,

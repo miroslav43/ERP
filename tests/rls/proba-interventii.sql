@@ -1,6 +1,6 @@
 -- tests/rls/proba-interventii.sql
 --
--- INTERVENȚIILE COMPLETE (0192): NUMĂR, PIESE, GARDA, PLANUL, OPRIREA, FIȘIERUL.
+-- INTERVENȚIILE COMPLETE (0210): NUMĂR, PIESE, GARDA, PLANUL, OPRIREA, FIȘIERUL.
 --
 -- ── DE CE EXISTĂ FIȘIERUL ───────────────────────────────────────────────────
 -- Cine poate scrie ce se AFLĂ rulând, nu deducând. Jumătate din verificări sunt
@@ -60,7 +60,7 @@ declare
   v_esecuri  int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „INTERVENȚII COMPLETE" (0192)';
+  raise notice '  PROBA „INTERVENȚII COMPLETE" (0210)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   -- ── fixture ───────────────────────────────────────────────────────────────

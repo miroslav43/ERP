@@ -2,7 +2,7 @@
 //
 // Procesul-verbal de intervenție, de tipărit și semnat (M6). Registrul de
 // documente îl înregistrează deja la INSERT ca `pv_interventie` (0136/0142);
-// documentul are acum și număr propriu, `PV-AAAA-NNNN` (0192).
+// documentul are acum și număr propriu, `PV-AAAA-NNNN` (0210).
 //
 // Ca la PV-ul de predare din inventar (`inventar/[id]/pv/[alocare]`): o pagină cu
 // `window.print()` și foaia `@media print`, generată din rânduri la fiecare

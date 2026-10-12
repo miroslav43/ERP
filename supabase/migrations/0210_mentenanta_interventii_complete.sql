@@ -1,4 +1,4 @@
--- supabase/migrations/0192_mentenanta_interventii_complete.sql
+-- supabase/migrations/0210_mentenanta_interventii_complete.sql
 --
 -- MENTENANȚĂ, FAZA M6: INTERVENȚIILE COMPLETE.
 --
@@ -665,7 +665,7 @@ begin
     v_lipsa := v_lipsa || 'registrul nu mai înregistrează pv_interventie';
   end if;
   if array_length(v_lipsa, 1) > 0 then
-    raise exception 'Migrarea 0192 e incompletă: %', array_to_string(v_lipsa, '; ');
+    raise exception 'Migrarea 0210 e incompletă: %', array_to_string(v_lipsa, '; ');
   end if;
 end $$;
 

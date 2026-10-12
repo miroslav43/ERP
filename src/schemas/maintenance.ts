@@ -538,7 +538,7 @@ const campuriInterventie = z.object({
   oprire_minute: z.coerce.number().int().min(0).nullable().default(null),
   citire_contor: z.coerce.number().min(0).nullable().default(null),
   observatii: z.string().trim().max(2000).nullable().default(null),
-  // M6 (0192): documentul furnizorului și garanția LUCRĂRII.
+  // M6 (0210): documentul furnizorului și garanția LUCRĂRII.
   numar_document_furnizor: z.string().trim().max(80).nullable().default(null),
   garantie_lucrare_pana: z.iso.date().nullable().default(null),
   acoperit_de_garantie: z.boolean().default(false),
@@ -879,7 +879,7 @@ export type SetariMentenantaInput = z.output<typeof setariMentenantaSchema>;
 // ── Autorizații ISCIR ──────────────────────────────────────────────────────
 
 /**
- * Câmpurile comune ale autorizației (0011 + 0193). `regim` (cazul 42):
+ * Câmpurile comune ale autorizației (0011 + 0211). `regim` (cazul 42):
  * `neinregistrat_rsvti` = sub pragul de înregistrare, în evidența RSVTI, fără
  * număr ISCIR. Oglindește `iscir_authorizations_numar_ck`: numărul e obligatoriu
  * doar în regimul `inregistrat`. Un număr gol devine `null`, nu `""` — CHECK-ul
@@ -915,7 +915,7 @@ export const autorizatieIscirNouaSchema = campuriAutorizatie
   .superRefine(numarDupaRegim);
 export type AutorizatieIscirNouaInput = z.output<typeof autorizatieIscirNouaSchema>;
 
-/** Corectarea: echipamentul nu se schimbă (garda din 0193 îl refuză oricum). */
+/** Corectarea: echipamentul nu se schimbă (garda din 0211 îl refuză oricum). */
 export const actualizeazaAutorizatieSchema = campuriAutorizatie
   .extend({ id: z.uuid("Autorizația selectată nu este validă.") })
   .superRefine(numarDupaRegim);

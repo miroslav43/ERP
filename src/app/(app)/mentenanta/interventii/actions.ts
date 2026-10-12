@@ -14,7 +14,7 @@ import {
 
 import { traduEroare } from "../erori";
 
-// Gesturile de pe intervenție (0192): corectarea, anularea, liniile de piese.
+// Gesturile de pe intervenție (0210): corectarea, anularea, liniile de piese.
 // Înregistrarea rămâne în `../actions.ts` (`inregistreazaInterventie`), unde o
 // cheamă fișa echipamentului, „Execută” de pe plan și caseta listei.
 //
@@ -50,7 +50,7 @@ const CAI_INTERVENTIE = (d: InterventieAtinsa): readonly string[] => [
  * Corectarea unei intervenții. Planul, echipamentul și sesizarea NU se schimbă
  * de aici (schema nu le are, garda le refuză). Cât intervenția are linii de
  * piese, `cost_piese` trimis e ignorat: îl rescrie garda din linii (cazul 32).
- * O dată sau o citire corectată mută planul (`ssm_intervention_apply`, 0192).
+ * O dată sau o citire corectată mută planul (`ssm_intervention_apply`, 0210).
  */
 export const actualizeazaInterventie = createAction({
   name: "maintenance.intervention.update",
@@ -151,7 +151,7 @@ export const actualizeazaInterventie = createAction({
 /**
  * Anularea (ștergere logică). Planul revine la intervenția reușită anterioară
  * (0180), oprirea planificată iese din jurnal (0181), iar intervenția care a
- * rezolvat o sesizare se anulează doar după redeschiderea ei (0192, cazul 31).
+ * rezolvat o sesizare se anulează doar după redeschiderea ei (0210, cazul 31).
  * Rândul din registru (`pv_interventie`) rămâne: registrul e append-only.
  */
 export const anuleazaInterventie = createAction({
