@@ -433,6 +433,57 @@ alin. (2)) cere ca vehiculul să nu aibă deloc folosință personală; aplicaț
 alături de o alocare cu folosință personală, dar cu avertisment („deducerea integrală e
 expusă”). Dacă firma dovedește folosirea exclusivă, regimul rămâne al ei.
 
+### Flotă — amenzi și daune · `vehicle_fines`, `vehicle_incidents`
+
+Migrarea `0203_flota_amenzi_daune.sql`. Verificat pe 12 oct 2026 pe formele consolidate
+de pe legislatie.just.ro, descărcate cu `curl` și citite ca text (memoria
+`portal-legislativ-consolidari`): OUG 195/2002 `DetaliiDocument/311629` (consolidarea din
+01.07.2026, id luat din lista „istoric consolidări” a `DetaliiDocument/74028`) și Codul
+muncii `DetaliiDocument/304539` (consolidarea din 18.12.2025).
+
+| Valoare / regulă din aplicație                                                          | Temei verificat                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Firma comunică datele șoferului „în termenul indicat în cuprinsul solicitării”          | OUG 195/2002 art. 39 alin. (1) (proprietarul sau deținătorul mandatat, la solicitarea poliției rutiere sau locale); aplicația NU are termen implicit: `termen_raspuns` îl scrie omul |
+| Conținutul comunicării: nume, prenume, CNP, domiciliu sau reședință, serie și număr act | art. 39 alin. (2) (pașaport și datele de eliberare pentru străini); scrisoarea de răspuns le cere                                                                                    |
+| Necomunicarea este contravenție                                                         | art. 105 pct. 10 (persoane juridice, clasa a V-a de sancțiuni); art. 102 alin. (1) pct. 14 (persoane fizice, clasa a IV-a)                                                           |
+| Reținerea din salariu cu titlu de daune: doar cu hotărâre definitivă și irevocabilă     | Codul muncii art. 169 alin. (2); alin. (4): reținerile cumulate nu depășesc lunar jumătate din salariul net                                                                          |
+| Răspunderea patrimonială; recuperarea prin acordul părților                             | art. 254 alin. (1)–(4): notă de constatare și evaluare, termen de cel puțin 30 de zile de la comunicare, cel mult 5 salarii minime brute pe economie                                 |
+
+**Ce NU face aplicația.** Nu recuperează nimic de la șofer, nu reține nimic din salariu, nu
+calculează plafonul de 5 salarii minime și nu ține nota de constatare. Pagina amenzilor și a
+incidentelor o spune pe ecran (`NOTA_RECUPERARE`, `src/domain/fleet/amenzi.ts`). Scrisoarea de
+răspuns se generează, dar o trimite omul, iar „răspuns trimis” îl marchează tot omul.
+
+⚠️ **Solicitarea electronică.** Art. 39 alin. (4): solicitarea comunicată prin mijloc
+electronic se consideră comunicată în 5 zile de la punerea la dispoziție. Aplicația NU
+calculează termenul din regula asta; omul copiază termenul din document. De confirmat cu
+juristul dacă firma primește solicitări prin platforme electronice și de când curge termenul.
+
+⚠️ **Nota din portal la art. 39 alin. (1).** Portalul pomenește o decizie de respingere
+(`HP nr. 374/2025`, Monitorul Oficial nr. 34 din 19 ianuarie 2026) legată de alineat. Nu am
+citit-o și nu schimbă textul consolidat folosit aici; de confirmat cu juristul dacă
+interpretarea alineatului s-a mișcat.
+
+⚠️ **Contestarea procesului-verbal.** Stadiul „contestată” e doar un marcaj. Termenele
+plângerii și ale plății la jumătatea minimului (OG 2/2001) NU au fost verificate pe sursă și
+nu sunt calculate nicăieri. De confirmat cu juristul înainte de a promite o scadență pentru ele.
+
+⚠️ **Cine poate fi desemnat.** Aplicația nu verifică la desemnare permisul, avizul medical sau
+contractul șoferului (le arată doar pe foaia de parcurs, ca avertismente). Sugestia din foaie
+sau alocare e sugestie: omul care semnează scrisoarea răspunde de exactitatea ei.
+
+⚠️ **Tratamentul fiscal** al amenzii plătite de firmă (deductibilitate, impozitarea unei
+eventuale sume refuzate șoferului) NU e verificat. Aplicația nu înregistrează nicio plată.
+
+⚠️ **Datele personale din scrisoare.** CNP-ul se citește prin `hr_read_sensitive` (audit la
+fiecare apel). Scrisoarea invocă pe document art. 6 alin. (1) lit. c) din Regulamentul (UE)
+2016/679 (obligație legală) ca bază de comunicare; formularea e a aplicației, nu a unui jurist.
+De confirmat cu DPO-ul sau juristul firmei.
+
+⚠️ **Dauna și asigurările.** Termenele de notificare a asigurătorului (RCA, CASCO), franșizele
+și regresul asigurătorului NU sunt implementate și nu au fost verificate. Incidentul ține doar
+stadiile, costul estimat și final, despăgubirea primită, asigurătorul și numărul dosarului.
+
 ### Retenție și arhivare · `retention_policies`
 
 ⚠️ Termenele de păstrare pentru statele de plată și documentele de vechime · pentru

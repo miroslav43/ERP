@@ -20,6 +20,8 @@ tabele:
     fleet_settings,
     vehicle_fiscal_regimes,
     vehicle_consumption_norms,
+    vehicle_fines,
+    vehicle_incidents,
     fuel_entries,
     odometer_anomalies,
   ]
@@ -38,8 +40,8 @@ capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
   - "curse, numărul FP, PDF, alerte de scadență, /flota/setari → [[modul/flota/foaia-zilnica]], [[modul/flota/alerte-si-setari]]"
-  - "regim fiscal, normă de consum, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]"
-scris_pe: 231c60b3569e3b9f140ed3b01614d70ad7bbef47
+  - "regim fiscal, avantaj în natură, /flota/fiscal → [[modul/flota/fiscal]]; amendă, art. 39, incident, daună → [[modul/flota/amenzi-si-daune]]"
+scris_pe: ec9568fcbeab06b7dd95012886be0260278a0cac
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -60,6 +62,7 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 | `/flota/foi/sabloane`                | `trip_sheets:update` all — șabloanele de traseu (0197)              |
 | `/flota/setari`                      | `vehicles:update` all — responsabili, praguri (0198)                |
 | `/flota/fiscal`                      | `vehicles:read` all — regimul de deducere, luna fiscală (0202)      |
+| `/flota/amenzi`, `/flota/incidente`  | `vehicle_fines`/`vehicle_incidents` read all (0203)                 |
 | `/api/export/flota/foaie/[id]`       | `trip_sheets:read` own + RLS — PDF-ul foii (0197)                   |
 | `/portal/masina-mea*`                | `trip_sheets:read` own — portalul șoferului, din 0196               |
 
@@ -69,6 +72,10 @@ decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.
 **Șoferii** (0201): permisele (`driver_licenses`, HR fără parc), avizul medical,
 verificările încrucișate pe foaie și la predare, foaia legată de deplasare:
 `[[modul/flota/soferi]]`.
+
+**Amenzile și dauna** (0203): termenul de răspuns, șoferul desemnat, scrisoarea de la art. 39
+(cere și `employees:read` all, pentru CNP), incidentul cu stadii; recuperarea de la șofer
+NU e automată: `[[modul/flota/amenzi-si-daune]]`.
 
 **Fiscalul** (0202): regimul de deducere pe perioade, norma proprie de consum, regimul de
 impozitare al firmei și SUGESTIA de avantaj în natură (`actions-fiscal.ts`):
