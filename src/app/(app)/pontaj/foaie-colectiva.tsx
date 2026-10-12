@@ -378,8 +378,13 @@ export function FoaieColectiva({
           `<thead>` se raporta la scrollport-ul ăla imobil, deci antetul nu se
           lipea nicăieri: la 25 de angajați derulai pagina și pierdeai numerele
           zilelor, singurul reper al unei matrice de 36 de coloane. Cu
-          `max-h` + `overflow-auto`, derulează cutia, iar antetul se lipește. */}
-      <div className="border-border rounded-panou max-h-[calc(100vh-16rem)] overflow-auto border">
+          `max-h` + `overflow-auto`, derulează cutia, iar antetul se lipește.
+
+          `relative` (UX-005): spanurile `sr-only` din celulele de zi sunt
+          `position: absolute` și n-aveau niciun strămoș poziționat, deci poziția
+          lor statică, adânc în tabel, întindea PAGINA (967 px la 390). Fără
+          `z-index`, nu creează context de stivuire: `sticky z-*` rămân la fel. */}
+      <div className="border-border rounded-panou relative max-h-[calc(100vh-16rem)] overflow-auto border">
         <table className="text-corp w-full border-collapse">
           <caption className="sr-only">Pontajul angajaților pentru zilele lunii selectate.</caption>
           <thead className="bg-surface sticky top-0 z-20">

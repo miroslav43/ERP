@@ -158,7 +158,7 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
         Matricea rămâne scrisă de mână; ecran îngust = derulare orizontală, ca
         orice tabel încrucișat.
       */}
-      <div className="border-border bg-surface overflow-x-auto rounded-xl border">
+      <div className="border-border bg-surface relative overflow-x-auto rounded-xl border">
         <table className="w-full min-w-[52rem] border-collapse">
           <caption className="sr-only">
             Matricea permisiunilor pentru organizația {org.name}. Rândurile marcate au valori

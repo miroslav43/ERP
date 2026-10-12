@@ -192,7 +192,10 @@ export function Tabel<R>({
       ) : null}
 
       {/* ── PESTE md: TABEL ─────────────────────────────────────────────── */}
-      <div className="border-border rounded-panou hidden overflow-x-auto border md:block">
+      {/* `relative`: antetul ascuns (`sr-only`, adică `position: absolute`) are
+          aici blocul conținător; altfel poziția lui statică, într-o coloană
+          îndepărtată, întinde pagina, nu doar containerul (UX-005). */}
+      <div className="border-border rounded-panou relative hidden overflow-x-auto border md:block">
         <table className="text-corp w-full text-left">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-surface border-border border-b">

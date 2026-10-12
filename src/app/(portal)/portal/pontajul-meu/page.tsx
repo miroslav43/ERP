@@ -1,7 +1,14 @@
 // src/app/(portal)/portal/pontajul-meu/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CalendarDays, Clock, CalendarClock, LayoutList } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  CalendarClock,
+  LayoutList,
+} from "lucide-react";
 import { z } from "zod";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -167,13 +174,29 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
           : {})}
       />
 
+      {/* Sub `sm` butoanele rămân doar săgeți: `buton()` e `whitespace-nowrap`,
+          iar trei copii de ~157 + 110 + 155 px nu încap în 358 px — „Luna
+          următoare” ieșea din ecran (UX-045). `aria-label` = textul vizibil de
+          la `sm`, deci numele accesibil nu se schimbă cu lățimea. */}
       <nav aria-label="Alege luna" className="flex items-center justify-between gap-2">
-        <Link href={adresaLuna(lunaAnterioara)} className={buton({ varianta: "secundar" })}>
-          ← Luna anterioară
+        <Link
+          href={adresaLuna(lunaAnterioara)}
+          aria-label="Luna anterioară"
+          className={buton({ varianta: "secundar" })}
+        >
+          <ChevronLeft aria-hidden="true" className="size-4" />
+          <span className="hidden sm:inline">Luna anterioară</span>
         </Link>
-        <p className="text-foreground text-corp font-medium">{formatMonthYear(an, luna)}</p>
-        <Link href={adresaLuna(lunaUrmatoare)} className={buton({ varianta: "secundar" })}>
-          Luna următoare →
+        <p className="text-foreground text-corp text-center font-medium">
+          {formatMonthYear(an, luna)}
+        </p>
+        <Link
+          href={adresaLuna(lunaUrmatoare)}
+          aria-label="Luna următoare"
+          className={buton({ varianta: "secundar" })}
+        >
+          <span className="hidden sm:inline">Luna următoare</span>
+          <ChevronRight aria-hidden="true" className="size-4" />
         </Link>
       </nav>
 

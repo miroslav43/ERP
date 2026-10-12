@@ -19,6 +19,15 @@
  * sesiuni — dar ele sunt primul candidat la înlocuire cu ce e aici.
  */
 
+/**
+ * Inițialele zilelor săptămânii, de luni până duminică, pentru antetul îngust
+ * al unei grile pe telefon (7 coloane în ~358 px). Aceleași valori ca
+ * `INITIALE_ZILE` din `leave/planificator.ts`, dar aici, în domeniul de
+ * calendar, pe care grilele lunare îl importă deja. Numele întreg rămâne în
+ * antet pentru cititorul de ecran.
+ */
+export const INITIALE_ZILE_SAPTAMANA: readonly string[] = ["L", "Ma", "Mi", "J", "V", "S", "D"];
+
 /** ISO-dow al primei zile a lunii: luni = 1 … duminică = 7. */
 export function isoDowPrimaZi(an: number, luna: number): number {
   const dow = new Date(Date.UTC(an, luna - 1, 1)).getUTCDay();

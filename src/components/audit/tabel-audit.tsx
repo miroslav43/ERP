@@ -160,7 +160,7 @@ export function TabelAudit({
 }: Props) {
   const numarColoane = arataOrganizatia ? 6 : 5;
   return (
-    <div className="border-border rounded-panou overflow-x-auto border">
+    <div className="border-border rounded-panou relative overflow-x-auto border">
       <table className="w-full border-collapse text-left">
         <caption className="sr-only">
           Evenimente din jurnalul de audit, de la cel mai recent la cel mai vechi

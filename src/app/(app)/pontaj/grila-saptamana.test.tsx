@@ -144,6 +144,17 @@ afterEach(() => {
 });
 
 describe("GrilaSaptamana", () => {
+  it("containerul derulabil e poziționat, ca spanurile sr-only să nu întindă pagina", () => {
+    // `sr-only` = `position: absolute`; fără `relative` pe containerul cu
+    // `overflow-x-auto`, poziția statică a spanului din grila de 48rem întinde
+    // `documentElement` pe telefon (UX-005). Gardă de clasă: happy-dom nu
+    // calculează stil.
+    const { container } = randeaza();
+    const derulabil = container.querySelector(".overflow-x-auto");
+    expect(derulabil).not.toBeNull();
+    expect(derulabil?.classList.contains("relative")).toBe(true);
+  });
+
   it("dă fiecărei zile un singur buton, cu ziua în numele accesibil", () => {
     randeaza();
     const butoane = screen.getAllByRole("button");

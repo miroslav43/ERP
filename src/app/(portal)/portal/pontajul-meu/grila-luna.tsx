@@ -3,7 +3,11 @@ import Link from "next/link";
 
 import { CLASE_TIP_ZI, CODURI_TIP_ZI, ETICHETE_TIP_ZI } from "@/app/(app)/pontaj/etichete";
 import { formatOre } from "@/lib/format/ore";
-import { construiesteSaptamani, ziIso } from "@/domain/calendar/grila-lunara";
+import {
+  construiesteSaptamani,
+  INITIALE_ZILE_SAPTAMANA,
+  ziIso,
+} from "@/domain/calendar/grila-lunara";
 import { refuzulZilei, type MotivRefuzZi } from "@/domain/attendance/zi-de-pontat";
 import type { ZiPontaj } from "@/lib/queries/portal";
 
@@ -154,21 +158,36 @@ export function GrilaLuna({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto">
-        <table className="text-corp w-full min-w-[44rem] table-fixed border-collapse text-left">
+      {/*
+        `relative`: spanurile `sr-only` din celule sunt `position: absolute`;
+        fără un strămoș poziționat, blocul lor conținător e cel inițial, iar
+        poziția lor statică (coloana de sâmbătă) întindea pagina la 525 px pe un
+        telefon de 390 (UX-045, ANG-033). Fără `min-w-[44rem]`: șapte coloane
+        înguste încap pe telefon, cu inițialele zilelor în antet.
+      */}
+      <div className="relative overflow-x-auto">
+        <table className="text-corp w-full table-fixed border-collapse text-left">
           <caption className="sr-only">
             Grila lunară a propriului pontaj. Zilele lucrătoare editabile sunt legături către
             formularul zilei.
           </caption>
           <thead>
             <tr>
-              {ZILE_SAPTAMANA.map((zi) => (
+              {ZILE_SAPTAMANA.map((zi, i) => (
                 <th
                   key={zi}
                   scope="col"
-                  className="border-border bg-surface text-muted-foreground text-nota border px-2 py-1.5 font-medium"
+                  className="border-border bg-surface text-muted-foreground text-nota border px-1 py-1.5 font-medium sm:px-2"
                 >
-                  {zi}
+                  {/* Inițiala pe telefon, numele întreg de la `sm`; numele
+                      accesibil rămâne „Luni” la orice lățime. */}
+                  <span aria-hidden="true" className="sm:hidden">
+                    {INITIALE_ZILE_SAPTAMANA[i]}
+                  </span>
+                  <span aria-hidden="true" className="hidden sm:inline">
+                    {zi}
+                  </span>
+                  <span className="sr-only">{zi}</span>
                 </th>
               ))}
             </tr>
@@ -181,7 +200,7 @@ export function GrilaLuna({
                     return (
                       <td
                         key={indexZi}
-                        className="border-border bg-surface h-20 border align-top"
+                        className="border-border bg-surface h-16 border align-top sm:h-20"
                       />
                     );
                   }
@@ -195,6 +214,7 @@ export function GrilaLuna({
                       key={iso}
                       zi={zi}
                       data={iso}
+                      esteAzi={iso === azi}
                       intrare={intrare}
                       refuz={refuz}
                       hrefConcediu={
@@ -256,6 +276,28 @@ export function GrilaLuna({
 }
 
 /**
+ * Eticheta de stare a celulei: prescurtată pe telefon, întreagă de la `sm`.
+ *
+ * La 390 px o coloană are ~43 px utili, iar „Respinsă” / „Aprobată” se rupeau
+ * în mijlocul cuvântului („Respin/să”). Ambele forme vizibile sunt
+ * `aria-hidden`; cititorul de ecran primește mereu cuvântul întreg, din
+ * `sr-only` — același tipar ca antetul zilelor.
+ */
+function EtichetaStare({ scurt, intreg }: { readonly scurt: string; readonly intreg: string }) {
+  return (
+    <>
+      <span aria-hidden="true" className="sm:hidden">
+        {scurt}
+      </span>
+      <span aria-hidden="true" className="hidden sm:inline">
+        {intreg}
+      </span>
+      <span className="sr-only">{intreg}</span>
+    </>
+  );
+}
+
+/**
  * O zi din grilă.
  *
  * Un singur element interactiv per celulă, niciodată un link într-un link — de
@@ -268,6 +310,7 @@ export function GrilaLuna({
 function CelulaLunii({
   zi,
   data,
+  esteAzi,
   intrare,
   editabila,
   motivBlocare,
@@ -276,6 +319,8 @@ function CelulaLunii({
 }: {
   readonly zi: number;
   readonly data: string;
+  /** Marcată ca în `(app)/pontaj/calendar-luna.tsx`: culoare + „(azi)” + `aria-current`. */
+  readonly esteAzi: boolean;
   readonly intrare: ZiPontaj | undefined;
   readonly editabila: boolean;
   /** De ce nu se deschide ziua. `null` când se deschide. */
@@ -306,7 +351,12 @@ function CelulaLunii({
 
   const corp = (
     <>
-      <span className="text-muted-foreground text-nota font-medium">{zi}</span>
+      <span
+        className={`text-nota ${esteAzi ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}
+      >
+        {zi}
+        {esteAzi ? <span className="sr-only"> (azi)</span> : null}
+      </span>
       <span className="text-corp mt-1 block">
         {intrare === undefined ? (
           <span className="text-muted-foreground">—</span>
@@ -321,8 +371,8 @@ function CelulaLunii({
         )}
       </span>
       {respinsa ? (
-        <span className="text-danger text-nota mt-0.5 block font-medium">
-          Respinsă
+        <span className="text-danger text-nota mt-0.5 block leading-tight font-medium break-words">
+          <EtichetaStare scurt="Resp." intreg="Respinsă" />
           <span className="sr-only">
             {" — "}
             {intrare?.motiv_respingere ?? "fără motiv înregistrat"}. Corectați ziua.
@@ -330,7 +380,7 @@ function CelulaLunii({
         </span>
       ) : null}
       {suplimentare > 0 ? (
-        <span className="text-muted-foreground text-nota block tabular-nums">
+        <span className="text-muted-foreground text-nota block leading-tight break-words tabular-nums">
           +{formatOre(suplimentare)} supl.
         </span>
       ) : null}
@@ -344,25 +394,26 @@ function CelulaLunii({
   if (!editabila) {
     return (
       <td
-        className={`border-border h-20 border align-top ${fundal}`}
+        className={`border-border h-16 border align-top sm:h-20 ${fundal}`}
+        aria-current={esteAzi ? "date" : undefined}
         {...(motivBlocare === null ? {} : { title: motivBlocare })}
       >
-        <div className="p-1.5">
+        <div className="p-1 sm:p-1.5">
           {corp}
           {/* Motivul, nu doar absența clicului. Un `title` singur nu ajunge:
               pe telefon nu există hover, iar exact acolo se pontează cel mai
               des. Eticheta scurtă se vede, explicația întreagă e în `title`
               și în textul citit de cititorul de ecran. */}
           {motivBlocare === null ? null : (
-            <span className="text-muted-foreground text-nota mt-0.5 block">
+            <span className="text-muted-foreground text-nota mt-0.5 block leading-tight break-words">
               {motivBlocare.startsWith("Zi aprobată") ? (
-                "Aprobată"
+                <EtichetaStare scurt="Apr." intreg="Aprobată" />
               ) : hrefConcediu === null ? (
-                "Din concediu"
+                <EtichetaStare scurt="Conc." intreg="Din concediu" />
               ) : (
                 // Ziua spunea „se modifică din Concediile mele" fără drum: acum e drumul.
                 <Link href={hrefConcediu} className="underline underline-offset-2">
-                  Din concediu
+                  <EtichetaStare scurt="Conc." intreg="Din concediu" />
                 </Link>
               )}
               <span className="sr-only"> — {motivBlocare}</span>
@@ -374,10 +425,13 @@ function CelulaLunii({
   }
 
   return (
-    <td className={`border-border h-20 border align-top ${fundal}`}>
+    <td
+      className={`border-border h-16 border align-top sm:h-20 ${fundal}`}
+      aria-current={esteAzi ? "date" : undefined}
+    >
       <Link
         href={`/portal/pontajul-meu/zi/${data}`}
-        className="hover:bg-surface block h-full p-1.5 transition-colors"
+        className="hover:bg-surface block h-full p-1 transition-colors sm:p-1.5"
       >
         {corp}
       </Link>

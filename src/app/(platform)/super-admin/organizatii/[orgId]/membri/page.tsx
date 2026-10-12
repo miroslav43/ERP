@@ -212,7 +212,7 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[52rem] border-collapse">
               <caption className="sr-only">Lista membrilor organizației {org.name}</caption>
               <thead className="border-border border-b">

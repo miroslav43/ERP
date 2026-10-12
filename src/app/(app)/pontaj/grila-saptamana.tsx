@@ -150,7 +150,9 @@ export function GrilaSaptamana({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto">
+      {/* `relative`: ține spanurile `sr-only` (`position: absolute`) în
+          containerul derulabil, altfel întind pagina pe telefon (UX-005). */}
+      <div className="relative overflow-x-auto">
         <div className="min-w-[48rem]">
           {/* Antetul zilelor. Aceeași grilă de coloane ca și corpul. */}
           <div className="grid" style={{ gridTemplateColumns: "3.5rem repeat(7, minmax(0, 1fr))" }}>
