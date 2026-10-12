@@ -23,7 +23,13 @@
 -- (14) managerul și angajatul: zero rânduri pe regim, normă și avantaj, iar
 --      scrierea managerului e refuzată (42501);
 -- (15) cu Salarizarea oprită, faptele avantajului nu ies (zero rânduri);
--- (16) super_admin (platform_admins, NU membru) citește regimurile și faptele [POZITIVĂ].
+-- (16) super_admin (platform_admins, NU membru) citește regimurile și faptele [POZITIVĂ];
+-- (17) matricea scrierilor reale pe cele cinci roluri (skill-ul `administrativo-proba-reala`):
+--      DOAR org_admin scrie regimul și norma (verificate în (1) și (7)); hr, manager,
+--      employee și super_admin (nu e membru) sunt refuzați (42501) la INSERT pe
+--      ambele tabele, iar `organizations.regim_impozitare` se schimbă doar cu
+--      `organizations:update`: hr, manager, employee = ZERO rânduri (refuz tăcut
+--      cerut de USING), nu eroare.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
@@ -61,6 +67,8 @@ declare
   v_n         integer;
   v_m         integer;
   v_r         record;
+  v_rol       text;
+  v_k         integer;
   v_esecuri   int := 0;
 begin
   raise notice '';
@@ -437,11 +445,54 @@ begin
     raise warning '  ✗ (16) super_admin: % perioade, % fapte', v_n, v_m;
   end if;
 
+  -- (17) matricea scrierilor reale: refuzurile celorlalte roluri, NUMĂRATE
+  v_n := 0;
+  v_m := 0;
+  foreach v_rol in array array['hr', 'manager', 'employee', 'super_admin'] loop
+    perform set_config('request.jwt.claim.sub',
+      (case v_rol when 'hr' then v_u_hr when 'manager' then v_u_mgr
+                  when 'employee' then v_u_ang else v_u_sa end)::text, true);
+    set local role authenticated;
+    begin
+      insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, motiv)
+      values (v_org, v_veh, v_luna - 100, 'limitat_50', 'Încercare ' || v_rol);
+      v_m := v_m + 1;
+    exception when insufficient_privilege then
+      v_n := v_n + 1;
+    end;
+    begin
+      insert into public.vehicle_consumption_norms (organization_id, vehicle_id, valabil_de_la, l_100km)
+      values (v_org, v_veh, v_luna - 100, 7);
+      v_m := v_m + 1;
+    exception when insufficient_privilege then
+      v_n := v_n + 1;
+    end;
+    reset role;
+  end loop;
+  -- `organizations`: hr, manager, employee = zero rânduri; reușita lui org_admin e în (12).
+  v_k := 0;
+  foreach v_rol in array array['hr', 'manager', 'employee'] loop
+    perform set_config('request.jwt.claim.sub',
+      (case v_rol when 'hr' then v_u_hr when 'manager' then v_u_mgr else v_u_ang end)::text, true);
+    set local role authenticated;
+    with schimbate as (
+      update public.organizations set regim_impozitare = 'micro' where id = v_org returning 1
+    ) select v_k + count(*) into v_k from schimbate;
+    reset role;
+  end loop;
+  if v_n = 8 and v_m = 0 and v_k = 0
+     and (select regim_impozitare from public.organizations where id = v_org) = 'profit' then
+    raise notice '  ✓ (17) hr, manager, employee și super_admin: 8 INSERT-uri refuzate (42501), 0 reușite; regimul de impozitare rămâne „profit”';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (17) refuzate %, reușite %, UPDATE organizations reușite %', v_n, v_m, v_k;
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA FISCAL: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 16 verificări au trecut.';
+  raise notice '  TOATE cele 17 verificări au trecut.';
   raise notice '';
 end;
 $$;
