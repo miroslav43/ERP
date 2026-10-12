@@ -206,8 +206,8 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
   // Decizia are o singură cale, `DecizieCerere` → `decideTichet`, care scrie și
   // `motiv_respingere`. Oferită și ca buton de stare, „Respins” lovea
   // `tickets_respingere_ck` (23514) cu eroare generică, iar „În lucru” dubla
-  // „Aprobă” (MGR-011). Solicitantul care nu operează primește doar ce primește
-  // în portal: altfel își redeschidea cererea respinsă și ocolea reaprobarea.
+  // „Aprobă” (MGR-011). Solicitantul care nu operează nu-și mai poate redeschide
+  // de aici cererea respinsă (ar ocoli reaprobarea), dar își păstrează „Anulează”.
   const optiuni = tranzitiiPeTichet(status, drepturi);
   const asteaptaDecizia = tichet.status === "in_aprobare" && poateAproba;
   // După aprobare, cine nu operează nu mai are niciun buton și nu vede cine

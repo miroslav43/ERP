@@ -162,18 +162,23 @@ export function tranzitiiSolicitantului(din: StatusTichet): readonly StatusTiche
 /**
  * Butoanele de stare de pe pagina tichetului din aplicație (`/ticketing/[id]`).
  *
- * · Solicitantul care nu operează primește EXACT ce primește în portal
- *   (`tranzitiiSolicitantului`). Altfel un manager sau un `hr` care își cere un
- *   laptop își redeschidea, de aici, cererea respinsă și ocolea reaprobarea —
- *   ocolișul închis doar în portal.
- * · Ceilalți primesc `tranzitiiOferite`, fără decizii: decizia asupra unei
- *   cereri are o singură cale, `DecizieCerere` → `decideTichet`, care scrie și
+ * · Toți primesc `tranzitiiOferite`, fără decizii: decizia asupra unei cereri
+ *   are o singură cale, `DecizieCerere` → `decideTichet`, care scrie și
  *   `motiv_respingere` (MGR-011).
+ * · Solicitantul care nu operează pierde DOAR `respins → redeschis`: din
+ *   `redeschis` se trece în `in_lucru` fără nicio decizie, deci și-ar fi ocolit
+ *   reaprobarea. Restul rămâne — mai ales „Anulează”, singura cale din interfață
+ *   prin care își retrage o cerere (portalul n-o oferă). Restrângerea la
+ *   `tranzitiiSolicitantului` îi lua butonul și cererea rămânea în coada
+ *   managerului până o respingea el.
  */
 export function tranzitiiPeTichet(
   din: StatusTichet,
   drepturi: DrepturiActor,
 ): readonly StatusTichet[] {
-  if (drepturi.esteSolicitant && !drepturi.poateOpera) return tranzitiiSolicitantului(din);
-  return tranzitiiOferite(din, drepturi).filter((catre) => !esteDecizie(din, catre));
+  const ocolesteReaprobarea = (catre: StatusTichet) =>
+    din === "respins" && catre === "redeschis" && drepturi.esteSolicitant && !drepturi.poateOpera;
+  return tranzitiiOferite(din, drepturi).filter(
+    (catre) => !esteDecizie(din, catre) && !ocolesteReaprobarea(catre),
+  );
 }

@@ -196,16 +196,33 @@ describe("ce i se oferă solicitantului în portal", () => {
 });
 
 describe("ce se oferă ca buton de stare pe pagina tichetului din aplicație", () => {
-  it("solicitantul fără drept de operare primește exact ce primește în portal", () => {
-    for (const status of STATUSURI_TICHET) {
-      expect(tranzitiiPeTichet(status, SOLICITANT), status).toEqual(
-        tranzitiiSolicitantului(status),
-      );
+  it("solicitantul nu-și poate redeschide cererea respinsă — ar ocoli reaprobarea", () => {
+    expect(tranzitiiPeTichet("respins", SOLICITANT)).not.toContain("redeschis");
+    expect(tranzitiiPeTichet("respins", SOLICITANT)).toEqual(["anulat"]);
+  });
+
+  it("solicitantul își poate anula cererea oriunde e încă deschisă — singura cale din interfață", () => {
+    for (const status of [
+      "nou",
+      "in_aprobare",
+      "respins",
+      "in_lucru",
+      "in_asteptare",
+      "redeschis",
+    ] as const) {
+      expect(tranzitiiPeTichet(status, SOLICITANT), status).toContain("anulat");
     }
   });
 
-  it("solicitantul nu-și poate redeschide cererea respinsă — ar ocoli reaprobarea", () => {
-    expect(tranzitiiPeTichet("respins", SOLICITANT)).not.toContain("redeschis");
+  it("în afară de ocoliș, solicitantul păstrează tot ce-i dă domeniul (fără decizii)", () => {
+    for (const status of STATUSURI_TICHET) {
+      if (status === "respins") continue;
+      expect(tranzitiiPeTichet(status, SOLICITANT), status).toEqual(
+        tranzitiiOferite(status, SOLICITANT).filter((catre) => !esteDecizie(status, catre)),
+      );
+    }
+    expect(tranzitiiPeTichet("rezolvat", SOLICITANT)).toEqual(tranzitiiSolicitantului("rezolvat"));
+    expect(tranzitiiPeTichet("inchis", SOLICITANT)).toEqual(tranzitiiSolicitantului("inchis"));
   });
 
   it("operatorul păstrează toate tranzițiile lui, fără decizii", () => {
