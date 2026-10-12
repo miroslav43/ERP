@@ -614,6 +614,22 @@ begin
           v_admin_beta, v_admin_beta);
   -- ═══ SFÂRȘIT BLOC: fixture fiscalul flotei (0202) ═════════════════════════
 
+  -- ═══ ÎNCEPUT BLOC: fixture amenzi și daune (0203) ═════════════════════════
+  -- Câte o amendă și câte un incident pe vehiculul fiecărei firme.
+  insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta, termen_raspuns,
+                                    created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='veh_alfa'), 'PV-A-' || v_sufix, now() - interval '3 days',
+          'Depășirea vitezei legale', current_date + 10, v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='veh_beta'), 'PV-B-' || v_sufix, now() - interval '3 days',
+          'Depășirea vitezei legale', current_date + 10, v_admin_beta, v_admin_beta);
+  insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, descriere,
+                                        created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='veh_alfa'), 'avarie', now() - interval '2 days',
+          'Parbriz crăpat de o piatră', v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='veh_beta'), 'avarie', now() - interval '2 days',
+          'Parbriz crăpat de o piatră', v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture amenzi și daune (0203) ═════════════════════════
+
   -- ── Faza 7 (migrarea 0011): SSM, PSI, medicina muncii, ISCIR, mentenanță ────
   -- `ssm_legal_parameters`, `ssm_training_types` și `ssm_training_type_periods`
   -- se seedează SINGURE la crearea organizației (trg organizations_ssm_seed,
@@ -4926,6 +4942,174 @@ begin
   raise notice '(l) fiscalul flotei: org_admin scrie regimul, norma și impozitarea; hr află doar avantajul; manager și employee nu văd regimul ✓';
 end $$;
 -- ═══ SFÂRȘIT BLOC: fiscalul flotei (0202) ════════════════════════════════════
+
+-- ═══ ÎNCEPUT BLOC: amenzi și daune (0203) ════════════════════════════════════
+-- (l), continuare — amenzile primite pe vehicul și incidentele / dauna (0203)
+--
+-- `org_admin` (vehicle_fines / vehicle_incidents = all) parcurge fluxul întreg:
+-- amenda primită → șofer desemnat (sugerat din alocare) → răspuns trimis, iar
+-- incidentul raportat → constatat → la asigurător → închis. `hr`, `manager`
+-- și `employee` NU văd și NU scriu (decizia 3 a planului: HR doar permisele).
+-- Rânduri NUMĂRATE: un UPDATE respins de USING nu ridică eroare.
+do $$
+declare
+  v_alfa    uuid := pg_temp.id('alfa');
+  v_admin   uuid := pg_temp.id('admin_alfa');
+  v_hr      uuid := pg_temp.id('hr_user_alfa');
+  v_emp     uuid := pg_temp.id('emp_alfa');
+  v_ang     uuid := pg_temp.id('ang_alfa');
+  v_mgr     uuid := pg_temp.id('mgr_user_alfa');
+  v_veh     uuid;
+  v_amenda  uuid;
+  v_amenda2 uuid;
+  v_inc     uuid;
+  v_n       int;
+  v_eroare  text := '';
+  v_sofer   uuid;
+  v_sursa   text;
+  v_scad    int;
+  v_refuzat boolean := false;
+begin
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+
+  insert into public.vehicles (organization_id, nr_inmatriculare, marca, model, km_curent, created_by, updated_by)
+  values (v_alfa, 'CJ' || upper(left(md5(random()::text), 6)) || 'G', 'Dacia', 'Logan', 100, v_admin, v_admin)
+  returning id into v_veh;
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, km_predare,
+                                          created_by, updated_by)
+  values (v_alfa, v_veh, v_ang, now() - interval '10 days', 100, v_admin, v_admin);
+
+  insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta, termen_raspuns,
+                                    created_by, updated_by)
+  values (v_alfa, v_veh, 'pv-l-' || left(md5(random()::text), 6), now() - interval '3 days',
+          'Depășirea vitezei legale', current_date + 5, v_admin, v_admin)
+  returning id into v_amenda;
+
+  select count(*) into v_scad from public.expirables
+   where entity_type = 'vehicle_fine' and entity_id = v_amenda and deleted_at is null;
+  if v_scad <> 1 then
+    v_eroare := v_eroare || format(' termenul nu a ajuns în expirables (%s rânduri);', v_scad);
+  end if;
+
+  select employee_id, sursa into v_sofer, v_sursa
+    from public.sofer_sugerat(v_alfa, v_veh, now() - interval '3 days') limit 1;
+  if v_sofer is distinct from v_ang or v_sursa is distinct from 'alocare' then
+    v_eroare := v_eroare || format(' sofer_sugerat = %s din %s, așteptat șoferul alocării;', v_sofer, v_sursa);
+  end if;
+
+  update public.vehicle_fines set stadiu = 'sofer_desemnat', sofer_desemnat_id = v_ang where id = v_amenda;
+  get diagnostics v_n = row_count;
+  if v_n <> 1 then v_eroare := v_eroare || ' desemnarea șoferului: zero rânduri;'; end if;
+
+  update public.vehicle_fines set stadiu = 'raspuns_trimis', raspuns_trimis_la = current_date,
+                                  raspuns_numar = 'IES-1' where id = v_amenda;
+  get diagnostics v_n = row_count;
+  if v_n <> 1 then v_eroare := v_eroare || ' răspunsul trimis: zero rânduri;'; end if;
+
+  select count(*) into v_scad from public.expirables
+   where entity_type = 'vehicle_fine' and entity_id = v_amenda and deleted_at is null;
+  if v_scad <> 0 then
+    v_eroare := v_eroare || format(' termenul a rămas în expirables după răspuns (%s rânduri);', v_scad);
+  end if;
+
+  -- Amenda introdusă din greșeală, încă neatinsă: se șterge logic.
+  insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta,
+                                    created_by, updated_by)
+  values (v_alfa, v_veh, 'pv-g-' || left(md5(random()::text), 6), now() - interval '2 days',
+          'Parcare fără tichet', v_admin, v_admin)
+  returning id into v_amenda2;
+  update public.vehicle_fines set deleted_at = now() where id = v_amenda2;
+  get diagnostics v_n = row_count;
+  if v_n <> 1 then v_eroare := v_eroare || ' ștergerea logică a amenzii neatinse: zero rânduri;'; end if;
+
+  insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, descriere, sofer_id,
+                                        created_by, updated_by)
+  values (v_alfa, v_veh, 'coliziune', now() - interval '1 day', 'Zgâriere la parcare', v_ang, v_admin, v_admin)
+  returning id into v_inc;
+  update public.vehicle_incidents set stadiu = 'constatat', cost_estimat = 1200 where id = v_inc;
+  get diagnostics v_n = row_count;
+  if v_n <> 1 then v_eroare := v_eroare || ' incidentul constatat: zero rânduri;'; end if;
+  update public.vehicle_incidents set stadiu = 'la_asigurator', asigurator = 'Asigurator Test',
+                                      dosar_numar = 'D-1' where id = v_inc;
+  get diagnostics v_n = row_count;
+  if v_n <> 1 then v_eroare := v_eroare || ' incidentul la asigurător: zero rânduri;'; end if;
+  update public.vehicle_incidents set stadiu = 'inchis', cost_final = 1100, despagubire = 900 where id = v_inc;
+  get diagnostics v_n = row_count;
+  if v_n <> 1 then v_eroare := v_eroare || ' incidentul închis: zero rânduri;'; end if;
+  reset role;
+  if v_eroare <> '' then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `org_admin` pe amenzi și daune:' || v_eroare);
+  end if;
+
+  -- hr, manager, employee: nu văd nimic și nu scriu nimic.
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_fines where organization_id = v_alfa;
+  select v_n * 10 + count(*) into v_n from public.vehicle_incidents where organization_id = v_alfa;
+  select v_n * 10 + count(*) into v_n from public.sofer_sugerat(v_alfa, v_veh, now() - interval '3 days');
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) FALS-POZITIV: `hr` vede amenzi/daune/sugestia (amenzi×100 + incidente×10 + sugestie = %s)', v_n));
+  end if;
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta)
+    values (v_alfa, v_veh, 'pv-hr', now() - interval '1 day', 'Încercare hr');
+    reset role;
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `hr` a înregistrat o amendă');
+  exception when insufficient_privilege then
+    reset role;
+  end;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_fines where organization_id = v_alfa;
+  select v_n * 10 + count(*) into v_n from public.vehicle_incidents where organization_id = v_alfa;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) FALS-POZITIV: `manager` vede amenzi/daune (amenzi×10 + incidente = %s)', v_n));
+  end if;
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.vehicle_incidents (organization_id, vehicle_id, tip, produs_la, descriere)
+    values (v_alfa, v_veh, 'avarie', now() - interval '1 day', 'Încercare manager');
+    reset role;
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a raportat un incident');
+  exception when insufficient_privilege then
+    reset role;
+  end;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_fines where organization_id = v_alfa;
+  with schimbate as (
+    update public.vehicle_incidents set descriere = 'Încercare angajat'
+     where organization_id = v_alfa returning 1
+  ) select v_n * 10 + count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) FALS-POZITIV: `employee` pe amenzi/daune (citire×10 + scriere = %s)', v_n));
+  end if;
+
+  -- O amendă închisă (plătită sau anulată) și un incident închis nu se mai ating.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  begin
+    update public.vehicle_incidents set descriere = 'Rescriere după închidere' where id = v_inc;
+  exception when raise_exception then
+    v_refuzat := true;
+  end;
+  reset role;
+  if not v_refuzat then
+    perform pg_temp.esueaza('(l) incidentul închis a fost modificat');
+  end if;
+
+  raise notice '(l) amenzi și daune: org_admin parcurge fluxul amenzii și al incidentului; hr, manager și employee nu văd și nu scriu ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: amenzi și daune (0203) ════════════════════════════════════
 
 
 rollback;

@@ -13694,6 +13694,109 @@ export type Database = {
           },
         ]
       }
+      vehicle_fines: {
+        Row: {
+          autoritate: string | null
+          constatata_la: string
+          created_at: string
+          created_by: string | null
+          data_pv: string | null
+          deleted_at: string | null
+          desemnat_la: string | null
+          fapta: string
+          id: string
+          locul: string | null
+          motiv: string | null
+          numar_pv: string
+          observatii: string | null
+          organization_id: string
+          primita_la: string
+          raspuns_numar: string | null
+          raspuns_trimis_la: string | null
+          sofer_desemnat_id: string | null
+          stadiu: Database["public"]["Enums"]["amenda_stadiu"]
+          suma: number | null
+          termen_raspuns: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          autoritate?: string | null
+          constatata_la: string
+          created_at?: string
+          created_by?: string | null
+          data_pv?: string | null
+          deleted_at?: string | null
+          desemnat_la?: string | null
+          fapta: string
+          id?: string
+          locul?: string | null
+          motiv?: string | null
+          numar_pv: string
+          observatii?: string | null
+          organization_id: string
+          primita_la?: string
+          raspuns_numar?: string | null
+          raspuns_trimis_la?: string | null
+          sofer_desemnat_id?: string | null
+          stadiu?: Database["public"]["Enums"]["amenda_stadiu"]
+          suma?: number | null
+          termen_raspuns?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          autoritate?: string | null
+          constatata_la?: string
+          created_at?: string
+          created_by?: string | null
+          data_pv?: string | null
+          deleted_at?: string | null
+          desemnat_la?: string | null
+          fapta?: string
+          id?: string
+          locul?: string | null
+          motiv?: string | null
+          numar_pv?: string
+          observatii?: string | null
+          organization_id?: string
+          primita_la?: string
+          raspuns_numar?: string | null
+          raspuns_trimis_la?: string | null
+          sofer_desemnat_id?: string | null
+          stadiu?: Database["public"]["Enums"]["amenda_stadiu"]
+          suma?: number | null
+          termen_raspuns?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_fines_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_fines_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vf_sofer_fk"
+            columns: ["sofer_desemnat_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
       vehicle_fiscal_regimes: {
         Row: {
           chirie_lunara: number | null
@@ -13776,6 +13879,110 @@ export type Database = {
           {
             foreignKeyName: "vfr_proprietar_fk"
             columns: ["proprietar_employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      vehicle_incidents: {
+        Row: {
+          asigurator: string | null
+          cost_estimat: number | null
+          cost_final: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriere: string
+          despagubire: number | null
+          dosar_numar: string | null
+          id: string
+          inchis_la: string | null
+          locul: string | null
+          observatii: string | null
+          organization_id: string
+          produs_la: string
+          sofer_id: string | null
+          stadiu: Database["public"]["Enums"]["incident_stadiu"]
+          tip: Database["public"]["Enums"]["incident_tip"]
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+          work_accident_id: string | null
+        }
+        Insert: {
+          asigurator?: string | null
+          cost_estimat?: number | null
+          cost_final?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere: string
+          despagubire?: number | null
+          dosar_numar?: string | null
+          id?: string
+          inchis_la?: string | null
+          locul?: string | null
+          observatii?: string | null
+          organization_id: string
+          produs_la: string
+          sofer_id?: string | null
+          stadiu?: Database["public"]["Enums"]["incident_stadiu"]
+          tip: Database["public"]["Enums"]["incident_tip"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+          work_accident_id?: string | null
+        }
+        Update: {
+          asigurator?: string | null
+          cost_estimat?: number | null
+          cost_final?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string
+          despagubire?: number | null
+          dosar_numar?: string | null
+          id?: string
+          inchis_la?: string | null
+          locul?: string | null
+          observatii?: string | null
+          organization_id?: string
+          produs_la?: string
+          sofer_id?: string | null
+          stadiu?: Database["public"]["Enums"]["incident_stadiu"]
+          tip?: Database["public"]["Enums"]["incident_tip"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+          work_accident_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_incidents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_incidents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_incidents_work_accident_id_fkey"
+            columns: ["work_accident_id"]
+            isOneToOne: false
+            referencedRelation: "work_accidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vi_sofer_fk"
+            columns: ["sofer_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id", "organization_id"]
@@ -14418,6 +14625,18 @@ export type Database = {
         Args: { p_organization_id: string; p_zile: number }
         Returns: undefined
       }
+      sofer_sugerat: {
+        Args: {
+          p_moment: string
+          p_organization_id: string
+          p_vehicle_id: string
+        }
+        Returns: {
+          employee_id: string
+          referinta_id: string
+          sursa: string
+        }[]
+      }
       sterge_logic: {
         Args: { p_ids: string[]; p_tabela: string }
         Returns: string[]
@@ -14468,6 +14687,13 @@ export type Database = {
       }
     }
     Enums: {
+      amenda_stadiu:
+        | "primita"
+        | "sofer_desemnat"
+        | "raspuns_trimis"
+        | "platita"
+        | "contestata"
+        | "anulata"
       app_role: "super_admin" | "org_admin" | "manager" | "hr" | "employee"
       approval_step_kind: "manager_direct" | "rol" | "permisiune" | "utilizator"
       approval_task_status:
@@ -14652,6 +14878,18 @@ export type Database = {
       gen: "masculin" | "feminin" | "nedeclarat"
       holiday_compensation_type: "zi_libera" | "spor"
       holiday_type: "fix" | "mobil"
+      incident_stadiu:
+        | "raportat"
+        | "constatat"
+        | "la_asigurator"
+        | "in_reparatie"
+        | "inchis"
+      incident_tip:
+        | "coliziune"
+        | "avarie"
+        | "furt_vandalism"
+        | "fenomen_natural"
+        | "altul"
       inventory_import_status: "in_lucru" | "finalizat" | "esuat" | "revocat"
       inventory_item_stare: "nou" | "bun" | "uzat" | "defect"
       inventory_item_status: "in_stoc" | "alocat" | "in_reparatie" | "casat"
@@ -15026,6 +15264,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      amenda_stadiu: [
+        "primita",
+        "sofer_desemnat",
+        "raspuns_trimis",
+        "platita",
+        "contestata",
+        "anulata",
+      ],
       app_role: ["super_admin", "org_admin", "manager", "hr", "employee"],
       approval_step_kind: ["manager_direct", "rol", "permisiune", "utilizator"],
       approval_task_status: [
@@ -15229,6 +15475,20 @@ export const Constants = {
       gen: ["masculin", "feminin", "nedeclarat"],
       holiday_compensation_type: ["zi_libera", "spor"],
       holiday_type: ["fix", "mobil"],
+      incident_stadiu: [
+        "raportat",
+        "constatat",
+        "la_asigurator",
+        "in_reparatie",
+        "inchis",
+      ],
+      incident_tip: [
+        "coliziune",
+        "avarie",
+        "furt_vandalism",
+        "fenomen_natural",
+        "altul",
+      ],
       inventory_import_status: ["in_lucru", "finalizat", "esuat", "revocat"],
       inventory_item_stare: ["nou", "bun", "uzat", "defect"],
       inventory_item_status: ["in_stoc", "alocat", "in_reparatie", "casat"],
