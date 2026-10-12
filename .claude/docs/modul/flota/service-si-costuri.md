@@ -1,7 +1,15 @@
 ---
 tip: modul
 titlu: Flotă — service, costuri, anvelope
-aliases: [vehicle_service_plans, planuri de service, intervenții service, cheltuieli vehicul, anvelope, cost pe km]
+aliases:
+  [
+    vehicle_service_plans,
+    planuri de service,
+    intervenții service,
+    cheltuieli vehicul,
+    anvelope,
+    cost pe km,
+  ]
 cai:
   - "supabase/migrations/0200_flota_service_costuri.sql"
   - "src/app/(app)/flota/actions-service.ts"
@@ -16,8 +24,7 @@ cai:
   - "src/lib/queries/fleet-service.ts"
   - "src/schemas/fleet-service.ts"
   - "tests/rls/proba-flota-service.sql"
-tabele:
-  [vehicle_service_plans, vehicle_service_entries, vehicle_expenses, expirables, vehicles]
+tabele: [vehicle_service_plans, vehicle_service_entries, vehicle_expenses, expirables, vehicles]
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [19, 22, 26]
@@ -47,13 +54,13 @@ citește planurile, intervențiile și costurile mașinii echipei lui; șoferul 
 
 `src/app/(app)/flota/actions-service.ts`, toate `vehicles:update` / all.
 
-| Funcție                                     | Ce face                                              |
-| ------------------------------------------- | ---------------------------------------------------- |
-| `creeazaPlanService`                        | plan nou (interval km și/sau luni, bază, avertizare) |
-| `actualizeazaPlanService`                   | corectură, inclusiv `activ` (oprit = iese din alerte) |
-| `adaugaIntrareService`                      | intervenție făcută, opțional legată de plan          |
-| `stergeIntrareService`, `stergeCheltuiala`  | ștergere logică, zero rânduri = CONFLICT             |
-| `adaugaCheltuiala`                          | cheltuială fără foaie (parcare, taxe, combustibil)   |
+| Funcție                                    | Ce face                                               |
+| ------------------------------------------ | ----------------------------------------------------- |
+| `creeazaPlanService`                       | plan nou (interval km și/sau luni, bază, avertizare)  |
+| `actualizeazaPlanService`                  | corectură, inclusiv `activ` (oprit = iese din alerte) |
+| `adaugaIntrareService`                     | intervenție făcută, opțional legată de plan           |
+| `stergeIntrareService`, `stergeCheltuiala` | ștergere logică, zero rânduri = CONFLICT              |
+| `adaugaCheltuiala`                         | cheltuială fără foaie (parcare, taxe, combustibil)    |
 
 **Nu există „modifică intervenția” și „modifică cheltuiala”**: baza refuză cu P0001 orice
 schimbare de dată, km, tip, plan, costuri sau anvelope după inserare. Se șterge și se

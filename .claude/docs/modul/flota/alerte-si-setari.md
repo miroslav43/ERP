@@ -32,10 +32,10 @@ numea 0175; numerele intermediare s-au ocupat).
 implicitele coloanelor (1.500 km, 30/14/7), aceleași pe care le aplică baza —
 `src/domain/fleet/setari.test.ts` le lipește de migrare.
 
-| Coloană               | Ce face                                                                      |
-| --------------------- | ---------------------------------------------------------------------------- |
-| `responsabili`        | fișe de angajat; gol = toți `org_admin` activi                               |
-| `prag_salt_km`        | înlocuiește rezerva fixă din 0012; `vehicles.prag_salt_km` o bate pe vehicul |
+| Coloană               | Ce face                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `responsabili`        | fișe de angajat; gol = toți `org_admin` activi                                                               |
+| `prag_salt_km`        | înlocuiește rezerva fixă din 0012; `vehicles.prag_salt_km` o bate pe vehicul                                 |
 | `praguri_alerta_zile` | oglindite de trigger în `alert_rules` (`vehicle_document` și, din 0200, `vehicle_service`; o versiune pe zi) |
 
 Poarta: citirea ȘI scrierea cer `vehicles:update = all`, deci doar `org_admin`;
