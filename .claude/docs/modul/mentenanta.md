@@ -15,6 +15,7 @@ cai:
   - "supabase/migrations/0191_mentenanta_zilnica.sql"
   - "supabase/migrations/0210_mentenanta_interventii_complete.sql"
   - "supabase/migrations/0211_mentenanta_iscir_conformitate.sql"
+  - "supabase/migrations/0212_mentenanta_fisiere_scriu_doar_membrii.sql"
   - "tests/rls/izolare.sql"
 tabele:
   [
@@ -29,12 +30,12 @@ tabele:
 permisiuni:
   [maintenance:read, maintenance:create, maintenance:update, maintenance:delete, maintenance:export]
 feature: maintenance
-capcane: [17, 35, 50, 51, 55, 56, 57]
+capcane: [17, 35, 50, 51, 55, 56, 57, 58]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
   - "poartă de acțiune, citire care taie rânduri, mesaj P0001 → [[modul/mentenanta/actiuni]]; casare, contoare → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; ISCIR, VTP → [[modul/mentenanta/iscir]]"
-scris_pe: edd51fa9be907ae26d1faa9eceae838a5ca4d69b
+scris_pe: d73e7f38df015ae2084b174f6ad451b5ccb31ec2
 scris_la: 2026-10-12
 tags: [modul]
 ---
@@ -163,6 +164,8 @@ Postgres.
 - **Gărzile cu actori nominali au trei ramuri**: omul cu drept larg, raportorul sau
   tehnicianul atribuit și SERVICIUL (jobul de închidere automată, clientul admin).
   Serviciul sare peste drepturi, nu peste apartenența la firmă. — capcanele #50 și #56
+- **Platforma citește fișierele firmelor, nu le scrie** (`0212`): ramura `is_platform_admin()` din
+  porțile de fișiere stă doar pe `read` — capcana #58.
 - **Selectorul de puncte de lucru se golește tăcut** pentru un rol cu `maintenance:update`
   dar fără `departments:read`; de aceea trece printr-o acțiune cu client admin, iar fișa
   arată „Setat" când numele nu se poate citi. — capcana #57

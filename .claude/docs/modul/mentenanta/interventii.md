@@ -83,8 +83,8 @@ O verificare legală (tipul intervenției SAU tipul planului; nu și la rezultat
 1. browserul generează id-ul intervenției și urcă fișierul pe
    `{org}/intervention/{id}/…` (`useDocumentInterventie`, `document-interventie.ts`);
 2. `app.mentenanta_poate_fisier` (rescrisă în `0210`) tratează un id de intervenție
-   care nu există în NICIO firmă drept rezervare — doar pentru cine are
-   `maintenance:update` în organizația din cale; un id existent în altă firmă cade pe
+   care nu există în NICIO firmă drept rezervare — doar pentru un MEMBRU cu
+   `maintenance:update` în organizația din cale (consola de platformă nu, din `0212`); un id existent în altă firmă cade pe
    ramura veche și e refuzat;
 3. acțiunea măsoară obiectul real (`masoaraObiectul`), scrie intervenția cu acel id,
    apoi rândul atașamentului. Atașamentul refuzat ⇒ intervenția se anulează logic.

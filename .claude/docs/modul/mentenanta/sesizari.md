@@ -7,6 +7,7 @@ cai:
   - "src/app/(portal)/portal/sesizari/**"
   - "src/domain/maintenance/sesizari.ts"
   - "supabase/migrations/0181_sesizari_flux.sql"
+  - "supabase/migrations/0212_mentenanta_fisiere_scriu_doar_membrii.sql"
   - "tests/rls/proba-sesizari-roluri.sql"
 tabele:
   [
@@ -19,12 +20,12 @@ tabele:
   ]
 permisiuni: [maintenance:read, maintenance:create, maintenance:update]
 feature: maintenance
-capcane: [6, 7, 17, 27, 50, 56]
+capcane: [6, 7, 17, 27, 50, 56, 58]
 citeste_daca:
   - "un tehnician sau un raportor „nu poate” ceva pe sesizarea lui → „Cine poate ce”"
   - "o tranziție întoarce zero rânduri sau P0001 → „Ce refuză baza tăcut”"
   - "o fotografie sau un document nu se leagă de sesizare → „Rute”, pașii de încărcare"
-scris_pe: edd51fa9be907ae26d1faa9eceae838a5ca4d69b
+scris_pe: d73e7f38df015ae2084b174f6ad451b5ccb31ec2
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -68,7 +69,9 @@ din browser → `confirmaFisier` scrie rândul), în bucketul privat `org-menten
 `{org}/{entity_type}/{entity_id}/…`. Pasul 3 recitește `mime` și `marime_bytes` din Storage
 (`masoaraObiectul`) — ce declară clientul nu intră în rând — și refuză o cale care nu stă
 exact sub prefixul entității; limitele sunt `MAXIM_FOTO_PE_SESIZARE`, `LIMITA_FOTO_BYTES`,
-`LIMITA_DOCUMENT_MENTENANTA_BYTES`. `stergeFisier` șterge LOGIC rândul, obiectul rămâne.
+`LIMITA_DOCUMENT_MENTENANTA_BYTES`. `stergeFisier` șterge LOGIC rândul, obiectul rămâne. Poarta bucketului
+(`app.mentenanta_poate_fisier` → `mentenanta_poate_atasament`) lasă consola de platformă să
+CITEASCĂ, dar scrierea cere apartenența la firmă (`0212`, capcana #58).
 
 Lista din portal găzduiește și secțiunea „Echipamentele în grija mea”, cu citirea rapidă de
 contor (`echipamentele-mele.tsx`, `dialog-citire-rapida.tsx` → `inregistreazaContor`): e
