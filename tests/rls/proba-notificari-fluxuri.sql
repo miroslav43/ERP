@@ -18,7 +18,15 @@
 --     nicio notificare la utilizatorul străin, nici numele lui la solicitant
 --                                                                [NEGATIVĂ];
 -- (10) răspunsul solicitantului pe tichetul cu asignat străin ⇒ nimic nu
---     iese din firmă                                              [NEGATIVĂ].
+--     iese din firmă                                              [NEGATIVĂ];
+-- (11) solicitantul își REDESCHIDE tichetul rezolvat ⇒ asignatul primește
+--     „redeschis de solicitant”; solicitantul nu se anunță pe sine (0194);
+-- (12) solicitantul își ÎNCHIDE tichetul fără asignat ⇒ cei cu
+--     `tickets:update = all`; solicitantul nu se anunță pe sine (0194);
+-- (13) solicitant din ALTĂ firmă pus de operator pe tichet ⇒ schimbarea de
+--     stare nu scrie în clopoțelul străin                          [NEGATIVĂ];
+-- (14) duplicat din ALTĂ firmă legat de un bug rezolvat ⇒ autorul străin nu
+--     primește titlul tichetului nostru                            [NEGATIVĂ].
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -48,6 +56,9 @@ declare
   v_org_strain uuid := gen_random_uuid();
   v_u_strain  uuid := gen_random_uuid();
   v_e_strain  uuid := gen_random_uuid();
+  v_t3        uuid := gen_random_uuid();
+  v_t4        uuid := gen_random_uuid();
+  v_t_strain  uuid := gen_random_uuid();
   v_n         int;
   v_m         int;
   v_inainte   int;
@@ -373,6 +384,126 @@ begin
   else
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (10) comentariul a ajuns la utilizatorul străin (% notificări)', v_n;
+  end if;
+
+  -- ═══ (11) solicitantul redeschide ⇒ asignatul află; el nu se anunță pe sine ═
+  -- Tichetele pornesc direct din `rezolvat` (inserate ca proprietar): ce se
+  -- probează e gestul solicitantului, nu drumul până acolo.
+  insert into public.tickets (id, organization_id, numar_afisat, tip, titlu, descriere,
+                              modul, pasi_efectuati, rezultat_asteptat, rezultat_obtinut,
+                              solicitant_employee_id, asignat_employee_id, status,
+                              created_by, updated_by) values
+    (v_t3, v_org, 'IT-2026-920003', 'bug_erp', 'Raportul nu se descarcă', 'Descriere.',
+     'Rapoarte', 'Am apăsat.', 'Se descarcă.', 'Nu se descarcă.', v_e_ang, v_e_it, 'rezolvat',
+     v_u_ang, v_u_ang),
+    (v_t4, v_org, 'IT-2026-920004', 'bug_erp', 'Filtrul nu se aplică', 'Descriere.',
+     'Rapoarte', 'Am apăsat.', 'Se aplică.', 'Nu se aplică.', v_e_ang, null, 'rezolvat',
+     v_u_ang, v_u_ang);
+
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  update public.tickets set status = 'redeschis' where id = v_t3;
+  reset role;
+
+  if not exists (select 1 from public.tickets t where t.id = v_t3 and t.status = 'redeschis') then
+    raise exception 'proba-notificari-fluxuri: CAZ VID — solicitantul n-a putut redeschide tichetul; cazul (11) nu mai probează triggerul.';
+  end if;
+
+  select count(*) into v_n
+    from public.notifications n
+   where n.user_id = v_u_it and n.entity_id = v_t3 and n.kind = 'task'
+     and n.title = 'Tichetul IT-2026-920003: redeschis de solicitant';
+  select count(*) into v_m
+    from public.notifications n
+   where n.user_id = v_u_ang and n.entity_id = v_t3;
+  select count(*) into v_inainte
+    from public.notifications n
+   where n.user_id in (v_u_patron, v_u_mgr) and n.entity_id = v_t3;
+  if v_n = 1 and v_m = 0 and v_inainte = 0 then
+    raise notice '  ✓ (11) redeschiderea solicitantului ajunge la asignat, nu la el însuși';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11) redeschidere: asignat=%, solicitant=%, alții=% (aștept 1, 0, 0)', v_n, v_m, v_inainte;
+  end if;
+
+  -- ═══ (12) solicitantul închide fără asignat ⇒ tickets:update = all ═════════
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  update public.tickets set status = 'inchis' where id = v_t4;
+  reset role;
+
+  if not exists (select 1 from public.tickets t where t.id = v_t4 and t.status = 'inchis') then
+    raise exception 'proba-notificari-fluxuri: CAZ VID — solicitantul n-a putut închide tichetul; cazul (12) nu mai probează triggerul.';
+  end if;
+
+  select count(*) into v_n
+    from public.notifications n
+   where n.user_id = v_u_patron and n.entity_id = v_t4 and n.kind = 'info'
+     and n.title = 'Tichetul IT-2026-920004: închis de solicitant';
+  select count(*) into v_m
+    from public.notifications n
+   where n.user_id = v_u_ang and n.entity_id = v_t4;
+  select count(*) into v_inainte
+    from public.notifications n
+   where n.user_id in (v_u_mgr, v_u_it) and n.entity_id = v_t4;
+  if v_n = 1 and v_m = 0 and v_inainte = 0 then
+    raise notice '  ✓ (12) închiderea solicitantului fără asignat ajunge la cei cu tickets:update = all';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (12) închidere: patron=%, solicitant=%, alții=% (aștept 1, 0, 0)', v_n, v_m, v_inainte;
+  end if;
+
+  -- ═══ (13) solicitant străin pe tichet ⇒ starea nu iese din firmă ═══════════
+  -- `tickets_pazeste_campurile` îl lasă pe operator să schimbe solicitantul,
+  -- iar cheia străină nu e compusă cu organizația.
+  perform set_config('request.jwt.claim.sub', v_u_patron::text, true);
+  set local role authenticated;
+  update public.tickets set solicitant_employee_id = v_e_strain where id = v_t1;
+  update public.tickets set status = 'in_asteptare' where id = v_t1;
+  reset role;
+
+  if not exists (select 1 from public.tickets t
+                  where t.id = v_t1 and t.solicitant_employee_id = v_e_strain
+                    and t.status = 'in_asteptare') then
+    raise exception 'proba-notificari-fluxuri: CAZ VID — solicitantul străin sau starea nu au ajuns în rând; cazul (13) nu mai probează triggerul.';
+  end if;
+
+  select count(*) into v_n
+    from public.notifications n
+   where n.user_id = v_u_strain or n.organization_id = v_org_strain;
+  if v_n = 0 then
+    raise notice '  ✓ (13) schimbarea de stare pe tichetul cu solicitant străin nu iese din firmă';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (13) schimbarea de stare a ajuns la utilizatorul străin (% notificări)', v_n;
+  end if;
+
+  -- ═══ (14) duplicat din altă firmă ⇒ rezolvarea nu-i trimite titlul nostru ══
+  insert into public.tickets (id, organization_id, numar_afisat, tip, titlu, descriere,
+                              modul, pasi_efectuati, rezultat_asteptat, rezultat_obtinut,
+                              solicitant_employee_id, parent_ticket_id, created_by, updated_by) values
+    (v_t_strain, v_org_strain, 'IT-2026-920099', 'bug_erp', 'Nu salvează nici la noi', 'Descriere.',
+     'Pontaj', 'Am apăsat.', 'Se salvează.', 'Nu se salvează.', v_e_strain, v_t2,
+     v_u_strain, v_u_strain);
+
+  perform set_config('request.jwt.claim.sub', v_u_patron::text, true);
+  set local role authenticated;
+  update public.tickets set status = 'in_lucru' where id = v_t2;
+  update public.tickets set status = 'rezolvat' where id = v_t2;
+  reset role;
+
+  if not exists (select 1 from public.tickets t where t.id = v_t2 and t.status = 'rezolvat') then
+    raise exception 'proba-notificari-fluxuri: CAZ VID — bug-ul părinte n-a ajuns în `rezolvat`; cazul (14) nu mai probează triggerul.';
+  end if;
+
+  select count(*) into v_n
+    from public.notifications n
+   where n.user_id = v_u_strain or n.organization_id = v_org_strain;
+  if v_n = 0 then
+    raise notice '  ✓ (14) duplicatul din altă firmă nu primește rezolvarea bug-ului nostru';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (14) rezolvarea a ajuns la autorul duplicatului străin (% notificări)', v_n;
   end if;
 
   if v_esecuri > 0 then

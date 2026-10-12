@@ -25,7 +25,7 @@ import {
 import { NAV_ITEMS } from "@/config/navigation";
 import { MarcheazaDuplicat } from "./marcheaza-duplicat";
 import { fisaProprie } from "@/lib/queries/portal";
-import { esteDecizie, tranzitiiOferite, type StatusTichet } from "@/domain/ticketing/stari";
+import { tranzitiiPeTichet, type StatusTichet } from "@/domain/ticketing/stari";
 import type { Prioritate } from "@/domain/ticketing/prioritate";
 
 import {
@@ -206,8 +206,9 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
   // Decizia are o singură cale, `DecizieCerere` → `decideTichet`, care scrie și
   // `motiv_respingere`. Oferită și ca buton de stare, „Respins” lovea
   // `tickets_respingere_ck` (23514) cu eroare generică, iar „În lucru” dubla
-  // „Aprobă” (MGR-011).
-  const optiuni = tranzitiiOferite(status, drepturi).filter((catre) => !esteDecizie(status, catre));
+  // „Aprobă” (MGR-011). Solicitantul care nu operează primește doar ce primește
+  // în portal: altfel își redeschidea cererea respinsă și ocolea reaprobarea.
+  const optiuni = tranzitiiPeTichet(status, drepturi);
   const asteaptaDecizia = tichet.status === "in_aprobare" && poateAproba;
   // După aprobare, cine nu operează nu mai are niciun buton și nu vede cine
   // preia — tichetul părea rămas în gol (MGR-011).

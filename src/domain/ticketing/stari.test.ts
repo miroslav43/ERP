@@ -9,6 +9,7 @@ import {
   tranzitiePermisa,
   tranzitiiOferite,
   tranzitiiPosibile,
+  tranzitiiPeTichet,
   tranzitiiSolicitantului,
   type DrepturiActor,
 } from "./stari";
@@ -189,6 +190,50 @@ describe("ce i se oferă solicitantului în portal", () => {
       const oferite = tranzitiiOferite(status, SOLICITANT);
       for (const catre of tranzitiiSolicitantului(status)) {
         expect(oferite, `${status} → ${catre}`).toContain(catre);
+      }
+    }
+  });
+});
+
+describe("ce se oferă ca buton de stare pe pagina tichetului din aplicație", () => {
+  it("solicitantul fără drept de operare primește exact ce primește în portal", () => {
+    for (const status of STATUSURI_TICHET) {
+      expect(tranzitiiPeTichet(status, SOLICITANT), status).toEqual(
+        tranzitiiSolicitantului(status),
+      );
+    }
+  });
+
+  it("solicitantul nu-și poate redeschide cererea respinsă — ar ocoli reaprobarea", () => {
+    expect(tranzitiiPeTichet("respins", SOLICITANT)).not.toContain("redeschis");
+  });
+
+  it("operatorul păstrează toate tranzițiile lui, fără decizii", () => {
+    expect(tranzitiiPeTichet("respins", PATRON)).toEqual(["anulat", "redeschis"]);
+    expect(tranzitiiPeTichet("in_aprobare", PATRON)).toEqual(["anulat"]);
+    const operatorSolicitant: DrepturiActor = { ...SOLICITANT, poateOpera: true };
+    expect(tranzitiiPeTichet("in_lucru", operatorSolicitant)).toEqual(
+      tranzitiiOferite("in_lucru", operatorSolicitant),
+    );
+  });
+
+  it("decizia asupra cererii nu e niciodată buton de stare", () => {
+    for (const drepturi of [SOLICITANT, MANAGER, PATRON, STRAIN]) {
+      for (const catre of tranzitiiPeTichet("in_aprobare", drepturi)) {
+        expect(esteDecizie("in_aprobare", catre)).toBe(false);
+      }
+    }
+  });
+
+  it("nu oferă niciodată ceva ce domeniul ar refuza", () => {
+    for (const drepturi of [SOLICITANT, MANAGER, PATRON, STRAIN]) {
+      for (const status of STATUSURI_TICHET) {
+        for (const catre of tranzitiiPeTichet(status, drepturi)) {
+          expect(
+            poateSchimbaStatusul(status, catre, drepturi).permisa,
+            `${status} → ${catre}`,
+          ).toBe(true);
+        }
       }
     }
   });

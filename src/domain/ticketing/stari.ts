@@ -158,3 +158,22 @@ export function tranzitiiSolicitantului(din: StatusTichet): readonly StatusTiche
       return [];
   }
 }
+
+/**
+ * Butoanele de stare de pe pagina tichetului din aplicație (`/ticketing/[id]`).
+ *
+ * · Solicitantul care nu operează primește EXACT ce primește în portal
+ *   (`tranzitiiSolicitantului`). Altfel un manager sau un `hr` care își cere un
+ *   laptop își redeschidea, de aici, cererea respinsă și ocolea reaprobarea —
+ *   ocolișul închis doar în portal.
+ * · Ceilalți primesc `tranzitiiOferite`, fără decizii: decizia asupra unei
+ *   cereri are o singură cale, `DecizieCerere` → `decideTichet`, care scrie și
+ *   `motiv_respingere` (MGR-011).
+ */
+export function tranzitiiPeTichet(
+  din: StatusTichet,
+  drepturi: DrepturiActor,
+): readonly StatusTichet[] {
+  if (drepturi.esteSolicitant && !drepturi.poateOpera) return tranzitiiSolicitantului(din);
+  return tranzitiiOferite(din, drepturi).filter((catre) => !esteDecizie(din, catre));
+}
