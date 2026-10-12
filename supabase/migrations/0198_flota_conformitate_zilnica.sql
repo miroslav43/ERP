@@ -23,7 +23,13 @@
 --    `alert_rules` pe `entity_type = 'vehicle_document'`. `alert_rules` cere
 --    `compliance:*` prin politică; pragurile flotei le schimbă cine are
 --    `vehicles:update = all`, deci triggerul (definer) e punctul unic de scriere.
---    Citire: `vehicles:read` ≠ none. Scriere: `vehicles:update = all`.
+--    Citire și scriere: `vehicles:update = all`, adică doar administratorii. Setările
+--    conțin responsabilii de flotă și pragurile; din F3, orice `employee` are
+--    `vehicles:read = own`, deci o citire pe `<> 'none'` le-ar fi dat oricui
+--    (constatarea revizuirii automate). Singurul cititor neadministrativ al
+--    aplicației e fișa vehiculului, care afișează pragul de salt: primește DOAR
+--    acel număr, prin `public.flota_prag_salt_km(vehicul)`, gardată pe vizibilitatea
+--    vehiculului.
 -- B. `internal.foi_parcurs_dupa` (forma ultimă: 0012, neatinsă de nicio
 --    migrare ulterioară — verificat cu grep) ia pragul de salt în ordinea:
 --    vehiculul → setările firmei → implicitul de 1.500 km.
@@ -763,15 +769,17 @@ create trigger foi_parcurs_notifica
 alter table public.fleet_settings enable row level security;
 alter table public.fleet_settings force row level security;
 
--- Citite de cine vede parcul (și de șoferul cu `own`: pragul de salt explică
--- anomaliile lui); scrise doar de cine administrează vehiculele.
+-- Citite și scrise doar de cine administrează vehiculele (`vehicles:update =
+-- all`). Răspunsurile `<> 'none'` din prima formă dădeau responsabilii și
+-- pragurile oricărui `employee` (own) și oricărui `manager` (team). Cine are
+-- nevoie de pragul unui vehicul îl ia prin `public.flota_prag_salt_km`, mai jos.
 create policy fleet_settings_select on public.fleet_settings
 for select to authenticated
 using (
   (select app.is_platform_admin()) or (
     organization_id = any ((select app.current_org_ids())::uuid[])
     and app.feature_on(organization_id, 'fleet')
-    and app.has_permission(organization_id, 'vehicles', 'read') <> 'none'
+    and app.has_permission(organization_id, 'vehicles', 'update') = 'all'
   )
 );
 
@@ -800,6 +808,42 @@ with check (
   and app.has_permission(organization_id, 'vehicles', 'update') = 'all'
   and updated_by = (select auth.uid())
 );
+
+-- Calea îngustă spre pragul de salt al UNUI vehicul. Fișa vehiculului îl
+-- afișează oricui o poate deschide (manager cu `team`, șofer cu `own` prin
+-- portal), iar tabela nu mai e citibilă de ei. Funcția întoarce un singur
+-- număr — pragul efectiv: vehiculul → setările firmei → implicitul — și doar
+-- pentru un vehicul pe care apelantul îl vede (`app.poate_vedea_vehicul`, forma
+-- cu trei argumente din 0196). Alt vehicul, altă firmă sau funcție oprită:
+-- NULL, nu eroare. Nu poate fi chemată de `anon` (fără jeton nu există firmă).
+create or replace function public.flota_prag_salt_km(p_vehicle_id uuid)
+returns integer
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+           v.prag_salt_km,
+           (select s.prag_salt_km from public.fleet_settings s
+             where s.organization_id = v.organization_id and s.deleted_at is null
+             limit 1),
+           internal.flota_prag_salt_km())
+    from public.vehicles v
+   where v.id = p_vehicle_id
+     and v.deleted_at is null
+     and (
+       (select app.is_platform_admin())
+       or (
+         v.organization_id = any ((select app.current_org_ids())::uuid[])
+         and app.feature_on(v.organization_id, 'fleet')
+         and app.poate_vedea_vehicul(v.organization_id, v.employee_id, v.pool)
+       )
+     );
+$$;
+
+comment on function public.flota_prag_salt_km(uuid) is
+  'Pragul de salt al kilometrajului pentru UN vehicul vizibil apelantului (vehiculul, apoi setările firmei, apoi implicitul). Singura cale a non-administratorilor spre fleet_settings (0198).';
 
 -- ============================================================
 -- 9. Actor, audit, drepturi
@@ -834,6 +878,8 @@ revoke all on function internal.flota_aprobatori_foaie(uuid, uuid) from public, 
 revoke all on function internal.flota_rezumat(uuid) from public, anon, authenticated;
 revoke all on function internal.conformitate_zilnica() from public, anon, authenticated;
 revoke all on function internal.foi_parcurs_notifica() from public, anon, authenticated;
+revoke all on function public.flota_prag_salt_km(uuid) from public, anon;
+grant execute on function public.flota_prag_salt_km(uuid) to authenticated, service_role;
 grant execute on function internal.flota_rezumat(uuid) to service_role;
 grant execute on function internal.conformitate_zilnica() to service_role;
 
@@ -897,6 +943,15 @@ begin
   if not exists (select 1 from pg_trigger where tgname = 'foi_parcurs_notifica'
                   and tgrelid = 'public.trip_sheets'::regclass) then
     v_lipsa := v_lipsa || 'triggerul foi_parcurs_notifica';
+  end if;
+  -- Constatarea revizuirii: citirea setărilor nu mai depinde de `vehicles:read`.
+  if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'fleet_settings'
+              and policyname = 'fleet_settings_select'
+              and (qual like '%''read''%' or qual not like '%''update''%')) then
+    v_lipsa := v_lipsa || 'fleet_settings_select cere încă vehicles:read în loc de update = all';
+  end if;
+  if to_regprocedure('public.flota_prag_salt_km(uuid)') is null then
+    v_lipsa := v_lipsa || 'public.flota_prag_salt_km(uuid)';
   end if;
   if position('fleet_settings' in pg_get_functiondef('internal.foi_parcurs_dupa()'::regprocedure)) = 0 then
     v_lipsa := v_lipsa || 'internal.foi_parcurs_dupa cu pragul din setări';

@@ -49,6 +49,12 @@
 -- (19) cu pragul de 60 de zile, un rezumat pe două vehicule cu documente peste
 --      30 de zile duce la lista întreagă, nu la filtrul „expiră” (care arată
 --      doar 30 de zile, PRAG_FLOTA_AVERTIZARE_ZILE) — altfel vehiculele lipsesc.
+-- Constatarea revizuirii pe 0198 (citirea setărilor):
+-- (20) `manager` (team) și `employee` (own) citesc ZERO rânduri din
+--      `fleet_settings`; administratorul citește unul                  [NEGATIVĂ];
+-- (21) pragul de salt al unui vehicul vizibil se află prin
+--      `public.flota_prag_salt_km`: managerul pe mașina echipei lui, șoferița
+--      pe a ei și pe pool; pe un vehicul pe care nu-l vede, NULL      [POZITIVĂ].
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -94,6 +100,8 @@ declare
   v_link     text;
   v_tip      text;
   v_praguri  int[];
+  v_nul_mgr  boolean;
+  v_nul_a    boolean;
   v_esecuri  int := 0;
 begin
   raise notice '';
@@ -535,11 +543,52 @@ begin
     raise warning '  ✗ (19) admin % → %, link %', v_n, v_n2, v_link;
   end if;
 
+  -- (20) Setările nu mai sunt citibile de cine doar vede parcul.
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.fleet_settings where organization_id = v_org;
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  select v_n + count(*) into v_n from public.fleet_settings where organization_id = v_org;
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  select count(*) into v_n2 from public.fleet_settings where organization_id = v_org;
+  reset role;
+  if v_n = 0 and v_n2 = 1 then
+    raise notice '  ✓ (20) managerul și angajata nu citesc setările flotei; administratorul da';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (20) manager+angajată citesc % rânduri (așteptat 0), administratorul % (așteptat 1)', v_n, v_n2;
+  end if;
+
+  -- (21) Calea îngustă: doar numărul, doar pentru vehiculul pe care îl vezi.
+  --      Pragul firmei e 100 (8); VA/VB/VC nu au prag propriu.
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select public.flota_prag_salt_km(v_v_a) into v_n;                        -- mașina echipei lui
+  select public.flota_prag_salt_km(v_v_c) is null into v_nul_mgr;          -- nu e în echipa lui
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  select public.flota_prag_salt_km(v_v_a) into v_n2;                       -- a ei
+  select public.flota_prag_salt_km(v_v_b) into v_ca;                       -- pool
+  select public.flota_prag_salt_km(v_v_c) is null into v_nul_a;            -- a altcuiva
+  reset role;
+  if v_n = 100 and v_nul_mgr and v_n2 = 100 and v_ca = 100 and v_nul_a then
+    raise notice '  ✓ (21) pragul se află prin funcția îngustă doar pentru vehiculele vizibile';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (21) manager VA=% (așteptat 100), VC null=%; șoferiță VA=% VB=% (100), VC null=%',
+                  v_n, v_nul_mgr, v_n2, v_ca, v_nul_a;
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA CONFORMITATE ZILNICĂ: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 19 verificări au trecut.';
+  raise notice '  TOATE cele 21 de verificări au trecut.';
   raise notice '';
 end;
 $$;

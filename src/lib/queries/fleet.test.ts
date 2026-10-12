@@ -32,6 +32,7 @@ import {
   listeazaFoi,
   listeazaVehicule,
   PLAFON_ANOMALII,
+  pragSaltVehicul,
   scadenteCurente,
   tipuriDocument,
   urlSemnateFlota,
@@ -495,3 +496,29 @@ describe("rezolvarea id-urilor", () => {
     expect(areFiltru(db.apeluri[0], "is", "deleted_at", null)).toBe(true);
   });
 });
+
+// ═══ ÎNCEPUT BLOC: pragul de salt al unui vehicul (0198, revizuire) ═══════════
+describe("pragSaltVehicul", () => {
+  it("cheamă funcția îngustă cu id-ul vehiculului și întoarce numărul", async () => {
+    db.raspundeRpc("flota_prag_salt_km", { data: 900 });
+    expect(await pragSaltVehicul(ID_1)).toBe(900);
+    expect(db.apeluriRpc).toEqual([
+      { nume: "flota_prag_salt_km", argumente: { p_vehicle_id: ID_1 } },
+    ]);
+    // Nu atinge tabela de setări: managerul și șoferul n-au voie la ea.
+    expect(db.apeluriPe("fleet_settings")).toHaveLength(0);
+  });
+
+  it("vehicul invizibil: NULL, nu eroare", async () => {
+    db.raspundeRpc("flota_prag_salt_km", { data: null });
+    expect(await pragSaltVehicul(ID_2)).toBeNull();
+  });
+
+  it("o eroare a bazei se propagă", async () => {
+    db.raspundeRpc("flota_prag_salt_km", {
+      error: eroarePostgrest("42883", "function does not exist"),
+    });
+    await expect(pragSaltVehicul(ID_1)).rejects.toMatchObject({ code: "42883" });
+  });
+});
+// ═══ SFÂRȘIT BLOC: pragul de salt al unui vehicul ═════════════════════════════

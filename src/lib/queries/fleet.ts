@@ -1147,9 +1147,12 @@ export interface SetariFlota {
 /**
  * Setările flotei ale firmei. Lipsa rândului NU e o eroare: firma folosește
  * implicitele coloanelor (1.500 km, 30/14/7), aceleași pe care le aplică baza
- * (`setari.test.ts` le fixează). Le citește oricine vede parcul
- * (`fleet_settings_select`, `vehicles:read` ≠ none); pentru restul, zero rânduri
- * și tot implicitele — nu un ecran gol.
+ * (`setari.test.ts` le fixează). Le citește DOAR cine administrează parcul
+ * (`fleet_settings_select`, `vehicles:update = all`, de la revizuirea pe 0198:
+ * înainte, orice `employee` cu `vehicles:read = own` primea responsabilii și
+ * pragurile); pentru restul, zero rânduri și tot implicitele — nu un ecran
+ * gol, dar și NU valoarea firmei. Cine are nevoie de pragul unui vehicul vizibil
+ * folosește `pragSaltVehicul`.
  */
 export async function setariFlota(organizationId: string): Promise<SetariFlota> {
   const db = await createServerSupabase();
@@ -1174,6 +1177,24 @@ export async function setariFlota(organizationId: string): Promise<SetariFlota> 
     };
   }
   return data;
+}
+
+/**
+ * Pragul de salt EFECTIV al unui vehicul (al lui, apoi al firmei, apoi
+ * implicitul), pentru cine nu citește `fleet_settings`: fișa vehiculului îl
+ * afișează și managerului (team) sau șoferului (own). Calea e funcția
+ * `public.flota_prag_salt_km` (0198), care întoarce un singur număr și doar
+ * pentru un vehicul vizibil apelantului; altfel `null` (fără eroare), iar fișa
+ * spune „din setările flotei” fără cifră.
+ */
+export async function pragSaltVehicul(vehicleId: string): Promise<number | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db.rpc("flota_prag_salt_km", { p_vehicle_id: vehicleId });
+  if (error !== null) throw error;
+  // Tipul generat spune `number`; funcția întoarce NULL pentru un vehicul
+  // invizibil, iar PostgREST îl dă ca `null`.
+  const prag: number | null = data;
+  return prag;
 }
 
 /** Un angajat care poate fi bifat ca responsabil de flotă. */

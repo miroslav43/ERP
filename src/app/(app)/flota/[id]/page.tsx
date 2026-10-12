@@ -25,7 +25,7 @@ import {
   nomenclatorDocumente,
   listeazaFoi,
   anomaliiNeconfirmate,
-  setariFlota,
+  pragSaltVehicul,
   urlSemnateFlota,
 } from "@/lib/queries/fleet";
 import { tipSeAplica, tipuriObligatoriiPentru } from "@/domain/fleet/scadente";
@@ -108,7 +108,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
 
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
-  const [documente, nomenclator, alocari, angajati, departamente, setari] = await Promise.all([
+  const [documente, nomenclator, alocari, angajati, departamente, pragFirma] = await Promise.all([
     documenteleVehiculului(vehicul.id),
     // Nomenclatorul ÎNTREG al firmei (0199): un document pe un tip retras între
     // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
@@ -120,7 +120,9 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       ? departamentePentruVehicul(tenant.organizationId)
       : Promise.resolve([]),
     // Pragul de salt al firmei (0198), afișat când vehiculul n-are unul propriu.
-    vehicul.prag_salt_km === null ? setariFlota(tenant.organizationId) : Promise.resolve(null),
+    // Prin funcția îngustă, nu prin `fleet_settings`: tabela e închisă celor
+    // care nu administrează parcul (managerul cu `team` deschide această fișă).
+    vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
   ]);
   const departamentVehicul =
     vehicul.department_id === null
@@ -606,9 +608,9 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
               eticheta: "Prag salt kilometraj",
               valoare:
                 vehicul.prag_salt_km === null
-                  ? setari === null
+                  ? pragFirma === null
                     ? "implicit, din setările flotei"
-                    : `${setari.prag_salt_km.toLocaleString("ro-RO")} km, din setările flotei`
+                    : `${pragFirma.toLocaleString("ro-RO")} km, din setările flotei`
                   : `${vehicul.prag_salt_km.toLocaleString("ro-RO")} km`,
             },
             ...(vehicul.motiv_iesire === null

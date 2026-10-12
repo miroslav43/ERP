@@ -13954,6 +13954,7 @@ export type Database = {
           zile: number
         }[]
       }
+      flota_prag_salt_km: { Args: { p_vehicle_id: string }; Returns: number }
       hr_read_sensitive: {
         Args: { p_employee: string }
         Returns: {

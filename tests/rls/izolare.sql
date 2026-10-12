@@ -4621,8 +4621,11 @@ end $$;
 -- `org_admin` (vehicles:update = all) schimbă responsabilii, pragul de salt și
 -- pragurile; pragurile ajung în `alert_rules` prin trigger, deși `org_admin`
 -- n-ar trece el însuși prin politica de acolo dacă i s-ar lua `compliance:*`.
--- `manager` (vehicles:read = team) și `employee` (own) le CITESC, dar nu le
--- scriu: zero rânduri, fără eroare. Rânduri NUMĂRATE.
+-- `manager` (vehicles:read = team) și `employee` (own) NU le văd și nu le scriu:
+-- zero rânduri, fără eroare (constatarea revizuirii pe 0198: o citire pe
+-- `vehicles:read <> 'none'` le dădea responsabilii și pragurile oricărui
+-- angajat). Pragul unui vehicul vizibil li se dă DOAR prin
+-- `public.flota_prag_salt_km`. Rânduri NUMĂRATE.
 do $$
 declare
   v_alfa   uuid := pg_temp.id('alfa');
@@ -4642,9 +4645,12 @@ begin
      where organization_id = v_alfa and deleted_at is null
     returning 1
   ) select count(*) into v_n from schimbate;
+  -- Cazul pozitiv al citirii (0198, revizuire): restrângerea politicii nu are
+  -- voie să-l lase pe administrator fără ecranul de setări.
+  select v_n * 10 + count(*) into v_n from public.fleet_settings where organization_id = v_alfa;
   reset role;
-  if v_n <> 1 then
-    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `org_admin` nu schimbă setările flotei');
+  if v_n <> 11 then
+    perform pg_temp.esueaza(format('(l) REFUZ TĂCUT: `org_admin` schimbă×10+citește setările flotei = %s, așteptat 11', v_n));
   end if;
 
   select ar.praguri_zile into v_praguri
@@ -4658,9 +4664,9 @@ begin
   perform set_config('request.jwt.claim.sub', v_mgr::text, true);
   set local role authenticated;
   select count(*) into v_n from public.fleet_settings where organization_id = v_alfa;
-  if v_n <> 1 then
+  if v_n <> 0 then
     reset role;
-    perform pg_temp.esueaza('(l) REFUZ TĂCUT LA CITIRE: `manager` nu vede setările flotei');
+    perform pg_temp.esueaza('(l) DEZVĂLUIRE: `manager` citește setările flotei (responsabili, praguri)');
   end if;
   with schimbate as (
     update public.fleet_settings set prag_salt_km = 5000, updated_by = v_mgr
@@ -4679,11 +4685,11 @@ begin
      where organization_id = v_alfa returning 1
   ) select v_n * 10 + count(*) into v_n from schimbate;
   reset role;
-  if v_n <> 10 then
-    perform pg_temp.esueaza(format('(l) `employee` pe setările flotei: citire×10+scriere = %s, așteptat 10', v_n));
+  if v_n <> 0 then
+    perform pg_temp.esueaza(format('(l) `employee` pe setările flotei: citire×10+scriere = %s, așteptat 0', v_n));
   end if;
 
-  raise notice '(l) setările flotei: org_admin le scrie și pragurile ajung în alert_rules; manager și employee le citesc, nu le scriu ✓';
+  raise notice '(l) setările flotei: org_admin le scrie și pragurile ajung în alert_rules; manager și employee nu le văd și nu le scriu ✓';
 end $$;
 -- ═══ SFÂRȘIT BLOC: setările flotei (0198) ════════════════════════════════════
 
