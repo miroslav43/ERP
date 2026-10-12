@@ -13,7 +13,12 @@
 -- (6) comentariul solicitantului pe un tichet FĂRĂ asignat ⇒ patronul
 --     (`tickets:update = all`), nu autorul;
 -- (7) nota internă ⇒ zero rânduri noi;
--- (8) concediul respins cu motiv ⇒ corpul notificării conține motivul.
+-- (8) concediul respins cu motiv ⇒ corpul notificării conține motivul;
+-- (9) asignat din ALTĂ firmă (cheia străină nu e compusă cu organizația) ⇒
+--     nicio notificare la utilizatorul străin, nici numele lui la solicitant
+--                                                                [NEGATIVĂ];
+-- (10) răspunsul solicitantului pe tichetul cu asignat străin ⇒ nimic nu
+--     iese din firmă                                              [NEGATIVĂ].
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -40,6 +45,9 @@ declare
   v_sora      uuid := gen_random_uuid();
   v_t1        uuid := gen_random_uuid();
   v_t2        uuid := gen_random_uuid();
+  v_org_strain uuid := gen_random_uuid();
+  v_u_strain  uuid := gen_random_uuid();
+  v_e_strain  uuid := gen_random_uuid();
   v_n         int;
   v_m         int;
   v_inainte   int;
@@ -309,6 +317,62 @@ begin
   else
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (8) corpul notificării de respingere e „%"', v_body;
+  end if;
+
+  -- ═══ (9) asignat din ALTĂ firmă ⇒ nicio notificare peste graniță ═════════
+  -- Cheia străină `tickets.asignat_employee_id` nu e compusă cu
+  -- `organization_id`, iar triggerele 0191 sunt SECURITY DEFINER: fără filtrul
+  -- pe firmă, ID-ul fișei străine ar scrie în clopoțelul utilizatorului străin
+  -- (și numele lui în notificarea solicitantului).
+  insert into public.organizations (id, slug, name, cui) values
+    (v_org_strain, 'proba-notif-strain-' || v_sufix, 'Proba Străină SRL',
+     'RO' || (87000000 + (random() * 900000)::int)::text);
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_strain, 'nf-str-' || v_sufix || '@proba.test', now());
+  insert into public.organization_members (organization_id, user_id, role) values
+    (v_org_strain, v_u_strain, 'employee');
+  insert into public.employees (id, organization_id, marca, first_name, last_name, functie,
+                                hired_on, status, user_id) values
+    (v_e_strain, v_org_strain, 'NF-S', 'Sorin', 'Străinu', 'Tehnician', app.azi_local() - 200,
+     'activ', v_u_strain);
+
+  perform set_config('request.jwt.claim.sub', v_u_patron::text, true);
+  set local role authenticated;
+  update public.tickets set asignat_employee_id = v_e_strain where id = v_t2;
+  reset role;
+
+  if not exists (select 1 from public.tickets t where t.id = v_t2 and t.asignat_employee_id = v_e_strain) then
+    raise exception 'proba-notificari-fluxuri: CAZ VID — UPDATE-ul cu asignat străin n-a ajuns în rând; cazul (9) nu mai probează triggerul.';
+  end if;
+
+  select count(*) into v_n
+    from public.notifications n
+   where n.user_id = v_u_strain or n.organization_id = v_org_strain;
+  select count(*) into v_m
+    from public.notifications n
+   where n.entity_id = v_t2 and n.title = 'Tichetul IT-2026-920002 a fost repartizat';
+  if v_n = 0 and v_m = 0 then
+    raise notice '  ✓ (9) asignatul din altă firmă nu primește nimic, iar numele lui nu ajunge la solicitant';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (9) asignat străin: la utilizatorul străin=%, la solicitant=% (aștept 0, 0)', v_n, v_m;
+  end if;
+
+  -- ═══ (10) răspunsul solicitantului pe tichetul cu asignat străin ⇒ nimic afară ═
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  insert into public.ticket_comments (organization_id, ticket_id, autor_employee_id, continut, intern)
+  values (v_org, v_t2, v_e_ang, 'Mai e cineva pe tichet?', false);
+  reset role;
+
+  select count(*) into v_n
+    from public.notifications n
+   where n.user_id = v_u_strain or n.organization_id = v_org_strain;
+  if v_n = 0 then
+    raise notice '  ✓ (10) comentariul pe tichetul cu asignat străin nu iese din firmă';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10) comentariul a ajuns la utilizatorul străin (% notificări)', v_n;
   end if;
 
   if v_esecuri > 0 then

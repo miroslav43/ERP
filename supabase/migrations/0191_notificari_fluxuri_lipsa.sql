@@ -36,6 +36,14 @@
 --   §5 `internal.leave_requests_notifica_decizia`: corpul din 0048 §3, cu
 --      motivul în corp la respingere.
 --
+-- Granița de firmă: toate funcțiile de mai jos sunt SECURITY DEFINER, deci
+-- ocolesc RLS, iar cheile străine pe care le urmează (`asignat_employee_id`,
+-- `solicitant_employee_id`, `autor_employee_id`, `employee_id`) NU sunt
+-- compuse cu `organization_id`. Fiecare citire din `employees` și fiecare
+-- UPDATE pe `notifications` poartă deci explicit firma rândului — altfel un
+-- ID de fișă străin pus pe un tichet ar scrie în clopoțelul altei firme
+-- (revizuirea de securitate W2-03; proba (9)–(10)).
+--
 -- `read_at` nu e probatoriu (0001:711, minimizare), deci marcarea automată
 -- nu pierde nimic din audit. Forward-only: nu atinge 0046/0048/0188.
 -- Proba pe banc: `tests/rls/proba-notificari-fluxuri.sql`.
@@ -63,6 +71,7 @@ begin
     update public.notifications
        set read_at = now(), updated_at = now()
      where user_id = new.approver_user_id
+       and organization_id = new.organization_id
        and entity_type = new.entity_type
        and entity_id = new.entity_id
        and read_at is null
@@ -98,7 +107,8 @@ begin
   if old.status = 'in_aprobare' and new.status <> 'in_aprobare' then
     update public.notifications
        set read_at = now(), updated_at = now()
-     where entity_type = 'ticket'
+     where organization_id = new.organization_id
+       and entity_type = 'ticket'
        and entity_id = new.id
        and kind = 'approval'
        and read_at is null
@@ -139,10 +149,23 @@ begin
     return null;
   end if;
 
+  -- Filtrul pe firmă e obligatoriu: funcția e SECURITY DEFINER (ocolește
+  -- RLS), iar cheia străină `asignat_employee_id` nu e compusă cu
+  -- `organization_id`. O fișă din altă firmă nu e asignat valid — nu anunțăm
+  -- pe nimeni, ca nici numele ei să nu ajungă la solicitant.
   select e.user_id, e.full_name into v_asignat_user, v_asignat_nume
-    from public.employees e where e.id = new.asignat_employee_id;
+    from public.employees e
+   where e.id = new.asignat_employee_id
+     and e.organization_id = new.organization_id
+     and e.deleted_at is null;
+  if not found then
+    return null;
+  end if;
   select e.user_id into v_solicitant_user
-    from public.employees e where e.id = new.solicitant_employee_id;
+    from public.employees e
+   where e.id = new.solicitant_employee_id
+     and e.organization_id = new.organization_id
+     and e.deleted_at is null;
 
   if v_solicitant_user is not null
      and v_solicitant_user is distinct from v_eu
@@ -220,9 +243,15 @@ begin
   v_link := '/ticketing/' || v_t.id::text;
   v_corp := left(new.continut, 300);
 
+  -- Fiecare citire din `employees` poartă firma tichetului: funcția ocolește
+  -- RLS, iar ID-urile vin din rânduri ale căror chei străine nu sunt compuse
+  -- cu `organization_id`. Fără `deleted_at`: autorul unui comentariu poate
+  -- fi plecat între timp și tot nu trebuie să se anunțe pe sine.
   if new.autor_employee_id is not null then
     select e.user_id into v_autor_user
-      from public.employees e where e.id = new.autor_employee_id;
+      from public.employees e
+     where e.id = new.autor_employee_id
+       and e.organization_id = v_t.organization_id;
   end if;
 
   if new.autor_employee_id is not null
@@ -230,7 +259,10 @@ begin
     -- Răspunsul solicitantului → cine se ocupă de tichet.
     if v_t.asignat_employee_id is not null then
       select e.user_id into v_destinatar
-        from public.employees e where e.id = v_t.asignat_employee_id;
+        from public.employees e
+       where e.id = v_t.asignat_employee_id
+         and e.organization_id = v_t.organization_id
+         and e.deleted_at is null;
       if v_destinatar is not null
          and v_destinatar is distinct from v_autor_user
          and v_destinatar is distinct from v_eu then
@@ -255,7 +287,10 @@ begin
   else
     -- Răspunsul echipei → solicitantul, care altfel nu are de unde ști.
     select e.user_id into v_destinatar
-      from public.employees e where e.id = v_t.solicitant_employee_id;
+      from public.employees e
+     where e.id = v_t.solicitant_employee_id
+       and e.organization_id = v_t.organization_id
+       and e.deleted_at is null;
     if v_destinatar is not null
        and v_destinatar is distinct from v_autor_user
        and v_destinatar is distinct from v_eu then
@@ -300,7 +335,12 @@ begin
     return null;
   end if;
 
-  select e.user_id into v_user from public.employees e where e.id = new.employee_id;
+  -- Firma cererii, explicit: funcția ocolește RLS. Fără `deleted_at` — o
+  -- decizie pe cererea unui om plecat între timp tot îl anunță, ca în 0048.
+  select e.user_id into v_user
+    from public.employees e
+   where e.id = new.employee_id
+     and e.organization_id = new.organization_id;
   if v_user is null then
     return null;
   end if;
