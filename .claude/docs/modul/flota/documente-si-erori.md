@@ -23,7 +23,7 @@ tabele:
 permisiuni: [vehicles:create, vehicles:update]
 feature: fleet
 capcane: [21]
-scris_pe: 11acb122eb766a09776d1d0cbe81296c9c416542
+scris_pe: 64685e9896bff6384373ccdb8b9b8e7f4accb4cd
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
