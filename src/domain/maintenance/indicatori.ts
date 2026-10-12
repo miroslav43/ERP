@@ -37,7 +37,7 @@ import type {
   TipOprire,
 } from "@/schemas/maintenance";
 
-import { contorInvechit } from "./proiectie";
+import { contorInvechit, urmatoareaPeGrila } from "./proiectie";
 
 // ── Constante ───────────────────────────────────────────────────────────────
 
@@ -566,9 +566,8 @@ interface JudecataExecutie {
  */
 function scadentaDupa(plan: PlanRaport, executie: string, periodicitate: number): string {
   if (plan.mod_calcul !== "fix") return plusZile(executie, periodicitate);
-  const baza = plan.data_ancora ?? executie;
-  const pasi = Math.max(0, Math.ceil(zileIntre(baza, plusZile(executie, 1)) / periodicitate));
-  return plusZile(baza, pasi * periodicitate);
+  // Oglinda TS a grilei (`proiectie.ts`), cu „azi” = ziua execuției.
+  return urmatoareaPeGrila(plan.data_ancora ?? executie, periodicitate, executie, executie);
 }
 
 /** Execuțiile din perioadă care au o execuție precedentă, judecate față de ea. */
