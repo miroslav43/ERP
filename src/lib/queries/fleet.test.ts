@@ -68,6 +68,8 @@ const filtreFoi = (m: Partial<FiltreFoiCitire> = {}): FiltreFoiCitire => ({
   status: null,
   vehicul: null,
   sofer: null,
+  de_la: null,
+  pana_la: null,
   cursor: null,
   limita: 2,
   ...m,

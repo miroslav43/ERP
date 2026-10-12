@@ -103,8 +103,14 @@ export type FiltreVehicule = z.output<typeof filtreVehiculeSchema>;
 export const filtreFoiSchema = z.object({
   status: optional(z.enum(STATUS_FOAIE)),
   vehicul: optional(z.uuid()),
-  /** Filtru de INTRARE (din fișa angajatului): foile unui șofer. */
+  /**
+   * Filtru de INTRARE (din fișa angajatului): foile unui șofer. Este filtrul
+   * pe `employee_id` cerut de F4; numele scurt din URL rămâne cel de până acum.
+   */
   sofer: optional(z.uuid()),
+  /** Intervalul de ZILE (0197, `trip_sheets.data`), inclusiv capetele. */
+  de_la: optional(z.iso.date()),
+  pana_la: optional(z.iso.date()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   sort: optional(z.string().max(40)),
@@ -317,17 +323,152 @@ export const foaieNouaSchema = z.object({
 });
 export type FoaieNoua = z.output<typeof foaieNouaSchema>;
 
+/**
+ * Trimiterea foii zilnice spre aprobare (0197).
+ *
+ * Fără sosire și kilometraj: din 0197 le dau CURSELE, iar antetul le
+ * agregă în bază. O sosire trimisă aici ar fi refuzată („Orele și
+ * kilometrajul foii se scriu pe curse”).
+ */
 export const trimiteFoaieSchema = z.object({
   id: z.uuid(),
-  sosire_la: dataOraRomania("sosirii"),
-  km_sosire: z.coerce
-    .number("Scrieți kilometrajul la sosire, în km.")
-    .int("Kilometrajul se scrie în km întregi.")
-    .min(0, "Kilometrajul nu poate fi negativ."),
-  // Observațiile de la închidere: ce s-a întâmplat pe drum. Înainte, coloana
-  // exista în bază, dar niciun formular n-o scria.
+  // Observațiile de la închidere: ce s-a întâmplat pe drum. Gol = nimic de
+  // adăugat, nu „șterge ce era”.
   observatii: z.string().trim().max(1000).nullable().default(null),
 });
+
+/**
+ * Corectura antetului unei ciorne: traseul pe scurt, scopul zilei și
+ * observațiile. Ora și kilometrajul de plecare se schimbă doar pe o foaie
+ * FĂRĂ curse — cu curse, le dă prima cursă, iar baza refuză scrierea directă.
+ */
+export const actualizeazaFoaieSchema = z.object({
+  id: z.uuid(),
+  plecare_la: dataOraRomania("plecării").nullable().default(null),
+  km_plecare: numarOptional({
+    min: 0,
+    max: 5_000_000,
+    intreg: true,
+    mesaj: "Kilometrajul se scrie în cifre.",
+    interval: "Kilometrajul se scrie în km întregi.",
+  }),
+  traseu: z.string().trim().max(500).nullable().default(null),
+  scop: z.string().trim().max(500).nullable().default(null),
+  observatii: z.string().trim().max(1000).nullable().default(null),
+});
+export type ActualizeazaFoaie = z.output<typeof actualizeazaFoaieSchema>;
+
+/** Ștergerea logică a unei ciorne. Baza refuză orice altă stare (0197 §D1). */
+export const stergeFoaieSchema = z.object({ id: z.uuid() });
+
+/** Retragerea unei foi trimise în ciornă, ca șoferul s-o corecteze (0197). */
+export const retrageFoaieSchema = z.object({ id: z.uuid() });
+
+// ── Cursele foii zilnice (0197) ─────────────────────────────────────────────
+
+const textCursa = (lipsa: string, maxim: number) =>
+  z
+    .string({ error: lipsa })
+    .trim()
+    .min(1, lipsa)
+    .max(maxim, `Cel mult ${String(maxim)} de caractere.`);
+
+/**
+ * O cursă: ora, de unde, până unde, scopul și kilometrii (HG 1/2016 pct. 16
+ * alin. (2): „scopul și locul deplasării”). Sosirea se completează întreagă —
+ * ora ȘI kilometrajul — sau deloc (cursă în desfășurare); regula e și în bază.
+ */
+const campuriCursa = {
+  plecare_la: dataOraRomania("plecării"),
+  sosire_la: z
+    .union([z.literal(""), z.null(), dataOraRomania("sosirii")])
+    .transform((v) => (v === "" ? null : v))
+    .default(null),
+  de_la_loc: textCursa("Scrieți locul de plecare al cursei.", 200),
+  pana_la_loc: textCursa("Scrieți locul de sosire al cursei.", 200),
+  scop: textCursa("Scrieți scopul cursei.", 500),
+  km_plecare: numarObligatoriu({
+    min: 0,
+    max: 5_000_000,
+    intreg: true,
+    lipsa: "Scrieți kilometrajul la plecare, în km.",
+    mesaj: "Kilometrajul se scrie în cifre.",
+    interval: "Kilometrajul se scrie în km întregi.",
+  }),
+  km_sosire: numarOptional({
+    min: 0,
+    max: 5_000_000,
+    intreg: true,
+    mesaj: "Kilometrajul se scrie în cifre.",
+    interval: "Kilometrajul se scrie în km întregi.",
+  }),
+  observatii: z.string().trim().max(1000).nullable().default(null),
+} as const;
+
+function sosireIntreaga(
+  v: Readonly<{ sosire_la: string | null; km_sosire: number | null; km_plecare: number }>,
+  ctx: z.RefinementCtx,
+): void {
+  if (v.sosire_la === null && v.km_sosire !== null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sosire_la"],
+      message: "Completați și ora sosirii, sau lăsați sosirea goală.",
+    });
+  }
+  if (v.sosire_la !== null && v.km_sosire === null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["km_sosire"],
+      message: "Completați și kilometrajul la sosire, sau lăsați sosirea goală.",
+    });
+  }
+  if (v.km_sosire !== null && v.km_sosire <= v.km_plecare) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["km_sosire"],
+      message: "Kilometrajul la sosire trebuie să fie mai mare decât cel de la plecare.",
+    });
+  }
+}
+
+export const cursaSchema = z
+  .object({
+    trip_sheet_id: z.uuid(),
+    /** Șablonul din care s-a pornit, doar pentru audit. Locurile vin oricum din formular. */
+    sablon_id: z.uuid().nullable().default(null),
+    ...campuriCursa,
+  })
+  .superRefine(sosireIntreaga);
+export type CursaNoua = z.output<typeof cursaSchema>;
+
+export const actualizeazaCursaSchema = z
+  .object({ id: z.uuid(), trip_sheet_id: z.uuid(), ...campuriCursa })
+  .superRefine(sosireIntreaga);
+export type ActualizeazaCursa = z.output<typeof actualizeazaCursaSchema>;
+
+export const stergeCursaSchema = z.object({ id: z.uuid(), trip_sheet_id: z.uuid() });
+
+// ── Șabloanele de traseu (0197) ─────────────────────────────────────────────
+
+const campuriSablon = {
+  denumire: textCursa("Dați un nume șablonului, de exemplu „Sediu — Depozit”.", 120),
+  de_la_loc: textCursa("Scrieți locul de plecare.", 200),
+  pana_la_loc: textCursa("Scrieți locul de sosire.", 200),
+  scop: textCursa("Scrieți scopul cursei.", 500),
+  km_estimat: numarOptional({
+    min: 1,
+    max: 5000,
+    intreg: true,
+    mesaj: "Distanța se scrie în km întregi.",
+    interval: "Distanța estimată e între 1 și 5.000 km.",
+  }),
+} as const;
+
+export const sablonTraseuSchema = z.object(campuriSablon);
+export type SablonTraseuNou = z.output<typeof sablonTraseuSchema>;
+export const actualizeazaSablonTraseuSchema = z.object({ id: z.uuid(), ...campuriSablon });
+export const stergeSablonTraseuSchema = z.object({ id: z.uuid() });
 
 // ── Alocări (0173) ──────────────────────────────────────────────────────────
 
@@ -402,6 +543,12 @@ export const alimentareSchema = z.object({
   plin: z.boolean().default(false),
   observatii: z.string().trim().max(500).nullable().default(null),
 });
+
+/** Corectura unei alimentări pe ciornă (0197: doar cât foaia e `draft`). */
+export const actualizeazaAlimentareSchema = alimentareSchema.extend({ id: z.uuid() });
+
+/** Ștergerea logică a unei alimentări de pe ciornă. Ireversibilă (0197 §D2). */
+export const stergeAlimentareSchema = z.object({ id: z.uuid(), trip_sheet_id: z.uuid() });
 
 export const confirmaAnomalieSchema = z.object({
   id: z.uuid(),

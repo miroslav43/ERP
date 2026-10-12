@@ -62,6 +62,8 @@ async function ListaDeAprobat({
     status: "trimis",
     vehicul: null,
     sofer: null,
+    de_la: null,
+    pana_la: null,
     cursor: null,
     limita: PLAFON_COADA,
   });

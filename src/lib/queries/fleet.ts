@@ -20,6 +20,7 @@ import {
 } from "./cursor";
 import { dataLimitaExpirare } from "@/domain/hr/contracte-expira";
 import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
+import type { CursaFoaie, SablonTraseu } from "@/domain/fleet/foaie";
 
 export interface RandVehicul {
   readonly id: string;
@@ -105,6 +106,8 @@ export interface RandFoaie {
   readonly vehicle_id: string;
   readonly employee_id: string | null;
   readonly numar: string | null;
+  /** Ziua foii (0197), `AAAA-LL-ZZ`, generată de bază din prima plecare. */
+  readonly data: string;
   readonly plecare_la: string;
   readonly sosire_la: string | null;
   readonly km_plecare: number | null;
@@ -130,6 +133,16 @@ export interface RandFoaie {
 export interface Foaie extends RandFoaie {
   readonly observatii: string | null;
   readonly motiv_respingere: string | null;
+  readonly aprobat_de: string | null;
+  /**
+   * Instantaneul vehiculului la trimitere (0197): pe foaia trimisă sau aprobată
+   * se citesc DE AICI, nu din `vehicles` — documentul nu se schimbă retroactiv,
+   * iar aprobatorul fără drept pe vehicul l-ar vedea altfel „indisponibil”.
+   */
+  readonly vehicul_nr: string | null;
+  readonly vehicul_categorie: CategorieVehicul | null;
+  readonly vehicul_combustibil: Combustibil | null;
+  readonly norma_l_100km: number | null;
 }
 
 export interface RezultatFoi {
@@ -141,6 +154,7 @@ export interface RezultatFoi {
 
 export interface Alimentare {
   readonly id: string;
+  readonly trip_sheet_id: string;
   readonly litri: number;
   readonly cost: number;
   readonly pret_litru: number | null;
@@ -236,7 +250,7 @@ const COLOANE_VEHICUL_LISTA =
   "consum_mediu_declarat";
 
 const COLOANE_FOAIE =
-  "id, vehicle_id, employee_id, numar, plecare_la, sosire_la, km_plecare, km_sosire, " +
+  "id, vehicle_id, employee_id, numar, data, plecare_la, sosire_la, km_plecare, km_sosire, " +
   "km_parcursi, traseu, scop, status, trimis_la, aprobat_la";
 
 // ── Vehicule ────────────────────────────────────────────────────────────────
@@ -577,6 +591,8 @@ export async function listeazaFoi(
     Q extends {
       eq: (c: string, v: string) => Q;
       is: (c: string, v: null) => Q;
+      gte: (c: string, v: string) => Q;
+      lte: (c: string, v: string) => Q;
     },
   >(
     q: Q,
@@ -585,6 +601,10 @@ export async function listeazaFoi(
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.vehicul !== null) cu = cu.eq("vehicle_id", filtre.vehicul);
     if (filtre.sofer !== null) cu = cu.eq("employee_id", filtre.sofer);
+    // Pe `data` (ziua foii, 0197), nu pe `plecare_la`: „foile din 1–15
+    // octombrie” sunt zile calendaristice românești, nu momente UTC.
+    if (filtre.de_la !== null) cu = cu.gte("data", filtre.de_la);
+    if (filtre.pana_la !== null) cu = cu.lte("data", filtre.pana_la);
     return cu;
   };
 
@@ -627,7 +647,10 @@ export async function citesteFoaie(organizationId: string, id: string): Promise<
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("trip_sheets")
-    .select(`${COLOANE_FOAIE}, observatii, motiv_respingere`)
+    .select(
+      `${COLOANE_FOAIE}, observatii, motiv_respingere, aprobat_de, vehicul_nr, ` +
+        "vehicul_categorie, vehicul_combustibil, norma_l_100km",
+    )
     .eq("organization_id", organizationId)
     .eq("id", id)
     .is("deleted_at", null)
@@ -742,7 +765,9 @@ export async function alimentarileFoii(foaieId: string): Promise<readonly Alimen
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("fuel_entries")
-    .select("id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, observatii")
+    .select(
+      "id, trip_sheet_id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, observatii",
+    )
     .eq("trip_sheet_id", foaieId)
     .is("deleted_at", null)
     .order("alimentat_la", { ascending: true })
@@ -958,7 +983,84 @@ export async function foileMele(
     status: null,
     vehicul: null,
     sofer: employeeId,
+    de_la: null,
+    pana_la: null,
     cursor: pagina.cursor,
     limita: pagina.limita,
   });
+}
+
+// ── Cursele foii zilnice și șabloanele de traseu (0197) ─────────────────────
+
+/** O cursă, cu observațiile ei. Forma pură e `CursaFoaie` din domeniu. */
+export interface Cursa extends CursaFoaie {
+  readonly trip_sheet_id: string;
+  readonly observatii: string | null;
+}
+
+/**
+ * Câte curse citește o foaie. O zi de curier are câteva zeci; plafonul stă
+ * mult sub `max_rows = 1000`, care ar tăia TĂCUT, iar pagina spune când e atins.
+ */
+export const PLAFON_CURSE_FOAIE = 200;
+
+/** Cursele foii, în ordinea zilei. Vizibilitatea o dă `curse_select` (după foaie). */
+export async function curseleFoii(
+  organizationId: string,
+  foaieId: string,
+): Promise<readonly Cursa[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("trip_sheet_curse")
+    .select(
+      "id, trip_sheet_id, ordine, plecare_la, sosire_la, de_la_loc, pana_la_loc, scop, " +
+        "km_plecare, km_sosire, km_parcursi, observatii",
+    )
+    .eq("organization_id", organizationId)
+    .eq("trip_sheet_id", foaieId)
+    .is("deleted_at", null)
+    .order("plecare_la", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(PLAFON_CURSE_FOAIE)
+    .returns<Cursa[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/** Câte șabloane arată caseta. O firmă are câteva rute recurente, nu sute. */
+export const PLAFON_SABLOANE = 100;
+
+/** Șabloanele de traseu ale firmei, după denumire. Le citește oricine întocmește foi. */
+export async function sabloaneTraseu(organizationId: string): Promise<readonly SablonTraseu[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("trip_route_templates")
+    .select("id, denumire, de_la_loc, pana_la_loc, scop, km_estimat")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .limit(PLAFON_SABLOANE)
+    .returns<SablonTraseu[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * Numele unui cont (aprobatorul foii), pentru documentul tipărit.
+ *
+ * Fără `organizationId`: profilul e al CONTULUI, nu al firmei. Vizibilitatea o
+ * dă `profiles_select` (același cont sau o firmă comună), deci un aprobator din
+ * altă firmă n-are cum să apară. `null` = profilul nu e vizibil sau nu are nume.
+ */
+export async function numeleContului(userId: string): Promise<string | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", userId)
+    .maybeSingle<{ full_name: string | null; email: string }>();
+  if (error !== null) throw error;
+  if (data === null) return null;
+  const nume = data.full_name?.trim() ?? "";
+  return nume.length > 0 ? nume : data.email;
 }

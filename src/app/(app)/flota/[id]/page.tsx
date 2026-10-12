@@ -131,6 +131,8 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           status: "trimis",
           vehicul: vehicul.id,
           sofer: null,
+          de_la: null,
+          pana_la: null,
           cursor: null,
           limita: 5,
           sort: null,

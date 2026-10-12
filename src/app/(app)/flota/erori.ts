@@ -25,6 +25,11 @@ import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/erro
 export function traduEroare(error: unknown): never {
   if (isPostgrestError(error)) {
     if (error.code === "23505") {
+      const unicitate = UNICITATI.find(([index]) => error.message.includes(index));
+      if (unicitate !== undefined) {
+        const [, camp, mesaj] = unicitate;
+        throw invalidInput(mesaj, { [camp]: [mesaj] });
+      }
       // `vehicles_org_nr_uq` sau `vehicles_org_vin_uq`. Ambele se aplică peste
       // valoarea NORMALIZATĂ de trigger, deci mesajul nu poate cita ce a scris
       // utilizatorul — ar fi diferit de ce a ajuns în index.
@@ -50,6 +55,22 @@ export function traduEroare(error: unknown): never {
 }
 
 /**
+ * Unicitățile din 0012/0197 care NU sunt despre vehicul. Fără ele, orice 23505
+ * pe flotă ajungea „Există deja un vehicul cu acest număr…” — și pentru a doua
+ * foaie a zilei, și pentru un bon trecut de două ori. Numele indexului apare în
+ * mesajul Postgres, deci potrivirea e pe el.
+ */
+const UNICITATI: readonly (readonly [string, string, string])[] = [
+  [
+    "ts_vehicul_zi_uq",
+    "plecare_la",
+    "Vehiculul are deja o foaie de parcurs în ziua aceasta. Deschideți-o și adăugați cursa acolo.",
+  ],
+  ["fuel_bon_uq", "numar_bon", "Bonul acesta este deja trecut pe foaie."],
+  ["trt_org_denumire_uq", "denumire", "Există deja un șablon de traseu cu acest nume."],
+];
+
+/**
  * Câmpul (sau câmpurile) de care ține un refuz al triggerelor de flotă, după
  * începutul mesajului. Cu el, eroarea ajunge ÎN caseta vinovată, înroșită, nu
  * într-un banner deasupra formularului. Mesajele din bază (0012/0018) sunt
@@ -68,6 +89,15 @@ const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
   // scriere. Niciun ecran nu mută azi o foaie; tiparul e aici ca un viitor
   // formular de corectură să primească mesajul pe câmp, nu sub buton.
   [/^Foaia se poate muta doar pe un șofer/u, ["employee_id"]],
+  // 0197, cursele foii zilnice. Mesajele noi au ș/ț corecte.
+  [/^Scrieți locul de plecare al cursei/u, ["de_la_loc"]],
+  [/^Scrieți locul de sosire al cursei/u, ["pana_la_loc"]],
+  [/^Scrieți scopul cursei/u, ["scop"]],
+  [/^Sosirea cursei se completează întreagă/u, ["sosire_la", "km_sosire"]],
+  [/^Sosirea cursei lipsește/u, ["sosire_la"]],
+  [/^Ora de sosire a cursei/u, ["sosire_la"]],
+  [/^Ora de plecare a cursei/u, ["plecare_la"]],
+  [/^Kilometrajul la sosirea cursei/u, ["km_sosire"]],
 ];
 
 function campurileMesajului(mesaj: string): readonly string[] {
