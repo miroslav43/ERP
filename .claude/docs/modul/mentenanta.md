@@ -12,6 +12,7 @@ cai:
   - "supabase/migrations/0181_sesizari_flux.sql"
   - "supabase/migrations/0182_echipamente_ciclu.sql"
   - "supabase/migrations/0183_planuri_scadente.sql"
+  - "supabase/migrations/0191_mentenanta_zilnica.sql"
 tabele:
   [
     equipment,
@@ -45,6 +46,8 @@ opriri, setări — `0181`) are pagina lui: [[modul/mentenanta/sesizari]]. Ciclu
 echipamentului (casare, componente, garanție, contoare în lot, etichete QR, responsabilul
 — `0182`) are și el una: [[modul/mentenanta/echipamente]]. Planurile și scadențele (mod de
 calcul, amânare, proiecție pe contor, fișa planului — `0183`): [[modul/mentenanta/planuri]].
+Jobul de dimineață (alerte, rezumatul per destinatar, închiderea automată, pragurile din
+setări — `0191`): [[modul/mentenanta/zilnic]].
 
 ## Rute și cine ajunge
 
@@ -192,8 +195,7 @@ restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()
 ## Ce NU e aici
 
 Vehiculele și foile de parcurs sunt la [[modul/flota]]. Instruirile, EIP-ul și accidentele
-sunt la [[modul/ssm]], deși vin din aceeași migrare. Fluxul sesizării, cu actorii lui, e la
-[[modul/mentenanta/sesizari]].
+sunt la [[modul/ssm]], deși vin din aceeași migrare.
 
 ## Când NU e suficientă pagina asta
 
