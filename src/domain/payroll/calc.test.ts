@@ -459,6 +459,116 @@ describe("calculatePayrollEntry — normă parțială", () => {
   });
 });
 
+/*
+ * Timpul parțial lucrat în zile întregi, dar în mai puțin de cinci zile pe
+ * săptămână (art. 103–105 Codul muncii): 8 h/zi, 24 h/săpt. Schema îl admite
+ * din 12 oct 2026; până atunci calea era de neatins. Pontajul lui are ~13 zile
+ * într-o lună de 21 de zile lucrătoare, iar împărțirea la cele 21 îi plătea
+ * ~62% din salariul contractual, fără eroare și fără avertisment.
+ */
+describe("calculatePayrollEntry — normă în mai puțin de cinci zile pe săptămână", () => {
+  const TREI_ZILE = {
+    salariuBaza: 3000,
+    nrPersoaneIntretinere: 0,
+    normaZilnicaOre: 8,
+    normaOreSaptamana: 24,
+  } as const;
+  const pontaj = (zileLucrate: number, extra: Partial<AttendanceSummary> = {}) => ({
+    ...PONTAJ_STANDARD,
+    zileLucrate,
+    oreLucrate: zileLucrate * 8,
+    ...extra,
+  });
+  const calculeaza = (contract: typeof TREI_ZILE | typeof CINCI_ZILE, a: AttendanceSummary) =>
+    calculatePayrollEntry({
+      settings: SETARI,
+      contract,
+      attendance: a,
+      bonuses: [],
+      deductions: [],
+    });
+  const CINCI_ZILE = {
+    salariuBaza: 3000,
+    nrPersoaneIntretinere: 0,
+    normaZilnicaOre: 8,
+    normaOreSaptamana: 40,
+  } as const;
+
+  it("toate zilele programului lucrate (13 din 21, peste media de 12,6): salariul întreg, nu 13/21", () => {
+    const r = calculeaza(TREI_ZILE, pontaj(13));
+    expect(r.bazaSalariu).toBeCloseTo(3000, 2);
+  });
+
+  it("sub media zilelor datorate (12 din 12,6): proporțional cu zilele programului, nu cu ale lunii", () => {
+    const r = calculeaza(TREI_ZILE, pontaj(12));
+    // 3000 / (21 × 24/40) × 12 = 3000 / 12,6 × 12 = 2857,14
+    expect(r.bazaSalariu).toBeCloseTo(2857.14, 2);
+  });
+
+  it("tariful orar se ia din orele lunii ale contractului (21 × 24/5), nu din 21 × 8", () => {
+    const r = calculeaza(TREI_ZILE, pontaj(13, { oreSuplimentare: 2 }));
+    // 2 × 3000 / (12,6 × 8) × 1,75 = 104,17
+    expect(r.sumaOreSuplimentare).toBeCloseTo(104.17, 2);
+  });
+
+  it("indemnizația de concediu de odihnă se plătește la rata zilnică a programului", () => {
+    const r = calculatePayrollEntry({
+      settings: SETARI,
+      contract: TREI_ZILE,
+      attendance: pontaj(9, { zileConcediuOdihna: 3 }),
+      bonuses: [],
+      deductions: [],
+      concediuOdihna: { mod: "baza", istoric: [], luniNecesare: 3 },
+    });
+    // 3000 / 12,6 × 3 = 714,29
+    expect(r.indemnizatieCo).toBeCloseTo(714.29, 2);
+    // 3000 / 12,6 × 9 = 2142,86; împreună cu concediul, cât 12 zile ale programului.
+    expect(r.bazaSalariu).toBeCloseTo(2142.86, 2);
+  });
+
+  it("avertizează că baza e proporționată cu media zilelor programului", () => {
+    const r = calculeaza(TREI_ZILE, pontaj(13));
+    const avertisment = r.warnings.find((w) => w.cod === "NORMA_SUB_CINCI_ZILE");
+    expect(avertisment?.mesaj).toContain("12,6");
+  });
+
+  it("contractele de cinci zile rămân neatinse: normă săptămânală dată sau lipsă, același rezultat", () => {
+    const cu = calculeaza(CINCI_ZILE, pontaj(21, { oreSuplimentare: 2 }));
+    const fara = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 3000, nrPersoaneIntretinere: 0, normaZilnicaOre: 8 },
+      attendance: pontaj(21, { oreSuplimentare: 2 }),
+      bonuses: [],
+      deductions: [],
+    });
+    expect(cu).toEqual(fara);
+    expect(cu.warnings.some((w) => w.cod === "NORMA_SUB_CINCI_ZILE")).toBe(false);
+  });
+
+  it("norma zilnică falsă de odinioară (3,2 h/zi, 16 h/săpt., cinci zile) rămâne neatinsă", () => {
+    const vechi = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 1620, nrPersoaneIntretinere: 0, normaZilnicaOre: 3.2 },
+      attendance: pontaj(20),
+      bonuses: [],
+      deductions: [],
+    });
+    const cuSaptamana = calculatePayrollEntry({
+      settings: SETARI,
+      contract: {
+        salariuBaza: 1620,
+        nrPersoaneIntretinere: 0,
+        normaZilnicaOre: 3.2,
+        normaOreSaptamana: 16,
+      },
+      attendance: pontaj(20),
+      bonuses: [],
+      deductions: [],
+    });
+    expect(cuSaptamana).toEqual(vechi);
+  });
+});
+
 describe("calculatePayrollEntry — zile de repaus și de sărbătoare", () => {
   // Tariful orar: 5000 / (21 x 8) = 29,7619 lei.
   const cuSpor = (repaus: number, sarbatoare?: number): PayrollSettingsSnapshot => ({

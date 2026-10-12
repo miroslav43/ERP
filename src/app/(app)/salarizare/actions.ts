@@ -520,6 +520,9 @@ export const calculeazaPerioada = createAction({
           salariuBaza: angajat.salariu_baza,
           nrPersoaneIntretinere: angajat.nr_persoane_intretinere,
           normaZilnicaOre: angajat.norma_ore_zi,
+          // Sub cinci zile pe săptămână (8 h/zi, 24 h/săpt.), baza se împarte
+          // la zilele programului, nu la toate zilele lucrătoare ale lunii.
+          normaOreSaptamana: angajat.norma_ore_saptamana,
           exemptii: scutiri.get(angajat.employee_id) ?? [],
         },
         attendance: {

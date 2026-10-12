@@ -141,6 +141,14 @@ export interface EmployeeContractSnapshot {
    * tariful orar se obține împărțind la norma greșită.
    */
   readonly normaZilnicaOre?: number;
+  /**
+   * Norma săptămânală din contract. Contează doar când e sub `normaZilnica × 5`,
+   * adică la timpul parțial lucrat în mai puțin de cinci zile pe săptămână
+   * (8 h/zi, 24 h/săpt.), admis de schemă din 12 oct 2026: atunci salariul se
+   * împarte la zilele PROGRAMULUI din lună, nu la toate zilele lucrătoare.
+   * Lipsă, sau la cinci zile ori mai multe, calculul rămâne cel de până acum.
+   */
+  readonly normaOreSaptamana?: number;
   readonly exemptii?: readonly TaxExemptionSnapshot[];
 }
 
@@ -391,7 +399,31 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     });
   }
 
-  const salariuZi = contract.salariuBaza / attendance.zileLucratoareLuna;
+  // Zilele PROGRAMULUI din lună. La cinci zile pe săptămână sau mai multe sunt
+  // chiar zilele lucrătoare ale lunii. La timpul parțial în zile întregi, dar
+  // în mai puține zile (8 h/zi, 24 h/săpt. = trei zile), sunt media lor:
+  // 21 × 3/5 = 12,6. Împărțit la toate cele 21, un om care și-a lucrat tot
+  // programul (13 zile) primea 13/21 ≈ 62% din salariul contractual.
+  // Aproximare declarată: fără programul pe zile al contractului, media lunii
+  // e tot ce se poate ști; zilele lucrate peste ea nu trec de salariul întreg.
+  const normaSaptamana = contract.normaOreSaptamana;
+  const zileProgramSaptamana =
+    normaSaptamana !== undefined && Number.isFinite(normaSaptamana) && normaSaptamana > 0
+      ? normaSaptamana / normaZilnica
+      : 5;
+  const subCinciZile = zileProgramSaptamana < 5 - 1e-9;
+  const zileProgramLuna = subCinciZile
+    ? (attendance.zileLucratoareLuna * zileProgramSaptamana) / 5
+    : attendance.zileLucratoareLuna;
+  if (subCinciZile) {
+    const zileText = String(rotund2(zileProgramLuna)).replace(".", ",");
+    warnings.push({
+      cod: "NORMA_SUB_CINCI_ZILE",
+      mesaj: `Contractul are o normă de ${String(normaSaptamana)} ore pe săptămână în zile de ${String(normaZilnica)} ore, adică mai puțin de cinci zile pe săptămână. Salariul de bază s-a împărțit la media zilelor programului din lună (${zileText} din ${String(attendance.zileLucratoareLuna)} zile lucrătoare). Verificați zilele din pontaj față de programul convenit.`,
+    });
+  }
+
+  const salariuZi = contract.salariuBaza / zileProgramLuna;
   // Când etapa de indemnizație preia concediul de odihnă, zilele ei ies din
   // baza de salariu — altfel ar fi plătite de două ori, o dată la rata de bază
   // și o dată la rata de indemnizație.
@@ -407,9 +439,22 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
       "Zilele lucrate plus zilele de concediu de odihnă depășesc zilele lucrătoare ale lunii.",
     );
   }
-  const bazaSalariu = inregistreaza("bazaSalariu", salariuZi * zilePlatite);
+  // Plafonul atinge doar normele sub cinci zile: la celelalte, verificarea de
+  // mai sus garantează deja `zilePlatite ≤ zileProgramLuna`. Concediul plătit
+  // prin etapă ocupă și el zile din program.
+  const zilePlatiteInProgram = subCinciZile
+    ? Math.min(
+        zilePlatite,
+        Math.max(
+          0,
+          zileProgramLuna -
+            (input.concediuOdihna === undefined ? 0 : attendance.zileConcediuOdihna),
+        ),
+      )
+    : zilePlatite;
+  const bazaSalariu = inregistreaza("bazaSalariu", salariuZi * zilePlatiteInProgram);
 
-  const oreRata = contract.salariuBaza / (attendance.zileLucratoareLuna * normaZilnica);
+  const oreRata = contract.salariuBaza / (zileProgramLuna * normaZilnica);
 
   // Orele compensate cu timp liber NU se mai plătesc — ar fi plată dublă.
   // Când evidența compensărilor e dată, ea e autoritativă asupra pontajului:
@@ -549,7 +594,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
       ...input.concediuOdihna,
       zileConcediu: attendance.zileConcediuOdihna,
       salariuBaza: contract.salariuBaza,
-      zileLucratoareLuna: attendance.zileLucratoareLuna,
+      // Rata zilnică a PROGRAMULUI, aceeași ca a bazei de salariu de mai sus.
+      zileLucratoareLuna: zileProgramLuna,
     });
     indemnizatieCo = co.suma;
     raporteaza(co.probleme);

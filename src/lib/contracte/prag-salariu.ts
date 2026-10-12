@@ -13,14 +13,22 @@ import { salariulMinimLaData } from "@/lib/queries/payroll";
  *
  * Găsit de QA pe 8 oct 2026 (HR-021, HR-030): 100 lei, 0 lei și 12 h/zi
  * treceau fără niciun avertisment.
+ *
+ * Primește AMBELE norme: pragul se proporționează cu cea săptămânală (un
+ * contract de 8 h/zi în trei zile cere 24/40 din minim, nu minimul întreg).
  */
 export async function refuzaSubSalariulMinim(
   organizationId: string,
   valabilDeLa: string,
   salariuBaza: number,
-  normaOreZi: number,
+  norma: Readonly<{ normaOreZi: number; normaOreSaptamana: number }>,
 ): Promise<void> {
   const minim = await salariulMinimLaData(organizationId, valabilDeLa);
-  const mesaj = verificaSalariulMinim({ salariuBaza, salariuMinimBrut: minim, normaOreZi });
+  const mesaj = verificaSalariulMinim({
+    salariuBaza,
+    salariuMinimBrut: minim,
+    normaOreZi: norma.normaOreZi,
+    normaOreSaptamana: norma.normaOreSaptamana,
+  });
   if (mesaj !== null) throw invalidInput(mesaj, { salariu_baza: [mesaj] });
 }

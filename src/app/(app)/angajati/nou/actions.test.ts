@@ -156,6 +156,49 @@ describe("inroleazaAngajat", () => {
     expect(server.apeluriRpc.filter((a) => a.nume === "urmatoarea_marca")).toHaveLength(0);
   });
 
+  it("8 h/zi în trei zile (24 h/săpt.) la minimul proporțional (24/40): înrolarea trece de prag", async () => {
+    // Schema îl admite din 12 oct 2026; pragul calculat din norma zilnică (8/8)
+    // cerea minimul întreg și refuza pe `salariu_baza` exact acest contract.
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: 4050 }] });
+    server.raspundeRpc("urmatoarea_marca", { data: "0001" });
+    server.raspunde("employees", "insert", { data: { id: ID_1, full_name: "Popescu Ion" } });
+    server.raspundeRpc("hr_write_sensitive", { data: null });
+    server.raspundeRpc("aloca_numar_contract", { data: "CIM-1" });
+    server.raspunde("employment_contracts", "insert", { data: { id: ID_2 } });
+    server.raspunde("employment_contracts", "update", { data: { id: ID_2 } });
+    server.raspundeRpc("seed_leave_balances", { data: null });
+    server.raspunde("checklist_templates", "select", { data: [] });
+
+    const r = await inroleazaAngajat({
+      ...INTRARE,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 24,
+      salariu_baza: 2430,
+    });
+
+    expect(r.ok).toBe(true);
+    const [contract] = server.apeluriPe("employment_contracts", "insert");
+    expect(contract?.payload).toMatchObject({ norma_ore_zi: 8, norma_ore_saptamana: 24 });
+  });
+
+  it("8 h/zi, 24 h/săpt. sub minimul proporțional: VALIDARE cu pragul de 2.430 lei", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    server.raspunde("payroll_settings", "select", { data: [{ salariu_minim_brut: 4050 }] });
+
+    const r = await inroleazaAngajat({
+      ...INTRARE,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 24,
+      salariu_baza: 2400,
+    });
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("2.430");
+    expect(server.apeluriPe("employees")).toHaveLength(0);
+  });
+
   // QA 8 oct 2026, HR-030: „câmpul permite max. 12" — art. 112 Codul muncii.
   it("norma zilnică de 12 ore: VALIDARE pe `norma_ore_zi`, fără nicio scriere", async () => {
     const { server } = configureazaActiunea({ permisiuni: PERMIS });

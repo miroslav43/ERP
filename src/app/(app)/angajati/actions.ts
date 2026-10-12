@@ -461,7 +461,10 @@ export const creeazaContract = createAction({
       ctx.tenant.organizationId,
       input.valabil_de_la,
       input.salariu_baza,
-      input.norma_ore_zi,
+      {
+        normaOreZi: input.norma_ore_zi,
+        normaOreSaptamana: input.norma_ore_saptamana,
+      },
     );
     const db = await createServerSupabase();
 
@@ -903,11 +906,15 @@ export const modificaSalariulContractului = createAction({
         salariu_baza: ["Salariul nou e același cu cel în vigoare la data aleasă."],
       });
     }
+    // Normele actului sunt cele ale contractului (rândul de mai jos le copiază).
     await refuzaSubSalariulMinim(
       ctx.tenant.organizationId,
       input.valabil_de_la,
       input.salariu_baza,
-      Number(contract.norma_ore_zi),
+      {
+        normaOreZi: Number(contract.norma_ore_zi),
+        normaOreSaptamana: Number(contract.norma_ore_saptamana),
+      },
     );
 
     // ── 1. Actul adițional ──

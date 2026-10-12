@@ -744,6 +744,35 @@ function camp(server: ClientFals, angajatId: string, coloana: string): number {
 }
 
 describe("calculeazaPerioada — intrările lunii ajung în statul de plată", () => {
+  it("normă de 8 h/zi în trei zile (24 h/săpt.): programul întreg lucrat dă salariul întreg, nu 13/21", async () => {
+    // Schema admite contractul din 12 oct 2026; fără norma săptămânală în
+    // calcul, cele 13 zile lucrate se împărțeau la 21 și ieșeau ~62% din salariu.
+    const server = pregateste();
+    programeazaScrierea(server);
+    vi.mocked(angajatiActiviCuContract).mockResolvedValue({
+      angajati: [
+        angajat(ANGAJAT_A, 3000, { norma_ore_zi: 8, norma_ore_saptamana: 24 }),
+        angajat(ANGAJAT_B, 4500),
+      ],
+      faraContract: [],
+      trunchiat: false,
+    });
+    vi.mocked(pontajAgregatPerioada).mockResolvedValue({
+      pePersoana: new Map([
+        [ANGAJAT_A, { ...PONTAJ_GOL, zile_lucrate: 13, ore_lucrate: 104, ore_normale_zi: 104 }],
+        [ANGAJAT_B, LUNA_PLINA],
+      ]),
+      trunchiat: false,
+    });
+
+    await calculeazaPerioada({ id: ID_1 });
+
+    expect(camp(server, ANGAJAT_A, "baza_salariu")).toBeCloseTo(3000, 2);
+    expect(camp(server, ANGAJAT_B, "baza_salariu")).toBeCloseTo(4500, 2);
+    const randA = randuriScrise(server).find((r) => r.employee_id === ANGAJAT_A);
+    expect(randA?.calc_warnings.map((w) => w.cod)).toContain("NORMA_SUB_CINCI_ZILE");
+  });
+
   it("scutirea fiscală activă anulează impozitul angajatului ei, nu și al celorlalți", async () => {
     const server = pregateste();
     programeazaScrierea(server);
