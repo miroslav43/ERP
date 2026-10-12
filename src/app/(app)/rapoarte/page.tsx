@@ -347,14 +347,21 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
         )
       ) : (
         <>
+          {/*
+            HR-027: cifrele unei luni redeschise în ciornă (sau ale unor rânduri
+            orfane lăsate de un calcul refuzat) NU mai intră în totaluri —
+            ecranul perioadei le ascunde, raportul nu poate aduna ce perioada nu
+            arată. Informativ, nu atenție: nu e nimic de reparat, doar de știut.
+          */}
           {statistici.luniInCiorna.length === 0 ? null : (
-            <Callout fel="atentie" titlu="Anul nu e închis">
+            <Callout fel="informativ" titlu="Luni redeschise">
               {statistici.luniInCiorna.length === 1
-                ? `Luna ${formatMonthShort(statistici.luniInCiorna[0] ?? 1)} e încă în ciornă, iar cifrele ei intră în totalurile de mai jos.`
-                : `${String(statistici.luniInCiorna.length)} luni sunt încă în ciornă (${statistici.luniInCiorna
+                ? `Luna ${formatMonthShort(statistici.luniInCiorna[0] ?? 1)} a fost redeschisă în ciornă: cifrele ei vechi nu intră în totalurile de mai jos și reapar la recalculare.`
+                : `${String(statistici.luniInCiorna.length)} luni au fost redeschise în ciornă (${statistici.luniInCiorna
                     .map(formatMonthShort)
-                    .join(", ")}), iar cifrele lor intră în totalurile de mai jos.`}{" "}
-              Se vor schimba la recalculare.
+                    .join(
+                      ", ",
+                    )}): cifrele lor vechi nu intră în totalurile de mai jos și reapar la recalculare.`}
             </Callout>
           )}
 
@@ -382,9 +389,10 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
                   )}
                 </span>
               ))}
+              {/* „un calcul valabil", nu „niciun calcul": acoperă și ciornele cu cifre vechi. */}
               {statistici.luniNecalculate.length === 1
-                ? " are perioadă deschisă, dar niciun calcul, deci lipsește din toate cifrele și din grafice."
-                : " au perioadă deschisă, dar niciun calcul, deci lipsesc din toate cifrele și din grafice."}
+                ? " nu are un calcul valabil, deci lipsește din toate cifrele și din grafice."
+                : " nu au un calcul valabil, deci lipsesc din toate cifrele și din grafice."}
             </Callout>
           )}
 

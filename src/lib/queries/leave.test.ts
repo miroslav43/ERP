@@ -34,6 +34,7 @@ import {
   istoricSold,
   lantulAprobarii,
   listeazaCereri,
+  numarCereriInAsteptareLuna,
   numarDeAprobat,
   previzualizeazaDrepturi,
   soldAnual,
@@ -867,5 +868,42 @@ describe("cereriCareOcupaZile", () => {
     await expect(cereriCareOcupaZile(ORG_ID, 2026, 2026)).rejects.toMatchObject({
       code: "57014",
     });
+  });
+});
+
+// ── numarCereriInAsteptareLuna ──────────────────────────────────────────────
+//
+// Pre-verificarea calculului de salarii (HR-027): exact predicatul triggerului
+// de pe `payroll_periods` (0026:328-335), ca refuzul să vină ÎNAINTE de
+// scrierea rândurilor, nu după.
+
+describe("numarCereriInAsteptareLuna", () => {
+  it("numără doar `trimisa`/`in_aprobare` — fără `aprobata` — care ating luna, pe ambele capete", async () => {
+    server.raspunde("leave_requests", "select", { count: 3 });
+
+    expect(await numarCereriInAsteptareLuna(ORG_ID, "2026-08-01", "2026-08-31")).toBe(3);
+
+    const [apel] = server.apeluriPe("leave_requests");
+    expect(apel?.coloane).toBe("id");
+    expect(apel?.optiuni).toEqual({ count: "exact", head: true });
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "in", "status", ["trimisa", "in_aprobare"])).toBe(true);
+    // Suprapunere de intervale: începe cel târziu la sfârșitul lunii ȘI se
+    // termină cel devreme la începutul ei.
+    expect(areFiltru(apel, "lte", "data_inceput", "2026-08-31")).toBe(true);
+    expect(areFiltru(apel, "gte", "data_sfarsit", "2026-08-01")).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+  });
+
+  it("`count` null ⇒ 0", async () => {
+    server.raspunde("leave_requests", "select", { count: null });
+    expect(await numarCereriInAsteptareLuna(ORG_ID, "2026-08-01", "2026-08-31")).toBe(0);
+  });
+
+  it("eroarea se propagă — un zero fals ar lăsa calculul să treacă", async () => {
+    server.raspunde("leave_requests", "select", { error: eroarePostgrest("57014") });
+    await expect(
+      numarCereriInAsteptareLuna(ORG_ID, "2026-08-01", "2026-08-31"),
+    ).rejects.toMatchObject({ code: "57014" });
   });
 });

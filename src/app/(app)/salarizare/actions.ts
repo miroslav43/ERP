@@ -21,7 +21,8 @@ import {
   scutiriActivePerioada,
   zileLucratoareLuna,
 } from "@/lib/queries/payroll";
-import { setariPontaj } from "@/lib/queries/attendance";
+import { citestePerioadaDupaId, setariPontaj } from "@/lib/queries/attendance";
+import { numarCereriInAsteptareLuna } from "@/lib/queries/leave";
 import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
 import { genereazaFluturas } from "@/lib/pdf/fluturas";
 import { numeFisier } from "@/lib/pdf/document";
@@ -334,6 +335,54 @@ export const calculeazaPerioada = createAction({
       perioada.an,
       perioada.luna,
     );
+
+    /*
+     * ── PRE-VERIFICĂRILE TRIGGERULUI, ÎNAINTE DE ORICE SCRIERE (HR-027) ──
+     *
+     * Gărzile „pontaj blocat" și „nicio cerere de concediu în așteptare" stau
+     * în triggerul de pe `payroll_periods` (0026), care rulează la UPDATE-ul
+     * de stare de mai jos — DUPĂ ce `payroll_scrie_rezultate` a scris deja
+     * rândurile, în tranzacția ei (0187 verifică doar forma listei și existența
+     * perioadei). Refuzul triggerului lăsa intrări `calculat` pe o perioadă
+     * `draft`, cu totaluri 0 pe perioadă: ecranul perioadei le ascundea, iar
+     * raportul anual le aduna ca „lună în ciornă".
+     *
+     * Aici se pun aceleași două întrebări înainte de a calcula ceva. Triggerul
+     * RĂMÂNE bariera — între citirea de aici și UPDATE poate interveni altă
+     * sesiune — pre-verificarea doar împiedică rândurile orfane în cazul comun.
+     *
+     * Ambele citiri trec prin RLS. Un rol cu `payroll:create` dar fără
+     * `attendance:read` primește `null` și e refuzat cu „nu este blocat" —
+     * refuz onest; triggerul l-ar fi refuzat oricum, după ce scria rândurile.
+     */
+    const pontajLuna = await citestePerioadaDupaId(
+      ctx.tenant.organizationId,
+      perioada.attendance_period_id,
+    );
+    if (pontajLuna === null || pontajLuna.status !== "blocata") {
+      // HR-024, partea de mesaj: spune și CINE poate bloca. `hr` are
+      // `payroll` la `all`, dar `attendance:approve` la `none` — fără fraza
+      // asta, salarizarea era pentru el un drum înfundat fără indicator.
+      throw businessRule(
+        `Pontajul lunii ${String(perioada.luna)}/${String(perioada.an)} nu este blocat. ` +
+          "Salariile se calculează doar peste un pontaj blocat; blocarea o face cine are dreptul " +
+          "de aprobare a pontajului (administratorul firmei), din Pontaj → Perioade.",
+      );
+    }
+    const cereriInAsteptare = await numarCereriInAsteptareLuna(
+      ctx.tenant.organizationId,
+      primaZiALunii,
+      ultimaZiALunii,
+    );
+    if (cereriInAsteptare > 0) {
+      const luna = `${String(perioada.luna)}/${String(perioada.an)}`;
+      throw businessRule(
+        cereriInAsteptare === 1
+          ? `Există o cerere de concediu în așteptare care se suprapune peste ${luna}. Decideți-o înainte de calcul.`
+          : `Există ${String(cereriInAsteptare)} cereri de concediu în așteptare care se suprapun peste ${luna}. Decideți-le înainte de calcul.`,
+      );
+    }
+
     // Pragul orelor de noapte (Codul Muncii art. 126). Fără rând de setări de
     // pontaj, implicitul e 3 — același ca al coloanei din 0066.
     const setariPontajLuna = await setariPontaj(ctx.tenant.organizationId, primaZiALunii);

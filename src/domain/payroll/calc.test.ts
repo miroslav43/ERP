@@ -1,6 +1,10 @@
 // src/domain/payroll/calc.test.ts
 import { describe, expect, it } from "vitest";
-import { calculatePayrollEntry, type PayrollSettingsSnapshot } from "./calc";
+import {
+  calculatePayrollEntry,
+  type AttendanceSummary,
+  type PayrollSettingsSnapshot,
+} from "./calc";
 
 /**
  * Cotele de mai jos sunt ILUSTRATIVE, alese ca să facă aritmetica ușor de
@@ -1003,7 +1007,7 @@ describe("calculatePayrollEntry — pontaj gol (ADM-034)", () => {
   // absențe — calculul plătește zilele din pontaj, deci salariul iese zero fără
   // nicio eroare. Pe un angajat cu salariu de bază 5.000 lei, „brut 0,00 lei"
   // fără explicație e exact clasa de defect tăcut pe care o vânează modulul.
-  const PONTAJ_GOL = {
+  const PONTAJ_GOL: AttendanceSummary = {
     ...PONTAJ_STANDARD,
     zileLucrate: 0,
     oreLucrate: 0,
@@ -1012,9 +1016,9 @@ describe("calculatePayrollEntry — pontaj gol (ADM-034)", () => {
     zileConcediuOdihna: 0,
     zileConcediuMedical: 0,
     zileAbsentaNemotivata: 0,
-  } as const;
+  };
 
-  const calculeaza = (attendance: typeof PONTAJ_STANDARD | typeof PONTAJ_GOL) =>
+  const calculeaza = (attendance: AttendanceSummary) =>
     calculatePayrollEntry({
       settings: SETARI,
       contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },

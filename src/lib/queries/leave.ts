@@ -1180,3 +1180,35 @@ export async function cereriCareOcupaZile(
     denumire: r.tip?.denumire ?? "Concediu",
   }));
 }
+
+/**
+ * Câte cereri de concediu ÎN AȘTEPTARE ating luna `[primaZi, ultimaZi]`.
+ *
+ * Pre-verificarea calculului de salarii (HR-027). Predicatul e COPIA celui din
+ * triggerul de pe `payroll_periods` (`0026_payroll.sql`, gardă la trecerea în
+ * `calculat`): `trimisa`/`in_aprobare` — NU `aprobata`, spre deosebire de
+ * `cereriCareOcupaZile` de mai sus — și suprapunere de intervale închise cu
+ * luna. Dacă triggerul se schimbă, lista de stări se mută odată cu el.
+ *
+ * De ce dublat în aplicație: triggerul rulează la UPDATE-ul de stare, DUPĂ ce
+ * `payroll_scrie_rezultate` a scris rândurile în altă tranzacție. Refuzul lui
+ * lăsa intrări `calculat` pe o perioadă `draft`. Aici întrebarea se pune
+ * înainte de orice scriere.
+ */
+export async function numarCereriInAsteptareLuna(
+  organizationId: string,
+  primaZi: string,
+  ultimaZi: string,
+): Promise<number> {
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("leave_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .in("status", ["trimisa", "in_aprobare"])
+    .lte("data_inceput", ultimaZi)
+    .gte("data_sfarsit", primaZi)
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return count ?? 0;
+}
