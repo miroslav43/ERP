@@ -29,6 +29,7 @@ import {
   soferiPentruDesemnare,
   soferSugerat,
 } from "@/lib/queries/flota-amenzi";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
 import { TON_STADIU_INCIDENT } from "../../amenzi/etichete";
@@ -41,16 +42,14 @@ interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
 }
 
-const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * Fișa unui incident (0206): faptele, costurile, legătura cu cercetarea SSM
  * (doar pentru cine o poate citi) și stadiul. Poarta e `vehicle_incidents:read
  * = all`. Un incident închis e înghețat: nu mai are butoane de scriere.
  */
 export default async function PaginaIncident({ params }: ProprietatiPagina) {
-  const { id } = await params;
-  if (!TIPAR_UUID.test(id)) notFound();
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
 
   const { tenant } = await requireTenant();
   const [, permisiuni] = await Promise.all([

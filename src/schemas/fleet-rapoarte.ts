@@ -4,6 +4,8 @@ import { z } from "zod";
 import { lunaDinZi, lunaValida } from "@/domain/fleet/rapoarte";
 import { todayInBucharest } from "@/lib/format/date";
 
+import "./mesaje-zod";
+
 /**
  * Filtrele rapoartelor flotei (F8), din adresă.
  *

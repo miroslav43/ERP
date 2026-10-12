@@ -36,11 +36,11 @@ import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
 import { genereazaScrisoareDesemnare } from "@/lib/pdf/scrisoare-desemnare";
 import { citesteAmenda, datePersonaleSofer } from "@/lib/queries/flota-amenzi";
 import { vehiculeDupaId } from "@/lib/queries/fleet";
+import { esteIdDeRuta } from "@/lib/rute/parametri";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIPAR_CNP = /^\d{13}$/;
 
 const raspunsText = (mesaj: string, status: number): Response =>
@@ -52,7 +52,7 @@ interface ProprietatiRuta {
 
 export async function GET(_cerere: Request, { params }: ProprietatiRuta): Promise<Response> {
   const { id } = await params;
-  if (!TIPAR_UUID.test(id)) return raspunsText("Amenda nu există.", 404);
+  if (!esteIdDeRuta(id)) return raspunsText("Amenda nu există.", 404);
 
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "fleet");

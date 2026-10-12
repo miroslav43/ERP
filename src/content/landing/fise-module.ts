@@ -354,7 +354,7 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "fleet",
-    actualizat: "2026-10-12",
+    actualizat: "2026-10-13",
     titluPagina: "Program de parc auto: ITP, RCA, rovinietă",
     titluH1: "Program de parc auto",
     metaDescriere:

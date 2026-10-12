@@ -1535,7 +1535,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "fleet",
     permission: "trip_sheets:read",
     minScope: "own",
-    descriere: "Mașina primită în folosință, termenele ei și foile tale de parcurs.",
+    descriere: "Mașina primită în folosință, termenele ei și foile dumneavoastră de parcurs.",
   },
   {
     id: "portal.masina.foaie-noua",
@@ -1547,7 +1547,7 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "fleet",
     permission: "trip_sheets:create",
     minScope: "own",
-    descriere: "Întocmirea foii de parcurs pe mașina ta sau pe una din mașinile comune.",
+    descriere: "Întocmirea foii de parcurs pe mașina dumneavoastră sau pe una din mașinile comune.",
   },
   // ── sfârșit bloc: flota pe roluri (0199) ──
   {

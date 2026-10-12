@@ -93,6 +93,11 @@ export const ETICHETE_RESURSE: Readonly<Record<ResursaPermisiune, EtichetaResurs
     descriere: "Structura firmei pe departamente și șefii lor.",
     modul: null,
   },
+  driver_licenses: {
+    nume: "Permise de conducere",
+    descriere: "Permisele de conducere ale angajaților: categoriile lor și data la care expiră.",
+    modul: "fleet",
+  },
   employees: {
     nume: "Angajați",
     descriere: "Fișele de personal ale angajaților.",
@@ -182,6 +187,17 @@ export const ETICHETE_RESURSE: Readonly<Record<ResursaPermisiune, EtichetaResurs
     nume: "Conturi și membri",
     descriere: "Conturile de acces în aplicație și invitațiile.",
     modul: null,
+  },
+  vehicle_fines: {
+    nume: "Amenzi pe vehicule",
+    descriere: "Amenzile primite pe vehiculele firmei, cu termenul de răspuns și șoferul desemnat.",
+    modul: "fleet",
+  },
+  vehicle_incidents: {
+    nume: "Incidente și daune",
+    descriere:
+      "Accidentele, avariile, furturile și vandalismul de pe vehicule, cu dosarul de daună.",
+    modul: "fleet",
   },
   vehicles: {
     nume: "Parc auto",

@@ -26,6 +26,7 @@ import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date"
 import { formatLei } from "@/lib/format/money";
 import { angajatiDupaId, vehiculeDupaId } from "@/lib/queries/fleet";
 import { citesteAmenda, soferiPentruDesemnare, soferSugerat } from "@/lib/queries/flota-amenzi";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
 import { ButoaneStadiuAmenda, DialogRaspuns } from "../actiuni-amenda";
@@ -39,8 +40,6 @@ interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
 }
 
-const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * Fișa unei amenzi (0206): faptele, termenul, șoferul desemnat (cu sugestia
  * din foaie sau alocare), scrisoarea de răspuns, închiderea.
@@ -50,8 +49,8 @@ const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * vede explicația, nu un buton care ar da 403.
  */
 export default async function PaginaAmenda({ params }: ProprietatiPagina) {
-  const { id } = await params;
-  if (!TIPAR_UUID.test(id)) notFound();
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
 
   const { tenant } = await requireTenant();
   const [, permisiuni] = await Promise.all([

@@ -3335,6 +3335,72 @@ export type Database = {
           },
         ]
       }
+      driver_licenses: {
+        Row: {
+          categorii: string[]
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          eliberat_la: string | null
+          employee_id: string
+          expira_la: string
+          fisier_path: string | null
+          id: string
+          numar: string
+          observatii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          categorii: string[]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          eliberat_la?: string | null
+          employee_id: string
+          expira_la: string
+          fisier_path?: string | null
+          id?: string
+          numar: string
+          observatii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          categorii?: string[]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          eliberat_la?: string | null
+          employee_id?: string
+          expira_la?: string
+          fisier_path?: string | null
+          id?: string
+          numar?: string
+          observatii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_licenses_angajat_fk"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "driver_licenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_log: {
         Row: {
           created_at: string
@@ -8972,6 +9038,9 @@ export type Database = {
           plan: Database["public"]["Enums"]["plan_type"]
           platitor_tva: boolean
           reg_com: string | null
+          regim_impozitare:
+            | Database["public"]["Enums"]["regim_impozitare"]
+            | null
           reprezentant_legal: string | null
           seats_limit: number
           sector: string | null
@@ -9018,6 +9087,9 @@ export type Database = {
           plan?: Database["public"]["Enums"]["plan_type"]
           platitor_tva?: boolean
           reg_com?: string | null
+          regim_impozitare?:
+            | Database["public"]["Enums"]["regim_impozitare"]
+            | null
           reprezentant_legal?: string | null
           seats_limit?: number
           sector?: string | null
@@ -9064,6 +9136,9 @@ export type Database = {
           plan?: Database["public"]["Enums"]["plan_type"]
           platitor_tva?: boolean
           reg_com?: string | null
+          regim_impozitare?:
+            | Database["public"]["Enums"]["regim_impozitare"]
+            | null
           reprezentant_legal?: string | null
           seats_limit?: number
           sector?: string | null
@@ -13366,6 +13441,7 @@ export type Database = {
         Row: {
           aprobat_de: string | null
           aprobat_la: string | null
+          business_trip_id: string | null
           created_at: string
           created_by: string | null
           data: string | null
@@ -13398,6 +13474,7 @@ export type Database = {
         Insert: {
           aprobat_de?: string | null
           aprobat_la?: string | null
+          business_trip_id?: string | null
           created_at?: string
           created_by?: string | null
           data?: string | null
@@ -13430,6 +13507,7 @@ export type Database = {
         Update: {
           aprobat_de?: string | null
           aprobat_la?: string | null
+          business_trip_id?: string | null
           created_at?: string
           created_by?: string | null
           data?: string | null
@@ -13460,6 +13538,13 @@ export type Database = {
           vehicul_nr?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "trip_sheets_business_trip_id_fkey"
+            columns: ["business_trip_id"]
+            isOneToOne: false
+            referencedRelation: "business_trips"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trip_sheets_employee_id_fkey"
             columns: ["employee_id"]
@@ -13552,6 +13637,69 @@ export type Database = {
           },
           {
             foreignKeyName: "vehicle_assignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_consumption_norms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          decizie_data: string | null
+          decizie_numar: string | null
+          deleted_at: string | null
+          id: string
+          l_100km: number
+          observatii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          decizie_data?: string | null
+          decizie_numar?: string | null
+          deleted_at?: string | null
+          id?: string
+          l_100km: number
+          observatii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          decizie_data?: string | null
+          decizie_numar?: string | null
+          deleted_at?: string | null
+          id?: string
+          l_100km?: number
+          observatii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_consumption_norms_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_consumption_norms_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
@@ -13838,6 +13986,301 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_fines: {
+        Row: {
+          autoritate: string | null
+          constatata_la: string
+          created_at: string
+          created_by: string | null
+          data_pv: string | null
+          deleted_at: string | null
+          desemnat_la: string | null
+          fapta: string
+          id: string
+          locul: string | null
+          motiv: string | null
+          numar_pv: string
+          observatii: string | null
+          organization_id: string
+          primita_la: string
+          raspuns_numar: string | null
+          raspuns_trimis_la: string | null
+          sofer_desemnat_id: string | null
+          stadiu: Database["public"]["Enums"]["amenda_stadiu"]
+          suma: number | null
+          termen_raspuns: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          autoritate?: string | null
+          constatata_la: string
+          created_at?: string
+          created_by?: string | null
+          data_pv?: string | null
+          deleted_at?: string | null
+          desemnat_la?: string | null
+          fapta: string
+          id?: string
+          locul?: string | null
+          motiv?: string | null
+          numar_pv: string
+          observatii?: string | null
+          organization_id: string
+          primita_la?: string
+          raspuns_numar?: string | null
+          raspuns_trimis_la?: string | null
+          sofer_desemnat_id?: string | null
+          stadiu?: Database["public"]["Enums"]["amenda_stadiu"]
+          suma?: number | null
+          termen_raspuns?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          autoritate?: string | null
+          constatata_la?: string
+          created_at?: string
+          created_by?: string | null
+          data_pv?: string | null
+          deleted_at?: string | null
+          desemnat_la?: string | null
+          fapta?: string
+          id?: string
+          locul?: string | null
+          motiv?: string | null
+          numar_pv?: string
+          observatii?: string | null
+          organization_id?: string
+          primita_la?: string
+          raspuns_numar?: string | null
+          raspuns_trimis_la?: string | null
+          sofer_desemnat_id?: string | null
+          stadiu?: Database["public"]["Enums"]["amenda_stadiu"]
+          suma?: number | null
+          termen_raspuns?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_fines_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_fines_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vf_sofer_fk"
+            columns: ["sofer_desemnat_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      vehicle_fiscal_regimes: {
+        Row: {
+          chirie_lunara: number | null
+          contract_data: string | null
+          contract_numar: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          exceptie:
+            | Database["public"]["Enums"]["vehicle_exceptie_fiscala"]
+            | null
+          id: string
+          motiv: string
+          organization_id: string
+          proprietar_employee_id: string | null
+          regim: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          titlu_folosinta: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          vehicle_id: string
+        }
+        Insert: {
+          chirie_lunara?: number | null
+          contract_data?: string | null
+          contract_numar?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          exceptie?:
+            | Database["public"]["Enums"]["vehicle_exceptie_fiscala"]
+            | null
+          id?: string
+          motiv: string
+          organization_id: string
+          proprietar_employee_id?: string | null
+          regim: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          titlu_folosinta?: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          vehicle_id: string
+        }
+        Update: {
+          chirie_lunara?: number | null
+          contract_data?: string | null
+          contract_numar?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          exceptie?:
+            | Database["public"]["Enums"]["vehicle_exceptie_fiscala"]
+            | null
+          id?: string
+          motiv?: string
+          organization_id?: string
+          proprietar_employee_id?: string | null
+          regim?: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          titlu_folosinta?: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_fiscal_regimes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_fiscal_regimes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vfr_proprietar_fk"
+            columns: ["proprietar_employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      vehicle_incidents: {
+        Row: {
+          asigurator: string | null
+          cost_estimat: number | null
+          cost_final: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriere: string
+          despagubire: number | null
+          dosar_numar: string | null
+          id: string
+          inchis_la: string | null
+          locul: string | null
+          observatii: string | null
+          organization_id: string
+          produs_la: string
+          sofer_id: string | null
+          stadiu: Database["public"]["Enums"]["incident_stadiu"]
+          tip: Database["public"]["Enums"]["incident_tip"]
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+          work_accident_id: string | null
+        }
+        Insert: {
+          asigurator?: string | null
+          cost_estimat?: number | null
+          cost_final?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere: string
+          despagubire?: number | null
+          dosar_numar?: string | null
+          id?: string
+          inchis_la?: string | null
+          locul?: string | null
+          observatii?: string | null
+          organization_id: string
+          produs_la: string
+          sofer_id?: string | null
+          stadiu?: Database["public"]["Enums"]["incident_stadiu"]
+          tip: Database["public"]["Enums"]["incident_tip"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+          work_accident_id?: string | null
+        }
+        Update: {
+          asigurator?: string | null
+          cost_estimat?: number | null
+          cost_final?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string
+          despagubire?: number | null
+          dosar_numar?: string | null
+          id?: string
+          inchis_la?: string | null
+          locul?: string | null
+          observatii?: string | null
+          organization_id?: string
+          produs_la?: string
+          sofer_id?: string | null
+          stadiu?: Database["public"]["Enums"]["incident_stadiu"]
+          tip?: Database["public"]["Enums"]["incident_tip"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+          work_accident_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_incidents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_incidents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_incidents_work_accident_id_fkey"
+            columns: ["work_accident_id"]
+            isOneToOne: false
+            referencedRelation: "work_accidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vi_sofer_fk"
+            columns: ["sofer_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
           },
         ]
       }
@@ -14351,6 +14794,25 @@ export type Database = {
           ramase_dupa: number
         }[]
       }
+      avantaj_natura_flota: {
+        Args: {
+          p_employee_id: string
+          p_luna: string
+          p_organization_id: string
+        }
+        Returns: {
+          assignment_id: string
+          chirie_lunara: number
+          de_la: string
+          pana_la: string
+          regim: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          regim_impozitare: Database["public"]["Enums"]["regim_impozitare"]
+          titlu_folosinta: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          valoare_intrare: number
+          vehicle_id: string
+          vehicul_nr: string
+        }[]
+      }
       checklist_salveaza_sablon: { Args: { p_sablon: Json }; Returns: string }
       consume_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
@@ -14374,6 +14836,31 @@ export type Database = {
           scade_din_sold: boolean
           temei_legal: string
           zile: number
+        }[]
+      }
+      flota_fiscal_luna: {
+        Args: { p_luna: string; p_organization_id: string }
+        Returns: {
+          categorie: Database["public"]["Enums"]["vehicle_category"]
+          exceptie: Database["public"]["Enums"]["vehicle_exceptie_fiscala"]
+          foi_aprobate: number
+          foi_neaprobate: number
+          km_aprobati: number
+          marca: string
+          masa_maxima_kg: number
+          model: string
+          norma_de_la: string
+          norma_l_100km: number
+          nr_inmatriculare: string
+          numar_locuri: number
+          regim: Database["public"]["Enums"]["vehicle_fiscal_regime"]
+          regim_de_la: string
+          status: Database["public"]["Enums"]["vehicle_status"]
+          titlu_folosinta: Database["public"]["Enums"]["vehicle_titlu_folosinta"]
+          vehicle_id: string
+          zile_fara_regim: number
+          zile_integral: number
+          zile_luna: number
         }[]
       }
       flota_prag_salt_km: { Args: { p_vehicle_id: string }; Returns: number }
@@ -14653,6 +15140,18 @@ export type Database = {
         Args: { p_organization_id: string; p_zile: number }
         Returns: undefined
       }
+      sofer_sugerat: {
+        Args: {
+          p_moment: string
+          p_organization_id: string
+          p_vehicle_id: string
+        }
+        Returns: {
+          employee_id: string
+          referinta_id: string
+          sursa: string
+        }[]
+      }
       sterge_logic: {
         Args: { p_ids: string[]; p_tabela: string }
         Returns: string[]
@@ -14684,8 +15183,32 @@ export type Database = {
         Returns: Json
       }
       urmatoarea_marca: { Args: { p_organization_id: string }; Returns: string }
+      verificari_soferi: {
+        Args: {
+          p_employee_ids: string[]
+          p_organization_id: string
+          p_zi: string
+        }
+        Returns: {
+          aviz: string
+          concediu: string
+          contract_incetat: boolean
+          delegatie: boolean
+          employee_id: string
+          permis_categorii: string[]
+          permis_exista: boolean
+          permis_expira_la: string
+        }[]
+      }
     }
     Enums: {
+      amenda_stadiu:
+        | "primita"
+        | "sofer_desemnat"
+        | "raspuns_trimis"
+        | "platita"
+        | "contestata"
+        | "anulata"
       app_role: "super_admin" | "org_admin" | "manager" | "hr" | "employee"
       approval_step_kind: "manager_direct" | "rol" | "permisiune" | "utilizator"
       approval_task_status:
@@ -14870,6 +15393,18 @@ export type Database = {
       gen: "masculin" | "feminin" | "nedeclarat"
       holiday_compensation_type: "zi_libera" | "spor"
       holiday_type: "fix" | "mobil"
+      incident_stadiu:
+        | "raportat"
+        | "constatat"
+        | "la_asigurator"
+        | "in_reparatie"
+        | "inchis"
+      incident_tip:
+        | "coliziune"
+        | "avarie"
+        | "furt_vandalism"
+        | "fenomen_natural"
+        | "altul"
       inventory_import_status: "in_lucru" | "finalizat" | "esuat" | "revocat"
       inventory_item_stare: "nou" | "bun" | "uzat" | "defect"
       inventory_item_status: "in_stoc" | "alocat" | "in_reparatie" | "casat"
@@ -15031,6 +15566,7 @@ export type Database = {
         | "contract"
         | "propunere_detasare"
         | "propunere_mutare"
+      regim_impozitare: "micro" | "profit" | "specific"
       registru_sens: "intrare" | "iesire" | "intern"
       registru_stare_exercitiu: "deschis" | "inchis"
       salary_component_kind:
@@ -15096,6 +15632,12 @@ export type Database = {
         | "utilaj"
         | "motocicleta"
         | "altele"
+      vehicle_exceptie_fiscala:
+        | "urgenta_paza_curierat"
+        | "agenti_vanzari_achizitii"
+        | "transport_persoane_plata"
+        | "servicii_plata"
+        | "marfa_comerciala"
       vehicle_expense_category:
         | "combustibil_fara_foaie"
         | "parcare"
@@ -15104,6 +15646,11 @@ export type Database = {
         | "taxa_pod"
         | "tollro"
         | "altele"
+      vehicle_fiscal_regime:
+        | "limitat_50"
+        | "integral_exclusiv_economic"
+        | "exceptat_categorie"
+        | "peste_3500_sau_9_locuri"
       vehicle_service_type:
         | "revizie"
         | "reparatie"
@@ -15112,6 +15659,13 @@ export type Database = {
         | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
       vehicle_tire_set: "vara" | "iarna" | "all_season"
+      vehicle_titlu_folosinta:
+        | "proprietate"
+        | "leasing_financiar"
+        | "leasing_operational"
+        | "inchiriat"
+        | "comodat"
+        | "chirie_persoana_fizica"
       verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
@@ -15241,6 +15795,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      amenda_stadiu: [
+        "primita",
+        "sofer_desemnat",
+        "raspuns_trimis",
+        "platita",
+        "contestata",
+        "anulata",
+      ],
       app_role: ["super_admin", "org_admin", "manager", "hr", "employee"],
       approval_step_kind: ["manager_direct", "rol", "permisiune", "utilizator"],
       approval_task_status: [
@@ -15444,6 +16006,20 @@ export const Constants = {
       gen: ["masculin", "feminin", "nedeclarat"],
       holiday_compensation_type: ["zi_libera", "spor"],
       holiday_type: ["fix", "mobil"],
+      incident_stadiu: [
+        "raportat",
+        "constatat",
+        "la_asigurator",
+        "in_reparatie",
+        "inchis",
+      ],
+      incident_tip: [
+        "coliziune",
+        "avarie",
+        "furt_vandalism",
+        "fenomen_natural",
+        "altul",
+      ],
       inventory_import_status: ["in_lucru", "finalizat", "esuat", "revocat"],
       inventory_item_stare: ["nou", "bun", "uzat", "defect"],
       inventory_item_status: ["in_stoc", "alocat", "in_reparatie", "casat"],
@@ -15621,6 +16197,7 @@ export const Constants = {
         "propunere_detasare",
         "propunere_mutare",
       ],
+      regim_impozitare: ["micro", "profit", "specific"],
       registru_sens: ["intrare", "iesire", "intern"],
       registru_stare_exercitiu: ["deschis", "inchis"],
       salary_component_kind: [
@@ -15693,6 +16270,13 @@ export const Constants = {
         "motocicleta",
         "altele",
       ],
+      vehicle_exceptie_fiscala: [
+        "urgenta_paza_curierat",
+        "agenti_vanzari_achizitii",
+        "transport_persoane_plata",
+        "servicii_plata",
+        "marfa_comerciala",
+      ],
       vehicle_expense_category: [
         "combustibil_fara_foaie",
         "parcare",
@@ -15701,6 +16285,12 @@ export const Constants = {
         "taxa_pod",
         "tollro",
         "altele",
+      ],
+      vehicle_fiscal_regime: [
+        "limitat_50",
+        "integral_exclusiv_economic",
+        "exceptat_categorie",
+        "peste_3500_sau_9_locuri",
       ],
       vehicle_service_type: [
         "revizie",
@@ -15711,6 +16301,14 @@ export const Constants = {
       ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
       vehicle_tire_set: ["vara", "iarna", "all_season"],
+      vehicle_titlu_folosinta: [
+        "proprietate",
+        "leasing_financiar",
+        "leasing_operational",
+        "inchiriat",
+        "comodat",
+        "chirie_persoana_fizica",
+      ],
       verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },
