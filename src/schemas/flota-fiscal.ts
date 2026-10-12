@@ -21,7 +21,8 @@ import { enumOptional, numarObligatoriu, numarOptional, textOptional } from "./c
 
 const RE_DATA = /^\d{4}-\d{2}-\d{2}$/u;
 
-function dataObligatorie(lipsa: string) {
+/** Folosită și de amenzi și incidente (`flota-amenzi.ts`): o singură parsare a datei calendaristice. */
+export function dataObligatorie(lipsa: string) {
   return z
     .string(lipsa)
     .trim()
@@ -29,7 +30,7 @@ function dataObligatorie(lipsa: string) {
     .refine((v) => RE_DATA.test(v) && !Number.isNaN(Date.parse(v)), "Data nu este validă.");
 }
 
-const dataOptionala = z
+export const dataOptionala = z
   .string()
   .trim()
   .nullable()
@@ -40,7 +41,7 @@ const dataOptionala = z
     "Data nu este validă.",
   );
 
-const idOptional = z
+export const idOptional = z
   .string()
   .trim()
   .nullable()

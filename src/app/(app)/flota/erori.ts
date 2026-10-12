@@ -327,3 +327,75 @@ export function traduEroareFiscal(error: unknown): never {
   traduEroare(error);
 }
 // ── SFÂRȘIT BLOC: fiscalul flotei ──
+
+// ── ÎNCEPUT BLOC: amenzi și daune (0203, F11) ──
+
+/**
+ * Restricțiile tabelelor `vehicle_fines` / `vehicle_incidents` (0203), pe
+ * câmpul lor. Schema le prinde înaintea bazei; ajung aici doar dacă limitele
+ * diverg sau la o cursă.
+ */
+const RESTRICTII_AMENZI: readonly (readonly [string, string, string])[] = [
+  [
+    "vf_numar_uq",
+    "numar_pv",
+    "Amenda cu acest număr este deja înregistrată pe vehiculul ales. Deschideți-o din listă.",
+  ],
+  ["vf_sofer_fk", "employee_id", "Angajatul ales nu aparține organizației dumneavoastră."],
+  ["vi_sofer_fk", "sofer_id", "Angajatul ales nu aparține organizației dumneavoastră."],
+  ["vf_numar_ck", "numar_pv", "Numărul procesului-verbal are între 1 și 60 de caractere."],
+  ["vf_fapta_ck", "fapta", "Fapta constatată are între 3 și 500 de caractere."],
+  ["vf_suma_ck", "suma", "Suma e între 0 și 1.000.000 lei."],
+  ["vf_motiv_ck", "motiv", "Motivul are cel mult 500 de caractere."],
+  ["vf_anulata_ck", "motiv", "Scrieți motivul anulării."],
+  ["vi_descriere_ck", "descriere", "Descrierea are între 3 și 2.000 de caractere."],
+  [
+    "vi_asigurator_stadiu_ck",
+    "asigurator",
+    "Scrieți numele asigurătorului la care ați înregistrat dauna.",
+  ],
+];
+
+/** Mesajele P0001 ale `internal.amenzi_inainte` și `internal.incidente_inainte` (ș/ț corecte). */
+const CAMPURI_AMENZI: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Scrieți numărul procesului-verbal/u, ["numar_pv"]],
+  [/^Scrieți fapta constatată/u, ["fapta"]],
+  [/^Vehiculul ales/u, ["vehicle_id"]],
+  [/^Momentul faptei/u, ["constatata_la"]],
+  [/^Procesul-verbal nu poate fi încheiat/u, ["data_pv"]],
+  [/^Data primirii/u, ["primita_la"]],
+  [/^Termenul de răspuns/u, ["termen_raspuns"]],
+  [/^Alegeți șoferul pe care/u, ["employee_id"]],
+  [/^Scrieți data la care a plecat răspunsul/u, ["raspuns_trimis_la"]],
+  [/^Data trimiterii răspunsului/u, ["raspuns_trimis_la"]],
+  [/^Scrieți motivul anulării/u, ["motiv"]],
+  [/^Descrieți incidentul/u, ["descriere"]],
+  [/^Momentul incidentului/u, ["produs_la"]],
+  [/^Cercetarea SSM aleasă/u, ["work_accident_id"]],
+  [/^Scrieți numele asigurătorului/u, ["asigurator"]],
+  [/^Scrieți costul final/u, ["cost_final"]],
+];
+
+export function traduEroareAmenzi(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" || error.code === "23503" || error.code === "23514") {
+      const restrictie = RESTRICTII_AMENZI.find(([nume]) => error.message.includes(nume));
+      if (restrictie !== undefined) {
+        const [, camp, mesaj] = restrictie;
+        throw invalidInput(mesaj, { [camp]: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_AMENZI.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      // Refuzurile de stadiu („nu poate trece din…”, „este închisă…”) nu țin de
+      // un câmp: rămân mesaj general, cu cifrele din bază.
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}
+// ── SFÂRȘIT BLOC: amenzi și daune ──

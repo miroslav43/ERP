@@ -13,7 +13,9 @@
 -- termenul indicat în cuprinsul solicitării” și cuprind numele, prenumele,
 -- CNP-ul, domiciliul sau reședința și seria și numărul actului de identitate).
 -- Până acum aplicația știa mașina și foaia, nu și amenda. Un termen de
--- răspuns ratat e o contravenție a firmei, deci termenul intră în `expirables`.
+-- răspuns ratat e o contravenție (art. 105 pct. 10 pentru persoanele juridice,
+-- art. 102 alin. (1) pct. 14 pentru cele fizice), deci termenul intră în
+-- `expirables`.
 --
 -- ── CE ADUCE ────────────────────────────────────────────────────────────────
 -- A. Permisiunile `vehicle_fines:*` și `vehicle_incidents:*` (read/create/
@@ -49,8 +51,11 @@
 -- ── CE NU FACE ──────────────────────────────────────────────────────────────
 --  · NU recuperează nimic de la șofer. Reținerea din salariu cere o datorie
 --    scadentă, lichidă și exigibilă, constatată prin hotărâre judecătorească
---    definitivă (Codul muncii art. 169 alin. (1)), iar răspunderea
---    patrimonială urmează art. 254: nu e automată, iar pagina o spune.
+--    definitivă și irevocabilă (Codul muncii art. 169 alin. (2), forma
+--    consolidată la 18.12.2025), iar răspunderea patrimonială urmează art.
+--    254 (recuperare prin acordul părților, cu notă de constatare și
+--    evaluare, cel mult 5 salarii minime brute, alin. (3)–(4)): nu e
+--    automată, iar pagina o spune.
 --  · NU trimite notificări push pentru termen. Rezumatul zilnic al flotei
 --    (0198) rămâne pe `vehicle_document`; termenul se vede în lista amenzilor
 --    și în `expirables`.

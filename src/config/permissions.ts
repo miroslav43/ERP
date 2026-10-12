@@ -48,7 +48,7 @@ export function meetsScope(granted: PermissionScope | undefined, min: MinScope):
  * Resurse: announcements, attendance, audit, branding, checklists, compliance,
  * courses, departments, driver_licenses, employees, features, inventory, leave, maintenance,
  * organizations, payroll, per_diem, reges, registru, reports, roles, ssm,
- * trip_sheets, users, vehicles.
+ * trip_sheets, users, vehicle_fines, vehicle_incidents, vehicles.
  * Acțiuni: read, create, update, delete, approve, export, transmit, configure.
  */
 export const PERMISSION_KEYS = [
@@ -228,6 +228,18 @@ export const PERMISSION_KEYS = [
   "vehicles:read",
   "vehicles:create",
   "vehicles:update",
+  // ── ÎNCEPUT BLOC: amenzi și daune (0203, flota F11) ──
+  // Chei proprii, nu `vehicles:*`: amenzile și incidentele le văd doar cei care
+  // le administrează (`org_admin`); o firmă care vrea ca HR să le ducă îi
+  // acordă cheile printr-o suprascriere. Fără `delete` — ștergerea e logică,
+  // prin `update`.
+  "vehicle_fines:read",
+  "vehicle_fines:create",
+  "vehicle_fines:update",
+  "vehicle_incidents:read",
+  "vehicle_incidents:create",
+  "vehicle_incidents:update",
+  // ── SFÂRȘIT BLOC: amenzi și daune ──
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
