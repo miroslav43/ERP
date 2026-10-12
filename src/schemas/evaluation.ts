@@ -3,6 +3,7 @@ import { z } from "zod";
 import { jsonDinFormData, textOptional } from "./comun";
 
 import { MAXIM_CRITERII, SCALE_PERMISE, TIPURI_CRITERIU } from "@/domain/evaluations/criterii";
+import { todayInBucharest } from "@/lib/format/date";
 
 export const STATUSURI_EVALUARE = ["draft", "finalizat"] as const;
 export type StatusEvaluare = (typeof STATUSURI_EVALUARE)[number];
@@ -179,10 +180,27 @@ const dataIso = z
   .trim()
   .regex(/^\d{4}-\d{2}-\d{2}$/u, "Data trebuie scrisă în formatul AAAA-LL-ZZ.");
 
+/** `2026-10-12` → `2027-10-12`; pe șirul AAAA-LL-ZZ, comparația e lexicografică. */
+const plusUnAn = (zi: string): string => `${String(Number(zi.slice(0, 4)) + 1)}${zi.slice(4)}`;
+
+/**
+ * Data evaluării: cel mult un an în viitor.
+ *
+ * Un an, nu „azi": `planificaEvaluari` programează legitim evaluări viitoare
+ * din lista modulului. Dar o evaluare „din 2030" (QA 8 oct 2026, HR-029) nu e
+ * o programare, e o greșeală de tastare — și baza n-are niciun prag pe
+ * `data_evaluarii`. Ceasul se citește la FIECARE parsare, nu la încărcarea
+ * modulului (precedentul `lunaImplicita` din `attendance.ts`).
+ */
+const dataEvaluarii = dataIso.refine(
+  (v) => v <= plusUnAn(todayInBucharest()),
+  "Data evaluării nu poate fi la mai mult de un an în viitor.",
+);
+
 export const creeazaEvaluareSchema = z.object({
   employee_id: z.uuid("Angajatul selectat nu este valid."),
   template_id: z.uuid("Alegeți un șablon de evaluare."),
-  data_evaluarii: dataIso,
+  data_evaluarii: dataEvaluarii,
   raspunsuri: jsonDinFormData(
     z.array(raspunsCriteriuSchema).min(1, "Completați cel puțin un criteriu."),
   ),
@@ -200,7 +218,7 @@ export const creeazaEvaluareSchema = z.object({
  */
 export const planificaEvaluariSchema = z.object({
   template_id: z.uuid("Alegeți un șablon de evaluare."),
-  data_evaluarii: dataIso,
+  data_evaluarii: dataEvaluarii,
   employee_ids: z.preprocess(
     (v) => (typeof v === "string" ? [v] : (v ?? [])),
     z
@@ -212,7 +230,7 @@ export const planificaEvaluariSchema = z.object({
 
 export const actualizeazaEvaluareSchema = z.object({
   id: z.uuid("Evaluarea selectată nu este validă."),
-  data_evaluarii: dataIso,
+  data_evaluarii: dataEvaluarii,
   raspunsuri: jsonDinFormData(
     z.array(raspunsCriteriuSchema).min(1, "Completați cel puțin un criteriu."),
   ),
