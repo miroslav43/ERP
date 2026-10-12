@@ -37,6 +37,7 @@ import {
   ID_2,
   ID_3,
   ORG_ID,
+  USER_ID,
 } from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import { actualizeazaPlan, creeazaPlan, inregistreazaInterventie } from "./actions";
@@ -61,6 +62,7 @@ const interventie = {
   equipment_id: ID_1,
   data: "2026-09-22",
   descriere: "Schimb ulei și filtre.",
+  executant_extern: "Service Hidraulic SRL",
   cost_piese: "300",
   cost_manopera: "150",
   rezultat: "reusita",
@@ -211,8 +213,14 @@ describe("actualizeazaPlan", () => {
 });
 
 describe("inregistreazaInterventie", () => {
+  /** Planul legat se citește întâi: tipul lui spune dacă PV-ul e obligatoriu. */
+  function planPreventiv(server: ReturnType<typeof configureazaActiunea>["server"]): void {
+    server.raspunde("maintenance_plans", "select", { data: { id: ID_2, tip: "preventiva" } });
+  }
+
   it("INSERT cu organizația din sesiune, fără `cost_total` (coloană GENERATED)", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    planPreventiv(server);
     server.raspunde("maintenance_interventions", "insert", { data: { id: ID_3 } });
 
     const r = await inregistreazaInterventie({ ...interventie, cost_total: 450 });
@@ -227,11 +235,19 @@ describe("inregistreazaInterventie", () => {
       cost_piese: 300,
       cost_manopera: 150,
       ora_start: null,
+      acoperit_de_garantie: false,
     });
     expect(apel?.payload).not.toHaveProperty("cost_total");
+    // Fără document: id-ul îl dă baza, numărul PV-ului îl dă triggerul.
+    expect(apel?.payload).not.toHaveProperty("id");
+    expect(apel?.payload).not.toHaveProperty("numar");
+    expect(apel?.payload).not.toHaveProperty("atasament");
     expect(apel?.selectDupaScriere).toBe("id");
-    // Planul îl actualizează triggerul AFTER, nu acțiunea.
-    expect(server.apeluriPe("maintenance_plans")).toHaveLength(0);
+    // Planul DOAR se citește; îl actualizează triggerul AFTER, nu acțiunea.
+    expect(server.apeluriPe("maintenance_plans").map((a) => a.operatie)).toEqual(["select"]);
+    const [plan] = server.apeluriPe("maintenance_plans");
+    expect(areFiltru(plan, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(plan, "is", "deleted_at", null)).toBe(true);
     expect(caiRevalidate()).toEqual([
       `/mentenanta/echipamente/${ID_1}`,
       "/mentenanta/interventii",
@@ -247,8 +263,197 @@ describe("inregistreazaInterventie", () => {
     expect(server.apeluri).toHaveLength(0);
   });
 
+  // Cazul 33: exact un executant.
+  it.each([
+    ["niciun executant", { executant_extern: null }, "executant_employee_id"],
+    ["amândoi", { executant_employee_id: ID_3 }, "executant_extern"],
+  ] as const)("%s: VALIDARE pe `%s`, înainte de bază", async (_n, schimbare, camp) => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    const r = await inregistreazaInterventie({ ...interventie, ...schimbare });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (!r.ok) expect(r.error.fieldErrors).toHaveProperty(camp);
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("garanția lucrării înaintea intervenției: VALIDARE", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    const r = await inregistreazaInterventie({
+      ...interventie,
+      garantie_lucrare_pana: "2026-09-01",
+    });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (!r.ok) expect(r.error.fieldErrors).toHaveProperty("garantie_lucrare_pana");
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("planul șters sau din altă firmă: NEGASIT, nicio inserare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("maintenance_plans", "select", { data: null });
+    const r = await inregistreazaInterventie(interventie);
+    expect(r).toMatchObject({ ok: false, error: { code: "NEGASIT" } });
+    expect(server.apeluriPe("maintenance_interventions")).toHaveLength(0);
+  });
+
+  // Cazul 34: verificarea legală cere PV sau buletin — și după tipul planului.
+  it.each([
+    ["tipul intervenției", { tip: "verificare_legala", plan_id: null }, "corectiva"],
+    ["tipul planului", {}, "verificare_legala"],
+  ] as const)(
+    "verificare legală după %s, fără document: VALIDARE pe `document`, nicio inserare",
+    async (_n, schimbare, tipPlan) => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_plans", "select", { data: { id: ID_2, tip: tipPlan } });
+      const r = await inregistreazaInterventie({ ...interventie, ...schimbare });
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      if (!r.ok) expect(r.error.fieldErrors).toHaveProperty("document");
+      expect(server.apeluriPe("maintenance_interventions")).toHaveLength(0);
+    },
+  );
+
+  it("verificare legală amânată (fără PV de dat): se înregistrează", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("maintenance_plans", "select", {
+      data: { id: ID_2, tip: "verificare_legala" },
+    });
+    server.raspunde("maintenance_interventions", "insert", { data: { id: ID_3 } });
+    const r = await inregistreazaInterventie({ ...interventie, rezultat: "amanata" });
+    expect(r).toEqual({ ok: true, data: { id: ID_3 } });
+  });
+
+  describe("cu procesul-verbal urcat înainte (M6)", () => {
+    const ID_NOU = "88888888-8888-4888-8888-888888888888";
+    const cale = `${ORG_ID}/intervention/${ID_NOU}/abc-pv.pdf`;
+    const legala = {
+      ...interventie,
+      id: ID_NOU,
+      atasament: { cale, denumire: "PV verificare.pdf", tip: "pv" },
+    };
+
+    function pregatit(server: ReturnType<typeof configureazaActiunea>["server"]): void {
+      server.raspunde("maintenance_plans", "select", {
+        data: { id: ID_2, tip: "verificare_legala" },
+      });
+      server.raspundeStocare("org-mentenanta", "info", {
+        data: { size: 4096, contentType: "application/pdf" },
+      });
+    }
+
+    it("măsoară obiectul REAL, scrie intervenția cu id-ul din browser, apoi rândul atașamentului", async () => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      pregatit(server);
+      server.raspunde("maintenance_interventions", "insert", { data: { id: ID_NOU } });
+      server.raspunde("maintenance_attachments", "insert", { data: null });
+
+      const r = await inregistreazaInterventie(legala);
+
+      expect(r).toEqual({ ok: true, data: { id: ID_NOU } });
+      const [interv] = server.apeluriPe("maintenance_interventions");
+      expect(interv?.payload).toMatchObject({ id: ID_NOU, organization_id: ORG_ID });
+      expect(interv?.payload).not.toHaveProperty("atasament");
+      const [atas] = server.apeluriPe("maintenance_attachments");
+      expect(atas?.payload).toEqual({
+        organization_id: ORG_ID,
+        entity_type: "intervention",
+        entity_id: ID_NOU,
+        storage_path: cale,
+        denumire: "PV verificare.pdf",
+        tip: "pv",
+        created_by: USER_ID,
+      });
+    });
+
+    it("calea din alt folder (altă intervenție, altă firmă): VALIDARE, nicio inserare", async () => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_plans", "select", {
+        data: { id: ID_2, tip: "verificare_legala" },
+      });
+      const r = await inregistreazaInterventie({
+        ...legala,
+        atasament: { ...legala.atasament, cale: `${ORG_ID}/intervention/${ID_3}/pv.pdf` },
+      });
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      expect(server.apeluriPe("maintenance_interventions")).toHaveLength(0);
+    });
+
+    it("factura nu ține loc de PV la o verificare legală: VALIDARE", async () => {
+      const { server } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_plans", "select", {
+        data: { id: ID_2, tip: "verificare_legala" },
+      });
+      const r = await inregistreazaInterventie({
+        ...legala,
+        atasament: { ...legala.atasament, tip: "factura" },
+      });
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      if (!r.ok) expect(r.error.fieldErrors).toHaveProperty("document");
+    });
+
+    it("atașamentul refuzat de bază: intervenția se anulează logic, obiectul nefolosit se șterge", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: UPDATE });
+      pregatit(server);
+      server.raspunde("maintenance_interventions", "insert", { data: { id: ID_NOU } });
+      server.raspunde("maintenance_attachments", "insert", { error: eroarePostgrest("42501") });
+      server.raspunde("maintenance_interventions", "update", { data: [{ id: ID_NOU }] });
+      admin.raspunde("maintenance_attachments", "select", { data: [] });
+      admin.raspundeStocare("org-mentenanta", "remove", { data: [] });
+
+      const r = await inregistreazaInterventie(legala);
+
+      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+      const [anulare] = server.apeluriPe("maintenance_interventions", "update");
+      expect(anulare?.payload).toHaveProperty("deleted_at");
+      expect(areFiltru(anulare, "eq", "id", ID_NOU)).toBe(true);
+      expect(areFiltru(anulare, "eq", "organization_id", ORG_ID)).toBe(true);
+      const [legatura] = admin.apeluriPe("maintenance_attachments");
+      expect(areFiltru(legatura, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(legatura, "eq", "storage_path", cale)).toBe(true);
+      expect(admin.apeluriStocare.map((a) => a.metoda)).toEqual(["remove"]);
+    });
+
+    it("obiectul folosit deja de un rând NU se șterge (id și cale ale unei intervenții reale)", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: UPDATE });
+      pregatit(server);
+      server.raspunde("maintenance_interventions", "insert", { error: eroarePostgrest("23514") });
+      admin.raspunde("maintenance_attachments", "select", { data: [{ id: ID_3 }] });
+
+      const r = await inregistreazaInterventie({ ...legala, id: ID_NOU });
+      expect(r.ok).toBe(false);
+      expect(admin.apeluriStocare).toHaveLength(0);
+    });
+
+    it("a doua trimitere a aceleiași casete (23505 pe id): CONFLICT „trimitere dublă”, fișierul rămâne", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: UPDATE });
+      pregatit(server);
+      server.raspunde("maintenance_interventions", "insert", { error: eroarePostgrest("23505") });
+
+      const r = await inregistreazaInterventie(legala);
+
+      expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+      if (!r.ok) expect(r.error.message).toContain("trimitere dublă");
+      expect(admin.apeluri).toHaveLength(0);
+    });
+
+    it("documentul urcat nu e PDF/Word/fotografie: VALIDARE, iar obiectul se șterge", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: UPDATE });
+      server.raspunde("maintenance_plans", "select", {
+        data: { id: ID_2, tip: "verificare_legala" },
+      });
+      server.raspundeStocare("org-mentenanta", "info", {
+        data: { size: 4096, contentType: "application/x-msdownload" },
+      });
+      admin.raspunde("maintenance_attachments", "select", { data: [] });
+      admin.raspundeStocare("org-mentenanta", "remove", { data: [] });
+
+      const r = await inregistreazaInterventie(legala);
+      expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+      expect(server.apeluriPe("maintenance_interventions")).toHaveLength(0);
+      expect(admin.apeluriStocare.map((a) => a.metoda)).toEqual(["remove"]);
+    });
+  });
+
   it("depășire numerică (22003): CONFLICT cu îndrumare spre costuri și durate", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    planPreventiv(server);
     server.raspunde("maintenance_interventions", "insert", { error: eroarePostgrest("22003") });
     const r = await inregistreazaInterventie(interventie);
     expect(r).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
@@ -257,6 +462,7 @@ describe("inregistreazaInterventie", () => {
 
   it("auditul de succes nu poartă descrierea și piesele (text liber)", async () => {
     const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    planPreventiv(server);
     server.raspunde("maintenance_interventions", "insert", { data: { id: ID_3 } });
     await inregistreazaInterventie({ ...interventie, piese: "Filtru X" });
     await asteaptaDupa();

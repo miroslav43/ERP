@@ -7,6 +7,7 @@ cai:
   - "src/app/(portal)/portal/sesizari/**"
   - "src/domain/maintenance/sesizari.ts"
   - "supabase/migrations/0181_sesizari_flux.sql"
+  - "supabase/migrations/0212_mentenanta_fisiere_scriu_doar_membrii.sql"
   - "tests/rls/proba-sesizari-roluri.sql"
 tabele:
   [
@@ -19,13 +20,13 @@ tabele:
   ]
 permisiuni: [maintenance:read, maintenance:create, maintenance:update]
 feature: maintenance
-capcane: [6, 7, 17, 27, 50]
+capcane: [6, 7, 17, 27, 50, 56, 58]
 citeste_daca:
   - "un tehnician sau un raportor „nu poate” ceva pe sesizarea lui → „Cine poate ce”"
   - "o tranziție întoarce zero rânduri sau P0001 → „Ce refuză baza tăcut”"
   - "o fotografie sau un document nu se leagă de sesizare → „Rute”, pașii de încărcare"
-scris_pe: 2b0ac3615f3fdc9a43fec6e817b48a569497d8a5
-scris_la: 2026-10-08
+scris_pe: d73e7f38df015ae2084b174f6ad451b5ccb31ec2
+scris_la: 2026-10-12
 tags: [modul, operations]
 ---
 
@@ -68,7 +69,9 @@ din browser → `confirmaFisier` scrie rândul), în bucketul privat `org-menten
 `{org}/{entity_type}/{entity_id}/…`. Pasul 3 recitește `mime` și `marime_bytes` din Storage
 (`masoaraObiectul`) — ce declară clientul nu intră în rând — și refuză o cale care nu stă
 exact sub prefixul entității; limitele sunt `MAXIM_FOTO_PE_SESIZARE`, `LIMITA_FOTO_BYTES`,
-`LIMITA_DOCUMENT_MENTENANTA_BYTES`. `stergeFisier` șterge LOGIC rândul, obiectul rămâne.
+`LIMITA_DOCUMENT_MENTENANTA_BYTES`. `stergeFisier` șterge LOGIC rândul, obiectul rămâne. Poarta bucketului
+(`app.mentenanta_poate_fisier` → `mentenanta_poate_atasament`) lasă consola de platformă să
+CITEASCĂ, dar scrierea cere apartenența la firmă (`0212`, capcana #58).
 
 Lista din portal găzduiește și secțiunea „Echipamentele în grija mea”, cu citirea rapidă de
 contor (`echipamentele-mele.tsx`, `dialog-citire-rapida.tsx` → `inregistreazaContor`): e
@@ -102,6 +105,11 @@ P0001 tradus. Așa regula trăiește într-un singur loc, probat de
   `raportat_la` trimise de raportor sau tehnician se întorc la valoarea veche înainte de
   verificare; le recalculează tranziția. Un câmp străin schimbat → P0001 cu numele lui.
   — capcanele #6 și #50(b)
+- **Garda are o ramură de SERVICIU**, pentru închiderea automată și clientul admin: sare
+  peste drepturile pe actori, dar verifică ÎNTÂI că echipamentul, raportorul, tehnicianul
+  și originalul duplicatului sunt ai firmei, iar mașina de stări rămâne și pentru ea.
+  Proba (16) din `tests/rls/proba-sesizari-roluri.sql` rulează închiderea automată. —
+  capcana #56
 - **Ștergerea logică a sesizării cere `update ≥ team`**, deși politica de UPDATE lasă și
   actorii nominali pe rând: raportorul RETRAGE, nu șterge. — capcana #50(a)
 - **Atribuirea nu schimbă starea, iar luarea ei înapoi merge doar din `nou`/`in_analiza`**:

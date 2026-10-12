@@ -2,7 +2,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { planDinFormular, valoriInterventie } from "./valori-interventie";
+import {
+  documentDinFormular,
+  planDinFormular,
+  tipDocumentDinFormular,
+  valoriInterventie,
+} from "./valori-interventie";
 
 function formular(perechi: Readonly<Record<string, string>>): FormData {
   const date = new FormData();
@@ -29,6 +34,26 @@ describe("valoriInterventie", () => {
       oprire_minute: null,
       citire_contor: null,
       observatii: null,
+      numar_document_furnizor: null,
+      garantie_lucrare_pana: null,
+      acoperit_de_garantie: false,
+    });
+  });
+
+  it("garanția lucrării și documentul furnizorului (M6): bifa „on” devine true", () => {
+    const v = valoriInterventie(
+      formular({
+        data: "2026-10-01",
+        descriere: "Reparație",
+        numar_document_furnizor: " DEV-118 ",
+        garantie_lucrare_pana: "2027-04-01",
+        acoperit_de_garantie: "on",
+      }),
+    );
+    expect(v).toMatchObject({
+      numar_document_furnizor: "DEV-118",
+      garantie_lucrare_pana: "2027-04-01",
+      acoperit_de_garantie: true,
     });
   });
 
@@ -78,5 +103,24 @@ describe("planDinFormular", () => {
     expect(planDinFormular(formular({ plan_id: "11111111-1111-4111-8111-111111111111" }))).toBe(
       "11111111-1111-4111-8111-111111111111",
     );
+  });
+});
+
+describe("documentDinFormular", () => {
+  it("câmpul de fișier gol (File fără nume, 0 octeți) ⇒ null", () => {
+    const date = new FormData();
+    date.set("document", new File([], ""));
+    expect(documentDinFormular(date)).toBeNull();
+    expect(documentDinFormular(new FormData())).toBeNull();
+  });
+
+  it("un fișier ales ⇒ fișierul; tipul are implicit „pv”", () => {
+    const date = new FormData();
+    const fisier = new File(["%PDF"], "pv.pdf", { type: "application/pdf" });
+    date.set("document", fisier);
+    expect(documentDinFormular(date)?.name).toBe("pv.pdf");
+    expect(tipDocumentDinFormular(date)).toBe("pv");
+    date.set("document_tip", "buletin");
+    expect(tipDocumentDinFormular(date)).toBe("buletin");
   });
 });

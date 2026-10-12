@@ -724,6 +724,23 @@ begin
   values (v_alfa, array[(select val from t_ids where cheie='mgr_alfa')]),
          (v_beta, array[(select val from t_ids where cheie='mgr_beta')]);
 
+  -- ── Mentenanță M9 (0191): registrul rezumatului zilnic ─────────────────────
+  -- Scris doar de jobul de noapte; aici, un rând per firmă, ca (c) să poată
+  -- dovedi că administratorul Alfa nu vede rândul lui Beta.
+  insert into public.maintenance_rezumat_trimis (organization_id, user_id, tip, entity_id)
+  values (v_alfa, v_admin_alfa, 'contor_necitit', (select val from t_ids where cheie='equip_alfa')),
+         (v_beta, v_admin_beta, 'contor_necitit', (select val from t_ids where cheie='equip_beta'));
+  -- ── sfârșit M9 ──────────────────────────────────────────────────────────────
+
+  -- ── Mentenanță M6 (0210): liniile de piese ale intervenției ────────────────
+  -- Câte o linie pe intervenția de test a fiecărei firme; triggerul de sumă
+  -- rescrie `cost_piese`, deci (c) vede și intervenția atinsă din nou.
+  insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate, pret_unitar)
+  select i.organization_id, i.id, 'Filtru de ulei', 2, 45.50
+    from public.maintenance_interventions i
+   where i.organization_id in (v_alfa, v_beta) and i.descriere = 'Intervenție de test';
+  -- ── sfârșit M6 ──────────────────────────────────────────────────────────────
+
   -- ── Faza 3b (migrarea 0013): pontaj ─────────────────────────────────────────
   insert into t_ids
   select 'aper_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
@@ -1908,8 +1925,15 @@ begin
   end;
 
   -- Instanța proprie de checklist și un pas al cărui responsabil e chiar el.
+  -- `status = 'in_curs'`: fixture-ul are DOUĂ instanțe pentru Ana (cea finalizată
+  -- de sus și cea pornită la pasul 8), create în aceeași tranzacție, deci cu același
+  -- `created_at`. Fără filtru, `order by created_at limit 1` alegea după ordinea
+  -- fizică din heap: pe un banc păstrat și rulat de mai multe ori alegea instanța
+  -- finalizată, iar `checklist_pregateste_pasul` refuza cu „Checklistul este închis”
+  -- (găsit la M10, la a doua serie de rulări pe același banc păstrat).
   select id into v_inst_mea from public.checklist_instances
    where organization_id = v_alfa and employee_id = v_ang_alfa and deleted_at is null
+     and status = 'in_curs'
    order by created_at limit 1;
 
   update public.checklist_instance_items
@@ -4274,6 +4298,865 @@ exception when others then
   reset role;
   perform pg_temp.esueaza(format('(m) verificarea KPI a eșuat: %s (%s)', sqlerrm, sqlstate));
 end $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — Mentenanță M9 (0191): pragurile rezumatului zilnic
+--
+-- Pragurile stau pe `maintenance_settings` (`maintenance:update = all`, deci
+-- doar `org_admin`), iar triggerul le oglindește în `alert_rules`, a cărei
+-- politică cere `compliance:*`. Dacă triggerul ar scrie cu drepturile
+-- apelantului, salvarea legitimă a administratorului ar cădea pe politica
+-- altui modul. Se numără rândurile (capcana 17), nu se ascultă erorile.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  n        int;
+begin
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_settings set praguri_alerta_zile = array[21, 3]
+     where organization_id = v_alfa and deleted_at is null returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate schimba pragurile de alertă ale mentenanței');
+  end if;
+  select count(*) into n from public.alert_rules
+   where organization_id = v_alfa and deleted_at is null and praguri_zile = array[21, 3]
+     and entity_type in ('maintenance_plan', 'iscir_authorization', 'equipment');
+  if n <> 3 then
+    perform pg_temp.esueaza(format('(l) pragurile salvate n-au ajuns în alert_rules (%s din 3)', n));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_settings set praguri_alerta_zile = array[1]
+     where organization_id = v_alfa returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 0 then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a schimbat pragurile de alertă ale firmei');
+  end if;
+
+  raise notice '(l) pragurile mentenanței: org_admin le scrie și ajung în alert_rules, managerul e refuzat ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) verificarea pragurilor de mentenanță a eșuat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+-- ── sfârșit M9 ───────────────────────────────────────────────────────────────
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — Mentenanță M6 (0210): intervenția completă
+--
+-- Administratorul corectează intervenția, îi adaugă și îi șterge logic o linie
+-- de piese (suma o rescrie triggerul, sub definer) și o anulează; managerul
+-- (`maintenance:update` absent) e refuzat la piese și la editare. Se numără
+-- rândurile, nu se ascultă erorile (capcana 17).
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  v_int    uuid;
+  v_piesa  uuid;
+  v_cost   numeric;
+  v_rol_user uuid;
+  v_sa     uuid := gen_random_uuid();
+  v_sa_interv boolean;
+  v_sa_piesa  boolean;
+  n        int;
+begin
+  select i.id into v_int from public.maintenance_interventions i
+   where i.organization_id = v_alfa and i.descriere = 'Intervenție de test' and i.deleted_at is null;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate, pret_unitar)
+  values (v_alfa, v_int, 'Garnitură', 4, 12.25) returning id into v_piesa;
+  with m as (
+    update public.maintenance_interventions set observatii = 'Corectat de administrator.', cost_piese = 1
+     where id = v_int and deleted_at is null returning cost_piese)
+  select count(*), max(cost_piese) into n, v_cost from m;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate corecta o intervenție');
+  end if;
+  -- 2 × 45,50 (fixture) + 4 × 12,25 = 140: suma tastată (1) e suprascrisă.
+  if v_cost <> 140 then
+    perform pg_temp.esueaza(format('(l) liniile de piese nu câștigă peste suma tastată: cost_piese = %s, așteptat 140', v_cost));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_intervention_parts set deleted_at = now()
+     where id = v_piesa and deleted_at is null returning 1)
+  select count(*) into n from m;
+  reset role;
+  select cost_piese into v_cost from public.maintenance_interventions where id = v_int;
+  if n <> 1 or v_cost <> 91 then
+    perform pg_temp.esueaza(format('(l) ștergerea liniei de piese: %s rânduri, cost_piese = %s (așteptat 1 și 91)', n, v_cost));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate)
+    values (v_alfa, v_int, 'Piesă a managerului', 1);
+    reset role;
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a adăugat o linie de piese');
+  exception when insufficient_privilege then
+    null;
+  end;
+  with m as (
+    update public.maintenance_interventions set observatii = 'Managerul'
+     where id = v_int returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 0 then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a editat o intervenție');
+  end if;
+
+  -- hr și employee: n-au `maintenance:update` — refuz la piese, zero rânduri la editare.
+  foreach v_rol_user in array array[pg_temp.id('hr_user_alfa'), pg_temp.id('emp_alfa')] loop
+    perform set_config('request.jwt.claim.sub', v_rol_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate)
+      values (v_alfa, v_int, 'Piesă nepermisă', 1);
+      -- Ajuns aici, rândul a trecut de politică: scurgere.
+      reset role;
+      perform pg_temp.esueaza('(l) FALS-POZITIV: hr/employee a adăugat o linie de piese');
+    exception when insufficient_privilege then
+      reset role;
+    end;
+    set local role authenticated;
+    with m as (
+      update public.maintenance_interventions set observatii = 'Nepermis'
+       where id = v_int returning 1)
+    select count(*) into n from m;
+    reset role;
+    if n <> 0 then
+      perform pg_temp.esueaza('(l) FALS-POZITIV: hr/employee a editat o intervenție');
+    end if;
+  end loop;
+
+  -- super_admin: citește liniile (politica SELECT începe cu platforma), iar la
+  -- scriere se poartă EXACT ca pe intervenții (aceeași formă de politică).
+  insert into auth.users (id, email) values (v_sa, 'platforma-m6-' || left(v_sa::text, 8) || '@test.test');
+  insert into public.platform_admins (user_id) values (v_sa);
+  perform set_config('request.jwt.claim.sub', v_sa::text, true);
+  set local role authenticated;
+  select count(*) into n from public.maintenance_intervention_parts where organization_id = v_alfa;
+  reset role;
+  if n = 0 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: super_admin nu vede liniile de piese');
+  end if;
+  set local role authenticated;
+  begin
+    insert into public.maintenance_interventions (organization_id, equipment_id, data, descriere)
+    values (v_alfa, pg_temp.id('equip_alfa'), current_date, 'Intervenția platformei');
+    v_sa_interv := true;
+  exception when insufficient_privilege then
+    v_sa_interv := false;
+  end;
+  begin
+    insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate)
+    values (v_alfa, v_int, 'Piesa platformei', 1);
+    v_sa_piesa := true;
+  exception when insufficient_privilege then
+    v_sa_piesa := false;
+  end;
+  reset role;
+  if v_sa_interv is distinct from v_sa_piesa then
+    perform pg_temp.esueaza(format('(l) super_admin: intervenție=%s, piesă=%s — politicile au divergat', v_sa_interv, v_sa_piesa));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_interventions set deleted_at = now()
+     where id = v_int and deleted_at is null returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate anula o intervenție');
+  end if;
+
+  raise notice '(l) intervențiile: org_admin corectează, ține piesele (suma o face baza) și anulează; manager, hr și employee sunt refuzați; super_admin citește piesele ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) verificarea intervențiilor a eșuat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+-- ── sfârșit M6 ───────────────────────────────────────────────────────────────
+
+-- ── Mentenanță M7 (0211) ─────────────────────────────────────────────────────
+-- (l), continuare — autorizațiile ISCIR: regim, suspendare, reînnoire
+--
+-- Administratorul înregistrează o evidență RSVTI fără număr (cazul 42), o
+-- suspendă cu motiv și ridică suspendarea (`reactivata_la` o pune garda),
+-- o reînnoiește prin `public.reinnoieste_autorizatie_iscir` (SECURITY INVOKER,
+-- deci exact politicile lui) și anulează reînnoirea ștergând-o logic — rândul
+-- vechi revine. `manager`, `hr` și `employee` n-au `maintenance:update`:
+-- refuz la INSERT, ZERO rânduri la UPDATE, refuz la reînnoire. `super_admin`
+-- citește. Se numără rândurile, nu se ascultă erorile (capcana 17).
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_echip  uuid := pg_temp.id('equip_alfa');
+  v_aut    uuid;
+  v_nou    uuid;
+  v_rol_user uuid;
+  v_sa     uuid := gen_random_uuid();
+  v_react  date;
+  v_inloc  uuid;
+  v_reinnoit boolean;
+  n        int;
+begin
+  -- 1. org_admin: evidența RSVTI fără număr trece (CHECK-ul cere numărul doar la `inregistrat`).
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.iscir_authorizations (organization_id, equipment_id, regim, numar, tip, valabil_pana)
+  values (v_alfa, v_echip, 'neinregistrat_rsvti', null, 'stivuitor', current_date + 200)
+  returning id into v_aut;
+  reset role;
+  if v_aut is null then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu poate înregistra evidența RSVTI fără număr');
+  end if;
+
+  -- 2. Suspendarea cu motiv, apoi ridicarea ei.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.iscir_authorizations
+       set suspendata_la = current_date, motiv_suspendare = 'PV RSVTI: frâna necorespunzătoare.'
+     where id = v_aut and suspendata_la is null returning 1)
+  select count(*) into n from m;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(l) ⚠ REFUZ TĂCUT: `org_admin` nu a putut suspenda autorizația (zero rânduri)');
+  end if;
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.iscir_authorizations set suspendata_la = null
+     where id = v_aut and suspendata_la is not null returning reactivata_la)
+  select count(*), max(reactivata_la) into n, v_react from m;
+  reset role;
+  if n <> 1 or v_react is distinct from app.azi_local() then
+    perform pg_temp.esueaza(format('(l) ridicarea suspendării: %s rânduri, reactivata_la = %s', n, v_react));
+  end if;
+
+  -- 3. Reînnoirea prin funcție (rând nou + legătura pe cel vechi), apoi anularea ei.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  v_nou := public.reinnoieste_autorizatie_iscir(v_aut, current_date + 700);
+  select inlocuita_de_id into v_inloc from public.iscir_authorizations where id = v_aut;
+  reset role;
+  if v_nou is null or v_inloc is distinct from v_nou then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: reînnoirea de către org_admin: nou=%s, legătura=%s', v_nou, v_inloc));
+  end if;
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with m as (
+    update public.iscir_authorizations set deleted_at = now()
+     where id = v_nou and deleted_at is null returning 1)
+  select count(*) into n from m;
+  select inlocuita_de_id into v_inloc from public.iscir_authorizations where id = v_aut;
+  reset role;
+  if n <> 1 or v_inloc is not null then
+    perform pg_temp.esueaza(format('(l) ștergerea reînnoirii: %s rânduri, rândul vechi legat de %s (așteptat 1 și null)', n, v_inloc));
+  end if;
+
+  -- 4. manager, hr, employee: fără `maintenance:update`.
+  foreach v_rol_user in array array[pg_temp.id('mgr_user_alfa'), pg_temp.id('hr_user_alfa'), pg_temp.id('emp_alfa')] loop
+    perform set_config('request.jwt.claim.sub', v_rol_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.iscir_authorizations (organization_id, equipment_id, regim, tip, valabil_pana)
+      values (v_alfa, v_echip, 'neinregistrat_rsvti', 'stivuitor', current_date + 100);
+      reset role;
+      perform pg_temp.esueaza(format('(l) FALS-POZITIV: %s a înregistrat o autorizație ISCIR', v_rol_user));
+    exception when insufficient_privilege then
+      reset role;
+    end;
+    set local role authenticated;
+    with m as (
+      update public.iscir_authorizations
+         set suspendata_la = current_date, motiv_suspendare = 'Nepermis de rol.'
+       where id = v_aut returning 1)
+    select count(*) into n from m;
+    reset role;
+    if n <> 0 then
+      perform pg_temp.esueaza(format('(l) FALS-POZITIV: %s a suspendat o autorizație ISCIR', v_rol_user));
+    end if;
+    set local role authenticated;
+    -- Steagul, nu `esueaza` în blocul protejat: garda ar prinde-o ca P0001.
+    v_reinnoit := true;
+    begin
+      perform public.reinnoieste_autorizatie_iscir(v_aut, current_date + 900);
+    exception when insufficient_privilege or raise_exception then
+      -- managerul vede rândul și e oprit de `app.can` (42501); hr și employee
+      -- nu-l văd deloc, deci funcția spune „nu vă este accesibilă” (P0001).
+      v_reinnoit := false;
+    end;
+    reset role;
+    if v_reinnoit then
+      perform pg_temp.esueaza(format('(l) FALS-POZITIV: %s a reînnoit o autorizație ISCIR', v_rol_user));
+    end if;
+  end loop;
+
+  -- 5. super_admin citește autorizațiile firmei.
+  insert into auth.users (id, email) values (v_sa, 'platforma-m7-' || left(v_sa::text, 8) || '@test.test');
+  insert into public.platform_admins (user_id) values (v_sa);
+  perform set_config('request.jwt.claim.sub', v_sa::text, true);
+  set local role authenticated;
+  select count(*) into n from public.iscir_authorizations where organization_id = v_alfa;
+  reset role;
+  if n = 0 then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: super_admin nu vede autorizațiile ISCIR');
+  end if;
+
+  raise notice '(l) autorizațiile ISCIR: org_admin înregistrează fără număr (RSVTI), suspendă, ridică suspendarea, reînnoiește și anulează reînnoirea; manager, hr și employee sunt refuzați; super_admin citește ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) verificarea autorizațiilor ISCIR a eșuat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+-- ── sfârșit M7 ───────────────────────────────────────────────────────────────
+
+-- ── Mentenanță M10 ───────────────────────────────────────────────────────────
+-- (l), continuare — administratorul pe CATALOG, tehnicianul atribuit și raportorul
+--
+-- Blocurile M6, M7 și M9 de mai sus probează piesele, ISCIR-ul și pragurile.
+-- Rămâneau neprobate, în poarta POZITIVĂ, restul tabelelor modulului: administratorul
+-- nu dovedea nicăieri că poate SCRIE echipamentul, contorul, planul, intervenția,
+-- oprirea, atașamentul și triajul, iar tehnicianul atribuit și raportorul — oameni
+-- cu rol `employee`, adică cu `maintenance:read = own` și nimic mai mult — nu
+-- dovedeau că își pot duce sesizarea până la capăt. Un tehnician care nu-și poate
+-- rezolva sesizarea arată, din afară, ca o pană; (a)–(k) nu l-ar prinde niciodată.
+--
+-- Actorul NOU, tehnicianul, se creează în blocul ăsta (utilizator, fișă, membru
+-- `employee`), nu în fixture-ul de sus: ultima verificare a fișierului nu are
+-- nimic după ea, deci nicio verificare mai veche nu-și poate număra rândurile
+-- peste un angajat în plus. Raportorul e `emp_alfa` / `ang_alfa`, cel al sesizării
+-- din fixture. Se numără rândurile (capcana 17), nu se ascultă erorile: un UPDATE
+-- respins de USING nu aruncă, afectează zero rânduri.
+do $$
+declare
+  v_alfa      uuid := pg_temp.id('alfa');
+  v_admin     uuid := pg_temp.id('admin_alfa');
+  v_rap_user  uuid := pg_temp.id('emp_alfa');
+  v_rap       uuid := pg_temp.id('ang_alfa');
+  v_mgr_user  uuid := pg_temp.id('mgr_user_alfa');
+  v_hr_user   uuid := pg_temp.id('hr_user_alfa');
+  v_sa_user   uuid := gen_random_uuid();       -- super_admin, creat în bloc
+  v_beta      uuid := pg_temp.id('beta');
+  v_adm_beta  uuid := pg_temp.id('admin_beta');
+  v_echip_beta uuid := gen_random_uuid();
+  v_fr_fixt   uuid := pg_temp.id('fr_alfa');
+  v_fisa_adm  uuid := pg_temp.id('mgr_alfa');   -- fișa administratorului (`user_id` = admin_alfa)
+  v_teh_user  uuid := gen_random_uuid();
+  v_teh       uuid := gen_random_uuid();
+  v_rand      text := left(replace(gen_random_uuid()::text, '-', ''), 8);
+  v_echip     uuid;
+  v_plan      uuid;
+  v_int_adm   uuid;
+  v_int_teh   uuid;
+  v_sez       uuid;
+  v_sez_echipa uuid;
+  v_oprire    uuid;
+  v_numar     text;
+  v_ts        timestamptz;
+  v_reusite   text := '';
+  v_esuate    text := '';
+  v_scapate   text := '';
+  n           int;
+begin
+  -- ── Tehnicianul: utilizator, fișă activă, membru cu rolul `employee` ──────
+  insert into auth.users (id, email) values (v_teh_user, 'tehnician-' || v_rand || '@alfa.test');
+  insert into public.profiles (id, email, full_name)
+  values (v_teh_user, 'tehnician-' || v_rand || '@alfa.test', 'Tudor Tehnician')
+  on conflict (id) do nothing;
+  insert into public.employees (id, organization_id, marca, first_name, last_name, hired_on, status, user_id)
+  values (v_teh, v_alfa, 'M10-' || v_rand, 'Tudor', 'Tehnician', current_date - 400, 'activ', v_teh_user);
+  insert into public.organization_members (organization_id, user_id, role, status, joined_at)
+  values (v_alfa, v_teh_user, 'employee', 'active', now());
+
+  -- Firma STRĂINĂ, cu mentenanța pornită: fără ea, un refuz pe calea unui
+  -- echipament al ei ar veni din „modulul e stins”, nu din apartenență, iar
+  -- verificarea ar trece pentru alt motiv decât cel scris.
+  -- Fără `on conflict`: indexul unic e PARȚIAL (`where deleted_at is null`), iar
+  -- inferența lui pică la planificare (capcana #7).
+  update public.organization_features set enabled = true
+   where organization_id = v_beta and feature_key = 'maintenance' and deleted_at is null;
+  if not found then
+    insert into public.organization_features (organization_id, feature_key, enabled)
+    values (v_beta, 'maintenance', true);
+  end if;
+  insert into public.equipment (id, organization_id, cod, denumire)
+  values (v_echip_beta, v_beta, 'M10-B-' || v_rand, 'Utilajul firmei străine');
+
+  -- ═══ 1. Administratorul scrie TOT catalogul [POZITIV] ═════════════════════
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+
+  begin
+    insert into public.equipment (organization_id, cod, denumire, locatie)
+    values (v_alfa, 'M10-' || v_rand, 'Presă de probă M10', 'Hala 1')
+    returning id into v_echip;
+    v_reusite := v_reusite || E'\n  org_admin -> equipment (echipament nou)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  org_admin -> equipment (echipament nou): %s (%s)', sqlerrm, sqlstate);
+  end;
+
+  if v_echip is not null then
+    begin
+      update public.equipment set locatie = 'Hala 2', observatii = 'Mutată în (l) M10' where id = v_echip;
+      get diagnostics n = row_count;
+      if n = 1 then
+        v_reusite := v_reusite || E'\n  org_admin -> equipment (mută utilajul)';
+      else
+        v_esuate := v_esuate || format(E'\n  org_admin -> equipment (mută utilajul): %s rânduri, fără eroare', n);
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> equipment (mută utilajul): %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    begin
+      insert into public.equipment_meters (organization_id, equipment_id, tip, citire, data_citirii)
+      values (v_alfa, v_echip, 'ore', 15, current_date);
+      v_reusite := v_reusite || E'\n  org_admin -> equipment_meters (citire de contor)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> equipment_meters (citire de contor): %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    begin
+      insert into public.maintenance_plans (organization_id, equipment_id, denumire, periodicitate_zile)
+      values (v_alfa, v_echip, 'Revizie M10', 90)
+      returning id into v_plan;
+      update public.maintenance_plans set instructiuni = 'Verificare nivel ulei.' where id = v_plan;
+      get diagnostics n = row_count;
+      if n = 1 then
+        v_reusite := v_reusite || E'\n  org_admin -> maintenance_plans (plan nou, apoi editat)';
+      else
+        v_esuate := v_esuate || format(E'\n  org_admin -> maintenance_plans (editare): %s rânduri, fără eroare', n);
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> maintenance_plans (plan nou): %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    begin
+      insert into public.maintenance_interventions (organization_id, equipment_id, plan_id, data, descriere)
+      values (v_alfa, v_echip, v_plan, current_date, 'Revizie de probă M10')
+      returning id into v_int_adm;
+      update public.maintenance_interventions set observatii = 'Corectat în (l) M10' where id = v_int_adm;
+      get diagnostics n = row_count;
+      if n = 1 then
+        v_reusite := v_reusite || E'\n  org_admin -> maintenance_interventions (intervenție pe plan, apoi corectată)';
+      else
+        v_esuate := v_esuate || format(E'\n  org_admin -> maintenance_interventions (corectare): %s rânduri, fără eroare', n);
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> maintenance_interventions: %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    -- O oprire planificată, apoi închisă: `equipment_opriri` se scrie de mână
+    -- doar de cine administrează (rândurile automate le scriu triggerele).
+    begin
+      insert into public.equipment_opriri (organization_id, equipment_id, inceput, tip, motiv)
+      values (v_alfa, v_echip, now() - interval '3 hours', 'planificata', 'Revizie M10')
+      returning id into v_oprire;
+      update public.equipment_opriri set sfarsit = now() where id = v_oprire and sfarsit is null;
+      get diagnostics n = row_count;
+      if n = 1 then
+        v_reusite := v_reusite || E'\n  org_admin -> equipment_opriri (oprire planificată, apoi închisă)';
+      else
+        v_esuate := v_esuate || format(E'\n  org_admin -> equipment_opriri (închidere): %s rânduri, fără eroare', n);
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> equipment_opriri: %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    begin
+      insert into public.maintenance_attachments
+        (organization_id, entity_type, entity_id, storage_path, denumire, tip, mime, marime_bytes, created_by)
+      values (v_alfa, 'equipment', v_echip, v_alfa::text || '/equipment/' || v_echip::text || '/' || v_rand || '.pdf',
+              'carte-tehnica.pdf', 'carte_tehnica', 'application/pdf', 4096, v_admin);
+      v_reusite := v_reusite || E'\n  org_admin -> maintenance_attachments (cartea tehnică a utilajului)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> maintenance_attachments: %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    -- Obiectele din Storage: bucketul `org-mentenanta` are poarta lui
+    -- (`app.mentenanta_poate_fisier`), pe care nimic din (a)–(k) n-o atingea. Calea
+    -- e `{org}/{tip}/{id}/{fișier}`. Procesul-verbal urcă ÎNAINTEA intervenției, pe
+    -- un id generat în browser (rezervarea din 0210), deci ambele forme se probează.
+    begin
+      insert into storage.objects (bucket_id, name, owner)
+      values ('org-mentenanta', v_alfa::text || '/equipment/' || v_echip::text || '/' || v_rand || '.pdf', v_admin);
+      v_reusite := v_reusite || E'\n  org_admin -> storage org-mentenanta (documentul unui echipament existent)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> storage org-mentenanta (echipament): %s (%s)', sqlerrm, sqlstate);
+    end;
+    begin
+      insert into storage.objects (bucket_id, name, owner)
+      values ('org-mentenanta', v_alfa::text || '/intervention/' || gen_random_uuid()::text || '/pv-' || v_rand || '.pdf', v_admin);
+      v_reusite := v_reusite || E'\n  org_admin -> storage org-mentenanta (procesul-verbal al unei intervenții încă neînregistrate)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> storage org-mentenanta (rezervare): %s (%s)', sqlerrm, sqlstate);
+    end;
+  end if;
+  reset role;
+
+  -- ═══ 2. Raportorul depune sesizarea [POZITIV] ═════════════════════════════
+  if v_echip is not null then
+    perform set_config('request.jwt.claim.sub', v_rap_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.fault_reports (organization_id, equipment_id, raportat_de_employee_id, descriere, urgenta)
+      values (v_alfa, v_echip, v_rap, 'Presa M10 pierde ulei.', 'ridicata')
+      returning id, numar into v_sez, v_numar;
+      if v_numar !~ '^SZ-[0-9]{4}-[0-9]{4}$' then
+        raise exception using errcode = 'P0001', message = format('numărul sesizării e „%s”', v_numar);
+      end if;
+      v_reusite := v_reusite || format(E'\n  employee (raportor) -> fault_reports (sesizare nouă, număr %s)', v_numar);
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  employee (raportor) -> fault_reports (sesizare nouă): %s (%s)', sqlerrm, sqlstate);
+    end;
+    -- Fotografia de la fața locului (camera telefonului, din portal): raportorul
+    -- urcă pe SESIZAREA LUI, nu pe parc — calea poartă tipul `fault_report`.
+    if v_sez is not null then
+      begin
+        insert into storage.objects (bucket_id, name, owner)
+        values ('org-mentenanta', v_alfa::text || '/fault_report/' || v_sez::text || '/foto-' || v_rand || '.jpg', v_rap_user);
+        v_reusite := v_reusite || E'\n  employee (raportor) -> storage org-mentenanta (fotografia sesizării lui)';
+      exception when others then
+        v_esuate := v_esuate || format(E'\n  employee (raportor) -> storage org-mentenanta (fotografie): %s (%s)', sqlerrm, sqlstate);
+      end;
+      -- Documentele echipamentului sunt ale gestionarului: același angajat nu urcă pe parc.
+      begin
+        insert into storage.objects (bucket_id, name, owner)
+        values ('org-mentenanta', v_alfa::text || '/equipment/' || v_echip::text || '/raportor-' || v_rand || '.pdf', v_rap_user);
+        v_scapate := v_scapate || E'\n  employee (raportor) -> storage org-mentenanta: a urcat un document pe ECHIPAMENT';
+      exception when insufficient_privilege then
+        v_reusite := v_reusite || E'\n  employee (raportor) -> storage org-mentenanta (echipament): refuzat corect (42501)';
+      end;
+    end if;
+    reset role;
+  end if;
+
+  -- ═══ 3. Administratorul triază și atribuie [POZITIV] ══════════════════════
+  if v_sez is not null then
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    begin
+      update public.fault_reports set status = 'in_analiza', atribuit_employee_id = v_teh where id = v_sez;
+      get diagnostics n = row_count;
+      reset role;
+      select atribuit_la into v_ts from public.fault_reports where id = v_sez;
+      if n = 1 and v_ts is not null
+         and exists (select 1 from public.fault_report_history h
+                      where h.fault_report_id = v_sez and h.camp = 'atribuit_employee_id')
+         and exists (select 1 from public.notifications nt where nt.user_id = v_teh_user and nt.entity_id = v_sez) then
+        v_reusite := v_reusite || E'\n  org_admin -> fault_reports (triază și atribuie; istoric și notificare către tehnician)';
+      else
+        v_esuate := v_esuate || format(
+          E'\n  org_admin -> fault_reports (atribuire): %s rânduri, atribuit_la=%s, fără urme complete', n, v_ts);
+      end if;
+    exception when others then
+      reset role;
+      v_esuate := v_esuate || format(E'\n  org_admin -> fault_reports (atribuire): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+
+    -- Nota INTERNĂ a administratorului: o scrie el, o citește el, raportorul nu.
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    begin
+      insert into public.fault_report_comments (organization_id, fault_report_id, autor_employee_id, continut, intern)
+      values (v_alfa, v_sez, v_fisa_adm, 'Verificăm și presa vecină.', true);
+      v_reusite := v_reusite || E'\n  org_admin -> fault_report_comments (notă internă)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> fault_report_comments (notă internă): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- ═══ 4. Tehnicianul atribuit își duce sesizarea până la capăt [POZITIV] ═══
+  if v_sez is not null then
+    perform set_config('request.jwt.claim.sub', v_teh_user::text, true);
+    set local role authenticated;
+    begin
+      select count(*) into n from public.fault_reports where id = v_sez;
+      if n <> 1 then raise exception using errcode = 'P0001', message = 'nu vede sesizarea atribuită'; end if;
+      select count(*) into n from public.equipment where id = v_echip;
+      if n <> 1 then raise exception using errcode = 'P0001', message = 'nu vede utilajul sesizării lui'; end if;
+      select count(*) into n from public.fault_report_comments where fault_report_id = v_sez and intern;
+      if n <> 0 then raise exception using errcode = 'P0001', message = 'vede nota internă a administratorului'; end if;
+
+      update public.fault_reports set status = 'in_lucru' where id = v_sez;
+      get diagnostics n = row_count;
+      if n <> 1 then raise exception using errcode = 'P0001', message = format('trecerea în lucru a atins %s rânduri', n); end if;
+      v_reusite := v_reusite || E'\n  employee (tehnician atribuit) -> fault_reports (vede sesizarea și utilajul, o trece în lucru)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  employee (tehnician atribuit) -> fault_reports (în lucru): %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    begin
+      insert into public.fault_report_comments (organization_id, fault_report_id, autor_employee_id, continut)
+      values (v_alfa, v_sez, v_teh, 'Am găsit garnitura cilindrului.');
+      v_reusite := v_reusite || E'\n  employee (tehnician atribuit) -> fault_report_comments (comentariu)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  employee (tehnician atribuit) -> fault_report_comments: %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    -- Urgența e a gestionarului: P0001 din gardă, nu zero rânduri.
+    begin
+      update public.fault_reports set urgenta = 'critica' where id = v_sez;
+      get diagnostics n = row_count;
+      if n = 0 then
+        v_esuate := v_esuate || E'\n  employee (tehnician atribuit) -> fault_reports.urgenta: zero rânduri, fără eroare — politica îl respinge tăcut pe actorul nominal, în loc să-l lase la gardă';
+      else
+        v_scapate := v_scapate || E'\n  employee (tehnician atribuit) -> fault_reports.urgenta: schimbarea a REUȘIT';
+      end if;
+    exception when raise_exception then
+      v_reusite := v_reusite || E'\n  employee (tehnician atribuit) -> fault_reports.urgenta: refuzat corect (P0001)';
+    end;
+
+    -- Sesizarea altcuiva (cea din fixture, neatribuită lui): nici nu o vede.
+    begin
+      update public.fault_reports set status = 'in_lucru' where id = v_fr_fixt;
+      get diagnostics n = row_count;
+      if n = 0 then
+        v_reusite := v_reusite || E'\n  employee (tehnician atribuit) -> sesizarea altcuiva: zero rânduri, ca așteptat';
+      else
+        v_scapate := v_scapate || format(E'\n  employee (tehnician atribuit) -> sesizarea altcuiva: a atins %s rânduri', n);
+      end if;
+    exception when others then
+      v_reusite := v_reusite || format(E'\n  employee (tehnician atribuit) -> sesizarea altcuiva: refuzat (%s)', sqlstate);
+    end;
+
+    begin
+      insert into public.maintenance_interventions
+        (organization_id, equipment_id, fault_report_id, data, descriere, executant_employee_id, cost_piese)
+      values (v_alfa, v_echip, v_sez, current_date, 'Înlocuită garnitura cilindrului.', v_teh, 120)
+      returning id into v_int_teh;
+      update public.fault_reports
+         set status = 'rezolvat', intervention_id = v_int_teh, nota_rezolvare = 'Garnitură nouă, probă de presiune făcută.'
+       where id = v_sez;
+      get diagnostics n = row_count;
+      if n <> 1 then raise exception using errcode = 'P0001', message = format('rezolvarea a atins %s rânduri', n); end if;
+      v_reusite := v_reusite || E'\n  employee (tehnician atribuit) -> maintenance_interventions + fault_reports (înregistrează intervenția și o rezolvă)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  employee (tehnician atribuit) -> intervenție + rezolvare: %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- ═══ 5. Raportorul confirmă închiderea [POZITIV] ══════════════════════════
+  if v_sez is not null then
+    perform set_config('request.jwt.claim.sub', v_rap_user::text, true);
+    set local role authenticated;
+    begin
+      update public.fault_reports set status = 'inchis' where id = v_sez;
+      get diagnostics n = row_count;
+      if n <> 1 then raise exception using errcode = 'P0001', message = format('confirmarea a atins %s rânduri', n); end if;
+      v_reusite := v_reusite || E'\n  employee (raportor) -> fault_reports (confirmă rezolvarea: „închis”)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  employee (raportor) -> fault_reports (confirmare): %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    -- Nota internă e a gestionarului: raportorul n-o poate scrie (42501) și n-o vede.
+    begin
+      insert into public.fault_report_comments (organization_id, fault_report_id, autor_employee_id, continut, intern)
+      values (v_alfa, v_sez, v_rap, 'Încerc o notă internă.', true);
+      v_scapate := v_scapate || E'\n  employee (raportor) -> fault_report_comments.intern: nota internă a REUȘIT';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  employee (raportor) -> nota internă: refuzat corect (42501)';
+    end;
+    select count(*) into n from public.fault_report_comments where fault_report_id = v_sez and intern;
+    if n <> 0 then
+      v_scapate := v_scapate || format(E'\n  employee (raportor) -> vede %s note interne', n);
+    end if;
+    -- Nici parcul, nici intervențiile cu costuri: doar sesizarea și utilajul ei.
+    select count(*) into n from public.maintenance_interventions where id = v_int_teh;
+    if n <> 0 then
+      v_scapate := v_scapate || E'\n  employee (raportor) -> vede intervenția cu costuri';
+    end if;
+    reset role;
+  end if;
+
+  -- ═══ 6. Refuzurile celorlalte roluri ══════════════════════════════════════
+  if v_sez is not null then
+    -- `manager` (team, fără update) vede, dar nu triază; `hr` nu vede nimic.
+    -- Sesizarea de probă e a SUBORDONATULUI managerului (`sub_alfa`, șeful lui e
+    -- `mgr2_alfa`): echipa lui e singura pe care o vede. Cu sesizarea Anei, care
+    -- raportează la alt șef, zero rânduri ar fi venit din „nu o vede deloc", nu din
+    -- politica de UPDATE — verificarea ar fi trecut pentru alt motiv decât cel scris.
+    insert into public.fault_reports (organization_id, equipment_id, raportat_de_employee_id, descriere)
+    values (v_alfa, v_echip, pg_temp.id('sub_alfa'), 'Sesizare a unui subordonat al managerului.')
+    returning id into v_sez_echipa;
+
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    select count(*) into n from public.fault_reports where id = v_sez_echipa;
+    if n <> 1 then
+      v_esuate := v_esuate || E'\n  manager -> fault_reports: nu vede sesizarea echipei lui (maintenance:read = team)';
+    end if;
+    update public.fault_reports set urgenta = 'scazuta' where id = v_sez_echipa;
+    get diagnostics n = row_count;
+    reset role;
+    if n = 0 then
+      v_reusite := v_reusite || E'\n  manager -> sesizarea echipei: o vede, dar triajul atinge zero rânduri (fără maintenance:update)';
+    else
+      v_scapate := v_scapate || format(E'\n  manager -> fault_reports: a triat %s rânduri fără maintenance:update', n);
+    end if;
+
+    perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+    set local role authenticated;
+    select count(*) into n from public.fault_reports where id = v_sez;
+    reset role;
+    if n = 0 then
+      v_reusite := v_reusite || E'\n  hr -> fault_reports: nu vede nimic, ca așteptat';
+    else
+      v_scapate := v_scapate || E'\n  hr -> vede sesizările mentenanței';
+    end if;
+
+    -- `super_admin` (`platform_admins`, niciodată în `organization_members`): consola
+    -- de platformă CITEȘTE mentenanța firmelor client, nu o scrie. Stabilit empiric pe
+    -- banc (nu dedus din seed): citirea trece prin `app.is_platform_admin()`, scrierea
+    -- nu are ramură pentru platformă și cade cu 42501.
+    insert into auth.users (id, email) values (v_sa_user, 'platforma-m10-' || v_rand || '@test.test');
+    insert into public.platform_admins (user_id) values (v_sa_user);
+    perform set_config('request.jwt.claim.sub', v_sa_user::text, true);
+    set local role authenticated;
+    select count(*) into n from public.fault_reports where id = v_sez;
+    if n <> 1 then
+      v_esuate := v_esuate || E'\n  super_admin -> fault_reports: nu citește sesizarea unei firme client';
+    end if;
+    select count(*) into n from public.equipment where id = v_echip;
+    if n <> 1 then
+      v_esuate := v_esuate || E'\n  super_admin -> equipment: nu citește utilajul unei firme client';
+    end if;
+    if n = 1 then
+      v_reusite := v_reusite || E'\n  super_admin -> fault_reports + equipment: citește';
+    end if;
+    begin
+      insert into public.equipment (organization_id, cod, denumire)
+      values (v_alfa, 'M10-SA-' || v_rand, 'Utilaj scris de platformă');
+      v_scapate := v_scapate || E'\n  super_admin -> equipment: a INSERAT într-o firmă client';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> equipment: nu scrie (42501), ca așteptat';
+    end;
+    begin
+      update public.fault_reports set descriere = 'Rescrisă de platformă' where id = v_sez;
+      get diagnostics n = row_count;
+      if n <> 0 then
+        v_scapate := v_scapate || format(E'\n  super_admin -> fault_reports: a rescris %s rânduri', n);
+      end if;
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> fault_reports: nu scrie (42501), ca așteptat';
+    end;
+    -- Același principiu pe FIȘIERE. `app.mentenanta_poate_atasament` și
+    -- `app.mentenanta_poate_fisier` primeau platforma pe SCRIERE (ramura
+    -- `is_platform_admin()` cântărea la fel pentru `read` și `update`, iar
+    -- `has_permission` întoarce `all` pentru platformă), deci consola putea să
+    -- inserteze rânduri în `maintenance_attachments` și să urce obiecte în bucketul
+    -- unei firme client, în timp ce `equipment` și `fault_reports` o refuzau.
+    -- Celelalte buckete (`org-checklists`, `org-documents`) cer apartenența.
+    -- Găsit la revizia M10; reparat în `0212`.
+    begin
+      insert into public.maintenance_attachments
+        (organization_id, entity_type, entity_id, storage_path, denumire, tip, mime, marime_bytes, created_by)
+      values (v_alfa, 'equipment', v_echip, v_alfa::text || '/equipment/' || v_echip::text || '/platforma-' || v_rand || '.pdf',
+              'platforma.pdf', 'carte_tehnica', 'application/pdf', 10, v_sa_user);
+      v_scapate := v_scapate || E'\n  super_admin -> maintenance_attachments: a INSERAT într-o firmă client';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> maintenance_attachments: nu scrie (42501), ca așteptat';
+    end;
+    begin
+      insert into storage.objects (bucket_id, name, owner)
+      values ('org-mentenanta', v_alfa::text || '/equipment/' || v_echip::text || '/platforma-' || v_rand || '.pdf', v_sa_user);
+      v_scapate := v_scapate || E'\n  super_admin -> storage org-mentenanta: a URCAT pe un echipament al unei firme client';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> storage org-mentenanta (echipament): nu urcă (42501), ca așteptat';
+    end;
+    begin
+      insert into storage.objects (bucket_id, name, owner)
+      values ('org-mentenanta', v_alfa::text || '/intervention/' || gen_random_uuid()::text || '/platforma-' || v_rand || '.pdf', v_sa_user);
+      v_scapate := v_scapate || E'\n  super_admin -> storage org-mentenanta: a URCAT o rezervare de intervenție în firma client';
+    exception when insufficient_privilege then
+      v_reusite := v_reusite || E'\n  super_admin -> storage org-mentenanta (rezervare): nu urcă (42501), ca așteptat';
+    end;
+    reset role;
+  end if;
+
+  -- ═══ 7. Firma străină: nici documentele, nici rândurile [NEGATIV + control] ═
+  -- Administratorul firmei ALFA nu atinge utilajul firmei BETA: nici rând în
+  -- `maintenance_attachments`, nici obiect în bucket. Controlul pozitiv: administratorul
+  -- firmei BETA, pe ACELEAȘI căi, trece — deci refuzul de mai sus vine din apartenență.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('org-mentenanta', v_beta::text || '/equipment/' || v_echip_beta::text || '/alfa-' || v_rand || '.pdf', v_admin);
+    v_scapate := v_scapate || E'\n  org_admin ALFA -> storage org-mentenanta: a URCAT sub utilajul firmei BETA';
+  exception when insufficient_privilege then
+    v_reusite := v_reusite || E'\n  org_admin ALFA -> storage org-mentenanta (firma BETA): refuzat (42501)';
+  end;
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('org-mentenanta', v_beta::text || '/intervention/' || gen_random_uuid()::text || '/alfa-' || v_rand || '.pdf', v_admin);
+    v_scapate := v_scapate || E'\n  org_admin ALFA -> storage org-mentenanta: a URCAT o rezervare de intervenție în firma BETA';
+  exception when insufficient_privilege then
+    v_reusite := v_reusite || E'\n  org_admin ALFA -> storage org-mentenanta (rezervare în BETA): refuzat (42501)';
+  end;
+  begin
+    insert into public.maintenance_attachments
+      (organization_id, entity_type, entity_id, storage_path, denumire, tip, mime, marime_bytes, created_by)
+    values (v_beta, 'equipment', v_echip_beta, v_beta::text || '/equipment/' || v_echip_beta::text || '/alfa-' || v_rand || '.pdf',
+            'alfa.pdf', 'carte_tehnica', 'application/pdf', 10, v_admin);
+    v_scapate := v_scapate || E'\n  org_admin ALFA -> maintenance_attachments: a INSERAT pe utilajul firmei BETA';
+  exception when insufficient_privilege then
+    v_reusite := v_reusite || E'\n  org_admin ALFA -> maintenance_attachments (firma BETA): refuzat (42501)';
+  end;
+  reset role;
+
+  perform set_config('request.jwt.claim.sub', v_adm_beta::text, true);
+  set local role authenticated;
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('org-mentenanta', v_beta::text || '/equipment/' || v_echip_beta::text || '/beta-' || v_rand || '.pdf', v_adm_beta);
+    v_reusite := v_reusite || E'\n  org_admin BETA -> storage org-mentenanta (utilajul lui): urcă — controlul refuzurilor de mai sus';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  org_admin BETA -> storage org-mentenanta (utilajul lui): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  if v_scapate <> '' then
+    perform pg_temp.esueaza(format(
+      E'(l) M10: SCRIERI CARE TREBUIAU REFUZATE AU TRECUT — gaură de permisiuni:%s', v_scapate));
+  end if;
+  if v_esuate <> '' then
+    perform pg_temp.esueaza(format(
+      E'(l) M10: SCRIERI LEGITIME RESPINSE — defect real în politică sau trigger, nu în test:%s', v_esuate));
+  end if;
+
+  raise notice '(l) M10, scrieri reușite:%', v_reusite;
+  raise notice '(l) mentenanța M10: org_admin scrie echipamentul, contorul, planul, intervenția, oprirea și atașamentul (și urcă fișiere în bucket), triază și atribuie; tehnicianul atribuit își duce sesizarea până la rezolvat, raportorul o confirmă și urcă fotografia sesizării lui; refuzurile (urgența, sesizarea altcuiva, nota internă, documentele echipamentului pentru raportor, managerul, hr, super_admin la scriere — tabele ȘI Storage) țin și super_admin citește ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) verificarea M10 a mentenanței a eșuat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+-- ── sfârșit M10 ──────────────────────────────────────────────────────────────
 
 
 rollback;

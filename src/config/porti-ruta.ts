@@ -132,8 +132,18 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/mentenanta/echipamente/[id]/eticheta", "maintenance", "maintenance:read", "team"),
   p("/mentenanta/echipamente/etichete", "maintenance", "maintenance:read", "team"),
   p("/mentenanta/interventii", "maintenance", "maintenance:read", "team"),
+  // ── Mentenanță M6: fișa intervenției și procesul-verbal tipăribil ──
+  p("/mentenanta/interventii/[id]", "maintenance", "maintenance:read", "team"),
+  p("/mentenanta/interventii/[id]/proces-verbal", "maintenance", "maintenance:read", "team"),
+  // ── sfârșit M6 ──
+  // ── Mentenanță M7: lista autorizațiilor ISCIR ──
+  p("/mentenanta/iscir", "maintenance", "maintenance:read", "team"),
+  // ── sfârșit M7 ──
   p("/mentenanta/planuri", "maintenance", "maintenance:read", "team"),
   p("/mentenanta/planuri/[id]", "maintenance", "maintenance:read", "team"),
+  // ── Mentenanță M8: raportul pe perioadă ──
+  p("/mentenanta/rapoarte", "maintenance", "maintenance:read", "team"),
+  // ── sfârșit M8 ──
   p("/mentenanta/sesizari", "maintenance", "maintenance:read"),
   p("/mentenanta/sesizari/[id]", "maintenance", "maintenance:read"),
   // Redirecționează spre caseta `?sesizare=noua` din listă; poarta e a casetei.

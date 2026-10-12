@@ -24,6 +24,16 @@
  * 3. Foile de parcurs stau pe rând separat de parcul auto. Managerul n-are
  *    niciun drept pe `vehicles`, dar are `trip_sheets` pe echipă — un singur
  *    rând „Parc auto | manager | —" ar fi fost fals prin omisiune.
+ *
+ * 4. Mentenanța (12 oct 2026) arată doar CITIREA, ca toate celelalte rânduri.
+ *    Dreptul de a deschide o sesizare e mai larg decât cel de citire
+ *    (`maintenance:create = all` pentru manager și angajat: oricine sesizează un
+ *    utilaj), iar angajatul atribuit ca tehnician lucrează sesizarea LUI fără drept
+ *    de actualizare (excepție: HR-ul, fără acces la modul) — nici una dintre cele
+ *    două nu încape într-o celulă de citire, deci
+ *    stau în fișa modulului (`fise-module.ts`, cheia `maintenance`), unde sunt
+ *    spuse pe față. Angajatul `own` vede sesizările lui și ce i s-a atribuit, nu
+ *    parcul de echipamente.
  */
 export const ROLURI_MATRICE = [
   { cheie: "org_admin", eticheta: "Administrator" },
@@ -77,6 +87,12 @@ export const MATRICE: readonly RandMatrice[] = [
     resursa: "ssm",
     eticheta: "SSM și PSI",
     domenii: { org_admin: "all", hr: "all", manager: "team", employee: "own" },
+  },
+  {
+    resursa: "maintenance",
+    eticheta: "Mentenanță și sesizări de defecțiuni",
+    // Seed-ul din `0002_authz.sql`: manager `team`, angajat `own`, HR fără rând.
+    domenii: { org_admin: "all", hr: "none", manager: "team", employee: "own" },
   },
   {
     resursa: "trip_sheets",

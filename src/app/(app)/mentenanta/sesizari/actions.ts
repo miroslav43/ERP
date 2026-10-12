@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import type { ActionContext } from "@/lib/actions/types";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/types/database";
 import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
@@ -22,11 +23,7 @@ import {
   inchideOprireSchema,
   inchideSesizareSchema,
   inregistreazaOprireSchema,
-  LIMITA_DOCUMENT_MENTENANTA_BYTES,
-  LIMITA_FOTO_BYTES,
   MAXIM_FOTO_PE_SESIZARE,
-  MIME_DOCUMENT_MENTENANTA,
-  MIME_FOTO,
   pregatesteFisierSchema,
   redeschideSesizareSchema,
   retrageSesizareSchema,
@@ -36,6 +33,7 @@ import {
 } from "@/schemas/maintenance";
 
 import { traduEroare } from "../erori";
+import { caleSubEntitate, prefixCaleMentenanta, problemaFisier } from "../fisiere";
 
 // ── Ce e în fișierul ăsta ────────────────────────────────────────────────────
 //
@@ -57,8 +55,9 @@ import { traduEroare } from "../erori";
 // loc, verificat de `tests/rls/proba-sesizari-roluri.sql`, nu în două.
 //
 // Triajul (`trieazaSesizare`) și rezolvarea (`rezolvaSesizare`) rămân în
-// `../actions.ts`; aici nu e nevoie de clientul admin, deci fișierul nu-l
-// importă.
+// `../actions.ts`. Clientul admin apare o singură dată, în
+// `curataOrfaniiEntitatii` (0191): ștergerea fizică din bucket n-are politică
+// pentru `authenticated`, deci nu se poate face altfel.
 
 const CAI_SESIZARE = (id: string): readonly string[] => [
   "/mentenanta",
@@ -321,25 +320,157 @@ export const comenteazaSesizare = createAction({
 
 // ── Atașamente: poze și documente ────────────────────────────────────────────
 
-function verificaFisier(entityType: string, mime: string, dimensiune: number): string | null {
-  const ePoza = entityType === "fault_report";
-  const acceptate: readonly string[] = ePoza ? MIME_FOTO : MIME_DOCUMENT_MENTENANTA;
-  if (!acceptate.includes(mime)) {
-    return ePoza
-      ? "Pe o sesizare se pun fotografii: JPG, PNG, WEBP sau HEIC."
-      : "Acceptăm fotografii (JPG, PNG, WEBP, HEIC), PDF sau Word.";
+/** Regula de fișier și prefixul căii stau în `../fisiere.ts`, comune cu procesul-verbal al intervenției. */
+const verificaFisier = problemaFisier;
+const prefixCale = prefixCaleMentenanta;
+
+/**
+ * De la ce vârstă un obiect fără rând în `maintenance_attachments` e orfan.
+ * Neexportată: un fișier `"use server"` exportă doar funcții async (capcana 39).
+ */
+const VARSTA_ORFAN_MS = 24 * 60 * 60 * 1000;
+
+/** Câte căi intră într-un `.in()` al citirii legăturilor (URL scurt). Neexportată, ca mai sus. */
+const BUCATA_LEGATURI = 25;
+
+/**
+ * Curățarea încărcărilor NECONFIRMATE din folderul unei entități (M9, cazul 12):
+ * obiectele mai vechi de 24 h pentru care pasul 3 n-a scris niciodată rândul —
+ * fereastra închisă între `PUT` și `confirmaFisier`, o confirmare refuzată.
+ *
+ * DE CE AICI și nu în jobul de noapte: `delete from storage.objects` scoate doar
+ * metadatele, iar fișierul rămâne în spațiul de stocare, de negăsit; `pg_net` nu
+ * e activat, deci jobul SQL n-are cum chema API-ul de Storage. Aici rulează prin
+ * API, la următoarea încărcare pe aceeași entitate.
+ *
+ * DE CE `createAdminSupabase`: bucketul `org-mentenanta` n-are politică DELETE
+ * pentru `authenticated` (0181, „ștergerea trece prin service_role”). Granița de
+ * tenant e prefixul `{org}/{entity_type}/{entity_id}`, construit din
+ * `ctx.tenant.organizationId`, iar citirea rândurilor filtrează explicit pe
+ * organizație; se cheamă DOAR după ce semnarea pe clientul utilizatorului a
+ * trecut, adică după ce politica bucketului i-a recunoscut dreptul pe folder.
+ *
+ * Rândurile șterse logic CONTEAZĂ ca legături: documentele legale nu se șterg
+ * fizic (`stergeFisier` lasă obiectul). Orice eroare e înghițită: curățenia nu
+ * are voie să blocheze încărcarea omului.
+ */
+async function curataOrfaniiEntitatii(
+  organizationId: string,
+  entityType: string,
+  entityId: string,
+): Promise<number> {
+  try {
+    const admin = createAdminSupabase();
+    const folder = prefixCale(organizationId, entityType, entityId).slice(0, -1);
+    const { data: obiecte, error } = await admin.storage
+      .from(BUCKET_MENTENANTA)
+      .list(folder, { limit: 100 });
+    if (error !== null) return 0;
+
+    const prag = Date.now() - VARSTA_ORFAN_MS;
+    const vechi = (obiecte ?? [])
+      .filter((o) => {
+        // Subfolderele vin cu `id` null; nu sunt obiecte ale acestei entități.
+        if (o.id === null || o.created_at === null) return false;
+        const creat = Date.parse(o.created_at);
+        return Number.isFinite(creat) && creat < prag;
+      })
+      .map((o) => `${folder}/${o.name}`);
+    if (vechi.length === 0) return 0;
+
+    // Pe bucăți: `.in()` pleacă în URL-ul cererii GET, iar o cale are ~200 de
+    // caractere; 100 de căi ar trece de limita de antet a gateway-ului, eroarea
+    // ar fi înghițită mai jos și curățenia ar tăcea pe entitatea aceea pentru
+    // totdeauna.
+    const cunoscute = new Set<string>();
+    for (let i = 0; i < vechi.length; i += BUCATA_LEGATURI) {
+      const { data: legate, error: eroareLegate } = await admin
+        .from("maintenance_attachments")
+        .select("storage_path")
+        .eq("organization_id", organizationId)
+        .eq("entity_type", entityType)
+        .eq("entity_id", entityId)
+        .in("storage_path", vechi.slice(i, i + BUCATA_LEGATURI));
+      if (eroareLegate !== null) return 0;
+      for (const r of legate ?? []) cunoscute.add(r.storage_path);
+    }
+    const orfani = vechi.filter((cale) => !cunoscute.has(cale));
+    if (orfani.length === 0) return 0;
+
+    const { error: eroareStergere } = await admin.storage.from(BUCKET_MENTENANTA).remove(orfani);
+    return eroareStergere === null ? orfani.length : 0;
+  } catch (eroare) {
+    console.warn("[mentenanta] curățarea încărcărilor neconfirmate a eșuat", eroare);
+    return 0;
   }
-  if (dimensiune <= 0) return "Fișierul selectat este gol.";
-  const limita = ePoza ? LIMITA_FOTO_BYTES : LIMITA_DOCUMENT_MENTENANTA_BYTES;
-  if (dimensiune > limita) {
-    return ePoza ? "Fotografia depășește 5 MB." : "Documentul depășește 25 MB.";
-  }
-  return null;
 }
 
-/** `{org}/{entity_type}/{entity_id}/` — forma cerută de `app.mentenanta_poate_fisier`. */
-function prefixCale(organizationId: string, entityType: string, entityId: string): string {
-  return `${organizationId}/${entityType}/${entityId}/`;
+/** Câte foldere de intervenție se listează, cel mult, la o măturare (pagini de 100). */
+const PAGINI_REZERVARI = 10;
+const MARIME_PAGINA_REZERVARI = 100;
+const FORMA_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/**
+ * Rezervările ABANDONATE ale procesului-verbal (M6). PV-ul urcă pe
+ * `{org}/intervention/{id generat în browser}/` înaintea intervenției; o casetă
+ * închisă fără trimitere, sau un fișier schimbat (care primește alt id), lasă
+ * folderul unei intervenții care nu va exista niciodată. `curataOrfaniiEntitatii`
+ * n-ar mai ajunge la el, fiindcă id-ul nu se refolosește — de aceea, la fiecare
+ * rezervare nouă din firmă, se mătură folderele de intervenție al căror id nu
+ * există în organizație. Pe fiecare, aceeași regulă ca pe o entitate: doar
+ * obiectele mai vechi de 24 h și fără rând în `maintenance_attachments` (o
+ * casetă deschisă acum câteva minute nu-și pierde fișierul).
+ *
+ * DE CE `createAdminSupabase`: ca la `curataOrfaniiEntitatii` (fără politică
+ * DELETE pe bucket). Granița de tenant e rădăcina `{org-ul din sesiune}/intervention`,
+ * iar existența intervențiilor se citește filtrat explicit pe organizație.
+ * Rezervarea în curs (`exceptId`) nu se atinge. Erorile se înghit.
+ */
+async function curataRezervarileAbandonate(
+  organizationId: string,
+  exceptId: string,
+): Promise<number> {
+  try {
+    const admin = createAdminSupabase();
+    const radacina = `${organizationId}/intervention`;
+    const foldere: string[] = [];
+    for (let pagina = 0; pagina < PAGINI_REZERVARI; pagina += 1) {
+      const { data: intrari, error } = await admin.storage.from(BUCKET_MENTENANTA).list(radacina, {
+        limit: MARIME_PAGINA_REZERVARI,
+        offset: pagina * MARIME_PAGINA_REZERVARI,
+        sortBy: { column: "name", order: "asc" },
+      });
+      if (error !== null) return 0;
+      const lista = intrari ?? [];
+      // Folderele vin cu `id` null; numele lor e id-ul intervenției.
+      for (const o of lista) {
+        if (o.id === null && FORMA_UUID.test(o.name) && o.name !== exceptId) foldere.push(o.name);
+      }
+      if (lista.length < MARIME_PAGINA_REZERVARI) break;
+    }
+    if (foldere.length === 0) return 0;
+
+    const existente = new Set<string>();
+    for (let i = 0; i < foldere.length; i += BUCATA_LEGATURI) {
+      const { data, error } = await admin
+        .from("maintenance_interventions")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .in("id", foldere.slice(i, i + BUCATA_LEGATURI));
+      if (error !== null) return 0;
+      for (const r of data ?? []) existente.add(r.id);
+    }
+
+    let sterse = 0;
+    for (const id of foldere) {
+      if (!existente.has(id))
+        sterse += await curataOrfaniiEntitatii(organizationId, "intervention", id);
+    }
+    return sterse;
+  } catch (eroare) {
+    console.warn("[mentenanta] măturarea rezervărilor de intervenție a eșuat", eroare);
+    return 0;
+  }
 }
 
 /**
@@ -390,6 +521,10 @@ export const pregatesteFisier = createAction({
         "Nu am putut pregăti încărcarea fișierului. Verificați că aveți dreptul de a adăuga fișiere aici și încercați din nou.",
       );
     }
+    await curataOrfaniiEntitatii(ctx.tenant.organizationId, input.entity_type, input.entity_id);
+    if (input.entity_type === "intervention") {
+      await curataRezervarileAbandonate(ctx.tenant.organizationId, input.entity_id);
+    }
     return { cale, urlSemnat: data.signedUrl };
   },
 });
@@ -410,17 +545,25 @@ export const confirmaFisier = createAction({
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
     allow: ["entity_type", "entity_id", "tip", "denumire"],
   },
+  // Calea fișei se ia după ENTITATE: `entity_id` al unei intervenții nu e
+  // id de echipament (înainte de M6, documentul pus pe o intervenție
+  // revalida `/mentenanta/echipamente/<id-ul intervenției>`, o rută moartă).
   revalidate: (input) =>
     input.entity_type === "fault_report"
       ? CAI_SESIZARE(input.entity_id)
-      : [`/mentenanta/echipamente/${input.entity_id}`, "/mentenanta/interventii"],
+      : input.entity_type === "intervention"
+        ? [
+            "/mentenanta/interventii",
+            `/mentenanta/interventii/${input.entity_id}`,
+            `/mentenanta/interventii/${input.entity_id}/proces-verbal`,
+          ]
+        : [`/mentenanta/echipamente/${input.entity_id}`, "/mentenanta/interventii"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // Anti-traversal: calea trebuie să stea EXACT sub prefixul entității, fără
     // `..`, fără segmente goale. Fără asta, un client ar putea lega un rând de
     // un obiect din folderul altei entități.
     const prefix = prefixCale(ctx.tenant.organizationId, input.entity_type, input.entity_id);
-    const rest = input.cale.startsWith(prefix) ? input.cale.slice(prefix.length) : null;
-    if (rest === null || rest.length === 0 || rest.includes("/") || rest.includes("..")) {
+    if (!caleSubEntitate(input.cale, prefix)) {
       throw invalidInput("Calea fișierului nu corespunde entității.", {});
     }
 
@@ -478,7 +621,8 @@ export const stergeFisier = createAction({
   revalidate: ["/mentenanta", "/mentenanta/sesizari", "/portal/sesizari"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // Ștergere LOGICĂ a rândului; obiectul din bucket rămâne (documentele
-    // legale nu se șterg fizic) și îl curăță jobul zilnic dacă nu mai e legat.
+    // legale nu se șterg fizic). Nici jobul zilnic, nici `curataOrfaniiEntitatii`
+    // nu-l ating: un rând șters logic ține obiectul în viață.
     const db = await createServerSupabase();
     const { data, error } = await db
       .from("maintenance_attachments")
@@ -584,6 +728,8 @@ export const salveazaSetariMentenanta = createAction({
       "ore_functionare_pe_zi",
       "zile_pe_saptamana",
       "cost_ora_oprire",
+      // 0191: decizia omului care schimbă alertele întregii firme.
+      "praguri_alerta_zile",
     ],
   },
   revalidate: ["/mentenanta", "/mentenanta/setari"],

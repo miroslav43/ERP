@@ -327,6 +327,49 @@ devine obligatoriu · pragul pentru cota de angajare a persoanelor cu handicap �
 plata compensatorie · periodicitățile de verificare tehnică ISCIR · duratele de
 utilizare a echipamentului individual de protecție.
 
+### Verificări legale în mentenanță · `src/domain/maintenance/legal.ts`, `iscir.ts`
+
+Fără tabelă de valori: categoriile (M7, migrarea `0211`) sunt o listă în cod care
+PRECOMPLETEAZĂ planul (tip `verificare_legala`, periodicitatea sugerată, temeiul)
+și dă un maxim pentru AVERTISMENT. Nimic nu se blochează, iar **scadența din
+procesul-verbal are prioritate față de calcul**: prescripțiile dau un maxim, data
+reală o pune inspectorul ISCIR sau RSVTI. Citite pe 12 oct 2026 pe textele de pe
+legislatie.just.ro, descărcate cu `curl` (portalul poate servi o formă veche fără
+s-o spună — memoria „Portalul Legislativ: consolidări”):
+
+- PT R1-2010 (mașini de ridicat, `DetaliiDocument/122705`), art. 51 alin. (1):
+  următoarea VTP „de maxim 2 ani”. Formă originală, fără consolidare listată.
+- PT R2-2010 (ascensoare, `DetaliiDocument/122702`), art. 62 alin. (1): „de maxim
+  2 ani”; nota de la art. 62: termen mai scurt la instituțiile publice. Art. 68:
+  revizia și întreținerea periodic, după instrucțiunile montatorului (cel puțin de
+  două ori pe lună fără marcaj de conformitate). Planul inițial presupunea VTP
+  „anual”: codul sugerează tot 365 de zile (varianta prudentă), cu maximul 24 de
+  luni doar pentru avertisment.
+- PT C1-2010 (cazane, `DetaliiDocument/158167`, consolidat 08.05.2014): revizia
+  interioară cel puțin o dată la 4 ani (art. 186), încercarea hidraulică cel puțin
+  o dată la 8 ani (art. 197).
+- PT C4-2010 (recipiente sub presiune, `DetaliiDocument/158168`, consolidat
+  08.05.2014): revizia interioară la 4 ani (art. 74), încercarea de presiune la 8
+  ani (art. 83). Compresorul e tratat ca recipient — ⚠ de confirmat pe tip.
+- Ordinul ANRE 179/2015, Procedura (`DetaliiDocument/269180`, consolidat
+  03.11.2023), art. 3: verificarea instalației de gaze „la maximum 2 ani”, revizia
+  „la maximum 10 ani” și după o întrerupere mai lungă de 6 luni.
+- HG 537/2007 (`DetaliiDocument/82739`), art. 1: verificarea, repararea și
+  curățarea coșurilor de fum cel puțin o dată pe an (textul contravenției; litera
+  exactă — de confirmat).
+- HG 1146/2006 (`DetaliiDocument/75585`), art. 5: verificare după instalare și
+  după fiecare montare într-un loc de muncă nou — legată de eveniment, fără
+  periodicitate calendaristică.
+
+⚠️ **Neverificate pe text** (marcate `verificat: false`, temeiul pleacă în plan cu
+„⚠ … (de confirmat)”): instalațiile GPL (prescripția și intervalul), PRAM și
+paratrăsnetul (I7/2011 — anual e practica, nu o citire), iluminatul de siguranță
+și generatorul/UPS (probă lunară, P118-3/2015), ușile rezistente la foc, F-gaz
+(Reg. UE 2024/573, art. 5 — EUR-Lex n-a putut fi descărcat; 12/6/3 luni după
+tone CO2 echivalent), metrologia (BRML, după mijlocul de măsurare). Și pragul de
+la care un echipament intră în evidența RSVTI fără înregistrare la ISCIR (regimul
+`neinregistrat_rsvti`, cazul 42) se confirmă cu RSVTI-ul firmei.
+
 ### Foaia de parcurs · unealta publică `/unelte/foaie-de-parcurs`
 
 Fără tabelă: unealta nu citește și nu scrie în bază. Verificat pe 8 oct 2026 pe

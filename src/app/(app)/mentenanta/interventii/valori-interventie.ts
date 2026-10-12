@@ -28,6 +28,9 @@ export type ValoriInterventie = Readonly<{
   oprire_minute: number | null;
   citire_contor: number | null;
   observatii: string | null;
+  numar_document_furnizor: string | null;
+  garantie_lucrare_pana: string | null;
+  acoperit_de_garantie: boolean;
 }>;
 
 function text(date: FormData, cheie: string): string {
@@ -64,10 +67,29 @@ export function valoriInterventie(date: FormData): ValoriInterventie {
     oprire_minute: numarSauNull(date, "oprire_minute"),
     citire_contor: numarSauNull(date, "citire_contor"),
     observatii: textSauNull(date, "observatii"),
+    numar_document_furnizor: textSauNull(date, "numar_document_furnizor"),
+    garantie_lucrare_pana: textSauNull(date, "garantie_lucrare_pana"),
+    // O bifă nebifată lipsește din `FormData`; bifată, trimite „on”.
+    acoperit_de_garantie: date.get("acoperit_de_garantie") === "on",
   };
 }
 
 /** Planul ales în casetă, sau `null` pentru o intervenție de sine stătătoare. */
 export function planDinFormular(date: FormData): string | null {
   return textSauNull(date, "plan_id");
+}
+
+/**
+ * Fișierul ales în câmpul de document al casetei, sau `null`. Un `<input
+ * type="file">` gol trimite totuși un `File` fără nume și de 0 octeți.
+ */
+export function documentDinFormular(date: FormData): File | null {
+  const valoare = date.get("document");
+  if (typeof valoare === "string" || valoare === null) return null;
+  return valoare.size === 0 && valoare.name === "" ? null : valoare;
+}
+
+/** Tipul documentului ales în casetă; implicit procesul-verbal. */
+export function tipDocumentDinFormular(date: FormData): string {
+  return text(date, "document_tip") || "pv";
 }

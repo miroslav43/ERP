@@ -13,8 +13,10 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
 import { cereActiune, stareScadentaPlan } from "@/domain/maintenance/scadente";
 import { STARI_DESCHISE_SESIZARE } from "@/domain/maintenance/sesizari";
+import type { RegimIscir } from "@/domain/maintenance/iscir";
 import type {
   EntitateAtasament,
+  FiltreAutorizatii,
   FiltreEchipamente,
   FiltreInterventii,
   FiltreSesizari,
@@ -54,6 +56,7 @@ import {
   VALOARE_NULA,
 } from "./cursor";
 import { PRAG_MENTENANTA_AVERTIZARE_ZILE } from "@/domain/maintenance/scadente";
+import { PRAGURI_ALERTA_IMPLICITE } from "@/domain/maintenance/praguri";
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
@@ -173,6 +176,24 @@ export interface RandInterventie {
   readonly oprire_minute: number | null;
   readonly citire_contor: number | null;
   readonly observatii: string | null;
+  // M6 (0210)
+  readonly numar: string;
+  readonly fault_report_id: string | null;
+  readonly numar_document_furnizor: string | null;
+  readonly garantie_lucrare_pana: string | null;
+  readonly acoperit_de_garantie: boolean;
+}
+
+/** O linie de piese a unei intervenții (0210). `valoare` e GENERATĂ în bază. */
+export interface PiesaInterventie {
+  readonly id: string;
+  readonly intervention_id: string;
+  readonly denumire: string;
+  readonly cod: string | null;
+  readonly cantitate: number;
+  readonly unitate: string;
+  readonly pret_unitar: number;
+  readonly valoare: number | null;
 }
 
 export interface RezultatInterventii {
@@ -259,9 +280,11 @@ export interface SetariMentenanta {
   readonly ore_functionare_pe_zi: number;
   readonly zile_pe_saptamana: number;
   readonly cost_ora_oprire: number | null;
+  /** Pragurile rezumatului zilnic, în zile înainte de scadență (0191). */
+  readonly praguri_alerta_zile: readonly number[];
 }
 
-/** Implicitele din `default`-urile tabelei `maintenance_settings` (0181) — identice. */
+/** Implicitele din `default`-urile tabelei `maintenance_settings` (0181, 0191) — identice. */
 export const SETARI_MENTENANTA_IMPLICITE: SetariMentenanta = {
   id: null,
   responsabili: [],
@@ -272,6 +295,7 @@ export const SETARI_MENTENANTA_IMPLICITE: SetariMentenanta = {
   ore_functionare_pe_zi: 8,
   zile_pe_saptamana: 5,
   cost_ora_oprire: null,
+  praguri_alerta_zile: PRAGURI_ALERTA_IMPLICITE,
 };
 
 export interface RezultatSesizari {
@@ -284,7 +308,8 @@ export interface RezultatSesizari {
 export interface AutorizatieIscir {
   readonly id: string;
   readonly equipment_id: string;
-  readonly numar: string;
+  /** `null` doar în regimul `neinregistrat_rsvti` (0211, cazul 42). */
+  readonly numar: string | null;
   readonly tip: string;
   readonly emitent: string;
   readonly emis_la: string | null;
@@ -292,7 +317,19 @@ export interface AutorizatieIscir {
   readonly scadenta_verificare_tehnica: string | null;
   readonly conditii: string | null;
   readonly suspendata_la: string | null;
+  // 0211
+  readonly regim: RegimIscir;
+  readonly motiv_suspendare: string | null;
+  readonly reactivata_la: string | null;
+  /** Rândul care a înlocuit-o prin reînnoire; ne-null = istoric. */
+  readonly inlocuita_de_id: string | null;
 }
+
+/** Coloanele lui `AutorizatieIscir`, într-un singur loc (lista, fișa, panoul). */
+const COLOANE_AUTORIZATIE =
+  "id, equipment_id, numar, tip, emitent, emis_la, valabil_pana, " +
+  "scadenta_verificare_tehnica, conditii, suspendata_la, " +
+  "regim, motiv_suspendare, reactivata_la, inlocuita_de_id";
 
 export interface AngajatAutorizat {
   readonly employee_id: string;
@@ -396,8 +433,15 @@ export type FiltreEchipamenteCitire = Omit<FiltreEchipamente, "sort"> & {
   readonly sort?: string | null;
 };
 
-export type FiltreInterventiiCitire = Omit<FiltreInterventii, "sort"> & {
+/** Filtrele noi din M6 (executant, perioadă) sunt opționale pentru felii fixe (fișe). */
+export type FiltreInterventiiCitire = Omit<
+  FiltreInterventii,
+  "sort" | "executant" | "de_la" | "pana_la"
+> & {
   readonly sort?: string | null;
+  readonly executant?: string | null;
+  readonly de_la?: string | null;
+  readonly pana_la?: string | null;
 };
 
 export type FiltreSesizariCitire = Omit<FiltreSesizari, "sort"> & {
@@ -412,7 +456,8 @@ const COLOANE_ECHIPAMENT_LISTA =
 const COLOANE_INTERVENTIE =
   "id, plan_id, equipment_id, tip, data, ora_start, durata_ore, executant_employee_id, " +
   "executant_extern, descriere, piese, cost_piese, cost_manopera, cost_total, rezultat, " +
-  "oprire_minute, citire_contor, observatii";
+  "oprire_minute, citire_contor, observatii, numar, fault_report_id, numar_document_furnizor, " +
+  "garantie_lucrare_pana, acoperit_de_garantie";
 
 const COLOANE_SESIZARE =
   "id, numar, equipment_id, raportat_de_employee_id, raportat_de_user_id, descriere, urgenta, " +
@@ -716,12 +761,14 @@ export interface EchipamentProblema {
 
 export interface RezultatEchipamenteProblema {
   readonly randuri: readonly EchipamentProblema[];
-  /** Câte echipamente nu sunt „în funcțiune”, după politici — nu câte s-au citit. */
+  /** Câte echipamente sunt în reparație sau în conservare, după politici — nu câte s-au citit. */
   readonly total: number;
 }
 
 /**
- * Echipamentele care NU sunt „în funcțiune”, pentru panoul de organizație.
+ * Echipamentele în reparație sau în conservare, pentru panoul de organizație.
+ * Casatele NU intră (revizia M8): rămân în evidență pentru totdeauna, iar cifra
+ * de pe panou n-ar mai coborî la zero după prima casare.
  *
  * `count: "exact"` pe ACEEAȘI interogare: numărul din antetul panoului trebuie
  * să respecte aceleași politici RLS ca rândurile de sub el. Trăia inline în
@@ -738,7 +785,7 @@ export async function echipamenteCuProbleme(
     .select("id, cod, denumire, status", { count: "exact" })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .neq("status", "in_functiune")
+    .in("status", ["in_reparatie", "in_conservare"])
     .order("cod", { ascending: true })
     .limit(limita)
     .returns<EchipamentProblema[]>();
@@ -1187,6 +1234,38 @@ export async function ultimeleCitiriContor(
 
 // ── Intervenții ──────────────────────────────────────────────────────────
 
+/** Ce trebuie să aibă o interogare PostgREST ca să primească filtrele listei. */
+type FiltrabilInterventii<Q> = {
+  eq: (c: string, v: string) => Q;
+  is: (c: string, v: null) => Q;
+  gte: (c: string, v: string) => Q;
+  lte: (c: string, v: string) => Q;
+};
+
+/**
+ * Filtrele mulțimii de intervenții, scrise O SINGURĂ DATĂ pentru pagina de
+ * date, numărare și totalul din subsol: un subsol care ar uita un filtru ar
+ * aduna alte rânduri decât cele afișate, fără nicio eroare.
+ */
+function filtreazaInterventii<Q extends FiltrabilInterventii<Q>>(
+  q: Q,
+  organizationId: string,
+  filtre: FiltreInterventiiCitire,
+): Q {
+  let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+  if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+  if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
+  if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+  if (filtre.plan !== null) cu = cu.eq("plan_id", filtre.plan);
+  const executant = filtre.executant ?? null;
+  const deLa = filtre.de_la ?? null;
+  const panaLa = filtre.pana_la ?? null;
+  if (executant !== null) cu = cu.eq("executant_employee_id", executant);
+  if (deLa !== null) cu = cu.gte("data", deLa);
+  if (panaLa !== null) cu = cu.lte("data", panaLa);
+  return cu;
+}
+
 export async function interventii(
   organizationId: string,
   filtre: FiltreInterventiiCitire,
@@ -1206,21 +1285,8 @@ export async function interventii(
    * `listeazaEchipamente`: pe o singură interogare, `count` numără doar
    * rândurile de DUPĂ cursor, deci totalul scade cu fiecare pagină.
    */
-  const filtreaza = <
-    Q extends {
-      eq: (c: string, v: string) => Q;
-      is: (c: string, v: null) => Q;
-    },
-  >(
-    q: Q,
-  ): Q => {
-    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
-    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
-    if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
-    if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
-    if (filtre.plan !== null) cu = cu.eq("plan_id", filtre.plan);
-    return cu;
-  };
+  const filtreaza = <Q extends FiltrabilInterventii<Q>>(q: Q): Q =>
+    filtreazaInterventii(q, organizationId, filtre);
 
   let interogare = filtreaza(db.from("maintenance_interventions").select(COLOANE_INTERVENTIE))
     .order(coloana, { ascending: crescator, nullsFirst: false })
@@ -1282,6 +1348,125 @@ export async function citesteInterventie(
 
   if (error !== null) throw error;
   return data;
+}
+
+export interface OptiunePlan {
+  readonly id: string;
+  readonly nume: string;
+  readonly equipment_id: string;
+  readonly tip: TipMentenanta;
+}
+
+/**
+ * Planurile ACTIVE ale organizației, pentru caseta „Intervenție nouă” din
+ * listă: caseta le filtrează pe echipamentul ales, iar `tip` îi spune dacă
+ * PV-ul e obligatoriu (verificare legală). Plafon explicit, sub `max_rows`.
+ */
+export async function optiuniPlanuriActive(
+  organizationId: string,
+): Promise<readonly OptiunePlan[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_plans")
+    .select("id, denumire, equipment_id, tip")
+    .eq("organization_id", organizationId)
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .limit(LIMITA_OPTIUNI)
+    .returns<{ id: string; denumire: string; equipment_id: string; tip: TipMentenanta }[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    nume: p.denumire,
+    equipment_id: p.equipment_id,
+    tip: p.tip,
+  }));
+}
+
+/** Liniile de piese vii ale unei intervenții, în ordinea adăugării. */
+export async function piesePeInterventie(
+  organizationId: string,
+  interventionId: string,
+): Promise<readonly PiesaInterventie[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_intervention_parts")
+    .select("id, intervention_id, denumire, cod, cantitate, unitate, pret_unitar, valoare")
+    .eq("organization_id", organizationId)
+    .eq("intervention_id", interventionId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(200)
+    .returns<PiesaInterventie[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/** Câte rânduri adună subsolul listei, cel mult. Peste prag, cifra se marchează `trunchiat`. */
+export const PLAFON_TOTAL_INTERVENTII = 5000;
+const PAGINA_TOTAL_INTERVENTII = 1000;
+
+export interface TotalInterventii {
+  /** Intervențiile adunate (≤ plafon). */
+  readonly numar: number;
+  readonly costTotal: number;
+  /** Partea acoperită de garanție — se raportează separat (cazul 23). */
+  readonly costInGarantie: number;
+  /** Mulțimea filtrată are mai multe rânduri decât plafonul. */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Totalul costurilor pe mulțimea FILTRATĂ, pentru subsolul listei.
+ *
+ * Paginat keyset pe `id`, câte 1000: `max_rows = 1000` taie tăcut o citire
+ * mai lungă, iar un total fără toate rândurile e o cifră greșită fără eroare.
+ * Plafonul (5000) ține pagina rapidă; peste el, ecranul spune că cifra e
+ * parțială. Volumele reale sunt de zeci de rânduri pe an.
+ */
+export async function totalInterventii(
+  organizationId: string,
+  filtre: FiltreInterventiiCitire,
+): Promise<TotalInterventii> {
+  const db = await createServerSupabase();
+  let numar = 0;
+  let costTotal = 0;
+  let costInGarantie = 0;
+  let dupa: string | null = null;
+  for (;;) {
+    let q = filtreazaInterventii(
+      db.from("maintenance_interventions").select("id, cost_total, acoperit_de_garantie"),
+      organizationId,
+      filtre,
+    )
+      .order("id", { ascending: true })
+      .limit(PAGINA_TOTAL_INTERVENTII);
+    if (dupa !== null) q = q.gt("id", dupa);
+    const { data, error } =
+      await q.returns<{ id: string; cost_total: number | null; acoperit_de_garantie: boolean }[]>();
+    if (error !== null) throw error;
+    const randuri = data ?? [];
+    for (const r of randuri) {
+      if (numar >= PLAFON_TOTAL_INTERVENTII) {
+        return { numar, costTotal, costInGarantie, trunchiat: true };
+      }
+      numar += 1;
+      const cost = r.cost_total ?? 0;
+      costTotal += cost;
+      if (r.acoperit_de_garantie) costInGarantie += cost;
+    }
+    if (randuri.length < PAGINA_TOTAL_INTERVENTII) break;
+    dupa = randuri.at(-1)?.id ?? null;
+    if (dupa === null) break;
+  }
+  return {
+    numar,
+    costTotal: Math.round(costTotal * 100) / 100,
+    costInGarantie: Math.round(costInGarantie * 100) / 100,
+    trunchiat: false,
+  };
 }
 
 // ── Sesizări ────────────────────────────────────────────────────────────
@@ -1434,6 +1619,11 @@ export async function citesteSesizare(
 
 // ── Autorizații ISCIR ──────────────────────────────────────────────────────
 
+/**
+ * Autorizațiile ISCIR. Fără echipament (panoul): doar cele CURENTE — un rând
+ * înlocuit prin reînnoire e istoric și n-are ce căuta în coada de scadențe. Cu
+ * echipament (fișa lui): și istoricul reînnoirilor, ca lanțul să se vadă.
+ */
 export async function autorizatiiIscir(
   organizationId: string,
   equipmentId?: string,
@@ -1441,19 +1631,192 @@ export async function autorizatiiIscir(
   const db = await createServerSupabase();
   let interogare = db
     .from("iscir_authorizations")
-    .select(
-      "id, equipment_id, numar, tip, emitent, emis_la, valabil_pana, " +
-        "scadenta_verificare_tehnica, conditii, suspendata_la",
-    )
+    .select(COLOANE_AUTORIZATIE)
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .order("valabil_pana", { ascending: true });
 
-  if (equipmentId !== undefined) interogare = interogare.eq("equipment_id", equipmentId);
+  interogare =
+    equipmentId === undefined
+      ? interogare.is("inlocuita_de_id", null)
+      : interogare.eq("equipment_id", equipmentId);
 
   const { data, error } = await interogare.returns<AutorizatieIscir[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+export interface RezultatAutorizatii {
+  readonly randuri: readonly AutorizatieIscir[];
+  readonly urmatorulCursor: string | null;
+  readonly total: number;
+}
+
+type FiltrabilAutorizatii<Q> = {
+  eq: (c: string, v: string) => Q;
+  is: (c: string, v: null) => Q;
+  not: (c: string, op: string, v: null) => Q;
+  gte: (c: string, v: string) => Q;
+  gt: (c: string, v: string) => Q;
+  or: (filtre: string) => Q;
+};
+
+/**
+ * Filtrele listei ISCIR, o singură dată pentru pagină și numărare. Starea e
+ * semaforul din `stareAutorizatie` (`domain/maintenance/iscir.ts`) scris în
+ * PostgREST: termenul e cel mai apropiat dintre valabilitate și VTP, deci
+ * „expirată” = oricare dintre ele trecut, „expiră curând” = niciunul trecut și
+ * măcar unul sub prag, „valabilă” = amândouă peste prag. Rândurile înlocuite
+ * nu intră niciodată: lista e a autorizațiilor curente.
+ */
+function filtreazaAutorizatii<Q extends FiltrabilAutorizatii<Q>>(
+  q: Q,
+  organizationId: string,
+  filtre: FiltreAutorizatii,
+  azi: string,
+  pragZile: number,
+): Q {
+  const limita = new Date(`${azi}T00:00:00Z`);
+  limita.setUTCDate(limita.getUTCDate() + pragZile);
+  const lim = limita.toISOString().slice(0, 10);
+
+  let cu = q
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("inlocuita_de_id", null);
+  if (filtre.regim !== null) cu = cu.eq("regim", filtre.regim);
+  if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+  if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+
+  switch (filtre.stare) {
+    case "actiune":
+      // „min(a, b) ≤ L” ⇔ „a ≤ L sau b ≤ L” — aceeași formă ca în
+      // `numarAutorizatiiIscirScadente`, ca lista și cifra panoului să coincidă.
+      cu = cu
+        .is("suspendata_la", null)
+        .or(`valabil_pana.lte.${lim},scadenta_verificare_tehnica.lte.${lim}`);
+      break;
+    case "suspendata":
+      cu = cu.not("suspendata_la", "is", null);
+      break;
+    case "expirata":
+      cu = cu
+        .is("suspendata_la", null)
+        .or(`valabil_pana.lt.${azi},scadenta_verificare_tehnica.lt.${azi}`);
+      break;
+    case "expira_curand":
+      cu = cu
+        .is("suspendata_la", null)
+        .gte("valabil_pana", azi)
+        .or(`scadenta_verificare_tehnica.is.null,scadenta_verificare_tehnica.gte.${azi}`)
+        .or(`valabil_pana.lte.${lim},scadenta_verificare_tehnica.lte.${lim}`);
+      break;
+    case "valabila":
+      cu = cu
+        .is("suspendata_la", null)
+        .gt("valabil_pana", lim)
+        .or(`scadenta_verificare_tehnica.is.null,scadenta_verificare_tehnica.gt.${lim}`);
+      break;
+    case null:
+      break;
+  }
+  return cu;
+}
+
+/**
+ * Lista `/mentenanta/iscir`: autorizațiile curente, ce expiră primul sus
+ * (`valabil_pana`, `not null`, apoi `id`), cu cursor keyset.
+ */
+export async function listeazaAutorizatiiIscir(
+  organizationId: string,
+  filtre: FiltreAutorizatii,
+  pragZile: number = PRAG_MENTENANTA_AVERTIZARE_ZILE,
+): Promise<RezultatAutorizatii> {
+  const db = await createServerSupabase();
+  const azi = todayInBucharest();
+  const filtreaza = <Q extends FiltrabilAutorizatii<Q>>(q: Q): Q =>
+    filtreazaAutorizatii(q, organizationId, filtre, azi, pragZile);
+
+  let interogare = filtreaza(db.from("iscir_authorizations").select(COLOANE_AUTORIZATIE))
+    .order("valabil_pana", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(filtre.limita + 1);
+
+  if (filtre.cursor !== null) {
+    const c = decodificaCursor(filtre.cursor);
+    if (c !== null) interogare = interogare.or(predicatKeyset("valabil_pana", c, "asc"));
+  }
+
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<AutorizatieIscir[]>(),
+    filtreaza(db.from("iscir_authorizations").select("id", { count: "exact", head: true })),
+  ]);
+  if (rezultat.error !== null) throw rezultat.error;
+  if (numarare.error !== null) throw numarare.error;
+
+  const toate = rezultat.data ?? [];
+  const areUrmatoarea = toate.length > filtre.limita;
+  const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
+  const ultim = randuri.at(-1);
+  return {
+    randuri,
+    urmatorulCursor:
+      areUrmatoarea && ultim !== undefined
+        ? codificaCursor({ valoare: ultim.valabil_pana, id: ultim.id })
+        : null,
+    total: numarare.count ?? randuri.length,
+  };
+}
+
+/** Tipurile folosite efectiv în organizație — opțiunile filtrului „Tip” (și cele vechi, libere). */
+export async function tipuriAutorizatiiIscir(organizationId: string): Promise<readonly string[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("iscir_authorizations")
+    .select("tip")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("inlocuita_de_id", null)
+    .limit(1000)
+    .returns<{ readonly tip: string }[]>();
+  if (error !== null) throw error;
+  return [...new Set((data ?? []).map((r) => r.tip))].sort((a, b) => a.localeCompare(b, "ro"));
+}
+
+export interface StareRsvti {
+  /** Echipamentele sub incidența ISCIR, nici casate, nici șterse. */
+  readonly echipamenteIscir: number;
+  readonly rsvtiEmployeeId: string | null;
+  /** RSVTI-ul din setări există și e activ. */
+  readonly rsvtiActiv: boolean;
+}
+
+/**
+ * Alerta „RSVTI lipsă” (cazul 41): firma are echipamente ISCIR, iar în setări
+ * nu e desemnat un RSVTI activ. Fișa plecată din firmă contează ca lipsă —
+ * altfel alertele ISCIR din rezumatul zilnic (0191) pleacă în gol.
+ */
+export async function stareRsvti(organizationId: string): Promise<StareRsvti> {
+  const db = await createServerSupabase();
+  const [numarare, setari] = await Promise.all([
+    db
+      .from("equipment")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("este_iscir", true)
+      .neq("status", "casat")
+      .is("deleted_at", null),
+    setariMentenanta(organizationId),
+  ]);
+  if (numarare.error !== null) throw numarare.error;
+  const rsvti = setari.rsvti_employee_id;
+  const inactivi =
+    rsvti === null ? new Set<string>() : await angajatiInactiviDintre(organizationId, [rsvti]);
+  return {
+    echipamenteIscir: numarare.count ?? 0,
+    rsvtiEmployeeId: rsvti,
+    rsvtiActiv: rsvti !== null && !inactivi.has(rsvti),
+  };
 }
 
 /**
@@ -1749,7 +2112,8 @@ export async function setariMentenanta(organizationId: string): Promise<SetariMe
     .from("maintenance_settings")
     .select(
       "id, responsabili, rsvti_employee_id, inchidere_automata_zile, prag_avertizare_zile, " +
-        "prag_contor_necitit_zile, ore_functionare_pe_zi, zile_pe_saptamana, cost_ora_oprire",
+        "prag_contor_necitit_zile, ore_functionare_pe_zi, zile_pe_saptamana, cost_ora_oprire, " +
+        "praguri_alerta_zile",
     )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
@@ -1811,6 +2175,7 @@ async function numarAutorizatiiIscirScadente(
 ): Promise<number> {
   const limita = new Date(`${azi}T00:00:00Z`);
   limita.setUTCDate(limita.getUTCDate() + pragZile);
+  const lim = limita.toISOString().slice(0, 10);
 
   const db = await createServerSupabase();
   const { count, error } = await db
@@ -1819,7 +2184,10 @@ async function numarAutorizatiiIscirScadente(
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .is("suspendata_la", null)
-    .lte("valabil_pana", limita.toISOString().slice(0, 10));
+    // 0211: rândul înlocuit e istoric; termenul e cel mai apropiat dintre
+    // valabilitate și VTP (`termenAutorizatie`) — „min(a, b) ≤ L” ⇔ „a ≤ L sau b ≤ L”.
+    .is("inlocuita_de_id", null)
+    .or(`valabil_pana.lte.${lim},scadenta_verificare_tehnica.lte.${lim}`);
   if (error !== null) throw error;
   return count ?? 0;
 }

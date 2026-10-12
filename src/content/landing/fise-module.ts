@@ -1004,15 +1004,15 @@ export const FISE: readonly FisaModul[] = [
 
   {
     cheie: "maintenance",
-    actualizat: "2026-10-07",
+    actualizat: "2026-10-12",
     titluPagina: "Mentenanță: sesizări, planuri și ISCIR",
     titluH1: "Mentenanță și sesizări",
     metaDescriere:
-      "Cum se ține mentenanța în Administrativo: sesizări deschise de orice angajat, contoare, planuri periodice, autorizații ISCIR cu scadențe.",
+      "Mentenanță în Administrativo: sesizare cu fotografie din QR, tehnician atribuit, planuri pe timp sau contor, intervenții cu costuri, ISCIR și rapoarte.",
     intro: [
       "Defectul se vede primul de către omul care lucrează pe utilaj, nu de către cel care răspunde de el. Dacă sesizarea trebuie să treacă prin șeful de tură și printr-un telefon, jumătate din defecte nu ajung niciodată să fie scrise nicăieri.",
-      "De aceea aici oricine poate deschide o sesizare, pe orice echipament. Ea se triază, primește un responsabil, iar rezolvarea rămâne cu intervenția ei: ce s-a făcut, când și de către cine. Istoricul echipamentului nu mai e memoria cuiva.",
-      "Peste sesizări stau planurile: revizii la interval de timp sau la contor. Contorul se citește și se înregistrează, iar planul spune singur ce e scadent. Autorizațiile ISCIR își au scadențele lor, urmărite la fel — o autorizație expirată e o problemă legală, nu doar una de întreținere.",
+      "De aceea aici oricine poate deschide o sesizare, pe orice echipament: de pe telefon, cu fotografii, scanând eticheta QR lipită pe utilaj. Responsabilul o triază și o atribuie unui om anume. Cel atribuit o preia, o lucrează și o declară rezolvată, iar cel care a raportat confirmă că defectul chiar a dispărut — sau o redeschide, cu motiv. Rezolvarea rămâne cu intervenția ei: ce s-a făcut, când, de către cine, cu ce piese și cât a costat. Istoricul echipamentului nu mai e memoria cuiva.",
+      "Peste sesizări stau planurile: revizii la interval de timp sau la contor, cu amânare înregistrată și cu proiecția scadenței din citirile recente. Opririle utilajului se țin într-un jurnal, iar din el ies disponibilitatea și timpul mediu de reparație. Autorizațiile ISCIR și verificările legale își au scadențele lor, urmărite la fel — o autorizație expirată e o problemă legală, nu doar una de întreținere, deci apare în roșu peste tot, fără să blocheze lucrul. În fiecare dimineață, fiecare responsabil primește un singur rezumat, nu zece notificări.",
     ],
     actiuni: [
       {
@@ -1032,7 +1032,7 @@ export const FISE: readonly FisaModul[] = [
         angajat: "all",
       },
       {
-        ce: "Triază, rezolvă, administrează planuri",
+        ce: "Triază, atribuie, administrează echipamente și planuri",
         cheie: "maintenance:update",
         orgAdmin: "all",
         hr: null,
@@ -1041,7 +1041,7 @@ export const FISE: readonly FisaModul[] = [
       },
     ],
     notaPermisiuni:
-      "Rândul din mijloc e neobișnuit, dar e făcut dinadins: la deschiderea unei sesizări, în dreptul angajatului scrie „tot”, nu „ale lui”. Poate raporta un defect pe orice echipament din firmă, nu doar pe al lui — altfel utilajul pe lângă care tocmai a trecut ar rămâne nesemnalat. În schimb, vede doar echipamentele și sesizările care îl privesc. Coloana HR e goală de sus până jos: mentenanța nu e treaba lui. Iar un rol nu primește nimic din oficiu — ce nu i s-a dat, nu poate face.",
+      "Rândul din mijloc e neobișnuit, dar e făcut dinadins: la deschiderea unei sesizări, în dreptul angajatului scrie „tot”, nu „ale lui”. Poate raporta un defect pe orice echipament din firmă, nu doar pe al lui — altfel utilajul pe lângă care tocmai a trecut ar rămâne nesemnalat. În schimb, vede doar sesizările care îl privesc și echipamentele din grija lui. Ultimul rând nu e al fiecărui rol: triajul, atribuirea și planurile le face cine are dreptul de actualizare, adică la început administratorul, iar o firmă îl poate da și managerului din pagina de permisiuni. Cine primește o sesizare ca tehnician o lucrează pe a lui — o preia, comentează, trece intervenția și o declară rezolvată — fără să vadă restul parcului și fără să aibă dreptul de actualizare. Singura excepție e HR-ul: fără acces la modul, o sesizare atribuită lui nu s-ar deschide, deci se atribuie altcuiva. Iar cel care a raportat are ultimul cuvânt: confirmă închiderea sau o redeschide. Coloana HR e goală de sus până jos: mentenanța nu e treaba lui. Un rol nu primește nimic din oficiu — ce nu i s-a dat, nu poate face.",
     legaturi: [
       {
         catre: "inventory",
@@ -1058,8 +1058,9 @@ export const FISE: readonly FisaModul[] = [
     ],
     nuFace: [
       "Nu se leagă la senzori sau la automatizările utilajelor (SCADA). Contoarele se citesc de pe aparat și se trec de mână.",
-      "Nu ține stoc de piese de schimb și nu comandă nimic de la furnizori.",
-      "Nu calculează costul intervenției pe manoperă și materiale. Notează ce s-a făcut, nu cât a costat.",
+      "Nu ține stoc de piese pe depozite și nu comandă nimic de la furnizori. Piesele se trec pe intervenție, cu cantitate și preț, iar costul ei se adună din piese și manoperă.",
+      "Nu măsoară timpul fiecărui tehnician cu cronometru, nu aprobă devize peste un prag și nu urmărește contracte de service. Durata și costul le trece cine a făcut lucrarea.",
+      "Nu trimite email sau SMS de urgență. Alertele și rezumatul zilnic ajung în aplicație, în clopoțel.",
     ],
   },
 

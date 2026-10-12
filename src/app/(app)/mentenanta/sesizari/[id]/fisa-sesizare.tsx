@@ -285,7 +285,21 @@ export function FisaSesizare({
             Rezolvată prin
           </h2>
           <div className="border-border rounded-panou space-y-1 border p-4">
-            <p className="text-corp font-medium">{interventie.descriere}</p>
+            <p className="text-corp font-medium">
+              {/* Fișa intervenției (M6) cere aceeași poartă ca lista: `read` ≥ team. */}
+              {inAplicatie && poateDeschideEchipament ? (
+                <Link
+                  href={`/mentenanta/interventii/${interventie.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {interventie.numar}
+                </Link>
+              ) : (
+                interventie.numar
+              )}
+              {" — "}
+              {interventie.descriere}
+            </p>
             <p className="text-muted-foreground text-nota">
               {ETICHETE_TIP_MENTENANTA[interventie.tip]} · {formatDate(interventie.data)} ·{" "}
               {interventie.executant_extern ?? (

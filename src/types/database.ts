@@ -6270,8 +6270,12 @@ export type Database = {
           emitent: string
           equipment_id: string
           id: string
-          numar: string
+          inlocuita_de_id: string | null
+          motiv_suspendare: string | null
+          numar: string | null
           organization_id: string
+          reactivata_la: string | null
+          regim: Database["public"]["Enums"]["iscir_regim"]
           scadenta_verificare_tehnica: string | null
           suspendata_la: string | null
           tip: string
@@ -6288,8 +6292,12 @@ export type Database = {
           emitent?: string
           equipment_id: string
           id?: string
-          numar: string
+          inlocuita_de_id?: string | null
+          motiv_suspendare?: string | null
+          numar?: string | null
           organization_id: string
+          reactivata_la?: string | null
+          regim?: Database["public"]["Enums"]["iscir_regim"]
           scadenta_verificare_tehnica?: string | null
           suspendata_la?: string | null
           tip: string
@@ -6306,8 +6314,12 @@ export type Database = {
           emitent?: string
           equipment_id?: string
           id?: string
-          numar?: string
+          inlocuita_de_id?: string | null
+          motiv_suspendare?: string | null
+          numar?: string | null
           organization_id?: string
+          reactivata_la?: string | null
+          regim?: Database["public"]["Enums"]["iscir_regim"]
           scadenta_verificare_tehnica?: string | null
           suspendata_la?: string | null
           tip?: string
@@ -6321,6 +6333,13 @@ export type Database = {
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iscir_authorizations_inlocuita_de_fkey"
+            columns: ["inlocuita_de_id"]
+            isOneToOne: false
+            referencedRelation: "iscir_authorizations"
             referencedColumns: ["id"]
           },
           {
@@ -7514,8 +7533,75 @@ export type Database = {
           },
         ]
       }
+      maintenance_intervention_parts: {
+        Row: {
+          cantitate: number
+          cod: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          intervention_id: string
+          organization_id: string
+          pret_unitar: number
+          unitate: string
+          updated_at: string
+          updated_by: string | null
+          valoare: number | null
+        }
+        Insert: {
+          cantitate: number
+          cod?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          intervention_id: string
+          organization_id: string
+          pret_unitar?: number
+          unitate?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number | null
+        }
+        Update: {
+          cantitate?: number
+          cod?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          intervention_id?: string
+          organization_id?: string
+          pret_unitar?: number
+          unitate?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_intervention_parts_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_intervention_parts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_interventions: {
         Row: {
+          acoperit_de_garantie: boolean
           citire_contor: number | null
           cost_manopera: number
           cost_piese: number
@@ -7530,7 +7616,10 @@ export type Database = {
           executant_employee_id: string | null
           executant_extern: string | null
           fault_report_id: string | null
+          garantie_lucrare_pana: string | null
           id: string
+          numar: string
+          numar_document_furnizor: string | null
           observatii: string | null
           oprire_minute: number | null
           ora_start: string | null
@@ -7543,6 +7632,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          acoperit_de_garantie?: boolean
           citire_contor?: number | null
           cost_manopera?: number
           cost_piese?: number
@@ -7557,7 +7647,10 @@ export type Database = {
           executant_employee_id?: string | null
           executant_extern?: string | null
           fault_report_id?: string | null
+          garantie_lucrare_pana?: string | null
           id?: string
+          numar?: string
+          numar_document_furnizor?: string | null
           observatii?: string | null
           oprire_minute?: number | null
           ora_start?: string | null
@@ -7570,6 +7663,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          acoperit_de_garantie?: boolean
           citire_contor?: number | null
           cost_manopera?: number
           cost_piese?: number
@@ -7584,7 +7678,10 @@ export type Database = {
           executant_employee_id?: string | null
           executant_extern?: string | null
           fault_report_id?: string | null
+          garantie_lucrare_pana?: string | null
           id?: string
+          numar?: string
+          numar_document_furnizor?: string | null
           observatii?: string | null
           oprire_minute?: number | null
           ora_start?: string | null
@@ -7755,6 +7852,66 @@ export type Database = {
           },
         ]
       }
+      maintenance_rezumat_trimis: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          entity_id: string
+          id: string
+          notification_id: string | null
+          organization_id: string
+          tip: string
+          trimis_in: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          entity_id: string
+          id?: string
+          notification_id?: string | null
+          organization_id: string
+          tip: string
+          trimis_in?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          entity_id?: string
+          id?: string
+          notification_id?: string | null
+          organization_id?: string
+          tip?: string
+          trimis_in?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_rezumat_trimis_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_rezumat_trimis_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_settings: {
         Row: {
           cost_ora_oprire: number | null
@@ -7767,6 +7924,7 @@ export type Database = {
           organization_id: string
           prag_avertizare_zile: number
           prag_contor_necitit_zile: number
+          praguri_alerta_zile: number[]
           responsabili: string[]
           rsvti_employee_id: string | null
           updated_at: string
@@ -7784,6 +7942,7 @@ export type Database = {
           organization_id: string
           prag_avertizare_zile?: number
           prag_contor_necitit_zile?: number
+          praguri_alerta_zile?: number[]
           responsabili?: string[]
           rsvti_employee_id?: string | null
           updated_at?: string
@@ -7801,6 +7960,7 @@ export type Database = {
           organization_id?: string
           prag_avertizare_zile?: number
           prag_contor_necitit_zile?: number
+          praguri_alerta_zile?: number[]
           responsabili?: string[]
           rsvti_employee_id?: string | null
           updated_at?: string
@@ -13925,6 +14085,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      reinnoieste_autorizatie_iscir: {
+        Args: {
+          p_autorizatie: string
+          p_conditii?: string | null
+          p_emis_la?: string | null
+          p_emitent?: string | null
+          p_numar?: string | null
+          p_scadenta_verificare_tehnica?: string | null
+          p_valabil_pana: string
+        }
+        Returns: string
+      }
       sedii_pentru_pontaj: {
         Args: { p_organization_id: string }
         Returns: {
@@ -14174,6 +14346,7 @@ export type Database = {
       inventory_item_stare: "nou" | "bun" | "uzat" | "defect"
       inventory_item_status: "in_stoc" | "alocat" | "in_reparatie" | "casat"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
+      iscir_regim: "inregistrat" | "neinregistrat_rsvti"
       kpi_indicator_tip: "masurat" | "apreciat"
       kpi_sens: "crestere" | "descrestere"
       leave_accrual_event:
@@ -14732,6 +14905,7 @@ export const Constants = {
       inventory_item_stare: ["nou", "bun", "uzat", "defect"],
       inventory_item_status: ["in_stoc", "alocat", "in_reparatie", "casat"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
+      iscir_regim: ["inregistrat", "neinregistrat_rsvti"],
       kpi_indicator_tip: ["masurat", "apreciat"],
       kpi_sens: ["crestere", "descrestere"],
       leave_accrual_event: [

@@ -17,18 +17,16 @@ export function DocumenteEchipament({
   atasamente,
   urluri,
   poateSterge,
+  textGol = "Niciun document. Cartea tehnică, certificatul CE și manualul se păstrează aici, ca să fie la îndemână la control.",
 }: Readonly<{
   atasamente: readonly Atasament[];
   urluri: ReadonlyMap<string, string>;
   poateSterge: boolean;
+  /** Textul listei goale — fișa intervenției vorbește despre PV, nu despre cartea tehnică. */
+  textGol?: string;
 }>): ReactElement {
   if (atasamente.length === 0) {
-    return (
-      <p className="text-muted-foreground text-corp">
-        Niciun document. Cartea tehnică, certificatul CE și manualul se păstrează aici, ca să fie la
-        îndemână la control.
-      </p>
-    );
+    return <p className="text-muted-foreground text-corp">{textGol}</p>;
   }
   return (
     <ul className="border-border divide-border rounded-panou divide-y border">

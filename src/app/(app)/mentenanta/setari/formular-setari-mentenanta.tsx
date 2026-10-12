@@ -7,6 +7,7 @@ import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
+import { bucatiPraguri, pragurileCaText } from "@/domain/maintenance/praguri";
 import type { OptiuneSelect, SetariMentenanta } from "@/lib/queries/maintenance";
 
 import { salveazaSetariMentenanta } from "../sesizari/actions";
@@ -47,6 +48,8 @@ export function FormularSetariMentenanta({
       ore_functionare_pe_zi: text(date, "ore_functionare_pe_zi"),
       zile_pe_saptamana: text(date, "zile_pe_saptamana"),
       cost_ora_oprire: cost.length === 0 ? null : cost,
+      // „30, 14, 7” → ["30", "14", "7"]; schema le validează și le normalizează.
+      praguri_alerta_zile: bucatiPraguri(text(date, "praguri_alerta_zile")),
     });
   }
 
@@ -173,6 +176,38 @@ export function FormularSetariMentenanta({
                     defaultValue={v(
                       "prag_contor_necitit_zile",
                       String(setari.prag_contor_necitit_zile),
+                    )}
+                  />
+                )}
+              </Camp>
+            </fieldset>
+
+            <fieldset className="border-border rounded-panou space-y-3 border p-4">
+              <legend className="text-corp px-1 font-semibold">Rezumatul zilnic</legend>
+              <p className="text-muted-foreground text-corp">
+                În fiecare dimineață, responsabilii primesc o singură notificare cu ce cere atenție:
+                scadențele apropiate sau depășite, planurile pe contor ajunse la țintă, contoarele
+                necitite, sesizările critice fără tehnician de peste o zi și opririle de peste trei
+                zile fără intervenție. Responsabilul unui plan sau al unui utilaj primește doar ce
+                ține de ale lui; RSVTI-ul primește autorizațiile ISCIR. Același lucru nu se repetă
+                în fiecare zi.
+              </p>
+              <Camp
+                nume="praguri_alerta_zile"
+                id={`${id}-praguri`}
+                eticheta="Alertă înainte de scadență (zile)"
+                ajutor="Până la 8 valori, despărțite prin virgulă, fiecare între 1 și 365. Implicit: 30, 14, 7. Se aplică planurilor, autorizațiilor ISCIR și garanțiilor."
+                erori={stare.erori["praguri_alerta_zile"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    defaultValue={v(
+                      "praguri_alerta_zile",
+                      pragurileCaText(setari.praguri_alerta_zile),
                     )}
                   />
                 )}

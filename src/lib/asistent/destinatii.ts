@@ -885,6 +885,51 @@ const INTRARI: readonly Intrare[] = [
     minScope: "team",
     descriere: "Adăugarea unui echipament în evidență.",
   },
+  // ── Mentenanță M6: caseta „Intervenție nouă” din listă ──
+  {
+    id: "mentenanta.interventii.noua",
+    href: "/mentenanta/interventii?interventie=noua",
+    eticheta: "Intervenție nouă",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: null,
+    featureKey: "maintenance",
+    permission: "maintenance:update",
+    minScope: "team",
+    descriere:
+      "Înregistrarea unei intervenții de mentenanță, cu procesul-verbal atașat la verificările legale.",
+  },
+  // ── sfârșit M6 ──
+  // ── Mentenanță M7: lista autorizațiilor ISCIR ──
+  {
+    id: "mentenanta.iscir",
+    href: "/mentenanta/iscir",
+    eticheta: "Autorizații ISCIR",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "ISCIR",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "team",
+    descriere:
+      "Autorizațiile ISCIR și verificările tehnice periodice ale utilajelor, cu ce expiră, ce e suspendat, RSVTI-ul și dosarul de control.",
+  },
+  // ── sfârșit M7 ──
+  // ── Mentenanță M8: raportul pe perioadă ──
+  {
+    id: "mentenanta.rapoarte",
+    href: "/mentenanta/rapoarte",
+    eticheta: "Rapoarte de mentenanță",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "Rapoarte",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "team",
+    descriere:
+      "Costurile pe echipament, disponibilitatea, timpii de reparație și de rezolvare, defectele repetate, planurile și verificările legale făcute la timp, pe o perioadă aleasă, cu export CSV.",
+  },
+  // ── sfârșit M8 ──
   {
     id: "mentenanta.interventii",
     href: "/mentenanta/interventii",
@@ -919,7 +964,8 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "maintenance",
     permission: "maintenance:read",
     minScope: "own",
-    descriere: "Defecțiunile raportate de colegi, de preluat și rezolvat.",
+    descriere:
+      "Defecțiunile raportate de colegi: triaj, atribuire unui tehnician, comentarii, fotografii, opriri și confirmarea închiderii de către cel care a raportat.",
   },
   {
     id: "mentenanta.setari",
@@ -1470,7 +1516,8 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "maintenance",
     permission: "maintenance:read",
     minScope: "own",
-    descriere: "Defecțiunile pe care le-ați raportat și stadiul rezolvării.",
+    descriere:
+      "Defecțiunile pe care le-ați raportat sau care v-au fost atribuite, cu stadiul rezolvării, fotografiile și confirmarea închiderii, plus echipamentele din grija dumneavoastră, cu citirea rapidă a contorului.",
   },
   {
     id: "portal.sesizari.noua",

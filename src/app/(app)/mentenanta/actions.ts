@@ -2,7 +2,7 @@
 "use server";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, forbidden, notFound } from "@/lib/actions/errors";
+import { businessRule, forbidden, invalidInput, notFound } from "@/lib/actions/errors";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -19,15 +19,20 @@ import {
   planNouSchema,
   rezolvaSesizareSchema,
   sesizareNouaSchema,
+  TIPURI_ATASAMENT_PV,
   trieazaSesizareSchema,
   type StatusSesizare,
   type UrgentaSesizare,
 } from "@/schemas/maintenance";
 import { z } from "zod";
 
+import { todayInBucharest } from "@/lib/format/date";
 import { tiparContine } from "@/lib/queries/cursor";
+import { BUCKET_MENTENANTA } from "@/lib/queries/maintenance";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
 
 import { traduEroare } from "./erori";
+import { caleSubEntitate, prefixCaleMentenanta, problemaFisier } from "./fisiere";
 
 // ── Sesizări ────────────────────────────────────────────────────────────
 
@@ -119,9 +124,19 @@ export interface EchipamentCautat {
   /** Cea mai veche sesizare ÎNCĂ deschisă pe utilaj — avertismentul de duplicat din casetă. */
   /** `vizibila`: rândul trece de RLS pentru CINE caută — altfel linkul spre ea ar da 404. */
   readonly sesizare_deschisa: Readonly<{ id: string; numar: string; vizibila: boolean }> | null;
+  /** Garanția echipamentului, dacă n-a expirat (`garantie_expira` ≥ azi). */
+  readonly garantie_expira: string | null;
+  /**
+   * Cea mai lungă garanție de LUCRARE încă în curs pe utilaj (M6, cazul 23):
+   * o defecțiune nouă se cere întâi furnizorului care a reparat.
+   */
+  readonly garantie_lucrare: Readonly<{ numar: string; data: string; pana: string }> | null;
 }
 
-type EchipamentBrut = Omit<EchipamentCautat, "sesizare_deschisa">;
+type EchipamentBrut = Omit<
+  EchipamentCautat,
+  "sesizare_deschisa" | "garantie_lucrare" | "garantie_expira"
+> & { readonly garantie_expira: string | null };
 
 /**
  * Atașează fiecărui echipament găsit sesizarea deschisă (dacă există), cu
@@ -161,11 +176,37 @@ async function cuSesizareaDeschisa(
     const { data: aleLui } = await cititor.from("fault_reports").select("id").in("id", ids);
     for (const s of aleLui ?? []) vizibile.add(s.id);
   }
+  // Garanția lucrării: cu clientul admin, ca sesizarea deschisă — raportorul
+  // nu vede intervențiile (costuri, furnizori), dar află că reparația e în
+  // garanție. Doar numărul PV-ului, data și termenul, fără costuri.
+  const azi = todayInBucharest();
+  const { data: garantii, error: eroareGarantii } = await admin
+    .from("maintenance_interventions")
+    .select("numar, data, garantie_lucrare_pana, equipment_id")
+    .eq("organization_id", organizationId)
+    .in(
+      "equipment_id",
+      randuri.map((r) => r.id),
+    )
+    .is("deleted_at", null)
+    .gte("garantie_lucrare_pana", azi)
+    .order("garantie_lucrare_pana", { ascending: false });
+  if (eroareGarantii !== null) throw eroareGarantii;
+  const lucrare = new Map<string, Readonly<{ numar: string; data: string; pana: string }>>();
+  for (const g of garantii ?? []) {
+    if (g.garantie_lucrare_pana !== null && !lucrare.has(g.equipment_id)) {
+      lucrare.set(g.equipment_id, { numar: g.numar, data: g.data, pana: g.garantie_lucrare_pana });
+    }
+  }
+
   return randuri.map((r) => {
     const s = prima.get(r.id);
     return {
       ...r,
+      garantie_expira:
+        r.garantie_expira !== null && r.garantie_expira >= azi ? r.garantie_expira : null,
       sesizare_deschisa: s === undefined ? null : { ...s, vizibila: vizibile.has(s.id) },
+      garantie_lucrare: lucrare.get(r.id) ?? null,
     };
   });
 }
@@ -197,7 +238,7 @@ export const cautaEchipament = createAction({
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(termen)) {
       const { data, error } = await admin
         .from("equipment")
-        .select("id, cod, denumire, locatie")
+        .select("id, cod, denumire, locatie, garantie_expira")
         .eq("organization_id", ctx.tenant.organizationId)
         .eq("id", termen)
         .is("deleted_at", null)
@@ -218,7 +259,7 @@ export const cautaEchipament = createAction({
 
     const { data, error } = await admin
       .from("equipment")
-      .select("id, cod, denumire, locatie")
+      .select("id, cod, denumire, locatie, garantie_expira")
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
       .neq("status", "casat")
@@ -652,6 +693,70 @@ export const actualizeazaPlan = createAction({
 
 // ── Intervenții ──────────────────────────────────────────────────────────
 
+/** Fișa principală a apelantului, prin RLS (`employees:read` ≥ own); `null` fără fișă. */
+async function fisaApelantului(
+  db: Awaited<ReturnType<typeof createServerSupabase>>,
+  organizationId: string,
+  userId: string,
+): Promise<string | null> {
+  const { data, error } = await db
+    .from("employees")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw error;
+  return data?.id ?? null;
+}
+
+/**
+ * Șterge obiectul urcat pentru o intervenție care, până la urmă, nu s-a
+ * înregistrat (refuz, cursă pierdută) — altfel ar rămâne în bucket pe o cale
+ * la care nu mai ajunge nimeni: curățarea de la încărcare (`sesizari/actions.ts`)
+ * lucrează pe folderul unei entități care EXISTĂ.
+ *
+ * DE CE `createAdminSupabase`: bucketul n-are politică DELETE pentru
+ * `authenticated` (0181). Granița de tenant e calea, deja verificată de apelant
+ * sub prefixul `{org-ul din sesiune}/intervention/{id}/`; în plus, obiectul
+ * se șterge NUMAI dacă niciun rând din `maintenance_attachments` (al
+ * organizației, viu sau șters logic) nu-l folosește — un id și o cale ale unei
+ * intervenții reale nu pot face acțiunea să-i șteargă documentul.
+ */
+async function curataIncarcareaNefolosita(organizationId: string, cale: string): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const { data, error } = await admin
+      .from("maintenance_attachments")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("storage_path", cale)
+      .limit(1);
+    if (error !== null || (data ?? []).length > 0) return;
+    await admin.storage.from(BUCKET_MENTENANTA).remove([cale]);
+  } catch (eroare) {
+    console.warn("[mentenanta] încărcarea nefolosită nu s-a putut șterge", eroare);
+  }
+}
+
+/**
+ * Intervenția nouă — de pe fișa echipamentului, din „Execută” de pe plan și
+ * din caseta listei de intervenții.
+ *
+ * ── PROCESUL-VERBAL, ÎNAINTEA INTERVENȚIEI (M6, cazul 34) ──────────────────
+ * O verificare legală (tipul ei sau tipul planului) nu se înregistrează fără
+ * PV sau buletin. Fișierul urcă din browser ÎNAINTE de trimitere, pe calea
+ * `{org}/intervention/{id}/…`, cu `id` generat în browser (0210 îl tratează ca
+ * rezervare); acțiunea măsoară obiectul REAL (`masoaraObiectul`), apoi scrie
+ * intervenția cu acel `id` și rândul atașamentului. Regula stă aici, nu într-un
+ * trigger: atașamentul se inserează DUPĂ intervenție, deci baza n-ar avea cum
+ * să-l ceară la INSERT.
+ *
+ * Dacă rândul atașamentului cade după ce intervenția s-a scris, intervenția se
+ * anulează logic (compensare, ca la `rezolvaSesizare`) — o verificare legală
+ * fără PV nu rămâne în registru drept făcută.
+ */
 export const inregistreazaInterventie = createAction({
   name: "maintenance.intervention.create",
   feature: "maintenance",
@@ -672,6 +777,9 @@ export const inregistreazaInterventie = createAction({
       "cost_piese",
       "cost_manopera",
       "rezultat",
+      "garantie_lucrare_pana",
+      "acoperit_de_garantie",
+      "atasament.tip",
     ],
   },
   revalidate: (input) => [
@@ -682,18 +790,109 @@ export const inregistreazaInterventie = createAction({
   ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
+    const organizationId = ctx.tenant.organizationId;
+    const { atasament, id: idCerut, ...campuri } = input;
+
+    // Planul îi spune dacă e verificare legală; `.is(deleted_at)` — un plan
+    // șters nu mai primește execuții.
+    let planLegal = false;
+    if (campuri.plan_id !== null) {
+      const { data: plan, error } = await db
+        .from("maintenance_plans")
+        .select("id, tip")
+        .eq("organization_id", organizationId)
+        .eq("id", campuri.plan_id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (error !== null) throw error;
+      if (plan === null) {
+        throw notFound("Planul de mentenanță nu a fost găsit sau a fost șters.");
+      }
+      planLegal = plan.tip === "verificare_legala";
+    }
+    const legala = campuri.tip === "verificare_legala" || planLegal;
+    if (
+      legala &&
+      campuri.rezultat !== "amanata" &&
+      (atasament === null || !(TIPURI_ATASAMENT_PV as readonly string[]).includes(atasament.tip))
+    ) {
+      throw invalidInput(
+        "O verificare legală se înregistrează cu procesul-verbal sau buletinul ei atașat.",
+        { document: ["Atașați procesul-verbal sau buletinul verificării."] },
+      );
+    }
+
+    if (atasament !== null && idCerut !== null) {
+      const prefix = prefixCaleMentenanta(organizationId, "intervention", idCerut);
+      if (!caleSubEntitate(atasament.cale, prefix)) {
+        throw invalidInput("Calea documentului nu corespunde intervenției.", {});
+      }
+      const masura = await masoaraObiectul(ctx.supabase, BUCKET_MENTENANTA, atasament.cale);
+      if (masura === null) {
+        throw businessRule(
+          "Documentul nu a ajuns în Storage sau nu vă este accesibil. Încercați încărcarea din nou.",
+        );
+      }
+      const problema = problemaFisier("intervention", masura.mime, masura.octeti);
+      if (problema !== null) {
+        await curataIncarcareaNefolosita(organizationId, atasament.cale);
+        throw invalidInput(problema, { document: [problema] });
+      }
+    }
+
     // `cost_total` NU se trimite: e GENERATED ALWAYS. Nu se actualizează planul
     // de mână — `maintenance_interventions_apply` (AFTER) îi scrie
     // `ultima_executie`/`ultima_citire_contor` când `rezultat = 'reusita'`.
+    // `numar` (PV-…) îl dă triggerul.
     const { data, error } = await db
       .from("maintenance_interventions")
       .insert({
-        ...input,
-        organization_id: ctx.tenant.organizationId,
+        ...campuri,
+        ...(idCerut === null ? {} : { id: idCerut }),
+        organization_id: organizationId,
       })
       .select("id")
       .single();
-    if (error !== null) traduEroare(error);
+    if (error !== null) {
+      // 23505 pe cheia primară = a doua trimitere a aceleiași casete (id-ul
+      // generat în browser e deja folosit): intervenția există, nu e un cod dublu.
+      if (idCerut !== null && error.code === "23505") {
+        throw businessRule(
+          "Intervenția a fost deja înregistrată (trimitere dublă). Reîncărcați pagina.",
+        );
+      }
+      if (atasament !== null) await curataIncarcareaNefolosita(organizationId, atasament.cale);
+      traduEroare(error);
+    }
+
+    if (atasament !== null) {
+      const { error: eroareAtasament } = await db.from("maintenance_attachments").insert({
+        organization_id: organizationId,
+        entity_type: "intervention",
+        entity_id: data.id,
+        storage_path: atasament.cale,
+        denumire: atasament.denumire,
+        tip: atasament.tip,
+        created_by: ctx.user.id,
+      });
+      if (eroareAtasament !== null) {
+        const { data: anulate } = await db
+          .from("maintenance_interventions")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", data.id)
+          .eq("organization_id", organizationId)
+          .select("id");
+        if ((anulate ?? []).length === 0) {
+          console.warn(
+            `[inregistreazaInterventie] intervenția ${data.id} nu a putut fi anulată după refuzul atașamentului`,
+          );
+        }
+        await curataIncarcareaNefolosita(organizationId, atasament.cale);
+        throw businessRule(
+          "Documentul nu a putut fi legat de intervenție, așa că intervenția nu a fost înregistrată. Încercați din nou.",
+        );
+      }
+    }
 
     return { id: data.id };
   },
@@ -831,6 +1030,30 @@ export const rezolvaSesizare = createAction({
       ...campuriInterventie
     } = input;
 
+    // O verificare legală are PV și plan; nu „se rezolvă” dintr-o sesizare
+    // (cazul 34) — s-ar scrie în registru fără documentul ei.
+    if (campuriInterventie.tip === "verificare_legala") {
+      throw invalidInput(
+        "O verificare legală se înregistrează din planul ei, cu procesul-verbal atașat, nu la rezolvarea unei sesizări.",
+        { tip: ["Alegeți alt tip de intervenție."] },
+      );
+    }
+    // Caseta rapidă lasă executantul gol: „executant = eu” (decizia din plan).
+    // Fără fișă (administratorul-patron) și fără firmă externă, rezolvarea nu
+    // spune cine a lucrat — refuzată explicit, nu înregistrată anonim.
+    if (
+      campuriInterventie.executant_employee_id === null &&
+      campuriInterventie.executant_extern === null
+    ) {
+      const eu = await fisaApelantului(db, ctx.tenant.organizationId, ctx.user.id);
+      if (eu === null) {
+        throw invalidInput("Spuneți cine a făcut intervenția: un angajat sau o firmă externă.", {
+          executant_employee_id: ["Alegeți executantul sau scrieți firma externă."],
+        });
+      }
+      campuriInterventie.executant_employee_id = eu;
+    }
+
     const { data: interventie, error: eroareInterventie } = await db
       .from("maintenance_interventions")
       .insert({
@@ -923,11 +1146,16 @@ export const adaugaAutorizatieIscir = createAction({
     action: "create",
     entityType: "iscir_authorization",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["equipment_id", "numar", "tip", "emitent", "emis_la", "valabil_pana"],
+    allow: ["equipment_id", "regim", "numar", "tip", "emitent", "emis_la", "valabil_pana"],
   },
   // Și panoul: afișează autorizațiile care expiră, deci o autorizație nouă
-  // (sau reînnoită) trebuie să-i schimbe lista.
-  revalidate: (input) => [`/mentenanta/echipamente/${input.equipment_id}`, "/mentenanta"],
+  // trebuie să-i schimbe lista. Și lista ISCIR (0211, M7). Reînnoirea are
+  // acțiunea ei, în `iscir/actions.ts`.
+  revalidate: (input) => [
+    `/mentenanta/echipamente/${input.equipment_id}`,
+    "/mentenanta",
+    "/mentenanta/iscir",
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     const { data, error } = await db

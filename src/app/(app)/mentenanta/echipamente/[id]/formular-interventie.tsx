@@ -7,6 +7,7 @@ import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { inregistreazaInterventie } from "../../actions";
 import { CampuriInterventie, type OptiuneInterventie } from "../../interventii/campuri-interventie";
+import { useDocumentInterventie } from "../../interventii/document-interventie";
 import { planDinFormular, valoriInterventie } from "../../interventii/valori-interventie";
 
 /**
@@ -27,14 +28,23 @@ export function FormularInterventie({
   readonly planuri: readonly OptiuneInterventie[];
   readonly angajati: readonly OptiuneInterventie[];
 }): ReactElement {
+  const { pregateste, uita } = useDocumentInterventie();
   const trimite = useCallback(
-    async (formular: FormData) =>
-      await inregistreazaInterventie({
+    async (formular: FormData) => {
+      // Documentul (PV, buletin) urcă întâi; o verificare legală fără el e refuzată.
+      const document = await pregateste(formular);
+      if (!document.ok) return document.rezultat;
+      const rezultat = await inregistreazaInterventie({
         ...valoriInterventie(formular),
+        id: document.id,
+        atasament: document.atasament,
         plan_id: planDinFormular(formular),
         equipment_id: equipmentId,
-      }),
-    [equipmentId],
+      });
+      if (rezultat.ok) uita();
+      return rezultat;
+    },
+    [equipmentId, pregateste, uita],
   );
 
   return (
@@ -53,7 +63,13 @@ export function FormularInterventie({
       textInCurs="Se salvează…"
     >
       {(stare, idc) => (
-        <CampuriInterventie stare={stare} idc={idc} angajati={angajati} planuri={planuri} />
+        <CampuriInterventie
+          stare={stare}
+          idc={idc}
+          angajati={angajati}
+          planuri={planuri}
+          document={{ obligatoriu: false }}
+        />
       )}
     </FormularDialog>
   );

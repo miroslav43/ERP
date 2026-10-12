@@ -42,6 +42,14 @@ import {
   TREPTE_MENTENANTA,
 } from "@/domain/maintenance/scadente";
 import { Scadenta } from "@/components/ui/scadenta";
+import {
+  ETICHETE_REGIM_ISCIR,
+  ETICHETE_STARE_AUTORIZATIE,
+  TREPTE_STARE_AUTORIZATIE,
+  avertismentMaximLegal,
+  etichetaTipIscir,
+  stareAutorizatie,
+} from "@/domain/maintenance/iscir";
 
 import { formatDurataMinute, minuteIntre } from "../../durata";
 import {
@@ -70,6 +78,7 @@ import { DocumenteEchipament } from "./documente-echipament";
 import { FormularContor } from "./formular-contor";
 import { FormularInterventie } from "./formular-interventie";
 import { FormularIscir } from "./formular-iscir";
+import { ActiuniAutorizatie } from "../../iscir/actiuni-autorizatie";
 import { FormularPlan } from "./formular-plan";
 import { IncarcareDocument } from "./incarcare-document";
 import { LinkEntitate } from "@/components/ui/link-entitate";
@@ -224,6 +233,10 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
   const oprireDeschisa = opriri.find((o) => o.sfarsit === null) ?? null;
   const inGarantie = echipament.garantie_expira !== null && echipament.garantie_expira >= azi;
   const casat = echipament.status === "casat";
+  // M7 (0211): rândul înlocuit prin reînnoire e istoric — nu are semafor și
+  // nici gesturi; se arată doar în „Istoricul reînnoirilor”.
+  const autorizatiiCurente = autorizatii.filter((a) => a.inlocuita_de_id === null);
+  const autorizatiiInlocuite = autorizatii.filter((a) => a.inlocuita_de_id !== null);
 
   const coloaneContoare: readonly Coloana<(typeof contoare)[number]>[] = [
     {
@@ -728,6 +741,8 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           coloane={coloaneInterventii}
           randuri={interventiiEchipament.randuri}
           cheieRand={(interventie) => interventie.id}
+          // Fișa intervenției (M6) are aceeași poartă ca fișa echipamentului.
+          href={(interventie) => `/mentenanta/interventii/${interventie.id}`}
           gol={
             <p className="text-muted-foreground text-corp">
               Nicio intervenție înregistrată pentru acest echipament.
@@ -799,77 +814,143 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         <h2 id="iscir" className="text-sectiune font-semibold">
           Autorizații ISCIR
         </h2>
-        {autorizatii.length === 0 ? (
+        {autorizatiiCurente.length === 0 ? (
           <p className="text-muted-foreground text-corp">
-            Nicio autorizație ISCIR înregistrată pentru acest echipament.
+            {echipament.este_iscir
+              ? "Nicio autorizație ISCIR înregistrată. Echipamentul e marcat sub incidența ISCIR: adăugați autorizația sau, sub pragul de înregistrare, evidența RSVTI."
+              : "Nicio autorizație ISCIR înregistrată pentru acest echipament."}
           </p>
         ) : (
           <ul className="space-y-2">
-            {autorizatii.map((autorizatie) => {
-              const stare = stareScadentaData(autorizatie.valabil_pana, azi);
+            {autorizatiiCurente.map((autorizatie) => {
+              // Semaforul M7 (cazul 38): termenul e cel mai apropiat dintre
+              // valabilitate și VTP; suspendata = roșu. Avertizare, nu blocare.
+              const stare = stareAutorizatie(autorizatie, azi);
               const stareVerificare = stareScadentaData(
                 autorizatie.scadenta_verificare_tehnica,
                 azi,
               );
               const suspendataLa = autorizatie.suspendata_la;
-              const suspendata = suspendataLa !== null;
+              const avertisment = avertismentMaximLegal(autorizatie);
+              const eticheta = `${etichetaTipIscir(autorizatie.tip)} · ${autorizatie.numar ?? "evidența RSVTI"}`;
+              const rosu = stare === "expirata" || stare === "suspendata";
               return (
                 <li
                   key={autorizatie.id}
-                  className={`rounded-panou flex flex-wrap items-start justify-between gap-3 border p-3 ${
-                    suspendata ? "border-danger/40 bg-danger/8" : "border-border"
+                  className={`rounded-panou space-y-3 border p-3 ${
+                    rosu ? "border-danger/40 bg-danger/8" : "border-border"
                   }`}
                 >
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {autorizatie.tip} · {autorizatie.numar}
-                    </p>
-                    <p className="text-muted-foreground text-nota">
-                      Emitent: {autorizatie.emitent}
-                    </p>
-                    {autorizatie.conditii === null ? null : (
-                      <p className="text-foreground text-nota mt-1">
-                        Condiții impuse: {autorizatie.conditii}
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{eticheta}</p>
+                      <p className="text-muted-foreground text-nota">
+                        {ETICHETE_REGIM_ISCIR[autorizatie.regim]} · Emitent: {autorizatie.emitent}
+                        {autorizatie.emis_la === null
+                          ? ""
+                          : ` · emisă la ${formatDate(autorizatie.emis_la)}`}
                       </p>
-                    )}
-                    {suspendataLa === null ? null : (
-                      <p className="text-foreground text-nota mt-1 font-medium">
-                        Suspendată la {formatDate(suspendataLa)}. Utilajul nu poate funcționa legal
-                        până la ridicarea suspendării.
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-                    {suspendata ? (
-                      <Badge ton="pericol" cuAvertisment>
-                        Suspendată
-                      </Badge>
-                    ) : null}
-                    <Scadenta treapta={TREPTE_MENTENANTA[stare]}>
-                      Autorizație: {ETICHETE_STARE_SCADENTA[stare]}
-                    </Scadenta>
-                    <span className="text-muted-foreground text-nota">
-                      până la {formatDate(autorizatie.valabil_pana)}
-                    </span>
-                    {autorizatie.scadenta_verificare_tehnica === null ? (
+                      {autorizatie.conditii === null ? null : (
+                        <p className="text-foreground text-nota mt-1">
+                          Condiții impuse: {autorizatie.conditii}
+                        </p>
+                      )}
+                      {suspendataLa === null ? null : (
+                        <p className="text-foreground text-nota mt-1 font-medium">
+                          Suspendată la {formatDate(suspendataLa)}
+                          {autorizatie.motiv_suspendare === null
+                            ? ""
+                            : `: ${autorizatie.motiv_suspendare.replace(/[.\s]+$/u, "")}`}
+                          . Utilajul nu poate funcționa legal până la ridicarea suspendării.
+                        </p>
+                      )}
+                      {suspendataLa === null && autorizatie.reactivata_la !== null ? (
+                        <p className="text-muted-foreground text-nota mt-1">
+                          Suspendare ridicată la {formatDate(autorizatie.reactivata_la)}
+                          {autorizatie.motiv_suspendare === null
+                            ? "."
+                            : ` (motivul de atunci: ${autorizatie.motiv_suspendare}).`}
+                        </p>
+                      ) : null}
+                      {stare === "expirata" && echipament.status === "in_functiune" ? (
+                        <p className="text-foreground text-nota mt-1 font-medium">
+                          Termenul a trecut, iar echipamentul e în funcțiune. Programați verificarea
+                          sau reînnoiți autorizația.
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1 text-right">
+                      <Scadenta treapta={TREPTE_STARE_AUTORIZATIE[stare]}>
+                        {ETICHETE_STARE_AUTORIZATIE[stare]}
+                      </Scadenta>
                       <span className="text-muted-foreground text-nota">
-                        Fără verificare tehnică programată
+                        valabilă până la {formatDate(autorizatie.valabil_pana)}
                       </span>
-                    ) : (
-                      <>
-                        <Scadenta treapta={TREPTE_MENTENANTA[stareVerificare]}>
-                          Verificare tehnică: {ETICHETE_STARE_SCADENTA[stareVerificare]}
-                        </Scadenta>
+                      {autorizatie.scadenta_verificare_tehnica === null ? (
                         <span className="text-muted-foreground text-nota">
-                          la {formatDate(autorizatie.scadenta_verificare_tehnica)}
+                          Fără verificare tehnică programată
                         </span>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <Scadenta treapta={TREPTE_MENTENANTA[stareVerificare]}>
+                            Verificare tehnică: {ETICHETE_STARE_SCADENTA[stareVerificare]}
+                          </Scadenta>
+                          <span className="text-muted-foreground text-nota">
+                            la {formatDate(autorizatie.scadenta_verificare_tehnica)}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
+                  {avertisment === null ? null : (
+                    <Callout fel="atentie" titlu="Scadența trece de maximul legal">
+                      {avertisment}
+                    </Callout>
+                  )}
+                  {poateScrie ? (
+                    <ActiuniAutorizatie
+                      id={autorizatie.id}
+                      eticheta={eticheta}
+                      suspendata={suspendataLa !== null}
+                      esteReinnoire={autorizatii.some((a) => a.inlocuita_de_id === autorizatie.id)}
+                      existenta={{
+                        regim: autorizatie.regim,
+                        numar: autorizatie.numar ?? "",
+                        tip: autorizatie.tip,
+                        emitent: autorizatie.emitent,
+                        emis_la: autorizatie.emis_la ?? "",
+                        valabil_pana: autorizatie.valabil_pana,
+                        scadenta_verificare_tehnica: autorizatie.scadenta_verificare_tehnica ?? "",
+                        conditii: autorizatie.conditii ?? "",
+                      }}
+                      azi={azi}
+                    />
+                  ) : null}
                 </li>
               );
             })}
           </ul>
+        )}
+        {autorizatiiInlocuite.length === 0 ? null : (
+          // Istoricul reînnoirilor (cazul 40): rândurile înlocuite nu se mai
+          // modifică și nu intră în scadențe, dar lanțul rămâne de văzut.
+          <details className="border-border rounded-panou border p-3">
+            <summary className="text-corp cursor-pointer font-medium">
+              Istoricul reînnoirilor ({autorizatiiInlocuite.length})
+            </summary>
+            <ul className="divide-border mt-2 divide-y">
+              {autorizatiiInlocuite.map((autorizatie) => (
+                <li key={autorizatie.id} className="text-nota py-2">
+                  {etichetaTipIscir(autorizatie.tip)} · {autorizatie.numar ?? "evidența RSVTI"} ·
+                  valabilă până la {formatDate(autorizatie.valabil_pana)}
+                  {autorizatie.scadenta_verificare_tehnica === null
+                    ? ""
+                    : `, VTP la ${formatDate(autorizatie.scadenta_verificare_tehnica)}`}{" "}
+                  — înlocuită prin reînnoire.
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
         {poateScrie && !casat ? <FormularIscir equipmentId={echipament.id} /> : null}
       </section>

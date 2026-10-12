@@ -136,6 +136,14 @@ const RUTE: readonly Ruta[] = [
     poarta: "maintenance · maintenance:read team (hr: absent)",
     asteptari: { org_admin: CONTINUT, hr: ACCES, manager: CONTINUT },
   },
+  // ── Mentenanță M8 ──
+  {
+    cale: "/mentenanta/rapoarte",
+    titlu: "Rapoarte de mentenanță",
+    poarta: "maintenance · maintenance:read team (hr: absent)",
+    asteptari: { org_admin: CONTINUT, hr: ACCES, manager: CONTINUT },
+  },
+  // ── sfârșit M8 ──
   { cale: "/notificari", titlu: "Notificări", poarta: "fără permisiune", asteptari: TOTI },
   {
     cale: "/onboarding",
