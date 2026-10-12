@@ -13,7 +13,7 @@ permisiuni:
   [vehicles:read, trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 18]
-scris_pe: 207765022f02c2a4a537b38a14dc59740df9d8f7
+scris_pe: 0f60a6433eda5813f622bd574acf1ba26ab8d8a5
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -65,6 +65,13 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
   `org_admin` poate doar s-o storneze (`deleted_at`). `internal.alimentari_inainte`
   refuză orice schimbare pe alimentarea unei foi aprobate și mutarea unei alimentări pe
   altă foaie. Probat de (25)–(32).
+- **Foaia trimisă nu se rescrie** (§C5, din revizia F3). Regresul de kilometraj se
+  verifică doar la întocmire și la `draft` → `trimis`; pe foaia deja trimisă, șoferul
+  cobora `km_plecare` sau umfla sosirea (și prin `trimiteFoaie` chemată din nou), iar
+  aprobarea pecetluia cifrele. Sub `update` ≠ `all`, pe o foaie trimisă se schimbă doar
+  starea: retragerea în ciornă sau decizia. Orice altă coloană dă P0001 („…este trimisă
+  spre aprobare…”). Alimentările rămân permise pe foaia trimisă: stau în altă tabelă.
+  Probat de (33)–(36).
 - **Foaia în numele altcuiva** sub `own` cade pe `foi_insert` (`app.poate_crea_foaie`) cu 42501. `creeazaFoaie` o refuză înainte, cu CONFLICT și text clar.
 - **Storage.** `app.can_path` verifică entitatea la `team` și `own` și pe `trip_sheets`
   (segmentul 3 = fișa șoferului) și pe `vehicles` (segmentul 3 = vehiculul, proprietar =
