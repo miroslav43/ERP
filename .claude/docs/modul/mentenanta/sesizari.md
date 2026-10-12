@@ -19,13 +19,13 @@ tabele:
   ]
 permisiuni: [maintenance:read, maintenance:create, maintenance:update]
 feature: maintenance
-capcane: [6, 7, 17, 27, 50]
+capcane: [6, 7, 17, 27, 50, 56]
 citeste_daca:
   - "un tehnician sau un raportor „nu poate” ceva pe sesizarea lui → „Cine poate ce”"
   - "o tranziție întoarce zero rânduri sau P0001 → „Ce refuză baza tăcut”"
   - "o fotografie sau un document nu se leagă de sesizare → „Rute”, pașii de încărcare"
-scris_pe: 2b0ac3615f3fdc9a43fec6e817b48a569497d8a5
-scris_la: 2026-10-08
+scris_pe: edd51fa9be907ae26d1faa9eceae838a5ca4d69b
+scris_la: 2026-10-12
 tags: [modul, operations]
 ---
 
@@ -102,6 +102,11 @@ P0001 tradus. Așa regula trăiește într-un singur loc, probat de
   `raportat_la` trimise de raportor sau tehnician se întorc la valoarea veche înainte de
   verificare; le recalculează tranziția. Un câmp străin schimbat → P0001 cu numele lui.
   — capcanele #6 și #50(b)
+- **Garda are o ramură de SERVICIU**, pentru închiderea automată și clientul admin: sare
+  peste drepturile pe actori, dar verifică ÎNTÂI că echipamentul, raportorul, tehnicianul
+  și originalul duplicatului sunt ai firmei, iar mașina de stări rămâne și pentru ea.
+  Proba (16) din `tests/rls/proba-sesizari-roluri.sql` rulează închiderea automată. —
+  capcana #56
 - **Ștergerea logică a sesizării cere `update ≥ team`**, deși politica de UPDATE lasă și
   actorii nominali pe rând: raportorul RETRAGE, nu șterge. — capcana #50(a)
 - **Atribuirea nu schimbă starea, iar luarea ei înapoi merge doar din `nou`/`in_analiza`**:

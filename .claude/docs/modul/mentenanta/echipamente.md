@@ -35,15 +35,15 @@ permisiuni:
     audit:read,
   ]
 feature: maintenance
-capcane: [17, 34, 35, 48, 52]
+capcane: [17, 34, 35, 48, 52, 57]
 neverificat:
   - "/mentenanta/echipamente/nou — rută ȘTEARSĂ, citată anume ca să nu fie recreată"
 citeste_daca:
   - "casarea sau ștergerea unui utilaj e refuzată → „Ce refuză baza tăcut”"
   - "un responsabil-angajat nu-și vede utilajul sau nu poate citi contorul → „Responsabilul”"
   - "o parte din citirile în lot intră și restul nu → „Server Actions”"
-scris_pe: a1aa3631cc8232b99c43c01452e5ad9f7addf859
-scris_la: 2026-10-11
+scris_pe: edd51fa9be907ae26d1faa9eceae838a5ca4d69b
+scris_la: 2026-10-12
 tags: [modul, operations]
 ---
 
@@ -169,7 +169,9 @@ acțiune): la lot decide politica de INSERT, nu harta de permisiuni.
 - **Punctul de lucru se citea doar prin lista de opțiuni**, iar aceea cere
   `maintenance:update`: fișa arăta „Setat” în loc de nume cuiva care doar citește. Numele
   vine acum din `numelePunctuluiDeLucru` — o citire pe `puncte_lucru`, filtrată pe firmă
-  și pe rândul nești — făcută doar când lista lipsește.
+  și pe rândul neșters — făcută doar când lista lipsește. Pentru cine n-are
+  `departments:read` rezultatul e `null`, fără eroare, iar fișa rămâne la „Setat”. —
+  capcana #57
 - **Linkul spre sesizarea unei opriri apare doar dacă sesizarea a venit prin RLS**:
   oprirea se vede la scope `team`, sesizarea nu, când raportorul e din afara echipei — se
   verifică în rândurile deja citite, altfel linkul ducea într-un refuz. Același test pe

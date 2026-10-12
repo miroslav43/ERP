@@ -16,12 +16,12 @@ tabele:
   [iscir_authorizations, maintenance_plans, maintenance_settings, expirables, registru_documente]
 permisiuni: [maintenance:read, maintenance:update, maintenance:export]
 feature: maintenance
-capcane: [17]
+capcane: [17, 55]
 citeste_daca:
   - "autorizația nu se mai modifică sau „Reînnoiește” e refuzat → „Ce refuză baza tăcut”"
   - "cifra ISCIR de pe panou nu bate cu lista → „Semaforul”"
   - "periodicitatea sau temeiul unei verificări legale → „Categoriile legale”"
-scris_pe: 001123dfc714dfabf666bf8fbc4979ddf5a96b61
+scris_pe: edd51fa9be907ae26d1faa9eceae838a5ca4d69b
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -108,7 +108,9 @@ categorie pe un plan cu alt tip.
   rândurile vechi suspendate fără motiv rămân valide.
 - **Echipamentul unei autorizații nu se schimbă** (P0001): se șterge și se adaugă pe cel corect.
 - **Scadențele (`expirables`)**: `iscir_exp_sync` (de la forma din 0182) scoate și rândul
-  înlocuit; eticheta folosește tipul când numărul lipsește.
+  înlocuit; eticheta folosește tipul când numărul lipsește. `kind` e un cod fix
+  (`autorizatie`, `verificare_tehnica`), iar `entity_id` e autorizația, nu utilajul — tipul
+  tastat de om nu ajunge niciodată în `kind`. — capcana #55
 - **Registrul** primește doar `inregistrat` cu număr (condiție `when` pe trigger;
   argumentele triggerului copiate din catalog, harta din 0142 nu se regenerează).
 

@@ -14,6 +14,8 @@ cai:
   - "supabase/migrations/0183_planuri_scadente.sql"
   - "supabase/migrations/0191_mentenanta_zilnica.sql"
   - "supabase/migrations/0210_mentenanta_interventii_complete.sql"
+  - "supabase/migrations/0211_mentenanta_iscir_conformitate.sql"
+  - "tests/rls/izolare.sql"
 tabele:
   [
     equipment,
@@ -27,12 +29,12 @@ tabele:
 permisiuni:
   [maintenance:read, maintenance:create, maintenance:update, maintenance:delete, maintenance:export]
 feature: maintenance
-capcane: [17, 35, 50, 51]
+capcane: [17, 35, 50, 51, 55, 56, 57]
 citeste_daca:
   - "poartă de acțiune care pare prea largă → secțiunea „create nu e poarta”"
   - "sesizare care nu se mai mișcă, tehnician sau raportor refuzat → [[modul/mentenanta/sesizari]]"
-  - "casare, componente, contoare → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; PV, piese, anulare → [[modul/mentenanta/interventii]]; ISCIR, VTP, RSVTI → [[modul/mentenanta/iscir]]; cost, disponibilitate, MTBF → [[modul/mentenanta/rapoarte]]"
-scris_pe: 36afdf0905a3aaa8dbce09cd7877a04b6219058a
+  - "poartă de acțiune, citire care taie rânduri, mesaj P0001 → [[modul/mentenanta/actiuni]]; casare, contoare → [[modul/mentenanta/echipamente]]; scadență, amânare → [[modul/mentenanta/planuri]]; ISCIR, VTP → [[modul/mentenanta/iscir]]"
+scris_pe: edd51fa9be907ae26d1faa9eceae838a5ca4d69b
 scris_la: 2026-10-12
 tags: [modul]
 ---
@@ -111,57 +113,15 @@ Consecința: baza îi lasă să insereze în `equipment`, `equipment_meters`,
 aplicație**, pe `maintenance:update` cu `minScope: "team"`, și așa e scrisă azi. Doar
 sesizarea rămâne pe `maintenance:create` / `own`. — capcana #35
 
-## Server Actions
+## Server Actions și citiri
 
-`src/app/(app)/mentenanta/actions.ts`. Restul e împărțit pe subpagini: fluxul sesizării în
-`sesizari/actions.ts` ([[modul/mentenanta/sesizari]]), ciclul echipamentului în
-`echipamente/actions.ts` ([[modul/mentenanta/echipamente]]), gesturile de pe plan —
-`amanaPlan`, `comutaPlanActiv`, `stergePlan` — în `planuri/actions.ts`
-([[modul/mentenanta/planuri]]), gesturile pe autorizația ISCIR în `iscir/actions.ts`
-([[modul/mentenanta/iscir]]).
-
-| Funcție                                                       | Permisiune / minScope       |
-| ------------------------------------------------------------- | --------------------------- |
-| `creeazaSesizare`, `cautaEchipament`                          | `maintenance:create` / own  |
-| `numeleEchipamentelorMele`, `rezolvaSesizare`                 | `maintenance:read` / own    |
-| `creeazaEchipament`, `actualizeazaEchipament`                 | `maintenance:update` / team |
-| `creeazaPlan`, `actualizeazaPlan`, `inregistreazaInterventie` | `maintenance:update` / team |
-| `trieazaSesizare`, `adaugaAutorizatieIscir`                   | `maintenance:update` / team |
-| `inregistreazaContor`                                         | `maintenance:read` / own    |
-
-`cautaEchipament` e pe `create` / own fiindcă servește formularul de sesizare: cine poate
-raporta trebuie să poată găsi echipamentul, fără să vadă parcul. `rezolvaSesizare` și
-`inregistreazaContor` sunt pe `read` / own fiindcă le fac și tehnicianul atribuit, respectiv
-responsabilul utilajului; cine poate ce decide baza. `inregistreazaContor` recitește harta
-de permisiuni în handler: cine n-are `maintenance:update` / team nu poate reseta contorul
-(refuz explicat, nu 42501 sec) și **nu-și alege `citit_de_employee_id`** — se pune fișa lui
-principală, sau `null` dacă n-are fișă. Și politica o cere, nu doar acțiunea
-(`0183`) — v. [[modul/mentenanta/planuri]].
-
-`rezolvaSesizare` are **două scrieri**, în ordine obligatorie: întâi intervenția (legată de
-sesizare prin `fault_report_id`), apoi sesizarea cu `intervention_id`-ul ei — garda refuză
-`status = 'rezolvat'` fără intervenție. Ordinea și compensarea sunt în „Ce refuză baza tăcut”.
-
-## Citiri
-
-`src/lib/queries/maintenance.ts`: `listeazaEchipamente`, `citesteEchipament`,
-`echipamenteDupaId`, `contoareEchipament`, `planuriEchipament`, `planuriScadente`,
-`listeazaPlanuri`, `citestePlan`, `planuriDupaId`, `citiriPentruProiectie`,
-`ultimeleCitiriContor`, `ultimeleCitiriCuData`, `interventii` (filtrele `echipament` și
-`plan`), `citesteInterventie`, `sesizari` (filtre `atribuit`, `deschise`; fișa apelantului
-al treilea argument), `sesizariDeschise`, `citesteSesizare`, `autorizatiiIscir`,
-`angajatiAutorizati`, `angajatiDupaId`, `angajatiDupaUserId`, `angajatiInactiviDintre`,
-`optiuniAngajati`, `setariMentenanta`, `numelePunctuluiDeLucru`,
-`numarScadenteMentenanta`, plus cele ale fluxului de sesizări.
-
-`angajatiDupaId` citește și `deleted_at`, fiindcă `hrefFisa()` decide pe RÂND dacă numele
-devine link: o fișă ștearsă rămâne text, nu link spre 404. Paginarea planurilor e keyset
-NULABIL (`predicatKeysetNulabil`): un plan doar pe contor n-are `urmatoarea_scadenta`.
-
-Niciun filtru manual de scope: politicile din bucla lui `0011` și cele din `0181`
-restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()`, nu din
-`new Date()`. Căutarea liberă după cod și denumire trece prin `tiparContine`
-(`src/lib/queries/cursor.ts`): `%` și `_` tastate de om ar fi jokeri.
+Contractul scrierilor (poarta fiecărei acțiuni, ordinea celor două scrieri ale rezolvării),
+al citirilor (`src/lib/queries/maintenance.ts` și `maintenance-rapoarte.ts`) și al mesajelor
+bazei traduse stă în [[modul/mentenanta/actiuni]]. Regula de reținut de aici: acțiunile
+NOMINALE (tehnicianul atribuit, raportorul, responsabilul de utilaj) stau pe `read` / own, iar
+decizia o ia baza; tot ce schimbă catalogul stă pe `update` / team. Niciun filtru manual de
+scope în citiri: politicile din bucla lui `0011` și cele din `0181` restrâng rândurile în
+Postgres.
 
 ## Ce refuză baza tăcut
 
@@ -182,8 +142,8 @@ restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()
 - **Scadența pe contor pornește de la contorul real** (0180): planul nou fără
   `ultima_citire_contor` ia ultima citire a echipamentului; schema de editare OMITE coloana.
 - **Autorizația ISCIR are rândurile ei în `expirables`** (0180): `kind` fix, nu `tip`-ul
-  liber; suspendarea, planul dezactivat și (din 0211) rândul înlocuit prin reînnoire ies
-  din scadențe — v. [[modul/mentenanta/iscir]].
+  liber, iar `entity_id` e autorizația, nu utilajul; suspendarea, planul dezactivat și (din 0211) rândul înlocuit prin reînnoire ies din scadențe — v. [[modul/mentenanta/iscir]]. —
+  capcana #55
 - **O intervenție pe planul altui echipament e refuzată** cu P0001 (0180); o corecție de
   citire nu sare peste citirea URMĂTOARE. Proba: `tests/rls/proba-mentenanta-integritate.sql`.
 - **Administratorul fără fișă poate sesiza**: `raportat_de_employee_id = null`, iar garda
@@ -200,17 +160,28 @@ restrâng rândurile în Postgres. Ziua de business vine din `todayInBucharest()
   `planuri/actions.ts` (`0183`).
 - **Linkul spre sesizarea unei opriri** se desenează doar dacă sesizarea a venit prin RLS —
   v. [[modul/mentenanta/echipamente]].
+- **Gărzile cu actori nominali au trei ramuri**: omul cu drept larg, raportorul sau
+  tehnicianul atribuit și SERVICIUL (jobul de închidere automată, clientul admin).
+  Serviciul sare peste drepturi, nu peste apartenența la firmă. — capcanele #50 și #56
+- **Selectorul de puncte de lucru se golește tăcut** pentru un rol cu `maintenance:update`
+  dar fără `departments:read`; de aceea trece printr-o acțiune cu client admin, iar fișa
+  arată „Setat" când numele nu se poate citi. — capcana #57
 
 ## Ce NU e aici
 
 Vehiculele și foile de parcurs sunt la [[modul/flota]]. Instruirile, EIP-ul și accidentele
-sunt la [[modul/ssm]], deși vin din aceeași migrare.
+sunt la [[modul/ssm]], deși vin din aceeași migrare. Nu există în modul, și nu se adaugă fără
+cerere: cronometre pe tehnician, stoc de piese pe depozite, permise de lucru, contracte de
+service cu aprobarea devizului, buget, mod offline și alerte prin email sau SMS.
 
 ## Când NU e suficientă pagina asta
 
 - Calculul scadenței unui plan: `src/domain/maintenance/`.
 - De ce un manager poate sesiza dar nu poate administra: [[rol/manager]].
-- Contractul exact al unei acțiuni: `actions-*.test.ts` și `<sub>/actions.test.ts` din
-  `src/app/(app)/mentenanta/`, pe client Supabase fals.
+- Contractul exact al unei acțiuni: [[modul/mentenanta/actiuni]], apoi `actions-*.test.ts` și
+  `<sub>/actions.test.ts` din `src/app/(app)/mentenanta/`, pe client Supabase fals.
+- Fluxul sesizării de la capăt la capăt, pe conturile demo: `e2e/mentenanta.spec.ts` (rulează
+  pe staging, după deploy). Date de demonstrație pentru fiecare zonă: etapele `mentenanta` și
+  `mentenantaFlux` din `scripts/demo/populeaza.mjs` (rulate manual, scriu în baza comună).
 - Legăturile dintre ecrane (`docs/design/navigare-intre-module.md`, lotul 7h și 7l):
   [[strat/navigare]].
