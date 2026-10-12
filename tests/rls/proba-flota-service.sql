@@ -38,6 +38,11 @@
 -- (11b) `super_admin` (din `platform_admins`, fără apartenență la firmă) citește
 --      planurile, intervențiile și cheltuielile; NU scrie (politicile de scriere
 --      cer membru)                                                       [POZITIVĂ/NEGATIVĂ];
+-- (11c) încercări peste granița firmei, din contul administratorului unei firme:
+--      intrare legată de planul altei firme (P0001), mutarea unei intrări pe
+--      vehiculul altei firme (P0001), citirea și modificarea planului altei firme
+--      (nevăzut / zero rânduri), pragul unui vehicul străin (NULL), funcțiile și
+--      tabela din `internal` (42501)                                         [NEGATIVĂ];
 -- Vizibilitatea în `expirables` (rescrierea lui `poate_vedea_expirabil`):
 -- (13) toate cele 15 ramuri (14 vechi + `vehicle_service`) răspund adevărat
 --      administratorului, un tip necunoscut fals; managerul vede `vehicle_service`
@@ -114,7 +119,8 @@ declare
   v_nr_va    text;
   v_p1       uuid;                        -- revizie: 10.000 km / 12 luni
   v_p2       uuid;                        -- doar pe km, ținta departe
-  v_p3       uuid;                        -- doar pe dată, scadent peste ~26 de zile
+  v_p3       uuid;
+  v_p2alta   uuid;                        -- plan al celeilalte firme                        -- doar pe dată, scadent peste ~26 de zile
   v_pb       uuid;                        -- plan pe VB
   v_ps       uuid;                        -- plan pe VS
   v_e1       uuid;
@@ -522,6 +528,34 @@ begin
   else
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (11b) super_admin: citește % rânduri, refuzuri ok=%, plan neatins=%', v_n, v_ok, v_n2;
+  end if;
+
+  -- (11c) Peste granița firmei, din contul administratorului firmei 1.
+  insert into public.vehicle_service_plans
+    (organization_id, vehicle_id, denumire, interval_luni, baza_data, baza_km, created_by, updated_by)
+  values (v_org2, v_v2, 'Plan firma 2', 12, v_azi - 10, 4900, v_u_adm2, v_u_adm2)
+  returning id into v_p2alta;
+  perform pg_temp.ca(v_u_adm);
+  v_ok := pg_temp.rul(format($q$insert into public.vehicle_service_entries
+      (organization_id, vehicle_id, plan_id, data_interventiei, km, tip, descriere, created_by, updated_by)
+      values (%L, %L, %L, %L, 46600, 'revizie', 'Plan străin', %L, %L)$q$,
+      v_org, v_va, v_p2alta, v_azi, v_u_adm, v_u_adm)) like 'P0001%';
+  v_ok := v_ok and pg_temp.rul(format('update public.vehicle_service_entries set vehicle_id = %L, updated_by = %L where id = %L',
+                                      v_v2, v_u_adm, v_e2)) like 'P0001%';
+  v_n := pg_temp.cate(format('select 1 from public.vehicle_service_plans where id = %L', v_p2alta));
+  v_ok := v_ok and pg_temp.rul(format('update public.vehicle_service_plans set denumire = %L, updated_by = %L where id = %L',
+                                      'Rescris', v_u_adm, v_p2alta)) = 'ok:0';
+  v_ok := v_ok and public.flota_prag_salt_km(v_v2) is null;
+  v_ok := v_ok and pg_temp.rul(format('select internal.flota_memento_service(%L)', v_org)) like '42501%';
+  v_ok := v_ok and pg_temp.rul(format('select internal.vsp_sincronizeaza(%L)', v_p2alta)) like '42501%';
+  v_ok := v_ok and pg_temp.rul('select count(*) from internal.flota_mementouri') like '42501%';
+  reset role;
+  select count(*) into v_n2 from public.vehicle_service_plans where id = v_p2alta and denumire = 'Plan firma 2';
+  if v_n = 0 and v_ok and v_n2 = 1 then
+    raise notice '  ✓ (11c) peste granița firmei: nimic nu trece (intrare pe plan străin, mutare, citire, modificare, funcții interne)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (11c) planul străin vizibil=% (0), refuzuri ok=%, plan neatins=% (1)', v_n, v_ok, v_n2;
   end if;
 
   -- ═══ Vizibilitatea în expirables ══════════════════════════════════════════
