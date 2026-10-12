@@ -5397,6 +5397,53 @@ export type Database = {
           },
         ]
       }
+      fleet_settings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          organization_id: string
+          prag_salt_km: number
+          praguri_alerta_zile: number[]
+          responsabili: string[]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          organization_id: string
+          prag_salt_km?: number
+          praguri_alerta_zile?: number[]
+          responsabili?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          organization_id?: string
+          prag_salt_km?: number
+          praguri_alerta_zile?: number[]
+          responsabili?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fuel_entries: {
         Row: {
           alimentat_la: string

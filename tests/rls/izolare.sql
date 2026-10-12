@@ -579,6 +579,14 @@ begin
          (v_beta, 'Sediu — Client Beta', 'Sediu', 'Client', 'Livrare', 25, v_admin_beta, v_admin_beta);
   -- ═══ SFÂRȘIT BLOC: fixture foaia zilnică (0197) ═══════════════════════════
 
+  -- ═══ ÎNCEPUT BLOC: fixture setările flotei (0198) ═════════════════════════
+  -- Câte un rând de setări per firmă, cu responsabilul din aceeași firmă.
+  insert into public.fleet_settings (organization_id, responsabili, prag_salt_km, praguri_alerta_zile,
+                                     created_by, updated_by)
+  values (v_alfa, array[(select val from t_ids where cheie='ang_alfa')], 1200, array[30, 14, 7], v_admin_alfa, v_admin_alfa),
+         (v_beta, array[(select val from t_ids where cheie='ang_beta')], 1200, array[30, 14, 7], v_admin_beta, v_admin_beta);
+  -- ═══ SFÂRȘIT BLOC: fixture setările flotei (0198) ═════════════════════════
+
   -- ── Faza 7 (migrarea 0011): SSM, PSI, medicina muncii, ISCIR, mentenanță ────
   -- `ssm_legal_parameters`, `ssm_training_types` și `ssm_training_type_periods`
   -- se seedează SINGURE la crearea organizației (trg organizations_ssm_seed,
@@ -4595,6 +4603,78 @@ begin
   raise notice '(l) foaia zilnică: angajatul scrie cursa, alimentează, trimite, retrage, corectează, retrimite; administratorul aprobă; managerul își scrie cursele ✓';
 end $$;
 -- ═══ SFÂRȘIT BLOC: foaia zilnică cu curse (0197) ═════════════════════════════
+
+-- ═══ ÎNCEPUT BLOC: setările flotei (0198) ════════════════════════════════════
+-- (l), continuare — setările flotei și pragurile de alertă (0198)
+--
+-- `org_admin` (vehicles:update = all) schimbă responsabilii, pragul de salt și
+-- pragurile; pragurile ajung în `alert_rules` prin trigger, deși `org_admin`
+-- n-ar trece el însuși prin politica de acolo dacă i s-ar lua `compliance:*`.
+-- `manager` (vehicles:read = team) și `employee` (own) le CITESC, dar nu le
+-- scriu: zero rânduri, fără eroare. Rânduri NUMĂRATE.
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_emp    uuid := pg_temp.id('emp_alfa');
+  v_mgr    uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang uuid := pg_temp.id('mgr2_alfa');
+  v_n      int;
+  v_praguri int[];
+begin
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with schimbate as (
+    update public.fleet_settings
+       set responsabili = array[v_mgr_ang], prag_salt_km = 900, praguri_alerta_zile = array[7, 45, 21],
+           updated_by = v_admin
+     where organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT: `org_admin` nu schimbă setările flotei');
+  end if;
+
+  select ar.praguri_zile into v_praguri
+    from public.alert_rules ar
+   where ar.organization_id = v_alfa and ar.entity_type = 'vehicle_document' and ar.kind = '*'
+     and ar.deleted_at is null and ar.valabil_de_la = app.azi_local();
+  if v_praguri is distinct from array[45, 21, 7] then
+    perform pg_temp.esueaza(format('(l) pragurile flotei nu au ajuns în alert_rules (am găsit %s)', v_praguri));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.fleet_settings where organization_id = v_alfa;
+  if v_n <> 1 then
+    reset role;
+    perform pg_temp.esueaza('(l) REFUZ TĂCUT LA CITIRE: `manager` nu vede setările flotei');
+  end if;
+  with schimbate as (
+    update public.fleet_settings set prag_salt_km = 5000, updated_by = v_mgr
+     where organization_id = v_alfa returning 1
+  ) select count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 0 then
+    perform pg_temp.esueaza('(l) FALS-POZITIV: `manager` a schimbat setările flotei');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.fleet_settings where organization_id = v_alfa;
+  with schimbate as (
+    update public.fleet_settings set prag_salt_km = 5000, updated_by = v_emp
+     where organization_id = v_alfa returning 1
+  ) select v_n * 10 + count(*) into v_n from schimbate;
+  reset role;
+  if v_n <> 10 then
+    perform pg_temp.esueaza(format('(l) `employee` pe setările flotei: citire×10+scriere = %s, așteptat 10', v_n));
+  end if;
+
+  raise notice '(l) setările flotei: org_admin le scrie și pragurile ajung în alert_rules; manager și employee le citesc, nu le scriu ✓';
+end $$;
+-- ═══ SFÂRȘIT BLOC: setările flotei (0198) ════════════════════════════════════
 
 
 rollback;
