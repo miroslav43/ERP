@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { LIMITE_SETARI_FLOTA, pragurileDinText } from "@/domain/fleet/setari";
 
-import { dataOraRomania, numarObligatoriu, numarOptional, optional } from "./comun";
+import { dataOraRomania, enumOptional, numarObligatoriu, numarOptional, optional } from "./comun";
 
 /**
  * Kilometrajul de bord, obligatoriu.
@@ -53,6 +53,10 @@ export const COMBUSTIBILI = [
   "altul",
 ] as const;
 export type Combustibil = (typeof COMBUSTIBILI)[number];
+
+/** Anvelopele montate pe vehicul (0200, `vehicle_tire_set`). */
+export const ANVELOPE_MONTATE = ["vara", "iarna", "all_season"] as const;
+export type AnvelopeMontate = (typeof ANVELOPE_MONTATE)[number];
 
 export const STATUS_FOAIE = ["draft", "trimis", "aprobat", "respins"] as const;
 export type StatusFoaie = (typeof STATUS_FOAIE)[number];
@@ -178,6 +182,12 @@ const campuriVehicul = {
   // (`alocaVehicul`), iar baza refuză scrierea directă cu P0001.
   department_id: z.uuid().nullable().default(null),
   pool: z.boolean().default(false),
+  // 0200: „Necunoscut” trimite șirul gol și devine NULL; „vară” declanșează
+  // memento-ul de schimb din noiembrie (jobul zilnic).
+  anvelope_montate: enumOptional(
+    ANVELOPE_MONTATE,
+    "Alegeți anvelopele montate: vară, iarnă sau all-season.",
+  ),
   data_achizitie: z.iso.date().nullable().default(null),
   valoare_achizitie: z.coerce.number().min(0).nullable().default(null),
   prag_salt_km: z.coerce.number().int().min(10).max(100000).nullable().default(null),

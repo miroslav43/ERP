@@ -82,6 +82,8 @@ export interface Vehicul extends RandVehicul {
   readonly data_achizitie: string | null;
   readonly motiv_iesire: string | null;
   readonly observatii: string | null;
+  /** Anvelopele montate (0200); `null` = necunoscut. */
+  readonly anvelope_montate: "vara" | "iarna" | "all_season" | null;
   readonly created_at: string;
 }
 
@@ -405,7 +407,7 @@ export async function citesteVehicul(organizationId: string, id: string): Promis
     .select(
       `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, ` +
         "numar_locuri, valoare_achizitie, data_achizitie, " +
-        "motiv_iesire, observatii, created_at",
+        "motiv_iesire, observatii, anvelope_montate, created_at",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)

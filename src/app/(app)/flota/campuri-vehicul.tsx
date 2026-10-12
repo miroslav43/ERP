@@ -4,10 +4,11 @@ import type { ReactElement } from "react";
 
 import { Camp } from "@/components/ui/camp";
 import type { StareFormular } from "@/components/ui/formular";
-import { CATEGORII_VEHICUL, COMBUSTIBILI } from "@/schemas/fleet";
-import type { CategorieVehicul, Combustibil } from "@/schemas/fleet";
+import { ANVELOPE_MONTATE, CATEGORII_VEHICUL, COMBUSTIBILI } from "@/schemas/fleet";
+import type { AnvelopeMontate, CategorieVehicul, Combustibil } from "@/schemas/fleet";
 
 import { ETICHETE_CATEGORIE, ETICHETE_COMBUSTIBIL } from "./etichete";
+import { ETICHETE_ANVELOPE } from "./etichete-service";
 
 /**
  * Câmpurile unui vehicul, scrise o singură dată pentru creare și modificare.
@@ -50,6 +51,8 @@ export interface ValoriInitialeVehicul {
   readonly observatii: string | null;
   readonly department_id: string | null;
   readonly pool: boolean;
+  /** Anvelopele montate (0200); `null` = necunoscut. */
+  readonly anvelope_montate: AnvelopeMontate | null;
 }
 
 export interface OptiuneDepartament {
@@ -207,6 +210,29 @@ export function CampuriVehicul<TData>({
             {COMBUSTIBILI.map((c) => (
               <option key={c} value={c}>
                 {ETICHETE_COMBUSTIBIL[c]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Camp>
+
+      <Camp
+        nume="anvelope_montate"
+        id={idc("anvelope_montate")}
+        eticheta="Anvelope montate"
+        fel="select"
+        ajutor="Cu „vară” montate, în noiembrie primiți memento-ul pentru schimbul pe iarnă."
+        erori={stare.erori["anvelope_montate"] ?? []}
+      >
+        {(a) => (
+          <select
+            {...a}
+            defaultValue={trimis["anvelope_montate"] ?? vehicul?.anvelope_montate ?? ""}
+          >
+            <option value="">Necunoscut</option>
+            {ANVELOPE_MONTATE.map((c) => (
+              <option key={c} value={c}>
+                {ETICHETE_ANVELOPE[c]}
               </option>
             ))}
           </select>
