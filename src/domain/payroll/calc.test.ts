@@ -997,3 +997,57 @@ describe("calculatePayrollEntry — ore într-un fel de muncă nedeclarat (0080)
     expect(rezultat.warnings.some((w) => w.cod === "SAL_ORE_IN_MOD_NEDECLARAT")).toBe(false);
   });
 });
+
+describe("calculatePayrollEntry — pontaj gol (ADM-034)", () => {
+  // Un pontaj blocat dar GOL înseamnă zero zile lucrate, zero concediu, zero
+  // absențe — calculul plătește zilele din pontaj, deci salariul iese zero fără
+  // nicio eroare. Pe un angajat cu salariu de bază 5.000 lei, „brut 0,00 lei"
+  // fără explicație e exact clasa de defect tăcut pe care o vânează modulul.
+  const PONTAJ_GOL = {
+    ...PONTAJ_STANDARD,
+    zileLucrate: 0,
+    oreLucrate: 0,
+    oreSuplimentare: 0,
+    oreNoapte: 0,
+    zileConcediuOdihna: 0,
+    zileConcediuMedical: 0,
+    zileAbsentaNemotivata: 0,
+  } as const;
+
+  const calculeaza = (attendance: typeof PONTAJ_STANDARD | typeof PONTAJ_GOL) =>
+    calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance,
+      bonuses: [],
+      deductions: [],
+    });
+
+  it("pontaj complet gol: brut 0 și avertisment SAL_PONTAJ_FARA_ZILE", () => {
+    const rezultat = calculeaza(PONTAJ_GOL);
+    expect(rezultat.brut).toBe(0);
+    expect(rezultat.warnings.map((w) => w.cod)).toContain("SAL_PONTAJ_FARA_ZILE");
+    // Textul complet, cu drumul de reparare — ce ajunge pe fluturaș.
+    const avertisment = rezultat.warnings.find((w) => w.cod === "SAL_PONTAJ_FARA_ZILE");
+    expect(avertisment?.mesaj).toContain("nicio zi înregistrată");
+    expect(avertisment?.mesaj).toContain("recalculați");
+  });
+
+  it("o lună lucrată nu primește avertismentul", () => {
+    expect(calculeaza(PONTAJ_STANDARD).warnings.map((w) => w.cod)).not.toContain(
+      "SAL_PONTAJ_FARA_ZILE",
+    );
+  });
+
+  it("o lună nelucrată, dar cu concediu medical, nu e o lună goală", () => {
+    // Pontajul ARE zile — doar că niciuna lucrată. Avertismentul e despre
+    // absența oricărei înregistrări, nu despre un brut mic.
+    const rezultat = calculeaza({ ...PONTAJ_GOL, zileConcediuMedical: 5 });
+    expect(rezultat.warnings.map((w) => w.cod)).not.toContain("SAL_PONTAJ_FARA_ZILE");
+  });
+
+  it("o lună cu doar o sâmbătă lucrată nu e o lună goală", () => {
+    const rezultat = calculeaza({ ...PONTAJ_GOL, zileRepausLucrate: 1, oreNormaleRepaus: 8 });
+    expect(rezultat.warnings.map((w) => w.cod)).not.toContain("SAL_PONTAJ_FARA_ZILE");
+  });
+});

@@ -350,6 +350,33 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     throw new RangeError("Numărul de zile lucrătoare din lună trebuie să fie pozitiv.");
   }
 
+  // Un pontaj blocat, dar GOL: zero zile lucrate, zero concediu, zero absențe.
+  // Calculul plătește zilele din pontaj, deci salariul iese zero fără nicio
+  // eroare — pe un angajat cu 5.000 lei salariu de bază, un „brut 0,00 lei"
+  // fără explicație (ADM-034). Se verifică TOATE mărimile angajatului, nu doar
+  // zilele lucrate: o lună cu doar concediu medical, sau cu doar o sâmbătă
+  // lucrată, ARE zile — nu e goală, e nelucrată. Nu e blocant: o firmă în pauză
+  // are legitim o lună fără pontaj; avertismentul spune doar de ce e zero.
+  const pontajGol =
+    attendance.zileLucrate +
+      attendance.oreLucrate +
+      attendance.oreSuplimentare +
+      attendance.oreNoapte +
+      attendance.zileConcediuOdihna +
+      attendance.zileConcediuMedical +
+      attendance.zileAbsentaNemotivata +
+      (attendance.zileRepausLucrate ?? 0) +
+      (attendance.zileSarbatoareLucrate ?? 0) +
+      (attendance.oreNormaleRepaus ?? 0) +
+      (attendance.oreSuplimentareRepaus ?? 0) +
+      (attendance.oreNormaleSarbatoare ?? 0) +
+      (attendance.oreSuplimentareSarbatoare ?? 0) ===
+    0;
+  if (pontajGol) {
+    const p = problema("SAL_PONTAJ_FARA_ZILE");
+    warnings.push({ cod: p.cod, mesaj: descriereCompleta(p) });
+  }
+
   if (attendance.zileConcediuMedical > 0 && input.concediuMedical === undefined) {
     warnings.push({
       cod: "CONCEDIU_MEDICAL_NECALCULAT",

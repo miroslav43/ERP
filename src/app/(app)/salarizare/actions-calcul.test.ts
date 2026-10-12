@@ -507,6 +507,28 @@ describe("calculeazaPerioada — calculul și scrierea", () => {
     expect(coduri(b)).not.toContain("SAL_CONTRACT_SCHIMBAT_IN_LUNA");
   });
 
+  it("pontaj gol: se calculează, iar fiecare rând scris poartă SAL_PONTAJ_FARA_ZILE", async () => {
+    // ADM-034: pontajul lunii e blocat, dar nimeni n-a pontat nimic. Calculul
+    // NU se refuză — e o lună legitimă pentru o firmă în pauză — dar fiecare
+    // fluturaș de zero lei spune DE CE e zero și unde se repară.
+    const server = pregateste();
+    programeazaScrierea(server);
+    vi.mocked(pontajAgregatPerioada).mockResolvedValue({
+      pePersoana: new Map(),
+      trunchiat: false,
+    });
+
+    const r = await calculeazaPerioada({ id: ID_1 });
+
+    expect(r).toMatchObject({ ok: true, data: { angajati: 2 } });
+    const randuri = randuriScrise(server);
+    expect(randuri).toHaveLength(2);
+    for (const rand of randuri) {
+      expect(rand.brut).toBe(0);
+      expect(rand.calc_warnings.map((w) => w.cod)).toContain("SAL_PONTAJ_FARA_ZILE");
+    }
+  });
+
   it("poprirea reținută se înregistrează pe dosar, cu numărul dosarului în motiv", async () => {
     const server = pregateste();
     programeazaScrierea(server);

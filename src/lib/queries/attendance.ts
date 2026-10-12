@@ -89,6 +89,33 @@ export async function listeazaPerioade(
   return data ?? [];
 }
 
+/**
+ * Câte zile are pontajul unei perioade, pe toți angajații la un loc.
+ *
+ * Pagina perioadei de salarizare în ciornă întreabă asta ÎNAINTE de
+ * „Calculează": un pontaj blocat, dar gol, dă salariu zero pentru toată lumea,
+ * fără nicio eroare (ADM-034). Un `count` cu `head: true` nu aduce niciun rând.
+ *
+ * Trece prin RLS pe `attendance_entries`. Un rol cu `payroll:create` dar fără
+ * `attendance:read` primește 0 — adică exact ce ar primi și calculul lui,
+ * fiindcă `pontaj_agregat_salarizare` e SECURITY INVOKER (0049): avertismentul
+ * de pe ecran spune adevărul despre ce ar ieși, nu despre ce e în bază.
+ */
+export async function numarZilePontatePerioada(
+  organizationId: string,
+  attendancePeriodId: string,
+): Promise<number> {
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("attendance_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("period_id", attendancePeriodId)
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return count ?? 0;
+}
+
 // ── Angajați (pentru foaia colectivă) ───────────────────────────────────────
 //
 // Cursorul keyset e o copie intenționată a tiparului din `queries/employees.ts`

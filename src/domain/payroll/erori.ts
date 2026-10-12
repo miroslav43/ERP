@@ -26,6 +26,7 @@ export const CODURI_PROBLEMA = [
   "SAL_NORMA_INVALIDA",
   "SAL_ZILE_PESTE_LUNA",
   "SAL_CONTRACT_SCHIMBAT_IN_LUNA",
+  "SAL_PONTAJ_FARA_ZILE",
   "SAL_SPOR_SARBATOARE_NECONFIGURAT",
   "SAL_SPOR_NOAPTE_SUB_PRAG",
   "SAL_SPOR_REPAUS_NECONFIGURAT",
@@ -133,6 +134,16 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
     cumSeRepara:
       "Verificați cu contabilul dacă diferența trebuie corectată manual pentru zilele dinaintea actului adițional.",
     unde: "/angajati",
+  },
+  SAL_PONTAJ_FARA_ZILE: {
+    severitate: "avertisment",
+    mesaj:
+      "Pontajul lunii nu are nicio zi înregistrată pentru acest angajat, deci salariul a ieșit zero.",
+    cauza:
+      "Calculul plătește zilele din pontaj: un pontaj blocat, dar gol, înseamnă zero zile lucrate, zero concediu și zero absențe, nu o lună întreagă plătită.",
+    cumSeRepara:
+      "Completați sau importați pontajul lunii, blocați din nou perioada de pontaj și recalculați salariile.",
+    unde: "/pontaj",
   },
   SAL_SPOR_SARBATOARE_NECONFIGURAT: {
     severitate: "avertisment",

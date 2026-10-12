@@ -28,6 +28,7 @@ import {
   listeazaAngajatiPontaj,
   listeazaPerioade,
   numaraLiniiNeaprobate,
+  numarZilePontatePerioada,
   totiAngajatiiPontaj,
   loturiPerioadei,
   pontajDeAprobat,
@@ -671,5 +672,40 @@ describe("pontajDeAprobat — contorul care urmează lista", () => {
     server.raspunde("attendance_entries", "select", { data: [] });
     server.raspunde("attendance_week_submissions", "select", { count: 1 });
     expect(await pontajDeAprobat(ORG_ID)).toMatchObject({ zile: 0, fise: 1 });
+  });
+});
+
+// ── numarZilePontatePerioada ────────────────────────────────────────────────
+//
+// Pagina perioadei de salarizare în ciornă întreabă „are pontajul lunii măcar
+// o zi?" înainte de „Calculează": un pontaj blocat dar gol dă salariu zero
+// pentru toată lumea, fără nicio eroare (ADM-034).
+
+describe("numarZilePontatePerioada", () => {
+  it("numără prin `count: exact, head: true`, pe organizație, perioadă și nesters", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { count: 42 });
+
+    expect(await numarZilePontatePerioada(ORG_ID, PERIOADA)).toBe(42);
+
+    const [numar] = server.apeluriPe("attendance_entries");
+    expect(numar?.coloane).toBe("id");
+    expect(numar?.optiuni).toEqual({ count: "exact", head: true });
+    expect(organizatieSiNeșters(numar)).toBe(true);
+    expect(areFiltru(numar, "eq", "period_id", PERIOADA)).toBe(true);
+  });
+
+  it("`count` null (răspuns fără antet) ⇒ 0, nu NaN", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { count: null });
+    expect(await numarZilePontatePerioada(ORG_ID, PERIOADA)).toBe(0);
+  });
+
+  it("eroarea se propagă — un zero fals ar afișa un avertisment fals", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { error: eroarePostgrest("42501") });
+    await expect(numarZilePontatePerioada(ORG_ID, PERIOADA)).rejects.toMatchObject({
+      code: "42501",
+    });
   });
 });
