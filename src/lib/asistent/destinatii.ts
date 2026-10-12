@@ -964,7 +964,8 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "maintenance",
     permission: "maintenance:read",
     minScope: "own",
-    descriere: "Defecțiunile raportate de colegi, de preluat și rezolvat.",
+    descriere:
+      "Defecțiunile raportate de colegi: triaj, atribuire unui tehnician, comentarii, fotografii, opriri și confirmarea închiderii de către cel care a raportat.",
   },
   {
     id: "mentenanta.setari",
@@ -1515,7 +1516,8 @@ const INTRARI: readonly Intrare[] = [
     featureKey: "maintenance",
     permission: "maintenance:read",
     minScope: "own",
-    descriere: "Defecțiunile pe care le-ați raportat și stadiul rezolvării.",
+    descriere:
+      "Defecțiunile pe care le-ați raportat sau care v-au fost atribuite, cu stadiul rezolvării, fotografiile și confirmarea închiderii, plus echipamentele din grija dumneavoastră, cu citirea rapidă a contorului.",
   },
   {
     id: "portal.sesizari.noua",
