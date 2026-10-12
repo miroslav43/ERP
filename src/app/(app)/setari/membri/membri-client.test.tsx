@@ -6,16 +6,23 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Locuri } from "@/lib/invitatii/locuri";
+
 import { PanouMembri } from "./membri-client";
 
-const { invitaMembru, revocaInvitatia, schimbaRolulMembrului, seteazaStareaMembrului } = vi.hoisted(
-  () => ({
-    invitaMembru: vi.fn(),
-    revocaInvitatia: vi.fn(),
-    schimbaRolulMembrului: vi.fn(),
-    seteazaStareaMembrului: vi.fn(),
-  }),
-);
+const {
+  invitaMembru,
+  retrimiteInvitatia,
+  revocaInvitatia,
+  schimbaRolulMembrului,
+  seteazaStareaMembrului,
+} = vi.hoisted(() => ({
+  invitaMembru: vi.fn(),
+  retrimiteInvitatia: vi.fn(),
+  revocaInvitatia: vi.fn(),
+  schimbaRolulMembrului: vi.fn(),
+  seteazaStareaMembrului: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
@@ -25,6 +32,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("./actions", () => ({
   invitaMembru,
+  retrimiteInvitatia,
   revocaInvitatia,
   schimbaRolulMembrului,
   seteazaStareaMembrului,
@@ -81,7 +89,7 @@ async function confirma(nume: string): Promise<void> {
   });
 }
 
-function randeaza(): void {
+function randeaza(locuri: Locuri | null = null): void {
   render(
     <PanouMembri
       membri={[
@@ -117,6 +125,7 @@ function randeaza(): void {
           fisa: null,
         },
       ]}
+      locuri={locuri}
       poateInvita
       poateVedeaFise={false}
       poateAcordaPermisiuni={false}
@@ -130,6 +139,7 @@ beforeEach(() => {
   revocaInvitatia.mockReset();
   seteazaStareaMembrului.mockResolvedValue({ ok: true, data: null });
   revocaInvitatia.mockResolvedValue({ ok: true, data: null });
+  retrimiteInvitatia.mockReset();
 });
 
 describe("PanouMembri — dezactivarea și revocarea cer confirmare", () => {
@@ -166,5 +176,61 @@ describe("PanouMembri — dezactivarea și revocarea cer confirmare", () => {
     await apasa("Reactivează");
     expect(seteazaStareaMembrului).toHaveBeenCalledWith({ memberId: ION, status: "active" });
     expect(dialogDeschis()).toBeNull();
+  });
+});
+
+// ONB-026 / ONB-027: linkul invitației se arată o singură dată, deci pe rând
+// există „Retrimite" (token nou, linkul vechi moare); iar sub „Membri" stă
+// numărătoarea locurilor din contract, aceeași cu cea a refuzului.
+describe("PanouMembri — retrimiterea invitației și locurile", () => {
+  it("„Retrimite” cheamă acțiunea pe invitația rândului și arată linkul NOU", async () => {
+    retrimiteInvitatia.mockResolvedValue({
+      ok: true,
+      data: {
+        id: INVITATIE,
+        email: "nou@exemplu.ro",
+        token: "token-nou",
+        emailTrimis: true,
+        retrimisa: true,
+      },
+    });
+    randeaza();
+    await apasa("Retrimite");
+    expect(retrimiteInvitatia).toHaveBeenCalledWith({ invitationId: INVITATIE });
+    expect(screen.getByText("http://localhost:3000/invitatie/token-nou")).toBeDefined();
+    expect(
+      screen.getAllByText("Link nou generat pentru nou@exemplu.ro; cel vechi nu mai funcționează.")
+        .length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/Linkul se afișează o singură dată/)).toBeDefined();
+  });
+
+  it("refuzul retrimiterii se spune și nu afișează niciun link", async () => {
+    retrimiteInvitatia.mockResolvedValue({
+      ok: false,
+      error: { code: "NEGASIT", message: "Invitația nu mai există sau a fost deja folosită." },
+    });
+    randeaza();
+    await apasa("Retrimite");
+    expect(
+      screen.getAllByText("Invitația nu mai există sau a fost deja folosită.").length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/\/invitatie\//)).toBeNull();
+  });
+
+  it("locurile: folosite din plafon, cu invitațiile în așteptare numărate", () => {
+    randeaza({ folosite: 6, limita: 10, ramase: 4, plin: false });
+    expect(
+      screen.getByText("6 din 10 locuri folosite (inclusiv 1 invitație în așteptare)."),
+    ).toBeDefined();
+  });
+
+  it("locurile pline: spune ce e de făcut", () => {
+    randeaza({ folosite: 10, limita: 10, ramase: 0, plin: true });
+    expect(
+      screen.getByText(
+        "Toate locurile sunt ocupate: dezactivați un membru sau extindeți contractul.",
+      ),
+    ).toBeDefined();
   });
 });
