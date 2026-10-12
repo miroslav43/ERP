@@ -13399,9 +13399,66 @@ export type Database = {
           },
         ]
       }
+      vehicle_document_type_setari: {
+        Row: {
+          activ: boolean
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          document_type_id: string
+          id: string
+          obligatoriu: boolean
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          document_type_id: string
+          id?: string
+          obligatoriu?: boolean
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          document_type_id?: string
+          id?: string
+          obligatoriu?: boolean
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_document_type_setari_document_type_id_fkey"
+            columns: ["document_type_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_document_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_document_type_setari_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_document_types: {
         Row: {
           activ: boolean
+          categorii_aplicabile:
+            | Database["public"]["Enums"]["vehicle_category"][]
+            | null
           cere_expirare: boolean
           cod: string
           created_at: string
@@ -13410,6 +13467,7 @@ export type Database = {
           denumire: string
           descriere: string | null
           id: string
+          masa_max_kg: number | null
           obligatoriu: boolean
           ordine: number
           organization_id: string | null
@@ -13418,6 +13476,9 @@ export type Database = {
         }
         Insert: {
           activ?: boolean
+          categorii_aplicabile?:
+            | Database["public"]["Enums"]["vehicle_category"][]
+            | null
           cere_expirare?: boolean
           cod: string
           created_at?: string
@@ -13426,6 +13487,7 @@ export type Database = {
           denumire: string
           descriere?: string | null
           id?: string
+          masa_max_kg?: number | null
           obligatoriu?: boolean
           ordine?: number
           organization_id?: string | null
@@ -13434,6 +13496,9 @@ export type Database = {
         }
         Update: {
           activ?: boolean
+          categorii_aplicabile?:
+            | Database["public"]["Enums"]["vehicle_category"][]
+            | null
           cere_expirare?: boolean
           cod?: string
           created_at?: string
@@ -13442,6 +13507,7 @@ export type Database = {
           denumire?: string
           descriere?: string | null
           id?: string
+          masa_max_kg?: number | null
           obligatoriu?: boolean
           ordine?: number
           organization_id?: string | null
