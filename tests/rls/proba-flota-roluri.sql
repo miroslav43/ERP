@@ -48,6 +48,11 @@
 --  (30) nici administratorul nu rescrie foaia aprobată (P0001);
 --  (31) administratorul o stornează (ștergere logică, 1 rând)        [POZITIVĂ];
 --  (32) șoferul NU reînvie foaia stornată.
+-- Foaia trimisă, după ce șoferul a primit update = own (revizia F3, §C5):
+--  (33) șoferul NU coboară kilometrajul de plecare pe foaia trimisă (P0001);
+--  (34) NU rescrie sosirea refăcând închiderea pe foaia trimisă (P0001);
+--  (35) își retrage foaia trimisă în ciornă, fără altă schimbare [POZITIVĂ];
+--  (36) regresul pus apoi pe ciornă cade la retrimitere (P0001).
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -767,11 +772,83 @@ begin
     raise notice '  ✓ (32) șoferul nu reînvie foaia stornată (P0001)';
   end;
 
+  -- ═══ Foaia TRIMISĂ, după ce șoferul a primit update = own (revizia F3) ═══
+  --
+  -- Regresul de kilometraj se verifică doar la întocmire și la trecerea
+  -- draft → trimis. Pe o foaie deja trimisă, șoferul cu `update = own` cobora
+  -- kilometrajul de plecare sub ultimul cunoscut (aici 20000) sau umfla sosirea,
+  -- iar aprobarea pecetluia cifrele fără nicio verificare. Foaia lui Bogdan
+  -- (v_foaie_b2) e trimisă, cu 20000 → 20050.
+
+  -- (33) șoferul NU coboară kilometrajul de plecare pe foaia trimisă
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set km_plecare = 19000, updated_by = v_u_b where id = v_foaie_b2;
+    get diagnostics v_n = row_count;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (33) șoferul a coborât km de plecare pe foaia trimisă (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (33) foaia trimisă nu-și schimbă kilometrajul de plecare (P0001)';
+  end;
+
+  -- (34) nici nu umflă sosirea, refăcând închiderea pe o foaie deja trimisă
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets
+       set status = 'trimis', km_sosire = 20900, updated_by = v_u_b
+     where id = v_foaie_b2;
+    get diagnostics v_n = row_count;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (34) șoferul a rescris sosirea foii trimise (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (34) foaia trimisă nu-și rescrie sosirea (P0001)';
+  end;
+
+  -- (35) dar își poate retrage foaia în ciornă, fără altă schimbare [POZITIVĂ]
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set status = 'draft', updated_by = v_u_b where id = v_foaie_b2;
+    get diagnostics v_n = row_count;
+    reset role;
+    select status into v_status from public.trip_sheets where id = v_foaie_b2;
+    if v_n = 1 and v_status = 'draft' then
+      raise notice '  ✓ (35) șoferul își retrage foaia trimisă în ciornă (1 rând)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (35) retragerea: % rânduri, stare %', v_n, v_status;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (35) șoferul nu-și poate retrage foaia: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (36) pe ciornă corectează, dar regresul cade la retrimitere (P0001)
+  perform set_config('request.jwt.claim.sub', v_u_b::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set km_plecare = 19000, updated_by = v_u_b where id = v_foaie_b2;
+    update public.trip_sheets set status = 'trimis', updated_by = v_u_b where id = v_foaie_b2;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (36) foaia cu regres de kilometraj a fost retrimisă';
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (36) regresul pus pe ciornă cade la retrimitere (P0001)';
+  end;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA ROLURI: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 36 de verificări au trecut.';
+  raise notice '  TOATE cele 40 de verificări au trecut.';
   raise notice '';
 end;
 $$;

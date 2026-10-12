@@ -65,7 +65,7 @@
 --        veche, WITH CHECK pe ramura de aprobare, iar garda „nu vă puteți
 --        aproba singur” compara șoferul NOU. Acum mutarea foii pe alt șofer
 --        cere dreptul de scriere și pe șoferul NOU, iar aprobarea unei foi
---        întocmite de cel care aprobă e refuzată sub `approve = all`.
+--        întocmite de cel care aprobă e refuzată sub `approve` ≠ `all`.
 --
 --    C4. (santinela de izolare, înainte de aplicare) Gărzile foii APROBATE
 --        fuseseră scrise când doar administratorul (`update = all`) ajungea
@@ -78,6 +78,14 @@
 --        poate doar s-o storneze (ștergere logică). Aceeași regulă pe
 --        `internal.alimentari_inainte` (secțiunea C'), unde, în plus, o
 --        alimentare nu se mută de pe o foaie pe alta.
+--
+--    C5. (revizia F3, înainte de aplicare) Regresul de kilometraj se verifică
+--        doar la întocmire și la draft → trimis. Cu `update = own`, șoferul
+--        cobora kilometrajul de plecare sau umfla sosirea pe foaia deja
+--        TRIMISĂ, iar aprobarea pecetluia cifrele neverificate. Acum, sub
+--        `update` ≠ `all`, pe o foaie trimisă se schimbă doar starea:
+--        retragerea în ciornă (de unde retrimiterea reface verificarea) sau
+--        decizia aprobatorului.
 --
 -- D. `app.can_path` (forma ultimă: 0144 §5). La `team`, orice resursă în afară
 --    de `employees`/`leave` trecea cu `true`. Acum `trip_sheets` (segmentul 3 =
@@ -399,6 +407,19 @@ begin
      and (pg_catalog.to_jsonb(new) - c_stornare) is distinct from (pg_catalog.to_jsonb(old) - c_stornare) then
     raise exception using errcode = 'P0001',
       message = 'Foaia de parcurs aprobată se poate doar storna. Pentru corecții, stornați-o și întocmiți una nouă.';
+  end if;
+
+  -- 0196 §C5 (revizia F3): foaia TRIMISĂ așteaptă decizia pe cifrele cu care a
+  -- plecat. Regresul de kilometraj se verifică mai jos doar la întocmire și la
+  -- draft → trimis; fără garda asta, șoferul cu `update = own` cobora
+  -- kilometrajul de plecare sau umfla sosirea pe foaia deja trimisă, iar
+  -- aprobarea pecetluia cifrele neverificate. Sub `update` ≠ `all` se mișcă
+  -- doar starea (retragerea în ciornă sau decizia), atât.
+  if tg_op = 'UPDATE' and old.status = 'trimis' and not app.is_service_context()
+     and app.has_permission(new.organization_id, 'trip_sheets', 'update') is distinct from 'all'
+     and (pg_catalog.to_jsonb(new) - c_decizie) is distinct from (pg_catalog.to_jsonb(old) - c_decizie) then
+    raise exception using errcode = 'P0001',
+      message = 'Foaia de parcurs este trimisă spre aprobare și nu se mai modifică. Retrageți-o în ciornă, corectați-o și trimiteți-o din nou.';
   end if;
 
   -- 0018 §F1: doar la INSERT sau la tranziţia draft→trimis.
