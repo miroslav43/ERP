@@ -761,12 +761,14 @@ export interface EchipamentProblema {
 
 export interface RezultatEchipamenteProblema {
   readonly randuri: readonly EchipamentProblema[];
-  /** Câte echipamente nu sunt „în funcțiune”, după politici — nu câte s-au citit. */
+  /** Câte echipamente sunt în reparație sau în conservare, după politici — nu câte s-au citit. */
   readonly total: number;
 }
 
 /**
- * Echipamentele care NU sunt „în funcțiune”, pentru panoul de organizație.
+ * Echipamentele în reparație sau în conservare, pentru panoul de organizație.
+ * Casatele NU intră (revizia M8): rămân în evidență pentru totdeauna, iar cifra
+ * de pe panou n-ar mai coborî la zero după prima casare.
  *
  * `count: "exact"` pe ACEEAȘI interogare: numărul din antetul panoului trebuie
  * să respecte aceleași politici RLS ca rândurile de sub el. Trăia inline în
@@ -783,7 +785,7 @@ export async function echipamenteCuProbleme(
     .select("id, cod, denumire, status", { count: "exact" })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .neq("status", "in_functiune")
+    .in("status", ["in_reparatie", "in_conservare"])
     .order("cod", { ascending: true })
     .limit(limita)
     .returns<EchipamentProblema[]>();

@@ -147,7 +147,8 @@ begin
            and plan_id is not null and rezultat = 'reusita' and data <= v_azi) x;
       select count(*) into v_pla from (
         select id, equipment_id, denumire, tip, activ, periodicitate_zile, periodicitate_contor,
-               numar_amanari, urmatoarea_scadenta, tip_contor, urmatoarea_scadenta_contor
+               numar_amanari, urmatoarea_scadenta, tip_contor, urmatoarea_scadenta_contor,
+               mod_calcul, data_ancora, amanat_pana
           from public.maintenance_plans where organization_id = v_org and deleted_at is null) x;
       select count(*) into v_ses from (
         select id, equipment_id, raportat_la, atribuit_la, rezolvat_la, status

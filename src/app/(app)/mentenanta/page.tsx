@@ -285,10 +285,10 @@ async function PanouOrganizatie({
         <Indicator
           eticheta="Nu sunt în funcțiune"
           valoare={rezultatEchipamente.total}
-          // Neutru: lista numără și echipamentele casate, care rămân acolo
-          // pentru totdeauna — un galben permanent n-ar mai semnala nimic.
-          ton="neutru"
-          nota="Echipamente în reparație, în conservare sau casate."
+          // Casatele nu intră (`echipamenteCuProbleme`), deci cifra coboară la
+          // zero când utilajele revin în funcțiune și un galben chiar semnalează.
+          ton={rezultatEchipamente.total > 0 ? "atentie" : "bun"}
+          nota="Echipamente în reparație sau în conservare."
           href="/mentenanta/echipamente"
         />
       </div>

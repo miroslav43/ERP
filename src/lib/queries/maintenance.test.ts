@@ -196,7 +196,7 @@ describe("citiri punctuale și hărți după id", () => {
     expect(areFiltru(p, "is", "deleted_at", null)).toBe(true);
   });
 
-  it("echipamenteCuProbleme: fără „în funcțiune”, cu total din aceeași interogare, limitat", async () => {
+  it("echipamenteCuProbleme: doar în reparație sau în conservare, cu total din aceeași interogare, limitat", async () => {
     const { server } = configureazaActiunea();
     server.raspunde("equipment", "select", {
       data: [{ id: ID_1, cod: "A", denumire: "Presă", status: "in_reparatie" }],
@@ -208,7 +208,9 @@ describe("citiri punctuale și hărți după id", () => {
     const [e] = server.apeluriPe("equipment");
     expect(areFiltru(e, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(e, "is", "deleted_at", null)).toBe(true);
-    expect(areFiltru(e, "neq", "status", "in_functiune")).toBe(true);
+    // Revizia M8: casatele nu sunt „cu probleme” — altfel cifra de pe panou nu mai
+    // coboară niciodată la zero după prima casare.
+    expect(areFiltru(e, "in", "status", ["in_reparatie", "in_conservare"])).toBe(true);
     expect(e?.filtre).toContainEqual({ metoda: "limit", argumente: [8] });
     expect(e?.optiuni).toMatchObject({ count: "exact" });
   });

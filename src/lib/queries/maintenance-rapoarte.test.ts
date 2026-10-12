@@ -182,5 +182,9 @@ describe("parcul și planurile", () => {
     expect(apelPlanuri?.filtre.some((f) => f.metoda === "eq" && f.argumente[0] === "activ")).toBe(
       false,
     );
+    // Revizia M8: grila planului `fix` și amânarea în curs intră în calcul.
+    for (const coloana of ["mod_calcul", "data_ancora", "amanat_pana"]) {
+      expect(apelPlanuri?.coloane).toContain(coloana);
+    }
   });
 });

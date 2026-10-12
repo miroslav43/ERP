@@ -25,6 +25,7 @@ import {
   TOP_PARETO,
   ZILE_DEFECT_REPETAT,
   formatOreIndicator,
+  formatOreProgram,
   formatProcent,
   imparte,
   normalizeazaPerioada,
@@ -129,9 +130,12 @@ function TabelPareto({
 async function Raport({
   organizationId,
   perioada,
+  poateSetari,
 }: {
   readonly organizationId: string;
   readonly perioada: Perioada;
+  /** Poarta lui `/mentenanta/setari` (`porti-ruta.ts`): `maintenance:update` all. */
+  readonly poateSetari: boolean;
 }) {
   const date = await incarcaRaport(organizationId, perioada);
   const { raport, echipamente } = date;
@@ -225,7 +229,7 @@ async function Raport({
       antet: "MTBF",
       numeric: true,
       peTelefon: "ascuns",
-      celula: (r) => formatOreIndicator(r.mtbfOre),
+      celula: (r) => formatOreProgram(r.mtbfOre === null ? null : Math.round(r.mtbfOre * 10) / 10),
     },
     {
       cheie: "cost_opriri",
@@ -305,7 +309,7 @@ async function Raport({
           eticheta="Disponibilitate"
           valoare={formatProcent(t.disponibilitate)}
           ton={t.disponibilitate !== null && t.disponibilitate < 0.9 ? "atentie" : "neutru"}
-          nota={`${formatOreIndicator(t.oreOprire)} de oprire din ${formatOreIndicator(t.oreProgram)} de program.`}
+          nota={`${formatOreProgram(t.oreOprire)} de oprire din ${formatOreProgram(t.oreProgram)} de program.`}
         />
         <Indicator
           eticheta="Timp mediu de reparație (MTTR)"
@@ -314,8 +318,8 @@ async function Raport({
         />
         <Indicator
           eticheta="Timp mediu între defecțiuni (MTBF)"
-          valoare={formatOreIndicator(t.mtbfOre)}
-          nota="Ore de funcționare pe oprire neplanificată."
+          valoare={formatOreProgram(t.mtbfOre === null ? null : Math.round(t.mtbfOre * 10) / 10)}
+          nota="Ore de program funcționate pe oprire neplanificată."
         />
         <Indicator
           eticheta="Costul opririlor"
@@ -323,9 +327,12 @@ async function Raport({
           nota={
             date.costOraOprireSetat
               ? "Ore de oprire în program × costul unei ore de oprire."
-              : "Setați costul unei ore de oprire în setările mentenanței."
+              : poateSetari
+                ? "Setați costul unei ore de oprire în setările mentenanței."
+                : "Costul unei ore de oprire nu e setat; îl setează administratorul organizației."
           }
-          {...(date.costOraOprireSetat ? {} : { href: "/mentenanta/setari" })}
+          // Linkul doar spre o țintă care se deschide: setările cer `maintenance:update` all.
+          {...(date.costOraOprireSetat || !poateSetari ? {} : { href: "/mentenanta/setari" })}
         />
       </Sectiune>
 
@@ -358,7 +365,7 @@ async function Raport({
         <Indicator
           eticheta="Planuri executate la timp"
           valoare={formatProcent(t.planuriLaTimp.rata)}
-          nota={`${String(t.planuriLaTimp.laTimp)} din ${textNumarat(t.planuriLaTimp.evaluate, "execuție judecată", "execuții judecate")}, față de execuția precedentă.`}
+          nota={`${String(t.planuriLaTimp.laTimp)} din ${String(t.planuriLaTimp.evaluate)}: execuțiile judecate față de scadența lor${t.planuriLaTimp.restante > 0 ? ` și ${textNumarat(t.planuriLaTimp.restante, "plan depășit neexecutat", "planuri depășite neexecutate")}` : ""}.`}
           href="/mentenanta/planuri"
         />
         <Indicator
@@ -369,9 +376,9 @@ async function Raport({
           href="/mentenanta/planuri?tip=verificare_legala&scadenta=actiune"
         />
         <Indicator
-          eticheta="Amânări în curs"
-          valoare={t.amanari.total}
-          nota={textNumarat(t.amanari.planuri, "plan amânat", "planuri amânate")}
+          eticheta="Planuri amânate acum"
+          valoare={t.amanari.inCurs}
+          nota={`${textNumarat(t.amanari.total, "amânare", "amânări")} în istoric, pe ${textNumarat(t.amanari.planuri, "plan activ", "planuri active")}.`}
         />
         <Indicator
           eticheta="Citiri de contor restante"
@@ -416,10 +423,11 @@ async function Raport({
         <section className="flex min-w-0 flex-col gap-2">
           <h2 className="text-sectiune font-semibold">Planuri amânate</h2>
           <p className="text-muted-foreground text-corp">
-            Contorul de amânări se golește la prima execuție reușită a planului.
+            Contorul numără toate amânările planului, și pe cele dinaintea ultimei execuții; doar
+            amânarea în curs se golește la execuția reușită.
           </p>
           <Tabel
-            caption="Planurile active cu amânări în curs, cele mai amânate primele."
+            caption="Planurile active amânate cel puțin o dată, cele mai amânate primele."
             coloane={coloaneAmanari}
             randuri={raport.amanari}
             cheieRand={(p) => p.id}
@@ -451,6 +459,7 @@ export default async function PaginaRapoarteMentenanta({ searchParams }: Proprie
   const azi = todayInBucharest();
   const { perioada, avertisment } = normalizeazaPerioada(filtre.de_la, filtre.pana_la, azi);
   const poateExporta = can(permisiuni, "maintenance:export", "team");
+  const poateSetari = can(permisiuni, "maintenance:update", "all");
 
   return (
     <div className="space-y-6">
@@ -486,7 +495,11 @@ export default async function PaginaRapoarteMentenanta({ searchParams }: Proprie
         key={`${perioada.deLa}:${perioada.panaLa}`}
         fallback={<Schelet forma="tabel" coloane={6} />}
       >
-        <Raport organizationId={tenant.organizationId} perioada={perioada} />
+        <Raport
+          organizationId={tenant.organizationId}
+          perioada={perioada}
+          poateSetari={poateSetari}
+        />
       </Suspense>
     </div>
   );

@@ -198,7 +198,7 @@ export async function planuriPentruRaport(
     let q = db
       .from("maintenance_plans")
       .select(
-        "id, equipment_id, denumire, tip, activ, periodicitate_zile, periodicitate_contor, numar_amanari, urmatoarea_scadenta, tip_contor, urmatoarea_scadenta_contor",
+        "id, equipment_id, denumire, tip, activ, periodicitate_zile, periodicitate_contor, numar_amanari, urmatoarea_scadenta, tip_contor, urmatoarea_scadenta_contor, mod_calcul, data_ancora, amanat_pana",
       )
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
