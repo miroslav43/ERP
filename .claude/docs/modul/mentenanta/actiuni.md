@@ -62,10 +62,10 @@ Comportamentul pe fiecare zonă e în subpaginile ei: [[modul/mentenanta/sesizar
   importa.
 - **Orice tranziție face `.select()` după `.update()`** și tratează zero rânduri drept
   CONFLICT: un UPDATE respins de USING nu aruncă. — capcana #17
-- **Orice P0001 nou primește intrare în `erori.ts`** și trece prin `traduEroare`; fără ea,
-  `mapPostgrestError` îl înlocuiește cu textul generic. — capcana #3
+- **Orice scriere își trece eroarea prin `traduEroare`** din `erori.ts`; fără ea,
+  `mapPostgrestError` ar înlocui orice P0001 cu textul generic. — capcana #3
 - **Coloanele GENERATE (`cost_total`, `valoare` pe piese) nu se trimit**: schemele Zod le
-  omit, iar testul fiecărei acțiuni verifică lipsa lor din payload. — capcana #30
+  omit, iar testele acțiunilor care scriu intervenții verifică lipsa lor din payload. — capcana #30
 - Ziua de business vine din `todayInBucharest()`; filtrele unui `uuid` golit cu `?? ""` nu
   se scriu (22P02). — capcana #37
 
