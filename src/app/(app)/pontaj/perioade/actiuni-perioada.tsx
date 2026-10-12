@@ -24,6 +24,13 @@ interface Proprietati {
    * avertisment, nu o poartă; acțiunea nu primește niciun flag de confirmare.
    */
   readonly liniiNeaprobate: number;
+  /**
+   * Zilele respinse și necorectate (`numaraZileRespinse`). `liniiNeaprobate`
+   * le exclude deliberat, iar salarizarea nu le plătește (0198) — fără cifra
+   * asta, o lună cu zile respinse se bloca la „Linii neaprobate: 0”, fără
+   * niciun cuvânt. Tot avertisment, nu poartă.
+   */
+  readonly zileRespinse: number;
 }
 
 /** „3 linii rămân neaprobate” / „1 linie rămâne neaprobată”. */
@@ -31,6 +38,13 @@ function propozitiaNeaprobate(n: number): string {
   return n === 1
     ? "1 linie rămâne neaprobată și nu mai poate fi aprobată cât timp luna e blocată."
     : `${String(n)} linii rămân neaprobate și nu mai pot fi aprobate cât timp luna e blocată.`;
+}
+
+/** „2 zile respinse, necorectate — nu se plătesc” / „1 zi respinsă, …”. */
+function propozitiaRespinse(n: number): string {
+  return n === 1
+    ? "1 zi respinsă, necorectată — nu se plătește. După blocare, angajatul nu o mai poate corecta."
+    : `${String(n)} zile respinse, necorectate — nu se plătesc. După blocare, angajații nu le mai pot corecta.`;
 }
 
 /**
@@ -51,6 +65,7 @@ export function ActiuniPerioada({
   poateDeschide,
   poateBloca,
   liniiNeaprobate,
+  zileRespinse,
 }: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
@@ -89,10 +104,19 @@ export function ActiuniPerioada({
   const consecintaBlocarii = [
     "Pontajele lunii nu se mai pot modifica, nici aproba.",
     liniiNeaprobate > 0 ? propozitiaNeaprobate(liniiNeaprobate) : null,
+    zileRespinse > 0 ? propozitiaRespinse(zileRespinse) : null,
     "Luna se poate redeschide de aici dacă e nevoie de corecții.",
   ]
     .filter((p) => p !== null)
     .join(" ");
+  // „Linii neaprobate” rămâne mereu (și la 0: „nimic în aer” e o informație);
+  // „Zile respinse” apare doar când există, ca să nu încarce caseta lunilor curate.
+  const cifreBlocare = [
+    { eticheta: "Linii neaprobate", valoare: String(liniiNeaprobate) },
+    ...(zileRespinse > 0
+      ? [{ eticheta: "Zile respinse, necorectate", valoare: String(zileRespinse) }]
+      : []),
+  ];
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -108,7 +132,7 @@ export function ActiuniPerioada({
           pictograma={<Lock aria-hidden="true" className="size-4" />}
           titlu={`Blocați luna ${eticheta}?`}
           consecinta={consecintaBlocarii}
-          cifre={[{ eticheta: "Linii neaprobate", valoare: String(liniiNeaprobate) }]}
+          cifre={cifreBlocare}
           etichetaConfirmare="Blochează luna"
           executa={() => blocheazaPerioada({ id: periodId })}
           mesajReusita={`Luna ${eticheta} a fost blocată.`}

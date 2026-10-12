@@ -28,6 +28,7 @@ import {
   listeazaAngajatiPontaj,
   listeazaPerioade,
   numaraLiniiNeaprobate,
+  numaraZileRespinse,
   numarZilePontatePerioada,
   totiAngajatiiPontaj,
   loturiPerioadei,
@@ -422,6 +423,34 @@ describe("numaraLiniiNeaprobate — contorul din caseta de blocare", () => {
   });
 });
 
+describe("numaraZileRespinse — avertismentul din caseta de blocare", () => {
+  it("contor exact pe zilele cu `respins_la` nenul, ale perioadei, nesterse", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { data: null, count: 2 });
+    expect(await numaraZileRespinse(ORG_ID, PERIOADA)).toBe(2);
+    const [apel] = server.apeluri;
+    expect(apel?.tabela).toBe("attendance_entries");
+    expect(apel?.optiuni).toEqual({ count: "exact", head: true });
+    expect(organizatieSiNeșters(apel)).toBe(true);
+    expect(areFiltru(apel, "eq", "period_id", PERIOADA)).toBe(true);
+    expect(areFiltru(apel, "not", "respins_la", "is")).toBe(true);
+    // Fără paginare: un contor nu se trunchiază la 1000.
+    expect(argumente(apel, "range")).toBeUndefined();
+  });
+
+  it("`count: null` ⇒ 0", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { data: null, count: null });
+    expect(await numaraZileRespinse(ORG_ID, PERIOADA)).toBe(0);
+  });
+
+  it("eroarea PostgREST se propagă", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { error: eroarePostgrest("42501") });
+    await expect(numaraZileRespinse(ORG_ID, PERIOADA)).rejects.toMatchObject({ code: "42501" });
+  });
+});
+
 describe("citesteSaptamanaPontaj", () => {
   it("fără submisie ⇒ null, fără a citi zilele", async () => {
     const { server } = configureazaActiunea();
@@ -693,6 +722,16 @@ describe("numarZilePontatePerioada", () => {
     expect(numar?.optiuni).toEqual({ count: "exact", head: true });
     expect(organizatieSiNeșters(numar)).toBe(true);
     expect(areFiltru(numar, "eq", "period_id", PERIOADA)).toBe(true);
+  });
+
+  it("exclude zilele respinse — aceeași regulă ca `pontaj_agregat_salarizare` (0198)", async () => {
+    // O lună doar cu zile respinse dă salariu zero, exact ca una goală: dacă
+    // le-am număra aici, avertismentul „pontaj gol” n-ar mai apărea.
+    const { server } = configureazaActiunea();
+    server.raspunde("attendance_entries", "select", { count: 0 });
+    await numarZilePontatePerioada(ORG_ID, PERIOADA);
+    const [numar] = server.apeluriPe("attendance_entries");
+    expect(areFiltru(numar, "is", "respins_la", null)).toBe(true);
   });
 
   it("`count` null (răspuns fără antet) ⇒ 0, nu NaN", async () => {

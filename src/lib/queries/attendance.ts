@@ -100,6 +100,10 @@ export async function listeazaPerioade(
  * `attendance:read` primește 0 — adică exact ce ar primi și calculul lui,
  * fiindcă `pontaj_agregat_salarizare` e SECURITY INVOKER (0049): avertismentul
  * de pe ecran spune adevărul despre ce ar ieși, nu despre ce e în bază.
+ *
+ * Din același motiv exclude zilele respinse și necorectate: agregarea nu le
+ * mai numără (0198), deci o lună doar cu zile respinse dă tot salariu zero și
+ * trebuie să avertizeze ca una goală.
  */
 export async function numarZilePontatePerioada(
   organizationId: string,
@@ -111,6 +115,7 @@ export async function numarZilePontatePerioada(
     .select("id", { count: "exact", head: true })
     .eq("organization_id", organizationId)
     .eq("period_id", attendancePeriodId)
+    .is("respins_la", null)
     .is("deleted_at", null);
   if (error !== null) throw error;
   return count ?? 0;
@@ -693,6 +698,35 @@ export async function numaraLiniiNeaprobate(
     .is("approved_at", null)
     .is("leave_request_id", null)
     .is("respins_la", null)
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return count ?? 0;
+}
+
+/**
+ * Câte zile ale perioadei sunt respinse și încă necorectate — a doua cifră din
+ * caseta de blocare.
+ *
+ * `numaraLiniiNeaprobate` le exclude deliberat (nu mai așteaptă aprobarea, ci
+ * corectura angajatului), deci fără contorul ăsta o lună cu zile respinse
+ * arăta „Linii neaprobate: 0” și se bloca fără niciun cuvânt. Din 0198
+ * `pontaj_agregat_salarizare` nu le mai plătește: caseta trebuie să spună asta
+ * înainte de blocare. Avertisment, nu poartă — blocarea rămâne permisă.
+ *
+ * Corectura stinge marcajul (`attendance_entries_respingere_ck`, 0067), deci
+ * `respins_la` nenul înseamnă exact „respinsă și necorectată”.
+ */
+export async function numaraZileRespinse(
+  organizationId: string,
+  periodId: string,
+): Promise<number> {
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("attendance_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("period_id", periodId)
+    .not("respins_la", "is", null)
     .is("deleted_at", null);
   if (error !== null) throw error;
   return count ?? 0;

@@ -462,8 +462,9 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
                   ? "singurul angajat cu contract"
                   : `toți cei ${String(angajatiDraft.length)} angajați cu contract`}
                 : salariul se plătește pe zilele din pontaj, iar un pontaj blocat, dar gol, înseamnă
-                zero zile lucrate, zero concediu și zero absențe. Completați sau importați pontajul,
-                blocați din nou luna și abia apoi calculați.
+                zero zile lucrate, zero concediu și zero absențe. Zilele respinse și necorectate nu
+                se numără: nu se plătesc. Completați sau importați pontajul, blocați din nou luna și
+                abia apoi calculați.
                 {poateVedeaPontajul ? (
                   <>
                     {" "}

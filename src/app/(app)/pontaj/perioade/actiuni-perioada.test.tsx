@@ -70,6 +70,7 @@ describe("ActiuniPerioada — blocarea cere confirmare", () => {
         poateDeschide
         poateBloca
         liniiNeaprobate={3}
+        zileRespinse={0}
       />,
     );
     await apasa("Blochează");
@@ -91,6 +92,7 @@ describe("ActiuniPerioada — blocarea cere confirmare", () => {
         poateDeschide
         poateBloca
         liniiNeaprobate={0}
+        zileRespinse={0}
       />,
     );
     await apasa("Blochează");
@@ -109,10 +111,72 @@ describe("ActiuniPerioada — blocarea cere confirmare", () => {
         poateDeschide
         poateBloca
         liniiNeaprobate={1}
+        zileRespinse={0}
       />,
     );
     await apasa("Blochează");
     expect(document.body.textContent).toMatch(/1 linie rămâne neaprobată/u);
+  });
+
+  it("zilele respinse și necorectate se semnalează: nu blochează, dar nu se plătesc", async () => {
+    // QA oct 2026 (L1): `liniiNeaprobate` exclude deliberat respinsele, deci o
+    // lună cu zile respinse arăta „Linii neaprobate: 0” și se bloca fără
+    // niciun cuvânt — iar salarizarea le plătea. Din 0198 nu le mai plătește;
+    // caseta trebuie să spună asta ÎNAINTE de blocare.
+    render(
+      <ActiuniPerioada
+        an={2026}
+        luna={9}
+        periodId={PERIOD_ID}
+        status="deschisa"
+        poateDeschide
+        poateBloca
+        liniiNeaprobate={0}
+        zileRespinse={2}
+      />,
+    );
+    await apasa("Blochează");
+    expect(screen.getByText("Zile respinse, necorectate")).toBeDefined();
+    expect(screen.getByText("2")).toBeDefined();
+    expect(document.body.textContent).toMatch(/2 zile respinse, necorectate — nu se plătesc/u);
+    // Avertisment, nu poartă: confirmarea rămâne posibilă.
+    await apasa("Blochează luna");
+    expect(blocheazaPerioada).toHaveBeenCalledTimes(1);
+  });
+
+  it("acord la 1: „1 zi respinsă, necorectată — nu se plătește”", async () => {
+    render(
+      <ActiuniPerioada
+        an={2026}
+        luna={9}
+        periodId={PERIOD_ID}
+        status="deschisa"
+        poateDeschide
+        poateBloca
+        liniiNeaprobate={0}
+        zileRespinse={1}
+      />,
+    );
+    await apasa("Blochează");
+    expect(document.body.textContent).toMatch(/1 zi respinsă, necorectată — nu se plătește/u);
+  });
+
+  it("fără zile respinse, nici cifra, nici propoziția nu apar", async () => {
+    render(
+      <ActiuniPerioada
+        an={2026}
+        luna={9}
+        periodId={PERIOD_ID}
+        status="deschisa"
+        poateDeschide
+        poateBloca
+        liniiNeaprobate={3}
+        zileRespinse={0}
+      />,
+    );
+    await apasa("Blochează");
+    expect(screen.queryByText("Zile respinse, necorectate")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/respins/u);
   });
 
   it("confirmarea cheamă `blocheazaPerioada({ id })` o singură dată", async () => {
@@ -125,6 +189,7 @@ describe("ActiuniPerioada — blocarea cere confirmare", () => {
         poateDeschide
         poateBloca
         liniiNeaprobate={3}
+        zileRespinse={0}
       />,
     );
     await apasa("Blochează");
@@ -143,6 +208,7 @@ describe("ActiuniPerioada — blocarea cere confirmare", () => {
         poateDeschide
         poateBloca
         liniiNeaprobate={0}
+        zileRespinse={0}
       />,
     );
     await apasa("Redeschide");
@@ -163,6 +229,7 @@ describe("ActiuniPerioada — blocarea cere confirmare", () => {
         poateDeschide
         poateBloca
         liniiNeaprobate={0}
+        zileRespinse={0}
       />,
     );
     await apasa("Deschide luna");

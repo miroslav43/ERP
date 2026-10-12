@@ -20,6 +20,7 @@ import {
   citestePerioada,
   departamente,
   liniiDeAprobat,
+  numaraZileRespinse,
   pontajDeAprobat,
   saptamaniDeAprobat,
 } from "@/lib/queries/attendance";
@@ -73,7 +74,12 @@ async function ContinutAprobare({
    */
   readonly numarSaptamaniDeAprobat: number;
 }) {
-  const { linii, trunchiat } = await liniiDeAprobat(organizationId, periodId);
+  // Zilele respinse le exclude `liniiDeAprobat`; caseta de blocare le cere
+  // separat (nu se plătesc, 0198). Contorul pleacă doar pentru cine vede caseta.
+  const [{ linii, trunchiat }, zileRespinse] = await Promise.all([
+    liniiDeAprobat(organizationId, periodId),
+    poateBloca ? numaraZileRespinse(organizationId, periodId) : Promise.resolve(0),
+  ]);
   const idAngajati = [...new Set(linii.map((l) => l.employee_id))];
   const angajati = await angajatiPontajDupaId(organizationId, idAngajati);
 
@@ -171,6 +177,7 @@ async function ContinutAprobare({
             // linii pe care le-ar număra `numaraLiniiNeaprobate`, deja citite.
             // La `trunchiat`, cifra e sub cea reală, ca tot restul paginii.
             liniiNeaprobate={linii.length}
+            zileRespinse={zileRespinse}
           />
         </div>
       ) : null}
