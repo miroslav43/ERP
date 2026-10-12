@@ -6,54 +6,14 @@
  * nu e o măsură de disciplină, e o proprietate a construcției: modulul ăsta
  * n-are niciun `fetch` și nicio Server Action.
  *
- * Fiecare acces e înfășurat, fiindcă simplul CITIT al lui `sessionStorage`
- * aruncă în ferestrele private și acolo unde utilizatorul a blocat datele de
- * sit. Un demo care rupe pagina de prezentare e mai rău decât unul care uită.
+ * Helper-ul de acces (`citesteDepozit`/`scrieDepozit`, cu garda de formă
+ * obligatorie și fiecare acces în `try/catch`) a stat aici până pe 12 oct 2026;
+ * s-a mutat în `src/lib/ui/depozit-sesiune.ts` când l-a cerut și asistentul
+ * `/bun-venit` (QA ONB-012). Re-exportul păstrează vechii apelanți neschimbați;
+ * regula `administrativo/demo-fara-server` permite `@/lib/ui/*`.
  */
+
+export { citesteDepozit, scrieDepozit } from "@/lib/ui/depozit-sesiune";
 
 /** Cheia sub care trăiește starea vitrinei de concedii. */
 export const CHEIE_CONCEDII = "vitrina.concedii";
-
-/**
- * `esteValid`, OBLIGATORIU: garda de FORMĂ, nu doar de sintaxă JSON.
- *
- * `JSON.parse` reușește pe orice JSON valid — un obiect în locul tabloului
- * așteptat trece la fel de bine ca tabloul însuși. Primul consumator real
- * (`vitrina-leave.tsx`) iterează rezultatul cu `for...of`; fără gardă de
- * formă, o valoare stocată sub aceeași cheie dar cu altă schemă — o sesiune
- * veche rămasă dintr-o versiune anterioară a demonstrației, sau o manipulare
- * din devtools — ar arunca `TypeError` direct în randare și ar CĂDEA TOT
- * ECRANUL PUBLIC, fără recuperare. Cu garda, forma greșită se tratează la fel
- * ca JSON-ul stricat: se întoarce implicitul.
- *
- * ── DE CE NU E OPȚIONAL ───────────────────────────────────────────────────
- * A fost, la început. Un parametru opțional lasă defectul reparat să se
- * întoarcă la primul apelant care îl uită — și îl uită tăcut, fiindcă `tsc` n-are
- * ce să-i reproșeze. Obligatoriu, întrebarea „ce formă aștept?" se pune la
- * fiecare apel. Cine chiar nu vrea nicio verificare o spune explicit, cu un
- * predicat care întoarce `true`, și se vede la review.
- */
-export function citesteDepozit<T>(
-  cheie: string,
-  implicit: T,
-  esteValid: (x: unknown) => x is T,
-): T {
-  try {
-    const brut = sessionStorage.getItem(cheie);
-    if (brut === null) return implicit;
-    const parsat: unknown = JSON.parse(brut);
-    if (!esteValid(parsat)) return implicit;
-    return parsat as T;
-  } catch {
-    return implicit;
-  }
-}
-
-export function scrieDepozit<T>(cheie: string, valoare: T): void {
-  try {
-    sessionStorage.setItem(cheie, JSON.stringify(valoare));
-  } catch {
-    // Fereastră privată, cotă depășită, date de sit blocate. Demo-ul merge mai
-    // departe din memorie; pierde doar supraviețuirea peste o reîncărcare.
-  }
-}

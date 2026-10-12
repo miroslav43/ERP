@@ -1,8 +1,13 @@
 // src/app/(onboarding)/layout.tsx
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { LogOut } from "lucide-react";
 
+import { deconecteaza } from "@/app/(app)/actions";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 import { OpresteAnaliticele } from "@/components/layout/opreste-analiticele";
+import { Sigla } from "@/components/sigla";
+import { CONTACT } from "@/content/landing/contact";
 
 /**
  * Zona de înrolare e vizibilă doar cu sesiune validă și nu are conținut public.
@@ -51,19 +56,58 @@ export const metadata: Metadata = {
  * supraviețuit unei navigări soft dinspre pagina publică, raportează mai
  * departe. Văzut în GA4, nu presupus: `/bun-venit` apare pe 30 sept 2026, la
  * șase zile după ce reparația din `7f087c9` ajunsese în producție.
+ *
+ * ── DE CE ARE ANTET, DIN 12 OCT 2026 ──────────────────────────────────────
+ * QA (ONB-021): administratorul blocat în asistent n-avea nici ieșire din
+ * cont, nici contact. „Deconectare" exista doar pe `/firma-in-configurare`, la
+ * care ajungi doar tastând adresa. Antetul stă pe LAYOUT, nu pe o pagină, ca
+ * să fie pe amândouă ecranele și pe orice ecran viitor al zonei; ecranul de
+ * așteptare și-a pierdut butonul propriu, altfel ar fi apărut de două ori.
+ * Legătura de ajutor e un `mailto:` spre singura adresă de contact din cod.
  */
 export default function LayoutInrolare({ children }: { children: ReactNode }) {
   return (
     <div data-zona="inrolare" className="flex min-h-dvh flex-col">
       <OpresteAnaliticele />
       {/* Aceeași formă ca în `(app)`, `(portal)` și `(auth)`: o singură variantă
-          a scurtăturii în tot produsul. */}
+          a scurtăturii în tot produsul. Rămâne ÎNAINTEA antetului: e primul
+          element focusabil, altfel scurtătura nu mai scurtează nimic. */}
       <a
         href="#continut"
         className="bg-primary text-primary-foreground rounded-control focus:z-plutitor text-corp sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:px-3 focus:py-2"
       >
         Sari la conținut
       </a>
+
+      <header className="border-border bg-surface border-b">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-3">
+          {/* Aceeași siglă ca în `(auth)`: omul vine de acolo, iar un nume scris
+              altfel ar arăta ca alt produs. Fără legătură spre `/`: pagina
+              publică n-are ce să-i ofere cuiva care încă își configurează firma. */}
+          <Sigla clasa="text-primary h-[18px] w-auto" eticheta="Administrativo" />
+          <nav aria-label="Cont" className="flex items-center gap-4">
+            <a
+              href={`mailto:${CONTACT.email}`}
+              className="text-muted-foreground hover:text-foreground text-corp underline-offset-4 transition hover:underline"
+            >
+              Ai nevoie de ajutor?
+            </a>
+            <form action={deconecteaza}>
+              {/* `varianta="tertiar"` + clasele proprii: discret, ca pe ecranul
+                  de așteptare de unde a venit; se blochează și spune
+                  „Se deconectează…" cât timp GoTrue lucrează. */}
+              <ButonTrimite
+                varianta="tertiar"
+                textInCurs="Se deconectează…"
+                className="border-border text-muted-foreground hover:bg-background hover:text-foreground rounded-control text-corp flex items-center gap-2 border px-3 py-1.5 font-medium transition"
+              >
+                <LogOut aria-hidden="true" className="size-4" />
+                Deconectare
+              </ButonTrimite>
+            </form>
+          </nav>
+        </div>
+      </header>
 
       {/* Lățimea aparține ZONEI, nu paginii. Ecranul de așteptare își strânge
           singur conținutul mai mult; asistentul folosește toată lățimea. */}
