@@ -1146,11 +1146,16 @@ export const adaugaAutorizatieIscir = createAction({
     action: "create",
     entityType: "iscir_authorization",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["equipment_id", "numar", "tip", "emitent", "emis_la", "valabil_pana"],
+    allow: ["equipment_id", "regim", "numar", "tip", "emitent", "emis_la", "valabil_pana"],
   },
   // Și panoul: afișează autorizațiile care expiră, deci o autorizație nouă
-  // (sau reînnoită) trebuie să-i schimbe lista.
-  revalidate: (input) => [`/mentenanta/echipamente/${input.equipment_id}`, "/mentenanta"],
+  // trebuie să-i schimbe lista. Și lista ISCIR (0193, M7). Reînnoirea are
+  // acțiunea ei, în `iscir/actions.ts`.
+  revalidate: (input) => [
+    `/mentenanta/echipamente/${input.equipment_id}`,
+    "/mentenanta",
+    "/mentenanta/iscir",
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     const { data, error } = await db

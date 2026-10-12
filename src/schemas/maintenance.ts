@@ -13,8 +13,10 @@ import {
   PRAG_ALERTA_MAXIM_ZILE,
   PRAGURI_ALERTA_IMPLICITE,
 } from "@/domain/maintenance/praguri";
+import { REGIMURI_ISCIR, type RegimIscir } from "@/domain/maintenance/iscir";
+import { categorieLegala } from "@/domain/maintenance/legal";
 
-import { enumOptional, optional } from "./comun";
+import { enumOptional, optional, textOptional } from "./comun";
 
 export const STATUS_ECHIPAMENT = [
   "in_functiune",
@@ -420,7 +422,37 @@ function valideazaPeriodicitatePlan(
   }
 }
 
-export const planNouSchema = campuriPlan.superRefine(valideazaPeriodicitatePlan);
+/**
+ * Categoria legală (M7) vine din lista închisă `CATEGORII_LEGALE` și merge doar
+ * cu tipul `verificare_legala`: precompletarea pune tipul, dar omul îl poate
+ * schimba după. CHECK-ul din bază (0183) verifică doar forma codului.
+ */
+function valideazaCategorieLegala(
+  valoare: Readonly<{ tip: TipMentenanta; categorie_legala: string | null }>,
+  ctx: z.RefinementCtx,
+): void {
+  if (valoare.categorie_legala === null) return;
+  if (categorieLegala(valoare.categorie_legala) === null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["categorie_legala"],
+      message: "Alegeți categoria legală din listă.",
+    });
+    return;
+  }
+  if (valoare.tip !== "verificare_legala") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["tip"],
+      message:
+        "Un plan cu categorie legală are tipul „Verificare legală”. Schimbați tipul sau scoateți categoria.",
+    });
+  }
+}
+
+export const planNouSchema = campuriPlan
+  .superRefine(valideazaPeriodicitatePlan)
+  .superRefine(valideazaCategorieLegala);
 export type PlanNouInput = z.output<typeof planNouSchema>;
 
 /**
@@ -434,7 +466,8 @@ export type PlanNouInput = z.output<typeof planNouSchema>;
 export const actualizeazaPlanSchema = campuriPlan
   .omit({ ultima_citire_contor: true })
   .extend({ id: z.uuid("Planul selectat nu este valid.") })
-  .superRefine(valideazaPeriodicitatePlan);
+  .superRefine(valideazaPeriodicitatePlan)
+  .superRefine(valideazaCategorieLegala);
 export type ActualizeazaPlanInput = z.output<typeof actualizeazaPlanSchema>;
 
 /** Amânarea unui plan (0183): până la o dată, cu motiv; execuția reușită o șterge. */
@@ -806,14 +839,105 @@ export type SetariMentenantaInput = z.output<typeof setariMentenantaSchema>;
 
 // ── Autorizații ISCIR ──────────────────────────────────────────────────────
 
-export const autorizatieIscirNouaSchema = z.object({
-  equipment_id: z.uuid("Echipamentul selectat nu este valid."),
-  numar: z.string().trim().min(1).max(80),
-  tip: z.string().trim().min(1).max(80),
+/**
+ * Câmpurile comune ale autorizației (0011 + 0193). `regim` (cazul 42):
+ * `neinregistrat_rsvti` = sub pragul de înregistrare, în evidența RSVTI, fără
+ * număr ISCIR. Oglindește `iscir_authorizations_numar_ck`: numărul e obligatoriu
+ * doar în regimul `inregistrat`. Un număr gol devine `null`, nu `""` — CHECK-ul
+ * `iscir_authorizations_numar_gol_ck` ar refuza șirul gol.
+ */
+const campuriAutorizatie = z.object({
+  regim: z.enum(REGIMURI_ISCIR).default("inregistrat"),
+  numar: textOptional(80),
+  tip: z.string().trim().min(1, "Alegeți tipul echipamentului.").max(80),
   emitent: z.string().trim().min(1).max(120).default("ISCIR"),
   emis_la: z.iso.date().nullable().default(null),
-  valabil_pana: z.iso.date(),
+  valabil_pana: z.iso.date("Completați data până la care e valabilă."),
   scadenta_verificare_tehnica: z.iso.date().nullable().default(null),
-  conditii: z.string().trim().max(1000).nullable().default(null),
+  conditii: textOptional(1000),
 });
+
+function numarDupaRegim(
+  v: Readonly<{ regim: RegimIscir; numar: string | null }>,
+  ctx: z.RefinementCtx,
+): void {
+  if (v.regim === "inregistrat" && v.numar === null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["numar"],
+      message:
+        "O autorizație înregistrată la ISCIR are număr. Pentru un echipament sub pragul de înregistrare alegeți „în evidența RSVTI”.",
+    });
+  }
+}
+
+export const autorizatieIscirNouaSchema = campuriAutorizatie
+  .extend({ equipment_id: z.uuid("Echipamentul selectat nu este valid.") })
+  .superRefine(numarDupaRegim);
 export type AutorizatieIscirNouaInput = z.output<typeof autorizatieIscirNouaSchema>;
+
+/** Corectarea: echipamentul nu se schimbă (garda din 0193 îl refuză oricum). */
+export const actualizeazaAutorizatieSchema = campuriAutorizatie
+  .extend({ id: z.uuid("Autorizația selectată nu este validă.") })
+  .superRefine(numarDupaRegim);
+export type ActualizeazaAutorizatieInput = z.output<typeof actualizeazaAutorizatieSchema>;
+
+export const suspendaAutorizatieSchema = z.object({
+  id: z.uuid("Autorizația selectată nu este validă."),
+  suspendata_la: z.iso.date("Completați data suspendării."),
+  motiv_suspendare: z
+    .string()
+    .trim()
+    .min(5, "Spuneți de ce e suspendată autorizația, în cel puțin 5 caractere.")
+    .max(1000),
+});
+export type SuspendaAutorizatieInput = z.output<typeof suspendaAutorizatieSchema>;
+
+export const idAutorizatieSchema = z.object({
+  id: z.uuid("Autorizația selectată nu este validă."),
+});
+
+/**
+ * Reînnoirea (cazul 40): rând nou, legat de cel vechi. Tipul, regimul și
+ * echipamentul se moștenesc; numărul poate rămâne același. Regula „număr
+ * obligatoriu în regimul înregistrat” o aplică funcția din bază, care știe
+ * regimul rândului vechi.
+ */
+export const reinnoiesteAutorizatieSchema = z.object({
+  id: z.uuid("Autorizația selectată nu este validă."),
+  numar: textOptional(80),
+  emitent: textOptional(120),
+  emis_la: z.iso.date().nullable().default(null),
+  valabil_pana: z.iso.date("Completați data până la care e valabilă autorizația nouă."),
+  scadenta_verificare_tehnica: z.iso.date().nullable().default(null),
+  conditii: textOptional(1000),
+});
+export type ReinnoiesteAutorizatieInput = z.output<typeof reinnoiesteAutorizatieSchema>;
+
+/**
+ * Filtrul de stare al listei `/mentenanta/iscir` — semaforul din
+ * `domain/maintenance/iscir.ts`. `actiune` = expirată SAU expiră curând: exact
+ * rândurile numărate de panou și de insigna din meniu (`cereAtentieAutorizatie`).
+ */
+export const FILTRE_STARE_AUTORIZATIE = [
+  "actiune",
+  "expirata",
+  "expira_curand",
+  "valabila",
+  "suspendata",
+] as const;
+export type FiltruStareAutorizatie = (typeof FILTRE_STARE_AUTORIZATIE)[number];
+
+/**
+ * Lista ISCIR se ordonează mereu după `valabil_pana` (coloană `not null`, deci
+ * keyset fără NULL-uri), apoi `id`: ce expiră primul stă sus. Fără `sort`.
+ */
+export const filtreAutorizatiiSchema = z.object({
+  stare: optional(z.enum(FILTRE_STARE_AUTORIZATIE)),
+  regim: optional(z.enum(REGIMURI_ISCIR)),
+  tip: optional(z.string().trim().min(1).max(80)),
+  echipament: optional(z.uuid()),
+  cursor: optional(z.string().max(256)),
+  limita: z.coerce.number().int().min(5).max(100).default(25),
+});
+export type FiltreAutorizatii = z.output<typeof filtreAutorizatiiSchema>;

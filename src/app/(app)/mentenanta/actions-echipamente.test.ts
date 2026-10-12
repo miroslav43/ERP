@@ -415,8 +415,33 @@ describe("adaugaAutorizatieIscir", () => {
     });
     expect(apel?.selectDupaScriere).toBe("id");
     // Și panoul `/mentenanta`: afișează autorizațiile care expiră, deci o
-    // autorizație nouă trebuie să-i schimbe lista (lipsea până la M1).
-    expect(caiRevalidate()).toEqual([`/mentenanta/echipamente/${ID_1}`, "/mentenanta"]);
+    // autorizație nouă trebuie să-i schimbe lista (lipsea până la M1). Din M7,
+    // și lista ISCIR.
+    expect(caiRevalidate()).toEqual([
+      `/mentenanta/echipamente/${ID_1}`,
+      "/mentenanta",
+      "/mentenanta/iscir",
+    ]);
+    expect(apel?.payload).toMatchObject({ regim: "inregistrat" });
+  });
+
+  it("regimul RSVTI (cazul 42): fără număr trece, cu `numar: null` în payload", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    server.raspunde("iscir_authorizations", "insert", { data: { id: ID_2 } });
+
+    const r = await adaugaAutorizatieIscir({ ...iscir, regim: "neinregistrat_rsvti", numar: "" });
+
+    expect(r).toEqual({ ok: true, data: { id: ID_2 } });
+    const [apel] = server.apeluriPe("iscir_authorizations");
+    expect(apel?.payload).toMatchObject({ regim: "neinregistrat_rsvti", numar: null });
+  });
+
+  it("regimul înregistrat fără număr: VALIDARE pe `numar`, fără scriere", async () => {
+    const { server } = configureazaActiunea({ permisiuni: UPDATE });
+    const r = await adaugaAutorizatieIscir({ ...iscir, numar: "  " });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (!r.ok) expect(r.error.fieldErrors?.["numar"]?.[0]).toContain("evidența RSVTI");
+    expect(server.apeluri).toHaveLength(0);
   });
 
   it("număr duplicat: mesajul modulului pomenește autorizația ISCIR", async () => {

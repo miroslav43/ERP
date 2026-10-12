@@ -14,6 +14,7 @@ import { configureazaActiunea, ID_1, ID_2, ID_3, ORG_ID } from "@/lib/teste/acti
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import { codificaCursor, decodificaCursor } from "@/lib/queries/cursor";
 import {
+  filtreAutorizatiiSchema,
   filtreEchipamenteSchema,
   filtreInterventiiSchema,
   filtreSesizariSchema,
@@ -33,6 +34,7 @@ import {
   optiuniDepartamente,
   echipamenteDupaId,
   interventii,
+  listeazaAutorizatiiIscir,
   listeazaEchipamente,
   optiuniPlanuriActive,
   piesePeInterventie,
@@ -43,6 +45,7 @@ import {
   planuriScadente,
   sesizari,
   sesizariDeschise,
+  stareRsvti,
   ultimeleCitiriContor,
 } from "./maintenance";
 
@@ -572,6 +575,120 @@ describe("autorizații ISCIR și angajați autorizați", () => {
   });
 });
 
+describe("autorizații ISCIR — M7 (0193)", () => {
+  const aut = (id: string, valabil: string) => ({
+    id,
+    equipment_id: ID_1,
+    numar: `ISCIR-${id}`,
+    tip: "macara",
+    emitent: "ISCIR",
+    emis_la: null,
+    valabil_pana: valabil,
+    scadenta_verificare_tehnica: null,
+    conditii: null,
+    suspendata_la: null,
+    regim: "inregistrat",
+    motiv_suspendare: null,
+    reactivata_la: null,
+    inlocuita_de_id: null,
+  });
+
+  it("autorizatiiIscir fără echipament: doar rândurile CURENTE; pe echipament, și istoricul", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("iscir_authorizations", "select", { data: [] });
+    server.raspunde("iscir_authorizations", "select", { data: [] });
+    await autorizatiiIscir(ORG_ID);
+    await autorizatiiIscir(ORG_ID, ID_1);
+    const [panou, fisa] = server.apeluriPe("iscir_authorizations");
+    expect(areFiltru(panou, "is", "inlocuita_de_id", null)).toBe(true);
+    expect(areFiltru(fisa, "is", "inlocuita_de_id")).toBe(false);
+  });
+
+  it("lista: limita+1, cursor pe `valabil_pana`, total din numărătoare, fără rândurile înlocuite", async () => {
+    const { server } = configureazaActiunea();
+    const randuri = ["a", "b", "c", "d", "e", "f"].map((x, i) =>
+      aut(x, `2026-11-0${String(i + 1)}`),
+    );
+    server.raspunde("iscir_authorizations", "select", { data: randuri });
+    server.raspunde("iscir_authorizations", "select", { count: 17 });
+
+    const r = await listeazaAutorizatiiIscir(ORG_ID, filtreAutorizatiiSchema.parse({ limita: 5 }));
+
+    expect(r.randuri.map((x) => x.id)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(r.total).toBe(17);
+    expect(decodificaCursor(r.urmatorulCursor ?? "")).toEqual({
+      valoare: "2026-11-05",
+      id: "e",
+    });
+    for (const apel of server.apeluriPe("iscir_authorizations")) {
+      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+      expect(areFiltru(apel, "is", "inlocuita_de_id", null)).toBe(true);
+    }
+  });
+
+  it("starea „actiune” = nesuspendată, cu valabilitatea SAU VTP-ul sub prag (15 zile)", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("iscir_authorizations", "select", { data: [] });
+    server.raspunde("iscir_authorizations", "select", { count: 0 });
+    await listeazaAutorizatiiIscir(ORG_ID, filtreAutorizatiiSchema.parse({ stare: "actiune" }));
+    const [pagina, numarare] = server.apeluriPe("iscir_authorizations");
+    for (const apel of [pagina, numarare]) {
+      expect(areFiltru(apel, "is", "suspendata_la", null)).toBe(true);
+      expect(filtruOr(apel)).toBe(
+        "valabil_pana.lte.2026-10-17,scadenta_verificare_tehnica.lte.2026-10-17",
+      );
+    }
+  });
+
+  it("starea „suspendata” și filtrele de regim, tip, echipament", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("iscir_authorizations", "select", { data: [] });
+    server.raspunde("iscir_authorizations", "select", { count: 0 });
+    await listeazaAutorizatiiIscir(
+      ORG_ID,
+      filtreAutorizatiiSchema.parse({
+        stare: "suspendata",
+        regim: "neinregistrat_rsvti",
+        tip: "stivuitor",
+        echipament: ID_2,
+      }),
+    );
+    const [apel] = server.apeluriPe("iscir_authorizations");
+    expect(areFiltru(apel, "not", "suspendata_la")).toBe(true);
+    expect(areFiltru(apel, "eq", "regim", "neinregistrat_rsvti")).toBe(true);
+    expect(areFiltru(apel, "eq", "tip", "stivuitor")).toBe(true);
+    expect(areFiltru(apel, "eq", "equipment_id", ID_2)).toBe(true);
+  });
+
+  it("stareRsvti: echipamentele ISCIR necasate, RSVTI-ul din setări plecat ⇒ inactiv (cazul 41)", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("equipment", "select", { count: 3 });
+    server.raspunde("maintenance_settings", "select", { data: { rsvti_employee_id: ID_3 } });
+    server.raspunde("employees", "select", { data: [{ id: ID_3 }] });
+
+    expect(await stareRsvti(ORG_ID)).toEqual({
+      echipamenteIscir: 3,
+      rsvtiEmployeeId: ID_3,
+      rsvtiActiv: false,
+    });
+    const [echip] = server.apeluriPe("equipment");
+    expect(areFiltru(echip, "eq", "este_iscir", true)).toBe(true);
+    expect(areFiltru(echip, "neq", "status", "casat")).toBe(true);
+    expect(areFiltru(echip, "is", "deleted_at", null)).toBe(true);
+  });
+
+  it("stareRsvti: fără RSVTI desemnat nu mai întreabă de fișe", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("equipment", "select", { count: 1 });
+    server.raspunde("maintenance_settings", "select", { data: null });
+
+    const r = await stareRsvti(ORG_ID);
+    expect(r).toMatchObject({ echipamenteIscir: 1, rsvtiEmployeeId: null, rsvtiActiv: false });
+    expect(server.apeluriPe("employees")).toHaveLength(0);
+  });
+});
+
 describe("numarScadenteMentenanta", () => {
   const plan = (
     id: string,
@@ -611,7 +728,16 @@ describe("numarScadenteMentenanta", () => {
     expect(areFiltru(iscir, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(areFiltru(iscir, "is", "suspendata_la", null)).toBe(true);
     expect(areFiltru(iscir, "is", "deleted_at", null)).toBe(true);
-    expect(areFiltru(iscir, "lte", "valabil_pana", "2026-10-17")).toBe(true);
+    // 0193 (M7): rândul înlocuit prin reînnoire e istoric, iar termenul e cel
+    // mai apropiat dintre valabilitate și VTP — un VTP scadent numără și el.
+    expect(areFiltru(iscir, "is", "inlocuita_de_id", null)).toBe(true);
+    expect(
+      areFiltru(
+        iscir,
+        "or",
+        "valabil_pana.lte.2026-10-17,scadenta_verificare_tehnica.lte.2026-10-17",
+      ),
+    ).toBe(true);
 
     for (const apel of server.apeluriPe("equipment_meters")) {
       expect(areFiltru(apel, "in", "equipment_id", [ID_1, ID_2])).toBe(true);

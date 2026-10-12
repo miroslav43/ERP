@@ -13,8 +13,10 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
 import { cereActiune, stareScadentaPlan } from "@/domain/maintenance/scadente";
 import { STARI_DESCHISE_SESIZARE } from "@/domain/maintenance/sesizari";
+import type { RegimIscir } from "@/domain/maintenance/iscir";
 import type {
   EntitateAtasament,
+  FiltreAutorizatii,
   FiltreEchipamente,
   FiltreInterventii,
   FiltreSesizari,
@@ -306,7 +308,8 @@ export interface RezultatSesizari {
 export interface AutorizatieIscir {
   readonly id: string;
   readonly equipment_id: string;
-  readonly numar: string;
+  /** `null` doar în regimul `neinregistrat_rsvti` (0193, cazul 42). */
+  readonly numar: string | null;
   readonly tip: string;
   readonly emitent: string;
   readonly emis_la: string | null;
@@ -314,7 +317,19 @@ export interface AutorizatieIscir {
   readonly scadenta_verificare_tehnica: string | null;
   readonly conditii: string | null;
   readonly suspendata_la: string | null;
+  // 0193
+  readonly regim: RegimIscir;
+  readonly motiv_suspendare: string | null;
+  readonly reactivata_la: string | null;
+  /** Rândul care a înlocuit-o prin reînnoire; ne-null = istoric. */
+  readonly inlocuita_de_id: string | null;
 }
+
+/** Coloanele lui `AutorizatieIscir`, într-un singur loc (lista, fișa, panoul). */
+const COLOANE_AUTORIZATIE =
+  "id, equipment_id, numar, tip, emitent, emis_la, valabil_pana, " +
+  "scadenta_verificare_tehnica, conditii, suspendata_la, " +
+  "regim, motiv_suspendare, reactivata_la, inlocuita_de_id";
 
 export interface AngajatAutorizat {
   readonly employee_id: string;
@@ -1602,6 +1617,11 @@ export async function citesteSesizare(
 
 // ── Autorizații ISCIR ──────────────────────────────────────────────────────
 
+/**
+ * Autorizațiile ISCIR. Fără echipament (panoul): doar cele CURENTE — un rând
+ * înlocuit prin reînnoire e istoric și n-are ce căuta în coada de scadențe. Cu
+ * echipament (fișa lui): și istoricul reînnoirilor, ca lanțul să se vadă.
+ */
 export async function autorizatiiIscir(
   organizationId: string,
   equipmentId?: string,
@@ -1609,19 +1629,192 @@ export async function autorizatiiIscir(
   const db = await createServerSupabase();
   let interogare = db
     .from("iscir_authorizations")
-    .select(
-      "id, equipment_id, numar, tip, emitent, emis_la, valabil_pana, " +
-        "scadenta_verificare_tehnica, conditii, suspendata_la",
-    )
+    .select(COLOANE_AUTORIZATIE)
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .order("valabil_pana", { ascending: true });
 
-  if (equipmentId !== undefined) interogare = interogare.eq("equipment_id", equipmentId);
+  interogare =
+    equipmentId === undefined
+      ? interogare.is("inlocuita_de_id", null)
+      : interogare.eq("equipment_id", equipmentId);
 
   const { data, error } = await interogare.returns<AutorizatieIscir[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+export interface RezultatAutorizatii {
+  readonly randuri: readonly AutorizatieIscir[];
+  readonly urmatorulCursor: string | null;
+  readonly total: number;
+}
+
+type FiltrabilAutorizatii<Q> = {
+  eq: (c: string, v: string) => Q;
+  is: (c: string, v: null) => Q;
+  not: (c: string, op: string, v: null) => Q;
+  gte: (c: string, v: string) => Q;
+  gt: (c: string, v: string) => Q;
+  or: (filtre: string) => Q;
+};
+
+/**
+ * Filtrele listei ISCIR, o singură dată pentru pagină și numărare. Starea e
+ * semaforul din `stareAutorizatie` (`domain/maintenance/iscir.ts`) scris în
+ * PostgREST: termenul e cel mai apropiat dintre valabilitate și VTP, deci
+ * „expirată” = oricare dintre ele trecut, „expiră curând” = niciunul trecut și
+ * măcar unul sub prag, „valabilă” = amândouă peste prag. Rândurile înlocuite
+ * nu intră niciodată: lista e a autorizațiilor curente.
+ */
+function filtreazaAutorizatii<Q extends FiltrabilAutorizatii<Q>>(
+  q: Q,
+  organizationId: string,
+  filtre: FiltreAutorizatii,
+  azi: string,
+  pragZile: number,
+): Q {
+  const limita = new Date(`${azi}T00:00:00Z`);
+  limita.setUTCDate(limita.getUTCDate() + pragZile);
+  const lim = limita.toISOString().slice(0, 10);
+
+  let cu = q
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("inlocuita_de_id", null);
+  if (filtre.regim !== null) cu = cu.eq("regim", filtre.regim);
+  if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+  if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+
+  switch (filtre.stare) {
+    case "actiune":
+      // „min(a, b) ≤ L” ⇔ „a ≤ L sau b ≤ L” — aceeași formă ca în
+      // `numarAutorizatiiIscirScadente`, ca lista și cifra panoului să coincidă.
+      cu = cu
+        .is("suspendata_la", null)
+        .or(`valabil_pana.lte.${lim},scadenta_verificare_tehnica.lte.${lim}`);
+      break;
+    case "suspendata":
+      cu = cu.not("suspendata_la", "is", null);
+      break;
+    case "expirata":
+      cu = cu
+        .is("suspendata_la", null)
+        .or(`valabil_pana.lt.${azi},scadenta_verificare_tehnica.lt.${azi}`);
+      break;
+    case "expira_curand":
+      cu = cu
+        .is("suspendata_la", null)
+        .gte("valabil_pana", azi)
+        .or(`scadenta_verificare_tehnica.is.null,scadenta_verificare_tehnica.gte.${azi}`)
+        .or(`valabil_pana.lte.${lim},scadenta_verificare_tehnica.lte.${lim}`);
+      break;
+    case "valabila":
+      cu = cu
+        .is("suspendata_la", null)
+        .gt("valabil_pana", lim)
+        .or(`scadenta_verificare_tehnica.is.null,scadenta_verificare_tehnica.gt.${lim}`);
+      break;
+    case null:
+      break;
+  }
+  return cu;
+}
+
+/**
+ * Lista `/mentenanta/iscir`: autorizațiile curente, ce expiră primul sus
+ * (`valabil_pana`, `not null`, apoi `id`), cu cursor keyset.
+ */
+export async function listeazaAutorizatiiIscir(
+  organizationId: string,
+  filtre: FiltreAutorizatii,
+  pragZile: number = PRAG_MENTENANTA_AVERTIZARE_ZILE,
+): Promise<RezultatAutorizatii> {
+  const db = await createServerSupabase();
+  const azi = todayInBucharest();
+  const filtreaza = <Q extends FiltrabilAutorizatii<Q>>(q: Q): Q =>
+    filtreazaAutorizatii(q, organizationId, filtre, azi, pragZile);
+
+  let interogare = filtreaza(db.from("iscir_authorizations").select(COLOANE_AUTORIZATIE))
+    .order("valabil_pana", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(filtre.limita + 1);
+
+  if (filtre.cursor !== null) {
+    const c = decodificaCursor(filtre.cursor);
+    if (c !== null) interogare = interogare.or(predicatKeyset("valabil_pana", c, "asc"));
+  }
+
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<AutorizatieIscir[]>(),
+    filtreaza(db.from("iscir_authorizations").select("id", { count: "exact", head: true })),
+  ]);
+  if (rezultat.error !== null) throw rezultat.error;
+  if (numarare.error !== null) throw numarare.error;
+
+  const toate = rezultat.data ?? [];
+  const areUrmatoarea = toate.length > filtre.limita;
+  const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
+  const ultim = randuri.at(-1);
+  return {
+    randuri,
+    urmatorulCursor:
+      areUrmatoarea && ultim !== undefined
+        ? codificaCursor({ valoare: ultim.valabil_pana, id: ultim.id })
+        : null,
+    total: numarare.count ?? randuri.length,
+  };
+}
+
+/** Tipurile folosite efectiv în organizație — opțiunile filtrului „Tip” (și cele vechi, libere). */
+export async function tipuriAutorizatiiIscir(organizationId: string): Promise<readonly string[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("iscir_authorizations")
+    .select("tip")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("inlocuita_de_id", null)
+    .limit(1000)
+    .returns<{ readonly tip: string }[]>();
+  if (error !== null) throw error;
+  return [...new Set((data ?? []).map((r) => r.tip))].sort((a, b) => a.localeCompare(b, "ro"));
+}
+
+export interface StareRsvti {
+  /** Echipamentele sub incidența ISCIR, nici casate, nici șterse. */
+  readonly echipamenteIscir: number;
+  readonly rsvtiEmployeeId: string | null;
+  /** RSVTI-ul din setări există și e activ. */
+  readonly rsvtiActiv: boolean;
+}
+
+/**
+ * Alerta „RSVTI lipsă” (cazul 41): firma are echipamente ISCIR, iar în setări
+ * nu e desemnat un RSVTI activ. Fișa plecată din firmă contează ca lipsă —
+ * altfel alertele ISCIR din rezumatul zilnic (0191) pleacă în gol.
+ */
+export async function stareRsvti(organizationId: string): Promise<StareRsvti> {
+  const db = await createServerSupabase();
+  const [numarare, setari] = await Promise.all([
+    db
+      .from("equipment")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("este_iscir", true)
+      .neq("status", "casat")
+      .is("deleted_at", null),
+    setariMentenanta(organizationId),
+  ]);
+  if (numarare.error !== null) throw numarare.error;
+  const rsvti = setari.rsvti_employee_id;
+  const inactivi =
+    rsvti === null ? new Set<string>() : await angajatiInactiviDintre(organizationId, [rsvti]);
+  return {
+    echipamenteIscir: numarare.count ?? 0,
+    rsvtiEmployeeId: rsvti,
+    rsvtiActiv: rsvti !== null && !inactivi.has(rsvti),
+  };
 }
 
 /**
@@ -1980,6 +2173,7 @@ async function numarAutorizatiiIscirScadente(
 ): Promise<number> {
   const limita = new Date(`${azi}T00:00:00Z`);
   limita.setUTCDate(limita.getUTCDate() + pragZile);
+  const lim = limita.toISOString().slice(0, 10);
 
   const db = await createServerSupabase();
   const { count, error } = await db
@@ -1988,7 +2182,10 @@ async function numarAutorizatiiIscirScadente(
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .is("suspendata_la", null)
-    .lte("valabil_pana", limita.toISOString().slice(0, 10));
+    // 0193: rândul înlocuit e istoric; termenul e cel mai apropiat dintre
+    // valabilitate și VTP (`termenAutorizatie`) — „min(a, b) ≤ L” ⇔ „a ≤ L sau b ≤ L”.
+    .is("inlocuita_de_id", null)
+    .or(`valabil_pana.lte.${lim},scadenta_verificare_tehnica.lte.${lim}`);
   if (error !== null) throw error;
   return count ?? 0;
 }

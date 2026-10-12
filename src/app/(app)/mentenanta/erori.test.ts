@@ -3,6 +3,9 @@
 // `traduEroare` al modulului de mentenanță: 23505, depășirile numerice și
 // P0001 primesc mesaj propriu; restul trece neatins la traducerea generică.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { ActionDenied } from "@/lib/actions/errors";
@@ -74,6 +77,29 @@ describe("traduEroare (mentenanță)", () => {
     ],
   ])("P0001 din 0192 ajunge întreg: %s", (mesaj) => {
     expect(mesaj.length).toBeLessThanOrEqual(300);
+    expect(prinde(() => traduEroare(eroarePostgrest("P0001", mesaj)))).toMatchObject({
+      code: "CONFLICT",
+      message: mesaj,
+    });
+  });
+
+  // Mesajele P0001 din 0193 (M7, ISCIR), citite din migrare, nu copiate: un
+  // mesaj nou adăugat în gardă intră singur în probă. Fiecare încape întreg și
+  // se termină cu punct.
+  const mesaje0193 = [
+    ...readFileSync(
+      join(process.cwd(), "supabase/migrations/0193_mentenanta_iscir_conformitate.sql"),
+      "utf8",
+    ).matchAll(/errcode = 'P0001',\s*message = '((?:[^']|'')+)'/gu),
+  ].map((m) => (m[1] ?? "").replaceAll("''", "'"));
+
+  it("0193 are mesaje P0001 de verificat", () => {
+    expect(mesaje0193.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it.each(mesaje0193.map((m) => [m]))("P0001 din 0193 ajunge întreg: %s", (mesaj) => {
+    expect(mesaj.length).toBeLessThanOrEqual(300);
+    expect(mesaj.endsWith(".")).toBe(true);
     expect(prinde(() => traduEroare(eroarePostgrest("P0001", mesaj)))).toMatchObject({
       code: "CONFLICT",
       message: mesaj,
