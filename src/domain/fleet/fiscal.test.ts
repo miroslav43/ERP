@@ -27,7 +27,7 @@ import {
 } from "./fiscal";
 
 describe("nomenclatoarele", () => {
-  it("oglindesc enum-urile din 0202", () => {
+  it("oglindesc enum-urile din 0205", () => {
     expect(REGIMURI_FISCALE).toEqual([
       "limitat_50",
       "integral_exclusiv_economic",
@@ -40,9 +40,9 @@ describe("nomenclatoarele", () => {
   });
 });
 
-describe("oglinda migrării 0202", () => {
+describe("oglinda migrării 0205", () => {
   const migrare = readFileSync(
-    join(process.cwd(), "supabase/migrations/0202_flota_fiscal.sql"),
+    join(process.cwd(), "supabase/migrations/0205_flota_fiscal.sql"),
     "utf8",
   );
 
@@ -54,7 +54,7 @@ describe("oglinda migrării 0202", () => {
     const potrivire = new RegExp(`create type public\\.${nume} as enum \\(([^)]*)\\)`, "u").exec(
       faraComentarii,
     );
-    if (potrivire === null) throw new Error(`enum-ul ${nume} lipsește din 0202`);
+    if (potrivire === null) throw new Error(`enum-ul ${nume} lipsește din 0205`);
     return [...(potrivire[1] ?? "").matchAll(/'([a-z0-9_]+)'/gu)].map((m) => m[1] as string);
   }
 

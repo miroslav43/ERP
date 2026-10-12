@@ -2,7 +2,7 @@
 "use server";
 
 /**
- * Amenzile primite pe vehicul și incidentele / dauna (0203, F11).
+ * Amenzile primite pe vehicul și incidentele / dauna (0206, F11).
  *
  * Fișier separat de `actions.ts`, pe care îl scriu și fazele paralele. „use
  * server”: se exportă DOAR funcții async (capcana 39, `pnpm check:server`).

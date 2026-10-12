@@ -7,7 +7,7 @@ cai:
   - "supabase/migrations/0063_permisiuni_per_angajat.sql"
   - "supabase/migrations/0071_manager_cere_concediu.sql"
   - "supabase/migrations/0088_integrare_defecte.sql"
-  - "supabase/migrations/0196_flota_roluri.sql"
+  - "supabase/migrations/0199_flota_roluri.sql"
 tabele: [role_permissions, organization_members, employees]
 permisiuni: [attendance:approve, leave:approve, per_diem:approve, trip_sheets:approve, roles:update]
 capcane: [4, 9, 16, 18, 26, 35]
@@ -43,8 +43,8 @@ tot.
 | Resursă                         | Acțiuni, cu scope-ul lor                              |
 | ------------------------------- | ----------------------------------------------------- |
 | `attendance`, `per_diem`        | `read`, `approve` — team                              |
-| `trip_sheets`                   | `read`, `approve` team; `create`, `update` own (0196) |
-| `vehicles`                      | `read` — team, plus mașinile pool (0196)              |
+| `trip_sheets`                   | `read`, `approve` team; `create`, `update` own (0199) |
+| `vehicles`                      | `read` — team, plus mașinile pool (0199)              |
 | `leave`                         | `read`, `approve` team; `create`, `update` own (0071) |
 | `checklists`                    | `read`, `approve` team; `update` own (0088)           |
 | `tickets`                       | `read`, `update`, `approve` team; `create` own (0046) |
@@ -75,7 +75,7 @@ rolurilor.
   modifică propria deplasare — dar nu `team`. Aprobarea echipei merge totuși din `0155`:
   `WITH CHECK` din `business_trips_update` și `trip_expenses_update` are și ramura `approve`.
   — capcana #16 (rezolvată)
-- **`vehicles:*` în afară de `read = team`, și `trip_sheets:update = team`.** Din `0196`
+- **`vehicles:*` în afară de `read = team`, și `trip_sheets:update = team`.** Din `0199`
   vede mașinile echipei și pool-ul și își face propriile foi, dar foaia unui subordonat o
   poate doar aproba sau respinge (P0001 la orice altă coloană). O foaie aprobată nu se mai
   atinge. Embed-ul `vehicles!vehicle_id` pe o mașină din afara echipei îi vine tot **NULL

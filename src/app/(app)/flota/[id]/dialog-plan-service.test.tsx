@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /*
   Acțiunile sunt mimate (modul `"use server"`: trage `server-only`). Se verifică
   ce PLEACĂ din casetă și ce arată ea; verificarea în browser nu e posibilă pe
-  ramura asta, fiindcă baza din cloud n-are 0200.
+  ramura asta, fiindcă baza din cloud n-are 0203.
 */
 const creeazaPlanService = vi.fn();
 const actualizeazaPlanService = vi.fn();

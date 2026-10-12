@@ -34,7 +34,7 @@ function seCerePentru(tip: TipDocument): string {
 }
 
 /**
- * Nomenclatorul de documente al firmei (0199).
+ * Nomenclatorul de documente al firmei (0202).
  *
  * Două liste, fiindcă se schimbă diferit:
  *  · tipurile COMUNE (de platformă) — firma doar le folosește sau nu și le face

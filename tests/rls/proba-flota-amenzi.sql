@@ -1,6 +1,6 @@
 -- tests/rls/proba-flota-amenzi.sql
 --
--- FLOTA, DUPĂ 0203: AMENZILE PRIMITE PE VEHICUL, INCIDENTELE / DAUNA ȘI
+-- FLOTA, DUPĂ 0206: AMENZILE PRIMITE PE VEHICUL, INCIDENTELE / DAUNA ȘI
 -- ȘOFERUL LA UN MOMENT DAT.
 --
 -- ── CE VERIFICĂ ─────────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ declare
   v_esecuri   int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — AMENZI ȘI DAUNE" (0203)';
+  raise notice '  PROBA „FLOTA — AMENZI ȘI DAUNE" (0206)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   insert into public.organizations (id, slug, name, cui) values

@@ -8,7 +8,7 @@ import { modelFoaieParcurs, type CursaFoaie } from "@/domain/fleet/foaie";
 import { genereazaFoaieParcurs } from "./foaie-parcurs";
 
 /**
- * Ce apără fișierul: așezarea foii de parcurs (0197), nu conținutul ei —
+ * Ce apără fișierul: așezarea foii de parcurs (0200), nu conținutul ei —
  * conținutul îl fixează `src/domain/fleet/foaie.test.ts`. Pagina e în peisaj
  * (nouă coloane de cursă), iar o zi lungă de curier trece pe pagina a doua în
  * loc să iasă tăcut din pagină: `pdf-lib` desenează și sub marginea de jos, fără

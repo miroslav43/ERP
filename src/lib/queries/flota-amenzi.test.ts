@@ -1,6 +1,6 @@
 // src/lib/queries/flota-amenzi.test.ts
 //
-// Citirile amenzilor (0203, F11), pe clientul fals: filtrul „de răspuns” și
+// Citirile amenzilor (0206, F11), pe clientul fals: filtrul „de răspuns” și
 // numerele de deasupra listei trebuie să spună ACELAȘI lucru ca baza
 // (`internal.amenzi_scadenta`) și ca domeniul (`verdictTermen`): răspunsul
 // n-a plecat, adică stadiul e primită / șofer desemnat / contestată ȘI

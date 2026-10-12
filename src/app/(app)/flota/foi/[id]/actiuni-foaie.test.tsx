@@ -15,7 +15,7 @@ import type { ActionResult } from "@/lib/actions/types";
  *    inclusiv când pre-validarea de client iese sincron, fără drum la server.
  *    Formularul de trimitere avea același defect, nesemnalat de QA.
  *
- * 2. Ecranul urmează EXACT paritatea stării din 0197 §D1. Pe o foaie trimisă nu
+ * 2. Ecranul urmează EXACT paritatea stării din 0200 §D1. Pe o foaie trimisă nu
  *    mai există alimentare și nici trimitere — doar retragerea; trimiterea nu
  *    mai cere sosirea (o dau cursele), iar refuzul bazei la trimitere se arată
  *    întreg, fiindcă câmpul lui stă în caseta cursei.
@@ -354,7 +354,7 @@ describe("ActiuniFoaie — trimiterea foii", () => {
   });
 });
 
-describe("ActiuniFoaie — ce arată fiecare stare (0197 §D1)", () => {
+describe("ActiuniFoaie — ce arată fiecare stare (0200 §D1)", () => {
   it("pe foaia trimisă: doar retragerea; fără alimentare, fără trimitere", async () => {
     retrageFoaie.mockResolvedValue({ ok: true, data: { id: "f1" } });
     randeaza("trimis");

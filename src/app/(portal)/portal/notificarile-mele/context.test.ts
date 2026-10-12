@@ -1,7 +1,7 @@
 // src/app/(portal)/portal/notificarile-mele/context.test.ts
 //
 // `contexteDestinatar` pe clientul fals: cine DEȚINE entitatea din spatele
-// unei legături. Aici doar foaia de parcurs (0198); restul felurilor sunt
+// unei legături. Aici doar foaia de parcurs (0201); restul felurilor sunt
 // probate prin apelanți (`src/lib/push/coada.test.ts`).
 
 import { describe, expect, it, vi } from "vitest";
@@ -17,7 +17,7 @@ const FISA_SOFER = "9a7b6c5d-2222-4333-8444-555566667777";
 const USER_SOFER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const USER_MANAGER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-describe("contexteDestinatar — foaia de parcurs (0198)", () => {
+describe("contexteDestinatar — foaia de parcurs (0201)", () => {
   it("foaia îi aparține ȘOFERULUI ei; managerul care a primit aceeași legătură nu o deține", async () => {
     const db = clientFals();
     db.raspunde("trip_sheets", "select", { data: [{ id: FOAIE, employee_id: FISA_SOFER }] });

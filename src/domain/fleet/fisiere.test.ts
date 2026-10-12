@@ -15,7 +15,7 @@ const VEH = "22222222-2222-4222-8222-222222222222";
 const ALT = "33333333-3333-4333-8333-333333333333";
 
 describe("fișierele flotei", () => {
-  it("bucketul e cel creat de 0199", () => {
+  it("bucketul e cel creat de 0202", () => {
     expect(BUCKET_FLOTA).toBe("org-flota");
   });
 

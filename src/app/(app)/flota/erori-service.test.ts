@@ -1,6 +1,6 @@
 // src/app/(app)/flota/erori-service.test.ts
 //
-// Traducerea erorilor de service (0200): mesajele P0001 ale triggerelor ajung pe
+// Traducerea erorilor de service (0203): mesajele P0001 ale triggerelor ajung pe
 // câmpul vinovat, CHECK-urile și unicitatea la fel, iar „Vehiculul ales…” rămâne
 // mesaj general (în casete vehiculul e câmp ascuns). Mesajele sunt CITATE din
 // migrare, ca o rescriere a textului din bază să rupă testul, nu traducerea.
@@ -16,7 +16,7 @@ import { eroarePostgrest } from "@/lib/teste/supabase-fals";
 import { traduEroareService } from "./erori";
 
 const migrare = readFileSync(
-  join(process.cwd(), "supabase/migrations/0200_flota_service_costuri.sql"),
+  join(process.cwd(), "supabase/migrations/0203_flota_service_costuri.sql"),
   "utf8",
 );
 
@@ -33,11 +33,11 @@ function prinde(error: unknown): ActionDenied {
 /** Mesajul P0001 așa cum e scris în migrare. */
 function mesajDinMigrare(prefix: string): string {
   const m = new RegExp(`message = '(${prefix}[^']*)'`, "u").exec(migrare);
-  if (m === null) throw new Error(`Mesajul „${prefix}…” nu e în migrarea 0200.`);
+  if (m === null) throw new Error(`Mesajul „${prefix}…” nu e în migrarea 0203.`);
   return m[1] as string;
 }
 
-describe("traduEroareService — P0001 din triggerele 0200", () => {
+describe("traduEroareService — P0001 din triggerele 0203", () => {
   it.each([
     ["Data ultimei intervenții", "baza_data"],
     ["Planul ales nu aparține", "plan_id"],

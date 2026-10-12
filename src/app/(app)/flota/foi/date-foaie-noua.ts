@@ -35,7 +35,7 @@ import type { DateFoaieNoua } from "./dialog-foaie-noua";
  * `ales`: cu `trip_sheets:create = all`, administratorul alege din toți
  * angajații activi, pe orice vehicul din parc.
  *
- * `propriu` (0196): sub `all`, șoferul e cel conectat, iar baza primește foaia
+ * `propriu` (0199): sub `all`, șoferul e cel conectat, iar baza primește foaia
  * doar pe mașina alocată lui sau pe una din pool
  * (`internal.foi_parcurs_inainte` §C1). Caseta oferă exact mulțimea asta, nu
  * tot ce poate CITI rolul: un manager vede și mașinile echipei, dar o foaie pe
@@ -100,7 +100,7 @@ export async function dateFoaieNoua(
       nr_inmatriculare: v.nr_inmatriculare,
       km_curent: v.km_curent,
     })),
-    // Flota F9 (0201): verificările de azi (permis, aviz, concediu) lângă nume.
+    // Flota F9 (0204): verificările de azi (permis, aviz, concediu) lângă nume.
     angajati: await cuAvertismente(
       organizationId,
       angajati.data.map((a) => ({ id: a.id, full_name: a.full_name, marca: a.marca })),

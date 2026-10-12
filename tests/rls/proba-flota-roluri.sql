@@ -1,6 +1,6 @@
 -- tests/rls/proba-flota-roluri.sql
 --
--- FLOTA, DUPĂ 0196: DREPTURILE PE ROLURI, PE SEED-UL REAL.
+-- FLOTA, DUPĂ 0199: DREPTURILE PE ROLURI, PE SEED-UL REAL.
 --
 -- ── DE CE PE SEED, NU PE RÂNDURI DE FIRMĂ ───────────────────────────────────
 -- `proba-flota-integritate.sql` (0171) pune scope-uri pe ORGANIZAȚIE, ca să
@@ -30,11 +30,11 @@
 --  (16) nu vede nicio foaie și niciun vehicul și nu întocmește foi;
 -- org_admin:
 --  (17) întocmește o foaie pentru oricine, pe orice vehicul activ  [POZITIVĂ];
--- Storage (`app.can_path`, rescrisă de 0196):
+-- Storage (`app.can_path`, rescrisă de 0199):
 --  (18) managerul citește calea foilor subordonatului, nu și a unui străin de echipă;
 --  (19) angajatul citește calea mașinii lui și a pool-ului, nu a mașinii colegului;
 --  (20) managerul citește calea mașinii subordonatului, nu și a mașinii fără șofer.
--- Revizia de securitate (0196, înainte de aplicare):
+-- Revizia de securitate (0199, înainte de aplicare):
 --  (21) managerul NU își mută foaia trimisă pe subordonat aprobând-o în același UPDATE (P0001);
 --  (22) nici în doi pași: mutarea ciornei proprii pe subordonat e refuzată (P0001);
 --  (23) managerul NU aprobă o foaie întocmită de el, chiar dacă e pe subordonat (P0001);
@@ -97,7 +97,7 @@ declare
   v_esecuri   int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — ROLURI" (0196)';
+  raise notice '  PROBA „FLOTA — ROLURI" (0199)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   insert into public.organizations (id, slug, name, cui) values
@@ -144,7 +144,7 @@ begin
     (v_org, v_v_b, v_e_b,   now() - interval '10 days', v_u_admin, v_u_admin),
     (v_org, v_v_m, v_e_mgr, now() - interval '10 days', v_u_admin, v_u_admin);
 
-  -- Din 0197 un vehicul are o singură foaie activă pe zi: foile de pe același
+  -- Din 0200 un vehicul are o singură foaie activă pe zi: foile de pe același
   -- vehicul (mai ales pool-ul) stau pe zile diferite, la distanță de o zi.
   -- Foile lui Bogdan, scrise de el (context de serviciu): o ciornă și una trimisă.
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
@@ -635,7 +635,7 @@ begin
   -- ═══ Foaia APROBATĂ, după ce șoferul a primit update = own (santinela) ═══
   --
   -- Foaia Anei (v_foaie_a) a fost aprobată la (12) și are alimentarea de la (2).
-  -- Înainte de 0196, nici angajatul, nici managerul n-aveau `trip_sheets:update`,
+  -- Înainte de 0199, nici angajatul, nici managerul n-aveau `trip_sheets:update`,
   -- deci gărzile foii aprobate le atingea doar administratorul.
 
   -- (25) șoferul nu-și rescrie foaia aprobată: traseu, scop, semnătura aprobării

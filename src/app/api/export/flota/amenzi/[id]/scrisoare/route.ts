@@ -1,6 +1,6 @@
 // src/app/api/export/flota/amenzi/[id]/scrisoare/route.ts
 //
-// Scrisoarea de răspuns către autoritate (0203): firma comunică cine conducea
+// Scrisoarea de răspuns către autoritate (0206): firma comunică cine conducea
 // vehiculul, cu datele cerute de OUG 195/2002 art. 39 alin. (2) — nume, CNP,
 // domiciliu sau reședință, act de identitate.
 //

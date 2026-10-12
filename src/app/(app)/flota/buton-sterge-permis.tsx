@@ -12,7 +12,7 @@ import { arataToast } from "@/components/ui/toast";
 import { stergePermis } from "./actions-soferi";
 
 /**
- * Scoaterea permisului de pe fișă (0201). Ștergerea e logică: scadența iese
+ * Scoaterea permisului de pe fișă (0204). Ștergerea e logică: scadența iese
  * din lista de conformitate, iar locul se eliberează pentru un permis nou.
  * Pentru un permis REÎNNOIT nu se șterge nimic — se modifică cel existent.
  */

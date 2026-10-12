@@ -108,7 +108,7 @@ const ENTITATI: Readonly<Record<string, string>> = {
   vehicle: "Vehicul",
   trip_sheets: "Foaie de parcurs",
   trip_sheet: "Foaie de parcurs",
-  // 0200: service, costuri, anvelope. Rândul de audit poartă id-ul planului,
+  // 0203: service, costuri, anvelope. Rândul de audit poartă id-ul planului,
   // intervenției sau cheltuielii, nu al vehiculului, deci nu au rută proprie.
   vehicle_service_plans: "Plan de service",
   vehicle_service_plan: "Plan de service",
@@ -137,10 +137,10 @@ const ENTITATI: Readonly<Record<string, string>> = {
   announcement: "Anunț",
   business_trips: "Deplasare",
   business_trip: "Deplasare",
-  // 0201 (flota F9): tabela și literalul acțiunilor din `actions-soferi.ts`.
+  // 0204 (flota F9): tabela și literalul acțiunilor din `actions-soferi.ts`.
   driver_licenses: "Permis de conducere",
   driver_license: "Permis de conducere",
-  // 0203 (flota F11): tabelele și literalele acțiunilor din `actions-amenzi.ts`.
+  // 0206 (flota F11): tabelele și literalele acțiunilor din `actions-amenzi.ts`.
   vehicle_fines: "Amendă pe vehicul",
   vehicle_fine: "Amendă pe vehicul",
   vehicle_incidents: "Incident / daună",

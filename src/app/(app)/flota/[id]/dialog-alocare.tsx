@@ -26,7 +26,7 @@ interface Proprietati {
   readonly kmCurent: number;
   readonly soferCurent: string | null;
   /**
-   * `avertisment` (flota F9, 0201): eticheta scurtă a verificărilor șoferului
+   * `avertisment` (flota F9, 0204): eticheta scurtă a verificărilor șoferului
    * („permis expirat, aviz lipsă”), lângă nume. Nu-l scoate din listă.
    */
   readonly angajati: readonly (OptiuneAngajat & Readonly<{ avertisment?: string | null }>)[];

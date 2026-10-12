@@ -1,5 +1,5 @@
 // src/lib/pdf/foaie-parcurs.ts
-// Foaia de parcurs zilnică, în PDF (0197).
+// Foaia de parcurs zilnică, în PDF (0200).
 //
 // CE se scrie pe document decide `modelFoaieParcurs` din
 // `src/domain/fleet/foaie.ts` — funcție pură, cu teste, cu temeiul legal în

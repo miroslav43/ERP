@@ -16,7 +16,7 @@ import {
 import { actualizeazaCursa, adaugaCursa } from "../../actions-curse";
 
 /**
- * Cursa nouă sau corectura uneia, pe ciorna foii zilnice (0197).
+ * Cursa nouă sau corectura uneia, pe ciorna foii zilnice (0200).
  *
  * Regulile pe care baza le refuză oricum (ziua foii, ordinea, kilometrajul
  * monoton, „doar ultima cursă poate rămâne deschisă”) nu se repetă aici: vin ca

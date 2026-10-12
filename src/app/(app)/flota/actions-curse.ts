@@ -2,7 +2,7 @@
 "use server";
 
 /**
- * Cursele foii zilnice (0197). Șabloanele de traseu stau în `actions-sabloane.ts`.
+ * Cursele foii zilnice (0200). Șabloanele de traseu stau în `actions-sabloane.ts`.
  *
  * Fișier separat de `actions.ts`, care trecuse de 900 de rânduri. „use server”:
  * se exportă DOAR funcții async (capcana 39, `pnpm check:server`), deci căile

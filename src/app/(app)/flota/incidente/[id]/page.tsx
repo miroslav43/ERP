@@ -44,7 +44,7 @@ interface ProprietatiPagina {
 const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Fișa unui incident (0203): faptele, costurile, legătura cu cercetarea SSM
+ * Fișa unui incident (0206): faptele, costurile, legătura cu cercetarea SSM
  * (doar pentru cine o poate citi) și stadiul. Poarta e `vehicle_incidents:read
  * = all`. Un incident închis e înghețat: nu mai are butoane de scriere.
  */

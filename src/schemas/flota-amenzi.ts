@@ -1,5 +1,5 @@
 // src/schemas/flota-amenzi.ts
-// Validările de intrare pentru amenzile și incidentele flotei (0203, F11).
+// Validările de intrare pentru amenzile și incidentele flotei (0206, F11).
 //
 // Fișier separat de `fleet.ts`, pe care îl scriu și fazele paralele ale
 // flotei. Regulile de formă le repetă pe cele ale bazei (CHECK-urile `vf_*` și

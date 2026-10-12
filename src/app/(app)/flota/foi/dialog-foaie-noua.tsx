@@ -24,7 +24,7 @@ interface AngajatOptiune {
   readonly id: string;
   readonly full_name: string | null;
   readonly marca: string;
-  /** Flota F9 (0201): „permis expirat, aviz lipsă”, lângă nume. Nu blochează. */
+  /** Flota F9 (0204): „permis expirat, aviz lipsă”, lângă nume. Nu blochează. */
   readonly avertisment?: string | null;
 }
 
@@ -32,7 +32,7 @@ interface AngajatOptiune {
 export interface DateFoaieNoua {
   readonly vehicule: readonly VehiculOptiune[];
   /**
-   * `null` = șoferul e chiar cel conectat (0196): sub `trip_sheets:create =
+   * `null` = șoferul e chiar cel conectat (0199): sub `trip_sheets:create =
    * all`, `creeazaFoaie` rezolvă fișa proprie pe server, deci selectorul nici
    * nu se randează. O listă goală ar fi însemnat altceva — „firma n-are
    * angajați activi” — și ar fi blocat formularul.

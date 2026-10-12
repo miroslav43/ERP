@@ -11,7 +11,7 @@ aliases:
     cost pe km,
   ]
 cai:
-  - "supabase/migrations/0200_flota_service_costuri.sql"
+  - "supabase/migrations/0203_flota_service_costuri.sql"
   - "src/app/(app)/flota/actions-service.ts"
   - "src/app/(app)/flota/etichete-service.ts"
   - "src/app/(app)/flota/[id]/fila-service.tsx"
@@ -35,7 +35,7 @@ tags: [modul, operations]
 
 # Flotă — service, costuri, anvelope
 
-Extrasă din `[[modul/flota]]`. Migrarea: `0200_flota_service_costuri.sql` (planul o numea
+Extrasă din `[[modul/flota]]`. Migrarea: `0203_flota_service_costuri.sql` (planul o numea
 0177; numerele intermediare s-au ocupat). Tabelele sunt PROPRII flotei, nu
 `equipment.vehicle_id`: flota merge cu mentenanța oprită, iar utilajele n-au kilometri
 de bord.
@@ -98,7 +98,7 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   Textele din ecrane și din marketing spun exact asta. — capcanele #19, #26
 - **`app.poate_vedea_expirabil` a fost rescrisă COMPLET** (nu doar completată) și acum
   conține și `vehicle_service`. O migrare viitoare care adaugă un `entity_type` pornește
-  de la forma din 0200, NU de la `0011`: funcția e un `case`, iar o copie veche pierde
+  de la forma din 0203, NU de la `0011`: funcția e un `case`, iar o copie veche pierde
   tăcut ramurile celorlalte module (cele noi ajung pe `else false`, deci invizibile).
   Proba (13) numără ramurile și o prinde. Garda din 0023 (nicio ramură nu acceptă
   `employees:read` cu scope `own`) trece.
@@ -115,8 +115,8 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   precizează; ștearsă ultima, câștigă cea dinainte, iar fără niciuna vehiculul își
   păstrează valoarea. `anvelope_montate` pe altă intervenție decât „anvelope” dă 23514
   (`vse_anvelope_ck`), spus pe câmp.
-- **Tipul de document `revizie` e retras pe platformă** (0200); documentele deja scrise
-  pe el rămân și se corectează; o firmă îl reactivează din setările de tipuri (0199).
+- **Tipul de document `revizie` e retras pe platformă** (0203); documentele deja scrise
+  pe el rămân și se corectează; o firmă îl reactivează din setările de tipuri (0202).
 
 ## Costuri
 
@@ -169,5 +169,5 @@ pentru contabil: `[[modul/flota/rapoarte]]`. Costul documentelor se scrie la doc
 
 ## Când NU e suficientă pagina asta
 
-Forma politicilor și a trigger-elor: migrarea 0200. Probele:
+Forma politicilor și a trigger-elor: migrarea 0203. Probele:
 `tests/rls/proba-flota-service.sql` și continuarea (l) din `tests/rls/izolare.sql`.

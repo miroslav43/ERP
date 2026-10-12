@@ -28,7 +28,7 @@ import { DialogPlanService } from "./dialog-plan-service";
 const fmtKm = (n: number): string => n.toLocaleString("ro-RO");
 
 /**
- * Fila „Service” a fișei vehiculului (0200): planurile cu scadența lor și
+ * Fila „Service” a fișei vehiculului (0203): planurile cu scadența lor și
  * intervențiile făcute.
  *
  * Citirea nu are filtre de scope: `vsp_select` / `vse_select` cer

@@ -1,5 +1,5 @@
 // src/lib/queries/flota-fiscal.ts
-// Citirile pentru fiscalul flotei (0202, F10): perioadele de regim fiscal și
+// Citirile pentru fiscalul flotei (0205, F10): perioadele de regim fiscal și
 // de normă ale unui vehicul, luna fiscală a parcului, regimul de impozitare al
 // firmei și faptele sugestiei de avantaj în natură.
 //

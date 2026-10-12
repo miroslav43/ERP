@@ -1,10 +1,10 @@
 // src/app/(app)/flota/actions-fiscal.test.ts
 //
-// Fiscalul flotei (0202, F10), pe clientul fals: regimul fiscal al vehiculului,
+// Fiscalul flotei (0205, F10), pe clientul fals: regimul fiscal al vehiculului,
 // norma proprie de consum și regimul de impozitare al firmei. Clientul fals
 // prinde filtrul de organizație lipsă, `.select()` uitat și ramurile greșite;
 // NU prinde o politică RLS greșită — aceea e în
-// `tests/rls/proba-flota-fiscal.sql` și în `izolare.sql` (l), blocul 0202.
+// `tests/rls/proba-flota-fiscal.sql` și în `izolare.sql` (l), blocul 0205.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

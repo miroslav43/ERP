@@ -1,6 +1,6 @@
 -- tests/rls/proba-flota-foaia-zilnica.sql
 --
--- FLOTA, DUPĂ 0197: FOAIA ZILNICĂ CU CURSE, NUMEROTAREA, UNICITATEA PE ZI,
+-- FLOTA, DUPĂ 0200: FOAIA ZILNICĂ CU CURSE, NUMEROTAREA, UNICITATEA PE ZI,
 -- SUPRAPUNERILE ȘI ȘABLOANELE DE TRASEU. Pe seed-ul real al rolurilor.
 --
 -- ── CE VERIFICĂ ─────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@
 --  (7) kilometrajul antetului scris direct, pe o foaie cu curse: P0001;
 --  (8) trimiterea cu o cursă neîncheiată: P0001;
 --  (9) trimiterea primește numărul FP-AAAA-NNNNN și instantaneul vehiculului [POZITIVĂ];
--- Paritatea stării (0197 §D1) pe curse:
+-- Paritatea stării (0200 §D1) pe curse:
 --  (10) pe foaia trimisă: cursa NU se adaugă, NU se modifică, NU se șterge (P0001);
 --  (11) retragerea în ciornă păstrează numărul                     [POZITIVĂ];
 --  (12) ștergerea logică a ultimei curse recalculează antetul      [POZITIVĂ];
@@ -76,7 +76,7 @@ declare
   v_esecuri  int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — FOAIA ZILNICĂ" (0197)';
+  raise notice '  PROBA „FLOTA — FOAIA ZILNICĂ" (0200)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   insert into public.organizations (id, slug, name, cui) values

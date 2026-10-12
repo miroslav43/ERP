@@ -43,7 +43,7 @@ describe("pragurileDinText", () => {
 
 describe("implicitele flotei sunt cele din bază", () => {
   const migrare = readFileSync(
-    join(process.cwd(), "supabase/migrations/0198_flota_conformitate_zilnica.sql"),
+    join(process.cwd(), "supabase/migrations/0201_flota_conformitate_zilnica.sql"),
     "utf8",
   );
   const flota = readFileSync(join(process.cwd(), "supabase/migrations/0012_fleet.sql"), "utf8");

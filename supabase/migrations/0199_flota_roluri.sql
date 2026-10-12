@@ -1,4 +1,4 @@
--- supabase/migrations/0196_flota_roluri.sql
+-- supabase/migrations/0199_flota_roluri.sql
 --
 -- FLOTA, FAZA F3: DREPTURI PE ROLURI ȘI „MAȘINA MEA” ÎN PORTAL.
 --
@@ -206,7 +206,7 @@ as $$
 $$;
 
 comment on function app.poate_vedea_vehicul(uuid, uuid, boolean) is
-  'Vizibilitatea unui vehicul după scope-ul vehicles:read al apelantului: all = tot; team = pool, al meu sau al echipei; own = pool sau al meu (0196).';
+  'Vizibilitatea unui vehicul după scope-ul vehicles:read al apelantului: all = tot; team = pool, al meu sau al echipei; own = pool sau al meu (0199).';
 
 create or replace function app.poate_vedea_vehicul_dupa_id(p_organization_id uuid, p_vehicle_id uuid)
 returns boolean
@@ -224,7 +224,7 @@ as $$
 $$;
 
 comment on function app.poate_vedea_vehicul_dupa_id(uuid, uuid) is
-  'Ca app.poate_vedea_vehicul(org, șofer, pool), citit după id-ul vehiculului — pentru tabelele copil (documente, anomalii). O singură căutare pe vehicul (0196).';
+  'Ca app.poate_vedea_vehicul(org, șofer, pool), citit după id-ul vehiculului — pentru tabelele copil (documente, anomalii). O singură căutare pe vehicul (0199).';
 
 revoke all on function app.poate_vedea_vehicul(uuid, uuid, boolean) from public, anon;
 revoke all on function app.poate_vedea_vehicul_dupa_id(uuid, uuid) from public, anon;
@@ -258,7 +258,7 @@ create policy vdoc_select on public.vehicle_documents
   );
 
 -- Anomaliile: vehiculul fără ramura de pool (exact vizibilitatea dinainte de
--- 0196) SAU foaia pe care s-a produs anomalia. Pe un pool, șoferul își vede
+-- 0199) SAU foaia pe care s-a produs anomalia. Pe un pool, șoferul își vede
 -- anomalia de pe foaia proprie, nu și pe ale colegilor.
 drop policy if exists anomalii_select on public.odometer_anomalies;
 create policy anomalii_select on public.odometer_anomalies
@@ -295,10 +295,10 @@ declare
   -- trigger BEFORE, nu e cea finală, deci nu intră în comparație.
   c_decizie constant text[] := array['status', 'motiv_respingere', 'aprobat_de', 'aprobat_la',
                                      'updated_at', 'updated_by', 'km_parcursi'];
-  -- 0196 §C4: singurele coloane care se mișcă pe o foaie aprobată, la stornare.
+  -- 0199 §C4: singurele coloane care se mișcă pe o foaie aprobată, la stornare.
   c_stornare constant text[] := array['deleted_at', 'updated_at', 'updated_by', 'km_parcursi'];
 begin
-  -- 0196 §C4: semnăturile foii sunt ale BAZEI, nu ale payload-ului. Autorul nu
+  -- 0199 §C4: semnăturile foii sunt ale BAZEI, nu ale payload-ului. Autorul nu
   -- se rescrie niciodată, iar `trimis_la`/`aprobat_de`/`aprobat_la` se pun doar
   -- în blocul de tranziție de mai jos, din sesiune. Fără asta, pe un UPDATE care
   -- lasă starea neschimbată, șoferul își muta semnătura aprobării pe alt om.
@@ -309,7 +309,7 @@ begin
     new.aprobat_la := old.aprobat_la;
   end if;
 
-  -- 0196 §C2: aprobatorul care NU poate scrie foaia pe dreptul de scriere a
+  -- 0199 §C2: aprobatorul care NU poate scrie foaia pe dreptul de scriere a
   -- ajuns aici doar prin ramura de aprobare a lui `foi_update`. Atunci poate
   -- decide, atât.
   if tg_op = 'UPDATE'
@@ -322,7 +322,7 @@ begin
     end if;
   end if;
 
-  -- 0196 §C3: C2 judecă foaia VECHE. Mutarea foii pe alt șofer cere dreptul
+  -- 0199 §C3: C2 judecă foaia VECHE. Mutarea foii pe alt șofer cere dreptul
   -- de scriere și pe șoferul NOU, altfel foaia proprie trimisă devenea, într-un
   -- singur UPDATE, foaia aprobată a unui subordonat.
   if tg_op = 'UPDATE'
@@ -351,7 +351,7 @@ begin
       message = 'Vehiculul este ieşit din parc (vândut sau casat). Nu se mai pot întocmi foi de parcurs pentru el.';
   end if;
 
-  -- 0196 §C1: cine nu întocmește pe orice vehicul întocmește pe pool sau pe
+  -- 0199 §C1: cine nu întocmește pe orice vehicul întocmește pe pool sau pe
   -- mașina alocată șoferului foii în ziua plecării. La INSERT contează
   -- `create`, la UPDATE (doar când se mută vehiculul, șoferul sau plecarea)
   -- contează `update`.
@@ -380,9 +380,9 @@ begin
     end if;
   end if;
 
-  -- 0196 §C4: foaia APROBATĂ e document justificativ pentru combustibilul
+  -- 0199 §C4: foaia APROBATĂ e document justificativ pentru combustibilul
   -- dedus. Gărzile de mai jos au fost scrise când doar administratorul
-  -- (`update = all`) ajungea la ea; din 0196, șoferul și managerul au
+  -- (`update = all`) ajungea la ea; din 0199, șoferul și managerul au
   -- `update = own` pe foile lor. Cine nu are `update = all` nu mai atinge
   -- nimic pe o foaie aprobată: nici textul, nici ștergerea logică, nici
   -- reînvierea uneia stornate.
@@ -400,7 +400,7 @@ begin
       message = 'Foaia de parcurs este aprobată. Pentru corecţii, stornaţi-o şi întocmiţi una nouă.';
   end if;
 
-  -- 0196 §C4, și pentru `update = all`: pe foaia aprobată se mișcă doar
+  -- 0199 §C4, și pentru `update = all`: pe foaia aprobată se mișcă doar
   -- ștergerea logică (stornarea, sau anularea ei). Traseul, scopul, motivul și
   -- observațiile țin de document la fel ca cifrele de mai sus.
   if tg_op = 'UPDATE' and old.status = 'aprobat' and not app.is_service_context()
@@ -409,7 +409,7 @@ begin
       message = 'Foaia de parcurs aprobată se poate doar storna. Pentru corecții, stornați-o și întocmiți una nouă.';
   end if;
 
-  -- 0196 §C5 (revizia F3): foaia TRIMISĂ așteaptă decizia pe cifrele cu care a
+  -- 0199 §C5 (revizia F3): foaia TRIMISĂ așteaptă decizia pe cifrele cu care a
   -- plecat. Regresul de kilometraj se verifică mai jos doar la întocmire și la
   -- draft → trimis; fără garda asta, șoferul cu `update = own` cobora
   -- kilometrajul de plecare sau umfla sosirea pe foaia deja trimisă, iar
@@ -491,7 +491,7 @@ begin
           raise exception using errcode = 'P0001',
             message = 'Nu vă puteţi aproba singur propria foaie de parcurs.';
         end if;
-        -- 0196 §C3, apărare în adâncime: nici foaia întocmită de cel care
+        -- 0199 §C3, apărare în adâncime: nici foaia întocmită de cel care
         -- aprobă, oricare ar fi șoferul ei.
         if old.created_by = (select auth.uid())
            and app.has_permission(new.organization_id, 'trip_sheets', 'approve') <> 'all' then
@@ -524,7 +524,7 @@ revoke all on function internal.foi_parcurs_inainte() from public, anon, authent
 --
 -- Forma ultimă e 0018 (grep pe toate migrările: 0171 a schimbat doar
 -- politicile). Scutirea din 0018, „ștergerea logică trece și pe o foaie
--- aprobată”, era scrisă pentru administrator. Din 0196, șoferul are
+-- aprobată”, era scrisă pentru administrator. Din 0199, șoferul are
 -- `trip_sheets:update = own`, deci `alimentari_update` (0171) îl lasă pe
 -- alimentările foii lui — inclusiv pe cele ale foii APROBATE. Garda judecă
 -- foaia VECHE (de pe care pleacă alimentarea), fiindcă foaia nouă poate fi o
@@ -544,7 +544,7 @@ begin
       message = 'Cantitatea de combustibil alimentată trebuie să fie mai mare decât zero.';
   end if;
 
-  -- 0196 §C4: alimentarea unei foi aprobate nu se mai atinge, nici ștearsă,
+  -- 0199 §C4: alimentarea unei foi aprobate nu se mai atinge, nici ștearsă,
   -- nici mutată; iar una nu se mută între foi deloc (s-ar scoate de pe un
   -- document și s-ar pune pe altul, fără urmă în niciunul).
   if tg_op = 'UPDATE' and not app.is_service_context() then
@@ -695,7 +695,7 @@ begin
         and rp.organization_id is null and rp.member_id is null and rp.deleted_at is null
    );
   if v_lipsa is not null then
-    raise exception '0196: seed incomplet — lipsesc: %', v_lipsa;
+    raise exception '0199: seed incomplet — lipsesc: %', v_lipsa;
   end if;
 
   if exists (
@@ -704,7 +704,7 @@ begin
        and rp.organization_id is null and rp.member_id is null and rp.deleted_at is null
        and rp.scope <> 'none'
   ) then
-    raise exception '0196: hr are un drept global pe flotă; decizia 3 din plan spune că nu.';
+    raise exception '0199: hr are un drept global pe flotă; decizia 3 din plan spune că nu.';
   end if;
 end
 $$;

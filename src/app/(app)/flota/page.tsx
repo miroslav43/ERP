@@ -135,11 +135,11 @@ async function TabelVehicule({
    * Vechiul calcul lua prima dată de expirare dintre documentele EXISTENTE ale
    * vehiculului, iar un vehicul fără RCA deloc ieșea „În regulă”. Acum se
    * pornește de la nomenclator, în `semaforVehicul` (`@/domain/fleet/scadente`),
-   * aceeași funcție pe care o folosește portalul („Mașina mea”, 0196) — două
+   * aceeași funcție pe care o folosește portalul („Mașina mea”, 0199) — două
    * copii ale calculului ar fi arătat șoferului verde unde administratorul
    * vede roșu.
    *
-   * Obligatoriile sunt ale VEHICULULUI (0199): o remorcă nu cere trusă, un
+   * Obligatoriile sunt ale VEHICULULUI (0202): o remorcă nu cere trusă, un
    * camion de 12 t nu cere rovinietă, iar firma își activează sau retrage
    * tipurile (`tipuriObligatoriiPentru`, peste valorile efective ale firmei).
    */

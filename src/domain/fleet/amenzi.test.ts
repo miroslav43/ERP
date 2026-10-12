@@ -28,7 +28,7 @@ import {
 } from "./amenzi";
 
 describe("tranzițiile amenzii", () => {
-  it("oglindesc matricea din internal.amenzi_inainte (0203)", () => {
+  it("oglindesc matricea din internal.amenzi_inainte (0206)", () => {
     // Matricea de mai jos e COPIATĂ din corpul triggerului, nu din domeniu: dacă
     // una dintre ele se mișcă singură, testul pică.
     const dinTrigger: Readonly<Record<string, readonly string[]>> = {
@@ -44,9 +44,9 @@ describe("tranzițiile amenzii", () => {
     }
   });
 
-  it("migrarea 0203 are aceleași tranziții ca domeniul", () => {
+  it("migrarea 0206 are aceleași tranziții ca domeniul", () => {
     const sql = readFileSync(
-      join(process.cwd(), "supabase/migrations/0203_flota_amenzi_daune.sql"),
+      join(process.cwd(), "supabase/migrations/0206_flota_amenzi_daune.sql"),
       "utf8",
     );
     for (const din of STADII_AMENDA) {

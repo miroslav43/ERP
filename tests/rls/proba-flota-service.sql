@@ -1,6 +1,6 @@
 -- tests/rls/proba-flota-service.sql
 --
--- FLOTA, DUPĂ 0200: SERVICE, COSTURI, ANVELOPE. Pe seed-ul real al rolurilor.
+-- FLOTA, DUPĂ 0203: SERVICE, COSTURI, ANVELOPE. Pe seed-ul real al rolurilor.
 --
 -- ── DE CE EXISTĂ FIȘIERUL ───────────────────────────────────────────────────
 -- Trei lucruri nu se văd din aplicație și se află doar rulând (memoria „Sonda
@@ -147,7 +147,7 @@ declare
   v_tip      text;
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — SERVICE, COSTURI, ANVELOPE" (0200)';
+  raise notice '  PROBA „FLOTA — SERVICE, COSTURI, ANVELOPE" (0203)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   insert into public.organizations (id, slug, name, cui) values

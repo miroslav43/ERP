@@ -228,7 +228,7 @@ describe("documentele vehiculelor", () => {
     );
   });
 
-  it("tipurile de document: platforma ȘI ale firmei, explicit, cu setarea firmei aplicată (0199)", async () => {
+  it("tipurile de document: platforma ȘI ale firmei, explicit, cu setarea firmei aplicată (0202)", async () => {
     const tip = (id: string, cod: string, activ: boolean, org: string | null = null) => ({
       id,
       organization_id: org,
@@ -497,7 +497,7 @@ describe("rezolvarea id-urilor", () => {
   });
 });
 
-// ═══ ÎNCEPUT BLOC: pragul de salt al unui vehicul (0198, revizuire) ═══════════
+// ═══ ÎNCEPUT BLOC: pragul de salt al unui vehicul (0201, revizuire) ═══════════
 describe("pragSaltVehicul", () => {
   it("cheamă funcția îngustă cu id-ul vehiculului și întoarce numărul", async () => {
     db.raspundeRpc("flota_prag_salt_km", { data: 900 });

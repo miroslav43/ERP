@@ -432,7 +432,7 @@ export const FISE: readonly FisaModul[] = [
         angajat: null,
       },
       // ── sfârșit bloc: exportul flotei (F8) ──
-      // ── ÎNCEPUT BLOC: permisele șoferilor (0201, F9) ──
+      // ── ÎNCEPUT BLOC: permisele șoferilor (0204, F9) ──
       {
         ce: "Vede permisele de conducere",
         cheie: "driver_licenses:read",

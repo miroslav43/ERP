@@ -53,7 +53,7 @@ function etichetaSofer(s: OptiuneSofer): string {
 }
 
 /**
- * Raportarea sau corectura unui incident / a unei daune (0203). Cheile trimise
+ * Raportarea sau corectura unui incident / a unei daune (0206). Cheile trimise
  * sunt EXACT cele din `incidentNouSchema` / `actualizeazaIncidentSchema`.
  * Stadiul NU se schimbă de aici: are caseta lui (`DialogStadiuIncident`).
  */

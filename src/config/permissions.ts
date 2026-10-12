@@ -100,7 +100,7 @@ export const PERMISSION_KEYS = [
   "departments:create",
   "departments:update",
   "departments:delete",
-  // ── ÎNCEPUT BLOC: permisele șoferilor (0201, flota F9) ──
+  // ── ÎNCEPUT BLOC: permisele șoferilor (0204, flota F9) ──
   // Cheie proprie, nu `vehicles:*`: decizia 3 a planului flotei dă HR-ului
   // permisele și avizele șoferilor, NU parcul. Fără `delete` — ștergerea e
   // logică, prin `update`, iar o cheie citită de nicio politică ar fi decor.
@@ -237,7 +237,7 @@ export const PERMISSION_KEYS = [
   // jumătate din cifre, fără nicio eroare.
   "vehicles:export",
   // ── sfârșit bloc: exportul flotei (F8) ──
-  // ── ÎNCEPUT BLOC: amenzi și daune (0203, flota F11) ──
+  // ── ÎNCEPUT BLOC: amenzi și daune (0206, flota F11) ──
   // Chei proprii, nu `vehicles:*`: amenzile și incidentele le văd doar cei care
   // le administrează (`org_admin`); o firmă care vrea ca HR să le ducă îi
   // acordă cheile printr-o suprascriere. Fără `delete` — ștergerea e logică,

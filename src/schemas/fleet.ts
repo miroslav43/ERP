@@ -54,7 +54,7 @@ export const COMBUSTIBILI = [
 ] as const;
 export type Combustibil = (typeof COMBUSTIBILI)[number];
 
-/** Anvelopele montate pe vehicul (0200, `vehicle_tire_set`). */
+/** Anvelopele montate pe vehicul (0203, `vehicle_tire_set`). */
 export const ANVELOPE_MONTATE = ["vara", "iarna", "all_season"] as const;
 export type AnvelopeMontate = (typeof ANVELOPE_MONTATE)[number];
 
@@ -114,7 +114,7 @@ export const filtreFoiSchema = z.object({
    * pe `employee_id` cerut de F4; numele scurt din URL rămâne cel de până acum.
    */
   sofer: optional(z.uuid()),
-  /** Intervalul de ZILE (0197, `trip_sheets.data`), inclusiv capetele. */
+  /** Intervalul de ZILE (0200, `trip_sheets.data`), inclusiv capetele. */
   de_la: optional(z.iso.date()),
   pana_la: optional(z.iso.date()),
   cursor: optional(z.string().max(256)),
@@ -200,7 +200,7 @@ const campuriVehicul = {
   // (`alocaVehicul`), iar baza refuză scrierea directă cu P0001.
   department_id: z.uuid().nullable().default(null),
   pool: z.boolean().default(false),
-  // 0200: „Necunoscut” trimite șirul gol și devine NULL; „vară” declanșează
+  // 0203: „Necunoscut” trimite șirul gol și devine NULL; „vară” declanșează
   // memento-ul de schimb din noiembrie (jobul zilnic).
   anvelope_montate: enumOptional(
     ANVELOPE_MONTATE,
@@ -335,7 +335,7 @@ export const stergeDocumentSchema = z.object({
 export const foaieNouaSchema = z.object({
   vehicle_id: z.uuid(),
   /**
-   * Șoferul foii. `null` = „eu”: din 0196, cine are `trip_sheets:create` sub
+   * Șoferul foii. `null` = „eu”: din 0199, cine are `trip_sheets:create` sub
    * `all` (angajatul, managerul) nu alege șoferul, `creeazaFoaie` îl rezolvă pe
    * server ca fișa proprie. Un id trimis de un asemenea rol trebuie să fie chiar
    * fișa lui; altfel acțiunea refuză înainte de bază. Cu scope `all`, câmpul e
@@ -354,9 +354,9 @@ export const foaieNouaSchema = z.object({
 export type FoaieNoua = z.output<typeof foaieNouaSchema>;
 
 /**
- * Trimiterea foii zilnice spre aprobare (0197).
+ * Trimiterea foii zilnice spre aprobare (0200).
  *
- * Fără sosire și kilometraj: din 0197 le dau CURSELE, iar antetul le
+ * Fără sosire și kilometraj: din 0200 le dau CURSELE, iar antetul le
  * agregă în bază. O sosire trimisă aici ar fi refuzată („Orele și
  * kilometrajul foii se scriu pe curse”).
  */
@@ -388,13 +388,13 @@ export const actualizeazaFoaieSchema = z.object({
 });
 export type ActualizeazaFoaie = z.output<typeof actualizeazaFoaieSchema>;
 
-/** Ștergerea logică a unei ciorne. Baza refuză orice altă stare (0197 §D1). */
+/** Ștergerea logică a unei ciorne. Baza refuză orice altă stare (0200 §D1). */
 export const stergeFoaieSchema = z.object({ id: z.uuid() });
 
-/** Retragerea unei foi trimise în ciornă, ca șoferul s-o corecteze (0197). */
+/** Retragerea unei foi trimise în ciornă, ca șoferul s-o corecteze (0200). */
 export const retrageFoaieSchema = z.object({ id: z.uuid() });
 
-// ── Cursele foii zilnice (0197) ─────────────────────────────────────────────
+// ── Cursele foii zilnice (0200) ─────────────────────────────────────────────
 
 const textCursa = (lipsa: string, maxim: number) =>
   z
@@ -479,7 +479,7 @@ export type ActualizeazaCursa = z.output<typeof actualizeazaCursaSchema>;
 
 export const stergeCursaSchema = z.object({ id: z.uuid(), trip_sheet_id: z.uuid() });
 
-// ── Șabloanele de traseu (0197) ─────────────────────────────────────────────
+// ── Șabloanele de traseu (0200) ─────────────────────────────────────────────
 
 const campuriSablon = {
   denumire: textCursa("Dați un nume șablonului, de exemplu „Sediu — Depozit”.", 120),
@@ -574,10 +574,10 @@ export const alimentareSchema = z.object({
   observatii: z.string().trim().max(500).nullable().default(null),
 });
 
-/** Corectura unei alimentări pe ciornă (0197: doar cât foaia e `draft`). */
+/** Corectura unei alimentări pe ciornă (0200: doar cât foaia e `draft`). */
 export const actualizeazaAlimentareSchema = alimentareSchema.extend({ id: z.uuid() });
 
-/** Ștergerea logică a unei alimentări de pe ciornă. Ireversibilă (0197 §D2). */
+/** Ștergerea logică a unei alimentări de pe ciornă. Ireversibilă (0200 §D2). */
 export const stergeAlimentareSchema = z.object({ id: z.uuid(), trip_sheet_id: z.uuid() });
 
 export const confirmaAnomalieSchema = z.object({
@@ -585,7 +585,7 @@ export const confirmaAnomalieSchema = z.object({
   nota: z.string().trim().max(500).nullable().default(null),
 });
 
-// ── Setările flotei (0198) ──────────────────────────────────────────────────
+// ── Setările flotei (0201) ──────────────────────────────────────────────────
 
 const L = LIMITE_SETARI_FLOTA;
 
@@ -651,7 +651,7 @@ export const setariFlotaSchema = z.object({
 });
 export type SetariFlotaInput = z.output<typeof setariFlotaSchema>;
 
-// ── Tipurile de document și fișierele (0199) ────────────────────────────────
+// ── Tipurile de document și fișierele (0202) ────────────────────────────────
 
 /**
  * Setarea firmei pe un tip DE PLATFORMĂ: îl activează, îl retrage sau îi

@@ -1,4 +1,4 @@
--- supabase/migrations/0197_flota_foaia_zilnica.sql
+-- supabase/migrations/0200_flota_foaia_zilnica.sql
 --
 -- FLOTA, FAZA F4: FOAIA ZILNICĂ CU LINII, CA DOCUMENT JUSTIFICATIV.
 --
@@ -13,7 +13,7 @@
 -- antetul poartă numărul, data și instantaneul vehiculului.
 --
 -- Planul o numea `0174_foaia_zilnica`; numărul s-a ocupat între timp
--- (mentenanța 0180–0183, apoi 0184–0190 și 0196 pe alte trasee).
+-- (mentenanța 0180–0183, apoi 0184–0190 și 0199 pe alte trasee).
 --
 -- ── CE SE SCHIMBĂ ───────────────────────────────────────────────────────────
 -- A. `trip_sheets` devine ANTETUL ZILEI:
@@ -42,7 +42,7 @@
 --    interval o cursă pe altă foaie. Backfill: fiecare foaie existentă
 --    primește o linie (număr de rânduri verificat egal mai jos).
 -- C. `trip_route_templates`: șabloanele de traseu ale firmei.
--- D. DOUĂ DEFECTE DE SECURITATE RĂMASE DIN 0196 (revizia automată de
+-- D. DOUĂ DEFECTE DE SECURITATE RĂMASE DIN 0199 (revizia automată de
 --    securitate pe 20776502, §C4), închise aici fiindcă ambele funcții se
 --    rescriu oricum:
 --    D1. TOCTOU pe starea foii. §C4 îngheța foaia doar pe `aprobat`, §C5 doar
@@ -102,7 +102,7 @@ begin
       having count(*) > 1
     ) d;
   if v_dubluri is not null then
-    raise exception '0197: există vehicule cu mai multe foi de parcurs active în aceeași zi, deci unicitatea pe (vehicul, zi) nu se poate crea. Respingeți sau ștergeți logic foile în plus, apoi reaplicați: %', v_dubluri;
+    raise exception '0200: există vehicule cu mai multe foi de parcurs active în aceeași zi, deci unicitatea pe (vehicul, zi) nu se poate crea. Respingeți sau ștergeți logic foile în plus, apoi reaplicați: %', v_dubluri;
   end if;
 
   select count(*) into v_suprapuse
@@ -117,7 +117,7 @@ begin
      and pg_catalog.tstzrange(a.plecare_la, coalesce(a.sosire_la, a.plecare_la + interval '1 minute'))
          operator(pg_catalog.&&)
          pg_catalog.tstzrange(b.plecare_la, coalesce(b.sosire_la, b.plecare_la + interval '1 minute'));
-  raise notice '0197: % perechi de foi existente ale aceluiași șofer se suprapun pe vehicule diferite (rămân; garda privește scrierile noi).', v_suprapuse;
+  raise notice '0200: % perechi de foi existente ale aceluiași șofer se suprapun pe vehicule diferite (rămân; garda privește scrierile noi).', v_suprapuse;
 end
 $$;
 
@@ -139,9 +139,9 @@ alter table public.trip_sheets
   add constraint ts_norma_ck check (norma_l_100km is null or norma_l_100km between 0 and 300);
 
 comment on column public.trip_sheets.data is
-  'Ziua foii, în ora României, generată din plecare_la (0197). Foaia e ziua unui vehicul.';
+  'Ziua foii, în ora României, generată din plecare_la (0200). Foaia e ziua unui vehicul.';
 comment on column public.trip_sheets.vehicul_nr is
-  'Instantaneul vehiculului la trimitere (0197): foaia aprobată nu se schimbă retroactiv, iar aprobatorul o citește fără RLS pe vehicul.';
+  'Instantaneul vehiculului la trimitere (0200): foaia aprobată nu se schimbă retroactiv, iar aprobatorul o citește fără RLS pe vehicul.';
 comment on column public.trip_sheets.norma_l_100km is
   'Norma proprie de consum la trimitere (HG 1/2016 pct. 16 alin. (2)), din vehicles.consum_mediu_declarat până la F10.';
 
@@ -188,7 +188,7 @@ create table public.trip_sheet_curse (
 );
 
 comment on table public.trip_sheet_curse is
-  'Cursele unei foi de parcurs zilnice (0197): ora, de la → la, scopul, kilometrii. Se scriu doar cât foaia e ciornă.';
+  'Cursele unei foi de parcurs zilnice (0200): ora, de la → la, scopul, kilometrii. Se scriu doar cât foaia e ciornă.';
 
 create index tsc_foaie_idx
   on public.trip_sheet_curse (trip_sheet_id, plecare_la)
@@ -222,7 +222,7 @@ create table public.trip_route_templates (
 );
 
 comment on table public.trip_route_templates is
-  'Rutele recurente ale firmei (0197), din care șoferul adaugă o cursă dintr-un clic.';
+  'Rutele recurente ale firmei (0200), din care șoferul adaugă o cursă dintr-un clic.';
 
 create unique index trt_org_denumire_uq
   on public.trip_route_templates (organization_id, lower(denumire))
@@ -245,7 +245,7 @@ declare
   v_text    text;
   v_incercari integer := 0;
 begin
-  -- `trip_sheets.numar` a fost text liber până la 0197; un număr scris de
+  -- `trip_sheets.numar` a fost text liber până la 0200; un număr scris de
   -- mână în forma noastră ar lovi `ts_org_numar_uq`. Se sare peste el.
   loop
     insert into public.document_sequences (organization_id, document_type, year, prefix, next_number, padding)
@@ -325,10 +325,10 @@ create trigger foi_parcurs_numerotare
   for each row execute function internal.foi_parcurs_numerotare();
 
 -- ============================================================
--- 6. internal.foi_parcurs_inainte — corpul din 0196 + agregatele + D1/D2
+-- 6. internal.foi_parcurs_inainte — corpul din 0199 + agregatele + D1/D2
 -- ============================================================
 --
--- Forma ultimă e 0196 (grep pe toate migrările). Gărzile C1–C5 rămân; C5 se
+-- Forma ultimă e 0199 (grep pe toate migrările). Gărzile C1–C5 rămân; C5 se
 -- lărgește la orice scope și la `respins` (D1), iar ștergerea logică devine
 -- ireversibilă (D2). Mesajele vechi rămân cuvânt cu cuvânt (cu sedilă unde
 -- erau): `flota/erori.ts` le potrivește pe forma lor.
@@ -350,14 +350,14 @@ declare
   -- NEW, într-un trigger BEFORE, nu e cea finală, deci nu intră în comparație.
   c_decizie constant text[] := array['status', 'motiv_respingere', 'aprobat_de', 'aprobat_la',
                                      'updated_at', 'updated_by', 'km_parcursi', 'data'];
-  -- 0197 §D1: retragerea trimis → draft și redeschiderea respins → draft
+  -- 0200 §D1: retragerea trimis → draft și redeschiderea respins → draft
   -- schimbă starea, atât. Motivul respingerii rămâne pe foaie.
   c_retragere constant text[] := array['status', 'aprobat_de', 'aprobat_la',
                                        'updated_at', 'updated_by', 'km_parcursi', 'data'];
-  -- 0196 §C4: singurele coloane care se mișcă pe o foaie aprobată, la stornare.
+  -- 0199 §C4: singurele coloane care se mișcă pe o foaie aprobată, la stornare.
   c_stornare constant text[] := array['deleted_at', 'updated_at', 'updated_by', 'km_parcursi', 'data'];
 begin
-  -- 0196 §C4: semnăturile foii sunt ale BAZEI, nu ale payload-ului.
+  -- 0199 §C4: semnăturile foii sunt ale BAZEI, nu ale payload-ului.
   if tg_op = 'UPDATE' and not app.is_service_context() then
     new.created_by := old.created_by;
     new.trimis_la  := old.trimis_la;
@@ -365,7 +365,7 @@ begin
     new.aprobat_la := old.aprobat_la;
   end if;
 
-  -- 0197 §D2: o foaie ștearsă logic (stornată) nu se mai atinge: nici
+  -- 0200 §D2: o foaie ștearsă logic (stornată) nu se mai atinge: nici
   -- reînvierea, nici altă coloană. Înainte, `c_stornare` lăsa `deleted_at` să
   -- revină la null pe foaia aprobată stornată, fără niciun validator.
   if tg_op = 'UPDATE' and old.deleted_at is not null and not app.is_service_context() then
@@ -373,7 +373,7 @@ begin
       message = 'Foaia de parcurs a fost ștearsă sau stornată și nu se mai modifică. Întocmiți una nouă.';
   end if;
 
-  -- 0197 §A: pe o foaie CU curse, orele și kilometrajul antetului sunt
+  -- 0200 §A: pe o foaie CU curse, orele și kilometrajul antetului sunt
   -- agregatele curselor (prima plecare, ultima sosire), rescrise la orice
   -- UPDATE — inclusiv la „atingerea” din `internal.curse_dupa`. Scrise direct
   -- de client, cu altă valoare, sunt refuzate: altfel antetul ar spune alte
@@ -407,7 +407,7 @@ begin
     end if;
   end if;
 
-  -- 0196 §C2: aprobatorul care NU poate scrie foaia pe dreptul de scriere a
+  -- 0199 §C2: aprobatorul care NU poate scrie foaia pe dreptul de scriere a
   -- ajuns aici doar prin ramura de aprobare a lui `foi_update`. Atunci poate
   -- decide, atât.
   if tg_op = 'UPDATE'
@@ -420,7 +420,7 @@ begin
     end if;
   end if;
 
-  -- 0196 §C3: mutarea foii pe alt șofer cere dreptul de scriere și pe
+  -- 0199 §C3: mutarea foii pe alt șofer cere dreptul de scriere și pe
   -- șoferul NOU.
   if tg_op = 'UPDATE'
      and not app.is_service_context()
@@ -448,14 +448,14 @@ begin
       message = 'Vehiculul este ieşit din parc (vândut sau casat). Nu se mai pot întocmi foi de parcurs pentru el.';
   end if;
 
-  -- 0197 §A: cursele există, deci ziua foii nu se mută pe sub ele.
+  -- 0200 §A: cursele există, deci ziua foii nu se mută pe sub ele.
   if tg_op = 'UPDATE' and v_curse > 0 and not app.is_service_context()
      and new.vehicle_id is distinct from old.vehicle_id then
     raise exception using errcode = 'P0001',
       message = 'Vehiculul nu se schimbă pe o foaie care are deja curse. Ștergeți cursele sau întocmiți foaia pe vehiculul corect.';
   end if;
 
-  -- 0196 §C1: cine nu întocmește pe orice vehicul întocmește pe pool sau pe
+  -- 0199 §C1: cine nu întocmește pe orice vehicul întocmește pe pool sau pe
   -- mașina alocată șoferului foii în ziua plecării.
   if not app.is_service_context()
      and (tg_op = 'INSERT'
@@ -480,7 +480,7 @@ begin
     end if;
   end if;
 
-  -- 0196 §C4: cine nu are `update = all` nu mai atinge nimic pe o foaie
+  -- 0199 §C4: cine nu are `update = all` nu mai atinge nimic pe o foaie
   -- aprobată.
   if tg_op = 'UPDATE' and old.status = 'aprobat' and not app.is_service_context()
      and app.has_permission(new.organization_id, 'trip_sheets', 'update') is distinct from 'all' then
@@ -496,15 +496,15 @@ begin
       message = 'Foaia de parcurs este aprobată. Pentru corecţii, stornaţi-o şi întocmiţi una nouă.';
   end if;
 
-  -- 0196 §C4, și pentru `update = all`: pe foaia aprobată se mișcă doar
-  -- ștergerea logică. Din 0197, doar ÎNTR-UN SENS (garda D2 de mai sus).
+  -- 0199 §C4, și pentru `update = all`: pe foaia aprobată se mișcă doar
+  -- ștergerea logică. Din 0200, doar ÎNTR-UN SENS (garda D2 de mai sus).
   if tg_op = 'UPDATE' and old.status = 'aprobat' and not app.is_service_context()
      and (pg_catalog.to_jsonb(new) - c_stornare) is distinct from (pg_catalog.to_jsonb(old) - c_stornare) then
     raise exception using errcode = 'P0001',
       message = 'Foaia de parcurs aprobată se poate doar storna. Pentru corecții, stornați-o și întocmiți una nouă.';
   end if;
 
-  -- 0196 §C5, lărgit de 0197 §D1 la ORICE scope: foaia TRIMISĂ așteaptă
+  -- 0199 §C5, lărgit de 0200 §D1 la ORICE scope: foaia TRIMISĂ așteaptă
   -- decizia pe cifrele cu care a plecat. Se mișcă doar starea — retragerea în
   -- ciornă (de unde retrimiterea reface verificarea de regres) sau decizia
   -- aprobatorului, cu motivul ei. Nici ștergerea logică: o foaie în aprobare
@@ -518,7 +518,7 @@ begin
       message = 'Foaia de parcurs este trimisă spre aprobare și nu se mai modifică. Retrageți-o în ciornă, corectați-o și trimiteți-o din nou.';
   end if;
 
-  -- 0197 §D1: foaia RESPINSĂ se corectează abia după ce revine în ciornă.
+  -- 0200 §D1: foaia RESPINSĂ se corectează abia după ce revine în ciornă.
   if tg_op = 'UPDATE' and old.status = 'respins' and not app.is_service_context()
      and (pg_catalog.to_jsonb(new) - c_retragere) is distinct from (pg_catalog.to_jsonb(old) - c_retragere) then
     raise exception using errcode = 'P0001',
@@ -568,12 +568,12 @@ begin
         message = format('Nu se poate trece foaia de parcurs din starea „%s" în starea „%s".', old.status, new.status);
     end if;
 
-    -- 0197 §A: foaia zilnică se trimite cu cursele ei, încheiate. Fără nicio
+    -- 0200 §A: foaia zilnică se trimite cu cursele ei, încheiate. Fără nicio
     -- cursă activă nu se trimite deloc, oricât de completă ar părea sosirea
     -- din antet: ștergerea ultimei curse lasă antetul cu orele și kilometrii
     -- ei (agregatele se rescriu doar cât există curse), iar o foaie fără linii
     -- n-are locul și scopul cerute de HG 1/2016 pct. 16 alin. (2). Foile de
-    -- dinainte de 0197 au primit fiecare o cursă la backfill.
+    -- dinainte de 0200 au primit fiecare o cursă la backfill.
     if new.status = 'trimis' and v_curse > 0 and v_deschise > 0 then
       raise exception using errcode = 'P0001',
         message = 'Încheiați toate cursele (ora și kilometrajul la sosire) înainte de a trimite foaia spre aprobare.';
@@ -650,7 +650,7 @@ $$;
 revoke all on function internal.foi_parcurs_inainte() from public, anon, authenticated;
 
 -- ============================================================
--- 7. internal.alimentari_inainte — corpul din 0196 + D1/D2
+-- 7. internal.alimentari_inainte — corpul din 0199 + D1/D2
 -- ============================================================
 
 create or replace function internal.alimentari_inainte()
@@ -667,7 +667,7 @@ begin
 
   if tg_op = 'UPDATE' and not app.is_service_context() then
     new.created_by := old.created_by;
-    -- 0197 §D2: ștergerea logică e ireversibilă.
+    -- 0200 §D2: ștergerea logică e ireversibilă.
     if old.deleted_at is not null then
       raise exception using errcode = 'P0001',
         message = 'Alimentarea a fost ștearsă și nu se mai modifică. Adăugați-o din nou dacă e cazul.';
@@ -690,7 +690,7 @@ begin
       message = 'Foaia de parcurs selectată nu aparţine organizaţiei dumneavoastră.';
   end if;
 
-  -- 0197 §D1: alimentările urmează EXACT starea foii: se adaugă, se modifică
+  -- 0200 §D1: alimentările urmează EXACT starea foii: se adaugă, se modifică
   -- și se șterg doar cât foaia e ciornă. Înainte, pe o foaie trimisă șoferul
   -- își schimba litrii și costul în timp ce aprobatorul se uita la ei.
   if not app.is_service_context() and v_foaie.status <> 'draft' then
@@ -746,7 +746,7 @@ begin
       message = 'Foaia de parcurs selectată nu aparține organizației dumneavoastră.';
   end if;
 
-  -- 0197 §D1: cursele urmează EXACT starea foii — doar pe ciornă.
+  -- 0200 §D1: cursele urmează EXACT starea foii — doar pe ciornă.
   if not v_serviciu and v_foaie.status <> 'draft' then
     raise exception using errcode = 'P0001',
       message = 'Cursele se modifică doar cât foaia de parcurs este ciornă. Retrageți-o sau redeschideți-o în ciornă, apoi corectați-o.';
@@ -1066,17 +1066,17 @@ begin
   alter table public.trip_sheet_curse enable trigger user;
 
   if v_curse <> v_foi then
-    raise exception '0197: backfill incomplet — % foi, % curse create.', v_foi, v_curse;
+    raise exception '0200: backfill incomplet — % foi, % curse create.', v_foi, v_curse;
   end if;
 
   select count(*) into v_strambe
     from public.trip_sheets t
    where (select count(*) from public.trip_sheet_curse c where c.trip_sheet_id = t.id) <> 1;
   if v_strambe <> 0 then
-    raise exception '0197: % foi nu au exact o cursă după backfill.', v_strambe;
+    raise exception '0200: % foi nu au exact o cursă după backfill.', v_strambe;
   end if;
 
-  raise notice '0197: backfill — % foi înainte, % curse după.', v_foi, v_curse;
+  raise notice '0200: backfill — % foi înainte, % curse după.', v_foi, v_curse;
 end
 $$;
 
@@ -1114,7 +1114,7 @@ begin
      select 1 from pg_catalog.pg_trigger g
       where g.tgrelid = 'public.trip_sheets'::regclass and g.tgname = n and g.tgenabled <> 'D');
   if v_lipsa is not null then
-    raise exception '0197: triggere lipsă sau oprite pe trip_sheets: %', v_lipsa;
+    raise exception '0200: triggere lipsă sau oprite pe trip_sheets: %', v_lipsa;
   end if;
 
   select string_agg(n, ', ') into v_lipsa
@@ -1124,7 +1124,7 @@ begin
      select 1 from pg_catalog.pg_trigger g
       where g.tgrelid = 'public.trip_sheet_curse'::regclass and g.tgname = n and g.tgenabled <> 'D');
   if v_lipsa is not null then
-    raise exception '0197: triggere lipsă sau oprite pe trip_sheet_curse: %', v_lipsa;
+    raise exception '0200: triggere lipsă sau oprite pe trip_sheet_curse: %', v_lipsa;
   end if;
 
   if exists (
@@ -1132,7 +1132,7 @@ begin
      where p.polrelid in ('public.trip_sheet_curse'::regclass, 'public.trip_route_templates'::regclass)
        and p.polcmd = 'd'
   ) then
-    raise exception '0197: există o politică DELETE pe curse sau șabloane; ștergerea e logică.';
+    raise exception '0200: există o politică DELETE pe curse sau șabloane; ștergerea e logică.';
   end if;
 
   if exists (
@@ -1141,20 +1141,20 @@ begin
        and p.polcmd = 'r'
        and pg_catalog.pg_get_expr(p.polqual, p.polrelid) like '%deleted_at IS NULL%'
   ) then
-    raise exception '0197: politica de SELECT are deleted_at în USING (0016/0018 F2).';
+    raise exception '0200: politica de SELECT are deleted_at în USING (0016/0018 F2).';
   end if;
 
   if has_table_privilege('authenticated', 'public.trip_sheet_curse', 'DELETE')
      or has_table_privilege('authenticated', 'public.trip_route_templates', 'DELETE')
      or has_table_privilege('anon', 'public.trip_sheet_curse', 'SELECT') then
-    raise exception '0197: drepturi greșite pe tabelele noi.';
+    raise exception '0200: drepturi greșite pe tabelele noi.';
   end if;
 
   if not exists (
     select 1 from pg_catalog.pg_indexes
      where schemaname = 'public' and tablename = 'trip_sheets' and indexname = 'ts_vehicul_zi_uq'
   ) then
-    raise exception '0197: lipsește unicitatea pe (vehicul, zi).';
+    raise exception '0200: lipsește unicitatea pe (vehicul, zi).';
   end if;
 
   select string_agg(p.proname, ', ') into v_lipsa
@@ -1165,7 +1165,7 @@ begin
                        'curse_inainte', 'curse_dupa', 'aloca_numar_foaie')
      and not (coalesce(p.proconfig, '{}') @> array['search_path=""']);
   if v_lipsa is not null then
-    raise exception '0197: funcții fără search_path gol: %', v_lipsa;
+    raise exception '0200: funcții fără search_path gol: %', v_lipsa;
   end if;
 end
 $$;

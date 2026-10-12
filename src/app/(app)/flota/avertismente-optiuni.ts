@@ -7,7 +7,7 @@ import { verificariSoferi } from "@/lib/queries/soferi";
 /**
  * Selectoarele de șofer (predarea vehiculului, foaia nouă) cu eticheta scurtă
  * a verificărilor lângă nume: „Ana Pop (12) — permis expirat, aviz lipsă”
- * (0201, F9). Avertizează, nu ascunde și nu blochează: omul rămâne în listă.
+ * (0204, F9). Avertizează, nu ascunde și nu blochează: omul rămâne în listă.
  *
  * Un singur apel `verificari_soferi` pentru toată lista (plafonul funcției e
  * 500 de id-uri, cât citește și selectorul).

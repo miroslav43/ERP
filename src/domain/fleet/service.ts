@@ -5,18 +5,18 @@ import { adaugaLuniLaZi } from "./costuri";
 import { PRAG_FLOTA_AVERTIZARE_ZILE } from "./scadente";
 
 /**
- * Planurile de service (0200): ce scadență are un plan, în ce stare e și cum se
+ * Planurile de service (0203): ce scadență are un plan, în ce stare e și cum se
  * judecă kilometrajul unei intervenții noi. Funcții pure, fără I/O.
  *
  * ── CE REPLICĂ ȘI DE CE ──────────────────────────────────────────────────────
  * `urmatoareaScadenta` repetă calculul triggerului `internal.vsp_inainte` (baza
- * din migrarea 0200), ca formularul să poată arăta „următoarea revizie: …”
+ * din migrarea 0203), ca formularul să poată arăta „următoarea revizie: …”
  * înainte de salvare. Decizia finală rămâne a bazei; `service.test.ts` fixează
  * regula (inclusiv ziua 31 → ultima zi a lunii) și o ține lipită de migrare.
  */
 
 /**
- * Limitele din CHECK-urile tabelelor (`vsp_*_ck`, `vse_*_ck`, `vex_*_ck`, 0200).
+ * Limitele din CHECK-urile tabelelor (`vsp_*_ck`, `vse_*_ck`, `vex_*_ck`, 0203).
  * `service.test.ts` le lipește de migrare, ca o schimbare într-o parte să nu
  * treacă tăcut: schema Zod care le-ar depăși ar da 23514 în loc de un mesaj pe câmp.
  */

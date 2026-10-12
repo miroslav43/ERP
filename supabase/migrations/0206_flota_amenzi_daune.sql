@@ -1,10 +1,10 @@
--- supabase/migrations/0203_flota_amenzi_daune.sql
+-- supabase/migrations/0206_flota_amenzi_daune.sql
 --
 -- FLOTA, FAZA F11: AMENZILE PRIMITE PE VEHICUL ȘI INCIDENTELE / DAUNELE.
 --
--- Planul o numea `0180_amenzi_daune`; între timp 0174–0202 s-au ocupat
+-- Planul o numea `0180_amenzi_daune`; între timp 0174–0205 s-au ocupat
 -- (alocări, mentenanță, registru, asistent, salarizare, tichete, aprobatori,
--- KPI, flota F3–F10), deci e 0203.
+-- KPI, flota F3–F10), deci e 0206.
 --
 -- ── DE UNDE VINE ────────────────────────────────────────────────────────────
 -- Când un vehicul al firmei ia o amendă, firma (proprietar sau deținător
@@ -32,7 +32,7 @@
 -- C. Proiecția termenului în `expirables` (`entity_type = 'vehicle_fine'`,
 --    `kind = 'termen_raspuns'`), DOAR cât răspunsul nu a plecat, și ramura nouă
 --    în `app.poate_vedea_expirabil`, rescrisă INTEGRAL de la forma ultimă
---    (0201 §5: verificat cu grep că nicio migrare ulterioară nu o mai rescrie),
+--    (0204 §5: verificat cu grep că nicio migrare ulterioară nu o mai rescrie),
 --    cu TOATE ramurile ei (inclusiv `driver_license` și `vehicle_service`).
 -- D. `public.vehicle_incidents`: incidentul / dauna cu stadii (raportat →
 --    constatat → la asigurător → în reparație → închis), costul estimat și
@@ -57,7 +57,7 @@
 --    evaluare, cel mult 5 salarii minime brute, alin. (3)–(4)): nu e
 --    automată, iar pagina o spune.
 --  · NU trimite notificări push pentru termen. Rezumatul zilnic al flotei
---    (0198) rămâne pe `vehicle_document`; termenul se vede în lista amenzilor
+--    (0201) rămâne pe `vehicle_document`; termenul se vede în lista amenzilor
 --    și în `expirables`.
 --  · NU atinge `internal.foi_parcurs_inainte`, `internal.flota_rezumat`,
 --    `app.can_path`, triggerele alocărilor.
@@ -208,7 +208,7 @@ create index vf_sofer_idx
   where sofer_desemnat_id is not null and deleted_at is null;
 
 comment on table public.vehicle_fines is
-  'Amenzile primite pe vehicul (0203). Stadiile: primită → șofer desemnat → răspuns trimis (art. 39 OUG 195/2002); plătită / contestată / anulată. Termenul de răspuns se proiectează în expirables (vehicle_fine). Recuperarea de la șofer NU e automată (Codul muncii art. 169 și 254).';
+  'Amenzile primite pe vehicul (0206). Stadiile: primită → șofer desemnat → răspuns trimis (art. 39 OUG 195/2002); plătită / contestată / anulată. Termenul de răspuns se proiectează în expirables (vehicle_fine). Recuperarea de la șofer NU e automată (Codul muncii art. 169 și 254).';
 comment on column public.vehicle_fines.termen_raspuns is
   'Termenul indicat în cuprinsul solicitării autorității (art. 39 alin. (1) OUG 195/2002). Îl scrie omul din document; nu are o valoare implicită legală.';
 comment on column public.vehicle_fines.sofer_desemnat_id is
@@ -279,7 +279,7 @@ create index vi_cercetare_idx
   where work_accident_id is not null and deleted_at is null;
 
 comment on table public.vehicle_incidents is
-  'Incidentele și daunele vehiculelor (0203), cu stadii și legătură opțională spre cercetarea SSM (work_accidents). Un incident închis e înghețat. Recuperarea de la șofer NU e automată (Codul muncii art. 169 și 254).';
+  'Incidentele și daunele vehiculelor (0206), cu stadii și legătură opțională spre cercetarea SSM (work_accidents). Un incident închis e înghețat. Recuperarea de la șofer NU e automată (Codul muncii art. 169 și 254).';
 
 -- ============================================================
 -- 5. Triggerele amenzii
@@ -595,10 +595,10 @@ create trigger incidente_inainte
 -- ============================================================
 -- 7. Termenul amenzii în lista de conformitate
 -- ============================================================
--- Rescriere INTEGRALĂ de la forma ultimă (0201 §5), plus `vehicle_fine`. Fără
+-- Rescriere INTEGRALĂ de la forma ultimă (0204 §5), plus `vehicle_fine`. Fără
 -- ramura nouă rândul ar fi căzut pe `else false`: invizibil oricui. Toate
--- ramurile existente se păstrează NESCHIMBATE, inclusiv `driver_license` (0201)
--- și `vehicle_service` (0200, ramura paralelă F7). O migrare viitoare care
+-- ramurile existente se păstrează NESCHIMBATE, inclusiv `driver_license` (0204)
+-- și `vehicle_service` (0203, ramura paralelă F7). O migrare viitoare care
 -- adaugă un `entity_type` pornește de la ACEASTA.
 create or replace function app.poate_vedea_expirabil(p_organization_id uuid, p_entity_type text)
 returns boolean language sql stable security definer set search_path = '' as $$
@@ -608,7 +608,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
     when 'work_permit'              then app.can(p_organization_id,'employees','read','team')
     when 'employment_contract'      then app.can(p_organization_id,'employees','read','team')
     when 'vehicle_document'         then app.feature_on(p_organization_id,'fleet')       and app.can(p_organization_id,'vehicles','read','team')
-    -- Din 0200 (F7): scadențele planurilor de service, același drept ca documentele.
+    -- Din 0203 (F7): scadențele planurilor de service, același drept ca documentele.
     when 'vehicle_service'          then app.feature_on(p_organization_id,'fleet')       and app.can(p_organization_id,'vehicles','read','team')
     when 'equipment'              then app.feature_on(p_organization_id,'maintenance') and app.can(p_organization_id,'maintenance','read','team')
     when 'fire_extinguisher'        then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'ssm','read','team')
@@ -619,9 +619,9 @@ returns boolean language sql stable security definer set search_path = '' as $$
     when 'maintenance_plan'         then app.feature_on(p_organization_id,'maintenance') and app.can(p_organization_id,'maintenance','read','team')
     when 'personnel_authorization'  then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'ssm','read','team')
     when 'ppe_issuance'             then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'ssm','read','team')
-    -- 0201: permisele șoferilor, cu cheia lor (hr le are, parcul nu).
+    -- 0204: permisele șoferilor, cu cheia lor (hr le are, parcul nu).
     when 'driver_license'           then app.feature_on(p_organization_id,'fleet')       and app.can(p_organization_id,'driver_licenses','read','team')
-    -- 0203: termenul de răspuns la o amendă. Cheie proprie: amenzile le văd
+    -- 0206: termenul de răspuns la o amendă. Cheie proprie: amenzile le văd
     -- doar cei care le administrează, nu oricine vede parcul.
     when 'vehicle_fine'             then app.feature_on(p_organization_id,'fleet')       and app.has_permission(p_organization_id,'vehicle_fines','read') = 'all'
     else false
@@ -697,7 +697,7 @@ end;
 $$;
 
 comment on function app.sofer_la(uuid, uuid, timestamptz) is
-  'Cine conducea vehiculul la un moment dat (0203): întâi linia de foaie (sursa „foaie”, foaia nerespinsă), apoi alocarea (sursa „alocare”). Doar sugestie. Zero rânduri pentru cine nu administrează amenzile / incidentele sau când nu se știe.';
+  'Cine conducea vehiculul la un moment dat (0206): întâi linia de foaie (sursa „foaie”, foaia nerespinsă), apoi alocarea (sursa „alocare”). Doar sugestie. Zero rânduri pentru cine nu administrează amenzile / incidentele sau când nu se știe.';
 
 -- Învelișul pentru `.rpc()`: PostgREST expune doar schema `public`.
 create or replace function public.sofer_sugerat(
@@ -715,7 +715,7 @@ as $$
 $$;
 
 comment on function public.sofer_sugerat(uuid, uuid, timestamptz) is
-  'Învelișul apelabil prin .rpc() al lui app.sofer_la (0203).';
+  'Învelișul apelabil prin .rpc() al lui app.sofer_la (0206).';
 
 -- ============================================================
 -- 9. RLS
@@ -902,14 +902,14 @@ begin
                                                ('internal', 'incident_eticheta'), ('app', 'sofer_la'),
                                                ('public', 'sofer_sugerat'))
                 and (p.proconfig is null or not ('search_path=""' = any (p.proconfig)))) then
-    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0203';
+    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0206';
   end if;
   if position('is_platform_admin' in pg_get_functiondef('app.sofer_la(uuid,uuid,timestamptz)'::regprocedure)) = 0
      or position('vehicle_fines' in pg_get_functiondef('app.sofer_la(uuid,uuid,timestamptz)'::regprocedure)) = 0 then
     v_lipsa := v_lipsa || 'app.sofer_la își judecă singură apelantul';
   end if;
   if array_length(v_lipsa, 1) > 0 then
-    raise exception '0203: lipsesc %', array_to_string(v_lipsa, ', ');
+    raise exception '0206: lipsesc %', array_to_string(v_lipsa, ', ');
   end if;
 end $$;
 

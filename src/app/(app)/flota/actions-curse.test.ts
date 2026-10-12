@@ -1,6 +1,6 @@
 // src/app/(app)/flota/actions-curse.test.ts
 //
-// Cursele foii zilnice și șabloanele de traseu (0197), pe clientul fals.
+// Cursele foii zilnice și șabloanele de traseu (0200), pe clientul fals.
 // Regulile curselor (ziua, ordinea, km monoton, suprapunerile, starea foii)
 // le judecă baza — aici se fixează ce PLEACĂ spre ea și cum se întorc
 // refuzurile ei. Proba lor reală e în `tests/rls/proba-flota-foaia-zilnica.sql`.

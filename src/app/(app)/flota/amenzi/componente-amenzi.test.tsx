@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
   `../actions-amenzi` e un modul `"use server"`: se înlocuiește cu spioni. Ce se
   verifică aici e ce PLEACĂ din casete (cheile schemelor), ce ofer ele (sugestia,
   stadiile permise) și unde ajunge eroarea bazei. Verificarea în browser nu e
-  posibilă: baza din cloud n-are migrarea 0203, deci componentele sunt probate
+  posibilă: baza din cloud n-are migrarea 0206, deci componentele sunt probate
   doar în happy-dom.
 */
 const inregistreazaAmenda = vi.fn();

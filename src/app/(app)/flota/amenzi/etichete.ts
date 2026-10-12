@@ -1,5 +1,5 @@
 // src/app/(app)/flota/amenzi/etichete.ts
-// Tonurile insignelor pentru amenzi și incidente (0203). Etichetele în română
+// Tonurile insignelor pentru amenzi și incidente (0206). Etichetele în română
 // stau în domeniu (`src/domain/fleet/amenzi.ts`); aici e doar legătura cu
 // componenta de insignă, care nu are voie să intre în domeniu.
 

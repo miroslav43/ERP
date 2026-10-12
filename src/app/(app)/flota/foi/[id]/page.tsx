@@ -96,7 +96,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
       : null;
   /*
    * Închiderea, alimentarea și redeschiderea: doar pe foaia PROPRIE, sub `all`.
-   * Din 0196 managerul are `trip_sheets:update = own` și vede foile echipei;
+   * Din 0199 managerul are `trip_sheets:update = own` și vede foile echipei;
    * fără condiția pe șofer, formularele ar fi apărut și pe foaia subordonatului,
    * iar baza le-ar fi refuzat (`foi_parcurs_inainte` §C2: aprobatorul doar
    * decide). Un buton care duce sigur într-un refuz e un defect de ecran.
@@ -108,7 +108,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
     poateAproba &&
     foaie.status === "trimis" &&
     (foaie.employee_id === null || propriaFisaId !== foaie.employee_id);
-  // 0197 §D1: cursele, alimentările și antetul se scriu doar pe ciornă.
+  // 0200 §D1: cursele, alimentările și antetul se scriu doar pe ciornă.
   const editabil = poateScrie && foaie.status === "draft";
   const sabloane = editabil ? await sabloaneTraseu(tenant.organizationId) : [];
 
@@ -154,7 +154,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const consumReal = consumLa100Km(litriTotali, foaie.km_parcursi);
   const abatere = abatereConsum(consumReal, vehicul?.consum_mediu_declarat ?? null);
   const aleFoii = anomalii.get(foaie.id) ?? [];
-  // Pozele bonurilor (0199), semnate sub sesiunea omului: aprobatorul vede
+  // Pozele bonurilor (0202), semnate sub sesiunea omului: aprobatorul vede
   // bonul lângă litri, șoferul îl vede pe al lui.
   const urlBonuri = await urlSemnateFlota(alimentari.map((a) => a.fisier_bon_path));
 
@@ -331,7 +331,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
         );
       })}
 
-      {/* ── flota F9 (0201): verificările șoferului și legătura cu deplasarea ── */}
+      {/* ── flota F9 (0204): verificările șoferului și legătura cu deplasarea ── */}
       <SoferulFoii
         organizationId={tenant.organizationId}
         foaie={foaie}

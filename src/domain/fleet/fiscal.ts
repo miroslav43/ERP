@@ -1,7 +1,7 @@
 // src/domain/fleet/fiscal.ts
 
 /**
- * Fiscalul flotei (F10, 0202): regimul de deducere al vehiculului, verdictul
+ * Fiscalul flotei (F10, 0205): regimul de deducere al vehiculului, verdictul
  * lunii („deducere integrală fără foi”) și SUGESTIA de avantaj în natură.
  *
  * Funcții pure, fără I/O. Baza dă faptele (`public.flota_fiscal_luna`,
@@ -19,7 +19,7 @@
  * NOTES.md, secțiunea „Flotă — fiscal”.
  */
 
-/** Oglinda lui `public.vehicle_fiscal_regime` (0202). */
+/** Oglinda lui `public.vehicle_fiscal_regime` (0205). */
 export const REGIMURI_FISCALE = [
   "limitat_50",
   "integral_exclusiv_economic",

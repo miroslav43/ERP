@@ -21,7 +21,7 @@ import { AvertismenteSofer } from "../../avertismente-sofer";
 import { LegaturaDeplasare } from "./legatura-deplasare";
 
 /**
- * Șoferul foii (0201, F9), într-un singur loc pentru fișa foii din aplicație și
+ * Șoferul foii (0204, F9), într-un singur loc pentru fișa foii din aplicație și
  * pentru cea din portal: verificările încrucișate (concediu, contract, permis,
  * aviz, deplasare fără delegație) și legătura foii cu deplasarea.
  *

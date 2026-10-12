@@ -2,7 +2,7 @@
 "use server";
 
 /**
- * Setările flotei (0198, `fleet_settings`): responsabilii de flotă, pragul de
+ * Setările flotei (0201, `fleet_settings`): responsabilii de flotă, pragul de
  * salt al kilometrajului și pragurile de alertă. Pragurile ajung în
  * `alert_rules` printr-un trigger din bază, nu de aici: `alert_rules` cere
  * `compliance:*`, iar aceste setări le schimbă cine are `vehicles:update = all`.

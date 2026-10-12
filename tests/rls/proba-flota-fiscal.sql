@@ -1,6 +1,6 @@
 -- tests/rls/proba-flota-fiscal.sql
 --
--- FLOTA, DUPĂ 0202: REGIMUL FISCAL AL VEHICULULUI, NORMA PROPRIE DE CONSUM,
+-- FLOTA, DUPĂ 0205: REGIMUL FISCAL AL VEHICULULUI, NORMA PROPRIE DE CONSUM,
 -- REGIMUL DE IMPOZITARE ȘI FAPTELE AVANTAJULUI ÎN NATURĂ.
 --
 -- ── CE VERIFICĂ ─────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ declare
   v_esecuri   int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — FISCAL" (0202)';
+  raise notice '  PROBA „FLOTA — FISCAL" (0205)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   v_zi_foaie  := v_luna + 14;

@@ -2,7 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/* Acțiunile sunt mimate (moduli `"use server"`); baza din cloud n-are 0200. */
+/* Acțiunile sunt mimate (moduli `"use server"`); baza din cloud n-are 0203. */
 const stergeIntrareService = vi.fn();
 const stergeCheltuiala = vi.fn();
 vi.mock("../actions-service", () => ({

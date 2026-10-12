@@ -3,7 +3,7 @@ tip: modul
 titlu: Flotă — foaia zilnică cu curse, numerotarea și PDF-ul
 aliases: [foaia zilnica, trip_sheet_curse, curse, sabloane traseu, foaie de parcurs pdf]
 cai:
-  - "supabase/migrations/0197_flota_foaia_zilnica.sql"
+  - "supabase/migrations/0200_flota_foaia_zilnica.sql"
   - "src/app/(app)/flota/actions-curse.ts"
   - "src/app/(app)/flota/actions-sabloane.ts"
   - "src/app/(app)/flota/foi/[id]/**"
@@ -25,7 +25,7 @@ tags: [modul, operations]
 # Flotă — foaia zilnică cu curse
 
 Extrasă din `[[modul/flota]]`. Descrie faza F4 a planului „Flotă completă”, din migrarea
-`0197_flota_foaia_zilnica.sql`.
+`0200_flota_foaia_zilnica.sql`.
 
 ## Modelul
 
@@ -63,7 +63,7 @@ ia instantaneul vehiculului: `vehicul_nr`, `vehicul_categorie`, `vehicul_combust
 `norma_l_100km` (din `consum_mediu_declarat` până la F10). Ecranele și PDF-ul îl citesc
 înaintea vehiculului de azi. Foile vechi trimise sau aprobate n-au primit număr retroactiv.
 
-## Paritatea stării (0197 §D, din revizia de securitate pe 20776502)
+## Paritatea stării (0200 §D, din revizia de securitate pe 20776502)
 
 În afara contextului de serviciu, PE ORICE SCOPE (și `org_admin`):
 
@@ -126,7 +126,7 @@ interogare ordonată, iar documentul trebuie să iasă la fel din ambele căi.
 
 ## Probe
 
-`proba-flota-stare-foii.sql` (D1/D2, fără tabelele noi; pică 8/17 peste 0196) și
+`proba-flota-stare-foii.sql` (D1/D2, fără tabelele noi; pică 8/17 peste 0199) și
 `proba-flota-foaia-zilnica.sql` (curse, numerotare, unicitate, suprapuneri, șabloane,
 `hr`/`super_admin`). `izolare.sql`: fixture pentru cele două tabele noi și blocul „foaia
-zilnică cu curse (0197)” din `(l)`. Probele vechi de flotă își țin foile pe zile diferite.
+zilnică cu curse (0200)” din `(l)`. Probele vechi de flotă își țin foile pe zile diferite.

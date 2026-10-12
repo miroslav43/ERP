@@ -24,7 +24,7 @@ const ACCEPT = MIME_FLOTA.join(",");
 
 /**
  * Ținta încărcării: scanarea unui document de vehicul sau poza bonului unei
- * alimentări (0199). Aceiași trei pași ca documentele de personal: semnarea pe
+ * alimentări (0202). Aceiași trei pași ca documentele de personal: semnarea pe
  * server, urcarea din browser, confirmarea cu mărimea REALĂ.
  */
 export type TintaFisierFlota =

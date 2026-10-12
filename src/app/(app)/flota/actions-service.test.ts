@@ -1,6 +1,6 @@
 // src/app/(app)/flota/actions-service.test.ts
 //
-// Service, intervenții și cheltuieli (0200), pe clientul fals. Poarta e
+// Service, intervenții și cheltuieli (0203), pe clientul fals. Poarta e
 // `vehicles:update = all`, ca politicile; proba reală (ce scrie fiecare rol,
 // planul care se mută singur) e în `tests/rls/proba-flota-service.sql`.
 

@@ -12,7 +12,7 @@ import { DialogPermis } from "./dialog-permis";
 import { ETICHETE_SCADENTA } from "./etichete";
 
 /**
- * Permisul de conducere și avizul medical al unui angajat (0201, F9), ca
+ * Permisul de conducere și avizul medical al unui angajat (0204, F9), ca
  * secțiune de pagină. Pe fișa angajatului (HR și administratorul scriu,
  * managerul citește echipa) și în „Mașina mea” (șoferul își citește permisul).
  *

@@ -82,7 +82,7 @@ export const RUTA_PORTAL = "/portal";
  *   `/concedii*`                → `/portal/concediile-mele*` (listă, cerere nouă, detaliu)
  *   `/pontaj*`                  → `/portal/pontajul-meu*` (lună, săptămână, zi)
  *   `/diurna*`                  → `/portal/diurna-mea*`
- *   `/flota/foi*`               → `/portal/masina-mea*` (0196: listă, `?foaie=noua`, foaia
+ *   `/flota/foi*`               → `/portal/masina-mea*` (0199: listă, `?foaie=noua`, foaia
  *                                 `/portal/masina-mea/foi/[id]`; mașina alocată și pool-ul)
  *   `/mentenanta/sesizari*`     → `/portal/sesizari*` (inclusiv `?echipament=` din QR și
  *                                 `?sesizare=noua`, caseta care a înlocuit ruta `/noua`)

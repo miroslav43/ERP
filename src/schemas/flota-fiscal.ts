@@ -1,5 +1,5 @@
 // src/schemas/flota-fiscal.ts
-// Validările de intrare pentru fiscalul flotei (0202, F10): regimul fiscal al
+// Validările de intrare pentru fiscalul flotei (0205, F10): regimul fiscal al
 // vehiculului pe perioade, norma proprie de consum și regimul de impozitare al
 // firmei.
 //

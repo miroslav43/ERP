@@ -1,7 +1,7 @@
 // src/app/(app)/flota/foi/[id]/link-bon.tsx
 
 /**
- * Linkul spre poza bonului unei alimentări (0199), sub numărul bonului. URL
+ * Linkul spre poza bonului unei alimentări (0202), sub numărul bonului. URL
  * semnat pe server, zece minute, în tab nou. O cale fără URL înseamnă că
  * Storage n-a semnat-o (obiect lipsă sau fără drept): se spune, nu se lasă un
  * link care dă 404. Fără bon atașat, nu apare nimic — lipsa nu e o eroare.

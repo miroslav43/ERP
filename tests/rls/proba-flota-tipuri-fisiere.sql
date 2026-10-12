@@ -1,6 +1,6 @@
 -- tests/rls/proba-flota-tipuri-fisiere.sql
 --
--- FLOTA, DUPĂ 0199: TIPURILE DE DOCUMENT ACTIVATE PER FIRMĂ, APLICABILITATEA
+-- FLOTA, DUPĂ 0202: TIPURILE DE DOCUMENT ACTIVATE PER FIRMĂ, APLICABILITATEA
 -- PE CATEGORIE ȘI FIȘIERELE (SCANAREA DOCUMENTULUI, POZA BONULUI).
 -- Pe seed-ul real al rolurilor.
 --
@@ -69,7 +69,7 @@ declare
   v_esecuri   int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — TIPURI ȘI FIȘIERE" (0199)';
+  raise notice '  PROBA „FLOTA — TIPURI ȘI FIȘIERE" (0202)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   select id into v_t_adr from public.vehicle_document_types
@@ -465,7 +465,7 @@ begin
     reset role;
   end;
   -- Foaia trimisă: bonul nu se mai atașează.
-  -- Bogdan își trimite foaia, cu cursa zilei (0197 cere sosirea).
+  -- Bogdan își trimite foaia, cu cursa zilei (0200 cere sosirea).
   perform set_config('request.jwt.claim.sub', v_u_b::text, true);
   set local role authenticated;
   insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la,
@@ -528,7 +528,7 @@ begin
   end if;
 
   -- ── (14) managerul: bonul pe ciorna LUI, nu pe a subordonatei ────────────
-  -- `trip_sheets:update = own` (F3, 0196): își face propriile foi, deci își
+  -- `trip_sheets:update = own` (F3, 0199): își face propriile foi, deci își
   -- atașează și bonul; foaia Anei e tot ciornă, dar nu e a lui.
   insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
                                created_by, updated_by)

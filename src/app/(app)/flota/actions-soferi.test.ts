@@ -1,6 +1,6 @@
 // src/app/(app)/flota/actions-soferi.test.ts
 //
-// Permisele șoferilor și foaia legată de deplasare (0201), pe clientul fals.
+// Permisele șoferilor și foaia legată de deplasare (0204), pe clientul fals.
 // Ce refuză baza (categoriile, unicitatea, cheia compusă, mutarea, garda de
 // angajat) e probat real în `tests/rls/proba-flota-soferi.sql`; aici se
 // fixează ce PLEACĂ spre ea și cum se întorc refuzurile ei.

@@ -2,14 +2,14 @@
 "use server";
 
 /**
- * Șoferii flotei (0201, F9): permisul de conducere de pe fișa angajatului și
+ * Șoferii flotei (0204, F9): permisul de conducere de pe fișa angajatului și
  * legarea foii de parcurs de deplasarea (delegația) șoferului.
  *
  * Fișier separat de `actions.ts`, pe care îl scriu și fazele paralele. „use
  * server”: se exportă DOAR funcții async (capcana 39, `pnpm check:server`).
  *
  * ── CINE SCRIE PERMISELE ────────────────────────────────────────────────────
- * Seed-ul (0201): `org_admin` și `hr` au `driver_licenses:create/update = all`;
+ * Seed-ul (0204): `org_admin` și `hr` au `driver_licenses:create/update = all`;
  * `manager` doar citește echipa, `employee` doar propriul permis. `minScope`
  * e `own`, nu `all`: politica judecă pe angajat (`app.ssm_acces`), deci o
  * suprascriere pe firmă care dă cuiva `team` funcționează fără ca acțiunea s-o
@@ -182,7 +182,7 @@ export const legaDeplasarea = createAction({
   revalidate: (input) => caiFoaie(input.id),
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // `.eq("status", "draft")`: legătura se schimbă doar pe ciornă — exact ce
-    // primește și baza (§D1 din 0197). Fără filtru, o foaie trimisă ar da
+    // primește și baza (§D1 din 0200). Fără filtru, o foaie trimisă ar da
     // P0001 în loc de CONFLICT; cu el, zero rânduri = CONFLICT.
     const { data, error } = await ctx.supabase
       .from("trip_sheets")

@@ -1,7 +1,7 @@
 // src/domain/fleet/tipuri-document.ts
 
 /**
- * Nomenclatorul de documente de vehicul, așa cum îl vede O FIRMĂ (0199).
+ * Nomenclatorul de documente de vehicul, așa cum îl vede O FIRMĂ (0202).
  * Funcții pure, fără I/O.
  *
  * ── DE CE SE COMBINĂ AICI, NU ÎN POSTGRES ────────────────────────────────────
@@ -105,7 +105,7 @@ export function codDinDenumire(denumire: string): string {
  * mai putea corecta: `<select defaultValue>` nu-și găsea opțiunea, cădea pe
  * „Alegeți tipul”, iar salvarea cerea alt tip. Baza permite corectura cât
  * timp tipul nu se schimbă (`vdoc_inainte` verifică disponibilitatea doar la
- * schimbarea tipului, 0199 §4); ecranul trebuie să permită același lucru.
+ * schimbarea tipului, 0202 §4); ecranul trebuie să permită același lucru.
  */
 export function tipuriPentruDocument<T extends Readonly<{ id: string; activ: boolean }>>(
   nomenclator: readonly T[],

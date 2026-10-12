@@ -905,7 +905,7 @@ const VEHICULE = [
  * Cele cinci tipuri OBLIGATORII (itp, rca, rovinieta, extinctor,
  * trusa_medicala) există pe fiecare vehicul — altfel semaforul ar arăta roșu
  * din lipsă, ceea ce n-ar demonstra nimic. CASCO, care e opțional, apare doar
- * acolo unde e credibil să existe. Tipul `revizie` NU mai e aici: 0200 l-a retras
+ * acolo unde e credibil să existe. Tipul `revizie` NU mai e aici: 0203 l-a retras
  * de pe platformă (revizia are acum planuri de service), iar `vdoc_inainte` ar
  * refuza un document nou pe el.
  *

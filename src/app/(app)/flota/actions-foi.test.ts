@@ -97,7 +97,7 @@ describe("creeazaFoaie", () => {
       rol: "employee",
       permisiuni: { "trip_sheets:create": "own" },
     });
-    // Sub `all`, șoferul e fișa PROPRIE (0196): aici e chiar ID_2 din payload.
+    // Sub `all`, șoferul e fișa PROPRIE (0199): aici e chiar ID_2 din payload.
     server.raspunde("employees", "select", { data: { id: ID_2 } });
     server.raspunde("trip_sheets", "insert", { data: { id: ID_3 } });
 
@@ -148,7 +148,7 @@ describe("creeazaFoaie", () => {
   });
 });
 
-describe("creeazaFoaie — șoferul (0196)", () => {
+describe("creeazaFoaie — șoferul (0199)", () => {
   it("sub `all`, fără șofer trimis: foaia e pe fișa PRINCIPALĂ proprie", async () => {
     const { server } = configureazaActiunea({
       rol: "employee",
@@ -219,7 +219,7 @@ describe("creeazaFoaie — șoferul (0196)", () => {
     expect(server.apeluriPe("trip_sheets")[0]?.payload).toMatchObject({ employee_id: ID_2 });
   });
 
-  it("vehiculul nealocat și non-pool (P0001 din 0196) ajunge pe `vehicle_id`", async () => {
+  it("vehiculul nealocat și non-pool (P0001 din 0199) ajunge pe `vehicle_id`", async () => {
     const { server } = configureazaActiunea({
       rol: "employee",
       permisiuni: { "trip_sheets:create": "own" },
@@ -257,7 +257,7 @@ describe("trimiteFoaie", () => {
 
     expect(r).toEqual({ ok: true, data: { id: ID_1, anomalie: null } });
     const [apel] = server.apeluriPe("trip_sheets");
-    // Din 0197 sosirea o dau cursele: câmpurile vechi trimise de un client
+    // Din 0200 sosirea o dau cursele: câmpurile vechi trimise de un client
     // rămas în urmă le taie schema, nu ajung în bază.
     expect(apel?.payload).toEqual({ status: "trimis", updated_by: USER_ID });
     expect(areFiltru(apel, "eq", "id", ID_1)).toBe(true);
@@ -309,7 +309,7 @@ describe("trimiteFoaie", () => {
     expect(caiRevalidate()).toEqual([]);
   });
 
-  it("o cursă neîncheiată (P0001, 0197) ajunge ca mesajul bazei, întreg", async () => {
+  it("o cursă neîncheiată (P0001, 0200) ajunge ca mesajul bazei, întreg", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
     const mesaj =
       "Încheiați toate cursele (ora și kilometrajul la sosire) înainte de a trimite foaia spre aprobare.";
@@ -589,7 +589,7 @@ describe("redeschideFoaie", () => {
   });
 });
 
-describe("trimiteFoaie — foaia subordonatului (0196 §C2)", () => {
+describe("trimiteFoaie — foaia subordonatului (0199 §C2)", () => {
   it("managerul care închide foaia subordonatului primește refuzul bazei, ca CONFLICT", async () => {
     const { server } = configureazaActiunea({
       rol: "manager",
@@ -607,9 +607,9 @@ describe("trimiteFoaie — foaia subordonatului (0196 §C2)", () => {
   });
 });
 
-// ── Foaia zilnică (0197) ─────────────────────────────────────────────────────
+// ── Foaia zilnică (0200) ─────────────────────────────────────────────────────
 
-describe("creeazaFoaie — o foaie pe vehicul și zi (0197)", () => {
+describe("creeazaFoaie — o foaie pe vehicul și zi (0200)", () => {
   it("a doua foaie activă a zilei (23505) ajunge pe `plecare_la`, nu „vehicul duplicat”", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:create": "all" } });
     server.raspunde("trip_sheets", "insert", {
@@ -645,7 +645,7 @@ describe("retrageFoaie", () => {
 
     expect(r).toEqual({ ok: true, data: { id: ID_1 } });
     const [apel] = server.apeluriPe("trip_sheets");
-    // Baza refuză retragerea care strecoară altă coloană (0197 §D1).
+    // Baza refuză retragerea care strecoară altă coloană (0200 §D1).
     expect(apel?.payload).toEqual({ status: "draft", updated_by: USER_ID });
     expect(areFiltru(apel, "eq", "status", "trimis")).toBe(true);
     expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
@@ -759,7 +759,7 @@ describe("actualizeazaAlimentare și stergeAlimentare", () => {
     expect(caiRevalidate()).toContain(`/flota/foi/${ID_1}`);
   });
 
-  it("pe o foaie trimisă baza refuză (0197 §D1): mesaj general", async () => {
+  it("pe o foaie trimisă baza refuză (0200 §D1): mesaj general", async () => {
     const { server } = configureazaActiunea({ permisiuni: { "trip_sheets:update": "own" } });
     const mesaj =
       "Alimentările se modifică doar cât foaia de parcurs este ciornă. Retrageți-o sau redeschideți-o în ciornă, apoi corectați-o.";

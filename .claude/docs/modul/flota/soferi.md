@@ -3,7 +3,7 @@ tip: modul
 titlu: Flotă — șoferii, permisele și verificările încrucișate
 aliases: [driver_licenses, permis de conducere, aviz medical, verificari_soferi, delegatie foaie]
 cai:
-  - "supabase/migrations/0201_flota_soferi.sql"
+  - "supabase/migrations/0204_flota_soferi.sql"
   - "src/app/(app)/flota/actions-soferi.ts"
   - "src/app/(app)/flota/permis-sofer.tsx"
   - "src/app/(app)/flota/dialog-permis.tsx"
@@ -27,7 +27,7 @@ tags: [modul, operations, hr]
 
 # Flotă — șoferii, permisele și verificările încrucișate
 
-Extrasă din `[[modul/flota]]`. Migrarea: `0201_flota_soferi.sql` (planul o numea 0178;
+Extrasă din `[[modul/flota]]`. Migrarea: `0204_flota_soferi.sql` (planul o numea 0178;
 numerele intermediare s-au ocupat). Regula de fond: **avertizează, nu blochează** —
 permisul expirat, avizul lipsă, concediul sau contractul încetat nu refuză nicio foaie
 și nicio predare.
@@ -63,20 +63,20 @@ pe angajat din 0011). `minScope` e `own` în acțiuni: judecă baza, pe angajat.
 
 Scadența intră în `expirables` (`entity_type = 'driver_license'`, responsabil = șoferul),
 cu ramură proprie în `app.poate_vedea_expirabil`. Rezumatul zilnic al flotei rămâne pe
-`vehicle_document` (lista albă din 0198 nu s-a lărgit).
+`vehicle_document` (lista albă din 0201 nu s-a lărgit).
 
-**Funcția are DOUĂ rescrieri paralele pe ramuri diferite.** 0201 o rescrie de la 0011 și
-adaugă `driver_license`; traseul F7 (service, migrarea 0200, ramura `lucru/flota-continuare`) o
-rescrie tot de la 0011 și adaugă `vehicle_service`. 0201 rulează după 0200, deci forma de aici poartă
-AMBELE ramuri (`vehicle_service` e inertă fără 0200), iar blocul de verificare și proba
+**Funcția are DOUĂ rescrieri paralele pe ramuri diferite.** 0204 o rescrie de la 0011 și
+adaugă `driver_license`; traseul F7 (service, migrarea 0203, ramura `lucru/flota-continuare`) o
+rescrie tot de la 0011 și adaugă `vehicle_service`. 0204 rulează după 0203, deci forma de aici poartă
+AMBELE ramuri (`vehicle_service` e inertă fără 0203), iar blocul de verificare și proba
 (27) o păzesc: fără ea, scadențele de service ar fi dispărut tăcut din lista de
-conformitate. Orice `entity_type` nou pornește de la forma din 0201.
+conformitate. Orice `entity_type` nou pornește de la forma din 0204.
 
 ## Avizul medical — `app.stare_aviz_sofer` (SECURITY DEFINER, art. 9 GDPR)
 
 Funcția rulează cu drepturile bazei, deci **judecă singură cine află ce**. Fără asta,
 oricine vede foile șoferului ar fi citit starea examenelor medicale ocolind RLS-ul din
-`occupational_health_exams` (revizuirea de securitate pe 0201; reparat înainte de aplicare).
+`occupational_health_exams` (revizuirea de securitate pe 0204; reparat înainte de aplicare).
 
 - **Exact** (`apt` / `expirat` / `lipsa`): doar cine ar fi putut citi rândul prin RLS
   (`app.ssm_acces(org, 'ssm', 'read', angajat)`, aceeași poartă ca politica examenelor), cine

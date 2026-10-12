@@ -1,7 +1,7 @@
 // src/domain/fleet/soferi.ts
 
 /**
- * Verificările încrucișate ale șoferului (flota F9, 0201): absență aprobată în
+ * Verificările încrucișate ale șoferului (flota F9, 0204): absență aprobată în
  * ziua foii (fără tipul concediului), contract încetat, permis expirat sau fără
  * categoria vehiculului, aviz medical expirat, lipsă sau „de verificat”,
  * deplasare în altă localitate fără delegație.

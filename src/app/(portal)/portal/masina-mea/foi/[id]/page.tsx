@@ -49,7 +49,7 @@ interface ProprietatiPagina {
 }
 
 /**
- * Foaia șoferului, în portal: cursele zilei (0197), alimentările, trimiterea,
+ * Foaia șoferului, în portal: cursele zilei (0200), alimentările, trimiterea,
  * retragerea și redeschiderea după respingere. Corespondentul lui `/flota/foi/[id]`, fără
  * decizie (nimeni nu-și aprobă propria foaie) și fără legături spre fișele pe
  * care angajatul nu le poate deschide.
@@ -89,7 +89,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
   ]);
   const vehicul = vehicule.get(foaie.vehicle_id);
   const poateScrie = can(permisiuni, "trip_sheets:update", "own");
-  // 0197 §D1: cursele, alimentările și antetul se scriu doar pe ciornă.
+  // 0200 §D1: cursele, alimentările și antetul se scriu doar pe ciornă.
   const editabil = poateScrie && foaie.status === "draft";
   const sabloane = editabil ? await sabloaneTraseu(tenant.organizationId) : [];
 
@@ -231,7 +231,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
         );
       })}
 
-      {/* ── flota F9 (0201): verificările șoferului și legătura cu deplasarea ── */}
+      {/* ── flota F9 (0204): verificările șoferului și legătura cu deplasarea ── */}
       <SoferulFoii
         organizationId={tenant.organizationId}
         foaie={foaie}

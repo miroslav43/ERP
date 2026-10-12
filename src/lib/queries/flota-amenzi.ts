@@ -1,5 +1,5 @@
 // src/lib/queries/flota-amenzi.ts
-// Citirile pentru amenzile și incidentele flotei (0203, F11): lista amenzilor
+// Citirile pentru amenzile și incidentele flotei (0206, F11): lista amenzilor
 // și a incidentelor (cursor keyset), fișa fiecăreia, sugestia de șofer la un
 // moment dat și mulțimile pentru selectoare.
 //

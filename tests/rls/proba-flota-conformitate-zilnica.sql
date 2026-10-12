@@ -1,6 +1,6 @@
 -- tests/rls/proba-flota-conformitate-zilnica.sql
 --
--- FLOTA, DUPĂ 0198: JOBUL ZILNIC DE CONFORMITATE, SETĂRILE FLOTEI ȘI
+-- FLOTA, DUPĂ 0201: JOBUL ZILNIC DE CONFORMITATE, SETĂRILE FLOTEI ȘI
 -- NOTIFICĂRILE PE FLUXUL FOII. Pe seed-ul real al rolurilor.
 --
 -- ── DE CE EXISTĂ FIȘIERUL ───────────────────────────────────────────────────
@@ -21,7 +21,7 @@
 --  (5) firma cu `fleet` OPRIT: nicio alertă, nicio notificare;
 --  (6) fiecare își vede, sub `authenticated`, doar notificarea lui  [POZITIVĂ];
 --  (7) jobul nu a eșuat pe nicio firmă din bază.
--- Setările (0198 §A):
+-- Setările (0201 §A):
 --  (8) administratorul le scrie (prima salvare = INSERT), pragurile ajung
 --      ordonate în alert_rules pe `vehicle_document`              [POZITIVĂ];
 --  (9) managerul NU le scrie (42501 la INSERT pe firmă fără rând? nu: rândul
@@ -35,7 +35,7 @@
 --      (VC) ajunge la administrator, nu la el                       [NEGATIVĂ];
 -- (13) pragul de salt din setări (100 km) produce anomalia pe care implicitul
 --      (1.500 km) n-ar fi produs-o                                 [POZITIVĂ].
--- Fluxul foii (0198 §D):
+-- Fluxul foii (0201 §D):
 -- (14) foaia trimisă de șoferiță ajunge la managerul ei (approve = team),
 --      nu și la ea                                                  [POZITIVĂ];
 -- (15) respingerea ajunge la șoferiță, cu motivul                   [POZITIVĂ];
@@ -49,7 +49,7 @@
 -- (19) cu pragul de 60 de zile, un rezumat pe două vehicule cu documente peste
 --      30 de zile duce la lista întreagă, nu la filtrul „expiră” (care arată
 --      doar 30 de zile, PRAG_FLOTA_AVERTIZARE_ZILE) — altfel vehiculele lipsesc.
--- Constatarea revizuirii pe 0198 (citirea setărilor):
+-- Constatarea revizuirii pe 0201 (citirea setărilor):
 -- (20) `manager` (team) și `employee` (own) citesc ZERO rânduri din
 --      `fleet_settings`; administratorul citește unul                  [NEGATIVĂ];
 -- (21) pragul de salt al unui vehicul vizibil se află prin
@@ -105,7 +105,7 @@ declare
   v_esecuri  int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — CONFORMITATEA ZILNICĂ" (0198)';
+  raise notice '  PROBA „FLOTA — CONFORMITATEA ZILNICĂ" (0201)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   insert into public.organizations (id, slug, name, cui) values

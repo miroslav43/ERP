@@ -51,7 +51,7 @@ export interface ValoriInitialeVehicul {
   readonly observatii: string | null;
   readonly department_id: string | null;
   readonly pool: boolean;
-  /** Anvelopele montate (0200); `null` = necunoscut. */
+  /** Anvelopele montate (0203); `null` = necunoscut. */
   readonly anvelope_montate: AnvelopeMontate | null;
 }
 

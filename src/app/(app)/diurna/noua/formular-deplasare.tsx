@@ -153,7 +153,7 @@ export function FormularDeplasare({
   /** Pagina politicii, pentru rândul „Calculat cu politica…"; `null` fără drept. */
   readonly hrefPolitica?: string | null;
   /**
-   * Flota F9 (0201): mașinile de serviciu din care se alege `vehicle_id`. Goală
+   * Flota F9 (0204): mașinile de serviciu din care se alege `vehicle_id`. Goală
    * (flota oprită, fără drept pe vehicule) = selectorul nu apare.
    */
   readonly vehicule?: readonly VehiculOptiune[];
@@ -348,7 +348,7 @@ export function FormularDeplasare({
                 )}
               </Camp>
 
-              {/* Flota F9 (0201): mașina de serviciu, opțională. Baza o primește
+              {/* Flota F9 (0204): mașina de serviciu, opțională. Baza o primește
                   doar pe auto de serviciu sau mixt; schema spune asta pe câmp. */}
               {vehicule.length === 0 ? null : (
                 <Camp

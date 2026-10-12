@@ -11,7 +11,7 @@ import type { RandPermis } from "@/lib/queries/soferi";
 import { actualizeazaPermis, adaugaPermis } from "./actions-soferi";
 
 /**
- * Permisul de conducere de pe fișa angajatului (0201, F9): înregistrare,
+ * Permisul de conducere de pe fișa angajatului (0204, F9): înregistrare,
  * reînnoire sau corectură. Un singur permis activ pe om, deci reînnoirea e
  * chiar caseta asta, pe permisul existent; istoricul îl ține auditul.
  *

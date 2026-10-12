@@ -67,7 +67,7 @@ describe("aplicaSetariTipuri", () => {
   });
 
   it("tipul propriu se ține de rândul lui; o setare rătăcită pe el se ignoră", () => {
-    // Baza refuză setarea pe un tip propriu (0199 §3). Dacă una ar ajunge totuși
+    // Baza refuză setarea pe un tip propriu (0202 §3). Dacă una ar ajunge totuși
     // aici, două adevăruri pentru același tip ar fi exact ce evităm.
     const [p] = aplicaSetariTipuri(
       [PROPRIU],

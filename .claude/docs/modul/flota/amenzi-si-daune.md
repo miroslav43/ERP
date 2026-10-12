@@ -15,7 +15,7 @@ aliases:
     sofer_sugerat,
   ]
 cai:
-  - "supabase/migrations/0203_flota_amenzi_daune.sql"
+  - "supabase/migrations/0206_flota_amenzi_daune.sql"
   - "src/app/(app)/flota/actions-amenzi.ts"
   - "src/app/(app)/flota/amenzi/**"
   - "src/app/(app)/flota/incidente/**"
@@ -45,7 +45,7 @@ tags: [modul, operations, legal]
 
 # Flotă — amenzi, daune și șoferul la un moment dat
 
-Extrasă din `[[modul/flota]]`. Migrarea: `0203_flota_amenzi_daune.sql` (planul o numea
+Extrasă din `[[modul/flota]]`. Migrarea: `0206_flota_amenzi_daune.sql` (planul o numea
 `0180`; numerele intermediare s-au ocupat). Temeiurile legale verificate și tot ce rămâne
 de confirmat cu juristul (marcat ⚠️) sunt în `NOTES.md`, secțiunea „Flotă — amenzi și
 daune”. Regula de fond: **aplicația ține evidența și generează scrisoarea; nu recuperează
@@ -119,11 +119,11 @@ fără nicio cale de a-l închide.
   să se piardă (trigger: răspuns fără șofer = P0001; după răspuns, înghețarea obișnuită). De
   la „contestată” nu există tranziție înapoi spre „șofer desemnat” (proba 14c).
 - **`app.poate_vedea_expirabil` a fost rescrisă integral** (rândul `vehicle_fine` cere
-  `vehicle_fines:read` all). Orice `entity_type` nou pornește de la forma din 0203, care
-  poartă și `driver_license` (0201) și `vehicle_service` (ramura F7): fără ele, scadențele
+  `vehicle_fines:read` all). Orice `entity_type` nou pornește de la forma din 0206, care
+  poartă și `driver_license` (0204) și `vehicle_service` (ramura F7): fără ele, scadențele
   respective ar dispărea din lista de conformitate fără nicio eroare. Proba (28) o păzește.
   — capcana #26
-- **Rezumatul zilnic al flotei (0198) NU cuprinde amenzile.** Lista lui albă a rămas pe
+- **Rezumatul zilnic al flotei (0201) NU cuprinde amenzile.** Lista lui albă a rămas pe
   `vehicle_document`: termenul se vede în lista amenzilor, pe fișa ei și în `expirables`,
   dar nu pleacă notificare push. Nu presupune o alertă care nu există.
 - **`manager` și `employee` primesc zero rânduri, fără eroare.** Absența cheii e refuz. Un
@@ -141,7 +141,7 @@ fără nicio cale de a-l închide.
 primesc zero rânduri. Ordinea: ÎNTÂI linia de foaie (`trip_sheet_curse`) care acoperă
 momentul, pe o foaie care nu e respinsă; o linie fără sosire durează până la sfârșitul zilei
 foii. APOI alocarea deschisă atunci (`vehicle_assignments`, interval semideschis). Planul
-(F2) o pusese în 0173, dar acolo n-a ajuns; se naște în 0203. Prin `.rpc()` se cheamă
+(F2) o pusese în 0173, dar acolo n-a ajuns; se naște în 0206. Prin `.rpc()` se cheamă
 învelișul `public.sofer_sugerat`, fiindcă PostgREST nu expune schema `app`.
 
 **E doar sugestie.** Selectorul din caseta de desemnare e precompletat, dar omul alege:
@@ -184,7 +184,7 @@ mapat pe un câmp, fie declarat general: un mesaj nou fără traducere pică tes
 Migrarea → `src/types/database.ts` → `src/schemas/flota-amenzi.ts` →
 `src/lib/queries/flota-amenzi.ts` → `actions-amenzi.ts` → paginile. Tranzițiile stau în
 `src/domain/fleet/amenzi.ts`, iar `amenzi.test.ts` compară matricea cu textul migrării.
-Cheile de permisiune: `src/config/permissions.ts` + seed-ul din 0203. Rutele intră și în
+Cheile de permisiune: `src/config/permissions.ts` + seed-ul din 0206. Rutele intră și în
 `file-module.ts` (filele), `porti-ruta.ts` (porțile), `destinatii.ts` (asistentul) și
 `e2e/module.spec.ts`, în blocuri delimitate.
 
@@ -197,5 +197,5 @@ service sau costuri de vehicul (traseul F7). Fișa șoferului: `[[modul/angajati
 
 ## Când NU e suficientă pagina asta
 
-- Forma politicilor și a triggerelor: `0203_flota_amenzi_daune.sql`.
+- Forma politicilor și a triggerelor: `0206_flota_amenzi_daune.sql`.
 - Probele: `tests/rls/proba-flota-amenzi.sql` și blocul (l) „amenzi și daune” din `izolare.sql`.

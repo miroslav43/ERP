@@ -20,7 +20,7 @@ import { DialogSablon } from "./dialog-sablon";
 export const metadata: Metadata = { title: "Șabloane de traseu" };
 
 /**
- * Șabloanele de traseu ale firmei (0197): rutele recurente din care șoferii
+ * Șabloanele de traseu ale firmei (0200): rutele recurente din care șoferii
  * își adaugă cursele.
  *
  * Poarta e `trip_sheets:update = all`, EXACT poarta bazei

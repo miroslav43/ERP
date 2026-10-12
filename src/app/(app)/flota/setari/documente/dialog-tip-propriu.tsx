@@ -20,7 +20,7 @@ interface Proprietati {
 }
 
 /**
- * Tipul de document PROPRIU firmei (0199): o autorizație locală, un permis de
+ * Tipul de document PROPRIU firmei (0202): o autorizație locală, un permis de
  * acces în port, orice document pe care nomenclatorul comun nu-l are. Codul nu
  * se scrie: îl calculează acțiunea din denumire și nu se mai schimbă (e cheia
  * scadențelor deja scrise). Un tip nu se șterge, se retrage — documentele lui

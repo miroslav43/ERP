@@ -1,6 +1,6 @@
 // src/lib/pdf/scrisoare-desemnare.ts
 // Scrisoarea prin care firma comunică autorității cine conducea vehiculul
-// (OUG 195/2002 art. 39 alin. (1)–(2)), în PDF (0203).
+// (OUG 195/2002 art. 39 alin. (1)–(2)), în PDF (0206).
 //
 // CE se scrie decide `modelScrisoareDesemnare` din `src/domain/fleet/amenzi.ts`
 // — funcție pură, cu teste, cu temeiul legal în capul ei. Aici e doar AȘEZAREA:

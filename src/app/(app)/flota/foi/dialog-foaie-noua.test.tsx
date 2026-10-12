@@ -23,7 +23,7 @@ import { golesteToasturi, ZonaToast } from "@/components/ui/toast";
 import { DialogFoaieNoua, type DateFoaieNoua } from "./dialog-foaie-noua";
 
 /**
- * Ce apără fișierul: contractul casetei cu `creeazaFoaie` după 0196.
+ * Ce apără fișierul: contractul casetei cu `creeazaFoaie` după 0199.
  *
  * Sub `trip_sheets:create = all` (angajatul și managerul), șoferul NU se
  * alege: `angajati: null` scoate selectorul, iar `employee_id` pleacă `null`,

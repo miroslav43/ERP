@@ -2,7 +2,7 @@
 "use server";
 
 /**
- * Fișierele flotei (0199), în bucketul privat `org-flota`: scanarea unui
+ * Fișierele flotei (0202), în bucketul privat `org-flota`: scanarea unui
  * document de vehicul și poza bonului unei alimentări. Trei pași, ca la
  * documentele de personal (`angajati/[id]/documente/actions.ts`):
  *
@@ -15,7 +15,7 @@
  *
  * Porțile: scanarea cere `vehicles:update = all` (politica `vdoc_update`), bonul
  * `trip_sheets:update` own (politica `alimentari_update`), iar baza mai cere
- * foaia în ciornă (0197 §D1) și calea în folderul entității (0199 §4, §6).
+ * foaia în ciornă (0200 §D1) și calea în folderul entității (0202 §4, §6).
  *
  * „use server”: se exportă DOAR funcții async (capcana 39).
  */

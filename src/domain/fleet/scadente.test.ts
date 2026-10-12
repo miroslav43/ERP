@@ -166,7 +166,7 @@ describe("semaforVehicul", () => {
   });
 });
 
-describe("tipSeAplica și tipuriObligatoriiPentru (0199)", () => {
+describe("tipSeAplica și tipuriObligatoriiPentru (0202)", () => {
   const ROVINIETA = {
     id: "rovinieta",
     obligatoriu: true,

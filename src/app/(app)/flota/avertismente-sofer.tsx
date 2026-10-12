@@ -10,7 +10,7 @@ import {
 import { orasulFirmei, verificariSoferi } from "@/lib/queries/soferi";
 
 /**
- * Verificările încrucișate ale șoferului (0201, F9), ca avertisment pe ecran:
+ * Verificările încrucișate ale șoferului (0204, F9), ca avertisment pe ecran:
  * pe foaia de parcurs (în aplicație și în portal) și pe fișa vehiculului,
  * pentru șoferul curent. Componentă de SERVER: își citește singură faptele
  * (`public.verificari_soferi`), deci paginile o pun cu un singur rând.

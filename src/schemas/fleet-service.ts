@@ -14,7 +14,7 @@ import {
 import { ANVELOPE_MONTATE } from "./fleet";
 
 /**
- * Service, costuri și anvelope (0200). Valorile enumerate vin din migrare
+ * Service, costuri și anvelope (0203). Valorile enumerate vin din migrare
  * (`vehicle_service_type`, `vehicle_expense_category`); sunt scrise aici ca
  * uniuni literale, iar `etichete-service.test.ts` le lipește de hărțile de text.
  *

@@ -1,6 +1,6 @@
 // src/app/api/export/flota/foaie/[id]/route.ts
 //
-// Foaia de parcurs zilnică, ca PDF (0197): documentul justificativ pentru
+// Foaia de parcurs zilnică, ca PDF (0200): documentul justificativ pentru
 // combustibilul dedus.
 //
 // Poarta minimă e `trip_sheets:read` cel puțin `own`; restul îl decide RLS-ul

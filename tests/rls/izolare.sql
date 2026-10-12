@@ -564,7 +564,7 @@ begin
   values (v_alfa, (select val from t_ids where cheie='trip_alfa'), 40.50, 320.00, now() - interval '90 minutes', 'Stație de test Alfa', v_admin_alfa, v_admin_alfa),
          (v_beta, (select val from t_ids where cheie='trip_beta'), 40.50, 320.00, now() - interval '90 minutes', 'Stație de test Beta', v_admin_beta, v_admin_beta);
 
-  -- ═══ ÎNCEPUT BLOC: fixture foaia zilnică (0197) ═══════════════════════════
+  -- ═══ ÎNCEPUT BLOC: fixture foaia zilnică (0200) ═══════════════════════════
   -- O cursă pe fiecare foaie (aceleași ore și kilometri ca antetul, deci
   -- agregatele nu se mișcă) și câte un șablon de traseu per firmă.
   insert into public.trip_sheet_curse (organization_id, trip_sheet_id, plecare_la, sosire_la, de_la_loc,
@@ -577,17 +577,17 @@ begin
                                            created_by, updated_by)
   values (v_alfa, 'Sediu — Client Alfa', 'Sediu', 'Client', 'Livrare', 25, v_admin_alfa, v_admin_alfa),
          (v_beta, 'Sediu — Client Beta', 'Sediu', 'Client', 'Livrare', 25, v_admin_beta, v_admin_beta);
-  -- ═══ SFÂRȘIT BLOC: fixture foaia zilnică (0197) ═══════════════════════════
+  -- ═══ SFÂRȘIT BLOC: fixture foaia zilnică (0200) ═══════════════════════════
 
-  -- ═══ ÎNCEPUT BLOC: fixture setările flotei (0198) ═════════════════════════
+  -- ═══ ÎNCEPUT BLOC: fixture setările flotei (0201) ═════════════════════════
   -- Câte un rând de setări per firmă, cu responsabilul din aceeași firmă.
   insert into public.fleet_settings (organization_id, responsabili, prag_salt_km, praguri_alerta_zile,
                                      created_by, updated_by)
   values (v_alfa, array[(select val from t_ids where cheie='ang_alfa')], 1200, array[30, 14, 7], v_admin_alfa, v_admin_alfa),
          (v_beta, array[(select val from t_ids where cheie='ang_beta')], 1200, array[30, 14, 7], v_admin_beta, v_admin_beta);
-  -- ═══ SFÂRȘIT BLOC: fixture setările flotei (0198) ═════════════════════════
+  -- ═══ SFÂRȘIT BLOC: fixture setările flotei (0201) ═════════════════════════
 
-  -- ═══ ÎNCEPUT BLOC: fixture permisele șoferilor (0201) ═════════════════════
+  -- ═══ ÎNCEPUT BLOC: fixture permisele șoferilor (0204) ═════════════════════
   -- Câte un permis per firmă, pe angajatul fixture-ului. Categoriile trec prin
   -- normalizarea triggerului (`b` → `B`).
   insert into public.driver_licenses (organization_id, employee_id, numar, categorii, eliberat_la, expira_la,
@@ -596,9 +596,9 @@ begin
           current_date + 900, v_admin_alfa, v_admin_alfa),
          (v_beta, (select val from t_ids where cheie='ang_beta'), 'PB' || v_sufix, array['B', 'C'], current_date - 400,
           current_date + 900, v_admin_beta, v_admin_beta);
-  -- ═══ SFÂRȘIT BLOC: fixture permisele șoferilor (0201) ═════════════════════
+  -- ═══ SFÂRȘIT BLOC: fixture permisele șoferilor (0204) ═════════════════════
 
-  -- ═══ ÎNCEPUT BLOC: fixture fiscalul flotei (0202) ═════════════════════════
+  -- ═══ ÎNCEPUT BLOC: fixture fiscalul flotei (0205) ═════════════════════════
   -- Câte un regim fiscal și o normă de consum pe vehiculul fiecărei firme.
   insert into public.vehicle_fiscal_regimes (organization_id, vehicle_id, valabil_de_la, regim, motiv,
                                              created_by, updated_by)
@@ -612,9 +612,9 @@ begin
           v_admin_alfa, v_admin_alfa),
          (v_beta, (select val from t_ids where cheie='veh_beta'), current_date - 60, 7.0, 'D-1', current_date - 61,
           v_admin_beta, v_admin_beta);
-  -- ═══ SFÂRȘIT BLOC: fixture fiscalul flotei (0202) ═════════════════════════
+  -- ═══ SFÂRȘIT BLOC: fixture fiscalul flotei (0205) ═════════════════════════
 
-  -- ═══ ÎNCEPUT BLOC: fixture amenzi și daune (0203) ═════════════════════════
+  -- ═══ ÎNCEPUT BLOC: fixture amenzi și daune (0206) ═════════════════════════
   -- Câte o amendă și câte un incident pe vehiculul fiecărei firme.
   insert into public.vehicle_fines (organization_id, vehicle_id, numar_pv, constatata_la, fapta, termen_raspuns,
                                     created_by, updated_by)
@@ -628,9 +628,9 @@ begin
           'Parbriz crăpat de o piatră', v_admin_alfa, v_admin_alfa),
          (v_beta, (select val from t_ids where cheie='veh_beta'), 'avarie', now() - interval '2 days',
           'Parbriz crăpat de o piatră', v_admin_beta, v_admin_beta);
-  -- ═══ SFÂRȘIT BLOC: fixture amenzi și daune (0203) ═════════════════════════
+  -- ═══ SFÂRȘIT BLOC: fixture amenzi și daune (0206) ═════════════════════════
 
-  -- ═══ ÎNCEPUT BLOC: fixture tipurile de document per firmă (0199) ══════════
+  -- ═══ ÎNCEPUT BLOC: fixture tipurile de document per firmă (0202) ══════════
   -- Câte o setare per firmă pe un tip de PLATFORMĂ (ADR, retras în 0116):
   -- fiecare firmă și-l activează pentru ea, fără să-l vadă cealaltă.
   insert into public.vehicle_document_type_setari (organization_id, document_type_id, activ, obligatoriu,
@@ -639,9 +639,9 @@ begin
     from public.vehicle_document_types vdt
    cross join (values (v_alfa, v_admin_alfa), (v_beta, v_admin_beta)) as o(org, admin)
    where vdt.cod = 'adr' and vdt.organization_id is null and vdt.deleted_at is null;
-  -- ═══ SFÂRȘIT BLOC: fixture tipurile de document per firmă (0199) ══════════
+  -- ═══ SFÂRȘIT BLOC: fixture tipurile de document per firmă (0202) ══════════
 
-  -- ═══ ÎNCEPUT BLOC: fixture service, costuri, anvelope (0200) ══════════════
+  -- ═══ ÎNCEPUT BLOC: fixture service, costuri, anvelope (0203) ══════════════
   -- Un plan, o intervenție (legată de plan) și o cheltuială per firmă, pe
   -- vehiculul firmei (veh_alfa / veh_beta). Verificarea (c) cere rânduri în
   -- AMBELE organizații în fiecare tabelă cu organization_id.
@@ -661,7 +661,7 @@ begin
                                        created_by, updated_by)
   values (v_alfa, (select val from t_ids where cheie='veh_alfa'), 'parcare', app.azi_local() - 1, 12, v_admin_alfa, v_admin_alfa),
          (v_beta, (select val from t_ids where cheie='veh_beta'), 'parcare', app.azi_local() - 1, 12, v_admin_beta, v_admin_beta);
-  -- ═══ SFÂRȘIT BLOC: fixture service, costuri, anvelope (0200) ══════════════
+  -- ═══ SFÂRȘIT BLOC: fixture service, costuri, anvelope (0203) ══════════════
 
   -- ── Faza 7 (migrarea 0011): SSM, PSI, medicina muncii, ISCIR, mentenanță ────
   -- `ssm_legal_parameters`, `ssm_training_types` și `ssm_training_type_periods`
@@ -2355,7 +2355,7 @@ begin
    where organization_id = v_alfa and deleted_at is null limit 1;
   insert into public.trip_sheets (organization_id, vehicle_id, employee_id,
                                   plecare_la, km_plecare, sosire_la, km_sosire, status)
-  -- Cu două zile în urmă, nu azi: din 0197 vehiculul are o singură foaie activă
+  -- Cu două zile în urmă, nu azi: din 0200 vehiculul are o singură foaie activă
   -- pe zi, iar azi are deja foaia fixture-ului (`trip_alfa`).
   values (v_alfa, v_veh_sub, v_sub_alfa, now() - interval '50 hours', 1000,
           now() - interval '49 hours', 1120, 'trimis')
@@ -5259,10 +5259,10 @@ exception when others then
 end $$;
 -- ── sfârșit M10 ──────────────────────────────────────────────────────────────
 
--- ═══ ÎNCEPUT BLOC: flota pe roluri (0196) ═══════════════════════════════════
--- (l), continuare — șoferii își fac singuri foile (0196)
+-- ═══ ÎNCEPUT BLOC: flota pe roluri (0199) ═══════════════════════════════════
+-- (l), continuare — șoferii își fac singuri foile (0199)
 --
--- Din 0196, `employee` are `trip_sheets` read/create/update = own și
+-- Din 0199, `employee` are `trip_sheets` read/create/update = own și
 -- `vehicles:read = own`, iar `manager` are `vehicles:read = team` și
 -- `trip_sheets` create/update = own. Fiecare scriere de mai jos e una pe care
 -- ecranul „Mașina mea” o face în numele rolului; dacă vreo politică sau garda
@@ -5330,7 +5330,7 @@ begin
     perform pg_temp.esueaza('(l) FALS-NEGATIV: `employee` nu alimentează pe foaia proprie');
   end if;
 
-  -- 3) …și o trimite spre aprobare (din 0197, cu cursa zilei: sosirea o dă ea).
+  -- 3) …și o trimite spre aprobare (din 0200, cu cursa zilei: sosirea o dă ea).
   -- Cursa se oprește la -2 h: de acolo șoferul are cursa foii din fixture, iar
   -- un om nu conduce două mașini deodată. Alimentarea de la -2 h rămâne în foaie.
   perform set_config('request.jwt.claim.sub', v_emp::text, true);
@@ -5377,7 +5377,7 @@ begin
       '(l) FALS-NEGATIV: `manager` vede %s din cele 3 mașini (a lui, a subordonatului, pool)', v_n));
   end if;
 
-  -- 6) Contra-proba: aprobatorul NU scrie ciorna subordonatului (0196 §C2).
+  -- 6) Contra-proba: aprobatorul NU scrie ciorna subordonatului (0199 §C2).
   perform set_config('request.jwt.claim.sub', v_mgr::text, true);
   set local role authenticated;
   begin
@@ -5393,12 +5393,12 @@ begin
 
   raise notice '(l) flota pe roluri: angajatul întocmește, alimentează și trimite; managerul își face foile și vede echipa ✓';
 end $$;
--- ═══ SFÂRȘIT BLOC: flota pe roluri (0196) ════════════════════════════════════
+-- ═══ SFÂRȘIT BLOC: flota pe roluri (0199) ════════════════════════════════════
 
--- ═══ ÎNCEPUT BLOC: foaia zilnică cu curse (0197) ═════════════════════════════
--- (l), continuare — cursele, retragerea și retrimiterea (0197)
+-- ═══ ÎNCEPUT BLOC: foaia zilnică cu curse (0200) ═════════════════════════════
+-- (l), continuare — cursele, retragerea și retrimiterea (0200)
 --
--- Din 0197 foaia e ziua vehiculului, cu curse, iar copiii (curse, alimentări)
+-- Din 0200 foaia e ziua vehiculului, cu curse, iar copiii (curse, alimentări)
 -- se scriu doar pe ciornă. Fiecare scriere de mai jos e una pe care ecranul o
 -- face pentru rolul care o are; dacă paritatea stării ar bloca și drumul
 -- legitim (ciornă → trimis → retras → corectat → retrimis → aprobat), rolurile
@@ -5561,16 +5561,16 @@ begin
 
   raise notice '(l) foaia zilnică: angajatul scrie cursa, alimentează, trimite, retrage, corectează, retrimite; administratorul aprobă; managerul își scrie cursele ✓';
 end $$;
--- ═══ SFÂRȘIT BLOC: foaia zilnică cu curse (0197) ═════════════════════════════
+-- ═══ SFÂRȘIT BLOC: foaia zilnică cu curse (0200) ═════════════════════════════
 
--- ═══ ÎNCEPUT BLOC: setările flotei (0198) ════════════════════════════════════
--- (l), continuare — setările flotei și pragurile de alertă (0198)
+-- ═══ ÎNCEPUT BLOC: setările flotei (0201) ════════════════════════════════════
+-- (l), continuare — setările flotei și pragurile de alertă (0201)
 --
 -- `org_admin` (vehicles:update = all) schimbă responsabilii, pragul de salt și
 -- pragurile; pragurile ajung în `alert_rules` prin trigger, deși `org_admin`
 -- n-ar trece el însuși prin politica de acolo dacă i s-ar lua `compliance:*`.
 -- `manager` (vehicles:read = team) și `employee` (own) NU le văd și nu le scriu:
--- zero rânduri, fără eroare (constatarea revizuirii pe 0198: o citire pe
+-- zero rânduri, fără eroare (constatarea revizuirii pe 0201: o citire pe
 -- `vehicles:read <> 'none'` le dădea responsabilii și pragurile oricărui
 -- angajat). Pragul unui vehicul vizibil li se dă DOAR prin
 -- `public.flota_prag_salt_km`. Rânduri NUMĂRATE.
@@ -5593,7 +5593,7 @@ begin
      where organization_id = v_alfa and deleted_at is null
     returning 1
   ) select count(*) into v_n from schimbate;
-  -- Cazul pozitiv al citirii (0198, revizuire): restrângerea politicii nu are
+  -- Cazul pozitiv al citirii (0201, revizuire): restrângerea politicii nu are
   -- voie să-l lase pe administrator fără ecranul de setări.
   select v_n * 10 + count(*) into v_n from public.fleet_settings where organization_id = v_alfa;
   reset role;
@@ -5639,10 +5639,10 @@ begin
 
   raise notice '(l) setările flotei: org_admin le scrie și pragurile ajung în alert_rules; manager și employee nu le văd și nu le scriu ✓';
 end $$;
--- ═══ SFÂRȘIT BLOC: setările flotei (0198) ════════════════════════════════════
+-- ═══ SFÂRȘIT BLOC: setările flotei (0201) ════════════════════════════════════
 
--- ═══ ÎNCEPUT BLOC: tipurile de document și fișierele flotei (0199) ═══════════
--- (l), continuare — tipurile de document per firmă și fișierele (0199)
+-- ═══ ÎNCEPUT BLOC: tipurile de document și fișierele flotei (0202) ═══════════
+-- (l), continuare — tipurile de document per firmă și fișierele (0202)
 --
 -- `org_admin` activează un tip de platformă pentru firmă, își creează un tip
 -- propriu, înregistrează un document pe el, îi urcă scanarea și o leagă de rând.
@@ -5744,7 +5744,7 @@ begin
     perform pg_temp.esueaza(format('(l) `employee` pe bon: urcate×10+legate = %s, așteptat 11', v_n));
   end if;
 
-  -- 5) `manager` (`trip_sheets:update = own`, 0196) urcă bonul pe ciorna LUI.
+  -- 5) `manager` (`trip_sheets:update = own`, 0199) urcă bonul pe ciorna LUI.
   insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
                                created_by, updated_by) values
     (v_veh_mgr, v_alfa, 'CJ' || left(replace(v_veh_mgr::text, '-', ''), 5) || 'TM', 'Skoda', 'Octavia', 6000, false, v_admin, v_admin);
@@ -5775,10 +5775,10 @@ begin
 
   raise notice '(l) tipurile de document per firmă și fișierele flotei: org_admin activează, creează, urcă scanarea; employee și manager urcă bonul ✓';
 end $$;
--- ═══ SFÂRȘIT BLOC: tipurile de document și fișierele flotei (0199) ═══════════
+-- ═══ SFÂRȘIT BLOC: tipurile de document și fișierele flotei (0202) ═══════════
 
--- ═══ ÎNCEPUT BLOC: service, costuri, anvelope (0200) ═════════════════════════
--- (l), continuare — service, costuri și anvelope (0200)
+-- ═══ ÎNCEPUT BLOC: service, costuri, anvelope (0203) ═════════════════════════
+-- (l), continuare — service, costuri și anvelope (0203)
 --
 -- `org_admin` (vehicles:update = all) creează un plan de service, înregistrează o
 -- intervenție legată de el (care ridică kilometrajul și mută planul) și o
@@ -5863,10 +5863,10 @@ begin
 
   raise notice '(l) service, costuri, anvelope: org_admin scrie plan, intervenție și cheltuială (km_curent urcă, ținta se mută); manager le citește pe ale mașinii lui; employee nu vede nimic ✓';
 end $$;
--- ═══ SFÂRȘIT BLOC: service, costuri, anvelope (0200) ═════════════════════════
+-- ═══ SFÂRȘIT BLOC: service, costuri, anvelope (0203) ═════════════════════════
 
--- ═══ ÎNCEPUT BLOC: permisele șoferilor (0201) ════════════════════════════════
--- (l), continuare — permisele de conducere și faptele verificărilor (0201)
+-- ═══ ÎNCEPUT BLOC: permisele șoferilor (0204) ════════════════════════════════
+-- (l), continuare — permisele de conducere și faptele verificărilor (0204)
 --
 -- `hr` și `org_admin` (driver_licenses = all) înregistrează și reînnoiesc
 -- permise; `manager` (read = team) îl CITEȘTE pe al subordonatului; `employee`
@@ -5962,11 +5962,11 @@ begin
 
   raise notice '(l) permisele șoferilor: hr și org_admin scriu, managerul citește echipa, angajatul își citește permisul și faptele ✓';
 end $$;
--- ═══ SFÂRȘIT BLOC: permisele șoferilor (0201) ════════════════════════════════
+-- ═══ SFÂRȘIT BLOC: permisele șoferilor (0204) ════════════════════════════════
 
--- ═══ ÎNCEPUT BLOC: fiscalul flotei (0202) ════════════════════════════════════
+-- ═══ ÎNCEPUT BLOC: fiscalul flotei (0205) ════════════════════════════════════
 -- (l), continuare — regimul fiscal, norma de consum, regimul de impozitare și
--- sugestia de avantaj în natură (0202)
+-- sugestia de avantaj în natură (0205)
 --
 -- `org_admin` (vehicles:update = all, organizations:update) le scrie; `hr`
 -- (payroll = all) NU vede parcul, dar află faptele avantajului; `manager` și
@@ -6087,10 +6087,10 @@ begin
 
   raise notice '(l) fiscalul flotei: org_admin scrie regimul, norma și impozitarea; hr află doar avantajul; manager și employee nu văd regimul ✓';
 end $$;
--- ═══ SFÂRȘIT BLOC: fiscalul flotei (0202) ════════════════════════════════════
+-- ═══ SFÂRȘIT BLOC: fiscalul flotei (0205) ════════════════════════════════════
 
--- ═══ ÎNCEPUT BLOC: amenzi și daune (0203) ════════════════════════════════════
--- (l), continuare — amenzile primite pe vehicul și incidentele / dauna (0203)
+-- ═══ ÎNCEPUT BLOC: amenzi și daune (0206) ════════════════════════════════════
+-- (l), continuare — amenzile primite pe vehicul și incidentele / dauna (0206)
 --
 -- `org_admin` (vehicle_fines / vehicle_incidents = all) parcurge fluxul întreg:
 -- amenda primită → șofer desemnat (sugerat din alocare) → răspuns trimis, iar
@@ -6255,7 +6255,7 @@ begin
 
   raise notice '(l) amenzi și daune: org_admin parcurge fluxul amenzii și al incidentului; hr, manager și employee nu văd și nu scriu ✓';
 end $$;
--- ═══ SFÂRȘIT BLOC: amenzi și daune (0203) ════════════════════════════════════
+-- ═══ SFÂRȘIT BLOC: amenzi și daune (0206) ════════════════════════════════════
 
 
 rollback;

@@ -28,7 +28,7 @@ type Proprietati = Readonly<{
   );
 
 /**
- * Înregistrarea sau corectura unei amenzi (0203). Cheile trimise sunt EXACT
+ * Înregistrarea sau corectura unei amenzi (0206). Cheile trimise sunt EXACT
  * cele din `amendaNouaSchema` / `actualizeazaAmendaSchema`.
  *
  * Termenul de răspuns îl scrie omul din documentul primit: art. 39 alin. (1)

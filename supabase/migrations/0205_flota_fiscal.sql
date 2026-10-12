@@ -1,9 +1,9 @@
--- supabase/migrations/0202_flota_fiscal.sql
+-- supabase/migrations/0205_flota_fiscal.sql
 --
 -- FLOTA, FAZA F10: FISCALUL — REGIMUL DE DEDUCERE AL VEHICULULUI, NORMA PROPRIE
 -- DE CONSUM, REGIMUL DE IMPOZITARE AL FIRMEI ȘI SUGESTIA DE AVANTAJ ÎN NATURĂ.
 --
--- Planul nu-i dădea număr; 0174–0201 s-au ocupat între timp (flota F3–F9,
+-- Planul nu-i dădea număr; 0174–0204 s-au ocupat între timp (flota F3–F9,
 -- mentenanța, registrul, asistentul, salarizarea, tichetele, aprobatorii, KPI).
 --
 -- ── TEMEIURILE (verificate pe 12 oct 2026, forme consolidate descărcate cu curl) ──
@@ -36,7 +36,7 @@
 --    `valabil_de_la` ≤ zi.
 -- C. `vehicle_consumption_norms`: norma proprie, cu decizia internă. Trimiterea
 --    foii (instantaneul din `internal.foi_parcurs_numerotare`, rescris de la
---    forma ULTIMĂ, 0197 §5 — verificat cu grep: nicio altă rescriere) ia norma
+--    forma ULTIMĂ, 0200 §5 — verificat cu grep: nicio altă rescriere) ia norma
 --    în vigoare în ziua foii, apoi `consum_mediu_declarat` ca înainte.
 -- D. `public.flota_fiscal_luna(org, luna)`, SECURITY INVOKER (RLS-ul tabelelor
 --    decide ce vede apelantul): pe vehicul, regimul, zilele lunii cu deducere
@@ -99,7 +99,7 @@ alter table public.organizations
   add column regim_impozitare public.regim_impozitare;
 
 comment on column public.organizations.regim_impozitare is
-  'Regimul de impozitare (0202): micro / profit / specific. null = nestabilit; sugestia de avantaj în natură auto nu se calculează (Codul fiscal art. 76 alin. (4) lit. ț^1)).';
+  'Regimul de impozitare (0205): micro / profit / specific. null = nestabilit; sugestia de avantaj în natură auto nu se calculează (Codul fiscal art. 76 alin. (4) lit. ț^1)).';
 
 -- ============================================================
 -- 3. Regimul fiscal al vehiculului
@@ -149,7 +149,7 @@ create index vfr_vehicul_idx
   where deleted_at is null;
 
 comment on table public.vehicle_fiscal_regimes is
-  'Regimul de deducere al vehiculului pe perioade (0202): Codul fiscal art. 25 alin. (3) lit. l) și art. 298. În vigoare la o zi = cel mai mare valabil_de_la ≤ zi.';
+  'Regimul de deducere al vehiculului pe perioade (0205): Codul fiscal art. 25 alin. (3) lit. l) și art. 298. În vigoare la o zi = cel mai mare valabil_de_la ≤ zi.';
 
 -- ============================================================
 -- 4. Norma proprie de consum
@@ -183,7 +183,7 @@ create index vcn_vehicul_idx
   where deleted_at is null;
 
 comment on table public.vehicle_consumption_norms is
-  'Norma proprie de consum pe perioade (0202), HG 1/2016 titlul II pct. 16 alin. (2). Foaia o fixează în trip_sheets.norma_l_100km la trimitere.';
+  'Norma proprie de consum pe perioade (0205), HG 1/2016 titlul II pct. 16 alin. (2). Foaia o fixează în trip_sheets.norma_l_100km la trimitere.';
 
 -- ============================================================
 -- 5. Triggerele de integritate
@@ -280,7 +280,7 @@ as $$
    limit 1;
 $$;
 
--- Rescriere de la forma ULTIMĂ (0197 §5). Singura schimbare: norma vine din
+-- Rescriere de la forma ULTIMĂ (0200 §5). Singura schimbare: norma vine din
 -- `vehicle_consumption_norms` în ziua foii (`data` e GENERATED, deci într-un
 -- trigger BEFORE nu e încă calculată: ziua se ia din `plecare_la`, ca acolo).
 create or replace function internal.foi_parcurs_numerotare()
@@ -318,7 +318,7 @@ begin
     new.vehicul_nr          := v_vehicul.nr_inmatriculare;
     new.vehicul_categorie   := v_vehicul.categorie;
     new.vehicul_combustibil := v_vehicul.tip_combustibil;
-    -- 0202: norma proprie (decizia internă) în vigoare în ziua foii; fără
+    -- 0205: norma proprie (decizia internă) în vigoare în ziua foii; fără
     -- ea, consumul declarat, ca înainte.
     new.norma_l_100km       := coalesce(
       internal.norma_consum_la(new.vehicle_id, (new.plecare_la at time zone 'Europe/Bucharest')::date),
@@ -334,7 +334,7 @@ end;
 $$;
 
 comment on column public.trip_sheets.norma_l_100km is
-  'Norma proprie de consum la trimitere (HG 1/2016 pct. 16 alin. (2)): din vehicle_consumption_norms în ziua foii (0202), altfel vehicles.consum_mediu_declarat.';
+  'Norma proprie de consum la trimitere (HG 1/2016 pct. 16 alin. (2)): din vehicle_consumption_norms în ziua foii (0205), altfel vehicles.consum_mediu_declarat.';
 
 -- ============================================================
 -- 7. Luna fiscală a parcului
@@ -445,7 +445,7 @@ as $$
 $$;
 
 comment on function public.flota_fiscal_luna(uuid, date) is
-  'Luna fiscală a parcului (0202), pe vehiculele VIZIBILE apelantului (SECURITY INVOKER): regimul la sfârșitul lunii, zilele cu deducere integrală, norma, foile aprobate. Verdictul: src/domain/fleet/fiscal.ts.';
+  'Luna fiscală a parcului (0205), pe vehiculele VIZIBILE apelantului (SECURITY INVOKER): regimul la sfârșitul lunii, zilele cu deducere integrală, norma, foile aprobate. Verdictul: src/domain/fleet/fiscal.ts.';
 
 -- ============================================================
 -- 8. Faptele pentru sugestia de avantaj în natură
@@ -521,7 +521,7 @@ as $$
 $$;
 
 comment on function public.avantaj_natura_flota(uuid, uuid, date) is
-  'Faptele pentru SUGESTIA de avantaj în natură auto (0202): alocările cu folosință personală ale angajatului în lună, regimul și titlul vehiculului, valoarea de intrare, chiria, regimul de impozitare. Doar payroll:read = all. Nu scrie nimic; calculul: src/domain/fleet/fiscal.ts.';
+  'Faptele pentru SUGESTIA de avantaj în natură auto (0205): alocările cu folosință personală ale angajatului în lună, regimul și titlul vehiculului, valoarea de intrare, chiria, regimul de impozitare. Doar payroll:read = all. Nu scrie nimic; calculul: src/domain/fleet/fiscal.ts.';
 
 -- ============================================================
 -- 9. RLS
@@ -680,13 +680,13 @@ begin
                                                ('internal', 'foi_parcurs_numerotare'),
                                                ('public', 'flota_fiscal_luna'), ('public', 'avantaj_natura_flota'))
                 and (p.proconfig is null or not ('search_path=""' = any (p.proconfig)))) then
-    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0202';
+    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0205';
   end if;
   if (select prosecdef from pg_proc where oid = 'public.flota_fiscal_luna(uuid,date)'::regprocedure) then
     v_lipsa := v_lipsa || 'flota_fiscal_luna trebuie să fie SECURITY INVOKER';
   end if;
   if array_length(v_lipsa, 1) > 0 then
-    raise exception '0202: lipsesc %', array_to_string(v_lipsa, ', ');
+    raise exception '0205: lipsesc %', array_to_string(v_lipsa, ', ');
   end if;
 end $$;
 
@@ -708,4 +708,4 @@ commit;
 -- · `avantaj_natura_flota` e DEFINER fiindcă HR-ul (payroll = all) n-are
 --   niciun drept pe vehicule (decizia 3) și totuși face statul de plată.
 -- · Proba: `tests/rls/proba-flota-fiscal.sql`; scrierile legitime: verificarea
---   `(l)` din `tests/rls/izolare.sql`, blocul 0202.
+--   `(l)` din `tests/rls/izolare.sql`, blocul 0205.

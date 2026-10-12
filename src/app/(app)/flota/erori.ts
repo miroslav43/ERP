@@ -59,7 +59,7 @@ export function traduEroare(error: unknown): never {
 }
 
 /**
- * Unicitățile din 0012/0197 care NU sunt despre vehicul. Fără ele, orice 23505
+ * Unicitățile din 0012/0200 care NU sunt despre vehicul. Fără ele, orice 23505
  * pe flotă ajungea „Există deja un vehicul cu acest număr…” — și pentru a doua
  * foaie a zilei, și pentru un bon trecut de două ori. Numele indexului apare în
  * mesajul Postgres, deci potrivirea e pe el.
@@ -90,11 +90,11 @@ const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
   [/^Cantitatea de combustibil/u, ["litri"]],
   [/^Vehiculul/u, ["vehicle_id"]],
   [/^.oferul selectat/u, ["employee_id"]],
-  // 0196 §C3: mutarea foii pe un șofer pentru care apelantul n-are drept de
+  // 0199 §C3: mutarea foii pe un șofer pentru care apelantul n-are drept de
   // scriere. Niciun ecran nu mută azi o foaie; tiparul e aici ca un viitor
   // formular de corectură să primească mesajul pe câmp, nu sub buton.
   [/^Foaia se poate muta doar pe un șofer/u, ["employee_id"]],
-  // 0197, cursele foii zilnice. Mesajele noi au ș/ț corecte.
+  // 0200, cursele foii zilnice. Mesajele noi au ș/ț corecte.
   [/^Scrieți locul de plecare al cursei/u, ["de_la_loc"]],
   [/^Scrieți locul de sosire al cursei/u, ["pana_la_loc"]],
   [/^Scrieți scopul cursei/u, ["scop"]],
@@ -168,7 +168,7 @@ export function traduEroareAlocare(error: unknown): never {
 }
 
 /**
- * Traducerea pentru setările flotei (0198). Mesajele triggerului au ș/ț
+ * Traducerea pentru setările flotei (0201). Mesajele triggerului au ș/ț
  * corecte. `fleet_settings_org_uq` înseamnă că două salvări au pornit amândouă
  * de la „firma n-are încă setări”: a doua nu se rescrie peste prima, omul
  * reîncarcă și vede ce s-a salvat.
@@ -204,7 +204,7 @@ export function traduEroareSetari(error: unknown): never {
 }
 
 /**
- * Traducerea pentru nomenclatorul firmei (0199): tipurile proprii și setarea pe
+ * Traducerea pentru nomenclatorul firmei (0202): tipurile proprii și setarea pe
  * tipurile de platformă. Mesajele noi au ș/ț corecte; cel din 0018 §F6
  * („Codul … Alegeţi alt cod”) e cu sedilă, deci tiparul ocolește litera.
  */
@@ -238,10 +238,10 @@ export function traduEroareTipuri(error: unknown): never {
   traduEroare(error);
 }
 
-// ═══ ÎNCEPUT BLOC: service, costuri, anvelope (0200) ═════════════════════════
+// ═══ ÎNCEPUT BLOC: service, costuri, anvelope (0203) ═════════════════════════
 
 /**
- * Traducerea pentru planuri de service, intervenții și cheltuieli (0200).
+ * Traducerea pentru planuri de service, intervenții și cheltuieli (0203).
  *
  * În casetele de service vehiculul e un câmp ASCUNS (fișa îl știe), deci
  * „Vehiculul ales nu există…” rămâne mesaj general, nu o eroare pe un câmp care
@@ -295,12 +295,12 @@ export function traduEroareService(error: unknown): never {
   }
   traduEroare(error);
 }
-// ═══ SFÂRȘIT BLOC: service, costuri, anvelope (0200) ══════════════════════════
+// ═══ SFÂRȘIT BLOC: service, costuri, anvelope (0203) ══════════════════════════
 
-// ── ÎNCEPUT BLOC: permisele șoferilor și foaia legată de deplasare (0201, F9) ──
+// ── ÎNCEPUT BLOC: permisele șoferilor și foaia legată de deplasare (0204, F9) ──
 
 /**
- * Refuzurile triggerului `internal.permise_inainte` (0201), pe câmpul lor.
+ * Refuzurile triggerului `internal.permise_inainte` (0204), pe câmpul lor.
  * Mesajele sunt scrise cu ș/ț corecte, deci tiparele le folosesc direct.
  */
 const CAMPURI_PERMIS: readonly (readonly [RegExp, readonly string[]])[] = [
@@ -343,7 +343,7 @@ export function traduEroarePermis(error: unknown): never {
 }
 
 /**
- * Legarea foii de o deplasare (`internal.foi_deplasare_garda`, 0201): orice
+ * Legarea foii de o deplasare (`internal.foi_deplasare_garda`, 0204): orice
  * refuz al gărzii ține de selectorul de deplasare.
  */
 export function traduEroareDeplasare(error: unknown): never {
@@ -359,10 +359,10 @@ export function traduEroareDeplasare(error: unknown): never {
 }
 // ── SFÂRȘIT BLOC: permisele șoferilor ──
 
-// ── ÎNCEPUT BLOC: fiscalul flotei (0202, F10) ──
+// ── ÎNCEPUT BLOC: fiscalul flotei (0205, F10) ──
 
 /**
- * Restricțiile tabelelor fiscale (0202), pe câmpul lor. Schema le prinde
+ * Restricțiile tabelelor fiscale (0205), pe câmpul lor. Schema le prinde
  * înaintea bazei; ajung aici doar dacă limitele diverg sau la o cursă.
  */
 const RESTRICTII_FISCAL: readonly (readonly [string, string, string])[] = [
@@ -429,10 +429,10 @@ export function traduEroareFiscal(error: unknown): never {
 }
 // ── SFÂRȘIT BLOC: fiscalul flotei ──
 
-// ── ÎNCEPUT BLOC: amenzi și daune (0203, F11) ──
+// ── ÎNCEPUT BLOC: amenzi și daune (0206, F11) ──
 
 /**
- * Restricțiile tabelelor `vehicle_fines` / `vehicle_incidents` (0203), pe
+ * Restricțiile tabelelor `vehicle_fines` / `vehicle_incidents` (0206), pe
  * câmpul lor. Schema le prinde înaintea bazei; ajung aici doar dacă limitele
  * diverg sau la o cursă.
  */

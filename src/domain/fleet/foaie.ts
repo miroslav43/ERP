@@ -1,7 +1,7 @@
 // src/domain/fleet/foaie.ts
 
 /**
- * Foaia de parcurs ZILNICĂ (0197): cursele, totalurile și modelul documentului
+ * Foaia de parcurs ZILNICĂ (0200): cursele, totalurile și modelul documentului
  * justificativ. Funcții pure, fără I/O și fără ceas: apelantul aduce rândurile
  * citite și momentul generării.
  *

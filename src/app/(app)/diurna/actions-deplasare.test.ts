@@ -585,7 +585,7 @@ describe("deconteazaDeplasare", () => {
   });
 });
 
-// ── ÎNCEPUT BLOC: vehiculul de serviciu (flota F9, 0201) ──
+// ── ÎNCEPUT BLOC: vehiculul de serviciu (flota F9, 0204) ──
 describe("vehiculul deplasării", () => {
   it("cu auto de serviciu, vehiculul ales ajunge în INSERT și în audit", async () => {
     const { server, admin } = configureazaActiunea({ permisiuni: { "per_diem:create": "own" } });

@@ -1,6 +1,6 @@
 -- tests/rls/proba-flota-soferi.sql
 --
--- FLOTA, DUPĂ 0201: PERMISELE ȘOFERILOR, AVIZUL MEDICAL, VERIFICĂRILE
+-- FLOTA, DUPĂ 0204: PERMISELE ȘOFERILOR, AVIZUL MEDICAL, VERIFICĂRILE
 -- ÎNCRUCIȘATE ȘI LEGĂTURA FOII CU DEPLASAREA.
 --
 -- ── CE VERIFICĂ ─────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@
 -- (19) ștergerea logică a permisului scoate scadența din `expirables` [POZITIVĂ];
 -- (20) super_admin (platform_admins, NU membru) citește permisele și faptele
 --      firmei [POZITIVĂ] — consola de platformă; nu scrie în numele firmei;
--- ── CONSTATAREA DE SECURITATE (GDPR art. 9), reparată în 0201 ──────────────
+-- ── CONSTATAREA DE SECURITATE (GDPR art. 9), reparată în 0204 ──────────────
 -- (21) concediul de odihnă și CM-ul ies IDENTIC, „absent”: tipul concediului
 --      nu ajunge la cine vede doar foile;
 -- (22) managerul căruia i s-a retras `ssm:read` NU primește avizul exact: primește
@@ -43,7 +43,7 @@
 -- (26) avizul valabil iese „apt”, fără alarmă falsă, și pentru managerul fără
 --      `ssm:read`;
 -- (27) integrarea cu traseul F7 (service): rescrierea lui `app.poate_vedea_expirabil`
---      din 0201 păstrează ramura `vehicle_service` din 0200, altfel scadențele de
+--      din 0204 păstrează ramura `vehicle_service` din 0203, altfel scadențele de
 --      service ar fi dispărut tăcut din lista de conformitate: org_admin vede
 --      service, permis și document de vehicul; hr vede permisul, nu și parcul
 --      [POZITIVĂ + NEGATIVĂ].
@@ -95,7 +95,7 @@ declare
   v_zi        date := app.azi_local();
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — ȘOFERI" (0201)';
+  raise notice '  PROBA „FLOTA — ȘOFERI" (0204)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   insert into public.organizations (id, slug, name, cui) values
@@ -126,7 +126,7 @@ begin
     (v_e_coleg,  v_org, 'SF-C', 'Cornel', 'Coleg',   v_zi - 400, 'activ', null,    null),
     (v_e_strain, v_org_alta, 'SF-X', 'Xenia', 'Străină', v_zi - 400, 'activ', null, null);
 
-  -- Vehiculul pool: oricine are drept de foaie întocmește pe el (0196).
+  -- Vehiculul pool: oricine are drept de foaie întocmește pe el (0199).
   insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
                                created_by, updated_by)
   values (v_vehicul, v_org, 'B' || (100 + (random() * 800)::int)::text || 'SOF', 'Dacia', 'Logan', 10000, true,
@@ -585,7 +585,7 @@ begin
     raise warning '  ✗ (26) avizul valabil a ieșit %', v_text;
   end if;
 
-  -- (27) ramura `vehicle_service` (F7, 0200) nu se pierde în rescrierea din 0201
+  -- (27) ramura `vehicle_service` (F7, 0203) nu se pierde în rescrierea din 0204
   perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
   set local role authenticated;
   v_n := app.poate_vedea_expirabil(v_org, 'vehicle_service')::int

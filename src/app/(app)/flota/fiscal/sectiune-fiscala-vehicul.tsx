@@ -28,7 +28,7 @@ import { DialogNormaConsum } from "./dialog-norma-consum";
 import { DialogRegimFiscal } from "./dialog-regim-fiscal";
 
 /**
- * Fiscalul unui vehicul, ca secțiune a fișei lui (0202, F10): regimul de
+ * Fiscalul unui vehicul, ca secțiune a fișei lui (0205, F10): regimul de
  * deducere pe perioade și norma proprie de consum.
  *
  * Componentă de SERVER. Apelantul o montează doar pentru cine are

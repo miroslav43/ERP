@@ -63,7 +63,7 @@ import { poateDeschide } from "@/config/porti-ruta";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { AvertismenteSofer } from "../avertismente-sofer";
 import { cuAvertismente } from "../avertismente-optiuni";
-// ── început bloc: fiscalul vehiculului (0202, F10) ──
+// ── început bloc: fiscalul vehiculului (0205, F10) ──
 import { SectiuneFiscalaVehicul } from "../fiscal/sectiune-fiscala-vehicul";
 // ── sfârșit bloc: fiscalul vehiculului ──
 
@@ -86,7 +86,7 @@ interface ProprietatiPagina {
 interface RandDocument {
   readonly tip: TipDocument;
   readonly documentul: DocumentVehicul | null;
-  /** Obligatoriu pentru VEHICULUL ăsta (categorie, masă, setarea firmei — 0199). */
+  /** Obligatoriu pentru VEHICULUL ăsta (categorie, masă, setarea firmei — 0202). */
   readonly obligatoriu: boolean;
 }
 
@@ -118,7 +118,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   // ce cere `vehicule_update` în bază. O poartă mai largă aici ar lăsa un rol să
   // apese butonul și să fie respins tăcut, cu zero rânduri și mesaj de reușită.
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
-  // Filele Service și Costuri (0200): planurile, intervențiile și cheltuielile se
+  // Filele Service și Costuri (0203): planurile, intervențiile și cheltuielile se
   // citesc cu `vehicles:read >= team` ȘI vehiculul vizibil (`vsp_select` etc.).
   // Șoferul (`own`) nu le vede, deci nici fila nu i se oferă; un `?fila=` scris
   // de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un ecran gol.
@@ -129,7 +129,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
   const [documente, nomenclator, alocari, angajati, departamente, pragFirma] = await Promise.all([
     documenteleVehiculului(vehicul.id),
-    // Nomenclatorul ÎNTREG al firmei (0199): un document pe un tip retras între
+    // Nomenclatorul ÎNTREG al firmei (0202): un document pe un tip retras între
     // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
     nomenclatorDocumente(tenant.organizationId),
     alocarileVehiculului(tenant.organizationId, vehicul.id),
@@ -138,7 +138,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
     poateAdministra || vehicul.department_id !== null
       ? departamentePentruVehicul(tenant.organizationId)
       : Promise.resolve([]),
-    // Pragul de salt al firmei (0198), afișat când vehiculul n-are unul propriu.
+    // Pragul de salt al firmei (0201), afișat când vehiculul n-are unul propriu.
     // Prin funcția îngustă, nu prin `fleet_settings`: tabela e închisă celor
     // care nu administrează parcul (managerul cu `team` deschide această fișă).
     vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
@@ -151,7 +151,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   const poateVedeaFoiVehicul = can(permisiuni, "trip_sheets:read", "own");
   /*
    * „Foaie nouă pe acest vehicul”: sub `trip_sheets:create = all` (managerul,
-   * din 0196), baza primește foaia doar pe pool sau pe mașina alocată celui
+   * din 0199), baza primește foaia doar pe pool sau pe mașina alocată celui
    * conectat (`foi_parcurs_inainte` §C1). Managerul vede și mașinile echipei,
    * iar pe ele butonul ar fi dus sigur într-un P0001.
    */
@@ -189,7 +189,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   // Un vehicul vândut sau casat nu se mai predă: baza refuză oricum, iar
   // butonul n-ar face decât să ducă omul spre un P0001.
   const vehiculInParc = vehicul.status !== "vandut" && vehicul.status !== "casat";
-  // ── flota F9 (0201): permisul și avizul, lângă numele din selectorul de predare.
+  // ── flota F9 (0204): permisul și avizul, lângă numele din selectorul de predare.
   const vehiculPermis = {
     categorie: vehicul.categorie,
     masa_maxima_kg: vehicul.masa_maxima_kg,
@@ -289,7 +289,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   const dupaTip = new Map(curente.map((d) => [d.document_type_id, d]));
   const tipDupaId = new Map(nomenclator.map((t) => [t.id, t]));
   // Linkurile de descărcare, semnate sub sesiunea omului: cine nu vede
-  // vehiculul nu primește link (politica `flota_objects_select`, 0199).
+  // vehiculul nu primește link (politica `flota_objects_select`, 0202).
   const urlFisiere = await urlSemnateFlota(documente.map((d) => d.fisier_path));
   const obligatoriiVehicul = new Set(tipuriObligatoriiPentru(vehicul, nomenclator));
 
@@ -300,7 +300,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   // problemă. Obligatoriile întâi, apoi opționalele, fiecare grup în ordinea
   // nomenclatorului (`ordine`).
   //
-  // Din 0199 „obligatoriu” e al VEHICULULUI, nu al tipului: o remorcă nu cere
+  // Din 0202 „obligatoriu” e al VEHICULULUI, nu al tipului: o remorcă nu cere
   // trusă, un camion greu nu cere rovinietă. Un tip care nu i se aplică (sau pe
   // care firma l-a retras) nu produce rând — decât dacă vehiculul chiar are un
   // document pe el, care rămâne vizibil și corectabil.
@@ -379,7 +379,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
       },
     },
     {
-      // Scanarea (0199). Link semnat doar pentru cine vede vehiculul; un fișier
+      // Scanarea (0202). Link semnat doar pentru cine vede vehiculul; un fișier
       // pe care Storage nu-l mai are apare „indisponibil”, nu ca link mort.
       cheie: "fisier",
       antet: "Fișier",
@@ -640,7 +640,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
             },
             {
               // „implicit” NU e o valoare lipsă: pragul chiar se aplică, doar că
-              // vine din setările flotei (0198). De aceea nu se lasă pe `null`.
+              // vine din setările flotei (0201). De aceea nu se lasă pe `null`.
               eticheta: "Prag salt kilometraj",
               valoare:
                 vehicul.prag_salt_km === null
@@ -753,7 +753,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
                 </>
               )}
             </p>
-            {/* flota F9 (0201): verificările șoferului de acum, fără să blocheze nimic. */}
+            {/* flota F9 (0204): verificările șoferului de acum, fără să blocheze nimic. */}
             <AvertismenteSofer
               organizationId={tenant.organizationId}
               employeeId={alocareDeschisa?.employee_id ?? null}
@@ -820,7 +820,7 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
             </section>
           )}
 
-          {/* ── început bloc: fiscalul vehiculului (0202, F10) ──
+          {/* ── început bloc: fiscalul vehiculului (0205, F10) ──
               Regimul de deducere și norma proprie de consum. Poarta e `vehicles:read
               = all`, ca politicile tabelelor: managerul și angajatul văd vehiculul,
               nu și fiscalul lui. */}

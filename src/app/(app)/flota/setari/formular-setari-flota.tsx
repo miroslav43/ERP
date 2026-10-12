@@ -24,7 +24,7 @@ function etichetaCandidat(c: CandidatResponsabil): string {
 }
 
 /**
- * Setările flotei (0198), un singur formular pe `Formular` (`useActionState` +
+ * Setările flotei (0201), un singur formular pe `Formular` (`useActionState` +
  * `FormData`). Numele câmpurilor sunt EXACT cheile lui `setariFlotaSchema`, ca
  * `fieldErrors` să cadă pe câmpul potrivit. Pragurile pleacă drept text
  * („30, 14, 7”): ordonarea și dublurile le rezolvă schema, ca baza.

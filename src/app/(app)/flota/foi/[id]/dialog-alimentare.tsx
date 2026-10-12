@@ -11,7 +11,7 @@ import type { Alimentare } from "@/lib/queries/fleet";
 import { actualizeazaAlimentare } from "../../actions";
 
 /**
- * Corectura unei alimentări de pe ciornă (0197). Pe o foaie trimisă baza o
+ * Corectura unei alimentări de pe ciornă (0200). Pe o foaie trimisă baza o
  * refuză (§D1): aprobatorul se uită la litrii ăștia. Intervalul foii, bonul
  * dublat și litrii zero vin ca erori pe câmp din bază.
  */

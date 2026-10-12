@@ -1,6 +1,6 @@
 // src/lib/queries/fleet-service.test.ts
 //
-// Citirile service-ului, cheltuielilor și costurilor (0200), pe clientul fals:
+// Citirile service-ului, cheltuielilor și costurilor (0203), pe clientul fals:
 // filtrele de firmă și de rând viu, cursorul keyset al listelor și adunarea
 // costurilor din cele patru surse. NU prind o politică RLS greșită — aceea e pe
 // `tests/rls/proba-flota-service.sql`.

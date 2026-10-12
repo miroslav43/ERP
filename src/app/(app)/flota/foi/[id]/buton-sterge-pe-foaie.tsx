@@ -12,7 +12,7 @@ import { stergeAlimentare } from "../../actions";
 import { stergeCursa } from "../../actions-curse";
 
 /**
- * Ștergerea unei curse sau a unei alimentări de pe ciornă (0197).
+ * Ștergerea unei curse sau a unei alimentări de pe ciornă (0200).
  *
  * Ștergerea e logică și NU se mai întoarce (§D2): baza refuză readucerea
  * rândului. De aceea caseta de confirmare spune că rândul se reintroduce, nu se

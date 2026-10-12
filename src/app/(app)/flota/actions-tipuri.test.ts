@@ -1,6 +1,6 @@
 // src/app/(app)/flota/actions-tipuri.test.ts
 //
-// Nomenclatorul firmei (0199), pe clientul fals: setarea pe tipurile de
+// Nomenclatorul firmei (0202), pe clientul fals: setarea pe tipurile de
 // platformă și tipurile proprii. Proba reală (activarea per firmă, refuzul pe
 // tipul propriu, rolurile) e în `tests/rls/proba-flota-tipuri-fisiere.sql` și în
 // `izolare.sql` (l).

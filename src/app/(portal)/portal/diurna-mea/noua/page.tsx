@@ -56,7 +56,7 @@ export default async function PaginaDeplasareNouaPortal() {
   const listaTari = await tari();
   const [baremuri, vehicule] = await Promise.all([
     baremeleTarilor(listaTari.map((t) => t.id)),
-    // Flota F9 (0201): mașina alocată și pool-ul, ca mașină de serviciu.
+    // Flota F9 (0204): mașina alocată și pool-ul, ca mașină de serviciu.
     vehiculePentruDeplasare(tenant.organizationId, user.id, {
       poateVedeaVehicule: can(permisiuni, "vehicles:read", "own"),
       pentruOricine: false,

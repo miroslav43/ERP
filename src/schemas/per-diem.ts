@@ -114,7 +114,7 @@ function anInInterval(dataISO: string): boolean {
  * cu clientul admin, exact ca la cererile de concediu (`employees:read =
  * none` pentru rolul `employee` blochează orice altă cale).
  *
- * `vehicle_id` (flota F9, 0201): mașina de serviciu cu care se face
+ * `vehicle_id` (flota F9, 0204): mașina de serviciu cu care se face
  * deplasarea, opțională — modulul de flotă poate fi oprit, iar formularul
  * arată selectorul doar când există vehicule de ales. Are sens doar pe
  * `auto_serviciu`/`mixt` (`business_trips_vehicul_ck`, 0015); garda de firmă

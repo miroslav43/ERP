@@ -126,7 +126,7 @@ async function TabelFoi({
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
     {
-      // Foaia e ziua unui vehicul (0197): ziua și numărul ei. Sortarea rămâne
+      // Foaia e ziua unui vehicul (0200): ziua și numărul ei. Sortarea rămâne
       // pe prima plecare, cu care ziua merge mereu împreună.
       cheie: "plecare",
       antet: "Ziua",
@@ -265,7 +265,7 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
 
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "trip_sheets:create", "own");
-  // Sub `all` (managerul, din 0196), șoferul foii e chiar cel conectat, iar
+  // Sub `all` (managerul, din 0199), șoferul foii e chiar cel conectat, iar
   // caseta oferă doar mașina lui și pool-ul — vezi `SoferFoaieNoua`.
   const creeazaPentruOricine = scopeFor(permisiuni, "trip_sheets:create") === "all";
   const scope = scopeFor(permisiuni, "trip_sheets:read");

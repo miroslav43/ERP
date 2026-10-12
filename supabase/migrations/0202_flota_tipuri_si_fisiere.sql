@@ -1,11 +1,11 @@
--- supabase/migrations/0199_flota_tipuri_si_fisiere.sql
+-- supabase/migrations/0202_flota_tipuri_si_fisiere.sql
 --
 -- FLOTA, FAZA F6: DOCUMENTELE VEHICULULUI — OBLIGATIVITATE PE CATEGORIE, TIPURI
 -- ACTIVATE PER FIRMĂ ȘI FIȘIERELE SCANATE.
 --
--- Planul o numea `0176_flota_tipuri_si_fisiere`; între timp 0176–0198 s-au
+-- Planul o numea `0176_flota_tipuri_si_fisiere`; între timp 0176–0201 s-au
 -- ocupat (alocări, mentenanță, registru, asistent, salarizare, tichete,
--- aprobatori, KPI, flota F3–F5), deci e 0199.
+-- aprobatori, KPI, flota F3–F5), deci e 0202.
 --
 -- ── DE UNDE VINE ────────────────────────────────────────────────────────────
 -- Semaforul cerea trusă medicală și stingător la REMORCI și rovinietă la un
@@ -37,7 +37,7 @@
 --    mesajele vechi, cu sedilă, neatinse — `erori.ts` le potrivește așa.
 -- D. `internal.alimentari_bon_cale`, trigger BEFORE SEPARAT pe `fuel_entries`:
 --    `fisier_bon_path` sub `{org}/trip_sheets/{foaie}/`. Separat, nu în
---    `alimentari_inainte` (forma 0197), ca o regulă de cale să nu ceară
+--    `alimentari_inainte` (forma 0200), ca o regulă de cale să nu ceară
 --    retranscrierea a 60 de rânduri de reguli de foaie.
 -- E. Bucketul privat `org-flota`, cu poarta proprie `app.flota_poate_fisier`
 --    (tiparul 0092 §4–§5 și 0181 §9), NU `app.can_path`: la scope `team`
@@ -45,7 +45,7 @@
 --      {org}/vehicles/{vehicle_id}/{uuid}-{fișier}   — scanarea documentului;
 --      {org}/trip_sheets/{trip_sheet_id}/{uuid}-{fișier} — poza bonului.
 --    Citire: cine vede vehiculul / foaia. Scriere: `vehicles:update = all` pe
---    vehicul; pe foaie, cine poate scrie foaia, cât timp e CIORNĂ (0197 §D1).
+--    vehicul; pe foaie, cine poate scrie foaia, cât timp e CIORNĂ (0200 §D1).
 --
 -- ── CE NU FACE ──────────────────────────────────────────────────────────────
 --  · Nu schimbă `activ` pe niciun rând de platformă: cele 7 rămân 7 (garda din
@@ -72,9 +72,9 @@ alter table public.vehicle_document_types
   add constraint vdt_masa_ck check (masa_max_kg is null or masa_max_kg between 1 and 100000);
 
 comment on column public.vehicle_document_types.categorii_aplicabile is
-  'Categoriile de vehicul cărora li se cere tipul (0199). NULL = oricare. Aplicabilitatea decide doar obligativitatea, nu blochează înregistrarea.';
+  'Categoriile de vehicul cărora li se cere tipul (0202). NULL = oricare. Aplicabilitatea decide doar obligativitatea, nu blochează înregistrarea.';
 comment on column public.vehicle_document_types.masa_max_kg is
-  'Masa maximă autorizată (kg) până la care se cere tipul (0199). NULL = fără plafon. Un vehicul fără masă completată e tratat ca aplicabil.';
+  'Masa maximă autorizată (kg) până la care se cere tipul (0202). NULL = fără plafon. Un vehicul fără masă completată e tratat ca aplicabil.';
 
 -- Seed de platformă. Plafonul rovinietei la 3,5 t e decizia planului aprobat pe
 -- 7 oct, NU o valoare legală verificată: ⚠ de confirmat de jurist (OG 15/2002
@@ -115,7 +115,7 @@ create unique index vdts_org_tip_uq
   where deleted_at is null;
 
 comment on table public.vehicle_document_type_setari is
-  'Activarea și obligativitatea unui tip de document DE PLATFORMĂ pentru o firmă (0199). Lipsa rândului = valorile tipului. Tipurile proprii se modifică direct.';
+  'Activarea și obligativitatea unui tip de document DE PLATFORMĂ pentru o firmă (0202). Lipsa rândului = valorile tipului. Tipurile proprii se modifică direct.';
 
 -- ============================================================
 -- 3. Triggerele setărilor
@@ -174,7 +174,7 @@ begin
   end if;
 
   if (tg_op = 'INSERT' or new.document_type_id is distinct from old.document_type_id) then
-    -- 0199: disponibilitatea e cea EFECTIVĂ a firmei. Setarea ei bate `activ`
+    -- 0202: disponibilitatea e cea EFECTIVĂ a firmei. Setarea ei bate `activ`
     -- al tipului de platformă în ambele sensuri: activează un tip de transport
     -- retras în 0116, sau retrage pentru firmă un tip activ pentru celelalte.
     if not exists (
@@ -193,7 +193,7 @@ begin
     end if;
   end if;
 
-  -- 0199: scanarea stă în folderul VEHICULULUI din organizația rândului. Fără
+  -- 0202: scanarea stă în folderul VEHICULULUI din organizația rândului. Fără
   -- regula asta, un rând ar putea indica obiectul altui vehicul (sau al altei
   -- firme) și l-ar servi cu drepturile de pe vehiculul lui.
   if new.fisier_path is not null
@@ -341,7 +341,7 @@ begin
   if p_actiune = 'read' then
     return app.poate_vedea_foaie(v_org, v_foaie.employee_id);
   end if;
-  -- Bonul urmează alimentarea: se atașează doar cât foaia e ciornă (0197 §D1).
+  -- Bonul urmează alimentarea: se atașează doar cât foaia e ciornă (0200 §D1).
   return v_foaie.deleted_at is null
      and v_foaie.status = 'draft'
      and app.poate_scrie_foaie(v_org, v_foaie.employee_id);
@@ -349,7 +349,7 @@ end;
 $$;
 
 comment on function app.flota_poate_fisier(text, text) is
-  'Poarta bucketului org-flota (0199): {org}/vehicles/{vehicul}/… după vizibilitatea vehiculului și vehicles:update = all; {org}/trip_sheets/{foaie}/… după foaie, scriere doar pe ciornă. Fără app.can_path.';
+  'Poarta bucketului org-flota (0202): {org}/vehicles/{vehicul}/… după vizibilitatea vehiculului și vehicles:update = all; {org}/trip_sheets/{foaie}/… după foaie, scriere doar pe ciornă. Fără app.can_path.';
 
 drop policy if exists flota_objects_select on storage.objects;
 create policy flota_objects_select on storage.objects
@@ -536,10 +536,10 @@ begin
                                                ('internal', 'flota_cale_valida'),
                                                ('app', 'flota_poate_fisier'))
                 and (p.proconfig is null or not ('search_path=""' = any (p.proconfig)))) then
-    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0199';
+    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0202';
   end if;
   if array_length(v_lipsa, 1) > 0 then
-    raise exception '0199: lipsesc %', array_to_string(v_lipsa, ', ');
+    raise exception '0202: lipsesc %', array_to_string(v_lipsa, ', ');
   end if;
 end $$;
 

@@ -1,6 +1,6 @@
 // src/app/(app)/flota/actions-sabloane.test.ts
 //
-// Șabloanele de traseu (0197), pe clientul fals. Poarta e `trip_sheets:update =
+// Șabloanele de traseu (0200), pe clientul fals. Poarta e `trip_sheets:update =
 // all`, ca politicile; proba reală e în `tests/rls/proba-flota-foaia-zilnica.sql`.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -48,7 +48,7 @@ function text(valoare: string | string[] | undefined): string | undefined {
 }
 
 /**
- * Amenzile primite pe vehiculele firmei (0203, F11): cele mai noi întâi (după
+ * Amenzile primite pe vehiculele firmei (0206, F11): cele mai noi întâi (după
  * momentul faptei), cu termenul numărat în zile și stadiul fiecăreia; filtrul
  * „De răspuns” le izolează pe cele al căror răspuns n-a plecat încă.
  *

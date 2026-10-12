@@ -19,7 +19,7 @@ import { FormularSetariFlota } from "./formular-setari-flota";
 export const metadata: Metadata = { title: "Setări parc auto" };
 
 /**
- * Setările flotei (0198, `fleet_settings`): responsabilii de flotă, pragurile
+ * Setările flotei (0201, `fleet_settings`): responsabilii de flotă, pragurile
  * de alertă la scadență și pragul de salt al kilometrajului.
  *
  * Poarta e `vehicles:update = all`, EXACT poarta bazei (`fleet_settings_insert`/

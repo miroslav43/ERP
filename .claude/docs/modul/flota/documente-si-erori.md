@@ -46,7 +46,7 @@ plus orice tip pe care vehiculul chiar are un document: obligatoriile întâi (r
 document fără dată de expirare e „Fără scadență”, nu „Lipsește”. Sub tabel, „Istoricul
 documentelor” arată rândurile înlocuite la reînnoire, cu scanarea lor.
 
-**„Obligatoriu” e al vehiculului, nu al tipului** (0199). `tipuriObligatoriiPentru`
+**„Obligatoriu” e al vehiculului, nu al tipului** (0202). `tipuriObligatoriiPentru`
 (`src/domain/fleet/scadente.ts`) filtrează după `categorii_aplicabile` și `masa_max_kg`;
 lista, fișa și portalul o cheamă toate trei, ca să aprindă aceeași culoare. Seed-ul:
 rovinieta până la 3.500 kg, trusa și stingătorul fără remorcă și semiremorcă. ⚠ Plafonul
@@ -114,10 +114,10 @@ lui, `traduEroareTipuri` (23505 pe `vdt_org_cod_uq` și „Codul „…” cu se
 `vehicle_document_types` e o TABELĂ, nu un enum — ca primul client de transport să nu
 ceară o migrare de platformă. Din rândurile de platformă sunt active doar cele care privesc orice mașină: ITP, RCA,
 CASCO, rovinietă, stingător, trusă medicală (din `0116`). Tipul `revizie` a fost retras
-de `0200`: revizia are acum planuri de service, cu kilometri și cost
+de `0203`: revizia are acum planuri de service, cu kilometri și cost
 (`[[modul/flota/service-si-costuri]]`); documentele deja scrise pe el rămân. Cele patru de
 transport (licență, copie conformă, tahograf, ADR) au `activ = false` pe platformă; din
-0199 o firmă și le activează singură, din setări, fără să le vadă celelalte.
+0202 o firmă și le activează singură, din setări, fără să le vadă celelalte.
 
 Un tip PROPRIU firmei nu poate purta codul unuia de platformă (`vdt_normalizeaza`, 0018 §F6):
 `kind`-ul din `expirables` se deduce din `cod`, iar o coliziune ar face două tipuri să scrie

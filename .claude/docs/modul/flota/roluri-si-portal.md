@@ -3,7 +3,7 @@ tip: modul
 titlu: Flotă — drepturile pe roluri și „Mașina mea”
 aliases: [masina-mea, flota-roluri, portal flota]
 cai:
-  - "supabase/migrations/0196_flota_roluri.sql"
+  - "supabase/migrations/0199_flota_roluri.sql"
   - "src/app/(portal)/portal/masina-mea/**"
   - "src/app/(app)/flota/foi/dialog-foaie-noua.tsx"
   - "src/app/(app)/flota/foi/date-foaie-noua.ts"
@@ -21,7 +21,7 @@ tags: [modul, operations]
 # Flotă — drepturile pe roluri și „Mașina mea”
 
 Extrasă din `[[modul/flota]]`. Descrie faza F3 a planului „Flotă completă”: cine scrie
-ce, din migrarea `0196_flota_roluri.sql`.
+ce, din migrarea `0199_flota_roluri.sql`.
 
 ## Matricea din seed
 
@@ -69,7 +69,7 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
   verifică doar la întocmire și la `draft` → `trimis`; pe foaia deja trimisă, șoferul
   cobora `km_plecare` sau umfla sosirea, iar aprobarea pecetluia cifrele. Pe o foaie
   trimisă se schimbă doar starea: retragerea în ciornă sau decizia. Orice altă coloană dă
-  P0001 („…este trimisă spre aprobare…”). Probat de (33)–(36). **Din 0197 regula e pe
+  P0001 („…este trimisă spre aprobare…”). Probat de (33)–(36). **Din 0200 regula e pe
   orice scope și urmează și copiii**: alimentările și cursele se scriu doar pe ciornă,
   iar ștergerea logică e ireversibilă — `[[modul/flota/foaia-zilnica]]`.
 - **Foaia în numele altcuiva** sub `own` cade pe `foi_insert` (`app.poate_crea_foaie`) cu 42501. `creeazaFoaie` o refuză înainte, cu CONFLICT și text clar.
@@ -113,13 +113,13 @@ Acțiunile foii revalidează și `/portal`, `/portal/masina-mea`, `/portal/masin
 
 `tests/rls/proba-flota-roluri.sql`, pe seed-ul real (fără rânduri de firmă): employee,
 manager, hr, org_admin și `app.can_path`, cu rânduri numărate. `tests/rls/izolare.sql`,
-blocul „flota pe roluri (0196)” din `(l)`: scrierile legitime ale angajatului și
+blocul „flota pe roluri (0199)” din `(l)`: scrierile legitime ale angajatului și
 managerului. `proba-flota-integritate.sql` folosește un vehicul pool, ca verificările ei
 de RLS să nu fie umbrite de garda de vehicul.
 
 ## Ce NU e aici
 
 Liniile foii, numerotarea și instantaneul vehiculului: `[[modul/flota/foaia-zilnica]]`
-(F4, 0197). Notificările pe fluxul foii și
+(F4, 0200). Notificările pe fluxul foii și
 traducerea legăturii în `notificarile-mele/legaturi.ts` (F5). Permisele șoferilor pentru
 `hr` (F9).

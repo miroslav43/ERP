@@ -10,7 +10,7 @@ import { arataToast } from "@/components/ui/toast";
 import { legaDeplasarea } from "../../actions-soferi";
 
 /**
- * Selectorul „Deplasarea (delegația)” de pe ciorna foii (0201, F9). Lista e
+ * Selectorul „Deplasarea (delegația)” de pe ciorna foii (0204, F9). Lista e
  * citită pe server (deplasările șoferului din jurul zilei foii, fără cele
  * anulate); baza refuză oricum deplasarea altui om sau a altei firme
  * (`internal.foi_deplasare_garda`), iar refuzul ajunge sub selector.

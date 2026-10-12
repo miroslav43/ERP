@@ -61,7 +61,7 @@ export function FiltreFoi({ parametri, vehicule, numeSofer = null }: PropsFiltre
   if (filtre.sofer !== null) {
     active.push({ cheie: "sofer", eticheta: `Șofer: ${numeSofer ?? "ales"}` });
   }
-  // Intervalul de ZILE ale foilor (0197, `trip_sheets.data`).
+  // Intervalul de ZILE ale foilor (0200, `trip_sheets.data`).
   if (filtre.de_la !== null) {
     active.push({ cheie: "de_la", eticheta: `De la ${formatDate(filtre.de_la)}` });
   }

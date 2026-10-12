@@ -8,7 +8,7 @@ import { modelScrisoareDesemnare, type IntrareScrisoare } from "@/domain/fleet/a
 import { genereazaScrisoareDesemnare } from "./scrisoare-desemnare";
 
 /**
- * Ce apără fișierul: așezarea scrisorii (0203), nu conținutul ei — conținutul îl
+ * Ce apără fișierul: așezarea scrisorii (0206), nu conținutul ei — conținutul îl
  * fixează `src/domain/fleet/amenzi.test.ts`. O scrisoare cu fapta lungă și cu
  * toate notele trebuie să încapă pe pagină sau să treacă curat pe a doua, nu să
  * iasă tăcut din ea: `pdf-lib` desenează și sub marginea de jos, fără eroare.

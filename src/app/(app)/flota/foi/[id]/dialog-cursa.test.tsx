@@ -25,7 +25,7 @@ import type { CursaFoaie, PropunereCursa, SablonTraseu } from "@/domain/fleet/fo
 import { DialogCursa } from "./dialog-cursa";
 
 /**
- * Ce apără fișierul: caseta cursei după 0197.
+ * Ce apără fișierul: caseta cursei după 0200.
  *
  * - propune ce acceptă baza (km de la sosirea cursei precedente, locul unde s-a
  *   ajuns), ca omul să vadă cifra înainte de a salva;

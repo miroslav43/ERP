@@ -2,7 +2,7 @@
 "use server";
 
 /**
- * Fiscalul flotei (0202, F10): regimul fiscal al vehiculului și norma proprie
+ * Fiscalul flotei (0205, F10): regimul fiscal al vehiculului și norma proprie
  * de consum, pe perioade, plus regimul de impozitare al firmei.
  *
  * Fișier separat de `actions.ts`, pe care îl scriu și fazele paralele. „use

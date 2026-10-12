@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
   `createAction` și deci `server-only`, care aruncă la import în proiectul `ui`.
   Se înlocuiește cu un spion: ce se verifică aici e ce PLEACĂ din casetă, nu ce
   face serverul. Verificarea în browser nu e posibilă pe ramura asta: baza din
-  cloud n-are 0200.
+  cloud n-are 0203.
 */
 const adaugaIntrareService = vi.fn();
 vi.mock("../actions-service", () => ({

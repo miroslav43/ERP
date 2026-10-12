@@ -154,7 +154,7 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
             {masini.alocate.map((v) => {
               const semafor = semaforVehicul(
                 scadente.filter((s) => s.vehicle_id === v.id),
-                // Obligatoriile mașinii LUI (0199), ca pe /flota: aceeași culoare.
+                // Obligatoriile mașinii LUI (0202), ca pe /flota: aceeași culoare.
                 tipuriObligatoriiPentru(v, tipuri),
                 azi,
               );
@@ -201,7 +201,7 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
         )}
       </section>
 
-      {/* ── ÎNCEPUT BLOC: permisul meu (flota F9, 0201) ──
+      {/* ── ÎNCEPUT BLOC: permisul meu (flota F9, 0204) ──
           Șoferul își citește permisul și avizul (`driver_licenses:read = own`);
           le scrie HR-ul, pe fișa lui. */}
       {can(permisiuni, "driver_licenses:read", "own") ? (

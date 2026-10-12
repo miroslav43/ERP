@@ -1,7 +1,7 @@
 -- tests/rls/proba-flota-stare-foii.sql
 --
--- FLOTA, 0197 §D: PARITATEA STĂRII ÎNTRE FOAIE ȘI COPIII EI, ȘI ȘTERGEREA
--- IREVERSIBILĂ. Cele două defecte rămase din 0196, semnalate de revizia
+-- FLOTA, 0200 §D: PARITATEA STĂRII ÎNTRE FOAIE ȘI COPIII EI, ȘI ȘTERGEREA
+-- IREVERSIBILĂ. Cele două defecte rămase din 0199, semnalate de revizia
 -- automată de securitate pe 20776502 (§C4).
 --
 -- ── CE ERA DESCHIS ──────────────────────────────────────────────────────────
@@ -13,8 +13,8 @@
 -- (D2) Stornarea mergea în ambele sensuri: `org_admin` readucea `deleted_at`
 --      la null pe foaia aprobată stornată, fără niciun validator.
 --
--- Proba NU folosește tabelele noi din 0197 (`trip_sheet_curse`), ca să poată
--- rula și peste 0196: acolo trebuie să pice (2)–(7) și (9). Cursele au proba
+-- Proba NU folosește tabelele noi din 0200 (`trip_sheet_curse`), ca să poată
+-- rula și peste 0199: acolo trebuie să pice (2)–(7) și (9). Cursele au proba
 -- lor, `proba-flota-foaia-zilnica.sql`.
 --
 -- ── CE VERIFICĂ ─────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ declare
   v_esecuri  int := 0;
 begin
   raise notice '';
-  raise notice '  PROBA „FLOTA — STAREA FOII ȘI A COPIILOR" (0197 §D)';
+  raise notice '  PROBA „FLOTA — STAREA FOII ȘI A COPIILOR" (0200 §D)';
   raise notice '  ─────────────────────────────────────────────────────────';
 
   insert into public.organizations (id, slug, name, cui) values
@@ -94,7 +94,7 @@ begin
   insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, created_by, updated_by)
   values (v_org, v_v_a, v_e_a, now() - interval '30 days', v_u_admin, v_u_admin);
 
-  -- Foile Anei, scrise din contextul de serviciu, pe zile diferite (din 0197:
+  -- Foile Anei, scrise din contextul de serviciu, pe zile diferite (din 0200:
   -- o foaie activă pe vehicul și zi). Toate fără curse, în forma antetului.
   insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
                                   sosire_la, km_sosire, status, motiv_respingere, created_by, updated_by) values

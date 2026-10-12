@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/* Acțiunea e mimată (modul `"use server"`); baza din cloud n-are 0200, deci nu se poate verifica în browser. */
+/* Acțiunea e mimată (modul `"use server"`); baza din cloud n-are 0203, deci nu se poate verifica în browser. */
 const adaugaCheltuiala = vi.fn();
 vi.mock("../actions-service", () => ({
   adaugaCheltuiala: (...a: unknown[]) => adaugaCheltuiala(...a),

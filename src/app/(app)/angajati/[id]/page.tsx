@@ -102,7 +102,7 @@ import { RedeschideEvaluare } from "./redeschide-evaluare";
 import { Callout } from "@/components/ui/callout";
 import { IstoricModificari } from "@/components/audit/istoric-modificari";
 import { PermisSofer } from "@/app/(app)/flota/permis-sofer";
-// ── început bloc: avantajul în natură din mașina de serviciu (flota F10, 0202) ──
+// ── început bloc: avantajul în natură din mașina de serviciu (flota F10, 0205) ──
 import { SugestieAvantajAuto } from "@/app/(app)/flota/fiscal/sugestie-avantaj-auto";
 // ── sfârșit bloc: avantajul în natură ──
 
@@ -1291,7 +1291,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         />
       ) : null}
 
-      {/* ── ÎNCEPUT BLOC: avantajul în natură din mașina de serviciu (flota F10, 0202) ──
+      {/* ── ÎNCEPUT BLOC: avantajul în natură din mașina de serviciu (flota F10, 0205) ──
           SUGESTIE pentru cine face statul de plată (`payroll:read = all`, aceeași
           poartă ca secțiunea de mai sus): nu scrie nimic, componenta „Beneficiu în
           natură” se adaugă de mână. Cu flota oprită nu se montează. */}
@@ -1338,7 +1338,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         }
       />
 
-      {/* ── ÎNCEPUT BLOC: permisul de conducere (flota F9, 0201) ──
+      {/* ── ÎNCEPUT BLOC: permisul de conducere (flota F9, 0204) ──
           HR și administratorul îl scriu, managerul îl citește pe al echipei
           (`driver_licenses`, cheie proprie: HR primește permisele, nu parcul).
           Doar cu modulul de flotă pornit — acolo trăiesc foile care îl citesc. */}

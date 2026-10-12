@@ -30,7 +30,7 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
       ["sosire_la", "km_sosire"],
     ],
     ["Şoferul selectat nu aparţine organizaţiei dumneavoastră.", ["employee_id"]],
-    // 0196: mesajele noi, cu ș/ț corecte.
+    // 0199: mesajele noi, cu ș/ț corecte.
     [
       "Vehiculul ales nu vă este alocat în ziua plecării și nu este o mașină comună (pool). Foaia se întocmește pe vehiculul primit în folosință sau pe unul din pool.",
       ["vehicle_id"],
@@ -46,15 +46,15 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
   it.each([
     "Nu puteți aproba o foaie întocmită de dumneavoastră.",
     "Foaia de parcurs a unui coleg se poate doar aproba sau respinge, după ce a fost trimisă. O completează și o trimite șoferul ei.",
-    // 0196 §C4: foaia aprobată și alimentările ei.
+    // 0199 §C4: foaia aprobată și alimentările ei.
     "Foaia de parcurs este aprobată și nu se mai modifică. Dacă are o greșeală, cereți administratorului flotei să o storneze, apoi întocmiți una nouă.",
     "Foaia de parcurs aprobată se poate doar storna. Pentru corecții, stornați-o și întocmiți una nouă.",
     "Alimentarea face parte dintr-o foaie de parcurs aprobată și nu se mai modifică. Pentru corecții, foaia se stornează și se întocmește una nouă.",
     "Alimentarea nu se mută pe altă foaie de parcurs. Ștergeți-o și adăugați-o pe foaia corectă.",
-    // 0196 §C5: foaia trimisă nu se rescrie. Începe cu „Foaia”, nu cu
+    // 0199 §C5: foaia trimisă nu se rescrie. Începe cu „Foaia”, nu cu
     // „Kilometrajul”: refuzul ține de stare, nu de câmpul atins.
     "Foaia de parcurs este trimisă spre aprobare și nu se mai modifică. Retrageți-o în ciornă, corectați-o și trimiteți-o din nou.",
-  ])("0196, fără câmp: %s", (mesaj) => {
+  ])("0199, fără câmp: %s", (mesaj) => {
     const eroare = prinde(p0001(mesaj));
     expect(eroare.fieldErrors).toBeNull();
     expect(eroare.message).toBe(mesaj);
@@ -95,12 +95,12 @@ describe("traduEroareAlocare — P0001 ajunge cu virgulă dedesubt", () => {
 });
 
 /**
- * 0197: mesajele foii zilnice, copiate cuvânt cu cuvânt din
- * `0197_flota_foaia_zilnica.sql` (cu cifrele din `format()` completate). Dacă
+ * 0200: mesajele foii zilnice, copiate cuvânt cu cuvânt din
+ * `0200_flota_foaia_zilnica.sql` (cu cifrele din `format()` completate). Dacă
  * un mesaj se schimbă în bază și nu și aici, caseta cursei pierde eroarea de pe
  * câmp: refuzul ajunge sub buton, iar câmpul vinovat rămâne alb.
  */
-describe("traduEroare — 0197, cursele foii zilnice", () => {
+describe("traduEroare — 0200, cursele foii zilnice", () => {
   it.each([
     ["Scrieți locul de plecare al cursei.", ["de_la_loc"]],
     ["Scrieți locul de sosire al cursei.", ["pana_la_loc"]],
@@ -213,11 +213,11 @@ describe("traduEroare — 0197, cursele foii zilnice", () => {
 });
 
 /**
- * 0202: fiscalul flotei. Mesajele P0001 sunt copiate din `flota_fiscal_inainte`
+ * 0205: fiscalul flotei. Mesajele P0001 sunt copiate din `flota_fiscal_inainte`
  * (cu cifrele din `format()` completate), iar numele restricțiilor din CHECK-urile
  * și indexurile tabelelor `vehicle_fiscal_regimes` / `vehicle_consumption_norms`.
  */
-describe("traduEroareFiscal — 0202", () => {
+describe("traduEroareFiscal — 0205", () => {
   function prindeFiscal(error: unknown): ActionDenied {
     try {
       traduEroareFiscal(error);

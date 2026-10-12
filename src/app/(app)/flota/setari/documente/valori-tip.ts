@@ -3,7 +3,7 @@
 import { CATEGORII_VEHICUL, type CategorieVehicul } from "@/schemas/fleet";
 
 /**
- * `FormData` → încărcătura acțiunilor pe tipul propriu (0199). Singura
+ * `FormData` → încărcătura acțiunilor pe tipul propriu (0202). Singura
  * traducere, folosită de creare și de modificare, ca cele două să nu divergă.
  *
  * Două capcane tăcute, prinse de `valori-tip.test.ts`:

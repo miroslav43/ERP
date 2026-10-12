@@ -39,7 +39,7 @@ interface Proprietati {
 }
 
 /**
- * O perioadă nouă a regimului fiscal al vehiculului (0202). Nu se modifică o
+ * O perioadă nouă a regimului fiscal al vehiculului (0205). Nu se modifică o
  * perioadă existentă: corectura e ștergere + perioadă nouă, iar istoricul
  * rămâne în audit. Cheile trimise sunt EXACT cele din `regimFiscalNouSchema`.
  *

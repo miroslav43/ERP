@@ -113,7 +113,7 @@ export default async function PaginaDeplasareNoua({
           .order("full_name")
           .returns<AngajatMinim[]>()
       : null,
-    // Flota F9 (0201): mașina de serviciu a deplasării.
+    // Flota F9 (0204): mașina de serviciu a deplasării.
     vehiculePentruDeplasare(tenant.organizationId, user.id, {
       poateVedeaVehicule: can(permisiuni, "vehicles:read", "own"),
       pentruOricine: poateAlegeAngajat,

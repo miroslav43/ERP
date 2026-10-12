@@ -103,18 +103,18 @@ const RUTE: readonly Ruta[] = [
   {
     cale: "/flota",
     titlu: "Parc auto",
-    // ── flota pe roluri (0196): managerul are vehicles:read = team ──
-    poarta: "fleet · vehicles:read own (org_admin all, manager team din 0196; hr nimic)",
+    // ── flota pe roluri (0199): managerul are vehicles:read = team ──
+    poarta: "fleet · vehicles:read own (org_admin all, manager team din 0199; hr nimic)",
     asteptari: { org_admin: CONTINUT, hr: ACCES, manager: CONTINUT },
   },
-  // ── început bloc: setările flotei (0198) ──
+  // ── început bloc: setările flotei (0201) ──
   {
     cale: "/flota/setari",
     titlu: "Setări parc auto",
-    poarta: "fleet · vehicles:update all (doar org_admin; cere 0198 aplicată)",
+    poarta: "fleet · vehicles:update all (doar org_admin; cere 0201 aplicată)",
     asteptari: DOAR_ADMIN,
   },
-  // ── sfârșit bloc: setările flotei (0198) ──
+  // ── sfârșit bloc: setările flotei (0201) ──
   // ── început bloc: rapoartele flotei (F8) ──
   {
     cale: "/flota/rapoarte",
@@ -124,36 +124,36 @@ const RUTE: readonly Ruta[] = [
     asteptari: DOAR_ADMIN,
   },
   // ── sfârșit bloc: rapoartele flotei (F8) ──
-  // ── început bloc: tipurile de document ale flotei (0199) ──
+  // ── început bloc: tipurile de document ale flotei (0202) ──
   {
     cale: "/flota/setari/documente",
     titlu: "Tipuri de document",
-    poarta: "fleet · vehicles:update all (doar org_admin; cere 0199 aplicată)",
+    poarta: "fleet · vehicles:update all (doar org_admin; cere 0202 aplicată)",
     asteptari: DOAR_ADMIN,
   },
-  // ── sfârșit bloc: tipurile de document ale flotei (0199) ──
-  // ── început bloc: fiscalul flotei (0202) ──
+  // ── sfârșit bloc: tipurile de document ale flotei (0202) ──
+  // ── început bloc: fiscalul flotei (0205) ──
   {
     cale: "/flota/fiscal",
     titlu: "Fiscal parc auto",
-    poarta: "fleet · vehicles:read all (doar org_admin; cere 0202 aplicată)",
+    poarta: "fleet · vehicles:read all (doar org_admin; cere 0205 aplicată)",
     asteptari: DOAR_ADMIN,
   },
-  // ── sfârșit bloc: fiscalul flotei (0202) ──
-  // ── început bloc: amenzi și daune (0203) ──
+  // ── sfârșit bloc: fiscalul flotei (0205) ──
+  // ── început bloc: amenzi și daune (0206) ──
   {
     cale: "/flota/amenzi",
     titlu: "Amenzi",
-    poarta: "fleet · vehicle_fines:read all (doar org_admin; cere 0203 aplicată)",
+    poarta: "fleet · vehicle_fines:read all (doar org_admin; cere 0206 aplicată)",
     asteptari: DOAR_ADMIN,
   },
   {
     cale: "/flota/incidente",
     titlu: "Incidente și daune",
-    poarta: "fleet · vehicle_incidents:read all (doar org_admin; cere 0203 aplicată)",
+    poarta: "fleet · vehicle_incidents:read all (doar org_admin; cere 0206 aplicată)",
     asteptari: DOAR_ADMIN,
   },
-  // ── sfârșit bloc: amenzi și daune (0203) ──
+  // ── sfârșit bloc: amenzi și daune (0206) ──
   {
     cale: "/inventar",
     titlu: "Inventar",

@@ -1,10 +1,10 @@
--- supabase/migrations/0200_flota_service_costuri.sql
+-- supabase/migrations/0203_flota_service_costuri.sql
 --
 -- FLOTA, FAZA F7: SERVICE, COSTURI, ANVELOPE.
 --
--- Planul o numea `0177_flota_service_costuri`; între timp 0174–0199 s-au ocupat
+-- Planul o numea `0177_flota_service_costuri`; între timp 0174–0202 s-au ocupat
 -- (mentenanță, registru, asistent, salarizare, tichete, aprobatori, KPI și
--- fazele F3–F6 ale flotei), deci e 0200.
+-- fazele F3–F6 ale flotei), deci e 0203.
 --
 -- ── DE UNDE VINE ────────────────────────────────────────────────────────────
 -- Flota ținea documentele și foile, dar nu și viața mecanică a mașinii: când
@@ -39,17 +39,17 @@
 --    redefinit-o, verificat cu grep), nu doar adăugată: funcția e un `case`, iar
 --    un ecou parțial ar pierde tăcut ramurile celorlalte module. Garda din
 --    0023:89 (nicio ramură nu acceptă `employees:read` cu scope `own`) trece.
--- F. Jobul zilnic din F5 (`internal.conformitate_zilnica`, forma 0198):
+-- F. Jobul zilnic din F5 (`internal.conformitate_zilnica`, forma 0201):
 --    · rezumatul datelor primește și `vehicle_service`;
 --    · `internal.flota_memento_service`: alerta pe kilometri (`km_curent >=
 --      urmatorii_km - prag`, o dată la „aproape” și o dată la „depășit”, per
 --      ciclu) și memento-ul sezonier din noiembrie pentru vehiculele cu
 --      anvelope de vară; dedup prin `internal.flota_mementouri`;
 --    · pragurile de alertă din `/flota/setari` se oglindesc acum și pentru
---      `vehicle_service` (trigger rescris de la forma 0198, plus backfill).
+--      `vehicle_service` (trigger rescris de la forma 0201, plus backfill).
 -- G. Tipul de document `revizie` se dezactivează pe platformă (UPDATE, ca în
 --    0116). Documentele deja existente pe el rămân și rămân corectabile; o firmă
---    care vrea tipul îl reactivează din setările de tipuri (0199).
+--    care vrea tipul îl reactivează din setările de tipuri (0202).
 --
 -- ── CE NU FACE ──────────────────────────────────────────────────────────────
 --  · Nu atinge `app.can_path`, `internal.vehicles_normalizeaza`, `vehicles_dupa`,
@@ -81,7 +81,7 @@ create type public.vehicle_tire_set as enum ('vara', 'iarna', 'all_season');
 alter table public.vehicles add column anvelope_montate public.vehicle_tire_set;
 
 comment on column public.vehicles.anvelope_montate is
-  'Anvelopele montate acum (0200). NULL = necunoscut. Se schimbă din formularul vehiculului sau printr-o intervenție de service de tip „anvelope”. „vara” declanșează memento-ul din noiembrie.';
+  'Anvelopele montate acum (0203). NULL = necunoscut. Se schimbă din formularul vehiculului sau printr-o intervenție de service de tip „anvelope”. „vara” declanșează memento-ul din noiembrie.';
 
 -- ============================================================
 -- 2. Planurile de service
@@ -125,7 +125,7 @@ create table public.vehicle_service_plans (
 );
 
 comment on table public.vehicle_service_plans is
-  'Planurile de service ale unui vehicul (0200): interval în km și/sau luni. Scadența pe dată intră în expirables (entity_type = vehicle_service), cea pe kilometri o ia jobul zilnic.';
+  'Planurile de service ale unui vehicul (0203): interval în km și/sau luni. Scadența pe dată intră în expirables (entity_type = vehicle_service), cea pe kilometri o ia jobul zilnic.';
 
 create index vsp_vehicul_idx
   on public.vehicle_service_plans (vehicle_id)
@@ -173,7 +173,7 @@ create table public.vehicle_service_entries (
 );
 
 comment on table public.vehicle_service_entries is
-  'Intervențiile de service făcute (0200): dată, km, tip, furnizor, factură, cost piese + manoperă. Nu se modifică după inserare, doar se șterg logic.';
+  'Intervențiile de service făcute (0203): dată, km, tip, furnizor, factură, cost piese + manoperă. Nu se modifică după inserare, doar se șterg logic.';
 
 create index vse_vehicul_idx
   on public.vehicle_service_entries (vehicle_id, data_interventiei desc, id desc)
@@ -213,7 +213,7 @@ create table public.vehicle_expenses (
 );
 
 comment on table public.vehicle_expenses is
-  'Cheltuieli pe vehicul care nu sunt service și nu sunt pe foaia de parcurs (0200): combustibil fără foaie, parcare, spălătorie, taxe. Suma în lei, cu TVA.';
+  'Cheltuieli pe vehicul care nu sunt service și nu sunt pe foaia de parcurs (0203): combustibil fără foaie, parcare, spălătorie, taxe. Suma în lei, cu TVA.';
 
 create index vex_vehicul_idx
   on public.vehicle_expenses (vehicle_id, data_cheltuielii desc, id desc)
@@ -245,7 +245,7 @@ revoke all on internal.flota_mementouri from public, anon, authenticated;
 grant select, insert on internal.flota_mementouri to service_role;
 
 comment on table internal.flota_mementouri is
-  'Memento-urile de flotă fără dată de expirare deja trimise (0200): alerta pe km a unui plan, memento-ul de anvelope din noiembrie. Cheia = ce s-a trimis; fără rând, jobul zilnic îl trimite.';
+  'Memento-urile de flotă fără dată de expirare deja trimise (0203): alerta pe km a unui plan, memento-ul de anvelope din noiembrie. Cheia = ce s-a trimis; fără rând, jobul zilnic îl trimite.';
 
 -- ============================================================
 -- 6. Gărzile și derivatele
@@ -730,7 +730,7 @@ $$;
 -- ============================================================
 -- 10. Pragurile de alertă ale flotei, și pentru service
 -- ============================================================
--- Forma 0198, cu o singură schimbare: oglinda în `alert_rules` se scrie pentru
+-- Forma 0201, cu o singură schimbare: oglinda în `alert_rules` se scrie pentru
 -- ambele tipuri de scadență a flotei.
 
 create or replace function internal.flota_setari_praguri()
@@ -747,7 +747,7 @@ begin
     return null;
   end if;
 
-  -- 0200: aceleași praguri pentru scadențele de service pe dată
+  -- 0203: aceleași praguri pentru scadențele de service pe dată
   -- (`vehicle_service`), nu doar pentru documente.
   insert into public.alert_rules as r
     (organization_id, entity_type, kind, praguri_zile, alerteaza_la_depasire, valabil_de_la)
@@ -773,7 +773,7 @@ do nothing;
 -- ============================================================
 -- 11. Rezumatul zilnic: și scadențele de service pe dată
 -- ============================================================
--- Forma 0198, cu: lista albă extinsă la `vehicle_service`, formularea „scadent”
+-- Forma 0201, cu: lista albă extinsă la `vehicle_service`, formularea „scadent”
 -- pentru service, titlul cu patru numărători (documente / lucrări de service) și
 -- legătura spre fila „service” când toate elementele sunt de service. Fără
 -- elemente de service, textul și legătura sunt cele de până acum.
@@ -826,7 +826,7 @@ begin
        and x.organization_id = p_org
        and x.deleted_at is null
        and x.is_active
-       -- LISTA ALBĂ a flotei (0200: și scadențele de service pe dată). SSM și
+       -- LISTA ALBĂ a flotei (0203: și scadențele de service pe dată). SSM și
        -- HR se adaugă aici, cu legătura lor.
        and x.entity_type in ('vehicle_document', 'vehicle_service')
        and a.due_date = x.expires_at
@@ -971,7 +971,7 @@ end;
 $$;
 
 comment on function internal.flota_rezumat(uuid) is
-  'Rezumatul zilnic al scadențelor de flotă pe dată (vehicle_document și, din 0200, vehicle_service) pentru o firmă: o notificare per destinatar, doar cu elementele netrimise lui. Idempotentă: a doua rulare din aceeași zi nu scrie nimic.';
+  'Rezumatul zilnic al scadențelor de flotă pe dată (vehicle_document și, din 0203, vehicle_service) pentru o firmă: o notificare per destinatar, doar cu elementele netrimise lui. Idempotentă: a doua rulare din aceeași zi nu scrie nimic.';
 
 -- ============================================================
 -- 12. Destinatarii unui vehicul și memento-urile fără dată
@@ -1175,12 +1175,12 @@ end;
 $$;
 
 comment on function internal.flota_memento_service(uuid, date) is
-  'Memento-urile de flotă fără dată (0200): planul de service pe kilometri („aproape” și „depășit”, o dată per ciclu) și anvelopele de vară din noiembrie. O notificare per destinatar și rulare; dedup prin internal.flota_mementouri.';
+  'Memento-urile de flotă fără dată (0203): planul de service pe kilometri („aproape” și „depășit”, o dată per ciclu) și anvelopele de vară din noiembrie. O notificare per destinatar și rulare; dedup prin internal.flota_mementouri.';
 
 -- ============================================================
 -- 13. Conformitatea zilnică: și memento-urile fără dată
 -- ============================================================
--- Forma 0198 (jobul `conformitate-zilnica`, 05:00 UTC), cu apelul către
+-- Forma 0201 (jobul `conformitate-zilnica`, 05:00 UTC), cu apelul către
 -- `flota_memento_service` și un contor nou în raport.
 
 create or replace function internal.conformitate_zilnica()
@@ -1214,7 +1214,7 @@ begin
       v_alerte := v_alerte + coalesce(v_x, 0);
       v_x := internal.flota_rezumat(v_org);
       v_rezumate := v_rezumate + coalesce(v_x, 0);
-      -- 0200: alerta pe kilometri și memento-ul sezonier de anvelope.
+      -- 0203: alerta pe kilometri și memento-ul sezonier de anvelope.
       v_x := internal.flota_memento_service(v_org);
       v_mementouri := v_mementouri + coalesce(v_x, 0);
       v_firme := v_firme + 1;
@@ -1231,7 +1231,7 @@ end;
 $$;
 
 comment on function internal.conformitate_zilnica() is
-  'Jobul de dimineață al conformității (pg_cron „conformitate-zilnica”, 05:00 UTC): alertele din 0008, rezumatul de flotă pe dată și, din 0200, memento-urile pe kilometri și de anvelope. Doar firmele active cu modulul fleet pornit.';
+  'Jobul de dimineață al conformității (pg_cron „conformitate-zilnica”, 05:00 UTC): alertele din 0008, rezumatul de flotă pe dată și, din 0203, memento-urile pe kilometri și de anvelope. Doar firmele active cu modulul fleet pornit.';
 
 -- ============================================================
 -- 14. Tipul de document `revizie` se retrage de pe platformă
@@ -1240,7 +1240,7 @@ comment on function internal.conformitate_zilnica() is
 -- deja înregistrate pe tipul `revizie` NU se ating: tipul retras nu îngheață
 -- rândurile existente (`vdoc_inainte` revalidează tipul doar la INSERT sau la
 -- schimbarea tipului), iar fișa le arată în continuare. O firmă care vrea tipul
--- îl reactivează din setările de tipuri (0199).
+-- îl reactivează din setările de tipuri (0202).
 update public.vehicle_document_types
    set activ = false,
        updated_at = now()
@@ -1351,10 +1351,10 @@ begin
                                   'vsp_resincronizeaza_vehicul', 'vse_inainte', 'vse_dupa', 'vex_inainte',
                                   'flota_destinatari', 'flota_memento_service')
                 and (p.proconfig is null or not ('search_path=""' = any (p.proconfig)))) then
-    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0200';
+    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0203';
   end if;
 
-  -- Jobul din 0198 chemă memento-urile; semnătura lui genereaza_alerte rămâne a 0008.
+  -- Jobul din 0201 chemă memento-urile; semnătura lui genereaza_alerte rămâne a 0008.
   if position('flota_memento_service' in pg_get_functiondef('internal.conformitate_zilnica()'::regprocedure)) = 0 then
     v_lipsa := v_lipsa || 'conformitate_zilnica nu cheamă flota_memento_service';
   end if;
@@ -1383,6 +1383,6 @@ begin
   end if;
 
   if array_length(v_lipsa, 1) > 0 then
-    raise exception '0200: lipsesc %', array_to_string(v_lipsa, ', ');
+    raise exception '0203: lipsesc %', array_to_string(v_lipsa, ', ');
   end if;
 end $$;

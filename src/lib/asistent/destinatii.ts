@@ -821,7 +821,7 @@ const INTRARI: readonly Intrare[] = [
     descriere:
       "Kilometrajele care nu se leagă între două foi consecutive, de confirmat sau corectat.",
   },
-  // ═══ ÎNCEPUT BLOC: flota, șabloanele de traseu (0197) ═══
+  // ═══ ÎNCEPUT BLOC: flota, șabloanele de traseu (0200) ═══
   {
     id: "flota.sabloane",
     href: "/flota/foi/sabloane",
@@ -835,8 +835,8 @@ const INTRARI: readonly Intrare[] = [
     descriere:
       "Rutele pe care mașinile firmei le fac des, din care șoferii își adaugă cursele pe foaia de parcurs.",
   },
-  // ═══ SFÂRȘIT BLOC: flota, șabloanele de traseu (0197) ═══
-  // ═══ ÎNCEPUT BLOC: flota, setările (0198) ═══
+  // ═══ SFÂRȘIT BLOC: flota, șabloanele de traseu (0200) ═══
+  // ═══ ÎNCEPUT BLOC: flota, setările (0201) ═══
   {
     id: "flota.setari",
     href: "/flota/setari",
@@ -850,8 +850,8 @@ const INTRARI: readonly Intrare[] = [
     descriere:
       "Responsabilii de flotă care primesc alertele de scadență și foile de aprobat, zilele de dinainte de expirare la care pleacă alertele și pragul de salt al kilometrajului.",
   },
-  // ═══ SFÂRȘIT BLOC: flota, setările (0198) ═══
-  // ═══ ÎNCEPUT BLOC: flota, tipurile de document (0199) ═══
+  // ═══ SFÂRȘIT BLOC: flota, setările (0201) ═══
+  // ═══ ÎNCEPUT BLOC: flota, tipurile de document (0202) ═══
   {
     id: "flota.tipuri-document",
     href: "/flota/setari/documente",
@@ -865,7 +865,7 @@ const INTRARI: readonly Intrare[] = [
     descriere:
       "Ce documente ține firma pentru vehicule și care sunt obligatorii: activarea licenței de transport, a tahografului sau a ADR-ului, tipurile proprii firmei, documentele care nu se cer remorcilor.",
   },
-  // ═══ SFÂRȘIT BLOC: flota, tipurile de document (0199) ═══
+  // ═══ SFÂRȘIT BLOC: flota, tipurile de document (0202) ═══
   // ═══ ÎNCEPUT BLOC: flota, rapoartele (F8) ═══
   {
     id: "flota.rapoarte",
@@ -881,7 +881,7 @@ const INTRARI: readonly Intrare[] = [
       "Costul pe vehicul, consumul real față de norma proprie și kilometrii pe șofer, pe lună, din foile aprobate, cu Excelul și pachetul lunar (foile aprobate în PDF) pentru contabil.",
   },
   // ═══ SFÂRȘIT BLOC: flota, rapoartele (F8) ═══
-  // ═══ ÎNCEPUT BLOC: flota, fiscalul (0202) ═══
+  // ═══ ÎNCEPUT BLOC: flota, fiscalul (0205) ═══
   {
     id: "flota.fiscal",
     href: "/flota/fiscal",
@@ -895,8 +895,8 @@ const INTRARI: readonly Intrare[] = [
     descriere:
       "Regimul de deducere al vehiculelor (50% sau integral), luna fiscală cu vehiculele fără foi de parcurs, normele proprii de consum și regimul de impozitare al firmei.",
   },
-  // ═══ SFÂRȘIT BLOC: flota, fiscalul (0202) ═══
-  // ═══ ÎNCEPUT BLOC: flota, amenzi și daune (0203) ═══
+  // ═══ SFÂRȘIT BLOC: flota, fiscalul (0205) ═══
+  // ═══ ÎNCEPUT BLOC: flota, amenzi și daune (0206) ═══
   {
     id: "flota.amenzi",
     href: "/flota/amenzi",
@@ -923,7 +923,7 @@ const INTRARI: readonly Intrare[] = [
     descriere:
       "Accidente, avarii, furturi și vandalism pe vehicule: stadiile dosarului de daună, costul, despăgubirea de la asigurător și legătura cu cercetarea SSM.",
   },
-  // ═══ SFÂRȘIT BLOC: flota, amenzi și daune (0203) ═══
+  // ═══ SFÂRȘIT BLOC: flota, amenzi și daune (0206) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {
@@ -1524,7 +1524,7 @@ const INTRARI: readonly Intrare[] = [
     minScope: "own",
     descriere: "Anunțarea unei deplasări, cu destinația și perioada.",
   },
-  // ── început bloc: flota pe roluri (0196) ──
+  // ── început bloc: flota pe roluri (0199) ──
   {
     id: "portal.masina",
     href: "/portal/masina-mea",
@@ -1549,7 +1549,7 @@ const INTRARI: readonly Intrare[] = [
     minScope: "own",
     descriere: "Întocmirea foii de parcurs pe mașina ta sau pe una din mașinile comune.",
   },
-  // ── sfârșit bloc: flota pe roluri (0196) ──
+  // ── sfârșit bloc: flota pe roluri (0199) ──
   {
     id: "portal.cursuri",
     href: "/portal/cursurile-mele",

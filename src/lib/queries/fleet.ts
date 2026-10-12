@@ -39,7 +39,7 @@ export interface RandVehicul {
   readonly tip_combustibil: Combustibil;
   readonly an_fabricatie: number | null;
   /**
-   * Urcată în rândul de LISTĂ din 0199: categoria și masa decid ce documente
+   * Urcată în rândul de LISTĂ din 0202: categoria și masa decid ce documente
    * sunt obligatorii (`tipuriObligatoriiPentru`), deci semaforul listei are
    * nevoie de ea pentru fiecare rând.
    */
@@ -82,7 +82,7 @@ export interface Vehicul extends RandVehicul {
   readonly data_achizitie: string | null;
   readonly motiv_iesire: string | null;
   readonly observatii: string | null;
-  /** Anvelopele montate (0200); `null` = necunoscut. */
+  /** Anvelopele montate (0203); `null` = necunoscut. */
   readonly anvelope_montate: "vara" | "iarna" | "all_season" | null;
   readonly created_at: string;
 }
@@ -94,7 +94,7 @@ export interface DocumentVehicul {
   readonly valabil_de_la: string | null;
   readonly expira_la: string | null;
   readonly cost: number | null;
-  /** Scanarea, în bucketul `org-flota` (0199); `null` = neîncărcată. */
+  /** Scanarea, în bucketul `org-flota` (0202); `null` = neîncărcată. */
   readonly fisier_path: string | null;
   readonly fisier_nume: string | null;
   readonly este_curent: boolean;
@@ -103,7 +103,7 @@ export interface DocumentVehicul {
 }
 
 /**
- * Tipul de document cu valorile EFECTIVE ale firmei (0199): setarea ei pe un
+ * Tipul de document cu valorile EFECTIVE ale firmei (0202): setarea ei pe un
  * tip de platformă bate `activ`/`obligatoriu` ale platformei. Calculul e în
  * `aplicaSetariTipuri` (`@/domain/fleet/tipuri-document`), aceeași regulă ca
  * `internal.vdoc_inainte`.
@@ -122,7 +122,7 @@ export interface RandFoaie {
   readonly vehicle_id: string;
   readonly employee_id: string | null;
   readonly numar: string | null;
-  /** Ziua foii (0197), `AAAA-LL-ZZ`, generată de bază din prima plecare. */
+  /** Ziua foii (0200), `AAAA-LL-ZZ`, generată de bază din prima plecare. */
   readonly data: string;
   readonly plecare_la: string;
   readonly sosire_la: string | null;
@@ -151,7 +151,7 @@ export interface Foaie extends RandFoaie {
   readonly motiv_respingere: string | null;
   readonly aprobat_de: string | null;
   /**
-   * Instantaneul vehiculului la trimitere (0197): pe foaia trimisă sau aprobată
+   * Instantaneul vehiculului la trimitere (0200): pe foaia trimisă sau aprobată
    * se citesc DE AICI, nu din `vehicles` — documentul nu se schimbă retroactiv,
    * iar aprobatorul fără drept pe vehicul l-ar vedea altfel „indisponibil”.
    */
@@ -179,7 +179,7 @@ export interface Alimentare {
   readonly alimentat_la: string;
   readonly plin: boolean;
   readonly observatii: string | null;
-  /** Poza bonului, în bucketul `org-flota` (0199); `null` = neatașată. */
+  /** Poza bonului, în bucketul `org-flota` (0202); `null` = neatașată. */
   readonly fisier_bon_path: string | null;
 }
 
@@ -571,7 +571,7 @@ const COLOANE_TIP_DOCUMENT =
 
 /**
  * Nomenclatorul ÎNTREG al firmei: tipurile de platformă și cele proprii, active
- * sau nu, cu setările firmei aplicate (0199). Pentru `/flota/setari/documente`.
+ * sau nu, cu setările firmei aplicate (0202). Pentru `/flota/setari/documente`.
  *
  * Filtrul pe organizație e `organization_id is null OR = firma`, explicit: din
  * 0020, `vdt_select` lasă oricui rândurile de platformă, iar unui om membru în
@@ -605,7 +605,7 @@ export async function nomenclatorDocumente(
 }
 
 /**
- * Tipurile DISPONIBILE firmei: cele active după setarea ei (0199). Un tip de
+ * Tipurile DISPONIBILE firmei: cele active după setarea ei (0202). Un tip de
  * transport retras din platformă (0116) apare dacă firma l-a activat; unul
  * retras de firmă dispare, deși rămâne activ pentru celelalte.
  */
@@ -669,7 +669,7 @@ export async function listeazaFoi(
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     if (filtre.vehicul !== null) cu = cu.eq("vehicle_id", filtre.vehicul);
     if (filtre.sofer !== null) cu = cu.eq("employee_id", filtre.sofer);
-    // Pe `data` (ziua foii, 0197), nu pe `plecare_la`: „foile din 1–15
+    // Pe `data` (ziua foii, 0200), nu pe `plecare_la`: „foile din 1–15
     // octombrie” sunt zile calendaristice românești, nu momente UTC.
     if (filtre.de_la !== null) cu = cu.gte("data", filtre.de_la);
     if (filtre.pana_la !== null) cu = cu.lte("data", filtre.pana_la);
@@ -976,7 +976,7 @@ export async function vehiculeDupaId(
   return new Map((data ?? []).map((v) => [v.id, v]));
 }
 
-// ── Portalul șoferului: „Mașina mea” (0196) ─────────────────────────────────
+// ── Portalul șoferului: „Mașina mea” (0199) ─────────────────────────────────
 //
 // Aici, spre deosebire de restul fișierului, filtrul pe ȘOFER e explicit. Regula
 // e cea din antetul lui `src/lib/queries/portal.ts`: portalul poate fi deschis
@@ -1059,7 +1059,7 @@ export async function foileMele(
   });
 }
 
-// ── Cursele foii zilnice și șabloanele de traseu (0197) ─────────────────────
+// ── Cursele foii zilnice și șabloanele de traseu (0200) ─────────────────────
 
 /** O cursă, cu observațiile ei. Forma pură e `CursaFoaie` din domeniu. */
 export interface Cursa extends CursaFoaie {
@@ -1134,7 +1134,7 @@ export async function numeleContului(userId: string): Promise<string | null> {
   return nume.length > 0 ? nume : data.email;
 }
 
-// ── Setările flotei (0198) ──────────────────────────────────────────────────
+// ── Setările flotei (0201) ──────────────────────────────────────────────────
 
 /** Setările flotei, cum le folosește baza. `id: null` = firma n-are încă rândul. */
 export interface SetariFlota {
@@ -1150,7 +1150,7 @@ export interface SetariFlota {
  * Setările flotei ale firmei. Lipsa rândului NU e o eroare: firma folosește
  * implicitele coloanelor (1.500 km, 30/14/7), aceleași pe care le aplică baza
  * (`setari.test.ts` le fixează). Le citește DOAR cine administrează parcul
- * (`fleet_settings_select`, `vehicles:update = all`, de la revizuirea pe 0198:
+ * (`fleet_settings_select`, `vehicles:update = all`, de la revizuirea pe 0201:
  * înainte, orice `employee` cu `vehicles:read = own` primea responsabilii și
  * pragurile); pentru restul, zero rânduri și tot implicitele — nu un ecran
  * gol, dar și NU valoarea firmei. Cine are nevoie de pragul unui vehicul vizibil
@@ -1185,7 +1185,7 @@ export async function setariFlota(organizationId: string): Promise<SetariFlota> 
  * Pragul de salt EFECTIV al unui vehicul (al lui, apoi al firmei, apoi
  * implicitul), pentru cine nu citește `fleet_settings`: fișa vehiculului îl
  * afișează și managerului (team) sau șoferului (own). Calea e funcția
- * `public.flota_prag_salt_km` (0198), care întoarce un singur număr și doar
+ * `public.flota_prag_salt_km` (0201), care întoarce un singur număr și doar
  * pentru un vehicul vizibil apelantului; altfel `null` (fără eroare), iar fișa
  * spune „din setările flotei” fără cifră.
  */

@@ -42,7 +42,7 @@ interface ProprietatiPagina {
 const TIPAR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Fișa unei amenzi (0203): faptele, termenul, șoferul desemnat (cu sugestia
+ * Fișa unei amenzi (0206): faptele, termenul, șoferul desemnat (cu sugestia
  * din foaie sau alocare), scrisoarea de răspuns, închiderea.
  *
  * Poarta e `vehicle_fines:read = all`. Scrisoarea cere în plus `employees:read

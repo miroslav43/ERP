@@ -1,5 +1,5 @@
 // src/lib/queries/soferi.ts
-// Citirile pentru șoferii flotei (0201, F9): permisul de conducere, faptele
+// Citirile pentru șoferii flotei (0204, F9): permisul de conducere, faptele
 // verificărilor încrucișate și deplasările de care se poate lega o foaie.
 //
 // Fișier separat de `fleet.ts`, pe care îl scriu și fazele paralele ale
@@ -184,7 +184,7 @@ export async function deplasariPentruFoaie(
   return data;
 }
 
-/** Deplasarea legată de foaie (0201), sau `null`. Prin RLS. */
+/** Deplasarea legată de foaie (0204), sau `null`. Prin RLS. */
 export async function deplasareaFoii(
   organizationId: string,
   foaieId: string,

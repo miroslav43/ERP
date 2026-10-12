@@ -24,7 +24,7 @@ type CampuriStadiu = Readonly<{
 }>;
 
 /**
- * Schimbarea stadiului incidentului (0203). Câmpurile cerute de stadiul ales
+ * Schimbarea stadiului incidentului (0206). Câmpurile cerute de stadiul ales
  * apar lângă el: asigurătorul la „la asigurător”, costul final la „închis”
  * (închiderea îngheață incidentul). Cheile trimise sunt EXACT cele din
  * `schimbaStadiulIncidentuluiSchema`.

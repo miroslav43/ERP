@@ -1,6 +1,6 @@
 // src/app/api/export/flota/amenzi/[id]/scrisoare/route.test.ts
 //
-// Porțile scrisorii de răspuns către autoritate (0203). Scrisoarea poartă CNP-ul
+// Porțile scrisorii de răspuns către autoritate (0206). Scrisoarea poartă CNP-ul
 // întreg al unui om, deci porțile contează mai mult decât PDF-ul: fără
 // `employees:read = all` ruta nu are voie să citească nimic sensibil, nici măcar
 // să cheme `hr_read_sensitive`. Așezarea PDF-ului e în

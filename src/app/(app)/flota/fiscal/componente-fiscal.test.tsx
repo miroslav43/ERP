@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
   `../actions-fiscal` e un modul `"use server"`: se înlocuiește cu spioni. Ce se
   verifică aici e ce PLEACĂ din casete (cheile schemelor, câmpurile condiționate)
   și ce se arată după un refuz. Verificarea în browser nu e posibilă pe ramura
-  asta: baza din cloud n-are încă 0202.
+  asta: baza din cloud n-are încă 0205.
 */
 const adaugaRegimFiscal = vi.fn();
 const stergeRegimFiscal = vi.fn();

@@ -1,7 +1,7 @@
 // src/domain/fleet/fisiere.ts
 
 /**
- * Fișierele flotei (0199): scanarea documentului de vehicul și poza bonului de
+ * Fișierele flotei (0202): scanarea documentului de vehicul și poza bonului de
  * alimentare, în bucketul privat `org-flota`. Funcții pure, folosite și de
  * acțiuni, și de componentele de încărcare — fără directivă, ca o constantă de
  * aici să nu devină proxy când o importă serverul (memoria „Constantă client
@@ -20,7 +20,7 @@ import { caleInPrefix, slugFisier } from "@/lib/documents/cale";
 
 export const BUCKET_FLOTA = "org-flota";
 
-/** 20 MB: limita bucketului din 0199 (`file_size_limit = 20971520`). */
+/** 20 MB: limita bucketului din 0202 (`file_size_limit = 20971520`). */
 export const LIMITA_FISIER_FLOTA_BYTES = 20 * 1024 * 1024;
 
 /** Tipurile acceptate de bucket. HEIC/HEIF: poza bonului făcută cu un iPhone. */

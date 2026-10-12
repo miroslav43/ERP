@@ -1,13 +1,13 @@
 // src/domain/fleet/setari.ts
 
 /**
- * Setările flotei (0198, `fleet_settings`): implicitele și forma pragurilor de
+ * Setările flotei (0201, `fleet_settings`): implicitele și forma pragurilor de
  * alertă. Funcții pure, fără I/O.
  *
  * ── DE CE IMPLICITELE STAU AICI ──────────────────────────────────────────────
  * O firmă fără rând de setări folosește valorile `default` ale coloanelor, iar
  * ecranul trebuie să le arate pe ACELEAȘI. Sunt trei locuri care le știu:
- * coloanele din 0198, `internal.flota_prag_salt_km()` (0012, rezerva de 1.500
+ * coloanele din 0201, `internal.flota_prag_salt_km()` (0012, rezerva de 1.500
  * km) și `internal.praguri_implicite()` (0008, 30/14/7). Constantele de mai jos
  * le copiază, iar `setari.test.ts` le fixează, ca o schimbare într-o parte să
  * nu treacă tăcut.

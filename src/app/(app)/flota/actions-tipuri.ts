@@ -2,7 +2,7 @@
 "use server";
 
 /**
- * Nomenclatorul de documente al firmei (0199): setarea pe un tip DE PLATFORMĂ
+ * Nomenclatorul de documente al firmei (0202): setarea pe un tip DE PLATFORMĂ
  * (activ / obligatoriu, doar pentru ea) și tipurile PROPRII firmei.
  *
  * Porțile sunt ale politicilor, literal: `vehicle_document_type_setari_*` și

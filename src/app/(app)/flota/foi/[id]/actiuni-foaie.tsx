@@ -91,7 +91,7 @@ function ErorileFaraCamp({
  * alimentările.
  *
  * Ce arată fiecare stare urmează EXACT regulile din
- * `internal.foi_parcurs_inainte` după 0197 (§D1), nu o aproximare a lor:
+ * `internal.foi_parcurs_inainte` după 0200 (§D1), nu o aproximare a lor:
  *   - `draft`: trimiterea, alimentarea, ștergerea ciornei;
  *   - `trimis`: doar „Retrage în ciornă”. Baza nu mai lasă nimic altceva pe o
  *     foaie în aprobare — nici alimentări, nici curse —, ca aprobatorul să
@@ -113,7 +113,7 @@ function ErorileFaraCamp({
  * nu se blochează cât timp se trimite foaia. Orele se arată și se trimit în ora
  * României (`oraRomanieiPentruCamp` / `dataOraRomania`).
  *
- * Trimiterea nu mai cere sosirea: o dau cursele (0197). Un refuz al bazei la
+ * Trimiterea nu mai cere sosirea: o dau cursele (0200). Un refuz al bazei la
  * trimitere (cursă neîncheiată, regres de kilometraj) se arată ca TEXT, nu „pe
  * câmp”: câmpurile vinovate sunt în casetele curselor, nu în formularul ăsta.
  * `flota/erori.ts` le pune totuși pe câmpul lor (`km_plecare`, `vehicle_id`), iar
@@ -146,7 +146,7 @@ export function ActiuniFoaie({
   const [confirmaStergerea, setConfirmaStergerea] = useState(false);
 
   const sePoateTrimite = status === "draft";
-  // 0197 §D1: alimentările urmează starea foii, deci doar pe ciornă.
+  // 0200 §D1: alimentările urmează starea foii, deci doar pe ciornă.
   const sePoateAlimenta = status === "draft";
   const plecareCamp = oraRomanieiPentruCamp(plecareLa);
   const sosireCamp = sosireLa === null ? null : oraRomanieiPentruCamp(sosireLa);

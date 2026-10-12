@@ -45,7 +45,7 @@ function numeLuna(luna: string): string {
 }
 
 /**
- * Fiscalul parcului auto (0202, F10): regimul de impozitare al firmei și, pe
+ * Fiscalul parcului auto (0205, F10): regimul de impozitare al firmei și, pe
  * fiecare vehicul, luna judecată după regimul lui de deducere — în special
  * vehiculele cu deducere integrală care n-au nicio foaie de parcurs în lună.
  *

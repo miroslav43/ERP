@@ -110,7 +110,7 @@ export interface SemaforVehicul {
  * Semaforul unui vehicul, pornind de la NOMENCLATOR, nu de la documentele
  * existente.
  *
- * Calculul stătea în `flota/page.tsx`; portalul („Mașina mea”, 0196) avea
+ * Calculul stătea în `flota/page.tsx`; portalul („Mașina mea”, 0199) avea
  * nevoie de exact aceeași treaptă, iar a doua copie scrisă în altă pagină e
  * felul în care șoferul ar fi văzut verde unde administratorul vede roșu.
  *
@@ -155,7 +155,7 @@ export function semaforVehicul(
   return { treapta, tipId: purtator?.tipId ?? null, expiraLa: purtator?.expiraLa ?? null };
 }
 
-/** Ce decide aplicabilitatea unui tip de document: categoria și masa (0199). */
+/** Ce decide aplicabilitatea unui tip de document: categoria și masa (0202). */
 export interface VehiculPentruTipuri {
   readonly categorie: string;
   /** Masa maximă autorizată, în kg; `null` = necompletată. */
@@ -182,7 +182,7 @@ export interface TipAplicabil {
  * goală. „Lipsește” îl trimite pe om să completeze masa sau documentul.
  *
  * Aplicabilitatea decide doar ce se aprinde roșu: baza nu refuză un document pe
- * un tip neaplicabil (0199, notele de proiectare).
+ * un tip neaplicabil (0202, notele de proiectare).
  */
 export function tipSeAplica(vehicul: VehiculPentruTipuri, tip: TipAplicabil): boolean {
   if (tip.categorii_aplicabile !== null && !tip.categorii_aplicabile.includes(vehicul.categorie)) {

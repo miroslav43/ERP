@@ -34,7 +34,7 @@ const fmtKm = (n: number): string => n.toLocaleString("ro-RO");
 const fmtLitri = (n: number): string => `${n.toLocaleString("ro-RO")} l`;
 
 /**
- * Fila „Costuri” a fișei vehiculului (0200): cât a costat vehiculul într-o
+ * Fila „Costuri” a fișei vehiculului (0203): cât a costat vehiculul într-o
  * perioadă, din patru surse (service, combustibil de pe foile aprobate,
  * cheltuieli fără foaie, documente), cu costul pe kilometru și consumul real.
  *

@@ -1,6 +1,6 @@
 // src/app/(app)/flota/erori-amenzi.test.ts
 //
-// Traducerea refuzurilor bazei pentru amenzi și incidente (0203, F11). Fișier
+// Traducerea refuzurilor bazei pentru amenzi și incidente (0206, F11). Fișier
 // separat de `erori.test.ts`, pe care îl scriu și fazele paralele.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -46,9 +46,9 @@ describe("traduEroareAmenzi — restricțiile ajung pe câmp", () => {
   });
 });
 
-describe("traduEroareAmenzi — mesajele triggerelor din 0203", () => {
+describe("traduEroareAmenzi — mesajele triggerelor din 0206", () => {
   const sql = readFileSync(
-    join(process.cwd(), "supabase/migrations/0203_flota_amenzi_daune.sql"),
+    join(process.cwd(), "supabase/migrations/0206_flota_amenzi_daune.sql"),
     "utf8",
   );
 

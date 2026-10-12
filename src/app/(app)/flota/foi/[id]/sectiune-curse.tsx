@@ -16,7 +16,7 @@ import { ButonStergePeFoaie } from "./buton-sterge-pe-foaie";
 import { DialogCursa } from "./dialog-cursa";
 
 /**
- * Foaia ca tabel de curse (0197): ora, de la → la, scopul, kilometrii.
+ * Foaia ca tabel de curse (0200): ora, de la → la, scopul, kilometrii.
  *
  * Aceeași secțiune pe `/flota/foi/[id]` și în portal (`/portal/masina-mea/foi/[id]`),
  * ca șoferul și aprobatorul să vadă exact același tabel. Componentă de server:

@@ -10,7 +10,7 @@ import type { SablonTraseu } from "@/domain/fleet/foaie";
 import { actualizeazaSablonTraseu, creeazaSablonTraseu } from "../../actions-sabloane";
 
 /**
- * Șablonul de traseu nou sau corectura lui (0197): o rută recurentă a firmei,
+ * Șablonul de traseu nou sau corectura lui (0200): o rută recurentă a firmei,
  * din care șoferul adaugă cursa dintr-un clic. Numele e unic în firmă
  * (`trt_org_denumire_uq`, eroarea ajunge pe câmp prin `traduEroare`).
  */

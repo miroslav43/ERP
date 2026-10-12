@@ -16,7 +16,7 @@ import {
 import { salveazaRegimImpozitare } from "../actions-fiscal";
 
 /**
- * Regimul de impozitare al firmei (0202): micro, profit sau specific. Decide
+ * Regimul de impozitare al firmei (0205): micro, profit sau specific. Decide
  * doar dacă folosința personală a mașinii se sugerează ca avantaj în natură
  * (Codul fiscal art. 76 alin. (4) lit. ț^1)); nu schimbă nimic altundeva.
  *

@@ -1,6 +1,6 @@
 // src/app/(app)/flota/etichete-service.test.ts
 //
-// Hărțile de text ale service-ului (0200) lipite de enumurile schemei, iar
+// Hărțile de text ale service-ului (0203) lipite de enumurile schemei, iar
 // enumurile schemei lipite de migrare: o valoare adăugată într-un loc și uitată
 // în altul ar apărea pe ecran ca `undefined` sau ar da 22P02 la scriere.
 import { readFileSync } from "node:fs";
@@ -20,13 +20,13 @@ import {
 } from "./etichete-service";
 
 const migrare = readFileSync(
-  join(process.cwd(), "supabase/migrations/0200_flota_service_costuri.sql"),
+  join(process.cwd(), "supabase/migrations/0203_flota_service_costuri.sql"),
   "utf8",
 );
 
 function valoriEnum(nume: string): string[] {
   const m = new RegExp(`create type public\\.${nume} as enum \\(([^)]*)\\)`, "u").exec(migrare);
-  if (m === null) throw new Error(`Enumul ${nume} nu e în migrarea 0200.`);
+  if (m === null) throw new Error(`Enumul ${nume} nu e în migrarea 0203.`);
   return [...(m[1] ?? "").matchAll(/'([^']+)'/gu)].map((x) => x[1] as string);
 }
 

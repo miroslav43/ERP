@@ -60,7 +60,7 @@ function domeniulDinSeed(rol: RolMatrice, resursa: string): Domeniu {
   }
 
   // Resursele NOI, cu seed propriu într-o migrare ulterioară (forma
-  // `(null, 'rol', 'resursă', 'read', 'scope')`, ca 0120 sau 0201). Primul rând
+  // `(null, 'rol', 'resursă', 'read', 'scope')`, ca 0120 sau 0204). Primul rând
   // câștigă: inserările se termină cu `on conflict … do nothing`.
   for (const sql of ULTERIOARE) {
     for (const [, r, res, scop] of sql.matchAll(

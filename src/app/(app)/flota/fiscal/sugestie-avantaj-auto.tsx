@@ -12,7 +12,7 @@ import { avantajeNaturaAuto, type FapteAvantajAlocare } from "@/lib/queries/flot
 
 /**
  * Avantajul în natură din mașina de serviciu folosită și în scop personal
- * (0202, F10), ca SUGESTIE pe fișa angajatului: 1,7% pe lună din valoarea de
+ * (0205, F10), ca SUGESTIE pe fișa angajatului: 1,7% pe lună din valoarea de
  * intrare sau chiria vehiculului închiriat (HG 1/2016, titlul IV pct. 12
  * alin. (5) lit. a)), doar când firma are impozit pe profit și vehiculul nu e
  * în regimul de 50% (Codul fiscal, art. 76 alin. (4) lit. ț) și ț^1)).

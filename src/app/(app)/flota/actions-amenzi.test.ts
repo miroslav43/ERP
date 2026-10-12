@@ -1,11 +1,11 @@
 // src/app/(app)/flota/actions-amenzi.test.ts
 //
-// Amenzile și incidentele flotei (0203, F11), pe clientul fals: înregistrarea,
+// Amenzile și incidentele flotei (0206, F11), pe clientul fals: înregistrarea,
 // desemnarea șoferului, răspunsul către autoritate, închiderea, ștergerea.
 // Clientul fals prinde filtrul de organizație lipsă, `.select()` uitat,
 // stadiul de plecare uitat și ramurile greșite; NU prinde o politică RLS
 // greșită — aceea e în `tests/rls/proba-flota-amenzi.sql` și în `izolare.sql`
-// (l), blocul 0203.
+// (l), blocul 0206.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

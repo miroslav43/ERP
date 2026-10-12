@@ -539,7 +539,7 @@ export const stergeDocument = createAction({
 });
 
 /**
- * Rutele portalului atinse de orice mișcare pe o foaie (0196, „Mașina mea”).
+ * Rutele portalului atinse de orice mișcare pe o foaie (0199, „Mașina mea”).
  *
  * Șoferul își urmărește foile din portal. Fără căile astea, își închide foaia
  * și se întoarce la o listă în care apare tot „în curs”: nu e o eroare, e
@@ -577,7 +577,7 @@ async function fisaProprieFoaie(organizationId: string, userId: string): Promise
 /**
  * Foaia nouă, ca ciornă.
  *
- * ── CINE E ȘOFERUL (0196) ───────────────────────────────────────────────────
+ * ── CINE E ȘOFERUL (0199) ───────────────────────────────────────────────────
  * Cu `trip_sheets:create = all` (administratorul), șoferul se alege din listă.
  * Sub `all` (angajatul și managerul, `own`), nu se alege: e fișa proprie,
  * rezolvată AICI, pe server. Un id trimis din client care nu e chiar fișa
@@ -656,7 +656,7 @@ export const creeazaFoaie = createAction({
 /**
  * Trimiterea foii zilnice spre aprobare.
  *
- * Din 0197 nu se mai trimit ora și kilometrajul de sosire: le dă ultima cursă,
+ * Din 0200 nu se mai trimit ora și kilometrajul de sosire: le dă ultima cursă,
  * iar antetul le agregă în bază. Baza refuză trimiterea unei foi fără curse,
  * cu o cursă neîncheiată sau cu o alimentare rămasă în afara curselor, verifică regresul de kilometraj și pune numărul
  * `FP-AAAA-NNNNN` și instantaneul vehiculului.
@@ -686,7 +686,7 @@ export const trimiteFoaie = createAction({
     // aprobare pe echipă. Un șofer care încearcă să închidă foaia altcuiva e
     // respins de `USING` — ZERO rânduri, FĂRĂ eroare (capcana 17), iar ecranul
     // ar raporta cursa închisă. `.eq("status", "draft")`: retrimiterea unei
-    // foi deja trimise nu e o a doua trimitere, ci un nimic (0197 §D1).
+    // foi deja trimise nu e o a doua trimitere, ci un nimic (0200 §D1).
     const { data: foaieInchisa, error } = await db
       .from("trip_sheets")
       .update({
@@ -790,7 +790,7 @@ export const redeschideFoaie = createAction({
 });
 
 /**
- * Retragerea unei foi TRIMISE în ciornă, ca șoferul s-o corecteze (0197).
+ * Retragerea unei foi TRIMISE în ciornă, ca șoferul s-o corecteze (0200).
  *
  * Pe o foaie trimisă baza nu mai lasă nimic altceva: nici cursele, nici
  * alimentările, nici antetul. Retragerea e singura cale spre o corectură, iar
@@ -892,7 +892,7 @@ export const actualizeazaFoaie = createAction({
 /**
  * Ștergerea logică a unei CIORNE. Foaia trimisă se retrage întâi, cea
  * aprobată se stornează doar de responsabilul flotei — iar ștergerea, odată
- * făcută, nu se mai întoarce (0197 §D2).
+ * făcută, nu se mai întoarce (0200 §D2).
  */
 export const stergeFoaie = createAction({
   name: "fleet.trip.delete",
@@ -1038,7 +1038,7 @@ export const adaugaAlimentare = createAction({
 });
 
 /**
- * Corectura unei alimentări. Din 0197 doar pe ciornă: pe o foaie trimisă
+ * Corectura unei alimentări. Din 0200 doar pe ciornă: pe o foaie trimisă
  * aprobatorul se uită la litrii ăștia (§D1), iar pe una aprobată sunt document.
  * Mutarea pe altă foaie o refuză baza; `trip_sheet_id` servește doar filtrului.
  */
@@ -1092,7 +1092,7 @@ export const actualizeazaAlimentare = createAction({
   },
 });
 
-/** Ștergerea logică a unei alimentări de pe ciornă. Nu se mai întoarce (0197 §D2). */
+/** Ștergerea logică a unei alimentări de pe ciornă. Nu se mai întoarce (0200 §D2). */
 export const stergeAlimentare = createAction({
   name: "fleet.fuel.delete",
   feature: "fleet",

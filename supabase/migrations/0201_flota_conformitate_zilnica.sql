@@ -1,11 +1,11 @@
--- supabase/migrations/0198_flota_conformitate_zilnica.sql
+-- supabase/migrations/0201_flota_conformitate_zilnica.sql
 --
 -- FLOTA, FAZA F5: SETĂRILE FLOTEI, ALERTELE DE SCADENȚĂ ȘI NOTIFICĂRILE PE
 -- FLUXUL FOII DE PARCURS.
 --
--- Planul o numea `0175_conformitate_zilnica`; între timp 0174–0197 s-au ocupat
+-- Planul o numea `0175_conformitate_zilnica`; între timp 0174–0200 s-au ocupat
 -- (alocări, mentenanță, registru, asistent, salarizare, tichete, aprobatori,
--- KPI, flota F3/F4), deci e 0198.
+-- KPI, flota F3/F4), deci e 0201.
 --
 -- ── DE UNDE VINE ────────────────────────────────────────────────────────────
 -- `0008_expirables.sql` a construit motorul de scadențe (`expirables`,
@@ -106,7 +106,7 @@ create unique index fleet_settings_org_uq
   where deleted_at is null;
 
 comment on table public.fleet_settings is
-  'Setările flotei, un rând per firmă (0198): responsabilii (gol = toți org_admin), pragul de salt al kilometrajului, pragurile de alertă oglindite în alert_rules.';
+  'Setările flotei, un rând per firmă (0201): responsabilii (gol = toți org_admin), pragul de salt al kilometrajului, pragurile de alertă oglindite în alert_rules.';
 comment on column public.fleet_settings.responsabili is
   'Fișe de angajat (employees.id) din aceeași firmă. Primesc rezumatul zilnic de scadențe și, cu trip_sheets:approve = all, foile trimise.';
 comment on column public.fleet_settings.prag_salt_km is
@@ -272,7 +272,7 @@ end;
 $$;
 
 comment on function internal.flota_prag_salt_km() is
-  'Pragul implicit de salt al kilometrajului (1.500 km), ultima rezervă după vehicles.prag_salt_km și fleet_settings.prag_salt_km (0198).';
+  'Pragul implicit de salt al kilometrajului (1.500 km), ultima rezervă după vehicles.prag_salt_km și fleet_settings.prag_salt_km (0201).';
 
 -- ============================================================
 -- 4. Helperi
@@ -334,7 +334,7 @@ as $$
      and not exists (select 1 from din_setari);
 $$;
 
--- Geamăna lui `app.poate_vedea_vehicul` (0196) pentru un utilizator DAT, nu
+-- Geamăna lui `app.poate_vedea_vehicul` (0199) pentru un utilizator DAT, nu
 -- pentru `auth.uid()`: jobul rulează fără nimeni autentificat. Aceleași ramuri:
 -- `all` = tot; `team` = pool, mașina lui sau a cuiva din echipa lui; `own` =
 -- pool sau mașina lui. Fișa e cea principală, ca `app.current_employee_id`.
@@ -379,7 +379,7 @@ as $$
 $$;
 
 comment on function internal.flota_vede_vehicul(uuid, uuid, uuid, boolean) is
-  'Ca app.poate_vedea_vehicul (0196), pentru un utilizator dat în locul lui auth.uid(): filtrul rezumatului zilnic de flotă (0198).';
+  'Ca app.poate_vedea_vehicul (0199), pentru un utilizator dat în locul lui auth.uid(): filtrul rezumatului zilnic de flotă (0201).';
 
 -- Cine aprobă foaia unui șofer: responsabilii și managerii din lanțul lui
 -- (`manager_path`), filtrați pe dreptul EFECTIV (`internal.scope_membru`, 0189):
@@ -814,7 +814,7 @@ with check (
 -- portal), iar tabela nu mai e citibilă de ei. Funcția întoarce un singur
 -- număr — pragul efectiv: vehiculul → setările firmei → implicitul — și doar
 -- pentru un vehicul pe care apelantul îl vede (`app.poate_vedea_vehicul`, forma
--- cu trei argumente din 0196). Alt vehicul, altă firmă sau funcție oprită:
+-- cu trei argumente din 0199). Alt vehicul, altă firmă sau funcție oprită:
 -- NULL, nu eroare. Nu poate fi chemată de `anon` (fără jeton nu există firmă).
 create or replace function public.flota_prag_salt_km(p_vehicle_id uuid)
 returns integer
@@ -843,7 +843,7 @@ as $$
 $$;
 
 comment on function public.flota_prag_salt_km(uuid) is
-  'Pragul de salt al kilometrajului pentru UN vehicul vizibil apelantului (vehiculul, apoi setările firmei, apoi implicitul). Singura cale a non-administratorilor spre fleet_settings (0198).';
+  'Pragul de salt al kilometrajului pentru UN vehicul vizibil apelantului (vehiculul, apoi setările firmei, apoi implicitul). Singura cale a non-administratorilor spre fleet_settings (0201).';
 
 -- ============================================================
 -- 9. Actor, audit, drepturi
@@ -972,7 +972,7 @@ begin
                                   'flota_responsabili', 'foi_parcurs_notifica', 'fleet_settings_inainte',
                                   'flota_setari_praguri', 'flota_vede_vehicul')
                 and (p.proconfig is null or not ('search_path=""' = any (p.proconfig)))) then
-    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0198';
+    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0201';
   end if;
   -- `cron.job` există doar cu extensia instalată; interogarea trece prin
   -- `execute`, fiindcă plpgsql nu scurtcircuitează planificarea.
@@ -983,6 +983,6 @@ begin
     end if;
   end if;
   if array_length(v_lipsa, 1) > 0 then
-    raise exception '0198: lipsesc %', array_to_string(v_lipsa, ', ');
+    raise exception '0201: lipsesc %', array_to_string(v_lipsa, ', ');
   end if;
 end $$;

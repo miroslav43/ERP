@@ -3,8 +3,8 @@ tip: modul
 titlu: Flotă — setările, alertele de scadență și notificările foii
 aliases: [fleet_settings, conformitate zilnica, responsabil de flota, alerte flota, setari flota]
 cai:
-  - "supabase/migrations/0198_flota_conformitate_zilnica.sql"
-  - "supabase/migrations/0200_flota_service_costuri.sql"
+  - "supabase/migrations/0201_flota_conformitate_zilnica.sql"
+  - "supabase/migrations/0203_flota_service_costuri.sql"
   - "src/app/(app)/flota/actions-setari.ts"
   - "src/app/(app)/flota/setari/**"
   - "src/domain/fleet/setari.ts"
@@ -22,7 +22,7 @@ tags: [modul, operations]
 
 # Flotă — setările, alertele de scadență și notificările foii
 
-Extrasă din `[[modul/flota]]`. Migrarea: `0198_flota_conformitate_zilnica.sql` (planul o
+Extrasă din `[[modul/flota]]`. Migrarea: `0201_flota_conformitate_zilnica.sql` (planul o
 numea 0175; numerele intermediare s-au ocupat).
 
 ## Setările flotei — `/flota/setari`
@@ -36,7 +36,7 @@ implicitele coloanelor (1.500 km, 30/14/7), aceleași pe care le aplică baza �
 | --------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `responsabili`        | fișe de angajat; gol = toți `org_admin` activi                                                               |
 | `prag_salt_km`        | înlocuiește rezerva fixă din 0012; `vehicles.prag_salt_km` o bate pe vehicul                                 |
-| `praguri_alerta_zile` | oglindite de trigger în `alert_rules` (`vehicle_document` și, din 0200, `vehicle_service`; o versiune pe zi) |
+| `praguri_alerta_zile` | oglindite de trigger în `alert_rules` (`vehicle_document` și, din 0203, `vehicle_service`; o versiune pe zi) |
 
 Poarta: citirea ȘI scrierea cer `vehicles:update = all`, deci doar `org_admin`;
 `super_admin` citește, nu scrie (politicile cer membru, ca la `vehicles`). Managerul și
@@ -69,7 +69,7 @@ ca text („30, 14, 7”); `pragurileDinText` le ordonează descrescător, făr�
    (filtrul arată doar `PRAG_FLOTA_AVERTIZARE_ZILE`, iar un prag de firmă de 60 le-ar
    ascunde); șoferul fără `team`/`all` → `/portal/masina-mea`.
 
-Din 0200 lista albă a rezumatului are și `vehicle_service` (planurile de service cu dată; formulare
+Din 0203 lista albă a rezumatului are și `vehicle_service` (planurile de service cu dată; formulare
 „scadent”, titlu cu „lucrări de service”, legătură spre `?fila=service` când tot rezumatul e de service), iar
 jobul cheamă și `internal.flota_memento_service` (alerta pe kilometri, anvelopele din
 noiembrie): `[[modul/flota/service-si-costuri]]`. Destinatarii vin dintr-un singur loc,

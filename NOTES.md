@@ -404,7 +404,7 @@ servi o formă veche (memoria `portal-legislativ-consolidari`).
 
 ### Flotă — fiscal · `vehicle_fiscal_regimes`, `vehicle_consumption_norms`, `organizations.regim_impozitare`
 
-Migrarea `0202_flota_fiscal.sql`. Verificat pe 12 oct 2026 pe formele consolidate
+Migrarea `0205_flota_fiscal.sql`. Verificat pe 12 oct 2026 pe formele consolidate
 de pe legislatie.just.ro, descărcate cu `curl` și citite ca text (memoria
 `portal-legislativ-consolidari`: `DetaliiDocumentAfis` poate servi o formă veche):
 Codul fiscal `DetaliiDocument/312601` (consolidarea din 08.08.2026) și HG 1/2016
@@ -488,7 +488,7 @@ expusă”). Dacă firma dovedește folosirea exclusivă, regimul rămâne al ei
 
 ### Flotă — amenzi și daune · `vehicle_fines`, `vehicle_incidents`
 
-Migrarea `0203_flota_amenzi_daune.sql`. Verificat pe 12 oct 2026 pe formele consolidate
+Migrarea `0206_flota_amenzi_daune.sql`. Verificat pe 12 oct 2026 pe formele consolidate
 de pe legislatie.just.ro, descărcate cu `curl` și citite ca text (memoria
 `portal-legislativ-consolidari`): OUG 195/2002 `DetaliiDocument/311629` (consolidarea din
 01.07.2026, id luat din lista „istoric consolidări” a `DetaliiDocument/74028`) și Codul

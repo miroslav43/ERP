@@ -1,6 +1,6 @@
 // src/app/(app)/flota/etichete-service.ts
 //
-// Textele de interfață pentru service, costuri și anvelope (0200). Separat de
+// Textele de interfață pentru service, costuri și anvelope (0203). Separat de
 // `etichete.ts`, ca fiecare fază a flotei să-și țină hărțile fără să atingă un
 // fișier comun; `etichete-service.test.ts` le lipește de enumurile schemei.
 import type { TonStare } from "@/components/ui/badge";

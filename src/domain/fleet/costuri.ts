@@ -3,7 +3,7 @@
 import { consumLa100Km } from "./consum";
 
 /**
- * Costurile unui vehicul (0200): totalul, costul pe kilometru, consumul real pe
+ * Costurile unui vehicul (0203): totalul, costul pe kilometru, consumul real pe
  * perioadă și defalcarea cheltuielilor pe categorii. Funcții pure, fără I/O:
  * apelantul aduce rândurile deja citite și deja plafonate pe perioadă.
  *

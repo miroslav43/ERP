@@ -14,7 +14,7 @@ import {
 } from "./service";
 
 describe("urmatoareaScadenta", () => {
-  it("ultima dată + luni și ultimii km + interval, ca triggerul din 0200", () => {
+  it("ultima dată + luni și ultimii km + interval, ca triggerul din 0203", () => {
     expect(
       urmatoareaScadenta({
         ultimaData: "2026-01-15",
@@ -229,9 +229,9 @@ describe("evaluareKmIntrare", () => {
   });
 });
 
-describe("limitele lipite de migrarea 0200", () => {
+describe("limitele lipite de migrarea 0203", () => {
   const migrare = readFileSync(
-    join(process.cwd(), "supabase/migrations/0200_flota_service_costuri.sql"),
+    join(process.cwd(), "supabase/migrations/0203_flota_service_costuri.sql"),
     "utf8",
   );
   const L = LIMITE_SERVICE;

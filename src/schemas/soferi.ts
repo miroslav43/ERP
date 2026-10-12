@@ -1,5 +1,5 @@
 // src/schemas/soferi.ts
-// Validările de intrare pentru șoferii flotei (0201, F9): permisul de
+// Validările de intrare pentru șoferii flotei (0204, F9): permisul de
 // conducere și legarea foii de parcurs de o deplasare.
 //
 // Fișier separat de `fleet.ts`, pe care îl scriu și fazele paralele ale

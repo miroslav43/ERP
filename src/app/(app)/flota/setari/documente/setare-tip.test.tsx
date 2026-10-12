@@ -4,10 +4,10 @@ import { userEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Setarea firmei pe un tip de platformă și caseta tipului propriu (0199), cu
+ * Setarea firmei pe un tip de platformă și caseta tipului propriu (0202), cu
  * acțiunile mimate: drumul de la bife la încărcătura acțiunii și de la refuz
  * înapoi pe ecran. Verificarea în browser nu e posibilă pe ramura asta — baza
- * din cloud n-are 0199.
+ * din cloud n-are 0202.
  */
 
 const actiuni = vi.hoisted(() => ({

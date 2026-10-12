@@ -103,9 +103,9 @@ export async function contexteDestinatar(
   const tichetIds = [...new Set(linkuri.map(idTichet).filter((x) => x !== null))];
   const sesizareIds = [...new Set(linkuri.map(idSesizare).filter((x) => x !== null))];
   const integrareIds = [...new Set(linkuri.map(idIntegrare).filter((x) => x !== null))];
-  // ── început bloc: flota, notificările foii (0198) ──
+  // ── început bloc: flota, notificările foii (0201) ──
   const foaieIds = [...new Set(linkuri.map(idFoaieDeParcurs).filter((x) => x !== null))];
-  // ── sfârșit bloc: flota, notificările foii (0198) ──
+  // ── sfârșit bloc: flota, notificările foii (0201) ──
   const saptamanaIds = [
     ...new Set(
       entitati
@@ -166,7 +166,7 @@ export async function contexteDestinatar(
           .in("organization_id", organizationIds)
           .in("id", saptamanaIds)
           .is("deleted_at", null),
-    // ── început bloc: flota, notificările foii (0198) ──
+    // ── început bloc: flota, notificările foii (0201) ──
     // Proprietarul de portal al foii e ȘOFERUL ei (`employee_id`).
     foaieIds.length === 0
       ? null
@@ -176,7 +176,7 @@ export async function contexteDestinatar(
           .in("organization_id", organizationIds)
           .in("id", foaieIds)
           .is("deleted_at", null),
-    // ── sfârșit bloc: flota, notificările foii (0198) ──
+    // ── sfârșit bloc: flota, notificările foii (0201) ──
   ]);
 
   if (cereri?.error != null) {

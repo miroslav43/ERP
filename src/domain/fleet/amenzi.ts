@@ -1,7 +1,7 @@
 // src/domain/fleet/amenzi.ts
 
 /**
- * Amenzile primite pe vehicul și incidentele / dauna (0203, flota F11).
+ * Amenzile primite pe vehicul și incidentele / dauna (0206, flota F11).
  * Funcții pure, fără I/O și fără ceas: apelantul aduce rândurile citite și
  * ziua de azi.
  *
@@ -30,7 +30,7 @@
  * sugestie: omul alege.
  */
 
-/** Stadiile amenzii, în oglindă cu enum-ul `amenda_stadiu` (0203). */
+/** Stadiile amenzii, în oglindă cu enum-ul `amenda_stadiu` (0206). */
 export const STADII_AMENDA = [
   "primita",
   "sofer_desemnat",
@@ -180,7 +180,7 @@ export function textSugestie(sursa: SursaSugestie, nume: string): string {
 
 // ── Incidentele ─────────────────────────────────────────────────────────────
 
-/** Stadiile incidentului, în oglindă cu enum-ul `incident_stadiu` (0203). */
+/** Stadiile incidentului, în oglindă cu enum-ul `incident_stadiu` (0206). */
 export const STADII_INCIDENT = [
   "raportat",
   "constatat",
@@ -198,7 +198,7 @@ export const ETICHETE_STADIU_INCIDENT: Readonly<Record<StadiuIncident, string>> 
   inchis: "Închis",
 };
 
-/** Tipurile de incident, în oglindă cu enum-ul `incident_tip` (0203). */
+/** Tipurile de incident, în oglindă cu enum-ul `incident_tip` (0206). */
 export const TIPURI_INCIDENT = [
   "coliziune",
   "avarie",

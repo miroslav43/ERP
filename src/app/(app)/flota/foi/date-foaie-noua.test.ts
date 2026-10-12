@@ -95,7 +95,7 @@ describe("dateFoaieNoua", () => {
     expect(r.angajati).toEqual([{ id: ID_3, full_name: null, marca: "M-1", avertisment: null }]);
   });
 
-  // ── flota F9 (0201): verificările șoferului, lângă nume ──
+  // ── flota F9 (0204): verificările șoferului, lângă nume ──
   it("șoferul cu permisul expirat și fără aviz rămâne în listă, cu eticheta scurtă", async () => {
     db.raspunde("vehicles", "select", { data: [] });
     db.raspunde("vehicles", "select", { count: 0 });
@@ -131,7 +131,7 @@ describe("dateFoaieNoua", () => {
     expect(apel?.argumente).toMatchObject({ p_organization_id: ORG_ID, p_employee_ids: [ID_3] });
   });
 
-  it("șoferul propriu (0196): mașina alocată lui și pool-ul, fără lista de angajați", async () => {
+  it("șoferul propriu (0199): mașina alocată lui și pool-ul, fără lista de angajați", async () => {
     db.raspunde("vehicles", "select", {
       data: [{ ...vehicul(ID_1, "B123ABC", 10500), employee_id: ID_3 }],
     });

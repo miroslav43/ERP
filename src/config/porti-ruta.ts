@@ -127,23 +127,23 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   // are un singur prag, deci al doilea se verifică în preambulul paginii.
   p("/flota/rapoarte", "fleet", "vehicles:read", "all"),
   // ── sfârșit bloc: rapoartele flotei (F8) ──
-  // ── început bloc: setările flotei (0198) ──
+  // ── început bloc: setările flotei (0201) ──
   p("/flota/setari", "fleet", "vehicles:update", "all"),
-  // ── sfârșit bloc: setările flotei (0198) ──
-  // ── început bloc: tipurile de document ale flotei (0199) ──
+  // ── sfârșit bloc: setările flotei (0201) ──
+  // ── început bloc: tipurile de document ale flotei (0202) ──
   p("/flota/setari/documente", "fleet", "vehicles:update", "all"),
-  // ── sfârșit bloc: tipurile de document ale flotei (0199) ──
-  // ── început bloc: fiscalul flotei (0202) ──
+  // ── sfârșit bloc: tipurile de document ale flotei (0202) ──
+  // ── început bloc: fiscalul flotei (0205) ──
   // Poarta politicilor `vehicle_fiscal_regimes_select` / `vehicle_consumption_norms_select`.
   p("/flota/fiscal", "fleet", "vehicles:read", "all"),
-  // ── sfârșit bloc: fiscalul flotei (0202) ──
-  // ── început bloc: amenzi și daune (0203) ──
+  // ── sfârșit bloc: fiscalul flotei (0205) ──
+  // ── început bloc: amenzi și daune (0206) ──
   // Poarta politicilor `vehicle_fines_select` / `vehicle_incidents_select`.
   p("/flota/amenzi", "fleet", "vehicle_fines:read", "all"),
   p("/flota/amenzi/[id]", "fleet", "vehicle_fines:read", "all"),
   p("/flota/incidente", "fleet", "vehicle_incidents:read", "all"),
   p("/flota/incidente/[id]", "fleet", "vehicle_incidents:read", "all"),
-  // ── sfârșit bloc: amenzi și daune (0203) ──
+  // ── sfârșit bloc: amenzi și daune (0206) ──
   p("/inventar", "inventory", "inventory:read"),
   p("/inventar/[id]", "inventory", "inventory:read"),
   p("/inventar/[id]/pv/[alocare]", "inventory", "inventory:read"),
@@ -261,10 +261,10 @@ export const PORTI_PORTAL: readonly PoartaRuta[] = [
   p("/portal/integrarea-mea/[id]", "onboarding", "checklists:read"),
   p("/portal/integrarea-mea/sarcini", "onboarding", "checklists:read"),
   p("/portal/kpi-ul-meu", "kpi", "evaluations:read"),
-  // ── început bloc: flota pe roluri (0196) ──
+  // ── început bloc: flota pe roluri (0199) ──
   p("/portal/masina-mea", "fleet", "trip_sheets:read"),
   p("/portal/masina-mea/foi/[id]", "fleet", "trip_sheets:read"),
-  // ── sfârșit bloc: flota pe roluri (0196) ──
+  // ── sfârșit bloc: flota pe roluri (0199) ──
   p("/portal/notificarile-mele", null, null),
   p("/portal/pontajul-meu", "attendance", "attendance:read"),
   p("/portal/pontajul-meu/saptamana", "attendance", "attendance:create"),

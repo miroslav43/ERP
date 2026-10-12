@@ -1,11 +1,11 @@
--- supabase/migrations/0201_flota_soferi.sql
+-- supabase/migrations/0204_flota_soferi.sql
 --
 -- FLOTA, FAZA F9: ȘOFERII — PERMISE DE CONDUCERE (HR), AVIZUL MEDICAL ȘI
 -- LEGĂTURILE CU CONCEDIILE, CONTRACTUL ȘI DIURNA.
 --
--- Planul o numea `0178_soferi`; între timp 0174–0200 s-au ocupat (alocări,
+-- Planul o numea `0178_soferi`; între timp 0174–0203 s-au ocupat (alocări,
 -- mentenanță, registru, asistent, salarizare, tichete, aprobatori, KPI, flota
--- F3–F8), deci e 0201.
+-- F3–F8), deci e 0204.
 --
 -- ── DE UNDE VINE ────────────────────────────────────────────────────────────
 -- Flota știa ce mașină are omul, nu și dacă omul are voie s-o conducă. Decizia
@@ -32,7 +32,7 @@
 --    (semnătura din 0008, neschimbată), și ramura nouă în
 --    `app.poate_vedea_expirabil` (rescrisă INTEGRAL de la forma ultimă, 0011
 --    §8 — verificat cu grep: 0008, 0010, 0011, nimic după). Rezumatul zilnic
---    al flotei (0198) rămâne pe `vehicle_document`: lista lui albă nu se
+--    al flotei (0201) rămâne pe `vehicle_document`: lista lui albă nu se
 --    atinge aici.
 -- D. `app.stare_aviz_sofer(org, angajat, zi)`, SECURITY DEFINER: `apt` /
 --    `expirat` / `lipsa` din `occupational_health_exams` (0011) — EXACT doar
@@ -156,7 +156,7 @@ create index driver_licenses_expira_idx
   where deleted_at is null;
 
 comment on table public.driver_licenses is
-  'Permisele de conducere ale angajaților (0201). Unul activ pe angajat; reînnoirea e UPDATE, istoricul e în audit. Scadența se proiectează în expirables (driver_license).';
+  'Permisele de conducere ale angajaților (0204). Unul activ pe angajat; reînnoirea e UPDATE, istoricul e în audit. Scadența se proiectează în expirables (driver_license).';
 comment on column public.driver_licenses.categorii is
   'Categoriile din OUG 195/2002 art. 20, normalizate și ordonate de trigger (internal.categorii_permis).';
 
@@ -269,12 +269,12 @@ create trigger permise_scadenta
 -- Fără ramura nouă, rândul ar fi căzut pe `else false`: invizibil oricui.
 --
 -- ATENȚIE, două trasee paralele rescriu aceeași funcție: traseul F7 (service,
--- 0200_flota_service_costuri.sql, ramura `lucru/flota-continuare`) adaugă
--- `vehicle_service`. Migrările se aplică în ordinea numelor, deci 0201 rulează
--- DUPĂ 0200 și i-ar fi șters ramura tăcut (scadențele de service ar fi dispărut
+-- 0203_flota_service_costuri.sql, ramura `lucru/flota-continuare`) adaugă
+-- `vehicle_service`. Migrările se aplică în ordinea numelor, deci 0204 rulează
+-- DUPĂ 0203 și i-ar fi șters ramura tăcut (scadențele de service ar fi dispărut
 -- din lista de conformitate, fără nicio eroare). De aceea forma de aici are
--- AMBELE ramuri noi; `vehicle_service` e copiată NESCHIMBATĂ din 0200 (același
--- drept ca `vehicle_document`) și e inertă cât timp 0200 nu există (nimic nu
+-- AMBELE ramuri noi; `vehicle_service` e copiată NESCHIMBATĂ din 0203 (același
+-- drept ca `vehicle_document`) și e inertă cât timp 0203 nu există (nimic nu
 -- scrie acel `entity_type`; coloana e `text`). O migrare viitoare care adaugă
 -- un `entity_type` pornește de la ACEASTA.
 create or replace function app.poate_vedea_expirabil(p_organization_id uuid, p_entity_type text)
@@ -285,7 +285,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
     when 'work_permit'              then app.can(p_organization_id,'employees','read','team')
     when 'employment_contract'      then app.can(p_organization_id,'employees','read','team')
     when 'vehicle_document'         then app.feature_on(p_organization_id,'fleet')       and app.can(p_organization_id,'vehicles','read','team')
-    -- Din 0200 (F7): scadențele planurilor de service, același drept ca documentele.
+    -- Din 0203 (F7): scadențele planurilor de service, același drept ca documentele.
     when 'vehicle_service'          then app.feature_on(p_organization_id,'fleet')       and app.can(p_organization_id,'vehicles','read','team')
     when 'equipment'              then app.feature_on(p_organization_id,'maintenance') and app.can(p_organization_id,'maintenance','read','team')
     when 'fire_extinguisher'        then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'ssm','read','team')
@@ -296,7 +296,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
     when 'maintenance_plan'         then app.feature_on(p_organization_id,'maintenance') and app.can(p_organization_id,'maintenance','read','team')
     when 'personnel_authorization'  then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'ssm','read','team')
     when 'ppe_issuance'             then app.feature_on(p_organization_id,'ssm')         and app.can(p_organization_id,'ssm','read','team')
-    -- 0201: permisele șoferilor, cu cheia lor (hr le are, parcul nu).
+    -- 0204: permisele șoferilor, cu cheia lor (hr le are, parcul nu).
     when 'driver_license'           then app.feature_on(p_organization_id,'fleet')       and app.can(p_organization_id,'driver_licenses','read','team')
     else false
   end
@@ -470,7 +470,7 @@ as $$
 $$;
 
 comment on function public.verificari_soferi(uuid, uuid[], date) is
-  'Faptele pentru avertismentele de șofer (0201): absență aprobată în zi (doar „absent”, fără tipul concediului: art. 9 GDPR), contract încetat, permis, aviz (app.stare_aviz_sofer: exact doar cu acces SSM, altfel „de_verificat”), delegație. Avertizează, nu blochează; verdictul îl dă src/domain/fleet/soferi.ts.';
+  'Faptele pentru avertismentele de șofer (0204): absență aprobată în zi (doar „absent”, fără tipul concediului: art. 9 GDPR), contract încetat, permis, aviz (app.stare_aviz_sofer: exact doar cu acces SSM, altfel „de_verificat”), delegație. Avertizează, nu blochează; verdictul îl dă src/domain/fleet/soferi.ts.';
 
 -- ============================================================
 -- 9. Foaia de parcurs legată de deplasare
@@ -483,7 +483,7 @@ create index trip_sheets_deplasare_idx
   where business_trip_id is not null and deleted_at is null;
 
 comment on column public.trip_sheets.business_trip_id is
-  'Deplasarea (delegația) șoferului pe care o justifică foaia (0201). Aceeași firmă și același angajat, garda foi_deplasare_garda.';
+  'Deplasarea (delegația) șoferului pe care o justifică foaia (0204). Aceeași firmă și același angajat, garda foi_deplasare_garda.';
 
 create or replace function internal.foi_deplasare_garda()
 returns trigger
@@ -667,7 +667,7 @@ begin
                                                ('app', 'stare_aviz_sofer'), ('public', 'verificari_soferi'),
                                                ('internal', 'categorii_permis'))
                 and (p.proconfig is null or not ('search_path=""' = any (p.proconfig)))) then
-    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0201';
+    v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0204';
   end if;
   if exists (
     select 1
@@ -681,7 +681,7 @@ begin
     v_lipsa := v_lipsa || 'lista din driver_licenses_categorii_ck = internal.categorii_permis()';
   end if;
   if array_length(v_lipsa, 1) > 0 then
-    raise exception '0201: lipsesc %', array_to_string(v_lipsa, ', ');
+    raise exception '0204: lipsesc %', array_to_string(v_lipsa, ', ');
   end if;
 end $$;
 

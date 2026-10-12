@@ -11,7 +11,7 @@ aliases:
     flota_fiscal_luna,
   ]
 cai:
-  - "supabase/migrations/0202_flota_fiscal.sql"
+  - "supabase/migrations/0205_flota_fiscal.sql"
   - "src/app/(app)/flota/actions-fiscal.ts"
   - "src/app/(app)/flota/fiscal/**"
   - "src/domain/fleet/fiscal.ts"
@@ -29,7 +29,7 @@ tags: [modul, operations, fiscal]
 
 # Flotă — fiscalul: regimul de deducere, norma de consum, avantajul în natură
 
-Extrasă din `[[modul/flota]]`. Migrarea: `0202_flota_fiscal.sql` (planul n-a dat număr; cele
+Extrasă din `[[modul/flota]]`. Migrarea: `0205_flota_fiscal.sql` (planul n-a dat număr; cele
 intermediare s-au ocupat). Temeiurile legale și tot ce rămâne de confirmat cu contabilul
 (marcat ⚠️) sunt în `NOTES.md`, secțiunea „Flotă — fiscal”. Regula de fond: **fiscalul e
 SUGESTIE**. Aplicația nu scrie nimic pe statul de plată și nu încadrează vehiculul în locul
@@ -59,7 +59,7 @@ SECURITY DEFINER proprie, nu printr-un drept pe vehicule.
   zi** = perioada cu cel mai mare `valabil_de_la` ≤ zi. **Corectura e ștergere logică +
   perioadă nouă**; nu există acțiune de modificare.
 - **Norma proprie de consum** (`vehicle_consumption_norms`): trimiterea foii o ia din
-  ziua foii (`internal.foi_parcurs_numerotare`, rescrisă de la forma din 0197), altfel
+  ziua foii (`internal.foi_parcurs_numerotare`, rescrisă de la forma din 0200), altfel
   cade pe `consum_mediu_declarat`. Foile deja trimise își păstrează norma din instantaneu.
 - **Luna fiscală** (`public.flota_fiscal_luna`, SECURITY INVOKER): zilele lunii cu
   deducere integrală, norma, foile aprobate și neaprobate. Zilele se numără pe zile, **foile

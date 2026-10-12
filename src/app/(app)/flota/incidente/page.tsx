@@ -49,7 +49,7 @@ function text(valoare: string | string[] | undefined): string | undefined {
 }
 
 /**
- * Incidentele și dauna vehiculelor (0203, F11): stadiile, costul și
+ * Incidentele și dauna vehiculelor (0206, F11): stadiile, costul și
  * despăgubirea. Poarta e `vehicle_incidents:read = all`, EXACT poarta politicii
  * `vehicle_incidents_select` (seedată doar pentru `org_admin`).
  */

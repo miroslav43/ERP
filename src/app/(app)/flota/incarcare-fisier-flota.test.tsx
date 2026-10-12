@@ -4,10 +4,10 @@ import { userEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Încărcarea scanării și a pozei de bon (0199), cu acțiunile mimate: ce se
+ * Încărcarea scanării și a pozei de bon (0202), cu acțiunile mimate: ce se
  * probează e ordinea celor trei pași (semnare → urcare → confirmare), ținta
  * corectă pentru fiecare fel și oprirea la primul pas care refuză. Verificarea
- * în browser nu e posibilă pe ramura asta — baza din cloud n-are 0199.
+ * în browser nu e posibilă pe ramura asta — baza din cloud n-are 0202.
  */
 
 const actiuni = vi.hoisted(() => ({

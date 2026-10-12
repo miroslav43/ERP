@@ -137,7 +137,7 @@ describe("mesajele vehiculului și ale documentului sunt românești", () => {
   });
 });
 
-describe("foaia zilnică (0197)", () => {
+describe("foaia zilnică (0200)", () => {
   const cursa = (m: Record<string, unknown> = {}) => ({
     trip_sheet_id: ID,
     plecare_la: "2026-10-05T08:00",
@@ -192,7 +192,7 @@ describe("foaia zilnică (0197)", () => {
   });
 });
 
-describe("setările flotei (0198)", () => {
+describe("setările flotei (0201)", () => {
   const ID2 = "55555555-5555-4555-8555-555555555555";
 
   it("textul pragurilor devine lista din bază: descrescător, fără dubluri", () => {
