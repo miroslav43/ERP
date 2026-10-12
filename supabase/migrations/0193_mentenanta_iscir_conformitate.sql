@@ -204,15 +204,32 @@ create trigger iscir_authorizations_garda
 
 -- Ștergerea logică a rândului NOU readuce rândul pe care l-a înlocuit:
 -- „am reînnoit din greșeală" se repară ștergând reînnoirea.
+--
+-- Rândul vechi revine în unicitatea numărului (`iscir_authorizations_uq` îl
+-- ignora cât era înlocuit). Dacă între timp numărul lui a fost dat altei
+-- autorizații curente (reînnoire cu număr nou, apoi o autorizație nouă cu
+-- numărul vechi), revenirea s-ar lovi de index cu un 23505 fără sens pentru
+-- o ștergere. Se refuză înainte, cu pasul următor spus pe nume.
 create or replace function internal.iscir_dupa_stergere() returns trigger
 language plpgsql security definer set search_path = '' as $$
 declare
   v_predecesor uuid;
+  v_numar      text;
 begin
   if new.deleted_at is not null and old.deleted_at is null then
-    select a.id into v_predecesor
+    select a.id, a.numar into v_predecesor, v_numar
       from public.iscir_authorizations a
      where a.inlocuita_de_id = new.id and a.deleted_at is null;
+    if v_predecesor is not null and v_numar is not null and exists (
+         select 1 from public.iscir_authorizations b
+          where b.organization_id = new.organization_id
+            and b.numar = v_numar
+            and b.id <> v_predecesor
+            and b.deleted_at is null
+            and b.inlocuita_de_id is null) then
+      raise exception using errcode = 'P0001',
+        message = 'Autorizația anterioară nu poate reveni în scadențe: numărul ei e folosit acum de altă autorizație curentă. Corectați sau ștergeți întâi acea autorizație, apoi ștergeți reînnoirea.';
+    end if;
     if v_predecesor is not null then
       perform set_config('app.iscir_inlocuire', v_predecesor::text, true);
       update public.iscir_authorizations set inlocuita_de_id = null where id = v_predecesor;

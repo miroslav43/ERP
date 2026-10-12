@@ -23,6 +23,9 @@
 --  (8) echipamentul nu se schimbă; un rând șters nu se reactivează
 --  (9) izolarea: administratorul firmei A nu vede, nu modifică și nu reînnoiește
 --      autorizația firmei B
+--  (10) ștergerea unei reînnoiri al cărei rând vechi are un număr dat între timp
+--      altei autorizații: refuz P0001 cu pasul următor, nu 23505; după
+--      eliberarea numărului, ștergerea trece                         [POZITIVĂ]
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -362,6 +365,70 @@ begin
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (9) hr citește % autorizații', v_n;
   end if;
+
+  -- ═══ (10) Revenirea pe un număr refolosit [revizie M7] ═══════════════════
+  -- C1 (număr X) se reînnoiește în C2 cu număr NOU (Y); X e liber, deci o
+  -- autorizație nouă C3 îl ia. Ștergerea lui C2 ar readuce C1 (X) peste C3 (X):
+  -- înainte de reparație, 23505 pe un UPDATE care nu inserează nimic. Acum:
+  -- refuz P0001 cu pasul următor, C2 rămâne neatins; după ce C3 se șterge,
+  -- ștergerea lui C2 trece și C1 revine.                           [POZITIVĂ]
+  declare
+    v_c1 uuid; v_c2 uuid; v_c3 uuid;
+  begin
+    perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+    set local role authenticated;
+    insert into public.iscir_authorizations (organization_id, equipment_id, numar, tip, valabil_pana)
+    values (v_org, v_echip2, 'COL-X-' || v_sufix, 'stivuitor', v_azi + 100) returning id into v_c1;
+    v_c2 := public.reinnoieste_autorizatie_iscir(
+      p_autorizatie => v_c1, p_valabil_pana => v_azi + 700, p_numar => 'COL-Y-' || v_sufix);
+    insert into public.iscir_authorizations (organization_id, equipment_id, numar, tip, valabil_pana)
+    values (v_org, v_echip2, 'COL-X-' || v_sufix, 'stivuitor', v_azi + 365) returning id into v_c3;
+    reset role;
+
+    begin
+      perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+      set local role authenticated;
+      update public.iscir_authorizations set deleted_at = now() where id = v_c2;
+      reset role;
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (10) ștergerea reînnoirii a trecut cu numărul vechi refolosit';
+    exception
+      when raise_exception then
+        reset role;
+        raise notice '  ✓ (10) numărul vechi refolosit: %', sqlerrm;
+      when unique_violation then
+        reset role;
+        v_esecuri := v_esecuri + 1;
+        raise warning '  ✗ (10) ștergerea reînnoirii cade pe indexul de unicitate (23505): %', sqlerrm;
+    end;
+
+    if (select deleted_at from public.iscir_authorizations where id = v_c2) is null
+       and (select inlocuita_de_id from public.iscir_authorizations where id = v_c1) = v_c2 then
+      raise notice '  ✓ (10) după refuz, reînnoirea și legătura au rămas neatinse';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (10) refuzul a lăsat rândurile pe jumătate schimbate';
+    end if;
+
+    perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+    set local role authenticated;
+    update public.iscir_authorizations set deleted_at = now() where id = v_c3;
+    with m as (
+      update public.iscir_authorizations set deleted_at = now() where id = v_c2 returning 1)
+    select count(*) into v_n from m;
+    reset role;
+    if v_n = 1
+       and (select inlocuita_de_id from public.iscir_authorizations where id = v_c1) is null then
+      raise notice '  ✓ (10) după ștergerea celei care ținea numărul, reînnoirea se șterge și C1 revine';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (10) reînnoirea nu s-a putut șterge nici după eliberarea numărului';
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10) eroare neașteptată: % (%)', sqlerrm, sqlstate;
+  end;
 
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
