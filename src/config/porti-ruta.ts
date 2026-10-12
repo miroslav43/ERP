@@ -122,6 +122,11 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/flota/foi", "fleet", "trip_sheets:read"),
   p("/flota/foi/[id]", "fleet", "trip_sheets:read"),
   p("/flota/foi/sabloane", "fleet", "trip_sheets:update", "all"),
+  // ── început bloc: rapoartele flotei (F8) ──
+  // Pagina cere și `trip_sheets:read = all` (`poateVedeaRapoarte`): un registru
+  // are un singur prag, deci al doilea se verifică în preambulul paginii.
+  p("/flota/rapoarte", "fleet", "vehicles:read", "all"),
+  // ── sfârșit bloc: rapoartele flotei (F8) ──
   // ── început bloc: setările flotei (0198) ──
   p("/flota/setari", "fleet", "vehicles:update", "all"),
   // ── sfârșit bloc: setările flotei (0198) ──

@@ -36,17 +36,7 @@ import type { CategorieVehicul, Combustibil } from "@/schemas/fleet";
 import { citesteTot } from "./citeste-tot";
 import { angajatiDupaId, numeleContului, vehiculeDupaId, type RandVehicul } from "./fleet";
 
-/**
- * Câte foi poate cuprinde un pachet lunar. Fiecare foaie e un PDF generat în
- * cererea HTTP; peste plafon ruta refuză cu un mesaj, nu se întrerupe la mijloc.
- *
- * 200, nu mai mult: măsurat pe 12 oct 2026, 200 de foi cu câte cinci curse durează
- * ~38 s și ies ~4,5 MB (~190 ms pe PDF, în cea mai mare parte încorporarea
- * fonturilor). `proxy_read_timeout` pe `/api/export/` e 120 s, dar Cloudflare taie
- * la 100 s (524) — un plafon de 400 ar fi trecut de ambele pe un server încărcat.
- * Peste plafon se descarcă pe vehicul (o lună de vehicul are cel mult ~31 de foi).
- */
-export const PLAFON_FOI_PACHET = 200;
+
 
 /** Câte foi aduce o pagină din citirea detaliată: curse și alimentări vin în același răspuns. */
 const PAS_FOI_DETALIATE = 100;
@@ -324,6 +314,36 @@ async function etichetaSoferi(
 ): Promise<EtichetaSoferi> {
   const angajati = await inFelii(ids, (felie) => angajatiDupaId(organizationId, felie));
   return new Map([...angajati].map(([id, a]) => [id, a.full_name ?? a.marca]));
+}
+
+// ── Selectorul de vehicule ──────────────────────────────────────────────────
+
+export interface OptiuneVehicul {
+  readonly id: string;
+  readonly nr_inmatriculare: string;
+}
+
+/**
+ * Vehiculele vii ale firmei, în ordinea numărului, pentru filtrul rapoartelor.
+ * Prin `citesteTot`: un parc cu peste 1000 de vehicule n-ar mai încăpea într-un
+ * singur răspuns, iar lista ar fi tăiată fără o eroare.
+ */
+export async function optiuniVehicule(organizationId: string): Promise<readonly OptiuneVehicul[]> {
+  const db = await createServerSupabase();
+  const vehicule = await citesteTot<OptiuneVehicul>(
+    (dupa, pas) => {
+      let q = db
+        .from("vehicles")
+        .select("id, nr_inmatriculare")
+        .eq("organization_id", organizationId)
+        .is("deleted_at", null);
+      if (dupa !== null) q = q.gt("id", dupa);
+      return q.order("id", { ascending: true }).limit(pas).returns<OptiuneVehicul[]>();
+    },
+    (r) => r.id,
+    { nume: "vehicule" },
+  );
+  return [...vehicule].sort((a, b) => a.nr_inmatriculare.localeCompare(b.nr_inmatriculare));
 }
 
 // ── Raportul lunii ──────────────────────────────────────────────────────────

@@ -18,12 +18,8 @@ import { formatDateTime } from "@/lib/format/date";
 import { documentRaportFlota } from "@/lib/excel/raport-flota";
 import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
 import { pachetLunarFlota } from "@/lib/pdf/pachet-flota";
-import { intervalLuna } from "@/domain/fleet/rapoarte";
-import {
-  incarcaPachetLunar,
-  numarFoiAprobateLuna,
-  PLAFON_FOI_PACHET,
-} from "@/lib/queries/fleet-rapoarte";
+import { intervalLuna, PLAFON_FOI_PACHET } from "@/domain/fleet/rapoarte";
+import { incarcaPachetLunar, numarFoiAprobateLuna } from "@/lib/queries/fleet-rapoarte";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { curataDocument, numeFisierSigur } from "@/lib/unelte/document-tabelar";
 import { ANTET_CACHE_DESCARCARE } from "@/lib/unelte/raspuns";

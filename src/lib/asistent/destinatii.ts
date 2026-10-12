@@ -866,6 +866,21 @@ const INTRARI: readonly Intrare[] = [
       "Ce documente ține firma pentru vehicule și care sunt obligatorii: activarea licenței de transport, a tahografului sau a ADR-ului, tipurile proprii firmei, documentele care nu se cer remorcilor.",
   },
   // ═══ SFÂRȘIT BLOC: flota, tipurile de document (0199) ═══
+  // ═══ ÎNCEPUT BLOC: flota, rapoartele (F8) ═══
+  {
+    id: "flota.rapoarte",
+    href: "/flota/rapoarte",
+    eticheta: "Rapoarte parc auto",
+    zona: "app",
+    parinte: "flota",
+    fila: "Rapoarte",
+    featureKey: "fleet",
+    permission: "vehicles:read",
+    minScope: "all",
+    descriere:
+      "Costul pe vehicul, consumul real față de norma proprie și kilometrii pe șofer, pe lună, din foile aprobate, cu Excelul și pachetul lunar (foile aprobate în PDF) pentru contabil.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, rapoartele (F8) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {

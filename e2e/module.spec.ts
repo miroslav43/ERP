@@ -115,6 +115,14 @@ const RUTE: readonly Ruta[] = [
     asteptari: DOAR_ADMIN,
   },
   // ── sfârșit bloc: setările flotei (0198) ──
+  // ── început bloc: rapoartele flotei (F8) ──
+  {
+    cale: "/flota/rapoarte",
+    titlu: "Rapoarte parc auto",
+    poarta: "fleet · vehicles:read all + trip_sheets:read all (doar org_admin; managerul are `team`)",
+    asteptari: DOAR_ADMIN,
+  },
+  // ── sfârșit bloc: rapoartele flotei (F8) ──
   // ── început bloc: tipurile de document ale flotei (0199) ──
   {
     cale: "/flota/setari/documente",

@@ -430,3 +430,18 @@ export interface RaportLunar {
   readonly totalCost: TotalCost;
   readonly registru: readonly RandRegistru[];
 }
+
+// ── Pachetul lunar ──────────────────────────────────────────────────────────
+
+/**
+ * Câte foi poate cuprinde un pachet lunar. Fiecare foaie e un PDF generat în
+ * cererea HTTP; peste plafon ruta refuză cu un mesaj, nu se întrerupe la mijloc.
+ *
+ * 200, nu mai mult: măsurat pe 12 oct 2026, 200 de foi cu câte cinci curse durează
+ * ~38 s și ies ~4,5 MB (~190 ms pe PDF, în cea mai mare parte încorporarea
+ * fonturilor). `proxy_read_timeout` pe `/api/export/` e 120 s, dar Cloudflare taie
+ * la 100 s (524) — un plafon de 400 ar fi trecut de ambele pe un server încărcat.
+ * Peste plafon se descarcă pe vehicul (o lună de vehicul are cel mult ~31 de foi).
+ * Stă în domeniu, nu lângă citiri, fiindcă ecranul îl arată omului înainte de clic.
+ */
+export const PLAFON_FOI_PACHET = 200;

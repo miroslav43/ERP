@@ -14,6 +14,7 @@ vi.mock("@/lib/supabase/server", async () =>
   (await import("@/lib/teste/actiune")).falsuri.supabaseServer(),
 );
 
+import { PLAFON_FOI_PACHET } from "@/domain/fleet/rapoarte";
 import { configureazaActiunea, ID_1, ID_2, ORG_ID } from "@/lib/teste/actiune";
 import { areFiltru, type ClientFals } from "@/lib/teste/supabase-fals";
 
@@ -26,7 +27,7 @@ import {
   incarcaPachetLunar,
   incarcaRaportLunar,
   numarFoiAprobateLuna,
-  PLAFON_FOI_PACHET,
+  optiuniVehicule,
   surseDeCostLuna,
 } from "./fleet-rapoarte";
 
@@ -321,6 +322,22 @@ describe("incarcaRaportLunar", () => {
       .apeluriPe("vehicles")
       .map((a) => (a.filtre.find((f) => f.metoda === "in")?.argumente[1] as string[]).length);
     expect(feliiIn.sort((a, b) => b - a)).toEqual([100, 50]);
+  });
+});
+
+describe("optiuniVehicule", () => {
+  it("vehiculele vii ale firmei, în ordinea numărului, pentru selectorul de filtru", async () => {
+    db.raspunde("vehicles", "select", {
+      data: [
+        { id: ID_2, nr_inmatriculare: "CJ200XYZ" },
+        { id: ID_1, nr_inmatriculare: "B100ABC" },
+      ],
+    });
+    const optiuni = await optiuniVehicule(ORG_ID);
+    expect(optiuni.map((o) => o.nr_inmatriculare)).toEqual(["B100ABC", "CJ200XYZ"]);
+    const apel = db.apeluriPe("vehicles")[0];
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
   });
 });
 

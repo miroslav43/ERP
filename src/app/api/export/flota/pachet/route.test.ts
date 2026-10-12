@@ -20,7 +20,7 @@ vi.mock("@/lib/auth/permissions", async (orig) =>
   (await import("@/lib/teste/actiune")).falsuri.permissions(await orig()),
 );
 
-import { PLAFON_FOI_PACHET } from "@/lib/queries/fleet-rapoarte";
+import { PLAFON_FOI_PACHET } from "@/domain/fleet/rapoarte";
 import { configureazaActiunea, ID_1, USER_ID, type ConfigurareActiune } from "@/lib/teste/actiune";
 import { areFiltru, type ClientFals } from "@/lib/teste/supabase-fals";
 
