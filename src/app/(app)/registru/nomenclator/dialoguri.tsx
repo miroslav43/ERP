@@ -11,6 +11,7 @@
 
 import { FormularDialog } from "@/components/ui/formular-dialog";
 import { Camp } from "@/components/ui/camp";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { FileCheck2, Pencil } from "lucide-react";
 
 import { actualizeazaAvizNomenclator, actualizeazaDosarNomenclator } from "../actions";
@@ -143,11 +144,10 @@ export function DialogAviz({ aviz }: { readonly aviz: AvizCurent | null }) {
                 : { erori: stare.erori["avizat_la"] })}
             >
               {(atribute) => (
-                <input
+                <IntrareData
                   {...atribute}
                   id={idc("avizat_la")}
-                  type="date"
-                  defaultValue={stare.valoriTrimise["avizat_la"] ?? aviz?.avizatLa ?? ""}
+                  implicit={stare.valoriTrimise["avizat_la"] ?? aviz?.avizatLa ?? ""}
                 />
               )}
             </Camp>

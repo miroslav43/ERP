@@ -4,6 +4,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { IntrareData } from "@/components/ui/intrare-data";
 
 import { pornesteInstanta } from "../actions";
 import { ETICHETE_TIP } from "../etichete";
@@ -130,12 +131,11 @@ export function FormularInstanta({
         <label htmlFor={id.data} className="text-corp font-medium">
           Data de referință
         </label>
-        <input
+        <IntrareData
           id={id.data}
           name="data_referinta"
-          type="date"
           required
-          defaultValue={astazi}
+          implicit={astazi}
           aria-describedby={`${id.data}-ajutor`}
           className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />

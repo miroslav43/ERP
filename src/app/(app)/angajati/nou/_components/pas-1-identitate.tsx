@@ -9,6 +9,7 @@ import { TIPURI_ACT_IDENTITATE_ALEGERE } from "@/domain/reges/operatii";
 import { GENURI, STARI_CIVILE, type InroleazaAngajatInput } from "@/schemas/employee";
 import { ETICHETE_ACT_IDENTITATE, ETICHETE_GEN, ETICHETE_STARE_CIVILA } from "../../etichete";
 import { mesajCamp } from "./erori-formular";
+import { IntrareDataFormular } from "./intrare-data-formular";
 
 export const CAMPURI_PAS_1 = [
   "last_name",
@@ -77,7 +78,9 @@ export function Pas1Identitate({ formular }: Proprietati) {
             eticheta="Data nașterii"
             erori={mesajCamp(errors.data_nasterii)}
           >
-            {(atribute) => <input {...atribute} type="date" {...register("data_nasterii")} />}
+            {(atribute) => (
+              <IntrareDataFormular control={control} nume="data_nasterii" atribute={atribute} />
+            )}
           </Camp>
           <Camp nume="gen" eticheta="Gen" fel="select" erori={mesajCamp(errors.gen)}>
             {(atribute) => (
@@ -171,14 +174,18 @@ export function Pas1Identitate({ formular }: Proprietati) {
             obligatoriu
             erori={mesajCamp(errors.act_eliberat_la)}
           >
-            {(atribute) => <input {...atribute} type="date" {...register("act_eliberat_la")} />}
+            {(atribute) => (
+              <IntrareDataFormular control={control} nume="act_eliberat_la" atribute={atribute} />
+            )}
           </Camp>
           <Camp
             nume="act_valabil_pana"
             eticheta="Valabil până la"
             erori={mesajCamp(errors.act_valabil_pana)}
           >
-            {(atribute) => <input {...atribute} type="date" {...register("act_valabil_pana")} />}
+            {(atribute) => (
+              <IntrareDataFormular control={control} nume="act_valabil_pana" atribute={atribute} />
+            )}
           </Camp>
           <Camp nume="cnp" eticheta="CNP" obligatoriu erori={mesajCamp(errors.cnp)}>
             {(atribute) => (
@@ -282,7 +289,11 @@ export function Pas1Identitate({ formular }: Proprietati) {
               erori={mesajCamp(errors.permis_valabil_de_la)}
             >
               {(atribute) => (
-                <input {...atribute} type="date" {...register("permis_valabil_de_la")} />
+                <IntrareDataFormular
+                  control={control}
+                  nume="permis_valabil_de_la"
+                  atribute={atribute}
+                />
               )}
             </Camp>
             <Camp
@@ -291,7 +302,11 @@ export function Pas1Identitate({ formular }: Proprietati) {
               erori={mesajCamp(errors.permis_valabil_pana)}
             >
               {(atribute) => (
-                <input {...atribute} type="date" {...register("permis_valabil_pana")} />
+                <IntrareDataFormular
+                  control={control}
+                  nume="permis_valabil_pana"
+                  atribute={atribute}
+                />
               )}
             </Camp>
           </div>
