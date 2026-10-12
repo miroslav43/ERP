@@ -591,6 +591,96 @@ describe("pregatesteFisier", () => {
       expect(r.ok).toBe(true);
     });
   });
+
+  // M6: procesul-verbal urcă pe `{org}/intervention/{id generat în browser}/`
+  // ÎNAINTE de intervenție. O casetă închisă fără trimitere (sau un fișier
+  // schimbat, care primește alt id) lasă folderul unei intervenții care nu va
+  // exista niciodată — curățarea pe entitate n-ar mai ajunge la el, fiindcă
+  // id-ul nu se refolosește. Se mătură la următoarea rezervare din firmă.
+  describe("rezervările abandonate ale intervențiilor (M6)", () => {
+    const RADACINA = `${ORG_ID}/intervention`;
+    const ACUM_2_ZILE = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    const pv = {
+      entity_type: "intervention",
+      entity_id: ID_1,
+      numeFisier: "PV verificare.pdf",
+      dimensiune: 2_000_000,
+      mime: "application/pdf",
+    } as const;
+
+    it("folderul unei intervenții inexistente: obiectele vechi fără rând se șterg; al unei intervenții reale nu se atinge", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+      server.raspundeStocare(BUCKET, "createSignedUploadUrl", {
+        data: { signedUrl: "https://x/semnat", path: "p", token: "t" },
+      });
+      // 1) folderul rezervării curente (gol), 2) rădăcina intervențiilor firmei.
+      admin.raspundeStocare(BUCKET, "list", { data: [] });
+      admin.raspundeStocare(BUCKET, "list", {
+        data: [
+          { id: null, name: ID_1, created_at: null },
+          { id: null, name: ID_2, created_at: null },
+          { id: null, name: ID_3, created_at: null },
+          { id: "f", name: "ratacit.pdf", created_at: ACUM_2_ZILE },
+        ],
+      });
+      admin.raspunde("maintenance_interventions", "select", { data: [{ id: ID_3 }] });
+      // 3) folderul rezervării abandonate.
+      admin.raspundeStocare(BUCKET, "list", {
+        data: [{ id: "o1", name: "pv-vechi.pdf", created_at: ACUM_2_ZILE }],
+      });
+      admin.raspunde("maintenance_attachments", "select", { data: [] });
+      admin.raspundeStocare(BUCKET, "remove", { data: [] });
+
+      const r = await pregatesteFisier(pv);
+
+      expect(r.ok).toBe(true);
+      const listari = admin.apeluriStocare.filter((a) => a.metoda === "list");
+      expect(listari.map((a) => a.argumente[0])).toEqual([
+        `${RADACINA}/${ID_1}`,
+        RADACINA,
+        `${RADACINA}/${ID_2}`,
+      ]);
+      const [existente] = admin.apeluriPe("maintenance_interventions", "select");
+      expect(areFiltru(existente, "eq", "organization_id", ORG_ID)).toBe(true);
+      // Rezervarea în curs (ID_1) nu se verifică și nu se mătură.
+      expect(areFiltru(existente, "in", "id", [ID_2, ID_3])).toBe(true);
+      const sterse = admin.apeluriStocare.find((a) => a.metoda === "remove")?.argumente[0];
+      expect(sterse).toEqual([`${RADACINA}/${ID_2}/pv-vechi.pdf`]);
+    });
+
+    it("nicio rezervare abandonată ⇒ nicio ștergere", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+      server.raspundeStocare(BUCKET, "createSignedUploadUrl", {
+        data: { signedUrl: "https://x/semnat", path: "p", token: "t" },
+      });
+      admin.raspundeStocare(BUCKET, "list", { data: [] });
+      admin.raspundeStocare(BUCKET, "list", {
+        data: [{ id: null, name: ID_3, created_at: null }],
+      });
+      admin.raspunde("maintenance_interventions", "select", { data: [{ id: ID_3 }] });
+
+      const r = await pregatesteFisier(pv);
+
+      expect(r.ok).toBe(true);
+      expect(admin.apeluriStocare.map((a) => a.metoda)).toEqual(["list", "list"]);
+    });
+
+    it("pe o sesizare nu se mătură rădăcina intervențiilor", async () => {
+      const { server, admin } = configureazaActiunea({ permisiuni: CITIRE_OWN });
+      server.raspunde("maintenance_attachments", "select", { count: 0 });
+      server.raspundeStocare(BUCKET, "createSignedUploadUrl", {
+        data: { signedUrl: "https://x/semnat", path: "p", token: "t" },
+      });
+      admin.raspundeStocare(BUCKET, "list", { data: [] });
+
+      const r = await pregatesteFisier(poza);
+
+      expect(r.ok).toBe(true);
+      expect(admin.apeluriStocare.map((a) => a.argumente[0])).toEqual([
+        `${ORG_ID}/fault_report/${ID_1}`,
+      ]);
+    });
+  });
 });
 
 describe("confirmaFisier", () => {

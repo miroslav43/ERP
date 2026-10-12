@@ -403,6 +403,74 @@ async function curataOrfaniiEntitatii(
   }
 }
 
+/** Câte foldere de intervenție se listează, cel mult, la o măturare (pagini de 100). */
+const PAGINI_REZERVARI = 10;
+const MARIME_PAGINA_REZERVARI = 100;
+const FORMA_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/**
+ * Rezervările ABANDONATE ale procesului-verbal (M6). PV-ul urcă pe
+ * `{org}/intervention/{id generat în browser}/` înaintea intervenției; o casetă
+ * închisă fără trimitere, sau un fișier schimbat (care primește alt id), lasă
+ * folderul unei intervenții care nu va exista niciodată. `curataOrfaniiEntitatii`
+ * n-ar mai ajunge la el, fiindcă id-ul nu se refolosește — de aceea, la fiecare
+ * rezervare nouă din firmă, se mătură folderele de intervenție al căror id nu
+ * există în organizație. Pe fiecare, aceeași regulă ca pe o entitate: doar
+ * obiectele mai vechi de 24 h și fără rând în `maintenance_attachments` (o
+ * casetă deschisă acum câteva minute nu-și pierde fișierul).
+ *
+ * DE CE `createAdminSupabase`: ca la `curataOrfaniiEntitatii` (fără politică
+ * DELETE pe bucket). Granița de tenant e rădăcina `{org-ul din sesiune}/intervention`,
+ * iar existența intervențiilor se citește filtrat explicit pe organizație.
+ * Rezervarea în curs (`exceptId`) nu se atinge. Erorile se înghit.
+ */
+async function curataRezervarileAbandonate(
+  organizationId: string,
+  exceptId: string,
+): Promise<number> {
+  try {
+    const admin = createAdminSupabase();
+    const radacina = `${organizationId}/intervention`;
+    const foldere: string[] = [];
+    for (let pagina = 0; pagina < PAGINI_REZERVARI; pagina += 1) {
+      const { data: intrari, error } = await admin.storage.from(BUCKET_MENTENANTA).list(radacina, {
+        limit: MARIME_PAGINA_REZERVARI,
+        offset: pagina * MARIME_PAGINA_REZERVARI,
+        sortBy: { column: "name", order: "asc" },
+      });
+      if (error !== null) return 0;
+      const lista = intrari ?? [];
+      // Folderele vin cu `id` null; numele lor e id-ul intervenției.
+      for (const o of lista) {
+        if (o.id === null && FORMA_UUID.test(o.name) && o.name !== exceptId) foldere.push(o.name);
+      }
+      if (lista.length < MARIME_PAGINA_REZERVARI) break;
+    }
+    if (foldere.length === 0) return 0;
+
+    const existente = new Set<string>();
+    for (let i = 0; i < foldere.length; i += BUCATA_LEGATURI) {
+      const { data, error } = await admin
+        .from("maintenance_interventions")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .in("id", foldere.slice(i, i + BUCATA_LEGATURI));
+      if (error !== null) return 0;
+      for (const r of data ?? []) existente.add(r.id);
+    }
+
+    let sterse = 0;
+    for (const id of foldere) {
+      if (!existente.has(id))
+        sterse += await curataOrfaniiEntitatii(organizationId, "intervention", id);
+    }
+    return sterse;
+  } catch (eroare) {
+    console.warn("[mentenanta] măturarea rezervărilor de intervenție a eșuat", eroare);
+    return 0;
+  }
+}
+
 /**
  * Pasul 1 din 3: semnează calea de încărcare, pe clientul UTILIZATORULUI.
  * `createSignedUploadUrl` verifică politica bucketului (`mentenanta_objects_insert`)
@@ -452,6 +520,9 @@ export const pregatesteFisier = createAction({
       );
     }
     await curataOrfaniiEntitatii(ctx.tenant.organizationId, input.entity_type, input.entity_id);
+    if (input.entity_type === "intervention") {
+      await curataRezervarileAbandonate(ctx.tenant.organizationId, input.entity_id);
+    }
     return { cale, urlSemnat: data.signedUrl };
   },
 });
