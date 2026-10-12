@@ -110,11 +110,86 @@ describe("schimbaRolulAngajatului", () => {
 });
 
 describe("suprascriePermisiunea", () => {
-  const PERMIS = { "roles:update": "team" } as const;
+  // Acordantul pe echipă are el însuși `leave:approve = all`, ca plafonul (v.
+  // blocul „plafonul acordării”) să nu se amestece în testele de scriere.
+  const PERMIS = { "roles:update": "team", "leave:approve": "all" } as const;
   const intrare = (scope: string | null) => ({
     memberId: ID_1,
     cheie: "leave:approve",
     scope,
+  });
+
+  describe("plafonul acordării (0197)", () => {
+    it("`team` nu dă peste ce are el pe aceeași cheie: INTERZIS, fără nicio interogare", async () => {
+      const { server } = configureazaActiunea({
+        permisiuni: { "roles:update": "team", "leave:approve": "team" },
+      });
+      const r = await suprascriePermisiunea(intrare("all"));
+      expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+      expect(server.apeluri).toHaveLength(0);
+    });
+
+    it("`team` fără cheia respectivă: nici măcar `own`", async () => {
+      const { server } = configureazaActiunea({ permisiuni: { "roles:update": "team" } });
+      const r = await suprascriePermisiunea({
+        memberId: ID_1,
+        cheie: "payroll:read",
+        scope: "own",
+      });
+      expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+      expect(server.apeluri).toHaveLength(0);
+    });
+
+    it("`team` până la plafon inclusiv: trece", async () => {
+      const { server } = configureazaActiunea({
+        permisiuni: { "roles:update": "team", "leave:approve": "team" },
+      });
+      server.raspunde("role_permissions", "select", { data: null });
+      server.raspunde("organization_members", "select", { data: { role: "employee" } });
+      server.raspunde("role_permissions", "insert", { data: [{ id: ID_2 }] });
+      const r = await suprascriePermisiunea(intrare("team"));
+      expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
+    });
+
+    it("refuzul explicit trece și fără cheie: restrânge, nu crește", async () => {
+      const { server } = configureazaActiunea({ permisiuni: { "roles:update": "team" } });
+      server.raspunde("role_permissions", "select", { data: null });
+      server.raspunde("organization_members", "select", { data: { role: "employee" } });
+      server.raspunde("role_permissions", "insert", { data: [{ id: ID_2 }] });
+      const r = await suprascriePermisiunea(intrare("none"));
+      expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
+    });
+
+    it("retragerea trece și fără cheie", async () => {
+      const { server } = configureazaActiunea({ permisiuni: { "roles:update": "team" } });
+      server.raspunde("role_permissions", "select", { data: { id: ID_2 } });
+      server.raspundeRpc("sterge_logic", { data: [ID_2] });
+      const r = await suprascriePermisiunea(intrare(null));
+      expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
+    });
+
+    it("`roles:update = all`: fără plafon", async () => {
+      const { server } = configureazaActiunea({ permisiuni: { "roles:update": "all" } });
+      server.raspunde("role_permissions", "select", { data: null });
+      server.raspunde("organization_members", "select", { data: { role: "employee" } });
+      server.raspunde("role_permissions", "insert", { data: [{ id: ID_2 }] });
+      const r = await suprascriePermisiunea(intrare("all"));
+      expect(r).toEqual({ ok: true, data: { memberId: ID_1 } });
+    });
+  });
+
+  it("ținta e chiar apelantul: CONFLICT cu mesaj, fără nicio interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: { "roles:update": "all" } });
+    const r = await suprascriePermisiunea({
+      memberId: MEMBER_ID,
+      cheie: "leave:approve",
+      scope: "all",
+    });
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT", message: "Nu vă puteți modifica propriile permisiuni." },
+    });
+    expect(server.apeluri).toHaveLength(0);
   });
 
   it("roles:update sub `team` (own): INTERZIS, fără nicio interogare", async () => {

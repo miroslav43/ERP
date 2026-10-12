@@ -13,6 +13,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { cn } from "@/lib/ui/cn";
 import { descriePermisiunea, ordineaPermisiunii } from "@/config/permisiuni-etichete";
+import { plafonulAcordarii } from "@/domain/permisiuni/plafon-acordare";
 import { PERMISSION_KEYS, type PermissionScope } from "@/config/permissions";
 import { citesteAngajat, idFisaProprie } from "@/lib/queries/employees";
 
@@ -189,9 +190,18 @@ export default async function PaginaPermisiuniMembru({
       descriere: d.descriere,
       implicit: dinRol.get(cheie) ?? null,
       suprascris,
+      // Pe echipă se dă cel mult ce are cititorul pe aceeași cheie; altfel
+      // managerul ar deschide prin subordonat ce lui însuși îi e închis.
+      plafon: plafonulAcordarii(scopeAcordare, scopeFor(permisiuni, cheie)),
     }));
 
   const numarSuprascrieri = randuri.filter((r) => r.suprascris !== null).length;
+
+  // Propria pagină se poate CITI, dar nu scrie: baza refuză orice suprascriere
+  // pe apartenența apelantului (0063, `app.membrul_meu`), iar managerul ajunge
+  // aici fiindcă `manager_path` își conține propria fișă. Controale active ar fi
+  // exact rândurile care pică mereu și par stricate.
+  const estePropriaPagina = membru.id === tenant.memberId;
 
   return (
     <div className={cn(LATIMI.formular, "space-y-6")}>
@@ -227,6 +237,13 @@ export default async function PaginaPermisiuniMembru({
         poateSchimba={can(permisiuni, "users:update", "all")}
       />
 
+      {estePropriaPagina ? (
+        <p className="border-warning/40 bg-warning/10 text-foreground rounded-panou text-corp border p-3">
+          Acestea sunt propriile dumneavoastră permisiuni. Nu le puteți modifica singur; le poate
+          ajusta un administrator al organizației.
+        </p>
+      ) : null}
+
       <p className="border-border bg-surface text-muted-foreground rounded-panou text-corp border p-3">
         „Ca la rol” înseamnă că permisiunea urmează rolul și se schimbă odată cu el. O valoare
         aleasă aici rămâne fixă, inclusiv dacă rolul se schimbă mai târziu — inclusiv „Refuzat
@@ -236,10 +253,10 @@ export default async function PaginaPermisiuniMembru({
       <MatricePermisiuni
         memberId={membru.id}
         randuri={randuri}
-        // `all` = oriunde în firmă. `team` = doar subordonații, iar baza refuză
-        // restul; ecranul nu poate ști aici cine e subordonat, deci lasă
-        // controlul activ și afișează refuzul dacă vine.
-        poateScrie={scopeAcordare === "all" || scopeAcordare === "team"}
+        // `all` = oriunde în firmă. `team` = doar subordonații (ne-subordonatul
+        // nici nu ajunge aici: `citesteAngajat` cu `team` dă 404), plafonat pe
+        // fiecare rând. Propria pagină: niciodată.
+        poateScrie={!estePropriaPagina && (scopeAcordare === "all" || scopeAcordare === "team")}
       />
     </div>
   );

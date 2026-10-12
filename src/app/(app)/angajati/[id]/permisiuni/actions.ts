@@ -4,7 +4,9 @@
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule } from "@/lib/actions/errors";
+import { incapeInPlafon, plafonulAcordarii } from "@/domain/permisiuni/plafon-acordare";
+import { businessRule, forbidden } from "@/lib/actions/errors";
+import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { ROLURI_ATRIBUIBILE, schimbaRolul } from "@/lib/membri/schimba-rol";
 import { stergeLogic } from "@/lib/supabase/sterge-logic";
 import { suprascriePermisiuneSchema } from "@/schemas/permisiuni-membru";
@@ -62,7 +64,9 @@ export const schimbaRolulAngajatului = createAction({
  * apelantul, și că el are `roles:update` la `all` (toată firma) sau la `team`
  * plus subordonare. Fără ultimele două, un manager s-ar regăsi în propria echipă
  * — `app.is_manager_of` include deliberat fișa proprie — și și-ar putea acorda
- * orice, inclusiv dreptul de a acorda.
+ * orice, inclusiv dreptul de a acorda. Din 0197, cine acordă pe `team` dă cel
+ * mult ce are el însuși pe aceeași cheie (plafonul, verificat și aici, pentru
+ * mesaj).
  */
 export const suprascriePermisiunea = createAction({
   name: "authz.member_permission.set",
@@ -83,6 +87,31 @@ export const suprascriePermisiunea = createAction({
     const [resource, action] = input.cheie.split(":");
     if (resource === undefined || action === undefined) {
       throw businessRule("Cheia de permisiune nu are forma «resursă:acțiune».");
+    }
+
+    // Baza refuză oricum (`member_id is distinct from app.membrul_meu`), dar cu
+    // 42501 fără context; aici omul află DE CE.
+    if (input.memberId === ctx.tenant.memberId) {
+      throw businessRule("Nu vă puteți modifica propriile permisiuni.");
+    }
+
+    // Plafonul acordării: pe echipă se dă cel mult ce are acordantul pe aceeași
+    // cheie, altfel managerul fără `payroll:read` îi deschidea subordonatului
+    // toate salariile (v. `plafon-acordare.ts`). Poarta reală e în bază (0197);
+    // verificarea de aici dă mesajul. `getPermissionMap` e memorat pe cerere,
+    // deci e aceeași hartă pe care a citit-o deja `createAction`.
+    if (input.scope !== null) {
+      const permisiuni = await getPermissionMap(
+        ctx.tenant.organizationId,
+        ctx.tenant.role,
+        ctx.tenant.memberId,
+      );
+      const plafon = plafonulAcordarii(ctx.scope, scopeFor(permisiuni, input.cheie));
+      if (!incapeInPlafon(input.scope, plafon)) {
+        throw forbidden(
+          "Nu puteți acorda pe această permisiune mai mult decât aveți dumneavoastră.",
+        );
+      }
     }
 
     // Actualizare-apoi-inserare, NU `.upsert()`: `role_permissions_uq` e index

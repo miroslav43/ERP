@@ -7,6 +7,7 @@ import { useSemnalIncarcare } from "@/components/incarcare/use-incarcare";
 import { useRouter } from "next/navigation";
 
 import type { PermissionScope } from "@/config/permissions";
+import { incapeInPlafon } from "@/domain/permisiuni/plafon-acordare";
 
 import { suprascriePermisiunea } from "./actions";
 
@@ -41,6 +42,12 @@ export interface RandPermisiune {
   readonly implicit: PermissionScope | null;
   /** Ce s-a decis pentru acest membru. `null` = fără suprascriere. */
   readonly suprascris: PermissionScope | null;
+  /**
+   * Cel mai larg scope pe care cititorul îl poate acorda pe cheia asta
+   * (`plafonulAcordarii`, calculat pe server). Opțiunile de peste el apar, dar
+   * inactive: managerul vede că „Toată firma” există, nu că lipsește.
+   */
+  readonly plafon: PermissionScope;
 }
 
 const ETICHETE_SCOPE: Readonly<Record<PermissionScope, string>> = {
@@ -168,7 +175,14 @@ export function MatricePermisiuni({
                     >
                       <option value="implicit">Ca la rol</option>
                       {OPTIUNI.map((scope) => (
-                        <option key={scope} value={scope}>
+                        <option
+                          key={scope}
+                          value={scope}
+                          // Aceeași regulă ca în bază (0197) și în acțiune;
+                          // o suprascriere existentă peste plafon rămâne
+                          // afișată ca valoare, doar nu se mai poate alege.
+                          disabled={!incapeInPlafon(scope, rand.plafon)}
+                        >
                           {ETICHETE_SCOPE[scope]}
                         </option>
                       ))}

@@ -28,6 +28,7 @@ function rand(
   cheie: PermissionKey,
   implicit: PermissionScope | null,
   suprascris: PermissionScope | null = null,
+  plafon: PermissionScope = "all",
 ): RandPermisiune {
   const d = descriePermisiunea(cheie);
   return {
@@ -41,6 +42,7 @@ function rand(
     descriere: d.descriere,
     implicit,
     suprascris,
+    plafon,
   };
 }
 
@@ -109,5 +111,50 @@ describe("MatricePermisiuni", () => {
     const selecturi = [...container.querySelectorAll("select")];
     expect(selecturi).toHaveLength(RANDURI.length);
     expect(selecturi.every((s) => s.disabled)).toBe(true);
+  });
+
+  it("opțiunile de peste plafonul acordantului sunt inactive, restul rămân", () => {
+    const { container } = render(
+      <MatricePermisiuni
+        memberId="11111111-1111-4111-8111-111111111111"
+        randuri={[
+          rand("payroll:read", null, null, "none"),
+          rand("leave:approve", "team", null, "team"),
+        ]}
+        poateScrie
+      />,
+    );
+    const optiuni = (cheie: string) =>
+      Object.fromEntries(
+        [...container.querySelectorAll<HTMLOptionElement>(`li[data-cheie="${cheie}"] option`)].map(
+          (o) => [o.value, o.disabled],
+        ),
+      );
+
+    expect(optiuni("payroll:read")).toEqual({
+      implicit: false,
+      none: false,
+      own: true,
+      team: true,
+      all: true,
+    });
+    expect(optiuni("leave:approve")).toEqual({
+      implicit: false,
+      none: false,
+      own: false,
+      team: false,
+      all: true,
+    });
+  });
+
+  it("o suprascriere existentă peste plafon rămâne afișată ca valoare", () => {
+    render(
+      <MatricePermisiuni
+        memberId="11111111-1111-4111-8111-111111111111"
+        randuri={[rand("payroll:read", null, "all", "none")]}
+        poateScrie
+      />,
+    );
+    expect((screen.getByLabelText("Citire") as HTMLSelectElement).value).toBe("all");
   });
 });

@@ -68,6 +68,15 @@ export const ETICHETE_RESURSE: Readonly<Record<ResursaPermisiune, EtichetaResurs
     descriere: "Parcursurile de integrare a angajaților noi și pașii lor.",
     modul: "onboarding",
   },
+  // Ascunsă fiindcă AZI nicio pagină nu citește tabelele pe care le păzește —
+  // dar păzește mai mult decât sugerează numele, iar testul (e) caută doar
+  // literalul `"compliance:`. În bază, `compliance:read` e condiție pentru TOATĂ
+  // tabela `expirables` (0008, `expirabile_select`), deci și pentru
+  // `compliance_alerts` și `alert_notifications`; `compliance:update` păzește
+  // `expirabile_update`/`alerte_update`; `compliance:create/update` păzesc
+  // `retention_policies` (0002) și `alert_rules`. Un viitor `from("expirables")`
+  // (azi ocolit explicit în ssm.ts, fleet.ts, panou.ts) depinde de
+  // `compliance:read` fără să conțină literalul: atunci steagul trebuie scos.
   compliance: {
     nume: "Conformitate",
     descriere: "Parametrii legali și autorizațiile de mediu.",
