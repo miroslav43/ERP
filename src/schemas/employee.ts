@@ -611,10 +611,15 @@ const corpContractSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{3}$/u, "Moneda se scrie cu trei litere (ex. RON).")
     .default("RON"),
-  zile_concediu_anual: numarCuImplicit({
+  /**
+   * FĂRĂ implicit codificat. „21" stătea aici în timp ce regula firmei dădea
+   * 20 (QA 8 oct 2026, HR-023): lipsa înseamnă `null`, iar `creeazaContract`
+   * completează din `organizations.zile_concediu_anual_implicit`. La înrolare
+   * câmpul e obligatoriu — vezi `inroleazaAngajatSchema`.
+   */
+  zile_concediu_anual: numarOptional({
     min: 0,
     max: 60,
-    implicit: 21,
     intreg: true,
     mesaj: "Zilele de concediu trebuie să fie un număr.",
     interval: "Zilele de concediu anual sunt între 0 și 60.",
@@ -767,6 +772,21 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
      * prin transfer.
      */
     hired_on: dataObligatorie("Vechimea în unitate"),
+
+    /**
+     * Obligatoriu AICI, opțional pe `creeazaContractSchema`: asistentul îl
+     * precompletează din firmă (`asistent-angajat-nou.tsx`), iar acțiunea de
+     * înrolare îl scrie pe contract și în documentul CIM ca `number`. Un câmp
+     * golit spune „lipsește", nu cade tăcut pe zero (`numarObligatoriu`).
+     */
+    zile_concediu_anual: numarObligatoriu({
+      min: 0,
+      max: 60,
+      intreg: true,
+      lipsa: "Zilele de concediu anual sunt obligatorii.",
+      mesaj: "Zilele de concediu trebuie să fie un număr.",
+      interval: "Zilele de concediu anual sunt între 0 și 60.",
+    }),
 
     /**
      * Numărul contractului, ACUM OPȚIONAL.

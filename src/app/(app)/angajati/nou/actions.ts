@@ -468,11 +468,14 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       throw businessRule("Contractul a fost creat, dar activarea lui a fost respinsă.");
     }
 
+    // Fără `p_zile_odihna_override` (ignorat din 0192): contractul e deja activ
+    // la momentul apelului, deci `app.drept_concediu` citește singur zilele de
+    // pe el și le proporționalizează cu lunile lucrate în an. Override-ul
+    // rescria dreptul abia calculat cu valoarea întreagă.
     const anulAngajarii = Number(valabil_de_la.slice(0, 4));
     const { error: eroareSold } = await db.rpc("seed_leave_balances", {
       p_employee: angajat.id,
       p_an: anulAngajarii,
-      p_zile_odihna_override: zile_concediu_anual,
     });
     if (eroareSold !== null) throw eroareSold;
 

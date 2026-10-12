@@ -3,10 +3,14 @@
 import { describe, expect, it } from "vitest";
 import {
   calculeazaDreptAnual,
+  calculeazaDreptProportional,
+  luniLucrateInAn,
   regulileAplicabile,
   type AngajatPentruDrept,
   type RegulaConcediu,
 } from "./drepturi";
+
+const zi = (an: number, luna: number, ziua: number): Date => new Date(Date.UTC(an, luna - 1, ziua));
 
 const ANGAJAT_DE_BAZA: AngajatPentruDrept = {
   hiredOn: new Date(Date.UTC(2015, 0, 10)),
@@ -173,5 +177,112 @@ describe("regulileAplicabile", () => {
 
   it("nu întoarce nimic pentru un angajat fără nicio regulă întrunită", () => {
     expect(regulileAplicabile([regulaVechime(20, 4)], ANGAJAT_DE_BAZA, 2026)).toEqual([]);
+  });
+});
+
+/*
+ * Cifrele de mai jos sunt ACELEAȘI ca în `tests/rls/proba-concediu-proportional.sql`:
+ * oglinda TypeScript și funcția SQL `app.drept_concediu` se verifică reciproc.
+ */
+describe("luniLucrateInAn", () => {
+  it("luna de intrare se numără întreagă: 08.10 → octombrie, noiembrie, decembrie", () => {
+    expect(luniLucrateInAn(zi(2026, 10, 8), null, 2026)).toBe(3);
+  });
+
+  it("intrat în ultima zi a anului: o lună întreagă", () => {
+    expect(luniLucrateInAn(zi(2026, 12, 31), null, 2026)).toBe(1);
+  });
+
+  it("intrat într-un an anterior: tot anul", () => {
+    expect(luniLucrateInAn(zi(2025, 3, 1), null, 2026)).toBe(12);
+  });
+
+  it("luna de ieșire se numără întreagă: încetat 30.06 → 6 luni", () => {
+    expect(luniLucrateInAn(zi(2026, 1, 15), zi(2026, 6, 30), 2026)).toBe(6);
+  });
+
+  it("intrat și ieșit în aceeași lună: o lună", () => {
+    expect(luniLucrateInAn(zi(2026, 10, 8), zi(2026, 10, 20), 2026)).toBe(1);
+  });
+
+  it("intrat după anul cerut: zero", () => {
+    expect(luniLucrateInAn(zi(2027, 1, 1), null, 2026)).toBe(0);
+  });
+
+  it("ieșit înaintea anului cerut: zero", () => {
+    expect(luniLucrateInAn(zi(2024, 1, 1), zi(2025, 12, 31), 2026)).toBe(0);
+  });
+
+  it("ieșirea de după an nu taie nimic", () => {
+    expect(luniLucrateInAn(zi(2025, 1, 1), zi(2027, 6, 30), 2026)).toBe(12);
+  });
+
+  it("respinge un an în afara intervalului valid", () => {
+    expect(() => luniLucrateInAn(zi(2026, 1, 1), null, 1999)).toThrow(RangeError);
+  });
+});
+
+describe("calculeazaDreptProportional", () => {
+  it("20 de zile × 3/12 = 5, indiferent de rotunjire", () => {
+    expect(calculeazaDreptProportional(20, 3, "zi_in_sus")).toBe(5);
+    expect(calculeazaDreptProportional(20, 3, "zi_in_jos")).toBe(5);
+    expect(calculeazaDreptProportional(20, 3, "matematic")).toBe(5);
+    expect(calculeazaDreptProportional(20, 3, "fara_rotunjire")).toBe(5);
+  });
+
+  it("21 de zile × 3/12 = 5,25 → 6 / 5 / 5 / 5,25", () => {
+    expect(calculeazaDreptProportional(21, 3, "zi_in_sus")).toBe(6);
+    expect(calculeazaDreptProportional(21, 3, "zi_in_jos")).toBe(5);
+    expect(calculeazaDreptProportional(21, 3, "matematic")).toBe(5);
+    expect(calculeazaDreptProportional(21, 3, "fara_rotunjire")).toBe(5.25);
+  });
+
+  it("20 de zile × 1/12 = 1,67 → 2 / 1 / 2 / 1,67", () => {
+    expect(calculeazaDreptProportional(20, 1, "zi_in_sus")).toBe(2);
+    expect(calculeazaDreptProportional(20, 1, "zi_in_jos")).toBe(1);
+    expect(calculeazaDreptProportional(20, 1, "matematic")).toBe(2);
+    expect(calculeazaDreptProportional(20, 1, "fara_rotunjire")).toBe(1.67);
+  });
+
+  it("încetat 30.06: 20 × 6/12 = 10", () => {
+    expect(calculeazaDreptProportional(20, 6, "zi_in_sus")).toBe(10);
+  });
+
+  it("grila se adună ÎNAINTE de proporție: (20 + 3) × 3/12 = 5,75 → 6", () => {
+    expect(calculeazaDreptProportional(23, 3, "zi_in_sus")).toBe(6);
+  });
+
+  it("anul întreg rămâne neschimbat", () => {
+    expect(calculeazaDreptProportional(20, 12, "zi_in_sus")).toBe(20);
+  });
+
+  it("anul întreg NU se rotunjește, nici cu bază fracționară", () => {
+    expect(calculeazaDreptProportional(20.5, 12, "zi_in_sus")).toBe(20.5);
+    expect(calculeazaDreptProportional(20.5, 12, "zi_in_jos")).toBe(20.5);
+  });
+
+  it("zero luni: zero zile", () => {
+    expect(calculeazaDreptProportional(20, 0, "zi_in_sus")).toBe(0);
+  });
+
+  it("dreptul întreg se compune din bază + grile, apoi se proporționalizează", () => {
+    const angajatDinToamna: AngajatPentruDrept = {
+      ...ANGAJAT_DE_BAZA,
+      hiredOn: zi(2026, 10, 8),
+    };
+    const intreg = calculeazaDreptAnual(20, [regulaVechime(3, 3)], angajatDinToamna, 2026);
+    expect(intreg).toBe(20); // vechimea nu se întrunește
+    const luni = luniLucrateInAn(zi(2026, 10, 8), null, 2026);
+    expect(calculeazaDreptProportional(intreg, luni, "zi_in_sus")).toBe(5);
+  });
+
+  it("respinge luni în afara 0–12 sau fracționare", () => {
+    expect(() => calculeazaDreptProportional(20, 13, "zi_in_sus")).toThrow(RangeError);
+    expect(() => calculeazaDreptProportional(20, -1, "zi_in_sus")).toThrow(RangeError);
+    expect(() => calculeazaDreptProportional(20, 1.5, "zi_in_sus")).toThrow(RangeError);
+  });
+
+  it("respinge un drept negativ", () => {
+    expect(() => calculeazaDreptProportional(-1, 3, "zi_in_sus")).toThrow(RangeError);
   });
 });

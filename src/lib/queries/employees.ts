@@ -93,6 +93,11 @@ export interface ContractAngajat {
   readonly motiv_incetare: string | null;
   /** Punctul de lucru al contractului (0097); `null` = nedeclarat. */
   readonly punct_lucru_id: string | null;
+  /**
+   * Baza dreptului de odihnă al angajatului (0192): `app.drept_concediu` o
+   * citește de pe contractul de bază, nu din `leave_types.zile_implicite`.
+   */
+  readonly zile_concediu_anual: number;
 }
 
 export interface DocumentAngajat {
@@ -395,7 +400,8 @@ export async function citesteAngajat(
        ${EMBED_DEPARTAMENT}, ${COLOANE_FUNCTIE},
        contracts:employment_contracts!employee_id(id, numar, data_contract, valabil_de_la, valabil_pana,
          contract_duration, norma_ore_saptamana, norma_ore_zi, salariu_baza, moneda, work_mode, status,
-         este_act_aditional, parent_contract_id, incetat_la, motiv_incetare, punct_lucru_id),
+         este_act_aditional, parent_contract_id, incetat_la, motiv_incetare, punct_lucru_id,
+         zile_concediu_anual),
        documents:employee_documents!employee_id(id, titlu, data_document, valabil_pana, confidential)`,
     )
     .eq("organization_id", organizationId)

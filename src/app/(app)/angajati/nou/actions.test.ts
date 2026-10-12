@@ -92,6 +92,9 @@ const INTRARE = {
   data_contract: "2026-09-28",
   valabil_de_la: "2026-10-01",
   salariu_baza: 5000,
+  // Obligatoriu la înrolare: asistentul îl precompletează din firmă, schema
+  // nu mai are „21" codificat (HR-023).
+  zile_concediu_anual: 21,
 };
 
 type Fals = ReturnType<typeof configureazaActiunea>["server"];
@@ -236,10 +239,12 @@ describe("inroleazaAngajat", () => {
     expect(areFiltru(activare, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(activare?.selectDupaScriere).toBeDefined();
 
+    // Fără `p_zile_odihna_override`: contractul e deja activ când se seamănă
+    // soldul, iar `app.drept_concediu` (0192) citește zilele direct din el și
+    // le proporționalizează cu lunile lucrate. Override-ul ar fi anulat calculul.
     expect(server.apeluriRpc.find((a) => a.nume === "seed_leave_balances")?.argumente).toEqual({
       p_employee: ID_1,
       p_an: 2026,
-      p_zile_odihna_override: 21,
     });
     expect(caiRevalidate()).toEqual([
       "/angajati",

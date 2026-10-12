@@ -13,6 +13,57 @@ import {
   mutaAngajatiSchema,
 } from "./employee";
 
+describe("zilele de concediu anual pe contract", () => {
+  // „21 de zile" era codificat în schemă, iar regula firmei dădea 20 (QA 8 oct
+  // 2026, HR-023). Schema nu mai are implicit: lipsa înseamnă `null`, iar
+  // acțiunea completează din `organizations.zile_concediu_anual_implicit`.
+  const CONTRACT = {
+    employee_id: "55555555-5555-4555-8555-555555555555",
+    numar: "12/2026",
+    data_contract: "2026-09-28",
+    valabil_de_la: "2026-10-01",
+    salariu_baza: 5000,
+  };
+
+  it("contract nou fără zile: `null`, nu 21", () => {
+    expect(creeazaContractSchema.parse(CONTRACT).zile_concediu_anual).toBeNull();
+  });
+
+  it("contract nou cu câmpul golit: `null`", () => {
+    expect(
+      creeazaContractSchema.parse({ ...CONTRACT, zile_concediu_anual: "" }).zile_concediu_anual,
+    ).toBeNull();
+  });
+
+  it("contract nou cu zile explicite: valoarea trimisă", () => {
+    expect(
+      creeazaContractSchema.parse({ ...CONTRACT, zile_concediu_anual: "25" }).zile_concediu_anual,
+    ).toBe(25);
+  });
+
+  it("contract nou cu zile fracționare: respins (coloana e întreagă)", () => {
+    const r = creeazaContractSchema.safeParse({ ...CONTRACT, zile_concediu_anual: 20.5 });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues.some((i) => i.path.includes("zile_concediu_anual"))).toBe(true);
+  });
+
+  it("la înrolare câmpul e obligatoriu: asistentul îl precompletează din firmă", () => {
+    const r = inroleazaAngajatSchema.safeParse({ ...CONTRACT, zile_concediu_anual: "" });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const eroare = r.error.issues.find((i) => i.path.includes("zile_concediu_anual"));
+    expect(eroare?.message).toBe("Zilele de concediu anual sunt obligatorii.");
+  });
+
+  it("la înrolare câmpul lipsă e tot o eroare pe câmp", () => {
+    const r = inroleazaAngajatSchema.safeParse(CONTRACT);
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues.some((i) => i.path.includes("zile_concediu_anual"))).toBe(true);
+  });
+});
+
 describe("salariul de bază pe contract și act adițional", () => {
   // Un contract de muncă fără salariu nu există; 0 lei trecea (QA 8 oct 2026,
   // HR-021: act adițional de 0 lei „activ"). Pragul firmei se verifică în

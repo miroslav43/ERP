@@ -30,9 +30,15 @@ import { creeazaContract } from "../actions";
 
 interface Proprietati {
   readonly employeeId: string;
+  /**
+   * `organizations.zile_concediu_anual_implicit`, citit pe pagină. Textul casetei
+   * promitea „21 de zile" literal în timp ce regula firmei dădea 20 (QA 8 oct
+   * 2026, HR-023): cifra vine din firmă, iar câmpul o lasă schimbată per angajat.
+   */
+  readonly zileConcediuImplicit: number;
 }
 
-export function FormularContractNou({ employeeId }: Proprietati) {
+export function FormularContractNou({ employeeId, zileConcediuImplicit }: Proprietati) {
   /** Cheile obiectului sunt EXACT cele din `creeazaContractSchema`. */
   async function trimite(date: FormData) {
     return creeazaContract({
@@ -41,6 +47,7 @@ export function FormularContractNou({ employeeId }: Proprietati) {
       data_contract: String(date.get("data_contract") ?? ""),
       valabil_de_la: String(date.get("valabil_de_la") ?? ""),
       salariu_baza: Number(date.get("salariu_baza")),
+      zile_concediu_anual: Number(date.get("zile_concediu_anual")),
     });
   }
 
@@ -53,7 +60,7 @@ export function FormularContractNou({ employeeId }: Proprietati) {
         className: "mt-3",
       }}
       titlu="Contract nou"
-      descriere="Restul clauzelor — durată nedeterminată, normă de 40 de ore pe săptămână, loc de muncă la sediu, 21 de zile de concediu anual — se completează cu valorile implicite și pot fi schimbate ulterior."
+      descriere={`Restul clauzelor — durată nedeterminată, normă de 40 de ore pe săptămână, loc de muncă la sediu — se completează cu valorile implicite și pot fi schimbate ulterior. Zilele de concediu pornesc de la cele ${String(zileConcediuImplicit)} ale firmei; dreptul anului se calculează proporțional cu lunile lucrate.`}
       marime="mare"
       actiune={trimite}
       mesajReusita="Contractul a fost creat."
@@ -113,6 +120,28 @@ export function FormularContractNou({ employeeId }: Proprietati) {
                 step="0.01"
                 min={0}
                 defaultValue={stare.valoriTrimise["salariu_baza"] ?? ""}
+              />
+            )}
+          </Camp>
+
+          <Camp
+            nume="zile_concediu_anual"
+            id={idc("zile_concediu_anual")}
+            eticheta="Zile de concediu de odihnă anual"
+            obligatoriu
+            ajutor="Implicit conform politicii organizației — modificabil aici doar pentru acest angajat."
+            erori={stare.erori["zile_concediu_anual"] ?? []}
+          >
+            {(a) => (
+              <input
+                {...a}
+                type="number"
+                min={0}
+                max={60}
+                step={1}
+                defaultValue={
+                  stare.valoriTrimise["zile_concediu_anual"] ?? String(zileConcediuImplicit)
+                }
               />
             )}
           </Camp>
