@@ -19,6 +19,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
+import { Indicator } from "@/components/ui/indicator";
 import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
@@ -252,31 +253,56 @@ async function PanouOrganizatie({
 
   return (
     <div className="space-y-6">
-      <div className="border-border rounded-panou border p-4">
-        {/* Eticheta ÎNTREAGĂ deasupra cifrei: „Scadențe în următoarele / 7 /
-            Planuri … în 15 zile” se citea ca o frază ruptă în trei bucăți. */}
-        <p className="text-muted-foreground text-corp">
-          Scadențe în următoarele {PRAG_MENTENANTA_AVERTIZARE_ZILE} zile
-        </p>
-        <p className="text-3xl font-semibold tabular-nums">{numarScadente}</p>
-        <p className="text-muted-foreground text-nota">
-          <Link
-            href="/mentenanta/planuri?scadenta=actiune"
-            className="underline-offset-2 hover:underline"
-          >
-            {textNumarat(planuriInCoada.length, "plan de mentenanță", "planuri de mentenanță")}
-          </Link>{" "}
-          ·{" "}
-          <Link
-            href="/mentenanta/iscir?stare=actiune"
-            className="underline-offset-2 hover:underline"
-          >
-            {textNumarat(iscirInCoada.length, "autorizație ISCIR", "autorizații ISCIR")}
-          </Link>
-          , scadente sau în întârziere. Planurile pe contor intră și ele, cu ultima citire
-          cunoscută.
-        </p>
+      {/*
+        M8: cifrele de sus sunt `Indicator`-e, fiecare cu lista lui. Cartela
+        veche aduna planurile și autorizațiile ISCIR într-o singură cifră cu
+        două linkuri în notă; acum fiecare cifră e un drum spre EXACT rândurile
+        numărate (`?scadenta=actiune`, `?stare=actiune`, `?deschise=da`). Suma
+        lor rămâne aceeași cu insigna din meniu (`numarScadenteMentenanta`).
+      */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Indicator
+          eticheta="Planuri scadente"
+          valoare={planuriInCoada.length}
+          ton={planuriInCoada.length > 0 ? "atentie" : "bun"}
+          nota={`Scadente în ${String(PRAG_MENTENANTA_AVERTIZARE_ZILE)} zile sau în întârziere, pe zile sau pe contor.`}
+          href="/mentenanta/planuri?scadenta=actiune"
+        />
+        <Indicator
+          eticheta="ISCIR și VTP de reînnoit"
+          valoare={iscirInCoada.length}
+          ton={iscirInCoada.length > 0 ? "pericol" : "bun"}
+          nota="Autorizații expirate sau care expiră curând."
+          href="/mentenanta/iscir?stare=actiune"
+        />
+        <Indicator
+          eticheta="Sesizări deschise"
+          valoare={rezultatSesizari.total}
+          ton={rezultatSesizari.total > 0 ? "atentie" : "bun"}
+          nota="Noi, în analiză, în lucru sau în așteptare."
+          href="/mentenanta/sesizari?deschise=da"
+        />
+        <Indicator
+          eticheta="Nu sunt în funcțiune"
+          valoare={rezultatEchipamente.total}
+          // Neutru: lista numără și echipamentele casate, care rămân acolo
+          // pentru totdeauna — un galben permanent n-ar mai semnala nimic.
+          ton="neutru"
+          nota="Echipamente în reparație, în conservare sau casate."
+          href="/mentenanta/echipamente"
+        />
       </div>
+      <p className="text-muted-foreground text-nota -mt-3">
+        {textNumarat(numarScadente, "scadență", "scadențe")} în total.{" "}
+        {poateDeschide("/mentenanta/rapoarte", { features, permissions: permisiuni }) ? (
+          <Link
+            href="/mentenanta/rapoarte"
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            Costuri, disponibilitate și timpi de reparație în rapoarte.
+          </Link>
+        ) : null}
+      </p>
 
       {faraRsvti ? (
         // Cazul 41: alertă, nu blocare. Fără RSVTI activ, verificările ISCIR

@@ -915,6 +915,21 @@ const INTRARI: readonly Intrare[] = [
       "Autorizațiile ISCIR și verificările tehnice periodice ale utilajelor, cu ce expiră, ce e suspendat, RSVTI-ul și dosarul de control.",
   },
   // ── sfârșit M7 ──
+  // ── Mentenanță M8: raportul pe perioadă ──
+  {
+    id: "mentenanta.rapoarte",
+    href: "/mentenanta/rapoarte",
+    eticheta: "Rapoarte de mentenanță",
+    zona: "app",
+    parinte: "mentenanta",
+    fila: "Rapoarte",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "team",
+    descriere:
+      "Costurile pe echipament, disponibilitatea, timpii de reparație și de rezolvare, defectele repetate, planurile și verificările legale făcute la timp, pe o perioadă aleasă, cu export CSV.",
+  },
+  // ── sfârșit M8 ──
   {
     id: "mentenanta.interventii",
     href: "/mentenanta/interventii",

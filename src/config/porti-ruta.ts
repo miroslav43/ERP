@@ -141,6 +141,9 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   // ── sfârșit M7 ──
   p("/mentenanta/planuri", "maintenance", "maintenance:read", "team"),
   p("/mentenanta/planuri/[id]", "maintenance", "maintenance:read", "team"),
+  // ── Mentenanță M8: raportul pe perioadă ──
+  p("/mentenanta/rapoarte", "maintenance", "maintenance:read", "team"),
+  // ── sfârșit M8 ──
   p("/mentenanta/sesizari", "maintenance", "maintenance:read"),
   p("/mentenanta/sesizari/[id]", "maintenance", "maintenance:read"),
   // Redirecționează spre caseta `?sesizare=noua` din listă; poarta e a casetei.
