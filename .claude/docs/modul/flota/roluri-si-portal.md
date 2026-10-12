@@ -13,7 +13,7 @@ permisiuni:
   [vehicles:read, trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 18]
-scris_pe: 0f60a6433eda5813f622bd574acf1ba26ab8d8a5
+scris_pe: 376052e0c8cbbb56c35b210dfda28d12158be879
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -67,11 +67,11 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
   altă foaie. Probat de (25)–(32).
 - **Foaia trimisă nu se rescrie** (§C5, din revizia F3). Regresul de kilometraj se
   verifică doar la întocmire și la `draft` → `trimis`; pe foaia deja trimisă, șoferul
-  cobora `km_plecare` sau umfla sosirea (și prin `trimiteFoaie` chemată din nou), iar
-  aprobarea pecetluia cifrele. Sub `update` ≠ `all`, pe o foaie trimisă se schimbă doar
-  starea: retragerea în ciornă sau decizia. Orice altă coloană dă P0001 („…este trimisă
-  spre aprobare…”). Alimentările rămân permise pe foaia trimisă: stau în altă tabelă.
-  Probat de (33)–(36).
+  cobora `km_plecare` sau umfla sosirea, iar aprobarea pecetluia cifrele. Pe o foaie
+  trimisă se schimbă doar starea: retragerea în ciornă sau decizia. Orice altă coloană dă
+  P0001 („…este trimisă spre aprobare…”). Probat de (33)–(36). **Din 0197 regula e pe
+  orice scope și urmează și copiii**: alimentările și cursele se scriu doar pe ciornă,
+  iar ștergerea logică e ireversibilă — `[[modul/flota/foaia-zilnica]]`.
 - **Foaia în numele altcuiva** sub `own` cade pe `foi_insert` (`app.poate_crea_foaie`) cu 42501. `creeazaFoaie` o refuză înainte, cu CONFLICT și text clar.
 - **Storage.** `app.can_path` verifică entitatea la `team` și `own` și pe `trip_sheets`
   (segmentul 3 = fișa șoferului) și pe `vehicles` (segmentul 3 = vehiculul, proprietar =
@@ -119,6 +119,7 @@ de RLS să nu fie umbrite de garda de vehicul.
 
 ## Ce NU e aici
 
-Liniile foii, numerotarea și snapshot-ul vehiculului (F4). Notificările pe fluxul foii și
+Liniile foii, numerotarea și instantaneul vehiculului: `[[modul/flota/foaia-zilnica]]`
+(F4, 0197). Notificările pe fluxul foii și
 traducerea legăturii în `notificarile-mele/legaturi.ts` (F5). Permisele șoferilor pentru
 `hr` (F9).

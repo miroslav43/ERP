@@ -9,7 +9,16 @@ cai:
   - "src/domain/fleet/**"
   - "src/app/(portal)/portal/masina-mea/**"
 tabele:
-  [vehicles, vehicle_assignments, vehicle_documents, trip_sheets, fuel_entries, odometer_anomalies]
+  [
+    vehicles,
+    vehicle_assignments,
+    vehicle_documents,
+    trip_sheets,
+    trip_sheet_curse,
+    trip_route_templates,
+    fuel_entries,
+    odometer_anomalies,
+  ]
 permisiuni:
   [
     vehicles:read,
@@ -24,9 +33,9 @@ feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
+  - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF → [[modul/flota/foaia-zilnica]]"
   - "42501 la salvarea unui vehicul → capcana #23"
-  - "tip de document care lipsește din listă → 0116, cele patru de transport sunt activ=false"
-scris_pe: 06086dd260a0cce4cafa725b74bd095393819297
+scris_pe: 376052e0c8cbbb56c35b210dfda28d12158be879
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -44,6 +53,8 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 | `/flota`, `/flota/[id]`              | `vehicles:read` own; creare cere `vehicles:create` all              |
 | `/flota/foi`, `/flota/foi/[id]`      | `trip_sheets:read`/`update` own                                     |
 | `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
+| `/flota/foi/sabloane`                | `trip_sheets:update` all — șabloanele de traseu (0197)              |
+| `/api/export/flota/foaie/[id]`       | `trip_sheets:read` own + RLS — PDF-ul foii (0197)                   |
 | `/portal/masina-mea*`                | `trip_sheets:read` own — portalul șoferului, din 0196               |
 
 Drepturile pe roluri (0196), garda de vehicul alocat sau pool, regula „aprobatorul doar
@@ -59,14 +70,10 @@ lipsește cu totul. Tabelul listează TOATE tipurile: obligatoriile întâi (ro�
 când n-au document), apoi opționalele (pastilă neutră „Neînregistrat” — lipsa lor nu e o
 problemă); un document fără dată de expirare e „Fără scadență”, nu „Lipsește”.
 
-**Vehiculul nou și foaia nouă NU mai au rută.** `/flota/nou` și `/flota/foi/noua` au
-dispărut, fără redirect, în favoarea unor casete pe listă — tiparul din `[[modul/concedii]]`.
-Se deschid prin parametru (`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu
-`deschisInitial` + `key` pe componentă: o navigare pe ACEEAȘI rută nu remontează, deci fără
-`key` caseta nu s-ar redeschide. Citirile fostei pagini de foaie stau în
-`foi/date-foaie-noua.ts`, `server-only`, chemat doar pentru cine are `trip_sheets:create`;
-cere vehiculele cu `status: "activ"`, fiindcă `internal.foi_parcurs_inainte` refuză cu
-P0001 o foaie pe un vehicul vândut sau casat.
+**Vehiculul nou și foaia nouă NU au rută**: casete pe listă, deschise prin parametru
+(`/flota?vehicul=nou`, `/flota/foi?foaie=noua`), cu `deschisInitial` + `key` (o navigare pe
+ACEEAȘI rută nu remontează). Datele casetei de foaie: `foi/date-foaie-noua.ts`, doar
+vehicule `activ` (baza refuză foaia pe unul vândut sau casat).
 
 ## Server Actions
 
@@ -84,14 +91,17 @@ P0001 o foaie pe un vehicul vândut sau casat.
 | `decideFoaie`                                         | `trip_sheets:approve` / team |
 | `confirmaAnomalie`                                    | `vehicles:update` / team     |
 
+Cursele, retragerea, corectura și ștergerea ciornei, alimentările corectate și șabloanele
+de traseu (0197): `[[modul/flota/foaia-zilnica]]`.
+
 **Kilometrajul de bord e obligatoriu la creare** (`numarObligatoriu`) și lipsește din
 modificare. Pe `default 0`, prima foaie trecea de orice verificare. `z.coerce.number()` nu
 ajunge: `Number("")` și `Number(null)` dau `0`. Corectura e `corecteazaKilometraj`, cu
 motivul în audit.
 
-**Din `respins` baza permite doar `draft`.** Pe o foaie respinsă ecranul arată doar
-„Redeschide” (`redeschideFoaie`); închiderea apare în `draft`, alimentările în `draft` și
-`trimis`.
+**Starea foii decide tot ce se mai scrie** (0197 §D1, pe orice scope): pe `trimis` doar
+retragerea sau decizia, pe `respins` doar redeschiderea, pe `aprobat` doar stornarea.
+Cursele și alimentările se scriu DOAR pe ciornă.
 
 Scrierile pe vehicule și documente sunt toate `minScope: "all"`, fiindcă politicile cer
 literal `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși
@@ -102,13 +112,10 @@ e logică, prin `deleted_at`: tabelele flotei primesc grant doar pe `select`, `i
 casetei „Foaie nouă" sunt fixate pe clientul fals: `actions-vehicule.test.ts`,
 `actions-foi.test.ts`, `erori-etichete.test.ts`, `foi/date-foaie-noua.test.ts`.
 
-**Ieșirea din parc trece obligatoriu prin `actualizeazaVehicul`.** `vehicule_insert` cere
-literal `status = 'activ'`, deci `vehiculNouSchema` nici n-are câmpul: `status` și
-`motiv_iesire` există doar în `actualizeazaVehiculSchema`, care cere motivul printr-un
-`superRefine` la `vandut`/`casat`. `data_iesire` nu se trimite niciodată din client — o
-pune `internal.vehicles_normalizeaza` din `status` și o golește la întoarcerea în parc.
-Ștergerea e altceva: e pentru rândul care n-ar fi trebuit să existe, iar
-`internal.vehicles_dupa` scoate atunci scadențele vehiculului din semafor.
+**Ieșirea din parc trece prin `actualizeazaVehicul`** (`vehicule_insert` cere `status =
+'activ'`): `status` și `motiv_iesire` sunt doar în `actualizeazaVehiculSchema`, cu motiv
+obligatoriu la `vandut`/`casat`; `data_iesire` o pune baza. Ștergerea e pentru rândul care
+n-ar fi trebuit să existe; `vehicles_dupa` scoate scadențele din semafor.
 
 **Orele foilor sunt ora României.** `plecare_la`, `sosire_la` și `alimentat_la` trec prin
 `dataOraRomania` și ies în UTC; formularele umplu câmpul cu `oraRomanieiPentruCamp`. Cu
@@ -118,8 +125,9 @@ pune `internal.vehicles_normalizeaza` din `status` și o golește la întoarcere
 
 `src/lib/queries/fleet.ts` (marcat `import "server-only"`): `listeazaVehicule`,
 `citesteVehicul`, `scadenteCurente`, `documenteleVehiculului`, `tipuriDocument`,
-`listeazaFoi`, `citesteFoaie`, `kmDePlecareSugerat`, `combustibilPeFoi`,
-`alimentarileFoii`, `anomaliiNeconfirmate`, `anomaliiPeFoi`, plus, pentru portal,
+`listeazaFoi` (filtre și pe `data`), `citesteFoaie` (cu instantaneul vehiculului),
+`kmDePlecareSugerat`, `combustibilPeFoi`, `alimentarileFoii`, `anomaliiNeconfirmate`,
+`anomaliiPeFoi`, `curseleFoii`, `sabloaneTraseu`, `numeleContului`, plus, pentru portal,
 `vehicululMeu` și `foileMele` (filtru explicit pe șofer).
 
 ## Ce refuză baza tăcut
@@ -165,9 +173,11 @@ Citește secțiunea asta înainte de orice scriere în modul.
   `expirables`. Nu există alocări viitoare, iar vânzarea, casarea sau ștergerea vehiculului
   închid alocarea. Proba: `tests/rls/proba-flota-alocari.sql`.
 - **Coloane GENERATED ALWAYS pe care clientul nu are voie să le trimită:**
-  `trip_sheets.km_parcursi`, `fuel_entries.pret_litru`, `odometer_anomalies.diferenta`.
-  La fel, `aprobat_de`/`aprobat_la` și `confirmat_de` le scrie triggerul din
-  `auth.uid()`. — capcana #22
+  `trip_sheets.km_parcursi` și `data` (0197), `trip_sheet_curse.km_parcursi`,
+  `fuel_entries.pret_litru`, `odometer_anomalies.diferenta`. La fel, `aprobat_de`/
+  `aprobat_la`, `confirmat_de`, `numar` și instantaneul vehiculului le scrie baza. — capcana #22
+- **O foaie activă pe vehicul și zi** (0197): a doua dă 23505 pe `ts_vehicul_zi_uq`, tradus
+  pe `plecare_la`; nu „vehicul cu același număr”.
 
 ## Erori traduse și nomenclatorul de documente
 
@@ -201,5 +211,4 @@ e alt modul. Fișa șoferului: `[[modul/angajati]]`.
 - Forma politicilor și a vizibilității vehiculului: migrarea care creează `vehicles`.
 - Scadențele centralizate: capcanele #19, #21 și #26, integral, prin
   `node .claude/skills/administrativo/scripts/capcana.mjs --nr 19`.
-- Lotul 7g: anomaliile duc la vehicul și la foaie, fișa vehiculului arată departamentul, foile de aprobat, anomaliile și „Foaie nouă pe acest vehicul” (`?vehicul=&foaie=noua`), coloana „Șofer” în parc, intrarea de rezervă „Foi de parcurs” pentru manager (`doarFara`): [[strat/navigare]].
-- Lotul 7l: coada de anomalii arată șoferul foii (`AnomalieCuSofer`), legat per rând: [[strat/navigare]].
+- Loturile 7g și 7l (legăturile anomaliilor, fișa vehiculului, coada cu șoferul foii): [[strat/navigare]].

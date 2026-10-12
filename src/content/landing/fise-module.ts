@@ -361,7 +361,7 @@ export const FISE: readonly FisaModul[] = [
       "Program de parc auto: ITP, RCA și rovinieta fiecărei mașini, cu semafor înainte de scadență, plus foi de parcurs cu kilometraj și alimentări.",
     intro: [
       "Un termen ratat la o mașină oprește mașina. ITP, RCA, rovinieta, tahograful și licența de transport au fiecare data lui, pe fiecare vehicul, iar ținute în capul unei singure persoane devin indisponibile exact când acea persoană e în concediu.",
-      "Fiecare vehicul poartă termenele lui, cu semafor care se aprinde înainte de scadență, nu la ea. Foile de parcurs rețin kilometrajul și alimentările, iar consumul rezultat se poate compara cu ce arată bonurile — nu e o cifră introdusă de mână care iese mereu bine.",
+      "Fiecare vehicul poartă termenele lui, cu semafor care se aprinde înainte de scadență, nu la ea. Foaia de parcurs e ziua mașinii, cu fiecare cursă pe rândul ei: de unde, până unde, în ce scop și câți kilometri. Primește număr la trimitere și se descarcă în PDF, cu norma de consum și cu cine a aprobat-o. Consumul rezultat se poate compara cu ce arată bonurile — nu e o cifră introdusă de mână care iese mereu bine.",
       "Istoricul rămâne pe mașină, nu pe șofer. Când se schimbă șoferul, evidența vehiculului nu se rupe, iar întrebarea „când s-a schimbat ultima dată distribuția la mașina asta” are răspuns și peste doi ani.",
       "Modulul se pornește cu toate termenele introduse, nu cu jumătate. Un semafor care arată verde fiindcă datele lipsesc e mai periculos decât niciun semafor — ajunge să fie crezut, iar prima scadență ratată e cea despre care nimeni nu știa că există.",
     ],
