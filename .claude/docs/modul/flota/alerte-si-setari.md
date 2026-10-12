@@ -14,7 +14,7 @@ tabele: [fleet_settings, alert_rules, compliance_alerts, alert_notifications, no
 permisiuni: [vehicles:read, vehicles:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 19]
-scris_pe: 477405adb844def658fa265d593eda9deecac429
+scris_pe: 00f07559fedbd72745fe0e6be3d631a2c6a2b6f4
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -59,10 +59,18 @@ ca text („30, 14, 7”); `pragurileDinText` le ordonează descrescător, făr�
 2. `internal.flota_rezumat(org)` — lista albă `entity_type = 'vehicle_document'`. **O
    notificare per destinatar și rulare**, cu toate documentele netrimise lui (la prima
    rulare, un rezumat, nu treizeci). Un singur vehicul → `/flota/<id>`; mai multe →
-   `/flota?conformitate=expira`; șoferul fără `team`/`all` → `/portal/masina-mea`.
+   `/flota?conformitate=expira`, dar `/flota` dacă vreun document e peste 30 de zile
+   (filtrul arată doar `PRAG_FLOTA_AVERTIZARE_ZILE`, iar un prag de firmă de 60 le-ar
+   ascunde); șoferul fără `team`/`all` → `/portal/masina-mea`.
 
 Destinatari: responsabilii (sau `org_admin`) + șoferul alocat, filtrați pe membru ACTIV și
-pe `internal.scope_membru(...,'vehicles','read') <> 'none'`. Dedup: `alert_notifications`
+pe `internal.scope_membru(...,'vehicles','read') <> 'none'`. **Fiecare primește doar
+vehiculele pe care le vede** (`internal.flota_vede_vehicul`, geamăna lui
+`app.poate_vedea_vehicul` pentru un utilizator dat): un responsabil `manager` (team) nu află
+din rezumat numerele și documentele restului parcului, unul `employee` (own) doar pool-ul și
+mașina lui. Documentul pe care nu-l vede NICIUN responsabil merge la `org_admin`. (Prima
+versiune făcea `elemente × responsabili` și dădea tot parcul oricui era bifat — prins de
+santinelă, reparat în revizuire.) Dedup: `alert_notifications`
 pe `canal = 'in_app'`. **Un prag nou trecut e o alertă nouă**: schimbarea pragurilor în
 60/20/7 retrimite documentele care trec acum pragul nou — e ritmul memento-urilor, nu o
 dublură. `curata_alerte` NU se cheamă (e pe toată firma); rezumatul ia doar alertele
@@ -85,8 +93,8 @@ rândul rămâne text — implicitul sigur al lui `caleaDePortal`.
 
 ## Probe
 
-`tests/rls/proba-flota-conformitate-zilnica.sql` (16 verificări: rezumat unic, idempotență,
-firma fără flotă, vizibilitate per destinatar, scriere/refuz pe setări, pragul de salt,
+`tests/rls/proba-flota-conformitate-zilnica.sql` (18 verificări: rezumat unic, idempotență,
+firma fără flotă, vizibilitate per destinatar, responsabilul cu team/own (12, 17, 18), scriere/refuz pe setări, pragul de salt,
 fluxul foii) și `izolare.sql` (l) „setările flotei”. Fixture-ul inserează fișele ÎNAINTEA
 membrilor: altfel 0083 îi creează administratorului o fișă și a doua lovește
 `employees_org_user_primary_uniq`.
