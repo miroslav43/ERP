@@ -5,7 +5,7 @@ import type { ReactElement } from "react";
 import { poateDeschide, type ContextPorti } from "@/config/porti-ruta";
 import { scopeFor } from "@/lib/auth/permissions";
 import type { PermissionScope } from "@/config/permissions";
-import { formatDate, formatMonthYear } from "@/lib/format/date";
+import { formatDate, formatMonthYear, formatZiuaMomentului } from "@/lib/format/date";
 import { filtreInstanteSchema } from "@/schemas/checklist";
 import { listeazaInstante } from "@/lib/queries/checklist";
 import { cursurileMele } from "@/lib/queries/cursuri";
@@ -290,7 +290,7 @@ export async function SectiuneInAlteModule({
       randuri: bunuri.slice(0, LIMITA_CARD).map((b) => ({
         cheie: b.id,
         eticheta: `${b.obiect.denumire} (${b.obiect.numar_inventar})`,
-        detaliu: `din ${formatDate(b.predat_la)}${b.confirmat_de_angajat_la === null ? " · neconfirmat" : ""}`,
+        detaliu: `din ${formatZiuaMomentului(b.predat_la)}${b.confirmat_de_angajat_la === null ? " · neconfirmat" : ""}`,
         href: `/inventar/${b.item_id}`,
       })),
       gol: "Nimic în primire.",
@@ -324,7 +324,7 @@ export async function SectiuneInAlteModule({
       randuri: deplasari.map((d) => ({
         cheie: d.id,
         eticheta: `${d.scop}${d.localitate === null ? "" : ` · ${d.localitate}`}`,
-        detaliu: `${formatDate(d.plecare_la)} · ${ETICHETE_STATUS_DEPLASARE[d.status]}`,
+        detaliu: `${formatZiuaMomentului(d.plecare_la)} ·${ETICHETE_STATUS_DEPLASARE[d.status]}`,
         href: `/diurna/${d.id}`,
       })),
       gol: "Nicio deplasare.",
@@ -410,7 +410,7 @@ export async function SectiuneInAlteModule({
           v.vehicul === null
             ? "Vehicul (ascuns)"
             : `${v.vehicul.nr_inmatriculare} · ${v.vehicul.marca} ${v.vehicul.model}`,
-        detaliu: `atribuit din ${formatDate(v.de_la)}`,
+        detaliu: `atribuit din ${formatZiuaMomentului(v.de_la)}`,
         href: v.vehicul === null ? null : `/flota/${v.vehicle_id}`,
       })),
       gol: "Niciun vehicul atribuit.",
@@ -428,7 +428,7 @@ export async function SectiuneInAlteModule({
         detaliu:
           fluturasul.calculat_la === null
             ? null
-            : `calculat la ${formatDate(fluturasul.calculat_la)}`,
+            : `calculat la ${formatZiuaMomentului(fluturasul.calculat_la)}`,
         href: `/salarizare/${fluturasul.period_id}/${fluturasul.id}`,
       });
     }
