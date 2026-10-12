@@ -234,7 +234,6 @@ describe("kmPeSofer", () => {
     ]);
     expect(randuri[0]?.employeeId).toBeNull();
   });
-
 });
 
 describe("costPeVehicul", () => {
@@ -404,7 +403,11 @@ describe("registruFoi", () => {
   });
 
   it("foaia vehiculului electric spune kWh pe rândul ei", () => {
-    const [rand] = registruFoi([foaie("f1", { vehicul_combustibil: "electric" })], VEHICULE, SOFERI);
+    const [rand] = registruFoi(
+      [foaie("f1", { vehicul_combustibil: "electric" })],
+      VEHICULE,
+      SOFERI,
+    );
     expect(rand?.unitate).toBe("kWh");
   });
 });

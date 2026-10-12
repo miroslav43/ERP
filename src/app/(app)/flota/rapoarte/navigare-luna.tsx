@@ -67,16 +67,17 @@ export function NavigareLuna({
           </Link>
         ) : (
           // Păstrează lățimea, ca titlul lunii să nu sară când dispare legătura.
-          <span
-            aria-hidden="true"
-            className={cn(LEGATURA, "invisible hidden sm:inline-flex")}
-          >
+          <span aria-hidden="true" className={cn(LEGATURA, "invisible hidden sm:inline-flex")}>
             {etichetaLuna(urmatoare)}
           </span>
         )}
       </nav>
 
-      <form action="/flota/rapoarte" method="get" className="ml-auto flex flex-wrap items-end gap-3">
+      <form
+        action="/flota/rapoarte"
+        method="get"
+        className="ml-auto flex flex-wrap items-end gap-3"
+      >
         <input type="hidden" name="luna" value={luna} />
         <div className="flex flex-col gap-1">
           <label htmlFor="raport-vehicul" className="text-nota text-muted-foreground">

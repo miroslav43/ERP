@@ -26,13 +26,21 @@ describe("poarta rapoartelor flotei", () => {
   });
 
   it("fără dreptul pe TOATE foile, rapoartele nu se deschid, deși vehiculele se văd toate", () => {
-    const m = harta({ "vehicles:read": "all", "trip_sheets:read": "team", "vehicles:export": "all" });
+    const m = harta({
+      "vehicles:read": "all",
+      "trip_sheets:read": "team",
+      "vehicles:export": "all",
+    });
     expect(poateVedeaRapoarte(m)).toBe(false);
     expect(poateExportaFlota(m)).toBe(false);
   });
 
   it("fără dreptul pe TOATE vehiculele, la fel", () => {
-    const m = harta({ "vehicles:read": "team", "trip_sheets:read": "all", "vehicles:export": "all" });
+    const m = harta({
+      "vehicles:read": "team",
+      "trip_sheets:read": "all",
+      "vehicles:export": "all",
+    });
     expect(poateVedeaRapoarte(m)).toBe(false);
   });
 

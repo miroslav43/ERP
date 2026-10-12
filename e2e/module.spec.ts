@@ -119,7 +119,8 @@ const RUTE: readonly Ruta[] = [
   {
     cale: "/flota/rapoarte",
     titlu: "Rapoarte parc auto",
-    poarta: "fleet · vehicles:read all + trip_sheets:read all (doar org_admin; managerul are `team`)",
+    poarta:
+      "fleet · vehicles:read all + trip_sheets:read all (doar org_admin; managerul are `team`)",
     asteptari: DOAR_ADMIN,
   },
   // ── sfârșit bloc: rapoartele flotei (F8) ──

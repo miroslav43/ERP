@@ -24,7 +24,5 @@ export async function ContinutRaport({
   poateAproba: boolean;
 }>): Promise<ReactElement> {
   const raport = await incarcaRaportLunar(organizationId, luna, vehicul);
-  return (
-    <PrezentareRaport raport={raport} poateExporta={poateExporta} poateAproba={poateAproba} />
-  );
+  return <PrezentareRaport raport={raport} poateExporta={poateExporta} poateAproba={poateAproba} />;
 }

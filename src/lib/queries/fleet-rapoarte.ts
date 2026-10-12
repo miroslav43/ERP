@@ -36,8 +36,6 @@ import type { CategorieVehicul, Combustibil } from "@/schemas/fleet";
 import { citesteTot } from "./citeste-tot";
 import { angajatiDupaId, numeleContului, vehiculeDupaId, type RandVehicul } from "./fleet";
 
-
-
 /** Câte foi aduce o pagină din citirea detaliată: curse și alimentări vin în același răspuns. */
 const PAS_FOI_DETALIATE = 100;
 

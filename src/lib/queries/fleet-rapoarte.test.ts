@@ -123,7 +123,6 @@ describe("foiAprobateDetaliate", () => {
     expect(areFiltru(apel, "is", "alimentari.deleted_at", null)).toBe(true);
     expect(areFiltru(apel, "eq", "status", "aprobat")).toBe(true);
   });
-
 });
 
 describe("numarFoiAprobateLuna", () => {
@@ -380,7 +379,9 @@ describe("incarcaPachetLunar", () => {
 
     expect(p.foi).toHaveLength(1);
     // Raportul se calculează pe EXACT foile din pachet: o a doua citire a foilor n-are loc.
-    expect(db.apeluriPe("trip_sheets").filter((a) => a.coloane?.includes("curse:"))).toHaveLength(1);
+    expect(db.apeluriPe("trip_sheets").filter((a) => a.coloane?.includes("curse:"))).toHaveLength(
+      1,
+    );
     expect(p.raport.totaluri.foi).toBe(1);
     expect(p.vehicule.get(ID_1)?.nr_inmatriculare).toBe("B100ABC");
     expect(p.soferi.get(SOFER)).toBe("Popescu Ion");

@@ -34,7 +34,8 @@ export function numeUnic(cale: string, folosite: Set<string>): string {
   const baza = punct === -1 ? cale : cale.slice(0, punct);
   const extensie = punct === -1 ? "" : cale.slice(punct);
   let nume = cale;
-  for (let k = 2; folosite.has(nume.toLowerCase()); k += 1) nume = `${baza}-${String(k)}${extensie}`;
+  for (let k = 2; folosite.has(nume.toLowerCase()); k += 1)
+    nume = `${baza}-${String(k)}${extensie}`;
   folosite.add(nume.toLowerCase());
   return nume;
 }

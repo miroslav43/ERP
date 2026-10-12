@@ -43,9 +43,9 @@ describe("NavigareLuna", () => {
     const formular = container.querySelector("form");
     expect(formular?.getAttribute("method")).toBe("get");
     expect(formular?.getAttribute("action")).toBe("/flota/rapoarte");
-    expect(container.querySelector('input[type="hidden"][name="luna"]')?.getAttribute("value")).toBe(
-      "2026-08",
-    );
+    expect(
+      container.querySelector('input[type="hidden"][name="luna"]')?.getAttribute("value"),
+    ).toBe("2026-08");
     const selector = screen.getByLabelText("Vehicul") as HTMLSelectElement;
     expect(selector.value).toBe(V1);
     expect(Array.from(selector.options).map((o) => o.text)).toEqual([

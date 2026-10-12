@@ -270,14 +270,18 @@ export function PrezentareRaport({
             ) : undefined
           }
         >
-          {textNeaprobate(foiNeaprobate)} Kilometrii, consumul și combustibilul se numără doar de pe foile aprobate.
+          {textNeaprobate(foiNeaprobate)} Kilometrii, consumul și combustibilul se numără doar de pe
+          foile aprobate.
         </Callout>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         {poateExporta ? (
           <>
-            <a href={adresaExport("xlsx", luna, vehicul)} className={buton({ varianta: "secundar" })}>
+            <a
+              href={adresaExport("xlsx", luna, vehicul)}
+              className={buton({ varianta: "secundar" })}
+            >
               Descarcă Excel
             </a>
             {pachetPosibil ? (
@@ -337,7 +341,9 @@ export function PrezentareRaport({
                 <th scope="row" className="px-4 py-3 text-left">
                   Total flotă
                 </th>
-                <td className="px-4 py-3 text-right tabular-nums">{formatLei(totalCost.service)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {formatLei(totalCost.service)}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums">
                   {formatLei(totalCost.cheltuieli)}
                 </td>

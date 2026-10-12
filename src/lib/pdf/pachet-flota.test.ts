@@ -126,7 +126,9 @@ describe("pachetLunarFlota", () => {
     expect(Array.from(xlsx ?? [])).toEqual([80, 75, 3, 4]);
 
     for (const n of nume.filter((x) => x.endsWith(".pdf"))) {
-      const pdf = await PDFDocument.load((await zip.file(n)?.async("uint8array")) ?? new Uint8Array());
+      const pdf = await PDFDocument.load(
+        (await zip.file(n)?.async("uint8array")) ?? new Uint8Array(),
+      );
       expect(pdf.getPageCount()).toBeGreaterThanOrEqual(1);
     }
   });

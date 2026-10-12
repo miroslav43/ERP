@@ -145,9 +145,7 @@ describe("PrezentareRaport", () => {
     ).toBe(`/api/export/flota/pachet?luna=2026-09&vehicul=${VEHICUL}`);
     expect(
       screen.getByRole("link", { name: "Vezi foile aprobate ale lunii" }).getAttribute("href"),
-    ).toBe(
-      `/flota/foi?status=aprobat&de_la=2026-09-01&pana_la=2026-09-30&vehicul=${VEHICUL}`,
-    );
+    ).toBe(`/flota/foi?status=aprobat&de_la=2026-09-01&pana_la=2026-09-30&vehicul=${VEHICUL}`);
   });
 
   it("fără cheia de export, nicio legătură de descărcare — doar explicația", () => {
@@ -162,9 +160,7 @@ describe("PrezentareRaport", () => {
     randeaza(raport(multe));
     expect(screen.getByRole("link", { name: "Descarcă Excel" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: /Pachet pentru contabil/u })).toBeNull();
-    expect(
-      screen.getByText(new RegExp(`cel mult ${String(PLAFON_FOI_PACHET)}`, "u")),
-    ).toBeTruthy();
+    expect(screen.getByText(new RegExp(`cel mult ${String(PLAFON_FOI_PACHET)}`, "u"))).toBeTruthy();
   });
 
   it("pachetul are nevoie de cel puțin o foaie aprobată", () => {
