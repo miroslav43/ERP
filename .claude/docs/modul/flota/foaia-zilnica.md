@@ -17,7 +17,7 @@ tabele: [trip_sheets, trip_sheet_curse, trip_route_templates, fuel_entries]
 permisiuni: [trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 22, 23]
-scris_pe: e001715de3ce8c5282c14974835c0ed3e668f0ed
+scris_pe: 11acb122eb766a09776d1d0cbe81296c9c416542
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---

@@ -43,7 +43,7 @@ citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
   - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]"
   - "planuri de service, intervenții, costuri, anvelope → [[modul/flota/service-si-costuri]]; alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]"
-scris_pe: e001715de3ce8c5282c14974835c0ed3e668f0ed
+scris_pe: 11acb122eb766a09776d1d0cbe81296c9c416542
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
