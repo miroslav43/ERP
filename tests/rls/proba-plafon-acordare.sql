@@ -27,10 +27,19 @@
 --      (`payroll:read = none`): ștergerea l-ar întoarce la `all`-ul rolului;
 -- (12) retrage o restricție care lasă membrul sub plafon          [POZITIVĂ];
 -- (13) rândul organizației bate implicitul global și la retragere: cu
---      `payroll:read = none` pe rolul `hr` al firmei, (11) trece      [POZITIVĂ].
+--      `payroll:read = none` pe rolul `hr` al firmei, (11) trece      [POZITIVĂ];
+-- (14) managerul nu mută refuzul administratorului pe altă ACȚIUNE;
+-- (15) nici pe altă RESURSĂ;
+-- (16) nici pe alt MEMBRU (cu tot cu rolul);
+-- (17) nici după un `grant update` pe toată tabela: triggerul ține singur.
 --
 -- (9)–(13) acoperă retragerea: ea NU e neutră — dreptul cade pe implicitul
 -- rolului membrului, deci plafonul se pune pe ACEL implicit, nu pe rândul șters.
+--
+-- (14)–(16) acoperă MUTAREA rândului: WITH CHECK-ul vede doar rândul nou, deci
+-- un refuz `none` mutat pe altă cheie trecea ramura „rând viu, `scope = 'none'`”,
+-- iar membrul cădea pe implicitul rolului pe cheia veche — aceeași ridicare
+-- peste plafon ca la retragere, fără nicio ștergere.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -54,6 +63,10 @@ declare
   v_r_admin  uuid;
   v_r_hr     uuid;
   v_r_ang    uuid;
+  v_r_cheie  uuid;
+  v_dupa     public.permission_scope;
+  v_rand     text;
+  v_mutare   record;
   v_sterse   uuid[];
   v_atinse   int;
   v_esecuri  int := 0;
@@ -345,12 +358,91 @@ begin
     raise warning '  ✗ (13) retragerea a fost respinsă: % (%)', sqlerrm, sqlstate;
   end;
 
+  -- ═══ (14)–(16) mutarea refuzului administratorului pe altă cheie ══════════
+  -- Administratorul îi ia subordonatului `hr` aprobarea salariilor
+  -- (`payroll:approve = none`, peste `all`-ul rolului). Managerul, fără niciun
+  -- `payroll:*`, încearcă să MUTE rândul — pe altă acțiune, altă resursă, alt
+  -- membru. Oricare reușită îl lasă pe `hr` pe `all`-ul rolului.
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  insert into public.role_permissions (organization_id, member_id, role, resource, action, scope)
+  values (v_org, v_m_hr, 'hr', 'payroll', 'approve', 'none')
+  returning id into v_r_cheie;
+  reset role;
+
+  for v_mutare in
+    select * from (values
+      (14, 'acțiune', 'export',  null::text, null::uuid, null::public.app_role),
+      (15, 'resursă', null,      'vehicles', null,       null),
+      (16, 'membru',  null,      null,       v_m_ang,    'employee'::public.app_role)
+    ) as t(nr, ce, actiune, resursa, membru, rol)
+  loop
+    perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+    set local role authenticated;
+    begin
+      update public.role_permissions
+         set action    = coalesce(v_mutare.actiune, action),
+             resource  = coalesce(v_mutare.resursa, resource),
+             member_id = coalesce(v_mutare.membru, member_id),
+             role      = coalesce(v_mutare.rol, role)
+       where id = v_r_cheie;
+      get diagnostics v_atinse = row_count;
+      reset role;
+      if v_atinse = 0 then
+        raise notice '  ✓ (%) mutarea refuzului pe alt(ă) % e refuzată (zero rânduri)', v_mutare.nr, v_mutare.ce;
+      else
+        v_esecuri := v_esecuri + 1;
+        raise warning '  ✗ (%) managerul a mutat refuzul administratorului pe alt(ă) %', v_mutare.nr, v_mutare.ce;
+      end if;
+    exception when insufficient_privilege then
+      reset role;
+      raise notice '  ✓ (%) mutarea refuzului pe alt(ă) % e refuzată (42501)', v_mutare.nr, v_mutare.ce;
+    end;
+
+    -- Efectul, nu doar codul: rândul e neatins, iar `hr`-ul rămâne fără aprobare.
+    select format('%s/%s:%s', member_id, resource, action) into v_rand
+      from public.role_permissions where id = v_r_cheie and deleted_at is null;
+    perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
+    set local role authenticated;
+    v_dupa := app.has_permission(v_org, 'payroll', 'approve');
+    reset role;
+    if v_rand is distinct from format('%s/payroll:approve', v_m_hr) or v_dupa is distinct from 'none' then
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (%) după încercare: rândul e %, iar `hr`-ul are `payroll:approve = %`',
+        v_mutare.nr, coalesce(v_rand, '(lipsă)'), v_dupa;
+    end if;
+  end loop;
+
+  -- ═══ (17) triggerul ține și după un grant pe toată tabela ══════════════════
+  -- (14)–(16) se opresc la grantul pe coloane. Aici se simulează un
+  -- `grant update on all tables` viitor (ca în 0010): mutarea trebuie să cadă
+  -- tot, de data asta în trigger. Grantul pe coloane se pune la loc după.
+  grant update on public.role_permissions to authenticated;
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    update public.role_permissions set resource = 'tickets' where id = v_r_cheie;
+    get diagnostics v_atinse = row_count;
+    reset role;
+    if v_atinse = 0 then
+      raise notice '  ✓ (17) cu grant pe toată tabela, mutarea e refuzată (zero rânduri)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (17) cu grant pe toată tabela, managerul a mutat refuzul pe `tickets`';
+    end if;
+  exception when insufficient_privilege then
+    reset role;
+    raise notice '  ✓ (17) cu grant pe toată tabela, triggerul refuză mutarea (42501)';
+  end;
+  revoke update on public.role_permissions from authenticated;
+  grant update (scope, deleted_at) on public.role_permissions to authenticated;
+
   -- ── verdict ───────────────────────────────────────────────────────────────
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA PLAFONULUI ACORDĂRII: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 13 verificări au trecut.';
+  raise notice '  TOATE cele 17 verificări au trecut.';
   raise notice '';
 end;
 $$;

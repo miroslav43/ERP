@@ -36,6 +36,19 @@
 -- `has_permission`, fără rândul membrului) trebuie să fie `none` sau să încapă
 -- în `app.can` al acordantului. Probat: proba-plafon-acordare.sql (10)–(12).
 --
+-- ── NICI MUTAREA ────────────────────────────────────────────────────────────
+-- WITH CHECK-ul vede doar rândul NOU, iar 0063 dădea `update` pe TOATE
+-- coloanele. Un manager putea deci rescrie `action`, `resource` sau
+-- `member_id`/`role` pe refuzul `none` pus de administrator: rândul mutat
+-- trecea ramura „rând viu, `scope = 'none'`”, iar membrul cădea pe implicitul
+-- rolului pe cheia VECHE — ridicarea de mai sus, fără nicio ștergere (un PATCH
+-- PostgREST cu `{"resource": "tickets"}`). Cheia unei suprascrieri e acum fixă
+-- (secțiunea 3): `authenticated` scrie doar `scope` și `deleted_at`, iar un
+-- trigger refuză mutarea oricărei coloane de identitate într-o sesiune de
+-- utilizator, ca un `grant … on all tables` viitor (cum a fost 0010) să n-o
+-- redeschidă tăcut. Schimbarea cheii = retragere + acordare nouă, fiecare prin
+-- plafonul ei. Probat: proba-plafon-acordare.sql (14)–(16).
+--
 -- Ramura `all` (administratorul firmei) rămâne fără plafon: el poate oricum
 -- schimba rolul oricui.
 --
@@ -161,5 +174,47 @@ with check (
     )
   )
 );
+
+-- ── 3. Cheia unei suprascrieri nu se mută ───────────────────────────────────
+-- Două straturi, fiindcă fiecare acoperă golul celuilalt:
+--   · grantul pe coloane dă refuzul la nivel de instrucțiune (42501) și spune
+--     în catalog ce se poate scrie: `scope` (acordă/restrânge) și `deleted_at`.
+--     `updated_at`/`updated_by` le pune triggerul de actor, iar `sterge_logic`
+--     (0164) e `security definer` — niciunul nu are nevoie de grant;
+--   · triggerul ține și după un `grant update on all tables` viitor (0010 a
+--     făcut deja asta o dată și a redeschis tabele închise anume).
+-- Triggerul tace în afara unei sesiuni de utilizator (`auth.uid()` NULL):
+-- migrările și `service_role` pot redenumi chei de permisiune.
+revoke update on public.role_permissions from authenticated;
+grant update (scope, deleted_at) on public.role_permissions to authenticated;
+
+create or replace function internal.role_permissions_cheie_fixa()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if (select auth.uid()) is not null
+     and (new.organization_id is distinct from old.organization_id
+          or new.member_id    is distinct from old.member_id
+          or new.role         is distinct from old.role
+          or new.resource     is distinct from old.resource
+          or new.action       is distinct from old.action) then
+    raise exception 'Cheia unei permisiuni (membru, resursă, acțiune) nu se schimbă. Retrageți permisiunea și acordați-o pe cea nouă.'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+comment on function internal.role_permissions_cheie_fixa() is
+  'Refuză, într-o sesiune de utilizator, mutarea unei suprascrieri pe altă organizație, membru, rol, resursă sau acțiune: WITH CHECK nu vede rândul vechi (0197).';
+
+revoke all on function internal.role_permissions_cheie_fixa() from public, anon;
+
+drop trigger if exists trg_role_permissions_cheie_fixa on public.role_permissions;
+create trigger trg_role_permissions_cheie_fixa
+  before update on public.role_permissions
+  for each row execute function internal.role_permissions_cheie_fixa();
 
 commit;
