@@ -65,19 +65,34 @@ Scadența intră în `expirables` (`entity_type = 'driver_license'`, responsabil
 cu ramură proprie în `app.poate_vedea_expirabil`. Rezumatul zilnic al flotei rămâne pe
 `vehicle_document` (lista albă din 0198 nu s-a lărgit).
 
-## Avizul medical — `app.stare_aviz_sofer`
+## Avizul medical — `app.stare_aviz_sofer` (SECURITY DEFINER, art. 9 GDPR)
 
-Întoarce doar `apt` / `expirat` / `lipsa`. Rezultatul `inapt*` iese **`lipsa`** (art. 9
-GDPR: flota află că nu există aptitudine valabilă, nu de ce). Cu SSM oprit sau pentru cine
-nu poate afla starea șoferului: `null`, iar ecranul nu scrie nimic.
+Funcția rulează cu drepturile bazei, deci **judecă singură cine află ce**. Fără asta,
+oricine vede foile șoferului ar fi citit starea examenelor medicale ocolind RLS-ul din
+`occupational_health_exams` (revizuirea de securitate pe 0201; reparat înainte de aplicare).
+
+- **Exact** (`apt` / `expirat` / `lipsa`): doar cine ar fi putut citi rândul prin RLS
+  (`app.ssm_acces(org, 'ssm', 'read', angajat)`, aceeași poartă ca politica examenelor), cine
+  administrează parcul (`vehicles:update = all`) sau platforma. În seed: `org_admin`, `hr`,
+  **managerul propriului om** (`ssm:read = team`, deci îl poate citi oricum), omul însuși
+  (`own`). Rezultatul `inapt*` iese **`lipsa`** și pentru ei.
+- **`de_verificat`**: rolul care vede foile șoferului, dar NU medicina muncii (de pildă un
+  manager căruia i s-a retras `ssm:read`), când avizul nu e valabil. Nu deosebește „lipsă” de
+  „expirat”. Cu avizul valabil: `apt`.
+- `null`: SSM oprit sau apelantul nu poate afla starea șoferului; ecranul nu scrie nimic.
+
+Proba retrage managerului `ssm:read` printr-o suprascriere pe organizație (`role_permissions`,
+scope `none`) și verifică ambele stări — nu deduce din seed (memoria „sonda empirică”).
 
 ## Faptele verificărilor — `public.verificari_soferi`
 
 Prin `.rpc()`, un rând per angajat VIZIBIL (ceilalți lipsesc, fără eroare; plafon 500 de
 id-uri). Vizibil = el însuși, cine îi vede foile, cine îi vede permisul, cine
-administrează parcul (`internal.poate_vedea_sofer`). Coloanele: concediu aprobat în zi
-(`concediu`/`medical` după `leave_types.tip_zi_pontaj`), contract încetat, permis,
-aviz, delegație (`null` cu diurna oprită).
+administrează parcul (`internal.poate_vedea_sofer`). Coloanele: absență aprobată în zi
+(**doar `absent`**: nici `medical`, nici tipul — CM-ul e dată de sănătate, iar funcția
+DEFINER ar fi sărit peste RLS-ul din `leave_requests`), contract încetat, permis, aviz (vezi
+mai sus), delegație (`null` cu diurna oprită). Avertismentul din UI zice „are o absență
+aprobată”, niciodată „concediu medical”.
 
 **Generatorul de tipuri le dă NON-null** (nu poate deduce nullabilitatea unui `returns
 table`); `verificariSoferi` le copiază în `FapteSofer`, care le lărgește la tipul
@@ -106,4 +121,4 @@ Diurna: `deplasareNouaSchema` primește `vehicle_id`, doar pe `auto_serviciu`/`m
 (oglinda lui `business_trips_vehicul_ck`). Corectura (`actualizeazaDeplasare`) nu-l
 șterge când formularul nu-l are; îl golește doar când transportul nu mai e cu mașina.
 
-Probă: `tests/rls/proba-flota-soferi.sql` (20) și izolarea `(l)` „permisele șoferilor”.
+Probă: `tests/rls/proba-flota-soferi.sql` (26: (21)–(26) sunt cele de securitate) și izolarea `(l)` „permisele șoferilor”.

@@ -34,18 +34,28 @@
 --    §8 — verificat cu grep: 0008, 0010, 0011, nimic după). Rezumatul zilnic
 --    al flotei (0198) rămâne pe `vehicle_document`: lista lui albă nu se
 --    atinge aici.
--- D. `app.stare_aviz_sofer(org, angajat, zi)`, SECURITY DEFINER: DOAR
---    `apt` / `expirat` / `lipsa` din `occupational_health_exams` (0011).
---    Rezultatul `inapt*` NU iese ca atare — e dată de sănătate (art. 9 GDPR),
---    deci se spune „lipsă”: nu există o fișă de aptitudine valabilă. Cu SSM
---    oprit, `null` (firma nu ține fișele în aplicație, iar „lipsă” ar fi
---    zgomot).
+-- D. `app.stare_aviz_sofer(org, angajat, zi)`, SECURITY DEFINER: `apt` /
+--    `expirat` / `lipsa` din `occupational_health_exams` (0011) — EXACT doar
+--    pentru cine ar fi putut citi rândul prin RLS (`app.ssm_acces(…, 'ssm',
+--    'read', angajat)`, aceeași poartă ca politica examenelor) sau administrează
+--    parcul (`vehicles:update = all`). Ceilalți, care văd doar foile șoferului,
+--    primesc `de_verificat` când avizul nu e valabil: află că e o problemă, nu
+--    dacă fișa lipsește sau a expirat. Rezultatul `inapt*` NU iese ca atare
+--    nici pentru primii — e dată de sănătate (art. 9 GDPR), deci se spune
+--    „lipsă”. Cu SSM oprit, `null` (firma nu ține fișele în aplicație, iar
+--    „lipsă” ar fi zgomot).
+--    [Reparat înainte de aplicare, după revizuirea de securitate: forma
+--    inițială întorcea avizul exact oricui vedea foile, adică ocolea RLS-ul din
+--    `occupational_health_exams`.]
 -- E. `public.verificari_soferi(org, angajați[], zi)`, apelabilă prin `.rpc()`:
---    faptele pentru verificările încrucișate (concediu sau CM aprobat în zi,
---    contract încetat, permis, aviz, delegație). Faptele, nu verdictul: cine
---    decide ce avertisment se arată e domeniul pur din
---    `src/domain/fleet/soferi.ts`, testat în vitest. Concediul spune doar
---    `concediu`/`medical`, nu tipul și nici certificatul.
+--    faptele pentru verificările încrucișate (absență aprobată în zi, contract
+--    încetat, permis, aviz, delegație). Faptele, nu verdictul: cine decide ce
+--    avertisment se arată e domeniul pur din `src/domain/fleet/soferi.ts`,
+--    testat în vitest. Absența spune doar `absent` — nici tipul concediului,
+--    nici certificatul: CM-ul e dată de sănătate (art. 9 GDPR) și nu poate fi
+--    deosebit de un concediu de odihnă de cine vede doar foile. [Reparat
+--    înainte de aplicare, din același motiv ca la D: forma inițială spunea
+--    `medical` / `concediu` și ocolea RLS-ul din `leave_requests`.]
 -- F. `trip_sheets.business_trip_id`: foaia de parcurs legată de deplasarea
 --    (delegația) șoferului, cu gardă proprie (`internal.foi_deplasare_garda`):
 --    aceeași firmă, același angajat, deplasare neanulată. Trigger SEPARAT, nu
@@ -311,9 +321,10 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_zi  date := coalesce(p_zi, app.azi_local());
-  v_rez public.ssm_exam_result;
-  v_val date;
+  v_zi    date := coalesce(p_zi, app.azi_local());
+  v_rez   public.ssm_exam_result;
+  v_val   date;
+  v_stare text;
 begin
   if p_org is null or p_employee is null then
     return null;
@@ -338,22 +349,41 @@ begin
    limit 1;
 
   if not found then
-    return 'lipsa';
+    v_stare := 'lipsa';
+  elsif v_rez not in ('apt', 'apt_conditionat') then
+    -- `inapt` și `inapt_temporar` nu ies ca atare nici pentru cine are acces
+    -- SSM (art. 9 GDPR): pentru flotă contează doar că NU există o aptitudine
+    -- valabilă.
+    v_stare := 'lipsa';
+  elsif v_val is not null and v_val < v_zi then
+    v_stare := 'expirat';
+  else
+    v_stare := 'apt';
   end if;
-  -- `inapt` și `inapt_temporar` nu ies ca atare (art. 9 GDPR): pentru flotă
-  -- contează doar că NU există o aptitudine valabilă.
-  if v_rez not in ('apt', 'apt_conditionat') then
-    return 'lipsa';
+
+  if v_stare = 'apt' then
+    return 'apt';
   end if;
-  if v_val is not null and v_val < v_zi then
-    return 'expirat';
+
+  -- Funcția e SECURITY DEFINER, deci judecă SINGURĂ cine are voie să afle de ce
+  -- avizul nu e valabil. Exact (lipsa / expirat) primește doar cine ar fi putut
+  -- citi rândul din `occupational_health_exams` prin RLS (aceeași poartă:
+  -- `app.ssm_acces(…, 'ssm', 'read', angajat)`, cu modulul SSM pornit, verificat
+  -- mai sus), sau cine administrează parcul (`vehicles:update = all`). Restul
+  -- — de pildă un rol care vede foile șoferului, dar nu și medicina muncii —
+  -- află DOAR că avizul trebuie verificat, fără să deosebească „lipsă” de
+  -- „expirat”. Fără ramura asta, funcția ar fi ocolit RLS-ul examenelor.
+  if (select app.is_platform_admin())
+     or app.ssm_acces(p_org, 'ssm', 'read', p_employee)
+     or app.can(p_org, 'vehicles', 'update', 'all') then
+    return v_stare;
   end if;
-  return 'apt';
+  return 'de_verificat';
 end;
 $$;
 
 comment on function app.stare_aviz_sofer(uuid, uuid, date) is
-  'Avizul medical al șoferului în ziua dată: apt / expirat / lipsa (inapt* = lipsa, fără a dezvălui rezultatul). null = apelantul nu poate afla, sau SSM e oprit.';
+  'Avizul medical al șoferului în ziua dată. apt: valabil. lipsa / expirat: DOAR pentru cine are acces SSM pe fișa lui (app.ssm_acces, ca RLS-ul din occupational_health_exams) sau vehicles:update = all; inapt* iese „lipsa”. de_verificat: semnal generic pentru ceilalți (nu deosebește lipsa de expirat). null = apelantul nu poate afla, sau SSM e oprit.';
 
 -- ============================================================
 -- 8. Faptele verificărilor încrucișate
@@ -382,15 +412,18 @@ set search_path = ''
 as $$
   select
     e.id,
-    (select case when bool_or(lt.tip_zi_pontaj = 'medical') then 'medical' else 'concediu' end
+    -- GDPR art. 9: tipul concediului (în special CM-ul) NU iese. Funcția e
+    -- SECURITY DEFINER și o văd toți cei care văd foile șoferului, deci orice
+    -- deosebire „medical” / „concediu” ar fi ocolit RLS-ul din `leave_requests`.
+    -- Foaia are nevoie doar de „nu e disponibil în ziua asta”.
+    (select 'absent'::text
        from public.leave_requests lr
-       join public.leave_types lt on lt.id = lr.leave_type_id
       where lr.organization_id = p_organization_id
         and lr.employee_id = e.id
         and lr.deleted_at is null
         and lr.status = 'aprobata'
         and p_zi between lr.data_inceput and lr.data_sfarsit
-     having count(*) > 0),
+      limit 1),
     case when e.terminated_on is not null then e.terminated_on < p_zi
          else e.status in ('incetat', 'arhivat') end,
     dl.id is not null,
@@ -425,7 +458,7 @@ as $$
 $$;
 
 comment on function public.verificari_soferi(uuid, uuid[], date) is
-  'Faptele pentru avertismentele de șofer (0201): concediu/CM aprobat în zi, contract încetat, permis, aviz (app.stare_aviz_sofer), delegație. Avertizează, nu blochează; verdictul îl dă src/domain/fleet/soferi.ts.';
+  'Faptele pentru avertismentele de șofer (0201): absență aprobată în zi (doar „absent”, fără tipul concediului: art. 9 GDPR), contract încetat, permis, aviz (app.stare_aviz_sofer: exact doar cu acces SSM, altfel „de_verificat”), delegație. Avertizează, nu blochează; verdictul îl dă src/domain/fleet/soferi.ts.';
 
 -- ============================================================
 -- 9. Foaia de parcurs legată de deplasare
@@ -600,6 +633,15 @@ begin
   if position('driver_license' in pg_get_functiondef('app.poate_vedea_expirabil(uuid,text)'::regprocedure)) = 0
      or position('ppe_issuance' in pg_get_functiondef('app.poate_vedea_expirabil(uuid,text)'::regprocedure)) = 0 then
     v_lipsa := v_lipsa || 'app.poate_vedea_expirabil cu toate ramurile';
+  end if;
+  -- GDPR art. 9: avizul exact doar cu acces SSM, tipul concediului deloc.
+  if position('ssm_acces' in pg_get_functiondef('app.stare_aviz_sofer(uuid,uuid,date)'::regprocedure)) = 0
+     or position('de_verificat' in pg_get_functiondef('app.stare_aviz_sofer(uuid,uuid,date)'::regprocedure)) = 0 then
+    v_lipsa := v_lipsa || 'app.stare_aviz_sofer: avizul exact doar cu acces SSM, restul de_verificat';
+  end if;
+  if position('leave_types' in pg_get_functiondef('public.verificari_soferi(uuid,uuid[],date)'::regprocedure)) > 0
+     or position('tip_zi_pontaj' in pg_get_functiondef('public.verificari_soferi(uuid,uuid[],date)'::regprocedure)) > 0 then
+    v_lipsa := v_lipsa || 'public.verificari_soferi nu are voie să deosebească CM-ul de concediu';
   end if;
   if (select count(*) from public.role_permissions
        where resource = 'driver_licenses' and organization_id is null and member_id is null

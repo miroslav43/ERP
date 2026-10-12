@@ -16,8 +16,10 @@
 --      modifică (zero rânduri);
 -- (9)  permisul nu se mută pe alt angajat (P0001);
 -- (10) `hr` nu vede parcul (decizia 3): zero vehicule;
--- (11) faptele verificărilor, citite de manager pe subordonat: CM în zi,
---      permis expirat, aviz expirat, delegație aprobată               [POZITIVĂ];
+-- (11) faptele verificărilor, citite de manager pe subordonat: absență
+--      aprobată (CM-ul NU se deosebește de concediu), permis expirat, aviz
+--      expirat (managerul are `ssm:read = team`, deci poate citi examenul și
+--      prin RLS: nu e o ocolire), delegație aprobată                  [POZITIVĂ];
 -- (12) avizul `inapt` iese „lipsa”, nu „inapt” (art. 9 GDPR);
 -- (13) contractul încetat se vede în fapte                             [POZITIVĂ];
 -- (14) angajatul nu află faptele colegului (zero rânduri), iar avizul
@@ -28,7 +30,18 @@
 -- (18) org_admin vede scadența permisului în lista de conformitate   [POZITIVĂ];
 -- (19) ștergerea logică a permisului scoate scadența din `expirables` [POZITIVĂ];
 -- (20) super_admin (platform_admins, NU membru) citește permisele și faptele
---      firmei [POZITIVĂ] — consola de platformă; nu scrie în numele firmei.
+--      firmei [POZITIVĂ] — consola de platformă; nu scrie în numele firmei;
+-- ── CONSTATAREA DE SECURITATE (GDPR art. 9), reparată în 0201 ──────────────
+-- (21) concediul de odihnă și CM-ul ies IDENTIC, „absent”: tipul concediului
+--      nu ajunge la cine vede doar foile;
+-- (22) managerul căruia i s-a retras `ssm:read` NU primește avizul exact: primește
+--      „de_verificat” și la „lipsă”, și la „expirat”;
+-- (23) `hr` (ssm = all) primește avizul exact, iar `inapt` rămâne „lipsa” [POZITIVĂ];
+-- (24) `org_admin` primește tot: absent + aviz exact                      [POZITIVĂ];
+-- (25) angajatul își vede avizul exact (`ssm:read = own`) [POZITIVĂ], dar al
+--      colegului nu (null);
+-- (26) avizul valabil iese „apt”, fără alarmă falsă, și pentru managerul fără
+--      `ssm:read`.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
@@ -69,6 +82,10 @@ declare
   v_m         integer;
   v_r         record;
   v_text      text;
+  v_text2     text;
+  v_cm        text;
+  v_hr_lipsa  text;
+  v_exam      uuid;
   v_esecuri   int := 0;
   v_zi        date := app.azi_local();
 begin
@@ -299,10 +316,10 @@ begin
   set local role authenticated;
   select * into v_r from public.verificari_soferi(v_org, array[v_e_ang], v_zi);
   reset role;
-  if v_r.employee_id = v_e_ang and v_r.concediu = 'medical' and v_r.permis_exista
+  if v_r.employee_id = v_e_ang and v_r.concediu = 'absent' and v_r.permis_exista
      and v_r.permis_expira_la = v_zi - 1 and v_r.aviz = 'expirat' and v_r.delegatie
      and not v_r.contract_incetat then
-    raise notice '  ✓ (11) managerul citește faptele subordonatului: CM, permis expirat, aviz expirat, delegație';
+    raise notice '  ✓ (11) managerul citește faptele subordonatului: absent (CM-ul nu se deosebește), permis expirat, aviz expirat (ssm:read team), delegație';
   else
     v_esecuri := v_esecuri + 1;
     raise warning '  ✗ (11) fapte: %', row_to_json(v_r);
@@ -456,11 +473,118 @@ begin
     raise warning '  ✗ (20) super_admin: % permise active, % rânduri de fapte', v_n, v_m;
   end if;
 
+  -- ═══ CONSTATAREA DE SECURITATE: DATE DE SĂNĂTATE (GDPR art. 9) ══════════════
+  -- Până la reparație, `verificari_soferi` și `stare_aviz_sofer` (SECURITY
+  -- DEFINER) întorceau oricui vede foile șoferului tipul concediului (CM vs
+  -- odihnă) și avizul EXACT, ocolind RLS-ul din `leave_requests` și din
+  -- `occupational_health_exams`.
+  --
+  -- Ana mai are un concediu de odihnă peste 20 de zile; CM-ul de azi e din (11).
+  insert into public.leave_requests
+    (organization_id, employee_id, leave_type_id, data_inceput, data_sfarsit, status, created_by)
+  values (v_org, v_e_ang,
+          (select lt.id from public.leave_types lt
+            where lt.organization_id = v_org and lt.tip_zi_pontaj = 'concediu' and lt.deleted_at is null limit 1),
+          v_zi + 20, v_zi + 20, 'aprobata', v_u_admin);
+
+  -- Managerului i se retrage `ssm:read` (rol fără acces la medicina muncii).
+  insert into public.role_permissions (organization_id, role, resource, action, scope)
+  values (v_org, 'manager', 'ssm', 'read', 'none');
+
+  -- (21) CM-ul și concediul de odihnă ies identic
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select (select string_agg(distinct c.concediu, ',') from public.verificari_soferi(v_org, array[v_e_ang], v_zi) c),
+         (select string_agg(distinct c.concediu, ',') from public.verificari_soferi(v_org, array[v_e_ang], v_zi + 20) c)
+    into v_text, v_cm;
+  reset role;
+  if v_text = 'absent' and v_cm = 'absent' then
+    raise notice '  ✓ (21) CM-ul și concediul de odihnă ies la fel, „absent”: tipul nu se vede';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (21) concediu medical: %, concediu de odihnă: %', v_text, v_cm;
+  end if;
+
+  -- (22) fără acces SSM: același semnal generic la „lipsă” (inapt) și la „expirat”
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select string_agg(c.aviz, ',') into v_text from public.verificari_soferi(v_org, array[v_e_ang], v_zi) c;
+  reset role;
+  -- `hr` (ssm = all), în aceeași stare: avizul inapt iese „lipsa” (23)
+  perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
+  set local role authenticated;
+  select string_agg(c.aviz, ',') into v_hr_lipsa from public.verificari_soferi(v_org, array[v_e_ang], v_zi) c;
+  reset role;
+  insert into public.occupational_health_exams (organization_id, employee_id, tip, data_examinarii, rezultat, valabil_pana)
+  values (v_org, v_e_ang, 'periodic', v_zi, 'apt', v_zi - 5)
+  returning id into v_exam;
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select string_agg(c.aviz, ',') into v_cm from public.verificari_soferi(v_org, array[v_e_ang], v_zi) c;
+  v_text2 := app.stare_aviz_sofer(v_org, v_e_ang, v_zi);
+  reset role;
+  if v_text = 'de_verificat' and v_cm = 'de_verificat' and v_text2 = 'de_verificat' then
+    raise notice '  ✓ (22) managerul fără ssm:read primește „de_verificat” la lipsă ȘI la expirat (nu le deosebește)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (22) aviz pentru manager fără ssm: lipsă=%, expirat=%, direct=%', v_text, v_cm, v_text2;
+  end if;
+
+  -- (23) hr: exact, în ambele stări
+  perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
+  set local role authenticated;
+  select string_agg(c.aviz, ',') into v_cm from public.verificari_soferi(v_org, array[v_e_ang], v_zi) c;
+  reset role;
+  if v_hr_lipsa = 'lipsa' and v_cm = 'expirat' then
+    raise notice '  ✓ (23) hr (ssm = all) primește avizul exact: inapt -> lipsa, valabilitate depășită -> expirat';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (23) hr: stare inapt=%, stare expirat=%', v_hr_lipsa, v_cm;
+  end if;
+
+  -- (24) org_admin: tot
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  select * into v_r from public.verificari_soferi(v_org, array[v_e_ang], v_zi);
+  reset role;
+  if v_r.employee_id = v_e_ang and v_r.concediu = 'absent' and v_r.aviz = 'expirat' and v_r.permis_exista then
+    raise notice '  ✓ (24) org_admin primește faptele: absent, aviz exact, permis';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (24) org_admin: %', row_to_json(v_r);
+  end if;
+
+  -- (25) angajatul își vede avizul exact (ssm:read own); al colegului, null
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  v_text := app.stare_aviz_sofer(v_org, v_e_ang, v_zi);
+  v_text2 := coalesce(app.stare_aviz_sofer(v_org, v_e_coleg, v_zi), 'NULL');
+  reset role;
+  if v_text = 'expirat' and v_text2 = 'NULL' then
+    raise notice '  ✓ (25) angajatul își vede avizul exact; al colegului îi vine null';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (25) angajatul: al lui %, al colegului %', v_text, v_text2;
+  end if;
+
+  -- (26) avizul valabil: „apt”, fără alarmă, și pentru managerul fără ssm:read
+  update public.occupational_health_exams set valabil_pana = v_zi + 200 where id = v_exam;
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select string_agg(c.aviz, ',') into v_text from public.verificari_soferi(v_org, array[v_e_ang], v_zi) c;
+  reset role;
+  if v_text = 'apt' then
+    raise notice '  ✓ (26) avizul valabil iese „apt”, fără alarmă falsă';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (26) avizul valabil a ieșit %', v_text;
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA ȘOFERI: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 20 de verificări au trecut.';
+  raise notice '  TOATE cele 26 de verificări au trecut.';
   raise notice '';
 end;
 $$;

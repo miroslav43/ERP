@@ -90,13 +90,26 @@ describe("avertismentele șoferului", () => {
     expect(avertismenteSofer({ fapte: curat, zi: AZI })).toEqual([]);
   });
 
-  it("concediul medical și concediul de odihnă se spun diferit", () => {
+  it("absența aprobată se spune la fel, oricare ar fi tipul concediului (art. 9 GDPR)", () => {
+    for (const concediu of ["absent", "medical", "concediu"]) {
+      const lista = avertismenteSofer({ fapte: { ...curat, concediu }, zi: AZI });
+      expect(lista.map((a) => a.cod)).toEqual(["absent"]);
+      // Chiar dacă un fapt vechi ar spune „medical”, ecranul nu pomenește CM-ul.
+      expect(lista[0]?.mesaj.toLowerCase()).not.toContain("medical");
+    }
     expect(
-      avertismenteSofer({ fapte: { ...curat, concediu: "medical" }, zi: AZI }).map((a) => a.cod),
-    ).toEqual(["concediu_medical"]);
-    expect(
-      avertismenteSofer({ fapte: { ...curat, concediu: "concediu" }, zi: AZI }).map((a) => a.cod),
-    ).toEqual(["concediu"]);
+      avertismenteSofer({ fapte: { ...curat, concediu: "absent" }, zi: AZI, momentul: "azi" })[0]
+        ?.mesaj,
+    ).toBe("Șoferul are o absență aprobată astăzi.");
+  });
+
+  it("avizul „de verificat” nu spune dacă lipsește sau a expirat", () => {
+    const lista = avertismenteSofer({ fapte: { ...curat, aviz: "de_verificat" }, zi: AZI });
+    expect(lista.map((a) => a.cod)).toEqual(["aviz_de_verificat"]);
+    const mesaj = lista[0]?.mesaj.toLowerCase() ?? "";
+    expect(mesaj).not.toContain("expirat");
+    expect(mesaj).not.toContain("lipse");
+    expect(mesaj.endsWith(".")).toBe(true);
   });
 
   it("contractul încetat, permisul expirat sau lipsă, avizul expirat sau lipsă", () => {
@@ -196,7 +209,7 @@ describe("avertismentele șoferului", () => {
     const toate = avertismenteSofer({
       fapte: {
         employee_id: "e1",
-        concediu: "medical",
+        concediu: "absent",
         contract_incetat: true,
         permis_exista: true,
         permis_expira_la: "2020-01-01",
@@ -228,5 +241,16 @@ describe("rezumatul scurt pentru selectoare", () => {
 
   it("fără avertismente, `null`", () => {
     expect(rezumatScurt([])).toBeNull();
+  });
+
+  it("absența și avizul de verificat au etichete neutre", () => {
+    expect(
+      rezumatScurt(
+        avertismenteSofer({
+          fapte: { ...curat, concediu: "absent", aviz: "de_verificat" },
+          zi: AZI,
+        }),
+      ),
+    ).toBe("absent, aviz de verificat");
   });
 });

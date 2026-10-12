@@ -1,9 +1,10 @@
 // src/domain/fleet/soferi.ts
 
 /**
- * Verificările încrucișate ale șoferului (flota F9, 0201): concediu sau CM în
- * ziua foii, contract încetat, permis expirat sau fără categoria vehiculului,
- * aviz medical expirat sau lipsă, deplasare în altă localitate fără delegație.
+ * Verificările încrucișate ale șoferului (flota F9, 0201): absență aprobată în
+ * ziua foii (fără tipul concediului), contract încetat, permis expirat sau fără
+ * categoria vehiculului, aviz medical expirat, lipsă sau „de verificat”,
+ * deplasare în altă localitate fără delegație.
  *
  * Funcții pure, fără I/O. Baza dă FAPTELE (`public.verificari_soferi`), aici se
  * decide ce se spune. Toate sunt AVERTISMENTE: nimic din ce iese de aici nu
@@ -62,27 +63,36 @@ export interface VehiculPentruPermis {
 /** Un rând din `public.verificari_soferi`. */
 export interface FapteSofer {
   readonly employee_id: string;
-  /** `medical` = CM aprobat în zi; `concediu` = alt concediu aprobat; `null` = niciunul. */
+  /**
+   * `absent` = o absență aprobată acoperă ziua; `null` = niciuna. Baza NU spune
+   * tipul concediului: CM-ul e dată de sănătate (art. 9 GDPR) și nu se deosebește
+   * de un concediu de odihnă. Orice altă valoare nenulă se tratează tot ca
+   * „absent”, ca un fapt vechi să nu scape tipul pe ecran.
+   */
   readonly concediu: string | null;
   readonly contract_incetat: boolean;
   readonly permis_exista: boolean;
   readonly permis_expira_la: string | null;
   readonly permis_categorii: readonly string[];
-  /** `apt` / `expirat` / `lipsa`; `null` = SSM oprit sau nu se poate afla. */
+  /**
+   * `apt` / `expirat` / `lipsa` doar pentru cine are acces SSM pe fișa șoferului
+   * (sau administrează parcul); ceilalți primesc `de_verificat` când avizul nu e
+   * valabil, fără să afle de ce. `null` = SSM oprit sau nu se poate afla.
+   */
   readonly aviz: string | null;
   /** O deplasare activă acoperă ziua; `null` = diurna e oprită, deci nu se judecă. */
   readonly delegatie: boolean | null;
 }
 
 export type CodAvertisment =
-  | "concediu_medical"
-  | "concediu"
+  | "absent"
   | "contract_incetat"
   | "permis_lipsa"
   | "permis_expirat"
   | "permis_categorie"
   | "aviz_expirat"
   | "aviz_lipsa"
+  | "aviz_de_verificat"
   | "fara_delegatie";
 
 export interface Avertisment {
@@ -174,10 +184,9 @@ export function avertismenteSofer(c: ContextVerificare): readonly Avertisment[] 
   const cand = c.momentul === "azi" ? "astăzi" : "în ziua foii";
   const lista: Avertisment[] = [];
 
-  if (f.concediu === "medical") {
-    lista.push({ cod: "concediu_medical", mesaj: `Șoferul este în concediu medical ${cand}.` });
-  } else if (f.concediu !== null) {
-    lista.push({ cod: "concediu", mesaj: `Șoferul este în concediu ${cand}.` });
+  // Fără tipul concediului: vezi `FapteSofer.concediu`.
+  if (f.concediu !== null) {
+    lista.push({ cod: "absent", mesaj: `Șoferul are o absență aprobată ${cand}.` });
   }
 
   if (f.contract_incetat) {
@@ -221,6 +230,13 @@ export function avertismenteSofer(c: ContextVerificare): readonly Avertisment[] 
       cod: "aviz_lipsa",
       mesaj: "Șoferul nu are un aviz medical de aptitudine valabil.",
     });
+  } else if (f.aviz === "de_verificat") {
+    // Fără acces la medicina muncii nu se deosebește „lipsă” de „expirat”.
+    lista.push({
+      cod: "aviz_de_verificat",
+      mesaj:
+        "Avizul medical al șoferului trebuie verificat: cereți fișa de aptitudine de la resurse umane sau de la responsabilul SSM.",
+    });
   }
 
   const oras = c.orasFirma ?? null;
@@ -245,14 +261,14 @@ export function avertismenteSofer(c: ContextVerificare): readonly Avertisment[] 
 }
 
 const SCURT: Readonly<Record<CodAvertisment, string>> = {
-  concediu_medical: "în concediu medical",
-  concediu: "în concediu",
+  absent: "absent",
   contract_incetat: "contract încetat",
   permis_lipsa: "fără permis",
   permis_expirat: "permis expirat",
   permis_categorie: "categorie de permis nepotrivită",
   aviz_expirat: "aviz expirat",
   aviz_lipsa: "aviz lipsă",
+  aviz_de_verificat: "aviz de verificat",
   fara_delegatie: "fără delegație",
 };
 
