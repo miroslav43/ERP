@@ -10,6 +10,7 @@ cai:
   - "src/schemas/fleet-service.ts"
   - "src/domain/fleet/**"
   - "src/app/(portal)/portal/masina-mea/**"
+  - "src/app/api/export/flota/**"
 tabele:
   [
     vehicles,
@@ -36,14 +37,15 @@ permisiuni:
     trip_sheets:create,
     trip_sheets:update,
     trip_sheets:approve,
+    vehicles:export,
   ]
 feature: fleet
 capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
   - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF, orele foilor → [[modul/flota/foaia-zilnica]]"
-  - "planuri de service, intervenții, costuri, anvelope → [[modul/flota/service-si-costuri]]; alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]"
-scris_pe: 363d3eb37be6a06d9f345e4b9d3903899f31b524
+  - "service, costuri, anvelope → [[modul/flota/service-si-costuri]]; rapoarte lunare, Excel, pachet pentru contabil → [[modul/flota/rapoarte]]; alerte de scadență, /flota/setari → [[modul/flota/alerte-si-setari]]"
+scris_pe: 0565c75422382af1d1b7b90add18de9556d5e4c1
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -56,16 +58,20 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 
 ## Rute și cine ajunge
 
-| Rută                                 | Poartă                                                              |
-| ------------------------------------ | ------------------------------------------------------------------- |
-| `/flota`, `/flota/[id]`              | `vehicles:read` own; creare cere `vehicles:create` all              |
-| `/flota/foi`, `/flota/foi/[id]`      | `trip_sheets:read`/`update` own                                     |
-| `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
-| `/flota/foi/sabloane`                | `trip_sheets:update` all — șabloanele de traseu (0197)              |
-| `/flota/setari`                      | `vehicles:update` all — responsabili, praguri (0198)                |
-| `/flota/setari/documente`            | `vehicles:update` all — tipurile de document ale firmei (0199)      |
-| `/api/export/flota/foaie/[id]`       | `trip_sheets:read` own + RLS — PDF-ul foii (0197)                   |
-| `/portal/masina-mea*`                | `trip_sheets:read` own — portalul șoferului, din 0196               |
+| Rută                                    | Poartă                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------ |
+| `/flota`, `/flota/[id]`                 | `vehicles:read` own; creare cere `vehicles:create` all                   |
+| `/flota/foi`, `/flota/foi/[id]`         | `trip_sheets:read`/`update` own                                          |
+| `/flota/aprobari`, `/flota/anomalii`    | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team      |
+| `/flota/foi/sabloane`                   | `trip_sheets:update` all — șabloanele de traseu (0197)                   |
+| `/flota/setari`                         | `vehicles:update` all — responsabili, praguri (0198)                     |
+| `/flota/setari/documente`               | `vehicles:update` all — tipurile de document ale firmei (0199)           |
+| `/api/export/flota/foaie/[id]`          | `trip_sheets:read` own + RLS — PDF-ul foii (0197)                        |
+| `/flota/rapoarte`, `/api/export/flota*` | `vehicles:read` + `trip_sheets:read` la `all`; export: `vehicles:export` |
+| `/portal/masina-mea*`                   | `trip_sheets:read` own — portalul șoferului, din 0196                    |
+
+Rapoartele lunare, Excelul și pachetul pentru contabil (F8, fără migrare):
+`[[modul/flota/rapoarte]]`.
 
 Drepturile pe roluri (0196), garda de vehicul alocat sau pool, regula „aprobatorul doar
 decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.

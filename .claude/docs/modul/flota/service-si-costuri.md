@@ -28,7 +28,7 @@ tabele: [vehicle_service_plans, vehicle_service_entries, vehicle_expenses, expir
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [19, 22, 26]
-scris_pe: 363d3eb37be6a06d9f345e4b9d3903899f31b524
+scris_pe: 0565c75422382af1d1b7b90add18de9556d5e4c1
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -163,8 +163,8 @@ Jobul zilnic (`internal.conformitate_zilnica`) și rezumatul de scadențe:
 
 ## Ce NU e aici
 
-Mentenanța utilajelor și ISCIR: `[[modul/mentenanta]]`. Rapoartele și pachetul lunar
-pentru contabil (F8) nu există încă. Costul documentelor se scrie la documente
+Mentenanța utilajelor și ISCIR: `[[modul/mentenanta]]`. Rapoartele lunare și pachetul
+pentru contabil: `[[modul/flota/rapoarte]]`. Costul documentelor se scrie la documente
 (`[[modul/flota/documente-si-erori]]`).
 
 ## Când NU e suficientă pagina asta
