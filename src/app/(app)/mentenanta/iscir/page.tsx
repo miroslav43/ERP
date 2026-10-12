@@ -237,14 +237,25 @@ export default async function PaginaIscir({ searchParams }: ProprietatiPagina) {
           ? {
               actiuni: (
                 // Dosarul de control: autorizațiile curente și verificările
-                // legale programate, pentru inspecție (ITM, ISCIR, ISU).
-                <a
-                  href="/api/export/mentenanta/verificari"
-                  className={buton({ varianta: "secundar" })}
-                >
-                  <FileDown aria-hidden="true" className="size-4" />
-                  Dosar de control (CSV)
-                </a>
+                // legale programate, pentru inspecție (ITM, ISCIR, ISU). PDF-ul
+                // se arată inspectorului; CSV-ul se lucrează în Excel.
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href="/api/export/mentenanta/verificari?format=pdf"
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    <FileDown aria-hidden="true" className="size-4" />
+                    Dosar de control (PDF)
+                  </a>
+                  <a
+                    href="/api/export/mentenanta/verificari"
+                    aria-label="Dosar de control (CSV)"
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    <FileDown aria-hidden="true" className="size-4" />
+                    CSV
+                  </a>
+                </div>
               ),
             }
           : {})}
