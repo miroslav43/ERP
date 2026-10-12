@@ -28,7 +28,7 @@ tabele: [vehicle_service_plans, vehicle_service_entries, vehicle_expenses, expir
 permisiuni: [vehicles:read, vehicles:update]
 feature: fleet
 capcane: [19, 22, 26]
-scris_pe: 64685e9896bff6384373ccdb8b9b8e7f4accb4cd
+scris_pe: 363d3eb37be6a06d9f345e4b9d3903899f31b524
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -47,8 +47,9 @@ Nu există rute noi: fișa `/flota/[id]` primește file prin `?fila=service` și
 doar cui poate citi service-ul, adică `vehicles:read` cel puțin `team` ȘI vehiculul
 vizibil; un `?fila=` scris de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un
 ecran gol. Scrierea cere `vehicles:update` all — literal ca politicile. Managerul
-citește planurile, intervențiile și costurile mașinii echipei lui; șoferul (`own`) și
-`hr` nu citesc nimic, fără eroare: află de scadență din notificare.
+citește planurile, intervențiile și cheltuielile mașinii echipei lui; șoferul (`own`) și
+`hr` nu citesc nimic, fără eroare: află de scadență din notificare. Fila Costuri a
+managerului NU arată cifrele derivate din foi (vezi „Costuri”).
 
 ## Server Actions
 
@@ -71,8 +72,8 @@ se schimbă și din formularul vehiculului (`actualizeazaVehicul`).
 
 `src/lib/queries/fleet-service.ts`: `planuriService` (plafon, nu paginare),
 `intrariService` și `cheltuieliVehicul` (cursor keyset pe dată + id, ca restul flotei) și
-`costuriVehicul`, care adună patru surse prin `citesteTot` — `max_rows` ar tăia tăcut o
-agregare. Foile aprobate vin cu alimentările într-un singur răspuns (embed), ca lista de
+`costuriVehicul(…, cuFoi)`, care adună patru surse prin `citesteTot` — `max_rows` ar tăia
+tăcut o agregare. Foile aprobate vin cu alimentările într-un singur răspuns (embed), ca lista de
 id-uri să nu ajungă într-un `.in()`. Pragul de salt pentru avertizarea din casetă vine
 din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
 
@@ -89,10 +90,12 @@ din `pragSaltVehicul` (`[[modul/flota/alerte-si-setari]]`).
   `evaluareKmIntrare`, peste `verificaContinuitate`): „sub kilometraj” = istoric, „salt” =
   probabil cifră greșită — se semnalează, nu se blochează.
 - **Doar scadența pe DATĂ ajunge în `expirables`** (`entity_type = 'vehicle_service'`,
-  `entity_id` = vehiculul, `kind` = planul). Planul doar pe kilometri n-are dată și
-  n-apare în semafor: îl ia jobul zilnic. Semaforul nu se citește din `expirables` pentru
-  cine nu are `compliance:read` — fila calculează starea din `vehicle_service_plans`
-  (`stareaPlanului`). — capcanele #19, #26
+  `entity_id` = vehiculul, `kind` = planul). Planul doar pe kilometri n-are dată: îl ia
+  jobul zilnic. NICIO listă din aplicație nu citește `expirables` pentru flotă: semaforul
+  listei (`semaforVehicul`) vine din `vehicle_documents`, deci un plan de service NU îl
+  aprinde. Scadența pe dată ajunge în alertele din 0008 și în rezumatul de dimineață; starea
+  o arată fila Service, calculată din `vehicle_service_plans` (`stareaPlanului`).
+  Textele din ecrane și din marketing spun exact asta. — capcanele #19, #26
 - **`app.poate_vedea_expirabil` a fost rescrisă COMPLET** (nu doar completată) și acum
   conține și `vehicle_service`. O migrare viitoare care adaugă un `entity_type` pornește
   de la forma din 0200, NU de la `0011`: funcția e un `case`, iar o copie veche pierde
@@ -124,6 +127,22 @@ perioadă. Costul pe km și consumul real se împart la kilometrii foilor aproba
 aceeași perioadă; fără foi, cifra lipsește (și ecranul spune de ce), nu devine „0 lei/km”.
 Combustibilul fără foaie nu intră în consum: n-are kilometri cu care să fie pereche.
 Adunările trec prin bani întregi (`sumaLei`).
+
+**Foile se citesc sub alt drept decât service-ul.** Service-ul, cheltuielile și documentele
+sunt COMPLETE pentru orice vehicul vizibil (`vehicles:read >= team`); foile și alimentările
+se citesc sub `trip_sheets:read`, iar la `team` (managerul) RLS le taie TĂCUT la foile
+șoferilor echipei, pe un vehicul pe care îl conduc și alții. De aceea `FilaCosturi` primește
+`vedeToateFoile = can(trip_sheets:read, all)`: fără el foile nu se interoghează, totalul
+exclude combustibilul de pe foi (și se numește „fără foi”), iar kilometrii, costul pe km și
+consumul nu se afișează, cu motivul scris pe ecran. Un cost pe km împărțit la kilometri
+parțiali ar ieși umflat, fără eroare.
+
+## Caseta planului
+
+La corectură, previzualizarea „Următoarea scadență” pornește de la `ultimaEfectiva`
+(domeniu): ultima intervenție legată de plan rămâne în joc cât timp baza introdusă e mai
+veche decât ea, exact ca în `vsp_inainte`. Intervenția legată se deduce din `ultima_*` a
+planului, strict peste baza lui veche.
 
 ## Erori traduse
 
