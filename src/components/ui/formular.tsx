@@ -35,6 +35,14 @@ import { useSemnalPanaLaRuta } from "@/components/incarcare/use-incarcare";
  * de mai jos le dă înapoi copiilor ca `defaultValue`. Formularul își reia forma
  * exactă în care a fost trimis.
  *
+ * Selecturile sunt excepția și se pun la loc de mână, după refuz (efectul de
+ * mai jos): `<input>` și `<textarea>` își iau noul `defaultValue` fiindcă React
+ * îl sincronizează ca atribut, dar pe `<select>` react-dom îl aplică DOAR la
+ * montare sau când se schimbă `multiple`. Iar un select CONTROLAT primește de
+ * la React doar `selected`, nu și `defaultSelected`, deci `form.reset()` de
+ * după acțiune îl duce pe PRIMA opțiune — „Eu însumi” în loc de angajatul ales,
+ * Austria în loc de Germania (ADM-036).
+ *
  * ── PRECEDENȚA ERORILOR ───────────────────────────────────────────────────
  * Un câmp poate avea două surse de eroare: serverul (`fieldErrors`) și
  * validarea de client (react-hook-form, în 17 fișiere). Regula, scrisă o dată
@@ -125,6 +133,22 @@ export function Formular<TData>({
     rezultat !== null && !rezultat.ok && Object.keys(erori).length === 0
       ? rezultat.error.message
       : null;
+
+  // Selecturile NU urmează `defaultValue` după montare (vezi comentariul de
+  // sus), iar `form.reset()` rulează în faza de mutații a aceluiași commit cu
+  // rezultatul acțiunii, ÎNAINTEA efectelor — deci aici DOM-ul e deja resetat
+  // și se poate pune la loc din `valori`. Doar la refuz: la reușită resetarea
+  // e dorită (dialogurile „adaugă încă unul”). O valoare care nu mai e printre
+  // opțiuni (opțiuni condiționate de alt câmp) rămâne pe implicit, ca azi.
+  useEffect(() => {
+    if (rezultat === null || rezultat.ok || ref.current === null) return;
+    for (const select of ref.current.querySelectorAll("select")) {
+      const valoare = stare.valori[select.name];
+      if (valoare === undefined) continue;
+      if (Array.from(select.options).some((o) => o.value === valoare)) select.value = valoare;
+    }
+    // `stare.valori` se schimbă odată cu `rezultat`: sunt același obiect de stare.
+  }, [rezultat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Focusul merge pe primul câmp invalid. Fără asta, pe un formular de 30 de
   // câmpuri mesajul poate fi sub linia de plutire, iar ecranul pare inert.

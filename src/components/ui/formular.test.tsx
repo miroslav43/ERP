@@ -1,5 +1,6 @@
 // src/components/ui/formular.test.tsx
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { ActionResult } from "@/lib/actions/types";
@@ -141,6 +142,79 @@ describe("Formular — ce se întâmplă cu ce s-a scris", () => {
 
     await waitFor(() => expect(screen.getByText("Greșit.")).toBeDefined());
     expect((screen.getByLabelText("CNP") as HTMLInputElement).defaultValue).toBe("1790212345678");
+  });
+
+  /**
+   * Selecturile NU urmează tiparul de mai sus de la sine: react-dom aplică
+   * `defaultValue` pe `<select>` doar la montare, iar un select CONTROLAT
+   * primește de la React doar `selected`, nu și `defaultSelected`, deci
+   * `form.reset()` de după acțiune îl duce pe PRIMA opțiune. Găsit de QA
+   * (ADM-036) pe un formular deja migrat pe `<Formular>`.
+   */
+  function FormularSelecturi({
+    actiune,
+  }: {
+    actiune: (d: FormData) => Promise<ActionResult<{ id: string }>>;
+  }) {
+    const [tara, setTara] = useState("ro");
+    return (
+      <Formular actiune={actiune}>
+        {({ erori, valoriTrimise }) => (
+          <>
+            <Camp nume="scop" eticheta="Scop" erori={erori["scop"] ?? []}>
+              {(a) => <input {...a} defaultValue={valoriTrimise["scop"] ?? ""} />}
+            </Camp>
+            <Camp nume="employee_id" eticheta="Angajat" fel="select">
+              {(a) => (
+                <select {...a} defaultValue={valoriTrimise["employee_id"] ?? ""}>
+                  <option value="">Eu însumi</option>
+                  <option value="e1">Ana</option>
+                  <option value="e2">Bianca</option>
+                </select>
+              )}
+            </Camp>
+            <Camp nume="country_id" eticheta="Țara" fel="select">
+              {(a) => (
+                <select
+                  {...a}
+                  value={tara}
+                  onChange={(e) => {
+                    setTara(e.target.value);
+                  }}
+                >
+                  <option value="at">Austria</option>
+                  <option value="de">Germania</option>
+                  <option value="ro">România</option>
+                </select>
+              )}
+            </Camp>
+            <button type="submit">Salvează</button>
+          </>
+        )}
+      </Formular>
+    );
+  }
+
+  it("un <select> necontrolat cu defaultValue din valoriTrimise rămâne pe opțiunea aleasă", async () => {
+    render(<FormularSelecturi actiune={async () => refuz({ scop: ["Greșit."] })} />);
+    const angajat = screen.getByLabelText("Angajat") as HTMLSelectElement;
+    act(() => fireEvent.change(angajat, { target: { value: "e2" } }));
+    expect(angajat.value).toBe("e2");
+    await trimite();
+
+    await waitFor(() => expect(screen.getByText("Greșit.")).toBeDefined());
+    expect((screen.getByLabelText("Angajat") as HTMLSelectElement).value).toBe("e2");
+  });
+
+  it("un <select> controlat rămâne pe opțiunea aleasă, nu cade pe prima", async () => {
+    render(<FormularSelecturi actiune={async () => refuz({ scop: ["Greșit."] })} />);
+    const tara = screen.getByLabelText("Țara") as HTMLSelectElement;
+    act(() => fireEvent.change(tara, { target: { value: "de" } }));
+    expect(tara.value).toBe("de");
+    await trimite();
+
+    await waitFor(() => expect(screen.getByText("Greșit.")).toBeDefined());
+    expect((screen.getByLabelText("Țara") as HTMLSelectElement).value).toBe("de");
   });
 });
 
