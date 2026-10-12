@@ -4,6 +4,7 @@ import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import type { ActionResult } from "@/lib/actions/types";
@@ -32,6 +33,49 @@ function refuzDeClient(
       requestId: "client",
     },
   };
+}
+
+/** Casetele fiecărui formular — ce NU e aici n-are unde să-și arate eroarea. */
+const CAMPURI_INCHIDERE: ReadonlySet<string> = new Set(["sosire_la", "km_sosire", "observatii"]);
+const CAMPURI_ALIMENTARE: ReadonlySet<string> = new Set([
+  "alimentat_la",
+  "litri",
+  "cost",
+  "statie",
+  "numar_bon",
+  "observatii",
+  "plin",
+]);
+
+/**
+ * Erorile pe câmp care n-au casetă în formular, spuse ca mesaj general.
+ *
+ * `flota/erori.ts` pune refuzurile triggerelor pe câmpul lor după începutul
+ * mesajului — „Kilometrajul de plecare …” pe `km_plecare`, „Vehiculul …” pe
+ * `vehicle_id` —, dar formularele de aici n-au casetele acelea. Iar `<Formular>`
+ * ascunde mesajul general de îndată ce `fieldErrors` are o cheie. Fără blocul
+ * ăsta, refuzul nu apărea nicăieri: butonul revenea activ și ecranul tăcea.
+ *
+ * Local, nu în `<Formular>`: alte formulare (pragurile din salarizare, lista
+ * de indicatori) își arată singure erorile pe chei fără casetă, iar o regulă
+ * generală le-ar dubla mesajul.
+ */
+function ErorileFaraCamp({
+  erori,
+  campuri,
+}: {
+  readonly erori: Readonly<Record<string, readonly string[]>>;
+  readonly campuri: ReadonlySet<string>;
+}) {
+  const mesaje = [
+    ...new Set(
+      Object.entries(erori)
+        .filter(([cheie]) => !campuri.has(cheie))
+        .flatMap(([, lista]) => lista),
+    ),
+  ];
+  if (mesaje.length === 0) return null;
+  return <Callout fel="eroare">{mesaje.join(" ")}</Callout>;
 }
 
 /**
@@ -137,7 +181,7 @@ export function ActiuniFoaie({
     if (cost.length === 0) lipsa.cost = ["Scrieți costul alimentării, în lei."];
     if (Object.keys(lipsa).length > 0) return refuzDeClient(lipsa);
 
-    return await adaugaAlimentare({
+    const rezultat = await adaugaAlimentare({
       trip_sheet_id: id,
       litri: Number(litri),
       cost: Number(cost),
@@ -147,11 +191,23 @@ export function ActiuniFoaie({
       plin: formular.get("plin") === "on",
       observatii: String(formular.get("observatii") ?? "").trim() || null,
     });
+    /*
+     * Reîmprospătarea pleacă DE AICI, nu din `laReusita`. `<Formular>` aprinde
+     * pentru `laReusita` voalul global de navigare, care se stinge doar la
+     * schimbarea căii sau la demontarea formularului. După o alimentare nu se
+     * întâmplă niciuna: `router.refresh()` rămâne pe aceeași cale, iar foaia e
+     * tot `draft`/`trimis`, deci formularul rămâne pe ecran. Voalul ar fi stat
+     * aprins, înghițind clicurile, până la plafonul de 30 s.
+     */
+    if (rezultat.ok) router.refresh();
+    return rezultat;
   }
 
-  // Stabile între randări: `laReusita` intră în dependențele efectului din
+  // Stabil între randări: `laReusita` intră în dependențele efectului din
   // `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul —
-  // `router.refresh()` și semnalul de navigare de două ori.
+  // `router.refresh()` și semnalul de navigare de două ori. Aici semnalul e
+  // corect: după închidere foaia trece în `trimis`, formularul se demontează,
+  // iar demontarea stinge voalul.
   const laInchidere = useCallback(
     (data: FoaieInchisa) => {
       // Saltul de kilometraj nu e o eroare — foaia s-a salvat. E o observație
@@ -161,9 +217,6 @@ export function ActiuniFoaie({
     },
     [router],
   );
-  const laAlimentare = useCallback(() => {
-    router.refresh();
-  }, [router]);
 
   function redeschide(): void {
     setEroareRedeschidere(null);
@@ -224,6 +277,7 @@ export function ActiuniFoaie({
             return (
               <>
                 <p className="text-corp font-medium">Închide cursa și trimite spre aprobare</p>
+                <ErorileFaraCamp erori={stare.erori} campuri={CAMPURI_INCHIDERE} />
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Camp
                     nume="sosire_la"
@@ -294,17 +348,14 @@ export function ActiuniFoaie({
       ) : null}
 
       {!sePoateAlimenta ? null : (
-        <Formular
-          actiune={alimenteaza}
-          laReusita={laAlimentare}
-          className="border-border rounded-panou border p-4"
-        >
+        <Formular actiune={alimenteaza} className="border-border rounded-panou border p-4">
           {(stare) => {
             const trimise: Readonly<Record<string, string>> =
               stare.data === null ? stare.valoriTrimise : {};
             return (
               <>
                 <p className="text-corp font-medium">Adaugă o alimentare</p>
+                <ErorileFaraCamp erori={stare.erori} campuri={CAMPURI_ALIMENTARE} />
                 <div className="grid gap-3 sm:grid-cols-4">
                   {/* Baza respinge o alimentare din afara intervalului cursei;
                       `min` și `max` o spun din calendar, iar verificarea din

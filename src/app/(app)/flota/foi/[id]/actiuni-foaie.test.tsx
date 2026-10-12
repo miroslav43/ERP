@@ -19,8 +19,8 @@ import type { ActionResult } from "@/lib/actions/types";
  * ce s-a tastat rămâne acolo.
  */
 
-const { adaugaAlimentare, trimiteFoaie, redeschideFoaie, refresh, push, router } = vi.hoisted(
-  () => {
+const { adaugaAlimentare, trimiteFoaie, redeschideFoaie, refresh, push, router, semnal } =
+  vi.hoisted(() => {
     const refresh = vi.fn();
     const push = vi.fn();
     return {
@@ -29,6 +29,7 @@ const { adaugaAlimentare, trimiteFoaie, redeschideFoaie, refresh, push, router }
       redeschideFoaie: vi.fn(),
       refresh,
       push,
+      semnal: vi.fn(),
       // UN SINGUR obiect, ca în Next (`useRouter` citește contextul, stabil
       // între randări). Un `() => ({ refresh, push })` ar da un router nou la
       // fiecare randare, `useCallback([router])` ar produce un `laReusita` nou,
@@ -36,28 +37,27 @@ const { adaugaAlimentare, trimiteFoaie, redeschideFoaie, refresh, push, router }
       // defect al mock-ului, nu al componentei.
       router: { refresh, push },
     };
-  },
-);
+  });
 
 vi.mock("../../actions", () => ({ adaugaAlimentare, trimiteFoaie, redeschideFoaie }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
-// `Formular` cere semnalul de navigare din harness-ul aplicației; în test
-// contează doar erorile și valorile, deci se scurtcircuitează. Tot cu o
-// funcție STABILĂ — e dependență a efectului de reușită din `<Formular>`, iar
-// hook-ul real o memorează.
-vi.mock("@/components/incarcare/use-incarcare", () => {
-  const semnal = (): undefined => undefined;
-  return { useSemnalPanaLaRuta: () => semnal };
-});
+// Semnalul de navigare al lui `<Formular>` e un SPION: aprinde voalul global,
+// care se stinge DOAR la schimbarea căii sau la demontare. Funcția e stabilă —
+// e dependență a efectului de reușită din `<Formular>`, iar hook-ul real o
+// memorează.
+vi.mock("@/components/incarcare/use-incarcare", () => ({ useSemnalPanaLaRuta: () => semnal }));
 
 const { ActiuniFoaie } = await import("./actiuni-foaie");
 
-function refuz(fieldErrors: Record<string, readonly string[]>): ActionResult<never> {
+function refuz(
+  fieldErrors: Record<string, readonly string[]>,
+  message = "Datele introduse nu sunt valide.",
+): ActionResult<never> {
   return {
     ok: false,
     error: {
       code: "VALIDARE",
-      message: "Datele introduse nu sunt valide.",
+      message,
       fieldErrors,
       requestId: "test",
     },
@@ -103,6 +103,7 @@ beforeEach(() => {
   redeschideFoaie.mockReset();
   refresh.mockReset();
   push.mockReset();
+  semnal.mockReset();
 });
 
 describe("ActiuniFoaie — alimentarea păstrează ce s-a scris", () => {
@@ -175,7 +176,44 @@ describe("ActiuniFoaie — alimentarea păstrează ce s-a scris", () => {
     });
     // `valoriTrimise` se păstrează DOAR cât timp ultimul răspuns a fost un
     // refuz: a doua alimentare pornește de la zero, nu de la prima.
-    expect(camp("Stație").value).toBe("");
+    await waitFor(() => {
+      expect(camp("Stație").value).toBe("");
+    });
+  });
+
+  it("după o alimentare reușită voalul global de încărcare NU se aprinde", async () => {
+    // Semnalul lui `<Formular>` se stinge doar la schimbarea căii sau la
+    // demontare. După o alimentare, `router.refresh()` nu schimbă calea, iar
+    // formularul rămâne montat (foaia e tot `draft`/`trimis`): voalul ar sta
+    // aprins, înghițind clicurile, până la plafonul de 30 s.
+    adaugaAlimentare.mockResolvedValue({ ok: true, data: { id: "a1" } });
+    randeaza("trimis");
+    scrie(camp(/^Când/u), "2026-10-01T10:00");
+    scrie(camp(/^Litri/u), "40");
+    scrie(camp(/^Cost/u), "300");
+
+    await apasa("Adaugă alimentarea");
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(semnal).not.toHaveBeenCalled();
+  });
+
+  it("un refuz pe un câmp care NU e în formular (`vehicle_id`) apare ca mesaj general", async () => {
+    const mesaj = "Vehiculul nu mai este activ în organizație.";
+    adaugaAlimentare.mockResolvedValue(refuz({ vehicle_id: [mesaj] }, mesaj));
+    randeaza("trimis");
+    scrie(camp(/^Când/u), "2026-10-01T10:00");
+    scrie(camp(/^Litri/u), "40");
+    scrie(camp(/^Cost/u), "300");
+
+    await apasa("Adaugă alimentarea");
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain(mesaj);
+    });
+    expect(camp(/^Litri/u).value).toBe("40");
   });
 });
 
@@ -205,6 +243,28 @@ describe("ActiuniFoaie — închiderea cursei păstrează ce s-a scris", () => {
     });
     expect(camp(/^Kilometraj la sosire/u).value).toBe("1500");
     expect(camp(/^Sosire/u).value).toBe("2026-10-01T18:00");
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("refuzul triggerului pe `km_plecare` (câmp care NU e în formular) nu rămâne tăcut", async () => {
+    // `flota/erori.ts` pune „Kilometrajul de plecare …” pe `fieldErrors.km_plecare`,
+    // iar `<Formular>` ascunde mesajul general când există erori pe câmp. Fără
+    // caseta `km_plecare` în formular, mesajul nu apărea nicăieri: butonul
+    // revenea activ și nu se întâmpla nimic.
+    const mesaj =
+      "Kilometrajul de plecare (1000 km) este mai mic decât ultimul kilometraj cunoscut al vehiculului (1200 km).";
+    trimiteFoaie.mockResolvedValue(refuz({ km_plecare: [mesaj] }, mesaj));
+    randeaza("draft");
+    scrie(camp(/^Sosire/u), "2026-10-01T18:00");
+    scrie(camp(/^Kilometraj la sosire/u), "1500");
+
+    await apasa("Trimite spre aprobare");
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain(mesaj);
+    });
+    expect(trimiteFoaie).toHaveBeenCalledTimes(1);
+    expect(camp(/^Kilometraj la sosire/u).value).toBe("1500");
     expect(refresh).not.toHaveBeenCalled();
   });
 
