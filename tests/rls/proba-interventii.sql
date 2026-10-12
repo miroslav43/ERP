@@ -359,6 +359,72 @@ begin
     raise warning '  ✗ (9) % rânduri de registru pentru intervenție', v_n;
   end if;
 
+  -- ═══ (10) Firma străină [NEGATIVĂ] ═══════════════════════════════════════
+  -- Administratorul firmei A, pe intervenția firmei B: nu vede, nu adaugă și nu
+  -- șterge linii de piese, nu rezervă un PV sub prefixul lui B. Rânduri
+  -- numărate, nu erori ascultate.
+  insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate, pret_unitar)
+  values (v_org2, v_i_b, 'Piesa firmei B', 1, 10) returning id into v_piesa;
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.maintenance_intervention_parts where intervention_id = v_i_b;
+  reset role;
+  if v_n = 0 then
+    raise notice '  ✓ (10) administratorul lui A nu vede piesele lui B (0 rânduri)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10) administratorul lui A vede % linii ale lui B', v_n;
+  end if;
+
+  v_n := 0;
+  foreach v_text in array array[v_org2::text, v_org::text] loop
+    perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+    set local role authenticated;
+    begin
+      insert into public.maintenance_intervention_parts (organization_id, intervention_id, denumire, cantitate)
+      values (v_text::uuid, v_i_b, 'Piesă străină', 1);
+      v_n := v_n + 1;
+    exception when insufficient_privilege or raise_exception then
+      null;
+    end;
+    reset role;
+  end loop;
+  if v_n = 0 then
+    raise notice '  ✓ (10) nicio linie de piese pe intervenția lui B (nici cu org B, nici cu org A)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10) % linii de piese au intrat pe intervenția lui B', v_n;
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  with m as (
+    update public.maintenance_intervention_parts set deleted_at = now()
+     where id = v_piesa returning 1)
+  select count(*) into v_n from m;
+  with m as (
+    update public.maintenance_interventions set observatii = 'Străin'
+     where id = v_i_b returning 1)
+  select v_n + count(*) into v_n from m;
+  reset role;
+  if v_n = 0 then
+    raise notice '  ✓ (10) linia și intervenția lui B: 0 rânduri actualizate de A';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10) A a actualizat % rânduri ale lui B', v_n;
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  v_bool := app.mentenanta_poate_fisier(v_org2::text || '/intervention/' || gen_random_uuid()::text || '/pv.pdf', 'update');
+  reset role;
+  if not v_bool then
+    raise notice '  ✓ (10) A nu rezervă un PV sub prefixul lui B';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (10) A a primit rezervarea sub prefixul lui B';
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'Proba intervențiilor: % verificări picate.', v_esecuri;
