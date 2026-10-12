@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCheck, RefreshCw, XCircle } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { textNumarat } from "@/lib/format/numar";
 import { formatOre } from "@/lib/format/ore";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 
@@ -171,12 +172,12 @@ export function AprobareBloc({
         text: [
           liniiAprobate === 1
             ? "O linie de pontaj a fost aprobată."
-            : `${String(liniiAprobate)} linii de pontaj au fost aprobate.`,
+            : `${textNumarat(liniiAprobate, "linie", "linii")} de pontaj au fost aprobate.`,
           anuntati === 0
             ? "Niciun angajat nu a fost anunțat."
             : anuntati === 1
               ? "Un angajat a fost anunțat."
-              : `${String(anuntati)} angajați au fost anunțați.`,
+              : `${textNumarat(anuntati, "angajat", "angajați")} au fost anunțați.`,
         ].join(" "),
         actiune: {
           eticheta: "Vezi lotul",

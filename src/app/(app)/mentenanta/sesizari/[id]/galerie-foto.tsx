@@ -2,8 +2,8 @@
 import { FileImage } from "lucide-react";
 import type { ReactElement } from "react";
 
-import { marimeCitibila } from "@/components/ui/incarcare-fisier";
 import { formatDateTime } from "@/lib/format/date";
+import { marimeCitibila } from "@/lib/format/marime";
 import type { Atasament } from "@/lib/queries/maintenance";
 
 import { ButonStergeFisier } from "./buton-sterge-fisier";

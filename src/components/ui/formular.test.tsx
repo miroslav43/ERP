@@ -216,6 +216,73 @@ describe("Formular — ce se întâmplă cu ce s-a scris", () => {
     await waitFor(() => expect(screen.getByText("Greșit.")).toBeDefined());
     expect((screen.getByLabelText("Țara") as HTMLSelectElement).value).toBe("de");
   });
+
+  /**
+   * Constructorul de șablon de evaluare și foaia lunară de KPI țin selecturile
+   * în stare React, FĂRĂ `name`, și trimit totul printr-un `<input hidden>` cu
+   * JSON. Un asemenea select nu apare în `FormData`, deci nu se poate pune la
+   * loc din `valoriTrimise`. QA (oct 2026): după refuz, „Scală 1-10” arăta
+   * „Text / 1-5”, iar după o salvare REUȘITĂ fiecare notă arăta „nenotat”,
+   * deși starea și JSON-ul trimis aveau valorile bune.
+   */
+  function FormularSelectFaraNume({
+    actiune,
+  }: {
+    actiune: (d: FormData) => Promise<ActionResult<{ id: string }>>;
+  }) {
+    const [nota, setNota] = useState("");
+    return (
+      <Formular actiune={actiune}>
+        {() => (
+          <>
+            <label htmlFor="nota">Nota</label>
+            <select
+              id="nota"
+              value={nota}
+              onChange={(e) => {
+                setNota(e.target.value);
+              }}
+            >
+              <option value="">nenotat</option>
+              <option value="3">3</option>
+              <option value="5">5</option>
+            </select>
+            <input type="hidden" name="valori" value={JSON.stringify({ nota })} />
+            <button type="submit">Salvează</button>
+          </>
+        )}
+      </Formular>
+    );
+  }
+
+  it("un <select> controlat FĂRĂ name rămâne pe valoarea din stare după refuz", async () => {
+    render(<FormularSelectFaraNume actiune={async () => refuz(null, "Refuzat.")} />);
+    act(() => fireEvent.change(screen.getByLabelText("Nota"), { target: { value: "5" } }));
+    await trimite();
+
+    await waitFor(() => expect(screen.getByText("Refuzat.")).toBeDefined());
+    expect((screen.getByLabelText("Nota") as HTMLSelectElement).value).toBe("5");
+  });
+
+  it("un <select> controlat FĂRĂ name rămâne pe valoarea din stare și după reușită", async () => {
+    let trimis = "";
+    render(
+      <FormularSelectFaraNume
+        actiune={async (d) => {
+          trimis = String(d.get("valori"));
+          return { ok: true, data: { id: "x" } };
+        }}
+      />,
+    );
+    act(() => fireEvent.change(screen.getByLabelText("Nota"), { target: { value: "3" } }));
+    await trimite();
+
+    await waitFor(() => expect(trimis).toBe('{"nota":"3"}'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect((screen.getByLabelText("Nota") as HTMLSelectElement).value).toBe("3");
+  });
 });
 
 describe("Formular — confirmarea reușitei", () => {

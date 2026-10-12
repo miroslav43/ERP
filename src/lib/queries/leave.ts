@@ -389,39 +389,68 @@ export const soldAnual = cache(async (organizationId: string, an: number): Promi
 export interface RandSold {
   readonly tip: TipConcediu;
   readonly sold: SoldTip | null;
+  /**
+   * Dreptul calculat de bază (`app.drept_concediu`, 0193: zilele contractului
+   * + grile, × lunile lucrate / 12), când apelantul îl are — azi doar pentru
+   * fișa privitorului, prin `public.drepturile_mele_concediu`. Contează numai
+   * când lipsește rândul de sold.
+   */
+  readonly dreptCalculat?: number;
 }
 
 /**
  * Împerechează tipurile de concediu active cu soldul unui SINGUR angajat
  * (apelantul filtrează în prealabil `solduriAngajat` la un `employee_id`).
- * Un tip fără rând de sold ⇒ dreptul afișat e `zile_implicite`, iar istoricul
- * se citește ca „fără mișcări în acest an” — nu s-a creat încă rândul din
- * `leave_balances` (se întâmplă abia la prima cerere/aprobare pe tipul respectiv).
+ * Un tip fără rând de sold ⇒ istoricul se citește ca „fără mișcări în acest
+ * an” — nu s-a creat încă rândul din `leave_balances` (se întâmplă abia la
+ * prima cerere/aprobare pe tip, sau din „Aplică drepturile”). `drepturi`
+ * (`leave_type_id` → zile) dă dreptul calculat pentru exact rândurile astea.
  */
 export function imperecheazaSold(
   tipuri: readonly TipConcediu[],
   solduriAngajat: readonly SoldTip[],
+  drepturi?: ReadonlyMap<string, number>,
 ): readonly RandSold[] {
-  return tipuri.map((tip) => ({
-    tip,
-    sold: solduriAngajat.find((s) => s.leave_type_id === tip.id) ?? null,
-  }));
+  return tipuri.map((tip) => {
+    const sold = solduriAngajat.find((s) => s.leave_type_id === tip.id) ?? null;
+    const dreptCalculat = drepturi?.get(tip.id);
+    return dreptCalculat === undefined ? { tip, sold } : { tip, sold, dreptCalculat };
+  });
 }
 
 /**
- * Zilele rămase dintr-un rând de sold — MEREU o cifră.
+ * Dreptul anual afișat pentru un rând: cel din `leave_balances` când există,
+ * altfel cel calculat de bază, altfel — DOAR pentru tipurile cu durată fixă
+ * (`scade_din_sold = false`: creștere copil 730, medical 183…) — implicitul
+ * tipului, fiindcă acolo baza e chiar implicitul și nu se proporționalizează.
+ *
+ * Pentru un tip care scade din sold, fără rând și fără drept calculat, întoarce
+ * `null`: din 0193 dreptul de odihnă vine din contract și din lunile lucrate,
+ * deci implicitul tipului (20/21) ar fi o cifră FALSĂ — un angajat intrat în
+ * octombrie are 5 zile, nu 20 (QA, oct 2026). Ecranul scrie „—” și explică.
+ */
+export function dreptDinRand({ tip, sold, dreptCalculat }: RandSold): number | null {
+  if (sold !== null) return sold.drept_anual;
+  if (dreptCalculat !== undefined) return dreptCalculat;
+  return tip.scade_din_sold ? null : tip.zile_implicite;
+}
+
+/**
+ * Zilele rămase dintr-un rând de sold.
  *
  * Fără rând în `leave_balances` (nimic nu s-a mișcat încă pe tip în anul ăsta),
- * restul e chiar dreptul implicit al tipului: 730 de zile la creșterea
- * copilului, nu textul „fără mișcări în acest an” care îl ascundea (UX-011).
+ * restul e chiar dreptul întreg (`dreptDinRand`): 730 de zile la creșterea
+ * copilului, nu textul „fără mișcări în acest an” care îl ascundea (UX-011) —
+ * și `null` când dreptul nu se poate ști aici (vezi `dreptDinRand`).
  * Cu rând, `ramase` e coloana generată din `0009` (drept + reportate − folosite
  * − în așteptare); formula de rezervă e aceeași, pentru un rând fără ea.
  *
  * Aceeași funcție pentru `/concedii/sold` și pentru rezumatul de pe `/concedii`,
  * ca cele două ecrane să nu mai poată spune cifre diferite.
  */
-export function ramaseDinRand({ tip, sold }: RandSold): number {
-  if (sold === null) return tip.zile_implicite;
+export function ramaseDinRand(rand: RandSold): number | null {
+  const { sold } = rand;
+  if (sold === null) return dreptDinRand(rand);
   return sold.ramase ?? sold.drept_anual + sold.reportate - sold.folosite - sold.in_asteptare;
 }
 

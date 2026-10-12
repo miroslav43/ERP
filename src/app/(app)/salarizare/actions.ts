@@ -35,6 +35,7 @@ import {
 import { sendEmail } from "@/lib/email/send";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { formatDateTime } from "@/lib/format/date";
+import { textNumarat } from "@/lib/format/numar";
 import { calculatePayrollEntry, type PayrollSettingsSnapshot } from "@/domain/payroll/calc";
 import { descriereCompleta, problema } from "@/domain/payroll/erori";
 import {
@@ -379,7 +380,7 @@ export const calculeazaPerioada = createAction({
       throw businessRule(
         cereriInAsteptare === 1
           ? `Există o cerere de concediu în așteptare care se suprapune peste ${luna}. Decideți-o înainte de calcul.`
-          : `Există ${String(cereriInAsteptare)} cereri de concediu în așteptare care se suprapun peste ${luna}. Decideți-le înainte de calcul.`,
+          : `Există ${textNumarat(cereriInAsteptare, "cerere", "cereri")} de concediu în așteptare care se suprapun peste ${luna}. Decideți-le înainte de calcul.`,
       );
     }
 

@@ -21,8 +21,9 @@ import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
-import { IncarcareFisier, marimeCitibila } from "@/components/ui/incarcare-fisier";
+import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { arataToast } from "@/components/ui/toast";
+import { marimeCitibila } from "@/lib/format/marime";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import {
   LIMITA_PDF_BYTES,

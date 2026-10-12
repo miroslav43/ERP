@@ -179,6 +179,23 @@ describe("ActiuniPerioada — blocarea cere confirmare", () => {
     expect(document.body.textContent).not.toMatch(/respins/u);
   });
 
+  it("acord peste 19: „176 de linii rămân neaprobate”", async () => {
+    render(
+      <ActiuniPerioada
+        an={2026}
+        luna={9}
+        periodId={PERIOD_ID}
+        status="deschisa"
+        poateDeschide
+        poateBloca
+        liniiNeaprobate={176}
+        zileRespinse={0}
+      />,
+    );
+    await apasa("Blochează");
+    expect(document.body.textContent).toMatch(/176 de linii rămân neaprobate/u);
+  });
+
   it("confirmarea cheamă `blocheazaPerioada({ id })` o singură dată", async () => {
     render(
       <ActiuniPerioada

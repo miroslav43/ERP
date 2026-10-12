@@ -27,6 +27,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
 import { formatDate, formatMonthYear } from "@/lib/format/date";
+import { textZile } from "@/lib/format/numar";
 
 /**
  * Anunță angajatul că ziua lui a fost aprobată. Nu aruncă niciodată.
@@ -126,7 +127,7 @@ export async function anuntaAprobareaZilelor(
           body:
             zile === 1
               ? `O zi din ${lunaText} a fost aprobată.`
-              : `${String(zile)} zile din ${lunaText} au fost aprobate.`,
+              : `${textZile(zile)} din ${lunaText} au fost aprobate.`,
           link: `/portal/pontajul-meu?an=${String(an)}&luna=${String(luna)}`,
           entity_type: "attendance_approval_batch",
           entity_id: batchId,

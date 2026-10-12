@@ -14,7 +14,9 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatNumar, textZile } from "@/lib/format/numar";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { drepturileMele, type DreptConcediu } from "@/lib/queries/portal";
 import {
+  dreptDinRand,
   grupeazaSoldDupaAngajat,
   imperecheazaSold,
   istoricSold,
@@ -85,7 +87,7 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     numeric: true,
     peTelefon: "meta",
     etichetaTelefon: "Drept",
-    celula: ({ tip, sold }) => formatNumar(sold?.drept_anual ?? tip.zile_implicite),
+    celula: (rand) => <CifraSauLipsa valoare={dreptDinRand(rand)} />,
   },
   {
     cheie: "reportate",
@@ -117,8 +119,11 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     // Ascunsă pe telefon: cifrele sunt oricum în rândul de metadate al cardului,
     // iar o bară de 4px într-o listă separată prin „·" n-ar fi lizibilă.
     peTelefon: "ascuns",
-    celula: ({ tip, sold }) => {
-      const cuvenite = (sold?.drept_anual ?? tip.zile_implicite) + (sold?.reportate ?? 0);
+    celula: (rand) => {
+      const { tip, sold } = rand;
+      const drept = dreptDinRand(rand);
+      if (drept === null) return null;
+      const cuvenite = drept + (sold?.reportate ?? 0);
       const angajate = (sold?.folosite ?? 0) + (sold?.in_asteptare ?? 0);
       if (cuvenite <= 0 && angajate <= 0) return null;
       return (
@@ -142,21 +147,56 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     numeric: true,
     peTelefon: "meta",
     etichetaTelefon: "Rămase",
-    // MEREU o cifră (UX-011): textul „fără mișcări în acest an” lua locul
-    // restului, deci cele 730 de zile ale creșterii copilului nu se vedeau.
-    // Explicația rămâne, ca `title`, pe tipurile fără rând de sold.
+    // O cifră ori de câte ori se poate ști (UX-011): textul „fără mișcări în
+    // acest an” lua locul restului, deci cele 730 de zile ale creșterii
+    // copilului nu se vedeau. Explicația rămâne, ca `title`, pe tipurile fără
+    // rând de sold. Pe odihnă fără rând și fără dreptul calculat (fișa altcuiva),
+    // „—”: implicitul tipului ar fi fost o cifră falsă (0193, `dreptDinRand`).
     celula: (rand) => (
-      <span
-        className="font-medium"
-        title={
+      <CifraSauLipsa
+        valoare={ramaseDinRand(rand)}
+        accent
+        explicatie={
           rand.sold === null ? "Fără mișcări în acest an: restul e dreptul întreg." : undefined
         }
-      >
-        {formatNumar(ramaseDinRand(rand))}
-      </span>
+      />
     ),
   },
 ];
+
+const FARA_SOLD_DESCHIS =
+  "Soldul pe acest an nu e deschis încă. Dreptul depinde de contract și de lunile lucrate; " +
+  "se calculează la prima cerere sau din „Aplică drepturile”, în setările concediilor.";
+
+/** O cifră de zile, sau „—” cu explicația ei când dreptul nu se poate ști aici. */
+function CifraSauLipsa({
+  valoare,
+  accent = false,
+  explicatie,
+}: {
+  readonly valoare: number | null;
+  readonly accent?: boolean;
+  readonly explicatie?: string | undefined;
+}) {
+  if (valoare === null) {
+    return (
+      <span title={FARA_SOLD_DESCHIS}>
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">{FARA_SOLD_DESCHIS}</span>
+      </span>
+    );
+  }
+  return (
+    <span className={accent ? "font-medium" : undefined} title={explicatie}>
+      {formatNumar(valoare)}
+    </span>
+  );
+}
+
+/** `leave_type_id` → zilele calculate de bază, pentru fișa privitorului. */
+function hartaDrepturi(drepturi: readonly DreptConcediu[]): ReadonlyMap<string, number> {
+  return new Map(drepturi.map((d) => [d.leave_type_id, Number(d.zile)]));
+}
 
 function TabelTipuri({
   randuri,
@@ -257,25 +297,35 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
     nevoie de rezultatul celeilalte — toate trei se descurcă cu `(tenant, an)`
     și, pentru fișă, cu `user.id`.
   */
-  const [{ tipuri, solduri }, fisaProprieRes, { randuri: istoric, trunchiat: istoricTrunchiat }] =
-    await Promise.all([
-      soldAnual(tenant.organizationId, an),
-      // Fișa proprie: chiar și cu `employees:read = team`, o fișă se conține pe
-      // sine în propriul `manager_path`, deci lectura trece de RLS pentru orice
-      // rol care are cel puțin scope „team” pe `employees:read`. Pentru „own”
-      // (rolul `employee`, `employees:read = none`) rămâne `null` — și e corect.
-      db
-        .from("employees")
-        .select("id")
-        .eq("organization_id", tenant.organizationId)
-        .eq("user_id", user.id)
-        .eq("is_primary", true)
-        .is("deleted_at", null)
-        .maybeSingle<{ id: string }>(),
-      istoricSold(tenant.organizationId, an),
-    ]);
+  const [
+    { tipuri, solduri },
+    fisaProprieRes,
+    { randuri: istoric, trunchiat: istoricTrunchiat },
+    drepturiProprii,
+  ] = await Promise.all([
+    soldAnual(tenant.organizationId, an),
+    // Fișa proprie: chiar și cu `employees:read = team`, o fișă se conține pe
+    // sine în propriul `manager_path`, deci lectura trece de RLS pentru orice
+    // rol care are cel puțin scope „team” pe `employees:read`. Pentru „own”
+    // (rolul `employee`, `employees:read = none`) rămâne `null` — și e corect.
+    db
+      .from("employees")
+      .select("id")
+      .eq("organization_id", tenant.organizationId)
+      .eq("user_id", user.id)
+      .eq("is_primary", true)
+      .is("deleted_at", null)
+      .maybeSingle<{ id: string }>(),
+    istoricSold(tenant.organizationId, an),
+    // Dreptul calculat de bază pentru fișa PRIVITORULUI (`app.drept_concediu`,
+    // 0193: contract + grile, × luni lucrate / 12) — aceeași cifră ca în
+    // portal, pentru tipurile fără rând de sold pe anul ales. Funcția își
+    // rezolvă singură fișa; un cont fără fișă primește zero rânduri.
+    drepturileMele(tenant.organizationId, an),
+  ]);
 
   const fisaProprie = fisaProprieRes.data;
+  const drepturiPrivitor = hartaDrepturi(drepturiProprii);
 
   // Implicit doar tipurile care scad din sold (în seed, doar odihna): lista
   // întreagă dădea 13 rânduri per angajat (UX-011). `?toate=1` le arată pe toate.
@@ -334,7 +384,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         />
       ) : scope === "own" ? (
         <TabelTipuri
-          randuri={imperecheazaSold(tipuriAfisate, solduri)}
+          randuri={imperecheazaSold(tipuriAfisate, solduri, drepturiPrivitor)}
           caption="Soldul de zile de concediu, pe tip."
         />
       ) : (
@@ -343,6 +393,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
           tipuri={tipuriAfisate}
           solduri={solduri}
           fisaProprie={fisaProprie?.id ?? null}
+          drepturiPrivitor={drepturiPrivitor}
           permisiuni={permisiuni}
         />
       )}
@@ -389,6 +440,7 @@ async function SectiuniPeAngajat({
   tipuri,
   solduri,
   fisaProprie,
+  drepturiPrivitor,
   permisiuni,
 }: {
   readonly organizationId: string;
@@ -396,6 +448,8 @@ async function SectiuniPeAngajat({
   readonly solduri: readonly SoldTip[];
   /** Fișa privitorului: secțiunea lui duce la „Cererile mele", nu la echipă. */
   readonly fisaProprie: string | null;
+  /** Dreptul calculat de bază, DOAR pentru fișa privitorului (v. `drepturileMele`). */
+  readonly drepturiPrivitor: ReadonlyMap<string, number>;
   readonly permisiuni: HartaPermisiuni;
 }) {
   const grupuri = grupeazaSoldDupaAngajat(solduri);
@@ -425,7 +479,13 @@ async function SectiuniPeAngajat({
     <div className="space-y-6">
       {idAngajati.map((employeeId) => {
         const angajat = hartaAngajati.get(employeeId);
-        const randuri = imperecheazaSold(tipuri, grupuri.get(employeeId) ?? []);
+        // Pentru ceilalți angajați baza nu expune dreptul calculat (portalul îl
+        // dă doar pentru sine), deci tipurile lor fără rând arată „—”.
+        const randuri = imperecheazaSold(
+          tipuri,
+          grupuri.get(employeeId) ?? [],
+          employeeId === fisaProprie ? drepturiPrivitor : undefined,
+        );
         // Secțiunea e ADRESABILĂ (`#angajat-<id>`): fișa angajatului și fișa
         // cererii pot trimite direct la soldul omului, nu la capul paginii.
         // Numele duce la fișă (per rând, prin RLS + drept), iar „cererile" la

@@ -18,6 +18,7 @@ import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { rotunjesteLaBani } from "@/domain/bani";
 import { formatLei } from "@/lib/format/money";
+import { textNumarat } from "@/lib/format/numar";
 import { formatOre, formatOreCuUnitate } from "@/lib/format/ore";
 import { formatMonthShort } from "@/lib/format/date";
 import { aniCuPerioade, statisticiAnuale } from "@/lib/queries/rapoarte";
@@ -357,7 +358,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             <Callout fel="informativ" titlu="Luni redeschise">
               {statistici.luniInCiorna.length === 1
                 ? `Luna ${formatMonthShort(statistici.luniInCiorna[0] ?? 1)} a fost redeschisă în ciornă: cifrele ei vechi nu intră în totalurile de mai jos și reapar la recalculare.`
-                : `${String(statistici.luniInCiorna.length)} luni au fost redeschise în ciornă (${statistici.luniInCiorna
+                : `${textNumarat(statistici.luniInCiorna.length, "lună", "luni")} au fost redeschise în ciornă (${statistici.luniInCiorna
                     .map(formatMonthShort)
                     .join(
                       ", ",

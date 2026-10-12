@@ -8,6 +8,7 @@ import { Lock, LockOpen, PlusCircle } from "lucide-react";
 import { Buton } from "@/components/ui/buton";
 import { ButonConfirmare } from "@/components/ui/buton-confirmare";
 import { formatMonthYear } from "@/lib/format/date";
+import { textNumarat } from "@/lib/format/numar";
 import type { StatusPerioada } from "@/schemas/attendance";
 import { blocheazaPerioada, deschidePerioada, redeschidePerioada } from "../actions";
 
@@ -37,7 +38,7 @@ interface Proprietati {
 function propozitiaNeaprobate(n: number): string {
   return n === 1
     ? "1 linie rămâne neaprobată și nu mai poate fi aprobată cât timp luna e blocată."
-    : `${String(n)} linii rămân neaprobate și nu mai pot fi aprobate cât timp luna e blocată.`;
+    : `${textNumarat(n, "linie", "linii")} rămân neaprobate și nu mai pot fi aprobate cât timp luna e blocată.`;
 }
 
 /** „2 zile respinse, necorectate — nu se plătesc” / „1 zi respinsă, …”. */

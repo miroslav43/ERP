@@ -127,6 +127,23 @@ describe("anuntaAprobareaZilelor", () => {
     );
   });
 
+  // QA oct 2026: o lună tipică are 21–23 de zile lucrate, deci „21 zile” era
+  // cazul obișnuit, nu o excepție. Peste 19, româna cere „de”.
+  it("peste 19 zile: acordul cu „de”", async () => {
+    const admin = clientFals();
+    admin.raspunde("employees", "select", { data: [{ id: ANGAJAT_B, user_id: USER_A }] });
+    admin.raspunde("notifications", "insert", { data: null });
+    const multe = Array.from({ length: 21 }, (_, i) => ({
+      id: `z${String(i)}`,
+      employee_id: ANGAJAT_B,
+    }));
+    await anuntaAprobareaZilelor(admin.client, ORG, LOT, multe, 2026, 10);
+    const [insert] = admin.apeluriPe("notifications", "insert");
+    expect((insert?.payload as { body: string }[])[0]?.body).toBe(
+      "21 de zile din octombrie 2026 au fost aprobate.",
+    );
+  });
+
   it("nicio linie ⇒ 0, fără nicio citire", async () => {
     const admin = clientFals();
     expect(await anuntaAprobareaZilelor(admin.client, ORG, LOT, [], 2026, 7)).toBe(0);

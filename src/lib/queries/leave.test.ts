@@ -29,6 +29,7 @@ import {
   configurareConcedii,
   coduriIndemnizatieMedicala,
   deAprobat,
+  dreptDinRand,
   grupeazaSoldDupaAngajat,
   imperecheazaSold,
   istoricSold,
@@ -353,6 +354,12 @@ describe("imperecheazaSold și grupeazaSoldDupaAngajat", () => {
     expect(imperecheazaSold([], [sold(FISA, "odihna")])).toEqual([]);
   });
 
+  it("primește dreptul calculat pe tip, când e dat", () => {
+    const randuri = imperecheazaSold([tip("odihna"), tip("studii")], [], new Map([["odihna", 5]]));
+    expect(randuri[0]?.dreptCalculat).toBe(5);
+    expect(randuri[1]?.dreptCalculat).toBeUndefined();
+  });
+
   it("grupează pe angajat, în ordinea primei apariții", () => {
     const a1 = sold("a", "odihna");
     const b1 = sold("b", "odihna");
@@ -370,9 +377,39 @@ describe("imperecheazaSold și grupeazaSoldDupaAngajat", () => {
     concediului de creștere a copilului nu se vedea ca rest. `/concedii` avea
     formula ei, inline; acum amândouă ecranele o cheamă pe aceasta.
   */
-  it("ramaseDinRand: fără rând de sold ⇒ zilele implicite ale tipului, ca cifră", () => {
-    const crestere: TipConcediu = { ...tip("crestere_copil"), zile_implicite: 730 };
+  it("ramaseDinRand: fără rând de sold, tip cu durată fixă ⇒ zilele implicite, ca cifră", () => {
+    const crestere: TipConcediu = {
+      ...tip("crestere_copil"),
+      zile_implicite: 730,
+      scade_din_sold: false,
+    };
     expect(ramaseDinRand({ tip: crestere, sold: null })).toBe(730);
+    expect(dreptDinRand({ tip: crestere, sold: null })).toBe(730);
+  });
+
+  /*
+    QA oct 2026: după 0193 dreptul de odihnă vine din zilele CONTRACTULUI plus
+    grile, × lunile lucrate / 12. Fără rând de sold, ecranul arăta implicitul
+    tipului (20/21) — un angajat cu 25 de zile pe contract, sau unul intrat în
+    octombrie (5 zile), vedea altă cifră decât portalul pentru același an.
+  */
+  it("ramaseDinRand: fără rând de sold, cu dreptul calculat de bază ⇒ dreptul calculat", () => {
+    const rand = { tip: tip("odihna"), sold: null, dreptCalculat: 5 };
+    expect(ramaseDinRand(rand)).toBe(5);
+    expect(dreptDinRand(rand)).toBe(5);
+  });
+
+  it("ramaseDinRand: fără rând și fără drept calculat, pe un tip care scade din sold ⇒ necunoscut, nu implicitul", () => {
+    const rand = { tip: { ...tip("odihna"), zile_implicite: 20 }, sold: null };
+    expect(ramaseDinRand(rand)).toBeNull();
+    expect(dreptDinRand(rand)).toBeNull();
+  });
+
+  it("ramaseDinRand: rândul de sold bate dreptul calculat", () => {
+    const s: SoldTip = { ...sold(FISA, "odihna"), drept_anual: 21, ramase: 9 };
+    const rand = { tip: tip("odihna"), sold: s, dreptCalculat: 5 };
+    expect(ramaseDinRand(rand)).toBe(9);
+    expect(dreptDinRand(rand)).toBe(21);
   });
 
   it("ramaseDinRand: `ramase` lipsă ⇒ drept + reportate − folosite − în așteptare", () => {
