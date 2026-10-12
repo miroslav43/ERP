@@ -8,6 +8,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
+import { BandaFile, Fila } from "@/components/ui/file";
 import { Scadenta } from "@/components/ui/scadenta";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
@@ -15,7 +16,7 @@ import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
-import { idDinRuta } from "@/lib/rute/parametri";
+import { filtreDinUrl, idDinRuta } from "@/lib/rute/parametri";
 import {
   alocarileVehiculului,
   angajatiPentruAlocare,
@@ -29,7 +30,9 @@ import {
   urlSemnateFlota,
 } from "@/lib/queries/fleet";
 import { tipSeAplica, tipuriObligatoriiPentru } from "@/domain/fleet/scadente";
+import { PRAG_SALT_IMPLICIT_KM } from "@/domain/fleet/setari";
 import { tipuriPentruDocument } from "@/domain/fleet/tipuri-document";
+import { filtreServiceSchema } from "@/schemas/fleet-service";
 import type { AlocareVehicul, DocumentVehicul, TipDocument } from "@/lib/queries/fleet";
 
 import {
@@ -40,11 +43,14 @@ import {
   stareScadenta,
   TONURI_STATUS_VEHICUL,
 } from "../etichete";
+import { ETICHETE_ANVELOPE } from "../etichete-service";
 import { ButonStergeAlocare } from "./buton-sterge-alocare";
 import { ButonStergeDocument } from "./buton-sterge-document";
 import { DialogAlocare } from "./dialog-alocare";
 import { DialogIncheieAlocare } from "./dialog-incheie-alocare";
 import { ButonStergeVehicul } from "./buton-sterge-vehicul";
+import { FilaCosturi } from "./fila-costuri";
+import { FilaService } from "./fila-service";
 import { DialogDocument } from "./dialog-document";
 import { DialogDocumentNou } from "./dialog-document-nou";
 import { DialogKilometraj } from "./dialog-kilometraj";
@@ -60,6 +66,7 @@ export const metadata: Metadata = { title: "Fișa vehiculului" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 /**
@@ -78,7 +85,7 @@ interface RandDocument {
   readonly obligatoriu: boolean;
 }
 
-export default async function PaginaVehicul({ params }: ProprietatiPagina) {
+export default async function PaginaVehicul({ params, searchParams }: ProprietatiPagina) {
   // Un segment care nu e UUID nu poate desemna niciun rând: 404, nu 22P02.
   const id = idDinRuta((await params).id);
 
@@ -106,6 +113,13 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   // ce cere `vehicule_update` în bază. O poartă mai largă aici ar lăsa un rol să
   // apese butonul și să fie respins tăcut, cu zero rânduri și mesaj de reușită.
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
+  // Filele Service și Costuri (0200): planurile, intervențiile și cheltuielile se
+  // citesc cu `vehicles:read >= team` ȘI vehiculul vizibil (`vsp_select` etc.).
+  // Șoferul (`own`) nu le vede, deci nici fila nu i se oferă; un `?fila=` scris
+  // de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un ecran gol.
+  const poateVedeaService = can(permisiuni, "vehicles:read", "team");
+  const filtreFila = filtreDinUrl(filtreServiceSchema, await searchParams);
+  const fila = poateVedeaService ? filtreFila.fila : null;
 
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
   const [documente, nomenclator, alocari, angajati, departamente, pragFirma] = await Promise.all([
@@ -603,6 +617,13 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
             },
             { eticheta: "Culoare", valoare: vehicul.culoare },
             {
+              eticheta: "Anvelope montate",
+              valoare:
+                vehicul.anvelope_montate === null
+                  ? null
+                  : ETICHETE_ANVELOPE[vehicul.anvelope_montate],
+            },
+            {
               // „implicit” NU e o valoare lipsă: pragul chiar se aplică, doar că
               // vine din setările flotei (0198). De aceea nu se lasă pe `null`.
               eticheta: "Prag salt kilometraj",
@@ -620,117 +641,161 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         />
       </section>
 
-      {/* Coloana `observatii` exista din 0012 și era citită de `citesteVehicul`,
+      {poateVedeaService ? (
+        <BandaFile eticheta="Secțiunile fișei vehiculului">
+          <Fila href={`/flota/${vehicul.id}`} activ={fila === null}>
+            Detalii
+          </Fila>
+          <Fila href={`/flota/${vehicul.id}?fila=service`} activ={fila === "service"}>
+            Service
+          </Fila>
+          <Fila href={`/flota/${vehicul.id}?fila=costuri`} activ={fila === "costuri"}>
+            Costuri
+          </Fila>
+        </BandaFile>
+      ) : null}
+
+      {fila === "service" ? (
+        <FilaService
+          organizationId={tenant.organizationId}
+          vehiculId={vehicul.id}
+          kmCurent={vehicul.km_curent}
+          pragSalt={vehicul.prag_salt_km ?? pragFirma ?? PRAG_SALT_IMPLICIT_KM}
+          azi={azi}
+          poateAdministra={poateAdministra}
+          vehiculInParc={vehiculInParc}
+          cursor={filtreFila.cursor}
+        />
+      ) : null}
+      {fila === "costuri" ? (
+        <FilaCosturi
+          organizationId={tenant.organizationId}
+          vehiculId={vehicul.id}
+          azi={azi}
+          perioada={filtreFila.perioada}
+          poateAdministra={poateAdministra}
+          cursor={filtreFila.cursor}
+        />
+      ) : null}
+
+      {fila === null ? (
+        <>
+          {/* Coloana `observatii` exista din 0012 și era citită de `citesteVehicul`,
           dar niciun ecran n-o arăta și niciun formular n-o scria — moartă în
           ambele sensuri. Secțiune proprie, nu rubrică în `ListaDefinitii`: acolo
           sunt patru coloane, iar un text liber de două rânduri le rupe grila. */}
-      {vehicul.observatii === null ? null : (
-        <section aria-labelledby="observatii" className="border-border rounded-panou border p-4">
-          <h2 id="observatii" className="text-corp mb-2 font-semibold">
-            Observații
-          </h2>
-          <p className="text-corp whitespace-pre-line">{vehicul.observatii}</p>
-        </section>
-      )}
-
-      <section aria-labelledby="alocari" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="alocari" className="text-sectiune font-semibold">
-            Alocări
-          </h2>
-          {poateAdministra && vehiculInParc ? (
-            <DialogAlocare
-              vehiculId={vehicul.id}
-              kmCurent={vehicul.km_curent}
-              soferCurent={
-                alocareDeschisa === undefined ? null : (alocareDeschisa.sofer?.full_name ?? "—")
-              }
-              angajati={angajati}
-            />
-          ) : null}
-        </div>
-        <p className="text-muted-foreground text-corp">
-          {vehicul.pool ? (
-            "Mașină comună (pool): se poate folosi fără alocare fixă."
-          ) : alocareDeschisa === undefined ? (
-            "Vehiculul nu are acum șofer alocat."
-          ) : (
-            <>
-              Șofer acum:{" "}
-              <LinkEntitate
-                href={hrefFisa(
-                  alocareDeschisa.sofer === null
-                    ? null
-                    : {
-                        id: alocareDeschisa.employee_id,
-                        deleted_at: alocareDeschisa.sofer.deleted_at,
-                      },
-                  permisiuni,
-                )}
-              >
-                {alocareDeschisa.sofer?.full_name ?? "—"}
-              </LinkEntitate>
-              , din {formatDateTime(new Date(alocareDeschisa.de_la))}.
-            </>
+          {vehicul.observatii === null ? null : (
+            <section
+              aria-labelledby="observatii"
+              className="border-border rounded-panou border p-4"
+            >
+              <h2 id="observatii" className="text-corp mb-2 font-semibold">
+                Observații
+              </h2>
+              <p className="text-corp whitespace-pre-line">{vehicul.observatii}</p>
+            </section>
           )}
-        </p>
-        <Tabel
-          caption="Cine a avut vehiculul, de când până când, cu kilometrajul la predare și la restituire."
-          coloane={coloaneAlocari}
-          randuri={alocari}
-          cheieRand={(a) => a.id}
-          gol={
+
+          <section aria-labelledby="alocari" className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="alocari" className="text-sectiune font-semibold">
+                Alocări
+              </h2>
+              {poateAdministra && vehiculInParc ? (
+                <DialogAlocare
+                  vehiculId={vehicul.id}
+                  kmCurent={vehicul.km_curent}
+                  soferCurent={
+                    alocareDeschisa === undefined ? null : (alocareDeschisa.sofer?.full_name ?? "—")
+                  }
+                  angajati={angajati}
+                />
+              ) : null}
+            </div>
             <p className="text-muted-foreground text-corp">
-              Nicio alocare înregistrată pentru acest vehicul.
+              {vehicul.pool ? (
+                "Mașină comună (pool): se poate folosi fără alocare fixă."
+              ) : alocareDeschisa === undefined ? (
+                "Vehiculul nu are acum șofer alocat."
+              ) : (
+                <>
+                  Șofer acum:{" "}
+                  <LinkEntitate
+                    href={hrefFisa(
+                      alocareDeschisa.sofer === null
+                        ? null
+                        : {
+                            id: alocareDeschisa.employee_id,
+                            deleted_at: alocareDeschisa.sofer.deleted_at,
+                          },
+                      permisiuni,
+                    )}
+                  >
+                    {alocareDeschisa.sofer?.full_name ?? "—"}
+                  </LinkEntitate>
+                  , din {formatDateTime(new Date(alocareDeschisa.de_la))}.
+                </>
+              )}
             </p>
-          }
-        />
-      </section>
+            <Tabel
+              caption="Cine a avut vehiculul, de când până când, cu kilometrajul la predare și la restituire."
+              coloane={coloaneAlocari}
+              randuri={alocari}
+              cheieRand={(a) => a.id}
+              gol={
+                <p className="text-muted-foreground text-corp">
+                  Nicio alocare înregistrată pentru acest vehicul.
+                </p>
+              }
+            />
+          </section>
 
-      <section aria-labelledby="documente" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="documente" className="text-sectiune font-semibold">
-            Documente
-          </h2>
-          {poateScrie ? <DialogDocumentNou vehiculId={vehicul.id} tipuri={tipuri} /> : null}
-        </div>
-        <Tabel
-          caption="Documentele vehiculului — obligatoriile întâi, apoi cele opționale — cu starea fiecărei scadențe."
-          coloane={coloaneDocumente}
-          randuri={randuriDocumente}
-          cheieRand={(rand) => rand.tip.id}
-          gol={
-            <p className="text-muted-foreground text-corp">
-              Nomenclatorul de documente e gol: niciun tip de completat.
-            </p>
-          }
-        />
+          <section aria-labelledby="documente" className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="documente" className="text-sectiune font-semibold">
+                Documente
+              </h2>
+              {poateScrie ? <DialogDocumentNou vehiculId={vehicul.id} tipuri={tipuri} /> : null}
+            </div>
+            <Tabel
+              caption="Documentele vehiculului — obligatoriile întâi, apoi cele opționale — cu starea fiecărei scadențe."
+              coloane={coloaneDocumente}
+              randuri={randuriDocumente}
+              cheieRand={(rand) => rand.tip.id}
+              gol={
+                <p className="text-muted-foreground text-corp">
+                  Nomenclatorul de documente e gol: niciun tip de completat.
+                </p>
+              }
+            />
 
-        {poateScrie ? null : (
-          <p className="text-muted-foreground text-corp">
-            Documentele se adaugă de către cei care administrează parcul auto.
-          </p>
-        )}
-      </section>
+            {poateScrie ? null : (
+              <p className="text-muted-foreground text-corp">
+                Documentele se adaugă de către cei care administrează parcul auto.
+              </p>
+            )}
+          </section>
 
-      {istoric.length === 0 ? null : (
-        <section aria-labelledby="istoric-documente" className="space-y-3">
-          <h2 id="istoric-documente" className="text-sectiune font-semibold">
-            Istoricul documentelor
-          </h2>
-          <p className="text-muted-foreground text-corp">
-            Documentele înlocuite la reînnoire. Rămân aici, cu scanarea lor, ca dovadă pentru
-            perioada în care au fost valabile.
-          </p>
-          <Tabel
-            caption="Documentele anterioare ale vehiculului, cele mai noi primele."
-            coloane={coloaneIstoric}
-            randuri={istoric}
-            cheieRand={(d) => d.id}
-            gol={null}
-          />
-        </section>
-      )}
+          {istoric.length === 0 ? null : (
+            <section aria-labelledby="istoric-documente" className="space-y-3">
+              <h2 id="istoric-documente" className="text-sectiune font-semibold">
+                Istoricul documentelor
+              </h2>
+              <p className="text-muted-foreground text-corp">
+                Documentele înlocuite la reînnoire. Rămân aici, cu scanarea lor, ca dovadă pentru
+                perioada în care au fost valabile.
+              </p>
+              <Tabel
+                caption="Documentele anterioare ale vehiculului, cele mai noi primele."
+                coloane={coloaneIstoric}
+                randuri={istoric}
+                cheieRand={(d) => d.id}
+                gol={null}
+              />
+            </section>
+          )}
+        </>
+      ) : null}
       {/* Cine a schimbat obiectul ăsta: jurnalul de audit, filtrat pe rândul lui (doar cu audit:read). */}
       <IstoricModificari tenant={tenant} entityId={vehicul.id} />
     </div>
