@@ -941,3 +941,18 @@ export const filtreAutorizatiiSchema = z.object({
   limita: z.coerce.number().int().min(5).max(100).default(25),
 });
 export type FiltreAutorizatii = z.output<typeof filtreAutorizatiiSchema>;
+
+// ── Rapoarte (M8) ────────────────────────────────────────────────────────
+
+/**
+ * Perioada raportului `/mentenanta/rapoarte` și a exportului lui CSV, capetele
+ * incluse. Lipsa = ultimele 12 luni; capetele inversate, viitorul și perioadele
+ * prea lungi le îndreaptă `normalizeazaPerioada` (`domain/maintenance/indicatori`),
+ * care și spune ce a îndreptat. O dată invalidă (`2026-02-31`) cade aici, iar
+ * `filtreDinUrl` revine la implicit.
+ */
+export const filtreRapoarteSchema = z.object({
+  de_la: optional(z.iso.date()),
+  pana_la: optional(z.iso.date()),
+});
+export type FiltreRapoarte = z.output<typeof filtreRapoarteSchema>;
