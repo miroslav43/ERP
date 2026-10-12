@@ -4,6 +4,7 @@ import { ArrowLeft, BookMarked, Download, FileText } from "lucide-react";
 import { requireFeature } from "@/lib/auth/features";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format/date";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -28,7 +29,11 @@ export default async function PaginaDocumenteAngajat({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  // 404 pentru un segment care nu e UUID, consecvent cu fișa: înainte, 22P02
+  // era înghițit de `const { data: angajat }` de mai jos și pagina răspundea
+  // „Fișa nu e accesibilă" — un refuz fals pentru o adresă care nu există.
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.

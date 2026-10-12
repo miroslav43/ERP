@@ -10,12 +10,21 @@
 import { escapeHtml } from "@/lib/email/templates/layout";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate, formatDateTime } from "@/lib/format/date";
+import { esteIdDeRuta } from "@/lib/rute/parametri";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 
 export const dynamic = "force-dynamic";
 
 const raspunsText = (mesaj: string, status: number): Response =>
   new Response(mesaj, { status, headers: { "content-type": "text/plain; charset=utf-8" } });
+
+/**
+ * Un singur text pentru „nu există" și „nu e UUID": formatul nevalid trebuie
+ * să fie indistinct de rândul inexistent. Înainte, un `[id]` care nu era UUID
+ * ajungea la Postgres, 22P02 cădea în ramura de eroare și ruta răspundea 500 —
+ * aceeași clasă ca `/documente/abc` (PRM-003).
+ */
+const MESAJ_NEGASIT = "Nu există încă o adeverință pentru acest curs.";
 
 interface Lectie {
   readonly ordine?: number;
@@ -44,6 +53,7 @@ export async function GET(
   { params }: { readonly params: Promise<{ readonly id: string }> },
 ): Promise<Response> {
   const { id } = await params;
+  if (!esteIdDeRuta(id)) return raspunsText(MESAJ_NEGASIT, 404);
 
   const rezolvare = await resolveTenant();
   if (rezolvare.status === "neautentificat")
@@ -62,9 +72,7 @@ export async function GET(
     .eq("organization_id", rezolvare.tenant.organizationId)
     .maybeSingle();
   if (error !== null) return raspunsText("Adeverința nu a putut fi citită.", 500);
-  if (dovada === null) {
-    return raspunsText("Nu există încă o adeverință pentru acest curs.", 404);
-  }
+  if (dovada === null) return raspunsText(MESAJ_NEGASIT, 404);
 
   const continut = (dovada.continut ?? {}) as Continut;
   const lectii = continut.lectii ?? [];

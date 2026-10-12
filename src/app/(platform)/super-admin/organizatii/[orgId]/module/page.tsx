@@ -6,6 +6,7 @@ import { buton } from "@/components/ui/buton";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { SELECT_PROFIL, numeAfisat, type RandProfil } from "../../../_lib/platform";
 import { ComutatorModul } from "./comutator-modul";
 import { ComutatorToate } from "./comutator-toate";
@@ -48,7 +49,8 @@ type RandActivare = Readonly<{
 
 export default async function PaginaModule({ params }: { params: Promise<{ orgId: string }> }) {
   await requirePlatformAdmin();
-  const { orgId } = await params;
+  const { orgId: orgIdBrut } = await params;
+  const orgId = idDinRuta(orgIdBrut);
   const supabase = await createServerSupabase();
 
   const [rezOrg, rezModule, rezActivari] = await Promise.all([

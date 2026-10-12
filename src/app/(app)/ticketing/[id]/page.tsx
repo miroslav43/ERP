@@ -11,6 +11,7 @@ import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import {
   citesteTichetul,
@@ -147,7 +148,10 @@ export default async function PaginaTichet({ params, searchParams }: Proprietati
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta tichetele." />;
   }
 
-  const { id } = await params;
+  // Numărul afișat pe tichet (`IT-2026-00004`) nu e id: adresa cu el dă 404,
+  // ca orice segment care nu e UUID (ADM-043).
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const tichet = await citesteTichetul(id);
   // RLS-ul a filtrat deja: dacă nu se vede, pentru utilizator nu există.
   if (tichet === null) notFound();

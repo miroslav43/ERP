@@ -4,6 +4,7 @@ import { RotateCw, ShieldCheck } from "lucide-react";
 
 import { buton } from "@/components/ui/buton";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { ETICHETE_ROL, ROLURI_APLICATIE, type RolAplicatie } from "@/schemas/membership";
 
@@ -31,7 +32,8 @@ function cheieCelula(permisiune: string, rol: RolAplicatie): string {
 
 export default async function PaginaPermisiuni({ params }: { params: Promise<{ orgId: string }> }) {
   await requirePlatformAdmin();
-  const { orgId } = await params;
+  const { orgId: orgIdBrut } = await params;
+  const orgId = idDinRuta(orgIdBrut);
   const supabase = await createServerSupabase();
 
   const [rezOrg, rezImplicite, rezSuprascrise] = await Promise.all([

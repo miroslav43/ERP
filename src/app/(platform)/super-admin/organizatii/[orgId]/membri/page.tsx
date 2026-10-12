@@ -8,6 +8,7 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
+import { idDinRuta } from "@/lib/rute/parametri";
 import {
   ETICHETE_ROL,
   ETICHETE_STATUS_MEMBRU,
@@ -45,7 +46,8 @@ const CLASA_ANTET =
 
 export default async function PaginaMembri({ params }: { params: Promise<{ orgId: string }> }) {
   const actor = await requirePlatformAdmin();
-  const { orgId } = await params;
+  const { orgId: orgIdBrut } = await params;
+  const orgId = idDinRuta(orgIdBrut);
   const supabase = await createServerSupabase();
   const acum = new Date().toISOString();
 

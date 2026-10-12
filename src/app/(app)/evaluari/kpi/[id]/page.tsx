@@ -23,6 +23,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { citesteLunaKpi } from "@/lib/queries/kpi";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 
 import { ETICHETE_STATUS_KPI, TONURI_STATUS_KPI, numeLuna, tonKpi } from "../etichete";
 import { FormularLuna } from "./formular-luna";
@@ -51,7 +52,8 @@ export default async function PaginaLunaKpi({ params }: ProprietatiPagina) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta evaluările." />;
   }
 
-  const { id } = await params;
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const luna = await citesteLunaKpi(tenant.organizationId, id);
   if (luna === null) notFound();
 

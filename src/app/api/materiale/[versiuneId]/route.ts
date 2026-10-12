@@ -23,6 +23,7 @@
 
 import { createServerSupabase } from "@/lib/supabase/server";
 import { BUCKET_CURSURI } from "@/lib/media/cale";
+import { esteIdDeRuta } from "@/lib/rute/parametri";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 
 export const runtime = "nodejs";
@@ -42,12 +43,20 @@ const TIP_FORTAT: Readonly<Record<string, string>> = {
 const raspunsText = (mesaj: string, status: number): Response =>
   new Response(mesaj, { status, headers: { "content-type": "text/plain; charset=utf-8" } });
 
+/**
+ * Un singur text pentru „nu există" și „nu e UUID": formatul nevalid trebuie
+ * să fie indistinct de rândul inexistent. Înainte, `/api/materiale/abc` ajungea
+ * la Postgres, 22P02 cădea în ramura de eroare și ruta răspundea 500 (PRM-003).
+ */
+const MESAJ_NEGASIT = "Materialul nu a fost găsit.";
+
 interface ProprietatiRuta {
   readonly params: Promise<{ readonly versiuneId: string }>;
 }
 
 export async function GET(cerere: Request, { params }: ProprietatiRuta): Promise<Response> {
   const { versiuneId } = await params;
+  if (!esteIdDeRuta(versiuneId)) return raspunsText(MESAJ_NEGASIT, 404);
   const url = new URL(cerere.url);
   const vreaSubtitrarea = url.searchParams.get("subtitrare") === "1";
 
@@ -68,7 +77,7 @@ export async function GET(cerere: Request, { params }: ProprietatiRuta): Promise
     .is("deleted_at", null)
     .maybeSingle();
   if (error !== null) return raspunsText("Materialul nu a putut fi citit.", 500);
-  if (versiune === null) return raspunsText("Materialul nu a fost găsit.", 404);
+  if (versiune === null) return raspunsText(MESAJ_NEGASIT, 404);
 
   const cale = vreaSubtitrarea ? versiune.subtitrare_path : versiune.fisier_path;
   if (cale === null) return raspunsText("Materialul nu are un fișier încărcat.", 404);

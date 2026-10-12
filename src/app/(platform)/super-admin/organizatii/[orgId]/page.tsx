@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { buton } from "@/components/ui/buton";
 import { cn } from "@/lib/ui/cn";
 import { formatDateTime } from "@/lib/format/date";
+import { idDinRuta } from "@/lib/rute/parametri";
 import { formateazaCui } from "@/domain/organization/cui";
 import {
   InsignaPlan,
@@ -41,7 +42,11 @@ export default async function PaginaFisaOrganizatie({
 }: {
   params: Promise<{ orgId: string }>;
 }) {
-  const { orgId } = await params;
+  // `fisaOrganizatiei` își păstrează `idOrganizatieSchema.parse` ca apărare
+  // în adâncime; aici doar formatul, ca `/organizatii/abc` să fie 404, nu
+  // ZodError ieșit în `error.tsx`.
+  const { orgId: orgIdBrut } = await params;
+  const orgId = idDinRuta(orgIdBrut);
   const fisa = await fisaOrganizatiei(orgId);
   if (!fisa) notFound();
 

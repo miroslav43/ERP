@@ -24,6 +24,7 @@ import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { evaluariAngajat, listeazaSabloane } from "@/lib/queries/evaluari";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
 import {
   ETICHETE_STATUS_EVALUARE,
   TONURI_STATUS_EVALUARE,
@@ -153,7 +154,8 @@ function StareGoala({ mesaj }: { readonly mesaj: string }) {
 }
 
 export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
-  const { id } = await params;
+  const { id: idBrut } = await params;
+  const id = idDinRuta(idBrut);
   const utilizator = await requireUser();
   const { tenant } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două

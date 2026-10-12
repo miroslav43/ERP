@@ -80,6 +80,21 @@ describe("GET /documente/[id]", () => {
     server.raspunde("hr_issued_documents", "select", { data: null });
     const r = await cere();
     expect(r.status).toBe(404);
+    expect(await r.text()).toBe("Documentul nu a fost găsit sau nu îți este accesibil.");
+    expect(falsuriPdf.antetOrganizatie).not.toHaveBeenCalled();
+  });
+
+  it("un id care nu e UUID: 404 cu textul rândului lipsă, FĂRĂ interogare (PRM-003)", async () => {
+    // Azi șirul brut ajungea la Postgres, 22P02 cădea în ramura `error` și
+    // ruta răspundea 500. Formatul nevalid trebuie să fie indistinct de rândul
+    // inexistent: același text, același cod.
+    const { server } = configureazaActiunea();
+    const r = await GET(new Request("https://app.test/documente/abc"), {
+      params: Promise.resolve({ id: "abc" }),
+    });
+    expect(r.status).toBe(404);
+    expect(await r.text()).toBe("Documentul nu a fost găsit sau nu îți este accesibil.");
+    expect(server.apeluri).toHaveLength(0);
     expect(falsuriPdf.antetOrganizatie).not.toHaveBeenCalled();
   });
 
