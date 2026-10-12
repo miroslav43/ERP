@@ -35,6 +35,7 @@ import { ButonStergePeFoaie } from "@/app/(app)/flota/foi/[id]/buton-sterge-pe-f
 import { DialogAlimentare } from "@/app/(app)/flota/foi/[id]/dialog-alimentare";
 import { DialogAntetFoaie } from "@/app/(app)/flota/foi/[id]/dialog-antet-foaie";
 import { SectiuneCurse } from "@/app/(app)/flota/foi/[id]/sectiune-curse";
+import { SoferulFoii } from "@/app/(app)/flota/foi/[id]/soferul-foii";
 
 import { FaraFisa } from "../../../fara-fisa";
 
@@ -219,6 +220,16 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
           </Callout>
         );
       })}
+
+      {/* ── flota F9 (0201): verificările șoferului și legătura cu deplasarea ── */}
+      <SoferulFoii
+        organizationId={tenant.organizationId}
+        foaie={foaie}
+        curse={curse}
+        editabil={editabil}
+        permisiuni={permisiuni}
+        bazaDeplasare="/portal/diurna-mea"
+      />
 
       <SectiuneCurse
         foaieId={foaie.id}

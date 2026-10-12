@@ -89,6 +89,15 @@ export const MATRICE: readonly RandMatrice[] = [
     eticheta: "Parc auto",
     domenii: { org_admin: "all", hr: "none", manager: "team", employee: "own" },
   },
+  // ── ÎNCEPUT BLOC: permisele șoferilor (0201, flota F9) ──
+  // Cheie proprie: HR le administrează fără să vadă parcul (rândurile de
+  // deasupra rămân „—” pentru hr), managerul vede echipa, angajatul permisul lui.
+  {
+    resursa: "driver_licenses",
+    eticheta: "Permise de conducere",
+    domenii: { org_admin: "all", hr: "all", manager: "team", employee: "own" },
+  },
+  // ── SFÂRȘIT BLOC: permisele șoferilor ──
   {
     resursa: "compliance",
     eticheta: "Scadențe de conformitate",

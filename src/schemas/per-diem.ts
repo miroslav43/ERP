@@ -191,7 +191,8 @@ export const deplasareNouaSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["vehicle_id"],
-        message: "Vehiculul de serviciu se alege doar pentru transportul cu auto de serviciu sau mixt.",
+        message:
+          "Vehiculul de serviciu se alege doar pentru transportul cu auto de serviciu sau mixt.",
       });
     }
     if (valoare.avans_acordat > 0 && valoare.moneda_avans === null) {

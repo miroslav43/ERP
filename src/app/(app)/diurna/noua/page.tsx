@@ -12,6 +12,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
 import { baremeleTarilor, politicaLaData, politiciOrganizatie, tari } from "@/lib/queries/per-diem";
+import { vehiculePentruDeplasare } from "@/lib/queries/soferi";
 
 import { FormularDeplasare } from "./formular-deplasare";
 
@@ -32,7 +33,7 @@ export default async function PaginaDeplasareNoua({
   const angajatBrut = (await searchParams)["angajat"];
   const angajatCerut =
     typeof angajatBrut === "string" && /^[0-9a-f-]{36}$/i.test(angajatBrut) ? angajatBrut : null;
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -100,7 +101,7 @@ export default async function PaginaDeplasareNoua({
   const db = await createServerSupabase();
 
   // Baremurile chiar depind de lista de țări; angajații, nu. Un val, nu două.
-  const [baremuri, angajatiRes] = await Promise.all([
+  const [baremuri, angajatiRes, vehicule] = await Promise.all([
     baremeleTarilor(listaTari.map((t) => t.id)),
     poateAlegeAngajat
       ? db
@@ -112,6 +113,11 @@ export default async function PaginaDeplasareNoua({
           .order("full_name")
           .returns<AngajatMinim[]>()
       : null,
+    // Flota F9 (0201): mașina de serviciu a deplasării.
+    vehiculePentruDeplasare(tenant.organizationId, user.id, {
+      poateVedeaVehicule: can(permisiuni, "vehicles:read", "own"),
+      pentruOricine: poateAlegeAngajat,
+    }),
   ]);
 
   const angajati: readonly AngajatMinim[] | null = angajatiRes?.data ?? null;
@@ -135,6 +141,7 @@ export default async function PaginaDeplasareNoua({
             : null
         }
         hrefPolitica={can(permisiuni, "per_diem:update", "all") ? "/diurna/politica" : null}
+        vehicule={vehicule}
       />
     </div>
   );

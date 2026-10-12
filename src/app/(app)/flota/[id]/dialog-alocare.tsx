@@ -25,7 +25,11 @@ interface Proprietati {
   readonly vehiculId: string;
   readonly kmCurent: number;
   readonly soferCurent: string | null;
-  readonly angajati: readonly OptiuneAngajat[];
+  /**
+   * `avertisment` (flota F9, 0201): eticheta scurtă a verificărilor șoferului
+   * („permis expirat, aviz lipsă”), lângă nume. Nu-l scoate din listă.
+   */
+  readonly angajati: readonly (OptiuneAngajat & Readonly<{ avertisment?: string | null }>)[];
 }
 
 export function DialogAlocare({
@@ -84,6 +88,7 @@ export function DialogAlocare({
                   <option key={ang.id} value={ang.id}>
                     {ang.full_name}
                     {ang.marca === null ? "" : ` (${ang.marca})`}
+                    {ang.avertisment == null ? "" : ` — ${ang.avertisment}`}
                   </option>
                 ))}
               </select>

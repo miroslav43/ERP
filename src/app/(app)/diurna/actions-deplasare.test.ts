@@ -553,7 +553,9 @@ describe("vehiculul deplasării", () => {
     admin.raspunde("employees", "select", { data: { id: ID_2 } });
     server.raspunde("business_trips", "insert", { data: { id: ID_1 } });
 
-    const r = await creeazaDeplasare(deplasare({ mijloc_transport: "auto_serviciu", vehicle_id: ID_3 }));
+    const r = await creeazaDeplasare(
+      deplasare({ mijloc_transport: "auto_serviciu", vehicle_id: ID_3 }),
+    );
     await asteaptaDupa();
 
     expect(r).toEqual({ ok: true, data: { id: ID_1 } });
@@ -571,7 +573,9 @@ describe("vehiculul deplasării", () => {
 
     await creeazaDeplasare(deplasare({ mijloc_transport: "auto_serviciu", vehicle_id: "" }));
 
-    expect(server.apeluriPe("business_trips", "insert")[0]?.payload).toMatchObject({ vehicle_id: null });
+    expect(server.apeluriPe("business_trips", "insert")[0]?.payload).toMatchObject({
+      vehicle_id: null,
+    });
   });
 
   it("vehiculul pe tren: VALIDARE pe `vehicle_id`, nimic scris", async () => {

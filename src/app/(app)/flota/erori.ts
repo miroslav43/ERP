@@ -246,7 +246,11 @@ export function traduEroarePermis(error: unknown): never {
  * refuz al gărzii ține de selectorul de deplasare.
  */
 export function traduEroareDeplasare(error: unknown): never {
-  if (isPostgrestError(error) && error.code === "P0001" && /^Deplasarea aleasă/u.test(error.message)) {
+  if (
+    isPostgrestError(error) &&
+    error.code === "P0001" &&
+    /^Deplasarea aleasă/u.test(error.message)
+  ) {
     const mesaj = error.message.slice(0, 300);
     throw invalidInput(mesaj, { business_trip_id: [mesaj] });
   }

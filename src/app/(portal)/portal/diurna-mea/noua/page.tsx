@@ -12,12 +12,13 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { baremeleTarilor, politicaLaData, tari } from "@/lib/queries/per-diem";
+import { vehiculePentruDeplasare } from "@/lib/queries/soferi";
 import { FormularDeplasare } from "@/app/(app)/diurna/noua/formular-deplasare";
 
 export const metadata: Metadata = { title: "Deplasare nouă" };
 
 export default async function PaginaDeplasareNouaPortal() {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
@@ -53,7 +54,14 @@ export default async function PaginaDeplasareNouaPortal() {
   }
 
   const listaTari = await tari();
-  const baremuri = await baremeleTarilor(listaTari.map((t) => t.id));
+  const [baremuri, vehicule] = await Promise.all([
+    baremeleTarilor(listaTari.map((t) => t.id)),
+    // Flota F9 (0201): mașina alocată și pool-ul, ca mașină de serviciu.
+    vehiculePentruDeplasare(tenant.organizationId, user.id, {
+      poateVedeaVehicule: can(permisiuni, "vehicles:read", "own"),
+      pentruOricine: false,
+    }),
+  ]);
 
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
@@ -70,6 +78,7 @@ export default async function PaginaDeplasareNouaPortal() {
         baremuri={baremuri}
         angajati={null}
         prefixCale="/portal/diurna-mea"
+        vehicule={vehicule}
       />
 
       <p>

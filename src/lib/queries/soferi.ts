@@ -10,6 +10,9 @@
 import "server-only";
 
 import { createServerSupabase } from "@/lib/supabase/server";
+import { getEnabledFeatures } from "@/lib/auth/features";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { listeazaVehicule, vehicululMeu } from "@/lib/queries/fleet";
 import type { FapteSofer, VehiculPentruPermis } from "@/domain/fleet/soferi";
 import type { CategorieVehicul } from "@/schemas/fleet";
 
@@ -68,25 +71,35 @@ export async function verificariSoferi(
   for (let i = 0; i < unici.length; i += PLAFON_FAPTE)
     loturi.push(unici.slice(i, i + PLAFON_FAPTE));
 
-  // `.returns<FapteSofer[]>()`: generatorul tipează coloanele unui `returns
-  // table` ca NON-null (nu poate deduce nullabilitatea), deși `concediu`,
-  // `permis_expira_la`, `aviz` și `delegatie` sunt `null` des. Tipul scris de
-  // mână e cel adevărat; proba `proba-flota-soferi.sql` (11)–(14) îl fixează.
+  // Generatorul tipează coloanele unui `returns table` ca NON-null (nu poate
+  // deduce nullabilitatea), deși `concediu`, `permis_expira_la`, `aviz` și
+  // `delegatie` sunt des `null`. Copierea în `FapteSofer` LĂRGEȘTE tipul la
+  // cel adevărat; proba `proba-flota-soferi.sql` (11)–(14) îl fixează.
   const rezultate = await Promise.all(
     loturi.map((lot) =>
-      db
-        .rpc("verificari_soferi", {
-          p_organization_id: organizationId,
-          p_employee_ids: lot,
-          p_zi: zi,
-        })
-        .returns<FapteSofer[]>(),
+      db.rpc("verificari_soferi", {
+        p_organization_id: organizationId,
+        p_employee_ids: lot,
+        p_zi: zi,
+      }),
     ),
   );
   const harta = new Map<string, FapteSofer>();
   for (const { data, error } of rezultate) {
     if (error !== null) throw error;
-    for (const r of data) harta.set(r.employee_id, r);
+    for (const r of data ?? []) {
+      const fapte: FapteSofer = {
+        employee_id: r.employee_id,
+        concediu: r.concediu,
+        contract_incetat: r.contract_incetat,
+        permis_exista: r.permis_exista,
+        permis_expira_la: r.permis_expira_la,
+        permis_categorii: r.permis_categorii,
+        aviz: r.aviz,
+        delegatie: r.delegatie,
+      };
+      harta.set(r.employee_id, fapte);
+    }
   }
   return harta;
 }
@@ -205,4 +218,53 @@ export async function deplasareaFoii(
       numar_document: null,
     }
   );
+}
+
+export interface VehiculDeplasare {
+  readonly id: string;
+  readonly nr_inmatriculare: string;
+  readonly marca: string;
+  readonly model: string;
+}
+
+/**
+ * Vehiculele din care se alege mașina de serviciu a unei deplasări noi (F9).
+ *
+ * Cu flota oprită sau fără `vehicles:read`, lista e goală și formularul nu
+ * arată selectorul. Cine creează deplasări pentru oricine (`per_diem:create =
+ * all`) alege din tot parcul activ; restul, din mașina alocată lui și din
+ * pool — exact mulțimea pe care o poate și conduce. Garda de firmă rămâne
+ * `internal.valideaza_deplasare` (0159).
+ */
+export async function vehiculePentruDeplasare(
+  organizationId: string,
+  userId: string,
+  optiuni: Readonly<{ poateVedeaVehicule: boolean; pentruOricine: boolean }>,
+): Promise<readonly VehiculDeplasare[]> {
+  if (!optiuni.poateVedeaVehicule) return [];
+  const moduleActive = await getEnabledFeatures(organizationId);
+  if (!moduleActive.has("fleet")) return [];
+
+  const reduce = (v: Readonly<VehiculDeplasare>): VehiculDeplasare => ({
+    id: v.id,
+    nr_inmatriculare: v.nr_inmatriculare,
+    marca: v.marca,
+    model: v.model,
+  });
+
+  if (optiuni.pentruOricine) {
+    const parcul = await listeazaVehicule(organizationId, {
+      status: "activ",
+      categorie: null,
+      conformitate: null,
+      cauta: null,
+      cursor: null,
+      limita: 100,
+    });
+    return parcul.randuri.map(reduce);
+  }
+  const fisaId = await idFisaProprie(organizationId, userId);
+  if (fisaId === null) return [];
+  const { alocate, pool } = await vehicululMeu(organizationId, fisaId);
+  return [...alocate, ...pool].map(reduce);
 }

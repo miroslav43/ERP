@@ -3,6 +3,9 @@ import "server-only";
 
 import { listeazaVehicule, vehicululMeu } from "@/lib/queries/fleet";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { todayInBucharest } from "@/lib/format/date";
+
+import { cuAvertismente } from "../avertismente-optiuni";
 
 import type { DateFoaieNoua } from "./dialog-foaie-noua";
 
@@ -97,10 +100,11 @@ export async function dateFoaieNoua(
       nr_inmatriculare: v.nr_inmatriculare,
       km_curent: v.km_curent,
     })),
-    angajati: angajati.data.map((a) => ({
-      id: a.id,
-      full_name: a.full_name,
-      marca: a.marca,
-    })),
+    // Flota F9 (0201): verificările de azi (permis, aviz, concediu) lângă nume.
+    angajati: await cuAvertismente(
+      organizationId,
+      angajati.data.map((a) => ({ id: a.id, full_name: a.full_name, marca: a.marca })),
+      todayInBucharest(),
+    ),
   };
 }
