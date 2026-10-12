@@ -25,6 +25,7 @@ import {
   tipuriDocument,
   listeazaFoi,
   anomaliiNeconfirmate,
+  setariFlota,
 } from "@/lib/queries/fleet";
 import type { AlocareVehicul, DocumentVehicul, TipDocument } from "@/lib/queries/fleet";
 
@@ -101,7 +102,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
 
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
-  const [documente, tipuri, alocari, angajati, departamente] = await Promise.all([
+  const [documente, tipuri, alocari, angajati, departamente, setari] = await Promise.all([
     documenteleVehiculului(vehicul.id),
     tipuriDocument(),
     alocarileVehiculului(tenant.organizationId, vehicul.id),
@@ -110,6 +111,8 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
     poateAdministra || vehicul.department_id !== null
       ? departamentePentruVehicul(tenant.organizationId)
       : Promise.resolve([]),
+    // Pragul de salt al firmei (0198), afișat când vehiculul n-are unul propriu.
+    vehicul.prag_salt_km === null ? setariFlota(tenant.organizationId) : Promise.resolve(null),
   ]);
   const departamentVehicul =
     vehicul.department_id === null
@@ -511,11 +514,13 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
             { eticheta: "Culoare", valoare: vehicul.culoare },
             {
               // „implicit” NU e o valoare lipsă: pragul chiar se aplică, doar că
-              // vine din setările flotei. De aceea nu se lasă pe `null`.
+              // vine din setările flotei (0198). De aceea nu se lasă pe `null`.
               eticheta: "Prag salt kilometraj",
               valoare:
                 vehicul.prag_salt_km === null
-                  ? "implicit, din setările flotei"
+                  ? setari === null
+                    ? "implicit, din setările flotei"
+                    : `${setari.prag_salt_km.toLocaleString("ro-RO")} km, din setările flotei`
                   : `${vehicul.prag_salt_km.toLocaleString("ro-RO")} km`,
             },
             ...(vehicul.motiv_iesire === null

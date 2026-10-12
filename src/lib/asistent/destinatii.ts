@@ -836,6 +836,21 @@ const INTRARI: readonly Intrare[] = [
       "Rutele pe care mașinile firmei le fac des, din care șoferii își adaugă cursele pe foaia de parcurs.",
   },
   // ═══ SFÂRȘIT BLOC: flota, șabloanele de traseu (0197) ═══
+  // ═══ ÎNCEPUT BLOC: flota, setările (0198) ═══
+  {
+    id: "flota.setari",
+    href: "/flota/setari",
+    eticheta: "Setări parc auto",
+    zona: "app",
+    parinte: "flota",
+    fila: "Setări",
+    featureKey: "fleet",
+    permission: "vehicles:update",
+    minScope: "all",
+    descriere:
+      "Responsabilii de flotă care primesc alertele de scadență și foile de aprobat, zilele de dinainte de expirare la care pleacă alertele și pragul de salt al kilometrajului.",
+  },
+  // ═══ SFÂRȘIT BLOC: flota, setările (0198) ═══
 
   // ── Mentenanță ─────────────────────────────────────────────────────────────
   {

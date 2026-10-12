@@ -107,6 +107,14 @@ const RUTE: readonly Ruta[] = [
     poarta: "fleet · vehicles:read own (org_admin all, manager team din 0196; hr nimic)",
     asteptari: { org_admin: CONTINUT, hr: ACCES, manager: CONTINUT },
   },
+  // ── început bloc: setările flotei (0198) ──
+  {
+    cale: "/flota/setari",
+    titlu: "Setări parc auto",
+    poarta: "fleet · vehicles:update all (doar org_admin; cere 0198 aplicată)",
+    asteptari: DOAR_ADMIN,
+  },
+  // ── sfârșit bloc: setările flotei (0198) ──
   {
     cale: "/inventar",
     titlu: "Inventar",

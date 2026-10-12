@@ -16,6 +16,9 @@ export const FILE_FLOTA: readonly FilaModul[] = [
   { href: "/flota/anomalii", eticheta: "Anomalii de kilometraj" },
   // 0197: rutele recurente; fila apare doar pentru `trip_sheets:update = all`.
   { href: "/flota/foi/sabloane", eticheta: "Șabloane de traseu" },
+  // 0198: responsabilii, pragul de salt și pragurile de alertă; fila apare doar
+  // pentru `vehicles:update = all`, poarta politicilor `fleet_settings`.
+  { href: "/flota/setari", eticheta: "Setări" },
 ];
 
 export function fileEvaluari(contoare: Readonly<{ sabloane?: number }> = {}): readonly FilaModul[] {

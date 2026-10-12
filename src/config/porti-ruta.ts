@@ -122,6 +122,9 @@ export const PORTI_APP: readonly PoartaRuta[] = [
   p("/flota/foi", "fleet", "trip_sheets:read"),
   p("/flota/foi/[id]", "fleet", "trip_sheets:read"),
   p("/flota/foi/sabloane", "fleet", "trip_sheets:update", "all"),
+  // ── început bloc: setările flotei (0198) ──
+  p("/flota/setari", "fleet", "vehicles:update", "all"),
+  // ── sfârșit bloc: setările flotei (0198) ──
   p("/inventar", "inventory", "inventory:read"),
   p("/inventar/[id]", "inventory", "inventory:read"),
   p("/inventar/[id]/pv/[alocare]", "inventory", "inventory:read"),
