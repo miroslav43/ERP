@@ -542,7 +542,8 @@ export const stergeFisier = createAction({
   revalidate: ["/mentenanta", "/mentenanta/sesizari", "/portal/sesizari"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // Ștergere LOGICĂ a rândului; obiectul din bucket rămâne (documentele
-    // legale nu se șterg fizic) și îl curăță jobul zilnic dacă nu mai e legat.
+    // legale nu se șterg fizic). Nici jobul zilnic, nici `curataOrfaniiEntitatii`
+    // nu-l ating: un rând șters logic ține obiectul în viață.
     const db = await createServerSupabase();
     const { data, error } = await db
       .from("maintenance_attachments")
@@ -648,6 +649,8 @@ export const salveazaSetariMentenanta = createAction({
       "ore_functionare_pe_zi",
       "zile_pe_saptamana",
       "cost_ora_oprire",
+      // 0191: decizia omului care schimbă alertele întregii firme.
+      "praguri_alerta_zile",
     ],
   },
   revalidate: ["/mentenanta", "/mentenanta/setari"],

@@ -32,6 +32,7 @@ vi.mock("@/lib/auth/permissions", async (orig) =>
 );
 
 import {
+  asteaptaDupa,
   caiRevalidate,
   configureazaActiunea,
   ID_1,
@@ -828,6 +829,19 @@ describe("salveazaSetariMentenanta", () => {
     expect(server.apeluriPe("maintenance_settings", "insert")[0]?.payload).toMatchObject({
       praguri_alerta_zile: [30, 14, 7],
     });
+  });
+
+  it("auditul acțiunii poartă pragurile noi, normalizate", async () => {
+    const { server } = configureazaActiunea({ permisiuni: SETARI });
+    server.raspunde("maintenance_settings", "select", { data: { id: ID_2 } });
+    server.raspunde("maintenance_settings", "update", { data: { id: ID_2 } });
+
+    await salveazaSetariMentenanta({ praguri_alerta_zile: ["7", "60"] });
+    await asteaptaDupa();
+
+    const [audit] = server.audituri();
+    expect(audit).toMatchObject({ p_status: "success" });
+    expect(audit?.p_after).toMatchObject({ praguri_alerta_zile: [60, 7] });
   });
 
   it.each([
