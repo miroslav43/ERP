@@ -7,6 +7,7 @@ cai:
   - "src/app/(app)/mentenanta/echipamente/[id]/formular-iscir.tsx"
   - "src/app/(app)/mentenanta/echipamente/[id]/precompletare-plan.ts"
   - "src/app/api/export/mentenanta/verificari/route.ts"
+  - "src/lib/pdf/dosar-control.ts"
   - "src/domain/maintenance/iscir.ts"
   - "src/domain/maintenance/legal.ts"
   - "supabase/migrations/0193_mentenanta_iscir_conformitate.sql"
@@ -20,7 +21,7 @@ citeste_daca:
   - "autorizația nu se mai modifică sau „Reînnoiește” e refuzat → „Ce refuză baza tăcut”"
   - "cifra ISCIR de pe panou nu bate cu lista → „Semaforul”"
   - "periodicitatea sau temeiul unei verificări legale → „Categoriile legale”"
-scris_pe: 1987444ae9a1397966ee1ad7d32fc285402c9d79
+scris_pe: 001123dfc714dfabf666bf8fbc4979ddf5a96b61
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -42,8 +43,11 @@ expirat sau suspendat = roșu peste tot (fișă, listă, panou), fără refuz (c
 | fișa echipamentului, secțiunea `#iscir` | gesturile: `maintenance:update` team |
 
 Lista arată doar autorizațiile CURENTE; rândul duce la fișa echipamentului, unde stau
-gesturile. „Dosar de control (CSV)” = autorizațiile curente + planurile active
-`verificare_legala`, cu temeiul; exportul e auditat (`log_audit_event`).
+gesturile. „Dosar de control” = autorizațiile curente + planurile active
+`verificare_legala`, cu temeiul categoriei (emitentul stă la observații): PDF cu
+`?format=pdf` (`src/lib/pdf/dosar-control.ts`, bloc pe rând, fără număr de registru —
+e o situație internă la zi), CSV implicit. Liniile le compune o singură dată
+`iscir/dosar-control.ts`, pentru ambele formate; exportul e auditat (`log_audit_event`).
 
 ## Server Actions
 
@@ -97,6 +101,8 @@ categorie pe un plan cu alt tip.
   INVOKER: politicile apelantului se aplică întocmai; managerul primește 42501, cine nu
   vede rândul — P0001 „nu vă este accesibilă”.
 - **Ștergerea logică a reînnoirii readuce rândul vechi** (trigger AFTER), cu scadențele lui.
+  Dacă numărul rândului vechi a fost dat între timp altei autorizații curente, ștergerea
+  e refuzată cu P0001 (pasul următor în mesaj), nu cu 23505 de la index — proba (10).
 - **`reactivata_la` o pune garda** la ridicarea suspendării; motivul rămâne, ca istoric.
   Suspendarea cere motiv ≥ 5 caractere și nu poate fi în viitor — doar la TRANZIȚIE,
   rândurile vechi suspendate fără motiv rămân valide.
