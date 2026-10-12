@@ -185,13 +185,23 @@ describe("creeazaSesizare", () => {
 describe("cautaEchipament", () => {
   it("un UUID caută exact rândul, cu clientul admin filtrat pe organizație (prefill din QR)", async () => {
     const { server, admin } = configureazaActiunea({ rol: "employee", permisiuni: SESIZARE });
-    const rand = { id: ID_1, cod: "BT-1", denumire: "Bandă", locatie: "Hala 1" };
+    const rand = {
+      id: ID_1,
+      cod: "BT-1",
+      denumire: "Bandă",
+      locatie: "Hala 1",
+      garantie_expira: null,
+    };
     admin.raspunde("equipment", "select", { data: rand });
     admin.raspunde("fault_reports", "select", { data: [] });
+    admin.raspunde("maintenance_interventions", "select", { data: [] });
 
     const r = await cautaEchipament({ q: ` ${ID_1.toUpperCase()} ` });
 
-    expect(r).toEqual({ ok: true, data: [{ ...rand, sesizare_deschisa: null }] });
+    expect(r).toEqual({
+      ok: true,
+      data: [{ ...rand, sesizare_deschisa: null, garantie_lucrare: null }],
+    });
     expect(server.apeluriPe("equipment")).toHaveLength(0);
     const [apel] = admin.apeluriPe("equipment");
     expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
@@ -216,6 +226,7 @@ describe("cautaEchipament", () => {
     });
     // Vizibilitatea se întreabă cu clientul OMULUI: aici RLS îi arată sesizarea.
     server.raspunde("fault_reports", "select", { data: [{ id: ID_3 }] });
+    admin.raspunde("maintenance_interventions", "select", { data: [] });
 
     const r = await cautaEchipament({ q: "banda" });
 
@@ -247,6 +258,7 @@ describe("cautaEchipament", () => {
       data: [{ id: ID_3, numar: "SZ-2026-0003", equipment_id: ID_1 }],
     });
     server.raspunde("fault_reports", "select", { data: [] });
+    admin.raspunde("maintenance_interventions", "select", { data: [] });
 
     const r = await cautaEchipament({ q: "banda" });
     expect(r.ok).toBe(true);
@@ -256,6 +268,52 @@ describe("cautaEchipament", () => {
       numar: "SZ-2026-0003",
       vizibila: false,
     });
+  });
+
+  // M6, cazul 23: garanția reparației și a utilajului ajung în caseta de sesizare.
+  it("garanția: lucrarea în curs (cea mai lungă) și garanția utilajului neexpirată; cea expirată tace", async () => {
+    const { admin } = configureazaActiunea({ rol: "employee", permisiuni: SESIZARE });
+    admin.raspunde("equipment", "select", {
+      data: [
+        { id: ID_1, cod: "BT-1", denumire: "Bandă", locatie: null, garantie_expira: "2999-01-01" },
+        { id: ID_2, cod: "PR-2", denumire: "Presă", locatie: null, garantie_expira: "2001-01-01" },
+      ],
+    });
+    admin.raspunde("fault_reports", "select", { data: [] });
+    admin.raspunde("maintenance_interventions", "select", {
+      // Ordonate descrescător după termen, ca în interogare: primul câștigă.
+      data: [
+        {
+          numar: "PV-2026-0007",
+          data: "2026-09-01",
+          garantie_lucrare_pana: "2999-03-01",
+          equipment_id: ID_1,
+        },
+        {
+          numar: "PV-2026-0002",
+          data: "2026-02-01",
+          garantie_lucrare_pana: "2999-01-01",
+          equipment_id: ID_1,
+        },
+      ],
+    });
+
+    const r = await cautaEchipament({ q: "banda" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data[0]?.garantie_lucrare).toEqual({
+      numar: "PV-2026-0007",
+      data: "2026-09-01",
+      pana: "2999-03-01",
+    });
+    expect(r.data[0]?.garantie_expira).toBe("2999-01-01");
+    expect(r.data[1]?.garantie_lucrare).toBeNull();
+    expect(r.data[1]?.garantie_expira).toBeNull();
+    const [garantii] = admin.apeluriPe("maintenance_interventions");
+    expect(areFiltru(garantii, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(garantii, "in", "equipment_id", [ID_1, ID_2])).toBe(true);
+    expect(areFiltru(garantii, "is", "deleted_at", null)).toBe(true);
+    expect(garantii?.coloane).not.toContain("cost");
   });
 
   it("UUID fără rând (alt tenant sau șters): listă goală", async () => {

@@ -21,11 +21,7 @@ import {
   inchideOprireSchema,
   inchideSesizareSchema,
   inregistreazaOprireSchema,
-  LIMITA_DOCUMENT_MENTENANTA_BYTES,
-  LIMITA_FOTO_BYTES,
   MAXIM_FOTO_PE_SESIZARE,
-  MIME_DOCUMENT_MENTENANTA,
-  MIME_FOTO,
   pregatesteFisierSchema,
   redeschideSesizareSchema,
   retrageSesizareSchema,
@@ -35,6 +31,7 @@ import {
 } from "@/schemas/maintenance";
 
 import { traduEroare } from "../erori";
+import { caleSubEntitate, prefixCaleMentenanta, problemaFisier } from "../fisiere";
 
 // ── Ce e în fișierul ăsta ────────────────────────────────────────────────────
 //
@@ -321,26 +318,9 @@ export const comenteazaSesizare = createAction({
 
 // ── Atașamente: poze și documente ────────────────────────────────────────────
 
-function verificaFisier(entityType: string, mime: string, dimensiune: number): string | null {
-  const ePoza = entityType === "fault_report";
-  const acceptate: readonly string[] = ePoza ? MIME_FOTO : MIME_DOCUMENT_MENTENANTA;
-  if (!acceptate.includes(mime)) {
-    return ePoza
-      ? "Pe o sesizare se pun fotografii: JPG, PNG, WEBP sau HEIC."
-      : "Acceptăm fotografii (JPG, PNG, WEBP, HEIC), PDF sau Word.";
-  }
-  if (dimensiune <= 0) return "Fișierul selectat este gol.";
-  const limita = ePoza ? LIMITA_FOTO_BYTES : LIMITA_DOCUMENT_MENTENANTA_BYTES;
-  if (dimensiune > limita) {
-    return ePoza ? "Fotografia depășește 5 MB." : "Documentul depășește 25 MB.";
-  }
-  return null;
-}
-
-/** `{org}/{entity_type}/{entity_id}/` — forma cerută de `app.mentenanta_poate_fisier`. */
-function prefixCale(organizationId: string, entityType: string, entityId: string): string {
-  return `${organizationId}/${entityType}/${entityId}/`;
-}
+/** Regula de fișier și prefixul căii stau în `../fisiere.ts`, comune cu procesul-verbal al intervenției. */
+const verificaFisier = problemaFisier;
+const prefixCale = prefixCaleMentenanta;
 
 /**
  * De la ce vârstă un obiect fără rând în `maintenance_attachments` e orfan.
@@ -492,17 +472,25 @@ export const confirmaFisier = createAction({
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
     allow: ["entity_type", "entity_id", "tip", "denumire"],
   },
+  // Calea fișei se ia după ENTITATE: `entity_id` al unei intervenții nu e
+  // id de echipament (înainte de M6, documentul pus pe o intervenție
+  // revalida `/mentenanta/echipamente/<id-ul intervenției>`, o rută moartă).
   revalidate: (input) =>
     input.entity_type === "fault_report"
       ? CAI_SESIZARE(input.entity_id)
-      : [`/mentenanta/echipamente/${input.entity_id}`, "/mentenanta/interventii"],
+      : input.entity_type === "intervention"
+        ? [
+            "/mentenanta/interventii",
+            `/mentenanta/interventii/${input.entity_id}`,
+            `/mentenanta/interventii/${input.entity_id}/proces-verbal`,
+          ]
+        : [`/mentenanta/echipamente/${input.entity_id}`, "/mentenanta/interventii"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // Anti-traversal: calea trebuie să stea EXACT sub prefixul entității, fără
     // `..`, fără segmente goale. Fără asta, un client ar putea lega un rând de
     // un obiect din folderul altei entități.
     const prefix = prefixCale(ctx.tenant.organizationId, input.entity_type, input.entity_id);
-    const rest = input.cale.startsWith(prefix) ? input.cale.slice(prefix.length) : null;
-    if (rest === null || rest.length === 0 || rest.includes("/") || rest.includes("..")) {
+    if (!caleSubEntitate(input.cale, prefix)) {
       throw invalidInput("Calea fișierului nu corespunde entității.", {});
     }
 

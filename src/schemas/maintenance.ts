@@ -170,6 +170,11 @@ export const filtreInterventiiSchema = z.object({
   rezultat: optional(z.enum(REZULTATE_INTERVENTIE)),
   echipament: optional(z.uuid()),
   plan: optional(z.uuid()),
+  /** Executantul-angajat (fișa). Executanții externi n-au fișă, deci n-au filtru. */
+  executant: optional(z.uuid()),
+  /** Perioada, pe `data` intervenției, capetele incluse (M6). */
+  de_la: optional(z.iso.date()),
+  pana_la: optional(z.iso.date()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
   sort: optional(z.string().max(40)),
@@ -479,13 +484,121 @@ const campuriInterventie = z.object({
   oprire_minute: z.coerce.number().int().min(0).nullable().default(null),
   citire_contor: z.coerce.number().min(0).nullable().default(null),
   observatii: z.string().trim().max(2000).nullable().default(null),
+  // M6 (0192): documentul furnizorului și garanția LUCRĂRII.
+  numar_document_furnizor: z.string().trim().max(80).nullable().default(null),
+  garantie_lucrare_pana: z.iso.date().nullable().default(null),
+  acoperit_de_garantie: z.boolean().default(false),
 });
 
-export const interventieNouaSchema = campuriInterventie.extend({
-  plan_id: z.uuid().nullable().default(null),
-  equipment_id: z.uuid("Echipamentul selectat nu este valid."),
+/** Tipurile de atașament care țin loc de proces-verbal la o verificare legală (cazul 34). */
+export const TIPURI_ATASAMENT_PV = ["pv", "buletin"] as const;
+
+/** Tipurile alese la încărcarea unui document pe intervenție. */
+export const TIPURI_ATASAMENT_INTERVENTIE = ["pv", "buletin", "factura", "altele"] as const;
+export type TipAtasamentInterventie = (typeof TIPURI_ATASAMENT_INTERVENTIE)[number];
+
+type CampuriInterventieValidate = Readonly<{
+  data: string;
+  executant_employee_id: string | null;
+  executant_extern: string | null;
+  garantie_lucrare_pana: string | null;
+}>;
+
+/**
+ * Regulile comune ale unei intervenții, pe câmpurile deja normalizate.
+ *
+ * `executantObligatoriu`: o intervenție înregistrată sau corectată de
+ * gestionar spune EXACT cine a lucrat — un angajat SAU o firmă externă, nu
+ * amândouă și nu niciunul (cazul 33). Rezolvarea rapidă a unei sesizări îl
+ * lasă gol, iar acțiunea pune fișa celui care rezolvă; acolo se refuză doar
+ * „amândouă”.
+ */
+function valideazaInterventie(executantObligatoriu: boolean) {
+  return (v: CampuriInterventieValidate, ctx: z.RefinementCtx): void => {
+    const angajat = v.executant_employee_id !== null;
+    const extern = v.executant_extern !== null && v.executant_extern.length > 0;
+    if (angajat && extern) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["executant_extern"],
+        message: "Alegeți fie un angajat, fie o firmă externă, nu amândouă.",
+      });
+    } else if (executantObligatoriu && !angajat && !extern) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["executant_employee_id"],
+        message: "Spuneți cine a făcut intervenția: un angajat sau o firmă externă.",
+      });
+    }
+    if (v.garantie_lucrare_pana !== null && v.garantie_lucrare_pana < v.data) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["garantie_lucrare_pana"],
+        message: "Garanția lucrării nu se poate termina înaintea intervenției.",
+      });
+    }
+  };
+}
+
+/**
+ * Documentul urcat ÎNAINTE de înregistrare (procesul-verbal, buletinul):
+ * calea e sub `{org}/intervention/{id}/`, cu `id` generat în browser.
+ */
+export const atasamentInterventieSchema = z.object({
+  cale: z.string().min(3).max(400),
+  denumire: z.string().trim().min(1).max(200),
+  tip: z.enum(TIPURI_ATASAMENT_INTERVENTIE).default("pv"),
 });
+export type AtasamentInterventieInput = z.output<typeof atasamentInterventieSchema>;
+
+export const interventieNouaSchema = campuriInterventie
+  .extend({
+    /** Generat în browser când se urcă un document înaintea intervenției. */
+    id: z.uuid("Identificatorul intervenției nu este valid.").nullable().default(null),
+    plan_id: z.uuid().nullable().default(null),
+    equipment_id: z.uuid("Echipamentul selectat nu este valid."),
+    atasament: atasamentInterventieSchema.nullable().default(null),
+  })
+  .superRefine((v, ctx) => {
+    valideazaInterventie(true)(v, ctx);
+    if (v.atasament !== null && v.id === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["id"],
+        message: "Documentul urcat are nevoie de identificatorul intervenției.",
+      });
+    }
+  });
 export type InterventieNouaInput = z.output<typeof interventieNouaSchema>;
+
+/** Corectarea unei intervenții: aceleași câmpuri; planul, echipamentul și sesizarea rămân. */
+export const actualizeazaInterventieSchema = campuriInterventie
+  .extend({ id: z.uuid("Intervenția selectată nu este validă.") })
+  .superRefine(valideazaInterventie(true));
+export type ActualizeazaInterventieInput = z.output<typeof actualizeazaInterventieSchema>;
+
+export const anuleazaInterventieSchema = z.object({
+  id: z.uuid("Intervenția selectată nu este validă."),
+});
+
+export const piesaNouaSchema = z.object({
+  intervention_id: z.uuid("Intervenția selectată nu este validă."),
+  denumire: z.string().trim().min(1, "Scrieți denumirea piesei.").max(200),
+  cod: z.string().trim().max(80).nullable().default(null),
+  cantitate: z.coerce
+    .number("Cantitatea trebuie să fie un număr.")
+    .positive("Cantitatea trebuie să fie mai mare decât zero.")
+    .max(1_000_000, "Cantitatea e prea mare."),
+  unitate: z.string().trim().min(1).max(20).default("buc"),
+  pret_unitar: z.coerce
+    .number("Prețul trebuie să fie un număr.")
+    .min(0, "Prețul nu poate fi negativ.")
+    .max(100_000_000, "Prețul e prea mare.")
+    .default(0),
+});
+export type PiesaNouaInput = z.output<typeof piesaNouaSchema>;
+
+export const stergePiesaSchema = z.object({ id: z.uuid("Piesa selectată nu este validă.") });
 
 // ── Sesizări ────────────────────────────────────────────────────────────
 
@@ -539,11 +652,13 @@ export type TriazaSesizareInput = z.output<typeof trieazaSesizareSchema>;
  * utilajul): momentul în care echipamentul a funcționat din nou. `null` =
  * acum. `nota_rezolvare` e ce vede raportorul în notificare.
  */
-export const rezolvaSesizareSchema = campuriInterventie.extend({
-  id: z.uuid("Sesizarea selectată nu este validă."),
-  repus_in_functiune_la: z.iso.datetime({ offset: true }).nullable().default(null),
-  nota_rezolvare: z.string().trim().max(2000).nullable().default(null),
-});
+export const rezolvaSesizareSchema = campuriInterventie
+  .extend({
+    id: z.uuid("Sesizarea selectată nu este validă."),
+    repus_in_functiune_la: z.iso.datetime({ offset: true }).nullable().default(null),
+    nota_rezolvare: z.string().trim().max(2000).nullable().default(null),
+  })
+  .superRefine(valideazaInterventie(false));
 export type RezolvaSesizareInput = z.output<typeof rezolvaSesizareSchema>;
 
 // ── Sesizări: fluxul complet (0181) ─────────────────────────────────────────

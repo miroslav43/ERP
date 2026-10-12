@@ -34,6 +34,10 @@ import {
   echipamenteDupaId,
   interventii,
   listeazaEchipamente,
+  optiuniPlanuriActive,
+  piesePeInterventie,
+  PLAFON_TOTAL_INTERVENTII,
+  totalInterventii,
   numarScadenteMentenanta,
   planuriEchipament,
   planuriScadente,
@@ -390,6 +394,116 @@ describe("interventii și sesizari (liste keyset)", () => {
       expect(areFiltru(apel, "eq", "urgenta", "critica")).toBe(true);
       expect(areFiltru(apel, "eq", "equipment_id", ID_2)).toBe(true);
     }
+  });
+});
+
+// ── M6: filtrele noi, totalul din subsol, piesele ──────────────────────────
+describe("intervenții — M6", () => {
+  const filtreM6 = filtreInterventiiSchema.parse({
+    executant: ID_2,
+    de_la: "2026-01-01",
+    pana_la: "2026-06-30",
+  });
+
+  it("executantul și perioada ajung pe pagina de date ȘI pe numărătoare", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("maintenance_interventions", "select", { data: [] });
+    server.raspunde("maintenance_interventions", "select", { count: 0 });
+
+    await interventii(ORG_ID, filtreM6);
+
+    const apeluri = server.apeluriPe("maintenance_interventions");
+    expect(apeluri).toHaveLength(2);
+    for (const apel of apeluri) {
+      expect(areFiltru(apel, "eq", "executant_employee_id", ID_2)).toBe(true);
+      expect(areFiltru(apel, "gte", "data", "2026-01-01")).toBe(true);
+      expect(areFiltru(apel, "lte", "data", "2026-06-30")).toBe(true);
+    }
+  });
+
+  it("felia fixă de pe fișe (fără filtrele M6) nu primește filtre goale", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("maintenance_interventions", "select", { data: [] });
+    server.raspunde("maintenance_interventions", "select", { count: 0 });
+    await interventii(ORG_ID, {
+      tip: null,
+      rezultat: null,
+      echipament: ID_1,
+      plan: null,
+      cursor: null,
+      limita: 50,
+    });
+    for (const apel of server.apeluriPe("maintenance_interventions")) {
+      expect(apel.filtre.some((f) => f.metoda === "gte" || f.metoda === "lte")).toBe(false);
+      expect(areFiltru(apel, "eq", "executant_employee_id", ID_2)).toBe(false);
+    }
+  });
+
+  it("totalul: aceleași filtre, pagini keyset pe id, garanția separat", async () => {
+    const { server } = configureazaActiunea();
+    const pagina = Array.from({ length: 1000 }, (_, i) => ({
+      id: `a${String(i).padStart(4, "0")}`,
+      cost_total: 1,
+      acoperit_de_garantie: i < 10,
+    }));
+    server.raspunde("maintenance_interventions", "select", { data: pagina });
+    server.raspunde("maintenance_interventions", "select", {
+      data: [{ id: "b0001", cost_total: 2.5, acoperit_de_garantie: false }],
+    });
+
+    const t = await totalInterventii(ORG_ID, filtreM6);
+
+    expect(t).toEqual({ numar: 1001, costTotal: 1002.5, costInGarantie: 10, trunchiat: false });
+    const [prima, a2a] = server.apeluriPe("maintenance_interventions");
+    expect(areFiltru(prima, "gt", "id", "a0999")).toBe(false);
+    expect(areFiltru(a2a, "gt", "id", "a0999")).toBe(true);
+    for (const apel of [prima, a2a]) {
+      expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+      expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+      expect(areFiltru(apel, "eq", "executant_employee_id", ID_2)).toBe(true);
+      expect(areFiltru(apel, "gte", "data", "2026-01-01")).toBe(true);
+    }
+  });
+
+  it("peste plafon: cifra se oprește și spune `trunchiat`", async () => {
+    const { server } = configureazaActiunea();
+    const pagini = PLAFON_TOTAL_INTERVENTII / 1000;
+    for (let p = 0; p <= pagini; p += 1) {
+      server.raspunde("maintenance_interventions", "select", {
+        data: Array.from({ length: 1000 }, (_, i) => ({
+          id: `p${String(p)}-${String(i).padStart(4, "0")}`,
+          cost_total: 1,
+          acoperit_de_garantie: false,
+        })),
+      });
+    }
+    const t = await totalInterventii(ORG_ID, filtreM6);
+    expect(t.trunchiat).toBe(true);
+    expect(t.numar).toBe(PLAFON_TOTAL_INTERVENTII);
+  });
+
+  it("piesele: liniile vii ale intervenției, pe organizație, în ordinea adăugării", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("maintenance_intervention_parts", "select", { data: [{ id: ID_3 }] });
+    const r = await piesePeInterventie(ORG_ID, ID_1);
+    expect(r).toEqual([{ id: ID_3 }]);
+    const [apel] = server.apeluriPe("maintenance_intervention_parts");
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "eq", "intervention_id", ID_1)).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
+  });
+
+  it("planurile active pentru casetă: doar active, vii, pe organizație", async () => {
+    const { server } = configureazaActiunea();
+    server.raspunde("maintenance_plans", "select", {
+      data: [{ id: ID_1, denumire: "VTP", equipment_id: ID_2, tip: "verificare_legala" }],
+    });
+    const r = await optiuniPlanuriActive(ORG_ID);
+    expect(r).toEqual([{ id: ID_1, nume: "VTP", equipment_id: ID_2, tip: "verificare_legala" }]);
+    const [apel] = server.apeluriPe("maintenance_plans");
+    expect(areFiltru(apel, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(apel, "eq", "activ", true)).toBe(true);
+    expect(areFiltru(apel, "is", "deleted_at", null)).toBe(true);
   });
 });
 

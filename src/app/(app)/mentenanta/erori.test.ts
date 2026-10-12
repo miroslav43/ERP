@@ -55,6 +55,31 @@ describe("traduEroare (mentenanță)", () => {
     );
   });
 
+  // Mesajele gărzilor din 0192 (M6): încap întregi, cu numărul sesizării în ele.
+  it.each([
+    [
+      "Intervenția a rezolvat sesizarea SZ-2026-000123. Redeschideți întâi sesizarea SZ-2026-000123, apoi anulați intervenția.",
+    ],
+    [
+      "Intervenția a rezolvat sesizarea SZ-2026-000123, care e deja închisă: nu se mai poate anula. Corectați-o prin editare.",
+    ],
+    ["O intervenție anulată nu se mai reactivează. Înregistrați-o din nou, dacă a avut loc."],
+    [
+      "Echipamentul unei intervenții nu se schimbă. Anulați-o și înregistrați-o pe echipamentul corect.",
+    ],
+    ["Sesizarea de care ține o intervenție nu se schimbă prin editare."],
+    ["O linie de piese nu se mută pe altă intervenție. Ștergeți-o și adăugați-o acolo."],
+    [
+      "Intervenția nu există în această organizație sau a fost anulată. Piesele nu se mai pot modifica.",
+    ],
+  ])("P0001 din 0192 ajunge întreg: %s", (mesaj) => {
+    expect(mesaj.length).toBeLessThanOrEqual(300);
+    expect(prinde(() => traduEroare(eroarePostgrest("P0001", mesaj)))).toMatchObject({
+      code: "CONFLICT",
+      message: mesaj,
+    });
+  });
+
   it.each([["42501"], ["23503"], ["23514"], ["428C9"]])(
     "%s se aruncă mai departe, ca obiectul original",
     (cod) => {

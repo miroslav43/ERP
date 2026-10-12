@@ -174,6 +174,24 @@ export interface RandInterventie {
   readonly oprire_minute: number | null;
   readonly citire_contor: number | null;
   readonly observatii: string | null;
+  // M6 (0192)
+  readonly numar: string;
+  readonly fault_report_id: string | null;
+  readonly numar_document_furnizor: string | null;
+  readonly garantie_lucrare_pana: string | null;
+  readonly acoperit_de_garantie: boolean;
+}
+
+/** O linie de piese a unei intervenții (0192). `valoare` e GENERATĂ în bază. */
+export interface PiesaInterventie {
+  readonly id: string;
+  readonly intervention_id: string;
+  readonly denumire: string;
+  readonly cod: string | null;
+  readonly cantitate: number;
+  readonly unitate: string;
+  readonly pret_unitar: number;
+  readonly valoare: number | null;
 }
 
 export interface RezultatInterventii {
@@ -400,8 +418,15 @@ export type FiltreEchipamenteCitire = Omit<FiltreEchipamente, "sort"> & {
   readonly sort?: string | null;
 };
 
-export type FiltreInterventiiCitire = Omit<FiltreInterventii, "sort"> & {
+/** Filtrele noi din M6 (executant, perioadă) sunt opționale pentru felii fixe (fișe). */
+export type FiltreInterventiiCitire = Omit<
+  FiltreInterventii,
+  "sort" | "executant" | "de_la" | "pana_la"
+> & {
   readonly sort?: string | null;
+  readonly executant?: string | null;
+  readonly de_la?: string | null;
+  readonly pana_la?: string | null;
 };
 
 export type FiltreSesizariCitire = Omit<FiltreSesizari, "sort"> & {
@@ -416,7 +441,8 @@ const COLOANE_ECHIPAMENT_LISTA =
 const COLOANE_INTERVENTIE =
   "id, plan_id, equipment_id, tip, data, ora_start, durata_ore, executant_employee_id, " +
   "executant_extern, descriere, piese, cost_piese, cost_manopera, cost_total, rezultat, " +
-  "oprire_minute, citire_contor, observatii";
+  "oprire_minute, citire_contor, observatii, numar, fault_report_id, numar_document_furnizor, " +
+  "garantie_lucrare_pana, acoperit_de_garantie";
 
 const COLOANE_SESIZARE =
   "id, numar, equipment_id, raportat_de_employee_id, raportat_de_user_id, descriere, urgenta, " +
@@ -1191,6 +1217,38 @@ export async function ultimeleCitiriContor(
 
 // ── Intervenții ──────────────────────────────────────────────────────────
 
+/** Ce trebuie să aibă o interogare PostgREST ca să primească filtrele listei. */
+type FiltrabilInterventii<Q> = {
+  eq: (c: string, v: string) => Q;
+  is: (c: string, v: null) => Q;
+  gte: (c: string, v: string) => Q;
+  lte: (c: string, v: string) => Q;
+};
+
+/**
+ * Filtrele mulțimii de intervenții, scrise O SINGURĂ DATĂ pentru pagina de
+ * date, numărare și totalul din subsol: un subsol care ar uita un filtru ar
+ * aduna alte rânduri decât cele afișate, fără nicio eroare.
+ */
+function filtreazaInterventii<Q extends FiltrabilInterventii<Q>>(
+  q: Q,
+  organizationId: string,
+  filtre: FiltreInterventiiCitire,
+): Q {
+  let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+  if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+  if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
+  if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+  if (filtre.plan !== null) cu = cu.eq("plan_id", filtre.plan);
+  const executant = filtre.executant ?? null;
+  const deLa = filtre.de_la ?? null;
+  const panaLa = filtre.pana_la ?? null;
+  if (executant !== null) cu = cu.eq("executant_employee_id", executant);
+  if (deLa !== null) cu = cu.gte("data", deLa);
+  if (panaLa !== null) cu = cu.lte("data", panaLa);
+  return cu;
+}
+
 export async function interventii(
   organizationId: string,
   filtre: FiltreInterventiiCitire,
@@ -1210,21 +1268,8 @@ export async function interventii(
    * `listeazaEchipamente`: pe o singură interogare, `count` numără doar
    * rândurile de DUPĂ cursor, deci totalul scade cu fiecare pagină.
    */
-  const filtreaza = <
-    Q extends {
-      eq: (c: string, v: string) => Q;
-      is: (c: string, v: null) => Q;
-    },
-  >(
-    q: Q,
-  ): Q => {
-    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
-    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
-    if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
-    if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
-    if (filtre.plan !== null) cu = cu.eq("plan_id", filtre.plan);
-    return cu;
-  };
+  const filtreaza = <Q extends FiltrabilInterventii<Q>>(q: Q): Q =>
+    filtreazaInterventii(q, organizationId, filtre);
 
   let interogare = filtreaza(db.from("maintenance_interventions").select(COLOANE_INTERVENTIE))
     .order(coloana, { ascending: crescator, nullsFirst: false })
@@ -1286,6 +1331,125 @@ export async function citesteInterventie(
 
   if (error !== null) throw error;
   return data;
+}
+
+export interface OptiunePlan {
+  readonly id: string;
+  readonly nume: string;
+  readonly equipment_id: string;
+  readonly tip: TipMentenanta;
+}
+
+/**
+ * Planurile ACTIVE ale organizației, pentru caseta „Intervenție nouă” din
+ * listă: caseta le filtrează pe echipamentul ales, iar `tip` îi spune dacă
+ * PV-ul e obligatoriu (verificare legală). Plafon explicit, sub `max_rows`.
+ */
+export async function optiuniPlanuriActive(
+  organizationId: string,
+): Promise<readonly OptiunePlan[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_plans")
+    .select("id, denumire, equipment_id, tip")
+    .eq("organization_id", organizationId)
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .limit(LIMITA_OPTIUNI)
+    .returns<{ id: string; denumire: string; equipment_id: string; tip: TipMentenanta }[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    nume: p.denumire,
+    equipment_id: p.equipment_id,
+    tip: p.tip,
+  }));
+}
+
+/** Liniile de piese vii ale unei intervenții, în ordinea adăugării. */
+export async function piesePeInterventie(
+  organizationId: string,
+  interventionId: string,
+): Promise<readonly PiesaInterventie[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_intervention_parts")
+    .select("id, intervention_id, denumire, cod, cantitate, unitate, pret_unitar, valoare")
+    .eq("organization_id", organizationId)
+    .eq("intervention_id", interventionId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(200)
+    .returns<PiesaInterventie[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/** Câte rânduri adună subsolul listei, cel mult. Peste prag, cifra se marchează `trunchiat`. */
+export const PLAFON_TOTAL_INTERVENTII = 5000;
+const PAGINA_TOTAL_INTERVENTII = 1000;
+
+export interface TotalInterventii {
+  /** Intervențiile adunate (≤ plafon). */
+  readonly numar: number;
+  readonly costTotal: number;
+  /** Partea acoperită de garanție — se raportează separat (cazul 23). */
+  readonly costInGarantie: number;
+  /** Mulțimea filtrată are mai multe rânduri decât plafonul. */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Totalul costurilor pe mulțimea FILTRATĂ, pentru subsolul listei.
+ *
+ * Paginat keyset pe `id`, câte 1000: `max_rows = 1000` taie tăcut o citire
+ * mai lungă, iar un total fără toate rândurile e o cifră greșită fără eroare.
+ * Plafonul (5000) ține pagina rapidă; peste el, ecranul spune că cifra e
+ * parțială. Volumele reale sunt de zeci de rânduri pe an.
+ */
+export async function totalInterventii(
+  organizationId: string,
+  filtre: FiltreInterventiiCitire,
+): Promise<TotalInterventii> {
+  const db = await createServerSupabase();
+  let numar = 0;
+  let costTotal = 0;
+  let costInGarantie = 0;
+  let dupa: string | null = null;
+  for (;;) {
+    let q = filtreazaInterventii(
+      db.from("maintenance_interventions").select("id, cost_total, acoperit_de_garantie"),
+      organizationId,
+      filtre,
+    )
+      .order("id", { ascending: true })
+      .limit(PAGINA_TOTAL_INTERVENTII);
+    if (dupa !== null) q = q.gt("id", dupa);
+    const { data, error } =
+      await q.returns<{ id: string; cost_total: number | null; acoperit_de_garantie: boolean }[]>();
+    if (error !== null) throw error;
+    const randuri = data ?? [];
+    for (const r of randuri) {
+      if (numar >= PLAFON_TOTAL_INTERVENTII) {
+        return { numar, costTotal, costInGarantie, trunchiat: true };
+      }
+      numar += 1;
+      const cost = r.cost_total ?? 0;
+      costTotal += cost;
+      if (r.acoperit_de_garantie) costInGarantie += cost;
+    }
+    if (randuri.length < PAGINA_TOTAL_INTERVENTII) break;
+    dupa = randuri.at(-1)?.id ?? null;
+    if (dupa === null) break;
+  }
+  return {
+    numar,
+    costTotal: Math.round(costTotal * 100) / 100,
+    costInGarantie: Math.round(costInGarantie * 100) / 100,
+    trunchiat: false,
+  };
 }
 
 // ── Sesizări ────────────────────────────────────────────────────────────

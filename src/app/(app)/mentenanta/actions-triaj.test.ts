@@ -31,7 +31,15 @@ vi.mock("@/lib/auth/permissions", async (orig) =>
   (await import("@/lib/teste/actiune")).falsuri.permissions(await orig()),
 );
 
-import { caiRevalidate, configureazaActiunea, ID_1, ID_2, ID_3, ORG_ID } from "@/lib/teste/actiune";
+import {
+  caiRevalidate,
+  configureazaActiunea,
+  ID_1,
+  ID_2,
+  ID_3,
+  ORG_ID,
+  USER_ID,
+} from "@/lib/teste/actiune";
 import { areFiltru, eroarePostgrest } from "@/lib/teste/supabase-fals";
 import { rezolvaSesizare, trieazaSesizare } from "./actions";
 
@@ -52,6 +60,7 @@ const rezolvare = {
   ora_start: "09:30",
   durata_ore: "1.5",
   descriere: "Înlocuit rulmentul.",
+  executant_extern: "Service Rapid SRL",
   cost_piese: "120",
   cost_manopera: "80",
   rezultat: "reusita",
@@ -452,5 +461,66 @@ describe("rezolvaSesizare", () => {
 
     expect(r.ok).toBe(false);
     expect(server.apeluriPe("maintenance_interventions", "update")).toHaveLength(1);
+  });
+});
+
+// ── M6: executantul rezolvării rapide și verificarea legală (cazurile 33, 34) ──
+describe("rezolvaSesizare — executantul și tipul (M6)", () => {
+  const faraExecutant = { ...rezolvare, executant_extern: null };
+
+  function sesizareInLucru(server: ReturnType<typeof configureazaActiunea>["server"]): void {
+    server.raspunde("fault_reports", "select", {
+      data: { id: ID_1, equipment_id: ID_2, status: "in_lucru" },
+    });
+  }
+
+  it("fără executant: se pune fișa principală a celui care rezolvă („executant = eu”)", async () => {
+    const { server } = configureazaActiunea({ rol: "employee", permisiuni: REZOLVA });
+    sesizareInLucru(server);
+    server.raspunde("employees", "select", { data: { id: ID_3 } });
+    server.raspunde("maintenance_interventions", "insert", { data: { id: ID_3 } });
+    server.raspunde("fault_reports", "update", { data: { id: ID_1 } });
+
+    const r = await rezolvaSesizare(faraExecutant);
+
+    expect(r.ok).toBe(true);
+    const [fisa] = server.apeluriPe("employees");
+    expect(areFiltru(fisa, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "user_id", USER_ID)).toBe(true);
+    expect(areFiltru(fisa, "eq", "is_primary", true)).toBe(true);
+    expect(areFiltru(fisa, "is", "deleted_at", null)).toBe(true);
+    const [interventie] = server.apeluriPe("maintenance_interventions");
+    expect(interventie?.payload).toMatchObject({
+      executant_employee_id: ID_3,
+      executant_extern: null,
+    });
+  });
+
+  it("fără executant și fără fișă (patronul): VALIDARE, nicio intervenție", async () => {
+    const { server } = configureazaActiunea({ permisiuni: REZOLVA });
+    sesizareInLucru(server);
+    server.raspunde("employees", "select", { data: null });
+
+    const r = await rezolvaSesizare(faraExecutant);
+
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (!r.ok) expect(r.error.fieldErrors).toHaveProperty("executant_employee_id");
+    expect(server.apeluriPe("maintenance_interventions")).toHaveLength(0);
+  });
+
+  it("angajat ȘI firmă externă: VALIDARE în schemă, nicio interogare", async () => {
+    const { server } = configureazaActiunea({ permisiuni: REZOLVA });
+    const r = await rezolvaSesizare({ ...rezolvare, executant_employee_id: ID_3 });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("o verificare legală nu se „rezolvă” dintr-o sesizare: VALIDARE pe `tip`", async () => {
+    const { server } = configureazaActiunea({ permisiuni: REZOLVA });
+    sesizareInLucru(server);
+    const r = await rezolvaSesizare({ ...rezolvare, tip: "verificare_legala" });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (!r.ok) expect(r.error.fieldErrors).toHaveProperty("tip");
+    expect(server.apeluriPe("maintenance_interventions")).toHaveLength(0);
   });
 });
