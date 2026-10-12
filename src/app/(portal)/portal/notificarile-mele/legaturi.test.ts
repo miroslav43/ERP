@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   caleaDePortal,
   idCerereDeConcediu,
+  idFoaieDeParcurs,
   idSesizare,
   idTichet,
   type ContextDestinatar,
@@ -172,3 +173,33 @@ describe("idCerereDeConcediu / idTichet", () => {
     expect(idTichet(`/concedii/${ID}`)).toBeNull();
   });
 });
+
+// ── început bloc: flota, notificările foii (0198) ──
+describe("foaia de parcurs (0198)", () => {
+  const AL_SOFERULUI: ContextDestinatar = { ...AL_ALTCUIVA, foiProprii: new Set([ID]) };
+
+  it("șoferul ajunge pe foaia lui din portal; aprobatorul și apelantul fără context, nu", () => {
+    expect(caleaDePortal(`/flota/foi/${ID}`, AL_SOFERULUI)).toBe(`/portal/masina-mea/foi/${ID}`);
+    // Aceeași legătură pleacă și la manager, la trimitere: în portal ar da 404.
+    expect(caleaDePortal(`/flota/foi/${ID}`, AL_ALTCUIVA)).toBeNull();
+    expect(caleaDePortal(`/flota/foi/${ALT_ID}`, AL_SOFERULUI)).toBeNull();
+    // Apelanții vechi nu dau `foiProprii`: implicitul e cutia poștală.
+    expect(caleaDePortal(`/flota/foi/${ID}`, AL_MEU)).toBeNull();
+    expect(caleaDePortal(`/flota/foi/${ID}`)).toBeNull();
+  });
+
+  it("rezumatul de scadențe al șoferului e deja cale de portal; fișa vehiculului nu se ghicește", () => {
+    expect(caleaDePortal("/portal/masina-mea", AL_SOFERULUI)).toBe("/portal/masina-mea");
+    expect(caleaDePortal(`/flota/${ID}`, AL_SOFERULUI)).toBeNull();
+    expect(caleaDePortal("/flota?conformitate=expira", AL_SOFERULUI)).toBeNull();
+  });
+
+  it("idFoaieDeParcurs nu se încurcă cu alte rute ale flotei", () => {
+    expect(idFoaieDeParcurs(`/flota/foi/${ID}`)).toBe(ID);
+    expect(idFoaieDeParcurs(`/flota/${ID}`)).toBeNull();
+    expect(idFoaieDeParcurs("/flota/foi/sabloane")).toBeNull();
+    expect(idFoaieDeParcurs(`/flota/foi/${ID}/extra`)).toBeNull();
+    expect(idFoaieDeParcurs(null)).toBeNull();
+  });
+});
+// ── sfârșit bloc: flota, notificările foii (0198) ──
