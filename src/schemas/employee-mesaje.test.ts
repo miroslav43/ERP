@@ -40,6 +40,9 @@ const BAZA_VALIDA = {
   data_contract: "2026-01-01",
   valabil_de_la: "2026-01-01",
   salariu_baza: 4000,
+  // Obligatoriu la înrolare din W2-10 (HR-023): asistentul îl precompletează
+  // din firmă, schema nu mai are „21" codificat.
+  zile_concediu_anual: 20,
 };
 
 describe("mesajele de validare ale înrolării", () => {
@@ -87,6 +90,15 @@ describe("mesajele de validare ale înrolării", () => {
 
     const mesaj = rezultat.error.issues.find((i) => i.path[0] === "cnp")?.message ?? "";
     expect(mesaj).toContain("13");
+  });
+
+  it("zilele de concediu golite spun „lipsește”, nu cad tăcut pe zero", () => {
+    const rezultat = inroleazaAngajatSchema.safeParse({ ...BAZA_VALIDA, zile_concediu_anual: "" });
+    if (rezultat.success) throw new Error("zilele golite au trecut");
+
+    const mesaj =
+      rezultat.error.issues.find((i) => i.path[0] === "zile_concediu_anual")?.message ?? "";
+    expect(mesaj).toBe("Zilele de concediu anual sunt obligatorii.");
   });
 
   it("IBAN-ul greșit spune lungimea așteptată", () => {

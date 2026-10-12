@@ -511,6 +511,7 @@ export function Pas3Contract({
           <Camp
             nume="zile_concediu_anual"
             eticheta="Zile de concediu de odihnă anual"
+            obligatoriu
             erori={mesajCamp(errors.zile_concediu_anual)}
             ajutor="Implicit conform politicii organizației — modificabil aici doar pentru acest angajat."
           >

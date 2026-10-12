@@ -8,6 +8,7 @@ import { IntrareData } from "@/components/ui/intrare-data";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { creeazaContract } from "../actions";
+import { dateContractNou } from "./date-contract-nou";
 
 /**
  * Contract nou, într-o casetă.
@@ -39,16 +40,8 @@ interface Proprietati {
 }
 
 export function FormularContractNou({ employeeId, zileConcediuImplicit }: Proprietati) {
-  /** Cheile obiectului sunt EXACT cele din `creeazaContractSchema`. */
   async function trimite(date: FormData) {
-    return creeazaContract({
-      employee_id: employeeId,
-      numar: String(date.get("numar") ?? ""),
-      data_contract: String(date.get("data_contract") ?? ""),
-      valabil_de_la: String(date.get("valabil_de_la") ?? ""),
-      salariu_baza: Number(date.get("salariu_baza")),
-      zile_concediu_anual: Number(date.get("zile_concediu_anual")),
-    });
+    return creeazaContract(dateContractNou(employeeId, date));
   }
 
   return (
@@ -128,8 +121,7 @@ export function FormularContractNou({ employeeId, zileConcediuImplicit }: Propri
             nume="zile_concediu_anual"
             id={idc("zile_concediu_anual")}
             eticheta="Zile de concediu de odihnă anual"
-            obligatoriu
-            ajutor="Implicit conform politicii organizației — modificabil aici doar pentru acest angajat."
+            ajutor="Implicit conform politicii organizației — modificabil aici doar pentru acest angajat. Lăsat gol, se iau zilele firmei."
             erori={stare.erori["zile_concediu_anual"] ?? []}
           >
             {(a) => (
