@@ -40,7 +40,9 @@
 --    `maintenance_settings.praguri_alerta_zile`, oglindită de un trigger în
 --    `alert_rules` (o versiune pe zi, pentru cele trei `entity_type` ale
 --    modulului). `alert_rules` cere `compliance:*` prin politică, iar pragurile
---    sunt ale mentenanței — triggerul e punctul unic de scriere.
+--    sunt ale mentenanței — triggerul e punctul unic de scriere. Rândurile de
+--    setări existente primesc, la migrare, pragurile pe care motorul le aplica
+--    deja (regula '*' a firmei, dacă are una), nu default-ul coloanei.
 --
 -- ── CE NU FACE ──────────────────────────────────────────────────────────────
 --  · Nu schimbă semnătura lui `internal.genereaza_alerte` și nu atinge
@@ -235,6 +237,36 @@ create trigger maintenance_settings_praguri
   after insert or update on public.maintenance_settings
   for each row execute function internal.mentenanta_setari_praguri();
 
+-- Rândurile de setări EXISTENTE au primit default-ul 30/14/7 la ALTER, fără
+-- nicio regulă în `alert_rules`: motorul (`genereaza_alerte`, 0008) le aplică
+-- regula '*' a firmei, iar formularul ar fi afișat 30/14/7 până la prima
+-- salvare. Pentru fiecare rând viu se citește regula pe care o aplică motorul
+-- unui plan (aceeași ordine: tipul exact înaintea lui '*', apoi cea mai nouă
+-- versiune) și, doar dacă diferă, se scrie în coloană — triggerul de mai sus o
+-- fixează atunci și pe cele trei tipuri. Unde regula '*' e implicitul, nu se
+-- scrie nimic. Un prag peste 365 nu încape în CHECK-ul coloanei: firma aceea
+-- rămâne pe regula ei '*', fără reguli specifice.
+update public.maintenance_settings s
+   set praguri_alerta_zile = ef.praguri
+  from (
+    select s2.id,
+           coalesce((
+             select ar.praguri_zile
+               from public.alert_rules ar
+              where ar.organization_id = s2.organization_id
+                and ar.deleted_at is null
+                and ar.valabil_de_la <= app.azi_local()
+                and ar.entity_type in ('maintenance_plan', '*')
+                and ar.kind = '*'
+              order by (ar.entity_type = 'maintenance_plan') desc, ar.valabil_de_la desc
+              limit 1), internal.praguri_implicite()) as praguri
+      from public.maintenance_settings s2
+     where s2.deleted_at is null
+  ) ef
+ where ef.id = s.id
+   and s.praguri_alerta_zile is distinct from ef.praguri
+   and 365 >= all (ef.praguri);
+
 -- ============================================================
 -- 5. Rezumatul zilnic al unei firme
 -- ============================================================
@@ -322,6 +354,14 @@ begin
        and x.deleted_at is null
        and x.is_active
        and x.entity_type in ('maintenance_plan', 'iscir_authorization', 'equipment')
+       -- Doar alertele scadenței CURENTE, în starea care i se potrivește azi:
+       -- `curata_alerte` nu rulează (ar închide și alertele Flotei), deci un
+       -- prag `nou` rămâne așa și după ce scadența a trecut, iar alerta unei
+       -- scadențe vechi rămâne și ea. Un destinatar nou le-ar primi pe toate,
+       -- cu planul numărat și „depășit”, și „apropiat” (proba, cazul 12).
+       and a.due_date = x.expires_at
+       and case when a.status = 'expirat' then x.expires_at < v_azi
+                else x.expires_at >= v_azi end
   ),
   contor_aproape as (
     select 'contor_aproape'::text as tip,

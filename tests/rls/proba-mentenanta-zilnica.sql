@@ -32,6 +32,9 @@
 -- (11) responsabilii din setări SCOȘI din firmă (membru `inactive` sau șters
 --      logic), cu fișa încă legată de cont, NU primesc rezumatul; cum toți au
 --      plecat, rezumatul ajunge la `org_admin`, nu la nimeni        [POZITIVĂ]
+-- (12) o alertă `nou` rămasă după scadență (fără `curata_alerte`) sau a unei
+--      scadențe vechi nu ajunge în rezumat ca „apropiată”: planul depășit e
+--      numărat o singură dată, ca depășit
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -443,5 +446,61 @@ begin
   else
     raise exception 'PROBA „MENTENANȚA ZILNICĂ" (11): plecații sunt destinatari % ori, au primit % rezumate; org_admin a primit % (așteptat 0/0/1)',
       v_resp, v_plecati, v_admin;
+  end if;
+end $$;
+
+-- ═══ (12) Alertele rămase în urmă nu se trimit ca „apropiate” ════════════════
+-- `internal.curata_alerte` nu rulează (jobul nu o cheamă, fiindcă ar închide și
+-- alertele Flotei), deci un prag de 7 zile rămâne `nou` și după ce scadența a
+-- trecut, iar o alertă a unei scadențe VECHI (planul mutat fără ca rândul să se
+-- închidă) rămâne și ea. Un destinatar nou (alt responsabil, alt administrator)
+-- nu le-a primit niciodată: fără filtru pe scadența CURENTĂ, rezumatul lui ar
+-- număra același plan și „depășit”, și „apropiat”, cu o dată din trecut.
+do $$
+declare
+  v_sufix text := left(replace(gen_random_uuid()::text, '-', ''), 8);
+  v_org   uuid := gen_random_uuid();
+  v_u_adm uuid := gen_random_uuid();
+  v_e_adm uuid := gen_random_uuid();
+  v_echip uuid := gen_random_uuid();
+  v_plan  uuid := gen_random_uuid();
+  v_exp   uuid;
+  v_scad  date;
+  v_azi   date := app.azi_local();
+  v_n     integer;
+  v_titlu text;
+begin
+  insert into public.organizations (id, slug, name, cui, status) values
+    (v_org, 'proba-mzv-' || v_sufix, 'Proba Vechi SRL', 'RO' || (88400000 + (random() * 90000)::int)::text, 'active');
+  insert into public.organization_features (organization_id, feature_key, enabled, activated_at)
+  select v_org, f.feature_key, true, now() from public.features f;
+  insert into auth.users (id, email, email_confirmed_at) values
+    (v_u_adm, 'mzv-adm-' || v_sufix || '@proba.test', now());
+  insert into public.employees (id, organization_id, marca, first_name, last_name, hired_on, status, user_id) values
+    (v_e_adm, v_org, 'MZV-A', 'Ana', 'Admin', v_azi - 900, 'activ', v_u_adm);
+  insert into public.organization_members (organization_id, user_id, role) values (v_org, v_u_adm, 'org_admin');
+
+  insert into public.equipment (id, organization_id, cod, denumire) values (v_echip, v_org, 'VCH-' || v_sufix, 'Polizor');
+  -- Scadent acum 5 zile.
+  insert into public.maintenance_plans (id, organization_id, equipment_id, denumire, periodicitate_zile, ultima_executie)
+  values (v_plan, v_org, v_echip, 'Revizie polizor', 30, v_azi - 35);
+  select x.id, x.expires_at into v_exp, v_scad from public.expirables x
+   where x.entity_type = 'maintenance_plan' and x.entity_id = v_plan and x.deleted_at is null;
+
+  perform internal.genereaza_alerte(v_org);              -- pragul 0, „expirat”
+  insert into public.compliance_alerts (organization_id, expirable_id, prag_zile, due_date, status) values
+    (v_org, v_exp, 7,  v_scad,      'nou'),               -- generat acum 12 zile, necurățat
+    (v_org, v_exp, 14, v_scad + 40, 'nou');               -- scadența veche a planului
+
+  perform internal.mentenanta_rezumat(v_org);
+  select count(*), min(title) into v_n, v_titlu from public.notifications
+   where organization_id = v_org and user_id = v_u_adm and entity_type = 'maintenance_rezumat';
+
+  raise notice '';
+  if v_n = 1 and v_titlu = 'Mentenanța de azi: 1 scadență depășită.' then
+    raise notice '  ✓ (12) alertele rămase în urmă nu se mai trimit ca apropiate — „%”', v_titlu;
+  else
+    raise exception 'PROBA „MENTENANȚA ZILNICĂ" (12): % rezumate, titlul „%” (așteptat „Mentenanța de azi: 1 scadență depășită.”)',
+      v_n, v_titlu;
   end if;
 end $$;
