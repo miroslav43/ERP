@@ -22,6 +22,7 @@ import {
   citesteFoaie,
   curseleFoii,
   sabloaneTraseu,
+  urlSemnateFlota,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
 import { fisaMea } from "@/lib/queries/portal";
@@ -35,6 +36,8 @@ import { ButonStergePeFoaie } from "@/app/(app)/flota/foi/[id]/buton-sterge-pe-f
 import { DialogAlimentare } from "@/app/(app)/flota/foi/[id]/dialog-alimentare";
 import { DialogAntetFoaie } from "@/app/(app)/flota/foi/[id]/dialog-antet-foaie";
 import { SectiuneCurse } from "@/app/(app)/flota/foi/[id]/sectiune-curse";
+import { IncarcareFisierFlota } from "@/app/(app)/flota/incarcare-fisier-flota";
+import { LinkBon } from "@/app/(app)/flota/foi/[id]/link-bon";
 
 import { FaraFisa } from "../../../fara-fisa";
 
@@ -93,6 +96,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
   const costTotal = alimentari.reduce((s, a) => s + a.cost, 0);
   const consumReal = consumLa100Km(litriTotali, foaie.km_parcursi);
   const aleFoii = anomalii.get(foaie.id) ?? [];
+  const urlBonuri = await urlSemnateFlota(alimentari.map((a) => a.fisier_bon_path));
 
   const coloaneAlimentari: readonly Coloana<(typeof alimentari)[number]>[] = [
     {
@@ -110,6 +114,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
         <>
           {a.statie ?? "—"}
           {a.plin ? <span className="text-muted-foreground"> · plin</span> : null}
+          <LinkBon cale={a.fisier_bon_path} urluri={urlBonuri} />
         </>
       ),
     },
@@ -136,6 +141,11 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
             celula: (a: (typeof alimentari)[number]) => (
               <span className="flex justify-end gap-1">
                 <DialogAlimentare foaieId={foaie.id} alimentare={a} />
+                <IncarcareFisierFlota
+                  tinta={{ fel: "bon", alimentareId: a.id, foaieId: foaie.id }}
+                  descriere={`${String(a.litri)} l, ${formatDateTime(new Date(a.alimentat_la))}`}
+                  areFisier={a.fisier_bon_path !== null}
+                />
                 <ButonStergePeFoaie
                   fel="alimentare"
                   id={a.id}

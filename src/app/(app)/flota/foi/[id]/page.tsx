@@ -24,6 +24,7 @@ import {
   curseleFoii,
   numeleContului,
   sabloaneTraseu,
+  urlSemnateFlota,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
 
@@ -40,6 +41,8 @@ import { requireUser } from "@/lib/auth/current-user";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { DecizieFoaie } from "../../aprobari/decizie-foaie";
 import { NumarRegistru } from "@/components/registru/numar-registru";
+import { IncarcareFisierFlota } from "../../incarcare-fisier-flota";
+import { LinkBon } from "./link-bon";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
 
@@ -150,6 +153,9 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const consumReal = consumLa100Km(litriTotali, foaie.km_parcursi);
   const abatere = abatereConsum(consumReal, vehicul?.consum_mediu_declarat ?? null);
   const aleFoii = anomalii.get(foaie.id) ?? [];
+  // Pozele bonurilor (0199), semnate sub sesiunea omului: aprobatorul vede
+  // bonul lângă litri, șoferul îl vede pe al lui.
+  const urlBonuri = await urlSemnateFlota(alimentari.map((a) => a.fisier_bon_path));
 
   // Fără sortare: alimentările unei curse se citesc întregi, în ordinea orei, și
   // n-au cursor keyset.
@@ -177,6 +183,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
         <>
           {a.numar_bon ?? "—"}
           {a.plin ? <span className="text-muted-foreground"> · plin</span> : null}
+          <LinkBon cale={a.fisier_bon_path} urluri={urlBonuri} />
           {a.observatii === null ? null : (
             <span className="text-muted-foreground block text-xs">{a.observatii}</span>
           )}
@@ -213,6 +220,11 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
             celula: (a: (typeof alimentari)[number]) => (
               <span className="flex justify-end gap-1">
                 <DialogAlimentare foaieId={foaie.id} alimentare={a} />
+                <IncarcareFisierFlota
+                  tinta={{ fel: "bon", alimentareId: a.id, foaieId: foaie.id }}
+                  descriere={`${String(a.litri)} l, ${formatDateTime(new Date(a.alimentat_la))}`}
+                  areFisier={a.fisier_bon_path !== null}
+                />
                 <ButonStergePeFoaie
                   fel="alimentare"
                   id={a.id}
