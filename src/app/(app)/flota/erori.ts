@@ -159,3 +159,39 @@ export function traduEroareAlocare(error: unknown): never {
   }
   traduEroare(error);
 }
+
+/**
+ * Traducerea pentru setările flotei (0198). Mesajele triggerului au ș/ț
+ * corecte. `fleet_settings_org_uq` înseamnă că două salvări au pornit amândouă
+ * de la „firma n-are încă setări”: a doua nu se rescrie peste prima, omul
+ * reîncarcă și vede ce s-a salvat.
+ */
+export function traduEroareSetari(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" && error.message.includes("fleet_settings_org_uq")) {
+      throw businessRule(
+        "Setările flotei au fost salvate între timp de altcineva. Reîncărcați pagina și reluați modificarea.",
+      );
+    }
+    if (error.code === "23514") {
+      // Schema le prinde înaintea bazei; ajung aici doar dacă limitele diverg.
+      if (error.message.includes("fleet_settings_prag_salt_ck")) {
+        const mesaj = "Pragul de salt e între 50 și 100.000 km.";
+        throw invalidInput(mesaj, { prag_salt_km: [mesaj] });
+      }
+      if (error.message.includes("fleet_settings_praguri_ck")) {
+        const mesaj = "Pragurile de alertă sunt între 1 și 365 de zile, cel mult 8.";
+        throw invalidInput(mesaj, { praguri_alerta_zile: [mesaj] });
+      }
+      if (error.message.includes("fleet_settings_responsabili_ck")) {
+        const mesaj = "Alegeți cel mult 20 de responsabili.";
+        throw invalidInput(mesaj, { responsabili: [mesaj] });
+      }
+    }
+    if (error.code === "P0001" && /^Responsabilul de flotă/u.test(error.message)) {
+      const mesaj = error.message.slice(0, 300);
+      throw invalidInput(mesaj, { responsabili: [mesaj] });
+    }
+  }
+  traduEroare(error);
+}

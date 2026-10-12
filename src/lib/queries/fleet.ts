@@ -20,6 +20,7 @@ import {
 } from "./cursor";
 import { dataLimitaExpirare } from "@/domain/hr/contracte-expira";
 import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
+import { PRAG_SALT_IMPLICIT_KM, PRAGURI_ALERTA_IMPLICITE } from "@/domain/fleet/setari";
 import type { CursaFoaie, SablonTraseu } from "@/domain/fleet/foaie";
 
 export interface RandVehicul {
@@ -1063,4 +1064,92 @@ export async function numeleContului(userId: string): Promise<string | null> {
   if (data === null) return null;
   const nume = data.full_name?.trim() ?? "";
   return nume.length > 0 ? nume : data.email;
+}
+
+// ── Setările flotei (0198) ──────────────────────────────────────────────────
+
+/** Setările flotei, cum le folosește baza. `id: null` = firma n-are încă rândul. */
+export interface SetariFlota {
+  readonly id: string | null;
+  /** Fișe de angajat. Gol = toți administratorii organizației. */
+  readonly responsabili: readonly string[];
+  readonly prag_salt_km: number;
+  /** Zile înainte de scadență, descrescător. */
+  readonly praguri_alerta_zile: readonly number[];
+}
+
+/**
+ * Setările flotei ale firmei. Lipsa rândului NU e o eroare: firma folosește
+ * implicitele coloanelor (1.500 km, 30/14/7), aceleași pe care le aplică baza
+ * (`setari.test.ts` le fixează). Le citește oricine vede parcul
+ * (`fleet_settings_select`, `vehicles:read` ≠ none); pentru restul, zero rânduri
+ * și tot implicitele — nu un ecran gol.
+ */
+export async function setariFlota(organizationId: string): Promise<SetariFlota> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fleet_settings")
+    .select("id, responsabili, prag_salt_km, praguri_alerta_zile")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .maybeSingle<{
+      id: string;
+      responsabili: string[];
+      prag_salt_km: number;
+      praguri_alerta_zile: number[];
+    }>();
+  if (error !== null) throw error;
+  if (data === null) {
+    return {
+      id: null,
+      responsabili: [],
+      prag_salt_km: PRAG_SALT_IMPLICIT_KM,
+      praguri_alerta_zile: PRAGURI_ALERTA_IMPLICITE,
+    };
+  }
+  return data;
+}
+
+/** Un angajat care poate fi bifat ca responsabil de flotă. */
+export interface CandidatResponsabil {
+  readonly id: string;
+  readonly full_name: string | null;
+  readonly marca: string | null;
+  /** Fără cont, fișa nu primește nimic: notificările merg la un utilizator. */
+  readonly user_id: string | null;
+  readonly status: string;
+}
+
+/** Câți candidați arată formularul. Firmele reale au zeci de angajați, nu sute. */
+export const PLAFON_CANDIDATI_RESPONSABILI = 500;
+
+/**
+ * Candidații la responsabil de flotă: angajații activi, plus responsabilii deja
+ * aleși care între timp nu mai sunt activi — altfel bifa lor ar dispărea din
+ * formular și o salvare i-ar scoate tăcut din listă.
+ *
+ * `alesi` vin din `fleet_settings.responsabili` (uuid-uri din bază), deci pot
+ * intra în predicatul `or` fără ghilimelare.
+ */
+export async function candidatiResponsabiliFlota(
+  organizationId: string,
+  alesi: readonly string[],
+): Promise<readonly CandidatResponsabil[]> {
+  const db = await createServerSupabase();
+  const unici = [...new Set(alesi)].filter((id) => /^[0-9a-f-]{36}$/iu.test(id));
+  const interogare = db
+    .from("employees")
+    .select("id, full_name, marca, user_id, status")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null);
+  const filtrata =
+    unici.length === 0
+      ? interogare.eq("status", "activ")
+      : interogare.or(`status.eq.activ,id.in.(${unici.join(",")})`);
+  const { data, error } = await filtrata
+    .order("full_name")
+    .limit(PLAFON_CANDIDATI_RESPONSABILI)
+    .returns<CandidatResponsabil[]>();
+  if (error !== null) throw error;
+  return data ?? [];
 }

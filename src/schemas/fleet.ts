@@ -1,5 +1,7 @@
 // src/schemas/fleet.ts
 import { z } from "zod";
+import { LIMITE_SETARI_FLOTA, pragurileDinText } from "@/domain/fleet/setari";
+
 import { dataOraRomania, numarObligatoriu, numarOptional, optional } from "./comun";
 
 /**
@@ -554,3 +556,69 @@ export const confirmaAnomalieSchema = z.object({
   id: z.uuid(),
   nota: z.string().trim().max(500).nullable().default(null),
 });
+
+// ── Setările flotei (0198) ──────────────────────────────────────────────────
+
+const L = LIMITE_SETARI_FLOTA;
+
+/**
+ * Pragurile de alertă: textul din formular („30, 14, 7”) sau lista deja
+ * făcută. Ordonarea și dublurile le rezolvă `pragurileDinText`, exact ca
+ * triggerul din bază; schema spune doar ce n-ar trece de CHECK, pe câmp.
+ */
+const praguriAlerta = z
+  .union([z.string(), z.array(z.number())], "Scrieți zilele, despărțite prin virgulă.")
+  .transform((v, ctx): number[] => {
+    const zile =
+      typeof v === "string" ? pragurileDinText(v) : [...new Set(v)].sort((a, b) => b - a);
+    if (zile === null) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Scrieți zilele în cifre întregi, despărțite prin virgulă, de exemplu „30, 14, 7”.",
+      });
+      return z.NEVER;
+    }
+    return [...zile];
+  })
+  .pipe(
+    z
+      .array(
+        z
+          .number()
+          .int("Zilele se scriu în cifre întregi.")
+          .min(
+            L.pragAlertaMin,
+            `Fiecare prag e între ${String(L.pragAlertaMin)} și ${String(L.pragAlertaMax)} de zile.`,
+          )
+          .max(
+            L.pragAlertaMax,
+            `Fiecare prag e între ${String(L.pragAlertaMin)} și ${String(L.pragAlertaMax)} de zile.`,
+          ),
+      )
+      .min(1, "Scrieți cel puțin un prag, de exemplu „30, 14, 7”.")
+      .max(L.praguriMaxim, `Cel mult ${String(L.praguriMaxim)} praguri.`),
+  );
+
+/**
+ * Setările flotei, salvate dintr-un singur formular. `responsabili` sunt fișe
+ * de angajat (gol = toți administratorii); baza verifică singură că sunt ale
+ * aceleiași firme (P0001 pe câmp, prin `traduEroareSetari`).
+ */
+export const setariFlotaSchema = z.object({
+  responsabili: z
+    .array(z.uuid("Responsabilul ales nu este valid."))
+    .max(L.responsabiliMaxim, `Alegeți cel mult ${String(L.responsabiliMaxim)} de responsabili.`)
+    .default([])
+    .transform((v) => [...new Set(v)]),
+  prag_salt_km: numarObligatoriu({
+    min: L.pragSaltMin,
+    max: L.pragSaltMax,
+    intreg: true,
+    lipsa: "Scrieți pragul de salt, în km.",
+    mesaj: "Pragul de salt se scrie în cifre.",
+    interval: "Pragul de salt e între 50 și 100.000 km, în km întregi.",
+  }),
+  praguri_alerta_zile: praguriAlerta,
+});
+export type SetariFlotaInput = z.output<typeof setariFlotaSchema>;

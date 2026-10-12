@@ -1,7 +1,13 @@
 // src/schemas/fleet.test.ts
 import { describe, expect, it } from "vitest";
 
-import { alimentareSchema, cursaSchema, foaieNouaSchema, trimiteFoaieSchema } from "./fleet";
+import {
+  alimentareSchema,
+  cursaSchema,
+  foaieNouaSchema,
+  setariFlotaSchema,
+  trimiteFoaieSchema,
+} from "./fleet";
 
 const ID = "44444444-4444-4444-8444-444444444444";
 
@@ -115,5 +121,48 @@ describe("foaia zilnică (0197)", () => {
   it("kilometrajul gol la plecare spune „lipsește”, nu 0 km", () => {
     const r = cursaSchema.safeParse(cursa({ km_plecare: "" }));
     expect(r.error?.issues[0]?.message).toBe("Scrieți kilometrajul la plecare, în km.");
+  });
+});
+
+describe("setările flotei (0198)", () => {
+  const ID2 = "55555555-5555-4555-8555-555555555555";
+
+  it("textul pragurilor devine lista din bază: descrescător, fără dubluri", () => {
+    const r = setariFlotaSchema.parse({
+      responsabili: [ID, ID2, ID],
+      prag_salt_km: "800",
+      praguri_alerta_zile: "7, 30, 14, 7",
+    });
+    expect(r).toEqual({
+      responsabili: [ID, ID2],
+      prag_salt_km: 800,
+      praguri_alerta_zile: [30, 14, 7],
+    });
+  });
+
+  it("fără responsabili: lista goală (toți administratorii), nu o eroare", () => {
+    const r = setariFlotaSchema.parse({ prag_salt_km: 1500, praguri_alerta_zile: [30] });
+    expect(r.responsabili).toEqual([]);
+  });
+
+  it.each([
+    ["", "Scrieți cel puțin un prag"],
+    ["30, două", "cifre întregi"],
+    ["400", "între 1 și 365"],
+    ["0, 7", "între 1 și 365"],
+    ["1 2 3 4 5 6 7 8 9", "Cel mult 8"],
+  ])("pragurile „%s” sunt refuzate pe câmp: %s", (text, mesaj) => {
+    const r = setariFlotaSchema.safeParse({ prag_salt_km: 1500, praguri_alerta_zile: text });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const eroare = r.error.issues.find((i) => i.path[0] === "praguri_alerta_zile");
+    expect(eroare?.message).toContain(mesaj);
+  });
+
+  it.each([[""], ["49"], ["100001"], ["12,5"]])("pragul de salt „%s” nu trece", (prag) => {
+    const r = setariFlotaSchema.safeParse({ prag_salt_km: prag, praguri_alerta_zile: "30" });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues[0]?.path).toEqual(["prag_salt_km"]);
   });
 });
