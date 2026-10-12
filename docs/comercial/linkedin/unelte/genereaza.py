@@ -199,11 +199,73 @@ def banner():
 </div>"""
 
 
+# Coperta Facebook: 1640×624, dublul celor 820×312 de pe desktop. Telefonul taie
+# ~205 px din fiecare parte, iar poza de profil acoperă colțul din stânga-jos —
+# textul stă în mijloc, iar foaia de prezență din fundal poate fi tăiată oriunde.
+FB_L, FB_H = 1640, 624
+
+
+def coperta_facebook():
+    # Octombrie 2026: 1 cade joi; fără sărbători legale în lună.
+    zile = 31
+    weekend = {d for d in range(1, zile + 1) if (d + 2) % 7 in (5, 6)}
+    # Câte o celulă CO pe rând, ca pe foaia colectivă din sit. Date fictive.
+    co = {0: {19, 20, 21}, 2: {7, 8}, 3: {26, 27, 28, 29, 30}, 5: {14}}
+    rand_l = 30
+    col = f"58px repeat({zile}, minmax(0, 1fr))"
+    celule = [f'<div style="border-right: 1px solid {LINIATURA};"></div>']
+    for d in range(1, zile + 1):
+        fundal = f"background: {HASURA};" if d in weekend else ""
+        celule.append(
+            f'<div style="border-right: 1px solid {LINIATURA}; display: flex; align-items: center; justify-content: center; '
+            f'font-family: {MONO}; font-size: 17px; color: {SLAB}; {fundal}">'
+            f'<span style="background: {HARTIE}; padding: 0 3px;">{d}</span></div>'
+        )
+    for r in range(20):
+        celule.append(
+            f'<div style="border-right: 1px solid {LINIATURA}; border-top: 1px solid {LINIATURA}; '
+            f'font-family: {MONO}; font-size: 15px; color: {RIGLA}; display: flex; align-items: center; justify-content: center;">{r + 1:02d}</div>'
+        )
+        for d in range(1, zile + 1):
+            if d in weekend:
+                fundal, text = f"background: {HASURA};", ""
+            elif d in co.get(r % 6, ()):
+                fundal, text = "background: #d2ddd6;", "CO"
+            else:
+                fundal, text = "", "8"
+            celule.append(
+                f'<div style="border-right: 1px solid {LINIATURA}; border-top: 1px solid {LINIATURA}; '
+                f'font-family: {MONO}; font-size: 15px; color: {RIGLA}; display: flex; align-items: center; justify-content: center; {fundal}">{text}</div>'
+            )
+    foaia = (
+        f'<div style="position: absolute; inset: 0; display: grid; grid-template-columns: {col}; '
+        f'grid-template-rows: 44px repeat(20, {rand_l}px); border-left: 1px solid {LINIATURA}; opacity: 0.6;">'
+        + "".join(celule)
+        + "</div>"
+    )
+    return f"""<div style="width: {FB_L}px; height: {FB_H}px; position: relative; overflow: hidden; background: {HARTIE}; color: {CERNEALA}; font-family: {TEXT};">
+{foaia}
+<div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 1040px; box-sizing: border-box; padding: 44px 50px 46px;
+background: {HARTIE}; border: 1px solid {RIGLA}; box-shadow: 10px 10px 0 {LINIATURA}; display: flex; flex-direction: column; gap: 22px;">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span style="font-family: {DISPLAY}; font-weight: 700; font-size: 44px; line-height: 1;">Administrativo</span>
+<span style="display: flex; align-items: center; gap: 12px; font-family: {MONO}; font-size: 22px; color: {SLAB};">
+<span style="width: 18px; height: 18px; background: {CO}; display: inline-block;"></span>foaia colectivă · octombrie</span>
+</div>
+<div style="font-family: {DISPLAY}; font-weight: 600; font-size: 62px; line-height: 1.14; letter-spacing: -0.01em;">Angajații se pontează de pe telefon.<br>Tu&nbsp;închizi luna fără Excel.</div>
+<div style="border-top: 2px solid {RIGLA}; padding-top: 18px; display: flex; justify-content: space-between; font-family: {MONO}; font-size: 24px; color: {SLAB};">
+<span>pontaj · concedii · REGES-Online · salarii</span><span style="color: {CERNEALA};">administrativo.ro</span>
+</div>
+</div>
+</div>"""
+
+
 # ── Planșele lotului 1 ───────────────────────────────────────────────────────
 PLANSE = {}
 
 PLANSE["Main.dc.html"] = ("Sistemul vizual", sistem(), L, H)
 PLANSE["Banner.dc.html"] = ("Banner pagină 1128×191", banner(), 1128, 191)
+PLANSE["Facebook-coperta.dc.html"] = ("Copertă Facebook 1640×624", coperta_facebook(), FB_L, FB_H)
 
 E1, P1 = "ghid · obligații", "legislatie"
 reguli_1 = [
@@ -734,6 +796,7 @@ def aseaza(nume, x, y, pagina):
 
 aseaza("Main.dc.html", 0, 0, "sistem")
 aseaza("Banner.dc.html", L + 80, 0, "sistem")
+aseaza("Facebook-coperta.dc.html", L + 80, 191 + 160, "sistem")
 randuri = [
     ("r1", "#1 · marți 29 sept · 6 obligații", [f"L1-01-s{i}.dc.html" for i in range(1, 9)]),
     ("r2", "#2 · joi 1 oct · diurna", ["L1-02.dc.html"]),
