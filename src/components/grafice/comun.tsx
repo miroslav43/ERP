@@ -56,17 +56,26 @@ export type PropsGrafic = Readonly<{
  *
  * `<svg>` primește `aria-hidden`, fiindcă altfel cititorul de ecran ar parcurge
  * fiecare `<rect>` și `<path>` pe rând — zgomot fără înțeles.
+ *
+ * `formateaza` scrie cifra din tabel așa cum o scrie și desenul. Fără ea,
+ * celula primea valoarea brută: raportul de salarizare citea cu voce tare
+ * „16.879999999999995”, restul unei scăderi în virgulă mobilă, lângă un desen
+ * care spunea „16,88 lei” (HR-028). Rămâne opțională — landing-ul de marketing
+ * randează aceleași componente fără ea, iar cifra brută e corectă pentru un
+ * efectiv de angajați.
  */
 export function InvelisGrafic({
   titlu,
   unitate = "Valoare",
   antetCategorie,
   puncte,
+  formateaza,
   children,
   className,
 }: PropsGrafic & {
   antetCategorie: string;
   puncte: readonly Punct[];
+  formateaza?: (v: number) => string;
   children: ReactNode;
 }): ReactElement {
   return (
@@ -86,7 +95,7 @@ export function InvelisGrafic({
           {puncte.map((p) => (
             <tr key={p.eticheta}>
               <th scope="row">{p.eticheta}</th>
-              <td>{p.valoare}</td>
+              <td>{formateaza === undefined ? p.valoare : formateaza(p.valoare)}</td>
             </tr>
           ))}
         </tbody>
