@@ -757,7 +757,6 @@ const TIP_DOCUMENT = {
   rca: "4244510f-c9fb-4b2e-85ee-b045ef1703ae",
   casco: "1dfa2021-f8e7-4a67-859f-fcb236eb2cef",
   rovinieta: "697c3f95-bdbc-4142-abf7-db3fe7530ebe",
-  revizie: "9396edd8-0aec-402f-858b-940b4fdd28d5",
   extinctor: "ffdb4df1-3728-474d-b15e-c583e40add1f",
   trusaMedicala: "662d445d-d908-4f54-b2f9-744d09493cac",
 };
@@ -905,8 +904,10 @@ const VEHICULE = [
  *
  * Cele cinci tipuri OBLIGATORII (itp, rca, rovinieta, extinctor,
  * trusa_medicala) există pe fiecare vehicul — altfel semaforul ar arăta roșu
- * din lipsă, ceea ce n-ar demonstra nimic. CASCO și revizia, care sunt
- * opționale, apar doar acolo unde e credibil să existe.
+ * din lipsă, ceea ce n-ar demonstra nimic. CASCO, care e opțional, apare doar
+ * acolo unde e credibil să existe. Tipul `revizie` NU mai e aici: 0200 l-a retras
+ * de pe platformă (revizia are acum planuri de service), iar `vdoc_inainte` ar
+ * refuza un document nou pe el.
  *
  * `este_curent` nu se trimite niciodată: `internal.vdoc_inainte` îl forțează pe
  * false, iar `internal.flota_sincronizeaza_grup` alege singur documentul curent
@@ -931,13 +932,6 @@ const DOCUMENTE_FLOTA = {
       emitent: "Broker de Asigurări Vest SRL",
     },
     { tip: "rovinieta", de: "2026-08-01", la: "2027-07-31", cost: 606, emitent: "CNAIR" },
-    {
-      tip: "revizie",
-      de: "2026-07-20",
-      la: "2027-01-20",
-      cost: 850,
-      emitent: "Service Auto Bănățeanu SRL",
-    },
     {
       tip: "extinctor",
       de: "2026-01-15",
