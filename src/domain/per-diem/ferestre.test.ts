@@ -99,6 +99,10 @@ describe("calculeazaZileDiurna", () => {
       // 'tara_sosire' = țara cu ultimul moment (DE, care ține până la sosire).
       expect(ferestre[0]?.taraId).toBe(DE);
       expect(ferestre[0]?.motiv).toContain("trecere de frontieră");
+      // FLX-006: motivul se afișează ca atare în fișa deplasării; codul brut
+      // al regulii („tara_sosire”) nu înseamnă nimic pentru om.
+      expect(ferestre[0]?.motiv).not.toMatch(/tara_sosire|\(\w+_\w+\)/u);
+      expect(ferestre[0]?.motiv).toContain("țara în care se intră");
     });
 
     it("cu acordaZiuaTrecerii=false, fracțiunea zilei trecerii devine 0", () => {
