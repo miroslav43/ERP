@@ -43,9 +43,12 @@ orice UPDATE `plecare_la`/`km_plecare` (prima cursă) și `sosire_la`/`km_sosire
 Scrise direct, cu altă valoare, dau P0001 („Orele și kilometrajul foii se scriu pe
 curse”). `curse_dupa` doar „atinge” antetul; nu există nicio variabilă de sesiune care să
 ocolească gărzile. Anomaliile (`foi_parcurs_dupa`), intervalul alimentărilor și registrul
-(`col_data = plecare_la`) merg neschimbate. O foaie FĂRĂ curse se trimite cu sosirea din
-antet, ca înainte (backfill-ul a dat o cursă fiecărei foi vechi; probele vechi folosesc
-forma asta).
+(`col_data = plecare_la`) merg neschimbate. **O foaie fără nicio cursă activă nu se
+trimite** (P0001 „Adăugați cursele zilei…”), oricât de completă ar fi sosirea din antet:
+ștergerea ultimei curse lasă antetul cu cifrele ei, fiindcă agregatele se rescriu doar cât
+există curse (găsit de santinelă la revizia F4; proba `(22)`). Backfill-ul a dat o cursă
+fiecărei foi vechi. Tot la trimitere, o alimentare rămasă în afara intervalului curselor
+(cursa mutată după alimentare) oprește foaia (proba `(23)`).
 
 **Regulile cursei** (`curse_inainte`, P0001 pe câmp): pleacă în ziua foii și se încheie cel
 târziu a doua zi; vecinii cronologici nu se suprapun; km monoton între curse; doar ultima
