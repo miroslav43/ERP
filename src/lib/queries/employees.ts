@@ -666,6 +666,11 @@ export async function arboreleManagerial(
     if (eroareProprie !== null) throw eroareProprie;
 
     const idAscendenti = (proprie?.manager_path ?? []).filter((id) => id !== propriaFisaId);
+    // Șefii NU se citesc din `employees`: sub `employees:read = own`, politica
+    // `employees_select` dă doar rândul propriu, deci `.in("id", manager_path)`
+    // întorcea zero rânduri, tăcut (ANG-028). `lantul_meu_de_sefi` (0196)
+    // întoarce doar cartea de vizită a șefilor din `manager_path`-ul fișei
+    // proprii, în organizația curentă, ordonați vârf → șef direct.
     const [subarbore, ascendenti] = await Promise.all([
       db
         .from("employees")
@@ -676,19 +681,28 @@ export async function arboreleManagerial(
         .contains("manager_path", [propriaFisaId])
         .returns<NodManagerialBrut[]>(),
       idAscendenti.length === 0
-        ? Promise.resolve({ data: [] as NodManagerialBrut[], error: null })
-        : db
-            .from("employees")
-            .select(COLOANE_NOD_MANAGERIAL)
-            .eq("organization_id", organizationId)
-            .in("id", idAscendenti)
-            .is("deleted_at", null)
-            .returns<NodManagerialBrut[]>(),
+        ? Promise.resolve({ data: [], error: null })
+        : db.rpc("lantul_meu_de_sefi", { p_org: organizationId }),
     ]);
     if (subarbore.error !== null) throw subarbore.error;
     if (ascendenti.error !== null) throw ascendenti.error;
 
-    const brute = [...ascendenti.data, ...subarbore.data];
+    const sefi: NodManagerialBrut[] = [...ascendenti.data]
+      .sort((a, b) => a.pozitie - b.pozitie)
+      .map((rand) => ({
+        id: rand.id,
+        full_name: rand.full_name,
+        marca: rand.marca,
+        manager_employee_id: rand.manager_employee_id,
+        user_id: rand.user_id,
+        department:
+          rand.department_id === null || rand.department_denumire === null
+            ? null
+            : { id: rand.department_id, denumire: rand.department_denumire },
+        functie: rand.functie,
+      }));
+
+    const brute = [...sefi, ...subarbore.data];
     const avataruri = await avataturiPeUtilizatori(brute.map((nod) => nod.user_id));
     return brute.map((nod) => ({
       ...nod,
