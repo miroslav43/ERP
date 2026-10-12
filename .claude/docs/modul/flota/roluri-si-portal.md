@@ -13,7 +13,7 @@ permisiuni:
   [vehicles:read, trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 18]
-scris_pe: 06086dd260a0cce4cafa725b74bd095393819297
+scris_pe: 207765022f02c2a4a537b38a14dc59740df9d8f7
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -57,6 +57,14 @@ permisiuni rămâne așa. Matricea publică (`matrice-roluri.ts`) și fișa de m
   revizia de securitate): altfel o foaie proprie trimisă devenea, într-un singur UPDATE,
   foaia aprobată a unui subordonat. Tot de acolo: sub `approve` ≠ `all`, nimeni nu aprobă
   o foaie întocmită (`created_by`) de el însuși.
+- **Foaia aprobată e înghețată** (§C4, din santinela de izolare). Cu `update = own`,
+  șoferul își rescria traseul foii aprobate, își muta `aprobat_de` pe alt om și își
+  ștergea foaia și alimentările, direct prin PostgREST. Acum `created_by`, `trimis_la`,
+  `aprobat_de`, `aprobat_la` le pune doar baza, pe orice UPDATE. Pe o foaie aprobată, sub
+  `update` ≠ `all` nu se schimbă nimic (P0001, nici ștergerea, nici reînvierea), iar
+  `org_admin` poate doar s-o storneze (`deleted_at`). `internal.alimentari_inainte`
+  refuză orice schimbare pe alimentarea unei foi aprobate și mutarea unei alimentări pe
+  altă foaie. Probat de (25)–(32).
 - **Foaia în numele altcuiva** sub `own` cade pe `foi_insert` (`app.poate_crea_foaie`) cu 42501. `creeazaFoaie` o refuză înainte, cu CONFLICT și text clar.
 - **Storage.** `app.can_path` verifică entitatea la `team` și `own` și pe `trip_sheets`
   (segmentul 3 = fișa șoferului) și pe `vehicles` (segmentul 3 = vehiculul, proprietar =
