@@ -89,7 +89,7 @@ const INTRARI: readonly Intrare[] = [
   {
     id: "panou",
     href: "/panou",
-    eticheta: "Panou de control",
+    eticheta: "Panou",
     zona: "app",
     parinte: null,
     fila: null,
@@ -1044,8 +1044,10 @@ const INTRARI: readonly Intrare[] = [
     href: "/salarizare/componente",
     eticheta: "Sporuri și prime",
     zona: "app",
-    parinte: "componente-salariale",
-    fila: null,
+    // Sub-intrare a „Salarizare” din UX-001: drumul e Financiar → Salarizare →
+    // Sporuri și prime, ca la „Soldul zilelor” sub „Concedii”.
+    parinte: "salarizare",
+    fila: "Sporuri și prime",
     featureKey: "payroll",
     permission: "payroll:read",
     minScope: "team",
@@ -1056,8 +1058,8 @@ const INTRARI: readonly Intrare[] = [
     href: "/salarizare/popriri",
     eticheta: "Popriri",
     zona: "app",
-    parinte: "popriri",
-    fila: null,
+    parinte: "salarizare",
+    fila: "Popriri",
     featureKey: "payroll",
     permission: "payroll:read",
     minScope: "all",

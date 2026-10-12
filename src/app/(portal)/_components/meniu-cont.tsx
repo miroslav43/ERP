@@ -8,6 +8,7 @@ import { ArrowLeftRight, LogOut, Smartphone, UserRound } from "lucide-react";
 import { comutaOrganizatiaDirect, deconecteaza } from "@/app/(app)/actions";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
 import { RandTrimite } from "@/components/incarcare/rand-trimite";
+import { useInchidereDetails } from "@/components/ui/use-inchidere-details";
 
 export interface OrganizatiePortal {
   readonly id: string;
@@ -46,6 +47,8 @@ export function MeniuCont({
 
   const [lucreaza, setLucreaza] = useState(false);
   const panou = useRef<HTMLDetailsElement | null>(null);
+  // Escape și clicul în afară îl închid (UX-041), ca în aplicația mare.
+  useInchidereDetails(panou);
 
   // `key={cale}` închide panoul la schimbarea de cale, dar comutarea de firmă te
   // poate lăsa exact pe aceeași cale — și atunci meniul rămânea deschis peste un

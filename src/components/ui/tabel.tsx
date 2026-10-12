@@ -92,6 +92,13 @@ export type Coloana<R> = Readonly<{
    * exact eroarea asta („<dialog> cannot be a descendant of <p>”).
    */
   peTelefon?: "titlu" | "insigna" | "meta" | "ascuns" | "actiuni";
+  /**
+   * Doar pentru `meta`: numele scris înaintea valorii în card („Rămase: 20”).
+   * Pe desktop antetul coloanei spune ce e cifra; în card, metadatele sunt o
+   * listă separată prin „·” și mai multe cifre la rând nu se mai disting
+   * (UX-011: „730,00 · 0,00 · 0,00 · 0,00”). Absent = doar valoarea, ca până acum.
+   */
+  etichetaTelefon?: string;
   celula: (rand: R) => ReactNode;
 }>;
 
@@ -454,6 +461,7 @@ function CardRand<R>({
                     ·
                   </span>
                 ) : null}
+                {c.etichetaTelefon !== undefined ? `${c.etichetaTelefon}: ` : null}
                 {c.celula(rand)}
               </span>
             ))}

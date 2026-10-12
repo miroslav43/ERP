@@ -168,7 +168,13 @@ export function Breadcrumb({ tiparePermise }: Readonly<{ tiparePermise: readonly
                 <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-white/60" />
               ) : null}
               {esteUltim ? (
-                <span aria-current="page" className="truncate font-medium text-white">
+                // `title`: la 820 px titlul se tăia („Panou de ...”, UX-002);
+                // valoarea întreagă rămâne la îndemână pe orice rută lungă.
+                <span
+                  aria-current="page"
+                  title={tradu(segment, href)}
+                  className="truncate font-medium text-white"
+                >
                   {tradu(segment, href)}
                 </span>
               ) : esteLink ? (

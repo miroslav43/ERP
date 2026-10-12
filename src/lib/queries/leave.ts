@@ -408,6 +408,41 @@ export function imperecheazaSold(
   }));
 }
 
+/**
+ * Zilele rămase dintr-un rând de sold — MEREU o cifră.
+ *
+ * Fără rând în `leave_balances` (nimic nu s-a mișcat încă pe tip în anul ăsta),
+ * restul e chiar dreptul implicit al tipului: 730 de zile la creșterea
+ * copilului, nu textul „fără mișcări în acest an” care îl ascundea (UX-011).
+ * Cu rând, `ramase` e coloana generată din `0009` (drept + reportate − folosite
+ * − în așteptare); formula de rezervă e aceeași, pentru un rând fără ea.
+ *
+ * Aceeași funcție pentru `/concedii/sold` și pentru rezumatul de pe `/concedii`,
+ * ca cele două ecrane să nu mai poată spune cifre diferite.
+ */
+export function ramaseDinRand({ tip, sold }: RandSold): number {
+  if (sold === null) return tip.zile_implicite;
+  return sold.ramase ?? sold.drept_anual + sold.reportate - sold.folosite - sold.in_asteptare;
+}
+
+/**
+ * Tipurile afișate în tabelul de sold.
+ *
+ * Implicit, doar cele care scad din sold (în seed, doar odihna — `0053`):
+ * lista întreagă dădea 13 rânduri per angajat, iar „câte zile de odihnă mai
+ * am?” cerea derulare printre 13 × N rânduri (UX-011). `toate` le aduce pe
+ * toate. Dacă filtrul n-ar lăsa nimic — o firmă care și-a configurat tipurile
+ * fără niciunul care scade din sold —, se întorc toate, nu un tabel gol.
+ */
+export function tipuriAfisateInSold(
+  tipuri: readonly TipConcediu[],
+  toate: boolean,
+): readonly TipConcediu[] {
+  if (toate) return tipuri;
+  const cuSold = tipuri.filter((tip) => tip.scade_din_sold);
+  return cuSold.length > 0 ? cuSold : tipuri;
+}
+
 /** Grupează rândurile de sold după angajat, păstrând ordinea primei apariții. */
 export function grupeazaSoldDupaAngajat(
   solduri: readonly SoldTip[],

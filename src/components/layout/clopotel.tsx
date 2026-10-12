@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactElement } from "react";
+import { useRef, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 
+import { useInchidereDetails } from "@/components/ui/use-inchidere-details";
 import { formatDateTime } from "@/lib/format/date";
 import { citesteNotificarileRecente, type NotificareRecenta } from "@/app/(app)/notificari/actions";
 
@@ -21,6 +22,10 @@ import { citesteNotificarileRecente, type NotificareRecenta } from "@/app/(app)/
 export function Clopotel({ necitite }: Readonly<{ necitite: number }>): ReactElement {
   const [randuri, setRanduri] = useState<readonly NotificareRecenta[] | null>(null);
   const [eroare, setEroare] = useState<string | null>(null);
+  // Același tipar `<details>` ca meniul contului, deci aceleași ieșiri: Escape
+  // și clic în afară (UX-041).
+  const panou = useRef<HTMLDetailsElement | null>(null);
+  useInchidereDetails(panou);
 
   async function incarca(deschis: boolean): Promise<void> {
     if (!deschis || randuri !== null) return;
@@ -34,6 +39,7 @@ export function Clopotel({ necitite }: Readonly<{ necitite: number }>): ReactEle
 
   return (
     <details
+      ref={panou}
       className="relative"
       onToggle={(e) => {
         void incarca(e.currentTarget.open);

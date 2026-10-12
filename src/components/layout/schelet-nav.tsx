@@ -15,7 +15,10 @@ import type { ReactElement } from "react";
 export function ScheletNav(): ReactElement {
   return (
     <div role="status" aria-busy="true" className="flex flex-col gap-4 px-2 py-2">
-      <span className="sr-only">Se încarcă meniul…</span>
+      {/* `text-white`, deși e `sr-only`: moștenită, culoarea era navy pe navy
+          (1,03:1, UX-036) — invizibilă azi, dar numărată de orice audit și
+          ilizibilă dacă clasa ar cădea vreodată. */}
+      <span className="sr-only text-white">Se încarcă meniul…</span>
       {[0, 1, 2].map((grup) => (
         <div key={grup} aria-hidden="true" className="flex flex-col gap-0.5">
           <div className="mb-1.5 h-3 w-20 animate-pulse rounded bg-white/15" />
@@ -49,7 +52,7 @@ export function ScheletTopbar(): ReactElement {
       aria-busy="true"
       className="bg-primary z-antet sticky top-0 flex h-14 items-center gap-2 border-b border-white/10 px-2 sm:gap-3 sm:px-4"
     >
-      <span className="sr-only">Se încarcă antetul…</span>
+      <span className="sr-only text-white">Se încarcă antetul…</span>
       <div aria-hidden="true" className="size-9 animate-pulse rounded bg-white/15 md:hidden" />
       <div
         aria-hidden="true"

@@ -16,7 +16,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatNumar, acordSubstantiv } from "@/lib/format/numar";
 import { todayInBucharest } from "@/lib/format/date";
-import { numarDeAprobat, soldAnual } from "@/lib/queries/leave";
+import { numarDeAprobat, ramaseDinRand, soldAnual } from "@/lib/queries/leave";
 import { filtreCereriSchema } from "@/schemas/leave";
 import { fisaProprie } from "@/lib/queries/portal";
 import { filtreDinUrl } from "@/lib/rute/parametri";
@@ -46,7 +46,9 @@ async function RezumatSoldPropriu({ organizationId }: { readonly organizationId:
   const tipOdihna = tipuri.find((t) => t.key === "odihna") ?? tipuri.find((t) => t.scade_din_sold);
   if (tipOdihna === undefined) return null;
   const sold = solduri.find((s) => s.leave_type_id === tipOdihna.id);
-  const ramase = sold?.ramase ?? tipOdihna.zile_implicite;
+  // Aceeași formulă ca tabelul din `/concedii/sold`: cele două ecrane nu mai
+  // pot spune cifre diferite pentru același rest (UX-011).
+  const ramase = ramaseDinRand({ tip: tipOdihna, sold: sold ?? null });
 
   return (
     <p className="border-border bg-surface text-foreground rounded-panou text-corp border px-4 py-2">

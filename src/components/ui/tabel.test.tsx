@@ -186,6 +186,39 @@ describe("Tabel — pe telefon", () => {
     const meta = lista.querySelector("p") as HTMLElement;
     expect(meta.querySelector("[data-testid=dialog-actiune]")).toBeNull();
   });
+
+  it("`etichetaTelefon` numește cifra în card, nu și în celula de desktop", () => {
+    // UX-011: soldul de concediu devenea pe telefon „730,00 · 0,00 · 0,00 ·
+    // 0,00” — cifre fără nume, deci nu se mai știa care e dreptul și care restul.
+    const { container } = randeaza({
+      coloane: [
+        { cheie: "nume", antet: "Nume", peTelefon: "titlu", celula: (r) => r.nume },
+        {
+          cheie: "ramase",
+          antet: "Rămase",
+          numeric: true,
+          peTelefon: "meta",
+          etichetaTelefon: "Rămase",
+          celula: () => "20",
+        },
+      ],
+    });
+
+    const lista = container.querySelector("ul.md\\:hidden") as HTMLElement;
+    const meta = within(lista).getAllByRole("listitem")[0]?.querySelector("p") as HTMLElement;
+    expect(meta.textContent).toContain("Rămase: 20");
+
+    const celule = container.querySelectorAll("div.md\\:block td");
+    expect(Array.from(celule, (td) => td.textContent)).toContain("20");
+    expect(Array.from(celule, (td) => td.textContent).join("|")).not.toContain("Rămase:");
+  });
+
+  it("fără `etichetaTelefon`, metadatele rămân doar valoarea", () => {
+    const { container } = randeaza();
+    const lista = container.querySelector("ul.md\\:hidden") as HTMLElement;
+    const meta = within(lista).getAllByRole("listitem")[0]?.querySelector("p") as HTMLElement;
+    expect(meta.textContent).toBe("DEMO-001·4200");
+  });
 });
 
 describe("Tabel — rândul apăsabil", () => {

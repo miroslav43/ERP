@@ -18,7 +18,9 @@ import {
   grupeazaSoldDupaAngajat,
   imperecheazaSold,
   istoricSold,
+  ramaseDinRand,
   soldAnual,
+  tipuriAfisateInSold,
   type EvenimentIstoricSold,
   type RandSold,
   type SoldTip,
@@ -72,11 +74,17 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
       </>
     ),
   },
+  /*
+    Zilele se scriu cu `formatNumar`, nu cu `formatAmount`: „20”, nu „20,00”
+    (UX-011). `etichetaTelefon` pe fiecare cifră din `meta`: în card, patru
+    numere la rând separate prin „·” nu spuneau care e dreptul și care restul.
+  */
   {
     cheie: "drept_anual",
     antet: "Drept anual",
     numeric: true,
     peTelefon: "meta",
+    etichetaTelefon: "Drept",
     celula: ({ tip, sold }) => formatNumar(sold?.drept_anual ?? tip.zile_implicite),
   },
   {
@@ -84,6 +92,7 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     antet: "Reportate",
     numeric: true,
     peTelefon: "meta",
+    etichetaTelefon: "Reportate",
     celula: ({ sold }) => formatNumar(sold?.reportate ?? 0),
   },
   {
@@ -91,6 +100,7 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     antet: "Folosite",
     numeric: true,
     peTelefon: "meta",
+    etichetaTelefon: "Folosite",
     celula: ({ sold }) => formatNumar(sold?.folosite ?? 0),
   },
   {
@@ -98,6 +108,7 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     antet: "În așteptare",
     numeric: true,
     peTelefon: "meta",
+    etichetaTelefon: "În așteptare",
     celula: ({ sold }) => formatNumar(sold?.in_asteptare ?? 0),
   },
   {
@@ -130,11 +141,18 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     antet: "Rămase",
     numeric: true,
     peTelefon: "meta",
-    celula: ({ sold }) => (
-      <span className="font-medium">
-        {sold === null || sold === undefined
-          ? "fără mișcări în acest an"
-          : formatNumar(sold.ramase ?? 0)}
+    etichetaTelefon: "Rămase",
+    // MEREU o cifră (UX-011): textul „fără mișcări în acest an” lua locul
+    // restului, deci cele 730 de zile ale creșterii copilului nu se vedeau.
+    // Explicația rămâne, ca `title`, pe tipurile fără rând de sold.
+    celula: (rand) => (
+      <span
+        className="font-medium"
+        title={
+          rand.sold === null ? "Fără mișcări în acest an: restul e dreptul întreg." : undefined
+        }
+      >
+        {formatNumar(ramaseDinRand(rand))}
       </span>
     ),
   },
@@ -159,17 +177,42 @@ function TabelTipuri({
   );
 }
 
-function SelectorAn({ an }: { readonly an: number }) {
+/** Adresa paginii pentru un an, cu sau fără toate tipurile. */
+function hrefSold(an: number, toate: boolean): string {
+  return `/concedii/sold?an=${String(an)}${toate ? "&toate=1" : ""}`;
+}
+
+function SelectorAn({ an, toate }: { readonly an: number; readonly toate: boolean }) {
   return (
     <nav aria-label="Anul soldului" className="text-corp flex items-center gap-3">
-      <Link href={`/concedii/sold?an=${String(an - 1)}`} className="underline underline-offset-2">
+      <Link href={hrefSold(an - 1, toate)} className="underline underline-offset-2">
         {an - 1}
       </Link>
       <span className="font-semibold">{an}</span>
-      <Link href={`/concedii/sold?an=${String(an + 1)}`} className="underline underline-offset-2">
+      <Link href={hrefSold(an + 1, toate)} className="underline underline-offset-2">
         {an + 1}
       </Link>
     </nav>
+  );
+}
+
+/**
+ * Comutatorul dintre tipurile care scad din sold și toate tipurile (UX-011).
+ * Numărul total e pe link, ca să se vadă că lista e scurtată, nu goală.
+ */
+function ComutatorTipuri({
+  an,
+  toate,
+  total,
+}: {
+  readonly an: number;
+  readonly toate: boolean;
+  readonly total: number;
+}) {
+  return (
+    <Link href={hrefSold(an, !toate)} className="text-corp underline underline-offset-2">
+      {toate ? "Doar tipurile cu sold" : `Arată toate tipurile (${String(total)})`}
+    </Link>
   );
 }
 
@@ -234,6 +277,13 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
 
   const fisaProprie = fisaProprieRes.data;
 
+  // Implicit doar tipurile care scad din sold (în seed, doar odihna): lista
+  // întreagă dădea 13 rânduri per angajat (UX-011). `?toate=1` le arată pe toate.
+  const toate = parametri["toate"] === "1";
+  const tipuriAfisate = tipuriAfisateInSold(tipuri, toate);
+  // Comutatorul apare doar când filtrul chiar schimbă ceva.
+  const areComutator = tipuriAfisateInSold(tipuri, false).length < tipuri.length;
+
   // Numele mișcărilor din istoric. Se citesc DOAR peste scope „own”: pentru cine
   // vede numai propriul sold, toate liniile sunt ale lui și o coloană „Angajat”
   // ar repeta același nume de N ori.
@@ -261,7 +311,8 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         actiuni={
           <>
             <ButonSetariConcedii poateConfigura={poateConfigura} />
-            <SelectorAn an={an} />
+            {areComutator ? <ComutatorTipuri an={an} toate={toate} total={tipuri.length} /> : null}
+            <SelectorAn an={an} toate={toate} />
           </>
         }
         file={
@@ -283,13 +334,13 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         />
       ) : scope === "own" ? (
         <TabelTipuri
-          randuri={imperecheazaSold(tipuri, solduri)}
+          randuri={imperecheazaSold(tipuriAfisate, solduri)}
           caption="Soldul de zile de concediu, pe tip."
         />
       ) : (
         <SectiuniPeAngajat
           organizationId={tenant.organizationId}
-          tipuri={tipuri}
+          tipuri={tipuriAfisate}
           solduri={solduri}
           fisaProprie={fisaProprie?.id ?? null}
           permisiuni={permisiuni}

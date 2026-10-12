@@ -149,8 +149,10 @@ async function TabelAngajati({
       celula: (r) => (
         <>
           <span className="font-medium">{r.full_name}</span>
+          {/* Textul secundar, nu auriul: `text-accent` pe crem dă 2,26:1
+              (UX-020); `text-muted-foreground` dă 5,55:1, ca nota vecină. */}
           {r.user_id === userId ? (
-            <span className="text-accent text-nota ml-2">(fișa dumneavoastră)</span>
+            <span className="text-muted-foreground text-nota ml-2">(fișa dumneavoastră)</span>
           ) : null}
           {r.is_primary ? null : (
             <span className="text-muted-foreground text-nota ml-2">(cumul de funcții)</span>

@@ -37,7 +37,9 @@ import {
   numarCereriInAsteptareLuna,
   numarDeAprobat,
   previzualizeazaDrepturi,
+  ramaseDinRand,
   soldAnual,
+  tipuriAfisateInSold,
   varianteConcediu,
   zileleCererii,
   zileNelucratoare,
@@ -360,6 +362,58 @@ describe("imperecheazaSold și grupeazaSoldDupaAngajat", () => {
     expect(harta.get("a")).toEqual([a1, a2]);
     expect(harta.get("b")).toEqual([b1]);
     expect(grupeazaSoldDupaAngajat([]).size).toBe(0);
+  });
+
+  /*
+    UX-011: coloana „Rămase” arăta textul „fără mișcări în acest an” în locul
+    cifrei pentru orice tip fără rând de sold — deci dreptul de 730 de zile al
+    concediului de creștere a copilului nu se vedea ca rest. `/concedii` avea
+    formula ei, inline; acum amândouă ecranele o cheamă pe aceasta.
+  */
+  it("ramaseDinRand: fără rând de sold ⇒ zilele implicite ale tipului, ca cifră", () => {
+    const crestere: TipConcediu = { ...tip("crestere_copil"), zile_implicite: 730 };
+    expect(ramaseDinRand({ tip: crestere, sold: null })).toBe(730);
+  });
+
+  it("ramaseDinRand: `ramase` lipsă ⇒ drept + reportate − folosite − în așteptare", () => {
+    const s: SoldTip = {
+      ...sold(FISA, "odihna"),
+      drept_anual: 21,
+      reportate: 3,
+      folosite: 5,
+      in_asteptare: 2,
+      ramase: null,
+    };
+    expect(ramaseDinRand({ tip: tip("odihna"), sold: s })).toBe(17);
+  });
+
+  it("ramaseDinRand: `ramase` din bază (coloană generată) se ia întocmai", () => {
+    const s: SoldTip = { ...sold(FISA, "odihna"), ramase: 12.5 };
+    expect(ramaseDinRand({ tip: tip("odihna"), sold: s })).toBe(12.5);
+  });
+});
+
+/*
+  UX-011: `/concedii/sold` lista 13 tipuri pentru fiecare angajat (creștere
+  copil, adopție, deces, donator de sânge…), iar răspunsul la „câte zile de
+  odihnă mai am?” cerea derulare printre 13 × N rânduri. Implicit rămân doar
+  tipurile care scad din sold; restul, la cerere.
+*/
+describe("tipuriAfisateInSold", () => {
+  const odihna = tip("odihna");
+  const deces: TipConcediu = { ...tip("deces"), scade_din_sold: false };
+  const crestere: TipConcediu = { ...tip("crestere_copil"), scade_din_sold: false };
+
+  it("implicit: doar tipurile care scad din sold", () => {
+    expect(tipuriAfisateInSold([deces, odihna, crestere], false)).toEqual([odihna]);
+  });
+
+  it("cu „toate”: toate tipurile, în ordinea primită", () => {
+    expect(tipuriAfisateInSold([deces, odihna, crestere], true)).toEqual([deces, odihna, crestere]);
+  });
+
+  it("niciun tip nu scade din sold ⇒ toate, nu o listă goală", () => {
+    expect(tipuriAfisateInSold([deces, crestere], false)).toEqual([deces, crestere]);
   });
 });
 

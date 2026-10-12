@@ -44,8 +44,12 @@ function potriveste(cale: string, href: string): boolean {
  * `aria-current="page"`, adică un cititor de ecran anunța două pagini curente
  * pe același ecran.
  *
- * Nu se compară doar în interiorul grupului: „Salarizare" și „Popriri" sunt
- * amândouă în „Financiar" azi, dar regula nu trebuie să depindă de asta.
+ * Nu se compară doar în interiorul grupului: regula nu trebuie să depindă de
+ * gruparea de azi.
+ *
+ * Din UX-001, „Sporuri și prime" și „Popriri" sunt COPII ai „Salarizare", nu
+ * intrări de prim nivel; aceeași garanție — o singură pagină curentă — o ține
+ * acum `copilCurent`, mai jos.
  */
 function hrefulActiv(groups: readonly NavGroupView[], cale: string): string | null {
   let castigator: string | null = null;
@@ -98,17 +102,29 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
     <nav aria-label="Navigare principală" className="flex flex-col gap-5">
       {groups.map((grup) => (
         <div key={grup.id}>
-          <h2
+          {/*
+            `p`, nu `h2` (UX-041): railul se randează ÎNAINTEA paginii, deci cinci
+            `h2` deschideau lista de titluri a cititorului de ecran înaintea
+            `h1`-ului. Numele grupului rămâne, ca nume al listei, prin
+            `aria-labelledby`.
+          */}
+          <p
+            id={`grup-nav-${grup.id}`}
             className={cn(
               "text-eticheta px-2 pb-1.5 font-semibold tracking-[0.15em] text-white/70 uppercase",
               colapsat ? "md:sr-only" : "",
             )}
           >
             {grup.label}
-          </h2>
-          <ul className="flex flex-col gap-0.5">
+          </p>
+          <ul aria-labelledby={`grup-nav-${grup.id}`} className="flex flex-col gap-0.5">
             {grup.items.map((element) => {
               const activ = element.href === activHref;
+              // Pe pagina unui copil („Popriri” sub „Salarizare”), copilul e
+              // pagina curentă; părintele rămâne aprins, dar doar ca „secțiunea
+              // curentă” (`aria-current="true"`). Altfel, două `page` pe ecran.
+              const copilCurent =
+                activ && (element.children ?? []).some((copil) => copil.href === cale);
               const contor = element.badgeCount;
               return (
                 <li key={element.id} className="relative">
@@ -127,7 +143,7 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                   <Link
                     href={element.href}
                     onClick={laNavigare}
-                    aria-current={activ ? "page" : undefined}
+                    aria-current={activ ? (copilCurent ? "true" : "page") : undefined}
                     title={colapsat ? element.label : undefined}
                     className={cn(
                       "rounded-control text-corp flex min-h-11 items-center gap-2.5 px-2 py-2 transition-colors md:min-h-0",
