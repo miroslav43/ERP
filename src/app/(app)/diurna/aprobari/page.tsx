@@ -205,7 +205,7 @@ export default async function PaginaAprobari() {
     <div className="space-y-6">
       <AntetPagina
         titlu="Deplasări de aprobat"
-        descriere="Nu vă puteți aproba propria deplasare — regula e verificată de baza de date, indiferent de rol."
+        descriere="Propria deplasare nu o puteți aproba, indiferent de rol: o aprobă managerul sau administratorul."
         file={<NavDiurna poateAproba />}
       />
 

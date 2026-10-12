@@ -23,6 +23,13 @@ export interface ProprietatiCampuriSesizare<TData> {
   readonly prefillEsuat: boolean;
   /** `/mentenanta/sesizari` sau `/portal/sesizari` — pentru linkul din avertismentul de duplicat. */
   readonly radacinaSesizari: string;
+  /**
+   * Formularul de tichet IT, dacă privitorul îl poate deschide (modulul
+   * `ticketing` activ și `tickets:create`); altfel `null`. Calculatorul,
+   * imprimanta și telefonul nu sunt în parcul de mentenanță: cine le caută aici
+   * primește la zero rezultate drumul spre tichete (ANG-025).
+   */
+  readonly hrefTichetNou: string | null;
 }
 
 /**
@@ -57,6 +64,7 @@ export function CampuriSesizare<TData>({
   echipamentPrefill,
   prefillEsuat,
   radacinaSesizari,
+  hrefTichetNou,
 }: ProprietatiCampuriSesizare<TData>): ReactElement {
   const trimise: Readonly<Record<string, string>> = stare.data === null ? stare.valoriTrimise : {};
   const sATrimis = Object.keys(trimise).length > 0;
@@ -145,6 +153,10 @@ export function CampuriSesizare<TData>({
               className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
             />
             <div aria-live="polite">
+              {/* Sub prag caseta tăcea: la „e" nu apărea nimic (ANG-025). */}
+              {interogare.trim().length === 1 ? (
+                <p className="text-muted-foreground text-nota">Tastați cel puțin 2 caractere.</p>
+              ) : null}
               {inCautare ? <p className="text-muted-foreground text-nota">Se caută…</p> : null}
               {!inCautare &&
               termenCautat !== null &&
@@ -154,6 +166,19 @@ export function CampuriSesizare<TData>({
                 <p className="text-foreground text-nota">
                   Niciun echipament pentru „{termenCautat}”. Verificați codul de pe plăcuță sau
                   scanați codul QR de pe utilaj.
+                  {hrefTichetNou !== null ? (
+                    <>
+                      {" "}
+                      Pentru calculator, imprimantă sau telefon,{" "}
+                      <Link
+                        href={hrefTichetNou}
+                        className="text-primary underline-offset-2 hover:underline"
+                      >
+                        deschideți un tichet IT
+                      </Link>
+                      .
+                    </>
+                  ) : null}
                 </p>
               ) : null}
             </div>

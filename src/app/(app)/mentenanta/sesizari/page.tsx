@@ -12,7 +12,7 @@ import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, type PermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
@@ -278,10 +278,16 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
   const { tenant, user } = await requireTenant();
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "maintenance"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Calculatorul și imprimanta nu sunt în parcul de mentenanță: la zero
+  // rezultate, caseta trimite spre tichete, prin poarta paginii-țintă (modulul
+  // pornit + `tickets:create`), ca în portal (ANG-025).
+  const hrefTichetNou =
+    module.has("ticketing") && can(permisiuni, "tickets:create", "own") ? "/ticketing/nou" : null;
 
   if (!can(permisiuni, "maintenance:read", "own")) {
     return (
@@ -354,6 +360,7 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
                     deschideCaseta && echipamentBrut !== null && echipamentPrefill === null
                   }
                   zona="app"
+                  hrefTichetNou={hrefTichetNou}
                 />
               ),
             }

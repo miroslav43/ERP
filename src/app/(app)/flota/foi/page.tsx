@@ -78,7 +78,11 @@ async function TabelFoi({
         descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate foile."
-            : "Înregistrați prima cursă ca să puteți justifica consumul de combustibil."
+            : poateCrea
+              ? "Înregistrați prima cursă ca să puteți justifica consumul de combustibil."
+              : // Managerul aprobă foile echipei, nu le scrie (MGR-012): îndemnul
+                // „Înregistrați prima cursă" îl trimitea spre un buton care nu există.
+                "Nicio foaie de parcurs nu a fost înregistrată încă de echipa dumneavoastră."
         }
         {...(filtre.vehicul !== null && poateCrea
           ? {
@@ -90,7 +94,9 @@ async function TabelFoi({
             }
           : areFiltre
             ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } }
-            : {})}
+            : poateCrea
+              ? { actiune: { eticheta: "Foaie nouă", href: "/flota/foi?foaie=noua" } }
+              : {})}
       />
     );
   }

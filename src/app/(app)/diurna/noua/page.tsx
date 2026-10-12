@@ -85,7 +85,7 @@ export default async function PaginaDeplasareNoua({
           titlu="Politica de diurnă nu este configurată"
           descriere={
             poateConfiguraPolitica
-              ? "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Configurați pragurile și baremul firmei."
+              ? "Pasul 1 din 2: configurați pragurile și baremul firmei. Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată."
               : "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Cereți administratorului organizației să configureze politica firmei."
           }
           {...(poateConfiguraPolitica

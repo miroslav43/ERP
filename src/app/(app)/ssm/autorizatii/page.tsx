@@ -72,7 +72,7 @@ async function TabelAutorizatii({
         titlu="Nicio autorizație nominală înregistrată"
         descriere={
           poateCrea
-            ? "Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
+            ? "Apăsați „Autorizație nominală nouă” ca să adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…)."
             : "Nicio autorizație nominală nu e înregistrată încă. Le adaugă responsabilul SSM."
         }
       />

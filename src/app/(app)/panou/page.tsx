@@ -89,6 +89,10 @@ export default async function PanouPage() {
   const peProcente = firma.angajatiActivi >= PRAG_EFECTIV_PROCENTE;
 
   const poateAdaugaAngajat = can(permisiuni, "employees:create", "all");
+  // Blocul „Pornire" e o listă de pași cu butoane păzite; cine nu poate face
+  // niciunul (managerul, de pildă) vedea patru pași fără niciun buton (ONB-032).
+  const arataPornire =
+    firmaGoala && (poateEditaFirma || poateAdaugaAngajat || poateCreaDepartamente);
   const poateCereConcediu = module.has("leave") && can(permisiuni, "leave:create", "own");
 
   const azi = new Intl.DateTimeFormat("ro-RO", {
@@ -230,7 +234,7 @@ export default async function PanouPage() {
           iar pentru ele panoul obișnuit ar fi fost o listă de „nimic de făcut"
           repetată de cinci ori — corect, dar rece pentru cineva care tocmai
           s-a înrolat și nu știe ce urmează. */}
-      {firmaGoala ? (
+      {arataPornire ? (
         <section className="border-border rounded-panou overflow-hidden border">
           <header className="border-border border-b px-4 py-3">
             <h2 className="text-eticheta text-foreground font-semibold tracking-wide uppercase">
