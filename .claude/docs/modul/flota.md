@@ -36,7 +36,7 @@ citeste_daca:
   - "foaie refuzată cu „Vehiculul ales nu vă este alocat” → [[modul/flota/roluri-si-portal]]"
   - "curse, foaie trimisă care nu se mai modifică, numărul FP, PDF → [[modul/flota/foaia-zilnica]]"
   - "alerte de scadență, responsabil de flotă, notificări pe foaie, /flota/setari → [[modul/flota/alerte-si-setari]]"
-scris_pe: 477405adb844def658fa265d593eda9deecac429
+scris_pe: 231c60b3569e3b9f140ed3b01614d70ad7bbef47
 scris_la: 2026-10-12
 tags: [modul, operations]
 ---
@@ -61,6 +61,10 @@ majoritatea refuzurilor de mai jos nu produc nicio eroare.
 
 Drepturile pe roluri (0196), garda de vehicul alocat sau pool, regula „aprobatorul doar
 decide” și portalul „Mașina mea”: `[[modul/flota/roluri-si-portal]]`.
+
+**Șoferii** (0201): permisele (`driver_licenses`, HR fără parc), avizul medical,
+verificările încrucișate pe foaie și la predare, foaia legată de deplasare:
+`[[modul/flota/soferi]]`.
 
 **Fișa vehiculului** (cine o modifică, coloana „Acțiuni” a documentelor, tipurile
 obligatorii și opționale): `[[modul/flota/documente-si-erori]]`.
@@ -202,7 +206,7 @@ erorile și `useTransition`-ul lui, ca o eroare la alimentare să nu înroșeasc
 ## Ce NU e aici
 
 Mentenanța vehiculelor (plan, intervenții, ITP) e modul separat. Diurna pentru deplasări
-e alt modul. Fișa șoferului: `[[modul/angajati]]`.
+e alt modul (vehiculul deplasării: `[[modul/flota/soferi]]`). Fișa șoferului: `[[modul/angajati]]`.
 
 ## Când NU e suficientă pagina asta
 
