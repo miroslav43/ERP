@@ -16,14 +16,7 @@ const schemaOrganizatie = z
     name: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(160),
     legal_name: textOptional(200),
     forma_juridica: textOptional(40),
-    cui: z
-      .string()
-      .trim()
-      .regex(
-        /^(RO)?\s?\d{2,10}$/i,
-        "CUI-ul trebuie să conțină între 2 și 10 cifre, opțional prefixat cu RO.",
-      )
-      .optional(),
+    // `cui` NU e aici, deliberat — vezi comentariul de deasupra acțiunii.
     platitor_tva: z.boolean(),
     reg_com: textOptional(40),
     adresa: textOptional(240),
@@ -102,7 +95,6 @@ const CAMPURI_AUDITATE = [
   "name",
   "legal_name",
   "forma_juridica",
-  "cui",
   "platitor_tva",
   "reg_com",
   "adresa",
@@ -137,8 +129,17 @@ function golSauNull(valoare: string | undefined): string | null {
 export type DateOrganizatieActualizate = Readonly<{ id: string; name: string }>;
 
 /**
- * plan, seats_limit, subscription_status și status NU fac parte din schemă: sunt blocate
- * de trigger în baza de date pentru org_admin (S9) și se modifică doar din panoul de super-admin.
+ * plan, seats_limit, subscription_status, status și **cui** NU fac parte din schemă: sunt
+ * blocate de trigger în baza de date pentru org_admin (S9) și se modifică doar din panoul
+ * de super-admin.
+ *
+ * `cui` merită propoziția lui: `internal.guard_organizations` (0002, redefinită în 0121 și
+ * 0186) readuce `cui` la valoarea veche FĂRĂ eroare (`new.cui := old.cui`) și întoarce
+ * rândul, deci un UPDATE care îl trimite „reușește”, iar un „salvat” pe el ar minți —
+ * exact ce a văzut QA (ADM-039, PRM-002/G6). Câmpul a ieșit din formular și din payload;
+ * `z.object` din Zod 4 taie cheile necunoscute, deci un client vechi care îl mai trimite nu
+ * cade, e doar ignorat. Nici `platforma.org.update` din consola de platformă nu îl scrie;
+ * doar `platforma.org.create`. Pe ecran, CUI-ul stă în caseta „Date de contract”.
  */
 export const actualizeazaOrganizatia = createAction<
   typeof schemaOrganizatie,
@@ -156,10 +157,9 @@ export const actualizeazaOrganizatia = createAction<
   },
   revalidate: ["/setari/organizatie", "/panou"],
   handler: async (ctx, input): Promise<DateOrganizatieActualizate> => {
-    // `cui` și `tara` sunt NOT NULL în baza de date: dacă lipsesc din payload,
-    // câmpul se omite din UPDATE (păstrează valoarea existentă / implicită),
-    // în loc să fie trimis `null`.
-    const cui = golSauNull(input.cui)?.toUpperCase().replace(/\s+/g, "");
+    // `tara` e NOT NULL în baza de date: dacă lipsește din payload, câmpul se
+    // omite din UPDATE (păstrează valoarea existentă / implicită), în loc să
+    // fie trimis `null`.
     const tara = golSauNull(input.tara);
     const capitalSocial =
       input.capital_social === undefined || input.capital_social === ""
@@ -178,7 +178,6 @@ export const actualizeazaOrganizatia = createAction<
         name: input.name.trim(),
         legal_name: golSauNull(input.legal_name),
         forma_juridica: golSauNull(input.forma_juridica),
-        ...(cui === undefined ? {} : { cui }),
         platitor_tva: input.platitor_tva,
         reg_com: golSauNull(input.reg_com),
         adresa: golSauNull(input.adresa),

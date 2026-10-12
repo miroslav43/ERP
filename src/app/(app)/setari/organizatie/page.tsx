@@ -114,7 +114,6 @@ export default async function SetariOrganizatiePage({
     name: data.name,
     legal_name: text(data.legal_name),
     forma_juridica: text(data.forma_juridica),
-    cui: text(data.cui),
     platitor_tva: data.platitor_tva === true,
     reg_com: text(data.reg_com),
     adresa: text(data.adresa),
@@ -140,6 +139,10 @@ export default async function SetariOrganizatiePage({
   };
 
   const contract: readonly Readonly<{ eticheta: string; valoare: string }>[] = [
+    // CUI-ul stă aici, nu în formular: `internal.guard_organizations` îl readuce
+    // la valoarea veche fără eroare pentru orice sesiune non-platformă, deci un
+    // câmp editabil ar spune „salvat” pentru o scriere refuzată (ADM-039).
+    { eticheta: "CUI", valoare: text(data.cui) },
     { eticheta: "Plan", valoare: ETICHETE_PLAN[data.plan] ?? data.plan },
     {
       eticheta: "Locuri contractate",
@@ -194,8 +197,9 @@ export default async function SetariOrganizatiePage({
           </p>
         ) : null}
         <p className="text-muted-foreground text-corp mt-3">
-          Planul, numărul de locuri și starea abonamentului se schimbă prin contract. Scrieți-ne
-          dacă aveți nevoie de mai multe locuri sau de alt plan.
+          CUI-ul, planul, numărul de locuri și starea abonamentului se schimbă prin contract.
+          Scrieți-ne dacă s-a schimbat CUI-ul firmei sau dacă aveți nevoie de mai multe locuri ori
+          de alt plan.
         </p>
       </section>
 
