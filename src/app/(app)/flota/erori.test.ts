@@ -44,6 +44,11 @@ describe("traduEroare — refuzurile bazei ajung pe câmpul vinovat", () => {
   it.each([
     "Nu puteți aproba o foaie întocmită de dumneavoastră.",
     "Foaia de parcurs a unui coleg se poate doar aproba sau respinge, după ce a fost trimisă. O completează și o trimite șoferul ei.",
+    // 0196 §C4: foaia aprobată și alimentările ei.
+    "Foaia de parcurs este aprobată și nu se mai modifică. Dacă are o greșeală, cereți administratorului flotei să o storneze, apoi întocmiți una nouă.",
+    "Foaia de parcurs aprobată se poate doar storna. Pentru corecții, stornați-o și întocmiți una nouă.",
+    "Alimentarea face parte dintr-o foaie de parcurs aprobată și nu se mai modifică. Pentru corecții, foaia se stornează și se întocmește una nouă.",
+    "Alimentarea nu se mută pe altă foaie de parcurs. Ștergeți-o și adăugați-o pe foaia corectă.",
   ])("0196, fără câmp: %s", (mesaj) => {
     const eroare = prinde(p0001(mesaj));
     expect(eroare.fieldErrors).toBeNull();

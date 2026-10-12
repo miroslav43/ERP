@@ -67,6 +67,18 @@
 --        cere dreptul de scriere și pe șoferul NOU, iar aprobarea unei foi
 --        întocmite de cel care aprobă e refuzată sub `approve = all`.
 --
+--    C4. (santinela de izolare, înainte de aplicare) Gărzile foii APROBATE
+--        fuseseră scrise când doar administratorul (`update = all`) ajungea
+--        la ea. Cu `update = own`, șoferul își rescria traseul și scopul unei
+--        foi aprobate, își muta semnătura aprobării pe alt om (`aprobat_de` nu
+--        se rescria pe un UPDATE fără schimbare de stare), își ștergea
+--        alimentările și chiar foaia. Acum: `created_by`, `trimis_la`,
+--        `aprobat_de`, `aprobat_la` sunt ale bazei pe orice UPDATE; pe o foaie
+--        aprobată, cine nu are `update = all` nu schimbă nimic, iar cine are
+--        poate doar s-o storneze (ștergere logică). Aceeași regulă pe
+--        `internal.alimentari_inainte` (secțiunea C'), unde, în plus, o
+--        alimentare nu se mută de pe o foaie pe alta.
+--
 -- D. `app.can_path` (forma ultimă: 0144 §5). La `team`, orice resursă în afară
 --    de `employees`/`leave` trecea cu `true`. Acum `trip_sheets` (segmentul 3 =
 --    fișa șoferului) și `vehicles` (segmentul 3 = id-ul vehiculului) se
@@ -275,7 +287,20 @@ declare
   -- trigger BEFORE, nu e cea finală, deci nu intră în comparație.
   c_decizie constant text[] := array['status', 'motiv_respingere', 'aprobat_de', 'aprobat_la',
                                      'updated_at', 'updated_by', 'km_parcursi'];
+  -- 0196 §C4: singurele coloane care se mișcă pe o foaie aprobată, la stornare.
+  c_stornare constant text[] := array['deleted_at', 'updated_at', 'updated_by', 'km_parcursi'];
 begin
+  -- 0196 §C4: semnăturile foii sunt ale BAZEI, nu ale payload-ului. Autorul nu
+  -- se rescrie niciodată, iar `trimis_la`/`aprobat_de`/`aprobat_la` se pun doar
+  -- în blocul de tranziție de mai jos, din sesiune. Fără asta, pe un UPDATE care
+  -- lasă starea neschimbată, șoferul își muta semnătura aprobării pe alt om.
+  if tg_op = 'UPDATE' and not app.is_service_context() then
+    new.created_by := old.created_by;
+    new.trimis_la  := old.trimis_la;
+    new.aprobat_de := old.aprobat_de;
+    new.aprobat_la := old.aprobat_la;
+  end if;
+
   -- 0196 §C2: aprobatorul care NU poate scrie foaia pe dreptul de scriere a
   -- ajuns aici doar prin ramura de aprobare a lui `foi_update`. Atunci poate
   -- decide, atât.
@@ -347,12 +372,33 @@ begin
     end if;
   end if;
 
+  -- 0196 §C4: foaia APROBATĂ e document justificativ pentru combustibilul
+  -- dedus. Gărzile de mai jos au fost scrise când doar administratorul
+  -- (`update = all`) ajungea la ea; din 0196, șoferul și managerul au
+  -- `update = own` pe foile lor. Cine nu are `update = all` nu mai atinge
+  -- nimic pe o foaie aprobată: nici textul, nici ștergerea logică, nici
+  -- reînvierea uneia stornate.
+  if tg_op = 'UPDATE' and old.status = 'aprobat' and not app.is_service_context()
+     and app.has_permission(new.organization_id, 'trip_sheets', 'update') is distinct from 'all' then
+    raise exception using errcode = 'P0001',
+      message = 'Foaia de parcurs este aprobată și nu se mai modifică. Dacă are o greșeală, cereți administratorului flotei să o storneze, apoi întocmiți una nouă.';
+  end if;
+
   -- O foaie aprobată este un document justificativ: cifrele ei nu se mai ating.
   if tg_op = 'UPDATE' and old.status = 'aprobat' and new.deleted_at is null
      and (old.vehicle_id, old.employee_id, old.plecare_la, old.sosire_la, old.km_plecare, old.km_sosire)
          is distinct from (new.vehicle_id, new.employee_id, new.plecare_la, new.sosire_la, new.km_plecare, new.km_sosire) then
     raise exception using errcode = 'P0001',
       message = 'Foaia de parcurs este aprobată. Pentru corecţii, stornaţi-o şi întocmiţi una nouă.';
+  end if;
+
+  -- 0196 §C4, și pentru `update = all`: pe foaia aprobată se mișcă doar
+  -- ștergerea logică (stornarea, sau anularea ei). Traseul, scopul, motivul și
+  -- observațiile țin de document la fel ca cifrele de mai sus.
+  if tg_op = 'UPDATE' and old.status = 'aprobat' and not app.is_service_context()
+     and (pg_catalog.to_jsonb(new) - c_stornare) is distinct from (pg_catalog.to_jsonb(old) - c_stornare) then
+    raise exception using errcode = 'P0001',
+      message = 'Foaia de parcurs aprobată se poate doar storna. Pentru corecții, stornați-o și întocmiți una nouă.';
   end if;
 
   -- 0018 §F1: doar la INSERT sau la tranziţia draft→trimis.
@@ -450,6 +496,69 @@ end;
 $$;
 
 revoke all on function internal.foi_parcurs_inainte() from public, anon, authenticated;
+
+-- ============================================================
+-- C'. internal.alimentari_inainte — corpul din 0018 §F8 + garda C4
+-- ============================================================
+--
+-- Forma ultimă e 0018 (grep pe toate migrările: 0171 a schimbat doar
+-- politicile). Scutirea din 0018, „ștergerea logică trece și pe o foaie
+-- aprobată”, era scrisă pentru administrator. Din 0196, șoferul are
+-- `trip_sheets:update = own`, deci `alimentari_update` (0171) îl lasă pe
+-- alimentările foii lui — inclusiv pe cele ale foii APROBATE. Garda judecă
+-- foaia VECHE (de pe care pleacă alimentarea), fiindcă foaia nouă poate fi o
+-- ciornă oarecare.
+
+create or replace function internal.alimentari_inainte()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  v_foaie public.trip_sheets%rowtype;
+  v_stare_veche public.trip_sheet_status;
+begin
+  -- F8: validare explicită, ÎNAINTEA oricărei alte verificări, ca mesajul de
+  -- business (română, P0001) să apară mereu — indiferent dacă Postgres ar fi
+  -- evaluat coloana generată sau CHECK-ul înaintea acestui trigger.
+  if new.litri is null or new.litri <= 0 then
+    raise exception using errcode = 'P0001',
+      message = 'Cantitatea de combustibil alimentată trebuie să fie mai mare decât zero.';
+  end if;
+
+  -- 0196 §C4: alimentarea unei foi aprobate nu se mai atinge, nici ștearsă,
+  -- nici mutată; iar una nu se mută între foi deloc (s-ar scoate de pe un
+  -- document și s-ar pune pe altul, fără urmă în niciunul).
+  if tg_op = 'UPDATE' and not app.is_service_context() then
+    new.created_by := old.created_by;
+    select t.status into v_stare_veche from public.trip_sheets t where t.id = old.trip_sheet_id;
+    if v_stare_veche = 'aprobat' then
+      raise exception using errcode = 'P0001',
+        message = 'Alimentarea face parte dintr-o foaie de parcurs aprobată și nu se mai modifică. Pentru corecții, foaia se stornează și se întocmește una nouă.';
+    end if;
+    if new.trip_sheet_id is distinct from old.trip_sheet_id then
+      raise exception using errcode = 'P0001',
+        message = 'Alimentarea nu se mută pe altă foaie de parcurs. Ștergeți-o și adăugați-o pe foaia corectă.';
+    end if;
+  end if;
+
+  select * into v_foaie from public.trip_sheets t
+   where t.id = new.trip_sheet_id and t.deleted_at is null;
+  if not found or v_foaie.organization_id <> new.organization_id then
+    raise exception using errcode = 'P0001',
+      message = 'Foaia de parcurs selectată nu aparţine organizaţiei dumneavoastră.';
+  end if;
+  if v_foaie.status in ('aprobat', 'respins') and new.deleted_at is null then
+    raise exception using errcode = 'P0001',
+      message = 'Foaia de parcurs nu mai este în lucru. Alimentările nu se mai pot modifica după aprobare sau respingere.';
+  end if;
+  if new.alimentat_la < v_foaie.plecare_la
+     or (v_foaie.sosire_la is not null and new.alimentat_la > v_foaie.sosire_la) then
+    raise exception using errcode = 'P0001',
+      message = 'Data alimentării este în afara intervalului foii de parcurs.';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function internal.alimentari_inainte() from public, anon, authenticated;
 
 -- ============================================================
 -- D. app.can_path — corpul din 0144 §5 + ramurile de flotă

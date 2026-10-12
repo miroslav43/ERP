@@ -40,6 +40,14 @@
 --  (23) managerul NU aprobă o foaie întocmită de el, chiar dacă e pe subordonat (P0001);
 --  (24) angajatul vede mașina pool, dar NU anomalia de pe foaia colegului pe ea,
 --       și vede anomalia de pe propria foaie                            [POZITIVĂ].
+-- Foaia aprobată, după ce șoferul a primit update = own (santinela):
+--  (25) șoferul NU își rescrie foaia aprobată (traseu, scop, `aprobat_de`) (P0001);
+--  (26) NU șterge alimentarea ei (P0001);  (27) NU o mută pe altă foaie (P0001);
+--  (28) NU își șterge logic foaia aprobată (P0001);
+--  (29) pe ciornă scrie, dar `aprobat_*`, `trimis_la`, `created_by` rămân ale bazei [POZITIVĂ];
+--  (30) nici administratorul nu rescrie foaia aprobată (P0001);
+--  (31) administratorul o stornează (ștergere logică, 1 rând)        [POZITIVĂ];
+--  (32) șoferul NU reînvie foaia stornată.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -75,6 +83,8 @@ declare
   v_foaie_bp  uuid := gen_random_uuid();
   v_anom_b    uuid := gen_random_uuid();
   v_anom_a    uuid := gen_random_uuid();
+  v_alim_a    uuid;
+  v_foaie_x   uuid := gen_random_uuid();
   v_n         int;
   v_status    text;
   v_vazute    text;
@@ -162,7 +172,8 @@ begin
   begin
     insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
                                      created_by, updated_by)
-    values (v_org, v_foaie_a, 30, 210, now() - interval '2 hours', v_u_a, v_u_a);
+    values (v_org, v_foaie_a, 30, 210, now() - interval '2 hours', v_u_a, v_u_a)
+    returning id into v_alim_a;
     reset role;
     raise notice '  ✓ (2) angajatul alimentează pe foaia proprie';
   exception when others then
@@ -608,11 +619,159 @@ begin
     raise warning '  ✗ (24) pool vizibil: %, anomalii văzute: %', v_n, v_vazute;
   end if;
 
+  -- ═══ Foaia APROBATĂ, după ce șoferul a primit update = own (santinela) ═══
+  --
+  -- Foaia Anei (v_foaie_a) a fost aprobată la (12) și are alimentarea de la (2).
+  -- Înainte de 0196, nici angajatul, nici managerul n-aveau `trip_sheets:update`,
+  -- deci gărzile foii aprobate le atingea doar administratorul.
+
+  -- (25) șoferul nu-și rescrie foaia aprobată: traseu, scop, semnătura aprobării
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets
+       set traseu = 'Cluj-Viena', scop = 'personal', aprobat_de = v_u_admin, updated_by = v_u_a
+     where id = v_foaie_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (25) șoferul și-a rescris foaia aprobată (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (25) șoferul nu-și rescrie foaia aprobată (P0001)';
+  end;
+
+  -- (26) șoferul nu-și șterge alimentarea de pe foaia aprobată. ÎNAINTEA lui
+  -- (28): pe o foaie deja ștearsă, alimentarea ar cădea pe garda de firmă și
+  -- verificarea ar trece fără să probeze nimic.
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.fuel_entries set deleted_at = now(), updated_by = v_u_a where id = v_alim_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (26) șoferul a șters alimentarea foii aprobate (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (26) alimentarea foii aprobate nu se șterge (P0001)';
+  end;
+
+  -- (27) nici nu o mută pe o ciornă a lui. Ciorna începe ÎNAINTEA alimentării,
+  -- ca singurul motiv de refuz să fie foaia aprobată de pe care pleacă.
+  insert into public.trip_sheets (id, organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by) values
+    (v_foaie_x, v_org, v_v_pool, v_e_a, now() - interval '4 hours', 40000, v_u_a, v_u_a);
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.fuel_entries set trip_sheet_id = v_foaie_x, updated_by = v_u_a where id = v_alim_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (27) alimentarea a plecat de pe foaia aprobată (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (27) alimentarea nu pleacă de pe foaia aprobată (P0001)';
+  end;
+
+  -- (28) șoferul nu-și stornează singur foaia aprobată
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set deleted_at = now(), updated_by = v_u_a where id = v_foaie_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (28) șoferul și-a șters foaia aprobată (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (28) șoferul nu-și șterge foaia aprobată (P0001)';
+  end;
+
+  -- (29) semnătura aprobării nu se scrie fără decizie, pe nicio stare: ciorna
+  -- de pe pool rămâne nesemnată, cu un rând scris (observația trece)
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets
+       set observatii = 'Cu semnătură strecurată.', aprobat_de = v_u_admin, aprobat_la = now(),
+           trimis_la = now(), created_by = v_u_b, updated_by = v_u_a
+     where id = v_foaie_pool;
+    get diagnostics v_n = row_count;
+    reset role;
+    select case when aprobat_de is null and aprobat_la is null and trimis_la is null
+                     and created_by = v_u_a and observatii = 'Cu semnătură strecurată.'
+                then 'curat' else 'forjat' end
+      into v_status from public.trip_sheets where id = v_foaie_pool;
+    if v_n = 1 and v_status = 'curat' then
+      raise notice '  ✓ (29) ciorna se scrie, dar semnătura și autorul rămân ale bazei';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (29) % rânduri, ciorna e %', v_n, v_status;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (29) ciorna nu se mai scrie: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (30) nici administratorul nu rescrie cifrele sau textul foii aprobate
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set scop = 'Rescris de admin.', updated_by = v_u_admin where id = v_foaie_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (30) administratorul a rescris foaia aprobată (% rânduri)', v_n;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (30) foaia aprobată nu se rescrie nici de administrator (P0001)';
+  end;
+
+  -- (31) administratorul o stornează: ștergere logică, un rând [POZITIVĂ]
+  perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set deleted_at = now(), updated_by = v_u_admin where id = v_foaie_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 1 then
+      raise notice '  ✓ (31) administratorul stornează foaia aprobată (1 rând)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (31) stornarea: % rânduri', v_n;
+    end if;
+  exception when others then
+    reset role;
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (31) administratorul nu poate storna: % (%)', sqlerrm, sqlstate;
+  end;
+
+  -- (32) șoferul nu reînvie foaia stornată (ar anula stornarea administratorului)
+  perform set_config('request.jwt.claim.sub', v_u_a::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set deleted_at = null, updated_by = v_u_a where id = v_foaie_a;
+    get diagnostics v_n = row_count;
+    reset role;
+    if v_n = 0 then
+      raise notice '  ✓ (32) șoferul nu reînvie foaia stornată (zero rânduri)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise warning '  ✗ (32) șoferul a reînviat foaia stornată (% rânduri)', v_n;
+    end if;
+  exception when raise_exception then
+    reset role;
+    raise notice '  ✓ (32) șoferul nu reînvie foaia stornată (P0001)';
+  end;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA ROLURI: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 28 de verificări au trecut.';
+  raise notice '  TOATE cele 36 de verificări au trecut.';
   raise notice '';
 end;
 $$;
