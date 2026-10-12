@@ -3,12 +3,15 @@ import { notFound } from "next/navigation";
 import { RotateCw, ShieldCheck } from "lucide-react";
 
 import { buton } from "@/components/ui/buton";
-import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { metadataPlatforma, requirePlatformAdmin } from "@/lib/auth/platform";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { ETICHETE_ROL, ROLURI_APLICATIE, type RolAplicatie } from "@/schemas/membership";
 
 import { CULORI_SCOPE, ETICHETE_SCOPE } from "../../../_lib/platform";
+
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Permisiuni · Panou de platformă");
 
 type Scope = "none" | "own" | "team" | "all";
 

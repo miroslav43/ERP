@@ -1,15 +1,16 @@
 // src/app/(platform)/super-admin/cereri-demo/page.tsx
 import Link from "next/link";
-import type { Metadata } from "next";
 import { AlertCircle, Building2, Inbox, Mail, Phone, Users } from "lucide-react";
 import { buton } from "@/components/ui/buton";
+import { metadataPlatforma } from "@/lib/auth/platform";
 import { cn } from "@/lib/ui/cn";
 import { formatDateTime } from "@/lib/format/date";
 import { citesteCereriDemo } from "./actions";
 import { ETICHETE_STATUS, STATUSURI_CERERE, type StatusCerere } from "./constante";
 import { SchimbaStatus } from "./schimba-status";
 
-export const metadata: Metadata = { title: "Cereri de demo" };
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Cereri de demo");
 
 const RUTA = "/super-admin/cereri-demo";
 

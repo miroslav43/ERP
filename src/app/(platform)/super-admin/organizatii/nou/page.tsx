@@ -1,10 +1,13 @@
 // src/app/(platform)/super-admin/organizatii/nou/page.tsx
 import Link from "next/link";
 
+import { metadataPlatforma } from "@/lib/auth/platform";
+
 import { citesteCerereDemo } from "../../cereri-demo/actions";
 import { AlegereInrolare } from "./_components/alegere-inrolare";
 
-export const metadata = { title: "Organizație nouă · Panou de platformă" };
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Organizație nouă · Panou de platformă");
 
 /** Sugestie de identificator din denumirea firmei — admin-ul o poate schimba oricând. */
 function sugereazaSlug(firma: string): string {

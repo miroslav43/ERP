@@ -2,7 +2,7 @@
 import { Suspense } from "react";
 import { AlertTriangle, Inbox, Mail } from "lucide-react";
 import { z } from "zod";
-import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { metadataPlatforma, requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
 import { getEmailConfig } from "@/lib/email/config";
@@ -20,7 +20,8 @@ import { Buton, buton } from "@/components/ui/buton";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { cn } from "@/lib/ui/cn";
 
-export const metadata = { title: "Emailuri · Super-Admin" };
+// Titlul doar pentru administratorul de platformă: altfel 404-ul l-ar trăda (PRM-007).
+export const generateMetadata = metadataPlatforma("Emailuri · Panou de platformă");
 export const dynamic = "force-dynamic";
 
 const STATUSURI = ["queued", "sent", "delivered", "bounced", "complained", "failed"] as const;
