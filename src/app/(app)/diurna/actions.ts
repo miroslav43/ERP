@@ -219,6 +219,7 @@ export const creeazaDeplasare = createAction({
       "plecare_la",
       "sosire_la",
       "mijloc_transport",
+      "vehicle_id",
       "avans_acordat",
       "moneda_avans",
       "detasare_transnationala",
@@ -236,9 +237,10 @@ export const creeazaDeplasare = createAction({
       input.employee_id ?? (await fisaProprie(ctx.tenant.organizationId, ctx.user.id));
 
     // NU se trimit: `status` (WITH CHECK cere „ciorna”), `approval_task_id`,
-    // `numar_document` (WITH CHECK cere NULL pentru amândouă), `vehicle_id`
-    // (legarea la un vehicul rămâne în afara acestei faze), `created_by` /
-    // `updated_by` (le pune `internal.set_actor()`).
+    // `numar_document` (WITH CHECK cere NULL pentru amândouă), `created_by` /
+    // `updated_by` (le pune `internal.set_actor()`). `vehicle_id` (flota F9):
+    // mașina de serviciu, judecată de `internal.valideaza_deplasare` (aceeași
+    // firmă) și de `business_trips_vehicul_ck` (doar auto de serviciu / mixt).
     const { data, error } = await ctx.supabase
       .from("business_trips")
       .insert({
@@ -250,6 +252,7 @@ export const creeazaDeplasare = createAction({
         plecare_la: input.plecare_la,
         sosire_la: input.sosire_la,
         mijloc_transport: input.mijloc_transport,
+        vehicle_id: input.vehicle_id,
         km_parcursi: input.km_parcursi,
         avans_acordat: input.avans_acordat,
         moneda_avans: input.moneda_avans,
@@ -674,6 +677,7 @@ export const actualizeazaDeplasare = createAction({
       "plecare_la",
       "sosire_la",
       "mijloc_transport",
+      "vehicle_id",
       "km_parcursi",
       "avans_acordat",
       "moneda_avans",
@@ -694,9 +698,22 @@ export const actualizeazaDeplasare = createAction({
     // date, și ar trece pe lângă verificarea de scope făcută la creare.
     // La fel `status`, `numar_document` și `approval_task_id`: starea se
     // schimbă prin acțiunile ei, nu printr-un formular de editare.
+    //
+    // `vehicle_id` (flota F9): formularul de corectură nu-l are, deci `null`
+    // din schemă înseamnă „neatins”, nu „șters” — altfel o corectură de scop ar
+    // dezlega tăcut mașina. Excepția: transportul care nu mai e cu auto de
+    // serviciu desface legătura, fiindcă `business_trips_vehicul_ck` ar refuza
+    // altfel corectura cu un 23514 de neînțeles.
+    const vehicul =
+      input.mijloc_transport !== "auto_serviciu" && input.mijloc_transport !== "mixt"
+        ? { vehicle_id: null }
+        : input.vehicle_id === null
+          ? {}
+          : { vehicle_id: input.vehicle_id };
     const { data, error } = await ctx.supabase
       .from("business_trips")
       .update({
+        ...vehicul,
         scop: input.scop,
         country_id: input.country_id,
         localitate: input.localitate,

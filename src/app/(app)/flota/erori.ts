@@ -195,3 +195,61 @@ export function traduEroareSetari(error: unknown): never {
   }
   traduEroare(error);
 }
+
+// ── ÎNCEPUT BLOC: permisele șoferilor și foaia legată de deplasare (0201, F9) ──
+
+/**
+ * Refuzurile triggerului `internal.permise_inainte` (0201), pe câmpul lor.
+ * Mesajele sunt scrise cu ș/ț corecte, deci tiparele le folosesc direct.
+ */
+const CAMPURI_PERMIS: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Categoria „/u, ["categorii"]],
+  [/^Alegeți cel puțin o categorie/u, ["categorii"]],
+  [/^Numărul permisului/u, ["numar"]],
+  [/^Data eliberării permisului/u, ["eliberat_la"]],
+];
+
+export function traduEroarePermis(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" && error.message.includes("driver_licenses_angajat_uq")) {
+      throw businessRule(
+        "Angajatul are deja un permis de conducere înregistrat. Reînnoirea se face pe același permis: modificați-l.",
+      );
+    }
+    if (error.code === "23503" && error.message.includes("driver_licenses_angajat_fk")) {
+      throw businessRule("Angajatul ales nu aparține organizației dumneavoastră.");
+    }
+    if (error.code === "23514") {
+      if (error.message.includes("driver_licenses_interval_ck")) {
+        const mesaj = "Valabilitatea permisului nu se poate încheia înainte de data eliberării.";
+        throw invalidInput(mesaj, { expira_la: [mesaj] });
+      }
+      if (error.message.includes("driver_licenses_categorii_ck")) {
+        const mesaj = "Una dintre categorii nu există pe permisul de conducere românesc.";
+        throw invalidInput(mesaj, { categorii: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_PERMIS.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}
+
+/**
+ * Legarea foii de o deplasare (`internal.foi_deplasare_garda`, 0201): orice
+ * refuz al gărzii ține de selectorul de deplasare.
+ */
+export function traduEroareDeplasare(error: unknown): never {
+  if (isPostgrestError(error) && error.code === "P0001" && /^Deplasarea aleasă/u.test(error.message)) {
+    const mesaj = error.message.slice(0, 300);
+    throw invalidInput(mesaj, { business_trip_id: [mesaj] });
+  }
+  traduEroare(error);
+}
+// ── SFÂRȘIT BLOC: permisele șoferilor ──

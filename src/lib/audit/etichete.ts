@@ -123,6 +123,9 @@ const ENTITATI: Readonly<Record<string, string>> = {
   announcement: "Anunț",
   business_trips: "Deplasare",
   business_trip: "Deplasare",
+  // 0201 (flota F9): tabela și literalul acțiunilor din `actions-soferi.ts`.
+  driver_licenses: "Permis de conducere",
+  driver_license: "Permis de conducere",
   work_accidents: "Accident de muncă",
   work_accident: "Accident de muncă",
   fire_extinguishers: "Stingător",
