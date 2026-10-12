@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { PRAG_FLOTA_AVERTIZARE_ZILE } from "./scadente";
 import {
   LIMITE_SETARI_FLOTA,
   PRAG_SALT_IMPLICIT_KM,
@@ -62,6 +63,15 @@ describe("implicitele flotei sunt cele din bază", () => {
   it("pragurile de alertă: default-ul coloanei", () => {
     expect(migrare).toContain(
       `praguri_alerta_zile  integer[] not null default array[${PRAGURI_ALERTA_IMPLICITE.join(", ")}]`,
+    );
+  });
+
+  it("rezumatul duce la filtrul „expiră” doar în fereastra pe care filtrul o arată", () => {
+    // `flota_rezumat` alege între `/flota?conformitate=expira` și `/flota` după
+    // aceeași fereastră ca filtrul listei; altfel vehiculele cu documente peste
+    // ea ar lipsi din lista pe care o deschide notificarea.
+    expect(migrare).toContain(
+      `o.ultima_scadenta <= v_azi + ${String(PRAG_FLOTA_AVERTIZARE_ZILE)} then '/flota?conformitate=expira'`,
     );
   });
 

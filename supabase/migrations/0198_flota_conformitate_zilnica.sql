@@ -41,7 +41,11 @@
 --    Destinatari: responsabilii (sau toți `org_admin`) + șoferul alocat
 --    (`vehicles.employee_id`, derivatul alocării deschise din 0173), toți
 --    membri ACTIVI și cu `vehicles:read` ≠ none, prin `internal.scope_membru`
---    (precedența membru > firmă > global din 0189). Dedup: `alert_notifications`
+--    (precedența membru > firmă > global din 0189). Fiecare primește DOAR
+--    vehiculele pe care le vede (`internal.flota_vede_vehicul`, geamăna lui
+--    `app.poate_vedea_vehicul`): un responsabil cu `team`/`own` nu află
+--    documentele restului parcului, iar un document pe care nu-l vede niciun
+--    responsabil merge la administratori. Dedup: `alert_notifications`
 --    (`canal = 'in_app'`, indexul unic din 0008). Push-ul pleacă singur, prin
 --    triggerul de pe `notifications` (0122).
 -- D. `internal.foi_parcurs_notifica()`, AFTER UPDATE OF status pe `trip_sheets`
@@ -54,7 +58,8 @@
 --    `internal.curata_alerte`: aceea e pe toată firma și ar schimba starea
 --    alertelor altor module din jobul flotei. Rezumatul se apără singur de
 --    alertele rămase `nou` după scadență (filtrul `due_date = expires_at` și
---    starea potrivită zilei), ca în 0191.
+--    starea potrivită zilei), ca jobul mentenanței (traseul paralel M9, încă
+--    neajuns pe main la scrierea acestei migrări).
 --  · Nu atinge `expirables`, `app.poate_vedea_expirabil`, `app.can_path`.
 --  · Nu trimite e-mail (canalul `email` din 0008 rămâne neconectat).
 --
@@ -186,7 +191,7 @@ create trigger fleet_settings_inainte
 
 -- Oglinda pragurilor în `alert_rules`, pe definer (vezi antetul, A). O versiune
 -- pe zi: `alert_rules` ține istoricul pe `valabil_de_la`, iar a doua salvare din
--- aceeași zi rescrie versiunea zilei, nu adaugă una (tiparul din 0191).
+-- aceeași zi rescrie versiunea zilei, nu adaugă una (tiparul jobului de mentenanță, M9).
 create or replace function internal.flota_setari_praguri()
 returns trigger
 language plpgsql
@@ -267,7 +272,7 @@ comment on function internal.flota_prag_salt_km() is
 -- 4. Helperi
 -- ============================================================
 -- Un număr cu substantivul lui: „1 document”, „3 documente”, „20 de documente”.
--- Geamăna lui `internal.mentenanta_numarat` (0191, alt traseu), scrisă separat
+-- Geamăna lui `internal.mentenanta_numarat` (jobul mentenanței, M9, alt traseu), scrisă separat
 -- ca fiecare modul să-și poată schimba textele fără să-l atingă pe celălalt.
 create or replace function internal.flota_numarat(p_n integer, p_singular text, p_plural text)
 returns text
@@ -284,7 +289,7 @@ $$;
 
 -- Responsabilii de flotă ai unei firme, ca utilizatori: fișele din setări care
 -- sunt MEMBRI ACTIVI ai firmei (un responsabil plecat nu mai primește nimic —
--- defectul reparat de 0191 la mentenanță) și care VĂD parcul (`vehicles:read` ≠
+-- defectul reparat de M9 la mentenanță) și care VĂD parcul (`vehicles:read` ≠
 -- none); fără niciunul, toți `org_admin` activi, ca alertele să ajungă la cineva.
 create or replace function internal.flota_responsabili(p_org uuid)
 returns table (user_id uuid)
@@ -322,6 +327,53 @@ as $$
      and m.deleted_at is null
      and not exists (select 1 from din_setari);
 $$;
+
+-- Geamăna lui `app.poate_vedea_vehicul` (0196) pentru un utilizator DAT, nu
+-- pentru `auth.uid()`: jobul rulează fără nimeni autentificat. Aceleași ramuri:
+-- `all` = tot; `team` = pool, mașina lui sau a cuiva din echipa lui; `own` =
+-- pool sau mașina lui. Fișa e cea principală, ca `app.current_employee_id`.
+-- Fără ea, rezumatul unui responsabil cu `own`/`team` ar lista documentele și
+-- numerele de înmatriculare ale ÎNTREGULUI parc (revizuirea F5).
+create or replace function internal.flota_vede_vehicul(
+  p_org uuid,
+  p_user uuid,
+  p_sofer_id uuid,
+  p_pool boolean
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with fisa as (
+    select e.id
+      from public.employees e
+     where e.organization_id = p_org
+       and e.user_id = p_user
+       and e.is_primary
+       and e.deleted_at is null
+     limit 1
+  )
+  select case internal.scope_membru(p_org, p_user, 'vehicles', 'read')
+    when 'all'  then true
+    when 'team' then coalesce(p_pool, false)
+                     or (p_sofer_id is not null and exists (
+                           select 1
+                             from fisa f
+                             join public.employees s
+                               on s.id = p_sofer_id
+                              and s.organization_id = p_org
+                              and s.deleted_at is null
+                            where s.id = f.id or s.manager_path @> array[f.id]))
+    when 'own'  then coalesce(p_pool, false)
+                     or (p_sofer_id is not null and exists (select 1 from fisa f where f.id = p_sofer_id))
+    else false
+  end;
+$$;
+
+comment on function internal.flota_vede_vehicul(uuid, uuid, uuid, boolean) is
+  'Ca app.poate_vedea_vehicul (0196), pentru un utilizator dat în locul lui auth.uid(): filtrul rezumatului zilnic de flotă (0198).';
 
 -- Cine aprobă foaia unui șofer: responsabilii și managerii din lanțul lui
 -- (`manager_path`), filtrați pe dreptul EFECTIV (`internal.scope_membru`, 0189):
@@ -422,6 +474,7 @@ begin
            x.id            as expirable_id,
            v.id            as vehicle_id,
            v.employee_id   as sofer_id,
+           v.pool          as pool,
            (a.status = 'expirat') as depasita,
            x.expires_at,
            x.label || ': ' ||
@@ -446,8 +499,32 @@ begin
        and case when a.status = 'expirat' then x.expires_at < v_azi
                 else x.expires_at >= v_azi end
   ),
+  -- Fiecare responsabil primește DOAR vehiculele pe care le vede: unul cu
+  -- `team` sau `own` (un manager, un angajat bifat de administrator) nu află
+  -- din rezumat documentele și numerele restului parcului (revizuirea F5).
+  vizibile as (
+    select e.*, g.user_id
+      from elemente e
+      join gestionari g
+        on internal.flota_vede_vehicul(p_org, g.user_id, e.sofer_id, e.pool)
+  ),
+  -- Documentul pe care nu-l vede NICIUN responsabil nu rămâne nevăzut: merge
+  -- la administratorii activi, ca la firma fără responsabili.
+  orfane as (
+    select e.*, m.user_id
+      from elemente e
+      join public.organization_members m
+        on m.organization_id = p_org
+       and m.role = 'org_admin'
+       and m.status = 'active'
+       and m.deleted_at is null
+     where not exists (select 1 from vizibile z where z.expirable_id = e.expirable_id)
+       and internal.flota_vede_vehicul(p_org, m.user_id, e.sofer_id, e.pool)
+  ),
   destinatari as (
-    select e.*, g.user_id from elemente e cross join gestionari g
+    select * from vizibile
+    union
+    select * from orfane
     union
     select e.*, emp.user_id
       from elemente e
@@ -501,6 +578,7 @@ begin
            count(*) filter (where n.depasita)::integer         as depasite,
            count(*) filter (where not n.depasita)::integer     as apropiate,
            count(distinct n.vehicle_id)::integer               as vehicule,
+           max(n.expires_at)                                   as ultima_scadenta,
            (array_agg(n.vehicle_id order by n.rn))[1]          as primul_vehicul,
            string_agg('· ' || n.eticheta, E'\n' order by n.rn) filter (where n.rn <= 8) as linii
       from numerotate n
@@ -521,7 +599,12 @@ begin
            case
              when o.scope not in ('team', 'all') then '/portal/masina-mea'
              when o.vehicule = 1 then '/flota/' || o.primul_vehicul::text
-             else '/flota?conformitate=expira'
+             -- Filtrul „expiră” al listei arată 30 de zile
+             -- (`PRAG_FLOTA_AVERTIZARE_ZILE`, src/domain/fleet/scadente.ts; îl
+             -- fixează setari.test.ts). Cu un prag al firmei mai lung (60),
+             -- vehiculele de peste 30 de zile ar lipsi din el: lista întreagă.
+             when o.ultima_scadenta <= v_azi + 30 then '/flota?conformitate=expira'
+             else '/flota'
            end,
            case when o.vehicule = 1 then 'vehicle' else 'fleet_rezumat' end,
            case when o.vehicule = 1 then o.primul_vehicul end
@@ -572,7 +655,7 @@ begin
     select o.id
       from public.organizations o
      where o.deleted_at is null
-       -- Aceleași stări ca `app.current_org_ids` (și ca 0191): firma suspendată
+       -- Aceleași stări ca `app.current_org_ids` (și ca jobul mentenanței, M9): firma suspendată
        -- sau arhivată nu mai e deschisă nimănui, deci nici alertele nu pleacă.
        and o.status in ('pending', 'active')
        and o.subscription_status not in ('canceled', 'expired')
@@ -746,6 +829,7 @@ revoke all on function internal.flota_setari_praguri() from public, anon, authen
 revoke all on function internal.foi_parcurs_dupa() from public, anon, authenticated;
 revoke all on function internal.flota_numarat(integer, text, text) from public, anon, authenticated;
 revoke all on function internal.flota_responsabili(uuid) from public, anon, authenticated;
+revoke all on function internal.flota_vede_vehicul(uuid, uuid, uuid, boolean) from public, anon, authenticated;
 revoke all on function internal.flota_aprobatori_foaie(uuid, uuid) from public, anon, authenticated;
 revoke all on function internal.flota_rezumat(uuid) from public, anon, authenticated;
 revoke all on function internal.conformitate_zilnica() from public, anon, authenticated;
@@ -758,7 +842,7 @@ commit;
 -- ============================================================
 -- 10. Programarea
 -- ============================================================
--- Garda de disponibilitate (0008/0042/0191): pe Postgres-ul gol din CI și din
+-- Garda de disponibilitate (0008/0042): pe Postgres-ul gol din CI și din
 -- bancul local `pg_cron` nu există, iar migrarea trebuie să treacă.
 -- `unschedule` întâi: numele `conformitate-zilnica` e cel proiectat în 0008, iar
 -- o programare manuală anterioară nu trebuie să rămână alături de a noastră.
@@ -831,7 +915,7 @@ begin
               where n.nspname = 'internal'
                 and p.proname in ('flota_rezumat', 'conformitate_zilnica', 'flota_aprobatori_foaie',
                                   'flota_responsabili', 'foi_parcurs_notifica', 'fleet_settings_inainte',
-                                  'flota_setari_praguri')
+                                  'flota_setari_praguri', 'flota_vede_vehicul')
                 and (p.proconfig is null or not ('search_path=""' = any (p.proconfig)))) then
     v_lipsa := v_lipsa || 'search_path gol pe funcțiile 0198';
   end if;

@@ -95,8 +95,10 @@ export function FormularSetariFlota({
                 </ul>
               )}
               <p className="text-muted-foreground text-nota">
-                Un responsabil fără cont în aplicație sau fără acces la parcul auto nu primește
-                nimic; dacă niciunul nu poate primi, alertele merg la administratori.
+                Fiecare responsabil primește doar mașinile pe care le vede: un manager, pe ale
+                echipei lui; un angajat, mașinile comune și pe a lui. Un responsabil fără cont în
+                aplicație sau fără acces la parcul auto nu primește nimic. Ce nu vede niciun
+                responsabil ajunge la administratori.
               </p>
               {(stare.erori["responsabili"] ?? []).map((e) => (
                 <p key={e} role="alert" className="text-danger text-nota">

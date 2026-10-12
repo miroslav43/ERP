@@ -29,8 +29,10 @@
 -- (10) responsabil din altă firmă: P0001;
 -- (11) responsabil `hr` (nu vede parcul): nu contează, alerta nouă ajunge tot la
 --      administrator (cu pragurile noi trecute pe celelalte documente);
--- (12) responsabil manager: alerta nouă pe un singur vehicul ajunge la el, cu
---      legătura spre fișa vehiculului, iar administratorul NU o mai primește;
+-- (12) responsabil manager (`vehicles:read = team`): primește DOAR documentele
+--      vehiculelor pe care le vede (mașina șoferiței din echipa lui), cu
+--      legătura spre fișa ei; documentul de pe un vehicul pe care nu-l vede
+--      (VC) ajunge la administrator, nu la el                       [NEGATIVĂ];
 -- (13) pragul de salt din setări (100 km) produce anomalia pe care implicitul
 --      (1.500 km) n-ar fi produs-o                                 [POZITIVĂ].
 -- Fluxul foii (0198 §D):
@@ -39,6 +41,14 @@
 -- (15) respingerea ajunge la șoferiță, cu motivul                   [POZITIVĂ];
 -- (16) retrimiterea ajunge iar la manager; aprobarea administratorului ajunge
 --      la șoferiță, iar administratorul nu-și scrie singur notificare [POZITIVĂ].
+-- Responsabilul cu `own` (după revizuirea F5):
+-- (17) un angajat ales responsabil, fără mașină, nu primește documentele parcului
+--      pe care nu-l vede; documentul nou ajunge la administrator   [NEGATIVĂ].
+-- (18) același responsabil primește documentele unei mașini POOL (o vede), cu
+--      legătura spre portal; administratorul nu le mai primește     [POZITIVĂ].
+-- (19) cu pragul de 60 de zile, un rezumat pe două vehicule cu documente peste
+--      30 de zile duce la lista întreagă, nu la filtrul „expiră” (care arată
+--      doar 30 de zile, PRAG_FLOTA_AVERTIZARE_ZILE) — altfel vehiculele lipsesc.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -72,6 +82,7 @@ declare
   v_t_rca    uuid;
   v_t_itp    uuid;
   v_t_rov    uuid;
+  v_t_casco  uuid;
   v_foaie    uuid;
   v_rap      jsonb;
   v_n        int;
@@ -143,7 +154,8 @@ begin
   select id into v_t_rca from public.vehicle_document_types where cod = 'rca' and organization_id is null;
   select id into v_t_itp from public.vehicle_document_types where cod = 'itp' and organization_id is null;
   select id into v_t_rov from public.vehicle_document_types where cod = 'rovinieta' and organization_id is null;
-  if v_t_rca is null or v_t_itp is null or v_t_rov is null then
+  select id into v_t_casco from public.vehicle_document_types where cod = 'casco' and organization_id is null;
+  if v_t_rca is null or v_t_itp is null or v_t_rov is null or v_t_casco is null then
     raise exception 'PROBA: lipsesc tipurile de document rca/itp/rovinieta din seed';
   end if;
 
@@ -354,13 +366,23 @@ begin
   select count(*) into v_n2 from public.notifications where organization_id = v_org and user_id = v_u_adm;
   select count(*), min(link), min(body) into v_ca, v_link, v_corp
     from public.notifications where organization_id = v_org and user_id = v_u_mgr;
-  -- Managerul primește TOT ce n-a primit încă: RCA-ul și ITP-ul de pe VC, plus
-  -- documentele mai vechi de pe VA și VB, deci un rezumat pe trei vehicule.
-  if v_n2 = v_n and v_ca = 1 and v_link = '/flota?conformitate=expira' and v_corp like '%ITP%' then
-    raise notice '  ✓ (12) responsabilul manager primește rezumatul; administratorul nu mai primește nimic';
+  -- Managerul are `vehicles:read = team`: vede VA (șoferița e în echipa lui),
+  -- nu și VB/VC (fără șofer, nu sunt pool). Corpul lui nu are voie să conțină
+  -- numerele lor; ITP-ul nou de pe VC, pe care nu-l vede niciun responsabil,
+  -- ajunge la administrator.
+  select count(*) into v_an from public.notifications n
+   where n.organization_id = v_org and n.user_id = v_u_adm
+     and n.body like '%(ITP) — ' || (select v.nr_inmatriculare from public.vehicles v where v.id = v_v_c) || '%';
+  if v_ca = 1 and v_link = '/flota/' || v_v_a::text
+     and v_corp like '%' || (select v.nr_inmatriculare from public.vehicles v where v.id = v_v_a) || '%'
+     and v_corp not like '%' || (select v.nr_inmatriculare from public.vehicles v where v.id = v_v_b) || '%'
+     and v_corp not like '%' || (select v.nr_inmatriculare from public.vehicles v where v.id = v_v_c) || '%'
+     and v_n2 = v_n + 1 and v_an = 1 then
+    raise notice '  ✓ (12) responsabilul manager primește doar vehiculele echipei; restul ajunge la administrator';
   else
     v_esecuri := v_esecuri + 1;
-    raise warning '  ✗ (12) admin % → %, manager % notificări, link %, corp %', v_n, v_n2, v_ca, v_link, v_corp;
+    raise warning '  ✗ (12) admin % → % (ITP VC: %), manager % notificări, link %, corp %',
+      v_n, v_n2, v_an, v_ca, v_link, v_corp;
   end if;
 
   -- (13) Pragul de salt din setări: 100 km. VB are 20.000 km, foaia pleacă de la 20.200.
@@ -445,11 +467,79 @@ begin
     raise warning '  ✗ (16) manager %, aprobare la șoferiță %, la administrator %', v_n, v_n2, v_ca;
   end if;
 
+  -- (17) Responsabilul devine colegul fără mașină (`employee`, vehicles:read = own).
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  update public.fleet_settings set responsabili = array[v_e_b], updated_by = v_u_adm
+   where organization_id = v_org;
+  reset role;
+  insert into public.vehicle_documents (organization_id, vehicle_id, document_type_id, valabil_de_la, expira_la,
+                                        created_by, updated_by) values
+    (v_org, v_v_b, v_t_itp, v_azi - 700, v_azi + 8, v_u_adm, v_u_adm);
+  select count(*) into v_n from public.notifications where organization_id = v_org and user_id = v_u_adm;
+  perform internal.conformitate_zilnica();
+  select count(*) into v_n2 from public.notifications where organization_id = v_org and user_id = v_u_adm;
+  select count(*) into v_ca from public.notifications
+   where organization_id = v_org and user_id = v_u_b and kind = 'reminder';
+  select count(*) into v_an from public.notifications n
+   where n.organization_id = v_org and n.user_id = v_u_adm
+     and n.body like '%(ITP) — ' || (select v.nr_inmatriculare from public.vehicles v where v.id = v_v_b) || '%';
+  if v_ca = 0 and v_n2 = v_n + 1 and v_an = 1 then
+    raise notice '  ✓ (17) responsabilul cu own nu primește parcul pe care nu-l vede; documentul ajunge la administrator';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (17) colegul % rezumate, admin % → % (ITP VB: %)', v_ca, v_n, v_n2, v_an;
+  end if;
+
+  -- (18) VB devine mașină comună (pool): colegul cu `own` o vede.
+  update public.vehicles set pool = true where id = v_v_b;
+  insert into public.vehicle_documents (organization_id, vehicle_id, document_type_id, valabil_de_la, expira_la,
+                                        created_by, updated_by) values
+    (v_org, v_v_b, v_t_rca, v_azi - 360, v_azi + 9, v_u_adm, v_u_adm);
+  select count(*) into v_n from public.notifications where organization_id = v_org and user_id = v_u_adm;
+  perform internal.conformitate_zilnica();
+  select count(*) into v_n2 from public.notifications where organization_id = v_org and user_id = v_u_adm;
+  select count(*), min(link), min(body) into v_ca, v_link, v_corp
+    from public.notifications where organization_id = v_org and user_id = v_u_b and kind = 'reminder';
+  if v_ca = 1 and v_link = '/portal/masina-mea' and v_n2 = v_n
+     and v_corp like '%' || (select v.nr_inmatriculare from public.vehicles v where v.id = v_v_b) || '%'
+     and v_corp not like '%' || (select v.nr_inmatriculare from public.vehicles v where v.id = v_v_a) || '%'
+     and v_corp not like '%' || (select v.nr_inmatriculare from public.vehicles v where v.id = v_v_c) || '%' then
+    raise notice '  ✓ (18) responsabilul cu own primește mașina pool, spre portal; administratorul nu';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (18) colegul % rezumate, link %, admin % → %, corp %', v_ca, v_link, v_n, v_n2, v_corp;
+  end if;
+
+  -- (19) Responsabilii înapoi pe implicit (administratorii); CASCO pe VA (+45) și
+  -- VC (+50), prinse doar de pragul de 60 de zile din (8).
+  perform set_config('request.jwt.claim.sub', v_u_adm::text, true);
+  set local role authenticated;
+  update public.fleet_settings set responsabili = '{}', updated_by = v_u_adm
+   where organization_id = v_org;
+  reset role;
+  insert into public.vehicle_documents (organization_id, vehicle_id, document_type_id, valabil_de_la, expira_la,
+                                        created_by, updated_by) values
+    (v_org, v_v_a, v_t_casco, v_azi - 300, v_azi + 45, v_u_adm, v_u_adm),
+    (v_org, v_v_c, v_t_casco, v_azi - 300, v_azi + 50, v_u_adm, v_u_adm);
+  select count(*) into v_n from public.notifications where organization_id = v_org and user_id = v_u_adm;
+  perform internal.conformitate_zilnica();
+  select count(*) into v_n2 from public.notifications where organization_id = v_org and user_id = v_u_adm;
+  select n.link into v_link from public.notifications n
+   where n.organization_id = v_org and n.user_id = v_u_adm and n.body like '%CASCO%'
+   limit 1;
+  if v_n2 = v_n + 1 and v_link = '/flota' then
+    raise notice '  ✓ (19) rezumatul cu documente peste 30 de zile duce la lista întreagă';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (19) admin % → %, link %', v_n, v_n2, v_link;
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA CONFORMITATE ZILNICĂ: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 16 verificări au trecut.';
+  raise notice '  TOATE cele 19 verificări au trecut.';
   raise notice '';
 end;
 $$;
