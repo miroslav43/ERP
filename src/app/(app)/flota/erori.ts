@@ -257,3 +257,73 @@ export function traduEroareDeplasare(error: unknown): never {
   traduEroare(error);
 }
 // ── SFÂRȘIT BLOC: permisele șoferilor ──
+
+// ── ÎNCEPUT BLOC: fiscalul flotei (0202, F10) ──
+
+/**
+ * Restricțiile tabelelor fiscale (0202), pe câmpul lor. Schema le prinde
+ * înaintea bazei; ajung aici doar dacă limitele diverg sau la o cursă.
+ */
+const RESTRICTII_FISCAL: readonly (readonly [string, string, string])[] = [
+  [
+    "vfr_vehicul_de_la_uq",
+    "valabil_de_la",
+    "Vehiculul are deja un regim fiscal care începe în ziua aceasta. Ștergeți-l întâi sau alegeți altă zi.",
+  ],
+  [
+    "vcn_vehicul_de_la_uq",
+    "valabil_de_la",
+    "Vehiculul are deja o normă de consum care începe în ziua aceasta. Ștergeți-o întâi sau alegeți altă zi.",
+  ],
+  [
+    "vfr_proprietar_fk",
+    "proprietar_employee_id",
+    "Angajatul ales nu aparține organizației dumneavoastră.",
+  ],
+  [
+    "vfr_exceptie_ck",
+    "exceptie",
+    "Categoria exceptată se alege doar, și obligatoriu, la regimul „categorie exceptată”.",
+  ],
+  [
+    "vfr_proprietar_ck",
+    "proprietar_employee_id",
+    "Proprietarul se alege doar, și obligatoriu, la mașina personală.",
+  ],
+  [
+    "vfr_chirie_ck",
+    "chirie_lunara",
+    "Chiria se completează doar la vehiculul închiriat sau cu chirie.",
+  ],
+  ["vfr_motiv_ck", "motiv", "Motivul are între 3 și 1.000 de caractere."],
+  ["vcn_l_100km_ck", "l_100km", "Norma e între 0,01 și 300 de litri la 100 km."],
+];
+
+/** Mesajele P0001 ale lui `internal.flota_fiscal_inainte` (ș/ț corecte). */
+const CAMPURI_FISCAL: readonly (readonly [RegExp, readonly string[]])[] = [
+  [/^Regimul „peste 3\.500 kg/u, ["regim"]],
+  [/^Data de la care se aplică/u, ["valabil_de_la"]],
+  [/^Data deciziei interne/u, ["decizie_data"]],
+];
+
+export function traduEroareFiscal(error: unknown): never {
+  if (isPostgrestError(error)) {
+    if (error.code === "23505" || error.code === "23503" || error.code === "23514") {
+      const restrictie = RESTRICTII_FISCAL.find(([nume]) => error.message.includes(nume));
+      if (restrictie !== undefined) {
+        const [, camp, mesaj] = restrictie;
+        throw invalidInput(mesaj, { [camp]: [mesaj] });
+      }
+    }
+    if (error.code === "P0001") {
+      const mesaj = error.message.slice(0, 300);
+      const campuri = CAMPURI_FISCAL.find(([re]) => re.test(mesaj))?.[1] ?? [];
+      if (campuri.length > 0) {
+        throw invalidInput(mesaj, Object.fromEntries(campuri.map((c) => [c, [mesaj]])));
+      }
+      throw businessRule(mesaj);
+    }
+  }
+  traduEroare(error);
+}
+// ── SFÂRȘIT BLOC: fiscalul flotei ──
