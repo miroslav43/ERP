@@ -181,6 +181,46 @@ async function membruCuAdresa(
   return { userId: profil.id, rol: membru.role, fisaExistenta: fisa?.marca ?? null };
 }
 
+/**
+ * Vestea către membrul existent că are, de acum, o fișă de angajat legată de
+ * contul lui. Fără ea, omul descoperă legarea din întâmplare — observația
+ * revizuirii de securitate a lotului G4 (REPORT §9b, pe ONB-030).
+ *
+ * Prin clientul admin DELIBERAT: se scrie pentru ALT utilizator, iar politica
+ * `notifications_insert` (0144) cere pentru asta `announcements:create`, pe
+ * care `hr` nu-l are. Filtrul pe firmă e explicit; destinatarul vine din
+ * `membruCuAdresa`, care l-a găsit deja ca membru ACTIV al aceleiași firme.
+ *
+ * Linkul urmează rolul: un `employee` își vede fișa în portal, la profil;
+ * un manager sau un administrator o deschide din aplicația mare (registrul
+ * din `notificari/legaturi.ts` nu traduce `/portal/profilul-meu`, deci pentru
+ * ei ar rămâne text). Best-effort: un INSERT picat nu desface înrolarea.
+ */
+async function anuntaLegareaFisei(
+  organizationId: string,
+  userId: string,
+  employeeId: string,
+  rol: string,
+  actor: string,
+): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const { error } = await admin.from("notifications").insert({
+      organization_id: organizationId,
+      user_id: userId,
+      kind: "info" as const,
+      title: "Fișa dumneavoastră de angajat a fost creată",
+      body: `${actor} a creat fișa și a legat-o de contul dumneavoastră; datele și contractul se văd în profil.`,
+      link: rol === "employee" ? "/portal/profilul-meu" : `/angajati/${employeeId}`,
+      entity_type: "employee",
+      entity_id: employeeId,
+    });
+    if (error !== null) throw error;
+  } catch (eroare) {
+    console.error("[angajati] notificarea legării fișei a eșuat", { employeeId, eroare });
+  }
+}
+
 export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, RezultatInrolare>({
   name: "employees.enroll",
   permission: "employees:create",
@@ -783,6 +823,13 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         }
         avertismente.push(
           `Adresa ${adresaInvitatie} aparține unui membru existent al firmei (${membruExistent.rol}): fișa a fost legată de contul lui, fără invitație nouă.`,
+        );
+        await anuntaLegareaFisei(
+          ctx.tenant.organizationId,
+          membruExistent.userId,
+          angajat.id,
+          membruExistent.rol,
+          ctx.user.fullName ?? ctx.user.email,
         );
       }
     } else {

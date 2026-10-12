@@ -53,6 +53,7 @@ import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
 import { sincronizeazaZileleDeConcediu, type TipZiPontaj } from "./sincronizare-concediu";
 import { anuntaRespingereaZilei } from "./anunta-respingerea";
+import { anuntaAprobareaZilei, anuntaAprobareaZilelor } from "./anunta-aprobarea";
 
 const CAI_REVALIDARE = [
   "/pontaj",
@@ -1087,7 +1088,7 @@ export const aprobaPontajBloc = createAction({
     entityType: "attendance_approval_batch",
     entityId: (
       _input,
-      data: Readonly<{ id: string; liniiAprobate: number; zileDeschise: number }>,
+      data: Readonly<{ id: string; liniiAprobate: number; zileDeschise: number; anuntati: number }>,
     ) => data.id,
     // `observatii` NU intră în audit — vezi comentariul din `deschidePerioada`.
     allow: ["period_id", "department_id", "employee_ids"],
@@ -1096,7 +1097,9 @@ export const aprobaPontajBloc = createAction({
   handler: async (
     ctx,
     input,
-  ): Promise<Readonly<{ id: string; liniiAprobate: number; zileDeschise: number }>> => {
+  ): Promise<
+    Readonly<{ id: string; liniiAprobate: number; zileDeschise: number; anuntati: number }>
+  > => {
     // (0) Firma mai cere aprobare? Fila e ascunsă, dar ruta și acțiunea rămân.
     await refuzaCandAprobareaEStinsa(ctx.tenant.organizationId);
 
@@ -1229,9 +1232,10 @@ export const aprobaPontajBloc = createAction({
      * constrângere: e calea normală, iar constrângerea e plasa de sub ea.
      */
     const deschise = inSelectie.filter((l) => l.ora_inceput !== null && l.ora_sfarsit === null);
-    const idDeAprobat = inSelectie
-      .filter((l) => !(l.ora_inceput !== null && l.ora_sfarsit === null))
-      .map((l) => l.id);
+    const liniiAprobate = inSelectie.filter(
+      (l) => !(l.ora_inceput !== null && l.ora_sfarsit === null),
+    );
+    const idDeAprobat = liniiAprobate.map((l) => l.id);
     if (idDeAprobat.length === 0) {
       throw businessRule(
         deschise.length === 0
@@ -1312,10 +1316,29 @@ export const aprobaPontajBloc = createAction({
       }
     }
 
+    // (6) Vestea către angajați — un plus, nu poarta: lotul e scris, iar o
+    // notificare picată nu-l dă înapoi. O notificare per angajat pe lună, nu
+    // per zi (QA 8 oct 2026, FLX-005: angajatul afla doar de zilele respinse).
+    // `anuntati` iese în rezultat ca ecranul să poată spune cât din veste a
+    // plecat — fișele fără cont nu primesc nimic.
+    const anuntati = await anuntaAprobareaZilelor(
+      admin,
+      ctx.tenant.organizationId,
+      lot.id,
+      liniiAprobate,
+      perioada.an,
+      perioada.luna,
+    );
+
     // `zileDeschise` NU e un detaliu tehnic: e numărul de oameni care au uitat
     // să-și închidă ziua și pe care aprobarea tocmai i-a sărit. Ecranul îl
     // afișează; tăcut, ar fi exact tiparul de defect pe care îl repară.
-    return { id: lot.id, liniiAprobate: idDeAprobat.length, zileDeschise: deschise.length };
+    return {
+      id: lot.id,
+      liniiAprobate: idDeAprobat.length,
+      zileDeschise: deschise.length,
+      anuntati,
+    };
   },
 });
 
@@ -1514,9 +1537,15 @@ export const decideZiPontaj = createAction({
       deja scrisă în bază, iar o notificare picată n-are voie s-o dea înapoi.
       `anuntat` iese în rezultat ca ecranul să poată spune dacă vestea a plecat
       — un „am respins" care tace despre asta e jumătate de adevăr.
+
+      Aprobarea își are și ea vestea, din W2-03 (QA 8 oct 2026, FLX-005):
+      până atunci angajatul afla DOAR de zilele respinse, iar cele aprobate se
+      schimbau tăcut în portal. Per zi, ca respingerea; blocul anunță o dată
+      per angajat.
     */
-    const anuntat =
-      input.aproba || input.motiv === null
+    const anuntat = input.aproba
+      ? await anuntaAprobareaZilei(createAdminSupabase(), ctx.tenant.organizationId, input.entry_id)
+      : input.motiv === null
         ? false
         : await anuntaRespingereaZilei(
             createAdminSupabase(),

@@ -95,8 +95,15 @@ Producătorii (triggere, câteva acțiuni) scriu un `link` fix: coada în loc de
   citește rolul din `organization_members` per dispozitiv.
 
 Producătorul REGES e singurul reparat la sursă: fără `organization_features.reges` nu
-scrie anunț (`genereaza-evenimente.ts`). Lipsesc încă senderii pentru deplasări, KPI,
-predări de inventar.
+scrie anunț (`genereaza-evenimente.ts`). Lipsesc încă senderii pentru KPI și predări de
+inventar. Au sender din W2-03 (`0191_notificari_fluxuri_lipsa.sql` + TS lângă producător):
+diurna (trimitere, decizie pe deplasare și pe cheltuială), pontajul lunar (zi respinsă, zi
+aprobată, bloc — una per angajat pe lună, `pontaj/anunta-*.ts`), tichetele (repartizare,
+comentarii publice — triggere) și legarea fișei de un membru existent la înrolare.
+Închiderea „de aprobat": triggerul generic pe `approval_tasks` marchează citite
+notificările aprobatorului când sarcina lui iese din `in_asteptare` (decisă sau anulată de
+surori); tichetele își închid `approval`-ul la ieșirea din `in_aprobare`; deplasările, fără
+`approval_tasks`, se închid din `decideDeplasare` — o retragere viitoare trebuie s-o facă și ea.
 
 ## Ce refuză baza tăcut
 

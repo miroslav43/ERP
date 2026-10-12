@@ -472,6 +472,7 @@ describe("inroleazaAngajat", () => {
     admin.raspunde("organization_members", "select", { data: { id: ID_2, role: "manager" } });
     admin.raspunde("employees", "select", { data: null });
     server.raspunde("employees", "update", { data: { id: ID_1 } });
+    admin.raspunde("notifications", "insert", { data: null });
 
     const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
 
@@ -483,6 +484,58 @@ describe("inroleazaAngajat", () => {
     expect(areFiltru(legare, "eq", "id", ID_1)).toBe(true);
     expect(areFiltru(legare, "eq", "organization_id", ORG_ID)).toBe(true);
     expect(r.data.avertismente.some((a) => a.includes("legat"))).toBe(true);
+
+    // Membrul află că are fișă — altfel o descoperă din întâmplare (revizuirea
+    // de securitate a lotului G4, REPORT §9b). Prin clientul admin: se scrie
+    // pentru ALT utilizator, iar politica 0144 cere `announcements:create`.
+    // Un manager / org_admin e dus la fișa din aplicația mare.
+    const [veste] = admin.apeluriPe("notifications", "insert");
+    expect(veste?.payload).toEqual(
+      expect.objectContaining({
+        organization_id: ORG_ID,
+        user_id: ID_3,
+        kind: "info",
+        link: `/angajati/${ID_1}`,
+        entity_type: "employee",
+        entity_id: ID_1,
+      }),
+    );
+    expect((veste?.payload as { body: string }).body).toContain("Utilizator Test");
+  });
+
+  it("membru existent cu rolul `employee`: vestea legării duce în portal, la profilul lui", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: { id: ID_3 } });
+    admin.raspunde("organization_members", "select", { data: { id: ID_2, role: "employee" } });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("employees", "update", { data: { id: ID_1 } });
+    admin.raspunde("notifications", "insert", { data: null });
+
+    const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
+
+    expect(r.ok).toBe(true);
+    const [veste] = admin.apeluriPe("notifications", "insert");
+    expect(veste?.payload).toEqual(
+      expect.objectContaining({ user_id: ID_3, link: "/portal/profilul-meu", entity_id: ID_1 }),
+    );
+  });
+
+  it("vestea legării picată nu desface înrolarea și nu șterge avertismentul „legat”", async () => {
+    const { server, admin } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    admin.raspunde("profiles", "select", { data: { id: ID_3 } });
+    admin.raspunde("organization_members", "select", { data: { id: ID_2, role: "manager" } });
+    admin.raspunde("employees", "select", { data: null });
+    server.raspunde("employees", "update", { data: { id: ID_1 } });
+    admin.raspunde("notifications", "insert", { error: eroarePostgrest("XX000", "cade") });
+
+    const r = await inroleazaAngajat({ ...INTRARE, email_personal: "ion@exemplu.ro" });
+
+    expect(r).toMatchObject({ ok: true, data: { invitatieTrimisaLa: null } });
+    if (!r.ok) return;
+    expect(r.data.avertismente.some((a) => a.includes("legat"))).toBe(true);
+    expect(admin.apeluriPe("notifications", "insert")).toHaveLength(1);
   });
 
   it("membru existent care are DEJA o fișă principală: nu se leagă, se explică", async () => {

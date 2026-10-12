@@ -162,12 +162,22 @@ export function AprobareBloc({
       setObservatii("");
       // Lista se golește prin refresh: fără mesaj, aprobarea părea că n-a
       // făcut nimic. Lotul e la un clic, evidențiat pe pagina perioadei.
+      // Câți oameni au aflat se spune lângă câte linii s-au aprobat: fișele
+      // fără cont nu primesc nimic, iar un „aprobat" care tace despre asta e
+      // jumătate de adevăr (același motiv ca la respingere).
+      const { liniiAprobate, anuntati } = rezultat.data;
       arataToast({
         fel: "reusita",
-        text:
-          rezultat.data.liniiAprobate === 1
+        text: [
+          liniiAprobate === 1
             ? "O linie de pontaj a fost aprobată."
-            : `${String(rezultat.data.liniiAprobate)} linii de pontaj au fost aprobate.`,
+            : `${String(liniiAprobate)} linii de pontaj au fost aprobate.`,
+          anuntati === 0
+            ? "Niciun angajat nu a fost anunțat."
+            : anuntati === 1
+              ? "Un angajat a fost anunțat."
+              : `${String(anuntati)} angajați au fost anunțați.`,
+        ].join(" "),
         actiune: {
           eticheta: "Vezi lotul",
           onClick: () => {

@@ -6,6 +6,7 @@ import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput, isPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { ServerSupabase } from "@/lib/supabase/server";
+import { formatAmount } from "@/lib/format/money";
 import {
   cheltuialaNouaSchema,
   decizieCheltuialaSchema,
@@ -28,6 +29,7 @@ import {
 const CAI_PORTAL_DIURNA: readonly string[] = ["/portal", "/portal/diurna-mea"];
 
 import { traduEroare } from "./erori";
+import { ETICHETE_TIP_CHELTUIALA } from "./etichete";
 
 /**
  * Fișa proprie de angajat, rezolvată cu clientul admin.
@@ -163,6 +165,106 @@ async function anuntaAprobatorii(
     if (error !== null) throw error;
   } catch (eroare) {
     console.error("[diurna] notificarea aprobatorilor a eșuat", { tripId, eroare });
+  }
+}
+
+/**
+ * Decizia pe o deplasare închide sarcinile „de aprobat" ale aprobatorilor —
+ * rândurile `task` scrise de `anuntaAprobatorii`. Fără asta, contorul de
+ * necitite al managerului ținea la nesfârșit „Deplasare de aprobat" pentru
+ * deplasări deja decise (QA 8 oct 2026, MGR-021 / FLX-011). Deplasările n-au
+ * `approval_tasks`, deci triggerul generic din 0191 nu le prinde.
+ *
+ * Fără `.select()`, deliberat: zero rânduri înseamnă că nimeni n-avea
+ * notificarea (aprobatorul a decis din listă, fără clopoțel), nu un refuz —
+ * scrierea trece cu clientul de serviciu. Best-effort, ca restul fișierului.
+ */
+async function inchideSarcinileDeAprobat(
+  organizationId: string,
+  tripId: string,
+  acum: string,
+): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const { error } = await admin
+      .from("notifications")
+      .update({ read_at: acum })
+      .eq("organization_id", organizationId)
+      .eq("entity_type", "business_trip")
+      .eq("entity_id", tripId)
+      .eq("kind", "task")
+      .is("read_at", null)
+      .is("deleted_at", null);
+    if (error !== null) throw error;
+  } catch (eroare) {
+    console.error("[diurna] închiderea sarcinilor „de aprobat” a eșuat", { tripId, eroare });
+  }
+}
+
+/**
+ * Decizia pe o CHELTUIALĂ ajunge la cel care a înregistrat-o. Până la W2-03
+ * doar decizia pe deplasare avea sender: angajatul vedea decontul schimbat
+ * fără să afle de ce (QA 8 oct 2026, FLX-005). Motivul respingerii intră în
+ * corp — e singurul loc în care omul îl citește fără să deschidă fișa.
+ */
+async function anuntaDeciziaCheltuielii(
+  organizationId: string,
+  expenseId: string,
+  tripId: string,
+  decizie: "aproba" | "respinge",
+  motiv: string | null | undefined,
+): Promise<void> {
+  try {
+    const admin = createAdminSupabase();
+    const [cheltuiala, deplasare] = await Promise.all([
+      admin
+        .from("trip_expenses")
+        .select("tip, suma, moneda")
+        .eq("organization_id", organizationId)
+        .eq("id", expenseId)
+        .maybeSingle(),
+      admin
+        .from("business_trips")
+        .select("employee_id")
+        .eq("organization_id", organizationId)
+        .eq("id", tripId)
+        .maybeSingle(),
+    ]);
+    if (cheltuiala.error !== null) throw cheltuiala.error;
+    if (deplasare.error !== null) throw deplasare.error;
+    if (cheltuiala.data === null || deplasare.data === null) return;
+    const { data: fisa, error } = await admin
+      .from("employees")
+      .select("user_id")
+      .eq("organization_id", organizationId)
+      .eq("id", deplasare.data.employee_id)
+      .maybeSingle();
+    if (error !== null) throw error;
+    if (fisa?.user_id == null) return;
+
+    const aprobata = decizie === "aproba";
+    // Eticheta prin `string`: enumul bazei și lista din schemă se pot
+    // dezalinia, iar o cheltuială de tip nou nu trebuie să rupă notificarea.
+    const eticheta =
+      (ETICHETE_TIP_CHELTUIALA as Readonly<Record<string, string>>)[cheltuiala.data.tip] ??
+      "Cheltuiala";
+    const suma = formatAmount(cheltuiala.data.suma, cheltuiala.data.moneda);
+    const motivCurat = (motiv ?? "").trim().replace(/\.+$/u, "");
+    const { error: eroareInsert } = await admin.from("notifications").insert({
+      organization_id: organizationId,
+      user_id: fisa.user_id,
+      kind: aprobata ? ("success" as const) : ("warning" as const),
+      title: aprobata ? "Cheltuiala a fost aprobată" : "Cheltuiala a fost respinsă",
+      body: aprobata
+        ? `${eticheta} de ${suma} a fost aprobată și intră în decont.`
+        : `${eticheta} de ${suma} a fost respinsă. Motiv: ${motivCurat.length === 0 ? "nespecificat" : motivCurat}.`,
+      link: `/portal/diurna-mea/${tripId}`,
+      entity_type: "trip_expense",
+      entity_id: expenseId,
+    });
+    if (eroareInsert !== null) throw eroareInsert;
+  } catch (eroare) {
+    console.error("[diurna] notificarea deciziei pe cheltuială a eșuat", { expenseId, eroare });
   }
 }
 
@@ -395,6 +497,7 @@ export const decideDeplasare = createAction({
       );
     }
     await anuntaProprietarul(ctx.tenant.organizationId, data.id, data.employee_id, input.decizie);
+    await inchideSarcinileDeAprobat(ctx.tenant.organizationId, data.id, ctx.now.toISOString());
     return { id: data.id };
   },
 });
@@ -861,7 +964,7 @@ export const decideCheltuiala = createAction({
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
-      .select("id")
+      .select("id, business_trip_id")
       .maybeSingle();
     if (error !== null) traduEroare(error);
     if (data === null) {
@@ -869,6 +972,13 @@ export const decideCheltuiala = createAction({
         "Decizia nu a putut fi înregistrată: fie cheltuiala nu a fost găsită, fie baza cere pentru scrierea ei și dreptul de modificare a deplasărilor, nu doar cel de aprobare. Cereți administratorului organizației să decidă.",
       );
     }
+    await anuntaDeciziaCheltuielii(
+      ctx.tenant.organizationId,
+      data.id,
+      data.business_trip_id,
+      input.decizie,
+      input.motiv_respingere,
+    );
     return { id: data.id };
   },
 });

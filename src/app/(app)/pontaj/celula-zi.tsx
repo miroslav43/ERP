@@ -328,6 +328,15 @@ export function CelulaZi({
                 text: "Ziua a fost respinsă, dar angajatul NU a putut fi anunțat — spuneți-i personal să o corecteze.",
               },
         );
+      } else {
+        // Aprobarea nu cere nimic de la angajat, deci vestea neplecată nu e o
+        // eroare — dar se spune, ca aprobatorul să știe ce a ajuns la om.
+        arataToast({
+          fel: "reusita",
+          text: rezultat.data.anuntat
+            ? "Ziua a fost aprobată, iar angajatul a fost anunțat."
+            : "Ziua a fost aprobată; angajatul nu a putut fi anunțat (fișa lui nu are cont).",
+        });
       }
       onInchide();
       router.refresh();
