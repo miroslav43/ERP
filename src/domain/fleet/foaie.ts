@@ -48,6 +48,19 @@ export function ordoneazaCurse<T extends Pick<CursaFoaie, "plecare_la" | "ordine
   );
 }
 
+/**
+ * Alimentările în ordinea orei. O citire prin embed (pachetul lunar) nu are
+ * `ORDER BY`, iar ruta foii singure le ordonează în interogare: ordinea se
+ * reface aici, ca documentul să iasă la fel din ambele căi.
+ */
+export function ordoneazaAlimentari<T extends { readonly alimentat_la: string }>(
+  alimentari: readonly T[],
+): readonly T[] {
+  return [...alimentari].sort((a, b) =>
+    a.alimentat_la === b.alimentat_la ? 0 : a.alimentat_la < b.alimentat_la ? -1 : 1,
+  );
+}
+
 export interface TotaluriCurse {
   /** Suma kilometrilor curselor încheiate. */
   readonly kmCurse: number;
@@ -230,12 +243,13 @@ export const ETICHETE_STARE_DOCUMENT: Readonly<Record<IntrareFoaieParcurs["statu
 
 export function modelFoaieParcurs(p: IntrareFoaieParcurs): ModelFoaieParcurs {
   const curse = ordoneazaCurse(p.curse);
+  const alimentari = ordoneazaAlimentari(p.alimentari);
   const totaluri = totaluriCurse(curse);
   const kmBord =
     totaluri.kmBord ??
     (p.kmSosire === null || p.kmPlecare === null ? null : p.kmSosire - p.kmPlecare);
-  const litri = p.alimentari.reduce((s, a) => s + a.litri, 0);
-  const cost = p.alimentari.reduce((s, a) => s + a.cost, 0);
+  const litri = alimentari.reduce((s, a) => s + a.litri, 0);
+  const cost = alimentari.reduce((s, a) => s + a.cost, 0);
   const consumNormat =
     p.normaL100km === null || kmBord === null ? null : (kmBord * p.normaL100km) / 100;
 
@@ -306,7 +320,7 @@ export function modelFoaieParcurs(p: IntrareFoaieParcurs): ModelFoaieParcurs {
       ["Alimentat pe foaie", `${FORMAT_ZECIMAL.format(litri)} ${unitate}`],
       ["Cost alimentări", `${FORMAT_ZECIMAL.format(cost)} lei`],
     ],
-    alimentari: p.alimentari.map((a) => [
+    alimentari: alimentari.map((a) => [
       p.dataSiOra(a.alimentat_la),
       [a.statie, a.numar_bon === null ? null : `bon ${a.numar_bon}`, a.plin ? "plin" : null]
         .filter((v): v is string => v !== null)

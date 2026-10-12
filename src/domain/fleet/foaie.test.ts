@@ -194,6 +194,32 @@ describe("modelFoaieParcurs — elementele documentului justificativ", () => {
     expect(Object.fromEntries(m.rubrici)["Norma proprie de consum"]).toBe("");
   });
 
+  it("alimentările apar în ordinea orei, oricum le-ar fi adus citirea (embed fără ORDER BY)", () => {
+    const dimineata = {
+      alimentat_la: "2026-10-05T06:30:00.000Z",
+      litri: 20,
+      cost: 150,
+      statie: "Petrom",
+      numar_bon: "123",
+      plin: true,
+    };
+    const seara = {
+      alimentat_la: "2026-10-05T16:45:00.000Z",
+      litri: 10,
+      cost: 80,
+      statie: "OMV",
+      numar_bon: "456",
+      plin: false,
+    };
+    // Pachetul lunar citește alimentările printr-un embed, iar ruta foii singure le
+    // ordonează în interogare: documentul trebuie să iasă la fel din ambele căi.
+    const m = modelFoaieParcurs({ ...baza, alimentari: [seara, dimineata] });
+    expect(m.alimentari.map((a) => a[0])).toEqual(["2026-10-05 06:30", "2026-10-05 16:45"]);
+    expect(m.alimentari.map((a) => a[1])).toEqual(["Petrom · bon 123 · plin", "OMV · bon 456"]);
+    // Ordonarea nu schimbă totalurile.
+    expect(Object.fromEntries(m.totaluri)["Alimentat pe foaie"]).toBe("30,00 l");
+  });
+
   it("electricul se măsoară în kWh, nu în litri", () => {
     const m = modelFoaieParcurs({ ...baza, unitate: "kWh", normaL100km: 18 });
     expect(Object.fromEntries(m.rubrici)["Norma proprie de consum"]).toBe("18,00 kWh/100 km");

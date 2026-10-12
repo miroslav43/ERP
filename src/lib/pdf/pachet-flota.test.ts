@@ -103,6 +103,13 @@ describe("numeUnic", () => {
     expect(numeUnic("foi/Foaie.pdf", folosite)).toBe("foi/Foaie.pdf");
     expect(numeUnic("foi/foaie.pdf", folosite)).toBe("foi/foaie-2.pdf");
   });
+
+  it("și în ordinea inversă: litera mică întâi, majuscula după, tot același fișier", () => {
+    const folosite = new Set<string>();
+    expect(numeUnic("foi/foaie.pdf", folosite)).toBe("foi/foaie.pdf");
+    expect(numeUnic("foi/Foaie.pdf", folosite)).toBe("foi/Foaie-2.pdf");
+    expect(numeUnic("foi/FOAIE.PDF", folosite)).toBe("foi/FOAIE-3.PDF");
+  });
 });
 
 describe("pachetLunarFlota", () => {

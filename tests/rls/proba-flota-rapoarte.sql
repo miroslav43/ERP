@@ -324,6 +324,29 @@ begin
     raise warning '  ✗ (3b) service=% (750), cheltuieli=% (15), documente=% (100)', v_s, v_s2, v_n;
   end if;
 
+  -- (3c) ce adaugă pachetul lunar peste raport: cursele și alimentările foilor (embed-urile
+  -- `curse:trip_sheet_curse` și `alimentari:fuel_entries`) și numele șoferilor. Fără ele,
+  -- PDF-urile din arhivă ar ieși goale, fără nicio eroare.
+  perform pg_temp.ca(v_u_adm);
+  v_n  := pg_temp.cate(format(
+    $q$select 1 from public.trip_sheet_curse c join public.trip_sheets t on t.id = c.trip_sheet_id
+        where t.organization_id = %L and t.status = 'aprobat' and t.deleted_at is null
+          and c.deleted_at is null and t.data between %L and %L$q$, v_org, v_luna, v_la));
+  v_n2 := pg_temp.cate(format(
+    $q$select 1 from public.fuel_entries f join public.trip_sheets t on t.id = f.trip_sheet_id
+        where t.organization_id = %L and t.status = 'aprobat' and t.deleted_at is null
+          and f.deleted_at is null and t.data between %L and %L$q$, v_org, v_luna, v_la));
+  v_k  := pg_temp.cate(format(
+    'select 1 from public.employees where organization_id = %L and id in (%L, %L, %L)',
+    v_org, v_e_a, v_e_b, v_e_c));
+  reset role;
+  if v_n = 3 and v_n2 = 3 and v_k = 3 then
+    raise notice '  ✓ (3c) administratorul vede cursele (3), alimentările (3) și fișele celor 3 șoferi: pachetul are cu ce umple PDF-urile';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (3c) curse=% (3), alimentări=% (3), șoferi=% (3)', v_n, v_n2, v_k;
+  end if;
+
   -- (4) fără filtru de firmă: administratorul tot nu vede nimic din cealaltă
   perform pg_temp.ca(v_u_adm);
   v_n  := pg_temp.cate(format(
