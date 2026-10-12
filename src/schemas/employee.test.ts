@@ -8,6 +8,7 @@ import {
   actualizeazaAngajatSchema,
   CAMPURI_EDITABILE_ANGAJAT,
   creeazaContractSchema,
+  inroleazaAngajatSchema,
   modificaSalariuContractSchema,
   mutaAngajatiSchema,
 } from "./employee";
@@ -44,6 +45,170 @@ describe("salariul de bază pe contract și act adițional", () => {
     expect(r.success).toBe(false);
     if (r.success) return;
     expect(r.error.issues.some((i) => i.path.includes("salariu_baza"))).toBe(true);
+  });
+});
+
+// ── Validările din valul 2 al remedierii QA (8 oct 2026) ─────────────────────
+
+describe("actualizeazaAngajatSchema — CNP și telefon", () => {
+  const FISA = {
+    id: "3f5e1a2b-8c4d-4e6f-9a1b-2c3d4e5f6a7b",
+    last_name: "Popescu",
+    first_name: "Ion",
+  };
+
+  // HR-002: un CNP cu anul 2096 (cifra de control corectă) trecea și ajungea criptat în bază.
+  it("CNP cu data nașterii în viitor: issue pe `cnp`", () => {
+    const r = actualizeazaAngajatSchema.safeParse({ ...FISA, cnp: "5960101123453" });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const issue = r.error.issues.find((i) => i.path[0] === "cnp");
+    expect(issue?.message).toContain("în viitor");
+  });
+
+  it("CNP din 1996 rămâne acceptat", () => {
+    expect(actualizeazaAngajatSchema.safeParse({ ...FISA, cnp: "1960229123452" }).success).toBe(
+      true,
+    );
+  });
+
+  // ADM-007 / ANG-030: „abc" se salva ca telefon.
+  it("telefon cu litere: issue pe `telefon`", () => {
+    const r = actualizeazaAngajatSchema.safeParse({ ...FISA, telefon: "abc" });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues.some((i) => i.path[0] === "telefon")).toBe(true);
+  });
+
+  it("telefonul de serviciu și cel de urgență au aceeași regulă", () => {
+    const r = actualizeazaAngajatSchema.safeParse({
+      ...FISA,
+      telefon_serviciu: "abc-12",
+      contact_urgenta_telefon: "xyz",
+    });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const cai = r.error.issues.map((i) => i.path[0]);
+    expect(cai).toContain("telefon_serviciu");
+    expect(cai).toContain("contact_urgenta_telefon");
+  });
+
+  it("telefon cu spații și prefix: acceptat", () => {
+    const r = actualizeazaAngajatSchema.safeParse({ ...FISA, telefon: "+40 722 123 456" });
+    expect(r.success).toBe(true);
+    if (!r.success) return;
+    expect(r.data.telefon).toBe("+40 722 123 456");
+  });
+});
+
+describe("inroleazaAngajatSchema — normă, examen, telefon", () => {
+  const INROLARE = {
+    first_name: "Ion",
+    last_name: "Popescu",
+    cnp: "1960229123452",
+    numar_act: "123456",
+    act_eliberat_de: "SPCLEP Cluj",
+    act_eliberat_la: "2020-01-01",
+    reges_tip_act: "CarteIdentitate",
+    serie_act: "CJ",
+    adresa_strada: "Str. Memorandumului 1",
+    adresa_oras: "Cluj-Napoca",
+    adresa_judet: "Cluj",
+    hired_on: "2026-01-01",
+    data_contract: "2026-01-01",
+    valabil_de_la: "2026-01-01",
+    salariu_baza: 4000,
+  };
+
+  it("fixture-ul de bază trece", () => {
+    expect(inroleazaAngajatSchema.safeParse(INROLARE).success).toBe(true);
+  });
+
+  // HR-030: „câmpul permite max. 12" — art. 112 Codul muncii: 8 h/zi.
+  it("norma zilnică de 12 ore: issue pe `norma_ore_zi`", () => {
+    const r = inroleazaAngajatSchema.safeParse({ ...INROLARE, norma_ore_zi: 12 });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const issue = r.error.issues.find((i) => i.path[0] === "norma_ore_zi");
+    expect(issue?.message).toContain("8 ore");
+  });
+
+  it("norma zilnică de 8 ore cu 40 pe săptămână: acceptată", () => {
+    expect(
+      inroleazaAngajatSchema.safeParse({ ...INROLARE, norma_ore_zi: 8, norma_ore_saptamana: 40 })
+        .success,
+    ).toBe(true);
+  });
+
+  it("coerență: 8 ore pe zi cu 20 pe săptămână depășește săptămâna — issue pe `norma_ore_zi`", () => {
+    const r = inroleazaAngajatSchema.safeParse({
+      ...INROLARE,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 20,
+    });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const issue = r.error.issues.find((i) => i.path[0] === "norma_ore_zi");
+    expect(issue?.message).toContain("săptămânal");
+  });
+
+  it("coerență: 6 ore pe zi cu 30 pe săptămână: acceptată", () => {
+    expect(
+      inroleazaAngajatSchema.safeParse({ ...INROLARE, norma_ore_zi: 6, norma_ore_saptamana: 30 })
+        .success,
+    ).toBe(true);
+  });
+
+  it("coerență și pe contractul de bază", () => {
+    const r = creeazaContractSchema.safeParse({
+      employee_id: "55555555-5555-4555-8555-555555555555",
+      numar: "12/2026",
+      data_contract: "2026-09-28",
+      valabil_de_la: "2026-10-01",
+      salariu_baza: 4000,
+      norma_ore_zi: 8,
+      norma_ore_saptamana: 20,
+    });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues.some((i) => i.path[0] === "norma_ore_zi")).toBe(true);
+  });
+
+  // HR-017, oglinda regulii din `ssm.ts`: înrolarea inserează aceeași fișă.
+  it("valabilitatea fișei anterioară examinării: issue pe `examen_valabil_pana`", () => {
+    const r = inroleazaAngajatSchema.safeParse({
+      ...INROLARE,
+      examen_data: "2026-10-08",
+      examen_valabil_pana: "2026-01-01",
+    });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const issue = r.error.issues.find((i) => i.path[0] === "examen_valabil_pana");
+    expect(issue?.message).toContain("anterioară datei examinării");
+  });
+
+  it("valabilitatea fișei ulterioară examinării: acceptată", () => {
+    expect(
+      inroleazaAngajatSchema.safeParse({
+        ...INROLARE,
+        examen_data: "2026-10-08",
+        examen_valabil_pana: "2027-10-08",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("valabilitate fără dată de examinare: nu se compară", () => {
+    expect(
+      inroleazaAngajatSchema.safeParse({ ...INROLARE, examen_valabil_pana: "2026-01-01" }).success,
+    ).toBe(true);
+  });
+
+  // ONB-034: telefonul din asistent are aceeași regulă ca fișa.
+  it("telefon cu litere: issue pe `telefon`", () => {
+    const r = inroleazaAngajatSchema.safeParse({ ...INROLARE, telefon: "abc" });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    expect(r.error.issues.some((i) => i.path[0] === "telefon")).toBe(true);
   });
 });
 

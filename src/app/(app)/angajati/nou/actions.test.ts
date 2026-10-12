@@ -4,7 +4,7 @@
 // Straturile comune ale lui `createAction` sunt verificate în testul canonic
 // (`salarizare/actions.test.ts`).
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/headers", async () => (await import("@/lib/teste/actiune")).falsuri.nextHeaders());
 vi.mock("next/server", async (orig) =>
@@ -110,12 +110,24 @@ function programeazaInrolarea(server: Fals, sabloane: unknown[] = []) {
   server.raspunde("checklist_templates", "select", { data: sabloane });
 }
 
+/**
+ * „Azi" fix: 12 octombrie 2026. `INTRARE` începe pe 1 octombrie — 11 zile în
+ * urmă, sub pragul de 30 al avertismentului de angajare retroactivă. Fără
+ * ceasul fals, testele care numără avertismentele ar începe să pice singure
+ * după 31 octombrie 2026. Doar `Date` se falsifică: `asteaptaDupa()` și
+ * restul harness-ului nu folosesc timere.
+ */
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-12T10:00:00Z"));
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   for (const fals of Object.values(f)) fals.mockReset();
   f.documente.mockResolvedValue({ documente: [], avertismente: [] });
   f.reges.mockResolvedValue({ create: 1, respinse: [] });
+});
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("inroleazaAngajat", () => {
@@ -139,6 +151,44 @@ describe("inroleazaAngajat", () => {
     expect(r.error.fieldErrors?.salariu_baza?.[0]).toContain("4.050");
     expect(server.apeluriPe("employees")).toHaveLength(0);
     expect(server.apeluriRpc.filter((a) => a.nume === "urmatoarea_marca")).toHaveLength(0);
+  });
+
+  // QA 8 oct 2026, HR-030: „câmpul permite max. 12" — art. 112 Codul muncii.
+  it("norma zilnică de 12 ore: VALIDARE pe `norma_ore_zi`, fără nicio scriere", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    const r = await inroleazaAngajat({ ...INTRARE, norma_ore_zi: 12 });
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(r.error.fieldErrors?.["norma_ore_zi"]?.[0]).toContain("8 ore");
+    expect(server.apeluri).toHaveLength(0);
+    expect(server.apeluriRpc.filter((a) => a.nume === "urmatoarea_marca")).toHaveLength(0);
+  });
+
+  // HR-030, partea a doua: angajarea retroactivă trecea fără niciun semnal.
+  it("contract început cu un an în urmă: înrolarea reușește, cu avertismentul „în trecut”", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    const r = await inroleazaAngajat({
+      ...INTRARE,
+      hired_on: "2025-10-01",
+      data_contract: "2025-09-28",
+      valabil_de_la: "2025-10-01",
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const retroactiv = r.data.avertismente.find((a) => a.includes("în trecut"));
+    expect(retroactiv).toBeDefined();
+    expect(retroactiv).toContain("01.10.2025");
+    expect(retroactiv).toContain("REGES");
+  });
+
+  it("contract început cu 11 zile în urmă (fixture-ul): fără avertisment de retroactivitate", async () => {
+    const { server } = configureazaActiunea({ permisiuni: PERMIS });
+    programeazaInrolarea(server);
+    const r = await inroleazaAngajat(INTRARE);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.avertismente.some((a) => a.includes("în trecut"))).toBe(false);
   });
 
   it("succes: fișă activă cu marca din contor și actul DERIVAT din REGES; contract alocat automat, apoi activat", async () => {

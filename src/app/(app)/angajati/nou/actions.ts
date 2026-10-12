@@ -8,6 +8,7 @@ import { businessRule } from "@/lib/actions/errors";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
 import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/inrolare";
+import { adaugaZile } from "@/domain/attendance/saptamana";
 import { alegeSablon } from "@/domain/checklist/potrivire-sablon";
 import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
 import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
@@ -52,6 +53,9 @@ interface RezultatInrolare {
    */
   readonly avertismente: readonly string[];
 }
+
+/** Peste atâtea zile în urmă, începerea contractului primește avertismentul de retroactivitate. */
+const PRAG_RETROACTIV_ZILE = 30;
 
 const CAMPURI_ANGAJAT = [
   "last_name",
@@ -200,6 +204,20 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
   handler: async (ctx, input): Promise<RezultatInrolare> => {
     const db = ctx.supabase;
     const avertismente: string[] = [];
+
+    /*
+     * Angajarea retroactivă nu se refuză — hârtiile de săptămâna trecută sunt
+     * curente, iar o firmă care migrează în aplicație își înrolează oamenii
+     * cu contractele lor vechi. Dar peste 30 de zile în urmă nu mai e
+     * „săptămâna trecută": REGES cere transmiterea cu o zi înainte de
+     * începerea activității, iar pontajul și concediile de până acum nu
+     * există. Până la 8 oct 2026 (QA, HR-030) nimic nu semnala asta.
+     */
+    if (input.valabil_de_la < adaugaZile(todayInBucharest(), -PRAG_RETROACTIV_ZILE)) {
+      avertismente.push(
+        `Contractul începe la ${formatDate(input.valabil_de_la)}, în trecut: transmiterea la REGES apare deja întârziată, iar pontajul și concediile de până acum nu există.`,
+      );
+    }
 
     await refuzaSubSalariulMinim(
       ctx.tenant.organizationId,

@@ -353,7 +353,7 @@ export function Pas3Contract({
                 type="number"
                 step="0.5"
                 min={0.5}
-                max={12}
+                max={8}
                 {...register("norma_ore_zi")}
               />
             )}

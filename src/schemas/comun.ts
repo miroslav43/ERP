@@ -73,6 +73,43 @@ export const textOptional = (maxim: number) =>
     .transform((v) => (v === null || v.length === 0 ? null : v));
 
 /**
+ * Un număr de telefon opțional, cu regula LAXĂ din `qa/spec.md` §1.1: cifre,
+ * spații și semnele `+ ( ) - .`, între 6 și 32 de caractere.
+ *
+ * NU e `telefonSchema` din `organization.ts` (strict românească, pentru
+ * înregistrare și bun-venit): un angajat, un contact de urgență sau un profil
+ * pot avea un număr străin. Până la 8 oct 2026 câmpurile astea erau
+ * `textOptional(32)`, iar „abc" se salva ca telefon pe fișă, în asistentul de
+ * înrolare și în profilul propriu (QA: ADM-007, ONB-034, ANG-030).
+ */
+export const telefonOptional = z
+  .string()
+  .trim()
+  .nullable()
+  .default(null)
+  .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
+  .refine(
+    (valoare) => valoare === null || /^[0-9+()\s.\-]{6,32}$/u.test(valoare),
+    "Numărul de telefon poate conține doar cifre, spații și semnele + ( ) - . și are între 6 și 32 de caractere.",
+  );
+
+/**
+ * Codul poștal românesc: exact șase cifre. Se aplică DOAR acolo unde adresa e
+ * sigur în România (punctele de lucru) — reședința unui angajat poate fi în
+ * străinătate, deci câmpurile lui rămân text liber.
+ */
+export const codPostalOptional = z
+  .string()
+  .trim()
+  .nullable()
+  .default(null)
+  .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
+  .refine(
+    (valoare) => valoare === null || /^[0-9]{6}$/u.test(valoare),
+    "Codul poștal are exact 6 cifre.",
+  );
+
+/**
  * Codul COR al unei ocupații — șase cifre care EXISTĂ în nomenclator.
  *
  * ── DE CE STĂ AICI, ȘI NU LÂNGĂ FORMULARUL CARE ÎL FOLOSEȘTE ──────────────

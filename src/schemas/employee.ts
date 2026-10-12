@@ -8,6 +8,7 @@ import {
   numarCuImplicit,
   numarObligatoriu,
   numarOptional,
+  telefonOptional,
 } from "./comun";
 
 import { normalizeazaCnp, validateazaCnp } from "@/domain/hr/cnp";
@@ -224,7 +225,8 @@ export const creeazaAngajatSchema = z.object({
   last_name: textObligatoriu(1, 80, "Nume"),
   first_name: textObligatoriu(1, 80, "Prenume"),
   email_personal: emailOptional,
-  telefon: textOptional(32),
+  // Regula laxă din `./comun`: numere străine permise, dar „abc" nu (QA ADM-007).
+  telefon: telefonOptional,
   adresa_strada: textOptional(200),
   adresa_oras: textOptional(120),
   adresa_judet: textOptional(80),
@@ -235,7 +237,7 @@ export const creeazaAngajatSchema = z.object({
   adresa_resedinta_judet: textOptional(80),
   adresa_resedinta_cod_postal: textOptional(12),
   email_serviciu: emailOptional,
-  telefon_serviciu: textOptional(32),
+  telefon_serviciu: telefonOptional,
   stare_civila: enumOptional(STARI_CIVILE, "Alegeți o stare civilă din listă."),
   data_nasterii: dataOptionala,
   gen: z.enum(GENURI).default("nedeclarat"),
@@ -291,7 +293,7 @@ export const creeazaAngajatSchema = z.object({
   optiune_pilon_ii: z.coerce.boolean().default(true),
   is_primary: z.coerce.boolean().default(true),
   contact_urgenta_nume: textOptional(120),
-  contact_urgenta_telefon: textOptional(32),
+  contact_urgenta_telefon: telefonOptional,
   contact_urgenta_relatie: textOptional(60),
   observatii: textOptional(2000),
   cnp: cnpOptional,
@@ -556,12 +558,18 @@ const corpContractSchema = z.object({
     mesaj: "Norma săptămânală trebuie să fie un număr.",
     interval: "Norma săptămânală este între 0,5 și 48 de ore.",
   }),
+  /**
+   * Cel mult 8 ore pe zi — art. 112 Codul muncii. Baza păstrează check-ul
+   * `<= 12` din `0004_hr.sql`; aici, mai strict, fiindcă un contract cu 12
+   * ore/zi nu e „normă", e un program care încalcă legea (QA 8 oct 2026,
+   * HR-030). Orele peste 8 sunt suplimentare, nu normă.
+   */
   norma_ore_zi: numarCuImplicit({
     min: 0.5,
-    max: 12,
+    max: 8,
     implicit: 8,
     mesaj: "Norma zilnică trebuie să fie un număr.",
-    interval: "Norma zilnică este între 0,5 și 12 ore.",
+    interval: "Norma zilnică este între 0,5 și 8 ore (Codul muncii, art. 112).",
   }),
   work_mode: z.enum(MODURI_LUCRU).default("sediu"),
   special_regime: enumOptional(REGIMURI_SPECIALE, "Alegeți un regim special din listă."),
@@ -635,9 +643,25 @@ function valideazaReguliContract(
     valabil_de_la: string;
     work_mode: string;
     loc_telemunca: string | null;
+    norma_ore_zi: number;
+    norma_ore_saptamana: number;
   }>,
   ctx: z.core.$RefinementCtx,
 ): void {
+  /*
+   * Coerența celor două norme: ziua înmulțită cu cele cinci zile lucrătoare nu
+   * poate depăși săptămâna. Prinde „8 ore/zi, 20 ore/săptămână" (ar fi 40),
+   * lasă „6 ore/zi, 30 ore/săptămână". Mesajul stă pe `norma_ore_zi`, câmpul
+   * care se completează de obicei al doilea.
+   */
+  if (valoare.norma_ore_zi * 5 > valoare.norma_ore_saptamana) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["norma_ore_zi"],
+      message:
+        "Norma zilnică înmulțită cu 5 zile lucrătoare depășește norma săptămânală. Corectați una dintre ele.",
+    });
+  }
   if (valoare.contract_duration === "determinat" && valoare.valabil_pana === null) {
     ctx.addIssue({
       code: "custom",
@@ -1034,6 +1058,21 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
       }
       bunuri.add(id);
     });
+
+    // Oglinda regulii din `fisaAptitudineSchema` (ssm.ts): înrolarea inserează
+    // aceeași fișă prin `adaugaFisaAptitudine`, deci refuzul vine de aici, pe
+    // câmpul omului, nu ca avertisment după ce angajatul e deja creat.
+    if (
+      valoare.examen_data !== null &&
+      valoare.examen_valabil_pana !== null &&
+      valoare.examen_valabil_pana < valoare.examen_data
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["examen_valabil_pana"],
+        message: "Valabilitatea fișei nu poate fi anterioară datei examinării.",
+      });
+    }
   });
 
 /**

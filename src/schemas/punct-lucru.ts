@@ -1,5 +1,6 @@
 // src/schemas/punct-lucru.ts
 import { z } from "zod";
+import { codPostalOptional } from "@/schemas/comun";
 import { judetSchema } from "@/schemas/organization";
 
 const textOptional = (maxim: number) =>
@@ -16,7 +17,8 @@ export const creeazaPunctLucruSchema = z.object({
   adresa: textOptional(240),
   judet: judetSchema.nullable().default(null),
   oras: textOptional(80),
-  cod_postal: textOptional(10),
+  // Un punct de lucru e mereu în România: șase cifre, nu text liber (QA ADM-010: „12ab").
+  cod_postal: codPostalOptional,
   sediu_principal: z.boolean().default(false),
   observatii: textOptional(1000),
 });
