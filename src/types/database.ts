@@ -13612,9 +13612,265 @@ export type Database = {
           },
         ]
       }
+      vehicle_expenses: {
+        Row: {
+          categorie: Database["public"]["Enums"]["vehicle_expense_category"]
+          created_at: string
+          created_by: string | null
+          data_cheltuielii: string
+          deleted_at: string | null
+          id: string
+          km_bord: number | null
+          litri: number | null
+          numar_document: string | null
+          observatii: string | null
+          organization_id: string
+          suma: number
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          categorie: Database["public"]["Enums"]["vehicle_expense_category"]
+          created_at?: string
+          created_by?: string | null
+          data_cheltuielii: string
+          deleted_at?: string | null
+          id?: string
+          km_bord?: number | null
+          litri?: number | null
+          numar_document?: string | null
+          observatii?: string | null
+          organization_id: string
+          suma: number
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          categorie?: Database["public"]["Enums"]["vehicle_expense_category"]
+          created_at?: string
+          created_by?: string | null
+          data_cheltuielii?: string
+          deleted_at?: string | null
+          id?: string
+          km_bord?: number | null
+          litri?: number | null
+          numar_document?: string | null
+          observatii?: string | null
+          organization_id?: string
+          suma?: number
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_expenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_expenses_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_service_entries: {
+        Row: {
+          anvelope_montate:
+            | Database["public"]["Enums"]["vehicle_tire_set"]
+            | null
+          cost_manopera: number
+          cost_piese: number
+          cost_total: number | null
+          created_at: string
+          created_by: string | null
+          data_interventiei: string
+          deleted_at: string | null
+          descriere: string
+          furnizor: string | null
+          id: string
+          km: number
+          numar_factura: string | null
+          observatii: string | null
+          organization_id: string
+          plan_id: string | null
+          tip: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          anvelope_montate?:
+            | Database["public"]["Enums"]["vehicle_tire_set"]
+            | null
+          cost_manopera?: number
+          cost_piese?: number
+          cost_total?: number | null
+          created_at?: string
+          created_by?: string | null
+          data_interventiei: string
+          deleted_at?: string | null
+          descriere: string
+          furnizor?: string | null
+          id?: string
+          km: number
+          numar_factura?: string | null
+          observatii?: string | null
+          organization_id: string
+          plan_id?: string | null
+          tip: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          anvelope_montate?:
+            | Database["public"]["Enums"]["vehicle_tire_set"]
+            | null
+          cost_manopera?: number
+          cost_piese?: number
+          cost_total?: number | null
+          created_at?: string
+          created_by?: string | null
+          data_interventiei?: string
+          deleted_at?: string | null
+          descriere?: string
+          furnizor?: string | null
+          id?: string
+          km?: number
+          numar_factura?: string | null
+          observatii?: string | null
+          organization_id?: string
+          plan_id?: string | null
+          tip?: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_service_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_service_entries_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_service_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_service_entries_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_service_plans: {
+        Row: {
+          activ: boolean
+          baza_data: string
+          baza_km: number
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          interval_km: number | null
+          interval_luni: number | null
+          observatii: string | null
+          organization_id: string
+          prag_avertizare_km: number
+          tip: Database["public"]["Enums"]["vehicle_service_type"]
+          ultima_data: string
+          ultimii_km: number
+          updated_at: string
+          updated_by: string | null
+          urmatoarea_data: string | null
+          urmatorii_km: number | null
+          vehicle_id: string
+        }
+        Insert: {
+          activ?: boolean
+          baza_data: string
+          baza_km: number
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          interval_km?: number | null
+          interval_luni?: number | null
+          observatii?: string | null
+          organization_id: string
+          prag_avertizare_km?: number
+          tip?: Database["public"]["Enums"]["vehicle_service_type"]
+          ultima_data?: string
+          ultimii_km?: number
+          updated_at?: string
+          updated_by?: string | null
+          urmatoarea_data?: string | null
+          urmatorii_km?: number | null
+          vehicle_id: string
+        }
+        Update: {
+          activ?: boolean
+          baza_data?: string
+          baza_km?: number
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          interval_km?: number | null
+          interval_luni?: number | null
+          observatii?: string | null
+          organization_id?: string
+          prag_avertizare_km?: number
+          tip?: Database["public"]["Enums"]["vehicle_service_type"]
+          ultima_data?: string
+          ultimii_km?: number
+          updated_at?: string
+          updated_by?: string | null
+          urmatoarea_data?: string | null
+          urmatorii_km?: number | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_service_plans_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_service_plans_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           an_fabricatie: number | null
+          anvelope_montate:
+            | Database["public"]["Enums"]["vehicle_tire_set"]
+            | null
           capacitate_cilindrica: number | null
           categorie: Database["public"]["Enums"]["vehicle_category"]
           consum_mediu_declarat: number | null
@@ -13647,6 +13903,9 @@ export type Database = {
         }
         Insert: {
           an_fabricatie?: number | null
+          anvelope_montate?:
+            | Database["public"]["Enums"]["vehicle_tire_set"]
+            | null
           capacitate_cilindrica?: number | null
           categorie?: Database["public"]["Enums"]["vehicle_category"]
           consum_mediu_declarat?: number | null
@@ -13679,6 +13938,9 @@ export type Database = {
         }
         Update: {
           an_fabricatie?: number | null
+          anvelope_montate?:
+            | Database["public"]["Enums"]["vehicle_tire_set"]
+            | null
           capacitate_cilindrica?: number | null
           categorie?: Database["public"]["Enums"]["vehicle_category"]
           consum_mediu_declarat?: number | null
@@ -14647,7 +14909,22 @@ export type Database = {
         | "utilaj"
         | "motocicleta"
         | "altele"
+      vehicle_expense_category:
+        | "combustibil_fara_foaie"
+        | "parcare"
+        | "spalatorie"
+        | "taxa_drum"
+        | "taxa_pod"
+        | "tollro"
+        | "altele"
+      vehicle_service_type:
+        | "revizie"
+        | "reparatie"
+        | "anvelope"
+        | "dauna"
+        | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
+      vehicle_tire_set: "vara" | "iarna" | "all_season"
       verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
@@ -15228,7 +15505,24 @@ export const Constants = {
         "motocicleta",
         "altele",
       ],
+      vehicle_expense_category: [
+        "combustibil_fara_foaie",
+        "parcare",
+        "spalatorie",
+        "taxa_drum",
+        "taxa_pod",
+        "tollro",
+        "altele",
+      ],
+      vehicle_service_type: [
+        "revizie",
+        "reparatie",
+        "anvelope",
+        "dauna",
+        "altele",
+      ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
+      vehicle_tire_set: ["vara", "iarna", "all_season"],
       verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },
