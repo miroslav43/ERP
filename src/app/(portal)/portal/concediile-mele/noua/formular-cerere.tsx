@@ -16,6 +16,7 @@ import { IntrareData } from "@/components/ui/intrare-data";
 import type { ActionResult } from "@/lib/actions/types";
 import { formatDate } from "@/lib/format/date";
 import { formatAmount } from "@/lib/format/money";
+import { acordSubstantiv, formatNumar, textZile } from "@/lib/format/numar";
 
 /**
  * Cererea de concediu, varianta angajatului.
@@ -345,7 +346,7 @@ export function FormularCererePortal({
                   <option value="">Varianta de bază</option>
                   {varianteTip.map((varianta) => (
                     <option key={varianta.id} value={varianta.id}>
-                      {varianta.denumire} — {formatAmount(varianta.zile)} zile
+                      {varianta.denumire} — {textZile(varianta.zile)}
                     </option>
                   ))}
                 </select>
@@ -452,17 +453,22 @@ export function FormularCererePortal({
             <div className="bg-surface border-border rounded-panou border p-4">
               <p className="text-foreground text-corp">
                 <span className="text-titlu font-semibold tabular-nums">
-                  {previzualizare.zileLucratoare.toLocaleString("ro-RO")}
+                  {formatNumar(previzualizare.zileLucratoare)}
                 </span>{" "}
-                {previzualizare.zileLucratoare === 1 ? "zi lucrătoare" : "zile lucrătoare"}
+                {acordSubstantiv(previzualizare.zileLucratoare, "zi lucrătoare", "zile lucrătoare")}
                 <span className="text-muted-foreground">
                   {" "}
-                  · {previzualizare.zileCalendaristice.toLocaleString("ro-RO")} calendaristice
+                  ·{" "}
+                  {textZile(
+                    previzualizare.zileCalendaristice,
+                    "zi calendaristică",
+                    "zile calendaristice",
+                  )}
                 </span>
               </p>
               {tip?.scade_din_sold === true && ramase !== null ? (
                 <p className="text-muted-foreground text-corp mt-1">
-                  Aveți {ramase.toLocaleString("ro-RO")} zile. După aprobare ar rămâne{" "}
+                  Aveți {textZile(ramase)}. După aprobare ar rămâne{" "}
                   <span
                     className={
                       dupaCerere !== null && dupaCerere < 0
@@ -470,7 +476,7 @@ export function FormularCererePortal({
                         : "text-foreground font-medium"
                     }
                   >
-                    {(dupaCerere ?? 0).toLocaleString("ro-RO")}
+                    {formatNumar(dupaCerere ?? 0)}
                   </span>
                   .
                 </p>

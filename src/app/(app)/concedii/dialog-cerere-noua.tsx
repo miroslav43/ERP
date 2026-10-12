@@ -18,6 +18,7 @@ import type { ActionResult } from "@/lib/actions/types";
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import { tipImplicitConcediu } from "@/domain/leave/tip-implicit";
 import { formatAmount } from "@/lib/format/money";
+import { acordSubstantiv, formatNumar, textZile } from "@/lib/format/numar";
 import { formatDate } from "@/lib/format/date";
 import { cn } from "@/lib/ui/cn";
 
@@ -649,11 +650,11 @@ function FormularCerereNoua({
                     }}
                   >
                     <option value="">
-                      Varianta de bază ({formatAmount(tip?.zile_implicite ?? 0)} zile)
+                      Varianta de bază ({textZile(tip?.zile_implicite ?? 0)})
                     </option>
                     {varianteTip.map((varianta) => (
                       <option key={varianta.id} value={varianta.id}>
-                        {varianta.denumire} — {formatAmount(varianta.zile)} zile
+                        {varianta.denumire} — {textZile(varianta.zile)}
                       </option>
                     ))}
                   </select>
@@ -791,8 +792,16 @@ function FormularCerereNoua({
               <>
                 <p className={faraZileLucratoare ? "text-danger font-medium" : undefined}>
                   Cererea consumă{" "}
-                  <strong>{formatAmount(previzualizare.zileLucratoare)} zile lucrătoare</strong> din{" "}
-                  {previzualizare.zileCalendaristice} zile calendaristice.
+                  <strong>
+                    {textZile(previzualizare.zileLucratoare, "zi lucrătoare", "zile lucrătoare")}
+                  </strong>{" "}
+                  din{" "}
+                  {textZile(
+                    previzualizare.zileCalendaristice,
+                    "zi calendaristică",
+                    "zile calendaristice",
+                  )}
+                  .
                   {faraZileLucratoare
                     ? " Perioada nu conține nicio zi lucrătoare — doar weekend sau sărbători legale — și nu poate fi trimisă spre aprobare."
                     : null}
@@ -803,9 +812,10 @@ function FormularCerereNoua({
                   </p>
                 ) : ramaseAfisate !== null ? (
                   <p className="mt-1">
-                    Aveți <strong>{formatAmount(ramaseAfisate)}</strong> zile rămase; după această
+                    Aveți <strong>{formatNumar(ramaseAfisate)}</strong>{" "}
+                    {acordSubstantiv(ramaseAfisate, "zi rămasă", "zile rămase")}; după această
                     cerere:{" "}
-                    <strong>{formatAmount(ramaseAfisate - previzualizare.zileLucratoare)}</strong>.
+                    <strong>{formatNumar(ramaseAfisate - previzualizare.zileLucratoare)}</strong>.
                   </p>
                 ) : (
                   <p className="text-muted-foreground text-nota mt-1">

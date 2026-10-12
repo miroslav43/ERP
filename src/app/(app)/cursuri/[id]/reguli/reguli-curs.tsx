@@ -21,6 +21,7 @@ import { clasaControl } from "@/components/ui/camp";
 import { CautaCor } from "@/components/cauta-cor";
 import { ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
 import { arataToast } from "@/components/ui/toast";
+import { textNumarat } from "@/lib/format/numar";
 import type { AngajatOptiune, OptiuneDenumita, RandRegula } from "@/lib/queries/cursuri";
 import type { CursCriteriu } from "@/schemas/cursuri";
 import { CURS_CRITERIU } from "@/schemas/cursuri";
@@ -367,7 +368,7 @@ export function ReguliCurs({
                     fel: "reusita",
                     text:
                       esuate === 0
-                        ? `Cursul a fost atribuit la ${String(atribuite)} ${atribuite === 1 ? "persoană" : "persoane"}.`
+                        ? `Cursul a fost atribuit la ${textNumarat(atribuite, "persoană", "persoane")}.`
                         : `Atribuit la ${String(atribuite)}; ${String(esuate)} au fost sărite.`,
                     // Atribuirea manuală trimite la stadiu; cea prin reguli lăsa
                     // omul pe pagina regulilor. Toastul cu acțiune nu se stinge.

@@ -16,6 +16,7 @@ import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
+import { acordSubstantiv } from "@/lib/format/numar";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import {
@@ -151,11 +152,11 @@ async function TabelInstante({
             <progress
               value={p.procent}
               max={100}
-              aria-label={`${String(p.gata)} din ${String(p.total)} pași finalizați`}
+              aria-label={`${String(p.gata)} din ${String(p.total)} ${acordSubstantiv(p.total, "pas finalizat", "pași finalizați")}`}
               className="h-2 w-24 accent-blue-700"
             />
             <span className="text-muted-foreground text-nota">
-              {p.gata} din {p.total} pași
+              {`${String(p.gata)} din ${String(p.total)} ${acordSubstantiv(p.total, "pas", "pași")}`}
             </span>
           </span>
         );

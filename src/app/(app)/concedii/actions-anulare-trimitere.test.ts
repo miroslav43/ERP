@@ -447,7 +447,7 @@ describe("trimiteCerere", () => {
     const r = await trimiteCerere({ id: CERERE });
     expect(r).toMatchObject({
       ok: false,
-      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 3,00 zile") },
+      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 3 zile.") },
     });
     expect(server.apeluriPe("leave_requests", "update")).toHaveLength(0);
   });
@@ -493,7 +493,7 @@ describe("trimiteCerere", () => {
       ok: false,
       error: {
         code: "CONFLICT",
-        message: expect.stringContaining("„Paternal” are un plafon legal de 10,00"),
+        message: expect.stringContaining("„Paternal” are un plafon legal de 10 zile pe an."),
       },
     });
   });

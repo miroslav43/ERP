@@ -8,7 +8,14 @@ import { buton } from "@/components/ui/buton";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, formatDateTime, oraInBucharest, todayInBucharest } from "@/lib/format/date";
+import {
+  formatDate,
+  formatDateTime,
+  formatInterval,
+  oraInBucharest,
+  todayInBucharest,
+} from "@/lib/format/date";
+import { textZile } from "@/lib/format/numar";
 import { citestePerioada, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
@@ -608,8 +615,8 @@ export default async function PaginaPortal() {
                         {tipuri.get(cerere.leave_type_id)?.denumire ?? "Concediu"}
                       </p>
                       <p className="text-muted-foreground text-corp">
-                        {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)} ·
-                        ciornă netrimisă
+                        {formatInterval(cerere.data_inceput, cerere.data_sfarsit)} · ciornă
+                        netrimisă
                       </p>
                     </div>
                     <Badge className="shrink-0" ton="ciorna">
@@ -663,10 +670,10 @@ export default async function PaginaPortal() {
                         {tipuri.get(cerere.leave_type_id)?.denumire ?? "Concediu"}
                       </p>
                       <p className="text-muted-foreground text-corp">
-                        {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)}
+                        {formatInterval(cerere.data_inceput, cerere.data_sfarsit)}
                         {cerere.zile_lucratoare === null
                           ? null
-                          : ` · ${cerere.zile_lucratoare.toLocaleString("ro-RO")} zile`}
+                          : ` · ${textZile(cerere.zile_lucratoare)}`}
                       </p>
                     </div>
                     <Badge
@@ -736,7 +743,7 @@ export default async function PaginaPortal() {
                 ? null
                 : panaLaZiLibera === 1
                   ? " · mâine"
-                  : ` · peste ${panaLaZiLibera.toLocaleString("ro-RO")} zile`}
+                  : ` · peste ${textZile(panaLaZiLibera)}`}
             </p>
           </section>
         )}

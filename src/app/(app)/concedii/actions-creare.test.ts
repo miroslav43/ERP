@@ -515,7 +515,7 @@ describe("creeazaCerereConcediu — verificările de la trimitere", () => {
 
     expect(r).toMatchObject({
       ok: false,
-      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 2,00 zile") },
+      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 2 zile.") },
     });
     expect(server.apeluriPe("leave_requests", "insert")).toHaveLength(0);
   });
@@ -531,7 +531,7 @@ describe("creeazaCerereConcediu — verificările de la trimitere", () => {
 
     expect(r).toMatchObject({
       ok: false,
-      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 1,00 zile") },
+      error: { code: "CONFLICT", message: expect.stringContaining("lipsesc 1 zi.") },
     });
   });
 
@@ -589,7 +589,8 @@ describe("creeazaCerereConcediu — verificările de la trimitere", () => {
       error: {
         code: "CONFLICT",
         message: expect.stringMatching(
-          /plafon legal de 10,00 zile.*7,00 sunt deja folosite în 2026.*cu 2,00 zile/u,
+          // Zilele nu sunt bani: fără „,00” (QA ANG-016).
+          /plafon legal de 10 zile pe an\. Folosite deja în 2026: 7 zile\. .*cu 2 zile\./u,
         ),
       },
     });

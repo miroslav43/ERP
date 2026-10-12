@@ -11,8 +11,8 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatAmount } from "@/lib/format/money";
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { acordSubstantiv, formatNumar, textNumarat, textZile } from "@/lib/format/numar";
+import { formatDateTime, formatInterval } from "@/lib/format/date";
 import { deAprobat, soldAnual } from "@/lib/queries/leave";
 import { oreParaTermen, treaptaTermenDecizie } from "@/domain/leave/termen-aprobare";
 
@@ -46,9 +46,9 @@ function SoldulCererii({
       className={depaseste ? "text-warning text-corp mt-1" : "text-muted-foreground text-corp mt-1"}
     >
       {depaseste ? "Depășește soldul: " : "Sold rămas: "}
-      <strong className="tabular-nums">{formatAmount(ramase)}</strong>{" "}
-      {ramase === 1 ? "zi" : "zile"}
-      {depaseste ? ` pentru ${formatAmount(cerute)} zile cerute.` : "."}
+      <strong className="tabular-nums">{formatNumar(ramase)}</strong>{" "}
+      {acordSubstantiv(ramase, "zi", "zile")}
+      {depaseste ? ` pentru ${textZile(cerute)} cerute.` : "."}
     </p>
   );
 }
@@ -69,13 +69,13 @@ function textTermen(termenLa: string, acum: Date): string {
   const zile = Math.floor(Math.abs(ore) / 24);
 
   if (ore < 0) {
-    if (zile >= 1) return `Depășit cu ${String(zile)} ${zile === 1 ? "zi" : "zile"}`;
+    if (zile >= 1) return `Depășit cu ${textZile(zile)}`;
     return "Depășit astăzi";
   }
   if (ore < 1) return "Expiră în mai puțin de o oră";
-  if (ore < 24) return `Expiră în ${String(Math.floor(ore))} ore`;
+  if (ore < 24) return `Expiră în ${textNumarat(Math.floor(ore), "oră", "ore")}`;
   if (zile === 1) return "Expiră mâine";
-  return `Expiră în ${String(zile)} zile`;
+  return `Expiră în ${textZile(zile)}`;
 }
 
 export default async function PaginaAprobariConcedii() {
@@ -211,9 +211,8 @@ export default async function PaginaAprobariConcedii() {
                     </LinkEntitate>
                   </p>
                   <p className="text-muted-foreground text-corp mt-1">
-                    {formatDate(sarcina.cerere.dataInceput)} –{" "}
-                    {formatDate(sarcina.cerere.dataSfarsit)} ·{" "}
-                    {formatAmount(sarcina.cerere.zileLucratoare)} zile lucrătoare
+                    {formatInterval(sarcina.cerere.dataInceput, sarcina.cerere.dataSfarsit)} ·{" "}
+                    {textZile(sarcina.cerere.zileLucratoare, "zi lucrătoare", "zile lucrătoare")}
                     {poateVedeaCalendar ? (
                       <>
                         {" · "}

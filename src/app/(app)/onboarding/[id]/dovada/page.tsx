@@ -11,6 +11,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
+import { acordSubstantiv } from "@/lib/format/numar";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { angajatiDupaId, citesteInstanta, dovadaParcurgerii } from "@/lib/queries/checklist";
 import { continutDovadaSchema } from "@/schemas/checklist";
@@ -106,8 +107,10 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
             </p>
             <p className="text-corp">Finalizată la {formatDateTime(dovada.finalizata_la)}</p>
             <p className="text-corp">
-              {dovada.pasi_bifati} din {dovada.total_pasi} pași bifați, {dovada.pasi_obligatorii}{" "}
-              obligatorii
+              {dovada.pasi_bifati} din {dovada.total_pasi}{" "}
+              {acordSubstantiv(dovada.total_pasi, "pas bifat", "pași bifați")},{" "}
+              {dovada.pasi_obligatorii}{" "}
+              {dovada.pasi_obligatorii === 1 ? "obligatoriu" : "obligatorii"}
             </p>
             <p className="text-muted-foreground text-nota font-mono">
               Amprenta documentului: {dovada.continut_checksum}

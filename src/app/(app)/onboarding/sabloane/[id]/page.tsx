@@ -10,6 +10,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
+import { textNumarat } from "@/lib/format/numar";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { citesteSablon, etapeleSablonului, pasiiSablonului } from "@/lib/queries/checklist";
 
@@ -74,7 +75,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
         titlu={sablon.denumire}
         descriere={`${ETICHETE_TIP[sablon.tip]} · Valabil de la ${formatDate(sablon.valabil_de_la)}${
           sablon.valabil_pana_la === null ? "" : ` până la ${formatDate(sablon.valabil_pana_la)}`
-        } · ${sablon.activ ? "Activ" : "Dezactivat"} · ${String(pasi.length)} pași`}
+        } · ${sablon.activ ? "Activ" : "Dezactivat"} · ${textNumarat(pasi.length, "pas", "pași")}`}
         // Pasul firesc după ce vezi (sau tocmai ai creat) un șablon: pornești
         // o instanță din el. Poarta e a paginii-țintă (`checklists:create` all).
         actiuni={

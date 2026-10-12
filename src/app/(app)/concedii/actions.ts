@@ -18,7 +18,7 @@ import {
   type IntervalConcediu,
 } from "@/domain/leave/verificari";
 import { formatDate } from "@/lib/format/date";
-import { formatAmount } from "@/lib/format/money";
+import { textZile } from "@/lib/format/numar";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
   anuleazaCerereSchema,
@@ -290,7 +290,7 @@ async function verificaInainteDeTrimitere(
     const verificare = verificaSold(zileLucratoare, zileDisponibile);
     if (!verificare.areSoldSuficient) {
       throw businessRule(
-        `Soldul de „${cerere.tip.denumire}” pe anul ${String(an)} nu acoperă zilele solicitate: lipsesc ${formatAmount(verificare.zileLipsa)} zile. Reduceți perioada sau cereți ajustarea dreptului anual.`,
+        `Soldul de „${cerere.tip.denumire}” pe anul ${String(an)} nu acoperă zilele solicitate: lipsesc ${textZile(verificare.zileLipsa)}. Reduceți perioada sau cereți ajustarea dreptului anual.`,
       );
     }
   }
@@ -317,7 +317,7 @@ async function verificaInainteDeTrimitere(
     const plafon = verificaPlafonAnual(zileLucratoare, zileConsumate, cerere.plafonEfectiv);
     if (!plafon.seIncadreaza) {
       throw businessRule(
-        `„${cerere.denumirePlafon}” are un plafon legal de ${formatAmount(cerere.plafonEfectiv)} zile pe an, din care ${formatAmount(zileConsumate)} sunt deja folosite în ${String(an)}. Cererea îl depășește cu ${formatAmount(plafon.zileDepasire)} zile.`,
+        `„${cerere.denumirePlafon}” are un plafon legal de ${textZile(cerere.plafonEfectiv)} pe an. Folosite deja în ${String(an)}: ${textZile(zileConsumate)}. Cererea îl depășește cu ${textZile(plafon.zileDepasire)}.`,
       );
     }
   }

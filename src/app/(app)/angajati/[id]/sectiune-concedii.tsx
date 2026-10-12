@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 
-import { formatAmount } from "@/lib/format/money";
+import { formatNumar, textZile } from "@/lib/format/numar";
 import { todayInBucharest } from "@/lib/format/date";
 import { ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
 import {
@@ -301,21 +301,21 @@ export async function SectiuneConcedii({
                 {tip.denumire}
               </span>
               <span className="text-corp text-right">
-                <span className="font-medium tabular-nums">{formatAmount(dreptAfisat)} zile</span>
+                <span className="font-medium tabular-nums">{textZile(dreptAfisat)}</span>
                 {ramase === null ? null : (
                   <span className="text-muted-foreground text-nota ml-2 tabular-nums">
-                    · {formatAmount(folosite)} folosite
-                    {inAsteptare > 0 ? ` · ${formatAmount(inAsteptare)} în așteptare` : ""} ·{" "}
-                    {formatAmount(ramase)} rămase
+                    · {formatNumar(folosite)} folosite
+                    {inAsteptare > 0 ? ` · ${formatNumar(inAsteptare)} în așteptare` : ""} ·{" "}
+                    {formatNumar(ramase)} rămase
                   </span>
                 )}
                 {regulileOriginale.length === 0 && luniProportie === null ? null : (
                   <span className="text-muted-foreground text-nota ml-2">
-                    ({formatAmount(bazaAfisata)} bază
+                    ({formatNumar(bazaAfisata)} bază
                     {regulileOriginale
                       .map(
                         (r) =>
-                          ` + ${formatAmount(r.zile_suplimentare)} ${descrieRegula(r, hartaDepartamente)}`,
+                          ` + ${formatNumar(r.zile_suplimentare)} ${descrieRegula(r, hartaDepartamente)}`,
                       )
                       .join("")}
                     {luniProportie === null ? "" : ` × ${String(luniProportie)}/12 luni`})

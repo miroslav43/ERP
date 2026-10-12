@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { Fragment, type ReactElement, type ReactNode } from "react";
 
+import { textNumarat } from "@/lib/format/numar";
 import { cn } from "@/lib/ui/cn";
 
 import { RandTabel } from "../data/rand-tabel";
@@ -178,8 +179,8 @@ export function Tabel<R>({
     <div className={cn("flex flex-col gap-2", className)}>
       {trunchiat === true ? (
         <p className="border-warning/40 bg-warning/12 text-foreground rounded-panou text-nota border px-3 py-2">
-          Lista e tăiată la primele {randuri.length} de rânduri. Restrângeți filtrele ca să vedeți
-          restul.
+          {`Lista e tăiată la primele ${textNumarat(randuri.length, "rând", "rânduri")}.`}{" "}
+          Restrângeți filtrele ca să vedeți restul.
         </p>
       ) : null}
 

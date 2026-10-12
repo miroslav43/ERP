@@ -12,7 +12,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatAmount } from "@/lib/format/money";
+import { formatNumar, textZile } from "@/lib/format/numar";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
   grupeazaSoldDupaAngajat,
@@ -77,28 +77,28 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     antet: "Drept anual",
     numeric: true,
     peTelefon: "meta",
-    celula: ({ tip, sold }) => formatAmount(sold?.drept_anual ?? tip.zile_implicite),
+    celula: ({ tip, sold }) => formatNumar(sold?.drept_anual ?? tip.zile_implicite),
   },
   {
     cheie: "reportate",
     antet: "Reportate",
     numeric: true,
     peTelefon: "meta",
-    celula: ({ sold }) => formatAmount(sold?.reportate ?? 0),
+    celula: ({ sold }) => formatNumar(sold?.reportate ?? 0),
   },
   {
     cheie: "folosite",
     antet: "Folosite",
     numeric: true,
     peTelefon: "meta",
-    celula: ({ sold }) => formatAmount(sold?.folosite ?? 0),
+    celula: ({ sold }) => formatNumar(sold?.folosite ?? 0),
   },
   {
     cheie: "in_asteptare",
     antet: "În așteptare",
     numeric: true,
     peTelefon: "meta",
-    celula: ({ sold }) => formatAmount(sold?.in_asteptare ?? 0),
+    celula: ({ sold }) => formatNumar(sold?.in_asteptare ?? 0),
   },
   {
     cheie: "consum",
@@ -120,7 +120,7 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
           // e chiar scopul concediului. Doar depășirea se distinge, și o face
           // primitiva prin formă, nu prin culoare.
           ton="neutru"
-          text={`${formatAmount(angajate)} zile angajate din ${formatAmount(cuvenite)} cuvenite`}
+          text={`${textZile(angajate)} angajate din ${textZile(cuvenite)} cuvenite`}
         />
       );
     },
@@ -134,7 +134,7 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
       <span className="font-medium">
         {sold === null || sold === undefined
           ? "fără mișcări în acest an"
-          : formatAmount(sold.ramase ?? 0)}
+          : formatNumar(sold.ramase ?? 0)}
       </span>
     ),
   },
@@ -487,7 +487,7 @@ function IstoricTabel({
       celula: (rand) => (
         <span className={rand.delta < 0 ? "text-danger" : ""}>
           {rand.delta > 0 ? "+" : ""}
-          {formatAmount(rand.delta)}
+          {formatNumar(rand.delta)}
         </span>
       ),
     },
@@ -496,7 +496,7 @@ function IstoricTabel({
       antet: "Sold după",
       numeric: true,
       peTelefon: "meta",
-      celula: (rand) => (rand.sold_dupa === null ? "—" : formatAmount(rand.sold_dupa)),
+      celula: (rand) => (rand.sold_dupa === null ? "—" : formatNumar(rand.sold_dupa)),
     },
     {
       cheie: "motiv",

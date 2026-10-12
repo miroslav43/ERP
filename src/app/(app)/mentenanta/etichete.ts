@@ -15,6 +15,7 @@ import type {
 } from "@/schemas/maintenance";
 import type { StareScadentaMentenanta } from "@/domain/maintenance/scadente";
 import type { TonStare } from "@/components/ui/badge";
+import { textNumarat } from "@/lib/format/numar";
 
 export const ETICHETE_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, string>> = {
   in_functiune: "În funcțiune",
@@ -265,15 +266,8 @@ export const ETICHETE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, s
  * Un număr cu substantivul lui, scris ca în limba română.
  *
  * Panoul scria „1 planuri de mentenanță”, iar antetul listei de planuri lipea
- * un „de” fix: „3 de planuri ACTIVE”. Regula cere „de” peste 19, după ULTIMELE
- * DOUĂ cifre, nu după mărime — „20 de planuri”, dar „101 planuri”. Aceeași
- * regulă e implementată pentru zile în `src/app/(app)/diurna/etichete.ts`;
- * dacă mai apare un al treilea apelant, locul ei e un modul de format comun.
+ * un „de” fix: „3 de planuri ACTIVE”. Regula a ajuns la al treilea apelant și
+ * s-a mutat în modulul comun `src/lib/format/numar.ts`; aici rămâne
+ * re-exportul, ca apelanții modulului să nu se schimbe.
  */
-export function textNumarat(numar: number, singular: string, plural: string): string {
-  const cifre = Math.abs(Math.trunc(numar));
-  if (cifre === 1) return `${numar.toLocaleString("ro-RO")} ${singular}`;
-  const ultimeleDoua = cifre % 100;
-  const cereDe = cifre >= 20 && (ultimeleDoua === 0 || ultimeleDoua >= 20);
-  return `${numar.toLocaleString("ro-RO")} ${cereDe ? "de " : ""}${plural}`;
-}
+export { textNumarat };

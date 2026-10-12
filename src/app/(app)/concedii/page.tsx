@@ -14,7 +14,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatAmount } from "@/lib/format/money";
+import { formatNumar, acordSubstantiv } from "@/lib/format/numar";
 import { todayInBucharest } from "@/lib/format/date";
 import { numarDeAprobat, soldAnual } from "@/lib/queries/leave";
 import { filtreCereriSchema } from "@/schemas/leave";
@@ -50,8 +50,9 @@ async function RezumatSoldPropriu({ organizationId }: { readonly organizationId:
 
   return (
     <p className="border-border bg-surface text-foreground rounded-panou text-corp border px-4 py-2">
-      Aveți <strong>{formatAmount(ramase)}</strong> zile rămase din „{tipOdihna.denumire}” pentru
-      anul {String(an)}.{" "}
+      Aveți <strong>{formatNumar(ramase)}</strong>{" "}
+      {acordSubstantiv(ramase, "zi rămasă", "zile rămase")} din „{tipOdihna.denumire}” pentru anul{" "}
+      {String(an)}.{" "}
       <Link href="/concedii/sold" className="underline underline-offset-2">
         Vezi soldul complet
       </Link>
