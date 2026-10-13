@@ -5,15 +5,23 @@ aliases: [organigrama, subordonare, manager_path]
 cai:
   - "src/app/(app)/organigrama/**"
   - "src/lib/queries/employees.ts"
+  - "src/domain/hr/organigrama.ts"
   - "supabase/migrations/0004_hr.sql"
   - "supabase/migrations/0005_hr_rls.sql"
+  - "supabase/migrations/0196_lantul_de_sefi_al_angajatului.sql"
 tabele: [employees, organization_members, departments]
-permisiuni: [employees:read]
+permisiuni:
+  - "employees:read"
+  - "employees:create"
+  - "employees:update"
+  - "users:update"
+  - "departments:read"
 capcane: [2, 18]
 citeste_daca:
   - "scope `team` care vede prea mult sau prea puțin → secțiunea `manager_path`"
-scris_pe: 9d5b6a4bd8cfd34399ecbf06fa5edd27286eaabd
-scris_la: 2026-10-05
+  - "un angajat care se vede singur, fără șefi deasupra → `lantul_meu_de_sefi`"
+scris_pe: 8b46aa6015ab5a8f558e72a2e13b37148c114114
+scris_la: 2026-10-13
 tags: [modul]
 ---
 
@@ -66,9 +74,17 @@ diurnă.
 `arboreleManagerial(organizationId, scope, propriaFisaId)` din
 `src/lib/queries/employees.ts` — fișier marcat `import "server-only"`, deci un import
 dintr-o componentă client oprește build-ul în loc să ducă citirile de personal în
-bundle-ul de browser. Poarta e `employees:read`, iar `scope === null` sau `"none"` dă
-`AccesRestrictionat`. Cu scope diferit de `all`, pagina trimite propria fișă, ca arborele
-să pornească de acolo.
+bundle-ul de browser. Poarta e `employees:read`: `scope === null` sau `"none"` dă
+`AccesRestrictionat`, iar sub orice scope diferit de `all` pagina trimite propria fișă, ca
+arborele să pornească de acolo.
+
+Sub `own`, ascendenții **nu** se mai citesc din `employees`: vin din
+`public.lantul_meu_de_sefi` (`0196_lantul_de_sefi_al_angajatului.sql`), funcție
+`security definer` care întoarce doar cartea de vizită a șefilor din `manager_path`-ul
+fișei proprii, în organizația curentă, vârf → șef direct, și care cere ea însăși
+`employees:read` cel puțin `own`. Stă în schema `public`, fiindcă PostgREST nu expune
+`app`; se cheamă doar dacă `manager_path` are ascendenți. Subarborele propriu rămâne o
+citire obișnuită pe `employees`.
 
 Dacă scope-ul e `team` și fișa proprie lipsește, funcția întoarce lista goală **înainte de
 a interoga**: `manager_path @> array[NULL]` e fals, deci RLS ar fi tăiat oricum tot, dar
@@ -84,22 +100,55 @@ organizație.
 Funcția chemată aici e `toateRolurileConturilor(organizationId)`, nu `rolurileConturilor`
 — aceasta din urmă rămâne, cu filtrul ei pe listă de id-uri, pentru [[modul/angajati]].
 Fără filtru, harta nu mai depinde de arbore, deci pleacă în același val cu `idFisaProprie`
-în loc să aștepte `arboreleManagerial`. Harta e prin urmare un **superset** al conturilor
-din arbore, inclusiv sub scope `team`: nu ajunge pe ecran, fiindcă
-`construiesteOrganigrama` (`src/domain/hr/organigrama.ts`) iterează peste rândurile
-arborelui și consultă harta doar prin `.get()`, niciodată invers.
-
-Harta contează pentru două lucruri de pe ecran: eticheta de funcție a fișelor care n-au
-una (`etichetaFunctiei` scrie rolul de cont, cu cursive) și identificarea
-administratorului unic, de care atârnă avertismentul despre legăturile deduse.
+în loc să aștepte `arboreleManagerial`. E prin urmare un **superset** al conturilor din
+arbore, inclusiv sub scope `team` — dar nu ajunge pe ecran: `construiesteOrganigrama`
+(`src/domain/hr/organigrama.ts`) iterează peste rândurile arborelui și consultă harta doar
+prin `.get()`, niciodată invers. Din ea ies două lucruri: eticheta de funcție a fișelor
+care n-au una (`etichetaFunctiei` scrie rolul de cont, cu cursive) și administratorul
+unic, de care atârnă avertismentul despre legăturile deduse.
 
 `construiesteOrganigrama` întoarce, pe lângă arbore, și `radaciniFaraManagerVizibil`:
 oameni al căror șef există, dar nu e vizibil sub scope-ul curent. Ei nu se aruncă și nu se
 lipesc la rădăcină în tăcere — ecranul îi arată ca atare, fiindcă „nu văd șeful" e o stare
 diferită de „n-are șef".
 
+Sub `all`, `fiseDupaId(organizationId, ids)` mai face o citire, una singură, ca nodul să-l
+poată **numi** pe șeful nevizibil: fișe după id, inclusiv inactive sau încetate, tot prin
+RLS. Id-urile se strâng doar din rădăcinile lui `arbore` — când administratorul e rădăcină
+unică, ceilalți devin copii impliciti sub el, iar managerii lor ascunși nu intră în hartă,
+deci nodul lor rămâne la „manager inactiv sau șters".
+
+## Ce se poate face de pe nod
+
+Preambulul citește și `getEnabledFeatures`, pentru `poateDeschide` din
+`src/config/porti-ruta.ts`: antetul duce la `/departamente?vizualizare=organigrama` —
+cealaltă organigramă a produsului, cea structurală — doar dacă poarta rutei
+`/departamente` trece (`departments:read`).
+
+- **Numele** duce la `/angajati/[id]`, cu linkul întins peste tot cardul
+  (`after:absolute after:inset-0`); funcția și departamentul au linkurile LOR, ridicate cu
+  `relative z-10`, fiindcă un `<a>` în alt `<a>` nu e permis.
+- **Eticheta derivată din rolul de cont** duce la `/angajati/[id]/permisiuni`, dar numai cu
+  `users:update` = `all`; `hr`, care n-are niciun `users:*`, vede doar textul cursiv.
+- **„Setează managerul"** apare pe nodul cu muchie dedusă sau cu manager nevizibil, numai
+  cu `employees:update` = `all` (`org_admin`, `hr`), și duce la
+  `/angajati/[id]/editeaza?inapoi=organigrama`. Formularul se întoarce la
+  `/organigrama?angajat=<id>#angajat-<id>`, iar pagina evidențiază nodul **pe server**
+  (`ring-2`): `:target` nu se aprinde după o navigare din client.
+- **Rădăcina cu manager pe fișă, dar nevizibil** primește același marcaj ca muchia dedusă,
+  numai sub `all` — sub `team` managerul poate fi pur și simplu în afara echipei. Textul îl
+  numește: „din afara ierarhiei" dacă fișa lui e activă, „inactiv" altfel.
+- **`StareGoala`** oferă „Adaugă primul angajat" (`/angajati/nou`) doar când nu există
+  nicio fișă activă ȘI `employees:create` = `all`; altfel trimite la lista de angajați.
+
 ## Ce refuză baza tăcut
 
+- **Sub `employees:read = own`, lanțul de șefi citit din `employees` venea gol.** Politica
+  `employees_select` cu scope `own` dă rândul propriu, deci `.in("id", manager_path)`
+  întorcea zero rânduri, fără eroare: angajatul se vedea singur, fără nimeni deasupra
+  (ANG-028). Reparat prin `0196_lantul_de_sefi_al_angajatului.sql` — o funcție care dă
+  doar cartea de vizită, nu o politică mai largă; proba e
+  `tests/rls/proba-lantul-de-sefi.sql`.
 - **Un angajat fără fișă principală de angajat are `team` peste mulțimea vidă.**
   Subordonarea trăiește în `employees`, nu în `organization_members`; un cont de manager
   fără fișă vede liste goale peste tot, fără nicio eroare. Pe organigramă golul nu mai
