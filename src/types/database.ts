@@ -14187,6 +14187,7 @@ export type Database = {
           cost_final: number | null
           created_at: string
           created_by: string | null
+          declarat_de_employee_id: string | null
           deleted_at: string | null
           descriere: string
           despagubire: number | null
@@ -14211,6 +14212,7 @@ export type Database = {
           cost_final?: number | null
           created_at?: string
           created_by?: string | null
+          declarat_de_employee_id?: string | null
           deleted_at?: string | null
           descriere: string
           despagubire?: number | null
@@ -14235,6 +14237,7 @@ export type Database = {
           cost_final?: number | null
           created_at?: string
           created_by?: string | null
+          declarat_de_employee_id?: string | null
           deleted_at?: string | null
           descriere?: string
           despagubire?: number | null
@@ -14274,6 +14277,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "work_accidents"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vi_declarant_fk"
+            columns: ["declarat_de_employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "vi_sofer_fk"
@@ -15170,6 +15180,13 @@ export type Database = {
           p_telefon?: string | null
         }
         Returns: string
+      }
+      tehnicieni_mentenanta: {
+        Args: { p_organization_id: string }
+        Returns: {
+          full_name: string | null
+          id: string
+        }[]
       }
       trimite_saptamana_pontaj: {
         Args: {
