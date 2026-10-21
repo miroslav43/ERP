@@ -513,10 +513,15 @@ export const calculeazaPerioada = createAction({
       motiv: string;
     }[] = [];
 
+    // Luna VENITURILOR, din perioadă — decide suma neimpozabilă de la salariul
+    // minim (OUG 89/2025 art. III). Nu ceasul serverului: decembrie recalculat
+    // în ianuarie rămâne decembrie.
+    const lunaVenituri = `${String(perioada.an)}-${String(perioada.luna).padStart(2, "0")}`;
     const randuri = angajati.map((angajat) => {
       const pontajAngajat = pontaj.pePersoana.get(angajat.employee_id) ?? PONTAJ_GOL;
       const rezultat = calculatePayrollEntry({
         settings: snapshot,
+        lunaVenituri,
         contract: {
           salariuBaza: angajat.salariu_baza,
           nrPersoaneIntretinere: angajat.nr_persoane_intretinere,
