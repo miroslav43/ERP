@@ -64,6 +64,23 @@ vi.mock("../../actions", () => ({
   stergeFoaie,
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
+// Citirea bonului (F12a): acțiunile din `flota/bon/actions` (și urcarea) sunt
+// mimate, ca restul. Același modul îl importă și poza, și butonul de citire.
+const bon = vi.hoisted(() => ({
+  pregatesteBonNou: vi.fn(),
+  citesteBonul: vi.fn(),
+  urcaPeUrlSemnat: vi.fn(),
+  pregatesteFotoBon: vi.fn(),
+}));
+vi.mock("../../bon/actions", () => ({
+  pregatesteBonNou: bon.pregatesteBonNou,
+  citesteBonul: bon.citesteBonul,
+}));
+vi.mock("@/lib/storage/urca-semnat", () => ({ urcaPeUrlSemnat: bon.urcaPeUrlSemnat }));
+vi.mock("@/lib/documents/foto-bon-pregatire", async (orig) => ({
+  ...(await orig<typeof import("@/lib/documents/foto-bon-pregatire")>()),
+  pregatesteFotoBon: bon.pregatesteFotoBon,
+}));
 // Semnalul de navigare al lui `<Formular>` e un SPION: aprinde voalul global,
 // care se stinge DOAR la schimbarea căii sau la demontare. Funcția e stabilă —
 // e dependență a efectului de reușită din `<Formular>`, iar hook-ul real o
@@ -109,7 +126,10 @@ const PLECARE_LA = "2026-10-01T06:00:00.000Z";
 
 function randeaza(
   status: "draft" | "trimis" | "respins" = "draft",
-  { areCurse = true }: { readonly areCurse?: boolean } = {},
+  {
+    areCurse = true,
+    poateCitiBonul = false,
+  }: { readonly areCurse?: boolean; readonly poateCitiBonul?: boolean } = {},
 ) {
   return render(
     <ActiuniFoaie
@@ -119,6 +139,7 @@ function randeaza(
       sosireLa={null}
       areCurse={areCurse}
       bazaFoi="/flota/foi"
+      poateCitiBonul={poateCitiBonul}
     />,
   );
 }
@@ -159,6 +180,7 @@ beforeEach(() => {
     refresh,
     push,
     semnal,
+    ...Object.values(bon),
   ]) {
     f.mockReset();
   }
@@ -206,9 +228,12 @@ describe("ActiuniFoaie — alimentarea păstrează ce s-a scris", () => {
       cost: 300,
       statie: null,
       numar_bon: "B1",
+      cui_statie: null,
       alimentat_la: "2026-10-01T10:00",
       plin: false,
       observatii: null,
+      fisier_bon_path: null,
+      ocr_jeton: null,
     });
     // Mesajul e legat de caseta vinovată, nu doar afișat undeva pe ecran.
     expect(camp("Număr bon").getAttribute("aria-invalid")).toBe("true");
@@ -381,5 +406,100 @@ describe("ActiuniFoaie — ce arată fiecare stare (0200 §D1)", () => {
   it("pe ciornă: alimentarea se poate adăuga", () => {
     randeaza("draft");
     expect(screen.getByRole("button", { name: "Adaugă alimentarea" })).toBeTruthy();
+  });
+});
+
+describe("ActiuniFoaie — poza bonului și citirea lui (F12a)", () => {
+  const CALE = "org/trip_sheets/f1/x-bon.jpg";
+  const PROPUNERE = {
+    alimentat_la: "2026-10-01T10:15",
+    litri: 45.32,
+    cost: 312.5,
+    statie: "OMV Pitești",
+    numar_bon: "0042",
+    cui_statie: "14399840",
+  };
+
+  function pozaUrcata(): void {
+    bon.pregatesteFotoBon.mockImplementation(async (f: File) => f);
+    bon.pregatesteBonNou.mockResolvedValue({
+      ok: true,
+      data: { cale: CALE, urlSemnat: "https://s/u" },
+    });
+    bon.urcaPeUrlSemnat.mockResolvedValue(true);
+  }
+
+  async function urcaPoza(): Promise<void> {
+    const poza = new File([new Uint8Array(1024)], "bon.jpg", { type: "image/jpeg" });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/^Poza bonului/u), { target: { files: [poza] } });
+    });
+    await waitFor(() => {
+      expect(bon.urcaPeUrlSemnat).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  it("fără `poateCitiBonul`, butonul „Citește bonul” nu apare nici cu poza urcată", async () => {
+    pozaUrcata();
+    randeaza("draft");
+    await urcaPoza();
+    expect(screen.queryByRole("button", { name: /Citește bonul/u })).toBeNull();
+  });
+
+  it("D10: citirea completează DOAR câmpurile goale, cu „din bon”; jetonul și poza pleacă la salvare", async () => {
+    pozaUrcata();
+    bon.citesteBonul.mockResolvedValue({
+      ok: true,
+      data: { propunere: PROPUNERE, avertismente: [], jeton: "jeton.semnat" },
+    });
+    adaugaAlimentare.mockResolvedValue({ ok: true, data: { id: "a1" } });
+    randeaza("draft", { poateCitiBonul: true });
+    // Omul a scris deja litrii: citirea nu-i suprascrie.
+    scrie(camp(/^Litri/u), "50");
+    await urcaPoza();
+
+    await apasa("Citește bonul");
+
+    await waitFor(() => {
+      expect(camp("Stație (din bon)").value).toBe("OMV Pitești");
+    });
+    expect(camp(/^Litri/u).value).toBe("50");
+    expect(screen.queryByLabelText(/Litri \(din bon\)/u)).toBeNull();
+    expect(camp(/^Cost \(lei\) \(din bon\)/u).value).toBe("312.5");
+    expect(camp(/^Când \(din bon\)/u).value).toBe("2026-10-01T10:15");
+    expect(camp(/^CUI stație \(din bon\)/u).value).toBe("14399840");
+
+    await apasa("Adaugă alimentarea");
+
+    await waitFor(() => {
+      expect(adaugaAlimentare).toHaveBeenCalledTimes(1);
+    });
+    expect(adaugaAlimentare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        litri: 50,
+        cost: 312.5,
+        statie: "OMV Pitești",
+        numar_bon: "0042",
+        cui_statie: "14399840",
+        alimentat_la: "2026-10-01T10:15",
+        fisier_bon_path: CALE,
+        ocr_jeton: "jeton.semnat",
+      }),
+    );
+  });
+
+  it("conversia HEIC eșuată: mesajul cu pașii, poza nu se urcă", async () => {
+    const { FotoBonNecitibila, MESAJ_HEIC } = await import("@/lib/documents/foto-bon-pregatire");
+    bon.pregatesteFotoBon.mockRejectedValue(new FotoBonNecitibila(MESAJ_HEIC));
+    randeaza("draft", { poateCitiBonul: true });
+    const poza = new File([new Uint8Array(1024)], "IMG_1.HEIC", { type: "image/heic" });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/^Poza bonului/u), { target: { files: [poza] } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText(MESAJ_HEIC)).toBeDefined();
+    });
+    expect(bon.pregatesteBonNou).not.toHaveBeenCalled();
+    expect(bon.urcaPeUrlSemnat).not.toHaveBeenCalled();
   });
 });

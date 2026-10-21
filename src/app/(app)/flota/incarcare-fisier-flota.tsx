@@ -10,6 +10,7 @@ import { Buton } from "@/components/ui/buton";
 import { Dialog } from "@/components/ui/dialog";
 import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
 import { arataToast } from "@/components/ui/toast";
+import { pregatesteFotoBon, seConvertesteInJpeg } from "@/lib/documents/foto-bon-pregatire";
 import { urcaPeUrlSemnat } from "@/lib/storage/urca-semnat";
 import { LIMITA_FISIER_FLOTA_BYTES, MIME_FLOTA } from "@/domain/fleet/fisiere";
 
@@ -40,6 +41,23 @@ interface Proprietati {
 }
 
 /**
+ * Poza BONULUI se re-encodează în JPEG ≤ 2048 px înainte de urcare (F12a D7):
+ * canvasul nu păstrează EXIF-ul, deci coordonatele GPS ale șoferului nu ajung
+ * în Storage. Dacă browserul nu poate decoda poza (HEIC pe Chrome), se urcă
+ * originalul, ca înainte: bucketul primește HEIC, iar aici nu e nimic de citit
+ * automat — citirea se face din formularul de adăugare. Scanarea documentului
+ * (PDF de cele mai multe ori) rămâne neatinsă.
+ */
+async function deUrcatPentru(tinta: TintaFisierFlota, fisier: File): Promise<File> {
+  if (tinta.fel !== "bon" || !seConvertesteInJpeg(fisier)) return fisier;
+  try {
+    return await pregatesteFotoBon(fisier);
+  } catch {
+    return fisier;
+  }
+}
+
+/**
  * Butonul-iconiță din coloana „Acțiuni” și caseta lui de încărcare.
  *
  * Fișierul se urcă DIRECT la alegere, nu la un „Salvează” separat: caseta are o
@@ -56,6 +74,7 @@ export function IncarcareFisierFlota({ tinta, descriere, areFisier }: Proprietat
   const [inCurs, porneste] = useTransition();
 
   const eBon = tinta.fel === "bon";
+  const deUrcat = (fisier: File): Promise<File> => deUrcatPentru(tinta, fisier);
   const verb = areFisier ? "Înlocuiește" : "Atașează";
   const ce = eBon ? "poza bonului" : "scanarea";
 
@@ -65,10 +84,11 @@ export function IncarcareFisierFlota({ tinta, descriere, areFisier }: Proprietat
     setProblema(null);
   }
 
-  function incarca(fisier: File | null): void {
+  function incarca(ales: File | null): void {
     setProblema(null);
-    if (fisier === null) return;
+    if (ales === null) return;
     porneste(async () => {
+      const fisier = await deUrcat(ales);
       const declarat = {
         numeFisier: fisier.name,
         dimensiune: fisier.size,

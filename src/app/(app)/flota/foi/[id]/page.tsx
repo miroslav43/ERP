@@ -44,6 +44,8 @@ import { DecizieFoaie } from "../../aprobari/decizie-foaie";
 import { NumarRegistru } from "@/components/registru/numar-registru";
 import { IncarcareFisierFlota } from "../../incarcare-fisier-flota";
 import { LinkBon } from "./link-bon";
+import { PastileBon } from "./pastile-bon";
+import { citireaBonuluiDisponibila } from "@/lib/fleet/citire-bon";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
 
@@ -185,6 +187,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           {a.numar_bon ?? "—"}
           {a.plin ? <span className="text-muted-foreground"> · plin</span> : null}
           <LinkBon cale={a.fisier_bon_path} urluri={urlBonuri} />
+          <PastileBon alimentare={a} />
           {a.observatii === null ? null : (
             <span className="text-muted-foreground block text-xs">{a.observatii}</span>
           )}
@@ -478,6 +481,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           sosireLa={foaie.sosire_la}
           areCurse={curse.length > 0}
           bazaFoi="/flota/foi"
+          poateCitiBonul={citireaBonuluiDisponibila(module, permisiuni)}
         />
       ) : null}
     </div>

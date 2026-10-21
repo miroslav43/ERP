@@ -100,7 +100,11 @@ export class SiglaNecitibila extends Error {
   }
 }
 
-function incarcaImaginea(fisier: File): Promise<HTMLImageElement> {
+/**
+ * Exportată și pentru poza bonului de combustibil
+ * (`./foto-bon-pregatire.ts`): același `<img>`, aceeași orientare EXIF.
+ */
+export function incarcaImaginea(fisier: File): Promise<HTMLImageElement> {
   // `<img>`, nu `createImageBitmap`: acesta din urmă nu decodează SVG în
   // Chrome/Firefox, iar `<img>` aplică și orientarea EXIF a fotografiilor.
   return new Promise((rezolva, respinge) => {
@@ -118,10 +122,12 @@ function incarcaImaginea(fisier: File): Promise<HTMLImageElement> {
   });
 }
 
-function deseneaza(
+/** `calitate` doar pentru JPEG; implicit 0,92, cât cere sigla. */
+export function deseneaza(
   imagine: HTMLImageElement,
   tinta: Dimensiuni,
   mime: "image/png" | "image/jpeg",
+  calitate: number = CALITATE_JPEG,
 ): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = tinta.latime;
@@ -143,7 +149,7 @@ function deseneaza(
         else rezolva(blob);
       },
       mime,
-      mime === "image/jpeg" ? CALITATE_JPEG : undefined,
+      mime === "image/jpeg" ? calitate : undefined,
     );
   });
 }

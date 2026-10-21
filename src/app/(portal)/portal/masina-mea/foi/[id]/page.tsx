@@ -10,7 +10,8 @@ import { Callout } from "@/components/ui/callout";
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
+import { citireaBonuluiDisponibila } from "@/lib/fleet/citire-bon";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
@@ -38,6 +39,7 @@ import { DialogAntetFoaie } from "@/app/(app)/flota/foi/[id]/dialog-antet-foaie"
 import { SectiuneCurse } from "@/app/(app)/flota/foi/[id]/sectiune-curse";
 import { IncarcareFisierFlota } from "@/app/(app)/flota/incarcare-fisier-flota";
 import { LinkBon } from "@/app/(app)/flota/foi/[id]/link-bon";
+import { PastileBon } from "@/app/(app)/flota/foi/[id]/pastile-bon";
 import { SoferulFoii } from "@/app/(app)/flota/foi/[id]/soferul-foii";
 
 import { FaraFisa } from "../../../fara-fisa";
@@ -62,9 +64,10 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
 
   const { tenant, user } = await requireTenant();
-  const [, permisiuni] = await Promise.all([
+  const [, permisiuni, module] = await Promise.all([
     requireFeature(tenant.organizationId, "fleet"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    getEnabledFeatures(tenant.organizationId),
   ]);
 
   if (!can(permisiuni, "trip_sheets:read", "own")) {
@@ -116,6 +119,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
           {a.statie ?? "—"}
           {a.plin ? <span className="text-muted-foreground"> · plin</span> : null}
           <LinkBon cale={a.fisier_bon_path} urluri={urlBonuri} />
+          <PastileBon alimentare={a} />
         </>
       ),
     },
@@ -337,6 +341,7 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
           sosireLa={foaie.sosire_la}
           areCurse={curse.length > 0}
           bazaFoi="/portal/masina-mea"
+          poateCitiBonul={citireaBonuluiDisponibila(module, permisiuni)}
         />
       ) : null}
     </div>
