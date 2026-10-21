@@ -181,12 +181,57 @@ contracte active la salariul minim.
   avertismentul existent `SAL_CONTRACT_SCHIMBAT_IN_LUNA`, iar suma se corectează manual.
 - **Baza minimă** de contribuții (alin. (5)) scade cu suma în lunile cu facilitate,
   pentru toți, nu doar pentru cine o primește.
-- **D112**: motorul scrie deja suma în `calc_breakdown` (pasul `sumaNeimpozabila`),
-  dar generatorul D112 încă nu o citește: `A_5` (baza CAM) se declară pe brutul întreg,
-  nu pe brut minus suma scutită, și nu există nicio atenționare. Tipul de asigurat
-  (1.11.2/1.11.3 după presă, Ordinul 605/95/928/2.314/2026, MO 463/2 iun 2026,
-  necitit pe sursă primară) și rubrica sumei scutite NU sunt generate. De reparat
-  înainte ca un angajat la minim să ajungă într-o declarație (D8 din plan).
+- **Fluturașul PDF și cel trimis pe e-mail** arată rândul „Sumă neimpozabilă (OUG
+  89/2025 art. III)”, citit din `calc_breakdown` (aceeași etichetă ca pe ecran). Se
+  arată, nu se scade: omul o primește, ea doar iese din bazele de contribuții și impozit.
+  Rândurile calculate înainte de facilitate n-au pasul și nu primesc rândul.
+
+#### D112 și suma neimpozabilă
+
+Livrat: `A_5` (baza CAM) = brut − suma scutită, rotunjit ca **diferență** (nu fiecare
+termen), iar fiecare asigurat cu sumă primește o atenționare **neblocantă**, al cărei
+număr apare în notificarea de descărcare (`x-atentionari`). Temeiurile, citite pe text
+consolidat cu `curl` pe 21 oct 2026:
+
+- OUG 89/2025 art. III alin. (1) derogă expres de la art. 78, 139 alin. (1), 140, 157
+  alin. (1) și **220^4 alin. (1)** Cod fiscal (forma consolidată din 16.08.2026, doc.
+  305817). Codul fiscal, forma din 18.10.2026 (doc. 171282), are la art. 220^4 alin. (1)
+  o notă de trimitere la art. III din OUG 89/2025. Alin. (1) lit. a)–n) definește baza
+  CAM ca suma câștigurilor brute, deci suma scutită iese din `A_5` și din creanța 46.
+- Coerența cu creanța: structura ANAF definește baza CAM a declarației ca suma `A_5`
+  pe asigurați, iar valoarea CAM ca baza înmulțită cu 2,25% și rotunjită. Creanța 46 se
+  compară cu ea (ERR dacă e mai mare, ATT dacă diferă). `cam_angajator` e calculat de
+  motor pe aceeași bază redusă (`calc.ts`), deci cele două rămân în acord.
+- Plafonul 4.300 / 4.600 lei al facilității e confirmat și de structura ANAF (nota
+  „plafonul … la tip asigurat 51, 52”), nu doar de ordonanță.
+
+Ce NU generează aplicația (structura ANAF de la `static.anaf.ro`, „Anexa validări”
+`structura_D112_0726_070926.pdf`, versiunea A7.2.6 v7, Ordinul comun 605/95/928/2314,
+valabilă din luna de raportare 07/2026): pentru beneficiar, **tipul de asigurat 51**
+(nr. crt. 1.11.2; **52** dacă CAS se plătește în sisteme proprii) și rubrica **`A_13S`**
+(„suma netaxabilă”, 0–300 lei, doar la tip 51), cu `A_13C` = `A_13` + `A_13S`. Aplicația
+emite `A_1` = 1 și nu emite `A_13S`; atenționarea numește omul, tipul și suma de
+trecut. `A_3` trebuie să fie „N” la tipurile 51, 52, 53 (motorul dă suma doar la normă
+întreagă, deci se potrivește).
+
+⚠ De confirmat de contabil:
+
+- **Generatorul urmează structura A7.2.2 din 2019, nu pe cea curentă.** Schema XSD
+  `d112_0726_140826.xsd` cere pe `asiguratA`, ca `required`: `A_sal1`, `A_sal2`,
+  `A_11`–`A_14`, `A_13P`, `A_14P`, `A_11P`, `A_12P`, `A_14D`, `A_12D`, `A_13S`, `A_13C`;
+  generatorul emite doar `A_1`–`A_7`. Că fișierul ar fi respins la validarea XSD e o
+  **inferență** din cele două liste: DUKIntegrator n-a rulat pe un fișier generat aici.
+  Până la o rescriere după structura A7.2.6, exportul D112 e un schelet de verificat,
+  nu o declarație de depus.
+- **Rotunjirea lui `A_5` la fracțiunea de lună.** Suma are bani (ex. 183,33 lei), iar
+  `A_5` = Round(brut − suma). Structura nu spune dacă baza se rotunjește ca diferență
+  sau ca termeni separați.
+- ANAF atribuie cei 300 lei din ian.–iun. 2026 ordonanței 156/2024 („Suma300 (cf.
+  OUG156/2024)”), iar textul consolidat al OUG 89/2025 art. III îi cuprinde pe ambii
+  semestre. Cifra e aceeași; `temei` din tabelul motorului citează OUG 89/2025.
+- Ordinul comun a fost citat anterior ca „MO 463/2 iun 2026”, după presă. Pagina ANAF
+  îl datează „2026”, publicat pe site pe 03.08.2026; numărul și data din Monitorul Oficial
+  nu sunt verificate pe sursă.
 
 ### Deducere personală · `payroll_personal_deduction_brackets`
 

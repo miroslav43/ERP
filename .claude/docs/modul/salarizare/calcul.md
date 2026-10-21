@@ -58,7 +58,10 @@ bază egal cu minimul” se compară cu minimul din tabel, nu cu `payroll_settin
   săptămână. Timpul parțial în zile întregi (8 h/zi, 24 h/săpt.) nu primește suma.
 - **Suma stă în `calc_breakdown`**, la pasul `sumaNeimpozabila`, nu într-o coloană.
   `sumaNeimpozabilaDinBreakdown` o citește; rândurile calculate înainte n-au pasul și dau
-  zero. Azi o citește doar ecranul fluturașului (eticheta); PDF-ul, e-mailul și D112 nu.
+  zero. O citesc ecranul fluturașului, PDF-ul, e-mailul cu fluturașul (rândul din
+  `linii-fluturas.ts`, între CASS și deducere, fără să se scadă) și D112 (`A_5`, baza
+  CAM, iese fără ea). Drumurile de citire cer `calc_breakdown` în `select`: fără el,
+  rândul dispare tăcut, fără eroare — o păzesc testele rutelor.
 - **Fiecare aplicare lasă un avertisment informativ** (`SAL_FACILITATE_SALARIU_MINIM`),
   fiindcă aplicația nu are câmp pentru funcția de bază și nu verifică alin. (2). Ecranul
   perioadei îl numără ca pe orice atenționare.
