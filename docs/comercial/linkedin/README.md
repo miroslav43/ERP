@@ -64,13 +64,17 @@ API propriu): [`automatizare.md`](automatizare.md).
 | --------------- | --------------------- | ----------- | -------------- | ----- |
 | [L1](lot-01.md) | #1–4                  | 2 – 8 oct   | Vi 25 sep      | scris |
 | [L2](lot-02.md) | #5–19, rezerve #20–22 | 12 – 30 oct | Vi 9 oct       | scris |
-| L3              | —                     | din 2 nov   | Vi 30 oct      | —     |
+| [L3](lot-03.md) | #23–27                | 2 – 6 nov   | Vi 30 oct      | scris |
 
 Lotul 2 a devenit pe 8 oct o **serie de reach** de 15 postări zilnice (plus 3
 rezerve), care absoarbe ciorna veche a lotului 2 (REGES API, foaia de pontaj,
-control ITM). Calendarul din spec (#9–#28, marți și joi) nu mai e programul: L3
-se scrie după rezultatele seriei, din subiectele lui rămase neconsumate
-(concediile pe 2027, închiderea de an, primul caz din pilot).
+control ITM). Calendarul din spec (#9–#28, marți și joi) nu mai e programul.
+
+L3, scris pe 22 oct, e **lotul uneltelor noi**: cinci postări zilnice, câte una
+pe unealtă, cu linkul direct spre ea. Concediile pe 2027 intră prin programarea
+concediilor (#23). Închiderea de an și primul caz din pilot rămân pentru L4, care
+se scrie după rezultatele seriei. Planșele și kit-ul lui L3 sunt generate local
+(`L3-*` în `unelte/`), dar nu sunt încă republicate pe pânză și în kit.
 
 ## Cine face ce
 
