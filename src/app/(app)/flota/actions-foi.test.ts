@@ -29,7 +29,9 @@ vi.mock("@/lib/auth/permissions", async (orig) =>
   (await import("@/lib/teste/actiune")).falsuri.permissions(await orig()),
 );
 
+import { semneazaPropunere } from "@/lib/fleet/jeton-bon";
 import {
+  asteaptaDupa,
   caiRevalidate,
   configureazaActiunea,
   ID_1,
@@ -462,6 +464,195 @@ describe("adaugaAlimentare", () => {
       ok: false,
       error: { code: "VALIDARE", fieldErrors: { alimentat_la: [mesaj] } },
     });
+  });
+});
+
+describe("adaugaAlimentare — bonul citit (F12a, 0213)", () => {
+  const CALE = `${ORG_ID}/trip_sheets/${ID_1}/x-bon.jpg`;
+  const PROPUNERE = {
+    alimentat_la: "2026-09-14T12:00",
+    litri: 45.32,
+    cost: 312.5,
+    statie: "OMV",
+    numar_bon: "0042",
+    cui_statie: "14399840",
+  };
+  const jeton = (legatura: Partial<{ user: string; cale: string }> = {}) =>
+    semneazaPropunere({
+      org: ORG_ID,
+      user: legatura.user ?? USER_ID,
+      foaie: ID_1,
+      cale: legatura.cale ?? CALE,
+      propunere: PROPUNERE,
+      model: "google/gemini-3.7-flash",
+      avertismente: ["Bonul are și alte produse (9,00 lei); s-a completat doar carburantul."],
+    });
+  const cuPoza = (modificari: Record<string, unknown> = {}) =>
+    alimentare({ fisier_bon_path: CALE, ...modificari });
+  const pozaInStorage = (server: ReturnType<typeof configureazaActiunea>["server"]) => {
+    server.raspundeStocare("org-flota", "info", {
+      data: { size: 250_000, contentType: "image/jpeg" },
+    });
+  };
+  const angajat = () =>
+    configureazaActiunea({ rol: "employee", permisiuni: { "trip_sheets:update": "own" } });
+
+  it("jeton valid: INSERT-ul omului fără propunere; UPDATE-ul ADMIN scrie propunerea DIN JETON", async () => {
+    const { server, admin } = angajat();
+    pozaInStorage(server);
+    server.raspunde("fuel_entries", "insert", { data: { id: ID_2 } });
+    admin.raspunde("fuel_entries", "update", { data: [{ id: ID_2 }] });
+
+    // Omul a corectat litrii după citire: declarația e a lui, propunerea rămâne a bonului.
+    const r = await adaugaAlimentare(cuPoza({ litri: "54.32", ocr_jeton: jeton() }));
+
+    expect(r).toEqual({ ok: true, data: { id: ID_2 } });
+    const [insert] = server.apeluriPe("fuel_entries", "insert");
+    expect(insert?.payload).toMatchObject({ litri: 54.32, fisier_bon_path: CALE });
+    expect(insert?.payload).not.toHaveProperty("ocr_propunere");
+    expect(insert?.payload).not.toHaveProperty("ocr_jeton");
+
+    const [update] = admin.apeluriPe("fuel_entries", "update");
+    expect(update?.payload).toMatchObject({
+      ocr_propunere: { v: 1, ...PROPUNERE, model: "google/gemini-3.7-flash", cale: CALE },
+      updated_by: USER_ID,
+    });
+    expect(areFiltru(update, "eq", "id", ID_2)).toBe(true);
+    expect(areFiltru(update, "eq", "organization_id", ORG_ID)).toBe(true);
+    expect(areFiltru(update, "is", "ocr_propunere", null)).toBe(true);
+    expect(update?.selectDupaScriere).toBe("id");
+  });
+
+  it("UPDATE-ul admin cu zero rânduri: alimentarea rămâne salvată (`ok: true`)", async () => {
+    const { server, admin } = angajat();
+    pozaInStorage(server);
+    server.raspunde("fuel_entries", "insert", { data: { id: ID_2 } });
+    admin.raspunde("fuel_entries", "update", { data: [] });
+    const r = await adaugaAlimentare(cuPoza({ ocr_jeton: jeton() }));
+    expect(r).toEqual({ ok: true, data: { id: ID_2 } });
+  });
+
+  it("UPDATE-ul admin cu eroare (23514): tot `ok: true`, cu urmă în jurnal", async () => {
+    const { server, admin } = angajat();
+    pozaInStorage(server);
+    server.raspunde("fuel_entries", "insert", { data: { id: ID_2 } });
+    admin.raspunde("fuel_entries", "update", { error: eroarePostgrest("23514") });
+    const r = await adaugaAlimentare(cuPoza({ ocr_jeton: jeton() }));
+    expect(r).toEqual({ ok: true, data: { id: ID_2 } });
+    expect(console.error).toHaveBeenCalledWith(
+      "[ocr-bon] propunerea nu s-a salvat",
+      expect.objectContaining({ cod: "23514" }),
+    );
+  });
+
+  it("jeton expirat (> 2 h): niciun UPDATE admin, salvarea reușește", async () => {
+    const { server, admin } = angajat();
+    const vechi = jeton();
+    vi.setSystemTime(new Date(new Date(ACUM).getTime() + 2 * 3600_000 + 1000));
+    pozaInStorage(server);
+    server.raspunde("fuel_entries", "insert", { data: { id: ID_2 } });
+    const r = await adaugaAlimentare(cuPoza({ ocr_jeton: vechi }));
+    expect(r).toEqual({ ok: true, data: { id: ID_2 } });
+    expect(admin.apeluri).toHaveLength(0);
+  });
+
+  it.each([
+    ["al altui om", () => jeton({ user: ID_3 })],
+    ["pe altă poză", () => jeton({ cale: `${ORG_ID}/trip_sheets/${ID_1}/alta.jpg` })],
+    ["falsificat", () => `${jeton().slice(0, -3)}AAA`],
+  ])("jeton %s: INTERZIS, fără insert", async (_e, fabrica) => {
+    const { server, admin } = angajat();
+    const r = await adaugaAlimentare(cuPoza({ ocr_jeton: fabrica() }));
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluriPe("fuel_entries")).toHaveLength(0);
+    expect(admin.apeluri).toHaveLength(0);
+  });
+
+  it("jeton fără poză (`fisier_bon_path` lipsă): INTERZIS", async () => {
+    const { server } = angajat();
+    const r = await adaugaAlimentare(alimentare({ ocr_jeton: jeton() }));
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERZIS" } });
+    expect(server.apeluriPe("fuel_entries")).toHaveLength(0);
+  });
+
+  it("`ocr_jeton` nu ajunge niciodată în audit; `cui_statie` și poza da", async () => {
+    const { server, admin } = angajat();
+    pozaInStorage(server);
+    server.raspunde("fuel_entries", "insert", { data: { id: ID_2 } });
+    admin.raspunde("fuel_entries", "update", { data: [{ id: ID_2 }] });
+    const j = jeton();
+    await adaugaAlimentare(cuPoza({ ocr_jeton: j, cui_statie: "RO 14399840" }));
+    await asteaptaDupa();
+    const audit = JSON.stringify(server.audituri());
+    expect(audit).not.toContain("ocr_jeton");
+    expect(audit).not.toContain(j.slice(0, 40));
+    expect(audit).toContain("14399840");
+    expect(audit).toContain("fisier_bon_path");
+  });
+
+  it("`cui_statie` „RO 14 399 840” ⇒ normalizat la cifre", async () => {
+    const { server } = angajat();
+    server.raspunde("fuel_entries", "insert", { data: { id: ID_2 } });
+    await adaugaAlimentare(alimentare({ cui_statie: "RO 14 399 840" }));
+    expect(server.apeluriPe("fuel_entries", "insert")[0]?.payload).toMatchObject({
+      cui_statie: "14399840",
+    });
+  });
+
+  it("CUI cu cifra de control greșită ⇒ eroare pe `cui_statie`, fără insert", async () => {
+    const { server } = angajat();
+    const r = await adaugaAlimentare(alimentare({ cui_statie: "14399841" }));
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "VALIDARE", fieldErrors: { cui_statie: ["CUI-ul stației nu e valid."] } },
+    });
+    expect(server.apeluri).toHaveLength(0);
+  });
+
+  it("poza din folderul altei foi ⇒ VALIDARE; poza lipsă din Storage ⇒ CONFLICT", async () => {
+    const a = angajat();
+    const r1 = await adaugaAlimentare(
+      alimentare({ fisier_bon_path: `${ORG_ID}/trip_sheets/${ID_3}/x-bon.jpg` }),
+    );
+    expect(r1).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    expect(a.server.apeluriPe("fuel_entries")).toHaveLength(0);
+
+    const b = angajat();
+    b.server.raspundeStocare("org-flota", "info", { error: { message: "Object not found" } });
+    const r2 = await adaugaAlimentare(cuPoza());
+    expect(r2).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(b.server.apeluriPe("fuel_entries")).toHaveLength(0);
+  });
+
+  it("23505 pe `fuel_bon_uq` (al doilea clic pe același bon) ⇒ VALIDARE pe `numar_bon`", async () => {
+    const { server } = angajat();
+    server.raspunde("fuel_entries", "insert", {
+      error: eroarePostgrest(
+        "23505",
+        'duplicate key value violates unique constraint "fuel_bon_uq"',
+      ),
+    });
+    const r = await adaugaAlimentare(alimentare({ numar_bon: "0042" }));
+    expect(r).toMatchObject({ ok: false, error: { code: "VALIDARE" } });
+    if (r.ok) return;
+    expect(Object.keys(r.error.fieldErrors ?? {})).toEqual(["numar_bon"]);
+    expect(r.error.message).not.toMatch(/vehicul/u);
+  });
+
+  it("corectura (`actualizeazaAlimentare`) nu trimite niciodată propunerea sau jetonul", async () => {
+    const { server, admin } = angajat();
+    server.raspunde("fuel_entries", "update", { data: { id: ID_2 } });
+    await actualizeazaAlimentare({
+      ...alimentare({ cui_statie: "14399840" }),
+      id: ID_2,
+      ocr_jeton: jeton(),
+      ocr_propunere: { v: 1 },
+    } as never);
+    const [apel] = server.apeluriPe("fuel_entries", "update");
+    expect(apel?.payload).not.toHaveProperty("ocr_propunere");
+    expect(apel?.payload).not.toHaveProperty("ocr_jeton");
+    expect(apel?.payload).toMatchObject({ cui_statie: "14399840" });
+    expect(admin.apeluri).toHaveLength(0);
   });
 });
 

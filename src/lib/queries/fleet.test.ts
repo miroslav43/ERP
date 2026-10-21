@@ -438,6 +438,48 @@ describe("alimentări și anomalii", () => {
     expect(areFiltru(apel, "order", "alimentat_la", { ascending: true })).toBe(true);
   });
 
+  it("F12a: propunerea citită de pe bon se PARSEAZĂ; o formă necunoscută devine null, fără să cadă", async () => {
+    const eroare = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const baza = {
+      trip_sheet_id: ID_1,
+      litri: 45.32,
+      cost: 312.5,
+      pret_litru: 6.9,
+      statie: "OMV",
+      numar_bon: "0042",
+      alimentat_la: "2026-10-07T11:32:00+00:00",
+      plin: false,
+      observatii: null,
+      fisier_bon_path: "o/trip_sheets/f/x.jpg",
+      cui_statie: "14399840",
+    };
+    const propunere = {
+      v: 1,
+      alimentat_la: "2026-10-07T14:32",
+      litri: 45.32,
+      cost: 312.5,
+      statie: "OMV",
+      numar_bon: "0042",
+      cui_statie: "14399840",
+      model: "google/gemini-3.7-flash",
+      citit_la: "2026-10-07T14:40:00.000Z",
+      avertismente: [],
+      cale: "o/trip_sheets/f/x.jpg",
+    };
+    db.raspunde("fuel_entries", "select", {
+      data: [
+        { ...baza, id: ID_1, ocr_propunere: propunere },
+        { ...baza, id: ID_2, ocr_propunere: { v: 2, ceva: "altceva" } },
+        { ...baza, id: ID_3, ocr_propunere: null },
+      ],
+    });
+    const r = await alimentarileFoii(ID_1);
+    expect(r.map((a) => a.ocr_propunere)).toEqual([propunere, null, null]);
+    expect(eroare).toHaveBeenCalledTimes(1);
+    expect(db.apeluri[0]?.coloane).toContain("cui_statie, ocr_propunere");
+    eroare.mockRestore();
+  });
+
   it("anomaliile neconfirmate: ale organizației, vii, neconfirmate, plafonate", async () => {
     db.raspunde("odometer_anomalies", "select", { data: [{ id: ID_1 }] });
     expect(await anomaliiNeconfirmate(ORG_ID)).toHaveLength(1);

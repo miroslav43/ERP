@@ -29,6 +29,7 @@ import {
   type TipEfectiv,
 } from "@/domain/fleet/tipuri-document";
 import { BUCKET_FLOTA } from "@/domain/fleet/fisiere";
+import { citestePropunereaSalvata, type PropunereSalvata } from "@/domain/fleet/bon-ocr";
 
 export interface RandVehicul {
   readonly id: string;
@@ -181,7 +182,16 @@ export interface Alimentare {
   readonly observatii: string | null;
   /** Poza bonului, în bucketul `org-flota` (0202); `null` = neatașată. */
   readonly fisier_bon_path: string | null;
+  /** CUI-ul stației, doar cifre (0213). */
+  readonly cui_statie: string | null;
+  /**
+   * Ce s-a citit de pe bon la salvare (0213, scris doar de server). Parsat cu
+   * Zod la citire: o formă necunoscută devine `null`, nu cade pagina.
+   */
+  readonly ocr_propunere: PropunereSalvata | null;
 }
+
+type RandAlimentare = Omit<Alimentare, "ocr_propunere"> & { readonly ocr_propunere: unknown };
 
 export interface Anomalie {
   readonly id: string;
@@ -835,15 +845,21 @@ export async function alimentarileFoii(foaieId: string): Promise<readonly Alimen
     .from("fuel_entries")
     .select(
       "id, trip_sheet_id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, " +
-        "observatii, fisier_bon_path",
+        "observatii, fisier_bon_path, cui_statie, ocr_propunere",
     )
     .eq("trip_sheet_id", foaieId)
     .is("deleted_at", null)
     .order("alimentat_la", { ascending: true })
-    .returns<Alimentare[]>();
+    .returns<RandAlimentare[]>();
 
   if (error !== null) throw error;
-  return data ?? [];
+  return (data ?? []).map((r) => {
+    const propunere = citestePropunereaSalvata(r.ocr_propunere);
+    if (propunere === null && r.ocr_propunere !== null) {
+      console.error("[ocr-bon] propunere salvată cu formă necunoscută", { alimentare: r.id });
+    }
+    return { ...r, ocr_propunere: propunere };
+  });
 }
 
 const COLOANE_ANOMALIE =

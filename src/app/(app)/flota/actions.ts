@@ -2,8 +2,12 @@
 "use server";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
+import { businessRule, forbidden, invalidInput, notFound } from "@/lib/actions/errors";
+import { verificaJeton, type PropunereSemnata } from "@/lib/fleet/jeton-bon";
+import { masoaraObiectul } from "@/lib/storage/masoara-obiectul";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { BUCKET_FLOTA, caleFlotaValida, verificaFisierFlota } from "@/domain/fleet/fisiere";
 import {
   actualizeazaAlimentareSchema,
   actualizeazaDocumentSchema,
@@ -1000,15 +1004,18 @@ export const adaugaAlimentare = createAction({
     action: "create",
     entityType: "fuel_entry",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    // `ocr_jeton` NU: e un blob opac, iar propunerea ajunge oricum în rând.
     allow: [
       "trip_sheet_id",
       "litri",
       "cost",
       "statie",
       "numar_bon",
+      "cui_statie",
       "alimentat_la",
       "plin",
       "observatii",
+      "fisier_bon_path",
     ],
   },
   revalidate: (input) => [
@@ -1017,21 +1024,89 @@ export const adaugaAlimentare = createAction({
     `/portal/masina-mea/foi/${input.trip_sheet_id}`,
   ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const org = ctx.tenant.organizationId;
+    const { ocr_jeton, ...rest } = input;
+
+    // Jetonul citirii (F12a), verificat ÎNAINTEA oricărei scrieri. E doar
+    // transportul propunerii prin browser; garda e în bază (0213).
+    let propunere: PropunereSemnata | null = null;
+    if (ocr_jeton !== null) {
+      const verificare = verificaJeton(ocr_jeton, {
+        org,
+        user: ctx.user.id,
+        foaie: input.trip_sheet_id,
+        cale: input.fisier_bon_path,
+      });
+      if (verificare.stare === "invalid") {
+        throw forbidden("Citirea bonului nu se potrivește cu alimentarea. Citiți bonul din nou.");
+      }
+      // Expirat (formular lăsat deschis peste 2 ore): salvarea merge, fără
+      // propunere. Nu e o greșeală a omului, deci nu i se spune nimic.
+      if (verificare.stare === "ok") propunere = verificare.propunere;
+    }
+
     const db = await createServerSupabase();
+    // Poza urcată înainte de salvare (`pregatesteBonNou`): în folderul foii și
+    // CHIAR în Storage, ca la `confirmaBon`. Baza reverifică forma căii
+    // (`alimentari_bon_cale`, 0202).
+    if (input.fisier_bon_path !== null) {
+      if (!caleFlotaValida(input.fisier_bon_path, org, "trip_sheets", input.trip_sheet_id)) {
+        throw invalidInput("Calea fișierului nu corespunde acestei foi de parcurs.", {});
+      }
+      const masura = await masoaraObiectul(db, BUCKET_FLOTA, input.fisier_bon_path);
+      if (masura === null) {
+        throw businessRule("Poza bonului nu mai este disponibilă. Atașați-o din nou.");
+      }
+      const problema = verificaFisierFlota(masura.mime, masura.octeti);
+      if (problema !== null) throw invalidInput(problema, {});
+    }
+
     // `pret_litru` e GENERATED ALWAYS — nu se trimite. Din 0018 e calculată cu
     // gardă pe zero, deci un litraj zero dă un mesaj de business, nu
-    // „division by zero" în engleză.
+    // „division by zero" în engleză. `ocr_propunere` NU intră aici: din
+    // sesiunea omului, triggerul `alimentari_ocr_garda` o refuză (P0001).
     const { data, error } = await db
       .from("fuel_entries")
       .insert({
-        ...input,
-        organization_id: ctx.tenant.organizationId,
+        ...rest,
+        organization_id: org,
         created_by: ctx.user.id,
         updated_by: ctx.user.id,
       })
       .select("id")
       .single();
     if (error !== null) traduEroare(error);
+
+    if (propunere !== null && input.fisier_bon_path !== null) {
+      // Clientul admin, DELIBERAT: `ocr_propunere` o poate scrie doar contextul
+      // de serviciu (triggerul din 0213), ca nimeni să nu poată pune o propunere
+      // inventată printr-un INSERT direct. Dreptul omului asupra rândului l-a
+      // judecat deja RLS-ul, la INSERT-ul de mai sus; aici se scrie o singură
+      // coloană, pe rândul abia creat, filtrat explicit pe firmă.
+      const { data: scris, error: eroareOcr } = await createAdminSupabase()
+        .from("fuel_entries")
+        .update({
+          ocr_propunere: {
+            v: 1,
+            ...propunere,
+            avertismente: [...propunere.avertismente],
+            cale: input.fisier_bon_path,
+          },
+          updated_by: ctx.user.id,
+        })
+        .eq("id", data.id)
+        .eq("organization_id", org)
+        .is("ocr_propunere", null)
+        .select("id");
+      // Nu se aruncă: omul a salvat corect, iar ce lipsește e doar semnalul.
+      // Cele două scrieri nu sunt atomice, asumat (F12a §8.7).
+      if (eroareOcr !== null || (scris ?? []).length === 0) {
+        console.error("[ocr-bon] propunerea nu s-a salvat", {
+          alimentare: data.id,
+          cod: eroareOcr?.code ?? "zero_randuri",
+        });
+      }
+    }
 
     return { id: data.id };
   },
@@ -1059,6 +1134,7 @@ export const actualizeazaAlimentare = createAction({
       "cost",
       "statie",
       "numar_bon",
+      "cui_statie",
       "alimentat_la",
       "plin",
       "observatii",
