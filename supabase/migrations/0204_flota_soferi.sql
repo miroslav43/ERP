@@ -68,6 +68,13 @@
 --    `driver_licenses:read`), primesc `null` („nu se știe”, nu „fără permis”).
 --    Funcția e SECURITY DEFINER și rula cu drepturile bazei: fără poarta asta
 --    ocolea RLS-ul din `driver_licenses`. [A doua revizuire de securitate.]
+--    Aceeași clasă, a treia instanță: `delegatie` iese exactă doar pentru cine
+--    ar trece `business_trips_select` (membru al firmei și
+--    `app.poate_accesa_deplasare(…, 'read')`); ceilalți (`hr`, un manager fără
+--    `per_diem:read`, platforma) primesc `null`, ca și cu diurna oprită.
+--    [Santinela adversarială.]
+--    Rămân pentru toți cei vizibili doar `concediu` („absent”, decizia
+--    utilizatorului) și `contract_incetat`.
 -- F. `trip_sheets.business_trip_id`: foaia de parcurs legată de deplasarea
 --    (delegația) șoferului, cu gardă proprie (`internal.foi_deplasare_garda`):
 --    aceeași firmă, același angajat, deplasare neanulată. Trigger SEPARAT, nu
@@ -456,7 +463,12 @@ as $$
     case when p.poate_permis then coalesce(dl.categorii, '{}'::text[]) end,
     -- Avizul se judecă în `app.stare_aviz_sofer`: `null` fără acces SSM.
     app.stare_aviz_sofer(p_organization_id, e.id, p_zi),
-    case when app.feature_on(p_organization_id, 'per_diem') then exists (
+    -- Delegația iese exactă doar pentru cine ar trece `business_trips_select`
+    -- pe acest angajat (vezi `p.poate_deplasari`); ceilalți primesc `null`, ca
+    -- și cu diurna oprită: „nu se judecă”. Fără poarta asta, funcția (DEFINER) ar
+    -- fi spus lui `hr` (fără niciun `per_diem:*`) dacă un om are o deplasare
+    -- într-o zi, ocolind RLS-ul din `business_trips`.
+    case when app.feature_on(p_organization_id, 'per_diem') and p.poate_deplasari then exists (
       select 1 from public.business_trips d
        where d.organization_id = p_organization_id
          and d.employee_id = e.id
@@ -468,11 +480,17 @@ as $$
     ) end
   from public.employees e
   cross join lateral (
-    -- Aceeași condiție ca în `driver_licenses_select` (secțiunea 10): platforma
-    -- sau `app.ssm_acces` pe `driver_licenses:read`; modulul `fleet` e verificat
-    -- mai jos, pentru toată funcția.
+    -- Cele două porți pe care le judecă RLS-ul tabelelor din care citim ca
+    -- DEFINER. `poate_permis`: aceeași condiție ca în `driver_licenses_select`
+    -- (secțiunea 10), adică platforma sau `app.ssm_acces` pe `driver_licenses:read`;
+    -- modulul `fleet` e verificat mai jos, pentru toată funcția.
     select ((select app.is_platform_admin())
-            or app.ssm_acces(p_organization_id, 'driver_licenses', 'read', e.id)) as poate_permis
+            or app.ssm_acces(p_organization_id, 'driver_licenses', 'read', e.id)) as poate_permis,
+           -- Aceeași condiție ca în `business_trips_select` (0015): membru al
+           -- firmei și `app.poate_accesa_deplasare(…, 'read')`. Platforma, care
+           -- nu e membră, nu trece nici prin RLS, deci primește `null`.
+           (p_organization_id = any ((select app.current_org_ids())::uuid[])
+            and app.poate_accesa_deplasare(p_organization_id, e.id, 'read')) as poate_deplasari
   ) p
   left join public.driver_licenses dl
     on dl.organization_id = e.organization_id
@@ -491,7 +509,7 @@ as $$
 $$;
 
 comment on function public.verificari_soferi(uuid, uuid[], date) is
-  'Faptele pentru avertismentele de șofer (0204): absență aprobată în zi (doar „absent”, fără tipul concediului: art. 9 GDPR), contract încetat, permis (permis_exista / permis_categorii / permis_expira_la: null pentru cine n-ar trece driver_licenses_select), aviz (app.stare_aviz_sofer: null fără acces SSM), delegație. null = „nu se știe”, nu „fără”. Avertizează, nu blochează; verdictul îl dă src/domain/fleet/soferi.ts.';
+  'Faptele pentru avertismentele de șofer (0204): absență aprobată în zi (doar „absent”, fără tipul concediului: art. 9 GDPR), contract încetat, permis (permis_exista / permis_categorii / permis_expira_la: null pentru cine n-ar trece driver_licenses_select), aviz (app.stare_aviz_sofer: null fără acces SSM), delegație (null pentru cine n-ar trece business_trips_select). null = „nu se știe”, nu „fără”. Avertizează, nu blochează; verdictul îl dă src/domain/fleet/soferi.ts.';
 
 -- ============================================================
 -- 9. Foaia de parcurs legată de deplasare
@@ -677,6 +695,10 @@ begin
   if position('driver_licenses' in pg_get_functiondef('public.verificari_soferi(uuid,uuid[],date)'::regprocedure)) = 0
      or position('poate_permis' in pg_get_functiondef('public.verificari_soferi(uuid,uuid[],date)'::regprocedure)) = 0 then
     v_lipsa := v_lipsa || 'public.verificari_soferi: câmpurile permisului doar pentru cine trece driver_licenses_select';
+  end if;
+  if position('poate_deplasari' in pg_get_functiondef('public.verificari_soferi(uuid,uuid[],date)'::regprocedure)) = 0
+     or position('poate_accesa_deplasare' in pg_get_functiondef('public.verificari_soferi(uuid,uuid[],date)'::regprocedure)) = 0 then
+    v_lipsa := v_lipsa || 'public.verificari_soferi: delegația doar pentru cine trece business_trips_select';
   end if;
   if position('leave_types' in pg_get_functiondef('public.verificari_soferi(uuid,uuid[],date)'::regprocedure)) > 0
      or position('tip_zi_pontaj' in pg_get_functiondef('public.verificari_soferi(uuid,uuid[],date)'::regprocedure)) > 0 then

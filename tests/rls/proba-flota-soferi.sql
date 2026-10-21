@@ -69,6 +69,13 @@
 --      iese „apt”, pentru managerul cu seed-ul și pentru hr              [POZITIVĂ];
 -- (35) ramura parcului: `vehicles:update = all` fără `ssm:read` primește avizul exact
 --      (administrează parcul); fără ea, rămâne `null`                    [POZITIVĂ].
+-- ── A TREIA OCOLIRE (delegația), găsită de santinela adversarială ───────────
+-- (36) `delegatie` iese exactă doar pentru cine ar trece `business_trips_select`
+--      (manager cu per_diem:read = team, org_admin, angajatul pe sine); `hr`
+--      (fără per_diem) și super_admin (nu e membru al firmei) primesc `null`,
+--      nu `true` și nu `false`; deplasările, numărate prin RLS     [POZITIVĂ + NEGATIVĂ];
+-- (37) managerul căruia i s-a retras `per_diem:read` păstrează rândul și absența,
+--      dar delegația îi iese `null` (RLS îi dă zero deplasări).
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh --pastreaza
@@ -811,11 +818,66 @@ begin
       coalesce(v_text, 'NULL'), coalesce(v_text2, 'NULL'), coalesce(v_cm, 'NULL');
   end if;
 
+  -- ═══ A TREIA OCOLIRE, DIN ACEEAȘI CLASĂ: DELEGAȚIA ═══════════════════════════
+  -- `delegatie` se calcula din `business_trips` cu drepturile bazei, pentru oricine
+  -- vede șoferul. `hr` (fără niciun `per_diem:*`) află astfel dacă un om are o
+  -- deplasare într-o zi, iar `business_trips_select` îi dă zero rânduri. Acum iese
+  -- exact doar pentru cine ar trece `business_trips_select` (membru al firmei și
+  -- `app.poate_accesa_deplasare(…, 'read')`); ceilalți primesc `null` („nu se știe”,
+  -- adică nici „are”, nici „n-are”). Ana (v_e_ang) are o deplasare aprobată care
+  -- acoperă ziua; Cornel (v_e_coleg) n-are niciuna activă (a lui e `ciorna`).
+  --
+  -- (36) fiecare rol, cu rânduri numărate: «rol:deplasări-prin-RLS/delegația-Anei/
+  -- delegația-lui-Cornel» («-» = nu primește rândul deloc).
+  v_cm := '';
+  for v_r in
+    select * from (values ('hr', v_u_hr), ('manager', v_u_mgr), ('org_admin', v_u_admin),
+                          ('angajat', v_u_ang), ('super_admin', v_u_sa)) t(rol, utilizator)
+  loop
+    perform set_config('request.jwt.claim.sub', v_r.utilizator::text, true);
+    set local role authenticated;
+    select count(*) into v_n from public.business_trips where employee_id = v_e_ang;
+    select coalesce(c.delegatie::text, 'NULL') into v_text
+      from public.verificari_soferi(v_org, array[v_e_ang], v_zi) c;
+    select coalesce(c.delegatie::text, 'NULL') into v_text2
+      from public.verificari_soferi(v_org, array[v_e_coleg], v_zi) c;
+    reset role;
+    v_cm := v_cm || format('%s:%s/%s/%s ', v_r.rol, v_n, coalesce(v_text, '-'), coalesce(v_text2, '-'));
+  end loop;
+  if v_cm = 'hr:0/NULL/NULL manager:1/true/- org_admin:1/true/false angajat:1/true/- super_admin:0/NULL/NULL ' then
+    raise notice '  ✓ (36) delegația iese exactă doar pentru cine vede deplasările prin RLS (manager, org_admin, angajat); hr și super_admin primesc null: %', btrim(v_cm);
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (36) delegația pe roluri (rol:deplasări prin RLS/Ana/Cornel): % (așteptat: hr:0/NULL/NULL manager:1/true/- org_admin:1/true/false angajat:1/true/- super_admin:0/NULL/NULL)', btrim(v_cm);
+  end if;
+
+  -- (37) managerului i se retrage `per_diem:read`: vede în continuare rândul (foile
+  -- echipei), dar nu și deplasarea prin RLS, deci delegația iese null; cu seed-ul
+  -- (`per_diem:read = team`) o primea exactă.
+  insert into public.role_permissions (organization_id, role, resource, action, scope)
+  values (v_org, 'manager', 'per_diem', 'read', 'none');
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.business_trips where employee_id = v_e_ang;
+  select count(*), string_agg(coalesce(c.delegatie::text, 'NULL') || '/' || coalesce(c.concediu, 'NULL'), ',')
+    into v_m, v_text
+    from public.verificari_soferi(v_org, array[v_e_ang], v_zi) c;
+  reset role;
+  delete from public.role_permissions
+   where organization_id = v_org and role = 'manager' and resource = 'per_diem' and action = 'read';
+  if v_n = 0 and v_m = 1 and v_text = 'NULL/absent' then
+    raise notice '  ✓ (37) managerul fără per_diem:read: rândul rămâne (absent), delegația iese null, iar RLS îi dă 0 deplasări';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (37) manager fără per_diem:read: deplasări prin RLS=%, rânduri=%, delegatie/concediu=% (așteptat 0, 1, NULL/absent)',
+      v_n, v_m, coalesce(v_text, 'NULL');
+  end if;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA ȘOFERI: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 35 de verificări au trecut.';
+  raise notice '  TOATE cele 37 de verificări au trecut.';
   raise notice '';
 end;
 $$;

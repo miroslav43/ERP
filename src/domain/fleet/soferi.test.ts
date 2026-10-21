@@ -221,7 +221,7 @@ describe("avertismentele șoferului", () => {
     ).toEqual([]);
   });
 
-  it("fără orașul firmei sau cu diurna oprită (`delegatie: null`), deplasarea nu se judecă", () => {
+  it("fără orașul firmei sau cu delegația necunoscută (`delegatie: null`: diurna oprită sau apelantul nu vede deplasările), deplasarea nu se judecă", () => {
     const curse = [{ de_la_loc: null, pana_la_loc: "Turda" }];
     expect(
       avertismenteSofer({ fapte: { ...curat, delegatie: false }, zi: AZI, curse, orasFirma: null }),

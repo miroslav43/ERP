@@ -75,8 +75,9 @@ export async function verificariSoferi(
   // deduce nullabilitatea), deși `concediu`, `aviz` și `delegatie` sunt des
   // `null`, iar `permis_exista`, `permis_expira_la` și `permis_categorii` sunt
   // `null` pentru cine n-ar trece `driver_licenses_select` pe acel angajat
-  // („nu se știe”, nu „fără permis”). Copierea în `FapteSofer` LĂRGEȘTE tipul la
-  // cel adevărat; proba `proba-flota-soferi.sql` (11)–(14) și (28)–(35) îl fixează.
+  // („nu se știe”, nu „fără permis”); `delegatie` e `null` și pentru cine n-ar
+  // trece `business_trips_select`. Copierea în `FapteSofer` LĂRGEȘTE tipul la
+  // cel adevărat; proba `proba-flota-soferi.sql` (11)–(14) și (28)–(37) îl fixează.
   const rezultate = await Promise.all(
     loturi.map((lot) =>
       db.rpc("verificari_soferi", {

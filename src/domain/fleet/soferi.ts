@@ -92,7 +92,12 @@ export interface FapteSofer {
    * `null` ca „fără semnal”, niciodată ca problemă.
    */
   readonly aviz: string | null;
-  /** O deplasare activă acoperă ziua; `null` = diurna e oprită, deci nu se judecă. */
+  /**
+   * O deplasare activă acoperă ziua. `null` = „nu se știe”, deci nu se judecă:
+   * diurna e oprită sau apelantul n-ar vedea deplasările prin RLS
+   * (`business_trips_select`, de pildă `hr`), iar „n-are deplasare” ar fi tot
+   * o informație pe care nu o are voie să o primească.
+   */
   readonly delegatie: boolean | null;
 }
 
