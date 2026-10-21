@@ -36,6 +36,7 @@
 --  (28) DECIZIA 3: hr parte la PV îl vede, îl confirmă și își vede mașina [POZITIVĂ]
 --  (29) DECIZIA 3: hr NU vede restul parcului, documentele, alocările,
 --       PV-urile altora și nu scrie PV                                    [NEGATIVĂ]
+--  (30) managerul nu întocmește PV și nu anulează PV-ul subordonatei
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   bash .claude/skills/administrativo/scripts/banc-migrare.sh
@@ -569,6 +570,29 @@ begin
     raise warning '  ✗ (29) hr: vizibile (veh·doc·aloc·pv) %, confirmare străină %, inserare %', v_n, v_m, v_text;
   end if;
 
+  -- ── (30) managerul nu întocmește și nu scrie PV-ul altuia ───────────────
+  -- `manager` are `vehicles:read = team`, nu `vehicles:update = all`: vede
+  -- PV-urile echipei (16), își confirmă propriul PV (26), dar nu scrie altceva.
+  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.vehicle_handovers (organization_id, alocare_predata_id, created_by, updated_by)
+    values (v_org, v_al_a, v_u_mgr, v_u_mgr);
+    v_text := 'inserat';
+  exception when insufficient_privilege then
+    v_text := '42501';
+  end;
+  update public.vehicle_handovers set anulat_la = now(), motiv_anulare = 'Anulat de managerul echipei.', updated_by = v_u_mgr
+   where id = v_pv1;
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_text = '42501' and v_n = 0 then
+    raise notice '  ✓ (30) managerul nu întocmește PV (42501) și nu anulează PV-ul subordonatei (0 rânduri)';
+  else
+    v_esecuri := v_esecuri + 1;
+    raise warning '  ✗ (30) managerul: inserare %, anulare % rânduri', v_text, v_n;
+  end if;
+
   -- ── (7a) al doilea PV viu pe aceeași alocare ────────────────────────────
   perform set_config('request.jwt.claim.sub', v_u_admin::text, true);
   set local role authenticated;
@@ -904,7 +928,7 @@ begin
   if v_esecuri > 0 then
     raise exception 'PROBA FLOTA PV: % verificări picate', v_esecuri;
   end if;
-  raise notice '  TOATE cele 33 de verificări au trecut.';
+  raise notice '  TOATE cele 34 de verificări au trecut.';
   raise notice '';
 end;
 $$;

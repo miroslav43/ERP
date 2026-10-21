@@ -6283,8 +6283,16 @@ declare
   v_ang     uuid := pg_temp.id('ang_alfa');
   v_hr      uuid := pg_temp.id('hr_user_alfa');
   v_hr_ang  uuid := pg_temp.id('hr_ang_alfa');
+  v_mgr     uuid := pg_temp.id('mgr_user_alfa');
+  v_mgr_ang uuid := pg_temp.id('mgr2_alfa');
+  v_sa      uuid := gen_random_uuid();
   v_veh     uuid := gen_random_uuid();
   v_veh_hr  uuid := gen_random_uuid();
+  v_veh_mgr uuid := gen_random_uuid();
+  v_aloc_mgr uuid;
+  v_pv_mgr  uuid;
+  v_rol     text;
+  v_refuzuri int := 0;
   v_aloc    uuid;
   v_aloc_hr uuid;
   v_pv      uuid;
@@ -6295,7 +6303,8 @@ begin
   insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent,
                                created_by, updated_by) values
     (v_veh,    v_alfa, 'CJ' || left(replace(v_veh::text, '-', ''), 5) || 'PV',    'Dacia', 'Logan', 500, v_admin, v_admin),
-    (v_veh_hr, v_alfa, 'CJ' || left(replace(v_veh_hr::text, '-', ''), 5) || 'PH', 'Dacia', 'Sandero', 800, v_admin, v_admin);
+    (v_veh_hr, v_alfa, 'CJ' || left(replace(v_veh_hr::text, '-', ''), 5) || 'PH', 'Dacia', 'Sandero', 800, v_admin, v_admin),
+    (v_veh_mgr, v_alfa, 'CJ' || left(replace(v_veh_mgr::text, '-', ''), 5) || 'PM', 'Skoda', 'Octavia', 900, v_admin, v_admin);
 
   -- 1) org_admin predă mașina, întocmește ciorna și o finalizează.
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
@@ -6371,7 +6380,59 @@ begin
     perform pg_temp.esueaza(format('(l) FALS-POZITIV: hr vede restul parcului (PV×100 + vehicul×10 + alocări = %s)', v_n));
   end if;
 
-  raise notice '(l) F12c: org_admin finalizează PV-ul, șoferul îl confirmă; hr parte la PV își vede PV-ul și mașina, nimic altceva ✓';
+  -- 4) `manager` (`vehicles:read = team`) își confirmă PV-ul la care e parte.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.vehicle_assignments (organization_id, vehicle_id, employee_id, de_la, km_predare,
+                                          created_by, updated_by)
+  values (v_alfa, v_veh_mgr, v_mgr_ang, now() - interval '1 day', 900, v_admin, v_admin)
+  returning id into v_aloc_mgr;
+  insert into public.vehicle_handovers (organization_id, alocare_primita_id, nivel_rezervor, stare_generala,
+                                        daune_constatate, created_by, updated_by)
+  values (v_alfa, v_aloc_mgr, 'plin', 'buna', false, v_admin, v_admin)
+  returning id into v_pv_mgr;
+  update public.vehicle_handovers set stare = 'finalizat', updated_by = v_admin where id = v_pv_mgr;
+  reset role;
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  update public.vehicle_handovers set confirmat_primitor_la = now(), updated_by = v_mgr
+   where id = v_pv_mgr and confirmat_primitor_la is null;
+  get diagnostics v_n = row_count;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: managerul nu-și confirmă PV-ul (%s rânduri)', v_n));
+  end if;
+
+  -- 5) Contra-proba pe roluri: doar cine administrează parcul întocmește PV-ul.
+  --    super_admin nu e membru (0063): nici el nu scrie în firma clientului.
+  insert into auth.users (id, email, email_confirmed_at)
+  values (v_sa, 'sa-pv-' || left(replace(v_sa::text, '-', ''), 8) || '@izolare.test', now());
+  insert into public.platform_admins (user_id) values (v_sa);
+  foreach v_rol in array array['manager', 'hr', 'employee', 'super_admin'] loop
+    perform set_config('request.jwt.claim.sub',
+      (case v_rol when 'manager' then v_mgr when 'hr' then v_hr
+                  when 'employee' then v_emp else v_sa end)::text, true);
+    set local role authenticated;
+    begin
+      insert into public.vehicle_handovers (organization_id, alocare_primita_id, created_by, updated_by)
+      values (v_alfa, v_aloc_mgr, (select auth.uid()), (select auth.uid()));
+    exception when insufficient_privilege then
+      v_refuzuri := v_refuzuri + 1;
+    end;
+    reset role;
+  end loop;
+  if v_refuzuri <> 4 then
+    perform pg_temp.esueaza(format('(l) FALS-POZITIV: %s din 4 roluri fără `vehicles:update = all` au întocmit un PV', 4 - v_refuzuri));
+  end if;
+  perform set_config('request.jwt.claim.sub', v_sa::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.vehicle_handovers where id in (v_pv, v_pv_hr, v_pv_mgr);
+  reset role;
+  if v_n <> 3 then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: super_admin nu vede PV-urile firmei (%s din 3)', v_n));
+  end if;
+
+  raise notice '(l) F12c: org_admin finalizează PV-ul; employee, manager și hr parte la PV îl confirmă; doar org_admin îl întocmește; super_admin îl vede ✓';
 end $$;
 -- ── sfârșit (l) F12c ──
 
