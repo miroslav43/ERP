@@ -122,6 +122,16 @@ const serverSchema = z
      */
     OPENROUTER_MODEL_ASISTENT: z.string().min(1).default("google/gemini-3.7-flash"),
     /**
+     * Modelul de viziune cu care se citește bonul de combustibil (flota, F12a).
+     *
+     * Separat de al bulei: citirea cere imagine la intrare și `json_schema`
+     * strict, bula cere flux și unelte, iar cele două se pot schimba independent.
+     * Aceeași cheie, același modul (`asistent`). Costul estimat, pe
+     * `gemini-3.7-flash` ($0,75/M intrare, $3,75/M ieșire): ~$0,0035 pe bon;
+     * cel real vine în `usage.cost` și se jurnalizează cu prefixul `[ocr-bon]`.
+     */
+    OPENROUTER_MODEL_VIZIUNE: z.string().min(1).default("google/gemini-3.7-flash"),
+    /**
      * Secretul cu care timerul de pe gazdă cheamă `/api/push/livreaza`.
      *
      * `default("")` e comutatorul de pornire, ca la `REGES_CRON_SECRET`: ruta
