@@ -219,8 +219,9 @@ capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-docum
 `Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar bifa
 `pool` nebifată LIPSEȘTE din `FormData`, deci absența ei înseamnă `false`.
 
-Trimiterea și alimentarea (`foi/[id]/actiuni-foaie.tsx`) sunt două `<Formular>` separate:
-un refuz la alimentare nu înroșește trimiterea, iar valorile tastate rămân (ADM-022).
+## Extensii
+
+- F12a, bonul citit de pe poză (0213): `[[modul/flota/bon-ocr]]`.
 
 ## Ce NU e aici
 

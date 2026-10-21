@@ -107,6 +107,9 @@ doar „Retrage în ciornă”. Lista `/flota/foi` arată ziua și numărul, cu 
 `pana_la` pe `data` (filtrul pe șofer rămâne `?sofer=`). `/flota/foi/sabloane` cere
 `trip_sheets:update = all`, ca politicile.
 
+Trimiterea și alimentarea (`foi/[id]/actiuni-foaie.tsx`) sunt două `<Formular>` separate:
+un refuz la alimentare nu înroșește trimiterea, iar valorile tastate rămân (ADM-022).
+
 ## PDF-ul
 
 `/api/export/flota/foaie/[id]`: poarta e `trip_sheets:read` own, restul îl decide RLS-ul.

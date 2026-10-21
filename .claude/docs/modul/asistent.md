@@ -172,6 +172,8 @@ funcții existente din `src/lib/queries/portal.ts`, `src/lib/queries/panou.ts` �
   `src/lib/asistent/openrouter.ts` și `src/lib/asistent/text.ts` pentru de ce.
 - Nicio persistență a conversației: trăiește în memoria filei, iar layout-ul `(app)` nu se
   re-randează la navigare, deci supraviețuiește saltului dintr-o pagină în alta.
+- Citirea bonurilor (F12a) folosește aceeași cheie și același modul, dar trăiește în
+  flotă: `src/lib/asistent/viziune.ts` e doar clientul HTTP (`[[modul/flota/bon-ocr]]`).
 
 ## Când NU e suficientă pagina asta
 
