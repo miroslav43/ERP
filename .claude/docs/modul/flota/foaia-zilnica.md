@@ -13,12 +13,13 @@ cai:
   - "src/app/api/export/flota/foaie/**"
   - "tests/rls/proba-flota-foaia-zilnica.sql"
   - "tests/rls/proba-flota-stare-foii.sql"
-tabele: [trip_sheets, trip_sheet_curse, trip_route_templates, fuel_entries]
+  - "tests/rls/proba-flota-plafoane.sql"
+tabele: [trip_sheets, trip_sheet_curse, trip_route_templates, fuel_entries, registru_documente]
 permisiuni: [trip_sheets:read, trip_sheets:create, trip_sheets:update, trip_sheets:approve]
 feature: fleet
 capcane: [17, 22, 23]
-scris_pe: 720d889bc73823b4982d9a06ff3943418b96d9a7
-scris_la: 2026-10-12
+scris_pe: 2ba7a8bc315d1c5fd6575005b225db4ccbdf66a0
+scris_la: 2026-10-22
 tags: [modul, operations]
 ---
 
@@ -53,8 +54,8 @@ fiecărei foi vechi. Tot la trimitere, o alimentare rămasă în afara intervalu
 **Regulile cursei** (`curse_inainte`, P0001 pe câmp): pleacă în ziua foii și se încheie cel
 târziu a doua zi; vecinii cronologici nu se suprapun; km monoton între curse; doar ultima
 cursă poate rămâne fără sosire; sosirea e întreagă (oră ȘI km) sau lipsește; același șofer
-nu are o cursă suprapusă pe altă foaie activă. Kilometrii de bord pot depăși suma curselor
-(„km fără cursă scrisă”): baza nu refuză, ecranul și PDF-ul arată diferența.
+nu are o cursă suprapusă pe o foaie DECLARATĂ (vezi mai jos). Kilometrii de bord pot depăși
+suma curselor („km fără cursă scrisă”): baza nu refuză, ecranul și PDF-ul arată diferența.
 
 **Numărul `FP-AAAA-NNNNN`** îl pune `foi_parcurs_numerotare` (trigger separat, rulează după
 gărzi) la draft → trimis, din `document_sequences` (`foaie_parcurs`), doar dacă e null. Se
@@ -62,6 +63,37 @@ păstrează la retragere și la respins → retrimis. Clientul nu-l poate scrie.
 ia instantaneul vehiculului: `vehicul_nr`, `vehicul_categorie`, `vehicul_combustibil`,
 `norma_l_100km` (din `consum_mediu_declarat` până la F10). Ecranele și PDF-ul îl citesc
 înaintea vehiculului de azi. Foile vechi trimise sau aprobate n-au primit număr retroactiv.
+
+## Plafoane, suprapuneri, foaia numerotată (0200 §E, revizia A2)
+
+Reproduse pe banc ca `employee` înainte de reparare; proba e `proba-flota-plafoane.sql`.
+
+- **Plafoane, P0001, pentru orice scriitor** (și contextul de serviciu): cel mult 40 de
+  curse active pe foaie (o zi de 12 ore, o cursă la 18 minute), 20 de alimentări pe foaie
+  (bugetul lui `combustibilPeFoi`) și 100 de șabloane active pe firmă (`PLAFON_SABLOANE`:
+  cele două cifre se schimbă împreună). Cursa și alimentarea blochează rândul foii
+  (`for no key update`) înainte de numărătoare, deci plafonul ține și sub concurență.
+  Rândurile șterse nu se numără: ștergerea eliberează locul.
+- **`ordine`**: cursa nouă își ia poziția exactă la inserare; `curse_dupa` renumerotează
+  doar la oră mutată sau cursă ștearsă și scrie doar rândurile care se mută (fiecare = un
+  rând de audit).
+- **Suprapunerea se judecă față de foile declarate** (`trimis`/`aprobat`), nu față de
+  ciorne: o ciornă rătăcită nu blochează ziua reală, două ciorne suprapuse se scriu
+  amândouă, prima trimisă câștigă. La cursă e doar răspunsul imediat, cu foaia numită
+  („…de pe foaia FP-… (trimisă), de la … la …”); poarta autoritară e draft → trimis
+  („Foaia nu se poate trimite: …”), serializată pe șofer cu un lacăt de tranzacție, și
+  închide ocolirea respins → ciornă → trimis. Ambele interogări merg pe
+  `ts_sofer_interval_gist`; înainte, o scanare secvențială a curselor tuturor firmelor.
+- **Foaia numerotată e document emis.** Scriitorul `own` n-o mai șterge („Foaia are deja
+  numărul …; o poate anula doar administratorul flotei.”), iar vehiculul, șoferul și ziua
+  ei nu se mai schimbă, nici retrasă și golită de curse. Cine are `trip_sheets:update = all`
+  o anulează (ciornă) sau o stornează (aprobată); `zz_trip_sheets_registru_anulare` pune
+  atunci `anulat_la` și motivul pe rândul din registru (tiparul 0158). Pe un exercițiu
+  închis, anularea foii e respinsă întreagă. Ciorna fără număr se șterge și se mută ca
+  înainte.
+- **Numere fără document**: niciunul pe drumurile normale. Retrimiterea păstrează numărul,
+  registrul e idempotent pe entitate, iar o trimitere căzută derulează și contorul
+  (`document_sequences` e tabelă). Golurile rămase sunt cele explicate în registru.
 
 ## Paritatea stării (0200 §D, din revizia de securitate pe 20776502)
 
@@ -84,13 +116,13 @@ o foaie ne-ciornă.
 
 ## Acțiuni
 
-| Funcție                                                      | Permisiune / minScope      |
-| ------------------------------------------------------------ | -------------------------- |
-| `adaugaCursa`, `actualizeazaCursa`, `stergeCursa`            | `trip_sheets:update` / own |
-| `actualizeazaFoaie`, `stergeFoaie` (doar ciorna)             | `trip_sheets:update` / own |
-| `retrageFoaie` (trimis → draft)                              | `trip_sheets:update` / own |
-| `actualizeazaAlimentare`, `stergeAlimentare`                 | `trip_sheets:update` / own |
-| `creeazaSablonTraseu`, `actualizeazaSablonTraseu`, `sterge…` | `trip_sheets:update` / all |
+| Funcție                                                              | Permisiune / minScope      |
+| -------------------------------------------------------------------- | -------------------------- |
+| `adaugaCursa`, `actualizeazaCursa`, `stergeCursa`                    | `trip_sheets:update` / own |
+| `actualizeazaFoaie`, `stergeFoaie` (doar ciorna; numerotată = `all`) | `trip_sheets:update` / own |
+| `retrageFoaie` (trimis → draft)                                      | `trip_sheets:update` / own |
+| `actualizeazaAlimentare`, `stergeAlimentare`                         | `trip_sheets:update` / own |
+| `creeazaSablonTraseu`, `actualizeazaSablonTraseu`, `sterge…`         | `trip_sheets:update` / all |
 
 Cursele stau în `flota/actions-curse.ts`, șabloanele în `flota/actions-sabloane.ts`, restul în `flota/actions.ts`.
 `trimiteFoaie` nu mai primește sosirea (o dau cursele) și filtrează pe `status = draft`.
@@ -102,9 +134,10 @@ scopul și km estimați (`cursaDinSablon`), iar `sablon_id` rămâne doar în au
 `/flota/foi/[id]` și `/portal/masina-mea/foi/[id]` folosesc aceeași `SectiuneCurse`
 (componentă de server; butoanele de rând sunt client). Pe ciornă: „Cursă nouă”, corectura
 și ștergerea pe rând, „Modifică foaia” (ora și km de plecare doar fără curse),
-alimentările cu corectură și ștergere, „Trimite spre aprobare”, „Șterge ciorna”. Pe trimisă:
-doar „Retrage în ciornă”. Lista `/flota/foi` arată ziua și numărul, cu filtrele `de_la` și
-`pana_la` pe `data` (filtrul pe șofer rămâne `?sofer=`). `/flota/foi/sabloane` cere
+alimentările cu corectură și ștergere, „Trimite spre aprobare”, „Șterge ciorna”. Ciorna
+numerotată arată „Anulează foaia” doar sub `update = all`; altfel, textul cui să ceară
+anularea (`numar` și `poateAnula` pe `ActiuniFoaie`). Pe trimisă: doar „Retrage în
+ciornă”. Lista `/flota/foi` arată ziua și numărul, cu filtrele `de_la` și `pana_la` pe `data` (filtrul pe șofer rămâne `?sofer=`). `/flota/foi/sabloane` cere
 `trip_sheets:update = all`, ca politicile.
 
 ## PDF-ul
@@ -128,5 +161,7 @@ interogare ordonată, iar documentul trebuie să iasă la fel din ambele căi.
 
 `proba-flota-stare-foii.sql` (D1/D2, fără tabelele noi; pică 8/17 peste 0199) și
 `proba-flota-foaia-zilnica.sql` (curse, numerotare, unicitate, suprapuneri, șabloane,
-`hr`/`super_admin`). `izolare.sql`: fixture pentru cele două tabele noi și blocul „foaia
-zilnică cu curse (0200)” din `(l)`. Probele vechi de flotă își țin foile pe zile diferite.
+`hr`/`super_admin`) și `proba-flota-plafoane.sql` (plafoanele, renumerotarea, foaia
+numerotată și registrul, suprapunerile față de foile declarate, indexul GiST).
+`izolare.sql`: fixture pentru cele două tabele noi și blocul „foaia zilnică cu curse (0200)”
+din `(l)`. Probele vechi de flotă își țin foile pe zile diferite.
