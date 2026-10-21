@@ -142,6 +142,52 @@ de rotunjire per contribuție · plafonul legal cumulat al reținerilor din net 
 ordinea de prioritate a creanțelor · facilitățile sectoriale (condiții, plafoane,
 contribuții scutite — se schimbă frecvent, uneori retroactiv).
 
+### Suma neimpozabilă la salariul minim · `src/domain/payroll/etape/facilitate-salariu-minim.ts`
+
+Excepție de la regula de mai sus („niciuna nu apare hardcodată în cod”), alături de
+valorile calculatorului public din `src/content/legal/salarizare-publica.ts`: e o
+derogare națională cu dată de expirare (OUG 89/2025 art. III, forma consolidată din
+16.08.2026, doc. 305817; HG 146/2026), nu o setare a firmei. Verificată pe sursa
+primară, cu `curl`, pe 8 oct și din nou pe 21 oct 2026 (singura modificare ulterioară
+a ordonanței, Legea 173/2026, completează art. XXXVI, nu art. III): 300 lei / minim
+4.050 / plafon 4.300 în ian.–iun. 2026;
+200 lei / minim 4.325 / plafon 4.600 în iul.–dec. 2026; salariul minim din HG
+1.506/2024 art. 1 (4.050) și HG 146/2026 art. 1–2 (4.325 din 1 iulie 2026).
+
+Se aplică numai de la livrare înainte. Lunile deja închise NU se recalculează:
+diagnosticul din 21 oct 2026 a găsit zero state calculate fără facilitate și zero
+contracte active la salariul minim.
+
+⚠️ De confirmat de contabil:
+
+- **Fracțiunea de lună** (alin. (4) lit. c)): aplicația ia (zile lucrate + zile CO) /
+  zile lucrătoare. Zilele de concediu medical NU intră, iar suma se rotunjește la ban.
+- **Plafonul de venit** (alin. (1) lit. b)) se compară cu brutul motorului, care
+  include sporuri, prime, indemnizațiile CO și CM (și partea FNUASS), diurna
+  impozabilă și avantajele în natură, fără tichete.
+- **Deducerea personală** se calculează pe brutul ÎNTREG, fiindcă art. 77 nu e
+  derogat (la 4.600 lei: 735, nu 822).
+- **Funcția de bază** e presupusă pentru orice contract, ca la deducerea personală.
+  Cumulul cu funcția de bază în altă parte primește greșit și deducerea, și suma;
+  avertismentul `SAL_FACILITATE_SALARIU_MINIM` cere verificarea.
+- **Normă întreagă** = norma zilnică din contract ≥ norma firmei ȘI cel puțin cinci
+  zile pe săptămână (norma săptămânală / norma zilnică). Minorii cu 6 h/zi (normă
+  întreagă legală) NU primesc azi suma, iar timpul parțial în zile întregi (8 h/zi,
+  24 h/săpt.) nici el.
+- **Alin. (2)** (salariul de bază micșorat în 2026 pierde facilitatea) nu e
+  verificat de aplicație; e tot în avertisment.
+- **Alin. (4) lit. a)** (salariul de bază e la minim doar o parte din lună) nu e
+  tratat: motorul vede un singur salariu de bază pe lună. Cazul e semnalat doar de
+  avertismentul existent `SAL_CONTRACT_SCHIMBAT_IN_LUNA`, iar suma se corectează manual.
+- **Baza minimă** de contribuții (alin. (5)) scade cu suma în lunile cu facilitate,
+  pentru toți, nu doar pentru cine o primește.
+- **D112**: motorul scrie deja suma în `calc_breakdown` (pasul `sumaNeimpozabila`),
+  dar generatorul D112 încă nu o citește: `A_5` (baza CAM) se declară pe brutul întreg,
+  nu pe brut minus suma scutită, și nu există nicio atenționare. Tipul de asigurat
+  (1.11.2/1.11.3 după presă, Ordinul 605/95/928/2.314/2026, MO 463/2 iun 2026,
+  necitit pe sursă primară) și rubrica sumei scutite NU sunt generate. De reparat
+  înainte ca un angajat la minim să ajungă într-o declarație (D8 din plan).
+
 ### Deducere personală · `payroll_personal_deduction_brackets`
 
 ⚠️ Salariul minim de referință · pragurile de venit × număr de persoane în
