@@ -36,6 +36,9 @@ const ANTETE_CONTROL: ReadonlyArray<readonly [string, string]> = [
   ["x-fara-iban", "fără IBAN"],
   ["x-angajati-inclusi", "angajați"],
   ["x-randuri", "rânduri"],
+  // D112: atenționările ANAF neblocante (`d112/route.ts`). Fără rândul ăsta
+  // numărul lor nu apărea nicăieri pe ecran.
+  ["x-atentionari", "atenționări de verificat în DUKIntegrator"],
 ];
 
 /** `attachment; filename="salarii-2026-08.xml"` → `salarii-2026-08.xml`. */

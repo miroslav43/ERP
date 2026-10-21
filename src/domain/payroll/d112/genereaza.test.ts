@@ -180,3 +180,63 @@ describe("genereazaD112", () => {
     expect(r.xml).toContain('d_rec="1"');
   });
 });
+
+describe("suma neimpozabilă de la salariul minim (OUG 89/2025 art. III)", () => {
+  const laMinim = (suma: number, bazaCam = 4325): AsiguratD112 => ({
+    ...ASIGURAT,
+    bazaCam,
+    sumaNeimpozabila: suma,
+  });
+
+  it("A_5 (baza CAM) se declară fără suma scutită — derogarea de la art. 220^4 alin. (1)", () => {
+    const r = genereazaD112({ ...INTRARE, asigurati: [laMinim(200)] });
+    expect(r.xml).toContain('A_5="4125"');
+  });
+
+  it("rotunjește diferența, nu fiecare termen: fracțiunea de lună dă o sumă cu bani", () => {
+    // 4.325 − 183,33 = 4.141,67 → 4.142 (rotunjirea aritmetică din specificație).
+    const r = genereazaD112({ ...INTRARE, asigurati: [laMinim(183.33)] });
+    expect(r.xml).toContain('A_5="4142"');
+  });
+
+  it("baza CAM nu devine negativă, nici dacă suma depășește brutul", () => {
+    const r = genereazaD112({ ...INTRARE, asigurati: [laMinim(200, 150)] });
+    expect(r.xml).toContain('A_5="0"');
+  });
+
+  it("lasă o atenționare NEBLOCANTĂ pe asiguratul cu sumă, cu tipul 51 și rubrica A_13S", () => {
+    const r = genereazaD112({ ...INTRARE, asigurati: [laMinim(200)] });
+    const p = r.probleme.find((x) => x.camp === "A_1");
+    expect(p?.blocant).toBe(false);
+    // Numele omului: contabilul trebuie să știe ÎN CARE rând completează.
+    expect(p?.mesaj).toContain("Țîrlea Ioana");
+    // Codurile citite pe structura ANAF (Nomenclator 5, anexa 4 a ordinului comun)
+    // și numele rubricii, nu o formulare vagă.
+    expect(p?.mesaj).toContain("51");
+    expect(p?.mesaj).toContain("A_13S");
+    expect(p?.mesaj).toContain("DUKIntegrator");
+    expect(r.probleme.filter((x) => x.blocant)).toHaveLength(0);
+  });
+
+  it("câte o atenționare pe asigurat, nu una pe fișier", () => {
+    const r = genereazaD112({
+      ...INTRARE,
+      asigurati: [
+        laMinim(200),
+        { ...laMinim(200), cnp: "1800101410021", nume: "Pop", prenume: "Ion" },
+        { ...ASIGURAT, cnp: "1800101410031", nume: "Dan", prenume: "Ana" },
+      ],
+    });
+    const atentionari = r.probleme.filter((x) => x.camp === "A_1");
+    expect(atentionari).toHaveLength(2);
+    expect(atentionari.map((x) => x.mesaj).join(" ")).not.toContain("Dan Ana");
+  });
+
+  it("fără sumă (absentă sau zero), A_5 rămâne brutul și nu apare nicio atenționare nouă", () => {
+    for (const asigurat of [ASIGURAT, { ...ASIGURAT, sumaNeimpozabila: 0 }]) {
+      const r = genereazaD112({ ...INTRARE, asigurati: [asigurat] });
+      expect(r.xml).toContain('A_5="5000"');
+      expect(r.probleme.some((x) => x.camp === "A_1")).toBe(false);
+    }
+  });
+});
