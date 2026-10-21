@@ -61,7 +61,9 @@ nimic de la șofer**.
 
 Cheile sunt seedate doar pentru `org_admin` și `super_admin`: decizia 3 a planului (HR doar
 permisele șoferilor) rămâne, iar o firmă poate acorda cheile lui HR printr-o suprascriere.
-`manager` și `employee` nu văd nimic, nici amenzile din echipa lor. Matricea publică de pe
+`manager` și `employee` nu văd nimic, nici amenzile din echipa lor. Singura excepție:
+`employee` are `vehicle_incidents:create = own` (își declară dauna din portal și își vede
+doar declarațiile, `[[modul/flota/declaratia-soferului]]`). Matricea publică de pe
 pagina de prezentare (`matrice-roluri.ts`) are două rânduri pentru ele, doar `org_admin` = all. Dacă o firmă acordă cheile
 `create` lui HR, HR primește prin sugestie și cine conducea ce vehicul (`app.sofer_la` judecă după cheie). Casetele „Amendă nouă” și
 „Incident nou” se deschid prin parametru (`?amenda=noua`, `?incident=nou`), ca la parc.
@@ -123,9 +125,9 @@ fără nicio cale de a-l închide.
   poartă și `driver_license` (0204) și `vehicle_service` (ramura F7): fără ele, scadențele
   respective ar dispărea din lista de conformitate fără nicio eroare. Proba (28) o păzește.
   — capcana #26
-- **Rezumatul zilnic al flotei (0201) NU cuprinde amenzile.** Lista lui albă a rămas pe
-  `vehicle_document`: termenul se vede în lista amenzilor, pe fișa ei și în `expirables`,
-  dar nu pleacă notificare push. Nu presupune o alertă care nu există.
+- **Din 0206 §G termenul intră în rezumatul zilnic**, DOAR la responsabilii (sau
+  administratorii) care citesc amenzile la `all`, niciodată la șofer:
+  `[[modul/flota/declaratia-soferului]]`.
 - **`manager` și `employee` primesc zero rânduri, fără eroare.** Absența cheii e refuz. Un
   `.single()` pe o amendă invizibilă dă NEGASIT, nu INTERZIS. — capcana #17
 - **`created_by` și `updated_by` se trimit explicit** din acțiuni, deși triggerul `set_actor`
@@ -190,8 +192,9 @@ Cheile de permisiune: `src/config/permissions.ts` + seed-ul din 0206. Rutele int
 
 ## Ce NU e aici
 
-Portal pentru șofer (raportarea unui incident din „Mașina mea”), notificare push pentru
-termen, plata amenzii și reținerea din salariu nu există. Costul unui incident NU intră în
+Declarația șoferului din „Mașina mea”, termenul în rezumatul zilnic și secțiunea de pe fișa
+vehiculului: `[[modul/flota/declaratia-soferului]]`. Plata amenzii și reținerea din salariu
+nu există. Costul unui incident NU intră în
 service sau costuri de vehicul (traseul F7). Fișa șoferului: `[[modul/angajati]]`; permisele
 și verificările încrucișate: `[[modul/flota/soferi]]`.
 

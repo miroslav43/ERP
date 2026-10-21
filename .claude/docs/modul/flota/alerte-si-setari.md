@@ -5,6 +5,7 @@ aliases: [fleet_settings, conformitate zilnica, responsabil de flota, alerte flo
 cai:
   - "supabase/migrations/0201_flota_conformitate_zilnica.sql"
   - "supabase/migrations/0203_flota_service_costuri.sql"
+  - "supabase/migrations/0206_flota_amenzi_daune.sql"
   - "src/app/(app)/flota/actions-setari.ts"
   - "src/app/(app)/flota/setari/**"
   - "src/domain/fleet/setari.ts"
@@ -74,6 +75,11 @@ Din 0203 lista albă a rezumatului are și `vehicle_service` (planurile de servi
 jobul cheamă și `internal.flota_memento_service` (alerta pe kilometri, anvelopele din
 noiembrie): `[[modul/flota/service-si-costuri]]`. Destinatarii vin dintr-un singur loc,
 `internal.flota_destinatari`.
+
+Din 0206 §G (forma ULTIMĂ a lui `internal.flota_rezumat` stă acum în 0206) lista albă are și
+`vehicle_fine`, termenul de răspuns al amenzii: merge DOAR la cine citește amenzile la `all`
+(`internal.flota_destinatari_cheie`), niciodată la șofer —
+`[[modul/flota/declaratia-soferului]]`.
 
 Destinatari: responsabilii (sau `org_admin`) + șoferul alocat, filtrați pe membru ACTIV și
 pe `internal.scope_membru(...,'vehicles','read') <> 'none'`. **Fiecare primește doar
