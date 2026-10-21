@@ -6257,6 +6257,57 @@ begin
 end $$;
 -- ═══ SFÂRȘIT BLOC: amenzi și daune (0206) ════════════════════════════════════
 
+-- ── (l) F12a: bonul citit de pe poză (0213) ──
+-- `org_admin` adaugă o alimentare cu CUI-ul stației, apoi contextul de serviciu
+-- (adaugaAlimentare, prin clientul admin) îi scrie propunerea citită. Sunt cei
+-- doi pași ai salvării cu OCR; un refuz pe oricare ar lăsa butonul fără efect.
+-- Rânduri NUMĂRATE.
+do $$
+declare
+  v_alfa   uuid := pg_temp.id('alfa');
+  v_admin  uuid := pg_temp.id('admin_alfa');
+  v_ang    uuid := pg_temp.id('ang_alfa');
+  v_veh    uuid := gen_random_uuid();
+  v_foaie  uuid;
+  v_alim   uuid;
+  v_n      int;
+begin
+  insert into public.vehicles (id, organization_id, nr_inmatriculare, marca, model, km_curent, pool,
+                               created_by, updated_by) values
+    (v_veh, v_alfa, 'CJ' || left(replace(v_veh::text, '-', ''), 5) || 'OC', 'Dacia', 'Logan', 7000, true, v_admin, v_admin);
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id, plecare_la, km_plecare,
+                                  created_by, updated_by)
+  values (v_alfa, v_veh, v_ang, now() - interval '1 hour', 7000, v_admin, v_admin)
+  returning id into v_foaie;
+  with inserate as (
+    insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la,
+                                     numar_bon, cui_statie, created_by, updated_by)
+    values (v_alfa, v_foaie, 25, 180, now() - interval '30 minutes', 'L-OCR-1', '14399840', v_admin, v_admin)
+    returning id
+  ) select id into v_alim from inserate;
+  reset role;
+  if v_alim is null then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: `org_admin` nu adaugă alimentarea cu CUI-ul stației');
+  end if;
+
+  set local role service_role;
+  with scrise as (
+    update public.fuel_entries set ocr_propunere = '{"v": 1, "litri": 25, "model": "proba"}'::jsonb
+     where id = v_alim and organization_id = v_alfa and ocr_propunere is null
+    returning 1
+  ) select count(*) into v_n from scrise;
+  reset role;
+  if v_n <> 1 then
+    perform pg_temp.esueaza(format('(l) FALS-NEGATIV: serviciul scrie propunerea pe %s rânduri, așteptat 1', v_n));
+  end if;
+
+  raise notice '(l) F12a: org_admin adaugă alimentarea cu CUI, serviciul îi scrie propunerea citită de pe bon ✓';
+end $$;
+-- ── sfârșit (l) F12a ──
+
 
 rollback;
 

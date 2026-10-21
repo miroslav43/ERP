@@ -5516,12 +5516,14 @@ export type Database = {
           cost: number
           created_at: string
           created_by: string | null
+          cui_statie: string | null
           deleted_at: string | null
           fisier_bon_path: string | null
           id: string
           litri: number
           numar_bon: string | null
           observatii: string | null
+          ocr_propunere: Json | null
           organization_id: string
           plin: boolean
           pret_litru: number | null
@@ -5535,12 +5537,14 @@ export type Database = {
           cost: number
           created_at?: string
           created_by?: string | null
+          cui_statie?: string | null
           deleted_at?: string | null
           fisier_bon_path?: string | null
           id?: string
           litri: number
           numar_bon?: string | null
           observatii?: string | null
+          ocr_propunere?: Json | null
           organization_id: string
           plin?: boolean
           pret_litru?: number | null
@@ -5554,12 +5558,14 @@ export type Database = {
           cost?: number
           created_at?: string
           created_by?: string | null
+          cui_statie?: string | null
           deleted_at?: string | null
           fisier_bon_path?: string | null
           id?: string
           litri?: number
           numar_bon?: string | null
           observatii?: string | null
+          ocr_propunere?: Json | null
           organization_id?: string
           plin?: boolean
           pret_litru?: number | null
