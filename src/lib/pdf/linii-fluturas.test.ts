@@ -1,5 +1,8 @@
 // src/lib/pdf/linii-fluturas.test.ts
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -103,5 +106,61 @@ describe("retinerileFluturasului", () => {
     const linii = retinerileFluturasului({ ...s, net_de_plata: calculat });
     const netDePlata = linii.find((l) => l.eticheta === "Net de plată");
     expect(netDePlata?.valoare).toBeCloseTo(calculat, 2);
+  });
+});
+
+const ETICHETA_SCUTIRE = "Sumă neimpozabilă (OUG 89/2025 art. III)";
+
+describe("suma neimpozabilă de la salariul minim pe fluturaș", () => {
+  const LA_MINIM: SursaFluturas = {
+    ...ZERO,
+    baza_salariu: 4325,
+    brut: 4325,
+    cas: 1031,
+    cass: 413,
+    deducere_personala: 865,
+    impozit: 182,
+    net: 2699,
+    net_de_plata: 2699,
+    calc_breakdown: [
+      { pas: "brut", valoare: 4325 },
+      { pas: "sumaNeimpozabila", valoare: 200 },
+    ],
+  };
+
+  it("apare între contribuții și impozit, cu suma din calculul salvat", () => {
+    const linii = retinerileFluturasului(LA_MINIM);
+    const etichete = linii.map((l) => l.eticheta);
+    expect(linii.find((l) => l.eticheta === ETICHETA_SCUTIRE)?.valoare).toBe(200);
+    expect(etichete.indexOf(ETICHETA_SCUTIRE)).toBeGreaterThan(
+      etichete.indexOf("CASS — contribuția la sănătate"),
+    );
+    expect(etichete.indexOf(ETICHETA_SCUTIRE)).toBeLessThan(etichete.indexOf("Impozit pe venit"));
+  });
+
+  it("nu se scade: omul o primește, ea doar iese din bazele de contribuții și impozit", () => {
+    const linie = retinerileFluturasului(LA_MINIM).find((l) => l.eticheta === ETICHETA_SCUTIRE);
+    expect(linie?.scade).toBeUndefined();
+    expect(linie?.total).toBeUndefined();
+  });
+
+  it("lipsește când suma e zero sau rândul e dinaintea facilității", () => {
+    const etichete = (s: SursaFluturas) => retinerileFluturasului(s).map((l) => l.eticheta);
+    expect(etichete(LUNA_OBISNUITA)).not.toContain(ETICHETA_SCUTIRE);
+    expect(
+      etichete({
+        ...LUNA_OBISNUITA,
+        calc_breakdown: [{ pas: "sumaNeimpozabila", valoare: 0 }],
+      }),
+    ).not.toContain(ETICHETA_SCUTIRE);
+    expect(etichete({ ...LUNA_OBISNUITA, calc_breakdown: null })).not.toContain(ETICHETA_SCUTIRE);
+  });
+
+  it("eticheta e aceeași cu a ecranului: PDF-ul și fluturașul din aplicație spun aceleași cuvinte", () => {
+    const sursaEcran = readFileSync(
+      join(process.cwd(), "src/components/payroll/fluturas.tsx"),
+      "utf8",
+    );
+    expect(sursaEcran).toContain(`sumaNeimpozabila: "${ETICHETA_SCUTIRE}"`);
   });
 });
