@@ -179,18 +179,10 @@ NU e pe fundal plin: `Inel` își desenează separatoarele în `var(--color-back
 
 Migrarea → `src/types/database.ts` → `src/schemas/payroll.ts` →
 `src/lib/queries/payroll.ts` → acțiuni → pagini. **Calculul propriu-zis nu e aici**: stă
-în `src/domain/payroll/`, care e cel mai mare director de domeniu din proiect și e
-acoperit cu teste. O sumă greșită se repară acolo, nu în pagină. Concediul medical
-are lanț propriu: `medical_leave_codes` → `certificateMedicaleLuna` →
-`calculeazaIndemnizatieCm` → bazele din `calc.ts`.
-
-Avertismentele calculului își scriu **orele pe ceas**: `calc.ts` trece fiecare durată
-prin `formatOre` (`src/lib/format/ore.ts`) și lipește unitatea `h` — `6:00 h de noapte`,
-nu `6.00 ore`. Sumele în lei rămân zecimale (`toFixed(2)`), iar coloanele de ore din bază
-rămân `numeric`, fiindcă tariful orar se înmulțește cu ele; ceasul e doar reprezentarea
-de citire, convertită într-un singur loc. `calc.test.ts` fixează șirurile verbatim pentru
-`SAL_ORE_IN_MOD_NEDECLARAT`, deci un avertisment nou care formatează orele altfel iese
-inconsecvent pe ecran, nu la teste.
+în `src/domain/payroll/`, acoperit cu teste, iar o sumă greșită se repară acolo, nu în
+pagină. Motorul, etapele lui, suma neimpozabilă de la salariul minim, lanțul
+concediului medical și felul în care avertismentele își scriu orele:
+[[modul/salarizare/calcul]].
 
 ## Ce NU e aici
 
