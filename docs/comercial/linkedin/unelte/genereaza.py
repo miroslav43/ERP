@@ -1,7 +1,8 @@
-"""Generează planșele LinkedIn T4 — loturile 1 și 2 — din aceeași sursă în două forme:
+"""Generează planșele LinkedIn T4 — loturile 1–3 — din aceeași sursă în două forme:
 project/<nume>.dc.html pentru pânza Claude Design și export/<nume>.html pentru
 randarea locală în PNG/PDF."""
 
+import base64
 import json
 import os
 from datetime import datetime, timezone
@@ -383,13 +384,13 @@ def interval(nr, titlu, start, sfarsit, marcaje, eticheta, pilon, pagina, detali
     return radacina("".join(parti), gap=40)
 
 
-def imagine_interval(cifra, fraza, start, sfarsit, marcaje, eticheta, pilon, temei, marime=200):
+def imagine_interval(cifra, fraza, start, sfarsit, marcaje, eticheta, pilon, temei, marime=200, adresa="administrativo.ro"):
     corp = f"""<div style="display: flex; flex-direction: column; gap: 20px;">
 <div style="font-family: {DISPLAY}; font-weight: 700; font-size: {marime}px; line-height: 0.92; letter-spacing: -0.02em;">{cifra}</div>
 <div style="font-family: {DISPLAY}; font-weight: 500; font-size: 56px; line-height: 1.14; max-width: 920px;">{fraza}</div>
 </div>"""
     calendar = f'<div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 28px;"><div>{banda_zile()}{grila_saptamani(start, sfarsit, marcaje, inaltime=168)}</div>{legenda_calendar()}</div>'
-    parti = [antet(eticheta, pilon), corp, calendar, temei_celula(temei), subsol("administrativo.ro", "")]
+    parti = [antet(eticheta, pilon), corp, calendar, temei_celula(temei), subsol(adresa, "")]
     return radacina("".join(parti), gap=36)
 
 
@@ -743,6 +744,113 @@ PLANSE["L2-22.dc.html"] = (
 )
 
 
+# ── Șablonul 6, „Captură” (lotul 3) ──────────────────────────────────────────
+# Rama foii în jurul capturii modelului completat din public/capturi/unelte/:
+# firma demo, niciodată o firmă reală. Captura are 1200×1200, cu documentul pe
+# o bandă orizontală, deci se decupează pe partea care se citește: `decupaj` =
+# (x, y, lățime, înălțime), în pixelii capturii. Imaginea intră ca data URI,
+# ca planșa să fie aceeași în pânză și în export, fără fișiere alături.
+CAPTURI = os.path.join(RAD, "..", "..", "..", "..", "public", "capturi", "unelte")
+LATURA_CAPTURA = 1200
+
+
+def captura_data_uri(fisier):
+    with open(os.path.join(CAPTURI, fisier), "rb") as f:
+        return "data:image/webp;base64," + base64.b64encode(f.read()).decode("ascii")
+
+
+def captura(cifra, fraza, sub, fisier, decupaj, document, eticheta, pilon, temei, adresa, marime=180):
+    x, y, w, h = decupaj
+    # Bordura de 1 px pe fiecare parte, umbra de 12 px și marginea interioară de
+    # 24 px intră toate în lățimea foii.
+    margine = 24
+    latime = L - 2 * 72 - 14 - 2 * margine
+    s = latime / w
+    imagine = (
+        f'<div style="padding: 20px {margine}px;"><div style="position: relative; overflow: hidden; width: {latime}px; height: {h * s:.0f}px; background: {HARTIE};">'
+        f'<img src="{captura_data_uri(fisier)}" alt="" style="position: absolute; left: {-x * s:.0f}px; top: {-y * s:.0f}px; '
+        f'width: {LATURA_CAPTURA * s:.0f}px; height: {LATURA_CAPTURA * s:.0f}px; max-width: none;"></div></div>'
+    )
+    rama = (
+        f'<div style="border: 1px solid {RIGLA}; box-shadow: 12px 12px 0 {LINIATURA}; background: {HARTIE};">'
+        f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid {LINIATURA}; '
+        f'font-family: {MONO}; font-size: 24px; color: {SLAB};"><span>{document} · model completat</span>'
+        f'<span style="width: 72px; height: 26px; background: {HASURA};"></span></div>{imagine}</div>'
+    )
+    corp = f"""<div style="display: flex; flex-direction: column; gap: 20px;">
+<div style="font-family: {DISPLAY}; font-weight: 700; font-size: {marime}px; line-height: 0.92; letter-spacing: -0.02em;">{cifra}</div>
+<div style="font-family: {DISPLAY}; font-weight: 500; font-size: 56px; line-height: 1.14; max-width: 920px;">{fraza}</div>
+{f'<div style="font-size: 34px; line-height: 1.35; color: {SLAB}; max-width: 900px;">{sub}</div>' if sub else ""}
+</div>"""
+    parti = [
+        antet(eticheta, pilon),
+        corp,
+        f'<div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">{rama}</div>',
+        temei_celula(temei),
+        subsol(adresa, ""),
+    ]
+    return radacina("".join(parti), gap=36)
+
+
+# ── Planșele lotului 3 (uneltele noi) ────────────────────────────────────────
+UNE = "unelte"
+
+PLANSE["L3-23.dc.html"] = (
+    "#23 · programarea concediilor",
+    captura(
+        "2027", "se programează până la sfârșitul lui 2026.",
+        "Un rând pe om, o coloană pe lună, cu zilele lucrătoare în antet.",
+        "programare-concedii-exemplu-1200.webp", (0, 349, 668, 244), "programarea concediilor",
+        "unealtă · programare", UNE, "art. 148 alin. (1) Codul muncii", "administrativo.ro/unelte/programare-concedii",
+        marime=200,
+    ),
+    L, H,
+)
+
+PLANSE["L3-24.dc.html"] = (
+    "#24 · cererea de demisie",
+    captura(
+        "20 de zile", "lucrătoare, cel mult, la demisie pe o funcție de execuție.",
+        "45 pe una de conducere. Ultima zi o scrie cererea.",
+        "cerere-demisie-exemplu-1200.webp", (0, 424, 640, 200), "cerere de demisie",
+        "unealtă · demisie", UNE, "art. 81 alin. (4) Codul muncii", "administrativo.ro/unelte/cerere-demisie",
+    ),
+    L, H,
+)
+
+PLANSE["L3-25.dc.html"] = (
+    "#25 · zile lucrătoare",
+    coperta("21", "de zile lucrătoare în decembrie 2026, din 23 de luni până vineri.",
+            "1 decembrie și 25 decembrie sunt sărbători legale. Calculatorul le scade singur.",
+            "unealtă · zile lucrătoare", UNE, "", adresa="administrativo.ro/unelte/calculator-zile-lucratoare",
+            marime=240, temei="art. 139 alin. (1) Codul muncii"),
+    L, H,
+)
+
+PLANSE["L3-26.dc.html"] = (
+    "#26 · adeverința fără CNP",
+    captura(
+        "Fără CNP", "în formular. Rândul lui rămâne liber, pentru scris de mână.", None,
+        "adeverinta-salariat-exemplu-1200.webp", (0, 526, 640, 148), "adeverință de salariat",
+        "unealtă · adeverință", UNE, "art. 34 alin. (5) Codul muncii", "administrativo.ro/unelte/adeverinta-salariat",
+    ),
+    L, H,
+)
+
+PLANSE["L3-27.dc.html"] = (
+    "#27 · concediul de Crăciun",
+    imagine_interval(
+        "8 zile", "de concediu pentru 21–31 decembrie 2026, din 11 pe calendar.",
+        date(2026, 12, 21), date(2027, 1, 3),
+        {**zile_de(date(2026, 12, 21), date(2026, 12, 24), "co"), date(2026, 12, 25): "sl",
+         **zile_de(date(2026, 12, 28), date(2026, 12, 31), "co"), date(2027, 1, 1): "sl"},
+        "unealtă · cerere de concediu", UNE, "art. 145 alin. (3) Codul muncii",
+        adresa="administrativo.ro/unelte/cerere-concediu-de-odihna",
+    ),
+    L, H,
+)
+
+
 def dc_html(titlu, radacina_html, w, h):
     return f"""<!doctype html>
 <html lang="ro">
@@ -833,14 +941,29 @@ for r, (titlu, nume) in enumerate(randuri_2):
         aseaza(n, i * PAS_X, y, "lot2")
     notes[f"l2r{r}"] = {"x": 0, "y": y - 260, "w": 240, "text": titlu, "kind": "title1", "maxW": max(len(nume), 3) * PAS_X - 80, "page": "lot2"}
 
+# Lotul 3: cinci imagini unice, câte una pe unealtă, pe un singur rând.
+randuri_3 = [
+    ("#23–#27 · 2–6 nov · uneltele noi", ["L3-23.dc.html", "L3-24.dc.html", "L3-25.dc.html", "L3-26.dc.html", "L3-27.dc.html"]),
+]
+for r, (titlu, nume) in enumerate(randuri_3):
+    y = r * PAS_Y
+    for i, n in enumerate(nume):
+        aseaza(n, i * PAS_X, y, "lot3")
+    notes[f"l3r{r}"] = {"x": 0, "y": y - 260, "w": 240, "text": titlu, "kind": "title1", "maxW": max(len(nume), 3) * PAS_X - 80, "page": "lot3"}
+
 canvas = {
     "v": 3,
     # Câmpurile pe care aplicația pânzei le adaugă singură; păstrate, ca republicarea să nu le șteargă.
     "attachments": {},
     "createdOnFiles": {"v": 1, "at": "2026-09-23T16:46:34Z"},
     "title": "LinkedIn T4 — Administrativo",
-    "launch": {"view": "canvas", "page": "lot2"},
-    "pages": [{"id": "lot2", "name": "Lotul 2 · seria de reach"}, {"id": "lot1", "name": "Lotul 1"}, {"id": "sistem", "name": "Sistem și banner"}],
+    "launch": {"view": "canvas", "page": "lot3"},
+    "pages": [
+        {"id": "lot3", "name": "Lotul 3 · uneltele noi"},
+        {"id": "lot2", "name": "Lotul 2 · seria de reach"},
+        {"id": "lot1", "name": "Lotul 1"},
+        {"id": "sistem", "name": "Sistem și banner"},
+    ],
     "boards": boards,
     "order": order,
     "notes": notes,
