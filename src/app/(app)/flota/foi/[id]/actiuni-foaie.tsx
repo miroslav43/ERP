@@ -92,7 +92,10 @@ function ErorileFaraCamp({
  *
  * Ce arată fiecare stare urmează EXACT regulile din
  * `internal.foi_parcurs_inainte` după 0200 (§D1), nu o aproximare a lor:
- *   - `draft`: trimiterea, alimentarea, ștergerea ciornei;
+ *   - `draft`: trimiterea, alimentarea, ștergerea ciornei. Ciorna care are
+ *     deja număr (a fost trimisă și retrasă) e un document emis: n-o mai
+ *     șterge decât cine scrie orice foaie, ca ANULARE vizibilă în registru
+ *     (0200 §E4); celorlalți li se spune cui să ceară;
  *   - `trimis`: doar „Retrage în ciornă”. Baza nu mai lasă nimic altceva pe o
  *     foaie în aprobare — nici alimentări, nici curse —, ca aprobatorul să
  *     semneze cifrele pe care le vede;
@@ -123,6 +126,8 @@ function ErorileFaraCamp({
 export function ActiuniFoaie({
   id,
   status,
+  numar,
+  poateAnula,
   plecareLa,
   sosireLa,
   areCurse,
@@ -130,6 +135,10 @@ export function ActiuniFoaie({
 }: {
   readonly id: string;
   readonly status: StatusFoaie;
+  /** Numărul `FP-AAAA-NNNNN`, dat la prima trimitere; `null` cât n-a plecat niciodată. */
+  readonly numar: string | null;
+  /** `trip_sheets:update = all`: singurul care anulează o foaie numerotată (0200 §E4). */
+  readonly poateAnula: boolean;
   readonly plecareLa: string;
   readonly sosireLa: string | null;
   /** Foaia are cel puțin o cursă. Fără ele baza refuză trimiterea. */
@@ -148,6 +157,9 @@ export function ActiuniFoaie({
   const sePoateTrimite = status === "draft";
   // 0200 §D1: alimentările urmează starea foii, deci doar pe ciornă.
   const sePoateAlimenta = status === "draft";
+  // 0200 §E4: ciorna numerotată nu se șterge, se anulează — și doar sub `all`.
+  const eNumerotata = numar !== null;
+  const sePoateSterge = !eNumerotata || poateAnula;
   const plecareCamp = oraRomanieiPentruCamp(plecareLa);
   const sosireCamp = sosireLa === null ? null : oraRomanieiPentruCamp(sosireLa);
 
@@ -253,7 +265,10 @@ export function ActiuniFoaie({
         return;
       }
       setConfirmaStergerea(false);
-      arataToast({ fel: "reusita", text: "Ciorna a fost ștearsă." });
+      arataToast({
+        fel: "reusita",
+        text: eNumerotata ? `Foaia ${numar} a fost anulată.` : "Ciorna a fost ștearsă.",
+      });
       router.push(bazaFoi);
     });
   }
@@ -338,16 +353,24 @@ export function ActiuniFoaie({
                   >
                     Trimite spre aprobare
                   </Buton>
-                  <Buton
-                    type="button"
-                    varianta="tertiar"
-                    onClick={() => {
-                      setConfirmaStergerea(true);
-                    }}
-                  >
-                    Șterge ciorna
-                  </Buton>
+                  {sePoateSterge ? (
+                    <Buton
+                      type="button"
+                      varianta="tertiar"
+                      onClick={() => {
+                        setConfirmaStergerea(true);
+                      }}
+                    >
+                      {eNumerotata ? "Anulează foaia" : "Șterge ciorna"}
+                    </Buton>
+                  ) : null}
                 </div>
+                {sePoateSterge ? null : (
+                  <p className="text-muted-foreground text-corp">
+                    Foaia are deja numărul {numar}, deci nu se mai șterge. Dacă nu mai e nevoie de
+                    ea, cereți administratorului flotei s-o anuleze.
+                  </p>
+                )}
               </>
             );
           }}
@@ -359,9 +382,13 @@ export function ActiuniFoaie({
         laInchidere={() => {
           setConfirmaStergerea(false);
         }}
-        titlu="Ștergeți ciorna?"
-        consecinta="Foaia, cu cursele și alimentările ei, iese din listă și nu se mai poate readuce. Ziua rămâne liberă pentru o foaie nouă pe acest vehicul."
-        etichetaConfirmare="Șterge ciorna"
+        titlu={eNumerotata ? `Anulați foaia ${numar}?` : "Ștergeți ciorna?"}
+        consecinta={
+          eNumerotata
+            ? `Numărul ${numar} rămâne consumat, iar registrul arată foaia anulată. Foaia, cu cursele și alimentările ei, nu se mai poate readuce; ziua rămâne liberă pentru o foaie nouă pe acest vehicul.`
+            : "Foaia, cu cursele și alimentările ei, iese din listă și nu se mai poate readuce. Ziua rămâne liberă pentru o foaie nouă pe acest vehicul."
+        }
+        etichetaConfirmare={eNumerotata ? "Anulează foaia" : "Șterge ciorna"}
         distructiv
         inCurs={seSterge}
         laConfirmare={sterge}

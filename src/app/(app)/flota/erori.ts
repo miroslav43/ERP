@@ -101,8 +101,14 @@ const CAMPURI_DUPA_MESAJ: readonly (readonly [RegExp, readonly string[]])[] = [
   [/^Sosirea cursei se completează întreagă/u, ["sosire_la", "km_sosire"]],
   [/^Sosirea cursei lipsește/u, ["sosire_la"]],
   [/^Ora de sosire a cursei/u, ["sosire_la"]],
+  // Și suprapunerea cu foaia DECLARATĂ a aceluiași șofer (0200 §E3), care
+  // numește foaia: „…de pe foaia FP-2026-00004 (trimisă), de la 09:00 la 12:00”.
   [/^Ora de plecare a cursei/u, ["plecare_la"]],
   [/^Kilometrajul la sosirea cursei/u, ["km_sosire"]],
+  // Fără tipar, deci mesaj general, întreg: refuzurile 0200 §E1/§E3/§E4 țin de
+  // foaia întreagă, nu de o casetă — „O foaie de parcurs are cel mult 40 de
+  // curse…”, „… 20 de alimentări…”, „Firma are deja 100 de șabloane…”, „Foaia
+  // nu se poate trimite: cursa de la …”, „Foaia are deja numărul …”.
 ];
 
 function campurileMesajului(mesaj: string): readonly string[] {

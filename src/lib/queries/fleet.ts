@@ -803,7 +803,8 @@ export async function combustibilPeFoi(idFoi: readonly string[]): Promise<Rezult
 
   const db = await createServerSupabase();
   // 20 de alimentări pe foaie e generos pentru o cursă; plafonul rămâne sub
-  // `max_rows = 1000`, care ar tăia TĂCUT dacă l-am depăși.
+  // `max_rows = 1000`, care ar tăia TĂCUT dacă l-am depăși. Din 0200 §E1 e și
+  // plafonul bazei pe foaie: o foaie nu mai poate goli singură bugetul lotului.
   const plafon = Math.min(unice.length * 20, PLAFON_POSTGREST);
   const { data, error } = await db
     .from("fuel_entries")
@@ -1070,6 +1071,8 @@ export interface Cursa extends CursaFoaie {
 /**
  * Câte curse citește o foaie. O zi de curier are câteva zeci; plafonul stă
  * mult sub `max_rows = 1000`, care ar tăia TĂCUT, iar pagina spune când e atins.
+ * Baza primește cel mult 40 de curse active pe foaie (0200 §E1), deci citirea
+ * nu taie niciodată o foaie scrisă după 0200.
  */
 export const PLAFON_CURSE_FOAIE = 200;
 
@@ -1096,7 +1099,12 @@ export async function curseleFoii(
   return data ?? [];
 }
 
-/** Câte șabloane arată caseta. O firmă are câteva rute recurente, nu sute. */
+/**
+ * Câte șabloane arată caseta. O firmă are câteva rute recurente, nu sute.
+ * E și plafonul BAZEI (`internal.sabloane_traseu_inainte`, 0200 §E1): peste
+ * el, al 101-lea n-ar mai fi apărut nici în casetă, nici pe pagina de unde se
+ * șterge. Cele două cifre se schimbă împreună.
+ */
 export const PLAFON_SABLOANE = 100;
 
 /** Șabloanele de traseu ale firmei, după denumire. Le citește oricine întocmește foi. */

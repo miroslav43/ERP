@@ -109,12 +109,22 @@ const PLECARE_LA = "2026-10-01T06:00:00.000Z";
 
 function randeaza(
   status: "draft" | "trimis" | "respins" = "draft",
-  { areCurse = true }: { readonly areCurse?: boolean } = {},
+  {
+    areCurse = true,
+    numar = null,
+    poateAnula = false,
+  }: {
+    readonly areCurse?: boolean;
+    readonly numar?: string | null;
+    readonly poateAnula?: boolean;
+  } = {},
 ) {
   return render(
     <ActiuniFoaie
       id="f1"
       status={status}
+      numar={numar}
+      poateAnula={poateAnula}
       plecareLa={PLECARE_LA}
       sosireLa={null}
       areCurse={areCurse}
@@ -381,5 +391,60 @@ describe("ActiuniFoaie — ce arată fiecare stare (0200 §D1)", () => {
   it("pe ciornă: alimentarea se poate adăuga", () => {
     randeaza("draft");
     expect(screen.getByRole("button", { name: "Adaugă alimentarea" })).toBeTruthy();
+  });
+});
+
+/*
+ * 0200 §E4: o ciornă care are deja număr (trimisă o dată, apoi retrasă) e un
+ * document emis. Baza n-o lasă ștearsă de scriitor; butonul care ducea sigur
+ * într-un refuz nu se mai arată, iar cine scrie orice foaie o ANULEAZĂ.
+ */
+describe("ActiuniFoaie — ciorna numerotată (0200 §E4)", () => {
+  it("ciorna fără număr se șterge ca până acum", async () => {
+    stergeFoaie.mockResolvedValue({ ok: true, data: { id: "f1" } });
+    randeaza("draft");
+
+    await apasa("Șterge ciorna");
+    await act(async () => {
+      fireEvent.click(
+        screen.getAllByRole("button", { name: "Șterge ciorna" }).at(-1) as HTMLElement,
+      );
+    });
+
+    expect(stergeFoaie).toHaveBeenCalledWith({ id: "f1" });
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/flota/foi");
+    });
+  });
+
+  it("șoferul (own) nu mai vede ștergerea; i se spune cui să ceară anularea", () => {
+    randeaza("draft", { numar: "FP-2026-00012", poateAnula: false });
+
+    expect(screen.queryByRole("button", { name: "Șterge ciorna" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Anulează foaia" })).toBeNull();
+    expect(
+      screen.getByText(/Foaia are deja numărul FP-2026-00012, deci nu se mai șterge/u),
+    ).toBeTruthy();
+    // Trimiterea rămâne: ciorna numerotată se corectează și se retrimite.
+    expect(screen.getByRole("button", { name: "Trimite spre aprobare" })).toBeTruthy();
+  });
+
+  it("administratorul flotei o anulează, cu numărul spus în confirmare", async () => {
+    stergeFoaie.mockResolvedValue({ ok: true, data: { id: "f1" } });
+    randeaza("draft", { numar: "FP-2026-00012", poateAnula: true });
+    expect(screen.queryByRole("button", { name: "Șterge ciorna" })).toBeNull();
+
+    await apasa("Anulează foaia");
+    expect(screen.getByText(/Numărul FP-2026-00012 rămâne consumat/u)).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(
+        screen.getAllByRole("button", { name: "Anulează foaia" }).at(-1) as HTMLElement,
+      );
+    });
+
+    expect(stergeFoaie).toHaveBeenCalledWith({ id: "f1" });
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/flota/foi");
+    });
   });
 });

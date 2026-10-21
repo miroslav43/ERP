@@ -150,8 +150,9 @@ describe("traduEroare — 0200, cursele foii zilnice", () => {
       "Kilometrajul la sosirea cursei (10070 km) este mai mare decât cel de la plecarea cursei următoare (10060 km).",
       ["km_sosire"],
     ],
+    // 0200 §E3: suprapunerea se judecă față de foile declarate, cu foaia numită.
     [
-      "Ora de plecare a cursei se suprapune cu o cursă a aceluiași șofer de pe altă foaie de parcurs. Un om nu conduce două vehicule în același timp.",
+      "Ora de plecare a cursei se suprapune cu o cursă a aceluiași șofer de pe foaia FP-2026-00004 (trimisă), de la 09:00 la 12:00. Un om nu conduce două vehicule în același timp.",
       ["plecare_la"],
     ],
     [
@@ -178,6 +179,19 @@ describe("traduEroare — 0200, cursele foii zilnice", () => {
     "Cursa a fost ștearsă și nu se mai modifică. Adăugați-o din nou dacă e cazul.",
     "Cursa nu se mută pe altă foaie de parcurs. Ștergeți-o și adăugați-o pe foaia corectă.",
     "Foaia de parcurs selectată nu aparține organizației dumneavoastră.",
+    // 0200 §E1: plafoanele. Încep cu „O foaie”/„Firma”, nu cu un câmp: refuzul
+    // ține de foaia întreagă, nu de caseta cursei sau a alimentării.
+    "O foaie de parcurs are cel mult 40 de curse, iar aceasta le are deja. Grupați opririle apropiate într-o singură cursă sau ștergeți o cursă greșită.",
+    "O foaie de parcurs are cel mult 20 de alimentări, iar aceasta le are deja. Corectați o alimentare existentă sau ștergeți una greșită.",
+    "Firma are deja 100 de șabloane de traseu, cât se pot folosi. Ștergeți un șablon pe care nu-l mai folosiți, apoi adăugați-l pe cel nou.",
+    // 0200 §E3: poarta de la trimitere, pe caseta care n-are câmpurile cursei.
+    // Cu valorile cele mai lungi (foaie veche fără număr, înmatriculare de 16
+    // caractere): mesajul trebuie să încapă întreg în cele 300 de caractere.
+    "Foaia nu se poate trimite: cursa de la 09:00 se suprapune cu foaia din 05.10.2026 (aprobată) a aceluiași șofer, pe vehiculul ABCDEFGHIJKLMNOP. Corectați orele curselor; dacă greșită e cealaltă foaie, cereți retragerea sau stornarea ei.",
+    // 0200 §E4: foaia numerotată. Începe cu „Foaia”, nu cu „Vehiculul”: altfel
+    // ar ajunge pe `vehicle_id`, o casetă pe care formularele foii n-o au.
+    "Foaia are deja numărul FP-2026-00012; o poate anula doar administratorul flotei.",
+    "Foaia are deja numărul FP-2026-00012: vehiculul, șoferul și ziua ei nu se mai schimbă. Dacă sunt greșite, administratorul flotei o anulează, iar foaia corectă se întocmește din nou.",
   ])("fără câmp: %s", (mesaj) => {
     const eroare = prinde(p0001(mesaj));
     expect(eroare.fieldErrors).toBeNull();

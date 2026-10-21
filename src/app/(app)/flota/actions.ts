@@ -893,6 +893,12 @@ export const actualizeazaFoaie = createAction({
  * Ștergerea logică a unei CIORNE. Foaia trimisă se retrage întâi, cea
  * aprobată se stornează doar de responsabilul flotei — iar ștergerea, odată
  * făcută, nu se mai întoarce (0200 §D2).
+ *
+ * Ciorna care are deja număr (trimisă o dată, apoi retrasă sau respinsă) e un
+ * document emis: baza o lasă ștearsă doar sub `trip_sheets:update = all`, ca
+ * ANULARE, și anulează atunci și rândul ei din registru (0200 §E4). Scriitorul
+ * cu `own` primește refuzul bazei („Foaia are deja numărul …”) prin
+ * `traduEroare`, întreg.
  */
 export const stergeFoaie = createAction({
   name: "fleet.trip.delete",

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/ui/callout";
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime } from "@/lib/format/date";
@@ -333,6 +333,8 @@ export default async function PaginaFoaiaMea({ params }: ProprietatiPagina) {
         <ActiuniFoaie
           id={foaie.id}
           status={foaie.status}
+          numar={foaie.numar}
+          poateAnula={scopeFor(permisiuni, "trip_sheets:update") === "all"}
           plecareLa={foaie.plecare_la}
           sosireLa={foaie.sosire_la}
           areCurse={curse.length > 0}

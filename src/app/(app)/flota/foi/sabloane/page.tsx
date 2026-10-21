@@ -100,9 +100,11 @@ export default async function PaginaSabloane() {
           gol={null}
         />
       )}
+      {/* Plafonul citirii e și plafonul bazei (0200 §E1): la el, lista e întreagă. */}
       {sabloane.length >= PLAFON_SABLOANE ? (
         <p className="text-muted-foreground text-corp">
-          Se arată primele {PLAFON_SABLOANE} de șabloane, în ordinea numelui.
+          Firma are {PLAFON_SABLOANE} de șabloane, cât se pot folosi. Ca să adăugați altul, ștergeți
+          unul pe care nu-l mai folosiți.
         </p>
       ) : null}
     </div>

@@ -474,6 +474,8 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
         <ActiuniFoaie
           id={foaie.id}
           status={foaie.status}
+          numar={foaie.numar}
+          poateAnula={scrieOricare}
           plecareLa={foaie.plecare_la}
           sosireLa={foaie.sosire_la}
           areCurse={curse.length > 0}
