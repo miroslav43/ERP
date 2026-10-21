@@ -67,6 +67,36 @@
 --        „reînviere” fără niciun validator. Ștergerea logică e acum
 --        IREVERSIBILĂ în afara contextului de serviciu, pe foi, alimentări
 --        și curse.
+-- E. REVIZIA DE SECURITATE A2 (categoriile „denial-of-service” și
+--    „business-logic-integrity”, reproduse pe bancul local ca `employee`,
+--    proba `tests/rls/proba-flota-plafoane.sql`):
+--    E1. Plafoane. O foaie are cel mult 40 de curse active și 20 de
+--        alimentări; o firmă, cel mult 100 de șabloane de traseu active.
+--        Înainte nimic nu le limita, iar fiecare cursă inserată la începutul
+--        foii renumerota toate surorile (cu un rând de audit fiecare): 300 de
+--        curse scrise în ordine inversă au produs 45.449 de rânduri de audit.
+--        Cifrele vin din realitate și din citiri: o zi de lucru are cel mult
+--        12 ore (Codul muncii art. 112), adică o cursă la 18 minute pentru 40;
+--        `combustibilPeFoi` presupune 20 de alimentări pe foaie, iar
+--        `sabloaneTraseu` citește 100 de șabloane — peste ele, ecranul taie
+--        tăcut. Cursa și alimentarea blochează rândul foii înainte de
+--        numărătoare, deci plafonul ține și sub scrieri concurente.
+--    E2. Renumerotarea atinge doar rândurile care își schimbă poziția: cursa
+--        nouă își primește poziția exactă la inserare, iar surorile se
+--        renumerotează doar când se mută ora sau se șterge o cursă.
+--    E3. Suprapunerea curselor aceluiași șofer se judecă față de foile
+--        DECLARATE (trimise sau aprobate), nu față de ciorne: o ciornă
+--        rătăcită nu e o declarație și nu blochează ziua reală. Poarta
+--        autoritară e trimiterea (draft → trimis), serializată pe șofer, care
+--        închide și ocolirea prin respins → ciornă → trimis. Interogarea
+--        folosește `ts_sofer_interval_gist`; înainte era o scanare secvențială
+--        a TUTUROR curselor din bază, ale tuturor firmelor, la fiecare scriere.
+--    E4. Numărul `FP-AAAA-NNNNN` e al unui document emis. Foaia numerotată nu
+--        se mai șterge logic de scriitor (doar `trip_sheets:update = all`, ca
+--        anulare), nu-și mai schimbă vehiculul, șoferul sau ziua, iar anularea
+--        sau stornarea ei anulează și rândul din registru, cu motivul în clar
+--        (convenția din 0142 §5 și 0158: rândul rămâne, numărul rămâne
+--        consumat, golul se explică).
 --
 -- ── CE NU E AICI ────────────────────────────────────────────────────────────
 -- * Notificările pe fluxul foii: F5.
@@ -151,6 +181,16 @@ create unique index ts_vehicul_zi_uq
 create index ts_org_data_idx
   on public.trip_sheets (organization_id, data desc)
   where deleted_at is null;
+-- §E3: foile DECLARATE ale unui șofer, pe intervalul antetului. Antetul unei
+-- foi trimise e prima plecare → ultima sosire, deci acoperă orice cursă a ei;
+-- cursele se verifică apoi pe `tsc_foaie_idx`. `gist_uuid_ops` numit explicit,
+-- ca în 0010: `btree_gist` stă în schema `extensions`.
+create index ts_sofer_interval_gist
+  on public.trip_sheets using gist (
+    employee_id extensions.gist_uuid_ops,
+    pg_catalog.tstzrange(plecare_la, coalesce(sosire_la, 'infinity'::timestamptz), '[)')
+  )
+  where deleted_at is null and status in ('trimis', 'aprobat');
 
 -- ============================================================
 -- 3. trip_sheet_curse — liniile foii
@@ -160,8 +200,10 @@ create table public.trip_sheet_curse (
   id              uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations (id) on delete cascade,
   trip_sheet_id   uuid not null references public.trip_sheets (id) on delete cascade,
-  -- Poziția cronologică în zi, 1..n. O renumerotează `internal.curse_dupa`
-  -- după fiecare scriere; clientul n-o alege.
+  -- Poziția cronologică în zi, 1..n. O dă `internal.curse_inainte` la
+  -- inserare și o renumerotează `internal.curse_dupa` când se mută ora sau se
+  -- șterge o cursă; clientul n-o alege. `smallint` ajunge: o foaie are cel
+  -- mult 40 de curse active (§E1).
   ordine          smallint not null default 0,
   plecare_la      timestamptz not null,
   sosire_la       timestamptz,
@@ -345,6 +387,7 @@ declare
   v_prima   record;
   v_ultima  record;
   v_alim_afara timestamptz;
+  v_supra   record;
   -- Coloanele pe care le poate schimba decizia unui aprobator. Restul rândului
   -- e al șoferului. `km_parcursi` și `data` sunt GENERATED: valoarea lor din
   -- NEW, într-un trigger BEFORE, nu e cea finală, deci nu intră în comparație.
@@ -371,6 +414,18 @@ begin
   if tg_op = 'UPDATE' and old.deleted_at is not null and not app.is_service_context() then
     raise exception using errcode = 'P0001',
       message = 'Foaia de parcurs a fost ștearsă sau stornată și nu se mai modifică. Întocmiți una nouă.';
+  end if;
+
+  -- 0200 §E4: o foaie cu număr e un document emis, deja în registru. Retrasă
+  -- în ciornă și ștearsă de scriitor, ar fi lăsat un gol fără urmă în
+  -- secvența FP și un rând valabil în registru pentru un document care nu mai
+  -- există. O anulează doar cine scrie orice foaie, iar anularea se vede în
+  -- registru (`foi_parcurs_anuleaza_in_registru`).
+  if tg_op = 'UPDATE' and not app.is_service_context()
+     and old.numar is not null and old.deleted_at is null and new.deleted_at is not null
+     and app.has_permission(new.organization_id, 'trip_sheets', 'update') is distinct from 'all' then
+    raise exception using errcode = 'P0001',
+      message = format('Foaia are deja numărul %s; o poate anula doar administratorul flotei.', old.numar);
   end if;
 
   -- 0200 §A: pe o foaie CU curse, orele și kilometrajul antetului sunt
@@ -405,6 +460,20 @@ begin
       new.sosire_la  := v_ultima.sosire_la;
       new.km_sosire  := v_ultima.km_sosire;
     end if;
+  end if;
+
+  -- 0200 §E4: numărul s-a dat unei foi anume — vehiculul, șoferul și ziua
+  -- trecute în registru la prima trimitere. Retrasă în ciornă și golită de
+  -- curse, foaia își putea muta ziua (și anul: FP-2025-00001 retrimisă pe 2
+  -- ianuarie 2026, cu registrul spunând 31 decembrie 2025). Ziua se compară pe
+  -- `plecare_la` final, după agregate: `data` e GENERATED, deci în NEW nu e încă
+  -- recalculată.
+  if tg_op = 'UPDATE' and not app.is_service_context() and old.numar is not null
+     and old.deleted_at is null and new.deleted_at is null
+     and ((new.vehicle_id, new.employee_id) is distinct from (old.vehicle_id, old.employee_id)
+          or (new.plecare_la at time zone 'Europe/Bucharest')::date is distinct from old.data) then
+    raise exception using errcode = 'P0001',
+      message = format('Foaia are deja numărul %s: vehiculul, șoferul și ziua ei nu se mai schimbă. Dacă sunt greșite, administratorul flotei o anulează, iar foaia corectă se întocmește din nou.', old.numar);
   end if;
 
   -- 0199 §C2: aprobatorul care NU poate scrie foaia pe dreptul de scriere a
@@ -599,6 +668,48 @@ begin
           message = format('O alimentare de pe foaie este în afara intervalului curselor (alimentarea din %s). Corectați data alimentării sau cursele, apoi trimiteți foaia din nou.',
                            pg_catalog.to_char(v_alim_afara at time zone 'Europe/Bucharest', 'DD.MM.YYYY HH24:MI'));
       end if;
+
+      -- 0200 §E3: același om nu conduce două vehicule deodată, judecat pe
+      -- foile DECLARATE. Ciornele nu se blochează una pe alta (o ciornă
+      -- rătăcită nu e o declarație); prima trimisă câștigă, a doua se oprește
+      -- aici. Tot aici se închide ocolirea prin respins → ciornă → trimis: cât
+      -- foaia era respinsă, altă foaie se putea trimite peste ea. Lacătul pe
+      -- șofer serializează două trimiteri simultane: a doua citește foaia
+      -- primei abia după ce aceea e comisă (READ COMMITTED, instantaneu nou la
+      -- fiecare interogare din funcție).
+      perform pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended('trip_sheets.sofer:' || new.employee_id::text, 0));
+      select pg_catalog.to_char(x.plecare_la at time zone 'Europe/Bucharest', 'HH24:MI') as ora,
+             coalesce(t.numar, 'din ' || pg_catalog.to_char(t.data, 'DD.MM.YYYY')) as foaia,
+             case t.status when 'trimis' then 'trimisă' else 'aprobată' end as stare,
+             coalesce(t.vehicul_nr, v.nr_inmatriculare) as vehicul
+        into v_supra
+        from public.trip_sheets t
+        join public.trip_sheet_curse c
+          on c.trip_sheet_id = t.id and c.deleted_at is null
+        join public.trip_sheet_curse x
+          on x.trip_sheet_id = new.id and x.deleted_at is null
+        left join public.vehicles v on v.id = t.vehicle_id
+       where t.employee_id = new.employee_id
+         and t.organization_id = new.organization_id
+         and t.id <> new.id
+         and t.deleted_at is null
+         and t.status in ('trimis', 'aprobat')
+         and pg_catalog.tstzrange(t.plecare_la, coalesce(t.sosire_la, 'infinity'::timestamptz), '[)')
+             operator(pg_catalog.&&)
+             pg_catalog.tstzrange(new.plecare_la, coalesce(new.sosire_la, 'infinity'::timestamptz), '[)')
+         and pg_catalog.tstzrange(c.plecare_la, coalesce(c.sosire_la, c.plecare_la + interval '1 minute'))
+             operator(pg_catalog.&&)
+             pg_catalog.tstzrange(x.plecare_la, coalesce(x.sosire_la, x.plecare_la + interval '1 minute'))
+       order by x.plecare_la
+       limit 1;
+      -- Sub 300 de caractere și cu cele mai lungi valori: `traduEroare` taie
+      -- mesajul acolo (`flota/erori.test.ts` îl păzește).
+      if found then
+        raise exception using errcode = 'P0001',
+          message = format('Foaia nu se poate trimite: cursa de la %s se suprapune cu foaia %s (%s) a aceluiași șofer, pe vehiculul %s. Corectați orele curselor; dacă greșită e cealaltă foaie, cereți retragerea sau stornarea ei.',
+                           v_supra.ora, v_supra.foaia, v_supra.stare, v_supra.vehicul);
+      end if;
     end if;
 
     if new.status in ('trimis', 'aprobat') and (new.km_sosire is null or new.sosire_la is null) then
@@ -658,6 +769,8 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   v_foaie public.trip_sheets%rowtype;
   v_stare_veche public.trip_sheet_status;
+  v_numara boolean;
+  c_plafon_alimentari constant integer := 20;
 begin
   -- F8: validare explicită, ÎNAINTEA oricărei alte verificări.
   if new.litri is null or new.litri <= 0 then
@@ -683,8 +796,11 @@ begin
     end if;
   end if;
 
+  -- 0200 §E1: rândul foii se blochează înaintea numărătorii de mai jos, ca
+  -- două inserări simultane să nu treacă amândouă de plafon.
   select * into v_foaie from public.trip_sheets t
-   where t.id = new.trip_sheet_id and t.deleted_at is null;
+   where t.id = new.trip_sheet_id and t.deleted_at is null
+     for no key update;
   if not found or v_foaie.organization_id <> new.organization_id then
     raise exception using errcode = 'P0001',
       message = 'Foaia de parcurs selectată nu aparţine organizaţiei dumneavoastră.';
@@ -696,6 +812,24 @@ begin
   if not app.is_service_context() and v_foaie.status <> 'draft' then
     raise exception using errcode = 'P0001',
       message = 'Alimentările se modifică doar cât foaia de parcurs este ciornă. Retrageți-o sau redeschideți-o în ciornă, apoi corectați-o.';
+  end if;
+
+  -- 0200 §E1: cel mult 20 de alimentări active pe foaie, pentru orice
+  -- scriitor (plafonul ține de resursă, nu de drepturi). O zi de șofer are
+  -- una-trei; `combustibilPeFoi` citește 20 pe foaie, iar o foaie cu sute ar fi
+  -- golit bugetul întregii cozi de aprobare, ascunzând litrii altor șoferi.
+  -- `old` se citește într-un `if` separat: pe INSERT nu are rând (0135 §10).
+  if tg_op = 'INSERT' then
+    v_numara := new.deleted_at is null;
+  else
+    v_numara := old.deleted_at is not null and new.deleted_at is null;
+  end if;
+  if v_numara
+     and (select count(*) from public.fuel_entries f
+           where f.trip_sheet_id = new.trip_sheet_id and f.deleted_at is null
+             and f.id <> new.id) >= c_plafon_alimentari then
+    raise exception using errcode = 'P0001',
+      message = format('O foaie de parcurs are cel mult %s de alimentări, iar aceasta le are deja. Corectați o alimentare existentă sau ștergeți una greșită.', c_plafon_alimentari);
   end if;
 
   if v_foaie.status in ('aprobat', 'respins') and new.deleted_at is null then
@@ -726,7 +860,14 @@ declare
   v_foaie public.trip_sheets%rowtype;
   v_prec  record;
   v_urm   record;
+  v_alta  record;
+  v_numara boolean;
   v_serviciu boolean := app.is_service_context();
+  -- 0200 §E1: o zi de lucru are cel mult 12 ore (Codul muncii art. 112), deci
+  -- 40 de curse înseamnă una la 18 minute, fără pauză. Plafonul ține de
+  -- resursă, nu de drepturi, deci se aplică oricui scrie, și contextului de
+  -- serviciu.
+  c_plafon_curse constant integer := 40;
 begin
   if tg_op = 'UPDATE' and not v_serviciu then
     new.created_by := old.created_by;
@@ -740,7 +881,13 @@ begin
     end if;
   end if;
 
-  select * into v_foaie from public.trip_sheets t where t.id = new.trip_sheet_id;
+  -- 0200 §E1: rândul foii se blochează înainte de plafon și de vecini: două
+  -- scrieri simultane pe aceeași foaie se așteaptă, deci nu trec amândouă de
+  -- plafon și nu se suprapun una peste alta. `curse_dupa` atinge oricum același
+  -- rând, deci ordinea lacătelor nu se inversează. La renumerotarea surorilor
+  -- (adâncimea 2) lacătul e deja al tranzacției.
+  select * into v_foaie from public.trip_sheets t where t.id = new.trip_sheet_id
+     for no key update;
   if not found or v_foaie.organization_id <> new.organization_id or v_foaie.deleted_at is not null then
     raise exception using errcode = 'P0001',
       message = 'Foaia de parcurs selectată nu aparține organizației dumneavoastră.';
@@ -750,6 +897,22 @@ begin
   if not v_serviciu and v_foaie.status <> 'draft' then
     raise exception using errcode = 'P0001',
       message = 'Cursele se modifică doar cât foaia de parcurs este ciornă. Retrageți-o sau redeschideți-o în ciornă, apoi corectați-o.';
+  end if;
+
+  -- 0200 §E1: plafonul numără doar cursele active, deci o cursă ștearsă
+  -- eliberează locul. `old` se citește într-un `if` separat: pe INSERT nu are
+  -- rând.
+  if tg_op = 'INSERT' then
+    v_numara := new.deleted_at is null;
+  else
+    v_numara := old.deleted_at is not null and new.deleted_at is null;
+  end if;
+  if v_numara
+     and (select count(*) from public.trip_sheet_curse c
+           where c.trip_sheet_id = new.trip_sheet_id and c.deleted_at is null
+             and c.id <> new.id) >= c_plafon_curse then
+    raise exception using errcode = 'P0001',
+      message = format('O foaie de parcurs are cel mult %s de curse, iar aceasta le are deja. Grupați opririle apropiate într-o singură cursă sau ștergeți o cursă greșită.', c_plafon_curse);
   end if;
 
   -- Ștergerea logică și renumerotarea (doar `ordine`) nu se mai judecă pe
@@ -854,30 +1017,51 @@ begin
     end if;
   end if;
 
-  -- Același om nu conduce două mașini deodată: nicio cursă a lui, pe altă
-  -- foaie activă, nu se suprapune cu asta.
-  if not v_serviciu and exists (
-    select 1
-      from public.trip_sheet_curse c
-      join public.trip_sheets t on t.id = c.trip_sheet_id
-     where t.organization_id = new.organization_id
-       and t.employee_id = v_foaie.employee_id
+  -- Același om nu conduce două mașini deodată: nicio cursă a lui, pe o foaie
+  -- DECLARATĂ (trimisă sau aprobată), nu se suprapune cu asta. 0200 §E3: o
+  -- ciornă nu e o declarație, deci nu blochează: înainte, o ciornă rătăcită pe
+  -- altă mașină oprea ziua reală, iar interogarea scana secvențial TOATE
+  -- cursele din bază, ale tuturor firmelor, la fiecare scriere. Acum foile
+  -- candidate vin din `ts_sofer_interval_gist`, cursele lor din
+  -- `tsc_foaie_idx`. Poarta autoritară rămâne trimiterea
+  -- (`foi_parcurs_inainte`); aici e doar răspunsul imediat, cu foaia numită.
+  if not v_serviciu then
+    select coalesce(t.numar, 'din ' || pg_catalog.to_char(t.data, 'DD.MM.YYYY')) as foaia,
+           case t.status when 'trimis' then 'trimisă' else 'aprobată' end as stare,
+           pg_catalog.to_char(c.plecare_la at time zone 'Europe/Bucharest', 'HH24:MI') as de_la,
+           coalesce(pg_catalog.to_char(c.sosire_la at time zone 'Europe/Bucharest', 'HH24:MI'), '…') as pana_la
+      into v_alta
+      from public.trip_sheets t
+      join public.trip_sheet_curse c on c.trip_sheet_id = t.id and c.deleted_at is null
+     where t.employee_id = v_foaie.employee_id
+       and t.organization_id = new.organization_id
        and t.id <> new.trip_sheet_id
        and t.deleted_at is null
-       and t.status <> 'respins'
-       and c.deleted_at is null
+       and t.status in ('trimis', 'aprobat')
+       and pg_catalog.tstzrange(t.plecare_la, coalesce(t.sosire_la, 'infinity'::timestamptz), '[)')
+           operator(pg_catalog.&&)
+           pg_catalog.tstzrange(new.plecare_la, coalesce(new.sosire_la, new.plecare_la + interval '1 minute'))
        and pg_catalog.tstzrange(c.plecare_la, coalesce(c.sosire_la, c.plecare_la + interval '1 minute'))
            operator(pg_catalog.&&)
            pg_catalog.tstzrange(new.plecare_la, coalesce(new.sosire_la, new.plecare_la + interval '1 minute'))
-  ) then
-    raise exception using errcode = 'P0001',
-      message = 'Ora de plecare a cursei se suprapune cu o cursă a aceluiași șofer de pe altă foaie de parcurs. Un om nu conduce două vehicule în același timp.';
+     order by c.plecare_la
+     limit 1;
+    if found then
+      raise exception using errcode = 'P0001',
+        message = format('Ora de plecare a cursei se suprapune cu o cursă a aceluiași șofer de pe foaia %s (%s), de la %s la %s. Un om nu conduce două vehicule în același timp.',
+                         v_alta.foaia, v_alta.stare, v_alta.de_la, v_alta.pana_la);
+    end if;
   end if;
 
+  -- 0200 §E2: cursa nouă își ia direct poziția cronologică, deci
+  -- `curse_dupa` mută doar surorile de după ea, nu și pe ea a doua oară. Pe
+  -- aceeași foaie două curse active nu pleacă la aceeași oră (garda de mai
+  -- sus), deci ora singură dă poziția.
   if tg_op = 'INSERT' then
-    new.ordine := coalesce((
-      select max(c.ordine) from public.trip_sheet_curse c
-       where c.trip_sheet_id = new.trip_sheet_id and c.deleted_at is null), 0) + 1;
+    new.ordine := 1 + (
+      select count(*) from public.trip_sheet_curse c
+       where c.trip_sheet_id = new.trip_sheet_id and c.deleted_at is null
+         and c.id <> new.id and c.plecare_la < new.plecare_la);
   end if;
   return new;
 end;
@@ -890,21 +1074,37 @@ $$;
 -- reaplică, la fel ca la `foi_parcurs_dupa` → `vehicles`.
 -- `pg_trigger_depth() > 1`: renumerotarea surorilor declanșează acest trigger
 -- pe fiecare dintre ele; doar apelul de la vârf lucrează.
+-- 0200 §E2: renumerotarea rulează doar când ordinea se poate schimba (cursă
+-- nouă, oră mutată, cursă ștearsă) și scrie doar rândurile care își schimbă
+-- poziția; fiecare rând scris înseamnă un rând de audit. Plafonul de 40 de
+-- curse (§E1) ține costul unei scrieri sub 40 de rânduri.
 create or replace function internal.curse_dupa()
 returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  v_ordinea_se_poate_schimba boolean;
 begin
   if pg_catalog.pg_trigger_depth() > 1 then
     return null;
   end if;
 
-  update public.trip_sheet_curse c
-     set ordine = r.rn
-    from (
-      select x.id, (row_number() over (order by x.plecare_la, x.created_at, x.id))::smallint as rn
-        from public.trip_sheet_curse x
-       where x.trip_sheet_id = new.trip_sheet_id and x.deleted_at is null
-    ) r
-   where c.id = r.id and c.ordine is distinct from r.rn;
+  -- `old` se citește într-un `if` separat: pe INSERT nu are rând.
+  if tg_op = 'INSERT' then
+    v_ordinea_se_poate_schimba := true;
+  else
+    v_ordinea_se_poate_schimba := new.plecare_la is distinct from old.plecare_la
+                                  or new.deleted_at is distinct from old.deleted_at;
+  end if;
+
+  if v_ordinea_se_poate_schimba then
+    update public.trip_sheet_curse c
+       set ordine = r.rn
+      from (
+        select x.id, (row_number() over (order by x.plecare_la, x.created_at, x.id))::smallint as rn
+          from public.trip_sheet_curse x
+         where x.trip_sheet_id = new.trip_sheet_id and x.deleted_at is null
+      ) r
+     where c.id = r.id and c.ordine is distinct from r.rn;
+  end if;
 
   update public.trip_sheets t
      set updated_at = now()
@@ -922,6 +1122,87 @@ revoke all on function internal.curse_inainte() from public, anon, authenticated
 revoke all on function internal.curse_dupa() from public, anon, authenticated;
 revoke all on function internal.foi_parcurs_numerotare() from public, anon, authenticated;
 revoke all on function internal.aloca_numar_foaie(uuid, integer) from public, anon, authenticated;
+
+-- ============================================================
+-- 8a. Șabloanele: plafonul pe firmă (§E1)
+-- ============================================================
+--
+-- `sabloaneTraseu` citește 100 de șabloane, în ordinea numelui: al 101-lea nu
+-- mai apărea nici în caseta „Cursă nouă”, nici pe pagina de unde se șterge.
+-- Plafonul ține de resursă, nu de drepturi, deci se aplică oricui scrie.
+-- DEFINER: numără toate șabloanele active ale firmei, nu doar pe cele pe care
+-- le vede apelantul. Fără lacăt: le scrie doar `trip_sheets:update = all`, iar
+-- două inserări simultane depășesc plafonul cel mult cu una.
+
+create or replace function internal.sabloane_traseu_inainte()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  v_numara boolean;
+  c_plafon_sabloane constant integer := 100;
+begin
+  -- `old` se citește într-un `if` separat: pe INSERT nu are rând.
+  if tg_op = 'INSERT' then
+    v_numara := new.deleted_at is null;
+  else
+    v_numara := old.deleted_at is not null and new.deleted_at is null;
+  end if;
+  if v_numara
+     and (select count(*) from public.trip_route_templates s
+           where s.organization_id = new.organization_id and s.deleted_at is null
+             and s.id <> new.id) >= c_plafon_sabloane then
+    raise exception using errcode = 'P0001',
+      message = format('Firma are deja %s de șabloane de traseu, cât se pot folosi. Ștergeți un șablon pe care nu-l mai folosiți, apoi adăugați-l pe cel nou.', c_plafon_sabloane);
+  end if;
+  return new;
+end;
+$$;
+
+create trigger sabloane_traseu_inainte before insert or update on public.trip_route_templates
+  for each row execute function internal.sabloane_traseu_inainte();
+
+revoke all on function internal.sabloane_traseu_inainte() from public, anon, authenticated;
+
+-- ============================================================
+-- 8b. Anularea foii numerotate se vede în registru (§E4)
+-- ============================================================
+--
+-- Foaia intră în registru la trimitere (0142, `zz_trip_sheets_registru`).
+-- Ștergerea ei logică — anularea ciornei numerotate sau stornarea celei
+-- aprobate, amândouă doar sub `trip_sheets:update = all` — lăsa rândul
+-- valabil: registrul spunea că firma a emis un document pe care ea însăși îl
+-- anulase. Tiparul e 0158: rândul nu se șterge (OMFP 2634/2015 pct. 58 lit.
+-- d)), se ANULEAZĂ cu motivul în clar, iar numărul rămâne consumat. DEFINER:
+-- cine anulează foaia n-are `registru:update`; dreptul care contează e cel de
+-- a anula FOAIA, judecat de `foi_parcurs_inainte`. Nu ocolește garda
+-- exercițiului închis: pe un an închis, anularea foii e respinsă întreagă.
+-- `zz_…_registru_anulare` rulează după `zz_trip_sheets_registru` (ordine
+-- alfabetică).
+
+create or replace function internal.foi_parcurs_anuleaza_in_registru()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  update public.registru_documente r
+     set anulat_la     = new.deleted_at,
+         motiv_anulare = 'Foaia de parcurs '
+                      || coalesce(new.numar, 'din ' || pg_catalog.to_char(old.data, 'DD.MM.YYYY'))
+                      || case when old.status = 'aprobat'
+                              then ' a fost stornată de administratorul flotei.'
+                              else ' a fost anulată de administratorul flotei.' end
+   where r.organization_id = new.organization_id
+     and r.entitate_tip    = 'trip_sheets'
+     and r.entitate_id     = new.id
+     and r.anulat_la is null;
+  return null;
+end;
+$$;
+
+create trigger zz_trip_sheets_registru_anulare
+  after update of deleted_at on public.trip_sheets
+  for each row
+  when (old.deleted_at is null and new.deleted_at is not null)
+  execute function internal.foi_parcurs_anuleaza_in_registru();
+
+revoke all on function internal.foi_parcurs_anuleaza_in_registru() from public, anon, authenticated;
 
 -- ============================================================
 -- 9. RLS
@@ -1109,7 +1390,7 @@ declare
 begin
   select string_agg(n, ', ') into v_lipsa
     from unnest(array['foi_parcurs_inainte', 'foi_parcurs_numerotare', 'foi_parcurs_dupa',
-                      'foi_parcurs_fara_autoaprobare']) n
+                      'foi_parcurs_fara_autoaprobare', 'zz_trip_sheets_registru_anulare']) n
    where not exists (
      select 1 from pg_catalog.pg_trigger g
       where g.tgrelid = 'public.trip_sheets'::regclass and g.tgname = n and g.tgenabled <> 'D');
@@ -1125,6 +1406,14 @@ begin
       where g.tgrelid = 'public.trip_sheet_curse'::regclass and g.tgname = n and g.tgenabled <> 'D');
   if v_lipsa is not null then
     raise exception '0200: triggere lipsă sau oprite pe trip_sheet_curse: %', v_lipsa;
+  end if;
+
+  if not exists (
+    select 1 from pg_catalog.pg_trigger g
+     where g.tgrelid = 'public.trip_route_templates'::regclass
+       and g.tgname = 'sabloane_traseu_inainte' and g.tgenabled <> 'D'
+  ) then
+    raise exception '0200: lipsește plafonul șabloanelor de traseu (sabloane_traseu_inainte).';
   end if;
 
   if exists (
@@ -1157,12 +1446,20 @@ begin
     raise exception '0200: lipsește unicitatea pe (vehicul, zi).';
   end if;
 
+  if not exists (
+    select 1 from pg_catalog.pg_indexes
+     where schemaname = 'public' and tablename = 'trip_sheets' and indexname = 'ts_sofer_interval_gist'
+  ) then
+    raise exception '0200: lipsește indexul de suprapunere pe șofer (ts_sofer_interval_gist).';
+  end if;
+
   select string_agg(p.proname, ', ') into v_lipsa
     from pg_catalog.pg_proc p
     join pg_catalog.pg_namespace s on s.oid = p.pronamespace
    where s.nspname = 'internal'
      and p.proname in ('foi_parcurs_inainte', 'foi_parcurs_numerotare', 'alimentari_inainte',
-                       'curse_inainte', 'curse_dupa', 'aloca_numar_foaie')
+                       'curse_inainte', 'curse_dupa', 'aloca_numar_foaie',
+                       'sabloane_traseu_inainte', 'foi_parcurs_anuleaza_in_registru')
      and not (coalesce(p.proconfig, '{}') @> array['search_path=""']);
   if v_lipsa is not null then
     raise exception '0200: funcții fără search_path gol: %', v_lipsa;
@@ -1197,3 +1494,19 @@ commit;
 -- * `to_jsonb(new) - c_*` compară TOT rândul, inclusiv numărul și
 --   instantaneul. Numerotarea e trigger separat (`foi_parcurs_numerotare`),
 --   care rulează DUPĂ gărzi (ordine alfabetică), deci nu se lovește de ele.
+-- * §E3, de ce ciornele nu intră în suprapunere: o ciornă e lucru în curs, nu
+--   o declarație. Dacă ar intra, o ciornă uitată pe altă mașină ar opri ziua
+--   reală, iar de la §E4 ciorna numerotată nici nu se mai poate șterge de
+--   șofer. Două ciorne suprapuse se pot scrie amândouă; prima trimisă
+--   câștigă. Foaia respinsă nu intră nici ea, dar redeschisă și retrimisă trece
+--   din nou prin poarta trimiterii.
+-- * §E4, numerele care se consumă fără document: niciunul pe drumurile
+--   normale. Numărul se alocă o dată (doar dacă e null), retragerea și
+--   retrimiterea îl păstrează, iar o trimitere căzută mai târziu în aceeași
+--   tranzacție derulează și contorul (`document_sequences` e o tabelă, nu o
+--   secvență). Golurile rămase sunt doar cele explicate: foaia anulată sau
+--   stornată, cu rândul din registru anulat, și numerele scrise de mână înainte
+--   de 0200, peste care `aloca_numar_foaie` sare.
+-- * Plafoanele (§E1) nu limitează rândurile ȘTERSE: ștergerea și readăugarea
+--   în buclă cresc tabela și jurnalul de audit liniar, ca orice scriere. Asta e
+--   treaba limitării de cereri, nu a schemei.
