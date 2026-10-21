@@ -17,18 +17,23 @@ cai:
   - "tests/rls/proba-flota-soferi.sql"
 tabele: [driver_licenses, trip_sheets, business_trips, expirables, occupational_health_exams]
 permisiuni:
-  [driver_licenses:read, driver_licenses:create, driver_licenses:update, trip_sheets:update]
+  [
+    driver_licenses:read,
+    driver_licenses:create,
+    driver_licenses:update,
+    trip_sheets:update,
+    per_diem:read,
+  ]
 feature: fleet
 capcane: [17, 19, 26]
-scris_pe: 30aafa57a92e24b36ffc68194ee0fd7ef00ed90b
+scris_pe: b8fdfaeefdcd1abc6ab449bf02e078fe6b923387
 scris_la: 2026-10-21
 tags: [modul, operations, hr]
 ---
 
 # Flotă — șoferii, permisele și verificările încrucișate
 
-Extrasă din `[[modul/flota]]`. Migrarea: `0204_flota_soferi.sql` (planul o numea 0178;
-numerele intermediare s-au ocupat). Regula de fond: **avertizează, nu blochează** —
+Extrasă din `[[modul/flota]]`. Migrarea: `0204_flota_soferi.sql` (planul o numea 0178). Regula de fond: **avertizează, nu blochează** —
 permisul expirat, avizul lipsă, concediul sau contractul încetat nu refuză nicio foaie
 și nicio predare.
 
@@ -44,8 +49,8 @@ permisul expirat, avizul lipsă, concediul sau contractul încetat nu refuză ni
 
 Cheie proprie, nu `vehicles:*`: decizia 3 a planului dă HR-ului permisele și avizele,
 nu mașinile și nici foile (proba (10): `hr` vede zero vehicule). Nicio cheie `delete`:
-ștergerea e logică, prin `update`. Politicile trec prin `app.ssm_acces` (accesul uniform
-pe angajat din 0011). `minScope` e `own` în acțiuni: judecă baza, pe angajat.
+ștergerea e logică, prin `update`. Politicile trec prin `app.ssm_acces` (0011). `minScope`
+e `own` în acțiuni: judecă baza, pe angajat.
 
 ## Ce refuză baza
 
@@ -65,19 +70,17 @@ Scadența intră în `expirables` (`entity_type = 'driver_license'`, responsabil
 cu ramură proprie în `app.poate_vedea_expirabil`. Rezumatul zilnic al flotei rămâne pe
 `vehicle_document` (lista albă din 0201 nu s-a lărgit).
 
-**Funcția are DOUĂ rescrieri paralele pe ramuri diferite.** 0204 o rescrie de la 0011 și
-adaugă `driver_license`; traseul F7 (service, migrarea 0203, ramura `lucru/flota-continuare`) o
-rescrie tot de la 0011 și adaugă `vehicle_service`. 0204 rulează după 0203, deci forma de aici poartă
-AMBELE ramuri (`vehicle_service` e inertă fără 0203), iar blocul de verificare și proba
-(27) o păzesc: fără ea, scadențele de service ar fi dispărut tăcut din lista de
-conformitate. Orice `entity_type` nou pornește de la forma din 0204.
+**`app.poate_vedea_expirabil` are DOUĂ rescrieri paralele.** 0204 o rescrie de la 0011 și
+adaugă `driver_license`; traseul F7 (service, 0203) o rescrie tot de la 0011 și adaugă
+`vehicle_service`. 0204 rulează după 0203, deci forma de aici poartă AMBELE ramuri, iar blocul
+de verificare și proba (27) o păzesc: fără ea, scadențele de service ar fi dispărut tăcut din
+lista de conformitate. Orice `entity_type` nou pornește de la forma din 0204.
 
 ## Avizul medical — `app.stare_aviz_sofer` (SECURITY DEFINER, art. 9 GDPR)
 
 Funcția rulează cu drepturile bazei, deci **judecă singură cine află ce**. Fără asta,
 oricine vede foile șoferului ar fi citit starea examenelor medicale ocolind RLS-ul din
-`occupational_health_exams` (două runde de revizuire de securitate pe 0204; reparat înainte
-de aplicare, migrarea editată pe loc).
+`occupational_health_exams` (reparat în 0204 înainte de aplicare, editată pe loc).
 
 Regula (decizia lui Miro, 12 oct): **fără acces SSM pe fișa șoferului, nu primești NIMIC
 derivat din aviz** — nici `apt`, nici un semnal generic de tipul „de verificat”, fiindcă și
@@ -95,8 +98,7 @@ acela dezvăluie că avizul NU e valabil. Poarta stă ÎNAINTEA citirii și acop
   `PermisSofer` nu scrie rândul de aviz.
 
 Proba retrage managerului `ssm:read` printr-o suprascriere pe organizație (`role_permissions`,
-scope `none`), apoi o șterge și verifică seed-ul — nu deduce din seed (memoria „sonda
-empirică”). Mai verifică ramura parcului (`vehicles:update = all` fără `ssm:read`).
+scope `none`), o șterge și verifică seed-ul, apoi ramura parcului (`vehicles:update = all`).
 
 ## Faptele verificărilor — `public.verificari_soferi`
 
@@ -105,24 +107,29 @@ id-uri). Vizibil = el însuși, cine îi vede foile, cine îi vede permisul, cin
 administrează parcul (`internal.poate_vedea_sofer`). Coloanele: absență aprobată în zi
 (**doar `absent`**: nici `medical`, nici tipul — CM-ul e dată de sănătate, iar funcția
 DEFINER ar fi sărit peste RLS-ul din `leave_requests`), contract încetat, permis, aviz (vezi
-mai sus), delegație (`null` cu diurna oprită). Avertismentul din UI zice „are o absență
-aprobată”, niciodată „concediu medical”.
+mai sus), delegație (vezi mai jos). Avertismentul din UI zice „are o absență aprobată”,
+niciodată „concediu medical”.
 
 **Câmpurile permisului** (`permis_exista`, `permis_categorii`, `permis_expira_la`) ies doar
 pentru cine ar trece `driver_licenses_select` pe acel angajat (`app.ssm_acces(org,
 'driver_licenses', 'read', angajat)` sau platforma): HR, administratorul, managerul echipei,
 omul însuși. Cine vede șoferul doar prin foile lui (de pildă un manager căruia i s-a retras
 `driver_licenses:read`) primește `null` la toate trei — „nu se știe”, **nu** „fără permis”
-(`false` + categorii goale ar fi tot o informație). Fără poarta asta funcția DEFINER ocolea
-RLS-ul de pe `driver_licenses`. Absența, contractul încetat și delegația rămân pentru toți
-cei vizibili.
+(`false` + categorii goale ar fi tot o informație). Absența și contractul încetat rămân
+pentru toți cei vizibili (decizia lui Miro).
 
-**Generatorul de tipuri le dă NON-null** (nu poate deduce nullabilitatea unui `returns
-table`), deși `aviz` și câmpurile permisului pot fi `null`; `verificariSoferi` le copiază în
-`FapteSofer`, care le lărgește la tipul adevărat (`null` = „fără semnal” în
-`avertismenteSofer`: nici „fără permis”, nici „categorie greșită”). Verdictul (ce mesaj se arată) e în `src/domain/fleet/soferi.ts`, testat în
-vitest: categoria cerută de vehicul (masă, locuri), localitatea firmei (`organizations.oras`,
-potrivire fără diacritice), etichetele scurte.
+**Delegația** iese exactă doar pentru cine ar trece `business_trips_select` pe acel angajat
+(membru al firmei și `app.poate_accesa_deplasare(org, angajat, 'read')`): administratorul,
+managerul cu `per_diem:read = team`, omul însuși. `hr` (fără `per_diem:*`), un manager fără
+`per_diem:read` și platforma primesc `null`, ca la diurna oprită: domeniul nu judecă și nu scrie
+„fără delegație”.
+
+**Generatorul de tipuri le dă NON-null** (nu deduce nullabilitatea unui `returns table`), deși
+`aviz`, delegația și câmpurile permisului pot fi `null`; `verificariSoferi` le copiază în
+`FapteSofer`, care le lărgește la tipul adevărat (`null` = „fără semnal” în `avertismenteSofer`).
+Verdictul (ce mesaj se arată) e în `src/domain/fleet/soferi.ts`, testat în vitest: categoria
+cerută de vehicul (masă, locuri), localitatea firmei (`organizations.oras`, potrivire fără
+diacritice), etichetele scurte.
 
 ## Unde apar
 
@@ -145,4 +152,4 @@ Diurna: `deplasareNouaSchema` primește `vehicle_id`, doar pe `auto_serviciu`/`m
 (oglinda lui `business_trips_vehicul_ck`). Corectura (`actualizeazaDeplasare`) nu-l
 șterge când formularul nu-l are; îl golește doar când transportul nu mai e cu mașina.
 
-Probă: `tests/rls/proba-flota-soferi.sql` ((21)–(26) și (28)–(35) sunt cele de securitate: aviz `null` fără acces SSM, permis `null` fără `driver_licenses:read`, rolurile cu acces primesc exact; (27) păzește ramura `vehicle_service`) și izolarea `(l)` „permisele șoferilor”.
+Probă: `tests/rls/proba-flota-soferi.sql` ((21)–(26) și (28)–(37) sunt cele de securitate: aviz `null` fără acces SSM, permis `null` fără `driver_licenses:read`, delegație `null` fără citirea deplasărilor, rolurile cu acces primesc exact; (27) păzește ramura `vehicle_service`) și izolarea `(l)` „permisele șoferilor”.
