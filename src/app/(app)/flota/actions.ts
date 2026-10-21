@@ -1156,8 +1156,8 @@ export const confirmaAnomalie = createAction({
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     // A vedea o anomalie și a o confirma sunt două drepturi diferite:
-    // `anomalii_select` (rescrisă în 0018) cere doar `app.poate_vedea_vehicul`,
-    // deci `vehicles:read`, pe când `anomalii_update` cere
+    // `anomalii_select` (rescrisă în 0199) cere doar vederea foii pe care s-a
+    // produs (sau a vehiculului, pe anomalia fără foaie), pe când `anomalii_update` cere
     // `app.can(org,'vehicles','update','team')`. Cine o vede și n-o poate
     // confirma e respins de `USING` — zero rânduri, fără eroare — iar lista ar
     // rămâne cu anomalia neconfirmată după un mesaj de reușită.

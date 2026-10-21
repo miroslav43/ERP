@@ -119,10 +119,14 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   // apese butonul și să fie respins tăcut, cu zero rânduri și mesaj de reușită.
   const poateAdministra = can(permisiuni, "vehicles:update", "all");
   // Filele Service și Costuri (0203): planurile, intervențiile și cheltuielile se
-  // citesc cu `vehicles:read >= team` ȘI vehiculul vizibil (`vsp_select` etc.).
-  // Șoferul (`own`) nu le vede, deci nici fila nu i se oferă; un `?fila=` scris
-  // de mână pe un cont fără drept cade pe fișa obișnuită, nu pe un ecran gol.
-  const poateVedeaService = can(permisiuni, "vehicles:read", "team");
+  // citesc cu `vehicles:read >= team` ȘI vehiculul echipei, FĂRĂ pool
+  // (`vsp_select` etc.). Șoferul (`own`) nu le vede, iar managerul nu le vede pe
+  // mașina comună, deci nici fila nu li se oferă; un `?fila=` scris de mână pe
+  // un cont fără drept cade pe fișa obișnuită, nu pe un ecran gol. (Un pool cu
+  // șofer alocat din echipă rămâne fără file sub `team`: restrictiv, nu gol.)
+  const poateVedeaService =
+    can(permisiuni, "vehicles:read", "all") ||
+    (can(permisiuni, "vehicles:read", "team") && !vehicul.pool);
   const filtreFila = filtreDinUrl(filtreServiceSchema, await searchParams);
   const fila = poateVedeaService ? filtreFila.fila : null;
 

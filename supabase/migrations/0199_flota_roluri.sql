@@ -30,12 +30,16 @@
 --    împreună cu DOCUMENTELE lor (ITP, RCA, rovinietă): sunt actele de bord ale
 --    mașinii pe care șoferul o poate lua, deci decizie asumată. ANOMALIILE de
 --    kilometraj NU urmează pool-ul: o anomalie e o suspiciune pe foaia unui
---    om anume. Se văd după vehicul fără ramura de pool SAU după foaia pe care
---    s-au produs (revizia de securitate).
+--    om anume. O anomalie de pe o foaie se vede după FOAIE; doar cea fără foaie
+--    se vede după vehicul, fără ramura de pool; administratorul parcului le
+--    vede pe toate (revizia de securitate; sweep-ul A4 a scos ramura de
+--    vehicul de pe anomaliile cu foaie).
 --    `app.poate_vedea_vehicul(org, șofer)` primește geamăna cu trei argumente
 --    (`…, pool`) pentru politica de pe `vehicles`, și
---    `app.poate_vedea_vehicul_dupa_id(org, vehicul)` pentru tabelele copil
---    (documente, anomalii), care ar fi făcut altfel două căutări pe vehicul.
+--    `app.poate_vedea_vehicul_dupa_id(org, vehicul)` pentru tabelele copil care
+--    URMEAZĂ pool-ul (documentele), care ar fi făcut altfel două căutări pe
+--    vehicul. Ce nu urmează pool-ul (anomaliile, costurile din 0203) cheamă
+--    forma cu trei argumente cu `false`.
 --    Forma cu două argumente rămâne neschimbată: o mai folosește
 --    `alocari_select` (0173), pe șoferul ALOCĂRII, unde pool-ul nu contează.
 --
@@ -224,7 +228,7 @@ as $$
 $$;
 
 comment on function app.poate_vedea_vehicul_dupa_id(uuid, uuid) is
-  'Ca app.poate_vedea_vehicul(org, șofer, pool), citit după id-ul vehiculului — pentru tabelele copil (documente, anomalii). O singură căutare pe vehicul (0199).';
+  'Ca app.poate_vedea_vehicul(org, șofer, pool), citit după id-ul vehiculului — pentru tabelele copil care urmează pool-ul (documentele). O singură căutare pe vehicul (0199).';
 
 revoke all on function app.poate_vedea_vehicul(uuid, uuid, boolean) from public, anon;
 revoke all on function app.poate_vedea_vehicul_dupa_id(uuid, uuid) from public, anon;
@@ -257,9 +261,18 @@ create policy vdoc_select on public.vehicle_documents
     )
   );
 
--- Anomaliile: vehiculul fără ramura de pool (exact vizibilitatea dinainte de
--- 0199) SAU foaia pe care s-a produs anomalia. Pe un pool, șoferul își vede
--- anomalia de pe foaia proprie, nu și pe ale colegilor.
+-- Anomaliile: o anomalie de pe o foaie e a ȘOFERULUI FOII, deci o vede cine
+-- vede foaia. Pe vehicul (fără ramura de pool) se judecă doar anomalia fără
+-- foaie, plus administratorul parcului (`vehicles:read = all`), care le vede pe
+-- toate. Pe un pool, șoferul își vede anomalia de pe foaia proprie, nu și pe
+-- ale colegilor.
+--
+-- (sweep-ul A4, matricea `proba-flota-matrice-roluri.sql`) Forma dintâi lăsa
+-- ramura de vehicul și pe anomaliile CU foaie: scrisă când doar `all` ajungea
+-- aici, la `own` a devenit „mașina mea de azi”. E1 primea mașina de la E2 și
+-- vedea, odată cu ea, anomalia de pe foaia veche a lui E2 — suspiciunea pe
+-- foaia unui coleg. Managerul nu pierde nimic: foile echipei le vede prin
+-- `poate_vedea_foaie`.
 drop policy if exists anomalii_select on public.odometer_anomalies;
 create policy anomalii_select on public.odometer_anomalies
   for select to authenticated
@@ -269,9 +282,11 @@ create policy anomalii_select on public.odometer_anomalies
       organization_id = any ((select app.current_org_ids())::uuid[])
       and app.feature_on(organization_id, 'fleet')
       and (
-        app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false)
+        app.has_permission(organization_id, 'vehicles', 'read') = 'all'
         or (trip_sheet_id is not null
             and app.poate_vedea_foaie(organization_id, app.foaie_sofer(trip_sheet_id)))
+        or (trip_sheet_id is null
+            and app.poate_vedea_vehicul(organization_id, app.vehicul_sofer(vehicle_id), false))
       )
     )
   );
