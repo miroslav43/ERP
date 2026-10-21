@@ -134,24 +134,25 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
   const fila = poateVedeaService ? filtreFila.fila : null;
 
   // Selectoarele (angajați, departamente) doar pentru cine poate scrie cu ele.
-  const [documente, nomenclator, alocari, angajati, departamente, pragFirma, pvuri] = await Promise.all([
-    documenteleVehiculului(vehicul.id),
-    // Nomenclatorul ÎNTREG al firmei (0202): un document pe un tip retras între
-    // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
-    nomenclatorDocumente(tenant.organizationId),
-    alocarileVehiculului(tenant.organizationId, vehicul.id),
-    poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
-    // Și pentru cine doar citește: departamentul vehiculului se AFIȘA nicăieri.
-    poateAdministra || vehicul.department_id !== null
-      ? departamentePentruVehicul(tenant.organizationId)
-      : Promise.resolve([]),
-    // Pragul de salt al firmei (0201), afișat când vehiculul n-are unul propriu.
-    // Prin funcția îngustă, nu prin `fleet_settings`: tabela e închisă celor
-    // care nu administrează parcul (managerul cu `team` deschide această fișă).
-    vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
-    // 0215 (F12c): PV-urile vehiculului, grupate apoi pe capetele alocărilor.
-    pvurileVehiculului(tenant.organizationId, vehicul.id),
-  ]);
+  const [documente, nomenclator, alocari, angajati, departamente, pragFirma, pvuri] =
+    await Promise.all([
+      documenteleVehiculului(vehicul.id),
+      // Nomenclatorul ÎNTREG al firmei (0202): un document pe un tip retras între
+      // timp rămâne pe fișă; selectoarele primesc doar tipurile active (`tipuri`).
+      nomenclatorDocumente(tenant.organizationId),
+      alocarileVehiculului(tenant.organizationId, vehicul.id),
+      poateAdministra ? angajatiPentruAlocare(tenant.organizationId) : Promise.resolve([]),
+      // Și pentru cine doar citește: departamentul vehiculului se AFIȘA nicăieri.
+      poateAdministra || vehicul.department_id !== null
+        ? departamentePentruVehicul(tenant.organizationId)
+        : Promise.resolve([]),
+      // Pragul de salt al firmei (0201), afișat când vehiculul n-are unul propriu.
+      // Prin funcția îngustă, nu prin `fleet_settings`: tabela e închisă celor
+      // care nu administrează parcul (managerul cu `team` deschide această fișă).
+      vehicul.prag_salt_km === null ? pragSaltVehicul(vehicul.id) : Promise.resolve(null),
+      // 0215 (F12c): PV-urile vehiculului, grupate apoi pe capetele alocărilor.
+      pvurileVehiculului(tenant.organizationId, vehicul.id),
+    ]);
   const departamentVehicul =
     vehicul.department_id === null
       ? null
@@ -263,7 +264,11 @@ export default async function PaginaVehicul({ params, searchParams }: Proprietat
       antet: "Proces-verbal",
       peTelefon: "meta",
       celula: (a) => (
-        <CelulaPv vehiculId={vehicul.id} capete={capete.get(a.id)} poateAdministra={poateAdministra} />
+        <CelulaPv
+          vehiculId={vehicul.id}
+          capete={capete.get(a.id)}
+          poateAdministra={poateAdministra}
+        />
       ),
     },
     ...(poateAdministra

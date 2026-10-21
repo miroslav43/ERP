@@ -179,15 +179,15 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
                         {v.marca} {v.model} · {v.km_curent.toLocaleString("ro-RO")} km
                       </p>
                       {poateVedeaMasina ? (
-                      <p className="text-muted-foreground text-nota mt-0.5">
-                        {semafor.tipId === null
-                          ? "Niciun document înregistrat"
-                          : `${denumireTip.get(semafor.tipId) ?? "Document"}${
-                              semafor.expiraLa === null
-                                ? ""
-                                : `, expiră la ${formatDate(semafor.expiraLa)}`
-                            }`}
-                      </p>
+                        <p className="text-muted-foreground text-nota mt-0.5">
+                          {semafor.tipId === null
+                            ? "Niciun document înregistrat"
+                            : `${denumireTip.get(semafor.tipId) ?? "Document"}${
+                                semafor.expiraLa === null
+                                  ? ""
+                                  : `, expiră la ${formatDate(semafor.expiraLa)}`
+                              }`}
+                        </p>
                       ) : (
                         <p className="text-muted-foreground text-nota mt-0.5">
                           Termenele documentelor le urmărește responsabilul de flotă.
@@ -284,7 +284,9 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
                     {p.anulat_la !== null ? (
                       <Badge ton="neutru">Anulat</Badge>
                     ) : confirmatLa !== null ? (
-                      <Badge ton="succes">Confirmat la {formatDateTime(new Date(confirmatLa))}</Badge>
+                      <Badge ton="succes">
+                        Confirmat la {formatDateTime(new Date(confirmatLa))}
+                      </Badge>
                     ) : (
                       <ConfirmaPv
                         pvId={p.id}
@@ -303,64 +305,64 @@ export default async function PaginaMasinaMea({ searchParams }: ProprietatiPagin
       {/* ── SFÂRȘIT BLOC: procesele-verbale de predare ── */}
 
       {foi === null ? null : (
-      <section aria-labelledby="titlu-foi" className="space-y-3">
-        <h2 id="titlu-foi" className="text-sectiune font-semibold">
-          Foile mele
-        </h2>
-        {foi.randuri.length === 0 ? (
-          <StareGoala
-            fel="initiala"
-            pictograma={ClipboardList}
-            titlu="Nicio foaie de parcurs"
-            descriere="Foile pe care le întocmiți apar aici, cu kilometrii și starea aprobării."
-            {...(poateCrea && toateMasinile.length > 0
-              ? { actiune: { eticheta: "Foaie nouă", href: "/portal/masina-mea?foaie=noua" } }
-              : {})}
-          />
-        ) : (
-          <>
-            <ul className="space-y-2">
-              {foi.randuri.map((f) => (
-                <li key={f.id}>
-                  <Link
-                    href={`/portal/masina-mea/foi/${f.id}`}
-                    className="bg-surface border-border hover:border-ring rounded-panou block border p-4 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-foreground text-corp font-medium">
-                          {formatDateTime(new Date(f.plecare_la))}
-                        </p>
-                        <p className="text-muted-foreground text-corp mt-0.5">
-                          {numarVehicul.get(f.vehicle_id) ?? "Vehicul indisponibil"}
-                          {f.km_parcursi === null
-                            ? " · în curs"
-                            : ` · ${f.km_parcursi.toLocaleString("ro-RO")} km`}
-                        </p>
-                        {f.traseu === null ? null : (
-                          <p className="text-muted-foreground text-nota mt-0.5 truncate">
-                            {f.traseu}
-                          </p>
-                        )}
-                      </div>
-                      <Badge className="shrink-0" ton={TONURI_STATUS_FOAIE[f.status]}>
-                        {ETICHETE_STATUS_FOAIE[f.status]}
-                      </Badge>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <Paginare
-              afisate={foi.randuri.length}
-              total={foi.total}
-              cursorUrmator={foi.urmatorulCursor}
-              limita={pagina.limita}
-              construiesteHref={({ cursor, limita }) => adresa(cursor, limita)}
+        <section aria-labelledby="titlu-foi" className="space-y-3">
+          <h2 id="titlu-foi" className="text-sectiune font-semibold">
+            Foile mele
+          </h2>
+          {foi.randuri.length === 0 ? (
+            <StareGoala
+              fel="initiala"
+              pictograma={ClipboardList}
+              titlu="Nicio foaie de parcurs"
+              descriere="Foile pe care le întocmiți apar aici, cu kilometrii și starea aprobării."
+              {...(poateCrea && toateMasinile.length > 0
+                ? { actiune: { eticheta: "Foaie nouă", href: "/portal/masina-mea?foaie=noua" } }
+                : {})}
             />
-          </>
-        )}
-      </section>
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {foi.randuri.map((f) => (
+                  <li key={f.id}>
+                    <Link
+                      href={`/portal/masina-mea/foi/${f.id}`}
+                      className="bg-surface border-border hover:border-ring rounded-panou block border p-4 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-foreground text-corp font-medium">
+                            {formatDateTime(new Date(f.plecare_la))}
+                          </p>
+                          <p className="text-muted-foreground text-corp mt-0.5">
+                            {numarVehicul.get(f.vehicle_id) ?? "Vehicul indisponibil"}
+                            {f.km_parcursi === null
+                              ? " · în curs"
+                              : ` · ${f.km_parcursi.toLocaleString("ro-RO")} km`}
+                          </p>
+                          {f.traseu === null ? null : (
+                            <p className="text-muted-foreground text-nota mt-0.5 truncate">
+                              {f.traseu}
+                            </p>
+                          )}
+                        </div>
+                        <Badge className="shrink-0" ton={TONURI_STATUS_FOAIE[f.status]}>
+                          {ETICHETE_STATUS_FOAIE[f.status]}
+                        </Badge>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Paginare
+                afisate={foi.randuri.length}
+                total={foi.total}
+                cursorUrmator={foi.urmatorulCursor}
+                limita={pagina.limita}
+                construiesteHref={({ cursor, limita }) => adresa(cursor, limita)}
+              />
+            </>
+          )}
+        </section>
       )}
     </div>
   );

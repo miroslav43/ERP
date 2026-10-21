@@ -91,7 +91,13 @@ function semnaturi(cursor: Cursor, context: ContextPdf, model: ModelPv): void {
     const x = MARGINE + i * latime;
     let y = yStart;
     const scrie = (text: string, marime: number, aldin: boolean, culoare = NEGRU): void => {
-      pagina.drawText(text, { x, y, size: marime, font: aldin ? context.fonturi.aldin : context.fonturi.normal, color: culoare });
+      pagina.drawText(text, {
+        x,
+        y,
+        size: marime,
+        font: aldin ? context.fonturi.aldin : context.fonturi.normal,
+        color: culoare,
+      });
     };
     scrie(s.rol, 9, true);
     y -= 13;

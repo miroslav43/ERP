@@ -124,13 +124,19 @@ describe("hrefPvNou", () => {
 
 describe("eAlocareDinIstoric și descriereParti", () => {
   it("recunoaște alocarea din backfill-ul 0173", () => {
-    expect(eAlocareDinIstoric("Alocare preluată din fișa vehiculului la introducerea istoricului (0173).")).toBe(true);
+    expect(
+      eAlocareDinIstoric(
+        "Alocare preluată din fișa vehiculului la introducerea istoricului (0173).",
+      ),
+    ).toBe(true);
     expect(eAlocareDinIstoric(null)).toBe(false);
     expect(eAlocareDinIstoric("Predare obișnuită")).toBe(false);
   });
 
   it("descrie părțile după capete", () => {
-    expect(descriereParti("Popescu Ana", "Ionescu Bogdan")).toBe("Transfer de la Popescu Ana către Ionescu Bogdan");
+    expect(descriereParti("Popescu Ana", "Ionescu Bogdan")).toBe(
+      "Transfer de la Popescu Ana către Ionescu Bogdan",
+    );
     expect(descriereParti(null, "Ionescu Bogdan")).toBe("Predare de la firmă către Ionescu Bogdan");
     expect(descriereParti("Popescu Ana", null)).toBe("Restituire de la Popescu Ana către firmă");
   });
